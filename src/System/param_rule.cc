@@ -20,6 +20,17 @@ namespace Loci {
     return rule(rp) ;
   }
   
+  std::string get_complete_name_base(variable v) {
+    std::string name ;
+    std::vector<std::string> ns_vec = v.get_info().get_namespace() ;
+    for(unsigned int i = 0; i < ns_vec.size(); ++i) {
+      name.append(ns_vec[i]) ;
+      name.append("@") ;
+    }
+    name.append(v.get_info().name) ;
+    return name ;
+  }
+
   std::string get_complete_name(variable v) {
     std::string name ;
     std::vector<std::string> prior_vec = v.get_info().priority  ;
@@ -68,6 +79,7 @@ namespace Loci {
     return name ; 
   }
   rule rename_rule(rule r, std::map<variable, variable> &vm) {
+
     std::vector<string> str_vec ;//This is to deal with the renaming
     //of other variables eg. W_f, f_W etc
     std::set<string> ren_tars ; // Create a set  of names of
@@ -246,7 +258,7 @@ namespace Loci {
         if(vint.size()) {
           target_args.push_back(vint) ;
           variable tmp = variable(*vsi) ;
-          mvarset[get_complete_name(tmp)] += *vsi ;
+          mvarset[get_complete_name_base(tmp)] += *vsi ;
           mruleset[tmp] += *rsi ;
         }
       }
@@ -375,7 +387,13 @@ namespace Loci {
                 variable var = variable(*tvsi) ;
                 std::vector<int> tvint = var.get_arg_list() ; 
                 vint = v.get_arg_list()  ;
-                vm[var] = v ;
+                variable v2 = v ;
+                if(var.get_info().priority.size() != 0) {
+                  variable::info vinfo = v.get_info() ;
+                  vinfo.priority = var.get_info().priority ;
+                  v2 = variable(vinfo) ;
+                }
+                vm[var] = v2 ;
                 std::vector<int>::const_iterator tvi = tvint.begin() ; 
                 for(std::vector<int>::const_iterator vi = vint.begin(); vi
                       != vint.end(), tvi != tvint.end(); ++vi, ++tvi) {
@@ -405,7 +423,6 @@ namespace Loci {
               rule_implP rp = r.get_rule_implP() ;
               if(!added_rules.inSet(rule(rp))) {
                 par_rdb.add_rule(rule(rp)) ;
-		//std::cout << "Adding rule " << rule(rp) << endl ;
                 added_rules += rule(rp) ;
               }
             }
