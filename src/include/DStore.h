@@ -632,7 +632,7 @@ namespace Loci {
    for(int i=0;i< num_intervals;i++) it[i] = usr_eset[i];
 
    typedef hdf5_schema_converter_traits<T> converter_traits; 
-   converter_traits::memento_type *data, *buf;
+   typename converter_traits::memento_type *data, *buf;
 
    dimension[0] = arraySize;
    H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
@@ -785,10 +785,10 @@ namespace Loci {
     }
 
     typedef hdf5_schema_converter_traits<T> converter_traits; 
-    converter_traits::memento_type *data, *buf;
+    typename converter_traits::memento_type *data, *buf;
 
- 	 data =  new typename converter_traits::memento_type[arraySize];
- 	 buf  =  new typename converter_traits::memento_type[maxStateSize];
+    data =  new typename converter_traits::memento_type[arraySize];
+    buf  =  new typename converter_traits::memento_type[maxStateSize];
 
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array

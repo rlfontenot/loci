@@ -78,6 +78,7 @@ namespace Loci {
     T *end(int indx) { return base_ptr[indx+1] ; }
     const T *begin(int indx) const  { return base_ptr[indx] ; }
     const T *end(int indx) const { return base_ptr[indx+1] ; }
+    int vec_size(int indx) const { return end(indx)-begin(indx) ; }
   } ;
   
   //***************************************************************************/
@@ -134,6 +135,12 @@ namespace Loci {
       return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; 
     }
     
+    T *begin(int indx) { return base_ptr[indx] ; }
+    T *end(int indx) { return base_ptr[indx+1] ; }
+    const T *begin(int indx) const  { return base_ptr[indx] ; }
+    const T *end(int indx) const { return base_ptr[indx+1] ; }
+    int vec_size(int indx) const { return end(indx)-begin(indx) ; }
+
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
     
@@ -213,7 +220,7 @@ namespace Loci {
 
     const T *begin(int indx) const  { return base_ptr[indx] ; }
     const T *end(int indx) const { return base_ptr[indx+1] ; }
-
+    int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
 

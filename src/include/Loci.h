@@ -69,8 +69,12 @@ using Loci::dstore ;
 using Loci::const_dstore ;
 
 #include <DStoreVec.h>
+//#include <DStoreMat.h>
 using Loci::dstoreVec;
 using Loci::const_dstoreVec;
+//using Loci::dstoreMat;
+//using Loci::const_dstoreMat;
+
 
 #include <DMultiStore.h>
 using Loci::dmultiStore;
@@ -108,6 +112,7 @@ using Loci::hdf5_schema_traits ;
 using Loci::hdf5_schema_converter_traits ;
 
 using Loci::vector3d ;
+using Loci::vector2d ;
 using Loci::norm ;
 using Loci::dot ;
 using Loci::cross ;

@@ -11,7 +11,7 @@
 #include <hdf5CC/H5cpp.h>
 
 namespace Loci {
-  enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, PATH, GLOBAL } ;
+  enum store_type { STORE, PARAMETER, MAP, CONSTRAINT } ;
 
   class Map ;
   class storeRep ;

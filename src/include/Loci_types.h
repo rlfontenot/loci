@@ -234,6 +234,160 @@ namespace Loci {
       }
     };
   
+  //---------------------vector2d------------------//
+  template <class T> 
+    struct vector2d {
+      T x,y ;
+      vector2d() {} 
+      vector2d(T xx,T yy) : x(xx),y(yy) {}
+      vector2d(const vector2d &v) {x=v.x;y=v.y;}
+    } ;
+  
+  template <class T> inline std::ostream & operator<<(std::ostream &s, const vector2d<T> &v)
+    {
+      s << v.x << ' ' << v.y << ' ' ;
+      return s ;
+    }
+
+  template <class T> inline std::istream &operator>>(std::istream &s, vector2d<T> &v)
+    {
+      s >> v.x >> v.y ;
+      return s ;
+    }
+
+  template <class T> inline T dot(const vector2d<T> &v1, const vector2d<T> &v2) {
+    return v1.x*v2.x + v1.y*v2.y ;
+  }
+
+  template <class T> inline T dot(const vector2d<T> &v1, const T ra2[]) {
+    return v1.x*ra2[0] + v1.y*ra2[1] ;
+  }
+
+  template <class T> inline T norm(const vector2d<T> &v) {
+    return sqrt(v.x*v.x+v.y*v.y) ;
+  }
+
+  template <class T> inline T dot(const T ra1[], const vector2d<T> &v2) {
+    return ra1[0]*v2.x + ra1[1]*v2.y ;
+  }
+
+  template<class T> inline T cross(const vector2d<T> &v1, const vector2d<T> &v2) {
+    return v1.x*v2.y-v1.y*v2.x ;
+  }
+
+  template<class T> inline T cross(const vector2d<T> &v1, const T ra2[]) {
+    return v1.x*ra2[1]-v1.y*ra2[0] ;
+  }
+
+  template<class T> inline T cross(const T ra1[], const vector2d<T> &v2) {
+    return ra1[0]*v2.y-ra1[1]*v2.x ;
+  }
+
+  template<class T> inline vector2d<T> &operator*=(vector2d<T> &target, float val) {
+    target.x *= val ;
+    target.y *= val ;
+    return target ;
+  }
+
+  template<class T> inline vector2d<T> &operator/=(vector2d<T> &target, float val) {
+    target.x /= val ;
+    target.y /= val ;
+    return target ;
+  }
+
+  template<class T> inline vector2d<T> &operator*=(vector2d<T> &target, double val) {
+    target.x *= val ;
+    target.y *= val ;
+    return target ;
+  }
+
+  template<class T> inline vector2d<T> &operator/=(vector2d<T> &target, double val) {
+    target.x /= val ;
+    target.y /= val ;
+    return target ;
+  }
+
+  template<class T> inline vector2d<T> &operator*=(vector2d<T> &target, long double val) {
+    target.x *= val ;
+    target.y *= val ;
+    return target ;
+  }
+
+  template<class T> inline vector2d<T> &operator/=(vector2d<T> &target, long double val) {
+    target.x /= val ;
+    target.y /= val ;
+    return target ;
+  }
+
+  template<class T> inline vector2d<T> operator+=(vector2d<T> &target, const vector2d<T> &val) {
+    target.x += val.x ;
+    target.y += val.y ;
+    return target ;
+  }
+
+  template<class T> inline vector2d<T> operator-=(vector2d<T> &target, const vector2d<T> &val) {
+    target.x -= val.x ;
+    target.y -= val.y ;
+    return target ;
+  }
+
+  template<class T> inline vector2d<T> operator+(const vector2d<T> &v1, const vector2d<T> &v2) {
+    return vector2d<T>(v1.x+v2.x,v1.y+v2.y) ;
+  }
+
+  template<class T> inline vector2d<T> operator-(const vector2d<T> &v1, const vector2d<T> &v2) {
+    return vector2d<T>(v1.x-v2.x,v1.y-v2.y) ;
+  }
+
+  template<class T> inline vector2d<T> operator*(const vector2d<T> &v1, float r2) {
+    return vector2d<T>(v1.x*r2,v1.y*r2) ;
+  }
+
+  template<class T> inline vector2d<T> operator*(float r1, const vector2d<T> &v2) {
+    return vector2d<T>(v2.x*r1,v2.y*r1) ;
+  }
+
+  template<class T> inline vector2d<T> operator/(const vector2d<T> &v1, float r2) {
+    return vector2d<T>(v1.x/r2,v1.y/r2) ;
+  }
+
+  template<class T> inline vector2d<T> operator*(const vector2d<T> &v1, double r2) {
+    return vector2d<T>(v1.x*r2,v1.y*r2) ;
+  }
+
+  template<class T> inline vector2d<T> operator*(double r1, const vector2d<T> &v2) {
+    return vector2d<T>(v2.x*r1,v2.y*r1) ;
+  }
+
+  template<class T> inline vector2d<T> operator/(const vector2d<T> &v1, double r2) {
+    return vector2d<T>(v1.x/r2,v1.y/r2) ;
+  }
+
+  template<class T> inline vector2d<T> operator*(const vector2d<T> &v1, long double r2) {
+    return vector2d<T>(v1.x*r2,v1.y*r2) ;
+  }
+
+  template<class T> inline vector2d<T> operator*(long double r1, const vector2d<T> &v2) {
+    return vector2d<T>(v2.x*r1,v2.y*r1) ;
+  }
+
+  template<class T> inline vector2d<T> operator/(const vector2d<T> &v1, long double r2) {
+    return vector2d<T>(v1.x/r2,v1.y/r2) ;
+  }
+
+  template <class T>
+    class hdf5_schema_traits< vector2d<T> > {
+    public:
+      typedef IDENTITY_CONVERTER Schema_Converter;
+      static H5::DataType get_type() {
+        hdf5_schema_traits<T> hdfT;
+        H5::CompType ctype(sizeof(vector2d<T>));
+        ctype.insertMember("x", HOFFSET(vector2d<T>,x), hdfT.get_type());
+        ctype.insertMember("y", HOFFSET(vector2d<T>,y), hdfT.get_type());
+        return ctype;
+      }
+    };
+  
   //---------------------Array----------------------//
   template <class T,unsigned int n> class Array {
     T x[n] ;

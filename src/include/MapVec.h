@@ -353,7 +353,13 @@ namespace Loci {
     
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
 
-    const entitySet domain() const { return Rep()->domain() ; }
+    entitySet domain() const { return Rep()->domain() ; }
+    entitySet image(const entitySet &dom) const {
+      return MapRepP(Rep())->image(dom) ;
+    }
+    std::pair<entitySet,entitySet> preimage(const entitySet &codomain) const {
+      return MapRepP(Rep())->preimage(codomain) ;
+    }
     //    operator storeRepP() { return Rep() ; }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
 
@@ -409,7 +415,13 @@ namespace Loci {
     const_MapVec & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     const entitySet domain() const { return Rep()->domain() ; }
-    //    operator storeRepP() { return Rep() ; }
+    entitySet image(const entitySet &dom) const {
+      return MapRepP(Rep())->image(dom) ;
+    }
+    std::pair<entitySet,entitySet> preimage(const entitySet &codomain) const {
+      return MapRepP(Rep())->preimage(codomain) ;
+    }
+
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
 
     const VEC &const_elem(int indx)  const {

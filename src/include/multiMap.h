@@ -52,6 +52,7 @@ namespace Loci {
     int *end(int indx) { return base_ptr[indx+1] ; }
     const int *begin(int indx) const { return base_ptr[indx] ; }
     const int *end(int indx) const { return base_ptr[indx+1] ; }
+    int vec_size(int indx) const { return end(indx)-begin(indx) ; }
   private:
     int* get_hdf5_data(H5::Group group,const char* datasetname) ;
     void put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const ;
@@ -107,6 +108,7 @@ namespace Loci {
     int *end(int indx) { return base_ptr[indx+1] ; }
     const int *begin(int indx) const { return base_ptr[indx] ; }
     const int *end(int indx) const { return base_ptr[indx+1] ; }
+    int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;

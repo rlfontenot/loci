@@ -137,6 +137,7 @@ namespace Loci {
     fact_data & get_fact_data(variable v) 
       { return fact_infov[get_fact_info(v).fact_info_ref] ; }
     void register_variable(variable v) ;
+    int maximum_allocated ;
   public:
 
     fact_db() ;
@@ -183,7 +184,11 @@ namespace Loci {
     void synonym_variable(variable v, variable synonym) ;
     void synonym_variable(std::string vname, std::string synonym)
       { synonym_variable(variable(vname),variable(synonym)) ; }
-    
+
+    entitySet get_allocation(int size) {
+      entitySet alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
+      maximum_allocated += size ;
+    }
     storeRepP get_variable(variable v) ;
     storeRepP get_variable(std::string vname)
       { return get_variable(variable(vname)) ; }

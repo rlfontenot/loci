@@ -722,7 +722,6 @@ template<unsigned int M> class dMapVec : public store_instance
 
      int indx = 0;
      for( ei = e.begin(); ei != e.end(); ++ei) {
-       array  = attrib_data[*ei];
        for( j = 0; j < M; j++) 
             buf[M*indx+j] =  attrib_data[*ei][j];
        indx++;

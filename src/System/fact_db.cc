@@ -28,7 +28,8 @@ namespace Loci {
     constraint UNIVERSE ;
     UNIVERSE = ~EMPTY ;
     create_fact("UNIVERSE",UNIVERSE) ;
-    distributed_info == 0 ;
+    distributed_info = 0 ;
+    maximum_allocated = 0 ;
   }
 
   fact_db::~fact_db() {}
@@ -89,11 +90,19 @@ namespace Loci {
   }
 
   void fact_db::create_fact(variable v, storeRepP st) {
+    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+      int max_val = st->domain().Max() ;
+      maximum_allocated = max(maximum_allocated,max_val+1) ;
+    }
     set_variable_type(v,st) ;
     variable_is_fact_at(v,st->domain()) ;
   }
 
   void fact_db::update_fact(variable v, storeRepP st) {
+    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+      int max_val = st->domain().Max() ;
+      maximum_allocated = max(maximum_allocated,max_val+1) ;
+    }
     if(all_vars.inSet(v)) {
       fact_data &fd = fact_infov[get_fact_info(v).fact_info_ref] ;
       (*fd.data_rep) = st ;
