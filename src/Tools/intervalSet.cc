@@ -13,6 +13,7 @@ using std::ostream ;
 using std::endl ;
 using std::cerr ;
 
+#include <ctype.h>
 
 
 //using namespace std::rel_ops ;
