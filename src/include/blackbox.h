@@ -71,7 +71,7 @@ namespace Loci {
   template<class T> 
     store_type blackboxRepI<T>::RepType() const 
     {
-      return PARAMETER;
+      return BLACKBOX;
     }
 
   //**************************************************************************/
@@ -85,8 +85,8 @@ namespace Loci {
   template<class T> 
     std::ostream &blackboxRepI<T>::Print(std::ostream &s) const 
     {
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
       s << '{' << domain() << std::endl;
-      Loci::streamoutput(&attrib_data,1,s);
       s << '}' << std::endl;
       return s;
     }
@@ -96,31 +96,7 @@ namespace Loci {
   template<class T> 
     std::istream &blackboxRepI<T>::Input(std::istream &s) 
     {
-      entitySet e;
-      char ch;
-    
-      do ch = s.get(); while(ch==' ' || ch=='\n');
-      if(ch != '{') {
-	s.putback(ch);
-	e = ~EMPTY;
-	allocate(e);
-	attrib_data = T();
-	Loci::streaminput(&attrib_data,1,s);
-	return s;
-      }
-        
-      s >> e;
-      allocate(e);
-        
-      attrib_data = T();
-      Loci::streaminput(&attrib_data,1,s);
-        
-      do ch = s.get(); while(ch==' ' || ch=='\n');
-      if(ch != '}') {
-	std::cerr << "Incorrect Format while reading blackbox" << std::endl;
-	s.putback(ch);
-      }
-
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
       return s;
     }
 
@@ -128,7 +104,7 @@ namespace Loci {
   template<class T> 
     void blackboxRepI<T>::readhdf5(hid_t group_id, entitySet &user_eset)
     {
-
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
     }
 
   //**************************************************************************/
@@ -136,7 +112,7 @@ namespace Loci {
   template<class T> 
     void blackboxRepI<T>::writehdf5(hid_t group_id, entitySet &eset) const
     {
-
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
     }
 
   //**************************************************************************/
@@ -309,7 +285,7 @@ namespace Loci {
     void blackboxRepI<T>::gather(const dMap &m, storeRepP &st,
 				 const entitySet &context) 
     {
-
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
     }
 
   //**************************************************************************/
@@ -318,7 +294,7 @@ namespace Loci {
     void blackboxRepI<T>::scatter(const dMap &m, storeRepP &st,
 				  const entitySet &context) 
     {
-
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
     }
 
   //**************************************************************************/
@@ -326,79 +302,31 @@ namespace Loci {
   template <class T> 
     int blackboxRepI<T>::pack_size(const entitySet &eset) 
     {
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
       return 0;
     }
 
-  //**************************************************************************/
-
-/*   template <class T> */
-/*     int blackboxRepI<T>::get_mpi_size(IDENTITY_CONVERTER c, */
-/* 				      const entitySet &eset) */
-/*     { */
-
-/*     } */
-
-  //**************************************************************************/
-
-/*   template <class T> */
-/*     int blackboxRepI<T>::get_mpi_size(USER_DEFINED_CONVERTER c, */
-/* 				      const entitySet &eset) */
-/*     { */
-
-/*     } */
   //**************************************************************************/
 
   template <class T> 
     void blackboxRepI<T>::pack(void *ptr, int &loc, int &size,
 			       const entitySet &e) 
     {
-
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
     }
 
-  //**************************************************************************/
-/*   template <class T> */
-/*     void blackboxRepI<T>::packdata(IDENTITY_CONVERTER c, void *outbuf, */
-/* 				    int &position, int outcount) */
-/*     { */
-
-/*     } */
-
-  //**************************************************************************/
-
-/*   template <class T>  */
-/*     void blackboxRepI<T>::packdata(USER_DEFINED_CONVERTER c, void *outbuf,  */
-/* 				    int &position, int outcount) */
-/*     { */
-
-/*     } */
   //**************************************************************************/
 
   template <class T> 
     void blackboxRepI<T>::unpack(void *ptr, int &loc, int &size,
 				 const sequence &seq)
     {
-
+      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
     }  
 
 
   //**************************************************************************/
-/*   template <class T>  */
-/*     void blackboxRepI<T>::unpackdata(IDENTITY_CONVERTER c, void *inbuf, */
-/* 				      int &position, int &insize) */
-/*     { */
 
-/*     } */
-
-  //***********************************************************************/
-/*   template <class T>  */
-/*     void blackboxRepI<T>::unpackdata(USER_DEFINED_CONVERTER c, void *inbuf,  */
-/* 				      int &position, int &insize) */
-/*     { */
-
-/*     } */
-
-  //***********************************************************************/
-  
   template<class T>
     store_instance::instance_type const_blackbox<T>::access() const
     {
@@ -415,39 +343,6 @@ namespace Loci {
     }
 
   //**************************************************************************/
-/*   template <class T>  */
-/*     void blackboxRepI<T> :: hdf5write(hid_t group_id, IDENTITY_CONVERTER g, */
-/* 				       const entitySet &eset) const */
-/*     { */
-
-/*     } */
-
-  //*********************************************************************/
-
-/*   template <class T>  */
-/*     void blackboxRepI<T> :: hdf5write(hid_t group_id, USER_DEFINED_CONVERTER g,  */
-/* 				       const entitySet &eset) const */
-/*     { */
-
-/*     } */
-
-  //**************************************************************************/
-/*   template <class T>  */
-/*     void blackboxRepI<T> :: hdf5read(hid_t group_id, IDENTITY_CONVERTER g) */
-/*     {  */
-
-/*     } */
-
-  //*************************************************************************/
-
-/*   template <class T>  */
-/*     void blackboxRepI<T> :: hdf5read(hid_t group_id, USER_DEFINED_CONVERTER g) */
-/*     {  */
-
-/*     } */
-
-  //***************************************************************************
-
 }
 
 #endif
