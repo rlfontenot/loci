@@ -1,8 +1,8 @@
 #
 # 
-LOCI_BASE=/usr/tmp/peo/Loci/
-include sys.conf
-include comp.conf
+LOCI_BASE = $(shell pwd)
+include $(LOCI_BASE)/Loci.conf
+
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
