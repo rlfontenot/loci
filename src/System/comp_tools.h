@@ -34,6 +34,12 @@ using std::vector;
 #endif
 
 namespace Loci {
+
+  bool rule_has_mapping_in_output(rule r);
+#ifdef COMP_ENT
+  variableSet input_variables_with_mapping(rule r);
+  variableSet input_variables(rule r);
+#endif
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
                               entitySet compute, sched_db &scheds) ;
