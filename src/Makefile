@@ -24,6 +24,9 @@ LIBS     =  $(BASE_LIBS)
 
 default: Tools System hdf5CC
 
+install: default
+	LOCI_INSTALL_DIR=$(INSTALL_DIR) bash Install.bash
+
 Tools : FRC
 	cd Tools; $(MAKE) compile CC="$(CC)" CP="$(CP)" F77="$(F77)"\
 			  DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\

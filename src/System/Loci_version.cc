@@ -2,11 +2,21 @@
 
 namespace Loci {
   
-  char *revision_name = "$Name:  $" ;
+  char *revision_name = "$Name: test-1-1e $" ;
 
   std::string version() {
-    std::string s = "Loci Library Version: " ;
-    std::string rn = revision_name ;
-    return s+rn ;
+    char *p = revision_name;
+    while(*p!=':' && *p!='\0')
+      ++p ;
+    if(*p!= '\0')
+      ++p ;
+    while(*p!=' ' && *p!='\0')
+      ++p ;
+    if(*p!= '\0')
+      ++p ;
+    std::string rn ;
+    while(*p!='$' &&  *p!=' ' && *p!='\0') 
+      rn += *p++ ;
+    return rn ;
   }
 }
