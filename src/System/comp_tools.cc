@@ -10,8 +10,11 @@ using std::set ;
 using std::list ;
 #include <map>
 using std::map ;
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
 #include <hash_map>
-
+#endif
 using std::hash_map ;
 
 using std::pair ;
