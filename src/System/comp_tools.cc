@@ -368,25 +368,29 @@ namespace Loci {
     l2g = facts.get_variable("l2g") ;
     int **send_buffer, **recv_buffer ;
     int *recv_size ;
+
+    if(d->xmit.size() > 0) {
+      recv_size = new int[d->xmit.size()] ;
+      recv_buffer = new int *[d->xmit.size()] ;
     
-    recv_size = new int[d->xmit.size()] ;
-    recv_buffer = new int *[d->xmit.size()] ;
-    
-    recv_buffer[0] = new int[d->xmit_total_size] ;
-    recv_size[0] = d->xmit[0].size ;
-    for(int i=1;i<d->xmit.size();++i) {
-      recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
-      recv_size[i] = d->xmit[i].size ;
+      recv_buffer[0] = new int[d->xmit_total_size] ;
+      recv_size[0] = d->xmit[0].size ;
+      for(int i=1;i<d->xmit.size();++i) {
+        recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
+        recv_size[i] = d->xmit[i].size ;
+      }
     }
 
     MPI_Status *status = new MPI_Status[d->xmit.size()] ;
     MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
     
-    
-    send_buffer = new int *[d->copy.size()] ;
-    send_buffer[0] = new int[d->copy_total_size] ;
-    for(int i=1;i<d->copy.size();++i)
-      send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
+
+    if(d->copy.size() > 0) {
+      send_buffer = new int *[d->copy.size()] ;
+      send_buffer[0] = new int[d->copy_total_size] ;
+      for(int i=1;i<d->copy.size();++i)
+        send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
+    }
     
     std::map<variable, ruleSet>::iterator mi ;
     entitySet requests ;
@@ -447,15 +451,20 @@ namespace Loci {
       clist.push_back(ci) ;
       
     }
+
+    if(d->xmit.size() > 0) {
+      delete[] recv_buffer[0] ;
+      delete[] recv_buffer ;
+      delete[] recv_size ;
+    }
+
+    if(d->copy.size() > 0) {
+      delete[] send_buffer[0] ;
+      delete[] send_buffer ;
+    }
     
     delete[] status ;
     delete[] recv_request ;
-    delete[] recv_buffer[0] ;
-    delete[] recv_buffer ;
-    delete[] send_buffer[0] ;
-    delete[] send_buffer ;
-    delete[] recv_size ;
-      
     return clist ;
   } 
 
@@ -464,28 +473,32 @@ namespace Loci {
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
     int **send_buffer, **recv_buffer ;
-    int *recv_size, *send_size ;
+    int *recv_size ;
 
     const int recv_count = d->copy.size() ;
 
-    recv_buffer = new int*[recv_count] ;
-    recv_size = new int[recv_count] ;
+    if(recv_count > 0) {
+      recv_buffer = new int*[recv_count] ;
+      recv_size = new int[recv_count] ;
 
-    recv_buffer[0] = new int[d->copy_total_size] ;
-    recv_size[0] = d->copy[0].size ;
-    for(int i=1;i<d->copy.size();++i) {
-      recv_buffer[i] = recv_buffer[i-1]+d->copy[i-1].size ;
-      recv_size[i] = d->copy[i].size ;
+      recv_buffer[0] = new int[d->copy_total_size] ;
+      recv_size[0] = d->copy[0].size ;
+      for(int i=1;i<d->copy.size();++i) {
+        recv_buffer[i] = recv_buffer[i-1]+d->copy[i-1].size ;
+        recv_size[i] = d->copy[i].size ;
+      }
     }
     
     MPI_Request *recv_request = new MPI_Request[recv_count] ;
     MPI_Status *status = new MPI_Status[recv_count] ;
-    
-    send_buffer = new int*[d->xmit.size()] ;
-    
-    send_buffer[0] = new int[d->xmit_total_size] ;
-    for(int i=1;i<d->xmit.size();++i)
-      send_buffer[i] = send_buffer[i-1]+d->xmit[i-1].size ;
+
+    if(d->xmit.size() > 0) {
+      send_buffer = new int*[d->xmit.size()] ;
+      
+      send_buffer[0] = new int[d->xmit_total_size] ;
+      for(int i=1;i<d->xmit.size();++i)
+        send_buffer[i] = send_buffer[i-1]+d->xmit[i-1].size ;
+    }
     
     std::list<comm_info> plist ;
     
@@ -579,11 +592,16 @@ namespace Loci {
       plist.push_back(ci) ;
     }
 
-    delete [] recv_size ;
-    delete [] send_buffer[0] ;
-    delete [] send_buffer ;
-    delete [] recv_buffer[0] ;
-    delete [] recv_buffer ; 
+    if(recv_count > 0) {
+      delete [] recv_size ;
+      delete [] recv_buffer[0] ;
+      delete [] recv_buffer ;
+    }
+
+    if(d->xmit.size() > 0) {
+      delete [] send_buffer[0] ;
+      delete [] send_buffer ;
+    }
 
     delete [] status ;
     delete [] recv_request ;
@@ -640,11 +658,11 @@ namespace Loci {
 	entitySet targets ;
 	targets = facts.get_existential_info(v, *rsi) ;
         entitySet send_set = send_entitySet(targets, facts) ;
-        debugout[MPI_rank] << *rsi << " send_set = " << send_set << endl ;
+        //        debugout[MPI_rank] << *rsi << " send_set = " << send_set << endl ;
 	targets += send_set ;
 	targets &= my_entities ;
         entitySet fill_set = fill_entitySet(targets, facts) ;
-        debugout[MPI_rank] << *rsi << " fill_set = " << fill_set << endl ;
+        //        debugout[MPI_rank] << *rsi << " fill_set = " << fill_set << endl ;
 	targets += fill_set ;
 	facts.set_existential_info(v,*rsi,targets) ;
       }

@@ -9,6 +9,9 @@ using std::endl ;
 using std::ios ;
 using std::ifstream ;
 using std::swap ;
+#include <algorithm>
+using std::max ;
+using std::min ;
 
 //static int test = 1 ;
 
@@ -467,21 +470,26 @@ namespace Loci {
 
       int **send_buffer, **recv_buffer ;
       int *recv_size ;
-      recv_buffer = new int*[d->copy.size()] ;
-      recv_size = new int[d->copy.size()] ;
 
-      recv_buffer[0] = new int[d->copy_total_size] ;
-      recv_size[0] = d->copy[0].size ;
-      for(int i=1;i<d->copy.size();++i) {
-        recv_buffer[i] = recv_buffer[i-1]+d->copy[i-1].size ;
-        recv_size[i] = d->copy[i].size ;
+      if(d->copy.size() > 0) {
+        recv_buffer = new int*[d->copy.size()] ;
+        recv_size = new int[d->copy.size()] ;
+
+        recv_buffer[0] = new int[d->copy_total_size] ;
+        recv_size[0] = d->copy[0].size ;
+        for(int i=1;i<d->copy.size();++i) {
+          recv_buffer[i] = recv_buffer[i-1]+d->copy[i-1].size ;
+          recv_size[i] = d->copy[i].size ;
+        }
       }
-      
-      send_buffer = new int*[d->xmit.size()] ;
 
-      send_buffer[0] = new int[d->xmit_total_size] ;
-      for(int i=1;i<d->xmit.size();++i)
-        send_buffer[i] = send_buffer[i-1]+d->xmit[i-1].size ;
+      if(d->xmit.size() > 0) {
+        send_buffer = new int*[d->xmit.size()] ;
+
+        send_buffer[0] = new int[d->xmit_total_size] ;
+        for(int i=1;i<d->xmit.size();++i)
+          send_buffer[i] = send_buffer[i-1]+d->xmit[i-1].size ;
+      }
         
       
       Map l2g ;
@@ -501,11 +509,6 @@ namespace Loci {
         for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
           send_buffer[i][j++] = l2g[*ei] ;
 
-        debugout[MPI_rank] << "fill sending " ;
-        for(j=0;j<temp.size();++j)
-          debugout[MPI_rank] << send_buffer[i][j] << " " ;
-        debugout[MPI_rank] << endl ;
-          
 
           int send_size = temp.size() ;
         MPI_Send(send_buffer[i], send_size, MPI_INT, d->xmit[i].proc,
@@ -521,23 +524,18 @@ namespace Loci {
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
         for(int j = 0 ; j < recieved; ++j) 
           re += d->g2l[recv_buffer[i][j]] ;
-        debugout[MPI_rank] << "fill recv " ;
-        for(int j = 0 ; j < recieved; ++j) {
-          debugout[MPI_rank] << recv_buffer[i][j] << " " ;
-          debugout[MPI_rank] << "(" << d->g2l[recv_buffer[i][j]] << ") " ;
-        }
-                                             
-        debugout[MPI_rank] << endl ;
-        debugout[MPI_rank] << "fill re = " << re << endl ;
-        
       }
       
-      
-      delete [] recv_size ;
-      delete [] send_buffer[0] ;
-      delete [] send_buffer ;
-      delete [] recv_buffer[0] ;
-      delete [] recv_buffer ;
+
+      if(d->copy.size() > 0) {
+        delete [] recv_size ;
+        delete [] recv_buffer[0] ;
+        delete [] recv_buffer ;
+      }
+      if(d->xmit.size() > 0) {
+        delete [] send_buffer[0] ;
+        delete [] send_buffer ;
+      }
       delete [] status ;
       delete [] recv_request ;
       
@@ -552,23 +550,26 @@ namespace Loci {
 
       int **send_buffer, **recv_buffer ;
       int *recv_size ;
-      
-      recv_buffer = new int*[d->xmit.size()] ;
-      recv_size = new int[d->xmit.size()] ;
 
-      recv_buffer[0] = new int[d->xmit_total_size] ;
-      recv_size[0] = d->xmit[0].size ;
-      for(int i=1;i<d->xmit.size();++i) {
-        recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
-        recv_size[i] = d->xmit[i].size ;
+      if(d->xmit.size() > 0) {
+        recv_buffer = new int*[d->xmit.size()] ;
+        recv_size = new int[d->xmit.size()] ;
+
+        recv_buffer[0] = new int[d->xmit_total_size] ;
+        recv_size[0] = d->xmit[0].size ;
+
+        for(int i=1;i<d->xmit.size();++i) {
+          recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
+          recv_size[i] = d->xmit[i].size ;
+        }
       }
       
-      
-      send_buffer = new int*[d->copy.size()] ;
-      send_buffer[0] = new int[d->copy_total_size] ;
-      for(int i=1;i<d->copy.size();++i)
-        send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
-      
+      if(d->copy.size() > 0 ) {
+        send_buffer = new int*[d->copy.size()] ;
+        send_buffer[0] = new int[d->copy_total_size] ;
+        for(int i=1;i<d->copy.size();++i)
+          send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
+      }
       Map l2g ;
       l2g = facts.get_variable("l2g") ;
 
@@ -601,12 +602,16 @@ namespace Loci {
         for(int j=0;j<recieved;++j)
           re += d->g2l[recv_buffer[i][j]] ;
         }
-      
-      delete [] recv_size ;
-      delete [] send_buffer[0] ;
-      delete [] send_buffer ;
-      delete [] recv_buffer[0] ;
-      delete [] recv_buffer ;
+
+      if(d->xmit.size() > 0) {
+        delete [] recv_size ;
+        delete [] recv_buffer[0] ;
+        delete [] recv_buffer ;
+      }
+      if(d->copy.size() > 0) {
+        delete [] send_buffer[0] ;
+        delete [] send_buffer ;
+      }
       delete [] recv_request ;
       delete [] status ;
       
