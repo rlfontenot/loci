@@ -89,8 +89,7 @@ namespace Loci {
     output(exp);
     }
 
-    //    UNIT_type(const UNIT_type &ut) {unit_num_map=ut.unit_num_map,unit_den_map=ut.unit_den_map,value=ut.value,input_value=ut.input_value,conversion_factor=ut.conversion_factor;}
-    UNIT_type() { mode=MKS, unit_kind="Pressure";}
+    UNIT_type() { mode=MKS; unit_kind=""; value = 0 ; conversion_factor=1; input_value = 0;}
 
   private:
     bool is_reference_unit(std::string str);

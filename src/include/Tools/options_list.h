@@ -33,7 +33,7 @@ namespace Loci {
     UNIT_type units_value ;
     friend class options_list ;
   public:
-    option_values() { value_type = NOT_ASSIGNED ; }
+    option_values() { value_type = NOT_ASSIGNED ; real_value = 0 ; boolean_value = false ; }
 
     option_value_type type_of() const { return value_type ; }
 
