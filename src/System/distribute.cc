@@ -964,6 +964,8 @@ namespace Loci {
   }
   
   entitySet collect_entitySet(entitySet e, fact_db &facts) {
+    if(!facts.isDistributed())
+      return e ;
     entitySet re ;
     if(facts.isDistributed()) {  
       Map l2g ;
@@ -971,6 +973,12 @@ namespace Loci {
       fact_db::distribute_infoP d = new fact_db::distribute_info ;
       d = facts.get_distribute_info() ;
       l2g = facts.get_variable("l2g") ;
+      if(MPI_processes == 1) {
+	entitySet temp = e ;
+	for(ti = temp.begin(); ti != temp.end(); ++ti)
+	  re += l2g[*ti] ;
+        return re ;
+      }
       if(d->myid == 0) {
 	MPI_Status *status, *size_status ;
 	MPI_Request *recv_request, *size_request ;
@@ -1182,6 +1190,9 @@ namespace Loci {
   }
   
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) {
+    if(!facts.isDistributed()) {
+      return sp ;
+    }
     storeRepP nsp ;
     if(facts.isDistributed()) {  
       Map l2g ;
