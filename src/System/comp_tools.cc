@@ -273,6 +273,9 @@ namespace Loci {
   }
   
   entitySet process_rule_requests(rule r, fact_db &facts, sched_db &scheds) {
+#ifdef VERBOSE
+    debugout << "process rule requests " << r << endl ;
+#endif
     // Internal rules should be handling the appropriate rule requests via
     // their associated compiler.
     FATAL(r.type() == rule::INTERNAL) ;
@@ -310,18 +313,50 @@ namespace Loci {
       
       // Now fill tvarmap with the requested values for variable *vi
       tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
+#ifdef VERBOSE
+      debugout << "tvarmap["<<*vi<<"] = " << tvarmap[*vi] << endl ;
+#endif
     }
+    bool mapping_in_output = false ;
     const rule_impl::info &rinfo = r.get_info().desc ;
     //Loci::debugout << " rule = " << r << endl ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
       // Transform the variable requests using the mapping constructs
       // in *si
+      // Check to see if there is mapping in the output
+      if(si->mapping.size() != 0)
+        mapping_in_output = true ;
+
       entitySet tmp = vmap_target_requests(*si,tvarmap,facts, scheds) ;
       //The context is the union
       context |= tmp ;
       isect &= tmp ;
     }
-    
+
+    if(mapping_in_output) {
+      entitySet sources = ~EMPTY ;
+      entitySet constraints = ~EMPTY ;
+      const rule_impl::info &rinfo = r.get_info().desc ;
+      set<vmap_info>::const_iterator si ;
+      /*The function vmap_source_exist takes into consideration the maps 
+        in the body of the rule . By looping over each of the sources in 
+        the rule and also the constraints we make sure that the
+        attribute specified by the target is implied by the satisfaction 
+        of the attributes in the body of the rule. */
+      for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+        sources &= vmap_source_exist(*si,facts, scheds) ;
+      }
+      for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+        constraints &= vmap_source_exist(*si,facts, scheds) ;
+
+      sources &= constraints ;
+      context &= sources ;
+      isect &= sources ;
+    }
+
+#ifdef VERBOSE
+    debugout << "context = " << context << ", isect = " << isect << endl ;
+#endif
      // If the interstection and the union are not equal, then we are in
      // danger of not properly allocating variables for computations.  It is
      // an optimization to check this. For the distributed memory version it
@@ -350,6 +385,9 @@ namespace Loci {
      // partial results.
     
 
+#ifdef VERBOSE
+     debugout << "context = " << context << ",filter = " << filter << endl ;
+#endif
      if(r.get_info().rule_impl->get_rule_class() != rule_impl::UNIT) {
        context &= filter ;
      }
@@ -829,7 +867,7 @@ namespace Loci {
     }
     int j = 0 ;
 #ifdef VERBOSE
-    for(int i=0;i<vars.size();++i) {
+    for(size_t i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {

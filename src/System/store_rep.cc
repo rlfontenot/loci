@@ -5,7 +5,9 @@
 
 namespace Loci {
   storeRep::~storeRep() {}
-  void storeRep::set_elem_size(int sz) { warn(true) ; }
+  void storeRep::set_elem_size(int sz) {
+    std::cerr << "set_elem_size() should not be called by this method!" <<std::endl ;
+    warn(true) ; }
 
   storeRepP storeRep::getRep() { return storeRepP(this) ; }
   storeRepP storeRep::getRep() const { return storeRepP(const_cast<storeRep *>(this)) ; }
