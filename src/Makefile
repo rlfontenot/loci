@@ -12,7 +12,7 @@ INCLUDES =
 
 CP  = $(CPP)
 CC  = $(CPP)
-COPT     = $(CC_LIB_FLAGS) $(CC_DEBUG) $(CC_OPT)
+COPT     = $(CC_LIB_FLAGS) $(CC_DEBUG) $(CC_OPT1)#$(CC_OPT)
 LOPT     = $(COPT)
 CFLAGS   = $(COPT) 
 
