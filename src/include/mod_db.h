@@ -17,8 +17,6 @@ namespace Loci {
     struct mod_info {
      rule_impl_list loaded_rule_list ;
       std::string mod_name ;
-      std::vector<std::string> default_ns_vec, using_ns_vec;
-      std::vector<variable> export_vars, import_vars ;
       void *m_library ;
       void (*m_init_model)(fact_db &facts, const char *problem_name) ;
       std::string name() { return mod_name ; } 
@@ -32,14 +30,16 @@ namespace Loci {
       }
       mod_info() {
 	mod_name = "" ;
-	void *m_library = 0 ;
-	void (*m_init_model)(fact_db &facts, const char *problem_name) = 0 ;
+	m_library = 0 ;
+	m_init_model = 0 ;
       }
       mod_info(const mod_info& mi) {
 	loaded_rule_list.copy_rule_list(mi.loaded_rule_list) ;
 	mod_name = mi.mod_name ;
+        m_library = mi.m_library ;
+        m_init_model = mi.m_init_model ;
       }
-      ~mod_info() { } ;
+      ~mod_info() { } 
     } ;
   private: 
     friend class mod_info ;

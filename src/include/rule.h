@@ -570,6 +570,7 @@ namespace Loci {
     rule_impl_list &operator=(const rule_impl_list &x) {
       list = 0 ;
       copy_rule_list(x) ;
+      return *this ;
     }
   } ;
   

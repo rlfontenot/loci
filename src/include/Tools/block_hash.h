@@ -140,13 +140,13 @@ namespace Loci {
   
   template <class T> intervalSet block_hash<T>::domain() const  {
     intervalSet val ;
-    int a3,a2,a1 ;
+
     for(int i=0;i<4096;++i) {
       if(data[i]!=0) {
-        a3 = i << 20 ;
+        int a3 = i << 20 ;
         for(int j=0;j<2048;++j) {
           if(data[i][j]!=0) {
-            a2 = j << 9 ;
+            int a2 = j << 9 ;
             for(int k=0;k<16;++k) {
               const unsigned long bit = data[i][j]->bits[k] ;
               if(bit == 0) 

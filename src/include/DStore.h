@@ -466,7 +466,7 @@ namespace Loci {
       typename schema_traits::Converter_Type cvtr( attrib_data[*ci]);
 
       stateSize    = cvtr.getSize();
-      if( stateSize > inbuf.size() ) inbuf.resize(stateSize);
+      if( stateSize > static_cast<int>(inbuf.size()) ) inbuf.resize(stateSize);
 
       cvtr.getState( &inbuf[0], stateSize);
       MPI_Pack(&stateSize, 1, MPI_INT, outbuf, outcount,&position,
@@ -519,7 +519,7 @@ namespace Loci {
       MPI_Unpack(inbuf, insize, &position, &stateSize, 1, 
                  MPI_INT, MPI_COMM_WORLD) ;
 
-      if( stateSize > outbuf.size() ) outbuf.resize(stateSize);
+      if( stateSize > static_cast<int>(outbuf.size()) ) outbuf.resize(stateSize);
 
       outcount = stateSize*typesize;
       MPI_Unpack(inbuf, insize, &position, &outbuf[0], outcount, 
@@ -628,7 +628,6 @@ namespace Loci {
     hsize_t  dimension;
     size_t   indx = 0, arraySize;
     hid_t    vDataset, vDataspace, vDatatype, mDataspace;
-    int      rank = 1;
     entitySet::const_iterator  ci;
 
     //---------------------------------------------------------------
@@ -749,7 +748,6 @@ namespace Loci {
 
     std::vector<T>   newvec;
     entitySet :: const_iterator  ei;
-    typename HASH_MAP(int,T)::const_iterator ci;
 
     int arraySize = eset.size();
 
@@ -796,7 +794,6 @@ namespace Loci {
     hsize_t   dimension;
 
     entitySet :: const_iterator ci;
-    typename HASH_MAP(int,T)::const_iterator   iter;
 
     //-------------------------------------------------------------------------
     // Get the sum of each object size and maximum size of object in the 

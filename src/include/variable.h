@@ -101,7 +101,7 @@ namespace Loci {
       std::vector<int> v_ids ;
       bool operator<(const info &v) const ;
       bool operator==(const info &v) const ;
-      info operator=(const info &vin) {
+      info &operator=(const info &vin) {
 	tvar    = vin.tvar;
 	assign  = vin.assign;
 	name    = vin.name ;
@@ -109,7 +109,7 @@ namespace Loci {
 	priority = vin.priority ;
 	namespac = vin.namespac ;
 	v_ids = vin.v_ids ;
-	
+	return *this ;
       }
       info() {
         tvar    = false;
