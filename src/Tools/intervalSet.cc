@@ -1,5 +1,3 @@
-#include <cctype>
-
 #include <Tools/debug.h>
 #include <Tools/tools.h>
 #include <Tools/intervalSet.h>
