@@ -411,10 +411,7 @@ namespace Loci {
     return executeP(el) ;
   }
   
-
   CPTR<joiner> global_join_op ;
-  
-  
   void create_user_function(void *send_ptr, void *result_ptr, int *size, MPI_Datatype* dptr) {
     storeRepP sp, tp ;
     int loc_send = 0, loc_result = 0 ;
@@ -445,6 +442,7 @@ namespace Loci {
   execute_param_red::~execute_param_red() {
     MPI_Op_free(&create_join_op) ;
   }
+  
   void execute_param_red::execute(fact_db &facts) {
     unsigned char *send_ptr; 
     unsigned char *result_ptr ;
@@ -458,12 +456,12 @@ namespace Loci {
     send_ptr = new unsigned char[size] ;
     result_ptr = new unsigned char[size] ;
     sp->pack(send_ptr, loc, size, e) ;
+    global_join_op = join_op ;
     MPI_Allreduce(send_ptr, result_ptr, size, MPI_PACKED, create_join_op, MPI_COMM_WORLD) ;
     sp->unpack(result_ptr, loc_result, size, seq) ;
     delete [] send_ptr ;
     delete [] result_ptr ;
   }
-  
   void execute_param_red::Print(ostream &s) const {
     s << "param reduction on " << reduce_var << endl ;
   }
