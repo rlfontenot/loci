@@ -42,6 +42,8 @@ namespace Loci {
     explicit time_ident(int i) { create_thp() ; id = i ; }
     time_ident(const time_ident &t) { create_thp() ; id = t.id ; }
     time_ident(const exprP &exp) ;
+    time_ident(const std::string &lname, const time_ident &t) ;
+    time_ident(const time_ident &t, const std::string &lname) ;
     time_ident parent() const { return time_ident(thp->parent(id)) ; }
     int ident() const { return id ; }
     std::vector<time_ident> children() ;
@@ -104,6 +106,7 @@ namespace Loci {
       variable drop_assign() const ;
       variable drop_priority() const ;
       variable new_offset(int o) const ;
+      variable change_time(time_ident ti) const ;
       int ident() const { return variable::vdb->vars.get_id(*this) ; }
     } ;
   private:
@@ -140,6 +143,7 @@ namespace Loci {
     variable drop_assign() const { return vdb->vars[id].drop_assign() ; }
     variable drop_priority() const { return vdb->vars[id].drop_priority() ; }
     variable new_offset(int o) const { return vdb->vars[id].new_offset(o) ; }
+    variable change_time(const time_ident &ti) const  { return vdb->vars[id].change_time(ti) ; }
   } ;
 
   inline ostream &operator<<(ostream &s, const variable &v)
