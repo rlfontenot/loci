@@ -26,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
-#define UNITY_MAPPING
+//#define UNITY_MAPPING
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
@@ -610,7 +610,7 @@ namespace Loci {
     for(entitySet::const_iterator ei=g.begin();ei!=g.end();++ei)
       l2g[*ei] = *ei ;
 #else
-    j = 0 ;
+    int j = 0 ;
     e = interval(0, size - 1) ;
     l2g.allocate(e) ;
     for(int i = 0; i < proc_entities.size(); ++i) {
