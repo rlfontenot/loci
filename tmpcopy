@@ -7,6 +7,7 @@ mkdir -p $target
 mkdir -p $target/Loci
 mkdir -p $target/Loci/System
 mkdir -p $target/Loci/Tools
+mkdir -p $target/Loci/hdf5CC
 mkdir -p $target/Loci/lib
 
 cd $target/Loci
@@ -18,6 +19,7 @@ cp $source/src/conf/`arch`.conf sys.conf
 cd lib
 ln -s ../Tools/libTools.a libTools.a
 ln -s ../System/libLoci.a libLoci.a
+ln -s ../hdf5CC/libhdf5CC.a libhdf5CC.a
 
 cd $source/src/System
 for i in *.h *.cc Makefile; do
@@ -28,6 +30,11 @@ cd ../Tools
 for i in *.h *.cc *.c Makefile; do
 echo ln -s `pwd`/$i $target/Loci/Tools/$i
 ln -s `pwd`/$i $target/Loci/Tools/$i
+done
+cd ../hdf5CC
+for i in *.h *.cc *.c Makefile; do
+echo ln -s `pwd`/$i $target/Loci/hdf5CC/$i
+ln -s `pwd`/$i $target/Loci/hdf5CC/$i
 done
 
 
