@@ -77,13 +77,16 @@ int main(int argc, char *argv[])
   
   facts.create_fact("heat_flux_boundary",heat_flux_boundary) ;
 
-  constraint set_temperature_boundary ;
+  entitySet Tset_BC ;
   tmp = facts.get_fact("BC_bottom") ;
-  *set_temperature_boundary += *tmp ;
+  Tset_BC += *tmp ;
   tmp = facts.get_fact("BC_left") ;
-  *set_temperature_boundary += *tmp ;
+  Tset_BC += *tmp ;
   tmp = facts.get_fact("BC_right") ;
-  *set_temperature_boundary += *tmp ;
+  Tset_BC += *tmp ;
+
+  constraint set_temperature_boundary ;
+  set_temperature_boundary = Tset_BC ;
 
   facts.create_fact("set_temperature_boundary",set_temperature_boundary) ;
 
