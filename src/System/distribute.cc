@@ -94,9 +94,8 @@ namespace Loci {
     set_debug_callback(debug_print_rule) ;
     if(debug_setup) {
       setup_debugger(execname,debug,hostname) ;
-      chopsigs_() ;
     }
-    
+    chopsigs_() ;
   }
   
   void Finalize() {
@@ -3433,7 +3432,7 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   std::map<variable, entitySet>::const_iterator svi ;
   variableSet initial_varset ;
   double start_time = MPI_Wtime() ;
-  Loci::debugout << " Size of the vector passed to modified categories = " << pvec.size() << endl ;
+  //  Loci::debugout << " Size of the vector passed to modified categories = " << pvec.size() << endl ;
   for(unsigned int i = 0; i < pvec.size(); ++i) {
     for(svi = vm.begin(); svi != vm.end(); ++svi) {
       if((svi->second & entitySet(pvec[i])) != EMPTY) {
@@ -3457,19 +3456,19 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
     }
   */
   double end_time =  MPI_Wtime() ;
-  Loci::debugout << " Time taken for making mve = " << end_time - start_time << " seconds " << endl ;
+  //  Loci::debugout << " Time taken for making mve = " << end_time - start_time << " seconds " << endl ;
   std::vector<variableSet> tmp_vvs ;
   
   for(miter = mve.begin(); miter != mve.end(); ++miter) {
     tmp_vvs.push_back(miter->first) ;
-    Loci::debugout << "******************************************************" << endl ;
-    Loci::debugout << " grouping variables " << miter->first << endl ;
-    //Loci::debugout << " Entities shared = " << miter->second << endl ;
-    Loci::debugout << " Total Entities causing the grouping = " << miter->second.size() << endl ;  
-    Loci::debugout << "******************************************************" << endl ;
+    //    Loci::debugout << "******************************************************" << endl ;
+    //    Loci::debugout << " grouping variables " << miter->first << endl ;
+    //    //Loci::debugout << " Entities shared = " << miter->second << endl ;
+    //    Loci::debugout << " Total Entities causing the grouping = " << miter->second.size() << endl ;  
+    //    Loci::debugout << "******************************************************" << endl ;
   }
   
-  Loci::debugout << " The number of variable sets grouped due to common categories = " << tmp_vvs.size() << endl ;
+  //  Loci::debugout << " The number of variable sets grouped due to common categories = " << tmp_vvs.size() << endl ;
   std::vector<std::vector<variableSet> > vvvs = create_orig_matrix(tmp_vvs) ;
   vvs.clear() ;
   std::vector<variableSet> indep ;
