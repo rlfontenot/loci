@@ -42,11 +42,11 @@ namespace Loci {
                      const sequence &seq );
     void  StringVal( const int &entity, const int &ivec, std::string &memento);
 
+#endif
     void  hdf5read( hid_t group_id, IDENTITY_CONVERTER c,     entitySet &en,
                     entitySet &usr);
     void  hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, entitySet &en,
                     entitySet &usr);
-#endif
     void  hdf5write( hid_t group_id, IDENTITY_CONVERTER c,     const entitySet &en) const;
     void  hdf5write( hid_t group_id, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
@@ -105,7 +105,7 @@ namespace Loci {
     const T *end(int indx) const { return base_ptr[indx+1] ; }
   } ;
   
-  //***************************************************************************/
+  //*************************************************************************/
   
   template<class T> class multiStore : public store_instance {
     typedef multiStoreRepI<T> storeType ;
@@ -164,24 +164,24 @@ namespace Loci {
     
   } ;
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template <class T> 
   inline std::ostream & operator<<(std::ostream &s, const multiStore<T> &m)
   { return m.Print(s) ; }
 
-  //***************************************************************************/
+  //************************************************************************/
 
   template<class T> 
   inline std::istream & operator>>(std::istream &s, multiStore<T> &m)
   { return m.Input(s) ; }
  
-  //***************************************************************************/
+  //************************************************************************/
 
   template<class T> 
   multiStore<T>::~multiStore() {}
 
-  //***************************************************************************/
+  //************************************************************************/
   
   template<class T> 
   void multiStore<T>::notification() 
@@ -192,7 +192,7 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //***************************************************************************/
+  //************************************************************************/
   
   template<class T> class const_multiStore : public store_instance {
     typedef multiStoreRepI<T> storeType ;
@@ -244,19 +244,19 @@ namespace Loci {
 
   } ;
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   store_instance::instance_type
   const_multiStore<T>::access() const
   { return READ_ONLY ; }
 
-  //***************************************************************************/
+  //*************************************************************************/
   
   template<class T> 
   const_multiStore<T>::~const_multiStore() {}
 
-  //***************************************************************************/
+  //*************************************************************************/
   
   template<class T> 
   void const_multiStore<T>::notification() 
@@ -267,7 +267,7 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   void multiStoreRepI<T>::allocate(const store<int> &sizes) 
@@ -312,7 +312,7 @@ namespace Loci {
     dispatch_notify();
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   void multiStoreRepI<T>::multialloc(const store<int> &count, T ***index, 
@@ -347,7 +347,7 @@ namespace Loci {
     
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
    
   template<class T> 
   void multiStoreRepI<T>::setSizes(const const_multiMap &mm)
@@ -394,7 +394,7 @@ namespace Loci {
     mutex.unlock() ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
   
   template<class T> 
   void multiStoreRepI<T>::allocate(const entitySet &ptn) 
@@ -433,7 +433,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   multiStoreRepI<T>::~multiStoreRepI() 
@@ -733,8 +733,9 @@ namespace Loci {
 
     return get_mpi_size( traits_type, ecommon );
   }
-  //**************************************************************************
+  //**************************************************************************/
 
+#ifdef ALLOW_DEFAULT_CONVERTER
   template <class T>
   void multiStoreRepI<T>::StringVal( const int &entity, const int &ivec, std::string &memento)
   {
@@ -744,8 +745,7 @@ namespace Loci {
 
     memento = oss.str();
   }
-  //**************************************************************************
-#ifdef ALLOW_DEFAULT_CONVERTER
+  //**************************************************************************/
   template <class T> 
   int multiStoreRepI<T>::get_mpi_size(DEFAULT_CONVERTER c, const entitySet &eset ) 
   {
@@ -763,7 +763,7 @@ namespace Loci {
     return(memento.length() );
   }
 #endif
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   int multiStoreRepI<T>::get_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset ) 
@@ -779,7 +779,7 @@ namespace Loci {
     return(size) ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
   template <class T> 
   int multiStoreRepI<T>::get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset ) 
   {
@@ -803,7 +803,7 @@ namespace Loci {
     return( arraySize*sizeof(typename converter_traits::memento_type) +
             numContainers*sizeof(int) );
   }
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void multiStoreRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &eset ) 
@@ -815,7 +815,7 @@ namespace Loci {
     packdata( traits_type, ptr, loc, size, eset);
 
   }
-  //**************************************************************************
+  //**************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void multiStoreRepI<T>::packdata( DEFAULT_CONVERTER c, void *outbuf,
@@ -841,7 +841,7 @@ namespace Loci {
     }ENDFORALL ;
   }
 #endif
-  //**************************************************************************
+  //**************************************************************************/
   template <class T> 
   void multiStoreRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf,
                                     int &position,  int outcount,
@@ -868,7 +868,7 @@ namespace Loci {
 
   }
   
-  //**************************************************************************
+  //**************************************************************************/
   template <class T> 
   void multiStoreRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
                                     int &position, int outcount,
@@ -921,7 +921,7 @@ namespace Loci {
 
 }
 
-//**************************************************************************
+//**************************************************************************/
 
 template <class T> 
 void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, 
@@ -935,7 +935,7 @@ void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size,
 
 }
 
-//**************************************************************************
+//**************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
 template <class T> 
 void multiStoreRepI<T>::unpackdata( DEFAULT_CONVERTER c, void *inbuf, int &position, 
@@ -957,7 +957,7 @@ void multiStoreRepI<T>::unpackdata( DEFAULT_CONVERTER c, void *inbuf, int &posit
       MPI_Unpack( inbuf, insize, &position, outbuf, outcount, MPI_BYTE, 
                   MPI_COMM_WORLD) ;
 
-      istringstream iss(outbuf);
+      std::istringstream iss(outbuf);
       iss >> base_ptr[*ci][ivec];
       delete [] outbuf;
     }
@@ -965,7 +965,7 @@ void multiStoreRepI<T>::unpackdata( DEFAULT_CONVERTER c, void *inbuf, int &posit
 }
 #endif
 
-//**************************************************************************
+//**************************************************************************/
   
 template <class T> 
 void multiStoreRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *ptr, int &loc, int size, 
@@ -1073,7 +1073,7 @@ void multiStoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf,
 */
 
 }
-//**************************************************************************
+//**************************************************************************/
   
 template<class T> 
 void multiStoreRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset) 
@@ -1117,7 +1117,7 @@ void multiStoreRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
   delete ibuf;
 }
 
-//**************************************************************************
+//**************************************************************************/
 
 template<class T> 
 void multiStoreRepI<T>::writehdf5(hid_t group_id, entitySet &usr_eset) const 
@@ -1137,7 +1137,7 @@ void multiStoreRepI<T>::writehdf5(hid_t group_id, entitySet &usr_eset) const
 
 }
 
-//**************************************************************************
+//**************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
 template <class T> 
 void multiStoreRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c, 
@@ -1155,7 +1155,7 @@ void multiStoreRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c,
 
   entitySet :: const_iterator ci;
 
-  istringstream iss( ibuf );
+  std::istringstream iss( ibuf );
 
   int count;
   for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -1170,7 +1170,7 @@ void multiStoreRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c,
   delete ibuf;
 }
 #endif
-//**************************************************************************
+//**************************************************************************/
 
 template <class T> 
 void multiStoreRepI<T> :: hdf5read( hid_t group_id, IDENTITY_CONVERTER c, 

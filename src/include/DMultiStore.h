@@ -26,11 +26,14 @@ namespace Loci {
     entitySet                 store_domain ;
     hash_map<int,std::vector<T> >  attrib_data;
 
+#ifdef ALLOW_DEFAULT_CONVERTER
     void  hdf5read( hid_t group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
+    void  hdf5write( hid_t group, DEFAULT_CONVERTER c,      const entitySet &en) const;
+#endif
+    
     void  hdf5read( hid_t group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( hid_t group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
 
-    void  hdf5write( hid_t group, DEFAULT_CONVERTER c,      const entitySet &en) const;
     void  hdf5write( hid_t group, IDENTITY_CONVERTER c,     const entitySet &en) const;
     void  hdf5write( hid_t group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
@@ -577,7 +580,8 @@ namespace Loci {
 
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
+#ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void dmultiStoreRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c, 
                                        entitySet &eset, entitySet &user_eset)
@@ -585,8 +589,9 @@ namespace Loci {
     cout << "Fatal error: Default read converter not implemented for dynamic multiStore " << endl;
     exit(0);
   }
-
-  //***************************************************************************/
+#endif
+  
+  //*************************************************************************/
 
   template <class T> 
   void dmultiStoreRepI<T> :: hdf5read( hid_t group_id, IDENTITY_CONVERTER c, 
@@ -694,8 +699,8 @@ namespace Loci {
 
   }
 
-  //***************************************************************************/
-
+  //*************************************************************************/
+#ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void dmultiStoreRepI<T> :: hdf5write( hid_t group_id, DEFAULT_CONVERTER c, 
                                         const entitySet &eset)  const
@@ -705,7 +710,8 @@ namespace Loci {
 
 
   }
-  //***************************************************************************/
+#endif
+  //*************************************************************************/
 
   template <class T> 
   void dmultiStoreRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER c, 

@@ -7,7 +7,7 @@
 #include <sstream>
 #include <hdf5_memento.h>
 #include <hdf5_readwrite.h>
-using std::cout ;
+
 namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
@@ -383,8 +383,9 @@ namespace Loci {
     packdata( traits_type, outbuf, position, size, ecommon);
 
   }
-
-  //*******************************************************************
+ 
+#ifdef ALLOW_DEFAULT_CONVERTER
+ //*******************************************************************
   template <class T>
   void storeRepI<T>::StringVal( const int &entity, std::string &memento)
   {
@@ -395,7 +396,7 @@ namespace Loci {
     memento = oss.str();
   }
   //*******************************************************************
-#ifdef ALLOW_DEFAULT_CONVERTER
+
   template <class T> 
   void storeRepI<T>::packdata(DEFAULT_CONVERTER c, void *outbuf,
                               int &position, int outcount,
@@ -523,7 +524,7 @@ namespace Loci {
       MPI_Unpack( inbuf, insize, &position, outbuf, outcount, MPI_CHAR, 
                   MPI_COMM_WORLD) ;
 
-      istringstream iss(outbuf);
+      std::istringstream iss(outbuf);
       iss >> base_ptr[*ci];
       delete [] outbuf;
     }
@@ -819,7 +820,7 @@ namespace Loci {
 
     entitySet :: const_iterator ci;
 
-    istringstream iss(ibuf);
+    std::istringstream iss(ibuf);
 
     for( ci = eset.begin(); ci != eset.end(); ++ci) 
       iss >> base_ptr[*ci];
@@ -856,7 +857,7 @@ namespace Loci {
     int num_intervals = usr_eset.num_intervals();
 
     if( num_intervals == 0) {
-      cout << "Warning: Number of intervals are zero : " << endl;
+      std::cout << "Warning: Number of intervals are zero : " << endl;
       return;
     }
 
@@ -968,7 +969,7 @@ namespace Loci {
     //------------------------------------------------------------------
     int num_intervals = usr_eset.num_intervals();
     if( num_intervals == 0) {
-      cout << "Warning: Number of intervals are zero : " << endl;
+      std::cout << "Warning: Number of intervals are zero : " << endl;
       return;
     }
 
@@ -1041,7 +1042,6 @@ static inline ostream& operator << (ostream & s, vector<int> &) {
   abort();
   return s;
 }
-
 static inline istream& operator >> (istream & s, vector<int> &) {
   cerr << "unimplemented operator>>(istream & s, vector<int> &)" << endl;
   abort();

@@ -18,11 +18,14 @@ namespace Loci {
     entitySet store_domain ;
     T attrib_data ;
 
+#ifdef ALLOW_DEFAULT_CONVERTER
     void hdf5read(hid_t group, DEFAULT_CONVERTER  g );
+    void hdf5write( hid_t group, DEFAULT_CONVERTER g,     const entitySet &en) const;
+#endif
+
     void hdf5read(hid_t group, IDENTITY_CONVERTER g );
     void hdf5read(hid_t group, USER_DEFINED_CONVERTER g );
 
-    void hdf5write( hid_t group, DEFAULT_CONVERTER g,     const entitySet &en) const;
     void hdf5write( hid_t group, IDENTITY_CONVERTER g,    const entitySet &en) const;
     void hdf5write( hid_t group, USER_DEFINED_CONVERTER g,const entitySet &en) const;
 
@@ -51,18 +54,18 @@ namespace Loci {
     T *get_param() { return &attrib_data ; }
   } ;
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> void paramRepI<T>::allocate(const entitySet &p) {
     store_domain = p ;
     dispatch_notify();
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> paramRepI<T>::~paramRepI<T>() {}
 
-  //****************************************************************************
+  //**************************************************************************/
     
   template<class T>
   storeRep *paramRepI<T>::new_store(const entitySet &p) const 
@@ -70,7 +73,7 @@ namespace Loci {
     return new paramRepI<T>(p) ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   store_type paramRepI<T>::RepType() const 
@@ -78,13 +81,13 @@ namespace Loci {
     return PARAMETER ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> entitySet paramRepI<T>::domain() const {
     return store_domain ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
         
   template<class T> 
   std::ostream &paramRepI<T>::Print(std::ostream &s) const 
@@ -96,7 +99,7 @@ namespace Loci {
     return s ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   std::istream &paramRepI<T>::Input(std::istream &s) 
@@ -127,7 +130,7 @@ namespace Loci {
     return s ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
   template<class T> 
   void paramRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
   {
@@ -146,7 +149,7 @@ namespace Loci {
 
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void paramRepI<T>::writehdf5( hid_t group_id, entitySet &en) const
@@ -159,7 +162,7 @@ namespace Loci {
 
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> class param : public store_instance {
     typedef paramRepI<T> paramType ;
@@ -210,11 +213,11 @@ namespace Loci {
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> param<T>::~param() {}
     
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void param<T>::notification()
@@ -224,19 +227,19 @@ namespace Loci {
      warn(p==0);
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   inline std::ostream & operator<<(std::ostream &s, const param<T> &t)
   { return t.Print(s) ; }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   inline std::istream & operator>>(std::istream &s, param<T> &t)
   { return t.Input(s) ; }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   class const_param : public store_instance {
@@ -278,11 +281,11 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> const_param<T>::~const_param() {}
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void const_param<T>::notification() 
@@ -292,7 +295,7 @@ namespace Loci {
      warn(p==0);
   }
     
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   storeRepP paramRepI<T>::remap(const Map &m) const 
@@ -303,7 +306,7 @@ namespace Loci {
     return r.Rep() ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void paramRepI<T>::copy(storeRepP &st, const entitySet &context) 
@@ -315,7 +318,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void paramRepI<T>::gather(const Map &m, storeRepP &st,
@@ -326,7 +329,7 @@ namespace Loci {
     store_domain = context ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void paramRepI<T>::scatter(const Map &m, storeRepP &st,
@@ -338,7 +341,7 @@ namespace Loci {
     store_domain = m.image(context) ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
  
   template <class T> 
   int paramRepI<T>::pack_size( const entitySet &e) 
@@ -348,7 +351,7 @@ namespace Loci {
     return(size) ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void paramRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &e ) 
@@ -356,27 +359,28 @@ namespace Loci {
     MPI_Pack(&attrib_data, sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void paramRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq)  {
     MPI_Unpack(ptr, size, &loc, &attrib_data, sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
   }  
 
-  //****************************************************************************
+  //**************************************************************************/
   
   template<class T> store_instance::instance_type
     const_param<T>::access() const
   { return READ_ONLY; }
 
-  //****************************************************************************
+  //**************************************************************************/
     
   template<class T> 
   inline std::ostream & operator<<(std::ostream &s, const const_param<T> &t)
   { return t.Print(s) ; }
 
-  //****************************************************************************
+  //**************************************************************************/
 
+#ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void paramRepI<T> :: hdf5write( hid_t group_id, DEFAULT_CONVERTER g,
                                   const entitySet &eset ) const
@@ -404,9 +408,9 @@ namespace Loci {
     H5Sclose( vDataspace);
 
   }
+#endif
 
-
-  //****************************************************************************
+  //**************************************************************************/
   
   template <class T> 
   void paramRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
@@ -446,7 +450,7 @@ namespace Loci {
 
   };
 
-  //***********************************************************************
+  //*********************************************************************/
 
   template <class T> 
   void paramRepI<T> :: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g, 
@@ -498,8 +502,9 @@ namespace Loci {
 */
   };
 
-  //***********************************************************************
+  //***********************************************************************/
 
+#ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void paramRepI<T> :: hdf5read(hid_t group, DEFAULT_CONVERTER g )
   {
@@ -547,8 +552,8 @@ namespace Loci {
 */
 
   };
-
-  //***************************************************************************
+#endif
+  //**************************************************************************/
 
   template <class T> 
   void paramRepI<T> :: hdf5read(hid_t group_id, IDENTITY_CONVERTER g )
@@ -568,7 +573,7 @@ namespace Loci {
 */
   };
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template <class T> 
   void paramRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER g )

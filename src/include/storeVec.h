@@ -708,7 +708,8 @@ namespace Loci {
     return get_mpi_size( traits_type, eset );
   }
 
-  //****************************************************************************
+  //*************************************************************************/
+#ifdef ALLOW_DEFAULT_CONVERTER
   template <class T>
   void storeVecRepI<T>::StringVal( const int &entity, const int &ivec, std::string &memento)
   {
@@ -718,9 +719,8 @@ namespace Loci {
 
     memento = oss.str();
   }
-  //****************************************************************************
+  //**************************************************************************/
 
-#ifdef ALLOW_DEFAULT_CONVERTER
   template <class T>
   int storeVecRepI<T>::get_mpi_size( DEFAULT_CONVERTER c, const entitySet &eset)
   {

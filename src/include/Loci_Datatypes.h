@@ -278,7 +278,7 @@ namespace Loci
             rank           = newtype[i].array.rank;
             for(int k = 0; k < rank; k++)
               array_dims[k]  = newtype[i].array.dimension[k];
-#ifdef HDF5V1.2
+#ifdef HDF5V1_2
             H5Tinsert_array(vDatatype, newtype[i].name.c_str(), newtype[i].offset, 
                             rank, array_dims, NULL, hdf5T);
 #else
@@ -294,7 +294,7 @@ namespace Loci
             rank  = newtype[i].array.rank;
             for(int k = 0; k < rank; k++)
               array_dims[k]  = newtype[i].array.dimension[k];
-#ifdef HDF5V1.2
+#ifdef HDF5V1_2
             H5Tinsert_array(vDatatype, newtype[i].name.c_str(), newtype[i].offset, 
                             rank, array_dims, NULL, hdf5T);
 #else
