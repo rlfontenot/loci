@@ -452,8 +452,8 @@ namespace Loci {
 
   storeRepP multiMapRepI::remap(const Map &m) const {
     entitySet newdomain = m.domain() & domain() ;
-    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
-    newdomain &= mappimage.first ;
+    //    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    //    newdomain &= mappimage.first ;
     entitySet mapimage = m.image(newdomain) ;
     multiMap s ;
     s.allocate(mapimage) ;
@@ -467,9 +467,14 @@ namespace Loci {
     fatal(alloc_pointer == 0) ;
     fatal((context-store_domain) != EMPTY) ;
     fatal((image(context)-m.domain()) != EMPTY) ;
+    entitySet dom = m.domain() ;
     FORALL(context,i) {
-      for(int *ii = base_ptr[i];ii!=base_ptr[i+1];++ii)
-        *ii = m[*ii] ;
+      for(int *ii = base_ptr[i];ii!=base_ptr[i+1];++ii) {
+        if(dom.inSet(*ii))
+           *ii = m[*ii] ;
+        else
+          *ii = -1 ;
+      }
     } ENDFORALL ;
   }
 
