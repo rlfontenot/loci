@@ -20,21 +20,23 @@ namespace Loci {
 
       variableSet barrier_vars ;
       variableSet::const_iterator vi ;
-      
+
+      std::map<variable,ruleSet> barrier_info ;
       for(vi=vars.begin();vi!=vars.end();++vi) {
         ruleSet var_rules = extract_rules(dagt[(*vi).ident()]) ;
         ruleSet::const_iterator ri ;
+        ruleSet use_rules ;
         for(ri=var_rules.begin();ri!=var_rules.end();++ri)
           if(ri->get_info().rule_class != rule::INTERNAL) {
-            barrier_vars += *vi ;
-            break ;
+            use_rules += *ri ;
           }
-        
+        if(use_rules != EMPTY)
+          barrier_info[*vi] = use_rules ;
       }
       if(barrier_vars != EMPTY)
-        dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
+        dag_comp.push_back(new barrier_compiler(barrier_info)) ;
       else if(rules != EMPTY && i != 0) 
-        dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
+        dag_comp.push_back(new barrier_compiler(barrier_info)) ;
 
       if(rules != EMPTY) {
         ruleSet::const_iterator ri ;

@@ -722,7 +722,10 @@ namespace Loci {
   executeP barrier_compiler::create_execution_schedule(fact_db &facts) {
     //    if(num_threads > 1)
     ostringstream oss ;
-    oss << barrier_vars ;
+    std::map<variable,ruleSet>::const_iterator mi ;
+    for(mi=barrier_info.begin();mi!=barrier_info.end();++mi) {
+      oss << mi->first << " " ;
+    }
     return new execute_thread_sync(oss.str()) ;
   }
 

@@ -133,9 +133,10 @@ namespace Loci {
   } ;
 
   class barrier_compiler : public rule_compiler {
-    variableSet barrier_vars ;
+    std::map<variable, ruleSet> barrier_info ;
   public:
-    barrier_compiler(variableSet vars) : barrier_vars(vars) {}
+    barrier_compiler(std::map<variable,ruleSet> &var_map)
+      : barrier_info(var_map) {}
     virtual void set_var_existence(fact_db &facts) ;
     virtual void process_var_requests(fact_db &facts) ;
     virtual executeP create_execution_schedule(fact_db &facts) ;
