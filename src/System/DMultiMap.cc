@@ -233,7 +233,7 @@ namespace Loci
     // All the entities in the context should be present in the domain. ie. A->B
     // should be valid.
     //-------------------------------------------------------------------------
-    fatal((context-store_domain) != EMPTY) ;
+    fatal((context-domain()) != EMPTY) ;
     
     //-------------------------------------------------------------------------
     // All in the entities in B should be part of Map. Also. i.e. B->C should
