@@ -1,5 +1,6 @@
 #
 # 
+LOCI_BASE=`pwd`
 include sys.conf
 include comp.conf
 
@@ -28,39 +29,13 @@ install: default
 	LOCI_INSTALL_DIR=$(INSTALL_DIR) bash Install.bash
 
 Tools : FRC
-	cd Tools; $(MAKE) compile CC="$(CC)" CP="$(CP)" F77="$(F77)"\
-			  DEFINES="$(DEFINES)" \
-           INCLUDES="$(INCLUDES)"\
-			  CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
-			  AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
-                          RANLIB="$(RANLIB)" LD="$(LD)"\
-			  LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
-                          LIB_FLAGS="$(LIB_FLAGS)"\
-                          SHARED_AR="$(SHARED_AR)"\
-			  LOCI_BASE="$(LOCI_BASE)"
+	cd Tools; $(MAKE) compile LOCI_BASE="$(LOCI_BASE)"
 
 hdf5CC : FRC
-	cd hdf5CC; $(MAKE) compile CC="$(CC)" CP="$(CP)" F77="$(F77)"\
-			  DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
-			  CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
-			  AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
-                          RANLIB="$(RANLIB)" LD="$(LD)"\
-			  LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
-                          LIB_FLAGS="$(LIB_FLAGS)"\
-                          SHARED_AR="$(SHARED_AR)"\
-			  LOCI_BASE="$(LOCI_BASE)"
+	cd hdf5CC; $(MAKE) compile LOCI_BASE="$(LOCI_BASE)"
 
 System : FRC
-	cd System; $(MAKE) compile CC="$(CC)" CP="$(CP)" F77="$(F77)" \
-			   DEFINES="$(DEFINES)" \
-            INCLUDES="$(INCLUDES)"\
-			   CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
-			   AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
-                           RANLIB="$(RANLIB)" LD="$(LD)"\
-			   LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
-                           LIB_FLAGS="$(LIB_FLAGS)"\
-                           SHARED_AR="$(SHARED_AR)"\
-			   LOCI_BASE="$(LOCI_BASE)"
+	cd System; $(MAKE) compile LOCI_BASE="$(LOCI_BASE)"
 
 FRC :
 
@@ -77,38 +52,17 @@ allclean: clean
 
 clean:
 	rm -f $(JUNK)
-	cd Tools ; $(MAKE) clean
-	cd System ; $(MAKE) clean
-	cd hdf5CC ; $(MAKE) clean
+	cd Tools ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
+	cd System ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
+	cd hdf5CC ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 
 Tools_depend: FRC
-	cd Tools ; $(MAKE) depend CC="$(CC)" CP="$(CP)" F77="$(F77)" \
-			   DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
-			   CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
-			   AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
-                           RANLIB="$(RANLIB)" LD="$(LD)"\
-			   LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
-			   LOCI_BASE="$(LOCI_BASE)"\
-                           MAKEDEPEND="$(MAKEDEPEND)"
+	cd Tools ; $(MAKE) depend  LOCI_BASE="$(LOCI_BASE)" 
 
 hdf5CC_depend: FRC
-	cd hdf5CC ; $(MAKE) depend CC="$(CC)" CP="$(CP)" F77="$(F77)" \
-			   DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
-			   CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
-			   AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
-                           RANLIB="$(RANLIB)" LD="$(LD)"\
-			   LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
-			   LOCI_BASE="$(LOCI_BASE)"\
-                           MAKEDEPEND="$(MAKEDEPEND)" 
+	cd hdf5CC ; $(MAKE) depend  LOCI_BASE="$(LOCI_BASE)" 
 
 System_depend: FRC
-	cd System ; $(MAKE) depend CC="$(CC)" CP="$(CP)" F77="$(F77)" \
-			   DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
-			   CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
-			   AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
-                           RANLIB="$(RANLIB)" LD="$(LD)"\
-			   LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
-			   LOCI_BASE="$(LOCI_BASE)"\
-                           MAKEDEPEND="$(MAKEDEPEND)" 
+	cd System ; $(MAKE) depend  LOCI_BASE="$(LOCI_BASE)" 
 
 depend: Tools_depend System_depend hdf5CC_depend

@@ -2,21 +2,18 @@
 # Tools Makefile
 # 
 
-TARGET = libTools.a #libTools.so
+include $(LOCI_BASE)/Loci.conf
+
+TARGET = libTools.a libTools.so
+
+COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 
 
-
-LOCAL_INCLUDES = -I$(LOCI_BASE)/include -I$(LOCI_BASE)/include/hdf5CC
+INCLUDES = 
 
 OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o debugger.o \
        parse.o options_list.o expr.o intervalSet.o digraph.o unit_type.o \
 	fpe_sun.o
-
-.SUFFIXES: .o .c .cc .f
-
-.c.o:    ;  $(CC) -O $(LIB_FLAGS) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.c
-.cc.o:   ;  $(CP) $(LIB_FLAGS) $(CFLAGS) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.cc
-.f.o:    ;  $(F77) $(FFLAGS) -c $*.f
 
 default:
 	cd .. ; make -f Makefile Tools
@@ -27,9 +24,9 @@ libTools.a: $(OBJS)
 	$(AR) $(ARFLAGS) libTools.a $(OBJS) 
 	$(RANLIB) libTools.a
 
-libTools.so: $(OBJS)
-	$(LD) $(LDFLAGS) -shared -o libTools.so $(LIB_FLAGS) $(OBJS) 
-	
+LIB_OBJS=$(OBJS:.o=.lo)
+libTools.so: $(LIB_OBJS)
+	$(SHARED_LD) $(SHARED_LD_FLAGS) libTools.so $(LIB_FLAGS) $(LIB_OBJS) 
 
 
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
@@ -42,6 +39,6 @@ make.depend:
 	touch make.depend 
 
 depend: make.depend
-	$(MAKEDEPEND) $(CFLAGS) $(TEMPLATE_LIB_OPT) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) *.cc > make.depend
+	$(MAKEDEPEND) $(CFLAGS)  $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(LOCAL_INCLUDES) *.cc > make.depend
 
 include make.depend				
