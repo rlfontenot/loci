@@ -36,8 +36,6 @@ using Loci::const_store ;
 using Loci::multiStore ;
 using Loci::storeVec ;
 using Loci::const_storeVec ;
-using Loci::storeMat ;
-using Loci::const_storeMat ;
 using Loci::Vect ;
 using Loci::Mat ;
 using Loci::const_Vect ;
@@ -56,6 +54,10 @@ using Loci::apply_rule ;
 using Loci::pointwise_rule ;
 using Loci::singleton_rule ;
 using Loci::register_rule ;
+
+#include <storeMat.h>
+using Loci::storeMat ;
+using Loci::const_storeMat ;
 
 #include <DStore.h>
 using Loci::dstore ;
