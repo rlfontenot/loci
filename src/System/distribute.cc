@@ -7,6 +7,8 @@
 
 #include <vector>
 using std::vector ;
+#include <map>
+using std::map ;
 
 #include "metis.h"
 #include <mpi.h>
@@ -20,6 +22,7 @@ using std::ifstream ;
 
 #include <algorithm>
 using std::swap ;
+
 
 #define SCATTER_DIST
 //#define UNITY_MAPPING

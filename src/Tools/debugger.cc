@@ -1,3 +1,7 @@
+#ifdef SPARC
+#define SUN
+#endif
+
 #include <stdio.h>
 #include <signal.h>
 #ifdef SUN
@@ -86,30 +90,9 @@ namespace Loci {
     exit(-1) ;
   }
 
-#ifdef SUN
-  void FPE_program_trap(int sig, siginfo_t *sip, ucontext_t *uap) {
-    char *label;
-    switch (sip->si_code) {
-    case FPE_FLTINV: label = "invalid operand"; break;
-    case FPE_FLTRES: label = "inexact"; break;
-    case FPE_FLTDIV: label = "division-by-zero"; break;
-    case FPE_FLTUND: label = "underflow"; break;
-    case FPE_FLTOVF: label = "overflow"; break;
-    default: label = "???"; break;
-    }
-    fprintf(stderr, "FP exception %s (0x%x) occurred at address %p.\n",
-            label, sip->si_code, (void *) sip->si_addr);
-    debugger_() ;
-    exit(-1) ;
-  }
-#endif
 
   void chopsigs_()
   {
-#ifdef SUN
-    sigfpe_handler_type hdl ;
-#endif
-  
     signal(SIGBUS,program_trap) ;
     signal(SIGSEGV,program_trap) ;
     signal(SIGILL,program_trap) ;
@@ -117,13 +100,5 @@ namespace Loci {
 #ifdef LINUX
     signal(SIGFPE,program_trap) ;
 #endif
-#ifdef SUN  
-    hdl = (sigfpe_handler_type) FPE_program_trap ;
-    sigfpe(FPE_FLTINV,FPE_program_trap) ;
-    sigfpe(FPE_FLTDIV,FPE_program_trap) ;
-    sigfpe(FPE_FLTOVF,FPE_program_trap) ;
-#endif
   }
-
-
 }  

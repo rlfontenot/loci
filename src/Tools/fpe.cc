@@ -1,9 +1,11 @@
 #include <Tools/fpe.h>
+#include <Tools/debugger.h>
 
 #ifdef SPARC
 
 extern "C" {
   extern void SPARC_set_fpe_abort() ;
+  void fpe_debugger_() { Loci::debugger_() ; }
 }
 
 namespace Loci {

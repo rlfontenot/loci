@@ -5,6 +5,7 @@
 #include <ucontext.h>
 #include <sunmath.h>
 
+extern void fpe_debugger_() ;
 
 void SPARC_ieee_abort(int sig, siginfo_t *sip, ucontext_t *uap) {
   char *label;
@@ -20,6 +21,7 @@ void SPARC_ieee_abort(int sig, siginfo_t *sip, ucontext_t *uap) {
     
   fprintf(stderr, "FP exception %s (0x%x) occurred at address %p.\n",
           label, sip->si_code, (void *) sip->si_addr);
+  fpe_debugger_() ;
   abort();
 }
 

@@ -8,7 +8,11 @@ using std::vector ;
 using std::set ;
 #include <list>
 using std::list ;
-#include <hash_map.h>
+#include <map>
+using std::map ;
+#include <hash_map>
+using std::hash_map ;
+
 using std::pair ;
 using std::make_pair ;
 
