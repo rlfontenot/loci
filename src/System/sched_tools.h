@@ -45,9 +45,9 @@ namespace Loci {
 class dynamic_schedule_rule: public execute_modules {
     rule_implP rp ;
     variableSet inputs, outputs ;
-    fact_db local_facts[2];
+    fact_db local_facts;
     rule_implP local_compute1;
-    rule_implP local_compute2;
+    // rule_implP local_compute2;
     rule rule_tag ;
     entitySet exec_set ;
    

@@ -7,91 +7,55 @@ using std::endl ;
 
 namespace Loci {
 #define MAX_CHUNKS 100
+#define RTS_HLP    9930
+#define RTR_HLP    9920
+#define RTS_RES    9910
+#define RTR_RES    9900
 unsigned char *buf;  /*Send and receive data*/
 int position=0;        
 int size=0;            /*Size of buffer*/
-int local1=0;        /*Flag for data received from other processor in local_facts1*/
-int local2=0;        /*Flag for data received from other processor in local_facts2*/
-int running1=0;      /*Flag for local_compute1 started*/
-int running2=0;      /*Flag for local_compute2 started*/
-  // int *yMap;
+
+
   //global variables
   rule_implP rp1;
-  rule_implP local_comp1;
-  rule_implP local_comp2;
+  rule_implP local_comp1; 
   fact_db *local_facts1;
-  fact_db *local_facts2;
   variableSet inputs1;
   variableSet outputs1;
   entitySet exec_set1;
   fact_db *facts1;
-  fact_db *local_facts;
+
  
   /*To allocate inputs and outputs over the iterate space*/
 void Allocate_func(){
-     local_facts=local_facts1;
-     if(local1==0 && local2==0){
-       local_facts= local_facts1;
-     }
-     else if(local1==1 && local2==0){
-        local_facts= local_facts2;
-     }
-     else if(local1==0 && local2==1){
-	local_facts= local_facts1;
-     }
-     else {
-         std::cerr<<"Problem in the local protocol in Allocate()" << std::endl;
-	  exit(-1);
-     }
+    
     for(variableSet::const_iterator vi=inputs1.begin();vi!=inputs1.end();++vi) {
-      storeRepP sp = local_facts->get_variable(*vi) ;
+      storeRepP sp = local_facts1->get_variable(*vi) ;
       sp->allocate(interval(0,exec_set1.size()-1)) ;     
     }
     for(variableSet::const_iterator vi=outputs1.begin();vi!=outputs1.end();++vi) {
-      storeRepP sp = local_facts->get_variable(*vi) ;
+      storeRepP sp = local_facts1->get_variable(*vi) ;
       sp->allocate(interval(0,exec_set1.size()-1)) ;
     }     
 }
   /*To deallocate inputs and outputs*/
 void Deallocate_func(){
   
-     if(local1==1 && local2==0){
-       local_facts=local_facts1;
-     }
-     else if(local2==1 && local1==0){
-       local_facts=local_facts2; 
-     }
-     else if(local1 == 1 && local2 == 1) {
-	if(running1==1){
-          local_facts=local_facts1;
-        }
-	else if(running2==1){
-	  local_facts=local_facts2;
-	}     
-     }
-     //Set Flags
-      if(local_facts==local_facts1){
-	local1=0; //set flag for local_facts1 
-	running1=0;
-      }
-      else if(local_facts==local_facts2){
-	local2=0;      //set flag for local_facts2
-	running2=0;
-      }
+    
     //deallocate the temporaries
     for(variableSet::const_iterator vi=inputs1.begin();vi!=inputs1.end();++vi) {
-      storeRepP sp = local_facts->get_variable(*vi) ;
+      storeRepP sp = local_facts1->get_variable(*vi) ;
       sp->allocate(EMPTY) ;
     } 
     for(variableSet::const_iterator vi=outputs1.begin();vi!=outputs1.end();++vi) {
-      storeRepP sp = local_facts->get_variable(*vi) ;
+      storeRepP sp = local_facts1->get_variable(*vi) ;
       sp->allocate(EMPTY) ;
     }
 }
 
   // Transfer inputs to dest 
 void SendInput (int tStart, int tSize, int dest, int tag,MPI_Comm procGrp) {  
-  // std::cerr<<"I am here in send Input!"<<std::endl;
+  
     // Pack inputs from facts
     position = 0 ;
     size = 0 ;
@@ -106,7 +70,7 @@ void SendInput (int tStart, int tSize, int dest, int tag,MPI_Comm procGrp) {
       storeRepP s_ptr = facts1->get_variable(*vi) ;
       s_ptr->pack(buf,position,size,myent) ;
     } 
-    
+    MPI_Status tStatus;
     //Send Inputs
     int send_array[2];
     for(int k=0;k<=1;k++){
@@ -114,55 +78,33 @@ void SendInput (int tStart, int tSize, int dest, int tag,MPI_Comm procGrp) {
     } 
     send_array[0]=size;
     send_array[1]=tSize;
-    MPI_Send(send_array, 2, MPI_INT, dest, tag, procGrp);  
-    MPI_Send(buf,size,MPI_UNSIGNED_CHAR,dest,tag,procGrp);  
+    MPI_Sendrecv(send_array, 2, MPI_INT, dest,RTS_HLP,NULL,0,MPI_INT,dest,RTR_HLP, procGrp,&tStatus);  
+   
+    MPI_Rsend(buf,size,MPI_UNSIGNED_CHAR,dest,tag,procGrp);  
     delete [] buf;
 }
 
   // Receive inputs from sender 
 void ReceiveInput (int rcvStart,int *rcvSize,int src,int tag,MPI_Comm procGrp) { 
-  // std::cerr<<"I am here in receive Input!"<<std::endl;
+ 
     MPI_Status tStatus;
     int recvArray[2];
     for(int l=0;l<=1;l++){
       recvArray[l]=0;
     }    
     int size=0;
-    MPI_Recv(recvArray, 2, MPI_INT, src, tag, procGrp,&tStatus);   
+    MPI_Recv(recvArray, 2, MPI_INT, src, RTS_HLP, procGrp,&tStatus);  
+    MPI_Send(NULL,0,MPI_INT,src,RTR_HLP,procGrp); 
     size=recvArray[0];
     *rcvSize=recvArray[1];
     buf = new unsigned char[size];
+   
     MPI_Recv (buf,size,MPI_UNSIGNED_CHAR,src, tag, procGrp,&tStatus);   
-    //Which local_facts to receive inputs in  
-    /*
-      if(local1==0 && local2==0){
-	local_facts=local_facts1;
-      }
-      else if(local1==1 && local2==0){
-         local_facts=local_facts2;        
-      }
-      else if(local2==1 && local1==0){
-	 local_facts=local_facts1;
-      }
-      else if(local2 == 1 && local1 == 1) {
-	 std::cerr<<"Problem in the local protocol" << std::endl;
-	 exit(-1);
-      }
-    */
-     //Set flags
-     if(local_facts==local_facts1){
-        local1=1; //set flag for local_facts1
-        running1 = 0;
-     }
-     else if(local_facts==local_facts2){
-        local2=1; 
-	running2 = 0;
-     }
-     
+   
     // unpack inputs into local facts
     position = 0 ;
     for(variableSet::const_iterator vi=inputs1.begin();vi!=inputs1.end();++vi) {     
-      storeRepP s_ptr = local_facts->get_variable(*vi) ;
+      storeRepP s_ptr = local_facts1->get_variable(*vi) ;
       s_ptr->unpack(buf,position,size,sequence(interval(rcvStart,rcvStart+*rcvSize-1))) ;
     }
     
@@ -172,64 +114,43 @@ void ReceiveInput (int rcvStart,int *rcvSize,int src,int tag,MPI_Comm procGrp) {
 }
 //Send outputs to dest
 void SendOutput (int tStart, int tSize, int dest,int tag,MPI_Comm procGrp) { 
-    std::cerr<<"Local1 and local2:"<<local1<<"->"<<local2<<std::endl;
-     //From which local_facts 
-      if(local1==1 && local2==0){
-       local_facts=local_facts1;      
-      }
-      else if(local1==0 && local2==1){
-         local_facts=local_facts2;        
-      }
-      else if(local1 == 1 && local2 == 1) {
-	if(running1==1){
-          local_facts=local_facts1;
-        }
-	else if(running2==1){
-	  local_facts=local_facts2;
-	}      
-        else {
-	  std::cerr<<"Running1:"<<running1<<"->"<<"Running2:"<<running2<<std::endl;
-         std::cerr<<"Problem in the running protocol" << std::endl;
-	 // exit(-1);
-        }
-      }
+
 
     // Pack outputs
     position = 0 ;
     size = 0 ;
     for(variableSet::const_iterator vi=outputs1.begin();vi!=outputs1.end();++vi){
-      storeRepP s_ptr = local_facts->get_variable(*vi) ;
+      storeRepP s_ptr = local_facts1->get_variable(*vi) ;
       size += s_ptr->pack_size(interval(0,tSize-1)) ;
     }
   
     buf = new unsigned char[size] ;
     entitySet myent2=interval(0,tSize-1);
     for(variableSet::const_iterator vi=outputs1.begin();vi!=outputs1.end();++vi) {
-      storeRepP s_ptr = local_facts->get_variable(*vi) ;
+      storeRepP s_ptr = local_facts1->get_variable(*vi) ;
       s_ptr->pack(buf,position,size,myent2) ;
     }
+    MPI_Status tStatus;
     //Send outputs 
-    MPI_Send(&size, 1, MPI_INT, dest, tag, procGrp);
-    MPI_Send(buf,size,MPI_UNSIGNED_CHAR, dest, tag, procGrp);
+    MPI_Sendrecv(&size, 1, MPI_INT, dest,RTS_RES,NULL,0,MPI_INT,dest,RTR_RES,procGrp,&tStatus);
+    MPI_Rsend(buf,size,MPI_UNSIGNED_CHAR, dest, tag, procGrp);
     delete [] buf;
 
   
 }
   //Receive outputs from src
 void ReceiveOutput (int rcvStart, int rcvSize, int src, int tag,MPI_Comm procGrp) { 
-  std::cerr<<"I am in ReceiveOutput"<<std::endl;
+ 
     MPI_Status tStatus;
     size=0;
-    MPI_Recv(&size, 1, MPI_INT, src, tag, procGrp, &tStatus);
+    MPI_Recv(&size, 1, MPI_INT, src, RTS_RES, procGrp, &tStatus);
+    MPI_Send(NULL,0,MPI_INT,src,RTR_RES,procGrp);
     buf = new unsigned char[size];
+   
     MPI_Recv (buf, size, MPI_UNSIGNED_CHAR, src, tag, procGrp, &tStatus);
     // unpack outputs into facts
     position = 0 ;     
-    //  cerr << "rcvStart = " << rcvStart 
-    //	 << ",rcvSize = " << rcvSize 
-    //	 << ",size = " << size 
-    //	 << endl ;
-      
+   
     for(variableSet::const_iterator vi=outputs1.begin();vi!=outputs1.end();++vi) {
       storeRepP s_ptr = facts1->get_variable(*vi) ;
       s_ptr->unpack(buf,position,size,sequence(interval(rcvStart,rcvStart+rcvSize-1))) ; 
@@ -241,32 +162,15 @@ void ReceiveOutput (int rcvStart, int rcvSize, int src, int tag,MPI_Comm procGrp
   
 void workCompute(int start, int size,int Signal){
   rule_implP rp2;
-  // std::cerr<<"Start:"<<start<<"Size:"<<size<<"Signal:"<<Signal<<std::endl;
+  // std::cerr<<"Signal->"<<Signal<<std::endl;
   rp2=rp1;
-  
+ 
   //Compute from local facts
-  if(Signal==1){
-    if(local1==1 && local2==0) {
-       running1 = 1;   
-       rp2=local_comp1;
-    }
-    else if(local1==0 && local2==1){
-       running2 = 1;
-       rp2=local_comp2;	     
-    }
-    else if(local1==1 && local2 == 1) {
-       if(running1 == 1) {
-         rp2=local_comp1;		
-       }
-       else if(running2 == 1) {
-         rp2=local_comp2;
-       }
-       else {
-        std::cerr<<"Problem in the running protocolin Compute" << std::endl;
-        exit(-1);
-       }
-    }
+  if(Signal==1){   
+       rp2=local_comp1;  
   }
+  
+  //rp2->Print(cerr);
   rp2->compute(sequence(interval(start,start+size-1)));
 }
 
@@ -275,64 +179,59 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 
 dynamic_schedule_rule::dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds)  {
   
-   std::cerr << "begin construct current_dist_info_ptr=" << (facts.get_distribute_info()==0) << std::endl ;
+  //  std::cerr << "begin construct current_dist_info_ptr=" << (facts.get_distribute_info()==0) << std::endl ;
   rp = fi.get_rule_implP() ; //get rule from rule database 
   rule_tag = fi ;            //store rule tag in rule_tag
   local_compute1 = rp->new_rule_impl() ; //another instance of rule 
-  local_compute2 = rp->new_rule_impl() ; //another instance of rule 
   entitySet in = rule_tag.sources() ; //inputs from rule rhs
   outputs = rule_tag.targets() ;      //outputs as in rhs  
   exec_set = eset ;   
   
-
-  
+ 
 
   // Setup local facts input variables (types only no allocation)
   for(variableSet::const_iterator vi=in.begin();vi!=in.end();++vi) {
     storeRepP store_ptr = rp->get_store(*vi) ;    
     if((store_ptr != 0) && store_ptr->RepType() == Loci::STORE) {	  
       inputs += *vi ; 
-      local_facts[0].create_fact(*vi,store_ptr->new_store(EMPTY)) ; 
-      local_facts[1].create_fact(*vi,store_ptr->new_store(EMPTY)) ;             
+      local_facts.create_fact(*vi,store_ptr->new_store(EMPTY)) ;             
     } else {
-      local_facts[0].create_fact(*vi,facts.get_variable(*vi)) ;
-      local_facts[1].create_fact(*vi,facts.get_variable(*vi)) ;
+      local_facts.create_fact(*vi,facts.get_variable(*vi)) ;
     }
   }
   // Setup local facts output variables 
   for(variableSet::const_iterator vi=outputs.begin();vi!=outputs.end();++vi) {
     storeRepP store_ptr = rp->get_store(*vi) ;    
-    local_facts[0].create_fact(*vi,store_ptr->new_store(EMPTY)) ;
-    local_facts[1].create_fact(*vi,store_ptr->new_store(EMPTY)) ;
+    local_facts.create_fact(*vi,store_ptr->new_store(EMPTY)) ;
   }
   
   // Initialize both functions for remote and local execution.
-  local_compute1->initialize(local_facts[0]) ;
-  local_compute2->initialize(local_facts[1]) ;
+  local_compute1->initialize(local_facts) ;
   rp->initialize(facts) ;  
   
-  //Assignment to global variables
-  rp1=rp;
-  local_comp1=local_compute1;
-  local_comp2=local_compute2;
-  exec_set1=exec_set;
-  facts1=&facts;
-  local_facts1=&local_facts[0];
-  local_facts2=&local_facts[1];
-  inputs1=inputs;
-  outputs1=outputs; 
  
  
-   std::cerr << "end construct current_dist_info_ptr=" << (facts.get_distribute_info()==0) << std::endl ;
+  //  std::cerr << "end construct current_dist_info_ptr=" << (facts.get_distribute_info()==0) << std::endl ;
 
 }
 
 
 void dynamic_schedule_rule::execute(fact_db &facts) { 
-
-   extern int method; 
-   std::cerr<<"method:"<<method<<std::endl;
-    std::cerr << "current_dist_info_ptr=" << (Loci::exec_current_fact_db->get_distribute_info()==0) << std::endl ;
+   
+    //Assignment to global variables
+  rp1=rp;
+  local_comp1=local_compute1;
+  exec_set1=exec_set;
+  facts1=&facts;
+  local_facts1=&local_facts;
+  inputs1=inputs;
+  outputs1=outputs; 
+  extern int method; 
+  //  rp1->Print(cerr);
+  // local_comp1->Print(cerr);
+  
+  
+  // std::cerr << "current_dist_info_ptr=" << (Loci::exec_current_fact_db->get_distribute_info()==0) << std::endl ;
   
   int *yMap=new int[2*Loci::MPI_processes]; 
   for(int i = 0; i < Loci::MPI_processes; i++) {
@@ -378,17 +277,23 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
   double t1=0.0;
   double t2=0.0;
   double t3=0.0;
-  t1 = MPI_Wtime();
+  // t1 = MPI_Wtime();
  
-  
+   
   Loci::ExecuteLoop(&workCompute,&SendInput,&ReceiveInput,&SendOutput,&ReceiveOutput,&Allocate_func,&Deallocate_func,method,yMap,stats,chunkMap);
-  t2 = MPI_Wtime();
+  // t2 = MPI_Wtime();
   delete [] yMap;        
-  t3=t2-t1;
-  std::cout<<Loci::MPI_rank<<'\t'<<t3<<'\t'<<stats[0]<<std::endl;
+  // t3=t2-t1;
+  // std::cerr<<Loci::MPI_rank<<'\t'<<t3<<'\t'<<stats[0]<<std::endl;
   delete [] stats;
+  // Loci::debugout<<Loci::MPI_rank<<"start"<<'\t'<<"->"<<"size"<<'\t'<<"->"<<"Rank#"<<endl;
+  //  for(int i = 0; i < MAX_CHUNKS; i++) {
+  //    Loci::debugout<< chunkMap[3*i+0]<<"->"
+  //		  << chunkMap[3*i+1]<<"->"
+  //		  <<chunkMap[3*i+2]<<endl;
+  //  }
   delete [] chunkMap;
-  std::cerr << "after current_dist_info_ptr=" << (Loci::exec_current_fact_db->get_distribute_info()==0) << std::endl ;
+  //  std::cerr << "after current_dist_info_ptr=" << (Loci::exec_current_fact_db->get_distribute_info()==0) << std::endl ;
 }
    
 
