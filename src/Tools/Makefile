@@ -21,7 +21,7 @@ default:
 
 compile: $(TARGET)
 
-libTools.a: $(OBJS)
+libTools.a: $(OBJS) 
 	$(AR) $(ARFLAGS) libTools.a $(OBJS) 
 	$(RANLIB) $(TARGET)
 

@@ -175,6 +175,10 @@ namespace Loci {
     void read_hdf5(const char *filename);
     void printSummary(std::ostream &s) const ;
   } ;
+
+  void reorder_facts(fact_db &facts, Map &remap) ;
+
+
 }
 
 #endif

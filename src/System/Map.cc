@@ -67,7 +67,7 @@ namespace Loci {
   void MapRepI::gather(const Map &m, storeRepP &st, const entitySet &context) {
     const_Map s(st) ;
     fatal(base_ptr == 0) ;
-    fatal((m.image(context) - s.domain()) != EMPTY) ;
+    fatal((m.image(context) - s.domain()) != EMPTY) ; 
     fatal((context - domain()) != EMPTY) ;
     FORALL(context,i) {
       base_ptr[i] = s[m[i]] ;
@@ -507,8 +507,38 @@ namespace Loci {
 
   void multiMapRepI::gather(const Map &m, storeRepP &st,
                             const entitySet  &context) {
-    warn(true) ;
+    store<int> count ;
+    const_multiMap s(st) ;
+    count.allocate(domain()) ;
+    FORALL(domain()-context,i) {
+      count[i] = base_ptr[i+1]-base_ptr[i] ;
+    } ENDFORALL ;
+    FORALL(context,i) {
+      count[i] = s.end(m[i])-s.begin(m[i]) ;
+    } ENDFORALL ;
+    int **new_index ;
+    int *new_alloc_pointer ;
+    int **new_base_ptr ;
+
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    FORALL(domain()-context,i) {
+      for(int j=0;j<count[i];++j) 
+        new_base_ptr[i][j] = base_ptr[i][j] ;
+    } ENDFORALL ;
+
+    FORALL(context,i) {
+      for(int j=0;j<count[i];++j)
+        new_base_ptr[i][j] = s[m[i]][j] ;
+    } ENDFORALL ;
+
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = new_alloc_pointer;
+    if(index) delete[] index ;
+    index = new_index ;
+    base_ptr = new_base_ptr ;
+    dispatch_notify() ;
   }
+
   void multiMapRepI::scatter(const Map &m, storeRepP &st,
                              const entitySet  &context) {
     warn(true) ;
