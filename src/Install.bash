@@ -5,13 +5,15 @@ REVISION_NAME='$NAME: $'
 INSTALL_DIR=${LOCI_INSTALL_DIR-/usr/local}
 
 COMP_NAME=`echo $CPP | sed -e 's/ .*//' -e 's/.*\///'`
-ARCH=`arch`
+SYSTEM=`uname -s`
+MACHINE=`uname -p`
+if [ $SYSTEM == "Linux" ]; then MACHINE=`uname -m` ; fi
 
 REV=`echo $REVISION_NAME| sed -e 's/.*: *//' -e 's/ *\$$//'`
 # If no revision name, set the default to be month-day-year
 if [ $REV=="" ]; then REV=`date +%m.%d.%y` ; fi
 
-INSTALL_PATH=$INSTALL_DIR/Loci-$ARCH-$COMP_NAME-$REV/
+INSTALL_PATH=$INSTALL_DIR/Loci-$ARCH-$MACHINE-$COMP_NAME-$REV/
 
 echo INSTALL_PATH = $INSTALL_PATH
 
