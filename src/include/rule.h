@@ -30,7 +30,7 @@ namespace Loci {
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,UNIT,APPLY,JOIN, TIMEADVANCE, UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,JOIN, UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     mutable std::string name ;
@@ -107,6 +107,21 @@ namespace Loci {
     { rule_impl::conditional(cond) ; }
   } ;
 
+  class singleton_rule : public rule_impl {
+  protected:
+    singleton_rule() { rule_class(SINGLETON) ; }
+    void name_store(const std::string &name, store_instance &si)
+    { rule_impl::name_store(name,si) ; }
+    void input(const std::string &invar)
+    { rule_impl::input(invar) ; }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+    { rule_impl::conditional(cond) ; }
+  } ;
+  
   class unit_rule : public rule_impl {
    protected:
     unit_rule() { rule_class(UNIT) ; }

@@ -100,6 +100,23 @@ namespace Loci {
 
     T &operator*() { return *data ; }
     const T &operator*() const { return *data ; }
+
+    T &operator[](int indx) {
+#ifdef BOUNDS_CHECK
+      fatal(data == NULL) ;
+      fatal(!Rep()->domain().inSet(indx)) ;
+#endif
+      return *data ;
+    }
+
+    const T &operator[](int indx) const {
+#ifdef BOUNDS_CHECK
+      fatal(data == NULL) ;
+      fatal(!Rep()->domain().inSet(indx)) ;
+#endif
+      return *data ;
+    }
+
     
     void set_entitySet(const entitySet &ptn) {Rep()->allocate(ptn); }
 
@@ -150,6 +167,14 @@ namespace Loci {
     const T * operator &() const { return data ; }
 
     const T &operator*() const { return *data ; }
+
+    const T &operator[](int indx) const {
+#ifdef BOUNDS_CHECK
+      fatal(data == NULL) ;
+      fatal(!Rep()->domain().inSet(indx)) ;
+#endif
+      return *data ;
+    }
     
     operator storeRepP() { return Rep() ; }
 

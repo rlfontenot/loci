@@ -573,7 +573,16 @@ entitySet process_rule_requests(rule f, fact_db &facts) {
       }
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
         facts.variable_request(*vi,working) ;
+#ifdef UNDERSTAND_THIS
         WARN(facts.get_variable_request(f,*vi) != working) ;
+        if(facts.get_variable_request(f,*vi) != working) {
+          cerr << "f = " << f << endl ;
+          cerr << "*vi = " << *vi << endl ;
+          cerr << "facts.get_variable_request(f,*vi) = "
+               << facts.get_variable_request(f,*vi)
+               << ", working = " << working << endl ;
+        }
+#endif
       }
     }
   }
