@@ -50,6 +50,9 @@ namespace Loci {
     variableSet LociPreallocationReallocVars ;
     variableSet LociAppGivenVars ;
     double LociPreallocationReallocSize = 0 ;
+    // all chomped variables
+    //variableSet all_chomped_vars = variableSet(EMPTY) ;
+    variableSet all_chomped_vars ;
   }
   
   class error_compiler : public rule_compiler {
@@ -266,42 +269,49 @@ namespace Loci {
     top_down_visit(reduceV) ;
 
     det1 = MPI_Wtime() ;
+
     if(use_dynamic_memory) {
       if(Loci::MPI_rank == 0)
         cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
+    }
 
-      if(use_chomp) {
-        if(Loci::MPI_rank == 0) 
-          cout << "USING CHOMPING"
-               << " (chomping size: "
-               << chomping_size << "KB)"
-               << endl ;
-        
-        cst = MPI_Wtime() ;
-        chompPPVisitor cppv(facts,
-                            rotlv.get_rotate_vars_table(),
-                            rotlv.get_loop_shared_table(),
-                            variableSet(recv.get_rename_source_vars() +
-                                        recv.get_rename_target_vars())
-                            ) ;
-        top_down_visit(cppv) ;
-        
-        chompRuleVisitor crv(cppv.get_good_vars(),
-                             cppv.get_bad_vars(),
-                             reduceV.get_apply2unit()) ;
-        top_down_visit(crv) ;
-        cet = MPI_Wtime() ;
-
-        if(show_chomp)
-          crv.visualize(cout) ;
-        if(chomp_verbose)
-          crv.summary(cout) ;
-
-        dagCheckVisitor dagcV1(true) ;
-        top_down_visit(dagcV1) ;
-
-      }
+    // chomping searching and graph editing
+    if(use_chomp) {
+      if(Loci::MPI_rank == 0) 
+        cout << "USING CHOMPING"
+             << " (chomping size: "
+             << chomping_size << "KB)"
+             << endl ;
       
+      cst = MPI_Wtime() ;
+      chompPPVisitor cppv(facts,
+                          rotlv.get_rotate_vars_table(),
+                          rotlv.get_loop_shared_table(),
+                          variableSet(recv.get_rename_source_vars() +
+                                      recv.get_rename_target_vars())
+                          ) ;
+      top_down_visit(cppv) ;
+      
+      chompRuleVisitor crv(cppv.get_good_vars(),
+                           cppv.get_bad_vars(),
+                           reduceV.get_apply2unit()) ;
+      top_down_visit(crv) ;
+      cet = MPI_Wtime() ;
+      
+      if(show_chomp)
+        crv.visualize(cout) ;
+      if(chomp_verbose)
+        crv.summary(cout) ;
+      
+      dagCheckVisitor dagcV1(true) ;
+      top_down_visit(dagcV1) ;
+
+      // we set all chomped variables here
+      all_chomped_vars = crv.get_all_chomped_vars() ;
+    }
+
+    // dynamic memory management graph decoration
+    if(use_dynamic_memory) {
       dst2 = MPI_Wtime() ;
       // get inter/intra supernode information
       snInfoVisitor snv ;
@@ -352,7 +362,10 @@ namespace Loci {
 
       // compute how to do allocation
       allocInfoVisitor aiv(snv.get_graph_sn(),
-                           recv.get_recur_target_vars(),
+                           recv.get_recur_vars_s2t(),
+                           recv.get_recur_vars_t2s(),
+                           variableSet(recv.get_recur_source_vars()+
+                                       recv.get_recur_target_vars()),
                            snv.get_loop_sn(),
                            rotlv.get_rotate_vars_table(),
                            rotlv.get_loop_shared_table(),
@@ -406,12 +419,6 @@ namespace Loci {
       // check if the decorated graphs are acyclic
       dagCheckVisitor dagcV(true) ;
       top_down_visit(dagcV) ;
-
-      if(use_chomp) {
-        // compile all the chomp_compilers
-        compChompVisitor compchompv ;
-        top_down_visit(compchompv) ;
-      }
 
       if(show_dmm_verbose) {
         // the output stream
@@ -498,6 +505,24 @@ namespace Loci {
       top_down_visit(visV) ;
     }
     
+    if(use_chomp) {
+      // compile all the chomp_compilers.
+      // Note that all the chomping compilers
+      // are added into the multilevel graph
+      // later after we built the multilevel
+      // graph structure. Therefore all the
+      // chomping compilers are NOT in the
+      // graph structure that we built. So
+      // we need to schedule and compile
+      // all the chomping compilers separately.
+      // We do this here. The scheduling
+      // and compilation of all other compilers
+      // are done at below by graphSchedulerVisitor
+      // and the assembleVisitor.
+      compChompVisitor compchompv ;
+      top_down_visit(compchompv) ;
+    }
+    
     //orderVisitor ov ;    
     //bottom_up_visit(ov) ;
     schedst = MPI_Wtime() ;
@@ -526,6 +551,7 @@ namespace Loci {
                        reduceV.get_reduceInfo());
     bottom_up_visit(av) ;
 
+    // setting this external pointer
     exec_current_fact_db = &facts ;
 
     if(use_dynamic_memory)
@@ -726,8 +752,15 @@ namespace Loci {
 
     CPTR<execute_list> schedule = new execute_list ;
 
-    if(!use_dynamic_memory)
-      schedule->append_list(new allocate_all_vars(facts,scheds,facts.get_typed_variables(),true)) ;
+    if(!use_dynamic_memory) {
+      variableSet alloc_vars = facts.get_typed_variables() ;
+      if(use_chomp) {
+        // we used chomp with no dmm, we don't need to allocate
+        // all those chomped variables
+        alloc_vars -= all_chomped_vars ;
+      }
+      schedule->append_list(new allocate_all_vars(facts,scheds,alloc_vars,true)) ;
+    }
     else
       if(facts.is_distributed_start())
         if((MPI_processes > 1))
@@ -751,6 +784,10 @@ namespace Loci {
         // but we need to profile those reallocated given vars
         profile_vars += LociPreallocationReallocVars ;
         LociAppPMTemp -= LociPreallocationReallocSize ;
+        if(use_chomp) {
+          // if use chomping, then chomped vars don't need to be profiled
+          profile_vars -= all_chomped_vars ;
+        }
         
         schedule->append_list(new execute_memProfileAlloc(profile_vars)) ;
       }

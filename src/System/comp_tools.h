@@ -20,6 +20,19 @@ using std::vector;
 
 // for the mallinfo function
 #include <malloc.h>
+
+#ifdef LINUX
+#define HAS_MALLINFO
+#endif
+
+#ifdef SPARC
+#define HAS_MALLINFO
+#endif
+
+#ifdef SGI
+#define HAS_MALLINFO
+#endif
+
 namespace Loci {
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
@@ -409,7 +422,7 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
     // memory profile function
     int currentMem(void) {
-#ifdef LINUX
+#ifdef HAS_MALLINFO
       struct mallinfo info = mallinfo() ;
       return info.arena+info.hblkhd ;
 #else
@@ -427,8 +440,13 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
     // memory profile function
     int currentMem(void) {
+#ifdef HAS_MALLINFO
       struct mallinfo info = mallinfo() ;
       return info.arena+info.hblkhd ;
+#else
+      cerr << "memProfile not implemented" << endl ;
+      return 0 ;
+#endif
     }    
   } ;
 

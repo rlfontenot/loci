@@ -58,14 +58,17 @@ namespace Loci {
   public:
     // need graph_sn information
     allocInfoVisitor(const std::set<int>& gsn,
-                     const variableSet& rtv,
+                     const std::map<variable,variableSet>& rvs2t,
+                     const std::map<variable,variableSet>& rvt2s,
+                     const variableSet& allrecurvars,
                      const std::set<int>& lsn,
                      const std::map<int,variableSet>& rot_vt,
                      const std::map<int,variableSet>& lsharedt,
                      const variableSet& untyped_vars):
       allocated_vars(untyped_vars), graph_sn(gsn),
-      recur_target_vars(rtv),loop_sn(lsn),rotate_vtable(rot_vt),
-      loop_shared_table(lsharedt) {}
+      recurs2t(rvs2t),recurt2s(rvt2s),
+      all_recur_vars(allrecurvars),loop_sn(lsn),
+      rotate_vtable(rot_vt),loop_shared_table(lsharedt) {}
 
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
@@ -90,8 +93,11 @@ namespace Loci {
     variableSet allocated_vars ; 
     // super nodes that have a graph inside it
     std::set<int> graph_sn ;
-    // the set of all the recurrence target variable
-    variableSet recur_target_vars ;
+    // the recurrence variables mapping table
+    std::map<variable,variableSet> recurs2t ;
+    std::map<variable,variableSet> recurt2s ;
+    // the set of all recurrence variables
+    variableSet all_recur_vars ;
     // set that holds all the loop node id
     std::set<int> loop_sn ;
     // table that holds rotate list variables in each loop
@@ -566,7 +572,9 @@ namespace Loci {
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
     std::map<int,std::list<chomp_chain> > get_all_chains() const
-    {return all_chains ;}
+      {return all_chains ;}
+    variableSet get_all_chomped_vars() const
+      {return all_chomped_vars ;}
     std::ostream& visualize(std::ostream& s) const ;
     std::ostream& summary(std::ostream& s) const ;
   private:
@@ -574,6 +582,7 @@ namespace Loci {
     void edit_gr(digraph& gr,const std::list<chomp_chain>& cc,
                  rulecomp_map& rcm) ;
     std::map<int,std::list<chomp_chain> > all_chains ;
+    variableSet all_chomped_vars ;
     variableSet good_vars ;
     variableSet bad_vars ;
     // apply to unit map
@@ -663,9 +672,10 @@ namespace Loci {
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-  private:
+  public:
     std::vector<digraph::vertexSet>
       schedule(const digraph& gr) ;
+  private:
     const PrioGraph& prio ;
   } ;  
 
@@ -733,6 +743,13 @@ namespace Loci {
                      std::map<int_type,int_type>& pmap) const ;
     private:
     fact_db& facts ;
+  } ;
+
+  // graph prioritize function that tries
+  // to maximize the cache benefit of chomping
+  struct chompingPrio: public PrioGraph {
+    void operator()(const digraph& gr,
+                    std::map<int_type,int_type>& pmap) const ;
   } ;
 
 }

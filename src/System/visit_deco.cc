@@ -14,6 +14,43 @@ namespace Loci {
   ////////////////////////////////////////////////////////////////
   // allocInfoVisitor
   ////////////////////////////////////////////////////////////////
+  namespace {
+    // working is a set of recurrence variables. This function
+    // filters the variables that do not need to be allocated
+    variableSet filte_recur_nonalloc(const variableSet& working,
+                                     const variableSet& testing,
+                                     const map<variable,variableSet>& s2t,
+                                     const map<variable,variableSet>& t2s
+                                     ) {
+      variableSet ret ;
+      variableSet processed ;
+      for(variableSet::const_iterator vi=working.begin();
+          vi!=working.end();++vi) {
+        if(processed.inSet(*vi))
+          continue ;
+        // first get all the source variables from this one
+        variableSet sources = get_all_recur_vars(t2s,*vi) ;
+        if( (sources == EMPTY) ||
+            (variableSet(sources&testing) == EMPTY)
+            ) {
+          // then this variable is chosen to allocate
+          variableSet targets = get_all_recur_vars(s2t,*vi) ;
+          ret += sources ;
+          ret += targets ;
+          processed += *vi ;
+          processed += sources ;
+          processed += targets ;
+        }else {
+          ret += *vi ;
+          processed += *vi ;
+        }
+      } // end of for(vi)
+
+      return ret ;
+    }
+
+  } // end of unnamed namespace
+  
   variableSet allocInfoVisitor::get_start_info(const digraph& gr,int id) {
     variableSet working_vars ;
 
@@ -30,7 +67,24 @@ namespace Loci {
     }
       
     // we remove recurrence target variables from the working_vars.
-    working_vars -= recur_target_vars ;
+    //working_vars -= recur_target_vars ;
+
+    // the following code attempts to fix the allocation
+    // problem related to the priority variables. for example:
+    // heat::u_f{n,it} vs. u_f{n,it}
+    // For any recurrence variable, we allocate the one
+    // we first see, and once that one gets allocated, we
+    // mark any other related recurrence variables not
+    // to be allocated.
+    working_vars -= allocated_vars ;
+    variableSet takeoff =
+      filte_recur_nonalloc(variableSet(working_vars&all_recur_vars),
+                           variableSet
+                           (extract_vars
+                            (gr.get_all_vertices()) & all_recur_vars),
+                           recurs2t,recurt2s) ;
+    allocated_vars += takeoff ;
+    working_vars -= takeoff ;
 
     return working_vars ;
   }
@@ -84,8 +138,20 @@ namespace Loci {
       // this variable in this level (graph)
       if( (all_super_nodes) &&
           (source_rules.size() == 1)
-          )
+          ) {
+        if(all_recur_vars.inSet(*varIter)) {
+          // if this variable is a recurrence variable,
+          // then we push back all its disabled source
+          // and target variables. This gives the chance
+          // to reselect which one to allocate in the
+          // following graphs
+          variableSet sources = get_all_recur_vars(recurt2s,*varIter) ;
+          variableSet targets = get_all_recur_vars(recurs2t,*varIter) ;
+          allocated_vars -= sources ;
+          allocated_vars -= targets ;
+        }
         continue ;
+      }
       // else we allocate it in this level
       // add the variable into the alloc_here set
       alloc_here += *varIter ;
@@ -112,8 +178,18 @@ namespace Loci {
         }
       }
     }
-    all_rot_vars -= recur_target_vars ;
     all_rot_vars -= allocated_vars ;
+    // if any rotate list variable belongs to
+    // recurrence variables cluster, we allocate
+    // the first one of them
+    variableSet takeoff =
+      filte_recur_nonalloc(variableSet(all_rot_vars&all_recur_vars),
+                           variableSet
+                           (extract_vars
+                            (gr.get_all_vertices()) & all_recur_vars),
+                           recurs2t,recurt2s) ;
+    allocated_vars += takeoff ;
+    all_rot_vars -= takeoff ;
     
     alloc_here += all_rot_vars ;
     
@@ -418,7 +494,7 @@ namespace Loci {
       }
 
       // check if this variable is a current loop
-      // shared variable, if it is, then if it is a promoted
+      // shared variable, if it is, then check if it is a promoted
       // variable, if it is, then we don't need to look at
       // other things, just delete it here
       if(current_lshared_vars.inSet(*varIter)) {

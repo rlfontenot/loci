@@ -1173,4 +1173,26 @@ namespace Loci {
 
   } // end of function
 
+  
+  // graph prioritize function that tries
+  // to maximize the cache benefit of chomping
+  void chompingPrio::operator()(const digraph& gr,
+                                map<int_type,int_type>& pmap) const {
+    // initial weight
+    int_type weight = 0 ;
+    // get a depth first order by doing a component sort
+    vector<digraph::vertexSet> components =
+      component_sort(gr).get_components() ;
+    // looping over the depth first order to assign weight
+    vector<digraph::vertexSet>::const_iterator vi ;
+    for(vi=components.begin();vi!=components.end();++vi) {
+      if(vi->size() != 1) {
+        cerr << "Chomping graph error: Cycle(s) detected" << endl ;
+        exit(-1) ;
+      }
+      pmap[*(vi->begin())] = weight++ ;
+    }
+  }
+  
+
 } // end of namespace Loci

@@ -10,6 +10,18 @@ using std::map ;
 
 #include <malloc.h>
 
+#ifdef LINUX
+#define HAS_MALLINFO
+#endif
+
+#ifdef SPARC
+#define HAS_MALLINFO
+#endif
+
+#ifdef SGI
+#define HAS_MALLINFO
+#endif
+
 namespace Loci {
   extern int chomping_size ;
   extern bool profile_memory_usage ;
@@ -22,7 +34,7 @@ namespace Loci {
   namespace {
     // memory profile function
     int currentMem(void) {
-#ifdef LINUX
+#ifdef HAS_MALLINFO
       struct mallinfo info = mallinfo() ;
       return info.arena+info.hblkhd ;
 #else

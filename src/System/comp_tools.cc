@@ -1616,25 +1616,27 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   void execute_memProfileAlloc::Print(std::ostream &s) const {
     if(vars != EMPTY)
       s << "memory profiling check point (allocate: " << vars
-        << " )" << endl ;
+        << ")" << endl ;
   }
 
   void execute_memProfileAlloc::execute(fact_db& facts) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
+      //cerr<<"memory profiling (allocation) on: "<<*vi<<endl; 
       storeRepP srp = facts.get_variable(*vi) ;
       entitySet alloc_dom = srp->domain() ;
-
+      
       double currmen = currentMem() ;
       if(currmen > LociAppPeakMemory)
         LociAppPeakMemory = currmen ;
-      
+          
       int packsize = srp->pack_size(alloc_dom) ;
       LociAppAllocRequestBeanCounting += packsize ;
       LociAppPMTemp += packsize ;
 
-      if(LociAppPMTemp > LociAppPeakMemoryBeanCounting)
+      if(LociAppPMTemp > LociAppPeakMemoryBeanCounting) {
         LociAppPeakMemoryBeanCounting = LociAppPMTemp ;
+      }
       if(packsize > LociAppLargestAlloc) {
         LociAppLargestAlloc = packsize ;
         LociAppLargestAllocVar = *vi ;
@@ -1645,18 +1647,19 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   void execute_memProfileFree::Print(std::ostream &s) const {
     if(vars != EMPTY)
       s << "memory profiling check point (free: " << vars
-        << " )" << endl ;
+        << ")" << endl ;
   }
 
   void execute_memProfileFree::execute(fact_db& facts) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
+      //cerr<<"memory profiling (free) on: "<<*vi<<endl; 
       storeRepP srp = facts.get_variable(*vi) ;
       entitySet alloc_dom = srp->domain() ;
       
-      double currmen = currentMem() ;
-      if(currmen > LociAppPeakMemory)
-        LociAppPeakMemory = currmen ;
+      //double currmen = currentMem() ;
+      //if(currmen > LociAppPeakMemory)
+      //LociAppPeakMemory = currmen ;
 
       int packsize = srp->pack_size(alloc_dom) ;
       LociAppFreeRequestBeanCounting += packsize ;

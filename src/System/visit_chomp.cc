@@ -540,6 +540,11 @@ namespace Loci {
     list<chomp_chain> chomp_chain_list ;
     get_chomp_chains(chomp_chain_list,cand_vars,gr) ;
 
+    // collect all chomped variables
+    for(list<chomp_chain>::const_iterator li=chomp_chain_list.begin();
+        li!=chomp_chain_list.end();++li)
+      all_chomped_vars += li->second ;
+
     return chomp_chain_list ;    
   } // end-of-find_chain function
   
@@ -682,8 +687,15 @@ namespace Loci {
   ///////////////////////////////////////////////////////////////
   // compChompVisitor
   ///////////////////////////////////////////////////////////////
+  namespace {
+    // scheduling utilities for chomping graph
+    chompingPrio cpf ;
+    graphSchedulerVisitor cgsv(cpf) ;
+  }
+  
   void compChompVisitor::schedule_chomp(chomp_compiler& chc) {
-    chc.chomp_sched = orderVisitor::order_dag(chc.chomp_graph) ;
+    //chc.chomp_sched = orderVisitor::order_dag(chc.chomp_graph) ;
+    chc.chomp_sched = cgsv.schedule(chc.chomp_graph) ;
   }
   
   void compChompVisitor::compile_chomp(chomp_compiler& chc,
