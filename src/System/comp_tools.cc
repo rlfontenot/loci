@@ -628,7 +628,6 @@ namespace Loci {
             rv = *vi ;
         }
 	scheds.set_existential_info(rv,*rsi,exinfo[j]) ;
-	entitySet global_set = Loci::all_collect_entitySet(facts, exinfo[j]) ;
 	++j ;
       }
     }
