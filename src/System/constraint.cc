@@ -168,14 +168,9 @@ namespace Loci {
     setRep(new constraintType) ;
   }
     
-  constraint::constraint(constraint &var)
+  constraint::constraint(const constraint &var)
   {
     setRep(var.Rep()) ;
-  }
-
-  constraint::constraint(const entitySet &ptn)
-  {
-    setRep(new constraintType(ptn)) ;
   }
 
   constraint::~constraint()

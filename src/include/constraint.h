@@ -41,14 +41,13 @@ namespace Loci {
     entitySet *data ;
   public:
     constraint() ;
-    constraint(constraint &var) ;
-    constraint(const entitySet &ptn) ;
-    constraint(storeRepP rp) { setRep(rp) ; }
+    constraint(const constraint &var) ;
+    constraint(const storeRepP &rp) { setRep(rp) ; }
     virtual ~constraint() ;
 
-    constraint & operator=(constraint &p)
+    constraint & operator=(const constraint &p)
     { setRep(p.Rep()) ; return *this ;}
-    constraint & operator=(storeRepP p)
+    constraint & operator=(const storeRepP &p)
     { setRep(p) ;  return *this ;}
     constraint & operator=(const entitySet &v)
     { *data = v ; return *this ; }
