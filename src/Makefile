@@ -8,7 +8,7 @@ DEFINES = $(DEBUG) $(MACHINE_SPECIFIC)
 
 LOCI_BASE = ../
 
-INCLUDES = 
+INCLUDES =
 
 CP  = $(CPP)
 CC  = $(CPP)
@@ -23,10 +23,19 @@ FFLAGS   = -O3
 LIBS     =  $(BASE_LIBS)
 
 
-default: Tools System
+default: Tools System hdf5CC
 
 Tools : FRC
 	cd Tools; $(MAKE) compile CC="$(CC)" CP="$(CP)" F77="$(F77)"\
+			  DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
+			  CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
+			  AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
+                          RANLIB="$(RANLIB)" LD="$(LD)"\
+			  LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
+			  LOCI_BASE="$(LOCI_BASE)"
+
+hdf5CC : FRC
+	cd hdf5CC; $(MAKE) compile CC="$(CC)" CP="$(CP)" F77="$(F77)"\
 			  DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
 			  CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
 			  AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
@@ -51,6 +60,7 @@ JUNK =
 allclean: clean
 	rm -f Tools/make.depend Tools/make.depend.bak
 	rm -f System/make.depend System/make.depend.bak
+	rm -f hdf5CC/make.depend hdf5CC/make.depend.bak
 	rm -f include/*.h~ include/Tools/*.h~
 	rm -f Makefile~
 
@@ -59,9 +69,15 @@ clean:
 	rm -f $(JUNK)
 	cd Tools ; $(MAKE) clean
 	cd System ; $(MAKE) clean
+	cd hdf5CC ; $(MAKE) clean
 
 Tools_depend: FRC
 	cd Tools ; $(MAKE) depend INCLUDES="$(INCLUDES)"\
+			  DEFINES="$(DEFINES)" \
+                          MAKEDEPEND="$(MAKEDEPEND)" \
+			  LOCI_BASE="$(LOCI_BASE)"
+hdf5CC_depend: FRC
+	cd hdf5CC ; $(MAKE) depend INCLUDES="$(INCLUDES)"\
 			  DEFINES="$(DEFINES)" \
                           MAKEDEPEND="$(MAKEDEPEND)" \
 			  LOCI_BASE="$(LOCI_BASE)"
@@ -72,4 +88,4 @@ System_depend: FRC
                           MAKEDEPEND="$(MAKEDEPEND)" \
 			  LOCI_BASE="$(LOCI_BASE)"
 
-depend: Tools_depend System_depend 
+depend: Tools_depend System_depend hdf5CC_depend
