@@ -61,6 +61,21 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const ;
   } ;
 
+  // prepend t1 to t2. For example t1={n}, t2={igs}, then
+  // prepend_time(t1,t2) would return {n,igs}
+  inline time_ident prepend_time(const time_ident& t1,
+                                 const time_ident& t2) {
+    time_ident stationary ;
+    time_ident parent = t1 ;
+    time_ident ret = t2 ;
+    while(parent != stationary) {
+      time_ident prepend(parent.level_name(),ret) ;
+      ret = prepend ;
+      parent = parent.parent() ;
+    }
+    return ret ;
+  }
+  
   inline std::ostream & operator<<(std::ostream &s, const time_ident &ti) {
     ti.Print(s) ;
     return s;
@@ -149,6 +164,8 @@ namespace Loci {
     explicit variable(const time_ident &t) ;
     explicit variable(const variable &v, const std::vector<int> &vint) ;
     explicit variable(const variable &v, const time_ident &t) ;
+    // this constructs a variable with the time_ident prepended
+    explicit variable(const time_ident& t, const variable& v) ;
         
     std::ostream &Print(std::ostream &s) const { return vdb->vars[id].Print(s) ; }
     std::string str() const

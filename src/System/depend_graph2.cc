@@ -15,6 +15,11 @@ using std::ostringstream ;
 using std::endl ;
 using std::cerr ;
 using std::cout ;
+#include <algorithm>
+using std::set_intersection ;
+#include <iterator>
+using std::back_inserter ;
+
 
 namespace Loci {
 
@@ -210,6 +215,121 @@ namespace Loci {
       return true ;
     }
 
+    // function prototype for mutual recursion
+    rule promote_iterating_rule(const rule&,const time_ident&,
+                                iteration_info&) ;
+    
+    // promote the entire iteration object
+    // return the promoted iteration_rule
+    rule promote_iteration(const iteration& i,
+                           const time_ident& tl,
+                           iteration_info& iter) {
+      // a new iteration object
+      iteration pi ;
+      // first generate a new time_ident
+      pi.iteration_time = prepend_time(tl,i.iteration_time) ;
+      // check if the promotion is already in the record
+      map<time_ident,iteration>::const_iterator mi =
+        iter.iteration_rules.find(pi.iteration_time) ;
+      if(mi!=iter.iteration_rules.end())
+        return  pi.iteration_rule ;
+      // then promote all the rules
+      pi.iteration_rule = prepend_rule(i.iteration_rule,tl) ;
+      ruleSet new_build, new_advance, new_collapse ;
+      for(ruleSet::const_iterator ri=i.build.begin();
+          ri!=i.build.end();++ri) {
+        new_build += prepend_rule(*ri,tl) ;
+      }
+
+      // in advance rule we'll need to check if there
+      // are any iteration rules, if any, we also need
+      // to promote them to the correct time level
+      for(ruleSet::const_iterator ri=i.advance.begin();
+          ri!=i.advance.end();++ri)
+        if( (ri->type() == rule::INTERNAL) &&
+            (ri->qualifier() == "iterating_rule")
+            ) {
+          new_advance += promote_iterating_rule(*ri,tl,iter) ;
+        }else {
+          new_advance += prepend_rule(*ri,tl) ;
+        }
+      
+      for(ruleSet::const_iterator ri=i.collapse.begin();
+          ri!=i.collapse.end();++ri) {
+        new_collapse += prepend_rule(*ri,tl) ;
+      }
+
+      pi.build = new_build ;
+      pi.advance = new_advance ;
+      pi.collapse = new_collapse ;
+
+      // then create a new record in the iteration info object
+      iter.iteration_rules[pi.iteration_time] = pi ;
+      iter.iteration_time_ident[pi.iteration_rule] = pi.iteration_time ;
+
+      return pi.iteration_rule ;
+    }
+
+    // promote iteration rule, return the promoted iteration rule
+    rule promote_iterating_rule(const rule& r,
+                                const time_ident& tl,
+                                iteration_info& iter) {
+      map<rule,time_ident>::const_iterator tp =
+        iter.iteration_time_ident.find(r) ;
+      if(tp==iter.iteration_time_ident.end()) {
+        cerr << "ERROR: iteration rule not seen before." << endl ;
+        exit(-1) ;
+      }
+      map<time_ident,iteration>::iterator ip =
+        iter.iteration_rules.find(tp->second) ;
+      if(ip==iter.iteration_rules.end()) {
+        cerr << "ERROR: iteration rule record does not exist"
+             << endl ;
+        exit(-1) ;
+      }
+      return promote_iteration( (ip->second),tl,iter) ;
+    }
+
+    inline time_ident
+    get_iterating_rule_time(const rule& r,
+                            const iteration_info& iter) {
+      map<rule,time_ident>::const_iterator tp =
+        iter.iteration_time_ident.find(r) ;
+      if(tp==iter.iteration_time_ident.end()) {
+        cerr << "ERROR: iteration rule not seen before." << endl ;
+        exit(-1) ;
+      }
+      return tp->second ;
+    }
+
+    // return true if t1 contains t2 as a sublevel, false otherwise
+    // e.g., t1={n,it}, t2={n} return true;
+    //       t1={n,it}, t2={igs} return false ;
+    inline bool time_contain(const time_ident& t1,
+                             const time_ident& t2) {
+      set<string> t1_level ;
+      set<string> t2_level ;
+      time_ident stationary ;
+      time_ident parent_t1 = t1 ;
+      while(parent_t1 != stationary) {
+        t1_level.insert(parent_t1.level_name()) ;
+        parent_t1 = parent_t1.parent() ;
+      }
+      time_ident parent_t2 = t2 ;
+      while(parent_t2 != stationary) {
+        t2_level.insert(parent_t2.level_name()) ;
+        parent_t2 = parent_t2.parent() ;
+      }
+      vector<string> diff ;
+      set_intersection(t1_level.begin(),t1_level.end(),
+                       t2_level.begin(),t2_level.end(),
+                       back_inserter(diff)) ;
+      if(diff.empty())
+        return false ;
+      else
+        return true ;
+    }
+    
     // function prototype
     variableSet create_graph(const digraph&,const digraph&,const variableSet&,
                              iteration_info&,digraph&,time_ident) ;
@@ -337,10 +457,6 @@ namespace Loci {
       // search for additional changing variables
       variableSet add_changing ;
       variableSet working_vars = changing_vars ;
-      // we don't need to add the OUTPUT variable
-      // in the searching set because it is not
-      // used to generate anything else.
-      working_vars -= output ;
       // convert those necessary changing variables to
       // stationary time to searching
       working_vars += convert_stationary(changing_vars) ;
@@ -386,6 +502,7 @@ namespace Loci {
 
       requests += iteration_rule.sources() ;
       // end of the function
+
     }
     
     // function that instantiates an iteration,
@@ -504,22 +621,37 @@ namespace Loci {
                 ruleSet takeoff ;
                 for(ruleSet::const_iterator ri=promote_rules.begin();
                     ri!=promote_rules.end();++ri) {
-                  if( (ri->type() == rule::TIME_SPECIFIC) ||
-                      ( (ri->type() == rule::INTERNAL) &&
-                        (ri->qualifier() == "iterating_rule"))
-                      )
+                  if(ri->type() == rule::TIME_SPECIFIC) {
                     takeoff += *ri ;
+                  }
+                  else if( (ri->type() == rule::INTERNAL) &&
+                           (ri->qualifier() == "iterating_rule")) {
+                    time_ident itime = get_iterating_rule_time(*ri,iter) ;
+                    if(time_contain(tlevel,itime))
+                      takeoff += *ri ;
+                  }
                 }
                 promote_rules -= takeoff ;
                 for(ruleSet::const_iterator ri=promote_rules.begin();
                     ri!=promote_rules.end();++ri) {
-                  rule pr(*ri,tlevel) ;
-                  if(!visited_rules.inSet(pr)) {
-                    visited_rules += pr ;
-                    invoke_rule(pr,gr) ;
-                    next += pr.sources() ;
+                  if( (ri->type() == rule::INTERNAL) &&
+                      (ri->qualifier() == "iterating_rule")) {
+                    //cerr<<"promote iteration: "<<*ri<<endl ;
+                    rule new_irule = promote_iterating_rule(*ri,tlevel,iter) ;
+                    next += instantiate_iteration(get_iterating_rule_time
+                                                  (new_irule,iter),
+                                                  iter,rule_graph,
+                                                  rule_graph_transpose) ;
+                  }else {
+                    rule pr = promote_rule(*ri,tlevel) ;
+                    if(!visited_rules.inSet(pr)) {
+                      visited_rules += pr ;
+                      invoke_rule(pr,gr) ;
+                      next += pr.sources() ;
+                    }
                   }
-                }
+                } // end of for(promote)
+                
               } else {
                 // we only do variable promotions
                 time_ident parent = tlevel.parent() ;

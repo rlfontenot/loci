@@ -424,7 +424,16 @@ bool variable::info::operator<(const info &v) const {
     v2.offset = 0 ;
     id = vdb->vars.get_id(v2) ;
   }
-  
+
+  // this constructs a variable with the time_ident prepended
+  variable::variable(const time_ident& t, const variable& v) {
+    create_vdb() ;
+    info v2 = v.get_info() ;
+    time_ident new_time = prepend_time(t,v2.time_id) ;
+    v2.time_id = new_time ;
+    id = vdb->vars.get_id(v2) ;
+  }
+
   variable variable::info::parent() const {
     info vi = *this ;
     vi.time_id = time_id.parent() ;

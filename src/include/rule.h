@@ -425,6 +425,8 @@ namespace Loci {
       info() { rule_ident = "NO_RULE" ;}
       info(const rule_implP &fp) ;
       info(const info &fi, time_ident tl) ;
+      // prepend time_ident to info
+      info(time_ident tl, const info& fi) ;
       info(const std::string &s) ;
 
       const info &get_info() const { return *this ; }
@@ -448,6 +450,8 @@ namespace Loci {
     } ;
   private:
     friend class rule::info ;
+    friend rule promote_rule(const rule&, const time_ident&) ;
+    friend rule prepend_rule(const rule&, const time_ident&) ;
     struct rule_db {
       std::vector<info> fiv ;
       std::map<std::string,int> fmap ;
@@ -467,6 +471,9 @@ namespace Loci {
     static rule_db *rdb ;
     int id ;
     void create_rdb() {if(0==rdb) rdb = new rule::rule_db ; }
+  protected:
+    rule(const rule::info& ri)
+      { create_rdb(); id = rdb->get_id(ri) ; }
   public:
     rule() { create_rdb() ; id = rdb->get_id(info()) ;}
     explicit rule(int i)
@@ -475,6 +482,9 @@ namespace Loci {
       { create_rdb(); id = rdb->get_id(info(fp)) ; }
     rule(rule f, time_ident tl)
       { create_rdb(); id = rdb->get_id(info(rdb->get_info(f.id),tl)) ; }
+    // prepend time_ident to rule f
+    rule(time_ident tl, rule f)
+      { create_rdb(); id = rdb->get_id(info(tl,rdb->get_info(f.id))) ; }
     rule(const std::string &s)
       { create_rdb(); id = rdb->get_id(info(s)) ; }
       
@@ -498,7 +508,11 @@ namespace Loci {
 
     const variableSet &sources() const { return rdb->get_info(id).sources(); }
     const variableSet &targets() const { return rdb->get_info(id).targets(); }
-      
+
+    // rename function that renames variables in the rule
+    // according to the rename map passed in. It is the
+    // general interface for rule promotion.
+    rule rename_vars(std::map<variable,variable>& rvm) const ;
     rule_type type() const { return rdb->get_info(id).type() ; }
     time_ident target_time() const { return rdb->get_info(id).target_time() ;}
     time_ident source_time() const { return rdb->get_info(id).source_time() ;}
@@ -508,6 +522,12 @@ namespace Loci {
 
   inline std::ostream &operator<<(std::ostream &s, const rule &f)
     { return f.Print(s) ; }
+
+  // global rule promotion functions
+  // rule promotion
+  rule promote_rule(const rule& r, const time_ident& t) ;
+  // time prepend to a rule
+  rule prepend_rule(const rule& r, const time_ident& t) ;
 
   class ruleSet : public intervalSet {
   public:
