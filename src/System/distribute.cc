@@ -1757,6 +1757,8 @@ void write_container(hid_t group_id, storeRepP qrep) {
     if(Loci::MPI_rank == 0)
       Loci::HDF5_WriteDomain(group_id, q_dom);
     frame_info fi = qrep->write_frame_info(group_id) ;
+    if(q_dom == EMPTY)
+      return ;
     int array_size = 0 ;
     if(fi.size) 
       if(fi.is_stat)   
