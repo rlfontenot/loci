@@ -11,6 +11,9 @@
 #include <Tools/options_list.h>
 #include <Tools/fpe.h>
 #include <scheduler.h>
+#include <hdf5_traits.h>
+#include <Loci_types.h>
+
 
 using Loci::entitySet ;
 using Loci::EMPTY ;
@@ -65,6 +68,13 @@ using Loci::create_execution_schedule ;
 using Loci::set_fpe_abort ;
 
 using Loci::options_list ;
+
+using Loci::hdf5_schema_traits ;
+using Loci::hdf5_schema_converter_traits ;
+
+using Loci::vector3d ;
+using Loci::Array ;
+
 #endif
 
 
