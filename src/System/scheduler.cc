@@ -652,8 +652,7 @@ namespace Loci {
 	}
       }
     }
-    if(Loci::MPI_rank==0)
-      cout << " initial_vars = " << initial_vars << endl ;
+    Loci::debugout << " initial_vars = " << initial_vars << endl ;
     
     graph_compiler compile_graph(decomp, initial_vars) ;
     compile_graph.compile(facts,scheds,given,target) ;
