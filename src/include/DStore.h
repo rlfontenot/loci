@@ -415,8 +415,6 @@ namespace Loci {
   }
 
   //*************************************************************************/
-  //**************************************************************************/
-
   template <class T> 
   int dstoreRepI<T>::pack_size( const entitySet &eset) {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
@@ -514,10 +512,6 @@ namespace Loci {
                               int &position, int outcount,
                               const entitySet &eset )  
   {
-    IDENTITY_CONVERTER cc;
-    packdata(cc, outbuf, position, outcount, eset);
-    return;
-
     std::ostringstream oss, os1;
     std::string        memento;
     int   bufSize, currpos = 0;
@@ -540,14 +534,12 @@ namespace Loci {
                               int &position, int outcount,
                               const entitySet &eset )  
   {
-/*
-    for( int i = 0; i < eset.num_intervals(); i++) {
-      const Loci::int_type begin = eset[i].first ;
-      int t = eset[i].second - eset[i].first + 1 ;
-      MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount, 
+
+    entitySet :: const_iterator ci;
+
+    for( ci = eset.begin(); ci != eset.end(); ++ci) 
+      MPI_Pack( &attrib_data[*ci], sizeof(T), MPI_BYTE, outbuf,outcount, 
                 &position, MPI_COMM_WORLD) ;
-    }
-*/
   }
 
   //*******************************************************************/
@@ -590,12 +582,11 @@ namespace Loci {
       typename schema_traits::Converter_Type cvtr( base_ptr[*ci]);
       cvtr.getState( inbuf, stateSize);
 
-      incount =  sizeof(int);
-      MPI_Pack(&stateSize,incount, MPI_CHAR, outbuf, outcount,&position,
+      MPI_Pack(&stateSize, 1, MPI_INT, outbuf, outcount,&position,
                MPI_COMM_WORLD);
 
       incount =  stateSize*typesize;
-      MPI_Pack(inbuf, incount, MPI_CHAR, outbuf, outcount, &position, 
+      MPI_Pack(inbuf, incount, MPI_BYTE, outbuf, outcount, &position, 
                MPI_COMM_WORLD) ;
     }
     delete [] inbuf;
@@ -650,22 +641,11 @@ namespace Loci {
                                 int &position,  int insize,
                                 const sequence &seq) 
   {
+    sequence:: const_iterator ci;
 
-/*
-    for(int i = 0; i < seq.num_intervals(); ++i) {
-      if(seq[i].first > seq[i].second) {
-        const Loci::int_type stop = seq[i].second ;
-        for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
-          MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
-                      sizeof(T), MPI_CHAR, MPI_COMM_WORLD) ;
-      } else {
-        Loci::int_type indx = seq[i].first ;
-        int t = seq[i].second - seq[i].first + 1 ;
-        MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
-                    t*sizeof(T), MPI_CHAR, MPI_COMM_WORLD) ;
-      }
-    }
-*/
+    for( ci = seq.begin(); ci != seq.end(); ++ci) 
+          MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
+                      sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
   }
   //*********************************************************************/
   template <class T> 
@@ -699,7 +679,7 @@ namespace Loci {
 
       outcount = stateSize*typesize;
       MPI_Unpack(inbuf, insize, &position, outbuf, outcount, 
-                 MPI_CHAR, MPI_COMM_WORLD) ;
+                 MPI_BYTE, MPI_COMM_WORLD) ;
 
       typename converter_traits::Converter_Type cvtr( base_ptr[*ci] );
       cvtr.setState( outbuf, stateSize);
