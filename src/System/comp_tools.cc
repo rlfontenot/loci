@@ -344,7 +344,11 @@ namespace Loci {
     }
     const rule_impl::info &rinfo = r.get_info().desc ;
     //Loci::debugout << " rule = " << r << endl ;
+    bool mapping_in_output = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+      // Check to see if there is mapping in the output
+      if(si->mapping.size() != 0)
+        mapping_in_output = true ;
       // Transform the variable requests using the mapping constructs
       // in *si
       entitySet tmp = vmap_target_requests(*si,tvarmap,facts, scheds) ;
@@ -353,6 +357,26 @@ namespace Loci {
       isect &= tmp ;
     }
     
+    if(mapping_in_output) {
+      entitySet sources = ~EMPTY ;
+      entitySet constraints = ~EMPTY ;
+      const rule_impl::info &rinfo = r.get_info().desc ;
+      set<vmap_info>::const_iterator si ;
+      /*The function vmap_source_exist takes into consideration the maps 
+        in the body of the rule . By looping over each of the sources in 
+        the rule and also the constraints we make sure that the
+        attribute specified by the target is implied by the satisfaction 
+        of the attributes in the body of the rule. */
+      for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+        sources &= vmap_source_exist(*si,facts, scheds) ;
+      }
+      for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+        constraints &= vmap_source_exist(*si,facts, scheds) ;
+
+      sources &= constraints ;
+      context &= sources ;
+      isect &= sources ;
+    }
      // Unit rules need to apply in the clone region as well, so
      // here we make an exception for unit rules.  (this is because
      // we will be reducing to the clone region and then communicating
@@ -859,7 +883,7 @@ namespace Loci {
     }
     int j = 0 ;
 #ifdef VERBOSE
-    for(int i=0;i<vars.size();++i) {
+    for(size_t i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {

@@ -107,6 +107,19 @@ namespace Loci {
       return (!time_before(t1,t2) && !time_equal(t1,t2)) ;
     }
 
+    inline variable drop_all_priorities(variable v) {
+      while(v.get_info().priority.size() != 0)
+        v = v.drop_priority() ;
+      return v ;
+    }
+
+    inline variableSet drop_all_priorities(variableSet vset) {
+      variableSet vnew ;
+      for(variableSet::const_iterator vi=vset.begin();vi!=vset.end();++vi)
+        vnew += drop_all_priorities(*vi) ;
+      return vnew ;
+    }
+    
     // forward declaration
     struct iteration_info ;
     
@@ -277,15 +290,18 @@ namespace Loci {
       map<rule,time_ident>::const_iterator tp =
         iter.iteration_time_ident.find(r) ;
       if(tp==iter.iteration_time_ident.end()) {
-        cerr << "ERROR: iteration rule not seen before." << endl ;
-        exit(-1) ;
+        cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+        cerr << "ERROR: iteration rule " << r << " not seen before." << endl ;
+        Abort() ;
       }
       map<time_ident,iteration>::iterator ip =
         iter.iteration_rules.find(tp->second) ;
       if(ip==iter.iteration_rules.end()) {
-        cerr << "ERROR: iteration rule record does not exist"
+        cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+        cerr << "ERROR: iteration rule record does not exist for rule "
+             << tp->second
              << endl ;
-        exit(-1) ;
+        Abort() ;
       }
       return promote_iteration( (ip->second),tl,iter) ;
     }
@@ -296,8 +312,9 @@ namespace Loci {
       map<rule,time_ident>::const_iterator tp =
         iter.iteration_time_ident.find(r) ;
       if(tp==iter.iteration_time_ident.end()) {
-        cerr << "ERROR: iteration rule not seen before." << endl ;
-        exit(-1) ;
+        cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+        cerr << "ERROR: iteration rule " << r << " not seen before." << endl ;
+        Abort() ;
       }
       return tp->second ;
     }
@@ -377,13 +394,13 @@ namespace Loci {
           variable newv = vbase.new_offset(*ii) ;
           
           iteration_output += newv ;
-          changing_vars += newv ;
+          changing_vars += drop_all_priorities(newv) ;
         }
         // this is the variable that rotates
         variable newv = vbase.new_offset(mvi->second.Max()+1) ;
 
         iteration_input += newv ;
-        changing_vars += newv ;
+        changing_vars += drop_all_priorities(newv) ;
       }
       
       // add an output variable
@@ -423,7 +440,7 @@ namespace Loci {
       variableSet advance_inputs ;
       for(ruleSet::const_iterator ri=advance.begin();
           ri!=advance.end();++ri) {
-        changing_vars += ri->targets() ;
+        changing_vars += drop_all_priorities(ri->targets()) ;
 
         if( (ri->type() == rule::INTERNAL) &&
             (ri->qualifier() == "iterating_rule")
@@ -433,8 +450,9 @@ namespace Loci {
           map<rule,time_ident>::const_iterator tp =
             iter.iteration_time_ident.find(*ri) ;
           if(tp==iter.iteration_time_ident.end()) {
-            cerr << "ERROR: iteration rule not seen before." << endl ;
-            exit(-1) ;
+            cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+            cerr << "ERROR: iteration rule " << *ri << " not seen before." << endl ;
+            Abort() ;
           }
           // instantiate it
           variableSet iteration_requests =
@@ -487,7 +505,7 @@ namespace Loci {
         next -= visited_vars ;
         working_vars = next ;
       }
-      changing_vars += add_changing ;
+      changing_vars += drop_all_priorities(add_changing) ;
 
       // for the OUTPUT variable, we need
       // to see if it is in the changing_vars
@@ -517,9 +535,10 @@ namespace Loci {
       map<time_ident,iteration>::iterator ip =
         iter.iteration_rules.find(tlevel) ;
       if(ip==iter.iteration_rules.end()) {
-        cerr << "ERROR: iteration rule record does not exist"
+        cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+        cerr << "ERROR: iteration rule record does not exist for " << tlevel
              << endl ;
-        exit(-1) ;
+        Abort() ;
       }
       // initialize all the required variables in the object
       iteration& io = ip->second ;
@@ -551,9 +570,10 @@ namespace Loci {
         map<time_ident,iteration>::iterator ip =
           iter.iteration_rules.find(tlevel) ;
         if(ip==iter.iteration_rules.end()) {
-          cerr << "ERROR: iteration rule record does not exist"
+          cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+          cerr << "ERROR: iteration rule record does not exist for " << tlevel
                << endl ;
-          exit(-1) ;
+          Abort() ;
         }
         dont_promote = ip->second.dont_promote ;
         changing_vars = ip->second.changing_vars ;
@@ -577,10 +597,11 @@ namespace Loci {
             continue ;
           } else {
             // this is an error if (vi->time() after tlevel)
+            cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
             cerr << "ERROR: variable time higher than iteration time."
                  << "variable: " << *vi << " iteration time: "
                  << tlevel << endl ;
-            exit(-1) ;
+            Abort() ;
           }
           pre_rules -= visited_rules ;
           for(ruleSet::const_iterator ri=pre_rules.begin();
@@ -594,8 +615,10 @@ namespace Loci {
               map<rule,time_ident>::const_iterator tp =
                 iter.iteration_time_ident.find(*ri) ;
               if(tp==iter.iteration_time_ident.end()) {
-                cerr << "ERROR: iteration rule not seen before." << endl ;
-                exit(-1) ;
+                cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+                cerr << "ERROR: iteration rule " << *ri
+                     << " not seen before." << endl ;
+                Abort() ;
               }
               // instantiate it
               variableSet iteration_requests =
@@ -609,9 +632,12 @@ namespace Loci {
           }
           visited_rules += pre_rules ;
           if(tlevel != time_ident()) {
+            // If a priority variable, then definitely don't promote
+            //            if(vi->get_info().priority.size() != 0)
+            //              dont_promote += *vi ;
             // then we decide to do rule promotion or variable promotion
             if(!dont_promote.inSet(*vi)) {
-              if(changing_vars.inSet(*vi)) {
+              if(changing_vars.inSet(drop_all_priorities(*vi))) {
                 // then we do rule promotions, if any
                 variable stationary_var(*vi,time_ident()) ;
                 ruleSet promote_rules =
@@ -638,10 +664,12 @@ namespace Loci {
                       (ri->qualifier() == "iterating_rule")) {
                     //cerr<<"promote iteration: "<<*ri<<endl ;
                     rule new_irule = promote_iterating_rule(*ri,tlevel,iter) ;
-                    next += instantiate_iteration(get_iterating_rule_time
-                                                  (new_irule,iter),
-                                                  iter,rule_graph,
-                                                  rule_graph_transpose) ;
+                    // If successful in promoting, instantiate
+                    if(new_irule != rule())
+                      next += instantiate_iteration(get_iterating_rule_time
+                                                    (new_irule,iter),
+                                                    iter,rule_graph,
+                                                    rule_graph_transpose) ;
                   }else {
                     rule pr = promote_rule(*ri,tlevel) ;
                     if(!visited_rules.inSet(pr)) {
@@ -929,6 +957,7 @@ namespace Loci {
       variableSet rg_allvars = extract_vars(rule_graph.get_all_vertices()) ;
       variableSet target_diff = variableSet(target-rg_allvars) ;
       if(target_diff != EMPTY) {
+        cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
         cerr << "ERROR: insufficient rule database, "
              << " not all requested targets can be computed." << endl ;
         cerr << "\tVariable(s): " << target_diff

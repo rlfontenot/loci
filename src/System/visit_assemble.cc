@@ -404,21 +404,21 @@ namespace Loci {
              join_op)) ;
              }
           */
-          if(sp->RepType()== PARAMETER) {
-            reduce_var_vector.push_back(xi->first) ;
-            unit_rule_vector.push_back(unit_rule) ;
-            join_op_vector.push_back(join_op) ;
-          }
-          else if (sp->RepType() == BLACKBOX) {
-            cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-          }else {
+          if(sp!=0) {
+            if(sp->RepType()== PARAMETER) {
+              reduce_var_vector.push_back(xi->first) ;
+              unit_rule_vector.push_back(unit_rule) ;
+              join_op_vector.push_back(join_op) ;
+            } else {
+              warn(sp->RepType()!=STORE) ;
 #ifdef VERBOSE
-            debugout << "reduce_store_compiler("
-                     << xi->first << ","
-                     << unit_rule << ")" << endl ;
+              debugout << "reduce_store_compiler("
+                       << xi->first << ","
+                       << unit_rule << ")" << endl ;
 #endif
-            dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
-                                                         join_op)) ;
+              dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
+                                                           join_op)) ;
+            }
           }
         }
       }
