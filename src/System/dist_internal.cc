@@ -142,13 +142,14 @@ namespace Loci {
       
 	dimension = sizes[0] ;
 	start += dimension ;
+	hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT) ;
 	if(dimension != 0) {
 	  hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	  hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT) ;
 	  H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_int) ;
-	  H5Dclose(dataset) ;
 	  H5Sclose(memspace) ;
 	}
+	H5Dclose(dataset) ;
+		  
 	for(int i = 1; i < Loci::MPI_processes; ++i) {
 	  MPI_Status status ;
 	  int flag = 1 ;
@@ -160,7 +161,7 @@ namespace Loci {
 	  start += count ;
 	  if(dimension != 0) {
 	    hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	    hid_t dataset = H5Dopen(group_id, name) ;
+	    dataset = H5Dopen(group_id, name) ;
 	    H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_int) ;
 	    H5Dclose(dataset) ;
 	    H5Sclose(memspace) ;
