@@ -7,6 +7,7 @@
 #include <Config/conf.h>
 
 namespace Loci {
+  void set_debug_callback(void (*dcb)()) ;
   void setup_debugger(const char *execname,const char *gdb, const char *hostname) ;
   void debugger_() ;
   void chopsigs_() ;

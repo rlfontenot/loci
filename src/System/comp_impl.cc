@@ -4,6 +4,9 @@ using std::ostream ;
 using std::endl ;
 
 namespace Loci {
+
+  int current_rule_id = 0 ;
+  
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, sched_db &scheds)  {
     do_run = true ;
     rp = fi.get_rule_implP() ;
@@ -39,6 +42,7 @@ namespace Loci {
   }
   
   void execute_rule::execute(fact_db &facts) {
+    current_rule_id = rule_tag.ident() ;
     if(do_run) {
       rp->compute(exec_seq) ;
     }

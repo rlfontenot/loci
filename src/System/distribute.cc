@@ -44,6 +44,15 @@ namespace Loci {
   ofstream debugout ;
   double barrier_time = 0 ;
   double total_memory_usage = 0 ;
+
+  extern int current_rule_id ;
+
+  void debug_print_rule() {
+    if(current_rule_id != 0) {
+      rule r(current_rule_id) ;
+      cerr << "crash occured in rule " << r << endl ;
+    }
+  }
   void Init(int* argc, char*** argv)  {
     
     char *execname = (*argv)[0] ;
@@ -82,6 +91,7 @@ namespace Loci {
         (*argv)[k] = (*argv)[k+i-1] ;
     }
     
+    set_debug_callback(debug_print_rule) ;
     if(debug_setup) {
       setup_debugger(execname,debug,hostname) ;
       chopsigs_() ;

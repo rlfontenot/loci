@@ -2,6 +2,7 @@
 #include <Tools/debugger.h>
 #include <stdlib.h>
 
+
 #ifdef SPARC
 
 extern "C" {
@@ -82,6 +83,17 @@ namespace Loci {
 #else
 #ifdef LINUX
 #include <fpu_control.h>
+#include <signal.h>
+#include <iostream>
+
+extern "C" {
+  void fpe_debugger_(int i)
+  {
+    std::cerr << "floating point exception" << std::endl ;
+    Loci::debugger_() ;
+  }
+}
+
 namespace Loci {
   
   void set_fpe_abort()
@@ -89,6 +101,7 @@ namespace Loci {
     fpu_control_t cw =
       _FPU_DEFAULT & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_MASK_OM);
     _FPU_SETCW(cw);
+    signal(SIGFPE,fpe_debugger_) ;
   }
 }
 #else
