@@ -361,11 +361,58 @@ inline int  MPI_Get_elements(MPI_Status *, MPI_Datatype, int *){err_report(); re
 
 /* 3.13 */
 
-inline int  MPI_Pack(void *, int, MPI_Datatype, void *, int, int *, MPI_Comm){err_report(); return -1;}
+inline int  MPI_Pack(void *inbuf, int incount, MPI_Datatype datatype, void *outbuf, int outcount, int *position, MPI_Comm comm){
+  int size = 8 ; 
+  switch(datatype) {
+  case MPI_INT:
+    size = sizeof(int) ;
+    break;
+  case MPI_BYTE:
+    size = 1 ;
+    break ;
+  default:
+    std::cerr << "MPI_Pack not implemented for type" << std::endl ;
+  }
+  size *= incount ;
+  unsigned char *buf = (unsigned char *)outbuf ;
+  memcpy(buf+*position,inbuf,size) ;
+  *position += size ;
+  return 0 ;
+}
 
-inline int  MPI_Unpack(void *, int, int *, void *, int, MPI_Datatype, MPI_Comm){err_report(); return -1;}
+inline int  MPI_Unpack(void *inbuf, int insize, int *position, void *outbuf, int outcount, MPI_Datatype datatype, MPI_Comm comm) {
+  int size = 8 ;
+  switch(datatype) {
+  case MPI_INT:
+    size = sizeof(int) ;
+    break;
+  case MPI_BYTE:
+    size = 1 ;
+    break ;
+  default:
+    std::cerr << "MPI_Pack not implemented for type" << std::endl ;
+  }
+  size *= insize ;
+  unsigned char *buf = (unsigned char *) outbuf ;
+  memcpy(buf+*position,inbuf,size) ;
+  *position += size ;
+  return 0 ;
+}
 
-inline int  MPI_Pack_size(int, MPI_Datatype, MPI_Comm, int *){err_report(); return -1;}
+inline int  MPI_Pack_size(int incount, MPI_Datatype datatype , MPI_Comm comm, int *size){
+  *size = incount*8  ;
+  switch(datatype) {
+  case MPI_INT:
+    *size = incount*sizeof(int) ;
+    break;
+  case MPI_BYTE:
+    *size = incount ;
+    break ;
+  default:
+    std::cerr << "MPI_Pack not implemented for type" << std::endl ;
+  }
+  return 0 ;
+}
 
 /* 4.3 */
 
