@@ -8,7 +8,7 @@ DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC)
 
 default: Tools System hdf5CC
 
-shared: Tools/libTools.so System/libLoci.so hdf5CC/libhdf5CC.so
+shared: #Tools/libTools.so System/libLoci.so hdf5CC/libhdf5CC.so
 
 install: default
 	LOCI_INSTALL_DIR=$(INSTALL_DIR) bash Install.bash
