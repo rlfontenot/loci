@@ -15,7 +15,9 @@ OBJS = Loci_version.o Initialize.o Loci_Datatypes.o variable.o \
        comp_loop.o comp_chomp.o comp_tools.o distribute.o categories.o \
        param_rule.o sched_db.o  hdf5_readwrite.o mod_db.o \
        visit_assemble.o visit_deco.o visit_tools.o visit_viz.o\
-       visit_chomp.o dynamic_exec.o lbmethods.o FVMGridReader.o
+       visit_chomp.o dynamic_exec.o lbmethods.o FVMGridReader.o \
+       dist_tools.o distribute_io.o distribute_container.o \
+       dist_internal.o distribute_old_support.o
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT1)
 
@@ -38,7 +40,7 @@ clean:
 
 distclean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
-	
+
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
