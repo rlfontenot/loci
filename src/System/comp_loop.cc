@@ -146,19 +146,10 @@ namespace Loci {
     cond_var = *(collapse_rules.begin()->get_info().desc.conditionals.begin());
 
     collapse_gr = loop_gr.subgraph(visit_vertices(loop_grt,collapse_vars)+collapse_vars) ;
-    
-    advance_gr = loop_gr ;
-    advance_gr -= collapse_gr ;
-    // remove common rules of collapse_gr and advance_gr from
-    // advance_gr
-    digraph::vertexSet collapse_vertices = collapse_gr.get_all_vertices() ;
-    digraph::vertexSet advance_vertices = advance_gr.get_all_vertices() ;
-    digraph::vertexSet common_vertices = collapse_vertices & advance_vertices ;
-    for(digraph::vertexSet::const_iterator verIter=common_vertices.begin();
-        verIter!=common_vertices.end();++verIter) {
-      if(*verIter < 0)
-        advance_gr.remove_vertex(*verIter) ;
-    }
+    digraph::vertexSet collapse_rulesV = collapse_gr.get_all_vertices() & interval(UNIVERSE_MIN,-1) ;
+    digraph::vertexSet advance_subset = loop_gr.get_all_vertices() - collapse_rulesV ;
+    advance_gr = loop_gr.subgraph(advance_subset) ;
+    advance_gr.remove_dangling_vertices() ;
 
     output_present = false ;
 
