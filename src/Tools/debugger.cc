@@ -38,9 +38,6 @@ namespace Loci {
   
   void debugger_()
   {
-#ifdef SGI
-    abort() ;
-#else
     if(!debugger_setup)
       abort() ;
     
@@ -60,13 +57,18 @@ namespace Loci {
     char *xtermpath = "/usr/bin/X11/xterm" ;
     char *xtermlibpath = "/usr/lib" ;
 #endif
-    sprintf(buf,"export LD_LIBRARY_PATH;LD_LIBRARY_PATH=%s; %s  -display %s:0 -e %s %s %d &",
+#ifndef SGI
+    sprintf(buf,"export LD_LIBRARY_PATH;LD_LIBRARY_PATH=%s; %s  -display %s -e %s %s %d &",
             xtermlibpath,xtermpath,
             debug_hostname,debug_program,debug_execname,pid) ;
+#else
+    sprintf(buf,"export LD_LIBRARY_PATH;LD_LIBRARY_PATH=%s; %s  -display %s -e %s -p %d %s &",
+            xtermlibpath,xtermpath,
+            debug_hostname,debug_program,pid,debug_execname) ;
+#endif
     system(buf) ;
     breakout = 1 ;
     sleep(100) ; /* Wait for debugger to attach */
-#endif
   }
 
 
