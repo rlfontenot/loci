@@ -1,5 +1,4 @@
 #define PROFILE_CODE
-
 #include <scheduler.h>
 #include <Tools/digraph.h>
 #include <fact_db.h>
@@ -1468,8 +1467,14 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
     if((si->var & tvars) == EMPTY)
       sources &= vmap_source_exist(*si,facts) ;
     else {
+      const int num_maps = si->mapping.size() ;
+      if(num_maps != 0) {
+        for(vi=si->mapping[0].begin();vi!=si->mapping[0].end();++vi) {
+          sources &= facts.variable_existence(*vi) ;
+        }
+      } 
+        
       tvars += si->var ;
-      int num_maps = si->mapping.size() ;
       vector<variableSet::const_iterator> miv(num_maps) ;
       for(int i=0;i<num_maps;++i)
         miv[i] = si->mapping[i].begin() ;
@@ -1555,10 +1560,11 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
 #ifdef VERBOSE
     cout << "j = " << j << ", domain = " << domain << ", newdomain = "
          << newdomain << endl ;
-    if(domain == ~EMPTY) {
-      cout << "rule = "<< impl << endl ;
-    }
 #endif
+    if(domain == ~EMPTY) {
+      cerr << "problem in recurse calculator for rule = "<< impl << endl ;
+      domain = read_maps[j].domain() ;
+    }
     inverseMap(read_map_inv[j],read_maps[j],domain,newdomain) ;
     domain = newdomain ;
   }
