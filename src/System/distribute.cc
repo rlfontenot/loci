@@ -1,11 +1,9 @@
 #include <distribute.h>
 #include <Tools/debug.h>
 #include <stdlib.h>
+#include <string.h>
 
-//#define DEBUGGER
-#ifdef DEBUGGER
-#include "debugger.h"
-#endif
+#include "Tools/debugger.h"
 
 #include <vector>
 using std::vector ;
@@ -23,7 +21,7 @@ using std::ifstream ;
 #include <algorithm>
 using std::swap ;
 
-//#define SCATTER_DIST
+#define SCATTER_DIST
 //#define UNITY_MAPPING
 
 #ifdef SCATTER_DIST
@@ -38,9 +36,11 @@ namespace Loci {
   ofstream debugout[128] ;
   
   void Init(int* argc, char*** argv)  {
-#ifdef DEBUGGER
-    debug_execname = (*argv)[0] ;
-#endif
+
+    char *execname = (*argv)[0] ;
+    char *hostname = "localhost" ;
+    char *debug = "gdb" ;
+
     
     MPI_Init(argc, argv) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
@@ -51,9 +51,35 @@ namespace Loci {
       string filename  = oss.str() ;
       debugout[i].open(filename.c_str(),ios::out) ;
     }
-#ifdef DEBUGGER    
-    chopsigs_() ;
-#endif
+
+    bool debug_setup = false ;
+    int i = 1 ;
+    while(i<*argc) {
+      if(!strcmp((*argv)[i],"--display")) {
+        debug_setup = true ;
+        hostname = (*argv)[i+1] ;
+        i+=2 ;
+      } else if(!strcmp((*argv)[i],"--debug")) {
+        debug = (*argv)[i+1] ;
+        i+=2 ;
+      } else if(!strcmp((*argv)[i],"--threads")) {
+        cerr << "warning --threads not yet implemented" << endl ;
+        num_threads = atoi((*argv)[i+1]) ;
+        i+=2 ;
+      } else
+        break ;
+    }
+    if(i!=1) {
+      *argc -= (i-1) ;
+      for(int k=1;k<*argc;++k)
+        (*argv)[k] = (*argv)[k+i-1] ;
+    }
+
+    if(debug_setup) {
+      setup_debugger(execname,debug,hostname) ;
+      chopsigs_() ;
+    }
+
   }
 
   void Finalize() {

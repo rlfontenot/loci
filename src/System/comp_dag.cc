@@ -47,6 +47,7 @@ namespace Loci {
         bool reduction = false ;
         bool pointwise = false ;
         bool singleton = false ;
+        bool recursive = false ;
         for(ri=var_rules.begin();ri!=var_rules.end();++ri)
           if(ri->get_info().rule_class != rule::INTERNAL) {
             use_rules += *ri ;
@@ -58,12 +59,16 @@ namespace Loci {
               reduction = true ;
             if(rimp->get_rule_class() == rule_impl::SINGLETON)
               singleton = true ;
+          } else {
+            if((ri->sources() & ri->targets()) != EMPTY)
+              recursive = true ;
           }
+        
         WARN(reduction && pointwise || pointwise && singleton ||
              reduction && singleton) ;
         
         if((use_rules != EMPTY)) {
-          if(pointwise) {
+          if(pointwise && !recursive && (vi->get_info().name != "OUTPUT")) {
             barrier_vars += *vi ;
           } if(reduction) {
             reduce_info[*vi] = use_rules ;

@@ -16,13 +16,19 @@ namespace Loci {
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
                               entitySet compute) ;
   void existential_rule_analysis(rule f, fact_db &facts) ;
+
+
   entitySet process_rule_requests(rule f, fact_db &facts) ;
   
-  void barrier_existential_rule_analysis(fact_db &facts) ;
+  vector<pair<variable,entitySet> > barrier_existential_rule_analysis(variableSet vlst, fact_db &facts) ;
   std::list<comm_info>  barrier_process_rule_requests(variableSet vars, fact_db &facts) ;
 
   entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
                           std::list<comm_info> &clist) ;
+  
+  std::list<comm_info>
+  put_precomm_info(vector<pair<variable,entitySet> > send_entities,
+                   fact_db &facts) ;
   
   std::list<comm_info> sort_comm(std::list<comm_info> slist, fact_db &facts) ;
   
@@ -111,6 +117,7 @@ namespace Loci {
     {return rule_process[r] ;}
 
     ruleSet recurse_rules ;
+    variableSet recurse_vars ;
     struct fcontrol {
       std::list<entitySet> control_list ;
       std::map<variable,entitySet> generated ;
@@ -124,9 +131,18 @@ namespace Loci {
       std::vector<mapping_info> recursion_maps, target_maps ;
     } ;
     std::map<rule,fcontrol > control_set ;
+
+    std::vector<std::pair<variable,entitySet> > send_entities ;
+    std::list<comm_info> clist ;
+    std::list<comm_info> plist ;
+
   public:
     recurse_compiler(rulecomp_map &rp, ruleSet rs) : rule_process(rp)
-    { recurse_rules = rs ; }
+    {
+      recurse_rules = rs ;
+      for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri) 
+        recurse_vars += ri->targets() ;
+    }
     virtual void set_var_existence(fact_db &facts) ;
     virtual void process_var_requests(fact_db &facts) ;
     virtual executeP create_execution_schedule(fact_db &facts) ;
@@ -143,7 +159,6 @@ namespace Loci {
 
   class barrier_compiler : public rule_compiler {
     variableSet barrier_vars ;
-    std::map<variable, ruleSet> barrier_info ;
     std::vector<std::pair<variable,entitySet> > send_entities ;
     std::list<comm_info> clist ;
     std::list<comm_info> plist ;

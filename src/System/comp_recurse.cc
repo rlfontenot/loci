@@ -278,13 +278,16 @@ namespace Loci {
   }
 
   void recurse_compiler::set_var_existence(fact_db &facts) {
-    warn(facts.isDistributed()) ;
+    //    warn(facts.isDistributed()) ;
 
+    entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
-      cerr << "recurse_rules = " << recurse_rules << endl ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      send_entities = barrier_existential_rule_analysis(recurse_vars,facts) ;
+      my_entities = d->my_entities ;
     }
     control_set.clear() ;
-  
+
     ruleSet::const_iterator fi ;
     variableSet::const_iterator vi ;
     variableSet tvars ;
@@ -295,8 +298,8 @@ namespace Loci {
       fcontrol &fctrl = control_set[*fi] ;
       const rule_impl::info &finfo = fi->get_info().desc ;
       warn(fi->type() == rule::INTERNAL) ;
-      entitySet sources = ~EMPTY ;
-      entitySet constraints = ~EMPTY ;
+      entitySet sources = my_entities ;
+      entitySet constraints = my_entities ;
       set<vmap_info>::const_iterator si ;
       for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
         if((si->var & tvars) == EMPTY)
@@ -314,8 +317,8 @@ namespace Loci {
               fcontrol::mapping_info minfo ;
               for(int j=0;j!=num_maps;++j) {
                 FATAL(!facts.is_a_Map(*(miv[j]))) ;
-                minfo.mapvec.push_back(
-                                       MapRepP(facts.get_variable(*(miv[j]))->getRep())) ;
+                MapRepP mp = MapRepP(facts.get_variable(*(miv[j]))->getRep()) ;
+                minfo.mapvec.push_back(mp) ;
               }
               minfo.v = *vi ;
               
@@ -339,8 +342,8 @@ namespace Loci {
             fcontrol::mapping_info minfo ;
             for(int j=0;j!=num_maps;++j) {
               FATAL(!facts.is_a_Map(*(miv[j]))) ;
-              minfo.mapvec.push_back(
-                                     MapRepP(facts.get_variable(*(miv[j]))->getRep())) ;
+              MapRepP mp = MapRepP(facts.get_variable(*(miv[j]))->getRep()) ;
+              minfo.mapvec.push_back(mp) ;
             }
             minfo.v = *vi ;
           
@@ -446,10 +449,34 @@ namespace Loci {
           fctrl.control_list.back() &= control ;
       } while(!fctrl.control_list.empty() && fctrl.control_list.back() == EMPTY) ;
     }
+
+    if(facts.isDistributed()) {
+      list<comm_info> request_comm ;
+      request_comm = barrier_process_rule_requests(recurse_vars, facts) ;
+
+      vector<pair<variable,entitySet> >::const_iterator vi ;
+      vector<pair<variable,entitySet> > send_requested ;
+
+      for(vi=send_entities.begin();vi!=send_entities.end();++vi) {
+        variable v = vi->first ;
+        entitySet send_set = vi->second ;
+        send_requested.push_back(make_pair(v,send_set &
+                                           facts.get_variable_requests(v))) ;
+      }
+
+      plist = put_precomm_info(send_requested, facts) ;
+      clist = sort_comm(request_comm,facts) ;
+    }
+    
   }
 
   executeP recurse_compiler::create_execution_schedule(fact_db &facts) {
-    CPTR<execute_list> el = new execute_list ;
+    CPTR<execute_sequence> el = new execute_sequence ;
+    if(facts.isDistributed()) {
+      el->append_list(new execute_thread_sync) ;
+      el->append_list(new execute_comm(plist, facts) ) ; 
+      el->append_list(new execute_comm(clist, facts)) ;
+    }
     
     map<rule, list<entitySet>::const_iterator> rpos ;
     ruleSet::const_iterator ri ;

@@ -11,7 +11,7 @@ OBJS = Loci_version.o variable.o store_rep.o Map.o constraint.o rule.o \
        fact_db.o execute.o depend_graph.o scheduler.o sched_tools.o \
        sched_mlg.o sched_types.o sched_decompose.o sched_comp.o \
        comp_impl.o comp_reduce.o comp_recurse.o comp_internal.o \
-       comp_dag.o comp_cond.o comp_loop.o comp_tools.o distribute.o
+       comp_dag.o comp_cond.o comp_loop.o comp_tools.o distribute.o 
 
 
 

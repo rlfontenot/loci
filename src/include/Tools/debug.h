@@ -1,6 +1,8 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include <Tools/debugger.h>
+
 #include <ostream>
 #include <iostream>
 #ifdef NO_CSTDLIB
@@ -29,11 +31,12 @@ using std::abort ;
                                 ") true -- file \"" << __FILE__ << \
                                     "\", line " << __LINE__ << \
                     ", Class '" << DEBUG_TYPE_NAME(*this) <<"'" << std::endl;  }}
- 
+
 #define fatal(cond) {if(cond){ std::cerr << "FATAL Error: (" # cond << \
                                 ") true -- file\"" << __FILE__ << \
                                   "\", line " << __LINE__ <<  \
                  ", Class '" << DEBUG_TYPE_NAME(*this) << "'" << std::endl; \
+                                 Loci::debugger_() ; \
                                  abort() ; }}
  
 #define WARN(cond) {if(cond){ std::cerr << "Warning: (" << # cond << \
@@ -43,6 +46,7 @@ using std::abort ;
 #define FATAL(cond) {if(cond){ std::cerr << "FATAL Error: (" # cond << \
                                 ") true -- file\"" << __FILE__ << \
                                   "\", line " << __LINE__ << std::endl; \
+                                 Loci::debugger_() ; \
                                  abort() ; }}
 
 
