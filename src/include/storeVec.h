@@ -1057,11 +1057,14 @@ namespace Loci {
     int size ;
     lmutex mutex ;
   public:
-    multiStoreRepI() {
-      index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
+    multiStoreRepI()
+    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
+    multiStoreRepI(const entitySet &p)
+    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; store_domain=p;}
     multiStoreRepI(const store<int> &sizes) {
       index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
     void allocate(const store<int> &sizes) ;
+    void setSizes(const const_multiMap &mm) ;
     virtual ~multiStoreRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -1110,6 +1113,21 @@ namespace Loci {
     dispatch_notify();
   }
 
+  template<class T> void multiStoreRepI<T>::setSizes(const const_multiMap &mm){
+    bmutex l(mutex) ;
+
+    store<int> sizes ;
+    sizes.allocate(store_domain) ;
+    FORALL(store_domain,i) {
+      sizes[i] = 0 ;
+    } ENDFORALL ;
+    entitySet map_set = mm.domain() & store_domain ;
+    FORALL(map_set,i) {
+      sizes[i] = (mm.end(i) - mm.begin(i)) ;
+    } ENDFORALL ;
+    allocate(sizes) ;
+  }
+  
   template<class T> void multiStoreRepI<T>::allocate(const entitySet &ptn) {
     if(alloc_pointer) delete[] alloc_pointer ;
     if(index) delete[] index ;
@@ -1127,8 +1145,7 @@ namespace Loci {
 
   template<class T> storeRep *multiStoreRepI<T>::new_store(const entitySet &p)
     const {
-    std::cerr << "new_store not implemented" << std::endl ;
-    return 0 ;
+    return new multiStoreRepI<T>(p) ;
   }
 
   template<class T> store_type multiStoreRepI<T>::RepType() const {
@@ -1220,6 +1237,11 @@ namespace Loci {
       NPTR<storeType> p(Rep()) ;
       fatal(p==0) ;
       p->allocate(sizes) ;
+    }
+    void setSizes(const const_multiMap &m) {
+      NPTR<storeType> p(Rep()) ;
+      fatal(p==0) ;
+      p->setSizes(m) ;
     }
     const entitySet &domain() const { return Rep()->domain() ; }
     operator storeRepP() { return Rep() ; }
