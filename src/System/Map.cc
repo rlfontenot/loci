@@ -37,13 +37,53 @@ namespace Loci {
   const entitySet &MapRepI::domain() const {
     return store_domain ;
   }
+
+  entitySet image_section(const int *start, const int *end) {
+    if(start == end)
+      return EMPTY ;
+    int mx,mn ;
+    mx = *start ;
+    mn = *start ;
+    for(const int *i=start;i!=end;++i) {
+      mx = max(mx,*i) ;
+      mn = min(mn,*i) ;
+    }
+    int sz = mx-mn+1 ;
+    std::vector<bool> bits(sz) ;
+    for(int i=0;i<sz;++i)
+      bits[sz] = false ;
+    for(const int *i=start;i!=end;++i)
+      bits[*i-mn] = true ;
+
+    WARN(!bits[s]);
+
+    entitySet result ;
+    interval iv(mn,mn) ;
+    for(int i=0;i<sz;++i)
+      if(!bits[i]) {
+        iv.second = i+mn-1 ;
+        result += iv ;
+        for(;i<sz;++i)
+          if(bits[i])
+            break ;
+        iv.first = i+mn ;
+      }
+
+    WARN(!bits[sz-1]) ;
+    
+    iv.second = mx ;
+    result += iv ;
+    return result ;
+  }
+      
+        
     
   entitySet MapRepI::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
-    FORALL(d,i) {
-      codomain += base_ptr[i] ;
-    } ENDFORALL ;
+    for(int i=0;i<d.num_intervals();++i)
+      codomain += image_section(base_ptr+d[i].first,
+                                base_ptr+(d[i].second+1)) ;
     return codomain ;
   }
 
@@ -342,10 +382,8 @@ namespace Loci {
   entitySet multiMapRepI::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
-    FORALL(d,i) {
-      for(const int *ip = begin(i);ip!=end(i);++ip)
-        codomain += *ip ;
-    } ENDFORALL ;
+    for(int i=0;i<d.num_intervals();++i)
+      codomain += image_section(begin(d[i].first),end(d[i].second)) ;
     return codomain ;
   }
 

@@ -11,7 +11,7 @@ OBJS = Loci_version.o variable.o store_rep.o Map.o constraint.o rule.o \
        fact_db.o execute.o depend_graph.o scheduler.o
 
 
-JUNK = *~ *.ii core ti_files ii_files 
+JUNK = *~ *.ii core ti_files ii_files rii_files
 
 .SUFFIXES: .o .c .cc .f 
 
