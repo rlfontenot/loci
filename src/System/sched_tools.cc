@@ -22,10 +22,10 @@ namespace Loci {
     }
   }
   
+  int super_node_number = 0 ;
   rule make_super_rule(variableSet sources, variableSet targets,
                        variable cond) {
     FATAL(targets == EMPTY) ;
-    static int super_node_number = 0 ;
     ostringstream oss ;
     oss << "source("<<sources << "),target(" << targets << ")," ;
     if(cond != variable()) 
