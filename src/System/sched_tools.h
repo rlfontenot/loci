@@ -20,7 +20,7 @@
 #endif
 
 #include "sched_mlg.h"
-
+using std::vector;
 namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
@@ -109,13 +109,13 @@ class dynamic_schedule_rule: public execute_modules {
   } ;
 
    class execute_param_red : public execute_modules {
-     variable reduce_var ;
-     rule unit_rule ;
+     vector<variable> reduce_vars ;
+     vector<rule> unit_rules ;
      MPI_Op create_join_op ;
-     CPTR<joiner> join_op ; 
+     vector<CPTR<joiner> >join_ops ; 
    public:
-     execute_param_red(variable reduce_var, rule unit_rule,
-                       CPTR<joiner> join_op) ; 
+     execute_param_red(vector<variable> reduce_vars, vector<rule> unit_rules,
+                       vector<CPTR<joiner> > join_ops) ; 
      ~execute_param_red() ;
      virtual void execute(fact_db &facts) ;
      virtual void Print(std::ostream &s) const ;
