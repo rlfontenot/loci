@@ -83,6 +83,9 @@ namespace Loci {
     const char *xtermpath = "/usr/bin/X11/xterm" ;
     const char *xtermlibpath = "/usr/lib" ;
 #endif
+#ifdef BSD
+    exit(-1) ;
+#else
 #ifndef SGI
     sprintf(buf,"export LD_LIBRARY_PATH;LD_LIBRARY_PATH=%s; %s  -display %s -e %s %s %d &",
             xtermlibpath,xtermpath,
@@ -96,6 +99,7 @@ namespace Loci {
     system(buf) ;
 
     sleep(100) ; /* Wait for debugger to attach */
+#endif
   }
 
 
