@@ -183,7 +183,16 @@ namespace Loci
   {
     return new dmultiMapRepI()  ;
   }
-  
+  storeRep *dmultiMapRepI::new_store(const entitySet &p, const int* cnt) const 
+  {
+    store<int> count ;
+    count.allocate(p) ;
+    int t= 0 ;
+    FORALL(p, pi) {
+      count[pi] = cnt[t++] ; 
+    } ENDFORALL ;
+    return new dmultiMapRepI(count)  ;
+  }
   //**************************************************************************/
   
   storeRepP dmultiMapRepI::remap(const dMap &m) const {

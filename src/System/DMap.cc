@@ -156,6 +156,12 @@ namespace Loci {
   {
     return new dMapRepI(p)  ;
   }
+  storeRep *dMapRepI::new_store(const entitySet &p, const int* count) const 
+  {
+    storeRep* sp ;
+    cerr << " This method should not be called for a dMap " << endl ;
+    return sp ;
+  }
   //**************************************************************************/
   
   storeRepP dMapRepI::remap(const dMap &newmap) const 

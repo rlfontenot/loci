@@ -30,6 +30,12 @@ namespace Loci {
   {
     return new constraintRep(p) ;
   }
+  storeRep *constraintRep::new_store(const entitySet &p, const int* cnt) const
+  {
+    storeRep* sp ;
+    cerr << " This method should not be called for a constraint " << endl ;
+    return sp ;
+  }
 
   storeRepP constraintRep::remap(const dMap &m) const {
     entitySet newconstraint = m.image(m.domain()&constraint_set) ;

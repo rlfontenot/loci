@@ -22,7 +22,9 @@ namespace Loci {
   storeRep *store_ref::new_store(const entitySet &p) const  {
     return Rep()->new_store(p) ;
   }
-
+  storeRep *store_ref::new_store(const entitySet &p, const int* cnt) const  {
+    return Rep()->new_store(p, cnt) ;
+  }
   store_type store_ref::RepType() const {
     return Rep()->RepType() ;
   }

@@ -34,7 +34,11 @@ namespace Loci {
   storeRep *MapRepI::new_store(const entitySet &p) const {
     return new MapRepI(p)  ;
   }
-  
+  storeRep *MapRepI::new_store(const entitySet &p, const int* count) const {
+    storeRep* sp ;
+    cerr << " This method should not be called for a Map " << endl ;
+    return sp ;
+  }
   storeRepP MapRepI::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
     pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
@@ -812,10 +816,17 @@ storeRepP multiMapRepI::thaw() {
   }
 
   storeRep *multiMapRepI::new_store(const entitySet &p) const {
-    warn(true) ;
     return new multiMapRepI()  ;
   }
-
+  storeRep *multiMapRepI::new_store(const entitySet &p, const int* cnt) const {
+    store<int> count ;
+    count.allocate(p) ;
+    int t= 0 ;
+    FORALL(p, pi) {
+      count[pi] = cnt[t++] ; 
+    } ENDFORALL ;
+    return new multiMapRepI(count)  ;
+  }
   storeRepP multiMapRepI::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
     //    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
