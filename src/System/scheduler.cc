@@ -654,7 +654,8 @@ namespace Loci {
       gr = dependency_graph(par_rdb,given,target).get_graph() ;
     }
     else {
-      cout << "\t(recursive backward searching version)" << endl ;
+      if(Loci::MPI_rank==0)
+        cout << "\t(recursive backward searching version)" << endl ;
       given -= variable("EMPTY") ;
       gr = dependency_graph2(par_rdb,given,target).get_graph() ;
     }
