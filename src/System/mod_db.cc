@@ -120,6 +120,9 @@ namespace Loci {
     mod md(from_str) ;
     mod::mod_info m = md.get_info(from_str) ;
     for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
+#ifdef VERBOSE
+      debugout << "iterating over *gi = " << *gi << endl ;
+#endif
       if(!(gi.get_p())->rr->is_module_rule()) {
 	if(!to_str.empty()) {
 	  size_t tmp = 0 ;
@@ -140,11 +143,13 @@ namespace Loci {
 	  }
 	  rp->rename_vars(new_vars) ;
 	  rdb.add_rule(Loci::rule(rp)) ; 
-	} 
-	else
-	  rdb.add_rule(Loci::rule(*gi)) ; 
-      }
-      else {
+	} else {
+#ifdef VERBOSE
+          debugout << "adding rule " << *gi << endl ;
+#endif
+	  rdb.add_rule(Loci::rule(*gi)) ;
+        }
+      } else {
 	if(Loci::MPI_rank == 0)
 	  cerr << "Module rule found in " << from_str << endl ;
 	std::string load  =  ((Loci::register_module*)(gi.get_p()->rr))->using_nspace() ;
@@ -217,6 +222,13 @@ namespace Loci {
 	      new_vars[*i] = tmp_var ;
 	    }
 	  rp->rename_vars(new_vars) ;
+	  rdb.add_rule(Loci::rule(rp)) ;
+	}
+      }
+    } else {
+      for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
+	if(!(gi.get_p())->rr->is_module_rule()) {
+	  rule_implP rp = *gi ;
 	  rdb.add_rule(Loci::rule(rp)) ;
 	}
       }
