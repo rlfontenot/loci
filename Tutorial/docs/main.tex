@@ -1,3 +1,4 @@
+%Time-stamp: <2002-09-06 12:21:41 peo>
 \documentclass[10pt,epsf]{book}
 \setlength{\textheight}{7.75in}
 \setlength{\textwidth}{5.7in}
@@ -18,6 +19,7 @@
 \usepackage{theorem}
 \usepackage{euscript}
 
+%\includeonly{intro}
 
 \begin{document}
 %\small
@@ -27,7 +29,10 @@
 \thispagestyle{empty}
 \newpage
 \setcounter{page}{1}
-%\include{intro}
+
+\include{intro}
+\include{lfvm}
+
 \chapter{ Basic Concepts }
 \section{Notation used in this document}
 In this document we use the {\tt typewriter} font to distinguish
@@ -45,7 +50,7 @@ To install Loci, you need to use {\tt tmpcopy} to make a linked copy
 of the source code (usually to the {\tt /usr/tmp} directory).  You
 can use environment variables to change how the tmpcopy routine works.
 For example, you can set the target directory (where you will be
-compiling the Loci libaries), and the compiler.  For example, to set
+compiling the Loci libraries), and the compiler.  For example, to set
 the target directory to {\tt /home/test/OBJ} and the compiler to {\tt
   gcc3.0}, enter (NOTE: Run tmpcopy from the Loci directory!):
 
@@ -94,6 +99,91 @@ installation.  See the following makefile for an example.
 
 \include{Makefile_ex}
 
+\section{Loci Initialization}
+
+Before any of the main Loci functionality can be used (that is the
+components that follow this section), Loci must be initialized.  Loci
+has an initialize function that must be called before executing Loci
+functionality and a finalize method that must be called just before
+exiting the program.  For example, see below:
+
+\begin{verbatim}
+#include <Loci.h>
+
+int main(int argc, char *argv[]) {
+   // Initialize Loci
+   Loci::Init(&argc, &argv) ;
+
+   // ...
+   // Loci Program
+   // ...
+
+   // Before exiting, call finalize to let Loci clean up.
+   Loci::Finalize() ;
+   return 0 ;
+}
+\end{verbatim}
+
+
+
+\section{Running an Example}
+
+Most of the computations discussed in this document are part of an example
+Loci implementation of the finite-volume method applied to the
+two-dimensional heat conduction problem.  You will find this code
+under the {\tt lfvm} directory provided with the tutorial.  If you
+compile the {\tt lfvm} tutorial you will be able to run example
+queries to see the computations proceed for the rule we have just
+described above.  We can run the above program by executing {\tt lfvm}
+with the flag {\tt -q area} to query for area.  The resulting query
+produces output such as:
+
+\begin{verbatim}
+% ./lfvm -q area example_grid
+reading grid file example_grid
+node_alloc = ([0,24])
+triangle_alloc = ([25,60])
+constraint = BC_bottom nodes = ([0,3])
+constraint = BC_left nodes = ([0,0][7,7][14,14][21,21])
+constraint = BC_top nodes = ([21,24])
+constraint = BC_right nodes = ([3,3][10,10][17,17][24,24])
+found 48 internal edges, 12 on boundary
+max_iteration=10000
+heat flux boundary nodes = ([21,24])
+temperature prescribed boundary nodes = ([0,3][7,7][10,10][14,14][17,17][21,21][24,24])
+generating dependency graph...
+Adding rule gradDotN(T)<-(cl,cr)->(centroid,T)
+setting up variable types...
+decomposing graph...
+existential analysis...
+creating execution schedule...
+area = 
+{([25,60])
+0.25
+....
+\end{verbatim}
+
+We can see the execution schedule produced by the Loci query by
+examining the file {\tt ./schedule} provided by the {\tt lfvm} example
+program.  For example:
+
+\begin{verbatim}
+% more .schedule
+allocate all variables
+create 1 threads
+thread barrier ()
+
+area<-triangle_nodes->pos  over sequence ([25,60])
+thread barrier area
+
+destroy threads
+\end{verbatim}
+
+As we can see, the schedule is simple:  we have called the compute
+method for our area rule and passed it a sequence that includes all
+triangles in our grid.
+
+
 
 
 \section{Entities, Sets, and Sequences}
@@ -103,21 +193,23 @@ In Loci, computations are represented by associating (binding) values
 rather abstract terms, in Loci we often will often interchange the
 meaning of entity with the integer identifier that is used to label a
 given entity.  Thus we may talk of entity $1$ when we are really
-referring to the entity labeled $1$.  
+referring to the entity labeled $1$.  (Do not count on this remaining
+true indefinitely.  We plan to change Loci to make entities
+first-class objects.) 
 
 It is useful to consider groups of entities that have similar
 attributes.  In Loci we have two data structures for representing sets
 of entities:  1) the {\tt interval} and 2) the {\tt entitySet}.  For
-example, if we wish to represent the entities labeled from $1 \cdots
-100$ we would use the Loci class {\tt interval(1,100)}.  On the other
+example, if we wish to represent the entities labeled from $1$ to
+$100$ we would use the Loci class {\tt interval(1,100)}.  On the other
 hand, the {\tt entitySet} can be used to represent arbitrary
 collections of entities.  Once we have described a collection of
 entities using the {\tt entitySet} class we can also create new sets
 of entities using unions, intersections, and other useful set
 operations.  
 
-However, the {\tt entitySet} class provides a true set semantics.
-That is ordering of insertion is not preserved and there is no
+The {\tt entitySet} class provides a true set semantics.
+That is, ordering of insertion is not preserved and there is no
 duplication.  Either an entity is in the set or it is not.  If we need
 to preserve the order of entities for looping or other control then we
 use the {\tt sequence } class.  The {\tt sequence} class provides
@@ -146,7 +238,8 @@ terms, parameters look like variables while stores look like very
 flexible arrays.  The stores come in a variety of forms that allow
 various types of run-time selection of the sizes of the types they
 contain.  For example, the storeVec provides a store that contains
-vectors whose size isn't specified until compile time.  Perhaps the
+vectors whose size isn't specified until % compile 
+run time.  Perhaps the
 fastest way to learn how to apply Loci containers is to see them in
 action.  So provided is a short program that illustrates the Loci
 containers and some basic examples of their application.
@@ -173,44 +266,7 @@ demonstrates the basic user interface for the Map family of classes.
 
 \include{relations_cc}
 
-\section{Loci Helper Classes}
 
-Loci also provides a few helper classes that are often useful in
-numerical computations.  One is the {\tt Array} template class which provides a
-mechanism for creating Arrays as first class objects that are
-appropriate for using as classes used in templated containers. ({\it
-Never use C arrays in templated containers.  Their semantics are
-different from other C++ objects and may break templated code in
-unexpected ways.})  In addition to the {\tt Array} template class,
-classes for three and two dimensional vectors are also provided.  See
-the following example code to see how to use these helper classes.
-
-\include{helpers_cc}
-
-\section{Loci Initialization}
-
-Before any of the main Loci functionality can be used (that is the
-components that follow this section), Loci must be initialized.  Loci
-has an initialize function that must be called before executing Loci
-functionality and a finalize method that must be called just before
-exiting the program.  For example, see below:
-
-\begin{verbatim}
-#include <Loci.h>
-
-int main(int argc, char *argv[]) {
-   // Initialize Loci
-   Loci::Init(&argc, &argv) ;
-
-   // ...
-   // Loci Program
-   // ...
-
-   // Before exiting, call finalize to let Loci clean up.
-   Loci::Finalize() ;
-   return 0 ;
-}
-\end{verbatim}
 
 \chapter{Representing and Manipulating Data Structures}
 \section{Creating Data Structures in Loci}
@@ -347,22 +403,24 @@ follows:
 C<-A,B
 \end{verbatim}
 
-If relations are used in a computation (such as the {\tt Map} {\tt cl}
-and {\tt cr} in the edge-based data structure of the previous section,
-then they are included in the rule signature as well.  For example, a
-computation that computes a value ``{\tt D }'' by averaging value
-``{\tt C }'' on both sides of any given face would be documented by
-the rule signature:
+If relations (such as the {\tt Map} {\tt cl}
+and the {\tt Map} {\tt cr} in the edge-based data structure of the
+previous section) are used in a computation, then they are included 
+in the rule signature.
+For example, a computation that computes a value {\tt D }
+by averaging value {\tt C } on both sides of any given face would
+be documented by the rule signature:
 
 \begin{verbatim}
 D<-(cl,cr)->C
 \end{verbatim}
 
-What this rule signature means is that ``{\tt D }'' is computed by
-accessing ``{\tt C }'' through the relations identified as ``{\tt
-  cl }'' and ``{\tt cr }''.  Note that the comma binds more weakly than
-the mapping right arrow operator in these rule signatures, so the
-parentheses are required.
+What this rule signature means is that {\tt D } is computed by
+accessing {\tt C } through the relations identified as 
+{\tt cl } and {\tt cr }.  Note that in these rule signatures, 
+the comma binds more weakly than
+the mapping right arrow operator.  The
+parentheses, therefore, are required.
 
 \section{Rule Databases}
 
@@ -513,64 +571,6 @@ triangular mesh.
 
 \include{cell_props_cc}
 
-\section{Running an Example}
-
-The above computations are part of an example Loci implementation of 
-the finite-volume method applied to the two-dimensional heat
-conduction problem.  You will find this code under the {\tt lfvm}
-directory provided with the tutorial.  If you compile the {\tt lfvm}
-tutorial you will be able to run example queries to see the
-computations proceed for the rule we have just described above.  We
-can run the above program by executing {\tt lfvm} with the flag {\tt
-  -q area} to query for area.  The resulting query produces output
-such as:
-
-\begin{verbatim}
-% ./lfvm -q area example_grid
-reading grid file example_grid
-node_alloc = ([0,24])
-triangle_alloc = ([25,60])
-constraint = BC_bottom nodes = ([0,3])
-constraint = BC_left nodes = ([0,0][7,7][14,14][21,21])
-constraint = BC_top nodes = ([21,24])
-constraint = BC_right nodes = ([3,3][10,10][17,17][24,24])
-found 48 internal edges, 12 on boundary
-max_iteration=10000
-heat flux boundary nodes = ([21,24])
-temperature prescribed boundary nodes = ([0,3][7,7][10,10][14,14][17,17][21,21][24,24])
-generating dependency graph...
-Adding rule gradDotN(T)<-(cl,cr)->(centroid,T)
-setting up variable types...
-decomposing graph...
-existential analysis...
-creating execution schedule...
-area = 
-{([25,60])
-0.25
-....
-\end{verbatim}
-
-We can see the execution schedule produced by the Loci query by
-examining the file {\tt ./schedule} provided by the {\tt lfvm} example
-program.  For example:
-
-\begin{verbatim}
-% more .schedule
-allocate all variables
-create 1 threads
-thread barrier ()
-
-area<-triangle_nodes->pos  over sequence ([25,60])
-thread barrier area
-
-destroy threads
-\end{verbatim}
-
-As we can see, the schedule is simple:  we have called the compute
-method for our area rule and passed it a sequence that includes all
-triangles in our grid.
-
-
 \section{Reduction Computations}
 
 There is an alternative approach that we could have taken in the
@@ -634,13 +634,14 @@ are computed on each processor when parallel processing is used [no
 communication is invoked].)
 
 \begin{verbatim}
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 //
-//  Here we compute a new parameter C by multipling the values contained in
-//  parameters B and C.
+//
+//  Here we compute a new parameter C by multiplying the values contained in
+//  parameters A and B.
 //  
-//  We define a singleton_rule by creating a class that inherits from 
-//  singleton_rule
+//  We define a singleton rule by creating a class that inherits from 
+//  the class singleton_rule.
 class singleton_example : public singleton_rule {
 // Here we define the paramters involved in the computations.
 // ** Note, only parameters allowed in singleton computations!
@@ -649,7 +650,7 @@ class singleton_example : public singleton_rule {
   param<double> C ;
 public:
 // Here we provide a constructor that names stores and specifies inputs and
-// outputs like before.
+// outputs as before.
   collapse_info() {
     name_store("A",A) ;
     name_store("B",B) ;
@@ -689,7 +690,8 @@ accessing values computed at either its iteration level or at parent
 levels in the label hierarchy.  The iteration label is just a list of
 iterator variables that follows the variable name enclosed in braces.
 For example, to access value {\tt v} for iteration {\tt n} we have 
-{\tt v\{n\}}.  This relationship between traditional imperative languages
+{\tt v\{n\}}.  This relationship between traditional imperative
+languages' 
 loop nesting and the iteration label hierarchy is shown in figure
 \ref{fig:nested}. 
 
@@ -708,8 +710,8 @@ advance rule similar to {\tt q\{n+1\}<-q\{n\},delta\_q\{n\}}, and 3)
 an iteration collapse rule {\tt
   solution<-q\{n\},CONDITION(converged\{n\})}.  Iteration in this
 example proceeds by initializing the first iteration, {\tt q\{n=0\}},
-using the build rule.  Next, termination of iteration is then checked
-by computing {\tt converged}, if the test succeeds then the collapse
+using the build rule.  Next, termination of iteration is checked
+by computing {\tt converged}.  If the test succeeds then the collapse
 rule terminates the iteration.  Finally the iteration advances in time
 by the repeated application of the advance rule which computes values
 for {\tt q} for the next iteration ({\tt\{n+1\}}) given current
@@ -748,8 +750,27 @@ an example of how to develop and use parametric rules.
 %\include {make}
 %\include {appendix}
 
+%\appendix{datatype}
 \include {datatype}
+%\appendix{io}
 \include {io}
+
+\chapter{Loci Helper Classes}
+\section{Loci Helper Classes}
+
+Loci also provides a few helper classes that are often useful in
+numerical computations.  
+One is the {\tt Array} template class which provides a
+mechanism for creating Arrays as first class objects that are
+appropriate for using as classes used in templated containers. ({\it
+Never use C arrays in templated containers.  Their semantics are
+different from other C++ objects and may break templated code in
+unexpected ways.})  In addition to the {\tt Array} template class,
+classes for three and two dimensional vectors are also provided.  See
+the following example code to see how to use these helper classes.
+
+\include{helpers_cc}
+
 
 \end{document}
 
