@@ -173,14 +173,10 @@ bool variable::info::operator<(const info &v) const {
   }
   
   variable::variable(const exprP &p) {
-#ifndef __GNUG__
-		std::string __PRETTY_FUNCTION__("variable::variable(const exprP &p)");
-#endif
     create_vdb() ;
     info v ;
     exprP e = p ;
 		if(OP_AT == e->op) {
-			//cout << __PRETTY_FUNCTION__ << ": Parsing namespaces" << endl;
 			exprList l = collect_associative_op(e,OP_AT);
 			while(l.begin() != l.end()) {
 				exprP s = l.front();
@@ -430,12 +426,7 @@ bool variable::info::operator<(const info &v) const {
     info vi = *this ;
 		if (vi.namespac.empty())
 			return variable(vi);
-#ifndef __GNUG__
-		std::string __PRETTY_FUNCTION__("variable::info::drop_namespace()");
-#endif
-		cout << __PRETTY_FUNCTION__ << ": vi.namespac.size() = " << vi.namespac.size()-1 << endl;
     for(int i = 0;i<vi.namespac.size()-1;++i) {
-			cout << __PRETTY_FUNCTION__ << ": i=" << i << endl;
       vi.namespac[i] = vi.namespac[i+1] ;
 		}
     vi.namespac.pop_back() ;

@@ -402,10 +402,6 @@ namespace Loci {
       rule_implP get_rule_implP() const ;
 			// SH - namespace support
 			rule_implP add_namespace(const std::string& n) const { 
-#ifndef __GNUG__ 
-std::string __PRETTY_FUNCTION__("rule_implP rule_impl::add_namespace(const std::string&) const");
-#endif
-					cout << __PRETTY_FUNCTION__ << endl; 
 					return rule_impl->add_namespace(n) ;
 			}
     } ;
@@ -444,10 +440,6 @@ std::string __PRETTY_FUNCTION__("rule_implP rule_impl::add_namespace(const std::
 		// We use a new rule_implP identical to the original but with namespace'd variables to construct a new rule (rule(rule_implP&))
 		// get_rule_implP() gives us our rule_implP for this rule, the rule_implP adds the namespace to a copy of itself
 		rule add_namespace(const std::string& n) const { 
-#ifndef __GNUG__
-std::string __PRETTY_FUNCTION__("rule::add_namespace(const std::string&) const");
-#endif
-				cout << __PRETTY_FUNCTION__ << endl; 
 				return rule(get_rule_implP()->add_namespace(n));
 		}
     rule parent() const { return rule(*this,time().parent()) ; }
