@@ -25,19 +25,22 @@ namespace Loci {
 
   class  AbstractDatatype: public CPTR_type {
   public:
-     virtual hid_t  get_hdf5_type() const = 0;
+    virtual hid_t  get_hdf5_type() const = 0;
+    virtual std::ostream &output(std::ostream &s, const void *p) const = 0 ;
+    virtual std::istream &input(std::istream &s, void *p) const = 0 ;
+    virtual int bytesize() const = 0 ;
   };
 
   typedef CPTR<AbstractDatatype> DatatypeP ;
 
-  class AtomicType : public AbstractDatatype
-  {
-    public:
-     AtomicType(const AtomType &a) {atom = a;}
-    
+  class AtomicType : public AbstractDatatype {
+    AtomType     atom;
+  public:
+    AtomicType(const AtomType &a) {atom = a;}
     hid_t        get_hdf5_type() const ;
-  private:
-     AtomType     atom;
+    std::ostream &output(std::ostream &s, const void *p) const ;
+    std::istream &input(std::istream &s, void *p) const ;
+    int bytesize() const ;
   };
 
 
@@ -56,6 +59,9 @@ namespace Loci {
         dimension[i] = in_dim[i] ;
     }
     hid_t  get_hdf5_type() const ;
+    std::ostream &output(std::ostream &s, const void *p) const ;
+    std::istream &input(std::istream &s, void *p) const ;
+    int bytesize() const ;
   } ;
   
 
@@ -85,7 +91,9 @@ namespace Loci {
     int     getNumFields() const { return type_list.size() ; }
     const CompoundField &getField(int i) const { return type_list[i]; }
     virtual hid_t  get_hdf5_type() const ;
-    
+    std::ostream &output(std::ostream &s, const void *p) const ;
+    std::istream &input(std::istream &s, void *p) const ;
+    int bytesize() const ;
   };
   typedef CPTR<CompoundType> CompoundDatatypeP ;
 

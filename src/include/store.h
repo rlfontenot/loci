@@ -5,7 +5,6 @@
 #include <store_rep.h>
 #include <data_traits.h>
 #include <sstream>
-#include <hdf5_memento.h>
 #include <hdf5_readwrite.h>
 #include <mpi.h>
 #include <string.h>
@@ -100,7 +99,7 @@ namespace Loci {
   template<class T> std::ostream &storeRepI<T>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
-      s << base_ptr[ii] << std::endl ;
+      streamoutput(&base_ptr[ii],1,s) ;
     }ENDFORALL ;
     s << '}' << std::endl ;
     return s ;
@@ -121,7 +120,8 @@ namespace Loci {
     allocate(e) ;
         
     FORALL(e,ii) {
-      s >> base_ptr[ii] ;
+      base_ptr[ii] = T() ;
+      streaminput(&base_ptr[ii],1,s) ;
     } ENDFORALL ;
         
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
@@ -175,7 +175,6 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
     
-    //    operator storeRepP() { return Rep() ; }
     T &elem(int indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 

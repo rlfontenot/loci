@@ -65,6 +65,58 @@ namespace Loci {
   struct IDENTITY_CONVERTER{};
   struct USER_DEFINED_CONVERTER{};
 
+  template<class T> inline std::istream &
+  streaminput_SEL(IDENTITY_CONVERTER,T *v, int sz, std::istream &s) {
+    typedef data_schema_traits<T> traits_type;
+
+    DatatypeP dtype = traits_type::get_type();
+    for(int i=0;i<sz;++i) {
+      dtype->input(s,(void *)(v+i)) ;
+    }
+    return s ;
+  }
+
+  template<class T> inline std::istream &
+  streaminput_SEL(USER_DEFINED_CONVERTER,T *v, int sz, std::istream &s) {
+    for(int i=0;i<sz;++i) {
+      s >> v[i] ; 
+    }
+    return s ;
+  }
+  
+  template<class T> inline std::istream &
+    streaminput(T *v,int sz, std::istream &s) {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return streaminput_SEL(schema_converter(), v, sz, s) ;
+  }
+
+  template<class T> inline std::ostream &
+  streamoutput_SEL(IDENTITY_CONVERTER,const T *v, int sz, std::ostream &s) {
+    typedef data_schema_traits<T> traits_type;
+
+    DatatypeP dtype = traits_type::get_type();
+    for(int i=0;i<sz;++i) {
+      dtype->output(s,(void *)(v+i)) ;
+      s << endl ;
+    }
+    return s ;
+  }
+
+  template<class T> inline std::ostream &
+  streamoutput_SEL(USER_DEFINED_CONVERTER,const T *v, int sz, std::ostream &s) {
+    for(int i=0;i<sz;++i) {
+      s << v[i] ;
+      s << endl ;
+    }
+    return s ;
+  }
+  
+  template<class T> inline std::ostream &
+    streamoutput(const T *v,int sz, std::ostream &s) {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return streamoutput_SEL(schema_converter(), v, sz, s) ;
+  }
+
   //**************************************************************************
 
   template <class T> 

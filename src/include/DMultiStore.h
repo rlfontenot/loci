@@ -408,22 +408,18 @@ namespace Loci {
     s << '{' << domain() << endl ;
 
     hash_map<int,std::vector<T> >  :: const_iterator ci;
-    std::vector<T>    vec;
 
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
       if( ci != attrib_data.end() ) continue;
-      vec =  ci->second;
-      s << vec.size() << std::endl ;
+      s << ci->second.size() << std::endl ;
     } ENDFORALL ;
 
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
       if( ci == attrib_data.end() ) continue;
-      vec =  ci->second;
-      for( int i = 0; i < vec.size(); i++)
-        s << vec[i] << " ";
-      s << endl;
+      const std::vector<T> &vec =  ci->second;
+      streamoutput(&vec[0],vec.size(),s) ;
     } ENDFORALL ;
 
     s << '}' << std::endl ;
@@ -459,12 +455,12 @@ namespace Loci {
     allocate(sizes) ;
 
     // Read the attribute data
-    T          val;
     std::vector<T>  vec;
     FORALL(e,ii) {
       vec.clear();
       for( int i = 0; i < sizes[ii]; i++) {
-        s >> val;
+        T val ;
+        streaminput(&val,1,s) ;
         vec.push_back(val);
       }
       attrib_data[ii] = vec;

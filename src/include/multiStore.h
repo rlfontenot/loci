@@ -642,9 +642,7 @@ namespace Loci {
     //-------------------------------------------------------------------------
 
     FORALL(domain(),ii) {
-      for(const T *ip = begin(ii);ip!=end(ii);++ip)
-        s << *ip << ' ' ;
-      s << std::endl ;
+      streamoutput(begin(ii),end(ii)-begin(ii),s) ;
     } ENDFORALL ;
 
     //-------------------------------------------------------------------------
@@ -699,8 +697,9 @@ namespace Loci {
     
     allocate(sizes) ;
     FORALL(e,ii) {
-      for(T *ip = begin(ii);ip!=end(ii);++ip)
-        s >> *ip  ;
+      for(T *ip = begin(ii);ip!=end(ii);++ip) 
+        *ip = T() ;
+      streaminput(begin(ii),end(ii)-begin(ii),s) ;
     } ENDFORALL ;
 
     //-------------------------------------------------------------------------

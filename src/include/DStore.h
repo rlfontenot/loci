@@ -100,7 +100,7 @@ namespace Loci {
     FORALL(domain(),ii) {
       ci = attrib_data.find(ii);
       if( ci == attrib_data.end() ) continue;
-      s << ci->second << std::endl ;
+      streamoutput(&ci->second,1,s) ;
     } ENDFORALL ;
 
     s << '}' << std::endl ;
@@ -128,7 +128,8 @@ namespace Loci {
     allocate(e) ;
         
     FORALL(e,ii) {
-      s >> attrib_data[ii] ;
+      attrib_data[ii] = T() ;
+      streaminput(&attrib_data[ii],1,s) ;
     } ENDFORALL ;
         
     do ch = s.get(); while(ch==' ' || ch=='\n') ;

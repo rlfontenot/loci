@@ -93,15 +93,12 @@ namespace Loci {
     s << size << std::endl ;
 
     hash_map<int, std::vector<T> >  :: const_iterator   ci;
-    std::vector<T>   newVec;
     
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
       if( ci != attrib_data.end() ) {
-        newVec = ci->second;
-        for( int i = 0; i < newVec.size(); i++)
-          s << newVec[i] <<  "   ";
-        s << std::endl;
+        const std::vector<T> &newVec = ci->second;
+        streamoutput(&newVec[0],newVec.size(),s) ;
       }
     }ENDFORALL ;
 
@@ -133,8 +130,10 @@ namespace Loci {
     allocate(e) ;
 
     FORALL(e,ii) {
-      for( int i = 0; i < size; i++)
-        s  >> newVec[i];
+      for( int i = 0; i < size; i++) {
+        newVec[i] = T() ;
+        streaminput(&newVec[i],1,s) ;
+      }
       attrib_data[ii] = newVec;
     } ENDFORALL ;
     

@@ -18,7 +18,12 @@
 
 namespace Loci {
   using std::hash_map ;
+  //------------------------------------------------------------------------
 
+  template<unsigned int M> class dMapVec ;
+  template<unsigned int M> class const_dMapVec ;
+
+  //------------------------------------------------------------------------
   template <unsigned int M> class dMapVecRepI : public MapRep {
   public:
     typedef Array<int,M>   VEC;
@@ -508,9 +513,6 @@ std::istream &dMapVecRepI<M>::Input(std::istream &s)
     return s ;
 }
 
-//------------------------------------------------------------------------
-
-template<unsigned int M> class const_dMapVec ;
 
 //------------------------------------------------------------------------
     
