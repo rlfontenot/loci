@@ -24,7 +24,7 @@ namespace Loci {
     virtual void allocate(const entitySet &p)  ;
     virtual ~paramRepI() ;
     virtual store_type RepType() const ;
-    virtual const entitySet &domain() const ;
+    virtual entitySet domain() const ;
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRepP remap(const Map &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
@@ -38,7 +38,7 @@ namespace Loci {
     
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group) ;
+    virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
     T * get_param() { return &param_val ; }
   } ;
@@ -58,7 +58,7 @@ namespace Loci {
     return PARAMETER ;
   }
 
-  template<class T> const entitySet &paramRepI<T>::domain() const {
+  template<class T> entitySet paramRepI<T>::domain() const {
     return store_domain ;
   }
         
@@ -96,19 +96,28 @@ namespace Loci {
     return s ;
   }
 
-  template<class T> void paramRepI<T>::readhdf5( H5::Group group){
+  template<class T> void paramRepI<T>::readhdf5( H5::Group group, entitySet &en){
+
+    cout << " Warning : Has to be rewritten : This is old function " << endl;
+    exit(0);
+    /*
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
     entitySet en=param_hdf5read(group,traits_output_type,param_val);
     allocate(en);
+    */
   }
 
   template<class T> void paramRepI<T>::writehdf5( H5::Group group,entitySet& en) const{
-    //entitySet en=domain();
-    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
-    //schema_converter::hdf5write(group,param_val,en);
-    param_hdf5write(group,traits_output_type,param_val,en);
+
+    cout << " Warning : Has to be rewritten : This is old function " << endl;
+    exit(0);
+
+    /*
+       typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+       schema_converter traits_output_type;
+       param_hdf5write(group,traits_output_type,param_val,en);
+    */
   }
 
   template<class T> class param : public store_instance {

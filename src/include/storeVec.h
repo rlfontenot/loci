@@ -681,10 +681,10 @@ namespace Loci {
     virtual void pack(void * ptr, int &loc, int &size, const entitySet &e ) ;
     virtual void unpack(void * ptr, int &loc, int &size, const sequence &seq) ;
     virtual store_type RepType() const ;
-    virtual const entitySet &domain() const ;
+    virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group) ;
+    virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
     virtual void set_elem_size(int sz) ;
 
@@ -739,7 +739,12 @@ namespace Loci {
       return s ;
     }
 
-  template<class T> void storeVecRepI<T>::readhdf5( H5::Group group){
+  template<class T> void storeVecRepI<T>::readhdf5( H5::Group group, entitySet &en){
+
+    cout << " Warning : Has to be rewritten : This is old function " << endl;
+    exit(0);
+
+    /*
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
     entitySet en=get_store_domain(group,traits_output_type);
@@ -747,15 +752,21 @@ namespace Loci {
 
     set_elem_size(sz);
     allocate(en);
-    cout<<"Vec read "<<en<<endl;
     storeVec_hdf5read(group,traits_output_type,base_ptr,en,sz);
+    */
+
   }
 
   template<class T> void storeVecRepI<T>::writehdf5( H5::Group group,entitySet& en) const{
+
+    cout << " Warning : Has to be rewritten : This is old function " << endl;
+    exit(0);
+    /*
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
     cout<<"Vec write "<<en<<endl;
     storeVec_hdf5write(group,traits_output_type,base_ptr,en,size);
+    */
   }
 
   template<class T> void storeVecRepI<T>::allocate(const entitySet &ptn) {
@@ -789,7 +800,7 @@ namespace Loci {
     return STORE ;
   }
 
-  template<class T> const entitySet &storeVecRepI<T>::domain() const {
+  template<class T> entitySet storeVecRepI<T>::domain() const {
     return store_domain ;
   }
 
@@ -1195,10 +1206,10 @@ namespace Loci {
     virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq ) ;
     		      
     virtual store_type RepType() const ;
-    virtual const entitySet &domain() const ;
+    virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group) ;
+    virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
 
     T ** get_base_ptr() const { return base_ptr ; }
@@ -1683,7 +1694,7 @@ namespace Loci {
     return STORE ;
   }
   
-  template<class T> const entitySet &multiStoreRepI<T>::domain() const {
+  template<class T> entitySet multiStoreRepI<T>::domain() const {
     return store_domain ;
   }
   
@@ -1734,7 +1745,7 @@ namespace Loci {
     return s ;
   }
 
-  template<class T> void multiStoreRepI<T>::readhdf5( H5::Group group) {
+  template<class T> void multiStoreRepI<T>::readhdf5( H5::Group group, entitySet &en) {
     std::cerr << "readhdf5 not implemented" << std::endl ;
   }
 

@@ -40,7 +40,7 @@ namespace Loci {
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
     
-    virtual const entitySet &domain() const ;
+    virtual entitySet domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
     virtual std::pair<entitySet,entitySet>
@@ -48,7 +48,7 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group) ;
+    virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
     int ** get_base_ptr() const { return base_ptr ; }
     int *begin(int indx) { return base_ptr[indx] ; }
@@ -85,9 +85,8 @@ namespace Loci {
       NPTR<MapType> p(Rep()) ;
       p->allocate(sizes) ; }
 
-    const entitySet &domain() const { return Rep()->domain() ; }
+    entitySet domain() const { return Rep()->domain() ; }
 
-    //    operator storeRepP() { return Rep() ; }
     operator MapRepP() {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
@@ -143,7 +142,7 @@ namespace Loci {
     { setRep(str.Rep()) ; return *this ;}
     const_multiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
-    const entitySet &domain() const { return Rep()->domain(); }
+    entitySet domain() const { return Rep()->domain(); }
     //    operator storeRepP() { return Rep() ; }
     operator MapRepP() {
       MapRepP p(Rep()) ;

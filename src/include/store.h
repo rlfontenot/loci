@@ -51,9 +51,9 @@ namespace Loci {
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group) ;
+    virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
-    virtual const entitySet &domain() const ;
+    virtual entitySet domain() const ;
     T * get_base_ptr() const { return base_ptr ; }
   } ;
 
@@ -106,28 +106,37 @@ namespace Loci {
     return s ;
   }
 
-  template<class T> void storeRepI<T>::readhdf5( H5::Group group){
+  template<class T> void storeRepI<T>::readhdf5( H5::Group group, entitySet &en){
+   
+    cout << " Warning : Has to be rewritten : This is old function " << endl;
+    exit(0);
+    /*
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
     entitySet en=get_store_domain(group,traits_output_type);
     allocate(en);
-    //cout<<"read "<<en<<endl;
     store_hdf5read(group,traits_output_type,base_ptr,en);
+    */
   }
 
   template<class T> void storeRepI<T>::writehdf5( H5::Group group,entitySet& en) const{
+   
+    cout << " Warning : Has to be rewritten : This is old function " << endl;
+    exit(0);
+
+    /*
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
-    //entitySet en=domain();
-    //cout<<"write "<<en<<endl;
     store_hdf5write(group,traits_output_type,base_ptr,en);
+    */
+
   }
 
   template<class T>  storeRepI<T>::~storeRepI<T>() {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
     
-  template<class T>  const entitySet &storeRepI<T>::domain() const {
+  template<class T>  entitySet storeRepI<T>::domain() const {
     return store_domain ;
   }
 
