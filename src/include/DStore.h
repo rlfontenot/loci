@@ -502,7 +502,7 @@ namespace Loci {
   {
     std::ostringstream oss;
 
-    oss << base_ptr[entity] << endl;
+    oss << attrib_data[entity] << endl;
 
     memento = oss.str();
   }
@@ -562,7 +562,7 @@ namespace Loci {
     int     stateSize, maxStateSize = 0; 
     typedef data_schema_traits<T> schema_traits ;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
-      typename schema_traits::Converter_Type cvtr( base_ptr[*ci] );
+      typename schema_traits::Converter_Type cvtr( attrib_data[*ci] );
       stateSize    = cvtr.getSize();
       incount     += stateSize;
       maxStateSize = max( maxStateSize, stateSize );
@@ -579,7 +579,7 @@ namespace Loci {
     //-------------------------------------------------------------------
 
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
-      typename schema_traits::Converter_Type cvtr( base_ptr[*ci]);
+      typename schema_traits::Converter_Type cvtr( attrib_data[*ci]);
       cvtr.getState( inbuf, stateSize);
 
       MPI_Pack(&stateSize, 1, MPI_INT, outbuf, outcount,&position,
@@ -630,7 +630,7 @@ namespace Loci {
                   MPI_COMM_WORLD) ;
 
       std::istringstream iss(outbuf);
-      iss >> base_ptr[*ci];
+      iss >> attrib_data[*ci];
       delete [] outbuf;
     }
   }
@@ -681,7 +681,7 @@ namespace Loci {
       MPI_Unpack(inbuf, insize, &position, outbuf, outcount, 
                  MPI_BYTE, MPI_COMM_WORLD) ;
 
-      typename converter_traits::Converter_Type cvtr( base_ptr[*ci] );
+      typename converter_traits::Converter_Type cvtr( attrib_data[*ci] );
       cvtr.setState( outbuf, stateSize);
       delete [] outbuf;
     }
