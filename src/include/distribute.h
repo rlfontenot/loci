@@ -31,8 +31,8 @@ namespace Loci {
   void generate_distribution(fact_db &facts, rule_db &rdb,std::vector<std::vector<entitySet> > &get_entities ) ;
   
   void distribute_facts(std::vector<std::vector<entitySet> > &get_entities, fact_db &facts)   ;
-  entitySet fill_entitySet(entitySet& e, fact_db &facts) ;
-  entitySet send_entitySet(entitySet& e, fact_db &facts) ;
+  entitySet fill_entitySet(const entitySet& e, fact_db &facts) ;
+  entitySet send_entitySet(const entitySet& e, fact_db &facts) ;
   void print_global(entitySet e, fact_db &facts) ;
 }
 

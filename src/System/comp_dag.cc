@@ -9,6 +9,24 @@ namespace Loci {
                          const rulecomp_map &rcm,
                          const digraph &dag) {
     digraph dagt = dag.transpose() ;
+    if(dag_sched.size() == 0)
+      return ;
+#ifdef TEST
+    variableSet acvars = extract_vars(dag_sched[0]) ;
+    vector<variableSet> vars_alloc(dag_sched.size()) ;
+    vector<variableSet> vars_free(dag_sched.size()) ;
+    acvars = EMPTY ;
+    for(int i=0;i<dag_sched.size();++i) {
+      ruleSet rules = extract_rules(dag_sched[i]) ;
+      ruleSet::const_iterator ri ;
+      variableSet vs ;
+      for(ri=rules.begin();ri!=rules.end();++ri)
+        vs += ri->targets() ;
+      vars_alloc[i] = vs - acvars ;
+      //      cerr << "vars_alloc["<<i<<"] = " << vars_alloc[i] << endl ;
+      acvars += vs ;
+    }
+#endif
     for(int i=0;i<dag_sched.size();++i) {
       variableSet vars = extract_vars(dag_sched[i]) ;
       ruleSet rules = extract_rules(dag_sched[i]) ;
@@ -75,11 +93,13 @@ namespace Loci {
             else if(ri->get_rule_implP()->get_rule_class() == rule_impl::APPLY){
               if(join_op == 0)
                 join_op = ri->get_rule_implP()->get_joiner() ;
+#ifdef TYPEINFO_CHECK
               else
                 if(typeid(*join_op) !=
                    typeid(*(ri->get_rule_implP()->get_joiner()))) {
                   cerr << "Warning:  Not all apply rules for variable " << xi->first << " have identical join operations!" << endl ;
                 }
+#endif
             } else {
               cerr << "Warning: reduction variable " << xi->first
                    << " has a non-reduction rule contributing to its computation,"

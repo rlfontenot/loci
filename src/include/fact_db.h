@@ -28,9 +28,28 @@ namespace Loci {
     } ;
     
     struct distribute_info : public CPTR_type {
+      struct dist_data {
+        int proc ;
+        entitySet entities ;
+        int size ;
+        dist_data(int p, entitySet &e) :proc(p),entities(e)
+        { size = e.size() ; }
+      } ;
+      
       int myid ;
       int isDistributed ;
       Map g2l ;
+
+      entitySet my_entities ;
+
+      std::vector<dist_data> copy ; // Data describing which processors own
+      // the entities in the clone region
+      std::vector<dist_data> xmit ; // Data describing which processors to
+      // send entities that this processor owns
+      int copy_total_size ;
+      int xmit_total_size ;
+
+
       entitySet send_neighbour ;
       entitySet recv_neighbour ;
       store<entitySet> send_entities ;
