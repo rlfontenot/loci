@@ -11,7 +11,7 @@ OBJS = variable.o store_rep.o Map.o constraint.o rule.o \
        fact_db.o execute.o depend_graph.o scheduler.o
 
 
-JUNK = *~ *.ii core ti_files ii_files Templates.DB KCC_files so_locations
+JUNK = *~ *.ii core ti_files ii_files 
 
 .SUFFIXES: .o .c .cc .f 
 
@@ -32,6 +32,9 @@ libLoci.a: $(OBJS)
 
 libLoci.so: $(OBJS)
 	$(LD) $(LDFLAGS) -shared -o libLoci.so $(OBJS)
+
+scheduler.o: scheduler.cc
+	$(CP) $(CFLAGS) $(TEMPLATE_LIB_OPT) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c scheduler.cc
 
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK)

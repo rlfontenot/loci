@@ -81,8 +81,6 @@ namespace Loci {
     rule_threading = true ;
   }
 
-  rule_impl::~rule_impl() {}
-
   void rule_impl::rule_name(const string &fname) {
     name = fname ;
   }
@@ -524,6 +522,7 @@ namespace Loci {
       NULL_RULE_IMPL() {}
       rule_implP new_rule_impl() const { return new NULL_RULE_IMPL ; }
       void compute(const sequence &seq) {}
+      virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
     } ;
   }
 

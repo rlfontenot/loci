@@ -1,3 +1,5 @@
+#define PROFILE_CODE
+
 #include <scheduler.h>
 #include <Tools/digraph.h>
 #include <fact_db.h>
@@ -5,8 +7,6 @@
 #include <depend_graph.h>
 #include <Map.h>
 
-
-#define PROFILE_CODE
 #ifdef PROFILE_CODE
 #include <time.h>
 #endif
@@ -462,10 +462,20 @@ entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
                             entitySet compute) {
   vector<variableSet>::const_iterator mi ;
   for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
-    WARN(mi->size() != 1) ;
-    variable v = *(mi->begin()) ;
-    FATAL(!facts.is_a_Map(v)) ;
-    compute = facts.image(v,compute) ;
+    if(mi->size() == 1) {
+      variable v = *(mi->begin()) ;
+      FATAL(!facts.is_a_Map(v)) ;
+      compute = facts.image(v,compute) ;
+    } else {
+      variableSet::const_iterator vi ;
+      entitySet images ;
+      for(vi=mi->begin();vi!=mi->end();++vi) {
+        variable v = *vi ;
+        FATAL(!facts.is_a_Map(v)) ;
+        images |= facts.image(v,compute) ;
+      }
+      compute = images ;
+    }
   }
   return compute ;
 }
@@ -487,7 +497,9 @@ void existential_rule_analysis(rule f, fact_db &facts) {
   if(finfo.constraints.begin() != finfo.constraints.end())
     if((sources & constraints) != constraints) {
       cerr << "Warning, rule " << f <<
-        "cannot supply all entities of constraint" << endl ;
+        " cannot supply all entities of constraint" << endl ;
+      cerr << "constraints = " << constraints ;
+      cerr << "sources & constraints = " << (sources & constraints) << endl ;
       //      exit(-1) ;
     }
   sources &= constraints ;
@@ -610,6 +622,7 @@ class execute_rule : public execute_modules {
   sequence exec_seq ;
 public:
   execute_rule(rule fi, sequence seq, fact_db &facts) ;
+  execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p) ;
   virtual void execute(fact_db &facts) ;
   virtual void Print(std::ostream &s) const ;
 } ;
@@ -619,6 +632,17 @@ execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts)
   rp = fi.get_rule_implP() ;
   rule_tag = fi ;
   rp->initialize(facts) ;
+  exec_seq = seq ;
+  control_thread = false ;
+}
+
+execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
+                           variable v, const storeRepP &p)
+{
+  rp = fi.get_rule_implP() ;
+  rule_tag = fi ;
+  rp->initialize(facts) ;
+  rp->set_store(v,p) ;
   exec_seq = seq ;
   control_thread = false ;
 }
@@ -700,34 +724,68 @@ void execute_conditional::Print(ostream &s) const {
 }
 
 namespace {
-  void parallel_schedule(execute_par *ep,const entitySet &exec_set,
-                         const rule &impl, fact_db &facts) {
-    const int min = exec_set.Min() ;
-    const int max = exec_set.Max() ;
-    const int psize = exec_set.size() ;
+  vector<entitySet> partition_set(const entitySet &s,int nthreads) {
+    const int min = s.Min() ;
+    const int max = s.Max() ;
+    const int psize = s.size() ;
 
-    const int div = psize/num_threads ;
-    int rem = psize%num_threads ;
-
+    const int div = psize/nthreads ;
+    int rem = psize%nthreads ;
+    vector<entitySet> partition ;
+    
     for(int i=min;i<=max;) {
       int inval = div + ((rem>0)?1:0) ;
       rem-- ;
-      entitySet sp = exec_set & interval(i,i+inval-1) ;
+      entitySet sp = s & interval(i,i+inval-1) ;
       i+=inval ;
       while(sp.size() < inval && i<=max) {
-        entitySet remain = exec_set & interval(i,max) ;
+        entitySet remain = s & interval(i,max) ;
         i=remain.Min() ;
         int remain_ival = inval - sp.size() ;
-        sp += exec_set & interval(i,i+remain_ival-1) ;
+        sp += s & interval(i,i+remain_ival-1) ;
         i+=remain_ival ;
       }
       WARN(sp.size() > inval) ;
-      executeP execrule = new execute_rule(impl,sequence(sp),facts) ;
+      partition.push_back(sp) ;
+    }
+    return partition ;
+  }
+  void parallel_schedule(execute_par *ep,const entitySet &exec_set,
+                         const rule &impl, fact_db &facts) {
+    vector<entitySet> par_set = partition_set(exec_set,num_threads) ;
+
+    for(vector<entitySet>::const_iterator
+          i=par_set.begin();i!=par_set.end();++i) {
+      executeP execrule = new execute_rule(impl,sequence(*i),facts) ;
       ep->append_list(execrule) ;
     }
   }
 }
 
+class joiner_oper : public execute_modules {
+  variable joiner_var ;
+  storeRepP joiner_store ;
+  vector<entitySet> partition ;
+  vector<storeRepP> var_vec ;
+  CPTR<joiner> joiner_op ;
+public:
+  joiner_oper(variable jv, storeRepP &js, vector<entitySet> &ptn,
+              vector<storeRepP> &vv, CPTR<joiner> &jo) :
+    joiner_var(jv), joiner_store(js), partition(ptn),var_vec(vv),
+    joiner_op(jo) {}
+  virtual void execute(fact_db &facts) ;
+  virtual void Print(ostream &s) const ;
+} ;
+
+void joiner_oper::execute(fact_db &facts) {
+  for(int i=0;i<var_vec.size();++i) 
+    joiner_op->Join(joiner_store,var_vec[i],sequence(partition[i])) ;
+}
+
+void joiner_oper::Print(ostream &s) const {
+  s << "reducing thread results for variable " << joiner_var << endl ;
+}
+                    
   
 class allocate_all_vars : public execute_modules {
 public:
@@ -821,7 +879,8 @@ executeP impl_calculator::create_execution_schedule(fact_db &facts) {
   if((targets.begin()->get_info()).name == "OUTPUT") {
     CPTR<execute_list> el = new execute_list ;
     el->append_list(new execute_rule(impl,sequence(exec_seq),facts)) ;
-    el->append_list(new execute_thread_sync) ;
+    if(num_threads > 1)
+      el->append_list(new execute_thread_sync) ;
     return executeP(el) ;
   }
     
@@ -934,18 +993,151 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
     return executeP(0) ;
 #endif
   CPTR<execute_list> el = new execute_list ;
-  if(num_threads > 1 &&
-     exec_seq.size() > num_threads*30 &&
-     !apply.get_info().output_is_parameter &&
-     !output_mapping  &&
-     apply.get_info().rule_impl->thread_rule()) {
+  if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
+     exec_seq.size() < num_threads*30)
+    el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
+  else if(!apply.get_info().output_is_parameter &&!output_mapping) {
     execute_par *ep = new execute_par ;
     parallel_schedule(ep,exec_seq,apply,facts) ;
     el->append_list(ep)  ;
+    el->append_list(new execute_thread_sync) ;
+  } else if(apply.get_info().output_is_parameter) {
+    variableSet target = apply.targets() ;
+    fatal(target.size() != 1) ;
+    variable v = *(target.begin()) ;
+    storeRepP sp = facts.get_variable(v) ;
+    vector<entitySet> partition = partition_set(exec_seq,num_threads) ;
+    vector<storeRepP> var_vec ;
+
+    execute_par *ep = new execute_par ;
+    for(int i=0;i<partition.size();++i) {
+      storeRepP rp = sp->new_store(partition[i]) ;
+      var_vec.push_back(rp) ;
+      execute_sequence *es = new execute_sequence ;
+      es->append_list(new execute_rule(unit_tag,sequence(partition[i]),
+                                        facts,v,rp)) ;
+      es->append_list(new execute_rule(apply,sequence(partition[i]),
+                                       facts,v,rp)) ;
+      ep->append_list(es) ;
+    }
+    el->append_list(ep) ;
+    el->append_list(new execute_thread_sync) ;
+    rule_implP arule = (apply.get_info().rule_impl);
+    fatal(arule == 0) ;
+    CPTR<joiner> j_op = (arule)->get_joiner() ;
+    fatal(j_op == 0) ;
+    el->append_list(new joiner_oper(v,sp,partition,var_vec,j_op)) ;
+  } else {
+    variableSet target = apply.targets() ;
+    fatal(target.size() != 1) ;
+    variable v = *(target.begin()) ;
+    storeRepP sp = facts.get_variable(v) ;
+    vector<entitySet> partition = partition_set(exec_seq,num_threads) ;
+
+    const rule_impl::info &finfo = apply.get_info().desc ;
+    execute_par *ep = new execute_par ;
+    entitySet apply_domain,all_contexts ;
+    vector<entitySet> shards, shard_domains ;
+    for(int i=0;i<partition.size();++i) {
+      fatal(finfo.targets.size() != 1) ;
+      entitySet context = partition[i] ;
+      entitySet pdom = vmap_target_exist(*finfo.targets.begin(),facts,context) ;
+      
+      entitySet rem = pdom & apply_domain ;
+      if(rem != EMPTY) {
+        entitySet compute = rem ;
+        const vmap_info &vmi = *finfo.targets.begin() ;
+        vector<variableSet>::const_reverse_iterator mi ;
+        for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
+          entitySet working = EMPTY ;
+          variableSet::const_iterator vi;
+          for(vi=mi->begin();vi!=mi->end();++vi) {
+            FATAL(!facts.is_a_Map(*vi)) ;
+            working |= facts.preimage(*vi,compute).second ;
+          }
+          compute = working ;
+        }
+        compute &= partition[i] ;
+        shards.push_back(compute) ;
+        entitySet sdom = vmap_target_exist(vmi,facts,compute) ;
+        shard_domains.push_back(sdom) ;
+        context &= ~compute ;
+      }
+      apply_domain |= pdom ;
+      all_contexts |= partition[i] ;
+      ep->append_list(new execute_rule(apply,sequence(context),facts)) ;
+    }
+    if(shards.size() == 0) {
+      el->append_list(ep) ;
+      el->append_list(new execute_thread_sync) ;
+    } else {
+      ep->append_list(new execute_sequence) ;
+      bool disjoint = true ;
+      entitySet dom_tot ;
+      for(int i=0;i<shards.size();++i) {
+        if((shard_domains[i] & dom_tot) != EMPTY)
+          disjoint = false ;
+      }
+      variableSet target = apply.targets() ;
+      fatal(target.size() != 1) ;
+      variable v = *(target.begin()) ;
+      storeRepP sp = facts.get_variable(v) ;
+      fatal(sp == 0) ;
+      
+      vector<storeRepP> var_vec ;
+      
+      for(int i=0;i<shards.size();++i) {
+        storeRepP rp = sp->new_store(shard_domains[i]) ;
+        var_vec.push_back(rp) ;
+        execute_sequence *es = new execute_sequence ;
+        es->append_list(new execute_rule(unit_tag,sequence(shard_domains[i]),
+                                         facts,v,rp)) ;
+        es->append_list(new execute_rule(apply,sequence(shards[i]),
+                                         facts,v,rp)) ;
+        ep->append_list(es) ;
+      }
+      
+      el->append_list(ep) ;
+      el->append_list(new execute_thread_sync) ;
+      //-----Now join the partial results
+
+      rule_implP arule = (apply.get_info().rule_impl);
+      fatal(arule == 0) ;
+      CPTR<joiner> j_op = (arule)->get_joiner() ;
+      fatal(j_op == 0) ;
+
+      if(disjoint) {
+        execute_par *epj = new execute_par ;
+        epj->append_list(new execute_sequence) ;
+        for(int i=0;i<shard_domains.size();++i) {
+          vector<entitySet> ve ;
+          vector<storeRepP> vv ;
+          ve.push_back(shard_domains[i]) ;
+          vv.push_back(var_vec[i]) ;
+          epj->append_list(new joiner_oper(v,sp,ve,vv,j_op)) ;
+        }
+        el->append_list(epj) ;
+        el->append_list(new execute_thread_sync) ;
+      } else {
+        for(int i=0;i<shard_domains.size();++i) {
+          execute_par *epj = new execute_par ;
+          vector<entitySet> decompose = partition_set(shard_domains[i],num_threads) ;
+          vector<storeRepP> vv ;
+          vv.push_back(var_vec[i]) ;
+          for(int j=0;j<decompose.size();++j) {
+            vector<entitySet> ve ;
+            ve.push_back(decompose[i]) ;
+            epj->append_list(new joiner_oper(v,sp,ve,vv,j_op)) ;
+          }
+          el->append_list(epj) ;
+          el->append_list(new execute_thread_sync) ;
+        }
+      }
+    }
+
+    //    el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
+    //    el->append_list(new execute_thread_sync) ;
   }
-  else
-    el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
-  el->append_list(new execute_thread_sync) ;
   return executeP(el) ;
 }
 
@@ -984,6 +1176,7 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
   const rule_impl::info &finfo = impl.get_info().desc ;
   warn(impl.type() == rule::INTERNAL) ;
   entitySet sources = ~EMPTY ;
+
   entitySet constraints = ~EMPTY ;
   set<vmap_info>::const_iterator si ;
   for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
@@ -1047,7 +1240,9 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
     constraints &= vmap_source_exist(*si,facts) ;
     fctrl.use_constraints = true ;
   }
+
   fctrl.nr_sources = sources ;
+
   fctrl.constraints = constraints ;
   warn(fctrl.recursion_maps.size() == 0) ;
 
@@ -1075,6 +1270,9 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
 #ifdef VERBOSE
     cout << "j = " << j << ", domain = " << domain << ", newdomain = "
          << newdomain << endl ;
+    if(domain == ~EMPTY) {
+      cout << "rule = "<< impl << endl ;
+    }
 #endif
     inverseMap(read_map_inv[j],read_maps[j],domain,newdomain) ;
     domain = newdomain ;
@@ -1451,7 +1649,8 @@ executeP recurse_calculator::create_execution_schedule(fact_db &facts) {
         li++ ;
       }
     }
-    el->append_list(new execute_thread_sync) ;
+    if(num_threads > 1)
+      el->append_list(new execute_thread_sync) ;
   } while(!finished) ;
     
   if(el->size() == 0)
@@ -1506,7 +1705,7 @@ executeP dag_calculator::create_execution_schedule(fact_db &facts) {
     ruleSet::const_iterator ri ;
     for(ri=rules.begin();ri!=rules.end();++ri)
       elp->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-    if(rules.size() > 0)
+    if(rules.size() > 0 && num_threads > 1)
       elp->append_list(new execute_thread_sync) ;
   }
   return executeP(elp) ;
@@ -1637,7 +1836,7 @@ executeP loop_calculator::create_execution_schedule(fact_db &facts) {
     ruleSet::const_iterator ri ;
     for(ri=rules.begin();ri!=rules.end();++ri)
       col->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-    if(rules.size() > 0)
+    if(rules.size() > 0 && num_threads > 1)
       col->append_list(new execute_thread_sync) ;
   }
   CPTR<execute_list> adv = new execute_list ;
@@ -1646,7 +1845,7 @@ executeP loop_calculator::create_execution_schedule(fact_db &facts) {
     ruleSet::const_iterator ri ;
     for(ri=rules.begin();ri!=rules.end();++ri)
       adv->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-    if(rules.size() > 0)
+    if(rules.size() > 0 && num_threads > 1)
       adv->append_list(new execute_thread_sync) ;
   }
   return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel) ;
@@ -1673,7 +1872,7 @@ conditional_calculator::conditional_calculator(decompose_graph *gr,
   cond_var = conditional ;
   dag_sched = schedule_dag(dag) ;
   extract_rule_sequence(rule_schedule,dag_sched) ;
-#ifdef DEBUGG
+#ifdef DEBUG
   // sanity check, all nodes should be scheduled
   digraph::nodeSet allnodes ;
   for(int i=0;i< dag_sched.size();++i) 
@@ -1704,7 +1903,7 @@ executeP conditional_calculator::create_execution_schedule(fact_db &facts) {
     ruleSet::const_iterator ri ;
     for(ri=rules.begin();ri!=rules.end();++ri)
       elp->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-    if(rules.size() > 0)
+    if(rules.size() > 0 && num_threads > 1)
       elp->append_list(new execute_thread_sync) ;
   }
   return new execute_conditional(executeP(elp),cond_var) ;

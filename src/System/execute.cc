@@ -2,10 +2,12 @@
 
 #ifdef PTHREADS
 #include <pthread.h>
+#include <semaphore.h>
 #endif
 
 #include <Tools/stream.h>
 
+sem_t thread_barrier, barrier_ack ;
 
 
 //namespace {
@@ -51,7 +53,24 @@ extern "C" {
     pthread_exit(0) ;
     return NULL ;
   }
-}  
+
+  void *worker_thread3( void *ptr) {
+    int tnum = *(int *)(ptr) ;
+    do {
+      while(sem_wait(&thread_barrier) != 0)
+        if(errno != EINTR) {
+          perror("sem_wait") ;
+        }
+      process_thread(tnum) ;
+      if(sem_post(&barrier_ack) != 0)
+        perror("sem_post") ;
+      
+    } while(true) ;
+  }
+    
+}
+
+
 #endif
 
 namespace Loci {
@@ -79,31 +98,20 @@ namespace Loci {
       (*eli)->Print(s) ;
   }
 
+  void execute_sequence::execute(fact_db &facts) {
+    std::vector<executeP>::iterator eli ;
+
+    for(eli=elist.begin();eli!=elist.end();++eli)
+      (*eli)->execute(facts) ;
+  }
+
+  void execute_sequence::Print(std::ostream &s) const {
+    std::vector<executeP>::const_iterator eli ;
+    for(eli=elist.begin();eli!=elist.end();++eli)
+      (*eli)->Print(s) ;
+  }
+
   void execute_par::execute(fact_db &facts) {
-#ifdef ORIG
-    fatal(elist.size() > num_threads) ;
-    current_execute_list = &elist ;
-    current_fact_db = &facts ;
-
-    pthread_t tids[max_threads] ;
-    pthread_attr_t attr ;
-
-    pthread_attr_init(&attr) ;
-    pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM) ;
-    
-    for(int i=0;i<elist.size();++i) {
-      thread_num[i] = i ;
-      //      cerr << "creating thread "<< i << endl ;
-      //      elist[i]->Print(cerr) ;
-      pthread_create(&tids[i], &attr, &worker_thread, &thread_num[i]) ;
-      //      pthread_join(tids[i],NULL) ;
-    }
-
-    for(int i=0;i<elist.size();++i) {
-      pthread_join(tids[i],NULL) ;
-      //      cerr << "joining thread "<<i << endl ;
-    }
-#endif
 #ifdef PTHREADS
     for(int i=0;i!=elist.size();++i) {
       work_in_queue = true ;
@@ -128,6 +136,22 @@ namespace Loci {
 
   void execute_create_threads::execute(fact_db &facts) {
     num_created_threads = num_threads ;
+
+#ifdef TRYOUT
+    sem_init(&thread_barrier,0,0) ;
+    sem_init(&barrier_ack,0,0) ;
+    
+    static pthread_t tids[max_threads] ;
+    pthread_attr_t attr ;
+
+    pthread_attr_init(&attr) ;
+    pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM) ;
+
+    for(int i=0;i<num_created_threads;++i) {
+      thread_num[i] = i ;
+      pthread_create(&tids[i], &attr, &worker_thread3, &thread_num[i]) ;
+    }
+#endif
   }
 
   void execute_create_threads::Print(std::ostream &s) const {
@@ -142,6 +166,24 @@ namespace Loci {
   }
 
   void execute_thread_sync::execute(fact_db &facts) {
+#ifdef TRYOUT
+    static bool in_barrier = false ;
+    if(in_barrier) {
+      cerr << "nested barrier calls, does not make sense."<<endl ;
+    }
+    in_barrier = true ;
+    if(work_in_queue) {
+      for(int i=0;i<num_created_threads;++i)
+        sem_post(&thread_barrier) ;
+      for(int i=0;i<num_created_threads;++i)
+        sem_wait(&barrier_ack) ;
+      for(int i=0;i<num_created_threads;++i)
+        thread_schedule[i].clear() ;
+      work_in_queue = false ;
+    }
+    in_barrier = false ;
+    
+#else
 #ifdef PTHREADS
     static bool in_barrier = false ;
 
@@ -170,6 +212,7 @@ namespace Loci {
       work_in_queue = false ;
     }
     in_barrier = false ;
+#endif
 #endif
   }
 

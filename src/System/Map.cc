@@ -58,7 +58,8 @@ namespace Loci {
   }
 
   multiMap MapRepI::get_map() {
-    store<int> sizes(store_domain) ;
+    store<int> sizes ;
+    sizes.allocate(store_domain) ;
     FORALL(store_domain,i) {
       sizes[i] = 1 ;
     } ENDFORALL ;
@@ -175,7 +176,8 @@ namespace Loci {
   }
 
   storeRep *multiMapRepI::new_store(const entitySet &p) const {
-    return new multiMapRepI(p)  ;
+    warn(true) ;
+    return new multiMapRepI()  ;
   }
 
   const entitySet &multiMapRepI::domain() const {
@@ -241,7 +243,8 @@ namespace Loci {
       return s ;
     }
     s >> e ;
-    store<int> sizes(e) ;
+    store<int> sizes ;
+    sizes.allocate(e) ;
     FORALL(e,ii) {
       s >> sizes[ii] ;
     } ENDFORALL ;
@@ -285,7 +288,8 @@ namespace Loci {
   void inverseMap(multiMap &result, const Map &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) {
-    store<int> sizes(input_image) ;
+    store<int> sizes ;
+    sizes.allocate(input_image) ;
 
     FORALL(input_image,i) {
       sizes[i] = 0 ;
@@ -314,7 +318,8 @@ namespace Loci {
   void inverseMap(multiMap &result, const multiMap &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) {
-    store<int> sizes(input_image) ;
+    store<int> sizes ;
+    sizes.allocate(input_image) ;
     
     FORALL(input_image,i) {
       sizes[i] = 0 ;
