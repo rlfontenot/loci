@@ -3,7 +3,7 @@
 namespace Loci {
   
   rule_db parametric_rdb(rule_db& rdb) {
-  Loci::rule_db par_rdb ;
+     Loci::rule_db par_rdb ;
     ruleSet param_target, param_source, use_param_rule, added_rules ;
     variableSet source, target ;
     std::map<variable, ruleSet> mruleset ;
@@ -19,7 +19,6 @@ namespace Loci {
 	if(vint.size()) {
 	  target_args.push_back(vint) ;
 	  variable tmp = variable(*vsi) ;
-	  //cout << " name of variable in the map =  " << tmp.get_info().name << endl ;
 	  mvarset[tmp.get_info().name] += *vsi ;
 	  mruleset[tmp] += *rsi ;
 	  
@@ -29,23 +28,20 @@ namespace Loci {
 	std::vector<std::vector<int> >::const_iterator vi =
 	  target_args.begin(); 
 	vint = *vi ;
-	for( ; vi != target_args.end(); ++vi) {
+	for( ; vi != target_args.end(); ++vi) 
 	  FATAL(vint != *vi) ;
-	} 
 	
-	if(vint.size() && (!param_target.inSet(*rsi))) {
-	  //cout << "removing rule due to target.... " << *rsi << endl ;
+	
+	if(vint.size() && (!param_target.inSet(*rsi))) 
 	  param_target += *rsi ;
-      }
       }
       
       source = rsi->sources() ;
       for(variableSet::const_iterator vsi = source.begin(); vsi !=
 	    source.end(); ++vsi) { 
 	vint = variable(*vsi).get_arg_list() ;
-	if(vint.size()) {
+	if(vint.size()) 
 	  param_source += *rsi ;
-	}
       }
     }
     rset -= param_target ;
@@ -75,11 +71,8 @@ namespace Loci {
       }
       source = rsi->sources() ;
       for(variableSet::const_iterator vsi = source.begin(); vsi !=
-	    source.end(); ++vsi) {
+	    source.end(); ++vsi) 
 	vint = variable(*vsi).get_arg_list() ;
-	//if(vint.size()) 
-	//param_vars += *vsi ;
-      }
     }
     
     for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end(); ++rsi) {
@@ -93,16 +86,15 @@ namespace Loci {
     working = param_vars;
     newset = param_vars ;
     while(newset != EMPTY) {
+      std::vector<string> str_vec ;
       newset = EMPTY ;
-      cout << " working  = " << working << endl ;
       for(variableSet::const_iterator vsi = working.begin(); vsi != working.end(); ++vsi) {
 	variable v = variable(*vsi) ;
 	variableSet vs = mvarset.find(v.get_info().name)->second ;
-	cout << "variable set  = "  << vs  << endl ;
 	for(variableSet::const_iterator mvsi = vs.begin(); mvsi != vs.end(); ++mvsi)
 	  if(v.get_arg_list().size() == variable(*mvsi).get_arg_list().size()) {
 	    ruleSet rs = mruleset.find(variable(*mvsi))->second ;
-	    cout << "corresponding ruleset  = " << rs << endl ;
+	    std::set<string> ren_tars ;
 	    for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi ) {
 	      std::map<variable, variable> vm ;
 	      target = rsi->targets() ;
@@ -118,84 +110,103 @@ namespace Loci {
 		  if(variable(*vi).get_arg_list().size()) 
 		    newset += variable(*vi) ;
 		  vm[variable(*tvi)] = variable(*vi) ;
+		  ren_tars.insert(variable(*tvi).get_info().name) ;
 		}
 	      }
-	        source = rsi->sources() ;
-	    for(variableSet::const_iterator tvsi = source.begin(); tvsi != source.end(); ++tvsi ) { 
-	      std::vector<int> tmp_vint = variable(*tvsi).get_arg_list() ;
-	      std::vector<int> tmp_vec, vec_int ;
-	      vec_int = tmp_vint ;
-	      vec_int.push_back(variable(*tvsi).ident()) ;
-	      while(tmp_vint.size()) {
-		tmp_vint.clear() ;
-		for(std::vector<int>::const_iterator vi = vec_int.begin(); vi != vec_int.end(); ++vi) { 
-		  variable tmp = variable(*vi) ;
-		  std::vector<int> pi = tmp.get_arg_list() ;
-		  if(pi.size())
-		    for(std::vector<int>::const_iterator vp =
-			  pi.begin(); vp != pi.end(); ++vp)
-		      tmp_vint.push_back(variable(*vp).ident()) ;
-		  else {
-		    std::map<variable, variable>::const_iterator mi = vm.find(tmp) ;
-		    if(mi != vm.end())
-		      vm[tmp] = mi->second ;
+	      source = rsi->sources() ;
+	      for(variableSet::const_iterator tvsi = source.begin(); tvsi != source.end(); ++tvsi ) { 
+		std::vector<int> tmp_vint = variable(*tvsi).get_arg_list() ;
+		std::vector<int> tmp_vec, vec_int ;
+		vec_int = tmp_vint ;
+		vec_int.push_back(variable(*tvsi).ident()) ;
+		while(tmp_vint.size()) {
+		  tmp_vint.clear() ;
+		  for(std::vector<int>::const_iterator vi = vec_int.begin(); vi != vec_int.end(); ++vi) { 
+		    variable tmp = variable(*vi) ;
+		    std::vector<int> pi = tmp.get_arg_list() ;
+		    if(pi.size())
+		      for(std::vector<int>::const_iterator vp =
+			    pi.begin(); vp != pi.end(); ++vp)
+			tmp_vint.push_back(variable(*vp).ident()) ;
+		    else {
+		      std::map<variable, variable>::const_iterator mi = vm.find(tmp) ;
+		      if(mi != vm.end())
+			vm[tmp] = mi->second ;
+		    }
+		  }
+		  std::vector<int> ulti ;
+		  for(std::vector<int>::const_iterator vi = tmp_vint.begin(); vi != tmp_vint.end(); ++vi) { 
+		    variable tmp = variable(*vi) ;
+		    tmp_vec = tmp.get_arg_list() ;
+		    std::vector<int> vec ;
+		    for(std::vector<int>::const_iterator ivi = tmp_vec.begin(); ivi != tmp_vec.end(); ++ivi) {
+		      variable tmp_var = variable(*ivi) ;
+		      std::map<variable, variable>::const_iterator mi = vm.find(tmp_var) ;
+		      if(mi != vm.end()) 
+			vec.push_back(mi->second.ident()) ;
+		      else
+			vec.push_back(tmp_var.ident()) ;
+		    }
+		    if(tmp_vec != vec) {
+		      
+		      vm[variable(tmp)] = variable(tmp, vec) ;
+		    }
+		    else {
+		      ulti.push_back(tmp.ident()) ;
+		    }
+		  }
+		  vec_int = ulti ;
+		}
+		tmp_vint = variable(*tvsi).get_arg_list() ;
+		std::vector<int> vec ;
+		for(std::vector<int>::const_iterator vi =
+		      tmp_vint.begin(); vi != tmp_vint.end(); ++vi) {
+		  variable tmp_var = variable(*vi) ;
+		  std::map<variable, variable>::const_iterator mi =
+		    vm.find(tmp_var) ;
+		  if(mi != vm.end())
+		    vec.push_back(mi->second.ident()) ;
+		  else
+		    vec.push_back(tmp_var.ident()) ;
+		}
+		if(tmp_vint != vec) { 
+		  vm[variable(variable(*tvsi))] =
+		    variable(variable(*tvsi), vec) ;
+		  newset +=  variable(variable(*tvsi), vec) ;
+		}
+		string name = variable(*tvsi).get_info().name ;
+		if((name.find("_")) != string::npos)
+		  str_vec.push_back(name) ;
+	      }
+	      for(std::vector<string>::const_iterator svs =
+		    str_vec.begin(); svs != str_vec.end(); ++svs) {
+		string name = *svs ;
+		string orig = name ;
+		string replace ;
+		for(std::set<string>::const_iterator ssi =
+		      ren_tars.begin(); ssi != ren_tars.end(); ++ssi) {
+		  int i = name.find(*ssi) ;
+		  if(i != string::npos) {
+		    replace =
+		      vm[variable(*ssi)].get_info().name ;
+		    name.replace(i, replace.size(), replace) ;
 		  }
 		}
-		std::vector<int> ulti ;
-		for(std::vector<int>::const_iterator vi = tmp_vint.begin(); vi != tmp_vint.end(); ++vi) { 
-		  variable tmp = variable(*vi) ;
-		  tmp_vec = tmp.get_arg_list() ;
-		  std::vector<int> vec ;
-		  for(std::vector<int>::const_iterator ivi = tmp_vec.begin(); ivi != tmp_vec.end(); ++ivi) {
-		    variable tmp_var = variable(*ivi) ;
-		    std::map<variable, variable>::const_iterator mi = vm.find(tmp_var) ;
-		    if(mi != vm.end()) 
-		      vec.push_back(mi->second.ident()) ;
-		    else
-		      vec.push_back(tmp_var.ident()) ;
-		  }
-		  if(tmp_vec != vec) {
-		    
-		    vm[variable(tmp)] = variable(tmp, vec) ;
-		  }
-		  else {
-		    ulti.push_back(tmp.ident()) ;
-		  }
-		}
-		vec_int = ulti ;
+		if(name != orig)
+		  vm[variable(orig)] = variable(name) ;
 	      }
-	      tmp_vint = variable(*tvsi).get_arg_list() ;
-	      std::vector<int> vec ;
-	      for(std::vector<int>::const_iterator vi =
-		    tmp_vint.begin(); vi != tmp_vint.end(); ++vi) {
-		variable tmp_var = variable(*vi) ;
-		std::map<variable, variable>::const_iterator mi =
-		  vm.find(tmp_var) ;
-		if(mi != vm.end())
-		  vec.push_back(mi->second.ident()) ;
-		else
-		  vec.push_back(tmp_var.ident()) ;
-	      }
-	      if(tmp_vint != vec) { 
-		vm[variable(variable(*tvsi))] =
-		  variable(variable(*tvsi), vec) ;
-		newset +=  variable(variable(*tvsi), vec) ;
-	      }
-	    }
-	    rule_implP rp = rsi->get_rule_implP() ;
-	    rp->rename_vars(vm) ;
-	    if(!added_rules.inSet(rule(rp))) {
+	      rule_implP rp = rsi->get_rule_implP() ;
+	      rp->rename_vars(vm) ;
+	      if(!added_rules.inSet(rule(rp))) {
 		par_rdb.add_rule(rule(rp)) ;
 		added_rules += rule(rp) ;
-	    }
+	      }
 	    }
 	  }
       }
-      cout << " newset = " << newset << endl ;
       working = newset ;
       
     }
     return par_rdb ;
-    
-}
+  }
 }
