@@ -1,5 +1,0 @@
-#ifndef HDF5_WRITE_TEMPLATE_H_
-#define HDF5_WRITE_TEMPLATE_H_
-
-
-#endif
