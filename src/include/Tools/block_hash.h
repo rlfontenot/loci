@@ -26,6 +26,8 @@ namespace Loci {
       clear_hash() ;
     }
 
+    void erase_set(intervalSet set) ;
+    
     intervalSet domain() const ;
 
     T & access(int n) {
@@ -83,6 +85,36 @@ namespace Loci {
     }
   }
 
+  
+  template <class T> void block_hash<T>::erase_set(intervalSet set) {
+    for(intervalSet::const_iterator ei = set.begin();
+        ei != set.end() ;
+        ++ei) {
+      const int a1 = (*ei) & 0x1ff ;
+      const int a2 = (*ei>>9) &0x7ff ;
+      const int a3 = (*ei>>20) &0xfff ;
+      data[a3][a2]->bits[a1>>5] &= ~(1<<(a1&0x1f)) ;
+    }
+    // Clean up any fully erased blocks
+    for(int i=0;i<4096;++i) {
+      if(data[i]!=0) {
+        for(int j=0;j<2048;++j) {
+          if(data[i][j]!=0) {
+            bool all_zero = true ;
+            for(int k=0;k<16;++k)
+              if(data[i][j]->bits[k] != 0)
+                all_zero = false ;
+            if(all_zero) {
+              delete data[i][j] ;
+              data[i][j] = 0 ;
+            }
+          }
+        }
+      }
+    }
+      
+  }    
+  
   template <class T> intervalSet block_hash<T>::domain() const  {
     intervalSet val ;
     int a3,a2,a1 ;
