@@ -255,14 +255,17 @@ rule_db parametric_rdb(rule_db& rdb) {
       std::map<variable, variable> vm ;
       variable v = variable(*vsi) ;
       variableSet vs;
+      ruleSet rs ;
       if(mvarset.find(v.get_info().name) == mvarset.end()) 
         cerr << "can't find parametric rule for variable " << v <<endl ;
       else 
         vs = mvarset.find(v.get_info().name)->second ;
       for(variableSet::const_iterator mvsi = vs.begin(); mvsi != vs.end(); ++mvsi)
 	if(v.get_arg_list().size() == variable(*mvsi).get_arg_list().size()) {
-	  ruleSet rs = mruleset.find(variable(*mvsi))->second ;
-	
+	  if(mruleset.find(variable(*mvsi)) != mruleset.end())
+	    rs = mruleset.find(variable(*mvsi))->second ;
+	  else
+	    cerr << "can't find parametric rule for variable " << variable(*mvsi) << endl ;
 	  for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi ) {
 	    target = rsi->targets() ;
 	    for(variableSet::const_iterator tvsi = target.begin(); tvsi
@@ -298,11 +301,6 @@ rule_db parametric_rdb(rule_db& rdb) {
 			  pi.begin(); vp != pi.end(); ++vp) {
 		      tmp_vint.push_back(variable(*vp).ident()) ;
 		    }
-		  }
-		  else {
-		    std::map<variable, variable>::const_iterator mi = vm.find(tmp) ;
-		    if(mi != vm.end())
-		      vm[tmp] = mi->second ;
 		  }
 		}
 		std::vector<int> ulti = tmp_vint;
