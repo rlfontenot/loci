@@ -1,4 +1,4 @@
-#include "stream.h"
+#include <Tools/stream.h>
 #include <hdf5.h>
 #include <string>
 #include "Exception.h"

@@ -4,7 +4,7 @@
 
 TARGET = libhdf5CC.a
 
-LOCAL_INCLUDES = -I$(LOCI_BASE)/include
+LOCAL_INCLUDES = -I$(LOCI_BASE)/include -I$(LOCI_BASE)/include/hdf5CC
 
 OBJS  =  H5file.o Exception.o H5object.o Group.o Refcount.o Dataspace.o\
 	 Dataset.o AbstractDs.o Datatype.o Enumtype.o Atomtype.o Predtype.o\
