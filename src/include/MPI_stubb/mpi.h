@@ -1,21 +1,5 @@
-/* $Id: mpi.h,v 1.1 2003/01/29 19:49:50 lush Exp $ */
-
-/*
- *	(C) COPYRIGHT SILICON GRAPHICS, INC.
- *	UNPUBLISHED PROPRIETARY INFORMATION.
- *	ALL RIGHTS RESERVED.
- */
-
-/*
- * Copyright Notice
- *  + 1993 University of Chicago
- *  + 1993 Mississippi State University
- */
-
-/* STUB VERSION FOR C++! */
-
-#ifndef MPI_H_INCLUDED
-#define MPI_H_INCLUDED
+#ifndef MPI_H_STUBB
+#define MPI_H_STUBB
 
 #define MPI_STUBB
 #include <iostream>
@@ -264,210 +248,150 @@ inline void err_report() {
   std::abort() ;
 }
 inline  int  MPI_Send(void *, int, MPI_Datatype, int, int, MPI_Comm) {err_report(); return -1;}
-inline  int PMPI_Send(void *, int, MPI_Datatype, int, int, MPI_Comm) {err_report(); return -1;}
 
 inline  int  MPI_Recv(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *) {err_report(); return -1;}
-inline  int PMPI_Recv(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *) {err_report(); return -1;}
 
 inline int  MPI_Get_count(MPI_Status *, MPI_Datatype, int *){return 0 ;}
-inline int PMPI_Get_count(MPI_Status *, MPI_Datatype, int *){return 0;}
 
 /* 3.4 */
 
 inline int  MPI_Bsend(void *, int, MPI_Datatype, int, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Bsend(void *, int, MPI_Datatype, int, int, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Ssend(void *, int, MPI_Datatype, int, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Ssend(void *, int, MPI_Datatype, int, int, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Rsend(void *, int, MPI_Datatype, int, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Rsend(void *, int, MPI_Datatype, int, int, MPI_Comm){err_report(); return -1;}
 
 /* 3.6 */
 
 inline int  MPI_Buffer_attach(void *, int){err_report(); return -1;}
-inline int PMPI_Buffer_attach(void *, int){err_report(); return -1;}
 
 inline int  MPI_Buffer_detach(void *, int *){err_report(); return -1;}
-inline int PMPI_Buffer_detach(void *, int *){err_report(); return -1;}
 
 /* 3.7 */
 
 inline int  MPI_Isend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Isend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Ibsend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Ibsend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Issend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Issend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Irsend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Irsend(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Irecv(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Irecv(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Wait(MPI_Request *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Wait(MPI_Request *, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Test(MPI_Request *, int *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Test(MPI_Request *, int *, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Request_free(MPI_Request *){err_report(); return -1;}
-inline int PMPI_Request_free(MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Waitany(int, MPI_Request *, int *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Waitany(int, MPI_Request *, int *, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Testany(int, MPI_Request *, int *, int *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Testany(int, MPI_Request *, int *, int *, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Waitall(int, MPI_Request *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Waitall(int, MPI_Request *, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Testall(int, MPI_Request *, int *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Testall(int, MPI_Request *, int *, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Waitsome(int, MPI_Request *, int *, int *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Waitsome(int, MPI_Request *, int *, int *, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Testsome(int, MPI_Request *, int *, int *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Testsome(int, MPI_Request *, int *, int *, MPI_Status *){err_report(); return -1;}
 
 /* 3.8 */
 
 inline int  MPI_Iprobe(int, int, MPI_Comm, int *, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Iprobe(int, int, MPI_Comm, int *, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Probe(int, int, MPI_Comm, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Probe(int, int, MPI_Comm, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Cancel(MPI_Request *){err_report(); return -1;}
-inline int PMPI_Cancel(MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Test_cancelled(MPI_Status *, int *){err_report(); return -1;}
-inline int PMPI_Test_cancelled(MPI_Status *, int *){err_report(); return -1;}
 
 /* 3.9 */
 
 inline int  MPI_Send_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Send_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Bsend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Bsend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Ssend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Ssend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Rsend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Rsend_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Recv_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Recv_init(void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Start(MPI_Request *){err_report(); return -1;}
-inline int PMPI_Start(MPI_Request *){err_report(); return -1;}
 
 inline int  MPI_Startall(int, MPI_Request *){err_report(); return -1;}
-inline int PMPI_Startall(int, MPI_Request *){err_report(); return -1;}
 
 /* 3.10 */
 
 inline int  MPI_Sendrecv(void *, int, MPI_Datatype, int, int, void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Sendrecv(void *, int, MPI_Datatype, int, int, void *, int, MPI_Datatype, int, int, MPI_Comm, MPI_Status *){err_report(); return -1;}
 
 inline int  MPI_Sendrecv_replace(void *, int, MPI_Datatype, int, int, int, int, MPI_Comm, MPI_Status *){err_report(); return -1;}
-inline int PMPI_Sendrecv_replace(void *, int, MPI_Datatype, int, int, int, int, MPI_Comm, MPI_Status *){err_report(); return -1;}
 
 /* 3.12 */
 
 inline int  MPI_Type_contiguous(int, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
-inline int PMPI_Type_contiguous(int, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
 
 inline int  MPI_Type_vector(int, int, int, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
-inline int PMPI_Type_vector(int, int, int, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
 
 inline int  MPI_Type_hvector(int, int, MPI_Aint, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
-inline int PMPI_Type_hvector(int, int, MPI_Aint, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
 
 inline int  MPI_Type_indexed(int, int *, int *, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
-inline int PMPI_Type_indexed(int, int *, int *, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
 
 inline int  MPI_Type_hindexed(int, int *, MPI_Aint *, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
-inline int PMPI_Type_hindexed(int, int *, MPI_Aint *, MPI_Datatype, MPI_Datatype *){err_report(); return -1;}
 
 inline int  MPI_Type_struct(int, int *, MPI_Aint *, MPI_Datatype *, MPI_Datatype *){err_report(); return -1;}
-inline int PMPI_Type_struct(int, int *, MPI_Aint *, MPI_Datatype *, MPI_Datatype *){err_report(); return -1;}
 
 inline int  MPI_Address(void *, MPI_Aint *){err_report(); return -1;}
-inline int PMPI_Address(void *, MPI_Aint *){err_report(); return -1;}
 
 inline int  MPI_Type_extent(MPI_Datatype, MPI_Aint *){err_report(); return -1;}
-inline int PMPI_Type_extent(MPI_Datatype, MPI_Aint *){err_report(); return -1;}
 
 inline int  MPI_Type_size(MPI_Datatype, int *){err_report(); return -1;}
-inline int PMPI_Type_size(MPI_Datatype, int *){err_report(); return -1;}
 
 inline int  MPI_Type_lb(MPI_Datatype, MPI_Aint *){err_report(); return -1;}
-inline int PMPI_Type_lb(MPI_Datatype, MPI_Aint *){err_report(); return -1;}
 
 inline int  MPI_Type_ub(MPI_Datatype, MPI_Aint *){err_report(); return -1;}
-inline int PMPI_Type_ub(MPI_Datatype, MPI_Aint *){err_report(); return -1;}
 
 inline int  MPI_Type_commit(MPI_Datatype *){err_report(); return -1;}
-inline int PMPI_Type_commit(MPI_Datatype *){err_report(); return -1;}
 
 inline int  MPI_Type_free(MPI_Datatype *){err_report(); return -1;}
-inline int PMPI_Type_free(MPI_Datatype *){err_report(); return -1;}
 
 inline int  MPI_Get_elements(MPI_Status *, MPI_Datatype, int *){err_report(); return -1;}
-inline int PMPI_Get_elements(MPI_Status *, MPI_Datatype, int *){err_report(); return -1;}
 
 /* 3.13 */
 
 inline int  MPI_Pack(void *, int, MPI_Datatype, void *, int, int *, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Pack(void *, int, MPI_Datatype, void *, int, int *, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Unpack(void *, int, int *, void *, int, MPI_Datatype, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Unpack(void *, int, int *, void *, int, MPI_Datatype, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Pack_size(int, MPI_Datatype, MPI_Comm, int *){err_report(); return -1;}
-inline int PMPI_Pack_size(int, MPI_Datatype, MPI_Comm, int *){err_report(); return -1;}
 
 /* 4.3 */
 
 inline int  MPI_Barrier(MPI_Comm){ return 0;}
-inline int PMPI_Barrier(MPI_Comm){ return 0;}
 
 /* 4.4 */
 
 inline int  MPI_Bcast(void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Bcast(void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
 
 /* 4.5 */
 
 inline int  MPI_Gather(void *, int, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Gather(void *, int, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Gatherv(void *, int, MPI_Datatype, void *, int *, int *, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Gatherv(void *, int, MPI_Datatype, void *, int *, int *, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
 
 /* 4.6 */
 
 inline int  MPI_Scatter(void *, int, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Scatter(void *, int, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Scatterv(void *, int *, int *, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Scatterv(void *, int *, int *, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
 
 /* 4.7 */
 
 inline int  MPI_Allgather(void *, int, MPI_Datatype, void *, int, MPI_Datatype, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Allgather(void *, int, MPI_Datatype, void *, int, MPI_Datatype, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Allgatherv(void *, int, MPI_Datatype, void *, int *, int *, MPI_Datatype, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Allgatherv(void *, int, MPI_Datatype, void *, int *, int *, MPI_Datatype, MPI_Comm){err_report(); return -1;}
 
 /* 4.8 */
 
@@ -482,24 +406,19 @@ inline int  MPI_Alltoall(void *send, int ssz, MPI_Datatype dts, void *recv, int 
   }
   return 0;
 }
-inline int PMPI_Alltoall(void *, int, MPI_Datatype, void *, int, MPI_Datatype, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Alltoallv(void *, int *, int *, MPI_Datatype, void *, int *, int *, MPI_Datatype, MPI_Comm){
   //  err_report();
   return 0;
 }
-inline int PMPI_Alltoallv(void *, int *, int *, MPI_Datatype, void *, int *, int *, MPI_Datatype, MPI_Comm){err_report(); return -1;}
 
 /* 4.9 */
 
 inline int  MPI_Reduce(void *, void *, int, MPI_Datatype, MPI_Op, int, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Reduce(void *, void *, int, MPI_Datatype, MPI_Op, int, MPI_Comm){err_report(); return -1;}
 
 inline int  MPI_Op_create(MPI_User_function *, int, MPI_Op *){err_report(); return -1;}
-inline int PMPI_Op_create(MPI_User_function *, int, MPI_Op *){err_report(); return -1;}
 
 inline int  MPI_Op_free(MPI_Op *){err_report(); return -1;}
-inline int PMPI_Op_free(MPI_Op *){err_report(); return -1;}
 
 inline int  MPI_Allreduce(void *p1, void *p2, int sz, MPI_Datatype dt, MPI_Op op , MPI_Comm comm)
 {
@@ -514,219 +433,156 @@ inline int  MPI_Allreduce(void *p1, void *p2, int sz, MPI_Datatype dt, MPI_Op op
   return 0 ;
 }
 
-inline int PMPI_Allreduce(void *, void *, int, MPI_Datatype, MPI_Op, MPI_Comm){err_report(); return -1;}
 
 /* 4.10 */
 
 inline int  MPI_Reduce_scatter(void *, void *, int *, MPI_Datatype, MPI_Op, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Reduce_scatter(void *, void *, int *, MPI_Datatype, MPI_Op, MPI_Comm){err_report(); return -1;}
 
 /* 4.11 */
 
 inline int  MPI_Scan(void *, void *, int, MPI_Datatype, MPI_Op, MPI_Comm){err_report(); return -1;}
-inline int PMPI_Scan(void *, void *, int, MPI_Datatype, MPI_Op, MPI_Comm){err_report(); return -1;}
 
 /* 5.3 */
 
 inline int  MPI_Group_size(MPI_Group, int *){err_report(); return -1;}
-inline int PMPI_Group_size(MPI_Group, int *){err_report(); return -1;}
 
 inline int  MPI_Group_rank(MPI_Group, int *){err_report(); return -1;}
-inline int PMPI_Group_rank(MPI_Group, int *){err_report(); return -1;}
 
 inline int  MPI_Group_translate_ranks(MPI_Group, int, int *, MPI_Group, int *){err_report(); return -1;}
-inline int PMPI_Group_translate_ranks(MPI_Group, int, int *, MPI_Group, int *){err_report(); return -1;}
 
 inline int  MPI_Group_compare(MPI_Group, MPI_Group, int *){err_report(); return -1;}
-inline int PMPI_Group_compare(MPI_Group, MPI_Group, int *){err_report(); return -1;}
 
 inline int  MPI_Comm_group(MPI_Comm, MPI_Group *){err_report(); return -1;}
-inline int PMPI_Comm_group(MPI_Comm, MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Group_union(MPI_Group, MPI_Group, MPI_Group *){err_report(); return -1;}
-inline int PMPI_Group_union(MPI_Group, MPI_Group, MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Group_intersection(MPI_Group, MPI_Group, MPI_Group *){err_report(); return -1;}
-inline int PMPI_Group_intersection(MPI_Group, MPI_Group, MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Group_difference(MPI_Group, MPI_Group, MPI_Group *){err_report(); return -1;}
-inline int PMPI_Group_difference(MPI_Group, MPI_Group, MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Group_incl(MPI_Group, int, int *, MPI_Group *){err_report(); return -1;}
-inline int PMPI_Group_incl(MPI_Group, int, int *, MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Group_excl(MPI_Group, int, int *, MPI_Group *){err_report(); return -1;}
-inline int PMPI_Group_excl(MPI_Group, int, int *, MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Group_range_incl(MPI_Group, int, int [][3], MPI_Group *){err_report(); return -1;}
-inline int PMPI_Group_range_incl(MPI_Group, int, int [][3], MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Group_range_excl(MPI_Group, int, int [][3], MPI_Group *){err_report(); return -1;}
-inline int PMPI_Group_range_excl(MPI_Group, int, int [][3], MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Group_free(MPI_Group *){err_report(); return -1;}
-inline int PMPI_Group_free(MPI_Group *){err_report(); return -1;}
 
 /* 5.4 */
 
 inline int  MPI_Comm_size(MPI_Comm, int *val){*val = 1 ; return 0;}
-inline int PMPI_Comm_size(MPI_Comm, int *){err_report(); return -1;}
 
 inline int  MPI_Comm_rank(MPI_Comm, int *val){*val = 0 ; return 0;}
-inline int PMPI_Comm_rank(MPI_Comm, int *){err_report(); return -1;}
 
 inline int  MPI_Comm_compare(MPI_Comm, MPI_Comm, int *){err_report(); return -1;}
-inline int PMPI_Comm_compare(MPI_Comm, MPI_Comm, int *){err_report(); return -1;}
 
 inline int  MPI_Comm_dup(MPI_Comm, MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Comm_dup(MPI_Comm, MPI_Comm *){err_report(); return -1;}
 
 inline int  MPI_Comm_create(MPI_Comm, MPI_Group, MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Comm_create(MPI_Comm, MPI_Group, MPI_Comm *){err_report(); return -1;}
 
 inline int  MPI_Comm_split(MPI_Comm, int, int, MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Comm_split(MPI_Comm, int, int, MPI_Comm *){err_report(); return -1;}
 
 inline int  MPI_Comm_free(MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Comm_free(MPI_Comm *){err_report(); return -1;}
 
 /* 5.6 */
 
 inline int  MPI_Comm_test_inter(MPI_Comm, int *){err_report(); return -1;}
-inline int PMPI_Comm_test_inter(MPI_Comm, int *){err_report(); return -1;}
 
 inline int  MPI_Comm_remote_size(MPI_Comm, int *){err_report(); return -1;}
-inline int PMPI_Comm_remote_size(MPI_Comm, int *){err_report(); return -1;}
 
 inline int  MPI_Comm_remote_group(MPI_Comm, MPI_Group *){err_report(); return -1;}
-inline int PMPI_Comm_remote_group(MPI_Comm, MPI_Group *){err_report(); return -1;}
 
 inline int  MPI_Intercomm_create(MPI_Comm, int, MPI_Comm, int, int, MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Intercomm_create(MPI_Comm, int, MPI_Comm, int, int, MPI_Comm *){err_report(); return -1;}
 
 inline int  MPI_Intercomm_merge(MPI_Comm, int, MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Intercomm_merge(MPI_Comm, int, MPI_Comm *){err_report(); return -1;}
 
 /* 5.7 */
 
 inline int  MPI_Keyval_create(MPI_Copy_function *, MPI_Delete_function *, int *, void *){err_report(); return -1;}
-inline int PMPI_Keyval_create(MPI_Copy_function *, MPI_Delete_function *, int *, void *){err_report(); return -1;}
 
 inline int  MPI_Keyval_free(int *){err_report(); return -1;}
-inline int PMPI_Keyval_free(int *){err_report(); return -1;}
 
 inline int  MPI_Attr_put(MPI_Comm, int, void *){err_report(); return -1;}
-inline int PMPI_Attr_put(MPI_Comm, int, void *){err_report(); return -1;}
 
 inline int  MPI_Attr_get(MPI_Comm, int, void *, int *){err_report(); return -1;}
-inline int PMPI_Attr_get(MPI_Comm, int, void *, int *){err_report(); return -1;}
 
 inline int  MPI_Attr_delete(MPI_Comm, int){err_report(); return -1;}
-inline int PMPI_Attr_delete(MPI_Comm, int){err_report(); return -1;}
 
 /* 6.5 */
 
 inline int  MPI_Cart_create(MPI_Comm, int, int *, int *, int, MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Cart_create(MPI_Comm, int, int *, int *, int, MPI_Comm *){err_report(); return -1;}
 
 inline int  MPI_Dims_create(int, int, int *){err_report(); return -1;}
-inline int PMPI_Dims_create(int, int, int *){err_report(); return -1;}
 
 inline int  MPI_Graph_create(MPI_Comm, int, int *, int *, int, MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Graph_create(MPI_Comm, int, int *, int *, int, MPI_Comm *){err_report(); return -1;}
 
 inline int  MPI_Topo_test(MPI_Comm, int *){err_report(); return -1;}
-inline int PMPI_Topo_test(MPI_Comm, int *){err_report(); return -1;}
 
 inline int  MPI_Graphdims_get(MPI_Comm, int *, int *){err_report(); return -1;}
-inline int PMPI_Graphdims_get(MPI_Comm, int *, int *){err_report(); return -1;}
 
 inline int  MPI_Graph_get(MPI_Comm, int, int, int *, int *){err_report(); return -1;}
-inline int PMPI_Graph_get(MPI_Comm, int, int, int *, int *){err_report(); return -1;}
 
 inline int  MPI_Cartdim_get(MPI_Comm, int *){err_report(); return -1;}
-inline int PMPI_Cartdim_get(MPI_Comm, int *){err_report(); return -1;}
 
 inline int  MPI_Cart_get(MPI_Comm, int, int *, int *, int *){err_report(); return -1;}
-inline int PMPI_Cart_get(MPI_Comm, int, int *, int *, int *){err_report(); return -1;}
 
 inline int  MPI_Cart_rank(MPI_Comm, int *, int *){err_report(); return -1;}
-inline int PMPI_Cart_rank(MPI_Comm, int *, int *){err_report(); return -1;}
 
 inline int  MPI_Cart_coords(MPI_Comm, int, int, int *){err_report(); return -1;}
-inline int PMPI_Cart_coords(MPI_Comm, int, int, int *){err_report(); return -1;}
 
 inline int  MPI_Graph_neighbors_count(MPI_Comm, int, int *){err_report(); return -1;}
-inline int PMPI_Graph_neighbors_count(MPI_Comm, int, int *){err_report(); return -1;}
 
 inline int  MPI_Graph_neighbors(MPI_Comm, int, int, int *){err_report(); return -1;}
-inline int PMPI_Graph_neighbors(MPI_Comm, int, int, int *){err_report(); return -1;}
 
 inline int  MPI_Cart_shift(MPI_Comm, int, int, int *, int *){err_report(); return -1;}
-inline int PMPI_Cart_shift(MPI_Comm, int, int, int *, int *){err_report(); return -1;}
 
 inline int  MPI_Cart_sub(MPI_Comm, int *, MPI_Comm *){err_report(); return -1;}
-inline int PMPI_Cart_sub(MPI_Comm, int *, MPI_Comm *){err_report(); return -1;}
 
 inline int  MPI_Cart_map(MPI_Comm, int, int *, int *, int *){err_report(); return -1;}
-inline int PMPI_Cart_map(MPI_Comm, int, int *, int *, int *){err_report(); return -1;}
 
 inline int  MPI_Graph_map(MPI_Comm, int, int *, int *, int *){err_report(); return -1;}
-inline int PMPI_Graph_map(MPI_Comm, int, int *, int *, int *){err_report(); return -1;}
 
 /* 7.1 */
 
 inline int  MPI_Get_processor_name(char *, int *){err_report(); return -1;}
-inline int PMPI_Get_processor_name(char *, int *){err_report(); return -1;}
 
 /* 7.2 */
 
 inline int  MPI_Errhandler_create(MPI_Handler_function *, MPI_Errhandler *){return 0 ;}
-inline int PMPI_Errhandler_create(MPI_Handler_function *, MPI_Errhandler *){ return 0;}
 
 inline int  MPI_Errhandler_set(MPI_Comm, MPI_Errhandler){return 0;}
-inline int PMPI_Errhandler_set(MPI_Comm, MPI_Errhandler){return 0;}
 
 inline int  MPI_Errhandler_get(MPI_Comm, MPI_Errhandler *){err_report(); return -1;}
-inline int PMPI_Errhandler_get(MPI_Comm, MPI_Errhandler *){err_report(); return -1;}
 
 inline int  MPI_Errhandler_free(MPI_Errhandler *){err_report(); return -1;}
-inline int PMPI_Errhandler_free(MPI_Errhandler *){err_report(); return -1;}
 
 inline int  MPI_Error_string(int, char *, int *){err_report(); return -1;}
-inline int PMPI_Error_string(int, char *, int *){err_report(); return -1;}
 
 /* 7.3 */
 
 inline int  MPI_Error_class(int, int *){err_report(); return -1;}
-inline int PMPI_Error_class(int, int *){err_report(); return -1;}
 
 /* 7.4 */
 
 inline double  MPI_Wtime(void){return 0; }
-inline double PMPI_Wtime(void){return 0;}
 
 inline double  MPI_Wtick(void){return 0; }
-inline double PMPI_Wtick(void){err_report(); return -1;}
 
 /* 7.5 */
 
 inline int  MPI_Init(int *, char ***){ return 0;}
-inline int PMPI_Init(int *, char ***){err_report(); return -1;}
 
 inline int  MPI_Finalize(void){return 0;}
-inline int PMPI_Finalize(void){err_report(); return -1;}
 
 inline int  MPI_Initialized(int *){return 0;}
-inline int PMPI_Initialized(int *){err_report(); return -1;}
 
 inline int  MPI_Abort(MPI_Comm, int){std::abort(); return -1;}
-inline int PMPI_Abort(MPI_Comm, int){err_report(); return -1;}
 
 /* 8.3 */
 
 inline int  MPI_Pcontrol(int, ...){err_report(); return -1;}
-inline int PMPI_Pcontrol(int, ...){err_report(); return -1;}
 
 /********************/
 /* MPI-1.2 bindings */
@@ -736,7 +592,6 @@ inline int PMPI_Pcontrol(int, ...){err_report(); return -1;}
 #define MPI_SUBVERSION		2
 
 inline int  MPI_Get_version(int *, int *){return 1;}
-inline int PMPI_Get_version(int *, int *){err_report(); return -1;}
 
 
 /*************************************/
@@ -758,94 +613,67 @@ enum {
 };
 
 inline int  MPI_Info_create(MPI_Info *){err_report(); return -1;}
-inline int  PMPI_Info_create(MPI_Info *){err_report(); return -1;}
 
 inline int MPI_Info_delete(MPI_Info, char *){err_report(); return -1;}
-inline int PMPI_Info_delete(MPI_Info, char *){err_report(); return -1;}
 
 inline int MPI_Info_dup(MPI_Info, MPI_Info *){err_report(); return -1;}
-inline int PMPI_Info_dup(MPI_Info, MPI_Info *){err_report(); return -1;}
 
 inline int MPI_Info_free(MPI_Info *){err_report(); return -1;}
-inline int PMPI_Info_free(MPI_Info *){err_report(); return -1;}
 
 inline int MPI_Info_get(MPI_Info, char *, int, char *, int *){err_report(); return -1;}
-inline int PMPI_Info_get(MPI_Info, char *, int, char *, int *){err_report(); return -1;}
 
 inline int MPI_Info_get_nkeys(MPI_Info, int *){err_report(); return -1;}
-inline int PMPI_Info_get_nkeys(MPI_Info, int *){err_report(); return -1;}
 
 inline int MPI_Info_get_nthkey(MPI_Info, int, char *){err_report(); return -1;}
-inline int PMPI_Info_get_nthkey(MPI_Info, int, char *){err_report(); return -1;}
 
 inline int MPI_Info_get_valuelen(MPI_Info, char *, int *, int *){err_report(); return -1;}
-inline int PMPI_Info_get_valuelen(MPI_Info, char *, int *, int *){err_report(); return -1;}
 
 inline int MPI_Info_set(MPI_Info, char *, char *){err_report(); return -1;}
-inline int PMPI_Info_set(MPI_Info, char *, char *){err_report(); return -1;}
 
 /* 4.11 */
 
 inline int MPI_Alloc_mem(MPI_Aint,MPI_Info,void *){err_report(); return -1;}
-inline int PMPI_Alloc_mem(MPI_Aint,MPI_Info,void *){err_report(); return -1;}
 
 inline int MPI_Free_mem(void *){err_report(); return -1;}
-inline int PMPI_Free_mem(void *){err_report(); return -1;}
 
 /* 4.12 */
 
 typedef int MPI_Fint;
 
 inline MPI_Fint MPI_Info_c2f(MPI_Info){err_report(); return -1;}
-inline MPI_Fint PMPI_Info_c2f(MPI_Info){err_report(); return -1;}
 
 inline MPI_Info MPI_Info_f2c(MPI_Fint){err_report(); return 0;}
-inline MPI_Info PMPI_Info_f2c(MPI_Fint){err_report(); return 0;}
 
 inline MPI_Fint MPI_Comm_c2f(MPI_Comm){err_report(); return 0;}
-inline MPI_Fint PMPI_Comm_c2f(MPI_Comm){err_report(); return 0;}
 
 inline MPI_Comm MPI_Comm_f2c(MPI_Fint){err_report(); return 0;}
-inline MPI_Comm PMPI_Comm_f2c(MPI_Fint){err_report(); return 0;}
 
 inline MPI_Fint MPI_Type_c2f(MPI_Datatype){err_report(); return 0;}
-inline MPI_Fint PMPI_Type_c2f(MPI_Datatype){err_report(); return 0;}
 
 inline MPI_Datatype MPI_Type_f2c(MPI_Fint){err_report(); return 0;}
-inline MPI_Datatype PMPI_Type_f2c(MPI_Fint){err_report(); return 0;}
 
 inline MPI_Fint MPI_Group_c2f(MPI_Group){err_report(); return 0;}
-inline MPI_Fint PMPI_Group_c2f(MPI_Group){err_report(); return 0;}
 
 inline MPI_Group MPI_Group_f2c(MPI_Fint){err_report(); return 0;}
-inline MPI_Group PMPI_Group_f2c(MPI_Fint){err_report(); return 0;}
 
 inline MPI_Fint MPI_Request_c2f(MPI_Request){err_report(); return 0;}
-inline MPI_Fint PMPI_Request_c2f(MPI_Request){err_report(); return 0;}
 
 inline MPI_Request MPI_Request_f2c(MPI_Fint){err_report(); return 0;}
-inline MPI_Request PMPI_Request_f2c(MPI_Fint){err_report(); return 0;}
 
 inline MPI_Fint MPI_Op_c2f(MPI_Op){err_report(); return 0;}
-inline MPI_Fint PMPI_Op_c2f(MPI_Op){err_report(); return 0;}
 
 inline MPI_Op MPI_Op_f2c(MPI_Fint){err_report(); return 0;}
-inline MPI_Op PMPI_Op_f2c(MPI_Fint){err_report(); return 0;}
 
 
 /* 4.14 */
 
 inline int  MPI_Type_create_hvector(int, int, MPI_Aint, MPI_Datatype, MPI_Datatype *){err_report(); return 0;}
-inline int PMPI_Type_create_hvector(int, int, MPI_Aint, MPI_Datatype, MPI_Datatype *){err_report(); return 0;}
 
 inline int  MPI_Type_create_hindexed(int, int *, MPI_Aint *, MPI_Datatype, MPI_Datatype *){err_report(); return 0;}
-inline int PMPI_Type_create_hindexed(int, int *, MPI_Aint *, MPI_Datatype, MPI_Datatype *){err_report(); return 0;}
 
 inline int  MPI_Type_create_struct(int, int *, MPI_Aint *, MPI_Datatype *, MPI_Datatype *){err_report(); return 0;}
-inline int PMPI_Type_create_struct(int, int *, MPI_Aint *, MPI_Datatype *, MPI_Datatype *){err_report(); return 0;}
 
 inline int MPI_Get_address(void *, MPI_Aint *){err_report(); return 0;}
-inline int PMPI_Get_address(void *, MPI_Aint *){err_report(); return 0;}
 
 /* 5.3 */
 
@@ -854,13 +682,9 @@ inline int PMPI_Get_address(void *, MPI_Aint *){err_report(); return 0;}
 #define MPI_ERRCODES_IGNORE        ((int *)NULL)
 
 inline int MPI_Comm_spawn(char *, char **, int, MPI_Info, int, MPI_Comm, MPI_Comm *, int *){err_report(); return 0;}
-inline int PMPI_Comm_spawn(char *, char **, int, MPI_Info, int, MPI_Comm, MPI_Comm *, int *){err_report(); return 0;}
 inline int MPI_Comm_spawn_multiple(int , char **, char ***, int *, MPI_Info *,
                             int , MPI_Comm, MPI_Comm *, int *){err_report(); return 0;} 
-inline int PMPI_Comm_spawn_multiple(int , char **, char ***, int *, MPI_Info *,
-                            int , MPI_Comm, MPI_Comm *, int *){err_report(); return 0;} 
 inline int MPI_Comm_get_parent(MPI_Comm *){err_report(); return 0;}
-inline int PMPI_Comm_get_parent(MPI_Comm *){err_report(); return 0;}
 
 /* 6 */
 
@@ -876,38 +700,27 @@ enum {
 /* referenced in 4.12 of MPI-2 standard with other transfer of handles functions */
 
 inline MPI_Fint MPI_Win_c2f(MPI_Win){err_report(); return 0;}
-inline MPI_Fint PMPI_Win_c2f(MPI_Win){err_report(); return 0;}
 
 inline MPI_Win MPI_Win_f2c(MPI_Fint){err_report(); return 0;}
-inline MPI_Win PMPI_Win_f2c(MPI_Fint){err_report(); return 0;}
 
 /* 6.2 */
 
 inline int  MPI_Win_create(void *, MPI_Aint, int, MPI_Info, MPI_Comm, MPI_Win *){err_report(); return 0;}
-inline int PMPI_Win_create(void *, MPI_Aint, int, MPI_Info, MPI_Comm, MPI_Win *){err_report(); return 0;}
 
 inline int  MPI_Win_fence(int, MPI_Win){err_report(); return 0;}
-inline int PMPI_Win_fence(int, MPI_Win){err_report(); return 0;}
 
 inline int  MPI_Win_free(MPI_Win *){err_report(); return 0;}
-inline int PMPI_Win_free(MPI_Win *){err_report(); return 0;}
 
 /* 6.3 */
 
 
 inline int  MPI_Put(void *, int, MPI_Datatype, int, MPI_Aint, int, MPI_Datatype,
 	MPI_Win){err_report(); return 0;}
-inline int PMPI_Put(void *, int, MPI_Datatype, int, MPI_Aint, int, MPI_Datatype,
-	MPI_Win){err_report(); return 0;}
 
 inline int  MPI_Get(void *, int, MPI_Datatype, int, MPI_Aint, int, MPI_Datatype,
 	MPI_Win){err_report(); return 0;}
-inline int PMPI_Get(void *, int, MPI_Datatype, int, MPI_Aint, int, MPI_Datatype,
-	MPI_Win){err_report(); return 0;}
 
 inline int  MPI_Accumulate(void *, int, MPI_Datatype, int, MPI_Aint, int,
-	MPI_Datatype, MPI_Op, MPI_Win){err_report(); return 0;}
-inline int PMPI_Accumulate(void *, int, MPI_Datatype, int, MPI_Aint, int,
 	MPI_Datatype, MPI_Op, MPI_Win){err_report(); return 0;}
 
 /* 6.4 */
@@ -927,15 +740,12 @@ enum {
 /* 7.5 */
 
 inline int  MPI_Type_get_envelope(MPI_Datatype, int *, int *, int *, int *){err_report(); return 0;}
-inline int PMPI_Type_get_envelope(MPI_Datatype, int *, int *, int *, int *){err_report(); return 0;}
 
 inline int  MPI_Type_get_contents(MPI_Datatype, int, int, int, int *, MPI_Aint *, MPI_Datatype *){err_report(); return 0;}
-inline int PMPI_Type_get_contents(MPI_Datatype, int, int, int, int *, MPI_Aint *, MPI_Datatype *){err_report(); return 0;}
 
 /* 7.8 */
 
 inline int  MPI_Type_dup(MPI_Datatype, MPI_Datatype *){err_report(); return 0;}
-inline int PMPI_Type_dup(MPI_Datatype, MPI_Datatype *){err_report(); return 0;}
 
 /* 8.6 */
 
@@ -963,11 +773,8 @@ enum {
 /* 8.7 */
 
 inline int  MPI_Init_thread(int *, char ***, int, int *){err_report(); return 0;}
-inline int PMPI_Init_thread(int *, char ***, int, int *){err_report(); return 0;}
 inline int  MPI_Query_thread(int *){err_report(); return 0;}
-inline int PMPI_Query_thread(int *){err_report(); return 0;}
 inline int  MPI_Is_thread_main(int *){err_report(); return 0;}
-inline int PMPI_Is_thread_main(int *){err_report(); return 0;}
 
 enum {
 	MPI_THREAD_SINGLE		= 0,
@@ -979,6 +786,5 @@ enum {
 /* 9.6 */
 
 inline int  MPI_Finalized(int *){err_report(); return 0;}
-inline int PMPI_Finalized(int *){err_report(); return 0;}
 
 #endif	/* MPI_H_INCLUDED */
