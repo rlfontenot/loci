@@ -3,7 +3,7 @@
 
 #include <hdf5_memento.h>
 #include <hdf5_traits.h>
-#include <H5cpp.h>
+#include <hdf5CC/H5cpp.h>
 #include <Tools/stream.h>
 #include <typeinfo.h>
 namespace Loci {

@@ -4,7 +4,7 @@
 #include <Tools/debug.h>
 #include <store_rep.h>
 #include <Tools/stream.h>
-#include <H5cpp.h>
+#include <hdf5CC/H5cpp.h>
 
 namespace Loci {
     

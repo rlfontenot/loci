@@ -6,7 +6,7 @@
 #include <Map_rep.h>
 #include <store.h>
 #include <algorithm>
-#include <H5cpp.h>
+#include <hdf5CC/H5cpp.h>
 
 namespace Loci {
 

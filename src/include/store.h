@@ -5,7 +5,7 @@
 #include <Tools/debug.h>
 #include <store_rep.h>
 #include <Tools/stream.h>
-#include <H5cpp.h>
+#include <hdf5CC/H5cpp.h>
 //#include <hdf5_traits.h>
 #include <hdf5_write_template.h>
 namespace Loci {

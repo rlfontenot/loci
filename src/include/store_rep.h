@@ -6,7 +6,7 @@
 #include <Tools/nptr.h>
 #include <entitySet.h>
 #include <Tools/stream.h>
-#include <H5cpp.h>
+#include <hdf5CC/H5cpp.h>
 
 namespace Loci {
     enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, PATH, GLOBAL } ;

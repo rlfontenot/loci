@@ -9,7 +9,7 @@
 #include <store_rep.h>
 
 #include <Tools/lmutex.h>
-#include <H5cpp.h>
+#include <hdf5CC/H5cpp.h>
 
 namespace Loci {
   template <class T> struct Scalar {

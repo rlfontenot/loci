@@ -1,7 +1,7 @@
 #ifndef HDF5_TRAITS_H_
 #define HDF5_TRAITS_H_
 
-#include <H5cpp.h>
+#include <hdf5CC/H5cpp.h>
 #include <vector>
 #include <complex>
 #include <Tools/stream.h>
