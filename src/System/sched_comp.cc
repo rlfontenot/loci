@@ -11,7 +11,7 @@ using std::list ;
 #include <set>
 using std::set ;
 
-//#define HACK ;
+#define HACK ;
 
 namespace Loci {
   class error_compiler : public rule_compiler {
@@ -181,11 +181,10 @@ namespace Loci {
         entitySet all_requests ;
         for(vii=aliases.begin();vii!=aliases.end();++vii) {
 #ifdef HACK
-	  if(facts.isDistributed())
-	    all_requests += facts.variable_existence(*vii) ;
-	  else
-#endif
-	    all_requests += facts.get_variable_requests(*vii) ;
+	  all_requests += facts.variable_existence(*vii) ;
+#else
+	  all_requests += facts.get_variable_requests(*vii) ;
+#endif	  
 	}
         srp->allocate(all_requests) ;
       }

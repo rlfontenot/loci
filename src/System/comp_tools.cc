@@ -368,11 +368,11 @@ namespace Loci {
   }
 
   /* This routine, in addition to sending the entities that are not
-     owned by a particular processor, a information is stored for
+     owned by a particular processor,  information is stored for
      performing this communication during the execution of the
      schedule . We know the entities that a particular processor is
-     supposed to send (send_entities)  . But we need to inform its neighbours that they 
-     are supposed to receive those entities. */ 
+     supposed to send (send_entities)  . But we need to inform its neighbours
+     that they are supposed to receive those entities. */ 
   std::list<comm_info>
   put_precomm_info(vector<pair<variable,entitySet> > send_entities,
                    fact_db &facts) {

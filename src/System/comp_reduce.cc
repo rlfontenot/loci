@@ -236,18 +236,7 @@ namespace Loci {
     // now trim compute to what can be computed.
     compute &= srcs ;
     exec_seq = compute ;
-    /*
-      if(facts.isDistributed()) {
-      entitySet re = collect_entitySet(exec_seq, facts) ;
-      if(Loci::MPI_rank == 0) { 
-	cout << "processor  " << Loci::MPI_rank << "  exec_sequence =  " << re << endl ;
-	}
-	}
-	else {
-	
-	cout  << "exec_sequence = " << exec_seq << endl ; 
-	}
-     */
+    
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       entitySet requests = vmap_source_requests(*si,facts,compute) ;
       variableSet::const_iterator vi ;
