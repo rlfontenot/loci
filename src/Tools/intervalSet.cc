@@ -5,8 +5,13 @@
 #include <algorithm>
 #include <functional>
 
+#ifdef GXX_FIXES
+#include <g++-fixes/istream>
+#include <g++-fixes/ostream>
+#else
 #include <istream>
 #include <ostream>
+#endif
 #include <iostream>
 using std::istream ;
 using std::ostream ;
@@ -206,6 +211,63 @@ namespace Loci {
   }
 
 
+
+
+
+#if 0
+<<<<<<< intervalSet.cc
+    Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
+			      const Handle<pair_vector> &Rep2) {
+	pair_vector::const_iterator i1 = Rep1->begin() ;
+	pair_vector::const_iterator i2 = Rep2->begin() ;
+	const pair_vector::const_iterator e1 = Rep1->end() ;
+	const pair_vector::const_iterator e2 = Rep2->end() ;
+	const unsigned int size = Rep1->size() + Rep2->size() ;
+	Handle<pair_vector> Rep ;
+	Rep->reserve(size) ;
+	while(i1!=e1 && i2!=e2) {
+	    if(interval_porder_union(*i1,*i2)) {
+		Rep->push_back(*i1) ;
+		++i1 ;
+	    } else if(interval_porder_union(*i2,*i1)) {
+		Rep->push_back(*i2) ;
+		++i2 ;
+	    } else {
+		interval ivl(min((*i1).first,(*i2).first),
+			     max((*i1).second,(*i2).second)) ;
+		++i1 ;
+		++i2 ;
+		bool flag = true ;
+		while(flag) {
+		    flag = false ;
+		    if(i1!=e1 && !interval_porder_union(ivl,*i1)
+		       && !interval_porder_union(*i1,ivl)) {
+			ivl.second = max(ivl.second,(*i1).second) ;
+			++i1 ;
+			flag = true ;
+		    }
+		    if(i2!=e2 && !interval_porder_union(ivl,*i2)
+		       && !interval_porder_union(*i2,ivl)) {
+			ivl.second = max(ivl.second,(*i2).second) ;
+			++i2 ;
+			flag = true ;
+		    }
+		} 
+		Rep->push_back(ivl) ;
+	    }
+	}
+	while(i1!=e1) {
+	    Rep->push_back(*i1) ;
+	    ++i1 ;
+	}
+	while(i2!=e2) {
+	    Rep->push_back(*i2) ;
+	    ++i2 ;
+	}
+	return Rep ;
+    }
+=======
+#endif
   Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
 			    const Handle<pair_vector> &Rep2) {
     pair_vector::const_iterator i1 = Rep1->begin() ;
@@ -295,8 +357,11 @@ namespace Loci {
     intervalSet tmp = intervalSet::Union(*this,ptn) ;
     Rep = tmp.Rep ;
   }
+//>>>>>>> 1.11
 
 
+//<<<<<<< intervalSet.cc
+//=======
 
   intervalSet intervalSet::Union(const intervalSet &set1,
                                  const intervalSet &set2) {
@@ -354,6 +419,7 @@ namespace Loci {
 
 #endif
 
+//>>>>>>> 1.11
   void intervalSet::Complement() {
     Rep.MakeUnique() ;
     if(Rep->size() == 0) {
