@@ -961,19 +961,26 @@ namespace {
     storeRepP joiner_store ;
     vector<entitySet> partition ;
     vector<storeRepP> var_vec ;
+    vector<CPTR<joiner> > join_ops ;
     CPTR<joiner> joiner_op ;
   public:
     joiner_oper(variable jv, storeRepP &js, vector<entitySet> &ptn,
                 vector<storeRepP> &vv, CPTR<joiner> &jo) :
       joiner_var(jv), joiner_store(js), partition(ptn),var_vec(vv),
-      joiner_op(jo) {}
+      joiner_op(jo) {
+        for(int i=0;i<var_vec.size();++i) {
+          join_ops.push_back(jo->clone()) ;
+          join_ops[i]->SetArgs(joiner_store,var_vec[i]) ;
+        }
+    }
     virtual void execute(fact_db &facts) ;
     virtual void Print(ostream &s) const ;
   } ;
 
   void joiner_oper::execute(fact_db &facts) {
     for(int i=0;i<var_vec.size();++i) 
-      joiner_op->Join(joiner_store,var_vec[i],sequence(partition[i])) ;
+      join_ops[i]->Join(sequence(partition[i])) ;
+      //      joiner_op->Join(joiner_store,var_vec[i],sequence(partition[i])) ;
   }
 
   void joiner_oper::Print(ostream &s) const {
@@ -1416,8 +1423,6 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
 
       rule_implP arule = (apply.get_info().rule_impl);
       fatal(arule == 0) ;
-      CPTR<joiner> j_op = (arule)->get_joiner() ;
-      fatal(j_op == 0) ;
 
       if(disjoint) {
         execute_par *epj = new execute_par ;
@@ -1427,6 +1432,8 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
           vector<storeRepP> vv ;
           ve.push_back(shard_domains[i]) ;
           vv.push_back(var_vec[i]) ;
+          CPTR<joiner> j_op = (arule)->get_joiner() ;
+          fatal(j_op == 0) ;
           epj->append_list(new joiner_oper(v,sp,ve,vv,j_op)) ;
         }
         el->append_list(epj) ;
@@ -1440,6 +1447,8 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
           for(int j=0;j<decompose.size();++j) {
             vector<entitySet> ve ;
             ve.push_back(decompose[j]) ;
+            CPTR<joiner> j_op = (arule)->get_joiner() ;
+            fatal(j_op == 0) ;
             epj->append_list(new joiner_oper(v,sp,ve,vv,j_op)) ;
           }
           el->append_list(epj) ;
