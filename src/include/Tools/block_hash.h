@@ -7,7 +7,7 @@ namespace Loci {
   template <class T> class block_hash {
 
     struct block_info {
-      unsigned int bits[16] ;
+      unsigned long bits[16] ;
       T data[512] ;
       block_info() {
         for(int i=0;i<16;++i)
@@ -37,7 +37,7 @@ namespace Loci {
       const int a2 = (n>>9) &0x7ff ;
       const int a3 = (n>>20) &0xfff ;
       if(data[a3]!=0 && data[a3][a2]!=0) {
-        data[a3][a2]->bits[a1>>5] |= (1<<(a1&0x1f)) ;
+        data[a3][a2]->bits[(a1>>5)&0xf] |= (1<<(a1&0x1f)) ;
         return data[a3][a2]->data[a1] ;
       }
       if(data[a3] == 0) {
@@ -47,7 +47,7 @@ namespace Loci {
       }
       if(data[a3][a2] == 0) 
         data[a3][a2] = new block_info ;
-      data[a3][a2]->bits[a1>>5] |= (1<<(a1&0x1f)) ;
+      data[a3][a2]->bits[(a1>>5)&0xf] |= (1<<(a1&0x1f)) ;
       return data[a3][a2]->data[a1] ;
     }
 
@@ -116,7 +116,7 @@ namespace Loci {
       const int a1 = (*ei) & 0x1ff ;
       const int a2 = (*ei>>9) &0x7ff ;
       const int a3 = (*ei>>20) &0xfff ;
-      data[a3][a2]->bits[a1>>5] &= ~(1<<(a1&0x1f)) ;
+      data[a3][a2]->bits[(a1>>5)&0xf] &= ~(1<<(a1&0x1f)) ;
     }
     // Clean up any fully erased blocks
     for(int i=0;i<4096;++i) {
@@ -148,17 +148,17 @@ namespace Loci {
           if(data[i][j]!=0) {
             a2 = j << 9 ;
             for(int k=0;k<16;++k) {
-              const unsigned int bit = data[i][j]->bits[k] ;
+              const unsigned long bit = data[i][j]->bits[k] ;
               if(bit == 0) 
                 continue ;
               int a1 = k<<5 ;
-              if(bit == 0xffff) {
-                int low = a1+a2+a3 ;
+              if(bit == 0xffffffff) {
+                int low = a1|a2|a3 ;
                 val += interval(low,low+32-1) ;
               } else {
                 for(int l=0;l<32;++l) {
                   if((bit & (1<<l)) != 0)
-                    val += (a1+a2+a3+l) ;
+                    val += (a1|a2|a3|l) ;
                 }
               }
             }
