@@ -244,6 +244,7 @@ namespace Loci {
       ruleSet build,advance,collapse ;
       variableSet known_vars ;
       void build_graph(const digraph &rule_graph,variableSet input_vars) ;
+      iteration_info() { active = false ; }
     } ;
 
     struct graph_info {
