@@ -1,3 +1,5 @@
+#ifndef BLOCK_HASH_H
+#define BLOCK_HASH_H
 #include <Tools/intervalSet.h>
 
 namespace Loci {
@@ -149,3 +151,4 @@ namespace Loci {
                 
 
 }
+#endif
