@@ -1173,7 +1173,7 @@ namespace Loci {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    int     vec_size,rank=1;
+    int     vec_size;
     entitySet   eset, ecommon;
 
     Loci::HDF5_ReadVecSize(group_id, &vec_size);
@@ -1273,10 +1273,7 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    int voffset;
-
     std::vector<T>  data;
-
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
