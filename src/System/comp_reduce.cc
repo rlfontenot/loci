@@ -1,5 +1,11 @@
 #include "comp_tools.h"
 
+#include <vector>
+using std::vector ;
+#include <set>
+using std::set ;
+
+
 namespace Loci {
   class joiner_oper : public execute_modules {
     variable joiner_var ;

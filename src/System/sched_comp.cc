@@ -1,8 +1,14 @@
 #include "sched_tools.h"
 #include "comp_tools.h"
 
+#include <vector>
 using std::vector ;
+#include <map>
 using std::map ;
+#include <list>
+using std::list ;
+#include <set>
+using std::set ;
 
 namespace Loci {
   class error_compiler : public rule_compiler {

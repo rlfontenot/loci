@@ -1,4 +1,6 @@
 #include "comp_tools.h"
+#include <vector>
+using std::vector ;
 
 namespace Loci {
 

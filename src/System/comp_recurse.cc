@@ -1,4 +1,12 @@
 #include "comp_tools.h"
+#include <vector>
+using std::vector ;
+#include <map>
+using std::map ;
+#include <list>
+using std::list ;
+#include <set>
+using std::set ;
 
 namespace Loci {
   void impl_recurse_compiler::set_var_existence(fact_db &facts) {

@@ -1,5 +1,10 @@
 #include "comp_tools.h"
 
+#include <vector>
+using std::vector ;
+#include <set>
+using std::set ;
+
 namespace Loci {
     // Create a schedule for traversing a directed acyclic graph.  This schedule
   // may be concurrent, or many vertices of the graph may be visited at each

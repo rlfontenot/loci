@@ -1,4 +1,6 @@
 #include "comp_tools.h"
+#include <vector>
+using std::vector ;
 
 namespace Loci {
   dag_compiler::dag_compiler(rulecomp_map &rp, digraph gin) : rule_process(rp) {

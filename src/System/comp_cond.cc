@@ -1,6 +1,9 @@
 #include "comp_tools.h"
+#include <vector>
+using std::vector ;
 
 namespace Loci {
+
   class execute_conditional : public execute_modules {
     executeP conditional ;
     variable cvar ;

@@ -6,6 +6,8 @@
 #include <Tools/digraph.h>
 
 #include "sched_tools.h"
+#include <vector>
+#include <map>
 
 namespace Loci {
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts) ;
@@ -16,15 +18,15 @@ namespace Loci {
 
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) ;
-  vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
+  std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
 
-  typedef map<variable,entitySet> vdefmap ;
+  typedef std::map<variable,entitySet> vdefmap ;
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
                                  fact_db &facts) ;
   void vmap_source_requests(const vmap_info &vmi, fact_db &facts,
                             entitySet compute) ;
 
-  vector<digraph::vertexSet> schedule_dag(const digraph &g,
+  std::vector<digraph::vertexSet> schedule_dag(const digraph &g,
                                           digraph::vertexSet start_vertices = EMPTY,
                                           digraph::vertexSet only_vertices =
                                           interval(UNIVERSE_MIN,UNIVERSE_MAX)) ;
