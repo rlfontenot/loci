@@ -4,7 +4,6 @@
 #include <pthread.h>
 #include <semaphore.h>
 #endif
-#include <distribute.h>
 #include <Tools/stream.h>
 
 #ifdef PTHREADS
