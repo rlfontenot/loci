@@ -378,8 +378,9 @@ namespace Loci {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       const int sesz = send_entities.size() ;
-      int **send_buffer, **recv_buffer ;
-      int *recv_size ;
+      int **send_buffer = 0 ;
+      int **recv_buffer = 0 ;
+      int *recv_size = 0 ;
       if(d->xmit.size() > 0) {
         recv_buffer = new int*[d->xmit.size()] ;
         recv_size = new int[d->xmit.size()] ;
@@ -652,8 +653,9 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     if(facts.isDistributed()) {  
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       
-      int **send_buffer, **recv_buffer ;
-      int *recv_size ;
+      int **send_buffer = 0 ;
+      int **recv_buffer = 0;
+      int *recv_size = 0 ;
       
       if(d->xmit.size() > 0) {
         recv_buffer = new int*[d->xmit.size()] ;
@@ -850,8 +852,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     std::vector<int> send_index ;
     std::vector<int> recv_index ;
     int total_size = 0 ;
-    MPI_Request *re_request ;
-    MPI_Status *re_status ;
+    MPI_Request *re_request = 0 ;
+    MPI_Status *re_status = 0 ;
     for(int i=0;i<nrecv;++i) {
       r_size[i] = maxr_size[i] ;
       total_size += maxr_size[i] ;
