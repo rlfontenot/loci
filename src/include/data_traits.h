@@ -317,7 +317,7 @@ namespace Loci {
     }
   } ;
 
-  template<class T> inline DatatypeP getLociType(T in) {
+  template<class T> inline DatatypeP getLociType(const T &in) {
     return data_schema_traits<T>::get_type() ;
   }
     
