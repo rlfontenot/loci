@@ -35,7 +35,12 @@ using std::endl ;
 namespace Loci {
   const char *debug_hostname = HOST_ID ;
   const char *debug_execname = "a.out" ;
+#ifdef SGI
+  const char *debug_program = "dbx" ;
+#else
   const char *debug_program = "gdb" ;
+#endif
+  
   bool debugger_setup = false ;
 
   void (*debug_callback)() = 0 ;
@@ -127,8 +132,6 @@ namespace Loci {
     signal(SIGSEGV,program_trap) ;
     signal(SIGILL,program_trap) ;
     signal(SIGSYS,program_trap) ;
-#ifdef HAVE_FENWM
     signal(SIGFPE,program_trap) ;
-#endif
   }
 }  

@@ -19,16 +19,28 @@ namespace Loci {
 
 #ifdef SGI
 
+#include <iostream>
 #include <stdio.h>
 #include <sigfpe.h>
+extern "C" {
+  void sgi_fpe_user_(unsigned int v[5], int y[2]) {
+    std::cerr << "Floating Point Exception" << std::endl ;
+    Loci::debugger_() ;
+  }
+  void sgi_fpe_abort_(unsigned int **p) {
+    std::cerr << "Floating Point Exception" << std::endl ;
+    Loci::debugger_() ;
+  }
+}
 
 namespace Loci {
   void set_fpe_abort() {
     sigfpe_[_DIVZERO].abort = 1 ;
     sigfpe_[_OVERFL].abort = 1 ;
     sigfpe_[_INVALID].abort = 1 ;
-    handle_sigfpes(_DEBUG,_EN_OVERFL|_EN_DIVZERO|_EN_INVALID,
-                   0,_ABORT_ON_ERROR,0) ;
+    handle_sigfpes(_ON,_EN_OVERFL|_EN_DIVZERO|_EN_INVALID,
+                   sgi_fpe_user_,_ABORT_ON_ERROR,sgi_fpe_abort_) ;
+                   //                   0,_ABORT_ON_ERROR,0) ;
   }
 }
                       
@@ -110,8 +122,8 @@ namespace Loci {
   
   void set_fpe_abort()
   {
-   
-    }
+    
+  }
 }
 #endif
 #endif
