@@ -459,6 +459,7 @@ namespace Loci {
     MPI_Op_create(&create_user_function, 0, &create_join_op) ;
     MPI_Allreduce(send_ptr, result_ptr, size, MPI_PACKED, create_join_op, MPI_COMM_WORLD) ;
     sp->unpack(result_ptr, loc_result, size, seq) ;
+    MPI_Op_free(&create_join_op) ;
   }
   
   void execute_param_red::Print(ostream &s) const {
