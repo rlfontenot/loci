@@ -344,7 +344,7 @@ namespace Loci {
           break;
         case SINGLETON:
           if(mi->second->Rep()->RepType() != PARAMETER &&
-	     mi->second->Rep()->Reptype() != BLACKBOX) {
+	     mi->second->Rep()->RepType() != BLACKBOX) {
             cerr << "-------------------------------------------------"<<endl;
             cerr << "Singleton rule should have targets of param or" << endl;
             cerr << "blackbox type.  Perhaps this rule should be a" << endl;
