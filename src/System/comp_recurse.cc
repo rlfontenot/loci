@@ -384,7 +384,7 @@ namespace Loci {
     entitySet create = scheds.get_existential_info(rvar,impl) ;
 #ifdef COMP_ENT
     scheds.set_my_proc_able_entities(rvar, impl, comp_generated);
-    scheds.set_policy(rvar, sched_db::NEVER);
+    scheds.add_policy(rvar, sched_db::NEVER);
 #endif
     create += send_entitySet(create,facts) ;
     create += fill_entitySet(create,facts) ;
@@ -699,7 +699,7 @@ namespace Loci {
         entitySet create = mi->second;
 #ifdef COMP_ENT
 	scheds.set_my_proc_able_entities(mi->first, *fi, create);
-	scheds.set_policy(mi->first, sched_db::NEVER);
+	scheds.add_policy(mi->first, sched_db::NEVER);
 #endif	
         create += send_entitySet(create,facts) ;
         create += fill_entitySet(create,facts) ;
