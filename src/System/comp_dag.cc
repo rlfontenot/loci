@@ -21,20 +21,81 @@ namespace Loci {
       variableSet barrier_vars ;
       variableSet::const_iterator vi ;
 
-      std::map<variable,ruleSet> barrier_info ;
+      std::map<variable,ruleSet> barrier_info,reduce_info,singleton_info ;
       for(vi=vars.begin();vi!=vars.end();++vi) {
         ruleSet var_rules = extract_rules(dagt[(*vi).ident()]) ;
         ruleSet::const_iterator ri ;
         ruleSet use_rules ;
+        bool reduction = false ;
+        bool pointwise = false ;
+        bool singleton = false ;
         for(ri=var_rules.begin();ri!=var_rules.end();++ri)
           if(ri->get_info().rule_class != rule::INTERNAL) {
             use_rules += *ri ;
+            rule_implP rimp = ri->get_rule_implP() ;
+            if(rimp->get_rule_class() == rule_impl::POINTWISE)
+              pointwise = true ;
+            if(rimp->get_rule_class() == rule_impl::UNIT ||
+               rimp->get_rule_class() == rule_impl::APPLY)
+              reduction = true ;
+            if(rimp->get_rule_class() == rule_impl::SINGLETON)
+              singleton = true ;
           }
-        if(use_rules != EMPTY)
-          barrier_info[*vi] = use_rules ;
+        WARN(reduction && pointwise || pointwise && singleton ||
+             reduction && singleton) ;
+        
+        if((use_rules != EMPTY)) {
+          if(pointwise)
+            barrier_info[*vi] = use_rules ;
+          if(reduction)
+            reduce_info[*vi] = use_rules ;
+          if(singleton)
+            singleton_info[*vi] = use_rules ;
+        }
+
       }
 
       dag_comp.push_back(new barrier_compiler(barrier_info)) ;
+
+      if(singleton_info.begin() != singleton_info.end())
+        dag_comp.push_back(new singleton_var_compiler(singleton_info)) ;
+                           
+      if(reduce_info.begin() != reduce_info.end()) {
+        std::map<variable,ruleSet>::const_iterator xi ;
+        variableSet vars ;
+        for(xi=reduce_info.begin();xi!=reduce_info.end();++xi) {
+          vars += xi->first ;
+          rule unit_rule ;
+          CPTR<joiner> join_op = CPTR<joiner>(0) ;
+          storeRepP sp ;
+          ruleSet::const_iterator ri ;
+          for(ri=xi->second.begin();ri!=xi->second.end();++ri) {
+            if(ri->get_rule_implP()->get_rule_class() == rule_impl::UNIT)
+              unit_rule = *ri ;
+            else if(ri->get_rule_implP()->get_rule_class() == rule_impl::APPLY){
+              if(join_op == 0)
+                join_op = ri->get_rule_implP()->get_joiner() ;
+              else
+                if(typeid(*join_op) !=
+                   typeid(*(ri->get_rule_implP()->get_joiner()))) {
+                  cerr << "Warning:  Not all apply rules for variable " << xi->first << " have identical join operations!" << endl ;
+                }
+            } else {
+              cerr << "Warning: reduction variable " << xi->first
+                   << " has a non-reduction rule contributing to its computation,"
+                   << endl << "offending rule is " << *ri << endl ;
+            }
+          }
+          FATAL(join_op == 0) ;
+          sp = join_op->getTargetRep() ;
+          if(sp->RepType() == PARAMETER)
+            dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
+                                                         join_op)) ;
+          else
+            dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
+                                                         join_op)) ;
+        }
+      }
 
       if(rules != EMPTY) {
         ruleSet::const_iterator ri ;

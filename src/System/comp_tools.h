@@ -140,6 +140,42 @@ namespace Loci {
     virtual void process_var_requests(fact_db &facts) ;
     virtual executeP create_execution_schedule(fact_db &facts) ;
   } ;
+
+  class singleton_var_compiler : public rule_compiler {
+    std::map<variable, ruleSet> barrier_info ;
+  public:
+    singleton_var_compiler(std::map<variable,ruleSet> &var_map)
+      : barrier_info(var_map) {}
+    virtual void set_var_existence(fact_db &facts) ;
+    virtual void process_var_requests(fact_db &facts) ;
+    virtual executeP create_execution_schedule(fact_db &facts) ;
+  } ;
+  
+  class reduce_param_compiler : public rule_compiler {
+    variable reduce_var ;
+    rule unit_rule ;
+    CPTR<joiner> join_op ;
+  public:
+    reduce_param_compiler(const variable &v, const rule &ur,
+                          CPTR<joiner> &jop) :
+      reduce_var(v), unit_rule(ur), join_op(jop) {}
+    virtual void set_var_existence(fact_db &facts) ;
+    virtual void process_var_requests(fact_db &facts) ;
+    virtual executeP create_execution_schedule(fact_db &facts) ;
+  } ;
+
+  class reduce_store_compiler : public rule_compiler {
+    variable reduce_var ;
+    rule unit_rule ;
+    CPTR<joiner> join_op ;
+  public:
+    reduce_store_compiler(const variable &v, const rule &ur,
+                          CPTR<joiner> &jop) :
+      reduce_var(v), unit_rule(ur), join_op(jop) {}
+    virtual void set_var_existence(fact_db &facts) ;
+    virtual void process_var_requests(fact_db &facts) ;
+    virtual executeP create_execution_schedule(fact_db &facts) ;
+  } ;
   
   class conditional_compiler : public rule_compiler {
     std::vector<rule_compilerP> dag_comp ;

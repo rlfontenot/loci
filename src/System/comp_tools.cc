@@ -214,15 +214,15 @@ namespace Loci {
        const rule_impl::info &rinfo = r.get_info().desc ;
        
        for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-	 // Transform the variable requests using the mapping constructs
-	 // in *si
-	 entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
-	 //The context is the union
-	 context |= tmp ;
-	 isect &= tmp ;
-	 //cout <<d->myid <<"      si =  " << *si <<  "   context = " << contex
-	 //t << endl ;
+         // Transform the variable requests using the mapping constructs
+         // in *si
+         entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
+         //The context is the union
+         context |= tmp ;
+         isect &= tmp ;
+         //cout <<d->myid <<"      si =  " << *si <<  "   context = " << context << endl ;
        }
+
        // If the interstection and the union are not equal, then we are in
        // danger of not properly allocating variables for computations.  It is
        // an optimization to check this. For the distributed memory version it
@@ -230,46 +230,48 @@ namespace Loci {
        // targets of the rule.
        
        if(isect != context) {
-	 entitySet working = context ;
-	 vector<variableSet>::const_reverse_iterator mi ;
-	 for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-	   for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
-            entitySet tmp ;
-            for(vi=mi->begin();vi!=mi->end();++vi)
-              tmp |= facts.image(*vi,working) ;
-            working = tmp ;
-	   }
-	   for(vi=si->var.begin();vi!=si->var.end();++vi) {
-            facts.variable_request(*vi,working) ;
-	   }
-	 }
-      }
-       // Loop over all sources for this rule and pass on the requests.
-      for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+         entitySet working = context ;
+         vector<variableSet>::const_reverse_iterator mi ;
+         for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+           for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
+             entitySet tmp ;
+             for(vi=mi->begin();vi!=mi->end();++vi)
+               tmp |= facts.image(*vi,working) ;
+             working = tmp ;
+           }
+           for(vi=si->var.begin();vi!=si->var.end();++vi) {
+             facts.variable_request(*vi,working) ;
+           }
+         }
+       }
+
+       entitySet working = context ;      
+
+      // Loop over all sources for this rule and pass on the requests.
+
+       for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
         // First map the context through source mappings
-        entitySet requests;
-        requests = vmap_source_requests(*si,facts,context) ;
-        //cout <<d->myid <<  "   *si  =  "  << *si << "   requests  =  " << re
-	//quests << endl ;
-        entitySet var ;
-	context &= my_entities ;
+         entitySet requests;
+         requests = vmap_source_requests(*si,facts,context) ;
+         //cout <<d->myid <<  "   *si  =  "  << *si << "   requests  =  " << re
+         //quests << endl ;
+         entitySet var ;
+         context &= my_entities ;
         
-	// Now we have the actual requests we are making of other rules
-        // so we can tell the fact database that we are now requesting
-        // these values.
+         // Now we have the actual requests we are making of other rules
+         // so we can tell the fact database that we are now requesting
+         // these values.
 	
-        for(vi=si->var.begin();vi!=si->var.end();++vi)
-          facts.variable_request(*vi,requests) ;
+         for(vi=si->var.begin();vi!=si->var.end();++vi)
+           facts.variable_request(*vi,requests) ;
 	
-        // We also need to pass the requests on to any conditional variables
-        // this rule may have.
+         // We also need to pass the requests on to any conditional variables
+         // this rule may have.
 	
-        for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi) 
-          facts.variable_request(*vi,context) ;
-      }
-     }
-    
-     else {
+         for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi) 
+           facts.variable_request(*vi,context) ;
+       }
+     }  else {
        for(vi=targets.begin();vi!=targets.end();++vi) {
         if(vi->get_info().name == string("OUTPUT")) 
           facts.variable_request(*vi,facts.variable_existence(*vi)) ;
@@ -316,6 +318,7 @@ namespace Loci {
 #endif
     return context ;
   }
+
   std::list<comm_info> put_postcomm_info(std::map<variable, ruleSet> barrier_info, fact_db &facts) {
     MPI_Status *status ;
     MPI_Request *recv_request ;
@@ -672,6 +675,59 @@ namespace Loci {
     return new execute_thread_sync(oss.str()) ;
   }
 
+  class execute_msg : public execute_modules {
+    std::string msg ;
+  public:
+    execute_msg(string m) : msg(m) {}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+
+  void execute_msg::execute(fact_db &facts) {  }
+  
+  void execute_msg::Print(std::ostream &s) const { s << msg << endl ; }
+
+
+  
+  void singleton_var_compiler::set_var_existence(fact_db &facts)  {
+  }
+
+  void singleton_var_compiler::process_var_requests(fact_db &facts) {
+  }
+
+  executeP singleton_var_compiler::create_execution_schedule(fact_db &facts) {
+    variableSet vars ;
+    std::map<variable, ruleSet>::const_iterator ri ;
+    for(ri=barrier_info.begin();ri!=barrier_info.end();++ri)
+      vars += ri->first ;
+    ostringstream oss ;
+    oss << "singleton param " << vars ;
+    return executeP(new execute_msg(oss.str())) ;
+  }
+  
+  void reduce_param_compiler::set_var_existence(fact_db &facts)  {
+  }
+
+  void reduce_param_compiler::process_var_requests(fact_db &facts) {
+  }
+
+  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts) {
+    ostringstream oss ;
+    oss << "reduce param " << reduce_var ;
+    return executeP(new execute_msg(oss.str())) ;
+  }
+  
+  void reduce_store_compiler::set_var_existence(fact_db &facts)  {
+  }
+
+  void reduce_store_compiler::process_var_requests(fact_db &facts) {
+  }
+
+  executeP reduce_store_compiler::create_execution_schedule(fact_db &facts) {
+    ostringstream oss ;
+    oss << "reduce store " << reduce_var ;
+    return executeP(new execute_msg(oss.str())) ;
+  }
   
 
 }
