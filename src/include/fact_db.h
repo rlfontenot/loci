@@ -86,7 +86,7 @@ namespace Loci {
 
     storeRepP get_variable_type(variable v) const ;
     storeRepP get_variable_type(std::string vname) const
-      { get_variable_type(variable(vname)) ;}
+      { return get_variable_type(variable(vname)) ;}
     
     void create_fact(variable v, storeRepP st) ;
     void create_fact(std::string vname, storeRepP st)
