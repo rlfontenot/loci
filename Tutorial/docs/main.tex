@@ -11,6 +11,14 @@
 \setlength{\evensidemargin}{2cm}
 \unitlength=1in
 \title { Loci : A Beginners Tutorial }
+
+\usepackage{epsf}    % used for importing encapsulated postscript figures
+\usepackage{amsmath} % used for extended formula formatting tools
+\usepackage{amssymb}
+\usepackage{theorem}
+\usepackage{euscript}
+
+
 \begin{document}
 \tableofcontents
 \listoffigures
@@ -454,7 +462,100 @@ triangular mesh.
 
 \section{Running an Example}
 
+The above computations are part of an example Loci implementation of 
+the finite-volume method applied to the two-dimensional heat
+conduction problem.  You will find this code under the {\tt lfvm}
+directory provided with the tutorial.  If you compile the {\tt lfvm}
+tutorial you will be able to run example queries to see the
+computations proceed for the rule we have just described above.  We
+can run the above program by executing {\tt lfvm} with the flag {\tt
+  -q area} to query for area.  The resulting query produces output
+such as:
+
+\begin{verbatim}
+% ./lfvm -q area example_grid
+reading grid file example_grid
+node_alloc = ([0,24])
+triangle_alloc = ([25,60])
+constraint = BC_bottom nodes = ([0,3])
+constraint = BC_left nodes = ([0,0][7,7][14,14][21,21])
+constraint = BC_top nodes = ([21,24])
+constraint = BC_right nodes = ([3,3][10,10][17,17][24,24])
+found 48 internal edges, 12 on boundary
+max_iteration=10000
+heat flux boundary nodes = ([21,24])
+temperature prescribed boundary nodes = ([0,3][7,7][10,10][14,14][17,17][21,21][24,24])
+generating dependency graph...
+Adding rule gradDotN(T)<-(cl,cr)->(centroid,T)
+setting up variable types...
+decomposing graph...
+existential analysis...
+creating execution schedule...
+area = 
+{([25,60])
+0.25
+....
+\end{verbatim}
+
+We can see the execution schedule produced by the Loci query by
+examining the file {\tt ./schedule} provided by the {\tt lfvm} example
+program.  For example:
+
+\begin{verbatim}
+% more .schedule
+allocate all variables
+create 1 threads
+thread barrier ()
+
+area<-triangle_nodes->pos  over sequence ([25,60])
+thread barrier area
+
+destroy threads
+\end{verbatim}
+
+As we can see, the schedule is simple:  we have called the compute
+method for our area rule and passed it a sequence that includes all
+triangles in our grid.
+
+
 \section{Reduction Computations}
+
+There is an alternative approach that we could have taken in the
+computation of areas.  Instead of looping over triangles, instead we
+could have looped over edges and computed the area contribution
+associated with each edge as illustrated in figure \ref{fig:area}.  We
+define the edge area contribution as the area of the triangle formed
+by the two edge nodes and the centroid of the cell.  Obviously the
+triangle area is equal to the sum of all of the edge area
+contributions.  This computation method has the advantage that it can
+be made, with careful considerations, to compute the area of any
+general polygon, whereas the previous approach was limited only to
+triangles.  Also, since a natural way of expressing this computation
+is to loop over edges (which is typically what is required in
+finite-volume computations) we may be able to dispense with storing
+the relation {\tt triangle\_nodes} all together.  However, if we wish
+to define this computation via iteration over edges, we will need to
+sum up the results incrementally.  As a result we won't be able to
+express this computation as a pointwise rule since the computation
+of area does not occur completely point by point, but instead is
+spread out over several edge updates.  
+
+For this style of computation we need to describe a reduction.  In
+Loci we describe a reduction through the use of {\tt unit\_rule} and
+{\tt apply\_rule}.  The {\tt unit\_rule} defines the identity of the
+operator over which we are doing the reduction, while a set of {\tt
+  apply\_rule}'s define the summing update that we perform as we are
+adding each edges contribution to its neighboring triangles.
+Following is an example program that shows how to compute areas using
+this edge-centric approach.
+
+\begin{figure}[h]
+\centerline{
+\epsfxsize=3.2in
+\epsfbox{figures/edge_area.eps}}
+\caption{Computing Triangle Area by Accumulating Edge Contributions}
+\label{fig:area}
+\end{figure}
 
 \include{area_reduce_cc}
 
