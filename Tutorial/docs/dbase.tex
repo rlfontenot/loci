@@ -1,23 +1,25 @@
 \chapter { Database}
-\par A database is the fundamental starting point for any logic 
-programming systems. The definition of a problem to be solved begins as a 
-collection of facts stored in a database, while the result of a rule
-applications is to modify the existing and/or creation of new fact
-databases. Thus the database becomes a center of communication for 
-program derived from the specification. 
+
+A database is the fundamental starting point for any logic 
+programming systems. The definition of a problem to be solved begins
+as a collection of facts stored in a database, while the result of a
+rule applications is to modify the existing and/or creation of new
+fact databases. Thus the database becomes a center of communication
+for program derived from the specification.
 %
 \section { Facts and Facts database }
+
 A Facts in Loci is a property associated with an entity. This property
 could either be in the form of data or reference to some other
 entities (maps). 
 
-\par If the property is a map, it has to provided by the user before the
+If the property is a map, it has to provided by the user before the
 execution of the program.
 
-\par If the property is a data, it could either user defined, or derived using
-know facts. 
-In Loci, all facts are stored in the database, hereafter called {\bf facts database}
-In general there are four types of facts within the Loci system which are 
+If the property is a data, it could either user defined, or derived
+using know facts.  In Loci, all facts are stored in the database,
+hereafter called {\bf facts database} In general there are four types
+of facts within the Loci system which are
 
 \begin{enumerate}
 \item Parameter
@@ -46,7 +48,6 @@ rule signature {\tt p<-rho, T, R} represents that a value for pressure
 \begin{figure}[h]
 \special{psfile=rule.eps vscale=50 hscale=50 voffset=-175 hoffset=125}
 \vspace{2.50in}\caption { A Rule produces new facts }
-\label {FigLocalReduction}
 \end{figure}
 
 As shown in the above figure, a rule requires some input facts and 
@@ -184,7 +185,6 @@ In Loci, computations on parameters are accomplished using Singleton Rule.
 \begin{figure}[h]
 \special{psfile=single.eps vscale=50 hscale=50 voffset=-250 hoffset=125}
 \vspace{3.50in}\caption { A singleton rule produces a parameter fact}
-\label {FigLocalReduction}
 \end{figure}
 %
 \par {\bf Example :} Suppose we are writing an iterative scheme and we 
@@ -222,7 +222,6 @@ then Loci, will get confuse and will not proceed.
 \begin{figure}[h]
 \special{psfile=point.eps vscale=50 hscale=50 voffset=-175 hoffset=125}
 \vspace{2.50in}\caption { A pointwise rule produces new facts for each entity  }
-\label {FigLocalReduction}
 \end{figure}
 %
 \par {\bf Example : } In the previous example, given the node-coordinates and 
@@ -377,7 +376,7 @@ for that entitySet.
 If we are interested in the unsteady solution, we have to calculate CFL condition
 for each entity, and then apply the reduction operation to get the global
 minimum CFL number. Every entity uses this global minimum value to advance in
-time. See Figure \ref{FigLocalReduction} A.
+time. See Figure  A.
 %
 \item  {\bf Reduction for store datatype} When reduction is carried out over
 a small subset of entities for each entity in the entitySet then the output
@@ -385,12 +384,11 @@ is a store datatype. Such a reduction is local to each entity.
 \par {\bf Example :} If we are interested in steady state solution, we can
 relax the stringent condition of global time step and allow each entity to 
 proceed at its own time step. Therefore, we have to store the time step value 
-for each entity. See Figure \ref{FigLocalReduction} B
+for each entity. See Figure  B
 \end{itemize}
 \begin{figure}[h] 
 \special{psfile=gloLoc.eps vscale=50 hscale=50 voffset=-175 hoffset=50}
 \vspace{2.50in}\caption { Global and local reduction operation}
-\label {FigLocalReduction}
 \end{figure}
 \par In Loci, when a variable is defined by reduction rules, then its value
 is the result of a set of rules applications. We have to define two rules
@@ -558,7 +556,6 @@ or pointwise rules.
 \begin{figure}[h]
 \special{psfile=reduc2.eps vscale=50 hscale=50 voffset=-175 hoffset=100}
 \vspace{2.50in}\caption { Applying reduction operation using local entities}
-\label {FigLocalReduction}
 \end{figure}
 
 \par { \bf Example :} In an unstructured grid, every face is shared by at the most 
@@ -1249,7 +1246,7 @@ int main(int argc, char *argv[])
   string query = "Data";
 
   param<int>  n;
-  fact_db        facts ;	              // Facts Database
+  fact_db        facts ;                      // Facts Database
   
   *n = 10;
   facts.create_fact( "N", n);
@@ -1350,7 +1347,7 @@ int main(int argc, char *argv[])
   string query = "Data";
 
   param<int>  n;
-  fact_db        facts ;	              // Facts Database
+  fact_db        facts ;                      // Facts Database
   
   *n = 10;
   facts.create_fact( "N", n);

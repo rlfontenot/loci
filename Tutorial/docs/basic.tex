@@ -1,98 +1,5 @@
-\chapter{ Basic Concepts }
-
-Loci is embedded in C++, and thus relies on C++ for some of its
-conceptual vocabulary.  The concepts it inherits from C++ include
-concepts of iterators and algorithms for iteration as represented
-within the Standard Template Library (STL) that is a component of the
-ISO/ANSI Standard C++ library facilities.  
-
-{\it more on where to get this information and perhaps a simple
-  appendix tutorial should be included here.}
 
 
-\section{Entity}
-A Loci {\tt Entity} represents a thing or object in the real world
-that is distinguishable from all other objects. For example, each
-person in an enterprise is an entity. An entity has a set of
-properties ( a person has name, age, sex etc), and the values for some
-set of properties may uniquely identify an entity. For example, the
-social-security number 677-89-9011 uniquely identifies one particular
-person in United States. In Loci, each entity is given a unique
-integer value as an identifier.
-%
-
-\section {Interval}
-A Loci {\tt interval } is a contiguous sequence of integers.  An
- interval is constructed from a pair of integers, the minimum and
- maximum of the sequence.
-
-\par {\bf Example:~ } interval(-100,100) is the sequence of integers -100, -99, \dots 0 \dots 99, 100.
-
-%
-\section{Entity Set} 
-
-In Loci, a set of things is represented by an object of the class {\tt
-  EntitySet}.  The elements of the set are represented by Loci objects
-of the type {\tt Entity}.  This class provides basic set operations
-such as union, intersection, and complement by overloading the
-operators ${\&}$, ${|}$, and ${-}$ respectively.  
-
-One can iterate over the set of integers stored in the {\tt entitySet} by 
-using {\tt entitySet::const\_iterator}
-
-{\bf Example:~ }
-
-\begin{verbatim}
-entitySet A = interval(1,10)       // contains an interval from 1 to 10.
-
-// Print out the set of integers contained in A
-for(entitySet:: const_iterator ei = A.begin(); ei != A.end(); ei++)
-     cout << *ei << " ";
-cout << endl;
-\end{verbatim}
-
-The member functions {\tt begin()} and {\tt end()} mimic the semantics
-of the STL containers types. {\tt A.begin()} points to the first
-element in the interval while {\tt A.end()} returns a pointer to the
-location beyond the last element in the interval. The de-referencing
-operator {\bf *()} can be used to return the value of the
-corresponding integer identifier.
-
-\begin{verbatim}
-int main()
-{
-    entitySet     A,B,C,D,E;
-
-//  Assign interval [1,10] to set A and assign interval [5,20] to set B
-    A = interval(1,10) ;
-    B = interval(5,20) ;
-
-//  Adding 2 to set A ( Note that it is already in A), but there
-//  will not be duplication    
-    A += 2 ;  // A = A + interval(2,2) ;
-
-//  Remove 5 from A
-    A -= 5 ;  // A = A - interval(5,5) ;
-
-//  Intersection ( Output: all elements which are common to A and B)
-//  In this case (6,7,8,9,10).
-    C = A & B;
-
-//  Union ( Output: All elements which are in either A or B )
-//  This case ( 1,2,3,4,6,7, ... ,18,19,20)
-    D = A | B ; // Equivalent to D = A + B
-
-//  Relative Complement:  E contain all elements of A which are not in C.
-//  In this case E = (1,2,3,4).
-    E = A - C ;
-
-//  Empty entitySet A
-    A  = EMPTY;
-}
-\end{verbatim}
-
-There are many member function with {\tt entitySet} which are provided in the
-reference manual.
 
 %
 \begin{figure}[ht]
@@ -775,3 +682,4 @@ In the following example, we create a sequence and entitySet in the same way,
 // 76543210
 //****************************************************************************
 \end{verbatim}
+

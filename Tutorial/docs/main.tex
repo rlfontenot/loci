@@ -15,13 +15,109 @@
 \tableofcontents
 \listoffigures
 \maketitle
-{\small
 \include {intro}
-\include {basic}
-\include {dbase}
+
+\chapter{ Basic Concepts }
+
+\section{Notation used in this document}
+
+In this document we use the {\tt typewriter} font to distinguish
+actual Loci programming keywords, classes, and datastructures.
+
+\section{ Compiling Loci Programs }
+
+The most direct way to compile Loci programs is to use the Makefile
+template provided in this tutorial.  It is usually as simple as
+including the Loci.conf file that comes as part of your Loci
+installation.  See the following makefile for an example.
+
+\include{Makefile_ex}
+
+
+
+\section{Entities, Sets, and Sequences}
+
+In Loci, computations are represented by associating (binding) values
+(attributes) to entities.  Although entities can be considered in
+rather abstract terms, in Loci we often will often interchange the
+meaning of entity with the integer identifier that is used to label a
+given entity.  Thus we may talk of entity $1$ when we are really
+refering to the entity labeled $1$.  
+
+It is useful to consider groups of entities that have similar
+attributes.  In Loci we have two data structures for representing sets
+of entities:  1) the {\tt interval} and 2) the {\tt entitySet}.  For
+example, if we wish to represent the entities labeled from $1 \cdots
+100$ we would use the Loci class {\tt interval(1,100)}.  On the other
+hand, the {\tt entitySet} can be used to represent arbitrary
+collections of entities.  Once we have described a collection of
+entities using the {\tt entitySet} class we can also create new sets
+of entities using unions, intersections, and other useful set
+operations.  
+
+However, the {\tt entitySet} class provides a true set semantics.
+That is ordering of insertion is not preserved and there is no
+duplication.  Either an entity is in the set or it is not.  If we need
+to preserve the order of entities for looping or other control then we
+use the {\tt sequence } class.  The {\tt sequence} class provides
+operations for concatenation and reversal and can be generall thought
+of as a list of entity labels.  It should be noted that users
+generally don't create sequences in Loci, but rather the scheduler
+generates sequence of entities for computations.  However, if there is
+ever a need keep track of a particular ordering of entities, then
+sequences are the datastructure that accomplishes this task.
+
+The following program segment (included with the tutorial programs)
+provides examples of how to create and use the {\tt  entitySet} and
+{\tt sequence} classes.  This provides examples of the most commonly
+used programming techniques for these classes.
+
+\include {entities_cc}
+
+\section {Loci Containers}
+
+In Loci, containers are entity based.  That is, a container provides
+an association between entities and values.  There are two basic types
+of containers, parameters and stores.  Parameters provide a way of
+associating a single value with a set of entities, while stores
+provide a correspondence between entities and values.  In shorter
+terms, parameters look like variables while stores look like very
+flexible arrays.  The store's come in a variety of forms that allow
+various types of runtime selection of the sizes of the types they
+contain.  For example, the storeVec provides a store that contains
+vectors who's size isn't specified until compile time.  Perhaps the
+fastest way to learn how to apply Loci containers is to see them in
+action.  So provided is a short program that illustrates the Loci
+containers and some basic examples of their application.
+
+\include {containers_cc}
+
+\section {Loci Relations}
+In addition to contianers, Loci provides ways of describing
+relationships between entities.  The simplest of these relationships
+is the constraint.  The constraint simply identifies a grouping of
+entities and are used to assign attributes to entities.  For example,
+a boundary condition may be specified by placing those entities in the
+boundary in a boundary constraint.  The most basic of the relations is
+the Map.  This provides a means of describing the relationship between
+entities.  Maps are used to describe the datastructures typically
+encountered in unstructured mesh computations and come in a variety of
+forms in Loci.  The basic {\tt Map} class provides a one-by-one
+correspondence whereas the {\tt MapVec} templated class provides a
+one-to-many correspondence.  Similarly, the {\tt multiMap} class
+provides the most generic interface where each entity may have 0 or
+more other entities related to it.  The following source code
+demonstrates the basic user interface for the Map family of classes.
+
+
+\include {relations_cc}
+
+
+
+%\include {dbase}
 %\include {example}
 %\include {make}
 %\include {appendix}
-}
+
 \end{document}
 
