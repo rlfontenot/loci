@@ -101,23 +101,25 @@ namespace Loci {
     }
 
     bool  is_token(istream &s, const string &token) {
-        kill_white_space(s) ;
-        for(unsigned int i=0;i<token.size();++i) {
-            if(s.peek() != token[i]) {
-                for(--i;i>=0;--i)
-                  s.putback(token[i]) ;
-                return false ;
-            }
-            s.get() ;
+      kill_white_space(s) ;
+      const int sz = token.size() ;
+      for(int i=0;i<sz;++i) {
+        if(s.peek() != token[i]) {
+          for(--i;i>=0;--i)
+            s.putback(token[i]) ;
+          return false ;
         }
-        for(int i=token.size()-1;i>=0;--i) 
-          s.putback(token[i]) ;
-        return true ;
+        s.get() ;
+      }
+      for(int i=token.size()-1;i>=0;--i) 
+        s.putback(token[i]) ;
+      return true ;
     }
     
     bool get_token(istream &s, const string &token) {
       kill_white_space(s) ;
-      for(unsigned int i=0;i<token.size();++i) {
+      const int sz = token.size() ;
+      for(int i=0;i<sz;++i) {
 	if(s.peek() != token[i]) {
 	  for(--i;i>=0;--i)
 	    s.putback(token[i]) ;
