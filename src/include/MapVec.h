@@ -53,18 +53,61 @@ namespace Loci {
   
   //*************************************************************************/
 
-  template<int M> void MapVecRepI<M>::allocate(const entitySet &ptn) {
+  template<int M> void MapVecRepI<M>::allocate(const entitySet &eset) {
+
+    if(eset == EMPTY) return;
+
+    int   old_range[2], new_range[2];
+
+    old_range[0] = store_domain.Min();
+    old_range[1] = store_domain.Max();
+
+    new_range[0] = eset.Min();
+    new_range[1] = eset.Max();
+
+    entitySet redundant, newSet, ecommon;
+
+    redundant = store_domain - eset;
+    newSet    = eset - store_domain;
+    ecommon   = store_domain & eset;
+
+    if( (old_range[0] == new_range[0]) &&
+        (old_range[1] == new_range[1]) ) {
+        store_domain  = eset;
+        return;
+    }
+
+    VEC *tmp_base_ptr, *tmp_alloc_pointer ;
+
+    int top           = old_range[0];
+    int arraySize     = (old_range[1] - top + 1);
+    tmp_alloc_pointer = new VEC[arraySize];
+    tmp_base_ptr      = tmp_alloc_pointer - top;
+
+    FORALL(ecommon,i) {
+       for( int j = 0; j < M; j++)
+       tmp_base_ptr[i][j] = base_ptr[i][j];
+    } ENDFORALL ;
+
     if(alloc_pointer) delete[] alloc_pointer ;
+
     alloc_pointer = 0 ;
     base_ptr = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int size = ptn.Max()-top+1 ;
-      alloc_pointer = new VEC[size] ;
-      base_ptr = alloc_pointer-top ;
-    }
-    store_domain = ptn ;
+    top           = eset.Min() ;
+    arraySize     = eset.Max()-top+1 ;
+    alloc_pointer = new VEC[arraySize] ;
+    base_ptr      = alloc_pointer-top ;
+
+    FORALL(ecommon,i) {
+       for( int j = 0; j < M; j++)
+       base_ptr[i][j] = tmp_base_ptr[i][j];
+    } ENDFORALL ;
+
+    delete[] tmp_alloc_pointer ;
+
+    store_domain = eset ;
     dispatch_notify() ;
+
   }
 
   //*************************************************************************/
