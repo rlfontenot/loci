@@ -21,12 +21,15 @@ namespace Loci {
   //the chunked partitioning format in global numbering.   
 void write_container(hid_t group_id, storeRepP qrep) {
     entitySet dom = qrep->domain() ;
-    entitySet q_dom = all_collect_entitySet(dom) ;
+    std::vector<entitySet> dom_vector = all_collect_vectors(dom);
+    entitySet q_dom;
+    for(int i = 0; i < Loci::MPI_processes; i++) 
+      q_dom += dom_vector[i];
+
     unsigned char* tmp_send_buf ;
     std::vector<int> sort_max ;
     int local_size = qrep->pack_size(dom) ;
     sort_max = all_collect_sizes(local_size) ;
-    std::vector<int> interval_sizes = all_collect_sizes(dom.size()) ; 
     int total_size = *std::max_element(sort_max.begin(), sort_max.end() );
     tmp_send_buf = new unsigned char[total_size] ;
     if(Loci::MPI_rank == 0)
@@ -83,14 +86,10 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
 	H5Dclose(dataset) ;
 	
-	int curr_indx = dom.size() ;
 	for(int i = 1; i < Loci::MPI_processes; ++i) {
 	  MPI_Status status ;
 	  int recv_total_size ;
-	  entitySet tmpset;
-	  if(interval_sizes[i] > 0)
-	    tmpset = entitySet(interval(curr_indx, interval_sizes[i]+curr_indx-1)) ;
-	  curr_indx += interval_sizes[i] ;
+	  entitySet tmpset = dom_vector[i];
 	  Loci::storeRepP t_qrep = qrep->new_store(tmpset) ;
 	  int loc_unpack = 0 ;
 	  int flag = 1 ;
@@ -114,9 +113,8 @@ void write_container(hid_t group_id, storeRepP qrep) {
   }
 
   //This routine reads storeReps from .hdf5 file. If dom specified is 
-  //EMPTY then it is found by dividing total entities by processors
-  //If it is non EMPTY then storeRep thas is read has been allocated dom
-  //entities locally.
+  //EMPTY then it is found by dividing total entities by processors.
+  //dom entities are allocated to qrep on local processor.
   void read_container(hid_t group_id, storeRepP qrep, entitySet &dom) {
     entitySet q_dom ;
     if(Loci::MPI_rank == 0)
@@ -126,17 +124,26 @@ void write_container(hid_t group_id, storeRepP qrep) {
     q_dom = all_collect_entitySet(q_dom) ;
     entitySet global_dom = all_collect_entitySet(dom);
     if(global_dom == EMPTY) {
-      int sz = q_dom.size() / Loci::MPI_processes ;
-      for(int i = 0; i < MPI_processes-1; ++i)
-	interval_sizes.push_back(sz) ;
-      interval_sizes.push_back(sz + (q_dom.size() % Loci::MPI_processes)) ;
-      int tmp = q_dom.Min() ;
-      int max = q_dom.Max() ;
-      if(MPI_rank < (MPI_processes-1))
-	dom = interval(tmp + MPI_rank*sz, tmp + (MPI_rank+1)*sz-1) ;
-      else
-	dom = interval(tmp + MPI_rank*sz, max) ;
-    } else {
+      if(q_dom != EMPTY) {
+	int min = q_dom.Min() ;
+	int max = q_dom.Max() ;
+	int sz = (max - min + 1)/Loci::MPI_processes;
+	for(int i = 0; i < MPI_processes; i++) {
+	  entitySet tmpEnt;
+	  if(i < MPI_processes - 1) {
+	    if(sz != 0)
+	      tmpEnt = interval(min + i*sz, min + (i+1)*sz-1);
+	  }
+	  else 
+	    tmpEnt = interval(min + i*sz, max);
+	  tmpEnt &= q_dom;
+	  interval_sizes.push_back(tmpEnt.size());
+	  if(i == MPI_rank)
+	    dom = tmpEnt;
+	}
+      }
+    }
+    else {
       interval_sizes = all_collect_sizes(dom.size()) ;
       entitySet tset = all_collect_entitySet(dom) ;
       if(tset != q_dom) {
@@ -228,18 +235,24 @@ void write_container(hid_t group_id, storeRepP qrep) {
       int curr_indx = 0 ;
       int total_size = 0 ;
       int tmp_total_size = 0 ;
-      entitySet max_set = interval(0, max_eset_size-1) ;
+      entitySet max_set;
+      if(max_eset_size > 0)
+	max_set = interval(0, max_eset_size-1) ;
       storeRepP tmp_sp ;
       if(fi.size) 
 	tmp_sp = qrep->new_store(max_set) ; 
       
       for(int p = 0; p < Loci::MPI_processes; ++p) {
-	entitySet local_set = entitySet(interval(curr_indx, interval_sizes[p]+curr_indx-1)) ;
+	entitySet local_set;
+	if(interval_sizes[p] > 0) 
+	  local_set = entitySet(interval(curr_indx, interval_sizes[p]+curr_indx-1)) ;
 	curr_indx += interval_sizes[p] ;
 	hsize_t dimension = arr_sizes[p] ;
 	count = dimension ;
 	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-	entitySet tmp_set = interval(0, local_set.size()-1) ;
+	entitySet tmp_set;
+	if(local_set.size())
+	  tmp_set = interval(0, local_set.size()-1) ;
 	if(p && tmp_sizes[p]) {
 	  MPI_Recv(tmp_int, tmp_sizes[p], MPI_INT, p, 10,
 		   MPI_COMM_WORLD, &status) ;
@@ -317,8 +330,6 @@ void write_container(hid_t group_id, storeRepP qrep) {
     entitySet dom = sp->domain() ;
     dom =  collect_entitySet(dom) ;
     entitySet remap_dom;
-    fact_db::distribute_infoP d = facts.get_distribute_info() ;
-    std::vector<entitySet> chop_ptn = d->chop_ptn ;
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
     remap_dom = init_ptn[ MPI_rank] & dom ;
     entitySet tot_remap_dom  =  all_collect_entitySet(dom) ;
@@ -371,7 +382,24 @@ void write_container(hid_t group_id, storeRepP qrep) {
 
     MapRepP(tmp_remap.Rep())->compose(reverse, tmp_remap_dom&tmp_remap_preimage) ;
     entitySet global_owned =  MapRepP(tmp_remap.Rep())->image(owned_entities) ;
-    entitySet local_io_domain = chop_ptn[MPI_rank] & global_io_domain ; 
+    std::vector<entitySet> chop_ptn(Loci::MPI_processes);
+    if(global_io_domain != EMPTY) {
+      int min = global_io_domain.Min();
+      int max = global_io_domain.Max();
+      int sz = (max - min + 1)/Loci::MPI_processes;
+      for(int i = 0; i < MPI_processes; i++) {
+	entitySet tmpEnt;
+	if(i < MPI_processes - 1) {
+	  if(sz != 0)
+	    tmpEnt = interval(min + i*sz, min + (i+1)*sz-1);
+	}
+	else 
+	  tmpEnt = interval(min + i*sz, max);
+	tmpEnt &= global_io_domain;
+	chop_ptn[i] = tmpEnt;
+      }
+    }
+    entitySet local_io_domain = chop_ptn[MPI_rank]; 
     owned_entities = tmp_remap.domain()  ;
     entitySet out_of_dom, filled_entities, local_entities ;
     
@@ -405,12 +433,12 @@ void write_container(hid_t group_id, storeRepP qrep) {
       send_clone[i] = out_of_dom & chop_ptn[i] ;
       entitySet tmp = MapRepP(tmp_remap.Rep())->preimage(send_clone[i]).first ;
       send_count[i] = 0 ;
-      store<int> tmp_store ; 
+      store<int> tmp_store ;
+      entitySet tmpEnt;
       if(tmp.size())
-	tmp_store.allocate(interval(0, tmp.size()-1)) ;
-      else
-	tmp_store.allocate(tmp) ;
-      send_count[i] = tmp_store.Rep()->pack_size(tmp) ;
+	tmpEnt = interval(0, tmp.size() - 1);
+      tmp_store.allocate(tmpEnt) ;
+      send_count[i] = tmp_store.Rep()->pack_size(tmpEnt) ;
       ei = tmp.begin() ;
       for(int j = 0; j < tmp.size(); ++j) {
 	tmp_store[j] = tmp_remap[*ei] ;
@@ -448,8 +476,6 @@ void write_container(hid_t group_id, storeRepP qrep) {
       entitySet tmp ;
       if(tmp_size > 0)
 	tmp = interval(0, tmp_size-1) ;
-      else
-	tmp = EMPTY ;
       recv_dom[i] =  sequence(tmp) ;
       store<int> tmp_store ;
       tmp_store.allocate(tmp) ;
@@ -521,7 +547,6 @@ void write_container(hid_t group_id, storeRepP qrep) {
     entitySet our_dom = new_sp->domain() ;
     entitySet remap_image  = Loci::collect_entitySet(our_dom) ;
     remap_image = all_collect_entitySet(remap_image) ;
-
     Map l2g ; 
     l2g = facts.get_variable("l2g") ;
     entitySet read_set = remap.preimage(remap_image).first;
