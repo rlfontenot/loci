@@ -215,6 +215,8 @@ namespace Loci {
   void graph_compiler::compile(fact_db& facts,sched_db& scheds,
                                const variableSet& given,
                                const variableSet& target) {
+    dagCheckVisitor dV1(true) ;
+    top_down_visit(dV1) ;
     /***********************************
     1. unordered visitor phase (1..n)
          top -> down

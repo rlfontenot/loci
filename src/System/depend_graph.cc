@@ -25,7 +25,6 @@ using std::cout ;
 //#define VERBOSE
 
 namespace Loci {
-
   namespace {
     rule create_rule(variable sv, variable tv, string qualifier) {
       ostringstream oss ;
@@ -133,8 +132,8 @@ namespace Loci {
           ruleSet var_rules =
             extract_rules(rule_graph.get_edges(vi->ident())+
                           rgt.get_edges(vi->ident())) ;
-	  var_rules -= processed_rules ;
-	  //cout << " var_rules = " << var_rules << endl ;
+          var_rules -= processed_rules ;
+          //cout << " var_rules = " << var_rules << endl ;
           ruleSet reject_rules ;
           for(ruleSet::const_iterator ri = var_rules.begin() ;
               ri!=var_rules.end();
@@ -187,22 +186,22 @@ namespace Loci {
 #ifdef VERBOSE
           debugout << "rules involved = " << var_rules << endl ;
 #endif
-          
+
           time_ident vtime = vi->time() ;
           if(vtime != time_ident()) {
             variable stationary_var(*vi,time_ident()) ;
             ruleSet promote_rules =
               extract_rules(rule_graph.get_edges(stationary_var.ident())+
                             rgt.get_edges(stationary_var.ident())) ;
-	    
+            
             for(ruleSet::const_iterator ri = promote_rules.begin() ;
                 ri!=promote_rules.end();
                 ++ri) {
               if(ri->type() != rule::TIME_SPECIFIC &&
                  !(ri->type() == rule::INTERNAL &&
-                   ri->qualifier()=="iterating_rule")) {
+                   ri->qualifier()=="iterating_rule")) {                
                 rule pr(*ri,vtime) ;
-		//cout << " pr = " << pr << endl ;
+                //cout << " pr = " << pr << endl ;
                 if(!processed_rules.inSet(pr)) {
                   variableSet rule_depend = pr.get_info().constraints() ;
                   // Hack
@@ -269,8 +268,9 @@ namespace Loci {
           //          cerr << "build rule failed because of " << bs << endl ;
         }
       }
-      if(rules_that_pass == EMPTY)
+      if(rules_that_pass == EMPTY) {
         return ;   // No build rules can execute, we are finished
+      }
 
       
       rules_that_pass = EMPTY ;
@@ -290,8 +290,9 @@ namespace Loci {
           //          cerr << "collapse rule failed because of " << csp << endl ;
         }
       }
-      if(rules_that_pass == EMPTY)
+      if(rules_that_pass == EMPTY) {
         return ;    // No collapse rules can execute, we are finished
+      }
 
 
       // This iteration can be scheduled so fill out the graph
@@ -551,12 +552,13 @@ namespace Loci {
         ++ri) {
       invoke_rule_wp(*ri,rule_graph) ;
     }
-  
+
+    //cerr<<"rule_graph size: "<<rule_graph.get_all_vertices().size()<<endl ;
+
     // Fill graph with rules that will compute target.
     //cout << "given passed to fill graph = " << given << endl ;
     fill_graph(given,rule_graph,gr,given) ;
-
-
+    
     ruleSet scheduled_iteration_rules =
       extract_rules(gr.get_all_vertices()&iteration_set) ;
     ruleSet visited_iteration_rules ;
@@ -684,11 +686,16 @@ namespace Loci {
 #ifdef VERBOSE
     print_graph_from(given,gr) ;
 #endif
-
+    //cerr<<"vertices size before cleaning: "
+    //  <<gr.get_all_vertices().size()<<endl ;
+    
 #ifdef PRUNE_GRAPH
     clean_graph(given,target) ;
 #endif
 
+    //cerr<<"vertices size after cleaning: "
+    //  <<gr.get_all_vertices().size()<<endl ;
+    
     add_rename_dependencies(gr) ;
 
     gr.remove_dangling_vertices() ;
@@ -759,7 +766,6 @@ namespace Loci {
       debugout << "cleanout = " << extract_rules(cleanout) << endl ;
 #endif
 
-    
       variableSet touched_variables = given ;
       ruleSet working_rules = extract_rules(subset) ;
       for(ruleSet::const_iterator ri = working_rules.begin();
@@ -790,7 +796,6 @@ namespace Loci {
     
       cleanoutrules += extract_rules(cleanout2) ;
 
-    
       WARN(subset == EMPTY) ;
 #ifdef VERBOSE
       debugout << "cleaning out rules: " << endl ;
@@ -835,7 +840,6 @@ namespace Loci {
           
           }
 
-        
           if(unused_vars != EMPTY) {
 #ifdef VERBOSE
             debugout << "unused_vars = " << unused_vars << endl ;

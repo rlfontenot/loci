@@ -1,0 +1,836 @@
+#include <depend_graph.h>
+#include "dist_tools.h"
+#include <map>
+using std::map ;
+#include <vector>
+using std::vector ;
+#include <set>
+using std::set ;
+#include <string>
+using std::string ;
+#include <sstream>
+using std::ostringstream ;
+
+#include <iostream>
+using std::endl ;
+using std::cerr ;
+using std::cout ;
+
+namespace Loci {
+
+  namespace {
+    rule create_rule(variable sv, variable tv, string qualifier) {
+      ostringstream oss ;
+      oss << "source(" << sv << ')' ;
+      oss << ",target(" << tv << ')' ;
+      oss << ",qualifier(" << qualifier << ')' ;
+      string sig = oss.str() ;
+      rule r(sig) ;
+      return r ;
+    }
+    
+    rule create_rule(variableSet source, variableSet target,
+                     string qualifier) {
+      ostringstream oss ;
+      oss << "source(" << source << ')' ;
+      oss << ",target(" << target << ')' ;
+      oss << ",qualifier(" << qualifier << ")" ;
+      string sig = oss.str() ;
+      rule r(sig) ;
+      return r ;
+    }
+    
+    inline void invoke_rule(rule f, digraph &gr) {
+      gr.add_edges(f.sources(),f.ident()) ;
+      gr.add_edges(f.ident(),f.targets()) ;
+    }
+
+    void invoke_rule_wp(rule f, digraph &gr) {
+      variableSet targets = f.targets() ;
+      variableSet sources = f.sources() ;
+      invoke_rule(f,gr) ;
+      for(variableSet::const_iterator vi=targets.begin();
+          vi!=targets.end();
+          ++vi) {
+        if(vi->get_info().priority.size() != 0) {
+          variable v = *vi ;
+          variable vold = v ;
+          while(v.get_info().priority.size() != 0) {
+            v = v.drop_priority() ;
+            rule priority_rule = create_rule(vold,v,"priority") ;
+            invoke_rule(priority_rule,gr) ;
+            vold = v ;
+          }
+        }
+      }
+    }
+    
+    variableSet convert_stationary(const variableSet &v) {
+      variableSet result ;
+      variableSet::const_iterator vi ;
+      time_ident stationary_time ;
+      for(vi=v.begin();vi!=v.end();++vi) {
+        if(vi->time() != stationary_time)
+          result += variable(*vi,time_ident()) ;
+        else
+          result += *vi ;
+      }
+      return result ;
+    }
+
+    variableSet convert_time(const variableSet &v, time_ident t) {
+      variableSet result ;
+      variableSet::const_iterator vi ;
+      for(vi=v.begin();vi!=v.end();++vi) {
+        if(vi->time() != t)
+          result += variable(*vi,t) ;
+        else
+          result += *vi ;
+      }
+      return result ;
+    }
+    
+    inline bool time_before(time_ident t1, time_ident t2) {
+      return t1.before(t2) ;
+    }
+    
+    inline bool time_equal(time_ident t1, time_ident t2) {
+      return (!time_before(t1,t2) && !time_before(t2,t1)) ;
+    }
+    
+    inline bool time_after(time_ident t1, time_ident t2) {
+      return (!time_before(t1,t2) && !time_equal(t1,t2)) ;
+    }
+
+    // forward declaration
+    struct iteration_info ;
+    
+    struct iteration {
+      bool active ;
+      digraph iteration_graph ;
+      time_ident iteration_time ;
+      rule iteration_rule ;
+      ruleSet build, advance, collapse ;
+      variableSet changing_vars ; // variables that changing in this level
+      variableSet dont_promote ; // variables don't need to be promoted
+      variableSet requests ; // pass to the parent level
+      variableSet search_requests ; // used to start building the graph
+      void init(iteration_info&,const digraph&,const digraph&) ;
+      iteration() {active=false ;}
+    } ;
+
+    struct iteration_info {
+      map<time_ident,iteration> iteration_rules ;
+      map<rule,time_ident> iteration_time_ident ;
+      ruleSet iteration_set ;
+    } ;
+
+    // function that classifies all rules in the rule database
+    // all iteration related rules are put in an iteration_info
+    // object, all other rules are put in a ruleSet
+    void classify_ruledb(const ruleSet& all_rules,
+                         iteration_info& iter,
+                         ruleSet& working_rules) {
+      ruleSet::const_iterator ri ;
+      for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
+        const rule::rule_type rtype = ri->type() ;
+        if(rtype == rule::BUILD)
+          iter.iteration_rules[ri->target_time()].build += *ri ;
+        else if(rtype == rule::COLLAPSE) {
+            iter.iteration_rules[ri->source_time()].collapse += *ri ;
+        } else if(!ri->time_advance) {
+          working_rules += *ri ;
+        }
+        if(ri->time_advance) {
+          if(rtype != rule::COLLAPSE)
+            iter.iteration_rules[ri->target_time()].advance += *ri ;
+        }
+      }
+    }
+
+    // function that creates a representitive rule for
+    // each iteration, these representitives are also
+    // put into the working_rules set
+    void create_iteration_rep(iteration_info& iter,ruleSet& working_rules) {
+      map<time_ident,iteration>::iterator mi ;
+      for(mi=iter.iteration_rules.begin();mi!=iter.iteration_rules.end();
+          ++mi) {
+        // set up the time level for this iteration
+        mi->second.iteration_time = mi->first ;
+        ruleSet build = mi->second.build ;
+        ruleSet collapse = mi->second.collapse ;
+        variableSet sources, targets ;
+        // get the source and target variables for this loop
+        ruleSet::const_iterator ri ;
+        for(ri=build.begin();ri!=build.end();++ri)
+          sources += ri->sources() ;
+        for(ri=collapse.begin();ri!=collapse.end();++ri)
+          targets += ri->targets() ;
+        rule i_rule = create_rule(sources,targets,"iterating_rule") ;
+        
+        // set up the record ;
+        iter.iteration_time_ident[i_rule] = mi->first ;
+        mi->second.iteration_rule = i_rule ;
+        iter.iteration_set += i_rule ;
+        if(i_rule.get_info().time_advance) {
+          iter.iteration_rules[i_rule.target_time()].advance += i_rule ;
+        }
+        else {
+          working_rules += i_rule ;
+        }
+      }
+    }
+
+    // function that checks the validity of all the iterations
+    // return true if passed, false if failed
+    bool check_iteration(const iteration_info& iter) {
+      map<time_ident,iteration>::const_iterator mi ;
+      for(mi=iter.iteration_rules.begin();mi!=iter.iteration_rules.end();
+          ++mi) {
+        ruleSet build = mi->second.build ;
+        ruleSet collapse = mi->second.collapse ;
+        ruleSet advance = mi->second.advance ;
+        if(build == EMPTY) {
+          cerr << "Malformed iteration: " << mi->first
+               << ", no build rules exist." << endl ;
+          return false ;
+        }
+        if(advance == EMPTY) {
+          cerr << "Malformed iteration: " << mi->first
+               << ", no advance rules exist." << endl ;
+          return false ;
+        }
+        if(collapse == EMPTY) {
+          cerr << "Malformed iteration: " << mi->first
+               << ", no collapse rules exist." << endl ;
+          return false ;
+        }
+      }
+      // check passed
+      return true ;
+    }
+
+    // function prototype
+    variableSet create_graph(const digraph&,const digraph&,const variableSet&,
+                             iteration_info&,digraph&,time_ident) ;
+    
+    variableSet instantiate_iteration(time_ident,iteration_info&,
+                                      const digraph&,const digraph&) ;
+
+    // member function of struct iteration, which
+    // initialize necessary iteration information
+    void iteration::init(iteration_info& iter,
+                         const digraph& rule_graph,
+                         const digraph& rule_graph_transpose) {
+      active = true ;
+
+      // build generalize rules first
+      map<variable,intervalSet> build_offset ;
+      for(ruleSet::const_iterator ri=build.begin();
+          ri!=build.end();++ri) {
+        variableSet build_target = ri->targets() ;
+        for(variableSet::const_iterator vi=build_target.begin();
+            vi!=build_target.end();++vi) {
+          if(!vi->assign) {
+            cerr << "incorrect specification of build rule " << *ri
+                 << endl
+                 << "A correct build rule should have an assign in the target"
+                 << " variable.  For example, instead of " << *vi
+                 << " use " << vi->name << "{"<< vi->time_id<<"=0}"
+                 << endl ;
+          }
+          variable vt = vi->drop_assign() ;
+          variable vbase = vt.new_offset(0) ;
+          build_offset[vbase] += vi->offset ;
+          // add generalize rule
+          rule generalize_rule = create_rule(*vi,vt,"generalize") ;
+          invoke_rule(generalize_rule,iteration_graph) ;
+        }
+      }
+
+      variableSet iteration_input, iteration_output ;
+      for(map<variable,intervalSet>::iterator mvi=build_offset.begin();
+          mvi!=build_offset.end();++mvi) {
+        variable vbase = mvi->first ;
+        for(intervalSet::const_iterator ii=mvi->second.begin();
+            ii!=mvi->second.end();++ii) {
+          variable newv = vbase.new_offset(*ii) ;
+          
+          iteration_output += newv ;
+          changing_vars += newv ;
+        }
+        // this is the variable that rotates
+        variable newv = vbase.new_offset(mvi->second.Max()+1) ;
+
+        iteration_input += newv ;
+        changing_vars += newv ;
+      }
+      
+      // add an output variable
+      variable ov("OUTPUT") ;
+      variable output(ov,iteration_time) ;
+      iteration_input += output ;
+      iteration_output += output ;
+
+      // create the time variable
+      variable tvar(iteration_time) ;
+      iteration_output += tvar ;
+      changing_vars += tvar ;
+
+      // create a looping rule that hook up the iteration rule set
+      ostringstream oss ;
+      oss << "source(" << iteration_input << "),target("
+          << iteration_output << "),qualifier(looping)" ;
+      rule looping(oss.str()) ;
+
+      // invoke known rules first
+      // first the build rules
+      for(ruleSet::const_iterator ri=build.begin();
+          ri!=build.end();++ri) {
+        invoke_rule_wp(*ri,iteration_graph) ;
+      }
+      // then the collapse rules
+      variableSet collapse_inputs ;
+      for(ruleSet::const_iterator ri=collapse.begin();
+          ri!=collapse.end();++ri) {
+        collapse_inputs += ri->sources() ;
+        invoke_rule_wp(*ri,iteration_graph) ;
+      }
+      // finally the advance rules
+      // but they need to be treated specially
+      // because they themselves could be iterations
+      // therefore, we need to instantiate those iteration, if any
+      variableSet advance_inputs ;
+      for(ruleSet::const_iterator ri=advance.begin();
+          ri!=advance.end();++ri) {
+        changing_vars += ri->targets() ;
+
+        if( (ri->type() == rule::INTERNAL) &&
+            (ri->qualifier() == "iterating_rule")
+            ) {
+          // in this case, we must instantiate the iteration
+          // we first need to look for the iteration time
+          map<rule,time_ident>::const_iterator tp =
+            iter.iteration_time_ident.find(*ri) ;
+          if(tp==iter.iteration_time_ident.end()) {
+            cerr << "ERROR: iteration rule not seen before." << endl ;
+            exit(-1) ;
+          }
+          // instantiate it
+          variableSet iteration_requests =
+            instantiate_iteration(tp->second,iter,rule_graph,
+                                  rule_graph_transpose) ;
+          advance_inputs += iteration_requests ;
+        } else {
+          advance_inputs += ri->sources() ;
+          invoke_rule_wp(*ri,iteration_graph) ;
+        }
+      }
+      // finally invoke the looping rule
+      invoke_rule(looping,iteration_graph) ;
+
+      search_requests += collapse_inputs ;
+      search_requests += advance_inputs ;
+      search_requests += iteration_input ;
+      search_requests += iteration_output ;
+
+      // search for additional changing variables
+      variableSet add_changing ;
+      variableSet working_vars = changing_vars ;
+      // we don't need to add the OUTPUT variable
+      // in the searching set because it is not
+      // used to generate anything else.
+      working_vars -= output ;
+      // convert those necessary changing variables to
+      // stationary time to searching
+      working_vars += convert_stationary(changing_vars) ;
+      
+      variableSet visited_vars ;
+      ruleSet visited_rules ;
+      while(working_vars != EMPTY) {
+        visited_vars += working_vars ;
+        variableSet next ;
+        for(variableSet::const_iterator vi=working_vars.begin();
+            vi!=working_vars.end();++vi) {
+          ruleSet rules = extract_rules(rule_graph[vi->ident()]) ;
+          rules -= visited_rules ;
+          for(ruleSet::const_iterator ri=rules.begin();
+              ri!=rules.end();++ri) {
+            variableSet varsPLUStime =
+              convert_time(ri->targets(),iteration_time) ;
+            variableSet varsATstationary =
+              convert_stationary(ri->targets()) ;
+            
+            add_changing += varsPLUStime ;
+            
+            next += varsPLUStime ;
+            next += varsATstationary ;
+          }
+          visited_rules += rules ;
+        }
+        next -= visited_vars ;
+        working_vars = next ;
+      }
+      changing_vars += add_changing ;
+
+      // for the OUTPUT variable, we need
+      // to see if it is in the changing_vars
+      // set. If it is, that means rule promotions
+      // are allowed, otherwise
+      // it is actually not used in the iteration.
+      // we disable its promotion
+      if(!changing_vars.inSet(output)) {
+        dont_promote += output ;
+        search_requests -= output ;
+      }
+
+      requests += iteration_rule.sources() ;
+      // end of the function
+    }
+    
+    // function that instantiates an iteration,
+    // it actually builds the iteration graph.
+    // it returns the requests from this time level to
+    // its parent level
+    variableSet instantiate_iteration(time_ident tlevel,
+                                      iteration_info& iter,
+                                      const digraph& rule_graph,
+                                      const digraph& rule_graph_transpose) {
+      // first find out the iteration object
+      map<time_ident,iteration>::iterator ip =
+        iter.iteration_rules.find(tlevel) ;
+      if(ip==iter.iteration_rules.end()) {
+        cerr << "ERROR: iteration rule record does not exist"
+             << endl ;
+        exit(-1) ;
+      }
+      // initialize all the required variables in the object
+      iteration& io = ip->second ;
+      io.init(iter,rule_graph,rule_graph_transpose) ;
+      // then we build the graph
+      io.requests += 
+      create_graph(rule_graph,rule_graph_transpose,
+                   io.search_requests,iter,io.iteration_graph,
+                   tlevel) ;
+
+      return io.requests ;
+    }
+
+    // function that creates the whole dependency graph
+    // it is a recursive process. it instantiates necessary
+    // iterations on the fly (see more detail in the
+    // dependency graph documentation.).
+    // return requests from the passed
+    // in time level to its parent level
+    variableSet create_graph(const digraph& rule_graph,
+                             const digraph& rule_graph_transpose,
+                             const variableSet& search_requests,
+                             iteration_info& iter, digraph& gr,
+                             time_ident tlevel) {
+      // setting up useful variables
+      variableSet dont_promote, changing_vars ;
+      variableSet requests ;
+      if(tlevel != time_ident()) {
+        map<time_ident,iteration>::iterator ip =
+          iter.iteration_rules.find(tlevel) ;
+        if(ip==iter.iteration_rules.end()) {
+          cerr << "ERROR: iteration rule record does not exist"
+               << endl ;
+          exit(-1) ;
+        }
+        dont_promote = ip->second.dont_promote ;
+        changing_vars = ip->second.changing_vars ;
+      }
+      
+      variableSet visited_vars ;
+      ruleSet visited_rules ;
+      variableSet working_vars = search_requests ;
+      while(working_vars != EMPTY) {
+        visited_vars += working_vars ;
+        variableSet next ;
+        for(variableSet::const_iterator vi=working_vars.begin();
+            vi!=working_vars.end();++vi) {
+          ruleSet pre_rules ;
+          // if we see any parent level variable, we stop looking
+          // and we'll add this to the requests of this iteration
+          if(time_equal(vi->time(),tlevel)) {
+            pre_rules = extract_rules(rule_graph_transpose[vi->ident()]) ;
+          } else if(time_before(vi->time(),tlevel)) {
+            requests += *vi ;
+            continue ;
+          } else {
+            // this is an error if (vi->time() after tlevel)
+            cerr << "ERROR: variable time higher than iteration time."
+                 << "variable: " << *vi << " iteration time: "
+                 << tlevel << endl ;
+            exit(-1) ;
+          }
+          pre_rules -= visited_rules ;
+          for(ruleSet::const_iterator ri=pre_rules.begin();
+              ri!=pre_rules.end();++ri) {
+            if( (ri->type() == rule::INTERNAL) &&
+                (ri->qualifier() == "iterating_rule")
+                ) {
+              // we see an iterating_rule, we need to instantiate it
+              
+              // we first need to look for the iteration time
+              map<rule,time_ident>::const_iterator tp =
+                iter.iteration_time_ident.find(*ri) ;
+              if(tp==iter.iteration_time_ident.end()) {
+                cerr << "ERROR: iteration rule not seen before." << endl ;
+                exit(-1) ;
+              }
+              // instantiate it
+              variableSet iteration_requests =
+                instantiate_iteration(tp->second,iter,rule_graph,
+                                      rule_graph_transpose) ;
+              next += iteration_requests ;
+            } else {
+              invoke_rule_wp(*ri,gr) ;
+              next += extract_vars(rule_graph_transpose[ri->ident()]) ;
+            }
+          }
+          visited_rules += pre_rules ;
+          if(tlevel != time_ident()) {
+            // then we decide to do rule promotion or variable promotion
+            if(!dont_promote.inSet(*vi)) {
+              if(changing_vars.inSet(*vi)) {
+                // then we do rule promotions, if any
+                variable stationary_var(*vi,time_ident()) ;
+                ruleSet promote_rules =
+                  extract_rules
+                  (rule_graph_transpose[stationary_var.ident()]) ;
+                // take off any time specific and internal rules
+                ruleSet takeoff ;
+                for(ruleSet::const_iterator ri=promote_rules.begin();
+                    ri!=promote_rules.end();++ri) {
+                  if( (ri->type() == rule::TIME_SPECIFIC) ||
+                      ( (ri->type() == rule::INTERNAL) &&
+                        (ri->qualifier() == "iterating_rule"))
+                      )
+                    takeoff += *ri ;
+                }
+                promote_rules -= takeoff ;
+                for(ruleSet::const_iterator ri=promote_rules.begin();
+                    ri!=promote_rules.end();++ri) {
+                  rule pr(*ri,tlevel) ;
+                  if(!visited_rules.inSet(pr)) {
+                    visited_rules += pr ;
+                    invoke_rule(pr,gr) ;
+                    next += pr.sources() ;
+                  }
+                }
+              } else {
+                // we only do variable promotions
+                time_ident parent = tlevel.parent() ;
+                variable pv(*vi,parent) ;
+                invoke_rule(create_rule(pv,*vi,"promote"),gr) ;
+                requests += pv ;
+              }
+            } // end of if(!dont_promote.inSet)
+          } // end of if(tlevel != time_ident())
+        }
+        next -= visited_vars ;
+        working_vars = next ;
+      }
+
+      return requests ;
+    }
+    
+    // function that adds dependency to rename rules
+    void add_rename_dependencies(digraph &gr) {
+      variableSet all_vars = extract_vars(gr.get_all_vertices()) ;
+      ruleSet     all_rules = extract_rules(gr.get_all_vertices()) ;
+      
+      // extract the qualified rules, these are rules that are
+      // automatically generated by the system.  Since these rules
+      // cannot provide type information directly, they are
+      // singled out so that they can be handled as a separate case.
+      ruleSet qualified_rules,rename_rules ;
+      for(ruleSet::const_iterator ri=all_rules.begin();
+          ri!=all_rules.end();
+          ++ri) {
+        if(ri->type() == rule::INTERNAL)
+          qualified_rules += *ri ;
+        set<vmap_info>::const_iterator vmsi ;
+        for(vmsi=ri->get_info().desc.targets.begin();
+            vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
+          if(vmsi->assign.size() != 0) 
+            rename_rules += *ri ;
+      }
+      // We need the transpose of the graph in order to find the rules that
+      // generate a particular variable
+      
+      ruleSet check_rules = all_rules ;
+      check_rules -= qualified_rules ;
+      for(ruleSet::const_iterator ri=check_rules.begin();
+          ri != check_rules.end();
+          ++ri) {
+        set<vmap_info>::const_iterator vmsi ;
+        for(vmsi=ri->get_info().desc.targets.begin();
+            vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
+          if(vmsi->assign.size() != 0) 
+            for(size_t i=0;i<vmsi->assign.size();++i) {
+              variable orig_name = vmsi->assign[i].second ;
+              //              digraph grt = gr.transpose() ;
+              ruleSet depend_rules = extract_rules(gr[orig_name.ident()]) ;
+              depend_rules -= rename_rules ;
+              // We ignore renaming dependencies in collapse rules, however
+              // in reality we may need to follow the dependencies back to
+              // the build rules.  However, since we know that the collapse
+              // must follow the build, there is no need to add the rename
+              // dependencies to collapse rules.
+              if(depend_rules.size() != 0 && ri->type() != rule::COLLAPSE) {
+                gr.add_edges(depend_rules,ri->ident()) ;
+              }
+            }
+      }
+      
+    }
+    
+    // function that clean the dependency graph at last
+    void dependency_graph2::clean_graph(const variableSet& given,
+                                        const variableSet& target) {
+      // testing...
+      //given -= variable("EMPTY") ;
+
+      ruleSet all_cleaned_rules ;
+      bool cleaned_rules = false ;
+      do { // Keep cleaning until nothing left to clean!
+        
+        // Remove unnecessary vertices from graph.
+        int virtual_vertex = gr.max_vertex() + 1 ;
+        digraph::vertexSet allvertices = gr.get_all_vertices() ;
+        variableSet allvars = extract_vars(allvertices) ;
+        
+        //  target += variable(expression::create("OUTPUT")) ;
+        
+        gr.add_edges(virtual_vertex, given) ;
+        gr.add_edges(target,virtual_vertex) ;
+        
+        const vector<digraph::vertexSet> components =
+          component_sort(gr).get_components() ;
+        
+        digraph::vertexSet subset = EMPTY ;
+        
+        for(size_t i=0;i<components.size();++i)
+          if(components[i].inSet(virtual_vertex)) {
+            subset = components[i] ;
+            break ;
+          }
+        
+        subset -= virtual_vertex ;
+        ruleSet rules = extract_rules(subset) ;
+        ruleSet::const_iterator fi ;
+        for(fi=rules.begin();fi!=rules.end();++fi)
+          subset += fi->targets() ;
+
+#ifdef VERBOSE
+        // some debugout info
+        ruleSet rulesNOTinComponent =
+          ruleSet(extract_rules(gr.get_all_vertices()) - rules) ;
+        debugout << "The following rules are cleaned out because they"
+                 << " are not in the targets->sources component: {{{{{"
+                 << endl ;
+        debugout << rulesNOTinComponent ;
+        debugout << "}}}}}" << endl << endl ;
+#endif
+        
+        // Check for looping rules here, don't clean looping rule if it is
+        // in the subset.
+        digraph grt = gr.transpose() ;
+        digraph::vertexSet  cleanout ;
+        for(fi=rules.begin();fi!=rules.end();++fi) {
+          if(fi->get_info().qualifier() != "looping")
+            if((subset & fi->sources()) != fi->sources()) {
+#ifdef VERBOSE
+              debugout << "cleanout " << *fi << endl ;
+              debugout << "because of variables "
+                       << extract_vars(fi->sources()-subset)
+                       << endl ;
+#endif
+              cleanout += fi->ident() ;
+            }
+        }
+
+        ruleSet cleanoutrules = extract_rules(cleanout) ;
+        subset -= cleanout ;
+        
+        variableSet touched_variables = given ;
+        ruleSet working_rules = extract_rules(subset) ;
+        for(ruleSet::const_iterator ri = working_rules.begin();
+            ri!=working_rules.end();
+            ++ri) {
+          touched_variables += ri->targets() ;
+        }
+        
+        ruleSet looping_rules ;
+        
+        digraph::vertexSet cleanout2 ;
+        for(ruleSet::const_iterator ri = working_rules.begin();
+            ri!=working_rules.end();
+            ++ri) {
+          if(ri->get_info().qualifier() != "looping") {
+            if((ri->sources() - touched_variables)!=EMPTY) {
+              cleanout2 += ri->ident() ;
+#ifdef VERBOSE
+              debugout << "cleanout " << *ri << endl ;
+              debugout << "because of variables "
+                       << extract_vars(ri->sources()-touched_variables)
+                       << endl ;
+#endif
+            }
+          } else
+            looping_rules += *ri ;
+        }
+
+        subset -= cleanout2 ;
+        
+        cleanoutrules += extract_rules(cleanout2) ;
+        
+        WARN(subset == EMPTY) ;
+
+        gr = gr.subgraph(subset) ;
+        
+        if(looping_rules != EMPTY) {
+          digraph grt = gr.transpose() ;
+          for(ruleSet::const_iterator ri = looping_rules.begin();
+              ri!=looping_rules.end();
+              ++ri) {
+            variableSet sources = ri->sources() ;
+            variableSet::const_iterator vi ;
+            variableSet unused_vars ;
+            for(vi=sources.begin();vi!=sources.end();++vi) {
+              ruleSet rs = extract_rules(grt.get_edges(vi->ident())) ;
+              if(rs == EMPTY) {
+                unused_vars += *vi ;
+              }
+            }
+            variableSet targets = ri->targets() ;
+            for(vi=targets.begin();vi!=targets.end();++vi) {
+              ruleSet rs = extract_rules(gr.get_edges(vi->ident())) ;
+              if(rs == EMPTY) {
+                unused_vars += *vi ;
+              }
+            }
+            variableSet shared_vars = variableSet(sources & targets) ;
+            unused_vars -= shared_vars ;
+            variableSet newtargets = variableSet(targets-unused_vars) ;
+            variableSet newsources = variableSet(sources-unused_vars) ;
+            for(vi=newtargets.begin();vi!=newtargets.end();++vi) {
+              variable tvar = *vi ;
+              if(tvar.get_info().name != "OUTPUT" && !tvar.get_info().tvar) {
+                // If a variable isn't being advanced in time, then
+                // it has no buisness in the time loop 
+                while(newtargets.inSet(tvar)) {
+                  tvar = tvar.new_offset(tvar.get_info().offset + 1) ;
+                }
+                if(!newsources.inSet(tvar)) {
+                  unused_vars += *vi ;
+                }
+              }
+              
+            }
+            
+            if(unused_vars != EMPTY) {
+              variableSet looping_input = variableSet(sources-unused_vars) ;
+              variableSet looping_output = variableSet(targets-unused_vars) ;
+              ostringstream oss ;
+              oss << "source("<< looping_input
+                  << "),target(" << looping_output
+                  << "),qualifier(looping)" ;
+              rule floop(oss.str()) ;
+              
+              invoke_rule(floop,gr) ;
+              gr.remove_vertex(ri->ident()) ;
+#ifdef VERBOSE
+              debugout << "restructure iteration: " << floop << endl ;
+              debugout << "originally was: " << *ri << endl ;
+#endif
+            }
+          }
+        }
+
+        gr.remove_dangling_vertices() ;
+
+        all_cleaned_rules += cleanoutrules ;
+        cleaned_rules = (cleanoutrules != EMPTY) ;
+
+      } while (cleaned_rules) ;
+    }
+    
+  } // end of unnamed namespace
+
+  dependency_graph2::dependency_graph2(const rule_db& rdb,
+                                       const variableSet& given,
+                                       const variableSet& target) {
+    // at first, we get all the rules in the rule database
+    ruleSet all_rules = rdb.all_rules() ;
+    // then we classify all the iterations in the rule database,
+    // while also pick out non iteration rules
+    // all the iteration information is stored in an
+    // iteration_info object, other rules are in working_rules
+    iteration_info iter ;
+    ruleSet working_rules ;
+    // then we call the function to classify rules
+    classify_ruledb(all_rules,iter,working_rules) ;
+    // next, we create a representitive rule for
+    // each iteration
+    create_iteration_rep(iter,working_rules) ;
+    // followed, we will need to check the iteration rules 
+    // if check failed, we just return an empty graph
+    if(!check_iteration(iter))
+      return ; // because gr is empty now
+
+    // then we build a digraph that has all the working
+    // rules (stationary rules + time specific rules +
+    // iterating rules) inside
+    digraph rule_graph ;
+    for(ruleSet::const_iterator ri = working_rules.begin();
+        ri != working_rules.end();
+        ++ri) {
+      invoke_rule_wp(*ri,rule_graph) ;
+    }
+    //cerr<<"rule_graph size: "<<rule_graph.get_all_vertices().size()<<endl ;
+    // Some checkings to the graph
+    {
+      variableSet rg_allvars = extract_vars(rule_graph.get_all_vertices()) ;
+      variableSet target_diff = variableSet(target-rg_allvars) ;
+      if(target_diff != EMPTY) {
+        cerr << "ERROR: insufficient rule database, "
+             << " not all requested targets can be computed." << endl ;
+        cerr << "\tVariable(s): " << target_diff
+             << " cannot be inferred from the given rule database."
+             << endl ;
+        // gr is still empty, we return an empty graph
+        // which means the query is not satisfied
+        return ;
+      }
+    }
+    // we are now ready to build the graph
+    digraph rule_graph_transpose = rule_graph.transpose() ;
+    create_graph(rule_graph,rule_graph_transpose,
+                 target,iter,gr,time_ident()) ;
+
+    // we now add these built iteration graphs
+    for(map<time_ident,iteration>::iterator ip=iter.iteration_rules.begin();
+        ip!=iter.iteration_rules.end();++ip)
+      if(ip->second.active) {
+        gr.add_graph(ip->second.iteration_graph) ;
+      }
+
+    //cerr<<"vertices size before cleaning: "
+    //  <<gr.get_all_vertices().size()<<endl ;
+
+    clean_graph(given,target) ;
+
+    //cerr<<"vertices size after cleaning: "
+    //  <<gr.get_all_vertices().size()<<endl ;
+
+    add_rename_dependencies(gr) ;
+    
+    gr.remove_dangling_vertices() ;
+    
+  }
+
+}// End namespace Loci
