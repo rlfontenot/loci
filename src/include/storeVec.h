@@ -1,5 +1,5 @@
 #ifndef STOREVEC_H
-#define STOREVEC_H 1
+#define STOREVEC_H 
 
 #include <Config/conf.h>
 
@@ -12,6 +12,8 @@
 #include <hdf5CC/H5cpp.h>
 
 #include <Map.h>
+using std::pair ;
+using std::make_pair ;
 
 namespace Loci {
   template <class T> struct Scalar {
@@ -936,7 +938,6 @@ namespace Loci {
     storeVec<T> s ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-      
     s.Rep()->scatter(m,my_store,newdomain) ;
     return s.Rep() ;
   }
@@ -1129,6 +1130,7 @@ namespace Loci {
     multiStoreRepI(const store<int> &sizes) {
       index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
     void allocate(const store<int> &sizes) ;
+    void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr) ;
     void setSizes(const const_multiMap &mm) ;
     virtual ~multiStoreRepI() ;
     virtual void allocate(const entitySet &ptn) ;
@@ -1154,170 +1156,6 @@ namespace Loci {
     const T *end(int indx) const { return base_ptr[indx+1] ; }
   } ;
 
-  template<class T> void multiStoreRepI<T>::allocate(const store<int> &sizes) {
-    int sz = 0 ;
-    entitySet ptn = sizes.domain() ;
-    store_domain = ptn ;
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    if(index) delete[] index ;
-    index = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int len = ptn.Max() - top + 2 ;
-      index = new T *[len] ;
-      base_ptr = index - top ;
-      FORALL(ptn,i) {
-        sz += sizes[i] ;
-      } ENDFORALL ;
-      alloc_pointer = new T[sz+1] ;
-      sz = 0 ;
-      for(int ivl=0;ivl<ptn.num_intervals();++ivl) {
-        int i = ptn[ivl].first ;
-        base_ptr[i] = alloc_pointer + sz ;
-        while(i<=ptn[ivl].second) {
-          sz += sizes[i] ;
-          ++i ;
-          base_ptr[i] = alloc_pointer + sz ;
-        }
-      }
-    }
-    dispatch_notify();
-  }
-
-  template<class T> void multiStoreRepI<T>::setSizes(const const_multiMap &mm){
-    //    bmutex l(mutex) ;
-    mutex.lock() ;
-    if(alloc_pointer != 0) {
-      entitySet map_set = mm.domain() & store_domain ;
-      entitySet problem ;
-      FORALL(map_set,i) {
-        if((end(i)-begin(i))>(mm.end(i)-mm.begin(i)))
-          problem += i ;
-      } ENDFORALL ;
-
-      if(problem != EMPTY) {
-        std::cerr << "reallocation of multiStore required for entities"
-                  << problem << endl
-                  << "Currently this reallocation isn't implemented."
-                  << endl ;
-      }
-    } else {
-      store<int> sizes ;
-      sizes.allocate(store_domain) ;
-      FORALL(store_domain,i) {
-        sizes[i] = 0 ;
-      } ENDFORALL ;
-      entitySet map_set = mm.domain() & store_domain ;
-      FORALL(map_set,i) {
-        sizes[i] = (mm.end(i) - mm.begin(i)) ;
-      } ENDFORALL ;
-      allocate(sizes) ;
-    }
-    mutex.unlock() ;
-  }
-  
-  template<class T> void multiStoreRepI<T>::allocate(const entitySet &ptn) {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
-    alloc_pointer = 0 ;
-    index = 0 ;
-    base_ptr = 0 ;
-    store_domain = ptn ;
-    dispatch_notify() ;
-  }
-
-  template<class T> multiStoreRepI<T>::~multiStoreRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
-  }
-
-  template<class T> storeRep *multiStoreRepI<T>::new_store(const entitySet &p)
-    const {
-    return new multiStoreRepI<T>(p) ;
-  }
-
-  template<class T> storeRepP multiStoreRepI<T>::remap(const Map &m) const {
-    warn(true) ;
-    cerr << "remap not implemented" << endl ;
-    return storeRepP(new multiStoreRepI<T>()) ;
-  }
-  template<class T> void multiStoreRepI<T>::copy(storeRepP &st,
-                                                 const entitySet &context) {
-    warn(true) ;
-  }
-  template<class T> void multiStoreRepI<T>::gather(const Map &m, storeRepP &st,
-                                                  const entitySet &context) {
-    warn(true) ;
-  }
-  template<class T> void multiStoreRepI<T>::scatter(const Map &m, storeRepP &st,
-                                                  const entitySet &context) {
-    warn(true) ;
-  }
-  
-  template<class T> store_type multiStoreRepI<T>::RepType() const {
-    return STORE ;
-  }
-
-  template<class T> const entitySet &multiStoreRepI<T>::domain() const {
-    return store_domain ;
-  }
-
-  template<class T> std::ostream &multiStoreRepI<T>::Print(std::ostream &s)
-    const {
-    s << '{' << domain() << endl ;
-    FORALL(domain(),ii) {
-      s << end(ii)-begin(ii) << std::endl ;
-    } ENDFORALL ;
-    FORALL(domain(),ii) {
-      for(const T *ip = begin(ii);ip!=end(ii);++ip)
-        s << *ip << ' ' ;
-      s << std::endl ;
-    } ENDFORALL ;
-    s << '}' << std::endl ;
-    return s ;
-  }
-
-  template<class T> std::istream &multiStoreRepI<T>::Input(std::istream &s) {
-    entitySet e ;
-    char ch ;
-    
-    do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    if(ch != '{') {
-      std::cerr << "Incorrect Format while reading store" << std::endl ;
-      s.putback(ch) ;
-      return s ;
-    }
-    s >> e ;
-    store<int> sizes ;
-    sizes.allocate(e) ;
-    FORALL(e,ii) {
-      s >> sizes[ii] ;
-    } ENDFORALL ;
-
-    allocate(sizes) ;
-        
-    FORALL(e,ii) {
-      for(T *ip = begin(ii);ip!=end(ii);++ip)
-        s >> *ip  ;
-    } ENDFORALL ;
-            
-    do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    if(ch != '}') {
-      std::cerr << "Incorrect Format while reading store" << std::endl ;
-      s.putback(ch) ;
-    }
-    return s ;
-  }
-
-  template<class T> void multiStoreRepI<T>::readhdf5( H5::Group group) {
-    std::cerr << "readhdf5 not implemented" << std::endl ;
-  }
-
-  template<class T> void multiStoreRepI<T>::writehdf5(H5::Group group,
-                                                      entitySet &en) const {
-    std::cerr << "writehdf5 not implemented" << std::endl ;
-  }
   
   template<class T> class multiStore : public store_instance {
     typedef multiStoreRepI<T> storeType ;
@@ -1423,6 +1261,9 @@ namespace Loci {
 #endif 
       return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
 
+    const T *begin(int indx) const  { return base_ptr[indx] ; }
+    const T *end(int indx) const { return base_ptr[indx+1] ; }
+
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
 
@@ -1439,6 +1280,307 @@ namespace Loci {
     if(p != 0)
       base_ptr = p->get_base_ptr() ;
     warn(p == 0) ;
+  }
+
+  template<class T> void multiStoreRepI<T>::allocate(const store<int> &sizes) {
+    int sz = 0 ;
+    entitySet ptn = sizes.domain() ;
+    store_domain = ptn ;
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = 0 ;
+    if(index) delete[] index ;
+    index = 0 ;
+    if(ptn != EMPTY) {
+      int top = ptn.Min() ;
+      int len = ptn.Max() - top + 2 ;
+      index = new T *[len] ;
+      base_ptr = index - top ;
+      FORALL(ptn,i) {
+        sz += sizes[i] ;
+      } ENDFORALL ;
+      alloc_pointer = new T[sz+1] ;
+      sz = 0 ;
+      for(int ivl=0;ivl<ptn.num_intervals();++ivl) {
+        int i = ptn[ivl].first ;
+        base_ptr[i] = alloc_pointer + sz ;
+        while(i<=ptn[ivl].second) {
+          sz += sizes[i] ;
+          ++i ;
+          base_ptr[i] = alloc_pointer + sz ;
+        }
+      }
+    }
+    dispatch_notify();
+  }
+
+  
+  template<class T> void multiStoreRepI<T>::multialloc(const store<int> &count, T ***index, 
+						       T **alloc_pointer, T ***base_ptr ) {
+    entitySet ptn = count.domain() ;
+    int top = ptn.Min() ;
+    int len = ptn.Max() - top + 2 ;
+    T **new_index = new T *[len] ;
+    T **new_base_ptr = new_index - top ;
+    int sz = 0 ;
+    FORALL(ptn, i) {
+      sz += count[i] ;
+    } ENDFORALL ;
+    T *new_alloc_pointer = new T[sz + 1] ;
+    sz = 0 ;
+    for(int ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
+      int i = ptn[ivl].first ;
+      new_base_ptr[i] = new_alloc_pointer + sz ;
+      while(i <= ptn[ivl].second) {
+	sz += count[i] ;
+	++i ;
+	new_base_ptr[i] = new_alloc_pointer + sz ;
+      }
+    }
+    
+    *index = new_index ;
+    *alloc_pointer = new_alloc_pointer ;
+    *base_ptr = new_base_ptr ;
+    
+  }
+   
+  template<class T> void multiStoreRepI<T>::setSizes(const const_multiMap &mm){
+    //    bmutex l(mutex) ;
+    mutex.lock() ;
+    if(alloc_pointer != 0) {
+      entitySet map_set = mm.domain() & store_domain ;
+      entitySet problem ;
+      FORALL(map_set,i) {
+        if((end(i)-begin(i))>(mm.end(i)-mm.begin(i)))
+          problem += i ;
+      } ENDFORALL ;
+
+      if(problem != EMPTY) {
+        std::cerr << "reallocation of multiStore required for entities"
+                  << problem << endl
+                  << "Currently this reallocation isn't implemented."
+                  << endl ;
+      }
+    } else {
+      store<int> sizes ;
+      sizes.allocate(store_domain) ;
+      FORALL(store_domain,i) {
+        sizes[i] = 0 ;
+      } ENDFORALL ;
+      entitySet map_set = mm.domain() & store_domain ;
+      FORALL(map_set,i) {
+        sizes[i] = (mm.end(i) - mm.begin(i)) ;
+      } ENDFORALL ;
+      allocate(sizes) ;
+    }
+    mutex.unlock() ;
+  }
+  
+  template<class T> void multiStoreRepI<T>::allocate(const entitySet &ptn) {
+    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) delete[] index ;
+    alloc_pointer = 0 ;
+    index = 0 ;
+    base_ptr = 0 ;
+    store_domain = ptn ;
+    store<int> count ;
+    count.allocate(ptn) ;
+    FORALL(ptn,i) {
+      count[i] = 0 ;
+    } ENDFORALL ;
+    allocate(count) ;
+    dispatch_notify() ;
+  }
+
+  template<class T> multiStoreRepI<T>::~multiStoreRepI() {
+    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) delete[] index ;
+  }
+
+  template<class T> storeRep *multiStoreRepI<T>::new_store(const entitySet &p)
+    const {
+    return new multiStoreRepI<T>(p) ;
+  }
+
+  template<class T> storeRepP multiStoreRepI<T>::remap(const Map &m) const {
+    entitySet newdomain = m.domain() & domain() ;
+    entitySet mapimage = m.image(newdomain) ;
+    multiStore<T> s ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+    s.Rep()->scatter(m,my_store,newdomain) ;
+    return s.Rep() ;
+  }
+  
+  template<class T> void multiStoreRepI<T>::copy(storeRepP &st,
+                                                 const entitySet &context) {
+    const_multiStore<T> s(st) ;
+    fatal(alloc_pointer == 0) ;
+    fatal((context - domain()) != EMPTY) ;
+    fatal((context - s.domain() ) != EMPTY) ;
+    store<int> count ;
+    count.allocate(domain()) ;
+    FORALL(domain() - context, i) {
+      count[i] = base_ptr[i+1] - base_ptr[i] ;
+    } ENDFORALL ;
+    FORALL(context, i) {
+      count[i] = s.end(i) - s.begin(i) ;
+    } ENDFORALL ;
+    
+    T **new_index ;
+    T *new_alloc_pointer ;
+    T **new_base_ptr ;
+    
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    FORALL(domain()-context,i) {
+      for(int j=0;j<count[i];++j) 
+        new_base_ptr[i][j] = base_ptr[i][j] ;
+    } ENDFORALL ;
+    
+    FORALL(context,i) {
+      for(int j=0;j<count[i];++j)
+        new_base_ptr[i][j] = s[i][j] ;
+    } ENDFORALL ;
+    
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = new_alloc_pointer;
+    if(index) delete[] index ;
+    index = new_index ;
+    base_ptr = new_base_ptr ;
+    dispatch_notify() ;
+  }
+  
+  template<class T> void multiStoreRepI<T>::gather(const Map &m, storeRepP &st,
+                                                  const entitySet &context) {
+    store<int> count ;
+    const_multiStore<T> s(st) ;
+    count.allocate(domain()) ;
+    FORALL(domain()-context,i) {
+      count[i] = base_ptr[i+1]-base_ptr[i] ;
+    } ENDFORALL ;
+    FORALL(context,i) {
+      count[i] = s.end(m[i])-s.begin(m[i]) ;
+    } ENDFORALL ;
+    T **new_index ;
+    T *new_alloc_pointer ;
+    T **new_base_ptr ;
+
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    FORALL(domain()-context,i) {
+      for(int j = 0; j < count[i]; ++j) 
+        new_base_ptr[i][j] = base_ptr[i][j] ;
+    } ENDFORALL ;
+
+    FORALL(context,i) {
+      for(int j = 0; j < count[i]; ++j)
+        new_base_ptr[i][j] = s[m[i]][j] ;
+    } ENDFORALL ;
+
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = new_alloc_pointer;
+    if(index) delete[] index ;
+    index = new_index ;
+    base_ptr = new_base_ptr ;
+    dispatch_notify() ;
+    
+  }
+  template<class T> void multiStoreRepI<T>::scatter(const Map &m, storeRepP &st,
+                                                  const entitySet &context) {
+    
+    store<int> count ;
+    const_multiStore<T> s(st) ;
+    count.allocate(domain()) ;
+    FORALL(domain()-m.image(context),i) {
+      count[i] = base_ptr[i+1]-base_ptr[i] ;
+    } ENDFORALL ;
+    FORALL(context,i) {
+      count[m[i]] = s.end(i)-s.begin(i) ;
+    } ENDFORALL ;
+    T **new_index ;
+    T *new_alloc_pointer ;
+    T **new_base_ptr ;
+
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    FORALL(domain()-m.image(context),i) {
+      for(int j=0;j<count[i];++j) 
+        new_base_ptr[i][j] = base_ptr[i][j] ;
+    } ENDFORALL ;
+
+    FORALL(context,i) {
+      for(int j=0;j<count[m[i]];++j) {
+        new_base_ptr[m[i]][j] = s[i][j] ;
+      }
+    } ENDFORALL ;
+
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = new_alloc_pointer;
+    if(index) delete[] index ;
+    index = new_index ;
+    base_ptr = new_base_ptr ;
+    dispatch_notify() ;
+  }
+  
+  template<class T> store_type multiStoreRepI<T>::RepType() const {
+    return STORE ;
+  }
+
+  template<class T> const entitySet &multiStoreRepI<T>::domain() const {
+    return store_domain ;
+  }
+
+  template<class T> std::ostream &multiStoreRepI<T>::Print(std::ostream &s)
+    const {
+    s << '{' << domain() << endl ;
+    FORALL(domain(),ii) {
+      s << end(ii)-begin(ii) << std::endl ;
+    } ENDFORALL ;
+    FORALL(domain(),ii) {
+      for(const T *ip = begin(ii);ip!=end(ii);++ip)
+        s << *ip << ' ' ;
+      s << std::endl ;
+    } ENDFORALL ;
+    s << '}' << std::endl ;
+    return s ;
+  }
+
+  template<class T> std::istream &multiStoreRepI<T>::Input(std::istream &s) {
+    entitySet e ;
+    char ch ;
+    
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '{') {
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> e ;
+    store<int> sizes ;
+    sizes.allocate(e) ;
+    FORALL(e,ii) {
+      s >> sizes[ii] ;
+    } ENDFORALL ;
+
+    allocate(sizes) ;
+        
+    FORALL(e,ii) {
+      for(T *ip = begin(ii);ip!=end(ii);++ip)
+        s >> *ip  ;
+    } ENDFORALL ;
+            
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '}') {
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
+      s.putback(ch) ;
+    }
+    return s ;
+  }
+
+  template<class T> void multiStoreRepI<T>::readhdf5( H5::Group group) {
+    std::cerr << "readhdf5 not implemented" << std::endl ;
+  }
+
+  template<class T> void multiStoreRepI<T>::writehdf5(H5::Group group,
+                                                      entitySet &en) const {
+    std::cerr << "writehdf5 not implemented" << std::endl ;
   }
   
 }
