@@ -16,6 +16,7 @@ namespace Loci {
     "candela",Luminous_intensity,1,
     "radians", Angle,1,
     "none", NoDim,1,
+    0
   };
   UNIT_type::basic_units UNIT_type::cgs_basic_unit_table[]={
     "centimeter",Length,1,
@@ -27,6 +28,7 @@ namespace Loci {
     "candela",Luminous_intensity,1,
     "radians", Angle,1,
     "none", NoDim,1,
+    0
     };
 
   UNIT_type::composite_units UNIT_type::composite_unit_table[]={
@@ -80,7 +82,8 @@ namespace Loci {
     "watt","kilogram*meter/second/second*meter/second",1,
     "W","kilogram*meter/second/second*meter/second",1,
     "pascal","kilogram*meter/second/second/meter/meter",1,
-    "Pa","kilogram*meter/second/second/meter/meter",1
+    "Pa","kilogram*meter/second/second/meter/meter",1,
+    0,0,0
   };
 
   UNIT_type::reference_units UNIT_type::reference_unit_table[]={
@@ -203,7 +206,8 @@ namespace Loci {
     "atm","pascal",101325,
     "bar","pascal",100000,
     "kPa","pascal",1000,
-    "Btu","joule",1055.87
+    "Btu","joule",1055.87,
+    0,0,0
   };
 
   UNIT_type::composite_units UNIT_type::cgs_composite_unit_table[]={
@@ -251,7 +255,8 @@ namespace Loci {
     "watt","gram*centimeter/second/second*centimeter/second",100000,
     "W","gram*centimeter/second/second*centimeter/second",100000,
     "pascal","gram*centimeter/second/second/centimeter/centimeter",10000,
-    "Pa","gram*centimeter/second/second/centimeter/centimeter",10000
+    "Pa","gram*centimeter/second/second/centimeter/centimeter",10000,
+    0,0,0
   };
   
   UNIT_type::default_units UNIT_type::default_unit_table[]={
@@ -292,32 +297,12 @@ namespace Loci {
     "pressure","Pa",
     "Pressure","Pa",
     "heat","J",
-    "Heat","J"
+    "Heat","J",
+    0
   };
 
-  namespace { // size of tables of units
-    const int basic_unit_size = sizeof(UNIT_type::basic_unit_table)/
-      sizeof(UNIT_type::basic_units);
- 
-    const int composite_unit_size = sizeof(UNIT_type::composite_unit_table)/
-      sizeof(UNIT_type::composite_units);
-
-    const int cgs_basic_unit_size = sizeof(UNIT_type::cgs_basic_unit_table)/
-      sizeof(UNIT_type::basic_units);
- 
-    const int cgs_composite_unit_size = sizeof(UNIT_type::cgs_composite_unit_table)/sizeof(UNIT_type::composite_units);
-
-    const int reference_unit_size = sizeof(UNIT_type::reference_unit_table)/
-      sizeof(UNIT_type::reference_units);
-
-    const int default_unit_size = sizeof(UNIT_type::default_unit_table)/
-      sizeof(UNIT_type::default_units);
-
-  } 
-
-
   bool UNIT_type::is_reference_unit(string str){
-    for(int i=0;i<reference_unit_size;++i){
+    for(int i=0;reference_unit_table[i].name!=0;++i){
       if(reference_unit_table[i].name==str)
 	return true;
     }
@@ -325,7 +310,7 @@ namespace Loci {
   }
 
   int UNIT_type::where_reference_unit(string str){
-    for(int i=0;i<reference_unit_size;++i){
+    for(int i=0;reference_unit_table[i].name != 0;++i){
       if(reference_unit_table[i].name==str)
 	return i;
     }
@@ -334,13 +319,13 @@ namespace Loci {
 
   bool UNIT_type::is_composite_unit(string str){
     if(mode==MKS){
-      for(int i=0;i<composite_unit_size;++i){
+      for(int i=0;composite_unit_table[i].name!=0;++i){
 	if(composite_unit_table[i].name==str)
 	  return true;
       }
     }
     else if(mode==CGS){
-      for(int i=0;i<cgs_composite_unit_size;++i){
+      for(int i=0;cgs_composite_unit_table[i].name!=0;++i){
 	if(cgs_composite_unit_table[i].name==str)
 	  return true;
       }
@@ -352,13 +337,13 @@ namespace Loci {
 
   int UNIT_type::where_composite_unit(string str){
     if(mode==MKS){
-      for(int i=0;i<composite_unit_size;++i){
+      for(int i=0;composite_unit_table[i].name!=0;++i){
 	if(composite_unit_table[i].name==str)
 	  return i;
       }
     }
     else if(mode==CGS){
-      for(int i=0;i<cgs_composite_unit_size;++i){
+      for(int i=0;cgs_composite_unit_table[i].name != 0;++i){
 	if(cgs_composite_unit_table[i].name==str)
 	  return i;
       }
@@ -370,13 +355,13 @@ namespace Loci {
 
   bool UNIT_type::is_basic_unit(string str){
     if(mode==MKS){
-      for(int i=0;i<basic_unit_size;++i){
+      for(int i=0;basic_unit_table[i].name != 0;++i){
 	if(basic_unit_table[i].name==str)
 	  return true;
       }
     }
     else if(mode==CGS){
-      for(int i=0;i<cgs_basic_unit_size;++i){
+      for(int i=0;cgs_basic_unit_table[i].name != 0;++i){
 	if(cgs_basic_unit_table[i].name==str)
 	  return true;
       }
@@ -388,13 +373,13 @@ namespace Loci {
 
   int UNIT_type::where_basic_unit(string str){
     if(mode==MKS){
-      for(int i=0;i<basic_unit_size;++i){
+      for(int i=0;basic_unit_table[i].name!=0;++i){
 	if(basic_unit_table[i].name==str)
 	  return i;
       }
     }
     else if(mode==CGS){
-      for(int i=0;i<cgs_basic_unit_size;++i){
+      for(int i=0;cgs_basic_unit_table[i].name!=0;++i){
 	if(cgs_basic_unit_table[i].name==str)
 	  return i;
       }
@@ -709,15 +694,15 @@ namespace Loci {
 
   //------unit check---------//
   bool UNIT_type::is_in_db(const std::string &str){
-    for(int i=0;i!=basic_unit_size;i++){
+    for(int i=0;basic_unit_table[i].name!=0;i++){
       if(str==basic_unit_table[i].name)
 	return true;
     }
-    for(int i=0;i!=composite_unit_size;i++){
+    for(int i=0;composite_unit_table[i].name!=0;i++){
       if(str==composite_unit_table[i].name)
 	return true;
     }
-    for(int i=0;i!=reference_unit_size;i++){
+    for(int i=0;reference_unit_table[i].name!=0;i++){
       if(str==reference_unit_table[i].name)
 	return true;
     }
@@ -725,7 +710,7 @@ namespace Loci {
   }
 
   int UNIT_type::in_unit_kind(){
-    for(int i=0;i!=default_unit_size;i++){
+    for(int i=0;default_unit_table[i].default_type!=0;i++){
       if(unit_kind==default_unit_table[i].default_type)
 	return i;
     }
