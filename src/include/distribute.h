@@ -21,10 +21,10 @@ namespace Loci {
   void Init(int* argc, char*** argv) ;
   void Finalize() ;
   
-  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, store<int> &partition ) ;
+  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn ) ;
   void categories(fact_db &facts,std::vector<interval> &pvec) ;
   
-  void get_mappings(rule_db &rdb, std::set<std::vector<variableSet> > &maps) ;
+  void get_mappings(rule_db &rdb, fact_db &facts, std::set<std::vector<variableSet> > &maps) ;
   
   
   entitySet expand_map(entitySet domain, fact_db &facts,
