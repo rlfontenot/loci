@@ -167,8 +167,7 @@ namespace Loci {
         map_entities += mp->image(dom) ;
       }
       if(vp->RepType() == STORE) {
-        storeRepP sp = vp->getRep() ;
-        map_entities += sp->domain() ;
+	map_entities += vp->domain() ;
       }
     }
     store<entitySet> dynamic_map ;

@@ -400,23 +400,17 @@ namespace Loci
   multiMap dmultiMapRepI::get_map() 
   {
     multiMap   newmap;
-    entitySet     codomain ;
-    vector<int>   mapvec;
-    hash_map<int,vector<int> >::const_iterator   ai;
     entitySet::const_iterator  ei;
     store<int> count ;
-    count.allocate(domain()) ;
-    for(ei = domain().begin(); ei != domain().end(); ++ei){
-      ai = attrib_data.find(*ei);
-      count[*ei] = ai->second.size() ;
-    }
+    entitySet dom = domain() ;
+    count.allocate(dom) ;
+    for(ei = dom.begin(); ei != dom.end(); ++ei)
+      count[*ei] = attrib_data[*ei].size() ;
     newmap.allocate(count) ;
-    for(ei = domain().begin(); ei != domain().end(); ++ei){
-      ai = attrib_data.find(*ei);
-      mapvec = ai->second;
+    for(ei = dom.begin(); ei != dom.end(); ++ei) 
       for(int i = 0; i < count[*ei]; i++)
-	newmap[*ei][i] =   mapvec[i];
-    }
+	newmap[*ei][i] = attrib_data[*ei][i];
+    
     return newmap;
   }
 

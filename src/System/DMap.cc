@@ -148,19 +148,26 @@ namespace Loci {
   //********************************************************************
   
   storeRepP dMapRepI::remap(const Map &newmap) const 
-  {
-    dMap s ;
-    entitySet newdomain = newmap.domain() & domain() ;
-    pair<entitySet,entitySet> mappimage = preimage(newmap.domain()) ;
-    newdomain &= mappimage.first ;
-    entitySet mapimage = newmap.image(newdomain) ;
-    s.allocate(mapimage) ;
-    storeRepP my_store = getRep() ;
-    s.Rep()->scatter(newmap,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(newmap,mapimage) ;
-
-    return s.Rep() ;
-  }
+{
+  dMap s ;
+  entitySet newdomain = newmap.domain() & domain() ;
+  pair<entitySet,entitySet> mappimage = preimage(newmap.domain()) ;
+  newdomain &= mappimage.first ;
+  entitySet mapimage = newmap.image(newdomain) ;
+  s.allocate(mapimage) ;
+  storeRepP my_store = getRep() ;
+  s.Rep()->scatter(newmap,my_store,newdomain) ;
+  MapRepP(s.Rep())->compose(newmap,mapimage) ;
+  /*
+    Map m ;
+    m.allocate(s.domain()) ;
+    FORALL(s.domain(), i) {
+    m[i] = s[i] ;
+    } ENDFORALL ;
+    return m.Rep() ;
+  */
+  return s.Rep() ;
+} 
 
   //********************************************************************
 
