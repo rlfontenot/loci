@@ -1,6 +1,12 @@
+#ifndef DIST_TOOLS_H
+#define DIST_TOOLS_H
+
 #include <distribute.h>
+#include <distribute_io.h>
+#include <distribute_container.h>
 
 namespace Loci {
+
   extern bool use_dynamic_scheduling ;
   void get_clone(fact_db &facts, const rule_db &rdb) ;
   void categories(fact_db &facts,std::vector<entitySet> &pvec) ;
@@ -9,19 +15,14 @@ namespace Loci {
 		       const std::set<std::vector<variableSet> > &maps) ;
   entitySet dist_expand_map(entitySet domain, fact_db &facts,
 		       const std::set<std::vector<variableSet> > &maps) ;
-  std::vector<entitySet> generate_scalable_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
-
-  std::vector<entitySet> read_partition(const char *fname,int num_partitions) ;
-  void write_partition(const char *fname, const std::vector<entitySet> &ptn) ;
-
   entitySet fill_entitySet(const entitySet& e, fact_db &facts) ;
   std::vector<entitySet> fill_entitySet(const std::vector<entitySet>& e,
                                         fact_db &facts) ;
   entitySet send_entitySet(const entitySet& e, fact_db &facts) ;
   std::vector<entitySet> send_entitySet(const std::vector<entitySet>& e,
                                         fact_db &facts) ;
-  void print_global(entitySet e, fact_db &facts) ;
-  Map distribute_whole_map(Map &m) ;
+  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 ) ;
+
 }
 
-
+#endif
