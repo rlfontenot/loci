@@ -16,7 +16,9 @@
 #include <functional>
 
 namespace Loci {
+#ifdef VERBOSE
   extern ofstream debugout[] ;
+#endif
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;
@@ -307,8 +309,12 @@ namespace Loci {
       int t = e[i].second - e[i].first + 1 ;  
       MPI_Pack(&base_ptr[begin], t * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
     }
-    //    for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
-      //      debugout[MPI_rank] << "   packing   " << base_ptr[*ei] << "   into   " << *ei  << endl ; 
+#ifdef VERBOSE
+    debugout[MPI_rank] << "packing("<<e<<")"<<endl ;
+    for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
+      debugout[MPI_rank] << "   packing   " << base_ptr[*ei]
+                         << "   into   " << *ei  << endl ;
+#endif
   }
   
   template <class T> void storeRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
@@ -318,20 +324,20 @@ namespace Loci {
 	const Loci::int_type stop = seq[i].second ;
 	for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx) 
 	  MPI_Unpack(ptr, size, &loc, &base_ptr[indx], sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
-      }
-      else {
+      } else {
 	Loci::int_type indx = seq[i].first ;
 	int t = seq[i].second - seq[i].first + 1 ; 
 	MPI_Unpack(ptr, size, &loc, &base_ptr[indx], t * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
       }
     }
-    /*
-    for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) {
-      MPI_Unpack(ptr, size, &loc, &base_ptr[*si], sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
-      //      debugout[MPI_rank] << "   unpacking   " << base_ptr[*si] <<"    into   " << *si << endl ;
-    }
-    */
-  }  
+#ifdef VERBOSE
+    debugout[MPI_rank] << "unpack(" << seq << ")" << endl ;
+    for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) 
+      debugout[MPI_rank] << "   unpacking   " << base_ptr[*si]
+                         <<"    into   " << *si << endl ;
+#endif
+  }
+
 }
 
 #ifdef GXX_FIXES

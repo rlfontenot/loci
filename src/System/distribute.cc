@@ -1,5 +1,6 @@
 #include <distribute.h>
 #include <Tools/debug.h>
+#include <stdlib.h>
 
 #include "metis.h"
 #include "mpi.h"
@@ -9,11 +10,8 @@ using std::endl ;
 using std::ios ;
 using std::ifstream ;
 using std::swap ;
-#include <algorithm>
-using std::max ;
-using std::min ;
 
-//static int test = 1 ;
+#define SCATTER_DIST
 
 namespace Loci {
   int MPI_processes ;
@@ -23,7 +21,6 @@ namespace Loci {
   ofstream debugout[128] ;
   
   void Init(int* argc, char*** argv)  {
-    cerr << "before MPI_Init" << endl ;
     MPI_Init(argc, argv) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
@@ -33,12 +30,6 @@ namespace Loci {
       string filename  = oss.str() ;
       debugout[i].open(filename.c_str(),ios::out) ;
     }
-    /*
-      if(MPI_rank == 0) {
-      while(test == 1) ;
-      }
-    */
-    cerr << "after MPI_Init with " << MPI_processes << ", my_rank = " << MPI_rank << endl ;
   }
   
   void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, store<int> &partition ) {
@@ -136,11 +127,12 @@ namespace Loci {
     for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei)
       number[*ei] = 0 ;
 
-    //#define SCATTER_DIST
 #ifdef SCATTER_DIST
     // Test code
+    unsigned short int seed[3] = {0,0,1} ;
+
     for(int i=0;i<size_map;++i)
-      part[i] = (i)%num_partitions ;
+      part[i] = (nrand48(seed))%num_partitions ;
     // end test code
 #endif
     for(int i = 0; i < size_map; i++)
@@ -542,6 +534,99 @@ namespace Loci {
     } 
     return re ;
   }
+
+  vector<entitySet> fill_entitySet(const vector<entitySet>& ev,
+                                   fact_db &facts) {
+
+    vector<entitySet> re(ev.size()) ; ;
+
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+
+      const int evsz = ev.size() ;
+      int *evtmp = new int[evsz] ;
+      int **send_buffer, **recv_buffer ;
+      int *recv_size ;
+
+      if(d->copy.size() > 0) {
+        recv_buffer = new int*[d->copy.size()] ;
+        recv_size = new int[d->copy.size()] ;
+
+        recv_buffer[0] = new int[d->copy_total_size*evsz+evsz*d->copy.size()] ;
+        recv_size[0] = d->copy[0].size*evsz+evsz ;
+        for(int i=1;i<d->copy.size();++i) {
+          recv_buffer[i] = recv_buffer[i-1]+(d->copy[i-1].size*evsz+evsz) ;
+          recv_size[i] = d->copy[i].size*evsz+evsz ;
+        }
+      }
+
+      if(d->xmit.size() > 0) {
+        send_buffer = new int*[d->xmit.size()] ;
+
+        send_buffer[0] = new int[d->xmit_total_size*evsz+evsz*d->xmit.size()] ;
+        for(int i=1;i<d->xmit.size();++i)
+          send_buffer[i] = send_buffer[i-1]+(d->xmit[i-1].size*evsz+evsz) ;
+      }
+        
+      
+      Map l2g ;
+      l2g = facts.get_variable("l2g") ;
+      
+      MPI_Request *recv_request = new MPI_Request[d->copy.size()] ;
+      MPI_Status *status = new MPI_Status[d->copy.size()] ;
+
+      for(int i=0;i<d->copy.size();++i)
+        MPI_Irecv(recv_buffer[i],recv_size[i],MPI_INT,d->copy[i].proc,1,
+                  MPI_COMM_WORLD, &recv_request[i]) ;
+
+      for(int i=0;i<d->xmit.size();++i) {
+        int j=evsz ;
+        for(int k=0;k<evsz;++k) {
+          entitySet temp = ev[k] & d->xmit[i].entities ;
+          send_buffer[i][k] = temp.size() ;
+
+          for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
+            send_buffer[i][j++] = l2g[*ei] ;
+        }
+        int send_size = j ;
+        MPI_Send(send_buffer[i], send_size, MPI_INT, d->xmit[i].proc,
+                 1, MPI_COMM_WORLD) ;
+      }
+        
+
+      if(d->copy.size() > 0)
+	MPI_Waitall(d->copy.size(), recv_request, status) ;
+
+      for(int i = 0; i < d->copy.size(); ++i) {
+#ifdef DEBUG
+        int recieved ;
+	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
+#endif
+        int j=evsz ;
+        for(int k=0;k<evsz;++k) {
+          for(int l=0;l<recv_buffer[i][k];++l)
+            re[k] += d->g2l[recv_buffer[i][j++]] ;
+        }
+        WARN(j!=recieved) ;
+      }
+      
+
+      if(d->copy.size() > 0) {
+        delete [] recv_size ;
+        delete [] recv_buffer[0] ;
+        delete [] recv_buffer ;
+      }
+      if(d->xmit.size() > 0) {
+        delete [] send_buffer[0] ;
+        delete [] send_buffer ;
+      }
+      delete [] evtmp ;
+      delete [] status ;
+      delete [] recv_request ;
+      
+    } 
+    return re ;
+  }
   
   entitySet send_entitySet(const entitySet& e, fact_db &facts) {
     entitySet re ;
@@ -602,6 +687,91 @@ namespace Loci {
         for(int j=0;j<recieved;++j)
           re += d->g2l[recv_buffer[i][j]] ;
         }
+
+      if(d->xmit.size() > 0) {
+        delete [] recv_size ;
+        delete [] recv_buffer[0] ;
+        delete [] recv_buffer ;
+      }
+      if(d->copy.size() > 0) {
+        delete [] send_buffer[0] ;
+        delete [] send_buffer ;
+      }
+      delete [] recv_request ;
+      delete [] status ;
+      
+    }
+    return re ;
+  }
+
+  vector<entitySet> send_entitySet(const vector<entitySet>& ev,
+                                   fact_db &facts) {
+    vector<entitySet> re(ev.size()) ;
+    if(facts.isDistributed()) {  
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+
+      const int evsz = ev.size() ;
+      int **send_buffer, **recv_buffer ;
+      int *recv_size ;
+
+      if(d->xmit.size() > 0) {
+        recv_buffer = new int*[d->xmit.size()] ;
+        recv_size = new int[d->xmit.size()] ;
+
+        recv_buffer[0] = new int[d->xmit_total_size*evsz+evsz*d->xmit.size()] ;
+        recv_size[0] = d->xmit[0].size*evsz + evsz ;
+
+        for(int i=1;i<d->xmit.size();++i) {
+          recv_buffer[i] = recv_buffer[i-1]+(d->xmit[i-1].size*evsz+evsz) ;
+          recv_size[i] = d->xmit[i].size*evsz+evsz ;
+        }
+      }
+      
+      if(d->copy.size() > 0 ) {
+        send_buffer = new int*[d->copy.size()] ;
+        send_buffer[0] = new int[d->copy_total_size*evsz+evsz*d->copy.size()] ;
+        for(int i=1;i<d->copy.size();++i)
+          send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size*evsz+evsz ;
+      }
+      Map l2g ;
+      l2g = facts.get_variable("l2g") ;
+
+      MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
+      MPI_Status *status = new MPI_Status[d->xmit.size()] ;
+
+      for(int i=0;i<d->xmit.size();++i)
+	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 1,
+                  MPI_COMM_WORLD, &recv_request[i] ) ;  
+
+      for(int i=0;i<d->copy.size();++i) {
+        int j=evsz ;
+        for(int k=0;k<evsz;++k) {
+          entitySet temp = ev[k] & d->copy[i].entities ;
+          send_buffer[i][k] = temp.size() ;
+
+          for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
+            send_buffer[i][j++] = l2g[*ei] ;
+        }
+        int send_size = j ;
+        MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
+                 1,MPI_COMM_WORLD) ;
+      }
+      
+      if(d->xmit.size() > 0)
+	MPI_Waitall(d->xmit.size(), recv_request, status) ;
+      
+      
+      for(int i=0;i<d->xmit.size();++i) {
+#ifdef DEBUG
+        int recieved ;
+	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
+#endif
+        int j=evsz ;
+        for(int k=0;k<evsz;++k)
+          for(int l=0;l<recv_buffer[i][k];++l)
+            re[k] += d->g2l[recv_buffer[i][j++]] ;
+        WARN(j!=recieved) ;
+      }
 
       if(d->xmit.size() > 0) {
         delete [] recv_size ;

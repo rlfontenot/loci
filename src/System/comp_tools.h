@@ -138,6 +138,7 @@ namespace Loci {
 
   class barrier_compiler : public rule_compiler {
     std::map<variable, ruleSet> barrier_info ;
+    std::vector<std::pair<variable,entitySet> > send_entities ;
     std::list<comm_info> clist ;
     std::list<comm_info> plist ;
   public:
