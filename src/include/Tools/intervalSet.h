@@ -654,6 +654,15 @@ namespace Loci {
     }
   }
 
+  template<class T> inline void do_loop(const sequence &seq, T *cp) {
+    for(int i=0;i<seq.num_intervals();++i) {
+      const bool dir = seq[i].first>seq[i].second?false:true ;
+      const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
+      for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
+        cp->calculate(indx) ;
+    }
+  }
+
 }
   
 
