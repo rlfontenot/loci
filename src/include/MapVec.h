@@ -51,6 +51,8 @@ namespace Loci {
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   } ;
   
+  //*************************************************************************/
+
   template<int M> void MapVecRepI<M>::allocate(const entitySet &ptn) {
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
@@ -65,9 +67,13 @@ namespace Loci {
     dispatch_notify() ;
   }
 
+  //*************************************************************************/
+
   template<int M> MapVecRepI<M>::~MapVecRepI<M>() {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
+
+  //*************************************************************************/
 
   template<int M> multiMap MapVecRepI<M>::get_map()  {
     store<int> sizes ;
@@ -84,13 +90,19 @@ namespace Loci {
     return result ;
   }
 
+  //*************************************************************************/
+
   template<int M> storeRep *MapVecRepI<M>::new_store(const entitySet &p) const {
     return new MapVecRepI<M>(p) ;
   }
 
+  //*************************************************************************/
+
   template<int M> entitySet MapVecRepI<M>::domain() const {
     return store_domain ;
   }
+
+  //*************************************************************************/
 
   template<int M> entitySet MapVecRepI<M>::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
@@ -117,6 +129,8 @@ namespace Loci {
     return codomain ;
   }
 
+  //*************************************************************************/
+
   template<int M> std::pair<entitySet,entitySet>
   MapVecRepI<M>::preimage(const entitySet &codomain) const {
     entitySet domaini ;
@@ -137,6 +151,7 @@ namespace Loci {
     return std::make_pair(domaini,domainu) ;
   }
 
+  //*************************************************************************/
   
   template<int M> std::ostream &MapVecRepI<M>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
@@ -149,6 +164,8 @@ namespace Loci {
     s << '}' << std::endl ;
     return s ;
   }
+
+  //*************************************************************************/
 
   template<int M> std::istream &MapVecRepI<M>::Input(std::istream &s) {
     entitySet e ;
@@ -175,6 +192,8 @@ namespace Loci {
     }
     return s ;
   }
+
+  //*************************************************************************/
 
   template<int M> class const_MapVec ;
     
@@ -279,7 +298,11 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
 
+  //*************************************************************************/
+
   template<int M>  const_MapVec<M>::~const_MapVec() { }
+
+  //*************************************************************************/
 
   template<int M> void const_MapVec<M>::notification() {
     NPTR<MapVecType> p(Rep()) ;
@@ -288,15 +311,20 @@ namespace Loci {
     warn(p==0) ;
   }
 
+  //*************************************************************************/
+
   template<int M> store_instance::instance_type
   const_MapVec<M>::access() const { return READ_ONLY; }
     
+  //*************************************************************************/
 
   template<int M> inline std::ostream & operator<<(std::ostream &s,
                                                    const const_MapVec<M> &m){
     return m.Print(s) ;
   }
-    
+
+  //*************************************************************************/
+
   template<int M> storeRepP MapVecRepI<M>::remap(const Map &m) const {
     entitySet newdomain = m.domain() & domain() ;
     std::pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
@@ -310,6 +338,7 @@ namespace Loci {
     
     return s.Rep() ;
   }
+  //*************************************************************************/
   template<int M> void MapVecRepI<M>::compose(const Map &m,
                                               const entitySet &context)  {
     fatal((context-store_domain) != EMPTY) ;
@@ -324,6 +353,7 @@ namespace Loci {
       }
     } ENDFORALL ;
   }
+  //*************************************************************************/
   template<int M> void MapVecRepI<M>::copy(storeRepP &st,
                                            const entitySet &context)  {
     const_MapVec<M> s(st) ;
@@ -334,6 +364,7 @@ namespace Loci {
         base_ptr[i][j] = s[i][j] ;
     } ENDFORALL ;
   }
+  //*************************************************************************/
   template<int M> void MapVecRepI<M>::gather(const Map &m, storeRepP &st,
                                              const entitySet &context)  {
     const_MapVec<M> s(st) ;
@@ -345,6 +376,7 @@ namespace Loci {
         base_ptr[i][j] = s[m[i]][j] ;
     } ENDFORALL ;
   }
+  //*************************************************************************/
   template<int M> void MapVecRepI<M>::scatter(const Map &m, storeRepP &st,
                                               const entitySet &context)  {
     const_MapVec<M> s(st) ;
@@ -356,15 +388,17 @@ namespace Loci {
         base_ptr[m[i]][j] = s[i][j] ;
     } ENDFORALL ;
   }
-  
+
+  //*************************************************************************/
   template <int M> int MapVecRepI<M>::pack_size( const entitySet &eset) {
     int size ;
     size = sizeof(int)*eset.size()*M  + sizeof(int);
     return size ;
   }
 
+  //*************************************************************************/
   template <int M> void MapVecRepI<M>::pack(void *outbuf, int &position, 
-                 int &outcount, const entitySet &eset ) 
+                                            int &outcount, const entitySet &eset ) 
   {
     int init_size = M;
     MPI_Pack( &init_size, 1,  MPI_INT, outbuf, outcount, &position, 
@@ -375,30 +409,34 @@ namespace Loci {
       MPI_Pack( base_ptr[*ci], M, MPI_INT, outbuf, outcount, &position, 
                 MPI_COMM_WORLD);
   }
+  //*************************************************************************/
 
   template <int M> void MapVecRepI<M>::unpack(void *inbuf, int &position, int &insize, 
-                  const sequence &seq) {
+                                              const sequence &seq) {
 
     int init_size;
 
     MPI_Unpack(inbuf, insize, &position, &init_size, 1, MPI_INT, MPI_COMM_WORLD) ;
 
     if(init_size != M) {
-       cout << " Invalid MapVec container for unpack data " << endl;
-       abort();
+      cout << " Invalid MapVec container for unpack data " << endl;
+      abort();
     }
 
-    sequence::const_iterator ci;
-    for( ci = seq.begin(); ci != seq.end(); ++ci) 
-         MPI_Unpack( inbuf, insize, &position, base_ptr[*ci], M, MPI_INT, 
-                     MPI_COMM_WORLD) ;
-  } 
+    entitySet::const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) 
+      MPI_Unpack( inbuf, insize, &position, base_ptr[*ci], M, MPI_INT, 
+                  MPI_COMM_WORLD) ;
+  }
+  //*************************************************************************/
   
   template<int M> storeRepP MapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     storeRepP sp ;
     warn(true) ;
     return sp ;
-  }     
+  }
+  //*************************************************************************/
+  
   template<int M> void inverseMap (multiMap &result,
                                    const MapVec<M> &input_map,
                                    const entitySet &input_image,
@@ -432,119 +470,121 @@ namespace Loci {
 #endif
   }      
 
-template<int M> 
-void MapVecRepI<M>::readhdf5( hid_t group_id, entitySet &eset)
-{
-  hsize_t dimension[1];
-  int  indx=0, rank=1, size;
+  //*************************************************************************/
+  
+  template<int M> 
+  void MapVecRepI<M>::readhdf5( hid_t group_id, entitySet &eset)
+  {
+    hsize_t dimension[1];
+    int  indx=0, rank=1, size;
  
-  Loci::HDF5_ReadDomain(group_id, eset);
-  Loci::HDF5_ReadVecSize(group_id, &size);
+    Loci::HDF5_ReadDomain(group_id, eset);
+    Loci::HDF5_ReadVecSize(group_id, &size);
 
-  allocate( eset );
+    allocate( eset );
 
-  entitySet::const_iterator ci;
+    entitySet::const_iterator ci;
 
-  //---------------------------------------------------------------------------
-  // Calculate the offset of each entity in file ....
-  //---------------------------------------------------------------------------
-  store<unsigned> offset;
-  offset.allocate(eset);
+    //---------------------------------------------------------------------------
+    // Calculate the offset of each entity in file ....
+    //---------------------------------------------------------------------------
+    store<unsigned> offset;
+    offset.allocate(eset);
 
-  int arraySize = 0;
-  for( ci = eset.begin(); ci != eset.end(); ++ci) {
-    offset[*ci] = arraySize;
-    arraySize  += size;
-  }
-
-  //---------------------------------------------------------------------------
-  // Read the data now ....
-  //---------------------------------------------------------------------------
-  int num_intervals = eset.num_intervals();
-  interval *it = new interval[num_intervals];
-
-  for(int i=0;i< num_intervals;i++) it[i] = eset[i];
-
-  int   *data;
-  dimension[0] = size*eset.size();
-
-  hid_t vDatatype  = H5T_NATIVE_INT;
-  hid_t mDataspace = H5Screate_simple(rank, dimension, NULL);
-  hid_t vDataspace = H5Screate_simple(rank, dimension, NULL);
-  hid_t vDataset   = H5Dopen( group_id, "MapVec");
-
-  hssize_t  start[]     = {0};  // determines the starting coordinates.
-  hsize_t   stride[]    = {1};  // which elements are to be selected.
-  hsize_t   block[]     = {1};  // size of element block;
-  hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-  hsize_t   count[]     = {0};  // how many positions to select from the dataspace
-
-  int voffset;
-  for( int k = 0; k < num_intervals; k++) {
-    count[0] = 0;
-    for( int i = it[k].first; i <= it[k].second; i++)
-      count[0] +=  size;
-
-    data = new int[count[0]];
-
-    foffset[0] = offset[it[k].first];
-
-    H5Sselect_hyperslab(mDataspace, H5S_SELECT_SET, start,  stride, count, block);
-    H5Sselect_hyperslab(vDataspace, H5S_SELECT_SET, foffset,stride, count, block);
-    H5Dread( vDataset, vDatatype, mDataspace, vDataspace, H5P_DEFAULT, data);
- 
-    indx = 0;
-    for( int i = it[k].first; i <= it[k].second; i++) {
-      for( int ivec = 0; ivec < size; ivec++){
-        voffset           = i*size+ivec;
-        base_ptr[i][ivec] = data[indx++];
-      }
+    int arraySize = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      offset[*ci] = arraySize;
+      arraySize  += size;
     }
-    delete[] data;
+
+    //---------------------------------------------------------------------------
+    // Read the data now ....
+    //---------------------------------------------------------------------------
+    int num_intervals = eset.num_intervals();
+    interval *it = new interval[num_intervals];
+
+    for(int i=0;i< num_intervals;i++) it[i] = eset[i];
+
+    int   *data;
+    dimension[0] = size*eset.size();
+
+    hid_t vDatatype  = H5T_NATIVE_INT;
+    hid_t mDataspace = H5Screate_simple(rank, dimension, NULL);
+    hid_t vDataspace = H5Screate_simple(rank, dimension, NULL);
+    hid_t vDataset   = H5Dopen( group_id, "MapVec");
+
+    hssize_t  start[]     = {0};  // determines the starting coordinates.
+    hsize_t   stride[]    = {1};  // which elements are to be selected.
+    hsize_t   block[]     = {1};  // size of element block;
+    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+
+    int voffset;
+    for( int k = 0; k < num_intervals; k++) {
+      count[0] = 0;
+      for( int i = it[k].first; i <= it[k].second; i++)
+        count[0] +=  size;
+
+      data = new int[count[0]];
+
+      foffset[0] = offset[it[k].first];
+
+      H5Sselect_hyperslab(mDataspace, H5S_SELECT_SET, start,  stride, count, block);
+      H5Sselect_hyperslab(vDataspace, H5S_SELECT_SET, foffset,stride, count, block);
+      H5Dread( vDataset, vDatatype, mDataspace, vDataspace, H5P_DEFAULT, data);
+ 
+      indx = 0;
+      for( int i = it[k].first; i <= it[k].second; i++) {
+        for( int ivec = 0; ivec < size; ivec++){
+          voffset           = i*size+ivec;
+          base_ptr[i][ivec] = data[indx++];
+        }
+      }
+      delete[] data;
+    }
+
+    H5Dclose( vDataset  );
+    H5Sclose( vDataspace);
+    H5Sclose( mDataspace);
+
   }
 
-  H5Dclose( vDataset  );
-  H5Sclose( vDataspace);
-  H5Sclose( mDataspace);
-
-}
-
-//*************************************************************************
+  //*************************************************************************/
     
-template<int M> 
-void MapVecRepI<M>::writehdf5(hid_t group_id,entitySet& usr_eset) const 
-{
-  int     rank = 1;
-  int     voffset;
-  hsize_t dimension;
+  template<int M> 
+  void MapVecRepI<M>::writehdf5(hid_t group_id,entitySet& usr_eset) const 
+  {
+    int     rank = 1;
+    int     voffset;
+    hsize_t dimension;
 
-  entitySet eset(usr_eset &domain());
-  int arraySize = M*eset.size();
-  if( arraySize < 1) return;
+    entitySet eset(usr_eset &domain());
+    int arraySize = M*eset.size();
+    if( arraySize < 1) return;
 
-  Loci::HDF5_WriteDomain( group_id, eset);
-  Loci::HDF5_WriteVecSize(group_id, M);
+    Loci::HDF5_WriteDomain( group_id, eset);
+    Loci::HDF5_WriteVecSize(group_id, M);
 
-  std::vector<int> data(arraySize);
-  entitySet::const_iterator ci;
+    std::vector<int> data(arraySize);
+    entitySet::const_iterator ci;
 
-  size_t indx = 0;
-  for( ci = eset.begin(); ci != eset.end(); ++ci) {
-    for( int ivec = 0; ivec < M; ivec++)
-      data[indx++] =  base_ptr[*ci][ivec];
+    size_t indx = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      for( int ivec = 0; ivec < M; ivec++)
+        data[indx++] =  base_ptr[*ci][ivec];
+    }
+
+    dimension        = arraySize;
+    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
+    hid_t vDatatype  = H5T_NATIVE_INT;
+    hid_t vDataset   = H5Dcreate(group_id, "MapVec", vDatatype, vDataspace, 
+                                 H5P_DEFAULT);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
+
+    H5Dclose( vDataset  );
+    H5Sclose( vDataspace);
   }
-
-  dimension        = arraySize;
-  hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-  hid_t vDatatype  = H5T_NATIVE_INT;
-  hid_t vDataset   = H5Dcreate(group_id, "MapVec", vDatatype, vDataspace, 
-                               H5P_DEFAULT);
-  H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
-
-  H5Dclose( vDataset  );
-  H5Sclose( vDataspace);
-}
-
+  //*************************************************************************/
 }
 
 #endif
