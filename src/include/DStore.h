@@ -21,7 +21,6 @@ namespace Loci {
 
   template<class T> class dstoreRepI : public storeRep {
     HASH_MAP(int,T)      attrib_data;
-    mutable entitySet    store_domain ;
 
     void  hdf5read( hid_t group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( hid_t group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
@@ -73,20 +72,19 @@ namespace Loci {
   template<class T> 
   void dstoreRepI<T>::allocate(const entitySet &eset)
   {
-    entitySet redundant, newSet;
     entitySet :: const_iterator ci;
 
-    redundant = domain() -  eset;
-    newSet    = eset - domain();
+    entitySet dom = domain() ;
+    entitySet remove = dom - eset ;
+    entitySet add = eset - dom ;
 
-    for( ci = redundant.begin(); ci != redundant.end(); ++ci)
+    for( ci = remove.begin(); ci != remove.end(); ++ci)
          attrib_data.erase(*ci);
 
-    T   newvalue;
-    for( ci = newSet.begin(); ci != newSet.end(); ++ci)
-      attrib_data[*ci] =   newvalue;
+
+    for( ci = add.begin(); ci != add.end(); ++ci)
+      attrib_data[*ci] = T();
   
-    store_domain = eset ;
     dispatch_notify() ;
   }
 
@@ -95,15 +93,19 @@ namespace Loci {
   template<class T> 
   std::ostream &dstoreRepI<T>::Print(std::ostream &s) const 
   {
-    typename HASH_MAP(int,T)::const_iterator   ci;
+    entitySet :: const_iterator it;
+    entitySet dom = domain() ;
 
-    s << '{' << domain() << std::endl ;
+    s << '{' << dom << std::endl ;
 
-    FORALL(domain(),ii) {
-      ci = attrib_data.find(ii);
-      if( ci == attrib_data.end() ) continue;
-      Loci::streamoutput(&ci->second,1,s) ;
-    } ENDFORALL ;
+    for(it = dom.begin();it!=dom.end();++it) {
+      typename HASH_MAP(int,T)::const_iterator ci;
+
+      ci = attrib_data.find(*it) ;
+      fatal(ci == attrib_data.end()) ;
+      
+      Loci::streamoutput(&(ci->second),1,s) ;
+    }
 
     s << '}' << std::endl ;
 
@@ -127,7 +129,6 @@ namespace Loci {
     }
 
     s >> e ;
-    allocate(e) ;
         
     FORALL(e,ii) {
       attrib_data[ii] = T() ;
@@ -148,7 +149,6 @@ namespace Loci {
 
   template<class T>  
   dstoreRepI<T>::~dstoreRepI<T>() {
-    attrib_data.clear();
   }
 
   //*************************************************************************/
@@ -222,11 +222,9 @@ namespace Loci {
       typename HASH_MAP(int,T)::const_iterator  citer;
 
       citer = attrib_data->find(indx);
+      fatal( citer == attrib_data->end() ) ;
 
-      if( citer == attrib_data->end() )
-	cout << "Error: Entity out of bound " << endl;
-      return( (*attrib_data)[indx] );
-      
+      return citer->second ;
     }
   
     T &operator[](int indx) { 
@@ -303,11 +301,9 @@ namespace Loci {
 
       citer = attrib_data->find(indx);
 
-      if( citer == attrib_data->end() )
-	fatal(true) ;
-      
-      return ( (*attrib_data)[indx] );
-      
+      fatal( citer == attrib_data->end() ) ;
+
+      return citer->second ;
     } 
     const T&operator[](int indx) const { return elem(indx); }
       
@@ -433,10 +429,8 @@ namespace Loci {
     entitySet :: const_iterator ci;
     typedef data_schema_traits<T> converter_traits;
 
-    T   obj;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      obj  = attrib_data[*ci];
-      typename converter_traits::Converter_Type cvtr(obj);
+      typename converter_traits::Converter_Type cvtr(attrib_data[*ci]);
       size      = cvtr.getSize();
       numBytes += size*sizeof(typename converter_traits::Converter_Base_Type) ;
     }
