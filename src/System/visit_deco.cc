@@ -615,7 +615,7 @@ namespace Loci {
     }
     
     int supernode_num = 0 ;
-    int supernode_id ;
+    int supernode_id = 0 ;
     rule supernode ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {

@@ -680,7 +680,7 @@ namespace Loci {
     }
     
     int supernode_num = 0 ;
-    int supernode_id ;
+    int supernode_id = 0 ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       if(is_super_node(ruleIter)) {
