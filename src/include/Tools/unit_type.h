@@ -117,43 +117,9 @@ namespace Loci {
   };
 
   inline std::ostream &operator<<(std::ostream &s, const UNIT_type &o_unit){
-    std::map<std::string,int>::iterator mi,mj;
-    std::map<std::string,int> n_map=o_unit.unit_num_map,d_map=o_unit.unit_den_map;
-    /*cout<<"Numerator: "<<std::endl;
-      for(mi= n_map.begin();mi!=n_map.end();++mi)
-	cout<<mi->first<<"  "<<mi->second<<std::endl;
-      cout<<"Denominator: "<<std::endl;
-      for(mj= d_map.begin();mj!=d_map.end();++mj)
-      cout<<mj->first<<"  "<<mj->second<<std::endl;*/
-
-    s<<std::endl;
-    s<<o_unit.conversion_factor*o_unit.input_value;
-    s<<" ";
-    for(mi= n_map.begin();mi!=n_map.end();++mi){
-      if(mi->second==1)
-	s<<mi->first;
-      else
-	s<<"("<<mi->first<<"^"<<mi->second<<")";
-      if(++mi!=n_map.end())
-	s<<"*";
-      --mi;
-    }
-    mj= d_map.begin();
-    if(mj!=d_map.end()){
-      s<<"/"<<"(";
-      for(;mj!=d_map.end();++mj){
-	if(mj->second==1)
-	  s<<mj->first;
-	else
-	  s<<"("<<mj->first<<"^"<<mj->second<<")";   
-      if(++mj!=d_map.end())
-	s<<"*";
-      --mj;
-      }
-      s<<")";
-    }
-    return s;
-    }
+    s << o_unit.input_value << ' ' << o_unit.input_unit ;
+    return s ;
+  }
 
   inline std::istream &operator>>(std::istream &s, UNIT_type &unit){
     exprP exp1;

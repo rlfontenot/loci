@@ -244,7 +244,7 @@ namespace Loci {
   ostream &option_values::Print(ostream &s) const {
     switch(value_type) {
     case BOOLEAN:
-      s << boolean_value?"$true":"$false" ;
+      s << (boolean_value?"$true":"$false") ;
       break ;
     case REAL:
       s << real_value ;
@@ -443,6 +443,10 @@ namespace Loci {
     
       for(;;) {
         parse::kill_white_space(s) ;
+        if(s.peek()=='>') {
+          s.get() ;
+          break ;
+        }
         if(!parse::is_name(s)) {
           cerr << "format error while reading option in option_list::Input"
                << endl ;
