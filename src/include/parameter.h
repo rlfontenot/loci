@@ -12,7 +12,7 @@
 #include <hdf5_write_template.h>
 
 namespace Loci {
-    
+  
   template<class T> class paramRepI : public storeRep {
     entitySet store_domain ;
     T param_val ;
@@ -264,10 +264,10 @@ namespace Loci {
     return(size) ;
   }
   template <class T> void paramRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
-    MPI_Pack(this, sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
+    MPI_Pack(&param_val, sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
   }
   template <class T> void paramRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
-    MPI_Unpack(ptr, size, &loc, this, sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
+    MPI_Unpack(ptr, size, &loc, &param_val, sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
   }  
   
   template<class T> store_instance::instance_type

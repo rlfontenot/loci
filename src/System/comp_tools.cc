@@ -193,6 +193,7 @@ namespace Loci {
      // the requests for the variables that this rule produces
      set<vmap_info>::const_iterator si ;
      entitySet context,isect = ~EMPTY ;
+    
      if(facts.isDistributed()) {
        constraint my_entities ;
        my_entities = facts.get_variable("my_entities") ;
@@ -202,7 +203,7 @@ namespace Loci {
 	 // as a target.  In that case we will request OUTPUT for
 	 // all entities that exist.  So we add a request for OUTPUT
 	 // to the fact database
-	
+	 
 	 if(vi->get_info().name == string("OUTPUT")) 
 	   facts.variable_request(*vi,facts.variable_existence(*vi)) ;
 	 
@@ -368,7 +369,7 @@ namespace Loci {
     for(mi = barrier_info.begin() ; mi != barrier_info.end(); ++mi) {
       variable v = mi->first ;
       requests = facts.get_variable_requests(v) ;
-      debugout[MPI_rank] << "post " << "  variable =   " <<v << "  requests =  " << requests << endl ; 
+      //debugout[MPI_rank] << "post " << "  variable =   " <<v << "  requests =  " << requests << endl ; 
       comm_info ci ;
       ci.v = v ;
       entitySet tempset ;
@@ -603,9 +604,8 @@ namespace Loci {
        delete [] recv_buffer ; 
     }
     return plist ;
-  }  
-
- 
+  }
+  
   vector<entitySet> partition_set(const entitySet &s,int nthreads) {
     const int min = s.Min() ;
     const int max = s.Max() ;
@@ -684,8 +684,6 @@ namespace Loci {
       clist = put_postcomm_info(barrier_info, facts) ;
     }
   }
-  
-  
   executeP barrier_compiler::create_execution_schedule(fact_db &facts) {
     //    if(num_threads > 1)
     ostringstream oss ;
@@ -739,6 +737,7 @@ namespace Loci {
   }
   
   void reduce_param_compiler::set_var_existence(fact_db &facts)  {
+    
     if(facts.isDistributed()) {
       constraint my_entities ;
       my_entities = facts.get_variable("my_entities") ;
@@ -762,20 +761,41 @@ namespace Loci {
   executeP reduce_param_compiler::create_execution_schedule(fact_db &facts) {
     ostringstream oss ;
     oss << "reduce param " << reduce_var ;
+    if(facts.isDistributed()) {
+      CPTR<execute_sequence> el = new execute_sequence ;
+      el->append_list(new execute_thread_sync) ;
+      el->append_list(new execute_param_red(reduce_var, unit_rule, join_op)) ; 
+      return executeP(el) ;
+    }
     return executeP(new execute_msg(oss.str())) ;
   }
   
   void reduce_store_compiler::set_var_existence(fact_db &facts)  {
+    if(facts.isDistributed()) {
+      constraint my_entities ;
+      my_entities = facts.get_variable("my_entities") ;
+      entitySet targets ;
+      targets = facts.get_existential_info(reduce_var, unit_rule) ;
+      targets = send_entitySet(targets, facts) ;
+      targets &= my_entities ;
+      targets = fill_entitySet(targets, facts) ;
+      facts.set_existential_info(reduce_var,unit_rule,targets) ;
+    }
   }
-
+  
   void reduce_store_compiler::process_var_requests(fact_db &facts) {
+    if(facts.isDistributed()) {
+      entitySet requests = facts.get_variable_requests(reduce_var) ;
+      requests = send_entitySet(requests, facts) ;
+      facts.variable_request(reduce_var,requests) ;
+    }
   }
-
+  
   executeP reduce_store_compiler::create_execution_schedule(fact_db &facts) {
     ostringstream oss ;
     oss << "reduce store " << reduce_var ;
     return executeP(new execute_msg(oss.str())) ;
   }
   
-
+  
 }

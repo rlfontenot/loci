@@ -54,12 +54,17 @@ namespace Loci {
         map_entities += dom ;
         map_entities += mp->image(dom) ;
       }
+      if(vp->RepType() == STORE) {
+	storeRepP sp = vp->getRep() ;
+	map_entities += sp->domain() ;
+      }
     }
-   
+    
     store<entitySet> dynamic_map ;
     dynamic_map.allocate(map_entities) ;
     for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
-      storeRepP vp = facts.get_variable(*vi) ;      if(vp->RepType() == MAP) {
+      storeRepP vp = facts.get_variable(*vi) ;
+      if(vp->RepType() == MAP) {
         MapRepP mp = MapRepP(vp->getRep()) ;
         FATAL(mp == 0) ;
         multiMap m = mp->get_map() ;
@@ -70,8 +75,7 @@ namespace Loci {
             dynamic_map[*i] += *ei ;
             dynamic_map[*ei]+= *i ;
           }
-	 
-        }
+	}
       }
     }
     int size_map = map_entities.size() ;

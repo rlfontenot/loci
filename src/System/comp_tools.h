@@ -16,14 +16,17 @@ namespace Loci {
   void existential_rule_analysis(rule f, fact_db &facts) ;
   entitySet process_rule_requests(rule f, fact_db &facts) ;
   
-  void barrier_existential_rule_analysis(rule f, fact_db &facts) ;
-  entitySet barrier_process_rule_requests(rule f, fact_db &facts) ;
+  void barrier_existential_rule_analysis(fact_db &facts) ;
+  void barrier_process_rule_requests(fact_db &facts) ;
   
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) ;
   std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
   std::list<comm_info> put_postcomm_info(std::map<variable, ruleSet> barrier_info, fact_db &facts) ;
   std::list<comm_info> put_precomm_info(std::map<variable, ruleSet> barrier_info, fact_db &facts) ;
+  
+  void create_user_function(unsigned char* , unsigned char* , int*, MPI_Datatype* ) ;
+  
   typedef std::map<variable,entitySet> vdefmap ;
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
                                  fact_db &facts) ;

@@ -94,5 +94,15 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
   } ;
   
+  class execute_param_red : public execute_modules {
+    variable reduce_var ;
+    rule unit_rule ;
+    CPTR<joiner> join_op ; 
+  public:
+    execute_param_red(variable reduce_var, rule unit_rule, CPTR<joiner> join_op) ; 
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+  
 }
 #endif

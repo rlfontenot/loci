@@ -298,7 +298,6 @@ namespace Loci {
     int size ;
     size = sizeof(T) * e.size() ;
     return(size) ;
-    
   }
   
   
@@ -308,14 +307,14 @@ namespace Loci {
       int t = e[i].second - e[i].first + 1 ;  
       MPI_Pack(&base_ptr[begin], t * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
     }
-    
+    /*
     for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
-      debugout[MPI_rank] << "   packing   " << base_ptr[*ei] << "   into   " << *ei  << endl ; 
-    
+      debugout[MPI_rank] << "   packing   " << base_ptr[*ei] << "   from  " << *ei  << endl ; 
+    */
   }
   
   template <class T> void storeRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
-    /*
+    
     for(int i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
 	const Loci::int_type stop = seq[i].second ;
@@ -328,12 +327,12 @@ namespace Loci {
 	MPI_Unpack(ptr, size, &loc, &base_ptr[indx], t * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
       }
     }
-     */
+    /*
     for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) {
       MPI_Unpack(ptr, size, &loc, &base_ptr[*si], sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
       debugout[MPI_rank] << "   unpacking   " << base_ptr[*si] <<"    into   " << *si << endl ;
     }
-    
+    */
   }  
 }
 
