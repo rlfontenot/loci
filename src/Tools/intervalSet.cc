@@ -212,7 +212,7 @@ namespace Loci {
     pair_vector::const_iterator i2 = Rep2->begin() ;
     const pair_vector::const_iterator e1 = Rep1->end() ;
     const pair_vector::const_iterator e2 = Rep2->end() ;
-    const unsigned int size = Rep1->size() + Rep2->size() ;
+    const size_t size = Rep1->size() + Rep2->size() ;
     Handle<pair_vector> Rep ;
     Rep->reserve(size) ;
     while(i1!=e1 && i2!=e2) {
@@ -304,7 +304,7 @@ namespace Loci {
     intervalSetRep::const_iterator i2 = set2.Rep->begin() ;
     const intervalSetRep::const_iterator e1 = set1.Rep->end() ;
     const intervalSetRep::const_iterator e2 = set2.Rep->end() ;
-    const unsigned int size = set1.Rep->size() + set2.Rep->size() ;
+    const size_t size = set1.Rep->size() + set2.Rep->size() ;
     Handle<intervalSetRep> Rep ;
     Rep->reserve(size) ;
     while(i1!=e1 && i2!=e2) {
@@ -483,7 +483,7 @@ namespace Loci {
     intervalSetRep::const_iterator i2 = set2.Rep->begin() ;
     const intervalSetRep::const_iterator e1 = set1.Rep->end() ;
     const intervalSetRep::const_iterator e2 = set2.Rep->end() ;
-    const unsigned int size = set1.Rep->size() + set2.Rep->size() ;
+    const size_t size = set1.Rep->size() + set2.Rep->size() ;
     Handle<intervalSetRep> Rep ;
     Rep->reserve(size) ;
     while(i1!=e1 && i2!=e2) {

@@ -229,7 +229,7 @@ namespace Loci {
           dgt.add_edge(imap[*jj],imap[*ii]) ;
         }
       }
-      for(unsigned int i=0;i<omap.size();++i)
+      for(size_t i=0;i<omap.size();++i)
         vertex_color[i] = WHITE ;
 
       all_vertices = interval(0,omap.size()-1) ;
