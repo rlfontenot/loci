@@ -144,7 +144,9 @@ namespace Loci {
           // The new node that we create will be in the level
           // above our time iteration, so insert it in that
           // iteration set.
-          time_sort_vertices[*(ti+1)] += new_node ;
+          time_sort_vertices[ti->parent()] += new_node ;
+
+          ruleSet temp = extract_rules(time_sort_vertices[*ti]) ;
         }
       }
     }
