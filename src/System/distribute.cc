@@ -77,7 +77,6 @@ namespace Loci {
   }
   
   void Init(int* argc, char*** argv)  {
-    
     char *execname = (*argv)[0] ;
     const char *hostname = "localhost" ;
     const char *debug = "gdb" ;
@@ -85,12 +84,12 @@ namespace Loci {
     MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
-
     ostringstream oss ;
     oss << "debug."<<MPI_rank ;
     string filename  = oss.str() ;
     debugout.open(filename.c_str(),ios::out) ;
-    
+    init_rule_list.copy_rule_list(global_rule_list) ;
+    global_rule_list.clear() ;
     bool debug_setup = false ;
     int i = 1 ;
     while(i<*argc) {

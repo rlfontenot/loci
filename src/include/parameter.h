@@ -495,6 +495,7 @@ namespace Loci {
   void paramRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
                                   const entitySet &eset ) const
   {
+    /*
     typedef data_schema_traits<T> traits_type;
 
     DatatypeP  dtype = traits_type::get_type();
@@ -516,7 +517,7 @@ namespace Loci {
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
-
+    */
   }
 
   //*********************************************************************/
@@ -525,7 +526,7 @@ namespace Loci {
   void paramRepI<T> :: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g, 
                                   const entitySet &eset) const
   {
-
+    /*
     typedef data_schema_traits<T> schema_traits ;
     typedef typename schema_traits::Converter_Base_Type dtype;
 
@@ -568,14 +569,14 @@ namespace Loci {
     H5Tclose( vDatatype );
 
     delete [] data;
-
+    */
   }
 
   //**************************************************************************/
   template <class T> 
   void paramRepI<T> :: hdf5read(hid_t group_id, IDENTITY_CONVERTER g )
   { 
-
+    /*
     hsize_t  dimension;
 
     typedef data_schema_traits<T> traits_type;
@@ -591,7 +592,7 @@ namespace Loci {
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
-
+    */
   }
 
   //*************************************************************************/
@@ -599,7 +600,7 @@ namespace Loci {
   template <class T> 
   void paramRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER g )
   { 
-
+    /*
     hsize_t   dimension;
 
     typedef data_schema_traits<T> schema_traits ;
@@ -632,7 +633,7 @@ namespace Loci {
     H5Tclose( vDatatype );
 
     delete [] data;
-
+    */
   }
 
   //***************************************************************************

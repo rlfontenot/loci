@@ -83,7 +83,7 @@ namespace Loci {
       if((finfo.data_rep->domain() != EMPTY &&
           finfo.data_rep->RepType() != PARAMETER)) {
         cerr << "unable to define synonym variable " << synonym
-             << " when varaiable already created in db. "  << endl ;
+             << " when variable already created in db. "  << endl ;
         cerr << "variable v = " << v << endl ;
         abort() ;
       }
@@ -104,48 +104,64 @@ namespace Loci {
       int max_val = st->domain().Max() ;
       maximum_allocated = max(maximum_allocated,max_val+1) ;
     }
-    warn(synonyms.find(v) != synonyms.end()) ;
-    std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
+    variable tmp_v ;
+    if(nspace_vec.size()) {  
+      tmp_v = v ;
+      for(int i = 0; i < nspace_vec.size(); ++i)
+	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
+    }
+    else
+      tmp_v = v ;
+    
+    warn(synonyms.find(tmp_v) != synonyms.end()) ;
+    std::map<variable, fact_info>::iterator mi = fmap.find(tmp_v) ;
     
     if(mi != fmap.end()) {
       mi->second.data_rep->setRep(st->getRep()) ;
     } else
-      cerr << "warning: update_fact: fact does not exist for variable " << v
-           << endl ;
+      cerr << "warning: update_fact: fact does not exist for variable " << tmp_v
+	   << endl ;
   }
   
   void fact_db::create_fact(variable v, storeRepP st) {
-
+    
     if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
       int max_val = st->domain().Max() ;
       maximum_allocated = max(maximum_allocated,max_val+1) ;
     }
-
-    if(synonyms.find(v) != synonyms.end()) {
-      v = remove_synonym(v) ;
-      std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
+    variable tmp_v ;
+    if(nspace_vec.size()) {
+      tmp_v = v ;
+      for(int i = 0; i < nspace_vec.size(); ++i)
+	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
+    }
+    else
+      tmp_v = v ;
+    if(synonyms.find(tmp_v) != synonyms.end()) {
+      tmp_v = remove_synonym(tmp_v) ;
+      std::map<variable, fact_info>::iterator mi = fmap.find(tmp_v) ;
       if(mi==fmap.end()) {
-        fmap[v].data_rep = new store_ref ;
-        fmap[v].data_rep->setRep(st->getRep()) ;
+        fmap[tmp_v].data_rep = new store_ref ;
+        fmap[tmp_v].data_rep->setRep(st->getRep()) ;
       } else {
         if(typeid(st->getRep()) != typeid(mi->second.data_rep->getRep())) {
-          cerr << "set_variable_type() method of fact_db changing type for variable " << v << endl ;
+          cerr << "set_variable_type() method of fact_db changing type for variable " << tmp_v << endl ;
         }
         mi->second.data_rep->setRep(st->getRep()) ;
       }
       return ;
     }
     
-    std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
+    std::map<variable, fact_info>::iterator mi = fmap.find(tmp_v) ;
     if(mi != fmap.end()) {
       cerr << "WARNING: fact_db::set_variable_type retyping variable "
-	   << v << endl ;
+	   << tmp_v << endl ;
       mi->second.data_rep->setRep(st->getRep()) ;
     } else {
-      fmap[v].data_rep = new store_ref ;
-      fmap[v].data_rep->setRep(st->getRep()) ;
+      fmap[tmp_v].data_rep = new store_ref ;
+      fmap[tmp_v].data_rep->setRep(st->getRep()) ;
     }
-    
+    // cout << " tmp_v = " << tmp_v << endl ;
   } 
 
   void fact_db::remove_variable(variable v) {
@@ -240,11 +256,23 @@ namespace Loci {
   }
 
   storeRepP fact_db::get_variable(variable v) {
-    v = remove_synonym(v) ;
+    variable tmp_v ;
+    if(nspace_vec.size()) {  
+      tmp_v = v ;
+      for(int i = 0; i < nspace_vec.size(); ++i)
+	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
+    }
+    else
+      tmp_v = v ;
+    tmp_v = remove_synonym(tmp_v) ;
     std::map<variable, fact_info>::iterator mi =
-      fmap.find(remove_synonym(v)) ;
-    if(mi == fmap.end()) 
+      fmap.find(remove_synonym(tmp_v)) ;
+    if(mi == fmap.end()) {
+      if(Loci::MPI_rank == 0)
+	cout << " returning null  storeRep for variable " << tmp_v<< endl ;
       return storeRepP(0) ;
+      
+    }
     else
       return storeRepP(mi->second.data_rep) ;
   }

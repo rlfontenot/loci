@@ -38,7 +38,7 @@ namespace Loci {
     virtual void Join(Map &t2s, const sequence &seq) = 0 ;
   } ;  
   
-	class rule;
+  class rule;
   class rule_impl : public CPTR_type {
   public:
     struct info {
@@ -101,7 +101,7 @@ namespace Loci {
     virtual rule_implP new_rule_impl() const ;
     virtual void compute(const sequence &) = 0 ;
     virtual CPTR<joiner> get_joiner() = 0 ;
-		virtual rule_implP add_namespace(const std::string& n) const;
+    virtual rule_implP add_namespace(const std::string& n) const;
   } ;
   
   typedef rule_impl::rule_implP rule_implP ;
@@ -377,15 +377,14 @@ namespace Loci {
       rule_impl::info desc ;
       
       std::string rule_ident ;
-        
       time_ident source_level, target_level ;
       variableSet source_vars, target_vars, map_vars, constraint_vars ;
-        
+      
       rule_type rule_class ;
       bool output_is_parameter ;
       bool time_advance ;
       std::string internal_qualifier ;
-        
+      std::string impl_name ;
       const std::string &name() const { return rule_ident ; }
       info() { rule_ident = "NO_RULE" ;}
       info(const rule_implP &fp) ;
@@ -404,11 +403,12 @@ namespace Loci {
       time_ident source_time() const { return source_level ; }
       time_ident time() const { return source_level ; }
       int ident() const { return rule::rdb->get_id(*this) ; }
+      
       rule_implP get_rule_implP() const ;
-			// SH - namespace support
-			rule_implP add_namespace(const std::string& n) const { 
-					return rule_impl->add_namespace(n) ;
-			}
+      // SH - namespace support
+      rule_implP add_namespace(const std::string& n) const { 
+	return rule_impl->add_namespace(n) ;
+      }
     } ;
   private:
     friend class rule::info ;
@@ -427,6 +427,7 @@ namespace Loci {
       }
       const info &get_info(int id) const { return fiv[-(id+1)] ; }
     } ;
+    
     static rule_db *rdb ;
     int id ;
     void create_rdb() {if(0==rdb) rdb = new rule::rule_db ; }
@@ -441,12 +442,12 @@ namespace Loci {
     rule(const std::string &s)
       { create_rdb(); id = rdb->get_id(info(s)) ; }
       
-		// SH - Namespace support
-		// We use a new rule_implP identical to the original but with namespace'd variables to construct a new rule (rule(rule_implP&))
-		// get_rule_implP() gives us our rule_implP for this rule, the rule_implP adds the namespace to a copy of itself
-		rule add_namespace(const std::string& n) const { 
-				return rule(get_rule_implP()->add_namespace(n));
-		}
+    // SH - Namespace support
+    // We use a new rule_implP identical to the original but with namespace'd variables to construct a new rule (rule(rule_implP&))
+    // get_rule_implP() gives us our rule_implP for this rule, the rule_implP adds the namespace to a copy of itself
+    rule add_namespace(const std::string& n) const { 
+      return rule(get_rule_implP()->add_namespace(n));
+    } 
     rule parent() const { return rule(*this,time().parent()) ; }
 
     std::ostream &Print(std::ostream &s) const
@@ -518,13 +519,13 @@ namespace Loci {
   class register_rule_type {
   public:
     virtual rule_implP get_func() const = 0 ;
-  } ;
-
-  class global_rule_impl_list {
+    virtual bool is_module_rule() const = 0 ;
+  } ; 
+  
+  class rule_impl_list {
   public:
     class rule_list_iterator ;
     friend class rule_list_iterator ;
-  private:
     class rule_list_ent {
     public:
       rule_list_ent(register_rule_type *p, rule_list_ent *nxt) :
@@ -532,7 +533,7 @@ namespace Loci {
       register_rule_type *rr ;
       rule_list_ent *next ;
     } ;
-    static rule_list_ent *list ;
+    rule_list_ent *list ;
   public:
     class rule_list_iterator {
       rule_list_ent *p ;
@@ -548,27 +549,49 @@ namespace Loci {
         p = p->next ;
         return tmp ;
       }
+      rule_list_ent* get_p() { return p; } 
       bool operator==(const rule_list_iterator &i) { return i.p == p ; }
       bool operator!=(const rule_list_iterator &i) { return i.p != p ; }
     } ;
     typedef rule_list_iterator iterator ;
-        
-    global_rule_impl_list() {}
-    ~global_rule_impl_list() ;
+    
+    rule_impl_list() {list = 0 ; }
+    ~rule_impl_list() ;
+    
     void push_rule(register_rule_type *rr) ;
     iterator begin() { return iterator(list) ; }
     iterator end() { return iterator(0) ; }
+    void clear() ;
+    void copy_rule_list(const rule_impl_list &rl) ;
+    rule_impl_list(const rule_impl_list &x) {
+      list = 0 ;
+      copy_rule_list(x) ;
+    }
+    rule_impl_list &operator=(const rule_impl_list &x) {
+      list = 0 ;
+      copy_rule_list(x) ;
+    }
   } ;
-    
-  extern global_rule_impl_list global_rule_list ;    
-    
+  
+  extern rule_impl_list global_rule_list ;    
+  extern rule_impl_list init_rule_list ;    
   template<class T> class register_rule : public register_rule_type {
   public:
     register_rule() { global_rule_list.push_rule(this) ; }
+    virtual bool is_module_rule()  const{ return false; }
     virtual rule_implP get_func() const { return new copy_rule_impl<T> ; }
   } ;
   
-    
+  class register_module : public register_rule_type {
+  public:
+    register_module() { global_rule_list.push_rule(this) ; }
+    virtual bool is_module_rule() const{ return true ; }
+    virtual rule_implP get_func() const { return 0 ; }
+    virtual std::string using_nspace() const = 0 ;
+    virtual std::string input_vars() const = 0 ;
+    virtual std::string output_vars() const = 0 ;
+  } ;
+  
   class rule_db {
     typedef std::map<variable,ruleSet> varmap ;
     typedef varmap::const_iterator vc_iterator ;
@@ -585,7 +608,7 @@ namespace Loci {
       
     void add_rule(const rule_implP &fp) ;
     void add_rule(rule f) ;
-    void add_rules(global_rule_impl_list &gfl) ;
+    void add_rules(rule_impl_list &gfl) ;
       
     rule_implP get_rule(const std::string &name) {
       return name2rule[name].get_info().rule_impl->new_rule_impl() ;

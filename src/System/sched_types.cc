@@ -21,7 +21,7 @@ namespace Loci {
     // We need the transpose of the graph in order to find the rules that
     // generate a particular variable
     digraph dgt = dg.transpose() ;
-
+    
     // We need to account for iteration variables
     // So we can allocate them (No rules explicitly allocate them)
     variableSet iteration_variables ;
@@ -64,14 +64,16 @@ namespace Loci {
           variable source = *((ri->sources()).begin()) ;
           variable target = *((ri->targets()).begin()) ;
           ruleSet rs = extract_rules(dgt[source.ident()]) ;
-          if(rs == EMPTY) {// If a generalize has no rules to generate its
-            // input, then remove it
-            unused_variables += source ;
+	  if(rs == EMPTY) {// If a generalize has no rules to generate its
+	    // input, then remove it
+	    unused_variables += source ;
             rs = extract_rules(dgt[target.ident()]) ;
             // If Nothing else generates the output then we won't need the
             // result of the generalize either
-            if(rs.size() == 2) // looping + generalize
+            
+	    if(rs.size() == 2) {// looping + generalize 
               unused_variables += target ;
+	    }
           } else {
             variable_groupings.add_edge(source.ident(),target.ident()) ;
             variable_groupings.add_edge(target.ident(),source.ident()) ;
@@ -109,6 +111,7 @@ namespace Loci {
     // Find strongly connected components in variable graph,
     // Select the variable out of this group that should represent the
     // storage of the variable.
+   
     vector<digraph::vertexSet> var_clusters =
       component_sort(variable_groupings).get_components() ;
 
@@ -117,11 +120,11 @@ namespace Loci {
       if(cluster.size() == 1) {
         variable v = *cluster.begin() ;
         cluster_map[v] = cluster ;
-        var_to_cluster[v] = v ;
-        continue ;
+	var_to_cluster[v] = v ;
+	continue ;
       }
       FATAL(cluster.size() == 0) ;
-
+      
       variable min_time = *cluster.begin() ;
       if((cluster & given_vars) != EMPTY) {
         variableSet test = cluster ;
@@ -133,7 +136,7 @@ namespace Loci {
         }
         min_time = *test.begin() ;
       }
-          
+      
       variableSet::const_iterator vi ;
       for(vi = cluster.begin();vi!=cluster.end();++vi)
         if(vi->time() < min_time.time() ) {
@@ -145,8 +148,9 @@ namespace Loci {
             min_time = *vi ;
         }
       cluster_map[min_time] = cluster ;
-      for(vi=cluster.begin();vi!=cluster.end();++vi)
+      for(vi=cluster.begin();vi!=cluster.end();++vi) {
         var_to_cluster[*vi] = min_time ;
+      }
     }
 
     
@@ -168,9 +172,7 @@ namespace Loci {
     // separately
     for(variableSet::const_iterator
           vi=all_vars.begin();vi!=all_vars.end();++vi) {
-
       // only deal with rules given to the system by the user
-      
       ruleSet rs = extract_rules(dgt[(*vi).ident()] - qualified_rules) ;
       if(rs == EMPTY) {
         continue ;
@@ -178,7 +180,7 @@ namespace Loci {
       // storage for rename specification if one is found
       pair<variable,variable> rename_pair ;
       bool rename = false ;
-
+      
       // Check all rules generating this variable, if the rules specify
       // renaming a variable for the target, then by default the target
       // will be an identical type to that of the previous variable.
@@ -189,30 +191,30 @@ namespace Loci {
           if(vmsi->assign.size() != 0) 
             for(unsigned int i=0;i<vmsi->assign.size();++i) {
               variable new_name = vmsi->assign[i].first ;
-            
-              if(new_name == *vi) {
+	      if(new_name == *vi) {
                 variable old_name = vmsi->assign[i].second ;
-                if(rename && old_name != rename_pair.second) {
+		if(rename && old_name != rename_pair.second) {
                   cerr << "rule " << *ri << endl 
                        << " is not consistent with other rules w/respect to "
                        << "renaming." << endl ;
                   exit(-1) ;
                 }
-
+		
                 rename_pair = make_pair(new_name,old_name) ;
                 rename = true ;
               }
             }
       }
-
+      
       // If a rename variable was found, save this information for later
       // use and continue ;
       if(rename) {
-        variable v1 = rename_pair.first ;
+        //cout << " rule_set = " << rs << endl ;
+	variable v1 = rename_pair.first ;
         variable v2 = rename_pair.second ;
         variable c1 = var_to_cluster[v1] ;
         variable c2 = var_to_cluster[v2] ;
-        if(c1 == c2) {
+       	if(c1 == c2) {
           cerr << "Rules that rename variables make variables distinct that are al so equivalent!" << endl ;
           cerr << "variables = " << v1 << "," << v2
                << ", cluster = " << c1 << "," << c2 << endl ;
@@ -220,7 +222,6 @@ namespace Loci {
         rename_vars.push_back(rename_pair) ;
         continue ;
       }
-
     }
 
 
@@ -233,15 +234,13 @@ namespace Loci {
     for(unsigned int i=0;i<rename_vars.size();++i) {
       variable new_var = var_to_cluster[rename_vars[i].first] ;
       variable old_var = var_to_cluster[rename_vars[i].second] ;
-    
       rename_graph.add_edge(old_var.ident(),new_var.ident()) ;
     }  
-
+    
     digraph rename_tr = rename_graph.transpose() ;
     // Perform a topological sort on the interal rule graph
     vector<digraph::vertexSet> topo =
       component_sort(rename_graph).get_components() ;
-
     for(unsigned int i=0;i<topo.size();++i) {
       variableSet vs = extract_vars(topo[i]) ;
       if(vs.size() != 1) {
@@ -252,7 +251,7 @@ namespace Loci {
       variable v = *vs.begin() ;
       if(rename_tr[v.ident()].size() > 1) {
         variableSet image= extract_vars(rename_tr[v.ident()]) ;
-        image -= v ;
+	image -= v ;
         if(image.size() != 1) {
           cerr << "rename shadow has more than one variable!" << endl ;
           cerr << "variables =" <<  image<< ", rename_variable =" <<  v << endl;
@@ -261,11 +260,10 @@ namespace Loci {
         variable orig = *image.begin() ;
         scheds.alias_variable(orig,v,facts) ;
       } else if(!prev_typed_vars.inSet(v)) {
-
-        variable vget = v ;
+	variable vget = v ;
         
         ruleSet rs = extract_rules(dgt[v.ident()] - qualified_rules) ;
-        if(rs == EMPTY) {
+	if(rs == EMPTY) {
           variableSet cluster = cluster_map[v] ;
           for(variableSet::const_iterator vi = cluster.begin();
               vi!=cluster.end();++vi) {
@@ -288,21 +286,28 @@ namespace Loci {
         // and query the rule for the type of variable *vi.  Set the variable
         // type appropriately in the fact database.
         if(rs != EMPTY) {
-          rule pick = *rs.begin() ;
-
-          storeRepP st = pick.get_info().rule_impl->get_store(vget) ;
-          if(st == 0) {
-            cerr << "rule " << pick << " unable to provide type for " << vget
-                 << endl ;
-            abort() ;
-          }
-          st = st->new_store(EMPTY) ;
-          scheds.set_variable_type(v,st, facts) ;
-        } else {
-          
-          cerr << "Warning, variable " << v << " not typed!" << endl;
-        }
-          
+	  rule pick = *rs.begin() ;
+	  storeRepP st ;
+	  
+	  // this part of the code is a temporary hack 
+	  //rule_implP rp = pick.get_rule_implP() ;
+	  //rule_impl::info rinfo = rp->get_info() ;
+	  //if(!rinfo.conditionals.inSet(vget)) {
+	    
+	    //end hack 
+	  st = pick.get_info().rule_impl->get_store(vget) ;
+	  if(st == 0) {
+	    cerr << "rule " << pick << " unable to provide type for " << vget
+		 << endl ;
+	    abort() ;
+	  }
+	  st = st->new_store(EMPTY) ;
+	  scheds.set_variable_type(v,st, facts) ;
+	} else {
+	  
+	  cerr << "Warning, variable " << v << " not typed!" << endl;
+	}
+	
       }
       variableSet syns = cluster_map[v] ;
       syns -= v ;
@@ -318,28 +323,28 @@ namespace Loci {
     ruleSet rs = all_rules ;
     rs -= qualified_rules ;
     variableSet typed_vars = facts.get_typed_variables() ;
-    
     for(ri=rs.begin();ri!=rs.end();++ri) {
       variableSet varcheck ;
       const rule_impl::info &finfo = ri->get_info().desc ;
-
+      
       // Collect all variables for which are actually read or written in the class
       set<vmap_info>::const_iterator i ;
       for(i=finfo.sources.begin();i!=finfo.sources.end();++i) {
-        for(unsigned int j=0;j<i->mapping.size();++j)
+        for(unsigned int j=0;j<i->mapping.size();++j) {
           varcheck += i->mapping[j] ;
+	}
         varcheck += i->var ;
       }
       for(i=finfo.targets.begin();i!=finfo.targets.end();++i) {
-        for(unsigned int j=0;j<i->mapping.size();++j)
+        for(unsigned int j=0;j<i->mapping.size();++j) {
           varcheck += i->mapping[j] ;
+	}
         varcheck += i->var ;
-        for(unsigned int k=0;k<i->assign.size();++k) {
+	for(unsigned int k=0;k<i->assign.size();++k) {
           varcheck -= i->assign[k].first ;
           varcheck += i->assign[k].second ;
-        }
+	}
       }
-
       variableSet::const_iterator vi ;
       for(vi = varcheck.begin();vi!=varcheck.end();++vi) {
         storeRepP rule_type = ri->get_rule_implP()->get_store(*vi)->getRep() ;

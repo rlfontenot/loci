@@ -77,7 +77,7 @@ namespace Loci {
     
     std::map<variable,fact_info> fmap ;
     std::map<variable,storeRepP> tmap ;
-    
+    std::vector<std::string> nspace_vec ;
   public:
     fact_db() ;
     ~fact_db() ;
@@ -98,7 +98,7 @@ namespace Loci {
     void create_fact(std::string vname, storeRepP st)
       { create_fact(variable(vname),st) ;}
     void create_fact(variable v, store_instance &si)
-      { create_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
+      { create_fact(v,si.Rep()) ;si.setRep(get_variable(v)) ; }
     void create_fact(std::string vname, store_instance &si)
       { create_fact(variable(vname),si) ; }
     
@@ -133,6 +133,15 @@ namespace Loci {
 
     void rotate_vars(const std::list<variable> &lvars) ;
     
+    void set_namespace(std::string name_space){
+      nspace_vec.insert(nspace_vec.begin(), 1, name_space) ; 
+    }
+    void remove_namespace() {
+      nspace_vec.pop_back() ;
+    }  
+    void unset_namespace() {
+      nspace_vec.clear() ;
+    }
     entitySet get_allocation(int size) {
       entitySet alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
       maximum_allocated += size ;

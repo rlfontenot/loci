@@ -125,17 +125,19 @@ namespace Loci {
         for(variableSet::const_iterator vi = working.begin();
             vi!=working.end();
             ++vi) {
+	  //cout << " variable = " << *vi << endl ;
           ruleSet var_rules =
             extract_rules(rule_graph.get_edges(vi->ident())+
                           rgt.get_edges(vi->ident())) ;
-          var_rules -= processed_rules ;
+	  var_rules -= processed_rules ;
+	  //cout << " var_rules = " << var_rules << endl ;
           ruleSet reject_rules ;
           for(ruleSet::const_iterator ri = var_rules.begin() ;
               ri!=var_rules.end();
               ++ri) {
             if(ri->type() == rule::INTERNAL &&
                ri->qualifier()=="iterating_rule") {
-              if(vi->time() == ri->source_time()) {
+	      if(vi->time() == ri->source_time()) {
                 invoke_rule(*ri,gr) ;
                 new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
               } else {
@@ -145,6 +147,7 @@ namespace Loci {
               }
             } else {
               variableSet rule_depend = ri->constraints() ;
+	      //cout << " rule_depend 1 = " << rule_depend << endl ;
 #ifdef PRUNE_GRAPH
               // Adding this line will prune dependency graph to only those
               // rules that can execute.
@@ -152,9 +155,11 @@ namespace Loci {
 #endif
               if(rule_depend == EMPTY)
                 rule_depend = ri->sources() ;
-                  
+	      //cout << " rule depend 2 = " << rule_depend << endl ;
               rule_depend -= rule_graph.get_edges(ri->ident()) ;
-              rule_depend -= known_processed ;
+              //cout << " rule_depend 3 = " << rule_depend << endl ;
+	      rule_depend -= known_processed ;
+	      //cout << " rule_depend 4 = " << rule_depend << endl ;
               variableSet time_vars ;
               for(variableSet::const_iterator vi = rule_depend.begin();
                   vi != rule_depend.end();
@@ -171,10 +176,10 @@ namespace Loci {
               }
             }
           }
-          var_rules -= reject_rules ;
+	  var_rules -= reject_rules ;
           processed_rules += var_rules ;
           working_rules += var_rules ;
-
+	  
 #ifdef VERBOSE
           cout << "rules involved = " << var_rules << endl ;
 #endif
@@ -185,7 +190,7 @@ namespace Loci {
             ruleSet promote_rules =
               extract_rules(rule_graph.get_edges(stationary_var.ident())+
                             rgt.get_edges(stationary_var.ident())) ;
-
+	    
             for(ruleSet::const_iterator ri = promote_rules.begin() ;
                 ri!=promote_rules.end();
                 ++ri) {
@@ -193,12 +198,15 @@ namespace Loci {
                  !(ri->type() == rule::INTERNAL &&
                    ri->qualifier()=="iterating_rule")) {
                 rule pr(*ri,vtime) ;
+		//cout << " pr = " << pr << endl ;
                 if(!processed_rules.inSet(pr)) {
                   variableSet rule_depend = pr.get_info().constraints() ;
                   // Hack
                   rule_depend += pr.sources() ;
                   if(rule_depend == EMPTY) 
                     rule_depend = pr.sources() ;
+		  //cout << " rule_depend 5 = " << rule_depend << endl ;
+		  //cout << "known processed = " << known_processed << endl ;
                   rule_depend -= known_processed ;
                   if(rule_depend == EMPTY) {
 #ifdef VERBOSE
@@ -301,6 +309,7 @@ namespace Loci {
       
       for(ruleSet::const_iterator ri = build.begin();ri!=build.end();++ri) {
         variableSet btarget = ri->targets() ;
+	//cout << "btarget = " << btarget << endl ;
         for(variableSet::const_iterator vi = btarget.begin();
             vi!=btarget.end();
             ++vi) {
@@ -313,18 +322,19 @@ namespace Loci {
                  << endl ;
           }
           warn(!vi->assign) ;
-
+	  
           build_vars += *vi ;
-          variable vt = vi->drop_assign() ;
-          variable vbase = vt.new_offset(0) ;
+	  variable vt = vi->drop_assign() ;
+	  variable vbase = vt.new_offset(0) ;
           build_offsets[vbase] += vi->offset ;
           rule gv =  create_rule(*vi,vt,"generalize") ;
           invoke_rule(gv,iteration_graph) ;
-          if(vi->offset == 0)
+	  if(vi->offset == 0) {
             build_vars += vt ;
+	  }
         }
       }
-
+      
       variableSet looping_input ;
       variableSet looping_output ;
       map<variable,intervalSet>::iterator mvi ;
@@ -360,9 +370,10 @@ namespace Loci {
           ++ri) {
         invoke_rule_wp(*ri,iteration_graph) ;
       }
-      build_vars += variable(iteration_time) ;
-      //      known_vars += variable(iteration_time) ;
       
+      build_vars += variable(iteration_time) ;
+      //cout << " adding variable  " << variable(iteration_time) << "to build_vars "<< endl ;
+      //      known_vars += variable(iteration_time) ;
       fill_graph(build_vars,rule_graph,iteration_graph,known_vars) ;
       known_vars += extract_vars(iteration_graph.get_target_vertices()) ;
 
@@ -533,6 +544,7 @@ namespace Loci {
     }
   
     // Fill graph with rules that will compute target.
+    //cout << "given passed to fill graph = " << given << endl ;
     fill_graph(given,rule_graph,gr,given) ;
 
 

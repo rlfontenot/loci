@@ -2,14 +2,11 @@
 
 #include <Tools/stream.h>
 #include <fact_db.h>
-
 using std::vector ;
 using std::set ;
 using std::pair ;
 
-
 namespace Loci {
-
   namespace {
     variableSet convert_set(const variableSet &vset, time_ident tl) {
       variableSet res ;
@@ -68,6 +65,7 @@ namespace Loci {
 	
 	res.assign.push_back(std::make_pair(v1, v2)) ;
       }
+      
       return res ;
     } 
     
@@ -135,6 +133,7 @@ namespace Loci {
 
   rule_implP rule_impl::add_namespace(const string& n) const {
     rule_implP with_namespace = new_rule_impl();
+    
     variableSet vars = with_namespace->get_var_list() ;
     std::map<variable,variable> new_vars;
     for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
@@ -144,8 +143,7 @@ namespace Loci {
     with_namespace->rename_vars(new_vars);
     return with_namespace ;
   }
-
-	
+  
   namespace {
     inline void fill_descriptors(set<vmap_info> &v, const exprList &in) {
             
@@ -200,6 +198,7 @@ namespace Loci {
   }
 
   storeRepP rule_impl::get_store(variable v) const {
+    //Print(cout) ;
     typedef storeIMap::const_iterator SI ;
     std::pair<SI, SI> sip = var_table.equal_range(v) ;
     SI sp = sip.first ;
@@ -223,13 +222,12 @@ namespace Loci {
   }
   
   void rule_impl::prot_rename_vars(std::map<variable,variable>  &rvm){
-    
+    //cout << " ***********************************************" << endl ;
+    //cout << "Before Prot_rename_vars " << endl ;
+    //Print(cout) ;
     typedef storeIMap::iterator smap_iter ; 
     typedef std::map<variable, variable>::const_iterator map_iter ;
     storeIMap tmp_var_table ;
-    //cout << "Map passed for renaming  = " << endl ;
-    //for(map_iter m = rvm.begin(); m != rvm.end(); ++m)
-    //cout << "("  <<variable(m->first) << " ,  " << variable(m->second) << " ) " << endl ; 
     for(smap_iter si = var_table.begin(); si != var_table.end(); ++si) {
       map_iter mi = rvm.find(si->first) ;
       if(mi != rvm.end()) {
@@ -237,17 +235,14 @@ namespace Loci {
 	for(smap_iter i = sip.first; i != sip.second; ++i) {
           //	  std::pair<variable, store_instance*> vsp = make_pair(mi->second, i->second) ;
           //	  tmp_var_table.insert(vsp) ;
-          tmp_var_table.insert(std::pair<const variable, store_instance *>(mi->second,i->second)) ;
+	  storeRepP sp = (i->second)->Rep() ;
+	  tmp_var_table.insert(std::pair<const variable, store_instance *>(mi->second,i->second)) ;
 	}
       } else {
 	tmp_var_table.insert(*si) ;
       }
     }
     var_table.swap(tmp_var_table) ;
-    //cout << "New var_table = " << endl ;
-    //for(smap_iter si = var_table.begin(); si != var_table.end(); ++si) 
-    //cout << variable(si->first) << "\t" << "store rep " << endl ;
-    // 
     std::set<vmap_info>::const_iterator i ;
     std::set<vmap_info> tmp ;
     for(i = rule_info.sources.begin(); i != rule_info.sources.end(); ++i) 
@@ -264,6 +259,10 @@ namespace Loci {
     rule_info.constraints.swap(tmp) ;
     tmp.clear() ;
     rule_info.conditionals = rename_set(rule_info.conditionals,rvm) ;
+    
+    //cout << " After prot rename vars " << endl ;
+    //Print(cout) ;
+    //cout << " *************************************************" << endl ;
   }
   
   void rule_impl::name_store(const string &nm, store_instance &si) {
@@ -506,20 +505,36 @@ variableSet rule_impl::get_var_list() {
 
     string rule_impl_key = rule_info.rule_identifier() ;
     s << rule_impl_key << endl ;
-        
+    s << "rule_info.sources = " << rule_info.sources << endl ;
+    s << "rule_info.targets = " << rule_info.targets << endl ;
+    s << "rule_info.constraints = " << rule_info.constraints << endl ;
+    s << "rule_info.conditionals = " << rule_info.conditionals << endl ;
+    
+    typedef storeIMap::const_iterator smap_iter ; 
+    for(smap_iter si = var_table.begin(); si != var_table.end(); ++si) {
+      s << "var_table[" << si->first << "]  = " << endl ; 
+      std::pair<smap_iter, smap_iter> sip = var_table.equal_range(si->first) ;
+      for(smap_iter i = sip.first; i != sip.second; ++i) {
+	storeRepP sp = (i->second)->Rep() ;
+      }
+    }
+    
     s << "------------------------------------------------" << endl;
+    
   }        
 
 
   rule::rule_db *rule::rdb = 0 ;
-
+ 
 
   rule::info::info(const rule_implP &fp) {
     rule_impl = fp ;
-      
     desc = fp->get_info() ;
-    rule_ident = desc.rule_identifier() ;
-      
+    impl_name = typeid(*fp).name() ;
+    rule_ident.append(impl_name) ;
+    rule_ident.append("#") ;
+    rule_ident.append(desc.rule_identifier()) ;
+    
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars,tvar_types ;
     for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
@@ -636,6 +651,7 @@ variableSet rule_impl::get_var_list() {
     if(target_offset > 2)
       cerr << "invalid target offset in rule "
            << rule_impl->get_name() << endl;
+    
   }
   
   rule::info::info(const info &fi, time_ident tl) {
@@ -916,22 +932,37 @@ variableSet rule_impl::get_var_list() {
       s << *i << endl ;
     return s;
   }
-
-  global_rule_impl_list global_rule_list ;
-
-  global_rule_impl_list::rule_list_ent *global_rule_impl_list::list = 0 ;
-    
-  global_rule_impl_list::~global_rule_impl_list() {
+  //Definition of global rule lists
+  rule_impl_list global_rule_list ;
+  rule_impl_list init_rule_list ;
+  
+  
+  rule_impl_list::~rule_impl_list() {
     rule_list_ent *p,*v ;
     for(p=list;p!=0;p=v) {
       v = p->next ;
       delete p ;
     }
   }
-
-  void global_rule_impl_list::push_rule(register_rule_type *p) {
+  void rule_impl_list::clear() {
+    rule_list_ent *p,*v ;
+    for(p=list;p!=0;p=v) {
+      v = p->next ;
+      delete p ;
+    }
+    list = 0 ;
+  }
+  void rule_impl_list::push_rule(register_rule_type *p) {
     rule_list_ent *flp = new rule_list_ent(p,list) ;
     list = flp ;
+  }
+  
+  void rule_impl_list::copy_rule_list(const rule_impl_list& rl) {
+    rule_list_ent *p, *v ;
+    for(p = rl.list; p != 0; p=v) {
+      push_rule(p->rr) ;
+      v = p->next ;
+    }
   }
   
   
@@ -977,9 +1008,10 @@ variableSet rule_impl::get_var_list() {
     }
   }
   
-  void rule_db::add_rules(global_rule_impl_list &gfl) {
-    for(global_rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i) 
-      add_rule(*i) ;
+  void rule_db::add_rules(rule_impl_list &gfl) {
+    for(rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i) 
+      if(!(i.get_p())->rr->is_module_rule())
+	add_rule(*i) ;
   }
 }
 
