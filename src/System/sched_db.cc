@@ -270,7 +270,6 @@ namespace Loci {
   void sched_db::add_policy(variable v, duplicate_policy p) {
     unsigned int policy = get_policy(v);
     unsigned int temp = 1;
-
     switch(p) {
     case NEVER:
       break;
@@ -280,7 +279,9 @@ namespace Loci {
     }
 
     policy |= temp;
-    set_policy(v, policy);
+    variableSet synonyms = get_synonyms(v);
+    for(variableSet::const_iterator vi = synonyms.begin(); vi != synonyms.end(); vi++)
+      set_policy(*vi, policy);
   }
 
   bool sched_db::is_policy(variable v, duplicate_policy p) {
