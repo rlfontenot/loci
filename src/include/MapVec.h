@@ -1,16 +1,8 @@
 #ifndef MAPVEC_H
 #define MAPVEC_H
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
-#ifdef GXX_FIXES
-#include <g++-fixes/istream>
-#include <g++-fixes/ostream>
-#else
 #include <istream>
 #include <ostream>
-#endif
 
 #include <Tools/debug.h>
 #include <Map_rep.h>

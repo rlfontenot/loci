@@ -1,18 +1,11 @@
 #ifndef LOCI_DATATYPE_H
 #define LOCI_DATATYPE_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 #include <Tools/cptr.h>
 
 #include <set>
 #include <string>
 #include <vector>
-#ifdef GXX_FIXES
-#include <g++-fixes/sstream>
-#else
 #include <sstream>
-#endif
 #include <stddef.h>
 
 extern "C" {

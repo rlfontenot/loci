@@ -437,6 +437,7 @@ namespace Loci {
     global_join_op->SetArgs(tp, sp) ;
     global_join_op->Join(seq) ;
     loc_result = 0 ;
+    loc_send = 0 ;
     tp->pack(result_ptr, loc_result, *size, e) ;
   } 
   
@@ -448,7 +449,6 @@ namespace Loci {
     storeRepP sp, tp ;
     entitySet e ;
     sequence seq ;
-    
     MPI_Op create_join_op ;
     sp = facts.get_variable(reduce_var) ;
     size = sp->pack_size(e) ;
@@ -459,9 +459,6 @@ namespace Loci {
     MPI_Op_create(&create_user_function, 0, &create_join_op) ;
     MPI_Allreduce(send_ptr, result_ptr, size, MPI_PACKED, create_join_op, MPI_COMM_WORLD) ;
     sp->unpack(result_ptr, loc_result, size, seq) ;
-    delete [] send_ptr ;
-    delete [] result_ptr ;
-    MPI_Op_free(&create_join_op) ;
   }
   
   void execute_param_red::Print(ostream &s) const {

@@ -1,16 +1,9 @@
 #ifndef DEBUG_H
 #define DEBUG_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 
 #include <Tools/debugger.h>
 
-#if GXX_FIXES
-#include <g++-fixes/ostream>
-#else
 #include <ostream>
-#endif
 #include <iostream>
 #ifdef NO_CSTDLIB
 #include <stdlib.h>

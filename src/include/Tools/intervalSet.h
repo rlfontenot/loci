@@ -1,19 +1,12 @@
 #ifndef INTERVALSET_H
 #define INTERVALSET_H 1
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 
 #include <Tools/debug.h>
 #include <Tools/Handle.h>
 #include <Tools/tools.h>
 
 #include <algorithm>
-#ifdef GXX_FIXES
-#include <g++-fixes/limits>
-#else
 #include <limits>
-#endif
 #include <vector>
 #include <iostream>
 
@@ -36,13 +29,8 @@ namespace Loci {
 
   typedef std::vector<interval> pair_vector ;
 
-
-//<<<<<<< intervalSet.h
-//  void Union(Handle<pair_vector> &Rep, const interval &ivl);
-//=======
 #ifdef ENTITY
   void Union_inplace (Handle<pair_vector> &Rep, const interval &ivl);
-//>>>>>>> 1.10
   Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
 			    const Handle<pair_vector> &Rep2);
 #endif

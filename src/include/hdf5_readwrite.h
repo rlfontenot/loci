@@ -1,8 +1,5 @@
 #ifndef HDF5_READWRITE_H
 #define HDF5_READWRITE_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 
 #include <entitySet.h>
 #include <Map.h>

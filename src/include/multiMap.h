@@ -1,8 +1,5 @@
 #ifndef MULTIMAP_H
 #define MULTIMAP_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 
 #include <Tools/debug.h>
 #include <Map_rep.h>

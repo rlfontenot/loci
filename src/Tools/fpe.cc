@@ -80,12 +80,27 @@ namespace Loci {
   }
 }  
 #else
+#ifdef LINUX
+#include <fpu_control.h>
 namespace Loci {
   
   void set_fpe_abort()
-    {
+  {
+    fpu_control_t cw =
+      _FPU_DEFAULT & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_MASK_OM);
+    _FPU_SETCW(cw);
+  }
+}
+#else
+
+namespace Loci {
+  
+  void set_fpe_abort()
+  {
+   
     }
 }
+#endif
 #endif
 #endif
 #endif

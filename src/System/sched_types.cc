@@ -120,7 +120,7 @@ namespace Loci {
         var_to_cluster[v] = v ;
         continue ;
       }
-      fatal(cluster.size() == 0) ;
+      FATAL(cluster.size() == 0) ;
 
       variable min_time = *cluster.begin() ;
       if((cluster & given_vars) != EMPTY) {

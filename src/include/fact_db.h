@@ -1,18 +1,11 @@
 #ifndef FACT_DB_H
 #define FACT_DB_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 
-#ifdef GXX_FIXES
-#include <g++-fixes/ostream>
-#else
-#include <ostream>
-#endif
 #include <string>
 #include <map>
 #include <vector>
 #include <list>
+#include <ostream>
 #include <store_rep.h>
 #include <variable.h>
 #include <constraint.h>

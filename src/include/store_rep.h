@@ -1,20 +1,13 @@
 #ifndef STORE_REP_H
 #define STORE_REP_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <Tools/nptr.h>
 #include <entitySet.h>
-#ifdef GXX_FIXES
-#include <g++-fixes/istream>
-#include <g++-fixes/ostream>
-#else
 #include <istream>
 #include <ostream>
-#endif
+
 #include <data_traits.h>
 
 

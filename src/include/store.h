@@ -1,17 +1,10 @@
 #ifndef STORE_H
 #define STORE_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 
 #include <Map.h>
 #include <store_rep.h>
 #include <data_traits.h>
-#ifdef GXX_FIXES
-#include <g++-fixes/sstream>
-#else
 #include <sstream>
-#endif
 #include <hdf5_readwrite.h>
 #include <mpi.h>
 #include <string.h>

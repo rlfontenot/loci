@@ -1,10 +1,7 @@
 #include <Tools/parse.h>
 #include <Tools/debug.h>
-#ifdef GXX_FIXES
-#include <g++-fixes/locale>
-#else
 #include <locale>
-#endif
+
 namespace Loci {
   namespace parse {
     

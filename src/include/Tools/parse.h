@@ -1,14 +1,7 @@
 #ifndef PARSE_H
 #define PARSE_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 
-#ifdef GXX_FIXES
-#include <g++-fixes/istream>
-#else
 #include <istream>
-#endif
 #include <string>
 
 namespace Loci {

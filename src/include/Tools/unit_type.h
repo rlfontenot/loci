@@ -1,6 +1,3 @@
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
 #include <Tools/parse.h>
 #include <Tools/expr.h>
 #include <stack>

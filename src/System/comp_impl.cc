@@ -27,6 +27,7 @@ namespace Loci {
   
   execute_rule::execute_rule(bool output_empty, rule fi, sequence seq, fact_db &facts, sched_db &scheds)
   {
+    do_run = false ;
     if(output_empty) {
       do_run = true ;
       rp = fi.get_rule_implP() ;

@@ -1,8 +1,5 @@
 #ifndef SCHED_TOOLS_H
 #define SCHED_TOOLS_H
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <map>
 #include <vector>

@@ -1,8 +1,6 @@
 #ifndef LOCI_H
 #define LOCI_H
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
+
 #include <Loci_version.h>
 #include <Loci_types.h>
 #include <data_traits.h>

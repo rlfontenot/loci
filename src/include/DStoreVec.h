@@ -1,13 +1,8 @@
 #ifndef DSTOREVEC_H
 #define DSTOREVEC_H 
 
-#ifdef GXX_FIXES
-#include <g++-fixes/istream>
-#include <g++-fixes/ostream>
-#else
 #include <istream>
 #include <ostream>
-#endif
 
 #include <Config/conf.h>
 
