@@ -6,13 +6,13 @@ TARGET = libTools.a #libTools.so
 
 LOCAL_INCLUDES = -I$(LOCI_BASE)/include
 
-OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o parse.o options_list.o \
-       expr.o intervalSet.o digraph.o unit_type.o
+OBJS = fpe.o fpe_sun.o ftrn_reader.o identity.o eventNotify.o \
+       parse.o options_list.o expr.o intervalSet.o digraph.o unit_type.o
 
 
 .SUFFIXES: .o .c .cc .f
 
-.c.o:    ;  $(CC) $(CFLAGS) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.c
+.c.o:    ;  cc -O $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.c
 .cc.o:   ;  $(CP) $(CFLAGS) $(TEMPLATE_LIB_OPT) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.cc
 .f.o:    ;  $(F77) $(FFLAGS) -c $*.f
 
