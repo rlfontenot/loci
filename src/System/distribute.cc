@@ -1067,6 +1067,7 @@ namespace Loci {
 	  send_buffer[j] = l2g[*ti] ; 
 	  ++j ;
 	}
+	nsp = sp->new_store(temp) ;
 	sp->pack(send_ptr, loc_pack, sz, temp) ;
 	MPI_Send(&send_size, 1, MPI_INT, 0, 1, MPI_COMM_WORLD) ;
 	MPI_Send(&send_buffer[0], send_size, MPI_INT, 0, 2, MPI_COMM_WORLD) ;
@@ -1095,27 +1096,31 @@ namespace Loci {
 	int *recv_size ;
 	int k = 0 ;
 	sequence te ;
-	entitySet temp ;
-	cout << "0  hi " <<endl ;
-	cout << "  0  my_entitiezs=  " << d->my_entities << endl ;
-	//for(ti = d->my_entities.begin(); ti != d->my_entities.end(); ++ti)
-	//temp += l2g[*ti] ;
-	cout << "0  hi " <<endl ;
-	//for(ti = temp.begin(); ti != temp.end(); ++ti)
-	//te += d->g2l[*ti] ;
-	cout << " 0  hi " <<endl ;
+	entitySet temp, me ;
+	entitySet my ;
+	
+	for(ti = d->my_entities.begin(); ti != d->my_entities.end(); ++ti) {
+	  temp += l2g[*ti] ;
+	}
+	me = temp & sp->domain() ;
+	for(ti = me.begin(); ti != me.end(); ++ti)
+	  te += d->g2l[*ti] ;
+	
+	for(ti = me.begin(); ti != me.end(); ++ti) 
+	  my += d->g2l[*ti] ;
+	
 	recv_size = new int[MPI_processes-1] ;
 	size_request = new MPI_Request[MPI_processes-1] ;
 	size_status = new MPI_Status[MPI_processes-1] ;
-	cout << "hi " <<endl ;
-	for(k = 0; k < MPI_processes-1; k++) 
+	for(k = 0; k < MPI_processes-1; k++)
 	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);  
+	
 	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
-	cout << "recv size = " << recv_size[k] << endl ;
 	
 	recv_buffer = new int*[MPI_processes-1] ;
-	for(int i = 0; i < MPI_processes-1; ++i)
+	for(int i = 0; i < MPI_processes-1; ++i) {
 	  recv_buffer[i] = new int[recv_size[i]] ;
+	}
 	recv_request = new MPI_Request[MPI_processes-1] ;
 	status = new MPI_Status[MPI_processes-1] ;
 	
@@ -1131,7 +1136,7 @@ namespace Loci {
 	  
 	  ent[k] = re ;
 	}
-	nsp = sp->new_store(d->my_entities) ;
+	nsp = sp->new_store(my) ;
 	int sz = 0 ;
 	int my_sz = sp->pack_size(temp) ;
 	int my_pack = 0 ;
@@ -1158,7 +1163,6 @@ namespace Loci {
 	}
 	MPI_Waitall(MPI_processes-1, store_request, store_status) ;
 	nsp->unpack(my_stuff, my_unpack, my_sz, te) ; 
-      	
 	delete [] recv_size ;
 	delete [] recv_buffer ;
 	delete [] status ;
@@ -1168,24 +1172,26 @@ namespace Loci {
 	delete [] store_request ;
 	delete [] store_status ;
 	delete [] send_ptr ;
+	
       }
       else {
 	int *send_buffer ;
 	int send_size ;
-	int loc_pack = 0 ;
 	int loc_unpack = 0 ;
 	unsigned char *recv_ptr ;
 	MPI_Status stat ;
 	entitySet re ;
 	sequence tempseq ;
-	send_size = d->my_entities.size() ;
+	entitySet my = sp->domain() & d->my_entities ;
+	send_size = my.size() ;
 	send_buffer = new int[send_size] ;
-	int sz = sp->pack_size(d->my_entities) ;
+	int sz = sp->pack_size(my) ;
+	
 	recv_ptr = new unsigned char[sz] ;
-	nsp = sp->new_store(d->my_entities) ;
+	nsp = sp->new_store(my) ;
 	int j = 0 ;
-	cout << "myid "<< endl ;
-	for(ti = d->my_entities.begin(); ti != d->my_entities.end(); ++ti) {
+	
+	for(ti = my.begin(); ti != my.end(); ++ti) {
 	  re += l2g[*ti] ;
 	}
 	for(ti = re.begin(); ti != re.end(); ++ti) {
@@ -1196,13 +1202,16 @@ namespace Loci {
 	  tempseq += d->g2l[*ti] ;
 	
 	MPI_Send(&send_size, 1, MPI_INT, 0, 1, MPI_COMM_WORLD) ;
+	
 	MPI_Send(&send_buffer[0], send_size, MPI_INT, 0, 2, MPI_COMM_WORLD) ;
 	MPI_Recv(recv_ptr, sz, MPI_PACKED, 0, 3, MPI_COMM_WORLD, &stat) ;
 	nsp->unpack(recv_ptr, loc_unpack, sz,tempseq) ;
 	delete [] send_buffer ;
 	delete [] recv_ptr ;
+	
       } 
     }
+   
     return nsp ;
     
   }
