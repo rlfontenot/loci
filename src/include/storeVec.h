@@ -1149,6 +1149,9 @@ namespace Loci {
       int qs = fi.size ;
       hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
 			    H5P_DEFAULT, tmp_array) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
+      }
 
       for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
 	for(int ivec = 0; ivec < qs; ivec++) {
@@ -1174,6 +1177,9 @@ namespace Loci {
       dtype* tmp_array = new dtype[dimension] ;    
       hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
 			  H5P_DEFAULT, tmp_array) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
+      }
       int qs = fi.size ;
       size_t tmp = 0 ;
       int bucsize ;
