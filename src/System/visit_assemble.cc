@@ -25,7 +25,7 @@ using std::ofstream ;
 #include <deque>
 using std::deque ;
 
-#define VERBOSE
+//#define VERBOSE
 
 namespace Loci {
 
