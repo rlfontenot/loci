@@ -4,7 +4,12 @@
 #include <Tools/intervalSet.h>
 #include <Tools/Handle.h>
 //#include <map>
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
 #include <hash_map>
+#endif
+
 #include <vector>
 
 namespace Loci {

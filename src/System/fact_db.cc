@@ -1,11 +1,13 @@
-
 #include <fact_db.h>
 #include <constraint.h>
 #include <Tools/stream.h>
-#include <typeinfo.h>
+#include <typeinfo>
+
 extern "C" {
 #include <hdf5.h>
-}using std::string ;
+}
+
+using std::string ;
 using std::map ;
 using std::make_pair ;
 using std::vector ;

@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 
-#include <typeinfo.h>
+#include <typeinfo>
 
 namespace Loci {
 

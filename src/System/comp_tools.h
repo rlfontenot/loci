@@ -8,7 +8,7 @@
 #include "sched_tools.h"
 #include <vector>
 #include <map>
-using std::map ;
+
 #include <mpi.h>
 
 namespace Loci {
@@ -20,14 +20,14 @@ namespace Loci {
 
   entitySet process_rule_requests(rule f, fact_db &facts) ;
   
-  vector<pair<variable,entitySet> > barrier_existential_rule_analysis(variableSet vlst, fact_db &facts) ;
+  std::vector<std::pair<variable,entitySet> > barrier_existential_rule_analysis(variableSet vlst, fact_db &facts) ;
   std::list<comm_info>  barrier_process_rule_requests(variableSet vars, fact_db &facts) ;
 
   entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
                           std::list<comm_info> &clist) ;
   
   std::list<comm_info>
-  put_precomm_info(vector<pair<variable,entitySet> > send_entities,
+  put_precomm_info(std::vector<std::pair<variable,entitySet> > send_entities,
                    fact_db &facts) ;
   
   std::list<comm_info> sort_comm(std::list<comm_info> slist, fact_db &facts) ;
@@ -284,8 +284,8 @@ namespace Loci {
   } ;
 
   class execute_comm : public execute_modules {
-    vector<pair<int,vector<send_var_info> > > send_info ;
-    vector<pair<int,vector<recv_var_info> > > recv_info ;
+    std::vector<std::pair<int,std::vector<send_var_info> > > send_info ;
+    std::vector<std::pair<int,std::vector<recv_var_info> > > recv_info ;
   public:
     execute_comm(std::list<comm_info> &plist, fact_db &facts) ;
     virtual void execute(fact_db &facts) ;

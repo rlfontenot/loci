@@ -5,7 +5,12 @@
 using std::vector ;
 #include <set>
 using std::set ;
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
 #include <hash_map>
+#endif
+
 using std::hash_map ;
 //#define VERBOSE
 using std::list ; 
