@@ -520,12 +520,10 @@ namespace Loci {
     typedef data_schema_traits<T> schema_traits;
     typedef typename schema_traits::Converter_Base_Type dtype;
 
-
-    MPI_Unpack( inbuf, 1, &position, &stateSize, outcount, 
+    MPI_Unpack( inbuf, 1, &position, &stateSize, 1, 
                 MPI_INT, MPI_COMM_WORLD) ;
 
     std::vector<dtype> outbuf(stateSize);
-
 
     outcount = stateSize*sizeof(dtype);
     MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, 
