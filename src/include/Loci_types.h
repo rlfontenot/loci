@@ -207,9 +207,9 @@ namespace Loci {
       static DatatypeP get_type() {
         vector3d<T> t ;
         CompoundDatatypeP ct = CompoundFactory(t) ;
-        ct->insert("x",offsetof(vector3d<T>,x),getLociType(t.x)) ;
-        ct->insert("y",offsetof(vector3d<T>,y),getLociType(t.y)) ;
-        ct->insert("z",offsetof(vector3d<T>,z),getLociType(t.z)) ;
+        LOCI_INSERT_TYPE(ct,vector3d<T>,x) ;
+        LOCI_INSERT_TYPE(ct,vector3d<T>,y) ;
+        LOCI_INSERT_TYPE(ct,vector3d<T>,z) ;
         return DatatypeP(ct) ;
       }
     };
@@ -363,8 +363,8 @@ namespace Loci {
       static DatatypeP get_type() {
         vector2d<T> t ;
         CompoundDatatypeP ct = CompoundFactory(t) ;
-        ct->insert("x",offsetof(vector2d<T>,x),getLociType(t.x)) ;
-        ct->insert("y",offsetof(vector2d<T>,y),getLociType(t.y)) ;
+        LOCI_INSERT_TYPE(ct,vector2d<T>,x) ;
+        LOCI_INSERT_TYPE(ct,vector2d<T>,y) ;
         return DatatypeP(ct) ;
       }
     };

@@ -304,15 +304,25 @@ namespace Loci {
     }
     return s ;
   }
-  
+
+
+#ifdef NO_OFFSETOF
+#define LOCI_INSERT_TYPE(ct,type,variable) \
+{ type X ; size_t offset = reinterpret_cast<char *>(&(X.variable)) - reinterpret_cast<char *>(&X) ;\
+   ct->insert(# variable, offset,getLociType(type().variable));}
+#else
+#define LOCI_INSERT_TYPE(ct,type,variable) \
+   ct->insert(# variable, offsetof(type,variable),getLociType(type().variable))
+#endif
+
   template<class T, class S> struct data_schema_traits<std::pair<T,S> > {
     typedef IDENTITY_CONVERTER Schema_Converter ;
     static DatatypeP get_type() {
       typedef std::pair<T,S> pair ;
       pair p ;
       CompoundDatatypeP ct = CompoundFactory(p) ;
-      ct->insert("first",offsetof(pair,first), getLociType(p.first)) ;
-      ct->insert("second",offsetof(pair,second), getLociType(p.second)) ;
+      LOCI_INSERT_TYPE(ct,pair,first) ;
+      LOCI_INSERT_TYPE(ct,pair,second) ;
       return DatatypeP(ct) ;
     }
   } ;
@@ -323,6 +333,4 @@ namespace Loci {
     
 }
 
-#define LOCI_INSERT_TYPE(ct,type,variable) \
-   ct->insert(# variable, offsetof(type,variable),getLociType(type().variable))
 #endif
