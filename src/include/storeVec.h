@@ -903,7 +903,7 @@ namespace Loci {
 
     ediff = eset - domain();
     if( ediff.size() > 0) { 
-      cout << "Error:Entities not part of domain " << ediff <<endl;
+      std::cout << "Error:Entities not part of domain " << ediff <<endl;
       abort();
     }
 #endif
