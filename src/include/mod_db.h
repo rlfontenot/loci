@@ -6,7 +6,6 @@
 #ifdef HAVE_DLOPEN
 #include <dlfcn.h>
 #endif
-#include <Config/conf.h>
 namespace Loci {
   using std::cout ;
   std::string remove_space(const std::string &str) {
