@@ -10,7 +10,6 @@
 #include <map>
 #include <vector>
 #include <set>
-
 #include <Tools/cptr.h>
 #include <Tools/expr.h>
 #include <variable.h>
@@ -22,7 +21,7 @@
 #include <DMultiStore.h>
 
 namespace Loci {
-
+  
   class fact_db ;
   
   class joiner : public CPTR_type {
@@ -33,14 +32,13 @@ namespace Loci {
     virtual void Join(const sequence &seq) = 0 ;
     virtual void Join(Map &t2s, const sequence &seq) = 0 ;
   } ;  
-
+  
   class rule_impl : public CPTR_type {
   public:
     struct info {
       std::set<vmap_info> sources, targets, constraints ;
       variableSet conditionals ;
       std::string rule_identifier() const ;
-
       variableSet input_vars() const ;
       variableSet output_vars() const ;
     } ;
@@ -51,14 +49,13 @@ namespace Loci {
     bool rule_threading ;
     bool relaxed_recursion ;
     mutable std::string name ;
-
     info rule_info ;
-        
-    typedef std::map<variable, store_instance *> storeIMap ;
+    typedef std::multimap<variable, store_instance *> storeIMap ;
     storeIMap var_table ;
+    std::map<variable,variable> rvmap ;
     void source(const std::string &invar) ;
     void target(const std::string &outvar) ;
-
+    
   protected:
     rule_impl(rule_impl &f) { fatal(true) ; }
     void rule_class(rule_impl_type ft) { rule_impl_class = ft ; }
@@ -70,7 +67,6 @@ namespace Loci {
     void output(const std::string &outvar) { target(outvar) ; }
     void constraint(const std::string &constrain) ;
     void conditional(const std::string &cond) ;
-
   public:
     rule_impl() ;
     bool check_perm_bits() const ;
@@ -83,34 +79,56 @@ namespace Loci {
     void set_store(variable v, const storeRepP &p) ;
     void set_store(const std::string &name, const storeRepP &p) 
       { set_store(variable(expression::create(name)),p) ; }
+    
     storeRepP get_store(variable v) const ;
     storeRepP get_store(const std::string &name) const
       { return get_store(variable(expression::create(name))) ; }
-
+    
     void set_variable_times(time_ident tl) ;
     void copy_store_from(rule_impl &f) ;
     void Print(std::ostream &s) const ;
+   
+    void prot_rename_vars(std::map<variable, variable> &rvm) ;
+    virtual void rename_vars(std::map<variable, variable>  &rvm) ;
+    variableSet get_var_list() ;
 
     virtual rule_implP new_rule_impl() const ;
     virtual void compute(const sequence &) = 0 ;
     virtual CPTR<joiner> get_joiner() = 0 ;
   } ;
-
+  
   typedef rule_impl::rule_implP rule_implP ;
-
   
-  template <class T> class copy_rule_impl : public T {
+  
+  template <class TCopyRuleImpl> class copy_rule_impl : public TCopyRuleImpl {
+    typedef std::list<std::map<variable, variable> > rename_varList ;
+    typedef std::list<std::map<variable, variable> >::const_iterator list_iter;
+    rename_varList rvlist ;
   public:
-    virtual rule_implP new_rule_impl() const
-    { return new copy_rule_impl<T> ; }
-  } ;
+    virtual rule_implP new_rule_impl() const ;
+    virtual void rename_vars(std::map<variable, variable> &rvm) ;
+  } ; 
   
-        
+  template <class TCopyRuleImpl> rule_implP copy_rule_impl<TCopyRuleImpl>::new_rule_impl() const {
+    rule_implP realrule_impl = new copy_rule_impl<TCopyRuleImpl> ;
+    for(list_iter li = rvlist.begin(); li != rvlist.end(); ++li) { 
+      std::map<variable, variable> rvm = *li;
+      realrule_impl->rename_vars(rvm) ;
+    }
+    return realrule_impl ;
+  }
+
+  template <class TCopyRuleImpl> 
+    void copy_rule_impl<TCopyRuleImpl>::rename_vars(std::map<variable,variable> &rvm) {
+    rvlist.push_back(rvm) ;
+    prot_rename_vars(rvm) ;
+  }
+  
   class pointwise_rule : public rule_impl {
-   protected:
+  protected:
     pointwise_rule() { rule_class(POINTWISE) ; }
     void name_store(const std::string &name, store_instance &si)
-    { rule_impl::name_store(name,si) ; }
+      { rule_impl::name_store(name,si) ; }
     void input(const std::string &invar)
     { rule_impl::input(invar) ; }
     void output(const std::string &outvar)
@@ -118,7 +136,7 @@ namespace Loci {
     void constraint(const std::string &constrain)
     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
-    { rule_impl::conditional(cond) ; }
+      { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
 
@@ -191,10 +209,6 @@ namespace Loci {
       join(t[*i],s[t2s[*i]]) ;
     }
   }
-
-  
-  
-  
   
   template<class Type,class Op> class joinOp<param<Type>,Op> : public joiner {
     Op join ;
@@ -352,9 +366,9 @@ namespace Loci {
     enum rule_type {BUILD=0,COLLAPSE=1,GENERIC=2,TIME_SPECIFIC=3,INTERNAL=4} ;
     struct info {
       rule_implP rule_impl ;
-        
+      
       rule_impl::info desc ;
-        
+      
       std::string rule_ident ;
         
       time_ident source_level, target_level ;
@@ -557,7 +571,7 @@ namespace Loci {
     void add_rules(global_rule_impl_list &gfl) ;
       
     rule_implP get_rule(const std::string &name) {
-      return name2rule[name].get_info().rule_impl ;
+      return name2rule[name].get_info().rule_impl->new_rule_impl() ;
     }
     const ruleSet &all_rules() const { return known_rules ; }
     const ruleSet &rules_by_source(variable v) const {

@@ -58,9 +58,6 @@ namespace Loci {
     return s;
   }
 
-
-
-
   template <class Key> class key_ident {
     typedef typename std::map<Key,int>::iterator map_iterator ;
     std::map<Key, int> key_map ;
@@ -90,7 +87,7 @@ namespace Loci {
       time_ident   time_id ;
       int          offset ;
       std::vector<std::string> priority ;
-            
+      std::vector<int> v_ids ;
       bool operator<(const info &v) const ;
       bool operator==(const info &v) const ;
             
@@ -137,7 +134,7 @@ namespace Loci {
     bool operator!=(const variable &v) const { return id != v.id; }
     const time_ident & time() const { return vdb->vars[id].time_id ; }
     const info & get_info() const { return vdb->vars[id]; }
-
+    std::vector<int> get_arg_list() { return vdb->vars[id].v_ids ; }
     variable parent() const { return vdb->vars[id].parent() ;}
     variable drop_assign() const { return vdb->vars[id].drop_assign() ; }
     variable drop_priority() const { return vdb->vars[id].drop_priority() ; }
