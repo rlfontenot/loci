@@ -14,7 +14,7 @@ if [ $# -eq 2 ]; then
   COMP=$2
 fi
 
-TARGET_DIRS="System Tools include include/Tools include/Config"
+TARGET_DIRS="System Tools include include/Tools include/Config include/MPI_stubb"
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -27,9 +27,9 @@ for i in $TARGET_DIRS ; do
 done
 echo
 
-if [ ! -e $target/Loci/include/g++-fixes ]; then
-  ln -s $source/src/include/g++-fixes $target/Loci/include/g++-fixes
-fi
+#if [ ! -e $target/Loci/include/g++-fixes ]; then
+#  ln -s $source/src/include/g++-fixes $target/Loci/include/g++-fixes
+#fi
 
 cd $target/Loci
 if [ ! -e Makefile ]; then
