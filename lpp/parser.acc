@@ -712,11 +712,11 @@ declarator2
 	| declarator2<d2_list> '[' ']'
 	| declarator2<d2_list> '[' constant_expr<enode> ']'
 	| declarator2<d2_list> '(' ')'
-	| declarator2<d2_list> '(' parameter_type_list ')'
+	| declarator2<d2_list> '(' parameter_type_list ')' 
 	{{
 		*idlist = d2_list ;
-	}}
-	| declarator2<d2_list> '(' parameter_identifier_list ')'
+	}} 
+	| declarator2<d2_list> '(' parameter_identifier_list ')' 
 	;
 
 identifier
@@ -1044,14 +1044,22 @@ function_body
 
 /*=======================*/
 declaration
-	: /*???declaration_specifiers<tlist> ';'
-	|*/ declaration_specifiers<tlist> init_declarator_list<i_d_l_list> ';'
+	: declaration_specifiers<tlist> ';'
+/**/
+	| DATATYPES '{' loci_declaration_list '}'
+	;
+
+loci_declaration_list:
+	 loci_declaration
+	| loci_declaration_list loci_declaration
+	;
+
+loci_declaration:
+ declaration_specifiers<tlist> init_declarator_list<i_d_l_list> ';'
 	{{
 		filltable(global_def, tlist, i_d_l_list) ;
 	}}
-/**/
-	| DATATYPES '{' declaration_list '}'
-	;
+;
 
 declaration_specifiers
 <%out type_listP tlist>
