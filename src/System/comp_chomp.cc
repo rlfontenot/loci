@@ -23,7 +23,6 @@ namespace Loci {
     int_type chomp_iter ;
     vector<int_type> chomp_offset ;
     vector<storeRepP> chomp_vars_rep ;
-    double st, et ;
   public:
     execute_chomp(const entitySet& td,
                   const vector<pair<rule,rule_compilerP> >& comp,
@@ -31,7 +30,7 @@ namespace Loci {
                   const variableSet& cv,
                   fact_db& facts):
       total_domain(td),chomp_comp(comp),rule_seq(seq),
-      chomp_vars(cv),is_table_set(false),st(0.0),et(0.0) {
+      chomp_vars(cv),is_table_set(false) {
 
       for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
           vi!=comp.end();++vi)
@@ -105,15 +104,14 @@ namespace Loci {
   } ;
 
   void execute_chomp::execute(fact_db& facts) {
-    if(total_domain == EMPTY)
+    if(total_domain == EMPTY) {
+      // call the compute() method at least once
+      vector<rule_implP>::iterator vri ;
+      for(vri=chomp_compP.begin();vri!=chomp_compP.end();++vri) {
+        (*vri)->compute(sequence(EMPTY)) ;
+      }
       return ;
-
-    /*
-    st = MPI_Wtime() ;
-    Loci::debugout << "Time passed since last chomping execution = "
-                   << st-et << " seconds " << endl ;
-                   st = MPI_Wtime() ;
-    */
+    }
 
     {
       entitySet first_alloc =
@@ -149,17 +147,12 @@ namespace Loci {
     for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
         vi!=chomp_vars_rep.end();++vi)
       (*vi)->allocate(EMPTY) ;
-
-    /*
-    et = MPI_Wtime() ;
-    Loci::debugout << "\tTime taken for chomping execution = "
-    << et-st << " seconds " << endl ;
-    */
   }
 
   void execute_chomp::Print(std::ostream& s) const {
     s << "--Start chomping: (chomping interval size: "
       << chomp_size << ", iter number: " << chomp_iter
+      << ", total domain: " << total_domain
       << ")" << endl ;
     s << "--Perform chomping for the following rule sequence: " << endl ;
     for(vector<pair<rule,rule_compilerP> >::const_iterator

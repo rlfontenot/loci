@@ -29,6 +29,7 @@ namespace Loci {
   ////////////////////////////
   extern bool show_graphs ;
   extern void deco_depend_gr(digraph& gr,const variableSet& given) ;
+
   ////////////////////////////
 
   double get_timer() {

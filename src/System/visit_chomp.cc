@@ -311,17 +311,25 @@ namespace Loci {
     // first we need to get all the contrete rules in the graph
     ruleSet rules = extract_rules(gr.get_all_vertices()) ;
     ruleSet remove ;
+    // variables that are sources or targets of internal rules
+    variableSet intstv ;
     for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
-      if(is_internal_rule(*ri))
+      if(is_internal_rule(*ri)) {
         remove += *ri ;
+        intstv += ri->sources() ;
+        intstv += ri->targets() ;
+      }
     rules -= remove ;
 
     // first get all possible variables that can be chomped
-    variableSet allvars ;
+    variableSet allvars, remaining_vars ;
     for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
       allvars += ri->sources() ;
       allvars += ri->targets() ;
     }
+    remaining_vars = allvars ;
+    // intstv cannot be chomped for sure, we remove them
+    remaining_vars -= intstv ;
 
     // then we collect bad_vars...
 
@@ -330,6 +338,7 @@ namespace Loci {
       bad_vars += map_sources(*ri) ;
       bad_vars += map_targets(*ri) ;
     }
+    remaining_vars -= bad_vars ;
 
     // then we get all the variables that are not suitable for
     // chomping, i.e. they are not STORE, they are in the loop
@@ -337,77 +346,73 @@ namespace Loci {
     // don't have outgoing edges, and variables that connect
     // to any internal rules or rename variables
     // or variables that are generated in more that one levels
-    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
-      variableSet stvars ;
-      stvars += ri->sources() ;
-      stvars += ri->targets() ;
-      for(variableSet::const_iterator vi=stvars.begin();
-          vi!=stvars.end();++vi) {
-        
-        if(seen_vars.inSet(*vi)) {
-          bad_vars += *vi ;
-          continue ;
-        }
-        
-        storeRepP srp = facts.get_variable(*vi) ;
-        if(srp->RepType() != Loci::STORE) {
-          bad_vars += *vi ;
-          continue ;
-        }
-        
-        if(rotate_vars.inSet(*vi)) {
-          bad_vars += *vi ;
-          continue ;
-        }
-        if(loop_shared_vars.inSet(*vi)) {
-          bad_vars += *vi ;
-          continue ;
-        }
-
-        if(rename_vars.inSet(*vi)) {
-          bad_vars += *vi ;
-          continue ;
-        }
-        
-        digraph::vertexSet next_vertices = gr[vi->ident()] ;
-        if(next_vertices == EMPTY) {
-          bad_vars += *vi ;
-          continue ;
-        }
-
-        digraph::vertexSet next_vertices_t = grt[vi->ident()] ;
-        if(next_vertices_t == EMPTY) {
-          bad_vars += *vi ;
-          continue ;
-        }
-
-        ruleSet tmp = extract_rules(next_vertices) ;
-        for(ruleSet::const_iterator rii=tmp.begin();
-            rii!=tmp.end();++rii)
-          if(is_internal_rule(*rii) || !thread_rule(*rii) ||
-             has_output_in_targets(*rii)
-#ifdef DISABLE_APPLY             
-             || rii->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
-#else
-            ){
-#endif          
-            bad_vars += *vi ;
-            break ;
-          }
-
-        tmp = extract_rules(next_vertices_t) ;
-        for(ruleSet::const_iterator rii=tmp.begin();
-            rii!=tmp.end();++rii)
-          if(is_internal_rule(*rii) || !thread_rule(*rii) ||
-             has_output_in_targets(*rii)) {
-            bad_vars += *vi ;
-            break ;
-          }
+    for(variableSet::const_iterator vi=remaining_vars.begin();
+        vi!=remaining_vars.end();++vi) {
+      
+      if(seen_vars.inSet(*vi)) {
+        bad_vars += *vi ;
+        continue ;
       }
+      
+      storeRepP srp = facts.get_variable(*vi) ;
+      if(srp->RepType() != Loci::STORE) {
+        bad_vars += *vi ;
+        continue ;
+      }
+        
+      if(rotate_vars.inSet(*vi)) {
+        bad_vars += *vi ;
+        continue ;
+      }
+      if(loop_shared_vars.inSet(*vi)) {
+        bad_vars += *vi ;
+        continue ;
+      }
+      
+      if(rename_vars.inSet(*vi)) {
+        bad_vars += *vi ;
+        continue ;
+      }
+        
+      digraph::vertexSet next_vertices = gr[vi->ident()] ;
+      if(next_vertices == EMPTY) {
+        bad_vars += *vi ;
+        continue ;
+      }
+
+      digraph::vertexSet next_vertices_t = grt[vi->ident()] ;
+      if(next_vertices_t == EMPTY) {
+        bad_vars += *vi ;
+        continue ;
+      }
+
+      ruleSet tmp = extract_rules(next_vertices) ;
+      for(ruleSet::const_iterator rii=tmp.begin();
+          rii!=tmp.end();++rii)
+        if(is_internal_rule(*rii) || !thread_rule(*rii) ||
+           has_output_in_targets(*rii)
+#ifdef DISABLE_APPLY             
+           || rii->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
+#else
+          ){
+#endif          
+        bad_vars += *vi ;
+        break ;
+      }
+        
+      tmp = extract_rules(next_vertices_t) ;
+      for(ruleSet::const_iterator rii=tmp.begin();
+          rii!=tmp.end();++rii)
+        if(is_internal_rule(*rii) || !thread_rule(*rii) ||
+           has_output_in_targets(*rii)) {
+          bad_vars += *vi ;
+          break ;
+        }
     }
+    remaining_vars -= bad_vars ;
+
     // fill up...
-    good_vars += allvars ;
-    good_vars -= bad_vars ;
+    good_vars += remaining_vars ;
     seen_vars += allvars ;
   }
 

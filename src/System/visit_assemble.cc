@@ -244,8 +244,13 @@ namespace Loci {
             all_vars += *vi ;
           }
 
+          /*
           if(all_reduce_vars.inSet(*vi))
+          reduce_vars += *vi ;
+          */
+          if(reduction && unit_rule_exists)
             reduce_vars += *vi ;
+          
           if(singleton) {
             singleton_vars += *vi ;
           }
