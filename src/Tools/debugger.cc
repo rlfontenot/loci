@@ -38,6 +38,9 @@ namespace Loci {
   
   void debugger_()
   {
+#ifdef SGI
+    abort() ;
+#else
     if(!debugger_setup)
       abort() ;
     
@@ -60,6 +63,7 @@ namespace Loci {
     system(buf) ;
     breakout = 1 ;
     sleep(100) ; /* Wait for debugger to attach */
+#endif
   }
 
 
