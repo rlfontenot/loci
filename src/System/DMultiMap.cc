@@ -300,6 +300,8 @@ namespace Loci
   {
     const_dmultiMap s(st) ;
     vector<int>    newVec;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
     FORALL(context,i) {
       attrib_data[m[i]].clear();
       newVec  =   s[i];

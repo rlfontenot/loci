@@ -84,12 +84,15 @@ namespace Loci {
     fatal(base_ptr == 0 && context != EMPTY) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
+
     FORALL(context,i) {
       base_ptr[m[i]] = s[i] ;
     } ENDFORALL ;
   }
  
   int MapRepI::pack_size(const entitySet &e) {
+    fatal((e - domain()) != EMPTY);
     int size ;
     size = sizeof(int) * e.size() ;
     return(size) ;
@@ -959,6 +962,11 @@ storeRepP multiMapRepI::thaw() {
     store<int> count ;
     const_multiMap s(st) ;
     count.allocate(domain()) ;
+
+    fatal((context != EMPTY) && (base_ptr == 0)) ;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
+    
     FORALL(domain()-m.image(context),i) {
       count[i] = base_ptr[i+1]-base_ptr[i] ;
     } ENDFORALL ;
@@ -988,6 +996,7 @@ storeRepP multiMapRepI::thaw() {
   }
   
   int multiMapRepI::pack_size(const  entitySet &eset ) {
+    fatal((eset - domain()) != EMPTY);
 
     int size = 0 ;
     FORALL(eset,i) {
