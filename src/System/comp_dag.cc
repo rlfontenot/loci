@@ -118,7 +118,7 @@ namespace Loci {
       acvars += vs ;
     }
 #endif
-    for(int i=0;i<dag_sched.size();++i) {
+    for(unsigned int i=0;i<dag_sched.size();++i) {
       //Loci::debugout << " in comp_dag.cc dag_sched[i] = " << dag_sched[i] << endl ;
       variableSet vars = extract_vars(dag_sched[i]) ;
       //Loci::debugout << " in comp_dag.cc vars = " << vars  << endl ;

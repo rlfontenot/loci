@@ -138,7 +138,7 @@ bool time_ident::before(const time_ident &t) const {
 vector<time_ident> time_ident::children() {
   const vector<int> &vc = thp->get_children(id) ;
   vector<time_ident> v ;
-  for(int i=0;i<vc.size();++i)
+  for(unsigned int i=0;i<vc.size();++i)
     v.push_back(time_ident(vc[i])) ;
   return v ;
 }
@@ -410,7 +410,7 @@ bool variable::info::operator<(const info &v) const {
   
   variable variable::info::drop_priority() const {
     info vi = *this ;
-    for(int i = 0;i<vi.priority.size()-1;++i)
+    for(int i = 0;i<int(vi.priority.size())-1;++i)
       vi.priority[i] = vi.priority[i+1] ;
     vi.priority.pop_back() ;
     return variable(vi) ;
@@ -426,9 +426,9 @@ bool variable::info::operator<(const info &v) const {
     info vi = *this ;
 		if (vi.namespac.empty())
 			return variable(vi);
-    for(int i = 0;i<vi.namespac.size()-1;++i) {
+    for(int i = 0;i<int(vi.namespac.size())-1;++i) {
       vi.namespac[i] = vi.namespac[i+1] ;
-		}
+    }
     vi.namespac.pop_back() ;
     return variable(vi) ;
 	}
@@ -543,23 +543,10 @@ vmap_info::vmap_info(const exprP &e) {
 }
 
 ostream &vmap_info::Print(ostream &s) const {
-    for(int j=0;j<mapping.size();++j) 
+    for(unsigned int j=0;j<mapping.size();++j) 
       s << mapping[j] << "->" ;
     s << var ;
     return s ;
 }
-
-//ostream &operator<<(ostream &s, const set<vmap_info> &v) {
-//    set<vmap_info>::const_iterator i ;
-//    for(i = v.begin();i!=v.end();) {
-//        s << (*i) ;
-//        ++i ;
-//        if(i!=v.end())
-//          s << "," ;
-//    }
-//    return s ;
-//}
-
-
 
 }

@@ -84,7 +84,6 @@ namespace Loci {
     FATAL(r.type() == rule::INTERNAL) ;
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
-    entitySet::const_iterator ei ;
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
       // For the distributed memory case we restrict the sources and 
@@ -123,7 +122,7 @@ namespace Loci {
             
             if(si->mapping.size() > 0) {
               entitySet working = constraints ;
-              for(int i=0;i<si->mapping.size();++i) {
+              for(unsigned int i=0;i<si->mapping.size();++i) {
                 entitySet images ;
                 variableSet::const_iterator vi ;
                 for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
@@ -254,7 +253,6 @@ namespace Loci {
     variableSet targets = r.targets() ;
     // We will be iterating over the target variables so we need an iterator
     variableSet::const_iterator vi ;  
-    entitySet::const_iterator ei, ti ;
     // The vdefmap data structure is a map from variables to entitySets.
     // We use the tvarmap to record the requests for target variables
     // Here we are filling in the requests.
@@ -389,7 +387,7 @@ namespace Loci {
         recv_buffer[0] = new int[d->xmit_total_size*sesz+sesz*d->xmit.size()] ;
         recv_size[0] = d->xmit[0].size*sesz + sesz ;
 	
-        for(int i=1;i<d->xmit.size();++i) {
+        for(unsigned int i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+recv_size[i-1] ;
           recv_size[i] = d->xmit[i].size*sesz+sesz ;
         }
@@ -398,7 +396,7 @@ namespace Loci {
       if(d->copy.size() > 0 ) {
         send_buffer = new int*[d->copy.size()] ;
         send_buffer[0] = new int[d->copy_total_size*sesz+sesz*d->copy.size()] ;
-        for(int i=1;i<d->copy.size();++i)
+        for(unsigned int i=1;i<d->copy.size();++i)
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size*sesz+sesz ;
       }
       
@@ -408,11 +406,11 @@ namespace Loci {
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
       
-      for(int i=0;i<d->xmit.size();++i) {
+      for(unsigned int i=0;i<d->xmit.size();++i) {
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 2,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
       }
-      for(int i=0;i<d->copy.size();++i) {
+      for(unsigned int i=0;i<d->copy.size();++i) {
         int j=sesz ;
         for(int k=0;k<sesz;++k) {
           entitySet temp = send_entities[k].second & d->copy[i].entities ;
@@ -435,12 +433,15 @@ namespace Loci {
       }
       
       if(d->xmit.size() > 0) {
-	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(d->xmit.size(), recv_request, status) ;
         FATAL(err != MPI_SUCCESS) ;
       }
       
       
-      for(int i=0;i<d->xmit.size();++i) {
+      for(unsigned int i=0;i<d->xmit.size();++i) {
 #ifdef DEBUG
         int recieved ;
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
@@ -544,7 +545,6 @@ namespace Loci {
   barrier_existential_rule_analysis(variableSet vlst,
                                     fact_db &facts, sched_db &scheds) {
     vector<pair<variable,entitySet> > send_entities ;
-    std::map<variable, ruleSet>::iterator mi ;
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     vector<entitySet> exinfo ;
     vector<ruleSet> rules ;
@@ -563,7 +563,7 @@ namespace Loci {
       rules.push_back(r) ;
     }
     
-    for(int i=0;i<vars.size();++i) {
+    for(unsigned int i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
@@ -581,15 +581,14 @@ namespace Loci {
     vector<entitySet> seinfo ;
     
     map<variable,entitySet> vmap ;
-    for(int i=0;i<send_vars.size();++i) {
+    for(unsigned int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
-      rule rsend = send_rule[i] ;
       entitySet send_ents = exinfo[exent[i]] - d->my_entities ;
       seinfo.push_back(send_ents) ;
       vmap[v] += send_ents ;
     }
     
-    for(int i=0;i<send_vars.size();++i) {
+    for(unsigned int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
       send_entities.push_back(make_pair(v,vmap[v])) ;
     }
@@ -598,7 +597,7 @@ namespace Loci {
     
     if(seinfo.size() != 0) {
       vector<entitySet> send_sets = send_entitySet(seinfo,facts) ;
-      for(int i=0;i<seinfo.size();++i) {
+      for(unsigned int i=0;i<seinfo.size();++i) {
         exinfo[exent[i]] += send_sets[i] ;
         exinfo[exent[i]] &= d->my_entities ;
       }
@@ -616,7 +615,7 @@ namespace Loci {
 #endif
     vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
     j=0;
-    for(int i=0;i<vars.size();++i) {
+    for(unsigned int i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
       
@@ -663,7 +662,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         recv_buffer[0] = new int[d->xmit_total_size] ;
         recv_size[0] = d->xmit[0].size ;
 	
-        for(int i=1;i<d->xmit.size();++i) {
+        for(unsigned int i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
           recv_size[i] = d->xmit[i].size ;
         }
@@ -672,7 +671,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       if(d->copy.size() > 0 ) {
         send_buffer = new int*[d->copy.size()] ;
         send_buffer[0] = new int[d->copy_total_size] ;
-        for(int i=1;i<d->copy.size();++i)
+        for(unsigned int i=1;i<d->copy.size();++i)
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
       }
       Map l2g ;
@@ -681,12 +680,12 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
 
-      for(int i=0;i<d->xmit.size();++i) {
+      for(unsigned int i=0;i<d->xmit.size();++i) {
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 3,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
       }
       
-      for(int i=0;i<d->copy.size();++i) {
+      for(unsigned int i=0;i<d->copy.size();++i) {
         entitySet temp = e & d->copy[i].entities ;
 	
         comm_info ci ;
@@ -705,11 +704,14 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       
       if(d->xmit.size() > 0) {
-	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(d->xmit.size(), recv_request, status) ;
         FATAL(err != MPI_SUCCESS) ;
       }
       
-      for(int i=0;i<d->xmit.size();++i) {
+      for(unsigned int i=0;i<d->xmit.size();++i) {
         int recieved ;
         MPI_Get_count(&status[i], MPI_INT, &recieved) ;
         entitySet temp ;
@@ -780,7 +782,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         ++ii) {
       send_info.push_back(make_pair(*ii,send_data[*ii])) ;
       send_vars.push_back(std::vector<storeRepP>()) ; 
-      for(int i=0;i<send_data[*ii].size();++i) 
+      for(unsigned int i=0;i<send_data[*ii].size();++i) 
         send_vars.back().push_back(facts.get_variable(send_data[*ii][i].v)) ; 
     }
     for(intervalSet::const_iterator ii=recv_procs.begin();
@@ -788,7 +790,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
       recv_vars.push_back(std::vector<storeRepP>()) ; 
-      for(int i=0;i<recv_data[*ii].size();++i) 
+      for(unsigned int i=0;i<recv_data[*ii].size();++i) 
         recv_vars.back().push_back(facts.get_variable(recv_data[*ii][i].v)) ; 
     }
 
@@ -895,7 +897,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     entitySet resend_procs, rerecv_procs ;
     for(int i=0;i<nsend;++i) {
       s_size[i] = 0 ;
-      for(int j=0;j<send_info[i].second.size();++j) {
+      for(unsigned int j=0;j<send_info[i].second.size();++j) {
 	storeRepP sp = send_vars[i][j] ; //facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
 	/*
@@ -929,7 +931,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
       if(!resend_procs.inSet(send_info[i].first)) {
-	for(int j=0;j<send_info[i].second.size();++j) {
+	for(unsigned int j=0;j<send_info[i].second.size();++j) {
 	  storeRepP sp = send_vars[i][j] ; //facts.get_variable(send_info[i].second[j].v) ;
 	  sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
 	}
@@ -948,8 +950,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
        size of the message is equal to the size of an integer it is added
        to the list to be received a second time(even if the sent value is
        a store value or the size of the message to be received. */ 
-    if(nrecv > 0) { 
-      int err = MPI_Waitall(nrecv, request, status) ;
+    if(nrecv > 0) {
+#ifdef DEBUG
+      int err =
+#endif
+        MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
       for(int i = 0 ; i < nrecv; i++) {
 	MPI_Get_count(&status[i], MPI_BYTE, &recv_sizes[i]) ;  
@@ -972,7 +977,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  maxr_size[i] = temp ;
       }
       else
-	for(int j=0;j<recv_info[i].second.size();++j) {
+	for(unsigned int j=0;j<recv_info[i].second.size();++j) {
 	  storeRepP sp = recv_vars[i][j] ; // facts.get_variable(recv_info[i].second[j].v) ; 
 	  sp->unpack(recv_ptr[i], loc_unpack, r_size[i],
 		     recv_info[i].second[j].seq) ;
@@ -993,7 +998,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     for(int i=0;i<resend_size;++i) {
       int loc_pack = 0 ;
       send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
-      for(int j=0;j<send_info[send_index[i]].second.size();++j) {
+      for(unsigned int j=0;j<send_info[send_index[i]].second.size();++j) {
 	storeRepP sp = send_vars[send_index[i]][j] ; //facts.get_variable(send_info[send_index[i]].second[j].v) ;
 	sp->pack(send_ptr[send_index[i]], loc_pack,maxs_size[send_index[i]],send_info[send_index[i]].second[j].set);
       }
@@ -1004,13 +1009,16 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       MPI_Send(send_ptr[send_index[i]],maxs_size[send_index[i]],MPI_PACKED,proc,2,MPI_COMM_WORLD) ;
       delete [] send_ptr[send_index[i]] ;
     }
-    if(rerecv_size > 0) { 
-      int err = MPI_Waitall(rerecv_size, re_request, re_status) ;
+    if(rerecv_size > 0) {
+#ifdef DEBUG
+      int err =
+#endif
+        MPI_Waitall(rerecv_size, re_request, re_status) ;
       FATAL(err != MPI_SUCCESS) ;
     }
     for(int i=0;i<rerecv_size;++i) {
       int loc_unpack = 0;
-      for(int j=0;j<recv_info[recv_index[i]].second.size();++j) {
+      for(unsigned int j=0;j<recv_info[recv_index[i]].second.size();++j) {
 	//vset += recv_info[recv_index[i]].second[j].v ;
 	storeRepP sp = recv_vars[recv_index[i]][j] ; //facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
 	sp->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
@@ -1030,8 +1038,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       s << "communication block {" << endl ;
       if(send_info.size() > 0) {
         s << "Send:" << endl ;
-        for(int i=0;i<send_info.size();++i) {
-          for(int j=0;j<send_info[i].second.size();++j) { 
+        for(unsigned int i=0;i<send_info.size();++i) {
+          for(unsigned int j=0;j<send_info[i].second.size();++j) { 
             s << send_info[i].second[j].v << "  ";
 	    sz += (send_info[i].second[j].set).size() ;
 	  }
@@ -1041,8 +1049,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       if(recv_info.size() > 0) {
         s << "Recv:" << endl ;
-        for(int i=0;i<recv_info.size();++i) {
-          for(int j=0;j<recv_info[i].second.size();++j)
+        for(unsigned int i=0;i<recv_info.size();++i) {
+          for(unsigned int j=0;j<recv_info[i].second.size();++j)
             s << recv_info[i].second[j].v << "  " ;
           s << " from " << recv_info[i].first << endl ;
         }
@@ -1105,7 +1113,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     int total_size = 0 ;
     for(int i=0;i<nrecv;++i) {
       r_size[i] = 0 ;
-      for(int j=0;j<recv_info[i].second.size();++j) {
+      for(unsigned int j=0;j<recv_info[i].second.size();++j) {
         r_size[i] += recv_info[i].second[j].seq.size() ;
       }
       total_size += r_size[i] ;
@@ -1120,7 +1128,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     total_size = 0 ;
     for(int i=0;i<nsend;++i) {
       s_size[i] = 0 ;
-      for(int j=0;j<send_info[i].second.size();++j) {
+      for(unsigned int j=0;j<send_info[i].second.size();++j) {
         s_size[i] += send_info[i].second[j].set.size() ;
       }
       total_size += s_size[i] ;
@@ -1143,7 +1151,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     // Pack the buffer for sending 
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
-      for(int j=0;j<send_info[i].second.size();++j) {
+      for(unsigned int j=0;j<send_info[i].second.size();++j) {
         comm_info ci ;
         ci.v = send_info[i].second[j].v ;
         ci.processor = send_info[i].first ;
@@ -1165,14 +1173,17 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
     
     if(nrecv > 0) {
-      int err = MPI_Waitall(nrecv, request, status) ;
+#ifdef DEBUG
+      int err =
+#endif
+        MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
     }
     
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
-      for(int j=0;j<recv_info[i].second.size();++j) {
+      for(unsigned int j=0;j<recv_info[i].second.size();++j) {
         sequence seq ;
         for(int k=0;k<recv_info[i].second[j].seq.size();++k) {
 	  seq += d->g2l[recv_ptr[i][loc_unpack++]] ;

@@ -350,7 +350,7 @@ namespace Loci {
   
   void fact_db::write_hdf5(const char *fname, int num_partitions){
     hid_t  file_id, group_id;
-    char   filename[500], str[100];
+    char   filename[500] ;
     std::map<variable, fact_info>::const_iterator vmi ;
     
     strcpy(filename, fname);
@@ -453,7 +453,7 @@ namespace Loci {
     // is stored in the in the files. and since there was atleast one
     // processors, get this information from processor 0;
     //-----------------------------------------------------------------
-    int     ifile, rank=1, ibuf[2], maxfiles=1, gid, numsend, numrecv, packsize, location, num_parts;
+    int     ifile, rank=1, maxfiles=1, gid, numsend, numrecv, packsize, location, num_parts;
     hsize_t dimension = 2;
     hid_t   vdataspace, vdatatype, vdataset;
 
@@ -506,7 +506,7 @@ namespace Loci {
       files_assigned.push_back(I);
 
     std::map<variable, fact_info>::const_iterator vmi ;
-    for(int I=0;I < files_assigned.size(); I++){
+    for(unsigned int I=0;I < files_assigned.size(); I++){
       strcpy(filename, fname);
       if(Loci::MPI_processes > 1) {
 	strcat( filename, "_");
@@ -594,7 +594,7 @@ namespace Loci {
 
       // first get information about entitset and assign local number to them
    
-      for(int I = 0; I < files_assigned.size(); I++){
+      for(unsigned int I = 0; I < files_assigned.size(); I++){
         group_id2 = H5Gopen(file_id[I], groupname.c_str() );  
         if( group_id2 < 0) continue;
 
@@ -858,7 +858,7 @@ namespace Loci {
         std::string groupname = vname;
       
         gsetRead = EMPTY;
-        for(int I = 0; I < files_assigned.size(); I++){
+        for(unsigned int I = 0; I < files_assigned.size(); I++){
           group_id2 = H5Gopen(file_id[I], groupname.c_str() );  
           if( group_id2 < 0) continue;
           HDF5_ReadDomain(group_id2, eset);
@@ -905,7 +905,7 @@ namespace Loci {
 
   
 
-    for(int I = 0; I < files_assigned.size(); I++)
+    for(unsigned int I = 0; I < files_assigned.size(); I++)
       H5Fclose(file_id[I]);
 
     delete [] file_id;

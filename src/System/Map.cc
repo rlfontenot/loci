@@ -661,7 +661,6 @@ namespace Loci {
     for(int i = 0; i < MPI_processes; ++i) 
       for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) {
 	if(store_domain.inSet(*vi)) {
-	  int n = end(*vi) - begin(*vi) ;
 	  for(const int* j = begin(*vi); j != end(*vi); ++j)
 	    (map_entities[i])[*vi].push_back(*j) ;
 	}

@@ -226,7 +226,7 @@ namespace Loci {
     hid_t vDatatype  = H5Tcreate( H5T_COMPOUND, numBytes);
     hid_t hdf5T ;
 
-    for( int i = 0; i < type_list.size(); i++) {
+    for(unsigned  int i = 0; i < type_list.size(); i++) {
       hdf5T = type_list[i].type_data->get_hdf5_type() ;
       H5Tinsert(vDatatype,type_list[i].name.c_str(), type_list[i].offset,hdf5T) ;
     }
@@ -235,11 +235,11 @@ namespace Loci {
 
   std::ostream &CompoundType::output(std::ostream &s, const void *p) const {
     s << '<' ;
-    for( int i = 0; i < type_list.size(); i++) {
+    for(unsigned  int i = 0; i < type_list.size(); i++) {
       s << type_list[i].name << '=' ;
       const void *np = reinterpret_cast<const char *>(p)+type_list[i].offset ;
       type_list[i].type_data->output(s,np) ;
-      if(i<type_list.size()-1)
+      if(i+1<type_list.size())
         s << ',' ;
     }
     s << '>' ;
@@ -248,12 +248,12 @@ namespace Loci {
 
   std::istream &CompoundType::input(std::istream &s, void *p) const {
     parse::kill_white_space(s) ;
-    int i = 0 ;
+    unsigned int i = 0 ;
     if(s.peek() == '<') {
       s.get() ;
       while(true) {
         string name = parse::get_name(s) ;
-        int j =0;
+        unsigned int j =0;
         while(type_list[i].name != name && j!=type_list.size()) {
           ++i;
           i=i%type_list.size() ;

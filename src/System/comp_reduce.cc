@@ -29,7 +29,7 @@ namespace Loci {
                 vector<storeRepP> &vv, CPTR<joiner> &jo) :
       joiner_var(jv), joiner_store(js), partition(ptn),var_vec(vv),
       joiner_op(jo) {
-      for(int i=0;i<var_vec.size();++i) {
+      for(unsigned int i=0;i<var_vec.size();++i) {
         join_ops.push_back(jo->clone()) ;
         join_ops[i]->SetArgs(joiner_store,var_vec[i]) ;
       }
@@ -39,7 +39,7 @@ namespace Loci {
   } ;
 
   void joiner_oper::execute(fact_db &facts) {
-    for(int i=0;i<var_vec.size();++i) 
+    for(unsigned int i=0;i<var_vec.size();++i) 
       join_ops[i]->Join(sequence(partition[i])) ;
     //joiner_op->Join(joiner_store,var_vec[i],sequence(partition[i])) ;
   }
@@ -47,7 +47,7 @@ namespace Loci {
   void joiner_oper::Print(ostream &s) const {
     s << "reducing thread results for variable " << joiner_var << endl ;
     s << "reducing partitions = " << endl ;
-    for(int i=0;i<var_vec.size();++i)
+    for(unsigned int i=0;i<var_vec.size();++i)
       s << "p["<<i<< "]="<<partition[i]<<endl ;
   }
   
@@ -212,7 +212,7 @@ namespace Loci {
             
             if(si->mapping.size() > 0) {
               entitySet working = cnstrnts ;
-              for(int i=0;i<si->mapping.size();++i) {
+              for(unsigned int i=0;i<si->mapping.size();++i) {
                 entitySet images ;
                 variableSet::const_iterator vi ;
                 for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
@@ -277,7 +277,7 @@ namespace Loci {
       vector<storeRepP> var_vec ;
 
       execute_par *ep = new execute_par ;
-      for(int i=0;i<partition.size();++i) {
+      for(unsigned int i=0;i<partition.size();++i) {
         storeRepP rp = sp->new_store(EMPTY) ;
         rp->allocate(partition[i]) ;
         var_vec.push_back(rp) ;
@@ -306,7 +306,7 @@ namespace Loci {
       execute_par *ep = new execute_par ;
       entitySet apply_domain,all_contexts ;
       vector<entitySet> shards, shard_domains ;
-      for(int i=0;i<partition.size();++i) {
+      for(unsigned int i=0;i<partition.size();++i) {
         fatal(rinfo.targets.size() != 1) ;
         entitySet context = partition[i] ;
         entitySet pdom = vmap_target_exist(*rinfo.targets.begin(),facts,context, scheds) ;
@@ -341,7 +341,7 @@ namespace Loci {
         ep->append_list(new execute_sequence) ;
         bool disjoint = true ;
         entitySet dom_tot ;
-        for(int i=0;i<shards.size();++i) {
+        for(unsigned int i=0;i<shards.size();++i) {
           if((shard_domains[i] & dom_tot) != EMPTY)
             disjoint = false ;
           dom_tot += shard_domains[i] ;
@@ -354,7 +354,7 @@ namespace Loci {
       
         vector<storeRepP> var_vec ;
       
-        for(int i=0;i<shards.size();++i) {
+        for(unsigned int i=0;i<shards.size();++i) {
           storeRepP rp = sp->new_store(EMPTY) ;
           rp->allocate(shard_domains[i]) ;
 
@@ -377,7 +377,7 @@ namespace Loci {
         if(disjoint) {
           execute_par *epj = new execute_par ;
           epj->append_list(new execute_sequence) ;
-          for(int i=0;i<shard_domains.size();++i) {
+          for(unsigned int i=0;i<shard_domains.size();++i) {
             vector<entitySet> ve ;
             vector<storeRepP> vv ;
             ve.push_back(shard_domains[i]) ;
@@ -389,12 +389,12 @@ namespace Loci {
           el->append_list(epj) ;
           el->append_list(new execute_thread_sync) ;
         } else {
-          for(int i=0;i<shard_domains.size();++i) {
+          for(unsigned int i=0;i<shard_domains.size();++i) {
             execute_par *epj = new execute_par ;
             vector<entitySet> decompose = partition_set(shard_domains[i],num_threads) ;
             vector<storeRepP> vv ;
             vv.push_back(var_vec[i]) ;
-            for(int j=0;j<decompose.size();++j) {
+            for(unsigned int j=0;j<decompose.size();++j) {
               vector<entitySet> ve ;
               ve.push_back(decompose[j]) ;
               CPTR<joiner> j_op = (arule)->get_joiner() ;
@@ -589,7 +589,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
         ++ii) {
       send_info.push_back(make_pair(*ii,send_data[*ii])) ;
       send_vars.push_back(std::vector<storeRepP>()) ; 
-      for(int i=0;i<send_data[*ii].size();++i) 
+      for(unsigned int i=0;i<send_data[*ii].size();++i) 
         send_vars.back().push_back(facts.get_variable(send_data[*ii][i].v)) ; 
     }
     
@@ -598,7 +598,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
       recv_vars.push_back(std::vector<storeRepP>()) ; 
-      for(int i=0;i<recv_data[*ii].size();++i) 
+      for(unsigned int i=0;i<recv_data[*ii].size();++i) 
         recv_vars.back().push_back(facts.get_variable(recv_data[*ii][i].v)) ; 
     }
     
@@ -679,16 +679,11 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     entitySet resend_procs, rerecv_procs ;
     for(int i=0;i<nsend;++i) {
       s_size[i] = 0 ;
-      for(int j=0;j<send_info[i].second.size();++j) {
-	storeRepP sp = send_vars[i][j] ;//facts.get_variable(send_info[i].second[j].v) ;
+      for(unsigned int j=0;j<send_info[i].second.size();++j) {
+        //facts.get_variable(send_info[i].second[j].v) ;
+	storeRepP sp = send_vars[i][j] ;
+
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
-	/*
-	  #ifdef DEBUG
-	  entitySet rem = send_info[i].second[j].set - sp->domain() ;
-	  if(rem != EMPTY)
-          debugout << "variable " << send_info[i].second[j].v << " not allocated, but sending for reduce entities " << rem << endl ;
-	  #endif
-	*/
       }
       if((s_size[i] > maxs_size[i]) || ( s_size[i] == sizeof(int))) {
 	if(s_size[i] > maxs_size[i])
@@ -713,7 +708,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
       if(!resend_procs.inSet(send_info[i].first)) {
-	for(int j=0;j<send_info[i].second.size();++j) {
+	for(unsigned int j=0;j<send_info[i].second.size();++j) {
 	  storeRepP sp = send_vars[i][j] ;//facts.get_variable(send_info[i].second[j].v) ;
 	  sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
 	}
@@ -727,8 +722,11 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       int proc = send_info[i].first ;
       MPI_Send(send_ptr[i],s_size[i],MPI_PACKED,proc,1,MPI_COMM_WORLD) ;
     }
-    if(nrecv > 0) { 
-      int err = MPI_Waitall(nrecv, request, status) ;
+    if(nrecv > 0) {
+#ifdef DEBUG
+      int err =
+#endif
+        MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
       for(int i = 0 ; i < nrecv; i++) {
         int rcv_sizes ;
@@ -748,7 +746,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	  maxr_size[i] = temp ;
       }
       else
-	for(int j=0;j<recv_info[i].second.size();++j) {
+	for(unsigned int j=0;j<recv_info[i].second.size();++j) {
 	  storeRepP sp = recv_vars[i][j] ;//facts.get_variable(recv_info[i].second[j].v) ;
 	  storeRepP sr = sp->new_store(EMPTY) ;
 	  sr->allocate(entitySet(recv_info[i].second[j].seq)) ;
@@ -776,7 +774,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     for(int i=0;i<resend_size;++i) {
       int loc_pack = 0 ;
       send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
-      for(int j=0;j<send_info[send_index[i]].second.size();++j) {
+      for(unsigned int j=0;j<send_info[send_index[i]].second.size();++j) {
 	storeRepP sp = send_vars[i][j] ;//facts.get_variable(send_info[send_index[i]].second[j].v) ;
 	sp->pack(send_ptr[send_index[i]], loc_pack,maxs_size[send_index[i]],send_info[send_index[i]].second[j].set);
       }
@@ -788,13 +786,16 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       MPI_Send(send_ptr[send_index[i]],maxs_size[send_index[i]],MPI_PACKED,proc,2,MPI_COMM_WORLD) ;
       delete [] send_ptr[send_index[i]] ;
     }
-    if(rerecv_size > 0) { 
-      int err = MPI_Waitall(rerecv_size, re_request, re_status) ;
+    if(rerecv_size > 0) {
+#ifdef DEBUG
+      int err =
+#endif
+        MPI_Waitall(rerecv_size, re_request, re_status) ;
       FATAL(err != MPI_SUCCESS) ;
     }
     for(int i=0;i<rerecv_size;++i) {
       int loc_unpack = 0;
-      for(int j=0;j<recv_info[recv_index[i]].second.size();++j) {
+      for(unsigned int j=0;j<recv_info[recv_index[i]].second.size();++j) {
 	storeRepP sp = recv_vars[i][j] ;//facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
 	storeRepP sr = sp->new_store(EMPTY) ;
 	sr->allocate(entitySet(recv_info[recv_index[i]].second[j].seq)) ;
@@ -820,8 +821,8 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       s << "reduction block {" << endl ;
       if(send_info.size() > 0) {
         s << "Send:" << endl ;
-        for(int i=0;i<send_info.size();++i) {
-          for(int j=0;j<send_info[i].second.size();++j) {
+        for(unsigned int i=0;i<send_info.size();++i) {
+          for(unsigned int j=0;j<send_info[i].second.size();++j) {
             s << send_info[i].second[j].v << "  " ;
 	    sz += (send_info[i].second[j].set).size() ;
 	  }
@@ -832,8 +833,8 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       sz = 0 ;
       if(recv_info.size() > 0) {
         s << "Recv:" << endl ;
-        for(int i=0;i<recv_info.size();++i) {
-          for(int j=0;j<recv_info[i].second.size();++j) {
+        for(unsigned int i=0;i<recv_info.size();++i) {
+          for(unsigned int j=0;j<recv_info[i].second.size();++j) {
             s << recv_info[i].second[j].v << "  " ;
 	    sz += (recv_info[i].second[j].seq).size() ;
 	  }

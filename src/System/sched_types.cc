@@ -112,7 +112,7 @@ namespace Loci {
     vector<digraph::vertexSet> var_clusters =
       component_sort(variable_groupings).get_components() ;
 
-    for(int i=0;i<var_clusters.size();++i) {
+    for(unsigned int i=0;i<var_clusters.size();++i) {
       variableSet cluster = extract_vars(var_clusters[i]) ;
       if(cluster.size() == 1) {
         variable v = *cluster.begin() ;
@@ -187,7 +187,7 @@ namespace Loci {
         for(vmsi=ri->get_info().desc.targets.begin();
             vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
           if(vmsi->assign.size() != 0) 
-            for(int i=0;i<vmsi->assign.size();++i) {
+            for(unsigned int i=0;i<vmsi->assign.size();++i) {
               variable new_name = vmsi->assign[i].first ;
             
               if(new_name == *vi) {
@@ -230,7 +230,7 @@ namespace Loci {
       variable cv = ami->first ;
       rename_graph.add_edge(cv.ident(),cv.ident()) ;
     }
-    for(int i=0;i<rename_vars.size();++i) {
+    for(unsigned int i=0;i<rename_vars.size();++i) {
       variable new_var = var_to_cluster[rename_vars[i].first] ;
       variable old_var = var_to_cluster[rename_vars[i].second] ;
     
@@ -242,7 +242,7 @@ namespace Loci {
     vector<digraph::vertexSet> topo =
       component_sort(rename_graph).get_components() ;
 
-    for(int i=0;i<topo.size();++i) {
+    for(unsigned int i=0;i<topo.size();++i) {
       variableSet vs = extract_vars(topo[i]) ;
       if(vs.size() != 1) {
         cerr << "recursion in rename graph on variables " << vs
@@ -289,7 +289,7 @@ namespace Loci {
         // type appropriately in the fact database.
         if(rs != EMPTY) {
           rule pick = *rs.begin() ;
-          const rule_impl::info &info = pick.get_info().desc ;
+
           storeRepP st = pick.get_info().rule_impl->get_store(vget) ;
           if(st == 0) {
             cerr << "rule " << pick << " unable to provide type for " << vget
@@ -326,15 +326,15 @@ namespace Loci {
       // Collect all variables for which are actually read or written in the class
       set<vmap_info>::const_iterator i ;
       for(i=finfo.sources.begin();i!=finfo.sources.end();++i) {
-        for(int j=0;j<i->mapping.size();++j)
+        for(unsigned int j=0;j<i->mapping.size();++j)
           varcheck += i->mapping[j] ;
         varcheck += i->var ;
       }
       for(i=finfo.targets.begin();i!=finfo.targets.end();++i) {
-        for(int j=0;j<i->mapping.size();++j)
+        for(unsigned int j=0;j<i->mapping.size();++j)
           varcheck += i->mapping[j] ;
         varcheck += i->var ;
-        for(int k=0;k<i->assign.size();++k) {
+        for(unsigned int k=0;k<i->assign.size();++k) {
           varcheck -= i->assign[k].first ;
           varcheck += i->assign[k].second ;
         }

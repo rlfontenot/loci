@@ -587,8 +587,6 @@ namespace Loci {
                                   const entitySet &eset)  const
   {
 
-    int arraySize =  eset.size(); 
-
     typedef data_schema_traits<T> traits_type;
 
     DatatypeP dtype = traits_type::get_type();
@@ -744,14 +742,14 @@ namespace Loci {
     vDataspace = H5Screate_simple(rank, &dimension, NULL);
     vDataset   = H5Dopen( group_id, "VariableData");
 
-    hssize_t  start[]     = {0};  // determines the starting coordinates.
-    hsize_t   stride[]    = {1};  // which elements are to be selected.
-    hsize_t   block[]     = {1};  // size of element block;
-    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+    hssize_t  start[1]     = {0};  // determines the starting coordinates.
+    hsize_t   stride[1]    = {1};  // which elements are to be selected.
+    hsize_t   block[1]     = {1};  // size of element block;
+    hssize_t  foffset[1]   = {0};  // location (in file) where data is read.
+    hsize_t   count[1]     = {0};  // how many positions to select from the dataspace
 
     T  *data = 0;
-    int preallocated = 0;
+    hsize_t preallocated = 0;
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)

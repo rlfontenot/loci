@@ -54,15 +54,14 @@ namespace Loci {
 
     virtual void notification() ;
     
-    entitySet * operator&() { return data ; }
-    const entitySet * operator &() const { return data ; }
-
+    //    entitySet * operator&() { return data ; }
+    //    const entitySet * operator &() const { return data ; }
     entitySet &operator*() { return *data ; }
     
     //    operator storeRepP() { return Rep() ; }
 
-    operator entitySet() { return *data ; }
-    operator entitySet() const { return *data ; }
+    //    operator entitySet() { return *data ; }
+    //    operator entitySet() const { return *data ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;

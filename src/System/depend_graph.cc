@@ -414,7 +414,7 @@ namespace Loci {
         for(vmsi=ri->get_info().desc.targets.begin();
             vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
           if(vmsi->assign.size() != 0) 
-            for(int i=0;i<vmsi->assign.size();++i) {
+            for(unsigned int i=0;i<vmsi->assign.size();++i) {
               variable orig_name = vmsi->assign[i].second ;
               //              digraph grt = gr.transpose() ;
               ruleSet depend_rules = extract_rules(gr[orig_name.ident()]) ;
@@ -492,11 +492,9 @@ namespace Loci {
       ruleSet iteration_vars ;
       variableSet source,target ;
       for(ri=build.begin();ri!=build.end();++ri) {
-        const rule::rule_type type = ri->type() ;
         source += ri->sources() ;
       }
       for(ri=collapse.begin();ri!=collapse.end();++ri) {
-        const rule::rule_type type = ri->type() ;
         target += ri->targets() ;
       }
       rule i_rule = create_rule(source,target,"iterating_rule") ;
@@ -715,7 +713,7 @@ namespace Loci {
     int virtual_vertex = gr.max_vertex() + 1 ;
     digraph::vertexSet allvertices = gr.get_all_vertices() ;
     variableSet allvars = extract_vars(allvertices) ;
-    variableSet::const_iterator vi ;
+
     //  target += variable(expression::create("OUTPUT")) ;
 
     gr.add_edges(virtual_vertex, given) ;
@@ -726,7 +724,7 @@ namespace Loci {
 
     digraph::vertexSet subset = EMPTY ;
     
-    for(int i=0;i<components.size();++i) 
+    for(unsigned int i=0;i<components.size();++i) 
       if(components[i].inSet(virtual_vertex)) {
         subset = components[i] ;
         break ;

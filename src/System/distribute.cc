@@ -136,7 +136,7 @@ namespace Loci {
       entitySet::const_iterator tei ;
       ofile.open(filename.c_str(), ios::out) ;
       ofile << num_partitions << endl ;
-      for(int i = 0; i < ptn.size(); ++i) 
+      for(unsigned int i = 0; i < ptn.size(); ++i) 
         ofile << ptn[i].size() << endl ;
       for(int i = 0; i < num_partitions; ++i) {
         entitySet temp = ptn[i];
@@ -310,7 +310,7 @@ namespace Loci {
           ++vmsi) {
         if(vmsi->mapping.size() != 0) {
           vector<variableSet> vvs ;
-	  for(int i = 0; i < vmsi->mapping.size(); ++i) {
+	  for(unsigned int i = 0; i < vmsi->mapping.size(); ++i) {
               variableSet v ;
               for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
                 vi != vmsi->mapping[i].end();
@@ -328,7 +328,7 @@ namespace Loci {
           ++vmsi) {
         if(vmsi->mapping.size() != 0) {
           vector<variableSet> vvs ;
-	  for(int i = 0; i < vmsi->mapping.size(); ++i) {
+	  for(unsigned int i = 0; i < vmsi->mapping.size(); ++i) {
               variableSet v ;
               for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
                 vi != vmsi->mapping[i].end();
@@ -346,7 +346,7 @@ namespace Loci {
           vmsi != ri->get_info().desc.constraints.end();
           ++vmsi) {
         if(vmsi->mapping.size() != 0) {
-          for(int i = 0; i < vmsi->mapping.size(); i++) {
+          for(unsigned int i = 0; i < vmsi->mapping.size(); i++) {
             for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
                 vi != vmsi->mapping[i].end();
                 ++vi) {
@@ -370,7 +370,7 @@ namespace Loci {
       const vector<variableSet> &vss = *mi ;
       // If the maps aren't in the fact database then exclude it
       variableSet notvars ;
-      for(int i=0;i<vss.size();++i)
+      for(unsigned int i=0;i<vss.size();++i)
         notvars += vss[i]-vars ;
       if(notvars != EMPTY)
         continue ;
@@ -389,7 +389,7 @@ namespace Loci {
             vector<variableSet> vs(vss.size()) ;
             vs[0] += *vi ;
             vs[1] += *vvi ;
-            for(int i=2;i<vss.size();++i)
+            for(unsigned int i=2;i<vss.size();++i)
               vs[i] = vss[i] ;
             maps_ret.insert(vs) ;
           }
@@ -413,7 +413,7 @@ namespace Loci {
     for(smi = maps.begin(); smi != maps.end(); ++smi) {
       entitySet locdom = domain ;
       const vector<variableSet> &mv = *smi ;
-      for(int i = 0; i < mv.size(); ++i) {
+      for(unsigned int i = 0; i < mv.size(); ++i) {
         variableSet v = mv[i] ;
         v &= vars ;
         entitySet image ;
@@ -446,7 +446,7 @@ namespace Loci {
     for(smi = maps.begin(); smi != maps.end(); ++smi) {
       entitySet locdom = domain ;
       const vector<variableSet> &mv = *smi ;
-      for(int i = 0; i < mv.size(); ++i) {
+      for(unsigned int i = 0; i < mv.size(); ++i) {
 	variableSet v = mv[i] ;
 	v &= vars ; 
 	entitySet image ;
@@ -456,7 +456,6 @@ namespace Loci {
 	    entitySet tmp_dom = p->domain() ;
 	    MapRepP mp =  MapRepP(p->getRep()) ;
 	    entitySet out_of_dom = locdom - tmp_dom ; 
-	    entitySet::const_iterator ei ;
 	    entitySet tmp_out = out_of_dom ; 
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
 	    if(sp->domain() != tmp_dom) {
@@ -520,14 +519,14 @@ namespace Loci {
     std::sort(vals.begin(),vals.end()) ;
     
     vals2.push_back(vals[0]) ;
-    for(int i=1;i<vals.size();++i) {
+    for(unsigned int i=1;i<vals.size();++i) {
       if(vals[i-1] == vals[i])
         continue ;
       vals2.push_back(vals[i]) ;
     }
     std::vector<interval> tmp_pvec ;
     FATAL(vals2.size() < 4) ;
-    for(int i=1;i<vals2.size()-1;) {
+    for(int i=1;i<int(vals2.size())-1;) {
       int i1 = vals2[i] ;
       int i2 = vals2[i+1] ;
       if(i1+1 == i2)
@@ -544,7 +543,6 @@ namespace Loci {
     
     if(facts.is_distributed_start()) {
       std::map<variable, entitySet> vm ;
-      std::map<variable, entitySet>::const_iterator mvi ;
       entitySet total_entities ;
       for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
 	entitySet active_set ;
@@ -619,8 +617,6 @@ namespace Loci {
     get_mappings(rdb,facts,maps) ;
     double end_time  = MPI_Wtime() ;
     debugout << "Time taken for get_mappings =   = " << end_time -start << endl ; 
-    set<vector< variableSet> >::const_iterator smi ;
-    
     start = MPI_Wtime() ;
     int num_procs = MPI_processes ;
     vector<entitySet> copy(num_procs) ;
@@ -667,7 +663,7 @@ namespace Loci {
     
     //debugout << "}" << endl ;
 #endif
-    for(int i = 0; i < iv.size(); ++i) {
+    for(unsigned int i = 0; i < iv.size(); ++i) {
       // Within each category:
       // 1) Number local processor entities first
       e = get_entities[myid][myid] & iv[i] ; 
@@ -698,7 +694,7 @@ namespace Loci {
     int j = 0 ;
     e = interval(0, size - 1) ;
     l2g.allocate(e) ;
-    for(int i = 0; i < proc_entities.size(); ++i) {
+    for(unsigned int i = 0; i < proc_entities.size(); ++i) {
       g += proc_entities[i] ;
       for(ei = proc_entities[i].begin(); ei != proc_entities[i].end(); ++ei ) {
 	l2g[j] = *ei ;
@@ -777,12 +773,12 @@ namespace Loci {
 
     
     int total = 0 ;
-    for(int i=0;i<df->xmit.size();++i)
+    for(unsigned int i=0;i<df->xmit.size();++i)
       total += df->xmit[i].size ;
     df->xmit_total_size = total ;
     
     total = 0 ;
-    for(int i=0;i<df->copy.size();++i)
+    for(unsigned int i=0;i<df->copy.size();++i)
       total += df->copy[i].size ;
     df->copy_total_size = total ;
     
@@ -829,7 +825,7 @@ namespace Loci {
         recv_size = new int[d->copy.size()] ;
         recv_buffer[0] = new int[d->copy_total_size] ;
         recv_size[0] = d->copy[0].size ;
-        for(int i=1;i<d->copy.size();++i) {
+        for(unsigned int i=1;i<d->copy.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+d->copy[i-1].size ;
           recv_size[i] = d->copy[i].size ;
         }
@@ -839,7 +835,7 @@ namespace Loci {
         send_buffer = new int*[d->xmit.size()] ;
 
         send_buffer[0] = new int[d->xmit_total_size] ;
-        for(int i=1;i<d->xmit.size();++i)
+        for(unsigned int i=1;i<d->xmit.size();++i)
           send_buffer[i] = send_buffer[i-1]+d->xmit[i-1].size ;
       }
       
@@ -851,11 +847,11 @@ namespace Loci {
       MPI_Status *status = new MPI_Status[d->copy.size()] ;
       /*The recv_size is the maximum possible, so that even if we
 	receive a shorter message there won't be any problem */
-      for(int i=0;i<d->copy.size();++i)
+      for(unsigned int i=0;i<d->copy.size();++i)
         MPI_Irecv(recv_buffer[i],recv_size[i],MPI_INT,d->copy[i].proc,1,
                   MPI_COMM_WORLD, &recv_request[i]) ;
 
-      for(int i=0;i<d->xmit.size();++i) {
+      for(unsigned int i=0;i<d->xmit.size();++i) {
         entitySet temp = e & d->xmit[i].entities ;
 	
         int j=0 ;
@@ -870,10 +866,13 @@ namespace Loci {
         
 
       if(d->copy.size() > 0) {
-	int err = MPI_Waitall(d->copy.size(), recv_request, status) ;
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(d->copy.size(), recv_request, status) ;
 	FATAL(err != MPI_SUCCESS) ;
       }
-      for(int i = 0; i < d->copy.size(); ++i) {
+      for(unsigned int i = 0; i < d->copy.size(); ++i) {
         int recieved ;
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
         for(int j = 0 ; j < recieved; ++j) 
@@ -923,7 +922,7 @@ namespace Loci {
 
         recv_buffer[0] = new int[d->copy_total_size*evsz+evsz*d->copy.size()] ;
         recv_size[0] = d->copy[0].size*evsz+evsz ;
-        for(int i=1;i<d->copy.size();++i) {
+        for(unsigned int i=1;i<d->copy.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+(d->copy[i-1].size*evsz+evsz) ;
           recv_size[i] = d->copy[i].size*evsz+evsz ;
         }
@@ -933,7 +932,7 @@ namespace Loci {
         send_buffer = new int*[d->xmit.size()] ;
 
         send_buffer[0] = new int[d->xmit_total_size*evsz+evsz*d->xmit.size()] ;
-        for(int i=1;i<d->xmit.size();++i)
+        for(unsigned int i=1;i<d->xmit.size();++i)
           send_buffer[i] = send_buffer[i-1]+(d->xmit[i-1].size*evsz+evsz) ;
       }
         
@@ -944,11 +943,11 @@ namespace Loci {
       MPI_Request *recv_request = new MPI_Request[d->copy.size()] ;
       MPI_Status *status = new MPI_Status[d->copy.size()] ;
 
-      for(int i=0;i<d->copy.size();++i)
+      for(unsigned int i=0;i<d->copy.size();++i)
         MPI_Irecv(recv_buffer[i],recv_size[i],MPI_INT,d->copy[i].proc,1,
                   MPI_COMM_WORLD, &recv_request[i]) ;
 
-      for(int i=0;i<d->xmit.size();++i) {
+      for(unsigned int i=0;i<d->xmit.size();++i) {
         int j=evsz ;
         for(int k=0;k<evsz;++k) {
           entitySet temp = ev[k] & d->xmit[i].entities ;
@@ -964,11 +963,14 @@ namespace Loci {
         
 
       if(d->copy.size() > 0) {
-	int err = MPI_Waitall(d->copy.size(), recv_request, status) ;
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(d->copy.size(), recv_request, status) ;
 	FATAL(err != MPI_SUCCESS) ;
       }
 
-      for(int i = 0; i < d->copy.size(); ++i) {
+      for(unsigned int i = 0; i < d->copy.size(); ++i) {
 #ifdef DEBUG
         int recieved ;
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
@@ -1019,7 +1021,7 @@ namespace Loci {
         recv_buffer[0] = new int[d->xmit_total_size] ;
         recv_size[0] = d->xmit[0].size ;
 
-        for(int i=1;i<d->xmit.size();++i) {
+        for(unsigned int i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
           recv_size[i] = d->xmit[i].size ;
         }
@@ -1028,7 +1030,7 @@ namespace Loci {
       if(d->copy.size() > 0 ) {
         send_buffer = new int*[d->copy.size()] ;
         send_buffer[0] = new int[d->copy_total_size] ;
-        for(int i=1;i<d->copy.size();++i)
+        for(unsigned int i=1;i<d->copy.size();++i)
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
       }
       Map l2g ;
@@ -1037,13 +1039,13 @@ namespace Loci {
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
 
-      for(int i=0;i<d->xmit.size();++i)
+      for(unsigned int i=0;i<d->xmit.size();++i)
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 1,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
 
       /*By intersecting the given entitySet with the clone region
 	entities we can find out which entities are to be sent */
-      for(int i=0;i<d->copy.size();++i) {
+      for(unsigned int i=0;i<d->copy.size();++i) {
         entitySet temp = e & d->copy[i].entities ;
 
         int j=0 ;
@@ -1056,11 +1058,14 @@ namespace Loci {
       }
       
       if(d->xmit.size() > 0) {
-	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(d->xmit.size(), recv_request, status) ;
 	FATAL(err != MPI_SUCCESS) ;
       }
       
-      for(int i=0;i<d->xmit.size();++i) {
+      for(unsigned int i=0;i<d->xmit.size();++i) {
         int recieved ;
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
         for(int j=0;j<recieved;++j)
@@ -1100,7 +1105,7 @@ namespace Loci {
         recv_buffer[0] = new int[d->xmit_total_size*evsz+evsz*d->xmit.size()] ;
         recv_size[0] = d->xmit[0].size*evsz + evsz ;
 
-        for(int i=1;i<d->xmit.size();++i) {
+        for(unsigned int i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+(d->xmit[i-1].size*evsz+evsz) ;
           recv_size[i] = d->xmit[i].size*evsz+evsz ;
         }
@@ -1109,7 +1114,7 @@ namespace Loci {
       if(d->copy.size() > 0 ) {
         send_buffer = new int*[d->copy.size()] ;
         send_buffer[0] = new int[d->copy_total_size*evsz+evsz*d->copy.size()] ;
-        for(int i=1;i<d->copy.size();++i)
+        for(unsigned int i=1;i<d->copy.size();++i)
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size*evsz+evsz ;
       }
       Map l2g ;
@@ -1118,11 +1123,11 @@ namespace Loci {
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
 
-      for(int i=0;i<d->xmit.size();++i)
+      for(unsigned int i=0;i<d->xmit.size();++i)
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 1,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
 
-      for(int i=0;i<d->copy.size();++i) {
+      for(unsigned int i=0;i<d->copy.size();++i) {
         int j=evsz ;
         for(int k=0;k<evsz;++k) {
           entitySet temp = ev[k] & d->copy[i].entities ;
@@ -1137,10 +1142,13 @@ namespace Loci {
       }
       
       if(d->xmit.size() > 0) {
-	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(d->xmit.size(), recv_request, status) ;
       	FATAL(err != MPI_SUCCESS) ;
       }
-      for(int i=0;i<d->xmit.size();++i) {
+      for(unsigned int i=0;i<d->xmit.size();++i) {
 #ifdef DEBUG
         int recieved ;
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
@@ -1194,8 +1202,11 @@ namespace Loci {
 	
 	for(k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_buffer[k][0],MAX,MPI_INT, k+1,1, MPI_COMM_WORLD, &recv_request[k] );  
-	
-	int err = MPI_Waitall(MPI_processes-1, recv_request, status) ;
+
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(MPI_processes-1, recv_request, status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	for(k = 0; k < MPI_processes-1; ++k)
 	  MPI_Get_count(&status[k], MPI_INT, &recv_size[k]) ;
@@ -1269,7 +1280,10 @@ namespace Loci {
 	for(k = 0; k < MPI_processes-1; k++) {
 	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);
         }
-	int err = MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(MPI_processes-1, size_request, size_status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	recv_buffer = new int*[MPI_processes-1] ;
         int total_size = 0 ;
@@ -1285,8 +1299,11 @@ namespace Loci {
 	
 	for(k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,2, MPI_COMM_WORLD, &recv_request[k] );  
-	
-	err = MPI_Waitall(MPI_processes-1, recv_request, status) ;
+
+#ifdef DEBUG
+	err =
+#endif
+          MPI_Waitall(MPI_processes-1, recv_request, status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	for(k = 0; k < MPI_processes-1; ++k)       
 	  for(int i = 0 ; i < recv_size[k]; ++i) {
@@ -1349,8 +1366,11 @@ namespace Loci {
 	size_status = new MPI_Status[MPI_processes-1] ;
 	for(int k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,11, MPI_COMM_WORLD, &size_request[k]);
-	
-	int err = MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(MPI_processes-1, size_request, size_status) ;
 	FATAL(err != MPI_SUCCESS) ;
 
 	recv_buffer = new int*[MPI_processes-1] ;
@@ -1366,14 +1386,20 @@ namespace Loci {
 	
 	for(int k = 0; k < MPI_processes-1; k++)
 	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,12, MPI_COMM_WORLD, &recv_request[k] );  
-	
-	err = MPI_Waitall(MPI_processes-1, recv_request, status) ;
+
+#ifdef DEBUG
+	err =
+#endif
+          MPI_Waitall(MPI_processes-1, recv_request, status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	for(int k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_size_bytes[k],1,MPI_INT, k+1,14,
 		    MPI_COMM_WORLD, &size_request[k]) ;  
-	
-	err = MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+
+#ifdef DEBUG
+	err =
+#endif
+          MPI_Waitall(MPI_processes-1, size_request, size_status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	
 	for(int k = 0; k < MPI_processes-1; ++k) {      
@@ -1411,8 +1437,11 @@ namespace Loci {
 	for(int i = 0; i < MPI_processes-1; i++)
 	  MPI_Irecv(recv_ptr[i],r_size[i] , MPI_PACKED, i+1, 13,
 		    MPI_COMM_WORLD, &store_request[i]) ;
-	
-	err = MPI_Waitall(MPI_processes-1, store_request, store_status) ;
+
+#ifdef DEBUG
+	err =
+#endif
+          MPI_Waitall(MPI_processes-1, store_request, store_status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	nsp->unpack(my_stuff, my_unpack, my_sz, te) ; 
 	for(int i = 0; i < MPI_processes-1; ++i) {
@@ -1715,7 +1744,10 @@ namespace Loci {
 	size_status = new MPI_Status[MPI_processes-1] ;
 	for(k = 0; k < MPI_processes-1; k++)
 	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);  
-	int err = MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(MPI_processes-1, size_request, size_status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	recv_buffer = new int*[MPI_processes-1] ;
 	for(int i = 0; i < MPI_processes-1; ++i) {
@@ -1726,8 +1758,11 @@ namespace Loci {
 	
 	for(k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,2, MPI_COMM_WORLD, &recv_request[k] );  
-	
-	err = MPI_Waitall(MPI_processes-1, recv_request, status) ;
+
+#ifdef DEBUG
+	err =
+#endif
+          MPI_Waitall(MPI_processes-1, recv_request, status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	for(k = 0; k < MPI_processes-1; ++k) {      
 	  entitySet re ;
@@ -1764,7 +1799,10 @@ namespace Loci {
 	  MPI_Isend(send_ptr[i], s_size[i], MPI_PACKED, i+1, 3,
 		    MPI_COMM_WORLD, &store_request[i]) ;
 	}
-	err = MPI_Waitall(MPI_processes-1, store_request, store_status) ;
+#ifdef DEBUG
+	err =
+#endif
+          MPI_Waitall(MPI_processes-1, store_request, store_status) ;
 	FATAL(err != MPI_SUCCESS) ;
 	nsp->unpack(my_stuff, my_unpack, my_sz, te) ; 
 	delete [] recv_size ;
@@ -2883,7 +2921,6 @@ namespace Loci {
   
  entitySet all_collect_entitySet(const entitySet &e) {
     entitySet collect ;
-    entitySet::const_iterator ei ;
     if(MPI_processes > 1) {
       int *recv_count = new int[MPI_processes] ;
       int *send_count = new int[MPI_processes] ;
@@ -2943,7 +2980,6 @@ namespace Loci {
   std::vector<int> all_collect_sizes(int size) {
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
-    entitySet::const_iterator ei ;
     for(int i = 0; i <  MPI_processes; ++i) 
       send_count[i] = size ;
     
@@ -3236,7 +3272,7 @@ void cat_tree::recursive_reorder(std::list<variableSet> &tmp_lvs) {
 std::vector<std::vector<variableSet> > create_orig_matrix(std::vector<variableSet> &ves) {
   std::vector<variableSet>::const_iterator vesi, viter ;
   std::vector<std::vector<variableSet> > vvvs(ves.size()) ;
-  int tmp = 0 ;
+  unsigned int tmp = 0 ;
   viter = ves.begin() ;
   while(tmp < ves.size()) { 
     entitySet vs ;
@@ -3264,8 +3300,8 @@ std::vector<std::vector<variableSet> > create_sub_matrix(std::vector<variableSet
   std::vector<variableSet>::const_iterator vesi, viter ;
   std::vector<std::vector<variableSet> > vvvs ;
   std::vector<variableSet>  tmp_ves(ves.size()) ;
-  int tmp = 0 ;
-  for(int i = 0; i < ves.size(); ++i) 
+  unsigned int tmp = 0 ;
+  for(unsigned int i = 0; i < ves.size(); ++i) 
     tmp_ves[i] = variableSet(entitySet(ves[i])- entitySet(v)) ;
   viter = tmp_ves.begin() ;
   while(tmp < tmp_ves.size()) { 
@@ -3302,7 +3338,7 @@ treeP recursive_matrix_tree(std::vector<std::vector<variableSet> > &tmp_vvvs, va
     return tp ;
   }
   std::vector<variableSet> tmp_vvs ;
-  for(int i = 0; i < tmp_vvvs.size(); ++i) {
+  for(unsigned int i = 0; i < tmp_vvvs.size(); ++i) {
     if(tmp_vvvs[i][i] != EMPTY) {
       tmp_vvs.push_back(tmp_vvvs[i][i]) ;
     }
@@ -3312,7 +3348,7 @@ treeP recursive_matrix_tree(std::vector<std::vector<variableSet> > &tmp_vvvs, va
   else
     vvvs = tmp_vvvs ;
 
-  for(int i = 0; i < vvvs.size(); ++i) {
+  for(unsigned int i = 0; i < vvvs.size(); ++i) {
     std::set<variableSet> set_vars ;
     std::vector<variableSet> vvs ;
     entitySet es ;
@@ -3322,7 +3358,7 @@ treeP recursive_matrix_tree(std::vector<std::vector<variableSet> > &tmp_vvvs, va
       set_vars.insert(vvvs[i][i]) ;
     }
     std::vector<std::vector<variableSet> > sub_vvvs ;
-    for(int j = 0; j < vvvs[i].size(); ++j)
+    for(unsigned int j = 0; j < vvvs[i].size(); ++j)
       if(j != i) {
 	if(vvvs[i][j] != EMPTY) {
 	  es &= entitySet(vvvs[i][j]) ;
@@ -3337,7 +3373,7 @@ treeP recursive_matrix_tree(std::vector<std::vector<variableSet> > &tmp_vvvs, va
       }
     if(vvs.size()) {
       es = vvs[0] ;
-      for(int j = 1; j < vvs.size(); ++j)
+      for(unsigned int j = 1; j < vvs.size(); ++j)
 	es &= entitySet(vvs[j]) ;
       if(total_varset.find(variableSet(es)) == total_varset.end()) {
 	total_varset.insert(variableSet(es)) ;
@@ -3353,7 +3389,6 @@ treeP recursive_matrix_tree(std::vector<std::vector<variableSet> > &tmp_vvvs, va
 }
 
 std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, entitySet> &vm, std::vector<interval> &pvec) {
-  entitySet::const_iterator ei, ci ;
   std::vector<entitySet> tmp_pvec ;
   std::vector<variableSet> vvs(pvec.size()) ;
   variableSet vars = facts.get_typed_variables() ;
@@ -3362,7 +3397,7 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   std::map<variable, entitySet>::const_iterator svi ;
   variableSet initial_varset ;
   Loci::debugout << " Size of the vector passed to modified categories = " << pvec.size() << endl ;
-  for(int i = 0; i < pvec.size(); ++i) {
+  for(unsigned int i = 0; i < pvec.size(); ++i) {
     for(svi = vm.begin(); svi != vm.end(); ++svi) {
       if((svi->second & entitySet(pvec[i])) != EMPTY) {
 	vvs[i] += svi->first ;
@@ -3390,9 +3425,9 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   std::vector<variableSet> indep ;
   std::set<variableSet> total_vars, itotal_vars ;
   
-  for(int i = 0; i < vvvs.size(); ++i) {
+  for(unsigned int i = 0; i < vvvs.size(); ++i) {
     entitySet vs, tmp_vs ;
-    for(int j = 0; j < vvvs[i].size(); ++j) {
+    for(unsigned int j = 0; j < vvvs[i].size(); ++j) {
       if(j != i) {
 	vs = entitySet(vvvs[i][i]) & entitySet(vvvs[i][j]) ;
 	tmp_vs += vs ;
@@ -3409,10 +3444,10 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   }
   std::vector<std::vector<variableSet> > tmp_vvvs ;
   vvvs = create_orig_matrix(vvs) ;
-  for(int i = 0; i < vvvs.size(); ++i) {
+  for(unsigned int i = 0; i < vvvs.size(); ++i) {
     vvs.clear() ;
     entitySet es = entitySet(vvvs[i][i]);
-    for(int j = 0; j < vvvs[i].size(); ++j) {
+    for(unsigned int j = 0; j < vvvs[i].size(); ++j) {
       entitySet tmp_es ;
       if((vvvs[i][j] != EMPTY))  {
 	if(itotal_vars.find(vvvs[j][j]) == itotal_vars.end()) {
@@ -3435,7 +3470,7 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   treeP super_tp = new cat_tree ;
   variableSet vset ;
   super_tp->generalization = vset ;
-  for(int i = 0; i < tmp_vvvs.size(); ++i) {
+  for(unsigned int i = 0; i < tmp_vvvs.size(); ++i) {
     treeP tp = new cat_tree ;
     variableSet vs ;
     vvvs = create_orig_matrix(tmp_vvvs[i]) ;
@@ -3445,7 +3480,7 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   }
   treeP tp = new cat_tree ;
   tp->generalization = vset ;
-  for(int i = 0 ; i < indep.size(); ++i) {
+  for(unsigned int i = 0 ; i < indep.size(); ++i) {
     treeP tmp_tp = new cat_tree ;
     tmp_tp->generalization = indep[i] ;
     tp->before.push_back(tmp_tp) ;

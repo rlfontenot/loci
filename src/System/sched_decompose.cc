@@ -306,7 +306,7 @@ namespace Loci {
     digraph::vertexSet incm ;
 
 
-    for(int i=0;i<cs.size();++i)
+    for(unsigned int i=0;i<cs.size();++i)
       if(cs[i].size() > 1) {
         int new_vertex = tmpgr.max_vertex()+1 ;
         digraph::vertexSet in ;
@@ -382,7 +382,7 @@ namespace Loci {
 
       int new_node =  mlg.mksnode(supernode,component,mi->first) ;
       new_rules += new_node ;
-      rule new_rule(new_node);
+      //      rule new_rule(new_node);
     }
 
     return new_rules ;

@@ -489,8 +489,6 @@ namespace Loci {
   void paramRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
                                   const entitySet &eset ) const
   {
-    int arraySize =  eset.size(); 
-
     typedef data_schema_traits<T> traits_type;
 
     DatatypeP  dtype = traits_type::get_type();
@@ -498,8 +496,6 @@ namespace Loci {
 
     int      rank = 1;
     hsize_t  dimension = 1;
-
-    entitySet :: const_iterator ci;
 
     hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
 
@@ -622,7 +618,6 @@ namespace Loci {
 
     H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, data);
 
-    entitySet::const_iterator ci;
     typename data_schema_traits<T>::Converter_Type cvtr( attrib_data);
     cvtr.setState( data, stateSize );
 

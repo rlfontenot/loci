@@ -25,16 +25,25 @@ namespace Loci {
       pthread_mutex_init(&mutex,&mattr) ;
     }
     ~lmutex() {
-      const int err = pthread_mutex_destroy(&mutex) ;
+#ifdef DEBUG
+      const int err =
+#endif
+        pthread_mutex_destroy(&mutex) ;
       fatal(err==EBUSY) ;
       pthread_mutexattr_destroy(&mattr) ;
     }
     void lock() {
-      const int err = pthread_mutex_lock(&mutex) ;
+#ifdef DEBUG
+      const int err =
+#endif
+        pthread_mutex_lock(&mutex) ;
       fatal(err==EDEADLK || err==EINVAL) ;
     }
     void unlock() {
-      const int err = pthread_mutex_unlock(&mutex) ;
+#ifdef DEBUG
+      const int err =
+#endif
+        pthread_mutex_unlock(&mutex) ;
       fatal(err==EPERM) ;
     }
     
