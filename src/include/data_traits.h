@@ -8,6 +8,8 @@
 
 #include <vector>
 #include <utility>
+#include <string>
+
 #include <entitySet.h>
 
 #include <Loci_Datatypes.h>
@@ -310,6 +312,31 @@ namespace Loci {
     return s ;
   }
 
+  class std_string_schema_converter {
+    std::string &ref ;
+  public:
+    explicit std_string_schema_converter(std::string &iref): ref(iref) {}
+    int getSize() const {
+      return ref.size() ;
+    }
+    void getState(char *buf, int &size) {
+      size = getSize() ;
+      for(int i=0;i<size;++i)
+        buf[i] = ref[i] ;
+    }
+    void setState(char *buf, int size) {
+      ref = "" ;
+      for(int i=0;i<size;++i)
+        ref += buf[i] ;
+    }
+  } ;
+
+  template<> struct data_schema_traits<std::string> {
+    typedef USER_DEFINED_CONVERTER Schema_Converter ;
+
+    typedef char Converter_Base_Type ;
+    typedef std_string_schema_converter Converter_Type ;
+  } ;
 
 #ifdef NO_OFFSETOF
 #define LOCI_INSERT_TYPE(ct,type,variable) \
