@@ -153,8 +153,10 @@ namespace Loci {
   public:
     int cid ; // id number of this compiler
     impl_recurse_compiler(rule r, int id):cid(id)
-    { impl = r ;}
-    virtual void accept(visitor& v) {}
+      { impl = r ;}
+    ruleSet get_rules() const
+      {ruleSet rs; rs += impl; return rs ;}
+    virtual void accept(visitor& v) ;
     virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
@@ -201,7 +203,8 @@ namespace Loci {
       for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri) 
         recurse_vars += ri->targets() ;
     }
-    virtual void accept(visitor& v) {}
+    ruleSet get_rules() const {return recurse_rules ;}
+    virtual void accept(visitor& v) ;
     virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;

@@ -1,5 +1,6 @@
 #include "comp_tools.h"
 #include "dist_tools.h"
+#include "visitorabs.h"
 #include <vector>
 using std::vector ;
 #include <map>
@@ -12,6 +13,10 @@ using std::set ;
 //#define VERBOSE
 
 namespace Loci {
+  void impl_recurse_compiler::accept(visitor& v) {
+    v.visit(*this) ;
+  }
+  
   void impl_recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
 
 #ifdef VERBOSE
@@ -421,6 +426,10 @@ namespace Loci {
 
   }
 
+  void recurse_compiler::accept(visitor& v) {
+    v.visit(*this) ;
+  }
+  
   void recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
 
     entitySet my_entities = ~EMPTY ;

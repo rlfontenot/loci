@@ -57,7 +57,7 @@ namespace Loci {
   // (more memory conservative and more synchronization
   //  points will be generated)
   bool memory_greedy_schedule = false ;
-  bool use_new_dependency_graph = false ;
+  bool use_old_dependency_graph = false ;
   /////////////////////////////
   
   ofstream debugout ;
@@ -206,8 +206,8 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--balance")) {
         use_dynamic_scheduling = true ;
         i++ ;
-      } else if(!strcmp((*argv)[i],"--newdg")) {
-        use_new_dependency_graph = true ;
+      } else if(!strcmp((*argv)[i],"--olddg")) {
+        use_old_dependency_graph = true ;
         i++ ;
       } else
         break ;

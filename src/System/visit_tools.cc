@@ -48,6 +48,33 @@ namespace Loci {
   //////////////////////////////////////////////////////////////
   // recurInfoVisitor
   //////////////////////////////////////////////////////////////
+  void recurInfoVisitor::gather_info2(const ruleSet& rs) {
+    for(ruleSet::const_iterator ruleIter=rs.begin();
+        ruleIter!=rs.end();++ruleIter) {
+      // we check for rename (inplace update rules)
+      set<vmap_info>::const_iterator vmsi ;
+      for(vmsi=ruleIter->get_info().desc.targets.begin();
+          vmsi!=ruleIter->get_info().desc.targets.end(); ++vmsi) {
+        if(vmsi->assign.size() != 0) {
+          for(size_t i=0;i<vmsi->assign.size();++i) {
+            variable new_name = vmsi->assign[i].first ;
+            variable old_name = vmsi->assign[i].second ;
+            
+            recur_vars_t2s[new_name] += old_name ;
+            recur_vars_s2t[old_name] += new_name ;
+            recur_source_vars += old_name ;
+            recur_target_vars += new_name ;
+            
+            rename_t2s[new_name] += old_name ;
+            rename_s2t[old_name] += new_name ;
+            rename_source_vars += old_name ;
+            rename_target_vars += new_name ;
+          }
+        }
+      }
+    }
+  }
+  
   void recurInfoVisitor::gather_info(const digraph& gr) {
     // obtain all the rules
     digraph::vertexSet allvertices = gr.get_all_vertices() ;
@@ -58,78 +85,78 @@ namespace Loci {
         ruleIter!=rules.end();++ruleIter) {
       // recurrence variables are the target and source of
       // these internal rules
-      if(ruleIter->type() == rule::INTERNAL) {
-        if(ruleIter->get_info().qualifier() == "generalize") {
-          variable target,source ;
-          target = *(ruleIter->targets().begin()) ;
-          source = *(ruleIter->sources().begin()) ;
-
-          recur_vars_t2s[target] += source ;
-          recur_vars_s2t[source] += target ;
-          recur_source_vars += source ;
-          recur_target_vars += target ;
-
-          generalize_t2s[target] += source ;
-          generalize_s2t[source] += target ;
-          generalize_source_vars += source ;
-          generalize_target_vars += target ;
-        }
-        else if(ruleIter->get_info().qualifier() == "promote") {
-          variable target,source ;
-          target = *(ruleIter->targets().begin()) ;
-          source = *(ruleIter->sources().begin()) ;
-
-          recur_vars_t2s[target] += source ;
-          recur_vars_s2t[source] += target ;
-          recur_source_vars += source ;
-          recur_target_vars += target ;
-
-          promote_t2s[target] += source ;
-          promote_s2t[source] += target ;
-          promote_source_vars += source ;
-          promote_target_vars += target ;
-        }
-        else if(ruleIter->get_info().qualifier() == "priority") {
-          variable target,source ;
-          target = *(ruleIter->targets().begin()) ;
-          source = *(ruleIter->sources().begin()) ;
-
-          recur_vars_t2s[target] += source ;
-          recur_vars_s2t[source] += target ;
-          recur_source_vars += source ;
-          recur_target_vars += target ;
-
-          priority_t2s[target] += source ;
-          priority_s2t[source] += target ;
-          priority_source_vars += source ;
-          priority_target_vars += target ;
-        }
-      } else {
+      if(ruleIter->get_info().qualifier() == "generalize") {
+        variable target,source ;
+        target = *(ruleIter->targets().begin()) ;
+        source = *(ruleIter->sources().begin()) ;
+        
+        recur_vars_t2s[target] += source ;
+        recur_vars_s2t[source] += target ;
+        recur_source_vars += source ;
+        recur_target_vars += target ;
+        
+        generalize_t2s[target] += source ;
+        generalize_s2t[source] += target ;
+        generalize_source_vars += source ;
+        generalize_target_vars += target ;
+      }
+      else if(ruleIter->get_info().qualifier() == "promote") {
+        variable target,source ;
+        target = *(ruleIter->targets().begin()) ;
+        source = *(ruleIter->sources().begin()) ;
+        
+        recur_vars_t2s[target] += source ;
+        recur_vars_s2t[source] += target ;
+        recur_source_vars += source ;
+        recur_target_vars += target ;
+        
+        promote_t2s[target] += source ;
+        promote_s2t[source] += target ;
+        promote_source_vars += source ;
+        promote_target_vars += target ;
+      }
+      else if(ruleIter->get_info().qualifier() == "priority") {
+        variable target,source ;
+        target = *(ruleIter->targets().begin()) ;
+        source = *(ruleIter->sources().begin()) ;
+        
+        recur_vars_t2s[target] += source ;
+        recur_vars_s2t[source] += target ;
+        recur_source_vars += source ;
+        recur_target_vars += target ;
+        
+        priority_t2s[target] += source ;
+        priority_s2t[source] += target ;
+        priority_source_vars += source ;
+        priority_target_vars += target ;
+      }
+      else {
         // we check for rename (inplace update rules)
         set<vmap_info>::const_iterator vmsi ;
         for(vmsi=ruleIter->get_info().desc.targets.begin();
             vmsi!=ruleIter->get_info().desc.targets.end(); ++vmsi) {
-          if(vmsi->assign.size() != 0)
+          if(vmsi->assign.size() != 0) {
             for(size_t i=0;i<vmsi->assign.size();++i) {
               variable new_name = vmsi->assign[i].first ;
               variable old_name = vmsi->assign[i].second ;
-
+              
               recur_vars_t2s[new_name] += old_name ;
               recur_vars_s2t[old_name] += new_name ;
               recur_source_vars += old_name ;
               recur_target_vars += new_name ;
-
+              
               rename_t2s[new_name] += old_name ;
               rename_s2t[old_name] += new_name ;
               rename_source_vars += old_name ;
               rename_target_vars += new_name ;
             }
+          }
         }
       }
     }
     
   }
-
+  
   void recurInfoVisitor::visit(loop_compiler& lc) {
     gather_info(lc.collapse_gr) ;
     gather_info(lc.advance_gr) ;
@@ -141,6 +168,14 @@ namespace Loci {
 
   void recurInfoVisitor::visit(conditional_compiler& cc) {
     gather_info(cc.cond_gr) ;
+  }
+
+  void recurInfoVisitor::visit(impl_recurse_compiler& irc) {
+    gather_info2(irc.get_rules()) ;
+  }
+
+  void recurInfoVisitor::visit(recurse_compiler& rc) {
+    gather_info2(rc.get_rules()) ;
   }
 
   /////////////////////////////////////////////////////////////
@@ -453,6 +488,7 @@ namespace Loci {
 
     // then get all the variables in the list and fill the table
     variableSet rotate_vars ;
+    /*
     for(list<list<variable> >::const_iterator li=lc.rotate_lists.begin();
         li!=lc.rotate_lists.end();++li) {
       for(list<variable>::const_iterator lii=li->begin();
@@ -460,7 +496,24 @@ namespace Loci {
         rotate_vars += *lii ;
       }
     }
-
+    */
+    for(ii=vlist.begin();ii!=vlist.end();++ii) {
+      if(ii->second.size() < 2) 
+        continue ;
+      std::list<variable>::const_iterator jj ;
+      for(jj=ii->second.begin();jj!=ii->second.end();++jj) {
+        rotate_vars += *jj ;
+      }
+    }
+    // then we include all the recurrence variable in
+    variableSet add_rotate_vars ;
+    for(variableSet::const_iterator vi=rotate_vars.begin();
+        vi!=rotate_vars.end();++vi) {
+      add_rotate_vars += get_all_recur_vars(rvs2t,*vi) ;
+      add_rotate_vars += get_all_recur_vars(rvt2s,*vi) ;
+    }
+    rotate_vars += add_rotate_vars ;
+    
     rotate_vars_table[lc.cid] = rotate_vars ;
 
     // and then compute the shared variables between

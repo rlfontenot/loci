@@ -40,7 +40,8 @@ namespace Loci {
   double LociInputVarsSize = 0 ;  
 
   ////////////////////////////
-  extern bool use_new_dependency_graph ;
+  // global flags
+  extern bool use_old_dependency_graph ;
   extern bool profile_memory_usage ;
   extern bool show_graphs ;
   extern void deco_depend_gr(digraph& gr,const variableSet& given) ;
@@ -649,10 +650,12 @@ namespace Loci {
     par_rdb = parametric_rdb(rdb,target) ;
 
     digraph gr ;
-    if(!use_new_dependency_graph)
+    if(use_old_dependency_graph) {
       gr = dependency_graph(par_rdb,given,target).get_graph() ;
+    }
     else {
       cout << "\t(recursive backward searching version)" << endl ;
+      given -= variable("EMPTY") ;
       gr = dependency_graph2(par_rdb,given,target).get_graph() ;
     }
     //compare_dependency_graph(gr2,gr) ;

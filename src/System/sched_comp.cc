@@ -215,8 +215,6 @@ namespace Loci {
   void graph_compiler::compile(fact_db& facts,sched_db& scheds,
                                const variableSet& given,
                                const variableSet& target) {
-    dagCheckVisitor dV1(true) ;
-    top_down_visit(dV1) ;
     /***********************************
     1. unordered visitor phase (1..n)
          top -> down
@@ -230,15 +228,17 @@ namespace Loci {
     // timing variables
     double dst1=0,det1=0,dst2=0,det2=0,cst=0,cet=0,schedst=0,schedet=0 ;
     dst1 = MPI_Wtime() ;
-    // must do this visitation
-    // the loop rotate_lists is computed here
-    rotateListVisitor rotlv(scheds) ;
-    top_down_visit(rotlv) ;
-
     // get all the recurrence information
     // i.e. the generalize, promote, priority and rename info
     recurInfoVisitor recv ;
     top_down_visit(recv) ;
+
+    // must do this visitation
+    // the loop rotate_lists is computed here
+    rotateListVisitor rotlv(scheds,
+                            recv.get_rename_s2t(),
+                            recv.get_rename_t2s()) ;
+    top_down_visit(rotlv) ;
 
     // set the reallocated recurrence vars for
     // memory profiling preallocation
@@ -323,12 +323,12 @@ namespace Loci {
       unTypedVarVisitor untypevarV(recv.get_recur_vars_s2t(),
                                    recv.get_recur_vars_t2s(),
                                    input) ;
-      top_down_visit(untypevarV) ;
+      //top_down_visit(untypevarV) ;
 
       // get the representitive variable for each rename target cluster
       variableSet only_targets = recv.get_rename_target_vars() ;
       only_targets -= recv.get_rename_source_vars() ;
-      
+
       variableSet cluster_remaining ;
       cluster_remaining = pick_rename_target(recv.get_rename_s2t(),
                                              recv.get_rename_t2s(),
@@ -496,6 +496,7 @@ namespace Loci {
         allocDelNumReportVisitor adnrv(cout) ;
         top_down_visit(adnrv) ;
         //os<<recv.get_recur_vars_s2t()<<endl ;
+        os<<recv.get_rename_s2t()<<endl ;
         os << endl ;
       } // end of if(show_dmm_verbose)
       

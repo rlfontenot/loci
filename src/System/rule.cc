@@ -9,6 +9,7 @@ using std::pair ;
 //#define VERBOSE
 
 namespace Loci {
+
   namespace {
     variableSet convert_set(const variableSet &vset, time_ident tl) {
       variableSet res ;
@@ -79,7 +80,7 @@ namespace Loci {
         res.mapping.push_back(rename_set(*i,rvm)) ;
       res.var = rename_set(in.var,rvm) ;
       for(vector<pair<variable, variable> >::const_iterator
-            i=in.assign.begin();i!=in.assign.end();++i) {
+            i=in.assign.begin();i!=in.assign.end();++i) {        
 	variable v1, v2 ;
 	std::map<variable, variable>::const_iterator mi = rvm.find(i->first) ;
 	if(mi != rvm.end()) 
@@ -92,7 +93,7 @@ namespace Loci {
 	  v2 = mi->second ;
 	else 
 	  v2 = i->second ;
-	
+
 	res.assign.push_back(std::make_pair(v1, v2)) ;
       }
       

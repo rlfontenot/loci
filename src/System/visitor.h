@@ -245,6 +245,8 @@ namespace Loci {
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
+    virtual void visit(impl_recurse_compiler& irc) ;
+    virtual void visit(recurse_compiler& rc) ;
     std::map<variable,variableSet> get_recur_vars_t2s() const
     {return recur_vars_t2s ;}
     std::map<variable,variableSet> get_recur_vars_s2t() const
@@ -291,6 +293,7 @@ namespace Loci {
     {return rename_target_vars ;}
   protected:
     void gather_info(const digraph& gr) ;
+    void gather_info2(const ruleSet& rs) ;
     // from x{n} -> x, i.e. from target -> source
     std::map<variable,variableSet> recur_vars_t2s ; 
     // from source -> target, e.g. x -> x{n}
@@ -407,7 +410,11 @@ namespace Loci {
   // visitor to compute the loop_rotate lists
   class rotateListVisitor: public visitor {
   public:
-    rotateListVisitor(const sched_db& sd):scheds(sd) {}
+    rotateListVisitor(const sched_db& sd,
+                      // these are the rename tables
+                      const std::map<variable,variableSet>& s2t,
+                      const std::map<variable,variableSet>& t2s)
+      :scheds(sd),rvs2t(s2t),rvt2s(t2s) {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) {}
     virtual void visit(conditional_compiler& cc) {}
@@ -423,6 +430,9 @@ namespace Loci {
     std::map<int,variableSet> rotate_vars_table ;
     // table holds the shared varibles between adv & col part of loop
     std::map<int,variableSet> loop_shared_table ;
+    //   rename source -> target table
+    // & rename target -> source table
+    std::map<variable,variableSet> rvs2t, rvt2s ;
   } ;
 
   // visitor that checks if a graph has cycle

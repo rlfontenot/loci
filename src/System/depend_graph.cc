@@ -703,6 +703,8 @@ namespace Loci {
 
 
   void dependency_graph::clean_graph(variableSet given, variableSet target) {
+    given -= variable("EMPTY") ;
+    
     ruleSet all_cleaned_rules ;
     bool cleaned_rules = false ;
     do { // Keep cleaning until nothing left to clean!
