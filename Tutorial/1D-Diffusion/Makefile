@@ -1,8 +1,5 @@
-# This is the Loci base directory.  The one listed here defines the
-# debugging version for the sgi platform
-
-LOCI_BASE = /ccs/mssl/general/loci/opt/Loci-sgi-rel-0-3-4f
-
+# This is the Loci base directory.
+LOCI_BASE = /ccs/mssl/general/loci/opt/Loci-sun4-gcc-rel-1-0-beta-7
 # List the name of your compiled program here
 TARGET = fire
 

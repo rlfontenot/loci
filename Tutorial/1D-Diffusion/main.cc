@@ -113,7 +113,7 @@ int main()
   //-----------------------------------------------------------------
   executeP schedule = create_execution_schedule(rdb,facts,"solution") ;
 
-  //schedule->Print(cout) ;                   // Display schedule
+  schedule->Print(cout) ;                   // Display schedule
 
   schedule->execute(facts) ;           // Execute the schedule
 
