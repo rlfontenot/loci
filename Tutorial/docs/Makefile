@@ -28,7 +28,20 @@ helpers_cc.tex: ../Datatypes/helpers.cc
 	cat ../Datatypes/helpers.cc >> helpers_cc.tex
 	echo "\end{verbatim}" >> helpers_cc.tex
 
+grid_reader_cc.tex: ../Grid/grid_reader.cc
+	echo "\begin{verbatim}" > grid_reader_cc.tex
+	cat ../Grid/grid_reader.cc >> grid_reader_cc.tex
+	echo "\end{verbatim}" >> grid_reader_cc.tex
+
+setup_edges_cc.tex: ../Grid/setup_edges.cc
+	echo "\begin{verbatim}" > setup_edges_cc.tex
+	cat ../Grid/setup_edges.cc >> setup_edges_cc.tex
+	echo "\end{verbatim}" >> setup_edges_cc.tex
 
 
-main.tex : intro.tex dbase.tex containers_cc.tex relations_cc.tex entities_cc.tex helpers_cc.tex Makefile_ex.tex
+
+main.tex : intro.tex dbase.tex containers_cc.tex relations_cc.tex entities_cc.tex helpers_cc.tex Makefile_ex.tex grid_reader_cc.tex setup_edges_cc.tex
+
+
+
 

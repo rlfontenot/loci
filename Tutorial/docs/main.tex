@@ -15,7 +15,7 @@
 \tableofcontents
 \listoffigures
 \maketitle
-\include {intro}
+\include{intro}
 
 \chapter{ Basic Concepts }
 
@@ -72,9 +72,9 @@ provides examples of how to create and use the {\tt  entitySet} and
 {\tt sequence} classes.  This provides examples of the most commonly
 used programming techniques for these classes.
 
-\include {entities_cc}
+\include{entities_cc}
 
-\section {Loci Containers}
+\section{Loci Containers}
 
 In Loci, containers are entity based.  That is, a container provides
 an association between entities and values.  There are two basic types
@@ -90,9 +90,9 @@ fastest way to learn how to apply Loci containers is to see them in
 action.  So provided is a short program that illustrates the Loci
 containers and some basic examples of their application.
 
-\include {containers_cc}
+\include{containers_cc}
 
-\section {Loci Relations}
+\section{Loci Relations}
 In addition to contianers, Loci provides ways of describing
 relationships between entities.  The simplest of these relationships
 is the constraint.  The constraint simply identifies a grouping of
@@ -110,21 +110,153 @@ more other entities related to it.  The following source code
 demonstrates the basic user interface for the Map family of classes.
 
 
-\include {relations_cc}
+\include{relations_cc}
 
 \section{Loci Helper Classes}
 
 Loci also provides a few helper classes that are often useful in
 numerical computations.  One is the {\tt Array} template class which provides a
 mechanism for creating Arrays as first class objects that are
-appropriate for using as classes used in templated containers. (\it
+appropriate for using as classes used in templated containers. ({\it
 Never use C arrays in templated containers.  Their semantics are
-different from other C++ types and may break templated code in
-unexpected ways.)  In addtion to the {\tt Array} template class,
+different from other C++ objects and may break templated code in
+unexpected ways.})  In addtion to the {\tt Array} template class,
 classes for three and two dimensional vectors are also provided.  See
 the following example code to see how to use these helper classes.
 
-\include {helpers_cc}
+\include{helpers_cc}
+
+\section{Loci Initialization}
+
+Before any of the main Loci functionality can be used (that is the
+components that follow this section), Loci must be initialized.  Loci
+an initialize function that must be called before executing Loci
+functionality and a finalize method that must be called just before
+exiting the program.  For example, see below:
+
+\begin{verbatim}
+#include <Loci.h>
+
+int main(int argc, char *argv[]) {
+   // Initialize Loci
+   Loci::Init(&argc, &argv) ;
+
+   // ...
+   // Loci Program
+   // ...
+
+   // Before exiting, call finalize to let Loci clean up.
+   Loci::Finalize() ;
+   return 0 ;
+}
+\end{verbatim}
+
+\section{Creating Data-Structures in Loci}
+
+In Loci, data-structures are represented as relations between entities
+using Maps.  These data-structures, and associated initial values, are
+stored in a repository called the fact database which is managed by
+the {\tt fact\_db} class.  The fact database is what Loci uses to
+coordinate values between computations.  All Loci containers, (e.g.
+store, Map, etc.) can be registered into the fact database.
+
+For example, we create a fact database that contains the fact ``value'' using the {\tt create\_fact} member function as follows:
+\begin{verbatim}
+      // Create a Fact Database
+      fact_db facts ;
+
+      // Create a new value
+      store<double> value ;
+      // ...
+      // ... Read In Values
+      // ...
+   
+      // Insert value into the fact database
+      facts.create_fact("value",value) ;
+\end{verbatim}
+
+Once containers are registered in the fact database, we can later
+extract the values that were placed in the fact database using the 
+{\tt get\_fact} member function.  For example, we can obtain the
+current values from the fact database as follows:
+\begin{verbatim}
+      store<double> value(facts.get_fact("value")) ;
+\end{verbatim}
+
+Also if we wish to allocate new entities, we can ask the fact database
+for a new allocation by calling the method {\tt get\_allocation} with
+an argument of the number of entities that you need allocated.  For
+example:
+\begin{verbatim}
+      entitySet node_entities = facts.get_allocation(number_of_nodes) ;
+\end{verbatim}
+
+For a more detailed example, refer to the subroutine listed below
+which reads in a file that defines a triangulated mesh.  The mesh file
+consists of a list of points in 2-D space and a list of triangles that
+are formed using those points.  This file reader installs the node
+positions and the triangle definitions in the fact database passed
+into its argument list.  The mesh is defined by two Loci containers.
+One is a {\tt store} that contains 2-D vectors named ``pos'' that
+defines the nodal positions and a {\tt MapVec} named
+``triangle\_nodes'' that defines the three nodes that form a triangle
+in a counter-clockwise ordering.
+
+\include{grid_reader_cc}
+
+\section{Transforming Data-structures in Loci}
+
+We may need to transform data-structures from one form to another
+before they are useful for computations.  For example, if we are
+to use the mesh of triangles read in the previous section in a
+finite-volume based algorithm, we would usually need an edge-centric
+data-structure rather than an cell-centric data structure that the
+triangle definition provides.  So, we would like to convert this
+triangle based data-structure to one that consists of edges.  Each
+edge is defined by two nodes and two cells on either side.  Boundary
+edges will be require special treatment since there is no outer
+triangle.  We will create a ``ghost'' cell in these cases to make the
+data-structure consistent for all edges.  Also, we will want to make
+sure that each edge is represented in this data-structure only once.
+
+We create this edge based data-structure by looping over the three
+edges of each triangle, and search neighboring triangles to find a
+triangle that shares the same edge.  Once we find this triangle, then
+we know the two nodes and two cells that form an edge.  In order to
+make sure that we don't find the same edge twice, we mark triangles
+that we visit and only insert the edge we find when none of the
+triangles have been visitied before.  If we can't find a matching
+triangle, then we know the edge must be a boundary edge that requires
+a ghost cell allocation.
+
+In order to search only the neighboring triangles, we need to
+transpose the ``triangle\_nodes'' in order to obtain a mapping from
+nodes to the triangles that are defined using that node.  A transpose
+of a map is found using the {\tt inverseMap} function.  This function has
+four arguments.  The first is a {\tt multiMap} that is returned by the
+function.  The second is the {\tt Map} that will be transposed.
+Following this is the entities for which the transposed map will be
+defined (in this case it will be all the nodes in the problem).  The
+final argument is the entities that describe the region of the map
+that will be transposed.  In this case, we are interested in
+transposing the {\tt triangle\_node} map for all triangles.  Therefore
+to get the map from nodes to all neighboring triangles we execute the
+function 
+\begin{verbatim}
+  Loci::inverseMap(nodes2tri,triangle_nodes,node_set,triangle_set) ;
+\end{verbatim}
+
+Once we have the map from nodes to triangles, we can choose one of the
+nodes of an edge to search for the triangle that contains the same
+edge.  Once we have setup the preliminaries, we use a vector to store
+each edge as we find it.  Once we know how many edges are in the mesh,
+we can allocate entities for the edges and create the maps
+representing the edge data-structure.  For this we create three maps,
+``cl'', ``cr'', and ``edge\_nodes'' representing the left and right
+cells and the two nodes that define the edge.  The following code
+shows how to setup these data-structures using Loci.
+
+\include{setup_edges_cc}
 
 %\include {dbase}
 %\include {example}
