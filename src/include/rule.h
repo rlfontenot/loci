@@ -42,7 +42,7 @@ namespace Loci {
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,JOIN, UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
