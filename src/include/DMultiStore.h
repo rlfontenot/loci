@@ -387,7 +387,7 @@ namespace Loci {
   template<class T> 
   entitySet dmultiStoreRepI<T>::domain() const 
   {
-    HASH_MAP(int,std::vector<T> ) :: const_iterator    ci;
+    typename HASH_MAP(int,std::vector<T> ) :: const_iterator    ci;
     entitySet          storeDomain;
     std::vector<int>        vec;
 
@@ -409,7 +409,7 @@ namespace Loci {
   {
     s << '{' << domain() << endl ;
 
-    HASH_MAP(int,std::vector<T>)  :: const_iterator ci;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator ci;
 
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
@@ -487,7 +487,7 @@ namespace Loci {
       data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    return get_mpi_size( traits_type, eset );
+    return get_mpi_size( traits_type, e );
   }
 
   //**************************************************************************/
@@ -510,7 +510,7 @@ namespace Loci {
   {
     std::vector<T>   newVec;
     entitySet :: const_iterator  ei;
-    HASH_MAP(int,std::vector<T>):: const_iterator ci;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator ci;
 
     int     arraySize =0, numContainers = 0;
     typedef data_schema_traits<T> schema_traits;
@@ -554,7 +554,7 @@ namespace Loci {
     int vsize, incount;
     std::vector<T>   inbuf;
     entitySet :: const_iterator   ci;
-    HASH_MAP(int,std::vector<T> )::const_iterator iter;
+    typename HASH_MAP(int,std::vector<T> )::const_iterator iter;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci){
       iter = attrib_data.find(*ci);
@@ -968,7 +968,7 @@ namespace Loci {
 
     std::vector<T>   newvec;
     entitySet :: const_iterator  ei;
-    HASH_MAP(int,std::vector<T> ):: const_iterator ci;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator ci;
     std::vector<int> container(eset.size());
     size_t  arraySize= 0;
 
@@ -1038,7 +1038,7 @@ namespace Loci {
 
     std::vector<T>   newVec;
     entitySet :: const_iterator  ei;
-    HASH_MAP(int,std::vector<T>):: const_iterator ci;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator ci;
 
     //------------------------------------------------------------------------
     // Get the sum of each object size and maximum size of object in the 

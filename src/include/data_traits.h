@@ -286,7 +286,7 @@ namespace Loci {
   template<class T> inline std::ostream &operator << (std::ostream &s,
                                                       const std::vector<T> &v){
     s << v.size() ;
-    for(std::vector<T>::const_iterator i=v.begin();i!=v.end(); ++i) 
+    for(typename std::vector<T>::const_iterator i=v.begin();i!=v.end(); ++i) 
       s << ' ' << *i ;
     s << std::endl ;
     return s ;

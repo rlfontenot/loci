@@ -65,7 +65,7 @@ namespace Loci {
     int         size, numentities, rank = 1;
     hsize_t     dimension[1];
     entitySet   eset;
-    HASH_MAP(int, VEC) :: const_iterator  ci;
+    typename HASH_MAP(int, VEC)::const_iterator  ci;
 
     HDF5_ReadDomain( group_id, eset );
 
@@ -178,7 +178,7 @@ namespace Loci {
     std::vector<int> data(arraySize);
 
     entitySet::const_iterator ci;
-    HASH_MAP(int, VEC) ::const_iterator iter;
+    typename HASH_MAP(int, VEC)::const_iterator iter;
     VEC   newvec;
 
     size_t indx = 0;
@@ -287,7 +287,9 @@ namespace Loci {
   
     for(int i = 0; i < MPI_processes; ++i) {
       send_count[i] = 2 * map_entities[i].size() ;
-      for(HASH_MAP(int, VEC )::iterator hi = map_entities[i].begin(); hi != map_entities[i].end(); ++hi)
+      for(typename HASH_MAP(int, VEC )::iterator hi = map_entities[i].begin();
+          hi != map_entities[i].end();
+          ++hi)
         send_count[i] += hi->second.size() ; 
     }
     size_send = 0 ;
@@ -302,7 +304,10 @@ namespace Loci {
     int *recv_map = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i) 
-      for(HASH_MAP(int, VEC )::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+      for(typename HASH_MAP(int, VEC )::const_iterator
+              miv = map_entities[i].begin();
+          miv != map_entities[i].end();
+          ++miv) {
         send_map[size_send] = miv->first ;
         ++size_send ;
         send_map[size_send] = miv->second.size() ;
@@ -344,7 +349,9 @@ namespace Loci {
           attrib_data[hmi->first][c++] = *si ;
       } else
         attrib_data[hmi->first] = VEC() ;
-    for(HASH_MAP(int, VEC )::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
+    for(typename HASH_MAP(int, VEC )::const_iterator hi = attrib_data.begin();
+        hi != attrib_data.end();
+        ++hi)
       dmul[hi->first] = hi->second ;
     delete [] send_buf ;
     delete [] recv_buf ;
@@ -388,7 +395,7 @@ namespace Loci {
   template<unsigned int M> 
   entitySet dMapVecRepI<M>::domain() const 
   {
-    HASH_MAP(int,VEC) :: const_iterator    ci;
+    typename HASH_MAP(int,VEC) :: const_iterator    ci;
     entitySet          storeDomain;
     std::vector<int>        vec;
 
@@ -417,7 +424,7 @@ namespace Loci {
    
     unsigned int i;
     VEC    aArray;
-    HASH_MAP(int,VEC) :: const_iterator iter;
+    typename HASH_MAP(int,VEC) :: const_iterator iter;
     for( ei = d.begin(); ei != d.end(); ++ei){
       iter = attrib_data.find( *ei );
       if( iter != attrib_data.end() ) {
@@ -436,7 +443,7 @@ namespace Loci {
   {
     entitySet domaini ;   // intersection 
     entitySet domainu ;   // union
-    HASH_MAP(int,VEC) :: const_iterator ci;
+    typename HASH_MAP(int,VEC) :: const_iterator ci;
     VEC  aVec;
 
     FORALL(store_domain,i) {
@@ -466,7 +473,7 @@ namespace Loci {
   std::ostream &dMapVecRepI<M>::Print(std::ostream &s) const 
   {
 
-    HASH_MAP(int,VEC)  :: const_iterator  ci;
+    typename HASH_MAP(int,VEC)::const_iterator  ci;
 
     s << '{' << domain() << std::endl ;
 
@@ -569,7 +576,7 @@ namespace Loci {
     // -----------------------------------------------------------------
 
     const VEC &const_elem(int indx)  const { 
-      HASH_MAP(int,VEC) :: const_iterator ci;
+      typename HASH_MAP(int,VEC)::const_iterator ci;
       ci = attrib_data.find(index);
       if( ci != attrib_data->end()) return ci->second();
     }
@@ -653,7 +660,7 @@ namespace Loci {
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
 
     const VEC &const_elem(int indx)  const {
-      HASH_MAP(int,VEC) :: const_iterator ci;
+      typename HASH_MAP(int,VEC)::const_iterator ci;
 	  
       ci = attrib_data->find(indx);
       if( ci != attrib_data->end() ) return( ci->second );

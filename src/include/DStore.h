@@ -95,7 +95,7 @@ namespace Loci {
   template<class T> 
   std::ostream &dstoreRepI<T>::Print(std::ostream &s) const 
   {
-    HASH_MAP(int,T) :: const_iterator   ci;
+    typename HASH_MAP(int,T)::const_iterator   ci;
 
     s << '{' << domain() << std::endl ;
 
@@ -156,7 +156,7 @@ namespace Loci {
   template<class T>  
   entitySet dstoreRepI<T>::domain() const 
   {
-    HASH_MAP(int,T) :: const_iterator    ci;
+    typename HASH_MAP(int,T)::const_iterator    ci;
     entitySet          storeDomain;
     std::vector<int>        vec;
 
@@ -219,7 +219,7 @@ namespace Loci {
     }
 
     const T &elem(int indx) const {
-      HASH_MAP(int,T)::const_iterator  citer;
+      typename HASH_MAP(int,T)::const_iterator  citer;
 
       citer = attrib_data->find(indx);
 
@@ -299,7 +299,7 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
 
     const T &elem(int indx) const {
-      HASH_MAP(int,T) :: const_iterator  citer;
+      typename HASH_MAP(int,T)::const_iterator  citer;
 
       citer = attrib_data->find(indx);
 
@@ -783,7 +783,7 @@ namespace Loci {
 
     std::vector<T>   newvec;
     entitySet :: const_iterator  ei;
-    HASH_MAP(int,T):: const_iterator ci;
+    typename HASH_MAP(int,T)::const_iterator ci;
 
     int arraySize = eset.size();
 
@@ -832,12 +832,12 @@ namespace Loci {
     hsize_t   dimension;
 
     entitySet :: const_iterator ci;
-    HASH_MAP(int,T) :: const_iterator   iter;
+    typename HASH_MAP(int,T)::const_iterator   iter;
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Get the sum of each object size and maximum size of object in the 
     // container for allocation purpose
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     typedef data_schema_traits<T> schema_traits ;
 

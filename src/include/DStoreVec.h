@@ -86,7 +86,7 @@ namespace Loci {
 
     s << size << std::endl ;
 
-    HASH_MAP(int, std::vector<T>)  :: const_iterator   ci;
+    typename HASH_MAP(int, std::vector<T>)::const_iterator ci;
     
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
@@ -196,7 +196,7 @@ namespace Loci {
   template<class T> 
   entitySet dstoreVecRepI<T>::domain() const 
   {
-    HASH_MAP(int,std::vector<T>) :: const_iterator    ci;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator  ci;
     entitySet          storeDomain;
     std::vector<int>        vec;
 
@@ -346,7 +346,7 @@ namespace Loci {
 
     std::vector<T> elem(int indx) const {
       std::vector<T>   newVec;
-      HASH_MAP(int, std::vector<T>) :: const_iterator   ci;
+      typename HASH_MAP(int, std::vector<T>)::const_iterator ci;
       ci = attrib_data->find(indx);
       if( ci != attrib_data->end()){
         newVec = ci->second;
@@ -488,7 +488,7 @@ namespace Loci {
   int dstoreVecRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset) 
   {
     entitySet                :: const_iterator ci;
-    HASH_MAP(int,std::vector<T>) :: const_iterator iter;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator iter;
     int       arraySize =0, numContainers = 0;
     std::vector<T> newVec;
 
@@ -529,7 +529,7 @@ namespace Loci {
   {
     std::vector<T>   inbuf;
     entitySet :: const_iterator   ci;
-    HASH_MAP(int,std::vector<T>)::const_iterator iter;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator iter;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci){
       iter = attrib_data.find(*ci);
@@ -548,7 +548,7 @@ namespace Loci {
     entitySet :: const_iterator   ci;
 
     std::vector<T>  newVec;
-    HASH_MAP(int,std::vector<T>)::const_iterator iter;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator iter;
 
     typedef data_schema_traits<T> schema_traits; 
     typedef typename schema_traits::Converter_Base_Type dtype;
@@ -628,7 +628,7 @@ namespace Loci {
     // Get the sum of each object size and maximum size of object in the
     // container for allocation purpose
     //-------------------------------------------------------------------------
-    HASH_MAP(int,std::vector<T>)::const_iterator   iter;
+    typename HASH_MAP(int,std::vector<T>)::const_iterator   iter;
     typedef data_schema_traits<T> schema_traits;
     typedef typename schema_traits::Converter_Base_Type dtype;
 
@@ -894,7 +894,7 @@ namespace Loci {
     if( arraySize == 0) return;
 
     entitySet::const_iterator ci;
-    HASH_MAP(int, std::vector<T>) ::const_iterator iter;
+    typename HASH_MAP(int, std::vector<T>)::const_iterator iter;
     std::vector<T>   newvec, data(arraySize);
 
     size_t indx = 0;
@@ -948,7 +948,7 @@ namespace Loci {
     size_t  arraySize= 0;
     int     stateSize, maxStateSize = 0;
 
-    HASH_MAP(int, std::vector<T>) ::const_iterator iter;
+    typename HASH_MAP(int, std::vector<T>)::const_iterator iter;
     typedef data_schema_traits<T> schema_traits ;
 
     std::vector<T>   newVec;
