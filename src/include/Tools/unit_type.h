@@ -11,11 +11,18 @@ namespace Loci {
   class UNIT_type{
 
   public:
+    string unit_kind;
+    string input_unit;
+    double input_value;
+
+    //private:
     double value;
     std::map<std::string,int> unit_num_map,unit_den_map;
     enum basic_unit_type {Length,Mass,Time,Temperature,Electric_current,
-			  Amount_of_substance,Luminous_intensity};  
+			  Amount_of_substance,Luminous_intensity};
+    enum unit_mode{MKS, CGS, check_available};
     double conversion_factor;
+    unit_mode mode;
 
     //three tables of unit type - basic, composite, reference types----//
     struct basic_units{
@@ -23,27 +30,40 @@ namespace Loci {
       basic_unit_type unit_type;
       double convert_factor;};  
     static basic_units basic_unit_table[] ;
-    
+    static basic_units cgs_basic_unit_table[];
+   
     struct composite_units{
       char* name;
       std::string derived_unit;
       double convert_factor;};  
     static composite_units composite_unit_table[] ;
+    static composite_units cgs_composite_unit_table[] ;
   
     struct reference_units{
       char* name;
       std::string refer_unit;
       double convert_factor;};  
     static reference_units reference_unit_table[] ;
+
+    struct default_units{
+      char* default_type;
+      char* default_name;
+    };
+    static default_units default_unit_table[] ;
   
   private:
     int is_single_temperature(const exprP input_expr);
     void calculate_temperature(exprP &input_expr, double &value);
+    void reverse_calculate_temperature(exprP &input_expr,double &value);
 
   public:
     exprP input(std::istream &in);
     void output(exprP &in_exp);
     double get_value();
+    bool is_in_db(const std::string &str);
+    bool is_compatible(const std::string unit_str);
+    bool private_is_compatible();
+    double get_value_in(const std::string unit_str);
 
   private:
     bool is_reference_unit(std::string str);
@@ -64,12 +84,15 @@ namespace Loci {
     void change_to_basic_unit(std::map<std::string,int>initial_map,std::map<std::string,int>&num_map,std::map<std::string,int>&den_map,double &conversion_factor);
     void get_conversion(std::map<std::string,int> &num_map, std::map<std::string,int> &den_map,double &conversion_factor);
     bool check_unit(istream &in, double &value);
+    int mode_check();
+    exprP set_default_unit(exprP &in_exp);
+    int in_unit_kind();
 
   };
 
-  inline std::ostream &operator<<(std::ostream &s, UNIT_type &unit){
+  inline std::ostream &operator<<(std::ostream &s, UNIT_type &o_unit){
     std::map<std::string,int>::iterator mi,mj;
-    std::map<std::string,int> n_map=unit.unit_num_map,d_map=unit.unit_den_map;
+    std::map<std::string,int> n_map=o_unit.unit_num_map,d_map=o_unit.unit_den_map;
       cout<<"Numerator: "<<endl;
       for(mi= n_map.begin();mi!=n_map.end();++mi)
 	cout<<mi->first<<"  "<<mi->second<<endl;
@@ -77,9 +100,8 @@ namespace Loci {
       for(mj= d_map.begin();mj!=d_map.end();++mj)
       cout<<mj->first<<"  "<<mj->second<<endl;
 
-      cout<<"conversion factor is: "<<unit.conversion_factor<<endl;
-      cout<<"input value is: "<<unit.value<<endl;
-
+      cout<<"conversion factor is: "<<o_unit.conversion_factor<<endl;
+      cout<<"input value is: "<<o_unit.value<<endl;
 
     return s;
     }
