@@ -40,12 +40,12 @@ template <class T> class CPTR {
     CPTR<T> &operator=(const CPTR<T> &p) { set_ptr(p.ptr) ; return *this; }
     CPTR<T> &operator=(T *p) { set_ptr(p); return *this; }
 
-    bool operator==( const CPTR<T> &p) const { return  ptr == p->ptr; }
-    bool operator==( const const_CPTR<T> &p) const { return  ptr == p->ptr; }
+    bool operator==( const CPTR<T> &p) const { return  ptr == p.ptr; }
+    bool operator==( const const_CPTR<T> &p) const { return  ptr == p.ptr; }
     bool operator==( const T *p ) const { return ptr == p ; }
 
-    bool operator!=( const CPTR<T> &p) const { return  ptr != p->ptr; }
-    bool operator!=( const const_CPTR<T> &p) const { return  ptr != p->ptr; }
+    bool operator!=( const CPTR<T> &p) const { return  ptr != p.ptr; }
+    bool operator!=( const const_CPTR<T> &p) const { return  ptr != p.ptr; }
     bool operator!=( const T *p ) const { return ptr != p ; }
 
     // Dereference Operator
@@ -89,12 +89,12 @@ template <class T> class const_CPTR {
     const_CPTR<T> &operator=(const T *p)
     { set_ptr(p); return *this; }
 
-    bool operator==( const CPTR<T> &p) const { return  ptr == p->ptr; }
-    bool operator==( const const_CPTR<T> &p) const { return  ptr == p->ptr; }
+    bool operator==( const CPTR<T> &p) const { return  ptr == p.ptr; }
+    bool operator==( const const_CPTR<T> &p) const { return  ptr == p.ptr; }
     bool operator==( const T *p ) const  { return ptr == p ; }
 
-    bool operator!=( const CPTR<T> &p) const { return  ptr != p->ptr; }
-    bool operator!=( const const_CPTR<T> &p) const { return  ptr != p->ptr; }
+    bool operator!=( const CPTR<T> &p) const { return  ptr != p.ptr; }
+    bool operator!=( const const_CPTR<T> &p) const { return  ptr != p.ptr; }
     bool operator!=( const T *p ) const  { return ptr != p ; }
 
     // Dereference Operator
