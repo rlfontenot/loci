@@ -642,7 +642,7 @@ namespace Loci {
 
         myGlobalEntitySet = EMPTY;
         for( ei = globalEntitySet.begin(); ei != globalEntitySet.end(); ++ei){
-          if(getEntityIdentity( entity_owner[*ei] ) == Loci::MPI_rank)
+          if( entity_owner[*ei] == Loci::MPI_rank)
             myGlobalEntitySet += *ei;
         }
         
@@ -751,8 +751,7 @@ namespace Loci {
         for(int jproc=0; jproc < Loci::MPI_processes; jproc++) {
           exportSet = EMPTY;
           for( ei = localdom.begin(); ei != localdom.end(); ++ei) 
-            if(getEntityIdentity(entity_owner[lg[*ei]]) == jproc) 
-	      exportSet += *ei;
+            if(entity_owner[lg[*ei]] == jproc) exportSet += *ei;
     
           // First message with Tag=1 contains number of entitySet send to
           // remote processor

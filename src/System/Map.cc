@@ -19,7 +19,7 @@ namespace Loci {
     if(ptn != EMPTY) {
       int top = ptn.Min() ;
       int size = ptn.Max()-top+1 ;
-      alloc_pointer = new Entity[size] ;
+      alloc_pointer = new(Entity[size]) ;
       base_ptr = alloc_pointer - top ;
     }
     store_domain = ptn ;
@@ -122,15 +122,13 @@ namespace Loci {
     return store_domain ;
   }
 
-  // The integer version of image_section.
-
-  entitySet image_section(const int *start, const int *end) {
+  entitySet image_section(const Entity *start, const Entity *end) {
     if(start == end)
       return EMPTY ;
     int mx,mn ;
     mx = *start ;
     mn = *start ;
-    for(const int *i=start;i!=end;++i) {
+    for(const Entity *i=start;i!=end;++i) {
       mx = max(mx,*i) ;
       mn = min(mn,*i) ;
     }                                         
@@ -142,7 +140,7 @@ namespace Loci {
       entitySet dom ;
       std::vector<int> img(sz2) ;
       std::vector<int>::iterator ins = img.begin() ;
-      for(const int *i=start;i!=end;++i) {
+      for(const Entity *i=start;i!=end;++i) {
         *ins = *i ;
         ++ins ;
       }
@@ -178,98 +176,8 @@ namespace Loci {
     result += iv ;
     return result ;
   }
-
-#ifdef ENTITY
-
-    // Compare entities using their id numbers.
-
-    Entity max(const Entity e1, const Entity e2){
-	int i1 = e1.getid();
-	int i2 = e2.getid();
-	if (i1 >= i2) {
-	    return e1;
-	} else {
-	    return e2;
-	}
-    }
-
-    Entity min(const Entity e1, const Entity e2){
-	int i1 = e1.getid();
-	int i2 = e2.getid();
-	if (i1 <= i2) {
-	    return e1;
-	} else {
-	    return e2;
-	}
-    }
-
-#endif
-
-#ifdef ENTITY
-
-  // The Entity version of image_section.
-
-    entitySet image_section(const Entity *start, const Entity *end) {
-    if(start == end)
-      return EMPTY ;
-    Entity mx,mn ;
-    mx = *start ;
-    mn = *start ;
-    for(const Entity *i=start;i!=end;++i) {
-      mx = max(mx,*i) ;
-      mn = min(mn,*i) ;
-    }        
-    int mxi = getEntityIdentity(mx);
-    int mni = getEntityIdentity(mn);
-    int sz = mxi-mni+1 ;
-    int si = getEntityIdentity(*start);
-    int ei = getEntityIdentity(*end);
-    int sz2 = ei-si ;
-    if(sz>2*sz2) {
-      // If the image is too sparse then we are better off sorting
-      // using standard sort
-      entitySet dom ;
-      std::vector<int> img(sz2) ;
-      std::vector<int>::iterator ins = img.begin() ;
-      for(const Entity *i=start;i!=end;++i) {
-        *ins = *i ;
-        ++ins ;
-      }
-      std::sort(img.begin(),img.end()) ;
-      std::vector<int>::iterator uend = std::unique(img.begin(),img.end());
-      for(ins=img.begin();ins!=uend;++ins)
-        dom += *ins ;
-      return dom ;
-    }
-    std::vector<bool> bits(sz) ;
-    for(int i=0;i<sz;++i)
-      bits[i] = false ;
-    for(const int *i=&si;i!=&ei;++i)
-      bits[*i-mn] = true ;
-
-    WARN(!bits[0]);
-
-    entitySet result ;
-    interval iv(mn,mn) ;
-    for(int i=0;i<sz;++i)
-      if(!bits[i]) {
-        iv.second = i+mn-1 ;
-        result += iv ;
-        for(;i<sz;++i)
-          if(bits[i])
-            break ;
-        iv.first = i+mn ;
-      }
-
-    WARN(!bits[sz-1]) ;
-    
-    iv.second = mx ;
-    result += iv ;
-    return result ;
-    }      
-
-#endif
-
+      
+        
     
   entitySet MapRepI::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
@@ -1016,7 +924,7 @@ storeRepP multiMapRepI::thaw() {
       std::vector<int> img(sz) ;
       std::vector<int>::iterator ins = img.begin() ;
       for(int i=0;i<d.num_intervals();++i)
-        for(const int *j=begin(d[i].first);j!=end(d[i].second);++j) {
+        for(const Entity *j=begin(d[i].first);j!=end(d[i].second);++j) {
           *ins = *j ;
           ++ins ;
         }

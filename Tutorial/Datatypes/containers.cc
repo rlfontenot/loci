@@ -188,17 +188,7 @@ int main() {
   // Get the entitySet of all allocated entities in dstore
   domain = dynamic_store2.domain() ;
   // loop over all entities in the dynamic store and output.
-<<<<<<< containers.cc
-   for( ei = domain.begin(); ei != domain.end(); ++ei) {
-     vector<int> &v =dynamic_store2[*ei] ;
-     
-     cout << " (" << *ei << ", " ;
-     for(vector<int>::iterator vi = v.begin();vi!=v.end();++vi)
-       cout << *vi << ' ';
-     cout << ")"  ;
-   }
-   cout << endl;
-=======
+
   for( ei = domain.begin(); ei != domain.end(); ++ei) {
     cout << " (" << *ei ;
     for(int i=0;i<dynamic_store2[*ei].size();++i) 
@@ -207,5 +197,4 @@ int main() {
   }
   cout << endl ;
 
->>>>>>> 1.2
 }
