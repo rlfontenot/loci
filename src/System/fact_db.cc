@@ -155,17 +155,26 @@ void fact_db::alias_variable(variable v, variable alias) {
   }
 }
 
-void fact_db::synonym_variable(variable v, variable synonym) { 
+void fact_db::synonym_variable(variable v, variable synonym) {
   v = remove_synonym(v) ;
   vmap_type::iterator vmi ;
   if((vmi = vmap.find(synonym)) != vmap.end()) {
     const fact_info &finfo = vmi->second ;
     fact_data &fdata = fact_infov[finfo.fact_info_ref] ;
     if(finfo.fact_installed != EMPTY ||
-       fdata.data_rep->domain() != EMPTY) {
+       (fdata.data_rep->domain() != EMPTY &&
+        fdata.data_rep->RepType() != PARAMETER)) {
       cerr << "unable to define synonym variable " << synonym
            << " when varaiable already created in db. "  << endl ;
-      abort() ;
+      cerr << "variable v = " << v << endl ;
+      cerr << "finfo.fact_installed == " << finfo.fact_installed << endl ;
+      cerr << "fdata.aliases = " ;
+      for(variableSet::const_iterator vi=fdata.aliases.begin();
+          vi!=fdata.aliases.end();++vi) {
+        cerr << *vi << " " << endl ;
+      }
+        
+      //      abort() ;
     }
     fact_info &vfinfo = get_fact_info(v) ;
     if(vfinfo.fact_info_ref != finfo.fact_info_ref) {
