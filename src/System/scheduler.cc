@@ -779,6 +779,41 @@ namespace Loci {
                      << LociAppLargestFree/(1024*1024) << "MB)"
                      << " for variable: " << LociAppLargestFreeVar
                      << endl ;
+      if(MPI_processes > 1) {
+        // code to find out the largest memory bounds on all processes
+        double LargestPeakMemory = 0 ;
+        MPI_Allreduce(&LociAppPeakMemory,
+                      &LargestPeakMemory,
+                      1, MPI_DOUBLE,
+                      MPI_MAX,MPI_COMM_WORLD) ;
+        
+        double LargestPeakMemoryBeanCounting = 0 ;
+        MPI_Allreduce(&LociAppPeakMemoryBeanCounting,
+                      &LargestPeakMemoryBeanCounting,
+                      1, MPI_DOUBLE,
+                      MPI_MAX,MPI_COMM_WORLD) ;
+
+        Loci::debugout << endl ;
+        Loci::debugout << "The global largest Peak Memory: "
+                       << LargestPeakMemory << " bytes ("
+                       << LargestPeakMemory/(1024*1024) << "MB)"
+                       << endl ;
+        Loci::debugout << "The global largest Peak Memory in bean counting: "
+                       << LargestPeakMemoryBeanCounting << " bytes ("
+                       << LargestPeakMemoryBeanCounting/(1024*1024) << "MB)"
+                       << endl ;
+      }
+    }
+
+    // communicate the execution time
+    if(MPI_processes > 1) {
+      double mytime = et-st ;
+      double maxtime = 0 ;
+      MPI_Allreduce(&mytime,&maxtime,1,
+                    MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD) ;
+      Loci::debugout << "Global max time taken for exectution"
+                     << " of the schedule = "
+                     << maxtime << " seconds " << endl ;
     }
     
     return true ;

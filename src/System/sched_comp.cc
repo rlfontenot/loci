@@ -222,7 +222,7 @@ namespace Loci {
     3. assembly phase.
     ************************************/
     // timing variables
-    double dst1=0,det1=0,dst2=0,det2=0,cst=0,cet=0 ;
+    double dst1=0,det1=0,dst2=0,det2=0,cst=0,cet=0,schedst=0,schedet=0 ;
     dst1 = MPI_Wtime() ;
     // must do this visitation
     // the loop rotate_lists is computed here
@@ -492,6 +492,7 @@ namespace Loci {
     
     //orderVisitor ov ;    
     //bottom_up_visit(ov) ;
+    schedst = MPI_Wtime() ;
     if(!memory_greedy_schedule) {
       simLazyAllocSchedVisitor lazyschedv ;
       top_down_visit(lazyschedv) ;
@@ -501,6 +502,7 @@ namespace Loci {
       memGreedySchedVisitor mgsv(facts) ;
       top_down_visit(mgsv) ;
     }
+    schedet = MPI_Wtime() ;
     
     assembleVisitor av(reduceV.get_all_reduce_vars(),
                        reduceV.get_reduceInfo());
@@ -514,6 +516,8 @@ namespace Loci {
     if(use_chomp)
       Loci::debugout << "Time taken for chomping subgraph searching = "
                      << cet-cst << " seconds " << endl ;
+    Loci::debugout << "Time taken for graph scheduling = "
+                   << schedet-schedst << " sceonds " << endl ;
   }
   
   void graph_compiler::existential_analysis(fact_db &facts, sched_db &scheds) {
