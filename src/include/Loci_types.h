@@ -9,6 +9,8 @@
 
 #include <data_traits.h>
 
+#include <Tools/options_list.h>
+
 namespace Loci {
 
   //-----------STD pair-------------------------------//
@@ -435,5 +437,11 @@ namespace Loci {
       return new ArrayType(getLociType(T()),sizeof(Array<T,n>),1,&dim) ;
     }
   };
+
+  template <> struct data_schema_traits<options_list> {
+    typedef USER_DEFINED_CONVERTER Schema_Converter ;
+    typedef char Converter_Base_Type ;
+    typedef StringStreamConverter<options_list> Converter_Type ;
+  } ;
 }
 #endif

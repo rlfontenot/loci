@@ -46,6 +46,7 @@ namespace Loci {
     paramRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ; }
     paramRepI(const entitySet &p) { store_domain = p ;}
     virtual void allocate(const entitySet &p)  ;
+    virtual void shift(int_type offset) ;
     virtual ~paramRepI() ;
     virtual store_type RepType() const ;
     virtual entitySet domain() const ;
@@ -76,6 +77,11 @@ namespace Loci {
   template<class T> void paramRepI<T>::allocate(const entitySet &p) {
     store_domain = p ;
     dispatch_notify();
+  }
+
+  template<class T> void paramRepI<T>::shift(int_type offset) {
+    store_domain >>= offset ;
+    dispatch_notify() ;
   }
 
   //**************************************************************************/

@@ -8,9 +8,10 @@
 
 #include <Tools/intervalSet.h>
 #include <Tools/Handle.h>
-#include <Tools/hash_map.h>
+#include <map>
 
 #include <vector>
+#include <iostream>
 
 namespace Loci {
 
@@ -26,35 +27,43 @@ namespace Loci {
   private:
     class digraphRep {
     public:
-      typedef HASH_MAP(int,vertexSet) graph_matrix ;
+      typedef std::map<int,vertexSet> graph_matrix ; 
       graph_matrix graph ;
       vertexSet source_vertices ;  
-      int max_vertex ;
+      vertexSet all_vertices ;
     
       digraphRep() ;
       ~digraphRep() ;
       void add_edge(int i, int j)
-        { graph[i] += j ;  source_vertices += i ;
-        max_vertex = max(max_vertex,max(i,j));}
-
+      {
+        graph[i] += j ;
+        source_vertices += i ;
+	all_vertices += i ;
+	all_vertices += j ;
+      }
+      
       void add_edges(int i, const vertexSet &ns) {
         vertexSet &gedges = graph[i] ;
         vertexSet sum = gedges | ns ;
         if(sum != gedges) 
           gedges = sum ;
-        source_vertices += i ;
-        max_vertex = max(max_vertex,max(i,ns.Max())) ;
+        if(sum != EMPTY)
+          source_vertices += i ;
+	all_vertices += i ;
+	all_vertices += ns ;
       }
 
       void add_edges(const vertexSet &ns, int j) ;
 
-      void remove_edge(int i, int j)
-        { graph[i] -= j ; if(graph[i] == EMPTY) source_vertices -= i ; }
+      void remove_edge(int i, int j) ;
 
-      void remove_edges(int i, const vertexSet &ns)
-        { graph[i] -= ns ; if(graph[i] == EMPTY) source_vertices -= i ; }
+      void remove_edges(int i, const vertexSet &ns) ;
+
       void remove_vertex(int i) ;
+      
       void remove_vertices(const vertexSet &ns) { subgraph(~ns) ; }
+
+      void remove_dangling_vertices() ;
 
       void add_graph(const digraphRep &gr) ;
       void subtract_graph(const digraphRep &gr) ;
@@ -118,6 +127,12 @@ namespace Loci {
       Rep->remove_vertices(ns) ;
       RepT->remove_vertices(ns) ;
     }
+    void remove_dangling_vertices() {
+      Rep.MakeUnique() ;
+      RepT.MakeUnique() ;
+      Rep->remove_dangling_vertices() ;
+      RepT->remove_dangling_vertices() ;
+    }
     void add_graph(const digraph &gr) {
       Rep.MakeUnique();
       RepT.MakeUnique() ;
@@ -136,8 +151,11 @@ namespace Loci {
     vertexSet get_source_vertices() const { return Rep->get_source_vertices(); }
     vertexSet get_target_vertices() const { return RepT->get_source_vertices(); }
     vertexSet get_all_vertices() const
-      { return Rep->get_source_vertices() + RepT->get_source_vertices() ; }
-    int max_vertex() const { return Rep->max_vertex ; }
+      { return Rep->all_vertices ;}
+    //{return Rep->source_vertices + RepT->source_vertices ;}
+
+    int max_vertex() const ;
+
     digraph transpose() const {
       digraph dg ;
       dg.Rep = RepT ;

@@ -55,6 +55,7 @@ namespace Loci {
     dstoreRepI(){}
     dstoreRepI(const entitySet &p) { allocate(p) ; }
     virtual void allocate(const entitySet &ptn) ;
+    virtual void shift(int_type offset) ;
     virtual ~dstoreRepI()  ;
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
@@ -101,6 +102,12 @@ namespace Loci {
     dispatch_notify() ;
   }
 
+  template<class T>
+    void dstoreRepI<T>::shift(int_type offset) {
+    entitySet new_domain = domain() ;
+    new_domain >>= offset ;
+    allocate(new_domain) ;
+  }
   //*********************************************************************/
 
   template<class T> 

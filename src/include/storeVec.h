@@ -233,6 +233,7 @@ namespace Loci {
     
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
+    virtual void shift(int_type offset) ;
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &eset, const int* p) const ;
     virtual storeRepP remap(const dMap &m) const ;
@@ -418,6 +419,13 @@ namespace Loci {
   }
   
   
+  template<class T>
+    void storeVecRepI<T>::shift(int_type offset) {
+    store_domain >>= offset ;
+    base_ptr -= offset*size ;
+    dispatch_notify() ;
+  }
+
   //*******************************************************************/
 
   template<class T> 

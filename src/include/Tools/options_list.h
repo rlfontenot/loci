@@ -35,7 +35,7 @@ namespace Loci {
   public:
     option_values() { value_type = NOT_ASSIGNED ; }
 
-    option_value_type type_of() { return value_type ; }
+    option_value_type type_of() const { return value_type ; }
 
     void get_value(bool &b) const { b = boolean_value; }
     void get_value(double &r) const { r = real_value ; }
@@ -57,6 +57,7 @@ namespace Loci {
     typedef option_values::value_list_type arg_list ;
     typedef std::map<std::string,option_values> option_map ;
     typedef std::set<std::string> option_set ;
+    typedef std::list<std::string> option_namelist ;
 
   private:
     option_set set_of_options ;
@@ -64,12 +65,21 @@ namespace Loci {
     option_map options_db ;
 
   protected:
-    options_list() {} ;
-
 
   public:
     options_list(const std::string &s) ;
-        
+    options_list() {restrict_set=false; } ;
+
+
+    option_namelist getOptionNameList() const {
+      option_namelist l ;
+      for(option_map::const_iterator mi=options_db.begin();
+          mi!=options_db.end();
+          mi++) {
+        l.push_back(mi->first) ;
+      }
+      return l ;
+    }
     option_value_type getOptionValueType(const std::string &option) const ;
     option_values getOption(const std::string &option) const ;
     void getOption(const std::string &option, bool &value) const ;
@@ -79,6 +89,8 @@ namespace Loci {
     void getOption(const std::string &option, arg_list &value_list) const ;
     void getOption(const std::string &option, std::string &name,
                    arg_list &value_list) const ;
+    void getOptionUnits(const std::string &option, const std::string &units,
+                        double &value) const ;
 
     void setOption(const std::string &option, bool value) ;
     void setOption(const std::string &option, double value) ;
@@ -88,11 +100,13 @@ namespace Loci {
     void setOption(const std::string &option, const std::string &name,
                    const arg_list &value_list) ;
 
+
     bool checkOption(const std::string &option, const std::string &name) const ;
     bool optionExists(const std::string &option) const ;
 
     std::ostream & Print(std::ostream &s) const ;
     std::istream & Input(std::istream &s) ;
+    void Input(const arg_list &l) ;
   } ;
 
   inline std::ostream & operator<<(std::ostream &s, const options_list &ol)
