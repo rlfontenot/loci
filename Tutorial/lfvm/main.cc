@@ -11,19 +11,45 @@ int main(int argc, char *argv[])
 
   set_fpe_abort() ;
   
+  // query for this variable by default
   std::string query = "solution" ;
+  // use this number of threads by default
+  int nthreads = 1;
+  // do not write out facts by default
+  bool write_facts = false;
 
-  while(argc>=2 && argv[1][0] == '-') {
-    // If user specifies an alternate query, extract it from the
-    // command line.
-    if(argc >= 2 && !strcmp(argv[1],"-q")) {
-      query = argv[2] ;
-      argc -= 2 ;
-      argv += 2 ;
-    } else {
-      std::cerr << "argument " << argv[1] << " is not understood." << std::endl ;
-      argc-- ;
-      argv++ ;
+  // Parse out the LOCI specific arguments.
+  //	-q queryvar	make alternative queries
+  //	-t numthreads	specify how many threads to use for parallel processing
+  //	-fact		print out the fact database during program execution
+  for (int i=1; i<argc; i++) {
+    if (!strcmp(argv[i], "-q") && (i+1) < argc) {
+      query = argv[i+1];
+      for (int j=0; j<argc-i-2; j++) {
+	argv[i+j] = argv[i+j+2];
+      }
+      argc -= 2;
+      i--;
+    }
+    else if (!strcmp(argv[i], "-t") && (i+1) < argc) {
+      nthreads = atoi(argv[i+1]);
+      for (int j=0; j<argc-i-2; j++) {
+	argv[i+j] = argv[i+j+2];
+      }
+      argc -= 2;
+      i--;
+    }
+    else if (!strcmp(argv[i], "-fact")) {
+      write_facts = !write_facts;
+      for (int j=0; j<argc-i-1; j++) {
+	argv[i+j] = argv[i+j+1];
+      }
+      argc -= 1;
+      i--;
+    }
+    else {
+      std::cerr << "argument " << argv[i] << " is not understood."
+		<< std::endl;
     }
   }      
 
@@ -99,7 +125,7 @@ int main(int argc, char *argv[])
   rule_db rdb ;
   // Add all of the rules that were inserted into the global_rule_list
   // by register_rule<> types into the rule database rdb
-  rdb.add_rules(global_rule_list) ;
+  rdb.add_rules(Loci::init_rule_list) ;
 
   int num_procs = Loci::MPI_processes ;
   int myid = Loci::MPI_rank ;
@@ -109,10 +135,38 @@ int main(int argc, char *argv[])
 
   executeP schedule = create_execution_schedule(rdb,facts,query) ;
 
+    // Do some output if processor 0
+    if (myid == 0) {
+      // Write out the initial fact database if -fact
+      if (write_facts) {
+	char fn_facts[11];
+	strcpy(fn_facts, "facts_init");
+	std::ofstream of_facts(fn_facts);
+
+	facts.write(of_facts);
+
+	of_facts.close();
+      }
+
+      // Write out the rule database
+      char fn_rules[6];
+      strcpy(fn_rules, "rules");
+      std::ofstream of_rules(fn_rules);
+
+      Loci::ruleSet rset = rdb.all_rules();
+      Loci::ruleSet::const_iterator itr;
+      for (itr = rset.begin(); itr!=rset.end(); itr++) {
+	of_rules << *itr << std::endl;
+      }
+
+      of_rules.close();
+    }
+
   if(schedule == 0) {
     std::cerr << "unable to produce execution schedule to satisfy query for "
-         << query << std::endl ;
-  } else {
+	      << query << std::endl ;
+  }
+  else {
     // Save the schedule in the file .schedule for reference
     std::ostringstream oss ;
     oss << ".schedule" ;
