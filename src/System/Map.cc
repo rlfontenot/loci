@@ -103,7 +103,7 @@ namespace Loci {
     int sz = mx-mn+1 ;
     std::vector<bool> bits(sz) ;
     for(int i=0;i<sz;++i)
-      bits[sz] = false ;
+      bits[i] = false ;
     for(const int *i=start;i!=end;++i)
       bits[*i-mn] = true ;
 
