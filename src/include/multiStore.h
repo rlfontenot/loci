@@ -61,7 +61,7 @@ namespace Loci {
     void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr) ;
     void setSizes(const const_multiMap &mm) ;
     virtual ~multiStoreRepI() ;
-    virtual void allocate(const entitySet &ptn) ;
+    virtual void allocate(const entitySet &eset) ;
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRepP remap(const Map &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
@@ -111,7 +111,7 @@ namespace Loci {
     
     multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
     
-    void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
+    void allocate(const entitySet &eset) { Rep()->allocate(eset) ; }
 
     void allocate(const store<int> &sizes) {
       NPTR<storeType> p(Rep()) ;
@@ -259,47 +259,87 @@ namespace Loci {
   }
 
   //*************************************************************************/
-
   template<class T> 
   void multiStoreRepI<T>::allocate(const store<int> &sizes) 
   {
+    dmultiStore<T> tmp;
+    std::vector<T> avec;
+
+    entitySet eset = sizes.domain() ;
+
+    if( eset == EMPTY ) {
+      if(alloc_pointer) delete[] alloc_pointer ;
+      alloc_pointer = 0 ;
+
+      if(index) delete[] index ;
+      index = 0 ;
+
+      store_domain = eset ;
+      return;
+    }
+
+    entitySet ecommon;
+    ecommon = sizes.domain() & store_domain;
+    entitySet :: const_iterator ei;
+
+    cout << Loci::MPI_rank << " " << eset << endl;
+
+
+    int vsize;
+    for( ei = ecommon.begin(); ei != ecommon.end(); ++ei){
+      vsize = end(*ei) - begin(*ei);
+      if( vsize == 0) continue;
+      avec.resize(vsize);
+      for( int i = 0; i < vsize; i++)
+        avec[i] = base_ptr[*ei][i];
+      tmp[*ei] = avec;
+    }
+
     //-------------------------------------------------------------------------
     // Objective: Allocate memeory for multiStore data. This call reclaims 
     // all previously held memory
     //-------------------------------------------------------------------------
-    // Assign new entitySet ...
-    entitySet ptn = sizes.domain() ;
-    store_domain  = ptn ;
+
 
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
     if(index) delete[] index ;
 
-    index = 0 ;
-    int sz = 0 ;
-    if(ptn != EMPTY) {
-      int top  = ptn.Min() ;
-      int len  = ptn.Max() - top + 2 ;
-      index    = new T *[len] ;
-      base_ptr = index - top ;
+    index    = 0 ;
+    int sz   = 0 ;
+    int top  = eset.Min() ;
+    int len  = eset.Max() - top + 2 ;
+    index    = new T *[len] ;
+    base_ptr = index - top ;
 
-      FORALL(ptn,i) {
+    FORALL(eset,i) {
+      sz += sizes[i] ;
+    } ENDFORALL ;
+
+    alloc_pointer = new T[sz+1] ;
+    sz = 0 ;
+    for(int ivl=0;ivl< eset.num_intervals(); ++ivl) {
+      int i       = eset[ivl].first ;
+      base_ptr[i] = alloc_pointer + sz ;
+      while(i<=eset[ivl].second) {
         sz += sizes[i] ;
-      } ENDFORALL ;
-
-      alloc_pointer = new T[sz+1] ;
-      sz = 0 ;
-      for(int ivl=0;ivl< ptn.num_intervals(); ++ivl) {
-        int i       = ptn[ivl].first ;
+        ++i ;
         base_ptr[i] = alloc_pointer + sz ;
-        while(i<=ptn[ivl].second) {
-          sz += sizes[i] ;
-          ++i ;
-          base_ptr[i] = alloc_pointer + sz ;
-        }
       }
-
     }
+
+    int curr_size;
+    for( ei = ecommon.begin(); ei != ecommon.end(); ++ei){
+      avec      = tmp[*ei];
+      vsize     = avec.size();
+      curr_size = end(*ei) - begin(*ei);
+      if( curr_size == 0) continue;
+      if( curr_size > vsize) avec.resize(curr_size);
+      for( int i = 0; i < curr_size; i++)
+        base_ptr[*ei][i] = avec[i];
+    }
+    store_domain = eset ;
+
     dispatch_notify();
   }
 
@@ -308,24 +348,24 @@ namespace Loci {
   template<class T> 
   void multiStoreRepI<T>::multialloc(const store<int> &count, T ***index, 
                                      T **alloc_pointer, T ***base_ptr ) {
-    entitySet ptn = count.domain() ;
-    int top = ptn.Min() ;
-    int len = ptn.Max() - top + 2 ;
+    entitySet eset = count.domain() ;
+    int top = eset.Min() ;
+    int len = eset.Max() - top + 2 ;
     T **new_index = new T *[len] ;
     T **new_base_ptr = new_index - top ;
     int sz = 0 ;
     
-    FORALL(ptn, i) {
+    FORALL(eset, i) {
       sz += count[i] ;
     } ENDFORALL ;
     
     T *new_alloc_pointer = new T[sz + 1] ;
     sz = 0 ;
     
-    for(int ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
-      int i = ptn[ivl].first ;
+    for(int ivl = 0; ivl < eset.num_intervals(); ++ivl) {
+      int i = eset[ivl].first ;
       new_base_ptr[i] = new_alloc_pointer + sz ;
-      while(i <= ptn[ivl].second) {
+      while(i <= eset[ivl].second) {
 	sz += count[i] ;
 	++i ;
 	new_base_ptr[i] = new_alloc_pointer + sz ;
@@ -386,44 +426,42 @@ namespace Loci {
   }
 
   //*************************************************************************/
-  
   template<class T> 
-  void multiStoreRepI<T>::allocate(const entitySet &ptn) 
+  void multiStoreRepI<T>::allocate(const entitySet &eset) 
   {
     //------------------------------------------------------------------------
     // Objective : allocate memory specified by the entitySet. Allocation
     // doesn't resize the memory, therefore reclaims previously held memory.
     //------------------------------------------------------------------------
-    
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
-    
-    alloc_pointer = 0 ;
-    index         = 0 ;
-    base_ptr      = 0 ;
+    if( eset == EMPTY ) {
+      if(alloc_pointer) delete[] alloc_pointer ;
+      alloc_pointer = 0 ;
 
-    store_domain  = ptn ;
+      if(index) delete[] index ;
+      index = 0 ;
 
-    //-------------------------------------------------------------------------
-    // Initialize degree of each entity to zero 
-    //-------------------------------------------------------------------------
+      store_domain = eset ;
+      return;
+    }
 
     store<int> count ;
-    count.allocate(ptn) ;
+    count.allocate(eset) ;
+
+    entitySet newSet    = eset - store_domain;
+    entitySet ecommon   = store_domain & eset;
     
-    FORALL(ptn,i) {
-      count[i] = 0 ;
+    FORALL(ecommon,i) {
+      count[i] =  end(i) - begin(i);
+    } ENDFORALL ;
+
+    FORALL(newSet,i) {
+      count[i] =  0;
     } ENDFORALL ;
     
     allocate(count) ;
-
-    //-------------------------------------------------------------------------
-    // Notify all observers ...
-    //-------------------------------------------------------------------------
-
-    dispatch_notify() ;
   }
 
+  
   //*************************************************************************/
 
   template<class T> 
@@ -711,7 +749,16 @@ namespace Loci {
   }
 
   //**************************************************************************/
+  template <class T> 
+  int multiStoreRepI<T>::pack_size(const entitySet &eset ) 
+  {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
 
+    warn(eset-domain() != EMPTY) ;
+    return get_mpi_size( traits_type, eset );
+  }
+  //**************************************************************************/
   template <class T> 
   inline int multiStoreRepI<T>::get_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset ) 
   {
@@ -750,17 +797,24 @@ namespace Loci {
   }
 
   //**************************************************************************/
+  
   template <class T> 
-  int multiStoreRepI<T>::pack_size(const entitySet &eset ) 
+  void multiStoreRepI<T>::pack( void *outbuf, int &position, int &outcount, 
+                                const entitySet &eset ) 
   {
+
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    warn(eset-domain() != EMPTY) ;
-    return get_mpi_size( traits_type, eset );
-  }
+    FORALL(eset,ii){
+      size = end(ii) - begin(ii) ;
+      MPI_Pack( &size, 1, MPI_INT, outbuf, outcount, &position, MPI_COMM_WORLD) ;
+    }ENDFORALL ;
 
+    packdata( traits_type, outbuf, position, outcount, eset);
+  }
   //**************************************************************************/
+  
   template <class T> 
   void multiStoreRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf,
                                     int &position,  int outcount,
@@ -821,23 +875,23 @@ namespace Loci {
     }
   }
 
+ 
+
   //**************************************************************************/
   template <class T> 
-  void multiStoreRepI<T>::pack( void *outbuf, int &position, int &outcount, 
-                                const entitySet &eset ) 
+  void multiStoreRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position,
+                                      int insize, const sequence &seq) 
   {
+    int   outcount, vsize;
+    sequence :: const_iterator si;
 
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
-
-    FORALL(eset,ii){
-      size = end(ii) - begin(ii) ;
-      MPI_Pack( &size, 1, MPI_INT, outbuf, outcount, &position, MPI_COMM_WORLD) ;
-    }ENDFORALL ;
-
-    packdata( traits_type, outbuf, position, outcount, eset);
+    for(si = seq.begin(); si != seq.end(); ++si) {
+      vsize    = end(*si)-begin(*si);
+      outcount = vsize*sizeof(T);
+      MPI_Unpack(inbuf, insize, &position, &base_ptr[*si][0], outcount, MPI_BYTE,
+                 MPI_COMM_WORLD) ;
+    }
   }
-
   //**************************************************************************/
   template <class T> 
   void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, 
@@ -884,23 +938,7 @@ namespace Loci {
 
     unpackdata( traits_type, ptr, loc, size, seq); 
   }
-
-  //**************************************************************************/
-  template <class T> 
-  void multiStoreRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position,
-                                      int insize, const sequence &seq) 
-  {
-    int   outcount, vsize;
-    sequence :: const_iterator si;
-
-    for(si = seq.begin(); si != seq.end(); ++si) {
-      vsize    = end(*si)-begin(*si);
-      outcount = vsize*sizeof(T);
-      MPI_Unpack(inbuf, insize, &position, &base_ptr[*si][0], outcount, MPI_BYTE,
-                 MPI_COMM_WORLD) ;
-    }
-  }
-  
+ 
   //**************************************************************************/
   template <class T> 
   void multiStoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
@@ -1193,7 +1231,7 @@ namespace Loci {
       delete[] data;
     }
   
-}
+  }
 
   //**************************************************************************/
 
