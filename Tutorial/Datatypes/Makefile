@@ -13,8 +13,9 @@ TARGET = entities containers relations
 EX1_OBJS = entities.o
 EX2_OBJS = containers.o
 EX3_OBJS = relations.o
+EX4_OBJS = helpers.o
 
-OBJS = $(EX1_OBJS) $(EX2_OBJS) $(EX3_OBJS)
+OBJS = $(EX1_OBJS) $(EX2_OBJS) $(EX3_OBJS) $(EX4_OBJS)
 
 # Junk files created by compilers that may need to be cleaned up
 JUNK = *~ *.ii core ti_files 
@@ -32,6 +33,9 @@ containers: $(EX2_OBJS)
 
 relations: $(EX3_OBJS)
 	$(LD) -o relations $(EX3_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+relations: $(EX4_OBJS)
+	$(LD) -o helpers $(EX4_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak
