@@ -19,7 +19,7 @@ using std::make_pair ;
 
 #include <distribute.h>
 
-//#define VERBOSE
+#define VERBOSE
 
 namespace Loci {
     // Create a schedule for traversing a directed acyclic graph.  This schedule
@@ -341,7 +341,7 @@ namespace Loci {
          facts.variable_request(*vi,context) ;
      }
 #ifdef VERBOSE
-     cout << "rule " << r << " computes over " << context << endl ;
+     debugout[MPI_rank] << "rule " << r << " computes over " << context << endl ;
 #endif
      return context ;
   }
@@ -565,6 +565,10 @@ namespace Loci {
     for(int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
       send_entities.push_back(make_pair(v,vmap[v])) ;
+#ifdef VERBOSE
+      debugout[MPI_rank] << "send_entitySet passed " << vmap[v]
+                         << " for variable " << v << endl ;
+#endif
     }
 
 
@@ -572,21 +576,38 @@ namespace Loci {
     if(seinfo.size() != 0) {
       vector<entitySet> send_sets = send_entitySet(seinfo,facts) ;
       for(int i=0;i<seinfo.size();++i) {
+#ifdef VERBOSE
+        debugout[MPI_rank] << "send_entitySet returns " << send_sets[i]
+                           << " for variable " << send_vars[i] << endl ;
+#endif
         exinfo[exent[i]] += send_sets[i] ;
         exinfo[exent[i]] &= d->my_entities ;
       }
     }
-    
+    int j=0;
+#ifdef VERBOSE
+    for(int i=0;i<vars.size();++i) {
+      variable v = vars[i] ;
+      ruleSet &rs = rules[i] ;
+      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
+        debugout[MPI_rank] << "v=" << v << ",rule ="<<*rsi
+                           <<"exinfo="<<exinfo[j++] << endl ;
+      }
+    }
+#endif
     vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
 
-    int j=0;
+    j=0;
     for(int i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
 
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
-	exinfo[j] += fill_sets[j] ;
-        facts.set_existential_info(v,*rsi,exinfo[j]) ;
+#ifdef VERBOSE
+        debugout[MPI_rank] << "v=" << v << ",rule ="<<*rsi
+                           <<"fill_set="<<fill_sets[j] << endl ;
+#endif
+        facts.set_existential_info(v,*rsi,fill_sets[j]) ;
         ++j ;
       }
     }

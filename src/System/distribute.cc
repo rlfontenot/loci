@@ -24,7 +24,7 @@ using std::ifstream ;
 using std::swap ;
 
 
-//#define SCATTER_DIST
+#define SCATTER_DIST
 //#define UNITY_MAPPING
 
 #ifdef SCATTER_DIST
@@ -215,9 +215,11 @@ namespace Loci {
   }
   
   
-  void get_mappings(rule_db &rdb, std::set<std::vector<variableSet> > &maps){
+  void get_mappings(rule_db &rdb,
+                    std::set<std::vector<variableSet> > &maps_ret){
     ruleSet rules = rdb.all_rules() ;
-    maps.clear() ;
+    std::set<std::vector<variableSet> > maps ;
+
     for(ruleSet::const_iterator ri = rules.begin(); ri != rules.end(); ++ri) {
       std::set<vmap_info>::const_iterator vmsi ;
       for(vmsi = ri->get_info().desc.targets.begin();
@@ -266,7 +268,7 @@ namespace Loci {
                 vi != vmsi->mapping[i].end();
                 ++vi) {
               variableSet v ;
-              v += *vi ;
+              v += variable(*vi,time_ident()) ;
               std::vector<variableSet> vvs ;
               vvs.push_back(v) ;
               maps.insert(vvs) ;
@@ -276,6 +278,12 @@ namespace Loci {
         }
       }
     }
+
+    std::set<std::vector<variableSet> >::const_iterator mi ;
+
+    maps_ret.clear() ;
+
+    maps_ret = maps ;
   }
   
   
