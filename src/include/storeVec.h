@@ -8,6 +8,7 @@ namespace Loci {
   template <class T> class Vect ;
   
   template <class T> class const_Vect {
+  public:
     friend class Vect<T> ;
     const T *ptr ;
 #ifdef BOUNDS_CHECK
@@ -33,6 +34,7 @@ namespace Loci {
 
 
   template <class T> class Vect {
+  public:
     T *ptr ;
     int size ;
   public:
@@ -91,9 +93,9 @@ namespace Loci {
         *p1++ /= val ;
     }
       
-    void operator+=(const Vect<T> &t) {
+    template <class S> void operator+=(const Vect<S> &t) {
       T *p1 = ptr ;
-      const T *p2 = t.ptr ;
+      const S *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
       warn(size != t.size) ;
 #endif
@@ -102,9 +104,9 @@ namespace Loci {
         *p1++ += *p2++ ;
     }
 
-    void operator+=(const const_Vect<T> &t) {
+    template <class S> void operator+=(const const_Vect<S> &t) {
       T *p1 = ptr ;
-      const T *p2 = t.ptr ;
+      const S *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
       warn(size != t.size) ;
 #endif
@@ -113,9 +115,9 @@ namespace Loci {
         *p1++ += *p2++ ;
     }
 
-    void operator-=(const Vect<T> &t) {
+    template <class S> void operator-=(const Vect<S> &t) {
       T *p1 = ptr ;
-      const T *p2 = t.ptr ;
+      const S *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
       warn(size != t.size) ;
 #endif
@@ -124,9 +126,9 @@ namespace Loci {
         *p1++ -= *p2++ ;
     }
 
-    void operator-=(const const_Vect<T> &t) {
+    template <class S> void operator-=(const const_Vect<S> &t) {
       T *p1 = ptr ;
-      const T *p2 = t.ptr ;
+      const S *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
       warn(size != t.size) ;
 #endif
@@ -172,6 +174,7 @@ namespace Loci {
   } ;
   
   template <class T> class const_Mat {
+  public:
     const T *ptr ;
     int size ;
     friend class Mat<T> ;
@@ -185,14 +188,32 @@ namespace Loci {
       return const_Mat_partial<T>(ptr,size,idx) ;
     }
 
-    void solve_lu(T *b, T *x) const {
+    template<class S> void solve_lu(S *b, S *x) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
           b[i] -= Aj[i]*b[j] ;
       }
-      T *y = b ;
+      S *y = b ;
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        x[i] = y[i] ;
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+    template<class T1,class T2> void solve_lu(Vect<T1> b, T2 *x) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          b[i] -= Aj[i]*b[j] ;
+      }
+      T1 *y = b ;
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
@@ -204,15 +225,53 @@ namespace Loci {
       }
     }
 
-    void dotprod_accum(const T *vin, T *vout) const {
+    template<class T1,class T2> void solve_lu(T1 *b, Vect<T2> x) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          b[i] -= Aj[i]*b[j] ;
+      }
+      T1 *y = b ;
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        x[i] = y[i] ;
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class Tin,class Tout>
+    void dotprod_accum(const Tin *vin, Tout *vout) const {
       const T *Aij = ptr;
       for(int j=0;j<size;++j) {
-        const real in = vin[j] ;
+        const Tin in = vin[j] ;
+        for(int i=0;i<size;++i,Aij++)
+          vout[i] += (*Aij)*in ;
+      }
+    } 
+    template<class Tin,class Tout>
+    void dotprod_accum(const Vect<Tin> &vin, Tout *vout) const {
+      const T *Aij = ptr;
+      for(int j=0;j<size;++j) {
+        const Tin in = vin[j] ;
         for(int i=0;i<size;++i,Aij++)
           vout[i] += (*Aij)*in ;
       }
     }
-  } ;
+    template<class Tin,class Tout>
+    void dotprod_accum(const const_Vect<Tin> &vin, Tout *vout) const {
+      const T *Aij = ptr;
+      for(int j=0;j<size;++j) {
+        const Tin in = vin[j] ;
+        for(int i=0;i<size;++i,Aij++)
+          vout[i] += (*Aij)*in ;
+      }
+    }
+ } ;
 
   template <class T> class Mat_partial {
     T *ptr ;
@@ -229,6 +288,7 @@ namespace Loci {
   } ;
   
   template <class T> class Mat {
+  public:
     T *ptr ;
     int size ;
   public:
@@ -285,36 +345,36 @@ namespace Loci {
           *p1++ /= val ;
     }
       
-    void operator+=(const Mat<T> &t) {
+    template <class S> void operator+=(const Mat<S> &t) {
       T *p1 = ptr ;
-      const T *p2 = t.ptr ;
+      const S *p2 = t.ptr ;
       
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
           *p1++ += *p2++ ;
     }
 
-    void operator+=(const const_Mat<T> &t) {
+    template <class S> void operator+=(const const_Mat<S> &t) {
       T *p1 = ptr ;
-      const T *p2 = t.ptr ;
+      const S *p2 = t.ptr ;
       
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
           *p1++ += *p2++ ;
     }
 
-    void operator-=(const Mat<T> &t) {
+    template <class S> void operator-=(const Mat<S> &t) {
       T *p1 = ptr ;
-      const T *p2 = t.ptr ;
+      const S *p2 = t.ptr ;
       
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
           *p1++ -= *p2++ ;
     }
 
-    void operator-=(const const_Mat<T> &t) {
+    template <class S> void operator-=(const const_Mat<S> &t) {
       T *p1 = ptr ;
-      const T *p2 = t.ptr ;
+      const S *p2 = t.ptr ;
       
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
@@ -351,8 +411,8 @@ namespace Loci {
           Aj[i] /= Aj[j] ;
       }
     }
-    
-    void solve_lu(T *b, T *x) const {
+
+    template<class S> void solve_lu(S *b, S *x) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
         const T *Aj = ptr ;
@@ -360,6 +420,44 @@ namespace Loci {
           b[i] -= Aj[i]*b[j] ;
       }
       T *y = b ;
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        x[i] = y[i] ;
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class S> void solve_lu(Vect<S> &b, S *x) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          b[i] -= Aj[i]*b[j] ;
+      }
+      S *y = b ;
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        x[i] = y[i] ;
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class S> void solve_lu(S *b, Vect<S> &x) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          b[i] -= Aj[i]*b[j] ;
+      }
+      S *y = b ;
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
