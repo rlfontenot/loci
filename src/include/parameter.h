@@ -429,12 +429,6 @@ namespace Loci {
   void paramRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position,
                                int outcount )
   {
-/*
-    typedef data_schema_traits<T> traits_type;
-    DatatypeP    atom_type = traits_type::get_type();
-    MPI_Datatype datatype  = atom_type->get_mpi_type();
-*/
-
     MPI_Pack( &attrib_data, sizeof(T), MPI_BYTE, outbuf, outcount, &position, 
               MPI_COMM_WORLD) ;
   }
@@ -505,11 +499,11 @@ namespace Loci {
                                  int &insize)
   {
 
-/*
-    typedef data_schema_traits<T> traits_type;
-    DatatypeP    atom_type = traits_type::get_type();
-    MPI_Datatype datatype  = atom_type->get_mpi_type();
-*/
+    /*
+      typedef data_schema_traits<T> traits_type;
+      DatatypeP    atom_type = traits_type::get_type();
+      MPI_Datatype datatype  = atom_type->get_mpi_type();
+    */
     MPI_Unpack( inbuf, insize, &position, &attrib_data, sizeof(T), 
                 MPI_BYTE, MPI_COMM_WORLD) ;
 
