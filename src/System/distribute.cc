@@ -37,16 +37,13 @@ namespace Loci {
   int MPI_processes ;
   int MPI_rank ;
   int num_threads = 1 ;
-
   ofstream debugout[128] ;
   
   void Init(int* argc, char*** argv)  {
-
+    
     char *execname = (*argv)[0] ;
     char *hostname = "localhost" ;
     char *debug = "gdb" ;
-
-    
     MPI_Init(argc, argv) ;
     MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
@@ -57,7 +54,7 @@ namespace Loci {
       string filename  = oss.str() ;
       debugout[i].open(filename.c_str(),ios::out) ;
     }
-
+    
     bool debug_setup = false ;
     int i = 1 ;
     while(i<*argc) {
@@ -85,7 +82,7 @@ namespace Loci {
       setup_debugger(execname,debug,hostname) ;
       chopsigs_() ;
     }
-
+    
   }
 
   void Finalize() {
@@ -175,9 +172,12 @@ namespace Loci {
         adjncy[count] = entities[*di] ;
         count ++ ;
       }
-   
-    cout << "calling metis for partitioning " << endl ;
+    
+    int t = MPI_Wtime() ;
+    debugout[MPI_rank] << "Time  before calling METIS_PartGraphKway = " << t << endl ;
     METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
+    int et = MPI_Wtime() ;
+    debugout[MPI_rank] << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
     cerr << " Edge cut   " <<  edgecut << endl ;
     entitySet num_parts = interval(0, num_partitions-1) ;
     store<int> number ;
@@ -186,7 +186,7 @@ namespace Loci {
     dummy_number.allocate(num_parts) ;
     for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei)
       number[*ei] = 0 ;
-
+    
 #ifdef SCATTER_DIST
     // Test code
     unsigned short int seed[3] = {0,0,1} ;
@@ -201,14 +201,14 @@ namespace Loci {
 #endif
     for(int i = 0; i < size_map; i++)
       number[part[i]] += 1 ;
-   
+    
     for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei) {
-      dummy_number[*ei] = number[*ei] ;
+      dummy_number[*ei] = 0 ;
     }
     multiMap epp ;
     epp.allocate(number) ;
     for(int i = 0; i < size_map; i++)
-      epp[part[i]][--dummy_number[part[i]]] = reverse[i] ;
+      epp[part[i]][dummy_number[part[i]]++] = reverse[i] ;
     int p = 0 ;
     for(ei=num_parts.begin();ei!=num_parts.end();++ei) {
       entitySet parti ;
@@ -219,6 +219,10 @@ namespace Loci {
       p++ ;
       ptn.push_back(parti) ;
     }
+    
+    delete [] xadj ;
+    delete [] part ;
+    delete [] adjncy ;
   }
   
   
@@ -414,10 +418,22 @@ namespace Loci {
     set<vector<Loci::variableSet> > maps ;
     vector<entitySet> copy(num_procs) ;
     vector<entitySet> image(num_procs) ;
+    debugout[MPI_rank] << "synchronising before metis_facts" << endl ;
+    MPI_Barrier(MPI_COMM_WORLD) ;
+    int start = MPI_Wtime() ;
+    debugout[MPI_rank] << " start time = " << start << endl ; 
     metis_facts(facts,ptn,partition) ;
+    int end_time  = MPI_Wtime() ;
+    debugout[MPI_rank] << "  time taken for metis_facts =   = " << end_time -start << endl ; 
+    start = MPI_Wtime() ;
+    debugout[MPI_rank]<< " time now is  " << start << endl ; 
     get_mappings(rdb,facts,maps) ;
+    end_time  = MPI_Wtime() ;
+    debugout[MPI_rank] << "  time taken for get_mappings =   = " << end_time -start << endl ; 
     set<vector<Loci::variableSet> >::const_iterator smi ;
-
+    
+    start = MPI_Wtime() ;
+    debugout[MPI_rank]<< " time now is  " << start << endl ; 
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
       copy[pnum] = image[pnum] - ptn[pnum] ;
@@ -427,6 +443,8 @@ namespace Loci {
       }
       get_entities[pnum][pnum] = ptn[pnum] ;
     }
+    end_time  = MPI_Wtime() ;
+    debugout[MPI_rank] << "  time taken for all the calls to expand_map is =   = " << end_time-start << endl ; 
   }
   
   void  distribute_facts(vector<vector<entitySet> > &get_entities, fact_db &facts)  {
@@ -448,7 +466,7 @@ namespace Loci {
                        << " {" << endl ;
     for(int i = 0; i < iv.size(); ++i) 
       debugout[MPI_rank] << iv[i] << endl ;
-
+    
     debugout[MPI_rank] << "}" << endl ;
 #endif
     for(int i = 0; i < iv.size(); ++i) {
@@ -524,7 +542,11 @@ namespace Loci {
 	send_entities[*ei] +=  df->g2l[*ti] ;
       send += send_entities[*ei] ;
     }
+    int start = MPI_Wtime() ;
+    debugout[MPI_rank]<< " time now is  " << start << endl ; 
     reorder_facts(facts, df->g2l) ;
+    int end_time =  MPI_Wtime() ;
+    debugout[MPI_rank] << "  time taken for reordering =  " << end_time - start << endl ; 
     isDistributed = 1 ;
     df->isDistributed = isDistributed ;
     g = EMPTY ;
@@ -533,11 +555,6 @@ namespace Loci {
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
-    debugout[MPI_rank] << "my_entities = " << df->my_entities << endl ;
-    //    debugout[MPI_rank] << "send = " << send << endl ;
-    //    debugout[MPI_rank] << "recv = " << recv << endl ;
-    
-    //    debugout[MPI_rank] << "global to loc numbering  = " << df->g2l << endl ;
     for(ei=send_neighbour.begin(); ei != send_neighbour.end();++ei)
       df->xmit.push_back
         (fact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
