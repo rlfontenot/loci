@@ -431,69 +431,67 @@ namespace Loci {
 
   //This routine returns a storeRep which is created by using passed
   //storeRep sp and map remap.  It is used whenever a storeRep needs to 
-  //be converted in global numbering to write out to a file. 
+  //be converted in global numbering to write out to a file.  
+  //remap is mapping from io entities(read from grid file)
+  //to loci entities(global numbering of Loci)
   storeRepP collect_reorder_store(storeRepP &sp, dMap& remap, fact_db &facts) {
     entitySet dom = sp->domain() ;
     dom =  collect_entitySet(dom) ;
-    entitySet remap_dom;
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
-    remap_dom = init_ptn[ MPI_rank] & dom ;
-    entitySet tot_remap_dom  =  all_collect_entitySet(dom) ;
+    entitySet loci_dom = init_ptn[MPI_rank] & dom ;
     
-    entitySet global_io_domain = remap.preimage(tot_remap_dom).first;
-    global_io_domain = all_collect_entitySet(global_io_domain);
+    entitySet global_loci_dom  =  all_collect_entitySet(dom) ;
+    entitySet global_io_dom = remap.preimage(global_loci_dom).first;
+    global_io_dom = all_collect_entitySet(global_io_dom);
 
-    dMap reverse ;
+    if(global_loci_dom.size() != global_io_dom.size()) {
+      cerr << "remap is not able to provide information of all entities.";
+      cerr << "loci_entities: " << global_loci_dom << " has total " << global_loci_dom.size() << endl; 
+      cerr << "mapped io_entities : " << global_io_dom << " has total "  << global_io_dom.size() << endl;
+    }
+
+    dMap reverse ; //Mapping from loci entities to io entities 
     {
       dmultiMap d_remap ;
       if(facts.is_distributed_start())
-        distributed_inverseMap(d_remap, remap, tot_remap_dom, global_io_domain, init_ptn) ;
+        distributed_inverseMap(d_remap, remap, global_loci_dom, global_io_dom, init_ptn) ;
       else
-        inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom) ;
+        inverseMap(d_remap, remap, global_loci_dom, global_loci_dom) ;
       
-      FORALL(remap_dom, ri) {
+      FORALL(loci_dom, ri) {
         if(d_remap[ri].size() == 1)
           reverse[ri] = d_remap[ri][0] ;
         else
           if(d_remap[ri].size() > 1)
-            cerr << "d_remap has multiple entries!" << endl ;
+            cerr << "inverse of remap has multiple entries!" << endl ;
       } ENDFORALL ;
     }
     
     Map l2g ;
     l2g = facts.get_variable("l2g") ;
-    Map tmp_remap ;
-    entitySet tmp_remap_dom =  MapRepP(l2g.Rep())->preimage(remap_dom).first ;
-    tmp_remap.allocate(tmp_remap_dom) ;
-    FORALL(tmp_remap_dom, ri) {
-      tmp_remap[ri] = l2g[ri] ;
-    } ENDFORALL ;
 
-    constraint my_entities ;
-    my_entities = facts.get_variable("my_entities") ;
+    entitySet local_dom =  MapRepP(l2g.Rep())->preimage(loci_dom).first ;
 
-    entitySet owned_entities = *my_entities & sp->domain() ;
-
-    entitySet tmp_remap_image = MapRepP(tmp_remap.Rep())->image(tmp_remap.domain());
-    entitySet reverse_dom = reverse.domain() ;
-    entitySet tmp_remap_preimage = MapRepP(tmp_remap.Rep())->preimage(reverse_dom).first ;
-
-    if((tmp_remap_dom&tmp_remap_preimage) != tmp_remap_dom) {
-      debugout << "tmp_remap.image() = " << tmp_remap_image << endl ;
-      debugout << "reverse.domain() = " << reverse.domain() << endl ;
-      debugout << "tmp_remap.preimage(reverse.domain()) = "
-               << tmp_remap_preimage << endl ;
-      cerr << "something fishy in collect_reorder_store" << endl ;
-      cerr << "missing entities" << tmp_remap_dom-tmp_remap_preimage << endl ;
-      debugout << "missing entities" << tmp_remap_dom-tmp_remap_preimage  << endl ;
+    if(loci_dom.size() != local_dom.size()) {
+      cerr << "Something fishy going on with l2g, which does not seem to give one to one and onto mapping.";
+      cerr << "loci_dom: " << loci_dom << " has total " << loci_dom.size() << endl;
+      cerr << "local_dom: " << local_dom << " has total " << local_dom.size() << endl;
     }
 
-    MapRepP(tmp_remap.Rep())->compose(reverse, tmp_remap_dom&tmp_remap_preimage) ;
-    entitySet global_owned =  MapRepP(tmp_remap.Rep())->image(owned_entities) ;
+    Map local2io ;
+    local2io.allocate(local_dom) ;
+    FORALL(local_dom, ri) {
+      local2io[ri] = l2g[ri] ;
+    } ENDFORALL ;
+    
+    local_dom = MapRepP(local2io.Rep())->preimage(reverse.domain()).first ;
+    MapRepP(local2io.Rep())->compose(reverse, local_dom) ;
+    entitySet io_owned =  MapRepP(local2io.Rep())->image(local_dom) ;
+
     std::vector<entitySet> chop_ptn(Loci::MPI_processes);
-    if(global_io_domain != EMPTY) {
-      int min = global_io_domain.Min();
-      int max = global_io_domain.Max();
+    if(global_io_dom != EMPTY) {
+      int min = global_io_dom.Min();
+      int max = global_io_dom.Max();
       int sz = (max - min + 1)/Loci::MPI_processes;
       for(int i = 0; i < MPI_processes; i++) {
 	entitySet tmpEnt;
@@ -503,30 +501,30 @@ namespace Loci {
 	}
 	else 
 	  tmpEnt = interval(min + i*sz, max);
-	tmpEnt &= global_io_domain;
+	tmpEnt &= global_io_dom;
 	chop_ptn[i] = tmpEnt;
       }
     }
-    entitySet local_io_domain = chop_ptn[MPI_rank]; 
-    owned_entities = tmp_remap.domain()  ;
-    entitySet out_of_dom, filled_entities, local_entities ;
+
+    entitySet io_dom = chop_ptn[MPI_rank]; 
+    entitySet owned_io_out_of_dom, filled_io_entities, filled_local_entities ;
     
-    FORALL(owned_entities, ii) {
-      if(local_io_domain.inSet(tmp_remap[ii])) { 
-	filled_entities += tmp_remap[ii] ;
-	local_entities += ii ;
+    FORALL(local_dom, ii) {
+      if(io_dom.inSet(local2io[ii])) { 
+	filled_io_entities += local2io[ii] ;
+	filled_local_entities += ii ;
       }
     } ENDFORALL ;
 
-    storeRepP tmp_remap_sp = MapRepP(tmp_remap.Rep())->thaw() ;
-    dMap d_tmp_remap(tmp_remap_sp) ; 
+    owned_io_out_of_dom = io_owned - filled_io_entities ;
+
+    storeRepP local2io_sp = MapRepP(local2io.Rep())->thaw() ;
+    dMap d_local2io(local2io_sp) ; 
 
     storeRepP qcol_rep ;
-    qcol_rep = sp->new_store(local_io_domain) ;
-    if(local_entities != EMPTY)
-      qcol_rep->scatter(d_tmp_remap, sp, local_entities) ;
-
-    out_of_dom = global_owned - filled_entities ;
+    qcol_rep = sp->new_store(io_dom) ;
+    if(filled_local_entities != EMPTY)
+      qcol_rep->scatter(d_local2io, sp, filled_local_entities) ;
 
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
@@ -534,13 +532,14 @@ namespace Loci {
     int *recv_displacement = new int[ MPI_processes] ;
     entitySet::const_iterator ei ;
     int size_send = 0 ;
-    std::vector<entitySet> copy( MPI_processes), send_clone( MPI_processes) ;
+    std::vector<entitySet> send_clone( MPI_processes) ;
+    std::vector<entitySet> send_dom( MPI_processes) ;
     std::vector<store<int> > scl( MPI_processes), rcl( MPI_processes) ;
     
     for(int i = 0; i <  MPI_processes; ++i) {
-      send_clone[i] = out_of_dom & chop_ptn[i] ;
-      entitySet tmp = MapRepP(tmp_remap.Rep())->preimage(send_clone[i]).first ;
-      send_count[i] = 0 ;
+      send_clone[i] = owned_io_out_of_dom & chop_ptn[i] ;
+      send_dom[i] = MapRepP(local2io.Rep())->preimage(send_clone[i]).first ;
+      entitySet tmp = send_dom[i];
       store<int> tmp_store ;
       entitySet tmpEnt;
       if(tmp.size())
@@ -549,7 +548,7 @@ namespace Loci {
       send_count[i] = tmp_store.Rep()->pack_size(tmpEnt) ;
       ei = tmp.begin() ;
       for(int j = 0; j < tmp.size(); ++j) {
-	tmp_store[j] = tmp_remap[*ei] ;
+	tmp_store[j] = local2io[*ei] ;
 	++ei ;
       }
       scl[i] = tmp_store ;
@@ -591,9 +590,7 @@ namespace Loci {
       rcl[i] = tmp_store ;
     }
     size_send = 0 ;
-    std::vector<entitySet> send_dom( MPI_processes) ;
     for(int i = 0; i <  MPI_processes; ++i) {
-      send_dom[i] = MapRepP(tmp_remap.Rep())->preimage(send_clone[i]).first ;
       send_count[i] =  sp->pack_size(send_dom[i]) ;
       size_send += send_count[i] ;
     }
