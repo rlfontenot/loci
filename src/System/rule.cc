@@ -588,7 +588,7 @@ variableSet rule_impl::get_var_list() {
         ?(*i).get_info().time_id:source_time ;
     }
     int target_offset = 0 ;
-    bool target_asgn ;
+    bool target_asgn = 0;
       
     for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
       if(i==tvars.begin()) {
@@ -715,7 +715,7 @@ variableSet rule_impl::get_var_list() {
           ?(*i).get_info().time_id:source_time ;
       }
       int target_offset = 0 ;
-      bool target_asgn ;
+      bool target_asgn = 0 ;
       
       for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
         if(i==tvars.begin()) {
@@ -895,7 +895,7 @@ variableSet rule_impl::get_var_list() {
         ?(*i).get_info().time_id:source_time ;
     }
     int target_offset = 0 ;
-    bool target_asgn ;
+    bool target_asgn = 0 ;
       
     for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
       if(i==tvars.begin()) {
