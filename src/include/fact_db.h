@@ -26,21 +26,22 @@ namespace Loci {
       param<int> time_var ;
       std::list<std::list<variable> > rotate_lists ;
     } ;
-    /*  
-    class distribute_info : public CPTR_type {
-      friend class fact_db ;
-    public:
-      distribute_info();
-      dist_facts* get_dist_facts() ; 
-      void set_dist_facts(dist_facts dist) ;
-      void operator = (distribute_info&) ;
-    private:
-      dist_facts distributed_facts ;
-      
+    
+    struct distribute_info : public CPTR_type {
+      int myid ;
+      store<int> isDistributed ;
+      constraint my_entities ;
+      Map g2l ;
+      Map l2g ;
+      entitySet send_neighbour ;
+      entitySet recv_neighbour ;
+      store<entitySet> send_entities ;
+      store<entitySet> recv_entities ;
     } ;
-    */    
+
     typedef CPTR<time_info> time_infoP ;
-    //typedef CPTR<distribute_info> distribute_infoP ;
+
+    typedef CPTR<distribute_info> distribute_infoP ;
     
   private:
     fact_db(const fact_db &f) ;
