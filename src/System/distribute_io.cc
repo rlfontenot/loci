@@ -72,44 +72,51 @@ void write_container(hid_t group_id, storeRepP qrep) {
       hsize_t stride = 1 ;
       hsize_t count = arr_sizes[0] ;
       dimension =  tot_arr_size ;
-      hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
-      DatatypeP dp = qrep->getType() ;
-      hid_t datatype = dp->get_hdf5_type() ;
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-      dimension = count ;
-      start += dimension ;
-      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-      qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
-      H5Dclose(dataset) ;
-      
-      int curr_indx = dom.size() ;
-      for(int i = 1; i < Loci::MPI_processes; ++i) {
-	MPI_Status status ;
-	int recv_total_size ;
-	entitySet tmpset = entitySet(interval(curr_indx, interval_sizes[i]+curr_indx-1)) ;
-	curr_indx += interval_sizes[i] ;
-	Loci::storeRepP t_qrep = qrep->new_store(tmpset) ;
-	int loc_unpack = 0 ;
-	int flag = 1 ;
-	MPI_Send(&flag, 1, MPI_INT, i, 10, MPI_COMM_WORLD) ;
-	MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, MPI_COMM_WORLD, &status) ;
-	MPI_Recv(tmp_send_buf, recv_total_size, MPI_PACKED, i, 12, MPI_COMM_WORLD, &status) ;
-	Loci::sequence tmp_seq = Loci::sequence(tmpset) ;
-	t_qrep->unpack(tmp_send_buf, loc_unpack, total_size, tmp_seq) ;
-	dimension = arr_sizes[i] ;
-	count = dimension ; 
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ; 
-	start += count ;
-	dataset = H5Dopen(group_id, "data") ;
-	t_qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", tmpset) ;
-        H5Dclose(dataset) ;
+      if(dimension != 0) {
+	hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
+	DatatypeP dp = qrep->getType() ;
+	hid_t datatype = dp->get_hdf5_type() ;
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+	dimension = count ;
+	start += dimension ;
+	hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
+	qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
+	H5Dclose(dataset) ;
+	
+	int curr_indx = dom.size() ;
+	for(int i = 1; i < Loci::MPI_processes; ++i) {
+	  MPI_Status status ;
+	  int recv_total_size ;
+	  entitySet tmpset;
+	  if(interval_sizes[i] > 0)
+	    tmpset = entitySet(interval(curr_indx, interval_sizes[i]+curr_indx-1)) ;
+	  curr_indx += interval_sizes[i] ;
+	  Loci::storeRepP t_qrep = qrep->new_store(tmpset) ;
+	  int loc_unpack = 0 ;
+	  int flag = 1 ;
+	  MPI_Send(&flag, 1, MPI_INT, i, 10, MPI_COMM_WORLD) ;
+	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, MPI_COMM_WORLD, &status) ;
+	  MPI_Recv(tmp_send_buf, recv_total_size, MPI_PACKED, i, 12, MPI_COMM_WORLD, &status) ;
+	  Loci::sequence tmp_seq = Loci::sequence(tmpset) ;
+	  t_qrep->unpack(tmp_send_buf, loc_unpack, total_size, tmp_seq) ;
+	  dimension = arr_sizes[i] ;
+	  count = dimension ; 
+	  H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ; 
+	  start += count ;
+	  dataset = H5Dopen(group_id, "data") ;
+	  t_qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", tmpset) ;
+	  H5Dclose(dataset) ;
+	}
+	H5Sclose(dataspace) ;
       }
-      H5Sclose(dataspace) ;
     }
     delete [] tmp_send_buf ;
   }
 
-  //This routine 
+  //This routine reads storeReps from .hdf5 file. If dom specified is 
+  //EMPTY then it is found by dividing total entities by processors
+  //If it is non EMPTY then storeRep thas is read has been allocated dom
+  //entities locally.
   void read_container(hid_t group_id, storeRepP qrep, entitySet &dom) {
     entitySet q_dom ;
     if(Loci::MPI_rank == 0)
@@ -117,7 +124,8 @@ void write_container(hid_t group_id, storeRepP qrep) {
     unsigned char* tmp_buf = 0;
     std::vector<int> interval_sizes ;
     q_dom = all_collect_entitySet(q_dom) ;
-    if(dom == EMPTY) {
+    entitySet global_dom = all_collect_entitySet(dom);
+    if(global_dom == EMPTY) {
       int sz = q_dom.size() / Loci::MPI_processes ;
       for(int i = 0; i < MPI_processes-1; ++i)
 	interval_sizes.push_back(sz) ;
@@ -301,27 +309,30 @@ void write_container(hid_t group_id, storeRepP qrep) {
     delete [] tmp_buf ;
     delete [] tmp_int ; 
   }
-    
+
+  //This routine returns a storeRep which is created by using passed
+  //storeRep sp and map remap.  It is used whenever a storeRep needs to 
+  //be converted in global numbering to write out to a file. 
   storeRepP collect_reorder_store(storeRepP &sp, dMap& remap, fact_db &facts) {
     entitySet dom = sp->domain() ;
     dom =  collect_entitySet(dom) ;
-    dom =  all_collect_entitySet(dom) ;
+    entitySet remap_dom;
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     std::vector<entitySet> chop_ptn = d->chop_ptn ;
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
-    entitySet remap_dom ;
-    Map l2g ;
-    l2g = facts.get_variable("l2g") ;
-    constraint my_entities ;
-    my_entities = facts.get_variable("my_entities") ;
-    dMap reverse ;
     remap_dom = init_ptn[ MPI_rank] & dom ;
+    entitySet tot_remap_dom  =  all_collect_entitySet(dom) ;
+    
+    entitySet global_io_domain = remap.preimage(tot_remap_dom).first;
+    global_io_domain = all_collect_entitySet(global_io_domain);
+
     dmultiMap d_remap ;
-    entitySet tot_remap_dom =  all_collect_entitySet(remap_dom) ;
     if(facts.is_distributed_start())
-      distributed_inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom, init_ptn) ;
+      distributed_inverseMap(d_remap, remap, tot_remap_dom, global_io_domain, init_ptn) ;
     else
       inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom) ;
+
+    dMap reverse ;
     FORALL(remap_dom, ri) {
       if(d_remap[ri].size() == 1)
 	reverse[ri] = d_remap[ri][0] ;
@@ -329,12 +340,19 @@ void write_container(hid_t group_id, storeRepP qrep) {
         if(d_remap[ri].size() > 1)
           cerr << "d_remap has multiple entries!" << endl ;
     } ENDFORALL ;
+    
+    Map l2g ;
+    l2g = facts.get_variable("l2g") ;
     Map tmp_remap ;
-    entitySet tmp_remap_dom =  MapRepP(l2g.Rep())->preimage(dom&init_ptn[ MPI_rank]).first ;
+    entitySet tmp_remap_dom =  MapRepP(l2g.Rep())->preimage(remap_dom).first ;
     tmp_remap.allocate(tmp_remap_dom) ;
     FORALL(tmp_remap_dom, ri) {
       tmp_remap[ri] = l2g[ri] ;
     } ENDFORALL ;
+
+    constraint my_entities ;
+    my_entities = facts.get_variable("my_entities") ;
+
     entitySet owned_entities = *my_entities & sp->domain() ;
 
     entitySet tmp_remap_image = MapRepP(tmp_remap.Rep())->image(tmp_remap.domain());
@@ -348,25 +366,32 @@ void write_container(hid_t group_id, storeRepP qrep) {
                << tmp_remap_preimage << endl ;
       cerr << "something fishy in collect_reorder_store" << endl ;
       cerr << "missing entities" << tmp_remap_dom-tmp_remap_preimage << endl ;
+      debugout << "missing entities" << tmp_remap_dom-tmp_remap_preimage  << endl ;
     }
+
     MapRepP(tmp_remap.Rep())->compose(reverse, tmp_remap_dom&tmp_remap_preimage) ;
-    storeRepP qcol_rep ;
-    qcol_rep = sp->new_store(chop_ptn[ MPI_rank] & dom) ;
     entitySet global_owned =  MapRepP(tmp_remap.Rep())->image(owned_entities) ;
-    remap_dom = chop_ptn[MPI_rank] & dom ; 
+    entitySet local_io_domain = chop_ptn[MPI_rank] & global_io_domain ; 
     owned_entities = tmp_remap.domain()  ;
     entitySet out_of_dom, filled_entities, local_entities ;
     
     FORALL(owned_entities, ii) {
-      if(remap_dom.inSet(tmp_remap[ii])) { 
+      if(local_io_domain.inSet(tmp_remap[ii])) { 
 	filled_entities += tmp_remap[ii] ;
 	local_entities += ii ;
       }
     } ENDFORALL ;
+
     storeRepP tmp_remap_sp = MapRepP(tmp_remap.Rep())->thaw() ;
     dMap d_tmp_remap(tmp_remap_sp) ; 
-    qcol_rep->scatter(d_tmp_remap, sp, local_entities) ;
+
+    storeRepP qcol_rep ;
+    qcol_rep = sp->new_store(local_io_domain) ;
+    if(local_entities != EMPTY)
+      qcol_rep->scatter(d_tmp_remap, sp, local_entities) ;
+
     out_of_dom = global_owned - filled_entities ;
+
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
     int *send_displacement = new int[ MPI_processes] ;
@@ -473,8 +498,11 @@ void write_container(hid_t group_id, storeRepP qrep) {
       FORALL(m.domain(), mi) {
 	m[mi] = rcl[i][mi] ;
       } ENDFORALL ;
-      qcol_rep->scatter(m, tmp_sp[i], tmp_sp[i]->domain()) ;  
+
+      if(tmp_sp[i]->domain() != EMPTY)
+	qcol_rep->scatter(m, tmp_sp[i], tmp_sp[i]->domain()) ;  
     }
+
     delete [] send_buf ;
     delete [] recv_buf ;
     delete [] send_store ;
@@ -485,41 +513,62 @@ void write_container(hid_t group_id, storeRepP qrep) {
     delete [] recv_displacement ;
     return qcol_rep ;
   } 
-  
+
+  //This routine fills new_sp storeRep for allocated entities using passed 
+  //storeRep sp_init and map remap.  It is used whenever a storeRep needs to 
+  //be converted in local numbering after it is read from a file. 
   void distribute_reorder_store(storeRepP &new_sp, storeRepP sp_init, dMap& remap, fact_db &facts) {
     entitySet our_dom = new_sp->domain() ;
-    entitySet read_set = Loci::collect_entitySet(our_dom) ;
-    read_set = all_collect_entitySet(read_set) ;
-    fact_db::distribute_infoP d = facts.get_distribute_info() ;
-    std::vector<entitySet> chop_ptn = d->chop_ptn ;
-    Loci::constraint my_entities ; 
+    entitySet remap_image  = Loci::collect_entitySet(our_dom) ;
+    remap_image = all_collect_entitySet(remap_image) ;
+
     Map l2g ; 
     l2g = facts.get_variable("l2g") ;
-    entitySet remap_dom = remap.domain() & read_set ;
-    entitySet local_own = d->g2l.domain() & remap.image(remap_dom) ;
+    entitySet read_set = remap.preimage(remap_image).first;
+    read_set = all_collect_entitySet(read_set);
+
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
+    entitySet local_own = d->g2l.domain() & remap.image(read_set) ;
+
+#ifdef DEBUG
+    entitySet global_own = all_collect_entitySet(local_own);
+    if(global_own != remap_image) {
+      cerr << "global_own should be same as remap_image." << endl;
+      cerr << "g2l does not define " << remap_image - global_own << endl;
+    }
+#endif
+
     entitySet t_dom = remap.preimage(local_own).first ;
     dMap tmp_remap ; 
     FORALL(t_dom, ti) { 
       tmp_remap[ti] = remap[ti] ;
     } ENDFORALL ; 
     Loci::MapRepP(tmp_remap.Rep())->compose(d->g2l, t_dom) ;
+
+    Loci::constraint my_entities ; 
     my_entities = d->my_entities ; 
     entitySet local_req = *my_entities & our_dom ;
     entitySet global_req = Loci::MapRepP(l2g.Rep())->image(local_req) ;
     global_req = Loci::MapRepP(remap.Rep())->preimage(global_req).first ;
-    std::vector<int> sizes(Loci::MPI_processes) ;
-    for(int i = 0; i < Loci::MPI_processes; ++i)
-      sizes[i] = (read_set & chop_ptn[i]).size() ;
-    std::sort(sizes.begin(), sizes.end()) ;
-    int max_size = sizes[Loci::MPI_processes-1] ;
-    entitySet max_set = interval(0, max_size-1) ;
+
+    entitySet tmp_dom = sp_init->domain() ;
+    std::vector<entitySet> sp_init_domain = all_collect_vectors(tmp_dom);
+    entitySet global_sp_init_domain;
+    for(int i = 0; i < Loci::MPI_processes; i++) {
+      global_sp_init_domain += sp_init_domain[i];
+    }
+    
+    FATAL((global_req - t_dom).size() != 0); 
+    FATAL((global_req - global_sp_init_domain).size() != 0);
+    
     unsigned char *tmp_buf, *recv_buf ;
     int total_size = 0 ;
-    total_size = sp_init->pack_size(max_set) ;
+    total_size = sp_init->pack_size(tmp_dom) ;
+    total_size = GLOBAL_MAX(total_size);
     tmp_buf = new unsigned char[total_size] ;
     recv_buf = new unsigned char[total_size] ;
+
     int loc = 0 ;
-    entitySet tmp_dom = sp_init->domain() ;
     sp_init->pack(tmp_buf, loc, total_size, tmp_dom) ; 
     MPI_Status status, stat_1 ;
     if(Loci::MPI_rank != 0) {
@@ -531,12 +580,12 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	}
 	if(p == 0)
 	  MPI_Send(tmp_buf, total_size, MPI_PACKED, 0, 12, MPI_COMM_WORLD) ;
-	entitySet recv_set = read_set & chop_ptn[p] ;
-	Loci::sequence tmp_seq = Loci::sequence(recv_set) ;
+	entitySet local_set = sp_init_domain[p] ;
+	Loci::sequence tmp_seq = Loci::sequence(local_set) ;
 	int loc_unpack = 0 ;
-	storeRepP sp = sp_init->new_store(recv_set) ;
+	storeRepP sp = sp_init->new_store(local_set) ;
 	sp->unpack(recv_buf, loc_unpack, total_size, tmp_seq) ;
-	entitySet local_set = recv_set & global_req ;
+	local_set &= global_req ;
 	new_sp->scatter(tmp_remap, sp, local_set) ; 
       }
     } else {
@@ -548,8 +597,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	  MPI_Send(tmp_buf, total_size, MPI_PACKED, 1, 12, MPI_COMM_WORLD) ;
 	else
 	  MPI_Send(recv_buf, total_size, MPI_PACKED, 1, 12, MPI_COMM_WORLD) ;
-	dMap tmp_map , new_map;
-	entitySet local_set = chop_ptn[p] & read_set ;  
+	entitySet local_set = sp_init_domain[p] ;  
 	int loc_unpack = 0 ;
 	Loci::sequence tmp_seq = Loci::sequence(local_set) ;
 	storeRepP sp = sp_init->new_store(local_set) ;
@@ -565,5 +613,4 @@ void write_container(hid_t group_id, storeRepP qrep) {
     delete [] recv_buf ;
     delete [] tmp_buf ;
   }
-  
 }
