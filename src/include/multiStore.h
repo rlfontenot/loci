@@ -625,7 +625,7 @@ namespace Loci {
 	for(int j = 0 ; j < count[*ei]; ++j) 
 	  new_base_ptr[*ei][j] = base_ptr[*ei][j] ;
       }
-      if(alloc_pointer) delete[] alloc_pointer ;
+      if(alloc_pointer) delete [] alloc_pointer ;
       alloc_pointer = new_alloc_pointer;
       if(index) delete[] index ;
       index = new_index ;
@@ -767,12 +767,11 @@ namespace Loci {
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    entitySet eset, ecommon;
+    entitySet eset;
     HDF5_ReadDomain(group, eset);
 
-    ecommon = eset & user_eset;
-    allocate( ecommon );
-    hdf5read( group, traits_type, eset, ecommon );
+    allocate( eset & user_eset );
+    hdf5read( group, traits_type, eset, eset & user_eset);
 
   }
 
@@ -901,7 +900,6 @@ namespace Loci {
 
   //**************************************************************************/
 
-
   template <class T> 
   void multiStoreRepI<T> :: hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, 
                                     entitySet &eset, entitySet &user_eset )
@@ -996,7 +994,7 @@ namespace Loci {
    H5::DataSpace vDataspace(rank, dimension);
 
    H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
-	H5::DataSet   vDataset   = group.openDataSet( "VariableData");
+	H5::DataSet   vDataset   = group.openDataSet( "variable");
 
    hssize_t  start_mem[] = {0};  // determines the starting coordinates.
    hsize_t   stride[]    = {1};  // which elements are to be selected.
@@ -1149,7 +1147,7 @@ namespace Loci {
 
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = converter_traits::get_variable_HDF5_type();
-      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
+      H5::DataSet   vDataset  = group.createDataSet( "variable", vDatatype, vDataspace);
 
       vDataset.write( data, vDatatype );
 
@@ -1180,11 +1178,10 @@ namespace Loci {
   void multiStoreRepI<T>::hdf5write( H5::Group group, IDENTITY_CONVERTER g, 
                                      const entitySet &eset) const
   {
-    int      indx, rank = 1;
-    hsize_t  dimension[1];
 
+/*
     //write out the domain   
-    HDF5_WriteDomain(group, eset);
+    domain_hdf5write(group, eset);
 
     entitySet :: const_iterator ci;
 
@@ -1193,43 +1190,19 @@ namespace Loci {
 // container for allocation purpose
 //-----------------------------------------------------------------------------
     size_t  arraySize= 0;
-    int     *storeSize;
+    int     count;
 
-    storeSize = new int[eset.size()];
+    for( ci = eset.begin(); ci != eset.end(); ++ci)
+         arraySize  += end(*ci) - begin(*ci);
 
-    indx = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
-         storeSize[indx] = end(*ci) - begin(*ci);
-         arraySize      += storeSize[indx];
-         indx++;
-    }
+    T  *data, *buf;
 
-//-----------------------------------------------------------------------------
-// Write the Size of each multiStore ....
-//-----------------------------------------------------------------------------
-
-    dimension[0]=  eset.size();
-
-    try {
-      H5::DataSpace sDataspace( rank, dimension );
-      H5::DataType  sDatatype = H5::PredType::NATIVE_INT;
-      H5::DataSet   sDataset  = group.createDataSet( "ContainerSize", sDatatype, sDataspace);
-
-      sDataset.write( storeSize, sDatatype );
-    }
-
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-
+ 	 data =  new T[arraySize];
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array
 //-----------------------------------------------------------------------------
-    T  *data;
 
- 	 data =  new T[arraySize];
-
-    int  count;
-    indx = 0;
+    size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
          count  = end(*ci) - begin(*ci);
          for( int j = 0; j < count; j++) 
@@ -1241,6 +1214,8 @@ namespace Loci {
 //-----------------------------------------------------------------------------
     typedef hdf5_schema_traits<T> traits_type;
 
+    int rank = 1;
+    hsize_t  dimension[1];
 
     dimension[0] =  arraySize;
 
@@ -1248,7 +1223,7 @@ namespace Loci {
 
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = traits_type::get_type();
-      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
+      H5::DataSet   vDataset  = group.createDataSet( "variable", vDatatype, vDataspace);
 
       vDataset.write( data, vDatatype );
 
@@ -1261,6 +1236,8 @@ namespace Loci {
 // Clean up
 //-----------------------------------------------------------------------------
     delete [] data;
+*/
+
   }; 
 
   //*************************************************************************/

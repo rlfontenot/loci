@@ -217,10 +217,10 @@ namespace Loci {
 
   public:
     storeVecRepI() 
-    { alloc_pointer= 0 ; base_ptr = 0 ; size=0; istat = 0 ; }
+    { alloc_pointer= 0 ; base_ptr = 0 ; size=0; istat = 1 ; }
 
     storeVecRepI(const entitySet &p) 
-    { size = 0; alloc_pointer=0 ; allocate(p) ; istat = 0 ; }
+    { size = 0; alloc_pointer=0 ; allocate(p) ; istat = 1 ; }
     
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
@@ -706,8 +706,14 @@ namespace Loci {
   
   //**************************************************************************/
   template <class T> void storeVecRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    int init_size = get_size() ;
     int M ;
     MPI_Unpack(ptr, size, &loc, &M, sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
+    
+    if(init_size != M) {
+      set_elem_size(M) ;
+    }
+    
     for(int i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
 	const Loci::int_type indx1 = seq[i].first ;
