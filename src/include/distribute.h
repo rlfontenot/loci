@@ -60,6 +60,10 @@ namespace Loci {
   int GLOBAL_MAX(int b) ;
   int GLOBAL_MIN(int b) ;
   
+  // We've added these back as they seem to be used
+  // in the fuel cell program//from distribute.h //////
+  Map distribute_global_map(Map &m, const std::vector<entitySet> &vset) ;
+  Map distribute_gmap(Map &m, const std::vector<entitySet> &vset) ;
 }
 #endif
  
