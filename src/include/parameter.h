@@ -532,19 +532,14 @@ namespace Loci {
 //-----------------------------------------------------------------------------
 // Write (variable) Data into HDF5 format
 //-----------------------------------------------------------------------------
-    int rank = 1;
-    hsize_t  dimension[1];
-
-    dimension[0] =  1;
 
     typedef hdf5_schema_traits <T> traits_type;
+    H5::DataType  vDatatype = traits_type::get_type();
 
     try {
-      H5::DataSpace vDataspace( rank, dimension );
-      H5::DataType  vDatatype = traits_type::get_type();
-      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
+	   H5::DataSet   vDataset   = group.openDataSet( "VariableData");
 
-      vDataset.write( &attrib_data, vDatatype );
+      vDataset.read( &attrib_data, vDatatype );
     }
     catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
     catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
@@ -566,7 +561,7 @@ namespace Loci {
    converter_traits::memento_type *data, *buf;
 
    H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
-	H5::DataSet   vdataset   = group.openDataSet( "variable");
+	H5::DataSet   vdataset   = group.openDataSet( "VariableData");
 	H5::DataSpace vdataspace = vdataset.getSpace();
 
 	vdataspace.getSimpleExtentDims( dimension, NULL);
@@ -584,6 +579,9 @@ namespace Loci {
    for( int i = 0; i < stateSize; i++) 
         buf[i] = data[i];
    memento.setState( buf, stateSize);
+
+   delete [] data;
+   delete [] buf;
 
   };
 
