@@ -446,7 +446,8 @@ namespace Loci {
     MPI_Status status ;
     MPI_Request send_request ;
     MPI_Request recv_request ;
-    int k = 0 , send_flag = 0, recv_flag = 0;
+    int k = 0 , *send_flag , *recv_flag ;
+    bool send = 0, recv = 0 ;
     store<int> is ;
     const int MAX = 100 ;
     Map l2g ;
@@ -458,20 +459,23 @@ namespace Loci {
     if(is[d->myid]) {  
       int **send_buffer, **recv_buffer ;
       int *recv_size, *send_size ;
-      
+      recv_flag = new int[d->recv_neighbour.size()] ;
       recv_buffer = new int*[d->recv_neighbour.size()] ;
-      for(int i = 0 ; i < d->recv_neighbour.size(); ++i)
+      for(int i = 0 ; i < d->recv_neighbour.size(); ++i) {
 	recv_buffer[i] = new int[MAX] ;
+	recv_flag[i] = 0 ;
+      }
       
       recv_size = new int[d->recv_neighbour.size()] ;
-      
+      send_flag = new int[d->send_neighbour.size()] ;
       send_buffer = new int*[d->send_neighbour.size()] ;
-      for(int i = 0 ; i < d->send_neighbour.size(); ++i)
+      for(int i = 0 ; i < d->send_neighbour.size(); ++i) {
 	send_buffer[i] = new int[MAX] ;
+	send_flag[i] = 0 ;
+      }
       
       send_size = new int[d->send_neighbour.size()] ;
-      
-      
+      send_flag = new int[d->send_neighbour.size()] ;
       l2g = facts.get_variable("l2g") ;
       my_entities = facts.get_variable("my_entities") ;
       entitySet local = my_entities ;
@@ -488,11 +492,12 @@ namespace Loci {
 	if(recv_size[k] > 0) {
 	  //recv_buffer[k] = new int[recv_size[k]] ;
 	  MPI_Irecv(&recv_buffer[k][0], recv_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, &recv_request ) ;  
-	  recv_flag = 1 ;
+	  recv_flag[k] = 1 ;
+	  recv = recv || recv_flag[k] ;
 	}
 	k++ ;
       }
-   
+      
       k = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
 	temp = d->send_entities[*ei] & e ;
@@ -506,17 +511,19 @@ namespace Loci {
 	  }
 	  
 	  MPI_Isend(&send_buffer[k][0], send_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, &send_request) ;
-	  send_flag = 1 ;
+	  send_flag[k] = 1 ;
+	  send = send || send_flag[k] ;
 	}
 	k++ ;
       }
-      if(recv_flag)
+      if(recv)
 	MPI_Wait(&recv_request, &status) ;
-      if(send_flag)
+      
+      if(send)
 	MPI_Wait(&send_request, &status) ;
       
       for(k = 0; k < d->recv_neighbour.size(); k++) 
-	if(recv_size[k] > 0) { 
+	if((recv_size[k] > 0) && (recv != 0)) { 
 	  for(int i = 0 ; i < recv_size[k]; ++i) {
 	    re += d->g2l[recv_buffer[k][i]] ;
 	  }
