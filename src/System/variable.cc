@@ -152,17 +152,20 @@ bool variable::info::operator<(const info &v) const {
     else if(assign != v.assign)
       return assign ;
     else
-      return  name < v.name                                 ||
+      return 
+			 		namespac < v.namespac															||
+					(namespac == v.namespac && name < v.name          ||
           (name     == v.name     && (time_id < v.time_id   ||
           (time_id  == v.time_id  && (offset < v.offset     ||
-	  (offset  == v.offset    &&  priority < v.priority)||
-	  (priority == v.priority && v_ids < v.v_ids))))) ; 
+	  			(offset  == v.offset    &&  priority < v.priority)||
+	  			(priority == v.priority && v_ids < v.v_ids)))))) ; 
 }
   
   bool variable::info::operator==(const info &v) const {
     return
       tvar    == v.tvar     &&
       assign  == v.assign   &&
+			namespac== v.namespac	&&
       name    == v.name     &&
       time_id == v.time_id  &&
       offset  == v.offset   &&
@@ -173,6 +176,30 @@ bool variable::info::operator<(const info &v) const {
     create_vdb() ;
     info v ;
     exprP e = p ;
+
+		if(OP_GT == e->op) {
+			if (v.namespac[0]=="*NONAMESPACE*")
+				v.namespac.clear();
+			exprList l = collect_associative_op(e,OP_GT);
+			while(l.begin() != l.end()) {
+				exprP s = l.front();
+				l.pop_front();
+				if(l.begin()==l.end()) {
+					e = s;
+				} else {
+					switch(s->op) {
+						case OP_NAME:
+								v.namespac.push_back(s->name);
+							break;
+						default:
+							cerr << "unable to interpret namespace list in expression " << s << endl << "error occured while parsing " << e << endl;
+							break;
+					} 
+				} 
+			} 
+		} 
+
+		
     if(OP_SCOPE == e->op) {
       exprList l = collect_associative_op(e,OP_SCOPE) ;
       while(l.begin() != l.end()) {
@@ -397,6 +424,24 @@ bool variable::info::operator<(const info &v) const {
     vi.offset = o ;
     return variable(vi) ;
   }
+
+	variable variable::info::drop_namespace() const {
+		info vi = *this;
+		for(int i=0;i<vi.namespac.size()-1;++i) {
+			vi.namespac[i] = vi.namespac[i+1];
+		}
+		vi.namespac.pop_back();
+		return variable(vi);
+	}
+
+	variable variable::info::add_namespace(const std::string& n) const {
+		info vi = *this;
+		vi.namespac.insert(vi.namespac.begin(),1,n);
+		return variable(vi);
+	}
+
+
+
   variable variable::info::change_time(time_ident ti) const {
     info vi = *this ;
     vi.time_id = ti ;
@@ -406,6 +451,14 @@ bool variable::info::operator<(const info &v) const {
   ostream &variable::info::Print(ostream &s ) const {
     if(tvar)
       s << "$" ;
+
+	if(namespac.begin() != namespac.end()) {
+		for(vector<string>::const_iterator i=namespac.begin();
+				i!=namespac.end();++i) {
+			s << *i << ">" ;
+		}
+	}
+		
     if(priority.begin() != priority.end()) {
         for(vector<string>::const_iterator i =priority.begin();
             i!=priority.end();++i)
