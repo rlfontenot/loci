@@ -35,10 +35,12 @@ clean:
 	rm -fr $(LIB_OBJS) $(OBJS) $(TARGET) $(JUNK)
 
 
-make.depend:
-	touch make.depend 
+distclean:
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
+	
 
-depend: make.depend
-	$(MAKEDEPEND) $(CFLAGS)  $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(LOCAL_INCLUDES) *.cc > make.depend
+DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
-include make.depend				
+
+#include automatically generated dependencies
+include $(DEPEND_FILES)
