@@ -424,7 +424,6 @@ namespace Loci {
 
     vector<int> data(arraySize);
     entitySet :: const_iterator   ei;
-    HASH_MAP(int,int) :: const_iterator  ci;
 
     int indx = 0;
     for( ei = eset.begin(); ei != eset.end(); ++ei) {

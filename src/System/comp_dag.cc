@@ -115,7 +115,7 @@ namespace Loci {
     digraph dagt = dag.transpose() ;
     // get all vertices
     digraph::vertexSet all_v ;
-    for(int i=0;i<dag_sched.size();++i)
+    for(unsigned int i=0;i<dag_sched.size();++i)
       all_v += dag_sched[i] ;
     std::cerr << "all_v = " << all_v << '\n' ;
     std::ofstream outf(fname) ;

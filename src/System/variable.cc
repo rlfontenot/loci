@@ -194,7 +194,7 @@ bool variable::info::operator<(const info &v) const {
 	    v.namespac.push_back(s->name);
 	    break ;
 	  case OP_SCOPE:
-	    for(int i = 0; i < v.namespac.size(); ++i)
+	    for(unsigned int i = 0; i < v.namespac.size(); ++i)
 	      tmp_name.append(v.namespac[i]) ;
 	    tmp_name.append(s->name) ;
 	    //v.rename = true ;

@@ -12,12 +12,12 @@ namespace Loci {
   }
   void parse_str(const std::string& str, std::vector<std::string> &str_vec) {
     if(!str.empty()) {
-      int tmp = 0 ;
+      size_t tmp = 0 ;
       std::string sub_str = remove_space(str) ;
       while(tmp != std::string::npos) {
 	tmp = sub_str.find(",") ;
 	str_vec.push_back(sub_str.substr(0,tmp)) ;
-      sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
+        sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
       }
     }
   } 
@@ -27,8 +27,10 @@ namespace Loci {
     std::string tmp_str ;
     tmp_str.append(str) ;
     tmp_str.append("_m.so") ;
+    std::vector<std::string> default_ns_vec ;
+    
     if((msi = mod_map.find(tmp_str)) == mod_map.end()) {
-      md.default_ns_vec.push_back(str) ;
+      default_ns_vec.push_back(str) ;
       if(Loci::MPI_rank == 0)
 	cout << "Loading  in rules from  " << tmp_str << endl ;
       md.m_library = dlopen(tmp_str.c_str(),RTLD_GLOBAL|RTLD_NOW) ;
@@ -55,8 +57,10 @@ namespace Loci {
     std::string tmp_str ;
     tmp_str.append(str) ;
     tmp_str.append("_m.so") ;
+    std::vector<std::string> default_ns_vec ;
+
     if((msi = mod_map.find(tmp_str)) == mod_map.end()) {
-      md.default_ns_vec.push_back(str) ;
+     default_ns_vec.push_back(str) ;
       if(Loci::MPI_rank == 0)
 	cout << "Loading  in rules from  " << tmp_str << endl ;
       md.m_library = dlopen(tmp_str.c_str(),RTLD_GLOBAL|RTLD_NOW) ;
@@ -73,7 +77,7 @@ namespace Loci {
 	dlsym(md.m_library,"init_model") ;
       if(md.m_init_model != 0) {
 	if(!to_str.empty()) {
-	  int tmp = 0 ;
+	  size_t tmp = 0 ;
 	  std::string sub_str = to_str ;
 	  while(tmp != std::string::npos) {
 	    tmp = sub_str.find("_") ;
@@ -96,17 +100,19 @@ namespace Loci {
   mod::mod_db *mod::mdb = 0 ;
   
   void load_module(const std::string from_str, const std::string to_str, rule_db& rdb, std::set<std::string> &str_set) {
+    std::vector<std::string> using_ns_vec ;
+    
     str_set.insert(from_str) ;
     mod md(from_str) ;
     mod::mod_info m = md.get_info(from_str) ;
     for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
       if(!(gi.get_p())->rr->is_module_rule()) {
 	if(!to_str.empty()) {
-	  int tmp = 0 ;
+	  size_t tmp = 0 ;
 	  std::string sub_str = to_str ;
 	  while(tmp != std::string::npos) {
 	    tmp = sub_str.find("_") ;
-	    m.using_ns_vec.push_back(sub_str.substr(0,tmp)) ;
+	    using_ns_vec.push_back(sub_str.substr(0,tmp)) ;
 	    sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
 	  }
 	  rule_implP rp = *gi;
@@ -114,8 +120,8 @@ namespace Loci {
 	  std::map<variable,variable> new_vars;
 	  for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
 	    variable tmp_var = *i ;
-	    for(int j = m.using_ns_vec.size()-1; j >= 0 ; --j)
-	      tmp_var =  tmp_var.add_namespace(m.using_ns_vec[j]); 
+	    for(int j = using_ns_vec.size()-1; j >= 0 ; --j)
+	      tmp_var =  tmp_var.add_namespace(using_ns_vec[j]); 
 	    new_vars[*i] = tmp_var ;
 	  }
 	  rp->rename_vars(new_vars) ;
@@ -130,7 +136,7 @@ namespace Loci {
 	std::string load  =  ((Loci::register_module*)(gi.get_p()->rr))->using_nspace() ;
 	std::vector<std::string> str_vec ;
 	parse_str(load, str_vec) ;
-	for(int i = 0; i < str_vec.size(); ++i) 
+	for(size_t i = 0; i < str_vec.size(); ++i) 
 	  if(str_set.find(str_vec[i]) == str_set.end()) {
 	    if(Loci::MPI_rank == 0)
 	      cout << "loading in rules from " << str_vec[i] <<"  for module " << to_str << endl ; 
@@ -145,12 +151,14 @@ namespace Loci {
     mod md(from_str, to_str, problem_name, facts) ;
     mod::mod_info m = md.get_info(from_str, to_str, problem_name, facts) ;
     variableSet input_vars, output_vars ;
+    std::vector<std::string> using_ns_vec ;
+    
     if(!to_str.empty()) {
-      int tmp = 0 ;
+      size_t tmp = 0 ;
       std::string sub_str = to_str ;
       while(tmp != std::string::npos) {
 	tmp = sub_str.find("_") ;
-	m.using_ns_vec.push_back(sub_str.substr(0,tmp)) ;
+	using_ns_vec.push_back(sub_str.substr(0,tmp)) ;
 	sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
       }
       for(rule_impl_list::iterator gi = m.loaded_rule_list.begin(); gi !=m.loaded_rule_list.end(); ++gi) {
@@ -160,7 +168,7 @@ namespace Loci {
 	  std::string load  =  ((Loci::register_module*)(gi.get_p()->rr))->using_nspace() ;
 	  std::vector<std::string> str_vec ;
 	  parse_str(load, str_vec) ;
-	  for(int i = 0; i < str_vec.size(); ++i) 
+	  for(size_t i = 0; i < str_vec.size(); ++i) 
 	    if(str_set.find(str_vec[i]) == str_set.end()) {
 	      if(Loci::MPI_rank == 0)
 		cout << "loading in rules from " << str_vec[i] <<"  for module " << to_str << endl ; 
@@ -183,8 +191,8 @@ namespace Loci {
 	      new_vars[*i] = *i ;
 	    else {
 	      variable tmp_var = *i ;
-	      for(int j = m.using_ns_vec.size()-1; j >= 0; --j) 
-		tmp_var = tmp_var.add_namespace(m.using_ns_vec[j]); 
+	      for(int j = using_ns_vec.size()-1; j >= 0; --j) 
+		tmp_var = tmp_var.add_namespace(using_ns_vec[j]); 
 	      new_vars[*i] = tmp_var ;
 	    }
 	  rp->rename_vars(new_vars) ;

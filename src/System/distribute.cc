@@ -3460,7 +3460,7 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   std::map<variableSet, entitySet>::const_iterator miter ;
   std::map<variable, entitySet>::const_iterator svi ;
   variableSet initial_varset ;
-  double start_time = MPI_Wtime() ;
+  //  double start_time = MPI_Wtime() ;
   //  Loci::debugout << " Size of the vector passed to modified categories = " << pvec.size() << endl ;
   for(unsigned int i = 0; i < pvec.size(); ++i) {
     for(svi = vm.begin(); svi != vm.end(); ++svi) {
@@ -3484,7 +3484,7 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
     mve[mv_iter->first] = tmp_set ;
     }
   */
-  double end_time =  MPI_Wtime() ;
+  //  double end_time =  MPI_Wtime() ;
   //  Loci::debugout << " Time taken for making mve = " << end_time - start_time << " seconds " << endl ;
   std::vector<variableSet> tmp_vvs ;
   

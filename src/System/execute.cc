@@ -78,9 +78,9 @@ extern "C" {
 
 namespace Loci {
   void execute_list::execute(fact_db &facts) {
-    static int round_robin_allocate = 0 ;
     std::vector<executeP>::iterator eli ;
 #ifdef PTHREADS
+    static int round_robin_allocate = 0 ;
     for(eli=elist.begin();eli!=elist.end();++eli) {
       if(!(*eli)->is_control_thread() && num_created_threads>1) {
         work_in_queue = true ;
