@@ -423,8 +423,8 @@ namespace Loci {
     MPI_Unpack(inbuf, insize, &position, &init_size, 1, MPI_INT, MPI_COMM_WORLD) ;
 
     if(init_size != M) {
-      cout << " Invalid MapVec container for unpack data " << endl;
-      abort();
+      std::cerr << " Invalid MapVec container for unpack data " << std::endl;
+      Loci::Abort();
     }
 
     sequence::const_iterator ci;
