@@ -10,6 +10,7 @@ using std::map ;
 
 
 namespace Loci {
+  extern int chomping_size ;
 
   class execute_chomp: public execute_modules {
     entitySet total_domain ;
@@ -57,7 +58,7 @@ namespace Loci {
       entitySet test_alloc = interval(1,1) ;
       int_type total_obj_size = 0 ;
       int_type min_store_size = UNIVERSE_MAX ;
-      int_type D1_cache_size = 128 * 1024 ; // assume 128KB now
+      int_type D1_cache_size = chomping_size * 1024 ; // assume 128KB now
       for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
           vi!=chomp_vars_rep.end();++vi) {
         int_type my_size = (*vi)->pack_size(test_alloc) ;

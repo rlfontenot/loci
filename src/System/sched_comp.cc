@@ -28,6 +28,7 @@ namespace Loci {
   extern bool use_chomp ;
   extern bool show_chomp ;
   extern bool chomp_verbose ;
+  extern int chomping_size ;
 
   class error_compiler : public rule_compiler {
   public:
@@ -232,7 +233,10 @@ namespace Loci {
 
       if(use_chomp) {
         if(Loci::MPI_rank == 0) 
-          cout << "USING CHOMPING" << endl ;
+          cout << "USING CHOMPING"
+               << " (chomping size: "
+               << chomping_size << "KB)"
+               << endl ;
         
         cst = MPI_Wtime() ;
         chompPPVisitor cppv(facts,

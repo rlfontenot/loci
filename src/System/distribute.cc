@@ -63,6 +63,8 @@ namespace Loci {
   bool schedule_output = false ;
   // flag to enable dynamic scheduling feature
   bool use_dynamic_scheduling = false ;
+  // chomping size(unit is KB), default is 128KB
+  int chomping_size = 128 ;
   /////////////////////////////
   
   ofstream debugout ;
@@ -190,6 +192,11 @@ namespace Loci {
         // summary report
         chomp_verbose = true ;
         i++ ;
+      } else if(!strcmp((*argv)[i],"--chompingsize")) {
+        std::stringstream ss ;
+        ss << (*argv)[i+1] ;        
+        ss >> chomping_size ;
+        i+=2 ;
       } else if(!strcmp((*argv)[i],"--method")) {
         method = atoi((*argv)[i+1]);
         i+=2;
