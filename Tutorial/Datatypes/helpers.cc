@@ -4,8 +4,11 @@
 using std::cout ;
 using std::endl ;
 
-main() {
+int main(int argc, char *argv[])
+{
 
+  Loci::Init(&argc,&argv) ;
+  
   // Loci provides a helper class for creating Arrays as first class objects
   // (Loci containers must contain first class objects, so if you want a
   // store to contain an array, use this class.
@@ -80,4 +83,6 @@ main() {
   cout << "twoddot =   " << twoddot << endl ;
   cout << "twodavg =   " << twodavg << endl ;
 
+  Loci::Finalize() ;
+  return 0 ;
 }

@@ -30,8 +30,10 @@ public:
   }
 };
   
-int main() {
+int main(int argc, char *argv[]) {
 
+  Loci::Init(&argc,&argv) ;
+  
   // Create a set of entities over which we will contain values using stores
   // Note, the numbering of entities doesn't have to be contiguous; 
   // the Loci store, however, allocates the "gaps", that is it allocates from 
@@ -72,6 +74,8 @@ int main() {
   // To access a float parameter use the [] operator, for example
   const float area = 2.0*float_param[Entity(1)]*radius ;
 
+  *float_param = area ;
+  
   //**************************************************************************
   //* Blackbox:
   //* Works just like a parameter, except it can hold any data type and is not
@@ -220,7 +224,7 @@ int main() {
   // Loop over random entities and add another element to even entities
   // which already contain an even number.
   for( ei = domain.begin(); ei != domain.end(); ++ei)
-    if(dynamic_store2[*ei].front()%2 == 0)
+    if((dynamic_store2[*ei].front()%2) == 0)
       dynamic_store2[*ei].push_back(*ei) ;
 
   cout << "random dstore contains = " ;
@@ -230,10 +234,11 @@ int main() {
 
   for( ei = domain.begin(); ei != domain.end(); ++ei) {
     cout << " (" << *ei ;
-    for(int i=0;i<dynamic_store2[*ei].size();++i) 
+    for(size_t i=0;i<dynamic_store2[*ei].size();++i) 
       cout << "," << dynamic_store2[*ei][i] ;
     cout << ")" ;
   }
   cout << endl ;
 
+  Loci::Finalize() ;
 }

@@ -4,7 +4,11 @@
 using std::cout ;
 using std::endl ;
 
-int main() {
+int main(int argc, char *argv[])
+{
+
+  Loci::Init(&argc,&argv) ;
+  
   // Create a set of entities over which we will contain values using stores
   // Note: the numbering of entities doesn't have to be contiguous, however
   // Loci's store allocates the "gaps", that is it allocates from Min()
@@ -122,6 +126,46 @@ int main() {
   //  dMap dynamic_map ;
   //  dMapVec<3> dynamic_map3 ;
   //  dmultiMap dynamic_multiMap ;
+
+  dMap d1 ;
+
+  for(int i=0;i<10;++i) {
+    int i2 = 1000-i ;
+    int i3 = 9-i ;
+    d1[-i] = i2 ;
+    d1[i2] = -i3 ;
+  }
+  cout << "d1 = " << d1 << endl ;
+  entitySet dom = d1.domain() ;
+  cout << "d1.domain() = " << dom << endl ;
+
+  Loci::storeRepP rp = d1.Rep() ;
+  Loci::MapRepP mp = Loci::MapRepP(rp) ;
+
+  entitySet image = mp->image(dom) ;
+  std::pair<entitySet,entitySet> pimage = mp->preimage(dom) ;
+  cout << "d1 image(domain) = " << image << endl ;
+  cout << "d1 preimage(image(domain)) = " << pimage.first << endl ;
+  dMap d2 ;
+
+  entitySet map_entities ;
+  map_entities += interval(-151,70735) ;
+  map_entities += interval(70886,106292) ;
   
-  
+  for(entitySet::const_iterator ei = map_entities.begin();ei!=map_entities.end();++ei)
+    d2[*ei] = *ei ;
+
+  cout << "d2.domain() =" << d2.domain() << endl ;
+  Map d3 ;
+  d3 = mp->remap(d2) ;
+  cout << "d3 = " << d3 << endl ;
+  constraint x ;
+  x = ~EMPTY ;
+  constraint y ;
+  y = x.Rep()->remap(d2) ;
+  cout << "y.dom = " << y.Rep()->domain() << endl ;
+
+  Loci::Finalize() ;
+
+  return 0 ;
 }

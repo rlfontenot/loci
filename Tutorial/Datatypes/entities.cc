@@ -13,8 +13,11 @@ using std::endl ;
 #include <vector>
 using std::vector ;
 
-int main()
+int main(int argc,char *argv[])
 {
+
+  Loci::Init(&argc,&argv) ;
+  
   ////////////////////////////////////////////////////////////////////////////
   // The Entity class 
   ////////////////////////////////////////////////////////////////////////////
@@ -296,5 +299,6 @@ int main()
   // Append (intervalSet), Input
   //
 
+  Loci::Finalize() ;
   return 0 ;
 }
