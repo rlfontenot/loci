@@ -89,6 +89,8 @@ namespace Loci {
       rule pick = *rs.begin() ;
       const rule_impl::info &info = pick.get_info().desc ;
       storeRepP st = pick.get_info().rule_impl->get_store(*vi) ;
+      if(st->RepType() == PARAMETER) 
+        st->allocate(EMPTY) ;
       facts.set_variable_type(*vi,st) ;
     
     }
@@ -164,8 +166,9 @@ namespace Loci {
         // A rename rule uses alias, while all others use synonym relationships
         if(r.get_info().qualifier() == "rename")
           facts.alias_variable(s,t) ;
-        else
+        else {
           facts.synonym_variable(s,t) ;
+        }
       }
     }
 

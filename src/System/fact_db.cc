@@ -142,6 +142,13 @@ namespace Loci {
         fact_info &ainfo = get_fact_info(alias) ;
         if(vinfo.fact_info_ref != ainfo.fact_info_ref) {
           // merge alias and v
+          if(fact_infov[ainfo.fact_info_ref].data_rep->domain() != EMPTY) {
+            cerr << "error occuring on alias, v=" << v << ",alias="<<alias
+                 << endl ;
+            cerr << " domain = " <<
+              fact_infov[ainfo.fact_info_ref].data_rep->domain() << endl ;
+            abort() ;
+          }
           warn(fact_infov[ainfo.fact_info_ref].data_rep->domain() != EMPTY) ;
           int del = ainfo.fact_info_ref ;
           // move aliases from record to be deleted

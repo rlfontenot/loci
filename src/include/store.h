@@ -116,7 +116,7 @@ namespace Loci {
     return s ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void storeRepI<T>::readhdf5( H5::Group group, entitySet &user_eset)
@@ -136,7 +136,7 @@ namespace Loci {
     hdf5read( group, traits_type, eset, ecommon);
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void storeRepI<T>::writehdf5( H5::Group group,entitySet& en) const
@@ -147,7 +147,7 @@ namespace Loci {
     hdf5write(group, traits_output_type, en );
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
 
   template<class T>  storeRepI<T>::~storeRepI<T>() {
