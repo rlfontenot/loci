@@ -6,7 +6,7 @@ include comp.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
-default: Tools System shared
+default: Tools System #Tools/libTools.so System/libLoci.so
 
 shared: Tools/libTools.so System/libLoci.so 
 
