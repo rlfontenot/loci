@@ -24,6 +24,13 @@ using std::ofstream ;
 
 #include <deque>
 using std::deque ;
+#include <queue>
+using std::priority_queue ;
+
+#include <algorithm>
+using std::remove_if ;
+using std::sort ;
+using std::stable_sort ;
 
 //#define VERBOSE
 
@@ -575,6 +582,15 @@ namespace Loci {
       return ret_sched ;
     }
     
+    void print_schedule(const vector<digraph::vertexSet>& sched) {
+      vector<digraph::vertexSet>::const_iterator vi ;
+      int step = 0 ;
+      for(vi=sched.begin();vi!=sched.end();++vi,++step) {
+        cout << "step " << step << ": " << endl ;
+        cout << "\tvars:  " << extract_vars(*vi) << endl ;
+        cout << "\trules: " << extract_rules(*vi) << endl ;
+      }
+    }
     
   } // end of namespace
 
@@ -718,8 +734,10 @@ namespace Loci {
               for(variableSet::const_iterator vi2=targets.begin();
                   vi2!=targets.end();++vi2) {
                 storeRepP srp = facts.get_variable(*vi2) ;
-                if(srp->RepType() == Loci::STORE)
+                if(srp->RepType() == Loci::STORE) {
                   ++local_num_del ;
+                  break ; // !!!!!!!!!!!!!!modified!!!!!!!!!!!!!!!
+                }
               }
             }
           }
@@ -732,8 +750,10 @@ namespace Loci {
               for(variableSet::const_iterator vi2=targets.begin();
                   vi2!=targets.end();++vi2) {
                 storeRepP srp = facts.get_variable(*vi2) ;
-                if(srp->RepType() == Loci::STORE)
+                if(srp->RepType() == Loci::STORE) {
                   ++local_num_alloc ;
+                  break ; // !!!!!!!!!!!!!!modified!!!!!!!!!!!!!!!
+                }
               }
             }
           }
@@ -742,9 +762,10 @@ namespace Loci {
             num_del = local_num_del ;
             sched_v = *vi ;
             num_alloc = local_num_alloc ;
-          }
-          if(local_num_del == num_del)
+          }else if( (local_num_del != 0) && (local_num_del == num_del))
+            //}if(local_num_del == num_del)
             if(local_num_alloc < num_alloc) {
+              cout << "I am working" << endl ;
               num_alloc = local_num_alloc ;
               sched_v = *vi ;
             }
@@ -752,6 +773,10 @@ namespace Loci {
       }
       // see if we found any to schedule
       if(sched_v < 0) {
+        if(visited_vertices.inSet(sched_v)) {
+          cerr << "ERROR in scheduling..." << endl ;
+          exit(-1) ;
+        }
         step_sched += sched_v ;
         waiting -= step_sched ;
         waiting += gr[sched_v] ;
@@ -793,6 +818,10 @@ namespace Loci {
         exit(-1) ;
       }
       // we schedule this rule
+      if(visited_vertices.inSet(sched_v)) {
+        cerr << "ERROR in scheduling..." << endl ;
+        exit(-1) ;
+      }
       step_sched += sched_v ;
       waiting -= step_sched ;
       waiting += gr[sched_v] ;
@@ -833,5 +862,315 @@ namespace Loci {
     cc.dag_sched = insertAlloc2Sched(cc.cond_gr,first_sched) ;
   }
 
+  /////////////////////////////////////////////////////////////////
+  // graphSchedulerVisitor
+  /////////////////////////////////////////////////////////////////
+  // utility data-structure and functions
+  namespace {
+    struct sched_item {
+      int_type vertex_id ;
+      int_type weight ;
+      sched_item(int_type v=0,int_type w=0):vertex_id(v),weight(w) {}
+    } ;
+    struct comp_sched_item {
+      bool operator()(const sched_item& si1,const sched_item& si2) const
+      { return si1.weight > si2.weight ;}
+    } ;
+    
+    inline void create_queue(const digraph::vertexSet& vs,
+                             const map<int,int>& pmap,
+                             priority_queue<sched_item,
+                               vector<sched_item>,comp_sched_item>& q) {
+      for(digraph::vertexSet::const_iterator vi=vs.begin();
+          vi!=vs.end();++vi) {
+        map<int_type,int_type>::const_iterator mi ;
+        mi = pmap.find(*vi) ;
+        FATAL(mi == pmap.end()) ;
+        sched_item item(*vi,mi->second) ;
+        q.push(item) ;
+      }
+    }
+
+    inline digraph::vertexSet
+    pop_queue(priority_queue<sched_item,vector<sched_item>,
+              comp_sched_item>& q) {
+      if(q.empty()) return EMPTY ;
+      
+      digraph::vertexSet ret ;
+      sched_item si ; // current poped item
+      int_type pre_w ; // previous weight
+
+      si = q.top() ;
+      q.pop() ;
+      ret += si.vertex_id ;
+      pre_w = si.weight ;
+      while(!q.empty()) {
+        si = q.top() ;
+        if(si.weight == pre_w) {
+          q.pop() ;
+          ret += si.vertex_id ;
+        } else
+          break ;
+      }
+
+      return ret ;
+    }
+
+    inline digraph::vertexSet
+    get_valid_sched(const digraph::vertexSet& vs,
+                    const digraph& gt,
+                    const digraph::vertexSet& visited) {
+      digraph::vertexSet valid ;
+      for(digraph::vertexSet::const_iterator vi=vs.begin();
+          vi!=vs.end();++vi) {
+        digraph::vertexSet pre = gt[*vi] ;
+        if( (pre-visited) == EMPTY)
+          valid += *vi ;
+      }
+      // get rid of those already scheduled
+      valid -= visited ;
+      
+      return valid ;
+    }
+
+    inline digraph::vertexSet
+    get_new_reachable(const digraph::vertexSet& vs,
+                      const digraph& g) {
+      digraph::vertexSet reachable ;
+      for(digraph::vertexSet::const_iterator vi=vs.begin();
+          vi!=vs.end();++vi)
+        reachable += g[*vi] ;
+
+      return reachable ;
+    }
+
+    inline digraph allocFreeGr(const digraph& gr) {
+      digraph::vertexSet allv = gr.get_all_vertices() ;
+      ruleSet rules = extract_rules(gr.get_all_vertices()) ;    
+      digraph::vertexSet alloc_rules_vertices ;
+      for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
+        if(ri->get_info().qualifier() == "ALLOCATE")
+          alloc_rules_vertices += ri->ident() ;
+
+      digraph new_gr = gr.subgraph(allv-alloc_rules_vertices) ;
+      return new_gr ;
+    }
+
+  } // end of namespace (unnamed)
   
+  std::vector<digraph::vertexSet>
+  graphSchedulerVisitor::schedule(const digraph& gr) {
+    // we schedule the graph without allocate rules first
+    digraph gwoa = allocFreeGr(gr) ;
+    digraph gwoat = gwoa.transpose() ;
+    digraph::vertexSet allv = gwoa.get_all_vertices() ;
+
+    // create a priority map
+    map<int_type,int_type> pmap ;
+    for(digraph::vertexSet::const_iterator vi=allv.begin();
+        vi!=allv.end();++vi)
+      pmap[*vi] = 0 ;
+
+    // prioritize the graph
+    prio(gr,pmap) ;
+    // begin schedule
+    vector<digraph::vertexSet> sched ;
+    digraph::vertexSet visited ;
+    digraph::vertexSet waiting = gwoa.get_source_vertices()
+      - gwoa.get_target_vertices() ;
+    
+    while(waiting != EMPTY) {
+      // create a priority queue
+      priority_queue<sched_item,vector<sched_item>,comp_sched_item> q ;
+      create_queue(waiting,pmap,q) ;
+      FATAL(q.size() != waiting.size()) ;
+      digraph::vertexSet step_sched ;
+      while( (!q.empty()) && (step_sched == EMPTY)) {
+        step_sched = pop_queue(q) ;
+        step_sched = get_valid_sched(step_sched,gwoat,visited) ;
+      }
+      if( (q.empty()) && (step_sched == EMPTY)) {
+        cerr << "Loci Graph Scheduler Warning: input graph has cycle(s)"
+             << endl ;
+        exit(-1) ;
+      }
+      waiting -= step_sched ;
+      waiting += get_new_reachable(step_sched,gwoa) ;
+      visited += step_sched ;
+      sched.push_back(step_sched) ;
+    }
+
+    // here we insert all the allocate rule back into
+    // the schedule
+    sched = insertAlloc2Sched(gr,sched) ;
+
+    return sched ;    
+  }
+
+  void graphSchedulerVisitor::visit(loop_compiler& lc) {
+    lc.collapse_sched = schedule(lc.collapse_gr) ;
+    lc.advance_sched = schedule(lc.advance_gr) ;
+  }
+
+  void graphSchedulerVisitor::visit(dag_compiler& dc) {
+    dc.dag_sched = schedule(dc.dag_gr) ;
+  }
+
+  void graphSchedulerVisitor::visit(conditional_compiler& cc) {
+    cc.dag_sched = schedule(cc.cond_gr) ;
+  }
+
+  /////////////////////////////////////////////////////////////////
+  // computation greedy prioritize
+  /////////////////////////////////////////////////////////////////
+  void compGreedyPrio::operator()(const digraph& gr,
+                                  map<int_type,int_type>& pmap) const {
+    digraph::vertexSet allv = gr.get_all_vertices() ;
+    for(digraph::vertexSet::const_iterator vi=allv.begin();
+        vi!=allv.end();++vi)
+      pmap[*vi] = 0 ;
+  }
+
+  namespace {
+    // utility data-structure and functions
+    struct stat_item {
+      int a ; // allocation rules attached
+      int d ; // deletion rules attached
+      int o ; // outgoing edges number for all targets
+      int_type id ; // vertex id
+      stat_item(int a=0,int d=0,int o=0,int_type id=0):
+        a(a),d(d),o(o),id(id) {}
+    } ;
+    // different comparison functions
+    bool ascend_a(const stat_item& s1, const stat_item& s2)
+    {return s1.a < s2.a ;}
+    bool descend_d(const stat_item& s1, const stat_item& s2)
+    {return s1.d > s2.d ;}
+    bool ascend_o(const stat_item& s1, const stat_item& s2)
+    {return s1.o < s2.o ;}
+    // predicate used in remove_if algorithm
+    struct comp_rm {
+      comp_rm(const digraph::vertexSet& vs): vset(vs) {}
+      bool operator()(const stat_item& s)
+      {return vset.inSet(s.id) ;}
+    private:
+      digraph::vertexSet vset ;
+    } ;
+  } // end of namespace (unnamed)
+  
+  void memGreedyPrio::operator()(const digraph& gr,
+                                 map<int_type,int_type>& pmap) const {
+    digraph::vertexSet allv = gr.get_all_vertices() ;
+    digraph grt = gr.transpose() ;
+    
+    vector<stat_item> l ;
+    for(digraph::vertexSet::const_iterator vi=allv.begin();
+        vi!=allv.end();++vi) {
+      if(*vi >= 0) // a variable
+        l.push_back(stat_item(0,0,0,*vi)) ;
+      else { // a rule
+        ruleSet pre = extract_rules(grt[*vi]) ;
+        ruleSet next = extract_rules(gr[*vi]) ;
+        rule r(*vi) ;
+        variableSet targets = r.targets() ;
+        
+        int a=0,d=0,o=0 ;
+        // first count for allocation rules attached
+        for(ruleSet::const_iterator ri=pre.begin();
+            ri!=pre.end();++ri)
+          if(ri->get_info().qualifier() == "ALLOCATE") {
+            variableSet tvars = ri->targets() ;
+            for(variableSet::const_iterator invi=tvars.begin();
+                invi!=tvars.end();++invi) {
+              storeRepP srp = facts.get_variable(*invi) ;
+              if(srp->RepType() == Loci::STORE) {
+                ++a ;
+                break ;
+              }
+            }
+          }
+        // count the deletion rules attached
+        for(ruleSet::const_iterator ri=next.begin() ;
+            ri!=next.end();++ri)
+          if(ri->get_info().qualifier() == "DELETE") {
+            variableSet tvars = ri->targets() ;
+            for(variableSet::const_iterator invi=tvars.begin();
+                invi!=tvars.end();++invi) {
+              storeRepP srp = facts.get_variable(*invi) ;
+              if(srp->RepType() == Loci::STORE) {
+                ++d ;
+                break ;
+              }
+            }
+          }
+        // finally count the outgoing edges number
+        for(variableSet::const_iterator vari=targets.begin() ;
+            vari!=targets.end();++vari) {
+          storeRepP srp = facts.get_variable(*vari) ;
+          if(srp->RepType() == Loci::STORE) {
+            digraph::vertexSet nxv = gr[vari->ident()] ;
+            o += nxv.size() ;
+          }
+        }
+        // push to the vector
+        l.push_back(stat_item(a,d,o,*vi)) ;
+      } // end of else
+    } // end of for(allv)
+
+    // now we start to assign weight
+    // first pick out those with no allocations
+    vector<stat_item>::const_iterator vi ;
+    digraph::vertexSet remove ;
+    vector<stat_item>::size_type size ;
+    vector<stat_item>::iterator old_end, new_end ;
+    int weight = 0 ;
+    
+    for(vi=l.begin();vi!=l.end();++vi) {
+      stat_item s = *vi ;
+      if(s.a == 0) {
+        pmap[s.id] = weight ;
+        remove += s.id ;
+      }
+    }
+    // remove the assigned vertices
+    size = l.size() ; 
+    old_end = l.end() ;
+    new_end = remove_if(l.begin(),l.end(),comp_rm(remove)) ;
+    l.resize(size-(old_end-new_end)) ;
+    if(l.empty())
+      return ;
+
+    // we sort the remaining vector
+    // first ascending order of a
+    sort(l.begin(),l.end(),ascend_a) ;
+    // then stable sort according to descending order of d
+    stable_sort(l.begin(),l.end(),descend_d) ;
+    
+    weight = 1 ;
+    remove = EMPTY ;
+    for(vi=l.begin();vi!=l.end();++vi) {
+      stat_item s = *vi ;
+      if(s.d > 0) {
+        pmap[s.id] = weight++ ;
+        remove += s.id ;
+      }
+    }
+    // remove processed vertices
+    size = l.size() ; 
+    old_end = l.end() ;
+    new_end = remove_if(l.begin(),l.end(),comp_rm(remove)) ;
+    l.resize(size-(old_end-new_end)) ;
+    if(l.empty())
+      return ;
+
+    // then sort according to ascending order of o
+    sort(l.begin(),l.end(),ascend_o) ;
+
+    for(vi=l.begin();vi!=l.end();++vi) {
+      stat_item s = *vi ;
+      pmap[s.id] = weight++ ;
+    }
+
+  } // end of function
+
 } // end of namespace Loci

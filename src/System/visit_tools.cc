@@ -818,7 +818,7 @@ namespace Loci {
         continue ;
       // get the final target
       variableSet targets = get_leaf_recur_vars(promote_s2t,*vi) ;
-      
+
       if(targets.size() == 1) {
         if(allv.inSet(targets.begin()->ident())) {
           processed += *vi ;

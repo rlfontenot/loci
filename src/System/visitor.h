@@ -158,6 +158,7 @@ namespace Loci {
                       const std::set<int>& csn,
                       const std::map<int,variableSet>& rot_vt,
                       const std::map<int,variableSet>& lsharedt,
+                      const variableSet& promoted_rep,
                       const variableSet& reserved_vars) ;
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
@@ -223,6 +224,12 @@ namespace Loci {
     std::map<int,variableSet> loop_shared_table ;
     // all the loop rotate variables
     variableSet all_rot_vars ;
+    // representitive variable for deletion
+    // of eachpromoted variable cluster
+    variableSet promoted_rep ;
+    // variable that stores the current loop shared variables
+    // for determine the deletion in a loop
+    variableSet current_lshared_vars ;
   } ;
 
   // visitor that get all the recurrence variables in the
@@ -640,6 +647,26 @@ namespace Loci {
     std::vector<digraph::vertexSet>
       get_firstSched(const digraph& gr) ;
     fact_db& facts ;
+  } ;
+
+  // abstract interface of the prioritize function
+  struct PrioGraph {
+    virtual void operator()(const digraph&,
+                            std::map<int_type,int_type>&) const = 0 ;
+  } ;
+
+  // generic scheduling visitor that schedules
+  // a graph according to the weight of each vertex
+  class graphSchedulerVisitor: public visitor {
+  public:
+    graphSchedulerVisitor(const PrioGraph& pf):prio(pf) {}
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+    virtual void visit(conditional_compiler& cc) ;
+  private:
+    std::vector<digraph::vertexSet>
+      schedule(const digraph& gr) ;
+    const PrioGraph& prio ;
   } ;  
 
   // overload "<<" to print out an std::set
@@ -691,6 +718,22 @@ namespace Loci {
   variableSet
   get_recur_target_for_vars(const variableSet& vars,
                             const std::map<variable,variableSet>& t) ;
+
+  // priority functions on a graph
+  // computation greedy prioritize
+  struct compGreedyPrio: public PrioGraph {
+    void operator()(const digraph& gr,
+                    std::map<int_type,int_type>& pmap) const ;
+  } ;
+
+  // memory greedy prioritize
+  struct memGreedyPrio: public PrioGraph {
+    memGreedyPrio(fact_db& fd): facts(fd) {}
+    void operator() (const digraph& gr,
+                     std::map<int_type,int_type>& pmap) const ;
+    private:
+    fact_db& facts ;
+  } ;
 
 }
 

@@ -28,6 +28,7 @@ namespace Loci {
       // get the targets of the rule
       working_vars += ruleIter->targets() ;
     }
+      
     // we remove recurrence target variables from the working_vars.
     working_vars -= recur_target_vars ;
 
@@ -325,12 +326,13 @@ namespace Loci {
                     const set<int>& csn,
                     const map<int,variableSet>& rot_vt,
                     const map<int,variableSet>& lsharedt,
+                    const variableSet& promoted_rep,
                     const variableSet& reserved_vars)
     :recur_vars_t2s(rvt2s), recur_vars_s2t(rvs2t),
      loop_alloc_table(lat), graph_sn(gsn),
      pnode_table(pnt), loop_ctable(lct),
      loop_sn(lsn), cond_sn(csn), rotate_vtable(rot_vt),
-     loop_shared_table(lsharedt){
+     loop_shared_table(lsharedt), promoted_rep(promoted_rep) {
       
     for(std::map<int,variableSet>::const_iterator mi=rotate_vtable.begin();
         mi!=rotate_vtable.end();++mi)
@@ -370,9 +372,8 @@ namespace Loci {
     for(variableSet::const_iterator varIter=working_vars.begin();
         varIter!=working_vars.end();++varIter) {
 
-      // first some recurrence variable processing
-
-      // all the recurrence source variables of *varIter
+      // some recurrence variable processing
+      // get all the recurrence source variables of *varIter
       variableSet all_recur_sources ;
 
       all_recur_sources = get_all_recur_vars(recur_vars_t2s,*varIter) ;
@@ -416,9 +417,23 @@ namespace Loci {
         }
       }
 
+      // check if this variable is a current loop
+      // shared variable, if it is, then if it is a promoted
+      // variable, if it is, then we don't need to look at
+      // other things, just delete it here
+      if(current_lshared_vars.inSet(*varIter)) {
+        if(promoted_rep.inSet(*varIter)) {
+          delete_here += *varIter ;
+          //cout << "hacked variable: " << *varIter << endl ;
+	  //cout << "working vars: " << working_vars << endl ;
+          continue ;
+        }
+      }
+
       // see if we can delete the variable in this graph
-      if(let_it_go(gr,target_rules,*varIter))
+      if(let_it_go(gr,target_rules,*varIter)) {
         continue ;
+      }
       // otherwise we can delete the variable here
       delete_here += *varIter ;
     }
@@ -439,6 +454,7 @@ namespace Loci {
     found = loop_shared_table.find(lc.cid) ;
     FATAL(found == loop_shared_table.end()) ;
     shared = found->second ;
+    current_lshared_vars = shared ;
 
     // gather variables in the rotate list
     variableSet rotate_vars ;
@@ -469,6 +485,9 @@ namespace Loci {
     variableSet after ;
     looping_algr(working_vars,lc.advance_gr,lc.cid,0) ;
     after = variableSet(shared - deleted_vars) ;
+
+    // reset to empty
+    current_lshared_vars = variableSet(EMPTY) ;
 
     // we now schedule the deletion of shared and rotate_vars
 

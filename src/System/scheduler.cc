@@ -36,6 +36,9 @@ namespace Loci {
   double LociAppLargestFree = 0 ;
   variable LociAppLargestFreeVar("EMPTY") ;
   double LociAppPMTemp = 0 ;
+
+  double LociInputVarsSize = 0 ;  
+
   ////////////////////////////
   extern bool profile_memory_usage ;
   extern bool show_graphs ;
@@ -750,6 +753,8 @@ namespace Loci {
     //             << difftime(t1,t2) << " seconds " << endl ;
 
     if(profile_memory_usage) {
+      Loci::debugout << "++++++++Memory Profiling Report++++++++"
+                     << endl ;
       Loci::debugout << "Peak Memory used: " << LociAppPeakMemory
                      << " bytes ("
                      << LociAppPeakMemory/(1024*1024)
@@ -780,6 +785,10 @@ namespace Loci {
                      << LociAppLargestFree << " bytes ("
                      << LociAppLargestFree/(1024*1024) << "MB)"
                      << " for variable: " << LociAppLargestFreeVar
+                     << endl ;
+      Loci::debugout << "All input variables size: "
+                     << LociInputVarsSize << " bytes ("
+                     << LociInputVarsSize/(1024*1024) << "MB)"
                      << endl ;
       if(MPI_processes > 1) {
         // code to find out the largest memory bounds on all processes
@@ -817,7 +826,7 @@ namespace Loci {
                      << " of the schedule = "
                      << maxtime << " seconds " << endl ;
     }
-    
+
     return true ;
   }
 

@@ -43,6 +43,7 @@ namespace Loci {
   extern double LociAppLargestFree ;
   extern variable LociAppLargestFreeVar ;
   extern double LociAppPMTemp ;
+  extern double LociInputVarsSize ;
   namespace {
     // used to pre-process preallocation memory profiling
     variableSet LociRecurrenceVarsRealloc ;
@@ -243,6 +244,12 @@ namespace Loci {
       LociRecurrenceVarsRealloc +=
         get_recur_target_for_vars(sources,s2t_table) ;
       LociAppGivenVars = given ;
+
+      for(variableSet::const_iterator vi=given.begin();
+          vi!=given.end();++vi) {
+        storeRepP srp = facts.get_variable(*vi) ;
+        LociInputVarsSize += srp->pack_size(srp->domain()) ;
+      }
     }
     
     // get the input variables
@@ -342,7 +349,7 @@ namespace Loci {
       delInfoV_reserved += target ;
       delInfoV_reserved += untypevarV.get_untyped_vars() ;
       delInfoV_reserved += cluster_remaining ;
-      
+
       // compute how to do allocation
       allocInfoVisitor aiv(snv.get_graph_sn(),
                            recv.get_recur_target_vars(),
@@ -368,7 +375,7 @@ namespace Loci {
                             snv.get_cond_sn(),
                             rotlv.get_rotate_vars_table(),
                             rotlv.get_loop_shared_table(),
-                            delInfoV_reserved
+                            promoted_rep,delInfoV_reserved
                             ) ;
       top_down_visit(div) ;
       
@@ -479,6 +486,7 @@ namespace Loci {
 
         allocDelNumReportVisitor adnrv(cout) ;
         top_down_visit(adnrv) ;
+        //os<<recv.get_recur_vars_s2t()<<endl ;
         os << endl ;
       } // end of if(show_dmm_verbose)
       
@@ -494,13 +502,23 @@ namespace Loci {
     //bottom_up_visit(ov) ;
     schedst = MPI_Wtime() ;
     if(!memory_greedy_schedule) {
-      simLazyAllocSchedVisitor lazyschedv ;
-      top_down_visit(lazyschedv) ;
+      if(Loci::MPI_rank == 0)
+        cout << "graph scheduling... (computation greedy)" << endl ;
+      // the old scheduling comp greedy function
+      //simLazyAllocSchedVisitor lazyschedv ;
+      //top_down_visit(lazyschedv) ;
+      compGreedyPrio cgp ;
+      graphSchedulerVisitor gsv(cgp) ;
+      top_down_visit(gsv) ;
     } else {
       if(Loci::MPI_rank == 0)
-        cout << "memory greedy scheduling" << endl ;
-      memGreedySchedVisitor mgsv(facts) ;
-      top_down_visit(mgsv) ;
+        cout << "graph scheduling... (memory greedy)" << endl ;
+      // the old mem greedy scheduling function
+      //memGreedySchedVisitor mgsv(facts) ;
+      //top_down_visit(mgsv) ;
+      memGreedyPrio mgp(facts) ;
+      graphSchedulerVisitor gsv(mgp) ;
+      top_down_visit(gsv) ;
     }
     schedet = MPI_Wtime() ;
     

@@ -1535,6 +1535,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
           // it will be recounted in profiling
           int packsize = srp->pack_size(srp->domain()) ;
           LociAppPMTemp -= packsize ;
+          LociAppAllocRequestBeanCounting -= packsize ;
+          LociAppFreeRequestBeanCounting -= packsize ;
         }
 	if(srp->RepType() == Loci::STORE) {
 
@@ -1630,7 +1632,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       int packsize = srp->pack_size(alloc_dom) ;
       LociAppAllocRequestBeanCounting += packsize ;
       LociAppPMTemp += packsize ;
-         
+
       if(LociAppPMTemp > LociAppPeakMemoryBeanCounting)
         LociAppPeakMemoryBeanCounting = LociAppPMTemp ;
       if(packsize > LociAppLargestAlloc) {
@@ -1651,11 +1653,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       entitySet alloc_dom = srp->domain() ;
-      /*
+      
       double currmen = currentMem() ;
       if(currmen > LociAppPeakMemory)
         LociAppPeakMemory = currmen ;
-      */
+
       int packsize = srp->pack_size(alloc_dom) ;
       LociAppFreeRequestBeanCounting += packsize ;
       LociAppPMTemp -= packsize ;

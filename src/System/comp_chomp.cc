@@ -44,6 +44,7 @@ namespace Loci {
     vector<int_type> chomp_offset ;
     vector<storeRepP> chomp_vars_rep ;
     int_type D_cache_size ;
+    double total_chomp_vars_size ;
   public:
     execute_chomp(const entitySet& td,
                   const vector<pair<rule,rule_compilerP> >& comp,
@@ -51,7 +52,8 @@ namespace Loci {
                   const variableSet& cv,
                   fact_db& facts):
       total_domain(td),chomp_comp(comp),rule_seq(seq),
-      chomp_vars(cv),chomp_size(0),chomp_iter(0),D_cache_size(0) {
+      chomp_vars(cv),chomp_size(0),chomp_iter(0),
+      D_cache_size(0),total_chomp_vars_size(0) {
 
       for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
           vi!=comp.end();++vi)
