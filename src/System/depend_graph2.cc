@@ -107,6 +107,19 @@ namespace Loci {
       return (!time_before(t1,t2) && !time_equal(t1,t2)) ;
     }
 
+    inline variable drop_all_priorities(variable v) {
+      while(v.get_info().priority.size() != 0)
+        v = v.drop_priority() ;
+      return v ;
+    }
+
+    inline variableSet drop_all_priorities(variableSet vset) {
+      variableSet vnew ;
+      for(variableSet::const_iterator vi=vset.begin();vi!=vset.end();++vi)
+        vnew += drop_all_priorities(*vi) ;
+      return vnew ;
+    }
+    
     // forward declaration
     struct iteration_info ;
     
@@ -377,13 +390,13 @@ namespace Loci {
           variable newv = vbase.new_offset(*ii) ;
           
           iteration_output += newv ;
-          changing_vars += newv ;
+          changing_vars += drop_all_priorities(newv) ;
         }
         // this is the variable that rotates
         variable newv = vbase.new_offset(mvi->second.Max()+1) ;
 
         iteration_input += newv ;
-        changing_vars += newv ;
+        changing_vars += drop_all_priorities(newv) ;
       }
       
       // add an output variable
@@ -423,7 +436,7 @@ namespace Loci {
       variableSet advance_inputs ;
       for(ruleSet::const_iterator ri=advance.begin();
           ri!=advance.end();++ri) {
-        changing_vars += ri->targets() ;
+        changing_vars += drop_all_priorities(ri->targets()) ;
 
         if( (ri->type() == rule::INTERNAL) &&
             (ri->qualifier() == "iterating_rule")
@@ -487,7 +500,7 @@ namespace Loci {
         next -= visited_vars ;
         working_vars = next ;
       }
-      changing_vars += add_changing ;
+      changing_vars += drop_all_priorities(add_changing) ;
 
       // for the OUTPUT variable, we need
       // to see if it is in the changing_vars
@@ -609,9 +622,12 @@ namespace Loci {
           }
           visited_rules += pre_rules ;
           if(tlevel != time_ident()) {
+            // If a priority variable, then definitely don't promote
+            //            if(vi->get_info().priority.size() != 0)
+            //              dont_promote += *vi ;
             // then we decide to do rule promotion or variable promotion
             if(!dont_promote.inSet(*vi)) {
-              if(changing_vars.inSet(*vi)) {
+              if(changing_vars.inSet(drop_all_priorities(*vi))) {
                 // then we do rule promotions, if any
                 variable stationary_var(*vi,time_ident()) ;
                 ruleSet promote_rules =
