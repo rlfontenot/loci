@@ -5,43 +5,51 @@ using namespace std ;
 namespace Loci {
   //three tables of unit type - basic, composite, reference types----//
   UNIT_type::basic_units UNIT_type::basic_unit_table[]={
-    "metre",Length,1,
+    "meter",Length,1,
     "kilogram",Mass,1,
     "second",Time,1,
     "kelvin",Temperature,1,
     "ampere",Electric_current,1,
     "mole",Amount_of_substance,1,
     "candela",Luminous_intensity,1,
+    "radians", Angle,1,
+    "none", NoDim,1,
   };
   UNIT_type::basic_units UNIT_type::cgs_basic_unit_table[]={
-    "centimetre",Length,1,
+    "centimeter",Length,1,
     "gram",Mass,1,
     "second",Time,1,
     "kelvin",Temperature,1,
     "ampere",Electric_current,1,
     "mole",Amount_of_substance,1,
     "candela",Luminous_intensity,1,
+    "radians", Angle,1,
+    "none", NoDim,1,
     };
 
   UNIT_type::composite_units UNIT_type::composite_unit_table[]={
+    "rad","radians",1,
+    "deg","radians",0.01745329251994329576923690768488612713443,
+    "degrees","radians",0.01745329251994329576923690768488612713443,
     //abbreviation of SI
-    "m","metre",1,
+    "m","meter",1,
     "kg","kilogram",1,
     "g","kilogram",0.001,
     "gram","kilogram",0.001,
     "s","second",1,
+    "sec","second",1,
     "K","kelvin",1,
     "A","ampere",1,
     "mol","mole",1,
     "cd","candela",1,
 
     //metric system
-    "centimetre","metre",0.01,//length
-    "cm","metre",0.01,
-    "kilometre","metre",1000,
-    "km","metre",1000,
-    "milimetre","metre",0.001,
-    "mm","metre",0.001,
+    "centimeter","meter",0.01,//length
+    "cm","meter",0.01,
+    "kilometer","meter",1000,
+    "km","meter",1000,
+    "milimeter","meter",0.001,
+    "mm","meter",0.001,
 
     "minute","second",60,//time
     "min","second",10,
@@ -63,14 +71,14 @@ namespace Loci {
     "m^2","m^2",1,//area
 
     //composite unit
-    "newton","kilogram*metre/second/second",1,
-    "N","kilogram*metre/second/second",1,
-    "joule","kilogram*metre/second/second*metre",1,
-    "J","kilogram*metre/second/second*metre",1,
-    "watt","kilogram*metre/second/second*metre/second",1,
-    "W","kilogram*metre/second/second*metre/second",1,
-    "pascal","kilogram*metre/second/second/metre/metre",1,
-    "Pa","kilogram*metre/second/second/metre/metre",1
+    "newton","kilogram*meter/second/second",1,
+    "N","kilogram*meter/second/second",1,
+    "joule","kilogram*meter/second/second*meter",1,
+    "J","kilogram*meter/second/second*meter",1,
+    "watt","kilogram*meter/second/second*meter/second",1,
+    "W","kilogram*meter/second/second*meter/second",1,
+    "pascal","kilogram*meter/second/second/meter/meter",1,
+    "Pa","kilogram*meter/second/second/meter/meter",1
   };
 
   UNIT_type::reference_units UNIT_type::reference_unit_table[]={
@@ -114,6 +122,7 @@ namespace Loci {
     "microinch","m",2.54e-8,
     "micro","m",1e-6,
     "mil","m",2.54e-5,
+    "miles","m",1609.344,
     "mile","m",1609.344,
     "mi","m",1609.344,
     "rod","m",5.029210,
@@ -197,7 +206,7 @@ namespace Loci {
 
   UNIT_type::composite_units UNIT_type::cgs_composite_unit_table[]={
     //abbreviation of SI
-    "m","centimetre",0.1,
+    "m","centimeter",0.1,
     "kilogram","gram",1000,
     "g","gram",1,
     "kg","gram",1000,
@@ -208,12 +217,12 @@ namespace Loci {
     "cd","candela",1,
 
     //metric system
-    "kilometre","centimetre",1000000,
-    "km","centimetre",1000000,
-    "metre","centimetre",1000,
-    "milimetre","centimetre",0.1,
-    "mm","centimetre",0.1,
-    "cm","centimetre",1,
+    "kilometer","centimeter",1000000,
+    "km","centimeter",1000000,
+    "meter","centimeter",1000,
+    "milimeter","centimeter",0.1,
+    "mm","centimeter",0.1,
+    "cm","centimeter",1,
 
     "minute","second",60,//time
     "min","second",10,
@@ -233,20 +242,20 @@ namespace Loci {
     "C","kelvin",1,
 
     //composite unit
-    "newton","gram*centimetre/second/second",10000,
-    "N","gram*centimetre/second/second",10000,
-    "joule","gram*centimetre/second/second*centimetre",100000,
-    "J","gram*centimetre/second/second*centimetre",100000,
-    "watt","gram*centimetre/second/second*centimetre/second",100000,
-    "W","gram*centimetre/second/second*centimetre/second",100000,
-    "pascal","gram*centimetre/second/second/centimetre/centimetre",10000,
-    "Pa","gram*centimetre/second/second/centimetre/centimetre",10000
+    "newton","gram*centimeter/second/second",10000,
+    "N","gram*centimeter/second/second",10000,
+    "joule","gram*centimeter/second/second*centimeter",100000,
+    "J","gram*centimeter/second/second*centimeter",100000,
+    "watt","gram*centimeter/second/second*centimeter/second",100000,
+    "W","gram*centimeter/second/second*centimeter/second",100000,
+    "pascal","gram*centimeter/second/second/centimeter/centimeter",10000,
+    "Pa","gram*centimeter/second/second/centimeter/centimeter",10000
   };
   
   UNIT_type::default_units UNIT_type::default_unit_table[]={
     "general"," ",
-    "length","metre",
-    "Length","metre",
+    "length","meter",
+    "Length","meter",
     "mass","kilogram",
     "Mass","kilogram",
     "time","second",

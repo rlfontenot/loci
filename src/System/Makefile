@@ -2,7 +2,7 @@
 # System Makefile
 # 
 
-TARGET = libLoci.a
+TARGET = libLoci.a #libLoci.so
 
 LOCAL_INCLUDES = -I$(LOCI_BASE)/include
 
@@ -26,9 +26,12 @@ default:
 
 compile: $(TARGET)
 
-$(TARGET): $(OBJS)
-	$(AR) $(ARFLAGS) $(TARGET) $(OBJS) 
+libLoci.a: $(OBJS)
+	$(AR) $(ARFLAGS) libLoci.a $(OBJS) 
 	$(RANLIB) $(TARGET)
+
+libLoci.so: $(OBJS)
+	$(LD) $(LDFLAGS) -shared -o libLoci.so $(OBJS)
 
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK)

@@ -7,7 +7,7 @@
 using std::map ;
 using std::vector ;
 
-#define VERBOSE
+//#define VERBOSE
 
 namespace Loci {
 

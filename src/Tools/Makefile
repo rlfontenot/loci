@@ -2,12 +2,12 @@
 # Tools Makefile
 # 
 
-TARGET = libTools.a
+TARGET = libTools.a #libTools.so
 
 LOCAL_INCLUDES = -I$(LOCI_BASE)/include
 
 OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o parse.o options_list.o \
-       expr.o intervalSet.o digraph.o
+       expr.o intervalSet.o digraph.o unit_type.o
 
 
 .SUFFIXES: .o .c .cc .f
@@ -21,13 +21,16 @@ default:
 
 compile: $(TARGET)
 
-$(TARGET): $(OBJS)
-	$(AR) $(ARFLAGS) $(TARGET) $(OBJS) 
+libTools.a: $(OBJS)
+	$(AR) $(ARFLAGS) libTools.a $(OBJS) 
 	$(RANLIB) $(TARGET)
 
+libTools.so: $(OBJS)
+	$(LD) $(LDFLAGS) -shared -o libTools.so $(OBJS) 
+	
 
 
-JUNK =  *~ core ti_files KCC_files so_locations
+JUNK =  *~ core ii_files ti_files KCC_files so_locations
 
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK)

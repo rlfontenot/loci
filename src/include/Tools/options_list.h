@@ -1,6 +1,8 @@
 #ifndef OPTIONS_LIST_H
 #define OPTIONS_LIST_H
 
+#include <Tools/unit_type.h>
+
 #include <istream>
 #include <ostream>
 #include <string>
@@ -11,7 +13,8 @@
 namespace Loci {
   class options_list ;
 
-  enum option_value_type {NOT_ASSIGNED,REAL,NAME,FUNCTION,LIST,STRING} ;
+  enum option_value_type {NOT_ASSIGNED,REAL,NAME,FUNCTION,LIST,STRING,BOOLEAN,
+                          UNIT_VALUE,NAME_ASSIGN} ;
 
   class option_values {
   public:
@@ -19,18 +22,22 @@ namespace Loci {
   private:
     option_value_type value_type ;
     value_list_type value_list ;
-    std::basic_string<char> name ;
+    std::string name ;
     double real_value ;
+    bool boolean_value ;
+    UNIT_type units_value ;
     friend class options_list ;
   public:
     option_values() { value_type = NOT_ASSIGNED ; }
 
     option_value_type type_of() { return value_type ; }
 
-    void get_value(double &r) { r = real_value ; }
-    void get_value(value_list_type &l) { l = value_list ; }
-    void get_value(std::basic_string<char> &n) { n = name ; }
-
+    void get_value(bool &b) const { b = boolean_value; }
+    void get_value(double &r) const { r = real_value ; }
+    void get_value(value_list_type &l) const { l = value_list ; }
+    void get_value(std::string &n) const { n = name ; }
+    void get_value(UNIT_type &ut) const { ut = units_value ; }
+    
     std::ostream & Print(std::ostream &s) const ;
     std::istream & Input(std::istream &s) ;
   } ;
@@ -60,13 +67,17 @@ namespace Loci {
         
     option_value_type getOptionValueType(const std::string &option) const ;
     option_values getOption(const std::string &option) const ;
+    void getOption(const std::string &option, bool &value) const ;
     void getOption(const std::string &option, double &value) const ;
+    void getOption(const std::string &option, UNIT_type &uvalue) const ;
     void getOption(const std::string &option, std::string &name) const ;
     void getOption(const std::string &option, arg_list &value_list) const ;
     void getOption(const std::string &option, std::string &name,
                    arg_list &value_list) const ;
 
+    void setOption(const std::string &option, bool value) ;
     void setOption(const std::string &option, double value) ;
+    void setOption(const std::string &option, UNIT_type uvalue) ;
     void setOption(const std::string &option, const std::string &name) ;
     void setOption(const std::string &option, const arg_list &value_list) ;
     void setOption(const std::string &option, const std::string &name,

@@ -23,7 +23,7 @@ namespace Loci {
     double value;//temp container of value calculation
     std::map<std::string,int> unit_num_map,unit_den_map;//containers of numerator and dnominator
     enum basic_unit_type {Length,Mass,Time,Temperature,Electric_current,
-			  Amount_of_substance,Luminous_intensity};
+			  Amount_of_substance,Luminous_intensity, Angle, NoDim};
     double conversion_factor;
 
     //three tables of unit type - basic, composite, reference types----//
@@ -75,13 +75,13 @@ namespace Loci {
     double get_value_in(const std::string unit_str);
 
     UNIT_type(unit_mode in_mode, string in_kind, double in_value, string in_unit) {mode=in_mode,unit_kind=in_kind,value=in_value,input_unit=in_unit;
-    (*this).input_value=value;
+    input_value=value;
     exprP exp;
     exp=expression::create(input_unit);
-    (*this).output(exp);
+    output(exp);
     }
 
-    UNIT_type(const UNIT_type &ut) {unit_num_map=ut.unit_num_map,unit_den_map=ut.unit_den_map,value=ut.value,input_value=ut.input_value,conversion_factor=ut.conversion_factor;}
+    //    UNIT_type(const UNIT_type &ut) {unit_num_map=ut.unit_num_map,unit_den_map=ut.unit_den_map,value=ut.value,input_value=ut.input_value,conversion_factor=ut.conversion_factor;}
     UNIT_type() { mode=MKS, unit_kind="Pressure";}
 
   private:
@@ -108,7 +108,7 @@ namespace Loci {
 
   };
 
-  inline std::ostream &operator<<(std::ostream &s, UNIT_type &o_unit){
+  inline std::ostream &operator<<(std::ostream &s, const UNIT_type &o_unit){
     std::map<std::string,int>::iterator mi,mj;
     std::map<std::string,int> n_map=o_unit.unit_num_map,d_map=o_unit.unit_den_map;
     /*cout<<"Numerator: "<<endl;
@@ -157,6 +157,5 @@ namespace Loci {
   inline void unit_error(const int e_no, const std::string&err)
     {
       cerr << "error:" << err << endl;
-      abort();
     }
 }

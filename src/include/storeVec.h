@@ -528,7 +528,7 @@ namespace Loci {
     template<class S> void solve_lu(const_Vect<S> &b, S *x) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
-        x[i] = b[i]
+        x[i] = b[i] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;

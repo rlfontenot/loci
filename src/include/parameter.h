@@ -84,7 +84,7 @@ namespace Loci {
     param(const entitySet &ptn) { setRep(new paramType(ptn)); }
     virtual ~param() ;
 
-    param & operator=(param &p) {setRep(p.Rep()) ; return *this }
+    param & operator=(param &p) {setRep(p.Rep()) ; return *this ; }
 
     param & operator=(storeRepP p) {setRep(p) ; return *this ; }
     param & operator=(const T &v) { *data = v ; return *this ; }

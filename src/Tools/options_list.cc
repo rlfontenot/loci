@@ -45,6 +45,18 @@ namespace Loci {
       return (*tmp).second ;
     }  
   
+  void options_list::getOption(const string &option, bool &value) const {
+    option_map::const_iterator tmp ;
+    if((tmp = options_db.find(option)) == options_db.end()) {
+      cerr << "WARNING:attempt to retrieve BOOLEAN type option " << option
+           << " failed." << endl ;
+      return ;
+    }
+    warn((*tmp).second.value_type != BOOLEAN) ;
+    if((*tmp).second.value_type == BOOLEAN)
+      value = (*tmp).second.boolean_value ;
+  }
+  
   void options_list::getOption(const string &option, double &value) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
@@ -55,6 +67,18 @@ namespace Loci {
     warn((*tmp).second.value_type != REAL) ;
     if((*tmp).second.value_type == REAL)
       value = (*tmp).second.real_value ;
+  }
+
+  void options_list::getOption(const string &option, UNIT_type &uvalue) const {
+    option_map::const_iterator tmp ;
+    if((tmp = options_db.find(option)) == options_db.end()) {
+      cerr << "WARNING:attempt to retrieve UNIT_VALUE type option " << option
+           << " failed." << endl ;
+      return ;
+    }
+    warn((*tmp).second.value_type != UNIT_VALUE) ;
+    if((*tmp).second.value_type == UNIT_VALUE)
+      uvalue = (*tmp).second.units_value ;
   }
 
   void options_list::getOption(const string &option, string &name) const {
@@ -94,6 +118,17 @@ namespace Loci {
     value_list = (*tmp).second.value_list ;
   }
 
+  void options_list::setOption(const string &option, bool value) {
+    option_map::iterator tmp ;
+
+    if((tmp = options_db.find(option)) == options_db.end()) {
+      option_values v ;
+      tmp = options_db.insert(make_pair(option,v)).first ;
+    }
+    (*tmp).second.value_type = BOOLEAN ;
+    (*tmp).second.boolean_value = value ;
+  }
+  
   void options_list::setOption(const string &option, double value) {
     option_map::iterator tmp ;
     
@@ -103,6 +138,17 @@ namespace Loci {
     }
     (*tmp).second.value_type = REAL ;
     (*tmp).second.real_value = value ;
+  }
+
+  void options_list::setOption(const string &option, UNIT_type uvalue) {
+    option_map::iterator tmp ;
+    
+    if((tmp = options_db.find(option)) == options_db.end()) {
+      option_values v ;
+      tmp = options_db.insert(make_pair(option,v)).first ;
+    }
+    (*tmp).second.value_type = UNIT_VALUE ;
+    (*tmp).second.units_value = uvalue ;
   }
 
   void options_list::setOption(const string &option, const string &name) {
@@ -163,8 +209,14 @@ namespace Loci {
 
   ostream &option_values::Print(ostream &s) const {
     switch(value_type) {
+    case BOOLEAN:
+      s << boolean_value?"$true":"$false" ;
+      break ;
     case REAL:
       s << real_value ;
+      break ;
+    case UNIT_VALUE:
+      s << units_value ;
       break ;
     case NAME:
       s << name ;
@@ -204,7 +256,17 @@ namespace Loci {
     parse::kill_white_space(s) ;
     if(parse::is_real(s)) {
       real_value = parse::get_real(s) ;
-      value_type = REAL ;
+      parse::kill_white_space(s) ;
+      if(parse::is_name(s)) {
+        string units ;
+        int ch ;
+        while(!s.eof() &&((ch=s.peek()) != EOF) &&
+              (isalnum(ch) || ch=='*' || ch == '/' || ch=='(' || ch == ')'))
+          units += s.get() ;
+        units_value = UNIT_type(UNIT_type::MKS,"general",real_value,units) ;
+        value_type = UNIT_VALUE ;
+      } else
+        value_type = REAL ;
     } else if(parse::is_name(s)) {
       name = parse::get_name(s) ;
       parse::kill_white_space(s) ;
@@ -233,8 +295,24 @@ namespace Loci {
       while(!s.eof() && s.peek()!=']') {
         option_values ov ;
         s >> ov ;
-        value_list.push_back(ov) ;
         parse::kill_white_space(s) ;
+        if(s.peek() == '=') {
+          s.get() ;
+          parse::kill_white_space(s) ;
+          
+          if(ov.value_type != NAME && ov.value_type != STRING) {
+            cerr << "improper assignement in list" << endl ;
+            ov.value_type = NOT_ASSIGNED ;
+          } else
+            ov.value_type = NAME_ASSIGN ;
+          option_values ov2 ;
+          s >> ov2 ;
+          if(ov2.value_type == LIST) {
+            ov.value_list = ov2.value_list ;
+          } else
+            ov.value_list.push_back(ov2) ;
+        }
+        value_list.push_back(ov) ;
         if(s.peek() == ',') {
           s.get() ;
           parse::kill_white_space(s) ;
@@ -250,6 +328,21 @@ namespace Loci {
         name += ch ;
         ch = s.get() ;
       }
+    } else if(s.peek() == '$') {
+      bool v = true ;
+      if(s.peek() == '$') {
+        s.get() ;
+        string bvs = parse::get_name(s) ;
+        if(bvs == "false")
+          v = false ;
+        else if(bvs != "true") {
+          cerr << "option_list warning:" << endl ;
+          cerr << "boolean value can only be \"$true\"  or \"$false\""
+               << endl;
+        }
+      }
+      value_type = BOOLEAN ;
+      boolean_value = v ;
     } else {
       cerr << "error reading option_values" << endl ;
       value_type = NOT_ASSIGNED ;
@@ -295,16 +388,19 @@ namespace Loci {
         }
       }
       parse::kill_white_space(s) ;
-      if(s.peek() != '=')
-        cerr << "error reading option " << option << endl ;
-      else
-        s.get() ;
-      parse::kill_white_space(s) ;
-
-      option_map::iterator tmp ;
-
       option_values v ;
-      s >> v ;
+
+      if(s.peek() == '=') {
+        s.get() ;
+        parse::kill_white_space(s) ;
+
+        s >> v ;
+      } else {
+        v.value_type = BOOLEAN ;
+        v.boolean_value = true ;
+      }
+
+      option_map::iterator tmp ; 
       if((tmp = options_db.find(option)) == options_db.end()) {
         tmp = options_db.insert(make_pair(option,v)).first ;
       } else

@@ -124,7 +124,7 @@ template<class T> class ConstHandle {
     // OCF Methods
     ConstHandle(const Handle<T> & hdl) { grab = hdl.grab->LinkGrab() ; }
     ConstHandle(const ConstHandle<T> & hdl) { grab = hdl.grab->LinkGrab() ; }
-    ConstHandle(Handle_type i) { grab = 0 }
+    ConstHandle(Handle_type i) { grab = 0 ; }
     ~ConstHandle() {
         if(grab != 0) grab->UnlinkGrab() ; }
     ConstHandle<T> &operator=(const Handle<T> &hr) 

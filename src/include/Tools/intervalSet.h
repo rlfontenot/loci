@@ -61,8 +61,8 @@ namespace Loci {
         }
       }                
     public:
-      intervalSetIterator()
-      {current_interval=0;end_interval=0;current_value=0;}
+      intervalSetIterator() {}
+        //      {current_interval=0;end_interval=0;current_value=0;}
       intervalSetIterator(intervalSetRep::const_iterator r,
                           intervalSetRep::const_iterator end,int_type e) :
         current_interval(r),end_interval(end),current_value(e) {}
@@ -442,8 +442,8 @@ namespace Loci {
           current_value += dir ;
       }                
     public:
-      sequenceIterator()
-      { current_interval=0;end_interval=0;current_value=0; }
+      sequenceIterator() {}
+        //      { current_interval=0;end_interval=0;current_value=0; }
       sequenceIterator(sequenceRep::const_iterator r,
                        sequenceRep::const_iterator end,int_type e) :
         current_interval(r),end_interval(end),current_value(e)
