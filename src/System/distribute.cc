@@ -598,6 +598,9 @@ namespace Loci {
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
+#ifdef DEBUG
+    debugout << "my_entities = " << g << endl ;
+#endif
     /*xmit data structure contains the information as to what
       entities are to be send to what processor . The copy data
       structure contains the entities that are to be received from a
