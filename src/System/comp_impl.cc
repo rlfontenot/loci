@@ -66,6 +66,8 @@ namespace Loci {
     //if(exec_seq.size() == 0)
     //return executeP(0) ;
 #endif
+    if(GLOBAL_AND(exec_seq.size()==0))
+      return executeP(0) ;
     variableSet targets = impl.targets() ;
     WARN(targets.size() == 0) ;
     if(num_threads > 1 &&
