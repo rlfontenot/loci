@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 
+#include <typeinfo.h>
+
 namespace Loci {
 
 fortran_binary_file::fortran_binary_file(const char *filename)
