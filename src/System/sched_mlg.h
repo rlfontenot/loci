@@ -20,9 +20,12 @@ namespace Loci {
     digraph::vertexSet subgraphs ;
     std::map<int,subGraph>  subgrmap ;
     int toplevel ;
+    int super_node_number ;
 
-    multiLevelGraph() {toplevel = 0;}
+    multiLevelGraph() {toplevel = 0; super_node_number = 0 ;}
     multiLevelGraph(digraph gr, digraph::vertexSet grvtx) ;
+    rule make_super_rule(variableSet sources, variableSet targets,
+                         variable cond = variable()) ;
     void insert(int id,subGraph g) 
     { warn(find(id) != 0) ; subgrmap[id] = g ; subgraphs += id ; }
     subGraph *find(int id) ;

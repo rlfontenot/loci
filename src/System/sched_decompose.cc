@@ -12,9 +12,6 @@ using std::pair ;
 using std::make_pair ;
 
 namespace Loci {
-  // import the super_node_number declared in sched_tools.cc
-  extern int super_node_number ;
-  
   void cleanup_component(const digraph &dg, digraph::vertexSet &component) {
     // Remove variables from component if they have references outside
     // the component
@@ -456,12 +453,6 @@ namespace Loci {
   decomposed_graph::decomposed_graph(digraph dg,
                                      digraph::vertexSet sources,
                                      digraph::vertexSet targets) {
-    // we need to reset the super_node_number to zero
-    // before we start to decompose the dependency graph
-    // because now multiple query is possible and
-    // we want to reset revelant info. before we start
-    super_node_number = 0 ;
-    
     prepare_digraph(dg) ;
     mlg = create_mlg(dg,sources,targets) ;
 

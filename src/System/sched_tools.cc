@@ -22,19 +22,6 @@ namespace Loci {
     }
   }
   
-  int super_node_number = 0 ;
-  rule make_super_rule(variableSet sources, variableSet targets,
-                       variable cond) {
-    FATAL(targets == EMPTY) ;
-    ostringstream oss ;
-    oss << "source("<<sources << "),target(" << targets << ")," ;
-    if(cond != variable()) 
-      oss<< "conditional(" << cond << ")," ;
-    oss << "qualifier(SN" << super_node_number++ << ")" ;
-   
-    return rule(oss.str()) ;
-  }
-
   rule make_rename_rule(variable new_name, variable old_name) {
     ostringstream oss ;
     oss << "source(" << old_name << "),target(" << new_name

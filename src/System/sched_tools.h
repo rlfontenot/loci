@@ -25,8 +25,6 @@ namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
   void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) ;
-  rule make_super_rule(variableSet sources, variableSet targets,
-                       variable cond = variable()) ;
   rule make_rename_rule(variable new_name, variable old_name) ;
 
   class execute_rule : public execute_modules {

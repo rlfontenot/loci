@@ -1,6 +1,7 @@
 #include "sched_tools.h"
 #include "sched_mlg.h"
 #include "distribute.h"
+using std::ostringstream ;
 
 //#define VERBOSE
 namespace Loci {
@@ -28,7 +29,8 @@ namespace Loci {
     gr = gin.subgraph(all) ;
   }
   
-  multiLevelGraph::multiLevelGraph(digraph gr, digraph::vertexSet grvtx) {
+  multiLevelGraph::multiLevelGraph(digraph gr, digraph::vertexSet grvtx):
+    super_node_number(0) {
     subGraph g(gr,grvtx) ;
 
     variableSet sv = extract_vars(g.incoming_v) ;
@@ -49,6 +51,19 @@ namespace Loci {
       return 0 ;
     else
       return &mi->second ;
+  }
+
+  rule multiLevelGraph::make_super_rule(variableSet sources,
+                                        variableSet targets,
+                                        variable cond) {
+    FATAL(targets == EMPTY) ;
+    ostringstream oss ;
+    oss << "source("<<sources << "),target(" << targets << ")," ;
+    if(cond != variable()) 
+      oss<< "conditional(" << cond << ")," ;
+    oss << "qualifier(SN" << super_node_number++ << ")" ;
+   
+    return rule(oss.str()) ;
   }
   
   int multiLevelGraph::mksnode(int gr_id, digraph::vertexSet grvtx,
