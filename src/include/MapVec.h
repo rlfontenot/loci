@@ -519,7 +519,6 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    int voffset;
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
@@ -535,10 +534,8 @@ namespace Loci {
  
       indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) {
-        for( int ivec = 0; ivec < size; ivec++){
-          voffset           = i*size+ivec;
+        for( int ivec = 0; ivec < size; ivec++)
           base_ptr[i][ivec] = data[indx++];
-        }
       }
       delete[] data;
     }
@@ -555,7 +552,6 @@ namespace Loci {
   void MapVecRepI<M>::writehdf5(hid_t group_id,entitySet& usr_eset) const 
   {
     int     rank = 1;
-    int     voffset;
     hsize_t dimension;
 
     entitySet eset(usr_eset &domain());
