@@ -202,7 +202,10 @@ void fact_db::synonym_variable(variable v, variable synonym) {
     
 
 storeRepP fact_db::get_variable(variable v) {
-  return storeRepP(get_fact_data(v).data_rep) ;
+  if(all_vars.inSet(v))
+    return storeRepP(get_fact_data(v).data_rep) ;
+  else
+    return storeRepP(0) ;
 }
 
   
@@ -380,7 +383,16 @@ void fact_db::printSummary(ostream &s) const {
 }
 
 ostream &fact_db::write(ostream &s) const {
-  cerr << "write not implemented in fact_db" << endl ;
+  vmap_type::const_iterator vmi ;
+  for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
+    variable v=vmi->first;
+    const fact_data &fd = fact_infov[vmi->second.fact_info_ref] ;
+    storeRepP store_Rep = storeRepP(fd.data_rep) ;
+    entitySet en=store_Rep->domain();
+    std::string groupname = (v.get_info()).name;
+    s << groupname << ":" ;
+    store_Rep->Print(s);
+  }
   return s ;
 }
 
