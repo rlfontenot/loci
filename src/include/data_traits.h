@@ -33,6 +33,49 @@ namespace Loci {
   class data_schema_traits { };
 #endif
 
+  template<class T> class StringStreamConverter {
+    T &ref ;
+  public:
+    StringStreamConverter(T &iref) : ref(iref) {}
+    int getSize() const {
+      std::ostringstream oss ;
+      oss << ref ;
+      return oss.str().size() ;
+    }
+    void getState(char *buf, int &size) {
+      std::ostringstream oss ;
+      oss << ref ;
+      const std::string &s = oss.str() ;
+      size = s.size() ;
+      for(int i=0;i<size;++i)
+        buf[i] = s[i] ;
+    }
+    void setState(char *buf, int size) {
+      std::string s ;
+      for(int i=0;i<size;++i)
+        s += buf[i] ;
+      std::istringstream iss(s) ;
+      iss >> ref ;
+    }
+  } ;
+    
+  template<class T> class UndefinedConverter {
+    T &ref ;
+  public:
+    UndefinedConverter(T &iref) : ref(iref) {}
+    int getSize() const {
+      std::cerr << "undefined converter" << std::endl ;
+      return 0 ;
+    }
+    void getState(char *buf, int &size) {
+      std::cerr << "undefined converter" << std::endl ;
+    }
+    void setState(char *buf, int size) {
+      std::cerr << "undefined converter" << std::endl ;
+    }
+  } ;
+    
+    
   struct IDENTITY_CONVERTER{};
   struct USER_DEFINED_CONVERTER{};
 
@@ -227,4 +270,6 @@ namespace Loci {
     
 }
 
+#define LOCI_INSERT_TYPE(ct,type,variable) \
+   ct->insert(# variable, offsetof(type,variable),getLociType(type().variable))
 #endif
