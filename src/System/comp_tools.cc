@@ -104,14 +104,7 @@ namespace Loci {
       of the attributes in the body of the rule. */
    
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-      debugout << "comp_tools  rule = " << r << endl ;
       sources &= vmap_source_exist(*si,facts) ;
-      if(facts.isDistributed()) {
-	Map l2g ;
-	l2g = facts.get_variable("l2g") ;
-	entitySet global_sources = l2g.image(sources) ;	
-	debugout << "comp_tools sources = " << global_sources << endl ;
-      }
     }
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
       constraints &= vmap_source_exist(*si,facts) ;

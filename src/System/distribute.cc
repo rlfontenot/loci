@@ -1484,8 +1484,7 @@ namespace Loci {
 	delete [] recv_ptr ;
 	
       } 
-    }
-   
+    }   
     return nsp ;
      
   }
@@ -1501,7 +1500,9 @@ namespace Loci {
       int *recv_displacement = new int[MPI_processes];
       std::vector<std::vector<int> > map_elems(MPI_processes) ;
       std::vector<int> tmp_vec ;
-      FORALL(input_image,i) {
+      entitySet local_input_image = input_image ;
+      local_input_image &= init_ptn[MPI_rank] ;
+      FORALL(local_input_image,i) {
 	result[i] = tmp_vec ;
       }ENDFORALL ;
       FORALL(preloop,i) {
@@ -1509,8 +1510,6 @@ namespace Loci {
 	if(input_image.inSet(elem)) {
 	  for(int j = 0; j < MPI_processes; ++j)
 	    if(init_ptn[j].inSet(elem)) {
-	      if(MPI_rank != j)
-		result[elem] = tmp_vec ;
 	      map_elems[j].push_back(elem) ;
 	      map_elems[j].push_back(i) ;
 	    }
@@ -1555,7 +1554,9 @@ namespace Loci {
       }
       for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
 	for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
+	  
 	  result[hmi->first].push_back(*si) ;
+	  
       
       delete [] recv_count ;
       delete [] send_count ;
@@ -1576,9 +1577,11 @@ namespace Loci {
     int *recv_displacement = new int[MPI_processes];
     std::vector<std::vector<int> > map_elems(MPI_processes) ;
     std::vector<int> tmp_vec ;
-    FORALL(input_image,i) {
-      result[i] = tmp_vec ;
-    }ENDFORALL ;
+    //entitySet local_input_image = input_image ;
+    //local_input_image &= init_ptn[MPI_rank] ;
+    //FORALL(local_input_image,i) {
+    //result[i] = tmp_vec ;
+    // }ENDFORALL ;
     FORALL(preloop,i) {
       int elem = input_map[i] ;
       std::vector<int> tmp_vec ;
@@ -1591,6 +1594,8 @@ namespace Loci {
 	    map_elems[j].push_back(i) ;
 	  }
       }
+      else
+	result[elem] = tmp_vec ;
     }ENDFORALL ;
     for(int i = 0; i < MPI_processes; ++i) 
       send_count[i] = map_elems[i].size() ;
@@ -1650,20 +1655,24 @@ namespace Loci {
     int *recv_displacement = new int[MPI_processes];
     std::vector<hash_map<int, std::vector<int> > > map_elems(MPI_processes); 
     std::vector<int> tmp_vec ;
-    FORALL(input_image,i) {
-      result[i] = tmp_vec ;
-    }ENDFORALL ;
+    //entitySet local_input_image = input_image ;
+    //local_input_image &= init_ptn[MPI_rank] ;
+    //FORALL(local_input_image,i) {
+    //result[i] = tmp_vec ;
+    //}ENDFORALL ;
     FORALL(preloop,i) {
       for(std::vector<int>::const_iterator mi = input_map[i].begin(); mi != input_map[i].end(); ++mi) {
 	int elem = *mi ;
 	if(input_image.inSet(elem)) {
 	  for(int j = 0; j < MPI_processes; ++j)
 	    if(init_ptn[j].inSet(elem)) {
-	      if(MPI_rank != j)
-		result[elem] = tmp_vec ;
+	      //if(MPI_rank != j)
+	      //result[elem] = tmp_vec ;
 	      (map_elems[j])[elem].push_back(i) ;
 	    }
 	}
+	else
+	  result[elem] = tmp_vec ;
       }
     } ENDFORALL ;
     
@@ -1735,20 +1744,22 @@ namespace Loci {
     int *recv_displacement = new int[MPI_processes];
     std::vector<hash_map<int, std::vector<int> > > map_elems(MPI_processes); 
     std::vector<int> tmp_vec ;
-    FORALL(input_image,i) {
-      result[i] = tmp_vec ;
-    }ENDFORALL ;
+    //entitySet local_input_image = input_image ;
+    //local_input_image &= init_ptn[MPI_rank] ;
+    //FORALL(local_input_image,i) {
+    //result[i] = tmp_vec ;
+    //}ENDFORALL ;
     FORALL(preloop,i) {
       for(const int *mi = input_map.begin(i); mi != input_map.end(i); ++mi) {
 	int elem = *mi ;
 	if(input_image.inSet(elem)) {
 	  for(int j = 0; j < MPI_processes; ++j)
 	    if(init_ptn[j].inSet(elem)) {
-	      if(MPI_rank != j)
-		result[elem] = tmp_vec ;
 	      (map_elems[j])[i].push_back(elem) ;
 	    }
 	}
+	else
+	  result[elem] = tmp_vec ;
       }
     }ENDFORALL ;
     for(int i = 0; i < MPI_processes; ++i) {

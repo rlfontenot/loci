@@ -110,8 +110,7 @@ namespace Loci
 	attrib_data[hmi->first].push_back(*si) ;
     dmultiMap dmul ;
     for(hash_map<int, std::vector<int> >::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
-      for(std::vector<int>::const_iterator vi = hi->second.begin(); vi != hi->second.end(); ++vi)
-	dmul[hi->first].push_back(*vi) ;
+      dmul[hi->first] = hi->second ;
     storeRepP sp = dmul.Rep() ;
     delete [] send_buf ;
     delete [] recv_buf ;

@@ -53,7 +53,6 @@ namespace Loci {
       for(int j = recv_displacement[i]; j <
 	    recv_displacement[i]+recv_count[i]; ++j) 
 	send_clone[i] += recv_buf[j] ;
-      //debugout << " send_clone[i] = " << send_clone[i] << endl ;
     }
     
     std::vector<hash_map<int, int> > map_entities(MPI_processes) ;
@@ -94,7 +93,7 @@ namespace Loci {
     hash_map<int, int> hm ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
-	    recv_displacement[i]+recv_count[i]; ++j) {
+	    recv_displacement[i]+recv_count[i]-1; ++j) {
 	hm[recv_map[j]] = recv_map[j+1];
 	j++ ;
       }

@@ -52,12 +52,6 @@ namespace Loci {
       for(vi=mi->begin();vi!=mi->end();++vi) {
         FATAL(!facts.is_a_Map(*vi)) ;
 	working &= facts.preimage(*vi,sources).first ;
-	debugout <<  "sched_tools variable  = " << *vi << endl ;
-	if(facts.isDistributed()) {
-	  Map l2g ;
-	  l2g = facts.get_variable("l2g") ;
-	  debugout<< " sched_tools sources =  " << l2g.image(sources) << "  working  =  " << l2g.image(working) << endl ;
-	}
       }
       sources = working ;
     }
