@@ -409,7 +409,7 @@ namespace Loci
       bool vali = true ;
       ai = attrib_data.find(i);
       warn(ai == attrib_data.end()) ;
-      bool valu = (!ai->second.size()) ; //begin(i) == end(i)?true:false ;
+      bool valu = false;
       for(std::vector<int>::const_iterator vi = ai->second.begin(); vi != ai->second.end(); ++vi) {
         bool in_set = codomain.inSet(*vi) ;
 	vali = vali && in_set ;
