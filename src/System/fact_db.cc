@@ -132,7 +132,7 @@ namespace Loci {
 	   << endl ;
   }
   
-  void fact_db::create_fact(variable v, storeRepP st) {
+  void fact_db::create_pure_fact(const variable& v, storeRepP st) {
     
     if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
       int max_val = st->domain().Max() ;
@@ -209,6 +209,22 @@ namespace Loci {
     for(si=synonyms.begin();si!=synonyms.end();++si)
       all_vars += si->first ;
     return all_vars ;
+  }
+
+  void fact_db::make_extensional_fact(const variable& v) {
+    // if it is already extensional_fact, then we do nothing
+    if(extensional_facts.inSet(v))
+      return ;
+    std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
+    // the fact must exist in the fact_db, otherwise we do nothing
+    if(mi != fmap.end())
+      extensional_facts += v ;
+  }
+  void fact_db::make_intensional_fact(const variable& v) {
+    // We perform action only if it is already an extensional_fact
+    // which implies that the fact exists in the fact_db
+    if(extensional_facts.inSet(v))
+      extensional_facts -= v ;
   }
 
   std::pair<entitySet, entitySet> fact_db::get_dist_alloc(int size) {

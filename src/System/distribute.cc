@@ -224,9 +224,10 @@ namespace Loci {
     
     
     facts.put_distribute_info(df) ;
-    facts.create_fact("l2g", l2g) ;
+    // this needs to be an intensional fact
+    facts.create_intensional_fact("l2g", l2g) ;
     facts.put_l2g(l2g) ;
-    facts.create_fact("my_entities", my_entities) ;
+    facts.create_intensional_fact("my_entities", my_entities) ;
     end_time =  MPI_Wtime() ;
     debugout << "  Time taken for creating final info =  " << end_time - start << endl ;
   }

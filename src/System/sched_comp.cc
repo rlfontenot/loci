@@ -954,7 +954,8 @@ namespace Loci {
     for(variableSet::const_iterator vi=constraints.begin();
         vi!=constraints.end();++vi) {
       storeRepP srp = local_facts.get_variable(*vi) ;
-      facts.create_fact(*vi,srp) ;
+      // this fact needs to be intensional one
+      facts.create_intensional_fact(*vi,srp) ;
       if(GLOBAL_AND(srp->domain()==EMPTY)) {
         emptyConstraints += *vi ;
       }

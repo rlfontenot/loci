@@ -272,9 +272,10 @@ namespace Loci {
       total += df->copy[i].size ;
     df->copy_total_size = total ;
     facts.put_distribute_info(df) ;
-    facts.create_fact("l2g", l2g) ;
+    // this needs to be an intensional fact
+    facts.create_intensional_fact("l2g", l2g) ;
     facts.put_l2g(l2g) ;
-    facts.create_fact("my_entities",my_entities);
+    facts.create_intensional_fact("my_entities",my_entities);
   }
   
   void metis_facts(fact_db &facts, vector<entitySet> &ptn, int num_partitions) {

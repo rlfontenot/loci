@@ -821,7 +821,7 @@ namespace Loci {
     if(remove_query != EMPTY)
       if(MPI_rank == 0) {
         cout << "Queried facts: " << remove_query << " are extensional" ;
-        cout << " facts, query not performed!" << endl ;
+        cout << " facts, action not performed on these facts!" << endl ;
       }
     if(target == EMPTY)
       return true ;
@@ -883,13 +883,14 @@ namespace Loci {
       for(variableSet::const_iterator vi=target.begin();
           vi!=target.end();++vi) {
         storeRepP srp = local_facts.get_variable(*vi) ;
-        facts.create_fact(*vi,srp->remap(l2g)) ;
+        // the results are clearly intensional facts
+        facts.create_intensional_fact(*vi,srp->remap(l2g)) ;
       }
     }else{
       for(variableSet::const_iterator vi=target.begin();
           vi!=target.end();++vi) {
         storeRepP srp = local_facts.get_variable(*vi) ;
-        facts.create_fact(*vi,srp) ;
+        facts.create_intensional_fact(*vi,srp) ;
       }
     }
 

@@ -185,16 +185,17 @@ dynamic_schedule_rule::dynamic_schedule_rule(rule fi, entitySet eset, fact_db &f
   for(variableSet::const_iterator vi=in.begin();vi!=in.end();++vi) {
     storeRepP store_ptr = rp->get_store(*vi) ;    
     if((store_ptr != 0) && store_ptr->RepType() == Loci::STORE) {	  
-      inputs += *vi ; 
-      local_facts.create_fact(*vi,store_ptr->new_store(EMPTY)) ;             
+      inputs += *vi ;
+      // we make it an intensional fact, since it is local fact_db
+      local_facts.create_intensional_fact(*vi,store_ptr->new_store(EMPTY)) ;
     } else {
-      local_facts.create_fact(*vi,facts.get_variable(*vi)) ;
+      local_facts.create_intensional_fact(*vi,facts.get_variable(*vi)) ;
     }
   }
   // Setup local facts output variables 
   for(variableSet::const_iterator vi=outputs.begin();vi!=outputs.end();++vi) {
     storeRepP store_ptr = rp->get_store(*vi) ;    
-    local_facts.create_fact(*vi,store_ptr->new_store(EMPTY)) ;
+    local_facts.create_intensional_fact(*vi,store_ptr->new_store(EMPTY)) ;
   }
   
   // Initialize both functions for remote and local execution.

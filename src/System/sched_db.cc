@@ -236,7 +236,8 @@ namespace Loci {
   }
 
   void sched_db::set_variable_type(variable v, storeRepP st, fact_db &facts) {
-    facts.create_fact(v, st) ;
+    // creates an intensional fact since this is Loci deduced fact
+    facts.create_intensional_fact(v, st) ;
     if(!all_vars.inSet(v)) {
       install_sched_data(v, sched_data(v, st)) ;
     }

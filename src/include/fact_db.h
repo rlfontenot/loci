@@ -134,14 +134,34 @@ namespace Loci {
     storeRepP get_variable_type(variable v) const ;
     storeRepP get_variable_type(std::string vname) const
       { return get_variable_type(variable(vname)) ;}
+
+    // this is the basic method that creats a fact
+    // in the fact_db. It is served as the basis
+    // for create_fact & the create_intensional_fact methods
+    void create_pure_fact(const variable& v, storeRepP st) ;
     
-    void create_fact(variable v, storeRepP st) ;
-    void create_fact(std::string vname, storeRepP st)
-      { create_fact(variable(vname),st) ;}
-    void create_fact(variable v, store_instance &si)
-      { create_fact(v,si.Rep()) ;si.setRep(get_variable(v)) ; }
-    void create_fact(std::string vname, store_instance &si)
-      { create_fact(variable(vname),si) ; }
+    // create_fact now defaults to create an extensional fact
+    // as this is the primary interface for users of Loci
+    void create_fact(const variable& v, storeRepP st) {
+      create_pure_fact(v,st) ;
+      extensional_facts += v ;
+    }
+    void create_fact(const std::string& vname, storeRepP st) {
+      variable v = variable(vname) ;
+      create_pure_fact(v,st) ;
+      extensional_facts += v ;
+    }
+    void create_fact(const variable& v, store_instance &si) {
+      create_pure_fact(v,si.Rep()) ;
+      si.setRep(get_variable(v)) ;
+      extensional_facts += v ;
+    }
+    void create_fact(const std::string& vname, store_instance &si) {
+      variable v = variable(vname) ;
+      create_pure_fact(v,si.Rep()) ;
+      si.setRep(get_variable(v)) ;
+      extensional_facts += v ;
+    }
     
     void update_fact(variable v, storeRepP st) ;
     void update_fact(std::string vname, storeRepP st)
@@ -215,39 +235,48 @@ namespace Loci {
     std::istream &read(std::istream &s) ;
     std::istream& read_vars(std::istream& s, const rule_db& rdb) ;
 
-    // support methods for extensional & intensional facts
+    /////////////////////////////////////////////////////////
+    // support methods for extensional & intensional facts //
+    /////////////////////////////////////////////////////////
     variableSet get_extensional_facts() const {
       return extensional_facts ;
     }
     variableSet get_intensional_facts() const {
       return variableSet(get_typed_variables()-extensional_facts) ;
     }
-    // this function is used to aid the transition in the fact_db
-    // currently the only interface in fact_db for creating
-    // facts is through the create_fact() methods. Thus we have
-    // no way to distinguish user created facts. Really the user
-    // ought to use the new "create_extensional_fact()" method
-    // to create a fact in the fact_db. For right now, we need
-    // to call this methods after the grid reader in main.cc
-    // to gather the initial user input facts as extensional facts.
-    void gather_extensional_facts() {
-      extensional_facts = get_typed_variables() ;
-    }
-    void create_extensional_fact(variable v, storeRepP st) {
+
+    // we still provide these methods with explicit name to
+    // create extentional facts, they are just as the same as
+    // the default create_fact methods
+    void create_extensional_fact(const variable& v, storeRepP st) {
       create_fact(v,st) ;
-      extensional_facts += v ;
     }
-    void create_extensional_fact(std::string vname, storeRepP st) {
+    void create_extensional_fact(const std::string& vname, storeRepP st) {
       create_fact(vname,st) ;
-      extensional_facts += variable(vname) ;
     }
-    void create_extensional_fact(variable v, store_instance &si) {
+    void create_extensional_fact(const variable& v, store_instance &si) {
       create_fact(v,si) ;
-      extensional_facts += v ;
     }
-    void create_extensional_fact(std::string vname, store_instance &si) {
+    void create_extensional_fact(const std::string& vname,
+                                 store_instance &si) {
       create_fact(vname,si) ;
-      extensional_facts += variable(vname) ;
+    }
+    // and then we have the corresponding intensional facts creation
+    void create_intensional_fact(const variable& v, storeRepP st) {
+      create_pure_fact(v,st) ;
+    }
+    void create_intensional_fact(const std::string& vname, storeRepP st) {
+      create_pure_fact(variable(vname),st) ;
+    }
+    void create_intensional_fact(const variable& v, store_instance &si) {
+      create_pure_fact(v,si.Rep()) ;
+      si.setRep(get_variable(v)) ;
+    }
+    void create_intensional_fact(const std::string& vname,
+                                 store_instance &si) {
+      variable v = variable(vname) ;
+      create_pure_fact(v,si.Rep()) ;
+      si.setRep(get_variable(v)) ;
     }
     // this method erases all intensional facts
     void erase_intensional_facts() {
@@ -255,6 +284,18 @@ namespace Loci {
       for(variableSet::const_iterator vi=intensional_facts.begin();
           vi!=intensional_facts.end();++vi)
         remove_variable(*vi) ;
+    }
+    // this method will convert an intensional fact to
+    // a extensional fact
+    void make_extensional_fact(const variable& v) ;
+    void make_extensional_fact(const std::string& vname) {
+      make_extensional_fact(variable(vname)) ;
+    }
+    // this method will convert a extensional fact
+    // to an intensional one
+    void make_intensional_fact(const variable& v) ;
+    void make_intensional_fact(const std::string& vname) {
+      make_intensional_fact(variable(vname)) ;
     }
     
     void write_all_hdf5(const char *filename) ;
