@@ -1,5 +1,5 @@
 // This is an example file (main.cc) to illustrate the new Loci's feature
-// of make multiple queries for stationary time facts. Basically everything
+// of making multiple queries for stationary time facts. Basically everything
 // is unchanged except for a facts.get_extensional_facts() call (which
 // must be made before the first query, or the queries won't succeed).
 // See the comments before the queries at the end of the file for detail.
