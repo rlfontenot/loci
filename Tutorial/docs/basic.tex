@@ -1,34 +1,99 @@
 \chapter{ Basic Concepts }
 
+Loci is embedded in C++, and thus relies on C++ for some of its
+conceptual vocabulary.  The concepts it inherits from C++ include
+concepts of iterators and algorithms for iteration as represented
+within the Standard Template Library (STL) that is a component of the
+ISO/ANSI Standard C++ library facilities.  
+
+{\it more on where to get this information and perhaps a simple
+  appendix tutorial should be included here.}
+
+
+\section{Entity}
+A Loci {\tt Entity} represents a thing or object in the real world
+that is distinguishable from all other objects. For example, each
+person in an enterprise is an entity. An entity has a set of
+properties ( a person has name, age, sex etc), and the values for some
+set of properties may uniquely identify an entity. For example, the
+social-security number 677-89-9011 uniquely identifies one particular
+person in United States. In Loci, each entity is given a unique
+integer value as an identifier.
+%
+
 \section {Interval}
-An {\em interval } is a pair of integers which denotes the beginning and the
-end of a set of integer values.
-\par {\bf Example } interval(-100,100) is a set of number from -100, -99, \dots 0 \dots 99, 100
+A Loci {\tt interval } is a contiguous sequence of integers.  An
+ interval is constructed from a pair of integers, the minimum and
+ maximum of the sequence.
+
+\par {\bf Example:~ } interval(-100,100) is the sequence of integers -100, -99, \dots 0 \dots 99, 100.
 
 %
-\section{Entity}
-\par  An {\em entity} is a "thing" or "object" in the real world that
-is distinguishable from all other objects. For example, each person in 
-an enterprise is an entity. An entity has a set of properties ( a person
-has name, age, sex etc), and the
-values for some set of properties may uniquely identify an entity. For
-example, the social-security number 677-89-9011 uniquely identifies
-one particular person in United States. {\bf In Loci, each entity is given
-a unique integer value as an identifier}.
-%
 \section{Entity Set} 
-\par An {entity set } is a set of entities of the same type that share 
-the same properties, or attributes. An entity need not be disjoint, which means that 
-it can belong to more than one entitySet.  The set of all persons who are
-customers at a given bank, for example, can be defined as the entity
-set {\em customer}.
-%
-\par The unique identification of entities in an entity set allows
-efficient control and memory management. In Loci, an entity set functionality is provided by 
-the class {\em entitySet}.  This class provides basic set operations such as union, 
-intersection, and complement by overloading the operators ${\&}$, ${|}$, and ${-}$
-respectively.  In fact, all of the bitwise operators are overloaded
-such that an {\em entitySet} has the appearance of a large bit string.
+
+In Loci, a set of things is represented by an object of the class {\tt
+  EntitySet}.  The elements of the set are represented by Loci objects
+of the type {\tt Entity}.  This class provides basic set operations
+such as union, intersection, and complement by overloading the
+operators ${\&}$, ${|}$, and ${-}$ respectively.  
+
+One can iterate over the set of integers stored in the {\tt entitySet} by 
+using {\tt entitySet::const\_iterator}
+
+{\bf Example:~ }
+
+\begin{verbatim}
+entitySet A = interval(1,10)       // contains an interval from 1 to 10.
+
+// Print out the set of integers contained in A
+for(entitySet:: const_iterator ei = A.begin(); ei != A.end(); ei++)
+     cout << *ei << " ";
+cout << endl;
+\end{verbatim}
+
+The member functions {\tt begin()} and {\tt end()} mimic the semantics
+of the STL containers types. {\tt A.begin()} points to the first
+element in the interval while {\tt A.end()} returns a pointer to the
+location beyond the last element in the interval. The de-referencing
+operator {\bf *()} can be used to return the value of the
+corresponding integer identifier.
+
+\begin{verbatim}
+int main()
+{
+    entitySet     A,B,C,D,E;
+
+//  Assign interval [1,10] to set A and assign interval [5,20] to set B
+    A = interval(1,10) ;
+    B = interval(5,20) ;
+
+//  Adding 2 to set A ( Note that it is already in A), but there
+//  will not be duplication    
+    A += 2 ;  // A = A + interval(2,2) ;
+
+//  Remove 5 from A
+    A -= 5 ;  // A = A - interval(5,5) ;
+
+//  Intersection ( Output: all elements which are common to A and B)
+//  In this case (6,7,8,9,10).
+    C = A & B;
+
+//  Union ( Output: All elements which are in either A or B )
+//  This case ( 1,2,3,4,6,7, ... ,18,19,20)
+    D = A | B ; // Equivalent to D = A + B
+
+//  Relative Complement:  E contain all elements of A which are not in C.
+//  In this case E = (1,2,3,4).
+    E = A - C ;
+
+//  Empty entitySet A
+    A  = EMPTY;
+}
+\end{verbatim}
+
+There are many member function with {\tt entitySet} which are provided in the
+reference manual.
+
 %
 \begin{figure}[ht]
 \special{psfile=entity1.eps vscale=65 hscale=65 voffset=-250 hoffset=60}
@@ -66,69 +131,7 @@ of context in which they are used.}. Therefore, if we assign node entitySet from
 then cell entitySet will start from $(N+1, N+2......N+M)$ and face entitySet from $(N+M+1,...N+P)$
 and so forth.
 
-\par One can iterate over the set of integers stored in the {\em entitySet} by 
-using {\em entitySet::const\_iterator}
-\par {\bf Example}
-\par A = interval(1,10)       // contains an interval from 1 to 10.
-\begin{verbatim}
-for( entitySet:: const_iterator ei = A.begin(); ei != A.end(); ei++)
-     cout << *ei << "   ";
-cout << endl;
-\end{verbatim}
-The member functions {\em begin()} and {\em end()} mimic the semantics of the STL
-containers types. {\em A.begin()} points to the first element in the interval while
-{\em A.end()} returns a pointer to the location beyond the last element in the 
-interval. The de-referencing operator {\bf *()} can be used to return the value of 
-the corresponding integer identifier. 
-
-\par There are many operations, such as union, intersection etc can be defined 
-over an entitySet. The following program demonstrates the use of entitySet class 
-with set operations.
-
-\begin{verbatim}
-int main()
-{
-    entitySet     A,B,C,D,E;
-
-//  Assign set A to interval [1,10], B[5,20]
-    A  =  interval(1,10);
-    B  =  interval(5,20);
-
-//  Adding 2 to set A ( Note that it is already in A), but there
-//  will not be duplication    
-    A   +=   2;
-
-//  Remove 5 from A
-    A   -=   5;
-
-//  Intersection ( Output: all elements which are common to A and B)
-//  In this case (6,7,8,9,10).
-    C  =  A & B;
-
-//  Union ( Output: All elements which are both A and B )
-//  This case ( 1,2,3, ......, 18,19,20)
-    D  =  A | B;
-
-//  E contain all elements of A which are not in C. In this case
-//  E = (1,2,3,4)
-    E  = A - C;
-
-//  Empty the entity Set
-    A  = EMPTY;
-}
-\end{verbatim}
-\par There are many member function with {\em entitySet} which are provided in the
-Appendix A.
-
 \section { Attributes }
-An entity is represented by a set of {\em attributes}. Attributes are descriptive
-properties possessed by each member of an entity set.  Some possible attributes
-of the {\em customer } entity set for a bank are {\em customer-name, 
-social-security, customer-street and customer-city }
-
-\par Consider the biological system, in which each living thing is an entity,
-but what makes elephants differ from tigers ? Definately, distinct properties
-associated with each group makes them distinguishable. 
 
 %
 \par Formally, an attribute of an entity set is a function that maps from the entity
@@ -141,20 +144,20 @@ properties, which are same for each entity in that set. For an example,
 interest rate is a global parameter, which remains same for each customer
 of a bank. 
 
-\par In Loci, {\em store} and {\em parameter} are two classes to assign
-attributes of an entity. The {\em store } class stores properties which
-are unique to an entity, whereas {\em parameter} class provides attributes
+\par In Loci, {\tt store} and {\tt parameter} are two classes to assign
+attributes of an entity. The {\tt store } class stores properties which
+are unique to an entity, whereas {\tt parameter} class provides attributes
 which are global to an entity set.
 
 \subsection{Store}
-The {\em store} is a container that allows the association of values
-to entities given in an {\em entitySet}.  One can think of the {\em
+The {\tt store} is a container that allows the association of values
+to entities given in an {\tt entitySet}.  One can think of the {\tt
 store} as an array where the bounds are specified by an given
 entitySet.  Once the store is constructed, the array is allocated by
-using {\em allocate() } method. The elements of a {\em store} are 
+using {\tt allocate() } method. The elements of a {\tt store} are 
 accessed using the traditional C array operator. 
 
-\par Since {\em store} is a template class for datatype, any standard datatype( 
+\par Since {\tt store} is a template class for datatype, any standard datatype( 
 float, double, int, string etc ) are valid datatypes. Beside, these standard datatype
 Loci provides two additional datatype which are often require in the numerical simulation
 of PDEs.
@@ -177,11 +180,11 @@ density[5] = 1.2;
 .
 .
 \end{verbatim}
-\par {\bf storeVec } A {\em storeVec} provides a way of allocating vectors. The member 
-function {\em allocate()} and {\em initialize()} are similar to those 
-defined for the standard store. The size of the {\em storeVec} is
-specified at the runtime through the method {\em setVecSize()}.
-\par {\bf Example} Suppose for an entity {\em e} we would like to define an array
+\par {\bf storeVec } A {\tt storeVec} provides a way of allocating vectors. The member 
+function {\tt allocate()} and {\tt initialize()} are similar to those 
+defined for the standard store. The size of the {\tt storeVec} is
+specified at the runtime through the method {\tt setVecSize()}.
+\par {\bf Example} Suppose for an entity {\tt e} we would like to define an array
 of size ${n}$. And the values are given $(1.0,2.0,3.0,.....n)$. 
 \begin{verbatim}
 storeVec<float>  myVector;      // Declaration of store-Vector
@@ -194,8 +197,8 @@ myVector[e][4] = 3.0;
 \end{verbatim}
 %
 \par A {\bf storeMat} provide a way of allocating square matrices. The 
-size of matrix is specified at runtime using the {\em setVecSize()}
-\par {\bf Example} Suppose for an entity {\em e} we would like to define a matrix
+size of matrix is specified at runtime using the {\tt setVecSize()}
+\par {\bf Example} Suppose for an entity {\tt e} we would like to define a matrix
 of size ${n \times n}$. And the values are given $(1.0,2.0,3.0,.....n)$. 
 %
 \begin{verbatim}
@@ -336,7 +339,7 @@ use as an stand-alone class is limited.
 accidental changes, Loci provides read only containers with the const form of
 containers. For example: 
 %  
-\par {\bf const\_store }A {\em const\_store} is also provided when
+\par {\bf const\_store }A {\tt const\_store} is also provided when
 read only access to an array is required.
 %  
 \par A {\bf const\_storeVec} is  provided for read-only access to a storeVec is required.
@@ -352,7 +355,7 @@ Using parameter class, we can specify attributes that are shared by many entitie
 \label{FigParameter}
 \end{figure}
 %
-\par {\bf Examples } There are many user defined variable such as {\em maxIteration,
+\par {\bf Examples } There are many user defined variable such as {\tt maxIteration,
 Reynolds number, heat coefficients etc,} which are globally assigned to a collection
 of entities( may be entire mesh ). such variable are stored as parameters.
 \par {\bf const\_param } is a variant of parameter type for read-only purpose.
@@ -360,7 +363,7 @@ of entities( may be entire mesh ). such variable are stored as parameters.
 param<double>  ReynoldsNumber, heatCoefficient;
 param<int>     maxIterations;
 \end{verbatim}
-The value is accessed by using the dereference operator, {\em'*'}.
+The value is accessed by using the dereference operator, {\tt'*'}.
 \par {\bf Example }
 \begin{verbatim}
 *ReynoldsNumber = 100000;
@@ -380,7 +383,7 @@ n   =  maxIterations[e];
 \end{verbatim}
 \par Where $e$ is an entity.
 \section  { Maps }
-An {\em entity} has an independent existence, but it is the relationship 
+An {\tt entity} has an independent existence, but it is the relationship 
 with other entities that makes an entity important and useful. For example,
 a bank and a person are totally independent entities, but a relationship between
 the bank with the person makes bank more useful and objective. In a database,
@@ -431,8 +434,8 @@ known a-priori at the time of compilation for each entity in an entitySet.
 entity in an entitySet.
 \end{enumerate}
 
-\par The allocation of {\em Map} and {\em MapVec} is done with the entitySet
-directly, while {\em multiMap} require one more intermediate stage. An
+\par The allocation of {\tt Map} and {\tt MapVec} is done with the entitySet
+directly, while {\tt multiMap} require one more intermediate stage. An
 array which stores the number of relationship is created, which it 
 created using the entitySet, this array is passed to allocate memory
 for a multiMap.  
@@ -642,10 +645,10 @@ neighmap[9][3] =  3;
 \end{enumerate}
 
 \subsection{ MapVec or Multimap: which method is better ? }
-\par Remember that {\em multiMap} is a generalization of {\em MapVec } and {\em Map}, 
+\par Remember that {\tt multiMap} is a generalization of {\tt MapVec } and {\tt Map}, 
 so everything you wish to do with the later could be done with former as well, but
-if you know the number of relationship, a-priori, then using {\em mapVec$<N>$} 
-will be advantageous, otherwise {\em multimap} is the only choice. 
+if you know the number of relationship, a-priori, then using {\tt mapVec$<N>$} 
+will be advantageous, otherwise {\tt multimap} is the only choice. 
 
 \section { Graph }
 A graph is a finite set of vertices ( or nodes) connected by links called edges. 
@@ -702,7 +705,7 @@ calculations are performed.
 
 \section {Constraint}
 Sometimes, we would like to apply certain operations only to the selected entities, 
-in those case we can {\em constraint} identifier to filter out entities.
+in those case we can {\tt constraint} identifier to filter out entities.
 
 \begin{figure}[h]
 \special{psfile=const.eps vscale=65 hscale=65 voffset=-200 hoffset=175}
