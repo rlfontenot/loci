@@ -24,7 +24,7 @@
 namespace Loci {
   template<class T> class dmultiStoreRepI : public storeRep {
     entitySet                 store_domain ;
-    hash_map<int,vector<T> >  attrib_data;
+    hash_map<int,std::vector<T> >  attrib_data;
 
     void  hdf5read( H5::Group group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
     void  hdf5read( H5::Group group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
@@ -74,16 +74,16 @@ namespace Loci {
     virtual void readhdf5( H5::Group group, entitySet &user_eset) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
 
-    hash_map<int,vector<T> > *get_attrib_data(){return &attrib_data; }
+    hash_map<int,std::vector<T> > *get_attrib_data(){return &attrib_data; }
   } ;
 
   //***************************************************************************/
   
   template<class T> class dmultiStore : public store_instance {
     typedef dmultiStoreRepI<T>  storeType ;
-    hash_map<int, vector<T> > *attrib_data;
+    hash_map<int, std::vector<T> > *attrib_data;
   public:
-    typedef vector<T> containerType ;
+    typedef std::vector<T> containerType ;
     dmultiStore() {setRep(new storeType) ;}
     dmultiStore(dmultiStore<T> &var) {setRep(var.Rep()) ;}
     dmultiStore(storeRepP &rp) { setRep(rp) ;}
@@ -114,11 +114,11 @@ namespace Loci {
 
     entitySet domain() const { return Rep()->domain() ; }
 
-    vector<T> &elem(int indx) {
+    std::vector<T> &elem(int indx) {
       return( (*attrib_data)[indx] );
     }
 
-    vector<T> &operator[](int indx) {
+    std::vector<T> &operator[](int indx) {
       return( (*attrib_data)[indx] );
     }
     
@@ -159,7 +159,7 @@ namespace Loci {
   
   template<class T> class const_dmultiStore : public store_instance {
     typedef dmultiStoreRepI<T> storeType ;
-    hash_map<int, vector<T> >   *attrib_data;
+    hash_map<int, std::vector<T> >   *attrib_data;
   public:
     //    typedef const_Vect<T> containerType ;
     const_dmultiStore() {setRep(new storeType) ;}
@@ -185,11 +185,11 @@ namespace Loci {
 
     const entitySet domain() const { return Rep()->domain() ; }
 
-    vector<T> &elem(int indx) {
+    std::vector<T> &elem(int indx) {
       return( (*attrib_data)[indx] );
     }
 
-    vector<T> &operator[](int indx) {
+    std::vector<T> &operator[](int indx) {
       return( (*attrib_data)[indx] );
     }
 
@@ -251,7 +251,7 @@ namespace Loci {
   template<class T> 
   void dmultiStoreRepI<T>::allocate(const entitySet &ptn) 
   {
-    vector<T>   emptyVec;
+    std::vector<T>   emptyVec;
     entitySet :: const_iterator  ci;
 
     for( ci = ptn.begin(); ci != ptn.end(); ++ci)
@@ -297,7 +297,7 @@ namespace Loci {
   void dmultiStoreRepI<T>::copy(storeRepP &st, const entitySet &context) 
   {
     const_dmultiStore<T> s(st) ;
-    vector<T>    newVec;
+    std::vector<T>    newVec;
 
     FORALL(context,i) {
       attrib_data[i].clear();
@@ -317,7 +317,7 @@ namespace Loci {
   void dmultiStoreRepI<T>::gather(const Map &m, storeRepP &st, const entitySet &context) 
   {
     const_dmultiStore<T> s(st) ;
-    vector<T>    newVec;
+    std::vector<T>    newVec;
 
     FORALL(context,i) {
       attrib_data[i].clear();
@@ -337,7 +337,7 @@ namespace Loci {
   void dmultiStoreRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context) 
   {
     const_dmultiStore<T> s(st) ;
-    vector<T>    newVec;
+    std::vector<T>    newVec;
 
     FORALL(context,i) {
       attrib_data[i].clear();
@@ -370,10 +370,10 @@ namespace Loci {
   {
     T    *buf;
     int    numBytes, vecsize;
-    vector<T>   newVec;
+    std::vector<T>   newVec;
     entitySet  :: const_iterator ei;
 
-    hash_map<int,vector<T> > :: const_iterator  ci;
+    hash_map<int,std::vector<T> > :: const_iterator  ci;
  
     for( ei = eset.begin(); ei != eset.end(); ++ei) {
       ci = attrib_data.find( *ei );
@@ -428,7 +428,7 @@ namespace Loci {
   template<class T> 
   entitySet dmultiStoreRepI<T>::domain() const 
   {
-    hash_map<int,vector<T> > :: const_iterator    ci;
+    hash_map<int,std::vector<T> > :: const_iterator    ci;
     entitySet          storeDomain;
     vector<int>        vec;
 
@@ -450,8 +450,8 @@ namespace Loci {
   {
     s << '{' << domain() << endl ;
 
-    hash_map<int,vector<T> >  :: const_iterator ci;
-    vector<T>    vec;
+    hash_map<int,std::vector<T> >  :: const_iterator ci;
+    std::vector<T>    vec;
 
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
@@ -505,7 +505,7 @@ namespace Loci {
 
     // Read the attribute data
     T          val;
-    vector<T>  vec;
+    std::vector<T>  vec;
     FORALL(e,ii) {
       vec.clear();
       for( int i = 0; i < sizes[ii]; i++) {
@@ -700,9 +700,9 @@ namespace Loci {
     int      rank = 1;
     hsize_t  dimension[1];
 
-    vector<T>   newvec;
+    std::vector<T>   newvec;
     entitySet :: const_iterator  ei;
-    hash_map<int,vector<T> >:: const_iterator ci;
+    hash_map<int,std::vector<T> >:: const_iterator ci;
 
     //write out the domain   
     HDF5_WriteDomain(group, eset);
@@ -950,9 +950,9 @@ namespace Loci {
     entitySet :: const_iterator ei;
     size_t       arraySize= 0;
     int          count, stateSize, *storeSize, maxBucketSize;
-    vector<int>  bucketSize;    //  Because we don't know in advance the size
-    vector<T>    newvec;
-    hash_map<int,vector<T> >:: const_iterator ci;
+    std::vector<int>  bucketSize;    //  Because we don't know in advance the size
+    std::vector<T>    newvec;
+    hash_map<int,std::vector<T> >:: const_iterator ci;
 
     storeSize = new int[eset.size()];
 

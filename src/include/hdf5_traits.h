@@ -4,12 +4,8 @@
 #include <hdf5CC/H5cpp.h>
 #include <vector>
 #include <complex>
-#include <Tools/stream.h>
 
 #include <mpi.h>
-
-#include <stdio.h>
-#include <iostream.h>
 
 namespace Loci {
 

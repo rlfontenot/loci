@@ -1,8 +1,5 @@
-#ifndef MAP_H_
-#define MAP_H_
-
-#include <istream>
-#include <ostream>
+#ifndef LOCI_MAP_H_
+#define LOCI_MAP_H_
 
 #include <Tools/debug.h>
 #include <Map_rep.h>

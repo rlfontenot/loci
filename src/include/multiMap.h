@@ -1,9 +1,6 @@
 #ifndef MULTIMAP_H
 #define MULTIMAP_H
 
-#include <istream>
-#include <ostream>
-
 #include <Tools/debug.h>
 #include <Map_rep.h>
 #include <hdf5CC/H5cpp.h>

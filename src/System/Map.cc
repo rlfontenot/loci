@@ -1,8 +1,6 @@
 #include <Map.h>
 #include <multiMap.h>
 
-#include <Tools/stream.h>
-
 namespace Loci {
 
   using std::pair ;
@@ -235,7 +233,7 @@ namespace Loci {
     
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
-      cerr << "Incorrect Format while reading store" << endl ;
+      std::cerr << "Incorrect Format while reading store" << endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -248,7 +246,7 @@ namespace Loci {
     
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
-      cerr << "Incorrect Format while reading store" << endl ;
+      std::cerr << "Incorrect Format while reading store" << endl ;
       s.putback(ch) ;
     }
     return s ;
@@ -736,7 +734,7 @@ namespace Loci {
     
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
-      cerr << "Incorrect Format while reading store" << endl ;
+      std::cerr << "Incorrect Format while reading store" << endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -756,7 +754,7 @@ namespace Loci {
             
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
-      cerr << "Incorrect Format while reading store" << endl ;
+      std::cerr << "Incorrect Format while reading store" << endl ;
       s.putback(ch) ;
     }
     return s ;

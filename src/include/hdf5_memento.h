@@ -4,12 +4,10 @@
 #include <typeinfo>
 #include <hdf5_traits.h>
 #include <hdf5CC/H5cpp.h>
-#include <Tools/stream.h>
 
 #include <vector>
 #include <algorithm>
 
-using namespace :: std;
 
 namespace Loci {
 
@@ -36,7 +34,7 @@ public:
     for( int i = 0; i < size; i++) 
          buf[i] = obj[i];
   }
-  vector<T> setState(typename converter_traits::memento_type *buf, int size)
+  std::vector<T> setState(typename converter_traits::memento_type *buf, int size)
   {
     obj.clear();
  

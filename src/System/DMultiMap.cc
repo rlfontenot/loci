@@ -9,7 +9,8 @@ namespace Loci
 
   using std::pair ;
   using std::make_pair ;
-
+  using std::vector ;
+  using std::sort ;
   //-----------------------------------------------------------------
 
   /*

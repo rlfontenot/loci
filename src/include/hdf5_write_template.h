@@ -5,7 +5,7 @@
 #include <hdf5_memento.h>
 #include <hdf5_traits.h>
 #include <hdf5CC/H5cpp.h>
-#include <Tools/stream.h>
+
 
 namespace Loci {
 

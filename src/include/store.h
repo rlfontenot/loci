@@ -4,8 +4,6 @@
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
-#include <istream>
-#include <ostream>
 
 #include <hdf5CC/H5cpp.h>
 //#include <hdf5_traits.h>
@@ -14,6 +12,7 @@
 #include <Tools/intervalSet.h>
 #include <algorithm>
 #include <functional>
+
 
 #include <mpi.h>
 namespace Loci {
