@@ -221,7 +221,7 @@ namespace Loci {
   }
   
   
-  void get_mappings(rule_db &rdb,
+  void get_mappings(rule_db &rdb, fact_db &facts,
                     set<vector<variableSet> > &maps_ret){
     ruleSet rules = rdb.all_rules() ;
     set<vector<variableSet> > maps ;
@@ -287,9 +287,17 @@ namespace Loci {
 
     set<vector<variableSet> >::const_iterator mi ;
 
+    variableSet vars = facts.get_typed_variables() ;
     maps_ret.clear() ;
     for(mi=maps.begin();mi!=maps.end();++mi) {
       const vector<variableSet> &vss = *mi ;
+      // If the maps aren't in the fact database then exclude it
+      variableSet notvars ;
+      for(int i=0;i<vss.size();++i)
+        notvars += vss[i]-vars ;
+      if(notvars != EMPTY)
+        continue ;
+      // Now expand mapping of length up two 2
       if(vss.size() < 2) {
         for(variableSet::const_iterator vi=vss[0].begin();vi!=vss[0].end();++vi) {
           vector<variableSet> vs(1) ;
@@ -409,7 +417,7 @@ namespace Loci {
     vector<entitySet> copy(num_procs) ;
     vector<entitySet> image(num_procs) ;
     metis_facts(facts,ptn,partition) ;
-    get_mappings(rdb,maps) ;
+    get_mappings(rdb,facts,maps) ;
     set<vector<Loci::variableSet> >::const_iterator smi ;
 
     for(int pnum = 0; pnum < num_procs; pnum++) {
