@@ -56,11 +56,9 @@ namespace Loci {
                      const std::set<int>& lsn,
                      const std::map<int,variableSet>& rot_vt,
                      const std::map<int,variableSet>& lcommont,
-                     const variableSet& untyped_vars)
-      :graph_sn(gsn),recur_target_vars(rtv),
-       loop_sn(lsn),rotate_vtable(rot_vt),
-       loop_common_table(lcommont),
-       allocated_vars(untyped_vars){}
+                     const variableSet& untyped_vars) :
+      allocated_vars(untyped_vars), graph_sn(gsn),recur_target_vars(rtv),
+      loop_sn(lsn),rotate_vtable(rot_vt), loop_common_table(lcommont){}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;

@@ -220,7 +220,6 @@ namespace Loci {
   ostream& allocDeleteStat::report(ostream& s) const {
     variableSet d_a, a_d ;
     variableSet::const_iterator vi,vii ;
-    map<variable,variable>::const_iterator mi ;
 
     s << "***** Begin allocation and deletion info report *****" << endl ;
     variableSet miss_alloc ;
@@ -666,10 +665,9 @@ namespace Loci {
                    const variableSet& ptarget,
                    const set<int>& gsn,
                    variableSet& input):
-    promote_t2s(pt2s),promote_s2t(ps2t),
-    promote_source_vars(psource),promote_target_vars(ptarget),
-    graph_sn(gsn) {
-
+    promote_source_vars(psource), promote_target_vars(ptarget),
+    promote_t2s(pt2s), promote_s2t(ps2t), graph_sn(gsn) {
+    
     reserved_vars += input ;
     reserved_vars += get_recur_target_for_vars(input,promote_s2t) ;
   }

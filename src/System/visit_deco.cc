@@ -286,11 +286,12 @@ namespace Loci {
                     const set<int>& lsn,
                     const map<int,variableSet>& rot_vt,
                     const map<int,variableSet>& lcommont,
-                    const variableSet& reserved_vars)
-    :loop_alloc_table(lat),recur_vars_t2s(rvt2s),
-     recur_vars_s2t(rvs2t),graph_sn(gsn),
-     pnode_table(pnt),loop_ctable(lct),loop_sn(lsn),
-     rotate_vtable(rot_vt),loop_common_table(lcommont){
+                    const variableSet& reserved_vars):
+     recur_vars_t2s(rvt2s), recur_vars_s2t(rvs2t),
+     loop_alloc_table(lat), graph_sn(gsn),
+     pnode_table(pnt), loop_ctable(lct),
+     loop_sn(lsn), rotate_vtable(rot_vt),
+     loop_common_table(lcommont){
       
     for(std::map<int,int>::const_iterator mi=loop_ctable.begin();
         mi!=loop_ctable.end();++mi)

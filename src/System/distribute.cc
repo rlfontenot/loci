@@ -2626,7 +2626,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
     if(Loci::MPI_rank == 0)
       image = MapRepP(m.Rep())->image(dom) ;
     image = all_collect_entitySet(image) ;
-    entitySet::const_iterator ti ;
+
     entitySet my ;
     if(Loci::MPI_rank == 0) {
       std::vector<entitySet> ent(MPI_processes) ;
@@ -2716,7 +2716,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
     if(Loci::MPI_rank == 0)
       dom = m.domain() ;
     dom = Loci::all_collect_entitySet(dom) ;
-    entitySet::const_iterator ti ;
+
     entitySet my ;
     if(Loci::MPI_rank == 0) {
       std::vector<entitySet> ent(MPI_processes-1) ;
@@ -2779,7 +2779,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
     if(Loci::MPI_rank == 0)
       dom = m.domain() ;
     dom = Loci::all_collect_entitySet(dom) ;
-    entitySet::const_iterator ti ;
+
     nm.allocate(dom) ;
     int sz = 0 ;
     sz = dom.size() ;
