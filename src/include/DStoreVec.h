@@ -658,7 +658,7 @@ namespace Loci {
 
     int M ;
     MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
-    if(size != M) {
+    if( M > size) {
       set_elem_size(M) ;
     }
     unpackdata( traits_type, inbuf, position, insize, seq);
