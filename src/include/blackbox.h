@@ -26,6 +26,7 @@ namespace Loci {
     blackboxRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX); }
     blackboxRepI(const entitySet &p) { store_domain = p;}
     virtual void allocate(const entitySet &p) ;
+    virtual void shift(int_type offset) ;
     virtual ~blackboxRepI();
     virtual store_type RepType() const;
     virtual entitySet domain() const;
@@ -45,6 +46,9 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s);
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
+    virtual DatatypeP getType() ;
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
     T *get_blackbox() { return &attrib_data; }
   };
 
@@ -62,25 +66,25 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T>
-    storeRep *blackboxRepI<T>::new_store(const entitySet &p) const
-    {
-      return new blackboxRepI<T>(p);
-    }
+  storeRep *blackboxRepI<T>::new_store(const entitySet &p) const
+  {
+    return new blackboxRepI<T>(p);
+  }
 
   template<class T>
-    storeRep *blackboxRepI<T>::new_store(const entitySet &p, const int* cnt) const
-    {
-      storeRep* sp = 0;
-      cerr << " This method should not be called for a dMap " << endl ;
-      return sp ; 
-    }
+  storeRep *blackboxRepI<T>::new_store(const entitySet &p, const int* cnt) const
+  {
+    storeRep* sp = 0;
+    cerr << " This method should not be called for a dMap " << endl ;
+    return sp ; 
+  }
   //**************************************************************************/
   
   template<class T> 
-    store_type blackboxRepI<T>::RepType() const 
-    {
-      return BLACKBOX;
-    }
+  store_type blackboxRepI<T>::RepType() const 
+  {
+    return BLACKBOX;
+  }
 
   //**************************************************************************/
 
@@ -89,41 +93,74 @@ namespace Loci {
   }
 
   //**************************************************************************/
+
+  template<class T> void blackboxRepI<T>::shift(int_type offset) {
+    cerr << "shift not supported in BLACKBOX!" << endl ;
+  }
+
+  //**************************************************************************/
         
   template<class T> 
-    std::ostream &blackboxRepI<T>::Print(std::ostream &s) const 
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-      s << '{' << domain() << std::endl;
-      s << '}' << std::endl;
-      return s;
-    }
+  std::ostream &blackboxRepI<T>::Print(std::ostream &s) const 
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+    s << '{' << domain() << std::endl;
+    s << '}' << std::endl;
+    return s;
+  }
 
   //**************************************************************************/
 
   template<class T> 
-    std::istream &blackboxRepI<T>::Input(std::istream &s) 
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-      return s;
-    }
+  std::istream &blackboxRepI<T>::Input(std::istream &s) 
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+    return s;
+  }
 
   //**************************************************************************/
   template<class T> 
-    void blackboxRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) 
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-    }
+  void blackboxRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) 
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+  }
     
-    //**************************************************************************/
+  //**************************************************************************/
     
-    template<class T> 
-      void blackboxRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-    }
+  template<class T> 
+  void blackboxRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+  }
     
-    //**************************************************************************/
+  //**************************************************************************/
+    
+  template<class T> 
+  DatatypeP blackboxRepI<T>::getType()
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+    return 0 ;
+  }
+  //**************************************************************************/
+    
+  template<class T> 
+  frame_info blackboxRepI<T>::read_frame_info(hid_t group_id)
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+    frame_info fi ;
+    return fi ;
+  }
+  //**************************************************************************/
+    
+  template<class T> 
+  frame_info blackboxRepI<T>::write_frame_info(hid_t group_id)
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+    frame_info fi ;
+    return fi ;
+  }
+    
+  //**************************************************************************/
     
   template<class T> class blackbox : public store_instance {
     typedef blackboxRepI<T> blackboxType;
@@ -183,37 +220,37 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-    void blackbox<T>::notification()
-    {  
-      NPTR<blackboxType> p(Rep());
-      if(p!=0) data = p->get_blackbox();
-      warn(p==0);
-    }
+  void blackbox<T>::notification()
+  {  
+    NPTR<blackboxType> p(Rep());
+    if(p!=0) data = p->get_blackbox();
+    warn(p==0);
+  }
 
   //**************************************************************************/
 
   template<class T> 
-    inline std::ostream & operator<<(std::ostream &s, const blackbox<T> &t)
-    {
-      return t.Print(s);
-    }
+  inline std::ostream & operator<<(std::ostream &s, const blackbox<T> &t)
+  {
+    return t.Print(s);
+  }
 
   //**************************************************************************/
 
   template<class T> 
-    inline std::istream & operator>>(std::istream &s, blackbox<T> &t)
-    {
-      return t.Input(s);
-    }
+  inline std::istream & operator>>(std::istream &s, blackbox<T> &t)
+  {
+    return t.Input(s);
+  }
 
   //**************************************************************************/
 
   template<class T> 
-    class const_blackbox : public store_instance {
+  class const_blackbox : public store_instance {
     typedef T containerType;
     typedef blackboxRepI<T> blackboxType;
     const T * data;
-    public:
+  public:
     const_blackbox() { setRep(new blackboxType); }
     const_blackbox(const_blackbox<T> &var) { setRep(var.Rep()); }
     const_blackbox(blackbox<T> &var) { setRep(var.Rep()); }
@@ -257,98 +294,98 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-    void const_blackbox<T>::notification() 
-    {  
-      NPTR<blackboxType> p(Rep());
-      if(p!=0) data = p->get_blackbox();
-      warn(p==0);
-    }
+  void const_blackbox<T>::notification() 
+  {  
+    NPTR<blackboxType> p(Rep());
+    if(p!=0) data = p->get_blackbox();
+    warn(p==0);
+  }
     
   //**************************************************************************/
 
   template<class T> 
-    storeRepP blackboxRepI<T>::remap(const dMap &m) const 
-    {
-      blackbox<T> r;
-      r.set_entitySet(m.image(m.domain()&domain()));
-      *r = attrib_data;
-      return r.Rep();
-    }
+  storeRepP blackboxRepI<T>::remap(const dMap &m) const 
+  {
+    blackbox<T> r;
+    r.set_entitySet(m.image(m.domain()&domain()));
+    *r = attrib_data;
+    return r.Rep();
+  }
 
   //**************************************************************************/
 
   template<class T> 
-    void blackboxRepI<T>::copy(storeRepP &st, const entitySet &context) 
-    {
-      blackbox<T> p(st);
-      attrib_data = *p;
-      warn((store_domain - context) != EMPTY);
-      store_domain = context;
-      dispatch_notify();
-    }
+  void blackboxRepI<T>::copy(storeRepP &st, const entitySet &context) 
+  {
+    blackbox<T> p(st);
+    attrib_data = *p;
+    warn((store_domain - context) != EMPTY);
+    store_domain = context;
+    dispatch_notify();
+  }
 
   //**************************************************************************/
 
   template<class T> 
-    void blackboxRepI<T>::gather(const dMap &m, storeRepP &st,
-				 const entitySet &context) 
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-    }
+  void blackboxRepI<T>::gather(const dMap &m, storeRepP &st,
+                               const entitySet &context) 
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+  }
 
   //**************************************************************************/
 
   template<class T> 
-    void blackboxRepI<T>::scatter(const dMap &m, storeRepP &st,
-				  const entitySet &context) 
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-    }
+  void blackboxRepI<T>::scatter(const dMap &m, storeRepP &st,
+                                const entitySet &context) 
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+  }
 
   //**************************************************************************/
  
   template <class T> 
-    int blackboxRepI<T>::pack_size(const entitySet &eset) 
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-      return 0;
-    }
+  int blackboxRepI<T>::pack_size(const entitySet &eset) 
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+    return 0;
+  }
 
   //**************************************************************************/
 
   template <class T> 
-    void blackboxRepI<T>::pack(void *ptr, int &loc, int &size,
-			       const entitySet &e) 
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-    }
+  void blackboxRepI<T>::pack(void *ptr, int &loc, int &size,
+                             const entitySet &e) 
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+  }
 
   //**************************************************************************/
 
   template <class T> 
-    void blackboxRepI<T>::unpack(void *ptr, int &loc, int &size,
-				 const sequence &seq)
-    {
-      cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-    }  
+  void blackboxRepI<T>::unpack(void *ptr, int &loc, int &size,
+                               const sequence &seq)
+  {
+    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+  }  
 
 
   //**************************************************************************/
 
   template<class T>
-    store_instance::instance_type const_blackbox<T>::access() const
-    {
-      return READ_ONLY;
-    }
+  store_instance::instance_type const_blackbox<T>::access() const
+  {
+    return READ_ONLY;
+  }
 
   //**************************************************************************/
     
   template<class T> 
-    inline std::ostream & operator<<(std::ostream &s,
-				     const const_blackbox<T> &t)
-    {
-      return t.Print(s);
-    }
+  inline std::ostream & operator<<(std::ostream &s,
+                                   const const_blackbox<T> &t)
+  {
+    return t.Print(s);
+  }
 
   //**************************************************************************/
 }
