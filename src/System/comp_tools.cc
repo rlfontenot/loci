@@ -817,12 +817,8 @@ namespace Loci {
       vmap[v] += send_ents ;
     }
     
-    for(unsigned int i=0;i<send_vars.size();++i) {
-      variable v = send_vars[i] ;
-      send_entities.push_back(make_pair(v,vmap[v])) ;
-    }
-    
-
+    for(map<variable,entitySet>::const_iterator mi = vmap.begin(); mi != vmap.end(); mi++) 
+      send_entities.push_back(make_pair(mi->first,mi->second));
     
     if(seinfo.size() != 0) {
       vector<entitySet> send_sets = send_entitySet(seinfo,facts) ;
