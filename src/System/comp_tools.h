@@ -15,6 +15,10 @@ namespace Loci {
                               entitySet compute) ;
   void existential_rule_analysis(rule f, fact_db &facts) ;
   entitySet process_rule_requests(rule f, fact_db &facts) ;
+  
+  void barrier_existential_rule_analysis(rule f, fact_db &facts) ;
+  entitySet barrier_process_rule_requests(rule f, fact_db &facts) ;
+  
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) ;
   std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;

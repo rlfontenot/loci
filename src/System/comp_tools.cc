@@ -621,42 +621,48 @@ namespace Loci {
       ep->append_list(execrule) ;
     }
   }
-
-  void barrier_compiler::set_var_existence(fact_db &facts) {
-    if(facts.isDistributed()) {
-      std::map<variable, ruleSet>::iterator mi ;
-      constraint my_entities ;
-      my_entities = facts.get_variable("my_entities") ;
-      for(mi = barrier_info.begin() ; mi != barrier_info.end(); ++mi) {
-	variable v = mi->first ;
-	ruleSet rs = mi->second ;
-	ruleSet::const_iterator rsi ;
-	for(rsi = rs.begin(); rsi != rs.end(); ++rsi) {
-	  entitySet targets ;
-	  targets = facts.get_existential_info(v, *rsi) ;
-	  targets = send_entitySet(targets, facts) ;
-	  targets &= my_entities ;
-	  targets = fill_entitySet(targets, facts) ;
-	  facts.set_existential_info(v,*rsi,targets) ;
-	}
+  void barrier_existential_rule_analysis(std::map<variable, ruleSet > barrier_info, fact_db &facts) {
+    std::map<variable, ruleSet>::iterator mi ;
+    constraint my_entities ;
+    my_entities = facts.get_variable("my_entities") ;
+    for(mi = barrier_info.begin() ; mi != barrier_info.end(); ++mi) {
+      variable v = mi->first ;
+      ruleSet rs = mi->second ;
+      ruleSet::const_iterator rsi ;
+      for(rsi = rs.begin(); rsi != rs.end(); ++rsi) {
+	entitySet targets ;
+	targets = facts.get_existential_info(v, *rsi) ;
+	targets = send_entitySet(targets, facts) ;
+	targets &= my_entities ;
+	targets = fill_entitySet(targets, facts) ;
+	facts.set_existential_info(v,*rsi,targets) ;
       }
     }
   }
   
+  void barrier_process_rule_requests(std::map<variable, ruleSet > barrier_info, fact_db &facts) {
+    std::map<variable, ruleSet>::iterator mi ;
+    for(mi = barrier_info.begin() ; mi != barrier_info.end(); ++mi) {
+      variable v = mi->first ;
+      entitySet requests = facts.get_variable_requests(v) ;
+      requests = send_entitySet(requests, facts) ;
+      facts.variable_request(v,requests) ;
+    }
+  }
+  
+  void barrier_compiler::set_var_existence(fact_db &facts) {
+    if(facts.isDistributed())
+      barrier_existential_rule_analysis(barrier_info, facts) ;
+  }
+  
   void barrier_compiler::process_var_requests(fact_db &facts) {
-    
     if(facts.isDistributed()) {
-      std::map<variable, ruleSet>::iterator mi ;
-      for(mi = barrier_info.begin() ; mi != barrier_info.end(); ++mi) {
-	variable v = mi->first ;
-	entitySet requests = facts.get_variable_requests(v) ;
-	requests = send_entitySet(requests, facts) ;
-	facts.variable_request(v,requests) ;
-      }
+      barrier_process_rule_requests(barrier_info, facts) ;
       plist = put_precomm_info(barrier_info, facts) ;
       clist = put_postcomm_info(barrier_info, facts) ;
     }
   }
+  
   
   executeP barrier_compiler::create_execution_schedule(fact_db &facts) {
     //    if(num_threads > 1)
@@ -674,7 +680,7 @@ namespace Loci {
     }
     return new execute_thread_sync(oss.str()) ;
   }
-
+  
   class execute_msg : public execute_modules {
     std::string msg ;
   public:
@@ -682,19 +688,24 @@ namespace Loci {
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
-
+  
   void execute_msg::execute(fact_db &facts) {  }
   
   void execute_msg::Print(std::ostream &s) const { s << msg << endl ; }
-
-
+  
+  
   
   void singleton_var_compiler::set_var_existence(fact_db &facts)  {
+    if(facts.isDistributed())
+      barrier_existential_rule_analysis(barrier_info, facts) ;
   }
-
+  
   void singleton_var_compiler::process_var_requests(fact_db &facts) {
+    if(facts.isDistributed()) {
+      barrier_process_rule_requests(barrier_info, facts) ;
+    }
   }
-
+  
   executeP singleton_var_compiler::create_execution_schedule(fact_db &facts) {
     variableSet vars ;
     std::map<variable, ruleSet>::const_iterator ri ;
