@@ -667,7 +667,8 @@ namespace Loci {
       oss << mi->first << " " ;
     }
     if(facts.isDistributed()) {
-      CPTR<execute_list> el = new execute_list ;
+      CPTR<execute_sequence> el = new execute_sequence ;
+      el->append_list(new execute_thread_sync) ;
       el->append_list(new execute_precomm(plist, facts) ) ; 
       el->append_list(new execute_postcomm(clist, facts)) ;
       return executeP(el) ;
