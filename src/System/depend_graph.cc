@@ -9,6 +9,7 @@ using std::set ;
 #ifndef DEBUG
 #define PRUNE_GRAPH
 #endif
+//#define VERBOSE
 
 namespace Loci {
 
@@ -71,11 +72,17 @@ namespace Loci {
 
     ruleSet fill_graph(variableSet start, const digraph &rule_graph,
                        digraph &gr,variableSet known) {
+#ifdef VERBOSE
+      cout << "fillgraph(start="<<start<<",known="<<known<<")"<<endl ;
+#endif
       digraph rgt = rule_graph.transpose() ;
       variableSet working = start ;
       variableSet processed ;
       ruleSet processed_rules ;
       while(working != EMPTY) {
+#ifdef VERBOSE
+        cout << "fill_graph: working = " << working << endl ;
+#endif
         variableSet new_vars ;
         ruleSet working_rules ;
         processed += working ;
@@ -127,6 +134,10 @@ namespace Loci {
           var_rules -= reject_rules ;
           processed_rules += var_rules ;
           working_rules += var_rules ;
+
+#ifdef VERBOSE
+          cout << "rules involved = " << var_rules << endl ;
+#endif
           
           time_ident vtime = vi->time() ;
           if(vtime != time_ident()) {
@@ -150,6 +161,9 @@ namespace Loci {
                     rule_depend = pr.sources() ;
                   rule_depend -= known_processed ;
                   if(rule_depend == EMPTY) {
+#ifdef VERBOSE
+                    cout << "promote rule = " << pr << endl ;
+#endif
                     processed_rules += pr ;
                     working_rules += pr ;
                     invoke_rule(pr,gr) ;
@@ -163,6 +177,9 @@ namespace Loci {
         new_vars -= processed ;
         working = new_vars ;
       }
+#ifdef VERBOSE
+      cout << "return from fill_graph" << endl ;
+#endif
       return ruleSet(EMPTY) ;
     }
 
@@ -512,18 +529,21 @@ namespace Loci {
         digraph &ig = ip->second.iteration_graph ;
         digraph igt = ig.transpose() ;
         variableSet ivars = extract_vars(ig.get_all_vertices()) ;
+#ifdef VERBOSE
+        cout << "ivars = " << ivars << endl ;
+#endif
 
         for(variableSet::const_iterator vi=ivars.begin();vi!=ivars.end();++vi) {
           if(grt.get_edges(vi->ident()) == EMPTY) {
             const variable::info &kvi = vi->get_info() ;
             if(!kvi.assign && !kvi.tvar && kvi.offset == 0
-               && kvi.time() == ip->first) {
+               && kvi.time() != time_ident()) {
+              //               && kvi.time() == ip->first) {
               time_ident parent = kvi.time().parent() ;
               variable vs = *vi ;
               while(parent != time_ident()) {
                 variable vp(*vi,parent) ;
                 invoke_rule(create_rule(vp,vs,"promote"),gr) ;
-                vs = vp ;
 #ifdef VERBOSE
                 cout << "adding promote for iteration " << ip->first << endl ;
                 cout << vp << " to " << vs << endl ;
@@ -532,6 +552,7 @@ namespace Loci {
                   break ;
                 }
                 parent = parent.parent() ;
+                vs = vp ;
               }
               if(parent == time_ident()) {
                 variable vp(*vi,parent) ;
