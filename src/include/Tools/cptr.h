@@ -9,39 +9,46 @@
 
 
 namespace Loci {
-// Counted Pointer
+  // Counted Pointer
 
-class CPTR_type {
-  mutable int CPTR_count ;
-  mutable lmutex CPTR_mutex;
+  class CPTR_type {
+    mutable int CPTR_count ;
+    mutable lmutex CPTR_mutex;
     //    CPTR_type *operator&() { warn(true) ; return 0 ; }
   public:
-  CPTR_type() {CPTR_count = 0 ;  }
-  virtual ~CPTR_type() { warn(CPTR_count!=0) ; }
-  void link() const  {
-    CPTR_mutex.lock() ;
-    ++CPTR_count ;
-    CPTR_mutex.unlock() ;
-  }
-  void unlink() const {
-    CPTR_mutex.lock() ;
-    --CPTR_count ;
-    const bool flag = (CPTR_count == 0) ;
-    CPTR_mutex.unlock() ;
-    if(flag) delete this ;
-  }
-} ;
+    CPTR_type() {CPTR_count = 0 ;  }
+    virtual ~CPTR_type() { warn(CPTR_count!=0) ; }
+    void link() const  {
+      CPTR_mutex.lock() ;
+      ++CPTR_count ;
+      CPTR_mutex.unlock() ;
+    }
+    void unlink() const {
+      CPTR_mutex.lock() ;
+      --CPTR_count ;
+      const bool flag = (CPTR_count == 0) ;
+      CPTR_mutex.unlock() ;
+      if(flag) delete this ;
+    }
+  } ;
 
-template <class T> class const_CPTR ;
+  template <class T> class const_CPTR ;
 
-template <class T> class CPTR {
+  template <class T> class CPTR {
 #ifdef GXX_FIXES
-public:
+  public:
 #endif
     T *ptr ;
     void unlink_ptr() { if(ptr) ptr->CPTR_type::unlink() ; ptr = 0 ; }
     void link_ptr() { if(ptr) ptr->CPTR_type::link() ; }
-    void set_ptr(T *p) { if(p) p->CPTR_type::link() ; unlink_ptr() ; ptr = p ;}
+    void set_ptr(T *p) {
+      if(ptr != p) {
+        if(p)
+          p->CPTR_type::link() ;
+        unlink_ptr() ;
+        ptr = p ;
+      }
+    }
   public:
 #ifndef GXX_FIXES
     template <class S> friend class CPTR ;
@@ -50,7 +57,7 @@ public:
     
     // OCF Methods
     CPTR(T *p = 0) { ptr = p ; link_ptr(); }
-  CPTR(const CPTR<T> &p) {ptr = p.ptr;  ; link_ptr(); }
+    CPTR(const CPTR<T> &p) {ptr = p.ptr;  ; link_ptr(); }
     template <class S> explicit CPTR(const CPTR<S> &p) {
       ptr = dynamic_cast<T *>(p.ptr) ;
       warn(ptr==0) ;
@@ -76,13 +83,20 @@ public:
     // Delegation Operator
     T * operator-> () {return ptr ; }
     const T * operator-> () const { return ptr ; }
-} ;
+  } ;
 
-template <class T> class const_CPTR {
+  template <class T> class const_CPTR {
     const T *ptr ;
     void unlink_ptr() { if(ptr) ptr->CPTR_type::unlink() ; ptr = 0 ; }
     void link_ptr() { if(ptr) ptr->CPTR_type::link() ; }
-    void set_ptr(T *p) { if(p) p->CPTR_type::link() ; unlink_ptr() ; ptr = p ; }
+    void set_ptr(T *p) {
+      if(ptr != p) {
+        if(p)
+          p->CPTR_type::link() ;
+        unlink_ptr() ;
+        ptr = p ;
+      }
+    }
   public:
 #ifndef GXX_FIXES
     template <class S> friend class CPTR ;
@@ -92,9 +106,9 @@ template <class T> class const_CPTR {
     // OCF Methods
     const_CPTR(const T *p = 0) { ptr = p ; link_ptr(); }
     const_CPTR(const CPTR<T> &p) {ptr = p.ptr;  ; link_ptr(); }
-  const_CPTR(const const_CPTR<T> &p) {ptr = p.ptr;  ; link_ptr(); }
+    const_CPTR(const const_CPTR<T> &p) {ptr = p.ptr;  ; link_ptr(); }
 
-  template <class S> explicit const_CPTR(const CPTR<S> &p) {
+    template <class S> explicit const_CPTR(const CPTR<S> &p) {
       ptr = dynamic_cast<T *>(p.ptr) ;
       warn(ptr==0) ;
       link_ptr() ;
@@ -127,7 +141,7 @@ template <class T> class const_CPTR {
 
     // Delegation Operator
     const T * operator-> () const { return ptr ; }
-} ;
+  } ;
 
 }
 
