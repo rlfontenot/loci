@@ -15,58 +15,59 @@ namespace Loci {
   // node.
   class digraph {
   public:
-    typedef intervalSet nodeSet ;
+    typedef intervalSet vertexSet ;
+    typedef vertexSet nodeSet ;
   private:
     class digraphRep {
     public:
-      typedef std::map<int,nodeSet> graph_matrix ;
+      typedef std::map<int,vertexSet> graph_matrix ;
       graph_matrix graph ;
-      nodeSet source_nodes ;  
-      int max_node ;
+      vertexSet source_vertices ;  
+      int max_vertex ;
     
       digraphRep() ;
       ~digraphRep() ;
       void add_edge(int i, int j)
-        { graph[i] += j ;  source_nodes += i ;
-        max_node = max(max_node,max(i,j));}
+        { graph[i] += j ;  source_vertices += i ;
+        max_vertex = max(max_vertex,max(i,j));}
 
-      void add_edges(int i, const nodeSet &ns) {
-        nodeSet &gedges = graph[i] ;
-        nodeSet sum = gedges | ns ;
+      void add_edges(int i, const vertexSet &ns) {
+        vertexSet &gedges = graph[i] ;
+        vertexSet sum = gedges | ns ;
         if(sum != gedges) 
           gedges = sum ;
-        source_nodes += i ;
-        max_node = max(max_node,max(i,ns.Max())) ;
+        source_vertices += i ;
+        max_vertex = max(max_vertex,max(i,ns.Max())) ;
       }
 
-      void add_edges(const nodeSet &ns, int j) ;
+      void add_edges(const vertexSet &ns, int j) ;
 
       void remove_edge(int i, int j)
-        { graph[i] -= j ; if(graph[i] == EMPTY) source_nodes -= i ; }
+        { graph[i] -= j ; if(graph[i] == EMPTY) source_vertices -= i ; }
 
-      void remove_edges(int i, const nodeSet &ns)
-        { graph[i] -= ns ; if(graph[i] == EMPTY) source_nodes -= i ; }
-      void remove_node(int i) ;
-      void remove_nodes(const nodeSet &ns) { subgraph(~ns) ; }
+      void remove_edges(int i, const vertexSet &ns)
+        { graph[i] -= ns ; if(graph[i] == EMPTY) source_vertices -= i ; }
+      void remove_vertex(int i) ;
+      void remove_vertices(const vertexSet &ns) { subgraph(~ns) ; }
 
       void add_graph(const digraphRep &gr) ;
       void subtract_graph(const digraphRep &gr) ;
-      void subgraph(const nodeSet &ns) ;
+      void subgraph(const vertexSet &ns) ;
     
-      const nodeSet &get_edges(int i) const {
+      const vertexSet &get_edges(int i) const {
         graph_matrix::const_iterator ii = graph.find(i) ;
         if(ii != graph.end())
           return ii->second ;
         else
           return EMPTY ;
       }
-      nodeSet get_source_nodes() const { return source_nodes; }
-      nodeSet get_target_nodes() const {
-        nodeSet target_nodes = EMPTY ;
+      vertexSet get_source_vertices() const { return source_vertices; }
+      vertexSet get_target_vertices() const {
+        vertexSet target_vertices = EMPTY ;
         graph_matrix::const_iterator ii ;
         for(ii=graph.begin();ii!=graph.end();++ii)
-          target_nodes += ii->second ;
-        return target_nodes ;
+          target_vertices += ii->second ;
+        return target_vertices ;
       }
     } ;
     Handle<digraphRep> Rep ;   // graph representation
@@ -81,13 +82,13 @@ namespace Loci {
       Rep->add_edge(i,j) ;
       RepT->add_edge(j,i) ;
     }
-    void add_edges(const nodeSet &ns,int j) {
+    void add_edges(const vertexSet &ns,int j) {
       Rep.MakeUnique() ;
       RepT.MakeUnique() ;
       Rep->add_edges(ns,j) ;
       RepT->add_edges(j,ns) ;
     }
-    void add_edges(int i, const nodeSet &ns) {
+    void add_edges(int i, const vertexSet &ns) {
       Rep.MakeUnique() ;
       RepT.MakeUnique() ;
       Rep->add_edges(i,ns) ;
@@ -99,17 +100,17 @@ namespace Loci {
       Rep->remove_edge(i,j) ;
       RepT->remove_edge(j,i) ;
     }
-    void remove_node(int i) {
+    void remove_vertex(int i) {
       Rep.MakeUnique() ;
       RepT.MakeUnique() ;
-      Rep->remove_node(i) ;
-      RepT->remove_node(i) ;
+      Rep->remove_vertex(i) ;
+      RepT->remove_vertex(i) ;
     }
-    void remove_nodes(const nodeSet &ns) {
+    void remove_vertices(const vertexSet &ns) {
       Rep.MakeUnique() ;
       RepT.MakeUnique() ;
-      Rep->remove_nodes(ns) ;
-      RepT->remove_nodes(ns) ;
+      Rep->remove_vertices(ns) ;
+      RepT->remove_vertices(ns) ;
     }
     void add_graph(const digraph &gr) {
       Rep.MakeUnique();
@@ -123,21 +124,21 @@ namespace Loci {
       Rep->subtract_graph(*(gr.Rep)) ;
       RepT->subtract_graph(*(gr.RepT)) ;
     }
-    const nodeSet &operator[](int i) const { return get_edges(i); }
-    const nodeSet &get_edges(int i) const { return Rep->get_edges(i) ; }
+    const vertexSet &operator[](int i) const { return get_edges(i); }
+    const vertexSet &get_edges(int i) const { return Rep->get_edges(i) ; }
     bool is_edge(int i, int j) const { return get_edges(i).inSet(j) ; }
-    nodeSet get_source_nodes() const { return Rep->get_source_nodes(); }
-    nodeSet get_target_nodes() const { return RepT->get_source_nodes(); }
-    nodeSet get_all_nodes() const
-      { return Rep->get_source_nodes() + RepT->get_source_nodes() ; }
-    int max_node() const { return Rep->max_node ; }
+    vertexSet get_source_vertices() const { return Rep->get_source_vertices(); }
+    vertexSet get_target_vertices() const { return RepT->get_source_vertices(); }
+    vertexSet get_all_vertices() const
+      { return Rep->get_source_vertices() + RepT->get_source_vertices() ; }
+    int max_vertex() const { return Rep->max_vertex ; }
     digraph transpose() const {
       digraph dg ;
       dg.Rep = RepT ;
       dg.RepT = Rep ;
       return dg ;
     }
-    digraph subgraph(const nodeSet &ns) const {
+    digraph subgraph(const vertexSet &ns) const {
       digraph dg = *this ;
       dg.Rep.MakeUnique() ;
       dg.RepT.MakeUnique() ;
@@ -155,15 +156,15 @@ namespace Loci {
     { g1.subtract_graph(g2) ; return g1 ; }
 
 
-  // This class creates a topological sort of the nodes in a directed graph
+  // This class creates a topological sort of the vertices in a directed graph
   // while also creating a 
   class component_sort {
-    sequence node_list ;
-    std::vector<digraph::nodeSet> components ;
+    sequence vertex_list ;
+    std::vector<digraph::vertexSet> components ;
   public:
     component_sort(const digraph &dg) ;
-    sequence node_order() const { return node_list ; }
-    const std::vector<digraph::nodeSet> &get_components() { return components; }
+    sequence vertex_order() const { return vertex_list ; }
+    const std::vector<digraph::vertexSet> &get_components() { return components; }
   } ;
 
 

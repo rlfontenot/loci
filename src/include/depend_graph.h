@@ -6,11 +6,11 @@
 
 namespace Loci {
 
-  inline ruleSet extract_rules(digraph::nodeSet ns) {
+  inline ruleSet extract_rules(digraph::vertexSet ns) {
     return ruleSet(ns & interval(UNIVERSE_MIN,-1)) ;
   }
 
-  inline variableSet extract_vars(digraph::nodeSet ns) {
+  inline variableSet extract_vars(digraph::vertexSet ns) {
     return variableSet(ns & interval(0,UNIVERSE_MAX)) ;
   }
 
