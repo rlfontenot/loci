@@ -1,6 +1,7 @@
 #include "sched_tools.h"
 #include "sched_mlg.h"
 
+//#define VERBOSE
 namespace Loci {
 
   void multiLevelGraph::subGraph::create(digraph &gin,
@@ -59,6 +60,16 @@ namespace Loci {
     variableSet tv = extract_vars(sg.outgoing_v) ;
     rule r = make_super_rule(sv,tv,cond_var) ;
     insert(r.ident(),sg) ;
+#ifdef VERBOSE
+    if(extract_rules(sg.incoming_v).size() !=0) {
+      cerr << "extract_rules(sg.incoming_v) = " << extract_rules(sg.incoming_v)
+           << endl ;
+    }
+    if(extract_rules(sg.outgoing_v).size() != 0) {
+      cerr << "extract_rules(sg.outgoing_v) = " << extract_rules(sg.outgoing_v)
+           << endl ;
+    }
+#endif
     g->gr.remove_vertices(grvtx) ;
     g->gr.add_edges(sg.incoming_v,r.ident()) ;
     g->gr.add_edges(r.ident(),sg.outgoing_v) ;
