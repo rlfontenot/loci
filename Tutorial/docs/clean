@@ -1,1 +1,1 @@
-\rm -rf *.dvi *.log *.aux
+\rm -rf *.dvi *.log *.aux *_cc.tex *~
