@@ -18,17 +18,14 @@ namespace Loci {
   }
   
   distribute_info::distribute_info(int myid) {
-    distributed_facts.isDistributed.allocate(interval(myid, myid)) ;
     distributed_facts.send_neighbour.allocate(interval(myid, myid)) ;
     distributed_facts.recv_neighbour.allocate(interval(myid, myid)) ;
-    distributed_facts.isDistributed[myid] = 0 ;
     distributed_facts.my_entities = EMPTY ;
   }
   
-  void distribute_info::set_dist_facts(int myid, store<int> isDistributed, constraint my_entities, Map g2l, Map l2g, store<entitySet> send_neighbour, store<entitySet> recv_neighbour) {
+  void distribute_info::set_dist_facts(int myid, constraint my_entities, Map g2l, Map l2g, store<entitySet> send_neighbour, store<entitySet> recv_neighbour) {
     dist_facts d ;
     d = get_dist_facts() ;
-    d.isDistributed[myid] = isDistributed[myid] ;
     d.my_entities = my_entities ;
     d.g2l = g2l ;
     d.l2g = l2g ;
@@ -36,126 +33,221 @@ namespace Loci {
     d.recv_neighbour[myid] = recv_neighbour[myid] ;
   }
  
+
+  int MPI_processes ;
+  int MPI_rank ;
+  int num_threads = 1 ;
   
-  void Init(int argc, char** argv, int& num_procs, int& myid)  {
-    MPI_Init(&argc, &argv) ;
-    MPI_Comm_size(MPI_COMM_WORLD, &num_procs) ;
-    MPI_Comm_rank(MPI_COMM_WORLD, &myid) ;
+  void Init(int *argc, char*** argv)  {
+    MPI_Init(argc, argv) ;
+    MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
+    MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
   }
   
- void metis_facts(fact_db &facts,int num_partitions,
-		  std::vector<entitySet> &ptn, store<int> &partition ) {
-   variableSet fact_vars ;
-   fact_vars = facts.get_typed_variables() ;
-   entitySet map_entities ;
-   variableSet::const_iterator vi ;
-   entitySet::const_iterator ei ;
-   for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
-     storeRepP vp = facts.get_variable(*vi) ;
-     if(vp->RepType() == MAP) {
-       MapRepP mp = MapRepP(vp->getRep()) ;
-       FATAL(mp == 0) ;
-       entitySet dom = mp->domain() ;
-       map_entities += dom ;
-       map_entities += mp->image(dom) ;
-     }
-   }
+  void metis_facts(fact_db &facts,int num_partitions,
+                   std::vector<entitySet> &ptn, store<int> &partition ) {
+    variableSet fact_vars ;
+    fact_vars = facts.get_typed_variables() ;
+    entitySet map_entities ;
+    variableSet::const_iterator vi ;
+    entitySet::const_iterator ei ;
+    for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
+      storeRepP vp = facts.get_variable(*vi) ;
+      if(vp->RepType() == MAP) {
+        MapRepP mp = MapRepP(vp->getRep()) ;
+        FATAL(mp == 0) ;
+        entitySet dom = mp->domain() ;
+        map_entities += dom ;
+        map_entities += mp->image(dom) ;
+      }
+    }
    
-   store<entitySet> dynamic_map ;
-   dynamic_map.allocate(map_entities) ;
-   for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
-     storeRepP vp = facts.get_variable(*vi) ;      if(vp->RepType() == MAP) {
-       MapRepP mp = MapRepP(vp->getRep()) ;
-       FATAL(mp == 0) ;
-       multiMap m = mp->get_map() ;
-       entitySet dom = mp->domain() ;
-       for(ei=dom.begin();ei!=dom.end();++ei) {
-	 for(const int *i = m.begin(*ei);i != m.end(*ei); ++i) {
-	   // Two associations (*ei,*i), (*i,*ei)
-	   dynamic_map[*i] += *ei ;
-	   dynamic_map[*ei]+= *i ;
-	 }
+    store<entitySet> dynamic_map ;
+    dynamic_map.allocate(map_entities) ;
+    for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
+      storeRepP vp = facts.get_variable(*vi) ;      if(vp->RepType() == MAP) {
+        MapRepP mp = MapRepP(vp->getRep()) ;
+        FATAL(mp == 0) ;
+        multiMap m = mp->get_map() ;
+        entitySet dom = mp->domain() ;
+        for(ei=dom.begin();ei!=dom.end();++ei) {
+          for(const int *i = m.begin(*ei);i != m.end(*ei); ++i) {
+            // Two associations (*ei,*i), (*i,*ei)
+            dynamic_map[*i] += *ei ;
+            dynamic_map[*ei]+= *i ;
+          }
 	 
-       }
-     }
-   }
-   int size_map = map_entities.size() ;
-   Map entities ;
-   Map reverse ;
-   store<int> size_adj ;
-   int count  = 0 ;
-   entitySet dom_map = interval(0, size_map-1) ;
-   entities.allocate(map_entities) ;
-   partition.allocate(map_entities) ;
-   size_adj.allocate(dom_map) ;
-   reverse.allocate(dom_map) ;
-   count = 0 ;
-   for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
-     entities[*ei] = count ;
-     ++count ;
-   }
-   count = 0 ;
-   for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) {
-     size_adj[count] = dynamic_map[*ei].size() ;  
-     ++count ;
-   }
-   count = 0; 
-   for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
-     reverse[count] = *ei ;
-     ++count ;
-   }
+        }
+      }
+    }
+    int size_map = map_entities.size() ;
+    Map entities ;
+    Map reverse ;
+    store<int> size_adj ;
+    int count  = 0 ;
+    entitySet dom_map = interval(0, size_map-1) ;
+    entities.allocate(map_entities) ;
+    partition.allocate(map_entities) ;
+    size_adj.allocate(dom_map) ;
+    reverse.allocate(dom_map) ;
+    count = 0 ;
+    for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
+      entities[*ei] = count ;
+      ++count ;
+    }
+    count = 0 ;
+    for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) {
+      size_adj[count] = dynamic_map[*ei].size() ;  
+      ++count ;
+    }
+    count = 0; 
+    for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
+      reverse[count] = *ei ;
+      ++count ;
+    }
    
-   int *xadj = new int[size_map+1] ;
-   int options, numflag, edgecut, wgtflag ;
-   int *part = new int[size_map] ;
-   options = 0 ;
-   numflag = 0 ;
-   wgtflag = 0 ;
-   edgecut = 0 ;
-   xadj[0] = 0 ;
-   for(int i = 0; i < size_map; ++i)
-     xadj[i+1] = xadj[i] + size_adj[i] ;
-   int *adjncy = new int[xadj[size_map]] ;
-   count = 0 ;
-   for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) 
-     for(entitySet::const_iterator di = dynamic_map[*ei].begin(); di!=dynamic_map[*ei].end(); ++di)        {
-       adjncy[count] = entities[*di] ;
-       count ++ ;
-     }
+    int *xadj = new int[size_map+1] ;
+    int options, numflag, edgecut, wgtflag ;
+    int *part = new int[size_map] ;
+    options = 0 ;
+    numflag = 0 ;
+    wgtflag = 0 ;
+    edgecut = 0 ;
+    xadj[0] = 0 ;
+    for(int i = 0; i < size_map; ++i)
+      xadj[i+1] = xadj[i] + size_adj[i] ;
+    int *adjncy = new int[xadj[size_map]] ;
+    count = 0 ;
+    for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) 
+      for(entitySet::const_iterator di = dynamic_map[*ei].begin(); di!=dynamic_map[*ei].end(); ++di)        {
+        adjncy[count] = entities[*di] ;
+        count ++ ;
+      }
    
    
-   METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
-   cerr << " Edge cut   " <<  edgecut << endl ;
-   entitySet num_parts = interval(0, num_partitions-1) ;
-   store<int> number ;
-   store<int> dummy_number ;
-   number.allocate(num_parts) ;
-   dummy_number.allocate(num_parts) ;
-   for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei)
-     number[*ei] = 0 ;
-   for(int i = 0; i < size_map; i++)
-     number[part[i]] += 1 ;
+    METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
+    cerr << " Edge cut   " <<  edgecut << endl ;
+    entitySet num_parts = interval(0, num_partitions-1) ;
+    store<int> number ;
+    store<int> dummy_number ;
+    number.allocate(num_parts) ;
+    dummy_number.allocate(num_parts) ;
+    for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei)
+      number[*ei] = 0 ;
+    for(int i = 0; i < size_map; i++)
+      number[part[i]] += 1 ;
    
-   for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei) {
-     dummy_number[*ei] = number[*ei] ;
-   }
-   multiMap epp ;
-   epp.allocate(number) ;
-   for(int i = 0; i < size_map; i++)
-     epp[part[i]][--dummy_number[part[i]]] = reverse[i] ;
-   int p = 0 ;
-   for(ei=num_parts.begin();ei!=num_parts.end();++ei) {
-     entitySet parti ;
-     for(const int *ii=epp.begin(*ei);ii!= epp.end(*ei);++ii) {
-       parti += *ii ;
-       partition[*ii] = p ;
-     }
-     p++ ;
-     ptn.push_back(parti) ;
-   }
- }
+    for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei) {
+      dummy_number[*ei] = number[*ei] ;
+    }
+    multiMap epp ;
+    epp.allocate(number) ;
+    for(int i = 0; i < size_map; i++)
+      epp[part[i]][--dummy_number[part[i]]] = reverse[i] ;
+    int p = 0 ;
+    for(ei=num_parts.begin();ei!=num_parts.end();++ei) {
+      entitySet parti ;
+      for(const int *ii=epp.begin(*ei);ii!= epp.end(*ei);++ii) {
+        parti += *ii ;
+        partition[*ii] = p ;
+      }
+      p++ ;
+      ptn.push_back(parti) ;
+    }
+  }
   
   
+  void get_mappings(rule_db &rdb, std::set<std::vector<variableSet> > &maps){
+    ruleSet rules = rdb.all_rules() ;
+    maps.clear() ;
+    for(ruleSet::const_iterator ri = rules.begin(); ri != rules.end(); ++ri) {
+      std::set<vmap_info>::const_iterator vmsi ;
+      for(vmsi = ri->get_info().desc.targets.begin();
+          vmsi != ri->get_info().desc.targets.end();
+          ++vmsi) {
+        if(vmsi->mapping.size() != 0) {
+	  for(int i = 0; i < vmsi->mapping.size(); ++i) {
+            for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
+                vi != vmsi->mapping[i].end();
+                ++vi) {
+              variableSet v ;
+              v += *vi ;
+	      std::vector<variableSet> vvs ;
+	      vvs.push_back(v) ;
+              maps.insert(vvs) ;
+            }
+	  }
+	}
+      }
+    
+      for(vmsi = ri->get_info().desc.sources.begin();
+          vmsi != ri->get_info().desc.sources.end();
+          ++vmsi) {
+        if(vmsi->mapping.size() != 0) {
+	  for(int i = 0; i < vmsi->mapping.size(); i++) {
+	    for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
+		vi != vmsi->mapping[i].end();
+		++vi) {
+              variableSet v ;
+              v += *vi ;
+              std::vector<variableSet> vvs ;
+              vvs.push_back(v) ;
+              maps.insert(vvs) ;
+	    }
+	  }
+	}
+      }
+    
+    
+      for(vmsi = ri->get_info().desc.constraints.begin();
+          vmsi != ri->get_info().desc.constraints.end();
+          ++vmsi) {
+        if(vmsi->mapping.size() != 0) {
+          for(int i = 0; i < vmsi->mapping.size(); i++) {
+            for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
+                vi != vmsi->mapping[i].end();
+                ++vi) {
+              variableSet v ;
+              v += *vi ;
+              std::vector<variableSet> vvs ;
+              vvs.push_back(v) ;
+              maps.insert(vvs) ;
+            }
+	  
+          }
+        }
+      }
+    }
+  }
+  
+  
+  entitySet expand_map(entitySet domain, fact_db &facts,
+                       const std::set<std::vector<variableSet> > &maps) {
+    entitySet dom = domain ;
+    variableSet vars = facts.get_typed_variables() ;
+    std::set<std::vector<variableSet> >::const_iterator smi ;
+    for(smi = maps.begin(); smi != maps.end(); ++smi) {
+      entitySet locdom = domain ;
+      entitySet image ;
+      const std::vector<variableSet> &mv = *smi ;
+      for(int i = 0; i < mv.size(); ++i) {
+        variableSet v = mv[i] ;
+        v &= vars ;
+        for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
+          storeRepP p = facts.get_variable(*vi) ;
+	  if(p->RepType() == MAP) {
+            MapRepP mp = MapRepP(p->getRep()) ;
+            image += mp->image(p->domain() & locdom) ;
+          }
+          dom += image ;
+          locdom = image ;
+          image = EMPTY ;
+        }
+      }
+    }
+    return dom ;
+  }
+
   void categories(fact_db &facts,std::vector<interval> &pvec) {
     using std::set ;
     entitySet active_set ;
@@ -210,97 +302,6 @@ namespace Loci {
       interval iv(i1,i2) ;
       pvec.push_back(iv) ;
     }
-  }
-
-    void get_mappings(rule_db &rdb, std::set<std::vector<variableSet> > &maps){
-    ruleSet rules = rdb.all_rules() ;
-    maps.clear() ;
-    for(ruleSet::const_iterator ri = rules.begin(); ri != rules.end(); ++ri) {
-      std::set<vmap_info>::const_iterator vmsi ;
-      for(vmsi = ri->get_info().desc.targets.begin();
-          vmsi != ri->get_info().desc.targets.end();
-          ++vmsi) {
-        if(vmsi->mapping.size() != 0) {
-	  for(int i = 0; i < vmsi->mapping.size(); ++i) {
-            for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
-                vi != vmsi->mapping[i].end();
-                ++vi) {
-              variableSet v ;
-              v += *vi ;
-	      std::vector<variableSet> vvs ;
-	      vvs.push_back(v) ;
-              maps.insert(vvs) ;
-            }
-	  }
-	}
-      }
-    
-    for(vmsi = ri->get_info().desc.sources.begin();
-          vmsi != ri->get_info().desc.sources.end();
-          ++vmsi) {
-        if(vmsi->mapping.size() != 0) {
-	  for(int i = 0; i < vmsi->mapping.size(); i++) {
-	    for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
-		vi != vmsi->mapping[i].end();
-		++vi) {
-              variableSet v ;
-              v += *vi ;
-              std::vector<variableSet> vvs ;
-              vvs.push_back(v) ;
-              maps.insert(vvs) ;
-	    }
-	  }
-	}
-    }
-    
-    
-    for(vmsi = ri->get_info().desc.constraints.begin();
-	vmsi != ri->get_info().desc.constraints.end();
-	++vmsi) {
-      if(vmsi->mapping.size() != 0) {
-	for(int i = 0; i < vmsi->mapping.size(); i++) {
-	  for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
-	      vi != vmsi->mapping[i].end();
-	      ++vi) {
-	    variableSet v ;
-	    v += *vi ;
-	    std::vector<variableSet> vvs ;
-	    vvs.push_back(v) ;
-	    maps.insert(vvs) ;
-	  }
-	  
-	}
-      }
-    }
-    }
-  }
-  
-  
-  entitySet expand_map(entitySet domain, fact_db &facts,
-                       const std::set<std::vector<variableSet> > &maps) {
-    entitySet dom = domain ;
-    variableSet vars = facts.get_typed_variables() ;
-    std::set<std::vector<variableSet> >::const_iterator smi ;
-    for(smi = maps.begin(); smi != maps.end(); ++smi) {
-      entitySet locdom = domain ;
-      entitySet image ;
-      const std::vector<variableSet> &mv = *smi ;
-      for(int i = 0; i < mv.size(); ++i) {
-        variableSet v = mv[i] ;
-        v &= vars ;
-        for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
-          storeRepP p = facts.get_variable(*vi) ;
-	  if(p->RepType() == MAP) {
-            MapRepP mp = MapRepP(p->getRep()) ;
-            image += mp->image(p->domain() & locdom) ;
-          }
-          dom += image ;
-          locdom = image ;
-          image = EMPTY ;
-        }
-      }
-    }
-    return dom ;
   }
 
 
@@ -391,10 +392,8 @@ namespace Loci {
 	  send_neighbour[myid] += i ;
     
     reorder_facts(facts, g2l) ;
-    isDistributed[myid] = 1 ;
     my_entities = get_entities[myid][myid] ;
-    dist.set_dist_facts(myid, isDistributed, my_entities, g2l, l2g, send_neighbour, recv_neighbour) ;
-    facts.create_fact("isDistributed", isDistributed) ;
+    dist.set_dist_facts(myid,  my_entities, g2l, l2g, send_neighbour, recv_neighbour) ;
     facts.create_fact("g2l", g2l) ;
     facts.create_fact("l2g", l2g) ;
     facts.create_fact("my_entities", my_entities) ;

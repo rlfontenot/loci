@@ -6,6 +6,7 @@
 #include <set>
 #include <list>
 
+#include <Tools/cptr.h>
 #include <scheduler.h>
 #include <Tools/digraph.h>
 #include <fact_db.h>
@@ -18,6 +19,7 @@
 #endif
 
 #include "sched_mlg.h"
+
 
 
 namespace Loci {
@@ -41,14 +43,14 @@ namespace Loci {
   } ;
 
   
-  class rule_compiler {
+  class rule_compiler : public CPTR_type {
   public:
     virtual void set_var_existence(fact_db &facts) = 0 ;
     virtual void process_var_requests(fact_db &facts) = 0 ;
     virtual executeP create_execution_schedule(fact_db &facts) = 0;
   } ;
 
-  typedef std::map<rule, rule_compiler *> rulecomp_map ;
+  typedef std::map<rule, CPTR<rule_compiler> > rulecomp_map ;
 
   struct decomposed_graph {
     multiLevelGraph mlg ;

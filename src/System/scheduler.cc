@@ -28,7 +28,6 @@ namespace Loci {
   }
 
 
-  int num_threads = 1 ;
   
   executeP create_execution_schedule(rule_db &rdb,
                                      fact_db &facts,

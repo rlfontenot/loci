@@ -16,7 +16,7 @@
 #include <hdf5_memento.h>
 #include <hdf5_write_template.h>
 #include <Loci_types.h>
-
+#include <distribute.h>
 
 using Loci::entitySet ;
 using Loci::EMPTY ;

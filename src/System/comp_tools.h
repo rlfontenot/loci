@@ -36,7 +36,7 @@ namespace Loci {
   class loop_compiler : public rule_compiler {
     rulecomp_map &rule_process ;
   
-    rule_compiler *calc(const rule &r) 
+    CPTR<rule_compiler> calc(const rule &r) 
     {return rule_process[r] ;}
 
     digraph dag ;
@@ -101,7 +101,7 @@ namespace Loci {
   class recurse_compiler : public rule_compiler {
     rulecomp_map &rule_process ;
   
-    rule_compiler *calc(const rule &r) 
+    CPTR<rule_compiler> calc(const rule &r) 
     {return rule_process[r] ;}
 
     ruleSet recurse_rules ;
@@ -129,7 +129,7 @@ namespace Loci {
   class dag_compiler : public rule_compiler {
     rulecomp_map &rule_process ;
   
-    rule_compiler *calc(const rule &r) 
+    CPTR<rule_compiler> calc(const rule &r) 
     {return rule_process[r] ;}
   
     digraph dag ;
@@ -145,7 +145,7 @@ namespace Loci {
   class conditional_compiler : public rule_compiler {
     rulecomp_map &rule_process ;
   
-    rule_compiler *calc(const rule &r) 
+    CPTR<rule_compiler> calc(const rule &r) 
     {return rule_process[r] ;}
 
     digraph dag ;

@@ -2,7 +2,6 @@
 #define DISTRIBUTE_H
 #include <typeinfo.h>
 #include <vector>
-//#include <ostream>
 #include <store.h>
 #include <Map.h>
 #include <constraint.h>
@@ -12,7 +11,7 @@
 namespace Loci {
   
   struct dist_facts {
-    store<int> isDistributed ;
+    bool isDistributed ;
     constraint my_entities ;
     Map g2l ;
     Map l2g ;
@@ -26,14 +25,18 @@ namespace Loci {
     distribute_info() ;
     distribute_info(int);
     dist_facts& get_dist_facts() ; 
-    void set_dist_facts(int, store<int>, constraint, Map, Map, store<entitySet>, store<entitySet>) ;
+    void set_dist_facts(int, constraint, Map, Map, store<entitySet>, store<entitySet>) ;
   private:
     dist_facts distributed_facts ;
     
     } ;
-    
-  void Init(int argc, char** argv, int& num_procs, int& myid) ;
- 
+
+  extern int MPI_processes;
+  extern int MPI_rank ;
+  extern int num_threads ;
+  
+  void Init(int *argc, char*** argv) ;
+
   void metis_facts(fact_db &facts,int num_partitions,
 		   std::vector<entitySet> &ptn, store<int> &partition ) ;
   void categories(fact_db &facts,std::vector<interval> &pvec) ;
