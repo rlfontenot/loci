@@ -22,7 +22,7 @@
 \section{Notation used in this document}
 
 In this document we use the {\tt typewriter} font to distinguish
-actual Loci programming keywords, classes, and datastructures.
+actual Loci programming keywords, classes, and data-structures.
 
 \section{ Compiling Loci Programs }
 
@@ -42,7 +42,7 @@ In Loci, computations are represented by associating (binding) values
 rather abstract terms, in Loci we often will often interchange the
 meaning of entity with the integer identifier that is used to label a
 given entity.  Thus we may talk of entity $1$ when we are really
-refering to the entity labeled $1$.  
+referring to the entity labeled $1$.  
 
 It is useful to consider groups of entities that have similar
 attributes.  In Loci we have two data structures for representing sets
@@ -60,12 +60,12 @@ That is ordering of insertion is not preserved and there is no
 duplication.  Either an entity is in the set or it is not.  If we need
 to preserve the order of entities for looping or other control then we
 use the {\tt sequence } class.  The {\tt sequence} class provides
-operations for concatenation and reversal and can be generall thought
+operations for concatenation and reversal and can be general thought
 of as a list of entity labels.  It should be noted that users
 generally don't create sequences in Loci, but rather the scheduler
 generates sequence of entities for computations.  However, if there is
 ever a need keep track of a particular ordering of entities, then
-sequences are the datastructure that accomplishes this task.
+sequences are the data-structure that accomplishes this task.
 
 The following program segment (included with the tutorial programs)
 provides examples of how to create and use the {\tt  entitySet} and
@@ -83,7 +83,7 @@ associating a single value with a set of entities, while stores
 provide a correspondence between entities and values.  In shorter
 terms, parameters look like variables while stores look like very
 flexible arrays.  The store's come in a variety of forms that allow
-various types of runtime selection of the sizes of the types they
+various types of run-time selection of the sizes of the types they
 contain.  For example, the storeVec provides a store that contains
 vectors who's size isn't specified until compile time.  Perhaps the
 fastest way to learn how to apply Loci containers is to see them in
@@ -93,14 +93,14 @@ containers and some basic examples of their application.
 \include{containers_cc}
 
 \section{Loci Relations}
-In addition to contianers, Loci provides ways of describing
+In addition to containers, Loci provides ways of describing
 relationships between entities.  The simplest of these relationships
 is the constraint.  The constraint simply identifies a grouping of
 entities and are used to assign attributes to entities.  For example,
 a boundary condition may be specified by placing those entities in the
 boundary in a boundary constraint.  The most basic of the relations is
 the Map.  This provides a means of describing the relationship between
-entities.  Maps are used to describe the datastructures typically
+entities.  Maps are used to describe the data-structures typically
 encountered in unstructured mesh computations and come in a variety of
 forms in Loci.  The basic {\tt Map} class provides a one-by-one
 correspondence whereas the {\tt MapVec} templated class provides a
@@ -120,7 +120,7 @@ mechanism for creating Arrays as first class objects that are
 appropriate for using as classes used in templated containers. ({\it
 Never use C arrays in templated containers.  Their semantics are
 different from other C++ objects and may break templated code in
-unexpected ways.})  In addtion to the {\tt Array} template class,
+unexpected ways.})  In addition to the {\tt Array} template class,
 classes for three and two dimensional vectors are also provided.  See
 the following example code to see how to use these helper classes.
 
@@ -151,6 +151,7 @@ int main(int argc, char *argv[]) {
 }
 \end{verbatim}
 
+\chapter{Representing and Manipulating Data-Structures}
 \section{Creating Data-Structures in Loci}
 
 In Loci, data-structures are represented as relations between entities
@@ -225,7 +226,7 @@ triangle that shares the same edge.  Once we find this triangle, then
 we know the two nodes and two cells that form an edge.  In order to
 make sure that we don't find the same edge twice, we mark triangles
 that we visit and only insert the edge we find when none of the
-triangles have been visitied before.  If we can't find a matching
+triangles have been visited before.  If we can't find a matching
 triangle, then we know the edge must be a boundary edge that requires
 a ghost cell allocation.
 
@@ -257,6 +258,210 @@ cells and the two nodes that define the edge.  The following code
 shows how to setup these data-structures using Loci.
 
 \include{setup_edges_cc}
+
+\chapter{Computational Rule Specification}
+
+In Loci, computations are performed by executing rules.  At a high
+level, it is useful to think of Loci as a ``make'' program for
+managing simulation computations instead of compilations.  A Loci rule
+includes a documentation section that describes the values that a
+given rule depends upon and the values that a given rule produces,
+combined with a computation method that can perform the documented
+computation when needed.  The following sections will describe how to
+perform various types of computations using Loci rules.
+
+\section{Rule Signatures}
+
+Before we begin describing Loci rules, we should first describe how we
+name Loci rules.  Rule signatures are the names of Loci rules.  Loci
+will only allow one computation of a given rule signature, so we can
+use rule signatures to identify any given computational component in a
+Loci program.  The simplest rule signature just shows outputs of the
+rule followed by the inputs.  The inputs and outputs are divided by
+the ``{\tt <- }'' symbol.  For example, a rule that inputs values {\tt
+  A} and {\tt B} to produce output {\tt C} has a rule signature as
+follows:
+
+\begin{verbatim}
+C<-A,B
+\end{verbatim}
+
+If relations are used in a computation (such as the {\tt Map} {\tt cl}
+and {\tt cr} in the edge based data-structure of the previous section,
+then they are included in the rule signature as well.  For example, a
+computation that computes a value ``{\tt D }'' by averaging value
+``{\tt C }'' on both sides of any given face would be documented by
+the rule signature:
+
+\begin{verbatim}
+D<-(cl,cr)->C
+\end{verbatim}
+
+What this rule signature means is that ``{\tt D }'' is computed by
+accessing ``{\tt C }'' through the relations identified as ``{\tt
+  cl }'' and ``{\tt cr }''.  Note that the comma binds more weakly than
+the mapping right arrow operator in these rule signatures, so the
+parentheses are required.
+
+\section{Rule Databases}
+
+Rules are managed through the use of a rule database class called
+``{\tt rule\_db }''.  Generally users put rules in the rule database
+from the {\tt global\_rule\_list }, a list of rules that is created
+before {\tt main} is called by {\tt register\_rule } templates.  As a
+result, the usual way that a rule database is manipulated in Loci is
+to insert all of the rules in the global rule list.  This is
+accomplished with the following code segment: 
+
+\begin{verbatim}
+  ////////////////////////////////////////////////////////////////////
+  // rule_db and global_rule_list are defined in Loci.h
+  ////////////////////////////////////////////////////////////////////
+  // Create a rule database called rdb
+  rule_db rdb ;
+
+  ////////////////////////////////////////////////////////////////////
+  // Add all of the rules that were inserted into the global_rule_list
+  // by register_rule<> types into the rule database rdb
+  ////////////////////////////////////////////////////////////////////
+  rdb.add_rules(global_rule_list) ;
+\end{verbatim}
+
+\section{Creating an execution schedule}
+
+Once we have a database of facts and a database of computational
+rules, Loci can use these databases to satisfy queries.  We obtain an
+execution schedule that can compute these results using the function
+{\tt create\_execution\_schedule} provided by Loci.  This function
+takes three arguments, 1) the rule database of computations to use for
+this query, 2) the fact database of data-structures and initial
+values, and 3) a C++ string that contains the variable name that we
+wish to query for.  This function returns an {\tt executeP} which is a
+pointer to the execution schedule.  {\tt executeP} is a counted
+pointer that will automatically delete the memory allocated to the
+schedule when the object is destructed.  If a schedule could not be
+determined, {\tt create\_execution\_schedule} returns a null pointer.  
+
+We can then execute the schedule by calling the execute member
+function of the execution schedule, as in
+\begin{verbatim}
+  schedule->execute(facts) ;
+\end{verbatim}
+
+As an additional detail, if we wish to execute on a distributed memory
+machine, we must first distribute the fact database across processors
+before beginning the scheduling.  This is accomplished using the {\tt
+  generate\_distribution} and {\tt distribute\_facts} functions
+provided by Loci.  See the below code segment for a more complete
+example.
+
+\begin{verbatim}
+  ////////////////////////////////////////////////////////////////////
+  // Here we distribute the fact database, if we are running on
+  // multiple processors.  If we are running serially then these
+  // operations have no effect.
+  // First we obtain a partition of entities based on the current
+  // rules and facts
+  ////////////////////////////////////////////////////////////////////
+  std::vector<entitySet> partition = Loci::generate_distribution(facts,rdb) ;
+  ////////////////////////////////////////////////////////////////////
+  // Now we use this distribution to partion the facts to processors.
+  // The assumption at this point is that every processor has an 
+  // identical facts and rdb.
+  ////////////////////////////////////////////////////////////////////
+  Loci::distribute_facts(partition, facts, rdb) ;
+
+  ////////////////////////////////////////////////////////////////////
+  // Here we ask Loci to create an execution schedule that will use
+  // the rules in the rule database ``rdb'' and the data in the
+  // fact database ``facts'' to obtain the variable(s) specified in
+  // query.  Here query is a c++ string that contains the name of
+  // the variable that we are querying for (or a comma separated
+  // list if we wish to query for more than one variable).
+  ////////////////////////////////////////////////////////////////////
+  executeP schedule = create_execution_schedule(rdb,facts,query) ;
+
+  ////////////////////////////////////////////////////////////////////
+  // If Loci is unable to derive an execution schedule it will return
+  // a null pointer.
+  if(schedule == 0) {
+    // Output a diagnostic if no schedule can be obtained
+    cerr << "unable to produce execution schedule to satisfy query for "
+         << query << endl ;
+  } else {
+    //////////////////////////////////////////////////////////////////
+    // here we actually execute the computation schedule.  The
+    // result will be placed into the fact database ``facts'' for
+    // later extraction.
+    //////////////////////////////////////////////////////////////////
+    schedule->execute(facts) ;
+
+    //////////////////////////////////////////////////////////////////
+    // Here the execution is complete and the requested computations
+    // are in facts.
+  }
+\end{verbatim}
+
+
+
+
+\section{Pointwise Computations}
+
+A rule is implemented as a class that provides a constructor that
+documents the inputs and outputs to the computation and a virtual
+compute method that provides computations for arbitrary collections of
+entities.  The most fundamental of these computations is the pointwise
+rule.  The pointwise rule represents a computation that can be applied
+individually, entity by entity.  For example, consider the case of
+computing the area of each triangle in the trianglular mesh described
+earlier.  In order to compute the area of any given triangle we need
+to access the positions of the triangles three nodes.  These node
+positions can be accessed using the {\tt triangle\_nodes} map.  The
+areas of all of the triangles in the mesh can be computed by looping
+over all entities that have the {\tt triangle\_nodes} defined.  More
+precisely, not only must {\tt triangle\_nodes} be defined, but the
+entities that this map refers to must also have the attribute {\tt
+  pos}.  These set of entities is called the context of the rule and
+represents the possible entities over which the computational
+subroutine may be called upon.  A rule that computed areas in such a
+fashion would have a rule signature of
+\begin{verbatim}
+area<-triangle_nodes->pos
+\end{verbatim}
+where area would be the attribute that this computational routine
+would provide when the inputs are provided.  
+
+In order to define a pointwise rule, the user defines a class that
+inherits from the class {\tt pointwise\_rule} that is provided in {\tt
+  Loci.h}.  This class will contain the {\tt store}, {\tt Map}, and
+{\tt param} containers that will be used for the computations.  Input
+containers should use the {\tt const\_} prefix which establishes that
+the container can only be accessed in a read-only mode.  The
+constructor of the rule is responsible for registering the containers
+used in the computations and documenting the inputs and outputs of the
+rule.  The containers are registered using the rule member function
+{\tt name\_store()}.  This function attaches a symbolic name (string)
+to the containers so that they can be attached to containers stored in
+any given fact database when an execution schedule is formed.
+Additionally, a {\tt input} and {\tt output} methods are provided to
+document both input and output data of the given computation
+encapsulated by the rule.  Below, a simple example shows how to create
+a pointwise rule to compute areas and centroids of triangles in the
+triangular mesh.
+
+
+\include{cell_props_cc}
+
+\section{Running an Example}
+
+\section{Reduction Computations}
+
+\include{area_reduce_cc}
+
+\section{Singleton Rules and Parameter Computations}
+
+\section{Iterative Computations}
+
 
 %\include {dbase}
 %\include {example}

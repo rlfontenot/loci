@@ -37,6 +37,9 @@ relations: $(EX3_OBJS)
 helpers: $(EX4_OBJS)
 	$(LD) -o helpers $(EX4_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+esoteric: esoteric.o
+	$(LD) -o esoteric esoteric.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak
 
