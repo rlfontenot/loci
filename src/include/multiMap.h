@@ -178,38 +178,6 @@ namespace Loci {
 
 
 
-  template<int M> void inverseMap (multiMap &result,
-                                   const MapVec<M> &input_map,
-                                   const entitySet &input_image,
-                                   const entitySet &input_preimage) {
-    store<int> sizes ;
-    sizes.allocate(input_image) ;
-    FORALL(input_image,i) {
-      sizes[i] = 0 ;
-    } ENDFORALL ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    FORALL(preloop,i) {
-      for(int k=0;k<M;++k)
-        if(input_image.inSet(input_map[i][k]))
-          sizes[input_map[i][k]] += 1 ;
-    } ENDFORALL ;
-    result.allocate(sizes) ;
-    FORALL(preloop,i) {
-      for(int k=0;k<M;++k) {
-        int elem = input_map[i][k] ;
-        if(input_image.inSet(elem)) {
-          sizes[elem] -= 1 ;
-          FATAL(sizes[elem] < 0) ;
-          result[elem][sizes[elem]] = i ;
-        }
-      }
-    } ENDFORALL ;
-#ifdef DEBUG
-    FORALL(input_image,i) {
-      FATAL(sizes[i] != 0) ;
-    } ENDFORALL ;
-#endif
-  }      
 }
 
 #endif

@@ -3,6 +3,7 @@
 
 #include <Loci_version.h>
 #include <Map.h>
+#include <MapVec.h>
 #include <multiMap.h>
 #include <store.h>
 #include <storeVec.h>
