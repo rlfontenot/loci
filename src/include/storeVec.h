@@ -656,48 +656,6 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> 
-  void storeVecRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
-  {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
-
-    int     vec_size,rank=1;
-    entitySet   eset, ecommon;
-
-    Loci::HDF5_ReadVecSize(group_id, &vec_size);
-
-    set_elem_size(vec_size) ;
-
-    Loci::HDF5_ReadDomain(group_id, eset);
-
-    ecommon = eset & user_eset;
-
-    allocate( ecommon );
-    hdf5read( group_id, traits_type, eset, ecommon);
-
-  }
-
-  //******************************************************************/
-
-  template<class T> 
-  void storeVecRepI<T>::writehdf5( hid_t group_id, entitySet &usr_eset) const
-  {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
-
-    entitySet eset(usr_eset&domain());
-
-    if( eset.size() < 1) return;
-    int vsize = get_size();
-
-    Loci::HDF5_WriteVecSize(group_id, vsize);
-    Loci::HDF5_WriteDomain(group_id,  eset);
-
-    hdf5write(group_id, traits_output_type, eset);
-
-  }
-
   //******************************************************************/
 
   template <class T>
@@ -1002,6 +960,27 @@ namespace Loci {
     }
   }
   //*******************************************************************/
+
+  template<class T> 
+  void storeVecRepI<T>::writehdf5( hid_t group_id, entitySet &usr_eset) const
+  {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+
+    entitySet eset(usr_eset&domain());
+
+    if( eset.size() < 1) return;
+    int vsize = get_size();
+
+    Loci::HDF5_WriteVecSize(group_id, vsize);
+    Loci::HDF5_WriteDomain(group_id,  eset);
+
+    hdf5write(group_id, traits_output_type, eset);
+
+  }
+
+  //*******************************************************************/
+
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void storeVecRepI<T>::hdf5write( hid_t group_id, DEFAULT_CONVERTER g, 
@@ -1187,6 +1166,30 @@ namespace Loci {
   };
   
   //**************************************************************************/
+
+  template<class T> 
+  void storeVecRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
+  {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    int     vec_size,rank=1;
+    entitySet   eset, ecommon;
+
+    Loci::HDF5_ReadVecSize(group_id, &vec_size);
+
+    set_elem_size(vec_size) ;
+
+    Loci::HDF5_ReadDomain(group_id, eset);
+
+    ecommon = eset & user_eset;
+
+    allocate( ecommon );
+    hdf5read( group_id, traits_type, eset, ecommon);
+
+  }
+  //**************************************************************************/
+
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void storeVecRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c,
@@ -1240,8 +1243,8 @@ namespace Loci {
 
     indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci){
-         offset[*ci] = indx;
-         indx       += vsize;
+      offset[*ci] = indx;
+      indx       += vsize;
     }
     int arraySize = vsize*eset.size();
 
