@@ -367,7 +367,11 @@ namespace Loci {
           if(sp->RepType() == PARAMETER) {
             dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
                                                          join_op)) ;
-          }else {
+          }
+	  else if (sp->RepType() == BLACKBOX) {
+	    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+	  }
+	  else {
             dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
                                                          join_op)) ;
           }
