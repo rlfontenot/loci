@@ -171,12 +171,27 @@ traditional C array operator.
 
 The parameter implemented by the templated class {\tt param} provides
 a singleton interface for store.  It binds a single value to a set of
-entities.  The value is accessed by using the dereference operator.
+entities.  The value is accessed by using the dereference operator,
+{\tt'*'}.
+
 
 \subsection{The Map and variants}
 
+Maps are used to specify relationships between entities.  Maps come in
+three varieties: {\tt Map}, {\tt MapVec<N>}, and {\tt multiMap}.
+{\tt Map} provides a single relationship (valence of one), while {\tt
+  MapVec} provides a constant valence relationship.  Finally {\tt
+  multiMap} provides for variable valence relationships.  For {\tt
+  Map} and {\tt MapVec}, allocation proceeds much the same way as for
+stores:  A allocate member function takes an {\tt entitySet} argument
+which will be the domain of the mapping.  For the {\tt multiMap}, a
+{\tt store<int>} is provided to the allocate member function.  The
+domain of the {\tt multiMap} will correspond to the domain of the
+store, while the store contains the valence number for each
+correspondence.  A zero valence is allowed (which implies that no
+mapping exists).
 
 
-\subsection{The constraint}
+%\subsection{The constraint}
 
 \end{document}

@@ -82,7 +82,7 @@ namespace Loci {
         return current_value != i.current_value ; }
     } ;
 
-    
+
     intervalSet() : Rep(getEmptyRep()) {} ;
     intervalSet(const interval &ivl) { interval i(min(ivl.first,ivl.second),
                                                   max(ivl.first,ivl.second));
@@ -129,7 +129,7 @@ namespace Loci {
       int size = 0 ;
       std::vector<interval>::const_iterator i ;
       for(i = Rep->begin();i!= Rep->end();++i)
-        size += abs(i->first-i->second) + 1 ;
+        size += i->second-i->first + 1 ;
       return size ;  }
 
     int num_intervals() const { return Rep->size() ; }

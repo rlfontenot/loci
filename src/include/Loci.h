@@ -6,7 +6,6 @@
 #include <storeVec.h>
 #include <parameter.h>
 #include <constraint.h>
-#include <path.h>
 #include <rule.h>
 #include <Tools/options_list.h>
 #include <Tools/fpe.h>
@@ -37,8 +36,6 @@ using Loci::param ;
 using Loci::const_param ;
 
 using Loci::constraint ;
-
-using Loci::path ;
 
 using Loci::unit_rule ;
 using Loci::apply_rule ;

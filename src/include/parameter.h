@@ -79,6 +79,7 @@ namespace Loci {
     typedef paramRepI<T> paramType ;
     T * data ;
   public:
+    typedef T containerType ;
     param() { setRep(new paramType) ; }
     param(param &var) { setRep(var.Rep()) ; }
     param(const entitySet &ptn) { setRep(new paramType(ptn)); }
@@ -144,6 +145,7 @@ namespace Loci {
     { return t.Input(s) ; }
 
   template<class T> class const_param : public store_instance {
+    typedef T containerType ;
     typedef paramRepI<T> paramType ;
     const T * data ;
   public:

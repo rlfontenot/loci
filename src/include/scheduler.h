@@ -10,7 +10,8 @@
 namespace Loci {
 
   extern executeP create_execution_schedule(rule_db &rdb, fact_db &facts,
-                                            std::string target) ;
+                                            std::string target, int nth=1) ;
+  extern int num_threads ;
 }
 
 #endif

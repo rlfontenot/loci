@@ -7,13 +7,19 @@ namespace Loci {
 // Counted Pointer
 
 class CPTR_type {
-    mutable int count ;
+  mutable int count ;
     //    CPTR_type *operator&() { warn(true) ; return 0 ; }
   public:
-    CPTR_type() {count = 0 ; }
+  CPTR_type() {count = 0 ;
+  }
     virtual ~CPTR_type() { warn(count!=0) ; }
-    void link() const  { ++count ; }
-    void unlink() const { --count ; if(count == 0) delete this ; }
+  void link() const  {
+    ++count ;
+  }
+  void unlink() const {
+    --count ;
+    if(count == 0) delete this ;
+  }
 } ;
 
 template <class T> class const_CPTR ;

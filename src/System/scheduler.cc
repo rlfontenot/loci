@@ -5,6 +5,7 @@
 #include <depend_graph.h>
 #include <Map.h>
 
+
 #define PROFILE_CODE
 #ifdef PROFILE_CODE
 #include <time.h>
@@ -27,6 +28,7 @@ using std::make_pair ;
 //#define VERBOSE
 
 namespace {
+
 class decompose_graph ;
 class rule_calculator ;
 class loop_calculator ;
@@ -65,7 +67,7 @@ class decompose_graph {
 public:
   decompose_graph(digraph dg,digraph::nodeSet sources, digraph::nodeSet targets) ;
   void existential_analysis(fact_db &facts) ;
-  executeP execution_schedule(fact_db &facts) ;
+  executeP execution_schedule(fact_db &facts, int nth) ;
 } ;
 
 class rule_calculator {
@@ -80,10 +82,13 @@ public:
 
 class loop_calculator : public rule_calculator {
   digraph dag ;
+
   vector<rule> rule_schedule ;
   vector<rule> collapse ;
+  vector<digraph::nodeSet> collapse_sched ;
   variable cond_var ;
   vector<rule> advance ;
+  vector<digraph::nodeSet> advance_sched ;
   variableSet advance_vars ;
   time_ident tlevel ;
   variable output ;
@@ -615,6 +620,7 @@ execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts)
   rule_tag = fi ;
   rp->initialize(facts) ;
   exec_seq = seq ;
+  control_thread = false ;
 }
 
 void execute_rule::execute(fact_db &facts) {
@@ -634,7 +640,7 @@ public:
                const executeP &col, const executeP &adv,
                const time_ident &tl) :
     cvar(cv),collapse(col),advance(adv),tlevel(tl)
-  { warn(col==0 || advance==0) ;}
+  { warn(col==0 || advance==0) ; control_thread = true ;}
   virtual void execute(fact_db &facts) ;
   virtual void Print(std::ostream &s) const ;
 } ;
@@ -673,7 +679,7 @@ class execute_conditional : public execute_modules {
 public:
   execute_conditional(const executeP &cond, const variable &cv) :
     conditional(cond),cvar(cv)
-  { warn(cond==0) ;}
+  { warn(cond==0) ; control_thread = true; }
   virtual void execute(fact_db &facts) ;
   virtual void Print(std::ostream &s) const ;
 } ;
@@ -693,10 +699,39 @@ void execute_conditional::Print(ostream &s) const {
   s << "--end conditional" << endl ;
 }
 
+namespace {
+  void parallel_schedule(execute_par *ep,const entitySet &exec_set,
+                         const rule &impl, fact_db &facts) {
+    const int min = exec_set.Min() ;
+    const int max = exec_set.Max() ;
+    const int psize = exec_set.size() ;
+
+    const int div = psize/num_threads ;
+    int rem = psize%num_threads ;
+
+    for(int i=min;i<=max;) {
+      int inval = div + ((rem>0)?1:0) ;
+      rem-- ;
+      entitySet sp = exec_set & interval(i,i+inval-1) ;
+      i+=inval ;
+      while(sp.size() < inval && i<=max) {
+        entitySet remain = exec_set & interval(i,max) ;
+        i=remain.Min() ;
+        int remain_ival = inval - sp.size() ;
+        sp += exec_set & interval(i,i+remain_ival-1) ;
+        i+=remain_ival ;
+      }
+      WARN(sp.size() > inval) ;
+      executeP execrule = new execute_rule(impl,sequence(sp),facts) ;
+      ep->append_list(execrule) ;
+    }
+  }
+}
 
   
 class allocate_all_vars : public execute_modules {
 public:
+  allocate_all_vars() { control_thread = true ; }
   virtual void execute(fact_db &facts) ;
   virtual void Print(ostream &s) const ;
 } ;
@@ -748,7 +783,7 @@ class impl_calculator : public rule_calculator {
   rule impl ;  // rule to implement
 
   // existential analysis info
-  sequence exec_seq ;
+  entitySet exec_seq ;
 public:
   impl_calculator(decompose_graph *gr, rule r)  { graph_ref = gr; impl=r;}
   virtual void set_var_existence(fact_db &facts) ;
@@ -761,16 +796,36 @@ void impl_calculator::set_var_existence(fact_db &facts) {
 }
 
 void impl_calculator::process_var_requests(fact_db &facts) {
-  exec_seq = sequence(process_rule_requests(impl,facts)) ;
+  exec_seq = process_rule_requests(impl,facts) ;
 }
 
 executeP impl_calculator::create_execution_schedule(fact_db &facts) {
+
 #ifndef DEBUG
   if(exec_seq.size() == 0)
     return executeP(0) ;
-  else
 #endif
-    return new execute_rule(impl,exec_seq,facts) ;
+  variableSet targets = impl.targets() ;
+  WARN(targets.size() == 0) ;
+  if(num_threads > 1 &&
+     exec_seq.size() > num_threads*30 &&
+     !impl.get_info().output_is_parameter &&
+     (impl.get_info().rule_impl->get_rule_class()==rule_impl::POINTWISE||
+      impl.get_info().rule_impl->get_rule_class()==rule_impl::UNIT)&&
+     impl.get_info().rule_impl->thread_rule() &&
+     (targets.begin()->get_info()).name != "OUTPUT") {
+    execute_par *ep = new execute_par ;
+    parallel_schedule(ep,exec_seq,impl,facts) ;
+    return ep ;
+  }
+  if((targets.begin()->get_info()).name == "OUTPUT") {
+    CPTR<execute_list> el = new execute_list ;
+    el->append_list(new execute_rule(impl,sequence(exec_seq),facts)) ;
+    el->append_list(new execute_thread_sync) ;
+    return executeP(el) ;
+  }
+    
+  return new execute_rule(impl,sequence(exec_seq),facts) ;
 }
 
 // apply rule calculator 
@@ -778,7 +833,8 @@ class apply_calculator : public rule_calculator {
   rule apply,unit_tag ;  // rule to applyement
 
   // existential analysis info
-  sequence exec_seq ;
+  entitySet exec_seq ;
+  bool output_mapping ;
 public:
   apply_calculator(decompose_graph *gr, rule r, rule ut)
   { graph_ref = gr; apply=r; unit_tag = ut ; }
@@ -812,11 +868,13 @@ void apply_calculator::process_var_requests(fact_db &facts) {
     compute |= vmap_target_requests(*si,tvarmap,facts) ;
   }
 
+  output_mapping = false ;
   for(si=finfo.targets.begin();si!=finfo.targets.end(); ++si) {
     variableSet::const_iterator vi ;
     entitySet comp = compute ;
     vector<variableSet>::const_iterator mi ;
     for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
+      output_mapping = true ;
       entitySet working ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
         FATAL(!facts.is_a_Map(*vi)) ;
@@ -860,7 +918,7 @@ void apply_calculator::process_var_requests(fact_db &facts) {
   // now trim compute to what can be computed.
   compute &= srcs ;
   
-  exec_seq = sequence(compute) ;
+  exec_seq = compute ;
     
   for(si=finfo.sources.begin();si!=finfo.sources.end();++si) 
     vmap_source_requests(*si,facts,compute) ;
@@ -874,9 +932,21 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
 #ifndef DEBUG
   if(exec_seq.size() == 0)
     return executeP(0) ;
-  else
 #endif
-    return new execute_rule(apply,exec_seq,facts) ;
+  CPTR<execute_list> el = new execute_list ;
+  if(num_threads > 1 &&
+     exec_seq.size() > num_threads*30 &&
+     !apply.get_info().output_is_parameter &&
+     !output_mapping  &&
+     apply.get_info().rule_impl->thread_rule()) {
+    execute_par *ep = new execute_par ;
+    parallel_schedule(ep,exec_seq,apply,facts) ;
+    el->append_list(ep)  ;
+  }
+  else
+    el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
+  el->append_list(new execute_thread_sync) ;
+  return executeP(el) ;
 }
 
 // rule calculator for single rule recursion
@@ -897,6 +967,7 @@ class impl_recurse_calculator : public rule_calculator {
   } ;
   fcontrol  control_set ;
   sequence fastseq ;
+  vector<entitySet > par_schedule ;
 public:
   impl_recurse_calculator(decompose_graph *gr, rule r)
   { graph_ref = gr; impl = r ;}
@@ -1018,7 +1089,12 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
 #ifdef VERBOSE
   cout << "sdelta_init = " << sdelta << ", tdelta = " << tdelta << endl ;
 #endif
-  fastseq += sequence(sdelta) ;
+
+  if(num_threads > 1)
+    par_schedule.push_back(sdelta) ;
+  else
+    fastseq += sequence(sdelta) ;
+    
   entitySet generated = tdelta ;
   const entitySet nr_sources = fctrl.nr_sources ;
   store<bool> exists ;
@@ -1083,7 +1159,11 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
 #ifdef VERBOSE
     cout << "sdelta = " << sdelta << ", tdelta = " << tdelta << endl ;
 #endif
-    fastseq += sequence(sdelta) ;
+    if(num_threads>1)
+      par_schedule.push_back(sdelta) ;
+    else
+      fastseq += sequence(sdelta) ;
+
     for(entitySet::const_iterator
           ei=tdelta.begin();ei!=tdelta.end();++ei) 
       exists[*ei] = true ;
@@ -1120,7 +1200,33 @@ void impl_recurse_calculator::process_var_requests(fact_db &facts) {
 }
 
 executeP impl_recurse_calculator::create_execution_schedule(fact_db &facts) {
+
+  if(num_threads > 1) {
+    CPTR<execute_list> el = new execute_list ;
+    sequence seq ;
+    for(int i=0;i<par_schedule.size();++i) {
+      if(par_schedule[i].size() < num_threads*4) {
+        seq += sequence(par_schedule[i]) ;
+      } else {
+        if(seq.size() > 1) {
+          el->append_list(new execute_rule(impl,seq,facts)) ;
+          el->append_list(new execute_thread_sync) ;
+          seq = sequence() ;
+        }
+        execute_par *ep = new execute_par ;
+        parallel_schedule(ep,par_schedule[i],impl,facts) ;
+        el->append_list(ep) ;
+        el->append_list(new execute_thread_sync) ;
+      }
+    }
+    if(seq.size() > 1) {
+      el->append_list(new execute_rule(impl,seq,facts)) ;
+    }
+    return executeP(el) ;
+  }
+
   return new execute_rule(impl,fastseq,facts) ;
+
 }
 
 class recurse_calculator : public rule_calculator {
@@ -1330,11 +1436,22 @@ executeP recurse_calculator::create_execution_schedule(fact_db &facts) {
       list<entitySet>::const_iterator &li = rpos[*ri] ;
       if(li != fctrl.control_list.end()) {
         finished = false ;
-        if(li->size() != 0)
-          el->append_list(new execute_rule(*ri,sequence(*li),facts)) ;
+        if(li->size() != 0) {
+          const entitySet &exec_seq = *li ;
+
+          if(num_threads > 1 && exec_seq.size() > 1 &&
+             (*ri).get_info().rule_impl->thread_rule()) {
+            execute_par *ep = new execute_par ;
+            parallel_schedule(ep,*li,*ri,facts) ;
+            el->append_list(ep) ;
+          } else {
+            el->append_list(new execute_rule(*ri,sequence(*li),facts)) ;
+          }
+        }
         li++ ;
       }
     }
+    el->append_list(new execute_thread_sync) ;
   } while(!finished) ;
     
   if(el->size() == 0)
@@ -1346,6 +1463,7 @@ executeP recurse_calculator::create_execution_schedule(fact_db &facts) {
 class dag_calculator : public rule_calculator {
   digraph dag ;
   vector<rule> rule_schedule ;
+  vector<digraph::nodeSet> dag_sched ;
 public:
   dag_calculator(decompose_graph *gr, digraph gin) ;
   virtual void set_var_existence(fact_db &facts) ;
@@ -1356,7 +1474,7 @@ public:
 dag_calculator::dag_calculator(decompose_graph *gr, digraph gin) {
   graph_ref = gr ;
   dag = gin ;
-  vector<digraph::nodeSet> dag_sched = schedule_dag(dag) ;
+  dag_sched = schedule_dag(dag) ;
   extract_rule_sequence(rule_schedule,dag_sched) ;
 #ifdef DEBUG
   // sanity check, all nodes should be scheduled
@@ -1381,8 +1499,16 @@ void dag_calculator::process_var_requests(fact_db &facts) {
 
 executeP dag_calculator::create_execution_schedule(fact_db &facts) {
   CPTR<execute_list> elp = new execute_list ;
-  for(int i=0;i<rule_schedule.size();++i) 
-    elp->append_list(calc(rule_schedule[i])->create_execution_schedule(facts)) ;
+
+  vector<digraph::nodeSet>::const_iterator i ;
+  for(i=dag_sched.begin();i!=dag_sched.end();++i) {
+    ruleSet rules = extract_rules(*i) ;
+    ruleSet::const_iterator ri ;
+    for(ri=rules.begin();ri!=rules.end();++ri)
+      elp->append_list(calc(*ri)->create_execution_schedule(facts)) ;
+    if(rules.size() > 0)
+      elp->append_list(new execute_thread_sync) ;
+  }
   return executeP(elp) ;
 }
 
@@ -1428,21 +1554,24 @@ loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
   outputSet = interval(output.ident(),output.ident()) ;
 
   // Schedule part of graph that leads to collapse
-  vector<digraph::nodeSet> dag_sched
-    = schedule_dag(dag, EMPTY,visit_nodes(dagt,collapse_vars)) ;
-  extract_rule_sequence(rule_schedule,dag_sched) ;
-  extract_rule_sequence(collapse,dag_sched) ;
+  collapse_sched = schedule_dag(dag, EMPTY,visit_nodes(dagt,collapse_vars)) ;
+  extract_rule_sequence(rule_schedule,collapse_sched) ;
+  extract_rule_sequence(collapse,collapse_sched) ;
 
   // Schedule advance part of loop.  First try to schedule any output, then
   // schedule the advance
   digraph::nodeSet visited ;
-  for(int i = 0;i<dag_sched.size();++i)
-    visited += dag_sched[i] ;
-  dag_sched = schedule_dag(dag,visited, visit_nodes(dagt,outputSet)) ;
+  for(int i = 0;i<collapse_sched.size();++i)
+    visited += collapse_sched[i] ;
+  vector<digraph::nodeSet>
+    dag_sched = schedule_dag(dag,visited, visit_nodes(dagt,outputSet)) ;
   if(dag_sched.size() == 0)
     output_present = false ;
   else 
     output_present = true ;
+
+  for(int i=0;i<dag_sched.size();++i)
+    advance_sched.push_back(dag_sched[i]) ;
   
   extract_rule_sequence(rule_schedule,dag_sched) ;
   extract_rule_sequence(advance,dag_sched) ;
@@ -1452,6 +1581,9 @@ loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
   dag_sched = schedule_dag(dag,visited) ;
   extract_rule_sequence(rule_schedule,dag_sched) ;
   extract_rule_sequence(advance,dag_sched) ;
+  for(int i=0;i<dag_sched.size();++i)
+    advance_sched.push_back(dag_sched[i]) ;
+  
   
 #ifdef DEBUG
   // sanity check, all nodes should be scheduled
@@ -1496,22 +1628,34 @@ void loop_calculator::process_var_requests(fact_db &facts) {
   vector<rule>::reverse_iterator ri ;
   for(ri=rule_schedule.rbegin();ri!=rule_schedule.rend();++ri)
     calc(*ri)->process_var_requests(facts) ;
-
 }
 
 executeP loop_calculator::create_execution_schedule(fact_db &facts) {
   CPTR<execute_list> col = new execute_list ;
-  for(int i=0;i<collapse.size();++i) 
-    col->append_list(calc(collapse[i])->create_execution_schedule(facts)) ;
+  for(int i=0;i!=collapse_sched.size();++i) {
+    ruleSet rules = extract_rules(collapse_sched[i]) ;
+    ruleSet::const_iterator ri ;
+    for(ri=rules.begin();ri!=rules.end();++ri)
+      col->append_list(calc(*ri)->create_execution_schedule(facts)) ;
+    if(rules.size() > 0)
+      col->append_list(new execute_thread_sync) ;
+  }
   CPTR<execute_list> adv = new execute_list ;
-  for(int i=0;i<advance.size();++i) 
-    adv->append_list(calc(advance[i])->create_execution_schedule(facts)) ;
+  for(int i=0;i!=advance_sched.size();++i) {
+    ruleSet rules = extract_rules(advance_sched[i]) ;
+    ruleSet::const_iterator ri ;
+    for(ri=rules.begin();ri!=rules.end();++ri)
+      adv->append_list(calc(*ri)->create_execution_schedule(facts)) ;
+    if(rules.size() > 0)
+      adv->append_list(new execute_thread_sync) ;
+  }
   return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel) ;
 }
 
 class conditional_calculator : public rule_calculator {
   digraph dag ;
   vector<rule> rule_schedule ;
+  vector<digraph::nodeSet> dag_sched ;
   variable cond_var ;
 public:
   conditional_calculator(decompose_graph *gr, digraph gin,
@@ -1527,7 +1671,7 @@ conditional_calculator::conditional_calculator(decompose_graph *gr,
   graph_ref = gr ;
   dag = gin ;
   cond_var = conditional ;
-  vector<digraph::nodeSet> dag_sched = schedule_dag(dag) ;
+  dag_sched = schedule_dag(dag) ;
   extract_rule_sequence(rule_schedule,dag_sched) ;
 #ifdef DEBUGG
   // sanity check, all nodes should be scheduled
@@ -1553,8 +1697,16 @@ void conditional_calculator::process_var_requests(fact_db &facts) {
 
 executeP conditional_calculator::create_execution_schedule(fact_db &facts) {
   CPTR<execute_list> elp = new execute_list ;
-  for(int i=0;i<rule_schedule.size();++i) 
-    elp->append_list(calc(rule_schedule[i])->create_execution_schedule(facts)) ;
+
+  vector<digraph::nodeSet>::const_iterator i ;
+  for(i=dag_sched.begin();i!=dag_sched.end();++i) {
+    ruleSet rules = extract_rules(*i) ;
+    ruleSet::const_iterator ri ;
+    for(ri=rules.begin();ri!=rules.end();++ri)
+      elp->append_list(calc(*ri)->create_execution_schedule(facts)) ;
+    if(rules.size() > 0)
+      elp->append_list(new execute_thread_sync) ;
+  }
   return new execute_conditional(executeP(elp),cond_var) ;
 }
 
@@ -2145,15 +2297,17 @@ void decompose_graph::existential_analysis(fact_db &facts) {
   (rule_process[top_level_rule])->process_var_requests(facts) ;
 }
 
-executeP decompose_graph::execution_schedule(fact_db &facts) {
+executeP decompose_graph::execution_schedule(fact_db &facts, int nth) {
 
   CPTR<execute_list> schedule = new execute_list ;
   schedule->append_list(new allocate_all_vars) ;
+  schedule->append_list(new execute_create_threads(nth)) ;
   executeP top_level_schedule = (rule_process[top_level_rule])->
     create_execution_schedule(facts) ;
   if(top_level_schedule == 0) 
     return executeP(0) ;
   schedule->append_list(top_level_schedule) ;
+  schedule->append_list(new execute_destroy_threads) ;
   return executeP(schedule) ;
 }
   
@@ -2176,9 +2330,14 @@ double get_timer() {
 }
 
 namespace Loci {
+
+  int num_threads = 1 ;
+  
   executeP create_execution_schedule(rule_db &rdb,
                                      fact_db &facts,
-                                     std::string target_string) {
+                                     std::string target_string,
+                                     int nth) {
+    num_threads = min(nth,max_threads) ;
 
     double timer = get_timer() ;
     
@@ -2205,7 +2364,8 @@ namespace Loci {
     decomp.existential_analysis(facts) ;
     
     cout << "creating execution schedule..." << endl;
-    executeP sched =  decomp.execution_schedule(facts) ;
+    executeP sched =  decomp.execution_schedule(facts,num_threads) ;
+    
     timer = get_timer() ;
     cout << "Schedule Generation Time: " << timer << " seconds" << endl ;
     return sched ;

@@ -33,6 +33,7 @@ namespace Loci {
     enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,JOIN, UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
+    bool rule_threading ;
     mutable std::string name ;
 
     info rule_info ;
@@ -45,6 +46,7 @@ namespace Loci {
   protected:
     rule_impl(rule_impl &f) { fatal(true) ; }
     void rule_class(rule_impl_type ft) { rule_impl_class = ft ; }
+    void disable_threading() { rule_threading = false ; }
     void rule_name(const std::string &name) ;
     void name_store(const std::string &name,store_instance &si) ;
     void input(const std::string &invar) { source(invar) ; }
@@ -54,6 +56,7 @@ namespace Loci {
 
     void base_copy(const rule_impl &f) {
       rule_impl_class = f.rule_impl_class ;
+      rule_threading = f.rule_threading ;
       name = f.get_name() ;
       rule_info = f.rule_info ;
       var_table = f.var_table ;
@@ -63,6 +66,7 @@ namespace Loci {
     rule_impl() ;
     virtual ~rule_impl() ;
     bool check_perm_bits() const ;
+    bool thread_rule() const { return rule_threading; }
     void initialize(fact_db &facts) ;
     std::string get_name() const ;
     rule_impl_type get_rule_class() const { return rule_impl_class ; }
@@ -166,6 +170,7 @@ namespace Loci {
       variableSet source_vars, target_vars ;
         
       rule_type rule_class ;
+      bool output_is_parameter ;
       bool time_advance ;
       string internal_qualifier ;
         

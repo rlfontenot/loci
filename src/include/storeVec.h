@@ -6,6 +6,14 @@
 
 #include <store_rep.h>
 
+#ifdef PTHREADS
+#include <pthread.h>
+#endif
+
+#ifdef PTHREADS
+extern pthread_mutex_t access_mutex ;
+#endif
+
 namespace Loci {
   template <class T> class Vect ;
   
@@ -625,8 +633,10 @@ namespace Loci {
     T *base_ptr ;
     int size ;
   public:
-    storeVecRepI() { alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
-    storeVecRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ; }
+    storeVecRepI() {
+      alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
+    storeVecRepI(const entitySet &p) {
+      alloc_pointer=0 ; allocate(p) ; }
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -722,14 +732,14 @@ namespace Loci {
   }
 
   template<class T> void storeVecRepI<T>::set_elem_size(int sz) {
-    if(size == sz)
-      return ;
-    if(size != 0)
-      warn(size != sz) ;
+    if(size != sz) {
+      if(size != 0)
+        warn(size != sz) ;
     
-    size = sz ;
-    fatal(sz<1) ;
-    allocate(store_domain) ;
+      size = sz ;
+      fatal(sz<1) ;
+      allocate(store_domain) ;
+    }
   }
       
   template<class T> class storeVec : public store_instance {
@@ -737,9 +747,16 @@ namespace Loci {
     T* base_ptr ;
     int size ;
   public:
-    storeVec() { setRep(new storeType) ; }
-    storeVec(storeVec<T> &var) { setRep(var.Rep()) ; }
-    storeVec(const entitySet &ptn) {setRep(new storeType(ptn)) ; }
+    typedef Vect<T> containerType ;
+    storeVec() {
+      setRep(new storeType) ;
+    }
+    storeVec(storeVec<T> &var) {
+      setRep(var.Rep()) ;
+    }
+    storeVec(const entitySet &ptn) {
+      setRep(new storeType(ptn)) ;
+    }
 
     virtual ~storeVec() ;
     virtual void notification() ;
@@ -751,7 +768,17 @@ namespace Loci {
 
     storeVec<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
-    void setVecSize(int size) { Rep()->set_elem_size(size) ; }
+    void setVecSize(int size) {
+#ifdef PTHREADS
+    int err = pthread_mutex_lock(&access_mutex) ;
+    fatal(err==EDEADLK || err==EINVAL) ;
+#endif
+      Rep()->set_elem_size(size) ;
+#ifdef PTHREADS
+    err = pthread_mutex_unlock(&access_mutex) ;
+    fatal(err==EPERM) ;
+#endif
+    }
     void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size ; }
@@ -799,6 +826,7 @@ namespace Loci {
     const T* base_ptr ;
     int size ;
   public:
+    typedef const_Vect<T> containerType ;
     const_storeVec() { setRep(new storeType) ; }
         
     const_storeVec(const_storeVec<T> &var) { 
@@ -876,9 +904,10 @@ namespace Loci {
     int size_tot ;
     int size_dim ;
   public:
-    storeMat() { setRep(new storeType) ;}
-    storeMat(storeMat &var) { setRep(var.Rep()) ; }
-    storeMat(const entitySet &ptn) { setRep(new storeType(ptn)) ; }
+    typedef Mat<T> containerType ;
+    storeMat() {setRep(new storeType) ;}
+    storeMat(storeMat &var) {setRep(var.Rep()) ; }
+    storeMat(const entitySet &ptn) {setRep(new storeType(ptn)) ; }
 
     virtual ~storeMat() ;
     virtual void notification() ;
@@ -888,8 +917,19 @@ namespace Loci {
 
     storeMat<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
-    void setVecSize(int size) { size_dim = size ;
-    size_tot = size*size ;Rep()->set_elem_size(size_tot) ; }
+    void setVecSize(int size) {
+#ifdef PTHREADS
+    int err = pthread_mutex_lock(&access_mutex) ;
+    fatal(err==EDEADLK || err==EINVAL) ;
+#endif
+      size_dim = size ;
+    size_tot = size*size ;
+    Rep()->set_elem_size(size_tot) ; 
+#ifdef PTHREADS
+    err = pthread_mutex_unlock(&access_mutex) ;
+    fatal(err==EPERM) ;
+#endif
+    }
     void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size_dim; }
@@ -936,6 +976,7 @@ namespace Loci {
     int size_tot ;
     int size_dim ;
   public:
+    typedef const_Mat<T> containerType ;
     const_storeMat() { setRep(new storeType) ; }
 
     const_storeMat(const_storeMat<T> &var) { setRep(var.Rep()) ; }

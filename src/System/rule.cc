@@ -78,6 +78,7 @@ namespace Loci {
   rule_impl::rule_impl() {
     name = "UNNAMED" ;
     rule_impl_class = UNKNOWN ;
+    rule_threading = true ;
   }
 
   rule_impl::~rule_impl() {}
@@ -364,7 +365,7 @@ namespace Loci {
     rule_ident = desc.rule_identifier() ;
       
     set<vmap_info>::const_iterator i ;
-    variableSet svars,tvars ;
+    variableSet svars,tvars,tvar_types ;
     for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
       for(int j=0;j<(*i).mapping.size();++j)
         source_vars += (*i).mapping[j] ;
@@ -380,6 +381,21 @@ namespace Loci {
     for(i=desc.targets.begin();i!=desc.targets.end();++i) {
       for(int j=0;j<(*i).mapping.size();++j)
         source_vars += (*i).mapping[j] ;
+      if((*i).assign.size() != 0) {
+        variableSet v = (*i).var ;
+        for(variableSet::const_iterator vi=v.begin();vi!=v.end();++vi) {
+          bool t = true ;
+          for(int k=0;k<(*i).assign.size();++k) 
+            if(*vi == (*i).assign[k].first) {
+              tvar_types += (*i).assign[k].second ;
+              t = false ;
+            }
+          if(t)
+            tvar_types += *vi ;
+        }
+      } else
+        tvar_types += (*i).var ;
+                                    
       target_vars += (*i).var ;
       tvars += (*i).var ;
     }
@@ -408,12 +424,31 @@ namespace Loci {
           rule_impl->Print(cerr) ;
         }
     }            
-      
+
+    output_is_parameter = false ;
+    for(variableSet::const_iterator
+          i=tvar_types.begin();i!=tvar_types.end();++i) {
+      if(rule_impl->get_store(*i)->RepType()==PARAMETER) {
+        if(i!=tvars.begin() && !output_is_parameter) {
+          cerr << "can't mix parameters and stores in target" << endl
+               << "error occured in rule ";
+          rule_impl->Print(cerr) ;
+        }
+        output_is_parameter = true ;
+      } else {
+        if(i!=tvars.begin() && output_is_parameter) {
+          cerr << "can't mix parameters and stores in target" << endl
+               << "error occured in rule ";
+          rule_impl->Print(cerr) ;
+        }
+      }
+    }
+    
     source_level = source_time ;
     target_level = target_time ;
       
     rule_class = TIME_SPECIFIC ;
-      
+    
     if(source_time == target_time) {
       if(source_time == time_ident())
         rule_class = GENERIC ;
@@ -448,6 +483,7 @@ namespace Loci {
     source_level = tl ;
     target_level = tl ;
     rule_class = GENERIC ;
+    output_is_parameter = fi.output_is_parameter ;
     time_advance = false ;
     desc = rule_impl->get_info() ;
     rule_ident = desc.rule_identifier() ;
