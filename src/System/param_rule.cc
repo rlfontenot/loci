@@ -188,9 +188,10 @@ rule_db parametric_rdb(rule_db& rdb) {
     std::vector<string> str_vec ;//This is to deal with the renaming
     //of other variables eg. W_f, f_W etc
     newset = EMPTY ;
-    std::map<variable, variable> vm ;
     for(variableSet::const_iterator vsi = working.begin(); vsi != working.end(); ++vsi) {
+      std::map<variable, variable> vm ;
       variable v = variable(*vsi) ;
+
       variableSet vs = mvarset.find(v.get_info().name)->second ;
       for(variableSet::const_iterator mvsi = vs.begin(); mvsi != vs.end(); ++mvsi)
 	if(v.get_arg_list().size() == variable(*mvsi).get_arg_list().size()) {
@@ -235,8 +236,9 @@ rule_db parametric_rdb(rule_db& rdb) {
 		  }
 		  else {
 		    std::map<variable, variable>::const_iterator mi = vm.find(tmp) ;
-		    if(mi != vm.end())
+		    if(mi != vm.end()) {
 		      vm[tmp] = mi->second ;
+                    }
 		  }
 		}
 		std::vector<int> ulti = tmp_vint;
@@ -253,9 +255,9 @@ rule_db parametric_rdb(rule_db& rdb) {
 		    else
 		      vec.push_back(tmp_var.ident()) ;
 		  }
-		  if(tmp_vec != vec) 
+		  if(tmp_vec != vec) {
 		    vm[variable(tmp)] = variable(tmp, vec) ;
-		  
+                  }		  
 		  else 
 		    tmp_vint.push_back(tmp.ident()) ;
 		}
@@ -273,8 +275,8 @@ rule_db parametric_rdb(rule_db& rdb) {
 		else
 		  vec.push_back(tmp_var.ident()) ;
 	      }
-	      if(tmp_vint != vec) { 
-		vm[variable(variable(*tvsi))] =
+	      if(tmp_vint != vec) {
+		vm[variable(*tvsi)] =
 		  variable(variable(*tvsi), vec) ;
 		newset +=  variable(variable(*tvsi), vec) ;
 	      }
@@ -328,11 +330,12 @@ rule_db parametric_rdb(rule_db& rdb) {
 		    name.append(par) ;
 		  }
 		}
-	      if(name != orig)
+	      if(name != orig) {
 		vm[variable(orig)] = variable(name) ;
+              }
 	    }
 	    
-	    rule_implP rp = rsi->get_rule_implP() ;
+	    rule_implP rp = rsi->get_rule_implP()->new_rule_impl() ;
 	    rp->rename_vars(vm) ;
 	    if(!added_rules.inSet(rule(rp))) {
 	      par_rdb.add_rule(rule(rp)) ;
