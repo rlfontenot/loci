@@ -33,6 +33,7 @@ namespace Loci {
     virtual void Join(Map &t2s, const sequence &seq) = 0 ;
   } ;  
   
+	class rule;
   class rule_impl : public CPTR_type {
   public:
     struct info {
@@ -95,6 +96,7 @@ namespace Loci {
     virtual rule_implP new_rule_impl() const ;
     virtual void compute(const sequence &) = 0 ;
     virtual CPTR<joiner> get_joiner() = 0 ;
+		virtual rule_implP add_namespace(const std::string& n) const;
   } ;
   
   typedef rule_impl::rule_implP rule_implP ;
@@ -398,6 +400,14 @@ namespace Loci {
       time_ident time() const { return source_level ; }
       int ident() const { return rule::rdb->get_id(*this) ; }
       rule_implP get_rule_implP() const ;
+			// SH - namespace support
+			rule_implP add_namespace(const std::string& n) const { 
+#ifndef __GNUG__ 
+std::string __PRETTY_FUNCTION__("rule_implP rule_impl::add_namespace(const std::string&) const");
+#endif
+					cout << __PRETTY_FUNCTION__ << endl; 
+					return rule_impl->add_namespace(n) ;
+			}
     } ;
   private:
     friend class rule::info ;
@@ -430,8 +440,18 @@ namespace Loci {
     rule(const std::string &s)
       { create_rdb(); id = rdb->get_id(info(s)) ; }
       
+		// SH - Namespace support
+		// We use a new rule_implP identical to the original but with namespace'd variables to construct a new rule (rule(rule_implP&))
+		// get_rule_implP() gives us our rule_implP for this rule, the rule_implP adds the namespace to a copy of itself
+		rule add_namespace(const std::string& n) const { 
+#ifndef __GNUG__
+std::string __PRETTY_FUNCTION__("rule::add_namespace(const std::string&) const");
+#endif
+				cout << __PRETTY_FUNCTION__ << endl; 
+				return rule(get_rule_implP()->add_namespace(n));
+		}
     rule parent() const { return rule(*this,time().parent()) ; }
-      
+
     std::ostream &Print(std::ostream &s) const
       { s << rdb->get_info(id).name() ; return s ; }
       
