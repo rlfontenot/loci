@@ -1280,4 +1280,118 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     return executeP(new execute_msg(oss.str())) ;
   }
   
+  /////////////////////////////////////////////////////////////////////////
+  //////// allocate and deallocate compiler code //////////////////////////
+  /////////////////////////////////////////////////////////////////////////
+  class execute_allocate_var : public execute_modules {
+    variableSet allocate_vars ;
+    map<variable,entitySet> v_requests ;
+  public:
+    execute_allocate_var(variableSet vars, map<variable,entitySet> vr)
+      : allocate_vars(vars), v_requests(vr) {}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+  
+  void execute_allocate_var::execute(fact_db &facts) {
+
+    for(variableSet::const_iterator vi=allocate_vars.begin();
+        vi!=allocate_vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      entitySet alloc_dom = v_requests[*vi] + srp->domain() ;
+
+      if(srp->domain() == EMPTY) {
+	srp->allocate(alloc_dom) ;
+      }else {
+	if(srp->RepType() == Loci::STORE) {
+
+	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
+	  if(tmp.size() >= 2*srp->domain().size())
+	    Loci::debugout << "Variable = " << *vi << "  more than twice the space allocated :  allocated over " << alloc_dom << " size = " << tmp.size()  << "  while domain is only  " << srp->domain() << " size = " << srp->domain().size() << endl ;
+	  if(alloc_dom != srp->domain()) {
+	    Loci::debugout << "reallocating " << *vi << "  over  " << alloc_dom << " initially it was over  " << srp->domain() << endl ;
+	    srp->allocate(alloc_dom) ;
+	  }
+	}
+      }
+    }
+  }
+
+  void execute_allocate_var::Print(std::ostream &s) const {
+    if(allocate_vars != EMPTY)
+      s << "allocating variables " << allocate_vars << endl ;
+  }
+
+  class execute_free_var : public execute_modules {
+    variableSet free_vars ;
+   public:
+    execute_free_var(variableSet vars) : free_vars(vars) {}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+  
+  void execute_free_var::execute(fact_db &facts) {
+    for(variableSet::const_iterator vi=free_vars.begin();
+        vi!=free_vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      srp->allocate(EMPTY) ;
+    }
+  }
+
+  void execute_free_var::Print(std::ostream &s) const {
+    if(free_vars != EMPTY)
+      s << "deallocating variables " << free_vars << endl ;
+  }
+
+  void allocate_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
+  }
+
+  void allocate_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+    ////////////////////////////////////////////////////////////////////
+    // check if any variables have been disabled to allocate
+    variableSet disabled = scheds.get_disabled() ;
+    allocate_vars -= disabled ;
+    // re-set the disabled variables to empty
+    scheds.clear_disabled() ;
+    ////////////////////////////////////////////////////////////////////
+  }
+
+  executeP allocate_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+    variableSet vars ;
+    vars = allocate_vars ;
+    variableSet::const_iterator vi,vii ;
+
+    map<variable,entitySet> v_requests ;
+    for(vi=vars.begin();vi!=vars.end();++vi) {
+      variableSet aliases = scheds.get_aliases(*vi) ;
+      entitySet requests ;
+      for(vii=aliases.begin();vii!=aliases.end();++vii) {
+	requests += scheds.get_variable_requests(*vii) ;
+      }
+      v_requests[*vi] = requests ;
+    }
+
+    return executeP(new execute_allocate_var(vars,v_requests)) ;
+  }
+
+  void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)
+  {
+    //////////////////////////////////////////////////////////////////////
+    // check if any variables have been disabled to de-allocate
+    variableSet disabled = scheds.get_disabled() ;
+    free_vars -= disabled ;
+    // re-set the disabled variables to empty
+    scheds.clear_disabled() ;
+    //////////////////////////////////////////////////////////////////////
+  }
+
+  void free_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) { }
+
+  executeP free_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+    variableSet vars ;
+    vars = free_vars ;
+
+    return executeP(new execute_free_var(vars)) ;
+  }
+
 }

@@ -41,6 +41,11 @@ namespace Loci {
   int MPI_processes = 1;
   int MPI_rank ;
   int num_threads = 1 ;
+  /////////////////////////////
+  // flags to turn on the visualization feature
+  bool show_graphs = false ;
+  bool show_schedule = false ;
+  /////////////////////////////
   ofstream debugout ;
   double barrier_time = 0 ;
   double total_memory_usage = 0 ;
@@ -100,6 +105,13 @@ namespace Loci {
         cerr << "warning --threads not yet implemented" << endl ;
         num_threads = atoi((*argv)[i+1]) ;
         i+=2 ;
+      } else if(!strcmp((*argv)[i],"--graphs")) {
+        show_graphs = true ; // visualize the dependency graph &
+                             // the decomposed graph & every supernode
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--schedule")) {
+        show_schedule = true ; // visualize the scheduled dag
+        i++ ;
       } else
         break ;
     }

@@ -13,9 +13,17 @@ using std::vector ;
 #include <map>
 using std::map ;
 
+// flag to use the new memory scheme
+// disable it and turn on the USE_ALLOCATE_ALL_VARS (comp_loop.cc,
+// sched_comp.cc, comp_internal.cc)
+// to use the original memory allocation
+//#define USE_MEMORY_SCHEDULE
 
 namespace Loci {
-
+  //////////////////////////////////////////////////
+  extern bool show_schedule ;
+  //////////////////////////////////////////////////
+  
   class check_dump_on_startup {
     bool checked_dump ;
     bool do_dump ;
@@ -94,11 +102,112 @@ namespace Loci {
       return executeP(new execute_dump_var(dump_vars)) ;
     }
   } ;
+
+  /////////////////////////////////////////////////////////////////
+  // function to visualize the dag, outputs file to be used
+  // by "dot", "lefty" and "dotty" programs from AT&T research
+  
+  // only layouts part of the dag that is inside the dag_sched
+  void create_dag_sched_dot_file(const digraph &dag,
+       const std::vector<digraph::vertexSet> &dag_sched,
+                                 const char* fname)
+  {
+    digraph dagt = dag.transpose() ;
+    // get all vertices
+    digraph::vertexSet all_v ;
+    for(int i=0;i<dag_sched.size();++i)
+      all_v += dag_sched[i] ;
+    std::cerr << "all_v = " << all_v << '\n' ;
+    std::ofstream outf(fname) ;
+    outf<<"digraph G {\n" ;
+
+    digraph::vertexSet::const_iterator ri ;
+    for(ri=all_v.begin();ri!=all_v.end();++ri) {
+      digraph::vertexSet outvertices = dag[*ri] & all_v ;
+      digraph::vertexSet incomevertices = dagt[*ri] & all_v ;
+      
+      if(*ri < 0) {// a rule
+        rule r(*ri) ;
+        if(r.type() == rule::INTERNAL)
+          outf<<"\""<<r<<"\""
+              <<"[shape=doubleoctagon,style=filled,color=gold];\n" ;
+        else
+          outf<<"\""<<r<<"\""<<"[shape=box,style=filled,color=gold];\n" ;
+        
+        if(incomevertices == EMPTY) {
+          rule r(*ri) ;
+          outf<<"\""<<r<<"\""<<"[style=filled,color=red];\n" ;
+        }
+        if(outvertices == EMPTY) {
+          rule r(*ri) ;
+          outf<<"\""<<r<<"\""<<"[style=filled,color=blue];\n" ;
+          continue ;
+        }
+      }
+      else {// a variable
+        variable v(*ri) ;
+        outf<<"\""<<v<<"\""<<"[style=filled,color=green];\n" ;
+        
+        if(incomevertices == EMPTY) {
+          variable v(*ri) ;
+          outf<<"\""<<v<<"\""<<"[style=filled,color=red];\n" ;
+        }
+        if(outvertices == EMPTY) {
+          variable v(*ri) ;
+          outf<<"\""<<v<<"\""<<"[style=filled,color=blue];\n" ;
+          continue ;
+        }
+      }
+
+      if(*ri < 0) {
+        rule r(*ri) ;
+        digraph::vertexSet::const_iterator ii ;
+        for(ii=outvertices.begin();ii!=outvertices.end();++ii) {
+          if(!all_v.inSet(*ii))
+            continue ;
+          if(*ii < 0) {
+            rule r2(*ii) ;
+            outf<<"\""<<r<<"\""<<" -> "<<"\""<<r2<<"\""<<";\n" ;
+          }else {
+            variable v(*ii) ;
+            outf<<"\""<<r<<"\""<<" -> "<<"\""<<v<<"\""<<";\n" ;
+          }
+        }
+      }else {
+        variable v(*ri) ;
+        digraph::vertexSet::const_iterator ii ;
+        for(ii=outvertices.begin();ii!=outvertices.end();++ii) {
+          if(!all_v.inSet(*ii))
+            continue ;
+          if(*ii < 0) {
+            rule r(*ii) ;
+            outf<<"\""<<v<<"\""<<" -> "<<"\""<<r<<"\""<<";\n" ;
+          }else {
+            variable v2(*ii) ;
+            outf<<"\""<<v<<"\""<<" -> "<<"\""<<v2<<"\""<<";\n" ;
+          }
+        }        
+      }
+    }
+    outf<<"}\n" ;
+    outf.close() ;
+  }
+  /////////////////////////////////////////////////////////////////
   
   void compile_dag_sched(std::vector<rule_compilerP> &dag_comp,
                          const std::vector<digraph::vertexSet> &dag_sched,
                          const rulecomp_map &rcm,
                          const digraph &dag) {
+    //////////////////////////////////////////////////////
+    if(Loci::MPI_rank==0) {
+      if(show_schedule) {
+        std::cerr << "visualizing the dag being compiled at this level" << '\n' ;
+        create_dag_sched_dot_file(dag,dag_sched,"comp_dag_sched.dot") ;
+        system("dotty comp_dag_sched.dot") ;
+        system("rm comp_dag_sched.dot") ;
+      }
+    }
+    //////////////////////////////////////////////////////
     digraph dagt = dag.transpose() ;
     if(dag_sched.size() == 0)
       return ;
@@ -118,6 +227,25 @@ namespace Loci {
       acvars += vs ;
     }
 #endif
+
+#ifdef USE_MEMORY_SCHEDULE
+    ////////////////////////////////////////////////////////////
+    variableSet allocated_vars(EMPTY) ;
+    ruleSet remaining_rules ;
+    /*    
+    for(unsigned int i=0;i<dag_sched.size();++i)
+      remaining_rules += extract_rules(dag_sched[i]) ;
+    */
+    // the remaining rules should be set to include all the
+    // rules in the dag that is been passed in.
+    // since dag_sched[] might only contain part of the dag,
+    // and some variables in dag_sched[] might also be used
+    // in other rules in the dag. doing so would prevent
+    // deletion of these variables in this schedule
+    remaining_rules = extract_rules(dag.get_all_vertices()) ;
+    ////////////////////////////////////////////////////////////
+#endif
+    
     for(unsigned int i=0;i<dag_sched.size();++i) {
       //Loci::debugout << " in comp_dag.cc dag_sched[i] = " << dag_sched[i] << endl ;
       variableSet vars = extract_vars(dag_sched[i]) ;
@@ -128,6 +256,17 @@ namespace Loci {
         vars += extract_vars(dag_sched[i]) ;
         rules = extract_rules(dag_sched[i]) ;
       }
+
+#ifdef USE_MEMORY_SCHEDULE
+      ////////////////////////////////////////////////////////////////
+      // allocate varibles
+      variableSet allocating_vars ;
+      ruleSet::const_iterator ri ;
+      for(ri=rules.begin();ri!=rules.end();++ri) {
+        allocating_vars += ri->targets() ;
+      }
+      ///////////////////////////////////////////////////////////////
+#endif
       variableSet barrier_vars, reduce_vars,singleton_vars,all_vars ;
       variableSet::const_iterator vi ;
       
@@ -242,6 +381,14 @@ namespace Loci {
       }
 
       if(rules != EMPTY) {
+#ifdef USE_MEMORY_SCHEDULE        
+        /////////////////////////////////////////////////
+        if(allocating_vars != EMPTY) {
+          dag_comp.push_back(new allocate_var_compiler(allocating_vars)) ;
+          allocated_vars += allocating_vars ;
+        }
+        /////////////////////////////////////////////////
+#endif
         ruleSet::const_iterator ri ;
         for(ri=rules.begin();ri!=rules.end();++ri) {
           rulecomp_map::const_iterator rmi ;
@@ -249,6 +396,29 @@ namespace Loci {
           FATAL(rmi == rcm.end()) ;
           dag_comp.push_back(rmi->second) ;
         }
+#ifdef USE_MEMORY_SCHEDULE        
+        /////////////////////////////////////////////////
+        variableSet free_candidate_vars ;
+        for(ri=rules.begin();ri!=rules.end();++ri)
+          free_candidate_vars += ri->sources() ;
+        remaining_rules -= rules ;
+        
+        variableSet future_needed_vars ;
+        for(ri=remaining_rules.begin();ri!=remaining_rules.end();++ri)
+          future_needed_vars += ri->sources() ;
+        
+        variableSet free_vars = free_candidate_vars ;
+        for(variableSet::const_iterator vi=free_candidate_vars.begin();
+            vi!=free_candidate_vars.end();++vi) {
+          if(future_needed_vars.inSet(*vi) || (!allocated_vars.inSet(*vi)))
+            free_vars -= *vi ;
+        }
+
+        if(free_vars != EMPTY) {
+          dag_comp.push_back(new free_var_compiler(free_vars)) ;
+        }
+        /////////////////////////////////////////////////
+#endif        
       }
     }
   }
@@ -274,7 +444,10 @@ namespace Loci {
   }
 
   void dag_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
-    
+
+    // dag is reponsible to allocate and free its targets and sources
+    // tell all this dag's sub node not to free these vars
+    //scheds.add_dont_free();
     std::vector<rule_compilerP>::iterator i ;
     for(i=dag_comp.begin();i!=dag_comp.end();++i)
       (*i)->set_var_existence(facts, scheds) ;

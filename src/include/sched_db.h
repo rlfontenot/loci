@@ -61,6 +61,16 @@ namespace Loci {
 	return mi->second ;
       return v ;
     }
+    ////////////////////////////////////////////
+    // variables that need to be disabled in
+    // memory allocation and deallocation
+    struct memory_info {
+      variableSet disabled_vars ;
+      variableSet dont_alloc_vars ;
+      variableSet dont_free_vars ;
+    } ;
+    memory_info mem ;
+    ////////////////////////////////////////////
   public:
     sched_db() ;
     ~sched_db() ;
@@ -162,6 +172,36 @@ namespace Loci {
     std::pair<entitySet,entitySet> preimage(variable v, entitySet e) ;
 
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
+    //////////////////////////////////////////////////////////////
+    // methods to set and get disable_alloc_vars ;
+    void add_disabled(const variableSet& vs) {
+      mem.disabled_vars += vs ;
+    }
+    const variableSet& get_disabled(void) const {
+      return mem.disabled_vars ;
+    }
+    void clear_disabled(void) {
+      mem.disabled_vars = EMPTY ;
+    }
+    void add_dont_alloc(const variableSet& vs) {
+      mem.dont_alloc_vars += vs ;
+    }
+    void rm_dont_alloc(const variableSet& vs) {
+      mem.dont_alloc_vars -= vs ;
+    }
+    bool in_dont_alloc(variable v) const {
+      return mem.dont_alloc_vars.inSet(v) ;
+    }
+    void add_dont_free(const variableSet& vs) {
+      mem.dont_free_vars += vs ;
+    }
+    void rm_dont_free(const variableSet& vs) {
+      mem.dont_free_vars -= vs ;
+    }
+    bool in_dont_free(variable v) const {
+      return mem.dont_free_vars.inSet(v) ;
+    }
+    //////////////////////////////////////////////////////////////
   } ;
 }
 

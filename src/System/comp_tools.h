@@ -319,7 +319,26 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
   } ; 
   
+  class allocate_var_compiler : public rule_compiler {
+    variableSet allocate_vars ;
+  public:
+    allocate_var_compiler(variableSet &vars)
+      : allocate_vars(vars) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
 
+  class free_var_compiler : public rule_compiler {
+    variableSet free_vars ;
+  public:
+    free_var_compiler(variableSet &vars)
+      : free_vars(vars) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+  
 }
 
 #endif

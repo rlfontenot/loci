@@ -7,15 +7,47 @@ using std::map ;
 using std::ostream ;
 using std::endl ;
 
+// flag to use the new memory scheme
+// disable it and turn on the USE_ALLOCATE_ALL_VARS (below, sched_comp.cc,
+// comp_internal.cc)
+// to use the original memory allocation
+//#define USE_MEMORY_SCHEDULE
+#define USE_ALLOCATE_ALL_VARS
+
 namespace Loci {
+  /////////////////////////////////////////////////////////////
+  //extern void create_digraph_dot_file(const digraph &dg, const char* fname) ;
+  /////////////////////////////////////////////////////////////
   
   class execute_loop : public execute_modules {
+#ifdef USE_MEMORY_SCHEDULE
+    //////////////////////////////////////////////////////
+    // add two executeP (the allocatev and freev variables)
+    executeP collapse, advance, allocatev, freev ;
+    //////////////////////////////////////////////////////
+#endif
+#ifdef USE_ALLOCATE_ALL_VARS
     executeP collapse, advance ;
+#endif
     variable cvar ;
     variable tvar ;
     time_ident tlevel ;
     list<list<variable> > rotate_lists ;
   public:
+#ifdef USE_MEMORY_SCHEDULE
+    execute_loop(const variable &cv,
+                 const executeP &col, const executeP &adv,
+                 const time_ident &tl, 
+                 list<list<variable> > &rl,
+                 const executeP &av, const executeP &fv) :
+      collapse(col),advance(adv),
+      cvar(cv),
+      tlevel(tl),rotate_lists(rl),
+      allocatev(av),freev(fv) {
+      warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
+      control_thread = true ;}
+#endif
+#ifdef USE_ALLOCATE_ALL_VARS
     execute_loop(const variable &cv,
                  const executeP &col, const executeP &adv,
                  const time_ident &tl, 
@@ -25,6 +57,7 @@ namespace Loci {
       tlevel(tl),rotate_lists(rl) {
       warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
       control_thread = true ;}
+#endif
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
@@ -32,6 +65,12 @@ namespace Loci {
 
   
   void execute_loop::execute(fact_db &facts) {
+#ifdef USE_MEMORY_SCHEDULE
+    ////////////////////////////////////////////////////////
+    //before execute, we need to allocate all loop variables
+    allocatev->execute(facts) ;
+    ////////////////////////////////////////////////////////
+#endif    
     param<bool> test ;
     test = facts.get_variable(cvar) ;
     
@@ -56,7 +95,12 @@ namespace Loci {
         facts.rotate_vars(*rli) ;
       *time_var += 1 ;
     }
-
+#ifdef USE_MEMORY_SCHEDULE
+    /////////////////////////////////////////////////////////
+    // after execute, free all the allocated loop variables
+    freev->execute(facts) ;
+    ////////////////////////////////////////////////////////
+#endif
   }
   
   void execute_loop::Print(ostream &s) const {
@@ -93,7 +137,10 @@ namespace Loci {
   
   
   loop_compiler::loop_compiler(rulecomp_map &rule_process, digraph dag)  {
-
+    //////////////////////////////
+    // output the dag
+    //create_digraph_dot_file(dag,"loopdag1.dot") ;
+    //////////////////////////////
     ruleSet collapse_rules, all_rules, loopset ;
     variableSet collapse_vars ;
 
@@ -115,6 +162,10 @@ namespace Loci {
   
     tlevel = loopset.begin()->source_time() ;
     dag.remove_vertex((*loopset.begin()).ident()) ;
+    ////////////////////////////
+    // output dag
+    //create_digraph_dot_file(dag,"loopdag2.dot") ;
+    ///////////////////////////
     digraph dagt = dag.transpose() ;
   
     if(collapse_rules.size() != 1 ||
@@ -163,7 +214,7 @@ namespace Loci {
     for(unsigned int i = 0;i<dag_sched.size();++i)
       visited += dag_sched[i] ;
     // now schedule everything that hasn't been scheduled
-    dag_sched = schedule_dag(dag,visited) ;
+    dag_sched = schedule_dag(dag,visited) ;// which one is the default value?
     compile_dag_sched(advance_comp,dag_sched,rule_process,dag) ;
     
     for(unsigned int i=0;i<dag_sched.size();++i)
@@ -234,11 +285,13 @@ namespace Loci {
         vi!=all_loop_vars.end();++vi) {
       if(vi->time() == tlevel && !vi->assign) {
         variable var_stationary(*vi,time_ident()) ;
+        
         list<variable> s ;
         s.push_back(*vi) ;
         vlist[var_stationary].merge(s,offset_sort) ;
       }
     }
+    
     map<variable,list<variable> >::const_iterator ii ;
     for(ii=vlist.begin();ii!=vlist.end();++ii) {
       if(ii->second.size() < 2) 
@@ -284,8 +337,41 @@ namespace Loci {
     for(i=advance_comp.begin();i!=advance_comp.end();++i) {
       adv->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
+
+#ifdef USE_MEMORY_SCHEDULE
+    ////////////////////////////////////////////////////////////////
+    //gather variables that need to be allocated
+    variableSet allocate_vars ;
+    /*    
+    map<variable,list<variable> >::const_iterator mlItr ;
+    for(mlItr=vlist.begin();mlItr!=vlist.end();++mlItr) {
+      if(mlItr->second.size() < 2)
+        continue ;
+      allocate_vars += *(mlItr->second.begin()) ;
+    }
+    */
+    /*
+    list<list<variable> >::const_iterator lvItr ;
+    list<variable>::const_iterator vItr ;
+    for(lvItr=rotate_lists.begin();lvItr!=rotate_lists.end();++lvItr)
+      for(vItr=lvItr->begin();vItr!=lvItr->end();++vItr)
+        allocate_vars += *vItr ;
+    */
+    // create execution
+    allocate_var_compiler avc(allocate_vars) ;
+    free_var_compiler fvc(allocate_vars) ;
     
+    executeP allov = avc.create_execution_schedule(facts, scheds) ;
+    executeP freev = fvc.create_execution_schedule(facts, scheds) ;
+    
+    // NOTE: add two execution modules (the allocate and free executeP) ;
+    // right now they are empty, and thus have no effect
+    return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists,allov,freev) ;
+#endif
+    
+#ifdef USE_ALLOCATE_ALL_VARS    
     return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists) ;
+#endif
   }
 
 

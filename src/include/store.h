@@ -73,73 +73,51 @@ namespace Loci {
   } ;
 
   template<class T> void storeRepI<T>::allocate(const entitySet &eset) {
-    
+    // if the pass in is EMPTY, we delete the previous allocated memory
+    // this equals to free the memory
     if( eset == EMPTY ) {
-      if(alloc_pointer) delete [] alloc_pointer ;
-      base_ptr = 0;
+      delete [] alloc_pointer ;
+      alloc_pointer = 0 ; base_ptr = 0;
       store_domain = eset ;
-      return;
+      dispatch_notify() ;
+      return ;
     }
-    
-    // Compare the range with the previously assigned values. If the 
-    // new entities are inserted within the "old range", nothing special
-    // need to be done.
-    int   old_range[2], new_range[2];
-    
-    old_range[0] = store_domain.Min();
-    old_range[1] = store_domain.Max();
-    
-    new_range[0] = eset.Min();
-    new_range[1] = eset.Max();
-    
-    entitySet redundant, newSet, ecommon;
-    
-    redundant = store_domain - eset;
-    newSet    = eset - store_domain;
-    ecommon   = store_domain & eset;
-    
-    if( (old_range[0] == new_range[0]) &&
-        (old_range[1] == new_range[1]) ) {
-      store_domain  = eset;
-      return;
-    }
-    
-    // New entities are outside the "Old Range", so make copy of the
-    // entities which are common to the new assignment and old one.
-    // and redo the entire work.
-    
-    T *tmp_base_ptr, *tmp_alloc_pointer ;
 
-    int top           = old_range[0];
-    int arraySize     = old_range[1] - top + 1 ;
-    tmp_alloc_pointer = new T[arraySize];
-    tmp_base_ptr      = tmp_alloc_pointer - top ;
+    int_type old_range_min = store_domain.Min() ;
+    int_type old_range_max = store_domain.Max() ;
+    int_type new_range_min = eset.Min() ;
+    int_type new_range_max = eset.Max() ;
+
+    // if the old range and the new range are equal, nothing
+    // needs to be done, just return
+    if( (old_range_min == new_range_min) &&
+        (old_range_max == new_range_max)) {
+      store_domain = eset ;
+      return ;
+    }
+
+    // is there any overlap between the old and the new domain?
+    // we copy the contents in the overlap region to the new
+    // allocated storage
+    entitySet ecommon = store_domain & eset ;
     
+    T* tmp_alloc_pointer = new T[new_range_max - new_range_min + 1] ;
+    T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
+
+    // if ecommon == EMPTY, then nothing is done in the loop
     FORALL(ecommon,i) {
       tmp_base_ptr[i] = base_ptr[i] ;
     } ENDFORALL ;
-
-    if(alloc_pointer) delete [] alloc_pointer ;
-
-    alloc_pointer = new T[arraySize];
-    base_ptr      = alloc_pointer - top ;
     
-    top           = eset.Min() ; 
-    arraySize     = eset.Max()-top+1 ;
-    alloc_pointer = new T[arraySize] ;
-    base_ptr      = alloc_pointer - top ;
-    
-    // Copy back from temperory storage to the current storage...
-    FORALL(ecommon,i) {
-      base_ptr[i] = tmp_base_ptr[i] ;
-    } ENDFORALL ;
-    
-    delete[] tmp_alloc_pointer ;
-    
+    delete [] alloc_pointer ;
+    alloc_pointer = tmp_alloc_pointer ;
+    base_ptr = tmp_base_ptr ;
+      
     store_domain = eset ;
     dispatch_notify() ;
-  
+    return ;
   }
+
 
   template<class T> std::ostream &storeRepI<T>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;

@@ -13,6 +13,12 @@ using std::list ;
 #include <set>
 using std::set ;
 
+
+// flag to use the original memory allocation
+// disable it and turn on the USE_MEMORY_SCHEDULE (comp_dag.cc,
+// comp_internal.cc, comp_loop.cc)
+// to use the new memory allocation
+#define USE_ALLOCATE_ALL_VARS
 //#define HACK ; 
 
 namespace Loci {
@@ -59,7 +65,6 @@ namespace Loci {
       gr.remove_vertices(errs) ;
 
       digraph grt = gr.transpose() ;
-
 
       // Collect information on unit rules on this level
       map<rule,rule> apply_to_unit ;
@@ -271,7 +276,11 @@ namespace Loci {
   executeP graph_compiler::execution_schedule(fact_db &facts, sched_db &scheds, int nth) {
 
     CPTR<execute_list> schedule = new execute_list ;
+
+#ifdef USE_ALLOCATE_ALL_VARS
     schedule->append_list(new allocate_all_vars(facts, scheds)) ;
+#endif
+
     schedule->append_list(new execute_create_threads(nth)) ;
     schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));
     executeP top_level_schedule = (rule_process[baserule])->
