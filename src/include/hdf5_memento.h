@@ -4,7 +4,7 @@
 #include <hdf5_traits.h>
 #include <hdf5CC/H5cpp.h>
 #include <Tools/stream.h>
-#include <typeinfo.h>
+#include <typeinfo>
 namespace Loci {
 
  template <class W> class Memento {

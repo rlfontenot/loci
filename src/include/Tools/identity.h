@@ -1,7 +1,7 @@
 #ifndef IDENTITY_H
 #define IDENTITY_H
 
-#include <typeinfo.h>
+#include <typeinfo>
 
 #include <Tools/debug.h>
 #include <Tools/lmutex.h>

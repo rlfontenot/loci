@@ -1,7 +1,7 @@
 #ifndef HANDLE_H
 #define HANDLE_H (1)
 
-#include <typeinfo.h>
+#include <typeinfo>
 
 #include <Config/conf.h>
 #include <Tools/debug.h>

@@ -1,7 +1,7 @@
 #ifndef CPTR_H
 #define CPTR_H
 
-#include <typeinfo.h>
+#include <typeinfo>
 
 #include <Config/conf.h>
 #include <Tools/debug.h>

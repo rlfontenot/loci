@@ -1,6 +1,6 @@
 #ifndef DISTRIBUTE_H
 #define DISTRIBUTE_H
-#include <typeinfo.h>
+#include <typeinfo>
 #include <vector>
 #include <store.h>
 #include <Map.h>
