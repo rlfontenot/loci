@@ -30,6 +30,15 @@ namespace Loci {
     T *base_ptr ;
     entitySet store_domain ;
     bool istat ;
+
+    void  hdf5read( H5::Group group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
+    void  hdf5read( H5::Group group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
+    void  hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
+
+    void hdf5write( H5::Group group, DEFAULT_CONVERTER g,      const entitySet &en) const;
+    void hdf5write( H5::Group group, IDENTITY_CONVERTER g,     const entitySet &en) const;
+    void hdf5write( H5::Group group, USER_DEFINED_CONVERTER g, const entitySet &en) const;
+
   public:
     storeRepI() { alloc_pointer = 0 ; base_ptr = 0;  istat = 0; }
     storeRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ;istat = 0; }
@@ -107,31 +116,39 @@ namespace Loci {
     return s ;
   }
 
-  template<class T> void storeRepI<T>::readhdf5( H5::Group group, entitySet &en){
-   
-    cout << " Warning : Has to be rewritten : This is old function " << endl;
-    exit(0);
-    /*
+  //**************************************************************************
+
+  template<class T> 
+  void storeRepI<T>::readhdf5( H5::Group group, entitySet &user_eset)
+  {
+
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
-    entitySet en=get_store_domain(group,traits_output_type);
-    allocate(en);
-    store_hdf5read(group,traits_output_type,base_ptr,en);
-    */
+    schema_converter traits_type;
+
+    entitySet eset, ecommon;
+
+    HDF5_ReadDomain(group, eset);
+
+    ecommon = eset & user_eset;
+
+    allocate( ecommon );
+
+    hdf5read( group, traits_type, eset, ecommon);
   }
 
-  template<class T> void storeRepI<T>::writehdf5( H5::Group group,entitySet& en) const{
-   
-    cout << " Warning : Has to be rewritten : This is old function " << endl;
-    exit(0);
+  //**************************************************************************
 
-    /*
+  template<class T> 
+  void storeRepI<T>::writehdf5( H5::Group group,entitySet& en) const
+  {
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
-    store_hdf5write(group,traits_output_type,base_ptr,en);
-    */
 
+    hdf5write(group, traits_output_type, en );
   }
+
+  //**************************************************************************
+
 
   template<class T>  storeRepI<T>::~storeRepI<T>() {
     if(alloc_pointer) delete[] alloc_pointer ;
@@ -360,6 +377,389 @@ namespace Loci {
                          <<"    into   " << *si << endl ;
 #endif
   }
+
+  template <class T> 
+  void storeRepI<T> :: hdf5write( H5::Group group, DEFAULT_CONVERTER g,
+                                  const entitySet &en) const
+  {
+
+    int rank = 1;
+
+    hsize_t dimension[1];
+    std::ostringstream oss;
+    oss << '{' << en << std::endl ;
+
+    FORALL(en,ii) {
+      oss << base_ptr[ii] << std::endl ;
+    }ENDFORALL ;
+
+    oss << '}' << std::endl ;
+   
+    std::string memento = oss.str();
+    hsize_t size  =  memento.length();
+    dimension[0]  =  size+1;
+
+    try {
+      H5::DataSpace dataspace( rank, dimension );
+      H5::DataSet dataset = group.createDataSet( "store", 
+                                                 H5::PredType::NATIVE_CHAR,
+	                                              dataspace);
+      dataset.write( memento.c_str(), H5::PredType::NATIVE_CHAR );
+    }
+
+    catch( H5::HDF5DatasetInterfaceException error  ) { error.printerror(); }
+    catch( H5::HDF5DataspaceInterfaceException error) { error.printerror(); }
+    catch( H5::HDF5DatatypeInterfaceException error ) { error.printerror(); }
+   
+  }
+
+  //****************************************************************************
+
+  template <class T> 
+  void storeRepI<T> :: hdf5write( H5::Group group, IDENTITY_CONVERTER g, 
+                                  const entitySet &eset) const
+  {
+    entitySet  ecommon;
+
+    ecommon = store_domain & eset;
+
+    //write out the domain   
+    HDF5_WriteDomain(group, eset);
+
+    int arraySize =  eset.size(); 
+
+//-----------------------------------------------------------------------------
+// Collect state data from each object and put into 1D array
+//-----------------------------------------------------------------------------
+    T    *data;
+
+ 	 data =  new T[arraySize];
+
+    entitySet :: const_iterator ci;
+
+    size_t indx = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) 
+         data[indx++] =  base_ptr[*ci];
+
+//-----------------------------------------------------------------------------
+// Write (variable) Data into HDF5 format
+//-----------------------------------------------------------------------------
+    typedef hdf5_schema_traits<T> traits_type;
+
+    int rank = 1;
+    hsize_t  dimension[1];
+
+    dimension[0] =  arraySize;
+
+    try {
+
+      H5::DataSpace vDataspace( rank, dimension );
+      H5::DataType  vDatatype = traits_type::get_type();
+      H5::DataSet   vDataset  = group.createDataSet("VariableData", 
+                                                    vDatatype, vDataspace);
+      vDataset.write( data, vDatatype );
+
+    }
+    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+
+//-----------------------------------------------------------------------------
+// Clean up
+//-----------------------------------------------------------------------------
+    delete [] data;
+  };
+
+  //****************************************************************************
+
+  template <class T> 
+  void storeRepI<T> :: hdf5write( H5::Group group, USER_DEFINED_CONVERTER g, 
+                                  const entitySet &eset)  const
+  {   
+
+//-----------------------------------------------------------------------------
+// Objective : Write store datatype into HDF5 Format which are user defined
+//             datatypes or STL containers. Such datatypes are first written
+//             in memento class, which store data in NATIVE datatypes. This
+//             memento objects is then written into HDF5 format. A user need
+// to should provide interface to convert data into memento class
+//
+//-----------------------------------------------------------------------------
+
+
+    //write out the domain   
+    HDF5_WriteDomain(group, eset);
+
+    entitySet :: const_iterator ci;
+
+//-----------------------------------------------------------------------------
+// Get the sum of each object size and maximum size of object in the 
+// container for allocation purpose
+//-----------------------------------------------------------------------------
+
+    size_t  arraySize= 0;
+    int     stateSize, maxStateSize = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         Memento<T> memento( base_ptr[*ci] );
+         stateSize    = memento.getSize();
+         arraySize   += stateSize;
+         maxStateSize = max( maxStateSize, stateSize );
+    }
+
+    typedef hdf5_schema_converter_traits<T> converter_traits; 
+    typename converter_traits::memento_type *data, *buf;
+
+ 	 data =  new typename converter_traits::memento_type[arraySize];
+ 	 buf  =  new typename converter_traits::memento_type[maxStateSize];
+
+//-----------------------------------------------------------------------------
+// Collect state data from each object and put into 1D array
+//-----------------------------------------------------------------------------
+
+    size_t indx = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         Memento<T> memento( base_ptr[*ci] );
+         memento.getState( buf, stateSize);
+         for( int i = 0; i <  stateSize; i++) {
+              data[indx++] =  buf[i];
+         }
+    }
+
+//-----------------------------------------------------------------------------
+// Write (variable) Data into HDF5 format
+//-----------------------------------------------------------------------------
+    int rank = 1;
+    hsize_t  dimension[1];
+
+    dimension[0] =  arraySize;
+
+    try {
+
+      H5::DataSpace vDataspace( rank, dimension );
+      H5::DataType  vDatatype = converter_traits::get_variable_HDF5_type();
+      H5::DataSet   vDataset  = group.createDataSet( "VariableData", 
+                                                     vDatatype, vDataspace);
+      vDataset.write( data, vDatatype );
+    }
+    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+
+    delete [] data;
+    delete [] buf;
+
+//-----------------------------------------------------------------------------
+// Write Container 
+//-----------------------------------------------------------------------------
+    typedef hdf5_schema_traits<T>   schema_traits;
+
+    dimension[0]    = eset.size();
+    int *vbucket =  new int[ eset.size() ];
+
+    indx = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         Memento<T> memento( base_ptr[*ci] );
+         vbucket[indx++] = memento.getSize();
+    }
+
+    H5::DataType  frameDatatype = H5::PredType::NATIVE_INT;
+    H5::DataSpace frameDataspace( rank, dimension );
+    H5::DataSet   frameDataset = group.createDataSet( "ContainerSize", 
+                                                       frameDatatype, 
+                                                       frameDataspace);
+    frameDataset.write( vbucket, frameDatatype );
+
+  };
+
+
+  //*****************************************************************************
+  template<class T>
+  void  storeRepI<T> :: hdf5read( H5::Group group, DEFAULT_CONVERTER c, 
+                                  entitySet &eset, entitySet &usr_eset)
+  {
+     cout << " Warning: Default converter for store not implemented " << endl;
+  }
+
+  //*****************************************************************************
+
+  template<class T>
+  void  storeRepI<T> :: hdf5read( H5::Group group, IDENTITY_CONVERTER c, 
+                                  entitySet &eset, entitySet &usr_eset)
+  {
+
+    int      rank = 1, indx = 0;
+    hsize_t  dimension[1];
+    entitySet::const_iterator  ci;
+
+   store<int>  offset;
+   offset.allocate( eset );
+
+   indx     = 0;
+   for( ci = eset.begin(); ci != eset.end(); ++ci)
+        offset[*ci] = indx++;
+
+   //---------------------------------------------------------------------------
+   // Read the data now ....
+   //---------------------------------------------------------------------------
+   int num_intervals = usr_eset.num_intervals();
+
+   if( num_intervals == 0) {
+       cout << "Warning: Number of intervals are zero : " << endl;
+       return;
+   }
+
+   interval *it = new interval[num_intervals];
+
+   for(int i=0;i< num_intervals;i++) it[i] = usr_eset[i];
+
+   typedef hdf5_schema_traits<T> traits_type;
+
+   T  *data;
+
+   dimension[0] = eset.size();
+   H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
+   H5::DataSpace vDataspace(rank, dimension);
+
+   H5::DataType  vDatatype = traits_type::get_type();
+	H5::DataSet   vDataset   = group.openDataSet( "VariableData");
+
+   hssize_t  start_mem[] = {0};  // determines the starting coordinates.
+   hsize_t   stride[]    = {1};  // which elements are to be selected.
+   hsize_t   block[]     = {1};  // size of element block;
+   hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+   hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+
+   for( int k = 0; k < num_intervals; k++) {
+        count[0] = 0;
+        for( int i = it[k].first; i <= it[k].second; i++)
+             count[0] += 1;
+
+        data = new T[count[0]];
+
+        foffset[0] = offset[it[k].first];
+
+        mDataspace.selectHyperslab(H5S_SELECT_SET, count, start_mem, stride, block);
+        vDataspace.selectHyperslab(H5S_SELECT_SET, count, foffset,   stride, block);
+        vDataset.read( data, vDatatype, mDataspace, vDataspace);
+
+        indx = 0;
+        for( int i = it[k].first; i <= it[k].second; i++) 
+             base_ptr[i] = data[indx++];
+
+        delete[] data;
+   }
+
+  }
+  //*****************************************************************************
+
+  template<class T>
+  void  storeRepI<T> :: hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, 
+                                  entitySet &eset, entitySet &usr_eset)
+  {
+    hsize_t  dimension[1];
+    size_t   indx = 0, arraySize;
+    int      rank = 1;
+    entitySet::const_iterator  ci;
+
+    //-------------------------------------------------------------------------
+    // Size of each Bucket ....
+    //--------------------------------------------------------------------------
+
+    H5::DataType  bDatatype  = H5::PredType::NATIVE_INT;
+    H5::DataSet   bDataset   = group.openDataSet( "ContainerSize");
+    H5::DataSpace bDataspace = bDataset.getSpace();
+
+    bDataspace.getSimpleExtentDims( dimension, NULL);
+    int *ibuf = new int[dimension[0]];
+
+	 bDataset.read( ibuf, H5::PredType::NATIVE_INT );
+
+    int maxBucketSize = *max_element( ibuf, ibuf + (int)dimension[0] );
+
+    store<int> container;
+    container.allocate( eset );
+
+    indx      = 0;
+    arraySize = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+        container[*ci] = ibuf[indx++];
+        arraySize     += container[*ci];
+    }
+    delete [] ibuf;
+
+   //---------------------------------------------------------------------------
+   // Calculate the offset of each entity in file ....
+   //---------------------------------------------------------------------------
+   store<unsigned>   offset;
+   offset.allocate( eset );
+
+   indx     = 0;
+   for( ci = eset.begin(); ci != eset.end(); ++ci) {
+        offset[*ci] = indx;
+        indx       += container[*ci];
+   }
+
+   //---------------------------------------------------------------------------
+   // Read the data now ....
+   //---------------------------------------------------------------------------
+   int num_intervals = usr_eset.num_intervals();
+   if( num_intervals == 0) {
+       cout << "Warning: Number of intervals are zero : " << endl;
+       return;
+   }
+ 
+   interval *it = new interval[num_intervals];
+
+   for(int i=0;i< num_intervals;i++) it[i] = usr_eset[i];
+
+   typedef hdf5_schema_converter_traits<T> converter_traits; 
+   typename converter_traits::memento_type *data, *buf;
+
+   dimension[0] = arraySize;
+   H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
+   H5::DataSpace vDataspace(rank, dimension);
+
+   H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
+	H5::DataSet   vDataset   = group.openDataSet( "VariableData");
+
+   hssize_t  start_mem[] = {0};  // determines the starting coordinates.
+   hsize_t   stride[]    = {1};  // which elements are to be selected.
+   hsize_t   block[]     = {1};  // size of element block;
+   hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+   hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+
+   buf  = new typename converter_traits::memento_type[maxBucketSize];
+
+   for( int k = 0; k < num_intervals; k++) {
+        count[0] = 0;
+        for( int i = it[k].first; i <= it[k].second; i++)
+             count[0] +=  container[i];
+
+        data = new typename converter_traits::memento_type[count[0]];
+
+        foffset[0] = offset[it[k].first];
+
+        mDataspace.selectHyperslab(H5S_SELECT_SET, count, start_mem, stride, block);
+        vDataspace.selectHyperslab(H5S_SELECT_SET, count, foffset,   stride, block);
+        vDataset.read( data, vDatatype, mDataspace, vDataspace);
+
+        indx = 0;
+        for( int i = it[k].first; i <= it[k].second; i++) {
+             Memento<T> memento( base_ptr[i] );
+             for( int k = 0; k < container[i]; k++) {
+                  buf[k] = data[indx++];
+             }
+             base_ptr[i] = memento.setState( buf, container[i]);
+        }
+
+        delete[] data;
+   }
+
+   delete[] buf;
+
+
+  }
+  //***************************************************************************
 
 }
 
