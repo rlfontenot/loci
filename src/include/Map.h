@@ -362,9 +362,11 @@ namespace Loci {
   template<int M> std::ostream &MapVecRepI<M>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
-      for(int j=0;j<M;++j)
-        s << base_ptr[ii][j] << std::endl ;
-    }ENDFORALL ;
+      s << base_ptr[ii][0] ;
+      for(int j=1;j<M;++j)
+        s << " " << base_ptr[ii][j] ;
+      s << std::endl ;
+    } ENDFORALL ;
     s << '}' << std::endl ;
     return s ;
   }

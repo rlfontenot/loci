@@ -1049,7 +1049,203 @@ namespace Loci {
     { return t.Print(s) ; }
 
 
+  template<class T> class multiStoreRepI : public storeRep {
+    entitySet store_domain ;
+    T **index ;
+    T *alloc_pointer ;
+    T **base_ptr ;
+    int size ;
+    lmutex mutex ;
+  public:
+    multiStoreRepI() {
+      index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
+    multiStoreRepI(const store<int> &sizes) {
+      index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
+    void allocate(const store<int> &sizes) ;
+    virtual ~multiStoreRepI() ;
+    virtual void allocate(const entitySet &ptn) ;
+    virtual storeRep *new_store(const entitySet &p) const ;
+    virtual store_type RepType() const ;
+    virtual const entitySet &domain() const ;
+    virtual std::ostream &Print(std::ostream &s) const ;
+    virtual std::istream &Input(std::istream &s) ;
+    virtual void readhdf5( H5::Group group) ;
+    virtual void writehdf5( H5::Group group,entitySet& en) const ;
 
+    T ** get_base_ptr() const { return base_ptr ; }
+    T *begin(int indx) { return base_ptr[indx] ; }
+    T *end(int indx) { return base_ptr[indx+1] ; }
+    const int *begin(int indx) const  { return base_ptr[indx] ; }
+    const int *end(int indx) const { return base_ptr[indx+1] ; }
+  } ;
+
+  template<class T> void multiStoreRepI<T>::allocate(const store<int> &sizes) {
+    int sz = 0 ;
+    entitySet ptn = sizes.domain() ;
+    store_domain = ptn ;
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = 0 ;
+    if(index) delete[] index ;
+    index = 0 ;
+    if(ptn != EMPTY) {
+      int top = ptn.Min() ;
+      int len = ptn.Max() - top + 2 ;
+      index = new T *[len] ;
+      base_ptr = index - top ;
+      FORALL(ptn,i) {
+        sz += sizes[i] ;
+      } ENDFORALL ;
+      alloc_pointer = new T[sz+1] ;
+      sz = 0 ;
+      for(int ivl=0;ivl<ptn.num_intervals();++ivl) {
+        int i = ptn[ivl].first ;
+        base_ptr[i] = alloc_pointer + sz ;
+        while(i<=ptn[ivl].second) {
+          sz += sizes[i] ;
+          ++i ;
+          base_ptr[i] = alloc_pointer + sz ;
+        }
+      }
+    }
+    dispatch_notify();
+  }
+
+  template<class T> void multiStoreRepI<T>::allocate(const entitySet &ptn) {
+    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) delete[] index ;
+    alloc_pointer = 0 ;
+    index = 0 ;
+    base_ptr = 0 ;
+    store_domain = ptn ;
+    dispatch_notify() ;
+  }
+
+  template<class T> multiStoreRepI<T>::~multiStoreRepI() {
+    if(alloc_pointer) delete[] alloc_pointer ;
+    if(index) delete[] index ;
+  }
+
+  template<class T> storeRep *multiStoreRepI<T>::new_store(const entitySet &p)
+    const {
+    std::cerr << "new_store not implemented" << std::endl ;
+    return 0 ;
+  }
+
+  template<class T> store_type multiStoreRepI<T>::RepType() const {
+    return STORE ;
+  }
+
+  template<class T> const entitySet &multiStoreRepI<T>::domain() const {
+    return store_domain ;
+  }
+
+  template<class T> std::ostream &multiStoreRepI<T>::Print(std::ostream &s)
+    const {
+    s << '{' << domain() << endl ;
+    FORALL(domain(),ii) {
+      s << end(ii)-begin(ii) << std::endl ;
+    } ENDFORALL ;
+    FORALL(domain(),ii) {
+      for(const T *ip = begin(ii);ip!=end(ii);++ip)
+        s << *ip << ' ' ;
+      s << std::endl ;
+    } ENDFORALL ;
+    s << '}' << std::endl ;
+    return s ;
+  }
+
+  template<class T> std::istream &multiStoreRepI<T>::Input(std::istream &s) {
+    entitySet e ;
+    char ch ;
+    
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '{') {
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+    s >> e ;
+    store<int> sizes ;
+    sizes.allocate(e) ;
+    FORALL(e,ii) {
+      s >> sizes[ii] ;
+    } ENDFORALL ;
+
+    allocate(sizes) ;
+        
+    FORALL(e,ii) {
+      for(T *ip = begin(ii);ip!=end(ii);++ip)
+        s >> *ip  ;
+    } ENDFORALL ;
+            
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '}') {
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
+      s.putback(ch) ;
+    }
+    return s ;
+  }
+
+  template<class T> void multiStoreRepI<T>::readhdf5( H5::Group group) {
+    std::cerr << "readhdf5 not implemented" << std::endl ;
+  }
+
+  template<class T> void multiStoreRepI<T>::writehdf5(H5::Group group,
+                                                      entitySet &en) const {
+    std::cerr << "writehdf5 not implemented" << std::endl ;
+  }
+  
+  template<class T> class multiStore : public store_instance {
+    typedef multiStoreRepI<T> storeType ;
+    T ** base_ptr ;
+    int size ;
+  public:
+    typedef T containerType ;
+    multiStore() {setRep(new storeType) ;}
+    multiStore(multiStore<T> &var) {setRep(var.Rep()) ;}
+    multiStore(storeRepP &rp) { setRep(rp) ;}
+
+    virtual ~multiStore() ;
+    virtual void notification() ;
+
+    multiStore<T> & operator=(multiStore<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
+    multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
+
+    void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
+    void allocate(const store<int> &sizes) {
+      NPTR<storeType> p(Rep()) ;
+      fatal(p==0) ;
+      p->allocate(sizes) ;
+    }
+    const entitySet &domain() const { return Rep()->domain() ; }
+    operator storeRepP() { return Rep() ; }
+    T *elem(int indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return (base_ptr[indx]) ; }
+    T *operator[](int indx) {
+      return elem(indx) ; }
+
+    std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
+    std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
+
+  } ;
+
+  template<class T> multiStore<T>::~multiStore() {}
+  
+  template<class T> void multiStore<T>::notification() {
+    NPTR<storeType> p(Rep()) ;
+    if(p != 0)
+      base_ptr = p->get_base_ptr() ;
+    warn(p == 0) ;
+  }
+  
 }
 
 #endif
