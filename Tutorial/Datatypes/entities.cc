@@ -1,6 +1,8 @@
 // Example program illustrating how to manipulate Entity, entitySet,
 // and sequence data structures in Loci
 
+// Time-stamp: <2002-02-12 09:14:51 peo>.
+
 // Every Loci program includes the Loci header file.
 #include <Loci.h>
 
@@ -13,19 +15,22 @@ using std::vector ;
 
 int main()
 {
-  //////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
   // The Entity class 
-  //
+  ////////////////////////////////////////////////////////////////////////////
   // An Entity is labeled by an integer.
   // The collections of entities discussed below are represented by
   // collections of integers.
   Entity e10(10) ;  // First, the entity labeled by integer 10
+  cout << "e10 = " << e10 << endl ;
 
-  //////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
   // The interval (A collection of consecutively labeled entities)
+  ////////////////////////////////////////////////////////////////////////////
   // For example, onedigit is an interval of entity labels consisting of
   // only one decimal digit.
-  interval onedigit = interval(0,9) ;   
+  interval onedigit = interval(0,9) ;
+  cout << "onedigit = " << "[0,9]" << endl ; 
 
   ////////////////////////////////////////////////////////////////////////////
   // Class entitySet provides facilities for general sets of entities.
@@ -39,7 +44,7 @@ int main()
 
   ////////////////////////////////////////////////////////////////////////////
   // Efficiency: intervalSet.
-  //
+  ////////////////////////////////////////////////////////////////////////////
   // For efficiency, an entitySet is stored as an ordered set; 
   // more precisely, as an ordered set of ordered intervals.
   // The class for an ordered set of ordered intervals is
@@ -48,6 +53,7 @@ int main()
 
   ////////////////////////////////////////////////////////////////////////////
   // Adjunction
+  ////////////////////////////////////////////////////////////////////////////
   // We can also add an individual entity to any existing entitySet using the
   // += operator, for example we can include the entity e10 in set B:
   B += e10 ;
@@ -68,12 +74,39 @@ int main()
   // [gives the set ([5-100]) without duplicating 14 and 15]
   cout << "E = B union C =  " << E << endl ;
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Distinguished constants
+  ////////////////////////////////////////////////////////////////////////////
+  // EMPTY is a distinguished constant for the empty set.
+  cout << "EMPTY = " << EMPTY << endl ;
+
+  // UNIVERSE_MAX and UNIVERSE_MIN are distinguished constants for the
+  // largest and smallest integers that may be used to label entities.
+  cout << "UNIVERSE_MAX = " << Loci::UNIVERSE_MAX << endl ;
+  cout << "UNIVERSE_MIN = " << Loci::UNIVERSE_MIN << endl ;
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Set membership
+  ////////////////////////////////////////////////////////////////////////////
+  // Method inSet tests whether an entity is an element of an
+  // entitySet.
+  // The argument to inSet is the integer label of the entity.
+  cout << "A.inSet(9) = " ; 
+  if ( A.inSet(9) )
+      cout << "TRUE." ;
+  cout << endl ;
+  cout << "A.inSet(10) = " ; 
+  if ( ! A.inSet(10) )
+      cout << "FALSE." ;  
+  cout << endl ;
 
   ////////////////////////////////////////////////////////////////////////////
   // Set operations
+  ////////////////////////////////////////////////////////////////////////////
   // entitySet supports union, intersection, relative complement, 
   // and complement relative
-  // to the set of possible identifiers.
+  // to the set of permitted identifiers.
+  //
   // For example, entitySet D becomes the union of A and B
   // That is D = ([0-9],[14-100])
   entitySet D = A + B ;
@@ -159,8 +192,9 @@ int main()
   else
     cout << "A != ((A & C) + (A - C))." << endl ;
 
-  //  The entitySet.less_than and greater_than methods test for subset
-  //  and superset.
+  //  The entitySet.less_than and greater_than methods 
+  //  provide a linear ordering of entitySets.
+  //  The linear ordering is lexical.
   if ( A.less_than (A & C) )
     cout << "A&C <= A." << endl ;
 
@@ -173,7 +207,23 @@ int main()
   if ( G.greater_than (A) )
     cout << "A >= A - C." << endl ;
 
-
+  // Methods for union and intersection, for intervals and for
+  // intervalSets.  (Remember that an entitySet is currently
+  // implemented as an intervalSet.) 
+  // Note that these methods modify the object to which they belong.  
+  cout << "G = " << G << "." << endl ;
+  G.Union (interval(13,32)) ;
+  cout << "G Union [13,32] = " << G << "." << endl ;
+  cout << "G = " << G << "." << endl ;
+  G.Union (D) ;
+  cout << "G Union D = " << G << "." << endl ;
+  cout << "G = " << G << "." << endl ;
+  G.Intersection (interval(13,32)) ;
+  cout << "G Intersection [13,32] = " << G << "." << endl ;
+  cout << "G = " << G << "." << endl ;
+  G.Intersection (D) ;
+  cout << "G Intersection D = " << G << "." << endl ;
+  cout << "G = " << G << "." << endl ; 
 
 
   ////////////////////////////////////////////////////////////////////////////
