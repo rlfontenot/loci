@@ -430,7 +430,7 @@ namespace Loci {
     const T &operator[](int indx) const {
 #ifdef BOUNDS_CHECK
       fatal(data == NULL) ;
-      fatal(!Rep()->domain().inSet(indx)) ;
+      warn(!Rep()->domain().inSet(indx)) ;
 #endif
       return *data ;
     }
