@@ -83,6 +83,7 @@ public:
     name_store("rhs",rhs) ;
     input("flux_sum,density,area") ;
     output("rhs") ;
+    enable_dynamic_scheduling() ;
   }
   void calculate(Entity e) {
     rhs[e] = flux_sum[e]/(area[e]*density[e]) ;
