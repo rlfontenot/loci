@@ -1,6 +1,8 @@
 #ifndef STOREVEC_H
 #define STOREVEC_H 
 
+#include <mpi.h>
+
 #include <istream>
 #include <ostream>
 
@@ -16,7 +18,6 @@
 
 #include <Map.h>
 #include <multiMap.h>
-
 using std::pair ;
 using std::make_pair ;
 

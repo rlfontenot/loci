@@ -12,7 +12,7 @@
 #include <rule.h>
 #include <parameter.h>
 #include <Map_rep.h>
-
+#include <Map.h>
 
 namespace Loci {
 

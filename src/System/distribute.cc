@@ -6,12 +6,16 @@
 using std::vector ;
 
 #include "metis.h"
-#include "mpi.h"
+#include <mpi.h>
+
+#include <iostream>
 using std::cout ;
 using std::cerr ;
 using std::endl ;
 using std::ios ;
 using std::ifstream ;
+
+#include <algorithm>
 using std::swap ;
 
 //#define SCATTER_DIST

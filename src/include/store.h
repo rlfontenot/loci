@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <functional>
 
+#include <mpi.h>
+
 namespace Loci {
 #ifdef VERBOSE
   extern ofstream debugout[] ;

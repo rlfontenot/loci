@@ -1,6 +1,8 @@
 #ifndef PARAMETER_H
 #define PARAMETER_H
 
+#include <mpi.h>
+
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>

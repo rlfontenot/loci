@@ -9,7 +9,6 @@
 #include <ostream>
 
 #include <hdf5CC/H5cpp.h>
-#include <mpi.h>
 
 namespace Loci {
   enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, PATH, GLOBAL } ;

@@ -1,4 +1,7 @@
 #include "comp_tools.h"
+
+#include <mpi.h>
+
 #include <vector>
 using std::vector ;
 #include <set>
@@ -9,8 +12,9 @@ using std::list ;
 using std::pair ;
 using std::make_pair ;
 
+
 #include <distribute.h>
-//#define VERBOSE1
+
 namespace Loci {
     // Create a schedule for traversing a directed acyclic graph.  This schedule
   // may be concurrent, or many vertices of the graph may be visited at each

@@ -9,6 +9,8 @@
 #include <vector>
 #include <map>
 
+#include <mpi.h>
+
 namespace Loci {
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
