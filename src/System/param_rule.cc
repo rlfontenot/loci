@@ -32,8 +32,10 @@ namespace Loci {
 	  FATAL(vint != *vi) ;
 	
 	
-	if(vint.size() && (!param_target.inSet(*rsi))) 
+	if(vint.size() && (!param_target.inSet(*rsi))) {
 	  param_target += *rsi ;
+	  cout << "removing rule  " << *rsi << endl ;
+	}
       }
       
       source = rsi->sources() ;
@@ -186,10 +188,12 @@ namespace Loci {
 		for(std::set<string>::const_iterator ssi =
 		      ren_tars.begin(); ssi != ren_tars.end(); ++ssi) {
 		  int i = name.find(*ssi) ;
-		  if(i != string::npos) {
-		    replace =
-		      vm[variable(*ssi)].get_info().name ;
-		    name.replace(i, replace.size(), replace) ;
+		  variable s ;
+		  if(i != string::npos)  {
+		    s = variable(*ssi) ;
+		    replace = vm[s].get_info().name ;
+		    name.erase(i, i+(*ssi).size()) ;
+		    name.insert(i, replace) ;
 		  }
 		}
 		if(name != orig)
@@ -199,6 +203,7 @@ namespace Loci {
 	      rp->rename_vars(vm) ;
 	      if(!added_rules.inSet(rule(rp))) {
 		par_rdb.add_rule(rule(rp)) ;
+		cout << "adding rule  " << rule(rp) << endl ;
 		added_rules += rule(rp) ;
 	      }
 	    }
