@@ -1,7 +1,11 @@
+
 #include <fact_db.h>
 #include <constraint.h>
 #include <Tools/stream.h>
-
+#include <typeinfo.h>
+extern "C" {
+#include <hdf5.h>
+}
 using std::string ;
 using std::map ;
 using std::make_pair ;
@@ -422,6 +426,42 @@ istream &fact_db::read(istream &s) {
     vp->Input(s) ;
   }
   return s ;
+}
+
+void fact_db::write_hdf5(const char *filename){
+  H5::H5File file(filename, H5F_ACC_TRUNC);
+
+  vmap_type::const_iterator vmi ;
+  for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
+    variable v=vmi->first;
+    storeRepP store_Rep = get_variable(v);
+    entitySet en=store_Rep->domain();
+    std::string groupname = (v.get_info()).name;
+    cout<<"Write "<<groupname<<" to HDF5 file "<<endl;
+    //store_Rep->Print(cout);
+    H5::Group group = file.createGroup("/"+groupname);
+    (store_Rep->getRep())->writehdf5(group,en);
+  }
+}
+
+void fact_db::read_hdf5(const char *filename){
+  H5::H5File file(filename, H5F_ACC_RDONLY);
+
+  vmap_type::const_iterator vmi ;
+  for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
+    variable v=vmi->first;
+    storeRepP store_Rep = get_variable(v)->getRep();
+    std::string groupname = (v.get_info()).name;
+    cout<<"Read "<<groupname<<" from HDF5 file "<<endl;
+    if(H5Gopen(file.getId(),groupname.c_str())>0){
+      H5::Group group = file.openGroup("/"+groupname);
+      store_Rep->readhdf5(group);
+      update_fact(v,store_Rep);
+    }
+    else
+      cerr<<("Warning: variable \""+groupname+"\" is not found in file \""+filename+"\"")<<endl;
+    //store_Rep->Print(cout);
+  }
 }
 }
 
