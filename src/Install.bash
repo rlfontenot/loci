@@ -1,12 +1,12 @@
 #!/usr/bin/bash
 
-REVISION_NAME='$Name:  $'
+REVISION_NAME='rel-1-0-beta-7'
 
 INSTALL_DIR=${LOCI_INSTALL_DIR-/usr/local}
 
 ARCH=`arch`
 REV=`echo $REVISION_NAME| sed -e 's/.*: *//' -e 's/ *\$$//'`
-INSTALL_PATH=$INSTALL_DIR/Loci-$ARCH-$REV/
+INSTALL_PATH=$INSTALL_DIR/Loci-$ARCH-gcc-$REV/
 
 echo INSTALL_PATH = $INSTALL_PATH
 
