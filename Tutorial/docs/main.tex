@@ -112,7 +112,19 @@ demonstrates the basic user interface for the Map family of classes.
 
 \include {relations_cc}
 
+\section{Loci Helper Classes}
 
+Loci also provides a few helper classes that are often useful in
+numerical computations.  One is the {\tt Array} template class which provides a
+mechanism for creating Arrays as first class objects that are
+appropriate for using as classes used in templated containers. (\it
+Never use C arrays in templated containers.  Their semantics are
+different from other C++ types and may break templated code in
+unexpected ways.)  In addtion to the {\tt Array} template class,
+classes for three and two dimensional vectors are also provided.  See
+the following example code to see how to use these helper classes.
+
+\include {helpers_cc}
 
 %\include {dbase}
 %\include {example}
