@@ -25,6 +25,7 @@ namespace Loci {
     constraint UNIVERSE ;
     UNIVERSE = ~EMPTY ;
     create_fact("UNIVERSE",UNIVERSE) ;
+    distributed_info == 0 ;
   }
 
   fact_db::~fact_db() {}
@@ -214,57 +215,21 @@ namespace Loci {
     else
       return storeRepP(0) ;
   }
-  /*
- 
-  fact_db::distribute_info::distribute_info() {
-    int myid = MPI_rank ;
-    distributed_facts.myid = myid ;
-    distributed_facts.isDistributed.allocate(interval(myid, myid)) ;
-    distributed_facts.isDistributed[myid] = 0 ;
-    distributed_facts.my_entities = EMPTY ;
+  
+  fact_db::distribute_infoP fact_db::get_distribute_info() {
+    return(distributed_info);
   }
   
-  void fact_db::distribute_info::set_dist_facts(dist_facts dist) {
-    distributed_facts.myid = dist.myid ;
-    distributed_facts.my_entities = dist.my_entities ;
-    distributed_facts.g2l = dist.g2l ;
-    distributed_facts.l2g = dist.l2g ;
-    distributed_facts.send_neighbour = dist.send_neighbour ;
-    distributed_facts.recv_neighbour = dist.recv_neighbour ;
-    distributed_facts.send_entities.allocate(dist.send_neighbour) ;
-    distributed_facts.recv_entities.allocate(dist.recv_neighbour) ;
-    for(entitySet::const_iterator ei = dist.send_neighbour.begin(); ei!= dist.send_neighbour.end(); ++ei) 
-      distributed_facts.send_entities[*ei] = dist.send_entities[*ei] ;
-    for(entitySet::const_iterator ei = dist.recv_neighbour.begin(); ei!= dist.recv_neighbour.end(); ++ei) 
-      distributed_facts.recv_entities[*ei] = dist.recv_entities[*ei] ;
+  void fact_db::put_distribute_info(distribute_infoP dp) {
+    distributed_info = dp ;
   }
   
-    
-  distribute_infoP fact_db::distribute_info::get_dist_facts() {
-    
-    return &distributed_facts ;
+  bool fact_db::isDistributed() {
+    if(distributed_info == 0)
+      return 0 ;
+    else 
+      return 1 ;
   }
-  
-  
-  void fact_db::distribute_info::operator = (distribute_info& d) {
-    dist_facts* dist ;
-    dist = d.get_dist_facts() ;
-    distributed_facts.myid = dist->myid ;
-    distributed_facts.my_entities = dist->my_entities ;
-    distributed_facts.g2l = dist->g2l ;
-    distributed_facts.l2g = dist->l2g ;
-    distributed_facts.send_neighbour = dist->send_neighbour ;
-    distributed_facts.recv_neighbour = dist->recv_neighbour ;
-    distributed_facts.send_entities.allocate(dist->send_neighbour) ;
-    distributed_facts.recv_entities.allocate(dist->recv_neighbour) ;
-    
-    for(entitySet::const_iterator ei = dist->send_neighbour.begin(); ei!= dist->send_neighbour.end(); ++ei) 
-      distributed_facts.send_entities[*ei] = dist->send_entities[*ei] ;
-    for(entitySet::const_iterator ei = dist->recv_neighbour.begin(); ei!= dist->recv_neighbour.end(); ++ei) 
-      distributed_facts.recv_entities[*ei] = dist->recv_entities[*ei] ;
-  }
-  */
-  
   
   fact_db::time_infoP fact_db::get_time_info(time_ident tl) {
     time_infoP ti = new time_info ;

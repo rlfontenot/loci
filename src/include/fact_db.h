@@ -29,20 +29,18 @@ namespace Loci {
     
     struct distribute_info : public CPTR_type {
       int myid ;
-      store<int> isDistributed ;
-      constraint my_entities ;
+      int isDistributed ;
       Map g2l ;
-      Map l2g ;
       entitySet send_neighbour ;
       entitySet recv_neighbour ;
       store<entitySet> send_entities ;
       store<entitySet> recv_entities ;
+      distribute_info() {} ;
     } ;
-
-    typedef CPTR<time_info> time_infoP ;
-
-    typedef CPTR<distribute_info> distribute_infoP ;
     
+    typedef CPTR<time_info> time_infoP ;
+    typedef CPTR<distribute_info> distribute_infoP ;
+    distribute_infoP distributed_info ;
   private:
     fact_db(const fact_db &f) ;
     fact_db &operator=(const fact_db &f) ;
@@ -176,8 +174,9 @@ namespace Loci {
       { return get_variable(variable(vname)) ; }
     
     fact_db::time_infoP get_time_info(time_ident tl) ;
-    // fact_db::distribute_infoP get_dist_facts() ;
-    
+    fact_db::distribute_infoP get_distribute_info() ;
+    void put_distribute_info(fact_db::distribute_infoP dp) ;
+    bool isDistributed() ;
     void initialize_time(time_infoP ti) ;
     void advance_time(time_infoP ti) ;
     void close_time(time_infoP ti) ;
