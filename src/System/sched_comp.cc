@@ -241,20 +241,23 @@ namespace Loci {
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
 #ifdef HACK
-          entitySet alloc_dom = v_existence[*vi] + srp->domain() ;
+      entitySet alloc_dom = v_existence[*vi] + srp->domain() ;
 #else
-          entitySet alloc_dom = v_requests[*vi] + srp->domain() ;
+      entitySet alloc_dom = v_requests[*vi] + srp->domain() ;
 #endif
       if(srp->domain() == EMPTY) {
 	srp->allocate(alloc_dom) ;
       }
       else {
 	if(srp->RepType() == Loci::STORE) {
+	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
+	  if(tmp.size() >= 2*srp->domain().size())
+	    Loci::debugout << "Variable = " << *vi << "  more than twice the space allocated :  allocated over " << alloc_dom << " size = " << tmp.size()  << "  while domain is only  " << srp->domain() << " size = " << srp->domain().size() << endl ;
 	  if(alloc_dom != srp->domain()) {
-            Loci::debugout << "reallocating " << *vi << endl ;
+	    Loci::debugout << "reallocating " << *vi << "  over  " << alloc_dom << " initially it was over  " << srp->domain() << endl ;
 	    srp->allocate(alloc_dom) ;
-          }
-	}
+	  }
+	} 
       }
     }
     total_memory_usage = total_size + total_wasted ;

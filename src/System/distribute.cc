@@ -483,7 +483,8 @@ namespace Loci {
     entitySet active_set ;
     set<entitySet> set_of_sets ;
     set_of_sets.insert(~EMPTY) ;
-    variableSet vars = facts.get_typed_variables() ;
+    variableSet vars = facts.get_typed_variables(
+) ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP p = facts.get_variable(*vi) ;
       if(p->RepType() == MAP) {
@@ -548,7 +549,6 @@ namespace Loci {
       for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
 	entitySet active_set ;
 	storeRepP p = facts.get_variable(*vi) ;
-	
 	if((p->RepType() == MAP)) {
 	  entitySet tmp = p->domain() ;
 	  entitySet tmp_all_collect = Loci::all_collect_entitySet(tmp) ;
@@ -568,8 +568,6 @@ namespace Loci {
 	    vm[*vi] = all_collect ; 
 	    total_entities += all_collect ;
 	  }
-	  else
-	    vm[*vi] =  p->domain() ;
 	}
       }
       for(variableSet::const_iterator vsi = vars.begin(); vsi != vars.end(); ++vsi) {
@@ -3347,27 +3345,30 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   std::map<variableSet, entitySet>::const_iterator miter ;
   std::map<variable, entitySet>::const_iterator svi ;
   variableSet initial_varset ;
+  Loci::debugout << " Size of the vector passed to modified categories = " << pvec.size() << endl ;
   for(int i = 0; i < pvec.size(); ++i) {
     for(svi = vm.begin(); svi != vm.end(); ++svi) {
-      //if((pvec[i] == interval(8398678, 8398684)) || (pvec[i] == interval(8617300, 8617643))) {
-      //Loci::debugout << "svi->first = " << svi->first << "  svi->second = " << svi->second << endl ;
-      //}
       if((svi->second & entitySet(pvec[i])) != EMPTY) {
 	vvs[i] += svi->first ;
 	initial_varset += svi->first ;
       }
     }
     if(vvs[i] != EMPTY) {
-      //if((pvec[i] == (interval(8398678, 8398684))) || (pvec[i] == interval(8617300, 8617643)))
-      //Loci::debugout << " vvs[ " << i << " ] = " << vvs[i] << "  pvec[ " << i << " ] = " << pvec[i] << endl ;
       mve[vvs[i]] += pvec[i]; 
     }
   }
+  
   std::vector<variableSet> tmp_vvs ;
   for(miter = mve.begin(); miter != mve.end(); ++miter) {
     tmp_vvs.push_back(miter->first) ;
+    //Loci::debugout << "******************************************************" << endl ;
+    //Loci::debugout << " grouping variables " << miter->first << endl ;
+    //Loci::debugout << " Entities shared = " << miter->second << endl ;
+    //Loci::debugout << " Total Entities causing the grouping = " << miter->second.size() << endl ;  
+    //Loci::debugout << "******************************************************" << endl ;
   }
   
+  //Loci::debugout << " The number of variable sets grouped due to common categories = " << tmp_vvs.size() << endl ;
   std::vector<std::vector<variableSet> > vvvs = create_orig_matrix(tmp_vvs) ;
   vvs.clear() ;
   std::vector<variableSet> indep ;
@@ -3443,25 +3444,29 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   
   lvs = tp->get_categories(vset) ;
   entitySet total_entities ;
-  //HASH_MAP(int, entitySet) map_vec ;
-  //std::vector<int> sort_vec ;
+  HASH_MAP(int, entitySet) map_vec ;
+  std::vector<int> sort_vec ;
   for(std::list<variableSet>::iterator lvi = lvs.begin(); lvi != lvs.end(); ++lvi) {
     if(mve.find(*lvi) != mve.end()) {
       entitySet tmp = mve[*lvi] ; 
-      //ei = tmp.begin() ;
       if(tmp!= EMPTY) {
 	//map_vec[*ei] = tmp ;
 	//sort_vec.push_back(*ei) ;
 	//Loci::debugout << " Correspoding to " << *lvi << " pushing back " << tmp << endl ;
-	if((tmp-total_entities)!= EMPTY) 
+	tmp -= total_entities ;
+	if(tmp!= EMPTY) {
 	  tmp_pvec.push_back(tmp) ;
+	  //ei = tmp.begin() ;
+	  //map_vec[*ei] = tmp ;
+	  //sort_vec.push_back(*ei) ;
+	}
 	total_entities += tmp ;
       }
     }
   }
+  
   //for(int i = 0; i < tmp_pvec.size(); ++i)
   //Loci::debugout << " tmp_pvec[" << i << " ] = " << tmp_pvec[i] << endl ;
-  //std::sort(sort_vec.begin(), sort_vec.end()) ; 
   //std::vector<int>::const_iterator svci = sort_vec.begin();
   /*
     while(svci != sort_vec.end()) {
@@ -3481,7 +3486,6 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   //tmp_pvec.push_back(map_vec[*svci]) ;
   Loci::debugout << " total_entities = " << total_entities << endl ;
   
-  
   for(variableSet::const_iterator vsi = vars.begin(); vsi != vars.end(); ++vsi) {
     storeRepP p = facts.get_variable(*vsi) ;
     if((p->RepType() == MAP)) {
@@ -3491,15 +3495,22 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
       entitySet left_out_categories = all_collect_entitySet(out_of_set) ;
       if(left_out_categories != EMPTY) {
 	Loci::debugout << " left out stuff  = " << left_out_categories  << endl ;
+	//ei = left_out_categories.begin() ;
+	//map_vec[*ei] = left_out_categories ;
+	//sort_vec.push_back(*ei) ;
 	tmp_pvec.push_back(left_out_categories) ;
+	total_entities += left_out_categories ;
       }
     }
   }
+  //std::sort(sort_vec.begin(), sort_vec.end()) ; 
+  //for(std::vector<int>::const_iterator svci = sort_vec.begin(); svci != sort_vec.end(); ++svci)
+  //tmp_pvec.push_back(map_vec[*svci]) ;
   
   return tmp_pvec ;
 }
-
-
+  
+  
   int GLOBAL_OR(int b) {
     int result ;
     MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_LOR,MPI_COMM_WORLD) ;
