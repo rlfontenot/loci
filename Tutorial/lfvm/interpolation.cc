@@ -56,6 +56,7 @@ struct nodal_temp_totals {
     
 } ;
 
+
 std::ostream & operator<<(std::ostream &s, const nodal_temp_totals &v) {
   s << v.Tsum << ' ' << v.nsum ;
   return s ;
@@ -63,6 +64,18 @@ std::ostream & operator<<(std::ostream &s, const nodal_temp_totals &v) {
 std::istream & operator>>(std::istream &s, nodal_temp_totals &v) {
   s >> v.Tsum >> v.nsum ;
   return s ;
+}
+
+namespace Loci {
+  template<> struct data_schema_traits<nodal_temp_totals> {
+    typedef IDENTITY_CONVERTER Schema_Converter ;
+    static DatatypeP get_type() {
+      CompoundDatatypeP ct = CompoundFactory(nodal_temp_totals()) ;
+      LOCI_INSERT_TYPE(ct,nodal_temp_totals,Tsum) ;
+      LOCI_INSERT_TYPE(ct,nodal_temp_totals,nsum) ;
+      return DatatypeP(ct) ;
+    }
+  } ;
 }
 
 struct nodal_temp_totals &operator+=(nodal_temp_totals &v1,
