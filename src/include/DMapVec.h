@@ -419,7 +419,7 @@ namespace Loci {
   template<unsigned int M> 
     storeRep *dMapVecRepI<M>::new_store(const entitySet &p, const int* cnt) const 
     {
-      storeRep* sp ;
+      storeRep* sp = 0 ;
       cerr << " This method should not be called for a dMapVec " << endl ;
       return sp ;
     }

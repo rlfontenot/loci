@@ -109,7 +109,7 @@ namespace Loci {
     return new MapVecRepI<M>(p) ;
   }
   template<int M> storeRep *MapVecRepI<M>::new_store(const entitySet &p, const int* cnt) const {
-    storeRep* sp ;
+    storeRep* sp = 0 ;
     cerr << " This method should not be called for a MapVec " << endl ;
     return sp ;
   }
@@ -449,6 +449,7 @@ namespace Loci {
   
   template<int M> storeRepP MapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     storeRepP sp ;
+    sp = 0 ;
     warn(true) ;
     return sp ;
   }

@@ -93,7 +93,7 @@ namespace Loci {
   template<class T>
   storeRep *paramRepI<T>::new_store(const entitySet &p, const int* cnt) const 
     {
-      storeRep* sp ;
+      storeRep* sp = 0 ;
       cerr << " This method should not be called for a parameter " << endl ;
       return sp ;
     }

@@ -35,7 +35,7 @@ namespace Loci {
     return new MapRepI(p)  ;
   }
   storeRep *MapRepI::new_store(const entitySet &p, const int* count) const {
-    storeRep* sp ;
+    storeRep* sp = 0 ;
     cerr << " This method should not be called for a Map " << endl ;
     return sp ;
   }
