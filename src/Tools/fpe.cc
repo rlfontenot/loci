@@ -29,7 +29,7 @@ namespace Loci {
 }
                       
 #else
-#ifdef LINUX_X86
+#ifdef HAVE_FENWM
 
 #include <stdlib.h>
 #include <fenvwm.h>
