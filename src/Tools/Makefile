@@ -4,7 +4,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libTools.a libTools.so
+TARGET = libTools.a #libTools.so
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 
@@ -32,7 +32,7 @@ libTools.so: $(LIB_OBJS)
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
 clean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK)
+	rm -fr $(LIB_OBJS) $(OBJS) $(TARGET) $(JUNK)
 
 
 make.depend:

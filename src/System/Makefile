@@ -4,7 +4,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libLoci.a libLoci.so
+TARGET = libLoci.a #libLoci.so
 
 
 OBJS = hdf5_readwrite.o Loci_version.o variable.o store_rep.o Map.o \
@@ -31,7 +31,7 @@ libLoci.so: $(LIB_OBJS)
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
 clean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK)
 
 
 make.depend:

@@ -8,7 +8,7 @@ INCLUDES = -I$(LOCI_BASE)/include/hdf5CC
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 
-TARGET = libhdf5CC.a libhdf5CC.so
+TARGET = libhdf5CC.a #libhdf5CC.so
 
 
 OBJS  =  H5file.o Exception.o H5object.o Group.o Refcount.o Dataspace.o\
@@ -33,7 +33,7 @@ libhdf5CC.so: $(LIB_OBJS)
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
 clean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK)
+	rm -fr $(LIB_OBJS) $(OBJS) $(TARGET) $(JUNK)
 
 
 make.depend:
