@@ -4,6 +4,8 @@ using std::string ;
 using std::ostringstream ;
 #include <distribute.h>
 
+//#define VERBOSE
+
 namespace Loci {
 
   rule prepend_time_level(Loci::rule r, string prepend) {
@@ -82,6 +84,14 @@ namespace Loci {
   }
   rule rename_rule(rule r, std::map<variable, variable> &vm) {
 
+#ifdef VERBOSE
+    debugout << "rename_rule " << r << endl ;
+    std::map<variable,variable>::const_iterator tp ;
+    debugout << "vm = " ;
+    for(tp = vm.begin();tp!=vm.end();++tp) {
+      debugout << "(" << tp->first << "," << tp->second << ")" << endl ;
+    }
+#endif
     std::vector<string> str_vec ;//This is to deal with the renaming
     //of other variables eg. W_f, f_W etc
     std::set<string> ren_tars ; // Create a set  of names of
@@ -357,8 +367,13 @@ namespace Loci {
     //Add the non parametric rules to the rule database.  
     for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end(); ++rsi) {
       rule_implP rp = rsi->get_rule_implP() ;
-      par_rdb.add_rule(rule(rp)) ;
-      added_rules += rule(rp) ;
+      if(rp == 0) {
+        cerr << "rp == 0, this does not make sense" << endl ;
+      } else {
+        rule par_rule(rp) ;
+        par_rdb.add_rule(par_rule) ;
+        added_rules += par_rule ;
+      }
     }
   
     variableSet working, newset ;
