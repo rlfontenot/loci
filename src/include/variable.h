@@ -234,6 +234,9 @@ namespace Loci {
     const_iterator end() const {
       return const_iterator(intervalSet::end()) ; }
     std::ostream &Print(std::ostream &s) const ;
+    // perform a lexicographical sort of the variableSet
+    // return a vector that contains the variable name
+    std::vector<std::string> lexico_sort() const ;
 
   } ;
 
@@ -262,12 +265,37 @@ namespace Loci {
   }
 
 
+  inline bool lexico_cmp(const std::string& s1, const std::string& s2) {
+    return std::lexicographical_compare(s1.begin(),s1.end(),
+                                        s2.begin(),s2.end()) ;
+  }
+
   inline std::ostream &operator<<(std::ostream &s, const std::set<vmap_info> &v) {
+    /*
     std::set<Loci::vmap_info>::const_iterator i ;
     for(i = v.begin();i!=v.end();) {
       s << (*i) ;
       ++i ;
       if(i!=v.end())
+        s << "," ;
+    }
+    return s ;
+    */
+    // we'll need a canonical print out function for
+    // set<vmap_info>
+    std::vector<std::string> sv ;
+    std::set<Loci::vmap_info>::const_iterator i ;
+    for(i=v.begin();i!=v.end();++i) {
+      std::ostringstream ss ;
+      ss << (*i) ;
+      sv.push_back(ss.str()) ;
+    }
+    std::sort(sv.begin(),sv.end(),lexico_cmp) ;
+    std::vector<std::string>::const_iterator vi ;
+    for(vi=sv.begin();vi!=sv.end();) {
+      s << (*vi) ;
+      ++vi ;
+      if(vi!=sv.end())
         s << "," ;
     }
     return s ;

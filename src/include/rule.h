@@ -550,9 +550,19 @@ namespace Loci {
     } 
     rule parent() const { return rule(*this,time().parent()) ; }
 
+    /* 
     std::ostream &Print(std::ostream &s) const
       { s << rdb->get_info(id).name() ; return s ; }
-      
+    */
+    // remove the stuffs before "#" if any.
+    std::ostream &Print(std::ostream &s) const {
+      std::string name = rdb->get_info(id).name() ;
+      std::string::iterator pos ;
+      pos = std::find(name.begin(),name.end(),'#') ;
+      s << std::string( (pos==name.end()?name.begin():pos+1),name.end()) ;
+      return s ;
+    }
+    
     bool operator<(const rule &f) const { return id < f.id ; }
     bool operator==(const rule &f) const { return id == f.id ; }
     bool operator!=(const rule &f) const { return id != f.id ; }
