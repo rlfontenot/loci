@@ -848,7 +848,12 @@ namespace Loci {
       gr.remove_dangling_vertices() ;
     
       all_cleaned_rules += cleanoutrules ;
+      //#define REPEAT_WASHING
+#ifdef REPEAT_WASHING
       cleaned_rules = (cleanoutrules != EMPTY) ;
+#else
+      cleaned_rules = false ;
+#endif
     } while (cleaned_rules) ;
   }
 }// End namespace Loci
