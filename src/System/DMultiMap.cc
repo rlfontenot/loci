@@ -200,6 +200,11 @@ namespace Loci
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
+    /*
+      multiMap   newmap; 
+      newmap = MapRepP(s.Rep())->get_map() ;
+      return newmap.Rep() ;  
+   */
     return s.Rep() ;
   }
   
