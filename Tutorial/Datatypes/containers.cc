@@ -185,10 +185,14 @@ int main() {
 
   cout << "random dstore contains = " ;
   // Get the entitySet of all allocated entities in dstore
-   domain = dynamic_store2.domain() ;
+  domain = dynamic_store2.domain() ;
   // loop over all entities in the dynamic store and output.
-  for( ei = domain.begin(); ei != domain.end(); ++ei)
-    cout << " (" << *ei << "," << dynamic_store2[*ei] << ")" ;
+  for( ei = domain.begin(); ei != domain.end(); ++ei) {
+    cout << " (" << *ei ;
+    for(int i=0;i<dynamic_store2[*ei].size();++i) 
+      cout << "," << dynamic_store2[*ei][i] ;
+    cout << ")" ;
+  }
   cout << endl ;
 
 }
