@@ -63,13 +63,13 @@ clean:
 Tools_depend: FRC
 	cd Tools ; $(MAKE) depend INCLUDES="$(INCLUDES)"\
 			  DEFINES="$(DEFINES)" \
-                          CC_INCLUDE_PATH="$(CC_INCLUDE_PATH)"\
+                          MAKEDEPEND="$(MAKEDEPEND)" \
 			  LOCI_BASE="$(LOCI_BASE)"
 
 System_depend: FRC
 	cd System ; $(MAKE) depend INCLUDES="$(INCLUDES)"\
 			  DEFINES="$(DEFINES)" \
-                          CC_INCLUDE_PATH="$(CC_INCLUDE_PATH)"\
+                          MAKEDEPEND="$(MAKEDEPEND)" \
 			  LOCI_BASE="$(LOCI_BASE)"
 
 depend: Tools_depend System_depend 
