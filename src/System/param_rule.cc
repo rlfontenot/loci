@@ -117,10 +117,10 @@ rule rename_rule(rule r, std::map<variable, variable> &vm) {
 }
 
 
-rule_db parametric_rdb(rule_db& rdb) {
+rule_db parametric_rdb(rule_db& rdb,variableSet query_vars) {
   Loci::rule_db par_rdb ;
-  ruleSet param_target, param_source, use_param_rule, added_rules ;
-  variableSet source, target ;
+  ruleSet param_target, added_rules ;
+  variableSet target ;
   std::map<variable, ruleSet> mruleset ; // This data structure is
   // used to map the parametric variable with the corresponding
   // parametric rule in the rule database.
@@ -158,35 +158,31 @@ rule_db parametric_rdb(rule_db& rdb) {
 	param_target += *rsi ;
     }
     
-    source = rsi->sources() ;
-    for(variableSet::const_iterator vsi = source.begin(); vsi !=
-	  source.end(); ++vsi) { 
-      vint = variable(*vsi).get_arg_list() ;
-      //Make a ruleSet of all the rules having paramtric variables as
-      //the source 
-      if(vint.size()) 
-	param_source += *rsi ;
-    }
   }
+
   //Remove the rules having parametric variables in the head a rule
   //from the rule database. 
   rset -= param_target ;
-  variableSet param_vars ;
+
+  
   
   //Loop over the sources of the remaining rules and find out the
   //parametric variables(add them to param_vars). Add the
   //corresponding rule to use_param_rule ruleSet.   
-  
+
+  variableSet all_source_vars = query_vars ;
   for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end(); ++rsi) {
-    source = rsi->sources() ;
-    for(variableSet::const_iterator vsi = source.begin(); vsi != source.end(); ++vsi) {
-      vint = variable(*vsi).get_arg_list() ;
-      if(vint.size()) {
-	use_param_rule += *rsi ;
-	param_vars += *vsi ;
-      }
+    all_source_vars += rsi->sources() ;
+  }
+  
+  variableSet param_vars ;
+  for(variableSet::const_iterator vsi = all_source_vars.begin();
+      vsi != all_source_vars.end(); ++vsi) {
+    if(variable(*vsi).get_arg_list().size() != 0) {
+      param_vars += *vsi ;
     }
   }
+
   //This part handles the recursive parametric rules. 
   ruleSet wrule, nrule ;
   variableSet newvars ;
@@ -201,7 +197,7 @@ rule_db parametric_rdb(rule_db& rdb) {
 	nrule = EMPTY ;
 	for(ruleSet::const_iterator rsi = wrule.begin(); rsi != wrule.end();
 	    ++rsi) {
-	  source = rsi->sources() ;
+	  variableSet source = rsi->sources() ;
 	  for(variableSet::const_iterator vci = source.begin(); vci !=
 		source.end(); ++vci) {
 	    if(variable(*vci).get_arg_list().size()) {
@@ -285,7 +281,7 @@ rule_db parametric_rdb(rule_db& rdb) {
 	      }
 	    }
 	    
-	    source = rsi->sources() ;
+	    variableSet source = rsi->sources() ;
 	    for(variableSet::const_iterator tvsi = source.begin(); tvsi != source.end(); ++tvsi ) {    
 	      std::vector<int> tmp_vint = variable(*tvsi).get_arg_list() ;
 	      std::vector<int> tmp_vec, vec_int ;

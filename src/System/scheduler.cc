@@ -42,7 +42,7 @@ namespace Loci {
     cout << "generating dependency graph..." << endl ;
     double start_time = MPI_Wtime() ;
     rule_db par_rdb ;
-    par_rdb = parametric_rdb(rdb) ;
+    par_rdb = parametric_rdb(rdb,target) ;
     digraph gr = dependency_graph(par_rdb,given,target).get_graph() ;
     // If graph is empty, return a null schedule 
     if(gr.get_target_vertices() == EMPTY)
