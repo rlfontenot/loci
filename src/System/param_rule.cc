@@ -32,7 +32,8 @@ namespace Loci {
     name.append(v.get_info().name) ;
     return name ;
   }
-  rule rename_rule(rule r, std::map<variable, variable> &vm) { 
+
+  rule rename_rule(rule r, std::map<variable, variable> &vm) {
     std::vector<string> str_vec ;//This is to deal with the renaming
     //of other variables eg. W_f, f_W etc
     std::set<string> ren_tars ; // Create a set  of names of
@@ -310,6 +311,7 @@ namespace Loci {
     }
   
     variableSet working, newset ;
+    variableSet processed ;
     working = param_vars;
     newset = param_vars ;
     while(newset != EMPTY) {
@@ -370,7 +372,14 @@ namespace Loci {
             }
           }
       }
+      // If a variable has already been processed, no need to process it again
+      // (This is needed to make sure that things work when parametric rules
+      // are recursive
+      newset -= processed ;
+      // Update working set to remainder
       working = newset ;
+      // Next time we get here, working will have been processed
+      processed += working ;
     }
     return par_rdb ;
   }
