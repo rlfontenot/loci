@@ -62,7 +62,7 @@ namespace Loci {
   void dMapVecRepI<M>::readhdf5( hid_t group_id, entitySet &user_eset)
   {
     VEC         vec;
-    int         size, numentities, rank = 1;
+    int         size, rank = 1;
     hsize_t     dimension[1];
     entitySet   eset;
     typename HASH_MAP(int, VEC)::const_iterator  ci;
@@ -90,7 +90,6 @@ namespace Loci {
     //---------------------------------------------------------------------------
     // Calculate the offset of each entity in file ....
     //---------------------------------------------------------------------------
-    cout << ecommon << endl;
     store<unsigned> offset;
     offset.allocate(eset);
     entitySet :: const_iterator ei;
@@ -141,12 +140,12 @@ namespace Loci {
 
       int indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) {
-        for( int m = 0; m < size; m++)
-          attrib_data[i][m] = data[indx++];
+        for( int m = 0; m < size; m++) 
+           attrib_data[i][m] = data[indx++];
       }
-
       delete[] data;
     }
+
 
     H5Dclose( vDataset   );
     H5Tclose( vDatatype  );
@@ -160,7 +159,7 @@ namespace Loci {
   {
 
     hsize_t   dimension;
-    int       size, rank = 1;
+    int       rank = 1;
     int       vsize = M;
     entitySet eset(usr_eset&domain());
 
@@ -175,21 +174,21 @@ namespace Loci {
     //-----------------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
     //-----------------------------------------------------------------------------
-    std::vector<int> data(arraySize);
+    std::vector<int> data;
 
     entitySet::const_iterator ci;
-    typename HASH_MAP(int, VEC)::const_iterator iter;
+    typename HASH_MAP(int,VEC)::const_iterator iter;
     VEC   newvec;
 
-    size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       iter = attrib_data.find(*ci);
       if( iter == attrib_data.end() ) continue;
       newvec = iter->second;
-      for( int i = 0; i < vsize; i++) data[indx++] =  newvec[i];
+      for( int i = 0; i < vsize; i++)
+           data.push_back(newvec[i]);
     }
 
-    dimension        = arraySize;
+    dimension        = data.size();
     hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
     hid_t vDatatype  = H5T_NATIVE_INT;
     hid_t vDataset   = H5Dcreate(group_id, "MapVec", vDatatype, vDataspace, H5P_DEFAULT);
@@ -577,7 +576,7 @@ namespace Loci {
 
     const VEC &const_elem(int indx)  const { 
       typename HASH_MAP(int,VEC)::const_iterator ci;
-      ci = attrib_data.find(index);
+      ci = attrib_data->find(index);
       if( ci != attrib_data->end()) return ci->second();
     }
 
@@ -661,9 +660,8 @@ namespace Loci {
 
     const VEC &const_elem(int indx)  const {
       typename HASH_MAP(int,VEC)::const_iterator ci;
-	  
       ci = attrib_data->find(indx);
-      if( ci != attrib_data->end() ) return( ci->second );
+      return( ci->second );
     }
 
     const VEC &operator[](int indx) const { return const_elem(indx) ; }
@@ -786,7 +784,6 @@ namespace Loci {
   template<unsigned int M> 
   void dMapVecRepI<M>::scatter(const Map &m, storeRepP &st, const entitySet &context)
   {
-    /*
       const_dMapVec<M> s(st) ;
 
       fatal((context - s.domain()) != EMPTY) ;
@@ -795,7 +792,6 @@ namespace Loci {
       FORALL(context,i) {
       attrib_data[m[i]] = s[i];
       } ENDFORALL ;
-    */
 
   }
 
