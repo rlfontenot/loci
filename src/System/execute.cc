@@ -10,7 +10,8 @@
 #ifdef PTHREADS
 sem_t thread_barrier, barrier_ack ;
 #endif
-//namespace {
+
+namespace Loci {
   struct exec_info  {
     Loci::executeP exec_routine;
     Loci::fact_db *current_fact_db ;
@@ -20,16 +21,17 @@ sem_t thread_barrier, barrier_ack ;
     }
   } ;
   std::vector<exec_info> thread_schedule[Loci::max_threads] ;
-  int num_created_threads = 0 ;
+  int num_created_threads = 1 ;
   bool work_in_queue = false ;
   
   int thread_num[Loci::max_threads] ;
 
   std::vector<Loci::executeP> *current_execute_list ;
   Loci::fact_db *current_fact_db ;
-//}
+}
 
 void process_thread(int i) {
+  using namespace Loci ;
   for(int w=0;w<thread_schedule[i].size();++w) {
     exec_info &ei = thread_schedule[i][w] ;
     ei.exec_routine->execute(*ei.current_fact_db) ;
@@ -41,6 +43,7 @@ void process_thread(int i) {
 extern "C" {
 
   void *worker_thread( void *ptr) {
+    using namespace Loci ;
     int tnum = *(int *)(ptr) ;
     (*current_execute_list)[tnum]->execute(*current_fact_db) ;
     pthread_exit(0) ;
@@ -83,7 +86,8 @@ namespace Loci {
       if(!(*eli)->is_control_thread() && num_created_threads>1) {
         work_in_queue = true ;
         thread_schedule[round_robin_allocate].push_back(exec_info(*eli,facts)) ;
-        round_robin_allocate = (round_robin_allocate+1)%num_created_threads ;
+        if(num_created_threads > 1)
+          round_robin_allocate = (round_robin_allocate+1)%num_created_threads ;
       } else
         (*eli)->execute(facts) ;
     }

@@ -30,14 +30,14 @@ namespace Loci {
     s << "--end conditional" << endl ;
   }
 
-  conditional_compiler::conditional_compiler(rulecomp_map &rp,
-                                                 digraph gin,
+  conditional_compiler::conditional_compiler(rulecomp_map &rule_process,
+                                                 digraph dag,
                                              variable conditional)
-  : rule_process(rp) {
-    dag = gin ;
+   {
     cond_var = conditional ;
-    dag_sched = schedule_dag(dag) ;
-    extract_rule_sequence(rule_schedule,dag_sched) ;
+    std::vector<digraph::vertexSet> dag_sched = schedule_dag(dag) ;
+    compile_dag_sched(dag_comp,dag_sched,rule_process,dag) ;
+    
 #ifdef DEBUG
     // sanity check, all vertices should be scheduled
     digraph::vertexSet allvertices ;
@@ -49,29 +49,25 @@ namespace Loci {
 
     
   void conditional_compiler::set_var_existence(fact_db &facts) {
-    for(int i=0;i<rule_schedule.size();++i) 
-      calc(rule_schedule[i])->set_var_existence(facts) ;
+    std::vector<rule_compilerP>::iterator i ;
+    for(i=dag_comp.begin();i!=dag_comp.end();++i)
+      (*i)->set_var_existence(facts) ;
   }
 
   void conditional_compiler::process_var_requests(fact_db &facts) {
-    vector<rule>::reverse_iterator ri ;
-    for(ri=rule_schedule.rbegin();ri!=rule_schedule.rend();++ri)
-      calc(*ri)->process_var_requests(facts) ;
-
+    std::vector<rule_compilerP>::reverse_iterator ri ;
+    for(ri=dag_comp.rbegin();ri!=dag_comp.rend();++ri)
+      (*ri)->process_var_requests(facts) ;
   }
 
   executeP conditional_compiler::create_execution_schedule(fact_db &facts) {
     CPTR<execute_list> elp = new execute_list ;
 
-    vector<digraph::vertexSet>::const_iterator i ;
-    for(i=dag_sched.begin();i!=dag_sched.end();++i) {
-      ruleSet rules = extract_rules(*i) ;
-      ruleSet::const_iterator ri ;
-      for(ri=rules.begin();ri!=rules.end();++ri)
-        elp->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-      if(rules.size() > 0 && num_threads > 1)
-        elp->append_list(new execute_thread_sync) ;
+    std::vector<rule_compilerP>::iterator i ;
+    for(i=dag_comp.begin();i!=dag_comp.end();++i) {
+      elp->append_list((*i)->create_execution_schedule(facts)) ;
     }
+
     return new execute_conditional(executeP(elp),cond_var) ;
   }
 

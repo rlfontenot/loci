@@ -172,6 +172,10 @@ namespace Loci {
     }
 
     WARN(looping == EMPTY && collapse != EMPTY) ;
+    if(looping == EMPTY && collapse != EMPTY) {
+      ruleSet collapse_rules = extract_rules(collapse) ;
+      cerr << "collapse = " << collapse_rules << endl ;
+    }
     WARN(looping.size() > 1) ;
 
     if(looping.size() > 1) {

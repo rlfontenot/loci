@@ -713,4 +713,19 @@ namespace Loci {
     }
   }
 
+  void barrier_compiler::set_var_existence(fact_db &facts) {
+  }
+
+  void barrier_compiler::process_var_requests(fact_db &facts) {
+  }
+
+  executeP barrier_compiler::create_execution_schedule(fact_db &facts) {
+    //    if(num_threads > 1)
+    ostringstream oss ;
+    oss << barrier_vars ;
+    return new execute_thread_sync(oss.str()) ;
+  }
+
+  
+
 }

@@ -4,29 +4,38 @@ using std::vector ;
 
 namespace Loci {
 
-  void barrier_compiler::set_var_existence(fact_db &facts) {
-  }
-
-  void barrier_compiler::process_var_requests(fact_db &facts) {
-  }
-
-  executeP barrier_compiler::create_execution_schedule(fact_db &facts) {
-    //    if(num_threads > 1)
-    ostringstream oss ;
-    oss << barrier_vars ;
-    return new execute_thread_sync(oss.str()) ;
-  }
-
-  
   void compile_dag_sched(std::vector<rule_compilerP> &dag_comp,
                          const std::vector<digraph::vertexSet> &dag_sched,
-                         const rulecomp_map &rcm) {
+                         const rulecomp_map &rcm,
+                         const digraph &dag) {
+    digraph dagt = dag.transpose() ;
     for(int i=0;i<dag_sched.size();++i) {
       variableSet vars = extract_vars(dag_sched[i]) ;
       ruleSet rules = extract_rules(dag_sched[i]) ;
-      if(vars != EMPTY) {
-        dag_comp.push_back(new barrier_compiler(vars)) ;
+      if(rules == EMPTY && i+1<dag_sched.size()) {
+        ++i ;
+        vars += extract_vars(dag_sched[i]) ;
+        rules = extract_rules(dag_sched[i]) ;
       }
+
+      variableSet barrier_vars ;
+      variableSet::const_iterator vi ;
+      
+      for(vi=vars.begin();vi!=vars.end();++vi) {
+        ruleSet var_rules = extract_rules(dagt[(*vi).ident()]) ;
+        ruleSet::const_iterator ri ;
+        for(ri=var_rules.begin();ri!=var_rules.end();++ri)
+          if(ri->get_info().rule_class != rule::INTERNAL) {
+            barrier_vars += *vi ;
+            break ;
+          }
+        
+      }
+      if(barrier_vars != EMPTY)
+        dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
+      else if(rules != EMPTY && i != 0) 
+        dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
+
       if(rules != EMPTY) {
         ruleSet::const_iterator ri ;
         for(ri=rules.begin();ri!=rules.end();++ri) {
@@ -43,7 +52,7 @@ namespace Loci {
   dag_compiler::dag_compiler(rulecomp_map &rule_process, digraph dag) {
 
     std::vector<digraph::vertexSet> dag_sched = schedule_dag(dag) ;
-    compile_dag_sched(dag_comp,dag_sched,rule_process) ;
+    compile_dag_sched(dag_comp,dag_sched,rule_process,dag) ;
     
 #ifdef DEBUG
     // sanity check, all vertices should be scheduled

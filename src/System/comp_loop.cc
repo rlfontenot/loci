@@ -65,12 +65,13 @@ namespace Loci {
 
 
   
-  loop_compiler::loop_compiler(rulecomp_map &rp, digraph gin) : rule_process(rp) {
-    dag = gin ;
+  loop_compiler::loop_compiler(rulecomp_map &rule_process, digraph dag)  {
 
     ruleSet collapse_rules, all_rules, loopset ;
     variableSet collapse_vars ;
 
+    std::vector<digraph::vertexSet> collapse_sched ;
+    std::vector<digraph::vertexSet> advance_sched ;
     
     all_rules = extract_rules(dag.get_all_vertices()) ;
     for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) {
@@ -112,9 +113,8 @@ namespace Loci {
 
     // Schedule part of graph that leads to collapse
     collapse_sched = schedule_dag(dag, EMPTY,visit_vertices(dagt,collapse_vars)) ;
-    extract_rule_sequence(rule_schedule,collapse_sched) ;
-    extract_rule_sequence(collapse,collapse_sched) ;
-
+    compile_dag_sched(collapse_comp,collapse_sched,rule_process,dag) ;
+    
     // Schedule advance part of loop.  First try to schedule any output, then
     // schedule the advance
     digraph::vertexSet visited ;
@@ -122,6 +122,8 @@ namespace Loci {
       visited += collapse_sched[i] ;
     vector<digraph::vertexSet>
       dag_sched = schedule_dag(dag,visited, visit_vertices(dagt,outputSet)) ;
+    compile_dag_sched(advance_comp,dag_sched,rule_process,dag) ;
+    
     if(dag_sched.size() == 0)
       output_present = false ;
     else 
@@ -130,14 +132,12 @@ namespace Loci {
     for(int i=0;i<dag_sched.size();++i)
       advance_sched.push_back(dag_sched[i]) ;
   
-    extract_rule_sequence(rule_schedule,dag_sched) ;
-    extract_rule_sequence(advance,dag_sched) ;
     for(int i = 0;i<dag_sched.size();++i)
       visited += dag_sched[i] ;
     // now schedule everything that hasn't been scheduled
     dag_sched = schedule_dag(dag,visited) ;
-    extract_rule_sequence(rule_schedule,dag_sched) ;
-    extract_rule_sequence(advance,dag_sched) ;
+    compile_dag_sched(advance_comp,dag_sched,rule_process,dag) ;
+    
     for(int i=0;i<dag_sched.size();++i)
       advance_sched.push_back(dag_sched[i]) ;
   
@@ -169,8 +169,12 @@ namespace Loci {
   }
 
   void loop_compiler::set_var_existence(fact_db &facts) {
-    for(int i=0;i<rule_schedule.size();++i) 
-      calc(rule_schedule[i])->set_var_existence(facts) ;
+    std::vector<rule_compilerP>::iterator i ;
+    for(i=collapse_comp.begin();i!=collapse_comp.end();++i)
+      (*i)->set_var_existence(facts) ;
+    for(i=advance_comp.begin();i!=advance_comp.end();++i)
+      (*i)->set_var_existence(facts) ;
+    
   }
 
   void loop_compiler::process_var_requests(fact_db &facts) {
@@ -182,30 +186,29 @@ namespace Loci {
       entitySet vexist = facts.variable_existence(*vi) ;
       facts.variable_request(*vi,vexist) ;
     }
-    vector<rule>::reverse_iterator ri ;
-    for(ri=rule_schedule.rbegin();ri!=rule_schedule.rend();++ri)
-      calc(*ri)->process_var_requests(facts) ;
+
+    std::vector<rule_compilerP>::reverse_iterator ri ;
+    for(ri=advance_comp.rbegin();ri!=advance_comp.rend();++ri)
+      (*ri)->process_var_requests(facts) ;
+    for(ri=collapse_comp.rbegin();ri!=collapse_comp.rend();++ri)
+      (*ri)->process_var_requests(facts) ;
+    
   }
 
   executeP loop_compiler::create_execution_schedule(fact_db &facts) {
     CPTR<execute_list> col = new execute_list ;
-    for(int i=0;i!=collapse_sched.size();++i) {
-      ruleSet rules = extract_rules(collapse_sched[i]) ;
-      ruleSet::const_iterator ri ;
-      for(ri=rules.begin();ri!=rules.end();++ri)
-        col->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-      if(rules.size() > 0 && num_threads > 1)
-        col->append_list(new execute_thread_sync) ;
+
+    std::vector<rule_compilerP>::iterator i ;
+    for(i=collapse_comp.begin();i!=collapse_comp.end();++i) {
+      col->append_list((*i)->create_execution_schedule(facts)) ;
     }
+
     CPTR<execute_list> adv = new execute_list ;
-    for(int i=0;i!=advance_sched.size();++i) {
-      ruleSet rules = extract_rules(advance_sched[i]) ;
-      ruleSet::const_iterator ri ;
-      for(ri=rules.begin();ri!=rules.end();++ri)
-        adv->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-      if(rules.size() > 0 && num_threads > 1)
-        adv->append_list(new execute_thread_sync) ;
+
+    for(i=advance_comp.begin();i!=advance_comp.end();++i) {
+      adv->append_list((*i)->create_execution_schedule(facts)) ;
     }
+
     return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel) ;
   }
 

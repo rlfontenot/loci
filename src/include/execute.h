@@ -3,6 +3,7 @@
 
 #include <ostream>
 #include <vector>
+#include <string>
 
 #include <Config/conf.h>
 #include <Tools/cptr.h>

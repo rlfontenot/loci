@@ -32,21 +32,17 @@ namespace Loci {
                                           digraph::vertexSet only_vertices =
                                           interval(UNIVERSE_MIN,UNIVERSE_MAX)) ;
 
+  void compile_dag_sched(std::vector<rule_compilerP> &dag_comp,
+                         const std::vector<digraph::vertexSet> &dag_sched,
+                         const rulecomp_map &rcm,
+                         const digraph &dag) ;
+
 
   class loop_compiler : public rule_compiler {
-    rulecomp_map &rule_process ;
-    
-    rule_compilerP calc(const rule &r) 
-    {return rule_process[r] ;}
 
-    digraph dag ;
-  
-    std::vector<rule> rule_schedule ;
-    std::vector<rule> collapse ;
-    std::vector<digraph::vertexSet> collapse_sched ;
+    std::vector<rule_compilerP> collapse_comp ; 
     variable cond_var ;
-    std::vector<rule> advance ;
-    std::vector<digraph::vertexSet> advance_sched ;
+    std::vector<rule_compilerP> advance_comp ;
     variableSet advance_vars ;
     time_ident tlevel ;
     variable output ;
@@ -146,14 +142,7 @@ namespace Loci {
   } ;
   
   class conditional_compiler : public rule_compiler {
-    rulecomp_map &rule_process ;
-  
-    rule_compilerP calc(const rule &r) 
-    {return rule_process[r] ;}
-
-    digraph dag ;
-    std::vector<rule> rule_schedule ;
-    std::vector<digraph::vertexSet> dag_sched ;
+    std::vector<rule_compilerP> dag_comp ;
     variable cond_var ;
   public:
     conditional_compiler(rulecomp_map &rp, digraph gin,
