@@ -305,7 +305,8 @@ namespace Loci {
       group_id = H5Gcreate(file_id, groupname.c_str(), 0);
       (store_Rep->getRep())->writehdf5(group_id, en);
     }
-
+    H5Fclose(file_id);
+    H5Gclose(group_id);
   }
 
   void fact_db::read_hdf5(const char *filename){
@@ -326,8 +327,9 @@ namespace Loci {
       }
       else
         cerr<<("Warning: variable \""+groupname+"\" is not found in file \""+filename+"\"")<<endl;
-      //store_Rep->Print(cout);
     }
+    H5Fclose(file_id);
+    H5Gclose(group_id);
   }
 
   
