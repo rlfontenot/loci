@@ -14,8 +14,11 @@ using std::vector ;
 int main()
 {
   //////////////////////////////////////////////////////////////////////
-  // The Entity 
+  // The Entity class 
+  //
   // An Entity is labeled by an integer.
+  // The collections of entities discussed below are represented by
+  // collections of integers.
   Entity e10(10) ;  // First, the entity labeled by integer 10
 
   //////////////////////////////////////////////////////////////////////
@@ -24,15 +27,24 @@ int main()
   // only one decimal digit.
   interval onedigit = interval(0,9) ;   
 
-  /////////////////////////////////////////////////////////////////
-  // entitySet provides abilities to hold general sets of entities.
-  /////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////
+  // Class entitySet provides facilities for general sets of entities.
+  ////////////////////////////////////////////////////////////////////////////
   // Initialization
   // An entitySet can be initialized to an interval.
   entitySet A = onedigit ;
   entitySet B = interval(14,100) ;
   entitySet C = interval(5,15) ;
   entitySet F = interval(10,20) ;
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Efficiency: intervalSet.
+  //
+  // For efficiency, an entitySet is stored as an ordered set; 
+  // more precisely, as an ordered set of ordered intervals.
+  // The class for an ordered set of ordered intervals is
+  // intervalSet.  Lower-level methods and operators take intervalSet
+  // and interval arguments.  
 
   ////////////////////////////////////////////////////////////////////////////
   // Adjunction
@@ -55,8 +67,6 @@ int main()
   //  E = B union C =  ([5,100])
   // [gives the set ([5-100]) without duplicating 14 and 15]
   cout << "E = B union C =  " << E << endl ;
-  // For efficiency, an entitySet is stored as an ordered set; 
-  // more precisely, as an ordered set of ordered intervals.
 
 
   ////////////////////////////////////////////////////////////////////////////
@@ -142,18 +152,39 @@ int main()
   // Union (entitySet), Intersection (interval), 
   // Intersection (entitySet), [absolute] Complement, 
   // Print, Input
-  // The sets are equal.
+  //
+  // The entitySet.Equal method tests whether the sets are equal.
   if ( A.Equal((A & C) + (A - C)) )
     cout << "A = ((A & C) + (A - C))." << endl ;
   else
     cout << "A != ((A & C) + (A - C))." << endl ;
 
+  //  The entitySet.less_than and greater_than methods test for subset
+  //  and superset.
+  if ( A.less_than (A & C) )
+    cout << "A&C <= A." << endl ;
 
-  // Sequences provide a way of storing ordered lists of entities.  Usually,
-  // users don't need to worry about creating sequences directly in Loci,
-  // but instead Loci creates sequences to describe the order in which
-  // calculations will be carried out.  However, for completeness we
-  // will give some examples here on how to create and iterate of sequences.
+
+  if ( A.less_than (A) )
+    cout << "A <= A." << endl ;
+
+
+  entitySet G = A - C ;
+  if ( G.greater_than (A) )
+    cout << "A >= A - C." << endl ;
+
+
+
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Sequences
+  //
+  // Sequences provide a way of storing ordered lists of entities.
+  // Usually, users don't need to worry about creating sequences
+  // directly in Loci, but instead Loci creates sequences to describe
+  // the order in which calculations will be carried out.  However,
+  // for completeness we will give some examples here of how to create
+  // sequences, and of how to iterate over sequences.
 
   // We can create an arbitrary sequence from a list of integers
   // in a fashion similar to the create_entitySet function.  For
@@ -185,6 +216,11 @@ int main()
 
   // Cseq = ([17,16][14,14][1,1][12,12][15,15][10,0])
   cout << "reversed Cseq = " << Cseq << endl ;
+
+  ////////////////////////////////////////////////////////////////////////////
+  // size, num_intervals, Append (interval), Append (sequence), 
+  // Append (intervalSet), Input
+  //
 
   return 0 ;
 }
