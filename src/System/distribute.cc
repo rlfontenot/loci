@@ -19,7 +19,7 @@ using std::map ;
 
 #include <iostream>
 using std::cout ;
-using std::cerr ;
+using std::cerr ; 
 using std::endl ;
 using std::ios ;
 using std::ifstream ;
@@ -2940,6 +2940,23 @@ namespace Loci {
   }
 
   
+  std::vector<int> all_collect_sizes(int size) {
+    int *recv_count = new int[ MPI_processes] ;
+    int *send_count = new int[ MPI_processes] ;
+    entitySet::const_iterator ei ;
+    for(int i = 0; i <  MPI_processes; ++i) 
+      send_count[i] = size ;
+    
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ; 
+    std::vector<int> vset( MPI_processes) ;
+    for(int i = 0; i <  MPI_processes; ++i)
+      vset[i] = recv_count[i] ;
+    
+    delete [] send_count ;
+    delete [] recv_count ;
+    return vset ;
+  }
 
  std::vector<entitySet> all_collect_vectors(entitySet &e) {
     int *recv_count = new int[ MPI_processes] ;
@@ -2990,7 +3007,6 @@ namespace Loci {
     delete [] recv_buf ;
     return vset ;
   }
-
 
   
 class cat_tree : public CPTR_type {
@@ -3361,14 +3377,14 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   std::vector<variableSet> tmp_vvs ;
   for(miter = mve.begin(); miter != mve.end(); ++miter) {
     tmp_vvs.push_back(miter->first) ;
-    //Loci::debugout << "******************************************************" << endl ;
-    //Loci::debugout << " grouping variables " << miter->first << endl ;
+    Loci::debugout << "******************************************************" << endl ;
+    Loci::debugout << " grouping variables " << miter->first << endl ;
     //Loci::debugout << " Entities shared = " << miter->second << endl ;
-    //Loci::debugout << " Total Entities causing the grouping = " << miter->second.size() << endl ;  
-    //Loci::debugout << "******************************************************" << endl ;
+    Loci::debugout << " Total Entities causing the grouping = " << miter->second.size() << endl ;  
+    Loci::debugout << "******************************************************" << endl ;
   }
   
-  //Loci::debugout << " The number of variable sets grouped due to common categories = " << tmp_vvs.size() << endl ;
+  Loci::debugout << " The number of variable sets grouped due to common categories = " << tmp_vvs.size() << endl ;
   std::vector<std::vector<variableSet> > vvvs = create_orig_matrix(tmp_vvs) ;
   vvs.clear() ;
   std::vector<variableSet> indep ;

@@ -241,7 +241,7 @@ namespace Loci {
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
 #ifdef HACK
-      entitySet alloc_dom = v_existence[*vi] + srp->domain() ;
+      entitySet alloc_dom = v_existence[*vi]  + srp->domain() ;
 #else
       entitySet alloc_dom = v_requests[*vi] + srp->domain() ;
 #endif

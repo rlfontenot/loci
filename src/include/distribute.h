@@ -84,7 +84,7 @@ namespace Loci {
   void distributed_inverseMap(dmultiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn); 
   entitySet all_collect_entitySet(const entitySet &e) ;
   std::vector<entitySet> all_collect_vectors(entitySet &e) ;
-  
+  std::vector<int> all_collect_sizes(int size) ;
   int GLOBAL_OR(int b) ;
   int GLOBAL_AND(int b) ;
   int GLOBAL_MAX(int b) ;
