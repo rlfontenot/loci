@@ -177,7 +177,6 @@ namespace Loci
   
   storeRep *dmultiMapRepI::new_store(const entitySet &p) const 
   {
-    warn(true) ;
     return new dmultiMapRepI()  ;
   }
   
@@ -584,7 +583,6 @@ namespace Loci
     int rank = 1;
     entitySet  :: const_iterator ci;
     HASH_MAP(int,vector<int>)::const_iterator iter;
-    vector<int>   mapvec, vecsize, vec;
 
     entitySet   eset(usr_eset&domain());
 
@@ -594,9 +592,8 @@ namespace Loci
 
     Loci::HDF5_WriteDomain(group_id, eset);
 
-    std::vector<int> container, data;
+    std::vector<int> container, data, vec;
 
-    container.push_back(0);
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
         iter = attrib_data.find(*ci);
         if( iter == attrib_data.end() ) continue;
@@ -614,14 +611,14 @@ namespace Loci
     H5Dclose( v1Dataset  );
     H5Sclose( v1Dataspace);
 
-    dimension   = mapvec.size();
+    dimension   = data.size();
 
     hid_t v2Datatype  = H5T_NATIVE_INT;
     hid_t v2Dataspace = H5Screate_simple(rank, &dimension, NULL);
     hid_t v2Dataset   = H5Dcreate(group_id, "MultiMap", v2Datatype,
                                   v2Dataspace, H5P_DEFAULT);
     H5Dwrite(v2Dataset, v2Datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-             &mapvec[0]);
+             &data[0]);
 
     H5Dclose( v2Dataset  );
     H5Sclose( v2Dataspace);
