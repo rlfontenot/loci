@@ -1,8 +1,7 @@
 // This is an example file (main.cc) to illustrate the new Loci's feature
 // of making multiple queries for stationary time facts. Basically everything
-// is unchanged except for a facts.get_extensional_facts() call (which
-// must be made before the first query, or the queries won't succeed).
-// See the comments before the queries at the end of the file for detail.
+// is unchanged. See the comments before the queries at the end of the file 
+// for detail.
 
 #include <Loci.h>
 #include <Tools/fpe.h>
@@ -81,15 +80,6 @@ int main(int ac, char *av[]) {
   fact_db facts ;
   heat::read_grid(facts,rdb,av[1]) ;
 
-  // we'll need this function call before the first query to make
-  // the fact_db aware of all the user provided extensional facts.
-  // We really want the users to use facts.create_extensional_fact()
-  // instead of the facts.create_fact() method. The fact_db now
-  // supports the facts.create_extensional_fact() method. But for
-  // backward compatibility reason, we use this gather_extensional_facts()
-  // method for right now.
-  facts.gather_extensional_facts() ;
-
 #define MULTIQUERY
   // Making multiple queries are essentially the same as making
   // a single query, except for that we can issue many of them
@@ -143,6 +133,11 @@ int main(int ac, char *av[]) {
   }
   cout << endl ;
 #endif
+  if(!Loci::makeQuery(rdb,facts,query)) {
+    cerr << "query failed!" << endl ;
+    Loci::Abort() ;
+  }
+  cout << endl ;
   if(!Loci::makeQuery(rdb,facts,query)) {
     cerr << "query failed!" << endl ;
     Loci::Abort() ;
