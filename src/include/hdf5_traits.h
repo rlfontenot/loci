@@ -120,19 +120,6 @@ namespace Loci {
       }
   };
 
-  template <class T>
-  class hdf5_schema_traits< vector3d<T> > {
-  public:
-    typedef IDENTITY_CONVERTER Schema_Converter;
-    static H5::DataType get_type() {
-      hdf5_schema_traits<T> hdfT;
-      H5::CompType ctype(sizeof(vector3d<T>));
-      ctype.insertMember("x", HOFFSET(vector3d<T>,x), hdfT.get_type());
-      ctype.insertMember("y", HOFFSET(vector3d<T>,y), hdfT.get_type());
-      ctype.insertMember("z", HOFFSET(vector3d<T>,z), hdfT.get_type());
-      return ctype;
-    }
-  };
   /*
   template <class T>
   class hdf5_schema_traits< std::complex<T> > {
@@ -147,23 +134,6 @@ namespace Loci {
     }
   };
   */
-  template <class T,int n> 
-    class hdf5_schema_traits< vec<T,n> > {
-    public:
-    typedef IDENTITY_CONVERTER Schema_Converter;
-    static H5::DataType get_type() {
-      H5::CompType ctype(sizeof(vec<T,n>));
-      hdf5_schema_traits<T> hdfT;
-      for(int i=0;i<n;i++){
-	std::ostringstream oss;
-	oss<<"v"<<i;
-	std::string st=oss.str();
-	ctype.insertMember(st.c_str(), i*sizeof(T), hdfT.get_type());	
-      }
-      return ctype;
-    }
-  };
-  
   //---------------------STL vector--------------//
 
   template <class T>
