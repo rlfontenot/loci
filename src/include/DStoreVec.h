@@ -92,7 +92,7 @@ namespace Loci {
       ci =  attrib_data.find(ii);
       if( ci != attrib_data.end() ) {
         const std::vector<T> &newVec = ci->second;
-        streamoutput(&newVec[0],newVec.size(),s) ;
+        Loci::streamoutput(&newVec[0],newVec.size(),s) ;
       }
     }ENDFORALL ;
 
@@ -126,7 +126,7 @@ namespace Loci {
     FORALL(e,ii) {
       for( int i = 0; i < size; i++) {
         newVec[i] = T() ;
-        streaminput(&newVec[i],1,s) ;
+        Loci::streaminput(&newVec[i],1,s) ;
       }
       attrib_data[ii] = newVec;
     } ENDFORALL ;

@@ -257,7 +257,7 @@ namespace Loci {
     
     FORALL(domain(),ii) {
       T * p = base_ptr + ii*size ;
-      streamoutput(p,size,s) ;
+      Loci::streamoutput(p,size,s) ;
     }ENDFORALL ;
     s << '}' << std::endl ;
 
@@ -297,7 +297,7 @@ namespace Loci {
       for(int i=0;i<size;++i)
         p[i] = T() ;
       
-      streaminput(p,size,s) ;
+      Loci::streaminput(p,size,s) ;
     } ENDFORALL ;
     
     // Look for the closing brackets ...

@@ -70,10 +70,24 @@ namespace Loci {
 
     std::map<variable,fact_info> fmap ;
 
+    std::map<variable,storeRepP> tmap ;
+
   public:
     fact_db() ;
     ~fact_db() ;
 
+    void set_variable_type(variable v, storeRepP st) ;
+    void set_variable_type(std::string vname, storeRepP st)
+      { set_variable_type(variable(vname),st) ;}
+    void set_variable_type(variable v, store_instance &si)
+      { set_variable_type(v,si.Rep()) ; }
+    void set_variable_type(std::string vname, store_instance &si)
+      { set_variable_type(variable(vname),si) ; }
+
+    storeRepP get_variable_type(variable v) const ;
+    storeRepP get_variable_type(std::string vname) const
+      { get_variable_type(variable(vname)) ;}
+    
     void create_fact(variable v, storeRepP st) ;
     void create_fact(std::string vname, storeRepP st)
       { create_fact(variable(vname),st) ;}
@@ -102,14 +116,6 @@ namespace Loci {
     storeRepP get_fact(variable &v) { return get_variable(v); }
     storeRepP get_fact(std::string vname)
       { return get_variable(variable(vname)) ; }
-
-    void set_variable_type(variable v, storeRepP st) ;
-    void set_variable_type(std::string vname,const storeRepP st)
-      { set_variable_type(variable(vname),st) ; }
-    void set_variable_type(variable v, store_instance &si)
-      { set_variable_type(v,si.Rep()) ; }
-    void set_variable_type(std::string vname, store_instance &si)
-      { set_variable_type(variable(vname),si) ; }
 
     storeRepP get_variable(variable v) ;
     storeRepP get_variable(std::string vname)

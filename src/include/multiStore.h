@@ -638,7 +638,7 @@ namespace Loci {
     //-------------------------------------------------------------------------
 
     FORALL(domain(),ii) {
-      streamoutput(begin(ii),end(ii)-begin(ii),s) ;
+      Loci::streamoutput(begin(ii),end(ii)-begin(ii),s) ;
     } ENDFORALL ;
 
     //-------------------------------------------------------------------------
@@ -695,7 +695,7 @@ namespace Loci {
     FORALL(e,ii) {
       for(T *ip = begin(ii);ip!=end(ii);++ip) 
         *ip = T() ;
-      streaminput(begin(ii),end(ii)-begin(ii),s) ;
+      Loci::streaminput(begin(ii),end(ii)-begin(ii),s) ;
     } ENDFORALL ;
 
     //-------------------------------------------------------------------------

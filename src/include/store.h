@@ -99,7 +99,7 @@ namespace Loci {
   template<class T> std::ostream &storeRepI<T>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
-      streamoutput(&base_ptr[ii],1,s) ;
+      Loci::streamoutput(&base_ptr[ii],1,s) ;
     }ENDFORALL ;
     s << '}' << std::endl ;
     return s ;
@@ -121,7 +121,7 @@ namespace Loci {
         
     FORALL(e,ii) {
       base_ptr[ii] = T() ;
-      streaminput(&base_ptr[ii],1,s) ;
+      Loci::streaminput(&base_ptr[ii],1,s) ;
     } ENDFORALL ;
         
     do ch = s.get(); while(ch==' ' || ch=='\n') ;

@@ -95,7 +95,7 @@ namespace Loci {
   std::ostream &paramRepI<T>::Print(std::ostream &s) const 
   {
     s << '{' << domain() << std::endl ;
-    streamoutput(&attrib_data,1,s) ;
+    Loci::streamoutput(&attrib_data,1,s) ;
     s << '}' << std::endl ;
     return s ;
   }
@@ -114,7 +114,7 @@ namespace Loci {
       e = ~EMPTY ;
       allocate(e) ;
       attrib_data = T() ;
-      streaminput(&attrib_data,1,s) ;
+      Loci::streaminput(&attrib_data,1,s) ;
       return s ;
     }
         
@@ -122,7 +122,7 @@ namespace Loci {
     allocate(e) ;
         
     attrib_data = T() ;
-    streaminput(&attrib_data,1,s) ;
+    Loci::streaminput(&attrib_data,1,s) ;
         
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
