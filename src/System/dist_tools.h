@@ -4,7 +4,6 @@ namespace Loci {
   extern bool use_dynamic_scheduling ;
   void get_clone(fact_db &facts, const rule_db &rdb) ;
   void categories(fact_db &facts,std::vector<entitySet> &pvec) ;
-  std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, entitySet> &vm, std::vector<interval> &pvec) ;
   void get_mappings(const rule_db &rdb, fact_db &facts, std::set<std::vector<variableSet> > &maps) ;
   entitySet expand_map(entitySet domain, fact_db &facts,
 		       const std::set<std::vector<variableSet> > &maps) ;
