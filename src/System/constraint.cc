@@ -73,8 +73,19 @@ namespace Loci {
     constraint_set = tent ;
     dispatch_notify() ;
   }
-
-
+  
+  int constraintRep::pack_size(const entitySet &e) {
+    warn(true) ;
+  }
+  
+  void constraintRep::pack(void *ptr, int &loc, int &size, const entitySet&e) {
+    warn(true) ;
+  }
+  
+  void constraintRep::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    warn(true);
+  }
+  
   store_type constraintRep::RepType() const
   {
     return CONSTRAINT ;

@@ -1,7 +1,6 @@
 #include <Map.h>
 
 #include <Tools/stream.h>
-
 namespace Loci {
 
   using std::pair ;
@@ -83,6 +82,31 @@ namespace Loci {
       base_ptr[m[i]] = s[i] ;
     } ENDFORALL ;
   }
+ 
+  int MapRepI::pack_size(const entitySet &e) {
+    int size ;
+    size = sizeof(int) * e.size() ;
+    return(size) ;
+  }
+  
+  void MapRepI::pack(void * ptr, int &loc, int &size, const entitySet &e) {
+    warn(true) ; 
+    /*
+      FORALL(e, i) {
+      MPI_Pack(base_ptr[i], sizeof(int), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
+      } ENDFORALL ;
+      
+    */
+      
+  }
+  
+  void MapRepI::unpack(void * ptr, int &loc, int &size, const sequence &seq) {
+    warn(true) ;
+    /*
+      loc = 0 ;
+    */ 
+      
+  }
 
   const entitySet &MapRepI::domain() const {
     return store_domain ;
@@ -97,7 +121,7 @@ namespace Loci {
     for(const int *i=start;i!=end;++i) {
       mx = max(mx,*i) ;
       mn = min(mn,*i) ;
-    }
+    }                                         
     int sz = mx-mn+1 ;
     std::vector<bool> bits(sz) ;
     for(int i=0;i<sz;++i)
@@ -385,7 +409,7 @@ namespace Loci {
   void multiMapRepI::allocate(const store<int> &sizes) {
     int sz = 0 ;
     entitySet ptn = sizes.domain() ;
-    if(alloc_pointer) delete[] alloc_pointer ;
+     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
     if(index) delete[] index ;
     index = 0 ;
@@ -581,6 +605,26 @@ namespace Loci {
     dispatch_notify() ;
   }
   
+  int multiMapRepI::pack_size(const  entitySet &e ) {
+    int size = 0 ;
+    store<int> count ;
+    count.allocate(e) ;
+    FORALL(e,i) {
+      count[i] = base_ptr[i+1] - base_ptr[i] ;
+      size += count[i] ;
+    } ENDFORALL ;
+    
+    return( size * sizeof(int)) ;
+  }
+  void multiMapRepI::pack(void * ptr, int &loc, int &size, const entitySet &e) {
+    warn(true) ;
+  }
+  
+  void multiMapRepI::unpack(void * ptr, int &loc, int &size, const sequence &seq) {
+    warn(true) ;
+  }   
+      
+    
   const entitySet &multiMapRepI::domain() const {
     return store_domain ;
   }

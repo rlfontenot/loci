@@ -22,6 +22,11 @@ namespace Loci {
                         const entitySet &context)  ;
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
+    
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
+    
     virtual store_type RepType() const ;
     virtual const entitySet &domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;

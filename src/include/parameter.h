@@ -28,7 +28,10 @@ namespace Loci {
                         const entitySet &context)  ;
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
-
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq)  ;
+    
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5( H5::Group group) ;
@@ -246,8 +249,19 @@ namespace Loci {
                                               const entitySet &context) {
     warn(true) ;
   }
-
-    
+ 
+  template <class T> int paramRepI<T>::pack_size( const entitySet &e) {
+    int size ;
+    size = sizeof(T);
+    return(size) ;
+  }
+  template <class T> void paramRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
+    warn(true) ;
+  }
+  template <class T> void paramRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    warn(true) ;
+  }  
+  
   template<class T> store_instance::instance_type
     const_param<T>::access() const
     { return READ_ONLY; }

@@ -15,6 +15,7 @@
 using std::pair ;
 using std::make_pair ;
 
+
 namespace Loci {
   template <class T> struct Scalar {
     T val ;
@@ -670,7 +671,9 @@ namespace Loci {
                         const entitySet &context)  ;
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
-
+    virtual int pack_size(const entitySet &e ) ;
+    virtual void pack(void * ptr, int &loc, int &size, const entitySet &e ) ;
+    virtual void unpack(void * ptr, int &loc, int &size, const sequence &seq) ;
     virtual store_type RepType() const ;
     virtual const entitySet &domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
@@ -984,8 +987,45 @@ namespace Loci {
         p[j] = s[i][j] ;
     } ENDFORALL ;
   }
+  template <class T> int storeVecRepI<T>::pack_size( const entitySet &e) {
+    int size, M ;
+    M = get_size() ;
+    size = sizeof(T) * e.size() * M  ;
+    return(size) ;
+  }
   
-
+  template <class T> void storeVecRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
+    int M = get_size() ;
+    for(int i = 0; i < e.num_intervals(); ++i) {
+      Loci::int_type indx1 = e[i].first ;
+      Loci::int_type stop = e[i].second ;
+      T *p = base_ptr + M * indx1 ;
+      int t = (stop - indx1 + 1) * M ;
+      MPI_Pack(p, t * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
+    }
+  }
+  
+  template <class T> void storeVecRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    int M = get_size() ;
+    for(int i = 0; i < seq.num_intervals(); ++i) {
+      if(seq[i].first > seq[i].second) {
+	const Loci::int_type indx1 = seq[i].first ;
+	const Loci::int_type stop = seq[i].second ;
+	for(Loci::int_type indx = indx1; indx != stop-1; --indx) {
+	  T *p = base_ptr + M * indx ;
+	  MPI_Unpack(ptr, size, &loc, p, sizeof(T) * M, MPI_BYTE, MPI_COMM_WORLD) ;
+	}
+      }
+      else {
+	Loci::int_type indx1 = seq[i].first ;
+	Loci::int_type stop = seq[i].second ;
+	T *p = base_ptr + M * indx1 ;
+	int t = (stop - indx1 + 1) * M ;
+	MPI_Unpack(ptr, size, &loc, p, t * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
+	}
+      }
+  }
+  
   template<class T> class storeMat : public store_instance {
     typedef storeVecRepI<T> storeType ;
     T* base_ptr ;
@@ -1141,7 +1181,11 @@ namespace Loci {
                         const entitySet &context)  ;
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
-
+    
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq ) ;
+    		      
     virtual store_type RepType() const ;
     virtual const entitySet &domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
@@ -1416,7 +1460,7 @@ namespace Loci {
     const_multiStore<T> s(st) ;
     fatal(alloc_pointer == 0) ;
     fatal((context - domain()) != EMPTY) ;
-    fatal((context - s.domain() ) != EMPTY) ;
+    fatal((context - s.domain()) != EMPTY) ;
     store<int> count ;
     count.allocate(domain()) ;
     FORALL(domain() - context, i) {
@@ -1498,9 +1542,9 @@ namespace Loci {
     T **new_index ;
     T *new_alloc_pointer ;
     T **new_base_ptr ;
-
+    
     multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-    FORALL(domain()-m.image(context),i) {
+    FORALL(domain() - m.image(context),i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
@@ -1510,7 +1554,7 @@ namespace Loci {
         new_base_ptr[m[i]][j] = s[i][j] ;
       }
     } ENDFORALL ;
-
+    
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = new_alloc_pointer;
     if(index) delete[] index ;
@@ -1518,15 +1562,102 @@ namespace Loci {
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }
+ 
+  template <class T> int multiStoreRepI<T>::pack_size(const entitySet &e ) {
+    int size = 0 ;
+    store<int> count ;
+    count.allocate(e) ;
+    FORALL(e,i) {
+      count[i] = base_ptr[i+1] - base_ptr[i] ;
+      size += count[i] ;
+    } ENDFORALL ;
+    entitySet::const_iterator ei = e.begin() ;
+    return(size * sizeof(T)) ;
+  }
   
+  template <class T> void multiStoreRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
+    
+    store<int> count ;
+    count.allocate(e) ;
+    FORALL(e,i) {
+      count[i] = base_ptr[i+1] - base_ptr[i] ;
+    } ENDFORALL ;
+    
+    for(int i = 0; i < e.num_intervals(); ++i) {
+      Loci::int_type indx1 = e[i].first ;
+      Loci::int_type stop = e[i].second ;
+      int size1 = 0 ;
+      for(Loci::int_type indx = indx1; indx != stop+1; ++indx)
+	size1 += count[indx] ;
+      MPI_Pack(&base_ptr[indx1][0], size1 * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
+    }
+  }
+  
+  
+  template <class T> void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    
+    entitySet e ;
+    store<int> count, count1 ;
+    for(int i = 0; i < seq.num_intervals(); ++i) {
+      if(seq[i].first > seq[i].second) 
+	e += interval(seq[i].second, seq[i].first) ;
+      else 
+	e += interval(seq[i].first, seq[i].second) ;
+    }
+    count1.allocate(e) ;
+    count.allocate(e) ;
+    for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si)
+      count1[*si] = base_ptr[*si+1] - base_ptr[*si] ;
+    
+    entitySet::const_iterator ei = e.begin() ;
+    
+    for( sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
+      count[*ei] = count1[*si] ;
+      ++ei ;
+    }
+    
+    T **new_index ;
+    T *new_alloc_pointer ;
+    T **new_base_ptr ;
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) 
+      for(int j = 0 ; j < count[*si]; ++j) 
+	new_base_ptr[*si][j] = 0 ;
+    
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = new_alloc_pointer;
+    if(index) delete[] index ;
+    index = new_index ;
+    base_ptr = new_base_ptr ;
+    dispatch_notify() ;
+    
+    for(int i = 0; i < seq.num_intervals(); ++i) {
+      if(seq[i].first > seq[i].second) {
+	Loci::int_type stop = seq[i].second ;
+	for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
+	  MPI_Unpack(ptr, size, &loc, &base_ptr[indx][0], count[indx]*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+      }
+      else {
+	Loci::int_type indx1 = seq[i].first ;
+	Loci::int_type stop = seq[i].second ;
+	int sz = 0 ;
+	for(Loci::int_type indx = seq[i].first; indx != stop+1; ++indx)
+	  sz += count[indx] ;
+	MPI_Unpack(ptr, size, &loc, &base_ptr[indx1][0], sz * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
+      }
+    }
+    dispatch_notify() ;
+  }
+  
+ 
   template<class T> store_type multiStoreRepI<T>::RepType() const {
     return STORE ;
   }
-
+  
   template<class T> const entitySet &multiStoreRepI<T>::domain() const {
     return store_domain ;
   }
-
+  
   template<class T> std::ostream &multiStoreRepI<T>::Print(std::ostream &s)
     const {
     s << '{' << domain() << endl ;

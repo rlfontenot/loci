@@ -9,6 +9,9 @@
 //#include <hdf5_traits.h>
 #include <hdf5_write_template.h>
 #include <Map.h>
+#include <Tools/intervalSet.h>
+#include <algorithm>
+#include <functional>
 
 namespace Loci {
 
@@ -30,6 +33,10 @@ namespace Loci {
                         const entitySet &context) ;
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
+    
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
     
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
@@ -281,7 +288,37 @@ namespace Loci {
     } ENDFORALL ;
   }
   
-
+  template <class T> int storeRepI<T>::pack_size( const entitySet &e) {
+    int size ;
+    size = sizeof(T) * e.size() ;
+    return(size) ;
+    
+  }
+  
+  
+  template <class T> void storeRepI<T>::pack(void * ptr, int &loc, int &size,  const entitySet &e )  {
+    for(int i = 0; i < e.num_intervals(); i++) {
+      const Loci::int_type begin = e[i].first ;
+      int t = e[i].second - e[i].first + 1 ;  
+      MPI_Pack(&base_ptr[begin], t * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
+    }
+  }
+  
+  template <class T> void storeRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    
+    for(int i = 0; i < seq.num_intervals(); ++i) {
+      if(seq[i].first > seq[i].second) {
+	const Loci::int_type stop = seq[i].second ;
+	for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx) 
+	  MPI_Unpack(ptr, size, &loc, &base_ptr[indx], sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+      }
+      else {
+	Loci::int_type indx = seq[i].first ;
+	int t = seq[i].second - seq[i].first + 1 ; 
+	MPI_Unpack(ptr, size, &loc, &base_ptr[indx], t * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
+      }
+    }
+  }  
 }
 
 #ifdef GXX_FIXES

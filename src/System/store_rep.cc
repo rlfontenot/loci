@@ -46,7 +46,15 @@ namespace Loci {
                           const entitySet &context) {
     Rep()->scatter(m,st,context) ;
   }  
-    
+  int store_ref::pack_size(const entitySet &e )  {
+    return(Rep()->pack_size(e)) ;
+  }
+  void store_ref::pack(void * ptr, int &loc, int &size, const entitySet &e )  {
+    Rep()->pack(ptr, loc, size, e) ;
+  }
+  void store_ref::unpack(void * ptr, int &loc, int &size, const sequence &seq )  {
+     Rep()->unpack(ptr, loc, size, seq) ;
+   }
 
   ostream &store_ref::Print(ostream &s) const {
     return Rep()->Print(s) ;

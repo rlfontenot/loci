@@ -34,6 +34,10 @@ namespace Loci {
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
     
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
+    
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
@@ -161,7 +165,11 @@ namespace Loci {
                         const entitySet &context) ;
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
-
+    
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq)  ;
+    
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
@@ -588,6 +596,18 @@ namespace Loci {
         base_ptr[m[i]][j] = s[i][j] ;
     } ENDFORALL ;
   }
+  
+  template <int M> int MapVecRepI<M>::pack_size( const entitySet &e) {
+    int size ;
+    size = sizeof(int) * e.size() * M ;
+  }
+
+  template <int M> void MapVecRepI<M>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
+    warn(true) ;
+  }
+  template <int M> void MapVecRepI<M>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    warn(true) ;
+  }  
 
   class multiMapRepI : public MapRep {
     entitySet store_domain ;
@@ -613,6 +633,10 @@ namespace Loci {
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
 
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
+    
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;

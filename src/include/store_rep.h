@@ -7,6 +7,7 @@
 #include <entitySet.h>
 #include <Tools/stream.h>
 #include <hdf5CC/H5cpp.h>
+#include <mpi.h>
 
 namespace Loci {
   enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, PATH, GLOBAL } ;
@@ -29,6 +30,9 @@ namespace Loci {
                         const entitySet &context) = 0 ;
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) = 0 ;
+    virtual int pack_size(const entitySet &e) = 0;
+    virtual void pack(void *ptr, int &loc, int &size,  const entitySet &e) = 0 ;
+    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) = 0 ;
     virtual store_type RepType() const = 0 ;
     virtual std::ostream &Print(std::ostream &s) const = 0 ;
     virtual std::istream &Input(std::istream &s) = 0 ;
@@ -77,6 +81,9 @@ namespace Loci {
                         const entitySet &context) ;
     virtual void scatter(const Map &m, storeRepP &st,
                          const entitySet &context) ;
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
     
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
