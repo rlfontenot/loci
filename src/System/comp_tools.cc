@@ -776,6 +776,8 @@ namespace Loci {
     delete [] s_size ;
     delete [] recv_ptr ;
     delete [] send_ptr ;
+    delete [] request ;
+    delete [] status ;
     
   }
   void execute_comm::execute(fact_db  &facts) {

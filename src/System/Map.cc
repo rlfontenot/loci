@@ -125,6 +125,23 @@ namespace Loci {
       mn = min(mn,*i) ;
     }                                         
     int sz = mx-mn+1 ;
+    int sz2 = end-start ;
+    if(sz>3*sz2) {
+      // If the image is too sparse then we are better off sorting
+      // using standard sort
+      entitySet dom ;
+      std::vector<int> img(sz2) ;
+      std::vector<int>::iterator ins = img.begin() ;
+      for(const Entity *i=start;i!=end;++i) {
+        *ins = *i ;
+        ++ins ;
+      }
+      std::sort(img.begin(),img.end()) ;
+      std::vector<int>::iterator uend = std::unique(img.begin(),img.end());
+      for(ins=img.begin();ins!=uend;++ins)
+        dom += *ins ;
+      return dom ;
+    }
     std::vector<bool> bits(sz) ;
     for(int i=0;i<sz;++i)
       bits[i] = false ;
@@ -157,9 +174,24 @@ namespace Loci {
   entitySet MapRepI::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
-    for(int i=0;i<d.num_intervals();++i)
-      codomain += image_section(base_ptr+d[i].first,
-                                base_ptr+(d[i].second+1)) ;
+    if(d.num_intervals() < IMAGE_THRESHOLD) {
+      for(int i=0;i<d.num_intervals();++i)
+        codomain += image_section(base_ptr+d[i].first,
+                                  base_ptr+(d[i].second+1)) ;
+    } else {
+      std::vector<int> img(d.size()) ;
+      std::vector<int>::iterator ins = img.begin() ;
+      for(int i=0;i<d.num_intervals();++i)
+        for(int j=d[i].first;j!=d[i].second+1;++j) {
+          *ins = base_ptr[j] ;
+          ++ins ;
+        }
+      std::sort(img.begin(),img.end()) ;
+      std::vector<int>::iterator uend = std::unique(img.begin(),img.end());
+      for(ins=img.begin();ins!=uend;++ins)
+        codomain += *ins ;
+    }
+      
     return codomain ;
   }
 
@@ -637,8 +669,26 @@ namespace Loci {
   entitySet multiMapRepI::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
-    for(int i=0;i<d.num_intervals();++i)
-      codomain += image_section(begin(d[i].first),end(d[i].second)) ;
+    if(d.num_intervals() < IMAGE_THRESHOLD) {
+      for(int i=0;i<d.num_intervals();++i)
+        codomain += image_section(begin(d[i].first),end(d[i].second)) ;
+    } else {
+      int sz = 0 ;
+      for(int i=0;i<d.num_intervals();++i)
+        sz += end(d[i].second)-begin(d[i].first) ;
+
+      std::vector<int> img(sz) ;
+      std::vector<int>::iterator ins = img.begin() ;
+      for(int i=0;i<d.num_intervals();++i)
+        for(const Entity *j=begin(d[i].first);j!=end(d[i].second);++j) {
+          *ins = *j ;
+          ++ins ;
+        }
+      std::sort(img.begin(),img.end()) ;
+      std::vector<int>::iterator uend = std::unique(img.begin(),img.end());
+      for(ins=img.begin();ins!=uend;++ins)
+        codomain += *ins ;
+    }
     return codomain ;
   }
 

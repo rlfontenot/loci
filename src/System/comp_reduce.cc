@@ -628,7 +628,8 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     delete [] s_size ;
     delete [] recv_ptr ;
     delete [] send_ptr ;
-    
+    delete [] request ;
+    delete [] status ;
   }
   void execute_comm_reduce::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
