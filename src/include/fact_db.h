@@ -145,7 +145,7 @@ namespace Loci {
 
   
   void reorder_facts(fact_db &facts, Map &remap) ;
-  
+  void serial_freeze(fact_db &facts) ;
   
 }
 

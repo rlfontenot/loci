@@ -357,11 +357,12 @@ namespace Loci {
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
     /*
-      store<T> static_store ;
-      entitySet tmp_dom = domain();
-      static_store.allocate(tmp_dom) ;
-      for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei)
+    store<T> static_store ;
+    entitySet tmp_dom = s.domain();
+    static_store.allocate(tmp_dom) ;
+    for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei)
       static_store[*ei] = s[*ei] ;
+    return static_store.Rep() ;
     */
     return s.Rep() ;
   }

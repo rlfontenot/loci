@@ -314,11 +314,11 @@ namespace Loci {
     for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei)
       count[*ei] = s[*ei].size() ;
     for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei) {
-       int i = 0 ;
-       for(std::vector<int>::const_iterator vi = s[*ei].begin(); vi != s[*ei].end(); ++vi) {
-	 static_mul[*ei][i] = *vi ;
-	 ++i ;
-       }
+      int i = 0 ;
+      for(std::vector<int>::const_iterator vi = s[*ei].begin(); vi != s[*ei].end(); ++vi) {
+	static_mul[*ei][i] = *vi ;
+	++i ;
+      }
     }
     return static_mul.Rep() ;
     */

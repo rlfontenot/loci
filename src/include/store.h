@@ -80,13 +80,29 @@ namespace Loci {
   } ;
   
   template<class T> void storeRepI<T>::allocate(const entitySet &ptn) {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    base_ptr = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ; int size = ptn.Max()-top+1 ;
-      alloc_pointer = new T[size] ;
-      base_ptr = alloc_pointer - top ;
+    entitySet common = store_domain & ptn ;
+    T *tmp_base_ptr, *tmp_alloc_pointer ;
+    tmp_alloc_pointer = 0 ;
+    tmp_base_ptr = 0 ;
+    if(common != EMPTY) {
+      int top = ptn.Min() ;
+      int size = ptn.Max() - top + 1 ;
+      tmp_alloc_pointer = new T[size] ;
+      tmp_base_ptr = tmp_alloc_pointer - top ;
+      FORALL(common,i) {
+	tmp_base_ptr[i] = base_ptr[i] ;
+      } ENDFORALL ;
+    }
+    if(alloc_pointer) delete [] alloc_pointer ;
+    alloc_pointer = tmp_alloc_pointer ;
+    base_ptr = tmp_base_ptr ;
+    if(common == EMPTY) {
+      if(ptn != EMPTY) {
+	int top = ptn.Min() ; 
+	int size = ptn.Max()-top+1 ;
+	alloc_pointer = new T[size] ;
+	base_ptr = alloc_pointer - top ;
+      }
     }
     store_domain = ptn ;
     dispatch_notify() ;
