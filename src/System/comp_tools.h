@@ -1,5 +1,8 @@
 #ifndef COMP_TOOLS_H
 #define COMP_TOOLS_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 
 #include <fact_db.h>
 #include <execute.h>
