@@ -16,12 +16,20 @@ namespace Loci {
   int MPI_processes ;
   int MPI_rank ;
   int num_threads = 1 ;
+
+  ofstream debugout[128] ;
   
   void Init(int* argc, char*** argv)  {
     cerr << "before MPI_Init" << endl ;
     MPI_Init(argc, argv) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
+    for(int i=0;i<MPI_processes;++i) {
+      ostringstream oss ;
+      oss << "debug."<<MPI_rank ;
+      string filename  = oss.str() ;
+      debugout[i].open(filename.c_str(),ios::out) ;
+    }
     /*
       if(MPI_rank == 0) {
       while(test == 1) ;

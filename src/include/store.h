@@ -14,7 +14,12 @@
 #include <Tools/intervalSet.h>
 #include <algorithm>
 #include <functional>
+
 namespace Loci {
+  extern ofstream debugout[] ;
+  extern int MPI_processes;
+  extern int MPI_rank ;
+  extern int num_threads ;
 
   class Map ;
 
@@ -305,7 +310,7 @@ namespace Loci {
     }
     
     for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
-      cerr << "   packing   " << base_ptr[*ei] << "   into   " << *ei  << endl ; 
+      debugout[MPI_rank] << "   packing   " << base_ptr[*ei] << "   into   " << *ei  << endl ; 
     
   }
   
@@ -326,7 +331,7 @@ namespace Loci {
      */
     for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) {
       MPI_Unpack(ptr, size, &loc, &base_ptr[*si], sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
-      cerr << "   unpacking   " << base_ptr[*si] <<"    into   " << *si << endl ;
+      debugout[MPI_rank] << "   unpacking   " << base_ptr[*si] <<"    into   " << *si << endl ;
     }
     
   }  

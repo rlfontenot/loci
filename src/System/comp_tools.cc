@@ -368,7 +368,7 @@ namespace Loci {
     for(mi = barrier_info.begin() ; mi != barrier_info.end(); ++mi) {
       variable v = mi->first ;
       requests = facts.get_variable_requests(v) ;
-      cout << "post " << "  variable =   " <<v << "  requests =  " << requests << endl ; 
+      debugout[MPI_rank] << "post " << "  variable =   " <<v << "  requests =  " << requests << endl ; 
       comm_info ci ;
       ci.v = v ;
       entitySet tempset ;

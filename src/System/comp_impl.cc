@@ -124,11 +124,12 @@ namespace Loci {
     for(ei = send.begin(); ei != send.end(); ++ei) {
       send_ptr[id[*ei]]=new unsigned char[p_size[id[*ei]]] ;
       for(vvi = vvs[id[*ei]].begin(); vvi != vvs[id[*ei]].end(); ++vvi) {
-	cout << "precomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ; 
+	debugout[MPI_rank] << "precomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ;
+        sp = facts.get_variable(*vvi) ;
 	sp->pack(send_ptr[id[*ei]], loc_pack[id[*ei]],
 		 p_size[id[*ei]], vset[id[*ei]]) ;
 	
-	cout << " } " << endl ;
+	debugout[MPI_rank] << " } " << endl ;
 	
       } 
       send_procs[send_count] = *ei ;
@@ -153,10 +154,10 @@ namespace Loci {
       for(ei = recv.begin(); ei != recv.end(); ++ei) {
 	for(vvi = vvr[id[*ei]].begin(); vvi != vvr[id[*ei]].end(); ++vvi) {
 	  sp = facts.get_variable(*vvi) ;
-	  cout << "precomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
+	  debugout[MPI_rank] << "precomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
 	  sp->unpack(recv_ptr[id[*ei]], loc_unpack[id[*ei]], 
 		     r_size[id[*ei]], vseq[id[*ei]]) ;
-	  cout << " } " << endl ;
+	  debugout[MPI_rank] << " } " << endl ;
 	  
 	}
       }
@@ -250,10 +251,11 @@ namespace Loci {
     for(ei = send.begin(); ei != send.end(); ++ei) {
       send_ptr[id[*ei]]=new unsigned char[p_size[id[*ei]]] ;
       for(vvi = vvs[id[*ei]].begin(); vvi != vvs[id[*ei]].end(); ++vvi) {
-	cout << "postcomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ; 
+	debugout[MPI_rank] << "postcomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ;
+        sp = facts.get_variable(*vvi) ;
 	sp->pack(send_ptr[id[*ei]], loc_pack[id[*ei]],
 		 p_size[id[*ei]], vset[id[*ei]]) ;
-	cout << " } " << endl ;
+	debugout[MPI_rank] << " } " << endl ;
       }
       send_procs[send_count] = *ei ;
       send_count++ ;
@@ -278,10 +280,10 @@ namespace Loci {
       for(ei = recv.begin(); ei != recv.end(); ++ei) {
 	for(vvi = vvr[id[*ei]].begin(); vvi != vvr[id[*ei]].end(); ++vvi) {
 	  sp = facts.get_variable(*vvi) ;
-	  cout << "postcomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
+	  debugout[MPI_rank] << "postcomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
 	  sp->unpack(recv_ptr[id[*ei]], loc_unpack[id[*ei]], 
 		     r_size[id[*ei]], vseq[id[*ei]]) ;
-	  cout << " } " << endl ;
+	  debugout[MPI_rank] << " } " << endl ;
 	}
 	 
       }
