@@ -26,7 +26,7 @@ using std::ostream ;
 #include <algorithm>
 using std::sort ;
 
-#define VERBOSE
+//#define VERBOSE
 
 
 namespace Loci {
