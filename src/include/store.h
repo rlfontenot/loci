@@ -35,7 +35,7 @@ namespace Loci {
     base_ptr = 0 ;
     if(ptn != EMPTY) {
       int top = ptn.Min() ; int size = ptn.Max()-top+1 ;
-      alloc_pointer = new(T[size]) ;
+      alloc_pointer = new T[size] ;
       base_ptr = alloc_pointer - top ;
     }
     store_domain = ptn ;
