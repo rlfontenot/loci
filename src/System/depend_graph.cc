@@ -8,6 +8,9 @@ using std::set ;
 
 #ifndef DEBUG
 #define PRUNE_GRAPH
+#else
+// Comment this line out if we want stricter debug options
+#define PRUNE_GRAPH
 #endif
 //#define VERBOSE
 
@@ -510,7 +513,24 @@ namespace Loci {
                         iteration_set) ;
       }
       visited_iteration_rules += scheduled_iteration_rules ;
+#ifdef VERBOSE
+      cout << "new_iteration_rules = " << new_iteration_rules << endl ;
+      cout << "scheduled_iteration_rules = " << scheduled_iteration_rules << endl ;
+#endif
+      
       warn((new_iteration_rules & visited_iteration_rules) != EMPTY) ;
+
+#ifdef DEBUG
+      ruleSet tmp = new_iteration_rules ;
+      tmp &= visited_iteration_rules ;
+      if(tmp != EMPTY) {
+        cerr << "new_iteration_rules = " << new_iteration_rules << endl ;
+        cerr << "new_iteration_rules & visited_iteration_rules = " <<
+          tmp << endl ;
+      }
+#endif
+        
+      
       scheduled_iteration_rules = new_iteration_rules ;
       scheduled_iteration_rules -= visited_iteration_rules ;
       
@@ -576,7 +596,9 @@ namespace Loci {
     print_graph_from(given,gr) ;
 #endif
 
+#ifdef PRUNE_GRAPH
     clean_graph(given,target) ;
+#endif
 
     add_rename_dependencies(gr) ;
   }
@@ -640,7 +662,17 @@ namespace Loci {
     ruleSet::const_iterator fi ;
     for(fi=rules.begin();fi!=rules.end();++fi)
       subset += fi->targets() ;
-  
+
+    digraph grt = gr.transpose() ;
+    digraph::vertexSet  cleanout ;
+    for(fi=rules.begin();fi!=rules.end();++fi)
+      if((subset & fi->sources()) != fi->sources()) {
+        cleanout += fi->ident() ;
+      }
+
+
+    subset -= cleanout ;
+    
     WARN(subset == EMPTY) ;
 #ifdef VERBOSE
     cout << "cleaning out rules: " << endl ;

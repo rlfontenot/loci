@@ -807,6 +807,7 @@ namespace {
     rule_implP rp ;
     rule rule_tag ;
     sequence exec_seq ;
+    bool do_run ;
   public:
     execute_rule(rule fi, sequence seq, fact_db &facts) ;
     execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p) ;
@@ -814,8 +815,11 @@ namespace {
     virtual void Print(std::ostream &s) const ;
   } ;
 
-  execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts)
-  {
+  execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts)  {
+    do_run = true ;
+    if(seq.num_intervals() == 0)
+      do_run = false ;
+    
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -826,6 +830,10 @@ namespace {
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
                              variable v, const storeRepP &p)
   {
+    do_run = true ;
+    if(seq.num_intervals() == 0)
+      do_run = false ;
+
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -835,7 +843,8 @@ namespace {
   }
 
   void execute_rule::execute(fact_db &facts) {
-    rp->compute(exec_seq) ;
+    if(do_run)
+      rp->compute(exec_seq) ;
   }
 
   void execute_rule::Print(ostream &s) const {
@@ -1050,6 +1059,7 @@ loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
      collapse_rules.begin()->get_info().desc.conditionals.size() != 1 ) {
     cerr << "collapse for loop at iteration level " << tlevel << " ill-formed"
          << endl << "error is not recoverable" << endl ;
+    cerr << "rules = " << collapse_rules << endl ;
     exit(-1) ;
   }
 
