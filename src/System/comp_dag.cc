@@ -33,10 +33,8 @@ namespace Loci {
         if(use_rules != EMPTY)
           barrier_info[*vi] = use_rules ;
       }
-      if(barrier_vars != EMPTY)
-        dag_comp.push_back(new barrier_compiler(barrier_info)) ;
-      else if(rules != EMPTY && i != 0) 
-        dag_comp.push_back(new barrier_compiler(barrier_info)) ;
+
+      dag_comp.push_back(new barrier_compiler(barrier_info)) ;
 
       if(rules != EMPTY) {
         ruleSet::const_iterator ri ;
