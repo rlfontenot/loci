@@ -445,42 +445,37 @@ namespace Loci {
 
   //********************************************************************************
 
-  void dMapRepI::writehdf5(hid_t group_id, entitySet& eset) const
+  void dMapRepI::writehdf5(hid_t group_id, entitySet& usr_eset) const
   {
     int       rank = 1;
     hsize_t   dimension;
 
-    HDF5_WriteDomain( group_id, eset);
-    //---------------------------------------------------------------------------
-    // Third part: For each entity write down number of mapped entities
-    // For each entity, write number of degree, so that we can reconstruct the
-    // data later.
-    // From the example. Write in 1D array (1,2,2,3,3,3,1)
-    //---------------------------------------------------------------------------
+    entitySet eset(usr_eset & domain());
 
-    int indx = 0;
-    int *data = new int[eset.size()];
+    int arraySize = eset.size();
+    if( arraySize < 1) return;
+
+    HDF5_WriteDomain( group_id, eset);
+
+    vector<int> data(arraySize);
     entitySet :: const_iterator   ei;
     hash_map<int,int> :: const_iterator  ci;
 
+    int indx = 0;
     for( ei = eset.begin(); ei != eset.end(); ++ei) {
       ci = attrib_data.find(*ei);
-      if( ci != attrib_data.end() ) 
-        data[indx++] =  ci->second;
+      if( ci == attrib_data.end() )  continue;
+      data[indx++] =  ci->second;
     }
 
-    dimension = eset.size();
-
+    dimension       = arraySize;
     hid_t dataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t datatype  = H5Tcopy(H5T_NATIVE_INT);
+    hid_t datatype  = H5T_NATIVE_INT;
     hid_t dataset   = H5Dcreate(group_id, "Map", datatype, dataspace, H5P_DEFAULT);
-    H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
 
     H5Sclose( dataspace );
-    H5Tclose( datatype  );
     H5Dclose( dataset   );
-
-    delete [] data;
   } 
 
   //******************************************************************************
