@@ -273,19 +273,15 @@ namespace Loci {
 
     virtual void Join(const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
-        int szt = t.end(*i)-t.begin(*i) ;
-        fatal(szt != (s.end(*i)-s.begin(*i))) ;
-        for(int j=0;j<szt;++j)
-          join(t[*i][j],s[*i][j]) ;
+        Vect<Type> m = t[*i] ;
+        join(m,s[*i]) ;
       }
     }
 
     virtual void Join(Map &t2s, const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
-        int szt = t.end(*i)-t.begin(*i) ;
-        fatal(szt != (s.end(t2s[*i])-s.begin(t2s[*i]))) ;
-        for(int j=0;j<szt;++j)
-          join(t[*i][j],s[t2s[*i]][j]) ;
+        Vect<Type> m = t[*i] ;
+        join(m,s[t2s[*i]]) ;
       }
     }
   } ;

@@ -1236,7 +1236,7 @@ namespace Loci {
     T ** base_ptr ;
     int size ;
   public:
-    typedef T containerType ;
+    typedef Vect<T> containerType ;
     multiStore() {setRep(new storeType) ;}
     multiStore(multiStore<T> &var) {setRep(var.Rep()) ;}
     multiStore(storeRepP &rp) { setRep(rp) ;}
@@ -1264,14 +1264,19 @@ namespace Loci {
     }
     const entitySet &domain() const { return Rep()->domain() ; }
     operator storeRepP() { return Rep() ; }
-    T *elem(int indx) {
+
+    Vect<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
-      return (base_ptr[indx]) ; }
-    T *operator[](int indx) {
-      return elem(indx) ; }
+      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
+    Vect<T> operator[](int indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
