@@ -306,7 +306,7 @@ namespace Loci {
       parse::kill_white_space(s) ;
       if(parse::is_name(s)) {
         string units ;
-        int ch ;
+        int ch = EOF ;
         int opens = 0 ;
         do {
           while(!s.eof() &&((ch=s.peek()) != EOF) &&
