@@ -139,9 +139,9 @@ namespace Loci {
     static variable_db *vdb ;
     int id ;
     void create_vdb() {if(0 == vdb) vdb = new variable_db ; }
-    variable(const info &v) { create_vdb() ; id = vdb->vars.get_id(v) ; }
   public:
     variable() { create_vdb() ; id = vdb->vars.get_id(info()) ; }
+    variable(const info &v) { create_vdb() ; id = vdb->vars.get_id(v) ; }
     explicit variable(int i) { create_vdb() ; id = i ; }
     explicit variable(const exprP &p) ;
     explicit variable(std::string s)
