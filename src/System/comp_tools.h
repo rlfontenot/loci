@@ -16,7 +16,7 @@
 #include <deque>
 
 #include <mpi.h>
-
+using std::vector;
 namespace Loci {
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
@@ -233,13 +233,13 @@ namespace Loci {
   } ;
   
   class reduce_param_compiler : public rule_compiler {
-    variable reduce_var ;
-    rule unit_rule ;
-    CPTR<joiner> join_op ;
+    vector<variable> reduce_vars ;
+    vector<rule> unit_rules ;
+    vector<CPTR<joiner> > join_ops ;
   public:
-    reduce_param_compiler(const variable &v, const rule &ur,
-                          CPTR<joiner> &jop) :
-      reduce_var(v), unit_rule(ur), join_op(jop) {}
+    reduce_param_compiler(const vector<variable> &v, const vector<rule> &ur,
+                          vector<CPTR<joiner> >&jop) :
+      reduce_vars(v), unit_rules(ur), join_ops(jop) {}
     virtual void accept(visitor& v) {}
     virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
