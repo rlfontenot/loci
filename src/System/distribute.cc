@@ -24,7 +24,7 @@ using std::ifstream ;
 using std::swap ;
 
 
-#define SCATTER_DIST
+//#define SCATTER_DIST
 //#define UNITY_MAPPING
 
 #ifdef SCATTER_DIST
@@ -503,7 +503,7 @@ namespace Loci {
       total += df->xmit[i].size ;
     df->xmit_total_size = total ;
     total = 0 ;
-    for(int i=0;i<df->xmit.size();++i)
+    for(int i=0;i<df->copy.size();++i)
       total += df->copy[i].size ;
     df->copy_total_size = total ;
     
