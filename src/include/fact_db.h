@@ -108,7 +108,7 @@ namespace Loci {
     
     variableSet all_vars ;
     
-    std::map<time_ident,std::map<std::string,std::list<variable> > > time_map;
+    std::map<time_ident,std::map<variable,std::list<variable> > > time_map;
     
     
     variable remove_synonym(variable v) const {

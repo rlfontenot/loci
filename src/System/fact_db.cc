@@ -44,9 +44,10 @@ namespace Loci {
     if(!all_vars.inSet(v) && vtime != time_ident() &&
        !v.get_info().assign && (v.get_info().priority.size() == 0)) {
       const string &name = v.get_info().name ;
+      variable var_stationary = variable(v,time_ident()) ;
       list<variable> s ;
       s.push_back(v) ;
-      time_map[vtime][name].merge(s,offset_sort) ;
+      time_map[vtime][var_stationary].merge(s,offset_sort) ;
     }
     all_vars += v ;
   }
@@ -260,7 +261,7 @@ namespace Loci {
       ti->time_var = get_variable(time_var) ;
     else
       set_variable_type(time_var,ti->time_var.Rep()) ;
-    typedef map<std::string,std::list<variable> >  maptype ;
+    typedef map<variable,std::list<variable> >  maptype ;
     maptype &tinfo = time_map[tl] ;
     maptype::const_iterator ii ;
     for(ii=tinfo.begin();ii!=tinfo.end();++ii) {
@@ -281,8 +282,8 @@ namespace Loci {
         vtouch += as ;
       }
       if(!overlap) {
-        //        cout << "memory variable " << ii->first << "{" << tl << "}"
-        //             << " has a history of " << ii->second.size() << endl ;
+        //cerr << "memory variable " << ii->first << "{" << tl << "}"
+        //     << " has a history of " << ii->second.size() << endl ;
         ti->rotate_lists.push_back(ii->second) ;
       } else {
         if(ii->second.size() !=2) {
@@ -308,12 +309,14 @@ namespace Loci {
 
     for(ii=ti->rotate_lists.begin();ii!=ti->rotate_lists.end();++ii) {
       jj=ii->begin() ;
+      cerr << "*jj = " << *jj << endl ;
       storeRepP cp = get_fact_data(*jj).data_rep->getRep() ;
       ++jj ;
       if(jj != ii->end()) {
         for(;jj!=ii->end();++jj) {
           fact_data &fd = get_fact_data(*jj) ;
           storeRepP tmp = fd.data_rep->getRep() ;
+          cerr << "cp = " << &(*cp)  ;
           *(fd.data_rep) = cp ;
           cp = tmp ;
         }
