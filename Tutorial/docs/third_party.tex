@@ -1,0 +1,32 @@
+\chapter{Using Third Party Libraries}
+
+As is often the case when writing high-performance numerical simulation
+software, there may come a time when it is desireable to utilize some third
+party's existing set of library routines rather than having to write your
+own versions.  For example, the Portable, Extensible Toolkit for Scientific
+Computing (PETSc), from Argonne National Laboratory, is a highly optimized
+library for the numerical solution of partial differential equations on
+parallel and serial architectures.  The library includes a large suite of
+tools for solving a wide variety of linear and nonlinear systems of
+equations.
+
+As described in the preceeding chapters, Loci expects first class objects
+to have methods defined to accomplish data serialization as well as input
+and output.  Since most third party libraries will make use of their own
+set of data structures, Loci will not be able to effectively manage them
+as it does for first class objects which it is already familiar with.  So,
+in order to utilize third party libraries in the context of a Loci
+application, the user has a choice:  to write all of the supporting code
+that Loci expects, or to utilize the {\tt blackbox} container to hide the
+implementation details of the third party library from Loci.
+
+\section{Blackbox Usage}
+The following example shows how the blackbox container can be utilized
+in order to make use of a third party library (in this case PETSc) with a
+minimum of extra effort.
+
+\subsection*{main.cc}
+\input{petsc1_main_cc}
+
+\subsection*{rules.cc}
+\input{petsc1_rules_cc}
