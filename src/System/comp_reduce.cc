@@ -120,7 +120,7 @@ namespace Loci {
 #endif
           scheds.variable_shadow(*vi,targets) ;
 #ifdef COMP_ENT
-	  scheds.set_policy(*vi, sched_db::NEVER);
+	  scheds.add_policy(*vi, sched_db::NEVER);
 #endif	  
         }
       }
@@ -766,6 +766,10 @@ namespace Loci {
     if(facts.isDistributed()) {
       	fact_db::distribute_infoP d = facts.get_distribute_info() ;
       for(size_t i = 0; i < unit_rules.size(); i++) {
+#ifdef COMP_ENT
+	scheds.add_policy(reduce_vars[i], sched_db::NEVER);
+#endif
+
 	entitySet targets ;
 	targets = scheds.get_existential_info(reduce_vars[i], unit_rules[i]) ;
 	targets += send_entitySet(targets, facts) ;
@@ -803,6 +807,10 @@ namespace Loci {
   
   void reduce_store_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed()) {
+#ifdef COMP_ENT
+      scheds.add_policy(reduce_var, sched_db::NEVER);
+#endif
+
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       entitySet targets = scheds.get_existential_info(reduce_var, unit_rule) ;
       targets += send_entitySet(targets, facts) ;
