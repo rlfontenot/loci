@@ -453,6 +453,8 @@ namespace Loci {
   void dstoreVecRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context)
   {
     const_dstoreVec<T> s(st) ;
+    int sz = s.vecSize() ;
+    set_elem_size(sz) ;
 
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
@@ -675,6 +677,8 @@ namespace Loci {
     allocate( ecommon );
 
     hdf5read( group_id, traits_type, eset, ecommon);
+
+    dispatch_notify() ;
   }
 
   //************************************************************************/
@@ -747,6 +751,7 @@ namespace Loci {
           attrib_data[i][ivec] = data[indx++];
       }
     }
+
   }
 
   //************************************************************************/
