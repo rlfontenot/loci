@@ -1,5 +1,6 @@
 #include <variable.h>
 #include <Tools/stream.h>
+
 using std::vector ;
 using std::string ;
 using std::make_pair ;
@@ -194,12 +195,24 @@ bool variable::info::operator<(const info &v) const {
 	    v.namespac.push_back(s->name);
 	    break ;
 	  case OP_SCOPE:
-	    for(unsigned int i = 0; i < v.namespac.size(); ++i)
-	      tmp_name.append(v.namespac[i]) ;
-	    tmp_name.append(s->name) ;
-	    //v.rename = true ;
-	    v.namespac.push_back(s->name);
-	    v.name = tmp_name;
+            {
+              exprList l = collect_associative_op(s,OP_SCOPE) ;
+              
+              while(l.begin() != l.end()) {
+                exprP s = l.front() ;
+                l.pop_front() ;
+                if(l.begin() == l.end()) 
+                  v.namespac.push_back(s->name) ; //e = s ;
+                else 
+                  if(OP_NAME == s->op) {
+                    v.priority.push_back(s->name) ;
+                  } else {
+                    cerr << "unable to interpret priority list in expression "
+                         << s << endl
+                         << "error occured while parsing " << e << endl ;
+                  }
+              }
+            }
 	    break ;
 	  default:
 	    cerr << "unable to interpret namespace list in expression " << s << endl << "error occured while parsing " << e << endl;
