@@ -252,7 +252,7 @@ namespace Loci
       ci = attrib_data.find(i);
       if( ci != attrib_data.end() ) {
         vec =  ci->second;
-        for(unsigned int j = 0; j < vec.size(); j++) {
+        for(size_t j = 0; j < vec.size(); j++) {
           attrib_data[i][j] =   m[vec[j]];
         }
       }
@@ -273,7 +273,7 @@ namespace Loci
     FORALL(context,i) {
       attrib_data[i].clear();
       newVec  =   s[i];
-      for(unsigned int j = 0; j < newVec.size(); j++)
+      for(size_t j = 0; j < newVec.size(); j++)
         attrib_data[i].push_back( newVec[j] );
     } ENDFORALL ;
     
@@ -289,7 +289,7 @@ namespace Loci
     FORALL(context,i) {
       attrib_data[i].clear();
       newVec  =   s[m[i]];
-      for(unsigned int j = 0; j < newVec.size(); j++) 
+      for(size_t j = 0; j < newVec.size(); j++) 
         attrib_data[i].push_back( newVec[j] );
     } ENDFORALL ;
   }
@@ -303,7 +303,7 @@ namespace Loci
     FORALL(context,i) {
       attrib_data[m[i]].clear();
       newVec  =   s[i];
-      for(unsigned int j = 0; j < newVec.size(); j++) 
+      for(size_t j = 0; j < newVec.size(); j++) 
         attrib_data[m[i]].push_back( newVec[j] );
     } ENDFORALL ;
     
@@ -371,7 +371,7 @@ namespace Loci
     
     sort( vec.begin(), vec.end() );
 
-    for(unsigned int i = 0; i < vec.size(); i++)
+    for(size_t i = 0; i < vec.size(); i++)
       storeDomain +=  vec[i];
     
     return storeDomain ;
@@ -391,7 +391,7 @@ namespace Loci
       ai = attrib_data.find(*ei);
       if( ai != attrib_data.end() ) {
         mapvec = ai->second;
-        for(unsigned int i = 0; i < mapvec.size(); i++)
+        for(size_t i = 0; i < mapvec.size(); i++)
           codomain +=   mapvec[i];
       }
     }
@@ -462,7 +462,7 @@ namespace Loci
       ci = attrib_data.find(ii);
       if( ci != attrib_data.end()) {
         newVec    = ci->second;
-        for(unsigned int i = 0; i < newVec.size(); i++)
+        for(size_t i = 0; i < newVec.size(); i++)
           s << newVec[i] << "    ";
         s << endl;
       }

@@ -433,7 +433,7 @@ namespace Loci {
         for(vmsi=ri->get_info().desc.targets.begin();
             vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
           if(vmsi->assign.size() != 0) 
-            for(unsigned int i=0;i<vmsi->assign.size();++i) {
+            for(size_t i=0;i<vmsi->assign.size();++i) {
               variable orig_name = vmsi->assign[i].second ;
               //              digraph grt = gr.transpose() ;
               ruleSet depend_rules = extract_rules(gr[orig_name.ident()]) ;
@@ -715,7 +715,7 @@ namespace Loci {
 
       digraph::vertexSet subset = EMPTY ;
     
-      for(unsigned int i=0;i<components.size();++i) 
+      for(size_t i=0;i<components.size();++i) 
         if(components[i].inSet(virtual_vertex)) {
           subset = components[i] ;
           break ;

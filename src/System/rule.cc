@@ -88,17 +88,17 @@ namespace Loci {
     variableSet input = conditionals ;
     set<vmap_info>::const_iterator i ;
     for(i=sources.begin();i!=sources.end();++i) {
-      for(unsigned int j=0;j<i->mapping.size();++j)
+      for(size_t j=0;j<i->mapping.size();++j)
         input += i->mapping[j] ;
       input += i->var ;
     }
     for(i=constraints.begin();i!=constraints.end();++i) {
-      for(unsigned int j=0;j<i->mapping.size();++j)
+      for(size_t j=0;j<i->mapping.size();++j)
         input += i->mapping[j] ;
       input += i->var ;
     }
     for(i=targets.begin();i!=targets.end();++i) 
-      for(unsigned int j=0;j<i->mapping.size();++j)
+      for(size_t j=0;j<i->mapping.size();++j)
         input += i->mapping[j] ;
 
     return input ;
@@ -208,7 +208,7 @@ namespace Loci {
       for(vmsi=rule_info.targets.begin();
           vmsi!=rule_info.targets.end();
           ++vmsi) {
-        for(unsigned int i=0;i<vmsi->assign.size();++i) {
+        for(size_t i=0;i<vmsi->assign.size();++i) {
             if(vmsi->assign[i].first == v) {
               sip = var_table.equal_range(vmsi->assign[i].second) ;
               sp = sip.first ;
@@ -278,15 +278,15 @@ namespace Loci {
     set<vmap_info>::const_iterator i ;
     
     for(i=rule_info.sources.begin();i!=rule_info.sources.end();++i){
-      for(unsigned int j=0;j<i->mapping.size();++j)
+      for(size_t j=0;j<i->mapping.size();++j)
         read_set += i->mapping[j] ;
       read_set += i->var ;
     }
     for(i=rule_info.targets.begin();i!=rule_info.targets.end();++i){
-      for(unsigned int j=0;j<i->mapping.size();++j)
+      for(size_t j=0;j<i->mapping.size();++j)
         read_set += i->mapping[j] ;
       write_set += i->var ;
-      for(unsigned int j=0;j<i->assign.size();++j) {
+      for(size_t j=0;j<i->assign.size();++j) {
         write_set -= i->assign[j].first ;
         write_set += i->assign[j].second ;
       }                
@@ -541,7 +541,7 @@ variableSet rule_impl::get_var_list() {
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars,tvar_types ;
     for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
-      for(unsigned int j=0;j<(*i).mapping.size();++j) {
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
@@ -549,7 +549,7 @@ variableSet rule_impl::get_var_list() {
       svars += (*i).var ;
     }
     for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
-      for(unsigned int j=0;j<(*i).mapping.size();++j) {
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
@@ -558,7 +558,7 @@ variableSet rule_impl::get_var_list() {
     }
     source_vars += desc.conditionals ;
     for(i=desc.targets.begin();i!=desc.targets.end();++i) {
-      for(unsigned int j=0;j<(*i).mapping.size();++j) {
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
@@ -566,7 +566,7 @@ variableSet rule_impl::get_var_list() {
         variableSet v = (*i).var ;
         for(variableSet::const_iterator vi=v.begin();vi!=v.end();++vi) {
           bool t = true ;
-          for(unsigned int k=0;k<(*i).assign.size();++k) 
+          for(size_t k=0;k<(*i).assign.size();++k) 
             if(*vi == (*i).assign[k].first) {
               tvar_types += (*i).assign[k].second ;
               t = false ;
@@ -686,7 +686,7 @@ variableSet rule_impl::get_var_list() {
 
       variableSet svars,tvars ;
       for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
-        for(unsigned int j=0;j<(*i).mapping.size();++j) {
+        for(size_t j=0;j<(*i).mapping.size();++j) {
           source_vars += (*i).mapping[j] ;
           map_vars += (*i).mapping[j] ;
         }
@@ -694,7 +694,7 @@ variableSet rule_impl::get_var_list() {
         svars += (*i).var ;
       }
       for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
-        for(unsigned int j=0;j<(*i).mapping.size();++j) {
+        for(size_t j=0;j<(*i).mapping.size();++j) {
           source_vars += (*i).mapping[j] ;
           map_vars += (*i).mapping[j] ;
         }
@@ -703,7 +703,7 @@ variableSet rule_impl::get_var_list() {
       }
       source_vars += desc.conditionals ;
       for(i=desc.targets.begin();i!=desc.targets.end();++i) {
-        for(unsigned int j=0;j<(*i).mapping.size();++j) {
+        for(size_t j=0;j<(*i).mapping.size();++j) {
           source_vars += (*i).mapping[j] ;
           map_vars == (*i).mapping[j] ;
         }
@@ -767,7 +767,7 @@ variableSet rule_impl::get_var_list() {
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars ;
     for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
-      for(unsigned int j=0;j<(*i).mapping.size();++j) {
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
@@ -775,7 +775,7 @@ variableSet rule_impl::get_var_list() {
       svars += (*i).var ;
     }
     for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
-      for(unsigned int j=0;j<(*i).mapping.size();++j) {
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
@@ -784,7 +784,7 @@ variableSet rule_impl::get_var_list() {
     }
     source_vars += desc.conditionals ;
     for(i=desc.targets.begin();i!=desc.targets.end();++i) {
-      for(unsigned int j=0;j<(*i).mapping.size();++j) {
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
@@ -866,7 +866,7 @@ variableSet rule_impl::get_var_list() {
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars ;
     for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
-      for(unsigned int j=0;j<(*i).mapping.size();++j) {
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
@@ -874,7 +874,7 @@ variableSet rule_impl::get_var_list() {
       svars += (*i).var ;
     }
     for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
-      for(unsigned int j=0;j<(*i).mapping.size();++j) {
+      for(size_t j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }
@@ -883,7 +883,7 @@ variableSet rule_impl::get_var_list() {
     }
     source_vars += desc.conditionals ;
     for(i=desc.targets.begin();i!=desc.targets.end();++i) {
-      for(unsigned int j=0;j<(*i).mapping.size();++j) { 
+      for(size_t j=0;j<(*i).mapping.size();++j) { 
         source_vars += (*i).mapping[j] ;
         map_vars += (*i).mapping[j] ;
       }

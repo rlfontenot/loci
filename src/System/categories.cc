@@ -376,7 +376,7 @@ namespace Loci {
   vector<vector<variableSet> > create_orig_matrix(vector<variableSet> &ves) {
     vector<variableSet>::const_iterator vesi, viter ;
     vector<vector<variableSet> > vvvs(ves.size()) ;
-    unsigned int tmp = 0 ;
+    size_t tmp = 0 ;
     viter = ves.begin() ;
     while(tmp < ves.size()) { 
       entitySet vs ;
@@ -404,8 +404,8 @@ namespace Loci {
     vector<variableSet>::const_iterator vesi, viter ;
     vector<vector<variableSet> > vvvs ;
     vector<variableSet>  tmp_ves(ves.size()) ;
-    unsigned int tmp = 0 ;
-    for(unsigned int i = 0; i < ves.size(); ++i) 
+    size_t tmp = 0 ;
+    for(size_t i = 0; i < ves.size(); ++i) 
       tmp_ves[i] = variableSet(entitySet(ves[i])- entitySet(v)) ;
     viter = tmp_ves.begin() ;
     while(tmp < tmp_ves.size()) { 
@@ -442,7 +442,7 @@ namespace Loci {
       return tp ;
     }
     vector<variableSet> tmp_vvs ;
-    for(unsigned int i = 0; i < tmp_vvvs.size(); ++i) {
+    for(size_t i = 0; i < tmp_vvvs.size(); ++i) {
       if(tmp_vvvs[i][i] != EMPTY) {
         tmp_vvs.push_back(tmp_vvvs[i][i]) ;
       }
@@ -452,7 +452,7 @@ namespace Loci {
     else
       vvvs = tmp_vvvs ;
 
-    for(unsigned int i = 0; i < vvvs.size(); ++i) {
+    for(size_t i = 0; i < vvvs.size(); ++i) {
       std::set<variableSet> set_vars ;
       vector<variableSet> vvs ;
       entitySet es ;
@@ -462,7 +462,7 @@ namespace Loci {
         set_vars.insert(vvvs[i][i]) ;
       }
       vector<vector<variableSet> > sub_vvvs ;
-      for(unsigned int j = 0; j < vvvs[i].size(); ++j)
+      for(size_t j = 0; j < vvvs[i].size(); ++j)
         if(j != i) {
           if(vvvs[i][j] != EMPTY) {
             es &= entitySet(vvvs[i][j]) ;
@@ -477,7 +477,7 @@ namespace Loci {
         }
       if(vvs.size()) {
         es = vvs[0] ;
-        for(unsigned int j = 1; j < vvs.size(); ++j)
+        for(size_t j = 1; j < vvs.size(); ++j)
           es &= entitySet(vvs[j]) ;
         if(total_varset.find(variableSet(es)) == total_varset.end()) {
           total_varset.insert(variableSet(es)) ;
@@ -505,7 +505,7 @@ namespace Loci {
 #ifdef VERBOSE
     Loci::debugout << " Size of the vector passed to modified categories = " << pvec.size() << endl ;
 #endif
-    for(unsigned int i = 0; i < pvec.size(); ++i) {
+    for(size_t i = 0; i < pvec.size(); ++i) {
       for(svi = vm.begin(); svi != vm.end(); ++svi) {
         if((svi->second & entitySet(pvec[i])) != EMPTY) {
           vvs[i] += svi->first ;
@@ -538,9 +538,9 @@ namespace Loci {
     vector<variableSet> indep ;
     std::set<variableSet> total_vars, itotal_vars ;
   
-    for(unsigned int i = 0; i < vvvs.size(); ++i) {
+    for(size_t i = 0; i < vvvs.size(); ++i) {
       entitySet vs, tmp_vs ;
-      for(unsigned int j = 0; j < vvvs[i].size(); ++j) {
+      for(size_t j = 0; j < vvvs[i].size(); ++j) {
         if(j != i) {
           vs = entitySet(vvvs[i][i]) & entitySet(vvvs[i][j]) ;
           tmp_vs += vs ;
@@ -557,10 +557,10 @@ namespace Loci {
     }
     vector<vector<variableSet> > tmp_vvvs ;
     vvvs = create_orig_matrix(vvs) ;
-    for(unsigned int i = 0; i < vvvs.size(); ++i) {
+    for(size_t i = 0; i < vvvs.size(); ++i) {
       vvs.clear() ;
       entitySet es = entitySet(vvvs[i][i]);
-      for(unsigned int j = 0; j < vvvs[i].size(); ++j) {
+      for(size_t j = 0; j < vvvs[i].size(); ++j) {
         entitySet tmp_es ;
         if((vvvs[i][j] != EMPTY))  {
           if(itotal_vars.find(vvvs[j][j]) == itotal_vars.end()) {
@@ -583,7 +583,7 @@ namespace Loci {
     treeP super_tp = new cat_tree ;
     variableSet vset ;
     super_tp->generalization = vset ;
-    for(unsigned int i = 0; i < tmp_vvvs.size(); ++i) {
+    for(size_t i = 0; i < tmp_vvvs.size(); ++i) {
       treeP tp = new cat_tree ;
       variableSet vs ;
       vvvs = create_orig_matrix(tmp_vvvs[i]) ;
@@ -593,7 +593,7 @@ namespace Loci {
     }
     treeP tp = new cat_tree ;
     tp->generalization = vset ;
-    for(unsigned int i = 0 ; i < indep.size(); ++i) {
+    for(size_t i = 0 ; i < indep.size(); ++i) {
       treeP tmp_tp = new cat_tree ;
       tmp_tp->generalization = indep[i] ;
       tp->before.push_back(tmp_tp) ;
@@ -726,7 +726,7 @@ namespace Loci {
     std::sort(vals.begin(),vals.end()) ;
     
     vals2.push_back(vals[0]) ;
-    for(unsigned int i=1;i<vals.size();++i) {
+    for(size_t i=1;i<vals.size();++i) {
       if(vals[i-1] == vals[i])
         continue ;
       vals2.push_back(vals[i]) ;

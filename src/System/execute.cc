@@ -31,7 +31,7 @@ namespace Loci {
 
 void process_thread(int i) {
   using namespace Loci ;
-  for(unsigned int w=0;w<thread_schedule[i].size();++w) {
+  for(size_t w=0;w<thread_schedule[i].size();++w) {
     exec_info &ei = thread_schedule[i][w] ;
     ei.exec_routine->execute(*ei.current_fact_db) ;
   }
@@ -117,7 +117,7 @@ namespace Loci {
 
   void execute_par::execute(fact_db &facts) {
 #ifdef PTHREADS
-    for(unsigned int i=0;i!=elist.size();++i) {
+    for(size_t i=0;i!=elist.size();++i) {
       work_in_queue = true ;
       thread_schedule[i%num_created_threads].
         push_back(exec_info(elist[i],facts)) ;

@@ -114,7 +114,6 @@ namespace Loci {
     if(Loci::MPI_rank == 0) {
       double *tmp_pos ;
       tmp_pos = new double[local_nodes[Loci::MPI_processes-1].size() * 3] ;
-      int sz = 3*local_nodes[Loci::MPI_rank].size() ;
       for(int i = 0; i < 3*local_nodes[Loci::MPI_rank].size(); ++i)
       	if(!xdr_double(&xdr_handle, &tmp_pos[i]))
           return false ;
@@ -239,8 +238,6 @@ namespace Loci {
     tmp_face2node.allocate(local_count) ;
     if(Loci::MPI_processes > 1) {
       if(Loci::MPI_rank == 0) {
-        int num_f2n_array =
-          start_off[Loci::MPI_rank+1] - start_off[Loci::MPI_rank] ;
         int maxf2nsize = 0 ;
         for(int i=0;i<Loci::MPI_processes;++i)
           maxf2nsize = max(maxf2nsize,start_off[i+1]-start_off[i]) ;

@@ -114,7 +114,7 @@ namespace Loci {
     variable tmp_v ;
     if(nspace_vec.size()) {  
       tmp_v = v ;
-      for(unsigned int i = 0; i < nspace_vec.size(); ++i)
+      for(size_t i = 0; i < nspace_vec.size(); ++i)
 	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
     }
     else
@@ -139,7 +139,7 @@ namespace Loci {
     variable tmp_v ;
     if(nspace_vec.size()) {
       tmp_v = v ;
-      for(unsigned int i = 0; i < nspace_vec.size(); ++i)
+      for(size_t i = 0; i < nspace_vec.size(); ++i)
 	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
     }
     else
@@ -266,7 +266,7 @@ namespace Loci {
     variable tmp_v ;
     if(nspace_vec.size()) {  
       tmp_v = v ;
-      for(unsigned int i = 0; i < nspace_vec.size(); ++i)
+      for(size_t i = 0; i < nspace_vec.size(); ++i)
 	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
     }
     else

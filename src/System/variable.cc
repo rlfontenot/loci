@@ -138,7 +138,7 @@ bool time_ident::before(const time_ident &t) const {
 vector<time_ident> time_ident::children() {
   const vector<int> &vc = thp->get_children(id) ;
   vector<time_ident> v ;
-  for(unsigned int i=0;i<vc.size();++i)
+  for(size_t i=0;i<vc.size();++i)
     v.push_back(time_ident(vc[i])) ;
   return v ;
 }
@@ -591,7 +591,7 @@ ostream &variableSet::Print(ostream &s) const
   }
 
 ostream &vmap_info::Print(ostream &s) const {
-  for(unsigned int j=0;j<mapping.size();++j) 
+  for(size_t j=0;j<mapping.size();++j) 
     s << mapping[j] << "->" ;
   s << var ;
   return s ;

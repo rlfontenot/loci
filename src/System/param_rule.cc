@@ -23,7 +23,7 @@ namespace Loci {
   std::string get_complete_name_base(variable v) {
     std::string name ;
     std::vector<std::string> ns_vec = v.get_info().get_namespace() ;
-    for(unsigned int i = 0; i < ns_vec.size(); ++i) {
+    for(size_t i = 0; i < ns_vec.size(); ++i) {
       name.append(ns_vec[i]) ;
       name.append("@") ;
     }
@@ -34,12 +34,12 @@ namespace Loci {
   std::string get_complete_name(variable v) {
     std::string name ;
     std::vector<std::string> prior_vec = v.get_info().priority  ;
-    for(unsigned int i = 0; i < prior_vec.size(); ++i) {
+    for(size_t i = 0; i < prior_vec.size(); ++i) {
       name.append(prior_vec[i]) ;
       name.append("::") ;
     }
     std::vector<std::string> ns_vec = v.get_info().get_namespace() ;
-    for(unsigned int i = 0; i < ns_vec.size(); ++i) {
+    for(size_t i = 0; i < ns_vec.size(); ++i) {
       name.append(ns_vec[i]) ;
       name.append("@") ;
     }
@@ -50,12 +50,12 @@ namespace Loci {
   std::string get_complete_name_wot(variable v) { 
     std::string name ;
     std::vector<std::string> prior_vec = v.get_info().priority  ;
-    for(unsigned int i = 0; i < prior_vec.size(); ++i) {
+    for(size_t i = 0; i < prior_vec.size(); ++i) {
       name.append(prior_vec[i]) ;
       name.append("::") ;
     }
     std::vector<std::string> ns_vec = v.get_info().get_namespace() ;
-    for(unsigned int i = 0; i < ns_vec.size(); ++i) {
+    for(size_t i = 0; i < ns_vec.size(); ++i) {
       name.append(ns_vec[i]) ;
       name.append("@") ;
     }
@@ -90,7 +90,7 @@ namespace Loci {
       if(((name.find("_")) != string::npos) && (!variable(*tvsi).get_arg_list().size())) {
         for(std::map<variable, variable>::const_iterator mi = vm.begin(); mi != vm.end(); ++mi) {
           std::string sub_name = get_complete_name(mi->first) ;
-	  unsigned int i ;
+	  std::string::size_type i ;
           std::string tmp_name = name ;
           do {
             i = tmp_name.find(sub_name) ;
@@ -133,11 +133,11 @@ namespace Loci {
       for(std::set<string>::const_iterator ssi =
             ren_tars.begin(); ssi != ren_tars.end(); ++ssi)
         {
-          unsigned int i ;
+          std::string::size_type i ;
           variable s = variable(*ssi) ; 
 	  std::string tmp_name = name ;
           std::string final_name ;
-          int pos = 0 ;
+          std::string::size_type pos = 0 ;
           do {
             i = tmp_name.find(*ssi) ;
             if(i != string::npos)  {
@@ -227,7 +227,7 @@ namespace Loci {
     }
     std::vector<int> vint = v.get_arg_list();
     std::vector<int> tmp_vint ;
-    for(unsigned int i = 0 ; i < vint.size(); ++i) {
+    for(size_t i = 0 ; i < vint.size(); ++i) {
       variable tmp = variable(vint[i]) ;
       variable tmp_var = recursive_rename(tmp, vm) ;
       tmp_vint.push_back(tmp_var.ident()) ;

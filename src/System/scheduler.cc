@@ -643,7 +643,7 @@ namespace Loci {
 	  if(par_rdb.rules_by_target(*vi) == EMPTY) {
 	    if(facts.isDistributed()) {
 	      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-	      for(unsigned int i = 0; i < d->copy.size(); ++i)
+	      for(size_t i = 0; i < d->copy.size(); ++i)
 		t += d->copy[i].entities ;
 	      initial_vars += *vi ;
 	      scheds.set_existential_info(*vi, r, t) ;

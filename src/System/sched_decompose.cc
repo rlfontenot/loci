@@ -356,7 +356,7 @@ namespace Loci {
     map<int,digraph::vertexSet> cm ;
     digraph::vertexSet incm ;
 
-    for(unsigned int i=0;i<cs.size();++i)
+    for(size_t i=0;i<cs.size();++i)
       if(cs[i].size() > 1) {
         int new_vertex = tmpgr.max_vertex()+1 ;
         digraph::vertexSet in ;

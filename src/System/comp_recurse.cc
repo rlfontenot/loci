@@ -119,10 +119,10 @@ namespace Loci {
     fcontrol::mapping_info &tmap = fctrl.target_maps[0] ;
     vector<multiMap> read_maps,read_map_inv ;
 
-    for(unsigned int j=0;j<rmap.mapvec.size();++j) {
+    for(size_t j=0;j<rmap.mapvec.size();++j) {
       read_maps.push_back(rmap.mapvec[j]->get_map()) ;
     }
-    for(unsigned int j=0;j<read_maps.size();++j) {
+    for(size_t j=0;j<read_maps.size();++j) {
       read_map_inv.push_back(multiMap()) ;
     }
     variable rvar = *(tvars.begin()) ;
@@ -166,7 +166,7 @@ namespace Loci {
     sdelta &= my_entities ;
     
     entitySet tdelta = sdelta ;
-    for(unsigned int j=0;j<tmap.mapvec.size();++j)
+    for(size_t j=0;j<tmap.mapvec.size();++j)
       tdelta = tmap.mapvec[j]->image(tdelta) ;
 
 #ifdef VERBOSE
@@ -183,13 +183,13 @@ namespace Loci {
     entitySet exists_alloc = nr_sources ;
     if(facts.isDistributed()) {
       entitySet working = exists_alloc ;
-      for(unsigned int j=0;j<read_maps.size();++j) {
+      for(size_t j=0;j<read_maps.size();++j) {
         MapRepP mp = MapRepP(read_maps[j].Rep()) ;
         working = mp->image(working) ;
       }
       exists_alloc += working ;
       working = exists_alloc ;
-      for(unsigned int j=0;j<tmap.mapvec.size();++j) {
+      for(size_t j=0;j<tmap.mapvec.size();++j) {
         working = tmap.mapvec[j]->image(working) ;
       }
       exists_alloc += working ;
@@ -289,7 +289,7 @@ namespace Loci {
       sdelta = satisfied ;
       sdelta &= my_entities ;
       entitySet tdelta = sdelta ;
-      for(unsigned int j=0;j<tmap.mapvec.size();++j)
+      for(size_t j=0;j<tmap.mapvec.size();++j)
         tdelta = tmap.mapvec[j]->image(tdelta) ;
 
 #ifdef VERBOSE
@@ -371,7 +371,7 @@ namespace Loci {
     if(num_threads > 1) {
       CPTR<execute_list> el = new execute_list ;
       sequence seq ;
-      for(unsigned int i=0;i<par_schedule.size();++i) {
+      for(size_t i=0;i<par_schedule.size();++i) {
         if(par_schedule[i].size() < num_threads*4) {
           seq += sequence(par_schedule[i]) ;
         } else {
@@ -505,7 +505,7 @@ namespace Loci {
         fcontrol &fctrl = control_set[*fi] ;
         // partial vmap_souce_exist
         entitySet srcs = fctrl.nr_sources ;
-        for(unsigned int i=0;i<fctrl.recursion_maps.size();++i) {
+        for(size_t i=0;i<fctrl.recursion_maps.size();++i) {
           entitySet sdelta = tvar_computed[fctrl.recursion_maps[i].v] ;
           for(int j=int(fctrl.recursion_maps[i].mapvec.size())-1;j>=0;--j)
             sdelta = fctrl.recursion_maps[i].mapvec[j]->preimage(sdelta).first ;
@@ -559,7 +559,7 @@ namespace Loci {
                 
                 if(si->mapping.size() > 0) {
                   entitySet working = constraints ;
-                  for(unsigned int i=0;i<si->mapping.size();++i) {
+                  for(size_t i=0;i<si->mapping.size();++i) {
                     entitySet images ;
                     variableSet::const_iterator vi ;
                     for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
@@ -591,9 +591,9 @@ namespace Loci {
 
         fctrl.control_list.push_back(srcs) ;
         
-        for(unsigned int i=0;i<fctrl.target_maps.size();++i) {
+        for(size_t i=0;i<fctrl.target_maps.size();++i) {
           entitySet trgts = srcs ;
-          for(unsigned int j=0;j<fctrl.target_maps[i].mapvec.size();++j)
+          for(size_t j=0;j<fctrl.target_maps[i].mapvec.size();++j)
             trgts = fctrl.target_maps[i].mapvec[j]->image(trgts) ;
           tvar_update[fctrl.target_maps[i].v] += trgts ;
           fctrl.generated[fctrl.target_maps[i].v] += trgts ;
@@ -711,15 +711,15 @@ namespace Loci {
           entitySet &context = *rpos[*ri] ;
 
           fcontrol &fctrl = control_set[*ri] ;
-          for(unsigned int i=0;i<fctrl.target_maps.size();++i) {
+          for(size_t i=0;i<fctrl.target_maps.size();++i) {
             entitySet ct = var_requests[fctrl.target_maps[i].v] ;
             for(int j=int(fctrl.target_maps[i].mapvec.size())-1;j>=0;--j)
               ct = fctrl.target_maps[i].mapvec[j]->preimage(ct).first ;
             context &= ct ;
           }
-          for(unsigned int i=0;i<fctrl.recursion_maps.size();++i) {
+          for(size_t i=0;i<fctrl.recursion_maps.size();++i) {
             entitySet rq = context ;
-            for(unsigned int j=0;j<fctrl.recursion_maps[i].mapvec.size();j++)
+            for(size_t j=0;j<fctrl.recursion_maps[i].mapvec.size();j++)
               rq = fctrl.recursion_maps[i].mapvec[j]->image(rq) ;
             vreq_map[fctrl.recursion_maps[i].v] += rq  ;
            }
@@ -829,7 +829,7 @@ namespace Loci {
       sei = recurse_send_entities.begin() ;
     ruleSet::const_iterator ri ;
 
-    unsigned int idx = 0 ;
+    size_t idx = 0 ;
     for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri)
       rpos[*ri] = control_set[*ri].control_list.begin() ;
 

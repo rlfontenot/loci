@@ -237,7 +237,7 @@ namespace Loci {
              << "dag rules = " << endl
              << extract_rules(dag.get_all_vertices()) << endl ;
 #endif
-    for(unsigned int i=0;i<dag_sched.size();++i) {
+    for(size_t i=0;i<dag_sched.size();++i) {
 #ifdef VERBOSE
       debugout << " in comp_dag.cc dag_sched[i] = " << dag_sched[i] << endl ;
 #endif

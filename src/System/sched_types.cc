@@ -115,7 +115,7 @@ namespace Loci {
     vector<digraph::vertexSet> var_clusters =
       component_sort(variable_groupings).get_components() ;
 
-    for(unsigned int i=0;i<var_clusters.size();++i) {
+    for(size_t i=0;i<var_clusters.size();++i) {
       variableSet cluster = extract_vars(var_clusters[i]) ;
       if(cluster.size() == 1) {
         variable v = *cluster.begin() ;
@@ -189,7 +189,7 @@ namespace Loci {
         for(vmsi=ri->get_info().desc.targets.begin();
             vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
           if(vmsi->assign.size() != 0) 
-            for(unsigned int i=0;i<vmsi->assign.size();++i) {
+            for(size_t i=0;i<vmsi->assign.size();++i) {
               variable new_name = vmsi->assign[i].first ;
 	      if(new_name == *vi) {
                 variable old_name = vmsi->assign[i].second ;
@@ -231,7 +231,7 @@ namespace Loci {
       variable cv = ami->first ;
       rename_graph.add_edge(cv.ident(),cv.ident()) ;
     }
-    for(unsigned int i=0;i<rename_vars.size();++i) {
+    for(size_t i=0;i<rename_vars.size();++i) {
       variable new_var = var_to_cluster[rename_vars[i].first] ;
       variable old_var = var_to_cluster[rename_vars[i].second] ;
       rename_graph.add_edge(old_var.ident(),new_var.ident()) ;
@@ -241,7 +241,7 @@ namespace Loci {
     // Perform a topological sort on the interal rule graph
     vector<digraph::vertexSet> topo =
       component_sort(rename_graph).get_components() ;
-    for(unsigned int i=0;i<topo.size();++i) {
+    for(size_t i=0;i<topo.size();++i) {
       variableSet vs = extract_vars(topo[i]) ;
       if(vs.size() != 1) {
         cerr << "recursion in rename graph on variables " << vs
@@ -330,17 +330,17 @@ namespace Loci {
       // Collect all variables for which are actually read or written in the class
       set<vmap_info>::const_iterator i ;
       for(i=finfo.sources.begin();i!=finfo.sources.end();++i) {
-        for(unsigned int j=0;j<i->mapping.size();++j) {
+        for(size_t j=0;j<i->mapping.size();++j) {
           varcheck += i->mapping[j] ;
 	}
         varcheck += i->var ;
       }
       for(i=finfo.targets.begin();i!=finfo.targets.end();++i) {
-        for(unsigned int j=0;j<i->mapping.size();++j) {
+        for(size_t j=0;j<i->mapping.size();++j) {
           varcheck += i->mapping[j] ;
 	}
         varcheck += i->var ;
-	for(unsigned int k=0;k<i->assign.size();++k) {
+	for(size_t k=0;k<i->assign.size();++k) {
           varcheck -= i->assign[k].first ;
           varcheck += i->assign[k].second ;
 	}
