@@ -4,7 +4,9 @@ using std::map ;
 using std::vector ;
 using std::set ;
 using std::list ;
-
+using std::cout ;
+using std::cerr ;
+using std::endl ;
 using std::pair ;
 using std::make_pair ;
 
@@ -295,8 +297,28 @@ namespace Loci {
     digraph tmpgr = sg.gr ;
 
     tmpgr.remove_vertices(looping) ;
-    
 
+    // Remove rule-rule dependencies.  These are not real variable
+    // dependencies, but rather created by rename rules.
+    ruleSet graph_rules = extract_rules(tmpgr.get_all_vertices()) ;
+
+    for(ruleSet::const_iterator ri = graph_rules.begin();
+        ri!=graph_rules.end();
+        ++ri) {
+      int id = (*ri).ident() ;
+      digraph::vertexSet rm_v = tmpgr[id] & interval(UNIVERSE_MIN,-1) ;
+      if(rm_v != EMPTY) {
+        for(digraph::vertexSet::const_iterator ii = rm_v.begin() ;
+            ii != rm_v.end() ;
+            ++ii) {
+#ifdef VERBOSE
+          cout << "removing edge " << *ri << "," << rule(*ii) << endl  ;
+#endif
+          tmpgr.remove_edge(id,*ii) ;
+        }
+      }
+    }
+    
     // We need to make sure that apply rules work as a group.  We use
     // a component sort to group them together and remove them
     // from the graph.  We will replace them after we've decided
@@ -304,7 +326,6 @@ namespace Loci {
     vector<digraph::vertexSet> cs = component_sort(tmpgr).get_components() ;
     map<int,digraph::vertexSet> cm ;
     digraph::vertexSet incm ;
-
 
     for(unsigned int i=0;i<cs.size();++i)
       if(cs[i].size() > 1) {
@@ -328,7 +349,9 @@ namespace Loci {
         tmpgr.add_edges(new_vertex,out) ;
         tmpgr.add_edges(in,new_vertex) ;
       }
-
+  
+  
+      
     // Loop over each conditional variable and find the part of the graph
     // that exclusively connects to the conditional components.  All of
     // these rules can be treated together when evaluating the conditional
@@ -339,6 +362,7 @@ namespace Loci {
       digraph::vertexSet component ;
       // We start with the conditional rules
       digraph::vertexSet working = mi->second ;
+
       while(working != EMPTY) {
         // Repeatedly search for new vertices in the graph that are exclusively
         // associated with the conditional rules.  As we find them add them
@@ -354,11 +378,13 @@ namespace Loci {
         // Create a new working set by searching through the candidates to
         // find those verticies that only refer to vertices already found
         // in the component.
+
         working = EMPTY ;
-        for(vi=candidates.begin();vi!=candidates.end();++vi) 
+        for(vi=candidates.begin();vi!=candidates.end();++vi) {
           if((tmpgr[*vi] & component) == tmpgr[*vi]) {
             working += *vi ;
           }
+        }
         // We make sure that we recursively visit the same components by
         // removing them from our next working set.
         working -= component ;
@@ -380,8 +406,30 @@ namespace Loci {
       // Make sure that we don't go outside of the current subgraph
       component &= sg.graph_v ;
 
+      // Remove variables from component if they have references outside
+      // the component
+      variableSet cvars = extract_vars(component) ;
+      digraph::vertexSet remove_vars ;
+      digraph gr = sg.gr ;
+      digraph grt = gr.transpose() ;
+      for(variableSet::const_iterator vi = cvars.begin();
+          vi!=cvars.end();
+          ++vi) {
+        const int id = (*vi).ident() ;
+        if((grt[id]-component) != EMPTY
+           || (gr[id]-component) != EMPTY)
+          remove_vars += id ;
+      }
+
+      component -= remove_vars ;
+#ifdef VERBOSE
+      cout << "remove_vars = " << extract_vars(remove_vars) ;
+#endif
+
       int new_node =  mlg.mksnode(supernode,component,mi->first) ;
+
       new_rules += new_node ;
+      
       //      rule new_rule(new_node);
     }
 
