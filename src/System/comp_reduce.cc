@@ -502,11 +502,11 @@ namespace Loci {
       return rbuf;
 
     MPI_Status status;
-    int num_reduce = join_op.size();
+
     int dimension = (int)(ceil(log10((double)numprocs)/log10((double)2))); //dimension of hypercube
     int extraProcessors = (1<<dimension) - numprocs; //extra virtual processors needed
     bool meVirtual = false;
-    int myVirtualId;
+    int myVirtualId = myid ;
     unsigned char *rVirtualBuf; //buffer for virtual processor
     int virtualRCount = 0; //number of elements in rVirtualBuf
     int virtualValidCount = 0;
@@ -527,7 +527,7 @@ namespace Loci {
   
     //for keeping data about virtual processor's buffer has been initialized or not
     //assigned[i] keeps the data of the virtual processor whose id is i+numprocs
-    bool *assigned;
+    bool *assigned = 0;
     if(extraProcessors > 0) 
       assigned = new bool[extraProcessors]; 
   
@@ -692,7 +692,7 @@ namespace Loci {
     int unpack_send_position = 0 ;
     int unpack_result_position = 0;
     int pack_result_position = 0;
-    for(int i = 0; i < global_join_ops.size(); i++) {
+    for(size_t i = 0; i < global_join_ops.size(); i++) {
       storeRepP sp, tp ;
       sp = global_join_ops[i]->getTargetRep() ;
       tp = global_join_ops[i]->getTargetRep() ;
@@ -720,13 +720,13 @@ namespace Loci {
     entitySet e ;
     sequence seq ;
     vector<storeRepP> sp;
-    for(int i = 0; i < reduce_vars.size(); i++) {
+    for(size_t i = 0; i < reduce_vars.size(); i++) {
       sp.push_back(facts.get_variable(reduce_vars[i])) ;
       size += sp[i]->pack_size(e);
     }
     send_ptr = new unsigned char[size] ;
     int position = 0;
-    for(int i = 0; i < sp.size(); i++) {
+    for(size_t i = 0; i < sp.size(); i++) {
       sp[i]->pack(send_ptr, position, size, e) ;
     }
 #ifndef GROUP_ALLREDUCE
@@ -735,14 +735,14 @@ namespace Loci {
     global_join_ops = join_ops;
     MPI_Allreduce(send_ptr, result_ptr, size, MPI_PACKED, create_join_op, MPI_COMM_WORLD) ;
     position = 0;
-    for(int i = 0; i < sp.size(); i++) {
+    for(size_t i = 0; i < sp.size(); i++) {
       sp[i]->unpack(result_ptr, position, size, seq) ;
     }
 #else
     int recv_buf_size;
     result_ptr = groupAllReduce(send_ptr, size, recv_buf_size, join_ops, MPI_COMM_WORLD);
     position = 0;
-    for(int i = 0; i < sp.size(); i++) {
+    for(size_t i = 0; i < sp.size(); i++) {
       sp[i]->unpack(result_ptr, position, recv_buf_size, seq) ;
     }
 #endif
@@ -750,13 +750,13 @@ namespace Loci {
     delete [] result_ptr ;
   }
   void execute_param_red::Print(ostream &s) const {
-    for(int i = 0 ; i < reduce_vars.size(); i++) 
+    for(size_t i = 0 ; i < reduce_vars.size(); i++) 
       s << "param reduction on " << reduce_vars[i] << endl ;
   }
   void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed()) {
       	fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      for(int i = 0; i < unit_rules.size(); i++) {
+      for(size_t i = 0; i < unit_rules.size(); i++) {
 	entitySet targets ;
 	targets = scheds.get_existential_info(reduce_vars[i], unit_rules[i]) ;
 	targets += send_entitySet(targets, facts) ;
@@ -769,7 +769,7 @@ namespace Loci {
   
   void reduce_param_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
-      for(int i = 0; i < unit_rules.size(); i++) {
+      for(size_t i = 0; i < unit_rules.size(); i++) {
 	entitySet requests = scheds.get_variable_requests(reduce_vars[i]) ;
 	requests += send_entitySet(requests, facts) ;
 	scheds.variable_request(reduce_vars[i],requests) ;
@@ -787,7 +787,7 @@ namespace Loci {
       return executeP(el) ;
     }
     ostringstream oss ;
-    for(int i = 0; i < reduce_vars.size(); i++) 
+    for(size_t i = 0; i < reduce_vars.size(); i++) 
       oss << "reduce param " << reduce_vars[i] << std::endl;
     return executeP(new execute_msg(oss.str())) ;
   }
