@@ -45,7 +45,7 @@ namespace Loci {
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
-
+  
   map<variable, int> dump_var_lookup ;
   
   void execute_dump_var::execute(fact_db &facts) {
@@ -85,9 +85,9 @@ namespace Loci {
     variableSet dump_vars ;
   public:
     dump_vars_compiler(variableSet &vars) : dump_vars(vars) {}
-    virtual void set_var_existence(fact_db &facts) {}
-    virtual void process_var_requests(fact_db &facts) {}
-    virtual executeP create_execution_schedule(fact_db &facts) {
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) {}
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) {}
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) {
       return executeP(new execute_dump_var(dump_vars)) ;
     }
   } ;
@@ -123,10 +123,10 @@ namespace Loci {
         vars += extract_vars(dag_sched[i]) ;
         rules = extract_rules(dag_sched[i]) ;
       }
-
+      
       variableSet barrier_vars, reduce_vars,singleton_vars,all_vars ;
       variableSet::const_iterator vi ;
-
+      
       std::map<variable,ruleSet> reduce_info ;
       for(vi=vars.begin();vi!=vars.end();++vi) {
         ruleSet var_rules = extract_rules(dagt[(*vi).ident()]) ;
@@ -178,7 +178,7 @@ namespace Loci {
 
       all_vars += barrier_vars ;
       dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
-
+      
       all_vars += singleton_vars ;
       
       if(singleton_vars != EMPTY)
@@ -269,25 +269,25 @@ namespace Loci {
 #endif
   }
 
-  void dag_compiler::set_var_existence(fact_db &facts) {
+  void dag_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     
     std::vector<rule_compilerP>::iterator i ;
     for(i=dag_comp.begin();i!=dag_comp.end();++i)
-      (*i)->set_var_existence(facts) ;
+      (*i)->set_var_existence(facts, scheds) ;
   }
-
-  void dag_compiler::process_var_requests(fact_db &facts) {
+  
+  void dag_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::reverse_iterator ri ;
     for(ri=dag_comp.rbegin();ri!=dag_comp.rend();++ri)
-      (*ri)->process_var_requests(facts) ;
+      (*ri)->process_var_requests(facts, scheds) ;
   }
-
-  executeP dag_compiler::create_execution_schedule(fact_db &facts) {
+  
+  executeP dag_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     CPTR<execute_list> elp = new execute_list ;
-
+    
     std::vector<rule_compilerP>::iterator i ;
     for(i=dag_comp.begin();i!=dag_comp.end();++i) {
-      elp->append_list((*i)->create_execution_schedule(facts)) ;
+      elp->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
 
     return executeP(elp) ;

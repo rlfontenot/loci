@@ -26,15 +26,14 @@ namespace Loci {
 #else
     return -1.0 ;
 #endif
-  } 
+  }  
   executeP create_execution_schedule(rule_db &rdb,
                                      fact_db &facts,
                                      std::string target_string,
                                      int nth) {
     num_threads = min(nth,max_threads) ;
-    
     //double timer = get_timer() ;
-    
+    sched_db scheds(facts) ;
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
     cout << "generating dependency graph..." << endl ;
@@ -47,7 +46,7 @@ namespace Loci {
       return executeP(0) ;
     
     cout << "setting up variable types..." << endl ;
-    set_var_types(facts,gr) ;
+    set_var_types(facts,gr, scheds) ;
     cout << "decomposing graph..." << endl ;
     decomposed_graph decomp(gr,given,target) ;
     variableSet fact_vars, initial_vars ;
@@ -68,7 +67,7 @@ namespace Loci {
 	      for(int i = 0; i < d->copy.size(); ++i)
 		t += d->copy[i].entities ;
 	      initial_vars += *vi ;
-	      facts.set_existential_info(*vi, r, t) ;
+	      scheds.set_existential_info(*vi, r, t) ;
 	    }
 	  }
 	}
@@ -82,17 +81,17 @@ namespace Loci {
     //timer = get_timer() ;
     //cout << "Graph Processing Time: "<<timer << " seconds" << endl ;
 #endif
-    
     cout << "existential analysis..." << endl ;
     start_time = MPI_Wtime() ;
-    compile_graph.existential_analysis(facts) ;
+    compile_graph.existential_analysis(facts, scheds) ;
     end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for existential_analysis  = " << end_time  - start_time << "  seconds " << endl ;
     cout << "creating execution schedule..." << endl;
     start_time = MPI_Wtime() ;
-    executeP sched =  compile_graph.execution_schedule(facts,num_threads) ;
+    executeP sched =  compile_graph.execution_schedule(facts,scheds, num_threads) ;
     end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for schedule generation  = " << end_time  - start_time << "  seconds " << endl ;
+    
 #ifdef PROFILE_CODE    
     //timer = get_timer() ;
     //cout << "Schedule Generation Time: " << timer << " seconds" << endl ;

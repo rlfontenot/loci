@@ -10,6 +10,7 @@
 #include <scheduler.h>
 #include <Tools/digraph.h>
 #include <fact_db.h>
+#include <sched_db.h>
 #include <execute.h>
 #include <depend_graph.h>
 #include <Map.h>
@@ -25,7 +26,7 @@
 namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
-  void set_var_types(fact_db &facts, const digraph &dg) ;
+  void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) ;
   rule make_super_rule(variableSet sources, variableSet targets,
                        variable cond = variable()) ;
   rule make_rename_rule(variable new_name, variable old_name) ;
@@ -36,9 +37,9 @@ namespace Loci {
     sequence exec_seq ;
     bool do_run ;
   public:
-    execute_rule(rule fi, sequence seq, fact_db &facts) ;
-    execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p) ;
-    execute_rule(bool output_empty, rule fi, sequence seq, fact_db &facts) ;
+    execute_rule(rule fi, sequence seq, fact_db &facts, sched_db &scheds) ;
+     execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, sched_db &scheds) ;
+    execute_rule(bool output_empty, rule fi, sequence seq, fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
@@ -46,9 +47,9 @@ namespace Loci {
   
   class rule_compiler : public CPTR_type {
   public:
-    virtual void set_var_existence(fact_db &facts) = 0 ;
-    virtual void process_var_requests(fact_db &facts) = 0 ;
-    virtual executeP create_execution_schedule(fact_db &facts) = 0;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) = 0 ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) = 0 ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) = 0;
   } ;
 
   typedef CPTR<rule_compiler> rule_compilerP ;
@@ -66,8 +67,8 @@ namespace Loci {
     rulecomp_map rule_process ;
     rule baserule ;
     graph_compiler(decomposed_graph &deco, variableSet initial_vars ) ;
-    void existential_analysis(fact_db &facts) ;
-    executeP execution_schedule(fact_db &facts, int nth) ;
+    void existential_analysis(fact_db &facts, sched_db &scheds) ;
+    executeP execution_schedule(fact_db &facts, sched_db &scheds, int nth) ;
   } ;
   
   struct comm_info {

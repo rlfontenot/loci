@@ -1,6 +1,5 @@
 #include "comp_tools.h"
 #include "distribute.h"
-
 #include <vector>
 using std::vector ;
 #include <map>
@@ -13,7 +12,7 @@ using std::set ;
 //#define VERBOSE
 
 namespace Loci {
-  void impl_recurse_compiler::set_var_existence(fact_db &facts) {
+  void impl_recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
 
     variableSet::const_iterator vi ;
     variableSet tvars ;
@@ -27,7 +26,7 @@ namespace Loci {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
-      pre_send_entities = barrier_existential_rule_analysis(recurse_vars,facts) ;
+      pre_send_entities = barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
       my_entities = d->my_entities ;
     }
     entitySet sources = ~EMPTY ;
@@ -36,12 +35,12 @@ namespace Loci {
     set<vmap_info>::const_iterator si ;
     for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
       if((si->var & tvars) == EMPTY)
-        sources &= vmap_source_exist(*si,facts) ;
+        sources &= vmap_source_exist(*si,facts, scheds) ;
       else {
         const int num_maps = si->mapping.size() ;
         if(num_maps != 0) {
           for(vi=si->mapping[0].begin();vi!=si->mapping[0].end();++vi) {
-            sources &= facts.variable_existence(*vi) ;
+            sources &= scheds.variable_existence(*vi) ;
           }
         } 
         
@@ -98,7 +97,7 @@ namespace Loci {
     fctrl.use_constraints = false ;
     for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si) {
       warn((si->var & tvars) != EMPTY) ;
-      constraints &= vmap_source_exist(*si,facts) ;
+      constraints &= vmap_source_exist(*si,facts, scheds) ;
       fctrl.use_constraints = true ;
     }
 
@@ -129,7 +128,7 @@ namespace Loci {
     variable rvar = *(tvars.begin()) ;
 
     
-    entitySet sdelta = facts.variable_existence(rvar) ;
+    entitySet sdelta = scheds.variable_existence(rvar) ;
     entitySet domain = fctrl.nr_sources + sdelta ;
 
     if(facts.isDistributed()) {
@@ -137,14 +136,14 @@ namespace Loci {
       if(finfo.targets.begin()->assign.size() != 0) {
         rename_var = finfo.targets.begin()->assign[0].second ;
       }
-      entitySet start=facts.variable_existence(rename_var) ;
+      entitySet start=scheds.variable_existence(rename_var) ;
       domain += start - my_entities ;
       sdelta += start - my_entities ;
     }
 
 
     for(int j=read_maps.size()-1;j>=0;--j) {
-      entitySet newdomain = facts.preimage(rmap.mapvar[j],domain).first ;
+      entitySet newdomain = scheds.preimage(rmap.mapvar[j],domain).first ;
 #ifdef VERBOSE
       debugout << "j = " << j << ", domain = " << domain
                          << ", newdomain = " << newdomain << endl ;
@@ -322,24 +321,24 @@ namespace Loci {
     
     for(map<variable,entitySet>::const_iterator mi=fctrl.generated.begin();
         mi!=fctrl.generated.end();++mi)
-      facts.set_existential_info(mi->first,impl,mi->second) ;
+      scheds.set_existential_info(mi->first,impl,mi->second) ;
 
-    entitySet create = facts.get_existential_info(rvar,impl) ;
+    entitySet create = scheds.get_existential_info(rvar,impl) ;
     create += send_entitySet(create,facts) ;
     create += fill_entitySet(create,facts) ;
-    facts.set_existential_info(rvar,impl,create) ;
+    scheds.set_existential_info(rvar,impl,create) ;
     
   }
   
-  void impl_recurse_compiler::process_var_requests(fact_db &facts) {
+  void impl_recurse_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       my_entities = d->my_entities ;
     }
-    process_rule_requests(impl,facts) ;
+    process_rule_requests(impl,facts, scheds) ;
     if(facts.isDistributed()) {
-
+      
       // For the relaxed recursion we need to adjust our variable request
       variableSet tvars = impl.targets() ;
       variable rvar = *(tvars.begin()) ;
@@ -348,20 +347,20 @@ namespace Loci {
       if(finfo.targets.begin()->assign.size() != 0) {
         rename_var = finfo.targets.begin()->assign[0].second ;
       }
-      entitySet request = facts.get_variable_requests(rvar) ;
+      entitySet request = scheds.get_variable_requests(rvar) ;
       request -= my_entities ;
-      facts.variable_request(rename_var,request) ;
+      scheds.variable_request(rename_var,request) ;
 
 
 
       list<comm_info> request_comm ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
-      request_comm = barrier_process_rule_requests(recurse_vars, facts) ;
+      request_comm = barrier_process_rule_requests(recurse_vars, facts, scheds) ;
       clist = sort_comm(request_comm,facts) ;
     }
   }
 
-  executeP impl_recurse_compiler::create_execution_schedule(fact_db &facts) {
+  executeP impl_recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
 
     if(num_threads > 1) {
       CPTR<execute_list> el = new execute_list ;
@@ -371,18 +370,18 @@ namespace Loci {
           seq += sequence(par_schedule[i]) ;
         } else {
           if(seq.size() > 1) {
-            el->append_list(new execute_rule(impl,seq,facts)) ;
+            el->append_list(new execute_rule(impl,seq,facts, scheds)) ;
             el->append_list(new execute_thread_sync) ;
             seq = sequence() ;
           }
           execute_par *ep = new execute_par ;
-          parallel_schedule(ep,par_schedule[i],impl,facts) ;
+          parallel_schedule(ep,par_schedule[i],impl,facts, scheds) ;
           el->append_list(ep) ;
           el->append_list(new execute_thread_sync) ;
         }
       }
       if(seq.size() > 1) {
-        el->append_list(new execute_rule(impl,seq,facts)) ;
+        el->append_list(new execute_rule(impl,seq,facts, scheds)) ;
       }
       if(facts.isDistributed()) {
         el->append_list(new execute_thread_sync) ;
@@ -391,16 +390,16 @@ namespace Loci {
       return executeP(el) ;
     }
 
-    return new execute_rule(impl,fastseq,facts) ;
+    return new execute_rule(impl,fastseq,facts, scheds) ;
 
   }
 
-  void recurse_compiler::set_var_existence(fact_db &facts) {
+  void recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
 
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      pre_send_entities = barrier_existential_rule_analysis(recurse_vars,facts) ;
+      pre_send_entities = barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
       my_entities = d->my_entities ;
     }
 
@@ -421,7 +420,7 @@ namespace Loci {
       set<vmap_info>::const_iterator si ;
       for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
         if((si->var & tvars) == EMPTY)
-          sources &= vmap_source_exist(*si,facts) ;
+          sources &= vmap_source_exist(*si,facts, scheds) ;
         else {
           tvars += si->var ;
           int num_maps = si->mapping.size() ;
@@ -442,7 +441,7 @@ namespace Loci {
               
               for(i=0;(i!=num_maps)&&(++(miv[i]) == si->mapping[i].end());++i)
                 miv[i] = si->mapping[i].begin() ;
-
+	      
               fctrl.recursion_maps.push_back(minfo) ;
             } while(i!=num_maps) ;
           }
@@ -453,7 +452,7 @@ namespace Loci {
         vector<variableSet::const_iterator> miv(num_maps) ;
         for(int i=0;i<num_maps;++i)
           miv[i] = si->mapping[i].begin() ;
-
+	
         for(vi=si->var.begin();vi!=si->var.end();++vi) {
           int i = 0 ;
           do {
@@ -475,7 +474,7 @@ namespace Loci {
       fctrl.use_constraints = false ;
       for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si) {
         warn((si->var & tvars) != EMPTY) ;
-        constraints &= vmap_source_exist(*si,facts) ;
+        constraints &= vmap_source_exist(*si,facts, scheds) ;
         fctrl.use_constraints = true ;
       }
       fctrl.nr_sources = sources ;
@@ -486,7 +485,7 @@ namespace Loci {
 
     map<variable,entitySet> tvar_computed,tvar_update ;
     for(vi=tvars.begin();vi!=tvars.end();++vi) {
-      tvar_computed[*vi] = facts.variable_existence(*vi) ;
+      tvar_computed[*vi] = scheds.variable_existence(*vi) ;
       tvar_update[*vi] = tvar_computed[*vi] ;
     }
     map<variable,entitySet>::iterator mi ;
@@ -523,7 +522,7 @@ namespace Loci {
             cerr<< "fctrl.nr_sources = " << fctrl.nr_sources << endl ;
             entitySet constraints = fctrl.constraints ;
             for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-              entitySet sources = vmap_source_exist(*si,facts) ;
+              entitySet sources = vmap_source_exist(*si,facts, scheds) ;
               sources &= my_entities ;
               if((sources & constraints) != constraints) {
                 cerr << "sources & constraints != constraints for input"
@@ -536,12 +535,12 @@ namespace Loci {
                     entitySet images ;
                     variableSet::const_iterator vi ;
                     for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
-                      images |= facts.image(*vi,working) ;
+                      images |= scheds.image(*vi,working) ;
                     working = images ;
                   }
                   variableSet::const_iterator vi ;
                   for(vi=si->var.begin();vi!=si->var.end();++vi) {
-                    entitySet exist = facts.variable_existence(*vi) ;
+                    entitySet exist = scheds.variable_existence(*vi) ;
                     entitySet fails = working & ~exist ;
                     if(fails != EMPTY) {
                       cerr << "expecting to find variable " << *vi
@@ -607,12 +606,12 @@ namespace Loci {
         create += send_entitySet(create,facts) ;
         create += fill_entitySet(create,facts) ;
         
-        facts.set_existential_info(mi->first,*fi,create) ;
+        scheds.set_existential_info(mi->first,*fi,create) ;
       }
     }
   }
 
-  void recurse_compiler::process_var_requests(fact_db &facts) {
+  void recurse_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
@@ -626,10 +625,10 @@ namespace Loci {
       for(variableSet::const_iterator vi=recurse_vars.begin();
           vi!=recurse_vars.end();
           ++vi) {
-        orig_requests[*vi] = facts.get_variable_requests(*vi) ;
+        orig_requests[*vi] = scheds.get_variable_requests(*vi) ;
       }
-      request_comm = barrier_process_rule_requests(recurse_vars, facts) ;
-
+      request_comm = barrier_process_rule_requests(recurse_vars, facts,  scheds) ;
+      
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
 
@@ -637,10 +636,10 @@ namespace Loci {
       for(variableSet::const_iterator vi=recurse_vars.begin() ;
           vi!=recurse_vars.end();
           ++vi) {
-        var_requests[*vi] = facts.get_variable_requests(*vi) ;
+        var_requests[*vi] = scheds.get_variable_requests(*vi) ;
         ruleSet::const_iterator ri ;
         for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri) {
-          recurse_entities[*vi] += facts.get_existential_info(*vi,*ri) ;
+          recurse_entities[*vi] += scheds.get_existential_info(*vi,*ri) ;
         }
       }
       
@@ -648,13 +647,13 @@ namespace Loci {
         variable v = vi->first ;
         entitySet send_set = vi->second - recurse_entities[v] ;
         send_requested.push_back(make_pair(v,send_set &
-                                           facts.get_variable_requests(v))) ;
+                                           scheds.get_variable_requests(v))) ;
       }
       pre_plist = put_precomm_info(send_requested, facts) ;
-
+      
       for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
         fcontrol &fctrl = control_set[*fi] ;
-        entitySet control = process_rule_requests(*fi,facts) ;
+        entitySet control = process_rule_requests(*fi,facts, scheds) ;
         list<entitySet>::iterator ci ;
         entitySet total ;
         for(ci=fctrl.control_list.begin();ci!=fctrl.control_list.end();++ci) {
@@ -765,7 +764,7 @@ namespace Loci {
     } else {
       for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
         fcontrol &fctrl = control_set[*fi] ;
-        entitySet control = process_rule_requests(*fi,facts) ;
+        entitySet control = process_rule_requests(*fi,facts, scheds) ;
         list<entitySet>::iterator ci ;
         entitySet total ;
         for(ci=fctrl.control_list.begin();ci!=fctrl.control_list.end();++ci) {
@@ -783,7 +782,7 @@ namespace Loci {
     
   }
 
-  executeP recurse_compiler::create_execution_schedule(fact_db &facts) {
+  executeP recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds ) {
     CPTR<execute_sequence> el = new execute_sequence ;
     if(facts.isDistributed()) {
       el->append_list(new execute_thread_sync) ;
@@ -823,10 +822,10 @@ namespace Loci {
             if(num_threads > 1 && exec_seq.size() > 1 &&
                (*ri).get_info().rule_impl->thread_rule()) {
               execute_par *ep = new execute_par ;
-              parallel_schedule(ep,*li,*ri,facts) ;
+              parallel_schedule(ep,*li,*ri,facts, scheds) ;
               el->append_list(ep) ;
             } else {
-              el->append_list(new execute_rule(*ri,sequence(*li),facts)) ;
+              el->append_list(new execute_rule(*ri,sequence(*li),facts, scheds)) ;
             }
           }
           li++ ;
@@ -848,7 +847,7 @@ namespace Loci {
             entitySet all = li->send_set ;
             all += entitySet(li->recv_set) ;
         
-            facts.variable_request(li->v,all) ;
+            scheds.variable_request(li->v,all) ;
           }
         }
         sei++ ;
@@ -866,7 +865,7 @@ namespace Loci {
         entitySet all = li->send_set ;
         all += entitySet(li->recv_set) ;
         
-        facts.variable_request(li->v,all) ;
+        scheds.variable_request(li->v,all) ;
       }
     }
 

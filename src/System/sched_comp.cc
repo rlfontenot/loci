@@ -17,11 +17,11 @@ namespace Loci {
   class error_compiler : public rule_compiler {
   public:
     error_compiler() {}
-    virtual void set_var_existence(fact_db &facts)
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds)
     { cerr << "Internal consistency error" << endl ; exit(-1);}
-    virtual void process_var_requests(fact_db &facts) 
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) 
     { cerr << "Internal consistency error" << endl ; exit(-1);}
-    virtual executeP create_execution_schedule(fact_db &facts)
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds)
     { cerr << "Internal consistency error" << endl ; exit(-1);
     return executeP(0);}
   } ;
@@ -127,31 +127,37 @@ namespace Loci {
     }
   }
 
-  void graph_compiler::existential_analysis(fact_db &facts) {
-    fact_db_comm->set_var_existence(facts) ;
-    (rule_process[baserule])->set_var_existence(facts) ;
+  void graph_compiler::existential_analysis(fact_db &facts, sched_db &scheds) {
+    fact_db_comm->set_var_existence(facts, scheds) ;
+    (rule_process[baserule])->set_var_existence(facts, scheds) ;
     variableSet var_requests = baserule.targets() ;
     variableSet::const_iterator vi ;
     for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
-      entitySet vexist = facts.variable_existence(*vi) ;
-      facts.variable_request(*vi,vexist) ;
+      entitySet vexist = scheds.variable_existence(*vi) ;
+      scheds.variable_request(*vi,vexist) ;
     }
-    (rule_process[baserule])->process_var_requests(facts) ;
-    fact_db_comm->process_var_requests(facts) ;
+    (rule_process[baserule])->process_var_requests(facts, scheds) ;
+    fact_db_comm->process_var_requests(facts, scheds) ;
   }
   
   class allocate_all_vars : public execute_modules {
+    std::map<variable,entitySet> v_requests, v_existence ;
   public:
     allocate_all_vars() { control_thread = true ; }
+    allocate_all_vars(fact_db &facts, sched_db &scheds) ;
+    void fill_in_requests(fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(ostream &s) const ;
   } ;
-
-
+  
+  
   fact_db *exec_current_fact_db = 0 ;
   
-  void allocate_all_vars::execute(fact_db &facts) {
-    exec_current_fact_db = &facts ;
+  allocate_all_vars::allocate_all_vars(fact_db &facts, sched_db &scheds) {
+    control_thread = true ;
+    fill_in_requests(facts, scheds) ;
+  }
+  void allocate_all_vars::fill_in_requests(fact_db &facts, sched_db &scheds) {
     variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi,vii ;
     set<time_ident> time_set ;
@@ -167,49 +173,67 @@ namespace Loci {
           for(list<variable>::const_iterator lv=llv->begin();lv!=llv->end();++lv) {
             variableSet aliases = facts.get_aliases(*lv) ;
             for(vii=aliases.begin();vii!=aliases.end();++vii)
-              time_space += facts.get_variable_requests(*vii) ;
+              time_space += scheds.get_variable_requests(*vii) ;
           }
           for(list<variable>::const_iterator lv=llv->begin();lv!=llv->end();++lv) {
-            facts.variable_request(*lv,time_space) ;
+            scheds.variable_request(*lv,time_space) ;
           }
         }
       }
     }
-    
+    for(vi=vars.begin();vi!=vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      if(srp->domain() == EMPTY) {
+        variableSet aliases = facts.get_aliases(*vi) ;
+        entitySet requests, existence ;
+        for(vii=aliases.begin();vii!=aliases.end();++vii) {
+	  existence += scheds.variable_existence(*vii) ;
+	  requests += scheds.get_variable_requests(*vii) ;
+	}
+	v_requests[*vi] = requests ;
+	v_existence[*vi] = existence ;
+      }
+    }
+  }
+  
+  void allocate_all_vars::execute(fact_db &facts) {
+    exec_current_fact_db = &facts ;
+    variableSet vars = facts.get_typed_variables() ;
+    variableSet::const_iterator vi ;  
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       if(srp->domain() == EMPTY) {
         variableSet aliases = facts.get_aliases(*vi) ;
         entitySet all_requests ;
-        for(vii=aliases.begin();vii!=aliases.end();++vii) {
 #ifdef HACK
-	  all_requests += facts.variable_existence(*vii) ;
+	all_requests = v_existence[*vi] ;
 #else
-	  all_requests += facts.get_variable_requests(*vii) ;
+	all_requests = v_requests[*vi] ;
 #endif	  
-	}
+	
 #ifdef DEBUG
-        //debugout << "allocating " << *vi << " for entities " << all_requests
+	//debugout << "allocating " << *vi << " for entities " << all_requests
 	//       << endl ;
 #endif
-        srp->allocate(all_requests) ;
+	srp->allocate(all_requests) ;
       }
     }
   }
-
+  
+  
   void allocate_all_vars::Print(ostream &s) const {
     s << "allocate all variables" << endl ;
   }
 
 
-  executeP graph_compiler::execution_schedule(fact_db &facts, int nth) {
+  executeP graph_compiler::execution_schedule(fact_db &facts, sched_db &scheds, int nth) {
 
     CPTR<execute_list> schedule = new execute_list ;
-    schedule->append_list(fact_db_comm->create_execution_schedule(facts));
-    schedule->append_list(new allocate_all_vars) ;
+    schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));
+    schedule->append_list(new allocate_all_vars(facts, scheds)) ;
     schedule->append_list(new execute_create_threads(nth)) ;
     executeP top_level_schedule = (rule_process[baserule])->
-      create_execution_schedule(facts) ;
+      create_execution_schedule(facts, scheds) ;
     if(top_level_schedule == 0) 
       return executeP(0) ;
     schedule->append_list(top_level_schedule) ;

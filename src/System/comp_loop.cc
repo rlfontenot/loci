@@ -17,7 +17,7 @@ namespace Loci {
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
-
+  
   void execute_loop::execute(fact_db &facts) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
@@ -33,7 +33,7 @@ namespace Loci {
       facts.advance_time(tinfo) ;
     }
   }
-
+  
   void execute_loop::Print(ostream &s) const {
     s << "Perform loop for time level "<< tlevel << endl ;
     s << "--compute collapse rule, conditional on " << cvar << endl ;
@@ -43,13 +43,13 @@ namespace Loci {
     advance->Print(s) ;
     s << "end of loop for time level " << tlevel << endl ;
   }
-
+  
   digraph::vertexSet visit_vertices(digraph dg,digraph::vertexSet begin) {
-
+    
     digraph::vertexSet visit = begin ;
     digraph::vertexSet visited ;
     digraph::vertexSet::const_iterator ni ;
-
+    
     // keep visiting vertices until no new vertices are found
     while(visit != EMPTY) {
       digraph::vertexSet newvertices ;
@@ -62,8 +62,8 @@ namespace Loci {
     }
     return visited ;
   }
-
-
+  
+  
   
   loop_compiler::loop_compiler(rulecomp_map &rule_process, digraph dag)  {
 
@@ -169,47 +169,47 @@ namespace Loci {
 #endif
   }
 
-  void loop_compiler::set_var_existence(fact_db &facts) {
+  void loop_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::iterator i ;
     for(i=collapse_comp.begin();i!=collapse_comp.end();++i)
-      (*i)->set_var_existence(facts) ;
+      (*i)->set_var_existence(facts, scheds) ;
     for(i=advance_comp.begin();i!=advance_comp.end();++i)
-      (*i)->set_var_existence(facts) ;
+      (*i)->set_var_existence(facts, scheds) ;
     
   }
-
-  void loop_compiler::process_var_requests(fact_db &facts) {
+  
+  void loop_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     variableSet var_requests = advance_vars ;
     variableSet::const_iterator vi ;
     if(output_present)
       var_requests += output ;
     for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
-      entitySet vexist = facts.variable_existence(*vi) ;
-      facts.variable_request(*vi,vexist) ;
+      entitySet vexist = scheds.variable_existence(*vi) ;
+      scheds.variable_request(*vi,vexist) ;
     }
-
+    
     std::vector<rule_compilerP>::reverse_iterator ri ;
     for(ri=advance_comp.rbegin();ri!=advance_comp.rend();++ri)
-      (*ri)->process_var_requests(facts) ;
+      (*ri)->process_var_requests(facts, scheds) ;
     for(ri=collapse_comp.rbegin();ri!=collapse_comp.rend();++ri)
-      (*ri)->process_var_requests(facts) ;
+      (*ri)->process_var_requests(facts, scheds) ;
     
   }
-
-  executeP loop_compiler::create_execution_schedule(fact_db &facts) {
+  
+  executeP loop_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     CPTR<execute_list> col = new execute_list ;
-
+    
     std::vector<rule_compilerP>::iterator i ;
     for(i=collapse_comp.begin();i!=collapse_comp.end();++i) {
-      col->append_list((*i)->create_execution_schedule(facts)) ;
+      col->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
 
     CPTR<execute_list> adv = new execute_list ;
-
+    
     for(i=advance_comp.begin();i!=advance_comp.end();++i) {
-      adv->append_list((*i)->create_execution_schedule(facts)) ;
+      adv->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
-
+    
     return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel) ;
   }
 

@@ -67,112 +67,32 @@ namespace Loci {
   }
   
   void fact_db::install_fact_info(variable v, fact_info info) {
-    vmap_type::iterator mi = vmap.find(v) ;
-    if(mi != vmap.end()) {
-      cerr << "error:  reinstalling fact in database for variable "
-           << v << endl ;
+    std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
+    if(mi != fmap.end()) {
+      cerr << " fact_db error:  reinstalling fact in database for variable "
+	   << v << endl ;
       abort() ;
-    }
+      }
     info.synonyms += v ;
-    vmap[v] = info ;
+    fmap[v] = info ;
     fact_infov[info.fact_info_ref].aliases += v ;
     register_variable(v) ;
   }
   
-  void fact_db::install_fact_data(variable v, fact_data data) {
-    if(free_set == EMPTY) {
-      fact_infov.push_back(data) ;
-      install_fact_info(v,fact_info(fact_infov.size()-1)) ;
-    } else {
-      int val = *(free_set.begin()) ;
-      free_set -= val ;
-      fact_infov[val] = data ;
-      install_fact_info(v,fact_info(val)) ;
-    }
-  }
-
-  
-  fact_db::fact_info &fact_db::get_fact_info(variable v) {
-    vmap_type::iterator mi = vmap.find(remove_synonym(v)) ;
-    if(mi == vmap.end()) {
-      //    cerr << "error: variable " << v << " does not exist in fact database"
-      //         << endl ;
-      //      exit(-1) ;
-      //    return vmap.begin()->second ;
-      return get_fact_info(variable("EMPTY")) ;
-    }
-    return mi->second ;
-  }
-
-  void fact_db::create_fact(variable v, storeRepP st) {
-    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
-      int max_val = st->domain().Max() ;
-      maximum_allocated = max(maximum_allocated,max_val+1) ;
-    }
-    set_variable_type(v,st) ;
-    variable_is_fact_at(v,st->domain()) ;
-  }
-
-  void fact_db::update_fact(variable v, storeRepP st) {
-    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
-      int max_val = st->domain().Max() ;
-      maximum_allocated = max(maximum_allocated,max_val+1) ;
-    }
-    if(all_vars.inSet(v)) {
-      fact_data &fd = fact_infov[get_fact_info(v).fact_info_ref] ;
-      (*fd.data_rep) = st ;
-      fd.imageMap.clear() ;
-      fd.preimageMap.clear() ;
-      fd.ismap = (st->RepType() == Loci::MAP) ;
-      if(fd.ismap)
-        fd.minfo = MapRepP(fd.data_rep->getRep()) ; 
-      //    (get_fact_data(v)) = fact_data(v,st) ;
-      fact_info &fi = get_fact_info(v) ;
-      fi.fact_installed = st->domain() ;
-      fi.existence = st->domain() ;
-    } else
-      cerr << "warning: update_fact: fact does not exist for variable " << v
-           << endl ;
-  }
-
-  void fact_db::set_variable_type(variable v, storeRepP st) {
-    if(all_vars.inSet(v)) {
-      cerr << "WARNING: fact_db::set_variable_type retyping variable "
-           << v << endl ;
-      get_fact_data(v).data_rep->setRep(st) ;
-    } else
-      install_fact_data(v,fact_data(v,st)) ;
-  }
-
-  void fact_db::allocate_variable(variable v, entitySet s) {
-    cerr << "allocate_variable not implemented " << endl ;
-    exit(-1) ;
-  }
-  
-  void fact_db::variable_is_fact_at(variable v,entitySet s) {
-    fact_info &fi = get_fact_info(v) ;
-    fi.fact_installed += s ;
-    fi.existence += s ;
-    variableSet aliases = fact_infov[fi.fact_info_ref].aliases ;
-    aliases -= v ;
-    for(variableSet::const_iterator vi=aliases.begin();vi!=aliases.end();++vi) 
-      get_fact_info(v).fact_installed -= s ;
-  }
-
   void fact_db::alias_variable(variable v, variable alias) {
     if(all_vars.inSet(v)) {
       if(all_vars.inSet(alias)) {
-        fact_info &vinfo = get_fact_info(v) ;
-        fact_info &ainfo = get_fact_info(alias) ;
+	fact_info &vinfo = get_fact_info(v) ;
+	fact_info &ainfo = get_fact_info(alias) ;
         if(vinfo.fact_info_ref != ainfo.fact_info_ref) {
           // merge alias and v
           if(fact_infov[ainfo.fact_info_ref].data_rep->domain() != EMPTY) {
-            cerr << "error occuring on alias, v=" << v << ",alias="<<alias
-                 << endl ;
-            cerr << " domain = " <<
-              fact_infov[ainfo.fact_info_ref].data_rep->domain() << endl ;
-            abort() ;
-          }
+	    cerr << "error occuring on alias, v=" << v << ",alias="<<alias
+		 << endl ;
+	    cerr << " domain = " <<
+	      fact_infov[ainfo.fact_info_ref].data_rep->domain() << endl ;
+	    abort() ;
+	  }
           warn(fact_infov[ainfo.fact_info_ref].data_rep->domain() != EMPTY) ;
           int del = ainfo.fact_info_ref ;
           // move aliases from record to be deleted
@@ -182,14 +102,14 @@ namespace Loci {
           for(vi=move_aliases.begin();vi!=move_aliases.end();++vi) 
             get_fact_info(*vi).fact_info_ref = vinfo.fact_info_ref ;
           // update new record alias set
-          fact_infov[vinfo.fact_info_ref].aliases += move_aliases ;
+	  fact_infov[vinfo.fact_info_ref].aliases += move_aliases ;
           // delete record and save for recovery
           fact_infov[del] = fact_data() ;
           free_set += del ;
-        }
+	}
         return ;
       }
-
+      
       int ref = get_fact_info(v).fact_info_ref ;
       fact_infov[ref].aliases += alias ;
       install_fact_info(alias,fact_info(ref)) ;
@@ -201,11 +121,11 @@ namespace Loci {
       abort() ;
     }
   }
-
+  
   void fact_db::synonym_variable(variable v, variable synonym) {
     v = remove_synonym(v) ;
-    vmap_type::iterator vmi ;
-    if((vmi = vmap.find(synonym)) != vmap.end()) {
+    std::map<variable, fact_info>::iterator vmi ;
+    if((vmi = fmap.find(synonym)) != fmap.end()) {
       const fact_info &finfo = vmi->second ;
       fact_data &fdata = fact_infov[finfo.fact_info_ref] ;
       if(finfo.fact_installed != EMPTY ||
@@ -228,58 +148,131 @@ namespace Loci {
         // if variables exist and they are not synonymous, alias them first
         alias_variable(v,synonym) ;
       }
-
+      
       // Join synonym mappings into one. = v ;
-
+      
       // Remove variable from vmap structure
       fact_infov[vfinfo.fact_info_ref].aliases -= synonym ;
-      vmap.erase(vmi) ;
+      fmap.erase(vmi) ;
     }
     fact_info &vfinfo = get_fact_info(v) ;
-
+    
     vfinfo.synonyms += synonym ;
     synonyms[synonym] = v ;
     register_variable(synonym) ;
   }
-
-  std::pair<interval, interval> fact_db::get_distributed_alloc(int size) {
-    int* send_buf = new int[MPI_processes] ;
-    int* size_send = new int[MPI_processes] ;
-    int* size_recv = new int[MPI_processes] ;
-    int* recv_buf = new int[MPI_processes] ;
-    for(int i = 0; i < MPI_processes; ++i) {
-      send_buf[i] = maximum_allocated ;
-      size_send[i] = size ;
-    } 
-    MPI_Alltoall(send_buf, 1, MPI_INT, recv_buf, 1, MPI_INT, MPI_COMM_WORLD) ;
-    MPI_Alltoall(size_send, 1, MPI_INT, size_recv, 1, MPI_INT, MPI_COMM_WORLD) ;
-    std::sort(recv_buf, recv_buf+MPI_processes) ;
-    maximum_allocated = recv_buf[MPI_processes-1] ;
-    int local_max = maximum_allocated ;
-    int global_max = 0 ;
-    for(int i = 0; i < MPI_rank; ++i)
-      local_max += size_recv[i] ;
-    for(int i = 0; i < MPI_processes; ++i) 
-      global_max += size_recv[i] ;
-    
-    for(int i = 0 ; i < MPI_processes; ++i) {
-      int local = maximum_allocated ;
-      for(int j = 0; j < i; ++j)
-	local += size_recv[j] ;
-      init_ptn[i] += interval(local, local+size_recv[i]-1) ;
-      // debugout << "Partition for processor  " << i <<"   = " << init_ptn[i] << endl ;
+  
+  void fact_db::install_fact_data(variable v, fact_data data) {
+    if(free_set == EMPTY) {
+      fact_infov.push_back(data) ;
+      install_fact_info(v,fact_info(fact_infov.size()-1)) ;
+    } else {
+      int val = *(free_set.begin()) ;
+      free_set -= val ;
+      fact_infov[val] = data ;
+      install_fact_info(v,fact_info(val)) ;
     }
-   
-    interval local_ivl = interval(local_max, local_max + size - 1) ;
-    interval global_ivl = interval(maximum_allocated, maximum_allocated+global_max-1) ; 
-    maximum_allocated = local_max + size ;
-    delete [] send_buf ;
-    delete [] recv_buf ;
-    delete [] size_send ;
-    delete [] size_recv ;
-    return(make_pair(local_ivl, global_ivl)) ;
   }
   
+  void fact_db::variable_is_fact_at(variable v,entitySet s) {
+    fact_info &fi = get_fact_info(v) ;
+    fi.fact_installed += s ;
+    variableSet aliases = fact_infov[fi.fact_info_ref].aliases ;
+    aliases -= v ;
+    for(variableSet::const_iterator vi=aliases.begin();vi!=aliases.end();++vi) 
+      get_fact_info(v).fact_installed -= s ;
+  }
+  
+  void fact_db::create_fact(variable v, storeRepP st) {
+    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+      int max_val = st->domain().Max() ;
+      maximum_allocated = max(maximum_allocated,max_val+1) ;
+    }
+    set_variable_type(v,st) ;
+    variable_is_fact_at(v,st->domain()) ;
+  }
+  
+  void fact_db::update_fact(variable v, storeRepP st) {
+    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+      int max_val = st->domain().Max() ;
+      maximum_allocated = max(maximum_allocated,max_val+1) ;
+    }
+    if(all_vars.inSet(v)) {
+      fact_data &fd = fact_infov[get_fact_info(v).fact_info_ref] ;
+      (*fd.data_rep) = st ;
+      fact_info &fi = get_fact_info(v) ;
+      fi.fact_installed = st->domain() ;
+    } else
+      cerr << "warning: update_fact: fact does not exist for variable " << v
+           << endl ;
+  }
+  
+  void fact_db::set_variable_type(variable v, storeRepP st) {
+    if(all_vars.inSet(v)) {
+      cerr << "WARNING: fact_db::set_variable_type retyping variable "
+	   << v << endl ;
+      get_fact_data(v).data_rep->setRep(st) ;
+    } else
+      install_fact_data(v,fact_data(v,st)) ;
+  }
+
+  void fact_db::allocate_variable(variable v, entitySet s) {
+    cerr << "allocate_variable not implemented " << endl ;
+    exit(-1) ;
+  }
+  
+  std::pair<interval, interval> fact_db::get_distributed_alloc(int size) {
+    dist_from_start = 1 ;
+    if(MPI_processes > 1) {
+      int* send_buf = new int[MPI_processes] ;
+      int* size_send = new int[MPI_processes] ;
+      int* size_recv = new int[MPI_processes] ;
+      int* recv_buf = new int[MPI_processes] ;
+      for(int i = 0; i < MPI_processes; ++i) {
+	send_buf[i] = maximum_allocated ;
+	size_send[i] = size ;
+      } 
+      MPI_Alltoall(send_buf, 1, MPI_INT, recv_buf, 1, MPI_INT, MPI_COMM_WORLD) ;
+      MPI_Alltoall(size_send, 1, MPI_INT, size_recv, 1, MPI_INT, MPI_COMM_WORLD) ;
+      std::sort(recv_buf, recv_buf+MPI_processes) ;
+      maximum_allocated = recv_buf[MPI_processes-1] ;
+      int local_max = maximum_allocated ;
+      int global_max = 0 ;
+      for(int i = 0; i < MPI_rank; ++i)
+	local_max += size_recv[i] ;
+      for(int i = 0; i < MPI_processes; ++i) 
+	global_max += size_recv[i] ;
+      
+      for(int i = 0 ; i < MPI_processes; ++i) {
+	int local = maximum_allocated ;
+	for(int j = 0; j < i; ++j)
+	  local += size_recv[j] ;
+	init_ptn[i] += interval(local, local+size_recv[i]-1) ;
+	// debugout << "Partition for processor  " << i <<"   = " << init_ptn[i] << endl ;
+      }
+      
+      interval local_ivl = interval(local_max, local_max + size - 1) ;
+      interval global_ivl = interval(maximum_allocated, maximum_allocated+global_max-1) ; 
+      maximum_allocated = local_max + size ;
+      delete [] send_buf ;
+      delete [] recv_buf ;
+      delete [] size_send ;
+      delete [] size_recv ;
+      return(make_pair(local_ivl, global_ivl)) ;
+    }
+    interval alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
+    maximum_allocated += size ;
+    return (make_pair(alloc, alloc)) ; ;
+  }
+
+  fact_db::fact_info &fact_db::get_fact_info(variable v) {
+    std::map<variable, fact_info>::iterator mi = fmap.find(remove_synonym(v)) ;
+    if(mi == fmap.end()) {
+      return get_fact_info(variable("EMPTY")) ;
+    }
+    return mi->second ;
+  }
+
 storeRepP fact_db::get_variable(variable v) {
     if(all_vars.inSet(v))
       return storeRepP(get_fact_data(v).data_rep) ;
@@ -378,128 +371,29 @@ storeRepP fact_db::get_variable(variable v) {
     *(ti->time_var) = 0 ;
   }
   
-  void fact_db::set_existential_info(variable v, rule f, entitySet x) {
-    fact_info &finfo = get_fact_info(v) ;
-    if((finfo.existence & x) != EMPTY) {
-      ruleSet conflicts ;
-      map<rule,existential_info>::iterator mi ;
-      for(mi=finfo.exist_map.begin();mi!=finfo.exist_map.end();++mi) {
-        if(mi->first == f) {
-          continue ;
-        }
-        if((mi->second.exists & x) != EMPTY) {
-          const vector<string> &p1 = v.get_info().priority ;
-          const vector<string> &p2 = mi->second.v.get_info().priority ;
-          for(int i=0,j=p1.size()-1,k=p2.size()-1;
-              i<min(p1.size(),p2.size());
-              ++i,--j,--k)
-            if(p1[j] != p2[k]) {
-              conflicts += mi->first ;
-              cerr << "adding to conflicts because " << p1[i]
-                   << "!=" << p2[i]<<endl ;
-            }
-          if(p1.size() == p2.size()) {
-            conflicts += mi->first ;
-          } else if(p1.size() > p2.size()) {
-            mi->second.exists -= x ;
-            //            cerr << f << " has priority over " << mi->first << endl ;
-          } else {
-            x -= mi->second.exists ;
-            //            cerr << mi->first << " has priority over " << f << endl ;
-          }
-        }
-      }
-      if(conflicts != EMPTY && v.get_info().name != string("OUTPUT")) {
-        cerr << "rule " << f << " conflicts with " << conflicts << endl ;
-        cerr << "conflicting entities are " << (finfo.existence & x) << endl ;
-        debugger_() ;
-        //        exit(-1) ;
-      }
-    }
-    existential_info &einfo = finfo.exist_map[f] ;
-    einfo.v = v ;
-    einfo.exists += x ;
-    finfo.existence += x ;
-    //debugout << "einfo.v = " << v << ",einfo.exists = " << x
-    //<< "f = " << f << endl ;
-  }
-  
-  entitySet fact_db::variable_existence(variable v) {
-    if(v.get_info().tvar)  // if time variable, variable exists everywhere
-      return ~EMPTY ;
-    return get_fact_info(v).existence ;
-  }
-
-  ruleSet fact_db::get_existential_rules(variable v) {
-    std::map<rule,existential_info>::const_iterator mi ;
-    fact_info &finfo = get_fact_info(v) ;
-    ruleSet rules ;
-    for(mi=finfo.exist_map.begin();mi!=finfo.exist_map.end();++mi)
-      rules += mi->first ;
-    return rules ;
-  }
-  
-  void fact_db::variable_request(variable v, entitySet e) {
-    if(v.get_info().tvar)
-      return ;
-    get_fact_info(v).requested += e ;
-  }
-
-  entitySet fact_db::get_variable_request(rule f, variable v) {
-    fact_info &finfo = get_fact_info(v) ;
-    map<rule,existential_info>::iterator mi = finfo.exist_map.find(f) ;
-    if(mi == finfo.exist_map.end())
-      return EMPTY ;
-    return mi->second.exists & finfo.requested ;
-  }
+ 
   
   bool fact_db::is_a_Map(variable v) {
     return get_fact_data(v).ismap ;
   }
-
-  entitySet fact_db::image(variable v, entitySet e) {
-    fact_data &fdata = get_fact_data(v) ;
-    if(!fdata.ismap)
-      return EMPTY ;
-    map<entitySet,entitySet>::const_iterator ii = fdata.imageMap.find(e) ;
-    if(ii != fdata.imageMap.end())
-      return ii->second ;
-    else
-      return fdata.imageMap[e] = get_fact_data(v).minfo->image(e) ;
-  }
-
-  pair<entitySet,entitySet> fact_db::preimage(variable v, entitySet e) {
-    fact_data &fdata = get_fact_data(v) ;
-    if(!fdata.ismap)
-      return make_pair(EMPTY,EMPTY) ;
-    map<entitySet,pair<entitySet,entitySet> >::const_iterator ii ;
-    ii = fdata.preimageMap.find(e) ;
-    if(ii != fdata.preimageMap.end())
-      return ii->second ;
-    else
-      return fdata.preimageMap[e] = get_fact_data(v).minfo->preimage(e) ;
-  }
-  
   void fact_db::printSummary(ostream &s) const {
-    vmap_type::const_iterator vmi ;
-    for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
+    std::map<variable, fact_info>::const_iterator vmi ;
+    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
       s << "--------------------------------------------------------------"
         << endl ;
       s << "variable: " << vmi->first << ", installed = " <<
         vmi->second.fact_installed << endl ;
       s << "synonyms: " << vmi->second.synonyms << endl ;
-      s << "existence: " << vmi->second.existence << endl ;
-      s << "requested: " << vmi->second.requested << endl ;
       const variableSet &aliases = fact_infov[vmi->second.fact_info_ref].aliases ;
       s << "aliases: " << aliases << endl ;
-
+      
     }
-
+    
   }
 
   ostream &fact_db::write(ostream &s) const {
-    vmap_type::const_iterator vmi ;
-    for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
+    std::map<variable, fact_info>::const_iterator vmi ;
+    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
       variable v=vmi->first;
       const fact_data &fd = fact_infov[vmi->second.fact_info_ref] ;
       storeRepP store_Rep = storeRepP(fd.data_rep) ;
@@ -560,8 +454,8 @@ storeRepP fact_db::get_variable(variable v) {
     hid_t  file_id, group_id;
     file_id =  H5Fcreate( filename, H5F_ACC_TRUNC,
                           H5P_DEFAULT, H5P_DEFAULT);
-    vmap_type::const_iterator vmi ;
-    for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
+    std::map<variable, fact_info>::const_iterator vmi ;
+    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
       variable v=vmi->first;
       storeRepP store_Rep = get_variable(v);
       entitySet en=store_Rep->domain();
@@ -577,8 +471,8 @@ storeRepP fact_db::get_variable(variable v) {
     hid_t  file_id, group_id;
     file_id = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 
-    vmap_type::const_iterator vmi ;
-    for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
+    std::map<variable, fact_info>::const_iterator vmi ;
+    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
       variable v=vmi->first;
       storeRepP store_Rep = get_variable(v)->getRep();
       std::string groupname = (v.get_info()).name;
@@ -593,12 +487,13 @@ storeRepP fact_db::get_variable(variable v) {
         cerr<<("Warning: variable \""+groupname+"\" is not found in file \""+filename+"\"")<<endl;
       //store_Rep->Print(cout);
     }
-  }
+  } 
 
   void reorder_facts(fact_db &facts, Map &remap) {
     variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
-      storeRepP p = facts.get_variable(*vi) ;
+      storeRepP  p = facts.get_variable(*vi) ;
+      //facts.create_fact(*vi,p->remap(remap)) ;
       facts.update_fact(*vi,p->remap(remap)) ;
     }
   }

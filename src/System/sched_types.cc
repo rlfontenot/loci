@@ -12,7 +12,7 @@ namespace Loci {
 
     // Create variable types in fact database
   // This is a necessary precursor to binding rules to the database
-  void set_var_types(fact_db &facts, const digraph &dg) {
+  void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) {
 
     // Get all the variables and rules represented in the graph
     variableSet all_vars = extract_vars(dg.get_all_vertices()) ;
@@ -91,7 +91,7 @@ namespace Loci {
       storeRepP st = pick.get_info().rule_impl->get_store(*vi) ;
       if(st->RepType() == PARAMETER) 
         st->allocate(EMPTY) ;
-      facts.set_variable_type(*vi,st) ;
+      scheds.set_variable_type(*vi,st, facts) ;
     
     }
 
@@ -131,7 +131,7 @@ namespace Loci {
         variable v(tl) ;
         param<int> timevar ;
         storeRepP st = timevar.Rep() ;
-        facts.set_variable_type(v,st) ;
+        scheds.set_variable_type(v,st, facts) ;
       }
     }
 
@@ -165,9 +165,9 @@ namespace Loci {
         variable t = (*(r.targets().begin())) ;
         // A rename rule uses alias, while all others use synonym relationships
         if(r.get_info().qualifier() == "rename")
-          facts.alias_variable(s,t) ;
+          scheds.alias_variable(s,t, facts) ;
         else {
-          facts.synonym_variable(s,t) ;
+          scheds.synonym_variable(s,t, facts) ;
         }
       }
     }
@@ -214,7 +214,7 @@ namespace Loci {
             type_error = true ;
           }
         } else {
-          facts.set_variable_type(*vi,rule_type) ;
+          scheds.set_variable_type(*vi,rule_type, facts) ;
           typed_vars += *vi ;
         }
       }

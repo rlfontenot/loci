@@ -12,19 +12,19 @@
 #include <mpi.h>
 
 namespace Loci {
-  entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts) ;
+  entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
-                              entitySet compute) ;
-  void existential_rule_analysis(rule f, fact_db &facts) ;
+                              entitySet compute, sched_db &scheds) ;
+  void existential_rule_analysis(rule f, fact_db &facts, sched_db &scheds) ;
 
 
-  entitySet process_rule_requests(rule f, fact_db &facts) ;
+  entitySet process_rule_requests(rule f, fact_db &facts, sched_db &scheds) ;
   
   std::vector<std::pair<variable,entitySet> >
-  barrier_existential_rule_analysis(variableSet vlst, fact_db &facts) ;
-
+    barrier_existential_rule_analysis(variableSet vlst, fact_db &facts, sched_db &scheds) ;
+  
   std::list<comm_info>
-  barrier_process_rule_requests(variableSet vars, fact_db &facts) ;
+  barrier_process_rule_requests(variableSet vars, fact_db &facts, sched_db &scheds) ;
 
   entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
                           std::list<comm_info> &clist) ;
@@ -36,7 +36,7 @@ namespace Loci {
   std::list<comm_info> sort_comm(std::list<comm_info> slist, fact_db &facts) ;
   
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
-                         const rule &impl, fact_db &facts) ;
+                         const rule &impl, fact_db &facts, sched_db &scheds) ;
   std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
   
   void create_user_function(unsigned char* , unsigned char* , int*,
@@ -44,9 +44,9 @@ namespace Loci {
   
   typedef std::map<variable,entitySet> vdefmap ;
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
-                                 fact_db &facts) ;
+                                 fact_db &facts, sched_db &scheds) ;
   entitySet vmap_source_requests(const vmap_info &vmi, fact_db &facts,
-                                 entitySet compute) ;
+                                 entitySet compute, sched_db &scheds) ;
 
   std::vector<digraph::vertexSet> schedule_dag(const digraph &g,
                            digraph::vertexSet start_vertices = EMPTY,
@@ -57,7 +57,7 @@ namespace Loci {
                          const std::vector<digraph::vertexSet> &dag_sched,
                          const rulecomp_map &rcm,
                          const digraph &dag) ;
-
+ 
 
   class loop_compiler : public rule_compiler {
 
@@ -70,9 +70,9 @@ namespace Loci {
     bool output_present ;
   public:
     loop_compiler(rulecomp_map &rp, digraph gin) ;
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
   // rule compiler for rule with concrete implementation
@@ -82,9 +82,9 @@ namespace Loci {
     entitySet exec_seq ;
   public:
     impl_compiler(rule r)  { impl=r;}
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
   // rule compiler for single rule recursion
@@ -112,9 +112,9 @@ namespace Loci {
   public:
     impl_recurse_compiler(rule r)
     { impl = r ;}
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
   class recurse_compiler : public rule_compiler {
@@ -157,18 +157,18 @@ namespace Loci {
       for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri) 
         recurse_vars += ri->targets() ;
     }
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
   class dag_compiler : public rule_compiler {
     std::vector<rule_compilerP> dag_comp ;
   public:
     dag_compiler(rulecomp_map &rp, digraph dag) ;
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
   class barrier_compiler : public rule_compiler {
@@ -179,9 +179,9 @@ namespace Loci {
   public:
     barrier_compiler(variableSet &vars)
       : barrier_vars(vars) {}
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts,  sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
   class singleton_var_compiler : public rule_compiler {
@@ -189,9 +189,9 @@ namespace Loci {
   public:
     singleton_var_compiler(variableSet &vars)
       :  barrier_vars(vars) {}
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
   class reduce_param_compiler : public rule_compiler {
@@ -202,9 +202,9 @@ namespace Loci {
     reduce_param_compiler(const variable &v, const rule &ur,
                           CPTR<joiner> &jop) :
       reduce_var(v), unit_rule(ur), join_op(jop) {}
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
   class reduce_store_compiler : public rule_compiler {
@@ -218,9 +218,9 @@ namespace Loci {
     reduce_store_compiler(const variable &v, const rule &ur,
                           CPTR<joiner> &jop) :
       reduce_var(v), unit_rule(ur), join_op(jop) {}
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
   class conditional_compiler : public rule_compiler {
@@ -229,53 +229,53 @@ namespace Loci {
   public:
     conditional_compiler(rulecomp_map &rp, digraph gin,
                          variable conditional) ;
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
   // apply rule compiler 
   class apply_compiler : public rule_compiler {
     rule apply,unit_tag ;  // rule to applyement
-  
+    
     // existential analysis info
     entitySet exec_seq ;
     bool output_mapping ;
   public:
     apply_compiler(rule r, rule ut)
-    { apply=r; unit_tag = ut ; }
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+      { apply=r; unit_tag = ut ; }
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
-
+  
   class promote_compiler : public rule_compiler {
     rule r ;
   public:
     promote_compiler(rule rin)
-    { r = rin; }
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+      { r = rin; }
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   class generalize_compiler : public rule_compiler {
     rule r ;
   public:
     generalize_compiler(rule rin)
-    { r = rin; }
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+      { r = rin; }
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
   class priority_compiler : public rule_compiler {
     rule r ;
   public:
     priority_compiler(rule rin)
-    { r = rin; }
-    virtual void set_var_existence(fact_db &facts) ;
-    virtual void process_var_requests(fact_db &facts) ;
-    virtual executeP create_execution_schedule(fact_db &facts) ;
+      { r = rin; }
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
   class execute_msg : public execute_modules {
@@ -312,7 +312,7 @@ namespace Loci {
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ; 
-
+  
 
 }
 

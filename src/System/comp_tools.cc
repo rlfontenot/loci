@@ -1,6 +1,6 @@
 #include "comp_tools.h"
 
-#include <mpi.h> 
+#include <mpi.h>  
 
 #include <vector>
 using std::vector ;
@@ -81,7 +81,7 @@ namespace Loci {
   /*The existential information is required to generate an execution
     schedule . This routine returns a set of entities such that the
     rule can be applied over those entities. */
-  void existential_rule_analysis(rule r, fact_db &facts) {
+  void existential_rule_analysis(rule r, fact_db &facts, sched_db &scheds) {
     FATAL(r.type() == rule::INTERNAL) ;
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
@@ -104,11 +104,10 @@ namespace Loci {
       of the attributes in the body of the rule. */
    
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-      sources &= vmap_source_exist(*si,facts) ;
+      sources &= vmap_source_exist(*si,facts, scheds) ;
     }
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
-      constraints &= vmap_source_exist(*si,facts) ;
-    
+      constraints &= vmap_source_exist(*si,facts, scheds) ;
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((sources & constraints) != constraints) {
 	cerr << "Warning, rule " << r <<
@@ -117,7 +116,7 @@ namespace Loci {
 	cerr << "sources & constraints = " << (sources & constraints) << endl ;
 
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-          entitySet sources = vmap_source_exist(*si,facts) ;
+          entitySet sources = vmap_source_exist(*si,facts, scheds) ;
           sources &= my_entities ;
           if((sources & constraints) != constraints) {
             cerr << "sources & constraints != constraints for input"
@@ -130,12 +129,12 @@ namespace Loci {
                 entitySet images ;
                 variableSet::const_iterator vi ;
                 for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
-                  images |= facts.image(*vi,working) ;
+                  images |= scheds.image(*vi,working) ;
                 working = images ;
               }
               variableSet::const_iterator vi ;
               for(vi=si->var.begin();vi!=si->var.end();++vi) {
-                entitySet exist = facts.variable_existence(*vi) ;
+                entitySet exist = scheds.variable_existence(*vi) ;
                 entitySet fails = working & ~exist ;
                 if(fails != EMPTY) {
                   cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
@@ -151,14 +150,14 @@ namespace Loci {
     //  constraints. 
     entitySet context = sources & constraints ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-      entitySet targets = vmap_target_exist(*si,facts,context) ;
+      entitySet targets = vmap_target_exist(*si,facts,context, scheds) ;
       const variableSet &tvars = si->var ;
       variableSet::const_iterator vi ;
       for(vi=tvars.begin();vi!=tvars.end();++vi) {
-	facts.set_existential_info(*vi,r,targets) ;
+	scheds.set_existential_info(*vi,r,targets) ;
 #ifdef VERBOSE
-	      debugout << "rule " << r << " generating variable " << *vi
-		       << " for entities " << targets << endl ;
+	debugout << "rule " << r << " generating variable " << *vi
+		 << " for entities " << targets << endl ;
 #endif
       }
     }
@@ -170,17 +169,16 @@ namespace Loci {
       if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
         WARN(r.targets().size() != 1) ;
         variable v = *r.targets().begin() ;
-        entitySet exist = facts.get_existential_info(v, r) ;
+        entitySet exist = scheds.get_existential_info(v, r) ;
         exist += fill_entitySet(exist,facts) ;
-        facts.set_existential_info(v,r,exist) ;
+        scheds.set_existential_info(v,r,exist) ;
       }
     }
-
   }
   
-
+  
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
-                                 fact_db &facts) {
+                                 fact_db &facts, sched_db &scheds) {
     // Here we will compute the context implied by a particular target
     // mapping
     variableSet::const_iterator vi ;
@@ -199,7 +197,7 @@ namespace Loci {
     // union.  e.g. for a->(b,c) we make sure that b and c both have
     // the same requests.
     for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
-      facts.variable_request(*vi,targets) ;
+      scheds.variable_request(*vi,targets) ;
     
     // Now we are applying the mapping that is applied to the target
     // variables. We do this by finding the preimage of each map.
@@ -213,7 +211,7 @@ namespace Loci {
       entitySet working = EMPTY ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
         FATAL(!facts.is_a_Map(*vi)) ;
-        working |= facts.preimage(*vi,targets).second ;
+        working |= scheds.preimage(*vi,targets).second ;
 	//cout << "mi = " << *mi << "   vi =  " << *vi  <<"    working = " << working << endl ;
       }
       // Now we have evaluated this map, we move targets to this level
@@ -224,9 +222,9 @@ namespace Loci {
     // of the rule that will be used to satisfy this set of requests.
     return targets ;
   }
-
+  
   entitySet vmap_source_requests(const vmap_info &vmi, fact_db &facts,
-                            entitySet context) {
+				 entitySet context, sched_db &scheds) {
     // this routine computes the set of entities that a source mapping will
     // imply.  It does this by following the images of the mapping.
     // The resulting entitySet contains all entities that will be accessed
@@ -238,20 +236,20 @@ namespace Loci {
       entitySet working ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
         FATAL(!facts.is_a_Map(*vi)) ;
-	working |= facts.image(*vi,compute) ;
+	working |= scheds.image(*vi,compute) ;
       }
       compute = working ;
     }
     return compute ;
   }
   
-  entitySet process_rule_requests(rule r, fact_db &facts) {
+  entitySet process_rule_requests(rule r, fact_db &facts, sched_db &scheds) {
     
     // Internal rules should be handling the appropriate rule requests via
     // their associated compiler.
-     FATAL(r.type() == rule::INTERNAL) ;
-     
-     // First we get the target variables of this rule ;
+    FATAL(r.type() == rule::INTERNAL) ;
+    
+    // First we get the target variables of this rule ;
      variableSet targets = r.targets() ;
      // We will be iterating over the target variables so we need an iterator
      variableSet::const_iterator vi ;  
@@ -266,25 +264,25 @@ namespace Loci {
      // the requests for the variables that this rule produces
      set<vmap_info>::const_iterator si ;
      entitySet context,isect = ~EMPTY ;
-
+     
      entitySet filter = ~EMPTY ;
      if(facts.isDistributed()) {
        fact_db::distribute_infoP d = facts.get_distribute_info() ;
        filter = d->my_entities ;
        isect = d->my_entities ;
      }
-
+     
      for(vi=targets.begin();vi!=targets.end();++vi) {
        // This is a hack for the special case of a rule with OUTPUT
        // as a target.  In that case we will request OUTPUT for
        // all entities that exist.  So we add a request for OUTPUT
        // to the fact database
-	 
+       
        if(vi->get_info().name == string("OUTPUT")) 
-         facts.variable_request(*vi,facts.variable_existence(*vi)) ;
+         scheds.variable_request(*vi,scheds.variable_existence(*vi)) ;
        
        // Now fill tvarmap with the requested values for variable *vi
-       tvarmap[*vi] = facts.get_variable_request(r,*vi) ;
+       tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
        //cout << d->myid << "    variable  =  "<< *vi << "   tvarmap  =  " <<
        //tvarmap[*vi] << endl ;
      }
@@ -293,7 +291,7 @@ namespace Loci {
      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
        // Transform the variable requests using the mapping constructs
        // in *si
-       entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
+       entitySet tmp = vmap_target_requests(*si,tvarmap,facts, scheds) ;
        //The context is the union
        context |= tmp ;
        isect &= tmp ;
@@ -313,11 +311,11 @@ namespace Loci {
          for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
            entitySet tmp ;
            for(vi=mi->begin();vi!=mi->end();++vi)
-             tmp |= facts.image(*vi,working) ;
+             tmp |= scheds.image(*vi,working) ;
            working = tmp ;
          }
          for(vi=si->var.begin();vi!=si->var.end();++vi) {
-           facts.variable_request(*vi,working) ;
+           scheds.variable_request(*vi,working) ;
          }
        }
      }
@@ -337,7 +335,7 @@ namespace Loci {
      for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
        // First map the context through source mappings
        entitySet requests;
-       requests = vmap_source_requests(*si,facts,context) ;
+       requests = vmap_source_requests(*si,facts,context, scheds) ;
        //cout <<d->myid <<  "   *si  =  "  << *si << "   requests  =  " << re
        //quests << endl ;
        entitySet var ;
@@ -347,23 +345,23 @@ namespace Loci {
        // these values.
 #ifdef VERBOSE
        debugout << "rule " << r << " requesting variables "
-                          << si->var << " for entities " << requests << endl ;
+		<< si->var << " for entities " << requests << endl ;
 #endif
        for(vi=si->var.begin();vi!=si->var.end();++vi)
-         facts.variable_request(*vi,requests) ;
+         scheds.variable_request(*vi,requests) ;
 	
        // We also need to pass the requests on to any conditional variables
        // this rule may have.
-	
+       
        for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi) 
-         facts.variable_request(*vi,context) ;
+         scheds.variable_request(*vi,context) ;
      }
 #ifdef VERBOSE
      cout << "rule " << r << " computes over " << context << endl ;
 #endif
      return context ;
   }
-
+  
   /* This routine, in addition to sending the entities that are not
      owned by a particular processor,  information is stored for
      performing this communication during the execution of the
@@ -508,12 +506,12 @@ namespace Loci {
   }
 
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
-                         const rule &impl, fact_db &facts) {
+                         const rule &impl, fact_db &facts, sched_db &scheds) {
     vector<entitySet> par_set = partition_set(exec_set,num_threads) ;
     
     for(vector<entitySet>::const_iterator
           i=par_set.begin();i!=par_set.end();++i) {
-      executeP execrule = new execute_rule(impl,sequence(*i),facts) ;
+      executeP execrule = new execute_rule(impl,sequence(*i),facts, scheds) ;
       ep->append_list(execrule) ;
     }
   }
@@ -544,7 +542,7 @@ namespace Loci {
 
   vector<pair<variable,entitySet> >
   barrier_existential_rule_analysis(variableSet vlst,
-                                    fact_db &facts) {
+                                    fact_db &facts, sched_db &scheds) {
     vector<pair<variable,entitySet> > send_entities ;
     std::map<variable, ruleSet>::iterator mi ;
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
@@ -559,7 +557,7 @@ namespace Loci {
     int ent = 0 ;
     for(variableSet::const_iterator vi=vlst.begin();vi!=vlst.end();++vi) {
       variable v = *vi ;
-      ruleSet r = facts.get_existential_rules(v) ;
+      ruleSet r = scheds.get_existential_rules(v) ;
       
       vars.push_back(v) ;
       rules.push_back(r) ;
@@ -574,7 +572,7 @@ namespace Loci {
           send_vars.push_back(v) ;
           send_rule.push_back(*rsi) ;
         }
-        exinfo.push_back(facts.get_existential_info(v, *rsi)) ;
+        exinfo.push_back(scheds.get_existential_info(v, *rsi)) ;
         ent++ ;
       }
     }
@@ -595,9 +593,9 @@ namespace Loci {
       variable v = send_vars[i] ;
       send_entities.push_back(make_pair(v,vmap[v])) ;
     }
+    
 
-
-
+    
     if(seinfo.size() != 0) {
       vector<entitySet> send_sets = send_entitySet(seinfo,facts) ;
       for(int i=0;i<seinfo.size();++i) {
@@ -612,7 +610,7 @@ namespace Loci {
       ruleSet &rs = rules[i] ;
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
         debugout << "v=" << v << ",rule ="<<*rsi
-                           <<"exinfo="<<exinfo[j++] << endl ;
+		 <<"exinfo="<<exinfo[j++] << endl ;
       }
     }
 #endif
@@ -633,7 +631,7 @@ namespace Loci {
           if(vi->get_info().name == vname)
             rv = *vi ;
         }
-	facts.set_existential_info(rv,*rsi,exinfo[j]) ;
+	scheds.set_existential_info(rv,*rsi,exinfo[j]) ;
         ++j ;
       }
     }
@@ -744,14 +742,14 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   
  
   list<comm_info>
-  barrier_process_rule_requests(variableSet vars, fact_db &facts) {
+  barrier_process_rule_requests(variableSet vars, fact_db &facts, sched_db &scheds) {
     list<comm_info> clist ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       variable v = *vi ;
-      entitySet requests = facts.get_variable_requests(v) ;
+      entitySet requests = scheds.get_variable_requests(v) ;
       requests += send_requests(requests, v, facts, clist ) ;
       requests += fill_entitySet(requests, facts) ;
-      facts.variable_request(v,requests) ;
+      scheds.variable_request(v,requests) ;
     }
     return clist ;
   }
@@ -1201,18 +1199,18 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     return clist ;
   }
   
-  void barrier_compiler::set_var_existence(fact_db &facts) {
+  void barrier_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed())
-      send_entities = barrier_existential_rule_analysis(barrier_vars, facts) ;
+      send_entities = barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
   }
   
-  void barrier_compiler::process_var_requests(fact_db &facts) {
+  void barrier_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       list<comm_info> request_comm ;
       /* The list<comm_info> returned by the
 	 barrier_process_rule_requests contains the communication
 	 information to send and receive the entities in the clone region*/
-      request_comm = barrier_process_rule_requests(barrier_vars, facts) ;
+      request_comm = barrier_process_rule_requests(barrier_vars, facts, scheds) ;
       
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
@@ -1221,7 +1219,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         variable v = vi->first ;
         entitySet send_set = vi->second ;
         send_requested.push_back(make_pair(v,send_set &
-                                           facts.get_variable_requests(v))) ;
+                                           scheds.get_variable_requests(v))) ;
       }
       /*The put_precomm_info is used in case there is a mapping in the 
 	output for any of the rules. */
@@ -1231,7 +1229,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
 
-  executeP barrier_compiler::create_execution_schedule(fact_db &facts) {
+  executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_sequence> el = new execute_sequence ;
       el->append_list(new execute_thread_sync) ;
@@ -1250,18 +1248,19 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   
   
   
-  void singleton_var_compiler::set_var_existence(fact_db &facts)  {
+  void singleton_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed())
-      barrier_existential_rule_analysis(barrier_vars, facts) ;
+      barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
   }
   
-  void singleton_var_compiler::process_var_requests(fact_db &facts) {
+  void singleton_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
-      barrier_process_rule_requests(barrier_vars, facts) ;
+      barrier_process_rule_requests(barrier_vars, facts, scheds) ;
     }
   }
   
-  executeP singleton_var_compiler::create_execution_schedule(fact_db &facts) {
+  executeP singleton_var_compiler::create_execution_schedule(fact_db &facts 
+, sched_db &scheds) {
     variableSet vars ;
     vars = barrier_vars ;
     ostringstream oss ;

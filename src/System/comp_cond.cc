@@ -14,11 +14,11 @@ namespace Loci {
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
-
+  
   void execute_conditional::execute(fact_db &facts) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
-
+    
     if(*test) {
       conditional->execute(facts) ;
     }
@@ -29,11 +29,11 @@ namespace Loci {
     conditional->Print(s) ;
     s << "--end conditional" << endl ;
   }
-
+  
   conditional_compiler::conditional_compiler(rulecomp_map &rule_process,
-                                                 digraph dag,
+					     digraph dag,
                                              variable conditional)
-   {
+  {
     cond_var = conditional ;
     std::vector<digraph::vertexSet> dag_sched = schedule_dag(dag) ;
     compile_dag_sched(dag_comp,dag_sched,rule_process,dag) ;
@@ -46,28 +46,28 @@ namespace Loci {
     warn(allvertices != dag.get_all_vertices()) ;
 #endif
   }
-
-    
-  void conditional_compiler::set_var_existence(fact_db &facts) {
+  
+  
+  void conditional_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::iterator i ;
     for(i=dag_comp.begin();i!=dag_comp.end();++i)
-      (*i)->set_var_existence(facts) ;
+      (*i)->set_var_existence(facts, scheds) ;
   }
-
-  void conditional_compiler::process_var_requests(fact_db &facts) {
+  
+  void conditional_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::reverse_iterator ri ;
     for(ri=dag_comp.rbegin();ri!=dag_comp.rend();++ri)
-      (*ri)->process_var_requests(facts) ;
+      (*ri)->process_var_requests(facts, scheds) ;
   }
-
-  executeP conditional_compiler::create_execution_schedule(fact_db &facts) {
+  
+  executeP conditional_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     CPTR<execute_list> elp = new execute_list ;
-
+    
     std::vector<rule_compilerP>::iterator i ;
     for(i=dag_comp.begin();i!=dag_comp.end();++i) {
-      elp->append_list((*i)->create_execution_schedule(facts)) ;
+      elp->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
-
+    
     return new execute_conditional(executeP(elp),cond_var) ;
   }
 

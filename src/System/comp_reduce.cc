@@ -52,25 +52,25 @@ namespace Loci {
   }
   
   entitySet vmap_source_exist_apply(const vmap_info &vmi, fact_db &facts,
-                                    variable reduce_var) {
+                                    variable reduce_var, sched_db &scheds) {
     variableSet::const_iterator vi ;
     entitySet sources = ~EMPTY ;
     for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
       if(*vi != reduce_var)
-        sources &= facts.variable_existence(*vi) ;
+        sources &= scheds.variable_existence(*vi) ;
     vector<variableSet>::const_reverse_iterator mi ;
     for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
       entitySet working = ~EMPTY ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
         FATAL(!facts.is_a_Map(*vi)) ;
-        working &= facts.preimage(*vi,sources).first ;
+        working &= scheds.preimage(*vi,sources).first ;
       }
       sources = working ;
     }
     return sources ;
   }
   
-  void apply_compiler::set_var_existence(fact_db &facts) {
+  void apply_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
 
       // Compute the shadow entities produced by using this apply rules.
@@ -98,16 +98,16 @@ namespace Loci {
         return ;
       
       for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-        sources &= vmap_source_exist_apply(*si,facts,reduce_var) ;
+        sources &= vmap_source_exist_apply(*si,facts,reduce_var, scheds) ;
       } 
       for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
-        constraints &= vmap_source_exist(*si,facts) ;
+        constraints &= vmap_source_exist(*si,facts, scheds) ;
 
       sources &= constraints ;
       
       entitySet context = sources & constraints ;
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-        entitySet targets = vmap_target_exist(*si,facts,context) ;
+        entitySet targets = vmap_target_exist(*si,facts,context, scheds) ;
         const variableSet &tvars = si->var ;
         variableSet::const_iterator vi ;
 	for(vi=tvars.begin();vi!=tvars.end();++vi) {
@@ -117,18 +117,18 @@ namespace Loci {
 			   << targets - d->my_entities << endl
 			   << "variable is " << *vi << endl ;
 #endif
-	facts.variable_shadow(*vi,targets) ;
+	scheds.variable_shadow(*vi,targets) ;
       }
     }
   }
 } 
   
   
-  void apply_compiler::process_var_requests(fact_db &facts) {
-
+  void apply_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+    
 #ifdef VERBOSE
     debugout << "in process_var_requests" << endl ;
-#endif
+#endif 
     vdefmap tvarmap ;
     variableSet targets = apply.targets() ;
     variableSet sources = apply.sources() ;
@@ -137,15 +137,15 @@ namespace Loci {
     variable tvar = *(targets.begin()) ;
     
     if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER) 
-      tvarmap[tvar] = facts.variable_existence(tvar) ;
+      tvarmap[tvar] = scheds.variable_existence(tvar) ;
     else
-      tvarmap[tvar] = facts.get_variable_request(unit_tag,tvar) ;
-
+      tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
+    
     const rule_impl::info &rinfo = apply.get_info().desc ;
     set<vmap_info>::const_iterator si ;
     entitySet compute ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-      compute |= vmap_target_requests(*si,tvarmap,facts) ;
+      compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
     }
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
@@ -161,22 +161,22 @@ namespace Loci {
         entitySet working ;
         for(vi=mi->begin();vi!=mi->end();++vi) {
           FATAL(!facts.is_a_Map(*vi)) ;
-          working |= facts.image(*vi,comp) ;
+          working |= scheds.image(*vi,comp) ;
         }
         comp = working ;
       }
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
-        if((comp - facts.variable_existence(*vi)) != EMPTY) {
+        if((comp - scheds.variable_existence(*vi)) != EMPTY) {
           cerr << "ERROR: Apply rule " << apply <<  endl
                << " output mapping forces application to entities where unit does not exist." << endl ;
           cerr << "error occurs for entities " <<
-            entitySet(comp-facts.variable_existence(*vi)) << endl ;
+            entitySet(comp-scheds.variable_existence(*vi)) << endl ;
           cerr << "error occurs when applying to variable " << *vi << endl;
           cerr << "error is not recoverable, terminating scheduling process"
                << endl ;
           exit(-1) ;
         }
-        facts.variable_request(*vi,comp) ;
+        scheds.variable_request(*vi,comp) ;
       }
     }
     
@@ -191,9 +191,9 @@ namespace Loci {
     }
     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
-      srcs &= vmap_source_exist(*si,facts) ;
+      srcs &= vmap_source_exist(*si,facts, scheds) ;
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
-      cnstrnts &= vmap_source_exist(*si,facts) ;
+      cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((srcs & cnstrnts) != cnstrnts) {
         cerr << "Warning, reduction rule:" << apply
@@ -203,7 +203,7 @@ namespace Loci {
         cerr << "srcs & constraints = " << sac << endl ;
         //      exit(-1) ;
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-          entitySet sources = vmap_source_exist(*si,facts) ;
+          entitySet sources = vmap_source_exist(*si,facts, scheds) ;
           sources &= my_entities ;
           if((sources & cnstrnts) != cnstrnts) {
             cerr << "sources & constraints != constraints for input"
@@ -216,12 +216,12 @@ namespace Loci {
                 entitySet images ;
                 variableSet::const_iterator vi ;
                 for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
-                  images |= facts.image(*vi,working) ;
+                  images |= scheds.image(*vi,working) ;
                 working = images ; 
               }
               variableSet::const_iterator vi ;
               for(vi=si->var.begin();vi!=si->var.end();++vi) {
-                entitySet exist = facts.variable_existence(*vi) ;
+                entitySet exist = scheds.variable_existence(*vi) ;
                 entitySet fails = working & ~exist ;
                 if(fails != EMPTY) {
                   cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
@@ -238,24 +238,24 @@ namespace Loci {
     exec_seq = compute ;
     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-      entitySet requests = vmap_source_requests(*si,facts,compute) ;
+      entitySet requests = vmap_source_requests(*si,facts,compute, scheds) ;
       variableSet::const_iterator vi ;
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
         variable v = *vi ;
-        facts.variable_request(v,requests) ; 
+        scheds.variable_request(v,requests) ; 
 #ifdef VERBOSE
 	debugout << "rule " << apply << " requesting variable "
-			   << v << " for entities " << requests << endl ;
+		 << v << " for entities " << requests << endl ;
 #endif
       }
     }
-        
+    
 #ifdef VERBOSE
     debugout << "rule " << apply << " computes over " << compute << endl ;
 #endif
   }
   
-  executeP apply_compiler::create_execution_schedule(fact_db &facts) {
+  executeP apply_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
 #ifndef DEBUG
     if(exec_seq.size() == 0)
       return executeP(0) ;
@@ -263,10 +263,10 @@ namespace Loci {
     CPTR<execute_list> el = new execute_list ;
     if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
        exec_seq.size() < num_threads*30 ) {
-      el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
+      el->append_list(new execute_rule(apply,sequence(exec_seq),facts, scheds)) ;
     } else if(!apply.get_info().output_is_parameter &&!output_mapping) {
       execute_par *ep = new execute_par ;
-      parallel_schedule(ep,exec_seq,apply,facts) ;
+      parallel_schedule(ep,exec_seq,apply,facts, scheds) ;
       el->append_list(ep)  ;
     } else if(apply.get_info().output_is_parameter) {
       variableSet target = apply.targets() ;
@@ -283,9 +283,9 @@ namespace Loci {
         var_vec.push_back(rp) ;
         execute_sequence *es = new execute_sequence ;
         es->append_list(new execute_rule(unit_tag,sequence(partition[i]),
-                                         facts,v,rp)) ;
+                                         facts,v,rp, scheds)) ;
         es->append_list(new execute_rule(apply,sequence(partition[i]),
-                                         facts,v,rp)) ;
+                                         facts,v,rp, scheds)) ;
         ep->append_list(es) ;
       }
       el->append_list(ep) ;
@@ -309,7 +309,7 @@ namespace Loci {
       for(int i=0;i<partition.size();++i) {
         fatal(rinfo.targets.size() != 1) ;
         entitySet context = partition[i] ;
-        entitySet pdom = vmap_target_exist(*rinfo.targets.begin(),facts,context) ;
+        entitySet pdom = vmap_target_exist(*rinfo.targets.begin(),facts,context, scheds) ;
         entitySet rem = pdom & apply_domain ;
         if(rem != EMPTY) {
           entitySet compute = rem ;
@@ -320,19 +320,19 @@ namespace Loci {
             variableSet::const_iterator vi;
             for(vi=mi->begin();vi!=mi->end();++vi) {
               FATAL(!facts.is_a_Map(*vi)) ;
-              working |= facts.preimage(*vi,compute).second ;
+              working |= scheds.preimage(*vi,compute).second ;
             }
             compute = working ;
           }
           compute &= partition[i] ;
           shards.push_back(compute) ;
-          entitySet sdom = vmap_target_exist(vmi,facts,compute) ;
+          entitySet sdom = vmap_target_exist(vmi,facts,compute, scheds) ;
           shard_domains.push_back(sdom) ;
           context &= ~compute ;
         }
         apply_domain |= pdom ;
         all_contexts |= partition[i] ;
-        ep->append_list(new execute_rule(apply,sequence(context),facts)) ;
+        ep->append_list(new execute_rule(apply,sequence(context),facts, scheds)) ;
       }
       if(shards.size() == 0) {
         el->append_list(ep) ;
@@ -361,9 +361,9 @@ namespace Loci {
           var_vec.push_back(rp) ;
           execute_sequence *es = new execute_sequence ;
           es->append_list(new execute_rule(unit_tag,sequence(shard_domains[i]),
-                                           facts,v,rp)) ;
+                                           facts,v,rp, scheds)) ;
           es->append_list(new execute_rule(apply,sequence(shards[i]),
-                                           facts,v,rp)) ;
+                                           facts,v,rp, scheds)) ;
           ep->append_list(es) ;
         }
       
@@ -464,28 +464,28 @@ namespace Loci {
   void execute_param_red::Print(ostream &s) const {
     s << "param reduction on " << reduce_var << endl ;
   }
-  void reduce_param_compiler::set_var_existence(fact_db &facts)  {
+  void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       entitySet targets ;
-      targets = facts.get_existential_info(reduce_var, unit_rule) ;
+      targets = scheds.get_existential_info(reduce_var, unit_rule) ;
       targets += send_entitySet(targets, facts) ;
       targets &= d->my_entities ;
       targets += fill_entitySet(targets, facts) ;
-      facts.set_existential_info(reduce_var,unit_rule,targets) ;
+      scheds.set_existential_info(reduce_var,unit_rule,targets) ;
     }
   }
   
-  void reduce_param_compiler::process_var_requests(fact_db &facts) {
+  void reduce_param_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
-      entitySet requests = facts.get_variable_requests(reduce_var) ;
+      entitySet requests = scheds.get_variable_requests(reduce_var) ;
       requests += send_entitySet(requests, facts) ;
-      facts.variable_request(reduce_var,requests) ;
+      scheds.variable_request(reduce_var,requests) ;
     }
   } 
   
-  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts) {
+  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     ostringstream oss ;
     oss << "reduce param " << reduce_var ;
     if(facts.isDistributed()) {
@@ -497,14 +497,14 @@ namespace Loci {
     return executeP(new execute_msg(oss.str())) ;
   }
   
-  void reduce_store_compiler::set_var_existence(fact_db &facts)  {
+  void reduce_store_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      entitySet targets = facts.get_existential_info(reduce_var, unit_rule) ;
+      entitySet targets = scheds.get_existential_info(reduce_var, unit_rule) ;
       targets += send_entitySet(targets, facts) ;
       targets &= d->my_entities ;
       targets += fill_entitySet(targets, facts) ;
-      facts.set_existential_info(reduce_var,unit_rule,targets) ;
+      scheds.set_existential_info(reduce_var,unit_rule,targets) ;
     }
   }
   
@@ -517,30 +517,27 @@ namespace Loci {
     }
   }
   
-  void reduce_store_compiler::process_var_requests(fact_db &facts) {
+  void reduce_store_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet vars ;
       vars += reduce_var ;
-      list<comm_info> request_comm = barrier_process_rule_requests(vars,facts) ;
-      
-      entitySet requests = facts.get_variable_requests(reduce_var) ;
-      entitySet shadow = facts.get_variable_shadow(reduce_var) ;
+      list<comm_info> request_comm = barrier_process_rule_requests(vars,facts, scheds) ;
+      entitySet requests = scheds.get_variable_requests(reduce_var) ;
+      entitySet shadow = scheds.get_variable_shadow(reduce_var) ;
       shadow &= requests ;
-      
       list<comm_info> slist ;
       entitySet response = send_requests(shadow, reduce_var,facts,slist) ;
       swap_send_recv(slist) ;
-    
       rlist = sort_comm(slist,facts) ;
       clist = sort_comm(request_comm,facts) ;
       
 #ifdef VERBOSE
-    if(shadow != EMPTY) {
-      debugout << "shadow = " << shadow << endl ;
-      shadow -= d->my_entities ;
-      debugout << "shadow/my_entites = " << shadow << endl ;
-    }
+      if(shadow != EMPTY) {
+	debugout << "shadow = " << shadow << endl ;
+	shadow -= d->my_entities ;
+	debugout << "shadow/my_entites = " << shadow << endl ;
+      }
 #endif
     }
   }
@@ -849,7 +846,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     }
   }
   
-  executeP reduce_store_compiler::create_execution_schedule(fact_db &facts) {
+  executeP reduce_store_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_sequence> el = new execute_sequence ;
       

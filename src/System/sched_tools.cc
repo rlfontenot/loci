@@ -41,17 +41,17 @@ namespace Loci {
     return rule(oss.str()) ;
   }
 
-  entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts) {
+  entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi ;
     entitySet sources = ~EMPTY ;
     for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
-      sources &= facts.variable_existence(*vi) ;
+      sources &= scheds.variable_existence(*vi) ;
     vector<variableSet>::const_reverse_iterator mi ;
     for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
       entitySet working = ~EMPTY ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
         FATAL(!facts.is_a_Map(*vi)) ;
-	working &= facts.preimage(*vi,sources).first ;
+	working &= scheds.preimage(*vi,sources).first ;
       }
       sources = working ;
     }
@@ -60,20 +60,20 @@ namespace Loci {
 
 
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
-                              entitySet compute) {
+                              entitySet compute, sched_db &scheds) {
     vector<variableSet>::const_iterator mi ;
     for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
       if(mi->size() == 1) {
         variable v = *(mi->begin()) ;
         FATAL(!facts.is_a_Map(v)) ;
-        compute = facts.image(v,compute) ;
+        compute = scheds.image(v,compute) ;
       } else {
         variableSet::const_iterator vi ;
         entitySet images ;
         for(vi=mi->begin();vi!=mi->end();++vi) {
           variable v = *vi ;
           FATAL(!facts.is_a_Map(v)) ;
-          images |= facts.image(v,compute) ;
+          images |= scheds.image(v,compute) ;
         }
         compute = images ;
       }
