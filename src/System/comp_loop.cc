@@ -226,7 +226,7 @@ namespace Loci {
 
     // sanity check, all vertices should be scheduled
     digraph::vertexSet allvertices = visited ;
-    for(int i=0;i< dag_sched.size();++i) 
+    for(size_t i=0;i< dag_sched.size();++i) 
       allvertices += dag_sched[i] ;
     warn(allvertices != dag.get_all_vertices()) ;
     if(allvertices != dag.get_all_vertices()) {

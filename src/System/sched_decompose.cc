@@ -11,6 +11,27 @@ using std::pair ;
 using std::make_pair ;
 
 namespace Loci {
+  void cleanup_component(const digraph &dg, digraph::vertexSet &component) {
+    // Remove variables from component if they have references outside
+    // the component
+    variableSet cvars = extract_vars(component) ;
+    digraph::vertexSet remove_vars ;
+    digraph gr = dg ;
+    digraph grt = gr.transpose() ;
+    for(variableSet::const_iterator vi = cvars.begin();
+        vi!=cvars.end();
+        ++vi) {
+      const int id = (*vi).ident() ;
+      if((grt[id]-component) != EMPTY
+         || (gr[id]-component) != EMPTY)
+        remove_vars += id ;
+    }
+
+    component -= remove_vars ;
+#ifdef VERBOSE
+    cout << "remove_vars = " << extract_vars(remove_vars) ;
+#endif
+  }
 
   inline multiLevelGraph create_mlg(digraph dg,
                                     digraph::vertexSet sources,
@@ -139,6 +160,7 @@ namespace Loci {
     for(vector<time_ident>::reverse_iterator ti = time_sequence.rbegin();
         ti!=time_sequence.rend();
         ++ti) {
+      cleanup_component(dg,time_sort_vertices[*ti]) ;
       if(time_sort_vertices[*ti] != EMPTY) {
         if(*ti != time_ident()) {
           int new_node = mlg.mksnode(toplevel,time_sort_vertices[*ti]) ;
@@ -250,7 +272,9 @@ namespace Loci {
     for(ci=components.begin();ci!=components.end();++ci)
       if(ci->size() > 1) {
         if((*ci & looping) != EMPTY) {
-          int newnode = mlg.mksnode(supernode,*ci) ; 
+          digraph::vertexSet component_parts = *ci ;
+          //          cleanup_component(sg.gr,component_parts) ;
+          int newnode = mlg.mksnode(supernode,component_parts) ; 
           new_nodes += newnode ;
           loops += newnode ;
           break ;
@@ -408,23 +432,7 @@ namespace Loci {
 
       // Remove variables from component if they have references outside
       // the component
-      variableSet cvars = extract_vars(component) ;
-      digraph::vertexSet remove_vars ;
-      digraph gr = sg.gr ;
-      digraph grt = gr.transpose() ;
-      for(variableSet::const_iterator vi = cvars.begin();
-          vi!=cvars.end();
-          ++vi) {
-        const int id = (*vi).ident() ;
-        if((grt[id]-component) != EMPTY
-           || (gr[id]-component) != EMPTY)
-          remove_vars += id ;
-      }
-
-      component -= remove_vars ;
-#ifdef VERBOSE
-      cout << "remove_vars = " << extract_vars(remove_vars) ;
-#endif
+      cleanup_component(sg.gr,component) ;
 
       int new_node =  mlg.mksnode(supernode,component,mi->first) ;
 
