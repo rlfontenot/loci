@@ -421,10 +421,11 @@ namespace Loci {
   ostream &options_list::Print(ostream &s) const {
     s << "<" ;
     option_map::const_iterator tmp = options_db.begin() ;
-    if(tmp != options_db.end())
+    if(tmp != options_db.end()) {
       s<<(*tmp).first<<"="<<(*tmp).second ;
-    for(++tmp;tmp!=options_db.end();++tmp)
-      s<<","<<(*tmp).first<<"="<<(*tmp).second ;
+      for(++tmp;tmp!=options_db.end();++tmp)
+        s<<","<<(*tmp).first<<"="<<(*tmp).second ;
+    }
     s << ">" ;
     return s ;
   }
