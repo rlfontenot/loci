@@ -1,11 +1,10 @@
 #ifndef TOOLS_H
 #define TOOLS_H
 
+#ifdef NO_CMATH
+#include <math.h>
+#else
 #include <cmath>
-#include <cstdlib>
-#include <algorithm>
-#include <utility>
-#include <iosfwd>
 
 // trigonemetric
 using std::acos ;
@@ -25,14 +24,28 @@ using std::log ;
 using std::log10 ;
 using std::sqrt ;
 using std::pow ;
-// misc
-using std::max ;
-using std::min ;
-using std::abs ;
 using std::fabs ;
+// misc
 using std::ceil ;
 using std::floor ;
 using std::fmod ;
+#endif
+#ifdef NO_CSTDLIB
+#include <stdlib.h>
+inline float abs(float f1) { return f1>0?f1:-f1; }
+inline double abs(double f1) { return f1>0?f1:-f1; }
+inline long double abs(long double f1) { return f1>0?f1:-f1; }
+#else
+#include <cstdlib>
+using std::abs ;
+#endif
+
+#include <algorithm>
+using std::max ;
+using std::min ;
+
+#include <utility>
+#include <iosfwd>
 
 template <class T> inline T square(const T &a)   { return a*a ; }
 

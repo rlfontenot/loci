@@ -3,7 +3,12 @@
 
 #include <ostream>
 #include <iostream>
+#ifdef NO_CSTDLIB
+#include <stdlib.h>
+#else
 #include <cstdlib>
+using std::abort ;
+#endif
 
 #ifdef DEBUG
 
@@ -29,7 +34,7 @@
                                 ") true -- file\"" << __FILE__ << \
                                   "\", line " << __LINE__ <<  \
                  ", Class '" << DEBUG_TYPE_NAME(*this) << "'" << std::endl; \
-                                 std::abort() ; }}
+                                 abort() ; }}
  
 #define WARN(cond) {if(cond){ std::cerr << "Warning: (" << # cond << \
                                 ") true -- file \"" << __FILE__ << \
@@ -38,7 +43,7 @@
 #define FATAL(cond) {if(cond){ std::cerr << "FATAL Error: (" # cond << \
                                 ") true -- file\"" << __FILE__ << \
                                   "\", line " << __LINE__ << std::endl; \
-                                 std::abort() ; }}
+                                 abort() ; }}
 
 
 #else  // DEBUG

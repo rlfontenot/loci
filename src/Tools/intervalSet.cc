@@ -3,11 +3,11 @@
 #include "intervalSet.h"
 #include <algorithm>
 #include <functional>
-#include <cctype>
+//#include <cctype>
 #include <stream.h>
 
 
-using namespace std::rel_ops ;
+//using namespace std::rel_ops ;
 using std::pair ;
 
 using std::binary_search ;

@@ -12,13 +12,13 @@ namespace Loci {
     string option ;
     for(int i=0;i<sz;++i) {
       if(s[i] == ':') {
-        if(option != "")
+        if(option.size() != 0)
           set_of_options.insert(option) ;
         option = "" ;
       } else 
         option += s[i] ;
     }
-    if(option != "")
+    if(option.size() != 0)
       set_of_options.insert(option) ;
   }
 
