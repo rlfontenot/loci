@@ -7,8 +7,12 @@ using std::endl ;
 #include <vector>
 using std::vector ;
 
+#ifdef NO_CSTDLIB
+#include <string.h>
+#else
 #include <cstring>
 using std::strncpy ;
+#endif
 
 // This is an atomic element class.  It is defined here to illustrate that
 // blackbox containers can hold arbitrary datatypes.  Loci will make no
