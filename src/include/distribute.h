@@ -9,6 +9,11 @@
 #include <constraint.h>
 #include <fact_db.h>
 
+#include <istream>
+#include <ostream>
+#include <iostream>
+#include <fstream>
+
 #define LOCI_HAS_READ_WRITE_PARTITION 1
  
 namespace Loci {
