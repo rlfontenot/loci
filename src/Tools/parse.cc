@@ -3,31 +3,31 @@
 #include <locale>
 
 namespace Loci {
-namespace parse {
-
+  namespace parse {
+    
     using namespace std ;
     void kill_white_space(istream &s) {
-
-        bool flushed_comment ;
-        do {
-            flushed_comment = false ;
-            while(!s.eof() && isspace(s.peek()))
-              s.get() ;
-            if(s.peek() == '/') { // check for comment
-                s.get() ;
-                if(s.peek() == '/') {
-                    while(!s.eof()) {
-                        int ch = s.get() ;
-                        if(ch=='\n' || ch == '\r')
-                          break ;
-                    }
-                    flushed_comment = true ;
-                } else
-                  s.putback('/') ;
-            }
-        } while(!s.eof() && flushed_comment) ;
-
-        return ;
+      
+      bool flushed_comment ;
+      do {
+	flushed_comment = false ;
+	while(!s.eof() && isspace(s.peek()))
+	  s.get() ;
+	if(s.peek() == '/') { // check for comment
+	  s.get() ;
+	  if(s.peek() == '/') {
+	    while(!s.eof()) {
+	      int ch = s.get() ;
+	      if(ch=='\n' || ch == '\r')
+		break ;
+	    }
+	    flushed_comment = true ;
+	  } else
+	    s.putback('/') ;
+	}
+      } while(!s.eof() && flushed_comment) ;
+      
+      return ;
     }
     
     bool is_name(istream &s) {
@@ -94,7 +94,7 @@ namespace parse {
             ch = s.get() ;
         }
 #ifdef DEBUG
-        if(ch!='"')
+        if(ch!='\"')
           cerr << "no closing \" in parse::get_string" << endl ;
 #endif
         return str ;
@@ -116,16 +116,16 @@ namespace parse {
     }
     
     bool get_token(istream &s, const string &token) {
-        kill_white_space(s) ;
-        for(int i=0;i<token.size();++i) {
-            if(s.peek() != token[i]) {
-                for(--i;i>=0;--i)
-                  s.putback(token[i]) ;
-                return false ;
-            }
-            s.get() ;
-        }
-        return true ;
+      kill_white_space(s) ;
+      for(int i=0;i<token.size();++i) {
+	if(s.peek() != token[i]) {
+	  for(--i;i>=0;--i)
+	    s.putback(token[i]) ;
+	  return false ;
+	}
+	s.get() ;
+      }
+      return true ;
     }
-}    
+  }    
 }
