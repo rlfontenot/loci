@@ -14,6 +14,10 @@ using std::set ;
 namespace Loci {
   void impl_recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
 
+#ifdef VERBOSE
+    debugout << "set var existence for recursive impl rule " << impl << endl ;
+#endif
+      
     variableSet::const_iterator vi ;
     variableSet tvars ;
     tvars = impl.targets() ;
@@ -129,6 +133,8 @@ namespace Loci {
 
     
     entitySet sdelta = scheds.variable_existence(rvar) ;
+
+    entitySet initial = sdelta ;
     entitySet domain = fctrl.nr_sources + sdelta ;
 
     if(facts.isDistributed()) {
@@ -195,6 +201,7 @@ namespace Loci {
       exists_alloc += working ;
     }
     exists_alloc += tdelta ;
+    exists_alloc += initial ;
     store<bool> exists ;
     exists.allocate(exists_alloc) ;
 #ifdef VERBOSE
@@ -204,9 +211,15 @@ namespace Loci {
     for(entitySet::const_iterator
           ei=exists_alloc.begin();ei!=exists_alloc.end();++ei)
       exists[*ei] = false ;
+
+    for(entitySet::const_iterator
+          ei=initial.begin();ei!=initial.end();++ei)
+      exists[*ei] = true ;
+    
     exists_alloc -= my_entities ;
 #ifdef VERBOSE
     debugout << "exists_alloc-my_entities = " << exists_alloc << endl ;
+    debugout << "my_entities = " << my_entities << endl ;
 #endif
     for(entitySet::const_iterator
           ei=exists_alloc.begin();ei!=exists_alloc.end();++ei)
@@ -220,6 +233,13 @@ namespace Loci {
       for(int j=read_map_inv.size()-1;j>=0;--j) {
         entitySet candidates ;
         const int *mi ;
+        if((sdelta - read_map_inv[j].domain()) != EMPTY) {
+          cerr << "problem in processing recursive rule " << impl
+               << endl ;
+          Loci::Abort() ;
+          break ;
+        }
+            
         for(entitySet::const_iterator di=sdelta.begin();di!=sdelta.end();++di) {
 #ifdef DEBUG
           if(!read_map_inv[j].domain().inSet(*di)) {
@@ -234,6 +254,7 @@ namespace Loci {
       }
 #ifdef VERBOSE
       debugout << "candidates = " << sdelta << endl ;
+      debugout << "nr_sources = " << nr_sources << endl ;
 #endif
       // we now have candidate sdeltas, check them to see if they
       // are satisfied.
@@ -246,13 +267,13 @@ namespace Loci {
         me[0] = read_maps[0].end(c) ;
         int j=0 ;
         const int je=read_maps.size();
-        bool chk = true ;
+        bool chk = nr_sources.inSet(c) ;
         // Check that all paths from candidate go to generated cells
         while(chk && j>=0) {
           c = *mi[j] ;
           j++ ;
           if(j==je) {
-            chk = chk && exists[c] && nr_sources.inSet(c) ;
+            chk = chk && exists[c] ; //&& nr_sources.inSet(c) ;
             do {
               j-- ;
             } while(j>=0 && (++mi[j]) == me[j]) ;
@@ -268,14 +289,14 @@ namespace Loci {
           int c = *di ;
           mi[0] = read_maps[0].begin(c) ;
           me[0] = read_maps[0].end(c) ;
-          chk = true ;
+          chk = nr_sources.inSet(c) ;
           int j=0 ;
           const int je=read_maps.size();
           while(chk && j>=0) {
             c = *mi[j] ;
             j++ ;
             if(j==je) {
-              chk = chk && exists[c] && nr_sources.inSet(c) ;
+              chk = chk && exists[c] ;// && nr_sources.inSet(c) ;
               do {
                 j-- ;
               } while(j>=0 && (++mi[j]) == me[j]) ;
