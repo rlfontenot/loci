@@ -719,179 +719,179 @@ namespace Loci {
       }
       
     }
-    
-    // function that clean the dependency graph at last
-    void dependency_graph2::clean_graph(const variableSet& given,
-                                        const variableSet& target) {
-      // testing...
-      //given -= variable("EMPTY") ;
-
-      ruleSet all_cleaned_rules ;
-      bool cleaned_rules = false ;
-      do { // Keep cleaning until nothing left to clean!
-        
-        // Remove unnecessary vertices from graph.
-        int virtual_vertex = gr.max_vertex() + 1 ;
-        digraph::vertexSet allvertices = gr.get_all_vertices() ;
-        variableSet allvars = extract_vars(allvertices) ;
-        
-        //  target += variable(expression::create("OUTPUT")) ;
-        
-        gr.add_edges(virtual_vertex, given) ;
-        gr.add_edges(target,virtual_vertex) ;
-        
-        const vector<digraph::vertexSet> components =
-          component_sort(gr).get_components() ;
-        
-        digraph::vertexSet subset = EMPTY ;
-        
-        for(size_t i=0;i<components.size();++i)
-          if(components[i].inSet(virtual_vertex)) {
-            subset = components[i] ;
-            break ;
-          }
-        
-        subset -= virtual_vertex ;
-        ruleSet rules = extract_rules(subset) ;
-        ruleSet::const_iterator fi ;
-        for(fi=rules.begin();fi!=rules.end();++fi)
-          subset += fi->targets() ;
-
-#ifdef VERBOSE
-        // some debugout info
-        ruleSet rulesNOTinComponent =
-          ruleSet(extract_rules(gr.get_all_vertices()) - rules) ;
-        debugout << "The following rules are cleaned out because they"
-                 << " are not in the targets->sources component: {{{{{"
-                 << endl ;
-        debugout << rulesNOTinComponent ;
-        debugout << "}}}}}" << endl << endl ;
-#endif
-        
-        // Check for looping rules here, don't clean looping rule if it is
-        // in the subset.
-        digraph grt = gr.transpose() ;
-        digraph::vertexSet  cleanout ;
-        for(fi=rules.begin();fi!=rules.end();++fi) {
-          if(fi->get_info().qualifier() != "looping")
-            if((subset & fi->sources()) != fi->sources()) {
-              //#ifdef VERBOSE
-              debugout << "cleanout " << *fi << endl ;
-              debugout << "because of variables "
-                       << extract_vars(fi->sources()-subset)
-                       << endl ;
-              //#endif
-              cleanout += fi->ident() ;
-            }
-        }
-
-        ruleSet cleanoutrules = extract_rules(cleanout) ;
-        subset -= cleanout ;
-        
-        variableSet touched_variables = given ;
-        ruleSet working_rules = extract_rules(subset) ;
-        for(ruleSet::const_iterator ri = working_rules.begin();
-            ri!=working_rules.end();
-            ++ri) {
-          touched_variables += ri->targets() ;
-        }
-        
-        ruleSet looping_rules ;
-        
-        digraph::vertexSet cleanout2 ;
-        for(ruleSet::const_iterator ri = working_rules.begin();
-            ri!=working_rules.end();
-            ++ri) {
-          if(ri->get_info().qualifier() != "looping") {
-            if((ri->sources() - touched_variables)!=EMPTY) {
-              cleanout2 += ri->ident() ;
-              //#ifdef VERBOSE
-              debugout << "cleanout " << *ri << endl ;
-              debugout << "because of variables "
-                       << extract_vars(ri->sources()-touched_variables)
-                       << endl ;
-              //#endif
-            }
-          } else
-            looping_rules += *ri ;
-        }
-
-        subset -= cleanout2 ;
-        
-        cleanoutrules += extract_rules(cleanout2) ;
-        
-        WARN(subset == EMPTY) ;
-
-        gr = gr.subgraph(subset) ;
-        
-        if(looping_rules != EMPTY) {
-          digraph grt = gr.transpose() ;
-          for(ruleSet::const_iterator ri = looping_rules.begin();
-              ri!=looping_rules.end();
-              ++ri) {
-            variableSet sources = ri->sources() ;
-            variableSet::const_iterator vi ;
-            variableSet unused_vars ;
-            for(vi=sources.begin();vi!=sources.end();++vi) {
-              ruleSet rs = extract_rules(grt.get_edges(vi->ident())) ;
-              if(rs == EMPTY) {
-                unused_vars += *vi ;
-              }
-            }
-            variableSet targets = ri->targets() ;
-            for(vi=targets.begin();vi!=targets.end();++vi) {
-              ruleSet rs = extract_rules(gr.get_edges(vi->ident())) ;
-              if(rs == EMPTY) {
-                unused_vars += *vi ;
-              }
-            }
-            variableSet shared_vars = variableSet(sources & targets) ;
-            unused_vars -= shared_vars ;
-            variableSet newtargets = variableSet(targets-unused_vars) ;
-            variableSet newsources = variableSet(sources-unused_vars) ;
-            for(vi=newtargets.begin();vi!=newtargets.end();++vi) {
-              variable tvar = *vi ;
-              if(tvar.get_info().name != "OUTPUT" && !tvar.get_info().tvar) {
-                // If a variable isn't being advanced in time, then
-                // it has no buisness in the time loop 
-                while(newtargets.inSet(tvar)) {
-                  tvar = tvar.new_offset(tvar.get_info().offset + 1) ;
-                }
-                if(!newsources.inSet(tvar)) {
-                  unused_vars += *vi ;
-                }
-              }
-              
-            }
-            
-            if(unused_vars != EMPTY) {
-              variableSet looping_input = variableSet(sources-unused_vars) ;
-              variableSet looping_output = variableSet(targets-unused_vars) ;
-              ostringstream oss ;
-              oss << "source("<< looping_input
-                  << "),target(" << looping_output
-                  << "),qualifier(looping)" ;
-              rule floop(oss.str()) ;
-              
-              invoke_rule(floop,gr) ;
-              gr.remove_vertex(ri->ident()) ;
-#ifdef VERBOSE
-              debugout << "restructure iteration: " << floop << endl ;
-              debugout << "originally was: " << *ri << endl ;
-#endif
-            }
-          }
-        }
-
-        gr.remove_dangling_vertices() ;
-
-        all_cleaned_rules += cleanoutrules ;
-        cleaned_rules = (cleanoutrules != EMPTY) ;
-
-      } while (cleaned_rules) ;
-    }
-    
   } // end of unnamed namespace
+    
+  // function that clean the dependency graph at last
+  void dependency_graph2::clean_graph(const variableSet& given,
+                                      const variableSet& target) {
+    // testing...
+    //given -= variable("EMPTY") ;
+
+    ruleSet all_cleaned_rules ;
+    bool cleaned_rules = false ;
+    do { // Keep cleaning until nothing left to clean!
+        
+      // Remove unnecessary vertices from graph.
+      int virtual_vertex = gr.max_vertex() + 1 ;
+      digraph::vertexSet allvertices = gr.get_all_vertices() ;
+      variableSet allvars = extract_vars(allvertices) ;
+        
+      //  target += variable(expression::create("OUTPUT")) ;
+        
+      gr.add_edges(virtual_vertex, given) ;
+      gr.add_edges(target,virtual_vertex) ;
+        
+      const vector<digraph::vertexSet> components =
+        component_sort(gr).get_components() ;
+        
+      digraph::vertexSet subset = EMPTY ;
+        
+      for(size_t i=0;i<components.size();++i)
+        if(components[i].inSet(virtual_vertex)) {
+          subset = components[i] ;
+          break ;
+        }
+        
+      subset -= virtual_vertex ;
+      ruleSet rules = extract_rules(subset) ;
+      ruleSet::const_iterator fi ;
+      for(fi=rules.begin();fi!=rules.end();++fi)
+        subset += fi->targets() ;
+
+#ifdef VERBOSE
+      // some debugout info
+      ruleSet rulesNOTinComponent =
+        ruleSet(extract_rules(gr.get_all_vertices()) - rules) ;
+      debugout << "The following rules are cleaned out because they"
+               << " are not in the targets->sources component: {{{{{"
+               << endl ;
+      debugout << rulesNOTinComponent ;
+      debugout << "}}}}}" << endl << endl ;
+#endif
+        
+      // Check for looping rules here, don't clean looping rule if it is
+      // in the subset.
+      digraph grt = gr.transpose() ;
+      digraph::vertexSet  cleanout ;
+      for(fi=rules.begin();fi!=rules.end();++fi) {
+        if(fi->get_info().qualifier() != "looping")
+          if((subset & fi->sources()) != fi->sources()) {
+            //#ifdef VERBOSE
+            debugout << "cleanout " << *fi << endl ;
+            debugout << "because of variables "
+                     << extract_vars(fi->sources()-subset)
+                     << endl ;
+            //#endif
+            cleanout += fi->ident() ;
+          }
+      }
+
+      ruleSet cleanoutrules = extract_rules(cleanout) ;
+      subset -= cleanout ;
+        
+      variableSet touched_variables = given ;
+      ruleSet working_rules = extract_rules(subset) ;
+      for(ruleSet::const_iterator ri = working_rules.begin();
+          ri!=working_rules.end();
+          ++ri) {
+        touched_variables += ri->targets() ;
+      }
+        
+      ruleSet looping_rules ;
+        
+      digraph::vertexSet cleanout2 ;
+      for(ruleSet::const_iterator ri = working_rules.begin();
+          ri!=working_rules.end();
+          ++ri) {
+        if(ri->get_info().qualifier() != "looping") {
+          if((ri->sources() - touched_variables)!=EMPTY) {
+            cleanout2 += ri->ident() ;
+            //#ifdef VERBOSE
+            debugout << "cleanout " << *ri << endl ;
+            debugout << "because of variables "
+                     << extract_vars(ri->sources()-touched_variables)
+                     << endl ;
+            //#endif
+          }
+        } else
+          looping_rules += *ri ;
+      }
+
+      subset -= cleanout2 ;
+        
+      cleanoutrules += extract_rules(cleanout2) ;
+        
+      WARN(subset == EMPTY) ;
+
+      gr = gr.subgraph(subset) ;
+        
+      if(looping_rules != EMPTY) {
+        digraph grt = gr.transpose() ;
+        for(ruleSet::const_iterator ri = looping_rules.begin();
+            ri!=looping_rules.end();
+            ++ri) {
+          variableSet sources = ri->sources() ;
+          variableSet::const_iterator vi ;
+          variableSet unused_vars ;
+          for(vi=sources.begin();vi!=sources.end();++vi) {
+            ruleSet rs = extract_rules(grt.get_edges(vi->ident())) ;
+            if(rs == EMPTY) {
+              unused_vars += *vi ;
+            }
+          }
+          variableSet targets = ri->targets() ;
+          for(vi=targets.begin();vi!=targets.end();++vi) {
+            ruleSet rs = extract_rules(gr.get_edges(vi->ident())) ;
+            if(rs == EMPTY) {
+              unused_vars += *vi ;
+            }
+          }
+          variableSet shared_vars = variableSet(sources & targets) ;
+          unused_vars -= shared_vars ;
+          variableSet newtargets = variableSet(targets-unused_vars) ;
+          variableSet newsources = variableSet(sources-unused_vars) ;
+          for(vi=newtargets.begin();vi!=newtargets.end();++vi) {
+            variable tvar = *vi ;
+            if(tvar.get_info().name != "OUTPUT" && !tvar.get_info().tvar) {
+              // If a variable isn't being advanced in time, then
+              // it has no buisness in the time loop 
+              while(newtargets.inSet(tvar)) {
+                tvar = tvar.new_offset(tvar.get_info().offset + 1) ;
+              }
+              if(!newsources.inSet(tvar)) {
+                unused_vars += *vi ;
+              }
+            }
+              
+          }
+            
+          if(unused_vars != EMPTY) {
+            variableSet looping_input = variableSet(sources-unused_vars) ;
+            variableSet looping_output = variableSet(targets-unused_vars) ;
+            ostringstream oss ;
+            oss << "source("<< looping_input
+                << "),target(" << looping_output
+                << "),qualifier(looping)" ;
+            rule floop(oss.str()) ;
+              
+            invoke_rule(floop,gr) ;
+            gr.remove_vertex(ri->ident()) ;
+#ifdef VERBOSE
+            debugout << "restructure iteration: " << floop << endl ;
+            debugout << "originally was: " << *ri << endl ;
+#endif
+          }
+        }
+      }
+
+      gr.remove_dangling_vertices() ;
+
+      all_cleaned_rules += cleanoutrules ;
+      cleaned_rules = (cleanoutrules != EMPTY) ;
+
+    } while (cleaned_rules) ;
+  }
+    
 
   dependency_graph2::dependency_graph2(const rule_db& rdb,
                                        const variableSet& given,
