@@ -419,8 +419,10 @@ namespace Loci {
 	//cout << MPI_rank << "  sending to " << d->copy[i].proc << endl ;
       }
 
-      if(d->xmit.size() > 0)
-	MPI_Waitall(d->xmit.size(), recv_request, status) ;
+      if(d->xmit.size() > 0) {
+	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
+        FATAL(err != MPI_SUCCESS) ;
+      }
       
 
       for(int i=0;i<d->xmit.size();++i) {
@@ -654,8 +656,10 @@ namespace Loci {
                  3,MPI_COMM_WORLD) ;
       }
       
-      if(d->xmit.size() > 0)
-	MPI_Waitall(d->xmit.size(), recv_request, status) ;
+      if(d->xmit.size() > 0) {
+	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
+        FATAL(err != MPI_SUCCESS) ;
+      }
       
       for(int i=0;i<d->xmit.size();++i) {
         int recieved ;
@@ -804,8 +808,10 @@ namespace Loci {
       MPI_Send(send_ptr[i],s_size[i],MPI_PACKED,proc,1,MPI_COMM_WORLD) ;
     }
     
-    if(nrecv > 0) 
-      MPI_Waitall(nrecv, request, status) ;
+    if(nrecv > 0) {
+      int err = MPI_Waitall(nrecv, request, status) ;
+      FATAL(err != MPI_SUCCESS) ;
+    }
     
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
@@ -971,8 +977,10 @@ namespace Loci {
       MPI_Send(send_ptr[i],s_size[i],MPI_INT,proc,1,MPI_COMM_WORLD) ;
     }
     
-    if(nrecv > 0) 
-      MPI_Waitall(nrecv, request, status) ;
+    if(nrecv > 0) {
+      int err = MPI_Waitall(nrecv, request, status) ;
+      FATAL(err != MPI_SUCCESS) ;
+    }
     
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     for(int i=0;i<nrecv;++i) {

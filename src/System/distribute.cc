@@ -26,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
-#define UNITY_MAPPING
+//#define UNITY_MAPPING
 
 
 #ifdef SCATTER_DIST
@@ -48,6 +48,7 @@ namespace Loci {
 
     
     MPI_Init(argc, argv) ;
+    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
     for(int i=0;i<MPI_processes;++i) {

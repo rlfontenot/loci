@@ -258,7 +258,7 @@ namespace Loci {
 #endif
     CPTR<execute_list> el = new execute_list ;
     if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
-       exec_seq.size() < num_threads*30 ) {
+       exec_seq.size() < num_threads*30) {
       el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
     } else if(!apply.get_info().output_is_parameter &&!output_mapping) {
       execute_par *ep = new execute_par ;
@@ -657,8 +657,10 @@ namespace Loci {
       MPI_Send(send_ptr[i],s_size[i],MPI_PACKED,proc,1,MPI_COMM_WORLD) ;
     }
     
-    if(nrecv > 0) 
-      MPI_Waitall(nrecv, request, status) ;
+    if(nrecv > 0) { 
+      int err = MPI_Waitall(nrecv, request, status) ;
+      FATAL(err != MPI_SUCCESS) ;
+    }
     
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
