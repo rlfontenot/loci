@@ -1160,8 +1160,9 @@ namespace Loci {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
       const int evsz = ev.size() ;
-      int **send_buffer, **recv_buffer ;
-      int *recv_size ;
+      int **send_buffer = 0 ; 
+      int **recv_buffer = 0 ;
+      int *recv_size = 0 ;
 
       if(d->xmit.size() > 0) {
         recv_buffer = new int*[d->xmit.size()] ;
