@@ -173,29 +173,56 @@ namespace Loci {
   
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
                                  fact_db &facts) {
+    // Here we will compute the context implied by a particular target
+    // mapping
     variableSet::const_iterator vi ;
     entitySet targets ;
+    // First we get the queries for all the variables that the mapping
+    // is applied to.
     for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
+      // The variable should be in tvarmap, but we will report an error
+      // if something fishy happens
       FATAL(tvarmap.find(*vi) == tvarmap.end()) ;
+      // Get the requests for variable *vi and union it with the target set.
       targets |= tvarmap.find(*vi)->second ;
     }
+    // Here we do a hack to make sure that if there are multiple
+    // variable that a map applies to, then they will request their
+    // union.  (e.g. for a->(b,c) we make sure that b and c both have
+    // the same requests.
     for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
       facts.variable_request(*vi,targets) ;
-  
+
+    // Now we are applying the mapping that is applied to the target
+    // variables.  We do this by finding the preimage of each map.
+    // (We use the union preimage since any value that is touched
+    // will need to be computed.  The union primage is in the second
+    // element of the pair that preimage returns. 
     vector<variableSet>::const_reverse_iterator mi ;
     for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
+      // working is the entityset the becomes the union of all primages
+      // on this level
       entitySet working = EMPTY ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
         FATAL(!facts.is_a_Map(*vi)) ;
         working |= facts.preimage(*vi,targets).second ;
       }
+      // Now we have evaluated this map, we move targets to this level
       targets = working ;
     }
+    // When we are finished, we have followed the maps back from the targets to
+    // their root.  We now have the set of entities that will be in the context
+    // of the rule that will be used to satisfy this set of requests.
     return targets ;
   }
 
-  void vmap_source_requests(const vmap_info &vmi, fact_db &facts,
-                            entitySet compute) {
+  entitySet vmap_source_requests(const vmap_info &vmi, fact_db &facts,
+                            entitySet context) {
+    // this routine computes the set of entities that a source mapping will
+    // imply.  It does this by following the images of the mapping.
+    // The resulting entitySet contains all entities that will be accessed
+    // when a loop over context is executed.
+    entitySet compute = context ;
     vector<variableSet>::const_iterator mi ;
     variableSet::const_iterator vi ;
     for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
@@ -206,35 +233,63 @@ namespace Loci {
       }
       compute = working ;
     }
-    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
-      facts.variable_request(*vi,compute) ;
+    return compute ;
   }
 
   entitySet process_rule_requests(rule r, fact_db &facts) {
-    
+
+    // Internal rules should be handling the appropriate rule requests via
+    // their associated compiler.
     FATAL(r.type() == rule::INTERNAL) ;
-    
+
+
+    // First we get the target variables of this rule ;
     variableSet targets = r.targets() ;
-  
-    variableSet::const_iterator vi ;
+    // We will be iterating over the target variables so we need an iterator
+    variableSet::const_iterator vi ;  
+
+    // The vdefmap data structure is a map from variables to entitySets.
+    // We use the tvarmap to record the requests for target variables
+    // Here we are filling in the requests.
     vdefmap tvarmap ;
+    // Loop over target variables and get requests from fact database
     for(vi=targets.begin();vi!=targets.end();++vi) {
+      // This is a hack for the special case of a rule with OUTPUT
+      // as a target.  In that case we will request OUTPUT for
+      // all entities that exist.  So we add a request for OUTPUT
+      // to the fact database
       if(vi->get_info().name == string("OUTPUT")) 
         facts.variable_request(*vi,facts.variable_existence(*vi)) ;
+
+      // Now fill tvarmap with the requested values for variable *vi
       tvarmap[*vi] = facts.get_variable_request(r,*vi) ;
     }
+
     
     const rule_impl::info &rinfo = r.get_info().desc ;
+
+    // Here we compute the context of the rule.  This is the union of all of
+    // the requests for the variables that this rule produces
     set<vmap_info>::const_iterator si ;
-    entitySet compute,isect = ~EMPTY ;
+    entitySet context,isect = ~EMPTY ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+      // Transform the variable requests using the mapping constructs
+      // in *si
       entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
-      compute |= tmp ;
+      // The context is the union
+      context |= tmp ;
       isect &= tmp ;
     }
-    
-    if(isect != compute) {
-      entitySet working = compute ;
+
+    // If the interstection and the union are not equal, then we are in
+    // danger of not properly allocating variables for computations.  It is
+    // an optimization to check this.  For the distributed memory version it
+    // may be useful to always do this if there is a mapping in the
+    // targets of the rule.
+
+    if(isect != context) {
+      entitySet working = context ;
+
       vector<variableSet>::const_reverse_iterator mi ;
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
         for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
@@ -245,31 +300,31 @@ namespace Loci {
         }
         for(vi=si->var.begin();vi!=si->var.end();++vi) {
           facts.variable_request(*vi,working) ;
-          //#define UNDERSTAND_THIS
-#ifdef UNDERSTAND_THIS
-          WARN(facts.get_variable_request(f,*vi) != working) ;
-          if(facts.get_variable_request(f,*vi) != working) {
-            cerr << "f = " << f << endl ;
-            cerr << "*vi = " << *vi << endl ;
-            cerr << "facts.get_variable_request(f,*vi) = "
-                 << facts.get_variable_request(f,*vi)
-                 << ", working = " << working << endl ;
-          }
-#endif
         }
       }
     }
-    
-    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) 
-      vmap_source_requests(*si,facts,compute) ;
-    
+
+
+    // Loop over all sources for this rule and pass on the requests.
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+      // First map the context through source mappings
+      entitySet requests = vmap_source_requests(*si,facts,context) ;
+      // Now we have the actual requests we are making of other rules
+      // so we can tell the fact database that we are now requesting
+      // these values.
+      for(vi=si->var.begin();vi!=si->var.end();++vi)
+        facts.variable_request(*vi,requests) ;
+    }
+
+    // We also need to pass the requests on to any conditional variables
+    // this rule may have.
     for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi)
-      facts.variable_request(*vi,compute) ;
-    
+      facts.variable_request(*vi,context) ;
+
 #ifdef VERBOSE
-    cout << "rule " << r << " computes over " << compute << endl ;
+    cout << "rule " << r << " computes over " << context << endl ;
 #endif
-    return compute ;
+    return context ;
   }
 
 

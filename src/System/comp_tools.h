@@ -23,8 +23,8 @@ namespace Loci {
   typedef std::map<variable,entitySet> vdefmap ;
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
                                  fact_db &facts) ;
-  void vmap_source_requests(const vmap_info &vmi, fact_db &facts,
-                            entitySet compute) ;
+  entitySet vmap_source_requests(const vmap_info &vmi, fact_db &facts,
+                                 entitySet compute) ;
 
   std::vector<digraph::vertexSet> schedule_dag(const digraph &g,
                                           digraph::vertexSet start_vertices = EMPTY,

@@ -119,9 +119,12 @@ namespace Loci {
   
     exec_seq = compute ;
     
-    for(si=finfo.sources.begin();si!=finfo.sources.end();++si) 
-      vmap_source_requests(*si,facts,compute) ;
-    
+    for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
+      entitySet requests = vmap_source_requests(*si,facts,compute) ;
+      variableSet::const_iterator vi ;
+      for(vi=si->var.begin();vi!=si->var.end();++vi)
+        facts.variable_request(*vi,requests) ;
+    }    
 #ifdef VERBOSE
     cout << "rule " << apply << " computes over " << compute << endl ;
 #endif
