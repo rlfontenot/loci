@@ -3,5 +3,4 @@
 namespace Loci {
   
   rule_db parametric_rdb(rule_db &rdb) ;
-
 }

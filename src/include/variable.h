@@ -122,6 +122,7 @@ namespace Loci {
     explicit variable(string s)
     { id = variable(expression::create(s)).ident() ; }
     explicit variable(const time_ident &t) ;
+    explicit variable(const variable &v, const std::vector<int> &vint) ;
     explicit variable(const variable &v, const time_ident &t) ;
         
     ostream &Print(std::ostream &s) const { return vdb->vars[id].Print(s) ; }
