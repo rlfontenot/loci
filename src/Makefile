@@ -6,7 +6,7 @@ include comp.conf
 
 DEFINES = $(DEBUG) $(MACHINE_SPECIFIC) 
 
-LOCI_BASE = /home/lush/phd/Loci
+LOCI_BASE = ../
 
 INCLUDES = 
 
