@@ -1,12 +1,51 @@
+TEX_FILES =	appe.tex \
+		appendix.tex \
+		basic.tex \
+		basic1.tex \
+		bv.tex \
+		datatype.tex \
+		dbase.tex \
+		example.tex \
+		heat.tex \
+		intro.tex \
+		io.tex \
+		lap.tex \
+		lists.tex \
+		main.tex \
+		mesh.tex \
+		pi.tex \
+		pi1.tex \
+		rep.tex \
+		start.tex \
+		tech.tex \
+		title.tex
 
-main.dvi: main.tex
+IMAGE_FILES =	map4.eps \
+		pi.eps \
+		figures/edge_area.eps \
+		figures/nested.eps
+
+SOURCE_FILES =	area_reduce_cc.tex \
+		cell_props_cc.tex \
+		containers_cc.tex \
+		entities_cc.tex \
+		gradient_cc.tex \
+		grid_reader_cc.tex \
+		helpers_cc.tex \
+		integration_cc.tex \
+		Makefile_ex.tex \
+		petsc1_main_cc.tex \
+		petsc1_rules_cc.tex \
+		relations_cc.tex \
+		setup_edges_cc.tex
+
+main.dvi: ${TEX_FILES} ${IMAGE_FILES} ${SOURCE_FILES}
 	latex main; bibtex main; latex main
 
 Makefile_ex.tex: ../lfvm/Makefile
 	cat bv.tex > Makefile_ex.tex
 	cat ../lfvm/Makefile >> Makefile_ex.tex
 	echo '\end{verbatim}' >> Makefile_ex.tex
-
 
 entities_cc.tex: ../Datatypes/entities.cc
 	cat bv.tex > entities_cc.tex
@@ -58,10 +97,14 @@ gradient_cc.tex: ../lfvm/gradient.cc
 	cat ../lfvm/gradient.cc >> gradient_cc.tex
 	echo '\end{verbatim}' >> gradient_cc.tex
 
+petsc1_main_cc.tex: ../petsc/petsc1_main.cc
+	cat bv.tex > petsc1_main_cc.tex
+	cat ../petsc/petsc1_main.cc >> petsc1_main_cc.tex
+	echo '\end{verbatim}' >> petsc1_main_cc.tex
 
-
-main.dvi : intro.tex dbase.tex containers_cc.tex relations_cc.tex entities_cc.tex helpers_cc.tex Makefile_ex.tex grid_reader_cc.tex setup_edges_cc.tex cell_props_cc.tex area_reduce_cc.tex integration_cc.tex gradient_cc.tex
-
-
+petsc1_rules_cc.tex: ../petsc/petsc1_rules.cc
+	cat bv.tex > petsc1_rules_cc.tex
+	cat ../petsc/petsc1_rules.cc >> petsc1_rules_cc.tex
+	echo '\end{verbatim}' >> petsc1_rules_cc.tex
 
 
