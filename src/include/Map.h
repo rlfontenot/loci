@@ -10,6 +10,8 @@
 
 namespace Loci {
 
+  entitySet image_section(const int *start, const int *end) ;
+
   class MapRepI : public MapRep {
     entitySet store_domain ;
     int *alloc_pointer ;
@@ -331,10 +333,9 @@ namespace Loci {
   template<int M> entitySet MapVecRepI<M>::image(const entitySet &domain) const {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
-    FORALL(d,i) {
-      for(int j=0;j<M;++j) 
-        codomain += base_ptr[i][j] ;
-    } ENDFORALL ;
+    for(int i=0;i<d.num_intervals();++i)
+      codomain += image_section(&base_ptr[d[i].first][0],
+                                &base_ptr[d[i].second+1][0]) ;
     return codomain ;
   }
 

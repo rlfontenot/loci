@@ -516,7 +516,6 @@ namespace Loci {
   extern global_rule_impl_list global_rule_list ;    
     
   template<class T> class register_rule : public register_rule_type {
-    //    copy_rule_impl<T> f ;
   public:
     register_rule() { global_rule_list.push_rule(this) ; }
     virtual rule_implP get_func() const { return new copy_rule_impl<T> ; }
