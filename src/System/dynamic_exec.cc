@@ -2,7 +2,7 @@
 using std::cout ;
 using std::cerr ;
 using std::endl ;
-
+#include "distribute.h"
 
 namespace Loci {
 
@@ -12,7 +12,7 @@ void Deallocate_func(fact_db &local_facts,variableSet inputs,variableSet outputs
 
 void SendInput (int tStart, int tSize, int dest, int tag,MPI_Comm procGrp,entitySet &exec_set,variableSet &inputs,fact_db &facts) ;
 
-void ReceiveInput (int rcvStart,int &rcvSize,MPI_Status *Status,MPI_Comm procGrp,entitySet &exec_set,variableSet &inputs,fact_db &local_facts);
+void ReceiveInput (int rcvStart,int &rcvSize,int src,int tag,MPI_Comm procGrp,entitySet &exec_set,variableSet &inputs,fact_db &local_facts);
 
 void SendOutput (int tStart, int tSize, int dest,int tag,MPI_Comm procGrp,entitySet &exec_set,variableSet &outputs,fact_db &local_facts) ;
 
@@ -72,11 +72,19 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
     yMap[2*i+1] = 0;
   }
    //Broadcast start,size to all procs
-  int sendstart = exec_set.Min();
+  int sendstart=0;
+  sendstart = exec_set.Min();
   int *rstart = new int[Loci::MPI_processes];
+  for(int q = 0; q < Loci::MPI_processes; q++) {
+    rstart[q] = 0;
+  }
   MPI_Allgather(&sendstart, 1, MPI_INT, rstart, 1, MPI_INT, MPI_COMM_WORLD);
-  int sendsize = exec_set.Max()-sendstart+1;
+  int sendsize=0;
+  sendsize = exec_set.Max()-sendstart+1;
   int *rsize = new int[Loci::MPI_processes];
+  for(int n = 0; n < Loci::MPI_processes; n++) {
+    rsize[n] = 0;
+  }
   MPI_Allgather(&sendsize, 1, MPI_INT, rsize, 1, MPI_INT, MPI_COMM_WORLD);
  
   for(int i = 0; i < Loci::MPI_processes; i++) {
@@ -97,8 +105,8 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
   double t2=0.0;
   double t3=0.0;
   t1 = MPI_Wtime();
-  
-Loci::ExecuteLoop(rp,exec_set,3,yMap,facts,local_facts[0],local_facts[1],local_compute1,local_compute2,inputs,outputs,stats);
+  extern int method; 
+Loci::ExecuteLoop(rp,exec_set,method,yMap,facts,local_facts[0],local_facts[1],local_compute1,local_compute2,inputs,outputs,stats);
   t2 = MPI_Wtime();
   delete [] yMap;        
   t3=t2-t1;
