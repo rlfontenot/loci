@@ -252,6 +252,28 @@ namespace Loci {
     typedef vectorSchemaConverter<T> Converter_Type ;
   } ;
 
+  template<class T> inline std::ostream &operator << (std::ostream &s,
+                                                      const std::vector<T> &v){
+    s << v.size() ;
+    for(std::vector<T>::const_iterator i=v.begin();i!=v.end(); ++i) 
+      s << ' ' << *i ;
+    s << std::endl ;
+    return s ;
+  }
+
+  template<class T> inline std::istream &operator >> (std::istream &s,
+                                                      std::vector<T> &v){
+    v.clear() ;
+    int sz ;
+    s >> sz ;
+    for(int i=0;i<sz;++i) {
+      T val ;
+      s >> val ;
+      v.push_back(val) ;
+    }
+    return s ;
+  }
+  
   template<class T, class S> struct data_schema_traits<std::pair<T,S> > {
     typedef IDENTITY_CONVERTER Schema_Converter ;
     static DatatypeP get_type() {

@@ -4,26 +4,6 @@
 #include <Tools/stream.h>
 namespace Loci {
 
-  //------------STL vector----------------------------//
-  template<class T> std::ostream & operator<<(std::ostream &s,
-                                              const std::vector<T> &v)
-    {
-      std::vector<T>::const_iterator ii=v.begin();
-      for(ii=v.begin();ii!=v.end();ii++){
-	s<<*ii<<endl;
-      }
-      return s;
-    }
-  template<class T> std::istream & operator>>(std::istream &s,
-                                              std::vector<T> &v)
-    {
-      std::vector<T>::iterator ii;
-      for(ii=v.begin();ii!=v.end();ii++){
-	s>>*ii;
-      }
-      return s;
-    }
-
   //-----------STD pair-------------------------------//
   template<class T1,class T2> std::ostream &
     operator<<(std::ostream &s, const std::pair<T1,T2> &v) {
