@@ -32,22 +32,14 @@ FRC :
 
 JUNK =
 
-allclean: clean
-	rm -f Tools/make.depend Tools/make.depend.bak
-	rm -f System/make.depend System/make.depend.bak
-	rm -f include/*.h~ include/Tools/*.h~
-	rm -f Makefile~
-
-
 clean:
 	rm -f $(JUNK)
 	cd Tools ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd System ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 
-Tools_depend: FRC
-	cd Tools ; $(MAKE) depend  LOCI_BASE="$(LOCI_BASE)" 
+distclean:
+	rm -f $(JUNK)
+	cd Tools ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
+	cd System ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 
-System_depend: FRC
-	cd System ; $(MAKE) depend  LOCI_BASE="$(LOCI_BASE)" 
 
-depend: Tools_depend System_depend
