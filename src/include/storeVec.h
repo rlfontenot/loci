@@ -744,8 +744,8 @@ namespace Loci {
 
     int M = get_size() ;
     MPI_Pack( &M, 1, MPI_INT, outbuf, outcount, &position, 
-              MPI_COMM_WORLD) ;
-
+		MPI_COMM_WORLD) ;
+    
     packdata( traits_type, outbuf, position, outcount, eset);
   }
   //**************************************************************************/
@@ -858,8 +858,7 @@ namespace Loci {
     int init_size = get_size() ;
     int M ;
     MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
-
-    if(init_size != M) {
+    if(M > init_size) {
       set_elem_size(M) ;
     }
     unpackdata( traits_type, inbuf, position, insize, seq);
