@@ -47,12 +47,13 @@ namespace Loci {
     typedef CPTR<distribute_info> distribute_infoP ;
     distribute_infoP distributed_info ;
     
+
+  private:
     struct fact_info {
       store_refP data_rep ;
     } ;
 
     std::map<variable,variable> synonyms ;
-  private:
     variable remove_synonym(variable v) const {
       std::map<variable,variable>::const_iterator mi ;
       if((mi=synonyms.find(v)) != synonyms.end())
@@ -105,7 +106,6 @@ namespace Loci {
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname,const storeRepP st)
       { set_variable_type(variable(vname),st) ; }
-    
     void set_variable_type(variable v, store_instance &si)
       { set_variable_type(v,si.Rep()) ; }
     void set_variable_type(std::string vname, store_instance &si)

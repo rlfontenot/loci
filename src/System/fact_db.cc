@@ -113,9 +113,24 @@ namespace Loci {
     std::map<variable, variable>::iterator si ;
     std::map<variable, fact_info>::iterator mi ;
     if((si=synonyms.find(v)) != synonyms.end()) {
+      variable real_var = remove_synonym(v) ;
       synonyms.erase(si) ;
+      remove_variable(real_var) ;
     } else if((mi=fmap.find(v)) != fmap.end()) {
-      mi->second.data_rep = 0 ;
+      // First remove any synonyms to this variable.
+      variableSet syn_vars ;
+      vector<map<variable,variable>::iterator > lrm ;
+      for(si=synonyms.begin();si!=synonyms.end();++si)
+        if(si->second == v)
+          syn_vars += si->first ;
+      for(variableSet::const_iterator vi=syn_vars.begin();
+          vi!=syn_vars.end();++vi) {
+        if((si=synonyms.find(*vi)) != synonyms.end()) {
+          synonyms.erase(si) ;
+        }
+      }
+
+      // Now erse the variable
       fmap.erase(mi) ;
     }
   }
