@@ -21,6 +21,14 @@
 
 #include "Tools/debugger.h"
 
+#include <mpi.h>
+
+
+#include <iostream>
+
+using std::cerr ;
+using std::endl ;
+
 #define HOST_ID "localhost"
 
 namespace Loci {
@@ -38,8 +46,12 @@ namespace Loci {
   
   void debugger_()
   {
+    int MPI_rank ;
+    MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
+    cerr << "program failed on processor " << MPI_rank << endl ;
+
     if(!debugger_setup)
-      abort() ;
+      MPI_Abort(MPI_COMM_WORLD,-1);
     
     int pid = getpid() ;
     char buf[512] ;
@@ -96,7 +108,7 @@ namespace Loci {
     }
     fprintf(stderr,"ERROR: Program terminated due to %s\n",sigtype) ;
     debugger_() ;
-    exit(-1) ;
+    MPI_Abort(MPI_COMM_WORLD,-1) ;
   }
 
 
