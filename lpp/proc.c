@@ -2,11 +2,25 @@
 extern struct hashtable* global_def ;
 
 
+/*-------------------------------------------------+
+| warning:                                         |
+|                                                  |
+| Arguments:                                       |
+|   - s:                                           |
++-------------------------------------------------*/
 void warning(char* s)
 {
    printf("%s\n", s) ;
 }
 
+/*-------------------------------------------------+
+| createExpNode:                                   |
+|                                                  |
+| Arguments:                                       |
+|   - enode:                                       |
+|   - op:                                          |
+|   - s:                                           |
++-------------------------------------------------*/
 void createExpNode
 (ExpTreeNode** enode,
  op_id op, char* s)
@@ -25,6 +39,14 @@ void createExpNode
 }
 
 
+/*-------------------------------------------------+
+| createExpNode_UnaryOp                            |
+|                                                  |
+| Arguments:                                       |
+|   - enode:                                       |
+|   - op:                                          |
+|   - subnode:                                     |
++-------------------------------------------------*/
 void createExpNode_UnaryOp
 (ExpTreeNode** enode,
  op_id op, 
@@ -50,6 +72,15 @@ void createExpNode_UnaryOp
 }
 
 
+/*-------------------------------------------------+
+| createExpNode_BinaryOp:                          |
+|                                                  |
+| Arguments:                                       |
+|   - enode:                                       |
+|   - op:                                          |
+|   - subnode1:                                    |
+|   - subnode2:                                    |
++-------------------------------------------------*/
 void createExpNode_BinaryOp
 (ExpTreeNode** enode,
  op_id op, 
@@ -82,6 +113,18 @@ void createExpNode_BinaryOp
 }
 
 
+/*-------------------------------------------------+
+| create_tlist:                                    |
+|                                                  |
+| Arguments:                                       |
+|   - tlist:                                       |
+|   - type:   is type of type_info                 |
+|   - utname: is user_tname of type_info           |
+|   - e:      is is_elabt of type_info             |
+|   - b:      is begin_temp of type_info           |
+|   - c:      is close_temp of type_info           |
+|   - next    is next of tlist                     |
++-------------------------------------------------*/
 void create_tlist
 (type_list** tlist,
  dp_id type,
@@ -92,6 +135,7 @@ void create_tlist
  type_list* next)
 {
    type_info* tmp ;
+
    tmp = (type_info *)malloc
      (sizeof(type_info)) ;
    tmp->type = type ;
@@ -99,12 +143,24 @@ void create_tlist
    tmp->is_elabt = e ;
    tmp->begin_temp = b ;
    tmp->close_temp = c ;
+
    (*tlist) = (type_list *)
      malloc(sizeof(type_list)) ;
    (*tlist)->info = tmp ;
    (*tlist)->next = next ;
 }
 
+/*-------------------------------------------------+
+| filltalbe:                                       |
+|   Put a declaration of a variable or variables   |
+|   used by loci rules or functions into a global  |
+|   hash table.                                    |
+|                                                  |
+| Arguments:                                       |
+|   - table:  is a global hash table               |
+|   - tlist:  is type list                         |
+|   - idlist: is a variable or a list of variables |
++-------------------------------------------------*/
 void filltable
 (struct hashtable* table,
  type_list* tlist,
@@ -139,13 +195,16 @@ void filltable
 }
 
 
-/***************Processing*********************/
+/*****************Processing***********************/
 
-/*-----------------------------------------------+                     
-| itoa() - manage the sign,                      |
-|          compute the string equivalent,        |
-|          and call memcpy().                    |
-+-----------------------------------------------*/
+/*-------------------------------------------------+
+| itoa:                                            |
+|   manage the sign, compute the string equivalent,|
+|   and call memcpy().                             |
+|                                                  |
+| Arguments:                                       |
+|   - value:                                       |
++-------------------------------------------------*/
 char *itoa(int value)
 {
    int count,  /* number of characters in string         */
@@ -180,12 +239,12 @@ char *itoa(int value)
    memset(string, '\0', INTSIZE+2) ;
    ptr = string ; /* set temporary ptr to string         */
 
-/*-----------------------------------------------+
-| NOTE: This process reverses the order of an    |
-|       integer, ie: value = -1234 equates to:   |
-|       char [4321-]                             |
-|       Reorder the values using for loop below  |
-+-----------------------------------------------*/
+   /*-------------------------------------------------+
+   | NOTE: This process reverses the order of an      |
+   |       integer, ie: value = -1234 equates to:     |
+   |       char [4321-]                               |
+   |       Reorder the values using for loop below    |
+   +-------------------------------------------------*/
    do {
      *temp++ = value%10+'0' ;    /* obtain modulus and or with '0'   */
      count++ ;                   /* increment count, track iterations*/
@@ -197,13 +256,13 @@ char *itoa(int value)
    *temp-- = '\0' ;           /* ensure null terminated and point     */
                              /* to last char in array                */
 
-/*-----------------------------------------------+
-| reorder the resulting char *string:            |
-| temp - points to the last char                 |
-|        in the temporary array                  |
-| ptr  - points to the first element             |
-|        in the string array                     |
-+-----------------------------------------------*/
+   /*-------------------------------------------------+
+   | reorder the resulting char *string:              |
+   | temp - points to the last char                   |
+   |        in the temporary array                    |
+   | ptr  - points to the first element               |
+   |        in the string array                       |
+   +-------------------------------------------------*/
    for (i = 0; i < count; i++, temp--, ptr++)
    {
       memcpy(ptr, temp, sizeof(char)) ;
@@ -213,6 +272,12 @@ char *itoa(int value)
 }
 
 
+/*-------------------------------------------------+
+| process_file:                                    |
+|                                                  |
+| Arguments:                                       |
+|   - file:                                        |
++-------------------------------------------------*/
 void process_file
 (FileListHead* file)
 {
@@ -226,6 +291,12 @@ void process_file
    }
 }
 
+/*-------------------------------------------------+
+| process_file_node:                               |
+|                                                  |
+| Arguments:                                       |
+|   - func:                                        |
++-------------------------------------------------*/
 void process_file_node
 (FuncListHead* func)
 {
@@ -235,6 +306,12 @@ void process_file_node
      process_function(func) ;
 }
 
+/*-------------------------------------------------+
+| process_loci_rule:                               |
+|                                                  |
+| Arguments:                                       |
+|   - func:                                        |
++-------------------------------------------------*/
 void process_loci_rule
 (FuncListHead* func)
 {
@@ -257,12 +334,24 @@ void process_loci_rule
    }
 }
 
+/*-------------------------------------------------+
+| process_function:                                |
+|                                                  |
+| Arguments:                                       |
+|   - func:                                        |
++-------------------------------------------------*/
 void process_function
 (FuncListHead* func)
 {
 }
 
 
+/*-------------------------------------------------+
+| process_singleton_rule:                          |
+|                                                  |
+| Arguments:                                       |
+|   - func:                                        |
++-------------------------------------------------*/
 void process_singleton_rule
 (FuncListHead* func)
 {
@@ -352,6 +441,12 @@ void process_singleton_rule
    printf("\n") ;
 }
 
+/*-------------------------------------------------+
+| process_unit_rule:                               |
+|                                                  |
+| Arguments:                                       |
+|   - func:                                        |
++-------------------------------------------------*/
 void process_unit_rule
 (FuncListHead* func)
 {
@@ -438,6 +533,12 @@ void process_unit_rule
    printf("\n") ;
 }
 
+/*-------------------------------------------------+
+| process_apply_rule:                              |
+|                                                  |
+| Arguments:                                       |
+|   - func:                                        |
++-------------------------------------------------*/
 void process_apply_rule
 (FuncListHead* func)
 {
@@ -575,6 +676,12 @@ void process_apply_rule
    printf("\n") ;
 }
 
+/*-------------------------------------------------+
+| process_pointwise_rule:                          |
+|                                                  |
+| Arguments:                                       |
+|   - func:                                        |
++-------------------------------------------------*/
 void process_pointwise_rule
 (FuncListHead* func)
 {
@@ -656,6 +763,14 @@ void process_pointwise_rule
    printf("\n") ;
 }
 
+/*-------------------------------------------------+
+| process_pw_exp:                                  |
+|                                                  |
+| Arguments:                                       |
+|   - exp:                                         |
+|   - var_list:                                    |
+|   - map_list:                                    |
++-------------------------------------------------*/
 void process_pw_exp
 (ExpTreeNode* exp,
  ExpTreeList** var_list,
@@ -664,6 +779,13 @@ void process_pw_exp
    ExpNodeAnalysis(exp, var_list, map_list) ;
 }
 
+/*-------------------------------------------------+
+| create_classname:                                |
+|                                                  |
+| Arguments:                                       |
+|   - loci_var:                                    |
+|   - func:                                        |
++-------------------------------------------------*/
 void create_classname
 (ExpTreeList* loci_var,
  FuncListHead* func)
@@ -693,6 +815,13 @@ void create_classname
    }
 }
 
+/*-------------------------------------------------+
+| Print_classname:                                 |
+|                                                  |
+| Arguments:                                       |
+|   - loci_var:                                    |
+|   - func:                                        |
++-------------------------------------------------*/
 void Print_classname
 (ExpTreeList* loci_var,
  FuncListHead* func)
@@ -770,6 +899,13 @@ void Print_classname
    printf("() {\n") ;
 }
 
+/*-------------------------------------------------+
+| Print_namestore:                                 |
+|                                                  |
+| Arguments:                                       |
+|   - loci_var:                                    |
+|   - rtype:                                       |
++-------------------------------------------------*/
 void Print_namestore
 (ExpTreeList* loci_var,
  rule_id rtype)
@@ -831,6 +967,14 @@ void Print_namestore
    }
 }
 
+/*-------------------------------------------------+
+| Print_input:                                     |
+|                                                  |
+| Arguments:                                       |
+|   - loci_var:                                    |
+|   - loci_map:                                    |
+|   - rtype:                                       |
++-------------------------------------------------*/
 void Print_input
 (ExpTreeList* loci_var,
  ExpTreeList* loci_map,
@@ -904,19 +1048,30 @@ void Print_input
    printf("\") ;") ; printf("\n") ;
 }
 
+/*-------------------------------------------------+
+| Print_output:                                    |
+|                                                  |
+| Arguments:                                       |
+|   - loci_var:                                    |
+|   - rtype:                                       |
++-------------------------------------------------*/
 void Print_output
 (ExpTreeList* loci_var,
  rule_id rtype)
 {
    ExpTreeList* loci_curr_var ;
+   bool print_flag = false ;
 
    loci_curr_var = loci_var ;
-   printf("\t\t") ; printf("output(\"") ;
+   /*   printf("\t\t") ; printf("output(\"") ;*/
    while(loci_curr_var->next != NULL)
    {
       if(loci_curr_var->node->analysis->var.is_output
          == true)
       {
+         print_flag = true ;
+         printf("\t\t") ; printf("output(\"") ;
+
          if(loci_curr_var->node->analysis->var.is_loci_par_var
             == true)
          {
@@ -960,15 +1115,27 @@ void Print_output
       }
       loci_curr_var = loci_curr_var->next ;
    }
-   printf("\n") ;
-   printf("\t") ; printf("}\n") ;
+
+   if(print_flag == true)
+   {
+      printf("\n") ;
+      printf("\t") ; printf("}\n") ;
+   }
+   else 
+      printf("NO OUTPUT!\n") ;
 }
 
-/* 
- * find out loci specific variables 
- * and operators in the expression tree,
- * and check the "in/out put" of a variable
- */
+/*-------------------------------------------------+
+| ExpNodeAnalysis:                                 |
+|   Find out loci specific variables and operators |
+|   in the expression tree, and check the "in/out  |
+|   put" of a variable.                            |
+|                                                  |
+| Arguments:                                       |
+|   - exp:                                         |
+|   - var_list:                                    |
+|   - map_list:                                    |
++-------------------------------------------------*/
 void ExpNodeAnalysis
 (ExpTreeNode* exp,
  ExpTreeList** var_list,
@@ -1088,6 +1255,13 @@ void ExpNodeAnalysis
    }
 }
 
+/*-------------------------------------------------+
+| Is_Loci_var:                                     |
+|                                                  |
+| Arguments:                                       |
+|   - s:                                           |
+|   - table:                                       |
++-------------------------------------------------*/
 /* need to be add types later */
 bool Is_Loci_var
 (char* s, struct hashtable* table)
@@ -1113,6 +1287,13 @@ bool Is_Loci_var
     return false ;
 }
 
+/*-------------------------------------------------+
+| Is_Loci_map_var:                                 |
+|                                                  |
+| Arguments:                                       |
+|   - s:                                           |
+|   - table:                                       |
++-------------------------------------------------*/
 bool Is_Loci_map_var
 (char* s, struct hashtable* table)
 {
@@ -1133,6 +1314,13 @@ bool Is_Loci_map_var
     return false ;
 }
 
+/*-------------------------------------------------+
+| TransExp:                                        |
+|                                                  |
+| Arguments:                                       |
+|   - exp:                                         |
+|   - rtype:                                       |
++-------------------------------------------------*/
 void TransExp
 (ExpTreeNode* exp,
  rule_id rtype)
@@ -1249,6 +1437,13 @@ void TransExp
   }
 }
 
+/*-------------------------------------------------+
+| TransExp2:                                       |
+|                                                  |
+| Arguments:                                       |
+|   - exp:                                         |
+|   - rtype:                                       |
++-------------------------------------------------*/
 void TransExp2
 (ExpTreeNode* exp,
  rule_id rtype)
@@ -1343,6 +1538,12 @@ void TransExp2
   }
 }
 
+/*-------------------------------------------------+
+| PrintOP:                                         |
+|                                                  |
+| Arguments:                                       |
+|   - op:                                          |
++-------------------------------------------------*/
 void PrintOP(op_id op)
 {
   switch(op)
@@ -1383,6 +1584,12 @@ void PrintOP(op_id op)
   }
 }
 
+/*-------------------------------------------------+
+| Print_tlist:                                     |
+|                                                  |
+| Arguments:                                       |
+|   - tlist:                                       |
++-------------------------------------------------*/
 void Print_tlist
 (type_list* tlist)
 {
@@ -1424,6 +1631,12 @@ void Print_tlist
   }
 }
 
+/*-------------------------------------------------+
+| Print_Type:                                      |
+|                                                  |
+| Arguments:                                       |
+|   - info:                                        |
++-------------------------------------------------*/
 void Print_Type
 (type_info* info)
 {
@@ -1486,6 +1699,13 @@ void Print_Type
   }
 }
 
+/*-------------------------------------------------+
+| Print_OP_FUNC:                                   |
+|                                                  |
+| Arguments:                                       |
+|   - node:                                        |
+|   - rtype:                                       |
++-------------------------------------------------*/
 void Print_OP_FUNC
 (ExpTreeNode * node,
  rule_id rtype)
@@ -1503,6 +1723,13 @@ void Print_OP_FUNC
   printf(")") ;
 }
 
+/*-------------------------------------------------+
+| Print_Par_Var:                                   |
+|                                                  |
+| Arguments:                                       |
+|   - node:                                        |
+|   - rtype:                                       |
++-------------------------------------------------*/
 void Print_Par_Var
 (ExpTreeNode * node,
  rule_id rtype)
@@ -1518,6 +1745,12 @@ void Print_Par_Var
   }
 }
 
+/*-------------------------------------------------+
+| Print_map_var:                                   |
+|                                                  |
+| Arguments:                                       |
+|   - node:                                        |
++-------------------------------------------------*/
 void Print_map_var
 (ExpTreeNode *node)
 {
@@ -1550,6 +1783,12 @@ void Print_map_var
 }
 
 
+/*-------------------------------------------------+
+| Print_Iter_Arg:                                  |
+|                                                  |
+| Arguments:                                       |
+|   - arg_list:                                    |
++-------------------------------------------------*/
 void Print_Iter_Arg
 (ExpTreeList *arg_list)
 {
@@ -1566,6 +1805,12 @@ void Print_Iter_Arg
 }
 
 
+/*-------------------------------------------------+
+| Set_Par_Arg:                                     |
+|                                                  |
+| Arguments:                                       |
+|   - arg_list:                                    |
++-------------------------------------------------*/
 void Set_Par_Arg
 (ExpTreeList *arg_list)
 {
@@ -1582,6 +1827,12 @@ void Set_Par_Arg
 }
 
 
+/*-------------------------------------------------+
+| Set_Iter_Arg:                                    |
+|                                                  |
+| Arguments:                                       |
+|   - arg_list:                                    |
++-------------------------------------------------*/
 void Set_Iter_Arg
 (ExpTreeList *arg_list)
 {
@@ -1598,10 +1849,15 @@ void Set_Iter_Arg
 }
 
 
-/* remove the same repeated variables from the list
- * this is an N square algorithm, probably not good
- * enough.
- */
+/*-------------------------------------------------+
+| collapse_var_list:                               |
+|   Remove the same repeated variables from the    |
+|   list. This is an N square algorithm, probably  |
+|   not good enough.                               |
+|                                                  |
+| Arguments:                                       |
+|   - var_list:                                    |
++-------------------------------------------------*/
 void collapse_var_list
 (ExpTreeList* var_list)
 {
@@ -1630,6 +1886,12 @@ void collapse_var_list
   }
 }
 
+/*-------------------------------------------------+
+| Input_Map:                                       |
+|                                                  |
+| Arguments:                                       |
+|   - map_list:                                    |
++-------------------------------------------------*/
 void Input_Map
 (ExpTreeList* map_list)
 {
@@ -1668,6 +1930,13 @@ void Input_Map
   /*  printf("\b") ;*/
 }
 
+/*-------------------------------------------------+
+| stringcmp:                                       |
+|                                                  |
+| Arguments:                                       |
+|   - s1:                                          |
+|   - s2:                                          |
++-------------------------------------------------*/
 int stringcmp(char s1[], char s2[])
 {
   int i ;
@@ -1682,6 +1951,17 @@ int stringcmp(char s1[], char s2[])
   return true ;
 }
 
+/*-------------------------------------------------+
+| Set_dp_id:                                       |
+|   Set the flag for dp_id.                        |
+|                                                  |
+| Arguments:                                       |
+|   - utname: is the class name defined by users   |
+|                                                  |
+| Output:                                          |
+|   - DP_USER: the class name defined by users;    |
+|   - others:  the class name defined by loci      |
++-------------------------------------------------*/
 dp_id Set_dp_id(char* utname)
 {
   if(stringcmp(utname, "param") == true)

@@ -30,15 +30,24 @@ extern struct hashtable* global_def ;
 
 %token IDENTIFIER, CONSTANT, STRING_LITERAL, SIZEOF, PTR_OP, INC_OP, DEC_OP, LEFT_OP, RIGHT_OP, LE_OP, GE_OP, EQ_OP, NE_OP, AND_OP, OR_OP, MUL_ASSIGN, DIV_ASSIGN, MOD_ASSIGN, ADD_ASSIGN, SUB_ASSIGN, LEFT_ASSIGN, RIGHT_ASSIGN, AND_ASSIGN, XOR_ASSIGN, OR_ASSIGN, TYPE_NAME, TYPEDEF, EXTERN, STATIC, AUTO, REGISTER, CHAR, SHORT, INT, LONG, SIGNED, UNSIGNED, FLOAT, DOUBLE, BOOL, CONST, VOLATILE, VOID, STRUCT, UNION, ENUM, ELIPSIS, RANGE, CASE, DEFAULT, IF, ELSE, SWITCH, WHILE, DO, FOR, GOTO, CONTINUE, BREAK, RETURN, DATATYPES, POINTWISE_RULE, UNIT_RULE, APPLY_RULE, SINGLETON_RULE, ITER_VAR_OP, JOIN, CONDITIONAL;
 
-/**********************************************************
-
- This is the beginning:
-
- - file only contains the loci rules and general functions;
-
- - declaration only contains def.s of variables.
-
- *********************************************************/
+/*---------------------------------------------------------------------+
+| This is the beginning of the whole process.                          |
+|                                                                      | 
+| There are three kinds of files:                                      |
+| - a file only contains loci rules or functions;                      |
+| - a file contains loci rules or functions, and declarations of       |
+|   globle variables that will be used by these loci rules;            |
+| - a file only contains declarations of globle variables              |
+|   that will be used by some loci rules contained in other files.     |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - file:        is a loci rule or function                          |
+|   - declaration: contains declarations of globle variables           |
+|                  used by loci rules; no argument                     |
+|                  <see the next for its format>                       | 
++---------------------------------------------------------------------*/
+/**/
 Start
 	: file<file_node>
 	{{
@@ -66,9 +75,16 @@ Start
         }}
 	;
 
-/*
- These are the grammars of C statements.
- */
+/*---------------------------------------------------------------------+
+| This is a list of argument expressions isolated by ",".              |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - assignment_expr:    is an assignment expression                  |
+|   - argument_expr_list                                               | 
+| - terminals:                                                         | 
+|   - ,                                                                | 
++---------------------------------------------------------------------*/
 argument_expr_list
 <%out ExpTreeListP elist>
 	: assignment_expr<assign_node>
@@ -92,6 +108,19 @@ argument_expr_list
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| This is an assignment expression. The format is:                     |
+|    <conditional_expr>                                                | 
+| or                                                                   | 
+|    <unary_expr> <assignment_operator> <assignment_expr>              | 
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - conditional_expr:    is <exp> ? <exp> : conditional_expr         |
+|   - unary_expr:          is an unary expression                      | 
+|   - assignment_operator: is an assignment operator                   |
+|   - assignment_expr                                                  |
++---------------------------------------------------------------------*/
 assignment_expr
 <%out ExpTreeNodeP enode>
 	: conditional_expr<cond_node>
@@ -104,6 +133,24 @@ assignment_expr
 	}}		
 	;
 
+/*---------------------------------------------------------------------+
+| This is an assignment operator.                                      |
+|                                                                      | 
+| Parameters:                                                          |
+| - terminals:                                                         |
+|   - =                                                                |
+|   - MUL_ASSIGN:   is the token of "*="                               | 
+|   - DIV_ASSIGN:   is the token of "/="                               |
+|   - MOD_ASSIGN:   is the token of "%="                               |
+|   - ADD_ASSIGN:   is the token of "+="                               |
+|   - SUB_ASSIGN:   is the token of "-="                               |
+|   - LEFT_ASSIGN:  is the token of "<<="                              |
+|   - RIGHT_ASSIGN: is the token of ">>="                              |
+|   - AND_ASSIGN:   is the token of "&="                               |
+|   - XOR_ASSIGN:   is the token of "^="                               |
+|   - OR_ASSIGN:    is the token of "|="                               |
+|   - JOIN:         is the token of "$="                               |
++---------------------------------------------------------------------*/
 assignment_operator
 <%out op_id op>
 	: '='
@@ -156,6 +203,16 @@ assignment_operator
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of assignment expressions isolated by ",".            |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - assignment_expr: is an assignment expression                     |
+|   - expr                                                             |
+| - terminals:                                                         | 
+|   - ,                                                                | 
++---------------------------------------------------------------------*/
 expr
 <%out ExpTreeNodeP enode>
 	: assignment_expr<assign_node>
@@ -165,6 +222,16 @@ expr
 	| expr<expr_node> ',' assignment_expr<assign_node>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of init. declarators isolated by ",".                 |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - init_declarator:      is an init. declarator                     |
+|   - init_declarator_list                                             |
+| - terminals:                                                         | 
+|   - ,                                                                | 
++---------------------------------------------------------------------*/
 init_declarator_list
 <%out id_listP idlist>
 	: init_declarator<i_d_list>
@@ -181,6 +248,16 @@ init_declarator_list
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| This is a decarator or an initialized declarator.                    |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - declarator:  is an declarator                                    |
+|   - initializer: is the init. value assignment for an declarator     |
+| - terminals:                                                         | 
+|   - =                                                                | 
++---------------------------------------------------------------------*/
 init_declarator
 <%out id_listP idlist>
 	: declarator<d_list>
@@ -189,6 +266,19 @@ init_declarator
 	}}
 	| declarator<d_list> '=' initializer
 	;
+
+/*---------------------------------------------------------------------+
+| This is the non-termal for the storage class specifiers,             |
+| including: typedef, extern, static, auto, register.                  |
+|                                                                      |
+| Parameters:                                                          |
+| - terminals:                                                         |
+|   - TYPEDEF:  is the token of "typedef"                              |
+|   - EXTERN:   is the token of "extern"                               |
+|   - STATIC:   is the token of "static"                               |
+|   - AUTO:     is the token of "auto"                                 |
+|   - REGISTER: is the token of "register"                             |
++---------------------------------------------------------------------*/
 storage_class_specifier
 	: TYPEDEF
 	| EXTERN
@@ -196,9 +286,22 @@ storage_class_specifier
 	| AUTO
 	| REGISTER
 	;
-/*
- These are type names of variables or functions.
- */
+
+/*---------------------------------------------------------------------+
+| This is the type specifier for variables.                            |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminal:                                                      |
+|   - simple_type_specifier:     is the simple type specifiers for     |
+|                                variables                             |
+|   - class_specifier:           is the type name defined by loci or   |
+|                                users                                 |
+|   - elaborated_type_specifier: is the type name defined by users     |
+|   - cv_qualifier:              is the non-terminal of cv_qualifier   |
+|   - struct_or_union_specifier: is a struct or union specifier        |
+|   - enum_specifier:            is a enum_specifier.                  |
++---------------------------------------------------------------------*/
+/**/
 type_specifier
 <%out type_listP tlist>
         : simple_type_specifier<simple_list>
@@ -218,6 +321,21 @@ type_specifier
 	| enum_specifier
 	;
 
+/*---------------------------------------------------------------------+
+| This is the type name defined by loci or users. The format is:       |
+|    <class name>                                                      |
+| or                                                                   |
+|    <template name> < type_specifier >                                |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminal:                                                      |
+|   - template_stuff: is a list of template arguments with "<>"        |
+| - terminals:                                                         |
+|   - IDENTIFIER:     is the token of any letters followed by          |
+|                     any letters or any numbers with infinite length; |
+|                     the letters can be capitalized or not.           |
++---------------------------------------------------------------------*/
+/**/
 class_specifier
 <%out type_listP tlist>
 	: IDENTIFIER<id>
@@ -251,6 +369,21 @@ class_specifier
 		(*tlist)->next = temp_type_info ;
 	}}
 	;
+
+/*---------------------------------------------------------------------+
+| This is the type name defined by users.                              |
+| The format is:                                                       |
+|    <identifier> :: <class_specifier>                                 |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminal:                                                      |
+|   - class_specifier: <see the former for the format>                 |
+| - terminals:                                                         |
+|   - IDENTIFIER:     is the token of any letters followed by          |
+|                     any letters or any numbers with infinite length; |
+|                     the letters can be capitalized or not.           |
+|   - :                                                                |
++---------------------------------------------------------------------*/
 /**/
 elaborated_type_specifier
 <%out type_listP tlist>
@@ -270,11 +403,40 @@ elaborated_type_specifier
 		(*tlist)->next = clist ;
 	}}
 	;
+
+/*---------------------------------------------------------------------+
+| This is the non-teminal of cv_qualifier, including: CONST, VOLATILE. |
+|                                                                      |
+| Parameters:                                                          |
+| - terminals:                                                         |
+|   - CONST:    is the token of "const"                                |
+|   - VOLATILE: is the token of "volatile"                             |
++---------------------------------------------------------------------*/
 /**/
 cv_qualifier
 	: CONST
 	| VOLATILE
 	;
+
+/*---------------------------------------------------------------------+
+| This is the simple type specifiers for variables, including:         |
+| void, char, int, float, double, bool, short, long, signed,           |
+| unsigned, type_name.                                                 |
+|                                                                      |
+| Parameters:                                                          |
+| - terminals:                                                         |
+|   - VOID:      is the token of "void"                                |
+|   - CHAR:      is the token of "char"                                |
+|   - SHORT:     is the token of "short"                               |
+|   - INT:       is the token of "int"                                 |
+|   - LONG:      is the token of "long"                                |
+|   - FLOAT:     is the token of "float"                               |
+|   - DOUBLE:    is the token of "double"                              |
+|   - SIGNED:    is the token of "signed"                              |
+|   - UNSIGNED:  is the token of "unsigned"                            |
+|   - BOOL:      is the token of "bool"                                |
+|   - TYPE_NAME: is the token of "type_name"                           |
++---------------------------------------------------------------------*/
 /**/
 simple_type_specifier
 <%out type_listP tlist> 
@@ -321,6 +483,19 @@ simple_type_specifier
 	| TYPE_NAME
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of template arguments with "<>".                      |
+| The format is:                                                       |
+|    < arg1, arg2, ... >                                               |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminal:                                                      |
+|   - template_argument_list: is a list of template arguments          |
+|                             isolated by ","                          |
+| - terminals:                                                         |
+|   - <                                                                |
+|   - >                                                                |
++---------------------------------------------------------------------*/
 /**/
 template_stuff
 <%out type_listP tlist>
@@ -333,6 +508,17 @@ template_stuff
 		*tlist = temp_arg_list ;
 	}}
 	;
+
+/*---------------------------------------------------------------------+
+| This is a list of template arguments isolated by ",".                |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminal:                                                      |
+|   - template_argument:      is a template argument                   |
+|   - template_argument_list                                           |
+| - terminals:                                                         |
+|   - ,                                                                |
++---------------------------------------------------------------------*/
 /**/
 template_argument_list
 <%out type_listP tlist>
@@ -349,6 +535,17 @@ template_argument_list
 		*tlist = t_a_list ;
 	}}
 	;
+
+/*---------------------------------------------------------------------+
+| This is a template argument.                                         |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminal:                                                      |
+|   - type_specifier_list: is a list of type specifiers                |
+|   - abstract_declarator: is ...                                      |
+| - terminals:                                                         |
+|   - CONSTANT                                                         |
++---------------------------------------------------------------------*/
 /**/
 template_argument
 <%out type_listP tlist>
@@ -363,53 +560,152 @@ template_argument
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| This is a struct or union specifier.                                 |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - struct_or_union:         is the non-terminal of token STRUCT     |
+|                              and UNION                               |
+|   - identifier:              is the non-terminal of token IDENTIFIER |
+|   - struct_declaration_list: is a list of struct declarations        |
+| - terminals:                                                         |
+|   - {                                                                |
+|   - }                                                                |
++---------------------------------------------------------------------*/
 struct_or_union_specifier
 	: struct_or_union identifier<id> '{' struct_declaration_list '}'
 	| struct_or_union '{' struct_declaration_list '}'
 	| struct_or_union identifier<id>
 	;
 
+/*---------------------------------------------------------------------+
+| This is the non-terminal of token STRUCT and UNION.                  |
+|                                                                      |
+| Parameters:                                                          |
+| - terminals:                                                         |
+|   - STRUCT: is the token of "struct"                                 |
+|   - UNION:  is the token of "union"                                  |
++---------------------------------------------------------------------*/
 struct_or_union
 	: STRUCT
 	| UNION
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of struct declarations.                               |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - struct_declaration:     <see the next for its format>            |
+|   - struct_declaration_list                                          |
++---------------------------------------------------------------------*/
 struct_declaration_list
 	: struct_declaration
 	| struct_declaration_list struct_declaration
 	;
 
+/*---------------------------------------------------------------------+
+| This is a struct declaration.                                        |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - type_specifier_list:    is a list of type specifiers             |
+|   - struct_declarator_list: is a list of struct declarators          |
+| - terminals:                                                         |
+|   - ;                                                                |
++---------------------------------------------------------------------*/
 struct_declaration
 	: type_specifier_list<t_l_info> struct_declarator_list ';'
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of struct declarators.                                |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - struct_declarator:     is a struct declarator                    |
+|   - struct_declarator_list                                           |
+| - terminals:                                                         |
+|   - ,                                                                |
++---------------------------------------------------------------------*/
 struct_declarator_list
 	: struct_declarator
 	| struct_declarator_list ',' struct_declarator
 	;
 
+/*---------------------------------------------------------------------+
+| This is a struct declarator.                                         |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - declarator:    is a declarator                                   |
+|   - constant_expr: also is <conditional_expr>                        |
+| - terminals:                                                         |
+|   - :                                                                |
++---------------------------------------------------------------------*/
 struct_declarator
 	: declarator<d_list>
 	| ':' constant_expr<enode>
 	| declarator<d_list> ':' constant_expr<enode>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a enum specifier.                                            |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - enumerator_list: is a list of enumerators                        |
+|   - identifier:      is the non-terminal of token IDENTIFIER         |
+| - terminals:                                                         |
+|   - ENUM:            is the token of "enum"                          |
+|   - {                                                                |
+|   - }                                                                |
++---------------------------------------------------------------------*/
 enum_specifier
 	: ENUM '{' enumerator_list '}'
 	| ENUM identifier<id> '{' enumerator_list '}'
 	| ENUM identifier<id>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of enumerators isolated by ",".                       |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - enumerator:     is a enumerator                                  |
+|   - enumerator_list                                                  |
+| - terminals:                                                         |
+|   - ,                                                                |
++---------------------------------------------------------------------*/
 enumerator_list
 	: enumerator
 	| enumerator_list ',' enumerator
 	;
 
+/*---------------------------------------------------------------------+
+| Enumerator can be a variable or a variable with an assignment.       |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - identifier:    is the non-terminal of token IDENTIFIER           |
+|   - constant_expr: also is <conditional_expr>                        |
+| - terminals:                                                         |
+|   - =                                                                |
++---------------------------------------------------------------------*/
 enumerator
 	: identifier<id>
 	| identifier<id> '=' constant_expr<enode>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of type specifiers.                                   |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminal:                                                      |
+|   - type_specifier:     is the type specifier for variables          |
+|   - type_specifier_list                                              |
++---------------------------------------------------------------------*/
 type_specifier_list
 <%out type_listP tinfo>
 	: type_specifier<type_info>
@@ -423,26 +719,76 @@ type_specifier_list
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of parameter identifiers isolated by ",".             |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - identifier_list: is a list of identifiers isolated by ","        |
+| - terminals:                                                         |
+|   - ELIPSIS:                                                         |
+|   - ,                                                                |
++---------------------------------------------------------------------*/
 parameter_identifier_list
 	: identifier_list
 	| identifier_list ',' ELIPSIS
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of identifiers isolated by ",".                       |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - identifier:      is the non-terminal of token IDENTIFIER         |
+|   - identifier_list                                                  |
+| - terminals:                                                         |
+|   - ,                                                                |
++---------------------------------------------------------------------*/
 identifier_list
 	: identifier<id>
 	| identifier_list ',' identifier<id>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of parameters isolated by ",".                        |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - parameter_list: is a list of parameters'                         |
+| - terminals:                                                         |
+|   - ELIPSIS:                                                         |
+|   - ,                                                                |
++---------------------------------------------------------------------*/
 parameter_type_list
 	: parameter_list
 	| parameter_list ',' ELIPSIS
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of parameters' declaration isolated by ",".           |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - parameter_declaration: is a parameter's declaration              |
+|   - parameter_list                                                   |
+| - terminals:                                                         |
+|   - ,                                                                |
++---------------------------------------------------------------------*/
 parameter_list
 	: parameter_declaration
 	| parameter_list ',' parameter_declaration
 	;
 
+/*---------------------------------------------------------------------+
+| This is a parameter's declaration, and put it in the global hash     |
+| table.                                                               | 
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - type_specifer_list: is a list of type specifiers.                |
+|   - declarator:         is a declarator                              |
+|   - type_name:          is a type name                               |
++---------------------------------------------------------------------*/
 parameter_declaration
 	: type_specifier_list<t_l_info> declarator<d_list>
 	{{
@@ -451,12 +797,30 @@ parameter_declaration
 	| type_name
 	;
 
+/*---------------------------------------------------------------------+
+| This is ...                                                          |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - pointer:              is the non-terminal of pointer with "*".   |
+|   - abstract_declarator2: is ...                                     |
++---------------------------------------------------------------------*/
 abstract_declarator
 	: pointer
 	| abstract_declarator2
 	| pointer abstract_declarator2
 	;
 
+/*---------------------------------------------------------------------+
+| This is ...                                                          |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - abstract_declarator:  <see the former for the format>            |
+|   - constant_expr:        also is <conditional_expr>                 |
+|   - abstract_declarator2                                             |
+|   - parameter_type_list:  is a list of parameter types               |
++---------------------------------------------------------------------*/
 abstract_declarator2
 	: '(' abstract_declarator ')'
 	| '[' ']'
@@ -469,17 +833,57 @@ abstract_declarator2
 	| abstract_declarator2 '(' parameter_type_list ')'
 	;
 
+/*---------------------------------------------------------------------+
+| This is an initializer. The format is:                               |
+|    <assign_expr>                                                     | 
+| or                                                                   | 
+|    { <initializer_list> }                                            | 
+| or                                                                   | 
+|    { <initializer_list , }                                           | 
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - initializer:      is an initializer                              |
+|   - initializer_list                                                 |
+| - terminals:                                                         |
+|   - {                                                                |
+|   - }                                                                | 
+|   - ,                                                                | 
++---------------------------------------------------------------------*/
 initializer
 	: assignment_expr<assign_node>
 	| '{' initializer_list '}'
 	| '{' initializer_list ',' '}'
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of initializers isolated by ",".                      |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - initializer:      is an initializer, <see the former for format> |
+|   - initializer_list                                                 |
+| - terminals:                                                         |
+|   - ,                                                                |
++---------------------------------------------------------------------*/
 initializer_list
 	: initializer
 	| initializer_list ',' initializer
 	;
 
+/*---------------------------------------------------------------------+
+| This is a statement.                                                 |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - labeled_statement:    is a labled statement                      |
+|   - compound_statement:   is a list of declarations and/or           |
+|                           statements with "{}"                       |
+|   - expression_statement: is a expression statement                  |
+|   - selection_statement:  is a selective statement                   |
+|   - iteration_statement:  is a iterative statement                   |
+|   - jump_statement:       is a jump statement                        |
++---------------------------------------------------------------------*/
 statement
 <%out FuncListNodeP funcnode>
 	: labeled_statement
@@ -497,12 +901,37 @@ statement
 	| jump_statement
 	;
 
+/*---------------------------------------------------------------------+
+| This is a labeled statement.                                         |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - identifier:    is the non-terminal of token IDENTIFIER           |
+|   - statement:     is a statement                                    |
+|   - constant_expr: is also <conditional_expr>                        |
+| - terminals:                                                         |
+|   - CASE:          is the token of "case"                            |
+|   - DEFAULT:       is the token of "default"                         |
+|   - :                                                                |
++---------------------------------------------------------------------*/
 labeled_statement
 	: identifier<id> ':' statement<s_node>
 	| CASE constant_expr<enode> ':' statement<s_node>
 	| DEFAULT ':' statement<s_node>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of declarations and/or statements with "{}".          |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - statement_list:   is a list of statements                        |
+|   - declaration_list: is a list of declarations of variables that    |
+|                       will be put into a global hash table           | 
+| - terminals:                                                         |
+|   - {                                                                |
+|   - }                                                                |
++---------------------------------------------------------------------*/
 compound_statement
 <%out FuncListNodeP funcnode>
 	: '{' '}'
@@ -514,11 +943,29 @@ compound_statement
 	| '{' declaration_list statement_list<sl_node> '}'
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of declarations of variables that will be put into    |
+| a global hash table.                                                 | 
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - declaration:      puts a declaration of variables used by loci   |
+|                       rules or functions into a global hash table    |
+|   - declaration_list                                                 |
++---------------------------------------------------------------------*/
 declaration_list
 	: declaration
 	| declaration_list declaration
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of statements.                                        |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - statement:     is a statement                                    |
+|   - statement_list                                                   |
++---------------------------------------------------------------------*/
 statement_list
 <%out FuncListNodeP funcnode>
 	: statement<s_node>
@@ -536,6 +983,18 @@ statement_list
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| This is a expression statement. The format is:                       |
+|    ;                                                                 | 
+| or                                                                   | 
+|    <expr> ;                                                          | 
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - expr: is a list of assignment expressions isolated by ","        |
+| - terminals:                                                         |
+|   - ;                                                                |
++---------------------------------------------------------------------*/
 expression_statement
 <%out ExpTreeNodeP enode>
 	: ';'
@@ -545,12 +1004,65 @@ expression_statement
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| This is a selective statement. The format is:                        |
+|    IF ( <expr> ) <statement>                                         | 
+| or                                                                   | 
+|    IF ( <expr> ) <statement> ELSE <statement>                        | 
+| or                                                                   | 
+|    SWITCH ( <expr> ) statement                                       | 
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - expr:      is a list of assignment expressions isolated by ","   |
+|   - statement: is a statement                                        |
+| - terminals:                                                         |
+|   - IF:        is the token of "if"                                  |
+|   - ELSE:      is the token of "else"                                |
+|   - SWITCH:    is the token of "switch"                              |
+|   - (                                                                |
+|   - )                                                                |
++---------------------------------------------------------------------*/
 selection_statement
 	: IF '(' expr<expr_node> ')' statement<s_node>
 	| IF '(' expr<expr_node> ')' statement<s_node> ELSE statement<s_node>
 	| SWITCH '(' expr<expr_node> ')' statement<s_node>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a iterative statement. The format is:                        |
+|    WHILE ( <expr> ) <statement>                                      | 
+| or                                                                   | 
+|    DO <statement> WHILE ( <expr> ) ;                                 | 
+| or                                                                   | 
+|    FOR ( ; ; ) <statement>                                           | 
+| or                                                                   | 
+|    FOR ( ; ; <expr> ) <statement>                                    | 
+| or                                                                   | 
+|    FOR ( ; <expr> ; ) <statement>                                    | 
+| or                                                                   | 
+|    FOR ( ; <expr> ; <expr> ) <statement>                             | 
+| or                                                                   | 
+|    FOR ( <expr> ; ; ) <statement>                                    | 
+| or                                                                   | 
+|    FOR ( <expr> ; ; <expr> ) <statement>                             | 
+| or                                                                   | 
+|    FOR ( <expr> ; <expr> ; ) <statement>                             | 
+| or                                                                   | 
+|    FOR ( <expr> ; <expr> ; <expr> ) <statement>                      | 
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - expr:      is a list of assignment expressions isolated by ","   |
+|   - statement: is a statement                                        |
+| - terminals:                                                         |
+|   - WHILE:     is the token of "while"                               |
+|   - DO:        is the token of "do"                                  |
+|   - FOR:       is the token of "for"                                 |
+|   - (                                                                |
+|   - )                                                                |
+|   - ;                                                                |
++---------------------------------------------------------------------*/
 iteration_statement
 	: WHILE '(' expr<expr_node> ')' statement<s_node>
 	| DO statement<s_node> WHILE '(' expr<expr_node> ')' ';'
@@ -564,6 +1076,29 @@ iteration_statement
 	| FOR '(' expr<expr_node> ';' expr<expr_node> ';' expr<expr_node> ')' statement<s_node>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a jump statement. The format is:                             |
+|    GOTO <identifier> ;                                               | 
+| or                                                                   | 
+|    CONTINUE ;                                                        | 
+| or                                                                   | 
+|    BREAK ;                                                           | 
+| or                                                                   | 
+|    RETURN ;                                                          | 
+| or                                                                   | 
+|    RETURN <expr> ;                                                   | 
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - expr:       is a list of assignment expressions isolated by ","  |
+|   - identifier: is the non-terminal of token IDENTIFIER              |
+| - terminals:                                                         |
+|   - GOTO:       is the token of "goto"                               |
+|   - CONTINUE:   is the token of "continue"                           |
+|   - BREAK:      is the token of "break"                              |
+|   - RETURN:     is the token of "return"                             |
+|   - ;                                                                |
++---------------------------------------------------------------------*/
 jump_statement
 	: GOTO identifier<id> ';'
 	| CONTINUE ';'
@@ -572,11 +1107,16 @@ jump_statement
 	| RETURN expr<expr_node> ';'
 	;
 
-/*****************************************************************
-
- file only contains the list of loci rules and general functions. 
-
-*****************************************************************/
+/*************************/
+/*---------------------------------------------------------------------+
+| This is the process of loci rules or functions in a file.            |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - external_definition: is the definition of a loci rule            |
+|                          or a function                               |
+|   - file                                                             |
++---------------------------------------------------------------------*/
 file
 <%out FileListNodeP filenode>
 	: external_definition<external_node>
@@ -595,14 +1135,18 @@ file
 	}}
 	;
 
-/*
- - function_definition is the def. of general function ;
-
- - loci_rule_definition is the def. of loci rule.
- */
+/*---------------------------------------------------------------------+
+| This is the definition of a loci rule or a function.                 |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - function_definition:  is the definition of a funtion             |
+|   - loci_rule_definition: is the definition of a loci rule           |
++---------------------------------------------------------------------*/
 external_definition
 <%out FileListNodeP filenode>
 	: function_definition
+/**/
 	| loci_rule_definition<loci_rule>
 	{{
 		*filenode = (FileListNode *)
@@ -615,25 +1159,30 @@ external_definition
 	;
 
 
-/*=====================================
-
- This is the def. of general function.
-
- ====================================*/
+/*=======================*/
+/*---------------------------------------------------------------------+
+| This is the definition of a function.                                |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - declarator:             is a declarator                          |
+|   - function_body:          is a function body                       |
+|   - declaration_specifiers: is the type of variables                 |
++---------------------------------------------------------------------*/
 function_definition
 	: declarator<d_list> function_body<fb_node>
 	| declaration_specifiers<t_list> declarator<d_list> function_body<fb_node>
 	;
 
-/*============================================================
-
- This is the def. of the loci rule:
-
- - loci_rule contains the types of the loci rules;
-
- - function_body contains the general statements with braces.
-
- ===========================================================*/
+/*---------------------------------------------------------------------+
+| This is the definition of a loci rule.                               |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - loci_rule:     is the type of loci rules                         |
+|   - function_body: is a function body                                |
++---------------------------------------------------------------------*/
+/**/
 loci_rule_definition
 <%out FuncListHeadP funcnode>
 	: loci_rule<rule_head> function_body<fb_node>
@@ -643,9 +1192,29 @@ loci_rule_definition
 	}}
 	;
 
-/*
- This contains the types of the loci rules.
- */
+/*---------------------------------------------------------------------+
+| This is the type of loci rules. Loci rules can be pointwise rules,   |
+| singleton rules, unit rules, and apply rules.
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - identifier:             is the non-terminal of token IDENTIFIER  |
+|   - template_argument_list: is a list of template arguments          |
+|                             isolated by ","                          |
+| - terminals:                                                         |
+|   - POINTWISE_RULE:         is the token of "pointwise rule"         |
+|   - SINGLETON_RULE:         is the token of "singleton rule"         |
+|   - CONDITIONAL:            is the token of "conditional"            |
+|   - UNIT_RULE:              is the token of "unit rule"              |
+|   - IDENTIFIER:             is the token of any letters followed by  |
+|                             any letters or any numbers with infinite |
+|                             length;                                  |
+|                             the letters can be capitalized or not    |
+|   - APPLY_RULE:             is the token of "apply rule"             |
+|   - (                                                                |
+|   - )                                                                |
++---------------------------------------------------------------------*/
+/**/
 loci_rule
 <%out FuncListHeadP rhead>
 	: POINTWISE_RULE
@@ -726,6 +1295,14 @@ loci_rule
 	;
 
 /*-----------------------*/
+/*---------------------------------------------------------------------+
+| This is a declarator without initializer.                            |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - declarator2: is a declarator that is not a pointer mode          |
+|   - pointer:     is the non-terminal of pointer with "*"             |
++---------------------------------------------------------------------*/
 declarator
 <%out id_listP idlist>
 	: declarator2<d2_list>
@@ -735,6 +1312,24 @@ declarator
 	| pointer declarator2<d2_list>
 	;
 
+/*---------------------------------------------------------------------+
+| This is a declarator that is not a pointer mode.                     |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - identifier:                is the non-terminal of token          |
+|                                IDENTIFIER.                           |
+|   - declarator:                                                      |
+|   - declarator2                                                      |
+|   - constant_expr:             is also <conditional_expr>            |
+|   - parameter_type_list:       is a list of parameter types          |
+|   - parameter_identifier_list: is a list of parameter identifiers    |
+| - terminals:                                                         |
+|   - (                                                                |
+|   - )                                                                |
+|   - [                                                                |
+|   - ]                                                                |
++---------------------------------------------------------------------*/
 declarator2
 <%out id_listP idlist>
 	: identifier<id>
@@ -749,13 +1344,22 @@ declarator2
 	| declarator2<d2_list> '[' ']'
 	| declarator2<d2_list> '[' constant_expr<enode> ']'
 	| declarator2<d2_list> '(' ')'
-	| declarator2<d2_list> '(' parameter_type_list ')' 
+	| declarator2<d2_list> '(' parameter_type_list ')'
 	{{
 		*idlist = d2_list ;
-	}} 
-	| declarator2<d2_list> '(' parameter_identifier_list ')' 
+	}}
+	| declarator2<d2_list> '(' parameter_identifier_list ')'
 	;
 
+/*---------------------------------------------------------------------+
+| This is the non-terminal of token IDENTIFIER.                        |
+|                                                                      | 
+| Parameters:                                                          |
+| - terminal:                                                          |
+|   - IDENTIFIER:     is the token of any letters followed by          |
+|                     any letters or any numbers with infinite length; |
+|                     the letters can be capitalized or not.           |
++---------------------------------------------------------------------*/
 identifier
 <%out ExpTreeNodeP enode>
 	: IDENTIFIER<id>
@@ -764,9 +1368,14 @@ identifier
 	}}
 	;
 
-/*
- These are grammars of C expressions.
- */
+/*---------------------------------------------------------------------+
+| The format of constant expression is:                                |
+|    conditional_expr                                                  |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - conditional_expr: <see the next for its format>                  |
++---------------------------------------------------------------------*/
 constant_expr
 <%out ExpTreeNodeP enode>
 	: conditional_expr<cond_node>
@@ -775,6 +1384,18 @@ constant_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of conditional expressions is:                            |
+|    <exp> ? <exp> : conditional_expr                                  |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - logical_or_expr:  <see the next for its format>                  |
+|   - conditional_expr                                                 |
+| - terminals:                                                         |
+|   - ?                                                                |
+|   - :                                                                |
++---------------------------------------------------------------------*/
 conditional_expr
 <%out ExpTreeNodeP enode>
 	: logical_or_expr<logor_node>
@@ -784,6 +1405,17 @@ conditional_expr
 	| logical_or_expr<logor_node> '?' logical_or_expr<logor_node> ':' conditional_expr<cond_node>
 	;
 
+/*---------------------------------------------------------------------+
+| The format of logical OR expressions is:                             |
+|    <exp> || <exp>                                                    |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - logical_and_expr: <see the next for its format>                  |
+|   - logical_or_expr                                                  |
+| - terminals:                                                         |
+|   - OR_OP:            is the token of "||"                           |
++---------------------------------------------------------------------*/
 logical_or_expr
 <%out ExpTreeNodeP enode>
 	: logical_and_expr<logand_node>
@@ -796,6 +1428,17 @@ logical_or_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of logical AND expressions is:                            |
+|    <exp> && <exp>                                                    |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - inclusive_or_expr: <see the next for its format>                 |
+|   - logical_and_expr                                                 |
+| - terminals:                                                         |
+|   - ANS_OP:            is the token of "&&"                          |
++---------------------------------------------------------------------*/
 logical_and_expr
 <%out ExpTreeNodeP enode>
 	: inclusive_or_expr<inclusive_node>
@@ -808,6 +1451,17 @@ logical_and_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of inclusive OR expressions is:                           |
+|    <exp> | <exp>                                                     |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - exclusive_or_expr: <see the next for its format>                 |
+|   - inclusive_or_expr                                                |
+| - terminals:                                                         |
+|   - |                                                                |
++---------------------------------------------------------------------*/
 inclusive_or_expr
 <%out ExpTreeNodeP enode>
 	: exclusive_or_expr<exclusive_node>
@@ -820,6 +1474,17 @@ inclusive_or_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of exclusive OR expressions is:                           |
+|    <exp> ^ <exp>                                                     |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - and_expr:          <see the next for its format>                 |
+|   - exclusive_or_expr                                                |
+| - terminals:                                                         |
+|   - ^                                                                |
++---------------------------------------------------------------------*/
 exclusive_or_expr
 <%out ExpTreeNodeP enode>
 	: and_expr<and_node>
@@ -832,6 +1497,17 @@ exclusive_or_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of AND expressions is:                                    |
+|    <exp> & <exp>                                                     |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - equality_expr: <see the next for its format>                     |
+|   - and_expr                                                         |
+| - terminals:                                                         |
+|   - &                                                                |
++---------------------------------------------------------------------*/
 and_expr
 <%out ExpTreeNodeP enode>
 	: equality_expr<equ_node>
@@ -844,6 +1520,20 @@ and_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of equality expressions is:                               |
+|    <exp> == <exp>                                                    |
+| or                                                                   |
+|    <exp> != <exp>                                                    |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - relational_expr: <see the next for its format>                   |
+|   - equality_expr                                                    |
+| - terminals:                                                         |
+|   - EQ_OP:           is the token of "=="                            |
+|   - NE_OP:           is the token of "!="                            |
++---------------------------------------------------------------------*/
 equality_expr
 <%out ExpTreeNodeP enode>
 	: relational_expr<rel_node>
@@ -860,6 +1550,26 @@ equality_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of relational expressions is                              |
+|    <exp> < <exp>                                                     |
+| or                                                                   |
+|    <exp> > <exp>                                                     |
+| or                                                                   |
+|    <exp> <= <exp>                                                    |
+| or                                                                   |
+|    <exp> >= <exp>                                                    |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - shift_expr:      <see the next for its format>                   |
+|   - relational_expr                                                  |
+| - terminals:                                                         |
+|   - <                                                                |
+|   - >                                                                |
+|   - LE_OP:           is the token of "<="                            |
+|   - GE_OP:           is the token of ">="                            |
++---------------------------------------------------------------------*/
 relational_expr
 <%out ExpTreeNodeP enode>
 	: shift_expr<shift_node>
@@ -884,6 +1594,20 @@ relational_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of shift expressions is:                                  |
+|    <exp> << <exp>                                                    |
+| or                                                                   |
+|    <exp> >> <exp>                                                    |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - additive_expr: <see the next for its format>                     |
+|   - shift_expr                                                       |
+| - terminals:                                                         |
+|   - LEFT_OP:       is the token of "<<"                              |
+|   - RIGHT_OP:      is the token of ">>"                              |
++---------------------------------------------------------------------*/
 shift_expr
 <%out ExpTreeNodeP enode>
 	: additive_expr<add_node>
@@ -900,6 +1624,20 @@ shift_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of additive expressions is:                               |
+|    <exp> + <exp>                                                     |
+| or                                                                   |
+|    <exp> - <exp>                                                     |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - multiplicative_expr: <see the next for its format>               |
+|   - additive_expr                                                    |
+| - terminals:                                                         |
+|   - +                                                                |
+|   - -                                                                |
++---------------------------------------------------------------------*/
 additive_expr
 <%out ExpTreeNodeP enode>
 	: multiplicative_expr<mul_node>
@@ -916,6 +1654,23 @@ additive_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of multiplicative expressions is:                         |
+|    <exp> * <exp>                                                     |
+| or                                                                   |
+|    <exp> / <exp>                                                     |
+| or                                                                   |
+|    <exp> % <exp>                                                     |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - cast_expr:           <see the next for its format>               |
+|   - multiplicative_expr                                              |
+| - terminals:                                                         |
+|   - *                                                                |
+|   - /                                                                |
+|   - %                                                                |
++---------------------------------------------------------------------*/
 multiplicative_expr
 <%out ExpTreeNodeP enode>
 	: cast_expr<cast_node>
@@ -936,6 +1691,19 @@ multiplicative_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| The format of cast expressions is: (????)                            |
+|    ( type_name ) <expr>                                              |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - unary_expr:  <see the next for its format>                       |
+|   - type_name:   is a type name                                      |
+|   - cast_expr                                                        |
+| - terminals:                                                         |
+|   - (                                                                |
+|   - )                                                                |
++---------------------------------------------------------------------*/
 cast_expr
 <%out ExpTreeNodeP enode>
 	: unary_expr<unary_node>
@@ -945,6 +1713,35 @@ cast_expr
 	| '(' type_name ')' cast_expr<cast_node>
 	;
 
+/*---------------------------------------------------------------------+
+| The format of unary expressions is:                                  |
+|    ++ <expr>                                                         |
+| or                                                                   |
+|    -- <expr>                                                         |
+| or                                                                   |
+|                                                                      |
+| or                                                                   |
+|    $ <expr>                                                          |
+| or                                                                   |
+|    sizeof <expr>                                                     |
+| or                                                                   |
+|                                                                      |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - postfix_expr:   <see the next for its format>                    |
+|   - unary_expr                                                       |
+|   - unary_operator: is the non-termial of unary operators            |
+|   - cast_expr:      <see the former for its format>                  |
+|   - type_name:      is a type name                                   |
+| - terminals:                                                         |
+|   - INC_OP:         is the token of "++"                             |
+|   - DEC_OP:         is the token of "--"                             |
+|   - ITER_VAR_OP:    is the token of "$"                              |
+|   - SIZEOF:         is the token of "sizeof"                         |
+|   - (                                                                |
+|   - )                                                                |
++---------------------------------------------------------------------*/
 unary_expr
 <%out ExpTreeNodeP enode>
 	: postfix_expr<post_node>
@@ -971,6 +1768,45 @@ unary_expr
 	| SIZEOF '(' type_name ')'
 	;
 
+/*---------------------------------------------------------------------+
+| The format of postfix expressions is:                                |
+|    <expr> [ ... ]                                                    |
+| or                                                                   |
+|    <expr> ()                                                         |
+| or                                                                   |
+|    <expr> ( arg1, arg2, ... )                                        |
+| or                                                                   |
+|    <expr> { arg1, arg2, ... }                                        |
+| or                                                                   |
+|    <expr> . identifier                                               |
+| or                                                                   |
+|    <expr> -> identifier                                              |
+| or                                                                   |
+|    <expr> ++                                                         |
+| or                                                                   |
+|    <expr> --                                                         |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - primary_expr:       <see the next for its format>                |
+|   - postfix_expr                                                     |
+|   - expr:               is a list of assignment expressions          |
+|                         isolated by ","                              |
+|   - argument_expr_list: is a list of argument expressions            |
+|                         isolated by ","                              |
+|   - identifier:         is the non-terminal of token IDENTIFIER      |
+| - terminals:                                                         |
+|   - INC_OP:             is the token of "++"                         |
+|   - DEC_OP:             is the token of "--"                         |
+|   - PTR_OP:             is the token of "->"                         |
+|   - [                                                                |
+|   - ]                                                                |
+|   - (                                                                |
+|   - )                                                                |
+|   - {                                                                |
+|   - }                                                                |
+|   - .                                                                |
++---------------------------------------------------------------------*/
 postfix_expr
 <%out ExpTreeNodeP enode>
 	: primary_expr<pri_node>
@@ -1027,6 +1863,26 @@ postfix_expr
 	| postfix_expr<post_node> DEC_OP
 	;
 
+/*---------------------------------------------------------------------+
+| The format of primary expressions is:                                |
+|    identifier                                                        |
+| or                                                                   |
+|    CONSTANT                                                          |
+| or                                                                   |
+|    STRING_LITERAL                                                    |
+| or                                                                   |
+|    ( <expr> )                                                        |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - identifier: is the non-terminal of token IDENTIFIER              |
+|   - expr:       is a list of assignment expressions isolated by ","  |
+| - terminals:                                                         |
+|   - CONSTANT                                                         |
+|   - STRING_LITERAL                                                   |
+|   - (                                                                |
+|   - )                                                                |
++---------------------------------------------------------------------*/
 primary_expr
 <%out ExpTreeNodeP enode>
 	: identifier<id>
@@ -1047,6 +1903,18 @@ primary_expr
 	}}
 	;
 
+/*---------------------------------------------------------------------+
+| This is the non-termial of unary operators.                          |
+|                                                                      |
+| Parameters:                                                          |
+| - terminals:                                                         |
+|   - &                                                                |
+|   - *                                                                |
+|   - +                                                                |
+|   - -                                                                |
+|   - ~                                                                |
+|   - !                                                                |
++---------------------------------------------------------------------*/
 unary_operator
 <%out op_id u_op>
 	: '&'
@@ -1060,11 +1928,29 @@ unary_operator
 	| '!'
 	;
 
+/*---------------------------------------------------------------------+
+| This is a type_name.                                                 |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - type_specifier_list: is a list of type specifiers                |
+|   - abstract_declarator: ...                                         |
++---------------------------------------------------------------------*/
 type_name
 	: type_specifier_list<t_l_name>
 	| type_specifier_list<t_l_name> abstract_declarator
 	;
 
+/*---------------------------------------------------------------------+
+| This is the non-terminal of pointer with "*".                        |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - pointer                                                          |
+|   - type_specifier_list: is a list of type specifiers.               |
+| - terminals:                                                         |
+|   - *                                                                |
++---------------------------------------------------------------------*/
 pointer
 	: '*'
 	| '*' type_specifier_list<t_l_name>
@@ -1072,11 +1958,17 @@ pointer
 	| '*' type_specifier_list<t_l_name> pointer
 	;
 
-/*=================================================
-
- This contains the general statements with braces.
-
- ================================================*/
+/*-----------------------*/
+/*---------------------------------------------------------------------+
+| This is a function body.                                             |
+|                                                                      | 
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - compound_statement: is a list of declarations and/or statements  |
+|                         with "{}"                                    |
+|   - declaration_list:   is a list of declarations of variables that  |
+|                         will be put into a global hash table         |
++---------------------------------------------------------------------*/
 function_body
 <%out FuncListNodeP funcnode>
 	: compound_statement<compound_node>
@@ -1086,32 +1978,55 @@ function_body
 	| declaration_list compound_statement<compound_node>
 	;
 
-/***************************************************************
- declaration only contains def.s of variables:
-
- - declaration_specifiers <dai>
- - loci_declaration_list is the list of loci def.s of variables
-***************************************************************/
+/*---------------------------------------------------------------------+
+| This is the declaration specifiers for variables used by functions   |
+| or the declaration of global variables used by loci rules.           |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - declaration_specifiers: is the type of variables                 |
+|   - loci_declaration_list:  is a list of the declarations of loci    |
+|                             global variables                         |
+| - terminal:                                                          |
+|   - DATATYPES:              is the token of "datatypes"              |
+|   - ';'                                                              |
+|   - '{'                                                              |
+|   - '}'                                                              |
++---------------------------------------------------------------------*/
 declaration
 	: declaration_specifiers<tlist> ';'
 /**/
 	| DATATYPES '{' loci_declaration_list '}'
 	;
 
+/*---------------------------------------------------------------------+
+| This is a list of the declarations of loci global variables.         |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - loci_declaration:     is the declaration of loci global variables|
+|   - loci_declaration_list                                            |
++---------------------------------------------------------------------*/
 loci_declaration_list:
 	 loci_declaration
 	| loci_declaration_list loci_declaration
 	;
 
-/*loci_declaration:
- declaration_specifiers<tlist> init_declarator_list<i_d_l_list> ';'
-	{{
-		filltable(global_def, tlist, i_d_l_list) ;
-	}}
-;
-*/
-
-/* This symbol is used to describe a declaration statment within a datatypes block */
+/*---------------------------------------------------------------------+
+| Put the declaration of loci global variables used by loci rules      |
+| into a global hash table.                                            |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - declaration_specifiers: is the type of variables                 |
+|   - identifier:             is the non-terminal of token IDENTIFIER  |
+|   - param_rule_decl_list:   is a list of declarations used by loci   |
+|                             parametric rules isolated by ","         |
+| - terminal:                                                          |
+|   - ';'                                                              |
+|   - '('                                                              |
+|   - ')'                                                              |
++---------------------------------------------------------------------*/
 loci_declaration:
 	declaration_specifiers<tlist> identifier<id> ';'
         {{
@@ -1122,17 +2037,61 @@ loci_declaration:
  	       filltable(global_def,tlist,idlist) ;
         }}
 	| declaration_specifiers<tlist> identifier<id> '(' param_rule_decl_list  ')' ';'
-;
+        {{
+		id_list *idlist = (id_list *) malloc(sizeof(id_list)) ;
+		idlist->name = id->name ;
+		idlist->init = NULL ;
+		idlist->next = NULL ;
+ 	       filltable(global_def,tlist,idlist) ;
+        }}
+	;
 
+/*---------------------------------------------------------------------+
+| This is a list of declarations used by loci parametric rules         |
+| isolated by ",".                                                     |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - param_rule_decl:      is the declaration used by loci parametric |
+|                           rules                                      |
+|   - param_rule_decl_list                                             |
+| - terminal:                                                          |
+|   - ','                                                              |
++---------------------------------------------------------------------*/
 param_rule_decl_list:
-  param_rule_decl
-  | param_rule_decl_list ',' param_rule_decl
-;
+	param_rule_decl
+	| param_rule_decl_list ',' param_rule_decl
+	;
 
+/*---------------------------------------------------------------------+
+| This is the declaration used by loci parametric rules.               |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - type_specifier: is the type specifier for variables              |
+|   - identifier:     is the non-terminal of token IDENTIFIER          |
++---------------------------------------------------------------------*/
 param_rule_decl:
- type_specifier<type_info_list> identifier<id> 
-;
+	declaration_specifiers<tlist> identifier<id>
+        {{
+		id_list *idlist = (id_list *) malloc(sizeof(id_list)) ;
+		idlist->name = id->name ;
+		idlist->init = NULL ;
+		idlist->next = NULL ;
+ 	       filltable(global_def,tlist,idlist) ;
+        }}
+	;
 
+/*---------------------------------------------------------------------+
+| This is the type of variables.                                       |
+|                                                                      |
+| Parameters:                                                          |
+| - non-terminals:                                                     |
+|   - storage_class_specifier: is the non-terminal for the storage     |
+|                              class specifiers                        |
+|   - type_specifier:          is the type specifier for variables     |
+|   - declaration_specifiers                                           |
++---------------------------------------------------------------------*/
 declaration_specifiers
 <%out type_listP tlist>
 	: storage_class_specifier

@@ -124,10 +124,10 @@ typedef struct ID_LIST {
 
 typedef struct TYPE_INFO {
   dp_id type ;
-  char* user_tname ;
-  bool is_elabt ;
-  bool begin_temp ;
-  bool close_temp ;
+  char* user_tname ;//name of class_specifier defined by loci or users
+  bool is_elabt ;//true: not elaborated_type_specifier
+  bool begin_temp ;//true: the beginning of template arguments
+  bool close_temp ;//true: the end of template arguments; will be set at template_stuff
 } type_info ;
 
 typedef struct TYPE_LIST {
