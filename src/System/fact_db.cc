@@ -322,24 +322,30 @@ namespace Loci {
         if((mi->second.exists & x) != EMPTY) {
           const vector<string> &p1 = v.get_info().priority ;
           const vector<string> &p2 = mi->second.v.get_info().priority ;
-          for(int i=0;i<min(p1.size(),p2.size());++i)
-            if(p1[i] != p2[i])
+          for(int i=0,j=p1.size()-1,k=p2.size()-1;
+              i<min(p1.size(),p2.size());
+              ++i,--j,--k)
+            if(p1[j] != p2[k]) {
               conflicts += mi->first ;
-          if(p1.size() == p2.size())
+              cerr << "adding to conflicts because " << p1[i]
+                   << "!=" << p2[i]<<endl ;
+            }
+          if(p1.size() == p2.size()) {
             conflicts += mi->first ;
+          }
           else if(p1.size() > p2.size()) {
             mi->second.exists -= x ;
-            //cerr << f << " has priority over " << mi->first << endl ;
+            //            cerr << f << " has priority over " << mi->first << endl ;
           } else {
             x -= mi->second.exists ;
-            //cerr << mi->first << " has priority over " << f << endl ;
+            //            cerr << mi->first << " has priority over " << f << endl ;
           }
         }
       }
       if(conflicts != EMPTY && v.get_info().name != string("OUTPUT")) {
         cerr << "rule " << f << " conflicts with " << conflicts << endl ;
         debugger_() ;
-        exit(-1) ;
+        //        exit(-1) ;
       }
     }
     existential_info &einfo = finfo.exist_map[f] ;

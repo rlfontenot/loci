@@ -191,7 +191,11 @@ namespace Loci {
     for(int i = 0; i < size_map; ++i)
       infile >> part[i] ;
 #else
+#ifdef ONLY_ZERO_PARTITIONS
     if(MPI_rank == 0) {
+#else
+    if(true) {
+#endif
       double t = MPI_Wtime() ;
       METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
       double et = MPI_Wtime() ;
@@ -230,8 +234,10 @@ namespace Loci {
     }
     // end test code
 #endif
-    for(int i = 0; i < size_map; i++)
+    for(int i = 0; i < size_map; i++) {
+      debugout << "i=" <<i<< ",part[i]="<<part[i] << endl ;
       number[part[i]] += 1 ;
+    }
     
     for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei) {
       dummy_number[*ei] = 0 ;
@@ -1210,7 +1216,8 @@ namespace Loci {
 	unsigned char **recv_ptr = new unsigned char*[MPI_processes-1] ;
 	unsigned char* my_stuff = new unsigned char[my_sz] ;
 	sp->pack(my_stuff, loc_pack,my_sz,temp) ;
-	nsp = sp->new_store(re) ;
+	nsp = sp->new_store(EMPTY) ;
+	nsp->allocate(re) ;
 	recv_ptr[0] = new unsigned char[sz] ;
 	for(int i = 1; i < MPI_processes-1; i++)
 	  recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
@@ -1331,7 +1338,8 @@ namespace Loci {
 	  
 	  ent[k] = re ;
 	}
-	nsp = sp->new_store(my) ;
+	nsp = sp->new_store(EMPTY) ;
+        nsp->allocate(my) ;
 	int sz = 0 ;
 	int my_sz = sp->pack_size(me) ;
 	int my_pack = 0 ;
@@ -1383,7 +1391,8 @@ namespace Loci {
 	int sz = sp->pack_size(my) ;
 	
 	recv_ptr = new unsigned char[sz] ;
-	nsp = sp->new_store(my) ;
+	nsp = sp->new_store(EMPTY) ;
+        nsp->allocate(my) ;
 	int j = 0 ;
 	
 	for(ti = my.begin(); ti != my.end(); ++ti) {

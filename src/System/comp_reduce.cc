@@ -15,6 +15,7 @@ using std::hash_map ;
 using std::list ; 
 
 //#define VERBOSE
+
 namespace Loci {
   class joiner_oper : public execute_modules {
     variable joiner_var ;
@@ -124,7 +125,10 @@ namespace Loci {
   
   
   void apply_compiler::process_var_requests(fact_db &facts) {
-    
+
+#ifdef VERBOSE
+    debugout << "in process_var_requests" << endl ;
+#endif
     vdefmap tvarmap ;
     variableSet targets = apply.targets() ;
     variableSet sources = apply.sources() ;
@@ -285,7 +289,8 @@ namespace Loci {
 
       execute_par *ep = new execute_par ;
       for(int i=0;i<partition.size();++i) {
-        storeRepP rp = sp->new_store(partition[i]) ;
+        storeRepP rp = sp->new_store(EMPTY) ;
+        rp->allocate(partition[i]) ;
         var_vec.push_back(rp) ;
         execute_sequence *es = new execute_sequence ;
         es->append_list(new execute_rule(unit_tag,sequence(partition[i]),
@@ -316,7 +321,6 @@ namespace Loci {
         fatal(rinfo.targets.size() != 1) ;
         entitySet context = partition[i] ;
         entitySet pdom = vmap_target_exist(*rinfo.targets.begin(),facts,context) ;
-      
         entitySet rem = pdom & apply_domain ;
         if(rem != EMPTY) {
           entitySet compute = rem ;
@@ -362,7 +366,9 @@ namespace Loci {
         vector<storeRepP> var_vec ;
       
         for(int i=0;i<shards.size();++i) {
-          storeRepP rp = sp->new_store(shard_domains[i]) ;
+          storeRepP rp = sp->new_store(EMPTY) ;
+          rp->allocate(shard_domains[i]) ;
+
           var_vec.push_back(rp) ;
           execute_sequence *es = new execute_sequence ;
           es->append_list(new execute_rule(unit_tag,sequence(shard_domains[i]),
@@ -726,7 +732,10 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       else
 	for(int j=0;j<recv_info[i].second.size();++j) {
 	  storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
-	  storeRepP sr = sp->new_store(entitySet(recv_info[i].second[j].seq)) ;
+
+	  storeRepP sr = sp->new_store(EMPTY) ;
+	  sr->allocate(entitySet(recv_info[i].second[j].seq)) ;
+          
 	  sr->unpack(recv_ptr[i], loc_unpack, r_size[i],
 		     recv_info[i].second[j].seq) ;
 	  CPTR<joiner> op = join_op->clone() ;
@@ -771,7 +780,9 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       int loc_unpack = 0;
       for(int j=0;j<recv_info[recv_index[i]].second.size();++j) {
         storeRepP sp = facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
-	storeRepP sr = sp->new_store(entitySet(recv_info[recv_index[i]].second[j].seq)) ;
+	storeRepP sr = sp->new_store(EMPTY) ;
+	sr->allocate(entitySet(recv_info[recv_index[i]].second[j].seq)) ;
+
 	sr->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
 		   recv_info[recv_index[i]].second[j].seq) ;
 	
