@@ -55,7 +55,7 @@ namespace Loci {
 #endif
 
   template<class Op> inline void do_loop(const entitySet &iset, Op f) {
-    for(int i=0;i<iset.num_entityIntervals();++i) {
+    for(int i=0;i<iset.num_intervals();++i) {
       const Loci::int_type stop = iset[i].second ;
       for(Loci::int_type indx=iset[i].first;indx<=stop;++indx)
         f(indx) ;
@@ -63,7 +63,7 @@ namespace Loci {
   }
 
   template<class Op> inline void do_loop(const sequence &seq, Op f) {
-    for(int i=0;i<seq.num_entityIntervals();++i) {
+    for(int i=0;i<seq.num_intervals();++i) {
       const bool dir = seq[i].first>seq[i].second?false:true ;
       const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
       for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
@@ -73,7 +73,7 @@ namespace Loci {
   
   template<class T> inline void do_loop(const sequence &seq, T *cp,
                                         void(T::*pmf)(Entity) ) {
-    for(int i=0;i<seq.num_entityIntervals();++i) {
+    for(int i=0;i<seq.num_intervals();++i) {
       const bool dir = seq[i].first>seq[i].second?false:true ;
       const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
       for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
@@ -82,7 +82,7 @@ namespace Loci {
   }
 
   template<class T> inline void do_loop(const sequence &seq, T *cp) {
-    for(int i=0;i<seq.num_entityIntervals();++i) {
+    for(int i=0;i<seq.num_intervals();++i) {
       const bool dir = seq[i].first>seq[i].second?false:true ;
       const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
       for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 

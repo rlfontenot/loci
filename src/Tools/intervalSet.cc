@@ -201,8 +201,8 @@ namespace Loci {
 
 
 
-    Handle<pair_vector> Union(const Handle<pair_vector> Rep1,
-			      const Handle<pair_vector> Rep2) {
+    Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
+			      const Handle<pair_vector> &Rep2) {
 	pair_vector::const_iterator i1 = Rep1->begin() ;
 	pair_vector::const_iterator i2 = Rep2->begin() ;
 	const pair_vector::const_iterator e1 = Rep1->end() ;

@@ -31,11 +31,10 @@ namespace Loci {
 
 
   void Union(Handle<pair_vector> &Rep, const interval &ivl);
-  void Union(Handle<pair_vector> &Rep, const intervalSet &ptn);
   Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
 			    const Handle<pair_vector> &Rep2);
 
-  int num_intervals(Handle<pair_vector> &Rep) {return Rep->size();}
+  inline int num_intervals(Handle<pair_vector> &Rep) {return Rep->size();}
 
   class intervalSet {
   public:
@@ -147,12 +146,22 @@ namespace Loci {
     { fatal(indx<0); fatal(indx>=num_intervals()) ;
       return (*Rep)[indx]; }
 
-  void intervalSet::Union(const interval &ivl){Loci::Union(Rep,ivl);}
-  void intervalSet::Union(const intervalSet &ptn){Loci::Union(Rep,ptn);}
-  static intervalSet intervalSet::Union(const intervalSet &set1,
+      
+    void Union(const interval &ivl){Loci::Union(Rep,ivl);}
+      void Union(const intervalSet &ptn){
+          int psz = ptn.num_intervals() ;
+          if(psz == 0)// If ptn == EMPTY, do nothing
+            return ;
+          if(psz == 1) // only one interval, use interval update in place
+            Loci::Union(Rep,ptn[0]);
+          else
+            Rep = Loci::Union(Rep,ptn.Rep) ; // General case
+      }
+      
+    static intervalSet Union(const intervalSet &set1,
                                         const intervalSet &set2){
-    return intervalSet(Loci::Union(set1.Rep,set2.Rep)) ;
-  }
+      return intervalSet(Loci::Union(set1.Rep,set2.Rep)) ;
+    }
 
     void Intersection(const interval &ivl) ;
     void Intersection(const intervalSet &ptn) ;
