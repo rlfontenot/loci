@@ -398,9 +398,6 @@ namespace Loci {
     constraint my_entities ;
     entitySet re, temp;
     entitySet::const_iterator ei, ti ;
-    std::list<fact_db::comm_info> plist ;
-    plist = facts.get_precommun_info() ;
-    std::vector<fact_db::proc_details> pvec ;
     if(facts.isDistributed()) {  
       int **send_buffer, **recv_buffer ;
       int *recv_size, *send_size ;

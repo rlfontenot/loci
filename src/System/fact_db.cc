@@ -222,21 +222,7 @@ namespace Loci {
   void fact_db::put_distribute_info(distribute_infoP dp) {
     distributed_info = dp ;
   }
-  /*
-    std::list<fact_db::comm_info> fact_db::get_commun_info() {
-    return(clist);
-    }
-    void fact_db::put_commun_info(std::list<fact_db::comm_info> cp) {
-    clist = cp ;
-    }
-    
-    std::list<fact_db::comm_info> fact_db::get_precommun_info() {
-    return(plist);
-    }
-    void fact_db::put_precommun_info(std::list<fact_db::comm_info> cp) {
-    plist = cp ;
-    }
-  */
+ 
   bool fact_db::isDistributed() {
     if(distributed_info == 0)
       return 0 ;

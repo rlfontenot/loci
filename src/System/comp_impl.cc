@@ -272,13 +272,6 @@ namespace Loci {
   }
   
 
-  
-  std::list<comm_info> impl_compiler::get_precomm_info() {
-    return plist ;
-  }
-  std::list<comm_info> impl_compiler::get_postcomm_info() {
-    return clist ;
-  }
   void impl_compiler::set_var_existence(fact_db &facts) {
     existential_rule_analysis(impl,facts) ;
   }
