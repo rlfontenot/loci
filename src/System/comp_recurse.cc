@@ -109,7 +109,9 @@ namespace Loci {
       constraints &= vmap_source_exist(*si,facts, scheds) ;
       fctrl.use_constraints = true ;
     }
-
+#ifdef COMP_ENT
+    entitySet comp_sources = sources;
+#endif
     sources += fill_entitySet(sources,facts) ;
     if(fctrl.use_constraints)
       constraints += fill_entitySet(constraints,facts) ;
@@ -173,6 +175,15 @@ namespace Loci {
   
     for(int j=rmap.mapvec.size()-1;j>=0;--j)
       sdelta = rmap.mapvec[j]->preimage(sdelta).first ;
+#ifdef COMP_ENT
+    entitySet comp_sdelta = sdelta;
+    comp_sdelta &= comp_sources;
+    comp_sdelta &= my_entities;
+    entitySet comp_tdelta = comp_sdelta;
+    for(size_t j=0;j<tmap.mapvec.size();++j)
+      comp_tdelta = tmap.mapvec[j]->image(comp_tdelta) ;
+    entitySet comp_generated = comp_tdelta;
+#endif    
     sdelta &= fctrl.nr_sources ;
     sdelta &= my_entities ;
     
@@ -345,6 +356,21 @@ namespace Loci {
         generated += interval(start,finish) ;
       }
   
+#ifdef COMP_ENT
+    comp_sources &= my_entities;
+    for(entitySet::const_iterator
+          ei=comp_sources.begin();ei!=comp_sources.end();++ei)
+      if(exists[*ei]) {
+        const int start = *ei ;
+        const int end = comp_sources.Max() ;
+        int finish = start ;
+        for(;*ei!=end && exists[*ei];++ei)
+          finish = *ei ;
+        if(*ei == end && exists[end])
+          finish = end ;
+        comp_generated += interval(start,finish) ;
+      }
+#endif  
   
     fctrl.generated[rvar] = generated ;
 #ifdef VERBOSE
@@ -356,6 +382,10 @@ namespace Loci {
       scheds.set_existential_info(mi->first,impl,mi->second) ;
 
     entitySet create = scheds.get_existential_info(rvar,impl) ;
+#ifdef COMP_ENT
+    scheds.set_my_proc_able_entities(rvar, impl, comp_generated);
+    scheds.set_policy(rvar, sched_db::NEVER);
+#endif
     create += send_entitySet(create,facts) ;
     create += fill_entitySet(create,facts) ;
     scheds.set_existential_info(rvar,impl,create) ;
@@ -633,7 +663,7 @@ namespace Loci {
                            << srcs << endl ;
 #endif
       }
-
+ 
       recurse_send_entities.push_back(vector<pair<variable,entitySet> >()) ;
 
       int deltas = 0 ;
@@ -666,7 +696,11 @@ namespace Loci {
       for(map<variable,entitySet>::const_iterator mi=fctrl.generated.begin();
           mi!=fctrl.generated.end();++mi) {
 
-        entitySet create = mi->second ;
+        entitySet create = mi->second;
+#ifdef COMP_ENT
+	scheds.set_my_proc_able_entities(mi->first, *fi, create);
+	scheds.set_policy(mi->first, sched_db::NEVER);
+#endif	
         create += send_entitySet(create,facts) ;
         create += fill_entitySet(create,facts) ;
         
