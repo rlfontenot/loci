@@ -47,8 +47,6 @@ namespace Loci {
   hid_t CompoundType::get_hdf5_type() const
   {
     hid_t vDatatype  = H5Tcreate( H5T_COMPOUND, numBytes);
-
-    int rank = 1;
     hid_t hdf5T ;
 
     for( int i = 0; i < type_list.size(); i++) {
