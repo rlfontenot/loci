@@ -1,5 +1,6 @@
 #include <Tools/fpe.h>
 #include <Tools/debugger.h>
+#include <stdlib.h>
 
 #ifdef SPARC
 
