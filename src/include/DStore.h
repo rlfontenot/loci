@@ -327,13 +327,15 @@ namespace Loci {
 
       citer = attrib_data->find(indx);
 
-      if( citer != attrib_data->end() )
-           return ( (*attrib_data)[indx] );
-    }
-
-    const T&operator[](int indx) const { return elem(indx); }
-
-  } ;
+      if( citer == attrib_data->end() )
+	warn(true) ;
+      
+      return ( (*attrib_data)[indx] );
+      
+    } 
+      const T&operator[](int indx) const { return elem(indx); }
+      
+    } ;
 
   //****************************************************************************
 
