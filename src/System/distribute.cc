@@ -628,8 +628,8 @@ namespace Loci {
     vector<entitySet> copy(num_procs) ;
     vector<entitySet> image(num_procs) ;
     entitySet tmp ;
-    for(int i = 0; i < num_procs; ++i)
-      debugout << " partition[ " << i << " ] = " << ptn[i] << endl ;
+    //    for(int i = 0; i < num_procs; ++i)
+    //      debugout << " partition[ " << i << " ] = " << ptn[i] << endl ;
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
       // The clone region is obtained here 
@@ -645,7 +645,7 @@ namespace Loci {
       //my_entities. 
       get_entities[pnum][pnum] = ptn[pnum] ;
     }
-     debugout << " total clone information needed =  " << tmp << endl ;
+    //     debugout << " total clone information needed =  " << tmp << endl ;
     end_time  = MPI_Wtime() ;
     debugout << "Time taken for all the calls to expand_map is =   = " << end_time-start << endl ; 
     start = MPI_Wtime() ;
