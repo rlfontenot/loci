@@ -901,7 +901,7 @@ namespace Loci {
       for(unsigned int i=0;i<d->copy.size();++i)
         MPI_Irecv(recv_buffer[i],recv_size[i],MPI_INT,d->copy[i].proc,1,
                   MPI_COMM_WORLD, &recv_request[i]) ;
-
+      
       for(unsigned int i=0;i<d->xmit.size();++i) {
         entitySet temp = e & d->xmit[i].entities ;
 	
@@ -1248,12 +1248,12 @@ namespace Loci {
 	recv_buffer = new int*[MPI_processes-1] ;
 	for(int i = 0; i < MPI_processes-1; ++i)
 	  recv_buffer[i] = new int[MAX] ;
-	recv_request = (MPI_Request *) malloc((MPI_processes-1) * sizeof(MPI_Request) ) ;
-	status = (MPI_Status *) malloc((MPI_processes-1) * sizeof(MPI_Status) ) ;
+	recv_request = new MPI_Request[MPI_processes-1] ;
+	status = new MPI_Status[MPI_processes-1] ;
 	
 	for(k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_buffer[k][0],MAX,MPI_INT, k+1,1, MPI_COMM_WORLD, &recv_request[k] );  
-
+	
 #ifdef DEBUG
 	int err =
 #endif
@@ -1270,12 +1270,12 @@ namespace Loci {
 	cout << "   " << re << endl ; 
 	delete [] recv_size ;
 	delete [] recv_buffer ;
-	
+	delete [] recv_request ;
+	delete [] status ;
       }
       else {
 	int *send_buffer;
 	int send_size ;
-	
 	entitySet temp;
 	send_size = e.size() ;
 	send_buffer = new int[send_size] ;
@@ -1906,7 +1906,7 @@ namespace Loci {
       } 
     }   
     return nsp ;
-     
+    
   }
   
   void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {

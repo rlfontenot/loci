@@ -411,16 +411,8 @@ namespace Loci {
     return executeP(el) ;
   }
   
-  execute_param_red::execute_param_red(variable red, rule unit, CPTR<joiner> j_op) {
-    reduce_var = red ;
-    unit_rule = unit ;
-    join_op = j_op ;
-  }
-
-
   CPTR<joiner> global_join_op ;
-  
-  
+   
   void create_user_function(void *send_ptr, void *result_ptr, int *size, MPI_Datatype* dptr) {
     storeRepP sp, tp ;
     int loc_send = 0, loc_result = 0 ;
@@ -441,6 +433,16 @@ namespace Loci {
     tp->pack(result_ptr, loc_result, *size, e) ;
   } 
   
+  execute_param_red::execute_param_red(variable red, rule unit, CPTR<joiner> j_op) {
+    reduce_var = red ;
+    unit_rule = unit ;
+    join_op = j_op ;
+    global_join_op = join_op ;
+    MPI_Op_create(&create_user_function, 0, &create_join_op) ;
+  }
+  execute_param_red::~execute_param_red() {
+    MPI_Op_free(&create_join_op) ;
+  }
   void execute_param_red::execute(fact_db &facts) {
     void *send_ptr; 
     void *result_ptr ;
@@ -449,17 +451,15 @@ namespace Loci {
     storeRepP sp, tp ;
     entitySet e ;
     sequence seq ;
-    MPI_Op create_join_op ;
     sp = facts.get_variable(reduce_var) ;
     size = sp->pack_size(e) ;
     send_ptr = new unsigned char[size] ;
     result_ptr = new unsigned char[size] ;
     sp->pack(send_ptr, loc, size, e) ;
-    global_join_op = join_op ;
-    MPI_Op_create(&create_user_function, 0, &create_join_op) ;
     MPI_Allreduce(send_ptr, result_ptr, size, MPI_PACKED, create_join_op, MPI_COMM_WORLD) ;
     sp->unpack(result_ptr, loc_result, size, seq) ;
-    MPI_Op_free(&create_join_op) ;
+    delete [] send_ptr ;
+    delete [] result_ptr ;
   }
   
   void execute_param_red::Print(ostream &s) const {
@@ -543,23 +543,23 @@ namespace Loci {
     }
   }
   
-class execute_comm_reduce : public execute_modules {
-  vector<pair<int,vector<send_var_info> > > send_info ;
-  vector<pair<int,vector<recv_var_info> > > recv_info ;
-  std::vector<std::vector<storeRepP> > send_vars ; 
-  std::vector<std::vector<storeRepP> > recv_vars ; 
-  CPTR<joiner> join_op ;
-  int *maxr_size, *maxs_size, *r_size, *s_size, *recv_sizes ;
-  unsigned char **recv_ptr , **send_ptr ;
-  MPI_Request *request;
-  MPI_Status *status ;
-public:
-  execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
-		      CPTR<joiner> jop) ;
-  ~execute_comm_reduce() ;
-  virtual void execute(fact_db &facts) ;
-  virtual void Print(std::ostream &s) const ;
-} ; 
+  class execute_comm_reduce : public execute_modules {
+    vector<pair<int,vector<send_var_info> > > send_info ;
+    vector<pair<int,vector<recv_var_info> > > recv_info ;
+    std::vector<std::vector<storeRepP> > send_vars ; 
+    std::vector<std::vector<storeRepP> > recv_vars ; 
+    CPTR<joiner> join_op ;
+    int *maxr_size, *maxs_size, *r_size, *s_size, *recv_sizes ;
+    unsigned char **recv_ptr , **send_ptr ;
+    MPI_Request *request;
+    MPI_Status *status ;
+  public:
+    execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
+			CPTR<joiner> jop) ;
+    ~execute_comm_reduce() ;
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ; 
 
 execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 					 fact_db &facts,
