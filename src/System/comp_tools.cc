@@ -98,7 +98,6 @@ namespace Loci {
       the rule and also the constraints we make sure that the
       attribute specified by the target is implied by the satisfaction 
       of the attributes in the body of the rule. */
-   
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       sources &= vmap_source_exist(*si,facts, scheds) ;
     }
@@ -110,14 +109,14 @@ namespace Loci {
 	  " cannot supply all entities of constraint" << endl ;
 	cerr << "constraints = " << constraints << endl ;
 	cerr << "sources & constraints = " << (sources & constraints) << endl ;
-
+	
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
           entitySet sources = vmap_source_exist(*si,facts, scheds) ;
           sources &= my_entities ;
           if((sources & constraints) != constraints) {
             cerr << "sources & constraints != constraints for input"
-                 << endl
-                 << sources  << " -- " << *si << endl ;
+		 << endl
+			   << sources  << " -- " << *si << endl ;
             
             if(si->mapping.size() > 0) {
               entitySet working = constraints ;
@@ -133,7 +132,7 @@ namespace Loci {
                 entitySet exist = scheds.variable_existence(*vi) ;
                 entitySet fails = working & ~exist ;
                 if(fails != EMPTY) {
-                  cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  cerr  << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
                 }
               }
             }
@@ -153,8 +152,9 @@ namespace Loci {
 	scheds.set_existential_info(*vi,r,targets) ;
 #ifdef VERBOSE
 	debugout << "rule " << r << " generating variable " << *vi
-		 << " for entities " << targets << endl ;
+		 << " for entities " << targets << endl << endl << endl ;
 #endif
+
       }
     }
     /*Since the unit rules are used for the existential deduction for
@@ -192,8 +192,10 @@ namespace Loci {
     // variable that a map applies to, then they will request their
     // union.  e.g. for a->(b,c) we make sure that b and c both have
     // the same requests.
-    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
+    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
       scheds.variable_request(*vi,targets) ;
+      //Loci::debugout << "variable = " << *vi << "  setting requests as  " << targets << endl ; 
+    }
     
     // Now we are applying the mapping that is applied to the target
     // variables. We do this by finding the preimage of each map.
@@ -245,55 +247,52 @@ namespace Loci {
     // their associated compiler.
     FATAL(r.type() == rule::INTERNAL) ;
     
-    // First we get the target variables of this rule ;
-     variableSet targets = r.targets() ;
-     // We will be iterating over the target variables so we need an iterator
-     variableSet::const_iterator vi ;  
-     entitySet::const_iterator ei, ti ;
-     // The vdefmap data structure is a map from variables to entitySets.
-     // We use the tvarmap to record the requests for target variables
-     // Here we are filling in the requests.
-     vdefmap tvarmap ;
-     // Loop over target variables and get requests from fact database
-     
-     // Here we compute the context of the rule.  This is the union of all of
-     // the requests for the variables that this rule produces
-     set<vmap_info>::const_iterator si ;
-     entitySet context,isect = ~EMPTY ;
-     
-     entitySet filter = ~EMPTY ;
-     if(facts.isDistributed()) {
-       fact_db::distribute_infoP d = facts.get_distribute_info() ;
-       filter = d->my_entities ;
-       isect = d->my_entities ;
-     }
-     
-     for(vi=targets.begin();vi!=targets.end();++vi) {
-       // This is a hack for the special case of a rule with OUTPUT
-       // as a target.  In that case we will request OUTPUT for
-       // all entities that exist.  So we add a request for OUTPUT
-       // to the fact database
-       
-       if(vi->get_info().name == string("OUTPUT")) 
-         scheds.variable_request(*vi,scheds.variable_existence(*vi)) ;
-       
-       // Now fill tvarmap with the requested values for variable *vi
-       tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
-       //cout << d->myid << "    variable  =  "<< *vi << "   tvarmap  =  " <<
-       //tvarmap[*vi] << endl ;
-     }
-     const rule_impl::info &rinfo = r.get_info().desc ;
-     
-     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-       // Transform the variable requests using the mapping constructs
-       // in *si
-       entitySet tmp = vmap_target_requests(*si,tvarmap,facts, scheds) ;
-       //The context is the union
-       context |= tmp ;
-       isect &= tmp ;
-       //cout <<d->myid <<"      si =  " << *si <<  "   context = " << context << endl ;
-     }
-     
+    // First we get the target variables of this rule ; 
+    variableSet targets = r.targets() ;
+    // We will be iterating over the target variables so we need an iterator
+    variableSet::const_iterator vi ;  
+    entitySet::const_iterator ei, ti ;
+    // The vdefmap data structure is a map from variables to entitySets.
+    // We use the tvarmap to record the requests for target variables
+    // Here we are filling in the requests.
+    vdefmap tvarmap ;
+    // Loop over target variables and get requests from fact database
+    
+    // Here we compute the context of the rule.  This is the union of all of
+    // the requests for the variables that this rule produces
+    set<vmap_info>::const_iterator si ;
+    entitySet context,isect = ~EMPTY ;
+    
+    entitySet filter = ~EMPTY ;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      filter = d->my_entities ;
+      isect = d->my_entities ;
+    }
+    
+    for(vi=targets.begin();vi!=targets.end();++vi) {
+      // This is a hack for the special case of a rule with OUTPUT
+      // as a target.  In that case we will request OUTPUT for
+      // all entities that exist.  So we add a request for OUTPUT
+      // to the fact database
+      
+      if(vi->get_info().name == string("OUTPUT")) 
+	scheds.variable_request(*vi,scheds.variable_existence(*vi)) ;
+      
+      // Now fill tvarmap with the requested values for variable *vi
+      tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
+    }
+    const rule_impl::info &rinfo = r.get_info().desc ;
+    //Loci::debugout << " rule = " << r << endl ;
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+      // Transform the variable requests using the mapping constructs
+      // in *si
+      entitySet tmp = vmap_target_requests(*si,tvarmap,facts, scheds) ;
+      //The context is the union
+      context |= tmp ;
+      isect &= tmp ;
+    }
+    
      // If the interstection and the union are not equal, then we are in
      // danger of not properly allocating variables for computations.  It is
      // an optimization to check this. For the distributed memory version it
@@ -320,6 +319,8 @@ namespace Loci {
      // here we make an exception for unit rules.  (this is because
      // we will be reducing to the clone region and then communicating
      // partial results.
+    
+
      if(r.get_info().rule_impl->get_rule_class() != rule_impl::UNIT) {
        context &= filter ;
      }
@@ -332,20 +333,20 @@ namespace Loci {
        // First map the context through source mappings
        entitySet requests;
        requests = vmap_source_requests(*si,facts,context, scheds) ;
-       //cout <<d->myid <<  "   *si  =  "  << *si << "   requests  =  " << re
-       //quests << endl ;
        entitySet var ;
-        
+       
        // Now we have the actual requests we are making of other rules
        // so we can tell the fact database that we are now requesting
        // these values.
 #ifdef VERBOSE
-       debugout << "rule " << r << " requesting variables "
-		<< si->var << " for entities " << requests << endl ;
+       debugout << "local pruning : rule " << r << " requesting variables "
+		<< si->var << " for entities " << requests << endl << endl << endl  ;
 #endif
-       for(vi=si->var.begin();vi!=si->var.end();++vi)
+       for(vi=si->var.begin();vi!=si->var.end();++vi) {
          scheds.variable_request(*vi,requests) ;
-	
+	 //Loci::debugout << "variable = " << *vi << "  setting requests as  " << requests << endl ; 
+       }
+       
        // We also need to pass the requests on to any conditional variables
        // this rule may have.
        
@@ -606,12 +607,11 @@ namespace Loci {
       ruleSet &rs = rules[i] ;
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
         debugout << "v=" << v << ",rule ="<<*rsi
-		 <<"exinfo="<<exinfo[j++] << endl ;
+		 <<"   exinfo="<<exinfo[j++] << endl ;
       }
     }
 #endif
     vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
-    
     j=0;
     for(int i=0;i<vars.size();++i) {
       variable v = vars[i] ;
@@ -628,7 +628,8 @@ namespace Loci {
             rv = *vi ;
         }
 	scheds.set_existential_info(rv,*rsi,exinfo[j]) ;
-        ++j ;
+	entitySet global_set = Loci::all_collect_entitySet(facts, exinfo[j]) ;
+	++j ;
       }
     }
     return send_entities ;
@@ -1196,8 +1197,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   }
   
   void barrier_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
-    if(facts.isDistributed())
+    if(facts.isDistributed()){
+      //Loci::debugout << " barrier_vars  = " << barrier_vars << endl ;
       send_entities = barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
+    }
   }
   
   void barrier_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {

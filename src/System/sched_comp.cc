@@ -14,6 +14,8 @@ using std::set ;
 //#define HACK ; 
 
 namespace Loci {
+  extern double total_memory_usage ;
+
   class error_compiler : public rule_compiler {
   public:
     error_compiler() {}
@@ -124,9 +126,9 @@ namespace Loci {
         // DAG supernode
         rule_process[snrule] = new dag_compiler(rule_process,gr) ;
       }
-    }
+    } 
   }
-
+  
   void graph_compiler::existential_analysis(fact_db &facts, sched_db &scheds) {
     fact_db_comm->set_var_existence(facts, scheds) ;
     (rule_process[baserule])->set_var_existence(facts, scheds) ;
@@ -178,6 +180,58 @@ namespace Loci {
     exec_current_fact_db = &facts ;
     variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi ;  
+    double total_size = 0 ;
+    entitySet dom, total, unused ;
+    double total_wasted = 0 ;
+    /*
+    for(vi=vars.begin();vi!=vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      if(srp->RepType() == Loci::STORE) {
+	dom = v_requests[*vi] ;
+	total = interval(dom.Min(), dom.Max()) ;
+	unused = total - dom ;
+	total_size += srp->pack_size(dom) ; 
+	total_wasted += srp->pack_size(unused) ;
+      }
+    }
+    for(vi=vars.begin();vi!=vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      if(srp->RepType() == Loci::STORE) {
+	dom = v_requests[*vi] ;
+	double size, wasted_space ;
+	total = interval(dom.Min(), dom.Max()) ;
+	unused = total - dom ;
+	size = srp->pack_size(dom) ;
+	wasted_space = srp->pack_size(unused) ;
+	Loci::debugout << " ****************************************************" << endl ;
+	Loci::debugout << " Total_size = " << total_size << endl ;
+	Loci::debugout << "Variable = "  << *vi << endl ;
+	Loci::debugout << "Domain = " << dom << endl ;
+	Loci::debugout << "Size allocated = " << size << endl ; 
+	if(facts.isDistributed() )  {
+	  Loci::fact_db::distribute_infoP d ;
+	  d   = facts.get_distribute_info() ;
+	  entitySet my_entities = d->my_entities ; 
+	  entitySet clone = dom - my_entities ;
+	  double clone_size = srp->pack_size(clone) ;
+	  Loci::debugout << "----------------------------------------------------" << endl;
+	  Loci::debugout << " My_entities = " << my_entities << endl ;
+	  Loci::debugout << " Clone entities = " << clone << endl ;
+	  Loci::debugout << "Memory required for the  clone region  = " << clone_size << endl ;
+	  Loci::debugout << "Percentage of clone memory required (of size allocated)  = " << double(double(100*clone_size) / size)<< endl ;
+	  Loci::debugout << "Percentage of clone memory required (of total size allocated)  = " << double(double(100*clone_size) / total_size)<< endl ;
+	  Loci::debugout << "----------------------------------------------------" << endl;
+	}
+	Loci::debugout << "Percentage of total memory allocated  = " << double(double(100*size) / (total_size+total_wasted)) << endl ;
+	Loci::debugout << "----------------------------------------------------" << endl;
+	Loci::debugout << "Total wasted size = " << total_wasted << endl ;
+	Loci::debugout << "Unused entities = " << unused << endl ;
+	Loci::debugout << "Wasted space = " << wasted_space << endl ;
+	Loci::debugout << "Percentage of total memory wasted  = " << double(double(100*wasted_space) / (total_size + total_wasted)) << endl ;
+	Loci::debugout << " ***************************************************" << endl << endl << endl ;
+      }
+    }
+    */
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       if(srp->domain() == EMPTY) {
@@ -201,6 +255,7 @@ namespace Loci {
 	}
       }
     }
+    total_memory_usage = total_size + total_wasted ;
   }
   
   void allocate_all_vars::Print(ostream &s) const {

@@ -98,7 +98,7 @@ namespace Loci {
     end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for schedule generation  = " << end_time  - start_time << "  seconds " << endl ;
 
-    scheds.print_summary(Loci::debugout) ;
+    //scheds.print_summary(Loci::debugout) ;
 #ifdef PROFILE_CODE    
     //timer = get_timer() ;
     //cout << "Schedule Generation Time: " << timer << " seconds" << endl ;

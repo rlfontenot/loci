@@ -25,7 +25,6 @@ namespace Loci {
   extern int MPI_processes ;
   extern int MPI_rank ;
   extern fact_db *exec_current_fact_db;
-
   fact_db::fact_db() {
     constraint EMPTY ;
     create_fact("EMPTY",EMPTY) ;
@@ -38,6 +37,7 @@ namespace Loci {
       init_ptn.push_back(EMPTY) ;
     }
     exec_current_fact_db = this;
+    dist_from_start = 0 ;
   }
 
   fact_db::~fact_db() {}
@@ -83,7 +83,7 @@ namespace Loci {
       }
       remove_variable(synonym) ;
     }
-
+    
     // Add new synonyms so that they point to v
     for(variableSet::const_iterator vi = synonym_set.begin();
         vi!=synonym_set.end();
@@ -208,12 +208,18 @@ namespace Loci {
 	int local = maximum_allocated ;
 	for(int j = 0; j < i; ++j)
 	  local += size_recv[j] ;
-	init_ptn[i] += interval(local, local+size_recv[i]-1) ;
+	if(size_recv[i] > 0 )
+	  init_ptn[i] += interval(local, local+size_recv[i]-1) ;
       }
+      interval local_ivl, global_ivl ;
+      if(size > 0 )
+	local_ivl = interval(local_max, local_max + size - 1) ;
+      else 
+	local_ivl = interval() ;
       
-      interval local_ivl = interval(local_max, local_max + size - 1) ;
-      interval global_ivl = interval(maximum_allocated, maximum_allocated+global_max-1) ; 
-      maximum_allocated = local_max + size ;
+      global_ivl = interval(maximum_allocated, maximum_allocated+global_max-1) ;
+      if(size > 0)
+	maximum_allocated = local_max + size ;
       delete [] send_buf ;
       delete [] recv_buf ;
       delete [] size_send ;
@@ -222,7 +228,8 @@ namespace Loci {
     }
     interval alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
     maximum_allocated += size ;
-    return (make_pair(alloc, alloc)) ; ;
+    init_ptn[0] += alloc ;
+    return (make_pair(alloc, alloc)) ;
   }
 
   storeRepP fact_db::get_variable(variable v) {
@@ -334,38 +341,32 @@ namespace Loci {
 
   /////////////////////////////////////////////////////////////////////////////
   
-  void fact_db::write_hdf5(const char *fname){
+  void fact_db::write_hdf5(const char *fname, int num_partitions){
     hid_t  file_id, group_id;
     char   filename[500], str[100];
     std::map<variable, fact_info>::const_iterator vmi ;
-
+    
     strcpy(filename, fname);
-    strcat( filename, "_p");
-    sprintf( str, "%d", Loci::MPI_rank);
-    strcat( filename, str);
-    strcat( filename, ".hdf5");
-
+    //if(Loci::MPI_processes > 1) {
+    //strcat( filename, "_");
+    //sprintf( str, "%d", Loci::MPI_rank);
+    //strcat( filename, str);
+    //}
+    //strcat( filename, ".hdf5");
+    
     file_id =  H5Fcreate( filename, H5F_ACC_TRUNC,
                           H5P_DEFAULT, H5P_DEFAULT);
-    //
-    // If number of processes are more than one then we should write the process
-    // information too.
-    //
-    if( Loci::MPI_processes > 1) {
-      hsize_t  dimension = 2;
-      int      ibuf[]    = {0,1};
-      int      rank      = 1;
-      group_id         = H5Gcreate(file_id, "ProcessorID", 0);
-      hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-      hid_t vDatatype  = H5T_NATIVE_INT;
-      hid_t vDataset   = H5Dcreate(group_id, "Processor", vDatatype, vDataspace,
-                                   H5P_DEFAULT);
-      ibuf[0] = Loci::MPI_rank;
-      ibuf[1] = Loci::MPI_processes;
-      H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, ibuf);
-      H5Sclose( vDataspace );
-      H5Dclose( vDataset   );
-    }
+    num_partitions = max(num_partitions, Loci::MPI_processes);
+    
+    hsize_t  dimension = 1;
+    int      rank      = 1;
+    group_id         = H5Gcreate(file_id, "Partitions", 0);
+    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
+    hid_t vDatatype  = H5T_NATIVE_INT;
+    hid_t vDataset   = H5Dcreate(group_id, "NumParts", vDatatype, vDataspace,H5P_DEFAULT);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &num_partitions);
+    H5Sclose( vDataspace );
+    H5Dclose( vDataset   );
 
     //
     // The following facts are internal to Loci, which are not important from user's
@@ -445,37 +446,42 @@ namespace Loci {
     // is stored in the in the files. and since there was atleast one
     // processors, get this information from processor 0;
     //-----------------------------------------------------------------
-    int     ifile, rank=1, ibuf[2], maxfiles=1, gid, numsend, numrecv, packsize, location;
+    int     ifile, rank=1, ibuf[2], maxfiles=1, gid, numsend, numrecv, packsize, location, num_parts;
     hsize_t dimension = 2;
     hid_t   vdataspace, vdatatype, vdataset;
 
     strcpy(filename, fname);
     if( Loci::MPI_rank == 0) {
       ifile = 0;
-      strcat( filename, "_p");
-      sprintf( str, "%d", ifile);
-      strcat( filename, str);
+      if(Loci::MPI_processes > 1) {
+	strcat( filename, "_");
+	sprintf( str, "%d", ifile);
+	strcat( filename, str);
+      }
       strcat( filename, ".hdf5");
       file_id[0] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
       if( file_id[0] > 0) {
         vdataspace = H5Screate_simple(rank, &dimension, NULL);
         vdatatype  = H5T_NATIVE_INT;
-        group_id   = H5Gopen(file_id[0], "/ProcessorID");
+        group_id   = H5Gopen(file_id[0], "/Partitions");
         if( group_id > 0) {
-          vdataset   = H5Dopen( group_id, "Processor");
-          H5Dread( vdataset, vdatatype, H5S_ALL, vdataspace, H5P_DEFAULT, ibuf);
-
+          vdataset   = H5Dopen( group_id, "NumParts");
+          H5Dread( vdataset, vdatatype, H5S_ALL, vdataspace, H5P_DEFAULT, &num_parts);
           H5Sclose( vdataspace );
           H5Dclose( vdataset   );
           H5Fclose( file_id[0] );
           H5Gclose( group_id );
-          maxfiles = ibuf[1];
+
+          maxfiles = num_parts;
+ 
         }
       } else {
         cout << "Warning: Unable to open file " << filename << endl;
         return;
       }
     }
+
+
     //-----------------------------------------------------------------
     // now decide which file(s) i can read from the pool of files, if
     // there are more processors than number of files, then everyone
@@ -489,23 +495,25 @@ namespace Loci {
 
     // Which files, I am supposed to read from the pool of files.
     std::vector<int> files_assigned;
-    for(int i=Loci::MPI_rank; i < maxfiles; i+=Loci::MPI_processes)
-      files_assigned.push_back(i);
+    for(int ifile=Loci::MPI_rank; ifile < maxfiles; ifile+=Loci::MPI_processes)
+      files_assigned.push_back(ifile);
 
     std::map<variable, fact_info>::const_iterator vmi ;
-    for(int i=0;i < files_assigned.size(); i++){
+    for(int ifile=0;ifile < files_assigned.size(); ifile++){
       strcpy(filename, fname);
-      strcat( filename, "_p");
-      sprintf( str, "%d", files_assigned[i]);
-      strcat( filename, str);
+      if(Loci::MPI_processes > 1) {
+	strcat( filename, "_");
+	sprintf( str, "%d", files_assigned[ifile]);
+	strcat( filename, str);
+      }
       strcat( filename, ".hdf5");
-      file_id[i] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-      if( file_id[i] < 0) {
+      cout << " reading file_name " << filename << endl ;
+      file_id[ifile] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+      if( file_id[ifile] < 0) {
         cout << "Warning: Couldn't open file " << filename << endl;
         return;
       }
     }
-
     entitySet  new_eset,currdom,localdom, gsetRead,retainSet;
     Map        l2g, lg, currg2l, currl2l;
 
@@ -579,26 +587,25 @@ namespace Loci {
 
       // first get information about entitset and assign local number to them
    
-      for(int i = 0; i < files_assigned.size(); i++){
-        group_id2 = H5Gopen(file_id[i], groupname.c_str() );  
+      for(int ifile = 0; ifile < files_assigned.size(); ifile++){
+        group_id2 = H5Gopen(file_id[ifile], groupname.c_str() );  
         if( group_id2 < 0) continue;
 
         HDF5_ReadDomain(group_id2, eset);
         H5Gclose(group_id2);
         // get the local->global numbering written in the file ..
-        if( maxfiles > 1) {
-          group_id1 = H5Gopen(file_id[i], "l2g");           
-          if( group_id1 > 0) {
-            HDF5_Local2Global(group_id1, eset, lg);
-            H5Gclose(group_id1);         
-            for( ei = eset.begin(); ei != eset.end(); ++ei)
-              gsetRead += lg[*ei];
-          } else
-            gsetRead += eset;
-        } else 
-          gsetRead += eset;
+	if( maxfiles > 1) {
+	group_id1 = H5Gopen(file_id[ifile], "l2g");           
+	if( group_id1 > 0) {
+	  HDF5_Local2Global(group_id1, eset, lg);
+	  H5Gclose(group_id1);         
+	  for( ei = eset.begin(); ei != eset.end(); ++ei)
+	    gsetRead += lg[*ei];
+	} else
+	  gsetRead += eset;
+	} else 
+	  gsetRead += eset;
       }
-      
       // First of all, if the facts are distributed, then not all "globalEntitySet"
       // need to be allocated for each container. Let everyone know what are the 
       // global entities for this container and the required entitySet for this
@@ -674,7 +681,7 @@ namespace Loci {
       file_iter  = files_assigned.begin();
       file_end   = files_assigned.end();
       
-      int ifile = -1;
+      ifile = -1;
       while( 1 ) {
         
         has_file = 0;
@@ -688,7 +695,7 @@ namespace Loci {
           MPI_Allreduce( &has_file, &file_counter, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         else
           file_counter = has_file;
-
+	
         if( file_counter == 0) break;
 
         localdom = EMPTY; 
@@ -702,16 +709,13 @@ namespace Loci {
             tmpstore_Rep->readhdf5(group_id2, localdom);
             localdom = tmpstore_Rep->domain();            
             H5Gclose(group_id2);
-
-            lg.allocate(localdom);
+	    lg.allocate(localdom);
             // if more than one file, then local-global mapping has to be read
-            if( maxfiles > 1) {
-              group_id1 = H5Gopen(file_id[ifile], "l2g");           
-              if( group_id1 > 0) {
-                HDF5_Local2Global(group_id1, localdom, lg);
-                H5Gclose(group_id1);         
-              }
-            } else {
+	    group_id1 = H5Gopen(file_id[ifile], "l2g");           
+	    if( group_id1 > 0) {
+	      HDF5_Local2Global(group_id1, localdom, lg);
+	      H5Gclose(group_id1);         
+	    } else {
               for( ei = localdom.begin(); ei != localdom.end(); ++ei)
                 lg[*ei] = *ei;
             }
@@ -728,12 +732,10 @@ namespace Loci {
                 scatter_map[*ei]  =  localmap[lg[*ei]];
               }
             }
-            tmpstore_Rep->Print(cout);
-            store_Rep->scatter( scatter_map, tmpstore_Rep, currdom );
-            store_Rep->Print(cout);
-          }
+	    store_Rep->scatter( scatter_map, tmpstore_Rep, currdom );
+	  }
         }
-
+	
         if( !isDistributed() ) continue;
 
         // Now send the entities which are not owned by this process. There
@@ -828,6 +830,7 @@ namespace Loci {
       update_fact(v,store_Rep);
     }
     
+     
     // parameter and constraints are specical case and handle separately
     // All the entitySet are with respect to global numbering evern for distributed
     // memory
@@ -845,27 +848,34 @@ namespace Loci {
         std::string groupname = vname;
       
         gsetRead = EMPTY;
-        for(int i = 0; i < files_assigned.size(); i++){
-          group_id2 = H5Gopen(file_id[i], groupname.c_str() );  
+        for(int ifile = 0; ifile < files_assigned.size(); ifile++){
+          group_id2 = H5Gopen(file_id[ifile], groupname.c_str() );  
           if( group_id2 < 0) continue;
           HDF5_ReadDomain(group_id2, eset);
           H5Gclose(group_id2);
           gsetRead += eset;
         }
-      
+	
         new_eset = EMPTY;
         store_Rep = store_Rep->new_store(new_eset);
         store_Rep->allocate(gsetRead);
       
-        // Only one processor is sufficient to read the parameter or constraints
+        
+	for(int proc = 0; proc < Loci::MPI_processes; ++proc) {
+          group_id2 = H5Gopen(file_id[proc], groupname.c_str() );
+          if( group_id2 > 0)
+            store_Rep->readhdf5(group_id2, gsetRead);
+        }
+	// Only one processor is sufficient to read the parameter or constraints
         // and we can broadcast these balues.
-
-        if( Loci::MPI_rank == 0 || Loci::MPI_processes == 1 ) {
+	
+	/*
+        if(Loci::MPI_rank == 0 || Loci::MPI_processes == 1 ) {
           group_id2 = H5Gopen(file_id[0], groupname.c_str() );
           if( group_id2 > 0)
             store_Rep->readhdf5(group_id2, gsetRead);
         }
-
+	
         if( Loci::MPI_processes > 1 ) {
           packsize = store_Rep->pack_size(gsetRead);
           MPI_Bcast(&packsize, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -877,22 +887,83 @@ namespace Loci {
           
           location = 0;
           store_Rep->unpack( &packbuf[0], location, packsize, ~EMPTY);
-          store_Rep->Print(cout);
-        }
+	}
+	*/
         update_fact(v,store_Rep);        
       }
     }
 
-    for(int i = 0; i < files_assigned.size(); i++)
-      H5Fclose(file_id[i]);
+  
+
+    for(int ifile = 0; ifile < files_assigned.size(); ifile++)
+      H5Fclose(file_id[ifile]);
 
     delete [] file_id;
     delete [] message;
     delete [] request;
-   
   }
-  /////////////////////////////////////////////////////////////////////////////
 
+
+  void fact_db::Print_diagnostics() {
+    std::map<variable, fact_info>::iterator mi ;
+    ostringstream oss ;
+    oss << "memory." ;
+    oss << MPI_rank ;
+    string file_name = oss.str() ;
+    std::ofstream ofile(file_name.c_str(), ios::out) ;
+    double total_size = 0 ;
+    double total_wasted = 0 ;
+    entitySet dom, total, unused ;
+    for(mi = fmap.begin(); mi != fmap.end(); ++mi) {
+      fact_info &finfo = mi->second ;
+      if(finfo.data_rep->RepType() == STORE) {
+	dom = finfo.data_rep->domain() ;
+	total = interval(dom.Min(), dom.Max()) ;
+	unused = total - dom ;
+	total_size += finfo.data_rep->pack_size(dom) ; 
+	total_wasted += finfo.data_rep->pack_size(unused) ;
+      }
+    }
+    for(mi = fmap.begin(); mi != fmap.end(); ++mi) {
+      fact_info &finfo = mi->second ;
+      if(finfo.data_rep->RepType() == STORE) {
+	dom = finfo.data_rep->domain() ;
+	double size = finfo.data_rep->pack_size(dom) ;
+	total = interval(dom.Min(), dom.Max()) ;
+	unused = total - dom ;
+	double wasted_space = finfo.data_rep->pack_size(unused) ;
+	ofile << " ****************************************************" << endl ;
+	ofile << " Total_size = " << total_size << endl ;
+	ofile << "Variable = "  << mi->first << endl ;
+	ofile << "Domain = " << dom << endl ;
+	ofile << "Size allocated = " << size << endl ; 
+	if( isDistributed() )  {
+	  Loci::fact_db::distribute_infoP d ;
+	  d   = Loci::exec_current_fact_db->get_distribute_info() ;
+	  entitySet my_entities = d->my_entities ; 
+	  entitySet clone = dom - my_entities ;
+	  double clone_size = finfo.data_rep->pack_size(clone) ;
+	  ofile << "----------------------------------------------------" << endl;
+	  ofile << " My_entities = " << my_entities << endl ;
+	  ofile << " Clone entities = " << clone << endl ;
+	  ofile << "Memory required for the  clone region  = " << clone_size << endl ;
+	  ofile << "Percentage of clone memory required (of size allocated)  = " << double(double(100*clone_size) / size)<< endl ;
+	  ofile << "Percentage of clone memory required (of total size allocated)  = " << double(double(100*clone_size) / total_size)<< endl ;
+	  ofile << "----------------------------------------------------" << endl;
+	}
+	ofile << "Percentage of total memory allocated  = " << double(double(100*size) / (total_size+total_wasted)) << endl ;
+	ofile << "----------------------------------------------------" << endl;
+	ofile << "Total wasted size = " << total_wasted << endl ;
+	ofile << "Unused entities = " << unused << endl ;
+	ofile << "Wasted space = " << wasted_space << endl ;
+	ofile << "Percentage of total memory wasted  = " << double(double(100*wasted_space) / (total_size + total_wasted)) << endl ;
+	ofile << " ***************************************************" << endl << endl << endl ;
+      }
+    }
+  }
+  
+  /////////////////////////////////////////////////////////////////////////////
+  
   void reorder_facts(fact_db &facts, Map &remap) {
     variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {

@@ -10,6 +10,9 @@ namespace Loci {
   using std::vector ;
   using std::sort ;
   //**************************************************************************/
+  storeRepP dMapRepI::thaw() {
+    return getRep() ;
+  } 
   storeRepP dMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
     int *recv_count = new int[MPI_processes] ;
     int *send_count = new int[MPI_processes] ;
@@ -100,6 +103,7 @@ namespace Loci {
 	j++ ;
       }
     }
+    
     for(HASH_MAP(int, int)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi) 
       attrib_data[hmi->first] = hmi->second ;
     
@@ -118,7 +122,7 @@ namespace Loci {
     return sp ;
   }
   
-//****************************************************************************/
+  //****************************************************************************/
   void dMapRepI::allocate(const entitySet &eset)
   {
     entitySet redundant, newSet;
@@ -126,25 +130,25 @@ namespace Loci {
 
     redundant = domain() -  eset;
     newSet    = eset - domain();
-
+    
     for( ci = redundant.begin(); ci != redundant.end(); ++ci)
          attrib_data.erase(*ci);
-
+    
     for( ci = newSet.begin(); ci != newSet.end(); ++ci)
       attrib_data[*ci] = 0;
-
+    
     store_domain = eset;
     
     dispatch_notify() ;
   }
   
   //**************************************************************************/
-
+  
   dMapRepI::~dMapRepI() 
   { 
     attrib_data.clear();
   }
-
+  
   //**************************************************************************/
 
   storeRep *dMapRepI::new_store(const entitySet &p) const 
@@ -154,63 +158,63 @@ namespace Loci {
   //**************************************************************************/
   
   storeRepP dMapRepI::remap(const Map &newmap) const 
-{
-  dMap s ;
-  entitySet newdomain = newmap.domain() & domain() ;
-  pair<entitySet,entitySet> mappimage = preimage(newmap.domain()) ;
-  newdomain &= mappimage.first ;
-  entitySet mapimage = newmap.image(newdomain) ;
-  s.allocate(mapimage) ;
-  storeRepP my_store = getRep() ;
-  s.Rep()->scatter(newmap,my_store,newdomain) ;
-  MapRepP(s.Rep())->compose(newmap,mapimage) ;
-  /*
-  Map m ;
-  m.allocate(s.domain()) ;
-  FORALL(s.domain(), i) {
-    m[i] = s[i] ;
-  } ENDFORALL ;
-  return m.Rep() ;
-  */
-  return s.Rep() ;
-}
-
+  {
+    dMap s ;
+    entitySet newdomain = newmap.domain() & domain() ;
+    pair<entitySet,entitySet> mappimage = preimage(newmap.domain()) ;
+    newdomain &= mappimage.first ;
+    entitySet mapimage = newmap.image(newdomain) ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+    s.Rep()->scatter(newmap,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(newmap,mapimage) ;
+    
+    Map m ;
+    m.allocate(s.domain()) ;
+    FORALL(s.domain(), i) {
+      m[i] = s[i] ;
+    } ENDFORALL ;
+    return m.Rep() ;
+    
+    //return s.Rep() ;
+  }
+  
   //**************************************************************************/
-
+  
   void dMapRepI::compose(const Map &newmap, const entitySet &context) 
   {
     fatal((context-store_domain) != EMPTY) ;
     fatal((image(context)-newmap.domain()) != EMPTY) ;
-
+    
     FORALL(context,i) {
       attrib_data[i] = newmap[attrib_data[i]] ;
     } ENDFORALL ;
-
+    
   }
-
+  
   //**************************************************************************/
-
-
+  
+  
   void dMapRepI::copy(storeRepP &st, const entitySet &context) 
   {
     const_dMap s(st) ;
-
+    
     fatal((context-domain()) != EMPTY) ;
 
     fatal((context-s.domain()) != EMPTY) ;
-
+    
     FORALL(context,i) {
       attrib_data[i] = s[i] ;
     } ENDFORALL ;
-
+    
   }
-
+  
   //**************************************************************************/
 
   void dMapRepI::gather(const Map &m, storeRepP &st, const entitySet &context) 
   {
     const_dMap s(st) ;
-
+    
     fatal((m.image(context) - s.domain()) != EMPTY) ; 
     fatal((context - domain()) != EMPTY) ;
 
@@ -218,30 +222,30 @@ namespace Loci {
       attrib_data[i] = s[m[i]] ;
     } ENDFORALL ;
   }
-
+  
   //**************************************************************************/
-
+  
   void dMapRepI::scatter(const Map &m,storeRepP &st, const entitySet &context) 
   {
     const_dMap s(st) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
-  
+    
     FORALL(context,i) {
       attrib_data[m[i]] = s[i] ;
     } ENDFORALL ;
   }
-
+  
   //**************************************************************************/
-
+  
   int dMapRepI::pack_size(const entitySet &e) {
     int size ;
     size = sizeof(int) * e.size() ;
     return(size) ;
   }
-
+  
   //**************************************************************************/
-
+  
   void dMapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
     entitySet :: const_iterator ci;
@@ -249,55 +253,56 @@ namespace Loci {
       MPI_Pack( &attrib_data[*ci], 1, MPI_INT, outbuf,outcount,
                 &position, MPI_COMM_WORLD) ;
   }
-
+  
   //**************************************************************************/
 
   void dMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) 
   {
     sequence:: const_iterator ci;
     for( ci = seq.begin(); ci != seq.end(); ++ci)
-          MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
-                      1, MPI_INT, MPI_COMM_WORLD) ;
+      MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
+		  1, MPI_INT, MPI_COMM_WORLD) ;
   }
-
+  
   //**************************************************************************/
-
+  
   entitySet dMapRepI::domain() const 
   {
     HASH_MAP(int,int ) :: const_iterator    ci;
     entitySet          storeDomain;
     vector<int>        vec;
-
+    
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
       vec.push_back( ci->first ) ;
-
+    
     sort( vec.begin(), vec.end() );
-
+    
     for( int i = 0; i < vec.size(); i++)
       storeDomain +=  vec[i];
-
+    
     return storeDomain ;
   }
 
   //**************************************************************************/
-
+  
   entitySet dMapRepI::image(const entitySet &domain) const 
   {
-
+    
     entitySet codomain ;
     entitySet :: const_iterator  ei;
     HASH_MAP(int,int) ::  const_iterator   ai;   
-    
+  
     for( ei = domain.begin(); ei != domain.end(); ++ei){
       ai = attrib_data.find(*ei);
-      if( ai != attrib_data.end() )
-        codomain +=   ai->second;
+      if( ai != attrib_data.end() ) {
+	codomain +=   ai->second;
+      }
     }
     return codomain ;
   }
-
+  
   //**************************************************************************/
-
+  
   pair<entitySet,entitySet>
   dMapRepI::preimage(const entitySet &codomain) const  
   {
@@ -307,9 +312,9 @@ namespace Loci {
       if(codomain.inSet( ci->second) )  domain  += ci->first;
     return make_pair(domain,domain);
   }
-
+  
   //**************************************************************************/
-
+  
   multiMap dMapRepI::get_map() 
   {
     multiMap result ;

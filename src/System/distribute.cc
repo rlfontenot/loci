@@ -26,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
-//#define UNITY_MAPPING
+#define UNITY_MAPPING
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
@@ -35,10 +35,9 @@ namespace Loci {
   int MPI_processes = 1;
   int MPI_rank ;
   int num_threads = 1 ;
-
   ofstream debugout ;
   double barrier_time = 0 ;
-  
+  double total_memory_usage = 0 ;
   void Init(int* argc, char*** argv)  {
     
     char *execname = (*argv)[0] ;
@@ -106,6 +105,7 @@ namespace Loci {
       exit(0) ;
     }
     infile >> part ;
+    FATAL(part != num_partitions) ;
     int *partition = new int[num_partitions] ;
     for(int i = 0; i < num_partitions; ++i) 
       infile >> partition[i] ;
@@ -426,7 +426,47 @@ namespace Loci {
     }
     return dom ;
   }
-
+  
+  entitySet dist_expand_map(entitySet domain, fact_db &facts,
+			    const std::set<std::vector<variableSet> > &maps) {   
+    std::vector<entitySet> ptn = facts.get_init_ptn() ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      entitySet tmp = ptn[i] ;
+      ptn[i] = tmp & interval(0, Loci::UNIVERSE_MAX) ;
+    }
+    entitySet dom = domain ;
+    variableSet vars = facts.get_typed_variables() ;
+    std::set<std::vector<variableSet> >::const_iterator smi ;
+    for(smi = maps.begin(); smi != maps.end(); ++smi) {
+      entitySet locdom = domain ;
+      const vector<variableSet> &mv = *smi ;
+      for(int i = 0; i < mv.size(); ++i) {
+	variableSet v = mv[i] ;
+	v &= vars ; 
+	entitySet image ;
+	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
+	  Loci::storeRepP p = facts.get_variable(*vi) ;
+	  if(p->RepType() == Loci::MAP) {
+	    entitySet tmp_dom = p->domain() ;
+	    Loci::MapRepP mp = Loci::MapRepP(p->getRep()) ;
+	    entitySet out_of_dom = locdom - tmp_dom ; 
+	    entitySet::const_iterator ei ;
+	    entitySet tmp_out = out_of_dom ; 
+	    storeRepP sp = mp->expand(tmp_out, ptn) ;
+	    if(sp->domain() != tmp_dom) {
+	      facts.update_fact(variable(*vi), sp) ; 
+	      // debugout << " updated map " << *vi << "   new domain() = " << sp->domain() << endl ;
+	    }
+	    image += Loci::MapRepP(sp)->image((sp->domain()) & locdom) ;
+	  }
+	}
+	dom += image ;
+	locdom = image ;
+      }
+    }
+    return dom ;
+  }
+  
   void categories(fact_db &facts,vector<interval> &pvec) {
     entitySet active_set ;
     
@@ -447,7 +487,6 @@ namespace Loci {
         //debugout << *vi<<".domain=" << p->domain() <<endl ;
       }
     }
-    
     vector<int> vals,vals2 ;
     set<entitySet>::iterator si ;
     for(si=set_of_sets.begin();si!=set_of_sets.end();++si) {
@@ -484,38 +523,7 @@ namespace Loci {
     }
 
   }
-  /*
-  std::vector<interval> modified_categories(fact_db &facts, std::vector<interval> &pvec) {
-  std::vector<variableSet> vvs(pvec.size()) ;
-  variableSet vars = facts.get_typed_variables() ;
-  std::map<variable, entitySet> vm ;
-  std::map<variable, entitySet>::const_iterator svi ;
-  for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
-    entitySet active_set ;
-    storeRepP p = facts.get_variable(*vi) ;
-    if(p->RepType() == MAP) {
-      MapRepP mp = MapRepP(p->getRep()) ;
-      active_set += p->domain() ;
-    }else if(p->RepType() == STORE) 
-      active_set += p->domain() ;
-    if(active_set != EMPTY) {
-      // entitySet collect = all_collect_entitySet(facts, active_set) ; 
-      //vm[*vi] = collect ;
-      //cout << "variable = " << *vi << " global  domain  =  " << collect << endl ;
-      vm[*vi] = active_set ;
-      cout << "variable = " << *vi << " domain  =  " << active_set << endl ;
-    }
-  }
-  for(int i = 0; i < pvec.size(); ++i) {
-    for(svi = vm.begin(); svi != vm.end(); ++svi)
-      if((pvec[i] & svi->second) != EMPTY)
-	vvs[i] += svi->first ;
-    debugout << " category = " << entitySet(pvec[i]) << endl ;
-    debugout << "  variables associated =  " << vvs[i] << endl ;
-  }
-  return pvec ;
-}
-  */
+
   vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions) {
     if(num_partitions == 0)
       num_partitions = MPI_processes ;
@@ -550,10 +558,15 @@ namespace Loci {
     int num_procs = MPI_processes ;
     vector<entitySet> copy(num_procs) ;
     vector<entitySet> image(num_procs) ;
+    entitySet tmp ;
+    for(int i = 0; i < num_procs; ++i)
+      debugout << " partition[ " << i << " ] = " << ptn[i] << endl ;
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
       // The clone region is obtained here 
       copy[pnum] = image[pnum] - ptn[pnum] ;
+      if(pnum != MPI_rank)
+	tmp += copy[pnum] ;
       for(int i = 0; i < num_procs; ++i) {
 	// The information abt the clone region is found out here.  
 	entitySet slice = copy[pnum] & ptn[i] ;
@@ -563,6 +576,7 @@ namespace Loci {
       //my_entities. 
       get_entities[pnum][pnum] = ptn[pnum] ;
     }
+    Loci::debugout << " total clone information needed =  " << tmp << endl ;
     end_time  = MPI_Wtime() ;
     debugout << "Time taken for all the calls to expand_map is =   = " << end_time-start << endl ; 
     start = MPI_Wtime() ;
@@ -708,9 +722,26 @@ namespace Loci {
     
     facts.put_distribute_info(df) ;
     facts.create_fact("l2g", l2g) ;
+    facts.put_l2g(l2g) ;
     facts.create_fact("my_entities", my_entities) ;
     end_time =  MPI_Wtime() ;
     debugout << "  Time taken for creating final info =  " << end_time - start << endl ;
+    /*
+    variableSet tmp_vars = facts.get_typed_variables();
+    for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
+      Loci::storeRepP tmp_sp = facts.get_variable(*vi) ;
+      if(tmp_sp->RepType() == Loci::MAP) {
+	Loci::debugout << " Map "  << *vi << " =  " << endl  ;
+	entitySet tmp_dom = tmp_sp->domain() ;
+	Loci::debugout << " local domain = " << tmp_dom << endl ;
+	entitySet global_dom = Loci::all_collect_entitySet(facts, tmp_dom) ;
+	Loci::debugout << " global_map domain = " << global_dom << endl ;
+	entitySet tmp_image = Loci::MapRepP(tmp_sp->getRep())->image(tmp_dom) ;
+	global_dom = Loci::all_collect_entitySet(facts, tmp_image) ;
+	Loci::debugout << " global map image = " << global_dom << endl ;
+      }
+      }
+    */
   }
   
   /*The fill_entitySet routine fills in the clone region entities
@@ -878,8 +909,9 @@ namespace Loci {
         int j=evsz ;
         WARN(recieved < evsz) ;
         for(int k=0;k<evsz;++k) {
-          for(int l=0;l<recv_buffer[i][k];++l)
-            re[k] += d->g2l[recv_buffer[i][j++]] ;
+          for(int l=0;l<recv_buffer[i][k];++l) {
+       	    re[k] += d->g2l[recv_buffer[i][j++]] ;
+	  }
         }
         WARN(j!=recieved) ;
       }
@@ -1366,7 +1398,52 @@ namespace Loci {
     return nsp ;
     
   }
- 
+
+  
+  storeRepP reorder_store(storeRepP &sp, Map& remap, fact_db &facts) {
+    std::vector<entitySet> chop_ptn = facts.get_chop_ptn() ;
+    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    Map l2g ;
+    l2g = facts.get_l2g() ;
+    entitySet loc_dom = sp->domain() ;
+    entitySet AR_gdom = MapRepP(l2g.Rep())->image(loc_dom) ;
+    entitySet AR_tot_gdom = all_collect_entitySet(facts, AR_gdom) ;
+    entitySet final_gdom = AR_tot_gdom & chop_ptn[Loci::MPI_rank] ;
+    entitySet curr_gdom = init_ptn[Loci::MPI_rank] & AR_tot_gdom ;
+    entitySet owned_entities = MapRepP(l2g.Rep())->preimage(curr_gdom).first ;
+    entitySet::const_iterator ei ;
+    storeRepP g_sp = sp->remap(l2g) ;
+    entitySet clone = g_sp->domain() - init_ptn[MPI_rank] ;
+    entitySet remap_dom = remap.domain() ;
+    dmultiMap d_remap ;
+    entitySet tot_remap_dom = all_collect_entitySet(facts, remap_dom) ;
+    distributed_inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom, facts) ;
+    
+    Map reverse ;
+    remap_dom = d_remap.domain() ;
+    reverse.allocate(remap_dom) ;
+    FORALL(remap_dom, ri) {
+      if(d_remap[ri].size() > 1)
+	cout << " ERROR : " << endl ;
+      reverse[ri] = d_remap[ri][0] ;
+    } ENDFORALL ;
+    storeRepP remap_gsp = g_sp->remap(reverse) ;
+    entitySet tmp = remap_gsp->domain() ;
+    clone = (chop_ptn[Loci::MPI_rank]) - tmp ;
+    entitySet tot_dom = tmp + clone ;
+    storeRepP new_sp = remap_gsp->new_store(tot_dom) ;
+    new_sp->copy(remap_gsp, tmp) ;
+    fill_clone(new_sp, clone, init_ptn) ;
+    Map new_map ;
+    new_map.allocate(final_gdom) ;
+    FORALL(final_gdom, fi) {
+      new_map[fi] = fi ;
+    } ENDFORALL ;
+    storeRepP final_sp = new_sp->remap(new_map) ;
+    return final_sp ;
+  }
+  
+  
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) {
     if(!facts.isDistributed()) {
       return sp ;
@@ -1511,12 +1588,12 @@ namespace Loci {
     void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) {
       
       entitySet preloop = input_preimage & input_map.domain() ;
-      std::vector<entitySet> init_ptn ;
+      std::vector<entitySet> init_ptn ; 
       init_ptn = facts.get_init_ptn() ;
       int *recv_count = new int[MPI_processes] ;
       int *send_count = new int[MPI_processes] ;
-      int *send_displacement = new int[MPI_processes];
-      int *recv_displacement = new int[MPI_processes];
+      int *send_displacement = new int[MPI_processes] ;
+      int *recv_displacement = new int[MPI_processes] ;
       std::vector<std::vector<int> > map_elems(MPI_processes) ;
       std::vector<int> tmp_vec ;
       entitySet local_input_image = input_image ;
@@ -1524,6 +1601,7 @@ namespace Loci {
       FORALL(local_input_image,i) {
 	result[i] = tmp_vec ;
       }ENDFORALL ;
+      
       FORALL(preloop,i) {
 	int elem = input_map[i] ;
 	if(input_image.inSet(elem)) 
@@ -1572,9 +1650,7 @@ namespace Loci {
       }
       for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
 	for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
-	  
 	  result[hmi->first].push_back(*si) ;
-	  
       
       delete [] recv_count ;
       delete [] send_count ;
@@ -1824,5 +1900,656 @@ namespace Loci {
     delete [] send_buf ;
     delete [] recv_buf ;
   }
+  
+  entitySet all_collect_entitySet(fact_db &facts, const entitySet &e) {
+    entitySet collect ;
+    entitySet::const_iterator ei ;
+    if(MPI_processes > 1) {
+      int *recv_count = new int[MPI_processes] ;
+      int *send_count = new int[MPI_processes] ;
+      int *send_displacement = new int[MPI_processes];
+      int *recv_displacement = new int[MPI_processes];
+      int size_send = 0 ;
+      for(int i = 0; i < MPI_processes; ++i) {
+	send_count[i] = 2 * e.num_intervals() ;
+	size_send += send_count[i] ; 
+      }
+      int *send_buf = new int[size_send] ;
+      MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		   MPI_COMM_WORLD) ; 
+      MPI_Barrier(MPI_COMM_WORLD) ;
+      size_send = 0 ;
+      for(int i = 0; i < MPI_processes; ++i)
+	size_send += recv_count[i] ;
+      int *recv_buf = new int[size_send] ;
+      size_send = 0 ;
+      for(int i = 0; i < MPI_processes; ++i)
+	for(int j = 0; j < e.num_intervals(); ++j) {
+	  send_buf[size_send] = e[j].first ;
+	  ++size_send ;
+	  send_buf[size_send] = e[j].second ;
+	  ++size_send ;
+	}
+      send_displacement[0] = 0 ;
+      recv_displacement[0] = 0 ;
+      for(int i = 1; i < MPI_processes; ++i) {
+	send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+	recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+      }
+      MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		    recv_buf, recv_count, recv_displacement, MPI_INT,
+		    MPI_COMM_WORLD) ;
+      std::vector<entitySet> add(MPI_processes) ;
+      for(int i = 0; i < MPI_processes; ++i) {
+	for(int j = recv_displacement[i]; j <
+	      recv_displacement[i]+recv_count[i]-1; ++j) { 
+	  collect += Loci::interval(recv_buf[j], recv_buf[j+1]) ;
+	  j++ ;
+	}
+      }
+      delete [] send_count ;
+      delete [] recv_count ;
+      delete [] recv_displacement ;
+      delete [] send_displacement ;
+      delete [] send_buf ;
+      delete [] recv_buf ;
+    }
+    else
+      return e ;
+    return collect ;
+  }
 
+  
+  void fill_clone(Loci::storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
+    int *recv_count = new int[Loci::MPI_processes] ;
+    int *send_count = new int[Loci::MPI_processes] ;
+    int *send_displacement = new int[Loci::MPI_processes] ;
+    int *recv_displacement = new int[Loci::MPI_processes] ;
+    entitySet::const_iterator ei ;
+    std::vector<int>::const_iterator vi ;
+    int size_send = 0 ;
+    std::vector<std::vector<int> > copy(Loci::MPI_processes), send_clone(Loci::MPI_processes) ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      entitySet tmp = out_of_dom & init_ptn[i] ;
+      for(ei = tmp.begin(); ei != tmp.end(); ++ei) {
+	copy[i].push_back(*ei) ;
+      }
+      std::sort(copy[i].begin(), copy[i].end()) ;
+      send_count[i] = copy[i].size() ;
+      size_send += send_count[i] ; 
+    }
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < Loci::MPI_processes; ++i)
+      size_send += recv_count[i] ;
+    
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < Loci::MPI_processes; ++i)
+      for(vi = copy[i].begin(); vi != copy[i].end(); ++vi) {
+	send_buf[size_send] = *vi ;
+	++size_send ;
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < Loci::MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		  recv_buf, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i]; ++j) 
+	send_clone[i].push_back(recv_buf[j]) ;
+      std::sort(send_clone[i].begin(), send_clone[i].end()) ;
+    }
+    std::vector<Loci::sequence> recv_dom(Loci::MPI_processes) ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) 
+      for(vi = copy[i].begin(); vi != copy[i].end(); ++vi) 
+	recv_dom[i] += *vi ;
+    std::vector<entitySet> send_dom(Loci::MPI_processes) ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) 
+      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) {
+	send_dom[i] += *vi ;
+      }
+    
+    size_send = 0 ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      send_count[i] =  sp->pack_size(send_dom[i]) ;
+      size_send += send_count[i] ;
+    } 
+    unsigned char *send_store = new unsigned char[size_send] ;
+    int size_recv = 0 ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      recv_count[i] =  sp->pack_size(entitySet(recv_dom[i])) ;
+      size_recv += recv_count[i] ;
+    } 
+    unsigned char *recv_store = new unsigned char[size_recv] ;
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < Loci::MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    int loc_pack = 0 ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) 
+      sp->pack(send_store, loc_pack, size_send, send_dom[i]) ;
+    
+    
+    MPI_Alltoallv(send_store,send_count, send_displacement , MPI_PACKED,
+		  recv_store, recv_count, recv_displacement, MPI_PACKED,
+		  MPI_COMM_WORLD) ;  
+    loc_pack = 0 ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      sp->unpack(recv_store, loc_pack, size_recv, recv_dom[i]) ; 
+    }
+    delete [] send_buf ;
+    delete [] recv_buf ;
+    delete [] send_store ;
+    delete [] recv_store ;
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ;
+  }
+
+ std::vector<entitySet> all_collect_vectors(entitySet &e) {
+    int *recv_count = new int[Loci::MPI_processes] ;
+    int *send_count = new int[Loci::MPI_processes] ;
+    int *send_displacement = new int[Loci::MPI_processes];
+    int *recv_displacement = new int[Loci::MPI_processes];
+    int size_send = 0 ;
+    entitySet::const_iterator ei ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      send_count[i] = e.size() ;
+      size_send += send_count[i] ; 
+    }  
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < Loci::MPI_processes; ++i)
+      size_send += recv_count[i] ;
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      for(ei = e.begin(); ei != e.end(); ++ei) {
+	send_buf[size_send] = *ei ;
+	++size_send ;
+      }
+    } 
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < Loci::MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    } 
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		  recv_buf, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+    std::vector<entitySet> vset(Loci::MPI_processes) ;
+    
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i]; ++j) 
+	vset[i] += recv_buf[j] ;
+    } 
+    delete [] send_count ;
+    delete [] recv_count ;
+    delete [] recv_displacement ;
+    delete [] send_displacement ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+    return vset ;
+  }
+
+
+  
+class cat_tree : public CPTR_type {
+public:
+  typedef CPTR<cat_tree>     treeP ;
+  typedef std::list<treeP> treeList ;
+  variableSet                generalization ;
+  treeList                    before, after ;
+  variableSet get_below_vars() ;
+  int is_swapped ;
+  void Print(ostream &s) ;
+  void fill_list(std::list<treeP> &list_tp) ;
+  std::list<variableSet> get_categories(variableSet &vs) ;
+  void recursive_reorder(std::list<variableSet> &lvs) ;
+  void reorder(std::list<variableSet> &lvs) ;
+  void down(int &i) ;
+  bool operator==(const treeP &tp) const {
+    if((generalization == tp->generalization) && (before.size() == tp->before.size()) && (after.size() == tp->after.size()))
+      return 1 ;
+    else
+      return 0 ;
+  }
+  void before2after() ;
+} ;
+
+typedef cat_tree::treeP     treeP ;
+typedef cat_tree::treeList  treeList ;
+
+inline bool operator<(const treeP &tp1, const treeP &tp2) {
+  
+  if(tp1->generalization != tp2->generalization)
+    return 0 ;
+  else
+    return  tp1->generalization < tp2->generalization ||
+      (tp1->generalization==tp2->generalization &&
+       (tp1->before.size()< tp2->before.size())) ; 
 }
+
+variableSet cat_tree::get_below_vars() {
+  variableSet vs = generalization ;
+  for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li)
+    vs += (*li)->get_below_vars() ;
+  for(std::list<treeP>::iterator li = after.begin(); li != after.end(); ++li)
+    vs += (*li)->get_below_vars() ;
+  return vs ;
+}
+
+void cat_tree::Print(ostream &s) {
+  for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li)
+    (*li)->Print(s) ;
+  s << "  generalization = " << generalization << "  before.size = " << before.size() << "  after.size()  =  " << after.size() << endl ;
+  for(std::list<treeP>::iterator li = after.begin(); li != after.end(); ++li)
+    (*li)->Print(s) ;
+}
+
+void cat_tree::down(int &i ) {
+  i++ ;
+  for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li)
+    (*li)->down(i) ;
+}
+
+std::list<variableSet> cat_tree::get_categories(variableSet &vs) {
+  vs += generalization ;
+  variableSet tvs  = vs ;
+  std::list<variableSet> lvs ;
+  
+  if(before.size() > 1) {
+    for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li) {
+      variableSet tmp_vs = vs;
+      tmp_vs += (*li)->generalization ;
+      std::list<variableSet> tmp_lvs = (*li)->get_categories(tmp_vs) ;
+      for(std::list<variableSet>::iterator lvi = tmp_lvs.begin(); lvi != tmp_lvs.end(); ++lvi)
+	lvs.push_back(*lvi) ;
+    }
+  }
+  else {
+    for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li) {
+      variableSet tmp_vs = vs;
+      std::list<variableSet> tmp_lvs ;
+      if(after.size()) {
+	tmp_vs += (*li)->generalization ;
+	tmp_lvs = (*li)->get_categories(tmp_vs) ;
+	for(std::list<variableSet>::iterator lvi = tmp_lvs.begin(); lvi != tmp_lvs.end(); ++lvi)
+	  lvs.push_back(*lvi) ;
+      }
+      else {
+	vs += (*li)->generalization ;
+	tmp_lvs = (*li)->get_categories(vs) ;
+	for(std::list<variableSet>::iterator lvi = tmp_lvs.begin(); lvi != tmp_lvs.end(); ++lvi)
+	  lvs.push_back(*lvi) ;
+      }  
+    }
+  }
+  if(tvs != EMPTY)
+    lvs.push_back(tvs) ;
+  if(after.size() > 1) {
+    for(std::list<treeP>::iterator li = after.begin(); li != after.end(); ++li) {
+      variableSet tmp_vs = tvs;
+      tmp_vs += (*li)->generalization ;
+      std::list<variableSet> tmp_lvs = (*li)->get_categories(tmp_vs) ;
+      for(std::list<variableSet>::iterator lvi = tmp_lvs.begin(); lvi != tmp_lvs.end(); ++lvi)
+	lvs.push_back(*lvi) ;
+    }
+  }
+  else {
+    for(std::list<treeP>::iterator li = after.begin(); li != after.end(); ++li) {
+      variableSet tmp_vs = vs ;
+      std::list<variableSet> tmp_lvs ;
+      if(before.size()) {
+	tmp_vs += (*li)->generalization ;
+	tmp_lvs = (*li)->get_categories(tmp_vs) ;
+      }
+      else {
+	vs += (*li)->generalization ;
+	tmp_lvs = (*li)->get_categories(vs) ;
+      }
+      for(std::list<variableSet>::iterator lvi = tmp_lvs.begin(); lvi != tmp_lvs.end(); ++lvi)
+	lvs.push_back(*lvi) ;
+    }  
+  }
+  
+  return lvs ;
+}
+
+void cat_tree::fill_list(std::list<treeP> &list_tp) {
+  for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li)
+    (*li)->fill_list(list_tp) ;
+  list_tp.push_front(this) ;
+  for(std::list<treeP>::iterator li = after.begin(); li != after.end(); ++li)
+    (*li)->fill_list(list_tp) ;
+}
+
+void cat_tree::before2after() {
+  std::list<treeP> vt ;
+  for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li) {
+    if((*li)->before.size())
+      vt.push_back(*li) ;
+    else
+      after.push_back(*li) ;
+  }
+  before = vt ;
+}
+
+void cat_tree::reorder(std::list<variableSet> &lvs) {
+  std::set<variableSet> tmp_vars ;
+  std::list<treeP> lone_ltp, tmp_buf, tmp_before ;
+  for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li)
+    if((*li)->before.size() || (*li)->after.size())
+      tmp_buf.push_back(*li) ;
+    else
+      lone_ltp.push_back(*li) ;
+  for(std::list<treeP>::iterator li = tmp_buf.begin(); li != tmp_buf.end(); ++li) {
+    tmp_before.push_back(*li) ;
+    tmp_vars.insert((*li)->generalization) ;
+    variableSet vset = (*li)->get_below_vars() ;
+    for(std::list<treeP>::iterator tmp_li = lone_ltp.begin(); tmp_li != lone_ltp.end(); ++tmp_li)
+      if((((*tmp_li)->generalization) & vset) != EMPTY)
+	if(tmp_vars.find((*tmp_li)->generalization) == tmp_vars.end()) {
+	  tmp_before.push_back(*tmp_li) ;
+	  tmp_vars.insert((*tmp_li)->generalization) ;
+	}
+  }
+  for(std::list<treeP>::iterator tmp_li = lone_ltp.begin(); tmp_li != lone_ltp.end(); ++tmp_li)
+    if(tmp_vars.find((*tmp_li)->generalization) == tmp_vars.end()) {
+      tmp_vars.insert((*tmp_li)->generalization) ;
+      tmp_before.push_back(*tmp_li) ;
+    }
+  before = tmp_before ;
+  variableSet int_vset ;
+  for(std::list<variableSet>::iterator li = lvs.begin(); li != lvs.end(); ++li) {
+    for(variableSet::const_iterator vi = (*li).begin(); vi != (*li).end(); ++vi)
+      int_vset += *vi ;
+  }
+  for(std::list<treeP>::iterator lii = before.begin(); lii != before.end(); ++lii) {
+    entitySet vs = entitySet((*lii)->get_below_vars()) ;
+    for(std::list<treeP>::iterator lij = lii; lij != before.end(); ++lij) {
+      if(lii != lij) {
+	entitySet next_vs =  entitySet((*lij)->get_below_vars()) ;
+	entitySet tmp_vs = vs & next_vs ;
+	tmp_vs -= (tmp_vs & entitySet(int_vset)) ;
+	if(tmp_vs != EMPTY) {
+	  lvs.push_front(variableSet(tmp_vs)) ;
+	  int_vset += variableSet(tmp_vs) ;
+	  std::list<treeP> tlp, tmp_tlp ;
+	  for(std::list<treeP>::iterator tlpi = (*lij)->before.begin(); tlpi != (*lij)->before.end(); ++tlpi)
+	    if(((*tlpi)->get_below_vars() & variableSet(tmp_vs)) == EMPTY)
+	      (*lij)->after.push_back(*tlpi) ;
+	    else
+	      tlp.push_back(*tlpi) ;
+	  (*lij)->before = tlp ; 
+	  (*lij)->is_swapped = 1 ;
+	}
+      }
+    }
+    for(std::list<treeP>::iterator lij = before.begin(); lij != lii; ++lij) {
+      if(!(*lij)->is_swapped) {
+	entitySet vs = entitySet((*lij)->get_below_vars()) ;
+	for(std::list<variableSet>::iterator lvi = lvs.begin(); lvi != lvs.end(); ++lvi) {
+	  entitySet next_vs =  entitySet(*lvi) ;
+	  entitySet tmp_vs = vs & next_vs ;
+	  if(tmp_vs != EMPTY) {
+	    std::list<treeP> tlp, tmp_tlp ;
+	    
+	    for(std::list<treeP>::iterator tlpi = (*lij)->before.begin(); tlpi != (*lij)->before.end(); ++tlpi)
+	      if(((*tlpi)->get_below_vars() & variableSet(tmp_vs)) == EMPTY)
+		tmp_tlp.push_back(*tlpi) ;
+	      else
+		(*lij)->after.push_front(*tlpi) ;
+	    (*lij)->before = tmp_tlp ; 
+	  
+	  }
+	}
+      }
+    }
+  }
+}
+
+
+void cat_tree::recursive_reorder(std::list<variableSet> &tmp_lvs) {
+  for(std::list<treeP>::iterator li = before.begin(); li != before.end(); ++li)
+    (*li)->recursive_reorder(tmp_lvs) ;
+  reorder(tmp_lvs) ;
+  for(std::list<treeP>::iterator li = after.begin(); li != after.end(); ++li)
+    (*li)->recursive_reorder(tmp_lvs) ;
+} 
+ 
+std::vector<std::vector<variableSet> > create_orig_matrix(std::vector<variableSet> &ves) {
+  std::vector<variableSet>::const_iterator vesi, viter ;
+  std::vector<std::vector<variableSet> > vvvs(ves.size()) ;
+  int tmp = 0 ;
+  viter = ves.begin() ;
+  while(tmp < ves.size()) { 
+    entitySet vs ;
+    for(vesi = ves.begin(); vesi != ves.end(); ++vesi) { 
+      vs = (entitySet(*viter) & entitySet(*vesi)) ;
+      vvvs[tmp].push_back(variableSet(vs));
+    }
+    tmp++ ;
+    viter++ ;
+  }
+  /*
+  cout << " original_matrix =  " << endl ;
+  for(int i = 0; i < vvvs.size(); ++i) {
+    for(int j = 0; j < vvvs[i].size(); ++j) 
+      cout << vvvs[i][j] << "   "  ; 
+    cout << endl ;
+  }
+  */
+  return vvvs ;
+}
+
+std::vector<std::vector<variableSet> > create_sub_matrix(std::vector<variableSet> &ves, variableSet v) {
+  std::vector<variableSet>::const_iterator vesi, viter ;
+  std::vector<std::vector<variableSet> > vvvs ;
+  std::vector<variableSet>  tmp_ves(ves.size()) ;
+  int tmp = 0 ;
+  for(int i = 0; i < ves.size(); ++i) 
+    tmp_ves[i] = variableSet(entitySet(ves[i])- entitySet(v)) ;
+  viter = tmp_ves.begin() ;
+  while(tmp < tmp_ves.size()) { 
+    entitySet vs ;
+    std::vector<variableSet> tmp_vvs ;
+    for(vesi = tmp_ves.begin(); vesi != tmp_ves.end(); ++vesi) {
+      vs = (entitySet(*viter) & entitySet(*vesi)) ;
+      tmp_vvs.push_back(variableSet(vs));
+    }
+    vvvs.push_back(tmp_vvs) ;
+    tmp++ ;
+    viter++ ;
+  }
+  /*
+  cout << " Sub matrix =  " << endl ;
+  for(int i = 0; i < vvvs.size(); ++i) {
+    for(int j = 0; j < vvvs[i].size(); ++j) 
+      cout << vvvs[i][j] << "   "  ; 
+    cout << endl ;
+  }
+  */
+  return vvvs ;
+}
+
+treeP recursive_matrix_tree(std::vector<std::vector<variableSet> > &tmp_vvvs, variableSet vset, std::set<variableSet> total_varset) {
+  std::vector<std::vector<variableSet> > vvvs ;
+  treeP tp = new cat_tree ;
+  variableSet vs ;
+  tp->generalization = vset ;
+  tp->is_swapped = 0 ;
+  if(tmp_vvvs.size() == 0) {
+    return tp ;
+  }
+  std::vector<variableSet> tmp_vvs ;
+  for(int i = 0; i < tmp_vvvs.size(); ++i) {
+    if(tmp_vvvs[i][i] != EMPTY) {
+      tmp_vvs.push_back(tmp_vvvs[i][i]) ;
+    }
+  }
+  if(tmp_vvs.size() < tmp_vvvs.size())
+    vvvs = create_orig_matrix(tmp_vvs) ;
+  else
+    vvvs = tmp_vvvs ;
+
+  for(int i = 0; i < vvvs.size(); ++i) {
+    std::set<variableSet> set_vars ;
+    std::vector<variableSet> vvs ;
+    entitySet es ;
+    es = entitySet(vvvs[i][i]) ;
+    if(set_vars.find(vvvs[i][i]) == set_vars.end()) {
+      vvs.push_back(vvvs[i][i]) ;
+      set_vars.insert(vvvs[i][i]) ;
+    }
+    std::vector<std::vector<variableSet> > sub_vvvs ;
+    for(int j = 0; j < vvvs[i].size(); ++j)
+      if(j != i) {
+	if(vvvs[i][j] != EMPTY) {
+	  es &= entitySet(vvvs[i][j]) ;
+	  vs = variableSet(es) ;
+	  if(vs != EMPTY) {
+	    if(set_vars.find(vvvs[j][j]) == set_vars.end()) {
+	      vvs.push_back(vvvs[j][j]) ;
+	      set_vars.insert(vvvs[j][j]) ;
+	    }
+	  }
+	}
+      }
+    if(vvs.size()) {
+      es = vvs[0] ;
+      for(int j = 1; j < vvs.size(); ++j)
+	es &= entitySet(vvs[j]) ;
+      if(total_varset.find(variableSet(es)) == total_varset.end()) {
+	total_varset.insert(variableSet(es)) ;
+	sub_vvvs = create_sub_matrix(vvs, variableSet(es)) ;
+	tp->before.push_back(recursive_matrix_tree(sub_vvvs,
+						   variableSet(es), total_varset));
+      }
+    }
+    if(set_vars.size() == vvvs.size() )
+      break ;
+  }
+  return tp ;
+}
+
+std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, entitySet> &vm, std::vector<interval> &pvec) {
+  entitySet::const_iterator ei ;
+  std::vector<entitySet> tmp_pvec ;
+  std::vector<variableSet> vvs(pvec.size()) ;
+  variableSet vars = facts.get_typed_variables() ;
+  std::map<variableSet, entitySet> mve ;
+  std::map<variableSet, entitySet>::const_iterator miter ;
+  std::map<variable, entitySet>::const_iterator svi ;
+  variableSet initial_varset ;
+  for(int i = 0; i < pvec.size(); ++i) {
+    for(svi = vm.begin(); svi != vm.end(); ++svi) {
+      vvs[i] += svi->first ;
+      initial_varset += svi->first ;
+    }
+    if(vvs[i] != EMPTY) 
+      mve[vvs[i]] += pvec[i]; 
+  }
+  std::vector<variableSet> tmp_vvs ;
+  for(miter = mve.begin(); miter != mve.end(); ++miter) {
+    tmp_vvs.push_back(miter->first) ;
+  }
+  
+  std::vector<std::vector<variableSet> > vvvs = create_orig_matrix(tmp_vvs) ;
+  vvs.clear() ;
+  std::vector<variableSet> indep ;
+  std::set<variableSet> total_vars, itotal_vars ;
+  
+  for(int i = 0; i < vvvs.size(); ++i) {
+    entitySet vs, tmp_vs ;
+    for(int j = 0; j < vvvs[i].size(); ++j) {
+      if(j != i) {
+	vs = entitySet(vvvs[i][i]) & entitySet(vvvs[i][j]) ;
+	tmp_vs += vs ;
+	if(vs != EMPTY) {
+	  if(total_vars.find(vvvs[j][j]) == total_vars.end()) {
+	    vvs.push_back(vvvs[j][j]) ;
+	    total_vars.insert(vvvs[j][j]) ;
+	  }
+	}
+      }
+    }
+    if(tmp_vs == EMPTY) 
+      indep.push_back(vvvs[i][i]) ;
+  }
+  std::vector<std::vector<variableSet> > tmp_vvvs ;
+  vvvs = create_orig_matrix(vvs) ;
+  for(int i = 0; i < vvvs.size(); ++i) {
+    vvs.clear() ;
+    entitySet es = entitySet(vvvs[i][i]);
+    for(int j = 0; j < vvvs[i].size(); ++j) {
+      entitySet tmp_es ;
+      if((vvvs[i][j] != EMPTY))  {
+	if(itotal_vars.find(vvvs[j][j]) == itotal_vars.end()) {
+	  tmp_es = es & entitySet(vvvs[i][j]) ;
+	  if(tmp_es != EMPTY) {
+	    es = tmp_es ;
+	    itotal_vars.insert(vvvs[j][j]) ;
+	    vvs.push_back(vvvs[j][j]) ;
+	  }
+	}
+	else
+	  j++ ;
+      }
+    }
+    if(vvs.size())
+      tmp_vvvs.push_back(vvs) ;
+    if(itotal_vars.size() == vvvs.size())
+      break ; 
+  }
+  treeP super_tp = new cat_tree ;
+  variableSet vset ;
+  super_tp->generalization = vset ;
+  for(int i = 0; i < tmp_vvvs.size(); ++i) {
+    treeP tp = new cat_tree ;
+    variableSet vs ;
+    vvvs = create_orig_matrix(tmp_vvvs[i]) ;
+    std::set<variableSet> total_varset ;
+    tp = recursive_matrix_tree(vvvs, vs, total_varset) ;
+    super_tp->before.push_back(tp) ;
+  }
+  treeP tp = new cat_tree ;
+  tp->generalization = vset ;
+  for(int i = 0 ; i < indep.size(); ++i) {
+    treeP tmp_tp = new cat_tree ;
+    tmp_tp->generalization = indep[i] ;
+    tp->before.push_back(tmp_tp) ;
+  } 
+  for(std::list<treeP>::iterator li = super_tp->before.begin(); li != super_tp->before.end(); ++li) 
+    for(std::list<treeP>::iterator lj = (*li)->before.begin(); lj != (*li)->before.end(); ++lj)
+      tp->before.push_back(*lj) ;
+  
+  std::list<variableSet> lvs = tp->get_categories(vset) ; 
+  std::list<variableSet> tlist ;
+  tp->recursive_reorder(tlist) ;
+  
+  lvs = tp->get_categories(vset) ;
+  entitySet total_entities ;
+  for(std::list<variableSet>::iterator lvi = lvs.begin(); lvi != lvs.end(); ++lvi)
+    if(mve.find(*lvi) != mve.end()) {
+      tmp_pvec.push_back(mve[*lvi]) ;
+    }
+  return tmp_pvec ;
+} 
+  
+} 

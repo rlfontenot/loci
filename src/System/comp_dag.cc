@@ -116,14 +116,15 @@ namespace Loci {
     }
 #endif
     for(int i=0;i<dag_sched.size();++i) {
+      //Loci::debugout << " in comp_dag.cc dag_sched[i] = " << dag_sched[i] << endl ;
       variableSet vars = extract_vars(dag_sched[i]) ;
+      //Loci::debugout << " in comp_dag.cc vars = " << vars  << endl ;
       ruleSet rules = extract_rules(dag_sched[i]) ;
       if(rules == EMPTY && i+1<dag_sched.size()) {
         ++i ;
         vars += extract_vars(dag_sched[i]) ;
         rules = extract_rules(dag_sched[i]) ;
       }
-      
       variableSet barrier_vars, reduce_vars,singleton_vars,all_vars ;
       variableSet::const_iterator vi ;
       

@@ -10,7 +10,9 @@ namespace Loci
   using std::make_pair ;
   using std::vector ;
   using std::sort ;
-
+  storeRepP dmultiMapRepI::thaw() {
+    return getRep() ;
+  }
   storeRepP dmultiMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
     int *recv_count = new int[MPI_processes] ;
     int *send_count = new int[MPI_processes] ;
@@ -99,24 +101,24 @@ namespace Loci
     MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
 		  recv_map, recv_count, recv_displacement, MPI_INT,
 		  MPI_COMM_WORLD) ;  
-    HASH_MAP(int, std::set<int> ) hm ;
-    std::set<int> ss ;
+    HASH_MAP(int, std::vector<int> ) hm ;
+    std::vector<int> ss ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
 	    recv_displacement[i]+recv_count[i]-1; ++j) {
 	int count = recv_map[j+1] ;
 	if(count)
 	  for(int k = 0; k < count; ++k)
-	    hm[recv_map[j]].insert(recv_map[j+k+2]);
+	    hm[recv_map[j]].push_back(recv_map[j+k+2]);
 	else
 	  hm[recv_map[j]] = ss ;
 	j += count + 1 ;
       }
     }
     std::vector<int> tmp_vec ;
-    for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+    for(HASH_MAP(int, std::vector<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
       if(hmi->second.size()) 
-	for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
+	for(std::vector<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
 	  attrib_data[hmi->first].push_back(*si) ;
       else
 	attrib_data[hmi->first] = tmp_vec ;
@@ -162,6 +164,10 @@ namespace Loci
   {
     entitySet ptn = sizes.domain() ;
     entitySet :: const_iterator  ci;
+    for( ci = ptn.begin(); ci != ptn.end(); ++ci) {
+      std::vector<int>   newVec(sizes[*ci]) ;
+      attrib_data[*ci] = newVec;
+    }
     store_domain = ptn ;
     dispatch_notify() ;
   }
@@ -208,12 +214,12 @@ namespace Loci
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
-    /*
+    
     multiMap   newmap; 
     newmap = MapRepP(s.Rep())->get_map() ;
     return newmap.Rep() ;  
-   */
-    return s.Rep() ;
+   
+    // return s.Rep() ;
   }
   
   //**************************************************************************/
@@ -659,6 +665,20 @@ namespace Loci
 
 
   void inverseMap(dmultiMap &result, const dMap &input_map,
+                  const entitySet &input_image,
+		  const entitySet &input_preimage) {
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int> tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      if(input_image.inSet(elem)) 
+	result[elem].push_back(i) ;
+    } ENDFORALL ;
+  }
+  void inverseMap(dmultiMap &result, const Map &input_map,
                   const entitySet &input_image,
 		  const entitySet &input_preimage) {
     entitySet preloop = input_preimage & input_map.domain() ;

@@ -3,7 +3,6 @@
 namespace Loci {
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, sched_db &scheds)  {
     do_run = true ;
-    
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -15,7 +14,6 @@ namespace Loci {
                              variable v, const storeRepP &p, sched_db &scheds)
   {
     do_run = true ;
-    
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
