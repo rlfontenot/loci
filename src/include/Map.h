@@ -1,11 +1,12 @@
 #ifndef MAP_H_
 #define MAP_H_
 
+#include <Tools/stream.h>
 #include <Tools/debug.h>
 #include <Map_rep.h>
 #include <store.h>
-
 #include <algorithm>
+#include <H5cpp.h>
 
 namespace Loci {
 
@@ -27,6 +28,8 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
+    virtual void readhdf5(H5::Group group) ;
+    virtual void writehdf5(H5::Group group,entitySet& en) const ;
     int * get_base_ptr() const { return base_ptr ; }
   } ;
       
@@ -72,7 +75,6 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;
-
 
   inline std::ostream & operator<<(std::ostream &s, const Map &m)
     { return m.Print(s) ; }
@@ -139,8 +141,166 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
+    virtual void readhdf5( H5::Group group) ;
+    virtual void writehdf5(H5::Group group,entitySet& en) const ;
     VEC * get_base_ptr() const { return base_ptr ; }
+  private:
+    int* get_hdf5_data(H5::Group group,const char* datasetname) ;
+    void put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const ;
   } ;
+
+ template<int M> void MapVecRepI<M>::readhdf5( H5::Group group){
+      try{
+    	//get domain data
+	H5::DataSet dataset_domain = group.openDataSet( "domain");
+	H5::DataSpace dataspace_domain = dataset_domain.getSpace();
+	hsize_t dims_domain[1];
+	dataspace_domain.getSimpleExtentDims( dims_domain, NULL);
+	int *data_domain = new int[dims_domain[0]];
+	dataset_domain.read( data_domain, H5::PredType::NATIVE_INT );
+	entitySet num;	
+	for(int i=0;i<dims_domain[0];i++){
+	  num |=interval(data_domain[i],data_domain[i+1]);
+	  i++;
+	}
+	allocate(num); 
+	
+	int bound=M;
+	int *range = get_hdf5_data(group,"range");//get range data
+
+	//get map data 
+	hsize_t dims_map[1];
+	H5::DataSet dataset_map = group.openDataSet( "mapvec");
+	H5::DataSpace dataspace_map = dataset_map.getSpace();
+	dataspace_map.getSimpleExtentDims( dims_map, NULL);
+	int RANK = dataspace_map.getSimpleExtentNdims();
+
+	//set the base_ptr
+	entitySet en=domain();
+	int num_intervals=en.num_intervals();
+	interval *it = new interval[num_intervals];
+	for(int i=0;i<num_intervals;i++){
+	  it[i]=en[i];
+	}
+
+	//declear the variables used by hyperslab
+	hsize_t dim_mem[1];
+	dim_mem[0]=bound;
+	hssize_t start_mem[1];
+	hsize_t stride_mem[1];
+	hsize_t count_mem[1];
+	hsize_t block_mem[1];
+	hssize_t start_file[1];
+	start_file[0]=0;
+	stride_mem[0]=1;	    
+	block_mem[0]=1;
+	start_mem[0]=0;
+	//get data using HDF5 hyperslab	
+	H5::DataSpace dataspace_memory(RANK,dim_mem);
+
+	for(int i=0;i<num_intervals;i++){
+	  for(int j=it[i].first;j<=it[i].second;j++){
+	    count_mem[0]=bound;
+	    dataspace_memory.selectHyperslab(H5S_SELECT_SET,count_mem,start_mem,stride_mem,block_mem);	
+	    dataspace_map.selectHyperslab(H5S_SELECT_SET,count_mem,start_file,stride_mem,block_mem);
+	    start_file[0]=start_file[0]+count_mem[0];//for next interval
+	    dataset_map.read(base_ptr[j],H5::PredType::NATIVE_INT,dataspace_memory,dataspace_map);
+	  }
+	}      
+
+	//reclaim memory
+	delete [] it;
+	delete [] data_domain;
+      }
+      catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+      catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+      catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+    }
+    
+  template<int M> void MapVecRepI<M>::writehdf5(H5::Group group,entitySet& en) const {
+    //entitySet en=domain();
+      hsize_t dimf_domain[1];
+      hsize_t dimf_range[1];
+      int RANK=1;
+      int num_intervals=en.num_intervals();
+      dimf_domain[0]=num_intervals*2;
+      interval *it = new interval[num_intervals];
+      int *data_domain = new int[num_intervals*2];//get the domain data
+      for(int i=0;i<num_intervals;i++){
+        it[i]=en[i];
+	data_domain[i*2]=it[i].first;
+	data_domain[i*2+1]=it[i].second;
+      }
+      int range=M,x=0;
+      for(int i=0;i<num_intervals;i++){
+	for(int j=it[i].first;j<=it[i].second;j++){
+	    x=x+M;
+	}
+      }
+      hsize_t dimf_map[1];
+      dimf_map[0]=x;
+      int *data_map = new int[x];
+      int data_range[] = {range};
+      dimf_range[0]=1;
+      int bound=range;
+
+       //declare the variables used by hyperslab
+      hsize_t dim_mem[1];
+      dim_mem[0]=bound;
+      hssize_t start_mem[1];
+      hsize_t stride_mem[1];
+      hsize_t count_mem[1];
+      hsize_t block_mem[1];
+      hssize_t start_file[1];
+      start_file[0]=0;
+      stride_mem[0]=1;	    
+      block_mem[0]=1;
+      start_mem[0]=0;
+      dimf_map[0]=x;
+      H5::DataSpace dataspace_map( RANK, dimf_map );
+      H5::DataSet dataset_map = group.createDataSet( "mapvec", H5::PredType::NATIVE_INT, dataspace_map );
+      //get data using HDF5 hyperslab	
+      H5::DataSpace dataspace_memory(RANK,dim_mem);
+
+       x=0;//reset x
+      for(int i=0;i<num_intervals;i++){
+	for(int j=it[i].first;j<=it[i].second;j++){
+	 count_mem[0]=range;
+	  dataspace_memory.selectHyperslab(H5S_SELECT_SET,count_mem,start_mem,stride_mem,block_mem);	
+	  dataspace_map.selectHyperslab(H5S_SELECT_SET,count_mem,start_file,stride_mem,block_mem);
+	  start_file[0]=start_file[0]+count_mem[0];//for next interval
+	  dataset_map.write(base_ptr[j],H5::PredType::NATIVE_INT,dataspace_memory,dataspace_map);
+	}
+      }
+      put_hdf5_data(group,data_domain,"domain",dimf_domain);//domain data
+      put_hdf5_data(group,data_range,"range",dimf_range);//range data
+
+      //reclaim memory
+      delete [] it;
+      delete [] data_domain;
+      delete [] data_map;
+    }
+
+  template<int M> int* MapVecRepI<M>::get_hdf5_data(H5::Group group,const char* datasetname){
+      H5::DataSet dataset = group.openDataSet( datasetname);
+      H5::DataSpace dataspace = dataset.getSpace(); 
+      hsize_t dims [1];
+      dataspace.getSimpleExtentDims(dims , NULL);
+      int *data  = new int[dims [0]];
+      dataset.read(data , H5::PredType::NATIVE_INT );
+      return data;
+    }
+    template<int M> void MapVecRepI<M>::put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const{
+       int RANK=1;
+       try{
+	 H5::DataSpace dataspace( RANK, dimf );
+	 H5::DataSet dataset = group.createDataSet( datasetname, H5::PredType::NATIVE_INT, dataspace );
+	 dataset.write( data, H5::PredType::NATIVE_INT );
+       }
+       catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+       catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+       catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+     }
 
   template<int M> void MapVecRepI<M>::allocate(const entitySet &ptn) {
     if(alloc_pointer) delete[] alloc_pointer ;
@@ -368,11 +528,16 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
+    virtual void readhdf5( H5::Group group) ;
+    virtual void writehdf5( H5::Group group,entitySet& en) const ;
     int ** get_base_ptr() const { return base_ptr ; }
     int *begin(int indx) { return base_ptr[indx] ; }
     int *end(int indx) { return base_ptr[indx+1] ; }
     const int *begin(int indx) const { return base_ptr[indx] ; }
     const int *end(int indx) const { return base_ptr[indx+1] ; }
+  private:
+    int* get_hdf5_data(H5::Group group,const char* datasetname) ;
+    void put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const ;
   } ;
       
   class multiMap : public store_instance {
@@ -429,7 +594,6 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;
-
 
   inline std::ostream & operator<<(std::ostream &s, const multiMap &m)
     { return m.Print(s) ; }

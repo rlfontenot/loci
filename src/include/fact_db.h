@@ -171,6 +171,8 @@ namespace Loci {
     ostream &write(ostream &s) const ;
     istream &read(istream &s) ;
     
+    void write_hdf5(const char *filename);
+    void read_hdf5(const char *filename);
     void printSummary(std::ostream &s) const ;
   } ;
 }

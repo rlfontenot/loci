@@ -4,6 +4,10 @@
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
+#include <Tools/stream.h>
+#include <H5cpp.h>
+#include <hdf5_traits.h>
+#include <hdf5_write_template.h>
 
 namespace Loci {
     
@@ -20,6 +24,8 @@ namespace Loci {
     virtual const entitySet &domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
+    virtual void readhdf5( H5::Group group) ;
+    virtual void writehdf5( H5::Group group,entitySet& en) const ;
     T * get_param() { return &param ; }
   } ;
 
@@ -74,6 +80,21 @@ namespace Loci {
       s.putback(ch) ;
     }
     return s ;
+  }
+
+  template<class T> void paramRepI<T>::readhdf5( H5::Group group){
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+    entitySet en=param_hdf5read(group,traits_output_type,param);
+    allocate(en);
+  }
+
+  template<class T> void paramRepI<T>::writehdf5( H5::Group group,entitySet& en) const{
+    //entitySet en=domain();
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+    //schema_converter::hdf5write(group,param,en);
+    param_hdf5write(group,traits_output_type,param,en);
   }
 
   template<class T> class param : public store_instance {
