@@ -414,8 +414,11 @@ namespace Loci {
     }
 
     time_ident source_time,target_time ;
-      
-    for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
+
+    //Changes svars to source_vars here.
+    for(variableSet::const_iterator i=source_vars.begin();
+        i!=source_vars.end();
+        ++i) {
       source_time =  source_time.before((*i).get_info().time_id)
         ?(*i).get_info().time_id:source_time ;
     }
@@ -467,9 +470,9 @@ namespace Loci {
         rule_class = GENERIC ;
     } else if(target_time.before(source_time)) {
       rule_class = COLLAPSE ;
-    } else if(source_time.before(target_time))
+    } else if(source_time.before(target_time)) {
       rule_class = BUILD ;
-    else {
+    } else {
       cerr << "unable to infer time hierarchy from rule :" << endl ;
       rule_impl->Print(cerr) ;
     }

@@ -254,6 +254,14 @@ namespace Loci {
       variableSet build_vars ;
       known_vars = input_vars ;
 
+#ifdef VERBOSE
+      cout << "build_rules = " << build << endl ;
+      cout << "advance_rules = " << advance << endl ;
+      cout << "collapse_rules = " << collapse << endl ;
+#endif
+
+      map<variable,intervalSet> build_offsets ;
+      
       for(ruleSet::const_iterator ri = build.begin();ri!=build.end();++ri) {
         variableSet btarget = ri->targets() ;
         for(variableSet::const_iterator vi = btarget.begin();
@@ -263,6 +271,8 @@ namespace Loci {
 
           build_vars += *vi ;
           variable vt = vi->drop_assign() ;
+          variable vbase = vt.new_offset(0) ;
+          build_offsets[vbase] += vi->offset ;
           rule gv =  create_rule(*vi,vt,"generalize") ;
           invoke_rule(gv,iteration_graph) ;
           if(vi->offset == 0)
@@ -270,7 +280,30 @@ namespace Loci {
         }
       }
 
-
+      variableSet looping_input ;
+      variableSet looping_output ;
+      map<variable,intervalSet>::iterator mvi ;
+      for(mvi = build_offsets.begin();mvi!=build_offsets.end();++mvi) {
+        variable bv = mvi->first ;
+        for(intervalSet::const_iterator ii=mvi->second.begin();
+            ii!=mvi->second.end();
+            ++ii) {
+          looping_output += bv.new_offset(*ii) ;
+        }
+        looping_input += bv.new_offset(mvi->second.Max()+1) ;
+      }
+      variable ov("OUTPUT") ;
+      looping_input += variable(ov,iteration_time) ;
+      looping_output+= variable(ov,iteration_time) ;
+      
+      looping_output += variable(iteration_time) ;
+      ostringstream oss ;
+      oss << "source("<< looping_input
+          << "),target(" << looping_output
+          << "),qualifier(looping)" ;
+      rule floop(oss.str()) ;
+      known_vars += looping_output ;
+      
       for(variableSet::const_iterator vi =input_vars.begin();
           vi!=input_vars.end();
           ++vi) {
@@ -287,6 +320,8 @@ namespace Loci {
       
       fill_graph(build_vars,rule_graph,iteration_graph,known_vars) ;
       known_vars += extract_vars(iteration_graph.get_target_vertices()) ;
+
+      invoke_rule(floop,iteration_graph) ;
     }
 
     variableSet convert_stationary(const variableSet &v) {
@@ -592,6 +627,7 @@ namespace Loci {
 
     gr.remove_vertices(visited_iteration_rules) ;
     create_looping_rules() ;
+
 #ifdef VERBOSE
     print_graph_from(given,gr) ;
 #endif
@@ -604,6 +640,8 @@ namespace Loci {
   }
 
   void dependency_graph::create_looping_rules() {
+    //#define OLDE
+#ifdef OLDE
     digraph::vertexSet all_vertices = gr.get_all_vertices() ;
     variableSet all_vars = extract_vars(all_vertices) ;
     variableSet::const_iterator vi ;
@@ -634,6 +672,7 @@ namespace Loci {
         gr.add_edges(f.ident(),target) ;
       }
     }
+#endif
   }
 
   void dependency_graph::clean_graph(variableSet given, variableSet target) {
@@ -663,6 +702,8 @@ namespace Loci {
     for(fi=rules.begin();fi!=rules.end();++fi)
       subset += fi->targets() ;
 
+    // Check for looping rules here, don't clean looping rule if it is
+    // in the subset.
     digraph grt = gr.transpose() ;
     digraph::vertexSet  cleanout ;
     for(fi=rules.begin();fi!=rules.end();++fi)
