@@ -5,7 +5,7 @@
 #include <fact_db.h>
 #include <execute.h>
 #include <depend_graph.h>
-//#include <new_depend_graph.h>
+#include <new_depend_graph.h>
 #include <Map.h>
 
 #ifdef PROFILE_CODE
@@ -2545,7 +2545,8 @@ namespace Loci {
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
 
-    //    new_dependency_graph ndg(rdb,given,target) ;
+    cout << "new dependency graph processing..." << endl ;
+    new_dependency_graph ndg(rdb,given,target) ;
     
     cout << "generating dependency graph..." << endl ;
     digraph gr = dependency_graph(rdb,given,target).get_graph() ;
