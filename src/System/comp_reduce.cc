@@ -7,8 +7,8 @@ using std::vector ;
 using std::set ;
 #include <hash_map>
 using std::hash_map ;
-
-using std::list ;
+//#define VERBOSE
+using std::list ; 
 
 //#define VERBOSE
 namespace Loci {
@@ -137,6 +137,10 @@ namespace Loci {
     entitySet compute ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
       compute |= vmap_target_requests(*si,tvarmap,facts) ;
+    }
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      compute &= d->my_entities ;
     }
     output_mapping = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end(); ++si) {
@@ -420,11 +424,10 @@ namespace Loci {
     loc_result = 0 ;
     loc_send = 0 ;
     tp->pack(result_ptr, loc_result, *size, e) ;
-    sp->pack(send_ptr, loc_send, *size, e) ;
-  }
+  } 
   
   void execute_param_red::execute(fact_db &facts) {
-    void *send_ptr;
+    void *send_ptr; 
     void *result_ptr ;
     int size ;
     int loc = 0 , loc_result = 0;
@@ -465,7 +468,7 @@ namespace Loci {
       requests = send_entitySet(requests, facts) ;
       facts.variable_request(reduce_var,requests) ;
     }
-  }
+  } 
   
   executeP reduce_param_compiler::create_execution_schedule(fact_db &facts) {
     ostringstream oss ;

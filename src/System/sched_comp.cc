@@ -10,7 +10,7 @@ using std::map ;
 using std::list ;
 #include <set>
 using std::set ;
-
+//#define HACK ;
 namespace Loci {
   class error_compiler : public rule_compiler {
   public:
@@ -170,7 +170,7 @@ namespace Loci {
         }
       }
     }
-  
+    
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       if(srp->domain() == EMPTY) {

@@ -26,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
-//#define UNITY_MAPPING
+#define UNITY_MAPPING
 
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
@@ -954,6 +954,70 @@ namespace Loci {
       } 
     }
   }
+  
+  entitySet collect_entitySet(entitySet e, fact_db &facts) {
+    entitySet re ;
+    if(facts.isDistributed()) {  
+      Map l2g ;
+      entitySet::const_iterator ti ;
+      fact_db::distribute_infoP d = new fact_db::distribute_info ;
+      d = facts.get_distribute_info() ;
+      l2g = facts.get_variable("l2g") ;
+      if(d->myid == 0) {
+	std::vector<sequence> vseq(MPI_processes-1) ;
+	MPI_Status *status, *size_status ;
+	MPI_Request *recv_request, *size_request ;
+	int **recv_buffer ;
+	int *recv_size ;
+	int k = 0 ;
+	entitySet temp = e & d->my_entities ;
+	for(ti = temp.begin(); ti != temp.end(); ++ti)
+	  re += l2g[*ti] ;
+	recv_size = new int[MPI_processes-1] ;
+	size_request = new MPI_Request[MPI_processes-1] ;
+	size_status = new MPI_Status[MPI_processes-1] ;
+	for(k = 0; k < MPI_processes-1; k++) 
+	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);  
+	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+	
+	
+	recv_buffer = new int*[MPI_processes-1] ;
+	for(int i = 0; i < MPI_processes-1; ++i)
+	  recv_buffer[i] = new int[recv_size[i]] ;
+	recv_request = new MPI_Request[MPI_processes-1] ;
+	status = new MPI_Status[MPI_processes-1] ;
+	
+	for(k = 0; k < MPI_processes-1; k++) 
+	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,2, MPI_COMM_WORLD, &recv_request[k] );  
+	
+	MPI_Waitall(MPI_processes-1, recv_request, status) ;
+	
+	for(k = 0; k < MPI_processes-1; ++k)       
+	  for(int i = 0 ; i < recv_size[k]; ++i) 
+	    re += recv_buffer[k][i] ;
+	delete [] recv_buffer ;
+	delete [] recv_size ;
+      }
+      
+      else {
+	int *send_buffer;
+	int send_size ;
+	entitySet temp = e & d->my_entities ;
+	send_size = temp.size() ;
+	send_buffer = new int[send_size] ;
+	int j = 0 ;
+	for(ti = temp.begin(); ti != temp.end(); ++ti) {
+	  send_buffer[j] = l2g[*ti] ; 
+	  re += send_buffer[j] ;
+	  ++j ;
+	}
+	MPI_Send(&send_size, 1, MPI_INT, 0, 1, MPI_COMM_WORLD) ;
+	MPI_Send(&send_buffer[0], send_size, MPI_INT, 0, 2, MPI_COMM_WORLD) ;
+	delete [] send_buffer ;
+      }
+    }
+    return re ;
+  }      
 
   storeRepP collect_store(storeRepP &sp, fact_db &facts) {
     storeRepP nsp = sp ;
@@ -1049,6 +1113,8 @@ namespace Loci {
 		      vseq[i]) ;
 	}
 	
+	//cout << "printing store after collecting in procesor 0 " << endl ;
+	//nsp->Print(cout) ;
         //	cout << "printing store after collecting in procesor 0 " << endl ;
         //	nsp->Print(cout) ;
 	delete [] recv_size ;
@@ -1228,7 +1294,7 @@ namespace Loci {
     }
    
     return nsp ;
-    
+     
   }
 
 }

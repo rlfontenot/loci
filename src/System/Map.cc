@@ -466,7 +466,7 @@ namespace Loci {
   void multiMapRepI::compose(const Map &m, const entitySet &context) {
     fatal(alloc_pointer == 0) ;
     fatal((context-store_domain) != EMPTY) ;
-    fatal((image(context)-m.domain()) != EMPTY) ;
+    //fatal((image(context)-m.domain()) != EMPTY) ;
     entitySet dom = m.domain() ;
     FORALL(context,i) {
       for(int *ii = base_ptr[i];ii!=base_ptr[i+1];++ii) {
