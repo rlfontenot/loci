@@ -21,6 +21,7 @@ namespace Loci {
   
   void Init(int* argc, char*** argv) ;
   void Finalize() ;
+  void Abort() ;
   
   void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 ) ;
   void categories(fact_db &facts,std::vector<interval> &pvec) ;
