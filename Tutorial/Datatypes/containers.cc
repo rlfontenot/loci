@@ -10,9 +10,10 @@ using std::vector ;
 int main() {
 
   // Create a set of entities over which we will contain values using stores
-  // Note, the numbering of entities doesn't have to be contiguous, however
-  // The Loci store allocates the "gaps", that is it allocates from Min()
-  // to Max(), so it is more memory efficient to allocate in contiguous blocks
+  // Note, the numbering of entities doesn't have to be contiguous; 
+  // the Loci store, however, allocates the "gaps", that is it allocates from 
+  // Min()
+  // to Max(), so it is more memory efficient to allocate in contiguous blocks.
   int alloc_entities[6] = {1,2,3,14,15,16} ;
   entitySet alloc_set = create_entitySet(alloc_entities,alloc_entities+6) ;
 
@@ -20,7 +21,7 @@ int main() {
   //**************************************************************************
   //* Parameters:
   //* The simplest container is a parameter.  It associates *one* value  to
-  //* a set of entites.
+  //* a set of entities.
   //**************************************************************************
 
   // To create a parameter use the param<> template with the value type as
@@ -187,6 +188,17 @@ int main() {
   // Get the entitySet of all allocated entities in dstore
   domain = dynamic_store2.domain() ;
   // loop over all entities in the dynamic store and output.
+<<<<<<< containers.cc
+   for( ei = domain.begin(); ei != domain.end(); ++ei) {
+     vector<int> &v =dynamic_store2[*ei] ;
+     
+     cout << " (" << *ei << ", " ;
+     for(vector<int>::iterator vi = v.begin();vi!=v.end();++vi)
+       cout << *vi << ' ';
+     cout << ")"  ;
+   }
+   cout << endl;
+=======
   for( ei = domain.begin(); ei != domain.end(); ++ei) {
     cout << " (" << *ei ;
     for(int i=0;i<dynamic_store2[*ei].size();++i) 
@@ -195,4 +207,5 @@ int main() {
   }
   cout << endl ;
 
+>>>>>>> 1.2
 }

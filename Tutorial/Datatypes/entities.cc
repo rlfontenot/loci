@@ -1,7 +1,7 @@
 // Example program illustrating how to manipulate Entity, entitySet,
 // and sequence data structures in Loci
 
-// Time-stamp: <2002-02-13 09:48:16 peo>.
+// Time-stamp: <2002-05-02 10:01:05 peo>.
 
 // Every Loci program includes the Loci header file.
 #include <Loci.h>
@@ -284,6 +284,7 @@ int main()
   cout << "Cseq = " << Cseq << endl ;
 
   // Similarly we can reverse the order of a sequence using the Reverse()
+
   // method.  For example
   Cseq.Reverse() ;
 

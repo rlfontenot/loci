@@ -119,9 +119,9 @@ int main() {
   }
   
   // There are dynamic hash based coutnerparts to all of the above Maps
-  dMap dynamic_map ;
-  dMapVec<3> dynamic_map3 ;
-  dmultiMap dynamic_multiMap ;
+  //  dMap dynamic_map ;
+  //  dMapVec<3> dynamic_map3 ;
+  //  dmultiMap dynamic_multiMap ;
   
   
 }
