@@ -23,17 +23,6 @@ namespace Loci {
     entitySet store_domain ;
     bool istat ;
 
-#ifdef ALLOW_DEFAULT_CONVERTER
-    void StringVal( const int &entity, std::string &memento);
-    int  get_mpi_size( DEFAULT_CONVERTER c, const entitySet &eset);
-    void packdata(DEFAULT_CONVERTER c,      void *ptr, int &loc, int size,
-                  const entitySet &e ) ;
-    void unpackdata(DEFAULT_CONVERTER c,      void *ptr, int &loc, int size,
-                    const sequence &seq) ;
-    void hdf5read( hid_t group, DEFAULT_CONVERTER c,  entitySet &en, entitySet &usr);
-    void hdf5write( hid_t group_id, DEFAULT_CONVERTER g,   const entitySet &en) const;
-#endif
-
     void hdf5read( hid_t group, IDENTITY_CONVERTER c, entitySet &en, entitySet &usr);
     void hdf5write( hid_t group_id, IDENTITY_CONVERTER g,  const entitySet &en) const;
     int  get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
@@ -320,38 +309,9 @@ namespace Loci {
   }
   
   //*******************************************************************/
-  template <class T> int storeRepI<T>::pack_size( const entitySet &eset) {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
-
-    return get_mpi_size( traits_type, eset );
-  }
-
-  //*******************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T>
-  int storeRepI<T>::get_mpi_size( DEFAULT_CONVERTER c,
-                                  const entitySet &eset)
-  {
-    std::ostringstream oss;
-    int  size;
-
-    FORALL(eset,ii){
-      oss << base_ptr[ii] << std::endl ;
-    }ENDFORALL ;
-
-    std::string memento = oss.str();
-
-    size = memento.length() + eset.size()*sizeof(int);
-
-    return( size );
-  }
-#endif
-
-  //*******************************************************************/
 
   template <class T>
-  int storeRepI<T>::get_mpi_size( IDENTITY_CONVERTER c,
+  inline int storeRepI<T>::get_mpi_size( IDENTITY_CONVERTER c,
                                   const entitySet &eset)
   {
     return ( sizeof(T)*eset.size() );
@@ -359,7 +319,7 @@ namespace Loci {
 
   //*******************************************************************/
   template <class T>
-  int storeRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c,
+  inline int storeRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c,
                                   const entitySet &eset)
   {
 
@@ -381,62 +341,21 @@ namespace Loci {
     numBytes  += ecommon.size()*sizeof(int);
     return(numBytes) ;
   }
+
   //*******************************************************************/
-
-  template <class T> 
-  void storeRepI<T>::pack( void *outbuf, int &position, int &size, 
-                           const entitySet &usr_eset )  
-  {
-    entitySet ecommon;
-
-    typedef typename
-      data_schema_traits<T>::Schema_Converter schema_converter;
+  template <class T> int storeRepI<T>::pack_size( const entitySet &eset) {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    ecommon = domain()&usr_eset;
-
-    packdata( traits_type, outbuf, position, size, ecommon);
-
-  }
- 
-  //*******************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T>
-  void storeRepI<T>::StringVal( const int &entity, std::string &memento)
-  {
-    std::ostringstream oss;
-
-    oss << base_ptr[entity] << endl;
-
-    memento = oss.str();
+    return get_mpi_size( traits_type, eset );
   }
 
-  template <class T> 
-  void storeRepI<T>::packdata(DEFAULT_CONVERTER c, void *outbuf,
-                              int &position, int outcount,
-                              const entitySet &eset )  
-  {
-    std::ostringstream oss, os1;
-    std::string        memento;
-    int   bufSize, currpos = 0;
 
-    entitySet :: const_iterator ci;
-
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      StringVal(*ci, memento );
-      bufSize = memento.length();
-      MPI_Pack( &bufSize, 1, MPI_INT, outbuf, outcount, 
-                &position, MPI_COMM_WORLD) ;
-      MPI_Pack( &memento[0], bufSize, MPI_CHAR, outbuf, outcount, 
-                &position, MPI_COMM_WORLD) ;
-    }
-  }
-#endif
   //*******************************************************************/
   template <class T> 
-  void storeRepI<T>::packdata(IDENTITY_CONVERTER c, void *outbuf,
-                              int &position, int outcount,
-                              const entitySet &eset )  
+  inline void storeRepI<T>::packdata(IDENTITY_CONVERTER c, void *outbuf,
+                                     int &position, int outcount,
+                                     const entitySet &eset )  
   {
     for( int i = 0; i < eset.num_intervals(); i++) {
       const Loci::int_type begin = eset[i].first ;
@@ -449,7 +368,7 @@ namespace Loci {
   //*******************************************************************/
 
   template <class T>
-  void storeRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
+  inline void storeRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
                                int &position, int outcount, 
                                const entitySet &eset )
   {
@@ -496,49 +415,25 @@ namespace Loci {
     }
     delete [] inbuf;
   }
-
   //*******************************************************************/
 
   template <class T> 
-  void storeRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
+  void storeRepI<T>::pack( void *outbuf, int &position, int &size, 
+                           const entitySet &usr_eset )  
   {
 
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    unpackdata(traits_type, ptr, loc, size, seq); 
+    warn(usr_eset-domain() != EMPTY) ;
+    packdata( traits_type, outbuf, position, size, usr_eset);
+
   }
-
-  //*********************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T> 
-  void storeRepI<T>::unpackdata(DEFAULT_CONVERTER c, void *inbuf,
-                                int &position,  int insize,
-                                const sequence &seq) 
-  {
-    char *outbuf;
-    int   outcount;
-    sequence:: const_iterator ci;
-    entitySet eset(seq);
-
-    for( ci = seq.begin(); ci != seq.end(); ++ci) {
-      MPI_Unpack( inbuf, insize, &position, &outcount, 1, MPI_INT, 
-                  MPI_COMM_WORLD) ;
-      outbuf   = new char[outcount];
-
-      MPI_Unpack( inbuf, insize, &position, outbuf, outcount, MPI_CHAR, 
-                  MPI_COMM_WORLD) ;
-
-      std::istringstream iss(outbuf);
-      iss >> base_ptr[*ci];
-      delete [] outbuf;
-    }
-  }
-#endif
+ 
   //*********************************************************************/
   template <class T> 
-  void storeRepI<T>::unpackdata(IDENTITY_CONVERTER c, void *inbuf,
+  inline void storeRepI<T>::unpackdata(IDENTITY_CONVERTER c, void *inbuf,
                                 int &position,  int insize,
                                 const sequence &seq) 
   {
@@ -559,7 +454,7 @@ namespace Loci {
   }
   //*********************************************************************/
   template <class T> 
-  void storeRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
+  inline void storeRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
                                  int &position, int insize, const sequence &seq) 
   {
 
@@ -596,6 +491,20 @@ namespace Loci {
       delete [] outbuf;
     }
 
+  }
+
+
+  //*******************************************************************/
+
+  template <class T> 
+  void storeRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
+  {
+
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    unpackdata(traits_type, ptr, loc, size, seq); 
   }
 
   //**********************************************************************/
@@ -635,38 +544,6 @@ namespace Loci {
     hdf5write(group_id, traits_output_type, ecommon );
 
   }
-
-  //**************************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T> 
-  void storeRepI<T> :: hdf5write( hid_t group_id, DEFAULT_CONVERTER g,
-                                  const entitySet &en) const
-  {
-
-    int rank = 1;
-    hsize_t dimension[1];
-    std::ostringstream oss;
-
-    FORALL(en,ii) {
-      oss << base_ptr[ii] << std::endl ;
-    }ENDFORALL ;
-
-    std::string memento = oss.str();
-    hsize_t size  =  memento.length();
-    dimension[0]  =  size+1;
-
-    hid_t vDataspace = H5Screate_simple(rank, dimension, NULL);
-    hid_t vDatatype  = H5T_NATIVE_CHAR;
-    hid_t vDataset   = H5Dcreate(group_id, "VariableData", vDatatype,
-                                 vDataspace, H5P_DEFAULT);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-             memento.c_str());
-
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-
-  }
-#endif
 
   //**********************************************************************/
   template <class T> 
@@ -787,36 +664,6 @@ namespace Loci {
     H5Sclose( vDataspace);
   };
 
-
-  //**********************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template<class T>
-  void  storeRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c, 
-                                  entitySet &eset, entitySet &usr_eset)
-  {
-
-    hsize_t  dimension;
-    hid_t vDatatype  = H5T_NATIVE_CHAR;
-    hid_t vDataset   = H5Dopen(group_id,"VariableData");
-    hid_t vDataspace = H5Dget_space(vDataset);
-    H5Sget_simple_extent_dims (vDataspace, &dimension, NULL);
-
-    vector<char> cbuf(dimension);
-
-    H5Dread(vDataset,H5T_NATIVE_CHAR,H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
-
-    entitySet :: const_iterator ci;
-
-    std::istringstream iss(&ibuf[0]);
-
-    for( ci = eset.begin(); ci != eset.end(); ++ci) 
-      iss >> base_ptr[*ci];
-
-    H5Dclose(vDataset  );
-    H5Sclose(vDataspace);
-
-  }
-#endif
 
   //*********************************************************************/
 

@@ -199,17 +199,6 @@ namespace Loci {
     lmutex       mutex ;
     bool istat ;
 
-#ifdef ALLOW_DEFAULT_CONVERTER
-    void StringVal( const int &entity, const int &ivec, std::string &memento);
-    int  get_mpi_size( DEFAULT_CONVERTER c, const entitySet &eset);
-    void packdata(DEFAULT_CONVERTER c,      void *ptr, int &loc, int size,
-                  const entitySet &e ) ;
-    void unpackdata(DEFAULT_CONVERTER c,      void *ptr, int &loc, int &size,
-                    const sequence &seq) ;
-    void hdf5read( hid_t group_id, DEFAULT_CONVERTER      c, entitySet &en, entitySet &usr);
-    void hdf5write( hid_t group_id, DEFAULT_CONVERTER g,      const entitySet &en) const;
-#endif
-
     int  get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     void hdf5read( hid_t group_id, IDENTITY_CONVERTER     c, entitySet &en, entitySet &usr);
     void hdf5write( hid_t group_id, IDENTITY_CONVERTER g,     const entitySet &en) const;
@@ -656,53 +645,8 @@ namespace Loci {
 
   //**************************************************************************/
 
-  //******************************************************************/
-
   template <class T>
-  int storeVecRepI<T>::pack_size( const entitySet &eset)
-  {
-
-    typedef typename
-      data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
-
-    return get_mpi_size( traits_type, eset );
-  }
-
-  //*************************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T>
-  void storeVecRepI<T>::StringVal( const int &entity, const int &ivec, std::string &memento)
-  {
-    std::ostringstream oss;
-
-    oss << base_ptr[entity*size+ivec] << endl;
-
-    memento = oss.str();
-  }
-  //**************************************************************************/
-
-  template <class T>
-  int storeVecRepI<T>::get_mpi_size( DEFAULT_CONVERTER c, const entitySet &eset)
-  {
-    std::ostringstream oss;
-
-    FORALL(eset,ii) {
-      T* p = base_ptr + ii*size ;
-      for(int i=0;i<size;++i,++p)
-        oss << *p;
-      oss << endl;
-    }ENDFORALL ;
-
-    std::string memento = oss.str();
-    return(memento.length() + size*eset.size()*sizeof(int));
-  }
-#endif
-
-  //**************************************************************************/
-
-  template <class T>
-  int storeVecRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
+  inline int storeVecRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
   {
     int size, M ;
     M = get_size() ;
@@ -735,56 +679,31 @@ namespace Loci {
   }
 
   //**************************************************************************/
+
   template <class T>
-  void storeVecRepI<T>::pack(void *outbuf, int &position, int &outcount,
-                             const entitySet &eset )
+  int storeVecRepI<T>::pack_size( const entitySet &eset)
   {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    int M = get_size() ;
-    MPI_Pack( &M, 1, MPI_INT, outbuf, outcount, &position, 
-		MPI_COMM_WORLD) ;
-    
-    packdata( traits_type, outbuf, position, outcount, eset);
+    return get_mpi_size( traits_type, eset );
   }
-  //**************************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T>
-  void storeVecRepI<T>::packdata( DEFAULT_CONVERTER c, void *outbuf,
-                                  int &position, int outcount,
-                                  const entitySet &eset )
-  {
-    std::ostringstream oss;
-    std::string memento;
-    int  bufSize;
 
-    entitySet :: const_iterator ci;
+  //*************************************************************************/
 
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      for( int ivec = 0; ivec < size; ivec++){
-        StringVal( *ci, ivec, memento );
-        bufSize = memento.length();
-        MPI_Pack( &bufSize, 1, MPI_INT, outbuf, outcount, 
-                  &position, MPI_COMM_WORLD) ;
-        MPI_Pack( &memento[0], bufSize, MPI_CHAR, outbuf, outcount, 
-                  &position, MPI_COMM_WORLD) ;
-      }
-    }
-  }
-#endif
-  //**************************************************************************/
   template <class T>
-  void storeVecRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position,
+  inline void storeVecRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position,
                                   int outcount, const entitySet &eset )
   {
 
-    int M = get_size() ;
+    const int M = get_size() ;
     for(int i = 0; i < eset.num_intervals(); ++i) {
       Loci::int_type indx1 = eset[i].first ;
       Loci::int_type stop  = eset[i].second ;
       T *p = base_ptr + M * indx1 ;
-      int t = (stop - indx1 + 1) * M ;
+      const int t = (stop - indx1 + 1) * M ;
       MPI_Pack( p, t*sizeof(T), MPI_BYTE, outbuf, outcount, &position, 
                 MPI_COMM_WORLD) ;
     }
@@ -793,21 +712,20 @@ namespace Loci {
   //**************************************************************************/
 
   template <class T> 
-  void storeVecRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
+  inline void storeVecRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
                                   int &position, int outcount, 
                                   const entitySet &eset ) 
   {
     entitySet::const_iterator ci;
-    entitySet  ecommon;
 
-    ecommon = store_domain&eset;
+    warn(ecommon-store_domain != EMPTY) ;
 
     //-------------------------------------------------------------------------
     // Get the maximum size of container 
     //-------------------------------------------------------------------------
     int stateSize, maxStateSize=0;
     
-    for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
         typename data_schema_traits<T>::Converter_Type
           cvtr( base_ptr[(*ci)*size+ivec] );
@@ -823,7 +741,7 @@ namespace Loci {
     std::vector<dtype> inbuf(maxStateSize);
 
     int incount;
-    for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
         typename data_schema_traits<T>::Converter_Type
           cvtr( base_ptr[(*ci)*size+ivec] );
@@ -840,65 +758,30 @@ namespace Loci {
   }
 
   //**************************************************************************/
-  template <class T> 
-  void storeVecRepI<T>::unpack(void *inbuf, int &position, int &insize, const sequence &seq)
+
+  template <class T>
+  void storeVecRepI<T>::pack(void *outbuf, int &position, int &outcount,
+                             const entitySet &eset )
   {
-    typedef typename
-      data_schema_traits<T>::Schema_Converter schema_converter;
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-#ifdef DEBUG
-    entitySet ediff,eset(seq);
-    
-    ediff = eset - domain();
-    if( ediff.size() > 0) { 
-      cout << "Error:Entities not part of domain " << ediff <<endl;
-      abort();
-    }
-#endif
-    int init_size = get_size() ;
-    int M ;
-    MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
-    if(M > init_size) {
-      set_elem_size(M) ;
-    }
-    unpackdata( traits_type, inbuf, position, insize, seq);
-  }
-
-
-
-  //**************************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T> 
-  void storeVecRepI<T>::unpackdata( DEFAULT_CONVERTER c, void *inbuf, int &position, 
-                                    int &insize, const sequence &seq)
-  {
-    sequence:: const_iterator ci;
-    int   outcount;
-    entitySet eset(seq);
-
-    std::vector<char> outbuf;
-
-    for( ci = seq.begin(); ci != seq.end(); ++ci) {
-      for( int ivec = 0; ivec < size; ivec++){
-        MPI_Unpack( inbuf, insize, &position, &outcount, 1,
-                    MPI_INT, MPI_COMM_WORLD) ;
-        if( outcount > outbuf.size() ) outbuf.resize( outcount );
-        MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount,
-                    MPI_BYTE, MPI_COMM_WORLD);
-        istringstream iss(outbuf);
-        iss >> base_ptr[(*ci)*size+ivec];
-      }
-    }
-  }
-#endif
-  //**************************************************************************/
-  template <class T> 
-  void storeVecRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position, 
-                                    int &insize, const sequence &seq)
-  {
-
     int M = get_size() ;
+    MPI_Pack( &M, 1, MPI_INT, outbuf, outcount, &position, 
+		MPI_COMM_WORLD) ;
+    
+    packdata( traits_type, outbuf, position, outcount, eset);
+  }
+
+  //**************************************************************************/
+  template <class T> 
+  inline void storeVecRepI<T>::unpackdata( IDENTITY_CONVERTER c,
+                                           void *inbuf,
+                                           int &position,
+                                           int &insize,
+                                           const sequence &seq)
+  {
+    const int M = get_size() ;
     for(int i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type indx1 = seq[i].first ;
@@ -912,7 +795,7 @@ namespace Loci {
         Loci::int_type indx1 = seq[i].first ;
         Loci::int_type stop = seq[i].second ;
         T *p = base_ptr + M * indx1 ;
-        int t = (stop - indx1 + 1) * M ;
+        const int t = (stop - indx1 + 1) * M ;
         MPI_Unpack( inbuf, insize, &position, p, t * sizeof(T), 
                     MPI_BYTE, MPI_COMM_WORLD) ;
       }
@@ -922,8 +805,11 @@ namespace Loci {
 
   //***********************************************************************/
   template <class T> 
-  void storeVecRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
-                                    int &position, int &insize, const sequence &seq)
+  void storeVecRepI<T>::unpackdata( USER_DEFINED_CONVERTER c,
+                                    void *inbuf, 
+                                    int &position,
+                                    int &insize,
+                                    const sequence &seq)
   {
 
     sequence :: const_iterator ci;
@@ -951,6 +837,35 @@ namespace Loci {
       }
     }
   }
+
+  //**************************************************************************/
+  template <class T> 
+  void storeVecRepI<T>::unpack(void *inbuf, int &position, int &insize, const sequence &seq)
+  {
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+#ifdef DEBUG
+    entitySet ecommon, ediff,eset(seq);
+
+    ediff = eset - domain();
+    if( ediff.size() > 0) { 
+      cout << "Error:Entities not part of domain " << ediff <<endl;
+      abort();
+    }
+#endif
+    
+    int init_size = get_size() ;
+    int M ;
+    MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
+    warn(M<=0) ;
+    if(M > init_size) {
+      set_elem_size(M) ;
+    }
+    unpackdata( traits_type, inbuf, position, insize, seq);
+  }
+
   //*******************************************************************/
 
   template<class T> 
@@ -971,40 +886,6 @@ namespace Loci {
 
   }
 
-  //*******************************************************************/
-
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T> 
-  void storeVecRepI<T>::hdf5write( hid_t group_id, DEFAULT_CONVERTER g, 
-                                   const entitySet &en) const 
-  {
-    int rank=1;
-    hsize_t dimension;
-    std::ostringstream oss;
-    int vsize = get_size();
-	
-    FORALL(en,ii) {
-      T* p = base_ptr + ii*vsize ;
-      for(int i=0;i<vsize;++i,++p)
-        oss << *p << " " ;
-      oss << std::endl ;
-    }ENDFORALL ;
-	
-    std::string memento = oss.str();
-    hsize_t m_size      = memento.length();
-    dimension           = m_size+1;
-
-    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDatatype  = H5T_NATIVE_CHAR;
-    hid_t vDataset   = H5Dcreate(group_id, "VariableData", vDatatype,
-                                 vDataspace, H5P_DEFAULT);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, memento.c_str());
-
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-  };
-#endif
-  
   //************************************************************************/
   
   template <class T>  
@@ -1182,40 +1063,6 @@ namespace Loci {
   }
   //**************************************************************************/
 
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T> 
-  void storeVecRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c,
-                                    entitySet &en, entitySet &usr )
-  {
-    hsize_t  dimension;
-    entitySet :: const_iterator ci;
-
-    hid_t vDatatype  = H5T_NATIVE_CHAR;
-    hid_t vDataset   = H5Dopen(group_id,"VariableData");
-    hid_t vDataspace = H5Dget_space(vDataset);
-    H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
-
-    std::vector<char>  cbuf(dimension);
-
-    H5Dread(vDataset,vDatatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &cbuf[0]);
-
-    int vsize = get_size();
-
-    istringstream iss(&cbuf[0]);
-
-    for( ci = en.begin(); ci != en.end(); ++ci){
-      T * p = base_ptr + (*ci)*vsize ;
-      for(int i=0;i<vsize;++i,++p)
-        iss >> *p;
-    }
-
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-
-  };
-#endif
-  //**************************************************************************/
-  
   template <class T> 
   void storeVecRepI<T>::hdf5read(hid_t group_id, IDENTITY_CONVERTER convert, 
                                  entitySet &eset, entitySet &user_eset)

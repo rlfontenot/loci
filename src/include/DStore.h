@@ -28,18 +28,6 @@ namespace Loci {
     hash_map<int,T>      attrib_data;
     mutable entitySet    store_domain ;
 
-#ifdef ALLOW_DEFAULT_CONVERTER
-    void StringVal( const int &entity, std::string &memento);
-    int  get_mpi_size( DEFAULT_CONVERTER c, const entitySet &eset);
-    void packdata(DEFAULT_CONVERTER c,      void *ptr, int &loc, int size,
-                  const entitySet &e ) ;
-    void unpackdata(DEFAULT_CONVERTER c,      void *ptr, int &loc, int size,
-                    const sequence &seq) ;
-
-    void  hdf5read( hid_t group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
-    void  hdf5write( hid_t group, DEFAULT_CONVERTER c,      const entitySet &en) const;
-#endif
-    
     void  hdf5read( hid_t group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( hid_t group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
 
@@ -425,30 +413,6 @@ namespace Loci {
   }
 
   //*******************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T>
-  int dstoreRepI<T>::get_mpi_size( DEFAULT_CONVERTER c,
-                                   const entitySet &eset)
-  {
-    IDENTITY_CONVERTER cc;
-    return get_mpi_size( cc, eset);
-
-    std::ostringstream oss;
-    int  size;
-
-    FORALL(eset,ii){
-      oss << attrib_data[ii] << std::endl ;
-    }ENDFORALL ;
-
-    std::string memento = oss.str();
-
-    size = memento.length() + eset.size()*sizeof(int);
-
-    return( size );
-  }
-#endif
-
-  //*******************************************************************/
 
   template <class T>
   int dstoreRepI<T>::get_mpi_size( IDENTITY_CONVERTER c,
@@ -496,39 +460,6 @@ namespace Loci {
 
   }
  
-  //*******************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T>
-  void dstoreRepI<T>::StringVal( const int &entity, std::string &memento)
-  {
-    std::ostringstream oss;
-
-    oss << base_ptr[entity] << endl;
-
-    memento = oss.str();
-  }
-
-  template <class T> 
-  void dstoreRepI<T>::packdata(DEFAULT_CONVERTER c, void *outbuf,
-                               int &position, int outcount,
-                               const entitySet &eset )  
-  {
-    std::ostringstream oss, os1;
-    std::string        memento;
-    int   bufSize, currpos = 0;
-
-    entitySet :: const_iterator ci;
-
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      StringVal(*ci, memento );
-      bufSize = memento.length();
-      MPI_Pack( &bufSize, 1, MPI_INT, outbuf, outcount, 
-                &position, MPI_COMM_WORLD) ;
-      MPI_Pack( &memento[0], bufSize, MPI_CHAR, outbuf, outcount, 
-                &position, MPI_COMM_WORLD) ;
-    }
-  }
-#endif
   //*******************************************************************/
 
   template <class T> 
@@ -591,30 +522,6 @@ namespace Loci {
   }
 
   //*********************************************************************/
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T> 
-  void dstoreRepI<T>::unpackdata(DEFAULT_CONVERTER c, void *inbuf,
-                                 int &position,  int insize,
-                                 const sequence &seq) 
-  {
-    int   outcount;
-    sequence:: const_iterator ci;
-    entitySet eset(seq);
-    std::vector<char> outbuf;
-
-    for( ci = seq.begin(); ci != seq.end(); ++ci) {
-      MPI_Unpack( inbuf, insize, &position, &outcount, 1, MPI_INT, 
-                  MPI_COMM_WORLD) ;
-      if( outcount > outbuf.size()) outbuf.resize(outcount);
-
-      MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, MPI_CHAR, 
-                  MPI_COMM_WORLD) ;
-      std::istringstream iss(outbuf);
-      iss >> base_ptr[*ci];
-    }
-  }
-#endif
-  //*********************************************************************/
   template <class T> 
   void dstoreRepI<T>::unpackdata(IDENTITY_CONVERTER c, void *inbuf,
                                  int &position,  int insize,
@@ -671,41 +578,7 @@ namespace Loci {
 
     hdf5read( group_id, traits_type, eset,  ecommon );
   }
-  //*********************************************************************/
 
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template<class T>
-  void  dstoreRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c, 
-                                   entitySet &eset, entitySet &user_eset)
-  {
-    int      rank=1;
-    hsize_t  dimension;
-
-    dimension = user_eset.size();
-
-    std::vector<char> data(dimension);
-
-    hid_t mDataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDatatype  = H5T_NATIVE_CHAR;
-    hid_t vDataset   = H5Dopen( group_id, "VariableData");
-
-    H5Dread( vDataset, vDatatype, mDataspace, vDataspace, H5P_DEFAULT, &data[0]);
-
-    entitySet :: const_iterator ci;
-
-    istringstream iss;
-    iss.str( &data[0] );
-
-    for( ci = eset.begin(); ci != eset.end(); ++ci)
-      iss >> attrib_data[*ci];
-
-    H5Dclose( vDataset   );
-    H5Sclose( mDataspace );
-    H5Sclose( vDataspace );
-
-  }
-#endif
   //*************************************************************************/
 
   template<class T>
@@ -896,37 +769,7 @@ namespace Loci {
 
     hdf5write(group_id, traits_output_type, eset);
   }
-  //*************************************************************************/
 
-#ifdef ALLOW_DEFAULT_CONVERTER
-  template <class T> 
-  void dstoreRepI<T> :: hdf5write( hid_t group_id, DEFAULT_CONVERTER c, 
-                                   const entitySet &eset)  const
-  {
-    int rank = 1;
-    hsize_t dimension;
-    std::ostringstream oss;
-    entitySet :: const_iterator  ei;
-    hash_map<int,T>:: const_iterator ci;
-
-    for( ei = eset.begin(); ei != eset.end(); ++ei) {
-      ci = attrib_data.find(*ei);
-      if( ci != attrib_data.end() )
-        oss << ci->second << std::endl ;
-    }
-
-    std::string memento = oss.str();
-    dimension        = memento.length()+1;
-    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDatatype  = H5T_NATIVE_CHAR;
-    hid_t vDataset   = H5Dcreate(group_id, "VariableData", vDatatype, vDataspace, H5P_DEFAULT);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, memento.c_str());
-
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-
-  }
-#endif
   //*************************************************************************/
   template <class T> 
   void dstoreRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER c, 
@@ -943,9 +786,9 @@ namespace Loci {
 
     if( arraySize < 1) return;
 
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     std::vector<T>  data(arraySize);
 
     int indx = 0;
@@ -955,9 +798,9 @@ namespace Loci {
       data[indx++]  = ci->second;
     }
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Write (variable) Data into HDF5 format
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     typedef data_schema_traits<T> traits_type;
     DatatypeP dtype = traits_type::get_type();

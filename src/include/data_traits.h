@@ -16,22 +16,8 @@ extern "C" {
 
 namespace Loci {
 
-#ifdef ALLOW_DEFAULT_CONVERTER
-  struct DEFAULT_CONVERTER{};
-  template <class T> 
-  class data_schema_traits { 
-  public:
-    typedef DEFAULT_CONVERTER Schema_Converter;
-
-    static DatatypeP get_type() {
-      return DatatypeP(new AtomicType(CHAR)) ;
-    }
-
-  };
-#else
   template <class T> 
   class data_schema_traits { };
-#endif
 
   template<class T> class StringStreamConverter {
     T &ref ;
