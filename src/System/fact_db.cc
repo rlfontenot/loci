@@ -504,7 +504,6 @@ namespace Loci {
       }
     }
 
-
     entitySet  new_eset,currdom,localdom, gsetRead,retainSet;
     Map        l2g, lg, currg2l, currl2l;
 
@@ -568,6 +567,11 @@ namespace Loci {
       if( donotRead.find(vname) != donotRead.end()) continue;
      
       storeRepP store_Rep = get_variable(v)->getRep();
+
+      // parameter and constraints are specical case and handle separately
+
+      if( store_Rep->RepType() == PARAMETER || 
+          store_Rep->RepType() == CONSTRAINT ) continue;
       gsetRead   = EMPTY;
       std::string groupname = vname;
 
@@ -781,7 +785,6 @@ namespace Loci {
             }
           }
         }
-
         //
         // Now receive the data from the remote process.
         //
@@ -822,6 +825,61 @@ namespace Loci {
       } // Complete all the containers
       update_fact(v,store_Rep);
     }
+    
+    // parameter and constraints are specical case and handle separately
+    // All the entitySet are with respect to global numbering evern for distributed
+    // memory
+  
+    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
+      variable v=vmi->first;
+      std::string vname = (v.get_info()).name;
+      if( donotRead.find(vname) != donotRead.end()) continue;
+
+      storeRepP store_Rep = get_variable(v)->getRep();
+
+      if( store_Rep->RepType() == PARAMETER || 
+          store_Rep->RepType() == CONSTRAINT ) {
+
+        std::string groupname = vname;
+      
+        gsetRead = EMPTY;
+        for(int ifile = 0; ifile < files_assigned.size(); ifile++){
+          group_id2 = H5Gopen(file_id[ifile], groupname.c_str() );  
+          if( group_id2 < 0) continue;
+          HDF5_ReadDomain(group_id2, eset);
+          H5Gclose(group_id2);
+          gsetRead += eset;
+        }
+      
+        new_eset = EMPTY;
+        store_Rep = store_Rep->new_store(new_eset);
+        store_Rep->allocate(gsetRead);
+      
+        // Only one processor is sufficient to read the parameter or constraints
+        // and we can broadcast these balues.
+
+        if( Loci::MPI_rank == 0 || Loci::MPI_processes == 1 ) {
+          group_id2 = H5Gopen(file_id[0], groupname.c_str() );
+          if( group_id2 > 0)
+            store_Rep->readhdf5(group_id2, gsetRead);
+        }
+
+        if( Loci::MPI_processes > 1 ) {
+          packsize = store_Rep->pack_size(gsetRead);
+          MPI_Bcast(&packsize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+          
+          location = 0;
+          packbuf.resize(packsize);
+          store_Rep->pack( &packbuf[0], location, packsize, ~EMPTY);
+          MPI_Bcast(&packbuf[0], packsize, MPI_BYTE,  0, MPI_COMM_WORLD );
+          
+          location = 0;
+          store_Rep->unpack( &packbuf[0], location, packsize, ~EMPTY);
+          store_Rep->Print(cout);
+        }
+        update_fact(v,store_Rep);        
+      }
+    }
 
     for(int ifile = 0; ifile < files_assigned.size(); ifile++)
       H5Fclose(file_id[ifile]);
@@ -831,8 +889,7 @@ namespace Loci {
     delete [] request;
    
   }
-
-  //***********************************************************************************
+  /////////////////////////////////////////////////////////////////////////////
 
   void reorder_facts(fact_db &facts, Map &remap) {
     variableSet vars = facts.get_typed_variables() ;
@@ -844,6 +901,8 @@ namespace Loci {
         facts.update_fact(*vi,p->remap(remap)) ;
     }
   }
+
+  ///////////////////////////////////////////////////////////////////////////////
   
   void serial_freeze(fact_db &facts) {
     variableSet vars = facts.get_typed_variables() ;
