@@ -1,8 +1,6 @@
 #define PARMETIS_MAJOR_VERSION        3
 #define PARMETIS_MINOR_VERSION        0
-#ifdef __cplusplus
-extern "C" {
-#endif
+
 typedef int idxtype;
 
 
@@ -77,6 +75,5 @@ void PARGMETIS(idxtype *, idxtype *, idxtype *, int, float *, idxtype *, int *, 
 /* ometis.c */
 void ParMETIS_NodeND(idxtype *, idxtype *, idxtype *, int *, int *, idxtype *, idxtype *, MPI_Comm *);
 void PAROMETIS(idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, int *, MPI_Comm);
-#ifdef __cplusplus
-}
-#endif
+
+

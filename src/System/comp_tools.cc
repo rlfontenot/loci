@@ -1032,7 +1032,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         s << "Send:" << endl ;
         for(int i=0;i<send_info.size();++i) {
           for(int j=0;j<send_info[i].second.size();++j) { 
-            s << "(" << send_info[i].second[j].v << "," << send_info[i].second[j].set << ") " ;
+            s << send_info[i].second[j].v << "  ";
 	    sz += (send_info[i].second[j].set).size() ;
 	  }
 	  s << " to " << send_info[i].first << endl ;
@@ -1043,7 +1043,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         s << "Recv:" << endl ;
         for(int i=0;i<recv_info.size();++i) {
           for(int j=0;j<recv_info[i].second.size();++j)
-            s << "(" << recv_info[i].second[j].v << "," << recv_info[i].second[j].seq << ") " ;
+            s << recv_info[i].second[j].v << "  " ;
           s << " from " << recv_info[i].first << endl ;
         }
       }

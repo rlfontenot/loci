@@ -236,12 +236,24 @@ namespace Loci {
       return fdata.preimageMap[e] = get_sched_data(v).minfo->preimage(e) ;
   }
 
-  std::ostream &sched_db::print_summary(std::ostream &s) {
+  std::ostream &sched_db::print_summary(fact_db &facts, std::ostream &s) {
     s << "Summary of Existential deduction:" << endl ;
     std::map<variable,sched_info>::const_iterator mi ;
     for(mi=vmap.begin();mi!=vmap.end();++mi) {
+      storeRepP sp = facts.get_variable(mi->first) ;
+      if(sp->RepType() == MAP)
+	s << " Container = MAP " << endl ;
+      else if(sp->RepType() == STORE)
+	s << " Container = STORE " << endl ;
+      else if(sp->RepType() == PARAMETER)
+	s << " Container = PARAMETER " << endl ;
+      else if(sp->RepType() == CONSTRAINT)
+	s << " Container = CONSTRAINT " << endl ;
+      
+      double size = 0 ;
+      size = sp->pack_size(mi->second.requested) / 1000000 ;
       s << mi->first << " " <<mi->second.synonyms << " "<< mi->second.existence
-        << " request= " << mi->second.requested << endl ;
+        << " request= " << mi->second.requested << "  size requested = " << size << " MB " << endl ;
     }
     return s ;
   }

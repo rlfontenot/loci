@@ -187,7 +187,7 @@ namespace Loci {
   }
     
 
-  std::pair<interval, interval> fact_db::get_distributed_alloc(int size) {
+  std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(int size) {
     dist_from_start = 1 ;
     if(MPI_processes > 1) {
       int* send_buf = new int[MPI_processes] ;
@@ -216,13 +216,14 @@ namespace Loci {
 	if(size_recv[i] > 0 )
 	  init_ptn[i] += interval(local, local+size_recv[i]-1) ;
       }
-      interval local_ivl, global_ivl ;
+      entitySet local_ivl, global_ivl ;
       if(size > 0 )
-	local_ivl = interval(local_max, local_max + size - 1) ;
-      else 
-	local_ivl = interval() ;
+	local_ivl = entitySet(interval(local_max, local_max + size - 1)) ;
+      else {
+	local_ivl = EMPTY ;
+      }
       
-      global_ivl = interval(maximum_allocated, maximum_allocated+global_max-1) ;
+      global_ivl = entitySet(interval(maximum_allocated, maximum_allocated+global_max-1)) ;
       if(size > 0)
 	maximum_allocated = local_max + size ;
       delete [] send_buf ;
@@ -231,7 +232,7 @@ namespace Loci {
       delete [] size_recv ;
       return(make_pair(local_ivl, global_ivl)) ;
     }
-    interval alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
+    entitySet alloc = entitySet(interval(maximum_allocated,maximum_allocated+size-1)) ;
     maximum_allocated += size ;
     init_ptn[0] += alloc ;
     return (make_pair(alloc, alloc)) ;
@@ -520,8 +521,8 @@ namespace Loci {
       }
     }
     entitySet  new_eset,currdom,localdom, gsetRead,retainSet;
-    Map        l2g, lg, currg2l, currl2l;
-
+    Map        l2g, lg, currl2l;
+    dMap currg2l ;
     Loci::fact_db::distribute_infoP d;
     if( isDistributed() )  {
       d       = Loci::exec_current_fact_db->get_distribute_info() ;
@@ -737,7 +738,9 @@ namespace Loci {
                 scatter_map[*ei]  =  localmap[lg[*ei]];
               }
             }
-	    store_Rep->scatter( scatter_map, tmpstore_Rep, currdom );
+	    storeRepP scatter_sp = MapRepP(scatter_map.Rep())->thaw() ;
+	    dMap d_scatter_map(scatter_sp) ;
+	    store_Rep->scatter( d_scatter_map, tmpstore_Rep, currdom );
 	  }
         }
 	
@@ -969,7 +972,7 @@ namespace Loci {
   
   /////////////////////////////////////////////////////////////////////////////
   
-  void reorder_facts(fact_db &facts, Map &remap) {
+  void reorder_facts(fact_db &facts, dMap &remap) {
     variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP  p = facts.get_variable(*vi) ;
@@ -997,7 +1000,7 @@ namespace Loci {
         map_entities += p->domain() ;
       }
     }
-    Map m ;
+    dMap m ;
     m.allocate(map_entities) ;
     for(entitySet::const_iterator ei = map_entities.begin(); ei != map_entities.end(); ++ei)
       m[*ei] = *ei ;

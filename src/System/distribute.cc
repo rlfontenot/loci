@@ -451,17 +451,23 @@ namespace Loci {
 	v &= vars ; 
 	entitySet image ;
 	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
-	   storeRepP p = facts.get_variable(*vi) ;
+	  storeRepP p = facts.get_variable(*vi) ;
 	  if(p->RepType() ==  MAP) {
 	    entitySet tmp_dom = p->domain() ;
-	     MapRepP mp =  MapRepP(p->getRep()) ;
+	    MapRepP mp =  MapRepP(p->getRep()) ;
 	    entitySet out_of_dom = locdom - tmp_dom ; 
 	    entitySet::const_iterator ei ;
 	    entitySet tmp_out = out_of_dom ; 
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
 	    if(sp->domain() != tmp_dom) {
+	      //debugout << " updated map " << *vi << endl ;
+	      //debugout << " old_domain.Min() = " << tmp_dom.Min() << endl ;
+	      //debugout << " old_domain.Max() = " << tmp_dom.Max() << endl ;
+	      //debugout << " old_domain.size = " << tmp_dom.size() << endl ;
 	      facts.update_fact(variable(*vi), sp) ; 
-	      // debugout << " updated map " << *vi << "   new domain() = " << sp->domain() << endl ;
+	      //debugout << " new_domain.Min() = " << sp->domain().Min() << endl ;
+	      //debugout << " new_domain.Max() = " << sp->domain().Max() << endl ;
+	      //debugout << " new_domain.size = " <<  sp->domain().size() << endl ;
 	    }
 	    image +=  MapRepP(sp)->image((sp->domain()) & locdom) ;
 	  }
@@ -473,9 +479,8 @@ namespace Loci {
     return dom ;
   }
   
-  void categories(fact_db &facts,vector<interval> &pvec) {
+  void categories(fact_db &facts,std::vector<entitySet> &pvec) {
     entitySet active_set ;
-    
     set<entitySet> set_of_sets ;
     set_of_sets.insert(~EMPTY) ;
     variableSet vars = facts.get_typed_variables() ;
@@ -490,7 +495,13 @@ namespace Loci {
         active_set += p->domain() ;
         set_of_sets.insert(p->domain()) ;
       } else {
-        //debugout << *vi<<".domain=" << p->domain() <<endl ;
+        if(p->domain() != ~EMPTY) {
+	  entitySet tmp = p->domain() ;
+	  if(facts.is_distributed_start())
+	    tmp = all_collect_entitySet(tmp) ;
+	  active_set += tmp ;
+	  set_of_sets.insert(p->domain()) ;
+	}
       }
     }
     vector<int> vals,vals2 ;
@@ -513,9 +524,8 @@ namespace Loci {
         continue ;
       vals2.push_back(vals[i]) ;
     }
-    
+    std::vector<interval> tmp_pvec ;
     FATAL(vals2.size() < 4) ;
-    pvec.clear() ;
     for(int i=1;i<vals2.size()-1;) {
       int i1 = vals2[i] ;
       int i2 = vals2[i+1] ;
@@ -525,9 +535,62 @@ namespace Loci {
         ++i ;
       ++i ;
       interval iv(i1,i2) ;
-      pvec.push_back(iv) ;
+      if(facts.is_distributed_start())
+	tmp_pvec.push_back(iv) ;
+      else
+	pvec.push_back(entitySet(iv)) ;
     }
-
+    
+    if(facts.is_distributed_start()) {
+      std::map<variable, entitySet> vm ;
+      std::map<variable, entitySet>::const_iterator mvi ;
+      entitySet total_entities ;
+      for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+	entitySet active_set ;
+	storeRepP p = facts.get_variable(*vi) ;
+	
+	if((p->RepType() == MAP)) {
+	  entitySet tmp = p->domain() ;
+	  entitySet tmp_all_collect = Loci::all_collect_entitySet(tmp) ;
+	  vm[*vi] = tmp_all_collect ; 
+	  total_entities += tmp_all_collect ;
+	}
+	else if((p->RepType() == STORE)) {
+	  entitySet tmp = p->domain() ;
+	  entitySet all_collect = Loci::all_collect_entitySet(tmp) ;
+	  vm[*vi] = all_collect ;
+	  total_entities += all_collect ;
+	}
+	else {
+	  if(p->domain() != ~EMPTY) {
+	    entitySet tmp = p->domain() ;
+	    entitySet all_collect = Loci::all_collect_entitySet(tmp) ;
+	    vm[*vi] = all_collect ; 
+	    total_entities += all_collect ;
+	  }
+	  else
+	    vm[*vi] =  p->domain() ;
+	}
+      }
+      for(variableSet::const_iterator vsi = vars.begin(); vsi != vars.end(); ++vsi) {
+	storeRepP p = facts.get_variable(*vsi) ;
+	if((p->RepType() == MAP)) {
+	  MapRepP mp = MapRepP(p->getRep()) ;
+	  entitySet image_dom = mp->image(p->domain()) ;
+	  entitySet out_of_set = image_dom - total_entities ;
+	  entitySet left_out_categories = all_collect_entitySet(out_of_set) ;
+	  if(left_out_categories != EMPTY) {
+	    std::string name = "image_" ;
+	    name.append(vsi->get_info().name) ;
+	    variable v = variable(name) ;
+	    Loci::debugout << " new variable  " << v << " is created "  << endl ;
+	    vm[v] = left_out_categories ;
+	  }
+	}
+      } 
+      pvec = modified_categories(facts, vm, tmp_pvec) ;
+      Loci::debugout << " pvec.size() = " << pvec.size() << endl ;
+    }
   }
 
   vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions) {
@@ -592,7 +655,7 @@ namespace Loci {
     Map l2g ;
     constraint my_entities ;
     int isDistributed ;
-    vector< interval> iv ; //, mivl ;
+    vector<entitySet> iv ;
     entitySet::const_iterator ei, ti ;
     vector<entitySet> proc_entities ;
     categories(facts,iv) ;
@@ -1415,34 +1478,32 @@ namespace Loci {
     entitySet remap_dom = remap.domain() ;
     Map l2g ;
     l2g = facts.get_variable("l2g") ;
-     constraint my_entities ;
+    constraint my_entities ;
     my_entities = facts.get_variable("my_entities") ;
-    Map reverse ;
+    dMap reverse ;
     remap_dom = init_ptn[ MPI_rank] & dom ;
-    reverse.allocate(remap_dom) ;
     dmultiMap d_remap ;
     entitySet tot_remap_dom =  all_collect_entitySet(remap_dom) ;
     if(facts.is_distributed_start())
-       distributed_inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom, chop_ptn) ;
+      distributed_inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom, init_ptn) ;
     else
-       inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom) ;
+      inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom) ;
     FORALL(remap_dom, ri) {
-      if(d_remap[ri].size() > 1)
-	cout << " ERROR : " << endl ;
-      reverse[ri] = d_remap[ri][0] ;
+      if(d_remap[ri].size() == 1)
+	reverse[ri] = d_remap[ri][0] ;
     } ENDFORALL ;
     Map tmp_remap ;
     entitySet tmp_remap_dom =  MapRepP(l2g.Rep())->preimage(dom&init_ptn[ MPI_rank]).first ;
     tmp_remap.allocate(tmp_remap_dom) ;
     FORALL(tmp_remap_dom, ri) {
-	  tmp_remap[ri] = l2g[ri] ;
+      tmp_remap[ri] = l2g[ri] ;
     } ENDFORALL ;
     entitySet owned_entities = my_entities & sp->domain() ;
-     MapRepP(tmp_remap.Rep())->compose(reverse, tmp_remap_dom) ;
-     storeRepP qcol_rep ;
+    MapRepP(tmp_remap.Rep())->compose(reverse, tmp_remap_dom) ;
+    storeRepP qcol_rep ;
     qcol_rep = sp->new_store(chop_ptn[ MPI_rank] & dom) ;
     entitySet global_owned =  MapRepP(tmp_remap.Rep())->image(owned_entities) ;
-    remap_dom = chop_ptn[ MPI_rank] & dom ; 
+    remap_dom = chop_ptn[MPI_rank] & dom ; 
     owned_entities = tmp_remap.domain()  ;
     entitySet out_of_dom, filled_entities, local_entities ;
     
@@ -1452,8 +1513,9 @@ namespace Loci {
 	local_entities += ii ;
       }
     } ENDFORALL ;
-    
-    qcol_rep->scatter(tmp_remap, sp, local_entities) ;
+    storeRepP tmp_remap_sp = MapRepP(tmp_remap.Rep())->thaw() ;
+    dMap d_tmp_remap(tmp_remap_sp) ; 
+    qcol_rep->scatter(d_tmp_remap, sp, local_entities) ;
     out_of_dom = global_owned - filled_entities ;
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
@@ -1554,7 +1616,7 @@ namespace Loci {
     for(int i = 0; i < MPI_processes; ++i)
       tmp_sp[i]->unpack(recv_store, loc_unpack, size_recv, recv_dom[i]) ; 
     for(int i = 0; i < MPI_processes; ++i) {	
-      Map m;
+      dMap m;
       m.allocate(rcl[i].domain()) ;
       FORALL(m.domain(), mi) {
 	m[mi] = rcl[i][mi] ;
@@ -3172,11 +3234,13 @@ std::vector<std::vector<variableSet> > create_orig_matrix(std::vector<variableSe
     viter++ ;
   }
   /*
-  cout << " original_matrix =  " << endl ;
-  for(int i = 0; i < vvvs.size(); ++i) {
-    for(int j = 0; j < vvvs[i].size(); ++j) 
-      cout << vvvs[i][j] << "   "  ; 
-    cout << endl ;
+  if(Loci::MPI_rank == 0) {
+    cout << " original_matrix =  " << endl ;
+    for(int i = 0; i < vvvs.size(); ++i) {
+      for(int j = 0; j < vvvs[i].size(); ++j) 
+	cout << vvvs[i][j] << "   "  ; 
+      cout << endl ;
+    }
   }
   */
   return vvvs ;
@@ -3202,11 +3266,13 @@ std::vector<std::vector<variableSet> > create_sub_matrix(std::vector<variableSet
     viter++ ;
   }
   /*
-  cout << " Sub matrix =  " << endl ;
-  for(int i = 0; i < vvvs.size(); ++i) {
-    for(int j = 0; j < vvvs[i].size(); ++j) 
-      cout << vvvs[i][j] << "   "  ; 
-    cout << endl ;
+  if(Loci::MPI_rank == 0) {
+    cout << " Sub matrix =  " << endl ;
+    for(int i = 0; i < vvvs.size(); ++i) {
+      for(int j = 0; j < vvvs[i].size(); ++j) 
+	cout << vvvs[i][j] << "   "  ; 
+      cout << endl ;
+    }
   }
   */
   return vvvs ;
@@ -3273,7 +3339,7 @@ treeP recursive_matrix_tree(std::vector<std::vector<variableSet> > &tmp_vvvs, va
 }
 
 std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, entitySet> &vm, std::vector<interval> &pvec) {
-  entitySet::const_iterator ei ;
+  entitySet::const_iterator ei, ci ;
   std::vector<entitySet> tmp_pvec ;
   std::vector<variableSet> vvs(pvec.size()) ;
   variableSet vars = facts.get_typed_variables() ;
@@ -3283,11 +3349,19 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   variableSet initial_varset ;
   for(int i = 0; i < pvec.size(); ++i) {
     for(svi = vm.begin(); svi != vm.end(); ++svi) {
-      vvs[i] += svi->first ;
-      initial_varset += svi->first ;
+      //if((pvec[i] == interval(8398678, 8398684)) || (pvec[i] == interval(8617300, 8617643))) {
+      //Loci::debugout << "svi->first = " << svi->first << "  svi->second = " << svi->second << endl ;
+      //}
+      if((svi->second & entitySet(pvec[i])) != EMPTY) {
+	vvs[i] += svi->first ;
+	initial_varset += svi->first ;
+      }
     }
-    if(vvs[i] != EMPTY) 
+    if(vvs[i] != EMPTY) {
+      //if((pvec[i] == (interval(8398678, 8398684))) || (pvec[i] == interval(8617300, 8617643)))
+      //Loci::debugout << " vvs[ " << i << " ] = " << vvs[i] << "  pvec[ " << i << " ] = " << pvec[i] << endl ;
       mve[vvs[i]] += pvec[i]; 
+    }
   }
   std::vector<variableSet> tmp_vvs ;
   for(miter = mve.begin(); miter != mve.end(); ++miter) {
@@ -3369,10 +3443,59 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   
   lvs = tp->get_categories(vset) ;
   entitySet total_entities ;
-  for(std::list<variableSet>::iterator lvi = lvs.begin(); lvi != lvs.end(); ++lvi)
+  //HASH_MAP(int, entitySet) map_vec ;
+  //std::vector<int> sort_vec ;
+  for(std::list<variableSet>::iterator lvi = lvs.begin(); lvi != lvs.end(); ++lvi) {
     if(mve.find(*lvi) != mve.end()) {
-      tmp_pvec.push_back(mve[*lvi]) ;
+      entitySet tmp = mve[*lvi] ; 
+      //ei = tmp.begin() ;
+      if(tmp!= EMPTY) {
+	//map_vec[*ei] = tmp ;
+	//sort_vec.push_back(*ei) ;
+	//Loci::debugout << " Correspoding to " << *lvi << " pushing back " << tmp << endl ;
+	if((tmp-total_entities)!= EMPTY) 
+	  tmp_pvec.push_back(tmp) ;
+	total_entities += tmp ;
+      }
     }
+  }
+  //for(int i = 0; i < tmp_pvec.size(); ++i)
+  //Loci::debugout << " tmp_pvec[" << i << " ] = " << tmp_pvec[i] << endl ;
+  //std::sort(sort_vec.begin(), sort_vec.end()) ; 
+  //std::vector<int>::const_iterator svci = sort_vec.begin();
+  /*
+    while(svci != sort_vec.end()) {
+    entitySet tmp = map_vec[*svci] ; 
+    ++svci ;
+    while(svci != sort_vec.end()) 
+    if(tmp.Max() > map_vec[*svci].Min()) {
+    tmp += map_vec[*svci] ;
+    ++svci ;
+    }
+    else 
+    break ;
+    tmp_pvec.push_back(tmp) ;
+    }
+  */
+  //for(std::vector<int>::const_iterator svci = sort_vec.begin(); svci != sort_vec.end(); ++svci)
+  //tmp_pvec.push_back(map_vec[*svci]) ;
+  Loci::debugout << " total_entities = " << total_entities << endl ;
+  
+  
+  for(variableSet::const_iterator vsi = vars.begin(); vsi != vars.end(); ++vsi) {
+    storeRepP p = facts.get_variable(*vsi) ;
+    if((p->RepType() == MAP)) {
+      MapRepP mp = MapRepP(p->getRep()) ;
+      entitySet image_dom = mp->image(p->domain()) ;
+      entitySet out_of_set = image_dom - total_entities ;
+      entitySet left_out_categories = all_collect_entitySet(out_of_set) ;
+      if(left_out_categories != EMPTY) {
+	Loci::debugout << " left out stuff  = " << left_out_categories  << endl ;
+	tmp_pvec.push_back(left_out_categories) ;
+      }
+    }
+  }
+  
   return tmp_pvec ;
 }
 
@@ -3394,5 +3517,10 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
     MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_MAX,MPI_COMM_WORLD) ;
     return result ;
   }
+  int GLOBAL_MIN(int b) {
+    int result ;
+    MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_MIN,MPI_COMM_WORLD) ;
+    return result ;
+   }
   
 } 

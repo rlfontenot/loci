@@ -31,7 +31,7 @@ namespace Loci {
     return Rep()->RepType() ;
   }
 
-  storeRepP store_ref::remap(const Map &m) const {
+  storeRepP store_ref::remap(const dMap &m) const {
     return Rep()->remap(m) ;
   }
 
@@ -39,12 +39,12 @@ namespace Loci {
     Rep()->copy(st,context) ;
   }
 
-  void store_ref::gather(const Map &m,storeRepP &st,
+  void store_ref::gather(const dMap &m,storeRepP &st,
                          const entitySet &context) {
     Rep()->gather(m,st,context) ;
   }
 
-  void store_ref::scatter(const Map &m, storeRepP &st,
+  void store_ref::scatter(const dMap &m, storeRepP &st,
                           const entitySet &context) {
     Rep()->scatter(m,st,context) ;
   }  

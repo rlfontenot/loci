@@ -102,12 +102,8 @@ namespace Loci {
                    << end_time  - start_time << "  seconds " << endl ;
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
-    start_time = MPI_Wtime() ;
     executeP sched =  compile_graph.execution_schedule(facts,scheds, num_threads) ;
-    end_time = MPI_Wtime() ;
-    Loci::debugout << "Time taken for schedule generation  = " << end_time  - start_time << "  seconds " << endl ;
-
-    //scheds.print_summary(Loci::debugout) ;
+    //scheds.print_summary(facts,Loci::debugout) ;
 #ifdef PROFILE_CODE    
     //timer = get_timer() ;
     //cout << "Schedule Generation Time: " << timer << " seconds" << endl ;

@@ -146,7 +146,7 @@ namespace Loci {
   
   dMapRepI::~dMapRepI() 
   { 
-    attrib_data.clear();
+    attrib_data.clear(); 
   }
   
   //**************************************************************************/
@@ -157,7 +157,7 @@ namespace Loci {
   }
   //**************************************************************************/
   
-  storeRepP dMapRepI::remap(const Map &newmap) const 
+  storeRepP dMapRepI::remap(const dMap &newmap) const 
   {
     dMap s ;
     entitySet newdomain = newmap.domain() & domain() ;
@@ -181,7 +181,7 @@ namespace Loci {
   
   //**************************************************************************/
   
-  void dMapRepI::compose(const Map &newmap, const entitySet &context) 
+  void dMapRepI::compose(const dMap &newmap, const entitySet &context) 
   {
     fatal((context-store_domain) != EMPTY) ;
     fatal((image(context)-newmap.domain()) != EMPTY) ;
@@ -211,7 +211,7 @@ namespace Loci {
   
   //**************************************************************************/
 
-  void dMapRepI::gather(const Map &m, storeRepP &st, const entitySet &context) 
+  void dMapRepI::gather(const dMap &m, storeRepP &st, const entitySet &context) 
   {
     const_dMap s(st) ;
     
@@ -225,7 +225,7 @@ namespace Loci {
   
   //**************************************************************************/
   
-  void dMapRepI::scatter(const Map &m,storeRepP &st, const entitySet &context) 
+  void dMapRepI::scatter(const dMap &m,storeRepP &st, const entitySet &context) 
   {
     const_dMap s(st) ;
     fatal((context - s.domain()) != EMPTY) ;

@@ -188,7 +188,7 @@ namespace Loci
   
   //**************************************************************************/
   
-  storeRepP dmultiMapRepI::remap(const Map &m) const {
+  storeRepP dmultiMapRepI::remap(const dMap &m) const {
     dmultiMap s ;
     
     //-------------------------------------------------------------------------
@@ -224,7 +224,7 @@ namespace Loci
   
   //**************************************************************************/
   
-  void dmultiMapRepI::compose(const Map &m, const entitySet &context) 
+  void dmultiMapRepI::compose(const dMap &m, const entitySet &context) 
   {
     vector<int>    vec;
     HASH_MAP(int,vector<int> ) ::const_iterator ci;
@@ -274,7 +274,7 @@ namespace Loci
   
   //**************************************************************************/
   
-  void dmultiMapRepI::gather(const Map &m, storeRepP &st, const entitySet  &context) 
+  void dmultiMapRepI::gather(const dMap &m, storeRepP &st, const entitySet  &context) 
   {
     const_dmultiMap s(st) ;
     vector<int>    newVec;
@@ -289,7 +289,7 @@ namespace Loci
   
   //**************************************************************************/
   
-  void dmultiMapRepI::scatter(const Map &m, storeRepP &st, const entitySet  &context) 
+  void dmultiMapRepI::scatter(const dMap &m, storeRepP &st, const entitySet  &context) 
   {
     const_dmultiMap s(st) ;
     vector<int>    newVec;

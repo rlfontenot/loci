@@ -1,6 +1,7 @@
 #include <constraint.h>
 #include <Tools/stream.h>
 #include <Map.h>
+#include <DMap.h>
 
 namespace Loci {
 
@@ -30,7 +31,7 @@ namespace Loci {
     return new constraintRep(p) ;
   }
 
-  storeRepP constraintRep::remap(const Map &m) const {
+  storeRepP constraintRep::remap(const dMap &m) const {
     entitySet newconstraint = m.image(m.domain()&constraint_set) ;
     constraint r ;
     r = newconstraint ;
@@ -48,7 +49,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  void constraintRep::gather(const Map &m, storeRepP &st,
+  void constraintRep::gather(const dMap &m, storeRepP &st,
                              const entitySet &context) {
     constraint cs(st) ;
     entitySet tent = constraint_set ;
@@ -62,7 +63,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  void constraintRep::scatter(const Map &m, storeRepP &st,
+  void constraintRep::scatter(const dMap &m, storeRepP &st,
                               const entitySet &context) {
     constraint cs(st) ;
     entitySet map_image = m.image(context) ;

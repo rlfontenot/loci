@@ -7,7 +7,7 @@ namespace Loci {
 
   using std::pair ;
   using std::make_pair ;
-
+  
   MapRep::~MapRep() {}
   
   store_type MapRep::RepType() const { return MAP ; }
@@ -35,7 +35,7 @@ namespace Loci {
     return new MapRepI(p)  ;
   }
   
-  storeRepP MapRepI::remap(const Map &m) const {
+  storeRepP MapRepI::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
     pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
     newdomain &= mappimage.first ;
@@ -48,7 +48,7 @@ namespace Loci {
     return s.Rep() ;
   }
 
-  void MapRepI::compose(const Map &m, const entitySet &context) {
+  void MapRepI::compose(const dMap &m, const entitySet &context) {
     fatal((context-store_domain) != EMPTY) ;
     fatal((image(context)-m.domain()) != EMPTY) ;
     FORALL(context,i) {
@@ -65,7 +65,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  void MapRepI::gather(const Map &m, storeRepP &st, const entitySet &context) {
+  void MapRepI::gather(const dMap &m, storeRepP &st, const entitySet &context) {
     const_Map s(st) ;
     fatal(base_ptr == 0 && context != EMPTY) ;
     fatal((m.image(context) - s.domain()) != EMPTY) ; 
@@ -75,7 +75,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  void MapRepI::scatter(const Map &m,storeRepP &st, const entitySet &context) {
+  void MapRepI::scatter(const dMap &m,storeRepP &st, const entitySet &context) {
     const_Map s(st) ;
     fatal(base_ptr == 0 && context != EMPTY) ;
     fatal((context - s.domain()) != EMPTY) ;
@@ -698,7 +698,7 @@ storeRepP multiMapRepI::thaw() {
     store_domain = ptn ;
     dispatch_notify() ;
   }
-
+  
 
   multiMapRepI::~multiMapRepI() {
     if(alloc_pointer) delete[] alloc_pointer ;
@@ -710,7 +710,7 @@ storeRepP multiMapRepI::thaw() {
     return new multiMapRepI()  ;
   }
 
-  storeRepP multiMapRepI::remap(const Map &m) const {
+  storeRepP multiMapRepI::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
     //    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
     //    newdomain &= mappimage.first ;
@@ -723,7 +723,7 @@ storeRepP multiMapRepI::thaw() {
     return s.Rep() ;
   } 
 
-  void multiMapRepI::compose(const Map &m, const entitySet &context) {
+  void multiMapRepI::compose(const dMap &m, const entitySet &context) {
     fatal(alloc_pointer == 0) ;
     fatal((context-store_domain) != EMPTY) ;
     //fatal((image(context)-m.domain()) != EMPTY) ;
@@ -803,7 +803,7 @@ storeRepP multiMapRepI::thaw() {
     dispatch_notify() ;
   }
 
-  void multiMapRepI::gather(const Map &m, storeRepP &st,
+  void multiMapRepI::gather(const dMap &m, storeRepP &st,
                             const entitySet  &context) {
     store<int> count ;
     const_multiMap s(st) ;
@@ -837,7 +837,7 @@ storeRepP multiMapRepI::thaw() {
     dispatch_notify() ;
   }
  
-  void multiMapRepI::scatter(const Map &m, storeRepP &st,
+  void multiMapRepI::scatter(const dMap &m, storeRepP &st,
                              const entitySet  &context) {
     store<int> count ;
     const_multiMap s(st) ;
