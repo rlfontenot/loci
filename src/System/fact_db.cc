@@ -330,6 +330,8 @@ namespace Loci {
     return s ;
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+  
   void fact_db::write_hdf5(const char *fname){
     hid_t  file_id, group_id;
     char   filename[500], str[100];
@@ -343,22 +345,30 @@ namespace Loci {
 
     file_id =  H5Fcreate( filename, H5F_ACC_TRUNC,
                           H5P_DEFAULT, H5P_DEFAULT);
+    //
+    // If number of processes are more than one then we should write the process
+    // information too.
+    //
+    if( Loci::MPI_processes > 1) {
+      hsize_t  dimension = 2;
+      int      ibuf[]    = {0,1};
+      int      rank      = 1;
+      group_id         = H5Gcreate(file_id, "ProcessorID", 0);
+      hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
+      hid_t vDatatype  = H5T_NATIVE_INT;
+      hid_t vDataset   = H5Dcreate(group_id, "Processor", vDatatype, vDataspace,
+                                   H5P_DEFAULT);
+      ibuf[0] = Loci::MPI_rank;
+      ibuf[1] = Loci::MPI_processes;
+      H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, ibuf);
+      H5Sclose( vDataspace );
+      H5Dclose( vDataset   );
+    }
 
-    // Write Processor information ....
-    hsize_t  dimension = 2;
-    int      ibuf[]    = {0,1};
-    int      rank      = 1;
-    group_id         = H5Gcreate(file_id, "ProcessorID", 0);
-    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDatatype  = H5T_NATIVE_INT;
-    hid_t vDataset   = H5Dcreate(group_id, "Processor", vDatatype, vDataspace,
-                                 H5P_DEFAULT);
-    ibuf[0] = Loci::MPI_rank;
-    ibuf[1] = Loci::MPI_processes;
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, ibuf);
-    H5Sclose( vDataspace );
-    H5Dclose( vDataset   );
-
+    //
+    // The following facts are internal to Loci, which are not important from user's
+    // point of view, so we will not write them into the facts database.
+    //
     std::set<string>  donotWrite;
     donotWrite.insert("EMPTY");
     donotWrite.insert("UNIVERSE");
@@ -388,9 +398,9 @@ namespace Loci {
     H5Gclose(group_id);
   }
 
+  /////////////////////////////////////////////////////////////////////////////
 
   void fact_db::read_hdf5(const char *fname){
-
     hid_t   group_id, group_id1, group_id2;
     char    filename[500], str[100];
     hid_t  *file_id;
@@ -403,6 +413,7 @@ namespace Loci {
    
     std::vector<int> displ(Loci::MPI_processes),
       unpacksize(Loci::MPI_processes), isendbuf, irecvbuf;
+    
     MPI_Request  *request;
     MPI_Status   status;
 
@@ -432,7 +443,7 @@ namespace Loci {
     // is stored in the in the files. and since there was atleast one
     // processors, get this information from processor 0;
     //-----------------------------------------------------------------
-    int     ifile, rank=1, ibuf[2], maxfiles=0, gid, numsend, numrecv, packsize, location;
+    int     ifile, rank=1, ibuf[2], maxfiles=1, gid, numsend, numrecv, packsize, location;
     hsize_t dimension = 2;
     hid_t   vdataspace, vdatatype, vdataset;
 
@@ -448,14 +459,19 @@ namespace Loci {
         vdataspace = H5Screate_simple(rank, &dimension, NULL);
         vdatatype  = H5T_NATIVE_INT;
         group_id   = H5Gopen(file_id[0], "/ProcessorID");
-        vdataset   = H5Dopen( group_id, "Processor");
-        H5Dread( vdataset, vdatatype, H5S_ALL, vdataspace, H5P_DEFAULT, ibuf);
+        if( group_id > 0) {
+          vdataset   = H5Dopen( group_id, "Processor");
+          H5Dread( vdataset, vdatatype, H5S_ALL, vdataspace, H5P_DEFAULT, ibuf);
 
-        H5Sclose( vdataspace );
-        H5Dclose( vdataset   );
-        H5Fclose( file_id[0] );
-        H5Gclose( group_id );
-        maxfiles = ibuf[1];
+          H5Sclose( vdataspace );
+          H5Dclose( vdataset   );
+          H5Fclose( file_id[0] );
+          H5Gclose( group_id );
+          maxfiles = ibuf[1];
+        }
+      } else {
+        cout << "Warning: Unable to open file " << filename << endl;
+        return;
       }
     }
     //-----------------------------------------------------------------
@@ -482,7 +498,12 @@ namespace Loci {
       strcat( filename, str);
       strcat( filename, ".hdf5");
       file_id[ifile] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+      if( file_id[ifile] < 0) {
+        cout << "Warning: Couldn't open file " << filename << endl;
+        return;
+      }
     }
+
 
     entitySet  new_eset,currdom,localdom, gsetRead,retainSet;
     Map        l2g, lg, currg2l, currl2l;
@@ -549,15 +570,15 @@ namespace Loci {
       storeRepP store_Rep = get_variable(v)->getRep();
       gsetRead   = EMPTY;
       std::string groupname = vname;
-    
+
       // first get information about entitset and assign local number to them
    
       for(int ifile = 0; ifile < files_assigned.size(); ifile++){
         group_id2 = H5Gopen(file_id[ifile], groupname.c_str() );  
-        if(group_id2 > 0) {
-          HDF5_ReadDomain(group_id2, eset);
-          H5Gclose(group_id2);
-        }
+        if( group_id2 < 0) continue;
+
+        HDF5_ReadDomain(group_id2, eset);
+        H5Gclose(group_id2);
         // get the local->global numbering written in the file ..
         if( maxfiles > 1) {
           group_id1 = H5Gopen(file_id[ifile], "l2g");           
@@ -657,7 +678,11 @@ namespace Loci {
           ++file_iter;
         }
 
-        MPI_Allreduce( &has_file, &file_counter, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        if( Loci::MPI_processes > 1)
+          MPI_Allreduce( &has_file, &file_counter, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        else
+          file_counter = has_file;
+
         if( file_counter == 0) break;
 
         localdom = EMPTY; 
@@ -671,34 +696,36 @@ namespace Loci {
             tmpstore_Rep->readhdf5(group_id2, localdom);
             localdom = tmpstore_Rep->domain();            
             H5Gclose(group_id2);
-          }
 
-          lg.allocate(localdom);
-          // if more than one file, then local-global mapping has to be read
-          if( maxfiles > 1) {
-            group_id1 = H5Gopen(file_id[ifile], "l2g");           
-            if( group_id1 > 0) {
-              HDF5_Local2Global(group_id1, localdom, lg);
-              H5Gclose(group_id1);         
+            lg.allocate(localdom);
+            // if more than one file, then local-global mapping has to be read
+            if( maxfiles > 1) {
+              group_id1 = H5Gopen(file_id[ifile], "l2g");           
+              if( group_id1 > 0) {
+                HDF5_Local2Global(group_id1, localdom, lg);
+                H5Gclose(group_id1);         
+              }
+            } else {
+              for( ei = localdom.begin(); ei != localdom.end(); ++ei)
+                lg[*ei] = *ei;
             }
-          } else {
-            for( ei = localdom.begin(); ei != localdom.end(); ++ei)
-              lg[*ei] = *ei;
-          }
 
-          // A Composition is needed which can map entities from the local numbering in
-          // the previous run to the local numbering in the present run..
+            // A Composition is needed which can map entities from the local numbering in
+            // the previous run to the local numbering in the present run..
           
-          scatter_map.allocate( localdom );
+            scatter_map.allocate( localdom );
           
-          currdom = EMPTY;
-          for( ei = localdom.begin(); ei != localdom.end(); ++ei) {
-            if( retainSet.inSet(lg[*ei])) {
-              currdom          +=  *ei;
-              scatter_map[*ei]  =  localmap[lg[*ei]];
+            currdom = EMPTY;
+            for( ei = localdom.begin(); ei != localdom.end(); ++ei) {
+              if( retainSet.inSet(lg[*ei])) {
+                currdom          +=  *ei;
+                scatter_map[*ei]  =  localmap[lg[*ei]];
+              }
             }
+            tmpstore_Rep->Print(cout);
+            store_Rep->scatter( scatter_map, tmpstore_Rep, currdom );
+            store_Rep->Print(cout);
           }
-          store_Rep->scatter( scatter_map, tmpstore_Rep, currdom );
         }
 
         if( !isDistributed() ) continue;
@@ -794,7 +821,6 @@ namespace Loci {
        
       } // Complete all the containers
       update_fact(v,store_Rep);
-  
     }
 
     for(int ifile = 0; ifile < files_assigned.size(); ifile++)
