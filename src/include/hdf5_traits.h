@@ -3,8 +3,12 @@
 
 #include <hdf5CC/H5cpp.h>
 #include <vector>
+#include <hash_map.h>
 #include <complex>
 #include <Tools/stream.h>
+
+#include <stdio.h>
+#include <iostream.h>
 
 namespace Loci {
 
@@ -80,7 +84,9 @@ namespace Loci {
   class hdf5_schema_traits<double> {
   public:
     typedef IDENTITY_CONVERTER Schema_Converter;
-    static H5::DataType get_type() {return H5::PredType::NATIVE_DOUBLE;}
+    static H5::DataType get_type() {
+      return H5::PredType::NATIVE_DOUBLE;
+    }
   };
 
   template <>
@@ -112,28 +118,28 @@ namespace Loci {
       typedef std::pair<T1,T2> par;
       hdf5_schema_traits<T1> hdfT1;
       hdf5_schema_traits<T2> hdfT2;
+
       H5::CompType ctype(sizeof(par));
+
       ctype.insertMember("first", HOFFSET(par,first), hdfT1.get_type());
       ctype.insertMember("second", HOFFSET(par,second), hdfT2.get_type());
+
       return ctype;
       }
   };
 
-  /*
-  template <class T>
-  class hdf5_schema_traits< std::complex<T> > {
-  public:
-    typedef IDENTITY_CONVERTER Schema_Converter;
-    static H5::DataType get_type() {
-      H5::CompType ctype(sizeof(std::complex<T>));
-      hdf5_schema_traits<T> hdfT;
-      ctype.insertMember("c1", 0, hdfT.get_type());
-      ctype.insertMember("c2", sizeof(T), hdfT.get_type());
-      return ctype;
-    }
-  };
-  */
-  //---------------------STL vector--------------//
+
+  //***************************************************************************
+  // Traits for STL Vectors....
+  //***************************************************************************
+
+  //selector which tell us if we need variable data
+  struct Need_Variable_data{};
+  struct No_Need_Variable_data{};
+
+  //***************************************************************************
+  // STL Vector...
+  //***************************************************************************
 
   template <class T>
   class hdf5_schema_traits< std::vector<T> > {
@@ -141,43 +147,47 @@ namespace Loci {
     typedef USER_DEFINED_CONVERTER Schema_Converter;
   };
 
-   template <class T>
+  template<class T>
+  class hdf5_schema_converter_traits 
+  { };
+
+  template <class T> 
+  class hdf5_schema_converter_traits< std::vector<T> > 
+  {
+    public:
+      typedef T memento_type;
+      static const int var_length = 1;
+      static const int var_size   = 0;
+
+      static H5::DataType get_variable_HDF5_type() 
+      {
+          hdf5_schema_traits<T> hdfT;
+          return hdfT.get_type();
+      };
+  };
+
+  //***************************************************************************
+  // Traits for complex numbers ...
+  //***************************************************************************
+
+  template <class T>
   class hdf5_schema_traits< std::complex<T> > {
   public:
     typedef USER_DEFINED_CONVERTER Schema_Converter;
   };
 
-  //selector which tell us if we need variable data
-  struct Need_Variable_data{};
-  struct No_Need_Variable_data{};
-
-   template <class T> 
-    class hdf5_schema_converter_traits{};
-
-   template <class T> 
-     class hdf5_schema_converter_traits< std::vector<T> > {
-     public:
-     typedef Need_Variable_data need_variable_selector;
-     typedef int POD_memento_type;
-     typedef T variable_memento_type;
-     static H5::DataType get_POD_HDF5_type() {return H5::PredType::NATIVE_INT;};
-     static H5::DataType get_variable_HDF5_type() {
-       hdf5_schema_traits<T> hdfT;
-       return hdfT.get_type();
-     };
-   };
-
-   template <class T> 
+  template <class T> 
      class hdf5_schema_converter_traits< std::complex<T>  > {
      public:
      typedef Need_Variable_data need_variable_selector;
-     typedef int POD_memento_type;
-     typedef T variable_memento_type;
-     static H5::DataType get_POD_HDF5_type() {return H5::PredType::NATIVE_INT;};
+     typedef T memento_type;
+
      static H5::DataType get_variable_HDF5_type() {
        hdf5_schema_traits<T> hdfT;
        return hdfT.get_type();
      };
-   };
+  };
+
+  //***************************************************************************
 }
 #endif
