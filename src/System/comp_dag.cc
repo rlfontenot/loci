@@ -14,17 +14,26 @@ using std::map ;
 namespace Loci {
 
   class check_dump_on_startup {
+    bool checked_dump ;
     bool do_dump ;
   public :
     check_dump_on_startup() {
-      do_dump=true ;
-      struct stat statbuf ;
-      if(stat("dump_vars",&statbuf))
-        do_dump = false ;
-      else if(!S_ISDIR(statbuf.st_mode)) 
-        do_dump = false ;
+      do_dump = false ;
+      checked_dump = false ;
     }
-    bool ok() { return do_dump ; }
+    bool ok() {
+      if(!checked_dump) {
+        do_dump=true ;
+        struct stat statbuf ;
+        if(stat("dump_vars",&statbuf))
+          do_dump = false ;
+        else if(!S_ISDIR(statbuf.st_mode)) 
+          do_dump = false ;
+        checked_dump = true ;
+      } 
+      return do_dump ;
+    }
+
   } ;
 
   check_dump_on_startup check_dump_vars ;
