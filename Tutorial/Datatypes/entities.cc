@@ -1,7 +1,7 @@
-// Example program illustrating how to manipluate Entity, entitySet,
+// Example program illustrating how to manipulate Entity, entitySet,
 // and sequence data structures in Loci
 
-// Every Loci program includes the Loci header file
+// Every Loci program includes the Loci header file.
 #include <Loci.h>
 
 // includes for standard C++ functions
@@ -13,22 +13,31 @@ using std::vector ;
 
 int main()
 {
+  //////////////////////////////////////////////////////////////////////
   // The Entity 
+  // An Entity is labeled by an integer.
   Entity e10(10) ;  // First, the entity labeled by integer 10
 
+  //////////////////////////////////////////////////////////////////////
   // The interval (A collection of consecutively labeled entities)
   // For example, onedigit is an interval of entity labels consisting of
   // only one decimal digit.
   interval onedigit = interval(0,9) ;   
 
-  // entitySet provides abilities to hold general sets of entities
-  // They can be initialized to other intervals
+  /////////////////////////////////////////////////////////////////
+  // entitySet provides abilities to hold general sets of entities.
+  /////////////////////////////////////////////////////////////////
+  // Initialization
+  // An entitySet can be initialized to an interval.
   entitySet A = onedigit ;
   entitySet B = interval(14,100) ;
   entitySet C = interval(5,15) ;
+  entitySet F = interval(10,20) ;
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Adjunction
   // We can also add an individual entity to any existing entitySet using the
-  // += operator, for example we can include the entitiy e10 in set B:
+  // += operator, for example we can include the entity e10 in set B:
   B += e10 ;
 
   //  A = ([0,9])
@@ -37,55 +46,65 @@ int main()
   cout << "A = " << A << endl ;
   cout << "B = " << B << endl ;
   cout << "C = " << C << endl ;
+  cout << "F = " << F << endl ;
 
-  // Or they can be formed by performing set operations on other entitySet's
-  // For example, entitySet D becomse the union of A and B
-  // That is D = ([0-9],[14-100])
-  entitySet D = A + B ;
-
-  //  D = ([0,10][14,100])
-  cout << "D = " << D << endl ;
-
-  // Note that entitySet's remain ordered and do not contain duplicates, that
-  // is they are true sets.   For example
+  ////////////////////////////////////////////////////////////////////////////
+  // Neither order nor duplication matters to an entitySet.
+  // For example
   entitySet E = B + C ;
   //  E = B union C =  ([5,100])
   // [gives the set ([5-100]) without duplicating 14 and 15]
   cout << "E = B union C =  " << E << endl ;
+  // For efficiency, an entitySet is stored as an ordered set; 
+  // more precisely, as an ordered set of ordered intervals.
 
-  // Other operations are also supported, for example
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Set operations
+  // entitySet supports union, intersection, relative complement, 
+  // and complement relative
+  // to the set of possible identifiers.
+  // For example, entitySet D becomes the union of A and B
+  // That is D = ([0-9],[14-100])
+  entitySet D = A + B ;
+  //  D = ([0,10][14,100])
+  cout << "D = " << D << endl ;
   // A & C  gives the intersection of A and C (the interval [5-9])
   cout << "A intersect C = " << (A & C) << endl ;
   // A - C gives the set difference (A take away C) (the interval [0-4])
-  cout << "A take away C = " << (A - C) << endl ;
+  cout << "relative complent of A in C = " << (A - C) << endl ;
+  cout << "A intersect (B union F) = " << (A & (B + F)) << endl ;  
+  cout << "A union (B intersect F) = " << (A + (B & F)) << endl ;
 
-  // We can also create entitySet's from arbitrary lists of entity identifiers
+  ////////////////////////////////////////////////////////////////////////////
+  // Explicit membership list
+  // We can also create an entitySet from an arbitrary list 
+  // of entity identifiers.
   // For example,
   int values[] = {10,15,12,1,14,16,17} ;
   entitySet vset = create_entitySet(values,values+7) ;
-
   // vset = ([1,1][10,10][12,12][14,17])
   cout << "vset = " << vset << endl ;
 
-  // Note, create_entitySet also works with std::vector and begin() and end()
-  // See a standard C++ book for more details on using vector<> and other
-  // STL containers.
+  ////////////////////////////////////////////////////////////////////////////
+  // Creating an entitySet from a vector of integers.
+  // create_entitySet works with std::vector and begin() and end().
+  // (See a standard C++ book for more details on using vector<> and other
+  // STL containers.)
   vector<int> vec ;
   for(int i=10;i>0;--i)
     vec.push_back(i) ;
-
   entitySet vecset = create_entitySet(vec.begin(),vec.end()) ;
-
   // vecset = ([1,10])
   cout << "vecset = " <<vecset << endl ;
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Iteration over an entitySet
   // We can also iterate (loop) over an entitySet in a fashion similar to
   // how we iterate over standard C++ containers.  For example, to iterate
-  // over all of the entities in vset we would write a loop as follows
-
-  // First we create iterator ei for entity sets.
+  // over all of the entities in vset we would write a loop as follows.
+  // First we create an iterator ei for entity sets.
   entitySet::const_iterator ei ;
-
   // Then we use the iterator to loop over a given entitySet using the
   // begin() and end() methods.  For example to loop over the entities
   // contained in vset we write:
@@ -96,6 +115,8 @@ int main()
   // above outputs:
   // looping over vset: 1 10 12 14 15 16 17
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Min, Max, size, set membership
   // Other useful methods include Min() and Max() which can be used to find
   // the largest and smallest integer labels of entities contained in a given
   // entitySet.  For example, vset.Max() == 17 and vset.Min() == 1
@@ -115,6 +136,18 @@ int main()
 
   if(A.inSet(5))
     cout << "entity labeled 5 is in entitySet A" << endl ;
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Equal, less_than, greater_than, Union (interval), 
+  // Union (entitySet), Intersection (interval), 
+  // Intersection (entitySet), [absolute] Complement, 
+  // Print, Input
+  // The sets are equal.
+  if ( A.Equal((A & C) + (A - C)) )
+    cout << "A = ((A & C) + (A - C))." << endl ;
+  else
+    cout << "A != ((A & C) + (A - C))." << endl ;
+
 
   // Sequences provide a way of storing ordered lists of entities.  Usually,
   // users don't need to worry about creating sequences directly in Loci,
