@@ -352,7 +352,6 @@ namespace Loci {
   }
   
   distribute_info distribute_facts(std::vector<std::vector<entitySet> > &get_entities, fact_db &facts)  {
-    //int num_procs = get_entities.size() ;
     int num_procs = MPI_processes ;
     int myid = MPI_rank ;
     int j = 0 ;
@@ -428,7 +427,7 @@ namespace Loci {
     df.isDistributed = isDistributed ;
     g = EMPTY ;
     for(ei = get_entities[myid][myid].begin(); ei != get_entities[myid][myid].end(); ++ei)
-       g+= df.g2l[*ei] ;
+      g+= df.g2l[*ei] ;
     df.my_entities = g ;
     my_entities = g ;
     df.myid = myid ;
@@ -444,11 +443,10 @@ namespace Loci {
   entitySet fill_entitySet(entitySet& e, distribute_info& dist, fact_db &facts) {
     
     MPI_Status status ;
-    MPI_Request send_request ;
-    MPI_Request recv_request ;
-    int k = 0 , send_flag = 0, recv_flag = 0 ;
+    MPI_Request *send_request ;
+    MPI_Request *recv_request ;
+    int k = 0 , send_flag = 0, recv_flag = 0, recv_count = 0,  send_count = 0  ;
     store<int> is ;
-    const int MAX = 100 ;
     Map l2g ;
     dist_facts* d = dist.get_dist_facts() ;
     constraint my_entities ;
@@ -459,14 +457,10 @@ namespace Loci {
       int **send_buffer, **recv_buffer ;
       int *recv_size, *send_size ;
       recv_buffer = new int*[d->recv_neighbour.size()] ;
-      for(int i = 0 ; i < d->recv_neighbour.size(); ++i) 
-	recv_buffer[i] = new int[MAX] ;
-            
+          
       recv_size = new int[d->recv_neighbour.size()] ;
       send_buffer = new int*[d->send_neighbour.size()] ;
-      for(int i = 0 ; i < d->send_neighbour.size(); ++i) 
-	send_buffer[i] = new int[MAX] ;
-      
+          
       send_size = new int[d->send_neighbour.size()] ;
       l2g = facts.get_variable("l2g") ;
       my_entities = facts.get_variable("my_entities") ;
@@ -478,18 +472,44 @@ namespace Loci {
 	re += d->g2l[*ei] ;
       
       k = 0 ;
-      
       for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
 	temp = (e & d->recv_entities[*ei]) ;
 	recv_size[k] = temp.size() ;
 	if(recv_size[k] > 0) {
-	  MPI_Irecv(&recv_buffer[k][0], recv_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, &recv_request ) ;  
+	  recv_count++ ;
+	  recv_buffer[k] = new int[recv_size[k]] ;
+	}
+	k++ ;
+      }
+      
+      recv_request = (MPI_Request *) malloc(recv_count * sizeof(MPI_Request) ) ;
+      recv_count = 0 ;
+      k = 0 ;
+      for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
+	temp = (e & d->recv_entities[*ei]) ;
+	recv_size[k] = temp.size() ;
+	if(recv_size[k] > 0) {
+	  MPI_Irecv(&recv_buffer[k][0], recv_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, &recv_request[recv_count] ) ;  
 	  recv_flag = 1 ;
+	  recv_count++ ;
 	}
 	k++ ;
       }
       
       k = 0 ;
+      for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
+	temp = d->send_entities[*ei] & e ;
+	send_size[k] = temp.size()  ;
+	if(send_size[k] > 0) {
+	  send_count++ ;
+	  send_buffer[k] = new int[send_size[k]] ;
+	}
+	k++ ;
+      }
+      
+      k = 0 ;
+      send_request = (MPI_Request *) malloc(send_count * sizeof(MPI_Request) ) ;
+      send_count = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
 	temp = d->send_entities[*ei] & e ;
 	send_size[k] = temp.size()  ;
@@ -499,25 +519,27 @@ namespace Loci {
 	    send_buffer[k][j] = *ti ;
 	    ++j ;
 	  }
-	  MPI_Isend(&send_buffer[k][0], send_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, &send_request) ;
+	  MPI_Isend(&send_buffer[k][0], send_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, &send_request[send_count]) ;
 	  send_flag = 1 ;
+	  send_count++ ;
 	}
 	k++ ;
       }
+      
       if(recv_flag)
-	MPI_Wait(&recv_request, &status) ;
+	MPI_Waitall(recv_count, recv_request, &status) ;
       
       if(send_flag)
-	MPI_Wait(&send_request, &status) ;
+	MPI_Waitall(send_count, send_request, &status) ;
       
       for(k = 0; k < d->recv_neighbour.size(); ++k) {      
-	if((recv_size[k] > 0)) {
+	if((recv_size[k] > 0) && (recv_flag == 1)) {
 	  for(int i = 0 ; i < recv_size[k]; ++i) {
 	    re += d->g2l[recv_buffer[k][i]] ;
 	  }
 	}
       }
-            
+    
       delete [] send_size ;
       delete [] recv_size ;
       delete [] send_buffer ;
