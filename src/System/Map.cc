@@ -19,7 +19,7 @@ namespace Loci {
     if(ptn != EMPTY) {
       int top = ptn.Min() ;
       int size = ptn.Max()-top+1 ;
-      alloc_pointer = new(int[size]) ;
+      alloc_pointer = new(Entity[size]) ;
       base_ptr = alloc_pointer - top ;
     }
     store_domain = ptn ;
@@ -114,13 +114,13 @@ namespace Loci {
     return store_domain ;
   }
 
-  entitySet image_section(const int *start, const int *end) {
+  entitySet image_section(const Entity *start, const Entity *end) {
     if(start == end)
       return EMPTY ;
     int mx,mn ;
     mx = *start ;
     mn = *start ;
-    for(const int *i=start;i!=end;++i) {
+    for(const Entity *i=start;i!=end;++i) {
       mx = max(mx,*i) ;
       mn = min(mn,*i) ;
     }                                         

@@ -17,8 +17,8 @@ namespace Loci {
   
   class MapRepI : public MapRep {
     entitySet store_domain ;
-    int *alloc_pointer ;
-    int *base_ptr ;
+    Entity *alloc_pointer ;
+    Entity *base_ptr ;
   public:
     MapRepI() { alloc_pointer = 0 ; base_ptr = 0 ; }
     MapRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ; }
@@ -53,7 +53,7 @@ namespace Loci {
   class Map : public store_instance {
     friend class const_Map ;
     typedef MapRepI MapType ;
-    int* base_ptr ;
+    Entity* base_ptr ;
   public:
     Map() { setRep(new MapType) ;}
     Map(const Map &var) { setRep(var.Rep()) ; }
@@ -74,20 +74,20 @@ namespace Loci {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
       return p ; }
-    int &elem(int indx) { 
+    Entity &elem(Entity indx) { 
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return base_ptr[indx]; }
-    const int &const_elem(int indx)  const { 
+    const Entity &const_elem(Entity indx)  const { 
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return base_ptr[indx]; }
-    int &operator[](int indx) { return elem(indx); }
-    const int &operator[](int indx) const { return const_elem(indx) ; }
+    Entity &operator[](Entity indx) { return elem(indx); }
+    const Entity &operator[](Entity indx) const { return const_elem(indx) ; }
     //        operator int*() { return base_ptr; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
@@ -107,7 +107,7 @@ namespace Loci {
 
   class const_Map : public store_instance {
     typedef MapRepI MapType ;
-    const int* base_ptr ;
+    const Entity* base_ptr ;
   public:
     const_Map()
     { setRep(new MapType); }
@@ -128,13 +128,13 @@ namespace Loci {
     entitySet domain() const { return Rep()->domain(); }
     operator MapRepP()
     { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
-    const int &const_elem(int indx)  const {
+    const Entity &const_elem(Entity indx)  const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
       return base_ptr[indx]; }
-    const int &operator[](int indx) const { return const_elem(indx) ; }
+    const Entity &operator[](Entity indx) const { return const_elem(indx) ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
 
