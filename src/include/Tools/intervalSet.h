@@ -680,6 +680,8 @@ namespace Loci {
 
 
   template<class T> inline intervalSet create_intervalSet(T start, T end) {
+    if(start==end)
+      return EMPTY ;
     std::sort(start,end) ;
     int First = *start ;
     int Second = *start ;
@@ -691,8 +693,7 @@ namespace Loci {
       }
       Second = *p ;
     }
-    if(start!=end)
-      r += interval(First,Second) ;
+    r += interval(First,Second) ;
     return r ;
   }
 
