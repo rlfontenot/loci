@@ -4,7 +4,10 @@
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
-
+#include <Tools/stream.h>
+#include <H5cpp.h>
+//#include <hdf5_traits.h>
+#include <hdf5_write_template.h>
 namespace Loci {
 
   template<class T> class storeRepI : public storeRep {
@@ -20,6 +23,8 @@ namespace Loci {
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
+    virtual void readhdf5( H5::Group group) ;
+    virtual void writehdf5( H5::Group group,entitySet& en) const ;
     virtual const entitySet &domain() const ;
     T * get_base_ptr() const { return base_ptr ; }
   } ;
@@ -71,6 +76,23 @@ namespace Loci {
       s.putback(ch) ;
     }
     return s ;
+  }
+
+  template<class T> void storeRepI<T>::readhdf5( H5::Group group){
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+    entitySet en=get_store_domain(group,traits_output_type);
+    allocate(en);
+    //cout<<"read "<<en<<endl;
+    store_hdf5read(group,traits_output_type,base_ptr,en);
+  }
+
+  template<class T> void storeRepI<T>::writehdf5( H5::Group group,entitySet& en) const{
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+    //entitySet en=domain();
+    //cout<<"write "<<en<<endl;
+    store_hdf5write(group,traits_output_type,base_ptr,en);
   }
 
   template<class T>  storeRepI<T>::~storeRepI<T>() {

@@ -1,14 +1,15 @@
 #ifndef STOREVEC_H
 #define STOREVEC_H 1
 
-#include<Config/conf.h>
+#include <Config/conf.h>
 
 #include <Tools/debug.h>
 #include <Tools/tools.h>
-
+#include <Tools/stream.h>
 #include <store_rep.h>
 
 #include <Tools/lmutex.h>
+#include <H5cpp.h>
 
 namespace Loci {
   template <class T> struct Scalar {
@@ -663,6 +664,8 @@ namespace Loci {
     virtual const entitySet &domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
+    virtual void readhdf5( H5::Group group) ;
+    virtual void writehdf5( H5::Group group,entitySet& en) const ;
     virtual void set_elem_size(int sz) ;
 
     T * get_base_ptr() const { return base_ptr ; }
@@ -716,6 +719,24 @@ namespace Loci {
       return s ;
     }
 
+  template<class T> void storeVecRepI<T>::readhdf5( H5::Group group){
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+    entitySet en=get_store_domain(group,traits_output_type);
+    int sz=get_storeVec_size(group,traits_output_type);
+
+    set_elem_size(sz);
+    allocate(en);
+    cout<<"Vec read "<<en<<endl;
+    storeVec_hdf5read(group,traits_output_type,base_ptr,en,sz);
+  }
+
+  template<class T> void storeVecRepI<T>::writehdf5( H5::Group group,entitySet& en) const{
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+    cout<<"Vec write "<<en<<endl;
+    storeVec_hdf5write(group,traits_output_type,base_ptr,en,size);
+  }
 
   template<class T> void storeVecRepI<T>::allocate(const entitySet &ptn) {
     if(alloc_pointer) delete[] alloc_pointer ;
