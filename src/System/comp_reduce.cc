@@ -635,7 +635,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
     std::vector<int> send_index ;
-    std::vector<int> recv_index ;
+    std::vector<int> recv_index ; 
     int total_size = 0 ;
     unsigned char *send_alloc, *recv_alloc ; 
     MPI_Request *re_request ;
@@ -652,7 +652,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	r_size[i] = maxr_size[i] ;
       total_size += r_size[i] ;
     }
-    
     recv_ptr[0] = new unsigned char[total_size] ;
     recv_alloc = recv_ptr[0] ; 
     for(int i=1;i<nrecv;++i)
@@ -672,7 +671,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
         storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
       }
-      if(s_size[i] > maxs_size[i]) {
+      if((s_size[i] > maxs_size[i]) || ( s_size[i] == sizeof(int))) {
 	maxs_size[i] = s_size[i] ;
 	int proc = send_info[i].first ;
 	s_size[i] = sizeof(int) ;
@@ -681,7 +680,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       }
       total_size += s_size[i] ;
     }
-    
     send_ptr[0] = new unsigned char[total_size] ;
     send_alloc = send_ptr[0] ;
     for(int i = 1; i < nsend; i++)
@@ -699,7 +697,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
       
     }
-    
     // Send Buffer
     for(int i=0;i<nsend;++i) {
       int proc = send_info[i].first ;
@@ -786,7 +783,8 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     if(rerecv_size > 0) {
       delete [] re_status ;
       delete [] re_request ;
-    }	
+    }
+    debugout[MPI_rank] << "done " << endl ;
   }
   
   void execute_comm_reduce::Print(ostream &s) const {

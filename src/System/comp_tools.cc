@@ -801,7 +801,6 @@ namespace Loci {
 	r_size[i] = maxr_size[i] ;
       total_size += r_size[i] ;
     }
-    
     recv_ptr[0] = new unsigned char[total_size] ;
     recv_alloc = recv_ptr[0] ;
     for(int i=1;i<nrecv;++i)
@@ -821,7 +820,7 @@ namespace Loci {
         storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
       }
-      if(s_size[i] > maxs_size[i]) {
+      if((s_size[i] > maxs_size[i]) || (s_size[i] == sizeof(int))) {
 	maxs_size[i] = s_size[i] ;
 	int proc = send_info[i].first ;
 	s_size[i] = sizeof(int) ;
@@ -848,7 +847,6 @@ namespace Loci {
       else
 	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
     }
-    
     // Send Buffer
     for(int i=0;i<nsend;++i) {
       int proc = send_info[i].first ;

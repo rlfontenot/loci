@@ -173,7 +173,6 @@ namespace Loci {
       }
     
     double t = MPI_Wtime() ;
-    debugout[MPI_rank] << "Time  before calling METIS_PartGraphKway = " << t << endl ;
     METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
     double et = MPI_Wtime() ;
     debugout[MPI_rank] << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
@@ -420,19 +419,16 @@ namespace Loci {
     debugout[MPI_rank] << "synchronising before metis_facts" << endl ;
     MPI_Barrier(MPI_COMM_WORLD) ;
     double start = MPI_Wtime() ;
-    debugout[MPI_rank] << " start time = " << start << endl ; 
     metis_facts(facts,ptn,partition) ;
     double end_time  = MPI_Wtime() ;
     debugout[MPI_rank] << "  time taken for metis_facts =   = " << end_time -start << endl ; 
     start = MPI_Wtime() ;
-    debugout[MPI_rank]<< " time now is  " << start << endl ; 
     get_mappings(rdb,facts,maps) ;
     end_time  = MPI_Wtime() ;
     debugout[MPI_rank] << "  time taken for get_mappings =   = " << end_time -start << endl ; 
     set<vector<Loci::variableSet> >::const_iterator smi ;
     
     start = MPI_Wtime() ;
-    debugout[MPI_rank]<< " time now is  " << start << endl ; 
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
       copy[pnum] = image[pnum] - ptn[pnum] ;
@@ -542,7 +538,6 @@ namespace Loci {
       send += send_entities[*ei] ;
     }
     double start = MPI_Wtime() ;
-    debugout[MPI_rank]<< " time now is  " << start << endl ; 
     reorder_facts(facts, df->g2l) ;
     double end_time =  MPI_Wtime() ;
     debugout[MPI_rank] << "  time taken for reordering =  " << end_time - start << endl ; 
@@ -575,7 +570,6 @@ namespace Loci {
     facts.put_distribute_info(df) ;
     facts.create_fact("l2g", l2g) ;
     facts.create_fact("my_entities", my_entities) ;
-    //    debugout[MPI_rank] << "my_entities = " << my_entities << endl ;
     
   }
   
