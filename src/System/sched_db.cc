@@ -247,6 +247,8 @@ namespace Loci {
 	s << " Container = STORE " << endl ;
       else if(sp->RepType() == PARAMETER)
 	s << " Container = PARAMETER " << endl ;
+      else if(sp->RepType() == BLACKBOX)
+	s << " Container = BLACKBOX " << endl;
       else if(sp->RepType() == CONSTRAINT)
 	s << " Container = CONSTRAINT " << endl ;
       
