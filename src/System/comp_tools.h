@@ -296,6 +296,9 @@ namespace Loci {
   class execute_comm : public execute_modules {
     std::vector<std::pair<int,std::vector<send_var_info> > > send_info ;
     std::vector<std::pair<int,std::vector<recv_var_info> > > recv_info ;
+    int *maxr_size ;
+    int *maxs_size ;
+    bool need_size ;
   public:
     execute_comm(std::list<comm_info> &plist, fact_db &facts) ;
     virtual void execute(fact_db &facts) ;

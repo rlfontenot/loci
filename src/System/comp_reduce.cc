@@ -554,6 +554,9 @@ class execute_comm_reduce : public execute_modules {
   vector<pair<int,vector<send_var_info> > > send_info ;
   vector<pair<int,vector<recv_var_info> > > recv_info ;
   CPTR<joiner> join_op ;
+  int *maxr_size ;
+  int *maxs_size ;
+  bool need_size ;
 public:
   execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
 		      CPTR<joiner> jop) ;
@@ -595,8 +598,14 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
     }
-    
-  }
+    maxr_size = new int[recv_info.size()] ; 
+    maxs_size = new int[send_info.size()] ;
+    for(int i = 0; i < recv_info.size(); ++i)
+      maxr_size[i] = 0 ;
+    for(int i = 0; i < send_info.size(); ++i)
+      maxs_size[i] = 0 ;
+    need_size = 1 ;
+}
 
   void execute_comm_reduce::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
@@ -604,14 +613,22 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     int total_size = 0 ;
     MPI_Request *size_request =  new MPI_Request[nrecv] ;
     MPI_Status *size_status =  new MPI_Status[nrecv] ;
-    
-    for(int i=0;i<nrecv;++i) {
-      int proc = recv_info[i].first ;
-      MPI_Irecv(&r_size[i], 1, MPI_INT, proc, 2,
-                MPI_COMM_WORLD, &size_request[i]) ;
-      // Loci::debugout[Loci::MPI_rank] << Loci::MPI_rank << "  receiving from  " << proc << endl ;
+     
+    if(need_size) {
+      for(int i=0;i<nrecv;++i) {
+	int proc = recv_info[i].first ;
+	MPI_Irecv(&maxr_size[i], 1, MPI_INT, proc, 2,
+		  MPI_COMM_WORLD, &size_request[i]) ;
+      }
     }
-    
+    for(int i=0;i<nrecv;++i) {
+      r_size[i] = 0 ;
+      for(int j=0;j<recv_info[i].second.size();++j) {
+	storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
+	r_size[i] += sp->pack_size(entitySet((recv_info[i].second[j].seq))) ;
+      }
+    }
+   
     const int nsend = send_info.size() ;
     int *s_size = new int[nsend] ;
     for(int i=0;i<nsend;++i) {
@@ -620,8 +637,12 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
         storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
       }
-      int proc = send_info[i].first ;
-      MPI_Send(&s_size[i],1,MPI_INT,proc,2,MPI_COMM_WORLD) ;
+
+      if((s_size[i] > maxs_size[i]) || (need_size )) {
+	maxs_size[i] = s_size[i] ;
+	int proc = send_info[i].first ;
+	MPI_Send(&s_size[i],1,MPI_INT,proc,2,MPI_COMM_WORLD) ;
+      }
       total_size += s_size[i] ;
     }
     unsigned char **send_ptr = new unsigned char*[nsend] ;
@@ -629,14 +650,18 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     for(int i=1;i<nsend;++i)
       send_ptr[i] = send_ptr[i-1]+s_size[i-1] ;
     
-    if(nrecv > 0) {
+  
+    if((nrecv > 0) && (need_size)) {
       int err = MPI_Waitall(nrecv, size_request, size_status) ;
       FATAL(err != MPI_SUCCESS) ;
+      need_size = 0 ;
     }
-    
     total_size = 0 ;
-    for(int i=0;i<nrecv;++i) 
+    for(int i=0;i<nrecv;++i) {
+      if(maxr_size[i] > r_size[i])
+	r_size[i] = maxr_size[i] ;
       total_size += r_size[i] ;
+    }
     
     unsigned char **recv_ptr = new unsigned char*[nrecv] ;
     recv_ptr[0] = new unsigned char[total_size] ;
