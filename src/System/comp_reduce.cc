@@ -174,7 +174,8 @@ namespace Loci {
           cerr << "error occurs when applying to variable " << *vi << endl;
           cerr << "error is not recoverable, terminating scheduling process"
                << endl ;
-          exit(-1) ;
+          scheds.set_error() ;
+          return ;
         }
         scheds.variable_request(*vi,comp) ;
       }
@@ -196,19 +197,35 @@ namespace Loci {
       cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((srcs & cnstrnts) != cnstrnts) {
+        if(MPI_processes == 1) {
         cerr << "Warning, reduction rule:" << apply
              << "cannot supply all entities of constraint" << endl ;
         cerr << "constraints = " <<cnstrnts << endl ;
         entitySet sac = srcs & cnstrnts ;
         cerr << "srcs & constraints = " << sac << endl ;
-        //      exit(-1) ;
+        } else {
+        debugout << "Warning, reduction rule:" << apply
+             << "cannot supply all entities of constraint" << endl ;
+        debugout << "constraints = " <<cnstrnts << endl ;
+        entitySet sac = srcs & cnstrnts ;
+        debugout << "srcs & constraints = " << sac << endl ;
+        }
+        scheds.set_error();
+
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
           entitySet sources = vmap_source_exist(*si,facts, scheds) ;
           sources &= my_entities ;
           if((sources & cnstrnts) != cnstrnts) {
-            cerr << "sources & constraints != constraints for input"
-                 << endl
-                 << sources  << " -- " << *si << endl ;
+            if(MPI_processes == 1) 
+              cerr << "sources & constraints != constraints for input"
+                   << endl
+                   << sources  << " -- " << *si << endl ;
+            else 
+              debugout << "sources & constraints != constraints for input"
+                   << endl
+                   << sources  << " -- " << *si << endl ;
+
+            scheds.set_error() ;
             
             if(si->mapping.size() > 0) {
               entitySet working = cnstrnts ;
@@ -224,7 +241,11 @@ namespace Loci {
                 entitySet exist = scheds.variable_existence(*vi) ;
                 entitySet fails = working & ~exist ;
                 if(fails != EMPTY) {
-                  cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  if(MPI_processes == 1) 
+                    cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  else
+                    debugout << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  scheds.set_error();
                 }
               }
             }

@@ -641,6 +641,28 @@ namespace Loci {
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
     executeP sched =  compile_graph.execution_schedule(facts,scheds, num_threads) ;
+    if(GLOBAL_OR(scheds.errors_found())) {
+      if(MPI_rank == 0) {
+        cerr << "error in generating schedule, dumping schedule files" << endl ;
+        if(MPI_processes != 1)
+          cerr << "see debug files for more information" << endl ;
+
+      }
+      ostringstream oss ;
+      oss << ".schedule" ;
+
+      if(MPI_processes > 1) {
+        oss << "-" << MPI_rank ;
+      }
+    
+      string sched_filename = oss.str() ;
+      ofstream sched_file(sched_filename.c_str(),ios::out) ;
+      sched->Print(sched_file) ;
+      sched_file.close() ;
+    
+      
+      Loci::Abort() ;
+    }
     //scheds.print_summary(facts,Loci::debugout) ;
 #ifdef PROFILE_CODE    
     //timer = get_timer() ;

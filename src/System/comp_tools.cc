@@ -107,16 +107,29 @@ namespace Loci {
       constraints &= vmap_source_exist(*si,facts, scheds) ;
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((sources & constraints) != constraints) {
-	cerr << "Warning, rule " << r <<
-	  " cannot supply all entities of constraint" << endl ;
-	cerr << "constraints = " << constraints << endl ;
-	cerr << "sources & constraints = " << (sources & constraints) << endl ;
-	
+        if(MPI_processes == 1) {
+          cerr << "Warning, rule " << r <<
+            " cannot supply all entities of constraint" << endl ;
+          cerr << "constraints = " << constraints << endl ;
+          cerr << "sources & constraints = " << (sources & constraints) << endl ;
+        } else {
+          debugout << "Warning, rule " << r <<
+            " cannot supply all entities of constraint" << endl ;
+          debugout << "constraints = " << constraints << endl ;
+          debugout << "sources & constraints = " << (sources & constraints) << endl ;
+        }
+	scheds.set_error() ;
+        
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
           entitySet sources = vmap_source_exist(*si,facts, scheds) ;
           sources &= my_entities ;
           if((sources & constraints) != constraints) {
-            cerr << "sources & constraints != constraints for input"
+            if(MPI_processes == 1) 
+              cerr << "sources & constraints != constraints for input"
+		 << endl
+                   << sources  << " -- " << *si << endl ;
+            else
+              debugout << "sources & constraints != constraints for input"
 		 << endl
 			   << sources  << " -- " << *si << endl ;
             
@@ -134,7 +147,10 @@ namespace Loci {
                 entitySet exist = scheds.variable_existence(*vi) ;
                 entitySet fails = working & ~exist ;
                 if(fails != EMPTY) {
-                  cerr  << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  if(MPI_processes == 1)
+                    cerr  << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  else
+                    debugout  << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
                 }
               }
             }

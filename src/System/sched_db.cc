@@ -23,6 +23,7 @@ namespace Loci {
   extern ofstream debugout ;
   
   sched_db::sched_db(fact_db &facts) {
+    detected_errors = false ;
     variableSet tmp_all_vars = facts.get_typed_variables() ;
     for(int i = 0; i < tmp_all_vars.size(); i++)
       sched_infov.push_back(sched_data()) ;
@@ -48,7 +49,7 @@ namespace Loci {
     all_vars = tmp_all_vars ;
   }
   
-  sched_db::sched_db() {}
+  sched_db::sched_db() {detected_errors = false ;}
   sched_db::~sched_db() {}
   
   void sched_db::install_sched_info(variable v, sched_info info) {
@@ -98,9 +99,15 @@ namespace Loci {
 
     if(all_vars.inSet(v)) {
       if(all_vars.inSet(alias)) {
-        cerr << "alias already in fact_db!" << endl ;
-        cerr << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
-        abort() ;
+        if(MPI_processes == 1) {
+          cerr << "alias already in fact_db!" << endl ;
+          cerr << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
+        } else {
+          debugout << "alias already in fact_db!" << endl ;
+          debugout << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
+        }
+        detected_errors = true ;
+        return ;
       }
       
       int ref = get_sched_info(v).sched_info_ref ;
@@ -110,8 +117,12 @@ namespace Loci {
     } else if(all_vars.inSet(alias)) {
       alias_variable(alias,v, facts) ;
     } else {
-      cerr << "neither variable " << v << ", nor " << alias << " exist in db, cannot create alias" << endl ;
-      abort() ;
+      if(MPI_processes == 1)
+        cerr << "neither variable " << v << ", nor " << alias << " exist in db, cannot create alias" << endl ;
+      else
+        debugout << "neither variable " << v << ", nor " << alias << " exist in db, cannot create alias" << endl ;
+        
+      detected_errors = true ;
     }
     
   }
@@ -121,9 +132,15 @@ namespace Loci {
     v = remove_synonym(v) ;
     vmap_type::iterator vmi ;
     if((vmi = vmap.find(synonym)) != vmap.end()) {
-      cerr << "synonym already in fact_db!" << endl ;
-      cerr << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
-      abort() ;
+      if(MPI_processes == 1) {
+        cerr << "synonym already in fact_db!" << endl ;
+        cerr << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
+      } else {
+        debugout << "synonym already in fact_db!" << endl ;
+        debugout << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
+      }
+      detected_errors = true ;
+      return ;
     }
 
     sched_info &vfinfo = get_sched_info(v) ;
@@ -150,8 +167,14 @@ namespace Loci {
               ++i,--j,--k)
             if(p1[j] != p2[k]) {
               conflicts += mi->first ;
-              cerr << "adding to conflicts because " << p1[i]
-                   << "!=" << p2[i]<<endl ;
+              if(MPI_processes == 1)
+                cerr << "adding to conflicts because " << p1[i]
+                     << "!=" << p2[i]<<endl ;
+              else
+                debugout << "adding to conflicts because " << p1[i]
+                     << "!=" << p2[i]<<endl ;
+                
+              detected_errors = true ;
             }
           if(p1.size() == p2.size()) {
             conflicts += mi->first ;
@@ -165,8 +188,14 @@ namespace Loci {
         }
       }
       if(conflicts != EMPTY && v.get_info().name != string("OUTPUT")) {
-        cerr << "rule " << f << " conflicts with " << conflicts << endl ;
-        cerr << "conflicting entities are " << (finfo.existence & x) << endl ;
+        if(MPI_processes == 1) {
+          cerr << "rule " << f << " conflicts with " << conflicts << endl ;
+          cerr << "conflicting entities are " << (finfo.existence & x) << endl ;
+        } else {
+          debugout << "rule " << f << " conflicts with " << conflicts << endl ;
+          debugout << "conflicting entities are " << (finfo.existence & x) << endl ;
+        }          
+        detected_errors = true ;
         //        debugger_() ;
         //        exit(-1) ;
       }

@@ -100,21 +100,28 @@ namespace Loci {
     // if output directory doesn't exist, create one
     bool debug_is_directory = true ;
     struct stat statbuf ;
-    if(stat("debug",&statbuf))
+    if(GLOBAL_OR(stat("debug",&statbuf)!=0)) {
       if(MPI_rank == 0)
         mkdir("debug",0755) ;
-    else
+      for(int i=0;i<1000;++i) {
+        if(GLOBAL_AND(stat("debug",&statbuf)==0))
+          break ;
+      }
+    } else {
       if(!S_ISDIR(statbuf.st_mode)) {
         cerr << "file 'debug' should be a directory!, rename 'output' and start again."
              << endl ;
         debug_is_directory = false ;
 
       }
-    
-  
-    if(debug_is_directory)
-      oss << "debug/debug."<<MPI_rank ;
-    else
+    }
+
+    if(debug_is_directory) {
+      if(MPI_processes == 1)
+        oss << "debug/debug" ;
+      else
+        oss << "debug/debug."<<MPI_rank ;
+    } else
       oss << "debug."<< MPI_rank ;
     
     string filename  = oss.str() ;
