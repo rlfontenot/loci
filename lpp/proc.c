@@ -813,6 +813,7 @@ void create_classname
          printf("_") ; 
       loci_curr_var = loci_curr_var->next ;
    }
+   printf("__lr") ;
 }
 
 /*-------------------------------------------------+
@@ -1043,8 +1044,12 @@ void Print_input
          }
       }
       loci_curr_var = loci_curr_var->next ;
+
    }
-   Input_Map(loci_map) ;
+   if(loci_map && loci_map->next != NULL) {
+     printf(",") ;
+     Input_Map(loci_map) ;
+   }
    printf("\") ;") ; printf("\n") ;
 }
 
