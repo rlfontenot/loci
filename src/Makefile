@@ -8,7 +8,7 @@ DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC)
 
 default: Tools System
 
-shared: Tools/libTools.so System/libLoci.so 
+shared: #Tools/libTools.so System/libLoci.so 
 
 install: default
 	LOCI_INSTALL_DIR=$(INSTALL_DIR) CPP='$(CPP)' bash Install.bash
