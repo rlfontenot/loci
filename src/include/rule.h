@@ -49,7 +49,7 @@ namespace Loci {
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,CONSTRAINT,UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT,UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
@@ -135,13 +135,39 @@ namespace Loci {
   }
 
 
+  // this is the new rule type for setting default
+  // values in the facts database. It should not have
+  // any inputs
   class default_rule: public rule_impl {
   protected:
     default_rule() { rule_class(DEFAULT) ; }
     void name_store(const std::string &nm, store_instance &si)
       { rule_impl::name_store(nm,si) ; }
-    void input(const std::string &invar)
-    { rule_impl::input(invar) ; }
+    void input(const std::string &invar) {
+      std::cerr << "Warning: a DEFAULT rule should not have any inputs!"
+                << endl ;
+    }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+      { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+  } ;
+
+  // this is the new rule type for setting optional
+  // values in the facts database. It should not have
+  // any inputs
+  class optional_rule: public rule_impl {
+  protected:
+    optional_rule() { rule_class(OPTIONAL) ; }
+    void name_store(const std::string &nm, store_instance &si)
+      { rule_impl::name_store(nm,si) ; }
+    void input(const std::string &invar) {
+      std::cerr << "Warning: an OPTIONAL rule should not have any inputs!"
+                << endl ;
+    }
     void output(const std::string &outvar)
     { rule_impl::output(outvar) ; }
     void constraint(const std::string &constrain)
@@ -569,7 +595,7 @@ namespace Loci {
 
   } ;
 
-  inline std::ostream &operator<<(std::ostream &s, const ruleSet v)
+  inline std::ostream &operator<<(std::ostream &s, const ruleSet& v)
     { return v.Print(s) ; }
 
   class register_rule_type {
@@ -669,6 +695,9 @@ namespace Loci {
     static const ruleSet EMPTY_RULE ;
 
     ruleSet known_rules ;
+    // rules set for default and optional rules
+    ruleSet default_rules ;
+    ruleSet optional_rules ;
 
     rule_map_type name2rule ;
     varmap srcs2rule,trgt2rule ;
@@ -683,6 +712,8 @@ namespace Loci {
       return name2rule[name].get_info().rule_impl->new_rule_impl() ;
     }
     const ruleSet &all_rules() const { return known_rules ; }
+    const ruleSet& get_default_rules() const {return default_rules ;}
+    const ruleSet& get_optional_rules() const {return optional_rules ;}
     const ruleSet &rules_by_source(variable v) const {
       vc_iterator vmi = srcs2rule.find(v) ;
       if(vmi == srcs2rule.end())

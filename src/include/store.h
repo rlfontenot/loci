@@ -203,7 +203,7 @@ namespace Loci {
     virtual ~store() ;
     virtual void notification() ;
 
-    store<T> & operator=(store<T> &str) {
+    store<T> & operator=(const store<T> &str) {
       setRep(str.Rep()) ;
       return *this ;
     }

@@ -182,6 +182,7 @@ namespace Loci {
     variableSet get_typed_variables() const ;
     std::ostream &write(std::ostream &s) const ;
     std::istream &read(std::istream &s) ;
+    std::istream& read_vars(std::istream& s, const rule_db& rdb) ;
     
     void write_all_hdf5(const char *filename) ;
     void read_all_hdf5(const char *filename) ;

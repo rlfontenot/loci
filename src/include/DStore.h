@@ -209,7 +209,7 @@ namespace Loci {
     virtual ~dstore() ;
     virtual void notification() ;
 
-    dstore<T> & operator=(dstore<T> &str) {
+    dstore<T> & operator=(const dstore<T> &str) {
       setRep(str.Rep()) ;
       return *this ;
     }
