@@ -172,9 +172,11 @@ namespace Loci {
     }
     store<entitySet> dynamic_map ;
     dynamic_map.allocate(map_entities) ;
+    int map_count = 0 ;
     for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
       storeRepP vp = facts.get_variable(*vi) ;
       if(vp->RepType() == MAP) {
+	map_count++ ;
         MapRepP mp = MapRepP(vp->getRep()) ;
         FATAL(mp == 0) ;
 	multiMap m = mp->get_map() ;
@@ -186,6 +188,17 @@ namespace Loci {
             dynamic_map[*ei]+= *i ;
           }
         }
+      }
+    }
+    if(!map_count) {
+      for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
+	storeRepP vp = facts.get_variable(*vi) ;
+	if(vp->RepType() == STORE) {
+	  entitySet dom = vp->domain() ; 
+	  for(ei=dom.begin();ei!=dom.end();++ei) {
+	    dynamic_map[*ei] += *ei ;
+	  }
+	}
       }
     }
     int size_map = map_entities.size() ;
