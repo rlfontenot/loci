@@ -25,26 +25,7 @@ namespace Loci {
     else
       return *vi ;
   } 
-  /*
-  void time_ident::time_hierarchy::prepend_level(const std::string &lname) {
-    std::vector<time_info> new_time_db ;
-    int old_level = 0 ;
-    int level = 0 ;
-    new_time_db.push_back(time_info(lname,level));
-    level++ ;
-    while(old_level < time_db.size()) {
-      string name = time_db[old_level].level_name ;
-      new_time_db.push_back(time_info(name,level)) ;
-      int n = new_time_db.size() - 1 ;
-      new_time_db[level].children.push_back(n) ;
-      old_level++;
-    }
-    time_db.clear() ;
-    time_db = new_time_db ;
-    }
-  */
-  
-  
+   
 time_ident::time_ident(const exprP &exp) {
     create_thp() ;
     id = 0 ;

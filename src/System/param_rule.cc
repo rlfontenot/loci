@@ -43,8 +43,14 @@ rule_db parametric_rdb(rule_db& rdb) {
   Loci::rule_db par_rdb ;
   ruleSet param_target, param_source, use_param_rule, added_rules ;
   variableSet source, target ;
-  std::map<variable, ruleSet> mruleset ;
-  std::map<std::string, variableSet> mvarset ;
+  std::map<variable, ruleSet> mruleset ; // This data structure is
+  // used to map the parametric variable with the corresponding
+  // parametric rule in the rule database.
+  
+  std::map<std::string, variableSet> mvarset ; //This data structure
+  // is used to store the parametric variables corresponding to a
+  // particular name. eg. grad->grad(X), grad(y), grad(T), grad(X,y)
+  // etc.   
   std::vector<int> vint ;
   ruleSet rset = rdb.all_rules() ;
   for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end();++rsi) {
@@ -58,17 +64,18 @@ rule_db parametric_rdb(rule_db& rdb) {
 	variable tmp = variable(*vsi) ;
 	mvarset[tmp.get_info().name] += *vsi ;
 	mruleset[tmp] += *rsi ;
-	
       }
     }
     if(target_args.size()) {
       std::vector<std::vector<int> >::const_iterator vi =
 	target_args.begin(); 
       vint = *vi ;
+#ifdef DEBUG
       for( ; vi != target_args.end(); ++vi) 
 	FATAL(vint != *vi) ;
-      
-      
+#endif      
+      // Make a ruleSet of all the rules having parametric variables
+      // as the target 
       if(vint.size() && (!param_target.inSet(*rsi))) 
 	param_target += *rsi ;
     }
@@ -77,12 +84,21 @@ rule_db parametric_rdb(rule_db& rdb) {
     for(variableSet::const_iterator vsi = source.begin(); vsi !=
 	  source.end(); ++vsi) { 
       vint = variable(*vsi).get_arg_list() ;
+      //Make a ruleSet of all the rules having paramtric variables as
+      //the source 
       if(vint.size()) 
 	param_source += *rsi ;
     }
   }
+  //Remove the rules having parametric variables in the head a rule
+  //from the rule database. 
   rset -= param_target ;
   variableSet param_vars ;
+  
+  //Loop over the sources of the remaining rules and find out the
+  //parametric variables(add them to param_vars). Add the
+  //corresponding rule to use_param_rule ruleSet.   
+  
   for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end(); ++rsi) {
     source = rsi->sources() ;
     for(variableSet::const_iterator vsi = source.begin(); vsi != source.end(); ++vsi) {
@@ -94,6 +110,9 @@ rule_db parametric_rdb(rule_db& rdb) {
     }
   }
   
+  //Remove the rules which uses the parametric rules(use_param_rule)
+  //from the param_source ruleSet. The remaining ruleSet will have the 
+  //parametric rules with variables(that could be parametric) in the source.
   param_source -= use_param_rule ;
   for(ruleSet::const_iterator rsi = param_source.begin(); rsi != param_source.end(); ++rsi) { 
     target = rsi->targets() ;
@@ -108,11 +127,16 @@ rule_db parametric_rdb(rule_db& rdb) {
     }
   }
   variableSet newvars ;
+  //This part handles the recursive parametric rules. 
   ruleSet wrule, nrule ;
   if(param_vars != EMPTY) {
     for(variableSet::const_iterator vsi = param_vars.begin(); vsi !=
 	  param_vars.end(); ++vsi) {
-      ruleSet wrule = mruleset.find(variable(*vsi))->second ;
+      ruleSet wrule ;
+      //Only if there is a recursive parametric rule there will be
+      //a ruleSet to loop over. 
+      if(mruleset.find(variable(*vsi)) != mruleset.end())
+	wrule = mruleset.find(variable(*vsi))->second ;
       nrule = wrule ;
       while(nrule != EMPTY) {
 	nrule = EMPTY ;
@@ -122,8 +146,9 @@ rule_db parametric_rdb(rule_db& rdb) {
 	  for(variableSet::const_iterator vci = source.begin(); vci !=
 		source.end(); ++vci) {
 	    if(variable(*vci).get_arg_list().size()) {
-	      variableSet vset =
-		mvarset.find(variable(*vci).get_info().name)->second ;
+	      variableSet vset ;
+	      if(mvarset.find(variable(*vci).get_info().name) != mvarset.end())
+		vset = mvarset.find(variable(*vci).get_info().name)->second ;
 	      for(variableSet::const_iterator ivci = vset.begin(); ivci !=
 		    vset.end(); ++ivci) {
 		if(mruleset.find(variable(*ivci)) != mruleset.end()) {
@@ -134,10 +159,10 @@ rule_db parametric_rdb(rule_db& rdb) {
 			  irsi->sources().begin(); tvsi != irsi
 			  ->sources().end(); ++tvsi)
 		      if(variable(*tvsi).get_arg_list().size())
-			if(!mvarset.find(variable(*tvsi).get_info().name)->second.inSet(*tvsi)){			
-			  newvars += *vci ;
-			  
-			}
+			if(mvarset.find(variable(*tvsi).get_info().name) != mvarset.end()) 
+			  if(!mvarset.find(variable(*tvsi).get_info().name)->second.inSet(*tvsi))			
+			    newvars += *vci ;
+		    
 		  }
 		}
 	      }
@@ -150,6 +175,7 @@ rule_db parametric_rdb(rule_db& rdb) {
   }
   param_vars += newvars ;
   
+  //Add the non parametric rules to the rule database.  
   for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end(); ++rsi) {
     rule_implP rp = rsi->get_rule_implP() ;
     par_rdb.add_rule(rule(rp)) ;
@@ -158,19 +184,19 @@ rule_db parametric_rdb(rule_db& rdb) {
   variableSet working, newset ;
   working = param_vars;
   newset = param_vars ;
-  
   while(newset != EMPTY) {
-    std::vector<string> str_vec ;
+    std::vector<string> str_vec ;//This is to deal with the renaming
+    //of other variables eg. W_f, f_W etc
     newset = EMPTY ;
     std::map<variable, variable> vm ;
     for(variableSet::const_iterator vsi = working.begin(); vsi != working.end(); ++vsi) {
-      
       variable v = variable(*vsi) ;
       variableSet vs = mvarset.find(v.get_info().name)->second ;
       for(variableSet::const_iterator mvsi = vs.begin(); mvsi != vs.end(); ++mvsi)
 	if(v.get_arg_list().size() == variable(*mvsi).get_arg_list().size()) {
 	  ruleSet rs = mruleset.find(variable(*mvsi))->second ;
-	  std::set<string> ren_tars ;
+	  std::set<string> ren_tars ; // Create a set  of names of
+	  // renamed target variables  
 	  for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi ) {
 	    target = rsi->targets() ;
 	    for(variableSet::const_iterator tvsi = target.begin(); tvsi
