@@ -101,7 +101,11 @@ namespace Loci {
     return s ;
   }
 
-  void constraintRep::readhdf5( H5::Group group, entitySet &en){
+  void constraintRep::readhdf5( hid_t group_id, entitySet &en){
+    cout << " Didn't read constraints " << endl;
+    exit(0);
+
+/*
     try{
       //get constraint data
       H5::DataSet dataset_constraint = group.openDataSet( "constraint");
@@ -119,10 +123,12 @@ namespace Loci {
     catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
     catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
     catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+*/
 
   }
 
-  void constraintRep::writehdf5( H5::Group group,entitySet& en) const{
+  void constraintRep::writehdf5( hid_t group_id, entitySet& en) const{
+/*
     hsize_t dimf_constraint[1];
     int RANK=1;
     
@@ -147,6 +153,7 @@ namespace Loci {
     
     delete [] it;
     delete [] data_constraint;
+*/
   }
 
   istream &constraintRep::Input(istream &s) {

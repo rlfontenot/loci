@@ -292,31 +292,14 @@ namespace Loci
     int   j, numBytes, numentity = e.size();
     
     entitySet  :: const_iterator ei;
-    
-    //-------------------------------------------------------------------------
-    // In the multi-map it is necessary to pack the size of each entity too.
-    // For example.
-    // 1    2 3 4
-    // 2    5 6 2
-    // 3    1
-    // 4    2 4
-    //
-    // Then we will pack as size+map
-    // 3 2 3 4 3 5 6 2 1 1 2 2 4
-    //-------------------------------------------------------------------------
-    
     numBytes = pack_size( e );
-
     buf   = ( int *) malloc( numBytes );
     if( buf == NULL ) {
-      cout << "Warning: Cann't allocate memory for packing data " << endl;
+      cout << "Warning: Can't allocate memory for packing data " << endl;
       return;
     }
-
     vector<int>   newVec;
-
     hash_map<int,vector<int> > :: const_iterator  ci;
- 
     int indx = 0;
     for( ei = e.begin(); ei != e.end(); ++ei) {
       ci = attrib_data.find( *ei );
@@ -327,7 +310,7 @@ namespace Loci
           buf[indx++] = newVec[j];
       }
     }
-
+    
     //------------------------------------------------------------------------
     // At present, we are packing everything at once, hoping that size of
     // buffer is not very large :). May have to change later.
@@ -550,21 +533,8 @@ namespace Loci
 
   //***************************************************************************
 
-  void dmultiMapRepI::readhdf5( H5::Group group, entitySet &user_eset) 
+  void dmultiMapRepI::readhdf5( hid_t group_id, entitySet &user_eset) 
   {
-
-    //-------------------------------------------------------------------------
-    // Objective   : Reading Multimap Data in HDF5 Format and storing them as
-    //               dynamic multimap.
-    // Programmer  : Chaman Singh Verma
-    // Date        : 29th May, 2001
-    // Place       : ERC, Mississippi State University.
-    // Status      :
-    // Testing     :
-    // Limitations :
-    // Future Work :
-    // Reference   : See the writehdf module for FORMAT.
-    //-------------------------------------------------------------------------
 
     hash_map<int, vector<int> > :: const_iterator  ci;
     entitySet::const_iterator ei;
@@ -573,317 +543,132 @@ namespace Loci
     entitySet     eset;	
     vector<int>   vec;
 
-    if( user_eset.size() < 1) {
-        cout << "Warning : Reading entity set is empty " << endl;
-        return;
-    }
+    /*
+      if( user_eset.size() < 1) {
+      cout << "Warning : Reading entity set is empty " << endl;
+      return;
+      }
+    */
 
-    H5::DataType  datatype = H5::PredType::NATIVE_INT;
-
-    HDF5_ReadDomain( group, eset );
+    hid_t vDatatype = H5T_NATIVE_INT;
+    Loci::HDF5_ReadDomain( group_id, eset );
       
-    try{
-      //-----------------------------------------------------------------------
-      // Part II : Read size of each entity i.e. how many mapped elements on 
-      //           each entity.
-      //-----------------------------------------------------------------------
-      store<int> sizes;
-      sizes.allocate(eset);
+    store<int> sizes;
+    sizes.allocate(eset);
 
-      H5::DataSet   sDataset   = group.openDataSet( "ContainerSize");
-      H5::DataSpace sDataspace = sDataset.getSpace();
+    dimension  = eset.size();
+    hid_t v1Dataset   = H5Dopen(group_id,"ContainerSize");
+    hid_t v1Dataspace = H5Dget_space(v1Dataset);
 
-      sDataspace.getSimpleExtentDims( &dimension, NULL);
+    data = new int[dimension];
+    H5Dread(v1Dataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    H5Dclose( v1Dataset  );
+    H5Sclose( v1Dataspace);
 
-      data = new int[dimension];
+    int indx=0, numentities = 0;
+    for(ei= eset.begin(); ei != eset.end(); ++ei)
+      sizes[*ei]   =  data[indx++];
+    delete [] data;
 
-      sDataset.read( data,  H5::PredType::NATIVE_INT );
+    entitySet  ecommon = eset;
+    store<int> user_sizes;
+    user_sizes.allocate(ecommon);
 
-      int indx=0, numentities = 0;
-      for(ei= eset.begin(); ei != eset.end(); ++ei){
-        sizes[*ei]   =  data[indx];
-        numentities +=  data[indx];
-        indx++;
+    for(ei= ecommon.begin(); ei != ecommon.end(); ++ei)
+      user_sizes[*ei] =  sizes[*ei]; 
+
+    allocate(user_sizes);
+
+    hid_t v2Dataset   = H5Dopen(group_id,"MultiMap");
+    hid_t v2Dataspace = H5Dget_space(v2Dataset);
+    H5Sget_simple_extent_dims (v2Dataspace, &dimension, NULL);
+
+    data = new int[dimension];
+    H5Dread(v2Dataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+
+    H5Dclose( v2Dataset  );
+    H5Sclose( v2Dataspace);
+
+    //-----------------------------------------------------------------------
+    // For each hyperslab, read the data as contiguous chunck and assign
+    // values to the multimap.
+    //-----------------------------------------------------------------------
+
+    int vecsize;
+    int num_intervals = ecommon.num_intervals();
+    interval *it = new interval[num_intervals];
+
+    for(int i=0;i<num_intervals;i++) it[i] = ecommon[i];
+
+    indx = 0;
+    for(int i=0;i<num_intervals;i++){
+      for(int j=it[i].first;j<=it[i].second;j++) {
+        vecsize = sizes[j];
+        attrib_data[j].clear();
+        for( int k = 0; k < vecsize; k++)
+          attrib_data[j].push_back( data[indx++] );
       }
-
-      //-----------------------------------------------------------------------
-      // Now we know all the entities and their size, we can allocate memory 
-      // for them.
-      //-----------------------------------------------------------------------
-      entitySet  ecommon = eset & user_eset;
-      store<int> user_sizes;
-      user_sizes.allocate(ecommon);
-
-      for(ei= eset.begin(); ei != eset.end(); ++ei)
-          if( user_eset.inSet(*ei) ) user_sizes[*ei] =  sizes[*ei]; 
-
-      allocate(user_sizes);
-
-      //-----------------------------------------------------------------------
-      // Part III: Read the mapped data( in this case entities )
-      //-----------------------------------------------------------------------
-
-      H5::DataSet   vDataset   = group.openDataSet( "multimap");
-      H5::DataSpace vDataspace = vDataset.getSpace();
-
-      vDataspace.getSimpleExtentDims( &dimension, NULL);    // file dataspace
-      
-      //declear the variables used by hyperslab
-
-      hssize_t  start_mem[] = {0};  // determines the starting coordinates.
-      hsize_t   stride[]    = {1};  // which elements are to be selected.
-      hsize_t   block[]     = {1};  // size of element block;
-      hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-      hsize_t   count[]     = {0};  // how many positions to select from the dataspace
-
-      // memory dataspace
-      int rank = 1;
-      dimension = numentities;
-      H5::DataSpace mDataspace(rank, &dimension);   // memory dataspace
-
-      //-----------------------------------------------------------------------
-      // For each hyperslab, read the data as contiguous chunck and assign
-      // values to the multimap.
-      //-----------------------------------------------------------------------
-
-      int num_intervals = ecommon.num_intervals();
-      interval *it = new interval[num_intervals];
-
-      for(int i=0;i<num_intervals;i++) it[i] = ecommon[i];
-
-      //-----------------------------------------------------------------------
-      // Calculate the offset of the first element of each interval set
-      //-----------------------------------------------------------------------
-      store<int> offset;
-      offset.allocate( eset );
-      indx = 0;
-      for(ei= eset.begin(); ei != eset.end(); ++ei) {
-          offset[*ei] = indx;
-          indx  += sizes[*ei];
-      }
-
-
-      for(int i=0;i<num_intervals;i++){
-          
-          // How many elements in each hyperslab ...
-          count[0]  = 0;          
-          for(int j=it[i].first;j<=it[i].second;j++) 
-              count[0] += sizes[j];
-          int *buf = new int[count[0]];
-
-          // Read the HDF5 Data ...
-          foffset[0] = offset[it[i].first];
-          mDataspace.selectHyperslab(H5S_SELECT_SET, count, start_mem, stride, block);	
-          vDataspace.selectHyperslab(H5S_SELECT_SET, count, foffset,   stride, block);
-          vDataset.read( buf, datatype, mDataspace, vDataspace);
-
- 	       // Create multimap ....
-          indx = 0;
-          int vecsize;
-          for(int j=it[i].first;j<=it[i].second;j++) {
-              vecsize = sizes[j];
-              attrib_data[j].clear();
-              for( int k = 0; k < vecsize; k++)
-                   attrib_data[j].push_back( buf[indx++] );
-          }
-
-          delete [] buf;
-      }
-
-      delete [] it;
     }
-    catch( H5::HDF5DatasetInterfaceException error )  { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error ) { error.printerror(); }
+    delete [] data;
+    delete [] it;
+
   }
 
   //***************************************************************************
 
-  void dmultiMapRepI::writehdf5( H5::Group group,entitySet& en) const
+  void dmultiMapRepI::writehdf5( hid_t group_id, entitySet& en) const
   {
 
-    //-------------------------------------------------------------------------
-    // Objective   : Write Multimap Data in HDF5 Format.
-    // Programmer  : Chaman Singh Verma
-    // Date        : 29th May, 2001
-    // Place       : ERC, Mississippi State University.
-    // Status      :
-    // Testing     :
-    // Limitations :
-    // Future Work :
-    // Example     :
-    // Let us assume that we have following multimap data
-    // entity         mapped entities        degree
-    // 0              1                         1
-    // 1              1 2                       2
-    // 2              2 3                       2
-    // 5              5 6 7                     3
-    // 6              6 7 8                     3
-    // 10             1 2 3                     3
-    // 11             2                         1
-    //
-    // Then we have 3 intervals set (0,2),(5,6),(10,11)
-    // 
-    //-------------------------------------------------------------------------
-
     hash_map<int,vector<int> > :: const_iterator  ci;
-    vector<int>   vec;
+    vector<int>   mapvec, vecsize, vec;
     int           numentity;
-
-    hsize_t dimf_domain[1];
-    hsize_t dimf_range[1];
-    hsize_t dimension[1];
-
     int rank = 1;    // One dimensional array
 
+    Loci::HDF5_WriteDomain(group_id, en);
+
     int num_intervals = en.num_intervals();
-    dimf_domain[0]    = num_intervals*2;
 
     interval *it   = new interval[num_intervals];
     for(int i=0;i<num_intervals;i++) it[i] = en[i];
-    //
-    // Calculate total number of mapped data which will be written in the file.
-    //
-    int   range, degree, sum_degree = 0;
+
+    vecsize.resize( en.size() );
+
+    int indx = 0;
     for(int i=0;i<num_intervals;i++){
       for(int j=it[i].first;j<=it[i].second;j++) {
         ci = attrib_data.find(j);
         if( ci != attrib_data.end() ) {
-          vec         = ci->second;
-          sum_degree += vec.size();
+          vec  = ci->second;
+          vecsize[indx++] = vec.size();
+          for( int k = 0; k < vec.size(); k++)
+            mapvec.push_back(vec[k]);
         }
       }
     }
 
-    numentity = en.size();
+    hsize_t dimension =  en.size();
+    hid_t v1Datatype  = H5T_NATIVE_INT;
+    hid_t v1Dataspace = H5Screate_simple(rank, &dimension, NULL);
+    hid_t v1Dataset   = H5Dcreate(group_id, "ContainerSize", v1Datatype,
+                                  v1Dataspace, H5P_DEFAULT);
+    H5Dwrite(v1Dataset, v1Datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+             &vecsize[0]);
+    H5Dclose( v1Dataset  );
+    H5Sclose( v1Dataspace);
 
-    hssize_t  start_mem[] = {0};  // determines the starting coordinates.
-    hsize_t   stride[]    = {1};  // which elements are to be selected.
-    hsize_t   block[]     = {1};  // size of element block;
-    hssize_t  foffset[]   = {0};  // location (in file) where data is written.
-    hsize_t   count[1];           // how many positions to select from the dataspace
+    dimension   = mapvec.size();
 
-    dimension[0]   = sum_degree;
+    hid_t v2Datatype  = H5T_NATIVE_INT;
+    hid_t v2Dataspace = H5Screate_simple(rank, &dimension, NULL);
+    hid_t v2Dataset   = H5Dcreate(group_id, "MultiMap", v2Datatype,
+                                  v2Dataspace, H5P_DEFAULT);
+    H5Dwrite(v2Dataset, v2Datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+             &mapvec[0]);
 
-    H5::DataSpace fdataspace( rank, dimension );     // Dataspace of file
-    H5::DataSpace mdataspace( rank, dimension );     // Dataspace of memory 
-    H5::DataType  datatype = H5::PredType::NATIVE_INT;
+    H5Dclose( v2Dataset  );
+    H5Sclose( v2Dataspace);
 
-    H5::DataSet   dataset = group.createDataSet( "multimap", datatype, fdataspace );
-
-    //-------------------------------------------------------------------------
-    // For each interval, write data in contiguous fashion. There are 3 data 
-    // which have to be written. 
-    // Write the mapped entities using hyperslab. Each hyperslab consists of
-    // contiguous entitySet.
-    // From the example.
-    // 1 st hyperslab :   (1,1,2,2,3)
-    // 2 nd hyperslab :   (5,6,7,6,7,8)
-    // 3 rd hyperslab :   (1,2,3,2)
-    //------------------------------------------------------------------------
-
-    for(int i= 0; i< num_intervals; i++){
-      count[0] = 0;
-      for(int j=it[i].first;j<=it[i].second;j++) {
-        ci = attrib_data.find(j);
-        if( ci != attrib_data.end() ) {
-          vec       = ci->second;
-          count[0] += vec.size();
-        }
-      }
-
-      int *buf = new int[count[0]];
-
-      mdataspace.selectHyperslab(H5S_SELECT_SET, count, start_mem, stride, block);
-      fdataspace.selectHyperslab(H5S_SELECT_SET, count, foffset,   stride, block);
-
-      //
-      // Copy data in temporary buffer, so that it can be written in single call.
-      //
-      int indx = 0;
-      for(int j=it[i].first;j<=it[i].second;j++) {
-        ci = attrib_data.find(j);
-        if( ci != attrib_data.end() ) {
-          vec  = ci->second;
-          for( int k = 0; k < vec.size(); k++)
-            buf[indx++] =  vec[k];
-        }
-      }
-
-      dataset.write( buf, datatype, mdataspace, fdataspace);
-      //
-      // change offset for the second record, and clear the buffer.
-      //
-      foffset[0] += count[0]; 
-      delete[] buf;
-  }
-
-  //---------------------------------------------------------------------------
-  // Second Part: Write the interval set.
-  // From the example, we have three intervals namely (0.2),(5,6),(11,12)
-  // Write them in the file as 1D array (0,2,5,6,11,12). 
-  //---------------------------------------------------------------------------
-
-  int *buf =  new int[2*num_intervals];
-  for(int i=0;i<num_intervals;i++){
-    it[i]      = en[i];
-    buf[i*2]   = it[i].first;
-    buf[i*2+1] = it[i].second;
-  }
-
-  dimension[0] = 2*num_intervals;
-
-  try {
-    H5::DataSpace dDataspace( rank, dimension );
-    H5::DataSet   dDataset = group.createDataSet( "Domain", 
-                              H5::PredType::NATIVE_INT, dDataspace );
-    dDataset.write( buf, H5::PredType::NATIVE_INT );
-  }
-
-  catch( H5::HDF5DatasetInterfaceException   error ){error.printerror();}
-  catch( H5::HDF5DatatypeInterfaceException  error ){error.printerror();} 
-  catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
-
-  delete [] buf;
-   
-  //---------------------------------------------------------------------------
-  // Third part: For each entity write down number of mapped entities
-  // For each entity, write number of degree, so that we can reconstruct the
-  // data later.
-  // From the example. Write in 1D array (1,2,2,3,3,3,1)
-  //---------------------------------------------------------------------------
-
-  int indx = 0;
-  buf  = new int[numentity];
-  entitySet :: const_iterator   ei;
-
-  for( ei = en.begin(); ei != en.end(); ++ei) {
-      ci = attrib_data.find(*ei);
-      if( ci != attrib_data.end() ) {
-        vec   = ci->second;
-        buf[indx++] =  vec.size();
-      }
-  }
-
-  dimension[0] = en.size();
-  try {
-    H5::DataSpace sDataspace( rank, dimension );
-    H5::DataSet   sDataset = group.createDataSet( "ContainerSize", 
-                              H5::PredType::NATIVE_INT, sDataspace );
-    sDataset.write( buf, H5::PredType::NATIVE_INT );
-  }
-
-  catch( H5::HDF5DatasetInterfaceException   error ){error.printerror();}
-  catch( H5::HDF5DatatypeInterfaceException  error ){error.printerror();} 
-  catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
-
-  delete [] buf;
-
-  //---------------------------------------------------------------------------
-  // Clean up :
-  //---------------------------------------------------------------------------
-  delete [] it;
-
+    delete [] it;
   } 
 
   //***************************************************************************
@@ -917,23 +702,6 @@ namespace Loci
   store_instance::instance_type const_dmultiMap::access() const
   { return READ_ONLY ; }
 
-  //***************************************************************************
-
-    
-  void inverseMap(const dmultiMap &input, dmultiMap &result)
-  {
-    vector<int>    vec;
-    entitySet      eset;
-    eset  =   input.domain();
-    entitySet :: const_iterator   ei;
-    for( ei = eset.begin(); ei != eset.end(); ++ei)
-      result[*ei].clear();
-    for( ei = eset.begin(); ei != eset.end(); ++ei) {
-      vec = input[*ei];
-      for(int j = 0; j < vec.size(); j++)
-        result[vec[j]].push_back(*ei);
-    }
-  }
   //****************************************************************************
 
 

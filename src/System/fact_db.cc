@@ -7,8 +7,8 @@
 
 extern "C" {
 #include <hdf5.h>
-
 }
+
 using std::string ; 
 using std::map ;
 using std::make_pair ;
@@ -557,8 +557,9 @@ storeRepP fact_db::get_variable(variable v) {
   }
 
   void fact_db::write_hdf5(const char *filename){
-    H5::H5File file(filename, H5F_ACC_TRUNC);
-
+    hid_t  file_id, group_id;
+    file_id =  H5Fcreate( filename, H5F_ACC_TRUNC,
+                          H5P_DEFAULT, H5P_DEFAULT);
     vmap_type::const_iterator vmi ;
     for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
       variable v=vmi->first;
@@ -566,14 +567,15 @@ storeRepP fact_db::get_variable(variable v) {
       entitySet en=store_Rep->domain();
       std::string groupname = (v.get_info()).name;
       cout<<"Write "<<groupname<<" to HDF5 file "<<endl;
-      //store_Rep->Print(cout);
-      H5::Group group = file.createGroup("/"+groupname);
-      (store_Rep->getRep())->writehdf5(group,en);
+      group_id = H5Gcreate(file_id, groupname.c_str(), 0);
+      (store_Rep->getRep())->writehdf5(group_id, en);
     }
+
   }
 
   void fact_db::read_hdf5(const char *filename){
-    H5::H5File file(filename, H5F_ACC_RDONLY);
+    hid_t  file_id, group_id;
+    file_id = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 
     vmap_type::const_iterator vmi ;
     for(vmi=vmap.begin();vmi!=vmap.end();++vmi) {
@@ -581,10 +583,10 @@ storeRepP fact_db::get_variable(variable v) {
       storeRepP store_Rep = get_variable(v)->getRep();
       std::string groupname = (v.get_info()).name;
       cout<<"Read "<<groupname<<" from HDF5 file "<<endl;
-      if(H5Gopen(file.getId(),groupname.c_str())>0){
-        H5::Group group = file.openGroup("/"+groupname);
+      if(H5Gopen(file_id,groupname.c_str())>0){
+        group_id = H5Gopen(file_id, groupname.c_str());
         entitySet dom = store_Rep->domain() ;
-        store_Rep->readhdf5(group, dom);
+        store_Rep->readhdf5(group_id, dom);
         update_fact(v,store_Rep);
       }
       else

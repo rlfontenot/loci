@@ -1,5 +1,6 @@
 #include <Map.h>
 #include <multiMap.h>
+#include <iostream>
 
 namespace Loci {
 
@@ -222,23 +223,23 @@ namespace Loci {
     return result ;
   }
     
-  ostream &MapRepI::Print(ostream &s) const {
-    s << '{' << domain() << endl ;
+  std::ostream &MapRepI::Print(std::ostream &s) const {
+    s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
-      s << base_ptr[ii] << endl ;
+      s << base_ptr[ii] << std::endl ;
     }ENDFORALL ;
-    s << '}' << endl ;
+    s << '}' << std::endl ;
     return s ;
   }
 
 
-  istream &MapRepI::Input(istream &s) {
+  std::istream &MapRepI::Input(std::istream &s) {
     entitySet e ;
     char ch ;
     
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
-      std::cerr << "Incorrect Format while reading store" << endl ;
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -251,13 +252,14 @@ namespace Loci {
     
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
-      std::cerr << "Incorrect Format while reading store" << endl ;
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
       s.putback(ch) ;
     }
     return s ;
   }
 
-  void MapRepI::readhdf5(H5::Group group, entitySet &eset){
+  void MapRepI::readhdf5(hid_t group_id, entitySet &eset){
+/*
       hsize_t dims_map[1];
       
       try{
@@ -334,10 +336,12 @@ namespace Loci {
       catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
       catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
       catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+*/
+    std::cout << " Map Read not implemented " << std::endl;
     } 
 
-  void MapRepI::writehdf5(H5::Group group,entitySet& en) const{
-    //entitySet en=domain();
+  void MapRepI::writehdf5(hid_t group,entitySet& en) const{
+/*
       int dim=en.size();
       //int *data_map = new int[dim];
       hsize_t dimf[1];
@@ -411,6 +415,7 @@ namespace Loci {
       catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
       catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();} 
       catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();} 
+*/
     } 
 
   Map::~Map() {}
@@ -722,28 +727,28 @@ namespace Loci {
     return multiMap(storeRepP(this)) ;
   }
     
-  ostream &multiMapRepI::Print(ostream &s) const {
-    s << '{' << domain() << endl ;
+  std::ostream &multiMapRepI::Print(std::ostream &s) const {
+    s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
-      s << end(ii)-begin(ii) << endl ;
+      s << end(ii)-begin(ii) << std::endl ;
     } ENDFORALL ;
     FORALL(domain(),ii) {
       for(const int *ip = begin(ii);ip!=end(ii);++ip)
         s << *ip << " " ;
-      s << endl;
+      s << std::endl;
     } ENDFORALL ;
-    s << '}' << endl ;
+    s << '}' << std::endl ;
     return s ;
   }
 
 
-  istream &multiMapRepI::Input(istream &s) {
+  std::istream &multiMapRepI::Input(std::istream &s) {
     entitySet e ;
     char ch ;
     
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
-      std::cerr << "Incorrect Format while reading store" << endl ;
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -763,15 +768,15 @@ namespace Loci {
             
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
-      std::cerr << "Incorrect Format while reading store" << endl ;
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
       s.putback(ch) ;
     }
     return s ;
   }
 
-    void multiMapRepI::readhdf5( H5::Group group, entitySet &en) {
+    void multiMapRepI::readhdf5( hid_t group_id, entitySet &en) {
+/*
       try{
-	//get domain data
 	H5::DataSet dataset_domain = group.openDataSet( "domain");
 	H5::DataSpace dataspace_domain = dataset_domain.getSpace();
 	hsize_t dims_domain[1];
@@ -847,9 +852,12 @@ namespace Loci {
       catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
       catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
       catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+*/
+    std::cout << " Multimap not implemented " << std::endl;
     }
 
-    void multiMapRepI::writehdf5( H5::Group group,entitySet& en) const{
+    void multiMapRepI::writehdf5( hid_t group_id, entitySet& en) const{
+/*
       //entitySet en=domain();
       hsize_t dimf_domain[1];
       hsize_t dimf_range[1];
@@ -918,28 +926,32 @@ namespace Loci {
       //reclaim memory
       delete [] it;
       delete [] data_domain;
+*/
     } 
   
-  int* multiMapRepI::get_hdf5_data(H5::Group group,const char* datasetname){
+  int* multiMapRepI::get_hdf5_data(hid_t group_id, const char* datasetname){
+      int *data = NULL;
+/*
       H5::DataSet dataset = group.openDataSet( datasetname);
       H5::DataSpace dataspace = dataset.getSpace();
       hsize_t dims [1];
       dataspace.getSimpleExtentDims(dims , NULL);
       int *data  = new int[dims [0]];
       dataset.read(data , H5::PredType::NATIVE_INT );
+*/
       return data;
     }
   
-    void multiMapRepI::put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const{
+    void multiMapRepI::put_hdf5_data( hid_t group_id, int* data, 
+                                      const char* datasetname,hsize_t* dimf) const{
+/*
        int RANK=1;
       try{
 	H5::DataSpace dataspace( RANK, dimf );
 	H5::DataSet dataset = group.createDataSet( datasetname, H5::PredType::NATIVE_INT, dataspace );
 	dataset.write( data, H5::PredType::NATIVE_INT );
       }
-      catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
-      catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();} 
-      catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+*/
     }
 
   multiMap::~multiMap() {}
