@@ -29,7 +29,7 @@ libhdf5CC.so: $(OBJS)
 	$(LD) $(LDFLAGS) -shared -o libhdf5CC.so $(OBJS) 
 
 
-JUNK =  *~ core ii_files ti_files KCC_files so_locations
+JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK)
