@@ -701,6 +701,7 @@ namespace Loci {
               ++vi) {
             all_requests[*vi] += vreq_map[*vi] ;
             entitySet remain = vreq_map[*vi] & recurse_entities[*vi] ;
+            
             remain -= my_entities ;
             recurse_send_req[*vi].push_back(remain) ;
           }
@@ -736,6 +737,16 @@ namespace Loci {
           pre_req_comm.push_back(precomm) ;
         }
       }
+      // Add communications for requests that come from recursive rules
+      // for results from non-recursive rules.
+      for(variableSet::const_iterator vi = recurse_vars.begin();
+          vi!= recurse_vars.end();
+          ++vi) {
+        variable v = *vi ;
+        entitySet pre_req = all_requests[v] & ~recurse_entities[v] & ~orig_requests[v]  & ~my_entities ;
+        send_requests(pre_req,v,facts,pre_req_comm) ;
+      }
+
       
       list<comm_info> post_req_comm ;
       for(variableSet::const_iterator vi = recurse_vars.begin();
@@ -745,6 +756,7 @@ namespace Loci {
         entitySet requests = orig_requests[v] ;
         requests &= recurse_entities[v] ;
         requests -= recurse_comm[*vi] ;
+        
         send_requests(requests,v,facts,post_req_comm) ;
       }
       pre_clist = sort_comm(pre_req_comm,facts) ;
