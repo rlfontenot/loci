@@ -29,16 +29,12 @@ namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;
-  extern double barrier_time ;
   
   void Init(int* argc, char*** argv) ;
   void Finalize() ; 
   void Abort() ;
   
   void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 ) ;
-  void categories(fact_db &facts,std::vector<entitySet> &pvec) ;
-  std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, entitySet> &vm, std::vector<interval> &pvec) ;
-  void get_mappings(rule_db &rdb, fact_db &facts, std::set<std::vector<variableSet> > &maps) ;
   dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   std::vector<dMap> send_global_map(Map &attrib_data, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   void fill_clone(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
@@ -48,40 +44,23 @@ namespace Loci {
   storeRepP send_clone_non(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   std::vector<storeRepP> send_global_clone_non(storeRepP &sp , entitySet &out_of_dom,  std::vector<entitySet> &init_ptn) ;
   std::vector<storeRepP> fill_global_clone(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-  entitySet expand_map(entitySet domain, fact_db &facts,
-		       const std::set<std::vector<variableSet> > &maps) ;
   
-  entitySet dist_expand_map(entitySet domain, fact_db &facts,
-		       const std::set<std::vector<variableSet> > &maps) ;
   std::vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
-  std::vector<entitySet> generate_scalable_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
-  std::vector<entitySet> read_partition(const char *fname,int num_partitions) ;
-  void write_partition(const char *fname, const std::vector<entitySet> &ptn) ;
 
   void distribute_facts(std::vector<entitySet> &ptn, fact_db &facts,
                         rule_db &rdb) ;
   
-  entitySet fill_entitySet(const entitySet& e, fact_db &facts) ;
-  std::vector<entitySet> fill_entitySet(const std::vector<entitySet>& e,
-                                        fact_db &facts) ;
-  entitySet send_entitySet(const entitySet& e, fact_db &facts) ;
-  std::vector<entitySet> send_entitySet(const std::vector<entitySet>& e,
-                                        fact_db &facts) ;
-  void print_global(entitySet e, fact_db &facts) ;
   entitySet collect_entitySet(entitySet e, fact_db &facts) ;
   storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
   storeRepP collect_global_store(storeRepP &sp) ;
   Map distribute_global_map(Map &m, const std::vector<entitySet> &vset) ;
   Map distribute_gmap(Map &m, const std::vector<entitySet> &vset) ;
-  Map distribute_whole_map(Map &m) ;
   storeRepP collect_reorder_store(storeRepP &sp, dMap &remap, fact_db &facts) ;
   void distribute_reorder_store(storeRepP &new_sp, storeRepP sp_init, dMap &remap, fact_db &facts) ;
   
   void write_container(hid_t group_id, storeRepP qrep) ;
   void read_container(hid_t group_id, storeRepP qrep, entitySet &dom) ;
-  void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint) ;
-  void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size) ;
-  void write_vector_int(hid_t group_id, const char* name, std::vector<int>& vint) ;
+
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) ;
 
   extern fact_db *exec_current_fact_db ;
@@ -112,6 +91,10 @@ namespace Loci {
   int GLOBAL_MAX(int b) ;
   int GLOBAL_MIN(int b) ;
   dMap distribute_dMap(dMap m, const std::vector<entitySet> &init_ptn) ;
+
+  void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint) ;
+  void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size) ;
+  void write_vector_int(hid_t group_id, const char* name, std::vector<int>& vint) ;
 }
 #endif
  
