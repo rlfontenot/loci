@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REVISION_NAME='$Name: rel-1-0-beta-10 $'
+REVISION_NAME='$Name:  $'
 
 INSTALL_DIR=${LOCI_INSTALL_DIR-/usr/local}
 
@@ -34,14 +34,14 @@ echo Installing \#include files
 mkdir -p $INSTALL_PATH/include
 cp include/*.h $INSTALL_PATH/include
 
-for i in  Tools Config ; do
+for i in  Tools Config MPI_stubb ; do
     mkdir -p $INSTALL_PATH/include/$i
     cp include/$i/*.h $INSTALL_PATH/include/$i
 done
 
 
-echo Installing gcc 2.95 include fixes
-mkdir -p $INSTALL_PATH/include/g++-fixes
-cp -f include/g++-fixes/* $INSTALL_PATH/include/g++-fixes
+#echo Installing gcc 2.95 include fixes
+#mkdir -p $INSTALL_PATH/include/g++-fixes
+#cp -f include/g++-fixes/* $INSTALL_PATH/include/g++-fixes
 
 chmod -R a+rX $INSTALL_PATH
