@@ -20,6 +20,7 @@
 #include <variable.h>
 #include <Map.h>
 #include <parameter.h>
+#include <blackbox.h>
 #include <storeVec.h>
 #include <storeMat.h>
 #include <multiStore.h>
@@ -253,6 +254,25 @@ namespace Loci {
     }
   }
   
+  template<class Type,class Op> class joinOp<blackbox<Type>,Op> : public joiner {
+    Op join ;
+  public:
+    CPTR<joiner> clone() 
+      { return CPTR<joiner>(new joinOp<blackbox<Type>,Op> ); }
+    
+    virtual void SetArgs(storeRepP &target, storeRepP &source)
+    { std::cerr << "Blackbox Joiner should not be called" << std::endl; }
+    
+    virtual storeRepP getTargetRep()
+      { return 0; }
+    
+    virtual void Join(const sequence &seq)
+      {std::cerr << "Blackbox Joiner should not be called" << std::endl; }
+    
+    virtual void Join(Map &t2s, const sequence &seq)
+      {std::cerr << "Blackbox Joiner should not be called" << std::endl; }
+  } ;
+
   template<class Type,class Op> class joinOp<param<Type>,Op> : public joiner {
     Op join ;
     param<Type> s,t ;
@@ -384,6 +404,11 @@ namespace Loci {
 
   } ;
   
+  template <class T> struct NullOp {
+    void operator()(T &res, const T &arg)
+    { std::cerr << "join should not be called for NullOp" << std::endl; }
+  } ;
+
   template <class T> struct Summation {
     void operator()(T &res, const T &arg)
     { res += arg ; }
