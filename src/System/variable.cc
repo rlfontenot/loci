@@ -173,14 +173,15 @@ bool variable::info::operator<(const info &v) const {
   }
   
   variable::variable(const exprP &p) {
+#ifndef __GNUG__
+		std::string __PRETTY_FUNCTION__("variable::variable(const exprP &p)");
+#endif
     create_vdb() ;
     info v ;
     exprP e = p ;
-
-		if(OP_GT == e->op) {
-			if (v.namespac[0]=="*NONAMESPACE*")
-				v.namespac.clear();
-			exprList l = collect_associative_op(e,OP_GT);
+		if(OP_AT == e->op) {
+			//cout << __PRETTY_FUNCTION__ << ": Parsing namespaces" << endl;
+			exprList l = collect_associative_op(e,OP_AT);
 			while(l.begin() != l.end()) {
 				exprP s = l.front();
 				l.pop_front();
@@ -426,12 +427,19 @@ bool variable::info::operator<(const info &v) const {
   }
 
 	variable variable::info::drop_namespace() const {
-		info vi = *this;
-		for(int i=0;i<vi.namespac.size()-1;++i) {
-			vi.namespac[i] = vi.namespac[i+1];
+    info vi = *this ;
+		if (vi.namespac.empty())
+			return variable(vi);
+#ifndef __GNUG__
+		std::string __PRETTY_FUNCTION__("variable::info::drop_namespace()");
+#endif
+		cout << __PRETTY_FUNCTION__ << ": vi.namespac.size() = " << vi.namespac.size()-1 << endl;
+    for(int i = 0;i<vi.namespac.size()-1;++i) {
+			cout << __PRETTY_FUNCTION__ << ": i=" << i << endl;
+      vi.namespac[i] = vi.namespac[i+1] ;
 		}
-		vi.namespac.pop_back();
-		return variable(vi);
+    vi.namespac.pop_back() ;
+    return variable(vi) ;
 	}
 
 	variable variable::info::add_namespace(const std::string& n) const {
@@ -455,7 +463,7 @@ bool variable::info::operator<(const info &v) const {
 	if(namespac.begin() != namespac.end()) {
 		for(vector<string>::const_iterator i=namespac.begin();
 				i!=namespac.end();++i) {
-			s << *i << ">" ;
+			s << *i << "@" ;
 		}
 	}
 		
