@@ -5,6 +5,11 @@
 #include <depend_graph.h>
 #include <Map.h>
 
+#define PROFILE_CODE
+#ifdef PROFILE_CODE
+#include <time.h>
+#endif
+
 using namespace Loci ;
 
 #include <map>
@@ -2143,11 +2148,35 @@ executeP decompose_graph::execution_schedule(fact_db &facts) {
   
 }
 
+#ifndef _TIMEVAL_T
+struct timeval {
+  time_t tv_sec ;
+  long tv_usec ;
+} ;
+#endif
+
+double get_timer() {
+#ifdef PROFILE_CODE
+  clock_t tc ;
+  static double to = 0;
+  double tn,t ;
+  tc = clock() ;
+  tn = tc/1000000.0 ;
+  t = tn - to ;
+  to = tn ;
+  return t ;
+#else
+  return -1.0 ;
+#endif
+}
+
 namespace Loci {
   executeP create_execution_schedule(rule_db &rdb,
                                      fact_db &facts,
                                      std::string target_string) {
-  
+
+    double timer = get_timer() ;
+    
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
     
@@ -2163,11 +2192,17 @@ namespace Loci {
     
     cout << "decomposing graph..." << endl ;
     decompose_graph decomp(gr,given,target) ;
+
+    timer = get_timer() ;
+    cout << "Graph Processing Time: "<<timer << " seconds" << endl ;
     
     cout << "existential analysis..." << endl ;
     decomp.existential_analysis(facts) ;
     
     cout << "creating execution schedule..." << endl;
-    return decomp.execution_schedule(facts) ;
+    executeP sched =  decomp.execution_schedule(facts) ;
+    timer = get_timer() ;
+    cout << "Schedule Generation Time: " << timer << " seconds" << endl ;
+    return sched ;
   }
 }
