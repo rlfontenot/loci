@@ -1074,7 +1074,6 @@ namespace Loci {
 	for(int k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,11, MPI_COMM_WORLD, &size_request[k]);
 	
-	
 	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
 	
 	recv_buffer = new int*[MPI_processes-1] ;
