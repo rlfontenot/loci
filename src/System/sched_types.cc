@@ -213,8 +213,7 @@ namespace Loci {
         variable c1 = var_to_cluster[v1] ;
         variable c2 = var_to_cluster[v2] ;
         if(c1 == c2) {
-          cerr << "Rules that rename variables make variables distinct that are al
-so equivalent!" << endl ;
+          cerr << "Rules that rename variables make variables distinct that are al so equivalent!" << endl ;
           cerr << "variables = " << v1 << "," << v2
                << ", cluster = " << c1 << "," << c2 << endl ;
         }
