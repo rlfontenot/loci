@@ -8,8 +8,6 @@
 #include <store_rep.h>
 #include <istream>
 #include <ostream>
-#include <hdf5_readwrite.h>
-
 #include <data_traits.h>
 
 namespace Loci {
@@ -21,13 +19,25 @@ namespace Loci {
 #ifdef ALLOW_DEFAULT_CONVERTER
     void hdf5read(hid_t group, DEFAULT_CONVERTER  g );
     void hdf5write( hid_t group, DEFAULT_CONVERTER g,     const entitySet &en) const;
+    int get_mpi_size( DEFAULT_CONVERTER c, const entitySet &eset);
+    void packdata(DEFAULT_CONVERTER c,      void *ptr, int &loc, int size);
+    void unpackdata(DEFAULT_CONVERTER c,      void *ptr, int &loc, int &size);
+    void StringVal( const int &entity, const int &ivec, std::string &memento);
 #endif
-
     void hdf5read(hid_t group, IDENTITY_CONVERTER g );
     void hdf5read(hid_t group, USER_DEFINED_CONVERTER g );
 
     void hdf5write( hid_t group, IDENTITY_CONVERTER g,    const entitySet &en) const;
     void hdf5write( hid_t group, USER_DEFINED_CONVERTER g,const entitySet &en) const;
+
+    int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
+    int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
+
+    void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size );
+    void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size );
+
+    void unpackdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int &size);
+    void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int &size);
 
   public:
     paramRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ; }
@@ -134,32 +144,28 @@ namespace Loci {
   template<class T> 
   void paramRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
   {
-    /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
     entitySet eset, ecommon;
-    HDF5_ReadDomain(group_id, eset);
+    Loci::HDF5_ReadDomain(group_id, eset);
 
     ecommon = eset & user_eset;
-
     allocate( ecommon );
-
     hdf5read(group_id, traits_output_type );
-    */
   }
 
   //**************************************************************************/
 
   template<class T> 
-  void paramRepI<T>::writehdf5( hid_t group_id, entitySet &en) const
+  void paramRepI<T>::writehdf5( hid_t group_id, entitySet &eset) const
   {
-    /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
-    hdf5write(group_id, traits_output_type, en);
-    */
+    Loci::HDF5_WriteDomain(group_id, eset);
+
+    hdf5write(group_id, traits_output_type, eset);
 
   }
 
@@ -210,6 +216,8 @@ namespace Loci {
 
     void set_entitySet(const entitySet &ptn) {Rep()->allocate(ptn); }
 
+    entitySet domain() const { return Rep()->domain(); }
+
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;
@@ -223,9 +231,9 @@ namespace Loci {
   template<class T> 
   void param<T>::notification()
   {  
-     NPTR<paramType> p(Rep());
-     if(p!=0) data = p->get_param() ;
-     warn(p==0);
+    NPTR<paramType> p(Rep());
+    if(p!=0) data = p->get_param() ;
+    warn(p==0);
   }
 
   //**************************************************************************/
@@ -278,6 +286,8 @@ namespace Loci {
 #endif
       return *data ;
     }
+
+    entitySet domain() const { return Rep()->domain(); }
     
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
@@ -291,9 +301,9 @@ namespace Loci {
   template<class T> 
   void const_param<T>::notification() 
   {  
-     NPTR<paramType> p(Rep());
-     if(p!=0) data = p->get_param() ;
-     warn(p==0);
+    NPTR<paramType> p(Rep());
+    if(p!=0) data = p->get_param() ;
+    warn(p==0);
   }
     
   //**************************************************************************/
@@ -345,32 +355,197 @@ namespace Loci {
   //**************************************************************************/
  
   template <class T> 
-  int paramRepI<T>::pack_size( const entitySet &e) 
+  int paramRepI<T>::pack_size( const entitySet &eset) 
   {
-    int size ;
-    size = sizeof(T);
-    return(size) ;
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+    return get_mpi_size( traits_type, eset );
   }
 
+  //**************************************************************************/
+#ifdef ALLOW_DEFAULT_CONVERTER
+  template <class T>
+  int paramRepI<T>::get_mpi_size( DEFAULT_CONVERTER c, const entitySet &eset)
+  {
+    std::ostringstream oss;
+    oss << attrib_data << endl;
+    std::string memento = oss.str();
+    return( memento.length() + sizeof(int));
+  }
+#endif
+
+  //**************************************************************************/
+
+  template <class T>
+  int paramRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
+  {
+    return( sizeof(T) ) ;
+  }
+
+  //**************************************************************************/
+
+  template <class T>
+  int paramRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
+  {
+    typedef data_schema_traits<T> schema_traits;
+
+    typename schema_traits::Converter_Type cvtr(attrib_data);
+    int arraySize = cvtr.getSize() ;
+
+    return(arraySize*sizeof(typename schema_traits::Converter_Base_Type) );
+  }
   //**************************************************************************/
 
   template <class T> 
   void paramRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &e ) 
   {
-    MPI_Pack(&attrib_data, sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    packdata( traits_type, ptr, loc, size);
+  }
+
+  //**************************************************************************/
+
+#ifdef ALLOW_DEFAULT_CONVERTER
+  template <class T>
+  void paramRepI<T>::packdata( DEFAULT_CONVERTER c, void *outbuf,
+                               int &position, int outcount)
+  {
+    std::ostringstream oss;
+    oss << attrib_data;
+    std::string memento = oss.str();
+    int bufSize = memento.length();
+    MPI_Pack( &bufSize, 1, MPI_INT, outbuf, outcount, 
+              &position, MPI_COMM_WORLD) ;
+    MPI_Pack( &memento[0], bufSize, MPI_BYTE, outbuf, outcount, 
+              &position, MPI_COMM_WORLD) ;
+
+  }
+#endif
+  //**************************************************************************/
+  template <class T>
+  void paramRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position,
+                               int outcount )
+  {
+/*
+    typedef data_schema_traits<T> traits_type;
+    DatatypeP    atom_type = traits_type::get_type();
+    MPI_Datatype datatype  = atom_type->get_mpi_type();
+*/
+
+    MPI_Pack( &attrib_data, sizeof(T), MPI_BYTE, outbuf, outcount, &position, 
+              MPI_COMM_WORLD) ;
   }
 
   //**************************************************************************/
 
   template <class T> 
+  void paramRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
+                               int &position, int outcount )
+  {
+    int stateSize;
+    
+    typedef data_schema_traits<T> schema_traits; 
+    typedef typename schema_traits::Converter_Base_Type dtype;
+
+    int typesize = sizeof(dtype);
+
+    typename data_schema_traits<T>::Converter_Type cvtr( attrib_data );
+
+    std::vector<dtype> inbuf(cvtr.getSize());
+    cvtr.getState( &inbuf[0], stateSize);
+
+    MPI_Pack(&stateSize, 1, MPI_INT, outbuf, outcount,&position,
+             MPI_COMM_WORLD);
+    int incount =  stateSize*typesize;
+    MPI_Pack(&inbuf[0], incount, MPI_BYTE, outbuf, outcount, &position, 
+             MPI_COMM_WORLD) ;
+
+  }
+  //**************************************************************************/
+
+  template <class T> 
   void paramRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq)  {
-    MPI_Unpack(ptr, size, &loc, &attrib_data, sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    unpackdata( traits_type, ptr, loc, size);
   }  
 
   //**************************************************************************/
+
+#ifdef ALLOW_DEFAULT_CONVERTER
+  template <class T> 
+  void paramRepI<T>::unpackdata( DEFAULT_CONVERTER c, void *inbuf, int &position, 
+                                 int &insize)
+  {
+    int   outcount;
+
+    MPI_Unpack( inbuf, insize, &position, &outcount, 1,
+                MPI_INT, MPI_COMM_WORLD) ;
+
+    if( outcount < 1) return;
+
+    vector<char> outbuf(outcount);
+
+    MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount,
+                MPI_BYTE, MPI_COMM_WORLD);
+
+    istringstream iss(&outbuf[0]);
+    iss >> attrib_data;
+  }
+#endif
+  //**************************************************************************/
+  template <class T> 
+  void paramRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position, 
+                                 int &insize)
+  {
+
+/*
+    typedef data_schema_traits<T> traits_type;
+    DatatypeP    atom_type = traits_type::get_type();
+    MPI_Datatype datatype  = atom_type->get_mpi_type();
+*/
+    MPI_Unpack( inbuf, insize, &position, &attrib_data, sizeof(T), 
+                MPI_BYTE, MPI_COMM_WORLD) ;
+
+  }
+
+  //***********************************************************************/
+  template <class T> 
+  void paramRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
+                                 int &position, int &insize)
+  {
+
+    int  stateSize, outcount;
+
+    typedef data_schema_traits<T> schema_traits;
+    typedef typename schema_traits::Converter_Base_Type dtype;
+
+
+    MPI_Unpack( inbuf, 1, &position, &stateSize, outcount, 
+                MPI_INT, MPI_COMM_WORLD) ;
+
+    vector<dtype> outbuf(stateSize);
+
+
+    outcount = stateSize*sizeof(dtype);
+    MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, 
+                MPI_BYTE, MPI_COMM_WORLD) ;
+
+    typename schema_traits::Converter_Type  cvtr( attrib_data );
+    cvtr.setState( &outbuf[0], stateSize);
+
+  }
+
+  //***********************************************************************/
   
   template<class T> store_instance::instance_type
-    const_param<T>::access() const
+  const_param<T>::access() const
   { return READ_ONLY; }
 
   //**************************************************************************/
@@ -386,7 +561,6 @@ namespace Loci {
   void paramRepI<T> :: hdf5write( hid_t group_id, DEFAULT_CONVERTER g,
                                   const entitySet &eset ) const
   {
-    HDF5_WriteDomain(group_id, eset);
 
     int rank = 1;
     hsize_t dimension[1];
@@ -399,7 +573,7 @@ namespace Loci {
     dimension[0]  =  size+1;
 
     hid_t vDataspace = H5Screate_simple(rank, dimension, NULL);
-    hid_t vDatatype  = H5Tcopy(H5T_NATIVE_CHAR);
+    hid_t vDatatype  = H5T_NATIVE_CHAR;
     hid_t vDataset   = H5Dcreate(group_id, "VariableData", vDatatype,
                                  vDataspace, H5P_DEFAULT);
     H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
@@ -417,9 +591,6 @@ namespace Loci {
   void paramRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
                                   const entitySet &eset ) const
   {
-
-    HDF5_WriteDomain(group_id, eset);
-
     int arraySize =  eset.size(); 
 
     typedef data_schema_traits<T> traits_type;
@@ -427,8 +598,8 @@ namespace Loci {
     DatatypeP  dtype = traits_type::get_type();
     hid_t vDatatype = dtype->get_hdf5_type();
 
-    int rank = 1;
-    hsize_t  dimension = eset.size();
+    int      rank = 1;
+    hsize_t  dimension = 1;
 
     entitySet :: const_iterator ci;
 
@@ -455,120 +626,99 @@ namespace Loci {
                                   const entitySet &eset) const
   {
 
-    //write out the domain   
-    //    HDF5_WriteDomain(group, eset);
-    cout << " NOT WRITTEN SO FAR " << endl;
-    exit(0);
-    /*
+    typedef data_schema_traits<T> schema_traits ;
+    typedef typename schema_traits::Converter_Base_Type dtype;
 
-//-----------------------------------------------------------------------------
-// Get the sum of each object size and maximum size of object in the 
-// container for allocation purpose
-//-----------------------------------------------------------------------------
-    typedef data_schema_converter_traits<T> converter_traits; 
-    converter_traits::memento_type *data, *buf;
+    dtype *data ;
 
-    Memento<T> memento( &attrib_data );
-    int arraySize = memento.getSize();
-    
- 	 data =  new typename converter_traits::memento_type[arraySize];
- 	 buf  =  new typename converter_traits::memento_type[arraySize];
+    //-----------------------------------------------------------------------------
+    // Collect state data from each object and put into 1D array
+    //-----------------------------------------------------------------------------
+    T Obj;
+    Obj = attrib_data;
 
-//-----------------------------------------------------------------------------
-// Collect state data from each object and put into 1D array
-//-----------------------------------------------------------------------------
+    typename schema_traits::Converter_Type cvtr(Obj);
+    int stateSize  = cvtr.getSize();
 
-    size_t indx = 0;
-    int    stateSize;
-    memento.getState(data, stateSize);
+    data =  new dtype[stateSize];
 
-//-----------------------------------------------------------------------------
-// Write (variable) Data into HDF5 format
-//-----------------------------------------------------------------------------
+    cvtr.getState( data, stateSize);
+
+    //-----------------------------------------------------------------------------
+    // Write (variable) Data into HDF5 format
+    //-----------------------------------------------------------------------------
+
+    typedef data_schema_traits<dtype> traits_type;
+
+    DatatypeP atom_type = traits_type::get_type() ;
+    hid_t vDatatype = atom_type->get_hdf5_type();
+
     int rank = 1;
-    hsize_t  dimension[1];
+    hsize_t dimension = stateSize;
+    hid_t vDataspace  = H5Screate_simple(rank, &dimension, NULL);
+    hid_t vDataset    = H5Dcreate(group_id, "VariableData", vDatatype, vDataspace,
+                                  H5P_DEFAULT);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 
-    dimension[0] =  stateSize;
-
-      H5::DataSpace vDataspace( rank, dimension );
-      H5::DataType  vDatatype = converter_traits::get_variable_HDF5_type();
-      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
-      vDataset.write( data, vDatatype );
+    //-----------------------------------------------------------------------
+    // Clean up
+    //-----------------------------------------------------------------------
+    H5Dclose( vDataset  );
+    H5Sclose( vDataspace);
+    H5Tclose( vDatatype );
 
     delete [] data;
-    delete [] buf;
-*/
+
   };
 
   //***********************************************************************/
 
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
-  void paramRepI<T> :: hdf5read(hid_t group, DEFAULT_CONVERTER g )
+  void paramRepI<T> :: hdf5read(hid_t group_id, DEFAULT_CONVERTER g )
   {
 
-/*
-    entitySet    eset;
+    hsize_t  dimension;
 
-    typedef data_schema_traits <T> traits_type;
-    entitySet num;	
+    hid_t vDatatype  = H5T_NATIVE_CHAR;
+    hid_t vDataset   = H5Dopen(group_id,"VariableData");
+    hid_t vDataspace = H5Dget_space(vDataset);
+    H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    //get domain data
-    try{
-      H5::DataSet dataset_domain      = group.openDataSet( "domain");
-      H5::DataSpace dataspace_domain  = dataset_domain.getSpace();
+    vector<char> ibuf(dimension);
+    H5Dread(vDataset,H5T_NATIVE_CHAR,H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
 
-      hsize_t dims_domain[1];
-      dataspace_domain.getSimpleExtentDims( dims_domain, NULL);
-      int *data_domain = new int[dims_domain[0]];
-      dataset_domain.read( data_domain, H5::PredType::NATIVE_INT );
+    std::istringstream iss(&ibuf[0]);
 
-      for(int i=0;i<dims_domain[0];i++){
-        num |=interval(data_domain[i],data_domain[i+1]);
-        i++;
-      }
+    iss >> attrib_data;
 
-      //get param data
-      H5::DataType datatype         =  traits_type::get_type();
-      H5::DataSet dataset_param     =  group.openDataSet( "param");
-      H5::DataSpace dataspace_param =  dataset_param.getSpace();
-
-      hsize_t dims_param[1];
-      dataspace_param.getSimpleExtentDims( dims_param, NULL);
-
-      char* data_param = new char[dims_param[0]];
-      dataset_param.read( data_param, datatype );
-      std::istringstream iss(data_param);
-
-      iss >> attrib_data;
-      delete [] data_param;
-      delete [] data_domain;
-    }
-    catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
-    catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
-    catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
-*/
-
+    H5Dclose( vDataset  );
+    H5Sclose( vDataspace);
   };
 #endif
+
   //**************************************************************************/
 
   template <class T> 
   void paramRepI<T> :: hdf5read(hid_t group_id, IDENTITY_CONVERTER g )
   { 
-/*
-    typedef data_schema_traits <T> traits_type;
-    H5::DataType  vDatatype = traits_type::get_type();
 
-    try {
-	   H5::DataSet   vDataset   = group.openDataSet( "VariableData");
+    hsize_t  dimension;
 
-      vDataset.read( &attrib_data, vDatatype );
-    }
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
-*/
+    typedef data_schema_traits<T> traits_type;
+    DatatypeP  dtype = traits_type::get_type();
+
+    hid_t vDatatype  = dtype->get_hdf5_type();
+    hid_t vDataset   = H5Dopen(group_id,"VariableData");
+    hid_t vDataspace = H5Dget_space(vDataset);
+    H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
+
+    H5Dread(vDataset, vDatatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &attrib_data);
+
+    H5Dclose( vDataset  );
+    H5Sclose( vDataspace);
+    H5Tclose( vDatatype );
+
   };
 
   //*************************************************************************/
@@ -577,38 +727,39 @@ namespace Loci {
   void paramRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER g )
   { 
 
-/*
-   //---------------------------------------------------------------------------
-   // Read the data now ....
-   //---------------------------------------------------------------------------
-   hsize_t   dimension[1];
+    hsize_t   dimension;
 
-   typedef data_schema_converter_traits<T> converter_traits; 
-   converter_traits::memento_type *data, *buf;
+    typedef data_schema_traits<T> schema_traits ;
+    typedef typename schema_traits::Converter_Base_Type dtype;
 
-   H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
-	H5::DataSet   vdataset   = group.openDataSet( "VariableData");
-	H5::DataSpace vdataspace = vdataset.getSpace();
+    dtype *data;
 
-	vdataspace.getSimpleExtentDims( dimension, NULL);
+    DatatypeP atom_type = data_schema_traits<dtype>::get_type() ;
+    
+    hid_t vDatatype = atom_type->get_hdf5_type();
 
-   size_t  stateSize;
-   stateSize =  dimension[0];
-   data      = new typename converter_traits::memento_type[stateSize];
-   buf       = new typename converter_traits::memento_type[stateSize];
+    //---------------------------------------------------------------------------
+    // Read the data now ....
+    //---------------------------------------------------------------------------
+    hid_t vDataset   = H5Dopen(group_id,"VariableData");
+    hid_t vDataspace = H5Dget_space(vDataset);
+    H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-	vdataset.read( data, vDatatype);
+    size_t  stateSize;
+    stateSize =  dimension;
+    data      = new dtype[stateSize];
 
-   entitySet::const_iterator ci;
+    H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, data);
 
-   Memento<T> memento( &attrib_data );
-   for( int i = 0; i < stateSize; i++) 
-        buf[i] = data[i];
-   memento.setState( buf, stateSize);
+    entitySet::const_iterator ci;
+    typename data_schema_traits<T>::Converter_Type cvtr( attrib_data);
+    cvtr.setState( data, stateSize );
 
-   delete [] data;
-   delete [] buf;
-*/
+    H5Dclose( vDataset  );
+    H5Sclose( vDataspace);
+    H5Tclose( vDatatype );
+
+    delete [] data;
 
   };
 
