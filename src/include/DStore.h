@@ -1,12 +1,19 @@
 #ifndef DSTORE_H
 #define DSTORE_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
+#ifdef GXX_FIXES
+#include <g++-fixes/istream>
+#include <g++-fixes/ostream>
+#else
 #include <istream>
 #include <ostream>
-
+#endif
 #include <Map.h>
 #include <Tools/intervalSet.h>
 #include <algorithm>
@@ -224,7 +231,18 @@ namespace Loci {
       citer = attrib_data->find(indx);
       fatal( citer == attrib_data->end() ) ;
 
+#if 0
+      if( citer != attrib_data->end() )
+        return( (*attrib)[indx] );
+      cout << "Error: Entity out of bound " << endl;
+
+      if( citer == attrib_data->end() )
+	cout << "Error: Entity out of bound " << endl;
+      return( (*attrib_data)[indx] );
+      
+#else
       return citer->second ;
+#endif
     }
   
     T &operator[](int indx) { 

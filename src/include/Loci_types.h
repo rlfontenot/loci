@@ -1,5 +1,8 @@
 #ifndef LOCI_TYPES_H
 #define LOCI_TYPES_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 #include <data_traits.h>
 
 namespace Loci {
@@ -207,9 +210,9 @@ namespace Loci {
       static DatatypeP get_type() {
         vector3d<T> t ;
         CompoundDatatypeP ct = CompoundFactory(t) ;
-        LOCI_INSERT_TYPE(ct,vector3d<T>,x) ;
-        LOCI_INSERT_TYPE(ct,vector3d<T>,y) ;
-        LOCI_INSERT_TYPE(ct,vector3d<T>,z) ;
+        ct->insert("x",offsetof(vector3d<T>,x),getLociType(t.x)) ;
+        ct->insert("y",offsetof(vector3d<T>,y),getLociType(t.y)) ;
+        ct->insert("z",offsetof(vector3d<T>,z),getLociType(t.z)) ;
         return DatatypeP(ct) ;
       }
     };
@@ -363,8 +366,8 @@ namespace Loci {
       static DatatypeP get_type() {
         vector2d<T> t ;
         CompoundDatatypeP ct = CompoundFactory(t) ;
-        LOCI_INSERT_TYPE(ct,vector2d<T>,x) ;
-        LOCI_INSERT_TYPE(ct,vector2d<T>,y) ;
+        ct->insert("x",offsetof(vector2d<T>,x),getLociType(t.x)) ;
+        ct->insert("y",offsetof(vector2d<T>,y),getLociType(t.y)) ;
         return DatatypeP(ct) ;
       }
     };

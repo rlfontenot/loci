@@ -1,7 +1,14 @@
 #ifndef EXECUTE_H
 #define EXECUTE_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 
+#ifdef GXX_FIXES
+#include <g++-fixes/ostream>
+#else
 #include <ostream>
+#endif
 #include <vector>
 #include <string>
 

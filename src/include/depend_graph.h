@@ -1,5 +1,8 @@
 #ifndef DEPEND_GRAPH_H
 #define DEPEND_GRAPH_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 
 #include <Tools/digraph.h>
 #include <Tools/cptr.h>

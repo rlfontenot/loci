@@ -1,9 +1,18 @@
 #ifndef VARIABLE_H
 #define VARIABLE_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 
-#include <ostream>
 #include <iostream>
+#ifdef GXX_FIXES
+#include <g++-fixes/ostream>
+#include <g++-fixes/sstream>
+#else
+#include <ostream>
 #include <sstream>
+#endif
+
 #include <string>
 
 #include <map>

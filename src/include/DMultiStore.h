@@ -1,8 +1,16 @@
 #ifndef DMULTISTORE_H
 #define DMULTISTORE_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 
+#ifdef GXX_FIXES
+#include <g++-fixes/istream>
+#include <g++-fixes/ostream>
+#else
 #include <istream>
 #include <ostream>
+#endif
 
 #include <Config/conf.h>
 

@@ -1,13 +1,21 @@
 #ifndef PARAMETER_H
 #define PARAMETER_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 
 #include <mpi.h>
 
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
+#ifdef GXX_FIXES
+#include <g++-fixes/istream>
+#include <g++-fixes/ostream>
+#else
 #include <istream>
 #include <ostream>
+#endif
 #include <data_traits.h>
 
 namespace Loci {

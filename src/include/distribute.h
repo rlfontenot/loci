@@ -1,5 +1,8 @@
 #ifndef DISTRIBUTE_H
 #define DISTRIBUTE_H
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
 #include <typeinfo>
 #include <vector>
 #include <store.h>
@@ -9,8 +12,13 @@
 #include <constraint.h>
 #include <fact_db.h>
 
+#ifdef GXX_FIXES
+#include <g++-fixes/istream>
+#include <g++-fixes/ostream>
+#else
 #include <istream>
 #include <ostream>
+#endif
 #include <iostream>
 #include <fstream>
 
