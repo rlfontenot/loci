@@ -10,6 +10,8 @@ using std::set ;
 
 namespace Loci {
   void impl_recurse_compiler::set_var_existence(fact_db &facts) {
+    warn(facts.isDistributed()) ;
+
     variableSet::const_iterator vi ;
     variableSet tvars ;
     tvars = impl.targets() ;
@@ -276,6 +278,11 @@ namespace Loci {
   }
 
   void recurse_compiler::set_var_existence(fact_db &facts) {
+    warn(facts.isDistributed()) ;
+
+    if(facts.isDistributed()) {
+      cerr << "recurse_rules = " << recurse_rules << endl ;
+    }
     control_set.clear() ;
   
     ruleSet::const_iterator fi ;

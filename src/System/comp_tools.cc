@@ -15,6 +15,8 @@ using std::make_pair ;
 
 #include <distribute.h>
 
+//#define VERBOSE
+
 namespace Loci {
     // Create a schedule for traversing a directed acyclic graph.  This schedule
   // may be concurrent, or many vertices of the graph may be visited at each
@@ -142,7 +144,16 @@ namespace Loci {
 #endif
       }
     }
-    
+    if(facts.isDistributed()) {
+      if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
+        WARN(r.targets().size() != 1) ;
+        variable v = *r.targets().begin() ;
+        entitySet exist = facts.get_existential_info(v, r) ;
+        exist += fill_entitySet(exist,facts) ;
+        facts.set_existential_info(v,r,exist) ;
+      }
+    }
+
   }
   
 
@@ -373,7 +384,7 @@ namespace Loci {
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
 
       for(int i=0;i<d->xmit.size();++i)
-	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 1,
+	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 2,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
 
       
@@ -396,7 +407,7 @@ namespace Loci {
         }
         int send_size = j ;
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
-                 1,MPI_COMM_WORLD) ;
+                 2,MPI_COMM_WORLD) ;
       }
 
       if(d->xmit.size() > 0)
@@ -519,25 +530,22 @@ namespace Loci {
       
       vars.push_back(v) ;
       rules.push_back(r) ;
-
-      for(ruleSet::const_iterator ri=r.begin();ri!=r.end();++ri) {
-        if(rule_has_mapping_in_output(*ri)) {
-          exent.push_back(ent) ;
-          send_vars.push_back(v) ;
-          send_rule.push_back(*ri) ;
-        }
-        ent++ ;
-      }
-
     }
 
     for(int i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
-
-      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) 
-	exinfo.push_back(facts.get_existential_info(v, *rsi)) ;
+      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
+        if(rule_has_mapping_in_output(*rsi)) {
+          exent.push_back(ent) ;
+          send_vars.push_back(v) ;
+          send_rule.push_back(*rsi) ;
+        }
+        exinfo.push_back(facts.get_existential_info(v, *rsi)) ;
+        ent++ ;
+      }
     }
+
 
     vector<entitySet> seinfo ;
 
@@ -545,14 +553,14 @@ namespace Loci {
     for(int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
       rule rsend = send_rule[i] ;
-      seinfo.push_back(exinfo[exent[i]]) ;
-      vmap[v] += seinfo[i] & ~(d->my_entities) ;
+      entitySet send_ents = exinfo[exent[i]] - d->my_entities ;
+      seinfo.push_back(send_ents) ;
+      vmap[v] += send_ents ;
     }
 
     for(int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
-      if(vmap[v] != EMPTY)
-        send_entities.push_back(make_pair(v,vmap[v])) ;
+      send_entities.push_back(make_pair(v,vmap[v])) ;
     }
 
 
@@ -564,7 +572,7 @@ namespace Loci {
         exinfo[exent[i]] &= d->my_entities ;
       }
     }
-
+    
     vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
 
     int j=0;
@@ -616,7 +624,7 @@ namespace Loci {
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
 
       for(int i=0;i<d->xmit.size();++i)
-	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 1,
+	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 3,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
 
       for(int i=0;i<d->copy.size();++i) {
@@ -634,7 +642,7 @@ namespace Loci {
 
         int send_size = temp.size() ;
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
-                 1,MPI_COMM_WORLD) ;
+                 3,MPI_COMM_WORLD) ;
       }
       
       if(d->xmit.size() > 0)
@@ -674,7 +682,6 @@ namespace Loci {
   
   list<comm_info>
   barrier_process_rule_requests(variableSet vars, fact_db &facts) {
-
     list<comm_info> clist ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       variable v = *vi ;
@@ -1008,7 +1015,6 @@ namespace Loci {
 
       plist = put_precomm_info(send_requested, facts) ;
       clist = sort_comm(request_comm,facts) ;
-      //      clist = request_comm ;
     }
   }
 

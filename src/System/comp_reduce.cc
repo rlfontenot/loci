@@ -125,14 +125,14 @@ namespace Loci {
     else
       tvarmap[tvar] = facts.get_variable_request(unit_tag,tvar) ;
 
-    const rule_impl::info &finfo = apply.get_info().desc ;
+    const rule_impl::info &rinfo = apply.get_info().desc ;
     set<vmap_info>::const_iterator si ;
     entitySet compute ;
-    for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
       compute |= vmap_target_requests(*si,tvarmap,facts) ;
     }
     output_mapping = false ;
-    for(si=finfo.targets.begin();si!=finfo.targets.end(); ++si) {
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end(); ++si) {
       variableSet::const_iterator vi ;
       entitySet comp = compute ;
       vector<variableSet>::const_iterator mi ;
@@ -161,19 +161,20 @@ namespace Loci {
     }
 
     entitySet srcs = ~EMPTY ;
-    entitySet cnstrnts = ~EMPTY ;
-
+    entitySet cnstrnts = srcs ;
+    entitySet my_entities = srcs ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       srcs = d->my_entities ;
       cnstrnts = d->my_entities ;
+      my_entities = d->my_entities ;
     }
 
-    for(si=finfo.sources.begin();si!=finfo.sources.end();++si)
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       srcs &= vmap_source_exist(*si,facts) ;
-    for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si)
+    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
       cnstrnts &= vmap_source_exist(*si,facts) ;
-    if(finfo.constraints.begin() != finfo.constraints.end())
+    if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((srcs & cnstrnts) != cnstrnts) {
         cerr << "Warning, reduction rule:" << apply
              << "cannot supply all entities of constraint" << endl ;
@@ -181,6 +182,34 @@ namespace Loci {
         entitySet sac = srcs & cnstrnts ;
         cerr << "srcs & constraints = " << sac << endl ;
         //      exit(-1) ;
+        for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+          entitySet sources = vmap_source_exist(*si,facts) ;
+          sources &= my_entities ;
+          if((sources & cnstrnts) != cnstrnts) {
+            cerr << "sources & constraints != constraints for input"
+                 << endl
+                 << sources  << " -- " << *si << endl ;
+            
+            if(si->mapping.size() > 0) {
+              entitySet working = cnstrnts ;
+              for(int i=0;i<si->mapping.size();++i) {
+                entitySet images ;
+                variableSet::const_iterator vi ;
+                for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
+                  images |= facts.image(*vi,working) ;
+                working = images ;
+              }
+              variableSet::const_iterator vi ;
+              for(vi=si->var.begin();vi!=si->var.end();++vi) {
+                entitySet exist = facts.variable_existence(*vi) ;
+                entitySet fails = working & ~exist ;
+                if(fails != EMPTY) {
+                  cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                }
+              }
+            }
+          }
+        }
       }
     srcs &= cnstrnts ;
     
@@ -188,7 +217,7 @@ namespace Loci {
     compute &= srcs ;
     exec_seq = compute ;
     
-    for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       entitySet requests = vmap_source_requests(*si,facts,compute) ;
       variableSet::const_iterator vi ;
       for(vi=si->var.begin();vi!=si->var.end();++vi)
@@ -246,19 +275,19 @@ namespace Loci {
       storeRepP sp = facts.get_variable(v) ;
       vector<entitySet> partition = partition_set(exec_seq,num_threads) ;
 
-      const rule_impl::info &finfo = apply.get_info().desc ;
+      const rule_impl::info &rinfo = apply.get_info().desc ;
       execute_par *ep = new execute_par ;
       entitySet apply_domain,all_contexts ;
       vector<entitySet> shards, shard_domains ;
       for(int i=0;i<partition.size();++i) {
-        fatal(finfo.targets.size() != 1) ;
+        fatal(rinfo.targets.size() != 1) ;
         entitySet context = partition[i] ;
-        entitySet pdom = vmap_target_exist(*finfo.targets.begin(),facts,context) ;
+        entitySet pdom = vmap_target_exist(*rinfo.targets.begin(),facts,context) ;
       
         entitySet rem = pdom & apply_domain ;
         if(rem != EMPTY) {
           entitySet compute = rem ;
-          const vmap_info &vmi = *finfo.targets.begin() ;
+          const vmap_info &vmi = *rinfo.targets.begin() ;
           vector<variableSet>::const_reverse_iterator mi ;
           for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
             entitySet working = EMPTY ;

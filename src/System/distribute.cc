@@ -2,6 +2,11 @@
 #include <Tools/debug.h>
 #include <stdlib.h>
 
+//#define DEBUGGER
+#ifdef DEBUGGER
+#include "debugger.h"
+#endif
+
 #include <vector>
 using std::vector ;
 
@@ -33,6 +38,10 @@ namespace Loci {
   ofstream debugout[128] ;
   
   void Init(int* argc, char*** argv)  {
+#ifdef DEBUGGER
+    debug_execname = (*argv)[0] ;
+#endif
+    
     MPI_Init(argc, argv) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
@@ -42,6 +51,9 @@ namespace Loci {
       string filename  = oss.str() ;
       debugout[i].open(filename.c_str(),ios::out) ;
     }
+#ifdef DEBUGGER    
+    chopsigs_() ;
+#endif
   }
 
   void Finalize() {
@@ -183,17 +195,17 @@ namespace Loci {
           vmsi != ri->get_info().desc.targets.end();
           ++vmsi) {
         if(vmsi->mapping.size() != 0) {
+          std::vector<variableSet> vvs ;
 	  for(int i = 0; i < vmsi->mapping.size(); ++i) {
-            for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
+              variableSet v ;
+              for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
                 vi != vmsi->mapping[i].end();
                 ++vi) {
-              variableSet v ;
-              v += *vi ;
-	      std::vector<variableSet> vvs ;
-	      vvs.push_back(v) ;
-              maps.insert(vvs) ;
-            }
+                v += variable(*vi,time_ident()) ;
+              }
+              vvs.push_back(v) ;
 	  }
+          maps.insert(vvs) ;
 	}
       }
     
@@ -201,17 +213,17 @@ namespace Loci {
           vmsi != ri->get_info().desc.sources.end();
           ++vmsi) {
         if(vmsi->mapping.size() != 0) {
-	  for(int i = 0; i < vmsi->mapping.size(); i++) {
-	    for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
-		vi != vmsi->mapping[i].end();
-		++vi) {
+          std::vector<variableSet> vvs ;
+	  for(int i = 0; i < vmsi->mapping.size(); ++i) {
               variableSet v ;
-              v += *vi ;
-              std::vector<variableSet> vvs ;
+              for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
+                vi != vmsi->mapping[i].end();
+                ++vi) {
+                v += variable(*vi,time_ident()) ;
+              }
               vvs.push_back(v) ;
-              maps.insert(vvs) ;
-	    }
 	  }
+          maps.insert(vvs) ;
 	}
       }
     
@@ -240,6 +252,7 @@ namespace Loci {
   
   entitySet expand_map(entitySet domain, fact_db &facts,
                        const std::set<std::vector<variableSet> > &maps) {
+    debugout[MPI_rank] << "expand_map maps = " << endl ;
     entitySet dom = domain ;
     variableSet vars = facts.get_typed_variables() ;
     std::set<std::vector<variableSet> >::const_iterator smi ;
@@ -249,6 +262,7 @@ namespace Loci {
       const std::vector<variableSet> &mv = *smi ;
       for(int i = 0; i < mv.size(); ++i) {
         variableSet v = mv[i] ;
+        debugout[MPI_rank] << v << "->" ;
         v &= vars ;
         for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
           storeRepP p = facts.get_variable(*vi) ;
@@ -261,6 +275,7 @@ namespace Loci {
           image = EMPTY ;
         }
       }
+      debugout[MPI_rank] << endl ;
     }
     return dom ;
   }
@@ -333,6 +348,7 @@ namespace Loci {
     metis_facts(facts,ptn,partition) ;
     get_mappings(rdb,maps) ;
     std::set<std::vector<Loci::variableSet> >::const_iterator smi ;
+
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
       copy[pnum] = image[pnum] - ptn[pnum] ;
