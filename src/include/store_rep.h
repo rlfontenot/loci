@@ -37,9 +37,9 @@ namespace Loci {
     virtual store_type RepType() const = 0 ;
     virtual std::ostream &Print(std::ostream &s) const = 0 ;
     virtual std::istream &Input(std::istream &s) = 0 ;
-    virtual void readhdf5( H5::Group group) = 0;
+    virtual void readhdf5( H5::Group group, entitySet &en) = 0;
     virtual void writehdf5( H5::Group group,entitySet& en) const =0;
-    virtual const entitySet &domain() const = 0 ;
+    virtual entitySet domain() const = 0 ;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
   } ;
@@ -89,13 +89,13 @@ namespace Loci {
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group) {
-      Rep()->readhdf5(group);
+    virtual void readhdf5( H5::Group group, entitySet &en) {
+      Rep()->readhdf5(group, en);
     };
     virtual void writehdf5( H5::Group group,entitySet& en) const {
       Rep()->writehdf5(group,en);
     };
-    virtual const entitySet &domain() const ;
+    virtual entitySet domain() const ;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
         
