@@ -215,14 +215,14 @@ namespace Loci {
 }
 
 template<class T>
-inline ostream& operator << (ostream & s, const vector<T> &vec) {
+inline ostream& operator << (ostream & s, const std::vector<T> &vec) {
     for( int i = 0; i < vec.size(); i++)
          s << vec[i] << " ";
     return s;
 }
 
 template<class T>
-inline istream& operator >> (istream & s, vector<T> &vec) {
+inline istream& operator >> (istream & s, std::vector<T> &vec) {
     for( int i = 0; i < vec.size(); i++)
          s >> vec[i];
     return s;
