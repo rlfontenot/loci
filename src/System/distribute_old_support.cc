@@ -100,7 +100,6 @@ namespace Loci {
     double end_time  = MPI_Wtime() ;
     debugout << "Time taken for metis_facts = " << end_time -start << endl ;
     std::vector<entitySet> partition(Loci::MPI_processes) ;
-    std::vector<entitySet> chop_ptn(Loci::MPI_processes) ;
     dMap remap ;
     for(int i = 0 ; i < Loci::MPI_processes; ++i) {
       entitySet tmp_set = ptn[i] ;
@@ -110,17 +109,10 @@ namespace Loci {
 	} ENDFORALL ;
       }
     }
-    int indx = 1 ;
-    // This is needed for the new scalable I/O routines. 
-    for(int i = 0; i < Loci::MPI_processes; ++i) {
-      int ivl = ptn[i].size() ;
-      chop_ptn[i] = Loci::interval(indx, indx + ivl-1) ;
-      indx += ivl ;
-    }
+
     fact_db::distribute_infoP df = new fact_db::distribute_info  ;
     //Remapping of entities keeps the partitioning contiguous . 
     df->remap = remap ;
-    df->chop_ptn = chop_ptn ;
     facts.put_init_ptn(ptn) ;
     facts.put_distribute_info(df) ;
     return ptn ;
