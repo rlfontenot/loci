@@ -25,7 +25,7 @@ namespace Loci {
   //-----------STD pair-------------------------------//
  template<class T1,class T2> ostream & operator<<(ostream &s, const std::pair<T1,T2> &v)
     {
-     s<<"["<<v.first<<","<<v.second<<"]"<<;
+     s<<"["<<v.first<<","<<v.second<<"]";
       return s;
     }
   template<class T1,class T2> istream & operator>>(istream &s, std::pair<T1,T2> &i)
