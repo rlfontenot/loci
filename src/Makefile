@@ -29,7 +29,8 @@ install: default
 
 Tools : FRC
 	cd Tools; $(MAKE) compile CC="$(CC)" CP="$(CP)" F77="$(F77)"\
-			  DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
+			  DEFINES="$(DEFINES)" \
+           INCLUDES="$(INCLUDES)"\
 			  CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
 			  AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
                           RANLIB="$(RANLIB)" LD="$(LD)"\
@@ -51,7 +52,8 @@ hdf5CC : FRC
 
 System : FRC
 	cd System; $(MAKE) compile CC="$(CC)" CP="$(CP)" F77="$(F77)" \
-			   DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
+			   DEFINES="$(DEFINES)" \
+            INCLUDES="$(INCLUDES)"\
 			   CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
 			   AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
                            RANLIB="$(RANLIB)" LD="$(LD)"\
