@@ -1,9 +1,8 @@
 #include <param_rule.h>
 
 namespace Loci {
-  
   rule_db parametric_rdb(rule_db& rdb) {
-     Loci::rule_db par_rdb ;
+    Loci::rule_db par_rdb ;
     ruleSet param_target, param_source, use_param_rule, added_rules ;
     variableSet source, target ;
     std::map<variable, ruleSet> mruleset ;
@@ -21,7 +20,6 @@ namespace Loci {
 	  variable tmp = variable(*vsi) ;
 	  mvarset[tmp.get_info().name] += *vsi ;
 	  mruleset[tmp] += *rsi ;
-	  
 	}
       }
       if(target_args.size()) {
@@ -34,7 +32,7 @@ namespace Loci {
 	
 	if(vint.size() && (!param_target.inSet(*rsi))) {
 	  param_target += *rsi ;
-	  cout << "removing rule  " << *rsi << endl ;
+	  //cout << "removing rule  " << *rsi << endl ;
 	}
       }
       
@@ -203,7 +201,7 @@ namespace Loci {
 	      rp->rename_vars(vm) ;
 	      if(!added_rules.inSet(rule(rp))) {
 		par_rdb.add_rule(rule(rp)) ;
-		cout << "adding rule  " << rule(rp) << endl ;
+		//cout << "adding rule  " << rule(rp) << endl ;
 		added_rules += rule(rp) ;
 	      }
 	    }

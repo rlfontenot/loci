@@ -7,9 +7,9 @@ using std::string ;
 using std::make_pair ;
 
 namespace Loci {
-time_ident::time_hierarchy *time_ident::thp = 0 ;
-
-int time_ident::time_hierarchy::add_level(const string &lname,int level) {
+  time_ident::time_hierarchy *time_ident::thp = 0 ;
+  
+  int time_ident::time_hierarchy::add_level(const string &lname,int level) {
     vector<int>::const_iterator vi ;
     for(vi=time_db[level].children.begin();
         vi!=time_db[level].children.end();++vi) {
@@ -17,6 +17,8 @@ int time_ident::time_hierarchy::add_level(const string &lname,int level) {
 	break ;
     }
     if(vi==time_db[level].children.end()) {
+      cout << " old time_db size  = " << time_db.size() << endl ;
+      cout << "old adding time_info  "<< lname  << "  " << level << endl ;
       time_db.push_back(time_info(lname,level)) ;
       int n = time_db.size() - 1 ;
       time_db[level].children.push_back(n) ;
@@ -24,9 +26,8 @@ int time_ident::time_hierarchy::add_level(const string &lname,int level) {
     }
     else
       return *vi ;
-}
-
-
+  } 
+  
 time_ident::time_ident(const exprP &exp) {
     create_thp() ;
     id = 0 ;
@@ -331,6 +332,13 @@ bool variable::info::operator<(const info &v) const {
     v.name = t.level_name() ;
     create_vdb() ;
     id = vdb->vars.get_id(v) ;
+  }
+  
+  variable::variable(const variable &v, const std::vector<int> &vint) {
+    create_vdb() ;
+    info v2 = v.get_info() ;
+    v2.v_ids = vint ;
+    id = vdb->vars.get_id(v2) ;
   }
   
   variable::variable(const variable &v, const time_ident &t) {
