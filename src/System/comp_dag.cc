@@ -214,6 +214,11 @@ namespace Loci {
                    << endl << "offending rule is " << *ri << endl ;
             }
           }
+          if(join_op == 0) {
+            cerr << "unable to find any apply rules to complete the reduction defined by rule"
+                 << endl
+                 << unit_rule << endl ;
+          }
           FATAL(join_op == 0) ;
           storeRepP sp = join_op->getTargetRep() ;
           if(sp->RepType() == PARAMETER) {
