@@ -788,7 +788,7 @@ namespace Loci {
       Loci::MapRepP(remap)->copy(remap_sp, remap_sp->domain());
       entitySet comp_out = naive_extra_comp_ent - remap.domain();
       remap_sp = Loci::MapRepP(remap.Rep())->expand(comp_out, new_init_ptn);
-      facts.global_comp_entities += Loci::MapRepP(remap_sp)->image(naive_extra_comp_ent);
+      //facts.global_comp_entities += Loci::MapRepP(remap_sp)->image(naive_extra_comp_ent);
 #endif
     }
     else {
