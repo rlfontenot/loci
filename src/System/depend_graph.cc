@@ -19,19 +19,21 @@ namespace Loci {
   namespace {
     rule create_rule(variable sv, variable tv, string qualifier) {
       ostringstream oss ;
-      oss << "source(" << sv
-          << "),target(" << tv
-          << "),qualifier(" << qualifier << ")" ;
-      rule r(oss.str()) ;
+      oss << "source(" << sv << ')' ;
+      oss << ",target(" << tv << ')' ;
+      oss << ",qualifier(" << qualifier << ')' ;
+      string sig = oss.str() ;
+      rule r(sig) ;
       return r ;
     }
     
     rule create_rule(variableSet source, variableSet target, string qualifier) {
       ostringstream oss ;
-      oss << "source(" << source
-          << "),target(" << target
-          << "),qualifier(" << qualifier << ")" ;
-      rule r(oss.str()) ;
+      oss << "source(" << source << ')' ;
+      oss << ",target(" << target << ')' ;
+      oss << ",qualifier(" << qualifier << ")" ;
+      string sig = oss.str() ;
+      rule r(sig) ;
       return r ;
     }
 

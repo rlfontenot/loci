@@ -147,7 +147,7 @@ namespace Loci {
     for(int j=read_maps.size()-1;j>=0;--j) {
       entitySet newdomain = facts.preimage(rmap.mapvar[j],domain).first ;
 #ifdef VERBOSE
-      debugout[MPI_rank] << "j = " << j << ", domain = " << domain
+      debugout << "j = " << j << ", domain = " << domain
                          << ", newdomain = " << newdomain << endl ;
 #endif
       if(domain == ~EMPTY) {
@@ -167,7 +167,7 @@ namespace Loci {
     for(int j=0;j<tmap.mapvec.size();++j)
       tdelta = tmap.mapvec[j]->image(tdelta) ;
 #ifdef VERBOSE
-    debugout[MPI_rank] << "sdelta_init = " << sdelta << ", tdelta = " << tdelta << endl ;
+    debugout << "sdelta_init = " << sdelta << ", tdelta = " << tdelta << endl ;
 #endif
 
     if(num_threads > 1)
@@ -195,7 +195,7 @@ namespace Loci {
     store<bool> exists ;
     exists.allocate(exists_alloc) ;
 #ifdef VERBOSE
-    debugout[MPI_rank] << "exists_alloc = " << exists_alloc
+    debugout << "exists_alloc = " << exists_alloc
                        << "nr_sources = " << nr_sources << endl ;
 #endif
     for(entitySet::const_iterator
@@ -203,7 +203,7 @@ namespace Loci {
       exists[*ei] = false ;
     exists_alloc -= my_entities ;
 #ifdef VERBOSE
-    debugout[MPI_rank] << "exists_alloc-my_entities = " << exists_alloc << endl ;
+    debugout << "exists_alloc-my_entities = " << exists_alloc << endl ;
 #endif
     for(entitySet::const_iterator
           ei=exists_alloc.begin();ei!=exists_alloc.end();++ei)
@@ -230,7 +230,7 @@ namespace Loci {
         sdelta = candidates ;
       }
 #ifdef VERBOSE
-      debugout[MPI_rank] << "candidates = " << sdelta << endl ;
+      debugout << "candidates = " << sdelta << endl ;
 #endif
       // we now have candidate sdeltas, check them to see if they
       // are satisfied.
@@ -289,7 +289,7 @@ namespace Loci {
       for(int j=0;j<tmap.mapvec.size();++j)
         tdelta = tmap.mapvec[j]->image(tdelta) ;
 #ifdef VERBOSE
-      debugout[MPI_rank] << "sdelta = " << sdelta << ", tdelta = " << tdelta << endl ;
+      debugout << "sdelta = " << sdelta << ", tdelta = " << tdelta << endl ;
 #endif
       if(num_threads>1)
         par_schedule.push_back(sdelta) ;
@@ -318,7 +318,7 @@ namespace Loci {
   
     fctrl.generated[rvar] = generated ;
 #ifdef VERBOSE
-    debugout[MPI_rank] << "recursive rule " << impl << " generating " << generated << endl ;
+    debugout << "recursive rule " << impl << " generating " << generated << endl ;
 #endif
     
     for(map<variable,entitySet>::const_iterator mi=fctrl.generated.begin();
@@ -567,7 +567,7 @@ namespace Loci {
           fctrl.generated[fctrl.target_maps[i].v] += trgts ;
         }
 #ifdef VERBOSE
-        debugout[MPI_rank] << "recursive rule " << *fi << " generating "
+        debugout << "recursive rule " << *fi << " generating "
                            << srcs << endl ;
 #endif
       }

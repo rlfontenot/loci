@@ -17,9 +17,7 @@
 
 #include <mpi.h>
 namespace Loci {
-  //#ifdef VERBOSE
-  extern ofstream debugout[] ;
-  //#endif
+
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;

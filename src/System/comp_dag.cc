@@ -37,7 +37,7 @@ namespace Loci {
     for(variableSet::const_iterator vi=dump_vars.begin();
         vi!=dump_vars.end();++vi) {
       variable v = *vi ;
-      debugout[MPI_rank] << "dumping variable " << v << endl ;
+      debugout << "dumping variable " << v << endl ;
       storeRepP st = facts.get_variable(v) ;
       storeRepP sc = st ;
       if(facts.isDistributed() && st->RepType() == STORE) {

@@ -1,4 +1,5 @@
 #include "sched_tools.h"
+#include "distribute.h"
 
 using std::map ;
 using std::vector ;
@@ -56,7 +57,7 @@ namespace Loci {
     decomposed_graph decomp(gr,given,target) ;
     graph_compiler compile_graph(decomp) ;
     double end_time = MPI_Wtime() ;
-    Loci::debugout[Loci::MPI_rank] << "Time taken for graph processing  = " << end_time  - start_time << "  seconds " << endl ;
+    Loci::debugout << "Time taken for graph processing  = " << end_time  - start_time << "  seconds " << endl ;
 #ifdef PROFILE_CODE
     //timer = get_timer() ;
     //cout << "Graph Processing Time: "<<timer << " seconds" << endl ;
@@ -66,12 +67,12 @@ namespace Loci {
     start_time = MPI_Wtime() ;
     compile_graph.existential_analysis(facts) ;
     end_time = MPI_Wtime() ;
-    Loci::debugout[Loci::MPI_rank] << "Time taken for existential_analysis  = " << end_time  - start_time << "  seconds " << endl ;
+    Loci::debugout << "Time taken for existential_analysis  = " << end_time  - start_time << "  seconds " << endl ;
     cout << "creating execution schedule..." << endl;
     start_time = MPI_Wtime() ;
     executeP sched =  compile_graph.execution_schedule(facts,num_threads) ;
     end_time = MPI_Wtime() ;
-    Loci::debugout[Loci::MPI_rank] << "Time taken for schedule generation  = " << end_time  - start_time << "  seconds " << endl ;
+    Loci::debugout << "Time taken for schedule generation  = " << end_time  - start_time << "  seconds " << endl ;
 #ifdef PROFILE_CODE    
     //timer = get_timer() ;
     //cout << "Schedule Generation Time: " << timer << " seconds" << endl ;

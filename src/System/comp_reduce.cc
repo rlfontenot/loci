@@ -111,8 +111,8 @@ namespace Loci {
         variableSet::const_iterator vi ;
 	for(vi=tvars.begin();vi!=tvars.end();++vi) {
 #ifdef VERBOSE
-	debugout[MPI_rank] << "shadow is " << targets << endl ;
-	debugout[MPI_rank] << "shadow not owned is "
+	debugout << "shadow is " << targets << endl ;
+	debugout << "shadow not owned is "
 			   << targets - d->my_entities << endl
 			   << "variable is " << *vi << endl ;
 #endif
@@ -251,14 +251,14 @@ namespace Loci {
         variable v = *vi ;
         facts.variable_request(v,requests) ; 
 #ifdef VERBOSE
-	debugout[MPI_rank] << "rule " << apply << " requesting variable "
+	debugout << "rule " << apply << " requesting variable "
 			   << v << " for entities " << requests << endl ;
 #endif
       }
     }
         
 #ifdef VERBOSE
-    debugout[MPI_rank] << "rule " << apply << " computes over " << compute << endl ;
+    debugout << "rule " << apply << " computes over " << compute << endl ;
 #endif
   }
   
@@ -542,9 +542,9 @@ namespace Loci {
       
 #ifdef VERBOSE
     if(shadow != EMPTY) {
-      debugout[MPI_rank] << "shadow = " << shadow << endl ;
+      debugout << "shadow = " << shadow << endl ;
       shadow -= d->my_entities ;
-      debugout[MPI_rank] << "shadow/my_entites = " << shadow << endl ;
+      debugout << "shadow/my_entites = " << shadow << endl ;
     }
 #endif
     }

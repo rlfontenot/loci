@@ -160,7 +160,7 @@ namespace Loci {
       for(vi=tvars.begin();vi!=tvars.end();++vi) {
 	facts.set_existential_info(*vi,r,targets) ;
 #ifdef VERBOSE
-        debugout[MPI_rank] << "rule " << r << " generating variable " << *vi
+        debugout << "rule " << r << " generating variable " << *vi
                            << " for entities " << targets << endl ;
 #endif
       }
@@ -349,7 +349,7 @@ namespace Loci {
        // so we can tell the fact database that we are now requesting
        // these values.
 #ifdef VERBOSE
-       debugout[MPI_rank] << "rule " << r << " requesting variables "
+       debugout << "rule " << r << " requesting variables "
                           << si->var << " for entities " << requests << endl ;
 #endif
        for(vi=si->var.begin();vi!=si->var.end();++vi)
@@ -614,7 +614,7 @@ namespace Loci {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
-        debugout[MPI_rank] << "v=" << v << ",rule ="<<*rsi
+        debugout << "v=" << v << ",rule ="<<*rsi
                            <<"exinfo="<<exinfo[j++] << endl ;
       }
     }
