@@ -17,6 +17,8 @@
 #include <time.h>
 #endif
 
+#define DEVELOP
+
 namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
@@ -259,7 +261,8 @@ namespace Loci {
   } ;
 
 
-
+  void test_decompose(digraph dg, digraph::vertexSet sources,
+                      digraph::vertexSet targets) ;
 
 }
 
