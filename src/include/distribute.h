@@ -28,11 +28,12 @@ namespace Loci {
   
   void get_mappings(rule_db &rdb, fact_db &facts, std::set<std::vector<variableSet> > &maps) ;
   
-  
+  void fill_clone(Loci::storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   entitySet expand_map(entitySet domain, fact_db &facts,
 		       const std::set<std::vector<variableSet> > &maps) ;
   
-  
+  entitySet dist_expand_map(entitySet domain, fact_db &facts,
+		       const std::set<std::vector<variableSet> > &maps) ;
   std::vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
 
   std::vector<entitySet> read_partition(const char *fname,int num_partitions) ;
@@ -50,6 +51,7 @@ namespace Loci {
   void print_global(entitySet e, fact_db &facts) ;
   entitySet collect_entitySet(entitySet e, fact_db &facts) ;
   storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
+  storeRepP reorder_store(storeRepP &sp, Map &remap, fact_db &facts) ;
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) ;
 
   extern fact_db *exec_current_fact_db ;
@@ -72,8 +74,8 @@ namespace Loci {
  void distributed_inverseMap(dmultiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) ;
  
  void distributed_inverseMap(dmultiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts); 
- 
+ entitySet all_collect_entitySet(fact_db &facts, const entitySet &e) ;
+ std::vector<entitySet> all_collect_vectors(entitySet &e) ;
 }
-
-
 #endif
+ 

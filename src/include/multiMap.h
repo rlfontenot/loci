@@ -57,6 +57,7 @@ namespace Loci {
     void put_hdf5_data(hid_t group, int* data,  const char* datasetname, 
                        hsize_t* dimf) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    virtual storeRepP thaw() ; 
   } ;
       
   class multiMap : public store_instance {

@@ -259,7 +259,7 @@ namespace Loci {
     }
 
     int getVecSize() {
-      return( Rep()->get_size() );
+      return(vsize);
     }
 
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -408,8 +408,17 @@ namespace Loci {
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
-
-    return s.Rep() ;
+    storeVec<T> static_storeVec ;
+    entitySet tmp_dom = s.domain() ;
+    static_storeVec.allocate(tmp_dom) ;
+    int sz = s.getVecSize() ;
+    static_storeVec.setVecSize(sz) ;
+    FORALL(tmp_dom, ei) {
+      for(int i = 0; i < sz; ++i)
+	static_storeVec[ei][i] = s[ei][i] ;
+    }ENDFORALL ;
+    return static_storeVec.Rep() ;
+    //return s.Rep() ;
   }
 
   //*************************************************************************/

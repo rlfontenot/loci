@@ -9,9 +9,10 @@
 #include <vector>
 
 namespace Loci {
-
+  extern double total_memory_usage ;
+  extern ofstream debugout ;
   //*******************************************************************/
-
+  
   template <class T> struct Scalar {
     T val ;
     Scalar(T v) : val(v) { }
@@ -287,7 +288,7 @@ namespace Loci {
 
     s >> e ;               // Read the entitySet intervals.
     s >> sz ;              // Read the size of the vector.
-
+    
     set_elem_size(sz) ;
     allocate(e) ;
 
@@ -311,19 +312,49 @@ namespace Loci {
 
   //*****************************************************************/
   template<class T> 
-  void storeVecRepI<T>::allocate(const entitySet &ptn) 
-  {
-
+  void storeVecRepI<T>::allocate(const entitySet &ptn) {
+  
+    /*
+    entitySet common = store_domain & ptn ;
+    T *tmp_base_ptr, *tmp_alloc_pointer ;
+    tmp_alloc_pointer = 0 ;
+    tmp_base_ptr = 0 ;
+    if(store_domain != EMPTY) {
+      if(size > 0) {
+	if(common != EMPTY) {
+	  int top = ptn.Min() ; 
+	  int sza = (ptn.Max() - top + 1) * size ;
+	  tmp_alloc_pointer = new T[sza] ; 
+	  tmp_base_ptr = tmp_alloc_pointer - top*size ;
+	  FORALL(common,i) { 
+	    T *p1 = tmp_base_ptr + i*size ;
+	    T* p2 = base_ptr + i*size ;
+	    for(int j = 0; j < size; ++j)
+	      p1[j] = p2[j] ;
+	  } ENDFORALL ; 
+	}
+      }
+    }
+    else {
+      if(size != 0) {
+	fatal(size < 1) ;
+	if(ptn != EMPTY) {
+	  int top = ptn.Min() ; 
+	  int sza = (ptn.Max()-top+1)*size ;
+	  tmp_alloc_pointer = new T[sza] ;
+	  tmp_base_ptr = alloc_pointer - top*size ;
+	}
+      }
+    }
+    
     //------------------------------------------------------------------
     // Allocation reclaims all previously hold memeory 
     //------------------------------------------------------------------
-
-    if(alloc_pointer) delete[] alloc_pointer ;
-
-    alloc_pointer = 0 ;
-    base_ptr      = 0 ;
-
-
+    //int p = 0 ;
+    
+    if(alloc_pointer) 
+      delete[] alloc_pointer ;
+    
     //-----------------------------------------------------------------
     // Get the minimum and maximum entity ID from the entitySet and
     //allocate 
@@ -331,6 +362,35 @@ namespace Loci {
     // contains the entities with ID quite sparse, it will create lots of 
     // unused block of memory. 
     //------------------------------------------------------------------
+    alloc_pointer = tmp_alloc_pointer ;
+    base_ptr = tmp_base_ptr ;
+    */
+    /*
+      if(size != 0) {
+      fatal(size < 1) ;
+      if(common == EMPTY) {
+      if(ptn != EMPTY) {
+      int top = ptn.Min() ; 
+      int sza = (ptn.Max() - top + 1) * size ;
+      alloc_pointer = new T[sza] ;
+      base_ptr = alloc_pointer - top*size ;
+      } 
+      }
+      }
+    */
+    /*
+      if(!p) {
+      debugout << " ******************************************" << endl ;
+      debugout << "Size = " << size << "  Domain = " << ptn << endl ;
+      total_memory_usage += double(sza*sizeof(T)) ;
+      debugout << " Allocated  " << double(sza*sizeof(T)) << " bytes :   Total Memory Usage is now " << total_memory_usage << endl ;
+      debugout << " ******************************************" << endl ;
+      }
+    */
+    if(alloc_pointer) delete[] alloc_pointer ;
+    
+    alloc_pointer = 0 ;
+    base_ptr      = 0 ;
 
     if(size != 0) {
       fatal(size < 1) ;
@@ -340,19 +400,12 @@ namespace Loci {
         base_ptr = alloc_pointer - top*size ;
       }
     }
-
-    //------------------------------------------------------------------
-    // Domain equals to entitySet provided by the argument.
-    //------------------------------------------------------------------
-
+    
     store_domain = ptn ;
-    //------------------------------------------------------------------
-    // Let everybody know about the change in memeory location.
-    //------------------------------------------------------------------
-
     dispatch_notify() ;
   }
-
+  
+  
   //*******************************************************************/
 
   template<class T> 
@@ -398,20 +451,20 @@ namespace Loci {
     // Change the size of vector held. It will reclaim the memory used before
     // his call. and allocate new one.
     //----------------------------------------------------------------
-
+    
     if(size != sz) {
-      if(size != 0) {
-        cout << " sz = " << sz << "   size =  " << size << endl ;
-        warn(size != sz) ;
+      if(size > 0) {
+        if(sz < 1000*size)
+	  size = sz ;
       }
-      size = sz ;
-      fatal(sz<1) ;
+      else if (size == 0)
+	if(sz < 1000)
+	  size = sz ;
       allocate(store_domain) ;
     }
-    
     mutex.unlock() ;
   }
-
+  
   //*******************************************************************/
       
   template<class T> class storeVec : public store_instance {
@@ -767,7 +820,7 @@ namespace Loci {
 
     int M = get_size() ;
     MPI_Pack( &M, 1, MPI_INT, outbuf, outcount, &position, 
-		MPI_COMM_WORLD) ;
+	      MPI_COMM_WORLD) ;
     
     packdata( traits_type, outbuf, position, outcount, eset);
   }
@@ -864,7 +917,7 @@ namespace Loci {
     }
     unpackdata( traits_type, inbuf, position, insize, seq);
   }
-
+  
   //*******************************************************************/
 
   template<class T> 

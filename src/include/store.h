@@ -68,48 +68,48 @@ namespace Loci {
   } ;
 
   template<class T> void storeRepI<T>::allocate(const entitySet &eset) {
-
+    
     if( eset == EMPTY ) {
       if(alloc_pointer) delete [] alloc_pointer ;
       base_ptr = 0;
       store_domain = eset ;
       return;
     }
-
+    
     // Compare the range with the previously assigned values. If the 
     // new entities are inserted within the "old range", nothing special
     // need to be done.
     int   old_range[2], new_range[2];
-
+    
     old_range[0] = store_domain.Min();
     old_range[1] = store_domain.Max();
-
+    
     new_range[0] = eset.Min();
     new_range[1] = eset.Max();
-
+    
     entitySet redundant, newSet, ecommon;
-
+    
     redundant = store_domain - eset;
     newSet    = eset - store_domain;
     ecommon   = store_domain & eset;
-
+    
     if( (old_range[0] == new_range[0]) &&
         (old_range[1] == new_range[1]) ) {
       store_domain  = eset;
       return;
     }
-
+    
     // New entities are outside the "Old Range", so make copy of the
     // entities which are common to the new assignment and old one.
     // and redo the entire work.
-
+    
     T *tmp_base_ptr, *tmp_alloc_pointer ;
 
     int top           = old_range[0];
     int arraySize     = old_range[1] - top + 1 ;
     tmp_alloc_pointer = new T[arraySize];
     tmp_base_ptr      = tmp_alloc_pointer - top ;
-
+    
     FORALL(ecommon,i) {
       tmp_base_ptr[i] = base_ptr[i] ;
     } ENDFORALL ;
@@ -118,21 +118,22 @@ namespace Loci {
 
     alloc_pointer = new T[arraySize];
     base_ptr      = alloc_pointer - top ;
-
+    
     top           = eset.Min() ; 
     arraySize     = eset.Max()-top+1 ;
     alloc_pointer = new T[arraySize] ;
     base_ptr      = alloc_pointer - top ;
-
+    
     // Copy back from temperory storage to the current storage...
     FORALL(ecommon,i) {
       base_ptr[i] = tmp_base_ptr[i] ;
     } ENDFORALL ;
-
+    
     delete[] tmp_alloc_pointer ;
-
+    
     store_domain = eset ;
     dispatch_notify() ;
+  
   }
 
   template<class T> std::ostream &storeRepI<T>::Print(std::ostream &s) const {
@@ -196,7 +197,7 @@ namespace Loci {
   public:
     typedef T containerType ;
     store() { setRep(new storeType); }
-    store(store &var) { setRep(var.Rep()) ; }
+    store(const store &var) { setRep(var.Rep()) ; }
     store(storeRepP rp) { setRep(rp) ; }
     
     virtual ~store() ;
@@ -361,13 +362,14 @@ namespace Loci {
                                   const entitySet &eset)
   {
 
-    int       size, numBytes;
+    int       size ;
+    int numBytes = 0 ;
     entitySet  ecommon;
     entitySet :: const_iterator ci;
     typedef data_schema_traits<T> converter_traits;
-
+    
     ecommon = eset;
-
+    
     T   obj;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
       obj  = base_ptr[*ci];
@@ -375,7 +377,7 @@ namespace Loci {
       size      = cvtr.getSize();
       numBytes += size*sizeof(typename converter_traits::Converter_Base_Type) ;
     }
-
+    
     numBytes  += ecommon.size()*sizeof(int);
     return(numBytes) ;
   }
@@ -393,17 +395,17 @@ namespace Loci {
   inline void storeRepI<T>::packdata(IDENTITY_CONVERTER c, void *outbuf,
                                      int &position, int outcount,
                                      const entitySet &eset )  
-  {
-    for( int i = 0; i < eset.num_intervals(); i++) {
-      const Loci::int_type begin = eset[i].first ;
-      int t = eset[i].second - eset[i].first + 1 ;
-      MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount, 
-                &position, MPI_COMM_WORLD) ;
+    {
+      for( int i = 0; i < eset.num_intervals(); i++) {
+	const Loci::int_type begin = eset[i].first ;
+	int t = eset[i].second - eset[i].first + 1 ;
+	MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount, 
+		  &position, MPI_COMM_WORLD) ;
+      }
     }
-  }
-
+  
   //*******************************************************************/
-
+  
   template <class T>
   inline void storeRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
                                int &position, int outcount, 
@@ -486,7 +488,7 @@ namespace Loci {
         int t = seq[i].second - seq[i].first + 1 ;
         MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
                     t*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
-      }
+      } 
     }
   }
   //*********************************************************************/

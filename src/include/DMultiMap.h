@@ -48,11 +48,12 @@ namespace Loci {
   virtual void readhdf5( hid_t group, entitySet &user_eset) ;
   virtual void writehdf5( hid_t group_id, entitySet& en) const ;
   virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+  virtual storeRepP thaw() ;
   HASH_MAP(int,std::vector<int> ) *get_attrib_data() {return &attrib_data;}
-} ;
-      
+  } ;
+  
   //***************************************************************************
-
+  
   class dmultiMap : public store_instance {
     friend class const_dmultiMap ;
     typedef dmultiMapRepI MapType ;
@@ -214,6 +215,9 @@ namespace Loci {
   void inverseMap(dmultiMap &result, const dMap &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) ;
+  void inverseMap(dmultiMap &result, const Map &input_map,
+                  const entitySet &input_image,
+		  const entitySet &input_preimage) ;
 }
 
 #endif

@@ -11,7 +11,7 @@
 
 #include <hdf5_readwrite.h>
 
-#include <store_rep.h>
+#include <store_rep.h> 
 #include <Tools/lmutex.h>
 #include <storeVec.h>
 #include <Map.h>
@@ -253,18 +253,16 @@ namespace Loci {
   void dmultiStoreRepI<T>::allocate(const entitySet &eset) 
   {
     entitySet redundant, newSet;
-    entitySet :: const_iterator  ci;
-
+    entitySet :: const_iterator  ci ;
     redundant = domain() -  eset;
     newSet    = eset - domain();
-
     for( ci = redundant.begin(); ci != redundant.end(); ++ci)
-         attrib_data.erase(*ci);
-
+      attrib_data.erase(*ci);
+    
     std::vector<T>  emptyVec;
     for( ci = newSet.begin(); ci != newSet.end(); ++ci)
       attrib_data[*ci] =  emptyVec;
-
+    
     store_domain = eset;
     dispatch_notify() ;
   }
@@ -290,14 +288,15 @@ namespace Loci {
 
   template<class T> 
   storeRepP dmultiStoreRepI<T>::remap(const Map &m) const {
+    
     dmultiStore<T> s ;
+    /*
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
-    /*
-    multiStore<T> static_mul ;
+    typename multiStore<T> static_mul ;
     store<int> count ;
     entitySet tmp_dom = domain() ;
     count.allocate(tmp_dom) ;

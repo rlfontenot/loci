@@ -32,16 +32,16 @@ namespace Loci {
       int isDistributed ;
       Map l2g ;
       Map g2l ;
-
+      
       entitySet my_entities ;
-
+      
       std::vector<dist_data> copy ; // Data describing which processors own
       // the entities in the clone region
       std::vector<dist_data> xmit ; // Data describing which processors to
       // send entities that this processor owns
       int copy_total_size ;
       int xmit_total_size ;
-
+      
       distribute_info() {} ;
     } ;
     typedef CPTR<distribute_info> distribute_infoP ;
@@ -52,7 +52,7 @@ namespace Loci {
     struct fact_info {
       store_refP data_rep ;
     } ;
-
+    
     std::map<variable,variable> synonyms ;
     variable remove_synonym(variable v) const {
       std::map<variable,variable>::const_iterator mi ;
@@ -63,19 +63,19 @@ namespace Loci {
 
     fact_db(const fact_db &f) ;
     fact_db &operator=(const fact_db &f) ;
-
-    std::vector<entitySet> init_ptn ;
+    
+    std::vector<entitySet> init_ptn, chop_ptn ;
+    Map remap_cells, remap_nodes, l2g ;
     int maximum_allocated ;
     int dist_from_start ;
-
+    
     std::map<variable,fact_info> fmap ;
-
     std::map<variable,storeRepP> tmap ;
-
+    
   public:
     fact_db() ;
     ~fact_db() ;
-
+    void set_maximum_allocated(int i) ;
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname, storeRepP st)
       { set_variable_type(variable(vname),st) ;}
@@ -135,20 +135,32 @@ namespace Loci {
     std::pair<interval, interval> get_distributed_alloc(int size) ;
     int is_distributed_start() {return dist_from_start ;}
     std::vector<entitySet>& get_init_ptn() {return init_ptn ;}
-
+    void  put_init_ptn(std::vector<entitySet> &t_init ) {init_ptn = t_init ;}
+    std::vector<entitySet>& get_chop_ptn() {return chop_ptn ;}
+    void put_chop_ptn(std::vector<entitySet>& tmp_chop) {chop_ptn = tmp_chop;}
+    
+    Map& get_remap_cells() { return remap_cells ;} 
+    void put_remap_cells(Map& rc) { remap_cells = rc ; }
+    
+    Map& get_remap_nodes() { return remap_nodes ; } 
+    void put_remap_nodes(Map& rn) { remap_nodes = rn ; }
+    
+    Map& get_l2g() { return l2g; } 
+    void put_l2g(Map& lg) { l2g = lg ; }
+   
     fact_db::distribute_infoP get_distribute_info() ;
     void put_distribute_info(fact_db::distribute_infoP dp) ;
     bool isDistributed() ;
-
+    
     
     variableSet get_typed_variables() const ;
     ostream &write(ostream &s) const ;
     istream &read(istream &s) ;
     
-    void write_hdf5(const char *filename);
+    void write_hdf5(const char *filename, int num_partitions = 0);
     void read_hdf5(const char *filename);
+    void Print_diagnostics() ;
   } ;
-
   
   void reorder_facts(fact_db &facts, Map &remap) ;
   void serial_freeze(fact_db &facts) ;

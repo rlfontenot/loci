@@ -49,7 +49,8 @@ namespace Loci {
     virtual void readhdf5(hid_t group, entitySet &user_eset) ;
     virtual void writehdf5(hid_t group,entitySet& en) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-    HASH_MAP(int,int) *get_attrib_data() { return &attrib_data; }
+    virtual storeRepP thaw() ;
+    virtual HASH_MAP(int,int) *get_attrib_data() { return &attrib_data; }
   } ;
       
   class dMap : public store_instance {

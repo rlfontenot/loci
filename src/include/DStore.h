@@ -195,7 +195,7 @@ namespace Loci {
   public:
     typedef T containerType ;
     dstore() { setRep(new storeType); }
-    dstore(dstore &var) { setRep(var.Rep()) ; }
+    dstore(const dstore &var) { setRep(var.Rep()) ; }
     dstore(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~dstore() ;
@@ -223,10 +223,10 @@ namespace Loci {
 
       citer = attrib_data->find(indx);
 
-      if( citer != attrib_data->end() )
-        return( (*attrib)[indx] );
-      cout << "Error: Entity out of bound " << endl;
-
+      if( citer == attrib_data->end() )
+	cout << "Error: Entity out of bound " << endl;
+      return( (*attrib_data)[indx] );
+      
     }
   
     T &operator[](int indx) { 
@@ -347,15 +347,15 @@ namespace Loci {
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
-    /*
+    
     store<T> static_store ;
     entitySet tmp_dom = s.domain();
     static_store.allocate(tmp_dom) ;
     for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei)
       static_store[*ei] = s[*ei] ;
     return static_store.Rep() ;
-    */
-    return s.Rep() ;
+    
+    //return s.Rep() ;
   }
 
   //*************************************************************************/
@@ -364,8 +364,6 @@ namespace Loci {
   void dstoreRepI<T>::copy(storeRepP &st, const entitySet &context)  
   {
     const_dstore<T> s(st) ;
-
-    fatal(context != EMPTY ) ;
     fatal((context-domain()) != EMPTY) ;
 
     FORALL(context,i) {

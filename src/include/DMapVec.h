@@ -53,10 +53,11 @@ namespace Loci {
     virtual void readhdf5( hid_t group, entitySet &user_eset) ;
     virtual void writehdf5(hid_t group,entitySet &en) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    virtual storeRepP thaw() ;
     HASH_MAP(int,VEC) *get_attrib_data() { return &attrib_data; }
   } ;
 
-  //-----------------------------------------------------------------------------
+   //-----------------------------------------------------------------------------
 
   template<unsigned int M> 
   void dMapVecRepI<M>::readhdf5( hid_t group_id, entitySet &user_eset)
@@ -362,6 +363,10 @@ namespace Loci {
     delete [] recv_displacement ; 
     return dmul.Rep() ;
   }
+
+  template<unsigned int M> storeRepP thaw() {
+    return getRep() ;
+  }
   //------------------------------------------------------------------------
   template<unsigned int M> 
   multiMap dMapVecRepI<M>::get_map()  
@@ -481,9 +486,9 @@ namespace Loci {
       if( ci != attrib_data.end()) s << ci->second;
       s << std::endl ;
     } ENDFORALL ;
-
+    
     s << '}' << std::endl ;
-
+    
     return s ;
   }
 
@@ -519,6 +524,7 @@ namespace Loci {
     return s ;
   }
 
+template<unsigned int M> class const_dMapVec ;
 
   //------------------------------------------------------------------------
     
@@ -717,10 +723,17 @@ namespace Loci {
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
     
-    return s.Rep() ;
+    MapVec<M> static_MapVec ;
+    entitySet tmp_dom = s.domain() ;
+    static_MapVec.allocate(tmp_dom) ;
+    FORALL(tmp_dom, ei) {
+      for(int i = 0; i < M; ++i)
+	static_MapVec[ei][i] = s[ei][i] ;
+    }ENDFORALL ;
+    return static_MapVec.Rep() ;
   }
 
-  //------------------------------------------------------------------------
+//------------------------------------------------------------------------
 
   template<unsigned int M> 
   void dMapVecRepI<M>::compose(const Map &m, const entitySet &context)

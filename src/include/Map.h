@@ -45,6 +45,7 @@ namespace Loci {
     virtual void writehdf5(hid_t group_id, entitySet& en) const ;
     int * get_base_ptr() const { return base_ptr ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    virtual storeRepP thaw() ;
   } ;
       
   class Map : public store_instance {
