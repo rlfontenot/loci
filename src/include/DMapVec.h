@@ -712,15 +712,14 @@ template<unsigned int M> class dMapVec : public store_instance
          return;
      }
 
-     Array<int,M>   array;
      int indx = 0;
-
      for( ei = e.begin(); ei != e.end(); ++ei) {
        array  = attrib_data[*ei];
        for( j = 0; j < M; j++) 
-            buf[M*indx+j] =  array[j];
+            buf[M*indx+j] =  attrib_data[*ei][j];
        indx++;
      }
+
      MPI_Pack(buf, numBytes, MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
      free( buf );
   }
