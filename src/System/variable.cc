@@ -327,6 +327,8 @@ bool variable::info::operator<(const info &v) const {
     v.tvar = true ;
     v.time_id = t ;
     v.name = t.level_name() ;
+    v.offset = 0 ;
+    v.assign = false ;
     create_vdb() ;
     id = vdb->vars.get_id(v) ;
   }
@@ -342,6 +344,8 @@ bool variable::info::operator<(const info &v) const {
     create_vdb() ;
     info v2 = v.get_info() ;
     v2.time_id = t ;
+    v2.assign = false ;
+    v2.offset = 0 ;
     id = vdb->vars.get_id(v2) ;
   }
   

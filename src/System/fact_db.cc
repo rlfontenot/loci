@@ -43,11 +43,21 @@ namespace Loci {
     time_ident vtime = v.time() ;
     if(!all_vars.inSet(v) && vtime != time_ident() &&
        !v.get_info().assign && (v.get_info().priority.size() == 0)) {
-      const string &name = v.get_info().name ;
       variable var_stationary = variable(v,time_ident()) ;
+      typedef map<variable,std::list<variable> >  maptype ;
+      if(time_map.find(vtime) == time_map.end()) {
+        time_map.insert(make_pair(vtime,maptype())) ;
+      }
+      maptype &tinfo = time_map.find(vtime)->second ;
+      map<variable,std::list<variable> >::iterator vip ;
       list<variable> s ;
       s.push_back(v) ;
-      time_map[vtime][var_stationary].merge(s,offset_sort) ;
+
+      if((vip = tinfo.find(var_stationary)) == tinfo.end()) {
+        tinfo.insert(make_pair(var_stationary,s)) ;
+      } else {
+        vip->second.merge(s,offset_sort) ;
+      }
     }
     all_vars += v ;
   }
@@ -282,8 +292,8 @@ namespace Loci {
         vtouch += as ;
       }
       if(!overlap) {
-        //cerr << "memory variable " << ii->first << "{" << tl << "}"
-        //     << " has a history of " << ii->second.size() << endl ;
+        //        cerr << "memory variable " << ii->first << "{" << tl << "}"
+        //             << " has a history of " << ii->second.size() << endl ;
         ti->rotate_lists.push_back(ii->second) ;
       } else {
         if(ii->second.size() !=2) {
@@ -309,14 +319,12 @@ namespace Loci {
 
     for(ii=ti->rotate_lists.begin();ii!=ti->rotate_lists.end();++ii) {
       jj=ii->begin() ;
-      cerr << "*jj = " << *jj << endl ;
       storeRepP cp = get_fact_data(*jj).data_rep->getRep() ;
       ++jj ;
       if(jj != ii->end()) {
         for(;jj!=ii->end();++jj) {
           fact_data &fd = get_fact_data(*jj) ;
           storeRepP tmp = fd.data_rep->getRep() ;
-          cerr << "cp = " << &(*cp)  ;
           *(fd.data_rep) = cp ;
           cp = tmp ;
         }
