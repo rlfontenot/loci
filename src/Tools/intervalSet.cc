@@ -178,7 +178,7 @@ namespace Loci {
     range = equal_range(Rep->begin(),Rep->end(),ivl,
                         interval_porder_union) ;
     int range_size = range.second - range.first ;
-    fatal(range_size<0) ;
+    FATAL(range_size<0) ;
     switch(range_size) {
     case 0:
       Rep->insert(range.first,i) ;
