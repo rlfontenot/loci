@@ -204,15 +204,43 @@ namespace Loci {
         bool singleton = false ;
         bool recursive = false ;
         bool unit_rule_exists = false ;
-        bool chomp = false ;
-        for(ri=var_rules.begin();ri!=var_rules.end();++ri)
+        for(ri=var_rules.begin();ri!=var_rules.end();++ri) {
           //if(ri->get_info().rule_class != rule::INTERNAL) {
           if(!is_virtual_rule(*ri)) {
             use_rules += *ri ;
 
             if(ri->get_info().rule_class == rule::INTERNAL)
               if(ri->get_info().qualifier() == "CHOMP") {
-                chomp = true ;
+                // we need to actually look into the chomping
+                // graph to find out the rules that generate
+                // this variable and dertermin the types of
+                // rules
+                rulecomp_map::const_iterator rmi ;
+                rmi = rcm.find(*ri) ;
+                FATAL(rmi == rcm.end()) ;
+                rule_compilerP rcp = rmi->second ;
+                chomp_compiler* chc =
+                  dynamic_cast<chomp_compiler*>(&(*(rcp))) ;
+                FATAL(chc == 0) ;
+                digraph cgrt = (chc->chomp_graph).transpose() ;
+                ruleSet chomp_var_rules = extract_rules(cgrt[vi->ident()]) ;
+                for(ruleSet::const_iterator cri=chomp_var_rules.begin() ;
+                    cri!=chomp_var_rules.end();++cri) {
+                  
+                  rule_implP crimp = cri->get_rule_implP() ;
+                  if(crimp->get_rule_class() == rule_impl::POINTWISE)
+                    pointwise = true ;
+                  
+                  if(crimp->get_rule_class() == rule_impl::UNIT ||
+                     crimp->get_rule_class() == rule_impl::APPLY)
+                    reduction = true ;
+                  
+                  if(crimp->get_rule_class() == rule_impl::UNIT)
+                    unit_rule_exists = true ;
+                  
+                  if(crimp->get_rule_class() == rule_impl::SINGLETON)
+                    singleton = true ;
+                }
                 continue ;
               }
             
@@ -223,6 +251,7 @@ namespace Loci {
             if(rimp->get_rule_class() == rule_impl::UNIT ||
                rimp->get_rule_class() == rule_impl::APPLY)
               reduction = true ;
+
             if(rimp->get_rule_class() == rule_impl::UNIT)
               unit_rule_exists = true ;
             
@@ -232,12 +261,13 @@ namespace Loci {
             if((ri->sources() & ri->targets()) != EMPTY)
               recursive = true ;
           }
+        }
         
         WARN(reduction && pointwise || pointwise && singleton ||
              reduction && singleton) ;
 
         if((use_rules != EMPTY)) {
-          if( (pointwise||chomp) && !recursive && (vi->get_info().name != "OUTPUT")){
+          if(pointwise && !recursive && (vi->get_info().name != "OUTPUT")){
             barrier_vars += *vi ;
           }
           if(pointwise && recursive && (vi->get_info().name != "OUTPUT")) {
