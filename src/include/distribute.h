@@ -41,6 +41,14 @@ namespace Loci {
   void print_global(entitySet e, fact_db &facts) ;
   storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) ;
+
+  extern fact_db *exec_current_fact_db ;
+
+  extern storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
+
+  inline storeRepP collect_store(storeRepP &sp) 
+  { return collect_store(sp,*exec_current_fact_db) ;}
+
 }
 
 

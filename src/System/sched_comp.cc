@@ -142,7 +142,10 @@ namespace Loci {
   } ;
 
 
+  fact_db *exec_current_fact_db = 0 ;
+  
   void allocate_all_vars::execute(fact_db &facts) {
+    exec_current_fact_db = &facts ;
     variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi,vii ;
     set<time_ident> time_set ;

@@ -2,8 +2,66 @@
 #include <vector>
 using std::vector ;
 
+#include <sys/stat.h>
+
+#include <distribute.h>
+
 namespace Loci {
 
+  class execute_dump_var : public execute_modules {
+    variableSet dump_vars ;
+  public:
+    execute_dump_var(variableSet vars) : dump_vars(vars) {}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+
+  void execute_dump_var::execute(fact_db &facts) {
+    bool do_dump = true ;
+    struct stat statbuf ;
+    if(stat("dump_vars",&statbuf))
+      do_dump = false ;
+    else if(!S_ISDIR(statbuf.st_mode)) 
+        do_dump = false ;
+
+    if(!do_dump)
+      return ;
+    
+    for(variableSet::const_iterator vi=dump_vars.begin();
+        vi!=dump_vars.end();++vi) {
+      variable v = *vi ;
+      storeRepP st = facts.get_variable(v) ;
+      storeRepP sc = st ;
+      if(facts.isDistributed() && st->RepType() == STORE) {
+        sc = collect_store(st,facts) ;
+      }
+      if(MPI_rank == 0) {
+        ostringstream oss ;
+        oss << "dump_vars/"<<v ;
+        string filename = oss.str() ;
+        ofstream ofile(filename.c_str(),ios::out) ;
+        ofile.precision(8) ;
+        sc->Print(ofile) ;
+      }
+    }
+  }
+
+  void execute_dump_var::Print(std::ostream &s) const {
+    s << "dumping variables " << dump_vars << endl ;
+  }
+
+  
+  class dump_vars_compiler : public rule_compiler {
+    variableSet dump_vars ;
+  public:
+    dump_vars_compiler(variableSet &vars) : dump_vars(vars) {}
+    virtual void set_var_existence(fact_db &facts) {}
+    virtual void process_var_requests(fact_db &facts) {}
+    virtual executeP create_execution_schedule(fact_db &facts) {
+      return executeP(new execute_dump_var(dump_vars)) ;
+    }
+  } ;
+  
   void compile_dag_sched(std::vector<rule_compilerP> &dag_comp,
                          const std::vector<digraph::vertexSet> &dag_sched,
                          const rulecomp_map &rcm,
@@ -36,7 +94,7 @@ namespace Loci {
         rules = extract_rules(dag_sched[i]) ;
       }
 
-      variableSet barrier_vars, reduce_vars,singleton_vars ;
+      variableSet barrier_vars, reduce_vars,singleton_vars,all_vars ;
       variableSet::const_iterator vi ;
 
       std::map<variable,ruleSet> reduce_info ;
@@ -66,11 +124,19 @@ namespace Loci {
         
         WARN(reduction && pointwise || pointwise && singleton ||
              reduction && singleton) ;
+
+        //        if(vi->get_info().name == "qpgrad") {
+        //          cerr << "qpgrad rules = " << var_rules << endl ;
+        //        }
         
         if((use_rules != EMPTY)) {
           if(pointwise && !recursive && (vi->get_info().name != "OUTPUT")) {
             barrier_vars += *vi ;
-          } if(reduction) {
+          }
+          if(pointwise && recursive && (vi->get_info().name != "OUTPUT")) {
+            all_vars += *vi ;
+          }
+          if(reduction) {
             reduce_info[*vi] = use_rules ;
             reduce_vars += *vi ;
           } if(singleton) {
@@ -80,11 +146,16 @@ namespace Loci {
 
       }
 
+      all_vars += barrier_vars ;
       dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
 
+      all_vars += singleton_vars ;
+      
       if(singleton_vars != EMPTY)
         dag_comp.push_back(new singleton_var_compiler(singleton_vars)) ;
-                           
+
+      all_vars += reduce_vars;
+      
       if(reduce_info.begin() != reduce_info.end()) {
         std::map<variable,ruleSet>::const_iterator xi ;
         variableSet vars ;
@@ -124,6 +195,9 @@ namespace Loci {
         }
       }
 
+      if(all_vars != EMPTY) 
+        dag_comp.push_back(new dump_vars_compiler(all_vars)) ;
+      
       if(rules != EMPTY) {
         ruleSet::const_iterator ri ;
         for(ri=rules.begin();ri!=rules.end();++ri) {
