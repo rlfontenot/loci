@@ -32,8 +32,6 @@ using std::cout ;
 #include <algorithm>
 using std::swap ;
 using std::sort ;
-//#define SCATTER_DIST
-//#define UNITY_MAPPING
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
@@ -78,15 +76,19 @@ namespace Loci {
       }
     }
   }
-  
+  //This is the first call to be made for any Loci program be it
+  //sequential or parallel. 
   void Init(int* argc, char*** argv)  {
     char *execname = (*argv)[0] ;
     const char *hostname = "localhost" ;
     const char *debug = "gdb" ;
+    //Setting up of the global variables for processor ID and the
+    //total number of processes.  
     MPI_Init(argc, argv) ;
     MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
+    //Create a debug file for each process
     ostringstream oss ;
     // if output directory doesn't exist, create one
     bool debug_is_directory = true ;
@@ -110,6 +112,11 @@ namespace Loci {
     
     string filename  = oss.str() ;
     debugout.open(filename.c_str(),ios::out) ;
+    // All the rules in an unnamed namespace are first copied into the 
+    // global rule list. To add rules to the rule database we just
+    // neeed to use the global_rule_list. Inititally when the rules
+    // are registered using the register rule it gets pushed into the
+    // register_rule_list which is a static rule list. 
     if(!register_rule_list.empty()) {
       global_rule_list.copy_rule_list(register_rule_list) ;
       register_rule_list.clear() ;
@@ -150,7 +157,7 @@ namespace Loci {
     }
     chopsigs_() ;
   }
-  
+  //All Loci programs must end with this call. 
   void Finalize() {
     MPI_Finalize() ;
   }
@@ -158,7 +165,9 @@ namespace Loci {
   void Abort() {
     debugger_() ;
   }
-  
+  //This routine was first written to read in a partition of
+  //entities. No longer needed if we are relying completely on the
+  //scalable version.  
   vector<entitySet> read_partition(const char *fname,int num_partitions) {
     vector<entitySet> ptn ;
     ifstream infile ;
@@ -187,7 +196,9 @@ namespace Loci {
     }
     return ptn ;
   }    
-
+  //This routine writes out a generalized partition of entities. It
+  //calls the generalized non scalable partitioning routine and writes 
+  //out p partitions . 
   void write_partition(const char *fname, const vector<entitySet> &ptn) {
     if(MPI_rank == 0) {
       int num_partitions = ptn.size() ;
@@ -353,9 +364,6 @@ namespace Loci {
     delete [] part ;
     delete [] adjncy ;
   }
-
-
-
   
   /*This routine loops over all the rules in the database and extracts
   all the variables associated with the mappings in the head, body and
@@ -466,7 +474,9 @@ namespace Loci {
   entities which are related are found out by taking the image of the
   maps associated with the rules in the database. The entitySet which
   is usually passed on to the routine will contain the my_entities
-  associated with a particular process. */
+  associated with a particular process. This routine doesn't need to
+  perform any communication as the whole map is present on all the
+  processors. */
   
   entitySet expand_map(entitySet domain, fact_db &facts,
                        const set<vector<variableSet> > &maps) {
@@ -495,13 +505,15 @@ namespace Loci {
     }
     return dom ;
   }
-  
+  //This routine  is similar to the expand map but it works for maps
+  //which are distributed across processors. 
   entitySet dist_expand_map(entitySet domain, fact_db &facts,
 			    const std::set<std::vector<variableSet> > &maps) {   
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
+    
     for(int i = 0; i < MPI_processes; ++i) {
       entitySet tmp = ptn[i] ;
-      ptn[i] = tmp & interval(0,  UNIVERSE_MAX) ;
+      ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
     }
     entitySet dom = domain ;
     variableSet vars = facts.get_typed_variables() ;
@@ -523,22 +535,16 @@ namespace Loci {
 	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ; 
 	    //Loci::debugout << " variable = " << *vi << " tmp_out = " << tmp_out << endl ;
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
-	    //Loci::debugout <<  "after expand domain = " << sp->domain() << endl ;
 	    if(sp->domain() != tmp_dom) {
-	      //debugout << " updated map " << *vi << endl ;
-	      //debugout << " old_domain.Min() = " << tmp_dom.Min() << endl ;
-	      //debugout << " old_domain.Max() = " << tmp_dom.Max() << endl ;
-	      //debugout << " old_domain.size = " << tmp_dom.size() << endl ;
 	      facts.update_fact(variable(*vi), sp) ; 
-	      //debugout << " new_domain.Min() = " << sp->domain().Min() << endl ;
-	      //debugout << " new_domain.Max() = " << sp->domain().Max() << endl ;
-	      //debugout << " new_domain.size = " <<  sp->domain().size() << endl ;
+	      //Loci::debugout << "updated map = " << *vi <<  endl ;
+	      //sp->Print(Loci::debugout) ;
 	    }
 	    image +=  MapRepP(sp)->image((sp->domain()) & locdom) ;
 	    dom += tmp_out ;
 	  }
 	}
-		for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
+	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	  storeRepP p = facts.get_variable(*vi) ;
 	  if(p->RepType() ==  MAP) {
 	    entitySet tmp_dom = p->domain() ;
@@ -546,25 +552,20 @@ namespace Loci {
 	    entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
 	    glob_dom &= dom ;
 	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ; 
-	    //Loci::debugout << " variable = " << *vi << " tmp_out = " << tmp_out << endl ;
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
-	    //Loci::debugout <<  "after expand domain = " << sp->domain() << endl ;
 	    if(sp->domain() != tmp_dom) {
 	      facts.update_fact(variable(*vi), sp) ; 
 	    }
 	    image +=  MapRepP(sp)->image((sp->domain()) & locdom) ;
-	    //dom += tmp_out ;
 	  }
 	}
-	
-	
 	dom += image ;
 	locdom = image ;
       }
     }
     return dom ;
   }
- 
+  
   void categories(fact_db &facts,std::vector<entitySet> &pvec) {
     entitySet active_set ;
     set<entitySet> set_of_sets ;
@@ -666,16 +667,15 @@ namespace Loci {
 	    std::string name = "image_" ;
 	    name.append(vsi->get_info().name) ;
 	    variable v = variable(name) ;
-	    //Loci::debugout << " new variable  " << v << " is created "  << endl ;
 	    vm[v] = left_out_categories ; 
 	  }
 	}
       } 
       pvec = modified_categories(facts, vm, tmp_pvec) ;
-      //Loci::debugout << " pvec.size() = " << pvec.size() << endl ;
     }
   }
- 
+  // This routine does a generalized partitioning of the entities in
+  // the fact database and returns the partition. 
   vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions) {
     if(num_partitions == 0)
       num_partitions = MPI_processes ;
@@ -695,7 +695,10 @@ namespace Loci {
     facts.put_init_ptn(ptn) ;
     facts.put_distribute_info(df) ;
     return ptn ;
-  } 
+  }
+  //This  routine is almost similar to the above one but for the
+  //introduction of the chopped partitioning and the remapping of
+  //entities needed for scalable I/O
   vector<entitySet> generate_scalable_distribution(fact_db &facts, rule_db &rdb, int num_partitions) {
     if(num_partitions == 0)
       num_partitions = MPI_processes ;
@@ -723,12 +726,14 @@ namespace Loci {
       }
     }
     int indx = 1 ;
+    // This is needed for the new scalable I/O routines. 
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       int ivl = ptn[i].size() ;
       chop_ptn[i] = Loci::interval(indx, indx + ivl-1) ;
       indx += ivl ;
     }
     fact_db::distribute_infoP df = new fact_db::distribute_info  ;
+    //Remapping of entities keeps the partitioning contiguous . 
     df->remap = remap ;
     df->chop_ptn = chop_ptn ;
     facts.put_init_ptn(ptn) ;
@@ -750,8 +755,6 @@ namespace Loci {
     vector<entitySet> copy(num_procs) ;
     vector<entitySet> image(num_procs) ;
     entitySet tmp ;
-    //    for(int i = 0; i < num_procs; ++i)
-    //      debugout << " partition[ " << i << " ] = " << ptn[i] << endl ;
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
       // The clone region is obtained here 
@@ -767,7 +770,6 @@ namespace Loci {
       //my_entities. 
       get_entities[pnum][pnum] = ptn[pnum] ;
     }
-    //     debugout << " total clone information needed =  " << tmp << endl ;
     end_time  = MPI_Wtime() ;
     debugout << "Time taken for all the calls to expand_map is =   = " << end_time-start << endl ; 
     start = MPI_Wtime() ;
@@ -917,22 +919,6 @@ namespace Loci {
     facts.create_fact("my_entities", my_entities) ;
     end_time =  MPI_Wtime() ;
     debugout << "  Time taken for creating final info =  " << end_time - start << endl ;
-    /*
-    variableSet tmp_vars = facts.get_typed_variables();
-    for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
-       storeRepP tmp_sp = facts.get_variable(*vi) ;
-      if(tmp_sp->RepType() ==  MAP) {
-	 debugout << " Map "  << *vi << " =  " << endl  ;
-	entitySet tmp_dom = tmp_sp->domain() ;
-	 debugout << " local domain = " << tmp_dom << endl ;
-	entitySet global_dom =  all_collect_entitySet(tmp_dom) ;
-	 debugout << " global_map domain = " << global_dom << endl ;
-	entitySet tmp_image =  MapRepP(tmp_sp->getRep())->image(tmp_dom) ;
-	global_dom =  all_collect_entitySet(tmp_image) ;
-	 debugout << " global map image = " << global_dom << endl ;
-      }
-      }
-    */
   }
   
   /*The fill_entitySet routine fills in the clone region entities
@@ -1560,8 +1546,6 @@ namespace Loci {
 	unsigned char* my_stuff = new unsigned char[my_sz] ;
 	sp->pack(my_stuff, loc_pack,my_sz,temp) ;
 	nsp = sp->new_store(re) ;
-	//nsp = sp->new_store(EMPTY) ;
-	//nsp->allocate(re) ;
 	recv_ptr[0] = new unsigned char[sz] ;
 	for(int i = 1; i < MPI_processes-1; i++)
 	  recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
@@ -1626,7 +1610,11 @@ namespace Loci {
     return nsp ;
     
   }
-  
+  //This routine is used to collect the entire store on processor
+  //0. The store is initially distributed across all the processors in 
+  //their initial global numbering. This is not a scalable option for
+  //large containers. Written for use in the couple_grids routine in
+  //fvm_coupler.cc  
   storeRepP collect_global_store(storeRepP &sp) {
     storeRepP nsp = sp ;
     if(Loci::MPI_rank == 0) {
@@ -1767,6 +1755,12 @@ namespace Loci {
     MPI_Barrier(MPI_COMM_WORLD) ;
     return nsp ;
   }
+  //This is a generalized routine for writing out storeRepP's. Has
+  //been tested for stores, storeVecs and multiStores. The initial
+  //store in the local numbering is first redistributed such that it
+  //ends up in a blocked partitioning format in the global numbering
+  //across all the processors. The qrep passed to this routine is in
+  //the chunked partitioning format in global numbering.   
 void write_container(hid_t group_id, storeRepP qrep) {
     entitySet dom = qrep->domain() ;
     entitySet q_dom = all_collect_entitySet(dom) ;
@@ -1856,7 +1850,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
     MPI_Barrier(MPI_COMM_WORLD) ;
     delete [] tmp_send_buf ;
   }
-  
+  //This routine 
   void read_container(hid_t group_id, storeRepP qrep, entitySet &dom) {
     entitySet q_dom ;
     if(Loci::MPI_rank == 0)
@@ -2640,12 +2634,16 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	dom = MapRepP(m.Rep())->preimage(ent[i]).first ;
 	final_ent[i] = dom ;
       }
+      /*
       for(int i = 0; i < MPI_processes; ++i) {   
 	for(int j = i+1 ; j < MPI_processes; ++j) {
 	  entitySet  tmp = final_ent[i] & final_ent[j] ;
+	  if(tmp != EMPTY)
+	    cerr << " ERROR: Something is screwed up ???  " << endl ;
 	  final_ent[j] -= tmp ;
 	}
       }
+      */
       int **send_ptr = new int*[MPI_processes-1] ;
       store_request = new MPI_Request[MPI_processes-1] ;
       store_status = new MPI_Status[MPI_processes-1] ;
@@ -2716,6 +2714,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
       int *s_size = new int[MPI_processes-1] ;
       for(int i = 0; i < MPI_processes-1; ++i) { 
 	ent[i] = init_ptn[i+1] & dom ;
+	s_size[i] = ent[i].size() ;
 	sz += s_size[i] ;
       }
       int **send_ptr = new int*[MPI_processes-1] ;

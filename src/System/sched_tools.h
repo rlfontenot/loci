@@ -81,10 +81,12 @@ namespace Loci {
    class execute_param_red : public execute_modules {
      variable reduce_var ;
      rule unit_rule ;
+     MPI_Op create_join_op ;
      CPTR<joiner> join_op ; 
    public:
      execute_param_red(variable reduce_var, rule unit_rule,
                        CPTR<joiner> join_op) ; 
+     ~execute_param_red() ;
      virtual void execute(fact_db &facts) ;
      virtual void Print(std::ostream &s) const ;
    } ;
