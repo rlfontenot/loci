@@ -1,4 +1,4 @@
-#include <distribute.h>
+#include "dist_tools.h"
 #include <Tools/debug.h>
 #include <entitySet.h>
 
@@ -55,7 +55,7 @@ namespace Loci {
   bool use_chomp = false ;
   /////////////////////////////
   ofstream debugout ;
-  double barrier_time = 0 ;
+
   double total_memory_usage = 0 ;
 
   extern int current_rule_id ;
@@ -190,6 +190,226 @@ namespace Loci {
   void Abort() {
     debugger_() ;
   }
+
+  void get_clone(fact_db &facts, rule_db &rdb) {
+    fact_db::distribute_infoP df = facts.get_distribute_info()  ;
+    std::vector<entitySet> &ptn = facts.get_init_ptn() ;
+    entitySet bdom = ptn[Loci::MPI_rank] & interval(Loci::UNIVERSE_MIN, -1) ;
+    entitySet global_bdom = Loci::all_collect_entitySet(bdom) ;
+    int p = 0; 
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      entitySet tmp = ptn[i] ; 
+      ptn[i] = tmp & interval(0, Loci::UNIVERSE_MAX) ;
+    }
+    FORALL(global_bdom, i) {
+      int tmp = p % Loci::MPI_processes ;
+      ptn[tmp] += i ;
+      p++ ;
+    } ENDFORALL ;
+    variableSet tmp_vars = facts.get_typed_variables();
+    for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
+      Loci::storeRepP tmp_sp = facts.get_variable(*vi) ;
+      if(tmp_sp->RepType() == Loci::CONSTRAINT) {
+        entitySet tmp_dom = tmp_sp->domain() ;
+        if(tmp_dom != ~EMPTY) {
+          entitySet global_tmp_dom = Loci::all_collect_entitySet(tmp_dom) ;
+          constraint tmp ;
+          *tmp = global_tmp_dom ;
+          facts.update_fact(variable(*vi), tmp) ; 
+        }
+      }
+      if(tmp_sp->RepType() == Loci::MAP) {
+        storeRepP map_sp = Loci::MapRepP(tmp_sp->getRep())->thaw() ; 
+        facts.replace_fact(*vi, map_sp) ;
+      }
+    }
+    entitySet tmp_copy, image ;
+    std::set<std::vector<variableSet> > maps ;
+
+    entitySet::const_iterator ei ;
+    Loci::get_mappings(rdb,facts,maps) ;
+    std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
+    int *recv_count = new int[MPI_processes] ;
+    int *send_count = new int[MPI_processes] ;
+    int *send_displacement = new int[MPI_processes];
+    int *recv_displacement = new int[MPI_processes];
+    int size_send = 0 ;
+    entitySet tmp_set = ptn[Loci::MPI_rank] ; 
+    image = Loci::dist_expand_map(tmp_set, facts, maps) ;
+    tmp_copy =  image - ptn[MPI_rank] ; 
+    for(int i = 0; i < MPI_processes; ++i) {
+      copy[i] = tmp_copy & ptn[i] ;
+      send_count[i] = copy[i].size() ;
+      size_send += send_count[i] ; 
+    }
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+                 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      size_send += recv_count[i] ;
+    }
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      for(ei = copy[i].begin(); ei != copy[i].end(); ++ei) {
+        send_buf[size_send] = *ei ;
+        ++size_send ;
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+                  recv_buf, recv_count, recv_displacement, MPI_INT,
+                  MPI_COMM_WORLD) ;  
+    std::vector<entitySet> add(MPI_processes) ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+            recv_displacement[i]+recv_count[i]; ++j) 
+        send_clone[i] += recv_buf[j] ;
+    }
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+  
+    variableSet vars = facts.get_typed_variables() ;
+    double start = MPI_Wtime() ;
+    int myid = MPI_rank ;
+    int size = 0 ;
+    Map l2g ;
+    constraint my_entities ;
+    int isDistributed ;
+    std::vector<entitySet> iv ; 
+    entitySet::const_iterator ti ;
+    vector<entitySet> proc_entities ;
+    Loci::categories(facts,iv) ;
+    entitySet e ;
+    if(Loci::MPI_rank == 0)
+      cout << " initial_categories =  " << iv.size() << endl ;
+  
+    for(size_t i = 0; i < iv.size(); ++i) {
+      //    Loci::debugout << " iv[ " << i << " ] = " << iv[i] << endl ;
+      // Within each category:
+      // 1) Number local processor entities first
+      e = ptn[myid] & iv[i] ; 
+      if(e != EMPTY) {
+        proc_entities.push_back(e) ; 
+        size += e.size() ;
+      }
+      // 2) Number clone region entities next
+      for(int j = 0; j < MPI_processes; ++j) 
+        if(myid != j) {
+          e = copy[j] & iv[i];
+          if(e != EMPTY) {
+            proc_entities.push_back(e) ;
+            size += e.size() ;
+          }
+        }
+    }
+    iv.clear() ;
+    entitySet g ; 
+    //#define UNITY_MAPPING
+#ifdef UNITY_MAPPING
+    cout << "Using Unity Mapping " << endl ;
+    for(int i=0;i<proc_entities.size();++i)
+      g+= proc_entities[i] ;
+    l2g.allocate(g) ;
+    for(entitySet::const_iterator ei=g.begin();ei!=g.end();++ei)
+      l2g[*ei] = *ei ;
+#else
+    MPI_Barrier(MPI_COMM_WORLD) ;
+    int j = 0 ;
+    e = interval(0, size-1) ;
+    l2g.allocate(e) ;
+    for(size_t i = 0; i < proc_entities.size(); ++i) {
+      g += proc_entities[i] ;
+      for(ei = proc_entities[i].begin(); ei != proc_entities[i].end(); ++ei ) {
+        l2g[j] = *ei ;
+        ++j ;
+      }
+    }
+    proc_entities.clear() ;
+#endif 
+    df->l2g = l2g ;
+    df->g2l.allocate(g) ;
+    entitySet ldom = l2g.domain() ;
+    for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {
+      df->g2l[l2g[*ei]] = *ei ;
+    }
+    entitySet send_neighbour ;
+    entitySet recv_neighbour ;
+    store<entitySet> send_entities ;
+    store<entitySet> recv_entities ;
+    for(int i = 0 ; i < MPI_processes; ++i) 
+      if(myid != i )
+        if(copy[i] != EMPTY) 
+          recv_neighbour += i ; 
+  
+    for(int i = 0; i < MPI_processes; ++i)
+      if(myid != i)
+        if(send_clone[i] != EMPTY)
+          send_neighbour += i ;
+  
+    send_entities.allocate(send_neighbour) ;
+    recv_entities.allocate(recv_neighbour) ;
+    for(ei = recv_neighbour.begin(); ei != recv_neighbour.end(); ++ei) {
+      for(ti =  copy[*ei].begin(); ti != copy[*ei].end(); ++ti) {
+        recv_entities[*ei] += df->g2l[*ti] ;
+      }
+    }
+  
+    for(ei = send_neighbour.begin(); ei!= send_neighbour.end(); ++ei) {
+      for(ti =  send_clone[*ei].begin(); ti != send_clone[*ei].end(); ++ti)
+        send_entities[*ei] +=  df->g2l[*ti] ;
+    }
+    double end_time =  MPI_Wtime() ;
+    Loci::debugout << "  Time taken for creating intitial info =  " << end_time - start << endl ;
+    start = MPI_Wtime() ;
+    Loci::reorder_facts(facts, df->g2l) ;
+    end_time =  MPI_Wtime() ;
+    Loci::debugout << "  Time taken for reordering =  " << end_time - start << endl ; 
+    isDistributed = 1 ;
+    df->isDistributed = isDistributed ;
+    g = EMPTY ;
+    for(ei = ptn[myid].begin(); ei != ptn[myid].end(); ++ei)
+      g += df->g2l[*ei] ;
+    my_entities = g ;
+    df->myid = myid ;
+    df->my_entities = g ;
+    /*xmit data structure contains the information as to what
+      entities are to be send to what processor . The copy data
+      structure contains the entities that are to be received from a
+      particular processor(information regarding the clone region
+      entities). All the entities are stored in their local
+      numbering. A local to global numbering l2g  is provided to send the
+      entities in their original global numbering.*/ 
+    for(ei=send_neighbour.begin(); ei != send_neighbour.end();++ei)
+      df->xmit.push_back
+        (fact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
+    for(ei=recv_neighbour.begin(); ei != recv_neighbour.end();++ei)
+      df->copy.push_back
+        (fact_db::distribute_info::dist_data(*ei,recv_entities[*ei])) ;
+  
+    int total = 0 ;
+    for(size_t i=0;i<df->xmit.size();++i)
+      total += df->xmit[i].size ;
+    df->xmit_total_size = total ;
+    total = 0 ;
+    for(size_t i=0;i<df->copy.size();++i)
+      total += df->copy[i].size ;
+    df->copy_total_size = total ;
+    facts.put_distribute_info(df) ;
+    facts.create_fact("l2g", l2g) ;
+    facts.put_l2g(l2g) ;
+    facts.create_fact("my_entities",my_entities);
+  }
+  
   //This routine was first written to read in a partition of
   //entities. No longer needed if we are relying completely on the
   //scalable version.  
@@ -595,8 +815,7 @@ namespace Loci {
     entitySet active_set ;
     set<entitySet> set_of_sets ;
     set_of_sets.insert(~EMPTY) ;
-    variableSet vars = facts.get_typed_variables(
-) ;
+    variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP p = facts.get_variable(*vi) ;
       if(p->RepType() == MAP) {

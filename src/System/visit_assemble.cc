@@ -3,7 +3,7 @@
 #include "comp_tools.h"
 
 #include <Tools/stream.h>
-#include <distribute.h>
+#include "dist_tools.h"
 
 using std::vector ;
 using std::map ;

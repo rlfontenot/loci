@@ -1,5 +1,5 @@
 #include "sched_tools.h"
-#include "distribute.h"
+#include "dist_tools.h"
 #include "param_rule.h"
 #include <Tools/stream.h>
 using std::map ;
@@ -543,6 +543,16 @@ namespace Loci {
                                      std::string target_string,
                                      int nth) {
     num_threads = min(nth,max_threads) ;
+
+    if(facts.is_distributed_start()) {
+      if((MPI_processes > 1)) 
+        get_clone(facts, rdb) ;
+      else
+        Loci::serial_freeze(facts) ; 
+    } else {
+      Loci::serial_freeze(facts) ;
+    }
+    
     //double timer = get_timer() ;
     sched_db scheds(facts) ;
     variableSet given = facts.get_typed_variables() ;

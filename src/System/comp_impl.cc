@@ -1,5 +1,5 @@
 #include "comp_tools.h"
-#include <distribute.h>
+#include "dist_tools.h"
 using std::ostream ;
 using std::endl ;
 

@@ -20,7 +20,7 @@ using std::string ;
 using std::ostream ;
 using std::ostringstream ;
 
-#include <distribute.h>
+#include "dist_tools.h"
 //#define VERBOSE
 
 namespace Loci {

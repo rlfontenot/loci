@@ -3,7 +3,7 @@
 #include <Tools/stream.h>
 #include <Tools/debugger.h>
 #include <DStore.h>
-#include <distribute.h>
+#include "dist_tools.h"
 #include <typeinfo>
 
 extern "C" {

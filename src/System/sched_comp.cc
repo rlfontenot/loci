@@ -1,6 +1,6 @@
 #include "sched_tools.h"
 #include "comp_tools.h"
-#include "distribute.h"
+#include "dist_tools.h"
 #include "visitor.h"
 
 #include <Tools/stream.h>

@@ -7,7 +7,7 @@ using std::vector ;
 
 #include <sys/stat.h>
 
-#include <distribute.h>
+#include "dist_tools.h"
 #include <parameter.h>
 
 #include <map>
