@@ -128,10 +128,13 @@ namespace Loci {
     { return READ_ONLY ; }
     
   void multiMapRepI::allocate(const entitySet &ptn) {
-    cerr << "Warning: multiMapRepI::allocate(const entitySet &) : "
-         << endl ;
-    cerr << "Generic allocation can not be applied to multiMaps"
-         << endl ;
+    if(ptn != EMPTY) {
+      cerr << "Warning: multiMapRepI::allocate(const entitySet &) : "
+           << endl ;
+      cerr << "Generic allocation can not be applied to multiMaps"
+           << endl ;
+      cerr << "allocate set = " << ptn << endl ;
+    }
   }
 
   void multiMapRepI::allocate(const store<int> &sizes) {
@@ -283,6 +286,7 @@ namespace Loci {
                   const entitySet &input_image,
                   const entitySet &input_preimage) {
     store<int> sizes(input_image) ;
+
     FORALL(input_image,i) {
       sizes[i] = 0 ;
     } ENDFORALL ;
@@ -311,6 +315,7 @@ namespace Loci {
                   const entitySet &input_image,
                   const entitySet &input_preimage) {
     store<int> sizes(input_image) ;
+    
     FORALL(input_image,i) {
       sizes[i] = 0 ;
     } ENDFORALL ;
