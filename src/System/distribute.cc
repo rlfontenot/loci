@@ -323,7 +323,7 @@ namespace Loci {
     constraint my_entities ;
     int isDistributed ;
     std::vector<Loci::interval> iv ;
-    entitySet::const_iterator ei ;
+    entitySet::const_iterator ei, ti ;
     std::vector<entitySet> proc_entities ;
     categories(facts,iv) ;
     entitySet e ;
@@ -376,10 +376,14 @@ namespace Loci {
     df->send_entities.allocate(df->send_neighbour) ;
     df->recv_entities.allocate(df->recv_neighbour) ;
     
-    for(ei = df->recv_neighbour.begin(); ei!= df->recv_neighbour.end(); ++ei)
-      df->recv_entities[*ei] = get_entities[myid][*ei] ;
-    for(ei = df->send_neighbour.begin(); ei!= df->send_neighbour.end(); ++ei)
-      df->send_entities[*ei] = get_entities[*ei][myid] ;
+    for(ei = df->recv_neighbour.begin(); ei!= df->recv_neighbour.end(); ++ei) {
+      for(ti =  get_entities[myid][*ei].begin(); ti != get_entities[myid][*ei].end(); ++ti)
+	df->recv_entities[*ei] += df->g2l[*ti] ;
+    }
+    for(ei = df->send_neighbour.begin(); ei!= df->send_neighbour.end(); ++ei) {
+      for(ti =  get_entities[*ei][myid].begin(); ti != get_entities[*ei][myid].end(); ++ti)
+	df->send_entities[*ei] +=  df->g2l[*ti] ;
+    }
     reorder_facts(facts, df->g2l) ;
     isDistributed = 1 ;
     df->isDistributed = isDistributed ;
@@ -392,7 +396,7 @@ namespace Loci {
     facts.create_fact("l2g", l2g) ;
     facts.create_fact("my_entities", my_entities) ;
   }
-
+  
   
   entitySet fill_entitySet(entitySet& e, fact_db &facts) {
     MPI_Status *status ;
@@ -437,8 +441,7 @@ namespace Loci {
       k = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
 	temp = EMPTY ;
-	for(ti = e.begin(); ti != e.end(); ++ti)
-	  temp += l2g[*ti] & d->send_entities[*ei] ;
+	temp = e & d->send_entities[*ei] ;
 	send_size[k] = temp.size()  ;
 	send_buffer[k] = new int[send_size[k]] ;
 	k++ ;
@@ -447,11 +450,10 @@ namespace Loci {
       k = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
 	temp = EMPTY ;
-	for(ti = e.begin(); ti != e.end(); ++ti)
-	  temp += l2g[*ti] & d->send_entities[*ei] ;
+	temp = e & d->send_entities[*ei] ;
 	int j = 0 ;
 	for(ti = temp.begin(); ti != temp.end(); ++ti) {
-	  send_buffer[k][j] = *ti ;
+	  send_buffer[k][j] = l2g[*ti] ;
 	  ++j ;
 	}
 	MPI_Send(&send_buffer[k][0], send_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD) ;
@@ -480,7 +482,7 @@ namespace Loci {
     } 
     return re ;
   }
-
+  
   entitySet send_entitySet(entitySet& e, fact_db &facts) {
     MPI_Status *status ;
     MPI_Request *recv_request ;
@@ -505,7 +507,6 @@ namespace Loci {
       l2g = facts.get_variable("l2g") ;
       my_entities = facts.get_variable("my_entities") ;
       re = e ;
-      //re = my_entities & e ;
       k = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
 	recv_size[k] = (d->send_entities[*ei]).size() ;
@@ -525,8 +526,7 @@ namespace Loci {
       k = 0 ;
       for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
 	temp = EMPTY ;
-	for(ti = e.begin(); ti != e.end(); ++ti)
-	  temp += l2g[*ti] & d->recv_entities[*ei] ;
+	temp = e & d->recv_entities[*ei] ;
 	send_size[k] = temp.size()  ;
 	send_buffer[k] = new int[send_size[k]] ;
 	k++ ;
@@ -535,11 +535,10 @@ namespace Loci {
       k = 0 ;
       for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
 	temp = EMPTY ;
-	for(ti = e.begin(); ti != e.end(); ++ti)
-	  temp += l2g[*ti] & d->recv_entities[*ei] ;
+	temp = e & d->recv_entities[*ei] ;
 	int j = 0 ;
 	for(ti = temp.begin(); ti != temp.end(); ++ti) {
-	  send_buffer[k][j] = *ti ;
+	  send_buffer[k][j] = l2g[*ti] ;
 	  ++j ;
 	}
 	MPI_Send(&send_buffer[k][0], send_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD) ;
@@ -619,7 +618,7 @@ namespace Loci {
 	entitySet temp;
 	send_size = e.size() ;
 	send_buffer = new int[send_size] ;
-
+	
 	for(ti = e.begin(); ti != e.end(); ++ti)
 	  temp += l2g[*ti] ;
 	int j = 0 ;

@@ -332,11 +332,11 @@ namespace Loci {
     l2g = facts.get_variable("l2g") ;
     int **send_buffer, **recv_buffer ;
     int *recv_size,*recv_size_actual, *send_size ;
-
+    
     recv_size = new int[d->send_neighbour.size()] ;
     recv_size_actual = new int[d->send_neighbour.size()] ;
     recv_buffer = new int *[d->send_neighbour.size()] ;
-
+    
     int total_size = 0 ;
     for(ei=d->send_neighbour.begin(),k=0;ei!=d->send_neighbour.end();++ei,++k) {
       recv_size[k] = (d->send_entities[*ei]).size() ;
@@ -349,33 +349,32 @@ namespace Loci {
     recv_buffer[0] = new int[total_size] ;
     for(int i=1;i<k;++i)
       recv_buffer[i] = recv_buffer[i-1]+recv_size[i-1] ;
-
+    
     send_size = new int[d->recv_neighbour.size()] ;
     send_buffer = new int *[d->recv_neighbour.size()] ;
-
+    
     total_size = 0 ;
     for(ei=d->recv_neighbour.begin(),k=0;ei!=d->recv_neighbour.end();++ei,++k) {
       send_size[k] = (d->recv_entities[*ei]).size() ;
       total_size += send_size[k] ;
     }
-
+    
     send_buffer[0] = new int[total_size] ;
     for(int i=1;i<k;++i)
       send_buffer[i] = send_buffer[i-1]+send_size[i-1] ;
-
-
-
+    
     std::map<variable, ruleSet>::iterator mi ;
     entitySet requests ;
     for(mi = barrier_info.begin() ; mi != barrier_info.end(); ++mi) {
       variable v = mi->first ;
       requests = facts.get_variable_requests(v) ;
+      cout << "post " << "  variable =   " <<v << "  requests =  " << requests << endl ; 
       comm_info ci ;
       ci.v = v ;
       entitySet tempset ;
       std::vector<proc_details> send_pvec ;
       std::vector<proc_details> recv_pvec ;
-
+      
       k = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
 	MPI_Irecv(&recv_buffer[k][0], recv_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, 
@@ -386,9 +385,7 @@ namespace Loci {
       k = 0 ;
       for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
 	temp = EMPTY ;
-	for(ti = requests.begin(); ti != requests.end(); ++ti)
-	  temp += l2g[*ti] ;
-        temp &= d->recv_entities[*ei] ;
+	temp = requests & d->recv_entities[*ei] ;
 	send_size[k] = temp.size()  ;
 	k++ ;
       }
@@ -405,28 +402,27 @@ namespace Loci {
 	proc_details pd ;
 	pd.processor = *ei ;
 	temp = EMPTY ;
-	for(ti = requests.begin(); ti != requests.end(); ++ti)
-	  temp += l2g[*ti] & d->recv_entities[*ei] ;
+	temp = requests & d->recv_entities[*ei] ;
 	int j = 0 ;
 	for(ti = temp.begin(); ti != temp.end(); ++ti) {
-	  send_buffer[k][j] = *ti ;
-	  pd.recv_set += d->g2l[*ti] ;
+	  send_buffer[k][j] = l2g[*ti] ;
 	  ++j ;
 	}
+	pd.recv_set = temp ;
 	//cout << d->myid << "post comm variable  = " << *vi << "    receiving from   " << *ei << "   " << pd.recv_set << endl ;
 	pd.send_set = EMPTY ;
 	MPI_Send(&send_buffer[k][0], send_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD) ;
 	k++ ;
 	recv_pvec.push_back(pd) ;
       }
-
+      
       if(recv_flag) {
         MPI_Waitall(recv_count, recv_request, status) ;
       }      
       
       for(k = 0; k < recv_count; ++k)
 	MPI_Get_count(&status[k], MPI_INT, &recv_size_actual[k]) ;
-
+      
       
       for(k = 0; k < d->send_neighbour.size(); ++k) {      
 	if((recv_flag == 1) && (recv_size_actual[k] > 0)) {
@@ -447,7 +443,7 @@ namespace Loci {
       clist.push_back(ci) ;
       
     }
-
+    
     delete[] status ;
     delete[] recv_request ;
     delete[] recv_buffer[0] ;
@@ -460,7 +456,6 @@ namespace Loci {
       
     return clist ;
   } 
-  
   std::list<comm_info> put_precomm_info(std::map<variable, ruleSet > barrier_info, fact_db &facts) {
     MPI_Status *status ;
     MPI_Request *recv_request ;
@@ -486,29 +481,29 @@ namespace Loci {
       entitySet temp_requests ;
       requests = facts.get_variable_requests(v) ;
       for(rsi = rs.begin(); rsi != rs.end(); ++rsi) {
-	const rule_impl::info &rinfo = rsi->get_info().desc ;
-	std::set<vmap_info>::const_iterator si ;
-	entitySet t_requests = requests ;
-	for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-	  vector<variableSet>::const_reverse_iterator rmi ;
-	  variableSet::const_iterator rvi ;
-	  if(si->mapping.size() != 0) {
-	    for(rmi=si->mapping.rbegin();rmi!=si->mapping.rend();++rmi) {
-	      for(rvi=rmi->begin();rvi!=rmi->end();++rvi) {
-		t_requests = facts.preimage(*rvi,requests).first ;
-		t_requests -= my_entities ;
-	      }
-	    }
-	    vector<variableSet>::const_iterator mi ;
-	    for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
-	      for(rvi=mi->begin();rvi!=mi->end();++rvi) 
-		t_requests = facts.image(*rvi, t_requests) ;
-	    }
-	  }
-	  else 
-	    t_requests = EMPTY ;
-	}
-	temp_requests += t_requests ;
+        const rule_impl::info &rinfo = rsi->get_info().desc ;
+        std::set<vmap_info>::const_iterator si ;
+        entitySet t_requests = requests ;
+        for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+          vector<variableSet>::const_reverse_iterator rmi ;
+          variableSet::const_iterator rvi ;
+          if(si->mapping.size() != 0) {
+            for(rmi=si->mapping.rbegin();rmi!=si->mapping.rend();++rmi) {
+              for(rvi=rmi->begin();rvi!=rmi->end();++rvi) {
+                t_requests = facts.preimage(*rvi,requests).first ;
+                t_requests -= my_entities ;
+              }
+            }
+            vector<variableSet>::const_iterator mi ;
+            for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
+              for(rvi=mi->begin();rvi!=mi->end();++rvi) 
+                t_requests = facts.image(*rvi, t_requests) ;
+            }
+          }
+          else 
+            t_requests = EMPTY ;
+        }
+        temp_requests += t_requests ;
       }
       recv_count = 0 ;
       comm_info ci ;
@@ -525,57 +520,55 @@ namespace Loci {
       
       k = 0 ;
       for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
-	recv_size[k] = (d->recv_entities[*ei]).size() ;
-	recv_buffer[k] = new int[recv_size[k]] ;
-	recv_count++ ;
-	k++ ;
+        recv_size[k] = (d->recv_entities[*ei]).size() ;
+        recv_buffer[k] = new int[recv_size[k]] ;
+        recv_count++ ;
+        k++ ;
       }
       recv_request = (MPI_Request *) malloc(recv_count * sizeof(MPI_Request) ) ;
       status = (MPI_Status *) malloc(recv_count * sizeof(MPI_Status) ) ;
       k = 0 ;
       for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
-	MPI_Irecv(&recv_buffer[k][0], recv_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, 
-		  &recv_request[k]) ;  
-	recv_flag = 1 ;
-	k++ ;
+        MPI_Irecv(&recv_buffer[k][0], recv_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, 
+                  &recv_request[k]) ;  
+        recv_flag = 1 ;
+        k++ ;
       }
       k = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
-	temp = EMPTY ;
-	for(ti = temp_requests.begin(); ti != temp_requests.end(); ++ti)
-	  temp += l2g[*ti] & d->send_entities[*ei] ;
-	send_size[k] = temp.size() ;
-	send_buffer[k] = new int[send_size[k]] ;
-	k++ ;
+        temp = EMPTY ;
+	temp = temp_requests & d->send_entities[*ei] ;
+        send_size[k] = temp.size() ;
+        send_buffer[k] = new int[send_size[k]] ;
+        k++ ;
       }
       Map id ;
       id.allocate(interval(0,d->recv_neighbour.size()-1)) ;
       k = 0 ;
       for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
-	id[k] = *ei ;
-	k++ ;
+        id[k] = *ei ;
+        k++ ;
       }
       k = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
-	proc_details pd ;
-	pd.processor = *ei ;
-	temp = EMPTY ;
-	for(ti = temp_requests.begin(); ti != temp_requests.end(); ++ti)
-	  temp += l2g[*ti] & d->send_entities[*ei] ;
-	int j = 0 ;
-	for(ti = temp.begin(); ti != temp.end(); ++ti) {
-	  send_buffer[k][j] = *ti ;
-	  pd.recv_set += d->g2l[*ti] ;
+        proc_details pd ;
+        pd.processor = *ei ;
+        temp = EMPTY ;
+	temp = temp_requests & d->send_entities[*ei] ;
+        int j = 0 ;
+        for(ti = temp.begin(); ti != temp.end(); ++ti) {
+          send_buffer[k][j] = l2g[*ti] ;
 	  ++j ;
-	} 
-	pd.send_set = EMPTY ;
-	//if(pd.recv_set != EMPTY) {
-	//cout << d->myid << "precomm   sending to " << *ei << endl ; 
-	//cout << d->myid << " pre comm  variable =  " << *vi << "   receiving from   " << *ei << "   " << pd.recv_set << endl ;
-	//}
+        }
+	pd.recv_set = temp ;
+        pd.send_set = EMPTY ;
+        //if(pd.recv_set != EMPTY) {
+        //cout << d->myid << "precomm   sending to " << *ei << endl ; 
+        //cout << d->myid << " pre comm  variable =  " << *vi << "   receiving from   " << *ei << "   " << pd.recv_set << endl ;
+        // }
 	MPI_Send(&send_buffer[k][0], send_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD) ;
 	k++ ;
-	
+	 
 	recv_pvec.push_back(pd) ;
       }
       if(recv_flag)
@@ -583,7 +576,7 @@ namespace Loci {
       
       for(k = 0; k < recv_count; ++k)
 	MPI_Get_count(&status[k], MPI_INT, &recv_size[k]) ;
-      
+       
       for(k = 0; k < d->recv_neighbour.size(); ++k) {      
 	if((recv_flag == 1) && (recv_size[k] > 0)) {
 	  proc_details pd ;
@@ -593,22 +586,26 @@ namespace Loci {
 	  for(int i = 0; i < recv_size[k]; ++i) {
 	    pd.send_set += d->g2l[recv_buffer[k][i]] ;
 	  }
-	  //cout << d->myid << "pre  comm  variable  =   " << *vi << "  sending to   " << id[k] << "   " << pd.send_set << endl ;
+	  //cout << d->myid << "pre  comm  variable  =   " << *vi << "  sending  to   " << id[k] << "   " << pd.send_set << endl ;
 	  send_pvec.push_back(pd) ;
-	      //cout << d->myid << "precomm  receiving from  " << id[k] << endl ; 
+	  //cout << d->myid << "precomm  receiving from  " << id[k] << endl 
+	  ; 
 	}
       }
-      ci.send_info = send_pvec ;
-      ci.recv_info = recv_pvec ;
-      plist.push_back(ci) ;
-      delete [] send_size ;
-      delete [] recv_size ;
-      delete [] send_buffer ;
-      delete [] recv_buffer ; 
+       ci.send_info = send_pvec ;
+       ci.recv_info = recv_pvec ;
+       plist.push_back(ci) ;
+       delete [] status ;
+       delete [] recv_request ;
+       delete [] send_size ;
+       delete [] recv_size ;
+       delete [] send_buffer ;
+       delete [] recv_buffer ; 
     }
     return plist ;
-  } 
-  
+  }  
+
+ 
   vector<entitySet> partition_set(const entitySet &s,int nthreads) {
     const int min = s.Min() ;
     const int max = s.Max() ;
@@ -742,11 +739,26 @@ namespace Loci {
   }
   
   void reduce_param_compiler::set_var_existence(fact_db &facts)  {
+    if(facts.isDistributed()) {
+      constraint my_entities ;
+      my_entities = facts.get_variable("my_entities") ;
+      entitySet targets ;
+      targets = facts.get_existential_info(reduce_var, unit_rule) ;
+      targets = send_entitySet(targets, facts) ;
+      targets &= my_entities ;
+      targets = fill_entitySet(targets, facts) ;
+      facts.set_existential_info(reduce_var,unit_rule,targets) ;
+    }
   }
-
+  
   void reduce_param_compiler::process_var_requests(fact_db &facts) {
+    if(facts.isDistributed()) {
+      entitySet requests = facts.get_variable_requests(reduce_var) ;
+      requests = send_entitySet(requests, facts) ;
+      facts.variable_request(reduce_var,requests) ;
+    }
   }
-
+  
   executeP reduce_param_compiler::create_execution_schedule(fact_db &facts) {
     ostringstream oss ;
     oss << "reduce param " << reduce_var ;

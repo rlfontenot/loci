@@ -124,18 +124,18 @@ namespace Loci {
     for(ei = send.begin(); ei != send.end(); ++ei) {
       send_ptr[id[*ei]]=new unsigned char[p_size[id[*ei]]] ;
       for(vvi = vvs[id[*ei]].begin(); vvi != vvs[id[*ei]].end(); ++vvi) {
-	//cout << "precomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ; 
+	cout << "precomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ; 
 	sp->pack(send_ptr[id[*ei]], loc_pack[id[*ei]],
 		 p_size[id[*ei]], vset[id[*ei]]) ;
 	
-	//cout << " } " << endl ;
+	cout << " } " << endl ;
 	
       } 
       send_procs[send_count] = *ei ;
       send_count++ ;
     }
-    request = (MPI_Request *) malloc(recv_count * sizeof(MPI_Request) ) ;
-    status = (MPI_Status *) malloc(recv_count * sizeof(MPI_Status)) ;
+    request =  new MPI_Request[recv_count] ;
+    status =  new MPI_Status[recv_count] ;
     
     for(int i = 0; i < recv_count; i++) {
       MPI_Irecv(recv_ptr[id[recv_procs[i]]], r_size[id[recv_procs[i]]], MPI_PACKED,
@@ -153,14 +153,16 @@ namespace Loci {
       for(ei = recv.begin(); ei != recv.end(); ++ei) {
 	for(vvi = vvr[id[*ei]].begin(); vvi != vvr[id[*ei]].end(); ++vvi) {
 	  sp = facts.get_variable(*vvi) ;
-	  //cout << "precomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
+	  cout << "precomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
 	  sp->unpack(recv_ptr[id[*ei]], loc_unpack[id[*ei]], 
 		     r_size[id[*ei]], vseq[id[*ei]]) ;
-	  //cout << " } " << endl ;
+	  cout << " } " << endl ;
 	  
 	}
       }
     }
+    delete [] status ;
+    delete [] request ;
     delete [] p_size ;
     delete [] r_size ;
     delete [] send_ptr ;
@@ -171,8 +173,8 @@ namespace Loci {
     delete [] recv_procs ;
     
   }
-   void execute_postcomm::execute(fact_db &facts) {
-     
+  void execute_postcomm::execute(fact_db &facts) {
+    
     MPI_Status *status ;
     MPI_Request *request ;
     std::list<comm_info>::const_iterator li ;
@@ -248,16 +250,17 @@ namespace Loci {
     for(ei = send.begin(); ei != send.end(); ++ei) {
       send_ptr[id[*ei]]=new unsigned char[p_size[id[*ei]]] ;
       for(vvi = vvs[id[*ei]].begin(); vvi != vvs[id[*ei]].end(); ++vvi) {
-	//cout << "postcomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ; 
+	cout << "postcomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ; 
 	sp->pack(send_ptr[id[*ei]], loc_pack[id[*ei]],
 		 p_size[id[*ei]], vset[id[*ei]]) ;
-	//cout << " } " << endl ;
+	cout << " } " << endl ;
       }
       send_procs[send_count] = *ei ;
       send_count++ ;
     }
-    request = (MPI_Request *) malloc(recv_count * sizeof(MPI_Request) ) ;
-    status = (MPI_Status *) malloc(recv_count * sizeof(MPI_Status)) ;
+    
+    request =  new MPI_Request[recv_count] ;
+    status =  new MPI_Status[recv_count] ;
     
     for(int i = 0; i < recv_count; i++) {
       MPI_Irecv(recv_ptr[id[recv_procs[i]]], r_size[id[recv_procs[i]]], MPI_PACKED,
@@ -275,15 +278,16 @@ namespace Loci {
       for(ei = recv.begin(); ei != recv.end(); ++ei) {
 	for(vvi = vvr[id[*ei]].begin(); vvi != vvr[id[*ei]].end(); ++vvi) {
 	  sp = facts.get_variable(*vvi) ;
-	  //cout << "postcomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
+	  cout << "postcomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
 	  sp->unpack(recv_ptr[id[*ei]], loc_unpack[id[*ei]], 
 		     r_size[id[*ei]], vseq[id[*ei]]) ;
-	  //cout << " } " << endl ;
+	  cout << " } " << endl ;
 	}
 	 
       }
     }
-    
+    delete [] status ;
+    delete [] request ;
     delete [] p_size ;
     delete [] r_size ;
     delete [] send_ptr ;
