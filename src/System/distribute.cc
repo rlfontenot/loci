@@ -1875,7 +1875,8 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	vec_size = fi.second_level.size() ;
       }
       else {
-	qrep->set_elem_size(fi.size) ;
+	if(fi.size > 1)
+	  qrep->set_elem_size(fi.size) ;
 	array_size = fi.size * dom.size() ;
       }
     else { 
