@@ -254,7 +254,11 @@ rule_db parametric_rdb(rule_db& rdb) {
     for(variableSet::const_iterator vsi = working.begin(); vsi != working.end(); ++vsi) {
       std::map<variable, variable> vm ;
       variable v = variable(*vsi) ;
-      variableSet vs = mvarset.find(v.get_info().name)->second ;
+      variableSet vs;
+      if(mvarset.find(v.get_info().name) == mvarset.end()) 
+        cerr << "can't find parametric rule for variable " << v <<endl ;
+      else 
+        vs = mvarset.find(v.get_info().name)->second ;
       for(variableSet::const_iterator mvsi = vs.begin(); mvsi != vs.end(); ++mvsi)
 	if(v.get_arg_list().size() == variable(*mvsi).get_arg_list().size()) {
 	  ruleSet rs = mruleset.find(variable(*mvsi))->second ;
