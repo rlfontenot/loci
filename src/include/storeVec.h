@@ -1,8 +1,6 @@
 #ifndef STOREVEC_H
 #define STOREVEC_H 
 
-#include <mpi.h>
-
 #include <istream>
 #include <ostream>
 
@@ -17,18 +15,19 @@
 #include <hdf5CC/H5cpp.h>
 
 #include <Map.h>
-#include <multiMap.h>
-using std::pair ;
-using std::make_pair ;
-
 
 namespace Loci {
+
+  //**************************************************************************
+
   template <class T> struct Scalar {
     T val ;
     Scalar(T v) : val(v) { }
   } ;
 
   template <class T> Scalar<T> mk_Scalar(T v) { return Scalar<T>(v) ;} 
+
+  //**************************************************************************
   
   template <class T> class Vect ;
   
@@ -40,33 +39,57 @@ namespace Loci {
     int size ;
 #endif
   public:
+
     const_Vect(const T *p ,int sz) {
       ptr = p ;
 #ifdef BOUNDS_CHECK
       size = sz ;
 #endif
     }
+
     const T &operator[](int idx) const {
 #ifdef BOUNDS_CHECK
       warn(idx >= size || idx < 0) ;
 #endif
       return ptr[idx] ;
     }
+
     operator const T *() const {
       return ptr ;
     }
   } ;
 
+  //**************************************************************************
 
   template <class T> class Vect {
   public:
     T *ptr ;
     int size ;
   public:
+    Vect() {};
+    void setSize( int s ) {
+         size = s;
+    }
+
     Vect(T *p ,int sz) {
       ptr = p ;
       size = sz ;
     }
+
+    Vect<T> &operator=(const Vect<T> &v)
+    {
+       Vect<T>   *newVec;
+       newVec = new Vect<T>;
+       newVec->size = v.size;
+       newVec->ptr    = new T[v.size];
+
+       for(int i=0;i<size;++i)
+           newVec->ptr[i] =  v.ptr[i];
+
+       return ( newVec );
+    }
+
+/*
     void operator=(const Vect<T> &t) {
       T *p1 = ptr ;
       const T *p2 = t.ptr ;
@@ -77,6 +100,8 @@ namespace Loci {
       for(int i=0;i<size;++i)
         *p1++ = *p2++ ;
     }
+*/
+
     void operator=(const const_Vect<T> &t) {
       T *p1 = ptr ;
       const T *p2 = t.ptr ;
@@ -87,6 +112,7 @@ namespace Loci {
       for(int i=0;i<size;++i)
         *p1++ = *p2++ ;
     }
+
 
     template <class S> void operator=(const Scalar<S> &s) {
       T *p1 = ptr ;
@@ -168,506 +194,46 @@ namespace Loci {
 #endif
       return ptr[idx] ;
     }
+
     const T &operator[](int idx) const {
 #ifdef BOUNDS_CHECK
       fatal(idx >= size || idx < 0) ;
 #endif
       return ptr[idx] ;
     }
+
     operator T*() {
       return ptr ;
     }
+
     operator const T *() const {
       return ptr ;
     }
   } ;
 
-  template <class T> class Mat ;
-  
-  template <class T> class const_Mat_partial {
-    const T *ptr ;
-    int size ;
-    int i ;
-  public:
-    const_Mat_partial(const T *p,int sz, int ii) :ptr(p),size(sz),i(ii) {}
-    const T &operator[](int j) {
-#ifdef BOUNDS_CHECK
-      warn(j>=size || j < 0) ;
-#endif
-      return ptr[j*size + i] ;
-    }
-  } ;
-  typedef unsigned char pivot_type ;
+  //**************************************************************************
 
-  
-  template <class T> class const_Mat {
-  public:
-    const T *ptr ;
-    int size ;
-    friend class Mat<T> ;
-  public:
-    const_Mat(const T *p ,int sz) : ptr(p),size(sz){}
-
-    const_Mat_partial<T> operator[](int idx) const {
-#ifdef BOUNDS_CHECK
-      warn(idx >= size || idx < 0) ;
-#endif
-      return const_Mat_partial<T>(ptr,size,idx) ;
-    }
-
-    template<class S> void solve_lu(const S *b, S *x) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-
-    template<class T1,class T2> void solve_lu(const_Vect<T1> b, T2 *x) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-
-    template<class T1,class T2> void solve_lu(const T1 *b, Vect<T2> x) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-
-    template<class S> void solve_lu_pivot(const S *b, S *x,const pivot_type *pivot) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        S xi = b[pivot[i]] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        S xi = x[i] ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi/Ai[i] ;
-      }
-    }
-
-    template<class T1,class T2> void solve_lu_pivot(const_Vect<T1> b, Vect<T2> x,const_Vect<pivot_type> pivot) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        T2 xi = b[pivot[i]] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi ;
-      }
-
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        T2 xi = x[i] ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi/Ai[i] ;
-      }
-    }
-
-    template<class T1,class T2> void solve_lu_pivot(const T1 *b, Vect<T2> x,const pivot_type *pivot) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        T2 xi = b[pivot[i]] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        T2 xi = x[i] ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi/Ai[i] ;
-      }
-    }
-
-    template<class Tin,class Tout>
-    void dotprod_accum(const Tin *vin, Tout *vout) const {
-      const T *Aij = ptr;
-      for(int j=0;j<size;++j) {
-        const Tin in = vin[j] ;
-        for(int i=0;i<size;++i,Aij++)
-          vout[i] += (*Aij)*in ;
-      }
-    } 
-    template<class Tin,class Tout>
-    void dotprod_accum(const Vect<Tin> &vin, Tout *vout) const {
-      const T *Aij = ptr;
-      for(int j=0;j<size;++j) {
-        const Tin in = vin[j] ;
-        for(int i=0;i<size;++i,Aij++)
-          vout[i] += (*Aij)*in ;
-      }
-    }
-    template<class Tin,class Tout>
-    void dotprod_accum(const const_Vect<Tin> &vin, Tout *vout) const {
-      const T *Aij = ptr;
-      for(int j=0;j<size;++j) {
-        const Tin in = vin[j] ;
-        for(int i=0;i<size;++i,Aij++)
-          vout[i] += (*Aij)*in ;
-      }
-    }
- } ;
-
-  template <class T> class Mat_partial {
-    T *ptr ;
-    int size ;
-    int i ;
-  public:
-    Mat_partial(T *p,int sz, int ii) : ptr(p),size(sz),i(ii) {}
-    T &operator[](int j) {
-#ifdef BOUNDS_CHECK
-      warn(j>=size || j < 0) ;
-#endif
-      return ptr[j*size + i] ;
-    }
-  } ;
-
-  
-  template <class T> class Mat {
-  public:
-    T *ptr ;
-    int size ;
-  public:
-    Mat(T *p ,int sz) : ptr(p),size(sz) {}
-    void operator=(const Mat<T> &t) {
-      T *p1 = ptr ;
-      const T *p2 = t.ptr ;
-      
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ = *p2++ ;
-    }
-    void operator=(const const_Mat<T> &t) {
-      T *p1 = ptr ;
-      const T *p2 = t.ptr ;
-      
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ = *p2++ ;
-    }
-
-    template <class S> void operator=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ = s.val ;
-    }
-
-    template <class S> void operator+=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ += s.val ;
-    }
-      
-    template <class S> void operator*=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ *= s.val ;
-    }
-      
-    template <class S> void operator-=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ -= s.val ;
-    }
-      
-    template <class S> void operator/=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ /= s.val ;
-    }
-    
-    template <class S> void operator+=(const Mat<S> &t) {
-      T *p1 = ptr ;
-      const S *p2 = t.ptr ;
-      
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ += *p2++ ;
-    }
-
-    template <class S> void operator+=(const const_Mat<S> &t) {
-      T *p1 = ptr ;
-      const S *p2 = t.ptr ;
-      
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ += *p2++ ;
-    }
-
-    template <class S> void operator-=(const Mat<S> &t) {
-      T *p1 = ptr ;
-      const S *p2 = t.ptr ;
-      
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ -= *p2++ ;
-    }
-
-    template <class S> void operator-=(const const_Mat<S> &t) {
-      T *p1 = ptr ;
-      const S *p2 = t.ptr ;
-      
-      for(int i=0;i<size;++i)
-        for(int j=0;j<size;++j)
-          *p1++ -= *p2++ ;
-    }
-    
-    Mat_partial<T> operator[](int idx) {
-#ifdef BOUNDS_CHECK
-      warn(idx >= size || idx < 0) ;
-#endif
-      return Mat_partial<T>(ptr,size,idx) ;
-    }
-    Mat_partial<T> operator[](int idx) const {
-#ifdef BOUNDS_CHECK
-      warn(idx >= size || idx < 0) ;
-#endif
-      return Mat_partial<T>(ptr,size,idx) ;
-    }
-
-    void decompose_lu() {
-      // GAXPY from of LU decomposition algorithm 
-      T *Aj = ptr ;
-      for(int j=0;j<size;++j,Aj += size) {
-        const T *Ak = ptr ;
-        for(int k=0;k<j;++k,Ak += size) {
-          const T Ajk = Aj[k] ;
-          for(int i=k+1;i<j;++i)
-            Aj[i] -= Ak[i]*Ajk ;
-        }
-        Ak = ptr ;
-        for(int k=0;k<j;++k,Ak += size) {
-          const T Ajk = Aj[k] ;
-          for(int i=j;i<size;++i)
-            Aj[i] -= Ak[i]*Ajk ;
-        }
-
-        const T Ajjr = 1./Aj[j] ;
-        for(int i=j+1;i<size;++i)
-          Aj[i] *= Ajjr ;
-      }
-    }
-    
-    void decompose_lu_pivot(pivot_type *pivot) {
-      pivot_type piv[256] ;  // Maximum matrix size for pivoting
-      for(int i=0;i<size;++i)
-        pivot[i] = i ;
-      T *Aj = ptr ;
-      for(int j=0;j<size;++j,Aj+= size) {
-        for(int k=0;k<j;++k)
-          if(k!=piv[k])
-            std::swap(Aj[k],Aj[piv[k]]) ;
-        T *Ak = ptr ;
-        for(int k=0;k<j;++k,Ak += size) {
-          const T Ajk = Aj[k] ;
-          for(int i=k+1;i<j;++i)
-            Aj[i] -= Ak[i]*Ajk ;
-        }
-        Ak = ptr ;
-        for(int k=0;k<j;++k,Ak += size) {
-          const T Ajk = Aj[k] ;
-          for(int i=j;i<size;++i)
-            Aj[i] -= Ak[i]*Ajk ;
-        }
-        int mu = j ;
-        for(int k=j+1;k<size;++k)
-          if(abs(Aj[mu]) < abs(Aj[k]))
-            mu = k ;
-        piv[j] = mu ;
-        if(j!= mu)
-          std::swap(pivot[j],pivot[mu]) ;
-        Ak = ptr ;
-        for(int k=0;k<j+1;++k,Ak += size)
-          if(j != piv[j])
-            std::swap(Ak[j],Ak[piv[j]]) ;
-        if(Aj[j] != 0) {
-          T ajjr = 1./Aj[j] ;
-          for(int i=j+1;i<size;++i)
-            Aj[i] *= ajjr ;
-        }
-      }
-    }
-
-    template<class S> void solve_lu(const S *b, S *x) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-
-      }
-    }
-
-    template<class S> void solve_lu(const_Vect<S> &b, S *x) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-
-    template<class S> void solve_lu(const S *b, Vect<S> &x) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      S *y = b ;
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-
-    template<class S> void solve_lu_pivot(const S *b, S *x,const pivot_type *pivot) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-
-    template<class S> void solve_lu_pivot(const_Vect<S> &b, S *x,const pivot_type *pivot) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-
-      for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-
-    template<class S> void solve_lu_pivot(const S *b, Vect<S> &x,const pivot_type *pivot) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-  } ;
-
-  
   template<class T> class storeVecRepI : public storeRep {
-    entitySet store_domain ;
-    T *alloc_pointer ;
-    T *base_ptr ;
-    int size ;
-    lmutex mutex ;
+    entitySet    store_domain ;
+    T           *alloc_pointer, *base_ptr ;
+    int          size ;
+    lmutex       mutex ;
+
+    void hdf5read( H5::Group group, DEFAULT_CONVERTER      c, entitySet &en, entitySet &usr);
+    void hdf5read( H5::Group group, IDENTITY_CONVERTER     c, entitySet &en, entitySet &usr);
+    void hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
+
+    void hdf5write( H5::Group group, DEFAULT_CONVERTER g,      const entitySet &en) const; 
+    void hdf5write( H5::Group group, IDENTITY_CONVERTER g,     const entitySet &en) const;
+    void hdf5write( H5::Group group, USER_DEFINED_CONVERTER g, const entitySet &en) const;
+
   public:
-    storeVecRepI() {
-      alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
-    storeVecRepI(const entitySet &p) {
-      size = 0; alloc_pointer=0 ; allocate(p) ; }
+    storeVecRepI() 
+    { alloc_pointer= 0 ; base_ptr = 0 ; size=0; }
+
+    storeVecRepI(const entitySet &p) 
+    { size = 0; alloc_pointer=0 ; allocate(p) ; }
+
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -688,12 +254,16 @@ namespace Loci {
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
     virtual void set_elem_size(int sz) ;
 
-    T * get_base_ptr() const { return base_ptr ; }
+    T *get_base_ptr() const { return base_ptr ; }
     int get_size() const { return size ; }
   } ;
 
-    template<class T> std::ostream &storeVecRepI<T>::Print(std::ostream &s) const
-    {
+  //**************************************************************************
+
+   template<class T> 
+	std::ostream &storeVecRepI<T>::Print(std::ostream &s) const
+   {
+
       s << '{' << domain() << std::endl ;
       s << size << std::endl ;
     
@@ -704,24 +274,39 @@ namespace Loci {
         s << std::endl ;
       }ENDFORALL ;
       s << '}' << std::endl ;
+
       return s ;
-    }
+   }
 
+  //*************************************************************************
 
-  template<class T> std::istream &storeVecRepI<T>::Input(std::istream &s)
-    {
+  template<class T> 
+  std::istream &storeVecRepI<T>::Input(std::istream &s)
+  {
+
+      cout << " Commented for time being " << endl;
+      exit(0);
+
+  //-------------------------------------------------------------------------
+  // Objective : Read the storeVec from the input stream.
+  //-------------------------------------------------------------------------
+  /*
       char ch ;
     
+	// Look for the opening brackets ...
       do ch = s.get(); while(ch==' ' || ch=='\n') ;
       if(ch != '{') {
         std::cerr << "Incorrect Format while reading store" << std::endl ;
         s.putback(ch) ;
         return s ;
       }
+
       entitySet e ;
       int sz ;
-      s >> e ;
-      s >> sz ;
+
+      s >> e ;               // Read the entitySet intervals.
+      s >> sz ;              // Read the size of the vector.
+
       set_elem_size(sz) ;
       allocate(e) ;
 
@@ -731,82 +316,139 @@ namespace Loci {
           s >> *p ;
       } ENDFORALL ;
     
+	// Look for the closing brackets ...
       do ch = s.get(); while(ch==' ' || ch=='\n') ;
       if(ch != '}') {
         std::cerr << "Incorrect Format while reading store" << std::endl ;
         s.putback(ch) ;
       }
+   */
+	  
       return s ;
-    }
-
-  template<class T> void storeVecRepI<T>::readhdf5( H5::Group group, entitySet &en){
-
-    cout << " Warning : Has to be rewritten : This is old function " << endl;
-    exit(0);
-
-    /*
-    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
-    entitySet en=get_store_domain(group,traits_output_type);
-    int sz=get_storeVec_size(group,traits_output_type);
-
-    set_elem_size(sz);
-    allocate(en);
-    storeVec_hdf5read(group,traits_output_type,base_ptr,en,sz);
-    */
-
   }
 
-  template<class T> void storeVecRepI<T>::writehdf5( H5::Group group,entitySet& en) const{
+  //***************************************************************************
 
-    cout << " Warning : Has to be rewritten : This is old function " << endl;
+  template<class T> 
+  void storeVecRepI<T>::readhdf5( H5::Group group, entitySet &user_eset)
+  {
+    cout << " NOT COMPLETED YET " << endl;
     exit(0);
-    /*
+
+/*
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
-    cout<<"Vec write "<<en<<endl;
-    storeVec_hdf5write(group,traits_output_type,base_ptr,en,size);
-    */
+    schema_converter traits_type;
+
+    HDF5_ReadVecSize(group, size);
+
+    entitySet eset;
+    HDF5_ReadDomain(group, eset);
+
+    allocate( eset );
+    hdf5read( group, traits_type, eset);
+*/
   }
 
-  template<class T> void storeVecRepI<T>::allocate(const entitySet &ptn) {
+  //***************************************************************************
+
+  template<class T> 
+  void storeVecRepI<T>::writehdf5( H5::Group group,entitySet& en) const
+  {
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+
+    hdf5write(group, traits_output_type, en );
+  }
+
+  //***************************************************************************
+
+  template<class T> 
+  void storeVecRepI<T>::allocate(const entitySet &ptn) 
+  {
+
+  //---------------------------------------------------------------------------
+  // Allocation reclaims all previously hold memeory 
+  //---------------------------------------------------------------------------
+
     if(alloc_pointer) delete[] alloc_pointer ;
+
     alloc_pointer = 0 ;
-    base_ptr = 0 ;
+    base_ptr      = 0 ;
+
+  //---------------------------------------------------------------------------
+  // Get the minimum and maximum entity ID from the entitySet and allocate 
+  // memory of the size = ( max-min+1). Notice that, if the entityset 
+  // contains the entities with ID quite sparse, it will create lots of 
+  // unused block of memory. 
+  //---------------------------------------------------------------------------
+
+   cout << " During Allocation " << size << endl;
+
     if(size != 0) {
-      fatal(size<1) ;
+      fatal(size < 1) ;
       if(ptn != EMPTY) {
         int top = ptn.Min() ; int sza = (ptn.Max()-top+1)*size ;
         alloc_pointer = new T[sza] ;
         base_ptr = alloc_pointer - top*size ;
       }
     }
+
+  //---------------------------------------------------------------------------
+  // Domain equals to entitySet provided by the argument.
+  //--------------------------------------------------------------------------
+
     store_domain = ptn ;
+  //--------------------------------------------------------------------------
+  // Let everybody know about the change in memeory location.
+  //--------------------------------------------------------------------------
+
     dispatch_notify() ;
   }
 
-  template<class T> storeVecRepI<T>::~storeVecRepI<T>() {
+  //**************************************************************************
+
+  template<class T> 
+  storeVecRepI<T>::~storeVecRepI<T>() 
+  {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
 
+  //**************************************************************************
+
   template<class T>
-  storeRep *storeVecRepI<T>::new_store(const entitySet &p) const {
-    storeRep *sp = new storeVecRepI<T>(p)  ;
-    sp->set_elem_size(size) ;
-    return sp ;
+  storeRep *storeVecRepI<T>::new_store(const entitySet &p) const 
+  {
+    return new storeVecRepI<T>(p)  ;
   }
 
-  template<class T> store_type storeVecRepI<T>::RepType() const {
+  //*************************************************************************
+
+  template<class T> 
+  store_type storeVecRepI<T>::RepType() const 
+  {
     return STORE ;
   }
 
-  template<class T> entitySet storeVecRepI<T>::domain() const {
+  //**************************************************************************
+
+  template<class T> 
+  entitySet storeVecRepI<T>::domain() const 
+  {
     return store_domain ;
   }
 
-  template<class T> void storeVecRepI<T>::set_elem_size(int sz) {
-    //    bmutex l(mutex) ;
+  //**************************************************************************
+
+  template<class T> 
+  void storeVecRepI<T>::set_elem_size(int sz) 
+  {
     mutex.lock() ;
+
+	//-------------------------------------------------------------------------
+	// Change the size of vector held. It will reclaim the memory used before
+	// this call. and allocate new one.
+	//-------------------------------------------------------------------------
+
     if(size != sz) {
       if(size != 0)
         warn(size != sz) ;
@@ -815,8 +457,11 @@ namespace Loci {
       fatal(sz<1) ;
       allocate(store_domain) ;
     }
+
     mutex.unlock() ;
   }
+
+  //**************************************************************************
       
   template<class T> class storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
@@ -845,7 +490,7 @@ namespace Loci {
     int vecSize() const { return size ; }
 
     const entitySet &domain() const { return Rep()->domain() ; }
-    //    operator storeRepP() { return Rep() ; }
+
     Vect<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -864,23 +509,39 @@ namespace Loci {
 
   } ;
 
-  template<class T> storeVec<T>::~storeVec<T>() { }
+  //**************************************************************************
 
-  template<class T> void storeVec<T>::notification() {
+  template<class T> 
+  storeVec<T>::~storeVec<T>() { }
+  
+  //*************************************************************************
+
+  template<class T> 
+  void storeVec<T>::notification() 
+  {
     NPTR<storeType> p(Rep()) ;
+
     if(p!=0) {
       base_ptr = p->get_base_ptr() ;
       size = p->get_size() ;
     }
+
     warn(p == 0) ;
   }
 
-  template<class T> inline std::ostream & operator<<(std::ostream &s, const storeVec<T> &t)
-    { return t.Print(s) ; }
+  //**************************************************************************
 
-  template<class T> inline std::istream & operator>>(std::istream &s, storeVec<T> &t)
+  template<class T> 
+  inline std::ostream & operator<<(std::ostream &s, const storeVec<T> &t)
+  { return t.Print(s) ; }
+
+  //**************************************************************************
+
+  template<class T> 
+  inline std::istream & operator>>(std::istream &s, storeVec<T> &t)
     { return t.Input(s) ; }
 
+  //**************************************************************************
 
   template<class T> class const_storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
@@ -915,7 +576,7 @@ namespace Loci {
     int vecSize() const { return size ; }
 
     const entitySet& domain() const { return Rep()->domain() ; }
-    //    operator storeRepP() { return Rep() ; }
+
     const_Vect<T> elem(int indx) const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -934,9 +595,16 @@ namespace Loci {
 
   } ;
 
-  template<class T> const_storeVec<T>::~const_storeVec<T>() { }
+  //**************************************************************************
 
-  template<class T> void const_storeVec<T>::notification() {
+  template<class T> 
+  const_storeVec<T>::~const_storeVec<T>() { }
+
+  //**************************************************************************
+
+  template<class T> 
+  void const_storeVec<T>::notification() 
+  {
     NPTR<storeType> p(Rep()) ;
     if(p!=0) {
       base_ptr = p->get_base_ptr() ;
@@ -945,16 +613,22 @@ namespace Loci {
     warn(p == 0) ;
   }
 
+  //**************************************************************************
+
   template<class T> store_instance::instance_type
     const_storeVec<T>::access() const
     { return READ_ONLY ; }
 
+  //**************************************************************************
 
-  template<class T> inline std::ostream & operator<<(std::ostream &s, const const_storeVec<T> &t)
+  template<class T> 
+  inline std::ostream & operator<<(std::ostream &s, const const_storeVec<T> &t)
     { return t.Print(s) ; }
 
+  //**************************************************************************
 
-  template <class T> storeRepP storeVecRepI<T>::remap(const Map &m) const {
+  template <class T> 
+  storeRepP storeVecRepI<T>::remap(const Map &m) const {
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
     storeVec<T> s ;
@@ -964,8 +638,10 @@ namespace Loci {
     return s.Rep() ;
   }
 
-  template <class T> void storeVecRepI<T>::copy(storeRepP &st,
-                                                const entitySet &context) {
+  //**************************************************************************
+
+  template <class T> 
+  void storeVecRepI<T>::copy(storeRepP &st, const entitySet &context) {
     const_storeVec<T> s(st) ;
     int sz = s.vecSize() ;
     set_elem_size(sz) ;
@@ -977,8 +653,12 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  template <class T> void storeVecRepI<T>::gather(const Map &m, storeRepP &st,
-                                                  const entitySet &context) {
+  //**************************************************************************
+
+  template <class T> 
+  void storeVecRepI<T>::gather(const Map &m, storeRepP &st,
+                               const entitySet &context) 
+  {
     const_storeVec<T> s(st) ;
     int sz = s.vecSize() ;
     set_elem_size(sz) ;
@@ -992,8 +672,12 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  template <class T> void storeVecRepI<T>::scatter(const Map &m, storeRepP &st,
-                                                   const entitySet &context) {
+  //*************************************************************************
+
+  template <class T> 
+  void storeVecRepI<T>::scatter(const Map &m, storeRepP &st,
+                                const entitySet &context) 
+  {
     const_storeVec<T> s(st) ;
     int sz = s.vecSize() ;
     set_elem_size(sz) ;
@@ -1006,14 +690,24 @@ namespace Loci {
         p[j] = s[i][j] ;
     } ENDFORALL ;
   }
-  template <class T> int storeVecRepI<T>::pack_size( const entitySet &e) {
+
+  //**************************************************************************
+
+  template <class T> 
+  int storeVecRepI<T>::pack_size( const entitySet &e) {
     int size, M ;
     M = get_size() ;
     size = sizeof(T) * e.size() * M  ;
     return(size) ;
   }
+
+  //*************************************************************************
   
-  template <class T> void storeVecRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
+  template <class T> 
+  void storeVecRepI<T>::pack( void * ptr, int &loc, int &size, 
+                              const entitySet &e ) 
+  {
+/*
     int M = get_size() ;
     for(int i = 0; i < e.num_intervals(); ++i) {
       Loci::int_type indx1 = e[i].first ;
@@ -1022,9 +716,15 @@ namespace Loci {
       int t = (stop - indx1 + 1) * M ;
       MPI_Pack(p, t * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
     }
+*/
   }
+
+  //**************************************************************************
   
-  template <class T> void storeVecRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+  template <class T> 
+  void storeVecRepI<T>::unpack( void *ptr, int &loc, int &size, 
+                                const sequence &seq) 
+  {
     int M = get_size() ;
     for(int i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
@@ -1044,716 +744,481 @@ namespace Loci {
 	}
       }
   }
-  
-  template<class T> class storeMat : public store_instance {
-    typedef storeVecRepI<T> storeType ;
-    T* base_ptr ;
-    int size_tot ;
-    int size_dim ;
-  public:
-    typedef Mat<T> containerType ;
-    storeMat() {setRep(new storeType) ;}
-    storeMat(storeMat &var) {setRep(var.Rep()) ; }
-    storeMat(storeRepP &rp) {setRep(rp) ; }
 
-    virtual ~storeMat() ;
-    virtual void notification() ;
+  //******************************************************************************
 
-    storeMat<T> & operator=(storeMat<T> &str)
-      { setRep(str.Rep()) ; return *this ;}
+  template <class T> 
+  void storeVecRepI<T>::hdf5write( H5::Group group, DEFAULT_CONVERTER g, 
+                                   const entitySet &en) const 
+  {
 
-    storeMat<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
+    cout << " Default Converted  not yet implemented " << endl;
+    exit(0);
 
-    void setVecSize(int size) {
-      size_dim = size ;
-      size_tot = size*size ;
-      Rep()->set_elem_size(size_tot) ; 
-    }
-    void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
-    int vecSize() const { return size_dim; }
-    const entitySet &domain() const { return Rep()->domain() ; }
-    //    operator storeRepP() { return Rep() ; }
-    Mat<T> elem(int indx) {
-#ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
-      fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return Mat<T>(base_ptr+(indx*size_tot),size_dim) ; }
-    Mat<T> operator[](int indx) {
-#ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
-      fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return Mat<T>(base_ptr+(indx*size_tot),size_dim) ; }
-    std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
-    std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
+   /*
+    int rank=1;
+    hsize_t dimf_store[1];
+    std::ostringstream oss;
 
-  } ;
+    oss << '{' << en << std::endl ;
+    oss << size << std::endl ;
 
-  template<class T> storeMat<T>::~storeMat<T>() { }
+    FORALL(en,ii) {
+      W* p = base_ptr + ii*size ;
+      for(int i=0;i<size;++i,++p)
+        oss << *p << " " ;
+      oss << std::endl ;
+    }ENDFORALL ;
 
-  template<class T> void storeMat<T>::notification() {
-    NPTR<storeType> p(Rep()) ;
-    if(p!=0) {
-      base_ptr = p->get_base_ptr() ;
-      size_tot = p->get_size() ;
-      size_dim = int(sqrt(float(size_tot))+.5) ;
-    }
-    warn(p == 0) ;
-  }
-
-  template<class T> inline std::ostream & operator<<(std::ostream &s, const storeMat<T> &t)
-    { return t.Print(s) ; }
-
-  template<class T> inline std::istream & operator>>(std::istream &s, storeMat<T> &t)
-    { return t.Input(s) ; }
-
-  template<class T> class const_storeMat : public store_instance {
-    typedef storeVecRepI<T> storeType ;
-    const T* base_ptr ;
-    int size_tot ;
-    int size_dim ;
-  public:
-    typedef const_Mat<T> containerType ;
-    const_storeMat() { setRep(new storeType) ; }
-
-    const_storeMat(const_storeMat<T> &var) { setRep(var.Rep()) ; }
-    const_storeMat(storeMat<T> &var) { setRep(var.Rep()) ; }
-    const_storeMat(storeRepP &rp) { setRep(rp) ; }
-    
-    virtual ~const_storeMat() ;
-    virtual void notification() ;
-
-    virtual instance_type access() const ;
-        
-    const_storeMat<T> & operator=(const_storeMat<T> &str)
-      { setRep(str.Rep()) ; return *this ;}
-    const_storeMat<T> & operator=(storeMat<T> &str)
-      { setRep(str.Rep()) ; return *this ;}
-
-    const_storeMat<T> & operator=(storeRepP p)
-      { setRep(p) ; return *this ; }
-
-    int vecSize() const { return size_dim; }
-    const entitySet &domain() { return Rep()->domain() ; }
-    //    operator storeRepP() { return Rep() ; }
-
-    const_Mat<T> elem(int indx) {
-#ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
-      fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return const_Mat<T>(base_ptr+(indx*size_tot),size_dim) ; }
-    const_Mat<T> operator[](int indx) {
-#ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
-      fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return const_Mat<T>(base_ptr+(indx*size_tot),size_dim) ; }
-    std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
-  } ;
-
-  template<class T> const_storeMat<T>::~const_storeMat<T>() { }
-
-  template<class T> void const_storeMat<T>::notification() {
-    NPTR<storeType> p(Rep()) ;
-    if(p!=0) {
-      base_ptr = p->get_base_ptr() ;
-      size_tot = p->get_size() ;
-      size_dim = int(sqrt(float(size_tot))+.5) ;
-    }
-    warn(p == 0) ;
-  }
-
-  template<class T> store_instance::instance_type
-    const_storeMat<T>::access() const
-    { return READ_ONLY; }
-        
-
-  template<class T> inline std::ostream &
-    operator<<(std::ostream &s, const const_storeMat<T> &t)
-    { return t.Print(s) ; }
-
-  template<class T> class multiStoreRepI : public storeRep {
-    entitySet store_domain ;
-    T **index ;
-    T *alloc_pointer ;
-    T **base_ptr ;
-    int size ;
-    lmutex mutex ;
-  public:
-    multiStoreRepI()
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
-    multiStoreRepI(const entitySet &p)
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; store_domain=p;}
-    multiStoreRepI(const store<int> &sizes) {
-      index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
-    void allocate(const store<int> &sizes) ;
-    void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr) ;
-    void setSizes(const const_multiMap &mm) ;
-    virtual ~multiStoreRepI() ;
-    virtual void allocate(const entitySet &ptn) ;
-    virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
-    virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
-                        const entitySet &context)  ;
-    virtual void scatter(const Map &m, storeRepP &st,
-                         const entitySet &context) ;
-    
-    virtual int pack_size(const entitySet &e) ;
-    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
-    virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq ) ;
-    		      
-    virtual store_type RepType() const ;
-    virtual entitySet domain() const ;
-    virtual std::ostream &Print(std::ostream &s) const ;
-    virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group, entitySet &en) ;
-    virtual void writehdf5( H5::Group group,entitySet& en) const ;
-
-    T ** get_base_ptr() const { return base_ptr ; }
-    T *begin(int indx) { return base_ptr[indx] ; }
-    T *end(int indx) { return base_ptr[indx+1] ; }
-    const T *begin(int indx) const  { return base_ptr[indx] ; }
-    const T *end(int indx) const { return base_ptr[indx+1] ; }
-  } ;
-  
-  
-  template<class T> class multiStore : public store_instance {
-    typedef multiStoreRepI<T> storeType ;
-    T ** base_ptr ;
-    int size ;
-  public:
-    typedef Vect<T> containerType ;
-    multiStore() {setRep(new storeType) ;}
-    multiStore(multiStore<T> &var) {setRep(var.Rep()) ;}
-    multiStore(storeRepP &rp) { setRep(rp) ;}
-    
-    virtual ~multiStore() ;
-    virtual void notification() ;
-    
-    multiStore<T> & operator=(multiStore<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-    
-    multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
-    
-    void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
-    void allocate(const store<int> &sizes) {
-      NPTR<storeType> p(Rep()) ;
-      fatal(p==0) ;
-      p->allocate(sizes) ;
-    }
-    void setSizes(const const_multiMap &m) {
-      NPTR<storeType> p(Rep()) ;
-      fatal(p==0) ;
-      p->setSizes(m) ;
-    }
-    const entitySet &domain() const { return Rep()->domain() ; }
-
-    //    operator storeRepP() { return Rep() ; }
-
-    Vect<T> elem(int indx) {
-#ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
-      fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
-    Vect<T> operator[](int indx) {
-#ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
-      fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
-    
-    std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
-    std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
-    
-  } ;
-  template <class T> inline std::ostream & operator<<(std::ostream &s, const multiStore<T> &m)
-    { return m.Print(s) ; }
-  template<class T> inline std::istream & operator>>(std::istream &s, multiStore<T> &m)
-    { return m.Input(s) ; }
- 
-  template<class T> multiStore<T>::~multiStore() {}
-  
-  template<class T> void multiStore<T>::notification() {
-    NPTR<storeType> p(Rep()) ;
-    if(p != 0)
-      base_ptr = p->get_base_ptr() ;
-    warn(p == 0) ;
-  }
-  
-  template<class T> class const_multiStore : public store_instance {
-    typedef multiStoreRepI<T> storeType ;
-    T ** base_ptr ;
-    int size ;
-  public:
-    typedef const_Vect<T> containerType ;
-    const_multiStore() {setRep(new storeType) ;}
-    const_multiStore(const_multiStore<T> &var) {setRep(var.Rep()) ;}
-    const_multiStore(storeRepP &rp) { setRep(rp) ;}
-    
-    virtual ~const_multiStore() ;
-    virtual void notification() ;
-
-    virtual instance_type access() const ;
-    
-    const_multiStore<T> & operator=(const multiStore<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-
-    const_multiStore<T> & operator=(const const_multiStore<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-
-    const_multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
-
-    const entitySet &domain() const { return Rep()->domain() ; }
-    //    operator storeRepP() { return Rep() ; }
-
-    containerType elem(int indx) {
-#ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
-      fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
-    containerType operator[](int indx) {
-#ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
-      fatal(!((Rep()->domain()).inSet(indx))) ;
-#endif 
-      return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
-
-    const T *begin(int indx) const  { return base_ptr[indx] ; }
-    const T *end(int indx) const { return base_ptr[indx+1] ; }
-
-    std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
-    std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
-
-  } ;
-
-  template<class T> store_instance::instance_type
-    const_multiStore<T>::access() const
-    { return READ_ONLY ; }
-  
-  template<class T> const_multiStore<T>::~const_multiStore() {}
-  
-  template<class T> void const_multiStore<T>::notification() {
-    NPTR<storeType> p(Rep()) ;
-    if(p != 0)
-      base_ptr = p->get_base_ptr() ;
-    warn(p == 0) ;
-  }
-
-  template<class T> void multiStoreRepI<T>::allocate(const store<int> &sizes) {
-    int sz = 0 ;
-    entitySet ptn = sizes.domain() ;
-    store_domain = ptn ;
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = 0 ;
-    if(index) delete[] index ;
-    index = 0 ;
-    if(ptn != EMPTY) {
-      int top = ptn.Min() ;
-      int len = ptn.Max() - top + 2 ;
-      index = new T *[len] ;
-      base_ptr = index - top ;
-      FORALL(ptn,i) {
-        sz += sizes[i] ;
-      } ENDFORALL ;
-      alloc_pointer = new T[sz+1] ;
-      sz = 0 ;
-      for(int ivl=0;ivl<ptn.num_intervals();++ivl) {
-        int i = ptn[ivl].first ;
-        base_ptr[i] = alloc_pointer + sz ;
-        while(i<=ptn[ivl].second) {
-          sz += sizes[i] ;
-          ++i ;
-          base_ptr[i] = alloc_pointer + sz ;
-        }
-      }
-    }
-    dispatch_notify();
-  }
-
-  
-  template<class T> void multiStoreRepI<T>::multialloc(const store<int> &count, T ***index, 
-						       T **alloc_pointer, T ***base_ptr ) {
-    entitySet ptn = count.domain() ;
-    int top = ptn.Min() ;
-    int len = ptn.Max() - top + 2 ;
-    T **new_index = new T *[len] ;
-    T **new_base_ptr = new_index - top ;
-    int sz = 0 ;
-    FORALL(ptn, i) {
-      sz += count[i] ;
-    } ENDFORALL ;
-    T *new_alloc_pointer = new T[sz + 1] ;
-    sz = 0 ;
-    for(int ivl = 0; ivl < ptn.num_intervals(); ++ivl) {
-      int i = ptn[ivl].first ;
-      new_base_ptr[i] = new_alloc_pointer + sz ;
-      while(i <= ptn[ivl].second) {
-	sz += count[i] ;
-	++i ;
-	new_base_ptr[i] = new_alloc_pointer + sz ;
-      }
-    }
-    
-    *index = new_index ;
-    *alloc_pointer = new_alloc_pointer ;
-    *base_ptr = new_base_ptr ;
-  }
+    oss << '}' << std::endl ;
    
-  template<class T> void multiStoreRepI<T>::setSizes(const const_multiMap &mm){
-    //    bmutex l(mutex) ;
-    mutex.lock() ;
-    if(alloc_pointer != 0 && base_ptr[store_domain.Min()] == base_ptr[store_domain.Max()]) {
-      delete[] index ;
-      delete[] alloc_pointer ;
-      index = 0 ;
-      alloc_pointer = 0 ;
+    std::string memento = oss.str();
+    hsize_t m_size      = memento.length();
+    dimf_store[0]       = m_size+1;
+
+    try{
+      H5::DataSpace dataspace( rank, dimf_store );
+      H5::DataSet dataset = group.createDataSet( "storeVec",
+                                                 H5::PredType::NATIVE_CHAR, 
+                                                 dataspace);
+      dataset.write( memento.c_str(), H5::PredType::NATIVE_CHAR );
     }
-    if(alloc_pointer != 0) {
-      entitySet map_set = mm.domain() & store_domain ;
-      entitySet problem ;
-      FORALL(map_set,i) {
-        if((end(i)-begin(i))<(mm.end(i)-mm.begin(i)))
-          problem += i ;
+    catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+    */
+
+  };
+
+  //******************************************************************************
+
+  template <class T>  
+  void storeVecRepI<T>:: hdf5write( H5::Group group, IDENTITY_CONVERTER g,
+                                    const entitySet &en ) const
+  {
+
+    hsize_t dimension[] = {1};
+    int rank = 1;
+
+    HDF5_WriteVecSize( group, size );
+//-----------------------------------------------------------------------------
+// Get the sum of each object size and maximum size of object in the 
+// container for allocation purpose
+//-----------------------------------------------------------------------------
+
+    entitySet :: const_iterator ci;
+    int   offset;
+
+    size_t  arraySize= 0, stateSize;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         for( int ivec = 0; ivec < size; ivec++){
+              offset     = (*ci)*size + ivec;
+              arraySize += base_ptr[offset];
+         }
+    }
+
+//-----------------------------------------------------------------------------
+// Collect state data from each object and put into 1D array
+//-----------------------------------------------------------------------------
+
+    T  *data;
+ 	 data =  new T[arraySize];
+
+    size_t indx= 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         for( int ivec = 0; ivec < size; ivec++){
+              offset = (*ci)*size + ivec;
+              data[indx++] = base_ptr[offset];
+         }
+    }
+
+//-----------------------------------------------------------------------------
+// Write (variable) Data into HDF5 format
+//-----------------------------------------------------------------------------
+    typedef hdf5_schema_traits<T> traits_type;
+
+    rank = 1;
+    dimension[0] =  arraySize;
+
+    try {
+
+      H5::DataSpace vDataspace( rank, dimension );
+      H5::DataType  vDatatype = traits_type::get_type();
+      H5::DataSet   vDataset  = group.createDataSet( "variable", vDatatype, vDataspace);
+
+      vDataset.write( data, vDatatype );
+
+    }
+    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+
+//-----------------------------------------------------------------------------
+// Clean up
+//-----------------------------------------------------------------------------
+    delete [] data;
+
+  };
+
+  //******************************************************************************
+
+  template <class T>  
+  void storeVecRepI<T> :: hdf5write( H5::Group group, USER_DEFINED_CONVERTER g, 
+                                     const entitySet &eset ) const
+  {
+    hsize_t   dimension[1];
+    int       rank = 1;
+
+//-----------------------------------------------------------------------------
+// Objective : Write store datatype into HDF5 Format which are user defined
+//             datatypes or STL containers. Such datatypes are first written
+//             in memento class, which store data in NATIVE datatypes. This
+//             memento objects is then written into HDF5 format. A user need
+// to should provide interface to convert data into memento class
+//
+//-----------------------------------------------------------------------------
+
+    //write out the domain   
+    HDF5_WriteDomain(group, eset);
+    HDF5_WriteVecSize( group, size );
+
+//-----------------------------------------------------------------------------
+// Get the sum of each object size and maximum size of object in the 
+// container for allocation purpose
+//-----------------------------------------------------------------------------
+    entitySet :: const_iterator ci;
+    int   offset, bucketID;
+
+    int *vbucket = new int[size*eset.size()];
+
+    size_t  arraySize= 0;
+    int     stateSize, maxStateSize = 0;
+
+    bucketID = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         for( int ivec = 0; ivec < size; ivec++){
+              offset = (*ci)*size + ivec;
+              Memento<T> memento( base_ptr[offset] );
+              stateSize           = memento.getSize();
+              vbucket[bucketID++] = stateSize;
+              arraySize          += stateSize;
+              maxStateSize        = max( stateSize, maxStateSize);
+         }
+    }
+
+    typedef hdf5_schema_converter_traits<T> converter_traits; 
+    converter_traits::memento_type *data, *buf;
+
+    data =  new converter_traits::memento_type[arraySize];
+    buf  =  new converter_traits::memento_type[maxStateSize];
+
+//-----------------------------------------------------------------------------
+// Collect state data from each object and put into 1D array
+//-----------------------------------------------------------------------------
+
+    size_t indx = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         for( int ivec = 0; ivec < size; ivec++){
+              offset = (*ci)*size + ivec;
+              Memento<T> memento( base_ptr[offset] );
+              memento.getState( buf, stateSize);
+              for( int i = 0; i < stateSize; i++)
+                   data[indx++] =  buf[i];
+         }
+    }
+
+//-----------------------------------------------------------------------------
+// Write size of each container ...
+//-----------------------------------------------------------------------------
+    dimension[0]=  size*eset.size();
+
+    try {
+      H5::DataSpace fDataspace( rank, dimension );
+      H5::DataType  fDatatype = H5::PredType::NATIVE_INT;
+      H5::DataSet   fDataset  = group.createDataSet( "ContainerSize", fDatatype, fDataspace);
+
+      fDataset.write( vbucket, fDatatype );
+    }
+
+    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+
+//-----------------------------------------------------------------------------
+// Write (variable) Data into HDF5 format
+//-----------------------------------------------------------------------------
+    dimension[0]=  arraySize;
+
+    try {
+
+      H5::DataSpace vDataspace( rank, dimension );
+      H5::DataType  vDatatype = converter_traits::get_variable_HDF5_type();
+      H5::DataSet   vDataset  = group.createDataSet( "variable", vDatatype, vDataspace);
+
+      vDataset.write( data, vDatatype );
+
+    }
+    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+
+    //-----------------------------------------------------------------------
+    // Clean up
+    //-----------------------------------------------------------------------
+
+    delete [] data;
+    delete [] buf;
+
+  };
+
+//***************************************************************************
+
+  template <class T> 
+  void storeVecRepI<T> :: hdf5read( H5::Group group, DEFAULT_CONVERTER c,
+                                    entitySet &en, entitySet &usr )
+  {
+
+/*
+    char ch;
+
+    try{
+      H5::DataSet dataset_store = group.openDataSet( "store");
+      H5::DataSpace dataspace_store = dataset_store.getSpace();
+
+      hsize_t dims_store[1];
+      dataspace_store.getSimpleExtentDims( dims_store, NULL);
+
+      char* memento = new char[dims_store[0]];
+      dataset_store.read( memento, H5::PredType::NATIVE_CHAR );
+
+      std::istringstream iss(memento);
+      do ch = iss.get(); while(ch==' ' || ch=='\n') ;
+      if(ch != '{') {
+        std::cerr << "Incorrect Format while reading store" << std::endl ;
+        iss.putback(ch) ;
+      }
+      
+      entitySet e ;
+      iss >> e ;
+      iss >> size ;
+
+      FORALL(e,ii) {
+        W * p = base_ptr + ii*size ;
+        for(int i=0;i<size;++i,++p)
+          iss >> *p;
       } ENDFORALL ;
       
-      if(problem != EMPTY) {
-        std::cerr << "reallocation of multiStore required for entities"
-                  << problem << endl
-                  << "Currently this reallocation isn't implemented."
-                  << endl ;
+      do ch = iss.get(); while(ch==' ' || ch=='\n') ;
+      if(ch != '}') {
+        std::cerr << "Incorrect Format while reading store" << std::endl ;
+        iss.putback(ch) ;
       }
-    } else {
-      store<int> sizes ;
-      sizes.allocate(store_domain) ;
-      FORALL(store_domain,i) {
-        sizes[i] = 0 ;
-      } ENDFORALL ;
-      entitySet map_set = mm.domain() & store_domain ;
-      FORALL(map_set,i) {
-        sizes[i] = (mm.end(i) - mm.begin(i)) ;
-      } ENDFORALL ;
-      allocate(sizes) ;
+
     }
-    mutex.unlock() ;
-  }
-  
-  template<class T> void multiStoreRepI<T>::allocate(const entitySet &ptn) {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
-    alloc_pointer = 0 ;
-    index = 0 ;
-    base_ptr = 0 ;
-    store_domain = ptn ;
-    store<int> count ;
-    count.allocate(ptn) ;
-    FORALL(ptn,i) {
-      count[i] = 0 ;
-    } ENDFORALL ;
-    allocate(count) ;
-    dispatch_notify() ;
-  }
+    catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+*/
+  };
 
-  template<class T> multiStoreRepI<T>::~multiStoreRepI() {
-    if(alloc_pointer) delete[] alloc_pointer ;
-    if(index) delete[] index ;
-  }
+  //**************************************************************************
 
-  template<class T> storeRep *multiStoreRepI<T>::new_store(const entitySet &p)
-    const {
-    store<int> count ;
-    count.allocate(p) ;
-    for(entitySet::const_iterator ei = p.begin(); ei != p.end(); ++ei)
-      count[*ei] = base_ptr[*ei+1] - base_ptr[*ei] ;
-    return new multiStoreRepI<T>(count) ;
-  }
+  template <class T> 
+  void storeVecRepI<T>::hdf5read(H5::Group group, IDENTITY_CONVERTER convert, 
+                         entitySet &en, entitySet &user_eset)
+  {
 
-  template<class T> storeRepP multiStoreRepI<T>::remap(const Map &m) const {
-    entitySet newdomain = m.domain() & domain() ;
-    entitySet mapimage = m.image(newdomain) ;
-    multiStore<T> s ;
-    s.allocate(mapimage) ;
-    storeRepP my_store = getRep() ;
-    s.Rep()->scatter(m,my_store,newdomain) ;
-     return s.Rep() ;
-  }
-  
-  template<class T> void multiStoreRepI<T>::copy(storeRepP &st,
-                                                 const entitySet &context) {
-    const_multiStore<T> s(st) ;
-    fatal(alloc_pointer == 0) ;
-    fatal((context - domain()) != EMPTY) ;
-    fatal((context - s.domain()) != EMPTY) ;
-    store<int> count ;
-    count.allocate(domain()) ;
-    FORALL(domain() - context, i) {
-      count[i] = base_ptr[i+1] - base_ptr[i] ;
-    } ENDFORALL ;
-    FORALL(context, i) {
-      count[i] = s.end(i) - s.begin(i) ;
-    } ENDFORALL ;
+/*
+    typedef hdf5_schema_traits<W> _schema_traits_type;
+    hsize_t dims_store[1];
     
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
-    
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-    FORALL(domain()-context,i) {
-      for(int j=0;j<count[i];++j) 
-        new_base_ptr[i][j] = base_ptr[i][j] ;
-    } ENDFORALL ;
-    
-    FORALL(context,i) {
-      for(int j=0;j<count[i];++j)
-        new_base_ptr[i][j] = s[i][j] ;
-    } ENDFORALL ;
-    
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
-    base_ptr = new_base_ptr ;
-    dispatch_notify() ;
-  }
-  
-  template<class T> void multiStoreRepI<T>::gather(const Map &m, storeRepP &st,
-                                                  const entitySet &context) {
-    store<int> count ;
-    const_multiStore<T> s(st) ;
-    count.allocate(domain()) ;
-    FORALL(domain()-context,i) {
-      count[i] = base_ptr[i+1]-base_ptr[i] ;
-    } ENDFORALL ;
-    FORALL(context,i) {
-      count[i] = s.end(m[i])-s.begin(m[i]) ;
-    } ENDFORALL ;
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
+    size = get_storeVec_size(group,t);
 
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-    FORALL(domain()-context,i) {
-      for(int j = 0; j < count[i]; ++j) 
-        new_base_ptr[i][j] = base_ptr[i][j] ;
-    } ENDFORALL ;
+    try{
+      H5::DataSet dataset_store = group.openDataSet( "store");
+      H5::DataSpace dataspace_store = dataset_store.getSpace();
+      dataspace_store.getSimpleExtentDims( dims_store, NULL);
+      int rank = dataspace_store.getSimpleExtentNdims();
 
-    FORALL(context,i) {
-      for(int j = 0; j < count[i]; ++j)
-        new_base_ptr[i][j] = s[m[i]][j] ;
-    } ENDFORALL ;
+      //set the intervals
+      int num_intervals = en.num_intervals();
+      interval *it      = new interval[num_intervals];
 
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
-    base_ptr = new_base_ptr ;
-    dispatch_notify() ;
-    
-  }
-  template<class T> void multiStoreRepI<T>::scatter(const Map &m, storeRepP &st,
-                                                  const entitySet &context) {
-    
-    store<int> count ;
-    const_multiStore<T> s(st) ;
-    count.allocate(domain()) ;
-    FORALL(domain()-m.image(context),i) {
-      count[i] = base_ptr[i+1]-base_ptr[i] ;
-    } ENDFORALL ;
-    FORALL(context,i) {
-      count[m[i]] = s.end(i)-s.begin(i) ;
-    } ENDFORALL ;
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
-    
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-    FORALL(domain() - m.image(context),i) {
-      for(int j=0;j<count[i];++j) 
-        new_base_ptr[i][j] = base_ptr[i][j] ;
-    } ENDFORALL ;
+      for(int i=0;i<num_intervals;i++) it[i]=en[i];
 
-    FORALL(context,i) {
-      for(int j=0;j<count[m[i]];++j) {
-        new_base_ptr[m[i]][j] = s[i][j] ;
+//---------------------------------------------------------------------------
+// memory dataspace requires positive offset and count. calculate them here.
+//---------------------------------------------------------------------------
+
+      int bound ;
+      if(en.Min() < 0 && en.Max() > 0)
+         bound = en.Max()-en.Min()+1;
+      else if(en.Min() < 0)
+        bound  = abs(en.Min());
+      else
+        bound=en.Max();
+
+      if(en.Min()<0){
+        for(int i=0;i<num_intervals;i++){
+          it[i].first   += abs(en.Min());
+          it[i].second  += abs(en.Min());
+        }
       }
-    } ENDFORALL ;
-    
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
-    base_ptr = new_base_ptr ;
-    dispatch_notify() ;
-  }
- 
-  template <class T> int multiStoreRepI<T>::pack_size(const entitySet &e ) {
-    int size = 0 ;
-    store<int> count ;
-    count.allocate(e) ;
-    FORALL(e,i) {
-      count[i] = base_ptr[i+1] - base_ptr[i] ;
-      size += count[i] ;
-    } ENDFORALL ;
-    entitySet::const_iterator ei = e.begin() ;
-    return(size * sizeof(T)) ;
-  }
-  
-  template <class T> void multiStoreRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
-    
-    store<int> count ;
-    count.allocate(e) ;
-    FORALL(e,i) {
-      count[i] = base_ptr[i+1] - base_ptr[i] ;
-    } ENDFORALL ;
-    
-    for(int i = 0; i < e.num_intervals(); ++i) {
-      Loci::int_type indx1 = e[i].first ;
-      Loci::int_type stop = e[i].second ;
-      int size1 = 0 ; 
-      for(Loci::int_type indx = indx1; indx != stop+1; ++indx)
-	size1 += count[indx] ;
-      MPI_Pack(&base_ptr[indx1][0], size1 * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
-    }
-  } 
-  
-  
-  template <class T> void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
-    if(base_ptr == 0)
-      return ;
-    for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
-      MPI_Unpack(ptr, size, &loc, &base_ptr[*si][0], (base_ptr[*si+1] - base_ptr[*si]) * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
-    }
-    
-    /*
-      entitySet e ; 
-    store<int> count, count1 ;
-    for(int i = 0; i < seq.num_intervals(); ++i) {
-      if(seq[i].first > seq[i].second) 
-	e += interval(seq[i].second, seq[i].first) ;
-      else 
-	e += interval(seq[i].first, seq[i].second) ;
-    }
-    count1.allocate(e) ;
-    count.allocate(e) ;
-    for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si)
-      count1[*si] = base_ptr[*si+1] - base_ptr[*si] ;
-    
-    entitySet::const_iterator ei = e.begin() ;
-    
-    for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
-      count[*ei] = count1[*si] ;
-      ++ei ;
-    }
-    
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
-   
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-    for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) 
-      for(int j = 0 ; j < count[*si]; ++j) 
-	new_base_ptr[*si][j] = 0 ;
-    
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
-    base_ptr = new_base_ptr ;
-    dispatch_notify() ;
-    for(int i = 0; i < seq.num_intervals(); ++i) {
-      if(seq[i].first > seq[i].second) {
-	Loci::int_type stop = seq[i].second ;
-	for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
-	  MPI_Unpack(ptr, size, &loc, &base_ptr[indx][0], count[indx]*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+
+//----------------------------------------------------------------------------
+// Create hyperslab ....
+//----------------------------------------------------------------------------
+	
+      hsize_t dim_mem[1];
+      dim_mem[0] = (bound+1)*size;
+
+      hssize_t   mstart[1];
+      hsize_t    mstride[1];
+      hsize_t    mcount[1];
+      hsize_t    mblock[1];
+
+      hssize_t foffset[1];
+
+      foffset[0]  = 0;
+      mstride[0]  = 1;	    
+      mblock[0]   = 1;
+
+      H5::DataSpace dataspace_memory(rank,dim_mem);
+      H5::DataType datatype = _schema_traits_type::get_type();
+
+      for(int i=0;i<num_intervals;i++){
+        mstart[0]  = it[i].first*size;
+        mcount[0]  = (it[i].second-it[i].first+1)*size;
+
+        dataspace_memory.selectHyperslab(H5S_SELECT_SET, mcount, mstart, mstride, mblock);	
+        dataspace_store.selectHyperslab(H5S_SELECT_SET, mcount, foffset, mstride, mblock);
+
+        foffset[0] += mcount[0];          //for next interval
+        dataset_store.read(base_ptr,datatype,dataspace_memory,dataspace_store);
       }
-      else {
-	Loci::int_type indx1 = seq[i].first ;
-	Loci::int_type stop = seq[i].second ;
-	int sz = 0 ;
-	for(Loci::int_type indx = seq[i].first; indx != stop+1; ++indx)
-	  sz += count[indx] ;
-	MPI_Unpack(ptr, size, &loc, &base_ptr[indx1][0], sz * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
-      }
-    }
-    dispatch_notify() ;
-    */
-  }
-  
- 
-  template<class T> store_type multiStoreRepI<T>::RepType() const {
-    return STORE ;
-  }
-  
-  template<class T> entitySet multiStoreRepI<T>::domain() const {
-    return store_domain ;
-  }
-  
-  template<class T> std::ostream &multiStoreRepI<T>::Print(std::ostream &s)
-    const {
-    s << '{' << domain() << endl ;
-    FORALL(domain(),ii) {
-      s << end(ii)-begin(ii) << std::endl ;
-    } ENDFORALL ;
-    FORALL(domain(),ii) {
-      for(const T *ip = begin(ii);ip!=end(ii);++ip)
-        s << *ip << ' ' ;
-      s << std::endl ;
-    } ENDFORALL ;
-    s << '}' << std::endl ;
-    return s ;
-  }
 
-  template<class T> std::istream &multiStoreRepI<T>::Input(std::istream &s) {
-    entitySet e ;
-    char ch ;
-    
-    do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    if(ch != '{') {
-      std::cerr << "Incorrect Format while reading store" << std::endl ;
-      s.putback(ch) ;
-      return s ;
-    }
-    s >> e ;
-    store<int> sizes ;
-    sizes.allocate(e) ;
-    FORALL(e,ii) {
-      s >> sizes[ii] ;
-    } ENDFORALL ;
+      delete [] it;
+    } 
+    catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+*/
 
-    allocate(sizes) ;
-        
-    FORALL(e,ii) {
-      for(T *ip = begin(ii);ip!=end(ii);++ip)
-        s >> *ip  ;
-    } ENDFORALL ;
-            
-    do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    if(ch != '}') {
-      std::cerr << "Incorrect Format while reading store" << std::endl ;
-      s.putback(ch) ;
-    }
-    return s ;
-  }
+  };
 
-  template<class T> void multiStoreRepI<T>::readhdf5( H5::Group group, entitySet &en) {
-    std::cerr << "readhdf5 not implemented" << std::endl ;
-  }
+  //**************************************************************************
 
-  template<class T> void multiStoreRepI<T>::writehdf5(H5::Group group,
-                                                      entitySet &en) const {
-    std::cerr << "writehdf5 not implemented" << std::endl ;
-  }
-  
+  template <class T> 
+  void storeVecRepI<T> :: hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, 
+                                    entitySet &eset, entitySet &user_eset )
+  {
+
+    hsize_t dimension[1];
+    size_t indx = 0, arraySize;
+    int    rank = 1, vecsize;
+
+    entitySet::const_iterator ci;
+
+    typedef hdf5_schema_converter_traits<T> converter_traits; 
+
+    HDF5_ReadVecSize( group, size );
+
+    //--------------------------------------------------------------------------
+    // Size of each sub-container ....
+    //--------------------------------------------------------------------------
+
+    H5::DataType  sDatatype  = H5::PredType::NATIVE_INT;
+    H5::DataSet   sDataset   = group.openDataSet( "SubContainerSize");
+    H5::DataSpace sDataspace = sDataset.getSpace();
+
+    sDataspace.getSimpleExtentDims( dimension, NULL);
+    ibuf = new int[dimension[0]];
+
+    sDataset.read( ibuf, H5::PredType::NATIVE_INT );
+
+    int maxBucketSize = *max_element( ibuf, ibuf + (int)dimension[0] );
+
+   //---------------------------------------------------------------------------
+   // Calculate the offset of each entity in file ....
+   //---------------------------------------------------------------------------
+   store<unsigned>   offset;
+   dmultiStore<int>  subcontainer;
+   offset.allocate( eset );
+
+   arraySize = 0;
+   int indx1 = 0, indx2 = 0;
+   for( ci = eset.begin(); ci != eset.end(); ++ci) {
+        offset[*ci] = arraySize;
+        for( int i = 0; i < size; i++)  {
+             size        = ibuf[indx2++];
+             arraySize  += size;
+             subcontainer[*ci].push_back( size );
+        }
+   }
+
+   delete [] ibuf;
+   //---------------------------------------------------------------------------
+   // Read the data now ....
+   //---------------------------------------------------------------------------
+   int num_intervals = user_eset.num_intervals();
+   interval *it = new interval[num_intervals];
+
+   for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
+
+   converter_traits::memento_type *data, *buf;
+
+   dimension[0] = arraySize;
+   H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
+   H5::DataSpace vDataspace(rank, dimension);
+
+   H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
+   H5::DataSet   vDataset   = group.openDataSet( "variable");
+
+   hssize_t  start_mem[] = {0};  // determines the starting coordinates.
+   hsize_t   stride[]    = {1};  // which elements are to be selected.
+   hsize_t   block[]     = {1};  // size of element block;
+   hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+   hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+
+   buf  = new converter_traits::memento_type[maxBucketSize];
+
+   for( int k = 0; k < num_intervals; k++) {
+        count[0] = 0;
+        for( int i = it[k].first; i <= it[k].second; i++){
+             for( int j = 0; j < size; j++)
+                  count[0] +=  subcontainer[i][j];
+        }
+
+        data = new converter_traits::memento_type[count[0]];
+
+        foffset[0] = offset[it[k].first];
+
+        mDataspace.selectHyperslab(H5S_SELECT_SET, count, start_mem, stride, block);
+        vDataspace.selectHyperslab(H5S_SELECT_SET, count, foffset,   stride, block);
+        vDataset.read( data, vDatatype, mDataspace, vDataspace);
+
+        indx = 0;
+        int bucsize;
+        for( int i = it[k].first; i <= it[k].second; i++) {
+             for( int j = 0; j < size; j++) {
+                  Memento<T> memento( base_ptr[i*size+j] );
+                  bucsize = subcontainer[i][j];
+                  for( int m = 0; m < bucsize; m++)
+                       buf[m] = data[indx++];
+                  base_ptr[i*size+j] = memento.setState( buf, bucsize );
+             }
+        }
+        delete[] data;
+   }
+
+   delete[] buf;
+
+  }; 
+
+  //**************************************************************************
+
+
+
 }
 
 #endif
