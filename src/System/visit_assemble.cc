@@ -206,10 +206,18 @@ namespace Loci {
         bool singleton = false ;
         bool recursive = false ;
         bool unit_rule_exists = false ;
+        bool priority_rule = false ;
+
         for(ri=var_rules.begin();ri!=var_rules.end();++ri) {
-          //if(ri->get_info().rule_class != rule::INTERNAL) {
-          if(!is_virtual_rule(*ri)) {
+          if(!is_virtual_rule(*ri) ||
+             (ri->get_info().rule_class == rule::INTERNAL &&
+              ri->get_info().qualifier() == "priority")) {
             use_rules += *ri ;
+
+            // Check for a priority rule
+            if(ri->get_info().rule_class == rule::INTERNAL &&
+               ri->get_info().qualifier() == "priority")
+              priority_rule = true ;
 
             if(ri->get_info().rule_class == rule::INTERNAL)
               if(ri->get_info().qualifier() == "CHOMP") {
@@ -245,7 +253,7 @@ namespace Loci {
                 }
                 continue ;
               }
-            
+          
             rule_implP rimp = ri->get_rule_implP() ;
             if(rimp->get_rule_class() == rule_impl::POINTWISE)
               pointwise = true ;
@@ -269,8 +277,10 @@ namespace Loci {
              reduction && singleton) ;
 
         if((use_rules != EMPTY)) {
-          if(pointwise && !recursive && (vi->get_info().name != "OUTPUT")){
-            barrier_vars += *vi ;
+          if((priority_rule || pointwise) && !recursive && (vi->get_info().name != "OUTPUT")){
+            // Don't use the priority variables for variable barriers
+            if(vi->get_info().priority.size() == 0)
+              barrier_vars += *vi ;
           }
           if(pointwise && recursive && (vi->get_info().name != "OUTPUT")) {
             all_vars += *vi ;
