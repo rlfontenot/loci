@@ -1003,9 +1003,14 @@ namespace Loci {
       }
     }
     dMap m ;
-    m.allocate(map_entities) ;
-    for(entitySet::const_iterator ei = map_entities.begin(); ei != map_entities.end(); ++ei)
+    // No need to allocate, dMap is self allocating
+    //    m.allocate(map_entities) ;
+    for(entitySet::const_iterator ei = map_entities.begin();
+        ei != map_entities.end();
+        ++ei) {
       m[*ei] = *ei ;
+    }
+
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP  p = facts.get_variable(*vi) ;
       facts.replace_fact(*vi,p->remap(m)) ;
