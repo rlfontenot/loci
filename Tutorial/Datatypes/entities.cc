@@ -1,7 +1,7 @@
 // Example program illustrating how to manipulate Entity, entitySet,
 // and sequence data structures in Loci
 
-// Time-stamp: <2002-02-13 09:36:31 peo>.
+// Time-stamp: <2002-02-13 09:48:16 peo>.
 
 // Every Loci program includes the Loci header file.
 #include <Loci.h>
@@ -241,10 +241,12 @@ int main()
 
   // Method for absolute complement of an entitySet.
   // Note that the complement replaces the given set.
+  // G = ([14,32]).
   G.Complement() ;
-  // G = ([#,13][33,#])
+  // G = ([#,13][33,#]).
   // The first occurrence of "#" stands for Loci::UNIVERSE_MIN;
   // the first occurrence of "#" stands for Loci::UNIVERSE_MAX.
+  cout << "Complement of G = " << G << endl ; 
   cout << "G = " << G << endl ; 
 
   ////////////////////////////////////////////////////////////////////////////
