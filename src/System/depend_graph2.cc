@@ -775,12 +775,12 @@ namespace Loci {
         for(fi=rules.begin();fi!=rules.end();++fi) {
           if(fi->get_info().qualifier() != "looping")
             if((subset & fi->sources()) != fi->sources()) {
-#ifdef VERBOSE
+              //#ifdef VERBOSE
               debugout << "cleanout " << *fi << endl ;
               debugout << "because of variables "
                        << extract_vars(fi->sources()-subset)
                        << endl ;
-#endif
+              //#endif
               cleanout += fi->ident() ;
             }
         }
@@ -805,12 +805,12 @@ namespace Loci {
           if(ri->get_info().qualifier() != "looping") {
             if((ri->sources() - touched_variables)!=EMPTY) {
               cleanout2 += ri->ident() ;
-#ifdef VERBOSE
+              //#ifdef VERBOSE
               debugout << "cleanout " << *ri << endl ;
               debugout << "because of variables "
                        << extract_vars(ri->sources()-touched_variables)
                        << endl ;
-#endif
+              //#endif
             }
           } else
             looping_rules += *ri ;
@@ -954,15 +954,238 @@ namespace Loci {
     //cerr<<"vertices size before cleaning: "
     //  <<gr.get_all_vertices().size()<<endl ;
 
+
     clean_graph(given,target) ;
 
     //cerr<<"vertices size after cleaning: "
     //  <<gr.get_all_vertices().size()<<endl ;
 
-    add_rename_dependencies(gr) ;
+
+    // Partition any iterations that remain that have multiple collapse
+    // conditionals into independent iterations
+    gr = partition_iteration(gr) ;
     
+
+    // Add dependencies created by update-in-place rules
+    add_rename_dependencies(gr) ;
+
+    // Finish cleaing things up
     gr.remove_dangling_vertices() ;
     
+  }
+
+  //Search through a graph from a given set of vertices to all connected
+  // vertices. Return the set of all vertices related through edges in
+  // the graph to the start set provided.
+  digraph::vertexSet search_digraph(const digraph &gr,
+                                    digraph::vertexSet start) {
+    digraph::vertexSet working = start ;
+    digraph::vertexSet delta ;
+    do {
+      digraph::vertexSet newset ;
+      digraph::vertexSet::const_iterator vi ;
+      for(vi=working.begin();vi!=working.end();++vi)
+        newset += gr.get_edges(*vi) ;
+      newset += working ;
+      delta = newset - working ;
+      working = newset ;
+    } while(delta != EMPTY) ;
+    return working ;
+  }
+
+  // This function partitions iterations that have collapse rules conditional
+  // on different variables into completely different iterations.  This allows
+  // us to load modules that share the same iteration tag but are iterating on
+  // completely different data and have different termination conditions.
+  digraph partition_iteration(digraph gr) {
+
+    // First we search through the collapse rules to see if there are any
+    // collapse rules that conflict.
+    ruleSet all_rules = extract_rules(gr.get_all_vertices()) ;
+    ruleSet looping_rules ;
+    ruleSet::const_iterator ri ;
+    map<time_ident,ruleSet> tmap ;
+    for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
+      if(ri->type() == rule::COLLAPSE) {
+        tmap[ri->source_time()] += *ri ;
+      }
+    }
+
+    vector<time_ident> conflicts ;
+    map<time_ident,ruleSet>::const_iterator mi ;
+    for(mi=tmap.begin();mi!=tmap.end();++mi) {
+      if(mi->second.size() > 1) {
+        ri = mi->second.begin() ;
+        variableSet cond = ri->get_info().desc.conditionals ;
+        ri++;
+        for(;ri!=mi->second.end();++ri) {
+          if(cond != ri->get_info().desc.conditionals) {
+            conflicts.push_back(mi->first) ;
+          }
+        } 
+      }
+    }
+    // If there are no conflicts then we are done
+    if(conflicts.size() == 0)
+      return gr ;
+
+    // Now for each set of conflicting collapse rules, we need to create an
+    // independent iteration
+    for(size_t i=conflicts.size();i>0;--i) {
+      time_ident iter = conflicts[i-1] ;
+      ruleSet col = tmap[iter] ;
+      // First we collect information about this iteration level
+      ruleSet all_rules = extract_rules(gr.get_all_vertices()) ;
+      variableSet all_vars = extract_vars(gr.get_all_vertices()) ;
+      variableSet::const_iterator vi;
+      ruleSet iter_rules ;
+      variableSet iter_vars ;
+      ruleSet looping_rule ;
+      variableSet promote_vars ;
+      for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
+        if(ri->target_time() == iter || (iter < ri->target_time())) {
+          iter_rules += *ri ;
+          if(ri->target_time() == iter && ri->get_info().qualifier() == "looping")
+            looping_rule += *ri ;
+          if(ri->get_info().qualifier() == "promote") {
+            promote_vars += ri->targets() ;
+            promote_vars += ri->sources() ;
+          }
+          iter_vars += ri->targets() ;
+          iter_vars += ri->sources() ;
+        }
+      }
+      for(vi=all_vars.begin();vi!=all_vars.end();++vi)
+        if(vi->time() == iter || iter < vi->time())
+          iter_vars += *vi ;
+
+      // There should only be one looping rule at this stage, if not
+      // something weird is going on.
+      if(looping_rule.size() != 1) {
+        cerr << "something confused in iteration conflict analysis" << endl;
+        return gr ;
+      }
+
+      iter_rules -= looping_rule ;
+
+      // Now we need to determine what subset of the graph contributes to each
+      // independent loop
+      digraph::vertexSet ss = iter_rules ;
+      ss += iter_vars ;
+      digraph sg = gr.subgraph(ss) ;
+      sg.remove_dangling_vertices();
+      digraph sgt = sg.transpose() ;
+
+      map<variableSet,ruleSet> collapse_groups ;
+      for(ri=col.begin();ri!=col.end();++ri) {
+        collapse_groups[ri->get_info().desc.conditionals] += *ri ;
+      }
+      map<variableSet,ruleSet>::const_iterator cmi ;
+      vector<digraph::vertexSet> groups ;
+
+      for(cmi=collapse_groups.begin();cmi!=collapse_groups.end();++cmi) {
+        digraph::vertexSet v1 ;
+        for(ri=cmi->second.begin();ri!=cmi->second.end();++ri) {
+          v1 = search_digraph(sgt,ri->sources()) ;
+          v1 += ri->ident() ;
+        }
+        variableSet v1var = extract_vars(v1) ;
+        v1var &= looping_rule.begin()->targets() ;
+        
+        for(vi=v1var.begin();vi!=v1var.end();++vi) {
+          variable::info vinfo = vi->get_info() ;
+          if(vinfo.tvar || vinfo.name == "OUTPUT")
+            continue ;
+          vinfo.offset++ ;
+          variable fv = variable(vinfo) ;
+          v1 += fv.ident() ;
+        }
+        v1 = search_digraph(sgt,v1) ;
+        groups.push_back(v1) ;
+      }
+
+
+      // Here we check to make sure the loops really are independent of each
+      // other.
+
+      digraph::vertexSet tot ;
+      for(size_t i=0;i<groups.size();++i) {
+        if((tot & groups[i]) != EMPTY) {
+          variableSet check = extract_vars(tot&groups[i]) ;
+          check -= promote_vars ;
+          check -= variable(iter) ;
+          if(check != EMPTY) {
+            cerr << "Warning:" << endl 
+                 << "  iteration will yield duplicate computations when collapse"
+                 << endl
+                 << "  are split to accomodate different collapse conditionals"
+                 << endl
+                 << " Duplicated Variables are " << check << endl
+                 << " Collapse rules are " << col << endl ;
+          }
+        }
+        tot += groups[i] ;
+      }
+
+      // Now we remove the old set of rules from the graph and replace them
+      // with rules that have their variables renamed such that they are
+      // independent loops
+      digraph newgr = gr ;
+      for(size_t i=0;i<groups.size();++i) {
+        newgr.remove_vertices(extract_rules(groups[i])) ;
+      }
+      newgr.remove_vertices(looping_rule) ;
+      
+      for(size_t i=0;i<groups.size();++i) {
+        string level_name = iter.level_name() ;
+        char buf[512] ;
+        sprintf(buf,"_%s_%d_",level_name.c_str(),i) ;
+        string new_level = string(buf) ;
+        time_ident ntime = time_ident(iter.parent(),new_level) ;
+        map<variable,variable> rvm ;
+        variable tv1 = variable(iter) ;
+        variable tv2 = variable(ntime) ;
+        rvm[tv1] = tv2 ;
+        variableSet vars = extract_vars(groups[i]) ;
+        for(vi=vars.begin();vi!=vars.end();++vi) {
+          variable::info vinfo = vi->get_info() ;
+          if(vinfo.time_id < iter) {
+            rvm[*vi] = *vi ;
+            continue ;
+          }
+          if(vinfo.time_id != iter) {
+            cerr << "time_id = " << vinfo.time_id << endl ;
+            cerr << "current code unable to decompose nested iterations!"
+                 << endl ;
+            return gr ;
+          }
+          if(vinfo.tvar)
+            continue ;
+          vinfo.time_id = ntime ;
+          rvm[*vi] = variable(vinfo) ;
+        }
+
+        ruleSet grules = extract_rules(groups[i]) ;
+        for(ri=grules.begin();ri!=grules.end();++ri) {
+          rule nr = (*ri).rename_vars(rvm) ;
+          invoke_rule(nr,newgr) ;
+        }
+        variableSet loopin = looping_rule.begin()->sources() ;
+        variableSet loopout = looping_rule.begin()->targets() ;
+        loopin &= extract_vars(groups[i]) ;
+        loopout &= extract_vars(groups[i]) ;
+        ostringstream oss ;
+        oss << "source("<< loopin
+            << "),target(" << loopout
+            << "),qualifier(looping)" ;
+        rule floop(oss.str()) ;
+        rule nr = floop.rename_vars(rvm) ;
+        invoke_rule(nr,newgr) ;
+
+      }
+      gr = newgr ;
+    }
+    return gr ;
   }
 
 }// End namespace Loci

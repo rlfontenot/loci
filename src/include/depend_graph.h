@@ -42,6 +42,7 @@ namespace Loci {
     digraph get_graph() const { return gr; } 
   };
 
+  digraph partition_iteration(digraph gr) ;
 }
 
 #endif
