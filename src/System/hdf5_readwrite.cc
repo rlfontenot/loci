@@ -16,7 +16,8 @@ namespace Loci {
 
   if( num_intervals < 1) return;
 
-  dimension = num_intervals*2; //size of 1D Array 
+  dimension = num_intervals*2; //size of 1D Array
+  if(dimension == 0) return;
   dataspace = H5Screate_simple(rank, &dimension, NULL);
   dataset   = H5Dcreate(group_id, "Interval Set", datatype, dataspace, H5P_DEFAULT);
 
@@ -105,7 +106,7 @@ namespace Loci {
 
   hsize_t dimension = 1;
   int     rank = 1;
-
+  if(dimension == 0) return;
   hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
   hid_t vDatatype  = H5T_NATIVE_INT;
   hid_t vDataset   = H5Dcreate(group_id, "VecSize", vDatatype, vDataspace,
@@ -132,6 +133,7 @@ namespace Loci {
   hid_t vDataset   = H5Dopen( group_id, "VecSize");
 
   if( vDataset > 0) {
+    if(dimension == 0) return;
     hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
     hid_t vDatatype  = H5T_NATIVE_INT;
   
