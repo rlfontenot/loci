@@ -113,6 +113,35 @@ namespace Loci {
       return false ;
     }
 
+    // find any chains that contains v and then
+    // remove those chains from the list and
+    // patch them back to the search list
+    void notify_existchains(list<chomp_chain>& result,
+                            list<variable>& chomp_vars_order,
+                            variableSet& good_chomp_vars,
+                            const variable& v) {
+      vector<list<chomp_chain>::iterator> remove ;
+      variableSet patch_back ;
+      for(list<chomp_chain>::iterator li=result.begin() ;
+          li!=result.end();++li) {
+        digraph& gr = li->first ;
+        variableSet internal_vars =
+          extract_vars(gr.get_source_vertices() & gr.get_target_vertices()) ;
+        if(internal_vars.inSet(v)) {
+          remove.push_back(li) ;
+          patch_back += li->second ;
+        }
+      }
+      for(vector<list<chomp_chain>::iterator>::size_type i=0;
+          i!=remove.size();++i)
+        result.erase(remove[i]) ;
+
+      good_chomp_vars += patch_back ;
+      for(variableSet::const_iterator vi=patch_back.begin();
+          vi!=patch_back.end();++vi)
+        chomp_vars_order.push_back(*vi) ;
+    }
+    
     // given a digraph and all the chomping candidate
     // variables inside it, this function will return
     // all chomping chains by merging variables together
@@ -177,10 +206,11 @@ namespace Loci {
 
               FATAL(internal !=
                     (test_gr.get_all_vertices() - sources - targets)) ;
-              
+
+              variableSet internal_vars = extract_vars(internal) ;
               variableSet problem_vars =
-                variableSet(extract_vars(internal) - good_chomp_vars) ;
-              
+                variableSet(internal_vars - good_chomp_vars) ;
+
               if(!has_path(gr,targets,sources) &&
                  (problem_vars == EMPTY)
                  ) {
@@ -212,15 +242,25 @@ namespace Loci {
           digraph::vertexSet internal = sub_gr.get_source_vertices()
             & sub_gr.get_target_vertices() ;
           
-          FATAL(internal != (sub_gr.get_all_vertices() - sources - targets)) ;
-
+          FATAL(internal !=
+                (sub_gr.get_all_vertices() - sources - targets)) ;
+          
+          variableSet internal_vars = extract_vars(internal) ;
           variableSet problem_vars =
-            variableSet(extract_vars(internal) - good_chomp_vars) ;
+            variableSet(internal_vars - good_chomp_vars) ;
           
           if(has_path(gr,targets,sources) ||
              (problem_vars != EMPTY)
              ){
-            good_chomp_vars -= *(sub_chomp_vars.begin()) ;
+            variable v = *(sub_chomp_vars.begin()) ;
+            good_chomp_vars -= v ;
+            chomp_vars_order.remove(v) ;
+            // we need to notify existed chains of this change
+            // this variable might be silently included
+            // into other chains because it may be targets of
+            // other chompable variables
+            notify_existchains(result,chomp_vars_order,good_chomp_vars,v) ;
+
             continue ;
           }
         }
@@ -242,6 +282,7 @@ namespace Loci {
           good_chomp_vars -= intersection ;
         }
 
+        good_chomp_vars -= sub_chomp_vars ;
         result.push_back(make_pair(sub_gr,sub_chomp_vars)) ;      
       } // end-of-while(!chomp_vars_order.empty())
     }
@@ -440,6 +481,19 @@ namespace Loci {
       if(takeout_vertices != (all_vertices -
                               source_vars_vertices - target_vars_vertices)) {
         cerr << "WARNING: inconsistency in chomping graph editing!" << endl ;
+        digraph::vertexSet ast ;
+        ast = all_vertices - source_vars_vertices - target_vars_vertices ;
+        digraph::vertexSet diff ;
+        diff = takeout_vertices - ast ;
+        if(diff == EMPTY)
+          diff = ast - takeout_vertices ;
+        variableSet diff_vars = extract_vars(diff) ;
+        ruleSet diff_rules = extract_rules(diff) ;
+        if(diff_vars != EMPTY)
+          cerr << "These vars should be taken out: " << diff_vars << endl ;
+        if(diff_rules != EMPTY)
+          cerr << "These rules should be taken out: " << diff_rules << endl ;
+        cerr << "The chomped vars in this chain are: " << chomp_vars << endl ;
         exit(-1) ;
       }
 
