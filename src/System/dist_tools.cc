@@ -28,9 +28,8 @@ using std::sort;
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
-
 namespace Loci {
-  
+
   void get_clone(fact_db &facts, const rule_db &rdb) {
     fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     std::vector<entitySet> &ptn = facts.get_init_ptn() ;
@@ -68,23 +67,30 @@ namespace Loci {
       }
     }
     
-    std::set<std::vector<variableSet> > context_maps ;
-    std::set<std::vector<variableSet> > dist_maps ;
-    std::set<std::vector<variableSet> > dist_reverse_maps ;
-    
 #ifdef COMP_ENT
-     Loci::get_mappings(rdb, facts, context_maps, 1);
-     facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
-     entitySet tmp_set = facts.global_comp_entities;
+    std::set<std::vector<variableSet> > context_maps ;
+    Loci::get_mappings(rdb, facts, context_maps, 1);
+    facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
+    /*
+     entitySet mySet = ptn[Loci::MPI_rank];
+     for(int k = 0; k < 2; k++) {
+       mySet += Loci::dist_special_expand_map(facts.global_comp_entities,
+					     facts, context_maps) ;
+       facts.global_comp_entities += context_for_map_output(mySet,  facts, context_maps);
+     }
+     */
+    entitySet tmp_set = facts.global_comp_entities;
 #else
     entitySet tmp_set = ptn[Loci::MPI_rank] ;
 #endif
+    std::set<std::vector<variableSet> > dist_maps ;
     Loci::get_mappings(rdb,facts,dist_maps) ;
     entitySet tmp_copy, image ;
     image = Loci::dist_expand_map(tmp_set, facts, dist_maps) ;
 
-#ifdef COMP_ENT    
-    Loci::get_mappings(rdb,facts,dist_reverse_maps, 2) ;  
+#ifdef COMP_ENT
+    std::set<std::vector<variableSet> > dist_reverse_maps ;
+    Loci::get_mappings(rdb,facts,dist_reverse_maps, 2) ;
     image += Loci::dist_reverse_expand_map(facts, dist_reverse_maps);
 #endif
 
@@ -573,7 +579,6 @@ namespace Loci {
   entitySet dist_expand_map(entitySet domain, fact_db &facts,
 			    const std::set<std::vector<variableSet> > &maps) {   
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
-    
     for(int i = 0; i < MPI_processes; ++i) {
       entitySet tmp = ptn[i] ;
       ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
@@ -983,6 +988,8 @@ namespace Loci {
     return re ;
   }
 
+#ifdef COMP_ENT
+  //Finds the context for maps whose final image will be in provided domain.
   entitySet context_for_map_output(entitySet domain, fact_db &facts,
 	      const std::set<std::vector<variableSet> > &maps) {
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
@@ -1016,8 +1023,12 @@ namespace Loci {
     }
     return context ;
   }
+
+  //Reverse expand maps makes following sure:
+  //If a map has : b->a, c->a then, if b is in the domain of a processor,
+  //c should be added to the domain. 
   entitySet dist_reverse_expand_map(fact_db &facts,
-			    const std::set<std::vector<variableSet> > &maps) {   
+				    const std::set<std::vector<variableSet> > &maps) {   
     entitySet added_entities = EMPTY;
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
     
@@ -1091,6 +1102,52 @@ namespace Loci {
     }
     return added_entities;
   }
+
+  //It works just like dist_expand_map except the return entities only contain the image
+  //of the last map in the chain.  
+  entitySet dist_special_expand_map(entitySet domain, fact_db &facts,
+				    const std::set<std::vector<variableSet> > &maps) {
+    entitySet special_return;
+    std::vector<entitySet> ptn = facts.get_init_ptn() ;
+    
+    for(int i = 0; i < MPI_processes; ++i) {
+      entitySet tmp = ptn[i] ;
+      ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
+    }
+    entitySet dom = domain ;
+    variableSet vars = facts.get_typed_variables() ;
+    std::set<std::vector<variableSet> >::const_iterator smi ;
+    for(smi = maps.begin(); smi != maps.end(); ++smi) {
+      entitySet locdom = domain ;
+      const vector<variableSet> &mv = *smi ;
+      for(size_t i = 0; i < mv.size(); ++i) {
+	variableSet v = mv[i] ;
+	v &= vars ; 
+	entitySet image ;
+	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
+	  storeRepP p = facts.get_variable(*vi) ;
+	  if(p->RepType() ==  MAP) {
+	    entitySet tmp_dom = p->domain() ;
+	    MapRepP mp =  MapRepP(p->getRep()) ;
+	    entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
+	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ; 
+	    storeRepP sp = mp->expand(tmp_out, ptn) ;
+	    if(sp->domain() != tmp_dom) {
+	      facts.update_fact(variable(*vi), sp) ; 
+	    }
+	    image +=  MapRepP(sp)->image((sp->domain()) & locdom) ;
+
+	  }
+	}
+	dom += image ;
+	locdom = image ;
+	if(i == mv.size() -1)
+	  special_return += image;
+      }
+    }
+    return special_return ;
+  }
+#endif
 
   // function that restores the fact_db back to its global numbering
   void restore_global_facts(fact_db& facts) {
