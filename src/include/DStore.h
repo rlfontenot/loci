@@ -111,7 +111,8 @@ namespace Loci {
 
     FORALL(domain(),ii) {
       ci = attrib_data.find(ii);
-      if( ci != attrib_data.end() ) s << ci->second << std::endl ;
+      if( ci == attrib_data.end() ) continue;
+      s << ci->second << std::endl ;
     } ENDFORALL ;
 
     s << '}' << std::endl ;
@@ -502,7 +503,7 @@ namespace Loci {
   {
     std::ostringstream oss;
 
-    oss << attrib_data[entity] << endl;
+    oss << base_ptr[entity] << endl;
 
     memento = oss.str();
   }
@@ -630,7 +631,7 @@ namespace Loci {
                   MPI_COMM_WORLD) ;
 
       std::istringstream iss(outbuf);
-      iss >> attrib_data[*ci];
+      iss >> base_ptr[*ci];
       delete [] outbuf;
     }
   }
@@ -904,7 +905,7 @@ namespace Loci {
       indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) {
           typename data_schema_traits<T>::Converter_Type cvtr( attrib_data[i]);
-          cvtr.setState( data+indx, container[i] );
+          cvtr.setState( &data[0]+indx, container[i] );
           indx += container[i];
       }
     }
