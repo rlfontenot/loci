@@ -1,44 +1,44 @@
-#LOCI_BASE = /ccs/mssl/general/loci/debug/sparc/
-LOCI_BASE = /usr/tmp/csv/newsrc/Loci
-TARGET = fire
+# Set up LOCI_BASE to point to the location where Loci is installed
+# on your system
+LOCI_BASE = /usr/tmp/lush/Loci/
+
+# Include Loci.conf to get all of the rules for compiling Loci programs
+include $(LOCI_BASE)/Loci.conf
+
+
+TARGET = entities containers relations
 
 # List your object files here
 
-OBJS = testDMultiMap.o
+EX1_OBJS = entities.o
+EX2_OBJS = containers.o
+EX3_OBJS = relations.o
 
-include $(LOCI_BASE)/sys.conf
-include $(LOCI_BASE)/comp.conf
+OBJS = $(EX1_OBJS) $(EX2_OBJS) $(EX3_OBJS)
 
-DEFINES = $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) $(DEBUG) -DBOUNDS_CHECK
-
-INCLUDES  = -I$(LOCI_BASE)/include 
-LIBS      = -L/usr/local/lib -lz -L$(LOCI_BASE)/lib -lLoci -lTools -lhdf5CC $(BASE_LIBS) \
-            -L/ccs/mssl/general/loci/misc/sparc/lib -lmetis -lm 
-
-CP  = $(CPP) $(CPPOPT) 
-CC  = $(CPP) $(CPPOPT)
-
-COPT     = $(CC_DEBUG) $(CC_OPT)
-COPTLESS = $(CC_DEBUG) $(CC_OPT1)
-
-JUNK = *~ *.ii core q.file_1.* ti_files 
-
-.SUFFIXES: .o .c .cc
-
-.c.o:    ;  $(CC) -w $(CC_OPT) $(DEFINES) $(INCLUDES) -c $*.c
-.cc.o:   ;  $(CP) -w $(CC_OPT) $(DEFINES) $(INCLUDES) -c $*.cc
+# Junk files created by compilers that may need to be cleaned up
+JUNK = *~ *.ii core ti_files 
 
 default:
 	$(MAKE) $(TARGET)
 
-$(TARGET): $(OBJS) FRC
-	$(LD) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+# To compile a Loci program, use the .cc or .C prefix on your Loci source 
+# modules and link using a command similar to below.
+entities: $(EX1_OBJS)
+	$(LD) -o entities $(EX1_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-newgrid: newgrid.o
-	$(LD) -o newgrid newgrid.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+containers: $(EX2_OBJS)
+	$(LD) -o containers $(EX2_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-FRC : 
+relations: $(EX3_OBJS)
+	$(LD) -o relations $(EX3_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak
 
+make.depend:
+	$(MAKEDEPEND) $(CFLAGS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(LOCAL_INCLUDES) *.cc > make.depend
+
+depend: make.depend
+
+include make.depend
