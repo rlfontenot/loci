@@ -345,9 +345,6 @@ namespace Loci {
     case APPLY:
       s << "APPLY" ;
       break ;
-    case JOIN:
-      s << "JOIN" ;
-      break ;
     default:
       s << "ERROR" ;
       break ;
