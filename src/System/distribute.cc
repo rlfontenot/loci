@@ -88,7 +88,7 @@ namespace Loci {
     oss << "debug."<<MPI_rank ;
     string filename  = oss.str() ;
     debugout.open(filename.c_str(),ios::out) ;
-    if(!register_rule_list.empty()) {
+    if(register_rule_list.empty()) {
       global_rule_list.copy_rule_list(register_rule_list) ;
       register_rule_list.clear() ;
     }
