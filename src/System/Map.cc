@@ -110,7 +110,7 @@ namespace Loci {
       
   }
 
-  const entitySet &MapRepI::domain() const {
+  entitySet MapRepI::domain() const {
     return store_domain ;
   }
 
@@ -222,7 +222,7 @@ namespace Loci {
     return s ;
   }
 
-  void MapRepI::readhdf5(H5::Group group){
+  void MapRepI::readhdf5(H5::Group group, entitySet &eset){
       hsize_t dims_map[1];
       
       try{
@@ -630,7 +630,7 @@ namespace Loci {
   }   
       
     
-  const entitySet &multiMapRepI::domain() const {
+  entitySet multiMapRepI::domain() const {
     return store_domain ;
   }
     
@@ -712,7 +712,7 @@ namespace Loci {
     return s ;
   }
 
-    void multiMapRepI::readhdf5( H5::Group group) {
+    void multiMapRepI::readhdf5( H5::Group group, entitySet &en) {
       try{
 	//get domain data
 	H5::DataSet dataset_domain = group.openDataSet( "domain");
