@@ -8,10 +8,10 @@
 namespace Loci {
 
 class NPTR_type : public CPTR_type {
-    mutable eventDispatcher ed ;
+  mutable eventDispatcher ed ;
   public:
     void engage(eventNotify *en) const { ed.engage(en) ; }
-    void disengage(eventNotify *en) const {ed.disengage(en) ; }
+    void disengage(eventNotify *en) const { ed.disengage(en) ; }
     void dispatch_notify() const { ed.dispatch_notify() ; }
 } ;
 

@@ -368,6 +368,11 @@ namespace Loci {
   inline std::ostream &operator<<(std::ostream &s, const ruleSet v)
     { return v.Print(s) ; }
 
+  class register_rule_type {
+  public:
+    virtual rule_implP get_func() const = 0 ;
+  } ;
+
   class global_rule_impl_list {
   public:
     class rule_list_iterator ;
@@ -375,8 +380,9 @@ namespace Loci {
   private:
     class rule_list_ent {
     public:
-      rule_list_ent(rule_implP &p, rule_list_ent *nxt) : fp(p), next(nxt) {}
-      rule_implP fp ;
+      rule_list_ent(register_rule_type *p, rule_list_ent *nxt) :
+        rr(p), next(nxt) {}
+      register_rule_type *rr ;
       rule_list_ent *next ;
     } ;
     static rule_list_ent *list ;
@@ -385,7 +391,7 @@ namespace Loci {
       rule_list_ent *p ;
     public:
       rule_list_iterator(rule_list_ent *ptr) : p(ptr) {}
-      rule_implP &operator*() { return p->fp ; }
+      rule_implP operator*() { return p->rr->get_func() ; }
       rule_list_iterator &operator++() {
         p = p->next ;
         return *this ;
@@ -402,18 +408,20 @@ namespace Loci {
         
     global_rule_impl_list() {}
     ~global_rule_impl_list() ;
-    void push_rule(rule_implP p) ;
+    void push_rule(register_rule_type *rr) ;
     iterator begin() { return iterator(list) ; }
     iterator end() { return iterator(0) ; }
   } ;
     
   extern global_rule_impl_list global_rule_list ;    
     
-  template<class T> class register_rule {
-    copy_rule_impl<T> f ;
+  template<class T> class register_rule : public register_rule_type {
+    //    copy_rule_impl<T> f ;
   public:
-    register_rule() { global_rule_list.push_rule(f.new_rule_impl()) ; }
+    register_rule() { global_rule_list.push_rule(this) ; }
+    virtual rule_implP get_func() const { return new copy_rule_impl<T> ; }
   } ;
+  
     
   class rule_db {
     typedef std::map<variable,ruleSet> varmap ;

@@ -224,6 +224,13 @@ namespace Loci {
             rset += *fi ;
             variableSet new_targets = invoke_rule(*fi) ;
             WARN((new_targets - processed) != EMPTY) ;
+#ifdef DEBUG
+            if((new_targets-processed) != EMPTY) {
+              cerr << "offending rule is " << *fi << endl ;
+              cerr << "new_targets = " << new_targets << endl;
+              cerr << "processed = " << processed << endl ;
+            }
+#endif
           }
       }
 

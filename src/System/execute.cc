@@ -1,9 +1,7 @@
 #include <execute.h>
-#include <storeVec.h>
 
 #ifdef PTHREADS
 #include <pthread.h>
-pthread_mutex_t access_mutex = PTHREAD_MUTEX_INITIALIZER ;
 #endif
 
 #include <Tools/stream.h>

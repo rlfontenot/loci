@@ -2,23 +2,29 @@
 #define CPTR_H
 
 #include <Tools/debug.h>
+#include <Tools/lmutex.h>
 
 namespace Loci {
 // Counted Pointer
 
 class CPTR_type {
   mutable int count ;
+  mutable lmutex mutex;
     //    CPTR_type *operator&() { warn(true) ; return 0 ; }
   public:
-  CPTR_type() {count = 0 ;
-  }
-    virtual ~CPTR_type() { warn(count!=0) ; }
+  CPTR_type() {count = 0 ;  }
+  virtual ~CPTR_type() { warn(count!=0) ; }
   void link() const  {
+    mutex.lock() ;
     ++count ;
+    mutex.unlock() ;
   }
   void unlink() const {
+    mutex.lock() ;
     --count ;
-    if(count == 0) delete this ;
+    const bool flag = (count == 0) ;
+    mutex.unlock() ;
+    if(flag) delete this ;
   }
 } ;
 

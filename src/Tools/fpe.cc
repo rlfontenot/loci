@@ -1,6 +1,5 @@
 #include <Tools/fpe.h>
 
-
 #ifdef SPARC
 
 extern "C" {

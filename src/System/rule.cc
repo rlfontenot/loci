@@ -644,7 +644,7 @@ namespace Loci {
     }
   }
 
-  void global_rule_impl_list::push_rule(rule_implP p) {
+  void global_rule_impl_list::push_rule(register_rule_type *p) {
     rule_list_ent *flp = new rule_list_ent(p,list) ;
     list = flp ;
   }

@@ -3,30 +3,31 @@
 
 #include <Tools/debug.h>
 #include <Tools/identity.h>
-
+#include <Tools/lmutex.h>
 
 #include <map>
 
 namespace Loci {
     
-class eventNotify : public Identity {
+  class eventNotify : public Identity {
   public:
     eventNotify() { }
     virtual ~eventNotify() ;
     virtual void notification()  = 0 ;
-} ;
+  } ;
 
 
-class eventDispatcher {
+  class eventDispatcher {
     typedef std::map<unsigned long,eventNotify *> notify_list ;
     notify_list notify_group ;
+    lmutex mutex ;
   public:
     eventDispatcher() ;
     ~eventDispatcher() ;
     void engage(eventNotify *) ;
     void disengage(eventNotify *) ;
     void dispatch_notify() ;
-} ;
+  } ;
 }
 
 #endif

@@ -6,13 +6,7 @@
 
 #include <store_rep.h>
 
-#ifdef PTHREADS
-#include <pthread.h>
-#endif
-
-#ifdef PTHREADS
-extern pthread_mutex_t access_mutex ;
-#endif
+#include <Tools/lmutex.h>
 
 namespace Loci {
   template <class T> struct Scalar {
@@ -147,7 +141,7 @@ namespace Loci {
       T *p1 = ptr ;
       const S *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
-      warn(size != t.size) ;
+      fatal(size != t.size) ;
 #endif
       
       for(int i=0;i<size;++i)
@@ -156,13 +150,13 @@ namespace Loci {
 
     T &operator[](int idx) {
 #ifdef BOUNDS_CHECK
-      warn(idx >= size || idx < 0) ;
+      fatal(idx >= size || idx < 0) ;
 #endif
       return ptr[idx] ;
     }
     const T &operator[](int idx) const {
 #ifdef BOUNDS_CHECK
-      warn(idx >= size || idx < 0) ;
+      fatal(idx >= size || idx < 0) ;
 #endif
       return ptr[idx] ;
     }
@@ -639,6 +633,7 @@ namespace Loci {
     T *alloc_pointer ;
     T *base_ptr ;
     int size ;
+    lmutex mutex ;
   public:
     storeVecRepI() {
       alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
@@ -739,6 +734,7 @@ namespace Loci {
   }
 
   template<class T> void storeVecRepI<T>::set_elem_size(int sz) {
+    bmutex l(mutex) ;
     if(size != sz) {
       if(size != 0)
         warn(size != sz) ;
@@ -753,6 +749,7 @@ namespace Loci {
     typedef storeVecRepI<T> storeType ;
     T* base_ptr ;
     int size ;
+    lmutex mutex ;
   public:
     typedef Vect<T> containerType ;
     storeVec() {
@@ -776,15 +773,7 @@ namespace Loci {
     storeVec<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
     void setVecSize(int size) {
-#ifdef PTHREADS
-    int err = pthread_mutex_lock(&access_mutex) ;
-    fatal(err==EDEADLK || err==EINVAL) ;
-#endif
       Rep()->set_elem_size(size) ;
-#ifdef PTHREADS
-    err = pthread_mutex_unlock(&access_mutex) ;
-    fatal(err==EPERM) ;
-#endif
     }
     void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -925,17 +914,9 @@ namespace Loci {
     storeMat<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
     void setVecSize(int size) {
-#ifdef PTHREADS
-    int err = pthread_mutex_lock(&access_mutex) ;
-    fatal(err==EDEADLK || err==EINVAL) ;
-#endif
       size_dim = size ;
-    size_tot = size*size ;
-    Rep()->set_elem_size(size_tot) ; 
-#ifdef PTHREADS
-    err = pthread_mutex_unlock(&access_mutex) ;
-    fatal(err==EPERM) ;
-#endif
+      size_tot = size*size ;
+      Rep()->set_elem_size(size_tot) ; 
     }
     void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
