@@ -879,8 +879,9 @@ namespace Loci {
     if(facts.isDistributed()) {  
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
-      int **send_buffer, **recv_buffer ;
-      int *recv_size ;
+      int **send_buffer = 0 ;
+      int **recv_buffer = 0 ;
+      int *recv_size = 0 ;
       
       if(d->copy.size() > 0) {
         recv_buffer = new int*[d->copy.size()] ;
@@ -975,8 +976,9 @@ namespace Loci {
 
       const int evsz = ev.size() ;
       int *evtmp = new int[evsz] ;
-      int **send_buffer, **recv_buffer ;
-      int *recv_size ;
+      int **send_buffer = 0 ;
+      int **recv_buffer = 0 ;
+      int *recv_size = 0 ;
 
       if(d->copy.size() > 0) {
         recv_buffer = new int*[d->copy.size()] ;
@@ -1073,8 +1075,9 @@ namespace Loci {
     if(facts.isDistributed()) {  
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
-      int **send_buffer, **recv_buffer ;
-      int *recv_size ;
+      int **send_buffer = 0 ;
+      int **recv_buffer = 0 ;
+      int *recv_size = 0 ;
 
       if(d->xmit.size() > 0) {
         recv_buffer = new int*[d->xmit.size()] ;
