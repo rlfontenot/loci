@@ -914,7 +914,6 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       total_size += maxs_size[i] ;
     }
-    debugout << "resend_procs = " << resend_procs << endl ;
     if(send_ptr_buf_size < total_size) { 
       if(send_ptr_buf) 
         delete[] send_ptr_buf ; 

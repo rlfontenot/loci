@@ -413,13 +413,10 @@ namespace Loci {
       storeRepP p = facts.get_variable(*vi) ;
       if(p->RepType() == MAP) {
         MapRepP mp = MapRepP(p->getRep()) ;
-        debugout << *vi <<".domain=" << p->domain() ;
         active_set += p->domain() ;
         active_set += mp->image(p->domain()) ;
         set_of_sets.insert(p->domain()) ;
-        debugout << " Map Image = " << mp->image(p->domain()) <<endl ;
       } else if(p->RepType() == STORE) {
-        debugout << *vi<<".domain=" << p->domain() <<endl ;
         active_set += p->domain() ;
         set_of_sets.insert(p->domain()) ;
       } else {
