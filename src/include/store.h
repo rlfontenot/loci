@@ -883,7 +883,6 @@ namespace Loci {
     H5Sclose( mDataspace );
     H5Sclose( vDataspace );
     H5Dclose( vDataset   );
-    H5Dclose( vDatatype  );
 
   }
   //*********************************************************************/
