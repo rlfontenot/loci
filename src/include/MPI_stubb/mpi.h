@@ -373,7 +373,7 @@ inline int  MPI_Barrier(MPI_Comm){ return 0;}
 
 /* 4.4 */
 
-inline int  MPI_Bcast(void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
+inline int  MPI_Bcast(void *, int, MPI_Datatype, int, MPI_Comm){ return 0 ;}
 
 /* 4.5 */
 
