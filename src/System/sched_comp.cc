@@ -46,6 +46,9 @@ namespace Loci {
   namespace {
     // used to pre-process preallocation memory profiling
     variableSet LociRecurrenceVarsRealloc ;
+    variableSet LociPreallocationReallocVars ;
+    variableSet LociAppGivenVars ;
+    double LociPreallocationReallocSize = 0 ;
   }
   
   class error_compiler : public rule_compiler {
@@ -233,12 +236,13 @@ namespace Loci {
 
     // set the reallocated recurrence vars for
     // memory profiling preallocation
-    if(!use_dynamic_memory && profile_memory_usage) {
+    if(profile_memory_usage) {
       variableSet sources = variableSet(recv.get_recur_source_vars()
                                         - recv.get_recur_target_vars()) ;
       map<variable,variableSet> s2t_table = recv.get_recur_vars_s2t() ;
       LociRecurrenceVarsRealloc +=
         get_recur_target_for_vars(sources,s2t_table) ;
+      LociAppGivenVars = given ;
     }
     
     // get the input variables
@@ -568,12 +572,11 @@ namespace Loci {
   
   void allocate_all_vars::execute(fact_db &facts) {
     //exec_current_fact_db = &facts ;
-    variableSet vars = facts.get_typed_variables() ;
+    //variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi ;  
     double total_size = 0 ;
     entitySet dom, total, unused ;
     double total_wasted = 0 ;
-    bool facts_distributed = facts.is_distributed_start() ;
     
     //#define DIAGNOSTICS
 #ifdef DIAGNOSTICS
@@ -638,6 +641,20 @@ namespace Loci {
 	srp->allocate(alloc_dom) ;
       }
       else {
+        if(profile_memory_usage) {
+          // take off any space that's been reallocated
+          if(use_dynamic_memory) {
+            int packsize = srp->pack_size(srp->domain()) ;
+            LociAppPMTemp -= packsize ;
+          }else {//collect reallocation information
+            entitySet old_domain = srp->domain() ;
+            if(alloc_dom != old_domain) {
+              int packsize = srp->pack_size(old_domain) ;
+              LociPreallocationReallocSize += packsize ;
+              LociPreallocationReallocVars += *vi ;
+            }
+          }
+        }
 	if(srp->RepType() == Loci::STORE) {
 	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
 	  if(tmp.size() >= 2*srp->domain().size())
@@ -650,9 +667,9 @@ namespace Loci {
       }
       // do memory profiling
       if(profile_memory_usage) {
-        // we only do profiling for parallel start
-        // since only in parallel, input vars are resized
-        if(facts_distributed) {
+        // we only do profiling for parallel start for dmm
+        // since only in parallel and dmm, input vars are resized
+        if(use_dynamic_memory) {
           int packsize = srp->pack_size(alloc_dom) ;
           LociAppAllocRequestBeanCounting += packsize ;
           LociAppPMTemp += packsize ;
@@ -672,8 +689,12 @@ namespace Loci {
   void allocate_all_vars::Print(std::ostream &s) const {
     if(is_alloc_all)
       s << "allocate all variables" << endl ;
-    else
+    else {
       s << "reallocate all given variables" << endl ;
+      if(profile_memory_usage)
+        if(use_dynamic_memory)
+          s << "memory profiling check point" << endl ;
+    }
   }
 
 
@@ -702,9 +723,12 @@ namespace Loci {
       if(profile_memory_usage) {
         variableSet profile_vars = facts.get_typed_variables() ;
         // given variables don't need to be profiled
-        profile_vars -= alloc ;
+        profile_vars -= LociAppGivenVars ;
         // we also need to exclude those recurrence variables
         profile_vars -= LociRecurrenceVarsRealloc ;
+        // but we need to profile those reallocated given vars
+        profile_vars += LociPreallocationReallocVars ;
+        LociAppPMTemp -= LociPreallocationReallocSize ;
         
         schedule->append_list(new execute_memProfileAlloc(profile_vars)) ;
       }

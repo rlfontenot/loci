@@ -1537,7 +1537,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
           // this variable is reallocated, we take
           // the space off from the counter, since
           // it will be recounted in profiling
-          int packsize = srp->pack_size(alloc_dom) ;
+          int packsize = srp->pack_size(srp->domain()) ;
           LociAppPMTemp -= packsize ;
         }
 	if(srp->RepType() == Loci::STORE) {

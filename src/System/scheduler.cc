@@ -680,7 +680,9 @@ namespace Loci {
     ///////////////////////////////////
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
-    executeP sched =  compile_graph.execution_schedule(facts,scheds,given,num_threads) ;
+    executeP sched =  compile_graph.execution_schedule
+      (facts,scheds,initial_vars,num_threads) ;
+    
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {
         cerr << "error in generating schedule, dumping schedule files" << endl ;
@@ -735,15 +737,15 @@ namespace Loci {
       sched_file.close() ;
     }
     // execute schedule
-    timeval t1,t2 ;
-    //double st = MPI_Wtime() ;
-    gettimeofday(&t1,NULL) ;
+    //timeval t1,t2 ;
+    double st = MPI_Wtime() ;
+    //gettimeofday(&t1,NULL) ;
     schedule->execute(facts) ;
-    gettimeofday(&t2,NULL) ;
-    //double et = MPI_Wtime() ;
-    //Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
-    Loci::debugout << " Time taken for exectution of the schedule = "
-                   << difftime(t1,t2) << " seconds " << endl ;
+    //gettimeofday(&t2,NULL) ;
+    double et = MPI_Wtime() ;
+    Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
+    //Loci::debugout << " Time taken for exectution of the schedule = "
+    //             << difftime(t1,t2) << " seconds " << endl ;
 
     if(profile_memory_usage) {
       Loci::debugout << "Peak Memory used: " << LociAppPeakMemory
