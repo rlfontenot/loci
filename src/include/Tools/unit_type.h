@@ -36,14 +36,14 @@ namespace Loci {
    
     struct composite_units{
       char* name;
-      std::string derived_unit;
+      char* derived_unit;
       double convert_factor;};  
     static composite_units composite_unit_table[] ;//MKS
     static composite_units cgs_composite_unit_table[] ;//CGS
   
     struct reference_units{
       char* name;
-      std::string refer_unit;
+      char* refer_unit;
       double convert_factor;};  
     static reference_units reference_unit_table[] ;
 
