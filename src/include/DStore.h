@@ -488,6 +488,7 @@ namespace Loci {
   void  dstoreRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c, 
                                    entitySet &eset, entitySet &user_eset)
   {
+    int      rank=1;
     hsize_t  dimension;
 
     dimension = user_eset.size();

@@ -7,12 +7,12 @@
 #include <sstream>
 #include <hdf5_memento.h>
 #include <hdf5_readwrite.h>
-
+using std::cout ;
 namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;
-
+  
   class Map ;
 
   template<class T> class storeRepI : public storeRep {
