@@ -22,12 +22,15 @@ namespace Loci {
   entitySet send_entitySet(const entitySet& e, fact_db &facts) ;
   std::vector<entitySet> send_entitySet(const std::vector<entitySet>& e,
                                         fact_db &facts) ;
-  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 ) ;
+  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 );
+#ifdef COMP_ENT
   entitySet context_for_map_output(entitySet domain, fact_db &facts,
 				   const std::set<std::vector<variableSet> > &maps);
   entitySet dist_reverse_expand_map(fact_db &facts,
                                     const std::set<std::vector<variableSet> > &maps);
-
+  entitySet dist_special_expand_map(entitySet domain, fact_db &facts,
+				    const std::set<std::vector<variableSet> > &maps);
+#endif
   // function that restores the fact_db back to its global numbering
   void restore_global_facts(fact_db& facts) ;
   
