@@ -39,14 +39,14 @@ namespace Loci {
     int* base_ptr ;
   public:
     Map() { setRep(new MapType) ;}
-    Map(Map &var) { setRep(var.Rep()) ; }
+    Map(const Map &var) { setRep(var.Rep()) ; }
     Map(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~Map() ;
 
     virtual void notification() ;
 
-    Map & operator=(Map &str) { setRep(str.Rep()) ; return *this ;}
+    Map & operator=(const Map &str) { setRep(str.Rep()) ; return *this ;}
     Map & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -87,8 +87,8 @@ namespace Loci {
   public:
     const_Map()
     { setRep(new MapType); }
-    const_Map(const_Map &var) {setRep(var.Rep()) ; }
-    const_Map(Map &var) {setRep(var.Rep()); }
+    const_Map(const const_Map &var) {setRep(var.Rep()) ; }
+    const_Map(const Map &var) {setRep(var.Rep()); }
     const_Map(storeRepP &rp) { setRep(rp) ; }
     
     virtual ~const_Map() ;
@@ -96,8 +96,8 @@ namespace Loci {
 
     virtual instance_type access() const ;
         
-    const_Map & operator=(Map &str) { setRep(str.Rep()) ; return *this ;}
-    const_Map & operator=(const_Map &str)
+    const_Map & operator=(const Map &str) { setRep(str.Rep()) ; return *this ;}
+    const_Map & operator=(const const_Map &str)
     { setRep(str.Rep()) ; return *this ;}
     const_Map & operator=(storeRepP p) { setRep(p) ; return *this ;}
 
@@ -406,7 +406,7 @@ namespace Loci {
     VEC * base_ptr ;
   public:
     MapVec() { setRep(new MapVecType) ; }
-    MapVec(MapVec<M> &var) { setRep(var.Rep()) ; }
+    MapVec(const MapVec<M> &var) { setRep(var.Rep()) ; }
     MapVec(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~MapVec() ;
@@ -458,8 +458,8 @@ namespace Loci {
     const VEC * base_ptr ;
   public:
     const_MapVec() { setRep(new MapVecType) ; }
-    const_MapVec(const_MapVec<M> &var) { setRep(var.Rep()) ; } 
-    const_MapVec(MapVec<M> &var) { setRep(var.Rep()) ; }
+    const_MapVec(const const_MapVec<M> &var) { setRep(var.Rep()) ; } 
+    const_MapVec(const MapVec<M> &var) { setRep(var.Rep()) ; }
 
     virtual ~const_MapVec() ;
 

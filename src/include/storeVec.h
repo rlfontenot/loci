@@ -772,7 +772,8 @@ namespace Loci {
   }
 
   template<class T> void storeVecRepI<T>::set_elem_size(int sz) {
-    bmutex l(mutex) ;
+    //    bmutex l(mutex) ;
+    mutex.lock() ;
     if(size != sz) {
       if(size != 0)
         warn(size != sz) ;
@@ -781,6 +782,7 @@ namespace Loci {
       fatal(sz<1) ;
       allocate(store_domain) ;
     }
+    mutex.unlock() ;
   }
       
   template<class T> class storeVec : public store_instance {
@@ -1114,8 +1116,8 @@ namespace Loci {
   }
 
   template<class T> void multiStoreRepI<T>::setSizes(const const_multiMap &mm){
-    bmutex l(mutex) ;
-
+    //    bmutex l(mutex) ;
+    mutex.lock() ;
     if(alloc_pointer != 0) {
       entitySet map_set = mm.domain() & store_domain ;
       entitySet problem ;
@@ -1142,7 +1144,7 @@ namespace Loci {
       } ENDFORALL ;
       allocate(sizes) ;
     }
-      
+    mutex.unlock() ;
   }
   
   template<class T> void multiStoreRepI<T>::allocate(const entitySet &ptn) {

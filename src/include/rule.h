@@ -24,11 +24,11 @@ namespace Loci {
   
   class joiner : public CPTR_type {
   public:
+    virtual CPTR<joiner> clone() = 0 ;
     virtual storeRepP getTargetRep() = 0 ;
-    virtual void Join(storeRepP &target, storeRepP &source,
-                      const sequence &seq) = 0 ;
-    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
-                      const sequence &seq) = 0 ;
+    virtual void SetArgs(storeRepP &target, storeRepP &source) = 0 ;
+    virtual void Join(const sequence &seq) = 0 ;
+    virtual void Join(Map &t2s, const sequence &seq) = 0 ;
   } ;  
 
   class rule_impl : public CPTR_type {
@@ -159,62 +159,69 @@ namespace Loci {
 
   template <class T, class Op> class joinOp : public joiner {
     Op join ;
+    T t,s ;
   public:
+    virtual CPTR<joiner> clone()
+    { return CPTR<joiner>(new joinOp<T,Op> ); }
+
     virtual storeRepP getTargetRep()
     { T st ; storeRepP rep = st.Rep(); return rep; }
 
-    virtual void Join(storeRepP &target, storeRepP &source,
-                      const sequence &seq)
-    { T t(target),s(source) ;
-      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+    virtual void SetArgs(storeRepP &target, storeRepP &source)
+    { s.setRep(source) ; t.setRep(target) ; }
+
+    virtual void Join(const sequence &seq) {
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) 
         join(t[*i],s[*i]) ;
-      }
     }
 
-    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
-                      const sequence &seq)
-    { T t(target),s(source) ;
-      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+    virtual void Join(Map &t2s, const sequence &seq) { 
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) 
         join(t[*i],s[t2s[*i]]) ;
-      }
     }
   } ;
 
   template<class Type,class Op> class joinOp<param<Type>,Op> : public joiner {
     Op join ;
+    param<Type> s,t ;
   public:
+    virtual CPTR<joiner> clone()
+    { return CPTR<joiner>(new joinOp<param<Type>,Op> ); }
+
+    virtual void SetArgs(storeRepP &target, storeRepP &source)
+    { s.setRep(source) ; t.setRep(target) ; }
+
     virtual storeRepP getTargetRep()
     { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
-    virtual void Join(storeRepP &target, storeRepP &source,
-                      const sequence &seq) {
-      param<Type> t(target),s(source) ;
-      join(*t,*s) ;
-    }
 
-    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
-                      const sequence &seq) {
-      param<Type> s(source),t(target) ;
-      join(*t,*s) ;
-    }
+    virtual void Join(const sequence &seq)
+    {join(*t,*s) ;}
+
+    virtual void Join(Map &t2s, const sequence &seq)
+    {join(*t,*s) ;}
   } ;
 
   template<class Type,class Op> class joinOp<storeVec<Type>,Op> : public joiner {
     Op join ;
+    storeVec<Type> s,t ;
   public:
+    virtual CPTR<joiner> clone()
+    { return CPTR<joiner>(new joinOp<storeVec<Type>,Op> ); }
+
+    virtual void SetArgs(storeRepP &target, storeRepP &source)
+    { s.setRep(source) ; t.setRep(target) ; }
+
     virtual storeRepP getTargetRep()
     { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
-    virtual void Join(storeRepP &target, storeRepP &source,
-                      const sequence &seq) {
-      storeVec<Type> t(target),s(source) ;
+
+    virtual void Join(const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
         Vect<Type> m = t[*i] ;
         join(m,s[*i]) ;
       }
     }
 
-    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
-                      const sequence &seq) {
-      storeVec<Type> s(source),t(target) ;
+    virtual void Join(Map &t2s, const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
         Vect<Type> m = t[*i] ;
         join(m,s[t2s[*i]]) ;
@@ -224,21 +231,25 @@ namespace Loci {
 
   template<class Type,class Op> class joinOp<storeMat<Type>,Op> : public joiner {
     Op join ;
+    storeMat<Type> s,t ;
   public:
+    virtual CPTR<joiner> clone()
+    { return CPTR<joiner>(new joinOp<storeMat<Type>,Op> ); }
+
+    virtual void SetArgs(storeRepP &target, storeRepP &source)
+    { s.setRep(source) ; t.setRep(target) ; }
+
     virtual storeRepP getTargetRep()
     { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
-    virtual void Join(storeRepP &target, storeRepP &source,
-                      const sequence &seq) {
-      storeMat<Type> t(target),s(source) ;
+
+    virtual void Join(const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
         Mat<Type> m = t[*i] ;
         join(m,s[*i]) ;
       }
     }
 
-    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
-                      const sequence &seq) {
-      storeMat<Type> s(source),t(target) ;
+    virtual void Join(Map &t2s, const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
         Mat<Type> m = t[*i] ;
         join(m,s[t2s[*i]]) ;
@@ -249,12 +260,18 @@ namespace Loci {
   template<class Type, class Op> class joinOp<multiStore<Type>,Op> :
   public joiner {
     Op join ;
+    multiStore<Type> s,t ;
   public:
+    virtual CPTR<joiner> clone()
+    { return CPTR<joiner>(new joinOp<multiStore<Type>,Op> ); }
+
+    virtual void SetArgs(storeRepP &target, storeRepP &source)
+    { s.setRep(source) ; t.setRep(target) ; }
+
     virtual storeRepP getTargetRep()
     { multiStore<Type> st ; storeRepP rep = st.Rep(); return rep; }
-    virtual void Join(storeRepP &target, storeRepP &source,
-                      const sequence &seq) {
-      multiStore<Type> t(target),s(source) ;
+
+    virtual void Join(const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
         int szt = t.end(*i)-t.begin(*i) ;
         fatal(szt != (s.end(*i)-s.begin(*i))) ;
@@ -263,9 +280,7 @@ namespace Loci {
       }
     }
 
-    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
-                      const sequence &seq) {
-      multiStore<Type> s(source),t(target) ;
+    virtual void Join(Map &t2s, const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
         int szt = t.end(*i)-t.begin(*i) ;
         fatal(szt != (s.end(t2s[*i])-s.begin(t2s[*i]))) ;
