@@ -1292,6 +1292,67 @@ namespace Loci {
     warn(p == 0) ;
   }
   
+  template<class T> class const_multiStore : public store_instance {
+    typedef multiStoreRepI<T> storeType ;
+    T ** base_ptr ;
+    int size ;
+  public:
+    typedef const_Vect<T> containerType ;
+    const_multiStore() {setRep(new storeType) ;}
+    const_multiStore(const_multiStore<T> &var) {setRep(var.Rep()) ;}
+    const_multiStore(storeRepP &rp) { setRep(rp) ;}
+
+    virtual ~const_multiStore() ;
+    virtual void notification() ;
+
+    virtual instance_type access() const ;
+    
+    const_multiStore<T> & operator=(const multiStore<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
+    const_multiStore<T> & operator=(const const_multiStore<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
+    const_multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
+
+    const entitySet &domain() const { return Rep()->domain() ; }
+    operator storeRepP() { return Rep() ; }
+
+    containerType elem(int indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
+    containerType operator[](int indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif 
+      return containerType(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
+
+    std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
+    std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
+
+  } ;
+
+  template<class T> store_instance::instance_type
+    const_multiStore<T>::access() const
+    { return READ_ONLY ; }
+  
+  template<class T> const_multiStore<T>::~const_multiStore() {}
+  
+  template<class T> void const_multiStore<T>::notification() {
+    NPTR<storeType> p(Rep()) ;
+    if(p != 0)
+      base_ptr = p->get_base_ptr() ;
+    warn(p == 0) ;
+  }
+  
 }
 
 #endif
