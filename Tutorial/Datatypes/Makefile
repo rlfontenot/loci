@@ -34,7 +34,7 @@ containers: $(EX2_OBJS)
 relations: $(EX3_OBJS)
 	$(LD) -o relations $(EX3_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-relations: $(EX4_OBJS)
+helpers: $(EX4_OBJS)
 	$(LD) -o helpers $(EX4_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 clean:
