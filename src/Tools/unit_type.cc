@@ -607,9 +607,7 @@ namespace Loci {
 	    //conversion_factor=conversion_factor*1;
 	  }
 	  else{
-	    cout<<endl<<"Not an MKS unit! "<<(*mi).first<<endl;
-	    abort();
-	    //conversion_factor=0;
+	    unit_error(4,"Not in MKS database! ");
 	  }
       }
       }
@@ -657,8 +655,7 @@ namespace Loci {
 	    conversion_factor=conversion_factor*1;
 	  }
 	  else{
-	    cout<<endl<<"Not an CGS unit! "<<(*mi).first<<endl;
-	    abort();
+	    unit_error(5,"Not in CGS database! ");
 	    conversion_factor=0;
 	  }
 	}
@@ -721,12 +718,10 @@ namespace Loci {
     if(tmp!=-1)
       in_exp=expression::create(default_unit_table[tmp].default_name);
     else{
-      cout<<"No this kind of unit! "<<unit_kind<<endl;
-      abort();
+      unit_error(6,"Unit is not compatible with the kind of unit! ");
     }
     if(unit_kind=="general"){
-      cout<<"You must input a unit!"<<endl;
-      abort();
+      unit_error(7,"You must input a unit!");
     }
     return in_exp;
   }
@@ -803,9 +798,9 @@ namespace Loci {
       if(is_single_temperature(in_exp)!=0)
 	calculate_temperature(in_exp, value);
       else{
-	cout<<endl;
-	  cout<<"Loci expression:  ";
-	  in_exp->Print(cout);
+	//cout<<endl;
+	//cout<<"Loci expression:  ";
+	//in_exp->Print(cout);
 	
 	/*cout<<endl;
 	  cout<<endl;
@@ -819,11 +814,11 @@ namespace Loci {
 	//change the reference type and composite type to the basic type//
 	get_conversion(unit_num_map,unit_den_map,conversion_factor);
 	if(conversion_factor>0){
-	  cout<<endl;
-	  cout<<"Final unit conversion is: "<<endl;
-	  cout<<"Convert  ";
-	  in_exp->Print(cout);
-	  cout<< "  to basic units: "<<endl;
+	  //cout<<endl;
+	  //cout<<"Final unit conversion is: "<<endl;
+	  //cout<<"Convert  ";
+	  //in_exp->Print(cout);
+	  //cout<< "  to basic units: "<<endl;
 	  rem_dup(unit_num_map,unit_den_map);
 	  /*cout<<"conversion factor is: "<<conversion_factor<<endl;
 	    cout<<"Input value is: "<<get_value()<<endl;
@@ -860,11 +855,6 @@ namespace Loci {
       return false;
   }
 
-  //get the unit value//
-  double UNIT_type::get_value(){
-    return value*conversion_factor;
-  }
-
   //compare the two units, check if they are comparable
   bool UNIT_type::is_compatible(const std::string unit_str){
     UNIT_type sec_unit;
@@ -877,7 +867,7 @@ namespace Loci {
 
     sec_exp=expression::create(unit_str);
     sec_unit.output(sec_exp);
-    cout<<sec_unit;
+    //cout<<sec_unit;
 
     std::map<std::string,int>::iterator sec_mi;
     std::map<std::string,int> sec_n_map=sec_unit.unit_num_map,sec_d_map=sec_unit.unit_den_map;
@@ -936,9 +926,9 @@ namespace Loci {
     }
     else
       sec_unit.output(sec_exp);
-    cout<<sec_unit;
+    //cout<<sec_unit;
 
-    return (*this).conversion_factor/sec_unit.conversion_factor;
+    return value*(*this).conversion_factor/sec_unit.conversion_factor;
   }
 
 }
