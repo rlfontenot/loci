@@ -48,13 +48,13 @@ namespace Loci {
 
     int   get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     void  packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size,
-                  const entitySet &e ) ;
+                   const entitySet &e ) ;
     void  unpackdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size,
-                    const sequence &seq) ;
+                     const sequence &seq) ;
     int  get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
 
     void  packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
-                  const entitySet &e ) ;
+                   const entitySet &e ) ;
     void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
                     const sequence &seq) ;
 
@@ -234,7 +234,6 @@ namespace Loci {
 
       if( citer != attrib_data->end() )
         return( (*attrib)[indx] );
-
       cout << "Error: Entity out of bound " << endl;
 
     }
@@ -428,7 +427,7 @@ namespace Loci {
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T>
   int dstoreRepI<T>::get_mpi_size( DEFAULT_CONVERTER c,
-                                  const entitySet &eset)
+                                   const entitySet &eset)
   {
     IDENTITY_CONVERTER cc;
     return get_mpi_size( cc, eset);
@@ -452,7 +451,7 @@ namespace Loci {
 
   template <class T>
   int dstoreRepI<T>::get_mpi_size( IDENTITY_CONVERTER c,
-                                  const entitySet &eset)
+                                   const entitySet &eset)
   {
     return ( sizeof(T)*eset.size() );
   }
@@ -460,7 +459,7 @@ namespace Loci {
   //*******************************************************************/
   template <class T>
   int dstoreRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c,
-                                  const entitySet &eset)
+                                   const entitySet &eset)
   {
 
     int       size, numBytes;
@@ -482,7 +481,7 @@ namespace Loci {
   //*******************************************************************/
   template <class T> 
   void dstoreRepI<T>::pack( void *outbuf, int &position, int &size, 
-                           const entitySet &usr_eset )  
+                            const entitySet &usr_eset )  
   {
     entitySet ecommon;
 
@@ -510,8 +509,8 @@ namespace Loci {
 
   template <class T> 
   void dstoreRepI<T>::packdata(DEFAULT_CONVERTER c, void *outbuf,
-                              int &position, int outcount,
-                              const entitySet &eset )  
+                               int &position, int outcount,
+                               const entitySet &eset )  
   {
     std::ostringstream oss, os1;
     std::string        memento;
@@ -530,10 +529,11 @@ namespace Loci {
   }
 #endif
   //*******************************************************************/
+
   template <class T> 
   void dstoreRepI<T>::packdata(IDENTITY_CONVERTER c, void *outbuf,
-                              int &position, int outcount,
-                              const entitySet &eset )  
+                               int &position, int outcount,
+                               const entitySet &eset )  
   {
 
     entitySet :: const_iterator ci;
@@ -547,8 +547,8 @@ namespace Loci {
 
   template <class T>
   void dstoreRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
-                               int &position, int outcount, 
-                               const entitySet &eset )
+                                int &position, int outcount, 
+                                const entitySet &eset )
   {
 
     entitySet :: const_iterator ci;
@@ -610,48 +610,42 @@ namespace Loci {
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void dstoreRepI<T>::unpackdata(DEFAULT_CONVERTER c, void *inbuf,
-                                int &position,  int insize,
-                                const sequence &seq) 
+                                 int &position,  int insize,
+                                 const sequence &seq) 
   {
-    IDENTITY_CONVERTER cc;
-    unpackdata(cc, inbuf, position,  insize, seq);
-    return;
-
-    char *outbuf;
     int   outcount;
     sequence:: const_iterator ci;
     entitySet eset(seq);
+    std::vector<char> outbuf;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       MPI_Unpack( inbuf, insize, &position, &outcount, 1, MPI_INT, 
                   MPI_COMM_WORLD) ;
-      outbuf   = new char[outcount];
+      if( outcount > outbuf.size()) outbuf.resize(outcount);
 
-      MPI_Unpack( inbuf, insize, &position, outbuf, outcount, MPI_CHAR, 
+      MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, MPI_CHAR, 
                   MPI_COMM_WORLD) ;
-
       std::istringstream iss(outbuf);
       iss >> base_ptr[*ci];
-      delete [] outbuf;
     }
   }
 #endif
   //*********************************************************************/
   template <class T> 
   void dstoreRepI<T>::unpackdata(IDENTITY_CONVERTER c, void *inbuf,
-                                int &position,  int insize,
-                                const sequence &seq) 
+                                 int &position,  int insize,
+                                 const sequence &seq) 
   {
     sequence:: const_iterator ci;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) 
-          MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
-                      sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+      MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
+                  sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
   }
   //*********************************************************************/
   template <class T> 
   void dstoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
-                                 int &position, int insize, const sequence &seq) 
+                                  int &position, int insize, const sequence &seq) 
   {
 
     sequence :: const_iterator ci;
@@ -705,7 +699,7 @@ namespace Loci {
 
     hdf5read( group_id, traits_type, eset,  ecommon );
   }
-
+  //*********************************************************************/
 
 #ifdef ALLOW_DEFAULT_CONVERTER
   template<class T>
@@ -904,9 +898,9 @@ namespace Loci {
 
       indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) {
-          typename data_schema_traits<T>::Converter_Type cvtr( attrib_data[i]);
-          cvtr.setState( &data[0]+indx, container[i] );
-          indx += container[i];
+        typename data_schema_traits<T>::Converter_Type cvtr( attrib_data[i]);
+        cvtr.setState( &data[0]+indx, container[i] );
+        indx += container[i];
       }
     }
 
@@ -1042,16 +1036,12 @@ namespace Loci {
       }
     } 
 
-    typedef typename schema_traits::Converter_Base_Type dtype;
-
-    dtype *data, *buf;
-
-    data =  new dtype[arraySize];
-    buf  =  new dtype[maxStateSize];
-
     //-----------------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
     //-----------------------------------------------------------------------------
+    typedef typename schema_traits::Converter_Base_Type dtype;
+
+    dtype *data = new dtype[arraySize];
 
     size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -1086,13 +1076,12 @@ namespace Loci {
     H5Tclose( vDatatype );
 
     delete [] data;
-    delete [] buf;
 
     //--------------------------------------------------------------------
     // Write Container 
     //--------------------------------------------------------------------
     dimension    = eset.size();
-    int *vbucket = new int[ eset.size() ];
+    std::vector<int> vbucket(eset.size());
 
     indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -1109,13 +1098,12 @@ namespace Loci {
     vDataset   = H5Dcreate(group_id, "ContainerSize",
                            vDatatype, vDataspace, H5P_DEFAULT);
 
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vbucket);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vbucket[0]);
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
-    delete [] vbucket;
-
   }
+  //*************************************************************************/
   
 
 }
