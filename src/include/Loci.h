@@ -23,6 +23,7 @@
 #include <distribute.h>
 #include <multiStore.h>
 #include <storeMat.h>
+#include <mod_db.h> 
 using Loci::entitySet ;
 using Loci::create_entitySet ;
 using Loci::EMPTY ;
