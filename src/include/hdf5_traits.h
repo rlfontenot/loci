@@ -6,6 +6,8 @@
 #include <complex>
 #include <Tools/stream.h>
 
+#include <mpi.h>
+
 #include <stdio.h>
 #include <iostream.h>
 
@@ -21,6 +23,7 @@ namespace Loci {
     public:
     typedef DEFAULT_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_CHAR;}
+    static MPI_Datatype get_mpi_type() {return MPI_CHAR;}
   };
  
   template <>
@@ -28,6 +31,7 @@ namespace Loci {
     public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_SHORT;}
+    static MPI_Datatype get_mpi_type() {return MPI_SHORT;}
   };
 
   template <>
@@ -35,6 +39,7 @@ namespace Loci {
     public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_USHORT;}
+    static MPI_Datatype get_mpi_type() {return MPI_UNSIGNED_CHAR;}
   };
 
   template <>
@@ -42,6 +47,7 @@ namespace Loci {
     public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_INT;}
+    static MPI_Datatype get_mpi_type() {return MPI_INT;}
   };
   
   template <>
@@ -49,6 +55,7 @@ namespace Loci {
     public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_UINT;}
+    static MPI_Datatype get_mpi_type() {return MPI_UNSIGNED;}
   };
 
   template <>
@@ -56,6 +63,7 @@ namespace Loci {
     public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_LONG;}
+    static MPI_Datatype get_mpi_type() {return MPI_LONG;}
   };
 
   template <>
@@ -63,6 +71,7 @@ namespace Loci {
     public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_ULONG;}
+    static MPI_Datatype get_mpi_type() {return MPI_UNSIGNED_LONG;}
   };
 
   template <>
@@ -86,6 +95,7 @@ namespace Loci {
     static H5::DataType get_type() {
       return H5::PredType::NATIVE_DOUBLE;
     }
+    static MPI_Datatype get_mpi_type() {return MPI_DOUBLE;}
   };
 
   template <>
@@ -93,6 +103,7 @@ namespace Loci {
   public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_FLOAT;}
+    static MPI_Datatype get_mpi_type() {return MPI_FLOAT;}
   };
 
   template <>
@@ -100,6 +111,7 @@ namespace Loci {
   public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {return H5::PredType::NATIVE_LDOUBLE;}
+    static MPI_Datatype get_mpi_type() {return MPI_LONG_DOUBLE;}
   };
 
   template <>
@@ -163,6 +175,12 @@ namespace Loci {
           hdf5_schema_traits<T> hdfT;
           return hdfT.get_type();
       };
+
+      static MPI_Datatype get_variable_MPI_type() 
+      {
+          hdf5_schema_traits<T>  traits;
+          return traits.get_mpi_type();
+      };
   };
 
   //***************************************************************************
@@ -185,8 +203,29 @@ namespace Loci {
        hdf5_schema_traits<T> hdfT;
        return hdfT.get_type();
      };
+
+     static MPI_Datatype get_variable_MPI_type() {
+       hdf5_schema_traits<T>  traits;
+       return traits.get_mpi_type();
+     };
+
   };
 
   //***************************************************************************
 }
+
+template<class T>
+inline ostream& operator << (ostream & s, const vector<T> &vec) {
+    for( int i = 0; i < vec.size(); i++)
+         s << vec[i] << " ";
+    return s;
+}
+
+template<class T>
+inline istream& operator >> (istream & s, vector<T> &vec) {
+    for( int i = 0; i < vec.size(); i++)
+         s >> vec[i];
+    return s;
+ }
+
 #endif
