@@ -1004,7 +1004,7 @@ namespace Loci {
 // used, but because G++'s instantiation mechanism generates references to
 // them.
 
-static inline ostream& operator << (ostream & s, vector<int> &) {
+static inline ostream& operator << (ostream & s, const vector<int> &) {
   cerr << "unimplemented operator<<(ostream & s, vector<int> &)" << endl;
   abort();
   return s;
