@@ -8,7 +8,7 @@
 #include "sched_tools.h"
 #include <vector>
 #include <map>
-
+using std::map ;
 #include <mpi.h>
 
 namespace Loci {
@@ -293,6 +293,6 @@ namespace Loci {
   } ; 
 
 
-}
+ }
 
 #endif

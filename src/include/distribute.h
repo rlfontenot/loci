@@ -7,7 +7,7 @@
 #include <constraint.h>
 #include <fact_db.h>
 
-
+ 
 namespace Loci {
 
   extern ofstream debugout[] ;
@@ -39,6 +39,8 @@ namespace Loci {
   std::vector<entitySet> send_entitySet(const std::vector<entitySet>& e,
                                         fact_db &facts) ;
   void print_global(entitySet e, fact_db &facts) ;
+  storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
+  storeRepP distribute_store(storeRepP &sp, fact_db &facts) ;
 }
 
 

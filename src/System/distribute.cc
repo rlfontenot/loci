@@ -25,9 +25,7 @@ using std::ifstream ;
 #include <algorithm>
 using std::swap ;
 
-
 //#define SCATTER_DIST
-//#define UNITY_MAPPING
 
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
@@ -434,8 +432,8 @@ namespace Loci {
   void  distribute_facts(vector<vector<entitySet> > &get_entities, fact_db &facts)  {
     int num_procs = MPI_processes ;
     int myid = MPI_rank ;
-    int j = 0 ;
     int size = 0 ;
+    int j = 0 ;
     fact_db::distribute_infoP df = new fact_db::distribute_info  ;
     Map l2g ;
     constraint my_entities ;
@@ -472,9 +470,8 @@ namespace Loci {
         }
     }
 
-
     entitySet g ;
-
+    
 #ifdef UNITY_MAPPING
     for(int i=0;i<proc_entities.size();++i)
       g+= proc_entities[i] ;
@@ -482,6 +479,7 @@ namespace Loci {
     for(entitySet::const_iterator ei=g.begin();ei!=g.end();++ei)
       l2g[*ei] = *ei ;
 #else
+    j = 0 ;
     e = interval(0, size - 1) ;
     l2g.allocate(e) ;
     for(int i = 0; i < proc_entities.size(); ++i) {
@@ -504,7 +502,7 @@ namespace Loci {
     store<entitySet> send_entities ;
     store<entitySet> recv_entities ;
     
-    for(int i = 0 ; i < num_procs; ++i ) 
+    for(int i = 0 ; i < num_procs; ++i) 
       if(myid != i )
 	if(get_entities[myid][i] != EMPTY) 
 	  recv_neighbour += i ; 
@@ -517,7 +515,7 @@ namespace Loci {
     send_entities.allocate(send_neighbour) ;
     recv_entities.allocate(recv_neighbour) ;
     
-    for(ei = recv_neighbour.begin(); ei!= recv_neighbour.end(); ++ei) {
+    for(ei = recv_neighbour.begin(); ei != recv_neighbour.end(); ++ei) {
       for(ti =  get_entities[myid][*ei].begin(); ti != get_entities[myid][*ei].end(); ++ti)
 	recv_entities[*ei] += df->g2l[*ti] ;
     }
@@ -530,7 +528,7 @@ namespace Loci {
     df->isDistributed = isDistributed ;
     g = EMPTY ;
     for(ei = get_entities[myid][myid].begin(); ei != get_entities[myid][myid].end(); ++ei)
-      g+= df->g2l[*ei] ;
+      g += df->g2l[*ei] ;
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
@@ -540,16 +538,18 @@ namespace Loci {
     for(ei=recv_neighbour.begin(); ei != recv_neighbour.end();++ei)
       df->copy.push_back
         (fact_db::distribute_info::dist_data(*ei,recv_entities[*ei])) ;
+    
     int total = 0 ;
     for(int i=0;i<df->xmit.size();++i)
       total += df->xmit[i].size ;
     df->xmit_total_size = total ;
+    
     total = 0 ;
     for(int i=0;i<df->copy.size();++i)
       total += df->copy[i].size ;
     df->copy_total_size = total ;
     
-      
+    
     facts.put_distribute_info(df) ;
     facts.create_fact("l2g", l2g) ;
     facts.create_fact("my_entities", my_entities) ;
@@ -557,10 +557,8 @@ namespace Loci {
     
   }
   
-  
-
   entitySet fill_entitySet(const entitySet& e, fact_db &facts) {
-
+    
     entitySet re ;
 
     if(facts.isDistributed()) {  
@@ -588,27 +586,27 @@ namespace Loci {
         for(int i=1;i<d->xmit.size();++i)
           send_buffer[i] = send_buffer[i-1]+d->xmit[i-1].size ;
       }
-        
+      
       
       Map l2g ;
       l2g = facts.get_variable("l2g") ;
       
       MPI_Request *recv_request = new MPI_Request[d->copy.size()] ;
       MPI_Status *status = new MPI_Status[d->copy.size()] ;
-
+      
       for(int i=0;i<d->copy.size();++i)
         MPI_Irecv(recv_buffer[i],recv_size[i],MPI_INT,d->copy[i].proc,1,
                   MPI_COMM_WORLD, &recv_request[i]) ;
 
       for(int i=0;i<d->xmit.size();++i) {
         entitySet temp = e & d->xmit[i].entities ;
-
+	
         int j=0 ;
         for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
           send_buffer[i][j++] = l2g[*ei] ;
 
 
-          int send_size = temp.size() ;
+	int send_size = temp.size() ;
         MPI_Send(send_buffer[i], send_size, MPI_INT, d->xmit[i].proc,
                  1, MPI_COMM_WORLD) ;
       }
@@ -644,7 +642,7 @@ namespace Loci {
   vector<entitySet> fill_entitySet(const vector<entitySet>& ev,
                                    fact_db &facts) {
 
-    vector<entitySet> re(ev.size()) ; ;
+    vector<entitySet> re(ev.size()) ;
 
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
@@ -887,7 +885,7 @@ namespace Loci {
       if(d->copy.size() > 0) {
         delete [] send_buffer[0] ;
         delete [] send_buffer ;
-      }
+      } 
       delete [] recv_request ;
       delete [] status ;
       
@@ -896,16 +894,15 @@ namespace Loci {
   }
 
   void print_global(entitySet e, fact_db &facts) {
-    MPI_Status *status ;
-    MPI_Request *recv_request ;
-    int MAX = 100 ;
-    Map l2g ;
-    entitySet::const_iterator ti ;
-    fact_db::distribute_infoP d = new fact_db::distribute_info ;
-    d = facts.get_distribute_info() ;
-    l2g = facts.get_variable("l2g") ;
-	
     if(facts.isDistributed()) {  
+      MPI_Status *status ; 
+      MPI_Request *recv_request ;
+      int MAX = 100 ;
+      Map l2g ;
+      entitySet::const_iterator ti ;
+      fact_db::distribute_infoP d = new fact_db::distribute_info ;
+      d = facts.get_distribute_info() ;
+      l2g = facts.get_variable("l2g") ;
       if(d->myid == 0) {
 	entitySet re ;
 	int **recv_buffer ;
@@ -941,7 +938,7 @@ namespace Loci {
       else {
 	int *send_buffer;
 	int send_size ;
-
+	
 	entitySet temp;
 	send_size = e.size() ;
 	send_buffer = new int[send_size] ;
@@ -958,5 +955,255 @@ namespace Loci {
 	delete [] send_buffer ;
       } 
     }
+  }
+
+  
+  storeRepP collect_store(storeRepP &sp, fact_db &facts) {
+    storeRepP nsp ;
+    if(facts.isDistributed()) {  
+      Map l2g ;
+      entitySet::const_iterator ti ;
+      fact_db::distribute_infoP d = new fact_db::distribute_info ;
+      d = facts.get_distribute_info() ;
+      l2g = facts.get_variable("l2g") ;
+      if(d->myid == 0) {
+	std::vector<sequence> vseq(MPI_processes-1) ;
+	MPI_Status *status, *size_status, *store_status ;
+	MPI_Request *recv_request, *size_request, *store_request ;
+	int **recv_buffer ;
+	int *recv_size ;
+	int k = 0 ;
+	entitySet re ;
+	sequence te ;
+	entitySet temp = sp->domain() & d->my_entities ;
+	for(ti = temp.begin(); ti != temp.end(); ++ti)
+	  te += l2g[*ti] ;
+	re += entitySet(te) ;
+	recv_size = new int[MPI_processes-1] ;
+	size_request = new MPI_Request[MPI_processes-1] ;
+	size_status = new MPI_Status[MPI_processes-1] ;
+	for(k = 0; k < MPI_processes-1; k++) 
+	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);  
+	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+	
+	
+	recv_buffer = new int*[MPI_processes-1] ;
+	for(int i = 0; i < MPI_processes-1; ++i)
+	  recv_buffer[i] = new int[recv_size[i]] ;
+	recv_request = new MPI_Request[MPI_processes-1] ;
+	status = new MPI_Status[MPI_processes-1] ;
+	
+	for(k = 0; k < MPI_processes-1; k++) 
+	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,2, MPI_COMM_WORLD, &recv_request[k] );  
+	
+	MPI_Waitall(MPI_processes-1, recv_request, status) ;
+	
+	for(k = 0; k < MPI_processes-1; ++k) {      
+	  sequence tempseq ;
+	  for(int i = 0 ; i < recv_size[k]; ++i) {
+	    re += recv_buffer[k][i] ;
+	    tempseq += recv_buffer[k][i] ;
+	  }
+	  vseq[k] = tempseq ;
+	}
+	nsp = sp->new_store(re) ;
+	int sz = 0 ;
+	int my_sz= sp->pack_size(temp) ;
+	int my_unpack = 0 ;
+	int loc_unpack = 0 ;
+	int loc_pack = 0 ;
+	int *r_size = new int[MPI_processes-1] ;
+	store_request = new MPI_Request[MPI_processes-1] ;
+	store_status = new MPI_Status[MPI_processes-1] ;
+	for(int i = 0; i < MPI_processes-1; ++i) {
+	  r_size[i] = nsp->pack_size(entitySet(vseq[i])) ;
+	  sz += nsp->pack_size(entitySet(vseq[i])) ;
+	}
+	unsigned char **recv_ptr = new unsigned char*[MPI_processes-1] ;
+	unsigned char* my_stuff = new unsigned char[my_sz] ;
+	sp->pack(my_stuff, loc_pack,my_sz,temp) ;
+	recv_ptr[0] = new unsigned char[sz] ;
+	for(int i = 1; i < MPI_processes-1; i++)
+	  recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
+	
+	for(int i = 0; i < MPI_processes-1; i++)
+	  MPI_Irecv(recv_ptr[i],r_size[i] , MPI_PACKED, i+1, 3,
+		    MPI_COMM_WORLD, &store_request[i]) ;
+	
+	MPI_Waitall(MPI_processes-1, store_request, store_status) ;
+	
+	nsp->unpack(my_stuff, my_unpack, my_sz, te) ; 
+	
+	for(int i = 0; i < MPI_processes-1; ++i) {
+	  loc_unpack = 0 ;
+	  nsp->unpack(recv_ptr[i], loc_unpack, r_size[i],
+		      vseq[i]) ;
+	}
+	
+	cout << "printing store after collecting in procesor 0 " << endl ;
+	nsp->Print(cout) ;
+	delete [] recv_size ;
+	delete [] recv_buffer ;
+	delete [] status ;
+	delete [] recv_request ;
+	delete [] size_request ;
+	delete [] size_status ;
+	delete [] store_request ;
+	delete [] store_status ;
+	delete [] recv_ptr ;
+      }
+      else {
+	int *send_buffer;
+	int send_size ;
+	int loc_pack = 0;
+	unsigned char *send_ptr ;
+	entitySet temp = sp->domain() & d->my_entities ;
+	send_size = temp.size() ;
+	send_buffer = new int[send_size] ;
+	int sz = sp->pack_size(temp) ;
+	send_ptr = new unsigned char[sz] ;
+	int j = 0 ;
+	for(ti = temp.begin(); ti != temp.end(); ++ti) {
+	  send_buffer[j] = l2g[*ti] ; 
+	  ++j ;
+	}
+	sp->pack(send_ptr, loc_pack, sz, temp) ;
+	MPI_Send(&send_size, 1, MPI_INT, 0, 1, MPI_COMM_WORLD) ;
+	MPI_Send(&send_buffer[0], send_size, MPI_INT, 0, 2, MPI_COMM_WORLD) ;
+	MPI_Send(send_ptr, sz, MPI_PACKED, 0, 3, MPI_COMM_WORLD) ;
+	delete [] send_buffer ;
+	delete [] send_ptr ;
+      } 
+    }
+    return nsp ;
+    
+  }
+  
+  storeRepP distribute_store(storeRepP &sp, fact_db &facts) {
+    storeRepP nsp ;
+    if(facts.isDistributed()) {  
+      Map l2g ;
+      entitySet::const_iterator ti ;
+      fact_db::distribute_infoP d = new fact_db::distribute_info ;
+      d = facts.get_distribute_info() ;
+      l2g = facts.get_variable("l2g") ;
+      if(d->myid == 0) {
+	std::vector<entitySet> ent(MPI_processes-1) ;
+	MPI_Status *status, *size_status, *store_status;
+	MPI_Request *recv_request, *size_request, *store_request ;
+	int **recv_buffer ;
+	int *recv_size ;
+	int k = 0 ;
+	sequence te ;
+	entitySet temp ;
+	cout << "0  hi " <<endl ;
+	cout << "  0  my_entitiezs=  " << d->my_entities << endl ;
+	//for(ti = d->my_entities.begin(); ti != d->my_entities.end(); ++ti)
+	//temp += l2g[*ti] ;
+	cout << "0  hi " <<endl ;
+	//for(ti = temp.begin(); ti != temp.end(); ++ti)
+	//te += d->g2l[*ti] ;
+	cout << " 0  hi " <<endl ;
+	recv_size = new int[MPI_processes-1] ;
+	size_request = new MPI_Request[MPI_processes-1] ;
+	size_status = new MPI_Status[MPI_processes-1] ;
+	cout << "hi " <<endl ;
+	for(k = 0; k < MPI_processes-1; k++) 
+	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);  
+	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+	cout << "recv size = " << recv_size[k] << endl ;
+	
+	recv_buffer = new int*[MPI_processes-1] ;
+	for(int i = 0; i < MPI_processes-1; ++i)
+	  recv_buffer[i] = new int[recv_size[i]] ;
+	recv_request = new MPI_Request[MPI_processes-1] ;
+	status = new MPI_Status[MPI_processes-1] ;
+	
+	for(k = 0; k < MPI_processes-1; k++) 
+	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,2, MPI_COMM_WORLD, &recv_request[k] );  
+	
+	MPI_Waitall(MPI_processes-1, recv_request, status) ;
+	
+	for(k = 0; k < MPI_processes-1; ++k) {      
+	  entitySet re ;
+	  for(int i = 0 ; i < recv_size[k]; ++i) 
+	    re += recv_buffer[k][i] ;
+	  
+	  ent[k] = re ;
+	}
+	nsp = sp->new_store(d->my_entities) ;
+	int sz = 0 ;
+	int my_sz = sp->pack_size(temp) ;
+	int my_pack = 0 ;
+	int my_unpack = 0 ;
+	int *s_size = new int[MPI_processes-1] ;
+	
+	for(int i = 0; i < MPI_processes-1; ++i) { 
+	  s_size[i] = sp->pack_size(ent[i]) ;
+	  sz += sp->pack_size(ent[i]) ;
+	}
+	unsigned char **send_ptr = new unsigned char*[MPI_processes-1] ;
+	unsigned char* my_stuff = new unsigned char[my_sz] ;
+	store_request = new MPI_Request[MPI_processes-1] ;
+	store_status = new MPI_Status[MPI_processes-1] ;
+	sp->pack(my_stuff, my_pack,my_sz,temp) ;
+	send_ptr[0] = new unsigned char[sz] ;
+	for(int i = 1; i < MPI_processes-1; i++)
+	  send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
+	for(int i = 0; i < MPI_processes-1; i++) {
+	  int loc_pack = 0 ;
+	  sp->pack(send_ptr[i], loc_pack, s_size[i], ent[i]) ;
+	  MPI_Isend(send_ptr[i], s_size[i], MPI_PACKED, i+1, 3,
+		    MPI_COMM_WORLD, &store_request[i]) ;
+	}
+	MPI_Waitall(MPI_processes-1, store_request, store_status) ;
+	nsp->unpack(my_stuff, my_unpack, my_sz, te) ; 
+      	
+	delete [] recv_size ;
+	delete [] recv_buffer ;
+	delete [] status ;
+	delete [] recv_request ;
+	delete [] size_request ;
+	delete [] size_status ;
+	delete [] store_request ;
+	delete [] store_status ;
+	delete [] send_ptr ;
+      }
+      else {
+	int *send_buffer ;
+	int send_size ;
+	int loc_pack = 0 ;
+	int loc_unpack = 0 ;
+	unsigned char *recv_ptr ;
+	MPI_Status stat ;
+	entitySet re ;
+	sequence tempseq ;
+	send_size = d->my_entities.size() ;
+	send_buffer = new int[send_size] ;
+	int sz = sp->pack_size(d->my_entities) ;
+	recv_ptr = new unsigned char[sz] ;
+	nsp = sp->new_store(d->my_entities) ;
+	int j = 0 ;
+	cout << "myid "<< endl ;
+	for(ti = d->my_entities.begin(); ti != d->my_entities.end(); ++ti) {
+	  re += l2g[*ti] ;
+	}
+	for(ti = re.begin(); ti != re.end(); ++ti) {
+	  send_buffer[j] = *ti  ;
+	  ++j ;
+	}
+	for(ti = re.begin(); ti != re.end(); ++ti)
+	  tempseq += d->g2l[*ti] ;
+	
+	MPI_Send(&send_size, 1, MPI_INT, 0, 1, MPI_COMM_WORLD) ;
+	MPI_Send(&send_buffer[0], send_size, MPI_INT, 0, 2, MPI_COMM_WORLD) ;
+	MPI_Recv(recv_ptr, sz, MPI_PACKED, 0, 3, MPI_COMM_WORLD, &stat) ;
+	nsp->unpack(recv_ptr, loc_unpack, sz,tempseq) ;
+	delete [] send_buffer ;
+	delete [] recv_ptr ;
+      } 
+    }
+    return nsp ;
+    
   }
 }
