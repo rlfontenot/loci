@@ -118,7 +118,7 @@ namespace Loci {
     // patch them back to the search list
     void notify_existchains(list<chomp_chain>& result,
                             list<variable>& chomp_vars_order,
-                            variableSet& good_chomp_vars,
+                            variableSet& valid_chomp_vars,
                             const variable& v) {
       vector<list<chomp_chain>::iterator> remove ;
       variableSet patch_back ;
@@ -136,12 +136,49 @@ namespace Loci {
           i!=remove.size();++i)
         result.erase(remove[i]) ;
 
-      good_chomp_vars += patch_back ;
+      valid_chomp_vars += patch_back ;
       for(variableSet::const_iterator vi=patch_back.begin();
           vi!=patch_back.end();++vi)
         chomp_vars_order.push_back(*vi) ;
     }
-    
+
+    // get all chomping candidates in sources
+    // and targets of a graph
+    inline variableSet get_chompCandInST(const digraph& gr,
+                                         const variableSet& chompCand) {
+      digraph::vertexSet sources = gr.get_source_vertices()
+        - gr.get_target_vertices() ;
+      digraph::vertexSet targets = gr.get_target_vertices()
+        - gr.get_source_vertices() ;
+      variableSet stv = extract_vars(sources+targets) ;
+
+      return variableSet(stv & chompCand) ;
+    }
+
+    // test for self-cycle and non-chompable
+    // internal variables in a graph
+    // test_gr is a subgraph of gr
+    inline bool has_problem(const digraph& gr,const digraph& test_gr,
+                            const variableSet& validChompVars) {
+      digraph::vertexSet sources = test_gr.get_source_vertices()
+        - test_gr.get_target_vertices() ;
+      digraph::vertexSet targets = test_gr.get_target_vertices()
+        - test_gr.get_source_vertices() ;
+      
+      digraph::vertexSet internal = test_gr.get_source_vertices()
+        & test_gr.get_target_vertices() ;
+      
+      FATAL(internal !=
+            (test_gr.get_all_vertices() - sources - targets)) ;
+      
+      variableSet internal_vars = extract_vars(internal) ;
+      variableSet problem_vars =
+        variableSet(internal_vars - validChompVars) ;
+      
+      return (has_path(gr,targets,sources) || (problem_vars != EMPTY)) ;
+    }
+
+#define CHOMP_OPT
     // given a digraph and all the chomping candidate
     // variables inside it, this function will return
     // all chomping chains by merging variables together
@@ -165,7 +202,8 @@ namespace Loci {
       }
 
       digraph grt = gr.transpose() ;
-      variableSet good_chomp_vars = chomp_vars ;
+      variableSet valid_chomp_vars = chomp_vars ;
+      list<chomp_chain> temp_result ;
       
       while(!chomp_vars_order.empty()) {
         // here is the basis, we start by selecting
@@ -196,24 +234,8 @@ namespace Loci {
               digraph::vertexSet cp_all_vertices = all_vertices ;
               cp_all_vertices += get_ruleSet_vertexSet(reachable_rules) ;
               digraph test_gr = gr.subgraph(cp_all_vertices) ;
-              digraph::vertexSet sources = test_gr.get_source_vertices()
-                - test_gr.get_target_vertices() ;
-              digraph::vertexSet targets = test_gr.get_target_vertices()
-                - test_gr.get_source_vertices() ;
 
-              digraph::vertexSet internal = test_gr.get_source_vertices()
-                & test_gr.get_target_vertices() ;
-
-              FATAL(internal !=
-                    (test_gr.get_all_vertices() - sources - targets)) ;
-
-              variableSet internal_vars = extract_vars(internal) ;
-              variableSet problem_vars =
-                variableSet(internal_vars - good_chomp_vars) ;
-
-              if(!has_path(gr,targets,sources) &&
-                 (problem_vars == EMPTY)
-                 ) {
+              if(!has_problem(gr,test_gr,valid_chomp_vars)){
                 sub_chomp_vars += *lvi ;
                 all_rules += reachable_rules ;
                 all_vertices = cp_all_vertices ;
@@ -228,39 +250,22 @@ namespace Loci {
             chomp_vars_order.erase(remove[i]) ;
         }//end-of-while(merge)
 
-        // put it into the result
+        // put it into the temp_result
         digraph sub_gr = gr.subgraph(all_vertices) ;
         // if the chain just contains one chompable variable
         // we need to test for self-cycle, if has, it is
         // then discarded
         if(sub_chomp_vars.size() == 1) {
-          digraph::vertexSet sources = sub_gr.get_source_vertices()
-            - sub_gr.get_target_vertices() ;
-          digraph::vertexSet targets = sub_gr.get_target_vertices()
-            - sub_gr.get_source_vertices() ;
-
-          digraph::vertexSet internal = sub_gr.get_source_vertices()
-            & sub_gr.get_target_vertices() ;
-          
-          FATAL(internal !=
-                (sub_gr.get_all_vertices() - sources - targets)) ;
-          
-          variableSet internal_vars = extract_vars(internal) ;
-          variableSet problem_vars =
-            variableSet(internal_vars - good_chomp_vars) ;
-          
-          if(has_path(gr,targets,sources) ||
-             (problem_vars != EMPTY)
-             ){
+          if(has_problem(gr,sub_gr,valid_chomp_vars)) {
             variable v = *(sub_chomp_vars.begin()) ;
-            good_chomp_vars -= v ;
+            valid_chomp_vars -= v ;
             chomp_vars_order.remove(v) ;
             // we need to notify existed chains of this change
             // this variable might be silently included
-            // into other chains because it may be targets of
+            // into other chains because it may be target of
             // other chompable variables
-            notify_existchains(result,chomp_vars_order,good_chomp_vars,v) ;
-
+            notify_existchains(temp_result,chomp_vars_order,
+                               valid_chomp_vars,v) ;
             continue ;
           }
         }
@@ -269,23 +274,110 @@ namespace Loci {
         // sub_gr. They are the cause of the self-cycles.
         // They cannot be merged into other chains because
         // they are now visible outside of this chain
-        digraph::vertexSet sources = sub_gr.get_source_vertices()
-          - sub_gr.get_target_vertices() ;
-        digraph::vertexSet targets = sub_gr.get_target_vertices()
-          - sub_gr.get_source_vertices() ;
-        variableSet stv = extract_vars(sources+targets) ;
-        variableSet intersection = variableSet(stv & chomp_vars) ;
+        variableSet intersection = get_chompCandInST(sub_gr,chomp_vars) ;
         if(intersection != EMPTY) {
           for(variableSet::const_iterator rmvi=intersection.begin();
               rmvi!=intersection.end();++rmvi)
             chomp_vars_order.remove(*rmvi) ;
-          good_chomp_vars -= intersection ;
+          valid_chomp_vars -= intersection ;
         }
 
-        good_chomp_vars -= sub_chomp_vars ;
-        result.push_back(make_pair(sub_gr,sub_chomp_vars)) ;      
+        valid_chomp_vars -= sub_chomp_vars ;
+#ifdef CHOMP_OPT
+        temp_result.push_back(make_pair(sub_gr,sub_chomp_vars)) ;
+#else
+        result.push_back(make_pair(sub_gr,sub_chomp_vars)) ;
+#endif
       } // end-of-while(!chomp_vars_order.empty())
-    }
+#ifdef CHOMP_OPT      
+      // here we do an optimization phase
+      // we try to merge the formed chains
+      // and hope we can get back some of the chomping
+      // variables that are excluded in the above merging
+      list<chomp_chain> temp_result2 ;
+      while(!temp_result.empty()) {
+        chomp_chain begin = temp_result.front() ;
+        digraph new_gr = begin.first ;
+
+        temp_result.pop_front() ;
+
+        bool merge = true ;
+        while(merge) {
+          merge = false ;
+          vector<list<chomp_chain>::iterator> remove ;
+          for(list<chomp_chain>::iterator li=temp_result.begin();
+              li!=temp_result.end();++li) {
+            digraph this_gr = li->first ;
+            variableSet shared =
+              extract_vars(new_gr.get_all_vertices() &
+                           this_gr.get_all_vertices()) ;
+            if( (shared & chomp_vars) != EMPTY) {
+              digraph test_gr = new_gr ;
+              test_gr += this_gr ;
+
+              if(!has_problem(gr,test_gr,chomp_vars)) {
+                new_gr = test_gr ;
+                remove.push_back(li) ;
+                merge = true ;
+              }
+            }
+          } // end for
+          // remove those merged chains from the list
+          for(vector<list<variable>::iterator>::size_type i=0;
+              i!=remove.size();++i)
+            temp_result.erase(remove[i]) ;
+        } // end while(merge)
+
+        variableSet chomp_vars_in_chain =
+          extract_vars(new_gr.get_source_vertices() &
+                       new_gr.get_target_vertices()) ;
+        temp_result2.push_back(make_pair(new_gr,chomp_vars_in_chain)) ;
+      } // end of while(!temp_result.empty())
+      
+      for(list<chomp_chain>::iterator li=temp_result2.begin();
+          li!=temp_result2.end();++li) {
+        // it is important to use reference(&) here,
+        // because we want to dynamically update temp_result2
+        // so that in the following "gcio iter" we can have
+        // correct result
+        digraph& new_gr = li->first ;
+        variableSet& chomp_vars_in_chain = li->second ;
+        
+        variableSet chompCandInThis =
+          get_chompCandInST(li->first,chomp_vars) ;
+
+        variableSet chompCandInOthers ;
+
+        // gcio iter
+        for(list<chomp_chain>::iterator li2=temp_result2.begin();
+            li2!=temp_result2.end();++li2)
+          if(li2 != li)
+            chompCandInOthers += get_chompCandInST(li->first, chomp_vars) ;
+
+        for(variableSet::const_iterator vi=chompCandInThis.begin();
+            vi!=chompCandInThis.end();++vi) {
+          if(!chompCandInOthers.inSet(*vi)) {
+            ruleSet rvs_rules = extract_rules(grt[vi->ident()]) ;
+            ruleSet fwd_rules = extract_rules(gr[vi->ident()]) ;
+            ruleSet reachable_rules = ruleSet(rvs_rules + fwd_rules) ;
+            digraph::vertexSet new_vertices =
+              get_ruleSet_vertexSet(reachable_rules) ;
+            
+            digraph test_gr = gr.subgraph(new_vertices +
+                                          new_gr.get_all_vertices()) ;
+            variableSet new_chomp_vars_in_chain = chomp_vars_in_chain ;
+            new_chomp_vars_in_chain += *vi ;
+            if(!has_problem(gr,test_gr,chomp_vars)) {
+              new_gr = test_gr ;
+              chomp_vars_in_chain = new_chomp_vars_in_chain ;
+            }
+          }
+        } 
+        // finally we accept the chain
+        result.push_back(*li) ;
+      }// end of for(temp_result2)
+#endif
+    }// end of the get_chomp_chains function
 
   } // end of unamed namespace
 
@@ -319,17 +411,22 @@ namespace Loci {
         intstv += ri->sources() ;
         intstv += ri->targets() ;
       }
+
     rules -= remove ;
 
     // first get all possible variables that can be chomped
-    variableSet allvars, remaining_vars ;
+    variableSet allvars, remaining_vars, apply_targets ;
     for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
       allvars += ri->sources() ;
       allvars += ri->targets() ;
+      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::APPLY)
+        apply_targets += ri->targets() ;
     }
     remaining_vars = allvars ;
     // intstv cannot be chomped for sure, we remove them
     remaining_vars -= intstv ;
+    // targets of apply rule cannot be chomped
+    remaining_vars -= apply_targets ;
 
     // then we collect bad_vars...
 
@@ -438,7 +535,6 @@ namespace Loci {
     // we group any potential variables that can be chomped,
     // and then later, we perform checkings and necessary
     // adjustments.
-
     variableSet cand_vars = variableSet(allvars & good_vars) ;
 
     list<chomp_chain> chomp_chain_list ;
@@ -470,6 +566,28 @@ namespace Loci {
       digraph::vertexSet
         target_vars_vertices = chomp_graph.get_target_vertices() -
         chomp_graph.get_source_vertices() ;
+
+      // check to see if there's any rules inside them, if it is,
+      // then they are removed and their sources or targets are added
+      ruleSet ruleinsource = extract_rules(source_vars_vertices) ;
+      ruleSet ruleintarget = extract_rules(target_vars_vertices) ;
+      if(ruleinsource != EMPTY) {
+        digraph grt = gr.transpose() ;
+        digraph::vertexSet add ;
+        for(ruleSet::const_iterator ri=ruleinsource.begin();
+            ri!=ruleinsource.end();++ri)
+          add += grt[ri->ident()] ;
+        source_vars_vertices -= get_vertexSet(ruleinsource) ;
+        source_vars_vertices += add ;
+      }
+      if(ruleintarget != EMPTY) {
+        digraph::vertexSet add ;
+        for(ruleSet::const_iterator ri=ruleintarget.begin();
+            ri!=ruleintarget.end();++ri)
+          add += gr[ri->ident()] ;
+        target_vars_vertices -= get_vertexSet(ruleintarget) ;
+        target_vars_vertices += add ;
+      }
       
       // make a rule for the chomp_graph
       rule chomp_rule = create_rule(extract_vars(source_vars_vertices),
@@ -482,7 +600,7 @@ namespace Loci {
       // the vertices to be taken out
       digraph::vertexSet takeout_vertices =
         chomp_vars_vertices + rules_vertices ;
-
+      
       if(takeout_vertices != (all_vertices -
                               source_vars_vertices - target_vars_vertices)) {
         cerr << "WARNING: inconsistency in chomping graph editing!" << endl ;
@@ -501,7 +619,7 @@ namespace Loci {
         cerr << "The chomped vars in this chain are: " << chomp_vars << endl ;
         exit(-1) ;
       }
-
+      
       // get other possible nodes (outside of the chomp_graph)
       // that lead to any internal vertices of the chomp graph
 
@@ -568,7 +686,8 @@ namespace Loci {
     chc.chomp_sched = orderVisitor::order_dag(chc.chomp_graph) ;
   }
   
-  void compChompVisitor::compile_chomp(chomp_compiler& chc) {
+  void compChompVisitor::compile_chomp(chomp_compiler& chc,
+                                       const rulecomp_map& rcm) {
     for(vector<digraph::vertexSet>::const_iterator vi=chc.chomp_sched.begin();
         vi!=chc.chomp_sched.end();++vi) {
       ruleSet rules = extract_rules(*vi) ;
@@ -582,9 +701,12 @@ namespace Loci {
       
       for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri){
         // this barrier_compiler bc is just a fake compiler
-        // to be used in the pair 
-        rule_compilerP bc = new barrier_compiler(vars) ;
-        chc.chomp_comp.push_back(make_pair(*ri,bc)) ;
+        // to be used in the pair
+        rulecomp_map::const_iterator rmi ;
+        rmi = rcm.find(*ri) ;
+        FATAL(rmi == rcm.end()) ;
+        //rule_compilerP bc = new barrier_compiler(vars) ;
+        chc.chomp_comp.push_back(make_pair(*ri,rmi->second)) ;
       }
     }
   }
@@ -596,7 +718,7 @@ namespace Loci {
         dynamic_cast<chomp_compiler*>(&(*(ri->second))) ;
       if(chc != 0) {
         schedule_chomp(*chc) ;
-        compile_chomp(*chc) ;
+        compile_chomp(*chc,rcm) ;
       }
     }
   }

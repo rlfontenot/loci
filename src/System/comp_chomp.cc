@@ -8,9 +8,24 @@ using std::deque ;
 #include <map>
 using std::map ;
 
+#include <malloc.h>
 
 namespace Loci {
   extern int chomping_size ;
+  extern bool profile_memory_usage ;
+
+  extern double LociAppPeakMemory ;
+  extern double LociAppAllocRequestBeanCounting ;
+  extern double LociAppFreeRequestBeanCounting ;
+  extern double LociAppPeakMemoryBeanCounting ;
+  extern double LociAppPMTemp ;
+  namespace {
+    // memory profile function
+    int currentMem(void) {
+      struct mallinfo info = mallinfo() ;
+      return info.arena+info.hblkhd ;
+    }
+  }
 
   class execute_chomp: public execute_modules {
     entitySet total_domain ;
@@ -19,11 +34,11 @@ namespace Loci {
     deque<entitySet> rule_seq ;
     variableSet chomp_vars ;
     vector<vector<entitySet> > seq_table ;
-    bool is_table_set ;
     int_type chomp_size ;
     int_type chomp_iter ;
     vector<int_type> chomp_offset ;
     vector<storeRepP> chomp_vars_rep ;
+    int_type D_cache_size ;
   public:
     execute_chomp(const entitySet& td,
                   const vector<pair<rule,rule_compilerP> >& comp,
@@ -31,7 +46,7 @@ namespace Loci {
                   const variableSet& cv,
                   fact_db& facts):
       total_domain(td),chomp_comp(comp),rule_seq(seq),
-      chomp_vars(cv),is_table_set(false) {
+      chomp_vars(cv),chomp_size(0),chomp_iter(0),D_cache_size(0) {
 
       for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
           vi!=comp.end();++vi)
@@ -47,18 +62,12 @@ namespace Loci {
         chomp_vars_rep.push_back(srp) ;
       }
 
-      /*
-      int_type dom_min = total_domain.Min() ;
-      int_type dom_max = total_domain.Max() ;
-      int_type tmp = (dom_max - dom_min)/chomp_vars.size() ;
-      chomp_size = (tmp<=50)?tmp:50 ;
-      */
       // we'll need to set up the chomp_size
       // and the chomping sequence table
       entitySet test_alloc = interval(1,1) ;
       int_type total_obj_size = 0 ;
       int_type min_store_size = UNIVERSE_MAX ;
-      int_type D1_cache_size = chomping_size * 1024 ; // assume 128KB now
+      D_cache_size = chomping_size * 1024 ; // assume 128KB now
       for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
           vi!=chomp_vars_rep.end();++vi) {
         int_type my_size = (*vi)->pack_size(test_alloc) ;
@@ -66,7 +75,7 @@ namespace Loci {
         min_store_size = min(min_store_size,my_size) ;
       }
 
-      double scale = (double)D1_cache_size / (double)total_obj_size ;
+      double scale = (double)D_cache_size / (double)total_obj_size ;
 
       if(scale <= 1.0)
         chomp_size = 1 ;
@@ -96,7 +105,6 @@ namespace Loci {
           chomp_offset.push_back(0) ;
       }
 
-      is_table_set = true ;
       chomp_iter = seq_table.size() ;
     }
     
@@ -125,6 +133,17 @@ namespace Loci {
         (*vi)->allocate(first_alloc) ;
       }
     }
+    // do memory profiling
+    if(profile_memory_usage) {
+      double currmen = currentMem() ;
+      if(currmen > LociAppPeakMemory)
+        LociAppPeakMemory = currmen ;
+      LociAppAllocRequestBeanCounting += D_cache_size ;
+      LociAppPMTemp += D_cache_size ;
+      if(LociAppPMTemp > LociAppPeakMemoryBeanCounting)
+        LociAppPeakMemoryBeanCounting = LociAppPMTemp ;
+    }
+
     // begin execution, the loop number would be seq_table.size()
     vector<vector<entitySet> >::const_iterator vvi ;
     int count = 0 ;
@@ -146,8 +165,18 @@ namespace Loci {
     }
     // at last, we deallocate all the chomp_vars
     for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
-        vi!=chomp_vars_rep.end();++vi)
+        vi!=chomp_vars_rep.end();++vi) {
       (*vi)->allocate(EMPTY) ;
+    }
+    
+    // do memory profiling
+    if(profile_memory_usage) {
+      LociAppFreeRequestBeanCounting += D_cache_size ;
+      LociAppPMTemp -= D_cache_size ;
+      if(LociAppPMTemp < 0)
+        std::cout << "MEMORY PROFILING WARNING: negative memory size"
+                  << endl ;
+    }
   }
 
   void execute_chomp::Print(std::ostream& s) const {
@@ -173,9 +202,6 @@ namespace Loci {
       rule r = i->first ;
       rule_compilerP bc = i->second ;
 
-      // existential analysis for barrier compiler
-      //bc->set_var_existence(facts,scheds) ;
-      
       if(r.get_info().rule_impl->get_rule_class() != rule_impl::APPLY)
         existential_rule_analysis(r,facts,scheds) ;
       else
@@ -199,9 +225,6 @@ namespace Loci {
         exec_seq = process_applyrule_requests(r,mi->second,facts,scheds) ;
       }
       rule_seq.push_front(exec_seq) ;
-
-      // existential analysis for barrier compiler
-      //bc->process_var_requests(facts,scheds) ;
     }
   }
 

@@ -17,6 +17,9 @@
 
 #include <mpi.h>
 using std::vector;
+
+// for the mallinfo function
+#include <malloc.h>
 namespace Loci {
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
@@ -395,6 +398,56 @@ namespace Loci {
     virtual void accept(visitor& v) {}
     virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
+  class execute_memProfileAlloc : public execute_modules {
+    variableSet vars ;
+  public:
+    execute_memProfileAlloc(const variableSet& vars): vars(vars) {}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+    // memory profile function
+    int currentMem(void) {
+      struct mallinfo info = mallinfo() ;
+      return info.arena+info.hblkhd ;
+    }    
+  } ;
+
+  class execute_memProfileFree : public execute_modules {
+    variableSet vars ;
+  public:
+    execute_memProfileFree(const variableSet& vars) : vars(vars) {}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+    // memory profile function
+    int currentMem(void) {
+      struct mallinfo info = mallinfo() ;
+      return info.arena+info.hblkhd ;
+    }    
+  } ;
+
+  class memProfileAlloc_compiler : public rule_compiler {
+    variableSet vars ;
+  public:
+    memProfileAlloc_compiler(const variableSet& vars): vars(vars) {}
+    memProfileAlloc_compiler(const variable& var)
+    {vars += var ;}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) {}
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) {}
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
+  class memProfileFree_compiler : public rule_compiler {
+    variableSet vars ;
+  public:
+    memProfileFree_compiler(const variableSet& vars): vars(vars) {}
+    memProfileFree_compiler(const variable& var)
+    {vars += var ;}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) {}
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) {}
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 

@@ -197,6 +197,7 @@ namespace Loci {
   
   void snInfoVisitor::visit(conditional_compiler& cc) {
     graph_sn.insert(cc.cid) ;
+    cond_sn.insert(cc.cid) ;
     fill_subnode_table(cc.cond_gr,cc.cid) ;
   }
 
@@ -732,9 +733,11 @@ namespace Loci {
                    const variableSet& psource,
                    const variableSet& ptarget,
                    const set<int>& gsn,
+                   const std::set<int>& csn,
                    variableSet& input):
     promote_source_vars(psource), promote_target_vars(ptarget),
-    promote_t2s(pt2s), promote_s2t(ps2t), graph_sn(gsn) {
+    promote_t2s(pt2s), promote_s2t(ps2t), graph_sn(gsn),
+    cond_sn(csn) {
     
     reserved_vars += input ;
     reserved_vars += get_recur_target_for_vars(input,promote_s2t) ;
@@ -749,23 +752,37 @@ namespace Loci {
     
     int supernode_num = 0 ;
     int supernode_id = 1 ; // vertex number of the supernode
+    rule supernode ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       if(is_super_node(ruleIter)) {
         // we eliminate the recursive super node
         // by looking up the graph_sn set
         if(inSet(graph_sn,get_supernode_num(*ruleIter))) {
+          supernode = *ruleIter ;
           supernode_id = ruleIter->ident() ;
           ++supernode_num ;
         }
       }
     }
-
+    if(supernode_num == 1) {
+      // check to see if it is a conditional node
+      // if it is, we delete it in the graph
+      if(inSet(cond_sn,get_supernode_num(supernode)))
+        return true ;
+      else if(rules.size() == 1)
+        return false ;
+    }
     if( (rules.size() == 1) && is_virtual_rule(*rules.begin()))
       return false ;
     if(supernode_num != 1)
       return true ;
-
+    /*
+    if( (rules.size() == 1) && is_virtual_rule(*rules.begin()))
+      return false ;
+    if(supernode_num != 1)
+      return true ;
+    */
     // the remaining case must be there is only one super node
     // and at least one non super node, we check if there is path
     // from each non super node to the super node in the graph
@@ -810,14 +827,18 @@ namespace Loci {
       }
 
       // get the rules all_source can reach
-      ruleSet others ;
-      ruleSet tmp = extract_rules(gr[vi->ident()]) ;
-      others += tmp ;
-      for(ruleSet::const_iterator ruleIter=tmp.begin();
-          ruleIter!=tmp.end();++ruleIter)
-        if(!is_super_node(ruleIter))
-          others += extract_rules(gr[ruleIter->ident()]) ;
+      // we need to get all the rules that all the
+      // promoted vars can reach
+      digraph::vertexSet promoted =
+        get_vertexSet(get_all_recur_vars(promote_s2t,*vi)) ;
+      promoted += vi->ident() ;
+      promoted &= allv ;
       
+      ruleSet others ;
+      for(digraph::vertexSet::const_iterator pvi=promoted.begin();
+          pvi!=promoted.end();++pvi)
+        others += extract_rules(gr[*pvi]) ;
+
       FATAL(others == EMPTY) ;
 
       if(is_rep(gr,others)) {
@@ -883,18 +904,22 @@ namespace Loci {
       cerr << endl ;
       */
       
-      vector<variable>::const_iterator pos ;
-      pos = find_if(all_targets.begin()+1,all_targets.end(),
-                    bind2nd(ptr_fun(time_after),all_targets[0])
-                    ) ;
-
-      if(pos - all_targets.begin() > 1) {
-        variableSet time_ident_vars ;
-        for(vector<variable>::const_iterator vi2=all_targets.begin();
-            vi2!=pos;++vi2)
-          time_ident_vars += *vi2 ;
-
-        cerr << "WARNING: These renamed variables coexist in the same time level, and they refer to the same memory location, this is dangerous!: " << time_ident_vars << endl ;
+      vector<variable>::iterator pos ;
+      vector<variable>::iterator old_pos = all_targets.begin() ;
+      while(old_pos != all_targets.end()) {
+        pos = find_if(old_pos+1,all_targets.end(),
+                      bind2nd(ptr_fun(time_after),*old_pos)
+                      ) ;
+        
+        if(pos - old_pos > 1) {
+          variableSet time_ident_vars ;
+          for(vector<variable>::const_iterator vi2=old_pos;
+              vi2!=pos;++vi2)
+            time_ident_vars += *vi2 ;
+          
+          cerr << "WARNING: These renamed variables coexist in the same time level, and they refer to the same memory location, this is dangerous!: " << time_ident_vars << endl ;
+        }
+        old_pos = pos ;
       }
 
       for(vector<variable>::const_iterator vi2=all_targets.begin()+1;
@@ -1111,6 +1136,55 @@ namespace Loci {
   
   void unitApplyMapVisitor::visit(conditional_compiler& cc) {
     gather_info(cc.cond_gr) ;
+  }
+
+  /////////////////////////////////////////////////////////////////
+  // unitApplyMapVisitor
+  /////////////////////////////////////////////////////////////////
+  void allocDelNumReportVisitor::adNum(const digraph& gr,
+                                      int& alloc_num,
+                                      int& del_num) {
+    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
+    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
+      if(ri->get_info().qualifier() == "ALLOCATE")
+        ++alloc_num ;
+      if(ri->get_info().qualifier() == "DELETE")
+        ++del_num ;
+    }
+  }
+  
+  void allocDelNumReportVisitor::visit(loop_compiler& lc) {
+    s << "In Loop Node (id = " << lc.cid << ")" << endl ;
+    int alloc = 0 ;
+    int del = 0 ;
+    adNum(lc.collapse_gr,alloc,del) ;
+    s << "\tIn the collapse part: " << endl ;
+    s << "\t\tThere are: " << alloc << " allocation rule(s)" << endl ;
+    s << "\t\tThere are: " << del << " deletion rule(s)" << endl ;
+
+    alloc = 0 ; del = 0 ;
+    adNum(lc.advance_gr,alloc,del) ;
+    s << "\tIn the advance part: " << endl ;
+    s << "\t\tThere are: " << alloc << " allocation rule(s)" << endl ;
+    s << "\t\tThere are: " << del << " deletion rule(s)" << endl ;
+  }
+  
+  void allocDelNumReportVisitor::visit(dag_compiler& dc) {
+    s << "In Dag Node (id = " << dc.cid << ")" << endl ;
+    int alloc = 0 ;
+    int del = 0 ;
+    adNum(dc.dag_gr,alloc,del) ;
+    s << "\tThere are: " << alloc << " allocation rule(s)" << endl ;
+    s << "\tThere are: " << del << " deletion rule(s)" << endl ;
+  }
+  
+  void allocDelNumReportVisitor::visit(conditional_compiler& cc) {
+    s << "In Conditional Node (id = " << cc.cid << ")" << endl ;
+    int alloc = 0 ;
+    int del = 0 ;
+    adNum(cc.cond_gr,alloc,del) ;
+    s << "\tThere are: " << alloc << " allocation rule(s)" << endl ;
+    s << "\tThere are: " << del << " deletion rule(s)" << endl ;
   }
 
   ////////////////////////////////////////////////////////////

@@ -275,11 +275,13 @@ namespace Loci {
   }
   
   inline bool is_internal_rule(const ruleSet::const_iterator& ruleIter) {
-    return (ruleIter->type() == rule::INTERNAL) ;
+    //return (ruleIter->type() == rule::INTERNAL) ;
+    return (ruleIter->get_info().rule_class == rule::INTERNAL) ;
   }
 
   inline bool is_internal_rule(const rule& r) {
-    return (r.type() == rule::INTERNAL) ;
+    //return (r.type() == rule::INTERNAL) ;
+    return (r.get_info().rule_class == rule::INTERNAL) ;
   }
   
   inline bool is_internal_rule(int i) {

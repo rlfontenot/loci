@@ -21,6 +21,7 @@ using std::stringstream ;
 //#define HACK ; 
 
 namespace Loci {
+  // Loci option flags
   extern double total_memory_usage ;
   extern bool show_decoration ;
   extern bool use_dynamic_memory ;
@@ -29,7 +30,24 @@ namespace Loci {
   extern bool show_chomp ;
   extern bool chomp_verbose ;
   extern int chomping_size ;
+  extern bool profile_memory_usage ;
+  extern bool memory_greedy_schedule ;
 
+  // memory profiling counters
+  extern double LociAppPeakMemory ;
+  extern double LociAppAllocRequestBeanCounting ;
+  extern double LociAppFreeRequestBeanCounting ;
+  extern double LociAppPeakMemoryBeanCounting ;
+  extern double LociAppLargestAlloc ;
+  extern variable LociAppLargestAllocVar ;
+  extern double LociAppLargestFree ;
+  extern variable LociAppLargestFreeVar ;
+  extern double LociAppPMTemp ;
+  namespace {
+    // used to pre-process preallocation memory profiling
+    variableSet LociRecurrenceVarsRealloc ;
+  }
+  
   class error_compiler : public rule_compiler {
   public:
     error_compiler() {}
@@ -212,6 +230,16 @@ namespace Loci {
     // i.e. the generalize, promote, priority and rename info
     recurInfoVisitor recv ;
     top_down_visit(recv) ;
+
+    // set the reallocated recurrence vars for
+    // memory profiling preallocation
+    if(!use_dynamic_memory && profile_memory_usage) {
+      variableSet sources = variableSet(recv.get_recur_source_vars()
+                                        - recv.get_recur_target_vars()) ;
+      map<variable,variableSet> s2t_table = recv.get_recur_vars_s2t() ;
+      LociRecurrenceVarsRealloc +=
+        get_recur_target_for_vars(sources,s2t_table) ;
+    }
     
     // get the input variables
     // get all the variables in the multilevel graph
@@ -258,7 +286,7 @@ namespace Loci {
         if(chomp_verbose)
           crv.summary(cout) ;
 
-        dagCheckVisitor dagcV1 ;
+        dagCheckVisitor dagcV1(true) ;
         top_down_visit(dagcV1) ;
 
       }
@@ -289,16 +317,20 @@ namespace Loci {
                             recv.get_promote_s2t(),
                             recv.get_promote_source_vars(),
                             recv.get_promote_target_vars(),
-                            snv.get_graph_sn(),input
+                            snv.get_graph_sn(),
+                            snv.get_cond_sn(),input
                             ) ;
       top_down_visit(pppV) ;
 
       // reserved variableSet for the deleteInfoVisitor
       variableSet delInfoV_reserved ;
 
+      variableSet promoted_rep =
+        variableSet(pppV.get_rep() - recv.get_rename_source_vars()) ;
+
       delInfoV_reserved += recv.get_recur_source_vars() ;
       delInfoV_reserved += pppV.get_remaining() ;
-      delInfoV_reserved -= pppV.get_rep() ;
+      delInfoV_reserved -= promoted_rep ;
       delInfoV_reserved += input ;
       delInfoV_reserved += get_recur_target_for_vars(input,
                                                      recv.get_recur_vars_s2t()
@@ -329,6 +361,7 @@ namespace Loci {
                             get_parentnode_table(snv.get_subnode_table()),
                             snv.get_loop_col_table(),
                             snv.get_loop_sn(),
+                            snv.get_cond_sn(),
                             rotlv.get_rotate_vars_table(),
                             rotlv.get_loop_shared_table(),
                             delInfoV_reserved
@@ -339,11 +372,19 @@ namespace Loci {
       allocGraphVisitor agv(aiv.get_alloc_table(),
                             snv.get_loop_sn(),
                             rotlv.get_rotate_vars_table(),
-                            rotlv.get_loop_shared_table(),
                             recv.get_priority_s2t(),
                             recv.get_priority_source_vars()
                             ) ;
       top_down_visit(agv) ;
+
+      if(profile_memory_usage) {
+        // decorate the graph to include
+        // the memory profiling alloc compiler
+        memProfileAllocDecoVisitor mpadv(aiv.get_alloc_table(),
+                                         rotlv.get_rotate_vars_table()
+                                         ) ;
+        top_down_visit(mpadv) ;
+      }
       
       // decorate the graph to insert deletion rules
       deleteGraphVisitor dgv(div.get_delete_table(),
@@ -352,7 +393,7 @@ namespace Loci {
       det2 = MPI_Wtime() ;
       
       // check if the decorated graphs are acyclic
-      dagCheckVisitor dagcV ;
+      dagCheckVisitor dagcV(true) ;
       top_down_visit(dagcV) ;
 
       if(use_chomp) {
@@ -431,6 +472,10 @@ namespace Loci {
                                ) ;
         adstat.report(os) ;
         os << endl ;
+
+        allocDelNumReportVisitor adnrv(cout) ;
+        top_down_visit(adnrv) ;
+        os << endl ;
       } // end of if(show_dmm_verbose)
       
     } // end of if(use_dynamic_memory)
@@ -443,9 +488,16 @@ namespace Loci {
     
     //orderVisitor ov ;    
     //bottom_up_visit(ov) ;
-    simLazyAllocSchedVisitor lazyschedv ;
-    top_down_visit(lazyschedv) ;
-
+    if(!memory_greedy_schedule) {
+      simLazyAllocSchedVisitor lazyschedv ;
+      top_down_visit(lazyschedv) ;
+    } else {
+      if(Loci::MPI_rank == 0)
+        cout << "memory greedy scheduling" << endl ;
+      memGreedySchedVisitor mgsv(facts) ;
+      top_down_visit(mgsv) ;
+    }
+    
     assembleVisitor av(reduceV.get_all_reduce_vars(),
                        reduceV.get_reduceInfo());
     bottom_up_visit(av) ;
@@ -521,7 +573,8 @@ namespace Loci {
     double total_size = 0 ;
     entitySet dom, total, unused ;
     double total_wasted = 0 ;
-
+    bool facts_distributed = facts.is_distributed_start() ;
+    
     //#define DIAGNOSTICS
 #ifdef DIAGNOSTICS
     for(vi=vars.begin();vi!=vars.end();++vi) {
@@ -595,6 +648,23 @@ namespace Loci {
 	  }
 	} 
       }
+      // do memory profiling
+      if(profile_memory_usage) {
+        // we only do profiling for parallel start
+        // since only in parallel, input vars are resized
+        if(facts_distributed) {
+          int packsize = srp->pack_size(alloc_dom) ;
+          LociAppAllocRequestBeanCounting += packsize ;
+          LociAppPMTemp += packsize ;
+          if(LociAppPMTemp > LociAppPeakMemoryBeanCounting)
+            LociAppPeakMemoryBeanCounting = LociAppPMTemp ;
+          if(packsize > LociAppLargestAlloc) {
+            LociAppLargestAlloc = packsize ;
+            LociAppLargestAllocVar = *vi ;
+          }
+        }
+      }
+      
     }
     total_memory_usage = total_size + total_wasted ;
   }
@@ -628,6 +698,17 @@ namespace Loci {
       return executeP(0) ;
     schedule->append_list(top_level_schedule) ;
     schedule->append_list(new execute_destroy_threads) ;
+    if(!use_dynamic_memory)
+      if(profile_memory_usage) {
+        variableSet profile_vars = facts.get_typed_variables() ;
+        // given variables don't need to be profiled
+        profile_vars -= alloc ;
+        // we also need to exclude those recurrence variables
+        profile_vars -= LociRecurrenceVarsRealloc ;
+        
+        schedule->append_list(new execute_memProfileAlloc(profile_vars)) ;
+      }
+    
     return executeP(schedule) ;
   }
 }

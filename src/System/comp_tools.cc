@@ -21,10 +21,23 @@ using std::ostream ;
 using std::ostringstream ;
 
 #include "dist_tools.h"
+
 //#define VERBOSE
 
 namespace Loci {
-    // Create a schedule for traversing a directed acyclic graph.  This schedule
+  extern bool profile_memory_usage ;
+  
+  extern double LociAppPeakMemory ;
+  extern double LociAppAllocRequestBeanCounting ;
+  extern double LociAppFreeRequestBeanCounting ;
+  extern double LociAppPeakMemoryBeanCounting ;
+  extern double LociAppLargestAlloc ;
+  extern variable LociAppLargestAllocVar ;
+  extern double LociAppLargestFree ;
+  extern variable LociAppLargestFreeVar ;
+  extern double LociAppPMTemp ;
+
+  // Create a schedule for traversing a directed acyclic graph.  This schedule
   // may be concurrent, or many vertices of the graph may be visited at each
   // step of the schedule  If the graph contains cycles, the schedule may
   // not include all of the vertices in the graph.
@@ -1504,7 +1517,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     variableSet allocate_vars ;
     map<variable,entitySet> v_requests ;
   public:
-    execute_allocate_var(variableSet vars, map<variable,entitySet> vr)
+    execute_allocate_var(const variableSet& vars, map<variable,entitySet> vr)
       : allocate_vars(vars), v_requests(vr) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
@@ -1520,6 +1533,13 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       if(srp->domain() == EMPTY) {
 	srp->allocate(alloc_dom) ;
       }else {
+        if(profile_memory_usage) {
+          // this variable is reallocated, we take
+          // the space off from the counter, since
+          // it will be recounted in profiling
+          int packsize = srp->pack_size(alloc_dom) ;
+          LociAppPMTemp -= packsize ;
+        }
 	if(srp->RepType() == Loci::STORE) {
 
 	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
@@ -1542,7 +1562,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   class execute_free_var : public execute_modules {
     variableSet free_vars ;
    public:
-    execute_free_var(variableSet vars) : free_vars(vars) {}
+    execute_free_var(const variableSet& vars) : free_vars(vars) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
@@ -1567,12 +1587,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   }
 
   executeP allocate_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-    variableSet vars ;
-    vars = allocate_vars ;
     variableSet::const_iterator vi,vii ;
 
     map<variable,entitySet> v_requests ;
-    for(vi=vars.begin();vi!=vars.end();++vi) {
+    for(vi=allocate_vars.begin();vi!=allocate_vars.end();++vi) {
       variableSet aliases = scheds.get_aliases(*vi) ;
       entitySet requests ;
       for(vii=aliases.begin();vii!=aliases.end();++vii) {
@@ -1581,7 +1599,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       v_requests[*vi] = requests ;
     }
 
-    return executeP(new execute_allocate_var(vars,v_requests)) ;
+    return executeP(new execute_allocate_var(allocate_vars,v_requests)) ;
   }
 
   void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)
@@ -1591,10 +1609,81 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   void free_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) { }
 
   executeP free_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-    variableSet vars ;
-    vars = free_vars ;
-
-    return executeP(new execute_free_var(vars)) ;
+    return executeP(new execute_free_var(free_vars)) ;
   }
 
-}
+  /////////////////////////////////////////////////////////////////////////
+  //////////////////  memory profiling compiler code //////////////////////
+  /////////////////////////////////////////////////////////////////////////
+  void execute_memProfileAlloc::Print(std::ostream &s) const {
+    if(vars != EMPTY)
+      s << "memory profiling check point (allocate: " << vars
+        << " )" << endl ;
+  }
+
+  void execute_memProfileAlloc::execute(fact_db& facts) {
+    for(variableSet::const_iterator vi=vars.begin();
+        vi!=vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      entitySet alloc_dom = srp->domain() ;
+
+      double currmen = currentMem() ;
+      if(currmen > LociAppPeakMemory)
+        LociAppPeakMemory = currmen ;
+      
+      int packsize = srp->pack_size(alloc_dom) ;
+      LociAppAllocRequestBeanCounting += packsize ;
+      LociAppPMTemp += packsize ;
+         
+      if(LociAppPMTemp > LociAppPeakMemoryBeanCounting)
+        LociAppPeakMemoryBeanCounting = LociAppPMTemp ;
+      if(packsize > LociAppLargestAlloc) {
+        LociAppLargestAlloc = packsize ;
+        LociAppLargestAllocVar = *vi ;
+      }
+    }
+  }
+
+  void execute_memProfileFree::Print(std::ostream &s) const {
+    if(vars != EMPTY)
+      s << "memory profiling check point (free: " << vars
+        << " )" << endl ;
+  }
+
+  void execute_memProfileFree::execute(fact_db& facts) {
+    for(variableSet::const_iterator vi=vars.begin();
+        vi!=vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      entitySet alloc_dom = srp->domain() ;
+      /*
+      double currmen = currentMem() ;
+      if(currmen > LociAppPeakMemory)
+        LociAppPeakMemory = currmen ;
+      */
+      int packsize = srp->pack_size(alloc_dom) ;
+      LociAppFreeRequestBeanCounting += packsize ;
+      LociAppPMTemp -= packsize ;
+      if(LociAppPMTemp < 0)
+        std::cout << "MEMORY PROFILING WARNING: negative memory size"
+                  << endl ;
+      if(packsize > LociAppLargestFree) {
+        LociAppLargestFree = packsize ;
+        LociAppLargestFreeVar = *vi ;
+      }
+    }
+  }
+
+  executeP
+  memProfileAlloc_compiler::create_execution_schedule
+  (fact_db &facts, sched_db &scheds) {
+    return executeP(new execute_memProfileAlloc(vars)) ;
+  }
+
+  executeP
+  memProfileFree_compiler::create_execution_schedule
+  (fact_db &facts, sched_db &scheds) {
+    return executeP(new execute_memProfileFree(vars)) ;
+  }
+
+  
+} // end of namespace Loci

@@ -65,6 +65,12 @@ namespace Loci {
   bool use_dynamic_scheduling = false ;
   // chomping size(unit is KB), default is 128KB
   int chomping_size = 128 ;
+  // flag to enable memory profiling
+  bool profile_memory_usage = false ;
+  // flag to use a different scheduler
+  // (more memory conservative and more synchronization
+  //  points will be generated)
+  bool memory_greedy_schedule = false ;
   /////////////////////////////
   
   ofstream debugout ;
@@ -194,9 +200,19 @@ namespace Loci {
         i++ ;
       } else if(!strcmp((*argv)[i],"--chompingsize")) {
         std::stringstream ss ;
-        ss << (*argv)[i+1] ;        
+        ss << (*argv)[i+1] ;
         ss >> chomping_size ;
+        if(chomping_size > 500*1024*1024/*500MB*/)
+          cerr << "WARNING: setting chompingsize too large"
+               << " may crash the program" << endl ;
         i+=2 ;
+      } else if(!strcmp((*argv)[i],"--memprofile")) {
+        // profiling memory usage at run time
+        profile_memory_usage = true ;
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--memgreedy")) {
+        memory_greedy_schedule = true ;
+        i++ ;
       } else if(!strcmp((*argv)[i],"--method")) {
         method = atoi((*argv)[i+1]);
         i+=2;

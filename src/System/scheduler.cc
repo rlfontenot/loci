@@ -21,16 +21,34 @@ using std::ofstream ;
 ///////////////////////////////////
 #include <sstream>
 #include <algorithm>
+#include <sys/time.h> // for gettimeofday function
 ///////////////////////////////////
 
 #define PROFILE_CODE
 
 namespace Loci {
+  double LociAppPeakMemory = 0 ;
+  double LociAppAllocRequestBeanCounting = 0 ;
+  double LociAppFreeRequestBeanCounting = 0 ;
+  double LociAppPeakMemoryBeanCounting = 0 ;
+  double LociAppLargestAlloc = 0 ;
+  variable LociAppLargestAllocVar("EMPTY") ;
+  double LociAppLargestFree = 0 ;
+  variable LociAppLargestFreeVar("EMPTY") ;
+  double LociAppPMTemp = 0 ;
   ////////////////////////////
+  extern bool profile_memory_usage ;
   extern bool show_graphs ;
   extern void deco_depend_gr(digraph& gr,const variableSet& given) ;
 
   ////////////////////////////
+  namespace {
+    double difftime(timeval t1, timeval t2) {
+      double dt1 = t1.tv_sec + t1.tv_usec*1e-6 ;
+      double dt2 = t2.tv_sec + t2.tv_usec*1e-6 ;
+      return dt2-dt1 ;
+    }
+  }
 
   double get_timer() {
 #ifdef PROFILE_CODE
@@ -717,11 +735,51 @@ namespace Loci {
       sched_file.close() ;
     }
     // execute schedule
-    double st = MPI_Wtime() ;
+    timeval t1,t2 ;
+    //double st = MPI_Wtime() ;
+    gettimeofday(&t1,NULL) ;
     schedule->execute(facts) ;
-    double et = MPI_Wtime() ;
-    Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
+    gettimeofday(&t2,NULL) ;
+    //double et = MPI_Wtime() ;
+    //Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
+    Loci::debugout << " Time taken for exectution of the schedule = "
+                   << difftime(t1,t2) << " seconds " << endl ;
 
+    if(profile_memory_usage) {
+      Loci::debugout << "Peak Memory used: " << LociAppPeakMemory
+                     << " bytes ("
+                     << LociAppPeakMemory/(1024*1024)
+                     << "MB)" << endl ;
+      
+      Loci::debugout << "Total allocation requests: "
+                     << LociAppAllocRequestBeanCounting
+                     << " bytes ("
+                     << LociAppAllocRequestBeanCounting/(1024*1024)
+                     << "MB)" << endl ;
+      
+      Loci::debugout << "Total recycle requests: "
+                     << LociAppFreeRequestBeanCounting
+                     << " bytes ("
+                     << LociAppFreeRequestBeanCounting/(1024*1024)
+                     << "MB)" << endl ;
+      
+      Loci::debugout << "Peak Memory in bean counting: "
+                     << LociAppPeakMemoryBeanCounting << " bytes ("
+                     << LociAppPeakMemoryBeanCounting/(1024*1024)
+                     << "MB)" << endl ;
+      Loci::debugout << "The largest allocation was: "
+                     << LociAppLargestAlloc << " bytes ("
+                     << LociAppLargestAlloc/(1024*1024) << "MB)"
+                     << " for variable: " << LociAppLargestAllocVar
+                     << endl ;
+      Loci::debugout << "The largest recycle was: "
+                     << LociAppLargestFree << " bytes ("
+                     << LociAppLargestFree/(1024*1024) << "MB)"
+                     << " for variable: " << LociAppLargestFreeVar
+                     << endl ;
+    }
+    
     return true ;
   }
-}
+
+} // end of namespace Loci

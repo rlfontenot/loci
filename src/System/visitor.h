@@ -107,11 +107,9 @@ namespace Loci {
     allocGraphVisitor(const std::map<int,variableSet>& t,
                       const std::set<int>& lsn,
                       const std::map<int,variableSet>& rot_vt,
-                      const std::map<int,variableSet>& lsharedt,
                       const std::map<variable,variableSet>& prio_s2t,
                       const variableSet& prio_sources)
       :alloc_table(t),loop_sn(lsn),rotate_vtable(rot_vt),
-      loop_shared_table(lsharedt),
       prio_s2t(prio_s2t),prio_sources(prio_sources) {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
@@ -123,12 +121,26 @@ namespace Loci {
     std::set<int> loop_sn ;
     // table that holds rotate list variables in each loop
     std::map<int,variableSet> rotate_vtable ;
-    // table that holds the shared variables
-    // between adv & col part of each loop
-    std::map<int,variableSet> loop_shared_table ;
     // priority rules information
     std::map<variable,variableSet> prio_s2t ;
     variableSet prio_sources ;
+  } ;
+
+  // memory profiling allocate decoration compiler
+  class memProfileAllocDecoVisitor: public visitor {
+  public:
+    memProfileAllocDecoVisitor(const std::map<int,variableSet>& t,
+                               const std::map<int,variableSet>& rot_vt) ;
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+    virtual void visit(conditional_compiler& cc) ;
+  protected:
+    void edit_gr(digraph& gr,rulecomp_map& rcm,int id) ;
+    std::map<int,variableSet> alloc_table ;
+    // all variables need to be allocated
+    variableSet all_alloc_vars ;
+    // loop rotation variables
+    variableSet loop_rotation_vars ;
   } ;
 
   // generate delete information table
@@ -143,6 +155,7 @@ namespace Loci {
                       const std::map<int,int>& pnt,
                       const std::map<int,int>& lct,
                       const std::set<int>& lsn,
+                      const std::set<int>& csn,
                       const std::map<int,variableSet>& rot_vt,
                       const std::map<int,variableSet>& lsharedt,
                       const variableSet& reserved_vars) ;
@@ -201,13 +214,13 @@ namespace Loci {
     std::map<int,int> loop_ctable ;
     // set that holds all the loop node id
     std::set<int> loop_sn ;
+    // set that holds all the conditional node id
+    std::set<int> cond_sn ;
     // table that holds rotate list variables in each loop
     std::map<int,variableSet> rotate_vtable ;
     // table that holds the shared variables
     // between adv & col part of each loop
     std::map<int,variableSet> loop_shared_table ;
-    // all the collapse node id
-    std::set<int> col_sn ;
     // all the loop rotate variables
     variableSet all_rot_vars ;
   } ;
@@ -328,6 +341,8 @@ namespace Loci {
     {return graph_sn ;}
     std::set<int> get_loop_sn() const
     {return loop_sn ;}
+    std::set<int> get_cond_sn() const
+      {return cond_sn ;}
     std::map<int,std::set<int> > get_subnode_table() const
     {return subnode_table ;}
     std::map<int,int> get_loop_col_table() const
@@ -339,6 +354,8 @@ namespace Loci {
     std::set<int> graph_sn ;
     // all the loop super node id
     std::set<int> loop_sn ;
+    // all the conditional node id
+    std::set<int> cond_sn ;
     // table that holds all the super nodes' id inside a super node
     std::map<int,std::set<int> > subnode_table ;
     // table that holds the collapse node of each loop
@@ -459,6 +476,7 @@ namespace Loci {
                      const variableSet& psource,
                      const variableSet& ptarget,
                      const std::set<int>& gsn,
+                     const std::set<int>& csn,
                      variableSet& input) ;
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
@@ -479,6 +497,8 @@ namespace Loci {
     variableSet promote_source_vars, promote_target_vars ;
     std::map<variable,variableSet> promote_t2s, promote_s2t ;
     std::set<int> graph_sn ;
+    // set that holds all the conditional node id
+    std::set<int> cond_sn ;
     variableSet reserved_vars ;
   } ;
 
@@ -562,7 +582,7 @@ namespace Loci {
   private:
     void process_rcm(rulecomp_map& rcm) ;
     void schedule_chomp(chomp_compiler& chc) ;
-    void compile_chomp(chomp_compiler& chc) ;
+    void compile_chomp(chomp_compiler& chc, const rulecomp_map& rcm) ;
   } ;
 
   // graph schedule visitor that is lazy on allocation
@@ -573,7 +593,7 @@ namespace Loci {
     virtual void visit(conditional_compiler& cc) ;
   private:
     std::vector<digraph::vertexSet>
-      schedule(const digraph& gr) ;
+      get_firstSched(const digraph& gr) const ;
   } ;
 
   // visitor that collect the unit and apply information
@@ -595,6 +615,33 @@ namespace Loci {
     void gather_info(const digraph& gr) ;
   } ;
   
+  // visitor that reports the allocation and deletion
+  // numbers in each super node
+  class allocDelNumReportVisitor: public visitor {
+  public:
+    allocDelNumReportVisitor(std::ostream& sout=std::cout):s(sout) {}
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+    virtual void visit(conditional_compiler& cc) ;
+  private:
+    void adNum(const digraph& gr,int& alloc_num,int& del_num) ;
+    std::ostream& s ;
+  } ;
+
+  // scheduling visitor that is greedy on memory
+  // usage and may increase the sychronization points
+  class memGreedySchedVisitor: public visitor {
+  public:
+    memGreedySchedVisitor(fact_db& fd): facts(fd) {}
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+    virtual void visit(conditional_compiler& cc) ;
+  private:
+    std::vector<digraph::vertexSet>
+      get_firstSched(const digraph& gr) ;
+    fact_db& facts ;
+  } ;  
+
   // overload "<<" to print out an std::set
   template<typename T>
   inline std::ostream& operator<<(std::ostream& s, const std::set<T>& ss) {

@@ -10,6 +10,8 @@ using std::vector ;
 using std::map ;
 using std::cerr;
 using std::endl;
+#include <deque>
+using std::deque ;
 
 namespace Loci {
 
@@ -55,8 +57,8 @@ namespace Loci {
       // We only schedule vertices that are also in the only_vertices set
       working = new_vertices & only_vertices ;
       new_vertices = EMPTY ;
-      // Find any vertex from this working set that has had all vertices leading
-      // to it scheduled
+      // Find any vertex from this working set that has had all
+      // vertices leading to it scheduled
       for(ni=working.begin();ni != working.end(); ++ni) 
         if((gt[*ni] & visited_vertices) == gt[*ni])
           new_vertices += *ni ;
@@ -289,7 +291,8 @@ namespace Loci {
       }
 
       all_vars += barrier_vars ;
-      dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
+      if(barrier_vars != EMPTY)
+        dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
       
       all_vars += singleton_vars ;
 
@@ -370,76 +373,378 @@ namespace Loci {
   }
 
   /////////////////////////////////////////////////////////////////
+  // utility functions
+  /////////////////////////////////////////////////////////////////
+  namespace {
+
+    vector<digraph::vertexSet> insertAlloc2Sched
+    (const digraph &gr,
+     const vector<digraph::vertexSet>& firstSched) {
+      // then we schedule those alloc rules
+      digraph grt = gr.transpose() ;
+      vector<digraph::vertexSet> finalSched ;
+      
+      digraph::vertexSet last ;
+      digraph::vertexSet sched_alloc ;
+      for(vector<digraph::vertexSet>::const_iterator vi=firstSched.begin();
+          vi!=firstSched.end();++vi) {
+        digraph::vertexSet step = *vi ;
+        ruleSet step_rules = extract_rules(step) ;
+        
+        digraph::vertexSet pre_vertices ;
+        for(ruleSet::const_iterator ri=step_rules.begin();
+            ri!=step_rules.end();++ri)
+          pre_vertices += grt[ri->ident()] ;
+        
+        ruleSet pre_rules = extract_rules(pre_vertices) ;
+        digraph::vertexSet needed_alloc ;
+        for(ruleSet::const_iterator ri=pre_rules.begin();
+            ri!=pre_rules.end();++ri)
+          if(ri->get_info().qualifier() == "ALLOCATE")
+            needed_alloc += ri->ident() ;
+        
+        needed_alloc -= sched_alloc ;
+        sched_alloc += needed_alloc ;
+        
+        digraph::vertexSet sum = needed_alloc + last ;
+        if(sum != EMPTY)
+          finalSched.push_back(sum) ;
+        
+        last = step ;
+      }
+      if(last != EMPTY)
+        finalSched.push_back(last) ;
+      
+      return finalSched ;
+    }
+
+    //special depth first scheduling
+    typedef enum {WHITE, GRAY, BLACK} vertex_color ;
+    // depth first visit and topo sort
+    void dfs_visit(const digraph& dag, int_type v,
+                   map<int_type,vertex_color>& vc,
+                   deque<int_type>& sched) {
+      vc[v] = GRAY ;
+      digraph::vertexSet next = dag[v] ;
+
+      // findout all the delete rules
+      ruleSet rules = extract_rules(next) ;
+      digraph::vertexSet delrules ;
+      for(ruleSet::const_iterator ri=rules.begin();
+          ri!=rules.end();++ri)
+        if(ri->get_info().qualifier() == "DELETE") {
+          delrules += ri->ident() ;
+          next -= ri->ident() ;
+        }
+      
+      map<int_type,vertex_color>::const_iterator cfound ;
+
+      // first schedule delete rules
+      for(digraph::vertexSet::const_iterator vi=delrules.begin();
+          vi!=delrules.end();++vi) {
+        cfound = vc.find(*vi) ;
+        FATAL(cfound == vc.end()) ;
+        if(cfound->second == WHITE)
+          dfs_visit(dag,*vi,vc,sched) ;
+      }      
+
+      // then schedule the rest
+      for(digraph::vertexSet::const_iterator vi=next.begin();
+          vi!=next.end();++vi) {
+        cfound = vc.find(*vi) ;
+        FATAL(cfound == vc.end()) ;
+        if(cfound->second == WHITE)
+          dfs_visit(dag,*vi,vc,sched) ;
+      }
+      vc[v] = BLACK ;
+      sched.push_front(v) ;
+    }
+    
+    // topologically sort a dag
+    vector<digraph::vertexSet> dfs_sched(const digraph& dag) {
+      deque<int_type> sched ;
+      digraph::vertexSet allv = dag.get_all_vertices();
+      map<int_type,vertex_color> vcolor ;
+      for(digraph::vertexSet::const_iterator vi=allv.begin();
+          vi!=allv.end();++vi)
+        vcolor[*vi] = WHITE ;
+
+      map<int_type,vertex_color>::const_iterator cfound ;
+      for(digraph::vertexSet::const_iterator vi=allv.begin();
+          vi!=allv.end();++vi) {
+        cfound = vcolor.find(*vi) ;
+        FATAL(cfound == vcolor.end()) ;
+        if(cfound->second == WHITE)
+          dfs_visit(dag,*vi,vcolor,sched) ;
+      }
+
+      vector<digraph::vertexSet> ret_sched ;
+      for(deque<int_type>::size_type i=0;i!=sched.size();++i) {
+        digraph::vertexSet step ;
+        step += sched[i] ;
+        ret_sched.push_back(step) ;
+      }
+
+      return ret_sched ;
+    }
+    
+    
+  } // end of namespace
+
+  /////////////////////////////////////////////////////////////////
   // simLazyAllocSchedVisitor
   /////////////////////////////////////////////////////////////////
-  vector<digraph::vertexSet>
-  simLazyAllocSchedVisitor::schedule(const digraph &gr) {
+  std::vector<digraph::vertexSet>
+  simLazyAllocSchedVisitor::get_firstSched(const digraph& gr) const {
     // first we get all vertices except all the allocate rules
     ruleSet rules = extract_rules(gr.get_all_vertices()) ;
-
+    
     digraph::vertexSet alloc_rules_vertices ;
     for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
       if(ri->get_info().qualifier() == "ALLOCATE")
         alloc_rules_vertices += ri->ident() ;
-
+    
     vector<digraph::vertexSet> first_sched ;
     
     first_sched =
       orderVisitor::order_dag(gr,alloc_rules_vertices,
                               gr.get_all_vertices()-alloc_rules_vertices) ;
-    
-    // then we schedule those alloc rules
-    digraph grt = gr.transpose() ;
-    vector<digraph::vertexSet> final_sched ;
 
-    digraph::vertexSet last ;
-    digraph::vertexSet sched_alloc ;
-    for(vector<digraph::vertexSet>::const_iterator vi=first_sched.begin();
-        vi!=first_sched.end();++vi) {
-      digraph::vertexSet step = *vi ;
-      ruleSet step_rules = extract_rules(step) ;
-      
-      digraph::vertexSet pre_vertices ;
-      for(ruleSet::const_iterator ri=step_rules.begin();
-          ri!=step_rules.end();++ri)
-        pre_vertices += grt[ri->ident()] ;
-
-      ruleSet pre_rules = extract_rules(pre_vertices) ;
-      digraph::vertexSet needed_alloc ;
-      for(ruleSet::const_iterator ri=pre_rules.begin();
-          ri!=pre_rules.end();++ri)
-        if(ri->get_info().qualifier() == "ALLOCATE")
-          needed_alloc += ri->ident() ;
-
-      needed_alloc -= sched_alloc ;
-      sched_alloc += needed_alloc ;
-
-      digraph::vertexSet sum = needed_alloc + last ;
-      if(sum != EMPTY)
-        final_sched.push_back(sum) ;
-
-      last = step ;
-    }
-    if(last != EMPTY)
-      final_sched.push_back(last) ;
-
-    return final_sched ;
+    return first_sched ;
   }
-  
-  void simLazyAllocSchedVisitor::visit(loop_compiler& lc) {    
-    lc.collapse_sched = schedule(lc.collapse_gr) ;
-    lc.advance_sched = schedule(lc.advance_gr) ;
+
+  void simLazyAllocSchedVisitor::visit(loop_compiler& lc) {
+    vector<digraph::vertexSet> first_sched ;
+
+    first_sched = get_firstSched(lc.collapse_gr) ;
+    lc.collapse_sched = insertAlloc2Sched(lc.collapse_gr,first_sched) ;
+
+    first_sched = get_firstSched(lc.advance_gr) ;
+    lc.advance_sched = insertAlloc2Sched(lc.advance_gr,first_sched) ;
   }
 
   void simLazyAllocSchedVisitor::visit(dag_compiler& dc) {
-    dc.dag_sched = schedule(dc.dag_gr) ;
+    vector<digraph::vertexSet> first_sched = get_firstSched(dc.dag_gr) ;
+    dc.dag_sched = insertAlloc2Sched(dc.dag_gr,first_sched) ;
   }
 
   void simLazyAllocSchedVisitor::visit(conditional_compiler& cc) {
-    cc.dag_sched = schedule(cc.cond_gr) ;
+    vector<digraph::vertexSet> first_sched = get_firstSched(cc.cond_gr) ;
+    cc.dag_sched = insertAlloc2Sched(cc.cond_gr,first_sched) ;
   }
 
+  /////////////////////////////////////////////////////////////////
+  // memGreedySchedVisitor
+  /////////////////////////////////////////////////////////////////
+  std::vector<digraph::vertexSet>
+  memGreedySchedVisitor::get_firstSched(const digraph& gr) {
+    ruleSet rules = extract_rules(gr.get_all_vertices()) ;    
+    digraph::vertexSet alloc_rules_vertices ;
+    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
+      if(ri->get_info().qualifier() == "ALLOCATE")
+        alloc_rules_vertices += ri->ident() ;
 
+    digraph grt = gr.transpose() ;
+    
+    vector<digraph::vertexSet> schedule ; 
+    digraph::vertexSet waiting = gr.get_source_vertices() -
+      gr.get_target_vertices() - alloc_rules_vertices ;
+    
+    // visited vertices are all vertices that have already been scheduled
+    digraph::vertexSet visited_vertices = alloc_rules_vertices ;
+    while(waiting != EMPTY) {
+      // we need to schedule the waiting set of vertices
+      // but we assign priority to vertices insice the waiting set
+      // we first schedule all variables, delete rules, rules that cause
+      // deletion, or rules that don't change memory status.
+      digraph::vertexSet step_sched ;
+      for(digraph::vertexSet::const_iterator vi=waiting.begin();
+          vi!=waiting.end();++vi) {
+        if(*vi >= 0)
+          step_sched += *vi ;
+        else {
+          rule r(*vi) ;
+          if(r.get_info().qualifier() == "DELETE")
+            step_sched += *vi ;
+          else {
+            // look back
+            ruleSet pre_rules = extract_rules(grt[*vi]) ;
+            bool has_alloc = false ;
+            for(ruleSet::const_iterator ri=pre_rules.begin();
+                ri!=pre_rules.end();++ri)
+              if(ri->get_info().qualifier() == "ALLOCATE") {
+                variableSet targets = ri->targets() ;
+                for(variableSet::const_iterator vi2=targets.begin();
+                    vi2!=targets.end();++vi2) {
+                  storeRepP srp = facts.get_variable(*vi2) ;
+                  if(srp->RepType() == Loci::STORE) {
+                    has_alloc = true ;
+                    break ;
+                  }
+                }
+              }
+            if(!has_alloc)
+              step_sched += *vi ;
+          }
+        }
+      }
+      step_sched -= visited_vertices ;
+      digraph::vertexSet valid_sched ;
+      for(digraph::vertexSet::const_iterator vi=step_sched.begin();
+          vi!=step_sched.end();++vi)
+        if( (grt[*vi] - visited_vertices) == EMPTY)
+          valid_sched += *vi ;
+      
+      step_sched = valid_sched ;
+      // if any thing inside, we schedule this set
+      if(step_sched != EMPTY) {
+        digraph::vertexSet new_vertices ;
+        for(digraph::vertexSet::const_iterator vi=step_sched.begin();
+            vi!=step_sched.end();++vi)
+          new_vertices += gr[*vi] ;
+        waiting -= step_sched ;
+        waiting += new_vertices ;
+        visited_vertices += step_sched ;
+        schedule.push_back(step_sched) ;
+        continue ;
+      }
+
+      // now, step_sched must be empty,
+      // we pick a rule from the waiting set
+      // all rules left now must lead to allocation, we first
+      // check to see if there's any rule that lead to deletion also.
+      // we schedule the one that lead to most deletions
+      int num_del = 0 ;
+      int num_alloc = UNIVERSE_MAX ;
+      int_type sched_v = 0 ;
+      for(digraph::vertexSet::const_iterator vi=waiting.begin();
+          vi!=waiting.end();++vi) {
+        if(*vi < 0) { // a rule
+          if( (grt[*vi] - visited_vertices) != EMPTY)
+            continue ;
+          int local_num_del = 0 ;
+          ruleSet next = extract_rules(gr[*vi]) ;
+          for(ruleSet::const_iterator ri=next.begin();
+              ri!=next.end();++ri) {
+            if(ri->get_info().qualifier() == "DELETE") {
+              variableSet targets = ri->targets() ;
+              for(variableSet::const_iterator vi2=targets.begin();
+                  vi2!=targets.end();++vi2) {
+                storeRepP srp = facts.get_variable(*vi2) ;
+                if(srp->RepType() == Loci::STORE)
+                  ++local_num_del ;
+              }
+            }
+          }
+          int local_num_alloc = 0 ;
+          ruleSet pre = extract_rules(grt[*vi]) ;
+          for(ruleSet::const_iterator ri=pre.begin();
+              ri!=pre.end();++ri) {
+            if(ri->get_info().qualifier() == "ALLOCATE") {
+              variableSet targets = ri->targets() ;
+              for(variableSet::const_iterator vi2=targets.begin();
+                  vi2!=targets.end();++vi2) {
+                storeRepP srp = facts.get_variable(*vi2) ;
+                if(srp->RepType() == Loci::STORE)
+                  ++local_num_alloc ;
+              }
+            }
+          }
+
+          if(local_num_del > num_del) {
+            num_del = local_num_del ;
+            sched_v = *vi ;
+            num_alloc = local_num_alloc ;
+          }
+          if(local_num_del == num_del)
+            if(local_num_alloc < num_alloc) {
+              num_alloc = local_num_alloc ;
+              sched_v = *vi ;
+            }
+        }
+      }
+      // see if we found any to schedule
+      if(sched_v < 0) {
+        step_sched += sched_v ;
+        waiting -= step_sched ;
+        waiting += gr[sched_v] ;
+        visited_vertices += step_sched ;
+        schedule.push_back(step_sched) ;
+        continue ;        
+      }
+      // otherwise we pick one rule from the rest vertex set
+      // we pick one that has fewest outgoing edges from all
+      // of its target variables that are store
+      int out_edges = UNIVERSE_MAX ;
+      for(digraph::vertexSet::const_iterator vi=waiting.begin();
+          vi!=waiting.end();++vi) {
+        if(*vi < 0) { // a rule
+          if( (grt[*vi] - visited_vertices) != EMPTY)
+            continue ;
+          rule r(*vi) ;
+          variableSet targets = r.targets() ;
+          int local_out_edges = 0 ;
+          for(variableSet::const_iterator vi2=targets.begin();
+              vi2!=targets.end();++vi2) {
+            storeRepP srp = facts.get_variable(*vi2) ;
+            if(srp->RepType() == Loci::STORE) {
+              digraph::vertexSet nextv = gr[vi2->ident()] ;
+              local_out_edges += nextv.size() ;
+            }
+          }
+          if(local_out_edges < out_edges) {
+            out_edges = local_out_edges ;
+            sched_v = *vi ;
+          }
+        }
+      }
+      // if there's no scheduling candidate, the graph
+      // must have problem
+      if(sched_v >= 0) {
+        cout << "Cannot proceed in graph scheduling!"
+             << " The graph may have cycles!" << endl ;
+        exit(-1) ;
+      }
+      // we schedule this rule
+      step_sched += sched_v ;
+      waiting -= step_sched ;
+      waiting += gr[sched_v] ;
+      visited_vertices += step_sched ;
+      schedule.push_back(step_sched) ;
+    }
+    return schedule ;
+
+    /*
+    vector<digraph::vertexSet> components =
+      component_sort(gr_wo_alloc).get_components() ;
+
+      return components ;
+    */
+    /*
+    vector<digraph::vertexSet> sched = dfs_sched(gr_wo_alloc) ;
+    return sched ;
+    */
+  }
+
+  void memGreedySchedVisitor::visit(loop_compiler& lc) {
+    vector<digraph::vertexSet> first_sched ;
+    
+    first_sched = get_firstSched(lc.collapse_gr) ;
+    lc.collapse_sched = insertAlloc2Sched(lc.collapse_gr,first_sched) ;
+
+    first_sched = get_firstSched(lc.advance_gr) ;
+    lc.advance_sched = insertAlloc2Sched(lc.advance_gr,first_sched) ;
+  }
+
+  void memGreedySchedVisitor::visit(dag_compiler& dc) {
+    vector<digraph::vertexSet> first_sched = get_firstSched(dc.dag_gr) ;
+    dc.dag_sched = insertAlloc2Sched(dc.dag_gr,first_sched) ;
+  }
+
+  void memGreedySchedVisitor::visit(conditional_compiler& cc) {
+    vector<digraph::vertexSet> first_sched = get_firstSched(cc.cond_gr) ;
+    cc.dag_sched = insertAlloc2Sched(cc.cond_gr,first_sched) ;
+  }
 
   
 } // end of namespace Loci

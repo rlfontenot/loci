@@ -9,6 +9,7 @@ using std::set ;
 
 
 namespace Loci {
+  extern bool profile_memory_usage ;
 
   ////////////////////////////////////////////////////////////////
   // allocInfoVisitor
@@ -244,11 +245,12 @@ namespace Loci {
       gr.add_edges(alloc_rule.ident(),source_rules) ;
       // modify the rulecomp_map
       rcm[alloc_rule] = new allocate_var_compiler(*varIter) ;
+
       // remove variable in alloc_vars
       alloc_vars -= *varIter ;
     }
     // if alloc_vars is not empty, it must contain loop rotate list
-    // variables and loop shared variables. we allocate them here
+    // variables. we allocate them here
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       variableSet rotate_vars ;
@@ -265,7 +267,7 @@ namespace Loci {
 
           for(variableSet::const_iterator vi=alloc_vars.begin();
               vi!=alloc_vars.end();++vi) {
-            // rotate list vars & shared vars
+            // rotate list vars
             if(rotate_vars.inSet(*vi)) {
               allocated += *vi ;
               
@@ -320,18 +322,16 @@ namespace Loci {
                     const map<int,int>& pnt,
                     const map<int,int>& lct,
                     const set<int>& lsn,
+                    const set<int>& csn,
                     const map<int,variableSet>& rot_vt,
                     const map<int,variableSet>& lsharedt,
                     const variableSet& reserved_vars)
     :recur_vars_t2s(rvt2s), recur_vars_s2t(rvs2t),
      loop_alloc_table(lat), graph_sn(gsn),
      pnode_table(pnt), loop_ctable(lct),
-     loop_sn(lsn), rotate_vtable(rot_vt),
+     loop_sn(lsn), cond_sn(csn), rotate_vtable(rot_vt),
      loop_shared_table(lsharedt){
       
-    for(std::map<int,int>::const_iterator mi=loop_ctable.begin();
-        mi!=loop_ctable.end();++mi)
-      col_sn.insert(mi->second) ;
     for(std::map<int,variableSet>::const_iterator mi=rotate_vtable.begin();
         mi!=rotate_vtable.end();++mi)
       all_rot_vars += mi->second ;
@@ -672,12 +672,13 @@ namespace Loci {
         }
       }
     }
-    if( (rules.size() == 1) && (supernode_num == 1)) {
-      // check to see if it is a collapse node
+    if(supernode_num == 1) {
+      // check to see if it is a conditional node
       // if it is, we delete it in the graph
-      if(inSet(col_sn,get_supernode_num(supernode)))
+      if(inSet(cond_sn,get_supernode_num(supernode)))
         return false ;
-      return true ;
+      else if(rules.size() == 1)
+        return true ;
     }
     if(supernode_num != 1)
       return false ;
@@ -769,6 +770,28 @@ namespace Loci {
       gr.add_edges(target_rules,delete_rule.ident()) ;
       // modify the rulecomp_map
       rcm[delete_rule] = new free_var_compiler(*varIter) ;
+
+      // add memory profiling alloc compiler here
+      if(profile_memory_usage) {
+        variable sv("PROFILE") ;
+        rule profile_delete_rule = create_rule(sv,*varIter,"MEMPROFILED") ;
+        gr.add_edges(target_rules,profile_delete_rule.ident()) ;
+        // gather profile alloc compilers connect to the target rules
+        digraph::vertexSet profileAcompilers ;
+        for(digraph::vertexSet::const_iterator paci=target_rules.begin();
+            paci!=target_rules.end();++paci) {
+          ruleSet next = extract_rules(gr[*paci]) ;
+          for(ruleSet::const_iterator pacii=next.begin() ;
+              pacii!=next.end();++pacii)
+            if(pacii->get_info().qualifier() == "MEMPROFILEA")
+              profileAcompilers += pacii->ident() ;
+        }
+        gr.add_edges(profileAcompilers,profile_delete_rule.ident()) ;
+        // this must happen before the actual deletion
+        gr.add_edge(profile_delete_rule.ident(),delete_rule.ident()) ;
+        rcm[profile_delete_rule] = new memProfileFree_compiler(*varIter) ;
+      }
+      
       // remove variable in alloc_vars
       delete_vars -= *varIter ;
     }
@@ -778,11 +801,11 @@ namespace Loci {
 
     if(delete_vars != EMPTY) {
       // first find out all the leaf node in the graph
-      digraph::vertexSet leaf_node ;
+      digraph::vertexSet leaf_nodes ;
       for(digraph::vertexSet::const_iterator vi=allvertices.begin();
           vi!=allvertices.end();++vi) {
         if(gr[*vi] == EMPTY)
-          leaf_node += *vi ;
+          leaf_nodes += *vi ;
       }
       
       for(variableSet::const_iterator vi=delete_vars.begin();
@@ -793,9 +816,20 @@ namespace Loci {
         // we make the rule happen at last in the graph
         // we connect all the leaf node in the graph
         // to this deletion rule
-        gr.add_edges(leaf_node,delete_rule.ident()) ;
+        gr.add_edges(leaf_nodes,delete_rule.ident()) ;
         // modify the rulecomp_map
-        rcm[delete_rule] = new free_var_compiler(*vi) ; 
+        rcm[delete_rule] = new free_var_compiler(*vi) ;
+
+        // add memory profiling alloc compiler here
+        if(profile_memory_usage) {
+          variable sv("PROFILE") ;
+          rule profile_delete_rule = create_rule(sv,*vi,"MEMPROFILED") ;
+          gr.add_edges(leaf_nodes,profile_delete_rule.ident()) ;
+          // this must happen before the actual deletion
+          gr.add_edge(profile_delete_rule.ident(),delete_rule.ident()) ;
+          rcm[profile_delete_rule] = new memProfileFree_compiler(*vi) ;
+        }// end if profile_memory_usage
+        
       }
     }
   }
@@ -812,5 +846,129 @@ namespace Loci {
   void deleteGraphVisitor::visit(conditional_compiler& cc) {
     edit_gr(cc.cond_gr,cc.rule_compiler_map,cc.cid) ;
   }
+
+  //////////////////////////////////////////////////////////
+  // memProfileAllocDecoVisitor
+  //////////////////////////////////////////////////////////
+  memProfileAllocDecoVisitor::
+  memProfileAllocDecoVisitor(const std::map<int,variableSet>& t,
+                             const std::map<int,variableSet>& rot_vt)
+    :alloc_table(t) {
+    map<int,variableSet>::const_iterator mi ;
+    for(mi=t.begin();mi!=t.end();++mi)
+      all_alloc_vars += mi->second ;
+    for(mi=rot_vt.begin();mi!=rot_vt.end();++mi)
+      loop_rotation_vars += mi->second ;
+  }
+
+  void memProfileAllocDecoVisitor::
+  edit_gr(digraph& gr,rulecomp_map& rcm,int id) {
+    // first get the transposed graph
+    digraph grt = gr.transpose() ;
+    // obtain all the rules
+    digraph::vertexSet allvertices = gr.get_all_vertices() ;
+    ruleSet rules = extract_rules(allvertices) ;
+
+    // variables processed in this graph
+    variableSet working_vars ;
+
+    ruleSet alloc_profile_rules ;
+    for(ruleSet::const_iterator ruleIter=rules.begin();
+        ruleIter!=rules.end();++ruleIter) {
+      if( (ruleIter->get_info().qualifier() == "MEMPROFILEA") ||
+          (ruleIter->get_info().qualifier() == "ALLOCATE")
+          )
+        alloc_profile_rules += *ruleIter ;
+    }
+    rules -= alloc_profile_rules ;
+
+    for(ruleSet::const_iterator ruleIter=rules.begin();
+        ruleIter!=rules.end();++ruleIter) {
+      working_vars += ruleIter->targets() ;
+    }
+
+
+    // first we get the info in alloc_table, find out which variables
+    // need to be allocated in the graph
+    map<int,variableSet>::const_iterator found ;
+    found = alloc_table.find(id) ;
+    FATAL(found == alloc_table.end()) ;
+    variableSet profile_vars = found->second ;
+
+    // rotation list vars are handled specially
+    profile_vars -= loop_rotation_vars ;
+    {
+      variableSet local_loop_rotation_vars =
+        variableSet(loop_rotation_vars & working_vars) ;
+      variableSet local_alloc_lrt_vars =
+        variableSet(local_loop_rotation_vars & all_alloc_vars) ;
+      profile_vars += local_alloc_lrt_vars ;
+    }
+    for(variableSet::const_iterator varIter=working_vars.begin();
+        varIter!=working_vars.end();++varIter) {
+      // we look for loop rotation vars and normal vars that
+      // need to be profiled
+      if(!profile_vars.inSet(*varIter))
+        continue ;
+      // now we decorate the graph to include the profiling
+      // we first obtain the ident of rules that produce the variable
+      digraph::vertexSet source_rules = grt[varIter->ident()] ;
+      // if source_rules is empty, then the variable is not
+      // present in this graph, we need a search to find out
+      // the source_rules
+      if(source_rules == EMPTY) {
+        for(ruleSet::const_iterator ruleIter=rules.begin();
+            ruleIter!=rules.end();++ruleIter) {
+          variableSet targets = ruleIter->targets() ;
+          if(targets.inSet(*varIter))
+            source_rules += ruleIter->ident() ;
+        }
+      }
+
+      digraph::vertexSet target_rules ;
+      if(allvertices.inSet(varIter->ident())) {
+        target_rules = gr[varIter->ident()] ;
+      } else {
+        for(digraph::vertexSet::const_iterator veri=source_rules.begin();
+            veri!=source_rules.end();++veri)
+          target_rules += get_vertexSet(extract_rules(gr[*veri])) ;
+      }
+      // but we need to exclude any MEMPROFILEA compilers from it
+      digraph::vertexSet take_off_from_targets ;
+      ruleSet trules = extract_rules(target_rules) ;
+      for(ruleSet::const_iterator ri=trules.begin();
+          ri!=trules.end();++ri)
+        if(ri->get_info().qualifier() == "MEMPROFILEA")
+          take_off_from_targets += ri->ident() ;
+
+      target_rules -= take_off_from_targets ;
+
+      variable sv("PROFILE") ;
+      rule profile_alloc_rule = create_rule(sv,*varIter,"MEMPROFILEA") ;
+      
+      gr.add_edges(source_rules,profile_alloc_rule.ident()) ;
+      gr.add_edge(varIter->ident(),profile_alloc_rule.ident()) ;
+      if(target_rules != EMPTY)
+        gr.add_edges(profile_alloc_rule.ident(),target_rules) ;        
+
+      rcm[profile_alloc_rule] = new memProfileAlloc_compiler(*varIter) ;
+      
+    }
+  }
+
+  void memProfileAllocDecoVisitor::visit(loop_compiler& lc) {
+    edit_gr(lc.collapse_gr,lc.rule_compiler_map,-lc.cid) ;
+    edit_gr(lc.advance_gr,lc.rule_compiler_map,lc.cid) ;
+  }
+
+  void memProfileAllocDecoVisitor::visit(dag_compiler& dc) {
+    edit_gr(dc.dag_gr,dc.rule_compiler_map,dc.cid) ;
+  }
+
+  void memProfileAllocDecoVisitor::visit(conditional_compiler& cc) {
+    edit_gr(cc.cond_gr,cc.rule_compiler_map,cc.cid) ;
+  }
+
+
 
 } // end of namespace Loci
