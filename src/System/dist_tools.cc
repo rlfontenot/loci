@@ -38,6 +38,10 @@ namespace Loci {
     FORALL(global_bdom, i) {
       int tmp = p % Loci::MPI_processes ;
       ptn[tmp] += i ;
+#ifdef COMP_ENT
+      if(tmp == Loci::MPI_rank)
+	facts.global_comp_entities += i;
+#endif
       p++ ;
     } ENDFORALL ;
     variableSet tmp_vars = facts.get_typed_variables();
@@ -57,20 +61,25 @@ namespace Loci {
         facts.replace_fact(*vi, map_sp) ;
       }
     }
-    entitySet tmp_copy, image ;
     std::set<std::vector<variableSet> > maps ;
 
-    entitySet::const_iterator ei ;
+#ifdef COMP_ENT
+     Loci::get_mappings(rdb, facts, maps, true);
+     facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, maps);
+     entitySet tmp_set = facts.global_comp_entities;
+#else
+    entitySet tmp_set = ptn[Loci::MPI_rank] ;
+#endif
     Loci::get_mappings(rdb,facts,maps) ;
+    entitySet tmp_copy, image ;
+    image = Loci::dist_expand_map(tmp_set, facts, maps) ;
+    tmp_copy =  image - ptn[MPI_rank] ; 
     std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
     int *recv_count = new int[MPI_processes] ;
     int *send_count = new int[MPI_processes] ;
     int *send_displacement = new int[MPI_processes];
     int *recv_displacement = new int[MPI_processes];
     int size_send = 0 ;
-    entitySet tmp_set = ptn[Loci::MPI_rank] ; 
-    image = Loci::dist_expand_map(tmp_set, facts, maps) ;
-    tmp_copy =  image - ptn[MPI_rank] ; 
     for(int i = 0; i < MPI_processes; ++i) {
       copy[i] = tmp_copy & ptn[i] ;
       send_count[i] = copy[i].size() ;
@@ -85,6 +94,7 @@ namespace Loci {
     }
     int *recv_buf = new int[size_send] ;
     size_send = 0 ;
+    entitySet::const_iterator ei ;
     for(int i = 0; i < MPI_processes; ++i)
       for(ei = copy[i].begin(); ei != copy[i].end(); ++ei) {
         send_buf[size_send] = *ei ;
@@ -216,6 +226,14 @@ namespace Loci {
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
+#ifdef COMP_ENT
+    g = EMPTY;
+    for(ei = facts.global_comp_entities.begin();
+	ei != facts.global_comp_entities.end(); ++ei)
+      g += df->g2l[*ei] ;
+    df->comp_entities = g;
+#endif
+
     /*xmit data structure contains the information as to what
       entities are to be send to what processor . The copy data
       structure contains the entities that are to be received from a
@@ -397,7 +415,7 @@ namespace Loci {
     the constraints of the rules. */
 
   void get_mappings(const rule_db &rdb, fact_db &facts,
-                    set<vector<variableSet> > &maps_ret) {
+                    set<vector<variableSet> > &maps_ret, bool only_head) {
     ruleSet rules = rdb.all_rules() ;
     set<vector<variableSet> > maps ;
     
@@ -420,41 +438,42 @@ namespace Loci {
           maps.insert(vvs) ;
 	}
       }
-    
-      for(vmsi = ri->get_info().desc.sources.begin();
-          vmsi != ri->get_info().desc.sources.end();
-          ++vmsi) {
-        if(vmsi->mapping.size() != 0) {
-          vector<variableSet> vvs ;
-	  for(size_t i = 0; i < vmsi->mapping.size(); ++i) {
-	    variableSet v ;
-	    for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
-                vi != vmsi->mapping[i].end();
-                ++vi) {
-	      v += variable(*vi,time_ident()) ;
+
+      if(!only_head) {
+	for(vmsi = ri->get_info().desc.sources.begin();
+	    vmsi != ri->get_info().desc.sources.end();
+	    ++vmsi) {
+	  if(vmsi->mapping.size() != 0) {
+	    vector<variableSet> vvs ;
+	    for(size_t i = 0; i < vmsi->mapping.size(); ++i) {
+	      variableSet v ;
+	      for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
+		  vi != vmsi->mapping[i].end();
+		  ++vi) {
+		v += variable(*vi,time_ident()) ;
+	      }
+	      vvs.push_back(v) ;
 	    }
-	    vvs.push_back(v) ;
+	    maps.insert(vvs) ;
 	  }
-          maps.insert(vvs) ;
 	}
-      }
-    
-    
-      for(vmsi = ri->get_info().desc.constraints.begin();
-          vmsi != ri->get_info().desc.constraints.end();
-          ++vmsi) {
-        if(vmsi->mapping.size() != 0) {
-          for(size_t i = 0; i < vmsi->mapping.size(); i++) {
-            for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
-                vi != vmsi->mapping[i].end();
-                ++vi) {
-              variableSet v ;
-              v += variable(*vi,time_ident()) ;
-              vector<variableSet> vvs ;
-              vvs.push_back(v) ;
-              maps.insert(vvs) ;
-            }
-	  
+	
+	
+	for(vmsi = ri->get_info().desc.constraints.begin();
+	    vmsi != ri->get_info().desc.constraints.end();
+	    ++vmsi) {
+	  if(vmsi->mapping.size() != 0) {
+	    for(size_t i = 0; i < vmsi->mapping.size(); i++) {
+	      for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
+		  vi != vmsi->mapping[i].end();
+		  ++vi) {
+		variableSet v ;
+		v += variable(*vi,time_ident()) ;
+		vector<variableSet> vvs ;
+		vvs.push_back(v) ;
+		maps.insert(vvs) ;
+	      }
+	    }
           }
         }
       }
@@ -558,26 +577,24 @@ namespace Loci {
 	    entitySet tmp_dom = p->domain() ;
 	    MapRepP mp =  MapRepP(p->getRep()) ;
 	    entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
-	    glob_dom &= dom ;
+	    //	    glob_dom &= dom ;
 	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ; 
-	    //Loci::debugout << " variable = " << *vi << " tmp_out = " << tmp_out << endl ;
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
 	    if(sp->domain() != tmp_dom) {
 	      facts.update_fact(variable(*vi), sp) ; 
-	      //Loci::debugout << "updated map = " << *vi <<  endl ;
-	      //sp->Print(Loci::debugout) ;
 	    }
 	    image +=  MapRepP(sp)->image((sp->domain()) & locdom) ;
-	    dom += tmp_out ;
+	    //dom += tmp_out ;
 	  }
 	}
+	/*
 	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	  storeRepP p = facts.get_variable(*vi) ;
 	  if(p->RepType() ==  MAP) {
 	    entitySet tmp_dom = p->domain() ;
 	    MapRepP mp =  MapRepP(p->getRep()) ;
 	    entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
-	    glob_dom &= dom ;
+	    //	    glob_dom &= dom ;
 	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ; 
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
 	    if(sp->domain() != tmp_dom) {
@@ -586,6 +603,7 @@ namespace Loci {
 	    image +=  MapRepP(sp)->image((sp->domain()) & locdom) ;
 	  }
 	}
+	*/
 	dom += image ;
 	locdom = image ;
       }
@@ -967,4 +985,39 @@ namespace Loci {
     return re ;
   }
 
+  entitySet context_for_map_output(entitySet domain, fact_db &facts,
+	      const std::set<std::vector<variableSet> > &maps) {
+    std::vector<entitySet> ptn = facts.get_init_ptn() ;
+    entitySet context;
+    variableSet vars = facts.get_typed_variables() ;
+    std::set<std::vector<variableSet> >::const_iterator smi ;
+    for(smi = maps.begin(); smi != maps.end(); ++smi) {
+      std::vector<entitySet>  preimage_vec = all_collect_vectors(domain);
+      const vector<variableSet> &mv = *smi ;
+      for(int i = mv.size() -1; i >= 0; --i) {
+	variableSet v = mv[i] ;
+	v &= vars ;
+	std::vector<entitySet>  tmp_preimage_vec(Loci::MPI_processes);
+	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
+	  storeRepP p = facts.get_variable(*vi) ;
+	  if(p->RepType() ==  MAP) {
+	    MapRepP mp =  MapRepP(p->getRep()) ;
+	    for(int j = 0; j < Loci::MPI_processes; j++) {
+	      tmp_preimage_vec[j] += mp->preimage(preimage_vec[j]).second;
+	    }
+	  }
+	}
+	for(int j = 0; j < Loci::MPI_processes; j++) {
+	  preimage_vec[j] = all_collect_entitySet(tmp_preimage_vec[j]);
+	}
+
+	if(i == 0) {
+	  context += preimage_vec[Loci::MPI_rank];
+	}
+      }
+    }
+    return context ;
+  }
+
 }
+
