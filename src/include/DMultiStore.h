@@ -664,7 +664,7 @@ namespace Loci {
     typedef typename schema_traits::Converter_Base_Type dtype;
 
     int typesize = sizeof(dtype);
-    vector<dtype> inbuf;
+    std::vector<dtype> inbuf;
 
     int incount;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
