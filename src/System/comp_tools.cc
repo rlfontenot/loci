@@ -19,7 +19,7 @@ using std::make_pair ;
 
 #include <distribute.h>
 
-#define VERBOSE
+//#define VERBOSE
 
 namespace Loci {
     // Create a schedule for traversing a directed acyclic graph.  This schedule

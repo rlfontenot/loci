@@ -7,6 +7,8 @@
 
 #include <vector>
 using std::vector ;
+#include <set>
+using std::set ;
 #include <map>
 using std::map ;
 
@@ -24,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 
-#define SCATTER_DIST
+//#define SCATTER_DIST
 //#define UNITY_MAPPING
 
 #ifdef SCATTER_DIST
@@ -89,7 +91,7 @@ namespace Loci {
     MPI_Finalize() ;
   }
   
-  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, store<int> &partition ) {
+  void metis_facts(fact_db &facts, vector<entitySet> &ptn, store<int> &partition ) {
     int num_partitions = MPI_processes ;
     variableSet fact_vars ;
     fact_vars = facts.get_typed_variables() ;
@@ -188,8 +190,12 @@ namespace Loci {
     // Test code
     unsigned short int seed[3] = {0,0,1} ;
 
-    for(int i=0;i<size_map;++i)
-      part[i] = (nrand48(seed))%num_partitions ;
+    int proc = (nrand48(seed))%num_partitions ;
+    for(int i=0;i<size_map;++i) {
+      if(i%1 == 0)
+        proc = (nrand48(seed))%num_partitions ;
+      part[i] = proc ;
+    }
     // end test code
 #endif
     for(int i = 0; i < size_map; i++)
@@ -216,17 +222,17 @@ namespace Loci {
   
   
   void get_mappings(rule_db &rdb,
-                    std::set<std::vector<variableSet> > &maps_ret){
+                    set<vector<variableSet> > &maps_ret){
     ruleSet rules = rdb.all_rules() ;
-    std::set<std::vector<variableSet> > maps ;
+    set<vector<variableSet> > maps ;
 
     for(ruleSet::const_iterator ri = rules.begin(); ri != rules.end(); ++ri) {
-      std::set<vmap_info>::const_iterator vmsi ;
+      set<vmap_info>::const_iterator vmsi ;
       for(vmsi = ri->get_info().desc.targets.begin();
           vmsi != ri->get_info().desc.targets.end();
           ++vmsi) {
         if(vmsi->mapping.size() != 0) {
-          std::vector<variableSet> vvs ;
+          vector<variableSet> vvs ;
 	  for(int i = 0; i < vmsi->mapping.size(); ++i) {
               variableSet v ;
               for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
@@ -244,7 +250,7 @@ namespace Loci {
           vmsi != ri->get_info().desc.sources.end();
           ++vmsi) {
         if(vmsi->mapping.size() != 0) {
-          std::vector<variableSet> vvs ;
+          vector<variableSet> vvs ;
 	  for(int i = 0; i < vmsi->mapping.size(); ++i) {
               variableSet v ;
               for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
@@ -269,7 +275,7 @@ namespace Loci {
                 ++vi) {
               variableSet v ;
               v += variable(*vi,time_ident()) ;
-              std::vector<variableSet> vvs ;
+              vector<variableSet> vvs ;
               vvs.push_back(v) ;
               maps.insert(vvs) ;
             }
@@ -279,46 +285,66 @@ namespace Loci {
       }
     }
 
-    std::set<std::vector<variableSet> >::const_iterator mi ;
+    set<vector<variableSet> >::const_iterator mi ;
 
     maps_ret.clear() ;
+    for(mi=maps.begin();mi!=maps.end();++mi) {
+      const vector<variableSet> &vss = *mi ;
+      if(vss.size() < 2) {
+        for(variableSet::const_iterator vi=vss[0].begin();vi!=vss[0].end();++vi) {
+          vector<variableSet> vs(1) ;
+          vs[0] += *vi ;
+          maps_ret.insert(vs) ;
+        }
+      } else {
+        for(variableSet::const_iterator vi=vss[0].begin();
+            vi!=vss[0].end();++vi) 
+          for(variableSet::const_iterator vvi=vss[1].begin();
+              vvi!=vss[1].end();++vvi) {
+            vector<variableSet> vs(vss.size()) ;
+            vs[0] += *vi ;
+            vs[1] += *vvi ;
+            for(int i=2;i<vss.size();++i)
+              vs[i] = vss[i] ;
+            maps_ret.insert(vs) ;
+          }
+      }
+            
+    }
 
-    maps_ret = maps ;
   }
   
   
   entitySet expand_map(entitySet domain, fact_db &facts,
-                       const std::set<std::vector<variableSet> > &maps) {
+                       const set<vector<variableSet> > &maps) {
     debugout[MPI_rank] << "expand_map maps = " << endl ;
     entitySet dom = domain ;
     variableSet vars = facts.get_typed_variables() ;
-    std::set<std::vector<variableSet> >::const_iterator smi ;
+    set<vector<variableSet> >::const_iterator smi ;
     for(smi = maps.begin(); smi != maps.end(); ++smi) {
       entitySet locdom = domain ;
-      entitySet image ;
-      const std::vector<variableSet> &mv = *smi ;
+      const vector<variableSet> &mv = *smi ;
       for(int i = 0; i < mv.size(); ++i) {
         variableSet v = mv[i] ;
         debugout[MPI_rank] << v << "->" ;
         v &= vars ;
+        entitySet image ;
         for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
           storeRepP p = facts.get_variable(*vi) ;
 	  if(p->RepType() == MAP) {
             MapRepP mp = MapRepP(p->getRep()) ;
             image += mp->image(p->domain() & locdom) ;
           }
-          dom += image ;
-          locdom = image ;
-          image = EMPTY ;
         }
+        dom += image ;
+        locdom = image ;
       }
       debugout[MPI_rank] << endl ;
     }
     return dom ;
   }
 
-  void categories(fact_db &facts,std::vector<interval> &pvec) {
-    using std::set ;
+  void categories(fact_db &facts,vector<interval> &pvec) {
     entitySet active_set ;
     
     set<entitySet> set_of_sets ;
@@ -337,7 +363,7 @@ namespace Loci {
       
       set_of_sets.insert(p->domain()) ;
     }
-    std::vector<int> vals,vals2 ;
+    vector<int> vals,vals2 ;
     set<entitySet>::iterator si ;
     for(si=set_of_sets.begin();si!=set_of_sets.end();++si) {
       entitySet s = *si & active_set ;
@@ -375,16 +401,16 @@ namespace Loci {
   
   
   
-  void generate_distribution(fact_db &facts, rule_db &rdb, std::vector<std::vector<entitySet> > &get_entities ) {
+  void generate_distribution(fact_db &facts, rule_db &rdb, vector<vector<entitySet> > &get_entities ) {
     int num_procs = MPI_processes ;
-    std::vector<entitySet> ptn ;
+    vector<entitySet> ptn ;
     store<int> partition ;
-    std::set<std::vector<Loci::variableSet> > maps ;
-    std::vector<entitySet> copy(num_procs) ;
-    std::vector<entitySet> image(num_procs) ;
+    set<vector<Loci::variableSet> > maps ;
+    vector<entitySet> copy(num_procs) ;
+    vector<entitySet> image(num_procs) ;
     metis_facts(facts,ptn,partition) ;
     get_mappings(rdb,maps) ;
-    std::set<std::vector<Loci::variableSet> >::const_iterator smi ;
+    set<vector<Loci::variableSet> >::const_iterator smi ;
 
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
@@ -397,7 +423,7 @@ namespace Loci {
     }
   }
   
-  void  distribute_facts(std::vector<std::vector<entitySet> > &get_entities, fact_db &facts)  {
+  void  distribute_facts(vector<vector<entitySet> > &get_entities, fact_db &facts)  {
     int num_procs = MPI_processes ;
     int myid = MPI_rank ;
     int j = 0 ;
@@ -406,9 +432,9 @@ namespace Loci {
     Map l2g ;
     constraint my_entities ;
     int isDistributed ;
-    std::vector<Loci::interval> iv ;
+    vector<Loci::interval> iv ;
     entitySet::const_iterator ei, ti ;
-    std::vector<entitySet> proc_entities ;
+    vector<entitySet> proc_entities ;
     categories(facts,iv) ;
     entitySet e ;
 #ifdef DEBUG
