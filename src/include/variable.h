@@ -90,9 +90,9 @@ namespace Loci {
       int          offset ;
       std::vector<std::string> priority ;
 			
-			std::vector<std::string> namespac ;
+      std::vector<std::string> namespac ;
       
-			std::vector<int> v_ids ;
+      std::vector<int> v_ids ;
       bool operator<(const info &v) const ;
       bool operator==(const info &v) const ;
             
@@ -100,10 +100,8 @@ namespace Loci {
         tvar    = false;
         assign  = false;
         name    = "*NONAME*" ;
-			
-				namespac.push_back("*NONAMESPACE*");
-      
-				offset  = 0;
+        //				namespac.push_back("*NONAMESPACE*");
+        offset  = 0;
       }
       ostream &Print(ostream &s) const ;
       const time_ident & time() const { return time_id ; }
@@ -113,9 +111,9 @@ namespace Loci {
       variable drop_priority() const ;
       variable new_offset(int o) const ;
 			
-			variable drop_namespace() const ;
-			variable add_namespace(const std::string& n) const ;
-			std::vector<std::string> get_namespace() const { return namespac ; };
+      variable drop_namespace() const ;
+      variable add_namespace(const std::string& n) const ;
+      std::vector<std::string> get_namespace() const { return namespac ; };
 
       variable change_time(time_ident ti) const ;
       int ident() const { return variable::vdb->vars.get_id(*this) ; }
@@ -155,13 +153,13 @@ namespace Loci {
     variable drop_priority() const { return vdb->vars[id].drop_priority() ; }
     variable new_offset(int o) const { return vdb->vars[id].new_offset(o) ; }
     
-		variable drop_namespace() const { return vdb->vars[id].drop_namespace() ; }
-		variable add_namespace(const std::string& n) const 
-			{ return vdb->vars[id].add_namespace(n) ; }
-		std::vector<std::string> get_namespace() const 
-			{ return vdb->vars[id].get_namespace() ; }
+    variable drop_namespace() const { return vdb->vars[id].drop_namespace() ; }
+    variable add_namespace(const std::string& n) const 
+    { return vdb->vars[id].add_namespace(n) ; }
+    std::vector<std::string> get_namespace() const 
+    { return vdb->vars[id].get_namespace() ; }
 		
-		variable change_time(const time_ident &ti) const  { return vdb->vars[id].change_time(ti) ; }
+    variable change_time(const time_ident &ti) const  { return vdb->vars[id].change_time(ti) ; }
   } ;
 
   inline ostream &operator<<(ostream &s, const variable &v)

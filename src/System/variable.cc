@@ -153,12 +153,12 @@ bool variable::info::operator<(const info &v) const {
       return assign ;
     else
       return 
-			 		namespac < v.namespac															||
-					(namespac == v.namespac && name < v.name          ||
+        namespac < v.namespac				||
+        (namespac == v.namespac && name < v.name          ||
           (name     == v.name     && (time_id < v.time_id   ||
           (time_id  == v.time_id  && (offset < v.offset     ||
-	  			(offset  == v.offset    &&  priority < v.priority)||
-	  			(priority == v.priority && v_ids < v.v_ids)))))) ; 
+          (offset  == v.offset    &&  priority < v.priority)||
+	  (priority == v.priority && v_ids < v.v_ids)))))) ; 
 }
   
   bool variable::info::operator==(const info &v) const {
