@@ -29,7 +29,16 @@ extern struct hashtable* global_def ;
 }
 
 %token IDENTIFIER, CONSTANT, STRING_LITERAL, SIZEOF, PTR_OP, INC_OP, DEC_OP, LEFT_OP, RIGHT_OP, LE_OP, GE_OP, EQ_OP, NE_OP, AND_OP, OR_OP, MUL_ASSIGN, DIV_ASSIGN, MOD_ASSIGN, ADD_ASSIGN, SUB_ASSIGN, LEFT_ASSIGN, RIGHT_ASSIGN, AND_ASSIGN, XOR_ASSIGN, OR_ASSIGN, TYPE_NAME, TYPEDEF, EXTERN, STATIC, AUTO, REGISTER, CHAR, SHORT, INT, LONG, SIGNED, UNSIGNED, FLOAT, DOUBLE, BOOL, CONST, VOLATILE, VOID, STRUCT, UNION, ENUM, ELIPSIS, RANGE, CASE, DEFAULT, IF, ELSE, SWITCH, WHILE, DO, FOR, GOTO, CONTINUE, BREAK, RETURN, DATATYPES, POINTWISE_RULE, UNIT_RULE, APPLY_RULE, SINGLETON_RULE, ITER_VAR_OP, JOIN, CONDITIONAL;
-/**/
+
+/**********************************************************
+
+ This is the beginning:
+
+ - file only contains the loci rules and general functions;
+
+ - declaration only contains def.s of variables.
+
+ *********************************************************/
 Start
 	: file<file_node>
 	{{
@@ -57,6 +66,9 @@ Start
         }}
 	;
 
+/*
+ These are the grammars of C statements.
+ */
 argument_expr_list
 <%out ExpTreeListP elist>
 	: assignment_expr<assign_node>
@@ -177,7 +189,6 @@ init_declarator
 	}}
 	| declarator<d_list> '=' initializer
 	;
-/**/
 storage_class_specifier
 	: TYPEDEF
 	| EXTERN
@@ -185,7 +196,9 @@ storage_class_specifier
 	| AUTO
 	| REGISTER
 	;
-/**/
+/*
+ These are type names of variables or functions.
+ */
 type_specifier
 <%out type_listP tlist>
         : simple_type_specifier<simple_list>
@@ -559,7 +572,11 @@ jump_statement
 	| RETURN expr<expr_node> ';'
 	;
 
-/*************************/
+/*****************************************************************
+
+ file only contains the list of loci rules and general functions. 
+
+*****************************************************************/
 file
 <%out FileListNodeP filenode>
 	: external_definition<external_node>
@@ -578,10 +595,14 @@ file
 	}}
 	;
 
+/*
+ - function_definition is the def. of general function ;
+
+ - loci_rule_definition is the def. of loci rule.
+ */
 external_definition
 <%out FileListNodeP filenode>
 	: function_definition
-/**/
 	| loci_rule_definition<loci_rule>
 	{{
 		*filenode = (FileListNode *)
@@ -594,12 +615,25 @@ external_definition
 	;
 
 
-/*=======================*/
+/*=====================================
+
+ This is the def. of general function.
+
+ ====================================*/
 function_definition
 	: declarator<d_list> function_body<fb_node>
 	| declaration_specifiers<t_list> declarator<d_list> function_body<fb_node>
 	;
-/**/
+
+/*============================================================
+
+ This is the def. of the loci rule:
+
+ - loci_rule contains the types of the loci rules;
+
+ - function_body contains the general statements with braces.
+
+ ===========================================================*/
 loci_rule_definition
 <%out FuncListHeadP funcnode>
 	: loci_rule<rule_head> function_body<fb_node>
@@ -608,7 +642,10 @@ loci_rule_definition
 		*funcnode = rule_head ;
 	}}
 	;
-/**/
+
+/*
+ This contains the types of the loci rules.
+ */
 loci_rule
 <%out FuncListHeadP rhead>
 	: POINTWISE_RULE
@@ -727,6 +764,9 @@ identifier
 	}}
 	;
 
+/*
+ These are grammars of C expressions.
+ */
 constant_expr
 <%out ExpTreeNodeP enode>
 	: conditional_expr<cond_node>
@@ -1032,7 +1072,11 @@ pointer
 	| '*' type_specifier_list<t_l_name> pointer
 	;
 
-/*-----------------------*/
+/*=================================================
+
+ This contains the general statements with braces.
+
+ ================================================*/
 function_body
 <%out FuncListNodeP funcnode>
 	: compound_statement<compound_node>
@@ -1042,7 +1086,12 @@ function_body
 	| declaration_list compound_statement<compound_node>
 	;
 
-/*=======================*/
+/***************************************************************
+ declaration only contains def.s of variables:
+
+ - declaration_specifiers <dai>
+ - loci_declaration_list is the list of loci def.s of variables
+***************************************************************/
 declaration
 	: declaration_specifiers<tlist> ';'
 /**/
