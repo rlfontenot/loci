@@ -207,8 +207,6 @@ namespace Loci {
   {
     const_dMap s(st) ;
     
-    fatal((context-domain()) != EMPTY) ;
-
     fatal((context-s.domain()) != EMPTY) ;
     
     FORALL(context,i) {
