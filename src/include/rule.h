@@ -583,7 +583,8 @@ namespace Loci {
     void clear() ;
     bool empty() ;
     void push_rule(register_rule_type *p) ;
-    
+    iterator begin() { return iterator(global_list) ; }
+    iterator end() { return iterator(0) ; }
   } ;
   extern register_rule_impl_list register_rule_list ;    
   extern rule_impl_list global_rule_list ;    

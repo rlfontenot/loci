@@ -54,7 +54,7 @@ namespace Loci {
   entitySet dist_expand_map(entitySet domain, fact_db &facts,
 		       const std::set<std::vector<variableSet> > &maps) ;
   std::vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
-
+  std::vector<entitySet> generate_scalable_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
   std::vector<entitySet> read_partition(const char *fname,int num_partitions) ;
   void write_partition(const char *fname, const std::vector<entitySet> &ptn) ;
 
@@ -70,13 +70,15 @@ namespace Loci {
   void print_global(entitySet e, fact_db &facts) ;
   entitySet collect_entitySet(entitySet e, fact_db &facts) ;
   storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
-  storeRepP collect_reorder_store(storeRepP &sp, Map &remap, fact_db &facts) ;
-  void distribute_reorder_store(storeRepP &new_sp, storeRepP sp_init, Map &remap, fact_db &facts) ;
+  storeRepP collect_global_store(storeRepP &sp) ;
+  Map distribute_global_map(Map &m, fact_db &facts) ;
+  storeRepP collect_reorder_store(storeRepP &sp, dMap &remap, fact_db &facts) ;
+  void distribute_reorder_store(storeRepP &new_sp, storeRepP sp_init, dMap &remap, fact_db &facts) ;
   
-  void write_container(hid_t group_id, const char* name,  storeRepP qrep) ;
-  void read_container(hid_t group_id, const char* name,  storeRepP qrep) ;
+  void write_container(hid_t group_id, storeRepP qrep) ;
+  void read_container(hid_t group_id, storeRepP qrep, entitySet &dom) ;
   void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint) ;
-  void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint) ;
+  void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size) ;
   void write_vector_int(hid_t group_id, const char* name, std::vector<int>& vint) ;
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) ;
 

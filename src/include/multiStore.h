@@ -976,7 +976,8 @@ namespace Loci {
     frame_info fi ;
     fi.is_stat = dim[0] ;
     fi.size = dim[1] ;
-    read_vector_int(group_id, "first_level", fi.first_level) ;
+    int dom_size = domain().size() ;
+    read_vector_int(group_id, "first_level", fi.first_level, dom_size) ;
     return fi ;
   }
   template<class T> 
@@ -1000,7 +1001,8 @@ namespace Loci {
     MPI_Bcast(&dim, 2, MPI_INT, 0, MPI_COMM_WORLD) ;
     fi.is_stat = dim[0] ;
     fi.size = dim[1] ;
-    read_vector_int(group_id, "first_level", fi.first_level) ;
+    int dom_size = domain().size() ;
+    read_vector_int(group_id, "first_level", fi.first_level, dom_size) ;
     int total_size = fi.first_level.size() ;
     int dims = 0 ;
     for(int i = 0; i < total_size; ++i)
@@ -1109,7 +1111,7 @@ namespace Loci {
   //**************************************************************************/
 
   template <class T> 
-    void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &usr_eset)
+    void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset)
     {
       storeRepP qrep = getRep() ;
       int rank = 1 ;

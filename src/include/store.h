@@ -589,7 +589,8 @@ namespace Loci {
     fi.is_stat = dim[0] ;
     fi.size = dim[1] ;
     std::vector<int> vint ;
-    read_vector_int(group_id, "second_level", vint) ;
+    int  dom_size = domain().size() ;
+    read_vector_int(group_id, "second_level", vint, dom_size) ;
     fi.second_level = vint ; 
     return fi ;
   }
