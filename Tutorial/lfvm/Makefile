@@ -8,7 +8,7 @@ TARGET = lfvm
 
 # List your object files here
 OBJS = main.o grid_reader.o setup_edges.o \
-       gradient.o integration.o interpolation.o stable.o \
+       gradient.o rhs.o integration.o interpolation.o stable.o \
        heat_bc.o edge_props.o cell_props.o physics.o area_reduce.o
 
 # Junk files created by compilers that may need to be cleaned up

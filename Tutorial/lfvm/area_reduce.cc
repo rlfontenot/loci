@@ -43,10 +43,10 @@ class area_unit : public unit_rule {
 public:
   area_unit() {
     // We always name our containers.  
-    name_store("area",area) ;
+    name_store("Area",area) ;
     // In this case, the rule has no inputs, only the output which is the
     // identity value for area (i.e. zero)
-    output("area") ;
+    output("Area") ;
     // Here we define what entities can have the property of area.  In this
     // case we restrict the property to things we call cells.  In general,
     // the constraint is like an input that we don't use, the attributes
@@ -95,13 +95,13 @@ public:
     name_store("pos",pos) ;
     name_store("edge_nodes",edge_nodes) ;
     name_store("cl",cl) ;
-    name_store("area",area) ;
+    name_store("Area",area) ;
     // We input the edge nodal positions and the left cell centroid
     // We also input the area (since we are adding to it)
-    input("edge_nodes->pos,cl->centroid,cl->area") ;
+    input("edge_nodes->pos,cl->centroid,cl->Area") ;
     // Here we output the area. Note that we are expected to only write to the
     // same area that we read from. (i.e. += type of operations)
-    output("cl->area") ;
+    output("cl->Area") ;
   }
   void calculate(Entity e) {
     // Here we do the actual computations of the area of the face contribution.
@@ -152,9 +152,9 @@ public:
     name_store("pos",pos) ;
     name_store("edge_nodes",edge_nodes) ;
     name_store("cr",cr) ;
-    name_store("area",area) ;
-    input("edge_nodes->pos,cr->centroid,cr->area") ;
-    output("cr->area") ;
+    name_store("Area",area) ;
+    input("edge_nodes->pos,cr->centroid,cr->Area") ;
+    output("cr->Area") ;
   }
   void calculate(Entity e) {
     const vector2d<double> dv1 = pos[edge_nodes[e][0]]-pos[edge_nodes[e][1]] ;

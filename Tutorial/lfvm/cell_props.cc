@@ -122,4 +122,4 @@ public:
 } ;
 
 // Here again, we register the rule in the global_rule_list.
-//register_rule<triangle_area> register_triangle_area ;
+register_rule<triangle_area> register_triangle_area ;
