@@ -24,8 +24,6 @@
 #endif
 
 
-
-
 namespace Loci {
 
   using std::hash_map ;
@@ -34,12 +32,14 @@ namespace Loci {
 
   lmutex                    mutex ;
   entitySet                 store_domain ;
-  hash_map<int,std::vector<T> >  attrib_data;
   int                       size;
+  hash_map<int,std::vector<T> >  attrib_data;
   
+  void hdf5read( H5::Group group, DEFAULT_CONVERTER      c, entitySet &en, entitySet &usr );
   void hdf5read( H5::Group group, IDENTITY_CONVERTER     c, entitySet &en, entitySet &usr );
   void hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr );
 
+  void hdf5write( H5::Group group, DEFAULT_CONVERTER  c, const entitySet &en ) const;
   void hdf5write( H5::Group group, IDENTITY_CONVERTER c, const entitySet &en ) const;
   void hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en ) const;
 
@@ -79,6 +79,7 @@ namespace Loci {
    template<class T> 
 	std::ostream &dstoreVecRepI<T>::Print(std::ostream &s) const
    {
+
       s << '{' << domain() << std::endl ;
 
       s << size << std::endl ;
@@ -90,7 +91,9 @@ namespace Loci {
          ci =  attrib_data.find(ii);
          if( ci != attrib_data.end() ) {
              newVec = ci->second;
-             s << newVec << std::endl ;
+             for( int i = 0; i < newVec.size(); i++)
+                  s << newVec[i] <<  "   ";
+             s << std::endl;
          }
       }ENDFORALL ;
 
@@ -113,20 +116,18 @@ namespace Loci {
         s.putback(ch) ;
         return s ;
       }
-
       entitySet e ;
       int sz ;
 
       s >> e ;
-      s >> sz ;
+      s >> size ;
 
-      fatal( sz != size );
-
+      std::vector<T>  newVec(size);
       allocate(e) ;
 
-      std::vector<T>  newVec;
       FORALL(e,ii) {
-        s  >> newVec;
+        for( int i = 0; i < size; i++)
+             s  >> newVec[i];
         attrib_data[ii] = newVec;
       } ENDFORALL ;
     
@@ -139,6 +140,7 @@ namespace Loci {
       return s ;
     }
 
+
   //****************************************************************************
 
 template<class T> 
@@ -147,13 +149,30 @@ void dstoreVecRepI<T>::readhdf5( H5::Group group, entitySet &user_eset)
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    HDF5_ReadVecSize(group, size);
+    //--------------------------------------------------------------------------
+    // Read the vector size ...
+    //--------------------------------------------------------------------------
+    hsize_t dimension[1];
 
-    entitySet eset;
+    dimension[0] = 1;
+
+    H5::DataType  datatype  = H5::PredType::NATIVE_INT;
+    H5::DataSet   dataset   = group.openDataSet( "VecSize");
+    H5::DataSpace dataspace = dataset.getSpace();
+
+    dataspace.getSimpleExtentDims( dimension, NULL);
+
+    dataset.read( &size, H5::PredType::NATIVE_INT );
+
+    //--------------------------------------------------------------------------
+    entitySet  eset, ecommon;
+
     HDF5_ReadDomain(group, eset);
 
-    allocate( eset & user_eset );
-    hdf5read( group, traits_type, eset, eset&user_eset);
+    ecommon = eset & user_eset;
+
+    allocate( ecommon );
+    hdf5read( group, traits_type, eset, ecommon);
 }
 
 //******************************************************************************
@@ -415,14 +434,14 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
   template <class T> 
   storeRepP dstoreVecRepI<T>::remap(const Map &m) const {
-    storeVec<T> s ;
-	/*
+    dstoreVec<T> s ;
+
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
-	*/
+
     return s.Rep() ;
   }
 
@@ -547,6 +566,15 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
   }
 
   //***************************************************************************
+  template <class T> 
+  void dstoreVecRepI<T> :: hdf5read( H5::Group group, DEFAULT_CONVERTER c, 
+                                     entitySet &eset, entitySet &user_eset )
+  {
+   cout << "Fatal: Default read converter not implemeneted for dynamic storeVec " << endl;
+   exit(0);
+  }
+
+  //***************************************************************************
 
   template <class T> 
   void dstoreVecRepI<T> :: hdf5read( H5::Group group, IDENTITY_CONVERTER c, 
@@ -650,10 +678,10 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
    //---------------------------------------------------------------------------
 
    typedef hdf5_schema_converter_traits<T> converter_traits; 
-   converter_traits::memento_type *data, *buf;
+   typename converter_traits::memento_type *data, *buf;
 
    H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
-	  H5::DataSet   vdataset   = group.openDataSet( "variable");
+   H5::DataSet   vdataset   = group.openDataSet( "variable");
    H5::DataSpace vdataspace = vdataset.getSpace();
 
    vdataspace.getSimpleExtentDims( dimension, NULL);
@@ -661,7 +689,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
    size_t arraySize = dimension[0];
    data   = new typename converter_traits::memento_type[arraySize];
 
-	  vdataset.read( data, vDatatype);
+   vdataset.read( data, vDatatype);
 
    //---------------------------------------------------------------------------
    // Fill the objects ....
@@ -691,6 +719,14 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
   }
 
   //****************************************************************************
+  template <class T>  
+  void dstoreVecRepI<T> ::hdf5write( H5::Group group, DEFAULT_CONVERTER c, 
+                                     const entitySet &eset ) const
+  {
+    cout << "Fatal: Default converter not implemented for dynamic storevec " << endl;
+    exit(0);
+  }
+  //****************************************************************************
 
   template <class T>  
   void dstoreVecRepI<T> ::hdf5write( H5::Group group, IDENTITY_CONVERTER c, 
@@ -700,22 +736,22 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
     hsize_t   dimension[1];
     int       rank = 1;
 
-    if( eset.size() < 1) {
-        cout << "Warning: Trying to write empty set " << endl;
-        return;
-    }
-
-//-----------------------------------------------------------------------------
-// Objective : Write store datatype into HDF5 Format which are user defined
-//             datatypes or STL containers. Such datatypes are first written
-//             in memento class, which store data in NATIVE datatypes. This
-//             memento objects is then written into HDF5 format. A user need
-// to should provide interface to convert data into memento class
-//
-//-----------------------------------------------------------------------------
     //write out the domain   
     HDF5_WriteDomain(group, eset);
-    HDF5_WriteVecSize( group, size );
+
+//-----------------------------------------------------------------------------
+// write the Vector size
+//-----------------------------------------------------------------------------
+   dimension[0]=  1;
+   try{
+      H5::DataSpace sdataspace( rank, dimension );
+      H5::DataSet   sdataset = group.createDataSet( "VecSize",
+                                   H5::PredType::NATIVE_INT, sdataspace );
+      sdataset.write( &size, H5::PredType::NATIVE_INT );
+    }
+    catch( H5::HDF5DatasetInterfaceException error  ) {error.printerror();}
+    catch( H5::HDF5DataspaceInterfaceException error) {error.printerror();}
+    catch( H5::HDF5DatatypeInterfaceException error ) {error.printerror();}
 
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array
@@ -786,7 +822,20 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
     //write out the domain   
     HDF5_WriteDomain(group, eset);
-    HDF5_WriteVecSize( group, size );
+
+//-----------------------------------------------------------------------------
+// write the Vector size
+//-----------------------------------------------------------------------------
+   dimension[0]=  1;
+   try{
+      H5::DataSpace sdataspace( rank, dimension );
+      H5::DataSet   sdataset = group.createDataSet( "VecSize",
+                                   H5::PredType::NATIVE_INT, sdataspace );
+      sdataset.write( &size, H5::PredType::NATIVE_INT );
+    }
+    catch( H5::HDF5DatasetInterfaceException error  ) {error.printerror();}
+    catch( H5::HDF5DataspaceInterfaceException error) {error.printerror();}
+    catch( H5::HDF5DatatypeInterfaceException error ) {error.printerror();}
 
 //-----------------------------------------------------------------------------
 // Get the sum of each object size and maximum size of object in the 
@@ -819,7 +868,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
     }
 
     typedef hdf5_schema_converter_traits<T> converter_traits; 
-    converter_traits::memento_type *data, *buf;
+    typename converter_traits::memento_type *data, *buf;
 
     data =  new typename converter_traits::memento_type[arraySize];
     buf  =  new typename converter_traits::memento_type[maxStateSize];
