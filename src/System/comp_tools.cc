@@ -840,6 +840,12 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       for(int j=0;j<recv_info[i].second.size();++j) {
 	storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
 	r_size[i] += sp->pack_size(entitySet((recv_info[i].second[j].seq))) ;
+
+#ifdef DEBUG
+        entitySet rem = entitySet((recv_info[i].second[j].seq)) - sp->domain() ;
+        if(rem != EMPTY)
+          debugout << "variable " << recv_info[i].second[j].v << " not allocated, but recving entities " << rem << endl ;
+#endif
       }
       if(r_size[i] > maxr_size[i])
 	maxr_size[i] = r_size[i] ;
@@ -879,6 +885,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       for(int j=0;j<send_info[i].second.size();++j) {
         storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
+#ifdef DEBUG
+        entitySet rem = send_info[i].second[j].set - sp->domain() ;
+        if(rem != EMPTY)
+          debugout << "variable " << send_info[i].second[j].v << " not allocated, but sending for entities " << rem << endl ;
+#endif
       }
       if((s_size[i] > maxs_size[i]) || (s_size[i] == sizeof(int))) {
 	maxs_size[i] = s_size[i] ;

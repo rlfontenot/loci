@@ -1,4 +1,3 @@
-//#define DEBUG
 #include "comp_tools.h"
 #include "distribute.h"
 
@@ -747,11 +746,10 @@ namespace Loci {
         requests &= recurse_entities[v] ;
         requests -= recurse_comm[*vi] ;
         send_requests(requests,v,facts,post_req_comm) ;
-          
       }
-
       pre_clist = sort_comm(pre_req_comm,facts) ;
       post_clist = sort_comm(post_req_comm,facts) ;
+
     } else {
       for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
         fcontrol &fctrl = control_set[*fi] ;
@@ -828,14 +826,38 @@ namespace Loci {
         if(facts.isDistributed()) {
           list<comm_info> plist = put_precomm_info(*sei, facts) ;
           el->append_list(new execute_comm(plist,facts)) ;
+
+          // Make sure to request any variables communicated so that
+          // the space is allocated.  This is a hack that should be
+          // reworked later.
+          for(list<comm_info>::const_iterator li=plist.begin();
+              li!=plist.end();
+              ++li) {
+            entitySet all = li->send_set ;
+            all += entitySet(li->recv_set) ;
+        
+            facts.variable_request(li->v,all) ;
+          }
         }
         sei++ ;
       }
     } while(!finished) ;
 
-    if(facts.isDistributed()) 
+    if(facts.isDistributed()) {
       el->append_list(new execute_comm(post_clist, facts)) ;
-    
+      // Make sure to request any variables communicated so that
+      // the space is allocated.  This is a hack that should be
+      // reworked later.
+      for(list<comm_info>::const_iterator li=post_clist.begin();
+          li!=post_clist.end();
+          ++li) {
+        entitySet all = li->send_set ;
+        all += entitySet(li->recv_set) ;
+        
+        facts.variable_request(li->v,all) ;
+      }
+    }
+
     if(el->size() == 0)
       return 0 ;
     else

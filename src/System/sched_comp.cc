@@ -11,7 +11,7 @@ using std::list ;
 #include <set>
 using std::set ;
 
-#define HACK ;
+//#define HACK ;
 
 namespace Loci {
   class error_compiler : public rule_compiler {
@@ -186,6 +186,10 @@ namespace Loci {
 	  all_requests += facts.get_variable_requests(*vii) ;
 #endif	  
 	}
+#ifdef DEBUG
+        debugout << "allocating " << *vi << " for entities " << all_requests
+                 << endl ;
+#endif
         srp->allocate(all_requests) ;
       }
     }
