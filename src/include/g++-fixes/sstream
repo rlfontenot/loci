@@ -1,0 +1,20 @@
+// -*- c++ -*-
+
+#ifndef GXX_FIXES_SSTREAM
+#define GXX_FIXES_SSTREAM
+
+#include <strstream.h>
+#include <string>
+
+
+class istringstream : public istrstream {
+public:
+    istringstream(const string s) : istrstream(s.c_str()) { }
+};
+
+class ostringstream : public ostrstream {
+public:
+    string str() { *this << '\0'; return ostrstream::str(); }
+};
+
+#endif // GXX_FIXES_SSTREAM

@@ -1,0 +1,20 @@
+// -*- c++ -*-
+
+#ifndef GXX_FIXES_ISTREAM
+#define GXX_FIXES_ISTREAM
+
+#include <istream.h>
+
+// swiped from libstdc++-3
+
+template<class _CharT> struct char_traits;
+
+template<>
+struct char_traits<char> {
+    typedef unsigned int int_type;
+    static int_type 
+    eof() { return static_cast<int_type>(EOF); }
+};
+
+
+#endif // GXX_FIXES_ISTREAM
