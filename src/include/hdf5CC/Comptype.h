@@ -44,9 +44,10 @@ class CompType : public DataType {
 	// Retrieves the offset of a member of this compound datatype. 
 	size_t getMemberOffset( int memb_no ) const;
 
+#ifdef OLD_HDF5
 	// Returns the dimensionality of the specified member. 
 	int getMemberDims( int member_num, size_t *dims, int *perm ) const;
-
+#endif
 	// Gets the type class of the specified member.  It provides to
 	// the user a way of knowing what type to declare.
 	H5T_class_t getMemberClass( int member_num ) const;
@@ -78,9 +79,10 @@ class CompType : public DataType {
 	// Adds a new member to this compound datatype.
 	void insertMember( const string name, size_t offset, const DataType& new_member ) const;
 
-	// Adds an array datatype member to this compound datatype.
+#ifdef OLD_HDF5
+  // Adds an array datatype member to this compound datatype.
 	void insertMember( const string name, size_t offset, int ndims, const size_t *dim, const int *perm, const DataType& new_member ) const;
-
+#endif
 	// Recursively removes padding from within this compound datatype. 
 	void pack() const;
 
