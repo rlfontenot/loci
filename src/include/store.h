@@ -132,6 +132,8 @@ namespace Loci {
 
   template<class T> void storeRepI<T>::copy(storeRepP &st, const entitySet &context)  {
     const_store<T> s(st) ;
+    fatal((context != EMPTY) && (base_ptr ==0)) ;
+    fatal((context-domain()) != EMPTY) ;
     FORALL(context,i) {
       base_ptr[i] = s[i] ;
     } ENDFORALL ;
@@ -139,7 +141,7 @@ namespace Loci {
   template<class T> void storeRepI<T>::gather(const Map &m, storeRepP &st,
                                               const entitySet &context) {
     const_store<T> s(st) ;
-    fatal(base_ptr == 0) ;
+    fatal((context != EMPTY) && (base_ptr == 0)) ;
     fatal((m.image(context) - s.domain()) != EMPTY) ;
     fatal((context - domain()) != EMPTY) ;
     FORALL(context,i) {
@@ -150,7 +152,7 @@ namespace Loci {
   template<class T> void storeRepI<T>::scatter(const Map &m, storeRepP &st,
                                               const entitySet &context) {
     const_store<T> s(st) ;
-    fatal(base_ptr == 0) ;
+    fatal((context != EMPTY) && (base_ptr == 0)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
     FORALL(context,i) {

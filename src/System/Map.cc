@@ -36,6 +36,8 @@ namespace Loci {
 
   storeRepP MapRepI::remap(const Map &m) const{
     entitySet newdomain = m.domain() & domain() ;
+    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    newdomain &= mappimage.first ;
     entitySet mapimage = m.image(newdomain) ;
     Map s ;
     s.allocate(mapimage) ;
@@ -374,13 +376,12 @@ namespace Loci {
     { return READ_ONLY ; }
     
   void multiMapRepI::allocate(const entitySet &ptn) {
-    if(ptn != EMPTY) {
-      cerr << "Warning: multiMapRepI::allocate(const entitySet &) : "
-           << endl ;
-      cerr << "Generic allocation can not be applied to multiMaps"
-           << endl ;
-      cerr << "allocate set = " << ptn << endl ;
-    }
+    store<int> count ;
+    count.allocate(ptn) ;
+    FORALL(ptn,i) {
+      count[i] = 0 ;
+    } ENDFORALL ;
+    allocate(count) ;
   }
 
   void multiMapRepI::allocate(const store<int> &sizes) {
@@ -426,8 +427,18 @@ namespace Loci {
   }
 
   storeRepP multiMapRepI::remap(const Map &m) const {
-    warn(true) ;
-    return storeRepP(new multiMapRepI()) ;
+    entitySet newdomain = m.domain() & domain() ;
+    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    newdomain &= mappimage.first ;
+    entitySet mapimage = m.image(newdomain) ;
+    multiMap s ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+      
+    s.Rep()->scatter(m,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(m,mapimage) ;
+    
+    return s.Rep() ;
   }
 
   void multiMapRepI::compose(const Map &m, const entitySet &context) {
@@ -541,7 +552,37 @@ namespace Loci {
 
   void multiMapRepI::scatter(const Map &m, storeRepP &st,
                              const entitySet  &context) {
-    warn(true) ;
+    store<int> count ;
+    const_multiMap s(st) ;
+    count.allocate(domain()) ;
+    FORALL(domain()-m.image(context),i) {
+      count[i] = base_ptr[i+1]-base_ptr[i] ;
+    } ENDFORALL ;
+    FORALL(context,i) {
+      count[m[i]] = s.end(i)-s.begin(i) ;
+    } ENDFORALL ;
+    int **new_index ;
+    int *new_alloc_pointer ;
+    int **new_base_ptr ;
+
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    FORALL(domain()-m.image(context),i) {
+      for(int j=0;j<count[i];++j) 
+        new_base_ptr[i][j] = base_ptr[i][j] ;
+    } ENDFORALL ;
+
+    FORALL(context,i) {
+      for(int j=0;j<count[m[i]];++j) {
+        new_base_ptr[m[i]][j] = s[i][j] ;
+      }
+    } ENDFORALL ;
+
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = new_alloc_pointer;
+    if(index) delete[] index ;
+    index = new_index ;
+    base_ptr = new_base_ptr ;
+    dispatch_notify() ;
   }
   
   const entitySet &multiMapRepI::domain() const {
