@@ -12,6 +12,8 @@
 #include <Tools/fpe.h>
 #include <scheduler.h>
 #include <hdf5_traits.h>
+#include <hdf5_memento.h>
+#include <hdf5_write_template.h>
 #include <Loci_types.h>
 
 
