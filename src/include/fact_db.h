@@ -13,6 +13,7 @@
 #include <parameter.h>
 #include <Map_rep.h>
 
+
 namespace Loci {
 
   class fact_db {
@@ -25,28 +26,19 @@ namespace Loci {
       param<int> time_var ;
       std::list<std::list<variable> > rotate_lists ;
     } ;
-    /*
-      
-      class distribute_info : public CPTR_type {
+    /*  
+    class distribute_info : public CPTR_type {
       friend class fact_db ;
-      public:
-      struct dist_facts {
-      store<int> isDistributed ;
-      constraint my_entities ;
-      Map g2l ;
-      Map l2g ;
-      store<entitySet> send_neighbour ;
-	store<entitySet> recv_neighbour ;
-	} ;
-	distribute_info() { } ;
-	distribute_info(int) ;
-	void set_dist_facts(int, store<int>, constraint, Map, Map, store<entitySet>, store<entitySet>) ;
+    public:
+      distribute_info();
+      dist_facts* get_dist_facts() ; 
+      void set_dist_facts(dist_facts dist) ;
+      void operator = (distribute_info&) ;
     private:
-    dist_facts distributed_facts ;
-    
+      dist_facts distributed_facts ;
+      
     } ;
-    */
-    
+    */    
     typedef CPTR<time_info> time_infoP ;
     //typedef CPTR<distribute_info> distribute_infoP ;
     
@@ -183,7 +175,8 @@ namespace Loci {
       { return get_variable(variable(vname)) ; }
     
     fact_db::time_infoP get_time_info(time_ident tl) ;
-    // fact_db::distribute_infoP get_distribute_info(int myid) ;
+    // fact_db::distribute_infoP get_dist_facts() ;
+    
     void initialize_time(time_infoP ti) ;
     void advance_time(time_infoP ti) ;
     void close_time(time_infoP ti) ;
