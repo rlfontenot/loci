@@ -34,5 +34,5 @@ class AbstractDs : public H5Object {
 	virtual ~AbstractDs() {}; 
 };
 }
-#endif _AbstractDs_H
+#endif
 
