@@ -20,7 +20,7 @@
 
 namespace Loci {
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> struct Scalar {
     T val ;
@@ -29,7 +29,7 @@ namespace Loci {
 
   template <class T> Scalar<T> mk_Scalar(T v) { return Scalar<T>(v) ;} 
 
-  //**************************************************************************
+  //**************************************************************************/
   
   template <class T> class Vect ;
   
@@ -61,7 +61,7 @@ namespace Loci {
     }
   } ;
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> class Vect {
   public:
@@ -78,6 +78,9 @@ namespace Loci {
       size = sz ;
     }
 
+    /*
+      DO NOT DO THIS!!!
+      Vect should NEVER allocate memory!
     Vect<T> &operator=(const Vect<T> &v)
     {
        Vect<T>   *newVec;
@@ -90,8 +93,8 @@ namespace Loci {
 
        return ( newVec );
     }
+   */
 
-/*
     void operator=(const Vect<T> &t) {
       T *p1 = ptr ;
       const T *p2 = t.ptr ;
@@ -102,7 +105,7 @@ namespace Loci {
       for(int i=0;i<size;++i)
         *p1++ = *p2++ ;
     }
-*/
+
 
     void operator=(const const_Vect<T> &t) {
       T *p1 = ptr ;
@@ -213,7 +216,7 @@ namespace Loci {
     }
   } ;
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> class storeVecRepI : public storeRep {
     entitySet    store_domain ;
@@ -260,7 +263,7 @@ namespace Loci {
     int get_size() const { return size ; }
   } ;
 
-  //**************************************************************************
+  //**************************************************************************/
 
    template<class T> 
 	std::ostream &storeVecRepI<T>::Print(std::ostream &s) const
@@ -280,7 +283,7 @@ namespace Loci {
       return s ;
    }
 
-  //*************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   std::istream &storeVecRepI<T>::Input(std::istream &s)
@@ -329,7 +332,7 @@ namespace Loci {
       return s ;
   }
 
-  //***************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void storeVecRepI<T>::readhdf5( H5::Group group, entitySet &user_eset)
@@ -351,7 +354,7 @@ namespace Loci {
 */
   }
 
-  //***************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void storeVecRepI<T>::writehdf5( H5::Group group,entitySet& en) const
@@ -362,7 +365,7 @@ namespace Loci {
     hdf5write(group, traits_output_type, en );
   }
 
-  //***************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void storeVecRepI<T>::allocate(const entitySet &ptn) 
@@ -407,7 +410,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   storeVecRepI<T>::~storeVecRepI<T>() 
@@ -415,7 +418,7 @@ namespace Loci {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T>
   storeRep *storeVecRepI<T>::new_store(const entitySet &p) const 
@@ -423,7 +426,7 @@ namespace Loci {
     return new storeVecRepI<T>(p)  ;
   }
 
-  //*************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   store_type storeVecRepI<T>::RepType() const 
@@ -431,7 +434,7 @@ namespace Loci {
     return STORE ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   entitySet storeVecRepI<T>::domain() const 
@@ -439,17 +442,17 @@ namespace Loci {
     return store_domain ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void storeVecRepI<T>::set_elem_size(int sz) 
   {
     mutex.lock() ;
 
-	//-------------------------------------------------------------------------
-	// Change the size of vector held. It will reclaim the memory used before
-	// this call. and allocate new one.
-	//-------------------------------------------------------------------------
+    //------------------------------------------------------------------------
+    // Change the size of vector held. It will reclaim the memory used before
+    // his call. and allocate new one.
+    //------------------------------------------------------------------------
 
     if(size != sz) {
       if(size != 0)
@@ -463,7 +466,7 @@ namespace Loci {
     mutex.unlock() ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
       
   template<class T> class storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
@@ -511,12 +514,12 @@ namespace Loci {
 
   } ;
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   storeVec<T>::~storeVec<T>() { }
   
-  //*************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   void storeVec<T>::notification() 
@@ -531,19 +534,19 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   inline std::ostream & operator<<(std::ostream &s, const storeVec<T> &t)
   { return t.Print(s) ; }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   inline std::istream & operator>>(std::istream &s, storeVec<T> &t)
     { return t.Input(s) ; }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> class const_storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
@@ -597,12 +600,12 @@ namespace Loci {
 
   } ;
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   const_storeVec<T>::~const_storeVec<T>() { }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void const_storeVec<T>::notification() 
@@ -615,19 +618,19 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> store_instance::instance_type
     const_storeVec<T>::access() const
     { return READ_ONLY ; }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   inline std::ostream & operator<<(std::ostream &s, const const_storeVec<T> &t)
     { return t.Print(s) ; }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   storeRepP storeVecRepI<T>::remap(const Map &m) const {
@@ -640,7 +643,7 @@ namespace Loci {
     return s.Rep() ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::copy(storeRepP &st, const entitySet &context) {
@@ -655,7 +658,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::gather(const Map &m, storeRepP &st,
@@ -674,7 +677,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  //*************************************************************************
+  //*************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::scatter(const Map &m, storeRepP &st,
@@ -693,7 +696,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   int storeVecRepI<T>::pack_size( const entitySet &e) {
@@ -703,7 +706,7 @@ namespace Loci {
     return(size) ;
   }
 
-  //*************************************************************************
+  //*************************************************************************/
   
   template <class T> 
   void storeVecRepI<T>::pack( void * ptr, int &loc, int &size, 
@@ -721,7 +724,7 @@ namespace Loci {
 */
   }
 
-  //**************************************************************************
+  //**************************************************************************/
   
   template <class T> 
   void storeVecRepI<T>::unpack( void *ptr, int &loc, int &size, 
@@ -747,7 +750,7 @@ namespace Loci {
       }
   }
 
-  //******************************************************************************
+  //*************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::hdf5write( H5::Group group, DEFAULT_CONVERTER g, 
@@ -792,7 +795,7 @@ namespace Loci {
 
   };
 
-  //******************************************************************************
+  //************************************************************************/
 
   template <class T>  
   void storeVecRepI<T>:: hdf5write( H5::Group group, IDENTITY_CONVERTER g,
@@ -865,7 +868,7 @@ namespace Loci {
     */
   };
 
-  //******************************************************************************
+  //*************************************************************************/
 
   template <class T>  
   void storeVecRepI<T> :: hdf5write( H5::Group group, USER_DEFINED_CONVERTER g, 
@@ -976,7 +979,7 @@ namespace Loci {
 
   };
 
-//***************************************************************************
+  //***************************************************************************/
 
   template <class T> 
   void storeVecRepI<T> :: hdf5read( H5::Group group, DEFAULT_CONVERTER c,
@@ -1026,7 +1029,7 @@ namespace Loci {
 */
   };
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::hdf5read(H5::Group group, IDENTITY_CONVERTER convert, 
@@ -1111,7 +1114,7 @@ namespace Loci {
 
   };
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void storeVecRepI<T> :: hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, 
@@ -1220,7 +1223,7 @@ namespace Loci {
 
   }; 
 
-  //**************************************************************************
+  //**************************************************************************/
 
 
 
