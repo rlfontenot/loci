@@ -64,7 +64,7 @@ namespace Loci {
     return Rep()->Input(s) ;
   }
 
-  const entitySet &store_ref::domain() const {
+  entitySet store_ref::domain() const {
     return Rep()->domain() ;
   }
 
