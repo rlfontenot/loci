@@ -6,8 +6,8 @@ using std::endl ;
 
 int main() {
   // Create a set of entities over which we will contain values using stores
-  // Note, the numbering of entities doesn't have to be contiguous, however
-  // Loci store's allocates the "gaps", that is it allocates from Min()
+  // Note: the numbering of entities doesn't have to be contiguous, however
+  // Loci's store allocates the "gaps", that is it allocates from Min()
   // to Max(), so it is more memory efficient to allocate in contiguous blocks
   entitySet alloc_set = interval(1,6) ;
 
@@ -39,8 +39,8 @@ int main() {
     shift_map[Entity(i)] = Entity(i+1) ;
 
   // We can also obtain the domain and range of any given map by using the
-  // domain an image member functions. (The range of a map is the image
-  // of its domain) 
+  // domain and image member functions. (The range of a map is the image
+  // of its domain.) 
   entitySet map_domain = shift_map.domain() ;
   entitySet map_range  = shift_map.image(map_domain) ;
   cout << "The domain of shift map is " << map_domain << endl; 
@@ -89,12 +89,12 @@ int main() {
   //**************************************************************************
   //* multiMap:
   //* A MapVec provides a one-to-many correspondence from one set of entities
-  //* to another set of entities where the many relation varies in size
-  //* from entitiy to entity.  This relation parallels the multiStore
+  //* to another set of entities where the number of relations vary in size
+  //* from entity to entity.  This relation parallels the multiStore
   //* container.
   //**************************************************************************
 
-  // Here we create a CRS for an upper trianglar matrix over entities [1,6]
+  // Here we create a CRS for an upper triangular matrix over entities [1,6]
   multiMap upper ;
 
   store<int> count ;

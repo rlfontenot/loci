@@ -11,11 +11,11 @@ main() {
   // store to contain an array, use this class.
   // The array is a template class parameterized on the type and size of the
   // array
-  Array<double,5> A ;  // Analagous to double A[5] 
+  Array<double,5> A ;  // Analogous to double A[5] 
 
-  // Otherwise Arrays act much C arrays.  The one exception is that unlike
-  // C arrays, if you pass these arrays to a function they will be passed
-  // by value not by reference!
+  // Otherwise Arrays act much like C arrays.  The one exception is that
+  // unlike C arrays, if you pass these arrays to a function they will be
+  // passed by value not by reference!
 
   for(int i=0;i<5;++i)
     A[i] = double(i) ;
@@ -23,7 +23,7 @@ main() {
   // Also Assignment works on the entire array
   Array<double,5> B = A ;
 
-  // Other tricks are also added (mostly for compatability with Loci reduction
+  // Other tricks are also added (mostly for compatibility with Loci reduction
   // rules to be covered later.
 
   B += A ;  // Does element by element addition of array A to array B
@@ -53,7 +53,7 @@ main() {
   // L2 norm is also provided
   double           areav1xv2 = norm(cross_product) ;
 
-  // Of course interaction with scalervalues act as expected.
+  // Of course interaction with scalar values acts as expected.
   // Normalize cross product
   cross_product /= areav1xv2 ;
 

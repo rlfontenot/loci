@@ -245,7 +245,7 @@ int main()
   G.Complement() ;
   // G = ([#,13][33,#]).
   // The first occurrence of "#" stands for Loci::UNIVERSE_MIN;
-  // the first occurrence of "#" stands for Loci::UNIVERSE_MAX.
+  // the second occurrence of "#" stands for Loci::UNIVERSE_MAX.
   cout << "Complement of G = " << G << endl ; 
   cout << "G = " << G << endl ; 
 

@@ -11,7 +11,7 @@ int main() {
 
   // Create a set of entities over which we will contain values using stores
   // Note, the numbering of entities doesn't have to be contiguous, however
-  // Loci store's allocates the "gaps", that is it allocates from Min()
+  // The Loci store allocates the "gaps", that is it allocates from Min()
   // to Max(), so it is more memory efficient to allocate in contiguous blocks
   int alloc_entities[6] = {1,2,3,14,15,16} ;
   entitySet alloc_set = create_entitySet(alloc_entities,alloc_entities+6) ;
@@ -27,7 +27,7 @@ int main() {
   // the template argument.  For example
   param<float> float_param ;
 
-  // The set_entitySet() method assignes the set of entities to which the
+  // The set_entitySet() method assigns the set of entities to which the
   // value will be associated.  By default, the parameter value is associated
   // to all entities.  If a parameter value should only be associated with a
   // subset of entities (for example, a boundary condition) then the
@@ -102,13 +102,13 @@ int main() {
   
   //**************************************************************************
   //* storeMat:
-  //* Associate runtime sizeable square matricies of values to entities
+  //* Associate runtime sizeable square matrices of values to entities
   // (one size for all entities).
   //**************************************************************************
 
   storeMat<float> matstore ;
   matstore.allocate(alloc_set) ;
-  matstore.setVecSize(vector_size) ; // Create 2x2 matricies
+  matstore.setVecSize(vector_size) ; // Create 2x2 matrices
   number = 1;
   for( ei = alloc_set.begin(); ei != alloc_set.end(); ++ei)
     for(int i=0;i<vector_size;++i)
