@@ -310,23 +310,25 @@ namespace Loci {
         rule unit_rule = (xi->second).first ;
         CPTR<joiner> join_op = (xi->second).second ;
 
-        storeRepP sp = join_op->getTargetRep() ;
-        /* old code
-        if(sp->RepType() == PARAMETER) {
-          dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
-                            join_op)) ;
-        }
-        */
-        if(sp->RepType()== PARAMETER) {
-          reduce_var_vector.push_back(xi->first) ;
-          unit_rule_vector.push_back(unit_rule) ;
-          join_op_vector.push_back(join_op) ;
-        }
-        else if (sp->RepType() == BLACKBOX) {
-          cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-        }else {
-          dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
-                                                       join_op)) ;
+        if(join_op != 0) {
+          storeRepP sp = join_op->getTargetRep() ;
+          /* old code
+             if(sp->RepType() == PARAMETER) {
+             dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
+             join_op)) ;
+             }
+          */
+          if(sp->RepType()== PARAMETER) {
+            reduce_var_vector.push_back(xi->first) ;
+            unit_rule_vector.push_back(unit_rule) ;
+            join_op_vector.push_back(join_op) ;
+          }
+          else if (sp->RepType() == BLACKBOX) {
+            cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+          }else {
+            dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
+                                                         join_op)) ;
+          }
         }
       }
       if(reduce_var_vector.size() != 0) 
