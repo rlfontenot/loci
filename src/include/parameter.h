@@ -11,6 +11,7 @@
 
 #include <hdf5CC/H5cpp.h>
 #include <hdf5_traits.h>
+#include <hdf5_memento.h>
 
 #include <hdf5_readwrite.h>
 
@@ -432,8 +433,8 @@ namespace Loci {
     Memento<T> memento( &attrib_data );
     int arraySize = memento.getSize();
     
- 	 data =  new converter_traits::memento_type[arraySize];
- 	 buf  =  new converter_traits::memento_type[arraySize];
+ 	 data =  new typename converter_traits::memento_type[arraySize];
+ 	 buf  =  new typename converter_traits::memento_type[arraySize];
 
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array
@@ -513,7 +514,7 @@ namespace Loci {
       dataset_param.read( data_param, datatype );
       std::istringstream iss(data_param);
 
-      iss >> param;
+      iss >> attrib_data;
       delete [] data_param;
       delete [] data_domain;
     }
@@ -568,8 +569,8 @@ namespace Loci {
 
    size_t  stateSize;
    stateSize =  dimension[0];
-   data      = new converter_traits::memento_type[stateSize];
-   buf       = new converter_traits::memento_type[stateSize];
+   data      = new typename converter_traits::memento_type[stateSize];
+   buf       = new typename converter_traits::memento_type[stateSize];
 
 	vdataset.read( data, vDatatype);
 
