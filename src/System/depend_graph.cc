@@ -80,6 +80,9 @@ namespace Loci {
     }
     
     inline void invoke_rule(rule f, digraph &gr) {
+#ifdef VERBOSE
+      cerr << "adding rule " << f << endl ;
+#endif
       gr.add_edges(f.sources(),f.ident()) ;
       gr.add_edges(f.ident(),f.targets()) ;
     }
@@ -103,7 +106,7 @@ namespace Loci {
         }
       }
     }
-
+  
     ruleSet fill_graph(variableSet start, const digraph &rule_graph,
                        digraph &gr,variableSet known) {
 #ifdef VERBOSE
@@ -394,6 +397,9 @@ namespace Loci {
     }
 
     void add_rename_dependencies(digraph &gr) {
+#ifdef VERBOSE
+      cout << "add_rename_dependencies()" << endl ;
+#endif
       variableSet all_vars = extract_vars(gr.get_all_vertices()) ;
       ruleSet     all_rules = extract_rules(gr.get_all_vertices()) ;
       
@@ -435,12 +441,13 @@ namespace Loci {
               // the build rules.  However, since we know that the collapse
               // must follow the build, there is no need to add the rename
               // dependencies to collapse rules.
-              if(ri->type() != rule::COLLAPSE)
+              if(depend_rules.size() != 0 && ri->type() != rule::COLLAPSE) {
                 gr.add_edges(depend_rules,ri->ident()) ;
 #ifdef VERBOSE
               cout << "adding edges from " <<depend_rules<<
-                " to " <<*ri << endl ;
+                " to " <<*ri  << "for rename dependencies" << endl ;
 #endif
+              }
             }
       }
       
@@ -740,7 +747,7 @@ namespace Loci {
       if(components[i].inSet(virtual_vertex)) {
         subset = components[i] ;
         break ;
-      }
+     }
     subset -= virtual_vertex ;
     ruleSet rules = extract_rules(subset) ;
     ruleSet::const_iterator fi ;
@@ -766,6 +773,7 @@ namespace Loci {
 #endif
     gr = gr.subgraph(subset) ;
   }
+  
 
 
 }// End namespace Loci
