@@ -1,7 +1,7 @@
 // Example program illustrating how to manipulate Entity, entitySet,
 // and sequence data structures in Loci
 
-// Time-stamp: <2002-02-12 09:14:51 peo>.
+// Time-stamp: <2002-02-13 09:36:31 peo>.
 
 // Every Loci program includes the Loci header file.
 #include <Loci.h>
@@ -41,6 +41,10 @@ int main()
   entitySet B = interval(14,100) ;
   entitySet C = interval(5,15) ;
   entitySet F = interval(10,20) ;
+  cout << "A = " << A << endl ; 
+  cout << "B = " << B << endl ; 
+  cout << "C = " << C << endl ;
+  cout << "F = " << F << endl ; 
 
   ////////////////////////////////////////////////////////////////////////////
   // Efficiency: intervalSet.
@@ -50,6 +54,7 @@ int main()
   // The class for an ordered set of ordered intervals is
   // intervalSet.  Lower-level methods and operators take intervalSet
   // and interval arguments.  
+
 
   ////////////////////////////////////////////////////////////////////////////
   // Adjunction
@@ -66,12 +71,21 @@ int main()
   cout << "C = " << C << endl ;
   cout << "F = " << F << endl ;
 
+  /////////////////////////////////////////////////////////////////////////////
+  // num_intervals
+  /////////////////////////////////////////////////////////////////////////////
+  // The num_intervals() method returns the number of intervals in the
+  // internal representation of an entitySet as an intervalSet.
+  cout << "B = " << B << endl ;
+  // B.num_intervals() = 2
+  cout << "B.num_intervals() = " << B.num_intervals() << endl ; 
+
   ////////////////////////////////////////////////////////////////////////////
   // Neither order nor duplication matters to an entitySet.
   // For example
   entitySet E = B + C ;
   //  E = B union C =  ([5,100])
-  // [gives the set ([5-100]) without duplicating 14 and 15]
+  // [gives the set ([5,100]) without duplicating 14 and 15]
   cout << "E = B union C =  " << E << endl ;
 
   ////////////////////////////////////////////////////////////////////////////
@@ -225,6 +239,13 @@ int main()
   cout << "G Intersection D = " << G << "." << endl ;
   cout << "G = " << G << "." << endl ; 
 
+  // Method for absolute complement of an entitySet.
+  // Note that the complement replaces the given set.
+  G.Complement() ;
+  // G = ([#,13][33,#])
+  // The first occurrence of "#" stands for Loci::UNIVERSE_MIN;
+  // the first occurrence of "#" stands for Loci::UNIVERSE_MAX.
+  cout << "G = " << G << endl ; 
 
   ////////////////////////////////////////////////////////////////////////////
   // Sequences
