@@ -32,7 +32,7 @@ using std::swap ;
 #endif
 
 namespace Loci {
-  int MPI_processes ;
+  int MPI_processes = 1;
   int MPI_rank ;
   int num_threads = 1 ;
 
@@ -642,8 +642,10 @@ namespace Loci {
 	if(get_entities[i][myid] != EMPTY)
 	  send_neighbour += i ;
     
+
     send_entities.allocate(send_neighbour) ;
     recv_entities.allocate(recv_neighbour) ;
+
     entitySet recv, send ;
     for(ei = recv_neighbour.begin(); ei != recv_neighbour.end(); ++ei) {
       for(ti =  get_entities[myid][*ei].begin(); ti != get_entities[myid][*ei].end(); ++ti)
@@ -687,6 +689,7 @@ namespace Loci {
     for(ei=recv_neighbour.begin(); ei != recv_neighbour.end();++ei)
       df->copy.push_back
         (fact_db::distribute_info::dist_data(*ei,recv_entities[*ei])) ;
+
     
     int total = 0 ;
     for(int i=0;i<df->xmit.size();++i)
