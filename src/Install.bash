@@ -1,12 +1,17 @@
-#!/usr/bin/bash
+#!/bin/bash
 
-REVISION_NAME='rel-1-0-beta-7'
+REVISION_NAME='$NAME: $'
 
 INSTALL_DIR=${LOCI_INSTALL_DIR-/usr/local}
 
+COMP_NAME=`echo $CPP | sed -e 's/ .*//' -e 's/.*\///'`
 ARCH=`arch`
+
 REV=`echo $REVISION_NAME| sed -e 's/.*: *//' -e 's/ *\$$//'`
-INSTALL_PATH=$INSTALL_DIR/Loci-$ARCH-gcc-$REV/
+# If no revision name, set the default to be month-day-year
+if [ $REV=="" ]; then REV=`date +%m.%d.%y` ; fi
+
+INSTALL_PATH=$INSTALL_DIR/Loci-$ARCH-$COMP_NAME-$REV/
 
 echo INSTALL_PATH = $INSTALL_PATH
 
