@@ -837,8 +837,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       s_size[i] = 0 ;
     }
     
-    recv_ptr = new unsigned char*[nrecv] ;
-    send_ptr = new unsigned char*[nsend] ;
+    recv_ptr = new unsigned char*[max(nrecv,1)] ;
+    send_ptr = new unsigned char*[max(nsend,1)] ;
     request =  new MPI_Request[nrecv] ;
     status =  new MPI_Status[nrecv] ;
   }
@@ -1135,7 +1135,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       total_size += r_size[i] ;
     }
-    int  **recv_ptr = new int*[nrecv] ;
+    int  **recv_ptr = new int*[max(nrecv,1)] ;
     recv_ptr[0] = new int[total_size] ;
     for(int i=1;i<nrecv;++i)
       recv_ptr[i] = recv_ptr[i-1]+r_size[i-1] ;
@@ -1150,7 +1150,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       total_size += s_size[i] ;
     }
-    int **send_ptr = new int*[nsend] ;
+    int **send_ptr = new int*[max(nsend,1)] ;
     send_ptr[0] = new int[total_size] ;
     for(int i=1;i<nsend;++i)
       send_ptr[i] = send_ptr[i-1]+s_size[i-1] ;

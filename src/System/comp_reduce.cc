@@ -913,8 +913,8 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       s_size[i] = 0 ;
     }
     
-    recv_ptr = new unsigned char*[nrecv] ;
-    send_ptr = new unsigned char*[nsend] ;
+    recv_ptr = new unsigned char*[max(nrecv,1)] ;
+    send_ptr = new unsigned char*[max(nsend,1)] ;
     request =  new MPI_Request[nrecv] ;
     status =  new MPI_Status[nrecv] ;
 }
