@@ -412,7 +412,9 @@ namespace Loci {
               depend_rules -= rename_rules ;
               // We ignore renaming dependencies in collapse rules, however
               // in reality we may need to follow the dependencies back to
-              // the build rules and add them there.
+              // the build rules.  However, since we know that the collapse
+              // must follow the build, there is no need to add the rename
+              // dependencies to collapse rules.
               if(ri->type() != rule::COLLAPSE)
                 gr.add_edges(depend_rules,ri->ident()) ;
 #ifdef VERBOSE

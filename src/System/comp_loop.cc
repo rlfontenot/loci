@@ -107,9 +107,9 @@ namespace Loci {
     cond_var = *(collapse_rules.begin()->get_info().desc.conditionals.begin());
 
     // create Output Variable
-    output = variable(variable("OUTPUT"),tlevel) ;
-    variableSet outputSet ;
-    outputSet = interval(output.ident(),output.ident()) ;
+    //    output = variable(variable("OUTPUT"),tlevel) ;
+    //    variableSet outputSet ;
+    //    outputSet = interval(output.ident(),output.ident()) ;
 
     // Schedule part of graph that leads to collapse
     collapse_sched = schedule_dag(dag, EMPTY,visit_vertices(dagt,collapse_vars)) ;
@@ -120,8 +120,9 @@ namespace Loci {
     digraph::vertexSet visited ;
     for(int i = 0;i<collapse_sched.size();++i)
       visited += collapse_sched[i] ;
-    vector<digraph::vertexSet>
-      dag_sched = schedule_dag(dag,visited, visit_vertices(dagt,outputSet)) ;
+    //    vector<digraph::vertexSet>
+    //      dag_sched = schedule_dag(dag,visited, visit_vertices(dagt,outputSet)) ;
+    vector<digraph::vertexSet> dag_sched ;
     compile_dag_sched(advance_comp,dag_sched,rule_process,dag) ;
     
     if(dag_sched.size() == 0)
