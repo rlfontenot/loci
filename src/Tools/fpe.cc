@@ -33,7 +33,7 @@ namespace Loci {
 #else
 #ifdef HAVE_FENWM
 
-#include <stdlib.h>
+
 #include <fenvwm.h>
 #include <iostream>
 using std::cerr ;
