@@ -218,6 +218,7 @@ namespace Loci {
       { return get_fact_data(v).aliases ; }
     
     void set_existential_info(variable v,rule f,entitySet x) ;
+    ruleSet get_existential_rules(variable v) ;
 
     entitySet get_existential_info(variable v, rule f) {
       fact_info &finfo = get_fact_info(v) ;

@@ -349,6 +349,15 @@ namespace Loci {
     return get_fact_info(v).existence ;
   }
 
+  ruleSet fact_db::get_existential_rules(variable v) {
+    std::map<rule,existential_info>::const_iterator mi ;
+    fact_info &finfo = get_fact_info(v) ;
+    ruleSet rules ;
+    for(mi=finfo.exist_map.begin();mi!=finfo.exist_map.end();++mi)
+      rules += mi->first ;
+    return rules ;
+  }
+  
   void fact_db::variable_request(variable v, entitySet e) {
     if(v.get_info().tvar)
       return ;

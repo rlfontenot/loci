@@ -132,6 +132,14 @@ namespace Loci {
     dummy_number.allocate(num_parts) ;
     for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei)
       number[*ei] = 0 ;
+
+#define SCATTER_DIST
+#ifdef SCATTER_DIST
+    // Test code
+    for(int i=0;i<size_map;++i)
+      part[i] = (i)%num_partitions ;
+    // end test code
+#endif
     for(int i = 0; i < size_map; i++)
       number[part[i]] += 1 ;
    
@@ -339,24 +347,44 @@ namespace Loci {
     std::vector<entitySet> proc_entities ;
     categories(facts,iv) ;
     entitySet e ;
+#ifdef DEBUG
+    debugout[MPI_rank] << "categories size = " << iv.size()
+                       << " {" << endl ;
+    for(int i = 0; i < iv.size(); ++i) 
+      debugout[MPI_rank] << iv[i] << endl ;
+
+    debugout[MPI_rank] << "}" << endl ;
+#endif
     for(int i = 0; i < iv.size(); ++i) {
+      // Within each category:
+      // 1) Number local processor entities first
       e = get_entities[myid][myid] & iv[i] ; 
       if(e != EMPTY){
 	proc_entities.push_back(e) ;
 	size += e.size() ;
       }
+      // 2) Number clone region entities next
+      for(int j = 0; j < num_procs; ++j) 
+        if(myid != j) {
+          e = get_entities[myid][j] & iv[i];
+          if(e != EMPTY) {
+            proc_entities.push_back(e) ;
+            size += e.size() ;
+          }
+        }
     }
-    
-    for(int i = 0; i < num_procs; ++i) 
-      if(myid != i) {
-	e = get_entities[myid][i] ;
-	if(e != EMPTY) {
-	  proc_entities.push_back(e) ;
-	  size += e.size() ;
-	}
-      }
-    
+
+
     entitySet g ;
+#ifdef SCATTER_DIST
+    for(int i=0;i<proc_entities.size();++i)
+      g+= proc_entities[i] ;
+    l2g.allocate(g) ;
+    for(entitySet::const_iterator ei=g.begin();ei!=g.end();++ei)
+      l2g[*ei] = *ei ;
+        
+#else
+
     e = interval(0, size - 1) ;
     l2g.allocate(e) ;
     for(int i = 0; i < proc_entities.size(); ++i) {
@@ -366,14 +394,14 @@ namespace Loci {
 	++j ;
       }
     }
+#endif
+    
     df->g2l.allocate(g) ;
-    j = 0 ;
-    for(int i = 0; i < proc_entities.size(); ++i) {
-      for(ei = proc_entities[i].begin(); ei != proc_entities[i].end(); ++ei ) {
-	df->g2l[*ei] = j ;
-	++j ;
-      }
+    entitySet ldom = l2g.domain() ;
+    for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {
+      df->g2l[l2g[*ei]] = *ei ;
     }
+      
     
     for(int i = 0 ; i < num_procs; ++i ) 
       if(myid != i )
@@ -424,9 +452,12 @@ namespace Loci {
     facts.put_distribute_info(df) ;
     facts.create_fact("l2g", l2g) ;
     facts.create_fact("my_entities", my_entities) ;
+    debugout[MPI_rank] << "my_entities = " << my_entities << endl ;
+    
   }
   
   
+
   entitySet fill_entitySet(const entitySet& e, fact_db &facts) {
 
     entitySet re ;
@@ -470,7 +501,13 @@ namespace Loci {
         for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
           send_buffer[i][j++] = l2g[*ei] ;
 
-        int send_size = temp.size() ;
+        debugout[MPI_rank] << "fill sending " ;
+        for(j=0;j<temp.size();++j)
+          debugout[MPI_rank] << send_buffer[i][j] << " " ;
+        debugout[MPI_rank] << endl ;
+          
+
+          int send_size = temp.size() ;
         MPI_Send(send_buffer[i], send_size, MPI_INT, d->xmit[i].proc,
                  1, MPI_COMM_WORLD) ;
       }
@@ -484,6 +521,15 @@ namespace Loci {
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
         for(int j = 0 ; j < recieved; ++j) 
           re += d->g2l[recv_buffer[i][j]] ;
+        debugout[MPI_rank] << "fill recv " ;
+        for(int j = 0 ; j < recieved; ++j) {
+          debugout[MPI_rank] << recv_buffer[i][j] << " " ;
+          debugout[MPI_rank] << "(" << d->g2l[recv_buffer[i][j]] << ") " ;
+        }
+                                             
+        debugout[MPI_rank] << endl ;
+        debugout[MPI_rank] << "fill re = " << re << endl ;
+        
       }
       
       

@@ -90,8 +90,41 @@ namespace Loci {
       if((sources & constraints) != constraints) {
 	cerr << "Warning, rule " << r <<
 	  " cannot supply all entities of constraint" << endl ;
-	cerr << "constraints = " << constraints ;
+	cerr << "constraints = " << constraints << endl ;
 	cerr << "sources & constraints = " << (sources & constraints) << endl ;
+        constraint my_entities ;
+        my_entities = facts.get_variable("my_entities") ;
+
+        for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+          entitySet sources = vmap_source_exist(*si,facts) ;
+          sources &= my_entities ;
+          if((sources & constraints) != constraints) {
+            cerr << "sources & constraints != constraints for input"
+                 << endl
+                 << sources  << " -- " << *si << endl ;
+            
+            if(si->mapping.size() > 0) {
+              entitySet working = constraints ;
+              for(int i=0;i<si->mapping.size();++i) {
+                entitySet images ;
+                variableSet::const_iterator vi ;
+                for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
+                  images |= facts.image(*vi,working) ;
+                working = images ;
+              }
+              variableSet::const_iterator vi ;
+              for(vi=si->var.begin();vi!=si->var.end();++vi) {
+                entitySet exist = facts.variable_existence(*vi) ;
+                entitySet fails = working & ~exist ;
+                if(fails != EMPTY) {
+                  cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                }
+              }
+            }
+          }
+        }
+        cerr << "my_entities = " << *my_entities << endl ;
+        cerr << "proc=" << MPI_rank << endl ;
       }
     sources &= constraints ;
     
@@ -600,14 +633,19 @@ namespace Loci {
     my_entities = facts.get_variable("my_entities") ;
     for(mi = barrier_info.begin() ; mi != barrier_info.end(); ++mi) {
       variable v = mi->first ;
-      ruleSet rs = mi->second ;
+      //      ruleSet rs = mi->second ;
+      ruleSet rs = facts.get_existential_rules(v) ;
       ruleSet::const_iterator rsi ;
       for(rsi = rs.begin(); rsi != rs.end(); ++rsi) {
 	entitySet targets ;
 	targets = facts.get_existential_info(v, *rsi) ;
-	targets += send_entitySet(targets, facts) ;
+        entitySet send_set = send_entitySet(targets, facts) ;
+        debugout[MPI_rank] << *rsi << " send_set = " << send_set << endl ;
+	targets += send_set ;
 	targets &= my_entities ;
-	targets = fill_entitySet(targets, facts) ;
+        entitySet fill_set = fill_entitySet(targets, facts) ;
+        debugout[MPI_rank] << *rsi << " fill_set = " << fill_set << endl ;
+	targets += fill_set ;
 	facts.set_existential_info(v,*rsi,targets) ;
       }
     }
@@ -860,7 +898,7 @@ namespace Loci {
       targets = facts.get_existential_info(reduce_var, unit_rule) ;
       targets += send_entitySet(targets, facts) ;
       targets &= my_entities ;
-      targets = fill_entitySet(targets, facts) ;
+      targets += fill_entitySet(targets, facts) ;
       facts.set_existential_info(reduce_var,unit_rule,targets) ;
     }
   }
@@ -891,9 +929,9 @@ namespace Loci {
       my_entities = facts.get_variable("my_entities") ;
       entitySet targets ;
       targets = facts.get_existential_info(reduce_var, unit_rule) ;
-      targets = send_entitySet(targets, facts) ;
+      targets += send_entitySet(targets, facts) ;
       targets &= my_entities ;
-      targets = fill_entitySet(targets, facts) ;
+      targets += fill_entitySet(targets, facts) ;
       facts.set_existential_info(reduce_var,unit_rule,targets) ;
     }
   }
