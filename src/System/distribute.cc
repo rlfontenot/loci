@@ -43,6 +43,7 @@ namespace Loci {
   int MPI_processes = 1;
   int MPI_rank ;
   int num_threads = 1 ;
+  int method = 3 ;
   /////////////////////////////
   // flags to turn on/off the visualization feature
   bool show_graphs = false ;
@@ -175,6 +176,9 @@ namespace Loci {
         // use the chomping scheme
         use_chomp = true ;
         i++ ;
+      } else if(!strcmp((*argv)[i],"--method")) {
+        method = atoi((*argv)[i+1]);
+        i+=2;
       } else
         break ;
     }

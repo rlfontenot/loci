@@ -484,10 +484,10 @@ void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &fact
     int nextStart=0, nextSize=0;      // foreMan's response to advance request 
     int nextSource=0;               // owner of chunk in advance request 
     //  int GIVbuffer1, GIVbuffer2;   // where to store GIV chunks 
-    int rcvStart=0;
-    int rcvEnd=0;
+    //    int rcvStart=0;
+    //    int rcvEnd=0;
     int GIVpending=0;               // results of GIV chunks to wait for 
-    int i=0, j=0, tStart=0, tSize=0, tSource=0;
+    int i=0, tStart=0, tSize=0, tSource=0;
 
     int gotWork=0;                  // termination flag 
     int MsgInQueue=0;               // message came in 
