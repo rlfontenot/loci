@@ -436,6 +436,107 @@ namespace Loci {
     return s ;
   }
 
+  // this read in routine reads the .vars file and set
+  // the facts according to the default and optional rules
+  std::istream& fact_db::read_vars(std::istream& s, const rule_db& rdb) {
+    // first of all, we need to process the default and optional rules
+    ruleSet special_rules = rdb.get_default_rules() ;
+    // first we process the default rules
+    for(ruleSet::const_iterator ri=special_rules.begin();
+        ri!=special_rules.end();++ri) {
+      // first we need to create the facts in the fact_db
+      variableSet targets = ri->targets() ;
+      rule_implP rp = ri->get_rule_implP() ;
+      for(variableSet::const_iterator vi=targets.begin();
+          vi!=targets.end();++vi) {
+        // we need to get the storeRep for this variable
+        storeRepP srp = rp->get_store(*vi) ;
+        if(srp == 0) {
+          cerr << "rule " << *ri << " unable to provide type for " << *vi
+               << endl ;
+          exit(-1) ;
+        }
+        create_fact(*vi,srp) ;        
+      }
+      // then we need to call the compute method to set
+      // the default value for this variable
+      rp->initialize(*this) ;
+      rp->compute(sequence(EMPTY)) ;
+    }
+    // then we process the optional rules
+    special_rules = rdb.get_optional_rules() ;
+    for(ruleSet::const_iterator ri=special_rules.begin();
+        ri!=special_rules.end();++ri) {
+      // first we need to create the facts in the fact_db
+      variableSet targets = ri->targets() ;
+      rule_implP rp = ri->get_rule_implP() ;
+      for(variableSet::const_iterator vi=targets.begin();
+          vi!=targets.end();++vi) {
+        // we need to get the storeRep for this variable
+        storeRepP srp = rp->get_store(*vi) ;
+        if(srp == 0) {
+          cerr << "rule " << *ri << " unable to provide type for " << *vi
+               << endl ;
+          exit(-1) ;
+        }
+        // here we only need to set up the variable type in
+        // the fact_db
+        set_variable_type(*vi,srp) ;
+      }
+    }
+    
+    string vname ;
+    parse::kill_white_space(s) ;
+    if(s.peek()!='{') {
+      cerr << "format error in fact_db::read" << endl ;
+      return s ;
+    }
+    s.get() ;
+    
+    for(;;) {
+      parse::kill_white_space(s) ;
+      if(s.peek() == '}') {
+        s.get() ;
+        break ;
+      }
+      if(s.peek() == char_traits<char>::eof()) {
+        cerr << "unexpected EOF in fact_db::read" << endl ;
+        exit(1) ;
+      }
+      parse::kill_white_space(s) ;
+      if(parse::is_name(s)) 
+        vname = parse::get_name(s) ;
+      else {
+        cerr << "syntax error in fact_db::read" << endl ;
+        exit(1) ;
+      }
+      parse::kill_white_space(s) ;
+      if(!parse::get_token(s,":")) {
+        cerr << "syntax error in fact_db::read, no ':' separator"
+             << endl ;
+        exit(1) ;
+      }
+
+      variable var(vname) ;
+      storeRepP vp = get_variable(var) ;
+      if(vp == 0) {
+        vp = get_variable_type(var) ;
+        if(vp != 0) {
+          create_fact(var,vp) ;
+        }
+        vp = get_variable(var) ;
+      }
+      if(vp == 0) {
+        cerr << "variable named '" << vname
+             << "' not found in database in fact_db::read." << endl
+             << "Error not recoverable. " << endl ;
+        exit(-1) ;
+      }
+      vp->Input(s) ;
+    }
+    return s ;
+  }
+
   void fact_db::Print_diagnostics() {
     std::map<variable, fact_info>::iterator mi ;
     ostringstream oss ;

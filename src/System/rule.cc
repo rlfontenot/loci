@@ -394,6 +394,19 @@ namespace Loci {
             retval = false ;
           }
           break;
+        case DEFAULT:
+        case OPTIONAL:
+          if(mi->second->Rep()->RepType() != PARAMETER) {
+            cerr << "-------------------------------------------------"<<endl;
+            cerr << "Default and optional rule should have targets" << endl;
+            cerr << " of param. Perhaps this rule should be a" << endl;
+	    cerr << "pointwise_rule, or apply_rule."<< endl ;
+            cerr << "Error occured for rule " << get_name()
+		 << " and variable " << *si << endl ;
+            cerr << "-------------------------------------------------"<<endl;
+            retval = false ;
+          }
+          break ;
         case SINGLETON:
           if(mi->second->Rep()->RepType() != PARAMETER &&
 	     mi->second->Rep()->RepType() != BLACKBOX) {
@@ -550,6 +563,12 @@ variableSet rule_impl::get_var_list() {
       break ;
     case APPLY:
       s << "APPLY" ;
+      break ;
+    case DEFAULT:
+      s << "DEFAULT" ;
+      break ;
+    case OPTIONAL:
+      s << "OPTIONAL" ;
       break ;
     default:
       s << "ERROR" ;
@@ -1377,7 +1396,26 @@ variableSet rule_impl::get_var_list() {
     if(fmti != name2rule.end()) {
       fname = f.get_info().name() ;
     }
-    name2rule[fname] = f ; 
+    name2rule[fname] = f ;
+    // default and optional rules need to be in a different ruleSet
+    if(f.get_info().rule_impl->get_rule_class() == rule_impl::DEFAULT) {
+      if(default_rules.inSet(f)) {
+        cerr << "Warning, adding duplicate rule to rule database"
+             << endl 
+             << " Rule = " << f << endl ;        
+      }else
+        default_rules += f ;
+      return ;
+    }
+    if(f.get_info().rule_impl->get_rule_class() == rule_impl::OPTIONAL) {
+      if(optional_rules.inSet(f)) {
+        cerr << "Warning, adding duplicate rule to rule database"
+             << endl 
+             << " Rule = " << f << endl ;        
+      }else
+        optional_rules += f ;
+      return ;
+    }
     
     if(known_rules.inSet(f)) {
       cerr << "Warning, adding duplicate rule to rule database"
