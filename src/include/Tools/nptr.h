@@ -59,6 +59,8 @@ namespace Loci {
         cerr << "Type Converter on nptr failed!  Could not convert:" << endl
              << typeid(p.ptr).name() << endl << "To type: "
              << typeid(T *).name() << endl ;
+	//abort() ;
+	fatal(true) ;
       }
 #endif
       set_ptr(pt) ;
@@ -133,6 +135,8 @@ namespace Loci {
         cerr << "Type Converter on nptr failed!  Could not convert:" << endl
              << typeid(p.ptr).name() << endl << "To type: "
              << typeid(T *).name() << endl ;
+	fatal(true) ;
+	abort() ;
       }
 #endif
       link_ptr() ;
@@ -145,6 +149,8 @@ namespace Loci {
         cerr << "Type Converter on nptr failed!  Could not convert:" << endl
              << typeid(p.ptr).name() << endl << "To type: "
              << typeid(T *).name() << endl ;
+	fatal(true) ;
+	abort() ;
       }
 #endif
       link_ptr() ;
