@@ -13,18 +13,15 @@
 #include <Loci_types.h>
 
 namespace Loci {
-  //------------------------------------------------------------------------
-
   template<unsigned int M> class dMapVec ;
   template<unsigned int M> class const_dMapVec ;
 
-  //------------------------------------------------------------------------
   template <unsigned int M> class dMapVecRepI : public MapRep {
   public:
     typedef Array<int,M>   VEC;
   private:
     entitySet            store_domain ;
- 	 HASH_MAP(int,VEC)    attrib_data;
+    HASH_MAP(int,VEC)    attrib_data;
   public:
     dMapVecRepI() {}
     dMapVecRepI(const entitySet &p) { allocate(p); }
@@ -48,7 +45,7 @@ namespace Loci {
     virtual entitySet image(const entitySet &domain) const ;
 
     virtual std::pair<entitySet,entitySet>
-      preimage(const entitySet &codomain) const ;
+    preimage(const entitySet &codomain) const ;
 
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
@@ -59,11 +56,11 @@ namespace Loci {
     HASH_MAP(int,VEC) *get_attrib_data() { return &attrib_data; }
   } ;
 
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
 
-template<unsigned int M> 
-void dMapVecRepI<M>::readhdf5( hid_t group_id, entitySet &user_eset)
-{
+  template<unsigned int M> 
+  void dMapVecRepI<M>::readhdf5( hid_t group_id, entitySet &user_eset)
+  {
     VEC         vec;
     int         size, numentities, rank = 1;
     hsize_t     dimension[1];
@@ -81,8 +78,8 @@ void dMapVecRepI<M>::readhdf5( hid_t group_id, entitySet &user_eset)
     H5Dread(vDataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &size);
 
     if( size != M ) {
-          cout << "Error: Reading Invalid mapvec  : " << endl;
-          return;
+      cout << "Error: Reading Invalid mapvec  : " << endl;
+      return;
     }
     entitySet ecommon;
 
@@ -90,77 +87,77 @@ void dMapVecRepI<M>::readhdf5( hid_t group_id, entitySet &user_eset)
 
     allocate( ecommon );
 
-   //---------------------------------------------------------------------------
-   // Calculate the offset of each entity in file ....
-   //---------------------------------------------------------------------------
-   cout << ecommon << endl;
-   store<unsigned> offset;
-   offset.allocate(eset);
-   entitySet :: const_iterator ei;
+    //---------------------------------------------------------------------------
+    // Calculate the offset of each entity in file ....
+    //---------------------------------------------------------------------------
+    cout << ecommon << endl;
+    store<unsigned> offset;
+    offset.allocate(eset);
+    entitySet :: const_iterator ei;
 
-   int arraySize = 0;
-   for( ei = eset.begin(); ei != eset.end(); ++ei) {
-        offset[*ei] = arraySize;
-        arraySize  += size;
-   }
+    int arraySize = 0;
+    for( ei = eset.begin(); ei != eset.end(); ++ei) {
+      offset[*ei] = arraySize;
+      arraySize  += size;
+    }
 
-   //---------------------------------------------------------------------------
-   // Read the data now ....
-   //---------------------------------------------------------------------------
+    //---------------------------------------------------------------------------
+    // Read the data now ....
+    //---------------------------------------------------------------------------
 
-   int num_intervals = ecommon.num_intervals();
-   interval *it = new interval[num_intervals];
+    int num_intervals = ecommon.num_intervals();
+    interval *it = new interval[num_intervals];
 
-   for(int i=0;i< num_intervals;i++) it[i] = ecommon[i];
+    for(int i=0;i< num_intervals;i++) it[i] = ecommon[i];
 
-   dimension[0] = arraySize;
+    dimension[0] = arraySize;
 
-   hid_t mDataspace = H5Screate_simple(rank, dimension, NULL);
-   hid_t vDataspace = H5Screate_simple(rank, dimension, NULL);
-   hid_t vDatatype   = H5Tcopy(H5T_NATIVE_INT);
+    hid_t mDataspace = H5Screate_simple(rank, dimension, NULL);
+    hid_t vDataspace = H5Screate_simple(rank, dimension, NULL);
+    hid_t vDatatype   = H5Tcopy(H5T_NATIVE_INT);
 
-   vDataset   = H5Dopen( group_id, "MapVec");
+    vDataset   = H5Dopen( group_id, "MapVec");
 
-   hssize_t  start[]     = {0};  // determines the starting coordinates.
-   hsize_t   stride[]    = {1};  // which elements are to be selected.
-   hsize_t   block[]     = {1};  // size of element block;
-   hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-   hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+    hssize_t  start[]     = {0};  // determines the starting coordinates.
+    hsize_t   stride[]    = {1};  // which elements are to be selected.
+    hsize_t   block[]     = {1};  // size of element block;
+    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-   int   *data;
+    int   *data;
 
-   for( int k = 0; k < num_intervals; k++) {
-        count[0] = 0;
-        for( int i = it[k].first; i <= it[k].second; i++) 
-             count[0] +=  size;
+    for( int k = 0; k < num_intervals; k++) {
+      count[0] = 0;
+      for( int i = it[k].first; i <= it[k].second; i++) 
+        count[0] +=  size;
 
-        data = new int[count[0]];
+      data = new int[count[0]];
 
-        foffset[0] = offset[it[k].first];
+      foffset[0] = offset[it[k].first];
 
-        H5Sselect_hyperslab(mDataspace, H5S_SELECT_SET, start,  stride, count, block);
-        H5Sselect_hyperslab(vDataspace, H5S_SELECT_SET, foffset,stride, count, block);
-        H5Dread( vDataset, vDatatype, mDataspace, vDataspace, H5P_DEFAULT, data);
+      H5Sselect_hyperslab(mDataspace, H5S_SELECT_SET, start,  stride, count, block);
+      H5Sselect_hyperslab(vDataspace, H5S_SELECT_SET, foffset,stride, count, block);
+      H5Dread( vDataset, vDatatype, mDataspace, vDataspace, H5P_DEFAULT, data);
 
-        int indx = 0;
-        for( int i = it[k].first; i <= it[k].second; i++) {
-             for( int m = 0; m < size; m++)
-                 attrib_data[i][m] = data[indx++];
-        }
+      int indx = 0;
+      for( int i = it[k].first; i <= it[k].second; i++) {
+        for( int m = 0; m < size; m++)
+          attrib_data[i][m] = data[indx++];
+      }
 
-        delete[] data;
-   }
+      delete[] data;
+    }
 
-   H5Dclose( vDataset   );
-   H5Tclose( vDatatype  );
-   H5Sclose( mDataspace );
-   H5Sclose( vDataspace );
-}
-//------------------------------------------------------------------------
+    H5Dclose( vDataset   );
+    H5Tclose( vDatatype  );
+    H5Sclose( mDataspace );
+    H5Sclose( vDataspace );
+  }
+  //------------------------------------------------------------------------
     
-template<unsigned int M> 
-void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &usr_eset) const 
-{
+  template<unsigned int M> 
+  void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &usr_eset) const 
+  {
 
     hsize_t   dimension;
     int       size, rank = 1;
@@ -175,9 +172,9 @@ void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &usr_eset) const
     Loci::HDF5_WriteDomain(group_id, eset);
     Loci::HDF5_WriteVecSize(group_id, vsize);
 
-//-----------------------------------------------------------------------------
-// Collect state data from each object and put into 1D array
-//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
+    // Collect state data from each object and put into 1D array
+    //-----------------------------------------------------------------------------
     std::vector<int> data(arraySize);
 
     entitySet::const_iterator ci;
@@ -186,10 +183,10 @@ void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &usr_eset) const
 
     size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-         iter = attrib_data.find(*ci);
-         if( iter == attrib_data.end() ) continue;
-         newvec = iter->second;
-         for( int i = 0; i < vsize; i++) data[indx++] =  newvec[i];
+      iter = attrib_data.find(*ci);
+      if( iter == attrib_data.end() ) continue;
+      newvec = iter->second;
+      for( int i = 0; i < vsize; i++) data[indx++] =  newvec[i];
     }
 
     dimension        = arraySize;
@@ -200,209 +197,217 @@ void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &usr_eset) const
 
     H5Dclose( vDataset   );
     H5Sclose( vDataspace );
-}
-
-//------------------------------------------------------------------------
-
-template<unsigned int M> 
-void dMapVecRepI<M>::allocate(const entitySet &ptn) 
-{
-   VEC   newvalue;
-   entitySet :: const_iterator  ci;
-
-   for( ci = ptn.begin(); ci != ptn.end(); ++ci)
-     attrib_data[*ci] = newvalue;
-		 
-   store_domain = ptn ;
-   dispatch_notify() ;
-}
-
-//------------------------------------------------------------------------
-
-template<unsigned int M> 
-dMapVecRepI<M>::~dMapVecRepI<M>() 
-{
-   attrib_data.clear();
-}
-
-//------------------------------------------------------------------------
-
-template<unsigned int M> 
-storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
-  int *recv_count = new int[MPI_processes] ;
-  int *send_count = new int[MPI_processes] ;
-  int *send_displacement = new int[MPI_processes] ;
-  int *recv_displacement = new int[MPI_processes] ;
-  entitySet::const_iterator ei ;
-  std::vector<int>::const_iterator vi ;
-  int size_send = 0 ;
-  std::vector<std::vector<int> > copy(MPI_processes), send_clone(MPI_processes) ;
-  for(int i = 0; i < MPI_processes; ++i) {
-    entitySet tmp = out_of_dom & init_ptn[i] ;
-    for(ei = tmp.begin(); ei != tmp.end(); ++ei)
-      copy[i].push_back(*ei) ;
-    std::sort(copy[i].begin(), copy[i].end()) ;
-    send_count[i] = copy[i].size() ;
-    size_send += send_count[i] ; 
   }
-  int *send_buf = new int[size_send] ;
-  MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-	       MPI_COMM_WORLD) ; 
-  size_send = 0 ;
-  for(int i = 0; i < MPI_processes; ++i)
-    size_send += recv_count[i] ;
-  
-  int *recv_buf = new int[size_send] ;
-  size_send = 0 ; 
-  for(int i = 0; i < MPI_processes; ++i)
-    for(vi = copy[i].begin(); vi != copy[i].end(); ++vi) {
-      send_buf[size_send] = *vi ;
-      ++size_send ;
+
+  //------------------------------------------------------------------------
+
+
+  template<unsigned int M> 
+  void dMapVecRepI<M>::allocate(const entitySet &eset) 
+  {
+    entitySet redundant, newSet;
+    entitySet :: const_iterator  ci;
+
+    redundant = domain() -  eset;
+    newSet    = eset - domain();
+
+    for( ci = redundant.begin(); ci != redundant.end(); ++ci)
+      attrib_data.erase(*ci);
+
+    VEC   newvalue;
+    for( ci = newSet.begin(); ci != newSet.end(); ++ci)
+      attrib_data[*ci] = newvalue;
+
+    store_domain = eset;
+    dispatch_notify() ;
+  }
+
+  //------------------------------------------------------------------------
+
+  template<unsigned int M> 
+  dMapVecRepI<M>::~dMapVecRepI<M>() 
+  {
+    attrib_data.clear();
+  }
+
+  //------------------------------------------------------------------------
+
+  template<unsigned int M> 
+  storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
+    int *recv_count = new int[MPI_processes] ;
+    int *send_count = new int[MPI_processes] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
+    entitySet::const_iterator ei ;
+    std::vector<int>::const_iterator vi ;
+    int size_send = 0 ;
+    std::vector<std::vector<int> > copy(MPI_processes), send_clone(MPI_processes) ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      entitySet tmp = out_of_dom & init_ptn[i] ;
+      for(ei = tmp.begin(); ei != tmp.end(); ++ei)
+        copy[i].push_back(*ei) ;
+      std::sort(copy[i].begin(), copy[i].end()) ;
+      send_count[i] = copy[i].size() ;
+      size_send += send_count[i] ; 
     }
-  send_displacement[0] = 0 ;
-  recv_displacement[0] = 0 ;
-  for(int i = 1; i < MPI_processes; ++i) {
-    send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
-    recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
-  }
-  MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
-		recv_buf, recv_count, recv_displacement, MPI_INT,
-		MPI_COMM_WORLD) ;  
-  for(int i = 0; i < MPI_processes; ++i) {
-    for(int j = recv_displacement[i]; j <
-	  recv_displacement[i]+recv_count[i]; ++j) 
-      send_clone[i].push_back(recv_buf[j]) ;
-    std::sort(send_clone[i].begin(), send_clone[i].end()) ;
-  }
-  std::vector<HASH_MAP(int, VEC ) > map_entities(MPI_processes) ;
-  for(int i = 0; i < MPI_processes; ++i) 
-    for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
-      if(attrib_data.find(*vi) != attrib_data.end())
-	(map_entities[i])[*vi] = attrib_data[*vi] ;
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+                 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += recv_count[i] ;
   
-  for(int i = 0; i < MPI_processes; ++i) {
-    send_count[i] = 2 * map_entities[i].size() ;
-    for(HASH_MAP(int, VEC )::iterator hi = map_entities[i].begin(); hi != map_entities[i].end(); ++hi)
-      send_count[i] += hi->second.size() ; 
-  }
-  size_send = 0 ;
-  for(int i = 0; i < MPI_processes; ++i)
-    size_send += send_count[i] ;
-  int *send_map = new int[size_send] ;
-  MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-	       MPI_COMM_WORLD) ; 
-  size_send = 0 ;
-  for(int i = 0; i < MPI_processes; ++i)
-    size_send += recv_count[i] ;
-  int *recv_map = new int[size_send] ;
-  size_send = 0 ;
-  for(int i = 0; i < MPI_processes; ++i) 
-    for(HASH_MAP(int, VEC )::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
-      send_map[size_send] = miv->first ;
-      ++size_send ;
-      send_map[size_send] = miv->second.size() ;
-      ++size_send ;
-      for(int j = 0; j < M; ++j) { 
-	send_map[size_send] = (miv->second)[j] ;
-	++size_send ;
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ; 
+    for(int i = 0; i < MPI_processes; ++i)
+      for(vi = copy[i].begin(); vi != copy[i].end(); ++vi) {
+        send_buf[size_send] = *vi ;
+        ++size_send ;
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+                  recv_buf, recv_count, recv_displacement, MPI_INT,
+                  MPI_COMM_WORLD) ;  
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+            recv_displacement[i]+recv_count[i]; ++j) 
+        send_clone[i].push_back(recv_buf[j]) ;
+      std::sort(send_clone[i].begin(), send_clone[i].end()) ;
+    }
+    std::vector<HASH_MAP(int, VEC ) > map_entities(MPI_processes) ;
+    for(int i = 0; i < MPI_processes; ++i) 
+      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
+        if(attrib_data.find(*vi) != attrib_data.end())
+          (map_entities[i])[*vi] = attrib_data[*vi] ;
+  
+    for(int i = 0; i < MPI_processes; ++i) {
+      send_count[i] = 2 * map_entities[i].size() ;
+      for(HASH_MAP(int, VEC )::iterator hi = map_entities[i].begin(); hi != map_entities[i].end(); ++hi)
+        send_count[i] += hi->second.size() ; 
+    }
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += send_count[i] ;
+    int *send_map = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+                 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += recv_count[i] ;
+    int *recv_map = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i) 
+      for(HASH_MAP(int, VEC )::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+        send_map[size_send] = miv->first ;
+        ++size_send ;
+        send_map[size_send] = miv->second.size() ;
+        ++size_send ;
+        for(int j = 0; j < M; ++j) { 
+          send_map[size_send] = (miv->second)[j] ;
+          ++size_send ;
+        }
+      }
+  
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
+                  recv_map, recv_count, recv_displacement, MPI_INT,
+                  MPI_COMM_WORLD) ;  
+    HASH_MAP(int, std::set<int> ) hm ;
+    std::set<int> ss ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+            recv_displacement[i]+recv_count[i]-1; ++j) {
+        int count = recv_map[j+1] ;
+        if(count)
+          for(int k = 0; k < count; ++k)
+            hm[recv_map[j]].insert(recv_map[j+k+2]);
+        else
+          hm[recv_map[j]] = ss ;
+        j += count + 1 ;
       }
     }
-  
-  send_displacement[0] = 0 ;
-  recv_displacement[0] = 0 ;
-  for(int i = 1; i < MPI_processes; ++i) {
-    send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
-    recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    dMapVec<M> dmul ;
+    for(HASH_MAP(int, std::set<int>)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+      if(hmi->second.size()) {
+        int c = 0;
+        for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
+          attrib_data[hmi->first][c++] = *si ;
+      } else
+        attrib_data[hmi->first] = VEC() ;
+    for(HASH_MAP(int, VEC )::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
+      dmul[hi->first] = hi->second ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+    delete [] send_map ; 
+    delete [] recv_map ;
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ; 
+    return dmul.Rep() ;
   }
-  MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
-		recv_map, recv_count, recv_displacement, MPI_INT,
-		MPI_COMM_WORLD) ;  
-  HASH_MAP(int, std::set<int> ) hm ;
-  std::set<int> ss ;
-  for(int i = 0; i < MPI_processes; ++i) {
-    for(int j = recv_displacement[i]; j <
-	  recv_displacement[i]+recv_count[i]-1; ++j) {
-      int count = recv_map[j+1] ;
-      if(count)
-	for(int k = 0; k < count; ++k)
-	  hm[recv_map[j]].insert(recv_map[j+k+2]);
-      else
-	hm[recv_map[j]] = ss ;
-      j += count + 1 ;
-    }
-  }
-  dMapVec<M> dmul ;
-  for(HASH_MAP(int, std::set<int>)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
-    if(hmi->second.size()) {
-      int c = 0;
-      for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
-	attrib_data[hmi->first][c++] = *si ;
-    } else
-      attrib_data[hmi->first] = VEC() ;
-  for(HASH_MAP(int, VEC )::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
-    dmul[hi->first] = hi->second ;
-  delete [] send_buf ;
-  delete [] recv_buf ;
-  delete [] send_map ; 
-  delete [] recv_map ;
-  delete [] recv_count ;
-  delete [] send_count ;
-  delete [] send_displacement ;
-  delete [] recv_displacement ; 
-  return dmul.Rep() ;
-}
-//------------------------------------------------------------------------
-template<unsigned int M> 
-multiMap dMapVecRepI<M>::get_map()  
-{
-  multiMap   newmap;
-  entitySet::const_iterator  ei;
-  store<int> count ;
-  entitySet dom = domain() ;
-  count.allocate(dom) ;
-  for(ei = dom.begin(); ei != dom.end(); ++ei)
-    count[*ei] = M ;
-  newmap.allocate(count) ;
-  for(ei = dom.begin(); ei != dom.end(); ++ei) 
-    for(int i = 0; i < count[*ei]; i++)
-      newmap[*ei][i] = attrib_data[*ei][i];
+  //------------------------------------------------------------------------
+  template<unsigned int M> 
+  multiMap dMapVecRepI<M>::get_map()  
+  {
+    multiMap   newmap;
+    entitySet::const_iterator  ei;
+    store<int> count ;
+    entitySet dom = domain() ;
+    count.allocate(dom) ;
+    for(ei = dom.begin(); ei != dom.end(); ++ei)
+      count[*ei] = M ;
+    newmap.allocate(count) ;
+    for(ei = dom.begin(); ei != dom.end(); ++ei) 
+      for(int i = 0; i < count[*ei]; i++)
+        newmap[*ei][i] = attrib_data[*ei][i];
   
-  return newmap; 
-}
+    return newmap; 
+  }
 
-//------------------------------------------------------------------------
+  //------------------------------------------------------------------------
 
-template<unsigned int M> 
-storeRep *dMapVecRepI<M>::new_store(const entitySet &p) const 
-{
+  template<unsigned int M> 
+  storeRep *dMapVecRepI<M>::new_store(const entitySet &p) const 
+  {
     return new dMapVecRepI<M>(p) ;
-}
+  }
 
-//------------------------------------------------------------------------
+  //------------------------------------------------------------------------
 
-template<unsigned int M> 
-entitySet dMapVecRepI<M>::domain() const 
-{
+  template<unsigned int M> 
+  entitySet dMapVecRepI<M>::domain() const 
+  {
     HASH_MAP(int,VEC) :: const_iterator    ci;
     entitySet          storeDomain;
     std::vector<int>        vec;
 
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci ) 
-         vec.push_back( ci->first ) ;
+      vec.push_back( ci->first ) ;
 
-   std:: sort( vec.begin(), vec.end() );
+    std:: sort( vec.begin(), vec.end() );
 
     for( int i = 0; i < vec.size(); i++) 
-         storeDomain +=  vec[i];
+      storeDomain +=  vec[i];
 
     return storeDomain ;
-}
+  }
 
-//------------------------------------------------------------------------
+  //------------------------------------------------------------------------
 
-template<unsigned int M> 
-entitySet dMapVecRepI<M>::image(const entitySet &domain) const 
-{
+  template<unsigned int M> 
+  entitySet dMapVecRepI<M>::image(const entitySet &domain) const 
+  {
 
     entitySet d = domain & store_domain ;
 
@@ -414,21 +419,21 @@ entitySet dMapVecRepI<M>::image(const entitySet &domain) const
     VEC    aArray;
     HASH_MAP(int,VEC) :: const_iterator iter;
     for( ei = d.begin(); ei != d.end(); ++ei){
-         iter = attrib_data.find( *ei );
-         if( iter != attrib_data.end() ) {
-             aArray = iter->second;
-             for( i = 0; i < M; i++) 
-                 codomain +=  aArray[i];
-         }
+      iter = attrib_data.find( *ei );
+      if( iter != attrib_data.end() ) {
+        aArray = iter->second;
+        for( i = 0; i < M; i++) 
+          codomain +=  aArray[i];
+      }
     }
     return codomain;
-}
+  }
 
-//------------------------------------------------------------------------
+  //------------------------------------------------------------------------
 
-template<unsigned int M> 
-std::pair<entitySet,entitySet> dMapVecRepI<M>::preimage(const entitySet &codomain) const 
-{
+  template<unsigned int M> 
+  std::pair<entitySet,entitySet> dMapVecRepI<M>::preimage(const entitySet &codomain) const 
+  {
     entitySet domaini ;   // intersection 
     entitySet domainu ;   // union
     HASH_MAP(int,VEC) :: const_iterator ci;
@@ -439,27 +444,27 @@ std::pair<entitySet,entitySet> dMapVecRepI<M>::preimage(const entitySet &codomai
       bool valu = false ;
       ci = attrib_data.find( i );
       if( ci != attrib_data.end() ) {
-          aVec = ci->second;
-          for(int j=0;j<M;++j) {
-              bool in_set = codomain.inSet(aVec[j]) ;
-              vali = vali && in_set ;
-              valu = valu || in_set ;
-          }
-          if(vali)
-             domaini += i ;
-          if(valu)
-            domainu += i ;
+        aVec = ci->second;
+        for(int j=0;j<M;++j) {
+          bool in_set = codomain.inSet(aVec[j]) ;
+          vali = vali && in_set ;
+          valu = valu || in_set ;
+        }
+        if(vali)
+          domaini += i ;
+        if(valu)
+          domainu += i ;
       }
     } ENDFORALL ;
 
     return std::make_pair(domaini,domainu) ;
-}
+  }
 
-//------------------------------------------------------------------------
+  //------------------------------------------------------------------------
   
-template<unsigned int M> 
-std::ostream &dMapVecRepI<M>::Print(std::ostream &s) const 
-{
+  template<unsigned int M> 
+  std::ostream &dMapVecRepI<M>::Print(std::ostream &s) const 
+  {
 
     HASH_MAP(int,VEC)  :: const_iterator  ci;
 
@@ -474,13 +479,13 @@ std::ostream &dMapVecRepI<M>::Print(std::ostream &s) const
     s << '}' << std::endl ;
 
     return s ;
-}
+  }
 
-//------------------------------------------------------------------------
+  //------------------------------------------------------------------------
 
-template<unsigned int M> 
-std::istream &dMapVecRepI<M>::Input(std::istream &s) 
-{
+  template<unsigned int M> 
+  std::istream &dMapVecRepI<M>::Input(std::istream &s) 
+  {
     entitySet e ;
     char ch ;
     
@@ -506,18 +511,18 @@ std::istream &dMapVecRepI<M>::Input(std::istream &s)
     }
 
     return s ;
-}
+  }
 
 
-//------------------------------------------------------------------------
+  //------------------------------------------------------------------------
     
-template<unsigned int M> class dMapVec : public store_instance 
-{
+  template<unsigned int M> class dMapVec : public store_instance 
+  {
     friend  class const_dMapVec<M> ;
     typedef dMapVecRepI<M> MapVecType ;
     typedef typename MapVecType::VEC VEC ;
     HASH_MAP(int, VEC)     *attrib_data;
- public:
+  public:
     dMapVec() { setRep(new MapVecType) ; }
     dMapVec(const dMapVec<M> &var) { setRep(var.Rep()) ; }
     dMapVec(storeRepP &rp) { setRep(rp) ; }
@@ -583,7 +588,7 @@ template<unsigned int M> class dMapVec : public store_instance
 
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
 
-//  entitySet image(const entitySet &dom) const;
+    //  entitySet image(const entitySet &dom) const;
 
   } ;
 
@@ -650,8 +655,8 @@ template<unsigned int M> class dMapVec : public store_instance
     const VEC &const_elem(int indx)  const {
       HASH_MAP(int,VEC) :: const_iterator ci;
 	  
-	  ci = attrib_data->find(indx);
-	  if( ci != attrib_data->end() ) return( ci->second );
+      ci = attrib_data->find(indx);
+      if( ci != attrib_data->end() ) return( ci->second );
     }
 
     const VEC &operator[](int indx) const { return const_elem(indx) ; }
@@ -724,10 +729,10 @@ template<unsigned int M> class dMapVec : public store_instance
 
     FORALL(context,i) {
       for(int j=0;j<M;++j) {
-	       if(dom.inSet(attrib_data[i][j]))
-	           attrib_data[i][j] = m[attrib_data[i][j]] ;
-	       else
-	           attrib_data[i][j] = -1 ;
+        if(dom.inSet(attrib_data[i][j]))
+          attrib_data[i][j] = m[attrib_data[i][j]] ;
+        else
+          attrib_data[i][j] = -1 ;
       }
     } ENDFORALL ;
 
@@ -738,16 +743,16 @@ template<unsigned int M> class dMapVec : public store_instance
   template<unsigned int M> 
   void dMapVecRepI<M>::copy(storeRepP &st, const entitySet &context)
   {
-/*
+    /*
       const_dMapVec<M> s(st) ;
 
       fatal((context-domain()) != EMPTY) ;
       fatal((context-s.domain()) != EMPTY) ;
 
       FORALL(context,i) {
-          attrib_data[i] =  s[i];
+      attrib_data[i] =  s[i];
       } ENDFORALL ;
-*/
+    */
 
   }
 
@@ -756,16 +761,16 @@ template<unsigned int M> class dMapVec : public store_instance
   template<unsigned int M> 
   void dMapVecRepI<M>::gather(const Map &m, storeRepP &st, const entitySet &context)
   {
-/*
+    /*
       const_dMapVec<M> s(st) ;
 
       fatal((m.image(context) - s.domain()) != EMPTY) ;
       fatal((context - domain()) != EMPTY) ;
 
       FORALL(context,i) {
-	      attrib_data[i] = s[m[i]];
+      attrib_data[i] = s[m[i]];
       } ENDFORALL ;
-*/
+    */
 
   }
 
@@ -774,16 +779,16 @@ template<unsigned int M> class dMapVec : public store_instance
   template<unsigned int M> 
   void dMapVecRepI<M>::scatter(const Map &m, storeRepP &st, const entitySet &context)
   {
-/*
+    /*
       const_dMapVec<M> s(st) ;
 
       fatal((context - s.domain()) != EMPTY) ;
       fatal((m.image(context) - domain()) != EMPTY) ;
 
       FORALL(context,i) {
-         attrib_data[m[i]] = s[i];
+      attrib_data[m[i]] = s[i];
       } ENDFORALL ;
-*/
+    */
 
   }
 
@@ -817,8 +822,8 @@ template<unsigned int M> class dMapVec : public store_instance
 
     int vsize = M;
     for( ci = seq.begin(); ci != seq.end(); ++ci)
-          MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
-                      vsize, MPI_INT, MPI_COMM_WORLD) ;
+      MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
+                  vsize, MPI_INT, MPI_COMM_WORLD) ;
   }  
 
 
