@@ -268,8 +268,8 @@ namespace Loci {
     std::map<variable, fact_info>::iterator mi =
       fmap.find(remove_synonym(tmp_v)) ;
     if(mi == fmap.end()) {
-      if(Loci::MPI_rank == 0)
-	cout << " returning null  storeRep for variable " << tmp_v<< endl ;
+      //      if(Loci::MPI_rank == 0)
+      //	cout << " returning null  storeRep for variable " << tmp_v<< endl ;
       return storeRepP(0) ;
       
     }
