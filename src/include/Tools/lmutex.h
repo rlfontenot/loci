@@ -3,6 +3,7 @@
 
 #ifdef PTHREADS
 #include <pthread.h>
+#include <errno.h>
 
 namespace Loci {
 

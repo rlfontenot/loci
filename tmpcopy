@@ -25,7 +25,7 @@ echo ln -s `pwd`/$i $target/Loci/System/$i
 ln -s `pwd`/$i $target/Loci/System/$i
 done
 cd ../Tools
-for i in *.h *.cc Makefile; do
+for i in *.h *.cc *.c Makefile; do
 echo ln -s `pwd`/$i $target/Loci/Tools/$i
 ln -s `pwd`/$i $target/Loci/Tools/$i
 done
