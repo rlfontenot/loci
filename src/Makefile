@@ -74,20 +74,33 @@ clean:
 	cd hdf5CC ; $(MAKE) clean
 
 Tools_depend: FRC
-	cd Tools ; $(MAKE) depend INCLUDES="$(INCLUDES)"\
-			  DEFINES="$(DEFINES)" \
-                          MAKEDEPEND="$(MAKEDEPEND)" \
-			  LOCI_BASE="$(LOCI_BASE)"
+	cd Tools ; $(MAKE) depend CC="$(CC)" CP="$(CP)" F77="$(F77)" \
+			   DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
+			   CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
+			   AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
+                           RANLIB="$(RANLIB)" LD="$(LD)"\
+			   LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
+			   LOCI_BASE="$(LOCI_BASE)"\
+                           MAKEDEPEND="$(MAKEDEPEND)"
+
 hdf5CC_depend: FRC
-	cd hdf5CC ; $(MAKE) depend INCLUDES="$(INCLUDES)"\
-			  DEFINES="$(DEFINES)" \
-                          MAKEDEPEND="$(MAKEDEPEND)" \
-			  LOCI_BASE="$(LOCI_BASE)"
+	cd hdf5CC ; $(MAKE) depend CC="$(CC)" CP="$(CP)" F77="$(F77)" \
+			   DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
+			   CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
+			   AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
+                           RANLIB="$(RANLIB)" LD="$(LD)"\
+			   LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
+			   LOCI_BASE="$(LOCI_BASE)"\
+                           MAKEDEPEND="$(MAKEDEPEND)" 
 
 System_depend: FRC
-	cd System ; $(MAKE) depend INCLUDES="$(INCLUDES)"\
-			  DEFINES="$(DEFINES)" \
-                          MAKEDEPEND="$(MAKEDEPEND)" \
-			  LOCI_BASE="$(LOCI_BASE)"
+	cd System ; $(MAKE) depend CC="$(CC)" CP="$(CP)" F77="$(F77)" \
+			   DEFINES="$(DEFINES)" INCLUDES="$(INCLUDES)"\
+			   CFLAGS="$(CFLAGS)" FFLAGS="$(FFLAGS)"\
+			   AR="$(AR)" ARFLAGS="$(ARFLAGS)"\
+                           RANLIB="$(RANLIB)" LD="$(LD)"\
+			   LDFLAGS="$(LDFLAGS)" LIBS="$(LIBS)" \
+			   LOCI_BASE="$(LOCI_BASE)"\
+                           MAKEDEPEND="$(MAKEDEPEND)" 
 
 depend: Tools_depend System_depend hdf5CC_depend
