@@ -385,7 +385,7 @@ namespace Loci {
         CompoundDatatypeP ct = CompoundFactory(t) ;
         ct->insert("x",offsetof(vector2d<T>,x),getLociType(t.x)) ;
         ct->insert("y",offsetof(vector2d<T>,y),getLociType(t.y)) ;
-        return DattypeP(ct) ;
+        return DatatypeP(ct) ;
       }
     };
   
