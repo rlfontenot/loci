@@ -32,9 +32,11 @@ using std::fmod ;
 #endif
 #ifdef NO_CSTDLIB
 #include <stdlib.h>
+#ifdef NO_ABS
 inline float abs(float f1) { return f1>0?f1:-f1; }
 inline double abs(double f1) { return f1>0?f1:-f1; }
 inline long double abs(long double f1) { return f1>0?f1:-f1; }
+#endif
 #else
 #include <cstdlib>
 using std::abs ;
