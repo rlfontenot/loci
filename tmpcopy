@@ -16,6 +16,8 @@ mkdir -p $target/Loci/lib
 cd $target/Loci
 echo ln -s $source/src/Makefile Makefile
 ln -s $source/src/Makefile Makefile
+echo ln -s $source/src/conf/Loci.conf Loci.conf
+ln -s $source/src/conf/Loci.conf Loci.conf
 echo ln -s $source/src/Install.bash Install.bash
 ln -s $source/src/Install.bash Install.bash
 echo ln -s $source/src/include include
