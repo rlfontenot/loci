@@ -746,7 +746,7 @@ namespace Loci {
       fatal(size<1) ;
       if(ptn != EMPTY) {
         int top = ptn.Min() ; int sza = (ptn.Max()-top+1)*size ;
-        alloc_pointer = new(T[sza]) ;
+        alloc_pointer = new T[sza] ;
         base_ptr = alloc_pointer - top*size ;
       }
     }
