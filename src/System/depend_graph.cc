@@ -124,8 +124,14 @@ namespace Loci {
               ++ri) {
             if(ri->type() == rule::INTERNAL &&
                ri->qualifier()=="iterating_rule") {
-              invoke_rule(*ri,gr) ;
-              new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
+              if(vi->time() == ri->source_time()) {
+                invoke_rule(*ri,gr) ;
+                new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
+              } else {
+                cerr << "rejecting iterating rule " << *ri << " for variable " << *vi << endl ;
+                cerr << "Please report when this happens" << endl ;
+                reject_rules += *ri ;
+              }
             } else {
               variableSet rule_depend = ri->constraints() ;
 #ifdef PRUNE_GRAPH
