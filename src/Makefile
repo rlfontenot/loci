@@ -1,27 +1,10 @@
 #
 # 
-LOCI_BASE=`pwd`
+LOCI_BASE=../
 include sys.conf
 include comp.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
-
-LOCI_BASE = ../
-
-INCLUDES =  
-
-CP  = $(CPP)
-
-COPT     = $(CC_LIB_FLAGS) $(CC_DEBUG) $(CC_OPT1)#$(CC_OPT)
-LOPT     = $(COPT)
-CFLAGS   = $(COPT) 
-
-F77 = f77
-FFLAGS   = -O3 
-
-
-LIBS     =  $(BASE_LIBS)
-
 
 default: Tools System hdf5CC
 
