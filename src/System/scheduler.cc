@@ -28,6 +28,8 @@ using std::make_pair ;
 
 namespace {
 class decompose_graph ;
+class rule_calculator ;
+class loop_calculator ;
 
 class decompose_graph {
   friend class rule_calculator ;

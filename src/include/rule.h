@@ -271,6 +271,10 @@ namespace Loci {
     { return v.Print(s) ; }
 
   class global_rule_impl_list {
+  public:
+    class rule_list_iterator ;
+    friend class rule_list_iterator ;
+  private:
     class rule_list_ent {
     public:
       rule_list_ent(rule_implP &p, rule_list_ent *nxt) : fp(p), next(nxt) {}

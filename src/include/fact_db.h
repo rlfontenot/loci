@@ -52,6 +52,8 @@ namespace Loci {
         v(vin), exists(e) {}
     } ;
 
+    struct fact_info ;
+    friend struct fact_info ;
     struct fact_info {
       int fact_info_ref ;
       entitySet fact_installed ;

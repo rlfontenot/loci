@@ -27,15 +27,20 @@ namespace Loci {
   extern const intervalSet EMPTY ;
 
   class intervalSet {
-    friend class sequence ;
-        
+  public:
+    class intervalSetIterator ;
     typedef std::vector<interval> intervalSetRep ;
-        
+  private:
+
+    friend class sequence ;
+    
+
     Handle<intervalSetRep> Rep ;
 
     struct rep_holder {
       Handle<intervalSetRep> Rep ;
     } ;
+    
     static rep_holder *rhp ;
     static Handle<intervalSetRep> & getEmptyRep() {
       if(rhp==0)
@@ -402,9 +407,11 @@ namespace Loci {
     
     
   class sequence {
-        
-    typedef intervalSet::intervalSetRep sequenceRep ;
 
+  public:
+    typedef intervalSet::intervalSetRep sequenceRep ;
+  private:
+    
     Handle<sequenceRep> Rep ;
 
     struct rep_holder {
