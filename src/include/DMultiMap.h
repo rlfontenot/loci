@@ -9,12 +9,17 @@
 #include <hdf5CC/H5cpp.h>
 
 #include <vector>
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
 #include <hash_map>
+#endif
 
 #include <Map.h>
 #include <store.h>
 
 namespace Loci {
+  using std::hash_map ;
 class dmultiMapRepI : public MapRep {
     entitySet store_domain ;
     hash_map<int, vector<int> >  attrib_data;

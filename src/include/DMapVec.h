@@ -4,6 +4,12 @@
 #include <istream>
 #include <ostream>
 
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
+#include <hash_map>
+#endif
+
 #include <Tools/debug.h>
 #include <Map_rep.h>
 #include <hdf5CC/H5cpp.h>
@@ -12,6 +18,8 @@
 #include <Loci_types.h>
 
 namespace Loci {
+  using std::hash_map ;
+
   template <unsigned int M> class dMapVecRepI : public MapRep {
   public:
     typedef Array<int,M>   VEC;
