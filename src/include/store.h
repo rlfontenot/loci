@@ -8,6 +8,7 @@
 #include <hdf5_memento.h>
 #include <hdf5_readwrite.h>
 #include <mpi.h>
+#include <string.h>
 
 namespace Loci {
   extern int MPI_processes;
@@ -673,12 +674,13 @@ namespace Loci {
 
     T *data = new T[eset.size()];
     int indx =0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) 
-      data[indx++] = base_ptr[*ci];
+    for( ci = eset.begin(); ci != eset.end(); ++ci)
+         data[indx++] = base_ptr[*ci];
 
     hid_t cparms   = H5Pcreate (H5P_DATASET_CREATE);
     hid_t vDataset = H5Dcreate(group_id, "VariableData", vDatatype,
                                vDataspace, cparms);
+/*
     H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 
     H5Dclose( vDataset  );
@@ -686,6 +688,7 @@ namespace Loci {
     H5Tclose( vDatatype );
 
     delete [] data;
+*/
 
   }
   //*********************************************************************/
@@ -964,7 +967,6 @@ namespace Loci {
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
     std::vector<dtype> data;
-
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
@@ -1012,6 +1014,8 @@ static inline istream& operator >> (istream & s, vector<int> &) {
   abort();
   return s;
 }
+
+
 
 #endif // GXX_FIXES
 
