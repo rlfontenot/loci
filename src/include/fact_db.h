@@ -133,6 +133,11 @@ namespace Loci {
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname,const storeRepP st)
     { set_variable_type(variable(vname),st) ; }
+
+    void set_variable_type(variable v, store_instance &si)
+    { set_variable_type(v,si.Rep()) ; }
+    void set_variable_type(std::string vname, store_instance &si)
+    { set_variable_type(variable(vname),si) ; }
     
     void allocate_variable(variable v, entitySet s) ;
     void allocate_variable(std::string vname, const entitySet s)
