@@ -79,6 +79,7 @@ namespace Loci {
     name = "UNNAMED" ;
     rule_impl_class = UNKNOWN ;
     rule_threading = true ;
+    relaxed_recursion = false ;
   }
 
   void rule_impl::rule_name(const string &fname) {

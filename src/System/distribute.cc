@@ -26,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
-//#define UNITY_MAPPING
+#define UNITY_MAPPING
 
 
 #ifdef SCATTER_DIST

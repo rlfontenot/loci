@@ -102,6 +102,9 @@ namespace Loci {
     fcontrol  control_set ;
     sequence fastseq ;
     std::vector<entitySet > par_schedule ;
+
+    std::vector<std::pair<variable,entitySet> > pre_send_entities ;
+    std::list<comm_info> clist ;
   public:
     impl_recurse_compiler(rule r)
     { impl = r ;}

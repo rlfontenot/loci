@@ -17,6 +17,7 @@
 #include <Map.h>
 #include <parameter.h>
 #include <storeVec.h>
+#include <storeMat.h>
 
 namespace Loci {
 

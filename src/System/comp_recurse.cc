@@ -1,3 +1,4 @@
+//#define DEBUG
 #include "comp_tools.h"
 #include "distribute.h"
 
@@ -14,7 +15,6 @@ using std::set ;
 
 namespace Loci {
   void impl_recurse_compiler::set_var_existence(fact_db &facts) {
-    warn(facts.isDistributed()) ;
 
     variableSet::const_iterator vi ;
     variableSet tvars ;
@@ -22,9 +22,18 @@ namespace Loci {
     fcontrol &fctrl = control_set ;
     const rule_impl::info &finfo = impl.get_info().desc ;
     warn(impl.type() == rule::INTERNAL) ;
-    entitySet sources = ~EMPTY ;
 
+    
+    entitySet my_entities = ~EMPTY ;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
+      pre_send_entities = barrier_existential_rule_analysis(recurse_vars,facts) ;
+      my_entities = d->my_entities ;
+    }
+    entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
+    
     set<vmap_info>::const_iterator si ;
     for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
       if((si->var & tvars) == EMPTY)
@@ -94,6 +103,10 @@ namespace Loci {
       fctrl.use_constraints = true ;
     }
 
+    sources += fill_entitySet(sources,facts) ;
+    if(fctrl.use_constraints)
+      constraints += fill_entitySet(constraints,facts) ;
+    
     fctrl.nr_sources = sources ;
 
     fctrl.constraints = constraints ;
@@ -115,8 +128,21 @@ namespace Loci {
       read_map_inv.push_back(multiMap()) ;
     }
     variable rvar = *(tvars.begin()) ;
+
+    
     entitySet sdelta = facts.variable_existence(rvar) ;
     entitySet domain = fctrl.nr_sources + sdelta ;
+
+    if(facts.isDistributed()) {
+      variable rename_var = rvar ;
+      if(finfo.targets.begin()->assign.size() != 0) {
+        rename_var = finfo.targets.begin()->assign[0].second ;
+      }
+      entitySet start=facts.variable_existence(rename_var) ;
+      domain += start - my_entities ;
+      sdelta += start - my_entities ;
+    }
+
 
     for(int j=read_maps.size()-1;j>=0;--j) {
       entitySet newdomain = facts.preimage(rmap.mapvar[j],domain).first ;
@@ -135,6 +161,8 @@ namespace Loci {
     for(int j=rmap.mapvec.size()-1;j>=0;--j)
       sdelta = rmap.mapvec[j]->preimage(sdelta).first ;
     sdelta &= fctrl.nr_sources ;
+    sdelta &= my_entities ;
+    
     entitySet tdelta = sdelta ;
     for(int j=0;j<tmap.mapvec.size();++j)
       tdelta = tmap.mapvec[j]->image(tdelta) ;
@@ -149,16 +177,41 @@ namespace Loci {
     
     entitySet generated = tdelta ;
     const entitySet nr_sources = fctrl.nr_sources ;
+    entitySet exists_alloc = nr_sources ;
+    if(facts.isDistributed()) {
+      entitySet working = exists_alloc ;
+      for(int j=0;j<read_maps.size();++j) {
+        MapRepP mp = MapRepP(read_maps[j].Rep()) ;
+        working = mp->image(working) ;
+      }
+      exists_alloc += working ;
+      working = exists_alloc ;
+      for(int j=0;j<tmap.mapvec.size();++j) {
+        working = tmap.mapvec[j]->image(working) ;
+      }
+      exists_alloc += working ;
+    }
+    exists_alloc += tdelta ;
     store<bool> exists ;
-    exists.allocate(nr_sources) ;
+    exists.allocate(exists_alloc) ;
+#ifdef VERBOSE
+    debugout[MPI_rank] << "exists_alloc = " << exists_alloc
+                       << "nr_sources = " << nr_sources << endl ;
+#endif
     for(entitySet::const_iterator
-          ei=nr_sources.begin();ei!=nr_sources.end();++ei)
+          ei=exists_alloc.begin();ei!=exists_alloc.end();++ei)
       exists[*ei] = false ;
+    exists_alloc -= my_entities ;
+#ifdef VERBOSE
+    debugout[MPI_rank] << "exists_alloc-my_entities = " << exists_alloc << endl ;
+#endif
+    for(entitySet::const_iterator
+          ei=exists_alloc.begin();ei!=exists_alloc.end();++ei)
+      exists[*ei] = true ;
+    
     for(entitySet::const_iterator
           ei=tdelta.begin();ei!=tdelta.end();++ei)
       exists[*ei] = true ;
-    vector<const int *> mi(read_maps.size()) ;
-    vector<const int *> me(read_maps.size()) ;
 
     do {
       for(int j=read_map_inv.size()-1;j>=0;--j) {
@@ -176,9 +229,14 @@ namespace Loci {
         }
         sdelta = candidates ;
       }
+#ifdef VERBOSE
+      debugout[MPI_rank] << "candidates = " << sdelta << endl ;
+#endif
       // we now have candidate sdeltas, check them to see if they
       // are satisfied.
       entitySet satisfied ;
+      vector<const int *> mi(read_maps.size()) ;
+      vector<const int *> me(read_maps.size()) ;
       for(entitySet::const_iterator di=sdelta.begin();di!=sdelta.end();++di) {
         int c = *di ;
         mi[0] = read_maps[0].begin(c) ;
@@ -203,8 +261,30 @@ namespace Loci {
         }
         if(chk)
           satisfied += *di ;
+        if(!chk) {
+          int c = *di ;
+          mi[0] = read_maps[0].begin(c) ;
+          me[0] = read_maps[0].end(c) ;
+          chk = true ;
+          int j=0 ;
+          const int je=read_maps.size();
+          while(chk && j>=0) {
+            c = *mi[j] ;
+            j++ ;
+            if(j==je) {
+              chk = chk && exists[c] && nr_sources.inSet(c) ;
+              do {
+                j-- ;
+              } while(j>=0 && (++mi[j]) == me[j]) ;
+            } else {
+              mi[j] = read_maps[j].begin(c) ;
+              me[j] = read_maps[j].end(c) ;
+            }
+          }
+        }
       }
       sdelta = satisfied ;
+      sdelta &= my_entities ;
       entitySet tdelta = sdelta ;
       for(int j=0;j<tmap.mapvec.size();++j)
         tdelta = tmap.mapvec[j]->image(tdelta) ;
@@ -244,11 +324,27 @@ namespace Loci {
     for(map<variable,entitySet>::const_iterator mi=fctrl.generated.begin();
         mi!=fctrl.generated.end();++mi)
       facts.set_existential_info(mi->first,impl,mi->second) ;
+
+    entitySet create = facts.get_existential_info(rvar,impl) ;
+    create += send_entitySet(create,facts) ;
+    create += fill_entitySet(create,facts) ;
+    facts.set_existential_info(rvar,impl,create) ;
     
   }
   
   void impl_recurse_compiler::process_var_requests(fact_db &facts) {
+    entitySet my_entities = ~EMPTY ;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      my_entities = d->my_entities ;
+    }
     process_rule_requests(impl,facts) ;
+    if(facts.isDistributed()) {
+      list<comm_info> request_comm ;
+      variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
+      request_comm = barrier_process_rule_requests(recurse_vars, facts) ;
+      clist = sort_comm(request_comm,facts) ;
+    }
   }
 
   executeP impl_recurse_compiler::create_execution_schedule(fact_db &facts) {
@@ -273,6 +369,10 @@ namespace Loci {
       }
       if(seq.size() > 1) {
         el->append_list(new execute_rule(impl,seq,facts)) ;
+      }
+      if(facts.isDistributed()) {
+        el->append_list(new execute_thread_sync) ;
+        el->append_list(new execute_comm(clist, facts)) ;
       }
       return executeP(el) ;
     }
