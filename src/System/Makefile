@@ -36,11 +36,12 @@ JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 clean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK)
 
+distclean:
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
+	
 
-make.depend:
-	touch make.depend 
+DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
-depend: make.depend
-	$(MAKEDEPEND) $(CFLAGS)  $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(LOCAL_INCLUDES) *.cc > make.depend
 
-include make.depend				
+#include automatically generated dependencies
+include $(DEPEND_FILES)
