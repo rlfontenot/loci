@@ -43,7 +43,7 @@ namespace Loci {
 
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size_dim; }
-    const entitySet &domain() const { return Rep()->domain() ; }
+    const entitySet domain() const { return Rep()->domain() ; }
 
     Mat<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
@@ -62,12 +62,12 @@ namespace Loci {
 
   } ;
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   storeMat<T>::~storeMat<T>() { }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void storeMat<T>::notification() 
@@ -81,19 +81,19 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   inline std::ostream & operator<<(std::ostream &s, const storeMat<T> &t)
   { return t.Print(s) ; }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   inline std::istream & operator>>(std::istream &s, storeMat<T> &t)
   { return t.Input(s) ; }
 
-  //*************************************************************************
+  //*************************************************************************/
 
   template<class T> class const_storeMat : public store_instance {
     typedef storeVecRepI<T> storeType ;
@@ -122,7 +122,7 @@ namespace Loci {
     { setRep(p) ; return *this ; }
 
     int vecSize() const { return size_dim; }
-    const entitySet &domain() { return Rep()->domain() ; }
+    const entitySet domain() { return Rep()->domain() ; }
     //    operator storeRepP() { return Rep() ; }
 
     const_Mat<T> elem(int indx) {
@@ -140,12 +140,12 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
   } ;
 
-  //***************************************************************************
+  //***************************************************************************/
 
   template<class T> 
   const_storeMat<T>::~const_storeMat<T>() { }
 
-  //***************************************************************************
+  //***************************************************************************/
 
   template<class T> 
   void const_storeMat<T>::notification() 
@@ -159,20 +159,20 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //***************************************************************************
+  //***************************************************************************/
 
   template<class T> 
   store_instance::instance_type
   const_storeMat<T>::access() const
   { return READ_ONLY; }
         
-  //***************************************************************************
+  //***************************************************************************/
 
   template<class T> inline std::ostream &
   operator<<(std::ostream &s, const const_storeMat<T> &t)
   { return t.Print(s) ; }
 
-  //***************************************************************************
+  //***************************************************************************/
 
 }
 

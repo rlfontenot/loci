@@ -337,7 +337,7 @@ namespace Loci {
     
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
 
-    const entitySet &domain() const { return Rep()->domain() ; }
+    const entitySet domain() const { return Rep()->domain() ; }
     //    operator storeRepP() { return Rep() ; }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
 
@@ -392,7 +392,7 @@ namespace Loci {
     { setRep(str.Rep()) ; return *this ;}
     const_MapVec & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
-    const entitySet &domain() const { return Rep()->domain() ; }
+    const entitySet domain() const { return Rep()->domain() ; }
     //    operator storeRepP() { return Rep() ; }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
 

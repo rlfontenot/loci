@@ -75,7 +75,7 @@ namespace Loci {
     hash_map<int,vector<T> > *get_attrib_data(){return &attrib_data; }
   } ;
 
-  //***************************************************************************
+  //***************************************************************************/
   
   template<class T> class dmultiStore : public store_instance {
     typedef dmultiStoreRepI<T>  storeType ;
@@ -125,24 +125,24 @@ namespace Loci {
     
   } ;
 
-  //***********************************************************************************
+  //*************************************************************************/
 
   template <class T> 
   inline std::ostream & operator<<(std::ostream &s, const dmultiStore<T> &m)
   { return m.Print(s) ; }
 
-  // *************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   inline std::istream & operator>>(std::istream &s, dmultiStore<T> &m)
   { return m.Input(s) ; }
 
-  //**************************************************************************
+  //**************************************************************************/
  
   template<class T> 
   dmultiStore<T>::~dmultiStore() {}
 
-  //**************************************************************************
+  //**************************************************************************/
   
   template<class T> 
   void dmultiStore<T>::notification() 
@@ -153,7 +153,7 @@ namespace Loci {
      warn(p == 0) ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
   
   template<class T> class const_dmultiStore : public store_instance {
     typedef dmultiStoreRepI<T> storeType ;
@@ -181,7 +181,7 @@ namespace Loci {
 
     const_dmultiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
-    const entitySet &domain() const { return Rep()->domain() ; }
+    const entitySet domain() const { return Rep()->domain() ; }
 
     vector<T> &elem(int indx) {
         return( (*attrib_data)[indx] );
@@ -196,14 +196,14 @@ namespace Loci {
 
   } ;
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   store_instance::instance_type
   const_dmultiStore<T>::access() const
   { return READ_ONLY ; }
 
-  //**************************************************************************
+  //**************************************************************************/
   
   template<class T> 
   const_dmultiStore<T>::~const_dmultiStore() {}
@@ -219,7 +219,7 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void dmultiStoreRepI<T>::allocate(const store<int> &sizes) 
@@ -244,7 +244,7 @@ namespace Loci {
     store_domain = eset ;
     dispatch_notify() ;
   }
-  //***************************************************************************
+  //***************************************************************************/
   
   template<class T> 
   void dmultiStoreRepI<T>::allocate(const entitySet &ptn) 
@@ -259,7 +259,7 @@ namespace Loci {
      dispatch_notify() ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   dmultiStoreRepI<T>::~dmultiStoreRepI() 
@@ -267,7 +267,7 @@ namespace Loci {
      attrib_data.clear();
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   storeRep *dmultiStoreRepI<T>::new_store(const entitySet &p) const 
@@ -275,7 +275,7 @@ namespace Loci {
     return new dmultiStoreRepI<T>(p) ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   storeRepP dmultiStoreRepI<T>::remap(const Map &m) const {
@@ -291,7 +291,7 @@ namespace Loci {
     return s.Rep() ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
   
   template<class T> 
   void dmultiStoreRepI<T>::copy(storeRepP &st, const entitySet &context) 
@@ -311,7 +311,7 @@ namespace Loci {
 
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void dmultiStoreRepI<T>::gather(const Map &m, storeRepP &st, const entitySet &context) 
@@ -331,7 +331,7 @@ namespace Loci {
 
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void dmultiStoreRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context) 
@@ -350,7 +350,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
  
   template <class T> 
   int dmultiStoreRepI<T>::pack_size(const entitySet &e ) 
@@ -363,7 +363,7 @@ namespace Loci {
     return( size*sizeof(T) + e.size()*sizeof(int) ) ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
   
   template <class T> 
   void dmultiStoreRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &e ) 
@@ -420,7 +420,7 @@ namespace Loci {
 
   }
   
-  //**************************************************************************
+  //**************************************************************************/
   
   template <class T> 
   void dmultiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
@@ -471,7 +471,7 @@ namespace Loci {
 */
   }
   
-  //**************************************************************************
+  //**************************************************************************/
  
   template<class T> 
   store_type dmultiStoreRepI<T>::RepType() const 
@@ -479,7 +479,7 @@ namespace Loci {
     return STORE ;
   }
 
-  //***************************************************************************
+  //***************************************************************************/
   
   template<class T> 
   entitySet dmultiStoreRepI<T>::domain() const 
@@ -499,7 +499,7 @@ namespace Loci {
     return storeDomain ;
   }
 
-  //***************************************************************************
+  //***************************************************************************/
   
   template<class T> 
   std::ostream &dmultiStoreRepI<T>::Print(std::ostream &s) const 
@@ -531,7 +531,7 @@ namespace Loci {
     return s ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   std::istream &dmultiStoreRepI<T>::Input(std::istream &s) 
@@ -593,7 +593,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //***************************************************************************/
 
   template<class T> 
   void dmultiStoreRepI<T>::writehdf5(H5::Group group, entitySet &en) const 
@@ -606,7 +606,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //***************************************************************************/
 
   template<class T> 
   void dmultiStoreRepI<T>::readhdf5( H5::Group group, entitySet &user_eset) 
@@ -624,7 +624,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //***************************************************************************/
 
   template <class T> 
   void dmultiStoreRepI<T> :: hdf5read( H5::Group group, IDENTITY_CONVERTER c, 
@@ -730,7 +730,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //***************************************************************************/
 
   template <class T> 
   void dmultiStoreRepI<T> :: hdf5write( H5::Group group, IDENTITY_CONVERTER c, 
@@ -828,7 +828,7 @@ namespace Loci {
     delete [] data;
   }
 
-  //***************************************************************************
+  //***************************************************************************/
 
   template<class T>
   void  dmultiStoreRepI<T> :: hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, 
@@ -972,7 +972,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //***************************************************************************/
   
   template <class T> 
   void dmultiStoreRepI<T> :: hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, 
@@ -1101,7 +1101,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //***************************************************************************/
 }
 
 #endif

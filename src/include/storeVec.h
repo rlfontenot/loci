@@ -494,7 +494,7 @@ namespace Loci {
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size ; }
 
-    const entitySet &domain() const { return Rep()->domain() ; }
+    const entitySet domain() const { return Rep()->domain() ; }
 
     Vect<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
