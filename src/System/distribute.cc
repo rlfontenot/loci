@@ -2244,6 +2244,9 @@ void write_container(hid_t group_id, storeRepP qrep) {
     FORALL(remap_dom, ri) {
       if(d_remap[ri].size() == 1)
 	reverse[ri] = d_remap[ri][0] ;
+      else
+        if(d_remap[ri].size() > 1)
+          cerr << "d_remap has multiple entries!" << endl ;
     } ENDFORALL ;
     Map tmp_remap ;
     entitySet tmp_remap_dom =  MapRepP(l2g.Rep())->preimage(dom&init_ptn[ MPI_rank]).first ;
@@ -2252,7 +2255,20 @@ void write_container(hid_t group_id, storeRepP qrep) {
       tmp_remap[ri] = l2g[ri] ;
     } ENDFORALL ;
     entitySet owned_entities = *my_entities & sp->domain() ;
-    MapRepP(tmp_remap.Rep())->compose(reverse, tmp_remap_dom) ;
+
+    entitySet tmp_remap_image = MapRepP(tmp_remap.Rep())->image(tmp_remap.domain());
+    entitySet reverse_dom = reverse.domain() ;
+    entitySet tmp_remap_preimage = MapRepP(tmp_remap.Rep())->preimage(reverse_dom).first ;
+
+    if((tmp_remap_dom&tmp_remap_preimage) != tmp_remap_dom) {
+      debugout << "tmp_remap.image() = " << tmp_remap_image << endl ;
+      debugout << "reverse.domain() = " << reverse.domain() << endl ;
+      debugout << "tmp_remap.preimage(reverse.domain()) = "
+               << tmp_remap_preimage << endl ;
+      cerr << "something fishy in collect_reorder_store" << endl ;
+      cerr << "missing entities" << tmp_remap_dom-tmp_remap_preimage << endl ;
+    }
+    MapRepP(tmp_remap.Rep())->compose(reverse, tmp_remap_dom&tmp_remap_preimage) ;
     storeRepP qcol_rep ;
     qcol_rep = sp->new_store(chop_ptn[ MPI_rank] & dom) ;
     entitySet global_owned =  MapRepP(tmp_remap.Rep())->image(owned_entities) ;
