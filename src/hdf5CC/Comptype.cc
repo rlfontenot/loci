@@ -69,7 +69,7 @@ size_t CompType::getMemberOffset( int member_num ) const
    }
    return( offset );
 }
-
+#ifdef OLD_HDF5
 // Returns the dimensionality of the member. 
 int CompType::getMemberDims( int member_num, size_t *dims, int *perm ) const
 {
@@ -80,6 +80,8 @@ int CompType::getMemberDims( int member_num, size_t *dims, int *perm ) const
    }
    return( num_dims );
 }
+
+#endif
 
 // Gets the type class of the specified member.
 H5T_class_t CompType::getMemberClass( int member_num ) const
@@ -198,7 +200,7 @@ void CompType::insertMember( const string name, size_t offset, const DataType& n
       throw HDF5DatatypeInterfaceException();
    }
 }
-
+#ifdef OLD_HDF5
 // Adds an array member to this compound datatype.
 void CompType::insertMember( const string member_name, size_t offset, int ndims, const size_t* dim, const int* perm, const DataType& new_member ) const
 {
@@ -217,6 +219,7 @@ void CompType::insertMember( const string member_name, size_t offset, int ndims,
       throw HDF5DatatypeInterfaceException();
    }
 }
+#endif
 
 // Recursively removes padding from within a compound datatype. 
 void CompType::pack() const
