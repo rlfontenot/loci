@@ -430,7 +430,7 @@ namespace Loci {
   {
     hash_map<int,std::vector<T> > :: const_iterator    ci;
     entitySet          storeDomain;
-    vector<int>        vec;
+    std::vector<int>        vec;
 
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
       vec.push_back( ci->first ) ;
