@@ -210,12 +210,12 @@ namespace Loci {
 
   std::pair<entitySet, entitySet> fact_db::get_dist_alloc(int size) {
 
-    if(!dist_from_start) {
-      dist_from_start = 1 ;
-      distributed_info = new distribute_info;
-    }
-
     if(MPI_processes > 1) {
+      if(!dist_from_start) {
+	dist_from_start = 1 ;
+	distributed_info = new distribute_info;
+      }
+
       int* send_buf = new int[MPI_processes] ;
       int* size_send = new int[MPI_processes] ;
       int* size_recv = new int[MPI_processes] ;
@@ -265,11 +265,13 @@ namespace Loci {
   }
     
   void fact_db::update_remap(const std::vector<std::pair<int, int> > &remap_update) {
-    warn(!dist_from_start);
-    fatal(distributed_info == NULL);
-    
-    for(std::vector<std::pair<int, int> >::const_iterator vi = remap_update.begin(); vi != remap_update.end(); vi++) {
-      distributed_info->remap[vi->first] = vi->second;
+    if(Loci::MPI_processes > 1) {
+      warn(!dist_from_start);
+      fatal(distributed_info == NULL);
+      
+      for(std::vector<std::pair<int, int> >::const_iterator vi = remap_update.begin(); vi != remap_update.end(); vi++) {
+	distributed_info->remap[vi->first] = vi->second;
+      }
     }
   }
 
