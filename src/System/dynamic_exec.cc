@@ -18,7 +18,7 @@ void SendOutput (int tStart, int tSize, int dest,int tag,MPI_Comm procGrp,entity
 
 void ReceiveOutput (int rcvStart, int rcvSize, int src, int tag,MPI_Comm procGrp,entitySet &exec_set,variableSet &inputs,variableSet &outputs,fact_db &facts);
 
-void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &facts,fact_db &local_facts1,fact_db &local_facts2,rule_implP local_compute1,rule_implP local_compute2,variableSet &inputs,variableSet &outputs) ;
+void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &facts,fact_db &local_facts1,fact_db &local_facts2,rule_implP local_compute1,rule_implP local_compute2,variableSet &inputs,variableSet &outputs,double *stats) ;
 
 }
 
@@ -67,6 +67,10 @@ dynamic_schedule_rule::dynamic_schedule_rule(rule fi, entitySet eset, fact_db &f
 void dynamic_schedule_rule::execute(fact_db &facts) { 
 
   int *yMap=new int[2*Loci::MPI_processes]; 
+  for(int i = 0; i < Loci::MPI_processes; i++) {
+    yMap[2*i] = 0;
+    yMap[2*i+1] = 0;
+  }
    //Broadcast start,size to all procs
   int sendstart = exec_set.Min();
   int *rstart = new int[Loci::MPI_processes];
@@ -74,18 +78,31 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
   int sendsize = exec_set.Max()-sendstart+1;
   int *rsize = new int[Loci::MPI_processes];
   MPI_Allgather(&sendsize, 1, MPI_INT, rsize, 1, MPI_INT, MPI_COMM_WORLD);
+ 
   for(int i = 0; i < Loci::MPI_processes; i++) {
     yMap[2*i] = rstart[i];
     yMap[2*i+1] = rsize[i];
   }
   delete [] rsize;
   delete [] rstart;
-std::cout<<"Process:"<<Loci::MPI_rank<<"->"<<yMap[2*Loci::MPI_rank]<<"--"<<yMap[2*Loci::MPI_rank+1]<<std::endl;
-   
-  Loci::ExecuteLoop(rp,exec_set,3,yMap,facts,local_facts[0],local_facts[1],local_compute1,local_compute2,inputs,outputs);
-
-  delete [] yMap;        
+ 
+  double *stats=new double[4*MPI_processes];
+  for(int i = 0; i < Loci::MPI_processes; i++) {
+   stats[4*i+0] = 0;
+   stats[4*i+1] =0;
+   stats[4*i+2] = 0;
+   stats[4*i+3] =0;
+  }
+  double t1=0.0;
+  double t2=0.0;
+  double t3=0.0;
+  t1 = MPI_Wtime();
   
+Loci::ExecuteLoop(rp,exec_set,3,yMap,facts,local_facts[0],local_facts[1],local_compute1,local_compute2,inputs,outputs,stats);
+  t2 = MPI_Wtime();
+  delete [] yMap;        
+  t3=t2-t1;
+  std::cout<<Loci::MPI_rank<<'\t'<<t3<<'\t'<<stats[0]<<std::endl;
 }
 
 void dynamic_schedule_rule::Print(std::ostream &s) const {
