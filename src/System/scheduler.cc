@@ -72,10 +72,13 @@ namespace Loci {
       //the following line is the simplest, but it does not
       //include the qualify, such like "SN1:" in a super node
       //return r.get_info().desc.rule_identifier() ;
+      ostringstream oss ;
+      oss << "R" << r.ident() << endl ;
+      return oss.str() ;
       std::string name = r.get_info().name() ;
-      if(r.type() == rule::INTERNAL)
+      if(r.type() == rule::INTERNAL) {
         return name ;
-      else {
+      }else {
         std::string::iterator pos ;
         pos = std::find(name.begin(),name.end(),'#') ;
         return std::string( (pos==name.end()?name.begin():pos+1),name.end()) ;
@@ -168,7 +171,7 @@ namespace Loci {
 
   bool is_super_rule(int rid)
   {
-    if(rid > 0) // a variable
+    if(rid >= 0) // a variable
       return false ;
     rule r(rid) ;
     std::string rqualifier = r.get_info().qualifier() ;
