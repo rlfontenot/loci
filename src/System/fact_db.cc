@@ -504,7 +504,7 @@ namespace Loci {
       cout<<"Read "<<groupname<<" from HDF5 file "<<endl;
       if(H5Gopen(file.getId(),groupname.c_str())>0){
         H5::Group group = file.openGroup("/"+groupname);
-        store_Rep->readhdf5(group);
+        store_Rep->readhdf5(group, store_Rep->domain());
         update_fact(v,store_Rep);
       }
       else
