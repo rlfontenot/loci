@@ -619,7 +619,6 @@ namespace Loci {
     frame_info fi ;
     fi.is_stat = 1 ;
     fi.size = 1 ;
-    std::vector<int> vint(fi.size * dom.size()) ;
     int stateSize = 0;
     typedef data_schema_traits<T> schema_traits ;
     for(entitySet::const_iterator ci = dom.begin(); ci != dom.end(); ++ci) 
