@@ -5,6 +5,7 @@
 TARGET = libTools.a #libTools.so
 
 
+
 LOCAL_INCLUDES = -I$(LOCI_BASE)/include -I$(LOCI_BASE)/include/hdf5CC
 
 OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o debugger.o \
@@ -13,8 +14,8 @@ OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o debugger.o \
 
 .SUFFIXES: .o .c .cc .f
 
-.c.o:    ;  $(CC) -O $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.c
-.cc.o:   ;  $(CP) $(CFLAGS) $(TEMPLATE_LIB_OPT) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.cc
+.c.o:    ;  $(CC) -O $(LIB_FLAGS) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.c
+.cc.o:   ;  $(CP) $(LIB_FLAGS) $(CFLAGS) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.cc
 .f.o:    ;  $(F77) $(FFLAGS) -c $*.f
 
 default:
@@ -27,7 +28,7 @@ libTools.a: $(OBJS)
 	$(RANLIB) libTools.a
 
 libTools.so: $(OBJS)
-	$(LD) $(LDFLAGS) -shared -o libTools.so $(OBJS) 
+	$(LD) $(LDFLAGS) -shared -o libTools.so $(LIB_FLAGS) $(OBJS) 
 	
 
 
