@@ -554,21 +554,35 @@ ostream &variable::info::Print(ostream &s ) const {
     return s;
   }
   
-variableSet::variableSet(const exprP &e) {
+  variableSet::variableSet(const exprP &e) {
     exprList l = collect_associative_op(e,OP_COMMA) ;
     
     for(exprList::const_iterator i=l.begin();i!=l.end();++i)
       *this += variable(*i) ; 
-}
+  }
 
-ostream &variableSet::Print(ostream &s) const
-{
+  vector<string> variableSet::lexico_sort() const {
+    vector<string> name ;    
+    if(size() == 0)
+      return name ;
+    for(variableSet::const_iterator vi=begin();vi!=end();++vi) {
+      ostringstream ss ;
+      ss << *vi ;
+      name.push_back(ss.str()) ;
+    }
+    std::sort(name.begin(),name.end(),lexico_cmp) ;
+    return name ;
+  }
+
+  /* original one, does not support ordered output
+  ostream &variableSet::Print(ostream &s) const
+  {
     variableSet::const_iterator i = begin() ;
     int sz = size() ;
     if(sz == 0)
       s << "()" ;
     else if(sz == 1)
-        s << *i ;
+      s << *i ;
     else {
       s << "(" << *i ;
       ++i ;
@@ -577,8 +591,25 @@ ostream &variableSet::Print(ostream &s) const
       s << ")" ;
     }
     return s;
-}
-
+  }
+  */
+  ostream& variableSet::Print(ostream& s) const {
+    vector<string> sorted_set = lexico_sort() ;
+    vector<string>::const_iterator vi = sorted_set.begin() ;
+    int sz = size() ;
+    if(sz == 0)
+      s << "()" ;
+    else if(sz == 1)
+      s << *vi ;
+    else {
+      s << "(" << *vi ;
+      ++vi ;
+      for(;vi!=sorted_set.end();++vi)
+        s << "," << *vi ;
+      s << ")" ;
+    }
+    return s ;
+  }
 
         
   vmap_info::vmap_info(const exprP &e) {
@@ -601,11 +632,11 @@ ostream &variableSet::Print(ostream &s) const
       mapping.push_back(variableSet(*j)) ;
   }
 
-ostream &vmap_info::Print(ostream &s) const {
-  for(size_t j=0;j<mapping.size();++j) 
-    s << mapping[j] << "->" ;
-  s << var ;
-  return s ;
-}
+  ostream &vmap_info::Print(ostream &s) const {
+    for(size_t j=0;j<mapping.size();++j) 
+      s << mapping[j] << "->" ;
+    s << var ;
+    return s ;
+  }
   
 }
