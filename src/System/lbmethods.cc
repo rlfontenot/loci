@@ -336,7 +336,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
     double workTime=0.0;              // time spent doing useful work 
     double maxCost=0.0, tCost=0.0;
     int HLP_pending=0;
-    int Signal1=0;
+    //    int Signal1=0;
     int Signal2=0;
     // Initializations 
     gP = Loci::MPI_processes ;
@@ -567,7 +567,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 	  break;
 
         case HLP_MSG :
-	  Signal1=1;
+          //	  Signal1=1;
           if (wSize == 0) { // no pending chunk 
             t0 = MPI_Wtime(); // elapsed time for chunk starts here 
             Allocate_func(); 

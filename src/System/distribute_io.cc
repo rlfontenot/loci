@@ -161,13 +161,11 @@ namespace Loci {
       int pack_size = 0 ;
       if(MPI_rank==0) {
         int array_size = 0 ;
-        int vec_size = 0 ;
         frame_info fi = qrep->read_frame_info(group_id) ;
         if(fi.size)
           if(fi.is_stat) {
             for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
               array_size += *vi ;
-            vec_size = fi.second_level.size() ;
           } else {
             if(fi.size > 1)
               qrep->set_elem_size(fi.size) ;
@@ -177,12 +175,10 @@ namespace Loci {
           if(fi.is_stat) {
             for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi) 
               array_size += *vi ;
-            vec_size = fi.second_level.size() + 1 ;
           }
           else {
             for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi) 
               array_size += *fvi ;
-            vec_size = 1 ;
           }
         }
 
