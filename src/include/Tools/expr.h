@@ -39,7 +39,6 @@ class expression : public CPTR_type {
  private:
     OpType              op_priv ;
     exprList            expr_list_priv ;
-    //exprList            brace_list_priv ;
     std::string         name_priv ;
     int                 int_val_priv ;
 
@@ -57,10 +56,8 @@ class expression : public CPTR_type {
   public:
     const OpType              &op ;
     const exprList            &expr_list ;
-    //const exprList            &brace_list ;
     const std::string         &name ;
     const int                 &int_val ;
-
     expression(OpType op, const string nm, 
 	       const exprList &elist, int ival = 0) :
       op(op_priv), expr_list(expr_list_priv), name(name_priv),
