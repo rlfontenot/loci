@@ -689,6 +689,7 @@ namespace Loci {
         entitySet imagetmp = mp->image(p->domain()) ;
         if(facts.is_distributed_start())
           imagetmp = all_collect_entitySet(imagetmp) ;
+	set_of_sets.insert(imagetmp);
         active_set += imagetmp ;
         entitySet tmp = p->domain() ;
         if(facts.is_distributed_start())
