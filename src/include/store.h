@@ -155,7 +155,7 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
 
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     T &elem(int indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -222,7 +222,7 @@ namespace Loci {
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
 
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
 
     const T &elem(int indx) const {
 #ifdef BOUNDS_CHECK

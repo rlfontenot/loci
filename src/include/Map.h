@@ -70,7 +70,7 @@ namespace Loci {
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
 
     const entitySet &domain() const { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     operator MapRepP() {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
@@ -127,7 +127,7 @@ namespace Loci {
     const_Map & operator=(storeRepP p) { setRep(p) ; return *this ;}
 
     const entitySet &domain() const { return Rep()->domain(); }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     operator MapRepP()
     { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
     const int &const_elem(int indx)  const {
@@ -456,7 +456,7 @@ namespace Loci {
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
 
     const entitySet &domain() const { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
 
     VEC &elem(int indx) { fatal(base_ptr==NULL); 
@@ -510,7 +510,7 @@ namespace Loci {
     const_MapVec & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     const entitySet &domain() const { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     operator MapRepP() { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
 
     const VEC &const_elem(int indx)  const {
@@ -600,6 +600,7 @@ namespace Loci {
   template <int M> int MapVecRepI<M>::pack_size( const entitySet &e) {
     int size ;
     size = sizeof(int) * e.size() * M ;
+    return size ;
   }
 
   template <int M> void MapVecRepI<M>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
@@ -684,7 +685,7 @@ namespace Loci {
 
     const entitySet &domain() const { return Rep()->domain() ; }
 
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     operator MapRepP() {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
@@ -741,7 +742,7 @@ namespace Loci {
     const_multiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
 
     const entitySet &domain() const { return Rep()->domain(); }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     operator MapRepP() {
       MapRepP p(Rep()) ;
       fatal(p==0) ;

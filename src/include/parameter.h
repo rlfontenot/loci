@@ -154,7 +154,7 @@ namespace Loci {
     
     void set_entitySet(const entitySet &ptn) {Rep()->allocate(ptn); }
 
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
@@ -213,7 +213,7 @@ namespace Loci {
       return *data ;
     }
     
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;

@@ -60,7 +60,7 @@ namespace Loci {
 
     entitySet &operator*() { return *data ; }
     
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
 
     operator entitySet() { return *data ; }
     operator entitySet() const { return *data ; }

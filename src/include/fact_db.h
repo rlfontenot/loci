@@ -110,15 +110,25 @@ namespace Loci {
 
     fact_db() ;
     ~fact_db() ;
-    
+
     void create_fact(variable v, storeRepP st) ;
     void create_fact(std::string vname, storeRepP st)
     { create_fact(variable(vname),st) ;}
-
+    void create_fact(variable v, store_instance &si)
+    { create_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
+    void create_fact(std::string vname, store_instance &si)
+    { create_fact(variable(vname),si) ; }
+      
+      
+    
     void update_fact(variable v, storeRepP st) ;
     void update_fact(std::string vname, storeRepP st)
     { update_fact(variable(vname),st) ;}
-    
+
+    void update_fact(variable v, store_instance &si)
+    { update_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
+    void update_fact(std::string vname, store_instance &si)
+    { update_fact(variable(vname),si) ; }
 
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname,const storeRepP st)

@@ -128,7 +128,7 @@ namespace Loci {
         time_ident tl = ri->source_time() ;
         variable v(tl) ;
         param<int> timevar ;
-        storeRepP st = timevar ;
+        storeRepP st = timevar.Rep() ;
         facts.set_variable_type(v,st) ;
       }
     }

@@ -225,7 +225,7 @@ namespace Loci {
     if(get_typed_variables().inSet(time_var))
       ti->time_var = get_variable(time_var) ;
     else
-      set_variable_type(time_var,ti->time_var) ;
+      set_variable_type(time_var,ti->time_var.Rep()) ;
     
     typedef map<std::string,std::list<variable> >  maptype ;
     maptype &tinfo = time_map[tl] ;

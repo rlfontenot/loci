@@ -826,7 +826,7 @@ namespace Loci {
     int vecSize() const { return size ; }
 
     const entitySet &domain() const { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     Vect<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -896,7 +896,7 @@ namespace Loci {
     int vecSize() const { return size ; }
 
     const entitySet& domain() const { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     const_Vect<T> elem(int indx) const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -1053,7 +1053,7 @@ namespace Loci {
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size_dim; }
     const entitySet &domain() const { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
     Mat<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
@@ -1117,7 +1117,7 @@ namespace Loci {
 
     int vecSize() const { return size_dim; }
     const entitySet &domain() { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
 
     const_Mat<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
@@ -1233,7 +1233,7 @@ namespace Loci {
       p->setSizes(m) ;
     }
     const entitySet &domain() const { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
 
     Vect<T> elem(int indx) {
 #ifdef BOUNDS_CHECK
@@ -1290,7 +1290,7 @@ namespace Loci {
     const_multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
     const entitySet &domain() const { return Rep()->domain() ; }
-    operator storeRepP() { return Rep() ; }
+    //    operator storeRepP() { return Rep() ; }
 
     containerType elem(int indx) {
 #ifdef BOUNDS_CHECK
