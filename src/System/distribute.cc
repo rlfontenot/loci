@@ -88,6 +88,10 @@ namespace Loci {
     MPI_Finalize() ;
   }
 
+  void Abort() {
+    debugger_() ;
+  }
+  
   vector<entitySet> read_partition(const char *fname,int num_partitions) {
     vector<entitySet> ptn ;
     ifstream infile ;
@@ -249,7 +253,7 @@ namespace Loci {
     METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
     double et = MPI_Wtime() ;
     debugout << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
-    cerr << " Edge cut   " <<  edgecut << endl ;
+    debugout << " Edge cut   " <<  edgecut << endl ;
     
     entitySet num_parts = interval(0, num_partitions-1) ;
     store<int> number ;
@@ -572,7 +576,7 @@ namespace Loci {
     entitySet::const_iterator ei, ti ;
     vector<entitySet> proc_entities ;
     categories(facts,iv) ;
-    cout << " initial categories.size() = " << iv.size() << endl ;
+    debugout << " initial categories.size() = " << iv.size() << endl ;
     entitySet e ;
 #ifdef DEBUG
     //debugout << "categories size = " << iv.size()

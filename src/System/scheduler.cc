@@ -36,7 +36,8 @@ namespace Loci {
     sched_db scheds(facts) ;
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
-    cout << "generating dependency graph..." << endl ;
+    if(Loci::MPI_rank==0)
+      cout << "generating dependency graph..." << endl ;
     double start_time = MPI_Wtime() ;
     rule_db par_rdb ;
     par_rdb = parametric_rdb(rdb,target) ;
@@ -45,9 +46,11 @@ namespace Loci {
     if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;
     
-    cout << "setting up variable types..." << endl ;
+    if(Loci::MPI_rank==0)
+      cout << "setting up variable types..." << endl ;
     set_var_types(facts,gr, scheds) ;
-    cout << "decomposing graph..." << endl ;
+    if(Loci::MPI_rank==0)
+      cout << "decomposing graph..." << endl ;
     decomposed_graph decomp(gr,given,target) ;
     variableSet fact_vars, initial_vars ;
     fact_vars = facts.get_typed_variables() ;
@@ -73,7 +76,8 @@ namespace Loci {
 	}
       }
     }
-    cout << " initial_vars = " << initial_vars << endl ;
+    if(Loci::MPI_rank==0)
+      cout << " initial_vars = " << initial_vars << endl ;
     graph_compiler compile_graph(decomp, initial_vars) ;
     double end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for graph processing  = " << end_time  - start_time << "  seconds " << endl ;
@@ -81,12 +85,14 @@ namespace Loci {
     //timer = get_timer() ;
     //cout << "Graph Processing Time: "<<timer << " seconds" << endl ;
 #endif
-    cout << "existential analysis..." << endl ;
+    if(Loci::MPI_rank==0)
+      cout << "existential analysis..." << endl ;
     start_time = MPI_Wtime() ;
     compile_graph.existential_analysis(facts, scheds) ;
     end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for existential_analysis  = " << end_time  - start_time << "  seconds " << endl ;
-    cout << "creating execution schedule..." << endl;
+    if(Loci::MPI_rank==0)
+      cout << "creating execution schedule..." << endl;
     start_time = MPI_Wtime() ;
     executeP sched =  compile_graph.execution_schedule(facts,scheds, num_threads) ;
     end_time = MPI_Wtime() ;
