@@ -3,10 +3,48 @@
 using std::vector ;
 
 namespace Loci {
-  dag_compiler::dag_compiler(rulecomp_map &rp, digraph gin) : rule_process(rp) {
-    dag = gin ;
-    dag_sched = schedule_dag(dag) ;
-    extract_rule_sequence(rule_schedule,dag_sched) ;
+
+  void barrier_compiler::set_var_existence(fact_db &facts) {
+  }
+
+  void barrier_compiler::process_var_requests(fact_db &facts) {
+  }
+
+  executeP barrier_compiler::create_execution_schedule(fact_db &facts) {
+    //    if(num_threads > 1)
+    ostringstream oss ;
+    oss << barrier_vars ;
+    return new execute_thread_sync(oss.str()) ;
+  }
+
+  
+  void compile_dag_sched(std::vector<rule_compilerP> &dag_comp,
+                         const std::vector<digraph::vertexSet> &dag_sched,
+                         const rulecomp_map &rcm) {
+    for(int i=0;i<dag_sched.size();++i) {
+      variableSet vars = extract_vars(dag_sched[i]) ;
+      ruleSet rules = extract_rules(dag_sched[i]) ;
+      if(vars != EMPTY) {
+        dag_comp.push_back(new barrier_compiler(vars)) ;
+      }
+      if(rules != EMPTY) {
+        ruleSet::const_iterator ri ;
+        for(ri=rules.begin();ri!=rules.end();++ri) {
+          rulecomp_map::const_iterator rmi ;
+          rmi = rcm.find(*ri) ;
+          FATAL(rmi == rcm.end()) ;
+          dag_comp.push_back(rmi->second) ;
+        }
+      }
+    }
+  }
+
+  
+  dag_compiler::dag_compiler(rulecomp_map &rule_process, digraph dag) {
+
+    std::vector<digraph::vertexSet> dag_sched = schedule_dag(dag) ;
+    compile_dag_sched(dag_comp,dag_sched,rule_process) ;
+    
 #ifdef DEBUG
     // sanity check, all vertices should be scheduled
     digraph::vertexSet allvertices ;
@@ -22,32 +60,26 @@ namespace Loci {
   }
 
   void dag_compiler::set_var_existence(fact_db &facts) {
-    for(int i=0;i<rule_schedule.size();++i) {
-      if(rule_process.find(rule_schedule[i]) == rule_process.end())
-        cerr << "didn't find compiler for " << rule_schedule[i]
-             << endl ;
-      calc(rule_schedule[i])->set_var_existence(facts) ;
-    }
+    
+    std::vector<rule_compilerP>::iterator i ;
+    for(i=dag_comp.begin();i!=dag_comp.end();++i)
+      (*i)->set_var_existence(facts) ;
   }
 
   void dag_compiler::process_var_requests(fact_db &facts) {
-    vector<rule>::reverse_iterator ri ;
-    for(ri=rule_schedule.rbegin();ri!=rule_schedule.rend();++ri)
-      calc(*ri)->process_var_requests(facts) ;
+    std::vector<rule_compilerP>::reverse_iterator ri ;
+    for(ri=dag_comp.rbegin();ri!=dag_comp.rend();++ri)
+      (*ri)->process_var_requests(facts) ;
   }
 
   executeP dag_compiler::create_execution_schedule(fact_db &facts) {
     CPTR<execute_list> elp = new execute_list ;
 
-    vector<digraph::vertexSet>::const_iterator i ;
-    for(i=dag_sched.begin();i!=dag_sched.end();++i) {
-      ruleSet rules = extract_rules(*i) ;
-      ruleSet::const_iterator ri ;
-      for(ri=rules.begin();ri!=rules.end();++ri)
-        elp->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-      if(rules.size() > 0 && num_threads > 1)
-        elp->append_list(new execute_thread_sync) ;
+    std::vector<rule_compilerP>::iterator i ;
+    for(i=dag_comp.begin();i!=dag_comp.end();++i) {
+      elp->append_list((*i)->create_execution_schedule(facts)) ;
     }
+
     return executeP(elp) ;
   }
 }

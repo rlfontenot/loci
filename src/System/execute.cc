@@ -218,7 +218,7 @@ namespace Loci {
   }
 
   void execute_thread_sync::Print(std::ostream &s) const {
-    s << "thread barrier" << std::endl ;
+    s << "thread barrier " << note << std::endl ;
   }
 
 }

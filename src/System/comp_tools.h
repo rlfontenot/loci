@@ -36,7 +36,7 @@ namespace Loci {
   class loop_compiler : public rule_compiler {
     rulecomp_map &rule_process ;
     
-    CPTR<rule_compiler> calc(const rule &r) 
+    rule_compilerP calc(const rule &r) 
     {return rule_process[r] ;}
 
     digraph dag ;
@@ -102,7 +102,7 @@ namespace Loci {
   class recurse_compiler : public rule_compiler {
     rulecomp_map &rule_process ;
   
-    CPTR<rule_compiler> calc(const rule &r) 
+    rule_compilerP calc(const rule &r) 
     {return rule_process[r] ;}
 
     ruleSet recurse_rules ;
@@ -128,25 +128,27 @@ namespace Loci {
   } ;
 
   class dag_compiler : public rule_compiler {
-    rulecomp_map &rule_process ;
-  
-    CPTR<rule_compiler> calc(const rule &r) 
-    {return rule_process[r] ;}
-  
-    digraph dag ;
-    std::vector<rule> rule_schedule ;
-    std::vector<digraph::vertexSet> dag_sched ;
+    std::vector<rule_compilerP> dag_comp ;
   public:
-    dag_compiler(rulecomp_map &rp, digraph gin) ;
+    dag_compiler(rulecomp_map &rp, digraph dag) ;
     virtual void set_var_existence(fact_db &facts) ;
     virtual void process_var_requests(fact_db &facts) ;
     virtual executeP create_execution_schedule(fact_db &facts) ;
   } ;
 
+  class barrier_compiler : public rule_compiler {
+    variableSet barrier_vars ;
+  public:
+    barrier_compiler(variableSet vars) : barrier_vars(vars) {}
+    virtual void set_var_existence(fact_db &facts) ;
+    virtual void process_var_requests(fact_db &facts) ;
+    virtual executeP create_execution_schedule(fact_db &facts) ;
+  } ;
+  
   class conditional_compiler : public rule_compiler {
     rulecomp_map &rule_process ;
   
-    CPTR<rule_compiler> calc(const rule &r) 
+    rule_compilerP calc(const rule &r) 
     {return rule_process[r] ;}
 
     digraph dag ;

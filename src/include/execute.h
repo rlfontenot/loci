@@ -71,8 +71,10 @@ namespace Loci {
   } ;
   
   class execute_thread_sync : public execute_modules {
+    std::string note ;
   public:
     execute_thread_sync() {control_thread = true ; }
+    execute_thread_sync(std::string s) { note = s ; control_thread = true ; }
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;

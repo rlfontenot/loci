@@ -50,7 +50,8 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts) = 0;
   } ;
 
-  typedef std::map<rule, CPTR<rule_compiler> > rulecomp_map ;
+  typedef CPTR<rule_compiler> rule_compilerP ;
+  typedef std::map<rule, rule_compilerP > rulecomp_map ;
 
   struct decomposed_graph {
     multiLevelGraph mlg ;
