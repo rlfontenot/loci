@@ -25,6 +25,8 @@ using std::ofstream ;
 #include <deque>
 using std::deque ;
 
+#define VERBOSE
+
 namespace Loci {
 
   ///////////////////////////////////////////////////////////////////
@@ -225,15 +227,24 @@ namespace Loci {
    const std::vector<digraph::vertexSet> &dag_sched,
    const rulecomp_map &rcm,
    const digraph &dag) {
+
     digraph dagt = dag.transpose() ;
     if(dag_sched.size() == 0)
       return ;
-   
-
+#ifdef VERBOSE
+    debugout << "in compile_dag_sched for dag with variables "
+             << extract_vars(dag.get_all_vertices()) << endl
+             << "dag rules = " << endl
+             << extract_rules(dag.get_all_vertices()) << endl ;
+#endif
     for(unsigned int i=0;i<dag_sched.size();++i) {
-      //Loci::debugout << " in comp_dag.cc dag_sched[i] = " << dag_sched[i] << endl ;
+#ifdef VERBOSE
+      debugout << " in comp_dag.cc dag_sched[i] = " << dag_sched[i] << endl ;
+#endif
       variableSet vars = extract_vars(dag_sched[i]) ;
-      //Loci::debugout << " in comp_dag.cc vars = " << vars  << endl ;
+#ifdef VERBOSE
+      debugout << " in comp_dag.cc vars = " << vars  << endl ;
+#endif
       ruleSet rules = extract_rules(dag_sched[i]) ;
       if(rules == EMPTY && i+1<dag_sched.size()) {
         ++i ;
@@ -359,6 +370,13 @@ namespace Loci {
 
       all_vars += reduce_vars;
 
+#ifdef VERBOSE
+      debugout << "all_vars = " << all_vars << endl ;
+      debugout << "singleton_vars =" <<singleton_vars << endl ;
+      debugout << "barrier_vars = " << barrier_vars << endl ;
+      debugout << "reduce_vars = " << reduce_vars << endl ;
+#endif
+
       vector<CPTR<joiner> > join_op_vector ;
       vector<rule> unit_rule_vector ;
       vector<variable> reduce_var_vector ;
@@ -387,12 +405,17 @@ namespace Loci {
           else if (sp->RepType() == BLACKBOX) {
             cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
           }else {
+#ifdef VERBOSE
+            debugout << "reduce_store_compiler("
+                     << xi->first << ","
+                     << unit_rule << ")" << endl ;
+#endif
             dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
                                                          join_op)) ;
           }
         }
       }
-      if(reduce_var_vector.size() != 0) 
+      if(reduce_var_vector.size() != 0)  
         dag_comp.push_back(new reduce_param_compiler(reduce_var_vector, unit_rule_vector, join_op_vector));
       
       
@@ -414,10 +437,16 @@ namespace Loci {
   }
 
   void assembleVisitor::visit(loop_compiler& lc) {
+#ifdef VERBOSE
+    debugout << "collapse comp dag scheduler:" << endl ;
+#endif
     compile_dag_sched(lc.collapse_comp,lc.collapse_sched,
-                      lc.rule_compiler_map,lc.loop_gr) ;
+                      lc.rule_compiler_map,lc.collapse_gr) ;
+#ifdef VERBOSE
+    debugout << "advance comp dag scheduler:" << endl ;
+#endif
     compile_dag_sched(lc.advance_comp,lc.advance_sched,
-                      lc.rule_compiler_map,lc.loop_gr) ;
+                      lc.rule_compiler_map,lc.advance_gr) ;
   }
   
   void assembleVisitor::visit(dag_compiler& dc) {
