@@ -819,6 +819,7 @@ void apply_calculator::process_var_requests(fact_db &facts) {
              << endl ;
         exit(-1) ;
       }
+      facts.variable_request(*vi,comp) ;
     }
   }
 
