@@ -1,3 +1,4 @@
+#include "dist_tools.h" // for use of Loci::debugout
 #include "comp_tools.h"
 #include "visitorabs.h"
 #include <vector>
@@ -22,6 +23,7 @@ namespace Loci {
     int_type chomp_iter ;
     vector<int_type> chomp_offset ;
     vector<storeRepP> chomp_vars_rep ;
+    double st, et ;
   public:
     execute_chomp(const entitySet& td,
                   const vector<pair<rule,rule_compilerP> >& comp,
@@ -29,7 +31,7 @@ namespace Loci {
                   const variableSet& cv,
                   fact_db& facts):
       total_domain(td),chomp_comp(comp),rule_seq(seq),
-      chomp_vars(cv),is_table_set(false) {
+      chomp_vars(cv),is_table_set(false),st(0.0),et(0.0) {
 
       for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
           vi!=comp.end();++vi)
@@ -56,7 +58,7 @@ namespace Loci {
       entitySet test_alloc = interval(1,1) ;
       int_type total_obj_size = 0 ;
       int_type min_store_size = UNIVERSE_MAX ;
-      int_type D1_cache_size = 8192 ; // assume 8KB now
+      int_type D1_cache_size = 128 * 1024 ; // assume 128KB now
       for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
           vi!=chomp_vars_rep.end();++vi) {
         int_type my_size = (*vi)->pack_size(test_alloc) ;
@@ -105,7 +107,12 @@ namespace Loci {
   void execute_chomp::execute(fact_db& facts) {
     if(total_domain == EMPTY)
       return ;
-    
+
+    st = MPI_Wtime() ;
+    Loci::debugout << "Time passed since last chomping execution = "
+                   << st-et << " seconds " << endl ;
+    st = MPI_Wtime() ;
+
     {
       entitySet first_alloc =
         entitySet(interval(total_domain.Min(),
@@ -140,6 +147,10 @@ namespace Loci {
     for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
         vi!=chomp_vars_rep.end();++vi)
       (*vi)->allocate(EMPTY) ;
+
+    et = MPI_Wtime() ;
+    Loci::debugout << "\tTime taken for chomping execution = "
+                   << et-st << " seconds " << endl ;
   }
 
   void execute_chomp::Print(std::ostream& s) const {

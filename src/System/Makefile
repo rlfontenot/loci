@@ -15,7 +15,7 @@ OBJS = Loci_version.o Loci_Datatypes.o variable.o store_rep.o Map.o \
        DMultiMap.o \
        param_rule.o sched_db.o  hdf5_readwrite.o mod_db.o \
        visit_assemble.o visit_deco.o visit_tools.o visit_viz.o\
-       dynamic_exec.o lbmethods.o
+       visit_chomp.o dynamic_exec.o lbmethods.o
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT1)
 

@@ -27,6 +27,7 @@ namespace Loci {
   extern bool show_dmm_verbose ;
   extern bool use_chomp ;
   extern bool show_chomp ;
+  extern bool chomp_verbose ;
 
   class error_compiler : public rule_compiler {
   public:
@@ -198,7 +199,9 @@ namespace Loci {
 
     3. assembly phase.
     ************************************/
-
+    // timing variables
+    double dst1=0,det1=0,dst2=0,det2=0,cst=0,cet=0 ;
+    dst1 = MPI_Wtime() ;
     // must do this visitation
     // the loop rotate_lists is computed here
     rotateListVisitor rotlv(scheds) ;
@@ -221,17 +224,17 @@ namespace Loci {
     // get the unit apply info (reduce info)
     unitApplyMapVisitor reduceV ;
     top_down_visit(reduceV) ;
-    
+
+    det1 = MPI_Wtime() ;
     if(use_dynamic_memory) {
       if(Loci::MPI_rank == 0)
         cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
 
-      variableSet chomp_alloc_adjusts ;
-      variableSet chomp_delete_adjusts ;
       if(use_chomp) {
         if(Loci::MPI_rank == 0) 
           cout << "USING CHOMPING" << endl ;
-
+        
+        cst = MPI_Wtime() ;
         chompPPVisitor cppv(facts,
                             rotlv.get_rotate_vars_table(),
                             rotlv.get_loop_shared_table(),
@@ -244,31 +247,19 @@ namespace Loci {
                              cppv.get_bad_vars(),
                              reduceV.get_apply2unit()) ;
         top_down_visit(crv) ;
+        cet = MPI_Wtime() ;
+
         if(show_chomp)
           crv.visualize(cout) ;
+        if(chomp_verbose)
+          crv.summary(cout) ;
 
         dagCheckVisitor dagcV1 ;
         top_down_visit(dagcV1) ;
 
-        /*
-
-        variableSet chomp_targets = get_chomp_targets(crv.get_all_chains()) ;
-        variableSet chomp_vars = get_chomp_vars(crv.get_all_chains()) ;
-        pair<variableSet,variableSet>
-          chomp_adjusts = chomp_rename_analysis(chomp_targets,
-                                                chomp_vars,
-                                                recv.get_rename_s2t(),
-                                                recv.get_rename_t2s(),
-                                                recv.get_rename_target_vars()
-                                                ) ;
-        chomp_alloc_adjusts = chomp_adjusts.first ;
-        chomp_delete_adjusts = chomp_adjusts.second ;
-
-        cerr << "chomp_alloc_adjusts: " << chomp_alloc_adjusts << endl ;
-        cerr << "chomp_delete_adjusts: " << chomp_delete_adjusts << endl ;
-        */
       }
       
+      dst2 = MPI_Wtime() ;
       // get inter/intra supernode information
       snInfoVisitor snv ;
       top_down_visit(snv) ;
@@ -311,11 +302,6 @@ namespace Loci {
       delInfoV_reserved += target ;
       delInfoV_reserved += untypevarV.get_untyped_vars() ;
       delInfoV_reserved += cluster_remaining ;
-      if(use_chomp) {
-        // if we use chomping, we need to delete
-        // those adjusted rename variables
-        delInfoV_reserved -= chomp_delete_adjusts ;
-      }
       
       // compute how to do allocation
       allocInfoVisitor aiv(snv.get_graph_sn(),
@@ -359,6 +345,7 @@ namespace Loci {
       deleteGraphVisitor dgv(div.get_delete_table(),
                              div.get_recur_source_other_rules()) ;
       top_down_visit(dgv) ;
+      det2 = MPI_Wtime() ;
       
       // check if the decorated graphs are acyclic
       dagCheckVisitor dagcV ;
@@ -460,6 +447,13 @@ namespace Loci {
     bottom_up_visit(av) ;
 
     exec_current_fact_db = &facts ;
+
+    if(use_dynamic_memory)
+      Loci::debugout << "Time taken for dmm graph decoration = "
+                     << (det1-dst1) + (det2-dst2) << " seconds " << endl ;
+    if(use_chomp)
+      Loci::debugout << "Time taken for chomping subgraph searching = "
+                     << cet-cst << " seconds " << endl ;
   }
   
   void graph_compiler::existential_analysis(fact_db &facts, sched_db &scheds) {

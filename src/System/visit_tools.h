@@ -105,6 +105,38 @@ namespace Loci {
     return path ;
   }
 
+  // is there path(s) from sources vertexSet to
+  // targets vertexSet in the given gr?
+  inline bool has_path(const digraph& gr,
+                       const digraph::vertexSet& sources,
+                       const digraph::vertexSet& targets) {
+    // if sources and targets are overlapped, then path(s) exist
+    if( (sources & targets) != EMPTY)
+      return true ;
+    if(targets == EMPTY)
+      return false ;
+    digraph::vertexSet working ;
+    for(digraph::vertexSet::const_iterator vi=sources.begin();
+        vi!=sources.end();++vi)
+      working += gr[*vi] ;
+    
+    digraph::vertexSet visited ;
+    while(working != EMPTY) {
+      if( (working & targets) != EMPTY)
+        return true ;
+      visited += working ;
+      digraph::vertexSet next ;
+      for(digraph::vertexSet::const_iterator vi=working.begin();
+          vi!=working.end();++vi)
+        next += gr[*vi] ;
+      next -= visited ;
+      working = next ;
+    }
+
+    return false ;
+  }
+                       
+
   // given a variableSet, convert them to vertexSet
   inline digraph::vertexSet get_vertexSet(const variableSet& vars) {
     digraph::vertexSet ret ;
@@ -280,6 +312,13 @@ namespace Loci {
   inline bool time_after(variable v1, variable v2) {
     return (!time_before(v1,v2) && !time_equal(v1,v2)) ;
   }
+
+  // given a digraph, this function returns a vector
+  // of digraph that are separate subgraphs in the
+  // given digraph. That means each subgraph is just
+  // dangling there in the digraph and does not have
+  // connections to each other
+  std::vector<digraph> get_islands(const digraph& gr) ;
 
 } // end of namespace Loci
 

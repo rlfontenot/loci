@@ -188,4 +188,41 @@ namespace Loci {
     return s ;
   }
 
+  ostream& chompRuleVisitor::summary(ostream& s) const {
+    if(Loci::MPI_rank == 0) {
+      s << "--------------begin chomping summary--------------" << endl ;
+      s << "Theoretically there are: " << good_vars.size()
+        << " variables that can be chomped in"
+        << " the program (the upper bound)." << endl ;
+      if(all_chains.empty()) {
+        s << "NO chomping chains found!" << endl ;
+        s << "---------------end chomping summary---------------" << endl ;
+        return s ;
+      }
+      map<int,list<chomp_chain> >::const_iterator mi ;
+      list<chomp_chain>::const_iterator li ;
+      int total_chomp_vars = 0 ;
+      for(mi=all_chains.begin();mi!=all_chains.end();++mi) {
+        list<chomp_chain> cclist = mi->second ;
+        s << "There are: " << cclist.size()
+          << " chomping rule chain(s) in super node SN"
+          << mi->first << ": " << endl ;
+        int i ;
+        for(li=cclist.begin(),i=1;li!=cclist.end();++li,++i) {
+          int total = li->second.size() ;
+          total_chomp_vars += total ;
+          s << "NO" << i << ": " ;
+          s << "chomped variables: "
+            << li->second << " (total: " << total << ")" << endl ;
+        }
+      }
+      s << endl << "Total variables chomped in the program: "
+        << total_chomp_vars << endl ;
+      s << "---------------end chomping summary---------------" << endl ;
+    }
+
+    return s ;
+  }
+
+  
 } // end of namespace Loci

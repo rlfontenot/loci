@@ -541,6 +541,7 @@ namespace Loci {
     std::map<int,std::list<chomp_chain> > get_all_chains() const
     {return all_chains ;}
     std::ostream& visualize(std::ostream& s) const ;
+    std::ostream& summary(std::ostream& s) const ;
   private:
     std::list<chomp_chain> find_chain(const digraph& gr) ;
     void edit_gr(digraph& gr,const std::list<chomp_chain>& cc,
@@ -551,21 +552,6 @@ namespace Loci {
     // apply to unit map
     std::map<rule,rule> apply2unit ;
   } ;
-
-  // function that get the targets of all chomp rules
-  variableSet get_chomp_targets(const std::map<int,std::list<chomp_chain> >&
-                                all_chains) ;
-  // function that get all the chomp variables
-  variableSet get_chomp_vars(const std::map<int,std::list<chomp_chain> >&
-                             all_chains) ;
-  // function that adjust the deletion and allocation info
-  // for rename variables that are chomp targets
-  std::pair<variableSet,variableSet>
-    chomp_rename_analysis(const variableSet& chomp_targets,
-                          const variableSet& chomp_vars,
-                          const std::map<variable,variableSet>& rename_s2t,
-                          const std::map<variable,variableSet>& rename_t2s,
-                          const variableSet rename_targets) ;
 
   // visitor that assemble and compiler all the chomp_compilers
   class compChompVisitor: public visitor {
