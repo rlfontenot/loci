@@ -311,7 +311,7 @@ namespace Loci {
     if(ptn != EMPTY) {
       int top = ptn.Min() ;
       int size = ptn.Max()-top+1 ;
-      alloc_pointer = new(VEC[size]) ;
+      alloc_pointer = new VEC[size] ;
       base_ptr = alloc_pointer-top ;
     }
     store_domain = ptn ;
@@ -334,8 +334,8 @@ namespace Loci {
     entitySet d = domain & store_domain ;
     entitySet codomain ;
     for(int i=0;i<d.num_intervals();++i)
-      codomain += image_section(&base_ptr[d[i].first][0],
-                                &base_ptr[d[i].second+1][0]) ;
+      codomain += Loci::image_section(&base_ptr[d[i].first][0],
+				      &base_ptr[d[i].second+1][0]) ;
     return codomain ;
   }
 
