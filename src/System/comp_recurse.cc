@@ -340,6 +340,21 @@ namespace Loci {
     }
     process_rule_requests(impl,facts) ;
     if(facts.isDistributed()) {
+
+      // For the relaxed recursion we need to adjust our variable request
+      variableSet tvars = impl.targets() ;
+      variable rvar = *(tvars.begin()) ;
+      variable rename_var = rvar ;
+      const rule_impl::info &finfo = impl.get_info().desc ;
+      if(finfo.targets.begin()->assign.size() != 0) {
+        rename_var = finfo.targets.begin()->assign[0].second ;
+      }
+      entitySet request = facts.get_variable_requests(rvar) ;
+      request -= my_entities ;
+      facts.variable_request(rename_var,request) ;
+
+
+
       list<comm_info> request_comm ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
       request_comm = barrier_process_rule_requests(recurse_vars, facts) ;
