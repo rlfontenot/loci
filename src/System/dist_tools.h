@@ -1,6 +1,7 @@
 #include <distribute.h>
 
 namespace Loci {
+  extern bool use_dynamic_scheduling ;
   void get_clone(fact_db &facts, const rule_db &rdb) ;
   void categories(fact_db &facts,std::vector<entitySet> &pvec) ;
   std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, entitySet> &vm, std::vector<interval> &pvec) ;

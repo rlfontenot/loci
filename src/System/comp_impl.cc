@@ -91,7 +91,7 @@ namespace Loci {
         el->append_list(new execute_thread_sync) ;
       return executeP(el) ;
     }
-    if(impl.get_info().rule_impl->dynamic_schedule_rule()) 
+    if(impl.get_info().rule_impl->dynamic_schedule_rule() && use_dynamic_scheduling) 
       return new dynamic_schedule_rule(impl,exec_seq,facts, scheds) ;
     else 
       return new execute_rule(impl,sequence(exec_seq),facts, scheds) ;

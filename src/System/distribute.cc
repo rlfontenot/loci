@@ -57,6 +57,8 @@ namespace Loci {
   bool use_chomp = false ;
   // flag to enable outputing schedule to file
   bool schedule_output = false ;
+  // flag to enable dynamic scheduling feature
+  bool use_dynamic_scheduling = false ;
   /////////////////////////////
   
   ofstream debugout ;
@@ -179,6 +181,9 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--method")) {
         method = atoi((*argv)[i+1]);
         i+=2;
+      } else if(!strcmp((*argv)[i],"--balance")) {
+        use_dynamic_scheduling = true ;
+        i++ ;
       } else
         break ;
     }
