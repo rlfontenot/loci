@@ -414,8 +414,6 @@ namespace Loci {
   void dstoreRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context) 
   {
     const_dstore<T> s(st) ;
-
-    fatal(context != EMPTY ) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
 

@@ -15,7 +15,6 @@
 #include <Map.h>
 
 namespace Loci {
-
   class fact_db {
   public:
     class time_info : public CPTR_type {
@@ -137,7 +136,9 @@ namespace Loci {
     fact_data & get_fact_data(variable v) 
       { return fact_infov[get_fact_info(v).fact_info_ref] ; }
     void register_variable(variable v) ;
+    std::vector<entitySet> init_ptn ;
     int maximum_allocated ;
+    int dist_from_start ;
   public:
 
     fact_db() ;
@@ -189,11 +190,18 @@ namespace Loci {
     void synonym_variable(std::string vname, std::string synonym)
       { synonym_variable(variable(vname),variable(synonym)) ; }
 
+    
     entitySet get_allocation(int size) {
       entitySet alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
       maximum_allocated += size ;
       return alloc ;
     }
+    std::pair<interval, interval> get_distributed_alloc(int size) ;
+    int is_distributed_start() {
+      return dist_from_start ;
+    }
+    std::vector<entitySet>& get_init_ptn() {
+      return init_ptn ;}
     storeRepP get_variable(variable v) ;
     storeRepP get_variable(std::string vname)
       { return get_variable(variable(vname)) ; }
