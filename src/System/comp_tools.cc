@@ -353,7 +353,7 @@ namespace Loci {
          scheds.variable_request(*vi,context) ;
      }
 #ifdef VERBOSE
-     cout << "rule " << r << " computes over " << context << endl ;
+     debugout << "rule " << r << " computes over " << context << endl ;
 #endif
      return context ;
   }
