@@ -4,23 +4,14 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <utility>
 #include <Tools/intervalSet.h>
 #include <Tools/digraph.h>
 #include "sched_tools.h"
+#include "visitorabs.h"
+#include <algorithm>
 
 namespace Loci {
-
-  class loop_compiler ;
-  class dag_compiler ;
-  class conditional_compiler ;
-  
-  class visitor {
-  public:
-    virtual ~visitor() {}
-    virtual void visit(loop_compiler&) = 0 ;
-    virtual void visit(dag_compiler&) = 0 ;
-    virtual void visit(conditional_compiler&) = 0 ;
-  } ;
 
   class orderVisitor: public visitor {
   public:
@@ -48,57 +39,13 @@ namespace Loci {
                            const digraph& dag) ;
   } ;
 
-  // obsolete visitor, need to be removed later
-  class topDownInfoVisitor: public visitor {
-  public:
-    topDownInfoVisitor():inter_node_vars(EMPTY) {}
-    virtual void visit(loop_compiler& lc) ;
-    virtual void visit(dag_compiler& dc) ;
-    virtual void visit(conditional_compiler& cc) ;
-    void print_info(std::ostream& os) ;
-    
-    std::map<variable,int> get_ownership_table()
-    {return ownership_table ;}
-    std::map<variable,variable> get_recur_table()
-    {return recurrence_vars_table ;}
-    variableSet get_keep()
-    {return keep_vars ;}
-  protected:
-    std::map<variable,int> ownership_table ;
-    std::map<variable,variable> recurrence_vars_table ;
-    variableSet keep_vars ;
-  private:
-    void visit_gr(const digraph& gr,int id) ;
-    variableSet inter_node_vars ;
-  } ;
-
-  // obsolete visitor, need to be removed later
-  class graphEditVisitor: public visitor {
-  public:
-    graphEditVisitor(const std::map<variable,int>& ot,
-                     const std::map<variable,variable>& rt,
-                     const variableSet& kv) ;
-    virtual void visit(loop_compiler& lc) ;
-    virtual void visit(dag_compiler& dc) ;
-    virtual void visit(conditional_compiler& cc) ;
-  protected:
-    std::map<variable,int> ownership_table ;
-    std::map<variable,variable> recurrence_vars_table ;//area{n} -> area
-                                                       //area -> area{n}
-    variableSet keep_vars ;
-  private:
-    variableSet ot_vars ; // keys in the ownership table
-    variableSet rvt_vars ;// keys in the recurrence_vars_table ;
-    void edit_gr(digraph& gr,rulecomp_map& rcm,int id) ;
-  } ;
-
   class graphVisualizeVisitor: public visitor {
   public:
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
   } ;
-
+  
   // generate allocation information table
   // used in top - down order
   class allocInfoVisitor: public visitor {
@@ -117,9 +64,9 @@ namespace Loci {
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-    std::map<int,variableSet> get_alloc_table()
+    std::map<int,variableSet> get_alloc_table() const
     {return alloc_table ;}
-    std::map<int,variableSet> get_loop_alloc_table()
+    std::map<int,variableSet> get_loop_alloc_table() const
     {return loop_alloc_table ;}
   protected:
     // return the all the variables that allocated
@@ -176,39 +123,20 @@ namespace Loci {
     deleteInfoVisitor(const std::map<int,variableSet>& lat,
                       const std::map<variable,variableSet>& rvt2s,
                       const std::map<variable,variableSet>& rvs2t,
-                      const variableSet& rsv,
-                      const variableSet& rtv,
                       const std::set<int>& gsn,
                       const std::map<int,int>& pnt,
                       const std::map<int,int>& lct,
                       const std::set<int>& lsn,
                       const std::map<int,variableSet>& rot_vt,
                       const std::map<int,variableSet>& lcommont,
-                      const variableSet& target,
-                      const variableSet& untyped_vars)
-      :loop_alloc_table(lat),recur_vars_t2s(rvt2s),
-       recur_vars_s2t(rvs2t),recur_source_vars(rsv),
-       recur_target_vars(rtv),graph_sn(gsn),
-       pnode_table(pnt),loop_ctable(lct),loop_sn(lsn),
-       rotate_vtable(rot_vt),loop_common_table(lcommont),
-       queried_target(target),deleted_vars(untyped_vars){
-      
-      for(std::map<int,int>::const_iterator mi=loop_ctable.begin();
-          mi!=loop_ctable.end();++mi)
-        col_sn.insert(mi->second) ;
-      for(std::map<int,variableSet>::const_iterator mi=rotate_vtable.begin();
-          mi!=rotate_vtable.end();++mi)
-        all_rot_vars += mi->second ;
-    }
+                      const variableSet& reserved_vars) ;
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-    std::map<int,variableSet> get_delete_table()
+    std::map<int,variableSet> get_delete_table() const
     {return delete_table ;}
-    std::map<variable,ruleSet> get_recur_source_other_rules()
+    std::map<variable,ruleSet> get_recur_source_other_rules() const
     {return recur_source_other_rules ;}
-    std::map<variable,int> get_redirect_table()
-    {return redirect_table ;}
   protected:
     // determine whether variables in working_vars
     // should be deleted in this graph
@@ -221,24 +149,18 @@ namespace Loci {
     // gather information for gather_info function use
     // get working_vars in the graph
     variableSet get_start_info(const digraph& gr,int id) ;
-    // post processing of working variables
-    void post_proc_working_vars(variableSet& working_vars) ;
     // constrain deletions of graphs that are inside n number of loops
     int only_loop_alloc(variableSet& working_vars,int id,int loop_num) ;
     // the looping algorithm for schedule deletion of variables
     // in the multilevel graph
     void looping_algr(const variableSet& working_vars,const digraph& dg,
                       int id,int start_loop_num) ;
-    // function that checks the deletion of recurrence target vars
-    void check_recur_target(const digraph& gr,int id) ;
     // given a rule set and a graph
     // return true if there is only one super node and
     // all other rules have path to the super node, or if
     // it is only one super node
     // return false otherwise
     bool let_it_go(const digraph& gr, ruleSet rules, const variable& v) ;
-    // let_it_go for check_recur_target use (a different version)
-    bool let_it_go(const digraph& gr, ruleSet rules) ;
     // the delete information table
     std::map<int,variableSet> delete_table ;
     // variables that have been deleted up to now or reserved
@@ -248,10 +170,6 @@ namespace Loci {
     std::map<variable,variableSet> recur_vars_t2s ;
     // source to target map
     std::map<variable,variableSet> recur_vars_s2t ;
-    // all recurrence source variables
-    variableSet recur_source_vars ;
-    // all recurrence target variables
-    variableSet recur_target_vars ;
     // if a variable is a recurrence target variable,
     // and there are other rules (other than the recurrence rule)
     // that its recurrence source variables reach in the same graph,
@@ -272,12 +190,6 @@ namespace Loci {
     // table that holds the common variables
     // between adv & col part of each loop
     std::map<int,variableSet> loop_common_table ;
-    // these variables are for additional checking of the
-    // possibility of deletion of recurrence target variables
-    variableSet processed_targets ;
-    std::map<variable,int> redirect_table ;
-    // the queried variable set by the user
-    variableSet queried_target ;
     // all the collapse node id
     std::set<int> col_sn ;
     // all the loop rotate variables
@@ -291,23 +203,84 @@ namespace Loci {
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-    std::map<variable,variableSet> get_recur_vars_t2s()
+    std::map<variable,variableSet> get_recur_vars_t2s() const
     {return recur_vars_t2s ;}
-    std::map<variable,variableSet> get_recur_vars_s2t()
+    std::map<variable,variableSet> get_recur_vars_s2t() const
     {return recur_vars_s2t ;}
-    variableSet get_recur_source_vars()
+    variableSet get_recur_source_vars() const
     {return recur_source_vars ;}
-    variableSet get_recur_target_vars()
+    variableSet get_recur_target_vars() const
     {return recur_target_vars ;}
+    
+    std::map<variable,variableSet> get_generalize_t2s() const
+    {return generalize_t2s ;}
+    std::map<variable,variableSet> get_generalize_s2t() const
+    {return generalize_s2t ;}
+    variableSet get_generalize_source_vars() const
+    {return generalize_source_vars ;}
+    variableSet get_generalize_target_vars() const
+    {return generalize_target_vars ;}
+    
+    std::map<variable,variableSet> get_promote_t2s() const
+    {return promote_t2s ;}
+    std::map<variable,variableSet> get_promote_s2t() const
+    {return promote_s2t ;}
+    variableSet get_promote_source_vars() const
+    {return promote_source_vars ;}
+    variableSet get_promote_target_vars() const
+    {return promote_target_vars ;}
+    
+    std::map<variable,variableSet> get_priority_t2s() const
+    {return priority_t2s ;}
+    std::map<variable,variableSet> get_priority_s2t() const
+    {return priority_s2t ;}
+    variableSet get_priority_source_vars() const
+    {return priority_source_vars ;}
+    variableSet get_priority_target_vars() const
+    {return priority_target_vars ;}
+    
+    std::map<variable,variableSet> get_rename_t2s() const
+    {return rename_t2s ;}
+    std::map<variable,variableSet> get_rename_s2t() const
+    {return rename_s2t ;}
+    variableSet get_rename_source_vars() const
+    {return rename_source_vars ;}
+    variableSet get_rename_target_vars() const
+    {return rename_target_vars ;}
   protected:
     void gather_info(const digraph& gr) ;
     // from x{n} -> x, i.e. from target -> source
     std::map<variable,variableSet> recur_vars_t2s ; 
     // from source -> target, e.g. x -> x{n}
     std::map<variable,variableSet> recur_vars_s2t ;
+
+    std::map<variable,variableSet> generalize_t2s ;
+    std::map<variable,variableSet> generalize_s2t ;
+
+    std::map<variable,variableSet> promote_t2s ;
+    std::map<variable,variableSet> promote_s2t ;
+
+    std::map<variable,variableSet> priority_t2s ;
+    std::map<variable,variableSet> priority_s2t ;
+
+    std::map<variable,variableSet> rename_t2s ;
+    std::map<variable,variableSet> rename_s2t ;
+    
     // set of recurrence source and target variables
     variableSet recur_source_vars ;
     variableSet recur_target_vars ;
+
+    variableSet generalize_source_vars ;
+    variableSet generalize_target_vars ;
+
+    variableSet promote_source_vars ;
+    variableSet promote_target_vars ;
+
+    variableSet priority_source_vars ;
+    variableSet priority_target_vars ;
+
+    variableSet rename_source_vars ;
+    variableSet rename_target_vars ;
   } ;
 
   // used to decorate the graph to include deletion rules
@@ -335,13 +308,13 @@ namespace Loci {
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-    std::set<int> get_graph_sn()
+    std::set<int> get_graph_sn() const
     {return graph_sn ;}
-    std::set<int> get_loop_sn()
+    std::set<int> get_loop_sn() const
     {return loop_sn ;}
-    std::map<int,std::set<int> > get_subnode_table()
+    std::map<int,std::set<int> > get_subnode_table() const
     {return subnode_table ;}
-    std::map<int,int> get_loop_col_table()
+    std::map<int,int> get_loop_col_table() const
     {return loop_col_table ;}
   protected:
     void fill_subnode_table(const digraph& gr, int id) ;
@@ -371,7 +344,7 @@ namespace Loci {
                     const std::map<variable,variableSet>& t2s,
                     const std::map<variable,variableSet>& s2t,
                     const variableSet& rsv,const variableSet& rtv) ;
-    std::ostream& report(std::ostream& s) ;
+    std::ostream& report(std::ostream& s) const ;
   } ;
 
   // function to get the multilevel graph parent hierarchy table
@@ -392,9 +365,9 @@ namespace Loci {
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) {}
     virtual void visit(conditional_compiler& cc) {}
-    std::map<int,variableSet> get_rotate_vars_table()
+    std::map<int,variableSet> get_rotate_vars_table() const
     {return rotate_vars_table ;}
-    std::map<int,variableSet> get_loop_common_table()
+    std::map<int,variableSet> get_loop_common_table() const
     {return loop_common_table ;}
   private:
     // reference to the schedule database
@@ -421,12 +394,13 @@ namespace Loci {
   class unTypedVarVisitor: public visitor {
   public:
     unTypedVarVisitor(const std::map<variable,variableSet>& s2t,
-                      const std::map<variable,variableSet>& t2s)
-      :recur_vars_s2t(s2t),recur_vars_t2s(t2s) {}
+                      const std::map<variable,variableSet>& t2s,
+                      const variableSet& input) ;
+
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-    variableSet get_untyped_vars()
+    variableSet get_untyped_vars() const
     {return untyped_vars ;}
   private:
     void discover(const digraph& gr) ;
@@ -446,13 +420,78 @@ namespace Loci {
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-    variableSet get_all_vars_ingraph()
+    variableSet get_all_vars_ingraph() const
     {return all_vars ;}
   private:
     void collect_vars(const digraph& gr) ;
     variableSet all_vars ;
   } ;
 
+  // visitor that does preprocess for promoted variables
+  // determine which promoted variable should be deleted.
+  // e.g. there are x -> x{n} -> x{n,it}, we can only delete
+  // one of them. For generalize,priority and renamed variables,
+  // we should always delete and process the final one.
+  class promotePPVisitor: public visitor {
+  public:
+    promotePPVisitor(const std::map<variable,variableSet>& pt2s,
+                     const std::map<variable,variableSet>& ps2t,
+                     const variableSet& psource,
+                     const variableSet& ptarget,
+                     const std::set<int>& gsn,
+                     variableSet& input) ;
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+    virtual void visit(conditional_compiler& cc) ;
+    variableSet get_rep() const
+    {return rep ;}
+    variableSet get_remaining() const
+    {return remaining ;}
+  private:
+    // set that holds the representitive promote variable
+    variableSet rep ;
+    // set that holds the remaining promote variables
+    // that we want to reserve
+    variableSet remaining ;
+    variableSet processed ;
+    bool is_rep(const digraph& gr, ruleSet rules) ;
+    void pick_rep(const digraph& gr) ;
+    variableSet promote_source_vars, promote_target_vars ;
+    std::map<variable,variableSet> promote_t2s, promote_s2t ;
+    std::set<int> graph_sn ;
+    variableSet reserved_vars ;
+  } ;
+
+  // function to analyze the renamed target variable cluster
+  // and find out a representitive variable for each cluster,
+  // only this variable is allowed to be deleted
+  variableSet pick_rename_target(const std::map<variable,variableSet>& s2t,
+                                 const std::map<variable,variableSet>& t2s,
+                                 const variableSet& allvars) ;
+
+  // function that checks some preconditions that all the recurrence
+  // variables should meet
+  void check_recur_precondition(const recurInfoVisitor& v,
+                                const variableSet& input) ;
+
+  // visitor that finds rule chains that are suitable for chopping
+  typedef std::pair<digraph,variableSet> chop_chain ;
+  class chopRuleVisitor: public visitor {
+  public:
+    chopRuleVisitor(fact_db& fd):facts(fd) {}
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+    virtual void visit(conditional_compiler& cc) ;
+    std::map<int,std::list<chop_chain> > get_all_chains() const
+    {return all_chains ;}
+    std::ostream& visualize(std::ostream& s) const ;
+  private:
+    void find_chain(const digraph& gr, int id) ;
+    std::map<int,std::list<chop_chain> > all_chains ;
+    // reference to the fact database
+    fact_db& facts ;
+  } ;
+  
   // overload "<<" to print out an std::set
   template<typename T>
   inline std::ostream& operator<<(std::ostream& s, const std::set<T>& ss) {
@@ -480,6 +519,28 @@ namespace Loci {
 
     return s ;
   }
+
+  // pretty printing of a rule's signature
+  // i.e. remove namespace info, if any
+  inline std::string pretty_sig(const rule& r) {
+    //the following line is the simplest, but it does not
+    //include the qualify, such like "SN1:" in a super node
+    //return r.get_info().desc.rule_identifier() ;
+    std::string name = r.get_info().name() ;
+    if(r.type() == rule::INTERNAL)
+      return name ;
+    else {
+      std::string::iterator pos ;
+      pos = std::find(name.begin(),name.end(),'#') ;
+      return std::string( (pos==name.end()?name.begin():pos+1),name.end()) ;
+    }
+  }
+
+  // function to get all the recur targets of a variableSet
+  // from a given recur mapping table
+  variableSet
+  get_recur_target_for_vars(const variableSet& vars,
+                            const std::map<variable,variableSet>& t) ;
 
 }
 

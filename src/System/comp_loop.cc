@@ -7,7 +7,7 @@ using std::map ;
 using std::ostream ;
 using std::endl ;
 
-#include "visitor.h"
+#include "visitorabs.h"
 
 namespace Loci {
   class execute_loop : public execute_modules {

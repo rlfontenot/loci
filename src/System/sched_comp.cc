@@ -183,6 +183,7 @@ namespace Loci {
   fact_db *exec_current_fact_db = 0 ;
 
   void graph_compiler::compile(fact_db& facts,sched_db& scheds,
+                               const variableSet& given,
                                const variableSet& target) {
     /***********************************
     1. unordered visitor phase (1..n)
@@ -200,18 +201,71 @@ namespace Loci {
     rotateListVisitor rotlv(scheds) ;
     top_down_visit(rotlv) ;
 
+    // get all the recurrence information
+    // i.e. the generalize, promote, priority and rename info
+    recurInfoVisitor recv ;
+    top_down_visit(recv) ;
+    
+    // get the input variables
+    // get all the variables in the multilevel graph
+    getAllVarVisitor allvarV ;
+    top_down_visit(allvarV) ;
+    variableSet input = variableSet(given & allvarV.get_all_vars_ingraph()) ;
+
+    // check preconditions of recurrence
+    check_recur_precondition(recv,input) ;
+    
     if(use_dynamic_memory) {
       cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
+
+      /*
+      chopRuleVisitor crv(facts) ;
+      top_down_visit(crv) ;
+      crv.visualize(cout) ;
+      */
       
+      // get inter/intra supernode information
       snInfoVisitor snv ;
       top_down_visit(snv) ;
       
-      recurInfoVisitor recv ;
-      top_down_visit(recv) ;
-
+      // get all untyped variables
       unTypedVarVisitor untypevarV(recv.get_recur_vars_s2t(),
-                                   recv.get_recur_vars_t2s()) ;
+                                   recv.get_recur_vars_t2s(),
+                                   input) ;
       top_down_visit(untypevarV) ;
+
+      // get the representitive variable for each rename target cluster
+      variableSet only_targets = recv.get_rename_target_vars() ;
+      only_targets -= recv.get_rename_source_vars() ;
+      
+      variableSet cluster_remaining ;
+      cluster_remaining = pick_rename_target(recv.get_rename_s2t(),
+                                             recv.get_rename_t2s(),
+                                             only_targets
+                                             ) ;
+
+      // get representitive for each promoted variable cluster
+      promotePPVisitor pppV(recv.get_promote_t2s(),
+                            recv.get_promote_s2t(),
+                            recv.get_promote_source_vars(),
+                            recv.get_promote_target_vars(),
+                            snv.get_graph_sn(),input
+                            ) ;
+      top_down_visit(pppV) ;
+
+      // reserved variableSet for the deleteInfoVisitor
+      variableSet delInfoV_reserved ;
+
+      delInfoV_reserved += recv.get_recur_source_vars() ;
+      delInfoV_reserved += pppV.get_remaining() ;
+      delInfoV_reserved -= pppV.get_rep() ;
+      delInfoV_reserved += input ;
+      delInfoV_reserved += get_recur_target_for_vars(input,
+                                                     recv.get_recur_vars_s2t()
+                                                     ) ;
+      delInfoV_reserved += target ;
+      delInfoV_reserved += untypevarV.get_untyped_vars() ;
+      delInfoV_reserved += cluster_remaining ;
       
       // compute how to do allocation
       allocInfoVisitor aiv(snv.get_graph_sn(),
@@ -231,15 +285,13 @@ namespace Loci {
                                                  recv.get_recur_vars_s2t()),
                             recv.get_recur_vars_t2s(),
                             recv.get_recur_vars_s2t(),
-                            recv.get_recur_source_vars(),
-                            recv.get_recur_target_vars(),
                             snv.get_graph_sn(),
                             get_parentnode_table(snv.get_subnode_table()),
                             snv.get_loop_col_table(),
                             snv.get_loop_sn(),
                             rotlv.get_rotate_vars_table(),
                             rotlv.get_loop_common_table(),
-                            target,untypevarV.get_untyped_vars()
+                            delInfoV_reserved
                             ) ;
       top_down_visit(div) ;
       
@@ -268,14 +320,10 @@ namespace Loci {
         os << endl ;
         os << "---------loop rotate list variables-----------" << endl ;
         os << rotlv.get_rotate_vars_table() ;
-        //print out the loop common variables
+        //print out the loop shared variables
         os << endl ;
-        os << "---------loop common variables-----------" << endl ;
+        os << "---------loop shared variables-----------" << endl ;
         os << rotlv.get_loop_common_table() ;
-        os << endl ;
-        //print out the redirect table
-        os << "----------redirect table-----------------" << endl ;
-        os << div.get_redirect_table() ;
         os << endl ;
         //print out the untyped variables
         os << "----------untyped variables--------------" << endl ;
@@ -285,16 +333,13 @@ namespace Loci {
         os << endl ;
         // get all typed variables in the fact database
         variableSet vars = facts.get_typed_variables() ;
-        // get all the variables in the multilevel graph
-        getAllVarVisitor allvarV ;
-        top_down_visit(allvarV) ;
         variableSet allgraphv = allvarV.get_all_vars_ingraph() ;
         // the difference
         variableSet typed_not_in_graph = variableSet(vars - allgraphv) ;
         if(typed_not_in_graph != EMPTY) {
           os << "These are typed variables in fact database, "
              << "but are not in the multilevel graph: "
-             << typed_not_in_graph << endl ;
+             << typed_not_in_graph << endl << endl ;
         }
         
         variableSet allocated_vars ;
@@ -339,14 +384,14 @@ namespace Loci {
         adstat.report(os) ;
         os << endl ;
       } // end of if(show_dmm_verbose)
-
-      // visualize each decorated graph
-      if(show_decoration) {
-        graphVisualizeVisitor visV ;
-        top_down_visit(visV) ;
-      }
       
     } // end of if(use_dynamic_memory)
+    
+    // visualize each decorated graph
+    if(show_decoration) {
+      graphVisualizeVisitor visV ;
+      top_down_visit(visV) ;
+    }
     
     orderVisitor ov ;    
     bottom_up_visit(ov) ;

@@ -59,8 +59,6 @@ namespace Loci {
     
     for(ri=allvertices.begin();ri!=allvertices.end();++ri) {
 
-      if(*ri == 0) continue ;
-      
       digraph::vertexSet outvertices = dg[*ri] ;
       digraph::vertexSet incomevertices = dgt[*ri] ;
       
@@ -77,15 +75,25 @@ namespace Loci {
         outf<<"\""<<v<<"\""<<"[style=filled,color=green];\n" ;
       }
       if(incomevertices == EMPTY) {
-        variable v(*ri) ;
-        outf<<"\""<<v<<"\""<<"[style=filled,color=red];\n" ;
+        if(*ri >= 0) {
+          variable v(*ri) ;
+          outf<<"\""<<v<<"\""<<"[style=filled,color=red];\n" ;
+        }else {
+          rule r(*ri) ;
+          outf<<"\""<<r<<"\""<<"[style=filled,color=red];\n" ;
+        }
       }
       if(outvertices == EMPTY) {
-        variable v(*ri) ;
-        outf<<"\""<<v<<"\""<<"[style=filled,color=blue];\n" ;
+        if(*ri >= 0) {
+          variable v(*ri) ;
+          outf<<"\""<<v<<"\""<<"[style=filled,color=blue];\n" ;
+        }else {
+          rule r(*ri) ;
+          outf<<"\""<<r<<"\""<<"[style=filled,color=blue];\n" ;
+        }
         continue ;
       }
-
+        
       if(*ri < 0) {
         rule r(*ri) ;
         digraph::vertexSet::const_iterator ii ;
@@ -590,7 +598,7 @@ namespace Loci {
       cout << " initial_vars = " << initial_vars << endl ;
     
     graph_compiler compile_graph(decomp, initial_vars) ;
-    compile_graph.compile(facts,scheds,target) ;
+    compile_graph.compile(facts,scheds,given,target) ;
     
     double end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for graph processing  = "

@@ -77,7 +77,8 @@ namespace Loci {
     // visit order
     void top_down_visit(visitor& v) ;
     void bottom_up_visit(visitor& v) ;
-    void compile(fact_db& facts, sched_db& scheds, const variableSet& target) ;
+    void compile(fact_db& facts, sched_db& scheds,
+                 const variableSet& given, const variableSet& target) ;
     ///////////////////
     void existential_analysis(fact_db &facts, sched_db &scheds) ;
     executeP execution_schedule(fact_db &facts, sched_db &scheds, int nth) ;

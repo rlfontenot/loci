@@ -13,7 +13,7 @@ using std::vector ;
 #include <map>
 using std::map ;
 
-#include "visitor.h"
+#include "visitorabs.h"
 
 namespace Loci {
   

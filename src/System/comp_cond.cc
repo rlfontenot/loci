@@ -5,7 +5,7 @@ using std::vector ;
 using std::ostream ;
 using std::endl ;
 
-#include "visitor.h"
+#include "visitorabs.h"
 
 namespace Loci {
 
