@@ -54,6 +54,7 @@ extern "C" {
     return NULL ;
   }
 
+#ifdef TRYOUT
   void *worker_thread3( void *ptr) {
     int tnum = *(int *)(ptr) ;
     do {
@@ -67,7 +68,7 @@ extern "C" {
       
     } while(true) ;
   }
-    
+#endif
 }
 
 
