@@ -640,7 +640,6 @@ namespace Loci {
     }
     
     //double timer = get_timer() ;
-    sched_db scheds(facts) ;
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
     if(Loci::MPI_rank==0)
@@ -684,8 +683,18 @@ namespace Loci {
     ////////////////////////////////////////////////////////////////////////
     
     if(Loci::MPI_rank==0)
+      cout << "dynamic scheduling..." << endl ;
+    dynamic_scheduling(gr,facts,given) ;
+
+    sched_db scheds(facts) ;
+    if(Loci::MPI_rank==0)
       cout << "setting up variable types..." << endl ;
-    set_var_types(facts,gr, scheds) ;
+    set_var_types(facts,gr,scheds) ;
+
+    //////////////
+    //scheds.print_summary(facts,cout) ;
+    //////////////
+
     if(Loci::MPI_rank==0)
       cout << "decomposing graph..." << endl ;
     decomposed_graph decomp(gr,given,target) ;
@@ -738,6 +747,7 @@ namespace Loci {
     //timer = get_timer() ;
     //cout << "Graph Processing Time: "<<timer << " seconds" << endl ;
 #endif
+
     if(Loci::MPI_rank==0)
       cout << "existential analysis..." << endl ;
     start_time = MPI_Wtime() ;

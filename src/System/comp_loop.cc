@@ -35,6 +35,8 @@ namespace Loci {
   void execute_loop::execute(fact_db &facts) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
+    // initialize conditional variables to true
+    *test = true ;
     
     param<int> time_var ;
     time_var = facts.get_variable(tvar) ;

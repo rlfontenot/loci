@@ -82,6 +82,38 @@ namespace Loci {
   inline std::istream & operator>>(std::istream &s, constraint &t)
     { return t.Input(s) ; }
 
+
+  // a duplicate of the constraint class
+  class Constraint : public store_instance {
+    typedef constraintRep constraintType ;
+    entitySet *data ;
+  public:
+    Constraint() ;
+    Constraint(const Constraint &var) ;
+    Constraint(const storeRepP &rp) { setRep(rp) ; }
+    virtual ~Constraint() ;
+
+    Constraint & operator=(const Constraint &p)
+    { setRep(p.Rep()) ; return *this ;}
+    Constraint & operator=(const storeRepP &p)
+    { setRep(p) ;  return *this ;}
+    Constraint & operator=(const entitySet &v)
+    { *data = v ; return *this ; }
+
+    virtual void notification() ;
+    
+    entitySet &operator*() { return *data ; }
+    
+    std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
+    std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
+  } ;
+
+  inline std::ostream & operator<<(std::ostream &s, const Constraint &t)
+    { return t.Print(s) ; }
+
+  inline std::istream & operator>>(std::istream &s, Constraint &t)
+    { return t.Input(s) ; }
+  
 }
 
 #endif

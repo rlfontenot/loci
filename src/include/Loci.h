@@ -34,11 +34,15 @@ using Loci::param ;
 using Loci::const_param ;
 
 using Loci::constraint ;
+using Loci::Constraint ;
 
 using Loci::unit_rule ;
 using Loci::apply_rule ;
 using Loci::pointwise_rule ;
 using Loci::singleton_rule ;
+using Loci::default_rule ;
+using Loci::constraint_rule ;
+using Loci::optional_rule ;
 using Loci::register_rule ;
 
 

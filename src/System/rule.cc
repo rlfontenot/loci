@@ -407,6 +407,18 @@ namespace Loci {
             retval = false ;
           }
           break ;
+        case CONSTRAINT_RULE:
+          if(mi->second->Rep()->RepType() != CONSTRAINT) {
+            cerr << "-------------------------------------------------"<<endl;
+            cerr << "Constraint rule should have targets" << endl;
+            cerr << " of constraint. Perhaps this rule should be a" << endl;
+	    cerr << "pointwise_rule, or apply_rule."<< endl ;
+            cerr << "Error occured for rule " << get_name()
+		 << " and variable " << *si << endl ;
+            cerr << "-------------------------------------------------"<<endl;
+            retval = false ;
+          }
+          break ;
         case SINGLETON:
           if(mi->second->Rep()->RepType() != PARAMETER &&
 	     mi->second->Rep()->RepType() != BLACKBOX) {
@@ -725,7 +737,6 @@ variableSet rule_impl::get_var_list() {
     if(target_offset > 2)
       cerr << "invalid target offset in rule "
            << rule_impl->get_name() << endl;
-    
   }
   
   rule::info::info(const info &fi, time_ident tl) {

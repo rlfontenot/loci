@@ -50,7 +50,7 @@ namespace Loci {
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT,UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
@@ -180,7 +180,7 @@ namespace Loci {
 
   class constraint_rule: public rule_impl {
   protected:
-    constraint_rule() { rule_class(CONSTRAINT) ; }
+    constraint_rule() { rule_class(CONSTRAINT_RULE) ; }
     void name_store(const std::string &nm, store_instance &si)
       { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar)
@@ -530,7 +530,7 @@ namespace Loci {
     explicit rule(int i)
       { create_rdb(); id = i ; }
     rule(const rule_implP &fp)
-      { create_rdb(); id = rdb->get_id(info(fp)) ; }
+      { create_rdb(); id = rdb->get_id(info(fp)) ;}
     rule(rule f, time_ident tl)
       { create_rdb(); id = rdb->get_id(info(rdb->get_info(f.id),tl)) ; }
     // prepend time_ident to rule f

@@ -23,7 +23,7 @@ namespace Loci {
   void execute_conditional::execute(fact_db &facts) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
-    
+
     if(*test) {
       conditional->execute(facts) ;
     }

@@ -211,4 +211,26 @@ namespace Loci {
     warn(p==0);
   }
 
+  // a duplicate of the constraint class
+  Constraint::Constraint()
+  {
+    setRep(new constraintType) ;
+  }
+    
+  Constraint::Constraint(const Constraint &var)
+  {
+    setRep(var.Rep()) ;
+  }
+
+  Constraint::~Constraint()
+  {}
+
+  void Constraint::notification()
+  {
+    NPTR<constraintType> p(Rep());
+    if(p!=0)
+      data = p->get_constraint() ;
+    warn(p==0);
+  }
+
 }

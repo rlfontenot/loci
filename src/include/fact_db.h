@@ -71,8 +71,21 @@ namespace Loci {
       return v ;
     }
 
-    fact_db(const fact_db &f) ;
-    fact_db &operator=(const fact_db &f) ;
+    // a copy function
+    void copy_all_from(const fact_db& f) {
+      init_ptn = f.init_ptn ;
+      global_comp_entities = f.global_comp_entities ;
+      distributed_info = f.distributed_info ;
+      synonyms = f.synonyms ;
+      l2g = f.l2g ;
+      maximum_allocated = f.maximum_allocated ;
+      minimum_allocated = f.minimum_allocated ;
+      dist_from_start = f.dist_from_start ;
+      fmap = f.fmap ;
+      tmap = f.tmap ;
+      nspace_vec = f.nspace_vec ;
+    }
+    
     std::pair<entitySet, entitySet> get_dist_alloc(int size) ;
     
     Map l2g ;
@@ -86,6 +99,17 @@ namespace Loci {
   public:
     fact_db() ;
     ~fact_db() ;
+    // copy constructor
+    fact_db(const fact_db &f) {
+      copy_all_from(f) ;
+    }
+    // the assignment operator
+    fact_db &operator=(const fact_db &f) {
+      if(&f != this) {
+        copy_all_from(f) ;
+      }
+      return *this ;
+    }
     void set_maximum_allocated(int i) ;
     void set_minimum_allocated(int i) ;
     int get_max_alloc() {

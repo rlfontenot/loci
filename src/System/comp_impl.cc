@@ -61,7 +61,6 @@ namespace Loci {
   }
   
   executeP impl_compiler::create_execution_schedule(fact_db &facts,sched_db &scheds ) {
-    
 #ifndef DEBUG
     //if(exec_seq.size() == 0)
     //return executeP(0) ;

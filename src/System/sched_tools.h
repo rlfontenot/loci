@@ -121,6 +121,9 @@ class dynamic_schedule_rule: public execute_modules {
      virtual void execute(fact_db &facts) ;
      virtual void Print(std::ostream &s) const ;
    } ;
+
+   // experimental dynamic scheduling function
+   void dynamic_scheduling(digraph& gr, fact_db& facts, variableSet& given) ;
 }
 #endif
 

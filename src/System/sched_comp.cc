@@ -21,6 +21,7 @@ using std::stringstream ;
 //#define HACK ; 
 
 namespace Loci {
+  extern void create_digraph_dot_file(const digraph&, const char*) ;
   // Loci option flags
   extern double total_memory_usage ;
   extern bool show_decoration ;
@@ -797,4 +798,146 @@ namespace Loci {
     
     return executeP(schedule) ;
   }
+
+
+  void dynamic_scheduling(digraph& gr, fact_db& facts, variableSet& given) {
+    // first we need to copy the fact_db
+    fact_db local_facts(facts) ;
+    // then generate a sched_db from the local_facts
+    sched_db scheds(local_facts) ;
+    
+    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
+    variableSet constraints ;
+    ruleSet constraint_rules ;
+    // then we will need to find out whether there are any
+    // constraints being generated
+    for(ruleSet::const_iterator ri=rules.begin();
+        ri!=rules.end();++ri) {
+      if(ri->type() != rule::INTERNAL)
+        if(ri->get_info().rule_impl->get_rule_class() ==
+           rule_impl::CONSTRAINT_RULE) {
+          constraint_rules += *ri ;
+          variableSet targets = ri->targets() ;
+          for(variableSet::const_iterator vi=targets.begin();
+              vi!=targets.end();++vi)
+            if(vi->time() != time_ident()) {
+              cerr << "Dynamic scheduling of non-stationary time relations"
+                   << " are not currently supported." << endl ;
+              cerr << *vi << endl ;
+              Loci::Abort() ;
+            }
+          constraints += targets ;
+        }
+    }
+    if(constraints == EMPTY)
+      return ;
+    // we will need to construct a graph that computes the relations
+    digraph dgr ;
+    digraph grt = gr.transpose() ;
+    digraph::vertexSet targets ;
+    for(variableSet::const_iterator vi=constraints.begin();
+        vi!=constraints.end();++vi)
+      targets += vi->ident() ;
+    digraph::vertexSet working = targets ;
+    digraph::vertexSet visited ;
+    while(working!=EMPTY) {
+      visited += working ;
+      digraph::vertexSet new_vs ;
+      for(digraph::vertexSet::const_iterator vi=working.begin();
+          vi!=working.end();++vi)
+        new_vs += grt[*vi] ;
+      new_vs -= visited ;
+      working = new_vs ;
+    }
+    dgr = gr.subgraph(visited) ;
+    // check for cycles
+    vector<digraph::vertexSet> clusters =
+      component_sort(dgr).get_components() ;
+    
+    for(vector<digraph::vertexSet>::size_type i=0;i<clusters.size();++i) {
+      digraph::vertexSet potential_cycle_v = clusters[i] ;
+      if(potential_cycle_v.size() != 1) {
+        cerr << "Current dynamic scheduling only supports DAG!" << endl ;
+        Loci::Abort() ;
+      }
+    }
+
+    // now we have the digraph for this scheduling,
+    // we will have to set up any variable types in it.
+    set_var_types(local_facts,dgr,scheds) ;
+
+    digraph dgrt = dgr.transpose() ;
+    ruleSet allrules = extract_rules(dgr.get_all_vertices()) ;
+    // Collect information on unit rules on this level
+    map<rule,rule> apply_to_unit ;
+    for(ruleSet::const_iterator ri=allrules.begin();
+        ri!=allrules.end();++ri) {
+      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
+        variable unit_var = *(ri->targets().begin()) ;
+        ruleSet apply_rules = extract_rules(dgrt[unit_var.ident()]) ;
+        for(ruleSet::const_iterator rii=apply_rules.begin();
+            rii!=apply_rules.end();
+            ++rii) {
+          apply_to_unit[*rii] = *ri ;
+        }
+      }
+    }
+
+    rulecomp_map rule_process ;
+    for(ruleSet::const_iterator ri=allrules.begin();
+        ri!=allrules.end();++ri) {
+      if(ri->type() == rule::INTERNAL) {
+        if(ri->get_info().qualifier() == "promote")
+          rule_process[*ri] = new promote_compiler(*ri) ;
+        else if(ri->get_info().qualifier() == "generalize")
+          rule_process[*ri] = new generalize_compiler(*ri) ;
+        else if(ri->get_info().qualifier() == "priority")
+          rule_process[*ri] = new priority_compiler(*ri) ;
+        else
+          rule_process[*ri] = new error_compiler ;
+      } else {
+        if(ri->get_info().rule_impl->get_rule_class() != rule_impl::APPLY) {
+          if(ri->get_info().rule_impl->get_rule_class() ==
+             rule_impl::CONSTRAINT_RULE)
+            rule_process[*ri] = new constraint_compiler(*ri) ;
+          else
+            rule_process[*ri] = new impl_compiler(*ri) ;
+        }
+        else
+          rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
+      } 
+    }
+    dynamic_compiler dc(rule_process,dgr,0) ;
+    dc.collect_reduce_info() ;
+    dc.schedule() ;
+    dc.compile() ;
+    dc.set_var_existence(local_facts,scheds) ;
+    dc.process_var_requests(local_facts,scheds) ;
+    exec_current_fact_db = &local_facts ;
+    (dc.create_execution_schedule(local_facts,scheds))->execute(local_facts) ;
+    ////clean the graph
+    
+    for(ruleSet::const_iterator ri=constraint_rules.begin();
+        ri!=constraint_rules.end();++ri) {
+      gr.remove_vertex(ri->ident()) ;
+    }
+    gr.remove_dangling_vertices() ;
+    // set up additional information
+    // add any additional facts into given
+    variableSet new_given = extract_vars(gr.get_source_vertices() -
+                                         gr.get_target_vertices()) ;
+    new_given -= given ;
+    if(new_given != EMPTY)
+      given += new_given ;
+
+    // finally we need to put anything useful into the global fact_db (facts)
+    for(variableSet::const_iterator vi=constraints.begin();
+        vi!=constraints.end();++vi) {
+      storeRepP srp = local_facts.get_variable(*vi) ;
+      facts.create_fact(*vi,srp) ;
+    }
+    
+  }
+
+
 }
