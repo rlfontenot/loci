@@ -702,7 +702,6 @@ namespace Loci {
       return ptn ;
     
     debugout << "Synchronising before metis_facts" << endl ;
-    MPI_Barrier(MPI_COMM_WORLD) ;
     double start = MPI_Wtime() ;
 
     metis_facts(facts,ptn,num_partitions) ;
@@ -1624,7 +1623,6 @@ namespace Loci {
 	delete [] send_ptr ;
       } 
     }
-    MPI_Barrier(MPI_COMM_WORLD) ;
     return nsp ;
     
   }
@@ -1770,7 +1768,6 @@ namespace Loci {
       delete [] send_buffer ;
       delete [] send_ptr ;
     } 
-    MPI_Barrier(MPI_COMM_WORLD) ;
     return nsp ;
   }
   //This is a generalized routine for writing out storeRepP's. Has
@@ -1840,6 +1837,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
       start += dimension ;
       hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
       qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
+      H5Dclose(dataset) ;
       
       int curr_indx = dom.size() ;
       for(int i = 1; i < Loci::MPI_processes; ++i) {
@@ -1861,11 +1859,10 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	start += count ;
 	dataset = H5Dopen(group_id, "data") ;
 	t_qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", tmpset) ;
+        H5Dclose(dataset) ;
       }
-      H5Dclose(dataset) ;
       H5Sclose(dataspace) ;
     }
-    MPI_Barrier(MPI_COMM_WORLD) ;
     delete [] tmp_send_buf ;
   }
   //This routine 
@@ -2057,7 +2054,6 @@ void write_container(hid_t group_id, storeRepP qrep) {
       H5Dclose(dataset) ;
       H5Sclose(dataspace) ;
     }
-    MPI_Barrier(MPI_COMM_WORLD) ;
     delete [] tmp_buf ;
     delete [] tmp_int ; 
   }
@@ -2110,7 +2106,6 @@ void write_container(hid_t group_id, storeRepP qrep) {
       H5Sclose(dataspace) ;
       H5Dclose(dataset) ;
     }
-    MPI_Barrier(MPI_COMM_WORLD) ;
     delete [] tmp_int ; 
   }
   void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint) {
@@ -2159,7 +2154,6 @@ void write_container(hid_t group_id, storeRepP qrep) {
       H5Sclose(dataspace) ;
       H5Dclose(dataset) ;
     }
-    MPI_Barrier(MPI_COMM_WORLD) ;
     delete [] tmp_int ; 
   }
   
@@ -3895,7 +3889,6 @@ void write_container(hid_t group_id, storeRepP qrep) {
       int *send_buf = new int[size_send] ;
       MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
 		   MPI_COMM_WORLD) ; 
-      MPI_Barrier(MPI_COMM_WORLD) ;
       size_send = 0 ;
       for(int i = 0; i < MPI_processes; ++i)
 	size_send += recv_count[i] ;
