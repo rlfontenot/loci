@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-REVISION_NAME='$Name: rel-0-3-4e $'
+REVISION_NAME='$Name:  $'
 
 INSTALL_DIR=${LOCI_INSTALL_DIR-/usr/local}
 
@@ -19,8 +19,8 @@ cp Tools/libTools.a $INSTALL_PATH/lib
 cp hdf5CC/libhdf5CC.a $INSTALL_PATH/lib
 cp System/libLoci.a $INSTALL_PATH/lib
 
-echo cp comp.conf sys.conf $INSTALL_PATH
-cp comp.conf sys.conf $INSTALL_PATH
+echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
+cp Loci.conf comp.conf sys.conf $INSTALL_PATH
 
 echo Installing \#include files
 mkdir -p $INSTALL_PATH/include
