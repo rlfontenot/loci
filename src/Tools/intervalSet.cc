@@ -18,27 +18,27 @@ using std::swap ;
 
 
 namespace Loci {
-  intervalSet::rep_holder *intervalSet::rhp = 0 ;
-  sequence::rep_holder *sequence::rhp = 0 ;
-  const intervalSet EMPTY ;
+    intervalSet::rep_holder *intervalSet::rhp = 0 ;
+    sequence::rep_holder *sequence::rhp = 0 ;
+    const intervalSet EMPTY ;
 
-  /* The intervalSetRep class does all of the work for the intervalSet class.  
-   * It is referenced through a counted pointer (Handle) template.
-   */
-  ostream &operator<<(ostream &s, const interval &i) {
-    s << '[' ;
-    if(i.first==UNIVERSE_MIN)
-      s << '#' ;
-    else 
-      s << i.first ;
-    s << ',' ;
-    if(i.second==UNIVERSE_MAX)
-      s << '#' ;
-    else
-      s << i.second ;
-    s << ']' ;
-    return s;
-  }
+    /* The intervalSetRep class does all of the work for the intervalSet class.
+     * It is referenced through a counted pointer (Handle) template.
+     */
+    ostream &operator<<(ostream &s, const interval &i) {
+	s << '[' ;
+	if(i.first==UNIVERSE_MIN)
+	    s << '#' ;
+	else 
+	    s << i.first ;
+	s << ',' ;
+	if(i.second==UNIVERSE_MAX)
+	    s << '#' ;
+	else
+	    s << i.second ;
+	s << ']' ;
+	return s;
+    }
 
 
   istream &operator>>(istream &s, interval &i) {
@@ -121,7 +121,7 @@ namespace Loci {
       // Skip whitespace
       while(isspace(s.peek()))
         ch = s.get() ;
-      // If next input is not an interval, then were finished
+      // If next input is not an interval, then we are finished.
       if(s.peek()!='[')
         break ;
       // grab interval from input
@@ -143,8 +143,8 @@ namespace Loci {
   // This partial ordering function defines an implicit equivalence
   // relation between intervals if they intersect one another
   namespace {
-    inline bool interval_porder_intersect(
-                                          const interval &i1, const interval &i2) {
+    inline bool interval_porder_intersect(const interval &i1, 
+					  const interval &i2) {
       return (i1.first < i2.first) && (i1.second < i2.first)  ;
     }
   }
@@ -159,20 +159,21 @@ namespace Loci {
   // so that if they intersect or they touch they are in the same equivalence
   // relation.
   namespace {
-    inline bool interval_porder_union(
-                                      const interval &i1, const interval &i2) {
+    inline bool interval_porder_union(const interval &i1, 
+				      const interval &i2) {
       return i1.second+1 < i2.first ;
     }
   }
 
-  void intervalSet::Union(const interval &ivl) {
+    void Union(Handle<pair_vector> &Rep, const interval &ivl) {
     Rep.MakeUnique() ;
     interval i(min(ivl.first,ivl.second),
                max(ivl.first,ivl.second)) ;
-    if(num_intervals() == 0) {
+    if(num_intervals(Rep) == 0) {
       Rep->push_back(i) ;
       return ;
     }
+    typedef pair_vector intervalSetRep;
     pair<intervalSetRep::iterator,intervalSetRep::iterator> range ;
     range = equal_range(Rep->begin(),Rep->end(),ivl,
                         interval_porder_union) ;
@@ -196,64 +197,61 @@ namespace Loci {
     }
   }
 
-  void intervalSet::Union(const intervalSet &ptn) {
-    intervalSet tmp = intervalSet::Union(*this,ptn) ;
-    Rep = tmp.Rep ;
-  }
 
-  intervalSet intervalSet::Union(const intervalSet &set1,
-                                 const intervalSet &set2) {
-    intervalSetRep::const_iterator i1 = set1.Rep->begin() ;
-    intervalSetRep::const_iterator i2 = set2.Rep->begin() ;
-    const intervalSetRep::const_iterator e1 = set1.Rep->end() ;
-    const intervalSetRep::const_iterator e2 = set2.Rep->end() ;
-    const unsigned int size = set1.Rep->size() + set2.Rep->size() ;
-    Handle<intervalSetRep> Rep ;
-    Rep->reserve(size) ;
-    while(i1!=e1 && i2!=e2) {
-      if(interval_porder_union(*i1,*i2)) {
-        Rep->push_back(*i1) ;
-        ++i1 ;
-      } else if(interval_porder_union(*i2,*i1)) {
-        Rep->push_back(*i2) ;
-        ++i2 ;
-      } else {
-        interval ivl(min((*i1).first,(*i2).first),
-                     max((*i1).second,(*i2).second)) ;
-        ++i1 ;
-        ++i2 ;
-        bool flag = true ;
-        while(flag) {
-          flag = false ;
-          if(i1!=e1 && !interval_porder_union(ivl,*i1)
-             && !interval_porder_union(*i1,ivl)) {
-            ivl.second = max(ivl.second,(*i1).second) ;
-            ++i1 ;
-            flag = true ;
-          }
-          if(i2!=e2 && !interval_porder_union(ivl,*i2)
-             && !interval_porder_union(*i2,ivl)) {
-            ivl.second = max(ivl.second,(*i2).second) ;
-            ++i2 ;
-            flag = true ;
-          }
-        } 
-        Rep->push_back(ivl) ;
-      }
+
+
+
+    Handle<pair_vector> Union(const Handle<pair_vector> Rep1,
+			      const Handle<pair_vector> Rep2) {
+	pair_vector::const_iterator i1 = Rep1->begin() ;
+	pair_vector::const_iterator i2 = Rep2->begin() ;
+	const pair_vector::const_iterator e1 = Rep1->end() ;
+	const pair_vector::const_iterator e2 = Rep2->end() ;
+	const unsigned int size = Rep1->size() + Rep2->size() ;
+	Handle<pair_vector> Rep ;
+	Rep->reserve(size) ;
+	while(i1!=e1 && i2!=e2) {
+	    if(interval_porder_union(*i1,*i2)) {
+		Rep->push_back(*i1) ;
+		++i1 ;
+	    } else if(interval_porder_union(*i2,*i1)) {
+		Rep->push_back(*i2) ;
+		++i2 ;
+	    } else {
+		interval ivl(min((*i1).first,(*i2).first),
+			     max((*i1).second,(*i2).second)) ;
+		++i1 ;
+		++i2 ;
+		bool flag = true ;
+		while(flag) {
+		    flag = false ;
+		    if(i1!=e1 && !interval_porder_union(ivl,*i1)
+		       && !interval_porder_union(*i1,ivl)) {
+			ivl.second = max(ivl.second,(*i1).second) ;
+			++i1 ;
+			flag = true ;
+		    }
+		    if(i2!=e2 && !interval_porder_union(ivl,*i2)
+		       && !interval_porder_union(*i2,ivl)) {
+			ivl.second = max(ivl.second,(*i2).second) ;
+			++i2 ;
+			flag = true ;
+		    }
+		} 
+		Rep->push_back(ivl) ;
+	    }
+	}
+	while(i1!=e1) {
+	    Rep->push_back(*i1) ;
+	    ++i1 ;
+	}
+	while(i2!=e2) {
+	    Rep->push_back(*i2) ;
+	    ++i2 ;
+	}
+	return Rep ;
     }
-    while(i1!=e1) {
-      Rep->push_back(*i1) ;
-      ++i1 ;
-    }
-    while(i2!=e2) {
-      Rep->push_back(*i2) ;
-      ++i2 ;
-    }
-    intervalSet result ;
-    if(Rep->size() != 0)
-      result.Rep = Rep ;
-    return result ;
-  }
+
 
   void intervalSet::Complement() {
     Rep.MakeUnique() ;
@@ -379,8 +377,7 @@ namespace Loci {
                                         const intervalSet &set2) {
     if(set1 == EMPTY || set2 == EMPTY)
       return EMPTY ;
-
-        
+      
     intervalSetRep::const_iterator i1 = set1.Rep->begin() ;
     intervalSetRep::const_iterator i2 = set2.Rep->begin() ;
     const intervalSetRep::const_iterator e1 = set1.Rep->end() ;

@@ -27,17 +27,24 @@ namespace Loci {
     
   extern const intervalSet EMPTY ;
 
+  typedef std::vector<interval> pair_vector ;
+
+
+  void Union(Handle<pair_vector> &Rep, const interval &ivl);
+  void Union(Handle<pair_vector> &Rep, const intervalSet &ptn);
+  Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
+			    const Handle<pair_vector> &Rep2);
+
+  int num_intervals(Handle<pair_vector> &Rep) {return Rep->size();}
+
   class intervalSet {
   public:
     class intervalSetIterator ;
-    typedef std::vector<interval> intervalSetRep ;
+    typedef pair_vector intervalSetRep ;
   private:
-
     friend class sequence ;
-    
-
     Handle<intervalSetRep> Rep ;
-
+    
     struct rep_holder {
       Handle<intervalSetRep> Rep ;
     } ;
@@ -85,11 +92,13 @@ namespace Loci {
 
 
     intervalSet() : Rep(getEmptyRep()) {} ;
-    intervalSet(const interval &ivl) { interval i(min(ivl.first,ivl.second),
-                                                  max(ivl.first,ivl.second));
-    Rep->push_back(i) ; }
+    intervalSet(const interval &ivl) { 
+	interval i(min(ivl.first,ivl.second),
+		   max(ivl.first,ivl.second));
+	Rep->push_back(i) ; }
     intervalSet(const intervalSet &ptn): Rep(ptn.Rep) {}
     explicit intervalSet(const sequence &seq) ;
+    explicit intervalSet(const Handle<pair_vector> &RepIn): Rep(RepIn) {}
     ~intervalSet() {}
     
     typedef intervalSetIterator const_iterator ;
@@ -138,10 +147,12 @@ namespace Loci {
     { fatal(indx<0); fatal(indx>=num_intervals()) ;
       return (*Rep)[indx]; }
 
-    void Union(const interval &ivl) ;
-    void Union(const intervalSet &ptn) ;
-    static intervalSet Union(const intervalSet &set1,
-                             const intervalSet &set2) ;
+  void intervalSet::Union(const interval &ivl){Loci::Union(Rep,ivl);}
+  void intervalSet::Union(const intervalSet &ptn){Loci::Union(Rep,ptn);}
+  static intervalSet intervalSet::Union(const intervalSet &set1,
+                                        const intervalSet &set2){
+    return intervalSet(Loci::Union(set1.Rep,set2.Rep)) ;
+  }
 
     void Intersection(const interval &ivl) ;
     void Intersection(const intervalSet &ptn) ;
@@ -162,6 +173,9 @@ namespace Loci {
       int sz = Rep->size() ;
       return sz==0?UNIVERSE_MIN:(*Rep)[sz-1].second ;}
   } ;
+
+
+
 
   inline intervalSet operator~(const intervalSet &e) {
     return intervalSet::Complement(e) ;
@@ -405,7 +419,11 @@ namespace Loci {
     
   inline std::istream & operator>>(std::istream &s, intervalSet &e)
     { return e.Input(s) ;}
+
+
     
+
+
     
   class sequence {
 
@@ -626,44 +644,6 @@ namespace Loci {
   }
 
 
-  typedef Loci::int_type Entity ;
-
-  template<class Op> inline void do_loop(const intervalSet &iset, Op f) {
-    for(int i=0;i<iset.num_intervals();++i) {
-      const Loci::int_type stop = iset[i].second ;
-      for(Loci::int_type indx=iset[i].first;indx<=stop;++indx)
-        f(indx) ;
-    }
-  }
-
-  template<class Op> inline void do_loop(const sequence &seq, Op f) {
-    for(int i=0;i<seq.num_intervals();++i) {
-      const bool dir = seq[i].first>seq[i].second?false:true ;
-      const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
-      for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
-        f(indx) ;
-    }
-  }
-  
-  template<class T> inline void do_loop(const sequence &seq, T *cp,
-                                        void(T::*pmf)(Entity) ) {
-    for(int i=0;i<seq.num_intervals();++i) {
-      const bool dir = seq[i].first>seq[i].second?false:true ;
-      const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
-      for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
-        (cp->*pmf)(indx) ;
-    }
-  }
-
-  template<class T> inline void do_loop(const sequence &seq, T *cp) {
-    for(int i=0;i<seq.num_intervals();++i) {
-      const bool dir = seq[i].first>seq[i].second?false:true ;
-      const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
-      for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
-        cp->calculate(indx) ;
-    }
-  }
-
   template<class T> inline intervalSet create_intervalSet(T start, T end) {
     std::sort(start,end) ;
     int First = *start ;
@@ -698,14 +678,4 @@ namespace Loci {
       
 #define ENDFORALL }
 
-#ifdef OLD
-#define DOLOOP(seq,indx) \
-{ const Loci::sequence &__s = seq ; \
-  for(int __ii=0;__ii<seq.num_intervals();++__ii) { \
-   const bool __dir = __s[__ii].first>__s[__ii].second?false:true ; \
-   const Loci::int_type __stop = __s[__ii].second + (__dir?1:-1) ; \
-   for(Loci::int_type indx=__s[__ii].first;indx!=__stop ;__dir?++indx:--indx)
-
-#define ENDDO }}
-#endif
-#endif
+#endif 
