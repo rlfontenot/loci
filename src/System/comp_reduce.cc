@@ -17,6 +17,7 @@ using std::list ;
 //#define VERBOSE
 
 namespace Loci {
+   
   class joiner_oper : public execute_modules {
     variable joiner_var ;
     storeRepP joiner_store ;
@@ -431,33 +432,282 @@ namespace Loci {
     el->append_list(new execute_thread_sync) ;
     return executeP(el) ;
   }
+
+  //targetsize >= tcount, is real size(bytes) of target buffer while tcount is valid bytes in target buffer
+  void myJoin(void * source, int scount, unsigned char *&target, int &tcount,  int &targetSize, vector<CPTR<joiner> > join_op) { 
+    int targetUnpackPosition = 0; //position pointer for unpacking target to tp
+    int sourceUnpackPosition = 0; //position pointer for unpacking source to sp
+    int targetPackPosition = 0; //position pointer for packing target from tp
+    int totalCountLeft = tcount; //total number of bytes still to be processesed in next loops
+    entitySet e;
+    sequence seq;  
+    tcount = 0;
+    int num_reduce = join_op.size();
+    for(int i = 0; i < num_reduce; i++) {
+      storeRepP tp = join_op[i]->getTargetRep();
+      storeRepP sp = join_op[i]->getTargetRep();
+      targetUnpackPosition = targetPackPosition;
+      tp->unpack(target, targetUnpackPosition, targetSize, e);
+      sp->unpack(source, sourceUnpackPosition, scount, e);
+      join_op[i]->SetArgs(tp, sp);
+      int sizeBeforeJoin = tp->pack_size(e);
+      totalCountLeft -= sizeBeforeJoin;
+      join_op[i]->Join(seq);
+      int sizeAfterJoin = tp->pack_size(e);
+      if(targetSize < targetPackPosition + sizeAfterJoin + totalCountLeft ) {
+	while(targetSize < targetPackPosition + sizeAfterJoin + totalCountLeft)
+	  targetSize *= 2;
+	unsigned char * temp_target = new unsigned char[targetSize];
+	for(int j = 0; j < targetPackPosition ; j++) {
+	  temp_target[j] = target[j];
+	}
+	tp->pack(temp_target, targetPackPosition, targetSize, e);
+	for(int j = 0; j < totalCountLeft; j++) {
+	  temp_target[targetPackPosition+j] = target[targetPackPosition-sizeAfterJoin+sizeBeforeJoin+j];
+	}
+	delete [] target;
+	target = temp_target;
+      }
+      else {
+	if(sizeAfterJoin != sizeBeforeJoin) {
+	  if(sizeBeforeJoin < sizeAfterJoin) {
+	    for(int j = 0; j < totalCountLeft; j++) {
+	      target[targetPackPosition+sizeAfterJoin+totalCountLeft-1-j] = target[targetPackPosition+sizeBeforeJoin+totalCountLeft-1-j];
+	    }
+	  }
+	  else {
+	    for(int j = 0; j < totalCountLeft; j++) {
+	      target[targetPackPosition+sizeAfterJoin+j] = target[targetPackPosition+sizeBeforeJoin+j];
+	    }
+	  }
+	}
+	tp->pack(target, targetPackPosition, targetSize, e);
+      }
+    
+      tcount += sizeAfterJoin;
+    }
+  }
+
+  unsigned char * groupAllReduce(void *sbuf, int scount, int &rcount, 
+				 vector<CPTR<joiner> > join_op, MPI_Comm comm) {
+    //get number of processors and my rank
+    int myid, numprocs;
+    MPI_Comm_size(comm,&numprocs) ;
+    MPI_Comm_rank(comm,&myid) ;
+    rcount = scount;
+    int validCount = scount;
+    unsigned char * rbuf = new unsigned char[rcount];
+    memcpy(rbuf, sbuf, rcount);
+    if(numprocs == 1) 
+      return rbuf;
+
+    MPI_Status status;
+    int num_reduce = join_op.size();
+    int dimension = (int)(ceil(log10((double)numprocs)/log10((double)2))); //dimension of hypercube
+    int extraProcessors = (1<<dimension) - numprocs; //extra virtual processors needed
+    bool meVirtual = false;
+    int myVirtualId;
+    unsigned char *rVirtualBuf; //buffer for virtual processor
+    int virtualRCount = 0; //number of elements in rVirtualBuf
+    int virtualValidCount = 0;
+    //if I am also acting as virtual processor
+    if((myid ^ (1<<(dimension-1))) >= numprocs) {
+      meVirtual = true;
+      virtualRCount = rcount;
+      rVirtualBuf = new unsigned char[virtualRCount];
+      myVirtualId = myid ^ (1<<(dimension-1));
+    }
+
+    int countTag = 0; //tag to send send and recvcount between processors
+    int tag1 = 1; //tag for sendrecv call    
+    int tag2 = 2; //tag for send and recv calls
+    unsigned char *tempRecvBuf; //temperory receive buffer
+    int tempCount;
+    int partner; //communication partner's id
   
-  CPTR<joiner> global_join_op ;
+    //for keeping data about virtual processor's buffer has been initialized or not
+    //assigned[i] keeps the data of the virtual processor whose id is i+numprocs
+    bool *assigned;
+    if(extraProcessors > 0) 
+      assigned = new bool[extraProcessors]; 
+  
+  //assign false value for all virtual processors since their buffer is not initalized
+    for(int i = 0; i < extraProcessors; i++)
+      assigned[i] = false;
+    storeRepP tp, sp;
+  
+    for(int i = 0; i < dimension ; i++) {
+      partner = (myid ^ (1<<i));
+    
+      if(partner >= numprocs) { //if partner is virtual
+	if(assigned[partner-numprocs]) { //if virtual partner's buffer has been initialized
+	  partner = partner ^ (1<<(dimension-1)); //find the real processor who own the virtual id
+	  if(partner == myid) { //if I own the virtual id
+	  
+	    myJoin(rVirtualBuf, virtualValidCount, rbuf, validCount, rcount, join_op);
+	    if(virtualRCount < validCount) {
+	      while(virtualRCount < validCount)
+		virtualRCount *= 2;
+	      delete [] rVirtualBuf;
+	      rVirtualBuf = new unsigned char[virtualRCount];
+	    }
+	    virtualValidCount = validCount;
+	    memcpy(rVirtualBuf, rbuf, validCount);
+	  }
+	  else {
+	    MPI_Sendrecv(&validCount, 1, MPI_INT, partner, countTag, 
+			 &tempCount, 1, MPI_INT, partner, countTag, comm, &status);
+	    tempRecvBuf = new unsigned char[tempCount];
+	    MPI_Sendrecv(rbuf, validCount, MPI_PACKED, partner, tag1, 
+			 tempRecvBuf, tempCount, MPI_PACKED, partner, tag1, comm, &status);
+	    myJoin(tempRecvBuf, tempCount, rbuf, validCount, rcount, join_op);
+	    delete [] tempRecvBuf;
+	  }
+	}
+	else { //if virtual partner's buffer has not been initialized
+	  partner = partner ^ (1<<(dimension-1));
+	  if(partner == myid) { // if I own the virtual id
+	    if(virtualRCount < validCount) {
+	      while(virtualRCount < validCount)
+		virtualRCount *= 2;
+	      delete [] rVirtualBuf;
+	      rVirtualBuf = new unsigned char[virtualRCount];
+	    }
+	    memcpy(rVirtualBuf, rbuf, validCount);
+	    virtualValidCount = validCount;
+	  }
+	  else {
+	    MPI_Send(&validCount, 1, MPI_INT, partner, countTag, comm);
+	 
+	    MPI_Send(rbuf, validCount, MPI_PACKED, partner, tag2, comm);
+	  }
+	}
+      }
+   
+      else { //if partner is not virtual
+	MPI_Sendrecv(&validCount, 1, MPI_INT, partner, countTag, 
+		     &tempCount, 1, MPI_INT, partner, countTag, comm, &status);
+      
+	tempRecvBuf = new unsigned char[tempCount];
+      
+	MPI_Sendrecv(rbuf, validCount, MPI_PACKED, partner, tag1, 
+		     tempRecvBuf, tempCount, MPI_PACKED, partner, tag1, comm, &status);
+	myJoin(tempRecvBuf, tempCount, rbuf, validCount, rcount, join_op);
+	delete [] tempRecvBuf;
+      }
+    
+      if(meVirtual) { //if i act also as a virtual processor
+	partner = (myVirtualId ^ (1<<i));
+	if(assigned[myVirtualId-numprocs]) { //if my virtual buffer has been initialized
+	  if(partner >= numprocs) { //if partner is virtual
+	    if(assigned[partner-numprocs]) { //if virtual partner's buffer has been initialized
+	      partner = partner ^ (1<<(dimension-1)); //find the real processor who own the virtual id
+	      MPI_Sendrecv(&virtualValidCount, 1, MPI_INT, partner, countTag, 
+			   &tempCount, 1, MPI_INT, partner, countTag, comm, &status);
+	      tempRecvBuf = new unsigned char[tempCount];
+	      MPI_Sendrecv(rVirtualBuf, virtualValidCount, MPI_PACKED, partner, tag1, 
+			   tempRecvBuf, tempCount, MPI_PACKED, partner, tag1, comm, &status);
+
+	      myJoin(tempRecvBuf, tempCount, rVirtualBuf, virtualValidCount, virtualRCount, join_op);
+	      delete [] tempRecvBuf;
+	    }
+	    else { //if virtual partner's buffer has not been initialized yet
+	      partner = partner ^ (1<<(dimension-1)); //find real processor who own the virtual id
+	      MPI_Send(&virtualValidCount, 1, MPI_INT, partner, countTag, comm);
+	      MPI_Send(rVirtualBuf, virtualValidCount, MPI_PACKED, partner, tag2, comm);
+	    }
+	  }
+	  else { //if partner is not virtual
+	    //if virtual partner is myid then don't do anything because it has been taken care of 
+	    //in the loops before this loop. if virtual partner is not myid then
+	    if(myid != partner) { 
+	      MPI_Sendrecv(&virtualValidCount, 1, MPI_INT, partner, countTag, 
+			   &tempCount, 1, MPI_INT, partner, countTag, comm, &status);
+	      tempRecvBuf = new unsigned char[tempCount];
+	      MPI_Sendrecv(rVirtualBuf, virtualValidCount, MPI_PACKED, partner, tag1,
+			   tempRecvBuf, tempCount, MPI_PACKED, partner, tag1, comm, &status);
+	      myJoin(tempRecvBuf, tempCount, rVirtualBuf, virtualValidCount, virtualRCount, join_op);
+	      delete [] tempRecvBuf;
+	    }
+	  }
+	}
+	else { //if my virtual buffer has not been initialized
+	  if(partner >= numprocs) { //if partner is virtual
+	    if(assigned[partner - numprocs]) { //if virtual partner's buffer has been initialized
+	      partner = partner ^ (1<<(dimension-1));
+	      MPI_Recv(&tempCount, 1 , MPI_INT, partner, countTag, comm, &status);
+	      if(virtualRCount < tempCount) {
+		while(virtualRCount < tempCount)
+		  virtualRCount *= 2;
+		delete [] rVirtualBuf;
+		rVirtualBuf = new unsigned char[virtualRCount];
+	      }
+	      MPI_Recv(rVirtualBuf, virtualRCount, MPI_PACKED, partner,tag2, comm, &status);
+	      virtualValidCount = tempCount;
+	    }
+	  }
+	  else { 
+	    //if partner is not virtual
+	    //if virtual partner is myid then don't do anything because it has been taken care of 
+	    //in the loops before this loop. if virtual partner is not myid then
+	    if(partner != myid) { 
+	      MPI_Recv(&tempCount, 1, MPI_INT, partner, countTag, comm, &status);
+	      if(virtualRCount < tempCount) {
+		while(virtualRCount < tempCount)
+		  virtualRCount *= 2;
+		delete [] rVirtualBuf;
+		rVirtualBuf = new unsigned char[virtualRCount];
+	      }
+	      MPI_Recv(rVirtualBuf, virtualRCount, MPI_PACKED, partner,tag2, comm, &status);
+	      virtualValidCount = tempCount;
+	    }
+	  }
+	}
+      }
+      //find which virtual processors are initialized in this loop
+      for(int j = 0; j < extraProcessors; j++) {
+	//if virtual processor's partner is virtual
+	if(((j+numprocs) ^ (1<<i)) >= numprocs) {
+	  //if virtual partner is initialized then now virtual processor is initialized
+	  if(assigned[((j+numprocs)^(1<<i))-numprocs])
+	    assigned[j] = true;
+	}
+	else //if virtual processor's partner is not virtual then virtual processor is initialized now
+	  assigned[j] = true;
+      }
+    }
+    //rcount = count;
+    if(extraProcessors > 0)
+      delete [] assigned;
+    if(meVirtual) {
+      delete [] rVirtualBuf;
+    }
+    return rbuf;
+  }
+
+  vector<CPTR<joiner> > global_join_ops ;
   void create_user_function(void *send_ptr, void *result_ptr, int *size, MPI_Datatype* dptr) {
-    storeRepP sp, tp ;
-    int loc_send = 0, loc_result = 0 ;
     entitySet e ;
     sequence seq ;
-    e += 1 ;
-    seq += 1 ;
-    sp = global_join_op->getTargetRep() ;
-    tp = global_join_op->getTargetRep() ;
-    tp->allocate(e) ;
-    sp->allocate(e) ;
-    sp->unpack(send_ptr, loc_send, *size, seq) ;
-    tp->unpack(result_ptr, loc_result, *size, seq) ;
-    global_join_op->SetArgs(tp, sp) ;
-    global_join_op->Join(seq) ;
-    loc_result = 0 ;
-    loc_send = 0 ;
-    tp->pack(result_ptr, loc_result, *size, e) ;
+    int unpack_send_position = 0 ;
+    int unpack_result_position = 0;
+    int pack_result_position = 0;
+    for(int i = 0; i < global_join_ops.size(); i++) {
+      storeRepP sp, tp ;
+      sp = global_join_ops[i]->getTargetRep() ;
+      tp = global_join_ops[i]->getTargetRep() ;
+      sp->unpack(send_ptr, unpack_send_position, *size, seq) ;
+      tp->unpack(result_ptr, unpack_result_position, *size, seq) ;
+      global_join_ops[i]->SetArgs(tp, sp) ;
+      global_join_ops[i]->Join(seq) ;
+      tp->pack(result_ptr, pack_result_position, *size, e) ;
+    }
   } 
   
-  execute_param_red::execute_param_red(variable red, rule unit, CPTR<joiner> j_op) {
-    reduce_var = red ;
-    unit_rule = unit ;
-    join_op = j_op ;
-    global_join_op = join_op ;
+  execute_param_red::execute_param_red(vector<variable> red, vector<rule> unit, vector<CPTR<joiner> > j_op) {
+    reduce_vars = red ;
+    unit_rules = unit ;
+    join_ops = j_op ;
     MPI_Op_create(&create_user_function, 0, &create_join_op) ;
   }
   execute_param_red::~execute_param_red() {
@@ -465,57 +715,80 @@ namespace Loci {
   }
   
   void execute_param_red::execute(fact_db &facts) {
-    unsigned char *send_ptr; 
-    unsigned char *result_ptr ;
-    int size ;
-    int loc = 0 , loc_result = 0;
-    storeRepP sp, tp ;
+    unsigned char *send_ptr, *result_ptr;
+    int size = 0;
     entitySet e ;
     sequence seq ;
-    sp = facts.get_variable(reduce_var) ;
-    size = sp->pack_size(e) ;
+    vector<storeRepP> sp;
+    for(int i = 0; i < reduce_vars.size(); i++) {
+      sp.push_back(facts.get_variable(reduce_vars[i])) ;
+      size += sp[i]->pack_size(e);
+    }
     send_ptr = new unsigned char[size] ;
+    int position = 0;
+    for(int i = 0; i < sp.size(); i++) {
+      sp[i]->pack(send_ptr, position, size, e) ;
+    }
+#ifndef GROUP_ALLREDUCE
     result_ptr = new unsigned char[size] ;
-    sp->pack(send_ptr, loc, size, e) ;
-    global_join_op = join_op ;
+   
+    global_join_ops = join_ops;
     MPI_Allreduce(send_ptr, result_ptr, size, MPI_PACKED, create_join_op, MPI_COMM_WORLD) ;
-    sp->unpack(result_ptr, loc_result, size, seq) ;
+    position = 0;
+    for(int i = 0; i < sp.size(); i++) {
+      sp[i]->unpack(result_ptr, position, size, seq) ;
+    }
+#else
+    int recv_buf_size;
+    result_ptr = groupAllReduce(send_ptr, size, recv_buf_size, join_ops, MPI_COMM_WORLD);
+    position = 0;
+    for(int i = 0; i < sp.size(); i++) {
+      sp[i]->unpack(result_ptr, position, recv_buf_size, seq) ;
+    }
+#endif
     delete [] send_ptr ;
     delete [] result_ptr ;
   }
   void execute_param_red::Print(ostream &s) const {
-    s << "param reduction on " << reduce_var << endl ;
+    for(int i = 0 ; i < reduce_vars.size(); i++) 
+      s << "param reduction on " << reduce_vars[i] << endl ;
   }
   void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
-    
     if(facts.isDistributed()) {
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      entitySet targets ;
-      targets = scheds.get_existential_info(reduce_var, unit_rule) ;
-      targets += send_entitySet(targets, facts) ;
-      targets &= d->my_entities ;
-      targets += fill_entitySet(targets, facts) ;
-      scheds.set_existential_info(reduce_var,unit_rule,targets) ;
+      	fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      for(int i = 0; i < unit_rules.size(); i++) {
+	entitySet targets ;
+	targets = scheds.get_existential_info(reduce_vars[i], unit_rules[i]) ;
+	targets += send_entitySet(targets, facts) ;
+	targets &= d->my_entities ;
+	targets += fill_entitySet(targets, facts) ;
+	scheds.set_existential_info(reduce_vars[i],unit_rules[i],targets) ;
+      }
     }
   }
   
   void reduce_param_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
-      entitySet requests = scheds.get_variable_requests(reduce_var) ;
-      requests += send_entitySet(requests, facts) ;
-      scheds.variable_request(reduce_var,requests) ;
+      for(int i = 0; i < unit_rules.size(); i++) {
+	entitySet requests = scheds.get_variable_requests(reduce_vars[i]) ;
+	requests += send_entitySet(requests, facts) ;
+	scheds.variable_request(reduce_vars[i],requests) ;
+      }
     }
   } 
   
   executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-    ostringstream oss ;
-    oss << "reduce param " << reduce_var ;
+   
     if(facts.isDistributed()) {
-      CPTR<execute_sequence> el = new execute_sequence ;
-      el->append_list(new execute_thread_sync) ;
-      el->append_list(new execute_param_red(reduce_var, unit_rule, join_op)) ; 
+      CPTR<execute_sequence> el = new execute_sequence ; 
+      //el->append_list(new execute_thread_sync) ;
+ 
+      el->append_list(new execute_param_red(reduce_vars, unit_rules, join_ops)) ;
       return executeP(el) ;
     }
+    ostringstream oss ;
+    for(int i = 0; i < reduce_vars.size(); i++) 
+      oss << "reduce param " << reduce_vars[i] << std::endl;
     return executeP(new execute_msg(oss.str())) ;
   }
   
@@ -885,5 +1158,4 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     oss << "reduce store " << reduce_var ;
     return executeP(new execute_msg(oss.str())) ;
   }
-  
 }
