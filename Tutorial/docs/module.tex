@@ -1,3 +1,4 @@
+
 \chapter {Modules}
 
 In order to improve code maintenance and prevent tight coupling of
@@ -18,7 +19,7 @@ developer. In order to specify this kind of information to Loci, the
 developer needs to register a particular module. A typical register
 rule for the module is given below. 
 
-\begin verbatim 
+\begin{verbatim} 
   class reg_mod_heat : public Loci::register_module {
     public:
     std::string  using_nspace() const ;
@@ -45,7 +46,7 @@ rule for the module is given below.
 // create a register module object. 
 reg_mod_heat rmh ;
 }
-\end verbatim 
+\end{verbatim}
 
 %
 Right now the module management is incomplete. The way we deal with
@@ -58,18 +59,18 @@ function. There are two versions of the same call. If you need to load
 in all the rules associated with a module without dealing with
 import/export variables then you use the following call. 
 
-\begin verbatim
+\begin{verbatim}
  void load_module(const std::string from_str, const std::string
  to_str, rule_db& rdb, std::set<std::string> &str_set) ;
-\end verbatim
+\end{verbatim}
 
 For modules which require an init function, we pass the fact database
 as well as the init file name. 
-\begin verbatim
+\begin{verbatim}
   void load_module(const std::string from_str, const std::string
   to_str, const char* problem_name, fact_db &facts, rule_db& rdb,
   std::set<std::string> &str_set) ;
-\end verbatim
+\end{verbatim}
 
 The set of string {\tt str\_set} keeps track of the module names
 loaded till then. This is used mainly in the case when there is a
