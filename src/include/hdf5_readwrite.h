@@ -28,7 +28,7 @@ namespace Loci {
 
     hid_t dataspace = H5Screate_simple(rank, &dimension, NULL);
     hid_t datatype  = H5T_NATIVE_INT;
-    hid_t dataset   = H5Dcreate(group_id, "Domain", datatype, dataspace, H5P_DEFAULT);
+    hid_t dataset   = H5Dcreate(group_id, "Interval Set", datatype, dataspace, H5P_DEFAULT);
     H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 
     delete [] data;
@@ -43,7 +43,7 @@ namespace Loci {
 
     hsize_t    dimension[1];
 
-    hid_t dataset   = H5Dopen( group_id, "Domain");
+    hid_t dataset   = H5Dopen( group_id, "Interval Set");
     hid_t dataspace = H5Dget_space(dataset);
     H5Sget_simple_extent_dims (dataspace, dimension, NULL);
 
