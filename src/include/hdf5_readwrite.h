@@ -37,25 +37,54 @@ namespace Loci {
     H5Dclose(dataset);
   }
 
+  inline void HDF5_Local2Global( hid_t group_id, entitySet &eset, Map &l_g)
+  {
+    int        indx = 0;
+    hsize_t    dimension;
+    hid_t      dataset, dataspace;
+
+    dataset    = H5Dopen(group_id, "Map");
+    dataspace  = H5Dget_space(dataset);
+
+    H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
+
+    int *data = new int[dimension];
+
+    H5Dread( dataset, H5T_NATIVE_INT, H5S_ALL, dataspace,
+                H5P_DEFAULT, data);
+
+    l_g.allocate(eset);
+    entitySet :: const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci)
+         l_g[*ci] = data[indx++];
+
+    delete [] data;
+    H5Sclose(dataspace);
+    H5Dclose(dataset);
+  }
+
+
 
   inline void HDF5_ReadDomain( hid_t group_id, entitySet &eset)
   {
+    hsize_t    dimension;
+    hid_t      dataset, dataspace;
 
-    hsize_t    dimension[1];
+    dataset    = H5Dopen(group_id, "Interval Set");
+    dataspace  = H5Dget_space(dataset);
 
-    hid_t dataset   = H5Dopen( group_id, "Interval Set");
-    hid_t dataspace = H5Dget_space(dataset);
-    H5Sget_simple_extent_dims (dataspace, dimension, NULL);
+    H5Sget_simple_extent_dims (dataspace, &dimension, NULL);
 
-    int *data = new int[dimension[0]];
-    H5Dread (dataset, H5T_NATIVE_INT, H5S_ALL, dataspace,
-             H5P_DEFAULT, data);
+    int *data = new int[dimension];
 
-    for(int i=0;i< dimension[0];i++){
-      eset |= interval(data[i],data[i+1]);
-      i++;
+    H5Dread( dataset, H5T_NATIVE_INT, H5S_ALL, dataspace,
+                H5P_DEFAULT, data);
+
+    eset = EMPTY;
+    for(int i=0;i< dimension;i++){
+        eset |= interval(data[i],data[i+1]);
+        i++;
     }
-
     delete [] data;
     H5Sclose(dataspace);
     H5Dclose(dataset);
@@ -72,6 +101,7 @@ namespace Loci {
     hid_t vDatatype  = H5T_NATIVE_INT;
     hid_t vDataset   = H5Dcreate(group_id, "VecSize", vDatatype, vDataspace,
                                  H5P_DEFAULT);
+
     H5Dwrite(vDataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &size);
 
     H5Sclose( vDataspace );
@@ -86,11 +116,12 @@ namespace Loci {
     hsize_t dimension = 1;
 
     hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDatatype  = H5Tcopy(H5T_NATIVE_INT);
+    hid_t vDatatype  = H5T_NATIVE_INT;
     hid_t vDataset   = H5Dopen( group_id, "VecSize");
+
     H5Dread( vDataset, vDatatype, H5S_ALL, vDataspace, H5P_DEFAULT, size);
+
     H5Sclose( vDataspace );
-    H5Tclose( vDatatype  );
     H5Dclose( vDataset   );
 
   }
