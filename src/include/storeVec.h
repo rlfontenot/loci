@@ -4,6 +4,8 @@
 #include <istream>
 #include <ostream>
 
+#include <algorithm>
+
 #include <Config/conf.h>
 
 #include <Tools/debug.h>
@@ -1150,7 +1152,7 @@ namespace Loci {
 
     sDataset.read( ibuf, H5::PredType::NATIVE_INT );
 
-    int maxBucketSize = *max_element( ibuf, ibuf + (int)dimension[0] );
+    int maxBucketSize = *std::max_element( ibuf, ibuf + (int)dimension[0] );
 
     //---------------------------------------------------------------------------
     // Calculate the offset of each entity in file ....

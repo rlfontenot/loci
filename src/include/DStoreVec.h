@@ -17,6 +17,8 @@
 #include <Map.h>
 #include <multiMap.h>
 
+#include <algorithm>
+
 #ifdef EXT_HASH_MAP
 #include <ext/hash_map>
 #else
@@ -847,7 +849,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 	 int *vbucket = new int[dimension[0]];
 
 	 fdataset.read( vbucket, H5::PredType::NATIVE_INT );
-    int maxStateSize = *max_element( vbucket, vbucket + (int)dimension[0] );
+    int maxStateSize = *std::max_element( vbucket, vbucket + (int)dimension[0] );
 
    //---------------------------------------------------------------------------
    // Read the data now ....

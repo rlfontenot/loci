@@ -20,6 +20,7 @@
 
 #include <DMultiMap.h>
 
+#include <algorithm>
 
 namespace Loci {
   template<class T> class dmultiStoreRepI : public storeRep {
@@ -837,7 +838,7 @@ namespace Loci {
 
     sDataset.read( ibuf, H5::PredType::NATIVE_INT );
 
-    int maxBucketSize = *max_element( ibuf, ibuf + (int)dimension[0] );
+    int maxBucketSize = *std::max_element( ibuf, ibuf + (int)dimension[0] );
 
     //---------------------------------------------------------------------------
     // Calculate the offset of each entity in file ....

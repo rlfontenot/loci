@@ -674,7 +674,7 @@ namespace Loci {
 
 	 bDataset.read( ibuf, H5::PredType::NATIVE_INT );
 
-    int maxBucketSize = *max_element( ibuf, ibuf + (int)dimension[0] );
+    int maxBucketSize = *std::max_element( ibuf, ibuf + (int)dimension[0] );
 
     store<int> container;
     container.allocate( eset );
