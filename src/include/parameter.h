@@ -123,9 +123,14 @@ namespace Loci {
   template<class T>
   std::ostream &paramRepI<T>::Print(std::ostream &s) const
   {
-    s << '{' << domain() << std::endl ;
-    Loci::streamoutput(&attrib_data,1,s) ;
-    s << '}' << std::endl ;
+    entitySet dom = domain() ;
+    if(dom == ~EMPTY) {
+      Loci::streamoutput(&attrib_data,1,s) ;
+    } else {
+      s << '{' << domain() << std::endl ;
+      Loci::streamoutput(&attrib_data,1,s) ;
+      s << '}' << std::endl ;
+    }
     return s ;
   }
 
