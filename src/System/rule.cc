@@ -1,0 +1,619 @@
+#include "rule.h"
+
+#include <stream.h>
+#include <fact_db.h>
+
+using std::vector ;
+using std::set ;
+using std::pair ;
+
+
+namespace Loci {
+
+    namespace {
+      variableSet convert_set(const variableSet &vset, time_ident tl) {
+        variableSet res ;
+        for(variableSet::const_iterator i=vset.begin();i!=vset.end();++i)
+          res += variable(*i,tl) ;
+        return res ;
+      }
+
+      vmap_info convert_vmap_info(const vmap_info &in, time_ident tl) {
+        vmap_info res ;
+        for(vector<variableSet>::const_iterator i=in.mapping.begin();
+            i!=in.mapping.end(); ++i)
+          res.mapping.push_back(convert_set(*i,tl)) ;
+        res.var = convert_set(in.var,tl) ;
+        for(vector<pair<variable, variable> >::const_iterator i=in.assign.begin();
+            i!=in.assign.end();++i)
+          res.assign.push_back(std::make_pair(variable(i->first,tl),
+                                              variable(i->second,tl))) ;
+        return res ;
+      }
+    }
+
+    string rule_impl::info::rule_identifier() const {
+        ostringstream ss ;
+        ss << targets << "<-" << sources ;
+        if(constraints.begin() != constraints.end()) {
+            if(sources.begin() != sources.end())
+              ss << "," ;
+            ss << "CONSTRAINT(" << constraints << ")" ;
+        }
+        if(conditionals != EMPTY)
+          ss << ",CONDITIONAL(" << conditionals << ")" ;
+        return ss.str() ;
+    }
+
+    variableSet rule_impl::info::input_vars() const {
+        variableSet input = conditionals ;
+        set<vmap_info>::const_iterator i ;
+        for(i=sources.begin();i!=sources.end();++i) {
+            for(int j=0;j<i->mapping.size();++j)
+              input += i->mapping[j] ;
+            input += i->var ;
+        }
+        for(i=constraints.begin();i!=constraints.end();++i) {
+            for(int j=0;j<i->mapping.size();++j)
+              input += i->mapping[j] ;
+            input += i->var ;
+        }
+        for(i=targets.begin();i!=targets.end();++i) 
+          for(int j=0;j<i->mapping.size();++j)
+            input += i->mapping[j] ;
+
+        return input ;
+    }
+
+    variableSet rule_impl::info::output_vars() const {
+        variableSet output ;
+        set<vmap_info>::const_iterator i ;
+        
+        for(i=targets.begin();i!=targets.end();++i)
+          output += i->var ;
+
+        return output ;
+    }
+    
+    rule_impl::rule_impl() {
+        name = "UNNAMED" ;
+        rule_impl_class = POINTWISE ;
+    }
+
+    rule_impl::~rule_impl() {}
+
+    void rule_impl::rule_name(const string &fname) {
+        name = fname ;
+    }
+
+    string rule_impl::get_name() const {
+        if(name == "UNNAMED")
+          name = typeid(*this).name() ;
+        return name ;
+    }
+
+    namespace {
+        inline void fill_descriptors(set<vmap_info> &v, const exprList &in) {
+            
+            for(exprList::const_iterator i = in.begin();i!=in.end();++i) {
+                vmap_info di(*i) ;
+                if(v.find(di) != v.end())
+                  cerr << "Warning, duplicate variable in var set." << endl ;
+                else
+                  v.insert(di) ;
+            }
+        }
+    }
+   
+    void rule_impl::source(const string &invar) {
+        exprP p = expression::create(invar) ;
+        fill_descriptors(rule_info.sources,
+                         collect_associative_op(p,OP_COMMA)) ;
+    }
+
+    void rule_impl::target(const string &outvar) {
+        exprP p = expression::create(outvar) ;
+        fill_descriptors(rule_info.targets,
+                         collect_associative_op(p,OP_COMMA)) ;
+    }
+
+    void rule_impl::constraint(const string &constrain) {
+        exprP p = expression::create(constrain) ;
+        fill_descriptors(rule_info.constraints,
+                         collect_associative_op(p,OP_COMMA)) ;
+    }
+
+    void rule_impl::conditional(const string &cond) {
+        exprP p = expression::create(cond) ;
+        rule_info.conditionals += variableSet(p) ;
+    }
+
+    void rule_impl::set_store(variable v, const storeRepP &p) {
+        storeIMap::iterator sp ;
+
+        sp = var_table.find(v) ;
+        fatal(sp == var_table.end()) ;
+        sp->second->setRep(p) ;
+    }
+
+    storeRepP rule_impl::get_store(variable v) const {
+        storeIMap::const_iterator sp ;
+        sp = var_table.find(v) ;
+        if(sp == var_table.end()) 
+          cerr << "unable to get store for variable " << v << endl ;
+        fatal(sp == var_table.end()) ;
+        return sp->second->Rep() ;
+    }
+
+    void rule_impl::name_store(const string &name, store_instance &si) {
+        variable v(expression::create(name)) ;
+        storeIMap::iterator sp ;
+        if((sp = var_table.find(v)) == var_table.end())
+          var_table[v] = &si ;
+        else {
+            cerr << "ERROR!:  rule_impl::name_store redefinition of '"
+                 << name << "' in rule '"
+                 << typeid(*this).name() << "'" << endl ;
+            sp->second = &si ;
+        }
+    }
+
+    
+    bool rule_impl::check_perm_bits() const {
+
+        variableSet read_set,write_set ;
+        set<vmap_info>::const_iterator i ;
+        
+        for(i=rule_info.sources.begin();i!=rule_info.sources.end();++i){
+            for(int j=0;j<i->mapping.size();++j)
+              read_set += i->mapping[j] ;
+            read_set += i->var ;
+        }
+        for(i=rule_info.targets.begin();i!=rule_info.targets.end();++i){
+            for(int j=0;j<i->mapping.size();++j)
+              read_set += i->mapping[j] ;
+            write_set += i->var ;
+            for(int j=0;j<i->assign.size();++j) {
+                write_set -= i->assign[j].first ;
+                write_set += i->assign[j].second ;
+            }                
+        }
+        
+        bool retval = true ;
+        for(storeIMap::const_iterator i=var_table.begin();
+            i!=var_table.end();++i) {
+            if(write_set.inSet(i->first)) {
+                if(i->second->access() != store_instance::READ_WRITE) {
+                    cerr << "WARNING! read-only var '" << i->first
+                         << "' in target list for rule "
+                         << name << endl ;
+                    retval = false ;
+                }
+            } else if(read_set.inSet(i->first)) {
+                if(i->second->access() != store_instance::READ_ONLY) {
+                    cerr << "WARNING! read-write var '" << i->first
+                         << "' only in source list for rule "
+                         << name << endl ;
+                    retval = false ;
+                }
+            } else {
+                cerr << "WARNING! var '" << i->first
+                     << "' not in source or target lists for rule "
+                     << name << endl ;
+                retval = false ;
+            }
+        }
+        variableSet::const_iterator si ;
+        for(si=read_set.begin();si!=read_set.end();++si) {
+            if(var_table.find(*si) == var_table.end()) {
+                cerr << "WARNING! var '" << *si << "' has not been named in"
+                     << " rule " << name << endl ;
+                retval = false ;
+            }
+        }
+        for(si=write_set.begin();si!=write_set.end();++si) {
+            if(var_table.find(*si) == var_table.end()) {
+                cerr << "WARNING! var '" << *si << "' has not been named in"
+                     << " rule " << name << endl ;
+                retval = false ;
+            }
+        }
+        return retval ;
+    }
+
+    void rule_impl::initialize(fact_db &facts) {
+        storeIMap::iterator sp ;
+
+        for(sp=var_table.begin();sp!=var_table.end();++sp) {
+            storeRepP srp = facts.get_variable(sp->first) ;
+            if(srp == 0) {
+                cerr << "ERROR!: rule_impl::initialize unable to extract '"
+                     << sp->first << "' from store data base."
+                     << endl ;
+                cerr << "Error occured in rule '"
+                     << typeid(*this).name() << "'" << endl ;
+                exit(-1) ;
+            }
+            sp->second->setRep(srp) ;
+        }
+    }
+
+    
+
+    void rule_impl::set_variable_times(time_ident tl) {
+      set<vmap_info>::const_iterator i ;
+      set<vmap_info> tmp ;
+      for(i=rule_info.sources.begin();i!=rule_info.sources.end();++i)
+        tmp.insert(convert_vmap_info(*i,tl)) ;
+      rule_info.sources.swap(tmp) ;
+      tmp.clear() ;
+      for(i=rule_info.targets.begin();i!=rule_info.targets.end();++i)
+        tmp.insert(convert_vmap_info(*i,tl)) ;
+      rule_info.targets.swap(tmp) ;
+      tmp.clear() ;
+      for(i=rule_info.constraints.begin();
+          i!=rule_info.constraints.end();++i)
+        tmp.insert(convert_vmap_info(*i,tl)) ;
+      rule_info.constraints.swap(tmp) ;
+      tmp.clear() ;
+      rule_info.conditionals = convert_set(rule_info.conditionals,tl) ;
+      storeIMap tmp2 ;
+      storeIMap::iterator j ;
+      for(j=var_table.begin();j!=var_table.end();++j) {
+        variable v(j->first,tl) ;
+        tmp2[v] = j->second ;
+      }
+      var_table.swap(tmp2) ;
+      name = rule_info.rule_identifier() ;
+                   
+    }
+
+    void rule_impl::copy_store_from(rule_impl &f) {
+        storeIMap::iterator sp ;
+
+        for(sp=var_table.begin();sp!=var_table.end();++sp)
+          sp->second->setRep(
+              (f.var_table[sp->first])->Rep()) ;
+    }
+
+    void rule_impl::Print(ostream &s) const {
+        s << "------------------------------------------------" << endl;
+        s << "--- rule " << name << ", class = " ;
+        switch(rule_impl_class) {
+        case POINTWISE:
+            s << "POINTWISE" ;
+            break ;
+        case UNIT:
+            s << "UNIT" ;
+            break ;
+        case APPLY:
+            s << "APPLY" ;
+            break ;
+        case JOIN:
+            s << "JOIN" ;
+            break ;
+        default:
+            s << "ERROR" ;
+            break ;
+        }
+        s << endl ;
+
+        string rule_impl_key = rule_info.rule_identifier() ;
+        s << rule_impl_key << endl ;
+        
+        s << "------------------------------------------------" << endl;
+    }        
+
+
+    rule::rule_db *rule::rdb = 0 ;
+
+
+    rule::info::info(const rule_implP &fp) {
+      rule_impl = fp ;
+      
+      desc = fp->get_info() ;
+      rule_ident = desc.rule_identifier() ;
+      
+      set<vmap_info>::const_iterator i ;
+      variableSet svars,tvars ;
+      for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        source_vars += (*i).var ;
+        svars += (*i).var ;
+      }
+      for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        source_vars += (*i).var ;
+      }
+      source_vars += desc.conditionals ;
+      for(i=desc.targets.begin();i!=desc.targets.end();++i) {
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        target_vars += (*i).var ;
+        tvars += (*i).var ;
+      }
+
+      time_ident source_time,target_time ;
+      
+      for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
+        source_time =  source_time.before((*i).get_info().time_id)
+          ?(*i).get_info().time_id:source_time ;
+      }
+      int target_offset = 0 ;
+      bool target_asgn ;
+      
+      for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
+        if(i==tvars.begin()) {
+          target_time = (*i).get_info().time_id ;
+          target_offset = (*i).get_info().offset ;
+          target_asgn = (*i).get_info().assign ;
+        } else
+          if(target_time != (*i).get_info().time_id ||
+             target_asgn != (*i).get_info().assign ||
+             (!target_asgn &&
+             (target_offset != (*i).get_info().offset))) {
+            cerr << "targets not all at identical time level in rule : "
+                 << endl ;
+            rule_impl->Print(cerr) ;
+          }
+      }            
+      
+      source_level = source_time ;
+      target_level = target_time ;
+      
+      rule_class = TIME_SPECIFIC ;
+      
+      if(source_time == target_time) {
+        if(source_time == time_ident())
+          rule_class = GENERIC ;
+      } else if(target_time.before(source_time)) {
+        rule_class = COLLAPSE ;
+      } else if(source_time.before(target_time))
+        rule_class = BUILD ;
+      else {
+        cerr << "unable to infer time hierarchy from rule :" << endl ;
+        rule_impl->Print(cerr) ;
+      }
+      
+      time_advance = false ;
+      if(1 == target_offset)
+        time_advance = true ;
+      if(time_advance && rule_class == BUILD)
+        cerr << "can not advance time in build rule " << rule_impl->get_name()
+             << endl;
+      if(target_offset > 2)
+        cerr << "invalid target offset in rule "
+             << rule_impl->get_name() << endl;
+    }
+  
+    rule::info::info(const info &fi, time_ident tl) {
+      rule_impl = fi.rule_impl->new_rule_impl() ;
+      rule_impl->set_variable_times(tl) ;
+      warn(fi.rule_class != GENERIC) ;
+      if(fi.rule_class != GENERIC) {
+        *this = fi ;
+        return ;
+      }
+      source_level = tl ;
+      target_level = tl ;
+      rule_class = GENERIC ;
+      time_advance = false ;
+      desc = rule_impl->get_info() ;
+      rule_ident = desc.rule_identifier() ;
+      
+      set<vmap_info>::const_iterator i ;
+      variableSet svars,tvars ;
+      for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        source_vars += (*i).var ;
+        svars += (*i).var ;
+      }
+      for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        source_vars += (*i).var ;
+      }
+      source_vars += desc.conditionals ;
+      for(i=desc.targets.begin();i!=desc.targets.end();++i) {
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        target_vars += (*i).var ;
+        tvars += (*i).var ;
+      }
+      
+    }
+
+    rule_implP rule::info::get_rule_implP() const {
+      rule_implP fp = rule_impl->new_rule_impl() ;
+      if(rule_class == GENERIC && target_level != time_ident())
+        fp->set_variable_times(target_level) ;
+      return fp ;
+    }
+
+    namespace {
+      class NULL_RULE_IMPL: public rule_impl {
+      public:
+        NULL_RULE_IMPL() {}
+        rule_implP new_rule_impl() const { return new NULL_RULE_IMPL ; }
+        void compute(const sequence &seq) {}
+      } ;
+    }
+
+    rule_implP rule_impl::new_rule_impl() const {
+      cerr << "rule_impl::new_rule_impl() was called:" << endl
+           << "this rule should never be called, use copy_rule_impl<> to"<< endl 
+           << "generate a copyable rule" << endl ;
+      abort() ;
+      return new NULL_RULE_IMPL ;
+    }
+      
+
+    rule::info::info(const string &s) {
+      rule_class = rule::INTERNAL ;
+      exprP p = expression::create(s) ;
+      exprList l = collect_associative_op(p,OP_COMMA) ;
+      exprList::const_iterator li ;
+      for(li=l.begin();li!=l.end();++li) {
+        const exprP &f = *li ;
+        if(f->op == OP_FUNC) {
+          if(f->name == "source") {
+            fill_descriptors(desc.sources,f->expr_list) ;
+          } else if(f->name == "target") {
+            fill_descriptors(desc.targets,f->expr_list) ;
+          } else if(f->name == "constraint") {
+            fill_descriptors(desc.constraints,f->expr_list) ;
+          } else if(f->name == "conditional") {
+            desc.conditionals = variableSet(f->expr_list.front()) ;
+          } else if(f->name == "qualifier") {
+            internal_qualifier = f->expr_list.front()->name ;
+          } else {
+            cerr << "unable to interpret internal rule representation"
+                 << endl ;
+            cerr << "rule was given " << s << endl ;
+            exit(1) ;
+          }
+        } else {
+          cerr << "syntax error parsing internal rule representation"
+               << endl ;
+          cerr << "rule was given " << s << endl ;
+          exit(1) ;
+        }
+            
+          
+      }
+
+      rule_impl = new NULL_RULE_IMPL ;
+      
+      rule_ident = internal_qualifier + ":" + desc.rule_identifier() ;
+      
+      set<vmap_info>::const_iterator i ;
+      variableSet svars,tvars ;
+      for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        source_vars += (*i).var ;
+        svars += (*i).var ;
+      }
+      for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        source_vars += (*i).var ;
+      }
+      source_vars += desc.conditionals ;
+      for(i=desc.targets.begin();i!=desc.targets.end();++i) {
+        for(int j=0;j<(*i).mapping.size();++j)
+          source_vars += (*i).mapping[j] ;
+        target_vars += (*i).var ;
+        tvars += (*i).var ;
+      }
+
+      time_ident source_time,target_time ;
+      
+      for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
+        source_time =  source_time.before((*i).get_info().time_id)
+          ?(*i).get_info().time_id:source_time ;
+      }
+      int target_offset = 0 ;
+      bool target_asgn ;
+      
+      for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
+        if(i==tvars.begin()) {
+          target_time = (*i).get_info().time_id ;
+          target_offset = (*i).get_info().offset ;
+          target_asgn = (*i).get_info().assign ;
+        } else
+          if(rule_class != rule::INTERNAL &&
+             (target_time != (*i).get_info().time_id ||
+             target_asgn != (*i).get_info().assign ||
+             (!target_asgn &&
+             (target_offset != (*i).get_info().offset)))) {
+            cerr << "targets not all at identical time level in rule : "
+                 << endl ;
+            rule_impl->Print(cerr) ;
+          }
+      }            
+      
+      source_level = source_time ;
+      target_level = target_time ;
+      
+    }
+    
+    ostream &ruleSet::Print(ostream &s) const {
+      for(ruleSet::const_iterator i=begin();i!=end();++i) 
+        s << *i << endl ;
+      return s;
+    }
+
+    global_rule_impl_list global_rule_list ;
+
+    global_rule_impl_list::rule_list_ent *global_rule_impl_list::list = 0 ;
+    
+    global_rule_impl_list::~global_rule_impl_list() {
+        rule_list_ent *p,*v ;
+        for(p=list;p!=0;p=v) {
+            v = p->next ;
+            delete p ;
+        }
+    }
+
+    void global_rule_impl_list::push_rule(rule_implP p) {
+        rule_list_ent *flp = new rule_list_ent(p,list) ;
+        list = flp ;
+    }
+
+    
+    const ruleSet rule_db::EMPTY_RULE ;
+
+    void rule_db::add_rule(const rule_implP &fp) {
+      // Check for rule consistency
+      fp->check_perm_bits() ;
+      add_rule(rule(fp)) ;
+    }    
+    
+
+
+    void rule_db::add_rule(rule f) {
+      string fname = f.get_info().rule_impl->get_name() ;
+      rule_map_type::const_iterator fmti = name2rule.find(fname) ;
+      if(fmti != name2rule.end()) {
+        fname = f.get_info().name() ;
+      }
+      name2rule[fname] = f ; 
+      
+      if(known_rules.inSet(f)) {
+        cerr << "Warning, adding duplicate rule to rule database"
+             << endl 
+             << " Rule = " << f << endl ;
+      } else {
+        // Now link all rule sources
+        variableSet svars = f.sources() ;
+        variableSet tvars = f.targets() ;
+        for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i)
+          srcs2rule[*i] += f ;
+        for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
+          variable v = *i ;
+          while(v.get_info().priority.size() != 0) {
+            trgt2rule[v] += f ;
+            v = v.drop_priority() ;
+          }
+          trgt2rule[v] += f ;
+        }
+        if(svars == EMPTY) 
+          cerr << "WARNING, rule " << f << " has no sources" << endl ;
+        if(tvars == EMPTY)
+          cerr << "WARNING, rule " << f << " has no targets" << endl ;
+        known_rules += f ;
+      }
+    }
+    
+    void rule_db::add_rules(global_rule_impl_list &gfl) {
+      for(global_rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i) 
+        add_rule(*i) ;
+    }
+
+}
+
+
