@@ -10,6 +10,8 @@ using std::ios ;
 using std::ifstream ;
 using std::swap ;
 
+//static int test = 1 ;
+
 namespace Loci {
   int MPI_processes ;
   int MPI_rank ;
@@ -20,6 +22,11 @@ namespace Loci {
     MPI_Init(argc, argv) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
+    /*
+      if(MPI_rank == 0) {
+      while(test == 1) ;
+      }
+    */
     cerr << "after MPI_Init with " << MPI_processes << ", my_rank = " << MPI_rank << endl ;
   }
   
@@ -497,8 +504,8 @@ namespace Loci {
       
       l2g = facts.get_variable("l2g") ;
       my_entities = facts.get_variable("my_entities") ;
-      
-      re = my_entities & e ;
+      re = e ;
+      //re = my_entities & e ;
       k = 0 ;
       for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
 	recv_size[k] = (d->send_entities[*ei]).size() ;
