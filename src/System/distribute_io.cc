@@ -1,15 +1,22 @@
-#include "dist_tools.h"
-#include <entitySet.h>
 #include <vector>
 using std::vector;
 
-#include <mpi.h>
 #include <iostream>
 using std::cerr;
 using std::endl;
 
 #include <algorithm>
 using std::sort;
+
+#include <mpi.h>
+
+#include <Tools/debug.h>
+#include <entitySet.h>
+#include "dist_tools.h"
+#include <rule.h>
+#include <fact_db.h>
+#include <constraint.h>
+#include <multiMap.h>
 
 namespace Loci {
   

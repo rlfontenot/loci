@@ -6,14 +6,14 @@
 #endif
 #include <Config/conf.h>
 
-
-#include <mpi.h>
-
-#include <Config/conf.h>
-#include <Tools/debug.h>
-#include <store_rep.h>
 #include <istream>
 #include <ostream>
+
+
+#include <mpi.h>
+#include <Tools/debug.h>
+#include <store_rep.h>
+#include <distribute.h>
 #include <data_traits.h>
 
 namespace Loci {

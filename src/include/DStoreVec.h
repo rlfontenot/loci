@@ -379,8 +379,7 @@ namespace Loci {
         newVec = ci->second;
         return( newVec );
       } else {
-        cout << "Error: Out of range data " << endl;
-        exit(0);
+        std::cerr << "Error: DStoreVec, Out range accessing Vector " << std::endl;
       }
       return newVec;
     }

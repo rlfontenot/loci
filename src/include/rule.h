@@ -132,7 +132,7 @@ namespace Loci {
   template <class TCopyRuleImpl> 
     void copy_rule_impl<TCopyRuleImpl>::rename_vars(std::map<variable,variable> &rvm) {
     rvlist.push_back(rvm) ;
-    prot_rename_vars(rvm) ;
+    rule_impl::prot_rename_vars(rvm) ;
   }
 
 

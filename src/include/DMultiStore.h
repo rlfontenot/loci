@@ -648,7 +648,7 @@ namespace Loci {
     ediff = eset - domain();
 
     if( ediff.size() > 0)
-      cout << " Warning: Entities not part of domain, and not unpacked " << ediff <<endl;
+      std::cerr << " Warning: Entities not part of domain, and not unpacked " << ediff <<endl;
 
     unpackdata( traits_type, ptr, loc, size, seq);
   }
@@ -697,7 +697,7 @@ namespace Loci {
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       if( !store_domain.inSet( *ci ) ) {
-        cout << "Warning: Entity not present in entityset " << *ci << endl;
+        std::cerr << "Warning: Entity not present in entityset " << *ci << endl;
         continue;
       }
       MPI_Unpack( inbuf, insize, &position, &vsize, 1, MPI_INT, MPI_COMM_WORLD) ;
@@ -779,7 +779,7 @@ namespace Loci {
     for( ci = eset.begin(); ci != eset.end(); ++ci) 
       container[*ci] = ibuf[indx++];
 
-    container.Print(cout);
+    container.Print(std::cout);
 
     //-----------------------------------------------------------------------
     // Calculate the offset of each entity in file ....

@@ -1,6 +1,17 @@
-#include "dist_internal.h"
 #include <vector>
+using std::vector ;
+
 #include <mpi.h>
+
+#include <Tools/debug.h>
+#include <entitySet.h>
+#include "dist_tools.h"
+#include "dist_internal.h"
+#include <rule.h>
+#include <fact_db.h>
+#include <constraint.h>
+#include <multiMap.h>
+
 
 namespace Loci {
 

@@ -16,6 +16,7 @@
 #include <DMultiMap.h>
 #include <DMapVec.h>
 #include <hdf5_readwrite.h>
+#include <distribute.h>
 
 namespace Loci {
 

@@ -14,14 +14,16 @@
 #include <ostream>
 #include <store_rep.h>
 #include <variable.h>
-#include <constraint.h>
-#include <rule.h>
-#include <parameter.h>
+//#include <constraint.h>
+//#include <rule.h>
+//#include <parameter.h>
 #include <Map_rep.h>
 #include <Map.h>
+#include <DMap.h>
 
 namespace Loci {
-
+  class rule_db ;
+  
   class fact_db {
   public:
     

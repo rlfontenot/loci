@@ -1,10 +1,12 @@
+#include <typeinfo>
+
 #include <fact_db.h>
+#include <rule.h>
 #include <constraint.h>
-#include <Tools/stream.h>
 #include <Tools/debugger.h>
 #include <DStore.h>
 #include "dist_tools.h"
-#include <typeinfo>
+
 
 extern "C" {
 #include <hdf5.h>
@@ -20,6 +22,7 @@ using std::pair ;
 
 using std::istream ;
 using std::ostream ;
+using std::ostringstream ;
 using std::endl ;
 using std::ios ;
 
@@ -398,7 +401,7 @@ namespace Loci {
         s.get() ;
         break ;
       }
-      if(s.peek() == char_traits<char>::eof()) {
+      if(s.peek() == std::char_traits<char>::eof()) {
         cerr << "unexpected EOF in fact_db::read" << endl ;
         exit(1) ;
       }
@@ -499,7 +502,7 @@ namespace Loci {
         s.get() ;
         break ;
       }
-      if(s.peek() == char_traits<char>::eof()) {
+      if(s.peek() == std::char_traits<char>::eof()) {
         cerr << "unexpected EOF in fact_db::read" << endl ;
         exit(1) ;
       }

@@ -25,6 +25,7 @@ using std::ostream ;
 
 #include <algorithm>
 using std::sort ;
+using std::pair ;
 
 //#define VERBOSE
 

@@ -97,7 +97,7 @@ namespace Loci {
     DatatypeP dtype = traits_type::get_type();
     for(int i=0;i<sz;++i) {
       dtype->output(s,(void *)(v+i)) ;
-      s << endl ;
+      s << std::endl ;
     }
     return s ;
   }
@@ -106,7 +106,7 @@ namespace Loci {
   streamoutput_SEL(USER_DEFINED_CONVERTER,const T *v, int sz, std::ostream &s) {
     for(int i=0;i<sz;++i) {
       s << v[i] ;
-      s << endl ;
+      s << std::endl ;
     }
     return s ;
   }

@@ -6,7 +6,7 @@
 #endif
 #include <Config/conf.h>
 
-#include <Map.h>
+#include <DMap.h>
 #include <store_rep.h>
 #include <data_traits.h>
 #include <sstream>
@@ -20,7 +20,6 @@ namespace Loci {
   extern int MPI_rank ;
   extern int num_threads ;
 
-  class Map ;
 
   template<class T> class storeRepI : public storeRep {
     T *alloc_pointer ;
@@ -505,7 +504,7 @@ namespace Loci {
     typedef  data_schema_traits<T> converter_traits;
     typename converter_traits::Converter_Base_Type *outbuf;
 
-    int typesize = sizeof(converter_traits::Converter_Base_Type);
+    int typesize = sizeof(typename converter_traits::Converter_Base_Type);
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       if( !store_domain.inSet( *ci ) ) {

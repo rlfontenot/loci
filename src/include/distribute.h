@@ -8,20 +8,21 @@
 
 #include <typeinfo>
 #include <vector>
+#include <iostream>
+#include <istream>
+#include <ostream>
+#include <fstream>
+
 #include <Map.h>
 #include <DMap.h>
 #include <fact_db.h>
 #include <store_rep.h>
 
-#include <iostream>
-#include <fstream>
 
-#include <store.h>
-#include <constraint.h>
-#include <DMultiMap.h>
+//#include <store.h>
+//#include <constraint.h>
+//#include <DMultiMap.h>
 
-#include <istream>
-#include <ostream>
 
 namespace Loci {
 

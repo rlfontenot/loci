@@ -6,18 +6,19 @@
 #endif
 #include <Config/conf.h>
 
+#include <istream>
+#include <ostream>
+#include <algorithm>
+#include <functional>
+
+#include <mpi.h>
 
 #include <Tools/debug.h>
 #include <store_rep.h>
-#include <istream>
-#include <ostream>
-
+#include <store.h>
 #include <Map.h>
 #include <Tools/intervalSet.h>
-#include <algorithm>
-#include <functional>
 #include <hdf5_readwrite.h>
-
 #include <Tools/block_hash.h>
 
 

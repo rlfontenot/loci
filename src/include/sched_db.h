@@ -8,6 +8,8 @@
 
 
 #include <fact_db.h>
+#include <rule.h>
+
 namespace Loci {
   class sched_db {
     

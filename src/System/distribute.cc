@@ -1,3 +1,4 @@
+#include <constraint.h>
 #include "dist_tools.h"
 #include <Tools/debug.h>
 #include <entitySet.h>

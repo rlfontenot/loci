@@ -12,6 +12,7 @@
 #include <Tools/hash_map.h>
 
 #include <Tools/debug.h>
+#include <store_rep.h>
 #include <Map_rep.h>
 #include <store.h>
 #include <multiMap.h>
@@ -387,7 +388,7 @@ namespace Loci {
   }
 
   template<unsigned int M> storeRepP thaw() {
-    return getRep() ;
+    return dMapVecRepI<M>::getRep() ;
   }
   //------------------------------------------------------------------------
   template<unsigned int M> 

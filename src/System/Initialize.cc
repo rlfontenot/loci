@@ -1,3 +1,4 @@
+#include <rule.h>
 #include "dist_tools.h"
 #include "loci_globs.h"
 #include <Tools/debug.h>

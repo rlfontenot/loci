@@ -1,6 +1,3 @@
-#include "dist_tools.h"
-#include <Tools/debug.h>
-#include <entitySet.h>
 
 #include <vector>
 using std::vector;
@@ -8,8 +5,6 @@ using std::vector;
 #include <set>
 using std::set;
 
-#include "metis.h"
-#include <mpi.h>
 
 #include <iostream>
 using std::cout;
@@ -18,6 +13,18 @@ using std::endl;
 
 #include <algorithm>
 using std::sort;
+
+#include "metis.h"
+#include <mpi.h>
+
+#include <Tools/debug.h>
+#include <entitySet.h>
+#include "dist_tools.h"
+#include <rule.h>
+#include <fact_db.h>
+#include <constraint.h>
+#include <multiMap.h>
+
 
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING

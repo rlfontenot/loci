@@ -27,8 +27,8 @@ namespace Loci {
       ch = s.get() ;
     } while(ch==' ' || ch=='\n') ;
     if(ch!='[') {
-      cerr << "Incorrect format when reading interval" << endl ;
-      cerr << "expected a '[' but got a '" << ch << "'" << endl ;
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a '[' but got a '" << ch << "'" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -37,8 +37,8 @@ namespace Loci {
       ch = s.get() ;
     } while(ch==' ' || ch=='\n') ;
     if(ch!=',') {
-      cerr << "Incorrect format when reading interval" << endl ;
-      cerr << "expected a ',' but got a '" << ch << "'" << endl ;
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a ',' but got a '" << ch << "'" << std::endl ;
       s.putback(ch) ;
       return s ;
     }
@@ -48,8 +48,8 @@ namespace Loci {
       ch = s.get() ;
     } while(ch==' ' || ch=='\n') ;
     if(ch!=']') {
-      cerr << "Incorrect format when reading interval" << endl ;
-      cerr << "expected a ']' but got a '" << ch << "'" << endl ;
+      std::cerr << "Incorrect format when reading interval" << std::endl ;
+      std::cerr << "expected a ']' but got a '" << ch << "'" << std::endl ;
       s.putback(ch) ;
       return s ;
     }

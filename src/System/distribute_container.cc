@@ -1,10 +1,17 @@
-#include "dist_tools.h"
-#include <entitySet.h>
 #include <vector>
 using std::vector;
 #include <set>
 using std::set;
+
 #include <mpi.h>
+
+#include <Tools/debug.h>
+#include <entitySet.h>
+#include "dist_tools.h"
+#include <rule.h>
+#include <fact_db.h>
+#include <constraint.h>
+#include <multiMap.h>
 
 namespace Loci {
 
