@@ -54,7 +54,7 @@ namespace Loci {
         
         string filename = oss.str() ;
         ofstream ofile(filename.c_str(),ios::out) ;
-        ofile.precision(8) ;
+        ofile.precision(6) ;
         sc->Print(ofile) ;
       }
     }

@@ -1,6 +1,6 @@
 #include "comp_tools.h"
 
-#include <mpi.h>
+#include <mpi.h> 
 
 #include <vector>
 using std::vector ;
@@ -10,11 +10,8 @@ using std::set ;
 using std::list ;
 #include <map>
 using std::map ;
-#ifdef EXT_HASH_MAP
-#include <ext/hash_map>
-#else
 #include <hash_map>
-#endif
+
 using std::hash_map ;
 
 using std::pair ;
@@ -582,14 +579,24 @@ namespace Loci {
         exinfo[exent[i]] &= d->my_entities ;
       }
     }
-
-    vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
-
-    int j=0;
+    int j = 0 ;
+#ifdef VERBOSE
     for(int i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
-
+      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
+        debugout[MPI_rank] << "v=" << v << ",rule ="<<*rsi
+                           <<"exinfo="<<exinfo[j++] << endl ;
+      }
+    }
+#endif
+    vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
+    
+    j=0;
+    for(int i=0;i<vars.size();++i) {
+      variable v = vars[i] ;
+      ruleSet &rs = rules[i] ;
+      
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
 	exinfo[j] += fill_sets[j] ;
         facts.set_existential_info(v,*rsi,exinfo[j]) ;
@@ -640,7 +647,7 @@ namespace Loci {
       
       for(int i=0;i<d->copy.size();++i) {
         entitySet temp = e & d->copy[i].entities ;
-
+	
         comm_info ci ;
         ci.v = v ;
         ci.processor = d->copy[i].proc ;
@@ -783,25 +790,42 @@ namespace Loci {
       MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
     }
-
+    
     // Pack the buffer for sending 
     for(int i=0;i<nsend;++i) {
-#ifdef VERBOSE
-      debugout[MPI_rank] << "sending to processor " << send_info[i].first
-                         << endl ;
-#endif
+      
+      /*
+	#ifdef VERBOSE
+	debugout[MPI_rank] << "sending to processor " << send_info[i].first
+	<< endl ;
+	#endif
+      */
+      
       int loc_pack = 0 ;
       for(int j=0;j<send_info[i].second.size();++j) {
         storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
-#ifdef VERBOSE
-        debugout[MPI_rank] << "packing variable " << send_info[i].second[j].v
-                           << endl ;
-#endif
-        sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
+	
+	/*
+	  #ifdef VERBOSE
+	  debugout[MPI_rank] << "packing variable " << send_info[i].second[j].v
+	  << endl ;
+	  #endif
+	*/
+
+	/*
+	  if((send_info[i].second[j].set).inSet(0)) {
+	  Loci::debugout[Loci::MPI_rank] << "sending to processor " << send_info[i].first
+	  << endl ;	
+	  Loci::debugout[Loci::MPI_rank] << "packing variable " << send_info[i].second[j].v
+	  << endl ;
+	  }
+
+	*/
+	sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
       }
       warn(loc_pack != s_size[i]) ;
     }
-
+    
     // Send Buffer
     for(int i=0;i<nsend;++i) {
       int proc = send_info[i].first ;
@@ -815,18 +839,42 @@ namespace Loci {
     
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
-#ifdef VERBOSE
-      debugout[MPI_rank] << "unpacking from processor " <<recv_info[i].first
-                         << endl ;
-#endif
+      
+      /*
+	#ifdef VERBOSE
+	debugout[MPI_rank] << "unpacking from processor " <<recv_info[i].first
+	<< endl ;
+	#endif
+      */
+      
       for(int j=0;j<recv_info[i].second.size();++j) {
         storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
-#ifdef VERBOSE
-        debugout[MPI_rank] << "unpacking variable " << recv_info[i].second[j].v
-                           << endl ;
-#endif
+	
+	/*
+	  #ifdef VERBOSE
+	  debugout[MPI_rank] << "unpacking variable " << recv_info[i].second[j].v
+	  << endl ;
+	  #endif
+	*/
+
+	/*
+	  if((entitySet(recv_info[i].second[j].seq)).inSet(0)) {
+	  Loci::debugout[Loci::MPI_rank] << "  unpacking from processor " <<recv_info[i].first
+	  << endl ;
+	  Loci::debugout[Loci::MPI_rank] << "  unpacking variable " << recv_info[i].second[j].v
+	  << endl ;
+	  Loci::debugout[Loci::MPI_rank]  << "sp before unpack = " << endl ;
+	  sp->Print( Loci::debugout[Loci::MPI_rank]) ;
+	  }
+	*/
         sp->unpack(recv_ptr[i], loc_unpack, r_size[i],
                    recv_info[i].second[j].seq) ;
+	/*
+	if((entitySet(recv_info[i].second[j].seq)).inSet(0)) {
+	Loci::debugout[Loci::MPI_rank] << " sp after unpack  = " << endl ;
+	sp->Print( Loci::debugout[Loci::MPI_rank]) ;
+	}
+	*/
       }
       warn(loc_unpack != r_size[i]) ;
     }

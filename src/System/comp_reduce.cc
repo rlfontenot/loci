@@ -12,7 +12,6 @@ using std::set ;
 #endif
 
 using std::hash_map ;
-//#define VERBOSE
 using std::list ; 
 
 //#define VERBOSE
@@ -79,24 +78,24 @@ namespace Loci {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       entitySet sources = d->my_entities ;
       entitySet constraints = d->my_entities ;
-
+      
       warn(apply.targets().size() != 1) ;
       variable reduce_var = *apply.targets().begin() ;
       
       
       const rule_impl::info &rinfo = apply.get_info().desc ;
-
+      
       bool outputmap = false ;
       set<vmap_info>::const_iterator si ;
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-        if(si->mapping.size() != 0)
-          outputmap = true ;
+	if(si->mapping.size() != 0)
+	  outputmap = true ;
       }
-      // If there is no output in the mapping, then there will be no
+      // If there is no mapping in the output, then there will be no
       // shadow cast from this rule application.
       if(!outputmap)
         return ;
-
+      
       for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
         sources &= vmap_source_exist_apply(*si,facts,reduce_var) ;
       } 
@@ -104,24 +103,25 @@ namespace Loci {
         constraints &= vmap_source_exist(*si,facts) ;
 
       sources &= constraints ;
-    
+      
       entitySet context = sources & constraints ;
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
         entitySet targets = vmap_target_exist(*si,facts,context) ;
         const variableSet &tvars = si->var ;
         variableSet::const_iterator vi ;
-        for(vi=tvars.begin();vi!=tvars.end();++vi) {
+	for(vi=tvars.begin();vi!=tvars.end();++vi) {
 #ifdef VERBOSE
-          debugout[MPI_rank] << "shadow is " << targets << endl ;
-          debugout[MPI_rank] << "shadow not owned is "
-                             << targets - d->my_entities << endl
-                             << "variable is " << *vi << endl ;
+	debugout[MPI_rank] << "shadow is " << targets << endl ;
+	debugout[MPI_rank] << "shadow not owned is "
+			   << targets - d->my_entities << endl
+			   << "variable is " << *vi << endl ;
 #endif
-          facts.variable_shadow(*vi,targets) ;
-        }
+	facts.variable_shadow(*vi,targets) ;
       }
     }
   }
+} 
+  
   
   void apply_compiler::process_var_requests(fact_db &facts) {
     
@@ -175,7 +175,7 @@ namespace Loci {
         facts.variable_request(*vi,comp) ;
       }
     }
-
+    
     entitySet srcs = ~EMPTY ;
     entitySet cnstrnts = srcs ;
     entitySet my_entities = srcs ;
@@ -185,7 +185,7 @@ namespace Loci {
       cnstrnts = d->my_entities ;
       my_entities = d->my_entities ;
     }
-
+    
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       srcs &= vmap_source_exist(*si,facts) ;
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
@@ -213,7 +213,7 @@ namespace Loci {
                 variableSet::const_iterator vi ;
                 for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
                   images |= facts.image(*vi,working) ;
-                working = images ;
+                working = images ; 
               }
               variableSet::const_iterator vi ;
               for(vi=si->var.begin();vi!=si->var.end();++vi) {
@@ -232,25 +232,36 @@ namespace Loci {
     // now trim compute to what can be computed.
     compute &= srcs ;
     exec_seq = compute ;
-    
+    /*
+      if(facts.isDistributed()) {
+      entitySet re = collect_entitySet(exec_seq, facts) ;
+      if(Loci::MPI_rank == 0) { 
+	cout << "processor  " << Loci::MPI_rank << "  exec_sequence =  " << re << endl ;
+	}
+	}
+	else {
+	
+	cout  << "exec_sequence = " << exec_seq << endl ; 
+	}
+     */
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       entitySet requests = vmap_source_requests(*si,facts,compute) ;
       variableSet::const_iterator vi ;
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
         variable v = *vi ;
-        facts.variable_request(v,requests) ;
+        facts.variable_request(v,requests) ; 
 #ifdef VERBOSE
-        debugout[MPI_rank] << "rule " << apply << " requesting variable "
-                           << v << " for entities " << requests << endl ;
+	debugout[MPI_rank] << "rule " << apply << " requesting variable "
+			   << v << " for entities " << requests << endl ;
 #endif
       }
     }
-    
+        
 #ifdef VERBOSE
-      debugout[MPI_rank] << "rule " << apply << " computes over " << compute << endl ;
+    debugout[MPI_rank] << "rule " << apply << " computes over " << compute << endl ;
 #endif
   }
-
+  
   executeP apply_compiler::create_execution_schedule(fact_db &facts) {
 #ifndef DEBUG
     if(exec_seq.size() == 0)
@@ -258,7 +269,7 @@ namespace Loci {
 #endif
     CPTR<execute_list> el = new execute_list ;
     if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
-       exec_seq.size() < num_threads*30) {
+       exec_seq.size() < num_threads*30 ) {
       el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
     } else if(!apply.get_info().output_is_parameter &&!output_mapping) {
       execute_par *ep = new execute_par ;
@@ -445,9 +456,6 @@ namespace Loci {
     sequence seq ;
     MPI_Op create_join_op ;
     sp = facts.get_variable(reduce_var) ;
-    debugout[MPI_rank] << reduce_var << " is " ;
-    sp->Print(debugout[MPI_rank]) ;
-    
     size = sp->pack_size(e) ;
     send_ptr = new unsigned char[size] ;
     result_ptr = new unsigned char[size] ;
@@ -467,7 +475,7 @@ namespace Loci {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       entitySet targets ;
       targets = facts.get_existential_info(reduce_var, unit_rule) ;
-      targets = send_entitySet(targets, facts) ;
+      targets += send_entitySet(targets, facts) ;
       targets &= d->my_entities ;
       targets += fill_entitySet(targets, facts) ;
       facts.set_existential_info(reduce_var,unit_rule,targets) ;
@@ -477,7 +485,7 @@ namespace Loci {
   void reduce_param_compiler::process_var_requests(fact_db &facts) {
     if(facts.isDistributed()) {
       entitySet requests = facts.get_variable_requests(reduce_var) ;
-      requests = send_entitySet(requests, facts) ;
+      requests += send_entitySet(requests, facts) ;
       facts.variable_request(reduce_var,requests) ;
     }
   } 
@@ -504,7 +512,7 @@ namespace Loci {
       facts.set_existential_info(reduce_var,unit_rule,targets) ;
     }
   }
-
+  
   void swap_send_recv(list<comm_info> &cl) {
     list<comm_info>::iterator li ;
     for(li=cl.begin();li!=cl.end();++li) {
@@ -520,63 +528,63 @@ namespace Loci {
       variableSet vars ;
       vars += reduce_var ;
       list<comm_info> request_comm = barrier_process_rule_requests(vars,facts) ;
-
+      
       entitySet requests = facts.get_variable_requests(reduce_var) ;
       entitySet shadow = facts.get_variable_shadow(reduce_var) ;
       shadow &= requests ;
-
+      
       list<comm_info> slist ;
       entitySet response = send_requests(shadow, reduce_var,facts,slist) ;
       swap_send_recv(slist) ;
-
+    
       rlist = sort_comm(slist,facts) ;
       clist = sort_comm(request_comm,facts) ;
-
+      
 #ifdef VERBOSE
-      if(shadow != EMPTY) {
-        debugout[MPI_rank] << "shadow = " << shadow << endl ;
-        shadow -= d->my_entities ;
-        debugout[MPI_rank] << "shadow/my_entites = " << shadow << endl ;
-      }
+    if(shadow != EMPTY) {
+      debugout[MPI_rank] << "shadow = " << shadow << endl ;
+      shadow -= d->my_entities ;
+      debugout[MPI_rank] << "shadow/my_entites = " << shadow << endl ;
+    }
 #endif
     }
   }
+  
+class execute_comm_reduce : public execute_modules {
+  vector<pair<int,vector<send_var_info> > > send_info ;
+  vector<pair<int,vector<recv_var_info> > > recv_info ;
+  CPTR<joiner> join_op ;
+public:
+  execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
+		      CPTR<joiner> jop) ;
+  virtual void execute(fact_db &facts) ;
+  virtual void Print(std::ostream &s) const ;
+} ; 
 
-  class execute_comm_reduce : public execute_modules {
-    vector<pair<int,vector<send_var_info> > > send_info ;
-    vector<pair<int,vector<recv_var_info> > > recv_info ;
-    CPTR<joiner> join_op ;
-  public:
-    execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
-                        CPTR<joiner> jop) ;
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-  } ; 
-
-  execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
-                                           fact_db &facts,
-                                           CPTR<joiner> jop) {
-    join_op = jop ;
-    hash_map<int,vector<send_var_info> > send_data ;
-    hash_map<int,vector<recv_var_info> > recv_data ;
-    list<comm_info>::const_iterator cli ;
-    intervalSet send_procs, recv_procs ;
-    for(cli=plist.begin();cli!=plist.end();++cli) {
-      variable v = cli->v ;
-      if(cli->send_set.size() > 0) {
-        int send_proc = cli->processor ;
-        send_procs += send_proc ;
-        entitySet send_set = cli->send_set ;
-        send_data[send_proc].push_back(send_var_info(v,send_set)) ;
-      }
-      if(cli->recv_set.size() > 0) {
-        int recv_proc = cli->processor ;
-        sequence recv_seq = cli->recv_set ;
-        recv_procs += recv_proc ;
-        recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
-      }
+execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
+					 fact_db &facts,
+					 CPTR<joiner> jop) {
+  join_op = jop ;
+  hash_map<int,vector<send_var_info> > send_data ;
+  hash_map<int,vector<recv_var_info> > recv_data ;
+  list<comm_info>::const_iterator cli ;
+  intervalSet send_procs, recv_procs ;
+  for(cli=plist.begin();cli!=plist.end();++cli) {
+    variable v = cli->v ;
+    if(cli->send_set.size() > 0) {
+      int send_proc = cli->processor ;
+      send_procs += send_proc ;
+      entitySet send_set = cli->send_set ;
+      send_data[send_proc].push_back(send_var_info(v,send_set)) ;
     }
-
+    if(cli->recv_set.size() > 0) {
+      int recv_proc = cli->processor ;
+      sequence recv_seq = cli->recv_set ;
+      recv_procs += recv_proc ;
+      recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
+    }
+  }
+    
     for(intervalSet::const_iterator ii=send_procs.begin();
         ii!=send_procs.end();
         ++ii) {
@@ -606,7 +614,7 @@ namespace Loci {
     recv_ptr[0] = new unsigned char[total_size] ;
     for(int i=1;i<nrecv;++i)
       recv_ptr[i] = recv_ptr[i-1]+r_size[i-1] ;
-
+    
     const int nsend = send_info.size() ;
     int *s_size = new int[nsend] ;
     total_size = 0 ;
@@ -622,35 +630,48 @@ namespace Loci {
     send_ptr[0] = new unsigned char[total_size] ;
     for(int i=1;i<nsend;++i)
       send_ptr[i] = send_ptr[i-1]+s_size[i-1] ;
-
+    
     MPI_Request *request =  new MPI_Request[nrecv] ;
     MPI_Status *status =  new MPI_Status[nrecv] ;
-
+    
     for(int i=0;i<nrecv;++i) {
       int proc = recv_info[i].first ;
-      
       MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
     }
-
+    
     // Pack the buffer for sending 
     for(int i=0;i<nsend;++i) {
-#ifdef VERBOSE
-      debugout[MPI_rank] << "sending to processor " << send_info[i].first
-                         << endl ;
-#endif
+      /*
+	#ifdef VERBOSE
+	debugout[MPI_rank] << "sending to processor " << send_info[i].first
+	<< endl ;
+	#endif
+      */
       int loc_pack = 0 ;
       for(int j=0;j<send_info[i].second.size();++j) {
         storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
-#ifdef VERBOSE
-        debugout[MPI_rank] << "packing variable " << send_info[i].second[j].v
-                           << endl ;
-#endif
-        sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
+	/*
+	  #ifdef VERBOSE
+	  debugout[MPI_rank] << "packing variable " << send_info[i].second[j].v
+	  << endl ;
+	  #endif
+	*/
+
+	/*
+	  if((send_info[i].second[j].set).inSet(0)) {
+	  Loci::debugout[Loci::MPI_rank] << "sending to processor " << send_info[i].first
+	  << endl ;	
+	  Loci::debugout[Loci::MPI_rank] << "packing variable " << send_info[i].second[j].v
+	  << endl ;
+	  }
+	*/
+	sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
       }
+      
       warn(loc_pack != s_size[i]) ;
     }
-
+    
     // Send Buffer
     for(int i=0;i<nsend;++i) {
       int proc = send_info[i].first ;
@@ -664,27 +685,50 @@ namespace Loci {
     
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
-#ifdef VERBOSE
-      debugout[MPI_rank] << "unpacking from processor " <<recv_info[i].first
-                         << endl ;
-#endif
+      /*
+	#ifdef VERBOSE
+	debugout[MPI_rank] << "unpacking from processor " <<recv_info[i].first
+	<< endl ;
+	#endif
+      */
       for(int j=0;j<recv_info[i].second.size();++j) {
         storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
         storeRepP sr = sp->new_store(entitySet(recv_info[i].second[j].seq)) ;
-        
-#ifdef VERBOSE
-        debugout[MPI_rank] << "unpacking variable " << recv_info[i].second[j].v
-                           << endl ;
-#endif
+        /*
+	  #ifdef VERBOSE
+	  debugout[MPI_rank] << "unpacking variable " << recv_info[i].second[j].v
+	  << endl ;
+	  #endif
+	*/
+	
+	if((entitySet(recv_info[i].second[j].seq)).inSet(0)) {
+	  Loci::debugout[Loci::MPI_rank] << "  unpacking from processor " <<recv_info[i].first
+					 << endl ;
+	  Loci::debugout[Loci::MPI_rank] << "  unpacking variable " << recv_info[i].second[j].v
+					 << endl ;
+	  Loci::debugout[Loci::MPI_rank]  << "sp before join = " << endl ;
+	  sp->Print( Loci::debugout[Loci::MPI_rank]) ; 
+	}
+	
         sr->unpack(recv_ptr[i], loc_unpack, r_size[i],
                    recv_info[i].second[j].seq) ;
+	
+	if((entitySet(recv_info[i].second[j].seq)).inSet(0)) {
+	  Loci::debugout[Loci::MPI_rank]  << " sr   = " << endl ;
+	  sr->Print( Loci::debugout[Loci::MPI_rank]) ;
+	}
+	
         CPTR<joiner> op = join_op->clone() ;
         op->SetArgs(sp,sr) ;
         op->Join(recv_info[i].second[j].seq) ;
+	if((entitySet(recv_info[i].second[j].seq)).inSet(0)) {
+	  Loci::debugout[Loci::MPI_rank] << " sp after join  = " << endl ;
+	  sp->Print( Loci::debugout[Loci::MPI_rank]) ;
+	}
       }
       warn(loc_unpack != r_size[i]) ;
     }
-
+    
     delete [] status ;
     delete [] request ;
     delete [] send_ptr[0] ;
@@ -694,7 +738,7 @@ namespace Loci {
     delete [] recv_ptr ;
     delete [] r_size ;
   }
-
+  
   void execute_comm_reduce::Print(ostream &s) const {
     if(send_info.size()+recv_info.size() > 0) {
       s << "reduction block {" << endl ;
@@ -717,11 +761,11 @@ namespace Loci {
       s << "}" << endl ;
     }
   }
-
+  
   executeP reduce_store_compiler::create_execution_schedule(fact_db &facts) {
     if(facts.isDistributed()) {
       CPTR<execute_sequence> el = new execute_sequence ;
-
+      
       el->append_list(new execute_comm_reduce(rlist, facts, join_op)) ;
       el->append_list(new execute_comm(clist, facts)) ;
       ostringstream oss ;

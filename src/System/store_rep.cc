@@ -10,7 +10,9 @@ namespace Loci {
 
   storeRepP storeRep::getRep() { return storeRepP(this) ; }
   storeRepP storeRep::getRep() const { return storeRepP(const_cast<storeRep *>(this)) ; }
-    
+  bool storeRep::is_static() {
+    return 0 ;
+  }
   store_instance::instance_type store_instance::access() const {
     return READ_WRITE ;
   }
@@ -75,6 +77,11 @@ namespace Loci {
   storeRepP store_ref::getRep() const {
     return Rep()->getRep() ;
   }
+  
+  bool store_ref::is_static() {
+    return Rep()->is_static() ;
+  }
+
 
   void store_ref::notification() {
     dispatch_notify() ;
