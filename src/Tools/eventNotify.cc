@@ -1,49 +1,68 @@
+#define DEBUG
 #include <Tools/eventNotify.h>
 
 #include <vector>
 
 namespace Loci {
-eventDispatcher::eventDispatcher()
-{
-}
+  eventDispatcher::eventDispatcher() {}
 
-eventDispatcher::~eventDispatcher()
-{
-  warn(notify_group.begin() != notify_group.end()) ;
-}
+  eventDispatcher::~eventDispatcher() {
+    warn(notify_group.size()!=0) ;
+  }
 
-void eventDispatcher::engage(eventNotify *p)
-{
-  bmutex l(mutex) ;
-  warn(!p) ;
-  unsigned long notify_tag =  p->ident() ;
-  warn(notify_group.find(notify_tag) != notify_group.end()) ;
-  notify_group[notify_tag] = p ;
-}
+  void eventDispatcher::engage(eventNotify *p) {
+    //    bmutex l(mutex) ;
+    mutex.lock() ;
+    warn(!p) ;
+    notify_group.push_back(p) ;
+    mutex.unlock() ;
+  }
 
-void eventDispatcher::disengage(eventNotify *p)
-{
-  bmutex l(mutex) ;
-  warn(!p) ;
-  notify_list::iterator di = notify_group.find(p->ident()) ;
-  fatal(di == notify_group.end()) ;
-  notify_group.erase(di) ;
-}    
+  void eventDispatcher::disengage(eventNotify *p) {
+    //    bmutex l(mutex) ;
+    using std::cerr ;
+    using std::endl ;
+    
+    mutex.lock() ;
+    warn(!p) ;
 
-void eventDispatcher::dispatch_notify()
-{
-  mutex.lock() ;
-  std::vector<eventNotify *> ln ;
-  notify_list::iterator nlp ;
-  for(nlp=notify_group.begin();nlp!=notify_group.end();++nlp) 
-    ln.push_back((*nlp).second) ;
-  mutex.unlock() ;
-  for(int i=0;i<ln.size();++i)
-    ln[i]->notification() ;
-}
+    if(notify_group.begin() == notify_group.end()) {
+      mutex.unlock() ;
+      cerr << "disengage with empty list" << endl ;
+      cerr << "p = " << p << endl ;
+      return ;
+    }
+    notify_list::iterator nlp = notify_group.end() ;
+    for(--nlp;nlp != notify_group.begin() && *nlp != p;--nlp)
+      /* NULL STATEMENT */ ;
 
-eventNotify::~eventNotify()
-{
-}
+    warn(*nlp != p) ;
+    if(*nlp != p) {
+      cerr << "list = " << endl ;
+      for(nlp=notify_group.begin();nlp!=notify_group.end();++nlp)
+        cerr << *nlp << " " ;
+      cerr << endl << "p = " << p << endl ;
+    }
+        
+        
+    if(*nlp == p)
+      notify_group.erase(nlp) ;
+    mutex.unlock() ;
+  }    
+
+  void eventDispatcher::dispatch_notify() {
+    //    bmutex l(mutex) ;
+    mutex.lock() ;
+
+    notify_list copy ;
+    notify_list::iterator nlp ;
+    for(nlp=notify_group.begin();nlp!=notify_group.end();++nlp)
+      copy.push_back(*nlp) ;
+    for(nlp=copy.begin();nlp!=copy.end();++nlp) 
+      (*nlp)->notification() ;
+    mutex.unlock() ;
+  }
+
+  eventNotify::~eventNotify() {}
 
 }
