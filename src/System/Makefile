@@ -4,7 +4,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libLoci.a #libLoci.so
+TARGET = libLoci.a libLoci.so
 
 
 OBJS = hdf5_readwrite.o Loci_version.o variable.o store_rep.o Map.o \
@@ -24,7 +24,7 @@ compile: $(TARGET)
 libLoci.a: $(OBJS)
 	$(AR) $(ARFLAGS) libLoci.a $(OBJS) 
 	$(RANLIB) libLoci.a
-LIB_OBJS=$(OBJS:.o=.lo)
+LIB_OBJS=$(OBJS:.o=_lo.o)
 libLoci.so: $(LIB_OBJS)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) libLoci.so $(LIB_FLAGS) $(LIB_OBJS) 
 

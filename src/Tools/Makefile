@@ -4,7 +4,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libTools.a #libTools.so
+TARGET = libTools.a libTools.so
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 
@@ -24,7 +24,7 @@ libTools.a: $(OBJS)
 	$(AR) $(ARFLAGS) libTools.a $(OBJS) 
 	$(RANLIB) libTools.a
 
-LIB_OBJS=$(OBJS:.o=.lo)
+LIB_OBJS=$(OBJS:.o=_lo.o)
 libTools.so: $(LIB_OBJS)
 	$(SHARED_LD) $(SHARED_LD_FLAGS) libTools.so $(LIB_FLAGS) $(LIB_OBJS) 
 
