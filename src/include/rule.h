@@ -71,15 +71,6 @@ namespace Loci {
     void constraint(const std::string &constrain) ;
     void conditional(const std::string &cond) ;
 
-    void base_copy(const rule_impl &f) {
-      rule_impl_class = f.rule_impl_class ;
-      rule_threading = f.rule_threading ;
-      relaxed_recursion = f.relaxed_recursion ;
-      name = f.get_name() ;
-      rule_info = f.rule_info ;
-      var_table = f.var_table ;
-    }
-
   public:
     rule_impl() ;
     bool check_perm_bits() const ;
@@ -107,14 +98,13 @@ namespace Loci {
 
   typedef rule_impl::rule_implP rule_implP ;
 
-  template <class T> class copy_rule_impl : public rule_impl {
-    rule_implP realrule_impl ;
+  
+  template <class T> class copy_rule_impl : public T {
   public:
-    copy_rule_impl() {realrule_impl = new T ; base_copy(*realrule_impl) ;}
-    virtual rule_implP new_rule_impl() const { return new copy_rule_impl<T> ; }
-    virtual void compute(const sequence &s)  { realrule_impl->compute(s) ; }
-    virtual CPTR<joiner> get_joiner() { return realrule_impl->get_joiner() ; }
+    virtual rule_implP new_rule_impl() const
+    { return new copy_rule_impl<T> ; }
   } ;
+  
         
   class pointwise_rule : public rule_impl {
    protected:

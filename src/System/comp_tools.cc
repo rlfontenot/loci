@@ -628,7 +628,15 @@ namespace Loci {
       
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
 	exinfo[j] += fill_sets[j] ;
-        facts.set_existential_info(v,*rsi,exinfo[j]) ;
+        variableSet tvars = rsi->targets() ;
+        variable rv = v ;
+        const string &vname = v.get_info().name ;
+        // Find corresponding name from rule targets
+        for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {
+          if(vi->get_info().name == vname)
+            rv = *vi ;
+        }
+        facts.set_existential_info(rv,*rsi,exinfo[j]) ;
         ++j ;
       }
     }

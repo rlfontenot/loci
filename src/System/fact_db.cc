@@ -339,8 +339,7 @@ namespace Loci {
             }
           if(p1.size() == p2.size()) {
             conflicts += mi->first ;
-          }
-          else if(p1.size() > p2.size()) {
+          } else if(p1.size() > p2.size()) {
             mi->second.exists -= x ;
             //            cerr << f << " has priority over " << mi->first << endl ;
           } else {
@@ -351,6 +350,7 @@ namespace Loci {
       }
       if(conflicts != EMPTY && v.get_info().name != string("OUTPUT")) {
         cerr << "rule " << f << " conflicts with " << conflicts << endl ;
+        cerr << "conflicting entities are " << (finfo.existence & x) << endl ;
         debugger_() ;
         //        exit(-1) ;
       }
@@ -359,6 +359,8 @@ namespace Loci {
     einfo.v = v ;
     einfo.exists += x ;
     finfo.existence += x ;
+    debugout << "einfo.v = " << v << ",einfo.exists = " << x
+              << "f = " << f << endl ;
   }
   
   entitySet fact_db::variable_existence(variable v) {
