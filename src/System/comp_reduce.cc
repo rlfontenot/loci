@@ -112,16 +112,16 @@ namespace Loci {
         variableSet::const_iterator vi ;
 	for(vi=tvars.begin();vi!=tvars.end();++vi) {
 #ifdef VERBOSE
-	debugout << "shadow is " << targets << endl ;
-	debugout << "shadow not owned is "
-			   << targets - d->my_entities << endl
-			   << "variable is " << *vi << endl ;
+          debugout << "shadow is " << targets << endl ;
+          debugout << "shadow not owned is "
+                   << targets - d->my_entities << endl
+                   << "variable is " << *vi << endl ;
 #endif
-	scheds.variable_shadow(*vi,targets) ;
+          scheds.variable_shadow(*vi,targets) ;
+        }
       }
     }
   }
-} 
   
   
   void apply_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {

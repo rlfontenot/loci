@@ -1,5 +1,3 @@
-#define DEBUG
-#define BOUNDS_CHECK
 #include <distribute.h>
 #include <Tools/debug.h>
 #include <entitySet.h>
@@ -1875,7 +1873,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
     entitySet q_dom ;
     if(Loci::MPI_rank == 0)
       Loci::HDF5_ReadDomain(group_id, q_dom) ;
-    unsigned char* tmp_buf ;
+    unsigned char* tmp_buf = 0;
     std::vector<int> interval_sizes ;
     q_dom = all_collect_entitySet(q_dom) ;
     if(dom == EMPTY) {
@@ -2066,8 +2064,8 @@ void write_container(hid_t group_id, storeRepP qrep) {
   void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint, int dom_size) {
     std::vector<int> vec_size = all_collect_sizes(dom_size) ;
     hsize_t dimension = 0 ;
-    hid_t dataset ;
-    hid_t dataspace ;
+    hid_t dataset = 0;
+    hid_t dataspace = 0;
     if(Loci::MPI_rank == 0) {
       dataset = H5Dopen(group_id, name) ;
       dataspace = H5Dget_space(dataset) ;
@@ -2117,8 +2115,8 @@ void write_container(hid_t group_id, storeRepP qrep) {
   }
   void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint) {
     hsize_t dimension = 0 ;
-    hid_t dataset ;
-    hid_t dataspace ;
+    hid_t dataset = 0;
+    hid_t dataspace = 0;
     if(Loci::MPI_rank == 0) {
       dataset = H5Dopen(group_id, name) ;
       dataspace = H5Dget_space(dataset) ;
@@ -4577,7 +4575,7 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
   // to other processors.  Return with a vector of entitySets as sent to
   // you by each other processor.
   vector<entitySet> Alltoall_entitySet(vector<entitySet> v) {
-    WARN(v.size() != MPI_processes) ;
+    WARN(int(v.size()) != MPI_processes) ;
 
     if(MPI_processes == 1)
       return v ;

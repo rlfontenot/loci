@@ -504,7 +504,7 @@ namespace Loci {
     read_hdf5(filename, vars) ; 
   }
   void fact_db::write_hdf5(const char *filename, variableSet &vars) {
-    hid_t  file_id, group_id;
+    hid_t  file_id=0, group_id=0;
     if(Loci::MPI_rank == 0) 
       file_id =  H5Fcreate(filename, H5F_ACC_TRUNC,
 			   H5P_DEFAULT, H5P_DEFAULT) ;
@@ -533,7 +533,7 @@ namespace Loci {
   
   
   void fact_db::read_hdf5(const char *filename, variableSet &vars) {
-    hid_t  file_id, group_id;
+    hid_t  file_id=0, group_id=0;
     if(Loci::MPI_rank == 0) 
       file_id =  H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT) ;
     for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
