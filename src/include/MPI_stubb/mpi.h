@@ -1,6 +1,8 @@
 #ifndef MPI_H_STUBB
 #define MPI_H_STUBB
 
+
+
 #define MPI_STUBB
 #include <iostream>
 
@@ -245,7 +247,11 @@ MPI_Delete_function		MPI_NULL_DELETE_FN;
 
 inline void err_report() {
   std::cerr << "MPI Function stub!" << std::endl ;
+#ifndef NO_CSTDLIB
   std::abort() ;
+#else
+  abort() ;
+#endif
 }
 inline  int  MPI_Send(void *, int, MPI_Datatype, int, int, MPI_Comm) {err_report(); return -1;}
 
@@ -625,7 +631,13 @@ inline int  MPI_Finalize(void){return 0;}
 
 inline int  MPI_Initialized(int *){return 0;}
 
-inline int  MPI_Abort(MPI_Comm, int){std::abort(); return -1;}
+inline int  MPI_Abort(MPI_Comm, int){
+#ifndef NO_CSTDLIB
+  std::abort();
+#else
+  abort() ;
+#endif
+  return -1;}
 
 /* 8.3 */
 
