@@ -13,6 +13,22 @@ using std::map ;
 
 namespace Loci {
 
+  class check_dump_on_startup {
+    bool do_dump ;
+  public :
+    check_dump_on_startup() {
+      do_dump=true ;
+      struct stat statbuf ;
+      if(stat("dump_vars",&statbuf))
+        do_dump = false ;
+      else if(!S_ISDIR(statbuf.st_mode)) 
+        do_dump = false ;
+    }
+    bool ok() { return do_dump ; }
+  } ;
+
+  check_dump_on_startup check_dump_vars ;
+  
   class execute_dump_var : public execute_modules {
     variableSet dump_vars ;
   public:
@@ -24,15 +40,6 @@ namespace Loci {
   map<variable, int> dump_var_lookup ;
   
   void execute_dump_var::execute(fact_db &facts) {
-    bool do_dump = true ;
-    struct stat statbuf ;
-    if(stat("dump_vars",&statbuf))
-      do_dump = false ;
-    else if(!S_ISDIR(statbuf.st_mode)) 
-        do_dump = false ;
-
-    if(!do_dump)
-      return ;
     
     for(variableSet::const_iterator vi=dump_vars.begin();
         vi!=dump_vars.end();++vi) {
@@ -210,10 +217,12 @@ namespace Loci {
         }
       }
 
-#ifdef DEBUG
-      if(all_vars != EMPTY) 
-        dag_comp.push_back(new dump_vars_compiler(all_vars)) ;
-#endif
+
+      if(check_dump_vars.ok()) {
+        if(all_vars != EMPTY) 
+          dag_comp.push_back(new dump_vars_compiler(all_vars)) ;
+      }
+
       if(rules != EMPTY) {
         ruleSet::const_iterator ri ;
         for(ri=rules.begin();ri!=rules.end();++ri) {
