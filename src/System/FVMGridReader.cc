@@ -493,7 +493,8 @@ namespace Loci {
 						   entitySet global_cells,
 						   dstore<vector3d<double> > &t_pos, 
 						   dMap &tmp_cl, dMap &tmp_cr, 
-						   dmultiMap &tmp_face2node) {
+						   dmultiMap &tmp_face2node,
+						   entitySet &naive_extra_comp_ent) {
 
     std::vector<entitySet> new_init_ptn = naive_init_ptn ;
 
@@ -508,16 +509,16 @@ namespace Loci {
     Loci::distributed_inverseMap(left_cells_to_faces, tmp_cl, global_cells, global_faces, naive_init_ptn) ;
 
     //cells that are added to my ownership
-    entitySet cl_out = metis_cell_ptn[Loci::MPI_rank] - left_cells_to_faces.domain();
+    entitySet cells_out = metis_cell_ptn[Loci::MPI_rank] - left_cells_to_faces.domain();
 
-    Loci::storeRepP inverse_sp = Loci::MapRepP(left_cells_to_faces.Rep())->expand(cl_out, naive_init_ptn) ;
+    Loci::storeRepP inverse_sp = Loci::MapRepP(left_cells_to_faces.Rep())->expand(cells_out, naive_init_ptn) ;
 
     entitySet cl_inv_ran = Loci::MapRepP(inverse_sp)->image(metis_cell_ptn[Loci::MPI_rank]) ;
       
     //faces that are added to my ownership
-    cl_out = cl_inv_ran - tmp_cl.domain() ;
+    entitySet faces_out = cl_inv_ran - tmp_cl.domain() ;
       
-    Loci::storeRepP clsp = Loci::MapRepP(tmp_cl.Rep())->expand(cl_out, naive_init_ptn) ;
+    Loci::storeRepP clsp = Loci::MapRepP(tmp_cl.Rep())->expand(faces_out, naive_init_ptn) ;
     tmp_cl.setRep(clsp);
     
     std::vector<entitySet> v_req = all_collect_vectors(cl_inv_ran) ;
@@ -527,7 +528,15 @@ namespace Loci {
       new_init_ptn[i] -= global_faces ;
       new_init_ptn[i] += v_req[i] ;
     }
-    
+
+#ifdef COMP_ENT
+    dmultiMap right_cells_to_faces;
+    Loci::distributed_inverseMap(right_cells_to_faces, tmp_cr, global_cells, global_faces, naive_init_ptn) ;
+    inverse_sp = Loci::MapRepP(right_cells_to_faces.Rep())->expand(cells_out, naive_init_ptn) ;
+    entitySet cr_inv_ran = Loci::MapRepP(inverse_sp)->image(metis_cell_ptn[Loci::MPI_rank]) ;
+    naive_extra_comp_ent += cr_inv_ran - v_req[Loci::MPI_rank];
+#endif
+
     entitySet f2n_out = v_req[Loci::MPI_rank] - tmp_face2node.domain() ;
     Loci::storeRepP f2n_sp = Loci::MapRepP(tmp_face2node.Rep())->expand(f2n_out, naive_init_ptn) ; 
     tmp_face2node.setRep(f2n_sp);
@@ -734,10 +743,12 @@ namespace Loci {
 
       vector<entitySet> metis_cell_ptn = metisPartitionOfCells(local_cells, left_cells_to_cells,
 							       right_cells_to_cells);
-      
+
+      entitySet naive_extra_comp_ent;
       vector<entitySet> new_init_ptn = newPartitionUsingCellPartition(naive_init_ptn, metis_cell_ptn, 
 								      global_nodes, global_faces, global_cells,
-								      t_pos, tmp_cl, tmp_cr, tmp_face2node);
+								      t_pos, tmp_cl, tmp_cr, tmp_face2node,
+								      naive_extra_comp_ent);
 
       naive_loc_nodes = global_nodes & new_init_ptn[Loci::MPI_rank] ;
       naive_loc_faces = global_faces & new_init_ptn[Loci::MPI_rank] ;
@@ -770,6 +781,15 @@ namespace Loci {
       }ENDFORALL;
 
       facts.update_remap(boundary_update);
+#ifdef COMP_ENT
+      fact_db::distribute_infoP df = facts.get_distribute_info();
+      dMap remap;
+      Loci::storeRepP remap_sp = df->remap.Rep();
+      Loci::MapRepP(remap)->copy(remap_sp, remap_sp->domain());
+      entitySet comp_out = naive_extra_comp_ent - remap.domain();
+      remap_sp = Loci::MapRepP(remap.Rep())->expand(comp_out, new_init_ptn);
+      facts.global_comp_entities += Loci::MapRepP(remap_sp)->image(naive_extra_comp_ent);
+#endif
     }
     else {
       nodes = facts.get_allocation(npnts) ; 
