@@ -12,7 +12,7 @@ namespace Loci {
       time_ident vt = v.time() ;
       time_ident vtnew(prepend,vt) ;
       variable vnew = v.change_time(vtnew) ;
-      vm[v] = vnew ;
+      vm[v] = vnew ; 
     }
     rp->rename_vars(vm) ;
     return rule(rp) ;
@@ -50,7 +50,7 @@ namespace Loci {
             if(i != string::npos) {
               if(i > 0) {
                 if(tmp_name[i-1] == '_') {
-                  str_vec.push_back(name) ;
+                   str_vec.push_back(name) ;
                   tmp_name.erase(i-1, i+sub_name.size()+1) ;
                 }
                 else if((i+sub_name.size()) < tmp_name.size())
@@ -216,16 +216,16 @@ namespace Loci {
         std::vector<std::vector<int> >::const_iterator vi =
           target_args.begin(); 
         vint = *vi ;
-#ifdef DEBUG
-        for( ; vi != target_args.end(); ++vi) 
-          FATAL(vint != *vi) ;
-#endif      
+	//#ifdef DEBUG
+        //for( ; vi != target_args.end(); ++vi) 
+	//FATAL(vint != *vi) ;
+	//#endif      
         // Make a ruleSet of all the rules having parametric variables
         // as the target 
         if(vint.size() && (!param_target.inSet(*rsi))) 
           param_target += *rsi ;
       }
-    
+      
     }
   
     //Remove the rules having parametric variables in the head a rule
