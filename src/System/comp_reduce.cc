@@ -152,6 +152,16 @@ namespace Loci {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       compute &= d->my_entities ;
     }
+    entitySet cnstrnts = ~EMPTY ;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      cnstrnts = d->my_entities ;
+    }
+    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+      cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
+
+    compute &= cnstrnts ;
+    
     output_mapping = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end(); ++si) {
       variableSet::const_iterator vi ;
@@ -183,19 +193,15 @@ namespace Loci {
     }
     
     entitySet srcs = ~EMPTY ;
-    entitySet cnstrnts = srcs ;
     entitySet my_entities = srcs ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       srcs = d->my_entities ;
-      cnstrnts = d->my_entities ;
       my_entities = d->my_entities ;
     }
     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       srcs &= vmap_source_exist(*si,facts, scheds) ;
-    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
-      cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((srcs & cnstrnts) != cnstrnts) {
         if(MPI_processes == 1) {
