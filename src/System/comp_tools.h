@@ -21,10 +21,16 @@ namespace Loci {
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
                               entitySet compute, sched_db &scheds) ;
+
+  entitySet vmap_source_exist_apply(const vmap_info &vmi, fact_db &facts,
+                                    variable reduce_var, sched_db &scheds) ;
+
+  
   void existential_rule_analysis(rule f, fact_db &facts, sched_db &scheds) ;
-
-
   entitySet process_rule_requests(rule f, fact_db &facts, sched_db &scheds) ;
+  
+  void existential_applyrule_analysis(rule apply, fact_db &facts, sched_db &scheds) ;
+  entitySet process_applyrule_requests(rule apply, rule unit_tag, fact_db &facts, sched_db &scheds) ;
   
   std::vector<std::pair<variable,entitySet> >
     barrier_existential_rule_analysis(variableSet vlst, fact_db &facts, sched_db &scheds) ;
@@ -397,10 +403,12 @@ namespace Loci {
     digraph chomp_graph ;
     variableSet chomp_vars ;
     std::vector<digraph::vertexSet> chomp_sched ;
-    std::vector<rule> chomp_comp ;
+    std::vector<std::pair<rule,rule_compilerP> > chomp_comp ;
     std::deque<entitySet> rule_seq ;
+    std::map<rule,rule> apply2unit ;
   public:
-    chomp_compiler(const digraph& cgraph,const variableSet& cvars) ;
+    chomp_compiler(const digraph& cgraph,const variableSet& cvars,
+                   const std::map<rule,rule>& a2u) ;
     virtual void accept(visitor& v) {}
     virtual void set_var_existence(fact_db& facts,sched_db& scheds) ;
     virtual void process_var_requests(fact_db& facts,sched_db& scheds) ;

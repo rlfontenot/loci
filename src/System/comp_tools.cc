@@ -374,6 +374,206 @@ namespace Loci {
 #endif
      return context ;
   }
+
+  ////////////////////////////////////////////////////////////////////
+  // function version of apply_compiler::set_var_existence
+  // used inside the chomp compiler
+  ////////////////////////////////////////////////////////////////////
+  void existential_applyrule_analysis(rule apply, fact_db &facts, sched_db &scheds) {
+    if(facts.isDistributed()) {
+
+      // Compute the shadow entities produced by using this apply rules.
+      // Any shadow entities that we don't own we will need to exchange
+      // the partial results with other processors.
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      entitySet sources = d->my_entities ;
+      entitySet constraints = d->my_entities ;
+      
+      WARN(apply.targets().size() != 1) ;
+      variable reduce_var = *apply.targets().begin() ;
+      
+      
+      const rule_impl::info &rinfo = apply.get_info().desc ;
+      
+      bool outputmap = false ;
+      set<vmap_info>::const_iterator si ;
+      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+	if(si->mapping.size() != 0)
+	  outputmap = true ;
+      }
+      // If there is no mapping in the output, then there will be no
+      // shadow cast from this rule application.
+      if(!outputmap)
+        return ;
+      
+      for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+        sources &= vmap_source_exist_apply(*si,facts,reduce_var, scheds) ;
+      } 
+      for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+        constraints &= vmap_source_exist(*si,facts, scheds) ;
+
+      sources &= constraints ;
+      
+      entitySet context = sources & constraints ;
+      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+        entitySet targets = vmap_target_exist(*si,facts,context, scheds) ;
+        const variableSet &tvars = si->var ;
+        variableSet::const_iterator vi ;
+	for(vi=tvars.begin();vi!=tvars.end();++vi) {
+#ifdef VERBOSE
+	debugout << "shadow is " << targets << endl ;
+	debugout << "shadow not owned is "
+			   << targets - d->my_entities << endl
+			   << "variable is " << *vi << endl ;
+#endif
+	scheds.variable_shadow(*vi,targets) ;
+        }
+      }
+    }
+  }
+
+  
+  ////////////////////////////////////////////////////////////////////
+  // function version of apply_compiler::process_var_requests
+  // used inside the chomp compiler
+  ////////////////////////////////////////////////////////////////////
+  entitySet process_applyrule_requests(rule apply, rule unit_tag, fact_db &facts, sched_db &scheds) {
+
+#ifdef VERBOSE
+    debugout << "in process_var_requests" << endl ;
+#endif 
+    vdefmap tvarmap ;
+    variableSet targets = apply.targets() ;
+    variableSet sources = apply.sources() ;
+    
+    FATAL(targets.size() != 1) ;
+    variable tvar = *(targets.begin()) ;
+    
+    if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER) 
+      tvarmap[tvar] = scheds.variable_existence(tvar) ;
+    else
+      tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
+    
+    const rule_impl::info &rinfo = apply.get_info().desc ;
+    set<vmap_info>::const_iterator si ;
+    entitySet compute ;
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+      compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
+    }
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      compute &= d->my_entities ;
+    }
+    // in apply_compiler, we now don't need output_mapping
+    //output_mapping = false ;
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end(); ++si) {
+      variableSet::const_iterator vi ;
+      entitySet comp = compute ;
+      vector<variableSet>::const_iterator mi ;
+      for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
+        //output_mapping = true ;
+        entitySet working ;
+        for(vi=mi->begin();vi!=mi->end();++vi) {
+          FATAL(!scheds.is_a_Map(*vi)) ;
+          working |= scheds.image(*vi,comp) ;
+        }
+        comp = working ;
+      }
+      for(vi=si->var.begin();vi!=si->var.end();++vi) {
+        if((comp - scheds.variable_existence(*vi)) != EMPTY) {
+          cerr << "ERROR: Apply rule " << apply <<  endl
+               << " output mapping forces application to entities where unit does not exist." << endl ;
+          cerr << "error occurs for entities " <<
+            entitySet(comp-scheds.variable_existence(*vi)) << endl ;
+          cerr << "error occurs when applying to variable " << *vi << endl;
+          cerr << "error is not recoverable, terminating scheduling process"
+               << endl ;
+          exit(-1) ;
+        }
+        scheds.variable_request(*vi,comp) ;
+      }
+    }
+    
+    entitySet srcs = ~EMPTY ;
+    entitySet cnstrnts = srcs ;
+    entitySet my_entities = srcs ;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      srcs = d->my_entities ;
+      cnstrnts = d->my_entities ;
+      my_entities = d->my_entities ;
+    }
+    
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
+      srcs &= vmap_source_exist(*si,facts, scheds) ;
+    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+      cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
+    if(rinfo.constraints.begin() != rinfo.constraints.end())
+      if((srcs & cnstrnts) != cnstrnts) {
+        cerr << "Warning, reduction rule:" << apply
+             << "cannot supply all entities of constraint" << endl ;
+        cerr << "constraints = " <<cnstrnts << endl ;
+        entitySet sac = srcs & cnstrnts ;
+        cerr << "srcs & constraints = " << sac << endl ;
+        //      exit(-1) ;
+        for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+          entitySet sources = vmap_source_exist(*si,facts, scheds) ;
+          sources &= my_entities ;
+          if((sources & cnstrnts) != cnstrnts) {
+            cerr << "sources & constraints != constraints for input"
+                 << endl
+                 << sources  << " -- " << *si << endl ;
+            
+            if(si->mapping.size() > 0) {
+              entitySet working = cnstrnts ;
+              for(unsigned int i=0;i<si->mapping.size();++i) {
+                entitySet images ;
+                variableSet::const_iterator vi ;
+                for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
+                  images |= scheds.image(*vi,working) ;
+                working = images ; 
+              }
+              variableSet::const_iterator vi ;
+              for(vi=si->var.begin();vi!=si->var.end();++vi) {
+                entitySet exist = scheds.variable_existence(*vi) ;
+                entitySet fails = working & ~exist ;
+                if(fails != EMPTY) {
+                  cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                }
+              }
+            }
+          }
+        }
+      }
+    srcs &= cnstrnts ;
+    
+    // now trim compute to what can be computed.
+    compute &= srcs ;
+
+    // in apply_compiler, we now return compute
+    //exec_seq = compute ;
+    
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+      entitySet requests = vmap_source_requests(*si,facts,compute, scheds) ;
+      variableSet::const_iterator vi ;
+      for(vi=si->var.begin();vi!=si->var.end();++vi) {
+        variable v = *vi ;
+        scheds.variable_request(v,requests) ; 
+#ifdef VERBOSE
+	debugout << "rule " << apply << " requesting variable "
+		 << v << " for entities " << requests << endl ;
+#endif
+      }
+    }
+    
+#ifdef VERBOSE
+    debugout << "rule " << apply << " computes over " << compute << endl ;
+#endif
+
+    return compute ;
+
+  }
+
   
   /* This routine, in addition to sending the entities that are not
      owned by a particular processor,  information is stored for

@@ -55,6 +55,8 @@ namespace Loci {
   bool show_dmm_verbose = false ;
   // flag to enable/disable chomping
   bool use_chomp = false ;
+  // flag to visualize the chomping graph
+  bool show_chomp = false ;
   // flag to enable outputing schedule to file
   bool schedule_output = false ;
   // flag to enable dynamic scheduling feature
@@ -177,6 +179,10 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--chomp")) {
         // use the chomping scheme
         use_chomp = true ;
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--showchomp")) {
+        // visualize the chomp graph
+        show_chomp = true ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--method")) {
         method = atoi((*argv)[i+1]);

@@ -98,7 +98,8 @@ class dynamic_schedule_rule: public execute_modules {
                  const variableSet& given, const variableSet& target) ;
     ///////////////////
     void existential_analysis(fact_db &facts, sched_db &scheds) ;
-    executeP execution_schedule(fact_db &facts, sched_db &scheds, int nth) ;
+    executeP execution_schedule(fact_db &facts, sched_db &scheds,
+                                const variableSet& alloc, int nth) ;
   } ;
   
   struct comm_info {

@@ -456,7 +456,7 @@ namespace Loci {
     }
   
   }
-  
+
   dependency_graph::dependency_graph(rule_db &rdb, variableSet given,
                                              variableSet target) {
 

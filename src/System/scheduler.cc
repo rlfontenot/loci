@@ -650,9 +650,18 @@ namespace Loci {
     end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for existential_analysis  = "
                    << end_time  - start_time << "  seconds " << endl ;
+    ///////////////////////////////////
+    /*
+    if(Loci::MPI_rank==0) {
+      ofstream exinfo(".exis") ;
+      scheds.print_summary(facts,exinfo) ;
+      exinfo.close() ;
+    }
+    */
+    ///////////////////////////////////
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
-    executeP sched =  compile_graph.execution_schedule(facts,scheds, num_threads) ;
+    executeP sched =  compile_graph.execution_schedule(facts,scheds,given,num_threads) ;
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {
         cerr << "error in generating schedule, dumping schedule files" << endl ;

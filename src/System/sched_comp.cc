@@ -26,6 +26,7 @@ namespace Loci {
   extern bool use_dynamic_memory ;
   extern bool show_dmm_verbose ;
   extern bool use_chomp ;
+  extern bool show_chomp ;
 
   class error_compiler : public rule_compiler {
   public:
@@ -216,25 +217,40 @@ namespace Loci {
 
     // check preconditions of recurrence
     check_recur_precondition(recv,input) ;
+
+    // get the unit apply info (reduce info)
+    unitApplyMapVisitor reduceV ;
+    top_down_visit(reduceV) ;
     
     if(use_dynamic_memory) {
-      cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
+      if(Loci::MPI_rank == 0)
+        cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
 
       variableSet chomp_alloc_adjusts ;
       variableSet chomp_delete_adjusts ;
       if(use_chomp) {
-        cout << "USING CHOMPING" << endl ;
-        chompRuleVisitor crv(facts,
-                             rotlv.get_rotate_vars_table(),
-                             rotlv.get_loop_shared_table(),
-                             variableSet(recv.get_rename_source_vars() +
-                                         recv.get_rename_target_vars())
-                             ) ;
+        if(Loci::MPI_rank == 0) 
+          cout << "USING CHOMPING" << endl ;
+
+        chompPPVisitor cppv(facts,
+                            rotlv.get_rotate_vars_table(),
+                            rotlv.get_loop_shared_table(),
+                            variableSet(recv.get_rename_source_vars() +
+                                        recv.get_rename_target_vars())
+                            ) ;
+        top_down_visit(cppv) ;
+        
+        chompRuleVisitor crv(cppv.get_good_vars(),
+                             cppv.get_bad_vars(),
+                             reduceV.get_apply2unit()) ;
         top_down_visit(crv) ;
-        //crv.visualize(cout) ;
+        if(show_chomp)
+          crv.visualize(cout) ;
 
         dagCheckVisitor dagcV1 ;
         top_down_visit(dagcV1) ;
+
+        /*
 
         variableSet chomp_targets = get_chomp_targets(crv.get_all_chains()) ;
         variableSet chomp_vars = get_chomp_vars(crv.get_all_chains()) ;
@@ -250,6 +266,7 @@ namespace Loci {
 
         cerr << "chomp_alloc_adjusts: " << chomp_alloc_adjusts << endl ;
         cerr << "chomp_delete_adjusts: " << chomp_delete_adjusts << endl ;
+        */
       }
       
       // get inter/intra supernode information
@@ -306,8 +323,7 @@ namespace Loci {
                            snv.get_loop_sn(),
                            rotlv.get_rotate_vars_table(),
                            rotlv.get_loop_shared_table(),
-                           untypevarV.get_untyped_vars(),
-                           chomp_alloc_adjusts
+                           untypevarV.get_untyped_vars()
                            ) ;
       top_down_visit(aiv) ;
       
@@ -333,7 +349,9 @@ namespace Loci {
       allocGraphVisitor agv(aiv.get_alloc_table(),
                             snv.get_loop_sn(),
                             rotlv.get_rotate_vars_table(),
-                            rotlv.get_loop_shared_table()
+                            rotlv.get_loop_shared_table(),
+                            recv.get_priority_s2t(),
+                            recv.get_priority_source_vars()
                             ) ;
       top_down_visit(agv) ;
       
@@ -432,10 +450,13 @@ namespace Loci {
       top_down_visit(visV) ;
     }
     
-    orderVisitor ov ;    
-    bottom_up_visit(ov) ;
-    
-    assembleVisitor av ;
+    //orderVisitor ov ;    
+    //bottom_up_visit(ov) ;
+    simLazyAllocSchedVisitor lazyschedv ;
+    top_down_visit(lazyschedv) ;
+
+    assembleVisitor av(reduceV.get_all_reduce_vars(),
+                       reduceV.get_reduceInfo());
     bottom_up_visit(av) ;
 
     exec_current_fact_db = &facts ;
@@ -455,10 +476,14 @@ namespace Loci {
   }
   
   class allocate_all_vars : public execute_modules {
+    variableSet vars ;
+    bool is_alloc_all ;
     std::map<variable,entitySet> v_requests, v_existence ;
   public:
     allocate_all_vars() { control_thread = true ; }
-    allocate_all_vars(fact_db &facts, sched_db &scheds) ;
+    allocate_all_vars(fact_db &facts, sched_db &scheds,
+                      const variableSet& alloc,
+                      bool is_alloc_all) ;
     void fill_in_requests(fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
@@ -467,12 +492,15 @@ namespace Loci {
   
   //fact_db *exec_current_fact_db = 0 ;
   
-  allocate_all_vars::allocate_all_vars(fact_db &facts, sched_db &scheds) {
+  allocate_all_vars::allocate_all_vars(fact_db &facts, sched_db &scheds,
+                                       const variableSet& alloc,
+                                       bool is_alloc_all)
+    :vars(alloc),is_alloc_all(is_alloc_all) {
     control_thread = true ;
     fill_in_requests(facts, scheds) ;
   }
   void allocate_all_vars::fill_in_requests(fact_db &facts, sched_db &scheds) {
-    variableSet vars = facts.get_typed_variables() ;
+    //    variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi,vii ;
     
     for(vi=vars.begin();vi!=vars.end();++vi) {
@@ -574,16 +602,25 @@ namespace Loci {
   }
   
   void allocate_all_vars::Print(std::ostream &s) const {
-    s << "allocate all variables" << endl ;
+    if(is_alloc_all)
+      s << "allocate all variables" << endl ;
+    else
+      s << "reallocate all given variables" << endl ;
   }
 
 
-  executeP graph_compiler::execution_schedule(fact_db &facts, sched_db &scheds, int nth) {
+  executeP graph_compiler::
+  execution_schedule(fact_db &facts, sched_db &scheds,
+                     const variableSet& alloc, int nth) {
 
     CPTR<execute_list> schedule = new execute_list ;
 
     if(!use_dynamic_memory)
-      schedule->append_list(new allocate_all_vars(facts, scheds)) ;
+      schedule->append_list(new allocate_all_vars(facts,scheds,facts.get_typed_variables(),true)) ;
+    else
+      if(facts.is_distributed_start())
+        if((MPI_processes > 1))
+          schedule->append_list(new allocate_all_vars(facts,scheds,alloc,false)) ;
 
     schedule->append_list(new execute_create_threads(nth)) ;
     schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));

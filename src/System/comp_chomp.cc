@@ -4,33 +4,36 @@
 using std::vector ;
 #include <deque>
 using std::deque ;
+#include <map>
+using std::map ;
 
 
 namespace Loci {
 
   class execute_chomp: public execute_modules {
     entitySet total_domain ;
-    vector<rule> chomp_comp ;
+    vector<pair<rule,rule_compilerP> > chomp_comp ;
     vector<rule_implP> chomp_compP ;
     deque<entitySet> rule_seq ;
     variableSet chomp_vars ;
     vector<vector<entitySet> > seq_table ;
     bool is_table_set ;
     int_type chomp_size ;
+    int_type chomp_iter ;
     vector<int_type> chomp_offset ;
     vector<storeRepP> chomp_vars_rep ;
   public:
     execute_chomp(const entitySet& td,
-                  const vector<rule>& comp,
+                  const vector<pair<rule,rule_compilerP> >& comp,
                   const deque<entitySet>& seq,
                   const variableSet& cv,
                   fact_db& facts):
       total_domain(td),chomp_comp(comp),rule_seq(seq),
       chomp_vars(cv),is_table_set(false) {
 
-      for(vector<rule>::const_iterator vi=comp.begin();
+      for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
           vi!=comp.end();++vi)
-        chomp_compP.push_back(vi->get_rule_implP()) ;
+        chomp_compP.push_back((vi->first).get_rule_implP()) ;
 
       for(vector<rule_implP>::iterator vi=chomp_compP.begin();
           vi!=chomp_compP.end();++vi)
@@ -41,23 +44,33 @@ namespace Loci {
         storeRepP srp = facts.get_variable(*vi) ;
         chomp_vars_rep.push_back(srp) ;
       }
-      
+
+      /*
       int_type dom_min = total_domain.Min() ;
       int_type dom_max = total_domain.Max() ;
       int_type tmp = (dom_max - dom_min)/chomp_vars.size() ;
       chomp_size = (tmp<=50)?tmp:50 ;
-    }
-    
-    virtual void execute(fact_db& facts) ;
-    virtual void Print(std::ostream& s) const ;
-  } ;
+      */
+      // we'll need to set up the chomp_size
+      // and the chomping sequence table
+      entitySet test_alloc = interval(1,1) ;
+      int_type total_obj_size = 0 ;
+      int_type min_store_size = UNIVERSE_MAX ;
+      int_type D1_cache_size = 8192 ; // assume 8KB now
+      for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
+          vi!=chomp_vars_rep.end();++vi) {
+        int_type my_size = (*vi)->pack_size(test_alloc) ;
+        total_obj_size += my_size ;
+        min_store_size = min(min_store_size,my_size) ;
+      }
 
-  void execute_chomp::execute(fact_db& facts) {
-    if(total_domain == EMPTY)
-      return ;
+      double scale = (double)D1_cache_size / (double)total_obj_size ;
 
-    // first of all, we build the table, if necessary
-    if(!is_table_set) {
+      if(scale <= 1.0)
+        chomp_size = 1 ;
+      else
+        chomp_size = (int)scale ;
+
       entitySet copy_total_domain = total_domain ;
       chomp_offset.clear() ;
       int_type low_pos ;
@@ -74,13 +87,25 @@ namespace Loci {
         seq_table.push_back(seq_vec) ;
 
         copy_total_domain -= seg ;
-        
-        chomp_offset.push_back(copy_total_domain.Min() - low_pos) ;
+
+        if(copy_total_domain != EMPTY)
+          chomp_offset.push_back(copy_total_domain.Min() - low_pos) ;
+        else
+          chomp_offset.push_back(0) ;
       }
 
       is_table_set = true ;
+      chomp_iter = seq_table.size() ;
     }
+    
+    virtual void execute(fact_db& facts) ;
+    virtual void Print(std::ostream& s) const ;
+  } ;
 
+  void execute_chomp::execute(fact_db& facts) {
+    if(total_domain == EMPTY)
+      return ;
+    
     {
       entitySet first_alloc =
         entitySet(interval(total_domain.Min(),
@@ -119,28 +144,56 @@ namespace Loci {
 
   void execute_chomp::Print(std::ostream& s) const {
     s << "--Start chomping: (chomping interval size: "
-      << chomp_size << ")" << endl ;
+      << chomp_size << ", iter number: " << chomp_iter
+      << ")" << endl ;
     s << "--Perform chomping for the following rule sequence: " << endl ;
-    for(vector<rule>::const_iterator vi=chomp_comp.begin();
-        vi!=chomp_comp.end();++vi)
-      s << "-- " << *vi << endl ;
+    for(vector<pair<rule,rule_compilerP> >::const_iterator
+          vi=chomp_comp.begin();vi!=chomp_comp.end();++vi)
+      s << "-- " << vi->first << endl ;
     s << "--End chomping" << endl ;
   }
   
   chomp_compiler::chomp_compiler(const digraph& cgraph,
-                                 const variableSet& cvars)
-    :chomp_graph(cgraph),chomp_vars(cvars) {}
+                                 const variableSet& cvars,
+                                 const map<rule,rule>& a2u)
+    :chomp_graph(cgraph),chomp_vars(cvars),apply2unit(a2u) {}
 
   void chomp_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
-    vector<rule>::iterator i ;
-    for(i=chomp_comp.begin();i!=chomp_comp.end();++i)
-      existential_rule_analysis(*i,facts,scheds) ;
+    vector<pair<rule,rule_compilerP> >::iterator i ;
+    for(i=chomp_comp.begin();i!=chomp_comp.end();++i) {
+      rule r = i->first ;
+      rule_compilerP bc = i->second ;
+
+      // existential analysis for barrier compiler
+      //bc->set_var_existence(facts,scheds) ;
+      
+      if(r.get_info().rule_impl->get_rule_class() != rule_impl::APPLY)
+        existential_rule_analysis(r,facts,scheds) ;
+      else
+        existential_applyrule_analysis(r,facts,scheds) ;
+    }
   }
   
   void chomp_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
-    vector<rule>::reverse_iterator ri ;
-    for(ri=chomp_comp.rbegin();ri!=chomp_comp.rend();++ri)
-      rule_seq.push_front(process_rule_requests(*ri,facts,scheds)) ;
+    vector<pair<rule,rule_compilerP> >::reverse_iterator ri ;
+    for(ri=chomp_comp.rbegin();ri!=chomp_comp.rend();++ri) {
+      rule r = ri->first ;
+      rule_compilerP bc = ri->second ;
+      
+      entitySet exec_seq ;
+      if(r.get_info().rule_impl->get_rule_class() != rule_impl::APPLY)
+        exec_seq = process_rule_requests(r,facts,scheds) ;
+      else {
+        map<rule,rule>::const_iterator mi ;
+        mi = apply2unit.find(r) ;
+        FATAL(mi == apply2unit.end()) ;
+        exec_seq = process_applyrule_requests(r,mi->second,facts,scheds) ;
+      }
+      rule_seq.push_front(exec_seq) ;
+
+      // existential analysis for barrier compiler
+      //bc->process_var_requests(facts,scheds) ;
+    }
   }
 
   executeP chomp_compiler::create_execution_schedule(fact_db& facts,

@@ -173,6 +173,10 @@ namespace Loci {
           s << "Visualizing the NO" << i << " chomping chain..." << endl ;
           s << "variables that can be chomped in this chain: "
             << li->second << " total: " << total << endl ;
+          
+          s << "source variables to the chomp node: " << extract_vars(li->first.get_source_vertices() - li->first.get_target_vertices()) << endl ;
+          s << "target variables of the chomp node: " << extract_vars(li->first.get_target_vertices() - li->first.get_source_vertices()) << endl ;
+          
           create_digraph_dot_file(li->first,"chomping_rules.dot") ;
           system("dotty chomping_rules.dot") ;
           system("rm -fr chomping_rules.dot") ;

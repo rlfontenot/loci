@@ -563,7 +563,8 @@ namespace Loci {
     }
     typed_vars += add ;
   }
-  
+
+  /*
   void unTypedVarVisitor::discover(const digraph& gr) {
     digraph grt = gr.transpose() ;
     // typed variables in this graph
@@ -631,7 +632,47 @@ namespace Loci {
       if(untyped_vars.inSet(*vi))
         untyped_vars -= *vi ;
   }
+  */
+  
+  void unTypedVarVisitor::discover(const digraph& gr) {
+    digraph::vertexSet all_vertices = gr.get_all_vertices() ;
+    ruleSet all_rules = extract_rules(all_vertices) ;
+    variableSet all_vars ;
+    for(ruleSet::const_iterator ri=all_rules.begin();
+        ri!=all_rules.end();++ri)
+      all_vars += ri->targets() ;
 
+    // first assume all variables in the graph are untyped
+    untyped_vars += all_vars ;
+    // then we discover those typed, and remove them from untyped_vars
+
+    // first we get all the non virtual rules
+    // they are all the concrete rules (and possibly chomps)
+    ruleSet concrete_rules ;
+    for(ruleSet::const_iterator ri=all_rules.begin();
+        ri!=all_rules.end();++ri)
+      if(!is_virtual_rule(*ri))
+        concrete_rules += *ri ;
+    // all their targets are typed
+    variableSet typed_here ;
+    for(ruleSet::const_iterator ri=concrete_rules.begin();
+        ri!=concrete_rules.end();++ri)
+      typed_here += ri->targets() ;
+
+    typed_vars += typed_here ;
+    // and all the recurrence variables of typed_here are typed
+    for(variableSet::const_iterator vi=typed_here.begin();
+        vi!=typed_here.end();++vi)
+      typed_vars += get_all_recur_vars(recur_vars_s2t,*vi) ;
+
+    for(variableSet::const_iterator vi=typed_here.begin();
+        vi!=typed_here.end();++vi)
+      typed_vars += get_all_recur_vars(recur_vars_t2s,*vi) ;
+
+    // remove...
+    untyped_vars -= typed_vars ;
+  }
+  
   void unTypedVarVisitor::visit(loop_compiler& lc) {
     discover(lc.collapse_gr) ;
     discover(lc.advance_gr) ;
@@ -691,7 +732,7 @@ namespace Loci {
     }
     
     int supernode_num = 0 ;
-    int supernode_id = -1 ;
+    int supernode_id = 1 ; // vertex number of the supernode
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       if(is_super_node(ruleIter)) {
@@ -708,10 +749,11 @@ namespace Loci {
       return false ;
     if(supernode_num != 1)
       return true ;
-    // the remaining case must be there are only one super node
+
+    // the remaining case must be there is only one super node
     // and at least one non super node, we check if there is path
     // from each non super node to the super node in the graph
-    FATAL(supernode_id < 0) ;
+    FATAL(supernode_id > 0) ;
     rules -= rule(supernode_id) ;
     bool ret = false ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
@@ -963,9 +1005,9 @@ namespace Loci {
 
   }
 
-  ///////////////////////////////////////////////////////////////
-  // chompRuleVisitor
-  ///////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////
+  // some helper functions 
+  //////////////////////////////////////////////////////////////
   namespace {
     // given a contrete rule, return all the sources
     // that have maps
@@ -1037,30 +1079,6 @@ namespace Loci {
       return ret ;
     }
     
-    // determine if the two chomp chains can be merged
-    // two chains can be merged if either one graph has
-    // vertices that are chomp_vars in the other chain
-    bool
-    if_merge_chomp_chain(const chomp_chain& c1, const chomp_chain& c2) {
-      // get the two chomp_vars from c1 and c2
-      variableSet c1vars = c1.second ;
-      variableSet c2vars = c2.second ;
-
-      // get all the vertices in both graph
-      digraph::vertexSet allv1 = c1.first.get_all_vertices() ;
-      digraph::vertexSet allv2 = c2.first.get_all_vertices() ;
-
-      // convert the chomp_vars to vertexSet
-      digraph::vertexSet chomp_vertices1 = get_vertexSet(c1vars) ;
-      digraph::vertexSet chomp_vertices2 = get_vertexSet(c2vars) ;
-
-      // compute the intersection
-      digraph::vertexSet intc = (allv1 & chomp_vertices2) +
-        (allv2 & chomp_vertices1) ;
-
-      return (intc != EMPTY) ;
-    }
-
     inline bool thread_rule(const rule& r) {
       return r.get_rule_implP()->thread_rule() ;
     }
@@ -1117,64 +1135,33 @@ namespace Loci {
       }
     }
 
-    // given a list of vertices and a vertex in the list,
-    // return all the precedent vertices of that vertex
-    // in the list
-    inline
-    digraph::vertexSet get_pre_vertices(const list<int_type>& order,
-                                        int_type vertex) {
+    // convert the list of vertex into a vertice set
+    inline digraph::vertexSet list2vertexSet(const list<int_type>& l) {
       digraph::vertexSet ret ;
-      list<int_type>::const_iterator pos ;
-      pos = find(order.begin(),order.end(),vertex) ;
-      for(list<int_type>::const_iterator pre=order.begin();
-          pre!=pos;++pre)
-        ret += *pre ;
+      for(list<int_type>::const_iterator li=l.begin();li!=l.end();++li)
+        ret += *li ;
 
       return ret ;
     }
 
-    // function that try to fix the self-cycle
-    list<chomp_chain> try_fix_chain(const digraph& gr,
-                                    const digraph& cycle_gr,
-                                    const digraph::vertexSet& scc,
-                                    const chomp_chain& problem_chain) {
-      list<chomp_chain> ret_list ;
+    // make a WHITE color map
+    inline map<int_type,vertex_color>
+    makeColorMap(const digraph::vertexSet& vs) {
+      map<int_type,vertex_color> ret ;
+      for(digraph::vertexSet::const_iterator vi=vs.begin();
+          vi!=vs.end();++vi)
+        ret[*vi] = WHITE ;
 
-      // first check the size
-      if(problem_chain.second.size() == 1) {
-        // if the problem chain only has one
-        // variable that can be chomped, then we just
-        // throw it away
-        digraph empty_gr ;
-        variableSet empty_vars ;
-        chomp_chain empty_chain = make_pair(empty_gr,empty_vars) ;
-        ret_list.push_back(empty_chain) ;
-
-        return ret_list ;
-      }
-      
-      // find out the chomp rule in the
-      // SCC (strongly connected component)
-      ruleSet scc_rules = extract_rules(scc) ;
-      rule chomp_rule ;
-      for(ruleSet::const_iterator ri=scc_rules.begin();
-          ri!=scc_rules.end();++ri)
-        if(ri->get_info().qualifier() == "CHOMP") {
-          chomp_rule = *ri ;
-          break ;
-        }
-
-      //////////////
-      // not yet finished
-      //////////////
-      
-      return ret_list ;
+      return ret ;
     }
-
+    
+    int hack_counter = 1 ;
     // check the validity of the greedy chain, and get the
     // final valid chain
+#define CHOMP_THROW
+#define PRINT_CHOMP_OPT_ACTION
     void verify_greedy_chain(list<chomp_chain>& greedy,
-                             variableSet badvars,
+                             const variableSet& badvars,
                              list<chomp_chain>& final) {
 
       for(list<chomp_chain>::iterator li=greedy.begin();
@@ -1188,7 +1175,7 @@ namespace Loci {
           // we do nothing, if the test chain is empty
           if(test.second == EMPTY)
             break ;
-          
+
           digraph chomp_graph = test.first ;
           variableSet chomp_vars = test.second ;
           digraph::vertexSet all_vertices = chomp_graph.get_all_vertices() ;
@@ -1206,19 +1193,410 @@ namespace Loci {
           digraph::vertexSet problem_vertices =
             get_vertexSet(badvars_in_chomp) -
             (source_vertices + target_vertices) ;
-          
+
+#ifdef PRINT_CHOMP_OPT_ACTION
+          cerr<<endl<<endl<<"chomp vars: "<<chomp_vars<<endl ;
+          cerr<<"problem variables:"<<variableSet(problem_vertices)<<endl ;
+#endif
           if(problem_vertices != EMPTY) {
-            // we have problem, we'll need to fix it
-            cerr << "chomp chain problems, there are: "
-                 << chomp_vars.size()
-                 << " chompable variables inside it,"
-                 << " we throw it away!" << endl ;
+#ifdef CHOMP_THROW            
+            // simply throw away the chomp graph               
+            if(Loci::MPI_rank == 0) {
+              // we have problem, we'll need to fix it
+              cerr << "chomp chain problems, there are: "
+                   << chomp_vars.size()
+                   << " chompable variables inside it,"
+                   << " we throw it away!  " ;
+              cerr << "problem vars: "
+                   << extract_vars(problem_vertices)
+                   << endl ;
+            }
             digraph empty_gr ;
             variableSet empty_vars ;
             test = make_pair(empty_gr,empty_vars) ;
+            /*
+            final.push_back(test) ;
+            problem_solved = true ;
+            */
+#else           
+            // here we optimize the vertification of greedy
+            // results by not throwing away the entire chain
+            // instead, we split it according to the problem
+            // vertex
+            //if(problem_vertices.size() == chomp_vars.size()) {
+            if(chomp_vars.size() == 1) {
+              // if only one variable inside it, then
+              // this chain is thrown away
+              digraph empty_gr ;
+              variableSet empty_vars ;
+              test = make_pair(empty_gr,empty_vars) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+              cerr << "ACTION: throw the entire chain..." <<endl ;
+#endif
+            } else {
+              // otherwise, we'll need to split it
+
+              // first get the transpose of the chomp graph
+              digraph chomp_graph_t = chomp_graph.transpose() ;
+              // then pick a problem vertex
+              int_type problemV = *(problem_vertices.begin()) ;
+              
+#ifdef PRINT_CHOMP_OPT_ACTION
+              cerr << "ACTION: picked problem variable is: " << variable(problemV) << endl ;
+#endif
+              // we first split the graph according to
+              // the problemV selected
+              map<int_type,vertex_color>
+                  vColor = makeColorMap(chomp_graph.get_all_vertices()) ;
+              list<int_type> bl ;
+              dfs_visit(chomp_graph,problemV,vColor,bl) ;
+              digraph::vertexSet below = list2vertexSet(bl) ;
+              digraph::vertexSet above =
+                chomp_graph.get_all_vertices() - below + problemV;
+
+              digraph::vertexSet below_add ;
+              for(digraph::vertexSet::const_iterator bvi=below.begin();
+                  bvi!=below.end();++bvi)
+                if(*bvi < 0)
+                  below_add += chomp_graph_t[*bvi] ;
+              below += below_add ;
+
+              digraph::vertexSet above_add ;
+              for(digraph::vertexSet::const_iterator tvi=above.begin();
+                  tvi!=above.end();++tvi) {
+                if(*tvi < 0) { // a rule
+                  digraph::vertexSet reachable_vars = chomp_graph[*tvi] ;
+                  digraph::vertexSet diffs = reachable_vars - above ;
+                  if(diffs != EMPTY)
+                    above_add += diffs ;
+                }
+              }
+              if(above_add != EMPTY) {
+                above += above_add ;
+                // recompute the below set
+                digraph::vertexSet below_remove ;
+                for(digraph::vertexSet::const_iterator rvi=above_add.begin();
+                    rvi!=above_add.end();++rvi) {
+                  map<int_type,vertex_color>
+                    c = makeColorMap(chomp_graph.get_all_vertices()) ;
+                  list<int_type> rbl ;
+                  dfs_visit(chomp_graph,*rvi,c,rbl) ;
+                  below_remove += list2vertexSet(rbl) ;
+                }
+                below -= below_remove ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+              cerr << "ACTION: botgr gets recomputed..." << endl ;
+#endif
+              }
+              
+              // now we have two graphs according to the problemV
+              digraph topgr = chomp_graph.subgraph(above) ;
+              digraph botgr = chomp_graph.subgraph(below) ;
+              topgr.remove_dangling_vertices() ;
+              botgr.remove_dangling_vertices() ;
+
+              // there are three possible cases:
+              // first, there are no chompable variables in
+              // the topgr, in this case, we simply throw it away
+              // and make the test = botgr
+              // second, there are no chompable variables in
+              // the botgr, this is the same as the first case
+              // third, there are chompable variables in both
+              // topgr and botgr. Then we need to do an additional
+              // check
+
+              // first, we'll need to get the chompable variables
+              // in both graph.
+              digraph::vertexSet topgr_interV =
+                topgr.get_source_vertices() & topgr.get_target_vertices() ;
+              digraph::vertexSet botgr_interV =
+                botgr.get_source_vertices() & botgr.get_target_vertices() ;
+
+              variableSet topgr_inv = variableSet(topgr_interV) ;
+              variableSet botgr_inv = variableSet(botgr_interV) ;
+
+              variableSet topgr_chomp_vars =
+                variableSet(topgr_inv & chomp_vars) ;
+              variableSet botgr_chomp_vars =
+                variableSet(botgr_inv & chomp_vars) ;
+              
+#ifdef PRINT_CHOMP_OPT_ACTION
+              cerr << "topgr chomp vars: " << topgr_chomp_vars << endl ;
+              cerr << "botgr chomp vars: " << botgr_chomp_vars << endl ;
+#endif
+              if(topgr_chomp_vars.size() == 0) {
+                // we throw the topgr away
+                test = make_pair(botgr,botgr_chomp_vars) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+                cerr <<"ACTION: throw topgr, keep botgr..."<<endl ;
+#endif
+              } else {
+                /*
+                // topgr isn't empty
+                // we need to
+                // test first if there's any chomp variable
+                // in the topgr is also the source variable
+                // for the botgr. If so, we'll need to exclude
+                // it from the topgr
+                digraph::vertexSet botgr_source_v =
+                  botgr.get_source_vertices() ;
+                //botgr.get_source_vertices() - botgr.get_target_vertices() ;
+                
+                digraph::vertexSet topgr_chomp_v =
+                  get_vertexSet(topgr_chomp_vars) ;
+                //topgr.get_source_vertices() & topgr.get_target_vertices() ;
+                
+                digraph::vertexSet shared_top_bot =
+                  botgr_source_v & topgr_chomp_v ;
+
+                if(shared_top_bot != EMPTY) {
+                  digraph topgr_t = topgr.transpose() ;
+                  for(digraph::vertexSet::const_iterator tvi=
+                        shared_top_bot.begin(); tvi!=shared_top_bot.end();
+                      ++tvi) {
+                    map<int_type,vertex_color>
+                      vc = makeColorMap(topgr_t.get_all_vertices()) ;
+                    list<int_type> tl ;
+                    dfs_visit(topgr_t,*tvi,vc,tl) ;
+                    digraph::vertexSet out = list2vertexSet(tl) ;
+                    //out += *tvi ;
+                    digraph::vertexSet chomp_vars_in_outv =
+                      out & get_vertexSet(topgr_chomp_vars) ;
+                    chomp_vars_in_outv += *tvi ;
+                    topgr_chomp_vars -= variableSet(chomp_vars_in_outv) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+                    cerr << "shared in chomp: " << variable(*tvi) << endl ;
+#endif
+                  }
+
+                  digraph::vertexSet topgr_remain ;
+                  digraph::vertexSet btgvs = botgr.get_target_vertices() ;
+                  bool first_run = true ;
+                  // clean topgr, prune any irrelavent rules
+                  for(variableSet::const_iterator
+                        trvi=topgr_chomp_vars.begin();
+                      trvi!=topgr_chomp_vars.end();++trvi) {
+#ifdef PRINT_CHOMP_OPT_ACTION
+                    cerr << "remaining chomp vars: "<<variable(*trvi)<<endl;
+#endif
+                    ruleSet rules =
+                      extract_rules(chomp_graph[trvi->ident()] +
+                                    chomp_graph_t[trvi->ident()]) ;
+
+                    digraph::vertexSet connectv =
+                      get_ruleSet_vertexSet(rules) ;
+
+                    if( (connectv & btgvs) == EMPTY)
+                      if(first_run) {
+                        topgr_remain += connectv ;
+                        first_run = false ;
+                      }else
+                        if( (connectv & topgr_remain) != EMPTY)
+                          topgr_remain += connectv ;
+                  }
+                  digraph::vertexSet cinterv =
+                    topgr_remain & botgr.get_target_vertices() ;
+                  if(cinterv != EMPTY) {
+                    cerr << "WARNING: there are potential cycle(s)"
+                         << " there are: " << cinterv.size()
+                         << " vertices intersected!!!"<< endl ;
+                    for(digraph::vertexSet::const_iterator vi=cinterv.begin();
+                        vi!=cinterv.end();++vi)
+                      if(*vi>=0)
+                        cerr << "\tvariable: " << variable(*vi) << endl ;
+                      else
+                        cerr << "\trule: " << rule(*vi) << endl ;
+                  }
+                  topgr = chomp_graph.subgraph(topgr_remain) ;
+                }
+                */
+                //////////new code to compute shared variables
+                //////////and new topgr
+                digraph::vertexSet botgr_all_v = botgr.get_all_vertices() ;
+                digraph::vertexSet shared_top_bot ;
+                for(variableSet::const_iterator tgcvi=
+                      topgr_chomp_vars.begin();
+                    tgcvi!=topgr_chomp_vars.end();++tgcvi) {
+                  digraph::vertexSet reachable_rules =
+                    get_vertexSet
+                    (extract_rules(chomp_graph[tgcvi->ident()])) ;
+                  if( (reachable_rules & botgr_all_v) != EMPTY)
+                    shared_top_bot += tgcvi->ident() ;
+                }
+                if(shared_top_bot != EMPTY) {
+                  digraph topgr_t = topgr.transpose() ;
+                  variableSet topgr_bad_chomp_vars(shared_top_bot) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+                  cerr << "topgr bad chomp vars: "
+                       << topgr_bad_chomp_vars << endl ;
+#endif
+                  // we need to form new chomping graphs
+                  list<chomp_chain> new_chains ;
+                  variableSet cand_vars =
+                    variableSet(topgr_chomp_vars - topgr_bad_chomp_vars) ;
+                  while(cand_vars != EMPTY) {
+                    
+                    digraph::vertexSet all_vertices ;
+                    variable begin = *cand_vars.begin() ;
+                    ruleSet all_rules =
+                      extract_rules(topgr[begin.ident()] +
+                                    topgr_t[begin.ident()]) ;
+                    variableSet new_chomp_vars ;
+                    new_chomp_vars += begin ;
+                    all_vertices += get_ruleSet_vertexSet(all_rules) ;
+                    cand_vars -= begin ;
+                    
+                    bool merge = true ;
+                    while(merge) {
+                      variableSet others = cand_vars ;
+                      merge = false ;
+                      for(variableSet::const_iterator vi=others.begin();
+                          vi!=others.end();++vi){
+                        ruleSet reachable_rules =
+                          extract_rules(topgr[vi->ident()] +
+                                        topgr_t[vi->ident()]) ;
+                        if( (all_rules & reachable_rules) != EMPTY) {
+                          // group this var together
+                          new_chomp_vars += *vi ;            
+                          all_rules += reachable_rules ;
+                          all_vertices +=
+                            get_ruleSet_vertexSet(reachable_rules) ;
+                          cand_vars -= *vi ;
+                          merge = true ;
+                        }
+                      } // end-of-for(others)
+                    }//end-of-while(merge)
+                    
+                    // put it into the greedy_chain_list
+                    digraph new_gr = topgr.subgraph(all_vertices) ;
+                    new_chains.push_back(make_pair(new_gr,new_chomp_vars)) ;
+                  } // end-of-while(cand_vars != EMPTY)
+                  
+                  if(!new_chains.empty()) {
+#ifdef PRINT_CHOMP_OPT_ACTION
+                    cerr << "ACTION: splited " << new_chains.size()
+                         << " chains..." << endl ;
+#endif
+                    topgr = new_chains.back().first ;
+                    topgr_chomp_vars = new_chains.back().second ;
+                    new_chains.pop_back() ;
+                    list<chomp_chain>::iterator lend = greedy.end() ;
+                    greedy.splice(lend,new_chains) ;
+                  }else {
+                    topgr_chomp_vars = variableSet(EMPTY) ;
+                  }                  
+                }
+                /*
+                if(shared_top_bot != EMPTY) {
+                list<int_type> topgr_order ;
+                topo_sort(topgr,topgr_order) ;
+                list<variable> topgr_chomp_vars_order ;
+                for(list<int_type>::const_iterator toli=topgr_order.begin();
+                toli!=topgr_order.end();++toli)
+                if(*toli>=0){
+                variable v(*toli) ;
+                if(topgr_chomp_vars.inSet(v))
+                topgr_chomp_vars_order.push_back(v) ;
+                    }
+
+                  digraph topgr_t = topgr.transpose() ;
+                  variableSet top_bad_chomp_vars(shared_top_bot) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+                  cerr << "top bad chomp vars: "
+                       << top_bad_chomp_vars << endl ;
+#endif
+                  int counter = 0 ;
+                  list<chomp_chain> splited_chains ;
+                  variableSet new_split_chomp_vars ;
+                  digraph::vertexSet new_split_vertices ;
+                  for(list<variable>::const_iterator tcvoli=
+                        topgr_chomp_vars_order.begin();
+                      tcvoli!=topgr_chomp_vars_order.end();++tcvoli) {
+                    if(!top_bad_chomp_vars.inSet(*tcvoli)) {
+                      counter++ ;
+                      new_split_chomp_vars += *tcvoli ;
+                      ruleSet rules =
+                        extract_rules(topgr[tcvoli->ident()] +
+                                      topgr_t[tcvoli->ident()]) ;
+                      new_split_vertices += get_ruleSet_vertexSet(rules) ;
+                    }else {
+                      if(new_split_chomp_vars != EMPTY) {
+                        digraph new_gr = topgr.subgraph(new_split_vertices) ;
+                        splited_chains.push_back(make_pair(new_gr,new_split_chomp_vars)) ;
+                        new_split_chomp_vars = variableSet(EMPTY) ;
+                        new_split_vertices = EMPTY ;
+                      }
+#ifdef PRINT_CHOMP_OPT_ACTION
+                      cerr << "counter: " << counter << endl ;
+#endif
+                      counter = 0 ;
+                    }
+                  }
+#ifdef PRINT_CHOMP_OPT_ACTION
+                  cerr << "last counter: " << counter << endl ;
+#endif
+                  if(new_split_chomp_vars != EMPTY) {
+                    digraph new_gr = topgr.subgraph(new_split_vertices) ;
+                    splited_chains.push_back(make_pair(new_gr,new_split_chomp_vars)) ;
+                    new_split_chomp_vars = variableSet(EMPTY) ;
+                    new_split_vertices = EMPTY ;
+                  }
+                  
+                  if(!splited_chains.empty()) {
+#ifdef PRINT_CHOMP_OPT_ACTION
+                    cerr << "ACTION: splited " << splited_chains.size()
+                         << " chains..." << endl ;
+#endif
+                    topgr = splited_chains.back().first ;
+                    topgr_chomp_vars = splited_chains.back().second ;
+                    splited_chains.pop_back() ;
+                    list<chomp_chain>::iterator lend = greedy.end() ;
+                    greedy.splice(lend,splited_chains) ;
+                  }else {
+                    topgr_chomp_vars = variableSet(EMPTY) ;
+                  }
+                }
+                */
+                if (botgr_chomp_vars.size() == 0) {
+                  // we throw the botgr away
+                  if(topgr_chomp_vars == EMPTY) {
+                    digraph empty_gr ;
+                    variableSet empty_vars ;
+                    test = make_pair(empty_gr,empty_vars) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+                    cerr << "ACTION: topgr & botgr are empty..." << endl ;
+#endif
+                  } else{
+                    test = make_pair(topgr,topgr_chomp_vars) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+                    cerr << "ACTION: throw botgr, keep topgr..."<<endl ;
+#endif
+                  }
+                } else {
+                  // we split the chomp graph
+                  if(topgr_chomp_vars == EMPTY){
+                    test = make_pair(botgr,botgr_chomp_vars) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+                    cerr <<"ACTION: split chain, but topgr is empty, botgr is kept..."<<endl ;
+#endif
+                  }
+                  else {
+                    // make two chomp chains, one is
+                    // pushed into the greedy chain for
+                    // later processing
+                    test = make_pair(topgr,topgr_chomp_vars) ;
+                    chomp_chain test2 = make_pair(botgr,botgr_chomp_vars) ;
+                    greedy.push_back(test2) ;
+#ifdef PRINT_CHOMP_OPT_ACTION
+                    cerr << "ACTION: both gr(s) are kept..." << endl ;
+#endif
+                  }
+                }
+              }
+            }
+#endif
           } else {
             // we have no problem, this test chain is valid
-            cerr << "chomp chain has no problem!" << endl ;
             final.push_back(test) ;
             problem_solved = true ;
           }
@@ -1228,10 +1606,15 @@ namespace Loci {
 
   } // end of unamed namespace
 
-  chompRuleVisitor::chompRuleVisitor(fact_db& fd,
-                                     const map<int,variableSet>& rot_vt,
-                                     const map<int,variableSet>& lsharedt,
-                                     const variableSet& rv)
+  ///////////////////////////////////////////////////////////////
+  // chompPPVisitor
+  ///////////////////////////////////////////////////////////////
+  //#define DISABLE_APPLY
+  
+  chompPPVisitor::chompPPVisitor(fact_db& fd,
+                                 const map<int,variableSet>& rot_vt,
+                                 const map<int,variableSet>& lsharedt,
+                                 const variableSet& rv)
     :facts(fd),rename_vars(rv) {
     map<int,variableSet>::const_iterator mi ;
     for(mi=rot_vt.begin();mi!=rot_vt.end();++mi)
@@ -1240,7 +1623,7 @@ namespace Loci {
       loop_shared_vars += mi->second ;
   }
 
-  list<chomp_chain> chompRuleVisitor::find_chain(const digraph& gr) {
+  void chompPPVisitor::discover(const digraph& gr) {
     digraph grt = gr.transpose() ;
     // first we need to get all the contrete rules in the graph
     ruleSet rules = extract_rules(gr.get_all_vertices()) ;
@@ -1249,58 +1632,69 @@ namespace Loci {
       if(is_internal_rule(*ri))
         remove += *ri ;
     rules -= remove ;
-    // then we need to get all the variables that involve with any
-    // MAPs (either in the source of a rule or target of a rule)
-    // they are variables that cannot be chomped
+
+    // first get all possible variables that can be chomped
     variableSet allvars ;
-    variableSet mapvars ;
     for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
-      mapvars += map_sources(*ri) ;
-      mapvars += map_targets(*ri) ;
       allvars += ri->sources() ;
       allvars += ri->targets() ;
     }
+
+    // then we collect bad_vars...
+
+    // first any variable that involves maps
+    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
+      bad_vars += map_sources(*ri) ;
+      bad_vars += map_targets(*ri) ;
+    }
+
     // then we get all the variables that are not suitable for
     // chomping, i.e. they are not STORE, they are in the loop
     // rotate list, loop shared variables, and variables that
     // don't have outgoing edges, and variables that connect
-    // to any internal rules
-    variableSet badvars ;
+    // to any internal rules or rename variables
+    // or variables that are generated in more that one levels
     for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
       variableSet stvars ;
       stvars += ri->sources() ;
       stvars += ri->targets() ;
       for(variableSet::const_iterator vi=stvars.begin();
           vi!=stvars.end();++vi) {
+        
+        if(seen_vars.inSet(*vi)) {
+          bad_vars += *vi ;
+          continue ;
+        }
+        
         storeRepP srp = facts.get_variable(*vi) ;
         if(srp->RepType() != Loci::STORE) {
-          badvars += *vi ;
+          bad_vars += *vi ;
           continue ;
         }
         
         if(rotate_vars.inSet(*vi)) {
-          badvars += *vi ;
+          bad_vars += *vi ;
           continue ;
         }
         if(loop_shared_vars.inSet(*vi)) {
-          badvars += *vi ;
+          bad_vars += *vi ;
           continue ;
         }
 
         if(rename_vars.inSet(*vi)) {
-          badvars += *vi ;
+          bad_vars += *vi ;
           continue ;
         }
         
         digraph::vertexSet next_vertices = gr[vi->ident()] ;
         if(next_vertices == EMPTY) {
-          badvars += *vi ;
+          bad_vars += *vi ;
           continue ;
         }
 
         digraph::vertexSet next_vertices_t = grt[vi->ident()] ;
         if(next_vertices_t == EMPTY) {
-          badvars += *vi ;
+          bad_vars += *vi ;
           continue ;
         }
 
@@ -1308,9 +1702,13 @@ namespace Loci {
         for(ruleSet::const_iterator rii=tmp.begin();
             rii!=tmp.end();++rii)
           if(is_internal_rule(*rii) || !thread_rule(*rii) ||
-             has_output_in_targets(*rii) ||
-             rii->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
-            badvars += *vi ;
+             has_output_in_targets(*rii)
+#ifdef DISABLE_APPLY             
+             || rii->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
+#else
+            ){
+#endif          
+            bad_vars += *vi ;
             break ;
           }
 
@@ -1319,20 +1717,44 @@ namespace Loci {
             rii!=tmp.end();++rii)
           if(is_internal_rule(*rii) || !thread_rule(*rii) ||
              has_output_in_targets(*rii)) {
-            badvars += *vi ;
+            bad_vars += *vi ;
             break ;
           }
       }
     }
-    badvars += mapvars ;
+    // fill up...
+    good_vars += allvars ;
+    good_vars -= bad_vars ;
+    seen_vars += allvars ;
+  }
 
+  void chompPPVisitor::visit(loop_compiler& lc) {
+    discover(lc.collapse_gr) ;
+    discover(lc.advance_gr) ;
+  }
+
+  void chompPPVisitor::visit(dag_compiler& dc) {
+    discover(dc.dag_gr) ;
+  }
+
+  void chompPPVisitor::visit(conditional_compiler& cc) {
+    discover(cc.cond_gr) ;
+  }
+
+  ///////////////////////////////////////////////////////////////
+  // chompRuleVisitor
+  ///////////////////////////////////////////////////////////////
+  list<chomp_chain> chompRuleVisitor::find_chain(const digraph& gr) {
+    digraph grt = gr.transpose() ;
+
+    variableSet allvars = extract_vars(gr.get_all_vertices()) ;
     // now we start the searching, we are first very greedy,
     // we group any potential variables that can be chomped,
     // and then later, we perform checkings and necessary
     // adjustments.
 
     list<chomp_chain> greedy_chain_list ;
-    variableSet cand_vars = variableSet(allvars - badvars) ;
+    variableSet cand_vars = variableSet(allvars & good_vars) ;
     while(cand_vars != EMPTY) {
       
       digraph::vertexSet all_vertices ;
@@ -1354,7 +1776,7 @@ namespace Loci {
                                                   grt[vi->ident()]) ;
           if( (all_rules & reachable_rules) != EMPTY) {
             // group this var together
-            greedy_chomp_vars += *vi ;
+            greedy_chomp_vars += *vi ;            
             all_rules += reachable_rules ;
             all_vertices += get_ruleSet_vertexSet(reachable_rules) ;
             cand_vars -= *vi ;
@@ -1362,13 +1784,14 @@ namespace Loci {
           }
         } // end-of-for(others)
       }//end-of-while(merge)
+
       // put it into the greedy_chain_list
       digraph sub_gr = gr.subgraph(all_vertices) ;
       greedy_chain_list.push_back(make_pair(sub_gr,greedy_chomp_vars)) ;      
     } // end-of-while(cand_vars != EMPTY)
 
     list<chomp_chain> chomp_chain_list ;
-    verify_greedy_chain(greedy_chain_list,badvars,chomp_chain_list) ;
+    verify_greedy_chain(greedy_chain_list,bad_vars,chomp_chain_list) ;
 
     return chomp_chain_list ;
     
@@ -1403,18 +1826,22 @@ namespace Loci {
                                     extract_vars(target_vars_vertices),
                                     "CHOMP") ;
 
-      rcm[chomp_rule] = new chomp_compiler(chomp_graph, chomp_vars) ;
+      rcm[chomp_rule] = new chomp_compiler(chomp_graph,
+                                           chomp_vars,apply2unit) ;
       
-      // get other possible nodes (outside of the chomp_graph)
-      // that lead to any of the chomp_vars
-      digraph grt = gr.transpose() ;
-      for(digraph::vertexSet::const_iterator vi=all_vertices.begin();
-          vi!=all_vertices.end();++vi) {
-        source_vars_vertices += grt[*vi] - all_vertices ;
-      }
-      // graph editing
+      // the vertices to be taken out
       digraph::vertexSet takeout_vertices =
         chomp_vars_vertices + rules_vertices ;
+
+      // get other possible nodes (outside of the chomp_graph)
+      // that lead to any internal vertices of the chomp graph
+      digraph grt = gr.transpose() ;
+      for(digraph::vertexSet::const_iterator vi=takeout_vertices.begin();
+          vi!=takeout_vertices.end();++vi) {
+        source_vars_vertices += grt[*vi] - all_vertices ;
+      }
+
+      // graph editing
       // take the chomp graph out from the original graph
       gr = gr.subgraph(gr.get_all_vertices() - takeout_vertices) ;
 
@@ -1598,8 +2025,20 @@ namespace Loci {
     for(vector<digraph::vertexSet>::const_iterator vi=chc.chomp_sched.begin();
         vi!=chc.chomp_sched.end();++vi) {
       ruleSet rules = extract_rules(*vi) ;
-      for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
-        chc.chomp_comp.push_back(*ri) ;
+      variableSet vars = extract_vars(*vi) ;
+      if(rules == EMPTY && vi+1<chc.chomp_sched.end()) {
+        ++vi ;
+        vars += extract_vars(*vi) ;
+        rules = extract_rules(*vi) ;
+      }
+      vars &= chc.chomp_vars ;
+      
+      for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri){
+        // this barrier_compiler bc is just a fake compiler
+        // to be used in the pair 
+        rule_compilerP bc = new barrier_compiler(vars) ;
+        chc.chomp_comp.push_back(make_pair(*ri,bc)) ;
+      }
     }
   }
 
@@ -1626,7 +2065,102 @@ namespace Loci {
   void compChompVisitor::visit(conditional_compiler& cc) {
     process_rcm(cc.rule_compiler_map) ;
   }
-  
 
+  /////////////////////////////////////////////////////////////////
+  // unitApplyMapVisitor
+  /////////////////////////////////////////////////////////////////
+  void unitApplyMapVisitor::gather_info(const digraph& gr) {
+    digraph grt = gr.transpose() ;
+    variableSet allvars = extract_vars(gr.get_all_vertices()) ;
+    map<variable,ruleSet> reduce_info ;
+    variableSet reduce_vars ;
+    
+    for(variableSet::const_iterator vi=allvars.begin();
+        vi!=allvars.end();++vi) {
+      ruleSet pre_rules = extract_rules(grt[vi->ident()]) ;
+      ruleSet use_rules ;
+      bool reduction = false ;
+      bool unit_rule_exists = false ;
+      for(ruleSet::const_iterator ri=pre_rules.begin();
+          ri!=pre_rules.end();++ri)
+        if(ri->get_info().rule_class != rule::INTERNAL) {
+          use_rules += *ri ;
+          rule_implP rimp = ri->get_rule_implP() ;
+          if(rimp->get_rule_class() == rule_impl::UNIT ||
+             rimp->get_rule_class() == rule_impl::APPLY)
+            reduction = true ;
+          if(rimp->get_rule_class() == rule_impl::UNIT)
+            unit_rule_exists = true ;          
+        }
+      if(reduction) {
+        reduce_info[*vi] = use_rules ;
+        if(reduction && unit_rule_exists)
+          reduce_vars += *vi ;
+      }
+    }
+    if(reduce_vars != EMPTY) {
+      all_reduce_vars += reduce_vars ;
+
+      map<variable,ruleSet>::const_iterator xi ;
+      for(xi=reduce_info.begin();xi!=reduce_info.end();++xi) {
+        rule unit_rule ;
+        ruleSet apply_rules ;
+        CPTR<joiner> join_op = CPTR<joiner>(0) ;
+        ruleSet::const_iterator ri ;
+        for(ri=xi->second.begin();ri!=xi->second.end();++ri) {
+          if(ri->get_rule_implP()->get_rule_class() == rule_impl::UNIT)
+            unit_rule = *ri ;
+          else if(ri->get_rule_implP()->get_rule_class() == rule_impl::APPLY){
+            apply_rules += *ri ;
+            join_op = ri->get_rule_implP()->get_joiner() ;
+#ifdef TYPEINFO_CHECK
+            else
+              if(typeid(*join_op) !=
+                 typeid(*(ri->get_rule_implP()->get_joiner()))) {
+                cerr << "Warning:  Not all apply rules for variable "
+                     << xi->first << " have identical join operations!"
+                     << endl ;
+              }
+#endif
+          } else {
+            cerr << "Warning: reduction variable " << xi->first
+                 << " has a non-reduction rule contributing\
+ to its computation,"
+                 << endl << "offending rule is " << *ri << endl ;
+          }
+        }
+        if(join_op == 0) {
+          cerr << "unable to find any apply rules to complete\
+ the reduction defined by rule"
+               << endl
+               << unit_rule << endl ;
+        }
+        FATAL(join_op == 0) ;
+        // fill all the maps
+        for(ri=apply_rules.begin();ri!=apply_rules.end();++ri)
+          apply2unit[*ri] = unit_rule ;
+        reduceInfo[xi->first] = make_pair(unit_rule,join_op) ;
+      }
+    }
+  }
+  
+  void unitApplyMapVisitor::visit(loop_compiler& lc) {
+    gather_info(lc.collapse_gr) ;
+    gather_info(lc.advance_gr) ;
+  }
+  
+  void unitApplyMapVisitor::visit(dag_compiler& dc) {
+    gather_info(dc.dag_gr) ;
+  }
+  
+  void unitApplyMapVisitor::visit(conditional_compiler& cc) {
+    gather_info(cc.cond_gr) ;
+  }
+
+
+
+  ////////////////////////////////////////////////////////////
+  //                        The-End                         //
+  ////////////////////////////////////////////////////////////
 } // end of namespace Loci
 

@@ -1,4 +1,5 @@
 #include "visitor.h"
+#include "visit_tools.h"
 #include <sys/stat.h>
 #include "comp_tools.h"
 
@@ -31,6 +32,7 @@ namespace Loci {
 
     digraph::vertexSet working = g.get_source_vertices() -
       (g.get_target_vertices()+start_vertices) ;
+    working &= only_vertices ;
     if(working != EMPTY) 
       schedule.push_back(working) ;
     
@@ -46,7 +48,7 @@ namespace Loci {
       // loop over working set and create a list of candidate vertices
       for(ni=working.begin();ni != working.end(); ++ni) 
         new_vertices += g[*ni] ;
-      
+
       // If a vertex has already been scheduled it can't be scheduled again,
       // so remove visited vertices
       new_vertices = new_vertices - visited_vertices    ;
@@ -193,7 +195,6 @@ namespace Loci {
       variableSet barrier_vars, reduce_vars,singleton_vars,all_vars ;
       variableSet::const_iterator vi ;
       
-      std::map<variable,ruleSet> reduce_info ;
       for(vi=vars.begin();vi!=vars.end();++vi) {
         ruleSet var_rules = extract_rules(dagt[(*vi).ident()]) ;
         ruleSet::const_iterator ri ;
@@ -203,17 +204,28 @@ namespace Loci {
         bool singleton = false ;
         bool recursive = false ;
         bool unit_rule_exists = false ;
+        bool chomp = false ;
         for(ri=var_rules.begin();ri!=var_rules.end();++ri)
-          if(ri->get_info().rule_class != rule::INTERNAL) {
+          //if(ri->get_info().rule_class != rule::INTERNAL) {
+          if(!is_virtual_rule(*ri)) {
             use_rules += *ri ;
+
+            if(ri->get_info().rule_class == rule::INTERNAL)
+              if(ri->get_info().qualifier() == "CHOMP") {
+                chomp = true ;
+                continue ;
+              }
+            
             rule_implP rimp = ri->get_rule_implP() ;
             if(rimp->get_rule_class() == rule_impl::POINTWISE)
               pointwise = true ;
+            
             if(rimp->get_rule_class() == rule_impl::UNIT ||
                rimp->get_rule_class() == rule_impl::APPLY)
               reduction = true ;
             if(rimp->get_rule_class() == rule_impl::UNIT)
               unit_rule_exists = true ;
+            
             if(rimp->get_rule_class() == rule_impl::SINGLETON)
               singleton = true ;
           } else {
@@ -225,18 +237,16 @@ namespace Loci {
              reduction && singleton) ;
 
         if((use_rules != EMPTY)) {
-          if(pointwise && !recursive && (vi->get_info().name != "OUTPUT")) {
+          if( (pointwise||chomp) && !recursive && (vi->get_info().name != "OUTPUT")){
             barrier_vars += *vi ;
           }
           if(pointwise && recursive && (vi->get_info().name != "OUTPUT")) {
             all_vars += *vi ;
           }
-          if(reduction) {
-            reduce_info[*vi] = use_rules ;
-            if(reduction && unit_rule_exists)
-              reduce_vars += *vi ;
-          } 
-	  if(singleton) {
+
+          if(all_reduce_vars.inSet(*vi))
+            reduce_vars += *vi ;
+          if(singleton) {
             singleton_vars += *vi ;
           }
         }
@@ -252,66 +262,41 @@ namespace Loci {
         dag_comp.push_back(new singleton_var_compiler(singleton_vars)) ;
 
       all_vars += reduce_vars;
+
+      vector<CPTR<joiner> > join_op_vector ;
+      vector<rule> unit_rule_vector ;
+      vector<variable> reduce_var_vector ;
       
-      if(reduce_vars != EMPTY) {
-        std::map<variable,ruleSet>::const_iterator xi ;
-        variableSet vars ;
+      for(variableSet::const_iterator rdvi=reduce_vars.begin();
+          rdvi!=reduce_vars.end();++rdvi) {
+        map<variable,pair<rule,CPTR<joiner> > >::const_iterator xi ;
+        xi = reduceInfo.find(*rdvi) ;
+        FATAL(xi == reduceInfo.end()) ;
+        rule unit_rule = (xi->second).first ;
+        CPTR<joiner> join_op = (xi->second).second ;
 
-	vector<CPTR<joiner> > join_op_vector;
-	vector<rule> unit_rule_vector;
-	vector<variable> reduce_var_vector;
-	
-        for(xi=reduce_info.begin();xi!=reduce_info.end();++xi) {
-          vars += xi->first ;
-          rule unit_rule ;
-          CPTR<joiner> join_op = CPTR<joiner>(0) ;
-          ruleSet::const_iterator ri ;
-	  //Next loop finds the join_opearation for the reduction
-	  for(ri=xi->second.begin();ri!=xi->second.end();++ri) {
-            if(ri->get_rule_implP()->get_rule_class() == rule_impl::UNIT)
-              unit_rule = *ri ;
-            else if(ri->get_rule_implP()->get_rule_class() == rule_impl::APPLY){
-              //              if(join_op == 0)
-                join_op = ri->get_rule_implP()->get_joiner() ;
-              //#define TYPEINFO_CHECK
-#ifdef TYPEINFO_CHECK
-              else
-                if(typeid(*join_op) !=
-                   typeid(*(ri->get_rule_implP()->get_joiner()))) {
-                  cerr << "Warning:  Not all apply rules for variable " << xi->first << " have identical join operations!" << endl ;
-                }
-#endif
-            } else {
-              cerr << "Warning: reduction variable " << xi->first
-                   << " has a non-reduction rule contributing to its computation,"
-                   << endl << "offending rule is " << *ri << endl ;
-            }
-          }
-          if(join_op == 0) {
-            cerr << "unable to find any apply rules to complete the reduction defined by rule"
-                 << endl
-                 << unit_rule << endl ;
-          }
-          FATAL(join_op == 0) ;
-          storeRepP sp = join_op->getTargetRep() ;
-          if(sp->RepType() == PARAMETER) {
-            
-	    reduce_var_vector.push_back(xi->first);
-	    unit_rule_vector.push_back(unit_rule);
-	    join_op_vector.push_back(join_op);
-	   
-          }
-          else if (sp->RepType() == BLACKBOX) {
-	    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-          }else {
-            dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
-                                                         join_op)) ;
-          }
+        storeRepP sp = join_op->getTargetRep() ;
+        /* old code
+        if(sp->RepType() == PARAMETER) {
+          dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
+                            join_op)) ;
         }
-	if(reduce_var_vector.size() != 0) 
-	  dag_comp.push_back(new reduce_param_compiler(reduce_var_vector, unit_rule_vector, join_op_vector));
+        */
+        if(sp->RepType()== PARAMETER) {
+          reduce_var_vector.push_back(xi->first) ;
+          unit_rule_vector.push_back(unit_rule) ;
+          join_op_vector.push_back(join_op) ;
+        }
+        else if (sp->RepType() == BLACKBOX) {
+          cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
+        }else {
+          dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
+                                                       join_op)) ;
+        }
       }
-
+      if(reduce_var_vector.size() != 0) 
+        dag_comp.push_back(new reduce_param_compiler(reduce_var_vector, unit_rule_vector, join_op_vector));
+      
       
       if(check_dump_vars.ok()) {
         if(all_vars != EMPTY) 
@@ -347,5 +332,77 @@ namespace Loci {
                       cc.rule_compiler_map,cc.cond_gr) ;
   }
 
+  /////////////////////////////////////////////////////////////////
+  // simLazyAllocSchedVisitor
+  /////////////////////////////////////////////////////////////////
+  vector<digraph::vertexSet>
+  simLazyAllocSchedVisitor::schedule(const digraph &gr) {
+    // first we get all vertices except all the allocate rules
+    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
 
+    digraph::vertexSet alloc_rules_vertices ;
+    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri)
+      if(ri->get_info().qualifier() == "ALLOCATE")
+        alloc_rules_vertices += ri->ident() ;
+
+    vector<digraph::vertexSet> first_sched ;
+    
+    first_sched =
+      orderVisitor::order_dag(gr,alloc_rules_vertices,
+                              gr.get_all_vertices()-alloc_rules_vertices) ;
+    
+    // then we schedule those alloc rules
+    digraph grt = gr.transpose() ;
+    vector<digraph::vertexSet> final_sched ;
+
+    digraph::vertexSet last ;
+    digraph::vertexSet sched_alloc ;
+    for(vector<digraph::vertexSet>::const_iterator vi=first_sched.begin();
+        vi!=first_sched.end();++vi) {
+      digraph::vertexSet step = *vi ;
+      ruleSet step_rules = extract_rules(step) ;
+      
+      digraph::vertexSet pre_vertices ;
+      for(ruleSet::const_iterator ri=step_rules.begin();
+          ri!=step_rules.end();++ri)
+        pre_vertices += grt[ri->ident()] ;
+
+      ruleSet pre_rules = extract_rules(pre_vertices) ;
+      digraph::vertexSet needed_alloc ;
+      for(ruleSet::const_iterator ri=pre_rules.begin();
+          ri!=pre_rules.end();++ri)
+        if(ri->get_info().qualifier() == "ALLOCATE")
+          needed_alloc += ri->ident() ;
+
+      needed_alloc -= sched_alloc ;
+      sched_alloc += needed_alloc ;
+
+      digraph::vertexSet sum = needed_alloc + last ;
+      if(sum != EMPTY)
+        final_sched.push_back(sum) ;
+
+      last = step ;
+    }
+    if(last != EMPTY)
+      final_sched.push_back(last) ;
+
+    return final_sched ;
+  }
+  
+  void simLazyAllocSchedVisitor::visit(loop_compiler& lc) {    
+    lc.collapse_sched = schedule(lc.collapse_gr) ;
+    lc.advance_sched = schedule(lc.advance_gr) ;
+  }
+
+  void simLazyAllocSchedVisitor::visit(dag_compiler& dc) {
+    dc.dag_sched = schedule(dc.dag_gr) ;
+  }
+
+  void simLazyAllocSchedVisitor::visit(conditional_compiler& cc) {
+    cc.dag_sched = schedule(cc.cond_gr) ;
+  }
+
+
+
+  
 } // end of namespace Loci

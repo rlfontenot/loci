@@ -13,38 +13,37 @@ namespace Loci {
   ////////////////////////////////////////////////////////////////
   // allocInfoVisitor
   ////////////////////////////////////////////////////////////////
-  variableSet allocInfoVisitor::gather_info(const digraph& gr,int id) {
-    // obtain the transpose of the graph
-    digraph grt = gr.transpose() ;
+  variableSet allocInfoVisitor::get_start_info(const digraph& gr,int id) {
+    variableSet working_vars ;
+
     // obtain all the rules
     digraph::vertexSet allvertices = gr.get_all_vertices() ;
     ruleSet rules = extract_rules(allvertices) ;
-
-    // variables processed in this graph
-    variableSet working_vars ;
     
     // looping over all the rules and gather variables
     // need to be processed in this graph for allocation
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       // get the targets of the rule
-      variableSet targets ;
-      targets = ruleIter->targets() ;
-
-      working_vars += targets ;
+      working_vars += ruleIter->targets() ;
     }
-
-    //////////////////////////////////////////////////
-    // NOTE: THIS IS TEMPORARY
-    // but we add the adjusts
-    variableSet remove = variableSet(recur_target_vars - adjust_vars) ;
-    working_vars -= remove ;
     // we remove recurrence target variables from the working_vars.
-    //working_vars -= recur_target_vars ;
+    working_vars -= recur_target_vars ;
+
+    return working_vars ;
+  }
+  
+  variableSet allocInfoVisitor::gather_info(const digraph& gr,
+                                            const variableSet& working_vars) {
+    if(working_vars == EMPTY)
+      return variableSet(EMPTY) ;
+    
+    // obtain the transpose of the graph
+    digraph grt = gr.transpose() ;
 
     // variables that allocated in this level (graph)
     variableSet alloc_here ;
-    
+
     // looping over working_vars and gather allocation info
     for(variableSet::const_iterator varIter=working_vars.begin();
         varIter!=working_vars.end();++varIter) {
@@ -91,9 +90,13 @@ namespace Loci {
     }
     // we check if there is any loop super node in the graph,
     // if yes, we also allocate the rotate list variables
-    // and the shared variables for the loop in this graph.
+    // for the loop in this graph.
+
+    // obtain all the rules
+    digraph::vertexSet allvertices = gr.get_all_vertices() ;
+    ruleSet rules = extract_rules(allvertices) ;
+
     variableSet all_rot_vars ;
-    variableSet all_shared_vars ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       if(is_super_node(ruleIter)) {
@@ -104,51 +107,70 @@ namespace Loci {
           found = rotate_vtable.find(id) ;
           FATAL(found == rotate_vtable.end()) ;
           all_rot_vars += found->second ;
-
-          found = loop_shared_table.find(id) ;
-          FATAL(found == loop_shared_table.end()) ;
-          all_shared_vars += found->second ;
         }
       }
     }
     all_rot_vars -= recur_target_vars ;
     all_rot_vars -= allocated_vars ;
-    all_shared_vars -= recur_target_vars ;
-    all_shared_vars -= allocated_vars ;
     
     alloc_here += all_rot_vars ;
-    alloc_here += all_shared_vars ;
-
     
-    // add the variables into the allocated_vars set
-    allocated_vars += alloc_here ;
-    // edit alloc_table
-    alloc_table[id] = alloc_here ;
-    // return the alloc_here
     return alloc_here ;
   }
 
   void allocInfoVisitor::visit(loop_compiler& lc) {
-    variableSet tmp,loop_alloc_vars ;
+    // we first get the loop shared variables
+    // we need to instruct the collpase part allocate
+    // them, but the advance part don't need to allocate
+    // them. the advance part only deletes them. and upon
+    // exit of the loop, we make an additional deletion
+    // of these shared variables in the conditional node
+    // of this loop compiler
+    variableSet shared ;
+    map<int,variableSet>::const_iterator found ;
+    found = loop_shared_table.find(lc.cid) ;
+    FATAL(found == loop_shared_table.end()) ;
+    shared += found->second ;
+
+    variableSet tmp,loop_alloc_vars, working_vars ;
 
     // suppose the id of loop_compiler is x,
     // then -x refers to the collapse part
     // x refers to the advance part
-    tmp=gather_info(lc.collapse_gr,-lc.cid) ;
+    working_vars = get_start_info(lc.collapse_gr,-lc.cid) ;
+    tmp=gather_info(lc.collapse_gr,working_vars) ;
+    // edit corresponding variables
+    allocated_vars += tmp ;
+    alloc_table[-lc.cid] += tmp ;
     loop_alloc_vars += tmp ;
-    
-    tmp=gather_info(lc.advance_gr,lc.cid) ;
+
+    // the advance part
+    working_vars = get_start_info(lc.advance_gr,lc.cid) ;
+    working_vars -= shared ;
+    tmp=gather_info(lc.advance_gr,working_vars) ;
+
+    // edit corresponding variables
+    allocated_vars += tmp ;
+    alloc_table[lc.cid] += tmp ;
     loop_alloc_vars += tmp ;
 
     loop_alloc_table[lc.cid]=loop_alloc_vars ;
   }
 
   void allocInfoVisitor::visit(dag_compiler& dc) {
-    gather_info(dc.dag_gr,dc.cid) ;
+    variableSet working_vars = get_start_info(dc.dag_gr,dc.cid) ;
+    variableSet ret = gather_info(dc.dag_gr,working_vars) ;
+
+    allocated_vars += ret ;
+    alloc_table[dc.cid] += ret ;
   }
 
   void allocInfoVisitor::visit(conditional_compiler& cc) {
-    gather_info(cc.cond_gr,cc.cid) ;
+    variableSet working_vars = get_start_info(cc.cond_gr,cc.cid) ;
+    variableSet ret = gather_info(cc.cond_gr,working_vars) ;
+
+    allocated_vars += ret ;
+    alloc_table[cc.cid] += ret ;
   }
 
   /////////////////////////////////////////////////////////
@@ -200,6 +222,20 @@ namespace Loci {
             source_rules += ruleIter->ident() ;
         }
       }
+      // if a variable is a priority source variable,
+      // then we need to make the allocation rule
+      // point to all the rules that generate other priority
+      // target variables to make sure that the variable
+      // is allocated before any of the priority variables
+      // get computed
+      if(prio_sources.inSet(*varIter)) {
+        variableSet prio_targets = get_all_recur_vars(prio_s2t,*varIter) ;
+        for(variableSet::const_iterator pvi=prio_targets.begin();
+            pvi!=prio_targets.end();++pvi) {
+          digraph::vertexSet psrules = grt[pvi->ident()] ;
+          source_rules += get_vertexSet(extract_rules(psrules)) ;
+        }
+      }
       
       // we create a rule for allocation
       variable sv("CREATE") ;
@@ -216,7 +252,6 @@ namespace Loci {
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       variableSet rotate_vars ;
-      variableSet shared_vars ;
       variableSet allocated ;
       
       if(is_super_node(ruleIter)) {
@@ -228,15 +263,10 @@ namespace Loci {
           FATAL(found == rotate_vtable.end()) ;
           rotate_vars += found->second ;
 
-          // get the shared variables
-          found = loop_shared_table.find(id) ;
-          FATAL(found == loop_shared_table.end()) ;
-          shared_vars += found->second ;
-
           for(variableSet::const_iterator vi=alloc_vars.begin();
               vi!=alloc_vars.end();++vi) {
             // rotate list vars & shared vars
-            if(rotate_vars.inSet(*vi) || shared_vars.inSet(*vi)) {
+            if(rotate_vars.inSet(*vi)) {
               allocated += *vi ;
               
               // we create a rule for allocation
@@ -430,10 +460,15 @@ namespace Loci {
     
     // we gather deletion information for the advance part
     working_vars = get_start_info(lc.advance_gr,lc.cid) ;
-    working_vars -= shared ;
     working_vars -= rotate_vars ;
-
+    // we don't need to exclude those shared vars, but we
+    // will need to count which shared variable gets
+    // deleted in the advance graph, because we want to
+    // delete them again later upon exit of the loop
+    variableSet before = variableSet(shared - deleted_vars) ;
+    variableSet after ;
     looping_algr(working_vars,lc.advance_gr,lc.cid,0) ;
+    after = variableSet(shared - deleted_vars) ;
 
     // we now schedule the deletion of shared and rotate_vars
 
@@ -443,8 +478,10 @@ namespace Loci {
     FATAL(found2 == loop_ctable.end()) ;
     int collapse_id = found2->second ;
 
-    working_vars = variableSet(shared + rotate_vars) ;
+    working_vars = rotate_vars ;
     working_vars -= deleted_vars ;
+    // we need to add those deleted shared vars
+    working_vars += variableSet(before - after) ;
 
     looping_algr(working_vars,lc.loop_gr,collapse_id,2) ;
 
@@ -600,7 +637,7 @@ namespace Loci {
   // given a rule set and a graph
   // return true if there is only one super node and
   // all other rules have path to the super node, or if
-  // it is only one super node
+  // it is only one super node.
   // return false otherwise
   bool deleteInfoVisitor::let_it_go(const digraph& gr, ruleSet rules,
                                     const variable& v) {
@@ -621,7 +658,7 @@ namespace Loci {
     }
     
     int supernode_num = 0 ;
-    int supernode_id = -1 ;
+    int supernode_id = 1 ; //vertex number (id) for supernode
     rule supernode ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
@@ -647,7 +684,7 @@ namespace Loci {
     // the remaining case must be there are only one super node
     // and at least one non super node, we check if there is path
     // from each non super node to the super node in the graph
-    FATAL(supernode_id < 0) ;
+    FATAL(supernode_id > 0) ;
     rules -= rule(supernode_id) ;
     bool ret = true ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
