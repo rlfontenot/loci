@@ -311,7 +311,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 
 
     MPI_Status mStatus, tStatus;
-    MPI_Request req1,req2,req3;
+    MPI_Request req1 ;
     // variables used by foreMan 
     int worker=0;                   // Rank of worker of a chunk 
     int chunkSize=0;                // size of chunk for a worker 
