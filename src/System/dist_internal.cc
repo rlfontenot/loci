@@ -35,14 +35,16 @@ namespace Loci {
       for(int p = 0; p < Loci::MPI_processes; ++p) {
 	dimension = sizes[p] ;
 	count = dimension ;
-	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-	hid_t err = H5Dread(dataset, datatype, memspace, dataspace,
-			    H5P_DEFAULT, tmp_int) ;
-        if(err < 0) {
-          cerr << "H5Dread() failed" << endl ;
-        }
-	H5Sclose(memspace) ;
+	if(dimension != 0) {
+	  hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+	  H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+	  hid_t err = H5Dread(dataset, datatype, memspace, dataspace,
+			      H5P_DEFAULT, tmp_int) ;
+	  if(err < 0) {
+	    cerr << "H5Dread() failed" << endl ;
+	  }
+	  H5Sclose(memspace) ;
+	}
 	start += count ;
 	if(p == 0) {
 	  for(int i = 0; i < sizes[p]; ++i) 
@@ -84,14 +86,16 @@ namespace Loci {
       for(int p = 0; p < Loci::MPI_processes; ++p) {
 	dimension = sizes[p] ;
 	count = dimension ;
-	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-	hid_t err = H5Dread(dataset, datatype, memspace, dataspace,
-			    H5P_DEFAULT, tmp_int) ;
-        if(err < 0) {
-          cerr << "H5Dread() failed" << endl ;
-        }
-	H5Sclose(memspace) ;
+	if(dimension != 0) {
+	  hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+	  H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+	  hid_t err = H5Dread(dataset, datatype, memspace, dataspace,
+			      H5P_DEFAULT, tmp_int) ;
+	  if(err < 0) {
+	    cerr << "H5Dread() failed" << endl ;
+	  }
+	  H5Sclose(memspace) ;
+	}
 	start += count ;
 	if(p == 0) {
 	  for(int i = 0; i < sizes[p]; ++i) 
@@ -131,33 +135,39 @@ namespace Loci {
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       hsize_t dimension = tot_entities ;
-      hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
-      count = sizes[0] ;
-      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+      if(dimension != 0) {
+	hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
+	count = sizes[0] ;
+	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
       
-      dimension = sizes[0] ;
-      start += dimension ;
-      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-      hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_int) ;
-      H5Dclose(dataset) ;
-      H5Sclose(memspace) ;
-      for(int i = 1; i < Loci::MPI_processes; ++i) {
-	MPI_Status status ;
-	int flag = 1 ;
-	MPI_Send(&flag, 1, MPI_INT, i, 11, MPI_COMM_WORLD) ;
-	MPI_Recv(tmp_int, sizes[i], MPI_INT, i, 12, MPI_COMM_WORLD, &status) ;
-	dimension = sizes[i] ;
-	count = dimension ;
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ; 
-	start += count ;
-	memspace = H5Screate_simple(rank, &dimension, NULL) ;
-	dataset = H5Dopen(group_id, name) ;
-	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_int) ;
-	H5Dclose(dataset) ;
-	H5Sclose(memspace) ;
+	dimension = sizes[0] ;
+	start += dimension ;
+	if(dimension != 0) {
+	  hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+	  hid_t dataset = H5Dcreate(group_id, name , datatype, dataspace,H5P_DEFAULT) ;
+	  H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_int) ;
+	  H5Dclose(dataset) ;
+	  H5Sclose(memspace) ;
+	}
+	for(int i = 1; i < Loci::MPI_processes; ++i) {
+	  MPI_Status status ;
+	  int flag = 1 ;
+	  MPI_Send(&flag, 1, MPI_INT, i, 11, MPI_COMM_WORLD) ;
+	  MPI_Recv(tmp_int, sizes[i], MPI_INT, i, 12, MPI_COMM_WORLD, &status) ;
+	  dimension = sizes[i] ;
+	  count = dimension ;
+	  H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ; 
+	  start += count ;
+	  if(dimension != 0) {
+	    hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+	    hid_t dataset = H5Dopen(group_id, name) ;
+	    H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_int) ;
+	    H5Dclose(dataset) ;
+	    H5Sclose(memspace) ;
+	  }
+	}
+	H5Sclose(dataspace) ;
       }
-      H5Sclose(dataspace) ;  
     }
     delete [] tmp_int ;
   }
