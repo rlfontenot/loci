@@ -296,7 +296,6 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
     size_send += recv_count[i] ;
   int *recv_map = new int[size_send] ;
   size_send = 0 ;
-/*
   for(int i = 0; i < MPI_processes; ++i) 
     for(hash_map<int, std::vector<int> >::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
       send_map[size_send] = miv->first ;
@@ -308,7 +307,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
 	++size_send ;
       }
     }
-*/
+  
   send_displacement[0] = 0 ;
   recv_displacement[0] = 0 ;
   for(int i = 1; i < MPI_processes; ++i) {
@@ -333,7 +332,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
     }
   }
   dmultiMap dmul ;
-/*
+  
   std::vector<int> tmp_vec ;
   for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
     if(hmi->second.size()) 
@@ -343,7 +342,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
       attrib_data[hmi->first] = tmp_vec ;
   for(hash_map<int, std::vector<int> >::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
     dmul[hi->first] = hi->second ;
-*/
+  
   storeRepP sp = dmul.Rep() ;
   delete [] send_buf ;
   delete [] recv_buf ;

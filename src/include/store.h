@@ -680,15 +680,15 @@ namespace Loci {
     hid_t cparms   = H5Pcreate (H5P_DATASET_CREATE);
     hid_t vDataset = H5Dcreate(group_id, "VariableData", vDatatype,
                                vDataspace, cparms);
-/*
+    
     H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-
+    
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
-
+    
     delete [] data;
-*/
+    
 
   }
   //*********************************************************************/
@@ -907,13 +907,11 @@ namespace Loci {
     vDataset   = H5Dopen(group_id,"ContainerSize");
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
-
     std::vector<int> ibuf(dimension);
     H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
     H5Tclose(vDatatype );
     H5Dclose(vDataset  );
     H5Sclose(vDataspace);
-
     store<int> container;
     container.allocate( eset );
 
@@ -965,7 +963,6 @@ namespace Loci {
     hsize_t   block[]     = {1};  // size of element block;
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
-
     std::vector<dtype> data;
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
@@ -980,7 +977,7 @@ namespace Loci {
       H5Sselect_hyperslab(vDataspace, H5S_SELECT_SET, foffset,   stride,
                           count, block);
       H5Dread(vDataset, vDatatype, mDataspace, vDataspace,H5P_DEFAULT, &data[0]);
-
+      
       indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) {
         typename data_schema_traits<T>::Converter_Type cvtr( base_ptr[i]);
@@ -988,7 +985,7 @@ namespace Loci {
         indx += container[i];
       }
     }
-
+    
     H5Tclose(vDatatype );
     H5Dclose(vDataset  );
     H5Sclose(vDataspace);
