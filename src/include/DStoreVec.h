@@ -144,19 +144,25 @@ namespace Loci {
   //************************************************************************/
 
   template<class T> 
-  void dstoreVecRepI<T>::allocate(const entitySet &ptn) 
+  void dstoreVecRepI<T>::allocate(const entitySet &eset) 
   {
 
+    entitySet redundant, newSet;
     entitySet :: const_iterator  ci;
 
-    std::vector<T>   newVec;
+    redundant = domain() -  eset;
+    newSet    = eset - domain();
 
+    for( ci = redundant.begin(); ci != redundant.end(); ++ci)
+         attrib_data.erase(*ci);
+
+    std::vector<T>   newVec;
     if( size > 1) newVec.reserve( size );
 
-    for( ci = ptn.begin(); ci != ptn.end(); ++ci)
-      attrib_data[*ci] = newVec;
+    for( ci = newSet.begin(); ci != newSet.end(); ++ci)
+      attrib_data[*ci] =   newVec;
 
-    store_domain = ptn ;
+    store_domain = eset;
     dispatch_notify() ;
 
   }
