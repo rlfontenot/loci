@@ -8,6 +8,7 @@ namespace Loci {
   class loop_compiler ;
   class dag_compiler ;
   class conditional_compiler ;
+  class chomp_compiler ;
   
   class visitor {
   public:

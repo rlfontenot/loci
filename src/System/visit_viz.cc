@@ -137,31 +137,49 @@ namespace Loci {
   }
 
   ///////////////////////////////////////////////////////////////
-  // chopRuleVisitor
+  // dagCheckVisitor
   ///////////////////////////////////////////////////////////////
-  ostream& chopRuleVisitor::visualize(ostream& s) const {
+  ostream& dagCheckVisitor::visualize(ostream& s) const {
+    if(Loci::MPI_rank == 0) {
+      s << "visualizing detected cycle..." << endl ;
+      create_digraph_dot_file(cycle,"cycle_in_dag.dot") ;
+      system("dotty cycle_in_dag.dot") ;
+      system("rm -fr cycle_in_dag.dot") ;
+    }
+    return s ;
+  }
+
+  ///////////////////////////////////////////////////////////////
+  // chompRuleVisitor
+  ///////////////////////////////////////////////////////////////
+  ostream& chompRuleVisitor::visualize(ostream& s) const {
     if(Loci::MPI_rank == 0) {
       if(all_chains.empty()) {
-        s << "NO chopping chains found!" << endl ;
+        s << "NO chomping chains found!" << endl ;
         return s ;
       }
-      map<int,list<chop_chain> >::const_iterator mi ;
-      list<chop_chain>::const_iterator li ;
+      map<int,list<chomp_chain> >::const_iterator mi ;
+      list<chomp_chain>::const_iterator li ;
+      int total_chomp_vars = 0 ;
       for(mi=all_chains.begin();mi!=all_chains.end();++mi) {
-        list<chop_chain> cclist = mi->second ;
+        list<chomp_chain> cclist = mi->second ;
         s << "There are " << cclist.size()
-          << " chopping rule chains in super node SN"
+          << " chomping rule chain(s) in super node SN"
           << mi->first << ": " << endl ;
         int i ;
         for(li=cclist.begin(),i=1;li!=cclist.end();++li,++i) {
-          s << "Visualize the NO" << i << " chopping chains..." << endl ;
-          s << "variables that can be chopped in this chain: "
-            << li->second << endl ;
-          create_digraph_dot_file(li->first,"chopping_rules.dot") ;
-          system("dotty chopping_rules.dot") ;
-          system("rm -fr chopping_rules.dot") ;
+          int total = li->second.size() ;
+          total_chomp_vars += total ;
+          s << "Visualizing the NO" << i << " chomping chain..." << endl ;
+          s << "variables that can be chomped in this chain: "
+            << li->second << " total: " << total << endl ;
+          create_digraph_dot_file(li->first,"chomping_rules.dot") ;
+          system("dotty chomping_rules.dot") ;
+          system("rm -fr chomping_rules.dot") ;
         }
       }
+      s << "total variables can be chomped in the program: "
+        << total_chomp_vars << endl ;
     }
     return s ;
   }

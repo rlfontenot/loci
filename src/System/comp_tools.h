@@ -13,6 +13,7 @@
 #include "sched_tools.h"
 #include <vector>
 #include <map>
+#include <deque>
 
 #include <mpi.h>
 
@@ -389,6 +390,21 @@ namespace Loci {
     virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
+  class chomp_compiler: public rule_compiler {
+  public:
+    digraph chomp_graph ;
+    variableSet chomp_vars ;
+    std::vector<digraph::vertexSet> chomp_sched ;
+    std::vector<rule> chomp_comp ;
+    std::deque<entitySet> rule_seq ;
+  public:
+    chomp_compiler(const digraph& cgraph,const variableSet& cvars) ;
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db& facts,sched_db& scheds) ;
+    virtual void process_var_requests(fact_db& facts,sched_db& scheds) ;
+    virtual executeP create_execution_schedule(fact_db& facts,sched_db& scheds) ;
   } ;
   
 }

@@ -51,6 +51,7 @@ namespace Loci {
     storeRepI() { alloc_pointer = 0 ; base_ptr = 0; }
     storeRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ;}
     virtual void allocate(const entitySet &ptn) ;
+    virtual void shift(int_type offset) ;
     virtual ~storeRepI()  ;
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
@@ -123,7 +124,12 @@ namespace Loci {
     return ;
   }
 
-
+  template<class T> void storeRepI<T>::shift(int_type offset) {
+    store_domain >>= offset ;
+    base_ptr -= offset ;
+    dispatch_notify() ;
+  }
+  
   template<class T> std::ostream &storeRepI<T>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {

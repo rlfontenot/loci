@@ -65,6 +65,7 @@ namespace Loci {
       index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
 
     void allocate(const store<int> &sizes) ;
+    virtual void shift(int_type offset) ;
     void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr) ;
     void setSizes(const const_multiMap &mm) ;
     virtual ~multiStoreRepI() ;
@@ -434,6 +435,11 @@ namespace Loci {
     dispatch_notify() ;
   }
 
+  template<class T>
+    void multiStoreRepI<T>::shift(int_type offset) {
+    store_domain >>= offset ;
+    allocate(store_domain) ;
+  }
   //*************************************************************************/
 
   template<class T> 

@@ -67,6 +67,7 @@ namespace Loci {
 
     //  Member function ...
     void allocate(const store<int> &sizes) ;
+    virtual void shift(int_type offset) ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
@@ -277,6 +278,11 @@ namespace Loci {
     dispatch_notify() ;
   }
 
+  template<class T>
+    void dmultiStoreRepI<T>::shift(int_type offset) {
+    store_domain >>= offset ;
+    allocate(store_domain) ;
+  }
   //**************************************************************************/
 
 

@@ -334,4 +334,5 @@ namespace Loci {
                       cc.rule_compiler_map,cc.cond_gr) ;
   }
 
+
 } // end of namespace Loci

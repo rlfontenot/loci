@@ -33,8 +33,14 @@ namespace Loci {
 
       working_vars += targets ;
     }
+
+    //////////////////////////////////////////////////
+    // NOTE: THIS IS TEMPORARY
+    // but we add the adjusts
+    variableSet remove = variableSet(recur_target_vars - adjust_vars) ;
+    working_vars -= remove ;
     // we remove recurrence target variables from the working_vars.
-    working_vars -= recur_target_vars ;
+    //working_vars -= recur_target_vars ;
 
     // variables that allocated in this level (graph)
     variableSet alloc_here ;
@@ -85,9 +91,9 @@ namespace Loci {
     }
     // we check if there is any loop super node in the graph,
     // if yes, we also allocate the rotate list variables
-    // and the common variables for the loop in this graph.
+    // and the shared variables for the loop in this graph.
     variableSet all_rot_vars ;
-    variableSet all_common_vars ;
+    variableSet all_shared_vars ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       if(is_super_node(ruleIter)) {
@@ -99,19 +105,19 @@ namespace Loci {
           FATAL(found == rotate_vtable.end()) ;
           all_rot_vars += found->second ;
 
-          found = loop_common_table.find(id) ;
-          FATAL(found == loop_common_table.end()) ;
-          all_common_vars += found->second ;
+          found = loop_shared_table.find(id) ;
+          FATAL(found == loop_shared_table.end()) ;
+          all_shared_vars += found->second ;
         }
       }
     }
     all_rot_vars -= recur_target_vars ;
     all_rot_vars -= allocated_vars ;
-    all_common_vars -= recur_target_vars ;
-    all_common_vars -= allocated_vars ;
+    all_shared_vars -= recur_target_vars ;
+    all_shared_vars -= allocated_vars ;
     
     alloc_here += all_rot_vars ;
-    alloc_here += all_common_vars ;
+    alloc_here += all_shared_vars ;
 
     
     // add the variables into the allocated_vars set
@@ -206,11 +212,11 @@ namespace Loci {
       alloc_vars -= *varIter ;
     }
     // if alloc_vars is not empty, it must contain loop rotate list
-    // variables and loop common variables. we allocate them here
+    // variables and loop shared variables. we allocate them here
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       variableSet rotate_vars ;
-      variableSet common_vars ;
+      variableSet shared_vars ;
       variableSet allocated ;
       
       if(is_super_node(ruleIter)) {
@@ -222,15 +228,15 @@ namespace Loci {
           FATAL(found == rotate_vtable.end()) ;
           rotate_vars += found->second ;
 
-          // get the common variables
-          found = loop_common_table.find(id) ;
-          FATAL(found == loop_common_table.end()) ;
-          common_vars += found->second ;
+          // get the shared variables
+          found = loop_shared_table.find(id) ;
+          FATAL(found == loop_shared_table.end()) ;
+          shared_vars += found->second ;
 
           for(variableSet::const_iterator vi=alloc_vars.begin();
               vi!=alloc_vars.end();++vi) {
-            // rotate list vars & common vars
-            if(rotate_vars.inSet(*vi) || common_vars.inSet(*vi)) {
+            // rotate list vars & shared vars
+            if(rotate_vars.inSet(*vi) || shared_vars.inSet(*vi)) {
               allocated += *vi ;
               
               // we create a rule for allocation
@@ -285,13 +291,13 @@ namespace Loci {
                     const map<int,int>& lct,
                     const set<int>& lsn,
                     const map<int,variableSet>& rot_vt,
-                    const map<int,variableSet>& lcommont,
-                    const variableSet& reserved_vars):
-     recur_vars_t2s(rvt2s), recur_vars_s2t(rvs2t),
+                    const map<int,variableSet>& lsharedt,
+                    const variableSet& reserved_vars)
+    :recur_vars_t2s(rvt2s), recur_vars_s2t(rvs2t),
      loop_alloc_table(lat), graph_sn(gsn),
      pnode_table(pnt), loop_ctable(lct),
      loop_sn(lsn), rotate_vtable(rot_vt),
-     loop_common_table(lcommont){
+     loop_shared_table(lsharedt){
       
     for(std::map<int,int>::const_iterator mi=loop_ctable.begin();
         mi!=loop_ctable.end();++mi)
@@ -396,13 +402,13 @@ namespace Loci {
     variable tvar = variable(lc.tlevel) ;
     deleted_vars += tvar ;
 
-    // we then get the common variable shared between the
+    // we then get the variables shared between the
     // advance and collapse part of the loop
     map<int,variableSet>::const_iterator found ;
-    variableSet common ;
-    found = loop_common_table.find(lc.cid) ;
-    FATAL(found == loop_common_table.end()) ;
-    common = found->second ;
+    variableSet shared ;
+    found = loop_shared_table.find(lc.cid) ;
+    FATAL(found == loop_shared_table.end()) ;
+    shared = found->second ;
 
     // gather variables in the rotate list
     variableSet rotate_vars ;
@@ -413,9 +419,9 @@ namespace Loci {
 
     // we then gather deletion information for the collapse part
     variableSet working_vars = get_start_info(lc.collapse_gr,-lc.cid) ;
-    // we delete the common shared variables until the last iteration
+    // we delete the shared variables until the last iteration
     // finishes and inside the conditional super node
-    working_vars -= common ;
+    working_vars -= shared ;
     // we don't delete variabls in rotate lists, we defer that until
     // the last iteration finishes
     working_vars -= rotate_vars ;
@@ -424,12 +430,12 @@ namespace Loci {
     
     // we gather deletion information for the advance part
     working_vars = get_start_info(lc.advance_gr,lc.cid) ;
-    working_vars -= common ;
+    working_vars -= shared ;
     working_vars -= rotate_vars ;
 
     looping_algr(working_vars,lc.advance_gr,lc.cid,0) ;
 
-    // we now schedule the deletion of common and rotate_vars
+    // we now schedule the deletion of shared and rotate_vars
 
     // first get the collapse node of this loop
     map<int,int>::const_iterator found2 ;
@@ -437,7 +443,7 @@ namespace Loci {
     FATAL(found2 == loop_ctable.end()) ;
     int collapse_id = found2->second ;
 
-    working_vars = variableSet(common + rotate_vars) ;
+    working_vars = variableSet(shared + rotate_vars) ;
     working_vars -= deleted_vars ;
 
     looping_algr(working_vars,lc.loop_gr,collapse_id,2) ;
@@ -615,7 +621,7 @@ namespace Loci {
     }
     
     int supernode_num = 0 ;
-    int supernode_id = 0 ;
+    int supernode_id = -1 ;
     rule supernode ;
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
@@ -641,6 +647,7 @@ namespace Loci {
     // the remaining case must be there are only one super node
     // and at least one non super node, we check if there is path
     // from each non super node to the super node in the graph
+    FATAL(supernode_id < 0) ;
     rules -= rule(supernode_id) ;
     bool ret = true ;
     for(ruleSet::const_iterator ruleIter=rules.begin();

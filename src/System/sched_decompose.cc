@@ -116,6 +116,8 @@ namespace Loci {
         }
       }
     }
+    // remove extra dangling nodes
+    gr.remove_dangling_vertices() ;
   }
                                              
 

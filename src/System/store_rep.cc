@@ -19,6 +19,10 @@ namespace Loci {
     Rep()->allocate(ptn) ;
   }
 
+  void store_ref::shift(int_type offset) {
+    Rep()->shift(offset) ;
+  }
+
   storeRep *store_ref::new_store(const entitySet &p) const  {
     return Rep()->new_store(p) ;
   }

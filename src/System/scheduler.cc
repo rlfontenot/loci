@@ -18,6 +18,7 @@ using std::ofstream ;
 
 ///////////////////////////////////
 #include <sstream>
+#include <algorithm>
 ///////////////////////////////////
 
 #define PROFILE_CODE
@@ -43,6 +44,24 @@ namespace Loci {
 #endif
   }  
 
+  namespace {
+    // pretty printing of a rule's signature
+    // i.e. remove namespace info, if any
+    inline std::string pretty_sig(const rule& r) {
+      //the following line is the simplest, but it does not
+      //include the qualify, such like "SN1:" in a super node
+      //return r.get_info().desc.rule_identifier() ;
+      std::string name = r.get_info().name() ;
+      if(r.type() == rule::INTERNAL)
+        return name ;
+      else {
+        std::string::iterator pos ;
+        pos = std::find(name.begin(),name.end(),'#') ;
+        return std::string( (pos==name.end()?name.begin():pos+1),name.end()) ;
+      }
+    }
+  } // end of unnamed namespace
+  
   ////////////////////////////////////////////////////////////////////
   // the following part are functions to visualize loci internal graphs
   // they create files to be used by "dot", "lefty" and "dotty"
@@ -65,10 +84,11 @@ namespace Loci {
       if(*ri < 0) {
         rule r(*ri) ;
         if(r.type() == rule::INTERNAL)
-          outf<<"\""<<r<<"\""
+          outf<<"\""<<pretty_sig(r)<<"\""
               <<"[shape=doubleoctagon,style=filled,color=gold];\n" ;
         else
-          outf<<"\""<<r<<"\""<<"[shape=box,style=filled,color=gold];\n" ;
+          outf<<"\""<<pretty_sig(r)<<"\""
+              <<"[shape=box,style=filled,color=gold];\n" ;
       }
       else {
         variable v(*ri) ;
@@ -80,7 +100,7 @@ namespace Loci {
           outf<<"\""<<v<<"\""<<"[style=filled,color=red];\n" ;
         }else {
           rule r(*ri) ;
-          outf<<"\""<<r<<"\""<<"[style=filled,color=red];\n" ;
+          outf<<"\""<<pretty_sig(r)<<"\""<<"[style=filled,color=red];\n" ;
         }
       }
       if(outvertices == EMPTY) {
@@ -89,7 +109,7 @@ namespace Loci {
           outf<<"\""<<v<<"\""<<"[style=filled,color=blue];\n" ;
         }else {
           rule r(*ri) ;
-          outf<<"\""<<r<<"\""<<"[style=filled,color=blue];\n" ;
+          outf<<"\""<<pretty_sig(r)<<"\""<<"[style=filled,color=blue];\n" ;
         }
         continue ;
       }
@@ -100,10 +120,11 @@ namespace Loci {
         for(ii=outvertices.begin();ii!=outvertices.end();++ii) {
           if(*ii < 0) {
             rule r2(*ii) ;
-            outf<<"\""<<r<<"\""<<" -> "<<"\""<<r2<<"\""<<";\n" ;
+            outf<<"\""<<pretty_sig(r)<<"\""<<" -> "
+                <<"\""<<pretty_sig(r2)<<"\""<<";\n" ;
           }else {
             variable v(*ii) ;
-            outf<<"\""<<r<<"\""<<" -> "<<"\""<<v<<"\""<<";\n" ;
+            outf<<"\""<<pretty_sig(r)<<"\""<<" -> "<<"\""<<v<<"\""<<";\n" ;
           }
         }
       }else {
@@ -112,7 +133,7 @@ namespace Loci {
         for(ii=outvertices.begin();ii!=outvertices.end();++ii) {
           if(*ii < 0) {
             rule r(*ii) ;
-            outf<<"\""<<v<<"\""<<" -> "<<"\""<<r<<"\""<<";\n" ;
+            outf<<"\""<<v<<"\""<<" -> "<<"\""<<pretty_sig(r)<<"\""<<";\n" ;
           }else {
             variable v2(*ii) ;
             outf<<"\""<<v<<"\""<<" -> "<<"\""<<v2<<"\""<<";\n" ;
@@ -166,26 +187,27 @@ namespace Loci {
             int repnode2 = *(mlg.find(*ii)->graph_v-mlg.subgraphs).begin() ;
             if(repnode2 < 0) { // if the picked node is a rule
               rule r2(repnode2) ;
-              outf<<"\""<<r<<"\""<<" -> "<<"\""<<r2<<"\""
+              outf<<"\""<<pretty_sig(r)<<"\""<<" -> "<<"\""
+                  <<pretty_sig(r2)<<"\""
                   <<"[style=dotted,color=red,ltail="
                   << get_assigned_cluster_name(rid) << ",lhead="
                   << get_assigned_cluster_name(*ii) << "]" << ";\n" ;
             }else { // the picked node is a variable
               variable v2(repnode2) ;
-              outf<<"\""<<r<<"\""<<" -> "<<"\""<<v2<<"\""
+              outf<<"\""<<pretty_sig(r)<<"\""<<" -> "<<"\""<<v2<<"\""
                   <<"[style=dotted,color=red,ltail="
                   << get_assigned_cluster_name(rid) << ",lhead="
                   << get_assigned_cluster_name(*ii) << "]" << ";\n" ;
             }
           }else { // if the target rule is a common single rule
             rule r2(*ii) ;
-            outf<<"\""<<r<<"\""<<" -> "<<"\""<<r2<<"\""
+            outf<<"\""<<pretty_sig(r)<<"\""<<" -> "<<"\""<<pretty_sig(r2)<<"\""
                 <<"[style=dotted,color=red,ltail="
                 << get_assigned_cluster_name(rid) << "]" << ";\n" ;
           }
         }else { // if the target is variable
           variable v2(*ii) ;
-          outf<<"\""<<r<<"\""<<" -> "<<"\""<<v2<<"\""
+          outf<<"\""<<pretty_sig(r)<<"\""<<" -> "<<"\""<<v2<<"\""
               <<"[style=dotted,color=red,ltail="
               << get_assigned_cluster_name(rid) << "]" << ";\n" ;
         }
@@ -200,7 +222,7 @@ namespace Loci {
             int repnode2 = *(mlg.find(*ii)->graph_v-mlg.subgraphs).begin() ;
             if(repnode2 < 0) { // if the picked node is a rule
               rule r2(repnode2) ;
-              outf<<"\""<<v<<"\""<<" -> "<<"\""<<r2<<"\""
+              outf<<"\""<<v<<"\""<<" -> "<<"\""<<pretty_sig(r2)<<"\""
                   <<"[style=dotted,color=red,ltail="
                   << get_assigned_cluster_name(rid) << ",lhead="
                   << get_assigned_cluster_name(*ii) << "]" << ";\n" ;
@@ -213,7 +235,7 @@ namespace Loci {
             }
           }else { // if the target rule is a common single rule
             rule r2(*ii) ;
-            outf<<"\""<<v<<"\""<<" -> "<<"\""<<r2<<"\""
+            outf<<"\""<<v<<"\""<<" -> "<<"\""<<pretty_sig(r2)<<"\""
                 <<"[style=dotted,color=red,ltail="
                 << get_assigned_cluster_name(rid) << "]" << ";\n" ;
           }
@@ -239,7 +261,7 @@ namespace Loci {
       int repnode = *(mlg.find(tid)->graph_v-mlg.subgraphs).begin() ;
       if(repnode < 0) { // if the picked node is a rule
         rule r2(repnode) ;
-        outf<<"\""<<srule<<"\""<<" -> "<<"\""<<r2<<"\""
+        outf<<"\""<<srule<<"\""<<" -> "<<"\""<<pretty_sig(r2)<<"\""
             <<"[style=dotted,color=red,lhead="
             << get_assigned_cluster_name(tid) << "]" << ";\n" ;
       }else { // the picked node is a variable
@@ -255,7 +277,7 @@ namespace Loci {
       int repnode = *(mlg.find(tid)->graph_v-mlg.subgraphs).begin() ;
       if(repnode < 0) { // if the picked node is a rule
         rule r2(repnode) ;
-        outf<<"\""<<sv<<"\""<<" -> "<<"\""<<r2<<"\""
+        outf<<"\""<<sv<<"\""<<" -> "<<"\""<<pretty_sig(r2)<<"\""
             <<"[style=dotted,color=red,lhead="
             << get_assigned_cluster_name(tid) << "]" << ";\n" ;
       }else { // the picked node is a variable
@@ -330,10 +352,11 @@ namespace Loci {
         if(*ri < 0) {
           rule r(*ri) ;
           if(r.type() == rule::INTERNAL)
-            outf<<"\""<<r<<"\""
+            outf<<"\""<<pretty_sig(r)<<"\""
                 <<"[shape=doubleoctagon,style=filled,color=gold];\n" ;
           else
-            outf<<"\""<<r<<"\""<<"[shape=box,style=filled,color=gold];\n" ;
+            outf<<"\""<<pretty_sig(r)<<"\""
+                <<"[shape=box,style=filled,color=gold];\n" ;
         }
         else {
           variable v(*ri) ;
@@ -414,12 +437,13 @@ namespace Loci {
                   writeout_super_rule2(mlg,*ri,*ii,outf) ;
                 }else {// the rule is a common single rule
                   rule r2(*ii) ;
-                  outf<<"\""<<r<<"\""<<" -> "<<"\""<<r2<<"\""
+                  outf<<"\""<<pretty_sig(r)<<"\""<<" -> "
+                      <<"\""<<pretty_sig(r2)<<"\""
                       <<"[style=bold,color="<<edge_color<<"]"<<";\n" ;
                 }
               }else {// the target is a variable
                 variable v(*ii) ;
-                outf<<"\""<<r<<"\""<<" -> "<<"\""<<v<<"\""
+                outf<<"\""<<pretty_sig(r)<<"\""<<" -> "<<"\""<<v<<"\""
                     <<"[style=bold,color="<<edge_color<<"]"<<";\n" ;
               }
             }
@@ -433,7 +457,7 @@ namespace Loci {
                 writeout_super_rule2(mlg,*ri,*ii,outf) ;
               }else {// the rule is a common single rule
                 rule r(*ii) ;
-                outf<<"\""<<v<<"\""<<" -> "<<"\""<<r<<"\""
+                outf<<"\""<<v<<"\""<<" -> "<<"\""<<pretty_sig(r)<<"\""
                     <<"[style=bold,color="<<edge_color<<"]"<<";\n" ;
               }
             }else {// the target is a variable

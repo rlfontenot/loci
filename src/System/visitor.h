@@ -18,8 +18,8 @@ namespace Loci {
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-  private:
-    std::vector<digraph::vertexSet>
+  public:
+    static std::vector<digraph::vertexSet>
     order_dag(const digraph &g,
               digraph::vertexSet start_vertices = EMPTY,
               digraph::vertexSet only_vertices =
@@ -55,10 +55,13 @@ namespace Loci {
                      const variableSet& rtv,
                      const std::set<int>& lsn,
                      const std::map<int,variableSet>& rot_vt,
-                     const std::map<int,variableSet>& lcommont,
-                     const variableSet& untyped_vars) :
-      allocated_vars(untyped_vars), graph_sn(gsn),recur_target_vars(rtv),
-      loop_sn(lsn),rotate_vtable(rot_vt), loop_common_table(lcommont){}
+                     const std::map<int,variableSet>& lsharedt,
+                     const variableSet& untyped_vars,
+                     const variableSet& adjv):
+      allocated_vars(untyped_vars), graph_sn(gsn),
+      recur_target_vars(rtv),loop_sn(lsn),rotate_vtable(rot_vt),
+      loop_shared_table(lsharedt),adjust_vars(adjv) {}
+
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -84,9 +87,15 @@ namespace Loci {
     std::set<int> loop_sn ;
     // table that holds rotate list variables in each loop
     std::map<int,variableSet> rotate_vtable ;
-    // table that holds the common variables
+    // table that holds the shared variables
     // between adv & col part of each loop
-    std::map<int,variableSet> loop_common_table ;
+    std::map<int,variableSet> loop_shared_table ;
+    // additional variables that must be allocated
+    // external adjusts
+    // NOTE: IN THE FUTURE, IT WOULD BE NICE
+    // THAT WE MOVE THIS PART OUT OF THE CLASS
+    // JUST LIKE THE DELTEINFOVISITOR
+    variableSet adjust_vars ;
   } ;
 
   // used to decorate the graph to include allocation rules
@@ -95,9 +104,9 @@ namespace Loci {
     allocGraphVisitor(const std::map<int,variableSet>& t,
                       const std::set<int>& lsn,
                       const std::map<int,variableSet>& rot_vt,
-                      const std::map<int,variableSet>& lcommont)
+                      const std::map<int,variableSet>& lsharedt)
       :alloc_table(t),loop_sn(lsn),rotate_vtable(rot_vt),
-       loop_common_table(lcommont){}
+       loop_shared_table(lsharedt){}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -108,9 +117,9 @@ namespace Loci {
     std::set<int> loop_sn ;
     // table that holds rotate list variables in each loop
     std::map<int,variableSet> rotate_vtable ;
-    // table that holds the common variables
+    // table that holds the shared variables
     // between adv & col part of each loop
-    std::map<int,variableSet> loop_common_table ;
+    std::map<int,variableSet> loop_shared_table ;
   } ;
 
   // generate delete information table
@@ -126,7 +135,7 @@ namespace Loci {
                       const std::map<int,int>& lct,
                       const std::set<int>& lsn,
                       const std::map<int,variableSet>& rot_vt,
-                      const std::map<int,variableSet>& lcommont,
+                      const std::map<int,variableSet>& lsharedt,
                       const variableSet& reserved_vars) ;
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
@@ -185,9 +194,9 @@ namespace Loci {
     std::set<int> loop_sn ;
     // table that holds rotate list variables in each loop
     std::map<int,variableSet> rotate_vtable ;
-    // table that holds the common variables
+    // table that holds the shared variables
     // between adv & col part of each loop
-    std::map<int,variableSet> loop_common_table ;
+    std::map<int,variableSet> loop_shared_table ;
     // all the collapse node id
     std::set<int> col_sn ;
     // all the loop rotate variables
@@ -365,26 +374,30 @@ namespace Loci {
     virtual void visit(conditional_compiler& cc) {}
     std::map<int,variableSet> get_rotate_vars_table() const
     {return rotate_vars_table ;}
-    std::map<int,variableSet> get_loop_common_table() const
-    {return loop_common_table ;}
+    std::map<int,variableSet> get_loop_shared_table() const
+    {return loop_shared_table ;}
   private:
     // reference to the schedule database
     const sched_db& scheds ;
     // table that holds variables in each loop's
     // rotate list
     std::map<int,variableSet> rotate_vars_table ;
-    // table holds the common varibles between adv & col part of loop
-    std::map<int,variableSet> loop_common_table ;
+    // table holds the shared varibles between adv & col part of loop
+    std::map<int,variableSet> loop_shared_table ;
   } ;
 
   // visitor that checks if a graph has cycle
   class dagCheckVisitor: public visitor {
   public:
+    dagCheckVisitor(bool v=false):viz(v) {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
   private:
+    bool viz ;
+    digraph cycle ;
     bool check_dag(digraph gr) ;
+    std::ostream& visualize(std::ostream& s) const ;
   } ;
 
   // visitor that discover all the un-typed variables
@@ -472,22 +485,60 @@ namespace Loci {
   void check_recur_precondition(const recurInfoVisitor& v,
                                 const variableSet& input) ;
 
-  // visitor that finds rule chains that are suitable for chopping
-  typedef std::pair<digraph,variableSet> chop_chain ;
-  class chopRuleVisitor: public visitor {
+  // visitor that finds rule chains that are suitable for chomping
+  typedef std::pair<digraph,variableSet> chomp_chain ;
+  class chompRuleVisitor: public visitor {
   public:
-    chopRuleVisitor(fact_db& fd):facts(fd) {}
+    chompRuleVisitor(fact_db& fd,
+                     const std::map<int,variableSet>& rot_vt,
+                     const std::map<int,variableSet>& lsharedt,
+                     const variableSet& rv) ;
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
-    std::map<int,std::list<chop_chain> > get_all_chains() const
+    std::map<int,std::list<chomp_chain> > get_all_chains() const
     {return all_chains ;}
     std::ostream& visualize(std::ostream& s) const ;
   private:
-    void find_chain(const digraph& gr, int id) ;
-    std::map<int,std::list<chop_chain> > all_chains ;
+    std::list<chomp_chain> find_chain(const digraph& gr) ;
+    void edit_gr(digraph& gr,const std::list<chomp_chain>& cc,
+                 rulecomp_map& rcm) ;
+    std::map<int,std::list<chomp_chain> > all_chains ;
     // reference to the fact database
     fact_db& facts ;
+    // all rotate lists variables
+    variableSet rotate_vars ;
+    // all loop shared variables
+    variableSet loop_shared_vars ;
+    // all the rename variables all (source + target)
+    variableSet rename_vars ;
+  } ;
+
+  // function that get the targets of all chomp rules
+  variableSet get_chomp_targets(const std::map<int,std::list<chomp_chain> >&
+                                all_chains) ;
+  // function that get all the chomp variables
+  variableSet get_chomp_vars(const std::map<int,std::list<chomp_chain> >&
+                             all_chains) ;
+  // function that adjust the deletion and allocation info
+  // for rename variables that are chomp targets
+  std::pair<variableSet,variableSet>
+    chomp_rename_analysis(const variableSet& chomp_targets,
+                          const variableSet& chomp_vars,
+                          const std::map<variable,variableSet>& rename_s2t,
+                          const std::map<variable,variableSet>& rename_t2s,
+                          const variableSet rename_targets) ;
+
+  // visitor that assemble and compiler all the chomp_compilers
+  class compChompVisitor: public visitor {
+  public:
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+    virtual void visit(conditional_compiler& cc) ;
+  private:
+    void process_rcm(rulecomp_map& rcm) ;
+    void schedule_chomp(chomp_compiler& chc) ;
+    void compile_chomp(chomp_compiler& chc) ;
   } ;
   
   // overload "<<" to print out an std::set

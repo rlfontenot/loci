@@ -245,12 +245,28 @@ namespace Loci {
   inline bool is_internal_rule(const ruleSet::const_iterator& ruleIter) {
     return (ruleIter->type() == rule::INTERNAL) ;
   }
+
+  inline bool is_internal_rule(const rule& r) {
+    return (r.type() == rule::INTERNAL) ;
+  }
   
   inline bool is_internal_rule(int i) {
     if(i>=0) // is a variable
       return false ;
     rule r(i) ;
     return (r.type() == rule::INTERNAL) ;
+  }
+
+  inline bool is_virtual_rule(const rule& r) {
+    if(r.type() == rule::INTERNAL) {
+      return (
+              is_super_node(r) ||
+              (r.get_info().qualifier() == "generalize") ||
+              (r.get_info().qualifier() == "promote") ||
+              (r.get_info().qualifier() == "priority")
+              ) ;
+    }else
+      return false ;
   }
 
   inline bool time_before(const variable& v1, const variable& v2) {

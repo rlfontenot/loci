@@ -25,6 +25,7 @@ namespace Loci {
   extern bool show_decoration ;
   extern bool use_dynamic_memory ;
   extern bool show_dmm_verbose ;
+  extern bool use_chomp ;
 
   class error_compiler : public rule_compiler {
   public:
@@ -82,6 +83,7 @@ namespace Loci {
       // Remove any rules in that are not in graph_v but are in gr
       ruleSet errs = extract_rules(gr.get_all_vertices()-p->graph_v) ;
       gr.remove_vertices(errs) ;
+      gr.remove_dangling_vertices() ;
 
       digraph grt = gr.transpose() ;
 
@@ -218,11 +220,37 @@ namespace Loci {
     if(use_dynamic_memory) {
       cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
 
-      /*
-      chopRuleVisitor crv(facts) ;
-      top_down_visit(crv) ;
-      crv.visualize(cout) ;
-      */
+      variableSet chomp_alloc_adjusts ;
+      variableSet chomp_delete_adjusts ;
+      if(use_chomp) {
+        cout << "USING CHOMPING" << endl ;
+        chompRuleVisitor crv(facts,
+                             rotlv.get_rotate_vars_table(),
+                             rotlv.get_loop_shared_table(),
+                             variableSet(recv.get_rename_source_vars() +
+                                         recv.get_rename_target_vars())
+                             ) ;
+        top_down_visit(crv) ;
+        //crv.visualize(cout) ;
+
+        dagCheckVisitor dagcV1 ;
+        top_down_visit(dagcV1) ;
+
+        variableSet chomp_targets = get_chomp_targets(crv.get_all_chains()) ;
+        variableSet chomp_vars = get_chomp_vars(crv.get_all_chains()) ;
+        pair<variableSet,variableSet>
+          chomp_adjusts = chomp_rename_analysis(chomp_targets,
+                                                chomp_vars,
+                                                recv.get_rename_s2t(),
+                                                recv.get_rename_t2s(),
+                                                recv.get_rename_target_vars()
+                                                ) ;
+        chomp_alloc_adjusts = chomp_adjusts.first ;
+        chomp_delete_adjusts = chomp_adjusts.second ;
+
+        cerr << "chomp_alloc_adjusts: " << chomp_alloc_adjusts << endl ;
+        cerr << "chomp_delete_adjusts: " << chomp_delete_adjusts << endl ;
+      }
       
       // get inter/intra supernode information
       snInfoVisitor snv ;
@@ -266,14 +294,20 @@ namespace Loci {
       delInfoV_reserved += target ;
       delInfoV_reserved += untypevarV.get_untyped_vars() ;
       delInfoV_reserved += cluster_remaining ;
+      if(use_chomp) {
+        // if we use chomping, we need to delete
+        // those adjusted rename variables
+        delInfoV_reserved -= chomp_delete_adjusts ;
+      }
       
       // compute how to do allocation
       allocInfoVisitor aiv(snv.get_graph_sn(),
                            recv.get_recur_target_vars(),
                            snv.get_loop_sn(),
                            rotlv.get_rotate_vars_table(),
-                           rotlv.get_loop_common_table(),
-                           untypevarV.get_untyped_vars()
+                           rotlv.get_loop_shared_table(),
+                           untypevarV.get_untyped_vars(),
+                           chomp_alloc_adjusts
                            ) ;
       top_down_visit(aiv) ;
       
@@ -290,7 +324,7 @@ namespace Loci {
                             snv.get_loop_col_table(),
                             snv.get_loop_sn(),
                             rotlv.get_rotate_vars_table(),
-                            rotlv.get_loop_common_table(),
+                            rotlv.get_loop_shared_table(),
                             delInfoV_reserved
                             ) ;
       top_down_visit(div) ;
@@ -299,7 +333,7 @@ namespace Loci {
       allocGraphVisitor agv(aiv.get_alloc_table(),
                             snv.get_loop_sn(),
                             rotlv.get_rotate_vars_table(),
-                            rotlv.get_loop_common_table()
+                            rotlv.get_loop_shared_table()
                             ) ;
       top_down_visit(agv) ;
       
@@ -308,10 +342,15 @@ namespace Loci {
                              div.get_recur_source_other_rules()) ;
       top_down_visit(dgv) ;
       
-            
       // check if the decorated graphs are acyclic
       dagCheckVisitor dagcV ;
       top_down_visit(dagcV) ;
+
+      if(use_chomp) {
+        // compile all the chomp_compilers
+        compChompVisitor compchompv ;
+        top_down_visit(compchompv) ;
+      }
 
       if(show_dmm_verbose) {
         // the output stream
@@ -323,7 +362,7 @@ namespace Loci {
         //print out the loop shared variables
         os << endl ;
         os << "---------loop shared variables-----------" << endl ;
-        os << rotlv.get_loop_common_table() ;
+        os << rotlv.get_loop_shared_table() ;
         os << endl ;
         //print out the untyped variables
         os << "----------untyped variables--------------" << endl ;

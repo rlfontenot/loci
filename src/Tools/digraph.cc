@@ -3,44 +3,84 @@
 #include <Tools/debug.h>
 
 #include <vector>
-
 using std::vector ;
+#include <map>
+using std::map ;
 
 namespace Loci {
   
   digraph::digraph() {}
   digraph::~digraph() {}
 
-  digraph::digraphRep::digraphRep() {max_vertex = 0 ;}
+  digraph::digraphRep::digraphRep() {}
 
   digraph::digraphRep::~digraphRep() {}
 
   void digraph::digraphRep::add_edges(const vertexSet &ns, int j) 
     {
-      max_vertex = max(max_vertex,max(ns.Max(),j)) ;
       vertexSet::const_iterator i ;
       for(i=ns.begin();i!=ns.end();++i)
         graph[*i] += j ;
       source_vertices += ns ;
+      all_vertices += ns ;
+      all_vertices += j ;
     }
 
-
+  void digraph::digraphRep::remove_edge(int i, int j) 
+  {
+    graph_matrix::const_iterator mi ;
+    mi=graph.find(i) ;
+    if(mi==graph.end())
+      return ;
+    
+    graph[i] -= j ;
+    if(graph[i] == EMPTY)
+      source_vertices -= i ;
+  }
+  
+  void digraph::digraphRep::remove_edges(int i, const vertexSet &ns)
+  {
+    graph_matrix::const_iterator mi ;
+    mi=graph.find(i) ;
+    if(mi==graph.end())
+      return ;
+    graph[i] -= ns ;
+    if(graph[i] == EMPTY)
+      source_vertices -= i ;
+  }
+  
   void digraph::digraphRep::remove_vertex(int i)
-    {
-      if(source_vertices.inSet(i)) {
-        source_vertices -= i ;
-        graph[i] = EMPTY ;
-      }
+  {
+    if(source_vertices.inSet(i))
+      source_vertices -= i ;
+    // erase the record in the graph
+    graph.erase(i) ;
+    all_vertices -= i ;
 
-      graph_matrix::iterator ii ;
-      for(ii=graph.begin();ii!=graph.end();++ii) {
-        ii->second -= i ;
-
-        if(ii->second == EMPTY)
-          source_vertices -= ii->first ;
+    // remove edges point to this vertex
+    graph_matrix::iterator ii ;
+    for(ii=graph.begin();ii!=graph.end();++ii) {
+      ii->second -= i ;
+      // if there are no edges go out from a vertex,
+      // take it off from the source_vertices set
+      if(ii->second == EMPTY) {
+        source_vertices -= ii->first ;
       }
     }
+  }
 
+  void digraph::digraphRep::remove_dangling_vertices()
+  {
+    vertexSet dangling_vertices = all_vertices - source_vertices
+      - get_target_vertices() ;
+    if(dangling_vertices != EMPTY) {
+      for(vertexSet::const_iterator vi=dangling_vertices.begin();
+	  vi!=dangling_vertices.end();++vi)
+	graph.erase(*vi) ;
+      all_vertices -= dangling_vertices ;
+    }
+  }
+  
   void digraph::digraphRep::add_graph(const digraphRep &gr) {
     graph_matrix::const_iterator ii ;
     for(ii=gr.graph.begin();ii!=gr.graph.end();++ii)
@@ -48,26 +88,53 @@ namespace Loci {
   }
 
   void digraph::digraphRep::subtract_graph(const digraphRep &gr) {
+    // first get all dangling nodes in the graph
+    vertexSet old_dangling_vertices = all_vertices - source_vertices 
+      - get_target_vertices() ;
+    // then remove any edges that are shared in both graph
     graph_matrix::const_iterator ii ;
     for(ii=gr.graph.begin();ii!=gr.graph.end();++ii) 
       remove_edges(ii->first,ii->second) ;
+    // then we get all the dangling nodes again
+    vertexSet new_dangling_vertices = all_vertices - source_vertices
+      - get_target_vertices() ;
+    // we compute the difference of dangling nodes, and remove them
+    vertexSet remove = new_dangling_vertices - old_dangling_vertices ;
+
+    vertexSet::const_iterator vi ;
+    for(vi=remove.begin();vi!=remove.end();++vi) {
+      graph.erase(*vi) ;
+      all_vertices -= *vi ;
+    }
   }
 
   void digraph::digraphRep::subgraph(const vertexSet &ns) {
     graph_matrix::iterator ii ;
     source_vertices = source_vertices & ns ;
+    all_vertices = all_vertices & ns ;
+
     vertexSet empty_sources ;
-    for(ii=graph.begin();ii!=graph.end();++ii) 
-      if(!ns.inSet(ii->first))
-        ii->second = EMPTY ;
+    for(ii=graph.begin();ii!=graph.end();) 
+      if(!ns.inSet(ii->first)) {
+        // erase records that are no longer the graph's data
+        graph.erase(ii++) ;
+      }
       else {
         vertexSet isect = ii->second & ns ;
         if(ii->second != isect)
           ii->second = isect ;
         if(isect == EMPTY)
           empty_sources += ii->first ;
+
+        // increment ii
+        ++ii ;
       }
     source_vertices -= empty_sources ;
+  }
+
+  int digraph::max_vertex() const {
+    vertexSet allv = get_all_vertices() ;
+    return allv==EMPTY?0:allv.Max() ;
   }
 
   // Perform topological sort on the name_tags based on the graph described by
@@ -76,8 +143,8 @@ namespace Loci {
 
   namespace {
     enum vertex_color { WHITE, GRAY, BLACK } ;
-    typedef HASH_MAP(int,vertex_color) vertex_color_map ;
-    typedef HASH_MAP(int,sequence) priority_graph ;
+    typedef map<int,vertex_color> vertex_color_map ;
+    typedef map<int,sequence> priority_graph ;
     typedef digraph::vertexSet vertexSet ;
   }
 
@@ -144,7 +211,7 @@ namespace Loci {
 
       sequence rorder = order.Reverse() ;
       vector<int> omap ;  // order map
-      HASH_MAP(int,int) imap ; // inverse
+      map<int,int> imap ; // inverse
       for(sequence::const_iterator is=rorder.begin();is!=rorder.end();++is) {
         imap[*is] = omap.size() ;
         omap.push_back(*is) ;

@@ -51,6 +51,8 @@ namespace Loci {
   // flag to enable/disable output of dynamic memory
   // and multilevel graph decoration information
   bool show_dmm_verbose = false ;
+  // flag to enable/disable chomping
+  bool use_chomp = false ;
   /////////////////////////////
   ofstream debugout ;
   double barrier_time = 0 ;
@@ -153,6 +155,10 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--dmmverbose")) {
         // output some info about dmm
         show_dmm_verbose = true ;
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--chomp")) {
+        // use the chomping scheme
+        use_chomp = true ;
         i++ ;
       } else
         break ;

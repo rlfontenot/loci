@@ -25,6 +25,8 @@ namespace Loci {
     virtual store_type RepType() const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) = 0 ;
     virtual storeRepP thaw() = 0 ;
+    virtual void shift(int_type)
+      {std::cerr<<"shift for Map has not been implemented!"<<std::endl ;}
   } ;
 
   typedef NPTR<MapRep> MapRepP ;

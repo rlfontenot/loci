@@ -123,6 +123,7 @@ namespace Loci {
   
     tlevel = loopset.begin()->source_time() ;
     loop_gr.remove_vertex((*loopset.begin()).ident()) ;
+    loop_gr.remove_dangling_vertices() ;
 
     digraph loop_grt = loop_gr.transpose() ;
   

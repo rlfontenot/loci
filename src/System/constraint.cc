@@ -26,6 +26,12 @@ namespace Loci {
     dispatch_notify() ;
   }
 
+  void constraintRep::shift(int_type offset)
+  {
+    constraint_set >>= offset ;
+    dispatch_notify() ;
+  }
+
   storeRep *constraintRep::new_store(const entitySet &p) const
   {
     return new constraintRep(p) ;

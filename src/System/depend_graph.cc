@@ -689,6 +689,8 @@ namespace Loci {
 #endif
 
     add_rename_dependencies(gr) ;
+
+    gr.remove_dangling_vertices() ;
   }
 
   void dependency_graph::create_looping_rules() {
@@ -780,6 +782,5 @@ namespace Loci {
     gr = gr.subgraph(subset) ;
   }
   
-
 
 }// End namespace Loci
