@@ -173,8 +173,7 @@ namespace Loci
   
   //***************************************************************************
   
-  storeRepP dmultiMapRepI::remap(const Map &m) const 
-  {
+  storeRepP dmultiMapRepI::remap(const Map &m) const {
     dmultiMap s ;
     
     //-------------------------------------------------------------------------
@@ -201,9 +200,9 @@ namespace Loci
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
     /*
-      multiMap   newmap; 
-      newmap = MapRepP(s.Rep())->get_map() ;
-      return newmap.Rep() ;  
+    multiMap   newmap; 
+    newmap = MapRepP(s.Rep())->get_map() ;
+    return newmap.Rep() ;  
    */
     return s.Rep() ;
   }
@@ -304,7 +303,7 @@ namespace Loci
   
   void dmultiMapRepI::pack( void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
-    int vsize;
+     int vsize;
     entitySet :: const_iterator ci;
     std::vector<int>   newVec;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -316,7 +315,8 @@ namespace Loci
     }
 
   }
-
+  
+  
   //***************************************************************************
 
   void dmultiMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) 
@@ -418,7 +418,7 @@ namespace Loci
     
     return newmap;
   }
-
+  
   //***************************************************************************
     
   ostream &dmultiMapRepI::Print(ostream &s) const 

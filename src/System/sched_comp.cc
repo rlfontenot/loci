@@ -11,7 +11,7 @@ using std::list ;
 #include <set>
 using std::set ;
 
-//#define HACK ;
+//#define HACK ; 
 
 namespace Loci {
   class error_compiler : public rule_compiler {
@@ -163,17 +163,14 @@ namespace Loci {
     
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
-      if(srp->domain() == EMPTY) {
-        variableSet aliases = scheds.get_aliases(*vi) ;
-
-        entitySet requests, existence ;
-        for(vii=aliases.begin();vii!=aliases.end();++vii) {
-	  existence += scheds.variable_existence(*vii) ;
-	  requests += scheds.get_variable_requests(*vii) ;
-	}
-	v_requests[*vi] = requests ;
-	v_existence[*vi] = existence ;
+      variableSet aliases = scheds.get_aliases(*vi) ;
+      entitySet requests, existence ;
+      for(vii=aliases.begin();vii!=aliases.end();++vii) {
+	existence += scheds.variable_existence(*vii) ;
+	requests += scheds.get_variable_requests(*vii) ;
       }
+      v_requests[*vi] = requests ;
+      v_existence[*vi] = existence ;
     }
   }
   
@@ -189,12 +186,22 @@ namespace Loci {
 #else
 	entitySet all_requests = v_requests[*vi] ;
 #endif	  
-	
 	srp->allocate(all_requests) ;
+      }
+      else {
+	if(srp->RepType() == Loci::STORE) {
+#ifdef HACK
+	  if(srp->domain() != v_existence[*vi]) 
+	    srp->allocate(v_existence[*vi]) ;
+	  
+#else
+	  if(srp->domain() != v_requests[*vi]) 
+	    srp->allocate(v_requests[*vi]) ; 
+#endif
+	}
       }
     }
   }
-  
   
   void allocate_all_vars::Print(ostream &s) const {
     s << "allocate all variables" << endl ;
@@ -204,9 +211,9 @@ namespace Loci {
   executeP graph_compiler::execution_schedule(fact_db &facts, sched_db &scheds, int nth) {
 
     CPTR<execute_list> schedule = new execute_list ;
-    schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));
     schedule->append_list(new allocate_all_vars(facts, scheds)) ;
     schedule->append_list(new execute_create_threads(nth)) ;
+    schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));
     executeP top_level_schedule = (rule_process[baserule])->
       create_execution_schedule(facts, scheds) ;
     if(top_level_schedule == 0) 

@@ -107,7 +107,7 @@ namespace Loci {
       fmap[v].data_rep->setRep(st->getRep()) ;
     }
     
-  }
+  } 
 
   void fact_db::remove_variable(variable v) {
     std::map<variable, variable>::iterator si ;
@@ -134,7 +134,7 @@ namespace Loci {
       fmap.erase(mi) ;
     }
   }
-      
+  
   
   variableSet fact_db::get_typed_variables() const {
     std::map<variable, fact_info>::const_iterator mi ;
@@ -142,6 +142,7 @@ namespace Loci {
     variableSet all_vars ;
     for(mi=fmap.begin();mi!=fmap.end();++mi)
       all_vars += mi->first ;
+    
     for(si=synonyms.begin();si!=synonyms.end();++si)
       all_vars += si->first ;
     return all_vars ;
@@ -175,7 +176,6 @@ namespace Loci {
 	for(int j = 0; j < i; ++j)
 	  local += size_recv[j] ;
 	init_ptn[i] += interval(local, local+size_recv[i]-1) ;
-	// debugout << "Partition for processor  " << i <<"   = " << init_ptn[i] << endl ;
       }
       
       interval local_ivl = interval(local_max, local_max + size - 1) ;
@@ -335,8 +335,35 @@ namespace Loci {
     variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP  p = facts.get_variable(*vi) ;
-      //facts.create_fact(*vi,p->remap(remap)) ;
-      facts.update_fact(*vi,p->remap(remap)) ;
+      if(facts.is_distributed_start())
+	facts.replace_fact(*vi,p->remap(remap)) ;
+      else
+	facts.update_fact(*vi,p->remap(remap)) ;
+    }
+  }
+  
+  void serial_freeze(fact_db &facts) {
+    variableSet vars = facts.get_typed_variables() ;
+    entitySet map_entities ;
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      storeRepP  p = facts.get_variable(*vi) ;
+      if(p->RepType() == MAP) {
+        MapRepP mp = MapRepP(p->getRep()) ;
+	entitySet dom = mp->domain() ;
+        map_entities += dom ;
+        map_entities += mp->image(dom) ;
+      }
+      if(p->RepType() == STORE) {
+	map_entities += p->domain() ;
+      }
+    }
+    Map m ;
+    m.allocate(map_entities) ;
+    for(entitySet::const_iterator ei = map_entities.begin(); ei != map_entities.end(); ++ei)
+      m[*ei] = *ei ;
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      storeRepP  p = facts.get_variable(*vi) ;
+      facts.replace_fact(*vi,p->remap(m)) ;
     }
   }
 }

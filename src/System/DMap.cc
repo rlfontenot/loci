@@ -135,7 +135,7 @@ namespace Loci {
   //********************************************************************
 
   dMapRepI::~dMapRepI() 
-  {
+  { 
     attrib_data.clear();
   }
 
@@ -159,15 +159,15 @@ namespace Loci {
   s.Rep()->scatter(newmap,my_store,newdomain) ;
   MapRepP(s.Rep())->compose(newmap,mapimage) ;
   /*
-    Map m ;
-    m.allocate(s.domain()) ;
-    FORALL(s.domain(), i) {
+  Map m ;
+  m.allocate(s.domain()) ;
+  FORALL(s.domain(), i) {
     m[i] = s[i] ;
-    } ENDFORALL ;
-    return m.Rep() ;
+  } ENDFORALL ;
+  return m.Rep() ;
   */
   return s.Rep() ;
-} 
+}
 
   //********************************************************************
 
