@@ -1,10 +1,7 @@
 #!/usr/bin/bash
 
 source=`pwd`
-target=${LOCI_TARGET-/usr/tmp/$LOGNAME}
-
-COMP=${LOCI_COMP-KCC}
-ARCH=${LOCI_ARCH-`arch`}
+target=/usr/tmp/$LOGNAME/
 
 mkdir -p $target
 mkdir -p $target/Loci
@@ -16,8 +13,8 @@ mkdir -p $target/Loci/lib
 cd $target/Loci
 ln -s $source/src/Makefile Makefile
 ln -s $source/src/include include
-cp $source/src/conf/${COMP}.conf comp.conf
-cp $source/src/conf/${ARCH}.conf sys.conf
+cp $source/src/conf/KCC.conf comp.conf
+cp $source/src/conf/`arch`.conf sys.conf
 
 cd lib
 ln -s ../Tools/libTools.a libTools.a
@@ -39,7 +36,5 @@ for i in *.h *.cc *.c Makefile; do
 echo ln -s `pwd`/$i $target/Loci/hdf5CC/$i
 ln -s `pwd`/$i $target/Loci/hdf5CC/$i
 done
-
-echo "** Be sure to set LOCI_BASE=\"$target/Loci\" **"
 
 
