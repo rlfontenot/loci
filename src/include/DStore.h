@@ -47,11 +47,11 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~dstoreRepI()  ;
     virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
+    virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
     virtual int pack_size(const entitySet &e) ;
@@ -339,7 +339,7 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T> 
-  storeRepP dstoreRepI<T>::remap(const Map &m) const 
+  storeRepP dstoreRepI<T>::remap(const dMap &m) const 
   {
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
@@ -375,7 +375,7 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T> 
-  void dstoreRepI<T>::gather(const Map &m, storeRepP &st, const entitySet &context) 
+    void dstoreRepI<T>::gather(const dMap &m, storeRepP &st, const entitySet &context) 
   {
     const_dstore<T> s(st) ;
 
@@ -392,7 +392,7 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-  void dstoreRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context) 
+  void dstoreRepI<T>::scatter(const dMap &m, storeRepP &st, const entitySet &context) 
   {
     const_dstore<T> s(st) ;
     fatal((context - s.domain()) != EMPTY) ;

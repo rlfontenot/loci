@@ -63,11 +63,11 @@ namespace Loci {
     virtual ~multiStoreRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
+    virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
     virtual int pack_size(const entitySet &e) ;
@@ -454,7 +454,7 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T> 
-  storeRepP multiStoreRepI<T>::remap(const Map &m) const 
+  storeRepP multiStoreRepI<T>::remap(const dMap &m) const 
   {
 
     entitySet newdomain = m.domain() & domain() ;
@@ -512,7 +512,7 @@ namespace Loci {
   //*************************************************************************/
   
   template<class T> 
-  void multiStoreRepI<T>::gather(const Map &m, storeRepP &st,
+  void multiStoreRepI<T>::gather(const dMap &m, storeRepP &st,
                                  const entitySet &context) 
   {
     store<int> count ;
@@ -555,7 +555,7 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T> 
-  void multiStoreRepI<T>::scatter(const Map &m, storeRepP &st,
+  void multiStoreRepI<T>::scatter(const dMap &m, storeRepP &st,
                                   const entitySet &context) 
   {
     

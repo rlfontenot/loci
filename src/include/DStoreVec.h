@@ -54,11 +54,11 @@ namespace Loci {
     virtual ~dstoreVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
+    virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     virtual int pack_size(const entitySet &e ) ;
     virtual void pack(void * ptr, int &loc, int &size, const entitySet &e ) ;
@@ -400,7 +400,7 @@ namespace Loci {
   //*************************************************************************/
 
   template <class T> 
-  storeRepP dstoreVecRepI<T>::remap(const Map &m) const {
+  storeRepP dstoreVecRepI<T>::remap(const dMap &m) const {
     dstoreVec<T> s ;
 
     entitySet newdomain = m.domain() & domain() ;
@@ -443,7 +443,7 @@ namespace Loci {
   //*************************************************************************/
 
   template <class T> 
-  void dstoreVecRepI<T>::gather(const Map &m, storeRepP &st, const entitySet &context) 
+  void dstoreVecRepI<T>::gather(const dMap &m, storeRepP &st, const entitySet &context) 
   {
     const_dstoreVec<T> s(st) ;
 
@@ -459,7 +459,7 @@ namespace Loci {
   //*************************************************************************/
 
   template <class T> 
-  void dstoreVecRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context)
+  void dstoreVecRepI<T>::scatter(const dMap &m, storeRepP &st, const entitySet &context)
   {
     const_dstoreVec<T> s(st) ;
     int sz = s.vecSize() ;

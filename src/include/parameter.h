@@ -39,11 +39,11 @@ namespace Loci {
     virtual store_type RepType() const ;
     virtual entitySet domain() const ;
     virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
+    virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     virtual int pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
@@ -300,7 +300,7 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-  storeRepP paramRepI<T>::remap(const Map &m) const 
+  storeRepP paramRepI<T>::remap(const dMap &m) const 
   {
     param<T> r ;
     r.set_entitySet(m.image(m.domain()&domain())) ;
@@ -323,7 +323,7 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-  void paramRepI<T>::gather(const Map &m, storeRepP &st,
+  void paramRepI<T>::gather(const dMap &m, storeRepP &st,
                             const entitySet &context) 
   {
     param<T> p(st) ;
@@ -334,7 +334,7 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-  void paramRepI<T>::scatter(const Map &m, storeRepP &st,
+  void paramRepI<T>::scatter(const dMap &m, storeRepP &st,
                              const entitySet &context) 
   {
 

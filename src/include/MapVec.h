@@ -27,12 +27,12 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapVecRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
-    virtual void compose(const Map &m, const entitySet &context) ;
+    virtual storeRepP remap(const dMap &m) const ;
+    virtual void compose(const dMap &m, const entitySet &context) ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
     virtual int pack_size(const entitySet &e) ;
@@ -329,7 +329,7 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<int M> storeRepP MapVecRepI<M>::remap(const Map &m) const {
+  template<int M> storeRepP MapVecRepI<M>::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
     std::pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
     newdomain &= mappimage.first ;
@@ -343,7 +343,7 @@ namespace Loci {
     return s.Rep() ;
   }
   //*************************************************************************/
-  template<int M> void MapVecRepI<M>::compose(const Map &m,
+  template<int M> void MapVecRepI<M>::compose(const dMap &m,
                                               const entitySet &context)  {
     fatal((context-store_domain) != EMPTY) ;
     fatal((image(context)-m.domain()) != EMPTY) ;
@@ -369,7 +369,7 @@ namespace Loci {
     } ENDFORALL ;
   }
   //*************************************************************************/
-  template<int M> void MapVecRepI<M>::gather(const Map &m, storeRepP &st,
+  template<int M> void MapVecRepI<M>::gather(const dMap &m, storeRepP &st,
                                              const entitySet &context)  {
     const_MapVec<M> s(st) ;
     fatal(base_ptr == 0) ;
@@ -381,7 +381,7 @@ namespace Loci {
     } ENDFORALL ;
   }
   //*************************************************************************/
-  template<int M> void MapVecRepI<M>::scatter(const Map &m, storeRepP &st,
+  template<int M> void MapVecRepI<M>::scatter(const dMap &m, storeRepP &st,
                                               const entitySet &context)  {
     const_MapVec<M> s(st) ;
     fatal((base_ptr == 0) &&(context != EMPTY)) ;

@@ -45,11 +45,11 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~storeRepI()  ;
     virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
+    virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
     virtual int pack_size(const entitySet &e) ;
@@ -306,7 +306,7 @@ namespace Loci {
   template<class T> store_instance::instance_type
   const_store<T>::access() const { return READ_ONLY; }
         
-  template<class T> storeRepP storeRepI<T>::remap(const Map &m) const {
+  template<class T> storeRepP storeRepI<T>::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
     store<T> s ;
@@ -325,7 +325,7 @@ namespace Loci {
       base_ptr[i] = s[i] ;
     } ENDFORALL ;
   }
-  template<class T> void storeRepI<T>::gather(const Map &m, storeRepP &st,
+  template<class T> void storeRepI<T>::gather(const dMap &m, storeRepP &st,
                                               const entitySet &context) {
     const_store<T> s(st) ;
     fatal((context != EMPTY) && (base_ptr == 0)) ;
@@ -336,7 +336,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  template<class T> void storeRepI<T>::scatter(const Map &m, storeRepP &st,
+  template<class T> void storeRepI<T>::scatter(const dMap &m, storeRepP &st,
                                                const entitySet &context) {
     const_store<T> s(st) ;
     fatal((context != EMPTY) && (base_ptr == 0)) ;

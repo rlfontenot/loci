@@ -21,12 +21,12 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
-    virtual void compose(const Map &m, const entitySet &context) ;
+    virtual storeRepP remap(const dMap &m) const ;
+    virtual void compose(const dMap &m, const entitySet &context) ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
     virtual int pack_size(const entitySet &e) ;

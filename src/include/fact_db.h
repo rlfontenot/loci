@@ -31,7 +31,7 @@ namespace Loci {
       int myid ;
       int isDistributed ;
       Map l2g ;
-      Map g2l ;
+      dMap g2l ;
       
       entitySet my_entities ;
       
@@ -132,7 +132,7 @@ namespace Loci {
       maximum_allocated += size ;
       return alloc ;
     }
-    std::pair<interval, interval> get_distributed_alloc(int size) ;
+    std::pair<entitySet, entitySet> get_distributed_alloc(int size) ;
     int is_distributed_start() {return dist_from_start ;}
     std::vector<entitySet>& get_init_ptn() {return init_ptn ;}
     void  put_init_ptn(std::vector<entitySet> &t_init ) {init_ptn = t_init ;}
@@ -162,7 +162,7 @@ namespace Loci {
     void Print_diagnostics() ;
   } ;
   
-  void reorder_facts(fact_db &facts, Map &remap) ;
+  void reorder_facts(fact_db &facts, dMap &remap) ;
   void serial_freeze(fact_db &facts) ;
   
 }

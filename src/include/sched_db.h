@@ -154,7 +154,7 @@ namespace Loci {
     entitySet image(variable v, entitySet e) ;
     std::pair<entitySet,entitySet> preimage(variable v, entitySet e) ;
 
-    std::ostream &print_summary(std::ostream &s) ;
+    std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
   } ;
 }
 

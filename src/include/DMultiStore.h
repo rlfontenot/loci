@@ -62,14 +62,14 @@ namespace Loci {
 
     virtual storeRep *new_store(const entitySet &p) const ;
 
-    virtual storeRepP remap(const Map &m) const ;
+    virtual storeRepP remap(const dMap &m) const ;
 
     virtual void copy(storeRepP &st, const entitySet &context) ;
 
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
 
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
     virtual int pack_size(const entitySet &e) ;
@@ -287,7 +287,7 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-  storeRepP dmultiStoreRepI<T>::remap(const Map &m) const {
+  storeRepP dmultiStoreRepI<T>::remap(const dMap &m) const {
     
     dmultiStore<T> s ;
     /*
@@ -337,7 +337,7 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-  void dmultiStoreRepI<T>::gather(const Map &m, storeRepP &st, const entitySet &context) 
+  void dmultiStoreRepI<T>::gather(const dMap &m, storeRepP &st, const entitySet &context) 
   {
     const_dmultiStore<T> s(st) ;
     std::vector<T>    newVec;
@@ -357,7 +357,7 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-  void dmultiStoreRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context) 
+  void dmultiStoreRepI<T>::scatter(const dMap &m, storeRepP &st, const entitySet &context) 
   {
     const_dmultiStore<T> s(st) ;
 

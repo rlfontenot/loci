@@ -24,8 +24,8 @@ namespace Loci {
   void Abort() ;
   
   void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 ) ;
-  void categories(fact_db &facts,std::vector<interval> &pvec) ;
-  
+  void categories(fact_db &facts,std::vector<entitySet> &pvec) ;
+  std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, entitySet> &vm, std::vector<interval> &pvec) ;
   void get_mappings(rule_db &rdb, fact_db &facts, std::set<std::vector<variableSet> > &maps) ;
   dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   std::vector<dMap> send_global_map(Map &attrib_data, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
@@ -88,6 +88,7 @@ namespace Loci {
   int GLOBAL_OR(int b) ;
   int GLOBAL_AND(int b) ;
   int GLOBAL_MAX(int b) ;
+  int GLOBAL_MIN(int b) ;
 }
 #endif
  

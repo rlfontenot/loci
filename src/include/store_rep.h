@@ -15,6 +15,7 @@ namespace Loci {
   enum store_type { STORE, PARAMETER, MAP, CONSTRAINT } ;
 
   class Map ;
+  class dMap ;
   class storeRep ;
 
   typedef NPTR<storeRep> storeRepP ;
@@ -26,11 +27,11 @@ namespace Loci {
     virtual void allocate(const entitySet &p) = 0 ;
     virtual void set_elem_size(int sz) ;
     virtual storeRep *new_store(const entitySet &p) const = 0 ;
-    virtual storeRepP remap(const Map &m) const = 0 ;
+    virtual storeRepP remap(const dMap &m) const = 0 ;
     virtual void copy(storeRepP &st, const entitySet &context) = 0 ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) = 0 ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) = 0 ;
     virtual int pack_size(const entitySet &e) = 0;
     virtual void pack(void *ptr, int &loc, int &size,  const entitySet &e) = 0 ;
@@ -78,11 +79,11 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
 
-    virtual storeRepP remap(const Map &m) const ;
+    virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     virtual int pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;

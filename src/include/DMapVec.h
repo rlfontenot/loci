@@ -28,12 +28,12 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~dMapVecRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
-    virtual void compose(const Map &m, const entitySet &context) ;
+    virtual storeRepP remap(const dMap &m) const ;
+    virtual void compose(const dMap &m, const entitySet &context) ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
-    virtual void gather(const Map &m, storeRepP &st,
+    virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
-    virtual void scatter(const Map &m, storeRepP &st,
+    virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
     virtual int pack_size(const entitySet &e) ;
@@ -708,7 +708,7 @@ template<unsigned int M> class const_dMapVec ;
   //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  storeRepP dMapVecRepI<M>::remap(const Map &m) const
+  storeRepP dMapVecRepI<M>::remap(const dMap &m) const
   {
     entitySet newdomain = m.domain() & domain() ;
     std::pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
@@ -736,7 +736,7 @@ template<unsigned int M> class const_dMapVec ;
 //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  void dMapVecRepI<M>::compose(const Map &m, const entitySet &context)
+  void dMapVecRepI<M>::compose(const dMap &m, const entitySet &context)
   {
 
 
@@ -777,7 +777,7 @@ template<unsigned int M> class const_dMapVec ;
   //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  void dMapVecRepI<M>::gather(const Map &m, storeRepP &st, const entitySet &context)
+  void dMapVecRepI<M>::gather(const dMap &m, storeRepP &st, const entitySet &context)
   {
     /*
       const_dMapVec<M> s(st) ;
@@ -795,7 +795,7 @@ template<unsigned int M> class const_dMapVec ;
   //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  void dMapVecRepI<M>::scatter(const Map &m, storeRepP &st, const entitySet &context)
+  void dMapVecRepI<M>::scatter(const dMap &m, storeRepP &st, const entitySet &context)
   {
       const_dMapVec<M> s(st) ;
 
