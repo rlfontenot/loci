@@ -1,6 +1,43 @@
 #include <param_rule.h>
 
 namespace Loci {
+
+rule_db local_modify_time_vars(rule_db& rdb, const std::string &sn) {
+  rule_db new_rdb ;
+  ruleSet rset = rdb.all_rules() ;
+  for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end(); ++rsi) {
+    variableSet vset, tvarset ;
+    std::map<variable, variable> vm ;
+    rule_implP rp = rsi->get_rule_implP() ;
+    vset = rp->get_var_list() ;
+    for(variableSet::const_iterator vsi = vset.begin(); vsi !=
+	  vset.end(); ++vsi ) {
+      if((variable(*vsi).time()).level_name() != "*") 
+	tvarset += *vsi ;
+    }
+    for(variableSet::const_iterator vsi = tvarset.begin(); vsi != tvarset.end(); ++vsi) {
+      variable v = variable(*vsi) ;
+      ostringstream oss ;
+      v.get_info().Print(oss) ;
+      std::string name = oss.str() ;
+      std::string new_var ;
+      new_var.append(v.get_info().name) ;
+      new_var.append("{") ;
+      new_var.append(sn) ;
+      new_var.append(",");
+      int i = name.find("{") ;
+      i++ ;
+      string sub = name.substr(i, name.size()-i) ;
+      new_var.append(sub) ;
+      variable tmp = variable(new_var) ;
+      vm[v] = tmp ;
+    }
+    if(tvarset != EMPTY)
+      rp->rename_vars(vm) ;
+    new_rdb.add_rule(rule(rp)) ;
+  }
+  return new_rdb ;
+}
   rule_db parametric_rdb(rule_db& rdb) {
     Loci::rule_db par_rdb ;
     ruleSet param_target, param_source, use_param_rule, added_rules ;

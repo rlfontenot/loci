@@ -96,7 +96,11 @@ namespace Loci {
     oss << fname << "." << num_partitions ;
     string filename = oss.str() ; 
     infile.open(filename.c_str(), ios::in) ;
-    
+    if(infile.fail()) {
+      cerr << "File " << filename <<  "   not found \n First create the file using -exit option \n " << endl ;
+      Loci::Finalize() ;
+      exit(0) ;
+    }
     infile >> part ;
     int *partition = new int[num_partitions] ;
     for(int i = 0; i < num_partitions; ++i) 

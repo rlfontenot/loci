@@ -51,6 +51,7 @@ namespace Loci {
     bool operator==(const time_ident &t) const { return id == t.id ; }
     bool operator!=(const time_ident &t) const { return id != t.id ; }
     std::ostream &Print(std::ostream &s) const ;
+    void prepend_time(const std::string &lname) ;
   } ;
 
   inline std::ostream & operator<<(std::ostream &s, const time_ident &ti) {
