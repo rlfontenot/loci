@@ -3,6 +3,8 @@
 source=`pwd`
 target=/usr/tmp/$USER/
 
+mkdir -p $target
+mkdir -p $target/Loci
 mkdir -p $target/Loci/System
 mkdir -p $target/Loci/Tools
 mkdir -p $target/Loci/lib
