@@ -858,6 +858,7 @@ namespace Loci {
     int init_size = get_size() ;
     int M ;
     MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
+
     if(init_size != M) {
       set_elem_size(M) ;
     }
@@ -926,11 +927,6 @@ namespace Loci {
   {
 
     sequence :: const_iterator ci;
-
-    //----------------------------------------------------------------
-    // Get the sum of each object size and maximum size of object in the
-    // container for allocation purpose
-    //-----------------------------------------------------------------
     int  stateSize, outcount;
 
     typedef data_schema_traits<T> schema_traits;
@@ -941,10 +937,6 @@ namespace Loci {
     std::vector<dtype> outbuf;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
-      if( !store_domain.inSet( *ci ) ) {
-        cout << "Warning: Entity not present in entityset " << *ci << endl;
-        continue;
-      }
       for( int ivec = 0; ivec < size; ivec++) {
         MPI_Unpack( inbuf, insize, &position, &stateSize, 1, 
                     MPI_INT, MPI_COMM_WORLD) ;
