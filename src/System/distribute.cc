@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "Tools/debugger.h"
 
 #include <vector>
@@ -85,7 +88,26 @@ namespace Loci {
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
     ostringstream oss ;
-    oss << "debug."<<MPI_rank ;
+    // if output directory doesn't exist, create one
+    bool debug_is_directory = true ;
+    struct stat statbuf ;
+    if(stat("debug",&statbuf))
+      if(MPI_rank == 0)
+        mkdir("debug",0755) ;
+    else
+      if(!S_ISDIR(statbuf.st_mode)) {
+        cerr << "file 'debug' should be a directory!, rename 'output' and start again."
+             << endl ;
+        debug_is_directory = false ;
+
+      }
+    
+  
+    if(debug_is_directory)
+      oss << "debug/debug."<<MPI_rank ;
+    else
+      oss << "debug."<< MPI_rank ;
+    
     string filename  = oss.str() ;
     debugout.open(filename.c_str(),ios::out) ;
     if(!register_rule_list.empty()) {
@@ -2062,6 +2084,9 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
 	hid_t err = H5Dread(dataset, datatype, memspace, dataspace,
 			    H5P_DEFAULT, tmp_int) ;
+        if(err < 0) {
+          cerr << "H5Dread() failed" << endl ;
+        }
 	H5Sclose(memspace) ;
 	start += count ;
 	if(p == 0) {
@@ -2108,6 +2133,9 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
 	hid_t err = H5Dread(dataset, datatype, memspace, dataspace,
 			    H5P_DEFAULT, tmp_int) ;
+        if(err < 0) {
+          cerr << "H5Dread() failed" << endl ;
+        }
 	H5Sclose(memspace) ;
 	start += count ;
 	if(p == 0) {
