@@ -6,6 +6,8 @@ using std::vector ;
 using std::set ;
 using std::pair ;
 
+//#define VERBOSE
+
 namespace Loci {
   namespace {
     variableSet convert_set(const variableSet &vset, time_ident tl) {
@@ -223,9 +225,21 @@ namespace Loci {
   }
   
   void rule_impl::prot_rename_vars(std::map<variable,variable>  &rvm){
-    //cout << " ***********************************************" << endl ;
-    //cout << "Before Prot_rename_vars " << endl ;
-    //Print(cout) ;
+#ifdef VERBOSE
+    debugout << " ***********************************************" << endl ;
+    debugout << "Before Prot_rename_vars " << endl ;
+    Print(debugout) ;
+    debugout << "rvm = " ;
+    std::map<variable,variable>::const_iterator ip ;
+    for(ip=rvm.begin();ip!=rvm.end();++ip) {
+      debugout << '(' << ip->first << ',' << ip->second << ") "
+               << '[' << ip->first.ident() << ' '
+               << ip->first.time().ident() << ','
+               << ip->second.ident() << ' '
+               << ip->second.time().ident() << "] " ;
+    }
+    debugout << endl ;
+#endif
     typedef storeIMap::iterator smap_iter ; 
     typedef std::map<variable, variable>::const_iterator map_iter ;
     storeIMap tmp_var_table ;
@@ -240,6 +254,11 @@ namespace Loci {
 	  tmp_var_table.insert(std::pair<const variable, store_instance *>(mi->second,i->second)) ;
 	}
       } else {
+#ifdef VERBOSE
+        debugout << "not renaming " << si->first 
+                 << " [" << si->first.ident() << ','
+                 << si->first.time().ident() << "]" << endl ;
+#endif
 	tmp_var_table.insert(*si) ;
       }
     }
@@ -260,10 +279,12 @@ namespace Loci {
     rule_info.constraints.swap(tmp) ;
     tmp.clear() ;
     rule_info.conditionals = rename_set(rule_info.conditionals,rvm) ;
-    
-    //cout << " After prot rename vars " << endl ;
-    //Print(cout) ;
-    //cout << " *************************************************" << endl ;
+
+#ifdef VERBOSE
+    debugout << " After prot rename vars " << endl ;
+    Print(debugout) ;
+    debugout << " *************************************************" << endl ;
+#endif
   }
   
   void rule_impl::name_store(const string &nm, store_instance &si) {
@@ -612,6 +633,7 @@ variableSet rule_impl::get_var_list() {
     output_is_parameter = false ;
     for(variableSet::const_iterator
           i=tvar_types.begin();i!=tvar_types.end();++i) {
+      //      cerr << "i=" << *i << endl ;
       if(rule_impl->get_store(*i)->RepType()==PARAMETER) {
         if(i!=tvars.begin() && !output_is_parameter) {
           cerr << "can't mix parameters and stores in target" << endl
