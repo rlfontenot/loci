@@ -46,6 +46,7 @@ namespace Loci {
     int bytesize() const ;
   };
 
+  typedef CPTR<AtomicType> AtomicDatatypeP ;
 
   class ArrayType : public AbstractDatatype {
   public:
@@ -67,6 +68,7 @@ namespace Loci {
     int bytesize() const ;
   } ;
   
+  typedef CPTR<ArrayType> ArrayDatatypeP ;
 
   class CompoundType : public AbstractDatatype  {
     int numBytes ;
@@ -103,6 +105,15 @@ namespace Loci {
   template<class T> inline CompoundDatatypeP CompoundFactory(T in) {
     return new CompoundType(sizeof(T)) ;
   }
+
+  template<class T> inline AtomicDatatypeP AtomicFactory(T in) {
+    return new AtomicType(in) ;
+  }
+
+  inline ArrayDatatypeP ArrayFactory(DatatypeP dtype, int sz, 
+                                          int in_rank, int *in_dim) {
+   return new ArrayType(dtype, sz, in_rank, in_dim);
+ }
 
 }
 
