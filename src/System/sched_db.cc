@@ -176,17 +176,17 @@ namespace Loci {
             conflicts += mi->first ;
           } else if(p1.size() > p2.size()) {
             mi->second.exists -= x ;
-            //            cerr << f << " has priority over " << mi->first << endl ;
+            //cerr << f << " has priority over " << mi->first << endl ;
           } else {
             x -= mi->second.exists ;
-            //            cerr << mi->first << " has priority over " << f << endl ;
+            //cerr << mi->first << " has priority over " << f << endl ;
           }
         }
       }
       if(conflicts != EMPTY && v.get_info().name != string("OUTPUT")) {
         cerr << "rule " << f << " conflicts with " << conflicts << endl ;
         cerr << "conflicting entities are " << (finfo.existence & x) << endl ;
-        debugger_() ;
+        //        debugger_() ;
         //        exit(-1) ;
       }
     }
