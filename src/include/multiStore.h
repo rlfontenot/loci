@@ -417,7 +417,14 @@ namespace Loci {
   template<class T> 
   storeRep *multiStoreRepI<T>::new_store(const entitySet &p) const 
   {
-    return new multiStoreRepI<T>(p) ;
+    store<int> count ;
+    count.allocate(p) ;
+    entitySet ent = p - domain() ; 
+    for(entitySet::const_iterator ei = p.begin(); ei != p.end(); ++ei)
+      count[*ei] = base_ptr[*ei+1] - base_ptr[*ei] ;
+    for(entitySet::const_iterator ei = ent.begin(); ei != ent.end(); ++ei)
+      count[*ei] = 0 ;
+    return new multiStoreRepI<T>(count) ;
   }
 
   //***************************************************************************/
