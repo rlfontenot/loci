@@ -1054,11 +1054,34 @@ loci_declaration_list:
 	| loci_declaration_list loci_declaration
 	;
 
-loci_declaration:
+/*loci_declaration:
  declaration_specifiers<tlist> init_declarator_list<i_d_l_list> ';'
 	{{
 		filltable(global_def, tlist, i_d_l_list) ;
 	}}
+;
+*/
+
+/* This symbol is used to describe a declaration statment within a datatypes block */
+loci_declaration:
+	declaration_specifiers<tlist> identifier<id> ';'
+        {{
+		id_list *idlist = (id_list *) malloc(sizeof(id_list)) ;
+		idlist->name = id->name ;
+		idlist->init = NULL ;
+		idlist->next = NULL ;
+ 	       filltable(global_def,tlist,idlist) ;
+        }}
+	| declaration_specifiers<tlist> identifier<id> '(' param_rule_decl_list  ')' ';'
+;
+
+param_rule_decl_list:
+  param_rule_decl
+  | param_rule_decl_list ',' param_rule_decl
+;
+
+param_rule_decl:
+ type_specifier<type_info_list> identifier<id> 
 ;
 
 declaration_specifiers
