@@ -78,23 +78,6 @@ namespace Loci {
       size = sz ;
     }
 
-    /*
-      DO NOT DO THIS!!!
-      Vect should NEVER allocate memory!
-    Vect<T> &operator=(const Vect<T> &v)
-    {
-       Vect<T>   *newVec;
-       newVec = new Vect<T>;
-       newVec->size = v.size;
-       newVec->ptr    = new T[v.size];
-
-       for(int i=0;i<size;++i)
-           newVec->ptr[i] =  v.ptr[i];
-
-       return ( newVec );
-    }
-   */
-
     void operator=(const Vect<T> &t) {
       T *p1 = ptr ;
       const T *p2 = t.ptr ;
@@ -387,8 +370,6 @@ namespace Loci {
   // unused block of memory. 
   //---------------------------------------------------------------------------
 
-   cout << " During Allocation " << size << endl;
-
     if(size != 0) {
       fatal(size < 1) ;
       if(ptn != EMPTY) {
@@ -423,7 +404,9 @@ namespace Loci {
   template<class T>
   storeRep *storeVecRepI<T>::new_store(const entitySet &p) const 
   {
-    return new storeVecRepI<T>(p)  ;
+    storeRep *sp = new storeVecRepI<T>(p)  ;
+    sp->set_elem_size(size) ;
+    return sp ;
   }
 
   //*************************************************************************/
@@ -712,7 +695,6 @@ namespace Loci {
   void storeVecRepI<T>::pack( void * ptr, int &loc, int &size, 
                               const entitySet &e ) 
   {
-/*
     int M = get_size() ;
     for(int i = 0; i < e.num_intervals(); ++i) {
       Loci::int_type indx1 = e[i].first ;
@@ -721,7 +703,6 @@ namespace Loci {
       int t = (stop - indx1 + 1) * M ;
       MPI_Pack(p, t * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
     }
-*/
   }
 
   //**************************************************************************/
