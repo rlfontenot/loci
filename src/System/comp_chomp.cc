@@ -22,8 +22,13 @@ namespace Loci {
   namespace {
     // memory profile function
     int currentMem(void) {
+#ifdef LINUX
       struct mallinfo info = mallinfo() ;
       return info.arena+info.hblkhd ;
+#else
+      cerr << "currentMem not supported" << endl ;
+      return 0 ;
+#endif
     }
   }
 
