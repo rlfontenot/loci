@@ -1,9 +1,13 @@
 #ifndef HANDLE_H
 #define HANDLE_H (1)
 
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
+#include <Config/conf.h>
+
 #include <typeinfo>
 
-#include <Config/conf.h>
 #include <Tools/debug.h>
 
 namespace Loci {

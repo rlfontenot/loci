@@ -1,6 +1,12 @@
 #define PARMETIS_MAJOR_VERSION        3
 #define PARMETIS_MINOR_VERSION        0
 
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
+#include <Config/conf.h>
+
+
 typedef int idxtype;
 
 

@@ -1,3 +1,12 @@
+#ifndef PARAM_RULE_H
+#define PARAM_RULE_H
+
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
+#include <Config/conf.h>
+
+
 #include <rule.h>
 
 namespace Loci {
@@ -5,3 +14,5 @@ namespace Loci {
   rule rename_rule(rule r, std::map<variable, variable> &vm) ; 
   rule_db parametric_rdb(rule_db &rdb,variableSet query_vars) ;
 }
+
+#endif

@@ -1,3 +1,11 @@
+#ifndef UNIT_TYPE_H
+#define UNIT_TYPE_H
+
+#ifdef HAVE_CONFIG_H
+#include <config.h> // This must be the first file included
+#endif
+#include <Config/conf.h>
+
 #include <Tools/parse.h>
 #include <Tools/expr.h>
 #include <stack>
@@ -159,3 +167,4 @@ namespace Loci {
       std::cerr << "error:" << err << std::endl;
     }
 }
+#endif
