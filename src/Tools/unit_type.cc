@@ -431,7 +431,7 @@ namespace Loci {
 	for(li= input->expr_list.begin();li!=input->expr_list.end();++li)
 	  build_lists(numerator,denominator,(*li),isnum);
 	break;
-	case OP_EXOR:
+      case OP_EXOR:
 	for(li= input->expr_list.begin();li!=input->expr_list.end();++li){
 	  if((*li)->op==OP_INT){
 	    //	    cout<<endl<<(*li)->int_val<<endl;
@@ -458,6 +458,7 @@ namespace Loci {
 	break;
       default:
         cerr << "unknown operator type in unit_type expression parsing!" << endl ;
+        cerr << "op = " << input->op << endl ;
       }
       //cout<<"size of numerator "<<numerator.size()<<endl;
     }

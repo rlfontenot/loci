@@ -171,7 +171,7 @@ namespace Loci {
         break ;
 
     case OP_ERROR:
-        cout << "*ERR*" ;
+        s << "*ERR*" ;
         break ;
         
     case OP_NIL:
