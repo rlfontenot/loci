@@ -152,7 +152,6 @@ namespace Loci
   {
     entitySet ptn = sizes.domain() ;
     entitySet :: const_iterator  ci;
-    int   veclength;
     store_domain = ptn ;
     dispatch_notify() ;
   }
@@ -550,21 +549,14 @@ namespace Loci
 
     hash_map<int, vector<int> > :: const_iterator  ci;
     entitySet::const_iterator ei;
-    int           *data;
     hsize_t       dimension;
     entitySet     eset;	
-    vector<int>   vec;
+    std::vector<int>   vec;
 
-    /*
-      if( user_eset.size() < 1) {
-      cout << "Warning : Reading entity set is empty " << endl;
-      return;
-      }
-    */
 
     hid_t vDatatype = H5T_NATIVE_INT;
     Loci::HDF5_ReadDomain( group_id, eset );
-      
+
     store<int> sizes;
     sizes.allocate(eset);
 
@@ -572,15 +564,14 @@ namespace Loci
     hid_t v1Dataset   = H5Dopen(group_id,"ContainerSize");
     hid_t v1Dataspace = H5Dget_space(v1Dataset);
 
-    data = new int[dimension];
-    H5Dread(v1Dataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    std::vector<int>  data(dimension);
+    H5Dread(v1Dataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
     H5Dclose( v1Dataset  );
     H5Sclose( v1Dataspace);
 
-    int indx=0, numentities = 0;
+    int indx=0;
     for(ei= eset.begin(); ei != eset.end(); ++ei)
-      sizes[*ei]   =  data[indx++];
-    delete [] data;
+      sizes[*ei] = data[indx++];
 
     entitySet  ecommon = eset;
     store<int> user_sizes;
@@ -595,8 +586,8 @@ namespace Loci
     hid_t v2Dataspace = H5Dget_space(v2Dataset);
     H5Sget_simple_extent_dims (v2Dataspace, &dimension, NULL);
 
-    data = new int[dimension];
-    H5Dread(v2Dataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    data.resize(dimension);
+    H5Dread(v2Dataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
 
     H5Dclose( v2Dataset  );
     H5Sclose( v2Dataspace);
@@ -621,50 +612,45 @@ namespace Loci
           attrib_data[j].push_back( data[indx++] );
       }
     }
-    delete [] data;
     delete [] it;
 
   }
 
   //***************************************************************************
 
-  void dmultiMapRepI::writehdf5( hid_t group_id, entitySet& en) const
+  void dmultiMapRepI::writehdf5( hid_t group_id, entitySet& usr_eset) const
   {
 
-    hash_map<int,vector<int> > :: const_iterator  ci;
+    int rank = 1;
+    entitySet  :: const_iterator ci;
+    hash_map<int,vector<int> > :: const_iterator iter;
     vector<int>   mapvec, vecsize, vec;
-    int           numentity;
-    int rank = 1;    // One dimensional array
 
-    Loci::HDF5_WriteDomain(group_id, en);
+    entitySet   eset(usr_eset&domain());
 
-    int num_intervals = en.num_intervals();
+    int arraySize = eset.size();
+ 
+    if( arraySize < 1) return;
 
-    interval *it   = new interval[num_intervals];
-    for(int i=0;i<num_intervals;i++) it[i] = en[i];
+    Loci::HDF5_WriteDomain(group_id, eset);
 
-    vecsize.resize( en.size() );
+    std::vector<int> container, data;
 
-    int indx = 0;
-    for(int i=0;i<num_intervals;i++){
-      for(int j=it[i].first;j<=it[i].second;j++) {
-        ci = attrib_data.find(j);
-        if( ci != attrib_data.end() ) {
-          vec  = ci->second;
-          vecsize[indx++] = vec.size();
-          for( int k = 0; k < vec.size(); k++)
-            mapvec.push_back(vec[k]);
-        }
-      }
+    container.push_back(0);
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+        iter = attrib_data.find(*ci);
+        if( iter == attrib_data.end() ) continue;
+        vec  = iter->second;
+        container.push_back(vec.size());
+        data.insert( data.end(), vec.begin(), vec.end() );
     }
 
-    hsize_t dimension =  en.size();
+    hsize_t dimension = arraySize;
     hid_t v1Datatype  = H5T_NATIVE_INT;
     hid_t v1Dataspace = H5Screate_simple(rank, &dimension, NULL);
     hid_t v1Dataset   = H5Dcreate(group_id, "ContainerSize", v1Datatype,
                                   v1Dataspace, H5P_DEFAULT);
-    H5Dwrite(v1Dataset, v1Datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-             &vecsize[0]);
+    H5Dwrite(v1Dataset, v1Datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &container[0]);
     H5Dclose( v1Dataset  );
     H5Sclose( v1Dataspace);
 
@@ -679,8 +665,6 @@ namespace Loci
 
     H5Dclose( v2Dataset  );
     H5Sclose( v2Dataspace);
-
-    delete [] it;
   } 
 
   //***************************************************************************
