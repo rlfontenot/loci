@@ -102,7 +102,15 @@ namespace Loci {
           v.insert(di) ;
       }
     }
-  }
+
+    class NULL_RULE_IMPL: public rule_impl {
+    public:
+      NULL_RULE_IMPL() {}
+      rule_implP new_rule_impl() const { return new NULL_RULE_IMPL ; }
+      void compute(const sequence &seq) {}
+      virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+    } ;
+}
    
   void rule_impl::source(const string &invar) {
     exprP p = expression::create(invar) ;
@@ -365,20 +373,27 @@ namespace Loci {
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars,tvar_types ;
     for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
       source_vars += (*i).var ;
       svars += (*i).var ;
     }
     for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
+      constraint_vars += (*i).var ;
       source_vars += (*i).var ;
     }
     source_vars += desc.conditionals ;
     for(i=desc.targets.begin();i!=desc.targets.end();++i) {
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
       if((*i).assign.size() != 0) {
         variableSet v = (*i).var ;
         for(variableSet::const_iterator vi=v.begin();vi!=v.end();++vi) {
@@ -471,13 +486,97 @@ namespace Loci {
   }
   
   rule::info::info(const info &fi, time_ident tl) {
+    if(fi.rule_class == INTERNAL) {
+      *this = fi ;
+      set<vmap_info>::const_iterator i ;
+      set<vmap_info> tmp ;
+      for(i=desc.sources.begin();i!=desc.sources.end();++i)
+        tmp.insert(convert_vmap_info(*i,tl)) ;
+      desc.sources.swap(tmp) ;
+      tmp.clear() ;
+      for(i=desc.targets.begin();i!=desc.targets.end();++i)
+        tmp.insert(convert_vmap_info(*i,tl)) ;
+      desc.targets.swap(tmp) ;
+      tmp.clear() ;
+      for(i=desc.constraints.begin();
+          i!=desc.constraints.end();++i)
+        tmp.insert(convert_vmap_info(*i,tl)) ;
+      desc.constraints.swap(tmp) ;
+      tmp.clear() ;
+      desc.conditionals = convert_set(desc.conditionals,tl) ;
+      rule_impl = new NULL_RULE_IMPL ;
+      rule_ident = internal_qualifier + ":" + desc.rule_identifier() ;
+
+      source_vars = variableSet() ;
+      target_vars = variableSet() ;
+      map_vars = variableSet() ;
+      constraint_vars = variableSet() ;
+
+      variableSet svars,tvars ;
+      for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
+        for(int j=0;j<(*i).mapping.size();++j) {
+          source_vars += (*i).mapping[j] ;
+          map_vars += (*i).mapping[j] ;
+        }
+        source_vars += (*i).var ;
+        svars += (*i).var ;
+      }
+      for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
+        for(int j=0;j<(*i).mapping.size();++j) {
+          source_vars += (*i).mapping[j] ;
+          map_vars += (*i).mapping[j] ;
+        }
+        constraint_vars += (*i).var ;
+        source_vars += (*i).var ;
+      }
+      source_vars += desc.conditionals ;
+      for(i=desc.targets.begin();i!=desc.targets.end();++i) {
+        for(int j=0;j<(*i).mapping.size();++j) {
+          source_vars += (*i).mapping[j] ;
+          map_vars == (*i).mapping[j] ;
+        }
+        target_vars += (*i).var ;
+        tvars += (*i).var ;
+      }
+
+      time_ident source_time,target_time ;
+      
+      for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
+        source_time =  source_time.before((*i).get_info().time_id)
+          ?(*i).get_info().time_id:source_time ;
+      }
+      int target_offset = 0 ;
+      bool target_asgn ;
+      
+      for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
+        if(i==tvars.begin()) {
+          target_time = (*i).get_info().time_id ;
+          target_offset = (*i).get_info().offset ;
+          target_asgn = (*i).get_info().assign ;
+        } else
+          if(rule_class != rule::INTERNAL &&
+             (target_time != (*i).get_info().time_id ||
+              target_asgn != (*i).get_info().assign ||
+              (!target_asgn &&
+               (target_offset != (*i).get_info().offset)))) {
+            cerr << "targets not all at identical time level in rule : "
+                 << endl ;
+            rule_impl->Print(cerr) ;
+          }
+      }            
+      
+      source_level = source_time ;
+      target_level = target_time ;
+
+      time_advance = false ;
+      if(1 == target_offset)
+        time_advance = true ;
+      
+     return ; 
+    }
     rule_impl = fi.rule_impl->new_rule_impl() ;
     rule_impl->set_variable_times(tl) ;
     warn(fi.rule_class != GENERIC) ;
-    if(fi.rule_class != GENERIC) {
-      *this = fi ;
-      return ;
-    }
     source_level = tl ;
     target_level = tl ;
     rule_class = GENERIC ;
@@ -489,20 +588,27 @@ namespace Loci {
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars ;
     for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
       source_vars += (*i).var ;
       svars += (*i).var ;
     }
     for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
       source_vars += (*i).var ;
+      constraint_vars += (*i).var ;
     }
     source_vars += desc.conditionals ;
     for(i=desc.targets.begin();i!=desc.targets.end();++i) {
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
       target_vars += (*i).var ;
       tvars += (*i).var ;
     }
@@ -516,15 +622,6 @@ namespace Loci {
     return fp ;
   }
 
-  namespace {
-    class NULL_RULE_IMPL: public rule_impl {
-    public:
-      NULL_RULE_IMPL() {}
-      rule_implP new_rule_impl() const { return new NULL_RULE_IMPL ; }
-      void compute(const sequence &seq) {}
-      virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
-    } ;
-  }
 
   rule_implP rule_impl::new_rule_impl() const {
     cerr << "rule_impl::new_rule_impl() was called:" << endl
@@ -572,24 +669,32 @@ namespace Loci {
     rule_impl = new NULL_RULE_IMPL ;
       
     rule_ident = internal_qualifier + ":" + desc.rule_identifier() ;
-      
+
+    
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars ;
     for(i=desc.sources.begin();i!=desc.sources.end();++i) { 
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
       source_vars += (*i).var ;
       svars += (*i).var ;
     }
     for(i=desc.constraints.begin();i!=desc.constraints.end();++i) {
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) {
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
       source_vars += (*i).var ;
+      constraint_vars += (*i).var ;
     }
     source_vars += desc.conditionals ;
     for(i=desc.targets.begin();i!=desc.targets.end();++i) {
-      for(int j=0;j<(*i).mapping.size();++j)
+      for(int j=0;j<(*i).mapping.size();++j) { 
         source_vars += (*i).mapping[j] ;
+        map_vars += (*i).mapping[j] ;
+      }
       target_vars += (*i).var ;
       tvars += (*i).var ;
     }
@@ -622,7 +727,15 @@ namespace Loci {
       
     source_level = source_time ;
     target_level = target_time ;
-      
+
+    time_advance = false ;
+    if(1 == target_offset)
+      time_advance = true ;
+
+    if(target_offset > 2)
+      cerr << "invalid target offset in rule "
+           << rule_impl->get_name() << endl;
+    
   }
     
   ostream &ruleSet::Print(ostream &s) const {

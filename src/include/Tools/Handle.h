@@ -6,10 +6,10 @@
 
 namespace Loci {
     
-enum Handle_type {NULL_HANDLE} ;
+  enum Handle_type {NULL_HANDLE} ;
 
-// Counted pointer template
-template<class T> class HandleGrab {
+  // Counted pointer template
+  template<class T> class HandleGrab {
   private:
     // Reference count, must be > 0 at all times
     int count ;
@@ -30,19 +30,19 @@ template<class T> class HandleGrab {
     bool GrabUnique() const { return count == 1 ; }
     
     T GrabItem ;
-} ;
+  } ;
 
-template<class T> class ConstHandle ;
+  template<class T> class ConstHandle ;
 
-template<class T> class Handle {
+  template<class T> class Handle {
   private:
     void ChangeGrab(HandleGrab<T> *gp) {
-        if(grab!=gp) {
-            HandleGrab<T> *tmp = gp->LinkGrab() ;
-            if(grab!=0)
-              grab->UnlinkGrab() ;
-            grab = tmp ;
-        }
+      if(grab!=gp) {
+        HandleGrab<T> *tmp = gp->LinkGrab() ;
+        if(grab!=0)
+          grab->UnlinkGrab() ;
+        grab = tmp ;
+      }
     }
   protected:
     HandleGrab<T> *grab ;
@@ -52,24 +52,25 @@ template<class T> class Handle {
     Handle() {grab = new HandleGrab<T> ; }
     Handle(Handle_type i) { grab = 0 ; }
     template<class S> explicit Handle(S arg) { grab = new HandleGrab<T>(arg); }
-    Handle(const Handle<T> & hdl) { grab = hdl.grab->LinkGrab() ; }
+    Handle(const Handle<T> & hdl)
+    { grab = 0 ; if(hdl.grab != 0) grab = hdl.grab->LinkGrab() ;  }
     ~Handle() { if(grab!=0) grab->UnlinkGrab() ; }
     Handle<T> &operator=(const Handle<T> &hr) 
-      { ChangeGrab(hr.grab) ; return *this; }
+    { ChangeGrab(hr.grab) ; return *this; }
     Handle<T> &operator=(Handle_type i) {
-        if(grab!=0) grab->UnlinkGrab() ;
-        grab = 0 ;
-	return *this;
+      if(grab!=0) grab->UnlinkGrab() ;
+      grab = 0 ;
+      return *this;
     }
     bool null() const  { return grab == 0; }
     // Make Handle point to a newly allocated grab
     void New() { HandleGrab<T> *ng = new HandleGrab<T> ;
-                     ChangeGrab(ng) ; ng->UnlinkGrab() ; }
+    ChangeGrab(ng) ; ng->UnlinkGrab() ; }
 
     // Make Handle point to a uniquely allocated grab
     void MakeUnique() {  if((grab==0)||!grab->GrabUnique()) {
-        HandleGrab<T> *ng = new HandleGrab<T>(*grab) ; 
-        ChangeGrab(ng) ; ng->UnlinkGrab() ; }}
+      HandleGrab<T> *ng = new HandleGrab<T>(*grab) ; 
+      ChangeGrab(ng) ; ng->UnlinkGrab() ; }}
 
     // Dereference operator
     T &operator* () { return grab->GrabItem ; }
@@ -79,46 +80,46 @@ template<class T> class Handle {
     T * operator-> () { return &grab->GrabItem; }
     const T * operator-> () const { return (const T *)&grab->GrabItem; }
 
-} ;
+  } ;
 
 
-// Handles inherit the relational operators from their template type
-template<class T> bool operator<(const Handle<T> &h1, const Handle<T> &h2)
-{ return (*h1 < *h2) ; }
-template<class T> bool operator<=(const Handle<T> &h1, const Handle<T> &h2)
-{ return (*h1 <= *h2) ; }
-template<class T> bool operator>(const Handle<T> &h1, const Handle<T> &h2)
-{ return (*h1 > *h2) ; }
-template<class T> bool operator>=(const Handle<T> &h1, const Handle<T> &h2)
-{ return (*h1 >= *h2) ; }
-template<class T> bool operator==(const Handle<T> &h1, const Handle<T> &h2)
-{ return (*h1 == *h2) ; }
-template<class T> bool operator!=(const Handle<T> &h1, const Handle<T> &h2)
-{ return (*h1 != *h2) ; }
+  // Handles inherit the relational operators from their template type
+  template<class T> bool operator<(const Handle<T> &h1, const Handle<T> &h2)
+    { return (*h1 < *h2) ; }
+  template<class T> bool operator<=(const Handle<T> &h1, const Handle<T> &h2)
+    { return (*h1 <= *h2) ; }
+  template<class T> bool operator>(const Handle<T> &h1, const Handle<T> &h2)
+    { return (*h1 > *h2) ; }
+  template<class T> bool operator>=(const Handle<T> &h1, const Handle<T> &h2)
+    { return (*h1 >= *h2) ; }
+  template<class T> bool operator==(const Handle<T> &h1, const Handle<T> &h2)
+    { return (*h1 == *h2) ; }
+  template<class T> bool operator!=(const Handle<T> &h1, const Handle<T> &h2)
+    { return (*h1 != *h2) ; }
 
-template<class T> bool operator==(const Handle<T> &h, Handle_type t)
-{ return h.null() ; }
-template<class T> bool operator==(Handle_type t, const Handle<T> &h)
-{ return h.null() ; }
+  template<class T> bool operator==(const Handle<T> &h, Handle_type t)
+    { return h.null() ; }
+  template<class T> bool operator==(Handle_type t, const Handle<T> &h)
+    { return h.null() ; }
 
-template<class T> bool operator!=(const Handle<T> &h, Handle_type t)
-{ return !h.null() ; }
-template<class T> bool operator!=(Handle_type t, const Handle<T> &h)
-{ return !h.null() ; }
+  template<class T> bool operator!=(const Handle<T> &h, Handle_type t)
+    { return !h.null() ; }
+  template<class T> bool operator!=(Handle_type t, const Handle<T> &h)
+    { return !h.null() ; }
 
 
-template<class T> class ConstHandle {
+  template<class T> class ConstHandle {
   private:
 
     HandleGrab<T> *grab ;
 
     void ChangeGrab(HandleGrab<T> *gp) {
-        if(grab!=gp) {
-            HandleGrab<T> *tmp = gp->LinkGrab() ;
-            if(grab!=0)
-              grab->UnlinkGrab() ;
-            grab = tmp ;
-        }
+      if(grab!=gp) {
+        HandleGrab<T> *tmp = gp->LinkGrab() ;
+        if(grab!=0)
+          grab->UnlinkGrab() ;
+        grab = tmp ;
+      }
     }
     ConstHandle() {grab = new HandleGrab<T> ; }
   public:
@@ -127,9 +128,9 @@ template<class T> class ConstHandle {
     ConstHandle(const ConstHandle<T> & hdl) { grab = hdl.grab->LinkGrab() ; }
     ConstHandle(Handle_type i) { grab = 0 ; }
     ~ConstHandle() {
-        if(grab != 0) grab->UnlinkGrab() ; }
+      if(grab != 0) grab->UnlinkGrab() ; }
     ConstHandle<T> &operator=(const Handle<T> &hr) 
-      { ChangeGrab(hr.grab) ; return *this; }
+    { ChangeGrab(hr.grab) ; return *this; }
     ConstHandle<T> &operator=(const ConstHandle<T> &hr) 
     { ChangeGrab(hr.grab) ; return *this; }
 
@@ -141,37 +142,37 @@ template<class T> class ConstHandle {
     // Delegation operator
     const T * operator-> () const { return (const T *)&grab->GrabItem; }
 
-} ;
+  } ;
 
-// ConstHandles inherit the relational operators from their template type
-template<class T> bool operator<(const ConstHandle<T> &h1,
-                                 const ConstHandle<T> &h2)
-{ return (*h1 < *h2) ; }
-template<class T> bool operator<=(const ConstHandle<T> &h1,
-                                  const ConstHandle<T> &h2)
-{ return (*h1 <= *h2) ; }
-template<class T> bool operator>(const ConstHandle<T> &h1,
-                                 const ConstHandle<T> &h2)
-{ return (*h1 > *h2) ; }
-template<class T> bool operator>=(const ConstHandle<T> &h1,
-                                  const ConstHandle<T> &h2)
-{ return (*h1 >= *h2) ; }
-template<class T> bool operator==(const ConstHandle<T> &h1,
-                                  const ConstHandle<T> &h2)
-{ return (*h1 == *h2) ; }
-template<class T> bool operator!=(const ConstHandle<T> &h1,
-                                  const ConstHandle<T> &h2)
-{ return (*h1 != *h2) ; }
+  // ConstHandles inherit the relational operators from their template type
+  template<class T> bool operator<(const ConstHandle<T> &h1,
+                                   const ConstHandle<T> &h2)
+    { return (*h1 < *h2) ; }
+  template<class T> bool operator<=(const ConstHandle<T> &h1,
+                                    const ConstHandle<T> &h2)
+    { return (*h1 <= *h2) ; }
+  template<class T> bool operator>(const ConstHandle<T> &h1,
+                                   const ConstHandle<T> &h2)
+    { return (*h1 > *h2) ; }
+  template<class T> bool operator>=(const ConstHandle<T> &h1,
+                                    const ConstHandle<T> &h2)
+    { return (*h1 >= *h2) ; }
+  template<class T> bool operator==(const ConstHandle<T> &h1,
+                                    const ConstHandle<T> &h2)
+    { return (*h1 == *h2) ; }
+  template<class T> bool operator!=(const ConstHandle<T> &h1,
+                                    const ConstHandle<T> &h2)
+    { return (*h1 != *h2) ; }
 
-template<class T> bool operator==(const ConstHandle<T> &h, Handle_type t)
-{ return h.null() ; }
-template<class T> bool operator==(Handle_type t, const ConstHandle<T> &h)
-{ return h.null() ; }
+  template<class T> bool operator==(const ConstHandle<T> &h, Handle_type t)
+    { return h.null() ; }
+  template<class T> bool operator==(Handle_type t, const ConstHandle<T> &h)
+    { return h.null() ; }
 
-template<class T> bool operator!=(const ConstHandle<T> &h, Handle_type t)
-{ return !h.null() ; }
-template<class T> bool operator!=(Handle_type t, const ConstHandle<T> &h)
-{ return !h.null() ; }
+  template<class T> bool operator!=(const ConstHandle<T> &h, Handle_type t)
+    { return !h.null() ; }
+  template<class T> bool operator!=(Handle_type t, const ConstHandle<T> &h)
+    { return !h.null() ; }
 
 }
 

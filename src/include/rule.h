@@ -293,7 +293,7 @@ namespace Loci {
   
   class rule {
   public:
-    enum rule_type {BUILD,COLLAPSE,GENERIC,TIME_SPECIFIC,INTERNAL} ;
+    enum rule_type {BUILD=0,COLLAPSE=1,GENERIC=2,TIME_SPECIFIC=3,INTERNAL=4} ;
     struct info {
       rule_implP rule_impl ;
         
@@ -302,7 +302,7 @@ namespace Loci {
       std::string rule_ident ;
         
       time_ident source_level, target_level ;
-      variableSet source_vars, target_vars ;
+      variableSet source_vars, target_vars, map_vars, constraint_vars ;
         
       rule_type rule_class ;
       bool output_is_parameter ;
@@ -318,6 +318,9 @@ namespace Loci {
       const info &get_info() const { return *this ; }
       const variableSet &sources() const { return source_vars ; }
       const variableSet &targets() const { return target_vars ; }
+      const variableSet &maps() const { return map_vars ; }
+      const variableSet &constraints() const {return constraint_vars; }
+      
       const string &qualifier() const { return internal_qualifier ; }
       rule_type type() const { return rule_class ; }
       time_ident target_time() const { return target_level ; }
