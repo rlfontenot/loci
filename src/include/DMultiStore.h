@@ -231,26 +231,18 @@ namespace Loci {
   }
 
   //**************************************************************************/
-
   template<class T> 
   void dmultiStoreRepI<T>::allocate(const store<int> &sizes) 
   {
-
     //------------------------------------------------------------------------/
     // Objective : reserve the memory of multiStore using Store..
     //------------------------------------------------------------------------/
 
     entitySet eset = sizes.domain() ;
     entitySet :: const_iterator  ci;
-    int   veclength;
-    T     newObj;
 
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      veclength = sizes[*ci];
-      attrib_data[*ci].reserve(veclength);
-      for( int i = 0; i < veclength; i++)
-        attrib_data[*ci].push_back( newObj );
-    }
+    for( ci = eset.begin(); ci != eset.end(); ++ci)
+      attrib_data[*ci].resize(sizes[*ci]);
 
     store_domain = eset ;
     dispatch_notify() ;
@@ -258,19 +250,27 @@ namespace Loci {
   //***************************************************************************/
   
   template<class T> 
-  void dmultiStoreRepI<T>::allocate(const entitySet &ptn) 
+  void dmultiStoreRepI<T>::allocate(const entitySet &eset) 
   {
-    std::vector<T>   emptyVec;
+    entitySet redundant, newSet;
     entitySet :: const_iterator  ci;
 
-    for( ci = ptn.begin(); ci != ptn.end(); ++ci)
-      attrib_data[*ci] = emptyVec;
+    redundant = domain() -  eset;
+    newSet    = eset - domain();
 
-    store_domain = ptn ;
+    for( ci = redundant.begin(); ci != redundant.end(); ++ci)
+         attrib_data.erase(*ci);
+
+    std::vector<T>  emptyVec;
+    for( ci = newSet.begin(); ci != newSet.end(); ++ci)
+      attrib_data[*ci] =  emptyVec;
+
+    store_domain = eset;
     dispatch_notify() ;
   }
 
   //**************************************************************************/
+
 
   template<class T> 
   dmultiStoreRepI<T>::~dmultiStoreRepI() 
@@ -730,7 +730,7 @@ namespace Loci {
     hid_t    vDataset, vDataspace, vDatatype, mDataspace;
 
     int indx = 0, arraySize, vsize;
-    int    rank = 1, vecsize;
+    int    rank = 1;
 
     entitySet::const_iterator ci;
 
@@ -798,10 +798,7 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    int voffset;
-
     std::vector<T>  data;
-
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
@@ -974,7 +971,6 @@ namespace Loci {
     HASH_MAP(int,std::vector<T> ):: const_iterator ci;
     std::vector<int> container(eset.size());
     size_t  arraySize= 0;
-    int     count;
 
     size_t indx = 0;
     for( ei = eset.begin(); ei != eset.end(); ++ei) {
