@@ -6,6 +6,7 @@
 #include <DMultiMap.h>
 #include <constraint.h>
 #include <distribute.h>
+#include <distribute_container.h>
 #include <parameter.h>
 #include <fact_db.h>
 #include <Loci_types.h>
