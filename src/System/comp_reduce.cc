@@ -561,6 +561,7 @@ class execute_comm_reduce : public execute_modules {
 public:
   execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
 		      CPTR<joiner> jop) ;
+  ~execute_comm_reduce() ;
   virtual void execute(fact_db &facts) ;
   virtual void Print(std::ostream &s) const ;
 } ; 
@@ -631,11 +632,13 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
   }
   void execute_comm_reduce::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
-    MPI_Request  *re_request ;
-    MPI_Status  *re_status ;
     int resend_size = 0, rerecv_size = 0 ;
     std::vector<int> send_index ;
     std::vector<int> recv_index ;
+    int total_size = 0 ;
+    unsigned char *send_alloc, *recv_alloc ; 
+    MPI_Request *re_request ;
+    MPI_Status *re_status ;
     for(int i=0;i<nrecv;++i) {
       r_size[i] = 0 ;
       for(int j=0;j<recv_info[i].second.size();++j) {
@@ -646,17 +649,20 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	maxr_size[i] = r_size[i] ;
       else
 	r_size[i] = maxr_size[i] ;
+      total_size += r_size[i] ;
     }
     
-    for(int i=0;i<nrecv;++i)
-      recv_ptr[i] = new unsigned char[r_size[i]] ;
+    recv_ptr[0] = new unsigned char[total_size] ;
+    recv_alloc = recv_ptr[0] ; 
+    for(int i=1;i<nrecv;++i)
+      recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
     
     for(int i=0;i<nrecv;++i) {
       int proc = recv_info[i].first ;
-      MPI_Irecv(recv_ptr[i], maxr_size[i], MPI_PACKED, proc, 1,
+      MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
     }
-    
+    total_size = 0 ;
     const int nsend = send_info.size() ;
     entitySet resend_procs, rerecv_procs ;
     for(int i=0;i<nsend;++i) {
@@ -669,26 +675,28 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	maxs_size[i] = s_size[i] ;
 	int proc = send_info[i].first ;
 	s_size[i] = sizeof(int) ;
-	send_ptr[i] = new unsigned char[s_size[i]] ;
-	int loc_pack = 0 ;
-	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
-      	//re_send_info.push_back(send_info[i]) ;
 	resend_procs += proc ;
 	send_index.push_back(i) ;
       }
-      else {
-	send_ptr[i] = new unsigned char[s_size[i]] ;
-      }
+      total_size += s_size[i] ;
     }
     
+    send_ptr[0] = new unsigned char[total_size] ;
+    send_alloc = send_ptr[0] ;
+    for(int i = 1; i < nsend; i++)
+      send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
     // Pack the buffer for sending 
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
-      if(!resend_procs.inSet(send_info[i].first))
+      if(!resend_procs.inSet(send_info[i].first)) {
 	for(int j=0;j<send_info[i].second.size();++j) {
 	  storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
 	  sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
 	}
+      }
+      else
+	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
+      
     }
     
     // Send Buffer
@@ -696,7 +704,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       int proc = send_info[i].first ;
       MPI_Send(send_ptr[i],s_size[i],MPI_PACKED,proc,1,MPI_COMM_WORLD) ;
     }
-    
     if(nrecv > 0) { 
       int err = MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
@@ -704,14 +711,12 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       for(int i = 0 ; i < nrecv; i++) {
 	MPI_Get_count(&status[i], MPI_BYTE, &recv_sizes[i]) ;  
 	if(recv_sizes[i] == sizeof(int)) {
-	  warn(recv_sizes[i] < sizeof(int)) ;
-	  //re_recv_info.push_back(recv_info[i]) ;
 	  rerecv_procs += recv_info[i].first ;
 	  recv_index.push_back(i) ;
 	}
       }
+      delete [] recv_sizes ;
     }
-    
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
       if(rerecv_procs.inSet(recv_info[i].first)) {
@@ -723,7 +728,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	  storeRepP sr = sp->new_store(entitySet(recv_info[i].second[j].seq)) ;
 	  sr->unpack(recv_ptr[i], loc_unpack, r_size[i],
 		     recv_info[i].second[j].seq) ;
-	  
 	  CPTR<joiner> op = join_op->clone() ;
 	  op->SetArgs(sp,sr) ;
 	  op->Join(recv_info[i].second[j].seq) ;
@@ -733,9 +737,10 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     rerecv_size = rerecv_procs.size() ;
     resend_size = resend_procs.size() ;
     
-    re_request =  new MPI_Request[rerecv_size] ;
-    re_status =  new MPI_Status[rerecv_size] ;
-    
+    if(rerecv_size > 0) {
+      re_request =  new MPI_Request[rerecv_size] ;
+      re_status =  new MPI_Status[rerecv_size] ;
+    }
     for(int i = 0; i < rerecv_size; i++) {
       int proc = recv_info[recv_index[i]].first ;
       recv_ptr[recv_index[i]] = new unsigned char[maxr_size[recv_index[i]]] ;
@@ -755,6 +760,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     for(int i=0;i<resend_size;++i) {
       int proc = send_info[send_index[i]].first ;
       MPI_Send(send_ptr[send_index[i]],maxs_size[send_index[i]],MPI_PACKED,proc,2,MPI_COMM_WORLD) ;
+      delete [] send_ptr[send_index[i]] ;
     }
     if(rerecv_size > 0) { 
       int err = MPI_Waitall(rerecv_size, re_request, re_status) ;
@@ -767,21 +773,19 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	storeRepP sr = sp->new_store(entitySet(recv_info[recv_index[i]].second[j].seq)) ;
 	sr->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
 		   recv_info[recv_index[i]].second[j].seq) ;
-
+	
 	CPTR<joiner> op = join_op->clone() ;
 	op->SetArgs(sp,sr) ;
-	op->Join(recv_info[i].second[j].seq) ;
+	op->Join(recv_info[recv_index[i]].second[j].seq) ;
       }
+      delete [] recv_ptr[recv_index[i]] ;
     }
-    
-    delete [] re_status ;
-    delete [] re_request ;
-    
-    for(int i = 0; i < nsend; i++)
-      delete [] send_ptr[i] ;
-    
-    for(int i = 0; i < nrecv; i++)
-      delete [] recv_ptr[i] ;
+    delete recv_alloc ;
+    delete send_alloc ;
+    if(rerecv_size > 0) {
+      delete [] re_status ;
+      delete [] re_request ;
+    }	
   }
   
   void execute_comm_reduce::Print(ostream &s) const {

@@ -781,10 +781,12 @@ namespace Loci {
   void execute_comm::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
-    MPI_Request  *re_request ;
-    MPI_Status  *re_status ;
     std::vector<int> send_index ;
     std::vector<int> recv_index ;
+    int total_size = 0 ;
+    unsigned char *send_alloc, *recv_alloc ; 
+    MPI_Request *re_request ;
+    MPI_Status *re_status ;
     for(int i=0;i<nrecv;++i) {
       r_size[i] = 0 ;
       for(int j=0;j<recv_info[i].second.size();++j) {
@@ -795,15 +797,20 @@ namespace Loci {
 	maxr_size[i] = r_size[i] ;
       else
 	r_size[i] = maxr_size[i] ;
+      total_size += r_size[i] ;
     }
-    for(int i=0;i<nrecv;++i)
-      recv_ptr[i] = new unsigned char[r_size[i]] ;
+    
+    recv_ptr[0] = new unsigned char[total_size] ;
+    recv_alloc = recv_ptr[0] ;
+    for(int i=1;i<nrecv;++i)
+      recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
     
     for(int i=0;i<nrecv;++i) {
       int proc = recv_info[i].first ;
-      MPI_Irecv(recv_ptr[i], maxr_size[i], MPI_PACKED, proc, 1,
+      MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
     }
+    total_size = 0 ;
     const int nsend = send_info.size() ;
     entitySet resend_procs, rerecv_procs ;
     for(int i=0;i<nsend;++i) {
@@ -816,25 +823,28 @@ namespace Loci {
 	maxs_size[i] = s_size[i] ;
 	int proc = send_info[i].first ;
 	s_size[i] = sizeof(int) ;
-	send_ptr[i] = new unsigned char[s_size[i]] ;
-	int loc_pack = 0 ;
-	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
 	resend_procs += proc ;
 	send_index.push_back(i) ;
       }
-      else {
-	send_ptr[i] = new unsigned char[s_size[i]] ;
-      }
+      total_size += s_size[i] ;
     }
+    
+    send_ptr[0] = new unsigned char[total_size] ;
+    send_alloc = send_ptr[0] ;
+    for(int i = 1; i < nsend; i++)
+      send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
+    
     // Pack the buffer for sending 
     for(int i=0;i<nsend;++i) {
+      int loc_pack = 0 ;
       if(!resend_procs.inSet(send_info[i].first)) {
-	int loc_pack = 0 ;
 	for(int j=0;j<send_info[i].second.size();++j) {
 	  storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
 	  sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
 	}
       }
+      else
+	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
     }
     
     // Send Buffer
@@ -853,6 +863,7 @@ namespace Loci {
 	  recv_index.push_back(i) ;
 	}
       }
+      delete [] recv_sizes ;
     }
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
@@ -868,19 +879,18 @@ namespace Loci {
     }
     rerecv_size = rerecv_procs.size() ;
     resend_size = resend_procs.size() ;
-    
-    re_request =  new MPI_Request[rerecv_size] ;
-    re_status =  new MPI_Status[rerecv_size] ;
-    
+    if(rerecv_size > 0) {
+      re_request =  new MPI_Request[rerecv_size] ;
+      re_status =  new MPI_Status[rerecv_size] ;
+    }
     for(int i = 0; i < rerecv_size; i++) {
       int proc = recv_info[recv_index[i]].first ;
-      delete [] recv_ptr[recv_index[i]] ;
       recv_ptr[recv_index[i]] = new unsigned char[maxr_size[recv_index[i]]] ;
       MPI_Irecv(recv_ptr[recv_index[i]], maxr_size[recv_index[i]], MPI_PACKED, proc, 2, MPI_COMM_WORLD, &re_request[i]) ;
     }
+    
     for(int i=0;i<resend_size;++i) {
       int loc_pack = 0 ;
-      delete [] send_ptr[send_index[i]] ;
       send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
       for(int j=0;j<send_info[send_index[i]].second.size();++j) {
         storeRepP sp = facts.get_variable(send_info[send_index[i]].second[j].v) ;
@@ -892,6 +902,7 @@ namespace Loci {
     for(int i=0;i<resend_size;++i) {
       int proc = send_info[send_index[i]].first ;
       MPI_Send(send_ptr[send_index[i]],maxs_size[send_index[i]],MPI_PACKED,proc,2,MPI_COMM_WORLD) ;
+      delete [] send_ptr[send_index[i]] ;
     }
     if(rerecv_size > 0) { 
       int err = MPI_Waitall(rerecv_size, re_request, re_status) ;
@@ -900,20 +911,19 @@ namespace Loci {
     for(int i=0;i<rerecv_size;++i) {
       int loc_unpack = 0;
       for(int j=0;j<recv_info[recv_index[i]].second.size();++j) {
-        storeRepP sp = facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
+	storeRepP sp = facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
 	sp->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
 		   recv_info[recv_index[i]].second[j].seq) ;
       }
+      delete [] recv_ptr[recv_index[i]] ;
     }
     
-    delete [] re_status ;
-    delete [] re_request ;
-    
-    for(int i = 0; i < nsend; i++)
-      delete [] send_ptr[i] ;
-    
-    for(int i = 0; i < nrecv; i++)
-      delete [] recv_ptr[i] ;
+    delete recv_alloc ;
+    delete send_alloc ;
+    if(rerecv_size > 0) {
+      delete [] re_status ;
+      delete [] re_request ;
+    }
   }
   
   void execute_comm::Print(ostream &s) const {
