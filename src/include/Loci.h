@@ -128,6 +128,8 @@ using Loci::rule_impl_list ;
 using Loci::blackbox;
 using Loci::const_blackbox;
 
+#include <LociGridReaders.h>
+
 #endif
 
 

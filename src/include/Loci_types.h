@@ -81,17 +81,17 @@ namespace Loci {
     return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z ;
   }
 
-  template <class T> inline T dot(const vector3d<T> &v1, const T ra2[]) {
-    return v1.x*ra2[0] + v1.y*ra2[1] + v1.z*ra2[2] ;
-  }
+  //  template <class T> inline T dot(const vector3d<T> &v1, const T ra2[]) {
+  //    return v1.x*ra2[0] + v1.y*ra2[1] + v1.z*ra2[2] ;
+  //  }
 
   template <class T> inline T norm(const vector3d<T> &v) {
     return sqrt(v.x*v.x+v.y*v.y+v.z*v.z) ;
   }
 
-  template <class T> inline T dot(const T ra1[], const vector3d<T> &v2) {
-    return ra1[0]*v2.x + ra1[1]*v2.y + ra1[2]*v2.z ;
-  }
+  //  template <class T> inline T dot(const T ra1[], const vector3d<T> &v2) {
+  //    return ra1[0]*v2.x + ra1[1]*v2.y + ra1[2]*v2.z ;
+  //  }
 
   template<class T> inline vector3d<T> cross(const vector3d<T> &v1, const vector3d<T> &v2) {
     return vector3d<T>(v1.y*v2.z-v1.z*v2.y,
@@ -256,9 +256,9 @@ namespace Loci {
     return sqrt(v.x*v.x+v.y*v.y) ;
   }
 
-  template <class T> inline T dot(const T ra1[], const vector2d<T> &v2) {
-    return ra1[0]*v2.x + ra1[1]*v2.y ;
-  }
+  //  template <class T> inline T dot(const T ra1[], const vector2d<T> &v2) {
+  //    return ra1[0]*v2.x + ra1[1]*v2.y ;
+  //  }
 
   template<class T> inline T cross(const vector2d<T> &v1, const vector2d<T> &v2) {
     return v1.x*v2.y-v1.y*v2.x ;
@@ -268,9 +268,9 @@ namespace Loci {
     return v1.x*ra2[1]-v1.y*ra2[0] ;
   }
 
-  template<class T> inline T cross(const T ra1[], const vector2d<T> &v2) {
-    return ra1[0]*v2.y-ra1[1]*v2.x ;
-  }
+  //  template<class T> inline T cross(const T ra1[], const vector2d<T> &v2) {
+  //    return ra1[0]*v2.y-ra1[1]*v2.x ;
+  //  }
 
   template<class T> inline vector2d<T> &operator*=(vector2d<T> &target, float val) {
     target.x *= val ;
