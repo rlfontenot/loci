@@ -160,7 +160,7 @@ namespace Loci {
       return Rep()->read_frame_info(group_id) ;
     }
     virtual frame_info write_frame_info(hid_t group_id) {
-      return write_frame_info(group_id) ;
+      return Rep()->write_frame_info(group_id) ;
     }
   } ;
   typedef NPTR<store_ref> store_refP ;
