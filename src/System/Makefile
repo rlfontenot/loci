@@ -48,6 +48,6 @@ make.depend:
 	touch make.depend 
 
 depend: make.depend
-	$(MAKEDEPEND) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES)  *.cc > make.depend
+	$(MAKEDEPEND) $(CFLAGS) $(TEMPLATE_LIB_OPT) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) *.cc > make.depend
 
 include make.depend				

@@ -356,6 +356,21 @@ namespace Loci {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
 
+  template<int M> multiMap MapVecRepI<M>::get_map()  {
+    store<int> sizes ;
+    sizes.allocate(store_domain) ;
+    FORALL(store_domain,i) {
+      sizes[i] = M ;
+    } ENDFORALL ;
+    multiMap result ;
+    result.allocate(sizes) ;
+    FORALL(store_domain,i) {
+      for(int j=0;j<M;++j) 
+        result.begin(i)[j] = base_ptr[i][j] ;
+    } ENDFORALL ;
+    return result ;
+  }
+
   template<int M> storeRep *MapVecRepI<M>::new_store(const entitySet &p) const {
     return new MapVecRepI<M>(p) ;
   }

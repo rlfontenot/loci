@@ -8,6 +8,7 @@
 #include <Map_rep.h>
 #include <hdf5CC/H5cpp.h>
 
+#include <Map.h>
 #include <store.h>
 
 namespace Loci {
@@ -176,21 +177,6 @@ namespace Loci {
                   const entitySet &input_preimage) ;
 
 
-
-  template<int M> multiMap MapVecRepI<M>::get_map()  {
-    store<int> sizes ;
-    sizes.allocate(store_domain) ;
-    FORALL(store_domain,i) {
-      sizes[i] = M ;
-    } ENDFORALL ;
-    multiMap result ;
-    result.allocate(sizes) ;
-    FORALL(store_domain,i) {
-      for(int j=0;j<M;++j) 
-        result.begin(i)[j] = base_ptr[i][j] ;
-    } ENDFORALL ;
-    return result ;
-  }
 
   template<int M> void inverseMap (multiMap &result,
                                    const MapVec<M> &input_map,

@@ -287,6 +287,14 @@ namespace Loci {
         for(variableSet::const_iterator vi = btarget.begin();
             vi!=btarget.end();
             ++vi) {
+          if(!vi->assign) {
+            cerr << "incorrect specification of build rule " << *ri
+                 << endl
+                 << "A correct build rule should have an assign in the target"
+                 << " variable.  For example, instead of " << *vi
+                 << " use " << vi->name << "{"<< vi->time_id<<"=0}"
+                 << endl ;
+          }
           warn(!vi->assign) ;
 
           build_vars += *vi ;
