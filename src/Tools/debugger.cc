@@ -92,6 +92,7 @@ namespace Loci {
             xtermlibpath,xtermpath,
             debug_hostname,debug_program,pid,debug_execname) ;
 #endif
+    cerr << buf << endl ;
     system(buf) ;
 
     sleep(100) ; /* Wait for debugger to attach */
@@ -133,5 +134,6 @@ namespace Loci {
     signal(SIGILL,program_trap) ;
     signal(SIGSYS,program_trap) ;
     signal(SIGFPE,program_trap) ;
+    signal(SIGABRT,program_trap) ;
   }
 }  

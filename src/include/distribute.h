@@ -111,6 +111,7 @@ namespace Loci {
   int GLOBAL_AND(int b) ;
   int GLOBAL_MAX(int b) ;
   int GLOBAL_MIN(int b) ;
+  dMap distribute_dMap(dMap m, const std::vector<entitySet> &init_ptn) ;
 }
 #endif
  

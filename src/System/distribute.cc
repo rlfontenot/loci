@@ -1,3 +1,5 @@
+#define DEBUG
+#define BOUNDS_CHECK
 #include <distribute.h>
 #include <Tools/debug.h>
 #include <entitySet.h>
@@ -2639,7 +2641,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
       MPI_Status *store_status ;
       MPI_Request *store_request ;
       int sz = 0 ;
-      int *s_size = new int[MPI_processes-1] ;
+      int *s_size = new int[MPI_processes] ;
       
       for(int i = 0; i < MPI_processes; ++i) 
 	ent[i] = init_ptn[i] & image ;
@@ -2662,11 +2664,11 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	}
       }
       */
-      int **send_ptr = new int*[MPI_processes-1] ;
-      store_request = new MPI_Request[MPI_processes-1] ;
-      store_status = new MPI_Status[MPI_processes-1] ;
+      int **send_ptr = new int*[MPI_processes] ;
+      store_request = new MPI_Request[MPI_processes] ;
+      store_status = new MPI_Status[MPI_processes] ;
       int tmp = 0 ;
-      send_ptr[0] = new int[sz] ;
+      send_ptr[0] = new int[sz*10] ;
       for(int i = 1; i < MPI_processes-1; i++)
 	send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
       for(int i = 0; i < MPI_processes-1; i++) {
@@ -2698,7 +2700,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
     else {
       MPI_Status stat ;
       int sz = 2*(init_ptn[Loci::MPI_rank] & image).size();
-      int *recv_ptr = new int[sz] ;
+      int *recv_ptr = new int[sz*10] ;
       MPI_Recv(recv_ptr, sz, MPI_INT, 0, 3, MPI_COMM_WORLD, &stat) ;
       int tmp = 1 ;
       dom = EMPTY ;
@@ -4549,5 +4551,126 @@ std::vector<entitySet> modified_categories(fact_db &facts, std::map<variable, en
     MPI_Allreduce(&b, &result, 1, MPI_INT, MPI_MIN,MPI_COMM_WORLD) ;
     return result ;
    }
+
+
+  entitySet broadcastEntitySet(entitySet s, int root) {
+    int num_ivals = s.num_intervals() ;
+
+    MPI_Bcast(&num_ivals,1,MPI_INT,root,MPI_COMM_WORLD) ;
+    int *buf = new int[num_ivals*2] ;
+    if(MPI_rank == root) {
+      for(int i=0;i<num_ivals;++i) {
+        buf[2*i] = s[i].first ;
+        buf[2*i+1] = s[i].second ;
+      }
+    }
+    MPI_Bcast(&buf,num_ivals*2,MPI_INT,root,MPI_COMM_WORLD) ;
+    entitySet ret_val ;
+    for(int i=0;i<num_ivals;++i)
+      ret_val += interval(buf[2*i],buf[2*i+1]) ;
+    delete[] buf ;
+    return ret_val ;
+  }
+
+
+  // Pass in a set of entitySets one for each processor to broadcast
+  // to other processors.  Return with a vector of entitySets as sent to
+  // you by each other processor.
+  vector<entitySet> Alltoall_entitySet(vector<entitySet> v) {
+    WARN(v.size() != MPI_processes) ;
+
+    if(MPI_processes == 1)
+      return v ;
+
+    const int p = v.size() ;
+    vector<int> ivals(p) ;
+    for(int i=0;i<p;++i)
+      ivals[i] = v[i].num_intervals() ;
+    vector<int> ivalr(p) ;
+    MPI_Alltoall(&(ivals[0]),1,MPI_INT,&(ivalr[0]),1,MPI_INT,MPI_COMM_WORLD) ;
+    vector<int> sdispls(p),rdispls(p) ;
+    sdispls[0] = 0 ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      sdispls[i] = sdispls[i-1]+ivals[i-1]*2 ;
+      rdispls[i] = rdispls[i-1]+ivalr[i-1]*2 ;
+    }
+    vector<int> sbuf(sdispls[p-1]+ivals[p-1]*2) ;
+    vector<int> rbuf(rdispls[p-1]+ivalr[p-1]*2) ;
+    vector<int> scounts(p),rcounts(p) ;
+    for(int i=0;i<p;++i) {
+      scounts[i] = 2*ivals[i] ;
+      rcounts[i] = 2*ivalr[i] ;
+      for(int j=0;j<ivals[i];++j) {
+        sbuf[sdispls[i]+j*2] = v[i][j].first ;
+        sbuf[sdispls[i]+j*2+1] = v[i][j].second ;
+      }
+    }
+    MPI_Alltoallv(&(sbuf[0]),&(scounts[0]),&(sdispls[0]),MPI_INT,
+                  &(rbuf[0]),&(rcounts[0]),&(rdispls[0]),MPI_INT,
+                  MPI_COMM_WORLD) ;
+
+    vector<entitySet> retv(p) ;
+    for(int i=0;i<p;++i) {
+      for(int j=0;j<ivalr[i];++j) {
+        retv[i] += interval(rbuf[rdispls[i]+j*2],rbuf[rdispls[i]+j*2+1]) ;
+      }
+    }
+    return retv ;
+  }
   
+  dMap distribute_dMap(dMap m, const std::vector<entitySet> &init_ptn) {
+    if(MPI_processes == 1)
+      return m ;
+
+    const int p = MPI_processes ;
+    entitySet dom = m.domain() ;
+    std::vector<entitySet> send_slices(p) ;
+    for(int i=0;i<p;++i) {
+      send_slices[i] = dom & init_ptn[i] ;
+      dom -= init_ptn[i] ;
+    }
+    WARN(dom != EMPTY) ;
+
+    vector<entitySet> recv_slices = Alltoall_entitySet(send_slices) ;
+
+    vector<int> scounts(p),rcounts(p), sdispls(p),rdispls(p) ;
+    for(int i=0;i<p;++i) {
+      scounts[i] = send_slices[i].size() ;
+      rcounts[i] = recv_slices[i].size() ;
+    }
+    sdispls[0] = 0 ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      sdispls[i] = sdispls[i-1]+scounts[i-1] ;
+      rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
+    }
+
+    vector<int> sbuf(sdispls[p-1]+scounts[p-1]) ;
+    vector<int> rbuf(rdispls[p-1]+rcounts[p-1]) ;
+    for(int i=0;i<p;++i) {
+      int k =0 ;
+      for(entitySet::const_iterator ei = send_slices[i].begin();
+          ei != send_slices[i].end();++ei,++k) {
+        sbuf[sdispls[i]+k] = m[*ei] ;
+      }
+    }
+
+    MPI_Alltoallv(&(sbuf[0]),&(scounts[0]),&(sdispls[0]),MPI_INT,
+                  &(rbuf[0]),&(rcounts[0]),&(rdispls[0]),MPI_INT,
+                  MPI_COMM_WORLD) ;
+
+    dMap ret_map ;
+
+    for(int i=0;i<p;++i) {
+      int k =0 ;
+      for(entitySet::const_iterator ei = recv_slices[i].begin();
+          ei != recv_slices[i].end();++ei,++k) {
+        ret_map[*ei] = rbuf[rdispls[i]+k] ;
+      }
+    }
+
+    return ret_map ;
+    
+  }
 } 
