@@ -16,15 +16,16 @@ using std::endl ;
 using std::cout ;
 using std::ofstream ;
 
-#define PROFILE_CODE
-
 ///////////////////////////////////
 #include <sstream>
 ///////////////////////////////////
 
+#define PROFILE_CODE
+
 namespace Loci {
   ////////////////////////////
   extern bool show_graphs ;
+  extern void deco_depend_gr(digraph& gr,const variableSet& given) ;
   ////////////////////////////
 
   double get_timer() {
@@ -43,7 +44,7 @@ namespace Loci {
   }  
 
   ////////////////////////////////////////////////////////////////////
-  // the following part are functions to visual loci internal graphs
+  // the following part are functions to visualize loci internal graphs
   // they create files to be used by "dot", "lefty" and "dotty"
   // programs from AT&T research
   void create_digraph_dot_file(const digraph &dg, const char* fname)
@@ -57,6 +58,9 @@ namespace Loci {
     //outf<<"size = \"8.5,11\";\n" ;
     
     for(ri=allvertices.begin();ri!=allvertices.end();++ri) {
+
+      if(*ri == 0) continue ;
+      
       digraph::vertexSet outvertices = dg[*ri] ;
       digraph::vertexSet incomevertices = dgt[*ri] ;
       
@@ -128,10 +132,7 @@ namespace Loci {
     std::string rqualifier = r.get_info().qualifier() ;
     // reads until ':'
     // e.g. SN12: .....
-    int i=2 ;
-    while(rqualifier[i] != ':')
-      ++i ;
-    std::string number = rqualifier.substr(2,i-2) ;
+    std::string number = rqualifier.substr(2,rqualifier.size()-2) ;
     
     // get the cluster name
     std::string clustername = "cluster" ;
@@ -524,6 +525,12 @@ namespace Loci {
     if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;
 
+    ////////////////decorate the dependency graph/////////////////////
+    //if(Loci::MPI_rank==0)
+    //cout << "decorating dependency graph to include allocation..." << endl ;
+    //deco_depend_gr(gr,given) ;
+    //////////////////////////////////////////////////////////////////
+    
     ////////////////////////////////////////////////////////////////////////
     std::string dottycmd = "dotty " ;
     if(Loci::MPI_rank==0) {
@@ -581,7 +588,10 @@ namespace Loci {
     }
     if(Loci::MPI_rank==0)
       cout << " initial_vars = " << initial_vars << endl ;
+    
     graph_compiler compile_graph(decomp, initial_vars) ;
+    compile_graph.compile(facts,scheds,target) ;
+    
     double end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for graph processing  = "
                    << end_time  - start_time << "  seconds " << endl ;

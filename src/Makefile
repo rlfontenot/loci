@@ -1,8 +1,8 @@
 #
 # 
-LOCI_BASE = $(shell pwd)
-include $(LOCI_BASE)/Loci.conf
-
+LOCI_BASE = ../
+include sys.conf
+include comp.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 

@@ -244,7 +244,6 @@ namespace Loci {
   }
   
   entitySet process_rule_requests(rule r, fact_db &facts, sched_db &scheds) {
-    
     // Internal rules should be handling the appropriate rule requests via
     // their associated compiler.
     FATAL(r.type() == rule::INTERNAL) ;
@@ -1349,13 +1348,6 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   }
 
   void allocate_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
-    ////////////////////////////////////////////////////////////////////
-    // check if any variables have been disabled to allocate
-    variableSet disabled = scheds.get_disabled() ;
-    allocate_vars -= disabled ;
-    // re-set the disabled variables to empty
-    scheds.clear_disabled() ;
-    ////////////////////////////////////////////////////////////////////
   }
 
   executeP allocate_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
@@ -1378,13 +1370,6 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
   void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)
   {
-    //////////////////////////////////////////////////////////////////////
-    // check if any variables have been disabled to de-allocate
-    variableSet disabled = scheds.get_disabled() ;
-    free_vars -= disabled ;
-    // re-set the disabled variables to empty
-    scheds.clear_disabled() ;
-    //////////////////////////////////////////////////////////////////////
   }
 
   void free_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) { }

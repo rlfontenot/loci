@@ -1,6 +1,7 @@
 #include "sched_tools.h"
 #include "comp_tools.h"
 #include "distribute.h"
+#include "visitor.h"
 
 #include <Tools/stream.h>
 
@@ -12,21 +13,24 @@ using std::map ;
 using std::list ;
 #include <set>
 using std::set ;
+#include <string>
+using std::string ;
+#include <sstream>
+using std::stringstream ;
 
-
-// flag to use the original memory allocation
-// disable it and turn on the USE_MEMORY_SCHEDULE (comp_dag.cc,
-// comp_internal.cc, comp_loop.cc)
-// to use the new memory allocation
-#define USE_ALLOCATE_ALL_VARS
 //#define HACK ; 
 
 namespace Loci {
   extern double total_memory_usage ;
+  extern bool show_decoration ;
+  extern bool use_dynamic_memory ;
+  extern bool show_dmm_verbose ;
 
   class error_compiler : public rule_compiler {
   public:
     error_compiler() {}
+    virtual void accept(visitor& v)
+    { cerr << "Internal consistency error" << endl ; exit(-1);}
     virtual void set_var_existence(fact_db &facts, sched_db &scheds)
     { cerr << "Internal consistency error" << endl ; exit(-1);}
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) 
@@ -35,6 +39,21 @@ namespace Loci {
     { cerr << "Internal consistency error" << endl ; exit(-1);
     return executeP(0);}
   } ;
+
+  int get_supernode_num(int rid) {
+    rule r(rid) ;
+    string rqualifier = r.get_info().qualifier() ;
+    string head = rqualifier.substr(0,2) ;
+    if(head != "SN") return -1 ;
+    
+    string number = rqualifier.substr(2,rqualifier.size()-2) ;
+    stringstream ss ;
+    ss << number ;
+    int ret ;
+    ss >> ret ;
+
+    return ret ;
+  }
  
   graph_compiler::graph_compiler(decomposed_graph &deco,variableSet
 				 initial_vars) {
@@ -93,6 +112,8 @@ namespace Loci {
             rule_process[*ri] = new generalize_compiler(*ri) ;
           else if(ri->get_info().qualifier() == "priority")
             rule_process[*ri] = new priority_compiler(*ri) ;
+          else if(ri->get_info().qualifier() == "ALLOCATE")
+            rule_process[*ri] = new allocate_var_compiler(ri->targets()) ;
           else
             rule_process[*ri] = new error_compiler ;
         } else {
@@ -107,10 +128,13 @@ namespace Loci {
       // we create a compiler for this supernode
 
       rule snrule = rule(*ii) ;
+      // push each snrule into the vector super_rules for later use
+      super_rules.push_back(snrule) ;
+      int id = get_supernode_num(*ii) ;
 
       if(deco.loops.inSet(*ii)) {
         // Looping supernode
-        rule_process[snrule] = new loop_compiler(rule_process,gr) ;
+        rule_process[snrule] = new loop_compiler(rule_process,gr,id) ;
       } else if(deco.recursive.inSet(*ii)) {
         // recursive supernode
         ruleSet recurse_rules = extract_rules(p->graph_v) ;
@@ -119,21 +143,218 @@ namespace Loci {
            && (MPI_processes ==1 || (*recurse_rules.begin()).get_rule_implP()->is_relaxed()))
           // Single rule recursion
           rule_process[snrule] =
-            new impl_recurse_compiler(*(recurse_rules.begin())) ;
+            new impl_recurse_compiler(*(recurse_rules.begin()),id) ;
         else
           // Multi-rule recursion
           rule_process[snrule] =
-            new recurse_compiler(rule_process, recurse_rules) ;
+            new recurse_compiler(rule_process, recurse_rules, id) ;
       } else if(deco.conditional.inSet(*ii)) {
         // conditional supernode
         variable cond_var = *(snrule.get_info().desc.conditionals.begin()) ;
         rule_process[snrule] =
-          new conditional_compiler(rule_process,gr,cond_var) ;
+          new conditional_compiler(rule_process,gr,cond_var,id) ;
       } else {
         // DAG supernode
-        rule_process[snrule] = new dag_compiler(rule_process,gr) ;
+        rule_process[snrule] = new dag_compiler(rule_process,gr,id) ;
       }
     } 
+  }
+
+  void graph_compiler::top_down_visit(visitor& v) {
+    for(vector<rule>::reverse_iterator ii=super_rules.rbegin();
+        ii!=super_rules.rend();++ii) {
+      rulecomp_map::iterator ri ;
+      ri = rule_process.find(*ii) ;
+      FATAL(ri == rule_process.end()) ;
+      (ri->second)->accept(v) ;
+    }
+  }
+  
+  void graph_compiler::bottom_up_visit(visitor& v) {
+    for(vector<rule>::const_iterator ii=super_rules.begin();
+        ii!=super_rules.end();++ii) {
+      rulecomp_map::iterator ri ;
+      ri = rule_process.find(*ii) ;
+      FATAL(ri == rule_process.end()) ;
+      (ri->second)->accept(v) ;
+    }
+  }
+  
+  fact_db *exec_current_fact_db = 0 ;
+
+  void graph_compiler::compile(fact_db& facts,sched_db& scheds,
+                               const variableSet& target) {
+    /***********************************
+    1. unordered visitor phase (1..n)
+         top -> down
+         bottom -> up
+       graph editing phase (1..n)
+
+    2. ordering phase (1..n)
+
+    3. assembly phase.
+    ************************************/
+
+    // must do this visitation
+    // the loop rotate_lists is computed here
+    rotateListVisitor rotlv(scheds) ;
+    top_down_visit(rotlv) ;
+
+    if(use_dynamic_memory) {
+      cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
+      
+      snInfoVisitor snv ;
+      top_down_visit(snv) ;
+      
+      recurInfoVisitor recv ;
+      top_down_visit(recv) ;
+
+      unTypedVarVisitor untypevarV(recv.get_recur_vars_s2t(),
+                                   recv.get_recur_vars_t2s()) ;
+      top_down_visit(untypevarV) ;
+      
+      // compute how to do allocation
+      allocInfoVisitor aiv(snv.get_graph_sn(),
+                           recv.get_recur_target_vars(),
+                           snv.get_loop_sn(),
+                           rotlv.get_rotate_vars_table(),
+                           rotlv.get_loop_common_table(),
+                           untypevarV.get_untyped_vars()
+                           ) ;
+      top_down_visit(aiv) ;
+      
+      // compute how to do deletion
+      deleteInfoVisitor div(get_loop_alloc_table(aiv.get_alloc_table(),
+                                                 snv.get_subnode_table(),
+                                                 snv.get_loop_sn(),
+                                                 snv.get_graph_sn(),
+                                                 recv.get_recur_vars_s2t()),
+                            recv.get_recur_vars_t2s(),
+                            recv.get_recur_vars_s2t(),
+                            recv.get_recur_source_vars(),
+                            recv.get_recur_target_vars(),
+                            snv.get_graph_sn(),
+                            get_parentnode_table(snv.get_subnode_table()),
+                            snv.get_loop_col_table(),
+                            snv.get_loop_sn(),
+                            rotlv.get_rotate_vars_table(),
+                            rotlv.get_loop_common_table(),
+                            target,untypevarV.get_untyped_vars()
+                            ) ;
+      top_down_visit(div) ;
+      
+      // decorate the graph to insert allocation rules
+      allocGraphVisitor agv(aiv.get_alloc_table(),
+                            snv.get_loop_sn(),
+                            rotlv.get_rotate_vars_table(),
+                            rotlv.get_loop_common_table()
+                            ) ;
+      top_down_visit(agv) ;
+      
+      // decorate the graph to insert deletion rules
+      deleteGraphVisitor dgv(div.get_delete_table(),
+                             div.get_recur_source_other_rules()) ;
+      top_down_visit(dgv) ;
+      
+            
+      // check if the decorated graphs are acyclic
+      dagCheckVisitor dagcV ;
+      top_down_visit(dagcV) ;
+
+      if(show_dmm_verbose) {
+        // the output stream
+        ostream& os = cout ;
+        //print out the loop rotate list variables
+        os << endl ;
+        os << "---------loop rotate list variables-----------" << endl ;
+        os << rotlv.get_rotate_vars_table() ;
+        //print out the loop common variables
+        os << endl ;
+        os << "---------loop common variables-----------" << endl ;
+        os << rotlv.get_loop_common_table() ;
+        os << endl ;
+        //print out the redirect table
+        os << "----------redirect table-----------------" << endl ;
+        os << div.get_redirect_table() ;
+        os << endl ;
+        //print out the untyped variables
+        os << "----------untyped variables--------------" << endl ;
+        os << untypevarV.get_untyped_vars() ;
+        os << endl ;
+
+        os << endl ;
+        // get all typed variables in the fact database
+        variableSet vars = facts.get_typed_variables() ;
+        // get all the variables in the multilevel graph
+        getAllVarVisitor allvarV ;
+        top_down_visit(allvarV) ;
+        variableSet allgraphv = allvarV.get_all_vars_ingraph() ;
+        // the difference
+        variableSet typed_not_in_graph = variableSet(vars - allgraphv) ;
+        if(typed_not_in_graph != EMPTY) {
+          os << "These are typed variables in fact database, "
+             << "but are not in the multilevel graph: "
+             << typed_not_in_graph << endl ;
+        }
+        
+        variableSet allocated_vars ;
+        map<int,variableSet> alloc_table = aiv.get_alloc_table() ;
+        map<int,variableSet>::const_iterator miter ;
+        for(miter=alloc_table.begin();miter!=alloc_table.end();++miter)
+          allocated_vars += miter->second ;
+        vars -= allocated_vars ;
+        vars -= recv.get_recur_target_vars() ;
+        // input variables
+        rulecomp_map::iterator ri ;
+        ri = rule_process.find(*super_rules.rbegin()) ;
+        FATAL(ri == rule_process.end()) ;
+        dag_compiler* dc = dynamic_cast<dag_compiler*>(&(*(ri->second))) ;
+        digraph gr = dc->dag_gr ;
+        digraph grt = gr.transpose() ;
+        
+        digraph::vertexSet input_vars ;
+        digraph::vertexSet all_vertices = grt.get_all_vertices() ;  
+        for(digraph::vertexSet::const_iterator vi=all_vertices.begin();
+            vi!=all_vertices.end();++vi) {
+          if(grt[*vi] == EMPTY)
+            input_vars += *vi ;
+        }
+        vars -= extract_vars(input_vars) ;
+        vars &= allgraphv ;
+        
+        if(vars != EMPTY) {
+          os << "These are typed variables in the multilevel "
+             << "graph, but are not scheduled to be allocated: "
+             << vars << endl << endl ;
+        }
+        
+        // report some allocation and deletion info
+        allocDeleteStat adstat(aiv.get_alloc_table(),
+                               div.get_delete_table(),
+                               recv.get_recur_vars_t2s(),
+                               recv.get_recur_vars_s2t(),
+                               recv.get_recur_source_vars(),
+                               recv.get_recur_target_vars()
+                               ) ;
+        adstat.report(os) ;
+        os << endl ;
+      } // end of if(show_dmm_verbose)
+
+      // visualize each decorated graph
+      if(show_decoration) {
+        graphVisualizeVisitor visV ;
+        top_down_visit(visV) ;
+      }
+      
+    } // end of if(use_dynamic_memory)
+    
+    orderVisitor ov ;    
+    bottom_up_visit(ov) ;
+    
+    assembleVisitor av ;
+    bottom_up_visit(av) ;
+
+    exec_current_fact_db = &facts ;
   }
   
   void graph_compiler::existential_analysis(fact_db &facts, sched_db &scheds) {
@@ -160,7 +381,7 @@ namespace Loci {
   } ;
   
   
-  fact_db *exec_current_fact_db = 0 ;
+  //fact_db *exec_current_fact_db = 0 ;
   
   allocate_all_vars::allocate_all_vars(fact_db &facts, sched_db &scheds) {
     control_thread = true ;
@@ -184,7 +405,7 @@ namespace Loci {
   }
   
   void allocate_all_vars::execute(fact_db &facts) {
-    exec_current_fact_db = &facts ;
+    //exec_current_fact_db = &facts ;
     variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi ;  
     double total_size = 0 ;
@@ -277,9 +498,8 @@ namespace Loci {
 
     CPTR<execute_list> schedule = new execute_list ;
 
-#ifdef USE_ALLOCATE_ALL_VARS
-    schedule->append_list(new allocate_all_vars(facts, scheds)) ;
-#endif
+    if(!use_dynamic_memory)
+      schedule->append_list(new allocate_all_vars(facts, scheds)) ;
 
     schedule->append_list(new execute_create_threads(nth)) ;
     schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));

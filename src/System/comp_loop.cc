@@ -7,47 +7,16 @@ using std::map ;
 using std::ostream ;
 using std::endl ;
 
-// flag to use the new memory scheme
-// disable it and turn on the USE_ALLOCATE_ALL_VARS (below, sched_comp.cc,
-// comp_internal.cc)
-// to use the original memory allocation
-//#define USE_MEMORY_SCHEDULE
-#define USE_ALLOCATE_ALL_VARS
+#include "visitor.h"
 
 namespace Loci {
-  /////////////////////////////////////////////////////////////
-  //extern void create_digraph_dot_file(const digraph &dg, const char* fname) ;
-  /////////////////////////////////////////////////////////////
-  
   class execute_loop : public execute_modules {
-#ifdef USE_MEMORY_SCHEDULE
-    //////////////////////////////////////////////////////
-    // add two executeP (the allocatev and freev variables)
-    executeP collapse, advance, allocatev, freev ;
-    //////////////////////////////////////////////////////
-#endif
-#ifdef USE_ALLOCATE_ALL_VARS
     executeP collapse, advance ;
-#endif
     variable cvar ;
     variable tvar ;
     time_ident tlevel ;
     list<list<variable> > rotate_lists ;
   public:
-#ifdef USE_MEMORY_SCHEDULE
-    execute_loop(const variable &cv,
-                 const executeP &col, const executeP &adv,
-                 const time_ident &tl, 
-                 list<list<variable> > &rl,
-                 const executeP &av, const executeP &fv) :
-      collapse(col),advance(adv),
-      cvar(cv),
-      tlevel(tl),rotate_lists(rl),
-      allocatev(av),freev(fv) {
-      warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
-      control_thread = true ;}
-#endif
-#ifdef USE_ALLOCATE_ALL_VARS
     execute_loop(const variable &cv,
                  const executeP &col, const executeP &adv,
                  const time_ident &tl, 
@@ -57,7 +26,6 @@ namespace Loci {
       tlevel(tl),rotate_lists(rl) {
       warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
       control_thread = true ;}
-#endif
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
@@ -65,12 +33,6 @@ namespace Loci {
 
   
   void execute_loop::execute(fact_db &facts) {
-#ifdef USE_MEMORY_SCHEDULE
-    ////////////////////////////////////////////////////////
-    //before execute, we need to allocate all loop variables
-    allocatev->execute(facts) ;
-    ////////////////////////////////////////////////////////
-#endif    
     param<bool> test ;
     test = facts.get_variable(cvar) ;
     
@@ -95,12 +57,6 @@ namespace Loci {
         facts.rotate_vars(*rli) ;
       *time_var += 1 ;
     }
-#ifdef USE_MEMORY_SCHEDULE
-    /////////////////////////////////////////////////////////
-    // after execute, free all the allocated loop variables
-    freev->execute(facts) ;
-    ////////////////////////////////////////////////////////
-#endif
   }
   
   void execute_loop::Print(ostream &s) const {
@@ -135,19 +91,24 @@ namespace Loci {
   inline bool offset_sort(const variable &v1, const variable &v2)
   { return v1.get_info().offset > v2.get_info().offset ; }
   
-  
-  loop_compiler::loop_compiler(rulecomp_map &rule_process, digraph dag)  {
-    //////////////////////////////
-    // output the dag
-    //create_digraph_dot_file(dag,"loopdag1.dot") ;
-    //////////////////////////////
-    ruleSet collapse_rules, all_rules, loopset ;
-    variableSet collapse_vars ;
-
-    std::vector<digraph::vertexSet> collapse_sched ;
-    std::vector<digraph::vertexSet> advance_sched ;
+  loop_compiler::loop_compiler(rulecomp_map &rule_process, digraph dag, int id):cid(id)
+  {
+    ////////////////////
+    // store the graph structure and the relevant rulecompiler map
+    loop_gr = dag ;
+    ruleSet allrules = extract_rules(loop_gr.get_all_vertices()) ;
     
-    all_rules = extract_rules(dag.get_all_vertices()) ;
+    ruleSet::const_iterator ri ;
+    for(ri=allrules.begin();ri!=allrules.end();++ri) {
+      rulecomp_map::const_iterator rmi ;
+      rmi = rule_process.find(*ri) ;
+      FATAL(rmi == rule_process.end()) ;
+      rule_compiler_map[*ri] = rmi->second ;
+    }
+    ////////////////////
+    ruleSet collapse_rules, all_rules, loopset ;
+
+    all_rules = extract_rules(loop_gr.get_all_vertices()) ;
     for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) {
       if(ri->get_info().qualifier() == "looping")
         loopset += ri->ident() ;
@@ -161,12 +122,9 @@ namespace Loci {
     }
   
     tlevel = loopset.begin()->source_time() ;
-    dag.remove_vertex((*loopset.begin()).ident()) ;
-    ////////////////////////////
-    // output dag
-    //create_digraph_dot_file(dag,"loopdag2.dot") ;
-    ///////////////////////////
-    digraph dagt = dag.transpose() ;
+    loop_gr.remove_vertex((*loopset.begin()).ident()) ;
+
+    digraph loop_grt = loop_gr.transpose() ;
   
     if(collapse_rules.size() != 1 ||
        collapse_rules.begin()->get_info().desc.conditionals.size() != 1 ) {
@@ -176,7 +134,7 @@ namespace Loci {
       exit(-1) ;
     }
 
-    variableSet all_vars = extract_vars(dag.get_all_vertices()) ;
+    variableSet all_vars = extract_vars(loop_gr.get_all_vertices()) ;
     for(variableSet::const_iterator vi=all_vars.begin();vi!=all_vars.end();++vi)
       if(vi->get_info().offset == 1)
         advance_vars += *vi ;
@@ -184,45 +142,38 @@ namespace Loci {
     collapse_vars = collapse_rules.begin()->targets() ;
     cond_var = *(collapse_rules.begin()->get_info().desc.conditionals.begin());
 
-    // create Output Variable
-    //    output = variable(variable("OUTPUT"),tlevel) ;
-    //    variableSet outputSet ;
-    //    outputSet = interval(output.ident(),output.ident()) ;
-
-    // Schedule part of graph that leads to collapse
-    collapse_sched = schedule_dag(dag, EMPTY,visit_vertices(dagt,collapse_vars)) ;
-    compile_dag_sched(collapse_comp,collapse_sched,rule_process,dag) ;
+    collapse_gr = loop_gr.subgraph(visit_vertices(loop_grt,collapse_vars)+collapse_vars) ;
     
-    // Schedule advance part of loop.  First try to schedule any output, then
-    // schedule the advance
-    digraph::vertexSet visited ;
-    for(unsigned int i = 0;i<collapse_sched.size();++i)
-      visited += collapse_sched[i] ;
-    //    vector<digraph::vertexSet>
-    //      dag_sched = schedule_dag(dag,visited, visit_vertices(dagt,outputSet)) ;
-    vector<digraph::vertexSet> dag_sched ;
-    compile_dag_sched(advance_comp,dag_sched,rule_process,dag) ;
-    
-    if(dag_sched.size() == 0)
-      output_present = false ;
-    else 
-      output_present = true ;
+    advance_gr = loop_gr ;
+    advance_gr -= collapse_gr ;
+    // remove common rules of collapse_gr and advance_gr from
+    // advance_gr
+    digraph::vertexSet collapse_vertices = collapse_gr.get_all_vertices() ;
+    digraph::vertexSet advance_vertices = advance_gr.get_all_vertices() ;
+    digraph::vertexSet common_vertices = collapse_vertices & advance_vertices ;
+    for(digraph::vertexSet::const_iterator verIter=common_vertices.begin();
+        verIter!=common_vertices.end();++verIter) {
+      if(*verIter < 0)
+        advance_gr.remove_vertex(*verIter) ;
+    }
 
-    for(unsigned int i=0;i<dag_sched.size();++i)
-      advance_sched.push_back(dag_sched[i]) ;
-  
-    for(unsigned int i = 0;i<dag_sched.size();++i)
-      visited += dag_sched[i] ;
-    // now schedule everything that hasn't been scheduled
-    dag_sched = schedule_dag(dag,visited) ;// which one is the default value?
-    compile_dag_sched(advance_comp,dag_sched,rule_process,dag) ;
-    
-    for(unsigned int i=0;i<dag_sched.size();++i)
-      advance_sched.push_back(dag_sched[i]) ;
-
+    output_present = false ;
 
     all_loop_vars = all_vars ;
-    
+
+  }
+
+  /* compile() method has been removed from the rule_compiler class
+     hierarchy, this one exists here just for the DEBUG code reference.
+     we may later move it into the visitor class.
+  void loop_compiler::compile()  {
+    collapse_sched = schedule_dag(collapse_gr) ;
+    advance_sched = schedule_dag(advance_gr) ;
+
+    compile_dag_sched(collapse_comp,collapse_sched,
+                      rule_compiler_map,loop_gr) ;
+    compile_dag_sched(advance_comp,advance_sched,
+                      rule_compiler_map,loop_gr) ;
 
     // sanity check, all vertices should be scheduled
     digraph::vertexSet allvertices = visited ;
@@ -264,7 +215,11 @@ namespace Loci {
       }
       exit(-1) ;
     }
+  } 
+  */
 
+  void loop_compiler::accept(visitor& v) {
+    v.visit(*this) ;
   }
 
   void loop_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
@@ -289,60 +244,14 @@ namespace Loci {
     std::vector<rule_compilerP>::reverse_iterator ri ;
     for(ri=advance_comp.rbegin();ri!=advance_comp.rend();++ri)
       (*ri)->process_var_requests(facts, scheds) ;
+
     for(ri=collapse_comp.rbegin();ri!=collapse_comp.rend();++ri)
       (*ri)->process_var_requests(facts, scheds) ;
     
   }
   
   executeP loop_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-
-    std::list<std::list<variable> > rotate_lists ;
-
-    map<variable,list<variable> > vlist ;
-    for(variableSet::const_iterator vi=all_loop_vars.begin();
-        vi!=all_loop_vars.end();++vi) {
-      if(vi->time() == tlevel && !vi->assign) {
-        variable var_stationary(*vi,time_ident()) ;
-        
-        list<variable> s ;
-        s.push_back(*vi) ;
-        vlist[var_stationary].merge(s,offset_sort) ;
-      }
-    }
     
-    map<variable,list<variable> >::const_iterator ii ;
-    for(ii=vlist.begin();ii!=vlist.end();++ii) {
-      if(ii->second.size() < 2) 
-        continue ;
-      std::list<variable>::const_iterator jj ;
-      bool overlap = false ;
-      variableSet vtouch ;
-      for(jj=ii->second.begin();jj!=ii->second.end();++jj) {
-        variableSet aliases = scheds.get_aliases(*jj) ;
-        variableSet as = aliases ;
-        variableSet::const_iterator vi ;
-        
-        for(vi=aliases.begin();vi!=aliases.end();++vi) 
-          as += scheds.get_synonyms(*vi) ;
-        if((as & vtouch) != EMPTY)
-          overlap = true ;
-        vtouch += as ;
-      }
-      if(!overlap) {
-        rotate_lists.push_back(ii->second) ;
-      } else {
-        if(ii->second.size() !=2) {
-          cerr << "unable to have history on variables aliased in time"
-               << endl
-               << "error occured on variable " << ii->first
-               << "{" << tlevel << "}"
-               << endl ;
-          exit(-1) ;
-        }
-      }
-    }
-      
-      
     CPTR<execute_list> col = new execute_list ;
     
     std::vector<rule_compilerP>::iterator i ;
@@ -356,40 +265,7 @@ namespace Loci {
       adv->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
 
-#ifdef USE_MEMORY_SCHEDULE
-    ////////////////////////////////////////////////////////////////
-    //gather variables that need to be allocated
-    variableSet allocate_vars ;
-    /*    
-    map<variable,list<variable> >::const_iterator mlItr ;
-    for(mlItr=vlist.begin();mlItr!=vlist.end();++mlItr) {
-      if(mlItr->second.size() < 2)
-        continue ;
-      allocate_vars += *(mlItr->second.begin()) ;
-    }
-    */
-    /*
-    list<list<variable> >::const_iterator lvItr ;
-    list<variable>::const_iterator vItr ;
-    for(lvItr=rotate_lists.begin();lvItr!=rotate_lists.end();++lvItr)
-      for(vItr=lvItr->begin();vItr!=lvItr->end();++vItr)
-        allocate_vars += *vItr ;
-    */
-    // create execution
-    allocate_var_compiler avc(allocate_vars) ;
-    free_var_compiler fvc(allocate_vars) ;
-    
-    executeP allov = avc.create_execution_schedule(facts, scheds) ;
-    executeP freev = fvc.create_execution_schedule(facts, scheds) ;
-    
-    // NOTE: add two execution modules (the allocate and free executeP) ;
-    // right now they are empty, and thus have no effect
-    return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists,allov,freev) ;
-#endif
-    
-#ifdef USE_ALLOCATE_ALL_VARS    
     return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists) ;
-#endif
   }
 
 

@@ -12,7 +12,7 @@ OBJS = Loci_version.o Loci_Datatypes.o variable.o store_rep.o Map.o \
        sched_decompose.o sched_comp.o comp_impl.o comp_reduce.o \
        comp_recurse.o comp_internal.o comp_dag.o comp_cond.o \
        comp_loop.o comp_tools.o distribute.o DMap.o DMultiMap.o\
-       param_rule.o sched_db.o  hdf5_readwrite.o mod_db.o
+       param_rule.o sched_db.o  hdf5_readwrite.o visitor.o mod_db.o
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT1)
 

@@ -21,8 +21,6 @@
 
 #include "sched_mlg.h"
 
-
-
 namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
@@ -44,9 +42,14 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
   } ;
 
+
+  class visitor ;
   
   class rule_compiler : public CPTR_type {
   public:
+    ////////////////////
+    virtual void accept(visitor& v) = 0 ;//method to accept a visitor
+    ////////////////////
     virtual void set_var_existence(fact_db &facts, sched_db &scheds) = 0 ;
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) = 0 ;
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) = 0;
@@ -66,7 +69,16 @@ namespace Loci {
     rule_compilerP fact_db_comm ;
     rulecomp_map rule_process ;
     rule baserule ;
-    graph_compiler(decomposed_graph &deco, variableSet initial_vars ) ;
+    /////////////////////
+    std::vector<rule> super_rules ;
+    /////////////////////
+    graph_compiler(decomposed_graph &deco, variableSet initial_vars) ;
+    ///////////////////
+    // visit order
+    void top_down_visit(visitor& v) ;
+    void bottom_up_visit(visitor& v) ;
+    void compile(fact_db& facts, sched_db& scheds, const variableSet& target) ;
+    ///////////////////
     void existential_analysis(fact_db &facts, sched_db &scheds) ;
     executeP execution_schedule(fact_db &facts, sched_db &scheds, int nth) ;
   } ;

@@ -5,6 +5,8 @@ using std::vector ;
 using std::ostream ;
 using std::endl ;
 
+#include "visitor.h"
+
 namespace Loci {
 
   class execute_conditional : public execute_modules {
@@ -32,24 +34,44 @@ namespace Loci {
     conditional->Print(s) ;
     s << "--end conditional" << endl ;
   }
-  
+
   conditional_compiler::conditional_compiler(rulecomp_map &rule_process,
 					     digraph dag,
-                                             variable conditional)
+                                             variable conditional,
+                                             int id):cid(id)
   {
     cond_var = conditional ;
-    std::vector<digraph::vertexSet> dag_sched = schedule_dag(dag) ;
-    compile_dag_sched(dag_comp,dag_sched,rule_process,dag) ;
     
+    cond_gr = dag ;
+    ruleSet allrules = extract_rules(cond_gr.get_all_vertices()) ;
+    
+    ruleSet::const_iterator ri ;
+    for(ri=allrules.begin();ri!=allrules.end();++ri) {
+      rulecomp_map::const_iterator rmi ;
+      rmi = rule_process.find(*ri) ;
+      FATAL(rmi == rule_process.end()) ;
+      rule_compiler_map[*ri] = rmi->second ;
+    }    
+  }
+  
+  /* compile() method has been removed from the rule_compiler class
+     hierarchy, this one exists here just for the DEBUG code reference.
+     we may later move it into the visitor class.
+  void conditional_compiler::compile()
+  {
 #ifdef DEBUG
     // sanity check, all vertices should be scheduled
     digraph::vertexSet allvertices ;
     for(size_t i=0;i< dag_sched.size();++i) 
       allvertices += dag_sched[i] ;
-    warn(allvertices != dag.get_all_vertices()) ;
+    warn(allvertices != cond_gr.get_all_vertices()) ;
 #endif
   }
+  */
   
+  void conditional_compiler::accept(visitor& v) {
+    v.visit(*this) ;
+  }
   
   void conditional_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     std::vector<rule_compilerP>::iterator i ;

@@ -43,9 +43,14 @@ namespace Loci {
   int MPI_rank ;
   int num_threads = 1 ;
   /////////////////////////////
-  // flags to turn on the visualization feature
+  // flags to turn on/off the visualization feature
   bool show_graphs = false ;
-  bool show_schedule = false ;
+  bool show_decoration = false ;
+  // flag to enable/disable the dynamic memory management
+  bool use_dynamic_memory = false ;
+  // flag to enable/disable output of dynamic memory
+  // and multilevel graph decoration information
+  bool show_dmm_verbose = false ;
   /////////////////////////////
   ofstream debugout ;
   double barrier_time = 0 ;
@@ -139,8 +144,15 @@ namespace Loci {
         show_graphs = true ; // visualize the dependency graph &
                              // the decomposed graph & every supernode
         i++ ;
-      } else if(!strcmp((*argv)[i],"--schedule")) {
-        show_schedule = true ; // visualize the scheduled dag
+      } else if(!strcmp((*argv)[i],"--decoration")) {
+        show_decoration = true ; // visualize the decorated multilevel graph
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--dmm")) {
+        use_dynamic_memory = true ; // use the dynamic memory management
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--dmmverbose")) {
+        // output some info about dmm
+        show_dmm_verbose = true ;
         i++ ;
       } else
         break ;
