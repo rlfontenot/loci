@@ -229,6 +229,8 @@ dMapVecRepI<M>::~dMapVecRepI<M>()
 
 template<unsigned int M> 
 storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
+  // expand broken for DMapVec!
+#ifdef BROKEN
   int *recv_count = new int[MPI_processes] ;
   int *send_count = new int[MPI_processes] ;
   int *send_displacement = new int[MPI_processes] ;
@@ -297,7 +299,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
   int *recv_map = new int[size_send] ;
   size_send = 0 ;
   for(int i = 0; i < MPI_processes; ++i) 
-    for(hash_map<int, std::vector<int> >::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+    for(hash_map<int, VEC >::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
       send_map[size_send] = miv->first ;
       ++size_send ;
       send_map[size_send] = miv->second.size() ;
@@ -333,14 +335,14 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
   }
   dmultiMap dmul ;
   
-  std::vector<int> tmp_vec ;
   for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
-    if(hmi->second.size()) 
+    if(hmi->second.size()) {
+      int c = 0;
       for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
-	attrib_data[hmi->first].push_back(*si) ;
-    else
-      attrib_data[hmi->first] = tmp_vec ;
-  for(hash_map<int, std::vector<int> >::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
+	attrib_data[hmi->first][c++] = *si ;
+    } else
+      attrib_data[hmi->first] = VEC() ;
+  for(hash_map<int, VEC >::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
     dmul[hi->first] = hi->second ;
   
   storeRepP sp = dmul.Rep() ;
@@ -353,6 +355,10 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
   delete [] send_displacement ;
   delete [] recv_displacement ; 
   return sp ;
+#else
+  return storeRepP(0) ;
+#endif
+  
 }
 //------------------------------------------------------------------------
 template<unsigned int M> 
