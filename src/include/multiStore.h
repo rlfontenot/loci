@@ -1068,7 +1068,7 @@ namespace Loci {
     entitySet :: const_iterator ci;
     size_t       arraySize= 0;
     int          count, stateSize, *storeSize, maxBucketSize;
-    vector<int>  bucketSize;    //  Because we don't know in advance the size
+    std::vector<int>  bucketSize;    //  Because we don't know in advance the size
 
     storeSize = new int[eset.size()];
 
