@@ -98,6 +98,23 @@ namespace Loci {
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
     entitySet my_entities = ~EMPTY ;
+    const rule_impl::info &rinfo = r.get_info().desc ;
+    set<vmap_info>::const_iterator si ;
+    /*The function vmap_source_exist takes into consideration the maps 
+      in the body of the rule . By looping over each of the sources in 
+      the rule and also the constraints we make sure that the
+      attribute specified by the target is implied by the satisfaction 
+      of the attributes in the body of the rule. */
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) 
+       sources &= vmap_source_exist(*si,facts, scheds) ;
+    
+    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si) 
+      constraints &= vmap_source_exist(*si,facts, scheds) ;
+    
+#ifdef COMP_ENT
+    entitySet comp_sources = sources;
+    entitySet comp_constraints = constraints;
+#endif
     if(facts.isDistributed()) {
       // For the distributed memory case we restrict the sources and 
       // constraints to be within my_entities.  
@@ -106,18 +123,6 @@ namespace Loci {
       constraints &= d->my_entities ;
       my_entities = d->my_entities ;
     }
-    const rule_impl::info &rinfo = r.get_info().desc ;
-    set<vmap_info>::const_iterator si ;
-    /*The function vmap_source_exist takes into consideration the maps 
-      in the body of the rule . By looping over each of the sources in 
-      the rule and also the constraints we make sure that the
-      attribute specified by the target is implied by the satisfaction 
-      of the attributes in the body of the rule. */
-    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-      sources &= vmap_source_exist(*si,facts, scheds) ;
-    }
-    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
-      constraints &= vmap_source_exist(*si,facts, scheds) ;
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((sources & constraints) != constraints) {
         if(MPI_processes == 1) {
@@ -175,12 +180,27 @@ namespace Loci {
     // of the existential information of the sources with that of the 
     //  constraints. 
     entitySet context = sources & constraints ;
+
+#ifdef COMP_ENT
+    comp_sources &= comp_constraints;
+    entitySet comp_context = comp_sources;
+#endif
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
       entitySet targets = vmap_target_exist(*si,facts,context, scheds) ;
+#ifdef COMP_ENT
+      entitySet comp_targets = vmap_target_exist(*si, facts, comp_context, scheds);
+#endif       
       const variableSet &tvars = si->var ;
       variableSet::const_iterator vi ;
       for(vi=tvars.begin();vi!=tvars.end();++vi) {
 	scheds.set_existential_info(*vi,r,targets) ;
+#ifdef COMP_ENT
+	scheds.set_my_proc_able_entities(*vi, r, targets);
+	scheds.set_proc_able_entities(*vi, r, comp_targets);
+	if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE) {
+	  scheds.add_policy(*vi, sched_db::ALWAYS);
+	}
+#endif
 #ifdef VERBOSE
 	debugout << "rule " << r << " generating variable " << *vi
 		 << " for entities " << targets << endl << endl << endl ;
@@ -199,6 +219,10 @@ namespace Loci {
         entitySet exist = scheds.get_existential_info(v, r) ;
         exist += fill_entitySet(exist,facts) ;
         scheds.set_existential_info(v,r,exist) ;
+#ifdef COMP_ENT
+	scheds.set_proc_able_entities(v, r,exist);
+	scheds.set_my_proc_able_entities(v, r,exist);
+#endif
       }
     }
   }
@@ -310,6 +334,13 @@ namespace Loci {
       
       // Now fill tvarmap with the requested values for variable *vi
       tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
+#ifdef COMP_ENT
+      if(scheds.is_use_proc_able(*vi))
+	tvarmap[*vi] = scheds.get_proc_able_entities(*vi, r) & tvarmap[*vi];
+      else
+	tvarmap[*vi] = scheds.get_my_proc_able_entities(*vi, r) & tvarmap[*vi];
+#endif
+
     }
     const rule_impl::info &rinfo = r.get_info().desc ;
     //Loci::debugout << " rule = " << r << endl ;
@@ -322,12 +353,20 @@ namespace Loci {
       isect &= tmp ;
     }
     
+     // Unit rules need to apply in the clone region as well, so
+     // here we make an exception for unit rules.  (this is because
+     // we will be reducing to the clone region and then communicating
+     // partial results.
+#ifndef COMP_ENT
+    if(r.get_info().rule_impl->get_rule_class() != rule_impl::UNIT) {
+      context &= filter ;
+    }
+#endif
      // If the interstection and the union are not equal, then we are in
      // danger of not properly allocating variables for computations.  It is
      // an optimization to check this. For the distributed memory version it
      // may be useful to always do this if there is a mapping in the
      // targets of the rule.
-       
      if(isect != context) {
        entitySet working = context ;
        vector<variableSet>::const_reverse_iterator mi ;
@@ -343,17 +382,7 @@ namespace Loci {
          }
        }
      }
-     
-     // Unit rules need to apply in the clone region as well, so
-     // here we make an exception for unit rules.  (this is because
-     // we will be reducing to the clone region and then communicating
-     // partial results.
-    
 
-     if(r.get_info().rule_impl->get_rule_class() != rule_impl::UNIT) {
-       context &= filter ;
-     }
-     
      entitySet working = context ;      
 
      // Loop over all sources for this rule and pass on the requests.
@@ -385,6 +414,7 @@ namespace Loci {
 #ifdef VERBOSE
      debugout << "rule " << r << " computes over " << context << endl ;
 #endif
+
      return context ;
   }
 
@@ -1452,7 +1482,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
-      
+#ifdef COMP_ENT
+      send_entities.resize(0);
+      send_entities = send_ent_for_plist(barrier_vars, facts, scheds);
+#endif
       for(vi=send_entities.begin();vi!=send_entities.end();++vi) {
         variable v = vi->first ;
         entitySet send_set = vi->second ;
@@ -1685,6 +1718,59 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   (fact_db &facts, sched_db &scheds) {
     return executeP(new execute_memProfileFree(vars)) ;
   }
-
+  
+#ifdef COMP_ENT
+  std::vector<std::pair<variable,entitySet> >
+  send_ent_for_plist(variableSet vlst, fact_db &facts, sched_db &scheds) {
+    vector<pair<variable,entitySet> > send_entities ;
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
+    vector<entitySet> exinfo ;
+    vector<variable> vars ;
+    vector<ruleSet> rules;
+    vector<variable> send_vars ;
+    vector<rule> send_rule;
+    for(variableSet::const_iterator vi=vlst.begin();vi!=vlst.end();++vi) {
+      variable v = *vi ;
+      ruleSet r = scheds.get_existential_rules(v) ; 
+      vars.push_back(v) ;
+      rules.push_back(r);
+    }
+    
+    for(size_t i=0;i<vars.size();++i) {
+      variable v = vars[i] ;
+      ruleSet &rs = rules[i] ;
+      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
+        if(rule_has_mapping_in_output(*rsi)) {
+	  send_vars.push_back(v) ;
+	  send_rule.push_back(*rsi);
+	  exinfo.push_back(scheds.get_my_proc_able_entities(v, *rsi)) ;
+	}
+      } 
+    }
+    
+    map<variable,entitySet> vmap ;
+    for(size_t i=0;i<send_vars.size();++i) {
+      variable v = send_vars[i] ;
+      entitySet send_ents;
+      if(!scheds.is_policy(v, sched_db::NEVER)) {
+	if(!scheds.is_policy(v, sched_db::ALWAYS)) {
+	  send_ents = exinfo[i] - d->my_entities;
+	}
+	else {
+ 	  send_ents = EMPTY;
+	  scheds.set_use_proc_able(v, true);
+	}
+      }
+      else {
+	send_ents = exinfo[i] - d->my_entities;
+      }
+      vmap[v] += send_ents ;
+    }
+    for(map<variable,entitySet>::const_iterator mi = vmap.begin(); mi != vmap.end(); mi++) 
+      send_entities.push_back(make_pair(mi->first,mi->second ));
+    
+    return send_entities;
+  }
+#endif
   
 } // end of namespace Loci
