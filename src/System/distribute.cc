@@ -139,8 +139,8 @@ namespace Loci {
     vector<entitySet> proc_entities ;
     Loci::categories(facts,iv) ;
     entitySet e ;
-    if(Loci::MPI_rank == 0)
-      cout << " initial_categories =  " << iv.size() << endl ;
+
+    debugout << " initial_categories =  " << iv.size() << endl ;
   
     for(size_t i = 0; i < iv.size(); ++i) {
       //    Loci::debugout << " iv[ " << i << " ] = " << iv[i] << endl ;
