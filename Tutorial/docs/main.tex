@@ -279,8 +279,32 @@ more other entities related to it.  The following source code
 demonstrates the basic user interface for the Map family of classes.
 
 
-\include{relations_cc}
+%\include{relations_cc}
 
+\section{Loci Helper Classes}
+
+Loci also provides a few helper classes that are often useful in
+numerical computations.  One is the {\tt Array} template class which provides a
+mechanism for creating Arrays as first class objects that are
+appropriate for using as classes used in templated containers. ({\it
+Never use C arrays in templated containers.  Their semantics are
+different from other C++ objects and may break templated code in
+unexpected ways.})  In addition to the {\tt Array} template class,
+classes for three and two dimensional vectors are also provided.  See
+the following example code to see how to use these helper classes.
+
+\include{helpers_cc}
+
+\section{Loci Initialization}
+
+<<<<<<< main.tex
+Before any of the main Loci functionality can be used (that is the
+components that follow this section), Loci must be initialized.  Loci
+has an initialize function that must be called before executing Loci
+functionality and a finalize method that must be called just before
+exiting the program.  For example, see below:
+=======
+>>>>>>> 1.11
 
 
 \chapter{Representing and Manipulating Data Structures}
