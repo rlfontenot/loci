@@ -4,7 +4,7 @@
 #include <Loci.h>
 #include <iostream>
 using std::cout ;
-using std::cerr ; 
+using std::cerr ;
 using std::endl ;
 
 namespace Loci {
@@ -39,7 +39,10 @@ namespace Loci {
 #define RECV_WKP_TRACE 0
 #define SEND_WRK_TRACE 0
 #define RECV_WRK_TRACE 0
+  /*set to 1 in order to do performance measurements*/
+#define PERF_INFO 0
 
+  /*List of load balancing techniques*/
 #define STATIC  0
 #define FSC     1
 #define GSS     2
@@ -419,7 +422,7 @@ void ReceiveOutput (int rcvStart, int rcvSize, int src, int tag,MPI_Comm procGrp
 
 
 
-void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &facts,fact_db &local_facts1,fact_db &local_facts2,rule_implP local_compute1,rule_implP local_compute2,variableSet &inputs,variableSet &outputs) { 
+void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &facts,fact_db &local_facts1,fact_db &local_facts2,rule_implP local_compute1,rule_implP local_compute2,variableSet &inputs,variableSet &outputs,double *stats) { 
    
  
     int foreMan;      // MPI rank of foreMan 
@@ -427,7 +430,7 @@ void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &fact
     int breakAfter=-1;   // iterates to execute before probing for messages 
     int requestWhen=-1;  //iterates remaining in chunk before requesting next chunk 
     int chunkMap[3*MAX_CHUNKS];
-    double stats[4*MAX_PROCESSES];
+    //  double stats[4*MAX_PROCESSES];
     MPI_Comm procGrp=MPI_COMM_WORLD;
  
 
@@ -682,7 +685,7 @@ void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &fact
             nextSize = tSize; 
             nextSource = mStatus.MPI_SOURCE;  
             nextWRKrcvd = 1;
-	    local2=1; //set flag for local_facts2
+	    local2=1; 
 	    running2 = 0;
             }
             else if(local2==1 && local1 == 0){
@@ -696,7 +699,7 @@ void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &fact
             nextSize = tSize; 
             nextSource = mStatus.MPI_SOURCE;  
             nextWRKrcvd = 1;
-	    local1=1; //set flag for local_facts2
+	    local1=1; 
 	    running1= 0;
 	    }
 	    else if(local2 == 1 && local1 == 1) {
@@ -999,7 +1002,7 @@ void ExecuteLoop (rule_implP rp1,entitySet &e,int method,int *yMap,fact_db &fact
 	} // while (gotWork+...) 
 	chunkMap[2] = myChunks; // chunks in this rank 
 	stats[0] = workTime; // useful work time 
-      
+
       }//end of ExecuteLoop
 
     }//end of namespace Loci
