@@ -811,65 +811,30 @@ template<unsigned int M> class dMapVec : public store_instance
   }
 
   //------------------------------------------------------------------------
-
   template <unsigned int M> 
-  void dMapVecRepI<M>::pack(void *ptr, int &loc, int &size, const entitySet &e )
+  void dMapVecRepI<M>::pack(void *outbuf, int &position, int &outcount, const entitySet &eset)
   {
-     int          *buf, j, numBytes, numentity = e.size();
-     entitySet :: const_iterator ei;
-
-     numBytes = pack_size( e );
-
-     buf = ( int *) malloc( numBytes );
-
-     if( buf == NULL ) {
-         cout << "Warning: Cann't allocate memory for packing data " << endl;
-         return;
-     }
-
-     int indx = 0;
-     for( ei = e.begin(); ei != e.end(); ++ei) {
-       for( j = 0; j < M; j++) 
-            buf[M*indx+j] =  attrib_data[*ei][j];
-       indx++;
-     }
-
-     MPI_Pack(buf, numBytes, MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
-     free( buf );
+    int vsize = M;
+    entitySet :: const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci)
+      MPI_Pack( &attrib_data[*ci], vsize, MPI_INT, outbuf,outcount,
+                &position, MPI_COMM_WORLD) ;
   }
 
   //------------------------------------------------------------------------
 
   template <unsigned int M> 
-  void dMapVecRepI<M>::unpack(void *ptr, int &loc, int &size, const sequence &seq)
+  void dMapVecRepI<M>::unpack(void *inbuf, int &position, int &insize, const sequence &seq)
   {
-    Loci :: int_type   indx;
-    int                numentity, numBytes;
-    int                *buf;
-    int  vecSize = M;
+    sequence:: const_iterator ci;
 
-    for(int i = 0; i < seq.num_intervals(); ++i) {
-        numentity =  abs(seq[i].second - seq[i].first) + 1; 
-        numBytes  =  M*numentity*sizeof(int);
-        buf       =  (int *) malloc( numBytes );
-        MPI_Unpack(ptr, size, &loc, buf, numBytes, MPI_BYTE, MPI_COMM_WORLD) ;
-
-        if(seq[i].first > seq[i].second) {
-	        for(indx = seq[i].first; indx >= seq[i].second; --indx) {
-                for( int j = 0; j < M; j++) 
-                     attrib_data[indx][j] =  buf[M*indx+j];
-           }
-        } else {
-	        for(indx = seq[i].first; indx <= seq[i].second; ++indx){
-                for( int j = 0; j < M; j++) 
-                     attrib_data[indx][j] =  buf[M*indx+j];
-           }
-        }
-        free(buf);
-    }
+    int vsize = M;
+    for( ci = seq.begin(); ci != seq.end(); ++ci)
+          MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
+                      vsize, MPI_INT, MPI_COMM_WORLD) ;
   }  
 
-  //------------------------------------------------------------------------
+
 
   /*
     template<unsigned int M> void inverseMap (multiMap &result,
