@@ -54,7 +54,7 @@ namespace Loci {
           do {
             fcontrol::mapping_info minfo ;
             for(int j=0;j!=num_maps;++j) {
-              FATAL(!facts.is_a_Map(*(miv[j]))) ;
+              FATAL(!scheds.is_a_Map(*(miv[j]))) ;
               MapRepP m = MapRepP(facts.get_variable(*(miv[j]))->getRep()) ;  
               minfo.mapvec.push_back(m) ;
               minfo.mapvar.push_back(*(miv[j])) ;
@@ -80,7 +80,7 @@ namespace Loci {
         do {
           fcontrol::mapping_info minfo ;
           for(int j=0;j!=num_maps;++j) {
-            FATAL(!facts.is_a_Map(*(miv[j]))) ;
+            FATAL(!scheds.is_a_Map(*(miv[j]))) ;
             MapRepP m = MapRepP(facts.get_variable(*(miv[j]))->getRep()) ;
             minfo.mapvec.push_back(m) ;
             minfo.mapvar.push_back(*(miv[j])) ;
@@ -433,7 +433,7 @@ namespace Loci {
             do {
               fcontrol::mapping_info minfo ;
               for(int j=0;j!=num_maps;++j) {
-                FATAL(!facts.is_a_Map(*(miv[j]))) ;
+                FATAL(!scheds.is_a_Map(*(miv[j]))) ;
                 MapRepP mp = MapRepP(facts.get_variable(*(miv[j]))->getRep()) ;
                 minfo.mapvec.push_back(mp) ;
               }
@@ -458,7 +458,7 @@ namespace Loci {
           do {
             fcontrol::mapping_info minfo ;
             for(int j=0;j!=num_maps;++j) {
-              FATAL(!facts.is_a_Map(*(miv[j]))) ;
+              FATAL(!scheds.is_a_Map(*(miv[j]))) ;
               MapRepP mp = MapRepP(facts.get_variable(*(miv[j]))->getRep()) ;
               minfo.mapvec.push_back(mp) ;
             }

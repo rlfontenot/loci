@@ -68,6 +68,7 @@ namespace Loci {
     time_ident tlevel ;
     variable output ;
     bool output_present ;
+    variableSet all_loop_vars ;
   public:
     loop_compiler(rulecomp_map &rp, digraph gin) ;
     virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;

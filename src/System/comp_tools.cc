@@ -210,7 +210,7 @@ namespace Loci {
       // on this level
       entitySet working = EMPTY ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
-        FATAL(!facts.is_a_Map(*vi)) ;
+        FATAL(!scheds.is_a_Map(*vi)) ;
         working |= scheds.preimage(*vi,targets).second ;
 	//cout << "mi = " << *mi << "   vi =  " << *vi  <<"    working = " << working << endl ;
       }
@@ -235,7 +235,7 @@ namespace Loci {
     for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
       entitySet working ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
-        FATAL(!facts.is_a_Map(*vi)) ;
+        FATAL(!scheds.is_a_Map(*vi)) ;
 	working |= scheds.image(*vi,compute) ;
       }
       compute = working ;

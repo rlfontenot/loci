@@ -1,37 +1,57 @@
 #include "comp_tools.h"
 #include <vector>
 using std::vector ;
+using std::list ;
+using std::map ;
 
 namespace Loci {
   
   class execute_loop : public execute_modules {
     executeP collapse, advance ;
     variable cvar ;
+    variable tvar ;
     time_ident tlevel ;
+    list<list<variable> > rotate_lists ;
   public:
     execute_loop(const variable &cv,
                  const executeP &col, const executeP &adv,
-                 const time_ident &tl) :
-      cvar(cv),collapse(col),advance(adv),tlevel(tl)
-    { warn(col==0 || advance==0) ; control_thread = true ;}
+                 const time_ident &tl, 
+                 list<list<variable> > &rl) :
+      cvar(cv),collapse(col),advance(adv),tlevel(tl),rotate_lists(rl) {
+      warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
+      control_thread = true ;}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
+
+
   
   void execute_loop::execute(fact_db &facts) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
-    fact_db::time_infoP tinfo = facts.get_time_info(tlevel) ;
-    facts.initialize_time(tinfo) ;
-    for(;;) {
+    
+    param<int> time_var ;
+    time_var = facts.get_variable(tvar) ;
+    // Start iteration by setting iteration variable to zero 
+    *time_var = 0 ;
+
+    for(;;) { // Begin looping
+      //First evaluate the collapse condition
       collapse->execute(facts) ;
-      if(*test) {
-        facts.close_time(tinfo) ;
+      if(*test) {// If collapse condition satisfied, were finished
         return ;
       }
+      // Advance to the next iterate
       advance->execute(facts) ;
-      facts.advance_time(tinfo) ;
+
+      // We are finished with this iteration, so rotate variables and
+      // add one to the iterate
+      list<list<variable> >::const_iterator rli ;
+      for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli)
+        facts.rotate_vars(*rli) ;
+      *time_var += 1 ;
     }
+
   }
   
   void execute_loop::Print(ostream &s) const {
@@ -63,6 +83,8 @@ namespace Loci {
     return visited ;
   }
   
+  inline bool offset_sort(const variable &v1, const variable &v2)
+  { return v1.get_info().offset > v2.get_info().offset ; }
   
   
   loop_compiler::loop_compiler(rulecomp_map &rule_process, digraph dag)  {
@@ -141,8 +163,10 @@ namespace Loci {
     
     for(int i=0;i<dag_sched.size();++i)
       advance_sched.push_back(dag_sched[i]) ;
-  
-  
+
+
+    all_loop_vars = all_vars ;
+    
 #ifdef DEBUG
     // sanity check, all vertices should be scheduled
     digraph::vertexSet allvertices = visited ;
@@ -197,6 +221,52 @@ namespace Loci {
   }
   
   executeP loop_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+
+    std::list<std::list<variable> > rotate_lists ;
+
+    map<variable,list<variable> > vlist ;
+    for(variableSet::const_iterator vi=all_loop_vars.begin();
+        vi!=all_loop_vars.end();++vi) {
+      if(vi->time() == tlevel && !vi->assign) {
+        variable var_stationary(*vi,time_ident()) ;
+        list<variable> s ;
+        s.push_back(*vi) ;
+        vlist[var_stationary].merge(s,offset_sort) ;
+      }
+    }
+    map<variable,list<variable> >::const_iterator ii ;
+    for(ii=vlist.begin();ii!=vlist.end();++ii) {
+      if(ii->second.size() < 2) 
+        continue ;
+      std::list<variable>::const_iterator jj ;
+      bool overlap = false ;
+      variableSet vtouch ;
+      for(jj=ii->second.begin();jj!=ii->second.end();++jj) {
+        variableSet aliases = scheds.get_aliases(*jj) ;
+        variableSet as = aliases ;
+        variableSet::const_iterator vi ;
+        
+        for(vi=aliases.begin();vi!=aliases.end();++vi) 
+          as += scheds.get_synonyms(*vi) ;
+        if((as & vtouch) != EMPTY)
+          overlap = true ;
+        vtouch += as ;
+      }
+      if(!overlap) {
+        rotate_lists.push_back(ii->second) ;
+      } else {
+        if(ii->second.size() !=2) {
+          cerr << "unable to have history on variables aliased in time"
+               << endl
+               << "error occured on variable " << ii->first
+               << "{" << tlevel << "}"
+               << endl ;
+          exit(-1) ;
+        }
+      }
+    }
+      
+      
     CPTR<execute_list> col = new execute_list ;
     
     std::vector<rule_compilerP>::iterator i ;
@@ -210,7 +280,7 @@ namespace Loci {
       adv->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
     
-    return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel) ;
+    return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists) ;
   }
 
 

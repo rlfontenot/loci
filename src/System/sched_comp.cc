@@ -160,31 +160,12 @@ namespace Loci {
   void allocate_all_vars::fill_in_requests(fact_db &facts, sched_db &scheds) {
     variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi,vii ;
-    set<time_ident> time_set ;
-    for(vi=vars.begin();vi!=vars.end();++vi)
-      time_set.insert(vi->time()) ;
-    set<time_ident>::const_iterator si ;
-    for(si=time_set.begin();si!=time_set.end();++si) {
-      fact_db::time_infoP tip = facts.get_time_info(*si) ;
-      if(!tip->rotate_lists.empty()) {
-        for(list<list<variable> >::const_iterator llv = tip->rotate_lists.begin();
-            llv != tip->rotate_lists.end();++llv) {
-          entitySet time_space ;
-          for(list<variable>::const_iterator lv=llv->begin();lv!=llv->end();++lv) {
-            variableSet aliases = facts.get_aliases(*lv) ;
-            for(vii=aliases.begin();vii!=aliases.end();++vii)
-              time_space += scheds.get_variable_requests(*vii) ;
-          }
-          for(list<variable>::const_iterator lv=llv->begin();lv!=llv->end();++lv) {
-            scheds.variable_request(*lv,time_space) ;
-          }
-        }
-      }
-    }
+    
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       if(srp->domain() == EMPTY) {
-        variableSet aliases = facts.get_aliases(*vi) ;
+        variableSet aliases = scheds.get_aliases(*vi) ;
+
         entitySet requests, existence ;
         for(vii=aliases.begin();vii!=aliases.end();++vii) {
 	  existence += scheds.variable_existence(*vii) ;
@@ -203,18 +184,12 @@ namespace Loci {
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       if(srp->domain() == EMPTY) {
-        variableSet aliases = facts.get_aliases(*vi) ;
-        entitySet all_requests ;
 #ifdef HACK
-	all_requests = v_existence[*vi] ;
+	entitySet all_requests = v_existence[*vi] ;
 #else
-	all_requests = v_requests[*vi] ;
+	entitySet all_requests = v_requests[*vi] ;
 #endif	  
 	
-#ifdef DEBUG
-	//debugout << "allocating " << *vi << " for entities " << all_requests
-	//       << endl ;
-#endif
 	srp->allocate(all_requests) ;
       }
     }

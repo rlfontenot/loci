@@ -22,24 +22,26 @@ namespace Loci {
     variableSet tmp_all_vars = facts.get_typed_variables() ;
     for(int i = 0; i < tmp_all_vars.size(); i++)
       sched_infov.push_back(sched_data()) ;
+    int sched_alloc = 0 ;
     for(variableSet::const_iterator vi = tmp_all_vars.begin(); vi != tmp_all_vars.end(); ++vi) {
-      fact_db::fact_data &fd = facts.get_fact_data(*vi) ;
       sched_info si ; 
-      fact_db::fact_info &fi = facts.get_fact_info(*vi) ;
-      si.sched_info_ref = fi.fact_info_ref ;
-      si.fact_installed = fi.fact_installed ;
-      si.existence = fd.data_rep->domain() ;
-      si.synonyms = fi.synonyms ;
+      si.sched_info_ref = sched_alloc++ ;
+      storeRepP rp = facts.get_variable(*vi) ;
+      si.existence = rp->domain() ;
+      si.fact_installed = si.existence ;
+      si.synonyms  += *vi ;
       vmap[*vi] = si ;
       variable v = variable(*vi) ;
-      storeRepP st = fd.data_rep->getRep() ;
+      storeRepP st = rp->getRep() ;
       sched_data sd(v, st) ;
-      sd.aliases = fd.aliases ;
+      sd.aliases += *vi ;
       sched_infov[si.sched_info_ref] = sd ;
     }
-    synonyms = facts.synonyms ;
+
+    //    synonyms = facts.synonyms ;
+    //    free_set = facts.free_set ;
+
     all_vars = tmp_all_vars ;
-    free_set = facts.free_set ;
   }
   
   sched_db::sched_db() {}
@@ -55,10 +57,6 @@ namespace Loci {
     info.synonyms += v ;
     vmap[v] = info ;
     sched_infov[info.sched_info_ref].aliases += v ;
-    fact_db::fact_info fi ;
-    fi.fact_info_ref = info.sched_info_ref ;
-    fi.fact_installed = info.fact_installed ;
-    fi.synonyms = info.synonyms ;
     all_vars += v ;
   }
   
@@ -81,7 +79,6 @@ namespace Loci {
   }
   
   void sched_db::variable_is_fact_at(variable v,entitySet s, fact_db &facts) {
-    facts.variable_is_fact_at(v, s) ;
     sched_info &fi = get_sched_info(v) ;
     fi.fact_installed += s ;
     fi.existence += s ;
@@ -92,7 +89,9 @@ namespace Loci {
   }
   
   void sched_db::alias_variable(variable v, variable alias, fact_db &facts) {
-    facts.alias_variable(v,alias) ;
+
+    facts.synonym_variable(v,alias) ;
+
     if(all_vars.inSet(v)) {
       if(all_vars.inSet(alias)) {
         sched_info &vinfo = get_sched_info(v) ;

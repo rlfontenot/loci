@@ -23,6 +23,7 @@ using std::make_pair ;
 namespace Loci {
   extern int MPI_processes ;
   extern int MPI_rank ;
+
   fact_db::fact_db() {
     constraint EMPTY ;
     create_fact("EMPTY",EMPTY) ;
@@ -38,150 +39,24 @@ namespace Loci {
 
   fact_db::~fact_db() {}
 
-  namespace {
-    inline bool offset_sort(const variable &v1, const variable &v2)
-    { return v1.get_info().offset > v2.get_info().offset ; }
-  }
-  
-  void fact_db::register_variable(variable v) {
-    time_ident vtime = v.time() ;
-    if(!all_vars.inSet(v) && vtime != time_ident() &&
-       !v.get_info().assign && (v.get_info().priority.size() == 0)) {
-      variable var_stationary = variable(v,time_ident()) ;
-      typedef map<variable,std::list<variable> >  maptype ;
-      if(time_map.find(vtime) == time_map.end()) {
-        time_map.insert(make_pair(vtime,maptype())) ;
-      }
-      maptype &tinfo = time_map.find(vtime)->second ;
-      map<variable,std::list<variable> >::iterator vip ;
-      list<variable> s ;
-      s.push_back(v) ;
-
-      if((vip = tinfo.find(var_stationary)) == tinfo.end()) {
-        tinfo.insert(make_pair(var_stationary,s)) ;
-      } else {
-        vip->second.merge(s,offset_sort) ;
-      }
-    }
-    all_vars += v ;
-  }
-  
-  void fact_db::install_fact_info(variable v, fact_info info) {
-    std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
-    if(mi != fmap.end()) {
-      cerr << " fact_db error:  reinstalling fact in database for variable "
-	   << v << endl ;
-      abort() ;
-      }
-    info.synonyms += v ;
-    fmap[v] = info ;
-    fact_infov[info.fact_info_ref].aliases += v ;
-    register_variable(v) ;
-  }
-  
-  void fact_db::alias_variable(variable v, variable alias) {
-    if(all_vars.inSet(v)) {
-      if(all_vars.inSet(alias)) {
-	fact_info &vinfo = get_fact_info(v) ;
-	fact_info &ainfo = get_fact_info(alias) ;
-        if(vinfo.fact_info_ref != ainfo.fact_info_ref) {
-          // merge alias and v
-          if(fact_infov[ainfo.fact_info_ref].data_rep->domain() != EMPTY) {
-	    cerr << "error occuring on alias, v=" << v << ",alias="<<alias
-		 << endl ;
-	    cerr << " domain = " <<
-	      fact_infov[ainfo.fact_info_ref].data_rep->domain() << endl ;
-	    abort() ;
-	  }
-          warn(fact_infov[ainfo.fact_info_ref].data_rep->domain() != EMPTY) ;
-          int del = ainfo.fact_info_ref ;
-          // move aliases from record to be deleted
-          variableSet move_aliases = fact_infov[del].aliases ;
-          // change reference number to that of current record
-          variableSet::const_iterator vi ;
-          for(vi=move_aliases.begin();vi!=move_aliases.end();++vi) 
-            get_fact_info(*vi).fact_info_ref = vinfo.fact_info_ref ;
-          // update new record alias set
-	  fact_infov[vinfo.fact_info_ref].aliases += move_aliases ;
-          // delete record and save for recovery
-          fact_infov[del] = fact_data() ;
-          free_set += del ;
-	}
-        return ;
-      }
-      
-      int ref = get_fact_info(v).fact_info_ref ;
-      fact_infov[ref].aliases += alias ;
-      install_fact_info(alias,fact_info(ref)) ;
-      
-    } else if(all_vars.inSet(alias)) {
-      alias_variable(alias,v) ;
-    } else {
-      cerr << "neither variable " << v << ", nor " << alias << " exist in db, cannot create alias" << endl ;
-      abort() ;
-    }
-  }
-  
   void fact_db::synonym_variable(variable v, variable synonym) {
     v = remove_synonym(v) ;
     std::map<variable, fact_info>::iterator vmi ;
     if((vmi = fmap.find(synonym)) != fmap.end()) {
-      const fact_info &finfo = vmi->second ;
-      fact_data &fdata = fact_infov[finfo.fact_info_ref] ;
-      if(finfo.fact_installed != EMPTY ||
-         (fdata.data_rep->domain() != EMPTY &&
-          fdata.data_rep->RepType() != PARAMETER)) {
+      fact_info &finfo = vmi->second ;
+      if((finfo.data_rep->domain() != EMPTY &&
+          finfo.data_rep->RepType() != PARAMETER)) {
         cerr << "unable to define synonym variable " << synonym
              << " when varaiable already created in db. "  << endl ;
         cerr << "variable v = " << v << endl ;
-        cerr << "finfo.fact_installed == " << finfo.fact_installed << endl ;
-        cerr << "fdata.aliases = " ;
-        for(variableSet::const_iterator vi=fdata.aliases.begin();
-            vi!=fdata.aliases.end();++vi) {
-          cerr << *vi << " " << endl ;
-        }
-        
-        //      abort() ;
+        abort() ;
       }
-      fact_info &vfinfo = get_fact_info(v) ;
-      if(vfinfo.fact_info_ref != finfo.fact_info_ref) {
-        // if variables exist and they are not synonymous, alias them first
-        alias_variable(v,synonym) ;
-      }
-      
-      // Join synonym mappings into one. = v ;
-      
-      // Remove variable from vmap structure
-      fact_infov[vfinfo.fact_info_ref].aliases -= synonym ;
-      fmap.erase(vmi) ;
+      // This is a hack
+      remove_variable(synonym) ;
     }
-    fact_info &vfinfo = get_fact_info(v) ;
-    
-    vfinfo.synonyms += synonym ;
     synonyms[synonym] = v ;
-    register_variable(synonym) ;
   }
   
-  void fact_db::install_fact_data(variable v, fact_data data) {
-    if(free_set == EMPTY) {
-      fact_infov.push_back(data) ;
-      install_fact_info(v,fact_info(fact_infov.size()-1)) ;
-    } else {
-      int val = *(free_set.begin()) ;
-      free_set -= val ;
-      fact_infov[val] = data ;
-      install_fact_info(v,fact_info(val)) ;
-    }
-  }
-  
-  void fact_db::variable_is_fact_at(variable v,entitySet s) {
-    fact_info &fi = get_fact_info(v) ;
-    fi.fact_installed += s ;
-    variableSet aliases = fact_infov[fi.fact_info_ref].aliases ;
-    aliases -= v ;
-    for(variableSet::const_iterator vi=aliases.begin();vi!=aliases.end();++vi) 
-      get_fact_info(v).fact_installed -= s ;
-  }
   
   void fact_db::create_fact(variable v, storeRepP st) {
     if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
@@ -189,7 +64,6 @@ namespace Loci {
       maximum_allocated = max(maximum_allocated,max_val+1) ;
     }
     set_variable_type(v,st) ;
-    variable_is_fact_at(v,st->domain()) ;
   }
   
   void fact_db::update_fact(variable v, storeRepP st) {
@@ -197,30 +71,68 @@ namespace Loci {
       int max_val = st->domain().Max() ;
       maximum_allocated = max(maximum_allocated,max_val+1) ;
     }
-    if(all_vars.inSet(v)) {
-      fact_data &fd = fact_infov[get_fact_info(v).fact_info_ref] ;
-      (*fd.data_rep) = st ;
-      fact_info &fi = get_fact_info(v) ;
-      fi.fact_installed = st->domain() ;
+    warn(synonyms.find(v) != synonyms.end()) ;
+    std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
+    
+    if(mi != fmap.end()) {
+      mi->second.data_rep->setRep(st->getRep()) ;
     } else
       cerr << "warning: update_fact: fact does not exist for variable " << v
            << endl ;
   }
   
   void fact_db::set_variable_type(variable v, storeRepP st) {
-    if(all_vars.inSet(v)) {
+    //    warn(synonyms.find(v) != synonyms.end()) ;
+    if(synonyms.find(v) != synonyms.end()) {
+      v = remove_synonym(v) ;
+      std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
+      if(mi==fmap.end()) {
+        fmap[v].data_rep = new store_ref ;
+        fmap[v].data_rep->setRep(st->getRep()) ;
+      } else {
+        if(typeid(st->getRep()) != typeid(mi->second.data_rep->getRep())) {
+          cerr << "set_variable_type() method of fact_db changing type for variable " << v << endl ;
+        }
+      }
+      return ;
+    }
+    
+    std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
+    if(mi != fmap.end()) {
       cerr << "WARNING: fact_db::set_variable_type retyping variable "
 	   << v << endl ;
-      get_fact_data(v).data_rep->setRep(st) ;
-    } else
-      install_fact_data(v,fact_data(v,st)) ;
+      mi->second.data_rep->setRep(st->getRep()) ;
+    } else {
+      fmap[v].data_rep = new store_ref ;
+      fmap[v].data_rep->setRep(st->getRep()) ;
+    }
+    
   }
 
-  void fact_db::allocate_variable(variable v, entitySet s) {
-    cerr << "allocate_variable not implemented " << endl ;
-    exit(-1) ;
+  void fact_db::remove_variable(variable v) {
+    std::map<variable, variable>::iterator si ;
+    std::map<variable, fact_info>::iterator mi ;
+    if((si=synonyms.find(v)) != synonyms.end()) {
+      synonyms.erase(si) ;
+    } else if((mi=fmap.find(v)) != fmap.end()) {
+      mi->second.data_rep = 0 ;
+      fmap.erase(mi) ;
+    }
   }
+      
   
+  variableSet fact_db::get_typed_variables() const {
+    std::map<variable, fact_info>::const_iterator mi ;
+    std::map<variable, variable>::const_iterator si ;
+    variableSet all_vars ;
+    for(mi=fmap.begin();mi!=fmap.end();++mi)
+      all_vars += mi->first ;
+    for(si=synonyms.begin();si!=synonyms.end();++si)
+      all_vars += si->first ;
+    return all_vars ;
+  }
+    
+
   std::pair<interval, interval> fact_db::get_distributed_alloc(int size) {
     dist_from_start = 1 ;
     if(MPI_processes > 1) {
@@ -265,19 +177,14 @@ namespace Loci {
     return (make_pair(alloc, alloc)) ; ;
   }
 
-  fact_db::fact_info &fact_db::get_fact_info(variable v) {
-    std::map<variable, fact_info>::iterator mi = fmap.find(remove_synonym(v)) ;
-    if(mi == fmap.end()) {
-      return get_fact_info(variable("EMPTY")) ;
-    }
-    return mi->second ;
-  }
-
-storeRepP fact_db::get_variable(variable v) {
-    if(all_vars.inSet(v))
-      return storeRepP(get_fact_data(v).data_rep) ;
-    else
+  storeRepP fact_db::get_variable(variable v) {
+    v = remove_synonym(v) ;
+    std::map<variable, fact_info>::iterator mi =
+      fmap.find(remove_synonym(v)) ;
+    if(mi == fmap.end()) 
       return storeRepP(0) ;
+    else
+      return storeRepP(mi->second.data_rep) ;
   }
   
   fact_db::distribute_infoP fact_db::get_distribute_info() {
@@ -295,112 +202,31 @@ storeRepP fact_db::get_variable(variable v) {
       return 1 ;
   }
   
-  fact_db::time_infoP fact_db::get_time_info(time_ident tl) {
-    time_infoP ti = new time_info ;
-    if(tl == time_ident())
-      return ti ;
-    variable time_var(tl) ;
-    
-    if(get_typed_variables().inSet(time_var))
-      ti->time_var = get_variable(time_var) ;
-    else
-      set_variable_type(time_var,ti->time_var.Rep()) ;
-    typedef map<variable,std::list<variable> >  maptype ;
-    maptype &tinfo = time_map[tl] ;
-    maptype::const_iterator ii ;
-    for(ii=tinfo.begin();ii!=tinfo.end();++ii) {
-      if(ii->second.size() < 2)
-        continue ;
-      std::list<variable>::const_iterator jj ;
-      bool overlap = false ;
-      variableSet vtouch ;
-      for(jj=ii->second.begin();jj!=ii->second.end();++jj) {
-        variableSet aliases = get_aliases(*jj) ;
-        variableSet as = aliases ;
-        variableSet::const_iterator vi ;
-        
-        for(vi=aliases.begin();vi!=aliases.end();++vi) 
-          as += get_synonyms(*vi) ;
-        if((as & vtouch) != EMPTY)
-          overlap = true ;
-        vtouch += as ;
-      }
-      if(!overlap) {
-        //        cerr << "memory variable " << ii->first << "{" << tl << "}"
-        //             << " has a history of " << ii->second.size() << endl ;
-        ti->rotate_lists.push_back(ii->second) ;
-      } else {
-        if(ii->second.size() !=2) {
-          cerr << "unable to have history on variables aliased in time"
-               << endl
-               << "error occured on variable " << ii->first << "{" << tl << "}"
-               << endl ;
-          exit(-1) ;
-        }
-      }
-    }
-    return ti ;
-  }
-  
-  void fact_db::initialize_time(fact_db::time_infoP ti) {
-    *(ti->time_var) = 0 ;
-  }
-  
-  void fact_db::advance_time(fact_db::time_infoP ti) {
-    (*(ti->time_var))++ ;
-    list<list<variable> >::const_iterator ii ;
+  void fact_db::rotate_vars(const std::list<variable> &lvars) {
     list<variable>::const_iterator jj ;
-
-    for(ii=ti->rotate_lists.begin();ii!=ti->rotate_lists.end();++ii) {
-      jj=ii->begin() ;
-      storeRepP cp = get_fact_data(*jj).data_rep->getRep() ;
-      ++jj ;
-      if(jj != ii->end()) {
-        for(;jj!=ii->end();++jj) {
-          fact_data &fd = get_fact_data(*jj) ;
-          storeRepP tmp = fd.data_rep->getRep() ;
-          *(fd.data_rep) = cp ;
-          cp = tmp ;
-        }
+    jj = lvars.begin() ;
+    storeRepP cp = fmap[remove_synonym(*jj)].data_rep->getRep() ;
+    ++jj ;
+    if(jj != lvars.end()) {
+      for(;jj!=lvars.end();++jj) {
+        fact_info &fd = fmap[remove_synonym(*jj)] ;
+        storeRepP tmp = fd.data_rep->getRep() ;
+        fd.data_rep->setRep(cp) ;
+        cp = tmp ;
       }
-      *(get_fact_data(ii->front()).data_rep) = cp ;
     }
-  }
-
-  void fact_db::close_time(fact_db::time_infoP ti) {
-    *(ti->time_var) = 0 ;
-  }
-  
- 
-  
-  bool fact_db::is_a_Map(variable v) {
-    return get_fact_data(v).ismap ;
-  }
-  void fact_db::printSummary(ostream &s) const {
-    std::map<variable, fact_info>::const_iterator vmi ;
-    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
-      s << "--------------------------------------------------------------"
-        << endl ;
-      s << "variable: " << vmi->first << ", installed = " <<
-        vmi->second.fact_installed << endl ;
-      s << "synonyms: " << vmi->second.synonyms << endl ;
-      const variableSet &aliases = fact_infov[vmi->second.fact_info_ref].aliases ;
-      s << "aliases: " << aliases << endl ;
-      
-    }
-    
+    fmap[remove_synonym(lvars.front())].data_rep->setRep(cp) ;
   }
 
   ostream &fact_db::write(ostream &s) const {
     std::map<variable, fact_info>::const_iterator vmi ;
     for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
       variable v=vmi->first;
-      const fact_data &fd = fact_infov[vmi->second.fact_info_ref] ;
-      storeRepP store_Rep = storeRepP(fd.data_rep) ;
-      entitySet en=store_Rep->domain();
+      storeRepP storeRep = storeRepP(vmi->second.data_rep) ;
+      entitySet en=storeRep->domain();
       std::string groupname = (v.get_info()).name;
       s << groupname << ":" ;
-      store_Rep->Print(s);
+      storeRep->Print(s);
     }
     return s ;
   }
@@ -487,8 +313,9 @@ storeRepP fact_db::get_variable(variable v) {
         cerr<<("Warning: variable \""+groupname+"\" is not found in file \""+filename+"\"")<<endl;
       //store_Rep->Print(cout);
     }
-  } 
+  }
 
+  
   void reorder_facts(fact_db &facts, Map &remap) {
     variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {

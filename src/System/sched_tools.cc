@@ -50,7 +50,7 @@ namespace Loci {
     for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
       entitySet working = ~EMPTY ;
       for(vi=mi->begin();vi!=mi->end();++vi) {
-        FATAL(!facts.is_a_Map(*vi)) ;
+        FATAL(!scheds.is_a_Map(*vi)) ;
 	working &= scheds.preimage(*vi,sources).first ;
       }
       sources = working ;
@@ -65,14 +65,14 @@ namespace Loci {
     for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
       if(mi->size() == 1) {
         variable v = *(mi->begin()) ;
-        FATAL(!facts.is_a_Map(v)) ;
+        FATAL(!scheds.is_a_Map(v)) ;
         compute = scheds.image(v,compute) ;
       } else {
         variableSet::const_iterator vi ;
         entitySet images ;
         for(vi=mi->begin();vi!=mi->end();++vi) {
           variable v = *vi ;
-          FATAL(!facts.is_a_Map(v)) ;
+          FATAL(!scheds.is_a_Map(v)) ;
           images |= scheds.image(v,compute) ;
         }
         compute = images ;

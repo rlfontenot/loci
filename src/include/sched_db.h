@@ -125,7 +125,10 @@ namespace Loci {
     sched_info & get_sched_info(variable v) ;
     sched_data & get_sched_data(variable v) 
       { return sched_infov[get_sched_info(v).sched_info_ref] ; }
-    
+
+    bool is_a_Map(variable v) {
+      return get_sched_data(v).ismap ;
+    }
     entitySet get_existential_info(variable v, rule f) {
       sched_info &finfo = get_sched_info(v) ;
       std::map<rule,existential_info>::const_iterator mi ;
