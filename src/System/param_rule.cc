@@ -2,6 +2,8 @@
 
 using std::string ;
 using std::ostringstream ;
+#include <distribute.h>
+
 namespace Loci {
 
   rule prepend_time_level(Loci::rule r, string prepend) {
@@ -422,6 +424,9 @@ namespace Loci {
               rule r = rename_rule(*rsi,vm) ;
               rule_implP rp = r.get_rule_implP() ;
               if(!added_rules.inSet(rule(rp))) {
+#ifdef VERBOSE
+                debugout << "adding parametric rule " << rule(rp) << endl ;
+#endif
                 par_rdb.add_rule(rule(rp)) ;
                 added_rules += rule(rp) ;
               }
