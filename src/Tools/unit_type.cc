@@ -7,298 +7,302 @@ using namespace std ;
 namespace Loci {
   //three tables of unit type - basic, composite, reference types----//
   UNIT_type::basic_units UNIT_type::basic_unit_table[]={
-    "meter",Length,1,
-    "kilogram",Mass,1,
-    "second",Time,1,
-    "kelvin",Temperature,1,
-    "ampere",Electric_current,1,
-    "mole",Amount_of_substance,1,
-    "candela",Luminous_intensity,1,
-    "radians", Angle,1,
-    "none", NoDim,1,
-    0
+    {"meter",Length,1},
+    {"kilogram",Mass,1},
+    {"second",Time,1},
+    {"kelvin",Temperature,1},
+    {"ampere",Electric_current,1},
+    {"mole",Amount_of_substance,1},
+    {"candela",Luminous_intensity,1},
+    {"radians", Angle,1},
+    {"none", NoDim,1},
+    {0,NoDim,0}
   };
+  
   UNIT_type::basic_units UNIT_type::cgs_basic_unit_table[]={
-    "centimeter",Length,1,
-    "gram",Mass,1,
-    "second",Time,1,
-    "kelvin",Temperature,1,
-    "ampere",Electric_current,1,
-    "mole",Amount_of_substance,1,
-    "candela",Luminous_intensity,1,
-    "radians", Angle,1,
-    "none", NoDim,1,
-    0
-    };
+    {"centimeter",Length,1},
+    {"gram",Mass,1},
+    {"second",Time,1},
+    {"kelvin",Temperature,1},
+    {"ampere",Electric_current,1},
+    {"mole",Amount_of_substance,1},
+    {"candela",Luminous_intensity,1},
+    {"radians", Angle,1},
+    {"none", NoDim,1},
+    {0,NoDim,0}
+  };
 
   UNIT_type::composite_units UNIT_type::composite_unit_table[]={
-    "rad","radians",1,
-    "deg","radians",0.01745329251994329576923690768488612713443,
-    "degrees","radians",0.01745329251994329576923690768488612713443,
+    {"rad","radians",1},
+    {"deg","radians",0.01745329251994329576923690768488612713443},
+    {"degrees","radians",0.01745329251994329576923690768488612713443},
     //abbreviation of SI
-    "m","meter",1,
-    "kg","kilogram",1,
-    "g","kilogram",0.001,
-    "gram","kilogram",0.001,
-    "s","second",1,
-    "sec","second",1,
-    "K","kelvin",1,
-    "A","ampere",1,
-    "mol","mole",1,
-    "cd","candela",1,
+    {"m","meter",1},
+    {"kg","kilogram",1},
+    {"g","kilogram",0.001},
+    {"gram","kilogram",0.001},
+    {"s","second",1},
+    {"sec","second",1},
+    {"K","kelvin",1},
+    {"A","ampere",1},
+    {"mol","mole",1},
+    {"cd","candela",1},
 
     //metric system
-    "centimeter","meter",0.01,//length
-    "cm","meter",0.01,
-    "kilometer","meter",1000,
-    "km","meter",1000,
-    "milimeter","meter",0.001,
-    "mm","meter",0.001,
+    {"centimeter","meter",0.01},//length
+    {"cm","meter",0.01},
+    {"kilometer","meter",1000},
+    {"km","meter",1000},
+    {"milimeter","meter",0.001},
+    {"mm","meter",0.001},
 
-    "minute","second",60,//time
-    "min","second",10,
-    "hour","second",3600,
-    "h","second",3600,
-    "day","second",86400,
-    "d","second",86400,
-    "year","second",31536000,
-    "y","second",31536000,
-    "shake","second",1e-8,
+    {"minute","second",60},//time
+    {"min","second",10},
+    {"hour","second",3600},
+    {"h","second",3600},
+    {"day","second",86400},
+    {"d","second",86400},
+    {"year","second",31536000},
+    {"y","second",31536000},
+    {"shake","second",1e-8},
 
-    "Fahrenheit","kelvin",0.5555556,//temperature interval
-    "F","kelvin",0.5555556,
-    "Rankine","kelvin",0.5555556,
-    "R","kelvin",0.5555556,
-    "Celsius","kelvin",1,
-    "C","kelvin",1,
+    {"Fahrenheit","kelvin",0.5555556},//temperature interval
+    {"F","kelvin",0.5555556},
+    {"Rankine","kelvin",0.5555556},
+    {"R","kelvin",0.5555556},
+    {"Celsius","kelvin",1},
+    {"C","kelvin",1},
 
-    "m^2","m^2",1,//area
+    {"m^2","m^2",1},//area
 
     //composite unit
-    "newton","kilogram*meter/second/second",1,
-    "N","kilogram*meter/second/second",1,
-    "joule","kilogram*meter/second/second*meter",1,
-    "J","kilogram*meter/second/second*meter",1,
-    "watt","kilogram*meter/second/second*meter/second",1,
-    "W","kilogram*meter/second/second*meter/second",1,
-    "pascal","kilogram*meter/second/second/meter/meter",1,
-    "Pa","kilogram*meter/second/second/meter/meter",1,
-    0,0,0
+    {"newton","kilogram*meter/second/second",1},
+    {"N","kilogram*meter/second/second",1},
+    {"joule","kilogram*meter/second/second*meter",1},
+    {"J","kilogram*meter/second/second*meter",1},
+    {"watt","kilogram*meter/second/second*meter/second",1},
+    {"W","kilogram*meter/second/second*meter/second",1},
+    {"pascal","kilogram*meter/second/second/meter/meter",1},
+    {"Pa","kilogram*meter/second/second/meter/meter",1},
+    {0,0,0}
   };
 
   UNIT_type::reference_units UNIT_type::reference_unit_table[]={
-    "acre","m^2",404.6873,//area
-    "are","m^2",100,
-    "a","m^2",100,
-    "barn","m^2",1e-28,
-    "b","m^2",1e-28,
-    "hectare","m^2",1.0e4,
-    "ha","m^2",1.0e4,
+    {"acre","m^2",404.6873},//area
+    {"are","m^2",100},
+    {"a","m^2",100},
+    {"barn","m^2",1e-28},
+    {"b","m^2",1e-28},
+    {"hectare","m^2",1.0e4},
+    {"ha","m^2",1.0e4},
 
-    "calorie","joule",4.19002,//energy or work
-    "cal","joule",4.19002,
-    "electronvolt","joule",1.602177e-19,
-    "eV","joule",1.602177e-19,
-    "erg","joule",1.0e-7,
-    "kilocalorie","joule",4.19002e3,
-    "kcal","joule",4.19002e3,
-    "kW*h","joule",3.6e6,
-    "quad","joule",1.055056e18,
+    {"calorie","joule",4.19002},//energy or work
+    {"cal","joule",4.19002},
+    {"electronvolt","joule",1.602177e-19},
+    {"eV","joule",1.602177e-19},
+    {"erg","joule",1.0e-7},
+    {"kilocalorie","joule",4.19002e3},
+    {"kcal","joule",4.19002e3},
+    {"kW*h","joule",3.6e6},
+    {"quad","joule",1.055056e18},
 
-    "dyne","N",1.0e-5,//force
-    "dyn","N",1.0e-5,
-    "kgf","N",9.80665,
-    "kp","N",9.80665,
-    "kip","N",4.448222e3,
-    "ozf","N",2.780139e-1,
-    "poundal","N",1.38255e-1,
-    "lbf","N",4.448222,
-    "tonforce","N",8.896443e3,
+    {"dyne","N",1.0e-5},//force
+    {"dyn","N",1.0e-5},
+    {"kgf","N",9.80665},
+    {"kp","N",9.80665},
+    {"kip","N",4.448222e3},
+    {"ozf","N",2.780139e-1},
+    {"poundal","N",1.38255e-1},
+    {"lbf","N",4.448222},
+    {"tonforce","N",8.896443e3},
 
-    "chain","m",2.011684e1,//length
-    "ch","m",2.011684e1,
-    "fathom","m",1.828804,
-    "fermi","m",1e-15,
-    "feet","m",0.3048,
-    "foot","m",0.3048,
-    "ft","m",0.3048,
-    "inch","m",2.54e-2,
-    "in","m",2.54e-2,
-    "microinch","m",2.54e-8,
-    "micro","m",1e-6,
-    "mil","m",2.54e-5,
-    "miles","m",1609.344,
-    "mile","m",1609.344,
-    "mi","m",1609.344,
-    "rod","m",5.029210,
-    "rd","m",5.029210,
-    "yard","m",0.9144,
-    "yd","m",0.9144,
+    {"chain","m",2.011684e1},//length
+    {"ch","m",2.011684e1},
+    {"fathom","m",1.828804},
+    {"fermi","m",1e-15},
+    {"feet","m",0.3048},
+    {"foot","m",0.3048},
+    {"ft","m",0.3048},
+    {"inch","m",2.54e-2},
+    {"in","m",2.54e-2},
+    {"microinch","m",2.54e-8},
+    {"micro","m",1e-6},
+    {"mil","m",2.54e-5},
+    {"miles","m",1609.344},
+    {"mile","m",1609.344},
+    {"mi","m",1609.344},
+    {"rod","m",5.029210},
+    {"rd","m",5.029210},
+    {"yard","m",0.9144},
+    {"yd","m",0.9144},
 
-    "carat","kg",2.0e-4,//mass
-    "grain","kg",6.479891e-5,
-    "gr","kg",6.479891e-5,
-    "ounce","kg",2.834952e-2,
-    "oz","kg",2.834952e-2,
-    "pennyweight","kg",1.555174e-3,
-    "dwt","kg",1.555174e-3,
-    "pound","kg",0.4535924,
-    "lb","kg",0.4535924,
-    "slug","kg",1.459390e1,
-    "ton","kg",1e3,
+    {"carat","kg",2.0e-4},//mass
+    {"grain","kg",6.479891e-5},
+    {"gr","kg",6.479891e-5},
+    {"ounce","kg",2.834952e-2},
+    {"oz","kg",2.834952e-2},
+    {"pennyweight","kg",1.555174e-3},
+    {"dwt","kg",1.555174e-3},
+    {"pound","kg",0.4535924},
+    {"lb","kg",0.4535924},
+    {"slug","kg",1.459390e1},
+    {"ton","kg",1e3},
 
-    "denier","kg/m",1.111111e-7,//mass divided by length
-    "tex","kg/m",1e-6,
+    {"denier","kg/m",1.111111e-7},//mass divided by length
+    {"tex","kg/m",1e-6},
 
-    "darcy","m^2",9.869233e-13,//permeability
-    "perm","kg/(Pa*s*(m^2))",5.72135e-11,//(0C)
+    {"darcy","m^2",9.869233e-13},//permeability
+    {"perm","kg/(Pa*s*(m^2))",5.72135e-11},//(0C)
 
-    "horsepower","W",7.354988e2,//power(metric)
-    "hp","W",7.354988e2,
+    {"horsepower","W",7.354988e2},//power(metric)
+    {"hp","W",7.354988e2},
 
-    "atmosphere","Pa",1.01325e5,//pressure or stress
-    "bar","Pa",1e5,
-    "cmHg","Pa",1.333224e3,
-    "cmH2O","Pa",9.80665e1,
-    "ftHg","Pa",4.063666e4,
-    "ftH2O","Pa",2.989067e3,
-    "inHg","Pa",3.686389e3,
-    "inH2O","Pa",2.490889e2,
-    "ksi","Pa",6.894757e6,
-    "millibar","Pa",1e2,
-    "mbar","Pa",1e2,
-    "psi","Pa",6.894757e3,
-    "torr","Pa",1.333224e2,
-    "Torr","Pa",1.333224e2,
+    {"atmosphere","Pa",1.01325e5},//pressure or stress
+    {"bar","Pa",1e5},
+    {"cmHg","Pa",1.333224e3},
+    {"cmH2O","Pa",9.80665e1},
+    {"ftHg","Pa",4.063666e4},
+    {"ftH2O","Pa",2.989067e3},
+    {"inHg","Pa",3.686389e3},
+    {"inH2O","Pa",2.490889e2},
+    {"ksi","Pa",6.894757e6},
+    {"millibar","Pa",1e2},
+    {"mbar","Pa",1e2},
+    {"psi","Pa",6.894757e3},
+    {"torr","Pa",1.333224e2},
+    {"Torr","Pa",1.333224e2},
 
-    "centipoise","Pa*s",1.0e-3,//viscosity,dynamic
-    "cP","Pa*s",1e-3,
-    "poise","Pa*s",1e-1,
-    "P","Pa*s",1e-1,
-    "rhe","1/(Pa*s)",1e1,
+    {"centipoise","Pa*s",1.0e-3},//viscosity,dynamic
+    {"cP","Pa*s",1e-3},
+    {"poise","Pa*s",1e-1},
+    {"P","Pa*s",1e-1},
+    {"rhe","1/(Pa*s)",1e1},
     
-    "centistokes","(m^2)/s",1e-6,//viscosity,kinematic
-    "stokes","(m^2)/s",1e-4,
-    "St","(m^2)/s",1e-4,
+    {"centistokes","(m^2)/s",1e-6},//viscosity,kinematic
+    {"stokes","(m^2)/s",1e-4},
+    {"St","(m^2)/s",1e-4},
     
-    "acrefoot","m^3",1.233489e3,//volume
-    "barrel","m^3",1.589873e-1,
-    "bll","m^3",1.589873e-1,
-    "bushel","m^3",3.523907e-2,
-    "cord","m^3",3.624556,
-    "cup","m^3",2.365882e-4,
-    "gallon","m^3",4.54609e-3,
-    "gal","m^3",4.54609e-3,
-    "gill","m^3",1.420653e-4,
-    "gi","m^3",1.420653e-4,
-    "liter","m^3",1e-3,
-    "peck","m^3",8.809768e-3,
-    "pk","m^3",8.809768e-3,
-    "pint","m^3",4.731765e-4,
-    "quart","m^3",9.463529e-4,
-    "stere","m^3",1,
-    "st","m^3",1,
-    "tablespoon","m^3",1.478676e-5,
-    "teaspoon","m^3",4.928922e-6,
+    {"acrefoot","m^3",1.233489e3},//volume
+    {"barrel","m^3",1.589873e-1},
+    {"bll","m^3",1.589873e-1},
+    {"bushel","m^3",3.523907e-2},
+    {"cord","m^3",3.624556},
+    {"cup","m^3",2.365882e-4},
+    {"gallon","m^3",4.54609e-3},
+    {"gal","m^3",4.54609e-3},
+    {"gill","m^3",1.420653e-4},
+    {"gi","m^3",1.420653e-4},
+    {"liter","m^3",1e-3},
+    {"peck","m^3",8.809768e-3},
+    {"pk","m^3",8.809768e-3},
+    {"pint","m^3",4.731765e-4},
+    {"quart","m^3",9.463529e-4},
+    {"stere","m^3",1},
+    {"st","m^3",1},
+    {"tablespoon","m^3",1.478676e-5},
+    {"teaspoon","m^3",4.928922e-6},
 
-    "clo","(m^2)*K/W",1.55e-1,//thermal insulance
+    {"clo","(m^2)*K/W",1.55e-1},//thermal insulance
 
-    "atm","pascal",101325,
-    "bar","pascal",100000,
-    "kPa","pascal",1000,
-    "Btu","joule",1055.87,
-    0,0,0
+    {"atm","pascal",101325},
+    {"bar","pascal",100000},
+    {"kPa","pascal",1000},
+    {"Btu","joule",1055.87},
+    {0,0,0}
   };
 
   UNIT_type::composite_units UNIT_type::cgs_composite_unit_table[]={
     //abbreviation of SI
-    "m","centimeter",0.1,
-    "kilogram","gram",1000,
-    "g","gram",1,
-    "kg","gram",1000,
-    "s","second",1,
-    "K","kelvin",1,
-    "A","ampere",1,
-    "mol","mole",1,
-    "cd","candela",1,
+    {"m","centimeter",0.1},
+    {"kilogram","gram",1000},
+    {"g","gram",1},
+    {"kg","gram",1000},
+    {"s","second",1},
+    {"K","kelvin",1},
+    {"A","ampere",1},
+    {"mol","mole",1},
+    {"cd","candela",1},
 
     //metric system
-    "kilometer","centimeter",1000000,
-    "km","centimeter",1000000,
-    "meter","centimeter",1000,
-    "milimeter","centimeter",0.1,
-    "mm","centimeter",0.1,
-    "cm","centimeter",1,
+    {"kilometer","centimeter",1000000},
+    {"km","centimeter",1000000},
+    {"meter","centimeter",1000},
+    {"milimeter","centimeter",0.1},
+    {"mm","centimeter",0.1},
+    {"cm","centimeter",1},
 
-    "minute","second",60,//time
-    "min","second",10,
-    "hour","second",3600,
-    "h","second",3600,
-    "day","second",86400,
-    "d","second",86400,
-    "year","second",31536000,
-    "y","second",31536000,
-    "shake","second",1e-8,
+    //time
+    {"minute","second",60},
+    {"min","second",10},
+    {"hour","second",3600},
+    {"h","second",3600},
+    {"day","second",86400},
+    {"d","second",86400},
+    {"year","second",31536000},
+    {"y","second",31536000},
+    {"shake","second",1e-8},
 
-    "Fahrenheit","kelvin",0.5555556,//temperature interval
-    "F","kelvin",0.5555556,
-    "Rankine","kelvin",0.5555556,
-    "R","kelvin",0.5555556,
-    "Celsius","kelvin",1,
-    "C","kelvin",1,
+    //temperature interval
+    {"Fahrenheit","kelvin",0.5555556},
+    {"F","kelvin",0.5555556},
+    {"Rankine","kelvin",0.5555556},
+    {"R","kelvin",0.5555556},
+    {"Celsius","kelvin",1},
+    {"C","kelvin",1},
 
     //composite unit
-    "newton","gram*centimeter/second/second",10000,
-    "N","gram*centimeter/second/second",10000,
-    "joule","gram*centimeter/second/second*centimeter",100000,
-    "J","gram*centimeter/second/second*centimeter",100000,
-    "watt","gram*centimeter/second/second*centimeter/second",100000,
-    "W","gram*centimeter/second/second*centimeter/second",100000,
-    "pascal","gram*centimeter/second/second/centimeter/centimeter",10000,
-    "Pa","gram*centimeter/second/second/centimeter/centimeter",10000,
-    0,0,0
+    {"newton","gram*centimeter/second/second",10000},
+    {"N","gram*centimeter/second/second",10000},
+    {"joule","gram*centimeter/second/second*centimeter",100000},
+    {"J","gram*centimeter/second/second*centimeter",100000},
+    {"watt","gram*centimeter/second/second*centimeter/second",100000},
+    {"W","gram*centimeter/second/second*centimeter/second",100000},
+    {"pascal","gram*centimeter/second/second/centimeter/centimeter",10000},
+    {"Pa","gram*centimeter/second/second/centimeter/centimeter",10000},
+    {0,0,0}
+
   };
   
   UNIT_type::default_units UNIT_type::default_unit_table[]={
-    "general"," ",
-    "length","meter",
-    "Length","meter",
-    "mass","kilogram",
-    "Mass","kilogram",
-    "time","second",
-    "Time","second",
-    "Temperature","K",
-    "tmeperature","K",
-    "electric_current","A",
-    "Electric_current","A",
-    "Amount_of_substance","mole",
-    "amount_of_substance","mole",
-    "Luminous_intensity","candela",
-    "luminous_intensity","candela",
-    "area","m^2",
-    "density","kg/(m^3)",
-    "energy","J",
-    "power","W",
-    "stress","Pa",
-    "capacity","m^3",
-    "density","kg/(m^3)",
-    "flow","kg/s",
-    "force","N",
-    "Power","J",
-    "power","J",
-    "Velocity","m/s",
-    "velocity","m/s",
-    "speed","m/s",
-    "Speed","m/s",
-    "viscocityD","Pa*s",
-    "viscocityK","(m^2)/s",
-    "volume","m^3",
-    "Volume","m^3",
-    "pressure","Pa",
-    "Pressure","Pa",
-    "heat","J",
-    "Heat","J",
-    0
+    {"general"," "},
+    {"length","meter"},
+    {"Length","meter"},
+    {"mass","kilogram"},
+    {"Mass","kilogram"},
+    {"time","second"},
+    {"Time","second"},
+    {"Temperature","K"},
+    {"tmeperature","K"},
+    {"electric_current","A"},
+    {"Electric_current","A"},
+    {"Amount_of_substance","mole"},
+    {"amount_of_substance","mole"},
+    {"Luminous_intensity","candela"},
+    {"luminous_intensity","candela"},
+    {"area","m^2"},
+    {"density","kg/(m^3)"},
+    {"energy","J"},
+    {"power","W"},
+    {"stress","Pa"},
+    {"capacity","m^3"},
+    {"density","kg/(m^3)"},
+    {"flow","kg/s"},
+    {"force","N"},
+    {"Power","J"},
+    {"power","J"},
+    {"Velocity","m/s"},
+    {"velocity","m/s"},
+    {"speed","m/s"},
+    {"Speed","m/s"},
+    {"viscocityD","Pa*s"},
+    {"viscocityK","(m^2)/s"},
+    {"volume","m^3"},
+    {"Volume","m^3"},
+    {"pressure","Pa"},
+    {"Pressure","Pa"},
+    {"heat","J"},
+    {"Heat","J"},
+    {0,0}
   };
 
   bool UNIT_type::is_reference_unit(string str){
@@ -444,12 +448,16 @@ namespace Loci {
 	}
 	break;
       case OP_DIVIDE:
-	bool new_isnum=!isnum;
-	for(li= input->expr_list.begin();li!=input->expr_list.end();++li){
-	  build_lists(numerator,denominator,(*li),isnum);
-	  isnum=new_isnum;
-	}
+        {
+          bool new_isnum=!isnum;
+          for(li= input->expr_list.begin();li!=input->expr_list.end();++li){
+            build_lists(numerator,denominator,(*li),isnum);
+            isnum=new_isnum;
+          }
+        }
 	break;
+      default:
+        cerr << "unknown operator type in unit_type expression parsing!" << endl ;
       }
       //cout<<"size of numerator "<<numerator.size()<<endl;
     }

@@ -56,7 +56,6 @@ namespace Loci {
     
     int pid = getpid() ;
     char buf[512] ;
-    struct stat sb ;
 #ifdef SUN
     const char *xtermpath = "/usr/openwin/bin/xterm" ;
     const char *xtermlibpath = "/usr/openwin/lib:/usr/lib" ;

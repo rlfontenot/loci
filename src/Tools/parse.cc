@@ -102,7 +102,7 @@ namespace Loci {
 
     bool  is_token(istream &s, const string &token) {
         kill_white_space(s) ;
-        for(int i=0;i<token.size();++i) {
+        for(unsigned int i=0;i<token.size();++i) {
             if(s.peek() != token[i]) {
                 for(--i;i>=0;--i)
                   s.putback(token[i]) ;
@@ -117,7 +117,7 @@ namespace Loci {
     
     bool get_token(istream &s, const string &token) {
       kill_white_space(s) ;
-      for(int i=0;i<token.size();++i) {
+      for(unsigned int i=0;i<token.size();++i) {
 	if(s.peek() != token[i]) {
 	  for(--i;i>=0;--i)
 	    s.putback(token[i]) ;

@@ -161,7 +161,7 @@ namespace Loci {
           dgt.add_edge(imap[*jj],imap[*ii]) ;
         }
       }
-      for(int i=0;i<omap.size();++i)
+      for(unsigned int i=0;i<omap.size();++i)
         vertex_color[i] = WHITE ;
 
       all_vertices = interval(0,omap.size()-1) ;
@@ -186,7 +186,7 @@ namespace Loci {
       for(ci=comp_vec.begin();ci!=comp_vec.end();++ci) {
         vertexSet n ;
         for(ii=ci->begin();ii!=ci->end();++ii) {
-          if(*ii < omap.size())
+          if(*ii < int(omap.size()))
             n += omap[*ii] ;
           else 
             cerr << "confused , *ii = " << *ii << endl ;
