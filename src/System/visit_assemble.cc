@@ -7,7 +7,8 @@
 
 using std::vector ;
 using std::map ;
-
+using std::cerr;
+using std::endl;
 
 namespace Loci {
 
@@ -173,10 +174,10 @@ namespace Loci {
    const std::vector<digraph::vertexSet> &dag_sched,
    const rulecomp_map &rcm,
    const digraph &dag) {
-
     digraph dagt = dag.transpose() ;
     if(dag_sched.size() == 0)
       return ;
+   
 
     for(unsigned int i=0;i<dag_sched.size();++i) {
       //Loci::debugout << " in comp_dag.cc dag_sched[i] = " << dag_sched[i] << endl ;
@@ -234,7 +235,8 @@ namespace Loci {
             reduce_info[*vi] = use_rules ;
             if(reduction && unit_rule_exists)
               reduce_vars += *vi ;
-          } if(singleton) {
+          } 
+	  if(singleton) {
             singleton_vars += *vi ;
           }
         }
@@ -245,7 +247,7 @@ namespace Loci {
       dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
       
       all_vars += singleton_vars ;
-      
+
       if(singleton_vars != EMPTY)
         dag_comp.push_back(new singleton_var_compiler(singleton_vars)) ;
 
@@ -254,12 +256,18 @@ namespace Loci {
       if(reduce_vars != EMPTY) {
         std::map<variable,ruleSet>::const_iterator xi ;
         variableSet vars ;
+
+	vector<CPTR<joiner> > join_op_vector;
+	vector<rule> unit_rule_vector;
+	vector<variable> reduce_var_vector;
+	
         for(xi=reduce_info.begin();xi!=reduce_info.end();++xi) {
           vars += xi->first ;
           rule unit_rule ;
           CPTR<joiner> join_op = CPTR<joiner>(0) ;
           ruleSet::const_iterator ri ;
-          for(ri=xi->second.begin();ri!=xi->second.end();++ri) {
+	  //Next loop finds the join_opearation for the reduction
+	  for(ri=xi->second.begin();ri!=xi->second.end();++ri) {
             if(ri->get_rule_implP()->get_rule_class() == rule_impl::UNIT)
               unit_rule = *ri ;
             else if(ri->get_rule_implP()->get_rule_class() == rule_impl::APPLY){
@@ -287,8 +295,11 @@ namespace Loci {
           FATAL(join_op == 0) ;
           storeRepP sp = join_op->getTargetRep() ;
           if(sp->RepType() == PARAMETER) {
-            dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
-                                                         join_op)) ;
+            
+	    reduce_var_vector.push_back(xi->first);
+	    unit_rule_vector.push_back(unit_rule);
+	    join_op_vector.push_back(join_op);
+	   
           }
           else if (sp->RepType() == BLACKBOX) {
 	    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
@@ -297,6 +308,8 @@ namespace Loci {
                                                          join_op)) ;
           }
         }
+	if(reduce_var_vector.size() != 0) 
+	  dag_comp.push_back(new reduce_param_compiler(reduce_var_vector, unit_rule_vector, join_op_vector));
       }
 
       
