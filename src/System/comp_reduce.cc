@@ -119,6 +119,9 @@ namespace Loci {
                    << "variable is " << *vi << endl ;
 #endif
           scheds.variable_shadow(*vi,targets) ;
+#ifdef COMP_ENT
+	  scheds.set_policy(*vi, sched_db::NEVER);
+#endif	  
         }
       }
     }
