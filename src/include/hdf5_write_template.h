@@ -1,11 +1,11 @@
 #ifndef HDF5_WRITE_TEMPLATE_H_
 #define HDF5_WRITE_TEMPLATE_H_
 
+#include <typeinfo>
 #include <hdf5_memento.h>
 #include <hdf5_traits.h>
 #include <hdf5CC/H5cpp.h>
 #include <Tools/stream.h>
-#include <typeinfo.h>
 
 namespace Loci {
 
