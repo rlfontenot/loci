@@ -235,18 +235,29 @@ used programming techniques for these classes.
 
 In Loci, containers are entity based.  That is, a container provides
 an association between entities and values.  There are two basic types
-of containers, parameters and stores.  Parameters provide a way of
-associating a single value with a set of entities, while stores
-provide a correspondence between entities and values.  In shorter
-terms, parameters look like variables while stores look like very
-flexible arrays.  The stores come in a variety of forms that allow
-various types of run-time selection of the sizes of the types they
-contain.  For example, the storeVec provides a store that contains
-vectors whose size isn't specified until % compile 
-run time.  Perhaps the
-fastest way to learn how to apply Loci containers is to see them in
-action.  So provided is a short program that illustrates the Loci
-containers and some basic examples of their application.
+of containers, parameters and stores.
+
+Parameters provide a way of associating a single value with a set of
+entities.  With respect to the set of entities that they are associated
+with, parameter variables behave much like global variables.  There are
+two parameter containers: param and blackbox, which differ in their
+scope and intended usage.  The param variables are synchronized over all
+of the processors and can only be used with first class objects that Loci
+knows about.  The blackbox variables are not synchronized over processors
+and can hold any data type.  Blackbox containers are intended to be used
+to hold data structures for third party libraries, or other data types
+that Loci is not able to manage directly.
+
+Stores provide a one-to-one correspondence between entities and values.
+In shorter terms, stores look like very flexible arrays.  The stores
+come in a variety of forms that allow various types of run-time selection
+of the sizes of the types they contain.  For example, the storeVec
+provides a store that contains vectors whose size isn't specified until
+run time.
+
+Perhaps the fastest way to learn how to apply Loci containers is to see
+them in action.  The following is a short program that illustrates the
+syntax of Loci containers and some basic examples of their application.
 
 \include{containers_cc}
 
@@ -775,6 +786,7 @@ the following example code to see how to use these helper classes.
 
 \include{helpers_cc}
 
+\include{third_party}
 
 \end{document}
 
