@@ -1809,7 +1809,6 @@ void write_container(hid_t group_id, storeRepP qrep) {
       tot_arr_size += arr_sizes[i] ;
     if(Loci::MPI_rank != 0) {
       MPI_Status status ;
-      MPI_Request send_request ;
       int send_size_buf ;
       send_size_buf = qrep->pack_size(dom) ;
       int tot_size = send_size_buf ;
@@ -1819,8 +1818,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
       MPI_Recv(&flag,1, MPI_INT, 0, 10, MPI_COMM_WORLD, &status) ;
       if(flag) {
 	MPI_Send(&tot_size, 1, MPI_INT, 0, 11, MPI_COMM_WORLD) ;
-	MPI_Isend(tmp_send_buf, tot_size, MPI_PACKED, 0, 12, MPI_COMM_WORLD, &send_request) ;
-
+	MPI_Send(tmp_send_buf, tot_size, MPI_PACKED, 0, 12, MPI_COMM_WORLD) ;
       }
     } else {
       int rank = 1 ;
@@ -2172,11 +2170,10 @@ void write_container(hid_t group_id, storeRepP qrep) {
       tmp_int[tmp++] = *vi ;
     if(Loci::MPI_rank != 0) {
       MPI_Status status ;
-      MPI_Request send_request ;
       int flag = 0 ;
       MPI_Recv(&flag,1, MPI_INT, 0, 11, MPI_COMM_WORLD, &status) ;
       if(flag)
-	MPI_Isend(tmp_int, sizes[MPI_rank], MPI_INT, 0, 12, MPI_COMM_WORLD, &send_request) ;
+	MPI_Send(tmp_int, sizes[MPI_rank], MPI_INT, 0, 12, MPI_COMM_WORLD) ;
     } else {
       hid_t datatype = H5T_NATIVE_INT ;
       int rank = 1 ;
