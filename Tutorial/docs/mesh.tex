@@ -1,0 +1,267 @@
+\section {Unstructured Grid Cell Area and Centroid Calculation}
+For the solution of PDE in complex geometries using unstructured grid
+provides greater flexibility. In this example, we will read triangular
+grid ( generated from other Mesh Generation Program ) and calculate
+area and centroid of each cell.
+
+\begin{figure}[h]
+\special{psfile=sq.eps vscale=50 hscale=50 voffset=-325 hoffset=50}
+\vspace{3.75in}\caption {Triangular Grid in a square domain}
+\end{figure}
+
+\subsection { What will you learn from this example}
+\begin{itemize}
+\item  Creating two different entitySet.
+\item  Using constant map vector.
+\end{itemize}
+
+
+\subsection { Creating Facts Database }
+\begin{verbatim} 
+1  #include <Loci.h>
+2  #include <Tools/stream.h>
+3  #include "2dvector.h"
+4
+5  typedef Loci::vector2d<double> VECTOR;
+6
+7  bool read_grid(fact_db &facts, char *filename);
+8
+9   //*********************************************************************
+10  // Objective :  Find the Centroid and Area of each 2D Cell ( Triangles )
+11  //*********************************************************************
+12  int main(int argc, char *argv[])
+13  {
+14
+15    //-------------------------------------------------------------------
+16    // First Step: Creating queries ..
+17    // In this examples, we will just create rules for centroid and area
+18    // only and query the results. Specify what you would like to query
+19    // from the fact data base..
+20    //-------------------------------------------------------------------
+21
+22    string query = "Centroid, Area";
+23
+24    //-------------------------------------------------------------------
+25    // Second Step : Create fact data base
+26    //
+27    // In this example, we import the grids using some other software, which
+28    // generates the triangular grids.
+29    //
+30    //-------------------------------------------------------------------
+31    fact_db        facts ;               // Facts Database
+32
+33    if(!read_grid(facts,"grid.dat")) {
+34      cerr << "unable to read 'grid' file" << endl ;
+35      exit(-1) ;
+36    }
+37
+38 
+39  //-------------------------------------------------------------------
+40  // Third Step : Create Rules and register in Rule Database..
+41  //-------------------------------------------------------------------
+42  rule_db    rdb ;                  // Rule Database
+43
+44  rdb.add_rules(global_rule_list) ;
+45
+46  //-------------------------------------------------------------------
+47  // Fourth Step: Create and execute the scheduler. A scheduler uses
+48  // fact and rule database to generate query database.
+49  //-------------------------------------------------------------------
+50
+51  executeP schedule = create_execution_schedule(rdb,facts,query ) ;
+52  
+53  if(schedule != 0) {
+54    cout << "schedule = " << endl ;
+55    schedule->Print(cout) ;
+56    schedule->execute(facts) ;
+57  }
+58
+59  //-------------------------------------------------------------------
+60  // Fifth Step : Execution is over,  Query the database. 
+61  //-------------------------------------------------------------------
+62  
+63  Loci::variableSet query_vars( Loci::expression::create(query));
+64  
+65  Loci::variableSet::const_iterator vi ;
+66
+67  for(vi=query_vars.begin();vi!=query_vars.end();++vi) {
+68    Loci::storeRepP sr = facts.get_variable(*vi) ;
+69    if(sr == 0) {
+70      cout << "variable " << *vi << " does not exist in fact database."
+71           << endl ;
+72    } else {
+73      sr->Print(cout) ;
+74    }
+75  }
+76  //-------------------------------------------------------------------
+77  // Everything was successful. Execution is over 
+78  //-------------------------------------------------------------------
+79  
+80  return 0 ;
+81 }
+\end{verbatim}
+
+\begin{verbatim}
+1    bool read_grid(fact_db &facts, char *filename)
+2    {
+3
+4    //-------------------------------------------------------------------
+5    // Open the File in which Grid information is stored ...
+6    //-------------------------------------------------------------------
+7
+8    ifstream in(filename, ios::in) ;
+9    if(in.fail()) {
+10      cerr << "can't open file '" << filename << "'." << endl ;
+11      return false ;
+12    }
+13
+14    //-------------------------------------------------------------------
+15    // How many nodes and starting nodes (C Style=0 or Fortran=1) ...
+16    //-------------------------------------------------------------------
+17
+18    int nnodes, nstart ;
+19    in >> nnodes >> nstart ;
+20
+21    entitySet nodes = interval(nstart,nstart+nnodes-1) ;
+22    entitySet::const_iterator ei ;
+23    store<VECTOR> pos ;
+24    pos.allocate(nodes) ;
+25    for(ei=nodes.begin();ei!=nodes.end();++ei)
+26      in >> pos[*ei] ;
+27
+28    facts.create_fact("pos",pos) ;
+29
+30    //-------------------------------------------------------------------
+31    // Read triangular cell connectivity ...
+32    //-------------------------------------------------------------------
+33
+34    int  ncells;
+35
+36    in >> ncells;
+37
+38    entitySet cells = interval( nstart+nnodes, nstart+nnodes+ncells-1);
+39
+40    MapVec<3>    triConnect;
+41
+42    triConnect.allocate( cells );
+43
+44    int  n1, n2, n3;
+45    for( entitySet::const_iterator ei=cells.begin(); ei != cells.end(); ei++
+){
+46      in >> n1 >> n2 >> n3;
+47      triConnect[*ei][0]   = n1;
+48      triConnect[*ei][1]   = n2;
+49      triConnect[*ei][2]   = n3;
+50    }
+51
+52    facts.create_fact("triConnect", triConnect);
+53
+54    //-------------------------------------------------------------------
+55    // That is all we need for this example.
+56    //-------------------------------------------------------------------
+57    cout << "Information: Reading grid file over " << endl;
+58
+59    return true;
+60  }
+61
+62  //*********************************************************************
+\end{verbatim}
+
+\subsection { Creating Rule Database }
+There are two rules which we need to define, one for Centroid and one
+for Area of each triangle. These are defined as follows.
+
+\begin{verbatim}
+1  class triCentroid : public pointwise_rule{
+2    store<VECTOR>         centroid;
+3    const_MapVec<3>       triConnect;
+4    const_store<VECTOR>   pos;
+5  public:
+6    triCentroid ()
+7    {
+8      name_store( "Centroid", centroid );
+9      name_store( "triConnect", triConnect);
+10      name_store( "pos", pos);
+11
+12      input ("triConnect->pos");
+13      output("Centroid");
+14    }
+15
+16    //---------------------------------------------------------------------
+17    // The following is the rule to calculate the centroid of triangle..
+18    //---------------------------------------------------------------------
+19    void calculate( Entity e)
+20    {
+21      int    n1, n2, n3;
+22      n1            = triConnect[e][0];
+23      n2            = triConnect[e][1];
+24      n3            = triConnect[e][2];
+25      centroid[e].x = (pos[n1].x + pos[n2].x + pos[n3].x)/3.0;
+26      centroid[e].y = (pos[n1].y + pos[n2].y + pos[n3].y)/3.0;
+27    }
+28
+29    virtual void compute( const sequence &seq)
+30    {
+31      do_loop( seq, this );
+32    }
+33  };
+34
+35  register_rule<triCentroid> register_triCentroid ;
+36
+37  //********************************************************************
+38  // The following modules calculates the area of a triangle
+39  // using Green's theorem
+40  //********************************************************************
+41
+42  class triArea : public pointwise_rule{
+43    store<double>         area;
+44    const_MapVec<3>       triConnect;
+45    const_store<VECTOR>   pos;
+46  public:
+47    triArea()
+48    {
+49      name_store( "Area", area);
+50      name_store( "triConnect", triConnect);
+51      name_store( "pos", pos);
+52
+53      input ("triConnect->pos");
+54      output("Area");
+55    }
+56
+57
+58    void calculate( Entity e)
+59    {
+60      int    nodeList[3], inode, nodeID, nnodes;
+61      double  x[5], y[5], sum;
+62
+63      nnodes        = 3;
+64      nodeList[0]   = triConnect[e][0];
+65      nodeList[1]   = triConnect[e][1];
+66      nodeList[2]   = triConnect[e][2];
+67
+68      for( inode = 0; inode < nnodes; inode++){
+69        nodeID     = nodeList[inode];
+70        x[inode+1] = pos[nodeID].x;
+71        y[inode+1] = pos[nodeID].y;
+72      }
+73
+74      // Complete the node cycle.
+75      x[nnodes+1] = x[1];
+76      y[nnodes+1] = y[1];
+77      x[0]        = x[nnodes];
+78      y[0]        = y[nnodes];
+79
+80      sum = 0.0;
+81      for( inode = 1; inode <= nnodes; inode++)
+82        sum +=  x[inode]*(y[inode+1]-y[inode-1]);
+83      area[e] = 0.5*sum;
+84    }
+85
+86    virtual void compute( const sequence &seq)
+87    {
+88      do_loop( seq, this );
+89    }
+90  };
+91  register_rule<triArea> register_triArea;
+92
+\end{verbatim}

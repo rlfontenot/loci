@@ -1,0 +1,215 @@
+\section { Calculation of $\pi$ using numerical integration }
+%
+The exact value of ${\pi}$ is given by the integration
+%
+\begin{equation}
+\pi = {1 \over 4 r^2}\int_{0}^{r} {(r^2-x^2)^{1\over2} dx}
+\end{equation}
+%
+\par \par To do this integration numerically, we divide the interval from $0$ to $R$ into 
+some number $n$  of subintervals, then we use Euler method to calculate the summation
+of rectangle formed under the curve. In this case coordinates $x$ is independent
+term and the height of the curve is given by $y(=h) = (R^2-x^2)^{1/2}$. 
+Larger number of intervals, will produce thin rectangles, which will minimize the
+errors associated with overshoot or undershoot area formed because of the rectangular
+approximation of the curve and therefore, we will get more accurate results of
+the value of $\pi$. Because of finite precision of the machines, we may not be
+compute the result to the theoretical value.  This is not, in fact, a very good way 
+of compute $\pi$, and more accurate approximation such as Simpson's or Trapezoidal
+rules should be applied, but our emphasize is to explain Loci features.
+\begin{equation}
+\pi \approx {1 \over 4 r^2}\sum_{i=0}^{n}(r^2-x_i^2)dx
+\end{equation}
+
+where  $n$ is the user defined number of intervals in the domain and 
+$dx = {1\over n}$. 
+
+In the above formulation $x$ coordinate is an independent variable and the
+height of the rectangle depends on the value of $x$, we can say, that height
+is an attribute to the variable $x$, therefore $x$ is an entity,and the
+each subinterval give rise to one entity. Also since the width of subinterval
+is constant across all the entities, it is best represented as parameter value.
+In Loci, Entities are identified as integer values, so that we might assign value
+$(0,1,2, \dots n)$ to them.  The spatial location of an entity is given
+by $x_i = x_0 + i*dx$ and the attribute value $\phi_i$ is $(r*r-x_i*x_i)^{1/2}dx$
+The area of the curve is given by the summation of each rectangle. Which we 
+will perform using the reduction operation.
+
+
+To facilitate describing discretization process, the
+$N$ subintervals, or cells, are enumerated as by $(0, \dots N)$. 
+%
+\begin{figure}[h]
+\special{psfile=pi.eps vscale=50 hscale=50 voffset=-250 hoffset=100}
+\vspace*{3.50in}\caption {Calculation of $\pi$ using numerical integration}
+\end{figure}
+%
+\subsection { What you will learn from this example }
+\par This simple examples, will reveal many important aspect of Loci system. 
+At the end of the example, you should be able to learn 
+\begin{enumerate}
+\item  How to identify entities and associate maps on each entity.
+\item  How to apply reduction rule.
+\end{enumerate}
+%
+\subsection { Solving using C/C++ }
+\begin{verbatim}
+1
+2  #include <stdio.h>
+3  #include <iostream>
+4  #include <iomanip>
+5
+6  int main(int argc, char *argv[])
+7  {
+8
+9     int     i, N = 100000;
+10    double  x, dx, sum = 0, radius=1.0;
+11    double  *pi_funct;
+12
+13    pi_funct = new double[N];
+14
+15    dx =  1.0/N;
+16    for( i = 0; i < N; i++) {
+17      x           = 0.5*dx + i*dx;
+18      pi_funct[i] = sqrt(radius*radius-x*x);
+19    }
+20
+21    cout << setprecision(10);
+22    sum = 0.0;
+23    for( i = 0; i < N; i++)
+24         sum = sum + pi_funct[i];
+25    pi = sum/(4.0*radius*radius);
+26    cout << " The value of PI is " << sum << endl;
+27
+28    delete [] pi_funct;
+29
+30    return 0 ;
+31  }
+\end{verbatim}
+
+\subsection { Solving using Loci }
+\subsubsection { Creating fact database }
+%
+When we look at the problem, we observe that we need to calculate the
+area of each rectangle lying between $x_{i-1/2}$ and $x_{i+1/2}$. We
+denote $x_i$ as the center of the cell and calculate the value of the
+function at that location. That mean, we would like to store the
+value of the function at the center of the cell. Therefore, we should
+create an entity for the cell center. So, in this example {\bf Cell-Center
+is an entity}. and the collection of $n$ cells will constitute an
+entitySet.
+
+\begin{verbatim}
+1  #include <Loci.h>
+2  #include <Tools/stream.h>
+3
+4  int main(int argc, char *argv[])
+5  {
+6
+7  //-------------------------------------------------------------------
+8     string query = "PI";
+9
+10 //-------------------------------------------------------------------
+11    fact_db        facts ;               // Facts Database
+12
+13    int            i, N = 1000;
+14    double         x, dx, radius = 1.0;
+15    store<double>  pi_funct; // At at entity we are going to store the value
+16
+17    entitySet  cells=interval(0,N);
+18    pi_funct.allocate(cells);
+19
+20    dx =  1.0/N;
+21    for( i = 0; i < N; i++) {
+22      x           = 0.5*dx + i*dx;
+23      pi_funct[i] = sqrt(radius*radius-x*x)*dx;
+24    }
+25
+26    facts.create_fact( "pi_funct", pi_funct);
+27
+28    //-------------------------------------------------------------------
+29    rule_db    rdb ;                  // Rule Database
+30
+31    rdb.add_rules(global_rule_list) ;
+32
+33    //-------------------------------------------------------------------
+34
+35    executeP schedule = create_execution_schedule(rdb,facts,query ) ;
+36
+37    if(schedule != 0) schedule->execute(facts) ;
+38
+39    //-------------------------------------------------------------------
+40
+41    Loci::variableSet query_vars( Loci::expression::create(query));
+42
+43    //-------------------------------------------------------------------
+44
+45    Loci::variableSet::const_iterator vi ;
+46
+47    cout << " The value oi PI is " << endl;
+48
+49    for(vi=query_vars.begin();vi!=query_vars.end();++vi) {
+50      Loci::storeRepP sr = facts.get_variable(*vi) ;
+51      if(sr == 0) {
+52        cout << "variable " << *vi << " does not exist in fact database."
+53             << endl ;
+54      } else {
+55        sr->Print(cout) ;
+56      }
+57    }
+58
+59    return 0 ;
+60  }
+\end{verbatim}
+
+%
+\subsubsection { Creating rules database }
+\begin{verbatim}
+1  #include <Loci.h>
+2  class pi_sum_unit : public unit_rule {
+3    param<double>  sum;
+4  public:
+5    pi_sum_unit() {
+6      name_store( "PI", sum );
+7      constraint( "UNIVERSE");
+8
+9      output("PI");
+10    }
+11    virtual void compute(const sequence &seq){
+12      *sum = 0;
+13    }
+14  };
+15
+16  register_rule<pi_sum_unit>  register_pi_sum_unit ;
+17
+18  //*********************************************************************
+19
+20  class pi_sum_apply : public apply_rule<param<double>,
+21                                         Loci::Summation<double> >
+22  {
+23    param<double> sum ;
+24    const_store<double> pi_funct ;
+25  public:
+26    pi_sum_apply() {
+27      name_store("PI", sum);
+28      name_store("pi_funct",pi_funct) ;
+29
+30      input("pi_funct");
+31      input("PI") ;
+32      output("PI");
+33    }
+34
+35    void calculate( Entity e) {
+36      join(sum[e],pi_funct[e]) ;
+37    }
+38
+39    virtual void compute( const sequence &seq) {
+40      do_loop( seq, this );
+41      sum *= 0.25;
+41    }
+42  };
+43
+44  register_rule<pi_sum_apply> register_pi_sum_apply;
+45
+46  //*********************************************************************
+\end{verbatim}

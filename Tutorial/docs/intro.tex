@@ -1,0 +1,32 @@
+\chapter {Introduction}
+The Loci\footnote{\scriptsize The name Loci is derived from the
+  framework's ability to compute the locus of application component
+  specifications.} system is an application framework that seeks to
+reduce the complexity of assembling large-scale finite-difference or
+finite-element applications, although it could be applied to many
+algorithms that are described with respect to a connectivity network or
+graph.  The design of the Loci system recognizes that a significant
+portion of the complexity and bugs associated with developing large
+scale computational field simulations is derived from errors in
+control and data movement.  In other words, a significant number of
+errors in these applications are caused by incorrect looping
+structures, improper calling sequences, or incorrect data transfers.
+Many of these problems are subtle and result from gradual evolution of
+the application over time giving rise to inconsistencies between
+various application components.  The Loci framework addresses these
+problems by automatically generating the control and data movement
+operations of an application from component specifications while
+guaranteeing a level of consistency between components.  The approach
+taken is similar to Strand \cite{Foster.90} except that it includes
+semantics of unstructured mesh computations in rule specifications.
+%
+\begin{figure}[h]
+\special{psfile=loci.eps vscale=25 hscale=25 voffset=-100 hoffset=75}
+\vspace{1.5in}\caption {  A Loci framework }
+\end{figure}
+%
+This tutorial is intended as a practical introduction to functional 
+programming using Loci. We provide a set of simple codes, which 
+describe some salient features of Loci. Although the programs are
+intentionally kept simple, by the end of the tutorial, user should
+have essential information required to develop programming in Loci. 
