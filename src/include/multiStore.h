@@ -892,7 +892,7 @@ namespace Loci {
     typedef typename schema_traits::Converter_Base_Type dtype;
 
     int typesize = sizeof(dtype);
-    vector<dtype> inbuf(maxStateSize);
+    std::vector<dtype> inbuf(maxStateSize);
 
     int incount;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -1444,7 +1444,7 @@ void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g,
 
   dimension=  eset.size();
     
-  vector<int>  container(eset.size());
+  std::vector<int>  container(eset.size());
 
   size_t indx = 0;
   for( ci = eset.begin(); ci != eset.end(); ++ci){
@@ -1517,7 +1517,7 @@ void multiStoreRepI<T>::hdf5write( hid_t group_id, DEFAULT_CONVERTER g,
 
   dimension=  eset.size();
     
-  vector<int>  container(eset.size());
+  std::vector<int>  container(eset.size());
 
   size_t indx = 0;
   for( ci = eset.begin(); ci != eset.end(); ++ci)

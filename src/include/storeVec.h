@@ -863,7 +863,7 @@ namespace Loci {
     typedef typename schema_traits::Converter_Base_Type dtype;
 
     int typesize = sizeof(dtype);
-    vector<dtype> inbuf(maxStateSize);
+    std::vector<dtype> inbuf(maxStateSize);
 
     int incount;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
@@ -912,7 +912,7 @@ namespace Loci {
     int   outcount;
     entitySet eset(seq);
 
-    vector<char> outbuf;
+    std::vector<char> outbuf;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
@@ -982,7 +982,7 @@ namespace Loci {
 
     int typesize = sizeof(dtype);
 
-    vector<dtype> outbuf;
+    std::vector<dtype> outbuf;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       if( !store_domain.inSet( *ci ) ) {
@@ -1112,7 +1112,7 @@ namespace Loci {
     entitySet :: const_iterator ci;
     int   bucketID;
       
-    vector<int> vbucket(size*eset.size());
+    std::vector<int> vbucket(size*eset.size());
       
     size_t  arraySize= 0;
     int     stateSize, maxStateSize = 0;
@@ -1204,7 +1204,7 @@ namespace Loci {
     hid_t vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    vector<char>  cbuf(dimension);
+    std::vector<char>  cbuf(dimension);
 
     H5Dread(vDataset,vDatatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &cbuf[0]);
 
@@ -1320,7 +1320,7 @@ namespace Loci {
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    vector<int> ibuf(dimension);
+    std::vector<int> ibuf(dimension);
     H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
 
     int maxBucketSize = *std::max_element( ibuf.begin(), ibuf.end() );

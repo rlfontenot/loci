@@ -784,7 +784,7 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    vector<T>  data;
+    std::vector<T>  data;
     for( int k = 0; k < num_intervals; k++) {
       count[0] = it[k].second - it[k].first + 1;
 
@@ -829,7 +829,7 @@ namespace Loci {
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    vector<int> ibuf(dimension);
+    std::vector<int> ibuf(dimension);
     H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
     H5Dclose(vDataset  );
     H5Sclose(vDataspace);
@@ -886,7 +886,7 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    vector<dtype> data;
+    std::vector<dtype> data;
 
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;

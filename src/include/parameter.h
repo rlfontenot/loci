@@ -490,7 +490,7 @@ namespace Loci {
 
     if( outcount < 1) return;
 
-    vector<char> outbuf(outcount);
+    std::vector<char> outbuf(outcount);
 
     MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount,
                 MPI_BYTE, MPI_COMM_WORLD);
@@ -530,7 +530,7 @@ namespace Loci {
     MPI_Unpack( inbuf, 1, &position, &stateSize, outcount, 
                 MPI_INT, MPI_COMM_WORLD) ;
 
-    vector<dtype> outbuf(stateSize);
+    std::vector<dtype> outbuf(stateSize);
 
 
     outcount = stateSize*sizeof(dtype);
@@ -685,7 +685,7 @@ namespace Loci {
     hid_t vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    vector<char> ibuf(dimension);
+    std::vector<char> ibuf(dimension);
     H5Dread(vDataset,H5T_NATIVE_CHAR,H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
 
     std::istringstream iss(&ibuf[0]);

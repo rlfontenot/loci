@@ -315,7 +315,7 @@ namespace Loci {
       count[*ei] = s[*ei].size() ;
     for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei) {
       int i = 0 ;
-      for(vector<int>::const_iterator vi = s[*ei].begin(); vi != s[*ei].end(); ++vi) {
+      for(std::vector<int>::const_iterator vi = s[*ei].begin(); vi != s[*ei].end(); ++vi) {
 	static_mul[*ei][i] = *vi ;
 	++i ;
       }
@@ -672,7 +672,7 @@ namespace Loci {
     typedef typename schema_traits::Converter_Base_Type dtype;
 
     int typesize = sizeof(dtype);
-    vector<dtype> inbuf(maxStateSize);
+    std::vector<dtype> inbuf(maxStateSize);
 
     int incount;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
@@ -783,7 +783,7 @@ namespace Loci {
 
     int typesize = sizeof(dtype);
 
-    vector<dtype> outbuf;
+    std::vector<dtype> outbuf;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       if( !store_domain.inSet( *ci ) ) {
@@ -861,7 +861,7 @@ namespace Loci {
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    vector<int> container(dimension);
+    std::vector<int> container(dimension);
     H5Dread(vDataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT, &container[0]);
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
@@ -872,7 +872,7 @@ namespace Loci {
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    vector<char> cbuf(dimension);
+    std::vector<char> cbuf(dimension);
     H5Dread(vDataset,H5T_NATIVE_CHAR,H5S_ALL,H5S_ALL,H5P_DEFAULT, &cbuf[0]);
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
@@ -910,7 +910,7 @@ namespace Loci {
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    vector<int> ibuf(dimension);
+    std::vector<int> ibuf(dimension);
     H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
 
     //-------------------------------------------------------------------------
@@ -952,7 +952,7 @@ namespace Loci {
 
     for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-    vector<T>   data(arraySize);
+    std::vector<T>   data(arraySize);
 
     dimension = arraySize;
     H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
@@ -1007,7 +1007,7 @@ namespace Loci {
     entitySet::const_iterator ci;
     hash_map<int, std::vector<T> > ::const_iterator iter;
     std::vector<T>   newvec;
-    vector<int> container(eset.size());
+    std::vector<int> container(eset.size());
 
     int indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -1059,11 +1059,11 @@ namespace Loci {
     entitySet :: const_iterator  ei;
     hash_map<int,std::vector<T> >:: const_iterator ci;
 
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Get the sum of each object size and maximum size of object in the 
     // container for allocation purpose
-    //-----------------------------------------------------------------------------
-    vector<int> container(eset.size());
+    //------------------------------------------------------------------------
+    std::vector<int> container(eset.size());
     size_t  arraySize= 0;
     int     count;
 
@@ -1090,7 +1090,7 @@ namespace Loci {
     //------------------------------------------------------------------------
     // Write (variable) Data into HDF5 format
     //------------------------------------------------------------------------
-     vector<T>  data(arraySize);
+     std::vector<T>  data(arraySize);
 
      indx = 0;
      for( ei = eset.begin(); ei != eset.end(); ++ei) {
@@ -1139,12 +1139,12 @@ namespace Loci {
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    vector<int> ibuf(dimension);
+    std::vector<int> ibuf(dimension);
     H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
 
-    //-------------------------------------------------------------------------
+    //-----------------------------------------------------------------------
     // Size of each main container....
-    //--------------------------------------------------------------------------
+    //-----------------------------------------------------------------------
 
     store<int> container;
     container.allocate( eset );
@@ -1277,10 +1277,10 @@ namespace Loci {
     entitySet :: const_iterator  ei;
     hash_map<int,std::vector<T> >:: const_iterator ci;
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Get the sum of each object size and maximum size of object in the 
     // container for allocation purpose
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     std::vector<int> container(eset.size());
     std::vector<int> bucketSize;
     
