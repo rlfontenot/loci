@@ -24,7 +24,7 @@ int size=0;            /*Size of buffer*/
   variableSet outputs1;
   entitySet exec_set1;
   fact_db *facts1;
-
+  MPI_Comm procGrp;
  
   /*To allocate inputs and outputs over the iterate space*/
 void Allocate_func(){
@@ -77,10 +77,9 @@ void SendInput (int tStart, int tSize, int dest, int tag,MPI_Comm procGrp) {
       send_array[k]=0;
     } 
     send_array[0]=size;
-    send_array[1]=tSize;
-    MPI_Sendrecv(send_array, 2, MPI_INT, dest,RTS_HLP,NULL,0,MPI_INT,dest,RTR_HLP, procGrp,&tStatus);  
-   
-    MPI_Rsend(buf,size,MPI_UNSIGNED_CHAR,dest,tag,procGrp);  
+    send_array[1]=tSize;    
+    MPI_Sendrecv(send_array, 2, MPI_INT, dest,RTS_HLP,NULL,0,MPI_INT,dest,RTR_HLP, procGrp,&tStatus);    
+    MPI_Rsend(buf,size,MPI_UNSIGNED_CHAR,dest,tag,procGrp);   
     delete [] buf;
 }
 
@@ -100,7 +99,7 @@ void ReceiveInput (int rcvStart,int *rcvSize,int src,int tag,MPI_Comm procGrp) {
     buf = new unsigned char[size];
    
     MPI_Recv (buf,size,MPI_UNSIGNED_CHAR,src, tag, procGrp,&tStatus);   
-   
+    
     // unpack inputs into local facts
     position = 0 ;
     for(variableSet::const_iterator vi=inputs1.begin();vi!=inputs1.end();++vi) {     
@@ -114,7 +113,6 @@ void ReceiveInput (int rcvStart,int *rcvSize,int src,int tag,MPI_Comm procGrp) {
 }
 //Send outputs to dest
 void SendOutput (int tStart, int tSize, int dest,int tag,MPI_Comm procGrp) { 
-
 
     // Pack outputs
     position = 0 ;
@@ -134,6 +132,7 @@ void SendOutput (int tStart, int tSize, int dest,int tag,MPI_Comm procGrp) {
     //Send outputs 
     MPI_Sendrecv(&size, 1, MPI_INT, dest,RTS_RES,NULL,0,MPI_INT,dest,RTR_RES,procGrp,&tStatus);
     MPI_Rsend(buf,size,MPI_UNSIGNED_CHAR, dest, tag, procGrp);
+
     delete [] buf;
 
   
@@ -162,24 +161,19 @@ void ReceiveOutput (int rcvStart, int rcvSize, int src, int tag,MPI_Comm procGrp
   
 void workCompute(int start, int size,int Signal){
   rule_implP rp2;
-  // std::cerr<<"Signal->"<<Signal<<std::endl;
-  rp2=rp1;
- 
+  rp2=rp1; 
   //Compute from local facts
   if(Signal==1){   
        rp2=local_comp1;  
-  }
-  
-  //rp2->Print(cerr);
+  }  
   rp2->compute(sequence(interval(start,start+size-1)));
 }
 
-void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,int,int,MPI_Comm),void (*ReceiveInput) (int,int *,int,int,MPI_Comm),void (*SendOutput) (int,int,int,int,MPI_Comm),void (*ReceiveOutput) (int,int,int,int,MPI_Comm),void (*Allocate_func) (),void (*Deallocate_func) (),int method,int *yMap,double *stats,int *chunkMap) ;
+void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,int,int,MPI_Comm),void (*ReceiveInput) (int,int *,int,int,MPI_Comm),void (*SendOutput) (int,int,int,int,MPI_Comm),void (*ReceiveOutput) (int,int,int,int,MPI_Comm),void (*Allocate_func) (),void (*Deallocate_func) (),int method,int *yMap,double *stats,int *chunkMap,MPI_Comm procGrp) ;
 
 
 dynamic_schedule_rule::dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds)  {
-  
-  //  std::cerr << "begin construct current_dist_info_ptr=" << (facts.get_distribute_info()==0) << std::endl ;
+
   rp = fi.get_rule_implP() ; //get rule from rule database 
   rule_tag = fi ;            //store rule tag in rule_tag
   local_compute1 = rp->new_rule_impl() ; //another instance of rule 
@@ -187,8 +181,6 @@ dynamic_schedule_rule::dynamic_schedule_rule(rule fi, entitySet eset, fact_db &f
   outputs = rule_tag.targets() ;      //outputs as in rhs  
   exec_set = eset ;   
   
- 
-
   // Setup local facts input variables (types only no allocation)
   for(variableSet::const_iterator vi=in.begin();vi!=in.end();++vi) {
     storeRepP store_ptr = rp->get_store(*vi) ;    
@@ -209,10 +201,8 @@ dynamic_schedule_rule::dynamic_schedule_rule(rule fi, entitySet eset, fact_db &f
   local_compute1->initialize(local_facts) ;
   rp->initialize(facts) ;  
   
- 
- 
-  //  std::cerr << "end construct current_dist_info_ptr=" << (facts.get_distribute_info()==0) << std::endl ;
-
+  // MPI_Comm procGrp=MPI_COMM_WORLD;
+  MPI_Comm_dup(MPI_COMM_WORLD, &procGrp);
 }
 
 
@@ -227,11 +217,6 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
   inputs1=inputs;
   outputs1=outputs; 
   extern int method; 
-  //  rp1->Print(cerr);
-  // local_comp1->Print(cerr);
-  
-  
-  // std::cerr << "current_dist_info_ptr=" << (Loci::exec_current_fact_db->get_distribute_info()==0) << std::endl ;
   
   int *yMap=new int[2*Loci::MPI_processes]; 
   for(int i = 0; i < Loci::MPI_processes; i++) {
@@ -277,23 +262,13 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
   double t1=0.0;
   double t2=0.0;
   double t3=0.0;
-  // t1 = MPI_Wtime();
- 
-   
-  Loci::ExecuteLoop(&workCompute,&SendInput,&ReceiveInput,&SendOutput,&ReceiveOutput,&Allocate_func,&Deallocate_func,method,yMap,stats,chunkMap);
-  // t2 = MPI_Wtime();
+    
+  Loci::ExecuteLoop(&workCompute,&SendInput,&ReceiveInput,&SendOutput,&ReceiveOutput,&Allocate_func,&Deallocate_func,method,yMap,stats,chunkMap,procGrp);
+  
   delete [] yMap;        
-  // t3=t2-t1;
-  // std::cerr<<Loci::MPI_rank<<'\t'<<t3<<'\t'<<stats[0]<<std::endl;
   delete [] stats;
-  // Loci::debugout<<Loci::MPI_rank<<"start"<<'\t'<<"->"<<"size"<<'\t'<<"->"<<"Rank#"<<endl;
-  //  for(int i = 0; i < MAX_CHUNKS; i++) {
-  //    Loci::debugout<< chunkMap[3*i+0]<<"->"
-  //		  << chunkMap[3*i+1]<<"->"
-  //		  <<chunkMap[3*i+2]<<endl;
-  //  }
   delete [] chunkMap;
-  //  std::cerr << "after current_dist_info_ptr=" << (Loci::exec_current_fact_db->get_distribute_info()==0) << std::endl ;
+
 }
    
 
