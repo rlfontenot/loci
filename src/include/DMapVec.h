@@ -246,7 +246,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
   int size_send = 0 ;
   std::vector<std::vector<int> > copy(MPI_processes), send_clone(MPI_processes) ;
   for(int i = 0; i < MPI_processes; ++i) {
-    entitySet tmp = out_of_dom & ptn[i] ;
+    entitySet tmp = out_of_dom & init_ptn[i] ;
     for(ei = tmp.begin(); ei != tmp.end(); ++ei)
       copy[i].push_back(*ei) ;
     sort(copy[i].begin(), copy[i].end()) ;
