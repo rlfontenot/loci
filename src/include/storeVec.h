@@ -446,7 +446,7 @@ namespace Loci {
       fatal(sz<1) ;
       allocate(store_domain) ;
     }
-
+    
     mutex.unlock() ;
   }
 
@@ -711,7 +711,8 @@ namespace Loci {
     int M ;
     MPI_Unpack(ptr, size, &loc, &M, sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
     
-    if(init_size != M) {
+    if(init_size < M) {
+      fatal(init_size != 0) ;
       set_elem_size(M) ;
     }
     

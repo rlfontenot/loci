@@ -64,7 +64,8 @@ namespace Loci {
       bool ismap ;
       MapRepP minfo ;
       std::map<entitySet,entitySet> imageMap ;
-      std::map<entitySet,std::pair<entitySet,entitySet> > preimageMap ;
+      std::map<entitySet,std::pair<entitySet,entitySet> > preimageMap
+ ;
       fact_data() {} 
       fact_data(variable v, storeRepP &st)
       { aliases += v, data_rep = new store_ref ; (*data_rep) = st ; 

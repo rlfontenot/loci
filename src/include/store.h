@@ -323,13 +323,13 @@ namespace Loci {
     /*
     for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
       if(*ei == 0) 
-	Loci::debugout[Loci::MPI_rank] << "   packing   " << base_ptr[*ei]
+	Loci::debugout << "   packing   " << base_ptr[*ei]
 	     << "   into   " << *ei  << endl ;
     */
 #ifdef VERBOSE
-    debugout[MPI_rank] << "packing("<<e<<")"<<endl ;
+    debugout << "packing("<<e<<")"<<endl ;
     for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
-      debugout[MPI_rank] << "   packing   " << base_ptr[*ei]
+      debugout << "   packing   " << base_ptr[*ei]
                          << "   into   " << *ei  << endl ;
 #endif
   }
@@ -350,13 +350,13 @@ namespace Loci {
     /*
     for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) 
       if(*si == 0)
-	Loci::debugout[MPI_rank] << "   unpacking   " << base_ptr[*si]
+	Loci::debugout << "   unpacking   " << base_ptr[*si]
 				 <<"    into   " << *si << endl ;
     */
 #ifdef VERBOSE
-    debugout[MPI_rank] << "unpack(" << seq << ")" << endl ;
+    debugout << "unpack(" << seq << ")" << endl ;
     for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) 
-      debugout[MPI_rank] << "   unpacking   " << base_ptr[*si]
+      debugout << "   unpacking   " << base_ptr[*si]
                          <<"    into   " << *si << endl ;
 #endif
   }
