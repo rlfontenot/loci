@@ -51,6 +51,16 @@ namespace Loci {
       return data[a3][a2]->data[a1] ;
     }
 
+    void copy_hash(const block_hash &cp) ;
+    block_hash(const block_hash &cp) {
+      for(int i=0;i<4096;++i)
+        data[i] = 0 ;
+      copy_hash(cp) ;
+    }
+    block_hash &operator=(block_hash &cp) {
+      copy_hash(cp) ;
+    }
+
     T & elem(int n) {
       const int a1 = (n) & 0x1ff ;
       const int a2 = (n>>9) &0x7ff ;
@@ -87,7 +97,18 @@ namespace Loci {
     }
   }
 
-  
+  template <class T> void block_hash<T>::copy_hash(const block_hash<T> &cp) {
+    clear_hash() ;
+    for(int i=0;i<4096;++i) {
+      if(cp->data[i] != 0) {
+        data[i] = new block_info *[2048] ;
+        for(int j=0;j<2048;++j) {
+          if(cp->data[i][j] != 0)
+            data[i][j] = new block_info(cp->data[i][j]) ;
+        }
+      }
+    }
+  }
   template <class T> void block_hash<T>::erase_set(intervalSet set) {
     for(intervalSet::const_iterator ei = set.begin();
         ei != set.end() ;
