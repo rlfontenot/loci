@@ -489,18 +489,18 @@ namespace Loci {
 
     // Which files, I am supposed to read from the pool of files.
     std::vector<int> files_assigned;
-    for(int ifile=Loci::MPI_rank; ifile < maxfiles; ifile+=Loci::MPI_processes)
-      files_assigned.push_back(ifile);
+    for(int i=Loci::MPI_rank; i < maxfiles; i+=Loci::MPI_processes)
+      files_assigned.push_back(i);
 
     std::map<variable, fact_info>::const_iterator vmi ;
-    for(int ifile=0;ifile < files_assigned.size(); ifile++){
+    for(int i=0;i < files_assigned.size(); i++){
       strcpy(filename, fname);
       strcat( filename, "_p");
-      sprintf( str, "%d", files_assigned[ifile]);
+      sprintf( str, "%d", files_assigned[i]);
       strcat( filename, str);
       strcat( filename, ".hdf5");
-      file_id[ifile] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-      if( file_id[ifile] < 0) {
+      file_id[i] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+      if( file_id[i] < 0) {
         cout << "Warning: Couldn't open file " << filename << endl;
         return;
       }
@@ -579,15 +579,15 @@ namespace Loci {
 
       // first get information about entitset and assign local number to them
    
-      for(int ifile = 0; ifile < files_assigned.size(); ifile++){
-        group_id2 = H5Gopen(file_id[ifile], groupname.c_str() );  
+      for(int i = 0; i < files_assigned.size(); i++){
+        group_id2 = H5Gopen(file_id[i], groupname.c_str() );  
         if( group_id2 < 0) continue;
 
         HDF5_ReadDomain(group_id2, eset);
         H5Gclose(group_id2);
         // get the local->global numbering written in the file ..
         if( maxfiles > 1) {
-          group_id1 = H5Gopen(file_id[ifile], "l2g");           
+          group_id1 = H5Gopen(file_id[i], "l2g");           
           if( group_id1 > 0) {
             HDF5_Local2Global(group_id1, eset, lg);
             H5Gclose(group_id1);         
@@ -674,7 +674,7 @@ namespace Loci {
       file_iter  = files_assigned.begin();
       file_end   = files_assigned.end();
       
-      ifile = -1;
+      int ifile = -1;
       while( 1 ) {
         
         has_file = 0;
@@ -845,8 +845,8 @@ namespace Loci {
         std::string groupname = vname;
       
         gsetRead = EMPTY;
-        for(int ifile = 0; ifile < files_assigned.size(); ifile++){
-          group_id2 = H5Gopen(file_id[ifile], groupname.c_str() );  
+        for(int i = 0; i < files_assigned.size(); i++){
+          group_id2 = H5Gopen(file_id[i], groupname.c_str() );  
           if( group_id2 < 0) continue;
           HDF5_ReadDomain(group_id2, eset);
           H5Gclose(group_id2);
@@ -883,8 +883,8 @@ namespace Loci {
       }
     }
 
-    for(int ifile = 0; ifile < files_assigned.size(); ifile++)
-      H5Fclose(file_id[ifile]);
+    for(int i = 0; i < files_assigned.size(); i++)
+      H5Fclose(file_id[i]);
 
     delete [] file_id;
     delete [] message;
