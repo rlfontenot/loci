@@ -1400,11 +1400,17 @@ namespace Loci {
   template<class T> void multiStoreRepI<T>::setSizes(const const_multiMap &mm){
     //    bmutex l(mutex) ;
     mutex.lock() ;
+    if(alloc_pointer != 0 && base_ptr[store_domain.Min()] == base_ptr[store_domain.Max()]) {
+      delete[] index ;
+      delete[] alloc_pointer ;
+      index = 0 ;
+      alloc_pointer = 0 ;
+    }
     if(alloc_pointer != 0) {
       entitySet map_set = mm.domain() & store_domain ;
       entitySet problem ;
       FORALL(map_set,i) {
-        if((end(i)-begin(i))>(mm.end(i)-mm.begin(i)))
+        if((end(i)-begin(i))<(mm.end(i)-mm.begin(i)))
           problem += i ;
       } ENDFORALL ;
 
