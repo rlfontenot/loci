@@ -41,7 +41,7 @@ namespace Loci {
   void constraintRep::copy(storeRepP &st, const entitySet &context) {
     constraint cs(st) ;
     entitySet sent,tent ;
-    sent = cs ;
+    sent = *cs ;
     tent = constraint_set ;
     tent -= context ;
     tent += sent & context ;
@@ -54,7 +54,7 @@ namespace Loci {
     constraint cs(st) ;
     entitySet tent = constraint_set ;
     tent -= context ;
-    entitySet img = cs ;
+    entitySet img = *cs ;
     FORALL(context,i) {
       if(img.inSet(m[i]))
         tent+=i ;
@@ -69,7 +69,7 @@ namespace Loci {
     entitySet map_image = m.image(context) ;
     entitySet tent = constraint_set ;
     tent -= map_image ;
-    entitySet img = cs ;
+    entitySet img = *cs ;
     tent += m.image(context&img) ;
     constraint_set = tent ;
     dispatch_notify() ;

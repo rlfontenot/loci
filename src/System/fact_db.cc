@@ -31,11 +31,6 @@ namespace Loci {
   extern int MPI_rank ;
   extern fact_db *exec_current_fact_db;
   fact_db::fact_db() {
-    constraint EMPTY ;
-    create_fact("EMPTY",EMPTY) ;
-    constraint UNIVERSE ;
-    UNIVERSE = ~EMPTY ;
-    create_fact("UNIVERSE",UNIVERSE) ;
     distributed_info = 0 ;
     maximum_allocated = 0 ;
     for(int i = 0; i < MPI_processes; ++i) {
@@ -43,6 +38,12 @@ namespace Loci {
     }
     exec_current_fact_db = this;
     dist_from_start = 0 ;
+    constraint EMPTY_constraint ;
+    EMPTY_constraint = EMPTY ;
+    create_fact("EMPTY",EMPTY_constraint) ;
+    constraint UNIVERSE_constraint ;
+    UNIVERSE_constraint = ~EMPTY ;
+    create_fact("UNIVERSE",UNIVERSE_constraint) ;
   }
 
   fact_db::~fact_db() {}

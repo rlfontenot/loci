@@ -1496,7 +1496,7 @@ namespace Loci {
     FORALL(tmp_remap_dom, ri) {
       tmp_remap[ri] = l2g[ri] ;
     } ENDFORALL ;
-    entitySet owned_entities = my_entities & sp->domain() ;
+    entitySet owned_entities = *my_entities & sp->domain() ;
     MapRepP(tmp_remap.Rep())->compose(reverse, tmp_remap_dom) ;
     storeRepP qcol_rep ;
     qcol_rep = sp->new_store(chop_ptn[ MPI_rank] & dom) ;
