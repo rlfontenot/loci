@@ -387,6 +387,9 @@ namespace Loci {
   {
     const_dmultiStore<T> s(st) ;
 
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
+    
     FORALL(context,i) {
       attrib_data[m[i]] = s[i];
     } ENDFORALL ;

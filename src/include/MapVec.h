@@ -400,6 +400,7 @@ namespace Loci {
     fatal((base_ptr == 0) &&(context != EMPTY)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
     FORALL(context,i) {
       for(int j=0;j<M;++j)
         base_ptr[m[i]][j] = s[i][j] ;
@@ -408,6 +409,7 @@ namespace Loci {
 
   //*************************************************************************/
   template <int M> int MapVecRepI<M>::pack_size( const entitySet &eset) {
+    fatal((eset - domain()) != EMPTY);
     int size ;
     size = sizeof(int)*eset.size()*M  + sizeof(int);
     return size ;

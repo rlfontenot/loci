@@ -714,9 +714,11 @@ namespace Loci {
     const_storeVec<T> s(st) ;
     int sz = s.vecSize() ;
     set_elem_size(sz) ;
-    fatal(base_ptr == 0) ;
+    fatal((context != EMPTY) && (base_ptr == 0)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
+	
     FORALL(context,i) {
       T *p = base_ptr + m[i]*sz ;
       for(int j=0;j<sz;++j)
@@ -764,6 +766,7 @@ namespace Loci {
   template <class T>
   int storeVecRepI<T>::pack_size( const entitySet &eset)
   {
+    fatal((eset - domain()) != EMPTY);
 
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;

@@ -494,6 +494,7 @@ namespace Loci {
 
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
 
     FORALL(context,i) {
       attrib_data[m[i]] = s[i];

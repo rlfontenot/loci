@@ -339,6 +339,7 @@ namespace Loci {
     fatal((context != EMPTY) && (base_ptr == 0)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
     FORALL(context,i) {
       base_ptr[m[i]] = s[i] ;
     } ENDFORALL ;
@@ -361,26 +362,25 @@ namespace Loci {
 
     int       size ;
     int numBytes = 0 ;
-    entitySet  ecommon;
     entitySet :: const_iterator ci;
     typedef data_schema_traits<T> converter_traits;
     
-    ecommon = eset & domain() ;
-    
     T   obj;
-    for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
       obj  = base_ptr[*ci];
       typename converter_traits::Converter_Type cvtr(obj);
       size      = cvtr.getSize();
       numBytes += size*sizeof(typename converter_traits::Converter_Base_Type) ;
     }
     
-    numBytes  += ecommon.size()*sizeof(int);
+    numBytes  += eset.size()*sizeof(int);
     return(numBytes) ;
   }
 
   //*******************************************************************/
   template <class T> int storeRepI<T>::pack_size( const entitySet &eset) {
+    fatal((eset - domain()) != EMPTY);
+	
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
 
     return get_mpi_size( schema_converter(), eset );

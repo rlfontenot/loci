@@ -584,11 +584,14 @@ namespace Loci {
   void multiStoreRepI<T>::scatter(const dMap &m, storeRepP &st,
                                   const entitySet &context) 
   {
-    
     store<int> count;
     
     const_multiStore<T> s(st) ;
     count.allocate(domain());
+
+    fatal((context != EMPTY) && (base_ptr == 0)) ;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((context - m.domain()) != EMPTY);
     
     FORALL(domain()-m.image(context),i) {
       count[i] = base_ptr[i+1]-base_ptr[i] ;
@@ -779,6 +782,7 @@ namespace Loci {
   template <class T> 
   int multiStoreRepI<T>::pack_size(const entitySet &eset ) 
   {
+    fatal((eset - domain()) != EMPTY);
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
