@@ -1,4 +1,5 @@
 #ifdef SPARC
+#include <stdio.h>
 #include <stdlib.h>
 #include <floatingpoint.h>
 #include <siginfo.h>
