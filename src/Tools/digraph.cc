@@ -8,7 +8,7 @@ using std::vector ;
 using std::map ;
 
 namespace Loci {
-  
+
   digraph::digraph() {}
   digraph::~digraph() {}
 
@@ -137,16 +137,18 @@ namespace Loci {
     return allv==EMPTY?0:allv.Max() ;
   }
 
+
   // Perform topological sort on the name_tags based on the graph described by
   // registered function dependencies.  This algorithm is described in
   // "Intoduction to Algorithms" by T Cormen, C Leiserson, and R Rivest.
 
-  namespace {
+  // Unnamed namespace causes Intel compiler problems
+  //  namespace {
     enum vertex_color { WHITE, GRAY, BLACK } ;
     typedef map<int,vertex_color> vertex_color_map ;
     typedef map<int,sequence> priority_graph ;
     typedef digraph::vertexSet vertexSet ;
-  }
+  //  }
 
 
 
@@ -183,7 +185,6 @@ namespace Loci {
       vertex_list += vertex ;
       return visited ;
     }
-
 
   component_sort::component_sort(const digraph &dg)
     {
