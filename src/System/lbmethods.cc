@@ -20,24 +20,28 @@ namespace Loci {
 #define HLP_MSG    9950     /* Here's some chunk data, W->W */
 #define RES_MSG    9940     /* Here are the results, W->W */
 #define END_MSG    8900     /* We're done! T->F; F->W  */
-#define INI_MSG    9900
+#define RTS_HLP    9930
+#define RTR_HLP    9920
+#define RTS_RES    9910
+#define RTR_RES    9900
+#define INI_MSG    9000
   /* set to 1 in order to trace messages */
 
 #define TRACEOUT stderr
-#define SEND_END_TRACE 1
-#define RECV_END_TRACE 1
-#define SEND_GIV_TRACE 1
-#define RECV_GIV_TRACE 1
-#define SEND_HLP_TRACE 1
-#define RECV_HLP_TRACE 1
-#define SEND_REQ_TRACE 1
-#define RECV_REQ_TRACE 1
-#define SEND_RES_TRACE 1
-#define RECV_RES_TRACE 1
-#define SEND_WKP_TRACE 1
-#define RECV_WKP_TRACE 1
-#define SEND_WRK_TRACE 1
-#define RECV_WRK_TRACE 1
+#define SEND_END_TRACE 0
+#define RECV_END_TRACE 0
+#define SEND_GIV_TRACE 0
+#define RECV_GIV_TRACE 0
+#define SEND_HLP_TRACE 0
+#define RECV_HLP_TRACE 0
+#define SEND_REQ_TRACE 0
+#define RECV_REQ_TRACE 0
+#define SEND_RES_TRACE 0
+#define RECV_RES_TRACE 0
+#define SEND_WKP_TRACE 0
+#define RECV_WKP_TRACE 0
+#define SEND_WRK_TRACE 0
+#define RECV_WRK_TRACE 0
   /*set to 1 in order to do performance measurements*/
 
   /*List of load balancing techniques*/
@@ -287,14 +291,13 @@ void  procPerformance (int method, double *perfInfo, double *stats ) {
 }
 
 
-void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,int,int,MPI_Comm),void (*ReceiveInput) (int,int *,int,int,MPI_Comm),void (*SendOutput) (int,int,int,int,MPI_Comm),void (*ReceiveOutput) (int,int,int,int,MPI_Comm),void (*Allocate_func) (),void (*Deallocate_func) (),int method,int *yMap,double *stats,int *chunkMap){ 
+void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,int,int,MPI_Comm),void (*ReceiveInput) (int,int *,int,int,MPI_Comm),void (*SendOutput) (int,int,int,int,MPI_Comm),void (*ReceiveOutput) (int,int,int,int,MPI_Comm),void (*Allocate_func) (),void (*Deallocate_func) (),int method,int *yMap,double *stats,int *chunkMap,MPI_Comm procGrp){ 
     
     int foreMan=0;      // MPI rank of foreMan 
     int minChunk=-1;     // minimum chunk size 
     int breakAfter=-1;   // iterates to execute before probing for messages 
     int requestWhen=-1;  //iterates remaining in chunk before requesting next chunk    
-    MPI_Comm procGrp;//=MPI_COMM_WORLD;
-    MPI_Comm_dup(MPI_COMM_WORLD, &procGrp);
+    
 
 /*
    yMap(4*r+0) - block start            
@@ -311,7 +314,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 
 
     MPI_Status mStatus, tStatus;
-    MPI_Request req1 ;
+    MPI_Request req1;
     // variables used by foreMan 
     int worker=0;                   // Rank of worker of a chunk 
     int chunkSize=0;                // size of chunk for a worker 
@@ -327,17 +330,15 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
     int myRemaining=0;
     int GIVpending=0;               // results of GIV chunks to wait for 
     int i=0,tStart=0, tSize=0, tSource=0;
-
     int gotWork=0;                  // termination flag 
     int MsgInQueue=0;               // message came in 
     int req4WRKsent=0, nextWRKrcvd=0; // flags for advance request, response 
-
     double t0=0.0, t1=0.0, t2=0.0, t3=0.0, tk=0.0, sumt1=0.0, sumt2=0.0;
     double workTime=0.0;              // time spent doing useful work 
     double maxCost=0.0, tCost=0.0;
     int HLP_pending=0;
-    //    int Signal1=0;
     int Signal2=0;
+
     // Initializations 
     gP = Loci::MPI_processes ;
     myRank = Loci::MPI_rank ;   
@@ -348,11 +349,10 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
     chunkMap[2] = 0; // chunks in this rank 
     myRemaining=yMap[2*myRank+1]; //to keep track of its own work
 
-    //   cerr<<"YMap:"<<chunkMap[0]<<"->"<<chunkMap[1]<<endl;
+   
     if (method == STATIC) { // no load balancing 
       if (chunkMap[1] > 0) {  
 	workTime = MPI_Wtime();
-        cerr<<"ChunkMap:"<<chunkMap[0]<<"->"<<chunkMap[1]<<endl;
         workCompute(chunkMap[0],chunkMap[1],Signal2);
 	stats[0] = MPI_Wtime() - workTime;
 	chunkMap[2] = 1;
@@ -380,9 +380,17 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
     for(int j=0;j<4;j++){
       RchunkInfo[j]=0;
     }
-    int FchunkInfo[4];            //for foreman ->foreman
+    int FchunkInfo[4];            //for foreman ->foreman WRK_MSG
      for(int j=0;j<4;j++){
       FchunkInfo[j]=0;
+    }
+    int GchunkInfo[4];            //for foreman ->foreman GIV_MSG Send
+     for(int j=0;j<4;j++){
+      GchunkInfo[j]=0;
+    }
+    int GRchunkInfo[4];            //for foreman ->foreman GIV_MSG Recv
+     for(int j=0;j<4;j++){
+      GRchunkInfo[j]=0;
     }
     double perfInfo[4];           // PerformancE info buffer 
     for(int m=0;m<4;m++){
@@ -393,8 +401,6 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
     for (loc=0; loc<gP; loc++) 
       gN = gN +  yMap[2*loc+1]; 
     maxChunkSize = (gN+2*gP-1)/(2*gP); // This is based on their buffers for receiving data...maximum limit is this
-
-   
    
 
     if (yMap[2*myRank+1] == 0) {
@@ -432,7 +438,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 	  chunkInfo[2] = -1;
           chunkInfo[3]=Nchunks;
           MPI_Send (chunkInfo, 4, MPI_INT, worker, INI_MSG,  procGrp);
-	  //   MPI_Isend (chunkInfo, 4, MPI_INT, worker, WRK_MSG,  procGrp,&req1);
+	
 #if SEND_WRK_TRACE
 	  fprintf(TRACEOUT, 
 		  "INI_MSG %d  to %d: start=%6d size=%6d, remIters=%6d; batch=%6d, batchrem=%6d\n",
@@ -440,7 +446,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 		  yMap[2*worker+1]-chunkSize,
 		  batchSize, batchRem);
 #endif
-	  // MPI_Wait(&req1,&tStatus);
+	  
 	  // update process status 
 	  yMap[2*worker] += chunkSize;
 	  yMap[2*worker+1] -= chunkSize;
@@ -461,7 +467,6 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
     myChunks = 0; 
     nextWRKrcvd = 0;
     req4WRKsent = 0;
-    //MsgInQueue=0;
     
      //to receive intial wrkmsg from foreman
     MPI_Irecv (RchunkInfo, 3, MPI_INT, MPI_ANY_SOURCE,INI_MSG, procGrp,&req1);
@@ -469,7 +474,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
     while(flag_recv==0){
     MPI_Test(&req1,&flag_recv,&mStatus);
     }
-    std:: cerr<<"INI_MSG received"<<std::endl;
+   
     myChunks++;
     chunkMap[3*myChunks  ] = RchunkInfo[0];
     chunkMap[3*myChunks+1] = RchunkInfo[1];
@@ -499,7 +504,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
     // check for any messages   
     MPI_Iprobe (MPI_ANY_SOURCE, MPI_ANY_TAG, procGrp, &MsgInQueue, &mStatus);  
       if(MsgInQueue) {
-      cerr << "Iprobe1" << MsgInQueue << " " << mStatus.MPI_TAG << endl ;
+	//   cerr << "Iprobe1" << MsgInQueue << " " << mStatus.MPI_TAG << endl ;
       if(mStatus.MPI_TAG == 1) {
 	abort() ;
       }
@@ -525,6 +530,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
             req4WRKsent = 0; // cancel request for work 
 	   
             SetBreaks ( breakAfter, requestWhen, wSize );
+	   
 #if RECV_WRK_TRACE
             fprintf(TRACEOUT, "WRK_RECV0 %d %d<-%d: start=%6d size=%6d probe=%6d\n",
 		    RchunkInfo[3],myRank, mStatus.MPI_SOURCE, wStart, wSize, probeFreq);
@@ -545,8 +551,8 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 	  break;
 
         case GIV_MSG :
-	  
-          MPI_Recv (RchunkInfo, 4, MPI_INT, mStatus.MPI_SOURCE,GIV_MSG,procGrp, &tStatus);
+	
+	   MPI_Recv (RchunkInfo, 4, MPI_INT, mStatus.MPI_SOURCE,GIV_MSG,procGrp, &tStatus);
 	  
 #if RECV_GIV_TRACE
           fprintf(TRACEOUT, "GIV_RECV %d  %d<-%d: start=%6d, size=%6d\n",
@@ -559,16 +565,18 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
           fprintf(TRACEOUT, "HLP_SEND  %d->%d: helpStart=%6d, helpSize=%6d, pending=%6d\n",
 		  myRank, RchunkInfo[2], RchunkInfo[0], RchunkInfo[1], GIVpending);
 #endif
-	  
+	  myRemaining-=RchunkInfo[1];
           myChunks++;
           chunkMap[3*myChunks  ] = RchunkInfo[0]; 
           chunkMap[3*myChunks+1] = -RchunkInfo[1];  // flag as GIV chunk 
           chunkMap[3*myChunks+2] = RchunkInfo[2]; 
+	 
 	  break;
 
-        case HLP_MSG :
-          //	  Signal1=1;
+        case RTS_HLP :
+	  //  Signal1=1;
           if (wSize == 0) { // no pending chunk 
+	    Signal2=1;
             t0 = MPI_Wtime(); // elapsed time for chunk starts here 
             Allocate_func(); 
 	    ReceiveInput(0,&tSize,mStatus.MPI_SOURCE,HLP_MSG, procGrp);
@@ -584,7 +592,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
             req4WRKsent = 0; // cancel request for work 
 
             SetBreaks ( breakAfter, requestWhen, wSize );
-
+	    sendRequest=0;
             sumt1 = 0.0; // for mu/wap 
             sumt2 = 0.0; // for sigma 
           } 
@@ -606,7 +614,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 	  }
 	  break;
 
-        case RES_MSG :
+        case RTS_RES :
          
           // find matching chunk info 
 	  tSource = mStatus.MPI_SOURCE ;
@@ -659,85 +667,135 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
             FchunkInfo[1] = chunkSize;
             FchunkInfo[2] = -1;
             FchunkInfo[3] =Nchunks;
-            MPI_Send (FchunkInfo, 4, MPI_INT, worker, WRK_MSG,  procGrp);
-	  
 #if SEND_WRK_TRACE
             fprintf(TRACEOUT, 
-		    "WRK_SEND %d %d->%d: start=%d size=%d, rem=%d; bsize=%d, brem=%d\n",
-		    Nchunks,myRank, worker, FchunkInfo[0], FchunkInfo[1], 
-		    yMap[2*worker+1]-chunkSize, batchSize, batchRem);
+	  	    "WRK_SEND %d %d->%d: start=%d size=%d, rem=%d; bsize=%d, brem=%d\n",
+	  	    Nchunks,myRank, worker, FchunkInfo[0], FchunkInfo[1], 
+	  	    yMap[2*worker+1]-chunkSize, batchSize, batchRem);
 #endif
+	    //WRK_MSG code
+             myChunks++;
+             chunkMap[3*myChunks  ] = FchunkInfo[0];
+             chunkMap[3*myChunks+1] = FchunkInfo[1];
+             chunkMap[3*myChunks+2] = myRank;
+        
+	     if (wSize == 0) { // no pending chunk 
+	       t0 = MPI_Wtime(); // elapsed time for chunk starts here 
+	       wStart = FchunkInfo[0]; 
+	       wSize = FchunkInfo[1]; 
+	       rStart = wStart; 
+	       rSize = wSize; 
+	       rSource = myRank; 
+	       req4WRKsent = 0; // cancel request for work 
 	   
-	    }
+	       SetBreaks ( breakAfter, requestWhen, wSize );
+	   
+#if RECV_WRK_TRACE
+            fprintf(TRACEOUT, "WRK_RECV0 %d %d<-%d: start=%6d size=%6d probe=%6d\n",
+		    FchunkInfo[3],myRank, mStatus.MPI_SOURCE, wStart, wSize, probeFreq);
+#endif
+               sumt1 = 0.0;   //for mu/wap 
+               sumt2 = 0.0;  // for sigma 
+	     }
+	     else {  // current chunk is not finished  save as next chunk 
+	       nextStart = FchunkInfo[0]; 
+	       nextSize = FchunkInfo[1]; 
+	       nextSource = myRank; 
+	       nextWRKrcvd = 1;
+#if RECV_WRK_TRACE
+            fprintf(TRACEOUT, "WRK_RECV1 %d %d<-%d: nextStart=%6d nextSize=%6d\n",
+		    FchunkInfo[3],myRank, mStatus.MPI_SOURCE, nextStart, nextSize);
+#endif
+	     }
+	       
+	   
+	    } //end of send to foreman itself
 	    else{ //send to other processsors
 
 	      // send chunk info to worker 
-            chunkInfo[0] = yMap[2*worker]; 
-            chunkInfo[1] = chunkSize;
-            chunkInfo[2] = -1;
-            chunkInfo[3] =Nchunks;
-            MPI_Send (chunkInfo, 4, MPI_INT, worker, WRK_MSG,  procGrp);
-	    
+	      chunkInfo[0] = yMap[2*worker]; 
+	      chunkInfo[1] = chunkSize;
+	      chunkInfo[2] = -1;
+	      chunkInfo[3] =Nchunks;
+	      MPI_Send (chunkInfo, 4, MPI_INT, worker, WRK_MSG,  procGrp);	    
 #if SEND_WRK_TRACE
             fprintf(TRACEOUT, 
 		    "WRK_SEND %d %d->%d: start=%d size=%d, rem=%d; bsize=%d, brem=%d\n",
 		    Nchunks,myRank, worker, chunkInfo[0], chunkInfo[1], 
 		    yMap[2*worker+1]-chunkSize, batchSize, batchRem);
-#endif
-	    
+#endif	    
 	    }
-
             // update process status 
             yMap[2*worker] += chunkSize; 
             yMap[2*worker+1] -= chunkSize; 
             itersScheduled += chunkSize; 
 
-          }
-	   else { // worker has none; find source and migrate a chunk 
-            loc = -1;
-            maxCost = 0.0;
-            for (i=0; i<gP; i++) {
-              tCost = yMap[2*i+1]; // *stats[4*i+1]
-              if (tCost > maxCost) {
-                 loc = i;           //which processor has largest
-                 maxCost = tCost;   //gives size remaining
-              }
-            }
-            if (loc > -1) { // loc has largest remaining cost 
-             GetChunkSize (method, loc, yMap, &chunkSize, stats);
-             // send memo to loc to migrate chunk to worker 
-             SchunkInfo[0] = yMap[2*loc]; 
-             SchunkInfo[1] = chunkSize; 
-             SchunkInfo[2] = worker; 
-	     SchunkInfo[3]=Nchunks;
-	   
-             MPI_Send (SchunkInfo, 4, MPI_INT, loc, GIV_MSG, procGrp);
-	   
+          }//end of worker has some
+	  else { // worker has none; find source and migrate a chunk 
+	    if(worker != foreMan){
+	       loc = -1;
+	       maxCost = 0.0;
+	       for (i=0; i<gP; i++) {
+		 tCost = yMap[2*i+1]; // *stats[4*i+1]
+		 if (tCost > maxCost) {
+		   loc = i;           //which processor has largest
+		   maxCost = tCost;   //gives size remaining
+		 }
+	       }
+	       if (loc > -1) { // loc has largest remaining cost 
+		 GetChunkSize (method, loc, yMap, &chunkSize, stats);
+		 if(loc==foreMan){
+		   // send memo to loc to migrate chunk to worker 
+		   GchunkInfo[0] = yMap[2*loc]; 
+		   GchunkInfo[1] = chunkSize; 
+		   GchunkInfo[2] = worker; 
+		   GchunkInfo[3]=Nchunks;
+#if SEND_GIV_TRACE
+	      fprintf(TRACEOUT, "GIV_SEND %d %d->%d->%d, start=%6d size=%6d, rem=%6d\n",
+		      Nchunks,myRank, loc, worker, GchunkInfo[0], GchunkInfo[1], yMap[2*loc+1]);
+#endif	   
+	           SendInput(GchunkInfo[0], GchunkInfo[1], GchunkInfo[2], HLP_MSG, procGrp);
+	           GIVpending++;	  
+#if SEND_HLP_TRACE
+          fprintf(TRACEOUT, "HLP_SEND  %d->%d: helpStart=%6d, helpSize=%6d, pending=%6d\n",
+		  myRank, GchunkInfo[2], GchunkInfo[0], GchunkInfo[1], GIVpending);
+#endif
+	           myRemaining-=GchunkInfo[1];
+	           myChunks++;
+	           chunkMap[3*myChunks  ] = GchunkInfo[0]; 
+	           chunkMap[3*myChunks+1] = -GchunkInfo[1];  // flag as GIV chunk 
+	           chunkMap[3*myChunks+2] = GchunkInfo[2];     
+	       	 }//end of loc==foreman
+		 else{	       
+		   // send memo to loc to migrate chunk to worker 
+		   SchunkInfo[0] = yMap[2*loc]; 
+		   SchunkInfo[1] = chunkSize; 
+		   SchunkInfo[2] = worker; 
+		   SchunkInfo[3]=Nchunks;	   
+		   MPI_Send (SchunkInfo, 4, MPI_INT, loc, GIV_MSG, procGrp);	   
 #if SEND_GIV_TRACE
 	      fprintf(TRACEOUT, "GIV_SEND %d %d->%d->%d, start=%6d size=%6d, rem=%6d\n",
 		      Nchunks,myRank, loc, worker, SchunkInfo[0], SchunkInfo[1], yMap[2*loc+1]);
 #endif
-	    
-	     
-             // update process status 
-             yMap[2*loc] += chunkSize;
-             yMap[2*loc+1] -= chunkSize; 
-             itersScheduled += chunkSize; 
-	     if(worker==myRank){
-	       HLP_pending++;
-	     }
-	    }
-            else if (worker!=myRank) {
-              // no chunk to migrate; terminate requesting process 
-              numENDed++;
+		 }//end of else
+		 // update process status 
+		 yMap[2*loc] += chunkSize;
+		 yMap[2*loc+1] -= chunkSize; 
+		 itersScheduled += chunkSize; 
+		 if(worker==myRank){
+		   HLP_pending++;
+		 }
+	      } //end of loc has largest remaining
+	      else if (worker!=myRank) {
+		// no chunk to migrate; terminate requesting process 
+		numENDed++;
 #if SEND_END_TRACE
               fprintf(TRACEOUT, "END_MSG   to  %d; %d active\n", worker, gP-numENDed);
 #endif      
-	     
-              MPI_Send (NULL, 0, MPI_INT, worker, END_MSG, procGrp);
-            }
-
-	   }
+                MPI_Send (NULL, 0, MPI_INT, worker, END_MSG, procGrp);
+	      }
+	     }//end of if(worker != foreMan)
+	  }
 	    // foreman check for termination 
 	    gotWork = numENDed != (gP-1);
 
@@ -751,93 +809,7 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 		    myRank, mStatus.MPI_SOURCE, wSize);
 #endif
 	    gotWork = 0;
-	    /*  while(gotWork+wSize+GIVpending){
-	       if(GIVpending!=0){
-	       MPI_Iprobe (MPI_ANY_SOURCE, MPI_ANY_TAG, procGrp, &MsgInQueue, &mStatus);
-	       if(MsgInQueue) {
-		 if(mStatus.MPI_TAG==RES_MSG){
-		    // find matching chunk info 
-		   tSource = mStatus.MPI_SOURCE ;
-		   loc=0;
-		   for (i=myChunks; i>0; i--)
-		     if ( (chunkMap[3*i+1] < 0) && 
-			  (chunkMap[3*i+2] == tSource) ) loc = i;
-		   if(loc==0) {
-		     cerr << "matching chunk not found!" << endl ;
-		     cerr << "tSource = " << tSource << endl ;
-		     abort() ;
-		   }
-		   chunkMap[3*loc+1] = -chunkMap[3*loc+1];
-		   ReceiveOutput(chunkMap[3*loc],chunkMap[3*loc+1],mStatus.MPI_SOURCE, RES_MSG, procGrp);
-		   GIVpending--;
-#if RECV_RES_TRACE
-          fprintf(TRACEOUT, "RES_RECV  %d<-%d:  resStart=%6d,  resSize=%6d, pending=%6d\n",
-		  myRank, mStatus.MPI_SOURCE, chunkMap[3*loc], chunkMap[3*loc+1], GIVpending); 
-#endif
-		 }
-		 else
-		   cerr<<"Unexpected Message Tag"<<endl;
-	       }//(MsgInQueue)
-	      }//if(GIVpending)
-           
-	      	// COMPUTATIONS  
-	       //  cerr<<"wSize:"<<wSize<<endl;
-	      tSize = min (wSize, probeFreq);
-	      if (tSize > 0) {
-		tStart = wStart;
-		//  cout<<tStart<<endl;	 
-		if (method == AF) { 
-		  // adaptive factoring  
-		  t1 = MPI_Wtime();
-		  t2 = 0.0;
-		  t3 = t1;
-		  for (loc=tStart; loc<(tStart+tSize); loc++) {
-		    i = loc;
-		    workCompute(i,1,Signal2);   //i->i
-		    tk = MPI_Wtime();
-		    t2 = t2 + (tk-t3)*(tk-t3);
-		    t3 = tk;
-		  }
-		  t1 = tk - t1;
-		  sumt2 = sumt2 + t2;
-		} 
-		else {       
-		  // non-timestepping adaptive weighted factoring, etc  
-		  t1 = MPI_Wtime();
-		  loc=tStart;
-		  i = tSize;	    
-		  workCompute(loc,i,Signal2);   //loc->loc+i-1
-		  tk = MPI_Wtime();
-		  t1 = tk - t1;
-		}
-		wStart += tSize;
-		wSize -= tSize;
-		sumt1 += t1;
-		workTime += t1;
-          
-	
-		//Send Results
-		if (wSize == 0) { // chunk finished 
-		  if (rSource != myRank) { // return results ? 
-		    SendOutput(0, rSize, rSource, RES_MSG, procGrp);
-		    Deallocate_func(); 
-#if SEND_RES_TRACE
-	      fprintf(TRACEOUT, "RES_SEND  %d->%d:  resStart=%6d,  resSize=%6d\n",
-		      myRank, rSource, rStart, rSize);
-#endif            
-		  }
-		  
-		  // reset accumulators
-		  sumt1 = 0.0; // for mu 
-		  sumt2 = 0.0; // for sigma 
-		  rSize = 0;	     
-		} // if (wSize == 0) 
-	      } // if (tSize > 0) 
-	    }//while
-	    chunkMap[2] = myChunks; // chunks in this rank 
-	    stats[0] = workTime; // useful work time 
 	   
-	    return;*/
 	  break;
 
 	  default:
@@ -847,19 +819,13 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 
 	  } // end switch 
 	  MPI_Iprobe (MPI_ANY_SOURCE, MPI_ANY_TAG, procGrp, &MsgInQueue, &mStatus);
-	    if(MsgInQueue) {
-	    cerr << "Iprobe2" << MsgInQueue << " " << mStatus.MPI_TAG << endl ;
-	    }
-
 	} // while (MsgInQueue)  
   
 	// COMPUTATIONS  
-       
-      	
         tSize = min (wSize, probeFreq);
 	if (tSize > 0) {
 	  tStart = wStart;
-	  //  cout<<tStart<<endl;	 
+	 	 
 	  if (method == AF) { 
 	    // adaptive factoring  
 	    t1 = MPI_Wtime();
@@ -888,7 +854,23 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 	  wSize -= tSize;
 	  sumt1 += t1;
 	  workTime += t1;
-	    
+
+	  //Send Results    
+	  if (wSize == 0) { // chunk finished 
+           	
+	    if (rSource != myRank) { // return results ? 
+
+	       SendOutput(0, rSize, rSource, RES_MSG, procGrp);
+	       Deallocate_func(); 
+#if SEND_RES_TRACE
+	      fprintf(TRACEOUT, "RES_SEND  %d->%d:  resStart=%6d,  resSize=%6d\n",
+		      myRank, rSource, rStart, rSize);
+#endif            
+	    }	    
+	    else{	   
+	     myRemaining-=rSize;	   
+	    }
+	  }  
 	 
 	  if (wSize <= sendRequest) { // time to send request ? 
 	    if (req4WRKsent == 0 && nextWRKrcvd == 0) { // request not yet sent ? 
@@ -909,26 +891,8 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 #endif
 	    }
 	  } // if (...sendRequest...)  
-	     //Send Results
 	 
-	  if (wSize == 0) { // chunk finished 
-
-	    if (rSource != myRank) { // return results ? 
-
-	       SendOutput(0, rSize, rSource, RES_MSG, procGrp);
-	       Deallocate_func(); 
-#if SEND_RES_TRACE
-	      fprintf(TRACEOUT, "RES_SEND  %d->%d:  resStart=%6d,  resSize=%6d\n",
-		      myRank, rSource, rStart, rSize);
-#endif            
-	    }	    
-	    else{
-	     myRemaining-=rSize;
-             if(myRemaining==0){
-	       Signal2=1;
-	     }
-	    }
-	    
+	   if (wSize == 0) { 
 	      // reset accumulators
 	      sumt1 = 0.0; // for mu 
 	      sumt2 = 0.0; // for sigma 
@@ -942,6 +906,10 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 		rSize = wSize;
 		rSource = nextSource;
 		SetBreaks ( breakAfter, requestWhen, wSize );
+		if(rSource!=myRank){
+		  sendRequest=0;
+                  Signal2=1;
+		}
 		nextSize = 0;
 		nextWRKrcvd = 0;
 		req4WRKsent = 0;
@@ -951,14 +919,10 @@ void ExecuteLoop (void (*workCompute) (int,int,int),void (*SendInput) (int,int,i
 	  } // if (tSize > 0) 
 
 	  MPI_Iprobe (MPI_ANY_SOURCE, MPI_ANY_TAG, procGrp, &MsgInQueue, &mStatus);
-	    if(MsgInQueue)
-	    cerr << "Iprobe3" << MsgInQueue << " " << mStatus.MPI_TAG << endl ;
 	} // while (gotWork+...) 
   
 	chunkMap[2] = myChunks; // chunks in this rank 
 	stats[0] = workTime; // useful work time 
-       
-	// MPI_Barrier(procGrp);
       }//end of ExecuteLoop
 
     }//end of namespace Loci
