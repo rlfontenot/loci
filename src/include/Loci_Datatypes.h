@@ -262,8 +262,8 @@ namespace Loci
     hid_t vDatatype  = H5Tcreate( H5T_COMPOUND, numBytes);
 
     int rank = 1;
-    hid_t hdf5T;
-    size_t array_dims[10];
+    hid_t hdf5T, array_type;
+    hsize_t array_dims[10];
 
     for( int i = 0; i < newtype.size(); i++) {
       switch( newtype[i].type )
@@ -278,16 +278,32 @@ namespace Loci
             rank           = newtype[i].array.rank;
             for(int k = 0; k < rank; k++)
               array_dims[k]  = newtype[i].array.dimension[k];
+#ifdef HDF5V1.2
             H5Tinsert_array(vDatatype, newtype[i].name.c_str(), newtype[i].offset, 
                             rank, array_dims, NULL, hdf5T);
+#else
+            array_type = H5Tarray_create( hdf5T,rank, array_dims,NULL); 
+            H5Tinsert(vDatatype, newtype[i].name.c_str(), newtype[i].offset, 
+	                   array_type);
+            H5Tclose(array_type);
+#endif
+
           } else  {
             hid_t vDatatype2 = H5Tcreate( H5T_COMPOUND, newtype[i].compound->getSize());
             hdf5T = newtype[i].compound->get_hdf5_type();
             rank  = newtype[i].array.rank;
             for(int k = 0; k < rank; k++)
               array_dims[k]  = newtype[i].array.dimension[k];
+#ifdef HDF5V1.2
             H5Tinsert_array(vDatatype, newtype[i].name.c_str(), newtype[i].offset, 
                             rank, array_dims, NULL, hdf5T);
+#else
+            array_type = H5Tarray_create(hdf5T, rank, array_dims,NULL); 
+            H5Tinsert(vDatatype, newtype[i].name.c_str(), newtype[i].offset, 
+	                   array_type);
+            H5Tclose(array_type);
+#endif
+
           }
           break;
         }
