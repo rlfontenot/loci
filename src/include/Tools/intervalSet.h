@@ -5,6 +5,7 @@
 #include <Tools/Handle.h>
 #include <Tools/tools.h>
 
+#include <algorithm>
 #include <limits>
 #include <vector>
 #include <iostream>
@@ -663,6 +664,30 @@ namespace Loci {
     }
   }
 
+  template<class T> inline intervalSet create_intervalSet(T start, T end) {
+    std::sort(start,end) ;
+    int First = *start ;
+    int Second = *start ;
+    intervalSet r ;
+    for(T p=start;p!=end;++p) {
+      if(*p > Second+1) {
+        r += interval(First,Second) ;
+        First = *p ;
+      }
+      Second = *p ;
+    }
+    if(start!=end)
+      r += interval(First,Second) ;
+    return r ;
+  }
+
+  template<class T> inline sequence create_sequence(T start, T end) {
+    sequence s ;
+    for(T p=start;p!=end;++p) {
+      s += *p ;
+    }
+    return s ;
+  }
 }
   
 

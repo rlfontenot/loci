@@ -32,8 +32,8 @@ namespace Loci {
   
   std::vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
 
-  vector<entitySet> read_partition(const char *fname,int num_partitions) ;
-  void write_partition(const char *fname, const vector<entitySet> &ptn) ;
+  std::vector<entitySet> read_partition(const char *fname,int num_partitions) ;
+  void write_partition(const char *fname, const std::vector<entitySet> &ptn) ;
 
   void distribute_facts(std::vector<entitySet> &ptn, fact_db &facts,
                         rule_db &rdb) ;

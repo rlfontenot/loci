@@ -23,6 +23,7 @@
 
 
 using Loci::entitySet ;
+using Loci::create_entitySet ;
 using Loci::EMPTY ;
 using Loci::interval ;
 
@@ -37,6 +38,7 @@ using Loci::inverseMap ;
 using Loci::store ;
 using Loci::const_store ;
 using Loci::multiStore ;
+using Loci::const_multiStore ;
 using Loci::storeVec ;
 using Loci::const_storeVec ;
 using Loci::Vect ;
@@ -87,6 +89,7 @@ using Loci:: dMapVec;
 using Loci:: const_dMapVec;
 
 using Loci::sequence ;
+using Loci::create_sequence ;
 using Loci::do_loop ;
 using Loci::Entity ;
 
