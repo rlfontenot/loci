@@ -56,7 +56,10 @@ namespace Loci {
     char *xtermpath = "/usr/X11R6/bin/xterm" ;
     char *xtermlibpath = "/usr/X11R6/lib:/usr/lib:/lib/i686:/lib" ;
 #endif
-    
+#ifdef SGI
+    char *xtermpath = "/usr/bin/X11/xterm" ;
+    char *xtermlibpath = "/usr/lib" ;
+#endif
     sprintf(buf,"export LD_LIBRARY_PATH;LD_LIBRARY_PATH=%s; %s  -display %s:0 -e %s %s %d &",
             xtermlibpath,xtermpath,
             debug_hostname,debug_program,debug_execname,pid) ;
