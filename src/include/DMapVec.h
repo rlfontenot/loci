@@ -159,30 +159,26 @@ void dMapVecRepI<M>::readhdf5( hid_t group_id, entitySet &user_eset)
 //------------------------------------------------------------------------
     
 template<unsigned int M> 
-void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &eset) const 
+void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &usr_eset) const 
 {
 
-    hsize_t   dimension[1];
+    hsize_t   dimension;
     int       size, rank = 1;
+    int       vsize = M;
+    entitySet eset(usr_eset&domain());
+
+    int arraySize  = vsize*eset.size();
+
+    if( arraySize < 1) return;
 
     //write out the domain
-    HDF5_WriteDomain(group_id, eset);
-
-    dimension[0]=  1;
-    size        =  M;
-
-    hid_t dataspace = H5Screate_simple(rank, dimension, NULL);
-    hid_t datatype  = H5Tcopy(H5T_NATIVE_INT);
-    hid_t dataset   = H5Dcreate(group_id, "VecSize", datatype, dataspace, H5P_DEFAULT);
-    H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &size);
+    Loci::HDF5_WriteDomain(group_id, eset);
+    Loci::HDF5_WriteVecSize(group_id, vsize);
 
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array
 //-----------------------------------------------------------------------------
-
-    int arraySize  = size*eset.size();
-
-    int *data =  new int[arraySize];
+    std::vector<int> data(arraySize);
 
     entitySet::const_iterator ci;
     hash_map<int, VEC> ::const_iterator iter;
@@ -191,23 +187,19 @@ void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &eset) const
     size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
          iter = attrib_data.find(*ci);
-         if( iter != attrib_data.end() ) {
-             newvec = iter->second;
-             for( int i = 0; i < size; i++)
-                  data[indx++] =  newvec[i];
-        }
+         if( iter == attrib_data.end() ) continue;
+         newvec = iter->second;
+         for( int i = 0; i < vsize; i++) data[indx++] =  newvec[i];
     }
 
-    dimension[0] = arraySize;
-    dataspace = H5Screate_simple(rank, dimension, NULL);
-    dataset   = H5Dcreate(group_id, "MapVec", datatype, dataspace, H5P_DEFAULT);
-    H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    dimension        = arraySize;
+    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
+    hid_t vDatatype  = H5T_NATIVE_INT;
+    hid_t vDataset   = H5Dcreate(group_id, "MapVec", vDatatype, vDataspace, H5P_DEFAULT);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
 
-    H5Dclose( dataset   );
-    H5Tclose( datatype  );
-    H5Sclose( dataspace );
-
-    delete [] data;
+    H5Dclose( vDataset   );
+    H5Sclose( vDataspace );
 }
 
 //------------------------------------------------------------------------
@@ -304,6 +296,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
     size_send += recv_count[i] ;
   int *recv_map = new int[size_send] ;
   size_send = 0 ;
+/*
   for(int i = 0; i < MPI_processes; ++i) 
     for(hash_map<int, std::vector<int> >::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
       send_map[size_send] = miv->first ;
@@ -315,6 +308,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
 	++size_send ;
       }
     }
+*/
   send_displacement[0] = 0 ;
   recv_displacement[0] = 0 ;
   for(int i = 1; i < MPI_processes; ++i) {
@@ -338,6 +332,8 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
       j += count + 1 ;
     }
   }
+  dmultiMap dmul ;
+/*
   std::vector<int> tmp_vec ;
   for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
     if(hmi->second.size()) 
@@ -345,9 +341,9 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
 	attrib_data[hmi->first].push_back(*si) ;
     else
       attrib_data[hmi->first] = tmp_vec ;
-  dmultiMap dmul ;
   for(hash_map<int, std::vector<int> >::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
     dmul[hi->first] = hi->second ;
+*/
   storeRepP sp = dmul.Rep() ;
   delete [] send_buf ;
   delete [] recv_buf ;
