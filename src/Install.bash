@@ -33,6 +33,7 @@ cp Loci.conf comp.conf sys.conf $INSTALL_PATH
 echo Installing \#include files
 mkdir -p $INSTALL_PATH/include
 cp include/*.h $INSTALL_PATH/include
+cp include/Loci $INSTALL_PATH/include
 
 for i in  Tools Config MPI_stubb ; do
     mkdir -p $INSTALL_PATH/include/$i
