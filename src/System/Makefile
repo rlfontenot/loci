@@ -12,7 +12,8 @@ OBJS = hdf5_readwrite.o Loci_version.o variable.o store_rep.o Map.o \
        scheduler.o sched_tools.o sched_mlg.o sched_types.o \
        sched_decompose.o sched_comp.o comp_impl.o comp_reduce.o \
        comp_recurse.o comp_internal.o comp_dag.o comp_cond.o \
-       comp_loop.o comp_tools.o distribute.o DMap.o DMultiMap.o 
+       comp_loop.o comp_tools.o distribute.o DMap.o DMultiMap.o\
+       param_rule.o 
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT1)
 

@@ -1,6 +1,6 @@
 #include "sched_tools.h"
 #include "distribute.h"
-
+#include "param_rule.h"
 using std::map ;
 using std::vector ;
 using std::set ;
@@ -26,9 +26,7 @@ namespace Loci {
 #else
     return -1.0 ;
 #endif
-  }
-
-
+  } 
   
   executeP create_execution_schedule(rule_db &rdb,
                                      fact_db &facts,
@@ -43,7 +41,9 @@ namespace Loci {
 
     cout << "generating dependency graph..." << endl ;
     double start_time = MPI_Wtime() ;
-    digraph gr = dependency_graph(rdb,given,target).get_graph() ;
+    rule_db par_rdb ;
+    par_rdb = parametric_rdb(rdb) ;
+    digraph gr = dependency_graph(par_rdb,given,target).get_graph() ;
     // If graph is empty, return a null schedule 
     if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;

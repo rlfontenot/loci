@@ -1,10 +1,10 @@
 #include <execute.h>
-
+#include <mpi.h>
 #ifdef PTHREADS
 #include <pthread.h>
 #include <semaphore.h>
 #endif
-
+#include <distribute.h>
 #include <Tools/stream.h>
 
 #ifdef PTHREADS
@@ -220,7 +220,7 @@ namespace Loci {
 #endif
 #endif
   }
-
+  
   void execute_thread_sync::Print(std::ostream &s) const {
     s << "thread barrier " << note << std::endl ;
   }

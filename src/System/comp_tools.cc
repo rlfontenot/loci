@@ -1033,15 +1033,19 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   }
   
   void execute_comm::Print(ostream &s) const {
+    int sz = 0 ;
     if(send_info.size()+recv_info.size() > 0) {
       s << "communication block {" << endl ;
       if(send_info.size() > 0) {
         s << "Send:" << endl ;
         for(int i=0;i<send_info.size();++i) {
-          for(int j=0;j<send_info[i].second.size();++j)
+          for(int j=0;j<send_info[i].second.size();++j) { 
             s << "(" << send_info[i].second[j].v << "," << send_info[i].second[j].set << ") " ;
-          s << " to " << send_info[i].first << endl ;
+	    sz += (send_info[i].second[j].set).size() ;
+	  }
+	  s << " to " << send_info[i].first << endl ;
         }
+	s << " Total entities sent = " << sz << endl ;
       }
       if(recv_info.size() > 0) {
         s << "Recv:" << endl ;

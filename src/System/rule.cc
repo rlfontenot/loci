@@ -29,7 +29,48 @@ namespace Loci {
         res.assign.push_back(std::make_pair(variable(i->first,tl),
                                             variable(i->second,tl))) ;
       return res ;
+    } 
+
+    
+    variableSet rename_set(const variableSet &vset, std::map<variable, variable> &rvm ) {
+      typedef std::map<variable, variable>::const_iterator map_iter ;
+      variableSet res ;
+      for(variableSet::const_iterator i=vset.begin();i!=vset.end();++i) {
+	map_iter mi ;
+        mi = rvm.find(*i) ;
+	if(mi != rvm.end())
+	  res += mi->second ;
+	else
+	  res += *i ; 
+      }
+      return res ;
     }
+    vmap_info rename_vmap_info(const vmap_info &in, std::map<variable, variable> &rvm) {
+      vmap_info res ;
+      for(vector<variableSet>::const_iterator i=in.mapping.begin();
+          i!=in.mapping.end(); ++i)
+        res.mapping.push_back(rename_set(*i,rvm)) ;
+      res.var = rename_set(in.var,rvm) ;
+      for(vector<pair<variable, variable> >::const_iterator i=in.assign.begin();
+          i!=in.assign.end();++i) {
+	variable v1, v2 ;
+	std::map<variable, variable>::const_iterator  mi = rvm.find(i->first) ;
+	if(mi != rvm.end()) 
+	  v1 = mi->second ;
+	else 
+	  v1 = i->first ;
+	
+	mi = rvm.find(i->second) ;
+	if(mi != rvm.end()) 
+	  v2 = mi->second ;
+	else 
+	  v2 = i->second ;
+	
+	res.assign.push_back(std::make_pair(v1, v2)) ;
+      }
+      return res ;
+    } 
+    
   }
 
   string rule_impl::info::rule_identifier() const {
@@ -137,41 +178,88 @@ namespace Loci {
   }
 
   void rule_impl::set_store(variable v, const storeRepP &p) {
-    storeIMap::iterator sp ;
-
-    sp = var_table.find(v) ;
-    fatal(sp == var_table.end()) ;
-    sp->second->setRep(p) ;
+    typedef storeIMap::iterator SI ;
+    std::pair<SI, SI> sip = var_table.equal_range(v) ;
+    for(SI si = sip.first; si != sip.second; ++si) {
+      fatal(si == var_table.end()) ;
+      si->second->setRep(p) ;
+    } 
   }
 
   storeRepP rule_impl::get_store(variable v) const {
-    storeIMap::const_iterator sp ;
-    sp = var_table.find(v) ;
+    typedef storeIMap::const_iterator SI ;
+    std::pair<SI, SI> sip = var_table.equal_range(v) ;
+    SI sp = sip.first ;
     if(sp == var_table.end()) {
       return storeRepP(0) ;
     }
     return sp->second->Rep() ;
   }
-
+  
+  void rule_impl::prot_rename_vars(std::map<variable,variable>  &rvm){
+    
+    typedef storeIMap::iterator smap_iter ; 
+    typedef std::map<variable, variable>::const_iterator map_iter ;
+    storeIMap tmp_var_table ;
+    //cout << "Map passed for renaming  = " << endl ;
+    //for(map_iter m = rvm.begin(); m != rvm.end(); ++m)
+    //cout << "("  <<variable(m->first) << " ,  " << variable(m->second) << " ) " << endl ; 
+    for(smap_iter si = var_table.begin(); si != var_table.end(); ++si) {
+      map_iter mi = rvm.find(si->first) ;
+      if(mi != rvm.end()) {
+	std::pair<smap_iter, smap_iter> sip = var_table.equal_range(mi->first) ;
+	for(smap_iter i = sip.first; i != sip.second; ++i) {
+	  std::pair<variable, store_instance*> vsp = make_pair(mi->second, i->second) ;
+	  tmp_var_table.insert(vsp) ;
+	  
+	}
+      } else {
+	tmp_var_table.insert(*si) ;
+      }
+    }
+    var_table.swap(tmp_var_table) ;
+    //cout << "New var_table = " << endl ;
+    //for(smap_iter si = var_table.begin(); si != var_table.end(); ++si) 
+    //cout << variable(si->first) << "\t" << "store rep " << endl ;
+    // 
+    std::set<vmap_info>::const_iterator i ;
+    std::set<vmap_info> tmp ;
+    for(i = rule_info.sources.begin(); i != rule_info.sources.end(); ++i) 
+      tmp.insert(rename_vmap_info(*i, rvm)) ;
+    rule_info.sources.swap(tmp) ;
+    tmp.clear() ;
+    for(i = rule_info.targets.begin(); i != rule_info.targets.end(); ++i)
+      tmp.insert(rename_vmap_info(*i, rvm)) ;
+    rule_info.targets.swap(tmp) ;
+    tmp.clear() ;
+    for(i=rule_info.constraints.begin();
+        i!=rule_info.constraints.end();++i)
+      tmp.insert(rename_vmap_info(*i, rvm)) ;
+    rule_info.constraints.swap(tmp) ;
+    tmp.clear() ;
+    rule_info.conditionals = rename_set(rule_info.conditionals,rvm) ;
+  }
+  
   void rule_impl::name_store(const string &name, store_instance &si) {
     variable v(expression::create(name)) ;
     storeIMap::iterator sp ;
-    if((sp = var_table.find(v)) == var_table.end())
-      var_table[v] = &si ;
-    else {
-      cerr << "ERROR!:  rule_impl::name_store redefinition of '"
-           << name << "' in rule '"
-           << typeid(*this).name() << "'" << endl ;
-      sp->second = &si ;
-    }
+    std::pair<variable, store_instance*> vsp = make_pair(v, &si) ;
+    var_table.insert(vsp) ;
+    //}
+    //else {
+    //cerr << "ERROR!:  rule_impl::name_store redefinition of '"
+    //   << name << "' in rule '"
+    //   << typeid(*this).name() << "'" << endl ;
+    //sp->second = &si ;
+    //}
   }
-
-    
+  
+  
   bool rule_impl::check_perm_bits() const {
-      
+    
     variableSet read_set,write_set ;
     set<vmap_info>::const_iterator i ;
-        
+    
     for(i=rule_info.sources.begin();i!=rule_info.sources.end();++i){
       for(int j=0;j<i->mapping.size();++j)
         read_set += i->mapping[j] ;
@@ -278,7 +366,7 @@ namespace Loci {
 
   void rule_impl::initialize(fact_db &facts) {
     storeIMap::iterator sp ;
-
+    
     for(sp=var_table.begin();sp!=var_table.end();++sp) {
       storeRepP srp = facts.get_variable(sp->first) ;
       if(srp == 0) {
@@ -288,12 +376,19 @@ namespace Loci {
         cerr << "Error occured in rule '"
              << typeid(*this).name() << "'" << endl ;
         exit(-1) ;
-      }
+      } 
+      
       sp->second->setRep(srp) ;
     }
   }
 
-    
+variableSet rule_impl::get_var_list() {
+    storeIMap::iterator sp ;
+    variableSet vset ;
+    for(sp = var_table.begin(); sp != var_table.end(); ++sp)
+      vset += sp->first ;
+    return vset ;
+  }
 
   void rule_impl::set_variable_times(time_ident tl) {
     set<vmap_info>::const_iterator i ;
@@ -316,7 +411,8 @@ namespace Loci {
     storeIMap::iterator j ;
     for(j=var_table.begin();j!=var_table.end();++j) {
       variable v(j->first,tl) ;
-      tmp2[v] = j->second ;
+      std::pair<variable, store_instance*>  vsp = make_pair(v, j->second) ;
+      tmp2.insert(vsp) ;
     }
     var_table.swap(tmp2) ;
     name = rule_info.rule_identifier() ;
@@ -326,10 +422,9 @@ namespace Loci {
     storeIMap::iterator sp ;
 
     for(sp=var_table.begin();sp!=var_table.end();++sp)
-      sp->second->setRep(
-                         (f.var_table[sp->first])->Rep()) ;
+      sp->second->setRep(f.get_store(sp->first)) ;
   }
-
+  
   void rule_impl::Print(ostream &s) const {
     s << "------------------------------------------------" << endl;
     s << "--- rule " << get_name() << ", class = " ;
@@ -406,7 +501,7 @@ namespace Loci {
         }
       } else
         tvar_types += (*i).var ;
-                                    
+      
       target_vars += (*i).var ;
       tvars += (*i).var ;
     }
@@ -438,7 +533,7 @@ namespace Loci {
           rule_impl->Print(cerr) ;
         }
     }            
-
+    
     output_is_parameter = false ;
     for(variableSet::const_iterator
           i=tvar_types.begin();i!=tvar_types.end();++i) {
@@ -460,7 +555,7 @@ namespace Loci {
     
     source_level = source_time ;
     target_level = target_time ;
-      
+    
     rule_class = TIME_SPECIFIC ;
     
     if(source_time == target_time) {
@@ -474,7 +569,7 @@ namespace Loci {
       cerr << "unable to infer time hierarchy from rule :" << endl ;
       rule_impl->Print(cerr) ;
     }
-      
+    
     time_advance = false ;
     if(1 == target_offset)
       time_advance = true ;
@@ -539,7 +634,7 @@ namespace Loci {
         target_vars += (*i).var ;
         tvars += (*i).var ;
       }
-
+      
       time_ident source_time,target_time ;
       
       for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
@@ -568,16 +663,22 @@ namespace Loci {
       
       source_level = source_time ;
       target_level = target_time ;
-
+      
       time_advance = false ;
       if(1 == target_offset)
         time_advance = true ;
       
-     return ; 
+      return ; 
     }
     rule_impl = fi.rule_impl->new_rule_impl() ;
-    rule_impl->set_variable_times(tl) ;
+    variableSet vset = rule_impl->get_var_list() ;
+    std::map<variable, variable> rm ;
+    for(variableSet::const_iterator vsi = vset.begin(); vsi != vset.end(); ++vsi) {
+      rm[variable(*vsi)] = variable(variable(*vsi), tl) ;
+    }
+    rule_impl->rename_vars(rm) ;
     warn(fi.rule_class != GENERIC) ;
+    
     source_level = tl ;
     target_level = tl ;
     rule_class = GENERIC ;
@@ -618,8 +719,8 @@ namespace Loci {
 
   rule_implP rule::info::get_rule_implP() const {
     rule_implP fp = rule_impl->new_rule_impl() ;
-    if(rule_class == GENERIC && target_level != time_ident())
-      fp->set_variable_times(target_level) ;
+    //if(rule_class == GENERIC && target_level != time_ident())
+    //fp->set_variable_times(target_level) ;
     return fp ;
   }
 
@@ -631,7 +732,14 @@ namespace Loci {
     abort() ;
     return new NULL_RULE_IMPL ;
   }
-      
+  
+  void rule_impl::rename_vars(std::map<variable,variable> &rvm) {
+    cerr << "rule_impl::rename_vars(std::map<variable,variable> &rv) was called:" << endl << "this rule should never be called, use copy_rule_impl<> to"<< endl 
+         << "rename the variables" << endl ;
+    abort() ;
+  }
+    
+    
 
   rule::info::info(const string &s) {
     rule_class = rule::INTERNAL ;
@@ -699,9 +807,9 @@ namespace Loci {
       target_vars += (*i).var ;
       tvars += (*i).var ;
     }
-
+    
     time_ident source_time,target_time ;
-      
+    
     for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i) {
       source_time =  source_time.before((*i).get_info().time_id)
         ?(*i).get_info().time_id:source_time ;
@@ -761,18 +869,16 @@ namespace Loci {
     rule_list_ent *flp = new rule_list_ent(p,list) ;
     list = flp ;
   }
-
-    
-  const ruleSet rule_db::EMPTY_RULE ;
-
+  
+  
+  const ruleSet rule_db::EMPTY_RULE ; 
+  
   void rule_db::add_rule(const rule_implP &fp) {
     // Check for rule consistency
     fp->check_perm_bits() ;
     add_rule(rule(fp)) ;
   }    
-    
-
-
+  
   void rule_db::add_rule(rule f) {
     string fname = f.get_info().rule_impl->get_name() ;
     rule_map_type::const_iterator fmti = name2rule.find(fname) ;
@@ -780,7 +886,7 @@ namespace Loci {
       fname = f.get_info().name() ;
     }
     name2rule[fname] = f ; 
-      
+    
     if(known_rules.inSet(f)) {
       cerr << "Warning, adding duplicate rule to rule database"
            << endl 
@@ -806,7 +912,7 @@ namespace Loci {
       known_rules += f ;
     }
   }
-    
+  
   void rule_db::add_rules(global_rule_impl_list &gfl) {
     for(global_rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i) 
       add_rule(*i) ;

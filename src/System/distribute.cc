@@ -37,6 +37,7 @@ namespace Loci {
   int num_threads = 1 ;
 
   ofstream debugout ;
+  double barrier_time = 0 ;
   
   void Init(int* argc, char*** argv)  {
     
