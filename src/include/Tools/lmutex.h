@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <errno.h>
 
+
 namespace Loci {
 
   class lmutex {
@@ -13,7 +14,11 @@ namespace Loci {
     lmutex() {
       pthread_mutexattr_t mattr ;
       pthread_mutexattr_init(&mattr) ;
+#ifdef LINUX
+      // Linux doesn't have shared attribute for mutexes
+#else
       pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED) ;
+#endif
       pthread_mutex_init(&mutex,&mattr) ;
       pthread_mutexattr_destroy(&mattr) ;
     }
