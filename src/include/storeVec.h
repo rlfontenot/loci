@@ -577,7 +577,7 @@ namespace Loci {
 
     int vecSize() const { return size ; }
 
-    const entitySet& domain() const { return Rep()->domain() ; }
+    const entitySet domain() const { return Rep()->domain() ; }
 
     const_Vect<T> elem(int indx) const {
 #ifdef BOUNDS_CHECK
@@ -798,7 +798,10 @@ namespace Loci {
   void storeVecRepI<T>:: hdf5write( H5::Group group, IDENTITY_CONVERTER g,
                                     const entitySet &en ) const
   {
-
+    /*
+      PROBLEMS FOUND HERE eset not defined.
+   */
+    /*
     hsize_t dimension[] = {1};
     int rank = 1;
 
@@ -859,7 +862,7 @@ namespace Loci {
 // Clean up
 //-----------------------------------------------------------------------------
     delete [] data;
-
+    */
   };
 
   //******************************************************************************

@@ -233,7 +233,7 @@ namespace Loci {
     }
 
     const T &elem(int indx) const {
-      hash_map<int,T> const_iterator  citer;
+      hash_map<int,T>::const_iterator  citer;
 
       citer = attrib_data->find(indx);
 
@@ -633,14 +633,14 @@ namespace Loci {
    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-   buf  = new converter_traits::memento_type[maxBucketSize];
+   buf  = new typename converter_traits::memento_type[maxBucketSize];
 
    for( int k = 0; k < num_intervals; k++) {
         count[0] = 0;
         for( int i = it[k].first; i <= it[k].second; i++)
              count[0] +=  container[i];
 
-        data = new converter_traits::memento_type[count[0]];
+        data = new typename converter_traits::memento_type[count[0]];
 
         foffset[0] = offset[it[k].first];
 
@@ -764,8 +764,8 @@ namespace Loci {
     typedef hdf5_schema_converter_traits<T> converter_traits; 
     converter_traits::memento_type *data, *buf;
 
- 	 data =  new converter_traits::memento_type[arraySize];
- 	 buf  =  new converter_traits::memento_type[maxStateSize];
+ 	 data =  new typename converter_traits::memento_type[arraySize];
+ 	 buf  =  new typename converter_traits::memento_type[maxStateSize];
 
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array

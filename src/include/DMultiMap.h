@@ -105,6 +105,7 @@ class dmultiMapRepI : public MapRep {
       
       cerr << "Error: out of range entity " << endl;
       exit(0);
+      return ci->second ;
     }
 
     vector<int> &operator[](int indx) { return elem(indx); }

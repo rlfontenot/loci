@@ -653,7 +653,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
    vdataspace.getSimpleExtentDims( dimension, NULL);
 
    size_t arraySize = dimension[0];
-   data   = new converter_traits::memento_type[arraySize];
+   data   = new typename converter_traits::memento_type[arraySize];
 
 	  vdataset.read( data, vDatatype);
 
@@ -661,7 +661,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
    // Fill the objects ....
    //---------------------------------------------------------------------------
    
-   buf    = new converter_traits::memento_type[maxStateSize];
+   buf    = new typename converter_traits::memento_type[maxStateSize];
 
    entitySet::const_iterator ci;
    hash_map<int, vector<T> > ::const_iterator iter;
@@ -815,8 +815,8 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
     typedef hdf5_schema_converter_traits<T> converter_traits; 
     converter_traits::memento_type *data, *buf;
 
-    data =  new converter_traits::memento_type[arraySize];
-    buf  =  new converter_traits::memento_type[maxStateSize];
+    data =  new typename converter_traits::memento_type[arraySize];
+    buf  =  new typename converter_traits::memento_type[maxStateSize];
 
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array
