@@ -22,8 +22,11 @@ namespace Loci {
   class data_schema_traits { 
   public:
     typedef DEFAULT_CONVERTER Schema_Converter;
-    static MPI_Datatype  get_mpi_type()  {return MPI_CHAR;}
-    static hid_t         get_hdf5_type() {return H5T_NATIVE_CHAR;}
+
+    static DatatypeP get_type() {
+      return DatatypeP(new AtomicType(CHAR)) ;
+    }
+
   };
 #else
   template <class T> 
