@@ -71,15 +71,22 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T> 
-  void dstoreRepI<T>::allocate(const entitySet &ptn)
+  void dstoreRepI<T>::allocate(const entitySet &eset)
   {
+    entitySet redundant, newSet;
     entitySet :: const_iterator ci;
 
+    redundant = domain() -  eset;
+    newSet    = eset - domain();
+
+    for( ci = redundant.begin(); ci != redundant.end(); ++ci)
+         attrib_data.erase(*ci);
+
     T   newvalue;
-    for( ci = ptn.begin(); ci != ptn.end(); ++ci)
+    for( ci = newSet.begin(); ci != newSet.end(); ++ci)
       attrib_data[*ci] =   newvalue;
   
-    store_domain = ptn ;
+    store_domain = eset ;
     dispatch_notify() ;
   }
 
@@ -584,7 +591,7 @@ namespace Loci {
 
     hsize_t dimension;
     size_t indx = 0, arraySize;
-    int    rank = 1, size;
+    int    rank = 1;
 
     entitySet::const_iterator ci;
     typedef data_schema_traits<T> traits_type;
