@@ -221,6 +221,9 @@ namespace Loci {
     case NAME:
       s << name ;
       break ;
+    case STRING:
+      s << "\"" << name << "\"" ;
+      break ;
     case FUNCTION:
       s << name << "(" ;
       for(value_list_type::const_iterator i=value_list.begin();;) {
