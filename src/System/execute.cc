@@ -7,8 +7,9 @@
 
 #include <Tools/stream.h>
 
+#ifdef PTHREADS
 sem_t thread_barrier, barrier_ack ;
-
+#endif
 
 //namespace {
   struct exec_info  {

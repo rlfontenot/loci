@@ -55,7 +55,7 @@ namespace Loci {
     for(const int *i=start;i!=end;++i)
       bits[*i-mn] = true ;
 
-    WARN(!bits[s]);
+    WARN(!bits[0]);
 
     entitySet result ;
     interval iv(mn,mn) ;
