@@ -23,20 +23,26 @@ namespace Loci {
   }
 
   hid_t  ArrayType::get_hdf5_type() const {
-      hid_t hdf5T = type_data->get_hdf5_type() ;
-      hsize_t array_dims[10];
-
-      for(int k = 0; k < rank; k++)
-        array_dims[k]  = dimension[k];
+    hid_t hdf5T = type_data->get_hdf5_type() ;
 #ifdef HDF5V1_2
-      hid_t vDatatype  = H5Tcreate( H5T_COMPOUND, numBytes);
-      H5Tinsert_array(vDatatype, "Array", 0, 
-                      rank, array_dims, NULL, hdf5T);
-      return VDatatype ;
+    size_t array_dims[10] ;
 #else
-      return   H5Tarray_create(hdf5T,rank,array_dims,NULL) ;
+    hsize_t array_dims[10];
+#endif
+
+    for(int k = 0; k < rank; k++)
+      array_dims[k]  = dimension[k];
+#ifdef HDF5V1_2
+    hid_t vDatatype  = H5Tcreate( H5T_COMPOUND, numBytes);
+    H5Tinsert_array(vDatatype, "Array", 0, 
+                    rank, array_dims, NULL, hdf5T);
+    return vDatatype ;
+#else
+    return   H5Tarray_create(hdf5T,rank,array_dims,NULL) ;
 #endif
     }
+
+
 
   hid_t CompoundType::get_hdf5_type() const
   {
