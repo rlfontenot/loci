@@ -15,6 +15,13 @@ extern pthread_mutex_t access_mutex ;
 #endif
 
 namespace Loci {
+  template <class T> struct Scalar {
+    T val ;
+    Scalar(T v) : val(v) { }
+  } ;
+
+  template <class T> Scalar<T> mk_Scalar(T v) { return Scalar<T>(v) ;} 
+  
   template <class T> class Vect ;
   
   template <class T> class const_Vect {
@@ -73,36 +80,36 @@ namespace Loci {
         *p1++ = *p2++ ;
     }
 
-    void operator=(const T &val) {
+    template <class S> void operator=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
-        *p1++ = val ;
+        *p1++ = s.val ;
     }
 
-    void operator+=(const T &val) {
+    template <class S> void operator+=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
-        *p1++ += val ;
+        *p1++ += s.val ;
     }
       
-    void operator*=(const T &val) {
+    template <class S> void operator*=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
-        *p1++ *= val ;
+        *p1++ *= s.val ;
     }
       
-    void operator-=(const T &val) {
+    template <class S> void operator-=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
-        *p1++ -= val ;
+        *p1++ -= s.val ;
     }
       
-    void operator/=(const T &val) {
+    template <class S> void operator/=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
-        *p1++ /= val ;
+        *p1++ /= s.val ;
     }
-      
+
     template <class S> void operator+=(const Vect<S> &t) {
       T *p1 = ptr ;
       const S *p2 = t.ptr ;
@@ -376,41 +383,41 @@ namespace Loci {
           *p1++ = *p2++ ;
     }
 
-    void operator=(const T &val) {
+    template <class S> void operator=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
-          *p1++ = val ;
+          *p1++ = s.val ;
     }
 
-    void operator+=(const T &val) {
+    template <class S> void operator+=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
-          *p1++ += val ;
+          *p1++ += s.val ;
     }
       
-    void operator*=(const T &val) {
+    template <class S> void operator*=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
-          *p1++ *= val ;
+          *p1++ *= s.val ;
     }
       
-    void operator-=(const T &val) {
+    template <class S> void operator-=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
-          *p1++ -= val ;
+          *p1++ -= s.val ;
     }
       
-    void operator/=(const T &val) {
+    template <class S> void operator/=(const Scalar<S> &s) {
       T *p1 = ptr ;
       for(int i=0;i<size;++i)
         for(int j=0;j<size;++j)
-          *p1++ /= val ;
+          *p1++ /= s.val ;
     }
-      
+    
     template <class S> void operator+=(const Mat<S> &t) {
       T *p1 = ptr ;
       const S *p2 = t.ptr ;

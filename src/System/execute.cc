@@ -3,12 +3,11 @@
 
 #ifdef PTHREADS
 #include <pthread.h>
+pthread_mutex_t access_mutex = PTHREAD_MUTEX_INITIALIZER ;
 #endif
 
 #include <Tools/stream.h>
 
-
-pthread_mutex_t access_mutex = PTHREAD_MUTEX_INITIALIZER ;
 
 //namespace {
   struct exec_info  {

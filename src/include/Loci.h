@@ -30,6 +30,12 @@ using Loci::storeVec ;
 using Loci::const_storeVec ;
 using Loci::storeMat ;
 using Loci::const_storeMat ;
+using Loci::Vect ;
+using Loci::Mat ;
+using Loci::const_Vect ;
+using Loci::const_Mat ;
+using Loci::Scalar ;
+using Loci::mk_Scalar ;
 using Loci::pivot_type ;
 
 using Loci::param ;

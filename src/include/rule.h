@@ -14,6 +14,8 @@
 #include <Tools/cptr.h>
 #include <Tools/expr.h>
 #include <variable.h>
+#include <Map.h>
+#include <parameter.h>
 
 namespace Loci {
 
@@ -141,6 +143,7 @@ namespace Loci {
     { rule_impl::conditional(cond) ; }
   } ;
 
+#ifdef OLDWAY
   class apply_rule : public rule_impl {
    protected:
     apply_rule() { rule_class(APPLY) ; }
@@ -155,7 +158,82 @@ namespace Loci {
     void conditional(const std::string &cond)
     { rule_impl::conditional(cond) ; }
   } ;
+#endif
 
+  class joiner : public CPTR_type {
+  public:
+    virtual storeRepP getTargetRep() = 0 ;
+    virtual void Join(storeRepP &target, Map &t2s, const storeRepP &source,
+                      const sequence &seq) = 0 ;
+  } ;  
+
+  template <class T, class Op> class joinOp : public joiner {
+    Op join ;
+  public:
+    virtual storeRepP getTargetRep()
+    { T st ; storeRepP rep = st.Rep(); return rep; }
+    virtual void Join(storeRepP &target, Map &t2s, const storeRepP &source,
+                      const sequence &seq)
+    { T t(target), s(source) ;
+      for(sequence::const_iterator i=t.begin();i!=t.end();++i) {
+        join(t[i],s[t2s[i]]) ;
+      }
+    }
+  } ;
+
+  template<class Type,class Op> class joinOp<param<Type>,Op> : public joiner {
+    Op join ;
+  public:
+    virtual storeRepP getTargetRep()
+    { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    virtual void Join(storeRepP &target, Map &t2s, const storeRepP &source,
+                      const sequence &seq) {
+      param<Type> t(target), s(source) ;
+      join(*t,*s) ;
+    }
+  } ;
+    
+  template <class T, class Op > class apply_rule : public rule_impl {
+    CPTR<joinOp<T,Op> > join_obj ;
+  protected:
+    apply_rule() { rule_class(APPLY) ; }
+    void name_store(const std::string &name, store_instance &si)
+    { rule_impl::name_store(name,si) ; }
+    void input(const std::string &invar)
+    { rule_impl::input(invar) ; }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+    { rule_impl::conditional(cond) ; }
+    void join(typename T::containerType &t1,
+              const typename T::containerType &t2) {
+      Op f ;
+      f(t1,t2) ;
+    }
+
+  } ;
+  template <class T> struct Summation {
+    void operator()(T &res, const T &arg)
+    { res += arg ; }
+  } ;
+
+  template <class T> struct Product {
+    void operator()(T &res, const T &arg)
+    { res *= arg ; }
+  } ;
+
+  template <class T> struct Maximum {
+    void operator()(T &res ,const T &arg)
+    { res = max(res,arg) ; }
+  } ;
+
+  template <class T> struct Minimum {
+    void operator()(T &res, const T &arg)
+    { res = min(res,arg) ; }
+  } ;
+  
   class rule {
   public:
     enum rule_type {BUILD,COLLAPSE,GENERIC,TIME_SPECIFIC,INTERNAL} ;
