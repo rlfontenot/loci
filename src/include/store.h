@@ -996,30 +996,4 @@ namespace Loci {
   //*********************************************************************/
 }
 
-#ifdef GXX_FIXES
-
-// These functions are required when using G++, not because they are actually
-// used, but because G++'s instantiation mechanism generates references to
-// them.
-
-template <class T>
-static inline ostream& operator << (ostream & s, const std::vector<T> &v) {
-  for( int i = 0; i < v.size(); i++)
-       s << v[i] << " ";
-  return s;
-}
-
-template <class T>
-static inline istream& operator >> (istream & s, std::vector<T> &v) {
-
-  for( int i = 0; i < v.size(); i++)
-       s >> v[i];
-
-  return s;
-}
-
-
-
-#endif // GXX_FIXES
-
 #endif
