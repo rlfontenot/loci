@@ -5,7 +5,7 @@
 using std::vector ;
 
 
-// A utility data-structure for holding edge information
+// A utility data structure for holding edge information
 struct edge_info {
   int nd1,nd2 ; // The two nodes defining an edge
   int cl,cr ;   // The cells on the left and right side 
@@ -14,7 +14,7 @@ struct edge_info {
 
 void setup_edges(fact_db &facts) {
 
-  // First, get the data-structure that defines the triangle nodes
+  // First, get the data structure that defines the triangle nodes
   MapVec<3> triangle_nodes ;
   triangle_nodes = facts.get_fact("triangle_nodes") ;
 
@@ -113,9 +113,9 @@ void setup_edges(fact_db &facts) {
   *boundary_edge_constraint = boundary_edges ;
   facts.create_fact("boundary_edges",boundary_edge_constraint) ;
   
-  // Create data structures for the edges.  These comprise of the
+  // Create data structures for the edges.  These comprise the
   // nodes that define the edge and the left and right cells (edge_nodes,
-  // cl, and cr respectively.
+  // cl, and cr respectively).
   MapVec<2> edge_nodes ;
   Map cl,cr ;
 
@@ -124,7 +124,7 @@ void setup_edges(fact_db &facts) {
   cr.allocate(all_edges) ;
 
   // gci is an iterator to ghost_cells, we use it to assign
-  // a unique ghost cell number to every boundary edge
+  // a unique ghost cell number to every boundary edge.
   entitySet::const_iterator gci = ghost_cells.begin() ;
 
   // Loop over boundary edges and assign datastructure values
@@ -139,7 +139,7 @@ void setup_edges(fact_db &facts) {
     // list
     boundary_edge_data.pop_back() ;
   }
-  //Loop over internal edges and assign data-structure values
+  //Loop over internal edges and assign data structure values
   for(ei=internal_edges.begin();ei!=internal_edges.end();++ei) {
     WARN(edge_data.size() == 0) ;
     

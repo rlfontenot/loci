@@ -42,8 +42,8 @@ void read_triangles(istream &ifile, fact_db &facts) {
   entitySet node_alloc = facts.get_allocation(num_nodes) ;
   entitySet triangle_alloc = facts.get_allocation(num_triangles) ;
 
-  // The allocated entities will be in contiguious blocks.  Since the
-  // triangles will refer to nodes who are implicitly numbered from zero, we
+  // The allocated entities will be in contiguous blocks.  Since the
+  // triangles will refer to nodes that are implicitly numbered from zero, we
   // will have to adjust the numbering to match our allocation.  We do
   // this by adding the appropriate offset computed below.
   int node_offset = node_alloc.Min() ;
@@ -87,14 +87,14 @@ void read_triangles(istream &ifile, fact_db &facts) {
   
 
   // For the purposes of this code, we assume that triangles are stored in
-  // a counter-clockwise manner.  If they are not, swap reverse the order
+  // a counter-clockwise manner.  If they are not, reverse the order
   for(ei=triangle_alloc.begin();ei!=triangle_alloc.end();++ei) {
     vector2d<double>
       p0 = pos[triangle_nodes[*ei][0]],
       p1 = pos[triangle_nodes[*ei][1]],
       p2 = pos[triangle_nodes[*ei][2]] ;
     if(cross(p0-p1,p2-p1) > 0) {
-      cerr << "traingle #" << *ei-triangle_alloc.Min() << " not following right hand rule." << endl ;
+      cerr << "triangle #" << *ei-triangle_alloc.Min() << " not following right hand rule." << endl ;
       swap(triangle_nodes[*ei][0],triangle_nodes[*ei][1]) ;
     }
   }

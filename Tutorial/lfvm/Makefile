@@ -19,8 +19,10 @@ default:
 
 # To compile a Loci program, use the .cc or .C prefix on your Loci source 
 # modules and link using a command similar to below.
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) FRC
 	  $(LD) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+FRC:
 
 clean:
 	  rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak

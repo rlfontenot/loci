@@ -13,10 +13,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 // Reductions are defined with respect to some associative operator that has
-// an identity.  For example, summation whos identity is zero, product whos
-// identity is one, maximum whos identity is the smallest possible input.
-// **** It is important that the operator is associative if you expect your
-// **** computations to be deterministic.  That is, if you expect to get the
+// an identity.  For example, summation whose identity is zero, product whose
+// identity is one, maximum whose identity is the smallest possible input.
+// **** It is important that the operator be associative if you expect your
+// **** computations to be deterministic, that is, if you expect to get the
 // **** same result every time you perform a computation.
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -50,8 +50,8 @@ public:
     // Here we define what entities can have the property of area.  In this
     // case we restrict the property to things we call cells.  In general,
     // the constraint is like an input that we don't use, the attributes
-    // given in the constraint will not actually be computed, however
-    // the attribute must be computable (or present in the fact_db) for
+    // given in the constraint will not actually be computed. the attribute,
+    // however, must be computable (or present in the fact_db) for
     // this rule to apply.
     constraint("cells") ;
   }
@@ -74,7 +74,7 @@ public:
 // and 2) the operator used in the reduction. Here we are using the Summation
 // operator for double, however we have 4 builtin operator templates that are
 // provided for your convienience (Summation, Product, Maximum, Minimum).
-// The user can also specify their own operators by creating a class and
+// The user can also specify his own operators by creating a class and
 // providing a two argument operator().  Examples will be given in other files.
 //
 //                                  / container\    /  operator \
@@ -99,7 +99,7 @@ public:
     // We input the edge nodal positions and the left cell centroid
     // We also input the area (since we are adding to it)
     input("edge_nodes->pos,cl->centroid,cl->Area") ;
-    // Here we output the area. Note that we are expected to only write to the
+    // Here we output the area. Note that we are expected to write only to the
     // same area that we read from. (i.e. += type of operations)
     output("cl->Area") ;
   }
@@ -108,7 +108,7 @@ public:
     // Note that we are taking advantage of the geometric properties to ensure
     // that we should arrive at positive areas, however, it is possible that an
     // edge could provide a negative contribution for some edges if the
-    // polyhedra isn't convex.
+    // polyhedron isn't convex.
     const vector2d<double> dv1 = pos[edge_nodes[e][0]]-pos[edge_nodes[e][1]] ;
     const vector2d<double> dv2 = pos[edge_nodes[e][0]]-centroid[cl[e]] ;
     const double area_edge = 0.5*cross(dv1,dv2) ;

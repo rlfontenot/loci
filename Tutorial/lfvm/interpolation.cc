@@ -137,7 +137,7 @@ public:
     output("Tnode") ;
   }
   void calculate(Entity e) {
-    Tnode[e] = nodal_temp_sum[e].Tavg() ;
+      Tnode[e] = nodal_temp_sum[e].Tavg() ;
   }
   virtual void compute(const sequence &seq) {
     do_loop(seq,this) ;
