@@ -311,7 +311,9 @@ namespace Loci {
     if((finfo.existence & x) != EMPTY) {
       ruleSet conflicts ;
       map<rule,existential_info>::iterator mi ;
-      for(mi=finfo.exist_map.begin();mi!=finfo.exist_map.end();++mi)
+      for(mi=finfo.exist_map.begin();mi!=finfo.exist_map.end();++mi) {
+        if(mi->first == f)
+          continue ;
         if((mi->second.exists & x) != EMPTY) {
           const vector<string> &p1 = v.get_info().priority ;
           const vector<string> &p2 = mi->second.v.get_info().priority ;
@@ -328,6 +330,7 @@ namespace Loci {
             //cerr << mi->first << " has priority over " << f << endl ;
           }
         }
+      }
       if(conflicts != EMPTY && v.get_info().name != string("OUTPUT")) {
         cerr << "rule " << f << " conflicts with " << conflicts << endl ;
         exit(-1) ;
