@@ -237,8 +237,126 @@ dMapVecRepI<M>::~dMapVecRepI<M>()
 
 template<unsigned int M> 
 storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
-  storeRepP sp ;
-  warn(true) ;
+  int *recv_count = new int[MPI_processes] ;
+  int *send_count = new int[MPI_processes] ;
+  int *send_displacement = new int[MPI_processes] ;
+  int *recv_displacement = new int[MPI_processes] ;
+  entitySet::const_iterator ei ;
+  std::vector<int>::const_iterator vi ;
+  int size_send = 0 ;
+  std::vector<std::vector<int> > copy(MPI_processes), send_clone(MPI_processes) ;
+  for(int i = 0; i < MPI_processes; ++i) {
+    entitySet tmp = out_of_dom & ptn[i] ;
+    for(ei = tmp.begin(); ei != tmp.end(); ++ei)
+      copy[i].push_back(*ei) ;
+    sort(copy[i].begin(), copy[i].end()) ;
+    send_count[i] = copy[i].size() ;
+    size_send += send_count[i] ; 
+  }
+  int *send_buf = new int[size_send] ;
+  MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+	       MPI_COMM_WORLD) ; 
+  size_send = 0 ;
+  for(int i = 0; i < MPI_processes; ++i)
+    size_send += recv_count[i] ;
+  
+  int *recv_buf = new int[size_send] ;
+  size_send = 0 ; 
+  for(int i = 0; i < MPI_processes; ++i)
+    for(vi = copy[i].begin(); vi != copy[i].end(); ++vi) {
+      send_buf[size_send] = *vi ;
+      ++size_send ;
+    }
+  send_displacement[0] = 0 ;
+  recv_displacement[0] = 0 ;
+  for(int i = 1; i < MPI_processes; ++i) {
+    send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+    recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+  }
+  MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		recv_buf, recv_count, recv_displacement, MPI_INT,
+		MPI_COMM_WORLD) ;  
+  for(int i = 0; i < MPI_processes; ++i) {
+    for(int j = recv_displacement[i]; j <
+	  recv_displacement[i]+recv_count[i]; ++j) 
+      send_clone[i].push_back(recv_buf[j]) ;
+    sort(send_clone[i].begin(), send_clone[i].end()) ;
+  }
+  std::vector<hash_map<int, VEC > > map_entities(MPI_processes) ;
+  for(int i = 0; i < MPI_processes; ++i) 
+    for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
+      if(attrib_data.find(*vi) != attrib_data.end())
+	(map_entities[i])[*vi] = attrib_data[*vi] ;
+  
+  for(int i = 0; i < MPI_processes; ++i) {
+    send_count[i] = 2 * map_entities[i].size() ;
+    for(hash_map<int, VEC >::iterator hi = map_entities[i].begin(); hi != map_entities[i].end(); ++hi)
+      send_count[i] += hi->second.size() ; 
+  }
+  size_send = 0 ;
+  for(int i = 0; i < MPI_processes; ++i)
+    size_send += send_count[i] ;
+  int *send_map = new int[size_send] ;
+  MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+	       MPI_COMM_WORLD) ; 
+  size_send = 0 ;
+  for(int i = 0; i < MPI_processes; ++i)
+    size_send += recv_count[i] ;
+  int *recv_map = new int[size_send] ;
+  size_send = 0 ;
+  for(int i = 0; i < MPI_processes; ++i) 
+    for(hash_map<int, std::vector<int> >::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+      send_map[size_send] = miv->first ;
+      ++size_send ;
+      send_map[size_send] = miv->second.size() ;
+      ++size_send ;
+      for(int j = 0; j < M; ++j) { 
+	send_map[size_send] = (miv->second)[j] ;
+	++size_send ;
+      }
+    }
+  send_displacement[0] = 0 ;
+  recv_displacement[0] = 0 ;
+  for(int i = 1; i < MPI_processes; ++i) {
+    send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+    recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+  }
+  MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
+		recv_map, recv_count, recv_displacement, MPI_INT,
+		MPI_COMM_WORLD) ;  
+  hash_map<int, std::set<int> > hm ;
+  std::set<int> ss ;
+  for(int i = 0; i < MPI_processes; ++i) {
+    for(int j = recv_displacement[i]; j <
+	  recv_displacement[i]+recv_count[i]-1; ++j) {
+      int count = recv_map[j+1] ;
+      if(count)
+	for(int k = 0; k < count; ++k)
+	  hm[recv_map[j]].insert(recv_map[j+k+2]);
+      else
+	hm[recv_map[j]] = ss ;
+      j += count + 1 ;
+    }
+  }
+  std::vector<int> tmp_vec ;
+  for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+    if(hmi->second.size()) 
+      for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
+	attrib_data[hmi->first].push_back(*si) ;
+    else
+      attrib_data[hmi->first] = tmp_vec ;
+  dmultiMap dmul ;
+  for(hash_map<int, std::vector<int> >::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
+    dmul[hi->first] = hi->second ;
+  storeRepP sp = dmul.Rep() ;
+  delete [] send_buf ;
+  delete [] recv_buf ;
+  delete [] send_map ;
+  delete [] recv_map ;
+  delete [] recv_count ;
+  delete [] send_count ;
+  delete [] send_displacement ;
+  delete [] recv_displacement ; 
   return sp ;
 }
 //------------------------------------------------------------------------
