@@ -1,6 +1,7 @@
 #ifndef LOCI_H
 #define LOCI_H
 
+#include <Loci_version.h>
 #include <Map.h>
 #include <store.h>
 #include <storeVec.h>

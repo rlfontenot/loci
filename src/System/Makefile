@@ -7,7 +7,7 @@ TARGET = libLoci.a #libLoci.so
 LOCAL_INCLUDES = -I$(LOCI_BASE)/include
 
 
-OBJS = variable.o store_rep.o Map.o constraint.o rule.o \
+OBJS = Loci_version.o variable.o store_rep.o Map.o constraint.o rule.o \
        fact_db.o execute.o depend_graph.o scheduler.o
 
 
