@@ -4,7 +4,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libTools.a libTools.so
+TARGET = libTools.a #libTools.so
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 

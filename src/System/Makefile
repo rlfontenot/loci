@@ -4,7 +4,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libLoci.a libLoci.so
+TARGET = libLoci.a #libLoci.so
 
 
 OBJS = hdf5_readwrite.o Loci_version.o variable.o store_rep.o Map.o \

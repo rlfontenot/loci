@@ -8,7 +8,7 @@ INCLUDES = -I$(LOCI_BASE)/include/hdf5CC
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT)
 
-TARGET = libhdf5CC.a libhdf5CC.so
+TARGET = libhdf5CC.a #libhdf5CC.so
 
 
 OBJS  =  H5file.o Exception.o H5object.o Group.o Refcount.o Dataspace.o\

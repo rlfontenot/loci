@@ -253,7 +253,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
          vec.push_back( ci->first ) ;
 
-    sort( vec.begin(), vec.end() );
+    std::sort( vec.begin(), vec.end() );
 
     for( int i = 0; i < vec.size(); i++) 
          storeDomain +=  vec[i];

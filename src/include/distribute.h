@@ -15,7 +15,9 @@ namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;
-  
+  extern bool EXIT ;
+  extern bool READ_DIST ;
+  extern int NUM_PARTITIONS ;
   void Init(int* argc, char*** argv) ;
   void Finalize() ;
   
