@@ -106,6 +106,162 @@ namespace Loci {
     return s ;
   }
 
+  void MapRepI::readhdf5(H5::Group group){
+      hsize_t dims_map[1];
+      
+      try{
+	H5::DataSet dataset_domain = group.openDataSet( "domain");//get domain data
+	H5::DataSpace dataspace_domain = dataset_domain.getSpace();
+	hsize_t dims_domain[1];
+	dataspace_domain.getSimpleExtentDims( dims_domain, NULL);
+	int *data_domain = new int[dims_domain[0]];
+	dataset_domain.read( data_domain, H5::PredType::NATIVE_INT );
+	entitySet num;	
+	for(int i=0;i<dims_domain[0];i++){
+	  num |=interval(data_domain[i],data_domain[i+1]);
+	  i++;
+	}
+	allocate(num);
+
+	H5::DataSet dataset_map = group.openDataSet( "map");//get map data  
+	H5::DataSpace dataspace_map = dataset_map.getSpace();
+	dataspace_map.getSimpleExtentDims( dims_map, NULL);
+	int RANK = dataspace_map.getSimpleExtentNdims();
+	int *data_map = new int[dims_map[0]]; 
+	dataset_map.read( data_map, H5::PredType::NATIVE_INT );
+	//set the base_ptr
+	entitySet en=domain();
+	int num_intervals=en.num_intervals();
+	interval *it = new interval[num_intervals];
+	//int x=0;//get the map data 
+	int bound=0;
+	for(int i=0;i<num_intervals;i++){
+	  it[i]=en[i];
+	}
+      if(en.Min()<0&&en.Max()>0){
+	bound=en.Max()-en.Min()+1;
+      }
+      else if(en.Min()<0){
+	bound=abs(en.Min());
+      }
+      else
+	bound=en.Max();
+	//for negative domain, we do the coord. transformation
+      if(en.Min()<0){
+	for(int i=0;i<num_intervals;i++){
+	  it[i].first=it[i].first+abs(en.Min());
+	  it[i].second=it[i].second+abs(en.Min());
+	}
+      }
+	//declear the variables used by hyperslab
+	hsize_t dim_mem[1];
+	dim_mem[0]=bound;
+	hssize_t start_mem[1];
+	hsize_t stride_mem[1];
+	hsize_t count_mem[1];
+	hsize_t block_mem[1];
+	hssize_t start_file[1];
+	start_file[0]=0;
+	stride_mem[0]=1;	    
+	block_mem[0]=1;
+
+	//get data using HDF5 hyperslab	
+	H5::DataSpace dataspace_memory(RANK,dim_mem);
+	for(int i=0;i<num_intervals;i++){
+	    start_mem[0]=it[i].first;
+	    count_mem[0]=it[i].second-it[i].first+1;
+	    dataspace_memory.selectHyperslab(H5S_SELECT_SET,count_mem,start_mem,stride_mem,block_mem);	
+	    dataspace_map.selectHyperslab(H5S_SELECT_SET,count_mem,start_file,stride_mem,block_mem);
+	    start_file[0]=start_file[0]+count_mem[0];//for next interval
+	    if(en.Min()<0){//negative domain
+	      dataset_map.read(base_ptr+en.Min(),H5::PredType::NATIVE_INT,dataspace_memory,dataspace_map);
+	    }
+	    else//positive domain
+	      dataset_map.read(base_ptr,H5::PredType::NATIVE_INT,dataspace_memory,dataspace_map);
+	}
+      } 
+      catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+      catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+      catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+    } 
+
+  void MapRepI::writehdf5(H5::Group group,entitySet& en) const{
+    //entitySet en=domain();
+      int dim=en.size();
+      //int *data_map = new int[dim];
+      hsize_t dimf[1];
+      dimf[0]=dim;
+      int RANK=1;
+      hsize_t dimf_domain[1];
+
+      int num_intervals=en.num_intervals();
+      dimf_domain[0]=num_intervals*2;
+      interval *it = new interval[num_intervals];
+      int bound=0;
+      int *data_domain = new int[num_intervals*2];//get the domain data
+      for(int i=0;i<num_intervals;i++){
+        it[i]=en[i];
+	data_domain[i*2]=it[i].first;
+	data_domain[i*2+1]=it[i].second;
+      }
+      if(en.Min()<0&&en.Max()>0){
+	bound=en.Max()-en.Min()+1;
+      }
+      else if(en.Min()<0){
+	bound=abs(en.Min());
+      }
+      else
+	bound=en.Max();
+
+      //for negative domain, we do the coord. transformation
+      if(en.Min()<0){
+	for(int i=0;i<num_intervals;i++){
+	  it[i].first=it[i].first+abs(en.Min());
+	  it[i].second=it[i].second+abs(en.Min());
+	}
+      }
+       //declear the variables used by hyperslab
+      hsize_t dim_mem[1];
+      dim_mem[0]=bound;
+      hssize_t start_mem[1];
+      hsize_t stride_mem[1];
+      hsize_t count_mem[1];
+      hsize_t block_mem[1];
+      hssize_t start_file[1];
+      start_file[0]=0;
+      stride_mem[0]=1;	    
+      block_mem[0]=1;
+
+      try{
+	//create the domain data
+	H5::DataSpace dataspace_domain( RANK, dimf_domain );
+	H5::DataSet dataset_domain = group.createDataSet( "domain", H5::PredType::NATIVE_INT, dataspace_domain );
+	dataset_domain.write( data_domain, H5::PredType::NATIVE_INT );
+	//create the map data
+	H5::DataSpace dataspace_map( RANK, dimf );
+	H5::DataSet dataset_map = group.createDataSet( "map", H5::PredType::NATIVE_INT, dataspace_map );
+	//get data using HDF5 hyperslab	
+	H5::DataSpace dataspace_memory(RANK,dim_mem);
+
+	for(int i=0;i<num_intervals;i++){
+	    start_mem[0]=it[i].first;
+	    count_mem[0]=it[i].second-it[i].first+1;
+	    dataspace_memory.selectHyperslab(H5S_SELECT_SET,count_mem,start_mem,stride_mem,block_mem);	
+	    dataspace_map.selectHyperslab(H5S_SELECT_SET,count_mem,start_file,stride_mem,block_mem);
+	    start_file[0]=start_file[0]+count_mem[0];//for next interval
+	    if(en.Min()<0){//negative domain
+	      dataset_map.write(base_ptr+en.Min(),H5::PredType::NATIVE_INT,dataspace_memory,dataspace_map);
+	    }
+	    else//positive domain
+	      dataset_map.write(base_ptr,H5::PredType::NATIVE_INT,dataspace_memory,dataspace_map);
+	}
+	//dataset_map.write( data_map, H5::PredType::NATIVE_INT );
+      }
+      catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+      catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();} 
+      catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();} 
+    } 
+
   Map::~Map() {}
 
   void Map::notification() {
@@ -113,8 +269,7 @@ namespace Loci {
     if(p!=0)
       base_ptr = p->get_base_ptr() ;
     warn(p==0) ;
-  }
-    
+  }    
 
   const_Map::~const_Map() {}
 
@@ -263,6 +418,179 @@ namespace Loci {
     }
     return s ;
   }
+
+    void multiMapRepI::readhdf5( H5::Group group) {
+      try{
+	//get domain data
+	H5::DataSet dataset_domain = group.openDataSet( "domain");
+	H5::DataSpace dataspace_domain = dataset_domain.getSpace();
+	hsize_t dims_domain[1];
+	dataspace_domain.getSimpleExtentDims( dims_domain, NULL);
+	int *data_domain = new int[dims_domain[0]];
+	dataset_domain.read( data_domain, H5::PredType::NATIVE_INT );
+	entitySet num;	
+	for(int i=0;i<dims_domain[0];i++){
+	  num |=interval(data_domain[i],data_domain[i+1]);
+	  i++;
+	}
+
+	store<int> sizes;
+	sizes.allocate(num);
+	
+	int *range = get_hdf5_data(group,"range");//get range data
+	
+	entitySet::const_iterator ii;
+	int ij=0;
+	int bound=0;
+	for(ii=num.begin();ii!=num.end();++ii){
+	  sizes[*ii]=range[ij];
+	  bound+=range[ij];
+	  ij++;
+	}
+	allocate(sizes);
+	
+	//get map data 
+	hsize_t dims_map[1];
+	H5::DataSet dataset_map = group.openDataSet( "multimap");
+	H5::DataSpace dataspace_map = dataset_map.getSpace();
+	dataspace_map.getSimpleExtentDims( dims_map, NULL);
+	int RANK = dataspace_map.getSimpleExtentNdims();
+
+	//set the base_ptr
+	entitySet en=domain();
+	int num_intervals=en.num_intervals();
+	interval *it = new interval[num_intervals];
+	for(int i=0;i<num_intervals;i++){
+	  it[i]=en[i];
+	}
+
+	//declear the variables used by hyperslab
+	hsize_t dim_mem[1];
+	dim_mem[0]=bound;
+	hssize_t start_mem[1];
+	hsize_t stride_mem[1];
+	hsize_t count_mem[1];
+	hsize_t block_mem[1];
+	hssize_t start_file[1];
+	start_file[0]=0;
+	stride_mem[0]=1;	    
+	block_mem[0]=1;
+	start_mem[0]=0;
+	count_mem[0]=0;
+	//get data using HDF5 hyperslab	
+	H5::DataSpace dataspace_memory(RANK,dim_mem);
+	for(int i=0;i<num_intervals;i++){
+	  for(int j=it[i].first;j<=it[i].second;j++){
+	    count_mem[0]+=end(j)-begin(j);
+	  }
+	  dataspace_memory.selectHyperslab(H5S_SELECT_SET,count_mem,start_mem,stride_mem,block_mem);	
+	  dataspace_map.selectHyperslab(H5S_SELECT_SET,count_mem,start_file,stride_mem,block_mem);
+	  start_file[0]=start_file[0]+count_mem[0];//for next interval
+	  dataset_map.read(base_ptr[it[i].first],H5::PredType::NATIVE_INT,dataspace_memory,dataspace_map);
+	  count_mem[0]=0;
+	}
+
+      //reclaim memory
+      delete [] it;
+      delete [] data_domain;
+      }
+      catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+      catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+      catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+    }
+
+    void multiMapRepI::writehdf5( H5::Group group,entitySet& en) const{
+      //entitySet en=domain();
+      hsize_t dimf_domain[1];
+      hsize_t dimf_range[1];
+      hsize_t dimf_map[1];
+
+      int RANK=1;
+      int num_intervals=en.num_intervals();
+      dimf_domain[0]=num_intervals*2;
+      interval *it = new interval[num_intervals];
+      int *data_domain = new int[num_intervals*2];//get the domain data
+      for(int i=0;i<num_intervals;i++){
+        it[i]=en[i];
+	data_domain[i*2]=it[i].first;
+	data_domain[i*2+1]=it[i].second;
+      }
+      int x=0,y=0;//get the map data
+      int range;
+      int bound=0;
+      for(int i=0;i<num_intervals;i++){
+	for(int j=it[i].first;j<=it[i].second;j++){
+	  range=end(j)-begin(j);
+	  bound+=range;
+	  y++;
+	  x+=range;
+	}
+      }
+
+      //declare the variables used by hyperslab
+      hsize_t dim_mem[1];
+      dim_mem[0]=bound;
+      hssize_t start_mem[1];
+      hsize_t stride_mem[1];
+      hsize_t count_mem[1];
+      hsize_t block_mem[1];
+      hssize_t start_file[1];
+      start_file[0]=0;
+      stride_mem[0]=1;	    
+      block_mem[0]=1;
+      start_mem[0]=0;
+      dimf_map[0]=x;
+      H5::DataSpace dataspace_map( RANK, dimf_map );
+      H5::DataSet dataset_map = group.createDataSet( "multimap", H5::PredType::NATIVE_INT, dataspace_map );
+      //get data using HDF5 hyperslab	
+      H5::DataSpace dataspace_memory(RANK,dim_mem);
+      int *data_map = new int[x];
+      int *data_range = new int[y];
+      dimf_range[0]=y;
+      count_mem[0]=0;
+      y=0;//reset y for data_range
+      for(int i=0;i<num_intervals;i++){
+	for(int j=it[i].first;j<=it[i].second;j++){
+	  range=end(j)-begin(j);
+	  data_range[y]=range;
+	  y++;
+	  count_mem[0]+=range;
+	}
+	dataspace_memory.selectHyperslab(H5S_SELECT_SET,count_mem,start_mem,stride_mem,block_mem);
+	dataspace_map.selectHyperslab(H5S_SELECT_SET,count_mem,start_file,stride_mem,block_mem);
+	start_file[0]=start_file[0]+count_mem[0];//for next interval
+	dataset_map.write(base_ptr[it[i].first],H5::PredType::NATIVE_INT,dataspace_memory,dataspace_map);
+	count_mem[0]=0;
+      }
+      put_hdf5_data(group,data_domain,"domain",dimf_domain);//domain data
+      put_hdf5_data(group,data_range,"range",dimf_range);//range data
+
+      //reclaim memory
+      delete [] it;
+      delete [] data_domain;
+    } 
+  
+  int* multiMapRepI::get_hdf5_data(H5::Group group,const char* datasetname){
+      H5::DataSet dataset = group.openDataSet( datasetname);
+      H5::DataSpace dataspace = dataset.getSpace();
+      hsize_t dims [1];
+      dataspace.getSimpleExtentDims(dims , NULL);
+      int *data  = new int[dims [0]];
+      dataset.read(data , H5::PredType::NATIVE_INT );
+      return data;
+    }
+  
+    void multiMapRepI::put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const{
+       int RANK=1;
+      try{
+	H5::DataSpace dataspace( RANK, dimf );
+	H5::DataSet dataset = group.createDataSet( datasetname, H5::PredType::NATIVE_INT, dataspace );
+	dataset.write( data, H5::PredType::NATIVE_INT );
+      }
+      catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+      catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();} 
+      catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+    }
 
   multiMap::~multiMap() {}
 
