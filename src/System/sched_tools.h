@@ -32,12 +32,13 @@ namespace Loci {
 
   class execute_rule : public execute_modules {
     rule_implP rp ;
-    rule rule_tag ;
+    rule rule_tag ; 
     sequence exec_seq ;
     bool do_run ;
   public:
     execute_rule(rule fi, sequence seq, fact_db &facts) ;
     execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p) ;
+    execute_rule(bool output_empty, rule fi, sequence seq, fact_db &facts) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;

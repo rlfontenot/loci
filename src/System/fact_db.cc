@@ -368,8 +368,8 @@ namespace Loci {
     einfo.v = v ;
     einfo.exists += x ;
     finfo.existence += x ;
-    debugout << "einfo.v = " << v << ",einfo.exists = " << x
-              << "f = " << f << endl ;
+    //debugout << "einfo.v = " << v << ",einfo.exists = " << x
+    //<< "f = " << f << endl ;
   }
   
   entitySet fact_db::variable_existence(variable v) {

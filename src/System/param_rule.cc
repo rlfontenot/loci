@@ -109,44 +109,47 @@ rule_db parametric_rdb(rule_db& rdb) {
   }
   variableSet newvars ;
   ruleSet wrule, nrule ;
-  for(variableSet::const_iterator vsi = param_vars.begin(); vsi !=
-	param_vars.end(); ++vsi) {
-    ruleSet wrule = mruleset.find(variable(*vsi))->second ;
-    nrule = wrule ;
-    while(nrule != EMPTY) {
-      nrule = EMPTY ;
-      for(ruleSet::const_iterator rsi = wrule.begin(); rsi != wrule.end();
-	  ++rsi) {
-	source = rsi->sources() ;
-	for(variableSet::const_iterator vci = source.begin(); vci !=
-	      source.end(); ++vci) {
-	  if(variable(*vci).get_arg_list().size()) {
-	    variableSet vset =
-	      mvarset.find(variable(*vci).get_info().name)->second ;
-	    for(variableSet::const_iterator ivci = vset.begin(); ivci !=
-		  vset.end(); ++ivci) {
-	      if(mruleset.find(variable(*ivci)) != mruleset.end()) {
-		nrule = mruleset.find(variable(*ivci))->second ;
-		for(ruleSet::const_iterator irsi = nrule.begin(); irsi 
-		      != nrule.end(); ++irsi) {
-		  for(variableSet::const_iterator tvsi =
-			irsi->sources().begin(); tvsi != irsi
-			->sources().end(); ++tvsi)
-		    if(variable(*tvsi).get_arg_list().size())
-		      if(!mvarset.find(variable(*tvsi).get_info().name)->second.inSet(*tvsi)){			
-			newvars += *vci ;
-			
-		      }
+  if(param_vars != EMPTY) {
+    for(variableSet::const_iterator vsi = param_vars.begin(); vsi !=
+	  param_vars.end(); ++vsi) {
+      ruleSet wrule = mruleset.find(variable(*vsi))->second ;
+      nrule = wrule ;
+      while(nrule != EMPTY) {
+	nrule = EMPTY ;
+	for(ruleSet::const_iterator rsi = wrule.begin(); rsi != wrule.end();
+	    ++rsi) {
+	  source = rsi->sources() ;
+	  for(variableSet::const_iterator vci = source.begin(); vci !=
+		source.end(); ++vci) {
+	    if(variable(*vci).get_arg_list().size()) {
+	      variableSet vset =
+		mvarset.find(variable(*vci).get_info().name)->second ;
+	      for(variableSet::const_iterator ivci = vset.begin(); ivci !=
+		    vset.end(); ++ivci) {
+		if(mruleset.find(variable(*ivci)) != mruleset.end()) {
+		  nrule = mruleset.find(variable(*ivci))->second ;
+		  for(ruleSet::const_iterator irsi = nrule.begin(); irsi 
+			!= nrule.end(); ++irsi) {
+		    for(variableSet::const_iterator tvsi =
+			  irsi->sources().begin(); tvsi != irsi
+			  ->sources().end(); ++tvsi)
+		      if(variable(*tvsi).get_arg_list().size())
+			if(!mvarset.find(variable(*tvsi).get_info().name)->second.inSet(*tvsi)){			
+			  newvars += *vci ;
+			  
+			}
+		  }
 		}
 	      }
 	    }
 	  }
 	}
+	wrule = nrule ;
       }
-      wrule = nrule ;
     }
   }
   param_vars += newvars ;
+  
   for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end(); ++rsi) {
     rule_implP rp = rsi->get_rule_implP() ;
     par_rdb.add_rule(rule(rp)) ;

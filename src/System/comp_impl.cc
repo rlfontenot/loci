@@ -5,7 +5,7 @@ namespace Loci {
     do_run = true ;
     if(seq.num_intervals() == 0)
       do_run = false ;
-     
+    
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -28,13 +28,26 @@ namespace Loci {
     control_thread = false ;
   }
   
+  execute_rule::execute_rule(bool output_empty, rule fi, sequence seq, fact_db &facts)
+  {
+    if(output_empty) {
+      do_run = true ;
+      rp = fi.get_rule_implP() ;
+      rule_tag = fi ;
+      rp->initialize(facts) ;
+      exec_seq = seq ;
+      control_thread = false ; 
+    }
+  }
+  
   void execute_rule::execute(fact_db &facts) {
-    if(do_run)
+    if(do_run) {
       rp->compute(exec_seq) ;
+    }
   }
   
   void execute_rule::Print(ostream &s) const {
-    s << rule_tag << " over sequence " << exec_seq << endl ;
+    s << rule_tag << "  over sequence " << exec_seq << endl ;
   }
   
   void impl_compiler::set_var_existence(fact_db &facts) {
@@ -48,8 +61,8 @@ namespace Loci {
   executeP impl_compiler::create_execution_schedule(fact_db &facts) {
     
 #ifndef DEBUG
-    if(exec_seq.size() == 0)
-      return executeP(0) ;
+    //if(exec_seq.size() == 0)
+    //return executeP(0) ;
 #endif
     variableSet targets = impl.targets() ;
     WARN(targets.size() == 0) ;
@@ -66,7 +79,12 @@ namespace Loci {
     }
     if((targets.begin()->get_info()).name == "OUTPUT") {
       CPTR<execute_list> el = new execute_list ;
-      el->append_list(new execute_rule(impl,sequence(exec_seq),facts)) ;
+      if(exec_seq == EMPTY) {
+	bool output_empty = true ;
+	el->append_list(new execute_rule(output_empty,impl,sequence(exec_seq),facts)) ;
+      }
+      else
+	el->append_list(new execute_rule(impl,sequence(exec_seq),facts)) ;
       if(num_threads > 1)
         el->append_list(new execute_thread_sync) ;
       return executeP(el) ;

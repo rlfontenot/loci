@@ -527,12 +527,12 @@ namespace Loci {
     categories(facts,iv) ;
     entitySet e ;
 #ifdef DEBUG
-    debugout << "categories size = " << iv.size()
-                       << " {" << endl ;
-    for(int i = 0; i < iv.size(); ++i) 
-      debugout << iv[i] << endl ;
+    //debugout << "categories size = " << iv.size()
+    //                 << " {" << endl ;
+    //for(int i = 0; i < iv.size(); ++i) 
+    //debugout << iv[i] << endl ;
     
-    debugout << "}" << endl ;
+    //debugout << "}" << endl ;
 #endif
     for(int i = 0; i < iv.size(); ++i) {
       // Within each category:
@@ -623,7 +623,7 @@ namespace Loci {
     df->myid = myid ;
     df->my_entities = g ;
 #ifdef DEBUG
-    debugout << "my_entities = " << g << endl ;
+    // debugout << "my_entities = " << g << endl ;
 #endif
     /*xmit data structure contains the information as to what
       entities are to be send to what processor . The copy data
@@ -716,9 +716,10 @@ namespace Loci {
       }
         
 
-      if(d->copy.size() > 0)
-	MPI_Waitall(d->copy.size(), recv_request, status) ;
-      
+      if(d->copy.size() > 0) {
+	int err = MPI_Waitall(d->copy.size(), recv_request, status) ;
+	FATAL(err != MPI_SUCCESS) ;
+      }
       for(int i = 0; i < d->copy.size(); ++i) {
         int recieved ;
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
@@ -809,8 +810,10 @@ namespace Loci {
       }
         
 
-      if(d->copy.size() > 0)
-	MPI_Waitall(d->copy.size(), recv_request, status) ;
+      if(d->copy.size() > 0) {
+	int err = MPI_Waitall(d->copy.size(), recv_request, status) ;
+	FATAL(err != MPI_SUCCESS) ;
+      }
 
       for(int i = 0; i < d->copy.size(); ++i) {
 #ifdef DEBUG
@@ -898,9 +901,10 @@ namespace Loci {
                  1,MPI_COMM_WORLD) ;
       }
       
-      if(d->xmit.size() > 0)
-	MPI_Waitall(d->xmit.size(), recv_request, status) ;
-      
+      if(d->xmit.size() > 0) {
+	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
+	FATAL(err != MPI_SUCCESS) ;
+      }
       
       for(int i=0;i<d->xmit.size();++i) {
         int recieved ;
@@ -978,10 +982,10 @@ namespace Loci {
                  1,MPI_COMM_WORLD) ;
       }
       
-      if(d->xmit.size() > 0)
-	MPI_Waitall(d->xmit.size(), recv_request, status) ;
-      
-      
+      if(d->xmit.size() > 0) {
+	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
+      	FATAL(err != MPI_SUCCESS) ;
+      }
       for(int i=0;i<d->xmit.size();++i) {
 #ifdef DEBUG
         int recieved ;
@@ -1037,8 +1041,8 @@ namespace Loci {
 	for(k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_buffer[k][0],MAX,MPI_INT, k+1,1, MPI_COMM_WORLD, &recv_request[k] );  
 	
-	MPI_Waitall(MPI_processes-1, recv_request, status) ;
-	
+	int err = MPI_Waitall(MPI_processes-1, recv_request, status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	for(k = 0; k < MPI_processes-1; ++k)
 	  MPI_Get_count(&status[k], MPI_INT, &recv_size[k]) ;
 	
@@ -1086,7 +1090,7 @@ namespace Loci {
     if(facts.isDistributed()) {  
       Map l2g ;
       entitySet::const_iterator ti ;
-      fact_db::distribute_infoP d = new fact_db::distribute_info ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       d = facts.get_distribute_info() ;
       l2g = facts.get_variable("l2g") ;
       if(MPI_processes == 1) {
@@ -1111,8 +1115,8 @@ namespace Loci {
 	for(k = 0; k < MPI_processes-1; k++) {
 	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);
         }
-	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
-	
+	int err = MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	recv_buffer = new int*[MPI_processes-1] ;
         int total_size = 0 ;
         for(int i=0;i<MPI_processes-1;++i)
@@ -1128,8 +1132,8 @@ namespace Loci {
 	for(k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,2, MPI_COMM_WORLD, &recv_request[k] );  
 	
-	MPI_Waitall(MPI_processes-1, recv_request, status) ;
-
+	err = MPI_Waitall(MPI_processes-1, recv_request, status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	for(k = 0; k < MPI_processes-1; ++k)       
 	  for(int i = 0 ; i < recv_size[k]; ++i) {
 	    FATAL(re.inSet(recv_buffer[k][i])) ;
@@ -1192,8 +1196,9 @@ namespace Loci {
 	for(int k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,11, MPI_COMM_WORLD, &size_request[k]);
 	
-	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
-	
+	int err = MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+	FATAL(err != MPI_SUCCESS) ;
+
 	recv_buffer = new int*[MPI_processes-1] ;
         int recv_size_total = 0 ;
         for(int k=0;k<MPI_processes-1;++k) {
@@ -1208,14 +1213,14 @@ namespace Loci {
 	for(int k = 0; k < MPI_processes-1; k++)
 	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,12, MPI_COMM_WORLD, &recv_request[k] );  
 	
-	MPI_Waitall(MPI_processes-1, recv_request, status) ;
-	
+	err = MPI_Waitall(MPI_processes-1, recv_request, status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	for(int k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_size_bytes[k],1,MPI_INT, k+1,14,
 		    MPI_COMM_WORLD, &size_request[k]) ;  
 	
-	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
-	
+	err = MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	
 	for(int k = 0; k < MPI_processes-1; ++k) {      
 	  sequence tempseq ;
@@ -1253,8 +1258,8 @@ namespace Loci {
 	  MPI_Irecv(recv_ptr[i],r_size[i] , MPI_PACKED, i+1, 13,
 		    MPI_COMM_WORLD, &store_request[i]) ;
 	
-	MPI_Waitall(MPI_processes-1, store_request, store_status) ;
-	
+	err = MPI_Waitall(MPI_processes-1, store_request, store_status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	nsp->unpack(my_stuff, my_unpack, my_sz, te) ; 
 	for(int i = 0; i < MPI_processes-1; ++i) {
 	  loc_unpack = 0 ;
@@ -1343,9 +1348,8 @@ namespace Loci {
 	size_status = new MPI_Status[MPI_processes-1] ;
 	for(k = 0; k < MPI_processes-1; k++)
 	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);  
-	
-	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
-	
+	int err = MPI_Waitall(MPI_processes-1, size_request, size_status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	recv_buffer = new int*[MPI_processes-1] ;
 	for(int i = 0; i < MPI_processes-1; ++i) {
 	  recv_buffer[i] = new int[recv_size[i]] ;
@@ -1356,8 +1360,8 @@ namespace Loci {
 	for(k = 0; k < MPI_processes-1; k++) 
 	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,2, MPI_COMM_WORLD, &recv_request[k] );  
 	
-	MPI_Waitall(MPI_processes-1, recv_request, status) ;
-	
+	err = MPI_Waitall(MPI_processes-1, recv_request, status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	for(k = 0; k < MPI_processes-1; ++k) {      
 	  entitySet re ;
 	  for(int i = 0 ; i < recv_size[k]; ++i) 
@@ -1393,7 +1397,8 @@ namespace Loci {
 	  MPI_Isend(send_ptr[i], s_size[i], MPI_PACKED, i+1, 3,
 		    MPI_COMM_WORLD, &store_request[i]) ;
 	}
-	MPI_Waitall(MPI_processes-1, store_request, store_status) ;
+	err = MPI_Waitall(MPI_processes-1, store_request, store_status) ;
+	FATAL(err != MPI_SUCCESS) ;
 	nsp->unpack(my_stuff, my_unpack, my_sz, te) ; 
 	delete [] recv_size ;
 	delete [] recv_buffer ;

@@ -187,8 +187,8 @@ namespace Loci {
 #endif	  
 	}
 #ifdef DEBUG
-        debugout << "allocating " << *vi << " for entities " << all_requests
-                 << endl ;
+        //debugout << "allocating " << *vi << " for entities " << all_requests
+	//       << endl ;
 #endif
         srp->allocate(all_requests) ;
       }

@@ -432,8 +432,8 @@ namespace Loci {
             ci.processor = d->copy[i].proc ;
             ci.send_set = temp ;
             plist.push_back(ci) ;
-          }
-        }
+	  }
+	}
         int send_size = j ;
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
                  2,MPI_COMM_WORLD) ;
@@ -444,7 +444,7 @@ namespace Loci {
         FATAL(err != MPI_SUCCESS) ;
       }
       
-
+      
       for(int i=0;i<d->xmit.size();++i) {
 #ifdef DEBUG
         int recieved ;
@@ -461,7 +461,7 @@ namespace Loci {
             ci.processor = d->xmit[i].proc ;
             ci.recv_set = seq ;
             plist.push_back(ci) ;
-          }
+	  }
         }
         WARN(j!=recieved) ;
       }
@@ -902,14 +902,14 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     for(int i=0;i<nsend;++i) {
       s_size[i] = 0 ;
       for(int j=0;j<send_info[i].second.size();++j) {
-        storeRepP sp = send_vars[i][j] ; //facts.get_variable(send_info[i].second[j].v) ;
+	storeRepP sp = send_vars[i][j] ; //facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
 	/*
-#ifdef DEBUG
-        entitySet rem = send_info[i].second[j].set - sp->domain() ;
-        if(rem != EMPTY)
+	  #ifdef DEBUG
+	  entitySet rem = send_info[i].second[j].set - sp->domain() ;
+	  if(rem != EMPTY)
           debugout << "variable " << send_info[i].second[j].v << " not allocated, but sending for entities " << rem << endl ;
-#endif
+	  #endif
 	*/
       }
       if((s_size[i] > maxs_size[i]) || (s_size[i] == sizeof(int))) {
@@ -931,7 +931,6 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     send_ptr[0] = send_ptr_buf ; 
     for(int i = 1; i < nsend; i++)
       send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
-    
     // Pack the buffer for sending 
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
@@ -980,7 +979,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       else
 	for(int j=0;j<recv_info[i].second.size();++j) {
-	  storeRepP sp = recv_vars[i][j] ; // facts.get_variable(recv_info[i].second[j].v) ;
+	  storeRepP sp = recv_vars[i][j] ; // facts.get_variable(recv_info[i].second[j].v) ; 
 	  sp->unpack(recv_ptr[i], loc_unpack, r_size[i],
 		     recv_info[i].second[j].seq) ;
 	}
@@ -1001,11 +1000,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       int loc_pack = 0 ;
       send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
       for(int j=0;j<send_info[send_index[i]].second.size();++j) {
-        storeRepP sp = send_vars[send_index[i]][j] ; //facts.get_variable(send_info[send_index[i]].second[j].v) ;
+	storeRepP sp = send_vars[send_index[i]][j] ; //facts.get_variable(send_info[send_index[i]].second[j].v) ;
 	sp->pack(send_ptr[send_index[i]], loc_pack,maxs_size[send_index[i]],send_info[send_index[i]].second[j].set);
       }
     }
-    
     // Send Buffer
     for(int i=0;i<resend_size;++i) {
       int proc = send_info[send_index[i]].first ;
@@ -1019,13 +1017,13 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     for(int i=0;i<rerecv_size;++i) {
       int loc_unpack = 0;
       for(int j=0;j<recv_info[recv_index[i]].second.size();++j) {
+	//vset += recv_info[recv_index[i]].second[j].v ;
 	storeRepP sp = recv_vars[recv_index[i]][j] ; //facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
 	sp->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
 		   recv_info[recv_index[i]].second[j].seq) ;
       }
       delete [] recv_ptr[recv_index[i]] ;
     }
-    
     if(rerecv_size > 0) {
       delete [] re_status ;
       delete [] re_request ;

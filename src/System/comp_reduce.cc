@@ -683,7 +683,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     for(int i=0;i<nsend;++i) {
       s_size[i] = 0 ;
       for(int j=0;j<send_info[i].second.size();++j) {
-        storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
+	storeRepP sp = send_vars[i][j] ;//facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
 	/*
 	  #ifdef DEBUG
@@ -717,7 +717,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       int loc_pack = 0 ;
       if(!resend_procs.inSet(send_info[i].first)) {
 	for(int j=0;j<send_info[i].second.size();++j) {
-	  storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
+	  storeRepP sp = send_vars[i][j] ;//facts.get_variable(send_info[i].second[j].v) ;
 	  sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
 	}
       }
@@ -753,8 +753,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       }
       else
 	for(int j=0;j<recv_info[i].second.size();++j) {
-	  storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
-	  
+	  storeRepP sp = recv_vars[i][j] ;//facts.get_variable(recv_info[i].second[j].v) ;
 	  storeRepP sr = sp->new_store(EMPTY) ;
 	  sr->allocate(entitySet(recv_info[i].second[j].seq)) ;
           
@@ -765,7 +764,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	  op->Join(recv_info[i].second[j].seq) ;
 	}
     }
-    
     rerecv_size = rerecv_procs.size() ;
     resend_size = resend_procs.size() ;
     
@@ -783,7 +781,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       int loc_pack = 0 ;
       send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
       for(int j=0;j<send_info[send_index[i]].second.size();++j) {
-        storeRepP sp = facts.get_variable(send_info[send_index[i]].second[j].v) ;
+	storeRepP sp = send_vars[i][j] ;//facts.get_variable(send_info[send_index[i]].second[j].v) ;
 	sp->pack(send_ptr[send_index[i]], loc_pack,maxs_size[send_index[i]],send_info[send_index[i]].second[j].set);
       }
     }
@@ -801,7 +799,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     for(int i=0;i<rerecv_size;++i) {
       int loc_unpack = 0;
       for(int j=0;j<recv_info[recv_index[i]].second.size();++j) {
-        storeRepP sp = facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
+	storeRepP sp = recv_vars[i][j] ;//facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
 	storeRepP sr = sp->new_store(EMPTY) ;
 	sr->allocate(entitySet(recv_info[recv_index[i]].second[j].seq)) ;
 	
@@ -833,15 +831,19 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	  }
 	  s << " to " << send_info[i].first << endl ;
         }
-	s << " Total entities sent for = " << sz << endl ;	
+	s << " Total entities sent = " << sz << endl ;	
       }
+      sz = 0 ;
       if(recv_info.size() > 0) {
         s << "Recv:" << endl ;
         for(int i=0;i<recv_info.size();++i) {
-          for(int j=0;j<recv_info[i].second.size();++j)
+          for(int j=0;j<recv_info[i].second.size();++j) {
             s << "(" << recv_info[i].second[j].v << "," << recv_info[i].second[j].seq << ") " ;
+	    sz += (recv_info[i].second[j].seq).size() ;
+	  }
           s << " from " << recv_info[i].first << endl ;
         }
+	s << " Total entities recieved = " << sz << endl ;	
       }
       s << "}" << endl ;
     }
