@@ -199,6 +199,17 @@ namespace Loci {
       { return get_fact_data(v).aliases ; }
     
     void set_existential_info(variable v,rule f,entitySet x) ;
+
+    entitySet get_existential_info(variable v, rule f) {
+      fact_info &finfo = get_fact_info(v) ;
+      std::map<rule,existential_info>::const_iterator mi ;
+      mi = finfo.exist_map.find(f) ;
+      if(mi!=finfo.exist_map.end()) {
+        return mi->second.exists ;
+      } else
+        return EMPTY ;
+    }
+
     entitySet variable_existence(variable v) ;
     void variable_request(variable v, entitySet e) ;
     entitySet get_variable_request(rule f, variable v) ;
