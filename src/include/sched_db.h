@@ -42,10 +42,19 @@ namespace Loci {
       entitySet existence ;
       entitySet requested ;
       entitySet shadow ; // Used by distributed memory apply rules
-      
-      sched_info() {sched_info_ref = -1 ; }
-      sched_info(int ref)  
-	{ sched_info_ref = ref ; }
+#ifdef COMP_ENT
+      std::map<rule, entitySet> proc_able_map;
+      std::map<rule, entitySet> my_proc_able_map;
+      unsigned int policy;
+      bool use_proc_able;
+#endif
+      sched_info(int ref = -1) {
+	sched_info_ref = ref ;
+#ifdef COMP_ENT
+	policy = 0;
+	use_proc_able = false;
+#endif
+      }
     } ;
     void register_variable(variable v) ;
   
@@ -65,6 +74,9 @@ namespace Loci {
       return v ;
     }
   public:
+#ifdef COMP_ENT
+    enum  duplicate_policy{NEVER, ALWAYS};
+#endif
     sched_db() ;
     ~sched_db() ;
     sched_db(fact_db &facts) ;
@@ -150,7 +162,7 @@ namespace Loci {
       mi = finfo.exist_map.find(f) ;
       if(mi!=finfo.exist_map.end()) {
         return mi->second.exists ;
-      } else
+      } else 
         return EMPTY ;
     }
 
@@ -169,6 +181,48 @@ namespace Loci {
     entitySet image(variable v, entitySet e) ;
     std::pair<entitySet,entitySet> preimage(variable v, entitySet e) ;
 
+#ifdef COMP_ENT
+    void set_policy(variable v, unsigned int p) { get_sched_info(v).policy = p;}
+    unsigned int get_policy(variable v) { return get_sched_info(v).policy; }
+    
+    void add_policy(variable v, duplicate_policy p);
+    
+    bool is_policy(variable v, duplicate_policy p);
+    
+    bool is_use_proc_able(variable v) { return get_sched_info(v).use_proc_able; }
+    
+    void set_use_proc_able(variable v, bool p) { get_sched_info(v).use_proc_able = p; } 
+
+    entitySet get_proc_able_entities(variable v, rule f) {
+      sched_info &finfo = get_sched_info(v);
+      std::map<rule, entitySet>::const_iterator mi;
+      mi = finfo.proc_able_map.find(f);
+      if(mi != finfo.proc_able_map.end())
+	return mi->second;
+      else
+	return EMPTY;
+    }
+
+    void set_proc_able_entities(variable v, rule f, entitySet x) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.proc_able_map[f] += x;
+    }
+
+    entitySet get_my_proc_able_entities(variable v, rule f) {
+      sched_info &finfo = get_sched_info(v);
+      std::map<rule, entitySet>::const_iterator mi;
+      mi = finfo.my_proc_able_map.find(f);
+      if(mi != finfo.my_proc_able_map.end())
+	return mi->second;
+      else
+	return EMPTY;
+    }
+
+    void set_my_proc_able_entities(variable v, rule f, entitySet x) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.my_proc_able_map[f] += x;
+    }
+#endif
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
   } ;
 }
