@@ -90,23 +90,31 @@ namespace Loci {
     return(size) ;
   }
   
-  void MapRepI::pack(void * ptr, int &loc, int &size, const entitySet &e) {
-    warn(true) ; 
-    /*
-      FORALL(e, i) {
-      MPI_Pack(base_ptr[i], sizeof(int), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
-      } ENDFORALL ;
-      
-    */
-      
+  void MapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) 
+  {
+    for( int i = 0; i < eset.num_intervals(); i++) {
+      const Loci::int_type begin = eset[i].first ;
+      int t = eset[i].second - eset[i].first + 1 ;
+      MPI_Pack( &base_ptr[begin], t, MPI_INT, outbuf, outcount, 
+                &position, MPI_COMM_WORLD) ;
+    }
   }
   
-  void MapRepI::unpack(void * ptr, int &loc, int &size, const sequence &seq) {
-    warn(true) ;
-    /*
-      loc = 0 ;
-    */ 
-      
+  void MapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) {
+
+    for(int i = 0; i < seq.num_intervals(); ++i) {
+      if(seq[i].first > seq[i].second) {
+        const Loci::int_type stop = seq[i].second ;
+        for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
+          MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
+                      1 , MPI_INT, MPI_COMM_WORLD) ;
+      } else {
+        Loci::int_type indx = seq[i].first ;
+        int t = seq[i].second - seq[i].first + 1 ;
+        MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
+                    t, MPI_INT, MPI_COMM_WORLD) ;
+      }
+    }
   }
 
   entitySet MapRepI::domain() const {
@@ -600,25 +608,41 @@ namespace Loci {
     dispatch_notify() ;
   }
   
-  int multiMapRepI::pack_size(const  entitySet &e ) {
+  int multiMapRepI::pack_size(const  entitySet &eset ) {
+
     int size = 0 ;
-    store<int> count ;
-    count.allocate(e) ;
-    FORALL(e,i) {
-      count[i] = base_ptr[i+1] - base_ptr[i] ;
-      size += count[i] ;
+    FORALL(eset,i) {
+      size += end(i) - begin(i);
     } ENDFORALL ;
     
-    return( size * sizeof(int)) ;
+    return( (size+eset.size())*sizeof(int) ) ;
   }
-  void multiMapRepI::pack(void * ptr, int &loc, int &size, const entitySet &e) {
-    warn(true) ;
+
+  void multiMapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) {
+
+    int vsize;
+    entitySet :: const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      vsize    = end(*ci) - begin(*ci);
+      MPI_Pack( &vsize, 1, MPI_INT, outbuf,outcount,
+                &position, MPI_COMM_WORLD) ;
+      MPI_Pack( &base_ptr[*ci], vsize, MPI_INT, outbuf,outcount,
+                &position, MPI_COMM_WORLD) ;
+    }
+
   }
   
-  void multiMapRepI::unpack(void * ptr, int &loc, int &size, const sequence &seq) {
-    warn(true) ;
+  void multiMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) {
+
+    int vsize;
+    sequence:: const_iterator ci;
+    for( ci = seq.begin(); ci != seq.end(); ++ci) {
+          MPI_Unpack( inbuf, insize, &position, &vsize,
+                      1, MPI_INT, MPI_COMM_WORLD) ;
+          MPI_Unpack( inbuf, insize, &position, &base_ptr[*ci],
+                      vsize, MPI_INT, MPI_COMM_WORLD) ;
+    }
   }   
-      
     
   entitySet multiMapRepI::domain() const {
     return store_domain ;
@@ -730,10 +754,12 @@ namespace Loci {
     entitySet eset;
     entitySet::const_iterator ci;
 
+    HDF5_ReadDomain(group_id, eset);
+
     //-------------------------------------------------------------------------
     // Size of each main container....
     //--------------------------------------------------------------------------
-    vDatatype  = H5Tcopy(H5T_NATIVE_INT);
+    vDatatype  = H5T_NATIVE_INT;
     vDataset   = H5Dopen(group_id,"ContainerSize");
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
@@ -749,7 +775,6 @@ namespace Loci {
       container[*ci] = ibuf[indx++];
 
     delete [] ibuf;
-    H5Tclose(vDatatype);
     H5Dclose(vDataset);
     H5Sclose(vDataspace);
 
@@ -814,7 +839,6 @@ namespace Loci {
           base_ptr[i][j] = data[indx++];
       }
     }
-    H5Tclose(vDatatype);
     H5Dclose(vDataset);
     H5Sclose(vDataspace);
     H5Sclose(mDataspace);

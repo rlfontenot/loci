@@ -229,55 +229,22 @@ namespace Loci {
 
   //********************************************************************
 
-  void dMapRepI::pack(void *ptr, int &loc, int &size, const entitySet &e) 
+  void dMapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
-    int  *data;
-    
-    data = ( int *) malloc( e.size()*sizeof(int));
-    if( data == NULL ) {
-      cout << "Error: Cann't allocate memory for packing data " << endl;
-      return;
-    }
-    
-    FORALL(e, i) {
-      data[i] = attrib_data[i];
-    } ENDFORALL ;
-
-    MPI_Pack(data, e.size()*sizeof(int), MPI_BYTE, ptr, size, &loc, 
-             MPI_COMM_WORLD) ;
-   
-    free ( data );
+    entitySet :: const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci)
+      MPI_Pack( &attrib_data[*ci], 1, MPI_INT, outbuf,outcount,
+                &position, MPI_COMM_WORLD) ;
   }
 
   //********************************************************************
 
-  void dMapRepI::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
+  void dMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) 
   {
-
-    Loci :: int_type   indx, jndx;
-    int                numentity, numBytes;
-    int                *buf;
-
-    for(int i = 0; i < seq.num_intervals(); ++i) {
-
-      numentity =  abs(seq[i].second - seq[i].first) + 1; 
-      numBytes  =  numentity*sizeof(int);
-      buf       =  (int *) malloc( numBytes );
-
-      MPI_Unpack(ptr, size, &loc, buf, numBytes, MPI_BYTE, MPI_COMM_WORLD) ;
-
-      jndx = 0;
-      if(seq[i].first > seq[i].second) {
-        for(indx = seq[i].first; indx >= seq[i].second; --indx) {
-          attrib_data[indx] =  buf[jndx++];
-        }
-      } else {
-        for(indx = seq[i].first; indx <= seq[i].second; ++indx){
-          attrib_data[indx] =  buf[jndx++];
-        }
-      }
-      free(buf);
-    }
+    sequence:: const_iterator ci;
+    for( ci = seq.begin(); ci != seq.end(); ++ci)
+          MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
+                      1, MPI_INT, MPI_COMM_WORLD) ;
   }
 
   //********************************************************************

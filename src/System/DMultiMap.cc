@@ -297,87 +297,38 @@ namespace Loci
   
   //***************************************************************************
   
-  void dmultiMapRepI::pack( void *ptr, int &loc, int &size, const entitySet &e) 
+  void dmultiMapRepI::pack( void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
-    int   *buf;
-    int   j, numBytes, numentity = e.size();
-    
-    entitySet  :: const_iterator ei;
-    numBytes = pack_size( e );
-    buf   = ( int *) malloc( numBytes );
-    if( buf == NULL ) {
-      cout << "Warning: Can't allocate memory for packing data " << endl;
-      return;
+    int vsize;
+    entitySet :: const_iterator ci;
+    std::vector<int>   newVec;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      vsize  = attrib_data[*ci].size();
+      MPI_Pack( &vsize, 1, MPI_INT, outbuf,outcount,
+                &position, MPI_COMM_WORLD) ;
+      MPI_Pack( &attrib_data[*ci][0], vsize, MPI_INT, outbuf,outcount,
+                &position, MPI_COMM_WORLD) ;
     }
-    vector<int>   newVec;
-    hash_map<int,vector<int> > :: const_iterator  ci;
-    int indx = 0;
-    for( ei = e.begin(); ei != e.end(); ++ei) {
-      ci = attrib_data.find( *ei );
-      if( ci != attrib_data.end() ) {
-        newVec = ci->second;
-        buf[indx++] = newVec.size();
-        for( j = 0; j < newVec.size(); j++) 
-          buf[indx++] = newVec[j];
-      }
-    }
-    
-    //------------------------------------------------------------------------
-    // At present, we are packing everything at once, hoping that size of
-    // buffer is not very large :). May have to change later.
-    //------------------------------------------------------------------------
 
-    MPI_Pack(buf, numBytes, MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
-
-    free( buf );
   }
 
   //***************************************************************************
 
-  void dmultiMapRepI::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
+  void dmultiMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) 
   {
-    int                numBytes;
-    int                *buf;
-    entitySet          eset;
+    sequence:: const_iterator ci;
+    std::vector<int>   newVec;
 
-    //-------------------------------------------------------------------------
-    // Unfortunately, pack size is known only for entitySet. So create it from
-    // sequence.
-    //-------------------------------------------------------------------------
-  
-    sequence  :: const_iterator  si;
-    for( si = seq.begin(); si != seq.end(); ++si) 
-      eset +=  *si;
-
-    numBytes = pack_size( eset );
-
-    buf   = ( int *) malloc( numBytes );
-    if( buf == NULL ) {
-      cout << "Warning: Cann't allocate memory for packing data " << endl;
-      return;
+    int vsize;
+    for( ci = seq.begin(); ci != seq.end(); ++ci){
+         MPI_Unpack( inbuf, insize, &position, &vsize,
+                     1, MPI_INT, MPI_COMM_WORLD) ;
+         newVec.resize(vsize);
+         MPI_Unpack( inbuf, insize, &position, &newVec[0],
+                      vsize, MPI_INT, MPI_COMM_WORLD) ;
+         attrib_data[*ci] = newVec;
     }
 
-    MPI_Unpack(ptr, size, &loc, buf, numBytes, MPI_BYTE, MPI_COMM_WORLD) ;
-
-    hash_map<int,vector<int> > :: const_iterator  ci;
-
-    //-------------------------------------------------------------------------
-    // At present, I am clearing the attrib_data for the entity, where unpack is
-    // being done. I have no idea whether it will lead to some problems later.
-    // Chaman Singh Verma :   25 th May 2001
-    //-------------------------------------------------------------------------
- 
-    int indx = 0;
-    int vecsize;
-
-    for( si = seq.begin(); si != seq.end(); ++si) {
-      attrib_data[*si].clear();
-      vecsize = buf[indx++];
-      for( int i = 0; i < vecsize; i++)
-        attrib_data[*si].push_back( buf[indx++] );
-    }
-
-    free( buf );
   }   
       
   //**************************************************************************
