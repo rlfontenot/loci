@@ -18,14 +18,15 @@
 #include <functional>
 #include <hdf5_readwrite.h>
 
-#include <Tools/hash_map.h>
+#include <Tools/block_hash.h>
+
 
 namespace Loci {
 
   class Map ;
 
   template<class T> class dstoreRepI : public storeRep {
-    HASH_MAP(int,T)      attrib_data;
+    block_hash<T>  attrib_data;
 
     void  hdf5read( hid_t group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( hid_t group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
@@ -68,8 +69,8 @@ namespace Loci {
     virtual void readhdf5( hid_t group, entitySet &user_eset) ;
     virtual void writehdf5( hid_t group,entitySet& en) const ;
     virtual entitySet domain() const;
-    HASH_MAP(int,T) *get_attrib_data() { return &attrib_data; }
-    const HASH_MAP(int,T) *get_attrib_data() const { return &attrib_data; }
+    block_hash<T> *get_attrib_data() { return &attrib_data; }
+    const block_hash<T> *get_attrib_data() const { return &attrib_data; }
   } ;
 
   //*************************************************************************/
@@ -83,12 +84,10 @@ namespace Loci {
     entitySet remove = dom - eset ;
     entitySet add = eset - dom ;
 
-    for( ci = remove.begin(); ci != remove.end(); ++ci)
-         attrib_data.erase(*ci);
-
+    attrib_data.erase_set(remove) ;
 
     for( ci = add.begin(); ci != add.end(); ++ci)
-      attrib_data[*ci] = T();
+      attrib_data.access(*ci) ;
   
     dispatch_notify() ;
   }
@@ -104,12 +103,7 @@ namespace Loci {
     s << '{' << dom << std::endl ;
 
     for(it = dom.begin();it!=dom.end();++it) {
-      typename HASH_MAP(int,T)::const_iterator ci;
-
-      ci = attrib_data.find(*it) ;
-      fatal(ci == attrib_data.end()) ;
-      
-      Loci::streamoutput(&(ci->second),1,s) ;
+      Loci::streamoutput(&(attrib_data.elem(*it)),1,s) ;
     }
 
     s << '}' << std::endl ;
@@ -136,8 +130,7 @@ namespace Loci {
     s >> e ;
         
     FORALL(e,ii) {
-      attrib_data[ii] = T() ;
-      Loci::streaminput(&attrib_data[ii],1,s) ;
+      Loci::streaminput(&attrib_data.access(ii),1,s) ;
     } ENDFORALL ;
         
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
@@ -161,19 +154,7 @@ namespace Loci {
   template<class T>  
   entitySet dstoreRepI<T>::domain() const 
   {
-    typename HASH_MAP(int,T)::const_iterator    ci;
-    entitySet          storeDomain;
-    std::vector<int>        vec;
-
-    for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci ) 
-      vec.push_back( ci->first ) ;
-
-    std::sort( vec.begin(), vec.end() );
-
-    for( int i = 0; i < vec.size(); i++) 
-      storeDomain +=  vec[i];
-
-    return storeDomain ;
+    return attrib_data.domain() ;
   }
 
   //*************************************************************************/
@@ -196,7 +177,7 @@ namespace Loci {
 
   template<class T> class dstore : public store_instance {
     typedef dstoreRepI<T>  storeType ;
-    HASH_MAP(int,T)       *attrib_data;
+    block_hash<T>       *attrib_data;
   public:
     typedef T containerType ;
     dstore() { setRep(new storeType); }
@@ -220,23 +201,15 @@ namespace Loci {
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
 
     T &elem(int indx) {
-      return( (*attrib_data)[indx] );
+      return attrib_data->access(indx) ;
     }
 
-    const T &elem(int indx) const {
-      typename HASH_MAP(int,T)::const_iterator  citer;
-
-      citer = attrib_data->find(indx);
-      fatal( citer == attrib_data->end() ) ;
-
-      return citer->second ;
-    }
+    const T &elem(int indx) const { return attrib_data->elem(indx) ; }
   
-    T &operator[](int indx) { 
-      return elem(indx); 
-    }
-
+    T &operator[](int indx) { return elem(indx); }
     const T&operator[](int indx) const { return elem(indx); }
+    const T&operator()(int indx) const { return elem(indx) ; }
+    
 
   } ;
 
@@ -272,7 +245,7 @@ namespace Loci {
 
   template<class T> class const_dstore : public store_instance {
     typedef dstoreRepI<T> storeType ;
-    HASH_MAP(int,T)      *attrib_data;
+    block_hash<T>      *attrib_data;
   public:
     typedef T containerType ;
     const_dstore() { setRep(new storeType) ; }
@@ -302,15 +275,11 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
 
     const T &elem(int indx) const {
-      typename HASH_MAP(int,T)::const_iterator  citer;
-
-      citer = attrib_data->find(indx);
-
-      fatal( citer == attrib_data->end() ) ;
-
-      return citer->second ;
+      return attrib_data->elem(indx) ;
     } 
     const T&operator[](int indx) const { return elem(indx); }
+
+    const T&operator()(int indx) const { return elem(indx) ; }
       
   } ;
 
@@ -793,9 +762,7 @@ namespace Loci {
 
     int indx = 0;
     for( ei = eset.begin(); ei != eset.end(); ++ei) {
-      ci = attrib_data.find(*ei);
-      if( ci == attrib_data.end() )  continue;
-      data[indx++]  = ci->second;
+      data[indx++]  = attrib_data.elem(*ei) ;
     }
 
     //-------------------------------------------------------------------------
@@ -842,14 +809,11 @@ namespace Loci {
     int     stateSize, maxStateSize = 0;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      iter = attrib_data.find(*ci);
-      if( iter != attrib_data.end() ) {
-        Obj = iter->second;
-        typename schema_traits::Converter_Type cvtr( Obj );
-        stateSize    = cvtr.getSize();
-        arraySize   += stateSize;
-        maxStateSize = max( maxStateSize, stateSize );
-      }
+      Obj = attrib_data.elem(*ci) ;
+      typename schema_traits::Converter_Type cvtr( Obj );
+      stateSize    = cvtr.getSize();
+      arraySize   += stateSize;
+      maxStateSize = max( maxStateSize, stateSize );
     } 
 
     //-----------------------------------------------------------------------------
@@ -861,13 +825,10 @@ namespace Loci {
 
     size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      iter = attrib_data.find(*ci);
-      if( iter != attrib_data.end() ) {
-        Obj = iter->second;
-        typename schema_traits::Converter_Type cvtr( Obj );
-        cvtr.getState( data+indx, stateSize);
-        indx +=stateSize ;
-      }
+      Obj = attrib_data.elem(*ci) ;
+      typename schema_traits::Converter_Type cvtr( Obj );
+      cvtr.getState( data+indx, stateSize);
+      indx +=stateSize ;
     }
 
     //--------------------------------------------------------------------
@@ -897,9 +858,7 @@ namespace Loci {
 
     indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      iter = attrib_data.find(*ci);
-      if( iter == attrib_data.end() ) continue;
-      Obj = iter->second;
+      Obj = attrib_data.elem(*ci) ;
       typename schema_traits::Converter_Type cvtr( Obj );
       vbucket[indx++] =  cvtr.getSize();
     }
