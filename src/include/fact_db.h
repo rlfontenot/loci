@@ -35,7 +35,8 @@ namespace Loci {
       store_refP data_rep ;
       bool ismap ;
       MapRepP minfo ;
-      std::map<entitySet,entitySet> imageMap,preimageMap ;
+      std::map<entitySet,entitySet> imageMap ;
+      std::map<entitySet,std::pair<entitySet,entitySet> > preimageMap ;
       fact_data() {} 
       fact_data(variable v, storeRepP &st)
       { aliases += v, data_rep = new store_ref ; (*data_rep) = st ; 
@@ -158,7 +159,7 @@ namespace Loci {
     
     bool is_a_Map(variable v) ;
     entitySet image(variable v, entitySet e) ;
-    entitySet preimage(variable v, entitySet e) ;
+    std::pair<entitySet,entitySet> preimage(variable v, entitySet e) ;
 
     ostream &write(ostream &s) const ;
     istream &read(istream &s) ;

@@ -3,7 +3,10 @@
 #include <stream.h>
 
 namespace Loci {
-    
+
+  using std::pair ;
+  using std::make_pair ;
+  
   MapRep::~MapRep() {}
 
   store_type MapRep::RepType() const { return MAP ; }
@@ -44,13 +47,14 @@ namespace Loci {
     return codomain ;
   }
 
-  entitySet MapRepI::preimage(const entitySet &codomain) const  {
+  pair<entitySet,entitySet>
+    MapRepI::preimage(const entitySet &codomain) const  {
     entitySet domain ;
     FORALL(store_domain,i) {
       if(codomain.inSet(base_ptr[i]))
         domain += i ;
     } ENDFORALL ;
-    return domain ;
+    return make_pair(domain,domain) ;
   }
 
   multiMap MapRepI::get_map() {
@@ -185,16 +189,23 @@ namespace Loci {
     return codomain ;
   }
 
-  entitySet multiMapRepI::preimage(const entitySet &codomain) const  {
-    entitySet domain ;
+  pair<entitySet,entitySet>
+    multiMapRepI::preimage(const entitySet &codomain) const  {
+    entitySet domaini,domainu ;
     FORALL(store_domain,i) {
-      bool val = true ;
-      for(const int *ip = begin(i);ip!= end(i);++ip)
-        val = val && codomain.inSet(*ip) ;
-      if(val)
-        domain += i ;
+      bool vali = true ;
+      bool valu = false ;
+      for(const int *ip = begin(i);ip!= end(i);++ip) {
+        bool in_set = codomain.inSet(*ip) ;
+        vali = vali && in_set ;
+        valu = valu || in_set ;
+      }
+      if(vali)
+        domaini += i ;
+      if(valu)
+        domainu += i ;
     } ENDFORALL ;
-    return domain ;
+    return make_pair(domaini,domainu) ;
   }
 
   multiMap multiMapRepI::get_map() {

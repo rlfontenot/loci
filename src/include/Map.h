@@ -21,7 +21,8 @@ namespace Loci {
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
-    virtual entitySet preimage(const entitySet &codomain) const ;
+    virtual std::pair<entitySet,entitySet>
+      preimage(const entitySet &codomain) const ;
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
@@ -132,7 +133,8 @@ namespace Loci {
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
-    virtual entitySet preimage(const entitySet &codomain) const ;
+    virtual std::pair<entitySet,entitySet>
+      preimage(const entitySet &codomain) const ;
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
@@ -175,16 +177,24 @@ namespace Loci {
     return codomain ;
   }
 
-  template<int M> entitySet MapVecRepI<M>::preimage(const entitySet &codomain) const {
-    entitySet domain ;
+  template<int M> std::pair<entitySet,entitySet>
+    MapVecRepI<M>::preimage(const entitySet &codomain) const {
+    entitySet domaini ;
+    entitySet domainu ;
     FORALL(store_domain,i) {
-      bool val = true ;
-      for(int j=0;j<M;++j) 
-        val = val && codomain.inSet(base_ptr[i][j]) ;
-      if(val)
-        domain += i ;
+      bool vali = true ;
+      bool valu = false ;
+      for(int j=0;j<M;++j) {
+        bool in_set = codomain.inSet(base_ptr[i][j]) ;
+        vali = vali && in_set ;
+        valu = valu || in_set ;
+      }
+      if(vali)
+        domaini += i ;
+      if(valu)
+        domainu += i ;
     } ENDFORALL ;
-    return domain ;
+    return std::make_pair(domaini,domainu) ;
   }
 
   
@@ -353,7 +363,8 @@ namespace Loci {
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
-    virtual entitySet preimage(const entitySet &codomain) const ;
+    virtual std::pair<entitySet,entitySet>
+      preimage(const entitySet &codomain) const ;
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;

@@ -8,6 +8,8 @@ using std::make_pair ;
 using std::vector ;
 using std::list ;
 using std::sort ;
+using std::pair ;
+using std::make_pair ;
 
 #include "parse.h"
 
@@ -322,11 +324,12 @@ namespace Loci {
       return fdata.imageMap[e] = get_fact_data(v).minfo->image(e) ;
   }
 
-  entitySet fact_db::preimage(variable v, entitySet e) {
+  pair<entitySet,entitySet> fact_db::preimage(variable v, entitySet e) {
     fact_data &fdata = get_fact_data(v) ;
     if(!fdata.ismap)
-      return EMPTY ;
-    map<entitySet,entitySet>::const_iterator ii = fdata.preimageMap.find(e) ;
+      return make_pair(EMPTY,EMPTY) ;
+    map<entitySet,pair<entitySet,entitySet> >::const_iterator ii ;
+    ii = fdata.preimageMap.find(e) ;
     if(ii != fdata.preimageMap.end())
       return ii->second ;
     else

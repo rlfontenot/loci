@@ -310,6 +310,7 @@ void set_var_types(fact_db &facts, const digraph &dg) {
     const rule_impl::info &info = pick.get_info().desc ;
     storeRepP st = pick.get_info().rule_impl->get_store(*vi) ;
     facts.set_variable_type(*vi,st) ;
+    
   }
 
   // We now have to deal with internally generated rules that do operations
@@ -382,6 +383,48 @@ void set_var_types(fact_db &facts, const digraph &dg) {
     }
   }
 
+  // Check to make sure there are no type conflicts, loop over all
+  // rules that are not internally generated.
+  bool type_error = false ;
+  ruleSet::const_iterator ri ;
+  ruleSet rs = all_rules ;
+  rs -= qualified_rules ;
+  for(ri=rs.begin();ri!=rs.end();++ri) {
+    variableSet varcheck ;
+    const rule_impl::info &finfo = ri->get_info().desc ;
+
+    // Collect all variables for which are actually read or written in the class
+    set<vmap_info>::const_iterator i ;
+    for(i=finfo.sources.begin();i!=finfo.sources.end();++i) {
+      for(int j=0;j<i->mapping.size();++j)
+        varcheck += i->mapping[j] ;
+      varcheck += i->var ;
+    }
+    for(i=finfo.targets.begin();i!=finfo.targets.end();++i) {
+      for(int j=0;j<i->mapping.size();++j)
+        varcheck += i->mapping[j] ;
+      varcheck += i->var ;
+      for(int k=0;k<i->assign.size();++k) {
+        varcheck -= i->assign[k].first ;
+        varcheck += i->assign[k].second ;
+      }
+    }
+
+    variableSet::const_iterator vi ;
+    for(vi = varcheck.begin();vi!=varcheck.end();++vi) {
+      storeRepP rule_type = ri->get_rule_implP()->get_store(*vi)->getRep() ;
+      storeRepP fact_type = facts.get_variable(*vi)->getRep() ;
+      if(typeid(*rule_type) != typeid(*fact_type)) {
+        cerr << "variable type mismatch for variable " << *vi << " in rule "
+             << *ri << endl ;
+        cerr << "fact database has type " << typeid(*fact_type).name() << endl ;
+        cerr << "rule has type " << typeid(*rule_type).name() << endl ;
+        type_error = true ;
+      }
+    }
+  }
+  if(type_error)
+    exit(-1) ;
 }
 
 
@@ -395,7 +438,7 @@ entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts) {
     entitySet working = ~EMPTY ;
     for(vi=mi->begin();vi!=mi->end();++vi) {
       FATAL(!facts.is_a_Map(*vi)) ;
-      working &= facts.preimage(*vi,sources) ;
+      working &= facts.preimage(*vi,sources).first ;
     }
     sources = working ;
   }
@@ -465,7 +508,7 @@ entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
     entitySet working = EMPTY ;
     for(vi=mi->begin();vi!=mi->end();++vi) {
       FATAL(!facts.is_a_Map(*vi)) ;
-      working |= facts.preimage(*vi,targets) ;
+      working |= facts.preimage(*vi,targets).second ;
     }
     targets = working ;
   }
@@ -753,6 +796,33 @@ void apply_calculator::process_var_requests(fact_db &facts) {
     compute |= vmap_target_requests(*si,tvarmap,facts) ;
   }
 
+  for(si=finfo.targets.begin();si!=finfo.targets.end(); ++si) {
+    variableSet::const_iterator vi ;
+    entitySet comp = compute ;
+    vector<variableSet>::const_iterator mi ;
+    for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
+      entitySet working ;
+      for(vi=mi->begin();vi!=mi->end();++vi) {
+        FATAL(!facts.is_a_Map(*vi)) ;
+        working |= facts.image(*vi,comp) ;
+      }
+      comp = working ;
+    }
+    for(vi=si->var.begin();vi!=si->var.end();++vi) {
+      if((comp - facts.variable_existence(*vi)) != EMPTY) {
+        cerr << "ERROR: Apply rule " << apply <<  endl
+             << " output mapping forces application to entities where unit does not exist." << endl ;
+        cerr << "error occurs for entities " <<
+          entitySet(comp-facts.variable_existence(*vi)) << endl ;
+        cerr << "error occurs when applying to variable " << *vi << endl;
+        cerr << "error is not recoverable, terminating scheduling process"
+             << endl ;
+        exit(-1) ;
+      }
+    }
+  }
+
+  
   entitySet srcs = ~EMPTY ;
   entitySet cnstrnts = ~EMPTY ;
   for(si=finfo.sources.begin();si!=finfo.sources.end();++si)
@@ -913,7 +983,7 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
   entitySet domain = fctrl.nr_sources + sdelta ;
 
   for(int j=read_maps.size()-1;j>=0;--j) {
-    entitySet newdomain = facts.preimage(rmap.mapvar[j],domain) ;
+    entitySet newdomain = facts.preimage(rmap.mapvar[j],domain).first ;
 #ifdef VERBOSE
     cout << "j = " << j << ", domain = " << domain << ", newdomain = "
          << newdomain << endl ;
@@ -923,7 +993,7 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
   }
   
   for(int j=rmap.mapvec.size()-1;j>=0;--j)
-    sdelta = rmap.mapvec[j]->preimage(sdelta) ;
+    sdelta = rmap.mapvec[j]->preimage(sdelta).first ;
   sdelta &= fctrl.nr_sources ;
   entitySet tdelta = sdelta ;
   for(int j=0;j<tmap.mapvec.size();++j)
@@ -1159,7 +1229,7 @@ void recurse_calculator::set_var_existence(fact_db &facts) {
       for(int i=0;i<fctrl.recursion_maps.size();++i) {
         entitySet sdelta = tvar_computed[fctrl.recursion_maps[i].v] ;
         for(int j=fctrl.recursion_maps[i].mapvec.size()-1;j>=0;--j)
-          sdelta = fctrl.recursion_maps[i].mapvec[j]->preimage(sdelta) ;
+          sdelta = fctrl.recursion_maps[i].mapvec[j]->preimage(sdelta).first ;
         fctrl.recursion_maps[i].total += sdelta ;
         srcs &= fctrl.recursion_maps[i].total ;
       }
