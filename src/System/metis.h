@@ -9,7 +9,9 @@ typedef int idxtype ;
 typedef short idxtype ;
 #endif
 
+#ifdef __cplusplus
 extern "C" {
+#endif
 /* estmem.c */
 void METIS_EstimateMemory(int *, idxtype *, idxtype *, int *, int *, int *);
 
@@ -123,6 +125,7 @@ void METIS_EdgeComputeSeparator(int *, idxtype *, idxtype *, idxtype *, idxtype 
 /* pmetis.c */
 void METIS_PartGraphRecursive(int *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, int *, int *, idxtype *); 
 void METIS_WPartGraphRecursive(int *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, float *, int *, int *, idxtype *); 
+#ifdef __cplusplus
 }
-
+#endif
 #endif
