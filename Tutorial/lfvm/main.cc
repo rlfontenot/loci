@@ -17,11 +17,14 @@ int main(int argc, char *argv[])
   int nthreads = 1;
   // do not write out facts by default
   bool write_facts = false;
+  // do not write out rules by default
+  bool write_rules = false;
 
   // Parse out the LOCI specific arguments.
   //	-q queryvar	make alternative queries
   //	-t numthreads	specify how many threads to use for parallel processing
   //	-fact		print out the fact database during program execution
+  //	-rule		print out the rule database during program execution
   for (int i=1; i<argc; i++) {
     if (!strcmp(argv[i], "-q") && (i+1) < argc) {
       query = argv[i+1];
@@ -41,6 +44,14 @@ int main(int argc, char *argv[])
     }
     else if (!strcmp(argv[i], "-fact")) {
       write_facts = !write_facts;
+      for (int j=0; j<argc-i-1; j++) {
+	argv[i+j] = argv[i+j+1];
+      }
+      argc -= 1;
+      i--;
+    }
+    else if (!strcmp(argv[i], "-rule")) {
+      write_rules = !write_rules;
       for (int j=0; j<argc-i-1; j++) {
 	argv[i+j] = argv[i+j+1];
       }
@@ -125,30 +136,26 @@ int main(int argc, char *argv[])
   rule_db rdb ;
   // Add all of the rules that were inserted into the global_rule_list
   // by register_rule<> types into the rule database rdb
-  rdb.add_rules(Loci::init_rule_list) ;
+  rdb.add_rules(global_rule_list) ;
 
   int num_procs = Loci::MPI_processes ;
   int myid = Loci::MPI_rank ;
-  
-  std::vector<entitySet> partition = Loci::generate_distribution(facts,rdb) ;
-  Loci::distribute_facts(partition, facts, rdb) ;
 
-  executeP schedule = create_execution_schedule(rdb,facts,query) ;
+  // Do some output if processor 0
+  if (myid == 0) {
+    // Write out the initial fact database if -fact
+    if (write_facts) {
+      char fn_facts[11];
+      strcpy(fn_facts, "facts_init");
+      std::ofstream of_facts(fn_facts);
 
-    // Do some output if processor 0
-    if (myid == 0) {
-      // Write out the initial fact database if -fact
-      if (write_facts) {
-	char fn_facts[11];
-	strcpy(fn_facts, "facts_init");
-	std::ofstream of_facts(fn_facts);
+      facts.write(of_facts);
 
-	facts.write(of_facts);
+      of_facts.close();
+    }
 
-	of_facts.close();
-      }
-
-      // Write out the rule database
+    // Write out the rule database if -rule
+    if (write_rules) {
       char fn_rules[6];
       strcpy(fn_rules, "rules");
       std::ofstream of_rules(fn_rules);
@@ -161,6 +168,12 @@ int main(int argc, char *argv[])
 
       of_rules.close();
     }
+  }
+
+  std::vector<entitySet> partition = Loci::generate_distribution(facts,rdb) ;
+  Loci::distribute_facts(partition, facts, rdb) ;
+
+  executeP schedule = create_execution_schedule(rdb,facts,query) ;
 
   if(schedule == 0) {
     std::cerr << "unable to produce execution schedule to satisfy query for "
