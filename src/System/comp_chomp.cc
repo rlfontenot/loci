@@ -220,6 +220,14 @@ namespace Loci {
     for(i=chomp_comp.begin();i!=chomp_comp.end();++i) {
       rule r = i->first ;
       rule_compilerP bc = i->second ;
+#ifdef COMP_ENT
+      const rule_impl::info &rinfo = r.get_info().desc ;
+      std::set<vmap_info>::const_iterator si ;
+      for(si = rinfo.targets.begin(); si != rinfo.targets.end(); si++)
+        for(variableSet::const_iterator vi = si->var.begin();
+            vi != si->var.end(); vi++)
+          scheds.add_policy(*vi, sched_db::NEVER);
+#endif
 
       if(r.get_info().rule_impl->get_rule_class() != rule_impl::APPLY)
         existential_rule_analysis(r,facts,scheds) ;
