@@ -6,7 +6,8 @@
 #include <Tools/cptr.h>
 
 namespace Loci {
-
+  using std::cerr ;
+  using std::endl ;
   class NPTR_type : public CPTR_type {
     mutable eventDispatcher ed ;
   public:
