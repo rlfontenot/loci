@@ -12,6 +12,7 @@
 #include <DMultiStore.h>
 #include <store.h>
 #include <vector>
+#include <dist_internal.h>
 
 namespace Loci {
   extern double total_memory_usage ;

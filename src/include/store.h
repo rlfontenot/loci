@@ -13,6 +13,7 @@
 #include <hdf5_readwrite.h>
 #include <mpi.h>
 #include <string.h>
+#include <dist_internal.h>
 
 namespace Loci {
   extern int MPI_processes;

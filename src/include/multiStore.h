@@ -20,6 +20,7 @@
 
 #include <Map.h>
 #include <multiMap.h>
+#include <dist_internal.h>
 
 namespace Loci {
 
