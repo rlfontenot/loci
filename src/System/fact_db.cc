@@ -17,7 +17,6 @@ using std::vector ;
 using std::list ;
 using std::sort ;
 using std::pair ;
-using std::make_pair ;
 
 using std::istream ;
 using std::ostream ;
@@ -197,7 +196,6 @@ namespace Loci {
     }
   }
   
-  
   variableSet fact_db::get_typed_variables() const {
     std::map<variable, fact_info>::const_iterator mi ;
     std::map<variable, variable>::const_iterator si ;
@@ -209,10 +207,14 @@ namespace Loci {
       all_vars += si->first ;
     return all_vars ;
   }
-    
 
-  std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(int size) {
-    dist_from_start = 1 ;
+  std::pair<entitySet, entitySet> fact_db::get_dist_alloc(int size) {
+
+    if(!dist_from_start) {
+      dist_from_start = 1 ;
+      distributed_info = new distribute_info;
+    }
+
     if(MPI_processes > 1) {
       int* send_buf = new int[MPI_processes] ;
       int* size_send = new int[MPI_processes] ;
@@ -260,6 +262,53 @@ namespace Loci {
     maximum_allocated += size ;
     init_ptn[0] += alloc ;
     return (make_pair(alloc, alloc)) ;
+  }
+    
+  void fact_db::update_remap(const std::vector<std::pair<int, int> > &remap_update) {
+    warn(!dist_from_start);
+    fatal(distributed_info == NULL);
+    
+    for(std::vector<std::pair<int, int> >::const_iterator vi = remap_update.begin(); vi != remap_update.end(); vi++) {
+      distributed_info->remap[vi->first] = vi->second;
+    }
+  }
+
+  std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(int size) {
+    pair<entitySet, entitySet> allocation = get_dist_alloc(size);
+    vector<pair<int, int> > remap_update;
+   
+    FORALL(allocation.first, ai) {
+      remap_update.push_back(make_pair(ai, ai));
+    }ENDFORALL;
+
+    update_remap(remap_update);    
+    return allocation;
+  }
+
+  std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(const std::vector<int> &remap_entities) {
+    pair<entitySet, entitySet> allocation = get_dist_alloc(remap_entities.size());
+    vector<pair<int, int> > remap_update;
+    
+    int i = 0;   
+    FORALL(allocation.first, ai) {
+      remap_update.push_back(make_pair(remap_entities[i], ai));
+      i++;
+    }ENDFORALL;
+
+    update_remap(remap_update);
+    return allocation;
+  }
+
+  std::pair<entitySet, entitySet> fact_db::get_distributed_alloc(int size, int offset) {  
+    pair<entitySet, entitySet> allocation = get_dist_alloc(size);
+    vector<pair<int, int> > remap_update;
+    
+    FORALL(allocation.first, ai) {
+      remap_update.push_back(make_pair(ai+offset, ai));
+    }ENDFORALL;
+    
+    update_remap(remap_update);
+    return allocation;
   }
   
   storeRepP fact_db::get_variable(variable v) {

@@ -48,7 +48,6 @@ namespace Loci {
       int copy_total_size ;
       int xmit_total_size ;
       dMap remap ;
-      std::vector<entitySet> chop_ptn ;
       distribute_info() {} ;
     } ;
     std::vector<entitySet> init_ptn ;
@@ -71,6 +70,8 @@ namespace Loci {
 
     fact_db(const fact_db &f) ;
     fact_db &operator=(const fact_db &f) ;
+    std::pair<entitySet, entitySet> get_dist_alloc(int size) ;
+    
     Map l2g ;
     int maximum_allocated ;
     int minimum_allocated ;
@@ -160,8 +161,12 @@ namespace Loci {
       minimum_allocated -= size ;
       return alloc ;
     }
-    
+
+    void update_remap(const std::vector<std::pair<int, int> > &remap_update);
+
     std::pair<entitySet, entitySet> get_distributed_alloc(int size) ;
+    std::pair<entitySet, entitySet> get_distributed_alloc(const std::vector<int> &remap_entities);
+    std::pair<entitySet, entitySet> get_distributed_alloc(int size, int offset);
     int is_distributed_start() {return dist_from_start ;}
     std::vector<entitySet>& get_init_ptn() {return init_ptn ;}
     void  put_init_ptn(std::vector<entitySet> &t_init ) {init_ptn = t_init ;}
