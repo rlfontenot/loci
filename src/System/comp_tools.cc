@@ -15,6 +15,8 @@ using std::map ;
 #else
 #include <hash_map>
 #endif
+using std::hash_map ;
+
 using std::pair ;
 using std::make_pair ;
 

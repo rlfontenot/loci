@@ -1,4 +1,6 @@
 #include "comp_tools.h"
+#include "distribute.h"
+
 #include <vector>
 using std::vector ;
 #include <map>
@@ -7,6 +9,8 @@ using std::map ;
 using std::list ;
 #include <set>
 using std::set ;
+
+#define VERBOSE
 
 namespace Loci {
   void impl_recurse_compiler::set_var_existence(fact_db &facts) {
@@ -117,8 +121,8 @@ namespace Loci {
     for(int j=read_maps.size()-1;j>=0;--j) {
       entitySet newdomain = facts.preimage(rmap.mapvar[j],domain).first ;
 #ifdef VERBOSE
-      cout << "j = " << j << ", domain = " << domain << ", newdomain = "
-           << newdomain << endl ;
+      debugout[MPI_rank] << "j = " << j << ", domain = " << domain
+                         << ", newdomain = " << newdomain << endl ;
 #endif
       if(domain == ~EMPTY) {
         cerr << "problem in recurse compiler for rule = "<< impl << endl ;
@@ -135,7 +139,7 @@ namespace Loci {
     for(int j=0;j<tmap.mapvec.size();++j)
       tdelta = tmap.mapvec[j]->image(tdelta) ;
 #ifdef VERBOSE
-    cout << "sdelta_init = " << sdelta << ", tdelta = " << tdelta << endl ;
+    debugout[MPI_rank] << "sdelta_init = " << sdelta << ", tdelta = " << tdelta << endl ;
 #endif
 
     if(num_threads > 1)
@@ -205,7 +209,7 @@ namespace Loci {
       for(int j=0;j<tmap.mapvec.size();++j)
         tdelta = tmap.mapvec[j]->image(tdelta) ;
 #ifdef VERBOSE
-      cout << "sdelta = " << sdelta << ", tdelta = " << tdelta << endl ;
+      debugout[MPI_rank] << "sdelta = " << sdelta << ", tdelta = " << tdelta << endl ;
 #endif
       if(num_threads>1)
         par_schedule.push_back(sdelta) ;
@@ -234,7 +238,7 @@ namespace Loci {
   
     fctrl.generated[rvar] = generated ;
 #ifdef VERBOSE
-    cout << "recursive rule " << impl << " generating " << generated << endl ;
+    debugout[MPI_rank] << "recursive rule " << impl << " generating " << generated << endl ;
 #endif
     
     for(map<variable,entitySet>::const_iterator mi=fctrl.generated.begin();
@@ -411,7 +415,8 @@ namespace Loci {
           fctrl.generated[fctrl.target_maps[i].v] += trgts ;
         }
 #ifdef VERBOSE
-        cout << "recursive rule " << *fi << " generating " << srcs << endl ;
+        debugout[MPI_rank] << "recursive rule " << *fi << " generating "
+                           << srcs << endl ;
 #endif
       }
       finished = true ;

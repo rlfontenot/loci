@@ -19,8 +19,8 @@ JUNK = *~ *.ii core ti_files ii_files rii_files
 
 .SUFFIXES: .o .c .cc .f 
 
-.c.o:    ;  $(CC) $(CFLAGS) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.c
-.cc.o:   ;  $(CP) $(CFLAGS) $(TEMPLATE_LIB_OPT) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.cc
+.c.o:    ;  $(CC) $(LIB_FLAGS) $(CFLAGS) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.c
+.cc.o:   ;  $(CP) $(LIB_FLAGS) $(CFLAGS) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c $*.cc
 .f.o:    ;  $(F77) $(FFLAGS) -c $*.f
 
 
@@ -35,10 +35,7 @@ libLoci.a: $(OBJS)
 	$(RANLIB) libLoci.a
 
 libLoci.so: $(OBJS)
-	$(LD) $(LDFLAGS) -shared -o libLoci.so $(OBJS) ../Tools/libTools.a
-
-scheduler.o: scheduler.cc
-	$(CP) $(CFLAGS) $(TEMPLATE_LIB_OPT) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c scheduler.cc
+	$(LD) $(LDFLAGS) -shared -o libLoci.so $(LIB_FLAGS) $(OBJS)
 
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK)
