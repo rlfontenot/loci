@@ -1622,7 +1622,7 @@ namespace Loci {
     */
     for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
       fatal(!e.inSet(*si)) ;
-      MPI_Unpack(ptr, size, &loc, &base_ptr[*si][0], (base_ptr[*ei+1] - base_ptr[*si]) * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+      MPI_Unpack(ptr, size, &loc, &base_ptr[*si][0], (base_ptr[*si+1] - base_ptr[*si]) * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
     }
     
     /*
