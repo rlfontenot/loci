@@ -49,10 +49,11 @@ namespace Loci {
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,CONSTRAINT,UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
+    bool use_dynamic_schedule ;
     bool relaxed_recursion ;
     mutable std::string name ;
     info rule_info ;
@@ -66,6 +67,7 @@ namespace Loci {
     rule_impl(rule_impl &f) { fatal(true) ; }
     void rule_class(rule_impl_type ft) { rule_impl_class = ft ; }
     void disable_threading() { rule_threading = false ; }
+    void enable_dynamic_scheduling() { use_dynamic_schedule = true ; }
     void set_relaxed_recursion() { relaxed_recursion = true ; }
     void rule_name(const std::string &name) ;
     void name_store(const std::string &name,store_instance &si) ;
@@ -77,6 +79,7 @@ namespace Loci {
     rule_impl() ;
     bool check_perm_bits() const ;
     bool thread_rule() const { return rule_threading; }
+    bool dynamic_schedule_rule() const { return use_dynamic_schedule; }
     bool is_relaxed() const { return relaxed_recursion ; }
     void initialize(fact_db &facts) ;
     std::string get_name() const ;
@@ -130,6 +133,39 @@ namespace Loci {
     rvlist.push_back(rvm) ;
     prot_rename_vars(rvm) ;
   }
+
+
+  class default_rule: public rule_impl {
+  protected:
+    default_rule() { rule_class(DEFAULT) ; }
+    void name_store(const std::string &nm, store_instance &si)
+      { rule_impl::name_store(nm,si) ; }
+    void input(const std::string &invar)
+    { rule_impl::input(invar) ; }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+      { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+  } ;
+
+  class constraint_rule: public rule_impl {
+  protected:
+    constraint_rule() { rule_class(CONSTRAINT) ; }
+    void name_store(const std::string &nm, store_instance &si)
+      { rule_impl::name_store(nm,si) ; }
+    void input(const std::string &invar)
+    { rule_impl::input(invar) ; }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+      { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+  } ;
   
   class pointwise_rule : public rule_impl {
   protected:
