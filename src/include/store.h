@@ -232,4 +232,24 @@ namespace Loci {
 
 }
 
+#ifdef GXX_FIXES
+
+// These functions are required when using G++, not because they are actually
+// used, but because G++'s instantiation mechanism generates references to
+// them.
+
+static inline ostream& operator << (ostream & s, vector<int> &) {
+    cerr << "unimplemented operator<<(ostream & s, vector<int> &)" << endl;
+    abort();
+    return s;
+}
+
+static inline istream& operator >> (istream & s, vector<int> &) {
+    cerr << "unimplemented operator>>(istream & s, vector<int> &)" << endl;
+    abort();
+    return s;
+}
+
+#endif // GXX_FIXES
+
 #endif
