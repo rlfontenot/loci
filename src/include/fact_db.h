@@ -188,6 +188,7 @@ namespace Loci {
     entitySet get_allocation(int size) {
       entitySet alloc = interval(maximum_allocated,maximum_allocated+size-1) ;
       maximum_allocated += size ;
+      return alloc ;
     }
     storeRepP get_variable(variable v) ;
     storeRepP get_variable(std::string vname)
