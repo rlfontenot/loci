@@ -16,12 +16,15 @@ namespace Loci {
     int *send_count = new int[MPI_processes] ;
     int *send_displacement = new int[MPI_processes] ;
     int *recv_displacement = new int[MPI_processes] ;
-    entitySet tmp_dom = domain() ;
     entitySet::const_iterator ei ;
+    std::vector<int>::const_iterator vi ;
     int size_send = 0 ;
-    std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
+    std::vector<std::vector<int> > copy(MPI_processes), send_clone(MPI_processes) ;
     for(int i = 0; i < MPI_processes; ++i) {
-      copy[i] = out_of_dom & ptn[i] ;
+      entitySet tmp = out_of_dom & ptn[i] ;
+      for(ei = tmp.begin(); ei != tmp.end(); ++ei)
+	copy[i].push_back(*ei) ;
+      sort(copy[i].begin(), copy[i].end()) ;
       send_count[i] = copy[i].size() ;
       size_send += send_count[i] ; 
     }
@@ -35,8 +38,8 @@ namespace Loci {
     int *recv_buf = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
-      for(ei = copy[i].begin(); ei != copy[i].end(); ++ei) {
-	send_buf[size_send] = *ei ;
+      for(vi = copy[i].begin(); vi != copy[i].end(); ++vi) {
+	send_buf[size_send] = *vi ;
 	++size_send ;
       }
     send_displacement[0] = 0 ;
@@ -51,20 +54,21 @@ namespace Loci {
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
 	    recv_displacement[i]+recv_count[i]; ++j) 
-	send_clone[i] += recv_buf[j] ;
+	send_clone[i].push_back(recv_buf[j]) ;
+      sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
     
     std::vector<hash_map<int, int> > map_entities(MPI_processes) ;
     for(int i = 0; i < MPI_processes; ++i) 
-      for(entitySet::const_iterator esi = send_clone[i].begin(); esi != send_clone[i].end(); ++esi) 
-	if(attrib_data.find(*esi) != attrib_data.end())
-	  (map_entities[i])[*esi] = attrib_data[*esi] ;
+      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
+	if(attrib_data.find(*vi) != attrib_data.end())
+	  (map_entities[i])[*vi] = attrib_data[*vi] ;
     
-    for(int i = 0; i < MPI_processes; ++i)
-      send_count[i] = 2 * map_entities[i].size() ;
     size_send = 0 ;
-    for(int i = 0; i < MPI_processes; ++i)
+    for(int i = 0; i < MPI_processes; ++i) {
+      send_count[i] = 2 * map_entities[i].size() ;
       size_send += send_count[i] ;
+    }
     int *send_map = new int[size_send] ;
     MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
 		 MPI_COMM_WORLD) ; 
