@@ -237,6 +237,7 @@ namespace Loci {
   }
   
   void chomp_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
+    deque<pair<rule,rule_compilerP> > new_chomp_comp ;
     vector<pair<rule,rule_compilerP> >::reverse_iterator ri ;
     for(ri=chomp_comp.rbegin();ri!=chomp_comp.rend();++ri) {
       rule r = ri->first ;
@@ -251,8 +252,19 @@ namespace Loci {
         FATAL(mi == apply2unit.end()) ;
         exec_seq = process_applyrule_requests(r,mi->second,facts,scheds) ;
       }
+      // if the exec_seq is empty, we need to take off
+      // the corresponding rule from the list
+      if(GLOBAL_AND(exec_seq.size()==0)) {
+        continue ;
+      }
+      new_chomp_comp.push_front(*ri) ;
       rule_seq.push_front(exec_seq) ;
     }
+    // finally update the real chomp_comp list
+    chomp_comp.clear() ;
+    for(deque<pair<rule,rule_compilerP> >::const_iterator
+          di=new_chomp_comp.begin();di!=new_chomp_comp.end();++di)
+      chomp_comp.push_back(*di) ;
   }
 
   executeP chomp_compiler::create_execution_schedule(fact_db& facts,
