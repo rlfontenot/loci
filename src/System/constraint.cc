@@ -32,7 +32,7 @@ namespace Loci {
   }
   storeRep *constraintRep::new_store(const entitySet &p, const int* cnt) const
   {
-    storeRep* sp ;
+    storeRep* sp = 0 ;
     cerr << " This method should not be called for a constraint " << endl ;
     return sp ;
   }
