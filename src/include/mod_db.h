@@ -3,10 +3,12 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h> // This must be the first file included
 #endif
+#ifdef HAVE_DLOPEN
+#include <dlfcn.h>
+#endif
 #include <Config/conf.h>
 namespace Loci {
-  using Loci::rule_impl_list ;
-  using Loci::variable ;
+  using std::cout ;
   std::string remove_space(const std::string &str) {
     std::string tmp_str ;
     for(std::string::const_iterator si = str.begin(); si != str.end(); ++si) {

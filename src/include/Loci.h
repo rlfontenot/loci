@@ -23,7 +23,7 @@
 #include <distribute.h>
 #include <multiStore.h>
 #include <storeMat.h>
-
+#include <mod_db.h>
 
 using Loci::entitySet ;
 using Loci::create_entitySet ;
@@ -122,7 +122,9 @@ using Loci::dot ;
 using Loci::cross ;
 
 using Loci::Array ;
-
+using Loci::mod ;
+using Loci::load_module ;
+using Loci::rule_impl_list ;
 #endif
 
 
