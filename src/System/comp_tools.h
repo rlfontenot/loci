@@ -133,7 +133,7 @@ namespace Loci {
     } ;
     std::map<rule,fcontrol > control_set ;
     std::list<std::vector<std::pair<variable,entitySet> > > recurse_send_entities ;
-    std::map<variable,std::vector<list<comm_info> > > send_req_var ;
+    std::map<variable,std::vector<std::list<comm_info> > > send_req_var ;
     std::list<std::list<comm_info> > recurse_clist ;
     std::list<std::list<comm_info> > recurse_plist ;
       
