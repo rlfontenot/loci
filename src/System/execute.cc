@@ -188,7 +188,7 @@ namespace Loci {
     static bool in_barrier = false ;
 
     if(in_barrier) {
-      cerr << "duplicate barrier calls, does not make sense."<<endl ;
+      cerr << "nested barrier calls, does not make sense."<<endl ;
     }
     in_barrier = true ;
     if(work_in_queue) {

@@ -1,4 +1,3 @@
-#define DEBUG
 #include <Tools/eventNotify.h>
 
 #include <vector>
