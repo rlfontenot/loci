@@ -2578,21 +2578,115 @@ void write_container(hid_t group_id, storeRepP qrep) {
     return nsp ;
      
   }
-  Map distribute_global_map(Map &m, fact_db &facts) {
+  
+  Map distribute_global_map(Map &m, const std::vector<entitySet> &init_ptn) {
+    if(Loci::MPI_processes == 1)
+      return m ;
+    
     Map nm ;
+    entitySet dom ;
+    if(Loci::MPI_rank == 0)
+      dom = m.domain() ;
+    entitySet image ;
+    if(Loci::MPI_rank == 0)
+      image = MapRepP(m.Rep())->image(dom) ;
+    image = all_collect_entitySet(image) ;
     entitySet::const_iterator ti ;
-    entitySet my = m.domain() ;
-    my = all_collect_entitySet(my) ;
-    nm.allocate(my) ;
+    entitySet my ;
+    if(Loci::MPI_rank == 0) {
+      std::vector<entitySet> ent(MPI_processes) ;
+      MPI_Status *store_status ;
+      MPI_Request *store_request ;
+      int sz = 0 ;
+      int *s_size = new int[MPI_processes-1] ;
+      
+      for(int i = 0; i < MPI_processes; ++i) 
+	ent[i] = init_ptn[i] & image ;
+      for(int i = 0; i < MPI_processes-1; ++i) { 
+	s_size[i] = 2 * ent[i+1].size() ;
+	sz += s_size[i] ;
+      }
+      std::vector<entitySet> final_ent(MPI_processes) ;
+      for(int i = 0; i < MPI_processes; ++i) {
+	dom = MapRepP(m.Rep())->preimage(ent[i]).first ;
+	final_ent[i] = dom ;
+      }
+      for(int i = 0; i < MPI_processes; ++i) {   
+	for(int j = i+1 ; j < MPI_processes; ++j) {
+	  entitySet  tmp = final_ent[i] & final_ent[j] ;
+	  final_ent[j] -= tmp ;
+	}
+      }
+      int **send_ptr = new int*[MPI_processes-1] ;
+      store_request = new MPI_Request[MPI_processes-1] ;
+      store_status = new MPI_Status[MPI_processes-1] ;
+      int tmp = 0 ;
+      send_ptr[0] = new int[sz] ;
+      for(int i = 1; i < MPI_processes-1; i++)
+	send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
+      for(int i = 0; i < MPI_processes-1; i++) {
+	tmp = 0 ;
+	for(entitySet::const_iterator ei = final_ent[i+1].begin(); ei != final_ent[i+1].end(); ++ei) {
+	  send_ptr[i][tmp++] = *ei ;
+	  send_ptr[i][tmp++] = m[*ei] ;
+	  
+	}
+	MPI_Isend(send_ptr[i], s_size[i], MPI_INT, i+1, 3,
+		  MPI_COMM_WORLD, &store_request[i]) ;
+      }
+#ifdef DEBUG
+      int err =
+#endif
+	MPI_Waitall(MPI_processes-1, store_request, store_status) ;
+      FATAL(err != MPI_SUCCESS) ;
+      if(Loci::MPI_processes > 1)
+	my = final_ent[0] ;
+      else
+	my = dom ;
+      nm.allocate(my) ;
+      for(entitySet::const_iterator ei = my.begin(); ei != my.end(); ++ei)
+	nm[*ei] = m[*ei] ;
+      delete [] store_request ;
+      delete [] store_status ;
+      delete [] send_ptr ;
+    }
+    else {
+      MPI_Status stat ;
+      int sz = 2*(init_ptn[Loci::MPI_rank] & image).size();
+      int *recv_ptr = new int[sz] ;
+      MPI_Recv(recv_ptr, sz, MPI_INT, 0, 3, MPI_COMM_WORLD, &stat) ;
+      int tmp = 1 ;
+      dom = EMPTY ;
+      for(int i = 0; i < sz; i += 2)
+	dom += recv_ptr[i] ;
+      nm.allocate(dom) ;
+      for(entitySet::const_iterator ei = dom.begin(); ei != dom.end(); ++ei) {
+	nm[*ei] = recv_ptr[tmp] ;
+	tmp += 2 ;
+      }
+      delete [] recv_ptr ;
+    }
+    return nm ;
+  }
+  
+  Map distribute_gmap(Map &m, const std::vector<entitySet> &init_ptn) {
+    if(Loci::MPI_processes == 1)
+      return m ;
+    Map nm ;
+    entitySet dom ;
+    if(Loci::MPI_rank == 0)
+      dom = m.domain() ;
+    dom = Loci::all_collect_entitySet(dom) ;
+    entitySet::const_iterator ti ;
+    entitySet my ;
     if(Loci::MPI_rank == 0) {
       std::vector<entitySet> ent(MPI_processes-1) ;
-      MPI_Status *store_status;
+      MPI_Status *store_status ;
       MPI_Request *store_request ;
       int sz = 0 ;
       int *s_size = new int[MPI_processes-1] ;
       for(int i = 0; i < MPI_processes-1; ++i) { 
-	ent[i] = m.domain() ;
-	s_size[i] = ent[i].size() ;
+	ent[i] = init_ptn[i+1] & dom ;
 	sz += s_size[i] ;
       }
       int **send_ptr = new int*[MPI_processes-1] ;
@@ -2604,7 +2698,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
       for(int i = 0; i < MPI_processes-1; i++) {
 	tmp = 0 ;
-	for(entitySet::const_iterator ei = ent[i].begin(); ei != ent[i].end(); ++ei)
+	for(entitySet::const_iterator ei = ent[i].begin(); ei != ent[i].end(); ++ei) 
 	  send_ptr[i][tmp++] = m[*ei] ;
 	MPI_Isend(send_ptr[i], s_size[i], MPI_INT, i+1, 3,
 		  MPI_COMM_WORLD, &store_request[i]) ;
@@ -2614,6 +2708,8 @@ void write_container(hid_t group_id, storeRepP qrep) {
 #endif
 	MPI_Waitall(MPI_processes-1, store_request, store_status) ;
       FATAL(err != MPI_SUCCESS) ;
+      my = init_ptn[0] & dom ; ;
+      nm.allocate(my) ;
       for(entitySet::const_iterator ei = my.begin(); ei != my.end(); ++ei)
 	nm[*ei] = m[*ei] ;
       delete [] store_request ;
@@ -2622,16 +2718,45 @@ void write_container(hid_t group_id, storeRepP qrep) {
     }
     else {
       MPI_Status stat ;
-      int sz = my.size() ;
+      my = init_ptn[Loci::MPI_rank] & dom ;
+      int sz = my.size();
       int *recv_ptr = new int[sz] ;
       MPI_Recv(recv_ptr, sz, MPI_INT, 0, 3, MPI_COMM_WORLD, &stat) ;
       int tmp = 0 ;
-      for(entitySet::const_iterator ei = my.begin(); ei != my.end(); ++ei)
+      nm.allocate(my) ;
+      for(entitySet::const_iterator ei = my.begin(); ei != my.end(); ++ei) 
 	nm[*ei] = recv_ptr[tmp++] ;
       delete [] recv_ptr ;
     }
     return nm ;
+   }
+  
+  Map distribute_whole_map(Map &m) {
+    if(Loci::MPI_processes == 1)
+      return m ;
+    Map nm ;
+    entitySet dom ;
+    if(Loci::MPI_rank == 0)
+      dom = m.domain() ;
+    dom = Loci::all_collect_entitySet(dom) ;
+    entitySet::const_iterator ti ;
+    nm.allocate(dom) ;
+    int sz = 0 ;
+    sz = dom.size() ;
+    int *recv_ptr = new int[sz] ;
+    if(Loci::MPI_rank == 0) {
+      int tmp = 0 ;
+      for(entitySet::const_iterator ei = dom.begin(); ei != dom.end(); ++ei) 
+	recv_ptr[tmp++] = m[*ei] ;
+    }
+    int tmp = 0 ;
+    MPI_Bcast(recv_ptr, sz, MPI_INT, 0, MPI_COMM_WORLD) ;
+    for(entitySet::const_iterator ei = dom.begin(); ei != dom.end(); ++ei) 
+      nm[*ei] = recv_ptr[tmp++] ;
+    delete [] recv_ptr ;
+    return nm ;
   }
+
   void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
     
     entitySet preloop = input_preimage & input_map.domain() ;

@@ -71,7 +71,9 @@ namespace Loci {
   entitySet collect_entitySet(entitySet e, fact_db &facts) ;
   storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
   storeRepP collect_global_store(storeRepP &sp) ;
-  Map distribute_global_map(Map &m, fact_db &facts) ;
+  Map distribute_global_map(Map &m, const std::vector<entitySet> &vset) ;
+  Map distribute_gmap(Map &m, const std::vector<entitySet> &vset) ;
+  Map distribute_whole_map(Map &m) ;
   storeRepP collect_reorder_store(storeRepP &sp, dMap &remap, fact_db &facts) ;
   void distribute_reorder_store(storeRepP &new_sp, storeRepP sp_init, dMap &remap, fact_db &facts) ;
   
