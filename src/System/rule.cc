@@ -384,12 +384,50 @@ namespace Loci {
 
 variableSet rule_impl::get_var_list() {
     storeIMap::iterator sp ;
+    set<vmap_info>::const_iterator i ;
     variableSet vset ;
     for(sp = var_table.begin(); sp != var_table.end(); ++sp)
       vset += sp->first ;
+    
+    for(i=rule_info.sources.begin();i!=rule_info.sources.end();++i) {
+      for(vector<variableSet>::const_iterator vi = i->mapping.begin();
+	  vi != i->mapping.end(); ++vi)
+	vset += *vi ;
+      vset += i->var ;
+      for(vector<pair<variable, variable> >::const_iterator pi=i->assign.begin();
+	  pi != i->assign.end();++pi) {
+	vset += pi->first ;
+	vset += pi->second ;
+      }
+    }
+    for(i=rule_info.targets.begin();i!=rule_info.targets.end();++i) {
+      for(vector<variableSet>::const_iterator vi = i->mapping.begin();
+	  vi != i->mapping.end(); ++vi)
+	vset += *vi ;
+      vset += i->var ;
+      for(vector<pair<variable, variable> >::const_iterator pi=i->assign.begin();
+	  pi != i->assign.end();++pi) {
+	vset += pi->first ;
+	vset += pi->second ;
+      }
+    }
+    for(i=rule_info.constraints.begin();
+	i!=rule_info.constraints.end();++i) {
+      for(vector<variableSet>::const_iterator vi = i->mapping.begin();
+	  vi != i->mapping.end(); ++vi)
+	vset += *vi ;
+      vset += i->var ;
+      for(vector<pair<variable, variable> >::const_iterator pi=i->assign.begin();
+	  pi != i->assign.end();++pi) {
+	vset += pi->first ;
+	vset += pi->second ;
+      }
+    }
+    vset += rule_info.conditionals ;
+    
     return vset ;
-  }
-
+}
+  
   void rule_impl::set_variable_times(time_ident tl) {
     set<vmap_info>::const_iterator i ;
     set<vmap_info> tmp ;
@@ -671,14 +709,15 @@ variableSet rule_impl::get_var_list() {
       return ; 
     }
     rule_impl = fi.rule_impl->new_rule_impl() ;
+    //rule_impl->set_variable_times(tl) ;
     variableSet vset = rule_impl->get_var_list() ;
     std::map<variable, variable> rm ;
     for(variableSet::const_iterator vsi = vset.begin(); vsi != vset.end(); ++vsi) {
-      rm[variable(*vsi)] = variable(variable(*vsi), tl) ;
+    rm[variable(*vsi)] = variable(variable(*vsi), tl) ;
     }
     rule_impl->rename_vars(rm) ;
-    warn(fi.rule_class != GENERIC) ;
     
+    warn(fi.rule_class != GENERIC) ;
     source_level = tl ;
     target_level = tl ;
     rule_class = GENERIC ;
@@ -719,8 +758,14 @@ variableSet rule_impl::get_var_list() {
 
   rule_implP rule::info::get_rule_implP() const {
     rule_implP fp = rule_impl->new_rule_impl() ;
-    //if(rule_class == GENERIC && target_level != time_ident())
-    //fp->set_variable_times(target_level) ;
+    if(rule_class == GENERIC && target_level != time_ident()) {
+      variableSet vset = fp->get_var_list() ;
+      std::map<variable, variable> rm ;
+      for(variableSet::const_iterator vsi = vset.begin(); vsi != vset.end(); ++vsi) 
+	rm[variable(*vsi)] = variable(variable(*vsi), target_level) ;
+      fp->rename_vars(rm) ;
+      //fp->set_variable_times(target_level) ;
+    }
     return fp ;
   }
 

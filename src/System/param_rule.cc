@@ -126,6 +126,7 @@ namespace Loci {
 	      }
 	      
 	      rule_implP rp = rsi->get_rule_implP() ;
+	      cout << "calling rename in parametric_rdb routine " << endl ;
 	      rp->rename_vars(vm) ;
 	      if(!added_rules.inSet(rule(rp))) {
 		par_rdb.add_rule(rule(rp)) ;
