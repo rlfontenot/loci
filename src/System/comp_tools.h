@@ -40,7 +40,7 @@ namespace Loci {
 
   entitySet vmap_source_exist_apply(const vmap_info &vmi, fact_db &facts,
                                     variable reduce_var, sched_db &scheds) ;
-
+ 
   
   void existential_rule_analysis(rule f, fact_db &facts, sched_db &scheds) ;
   entitySet process_rule_requests(rule f, fact_db &facts, sched_db &scheds) ;
@@ -50,7 +50,10 @@ namespace Loci {
   
   std::vector<std::pair<variable,entitySet> >
     barrier_existential_rule_analysis(variableSet vlst, fact_db &facts, sched_db &scheds) ;
-  
+#ifdef COMP_ENT
+  std::vector<std::pair<variable,entitySet> >
+    send_ent_for_plist(variableSet vlst, fact_db &facts, sched_db &scheds);
+#endif
   std::list<comm_info>
   barrier_process_rule_requests(variableSet vars, fact_db &facts, sched_db &scheds) ;
 
