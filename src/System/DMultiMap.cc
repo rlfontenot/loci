@@ -154,7 +154,6 @@ namespace Loci
     for( ci = newSet.begin(); ci != newSet.end(); ++ci)
          attrib_data[*ci] = emptyVec;
 
-    store_domain = eset;
     dispatch_notify() ;
   }
   
@@ -168,7 +167,6 @@ namespace Loci
       std::vector<int>   newVec(sizes[*ci]) ;
       attrib_data[*ci] = newVec;
     }
-    store_domain = ptn ;
     dispatch_notify() ;
   }
   

@@ -18,7 +18,6 @@ namespace Loci {
   class dMap;
   
   class dMapRepI : public MapRep {
-    entitySet store_domain ;
     HASH_MAP(int,int) attrib_data;
   public:
     dMapRepI() { }

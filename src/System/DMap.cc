@@ -137,8 +137,6 @@ namespace Loci {
     for( ci = newSet.begin(); ci != newSet.end(); ++ci)
       attrib_data[*ci] = 0;
     
-    store_domain = eset;
-    
     dispatch_notify() ;
   }
   
@@ -183,7 +181,7 @@ namespace Loci {
   
   void dMapRepI::compose(const dMap &newmap, const entitySet &context) 
   {
-    fatal((context-store_domain) != EMPTY) ;
+    fatal((context-domain()) != EMPTY) ;
     fatal((image(context)-newmap.domain()) != EMPTY) ;
     
     FORALL(context,i) {

@@ -20,7 +20,6 @@ namespace Loci {
   public:
     typedef Array<int,M>   VEC;
   private:
-    entitySet            store_domain ;
     HASH_MAP(int,VEC)    attrib_data;
   public:
     dMapVecRepI() {}
@@ -218,7 +217,6 @@ namespace Loci {
     for( ci = newSet.begin(); ci != newSet.end(); ++ci)
       attrib_data[*ci] = newvalue;
 
-    store_domain = eset;
     dispatch_notify() ;
   }
 
@@ -417,10 +415,10 @@ namespace Loci {
   //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  entitySet dMapVecRepI<M>::image(const entitySet &domain) const 
+  entitySet dMapVecRepI<M>::image(const entitySet &dom) const 
   {
 
-    entitySet d = domain & store_domain ;
+    entitySet d = dom & domain() ;
 
     entitySet codomain ;
 
@@ -450,7 +448,7 @@ namespace Loci {
     typename HASH_MAP(int,VEC) :: const_iterator ci;
     VEC  aVec;
 
-    FORALL(store_domain,i) {
+    FORALL(domain(),i) {
       bool vali = true ;
       bool valu = false ;
       ci = attrib_data.find( i );
@@ -742,7 +740,7 @@ template<unsigned int M> class const_dMapVec ;
   {
 
 
-    fatal((context-store_domain) != EMPTY) ;
+    fatal((context-domain()) != EMPTY) ;
     fatal((image(context)-m.domain()) != EMPTY) ;
 
     entitySet dom = m.domain() ;

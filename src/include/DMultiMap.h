@@ -16,7 +16,6 @@
 namespace Loci {
 
   class dmultiMapRepI : public MapRep {
-  entitySet store_domain ;
   HASH_MAP(int, std::vector<int> )  attrib_data;
   public:
   dmultiMapRepI() { }
