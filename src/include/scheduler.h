@@ -15,9 +15,10 @@
 
 namespace Loci {
 
-  extern executeP create_execution_schedule(rule_db &rdb, fact_db &facts,
+  extern executeP create_execution_schedule(const rule_db &rdb, fact_db &facts,
                                             std::string target, int nth=1) ;
-  extern int num_threads ;
+
+  extern bool makeQuery(const rule_db &rdb, fact_db &facts, std::string target) ;
 }
 
 #endif

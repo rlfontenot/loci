@@ -1,7 +1,8 @@
+#include "loci_globs.h"
 #include "sched_tools.h"
 #include "dist_tools.h"
 #include "param_rule.h"
-#include <Tools/stream.h>
+
 using std::map ;
 using std::vector ;
 using std::set ;
@@ -14,6 +15,7 @@ using std::ostringstream ;
 using std::string ;
 using std::endl ;
 using std::cout ;
+using std::ios ;
 using std::ofstream ;
 
 ///////////////////////////////////
@@ -538,7 +540,7 @@ namespace Loci {
   }
   /////////////////////////////////////////////////////////////////////
 
-  executeP create_execution_schedule(rule_db &rdb,
+  executeP create_execution_schedule(const rule_db &rdb,
                                      fact_db &facts,
                                      std::string target_string,
                                      int nth) {
@@ -679,5 +681,37 @@ namespace Loci {
     //cout << "Schedule Generation Time: " << timer << " seconds" << endl ;
 #endif
     return sched ;
+  }
+
+  bool makeQuery(const rule_db &rdb, fact_db &facts, std::string query) {
+    executeP schedule =  create_execution_schedule(rdb, facts, query) ;
+    if(schedule == 0)
+      return false ;
+
+    // If a schedule was generated, execute it
+    if(MPI_rank == 0)
+      cout << "begin execution" << endl ;
+
+    if(schedule_output) {
+      // Save the schedule in the file .schedule for reference
+      ostringstream oss ;
+      oss << ".schedule" ;
+      
+      if(MPI_processes > 1) {
+        oss << "-" << MPI_rank ;
+      }
+      
+      string sched_filename = oss.str() ;
+      ofstream sched_file(sched_filename.c_str(),ios::out) ;
+      schedule->Print(sched_file) ;
+      sched_file.close() ;
+    }
+    // execute schedule
+    double st = MPI_Wtime() ;
+    schedule->execute(facts) ;
+    double et = MPI_Wtime() ;
+    Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
+
+    return true ;
   }
 }

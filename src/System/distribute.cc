@@ -1,4 +1,5 @@
 #include "dist_tools.h"
+#include "loci_globs.h"
 #include <Tools/debug.h>
 #include <entitySet.h>
 
@@ -53,7 +54,10 @@ namespace Loci {
   bool show_dmm_verbose = false ;
   // flag to enable/disable chomping
   bool use_chomp = false ;
+  // flag to enable outputing schedule to file
+  bool schedule_output = false ;
   /////////////////////////////
+  
   ofstream debugout ;
 
   double total_memory_usage = 0 ;
@@ -144,11 +148,15 @@ namespace Loci {
         i+=2 ;
       } else if(!strcmp((*argv)[i],"--debug")) {
         debug = (*argv)[i+1] ;
+        schedule_output = true ;
         i+=2 ;
       } else if(!strcmp((*argv)[i],"--threads")) {
         cerr << "warning --threads not yet implemented" << endl ;
         num_threads = atoi((*argv)[i+1]) ;
         i+=2 ;
+      } else if(!strcmp((*argv)[i],"--scheduleoutput")) {
+        schedule_output = true ;
+        i++ ;
       } else if(!strcmp((*argv)[i],"--graphs")) {
         show_graphs = true ; // visualize the dependency graph &
                              // the decomposed graph & every supernode
@@ -191,7 +199,7 @@ namespace Loci {
     debugger_() ;
   }
 
-  void get_clone(fact_db &facts, rule_db &rdb) {
+  void get_clone(fact_db &facts, const rule_db &rdb) {
     fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     std::vector<entitySet> &ptn = facts.get_init_ptn() ;
     entitySet bdom = ptn[Loci::MPI_rank] & interval(Loci::UNIVERSE_MIN, -1) ;
@@ -614,7 +622,7 @@ namespace Loci {
   all the variables associated with the mappings in the head, body and
   the constraints of the rules. */
 
-  void get_mappings(rule_db &rdb, fact_db &facts,
+  void get_mappings(const rule_db &rdb, fact_db &facts,
                     set<vector<variableSet> > &maps_ret) {
     ruleSet rules = rdb.all_rules() ;
     set<vector<variableSet> > maps ;

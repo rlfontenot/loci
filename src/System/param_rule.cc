@@ -1,5 +1,5 @@
 #include <param_rule.h>
-#include <Tools/stream.h>
+
 using std::string ;
 using std::ostringstream ;
 namespace Loci {
@@ -235,7 +235,7 @@ namespace Loci {
     return(variable(v, tmp_vint)) ;
   }
   
-  rule_db parametric_rdb(rule_db& rdb,variableSet query_vars) {
+  rule_db parametric_rdb(const rule_db &rdb,variableSet query_vars) {
     Loci::rule_db par_rdb ;
     ruleSet param_target, added_rules ;
     variableSet target ;
