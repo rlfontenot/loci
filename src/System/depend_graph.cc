@@ -714,7 +714,16 @@ namespace Loci {
         component_sort(gr).get_components() ;
 
       digraph::vertexSet subset = EMPTY ;
-    
+
+#ifdef VERBOSE
+      for(size_t i=0;i<components.size();++i) 
+        if(!components[i].inSet(virtual_vertex)) {
+          debugout << "components not included are:" << endl ;
+          debugout << "rules = " << extract_rules(components[i]) << endl ;
+          debugout << "vars = " << extract_vars(components[i]) << endl;
+        }
+#endif
+      
       for(size_t i=0;i<components.size();++i) 
         if(components[i].inSet(virtual_vertex)) {
           subset = components[i] ;
@@ -734,6 +743,10 @@ namespace Loci {
       for(fi=rules.begin();fi!=rules.end();++fi) {
         if(fi->get_info().qualifier() != "looping")
           if((subset & fi->sources()) != fi->sources()) {
+            debugout << "cleanout " << *fi << endl ;
+            debugout << "because of variables "
+                     << extract_vars(fi->sources()-subset)
+                     << endl ;
             cleanout += fi->ident() ;
           }
       }
