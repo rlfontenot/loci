@@ -312,8 +312,9 @@ namespace Loci {
       ruleSet conflicts ;
       map<rule,existential_info>::iterator mi ;
       for(mi=finfo.exist_map.begin();mi!=finfo.exist_map.end();++mi) {
-        if(mi->first == f)
+        if(mi->first == f) {
           continue ;
+        }
         if((mi->second.exists & x) != EMPTY) {
           const vector<string> &p1 = v.get_info().priority ;
           const vector<string> &p2 = mi->second.v.get_info().priority ;
@@ -336,8 +337,9 @@ namespace Loci {
         exit(-1) ;
       }
     }
-      
-    finfo.exist_map[f] = fact_db::existential_info(v,x) ;
+    existential_info &einfo = finfo.exist_map[f] ;
+    einfo.v = v ;
+    einfo.exists += x ;
     finfo.existence += x ;
   }
 
