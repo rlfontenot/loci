@@ -8,9 +8,15 @@
 #include <Map_rep.h>
 #include <hdf5CC/H5cpp.h>
 
-#include <hash_map.h>
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
+#include <hash_map>
+#endif
+
 
 namespace Loci {
+  using std::hash_map ;
 
   entitySet image_section(const int *start, const int *end) ;
 

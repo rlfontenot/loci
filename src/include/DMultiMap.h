@@ -9,15 +9,25 @@
 #include <hdf5CC/H5cpp.h>
 
 #include <vector>
-#include <hash_map.h>
+
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
+#include <hash_map>
+#endif
+
+
+
+
 
 #include <Map.h>
 #include <store.h>
 
 namespace Loci {
+  using std::hash_map ;
 class dmultiMapRepI : public MapRep {
     entitySet store_domain ;
-    hash_map<int, vector<int> >  attrib_data;
+    hash_map<int, std::vector<int> >  attrib_data;
   public:
     dmultiMapRepI() { }
     dmultiMapRepI(const store<int> &sizes) { allocate(sizes) ; }
@@ -48,7 +58,7 @@ class dmultiMapRepI : public MapRep {
     virtual void readhdf5( H5::Group group, entitySet &user_eset) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
 
-    hash_map<int,vector<int> > *get_attrib_data() {return &attrib_data;}
+    hash_map<int,std::vector<int> > *get_attrib_data() {return &attrib_data;}
 
   } ;
       
@@ -57,7 +67,7 @@ class dmultiMapRepI : public MapRep {
   class dmultiMap : public store_instance {
     friend class const_dmultiMap ;
     typedef dmultiMapRepI MapType ;
-    hash_map<int, vector<int> >   *attrib_data;
+    hash_map<int, std::vector<int> >   *attrib_data;
   public:
     dmultiMap() { setRep(new MapType) ; }
         
@@ -91,13 +101,13 @@ class dmultiMapRepI : public MapRep {
          return p ; 
     }
 
-    vector<int> &elem(int indx) {
+    std::vector<int> &elem(int indx) {
       return (*attrib_data)[indx]; 
     }
 
-    const vector<int> &const_elem(int indx)  const 
+    const std::vector<int> &const_elem(int indx)  const 
     {
-      hash_map<int, vector<int> > :: const_iterator   ci;
+      hash_map<int, std::vector<int> > :: const_iterator   ci;
      
       ci = attrib_data->find(indx);
       if( ci != attrib_data->end())
@@ -108,15 +118,15 @@ class dmultiMapRepI : public MapRep {
       return ci->second ;
     }
 
-    vector<int> &operator[](int indx) { return elem(indx); }
+    std::vector<int> &operator[](int indx) { return elem(indx); }
 
-    const vector<int> &operator[](int indx) const 
+    const std::vector<int> &operator[](int indx) const 
     { return const_elem(indx) ; }
 
     int num_elems(int indx) const 
     {
-      hash_map<int, vector<int> > :: const_iterator   ci;
-      vector<int>     newVec;
+      hash_map<int, std::vector<int> > :: const_iterator   ci;
+      std::vector<int>     newVec;
      
       ci = attrib_data->find(indx);
       if( ci != attrib_data->end())
@@ -145,7 +155,7 @@ class dmultiMapRepI : public MapRep {
 
   class const_dmultiMap : public store_instance {
     typedef dmultiMapRepI      MapType ;
-    hash_map<int,vector<int> > *attrib_data;
+    hash_map<int,std::vector<int> > *attrib_data;
   public:
     const_dmultiMap() { setRep(new MapType) ; }
     
@@ -178,22 +188,22 @@ class dmultiMapRepI : public MapRep {
       return p ; 
     }
 
-    const vector<int> const_elem(int indx)  const {
-          hash_map<int,vector<int> > :: const_iterator   ci;
+    const std::vector<int> const_elem(int indx)  const {
+          hash_map<int,std::vector<int> > :: const_iterator   ci;
           ci = attrib_data->find(indx);
           if( ci != attrib_data->end() )
               return( ci->second );
 
-          vector<int>  newVec;
+          std::vector<int>  newVec;
           return( newVec );
     }
 
-    const vector<int> operator[](int indx) const 
+    const std::vector<int> operator[](int indx) const 
     { return const_elem(indx) ; }
 
     int num_elems(int indx) const 
     {
-       hash_map<int,vector<int> > :: const_iterator   ci;
+       hash_map<int,std::vector<int> > :: const_iterator   ci;
        ci = attrib_data->find(indx);
        if( ci != attrib_data->end() )
            return( (ci->second).size() );

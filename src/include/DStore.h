@@ -15,10 +15,15 @@
 #include <algorithm>
 #include <functional>
 
-#include <hash_map.h>
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
+#include <hash_map>
+#endif
 
 namespace Loci {
 
+  using std::hash_map ;
   class Map ;
 
   template<class T> class dstoreRepI : public storeRep {
@@ -172,12 +177,12 @@ namespace Loci {
   {
     hash_map<int,T> :: const_iterator    ci;
     entitySet          storeDomain;
-    vector<int>        vec;
+    std::vector<int>        vec;
 
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci ) 
          vec.push_back( ci->first ) ;
 
-    sort( vec.begin(), vec.end() );
+    std::sort( vec.begin(), vec.end() );
 
     for( int i = 0; i < vec.size(); i++) 
          storeDomain +=  vec[i];
@@ -671,7 +676,7 @@ namespace Loci {
     int      rank = 1;
     hsize_t  dimension[1];
 
-    vector<T>   newvec;
+    std::vector<T>   newvec;
     entitySet :: const_iterator  ei;
     hash_map<int,T>:: const_iterator ci;
 

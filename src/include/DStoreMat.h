@@ -17,13 +17,19 @@
 #include <Map.h>
 #include <multiMap.h>
 
-#include <hash_map.h>
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
+#include <hash_map>
+#endif
 
-using std::pair ;
-using std::make_pair ;
+
 
 
 namespace Loci {
+
+  using std::hash_map ;
+
   template<class T> class dstoreMat : public store_instance {
     typedef storeVecRepI<T> storeType ;
     T* base_ptr ;

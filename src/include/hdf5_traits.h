@@ -3,7 +3,6 @@
 
 #include <hdf5CC/H5cpp.h>
 #include <vector>
-#include <hash_map.h>
 #include <complex>
 #include <Tools/stream.h>
 

@@ -17,18 +17,24 @@
 #include <Map.h>
 #include <multiMap.h>
 
-#include <hash_map.h>
+#ifdef EXT_HASH_MAP
+#include <ext/hash_map>
+#else
+#include <hash_map>
+#endif
 
-using std::pair ;
-using std::make_pair ;
+
 
 
 namespace Loci {
+
+  using std::hash_map ;
+
   template<class T> class dstoreVecRepI : public storeRep {
 
   lmutex                    mutex ;
   entitySet                 store_domain ;
-  hash_map<int,vector<T> >  attrib_data;
+  hash_map<int,std::vector<T> >  attrib_data;
   int                       size;
   
   void hdf5read( H5::Group group, IDENTITY_CONVERTER     c, entitySet &en, entitySet &usr );
@@ -64,7 +70,7 @@ namespace Loci {
 
     virtual void set_elem_size(int sz) ;
 
-    hash_map<int,vector<T> > *get_attrib_data() { return &attrib_data; }
+    hash_map<int,std::vector<T> > *get_attrib_data() { return &attrib_data; }
     int get_size() const { return size; }
   } ;
 
@@ -77,8 +83,8 @@ namespace Loci {
 
       s << size << std::endl ;
 
-      hash_map<int, vector<T> >  :: const_iterator   ci;
-      vector<T>   newVec;
+      hash_map<int, std::vector<T> >  :: const_iterator   ci;
+      std::vector<T>   newVec;
     
       FORALL(domain(),ii) {
          ci =  attrib_data.find(ii);
@@ -118,7 +124,7 @@ namespace Loci {
 
       allocate(e) ;
 
-      vector<T>  newVec;
+      std::vector<T>  newVec;
       FORALL(e,ii) {
         s  >> newVec;
         attrib_data[ii] = newVec;
@@ -170,7 +176,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
 	 entitySet :: const_iterator  ci;
 
-    vector<T>   newVec;
+    std::vector<T>   newVec;
 
     if( size > 1) newVec.reserve( size );
 
@@ -211,9 +217,9 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
   template<class T> 
   entitySet dstoreVecRepI<T>::domain() const 
   {
-    hash_map<int,vector<T> > :: const_iterator    ci;
+    hash_map<int,std::vector<T> > :: const_iterator    ci;
     entitySet          storeDomain;
-    vector<int>        vec;
+    std::vector<int>        vec;
 
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
          vec.push_back( ci->first ) ;
@@ -250,10 +256,10 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
       
   template<class T> class dstoreVec : public store_instance {
     typedef dstoreVecRepI<T>    storeType ;
-	 hash_map<int, vector<T> >  *attrib_data;
+	 hash_map<int, std::vector<T> >  *attrib_data;
     int                         size;
   public:
-    typedef vector<T> containerType ;
+    typedef std::vector<T> containerType ;
     dstoreVec() {setRep(new storeType) ;}
     dstoreVec(dstoreVec<T> &var) {setRep(var.Rep()) ;}
     dstoreVec(storeRepP &rp) { setRep(rp) ;}
@@ -277,11 +283,11 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
     entitySet domain() const { return Rep()->domain() ; }
 
-    vector<T> &elem(int indx) {
+    std::vector<T> &elem(int indx) {
 	   return( (*attrib_data)[indx] );
     }
 
-    vector<T> &operator[](int indx) {
+    std::vector<T> &operator[](int indx) {
       return( elem(indx) );
 	 }
 
@@ -324,10 +330,10 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
   template<class T> class const_dstoreVec : public store_instance {
     typedef dstoreVecRepI<T> storeType ;
-	 hash_map<int, vector<T> >  *attrib_data;
+	 hash_map<int, std::vector<T> >  *attrib_data;
     int size ;
   public:
-    typedef vector<T> containerType ;
+    typedef std::vector<T> containerType ;
     const_dstoreVec() { setRep(new storeType) ; }
     const_dstoreVec(const_dstoreVec<T> &var) {setRep(var.Rep()) ;}
     const_dstoreVec(dstoreVec<T> &var) {setRep(var.Rep()) ;}
@@ -354,9 +360,9 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
     entitySet domain() const { return Rep()->domain() ; }
 
-    vector<T> elem(int indx) const {
-	     vector<T>   newVec;
-	     hash_map<int, vector<T> > :: const_iterator   ci;
+    std::vector<T> elem(int indx) const {
+	     std::vector<T>   newVec;
+	     hash_map<int, std::vector<T> > :: const_iterator   ci;
 		  ci = attrib_data->find(indx);
 		  if( ci != attrib_data->end()){
 		      newVec = ci->second;
@@ -368,7 +374,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 		  return newVec;
     }
 		       
-    vector<T>  operator[](int indx) const {
+    std::vector<T>  operator[](int indx) const {
 	     return( elem(indx) );
     }
 
@@ -489,7 +495,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
      fatal( buf == NULL );
          
      entitySet :: const_iterator   ci;
-     hash_map<int,vector<T> >  iter;
+     hash_map<int,std::vector<T> >  iter;
 
      int indx = 0;
      for( ci = e.begin(); ci != e.end(); ++ci){
@@ -664,7 +670,7 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
    buf    = new typename converter_traits::memento_type[maxStateSize];
 
    entitySet::const_iterator ci;
-   hash_map<int, vector<T> > ::const_iterator iter;
+   hash_map<int, std::vector<T> > ::const_iterator iter;
    T       newObj;
 
    Memento<T> memento( newObj );
@@ -720,8 +726,8 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
     T *data =  new T[arraySize];
 
     entitySet::const_iterator ci;
-    hash_map<int, vector<T> > ::const_iterator iter;
-    vector<T>   newvec;
+    hash_map<int, std::vector<T> > ::const_iterator iter;
+    std::vector<T>   newvec;
 
     size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -794,8 +800,8 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
     size_t  arraySize= 0;
     int     stateSize, maxStateSize = 0;
 
-    hash_map<int, vector<T> > ::const_iterator iter;
-    vector<T>   newVec;
+    hash_map<int, std::vector<T> > ::const_iterator iter;
+    std::vector<T>   newVec;
 
     bucketID = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
