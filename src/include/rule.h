@@ -18,6 +18,7 @@
 #include <parameter.h>
 #include <storeVec.h>
 #include <storeMat.h>
+#include <multiStore.h>
 
 namespace Loci {
 
