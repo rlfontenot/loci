@@ -540,7 +540,7 @@ entitySet process_rule_requests(rule f, fact_db &facts) {
   variableSet::const_iterator vi ;
   vdefmap tvarmap ;
   for(vi=targets.begin();vi!=targets.end();++vi) {
-    if(vi->get_info().name == "OUTPUT") 
+    if(vi->get_info().name == string("OUTPUT")) 
       facts.variable_request(*vi,facts.variable_existence(*vi)) ;
     tvarmap[*vi] = facts.get_variable_request(f,*vi) ;
   }
@@ -1694,7 +1694,7 @@ decompose_graph::decompose_graph(digraph dg,
 
       if(ri->type() != rule::COLLAPSE &&
          (ri->targets().size() != 1 ||
-          (ri->targets().begin())->get_info().name != "OUTPUT")) {
+          (ri->targets().begin())->get_info().name != string("OUTPUT"))) {
         cerr << "conditional rules must either be collapse rules or " << endl
              << "have a OUTPUT as the sole argument" << endl ;
         cerr << "offending rule: " <<*ri << endl ; 

@@ -52,7 +52,7 @@ namespace Loci {
 
   void dependency_graph::promote_variable(variable v1, variable v2)
     {
-      if(v1.get_info().name != "OUTPUT") {
+      if(v1.get_info().name != string("OUTPUT")) {
         ostringstream oss ;
         oss << "source(" << v1 << "),target("<<v2<<"),qualifier(promote)" ;
         rule f(oss.str()) ;
@@ -274,7 +274,7 @@ namespace Loci {
     variableSet::const_iterator vi ;
     map<time_ident,variableSet> tvarmap ;
     for(vi=all_vars.begin();vi!=all_vars.end();++vi) 
-      if(vi->get_info().offset == 1 || vi->get_info().name == "OUTPUT") 
+      if(vi->get_info().offset == 1 || vi->get_info().name==string("OUTPUT")) 
         tvarmap[vi->time()] += *vi ;
 
     map<time_ident,variableSet>::const_iterator ii ;

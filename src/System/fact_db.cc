@@ -279,7 +279,7 @@ namespace Loci {
             //cerr << mi->first << " has priority over " << f << endl ;
           }
         }
-      if(conflicts != EMPTY && v.get_info().name != "OUTPUT") {
+      if(conflicts != EMPTY && v.get_info().name != string("OUTPUT")) {
         cerr << "rule " << f << " conflicts with " << conflicts << endl ;
         exit(-1) ;
       }
