@@ -11,41 +11,65 @@ using std::ifstream ;
 using std::swap ;
 
 namespace Loci {
-
- 
-  dist_facts& distribute_info::get_dist_facts() {
-    return distributed_facts ;
-  }
-  
-  distribute_info::distribute_info(int myid) {
-    distributed_facts.send_neighbour.allocate(interval(myid, myid)) ;
-    distributed_facts.recv_neighbour.allocate(interval(myid, myid)) ;
-    distributed_facts.my_entities = EMPTY ;
-  }
-  
-  void distribute_info::set_dist_facts(int myid, constraint my_entities, Map g2l, Map l2g, store<entitySet> send_neighbour, store<entitySet> recv_neighbour) {
-    dist_facts d ;
-    d = get_dist_facts() ;
-    d.my_entities = my_entities ;
-    d.g2l = g2l ;
-    d.l2g = l2g ;
-    d.send_neighbour[myid] = send_neighbour[myid] ;
-    d.recv_neighbour[myid] = recv_neighbour[myid] ;
-  }
- 
-
   int MPI_processes ;
   int MPI_rank ;
   int num_threads = 1 ;
   
-  void Init(int *argc, char*** argv)  {
+  dist_facts* distribute_info::get_dist_facts() {
+    return &distributed_facts ;
+  }
+  
+  distribute_info::distribute_info() {
+    int myid = MPI_rank ;
+    distributed_facts.myid = myid ;
+    distributed_facts.isDistributed.allocate(interval(myid, myid)) ;
+    distributed_facts.isDistributed[myid] = 0 ;
+    distributed_facts.my_entities = EMPTY ;
+  }
+  
+  void distribute_info::set_dist_facts(dist_facts dist) {
+    distributed_facts.myid = dist.myid ;
+    distributed_facts.my_entities = dist.my_entities ;
+    distributed_facts.g2l = dist.g2l ;
+    distributed_facts.l2g = dist.l2g ;
+    distributed_facts.send_neighbour = dist.send_neighbour ;
+    distributed_facts.recv_neighbour = dist.recv_neighbour ;
+    distributed_facts.send_entities.allocate(dist.send_neighbour) ;
+    distributed_facts.recv_entities.allocate(dist.recv_neighbour) ;
+    for(entitySet::const_iterator ei = dist.send_neighbour.begin(); ei!= dist.send_neighbour.end(); ++ei) 
+      distributed_facts.send_entities[*ei] = dist.send_entities[*ei] ;
+    for(entitySet::const_iterator ei = dist.recv_neighbour.begin(); ei!= dist.recv_neighbour.end(); ++ei) 
+      distributed_facts.recv_entities[*ei] = dist.recv_entities[*ei] ;
+  }
+  
+  void distribute_info::operator = (distribute_info& d) {
+    dist_facts* dist ;
+    dist = d.get_dist_facts() ;
+    distributed_facts.myid = dist->myid ;
+    distributed_facts.my_entities = dist->my_entities ;
+    distributed_facts.g2l = dist->g2l ;
+    distributed_facts.l2g = dist->l2g ;
+    distributed_facts.send_neighbour = dist->send_neighbour ;
+    distributed_facts.recv_neighbour = dist->recv_neighbour ;
+    distributed_facts.send_entities.allocate(dist->send_neighbour) ;
+    distributed_facts.recv_entities.allocate(dist->recv_neighbour) ;
+    
+    for(entitySet::const_iterator ei = dist->send_neighbour.begin(); ei!= dist->send_neighbour.end(); ++ei) 
+      distributed_facts.send_entities[*ei] = dist->send_entities[*ei] ;
+    for(entitySet::const_iterator ei = dist->recv_neighbour.begin(); ei!= dist->recv_neighbour.end(); ++ei) 
+      distributed_facts.recv_entities[*ei] = dist->recv_entities[*ei] ;
+  }
+  
+  
+  
+  void Init(int* argc, char*** argv)  {
     MPI_Init(argc, argv) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
   }
   
-  void metis_facts(fact_db &facts,int num_partitions,
-                   std::vector<entitySet> &ptn, store<int> &partition ) {
+  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, store<int> &partition ) {
+    int num_partitions = MPI_processes ;
     variableSet fact_vars ;
     fact_vars = facts.get_typed_variables() ;
     entitySet map_entities ;
@@ -306,14 +330,14 @@ namespace Loci {
 
 
   
-  void generate_distribution(fact_db &facts, rule_db &rdb, int num_procs,
-			     std::vector<std::vector<entitySet> > &get_entities ) {
+  void generate_distribution(fact_db &facts, rule_db &rdb, std::vector<std::vector<entitySet> > &get_entities ) {
+    int num_procs = MPI_processes ;
     std::vector<entitySet> ptn ;
     store<int> partition ;
     std::set<std::vector<Loci::variableSet> > maps ;
     std::vector<entitySet> copy(num_procs) ;
     std::vector<entitySet> image(num_procs) ;
-    metis_facts(facts,num_procs,ptn,partition) ;
+    metis_facts(facts,ptn,partition) ;
     get_mappings(rdb,maps) ;
     std::set<std::vector<Loci::variableSet> >::const_iterator smi ;
     for(int pnum = 0; pnum < num_procs; pnum++) {
@@ -327,19 +351,19 @@ namespace Loci {
     }
   }
   
-  void distribute_facts(std::vector<std::vector<entitySet> > &get_entities, fact_db &facts, int myid)  {
-    int num_procs = get_entities.size() ;
+  distribute_info distribute_facts(std::vector<std::vector<entitySet> > &get_entities, fact_db &facts)  {
+    //int num_procs = get_entities.size() ;
+    int num_procs = MPI_processes ;
+    int myid = MPI_rank ;
     int j = 0 ;
     int size = 0 ;
-    distribute_info dist(myid) ;
-    Map g2l, l2g ;
-    store<int> isDistributed;
-    store<entitySet> send_neighbour, recv_neighbour ;
-    isDistributed.allocate(interval(myid, myid)) ;
-    send_neighbour.allocate(interval(myid, myid)) ;
-    recv_neighbour.allocate(interval(myid, myid)) ;
-    std::vector<Loci::interval> iv ;
+    distribute_info dist ;
+    dist_facts df ;
+    Map l2g ;
     constraint my_entities ;
+    store<int> isDistributed ;
+    isDistributed.allocate(interval(myid, myid)) ;
+    std::vector<Loci::interval> iv ;
     entitySet::const_iterator ei ;
     std::vector<entitySet> proc_entities ;
     categories(facts,iv) ;
@@ -371,12 +395,13 @@ namespace Loci {
 	++j ;
       }
     }
+    df.l2g = l2g ;
     
-    g2l.allocate(g) ;
+    df.g2l.allocate(g) ;
     j = 0 ;
     for(int i = 0; i < proc_entities.size(); ++i) {
       for(ei = proc_entities[i].begin(); ei != proc_entities[i].end(); ++ei ) {
-	g2l[*ei] = j ;
+	df.g2l[*ei] = j ;
 	++j ;
       }
     }
@@ -384,22 +409,127 @@ namespace Loci {
     for(int i = 0 ; i < num_procs; ++i ) 
       if(myid != i )
 	if(get_entities[myid][i] != EMPTY) 
-	  recv_neighbour[myid] += i ; 
+	  df.recv_neighbour += i ; 
     
     for(int i = 0; i < num_procs; ++i)
       if(myid != i)
 	if(get_entities[i][myid] != EMPTY)
-	  send_neighbour[myid] += i ;
+	  df.send_neighbour += i ;
     
-    reorder_facts(facts, g2l) ;
-    my_entities = get_entities[myid][myid] ;
-    dist.set_dist_facts(myid,  my_entities, g2l, l2g, send_neighbour, recv_neighbour) ;
-    facts.create_fact("g2l", g2l) ;
+    df.send_entities.allocate(df.send_neighbour) ;
+    df.recv_entities.allocate(df.recv_neighbour) ;
+    
+    for(ei = df.recv_neighbour.begin(); ei!= df.recv_neighbour.end(); ++ei)
+      df.recv_entities[*ei] = get_entities[myid][*ei] ;
+    for(ei = df.send_neighbour.begin(); ei!= df.send_neighbour.end(); ++ei)
+      df.send_entities[*ei] = get_entities[*ei][myid] ;
+    reorder_facts(facts, df.g2l) ;
+    isDistributed[myid] = 1 ;
+    df.isDistributed = isDistributed ;
+    g = EMPTY ;
+    for(ei = get_entities[myid][myid].begin(); ei != get_entities[myid][myid].end(); ++ei)
+       g+= df.g2l[*ei] ;
+    df.my_entities = g ;
+    my_entities = g ;
+    df.myid = myid ;
+    dist.set_dist_facts(df) ;
+    facts.create_fact("isDistributed", isDistributed) ;
     facts.create_fact("l2g", l2g) ;
     facts.create_fact("my_entities", my_entities) ;
-    facts.create_fact("send_neighbour", send_neighbour) ;
-    facts.create_fact("recv_neighbour", recv_neighbour) ;
-    facts.write(cout) ;
+    return dist ;
   }
+  
+  
+  
+  entitySet fill_entitySet(entitySet& e, distribute_info& dist, fact_db &facts) {
+    
+    MPI_Status status ;
+    MPI_Request send_request ;
+    MPI_Request recv_request ;
+    int k = 0 , send_flag = 0, recv_flag = 0;
+    store<int> is ;
+    const int MAX = 100 ;
+    Map l2g ;
+    dist_facts* d = dist.get_dist_facts() ;
+    constraint my_entities ;
+    entitySet re, temp;
+    is = facts.get_variable("isDistributed") ;
+    entitySet::const_iterator ei, ti ;
+    if(is[d->myid]) {  
+      int **send_buffer, **recv_buffer ;
+      int *recv_size, *send_size ;
+      
+      recv_buffer = new int*[d->recv_neighbour.size()] ;
+      for(int i = 0 ; i < d->recv_neighbour.size(); ++i)
+	recv_buffer[i] = new int[MAX] ;
+      
+      recv_size = new int[d->recv_neighbour.size()] ;
+      
+      send_buffer = new int*[d->send_neighbour.size()] ;
+      for(int i = 0 ; i < d->send_neighbour.size(); ++i)
+	send_buffer[i] = new int[MAX] ;
+      
+      send_size = new int[d->send_neighbour.size()] ;
+      
+      
+      l2g = facts.get_variable("l2g") ;
+      my_entities = facts.get_variable("my_entities") ;
+      entitySet local = my_entities ;
+      
+      for(ei = local.begin(); ei != local.end(); ++ei)
+	temp += l2g[*ei] ;
+      temp = e & temp ;
+      for(ei = temp.begin(); ei != temp.end(); ++ei)
+	re += d->g2l[*ei] ;
+      k = 0 ;
+      for(ei = d->recv_neighbour.begin(); ei != d->recv_neighbour.end(); ++ei) {
+	temp = (e & d->recv_entities[*ei]) ;
+	recv_size[k] = temp.size() ;
+	if(recv_size[k] > 0) {
+	  //recv_buffer[k] = new int[recv_size[k]] ;
+	  MPI_Irecv(&recv_buffer[k][0], recv_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, &recv_request ) ;  
+	  recv_flag = 1 ;
+	}
+	k++ ;
+      }
+   
+      k = 0 ;
+      for(ei = d->send_neighbour.begin(); ei != d->send_neighbour.end(); ++ei) {
+	temp = d->send_entities[*ei] & e ;
+	send_size[k] = temp.size() ;
+	if(send_size[k] > 0 ) {
+	  //send_buffer[k] = new int[send_size[k]] ;
+	  int j = 0 ;
+	  for(ti = temp.begin(); ti != temp.end(); ++ti) {
+	    send_buffer[k][j] = *ti ;
+	    ++j ;
+	  }
+	  
+	  MPI_Isend(&send_buffer[k][0], send_size[k], MPI_INT, *ei, 1, MPI_COMM_WORLD, &send_request) ;
+	  send_flag = 1 ;
+	}
+	k++ ;
+      }
+      if(recv_flag)
+	MPI_Wait(&recv_request, &status) ;
+      if(send_flag)
+	MPI_Wait(&send_request, &status) ;
+      
+      for(k = 0; k < d->recv_neighbour.size(); k++) 
+	if(recv_size[k] > 0) { 
+	  for(int i = 0 ; i < recv_size[k]; ++i) {
+	    re += d->g2l[recv_buffer[k][i]] ;
+	  }
+	}
+      
+      delete [] send_size ;
+      delete [] recv_size ;
+      delete [] send_buffer ;
+      delete [] recv_buffer ;
+     
+    }
+    return re ;
+  }
+  
   
 }
