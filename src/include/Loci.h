@@ -57,6 +57,29 @@ using Loci::pointwise_rule ;
 using Loci::singleton_rule ;
 using Loci::register_rule ;
 
+#include <DStore.h>
+using Loci::dstore ;
+using Loci::const_dstore ;
+
+#include <DStoreVec.h>
+using Loci::dstoreVec;
+using Loci::const_dstoreVec;
+
+#include <DMultiStore.h>
+using Loci::dmultiStore;
+using Loci::const_dmultiStore;
+
+#include <DMultiMap.h>
+using Loci:: dmultiMap;
+using Loci:: const_dmultiMap;
+
+#include <DMap.h>
+using Loci:: dMap;
+using Loci:: const_dMap;
+
+#include <DMapVec.h>
+using Loci:: dMapVec;
+using Loci:: const_dMapVec;
 
 using Loci::sequence ;
 using Loci::do_loop ;
