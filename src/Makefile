@@ -1,6 +1,6 @@
 #
 # 
-LOCI_BASE = $(shell pwd)
+LOCI_BASE = /usr/tmp/hebert/Loci #$(shell pwd)
 include $(LOCI_BASE)/Loci.conf
 
 
