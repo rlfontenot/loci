@@ -436,20 +436,22 @@ namespace Loci {
     entitySet global_io_domain = remap.preimage(tot_remap_dom).first;
     global_io_domain = all_collect_entitySet(global_io_domain);
 
-    dmultiMap d_remap ;
-    if(facts.is_distributed_start())
-      distributed_inverseMap(d_remap, remap, tot_remap_dom, global_io_domain, init_ptn) ;
-    else
-      inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom) ;
-
     dMap reverse ;
-    FORALL(remap_dom, ri) {
-      if(d_remap[ri].size() == 1)
-	reverse[ri] = d_remap[ri][0] ;
+    {
+      dmultiMap d_remap ;
+      if(facts.is_distributed_start())
+        distributed_inverseMap(d_remap, remap, tot_remap_dom, global_io_domain, init_ptn) ;
       else
-        if(d_remap[ri].size() > 1)
-          cerr << "d_remap has multiple entries!" << endl ;
-    } ENDFORALL ;
+        inverseMap(d_remap, remap, tot_remap_dom, tot_remap_dom) ;
+      
+      FORALL(remap_dom, ri) {
+        if(d_remap[ri].size() == 1)
+          reverse[ri] = d_remap[ri][0] ;
+        else
+          if(d_remap[ri].size() > 1)
+            cerr << "d_remap has multiple entries!" << endl ;
+      } ENDFORALL ;
+    }
     
     Map l2g ;
     l2g = facts.get_variable("l2g") ;
@@ -591,9 +593,9 @@ namespace Loci {
     
     unsigned char *send_store = new unsigned char[size_send] ;
     std::vector<storeRepP> tmp_sp( MPI_processes) ;
-    int size_recv = 0 ;
     MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
 		 MPI_COMM_WORLD) ; 
+    int size_recv = 0 ;
     for(int i = 0; i <  MPI_processes; ++i) {
       tmp_sp[i] = sp->new_store(entitySet(recv_dom[i])) ;
       size_recv += recv_count[i] ;

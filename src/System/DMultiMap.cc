@@ -383,21 +383,20 @@ namespace Loci
   
   entitySet dmultiMapRepI::image(const entitySet &domain) const 
   {
-    entitySet     codomain ;
-    vector<int>   mapvec;
     HASH_MAP(int,vector<int> )  :: const_iterator   ai;
     
     entitySet :: const_iterator  ei;
-    
+
+    vector<Entity> codomlist ;
     for( ei = domain.begin(); ei != domain.end(); ++ei){
       ai = attrib_data.find(*ei);
       if( ai != attrib_data.end() ) {
-        mapvec = ai->second;
-        for(size_t i = 0; i < mapvec.size(); i++)
-          codomain +=   mapvec[i];
+        for(size_t i = 0; i < ai->second.size(); i++)
+          codomlist.push_back(ai->second[i]) ;
       }
     }
-    return codomain ;
+    return create_intervalSet(codomlist.begin(),codomlist.end()) ;
+
   }
 
   //**************************************************************************/

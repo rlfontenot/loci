@@ -423,15 +423,12 @@ namespace Loci {
 
     int *part = new int[size_map] ;
     int *xadj = new int[size_map+1] ;
-    int options, numflag, edgecut, wgtflag ;
+    int edgecut ;
     int *vdist = new int[Loci::MPI_processes + 1] ;
     int cmin = local_cells[0].Min();
     for(int i = 0; i < Loci::MPI_processes; i++) 
       cmin = min(local_cells[i].Min(), cmin);
 
-    options = 0 ;
-    numflag = 0 ;
-    wgtflag = 0 ;
     edgecut = 0 ;
     xadj[0] = 0 ;
     for(int i = 0; i < size_map; ++i) 
@@ -449,10 +446,12 @@ namespace Loci {
       vdist[i] = vdist[i-1] + local_cells[i-1].size() ;
       
     MPI_Barrier(MPI_COMM_WORLD) ;
+#ifndef MPI_STUBB
     MPI_Comm mc = MPI_COMM_WORLD ;
     int num_partitions = Loci::MPI_processes ;
-#ifndef MPI_STUBB
-
+    int wgtflag = 0 ;
+    int numflag = 0 ;
+    int options = 0 ;
     ParMETIS_PartKway(vdist,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part, &mc) ;
 #endif
     if(Loci::MPI_rank == 0)
