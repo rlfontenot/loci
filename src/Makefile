@@ -1,6 +1,6 @@
 #
 # 
-LOCI_BASE=../
+LOCI_BASE=/usr/tmp/peo/Loci/
 include sys.conf
 include comp.conf
 
@@ -25,7 +25,7 @@ Tools/libTools.so: FRC
 
 System/libLoci.so: FRC
 	cd System; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libLoci.so
-	
+
 
 FRC :
 

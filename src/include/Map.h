@@ -6,7 +6,11 @@
 
 namespace Loci {
 
+  // The integer version of image_section.
   entitySet image_section(const int *start, const int *end) ;
+
+  // The Entity version of image_section.
+  entitySet image_section(const Entity *start, const Entity *end);
 
   class Map ;
   class multiMap ;
@@ -43,7 +47,7 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, entitySet& en) const ;
-    int * get_base_ptr() const { return base_ptr ; }
+    Entity * get_base_ptr() const { return base_ptr ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP thaw() ;
   } ;

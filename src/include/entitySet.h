@@ -44,7 +44,160 @@ namespace Loci {
   inline int getEntityIdentity(const Entity e){return e.getid();}  
 
   typedef intervalSet entitySet ;
- 
+
+
+  template<class T> inline entitySet create_entitySet(T start,T end) {
+      return create_intervalSet(start,end) ;
+  } 
+
+//      class entitySet {
+//    public:
+//      class entitySetIterator ;
+//      typedef pair_vector entitySetRep ;
+//    private:
+//      friend class sequence ;
+//      Handle<entitySetRep> Rep ;
+    
+//      struct rep_holder {
+//        Handle<entitySetRep> Rep ;
+//      } ;
+    
+//      static rep_holder *rhp ;
+//      static Handle<entitySetRep> & getEmptyRep() {
+//        if(rhp==0)
+//          rhp = new rep_holder ;
+//        return rhp->Rep ;
+//      } ;
+//    public:
+//      class entitySetIterator {
+//        entitySetRep::const_iterator current_interval,end_interval ;
+//        int_type current_value ;
+//        void increment() {
+//          if(++current_value>current_interval->second) {
+//            ++current_interval ;
+//            if(current_interval!=end_interval)
+//              current_value = current_interval->first ;
+//            else
+//              current_value = UNIVERSE_MAX ;
+//          }
+//        }                
+//      public:
+//        entitySetIterator() {}
+//          //      {current_interval=0;end_interval=0;current_value=0;}
+//        entitySetIterator(entitySetRep::const_iterator r,
+//                            entitySetRep::const_iterator end,int_type e) :
+//          current_interval(r),end_interval(end),current_value(e) {}
+//        int operator*() const { return current_value; }
+//        entitySetIterator &operator++() {
+//          increment() ;
+//          return *this ;
+//        }
+//        entitySetIterator operator++(int ) {
+//          entitySetIterator tmp = *this ;
+//          increment() ;
+//          return tmp ;
+//        }
+//        bool operator==(const entitySetIterator &i) const {
+//          return current_value == i.current_value ; }
+//        bool operator!=(const entitySetIterator &i) const {
+//          return current_value != i.current_value ; }
+//      } ;
+
+
+//      entitySet() : Rep(getEmptyRep()) {} ;
+//      entitySet(const interval &ivl) { 
+//  	interval i(min(ivl.first,ivl.second),
+//  		   max(ivl.first,ivl.second));
+//  	Rep->push_back(i) ; }
+//      entitySet(const entitySet &ptn): Rep(ptn.Rep) {}
+//      explicit entitySet(const sequence &seq) ;
+//      explicit entitySet(const Handle<pair_vector> &RepIn): Rep(RepIn) {}
+//      ~entitySet() {}
+    
+//      typedef entitySetIterator const_iterator ;
+
+//      const_iterator begin() const {
+//        if(Rep->size() != 0)
+//          return entitySetIterator(Rep->begin(),Rep->end(),(*Rep)[0].first) ;
+//        else
+//          return end() ;
+//      }
+//      const_iterator end() const {
+//        return entitySetIterator(Rep->end(),Rep->end(),UNIVERSE_MAX) ;
+//      }
+    
+
+//      bool inSet(int_type indx) const ;
+
+//      entitySet & operator=(const entitySet &ptn)  
+//      { Rep = ptn.Rep ; return *this;}
+//      entitySet & operator=(const interval &ivl) 
+//      { Rep.New() ; Rep->push_back(ivl) ; return *this ; }
+
+//      bool Equal(const entitySet &ptn) const
+//      { return *(Rep) == *(ptn.Rep) ; }
+
+//      bool less_than(const entitySet &ptn) const
+//      { return (*Rep) < *(ptn.Rep) ;}
+//      bool greater_than(const entitySet &ptn) const
+//      {return (*Rep) > *(ptn.Rep) ;}
+    
+//      entitySet & operator>>=(int rotval) ;
+//      entitySet & operator<<=(int rotval) ;
+
+//      entitySet operator<<(int rotval) const ;
+//      entitySet operator>>(int rotval) const ;
+
+//      int size() const {
+//        int size = 0 ;
+//        std::vector<interval>::const_iterator i ;
+//        for(i = Rep->begin();i!= Rep->end();++i)
+//          size += i->second-i->first + 1 ;
+//        return size ;  }
+
+//      int num_intervals() const { return Rep->size() ; }
+//      const interval & operator[](int_type indx) const 
+//      { fatal(indx<0); fatal(indx>=num_intervals()) ;
+//        return (*Rep)[indx]; }
+
+      
+//      void Union(const interval &ivl){Loci::Union(Rep,ivl);}
+//        void Union(const entitySet &ptn){
+//            int psz = ptn.num_intervals() ;
+//            if(psz == 0)// If ptn == EMPTY, do nothing
+//              return ;
+//            if(psz == 1) // only one interval, use interval update in place
+//              Loci::Union(Rep,ptn[0]);
+//            else
+//              Rep = Loci::Union(Rep,ptn.Rep) ; // General case
+//        }
+      
+//      static entitySet Union(const entitySet &set1,
+//                                          const entitySet &set2){
+//        return entitySet(Loci::Union(set1.Rep,set2.Rep)) ;
+//      }
+
+//      void Intersection(const interval &ivl) ;
+//      void Intersection(const entitySet &ptn) ;
+//      static entitySet Intersection(const entitySet &set1,
+//                                      const entitySet &set2) ;
+//      void Complement() ;
+//      static entitySet Complement(const entitySet &set) ;
+        
+//      std::ostream &Print(std::ostream &s) const ;
+//      void Print() const { Print(std::cout) ; }
+
+//      std::istream &Input(std::istream &s) ;
+
+//      int Min() const {
+//        int sz = Rep->size();
+//        return sz==0?UNIVERSE_MAX:(*Rep)[0].first ;}
+//      int Max() const {
+//        int sz = Rep->size() ;
+//        return sz==0?UNIVERSE_MIN:(*Rep)[sz-1].second ;}
+//    } ;
+
+
 #else
   typedef Loci::int_type Entity ;
   inline int getEntityIdentity(const int i){return i;}

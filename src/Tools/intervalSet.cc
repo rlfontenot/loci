@@ -184,7 +184,7 @@ namespace Loci {
       Rep->push_back(i) ;
       return ;
     }
-    pair<intervalSetRep::iterator,intervalSetRep::iterator> range ;
+    pair<pair_vector::iterator,pair_vector::iterator> range ;
     range = equal_range(Rep->begin(),Rep->end(),ivl,
                         interval_porder_union) ;
     int range_size = range.second - range.first ;

@@ -29,17 +29,20 @@ namespace Loci {
 
   typedef std::vector<interval> pair_vector ;
 
-
-  void Union(Handle<pair_vector> &Rep, const interval &ivl);
+#ifdef ENTITY
+  void Union_inplace (Handle<pair_vector> &Rep, const interval &ivl);
   Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
 			    const Handle<pair_vector> &Rep2);
+#endif
 
   inline int num_intervals(Handle<pair_vector> &Rep) {return Rep->size();}
 
   class intervalSet {
   public:
     class intervalSetIterator ;
-    typedef pair_vector intervalSetRep ;
+
+    typedef std::vector<interval> intervalSetRep ;
+
   private:
     friend class sequence ;
     Handle<intervalSetRep> Rep ;
@@ -97,7 +100,9 @@ namespace Loci {
 	Rep->push_back(i) ; }
     intervalSet(const intervalSet &ptn): Rep(ptn.Rep) {}
     explicit intervalSet(const sequence &seq) ;
+#ifdef ENTITY
     explicit intervalSet(const Handle<pair_vector> &RepIn): Rep(RepIn) {}
+#endif
     ~intervalSet() {}
     
     typedef intervalSetIterator const_iterator ;
@@ -142,26 +147,42 @@ namespace Loci {
       return size ;  }
 
     int num_intervals() const { return Rep->size() ; }
-    const interval & operator[](int_type indx) const 
-    { fatal(indx<0); fatal(indx>=num_intervals()) ;
-      return (*Rep)[indx]; }
+
+    const interval & operator[](int_type indx) const { 
+      fatal(indx<0); fatal(indx>=num_intervals()) ;
+      return (*Rep)[indx]; 
+    }
+
+#ifdef ENTITY
 
       
-    void Union(const interval &ivl){Loci::Union(Rep,ivl);}
-      void Union(const intervalSet &ptn){
-          int psz = ptn.num_intervals() ;
-          if(psz == 0)// If ptn == EMPTY, do nothing
-            return ;
-          if(psz == 1) // only one interval, use interval update in place
-            Loci::Union(Rep,ptn[0]);
-          else
-            Rep = Loci::Union(Rep,ptn.Rep) ; // General case
-      }
-      
+    void Union(const interval &ivl){Loci::Union_inplace(Rep,ivl);}
+
+    void Union(const intervalSet &ptn){
+      int psz = ptn.num_intervals() ;
+      if(psz == 0)// If ptn == EMPTY, do nothing
+	return ;
+      if(psz == 1) // only one interval, use interval update in place
+	Loci::Union_inplace(Rep,ptn[0]);
+      else
+	Rep = Loci::Union(Rep,ptn.Rep) ; // General case
+    }
+    
     static intervalSet Union(const intervalSet &set1,
-                                        const intervalSet &set2){
+			     const intervalSet &set2){
       return intervalSet(Loci::Union(set1.Rep,set2.Rep)) ;
     }
+
+#else
+
+    void Union(const interval &ivl) ;
+    void Union(const intervalSet &ptn) ;
+    static intervalSet Union(const intervalSet &set1,
+                             const intervalSet &set2) ;
+
+
+#endif
+
 
     void Intersection(const interval &ivl) ;
     void Intersection(const intervalSet &ptn) ;
