@@ -58,13 +58,6 @@ namespace Loci {
   }
   
   
-  void fact_db::create_fact(variable v, storeRepP st) {
-    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
-      int max_val = st->domain().Max() ;
-      maximum_allocated = max(maximum_allocated,max_val+1) ;
-    }
-    set_variable_type(v,st) ;
-  }
   
   void fact_db::update_fact(variable v, storeRepP st) {
     if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
@@ -81,8 +74,13 @@ namespace Loci {
            << endl ;
   }
   
-  void fact_db::set_variable_type(variable v, storeRepP st) {
-    //    warn(synonyms.find(v) != synonyms.end()) ;
+  void fact_db::create_fact(variable v, storeRepP st) {
+
+    if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
+      int max_val = st->domain().Max() ;
+      maximum_allocated = max(maximum_allocated,max_val+1) ;
+    }
+
     if(synonyms.find(v) != synonyms.end()) {
       v = remove_synonym(v) ;
       std::map<variable, fact_info>::iterator mi = fmap.find(v) ;
@@ -93,6 +91,7 @@ namespace Loci {
         if(typeid(st->getRep()) != typeid(mi->second.data_rep->getRep())) {
           cerr << "set_variable_type() method of fact_db changing type for variable " << v << endl ;
         }
+        mi->second.data_rep->setRep(st->getRep()) ;
       }
       return ;
     }
@@ -279,7 +278,16 @@ namespace Loci {
         exit(1) ;
       }
 
-      storeRepP vp = get_variable(vname) ;
+
+      variable var(vname) ;
+      storeRepP vp = get_variable(var) ;
+      if(vp == 0) {
+        vp = get_variable_type(var) ;
+        if(vp != 0) {
+          create_fact(var,vp) ;
+        }
+        vp = get_variable(var) ;
+      }
       if(vp == 0) {
         cerr << "variable named '" << vname
              << "' not found in database in fact_db::read." << endl
@@ -367,6 +375,18 @@ namespace Loci {
       storeRepP  p = facts.get_variable(*vi) ;
       facts.replace_fact(*vi,p->remap(m)) ;
     }
+  }
+
+  void fact_db::set_variable_type(variable v, storeRepP st) {
+    tmap[v] = storeRepP(st->new_store(EMPTY)) ;
+  }
+
+  storeRepP fact_db::get_variable_type(variable v) const {
+    map<variable,storeRepP>::const_iterator mi ;
+    if((mi=tmap.find(v)) != tmap.end())
+      return storeRepP(mi->second->new_store(EMPTY)) ;
+    else
+      return storeRepP(0) ;
   }
 }
 

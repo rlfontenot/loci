@@ -226,7 +226,7 @@ namespace Loci {
   }
 
   void sched_db::set_variable_type(variable v, storeRepP st, fact_db &facts) {
-    facts.set_variable_type(v, st) ;
+    facts.create_fact(v, st) ;
     if(!all_vars.inSet(v)) 
       install_sched_data(v, sched_data(v, st)) ;
   }
