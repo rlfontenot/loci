@@ -3,7 +3,7 @@
 #include <Tools/stream.h>
 #include <Tools/debugger.h>
 #include <DStore.h>
-
+#include <distribute.h>
 #include <typeinfo>
 
 extern "C" {
@@ -33,6 +33,7 @@ namespace Loci {
   fact_db::fact_db() {
     distributed_info = 0 ;
     maximum_allocated = 0 ;
+    minimum_allocated = -1 ;
     for(int i = 0; i < MPI_processes; ++i) {
       init_ptn.push_back(EMPTY) ;
     }
@@ -47,7 +48,13 @@ namespace Loci {
   }
 
   fact_db::~fact_db() {}
-
+  void fact_db::set_maximum_allocated(int i) {
+    maximum_allocated = i ;
+  }
+  void fact_db::set_minimum_allocated(int i) {
+    minimum_allocated = i ;
+  }
+  
   void fact_db::synonym_variable(variable v, variable synonym) {
 
     // Find all variables that should be synonymous with v
@@ -254,7 +261,7 @@ namespace Loci {
     init_ptn[0] += alloc ;
     return (make_pair(alloc, alloc)) ;
   }
-
+  
   storeRepP fact_db::get_variable(variable v) {
     variable tmp_v ;
     if(nspace_vec.size()) {  
@@ -487,6 +494,62 @@ namespace Loci {
       return storeRepP(mi->second->new_store(EMPTY)) ;
     else
       return storeRepP(0) ;
+  }
+  void fact_db::write_all_hdf5(const char *filename) {
+    variableSet vars = get_typed_variables() ;
+    write_hdf5(filename, vars) ;
+  }
+  void fact_db::read_all_hdf5(const char *filename) {
+    variableSet vars = get_typed_variables() ;
+    read_hdf5(filename, vars) ; 
+  }
+  void fact_db::write_hdf5(const char *filename, variableSet &vars) {
+    hid_t  file_id, group_id;
+    if(Loci::MPI_rank == 0) 
+      file_id =  H5Fcreate(filename, H5F_ACC_TRUNC,
+			   H5P_DEFAULT, H5P_DEFAULT) ;
+    
+    
+    for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
+      storeRepP  p = get_variable(*vi) ;
+      if(p->RepType() == STORE) {
+	if(MPI_rank == 0)
+	  group_id = H5Gcreate(file_id, (variable(*vi).get_info().name).c_str(), 0) ;
+	
+	if(isDistributed()) {
+	  fact_db::distribute_infoP df = get_distribute_info() ;
+	  dMap remap = df->remap ;
+	  storeRepP reorder_sp = collect_reorder_store(p, remap, *this) ;
+	  write_container(group_id, reorder_sp) ;
+	} else 
+	  write_container(group_id, p->getRep()) ;
+	if(MPI_rank == 0)
+	  H5Gclose(group_id) ;
+      }
+    }
+    if(Loci::MPI_rank == 0) 
+      H5Fclose(file_id) ;
+  }
+  
+  
+  void fact_db::read_hdf5(const char *filename, variableSet &vars) {
+    hid_t  file_id, group_id;
+    if(Loci::MPI_rank == 0) 
+      file_id =  H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT) ;
+    for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
+      storeRepP  p = get_variable(*vi) ;
+      if(p->RepType() == STORE) {
+	if(Loci::MPI_rank == 0) 
+	  group_id = H5Gopen(file_id, (variable(*vi).get_info().name).c_str()) ;
+	entitySet dom = p->domain() ;
+	read_container(group_id, p, dom) ;
+	if(Loci::MPI_rank == 0) 
+	  H5Gclose(group_id) ;
+      }
+    }
+    if(Loci::MPI_rank == 0) 
+      H5Fclose(file_id) ;
+    
   }
 }
 
