@@ -382,7 +382,9 @@ namespace Loci {
       MPI_Barrier(MPI_COMM_WORLD) ;
       MPI_Comm mc = MPI_COMM_WORLD ;
       int num_partitions = Loci::MPI_processes ;
+#ifndef MPI_STUBB
       ParMETIS_PartKway(vdist,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part, &mc) ;
+#endif
       if(Loci::MPI_rank == 0)
 	Loci::debugout << " Parmetis Edge cut   " <<  edgecut << endl ;
       delete [] xadj ;

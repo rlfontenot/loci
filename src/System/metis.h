@@ -1,3 +1,4 @@
+#ifndef MPI_STUBB
 #ifndef METIS_H
 #define METIS_H
 
@@ -132,5 +133,6 @@ void METIS_PartGraphRecursive(int *, idxtype *, idxtype *, idxtype *, idxtype *,
 void METIS_WPartGraphRecursive(int *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, float *, int *, int *, idxtype *); 
 #ifdef __cplusplus
 }
+#endif
 #endif
 #endif

@@ -424,7 +424,9 @@ namespace Loci {
         count ++ ;
       }
     double t = MPI_Wtime() ;
+#ifndef MPI_STUBB
     METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
+#endif
     double et = MPI_Wtime() ;
     debugout << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
     debugout << " Edge cut   " <<  edgecut << endl ;
