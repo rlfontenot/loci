@@ -53,6 +53,8 @@ namespace Loci {
   inline entitySet collect_entitySet(entitySet e)
   { return collect_entitySet(e,*exec_current_fact_db) ; }
 
+  inline storeRepP distribute_store(storeRepP &sp)
+  { return distribute_store(sp,*exec_current_fact_db) ; }
 }
 
 
