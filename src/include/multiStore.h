@@ -770,8 +770,10 @@ namespace Loci {
     entitySet eset;
     HDF5_ReadDomain(group, eset);
 
-    allocate( eset & user_eset );
-    hdf5read( group, traits_type, eset, eset & user_eset);
+    entitySet dom = eset & user_eset ;
+    allocate( dom );
+    
+    hdf5read( group, traits_type, eset, dom );
 
   }
 
