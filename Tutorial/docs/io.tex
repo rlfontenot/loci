@@ -7,7 +7,7 @@ containers. All the containers of Loci has the following member virtual function
 \item virtual void writehdf5( hid\_t group, entitySet \& eset) const ;
 \end{itemize}
 %
-{\em group\_id} is the valid HDF5 group in which data is written. {\em eset} is
+{\tt group\_id} is the valid HDF5 group in which data is written. {\tt eset} is
 the entitySet for which data is written. One simple example of
 creating a group is given below
 %
@@ -22,7 +22,7 @@ All files written in HDF5 ends with .hdf5
 All the facts are written in a single file, but in different groups.
 \subsection {Distributed facts}
 \begin{enumerate}
-\item they are written in {\em filename\_p0.hdf5}, {\em filename\_p1.hdf5}, \dots
+\item they are written in {\tt filename\_p0.hdf5}, {\tt filename\_p1.hdf5}, \dots
 \item they use local numbering.
 \item local to global numbering is provided in each file and this
 mapping is shared by all facts in the fact database.
@@ -34,7 +34,7 @@ no clone data is written.
 \subsection {Undistributed facts}
 
 \begin{enumerate}
-\item they are written in {\em filename\_p0.hdf5}
+\item they are written in {\tt filename\_p0.hdf5}
 \item facts are written with global numbering.
 \end{enumerate}
 \section {Rules for reading data from files}
@@ -82,7 +82,7 @@ new datatype is build, using is as simple as example one.
 \item In the third example, we will write class which uses {\em user defined conversion}
 \end{itemize}
 \section { Writing atomic datatype }
-In the following example, we shall use {\em store} container and fill it with
+In the following example, we shall use {\tt store} container and fill it with
 some data. We will demonstrate how the facts database is called to write the
 contains of the container in HDF5 data format.
 \begin{verbatim}
@@ -118,7 +118,7 @@ contains of the container in HDF5 data format.
   }
   //*******************************************************************
 \end{verbatim}
-The execution of the above program will produce {\em example\_p0.hdf5} file. 
+The execution of the above program will produce {\tt example\_p0.hdf5} file. 
 \begin{verbatim}
  HDF5 "example_p0.hdf5" {
  GROUP "/" {
@@ -142,8 +142,8 @@ The execution of the above program will produce {\em example\_p0.hdf5} file.
 }
 \end{verbatim}
 \par Notice the output, HDF5 write all necessary information about the container. EntitySet is 
-written under the {\em Interval Set} dataset and the data is written under {\em VariableData}
-dataset. Each datatype and dataspace is also specified in the file. {\bf H5T\_STD\_I32BE} tells
+written under the {\em Interval Set} dataset and the data is written under {\tt VariableData}
+dataset. Each datatype and dataspace is also specified in the file. {\tt H5T\_STD\_I32BE} tells
 us that data was 32 bit, and big-endian integer data.
 %
 \section { Writing Compound datatype}
@@ -277,7 +277,7 @@ information must be stored in the file for later retrieval.
 \par All user defined datatypes requires
 \begin{enumerate}
 \item  input and output stream overloaded functions.
-\item  Specialized template {\em data\_schema\_traits} class
+\item  Specialized template {\tt data\_schema\_traits} class
 \item  A class which can pack and unpack data of an object
 \end{enumerate}
 
@@ -453,8 +453,8 @@ GROUP "/" {
         Loci::Finalize();
       }
 \end{verbatim} 
-Execute the above program with 2 processors and the output will be written in {\em example\_p0,hdf5},
-and {\em example\_p1.hdf5}
+Execute the above program with 2 processors and the output will be written in {\tt example\_p0,hdf5},
+and {\tt example\_p1.hdf5}
 \begin{verbatim} 
      1  HDF5 "example_p1.hdf5" {
      2  GROUP "/" {
@@ -510,7 +510,7 @@ and {\em example\_p1.hdf5}
     52  }
 \end{verbatim} 
 
-\par In the above example line 3-11, {\em ProcessorID} group provides 
+\par In the above example line 3-11, {\tt ProcessorID} group provides 
 information about distribution. Line 6 says that number of entries in
 this group is two, Line 8 specifies that this data was written on
 process ID 1, and the maximum number of process on which
@@ -535,8 +535,8 @@ Local numbering & Global numbering \\ \hline
 \end{center}
 
 \par Line 28-51 actually write the attribute data. In this example, in
-the group {\em storeVec}
-we write the storeVec container data. Any {\em Loci} datatypes could
+the group {\tt storeVec}
+we write the storeVec container data. Any Loci datatypes could
 be used to write data in
 the in this group. (Refer to Loci Datatypes for more details )
 

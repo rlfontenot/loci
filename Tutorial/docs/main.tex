@@ -20,10 +20,13 @@
 
 
 \begin{document}
-\small
+%\small
 \tableofcontents
-\listoffigures
+%\listoffigures
 \maketitle
+\thispagestyle{empty}
+\newpage
+\setcounter{page}{1}
 %\include{intro}
 \chapter{ Basic Concepts }
 \section{Notation used in this document}
@@ -118,11 +121,11 @@ That is ordering of insertion is not preserved and there is no
 duplication.  Either an entity is in the set or it is not.  If we need
 to preserve the order of entities for looping or other control then we
 use the {\tt sequence } class.  The {\tt sequence} class provides
-operations for concatenation and reversal and can be general thought
+operations for concatenation and reversal and can be thought
 of as a list of entity labels.  It should be noted that users
 generally don't create sequences in Loci, but rather the scheduler
 generates sequence of entities for computations.  However, if there is
-ever a need keep track of a particular ordering of entities, then
+ever a need to keep track of a particular ordering of entities, then
 sequences are the data-structure that accomplishes this task.
 
 The following program segment (included with the tutorial programs)
@@ -140,10 +143,10 @@ of containers, parameters and stores.  Parameters provide a way of
 associating a single value with a set of entities, while stores
 provide a correspondence between entities and values.  In shorter
 terms, parameters look like variables while stores look like very
-flexible arrays.  The store's come in a variety of forms that allow
+flexible arrays.  The stores come in a variety of forms that allow
 various types of run-time selection of the sizes of the types they
 contain.  For example, the storeVec provides a store that contains
-vectors who's size isn't specified until compile time.  Perhaps the
+vectors whose size isn't specified until compile time.  Perhaps the
 fastest way to learn how to apply Loci containers is to see them in
 action.  So provided is a short program that illustrates the Loci
 containers and some basic examples of their application.
@@ -154,7 +157,7 @@ containers and some basic examples of their application.
 In addition to containers, Loci provides ways of describing
 relationships between entities.  The simplest of these relationships
 is the constraint.  The constraint simply identifies a grouping of
-entities and are used to assign attributes to entities.  For example,
+entities and is used to assign attributes to entities.  For example,
 a boundary condition may be specified by placing those entities in the
 boundary in a boundary constraint.  The most basic of the relations is
 the Map.  This provides a means of describing the relationship between
@@ -188,7 +191,7 @@ the following example code to see how to use these helper classes.
 
 Before any of the main Loci functionality can be used (that is the
 components that follow this section), Loci must be initialized.  Loci
-an initialize function that must be called before executing Loci
+has an initialize function that must be called before executing Loci
 functionality and a finalize method that must be called just before
 exiting the program.  For example, see below:
 
@@ -209,11 +212,11 @@ int main(int argc, char *argv[]) {
 }
 \end{verbatim}
 
-\chapter{Representing and Manipulating Data-Structures}
-\section{Creating Data-Structures in Loci}
+\chapter{Representing and Manipulating Data Structures}
+\section{Creating Data Structures in Loci}
 
-In Loci, data-structures are represented as relations between entities
-using Maps.  These data-structures, and associated initial values, are
+In Loci, data structures are represented as relations between entities
+using Maps.  These data structures, and associated initial values, are
 stored in a repository called the fact database which is managed by
 the {\tt fact\_db} class.  The fact database is what Loci uses to
 coordinate values between computations.  All Loci containers, (e.g.
@@ -263,23 +266,23 @@ in a counter-clockwise ordering.
 
 \include{grid_reader_cc}
 
-\section{Transforming Data-structures in Loci}
+\section{Transforming Data structures in Loci}
 
-We may need to transform data-structures from one form to another
+We may need to transform data structures from one form to another
 before they are useful for computations.  For example, if we are
 to use the mesh of triangles read in the previous section in a
 finite-volume based algorithm, we would usually need an edge-centric
-data-structure rather than an cell-centric data structure that the
+data structure rather than a cell-centric data structure that the
 triangle definition provides.  So, we would like to convert this
-triangle based data-structure to one that consists of edges.  Each
+triangle based data structure to one that consists of edges.  Each
 edge is defined by two nodes and two cells on either side.  Boundary
 edges will be require special treatment since there is no outer
 triangle.  We will create a ``ghost'' cell in these cases to make the
-data-structure consistent for all edges.  Also, we will want to make
-sure that each edge is represented in this data-structure only once.
+data structure consistent for all edges.  Also, we will want to make
+sure that each edge is represented in this data structure only once.
 
-We create this edge based data-structure by looping over the three
-edges of each triangle, and search neighboring triangles to find a
+We create this edge-based data structure by looping over the three
+edges of each triangle, and by searching neighboring triangles to find a
 triangle that shares the same edge.  Once we find this triangle, then
 we know the two nodes and two cells that form an edge.  In order to
 make sure that we don't find the same edge twice, we mark triangles
@@ -294,7 +297,7 @@ nodes to the triangles that are defined using that node.  A transpose
 of a map is found using the {\tt inverseMap} function.  This function has
 four arguments.  The first is a {\tt multiMap} that is returned by the
 function.  The second is the {\tt Map} that will be transposed.
-Following this is the entities for which the transposed map will be
+Following this are the entities for which the transposed map will be
 defined (in this case it will be all the nodes in the problem).  The
 final argument is the entities that describe the region of the map
 that will be transposed.  In this case, we are interested in
@@ -307,13 +310,13 @@ function
 
 Once we have the map from nodes to triangles, we can choose one of the
 nodes of an edge to search for the triangle that contains the same
-edge.  Once we have setup the preliminaries, we use a vector to store
+edge.  Once we have set up the preliminaries, we use a vector to store
 each edge as we find it.  Once we know how many edges are in the mesh,
 we can allocate entities for the edges and create the maps
-representing the edge data-structure.  For this we create three maps,
+representing the edge data structure.  For this we create three maps,
 ``cl'', ``cr'', and ``edge\_nodes'' representing the left and right
 cells and the two nodes that define the edge.  The following code
-shows how to setup these data-structures using Loci.
+shows how to set up these data structures using Loci.
 
 \include{setup_edges_cc}
 
@@ -322,11 +325,11 @@ shows how to setup these data-structures using Loci.
 In Loci, computations are performed by executing rules.  At a high
 level, it is useful to think of Loci as a ``make'' program for
 managing simulation computations instead of compilations.  A Loci rule
-includes a documentation section that describes the values that a
-given rule depends upon and the values that a given rule produces,
-combined with a computation method that can perform the documented
-computation when needed.  The following sections will describe how to
-perform various types of computations using Loci rules.
+includes a documentation section that describes the values that it
+depends upon and the values that it produces, combined with a
+computation method that can perform the documented computation when
+needed.  The following sections will describe how to perform various
+types of computations using Loci rules.
 
 \section{Rule Signatures}
 
@@ -345,7 +348,7 @@ C<-A,B
 \end{verbatim}
 
 If relations are used in a computation (such as the {\tt Map} {\tt cl}
-and {\tt cr} in the edge based data-structure of the previous section,
+and {\tt cr} in the edge-based data structure of the previous section,
 then they are included in the rule signature as well.  For example, a
 computation that computes a value ``{\tt D }'' by averaging value
 ``{\tt C }'' on both sides of any given face would be documented by
@@ -392,7 +395,7 @@ rules, Loci can use these databases to satisfy queries.  We obtain an
 execution schedule that can compute these results using the function
 {\tt create\_execution\_schedule} provided by Loci.  This function
 takes three arguments, 1) the rule database of computations to use for
-this query, 2) the fact database of data-structures and initial
+this query, 2) the fact database of data structures and initial
 values, and 3) a C++ string that contains the variable name that we
 wish to query for.  This function returns an {\tt executeP} which is a
 pointer to the execution schedule.  {\tt executeP} is a counted
@@ -423,8 +426,8 @@ example.
   ////////////////////////////////////////////////////////////////////
   std::vector<entitySet> partition = Loci::generate_distribution(facts,rdb) ;
   ////////////////////////////////////////////////////////////////////
-  // Now we use this distribution to partion the facts to processors.
-  // The assumption at this point is that every processor has an 
+  // Now we use this distribution to partition the facts to processors.
+  // The assumption at this point is that every processor has 
   // identical facts and rdb.
   ////////////////////////////////////////////////////////////////////
   Loci::distribute_facts(partition, facts, rdb) ;
@@ -471,17 +474,17 @@ compute method that provides computations for arbitrary collections of
 entities.  The most fundamental of these computations is the pointwise
 rule.  The pointwise rule represents a computation that can be applied
 individually, entity by entity.  For example, consider the case of
-computing the area of each triangle in the trianglular mesh described
+computing the area of each triangle in the triangular mesh described
 earlier.  In order to compute the area of any given triangle we need
-to access the positions of the triangles three nodes.  These node
+to access the positions of the triangle's three nodes.  These node
 positions can be accessed using the {\tt triangle\_nodes} map.  The
 areas of all of the triangles in the mesh can be computed by looping
 over all entities that have the {\tt triangle\_nodes} defined.  More
 precisely, not only must {\tt triangle\_nodes} be defined, but the
 entities that this map refers to must also have the attribute {\tt
-  pos}.  These set of entities is called the context of the rule and
+  pos}.  This set of entities is called the context of the rule and
 represents the possible entities over which the computational
-subroutine may be called upon.  A rule that computed areas in such a
+subroutine may be called.  A rule that computed areas in such a
 fashion would have a rule signature of
 \begin{verbatim}
 area<-triangle_nodes->pos
@@ -501,7 +504,7 @@ rule.  The containers are registered using the rule member function
 {\tt name\_store()}.  This function attaches a symbolic name (string)
 to the containers so that they can be attached to containers stored in
 any given fact database when an execution schedule is formed.
-Additionally, a {\tt input} and {\tt output} methods are provided to
+Additionally, {\tt input} and {\tt output} methods are provided to
 document both input and output data of the given computation
 encapsulated by the rule.  Below, a simple example shows how to create
 a pointwise rule to compute areas and centroids of triangles in the
@@ -578,23 +581,23 @@ define the edge area contribution as the area of the triangle formed
 by the two edge nodes and the centroid of the cell.  Obviously the
 triangle area is equal to the sum of all of the edge area
 contributions.  This computation method has the advantage that it can
-be made, with careful considerations, to compute the area of any
-general polygon, whereas the previous approach was limited only to
-triangles.  Also, since a natural way of expressing this computation
-is to loop over edges (which is typically what is required in
-finite-volume computations) we may be able to dispense with storing
-the relation {\tt triangle\_nodes} all together.  However, if we wish
-to define this computation via iteration over edges, we will need to
-sum up the results incrementally.  As a result we won't be able to
-express this computation as a pointwise rule since the computation
-of area does not occur completely point by point, but instead is
-spread out over several edge updates.  
+be made to compute the area of any general polygon, whereas the
+previous approach was limited only to triangles.  Also, since a
+natural way of expressing this computation is to loop over edges
+(which is typically what is required in finite-volume computations) we
+may be able to dispense with storing the relation {\tt
+  triangle\_nodes} all together.  However, if we wish to define this
+computation via iteration over edges, we will need to sum up the
+results incrementally.  As a result we won't be able to express this
+computation as a pointwise rule since the computation of area does not
+occur completely point by point, but instead is spread out over
+several edge updates.
 
 For this style of computation we need to describe a reduction.  In
 Loci we describe a reduction through the use of {\tt unit\_rule} and
 {\tt apply\_rule}.  The {\tt unit\_rule} defines the identity of the
 operator over which we are doing the reduction, while a set of {\tt
-  apply\_rule}'s define the summing update that we perform as we are
+  apply\_rule}s define the summing update that we perform as we are
 adding each edges contribution to its neighboring triangles.
 Following is an example program that shows how to compute areas using
 this edge-centric approach.
@@ -607,9 +610,9 @@ this edge-centric approach.
 \label{fig:area}
 \end{figure}
 
-Note, that reductions can also be used to compute parameter values.
+Note that reductions can also be used to compute parameter values.
 The specification of the reduction is the same as when the output is
-as store, and the resulting parameter is the reduced (accumulated)
+a store, and the resulting parameter is the reduced (accumulated)
 value.  In fact, an {\tt apply\_rule} is the only valid rule for
 computing parameters from stores.  See the file {\tt stable.cc} in the
 finite-volume example for an illustration of how to specify reductions
@@ -624,7 +627,7 @@ exclusively on parameters.  Since these computations are on single
 values that are associated with a group of entities, it is not
 necessary to perform any loops.  However the attribute that is
 computed as a result of the rule is only associated with the entities
-that are in the intersection of the entites given the attributes of
+that are in the intersection of the entities given the attributes of
 all of the inputs.  (Note:  In the parallel implementation, all
 parameters are duplicated on each processor, so these singleton rules
 are computed on each processor when parallel processing is used [no

@@ -1,33 +1,34 @@
 \chapter{Datatypes }
 %
 \section {Introduction}
-Datatypes are abstract representation of memory location where data is stored.
-In Loci framework, we have to specify the datatypes explicitly because
-%
-%
-\begin{enumerate}
-\item {\bf Heterogeneous Computing} In a distributed memory implementation, 
-the computing nodes may have different architecture and different internal data 
-representation. Therefore, when transferring data across different machines, 
-some type conversion may be necessary. To facilitate the data transfer correctly,
-it is necessary to know the type and structure of the data. 
-%
-%
-\item {\bf Data Storage } For large simulations, storing data in ASCII may
-be too expensive, but we would like to store the data in machine independent
-way (HDF5 is one of the library, which could this work). It is necessary that
-we store both data as well as information about the data itself.
-\end{enumerate}
-%
-%
-\par In Loci, the datatype information is encapsulated in 
-{\em \bf data\_schema\_traits} template  class.  A user need to specialize 
-the template with his/her own datatypes before they can be used.
+For the purpose of I/O and communication, datatypes can be considered
+as abstract representations of the state of an object.  Usually this
+is represented by the memory locations where data is stored.  In the
+Loci framework, we gave to specify how to save and restore the state
+of new object types explicitly to facilitate interprocessor
+communication in heterogeneous environments or portable file I/O.
+This information is provided to Loci using the traits mechanism.
+
+In Loci, the datatype information is encapsulated in {\tt
+  data\_schema\_traits} template class.  A user will need to provide a
+specialized template for his/her own datatypes before they can be
+used with Loci containers such as {\tt store}.
 %
 \section {Classification of Datatypes} 
-Datatypes could be classified according to the their relationship 
-between computer memory representation and data which they hold. Let
-us consider two simple examples
+
+Datatypes could be classified according to the their relationship
+between computer memory representation and data which they hold.  The
+basic distinction depends on the way C++ stores the object in memory.
+If the object is represented in a continuous segment of memory with a
+fixed layout, then then the memory layout is consistent with the
+schemas used to send messages or write data to files.  If, instead the
+objects data is scattered through memory or has a size that is
+determined at run time, then the object must be serialized before it
+can be sent as a message or placed in file storage.  An object whose
+memory layout is compatible with the contiguous memory schema uses an
+{\tt IDENTITY\_SCHEMA\_CONVERTER} for serialization.  Other objects
+must also specify a schema converter.  The specifics of this will be
+specified in the below examples:
 %
 \begin {verbatim}
 typedef struct My_Type_t {
@@ -45,23 +46,24 @@ typedef struct My_Type_t {
 } My_Type2;
 \end{verbatim}
 %
-\par For {\em My\_Type1} C/C++ guarantees that the members of a structure are stored in
-contiguous memory locations with some padding, so the bitwise copy of
-{\em My\_Type1} will pack the data correctly, whereas for {\em My\_Type2} the
-address of {\em dScalar} and not the data will be copied. In the first
-case, the memory schema and the file schema is handled by an {\bf
-Identity Function} called the {\bf IDENTITY SCHEMA CONVERTER } 
+For {\em My\_Type1} C/C++ guarantees that the members of a structure
+are stored in contiguous memory locations with some padding, so the
+bitwise copy of {\em My\_Type1} will pack the data correctly, whereas
+for {\em My\_Type2} the address of {\em dScalar} and not the data will
+be copied. In the first case, the memory schema and the file schema is
+handled by an {\bf Identity Function} called the {\tt
+  IDENTITY\_SCHEMA\_CONVERTER }
 
 In the second case, we need to explicitly convert between memory
-schema and the file schema by specifying {\bf USER\_DEFINED\_CONVERTER}.
-%
-%
-\par It should be mentioned here, that pointers are not the only source of 
-difference between these two datatype. STL container like vector, list, queues,
-maps and virtual classes, all would need user to pack and unpack the data they
-contains, therefore, they also fall under the category of user defined type.
-%
-%
+schema and the file schema by specifying {\tt USER\_DEFINED\_CONVERTER}.
+
+It should be mentioned here, that pointers are not the only source of
+difference between these two datatype. STL container like vector,
+list, queues, maps and virtual classes, all would need user to
+serialize the state they contains, therefore, they also fall under the
+category of user defined converter type.
+
+
 \section {Predefined Datatypes in Loci}
 Loci provides some of the frequently used datatypes so that user need
 not write for themselves.These are
@@ -116,7 +118,9 @@ Loci, has 2D/3D vesions of vector class(mathematical vectors)
       T x,y ;
  }
 \end{verbatim}
-\item {\bf STL containers with identity schema type}
+\item {\bf STL containers parameterized by types using the {\tt
+      IDENTITY\_SCHEMA\_CONVERTER}} 
+
 All standard STL containers with predefined identity schema types are supported.
 \begin{enumerate}
 \item vector
@@ -128,13 +132,14 @@ All standard STL containers with predefined identity schema types are supported.
 \end{enumerate}
 \section {Creating your own compound datatypes}
 %
-Loci, uses {\bf \em data\_schema\_traits} template class to determine the datatype of 
-an object. The generic behavior of template class is not suitable for identifying 
-or creating new datatype, so we use {\bf template Specialization }
-technique to customize or create new datatypes . This {\em
-data\_schema\_traits} class has one static member function {\em get\_type()} 
-in which user specifies the information about new
-datatype. A general skeleton for creating new datatype look as follows
+Loci, uses {\tt data\_schema\_traits} template class to determine
+the datatype of an object. The generic behavior of template class is
+not suitable for identifying or creating new datatype, so we use {\bf
+  template Specialization } technique to customize or create new
+datatypes . This {\tt data\_schema\_traits} class has one static
+member function {\tt get\_type()} in which user specifies the
+information about new datatype. A general skeleton for creating new
+datatype look as follows
 \begin{verbatim}
 namespace Loci {
    // Skelton for datatype having identity schema
@@ -156,8 +161,8 @@ Where {\bf CompoundFactory} is one of the software design pattern for creating a
 new compound datatype object. Since the allocation of this object is done inside
 the functions, the question will always arise, who is responsible for deleting
 the object ? To destroy the objects when they are not needed, we use reference counting and the 
-{\em CompoundDatatypeP} class stands for {\em Reference Counting} version of
-{\em CompoundDatatype} class.
+{\tt CompoundDatatypeP} class stands for {\em Reference Counting} version of
+{\tt CompoundDatatype} class.
 %
 \par If your C/C++ structures contains members of predefined Loci datatypes, then it
 is fairly easy to create corresponding Loci datatype. For example
@@ -186,7 +191,7 @@ is fairly easy to create corresponding Loci datatype. For example
 \section{Creating User Defined Datatype}
 \par As explained earlier, whenever the memory allocation in any object is
 not contiguous, it is the users responsibility to serialize the
-data contained in the objects.  The skelton of user defined schema type
+data contained in the objects.  The skeleton of user defined schema type
 will look as follows
 \begin{verbatim}
    // Skelton for datatype having user defined schema
@@ -197,17 +202,17 @@ will look as follows
         typedef MyObject_SchemaConverter   Converter_Type;
    };
 \end{verbatim}
-\par {\em Note : Converter\_Base\_Type could be any datatype with identity schema}
+\par {\em Note : {\tt Converter\_Base\_Type} could be any datatype with identity schema}
 \par Following steps must be taken in order to define your own datatype
 for Loci
 \begin{enumerate} 
-\item Specialize the {\em data\_schema\_traits} class
+\item Specialize the {\tt data\_schema\_traits} class
 \begin{itemize}
-\item Specialize {\em data\_schema\_traits} template class with your
+\item Specialize {\tt data\_schema\_traits} template class with your
 class
-\item \par declare in {\em data\_schema\_traits}class
+\item \par declare in {\tt data\_schema\_traits} class
 \begin{center}
-{\bf typedef USER\_DEFINED\_CONVERTER Schema\_Converter}
+{\tt typedef USER\_DEFINED\_CONVERTER Schema\_Converter}
 \end{center}
 \item specify what datatype will be used in conversion. This should be 
 datatype with identity schema defined which means, that we can use any 
@@ -218,11 +223,12 @@ Serialize class )
 \item Specifying Serialize class
 \begin{itemize}
 \item Specify object reference in the constructor.
-\item {\em getSize()} member function returns the number of
-atomic datatypes used in this object.(It is not the size of the object in bytes)
-\item {\em getState()} member function gets the state of an
+\item {\tt getSize()} member function returns the number of atomic
+  datatypes used in this object.(It is not the size of the object in
+  bytes)
+\item {\tt getState()} member function gets the state of an
 object into a contiguous buffer.
-\item {\em setState()} member function sets the state of an
+\item {\tt setState()} member function sets the state of an
 object from a contiguous buffer.
 \end{itemize}
 \item Overload input/output stream functions.
@@ -320,8 +326,8 @@ Every member of these datatype has a unique name within the datatype and
 they occupy  non-overlapping memory locations.
 %
 %
-\par In Loci, this datatype is declared in {\bf CompoundType}
-class. The corresponding counted pointer class is {\bf
+\par In Loci, this datatype is declared in {\tt CompoundType}
+class. The corresponding counted pointer class is {\tt
 CompoundDatatypeP}.
 %
 \par A new member can be inserted into the new datatype in either way
@@ -330,7 +336,7 @@ CompoundDatatypeP}.
 \begin{center}
 insert( member\_name, offsetof(type, member-designator), member\_datatype);
 \end{center}
-where {\em offsetof} is a standard C/C++ function which provides offset of any
+where {\tt offsetof} is a standard C/C++ function which provides offset of any
 member (designated by member-designator) in C/C++ structure (designated by type).
 {\em member\_datatype} could be any valid Loci datatype.
 %
@@ -342,7 +348,7 @@ LOCI\_INSERT\_TYPE( compound\_object, compound\_class, insert\_member);
 and {\em insert\_member} is the required member of {\em compound\_class} which
 is inserted into new datatype. 
 \par In order to use the macro {\em insert\_member} must be a first class object
-and and its own type should be identified by {\em data\_schema\_traits} class.
+and and its own type should be identified by {\tt data\_schema\_traits} class.
 \end{itemize}
 \par In the following sections we shall gives some examples of
 creating different Loci datatypes.
@@ -415,7 +421,7 @@ into the structure and define corresponding Loci datatype.
 \subsection{Creating compound datatype with nested compound
 datatypes}
 In this example, we would demonstrate that any member with valid
-datatype could be inserted into compound datatype in an hierachial fashion. There
+datatype could be inserted into compound datatype in an hierarchal fashion. There
 is no restriction on number of levels used to define a datatype.
 \begin{verbatim}
 namespace Loci {
@@ -463,16 +469,14 @@ atomic datatypes. We can defined array datatypes for standard C/C++
 arrays. In order to create array datatype, a user need to provide
 \begin{itemize}
 \item the rank of the array, i.e. number of dimensions 
-\par {\em \bf Note At present, Loci can support arrays with maximum rank of
+\par {\em Note At present, Loci can support arrays with maximum rank of
 4. This limitation comes from HDF5 library. If the user wants higher ranked
 arrays, using {\bf Array class} is one solution}
 \item the size of each dimension
 \item the datatype of each element of the array
 \end{itemize}
-\par In Loci, this datatype is declared in {\bf ArrayType} class. The 
-corresponding counted pointer class is {
-\bf ArrayDatatypeP
-}.
+\par In Loci, this datatype is declared in {\tt ArrayType} class. The 
+corresponding counted pointer class is {\tt ArrayDatatypeP}.
 %
 \begin{itemize}
 \item Create 1 D dimensional array datatype
@@ -518,7 +522,7 @@ typedef struct My_Compound_Type_t {
 \end{verbatim}
 %
 This datatype has multidimensional array, which is not first class
-objects. We can use {\em ArrayDatatype} to specify the Loci Datatype as
+objects. We can use {\tt ArrayDatatype} to specify the Loci Datatype as
 \begin{verbatim}
 int     rank  = 3;
 int     dim[] = {10, 5, 2};
@@ -531,7 +535,7 @@ ArrayDatatypeP    array_t = ArrayFactory(atom, sz, rank, dim);
 cmpd->insert("dScalar", offsetof(My_Compound_Type, dScalar), DatatypeP(array_t));
 \end{verbatim}
 
-This is definately cumbersome, Instead of using array in this way, if
+This is definitely cumbersome, Instead of using array in this way, if
 we had used
 \begin{verbatim}
 typedef  Array < double, 10 > Array1D;
@@ -544,7 +548,7 @@ typedef struct My_Compound_Type_t {
    Array3D         dScalar;
 } My_Compound_Type;
 \end{verbatim}
-then we can use {\em LOCI\_INSERT\_TYPE} macro to insert {\em
+then we can use {\tt LOCI\_INSERT\_TYPE} macro to insert {\tt
 dScalar} into new compound datatype.
 
 %
