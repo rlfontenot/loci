@@ -839,14 +839,6 @@ namespace Loci {
     return vars;
   }
 
-  ruleSet extract_rules_with_mapping_in_output(ruleSet rs) {
-    ruleSet ret ;
-    for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri)
-      if(rule_has_mapping_in_output(*ri))
-        ret += *ri ;
-    return ret ;
-  }
-  
    /* In the case with mapping in the output we might end up computing
      values for some of the entities in the clone region. In that case 
      we need to send these values to the processor that actually owns
