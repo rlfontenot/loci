@@ -343,25 +343,27 @@ namespace Loci {
           }
           break;
         case SINGLETON:
-          if(mi->second->Rep()->RepType() != PARAMETER) {
+          if(mi->second->Rep()->RepType() != PARAMETER &&
+	     mi->second->Rep()->Reptype() != BLACKBOX) {
             cerr << "-------------------------------------------------"<<endl;
-            cerr << "Singleton rule should have targets of param type."<<endl;
-            cerr << "perhaps this rule should be a pointwise_rule, or"<<endl;
-            cerr << "apply_rule."<< endl ;
-            cerr << "error occured for rule " << get_name() 
-                 << " and variable " << *si << endl ;
+            cerr << "Singleton rule should have targets of param or" << endl;
+            cerr << "blackbox type.  Perhaps this rule should be a" << endl;
+	    cerr << "pointwise_rule, or apply_rule."<< endl ;
+            cerr << "Error occured for rule " << get_name()
+		 << " and variable " << *si << endl ;
             cerr << "-------------------------------------------------"<<endl;
             retval = false ;
           }
           for(sri=read_set.begin();sri!=read_set.end();++sri) {
             if((mi=var_table.find(*sri)) != var_table.end() &&
                mi->second->Rep()->RepType() != PARAMETER &&
-               mi->second->Rep()->RepType() != MAP) {
+               mi->second->Rep()->RepType() != MAP &&
+	       mi->second->Rep()->RepType() != BLACKBOX) {
             cerr << "-------------------------------------------------"<<endl;
-            cerr << "Singleton rule should have sources of param type."<<endl;
-            cerr << "perhaps this rule should be a pointwise_rule, or"<<endl;
-            cerr << "apply_rule."<< endl ;
-            cerr << "error occured for rule " << get_name() 
+            cerr << "Singleton rule should have sources of param or" << endl;
+	    cerr << "blackbox type.  Perhaps this rule should be a" << endl;
+	    cerr << "pointwise_rule, or apply_rule."<< endl ;
+            cerr << "Error occured for rule " << get_name() 
                  << " and variable " << *sri << endl ;
             cerr << "-------------------------------------------------"<<endl;
             retval = false ;
