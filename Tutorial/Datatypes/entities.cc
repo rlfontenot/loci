@@ -1,7 +1,7 @@
 // Example program illustrating how to manipulate Entity, entitySet,
 // and sequence data structures in Loci
 
-// Time-stamp: <2002-05-02 10:01:05 peo>.
+// Time-stamp: <2003-02-12 16:19:12 peo>.
 
 // Every Loci program includes the Loci header file.
 #include <Loci.h>
@@ -129,7 +129,7 @@ int main()
   // A & C  gives the intersection of A and C (the interval [5-9])
   cout << "A intersect C = " << (A & C) << endl ;
   // A - C gives the set difference (A take away C) (the interval [0-4])
-  cout << "relative complent of A in C = " << (A - C) << endl ;
+  cout << "relative complement of A in C = " << (A - C) << endl ;
   cout << "A intersect (B union F) = " << (A & (B + F)) << endl ;  
   cout << "A union (B intersect F) = " << (A + (B & F)) << endl ;
 
