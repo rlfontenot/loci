@@ -10,6 +10,10 @@ namespace Loci {
     }
     return tmp_str ;
   }
+  //This is a hack for specifying hierarchy of namespaces. We specify
+  // the name to be loaded from as say for eg: chem_heat_.... When we
+  // call the load_module and pass in this string it loads all the
+  // variables into the namespace chem@heat@ .... etc.   
   void parse_str(const std::string& str, std::vector<std::string> &str_vec) {
     if(!str.empty()) {
       size_t tmp = 0 ;
@@ -20,7 +24,13 @@ namespace Loci {
         sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
       }
     }
-  } 
+  }
+  //The rules loaded in from a module are stored in a data-structure
+  //called mod_info. There is a static struct mod_db which stores the
+  //mod_infos' so that we load in the rules from a module only
+  //once. When we pass in a string to get_info it searches the mod_db
+  //to see if the rules are already loaded or else it opens the shared 
+  //module and stores the rule_list in the mod_info. 
   mod::mod_info& mod::mod_db::get_info(const std::string &str) { 
     MI msi ;
     mod_info md ;
@@ -43,14 +53,22 @@ namespace Loci {
 	    cerr << "reason for failure is " << error << endl ;
 	exit(-1) ;
       }
+      //Copy the loaded rule_list to the mod_info rule_list. 
       md.loaded_rule_list.copy_rule_list(register_rule_list) ;
       md.mod_name = tmp_str ;
+      // We  have to clear the static register_rule_list as it is
+      // going to be used to push in the next loaded rule list. 
       register_rule_list.clear() ;
       put_info(md) ;
       return mod_map[tmp_str] ;
     }
     return msi->second ;
-  } 
+  }
+  //This is similar to the above get_info but for the init_model
+  //part. Some modules need an init_model. In that case we need to
+  //pass in the problem name(usually the grid/vars file to be read)
+  //along with the fact_database.    
+  
   mod::mod_info& mod::mod_db::get_info(const std::string &str, const std::string &to_str, const char* problem_name, fact_db &facts) { 
     MI msi ;
     mod_info md ;
@@ -58,9 +76,9 @@ namespace Loci {
     tmp_str.append(str) ;
     tmp_str.append("_m.so") ;
     std::vector<std::string> default_ns_vec ;
-
+    
     if((msi = mod_map.find(tmp_str)) == mod_map.end()) {
-     default_ns_vec.push_back(str) ;
+      default_ns_vec.push_back(str) ;
       if(Loci::MPI_rank == 0)
 	cout << "Loading  in rules from  " << tmp_str << endl ;
       md.m_library = dlopen(tmp_str.c_str(),RTLD_GLOBAL|RTLD_NOW) ;
@@ -101,7 +119,6 @@ namespace Loci {
   
   void load_module(const std::string from_str, const std::string to_str, rule_db& rdb, std::set<std::string> &str_set) {
     std::vector<std::string> using_ns_vec ;
-    
     str_set.insert(from_str) ;
     mod md(from_str) ;
     mod::mod_info m = md.get_info(from_str) ;
