@@ -385,8 +385,8 @@ namespace Loci {
 
   }
  
-#ifdef ALLOW_DEFAULT_CONVERTER
   //*******************************************************************/
+#ifdef ALLOW_DEFAULT_CONVERTER
   template <class T>
   void storeRepI<T>::StringVal( const int &entity, std::string &memento)
   {
@@ -396,17 +396,12 @@ namespace Loci {
 
     memento = oss.str();
   }
-  //*******************************************************************/
 
   template <class T> 
   void storeRepI<T>::packdata(DEFAULT_CONVERTER c, void *outbuf,
                               int &position, int outcount,
                               const entitySet &eset )  
   {
-    IDENTITY_CONVERTER cc;
-    packdata(cc, outbuf, position, outcount, eset);
-    return;
-
     std::ostringstream oss, os1;
     std::string        memento;
     int   bufSize, currpos = 0;
@@ -508,10 +503,6 @@ namespace Loci {
                                 int &position,  int insize,
                                 const sequence &seq) 
   {
-    IDENTITY_CONVERTER cc;
-    unpackdata(cc, inbuf, position,  insize, seq);
-    return;
-
     char *outbuf;
     int   outcount;
     sequence:: const_iterator ci;
@@ -628,6 +619,7 @@ namespace Loci {
     HDF5_WriteDomain(group_id, ecommon);
 
     hdf5write(group_id, traits_output_type, ecommon );
+
   }
 
   //**************************************************************************/
@@ -650,7 +642,7 @@ namespace Loci {
     dimension[0]  =  size+1;
 
     hid_t vDataspace = H5Screate_simple(rank, dimension, NULL);
-    hid_t vDatatype  = H5Tcopy(H5T_NATIVE_CHAR);
+    hid_t vDatatype  = H5T_NATIVE_CHAR;
     hid_t vDataset   = H5Dcreate(group_id, "VariableData", vDatatype,
                                  vDataspace, H5P_DEFAULT);
     H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
@@ -665,7 +657,7 @@ namespace Loci {
   //**********************************************************************/
   template <class T> 
   void storeRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER c, 
-                                  const entitySet &eset) const
+                                  const entitySet &eset)  const
   {
 
     int arraySize =  eset.size(); 
@@ -684,9 +676,9 @@ namespace Loci {
 
     T *data = new T[eset.size()];
     int indx =0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+    for( ci = eset.begin(); ci != eset.end(); ++ci) 
       data[indx++] = base_ptr[*ci];
-    }
+
     hid_t cparms   = H5Pcreate (H5P_DATASET_CREATE);
     hid_t vDataset = H5Dcreate(group_id, "VariableData", vDatatype,
                                vDataspace, cparms);
@@ -703,87 +695,71 @@ namespace Loci {
 
   template <class T> 
   void storeRepI<T>::hdf5write( hid_t group_id,USER_DEFINED_CONVERTER g, 
-                                const entitySet &eset)  const
+                                const entitySet &eset) const
   {   
-#ifdef FIX_THIS
-    // write out the domain   
     entitySet :: const_iterator ci;
     hid_t   vDataspace, vDataset, vDatatype;
 
     //---------------------------------------------------------------
-    // Get the sum of each object size and maximum size of object in the 
+    // Get the sum of each object size and maximum size of object in the
     // container for allocation purpose
     //---------------------------------------------------------------
+    typedef data_schema_traits<T> schema_traits ;
 
     size_t  arraySize= 0;
     int     stateSize, maxStateSize = 0;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      Memento<T> memento( base_ptr[*ci] );
-      stateSize    = memento.getSize();
+      typename schema_traits::Converter_Type cvtr( base_ptr[*ci] );
+      stateSize    = cvtr.getSize();
       arraySize   += stateSize;
       maxStateSize = max( maxStateSize, stateSize );
     }
 
-    typedef data_schema_converter_traits<T> converter_traits;
+    typedef typename schema_traits::Converter_Base_Type dtype;
 
-    typedef typename converter_traits::memento_type dtype;
-
-    dtype *data, *buf;
-
-    data =  new typename converter_traits::memento_type[arraySize];
-    buf  =  new typename converter_traits::memento_type[maxStateSize];
+    std::vector<dtype> data(arraySize);
 
     //-------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
     //-------------------------------------------------------------------
 
     size_t indx = 0;
-
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      Memento<T> memento( base_ptr[*ci] );
-      memento.getState( buf, stateSize);
-      for( int i = 0; i <  stateSize; i++)
-        data[indx++] =  buf[i];
+      typename schema_traits::Converter_Type cvtr( base_ptr[*ci] );
+      cvtr.getState( &data[0]+indx, stateSize);
+      indx +=stateSize ;
     }
-
     //--------------------------------------------------------------------
     // Write (variable) Data into HDF5 format
     //--------------------------------------------------------------------
+    typedef data_schema_traits<dtype> traits_type;
+    DatatypeP atom_type = traits_type::get_type() ;
+    vDatatype = atom_type->get_hdf5_type();
 
     int rank = 1;
     hsize_t  dimension;
 
-    dimension =  arraySize;
-
+    dimension  =  arraySize;
     vDataspace = H5Screate_simple(rank, &dimension, NULL);
-
-    typedef data_schema_traits<dtype> traits_type;
-
-    DatatypeP ltype = traits_type::get_type();
-    vDatatype = ltype->get_hdf5_type();
-
     vDataset   = H5Dcreate(group_id, "VariableData", vDatatype,
                            vDataspace, H5P_DEFAULT);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
 
-    delete [] data;
-    delete [] buf;
-
     //--------------------------------------------------------------------
     // Write Container 
     //--------------------------------------------------------------------
     dimension    = eset.size();
-    int *vbucket = new int[ eset.size() ];
+    std::vector<int> vbucket(eset.size());
 
     indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      Memento<T> memento( base_ptr[*ci] );
-      vbucket[indx++] = memento.getSize();
+      typename schema_traits::Converter_Type cvtr( base_ptr[*ci] );
+      vbucket[indx++] =  cvtr.getSize();
     }
 
     vDatatype  = H5T_NATIVE_INT;
@@ -791,14 +767,10 @@ namespace Loci {
     vDataset   = H5Dcreate(group_id, "ContainerSize",
                            vDatatype, vDataspace, H5P_DEFAULT);
 
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vbucket);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vbucket[0]);
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
-    delete [] vbucket;
-#else
-    cerr << "Not Implemented" << endl ;
-#endif
   };
 
 
@@ -810,27 +782,25 @@ namespace Loci {
   {
 
     hsize_t  dimension;
-    hid_t vDatatype  = H5Tcopy(H5T_NATIVE_CHAR);
+    hid_t vDatatype  = H5T_NATIVE_CHAR;
     hid_t vDataset   = H5Dopen(group_id,"VariableData");
     hid_t vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims (vDataspace, &dimension, NULL);
 
-    char *ibuf = new char[dimension];
+    vector<char> cbuf(dimension);
 
-    H5Dread(vDataset,H5T_NATIVE_CHAR,H5S_ALL,H5S_ALL,H5P_DEFAULT, ibuf);
+    H5Dread(vDataset,H5T_NATIVE_CHAR,H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
 
     entitySet :: const_iterator ci;
 
-    std::istringstream iss(ibuf);
+    std::istringstream iss(&ibuf[0]);
 
     for( ci = eset.begin(); ci != eset.end(); ++ci) 
       iss >> base_ptr[*ci];
 
-    H5Tclose(vDatatype );
     H5Dclose(vDataset  );
     H5Sclose(vDataspace);
 
-    delete[] ibuf;
   }
 #endif
 
@@ -871,7 +841,6 @@ namespace Loci {
     DatatypeP dtype = traits_type::get_type();
     vDatatype = dtype->get_hdf5_type();
 
-    T  *data;
 
     dimension  = eset.size();
     mDataspace = H5Screate_simple(rank, &dimension, NULL);
@@ -884,12 +853,18 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
+    T  *data;
+    int preallocated = 0;
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
         count[0] += 1;
 
-      data = new T[count[0]];
+      if( count[0] > preallocated) {
+          delete [] data;
+          preallocated = count[0];
+          data = new T[preallocated];
+      }
 
       foffset[0] = offset[it[k].first];
 
@@ -903,13 +878,14 @@ namespace Loci {
       indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) 
         base_ptr[i] = data[indx++];
-
-      delete[] data;
     }
+
+    if( preallocated) delete [] data;
 
     H5Sclose( mDataspace );
     H5Sclose( vDataspace );
     H5Dclose( vDataset   );
+    H5Dclose( vDatatype  );
 
   }
   //*********************************************************************/
@@ -918,11 +894,10 @@ namespace Loci {
   void  storeRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, 
                                   entitySet &eset, entitySet &usr_eset)
   {
-#ifdef FIX_THIS
+
     hsize_t  dimension;
     size_t   indx = 0, arraySize;
     hid_t    vDataset, vDataspace, vDatatype, mDataspace;
-    int      rank = 1;
     entitySet::const_iterator  ci;
 
     //---------------------------------------------------------------
@@ -933,10 +908,11 @@ namespace Loci {
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    int *ibuf = new int[dimension];
-    H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, ibuf);
-
-    int maxBucketSize = *std::max_element( ibuf, ibuf + (int)dimension );
+    vector<int> ibuf(dimension);
+    H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
+    H5Tclose(vDatatype );
+    H5Dclose(vDataset  );
+    H5Sclose(vDataspace);
 
     store<int> container;
     container.allocate( eset );
@@ -947,10 +923,6 @@ namespace Loci {
       container[*ci] = ibuf[indx++];
       arraySize     += container[*ci];
     }
-    H5Tclose(vDatatype );
-    H5Dclose(vDataset  );
-    H5Sclose(vDataspace);
-    delete [] ibuf;
 
     //-------------------------------------------------------------------
     // Calculate the offset of each entity in file ....
@@ -976,10 +948,11 @@ namespace Loci {
     interval *it = new interval[num_intervals];
 
     for(int i=0;i< num_intervals;i++) it[i] = usr_eset[i];
-    typedef data_schema_converter_traits<T> converter_traits;
-    converter_traits::memento_type *data, *buf, dtype;
 
-    vDatatype = get_hdf5_type(dtype);
+    typedef typename data_schema_traits<T>::Converter_Base_Type dtype;
+    typedef data_schema_traits<dtype> traits_type;
+    DatatypeP atom_type = traits_type::get_type() ;
+    vDatatype = atom_type->get_hdf5_type();
 
     dimension  = arraySize;
     vDataset   = H5Dopen(group_id,"VariableData");
@@ -993,42 +966,35 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    buf  = new typename converter_traits::memento_type[maxBucketSize];
+    vector<dtype> data;
 
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
         count[0] +=  container[i];
 
-      data = new typename converter_traits::memento_type[count[0]];
+      if( count[0] > data.size() ) data.resize( count[0] );
 
       foffset[0] = offset[it[k].first];
       H5Sselect_hyperslab(mDataspace, H5S_SELECT_SET, start_mem, stride,
                           count, block);
       H5Sselect_hyperslab(vDataspace, H5S_SELECT_SET, foffset,   stride,
                           count, block);
-      H5Dread(vDataset, vDatatype, mDataspace, vDataspace,H5P_DEFAULT, data);
+      H5Dread(vDataset, vDatatype, mDataspace, vDataspace,H5P_DEFAULT, &data[0]);
 
       indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) {
-        Memento<T> memento( base_ptr[i] );
-        for( int k = 0; k < container[i]; k++) {
-          buf[k] = data[indx++];
-        }
-        base_ptr[i] = memento.setState( buf, container[i]);
+        typename data_schema_traits<T>::Converter_Type cvtr( base_ptr[i]);
+        cvtr.setState( &data[0]+indx, container[i] );
+        indx += container[i];
       }
-
-      delete[] data;
     }
+
     H5Tclose(vDatatype );
     H5Dclose(vDataset  );
     H5Sclose(vDataspace);
     H5Sclose(mDataspace);
 
-    delete[] buf;
-#else
-    cerr << "fix this" << endl ;
-#endif
   }
   //*********************************************************************/
 }
