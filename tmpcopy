@@ -3,8 +3,8 @@
 source=`pwd`
 target=${LOCI_TARGET-/usr/tmp/$LOGNAME}
 
-COMP=${LOCI_COMP-KCC}
-ARCH=${LOCI_ARCH-`arch`}
+COMP=${LOCI_COMP-gcc}
+ARCH=${LOCI_ARCH-`uname -s`}
 
 mkdir -p $target
 mkdir -p $target/Loci
