@@ -456,6 +456,7 @@ namespace Loci {
     send_ptr = new unsigned char[size] ;
     result_ptr = new unsigned char[size] ;
     sp->pack(send_ptr, loc, size, e) ;
+    global_join_op = join_op ;
     MPI_Allreduce(send_ptr, result_ptr, size, MPI_PACKED, create_join_op, MPI_COMM_WORLD) ;
     sp->unpack(result_ptr, loc_result, size, seq) ;
     delete [] send_ptr ;

@@ -502,8 +502,8 @@ namespace Loci {
 	    dom += tmp_out ;
 	  }
 	}
-		for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
-	  storeRepP p = facts.get_variable(*vi) ;
+	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
+		  storeRepP p = facts.get_variable(*vi) ;
 	  if(p->RepType() ==  MAP) {
 	    entitySet tmp_dom = p->domain() ;
 	    MapRepP mp =  MapRepP(p->getRep()) ;
