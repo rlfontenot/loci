@@ -259,9 +259,10 @@ namespace Loci {
       std::vector<int>::iterator ins = img.begin() ;
       for(int i=0;i<d.num_intervals();++i)
         for(int j=d[i].first;j!=d[i].second+1;++j) {
-          for(int k=0;k<M;++k)
+          for(int k=0;k<M;++k) {
             *ins = base_ptr[j][k] ;
-          ++ins ;
+            ++ins ;
+          }
         }
       std::sort(img.begin(),img.end()) ;
       std::vector<int>::iterator uend = std::unique(img.begin(),img.end());

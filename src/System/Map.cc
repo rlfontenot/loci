@@ -126,7 +126,7 @@ namespace Loci {
     }                                         
     int sz = mx-mn+1 ;
     int sz2 = end-start ;
-    if(sz>3*sz2) {
+    if(sz>2*sz2) {
       // If the image is too sparse then we are better off sorting
       // using standard sort
       entitySet dom ;
