@@ -338,9 +338,11 @@ namespace Loci {
                              const entitySet &context) 
   {
 
-    param<T> p(st) ;
     fatal((context - store_domain) != EMPTY) ;
     store_domain = m.image(context) ;
+
+    param<T> p(st) ;
+    attrib_data = *p ;
   }
 
   //**************************************************************************/

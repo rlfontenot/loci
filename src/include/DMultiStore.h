@@ -361,14 +361,9 @@ namespace Loci {
   void dmultiStoreRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context) 
   {
     const_dmultiStore<T> s(st) ;
-    std::vector<T>    newVec;
 
     FORALL(context,i) {
-      attrib_data[i].clear();
-      newVec  =   s[i];
-      attrib_data[m[i]].reserve( newVec.size() );
-      for( int i = 0; i < newVec.size(); i++) 
-        attrib_data[m[i]].push_back( newVec[i] );
+      attrib_data[m[i]] = s[i];
     } ENDFORALL ;
 
     dispatch_notify() ;
