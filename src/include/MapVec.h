@@ -357,17 +357,41 @@ namespace Loci {
     } ENDFORALL ;
   }
   
-  template <int M> int MapVecRepI<M>::pack_size( const entitySet &e) {
+  template <int M> int MapVecRepI<M>::pack_size( const entitySet &eset) {
     int size ;
-    size = sizeof(int) * e.size() * M ;
+    size = sizeof(int)*eset.size()*M  + sizeof(int);
     return size ;
   }
 
-  template <int M> void MapVecRepI<M>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
-    warn(true) ;
+  template <int M> void MapVecRepI<M>::pack(void *outbuf, int &position, 
+                 int &outcount, const entitySet &eset ) 
+  {
+    int init_size = M;
+    MPI_Pack( &init_size, 1,  MPI_INT, outbuf, outcount, &position, 
+              MPI_COMM_WORLD) ;
+
+    entitySet::const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) 
+      MPI_Pack( base_ptr[*ci], M, MPI_INT, outbuf, outcount, &position, 
+                MPI_COMM_WORLD);
   }
-  template <int M> void MapVecRepI<M>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
-    warn(true) ;
+
+  template <int M> void MapVecRepI<M>::unpack(void *inbuf, int &position, int &insize, 
+                  const sequence &seq) {
+
+    int init_size;
+
+    MPI_Unpack(inbuf, insize, &position, &init_size, 1, MPI_INT, MPI_COMM_WORLD) ;
+
+    if(init_size != M) {
+       cout << " Invalid MapVec container for unpack data " << endl;
+       abort();
+    }
+
+    entitySet::const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) 
+         MPI_Unpack( inbuf, insize, &position, base_ptr[*ci], M, MPI_INT, 
+                     MPI_COMM_WORLD) ;
   } 
   
   template<int M> storeRepP MapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
