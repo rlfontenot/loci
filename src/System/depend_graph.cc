@@ -754,17 +754,23 @@ namespace Loci {
     for(fi=rules.begin();fi!=rules.end();++fi)
       subset += fi->targets() ;
 
+
     // Check for looping rules here, don't clean looping rule if it is
     // in the subset.
     digraph grt = gr.transpose() ;
     digraph::vertexSet  cleanout ;
-    for(fi=rules.begin();fi!=rules.end();++fi)
-      if((subset & fi->sources()) != fi->sources()) {
-        cleanout += fi->ident() ;
-      }
-
-
+    for(fi=rules.begin();fi!=rules.end();++fi) {
+      if(fi->get_info().qualifier() != "looping")
+        if((subset & fi->sources()) != fi->sources()) {
+          cleanout += fi->ident() ;
+        }
+    }
+      
     subset -= cleanout ;
+
+#ifdef VERBOSE
+    cout << "cleanout = " << extract_rules(cleanout) << endl ;
+#endif
     
     WARN(subset == EMPTY) ;
 #ifdef VERBOSE
