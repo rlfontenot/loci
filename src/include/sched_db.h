@@ -153,6 +153,8 @@ namespace Loci {
     variableSet get_typed_variables() const { return all_vars ; }
     entitySet image(variable v, entitySet e) ;
     std::pair<entitySet,entitySet> preimage(variable v, entitySet e) ;
+
+    std::ostream &print_summary(std::ostream &s) ;
   } ;
 }
 

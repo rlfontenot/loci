@@ -17,6 +17,8 @@ extern "C" {
 namespace Loci {
   extern int MPI_processes ;
   extern int MPI_rank ;
+
+  extern ofstream debugout ;
   
   sched_db::sched_db(fact_db &facts) {
     variableSet tmp_all_vars = facts.get_typed_variables() ;
@@ -94,23 +96,9 @@ namespace Loci {
 
     if(all_vars.inSet(v)) {
       if(all_vars.inSet(alias)) {
-        sched_info &vinfo = get_sched_info(v) ;
-        sched_info &ainfo = get_sched_info(alias) ;
-        if(vinfo.sched_info_ref != ainfo.sched_info_ref) {
-	  int del = ainfo.sched_info_ref ;
-          // move aliases from record to be deleted
-          variableSet move_aliases = sched_infov[del].aliases ;
-          // change reference number to that of current record
-          variableSet::const_iterator vi ;
-          for(vi=move_aliases.begin();vi!=move_aliases.end();++vi) 
-            get_sched_info(*vi).sched_info_ref = vinfo.sched_info_ref ;
-          // update new record alias set
-          sched_infov[vinfo.sched_info_ref].aliases += move_aliases ;
-          // delete record and save for recovery
-          sched_infov[del] = sched_data() ;
-          free_set += del ;
-        }
-        return ;
+        cerr << "alias already in fact_db!" << endl ;
+        cerr << "error found in alias_variable("<<v<<","<< alias<<")" << endl ;
+        abort() ;
       }
       
       int ref = get_sched_info(v).sched_info_ref ;
@@ -131,20 +119,11 @@ namespace Loci {
     v = remove_synonym(v) ;
     vmap_type::iterator vmi ;
     if((vmi = vmap.find(synonym)) != vmap.end()) {
-      const sched_info &finfo = vmi->second ;
-      sched_data &fdata = sched_infov[finfo.sched_info_ref] ;
-      sched_info &vfinfo = get_sched_info(v) ;
-      if(vfinfo.sched_info_ref != finfo.sched_info_ref) {
-        // if variables exist and they are not synonymous, alias them first
-        alias_variable(v,synonym, facts) ;
-      }
-      
-      // Join synonym mappings into one. = v ;
-      
-      // Remove variable from vmap structure
-      sched_infov[vfinfo.sched_info_ref].aliases -= synonym ;
-      vmap.erase(vmi) ;
+      cerr << "synonym already in fact_db!" << endl ;
+      cerr << "error found in synonym_variable("<<v<<","<<synonym<<")"<<endl;
+      abort() ;
     }
+
     sched_info &vfinfo = get_sched_info(v) ;
     
     vfinfo.synonyms += synonym ;
@@ -227,8 +206,9 @@ namespace Loci {
 
   void sched_db::set_variable_type(variable v, storeRepP st, fact_db &facts) {
     facts.create_fact(v, st) ;
-    if(!all_vars.inSet(v)) 
+    if(!all_vars.inSet(v)) {
       install_sched_data(v, sched_data(v, st)) ;
+    }
   }
 
   entitySet sched_db::image(variable v, entitySet e) {
@@ -253,6 +233,15 @@ namespace Loci {
     else
       return fdata.preimageMap[e] = get_sched_data(v).minfo->preimage(e) ;
   }
-  
+
+  std::ostream &sched_db::print_summary(std::ostream &s) {
+    s << "Summary of Existential deduction:" << endl ;
+    std::map<variable,sched_info>::const_iterator mi ;
+    for(mi=vmap.begin();mi!=vmap.end();++mi) {
+      s << mi->first << " " <<mi->second.synonyms << " "<< mi->second.existence
+        << " request= " << mi->second.requested << endl ;
+    }
+    return s ;
+  }
   
 }

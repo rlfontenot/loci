@@ -133,17 +133,17 @@ namespace Loci {
     return name ;
   }
 
-	rule_implP rule_impl::add_namespace(const string& n) const {
-		rule_implP with_namespace = new_rule_impl();
-		variableSet vars = with_namespace->get_var_list() ;
-		std::map<variable,variable> new_vars;
-		for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
-			new_vars[*i] = i->add_namespace(n);
-		}
-		
-		with_namespace->rename_vars(new_vars);
-		return with_namespace ;
-	}
+  rule_implP rule_impl::add_namespace(const string& n) const {
+    rule_implP with_namespace = new_rule_impl();
+    variableSet vars = with_namespace->get_var_list() ;
+    std::map<variable,variable> new_vars;
+    for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
+      new_vars[*i] = i->add_namespace(n);
+    }
+    
+    with_namespace->rename_vars(new_vars);
+    return with_namespace ;
+  }
 
 	
   namespace {
@@ -203,7 +203,20 @@ namespace Loci {
     typedef storeIMap::const_iterator SI ;
     std::pair<SI, SI> sip = var_table.equal_range(v) ;
     SI sp = sip.first ;
-    if(sp == var_table.end()) {
+    if(sip.first == sip.second) {
+      set<vmap_info>::const_iterator vmsi ;
+      for(vmsi=rule_info.targets.begin();
+          vmsi!=rule_info.targets.end();
+          ++vmsi) {
+        for(int i=0;i<vmsi->assign.size();++i) {
+            if(vmsi->assign[i].first == v) {
+              sip = var_table.equal_range(vmsi->assign[i].second) ;
+              sp = sip.first ;
+              if(sip.first != sip.second) 
+                return sp->second->Rep() ;
+            }
+          }
+      }
       return storeRepP(0) ;
     }
     return sp->second->Rep() ;
@@ -353,7 +366,8 @@ namespace Loci {
           }
           for(sri=read_set.begin();sri!=read_set.end();++sri) {
             if((mi=var_table.find(*sri)) != var_table.end() &&
-               mi->second->Rep()->RepType() != PARAMETER) {
+               mi->second->Rep()->RepType() != PARAMETER &&
+               mi->second->Rep()->RepType() != MAP) {
             cerr << "-------------------------------------------------"<<endl;
             cerr << "Singleton rule should have sources of param type."<<endl;
             cerr << "perhaps this rule should be a pointwise_rule, or"<<endl;

@@ -10,6 +10,7 @@ using std::make_pair ;
 
 namespace Loci {
 
+  extern ofstream debugout ;
     // Create variable types in fact database
   // This is a necessary precursor to binding rules to the database
   void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) {
@@ -17,7 +18,139 @@ namespace Loci {
     // Get all the variables and rules represented in the graph
     variableSet all_vars = extract_vars(dg.get_all_vertices()) ;
     ruleSet     all_rules = extract_rules(dg.get_all_vertices()) ;
+    // We need the transpose of the graph in order to find the rules that
+    // generate a particular variable
+    digraph dgt = dg.transpose() ;
 
+    // We need to account for iteration variables
+    // So we can allocate them (No rules explicitly allocate them)
+    variableSet iteration_variables ;
+
+    // We will also identify unused variables taht we don't need to setup
+    // types for.
+    variableSet unused_variables ;
+    
+    // First we group variables into equivalence classes
+    digraph variable_groupings ;
+
+    for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) {
+      if(ri->type() == rule::INTERNAL) {
+        if(ri->get_info().qualifier() == "promote" ||
+           ri->get_info().qualifier() == "priority") {
+          FATAL((ri->sources()).size()!=1)  ;
+          FATAL((ri->targets()).size()!=1) ;
+          variable source = *((ri->sources()).begin()) ;
+          variable target = *((ri->targets()).begin()) ;
+          variable_groupings.add_edge(source.ident(),target.ident()) ;
+          variable_groupings.add_edge(target.ident(),source.ident()) ;
+        } else if(ri->get_info().qualifier() == "looping") {
+          // create the iteration variable type
+          time_ident tl = ri->source_time() ;
+          variable v(tl) ;
+          iteration_variables += v ;
+          // Here we will identify unused variables!
+          variableSet candidates = ri->sources() ;
+          candidates += ri->targets() ;
+          for(variableSet::const_iterator vi=candidates.begin();
+              vi!=candidates.end();++vi) {
+            ruleSet rs = extract_rules(dg[vi->ident()]+dgt[vi->ident()]) ;
+            if(rs.size() <= 1)
+              unused_variables += *vi ;
+          }
+        }
+        if(ri->get_info().qualifier() == "generalize") {
+          FATAL((ri->sources()).size()!=1)  ;
+          FATAL((ri->targets()).size()!=1) ;
+          variable source = *((ri->sources()).begin()) ;
+          variable target = *((ri->targets()).begin()) ;
+          ruleSet rs = extract_rules(dgt[source.ident()]) ;
+          if(rs == EMPTY) {// If a generalize has no rules to generate its
+            // input, then remove it
+            unused_variables += source ;
+            rs = extract_rules(dgt[target.ident()]) ;
+            // If Nothing else generates the output then we won't need the
+            // result of the generalize either
+            if(rs.size() == 2) // looping + generalize
+              unused_variables += target ;
+          } else {
+            variable_groupings.add_edge(source.ident(),target.ident()) ;
+            variable_groupings.add_edge(target.ident(),source.ident()) ;
+          }
+        }
+      }
+    }
+
+    debugout << "unused variables = " << unused_variables << endl ;
+    all_vars -= unused_variables ;
+    for(variableSet::const_iterator vi = all_vars.begin();
+        vi!=all_vars.end();++vi) {
+      variable_groupings.add_edge(vi->ident(),vi->ident()) ;
+    }
+    
+    variableSet given_vars = facts.get_typed_variables() ;
+
+    debugout << "iteration_variables = " << iteration_variables << endl ;
+
+    for(variableSet::const_iterator vi = iteration_variables.begin();
+        vi!=iteration_variables.end();
+        ++vi) {
+      param<int> timevar ;
+      *timevar = 0 ;
+      storeRepP st = timevar.Rep() ;
+      scheds.set_variable_type(*vi,st, facts) ;
+    }
+
+    variableSet prev_typed_vars = given_vars ;
+    prev_typed_vars += iteration_variables ;
+    
+    map<variable,variable> var_to_cluster ;
+    map<variable,variableSet> cluster_map ;
+    
+    // Find strongly connected components in variable graph,
+    // Select the variable out of this group that should represent the
+    // storage of the variable.
+    vector<digraph::vertexSet> var_clusters =
+      component_sort(variable_groupings).get_components() ;
+
+    for(int i=0;i<var_clusters.size();++i) {
+      variableSet cluster = extract_vars(var_clusters[i]) ;
+      if(cluster.size() == 1) {
+        variable v = *cluster.begin() ;
+        cluster_map[v] = cluster ;
+        var_to_cluster[v] = v ;
+        continue ;
+      }
+      fatal(cluster.size() == 0) ;
+
+      variable min_time = *cluster.begin() ;
+      if((cluster & given_vars) != EMPTY) {
+        variableSet test = cluster ;
+        test &= given_vars ;
+        if(test.size() > 1) {
+          cerr << "rules describe synonyms between variables that exist in fact_db" << endl ;
+          cerr << "overlap = " << test << endl ;
+          abort() ;
+        }
+        min_time = *test.begin() ;
+      }
+          
+      variableSet::const_iterator vi ;
+      for(vi = cluster.begin();vi!=cluster.end();++vi)
+        if(vi->time() < min_time.time() ) {
+          min_time = *vi ;
+        } else if(vi->time() == min_time.time()) {
+          if(min_time.get_info().assign)
+            min_time = *vi ;
+          if(min_time.get_info().priority.size() != 0)
+            min_time = *vi ;
+        }
+      cluster_map[min_time] = cluster ;
+      for(vi=cluster.begin();vi!=cluster.end();++vi)
+        var_to_cluster[*vi] = min_time ;
+    }
+
+    
+    
     // extract the qualified rules, these are rules that are
     // automatically generated by the system.  Since these rules
     // cannot provide type information directly, they are
@@ -28,10 +161,6 @@ namespace Loci {
         qualified_rules += *ri ;
     }
 
-    // We need the transpose of the graph in order to find the rules that
-    // generate a particular variable
-    digraph dgt = dg.transpose() ;
-  
     vector<pair<variable,variable> > rename_vars ;
 
     // Loop through the variables and type them when there is an appropriate
@@ -41,6 +170,7 @@ namespace Loci {
           vi=all_vars.begin();vi!=all_vars.end();++vi) {
 
       // only deal with rules given to the system by the user
+      
       ruleSet rs = extract_rules(dgt[(*vi).ident()] - qualified_rules) ;
       if(rs == EMPTY) {
         continue ;
@@ -78,97 +208,107 @@ namespace Loci {
       // If a rename variable was found, save this information for later
       // use and continue ;
       if(rename) {
+        variable v1 = rename_pair.first ;
+        variable v2 = rename_pair.second ;
+        variable c1 = var_to_cluster[v1] ;
+        variable c2 = var_to_cluster[v2] ;
+        if(c1 == c2) {
+          cerr << "Rules that rename variables make variables distinct that are al
+so equivalent!" << endl ;
+          cerr << "variables = " << v1 << "," << v2
+               << ", cluster = " << c1 << "," << c2 << endl ;
+        }
         rename_vars.push_back(rename_pair) ;
         continue ;
       }
 
-      // Otherwise pick the first rule in the set of rules that generates it
-      // and query the rule for the type of variable *vi.  Set the variable
-      // type appropriately in the fact database.
-
-      rule pick = *rs.begin() ;
-      const rule_impl::info &info = pick.get_info().desc ;
-      storeRepP st = pick.get_info().rule_impl->get_store(*vi) ;
-      if(st->RepType() == PARAMETER) 
-        st->allocate(EMPTY) ;
-      scheds.set_variable_type(*vi,st, facts) ;
-    
     }
 
-    // We now have to deal with internally generated rules that do operations
-    // such as promoting variables from one time level to another,
-    // generalizing a variable from a specific time to general time
-    // (e.g. q{n}<-q{n=0}) and rules that create a priority relationship
-    // from priority variables (e.g. qf<-degenerate::qf).
-    // In addition we will deal with variables that may be renamed.
-    // To do this, we must tell the fact database that variables are
-    // synonyms (meaning that the two variable names are completely identical)
-    // and variables that are aliases (meaning that the variable is exclusive
-    // by name).  Since these variables have to be defined from
-    // variables that are already typed and that these rules may
-    // become chained, we need to make sure that we proceed in the
-    // proper order.  We do this by creating a subgraph of these
-    // internal rules, then we perform a topological sort on this
-    // sub-graph to determine the order of typing
 
-    // This is the internal rule graph
-    digraph irg ;
-    // place all promote, generalize, and priority rules into irg
-    for(ruleSet::const_iterator
-          ri = qualified_rules.begin() ; ri != qualified_rules.end();++ri) {
-      if(ri->get_info().qualifier() == "promote" ||
-         ri->get_info().qualifier() == "generalize" ||
-         ri->get_info().qualifier() == "priority") {
-        FATAL((ri->sources()).size()!=1)  ;
-        FATAL((ri->targets()).size()!=1) ;
-        variable source = *((ri->sources()).begin()) ;
-        variable target = *((ri->targets()).begin()) ;
-        irg.add_edge((*ri).ident(),target.ident()) ;
-        irg.add_edge(source.ident(),(*ri).ident()) ;
-      } else if(ri->get_info().qualifier() == "looping") {
-        // create the iteration variable type
-        time_ident tl = ri->source_time() ;
-        variable v(tl) ;
-        param<int> timevar ;
-        storeRepP st = timevar.Rep() ;
-        scheds.set_variable_type(v,st, facts) ;
-      }
+    digraph rename_graph ;
+    map<variable,variableSet>::const_iterator ami ;
+    for(ami=cluster_map.begin();ami!=cluster_map.end();++ami) {
+      variable cv = ami->first ;
+      rename_graph.add_edge(cv.ident(),cv.ident()) ;
     }
-
-    // Also add rules to represent renaming relationships
     for(int i=0;i<rename_vars.size();++i) {
-      variable new_var = rename_vars[i].first ;
-      variable old_var = rename_vars[i].second ;
+      variable new_var = var_to_cluster[rename_vars[i].first] ;
+      variable old_var = var_to_cluster[rename_vars[i].second] ;
     
-      rule rr = make_rename_rule(new_var,old_var) ;
-      irg.add_edge(old_var.ident(),rr.ident()) ;
-      irg.add_edge(rr.ident(),new_var.ident()) ;
+      rename_graph.add_edge(old_var.ident(),new_var.ident()) ;
     }  
 
+    digraph rename_tr = rename_graph.transpose() ;
     // Perform a topological sort on the interal rule graph
-    vector<digraph::vertexSet> components =
-      component_sort(irg).get_components() ;
+    vector<digraph::vertexSet> topo =
+      component_sort(rename_graph).get_components() ;
 
-    for(int i=0;i<components.size();++i) {
-      // Note, recursion should not occur among the internal rules
-      FATAL(components[i].size()!=1) ;
-      ruleSet rs = extract_rules(components[i]) ;
-      // Note: components may be rules or variables, thus this check
-      if(rs != EMPTY) {
-        rule r = *rs.begin() ;
-        if(r.sources().size() != 1) 
-          cerr << "rule = " << r << endl ;
-        FATAL(r.sources().size() != 1) ;
-        FATAL(r.targets().size() != 1) ;
-        // get source and target variables
-        variable s = (*(r.sources().begin())) ;
-        variable t = (*(r.targets().begin())) ;
-        // A rename rule uses alias, while all others use synonym relationships
-        if(r.get_info().qualifier() == "rename") {
-          scheds.alias_variable(s,t, facts) ;
-        } else {
-          scheds.synonym_variable(s,t, facts) ;
+    for(int i=0;i<topo.size();++i) {
+      variableSet vs = extract_vars(topo[i]) ;
+      if(vs.size() != 1) {
+        cerr << "recursion in rename graph on variables " << vs
+             << endl ;
+        abort() ;
+      }
+      variable v = *vs.begin() ;
+      if(rename_tr[v.ident()].size() > 1) {
+        variableSet image= extract_vars(rename_tr[v.ident()]) ;
+        image -= v ;
+        if(image.size() != 1) {
+          cerr << "rename shadow has more than one variable!" << endl ;
+          cerr << "variables =" <<  image<< ", rename_variable =" <<  v << endl;
+          //          abort() ;
         }
+        variable orig = *image.begin() ;
+        scheds.alias_variable(orig,v,facts) ;
+      } else if(!prev_typed_vars.inSet(v)) {
+
+        variable vget = v ;
+        
+        ruleSet rs = extract_rules(dgt[v.ident()] - qualified_rules) ;
+        if(rs == EMPTY) {
+          variableSet cluster = cluster_map[v] ;
+          for(variableSet::const_iterator vi = cluster.begin();
+              vi!=cluster.end();++vi) {
+            rs = extract_rules(dgt[vi->ident()] - qualified_rules) ;
+            vget = *vi ;
+            if(rs != EMPTY)
+              break ;
+          }
+          if(rs == EMPTY) 
+            for(variableSet::const_iterator vi = cluster.begin();
+                vi!=cluster.end();++vi) {
+              rs = extract_rules(dg[vi->ident()] - qualified_rules) ;
+              vget = *vi ;
+              if(rs != EMPTY)
+                break ;
+            }
+        }
+
+        // Pick the first rule in the set of rules that generates it
+        // and query the rule for the type of variable *vi.  Set the variable
+        // type appropriately in the fact database.
+        if(rs != EMPTY) {
+          rule pick = *rs.begin() ;
+          const rule_impl::info &info = pick.get_info().desc ;
+          storeRepP st = pick.get_info().rule_impl->get_store(vget) ;
+          if(st == 0) {
+            cerr << "rule " << pick << " unable to provide type for " << vget
+                 << endl ;
+            abort() ;
+          }
+          st = st->new_store(EMPTY) ;
+          scheds.set_variable_type(v,st, facts) ;
+        } else {
+          
+          cerr << "Warning, variable " << v << " not typed!" << endl;
+        }
+          
+      }
+      variableSet syns = cluster_map[v] ;
+      syns -= v ;
+      for(variableSet::const_iterator vi=syns.begin();vi!=syns.end();++vi) {
+        scheds.synonym_variable(v,*vi,facts) ;
       }
     }
 
@@ -214,6 +354,7 @@ namespace Loci {
             type_error = true ;
           }
         } else {
+          cerr << "Untyped Variable " << *vi << endl ;
           scheds.set_variable_type(*vi,rule_type, facts) ;
           typed_vars += *vi ;
         }
