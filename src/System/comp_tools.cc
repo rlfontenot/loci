@@ -5,7 +5,7 @@ using std::vector ;
 using std::set ;
 #include <list>
 using std::list ;
-
+#include <hash_map.h>
 using std::pair ;
 using std::make_pair ;
 
@@ -477,23 +477,23 @@ namespace Loci {
       recv_buffer[i] = recv_buffer[i-1]+d->copy[i-1].size ;
       recv_size[i] = d->copy[i].size ;
     }
-      
+    
     MPI_Request *recv_request = new MPI_Request[recv_count] ;
     MPI_Status *status = new MPI_Status[recv_count] ;
-
+    
     send_buffer = new int*[d->xmit.size()] ;
-
+    
     send_buffer[0] = new int[d->xmit_total_size] ;
     for(int i=1;i<d->xmit.size();++i)
       send_buffer[i] = send_buffer[i-1]+d->xmit[i-1].size ;
     
     std::list<comm_info> plist ;
-
+    
     Map l2g ; 
     l2g = facts.get_variable("l2g") ;
-
+    
     std::map<variable, ruleSet>::iterator mi ;
-
+    
     for(mi = barrier_info.begin(); mi != barrier_info.end(); ++mi) {
       variable v = mi->first ;
       ruleSet rs = mi->second ;
@@ -620,7 +620,7 @@ namespace Loci {
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) {
     vector<entitySet> par_set = partition_set(exec_set,num_threads) ;
-
+    
     for(vector<entitySet>::const_iterator
           i=par_set.begin();i!=par_set.end();++i) {
       executeP execrule = new execute_rule(impl,sequence(*i),facts) ;
@@ -896,7 +896,7 @@ namespace Loci {
       my_entities = facts.get_variable("my_entities") ;
       entitySet targets ;
       targets = facts.get_existential_info(reduce_var, unit_rule) ;
-      targets += send_entitySet(targets, facts) ;
+      targets = send_entitySet(targets, facts) ;
       targets &= my_entities ;
       targets += fill_entitySet(targets, facts) ;
       facts.set_existential_info(reduce_var,unit_rule,targets) ;
@@ -906,7 +906,7 @@ namespace Loci {
   void reduce_param_compiler::process_var_requests(fact_db &facts) {
     if(facts.isDistributed()) {
       entitySet requests = facts.get_variable_requests(reduce_var) ;
-      requests += send_entitySet(requests, facts) ;
+      requests = send_entitySet(requests, facts) ;
       facts.variable_request(reduce_var,requests) ;
     }
   }

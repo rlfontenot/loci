@@ -133,7 +133,7 @@ namespace Loci {
     for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei)
       number[*ei] = 0 ;
 
-#define SCATTER_DIST
+    //#define SCATTER_DIST
 #ifdef SCATTER_DIST
     // Test code
     for(int i=0;i<size_map;++i)

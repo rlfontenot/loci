@@ -57,17 +57,6 @@ namespace Loci {
       distribute_info() {} ;
     } ;
     
-    struct proc_details {
-      int processor ;
-      entitySet send_set ;
-      sequence recv_set ;
-    } ;
-    
-    struct comm_info {
-      variable v ;
-      std::vector<proc_details> proc_info ;
-    } ;
-    
     typedef CPTR<time_info> time_infoP ;
     typedef CPTR<distribute_info> distribute_infoP ;
     distribute_infoP distributed_info ;
