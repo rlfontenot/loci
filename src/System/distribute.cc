@@ -2,6 +2,9 @@
 #include <Tools/debug.h>
 #include <stdlib.h>
 
+#include <vector>
+using std::vector ;
+
 #include "metis.h"
 #include "mpi.h"
 using std::cout ;
