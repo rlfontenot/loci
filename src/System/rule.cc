@@ -186,20 +186,20 @@ namespace Loci {
                 if(i->second->access() != store_instance::READ_WRITE) {
                     cerr << "WARNING! read-only var '" << i->first
                          << "' in target list for rule "
-                         << name << endl ;
+                         << get_name() << endl ;
                     retval = false ;
                 }
             } else if(read_set.inSet(i->first)) {
                 if(i->second->access() != store_instance::READ_ONLY) {
                     cerr << "WARNING! read-write var '" << i->first
                          << "' only in source list for rule "
-                         << name << endl ;
+                         << get_name() << endl ;
                     retval = false ;
                 }
             } else {
                 cerr << "WARNING! var '" << i->first
                      << "' not in source or target lists for rule "
-                     << name << endl ;
+                     << get_name() << endl ;
                 retval = false ;
             }
         }
@@ -207,14 +207,14 @@ namespace Loci {
         for(si=read_set.begin();si!=read_set.end();++si) {
             if(var_table.find(*si) == var_table.end()) {
                 cerr << "WARNING! var '" << *si << "' has not been named in"
-                     << " rule " << name << endl ;
+                     << " rule " << get_name() << endl ;
                 retval = false ;
             }
         }
         for(si=write_set.begin();si!=write_set.end();++si) {
             if(var_table.find(*si) == var_table.end()) {
                 cerr << "WARNING! var '" << *si << "' has not been named in"
-                     << " rule " << name << endl ;
+                     << " rule " << get_name() << endl ;
                 retval = false ;
             }
         }
@@ -278,7 +278,7 @@ namespace Loci {
 
     void rule_impl::Print(ostream &s) const {
         s << "------------------------------------------------" << endl;
-        s << "--- rule " << name << ", class = " ;
+        s << "--- rule " << get_name() << ", class = " ;
         switch(rule_impl_class) {
         case POINTWISE:
             s << "POINTWISE" ;

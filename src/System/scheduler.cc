@@ -706,9 +706,11 @@ void impl_calculator::process_var_requests(fact_db &facts) {
 }
 
 executeP impl_calculator::create_execution_schedule(fact_db &facts) {
+#ifndef DEBUG
   if(exec_seq.size() == 0)
     return executeP(0) ;
   else
+#endif
     return new execute_rule(impl,exec_seq,facts) ;
 }
 
@@ -782,9 +784,11 @@ void apply_calculator::process_var_requests(fact_db &facts) {
 }
 
 executeP apply_calculator::create_execution_schedule(fact_db &facts) {
+#ifndef DEBUG
   if(exec_seq.size() == 0)
     return executeP(0) ;
   else
+#endif
     return new execute_rule(apply,exec_seq,facts) ;
 }
 
@@ -1673,14 +1677,15 @@ decompose_graph::decompose_graph(digraph dg,
         const time_ident rule_time =snode.target_time() ;
         time_sort_nodes[rule_time] += snode.ident() ;
       } else
-        top_level_rule = snode ;
+        top_level_rule = snode ; 
+
       if((snode.sources() & snode.targets()) != EMPTY) {
         cerr << "warning, time level " << snode << " is recursive." << endl ;
-        cerr << "build and collapse rules not allowed to form a recursive block"
-             << endl ;
+        cerr << "build and collapse rules not allowed to form a "
+             << "recursive block" << endl ;
         exit(-1) ;
       }
-    }
+   }
 
   // Go over each time level and decompose it into strongly connected components
   // At this level, loops remain as a single component.
@@ -1711,8 +1716,30 @@ decompose_graph::decompose_graph(digraph dg,
       component_sort(sni.graph).get_components() ;
     vector<digraph::nodeSet>::const_iterator ci ;
     for(ci=components.begin();ci!=components.end();++ci)
-      if(ci->size() > 1)
-        create_supernode(sni.graph,*ci) ;
+      if(ci->size() > 1) {
+        variableSet vars = variableSet(*ci & reduce_vars) ;
+        ruleSet loop_rules = ruleSet(sni.graph.get_all_nodes() &
+                                     looping_rules) ;
+        if(vars== EMPTY || loop_rules != EMPTY)
+          create_supernode(sni.graph,*ci) ;
+        else {
+          if(vars.size() > 1) {
+            cerr << "reductions can't mix with recursions." << endl ;
+            cerr << "error occured when parsing variables " << vars << endl ;
+            exit(-1) ;
+          }
+          // remove the self-referential loops and make all pointwise rules
+          // depend on the unit rule.
+          variable rvar = *(vars.begin()) ;
+          reduce_info &rinfo = reduce_map[rvar] ;
+
+          for(ruleSet::const_iterator
+                it=rinfo.apply_rules.begin();it!=rinfo.apply_rules.end();++it) 
+            sni.graph.remove_edge(rvar.ident(),(*it).ident()) ;
+          sni.graph.add_edges(rinfo.unit_rule.ident(),rinfo.apply_rules) ;
+          sni.graph.remove_edge(rvar.ident(),rinfo.unit_rule.ident()) ;
+        }
+      }
   }
 
   ruleSet new_rules = ruleSet(supernodes - time_levels) ;
@@ -1720,14 +1747,16 @@ decompose_graph::decompose_graph(digraph dg,
   for(ruleSet::const_iterator
         ri=new_rules.begin();ri!=new_rules.end();++ri) {
     super_node_info &sni = supermap[*ri] ;
+
     ruleSet loop_rules = ruleSet(sni.graph.get_all_nodes() & looping_rules) ;
 
     digraph gtemp = sni.graph ;
 
+    warn(loop_rules.size() > 1) ;
+
     if(loop_rules.size() == 1)
       gtemp.remove_node((*loop_rules.begin()).ident()) ;
-
-    warn(loop_rules.size() > 1) ;
+    else continue ;
     
     vector<digraph::nodeSet> components =
       component_sort(gtemp).get_components() ;
@@ -1953,7 +1982,7 @@ rule decompose_graph::create_supernode(digraph &g,
   // include all variables that are sources or sinks to any rule in this
   // supernode in the supernode graph.
   digraph::nodeSet ns = nodes ;
-  variableSet sources,targets,locals ;
+  variableSet sources,targets,locals,local_sources,local_targets ;
 
   // Calculate all sources and targets for rules in this supernode
   digraph gt = g.transpose() ;
@@ -1973,13 +2002,17 @@ rule decompose_graph::create_supernode(digraph &g,
   for(variableSet::const_iterator
         vi=all_vars.begin();vi!=all_vars.end();++vi) {
     int id = (*vi).ident() ;
-    if(((gt[id]|g[id]) & not_ns) == EMPTY)
-      locals += *vi ;
+    if((gt[id] & not_ns) == EMPTY)
+      local_sources += *vi ;
+    if((g[id] & not_ns) == EMPTY)
+      local_targets += *vi ;
   }
 
+  locals = local_sources & local_targets ;
   // remove local variables from the super node rule source and target lists
-  sources -= locals ;
-  targets -= locals ;
+  sources -= local_sources ;
+  targets -= local_targets ;
+
   super_node_info sninfo ;
   
   // create supernode info
@@ -2029,8 +2062,11 @@ executeP decompose_graph::execution_schedule(fact_db &facts) {
 
   CPTR<execute_list> schedule = new execute_list ;
   schedule->append_list(new allocate_all_vars) ;
-  schedule->append_list((rule_process[top_level_rule])
-                        ->create_execution_schedule(facts)) ;
+  executeP top_level_schedule = (rule_process[top_level_rule])->
+    create_execution_schedule(facts) ;
+  if(top_level_schedule == 0) 
+    return executeP(0) ;
+  schedule->append_list(top_level_schedule) ;
   return executeP(schedule) ;
 }
   
@@ -2046,7 +2082,11 @@ namespace Loci {
     
     cout << "generating dependency graph..." << endl ;
     digraph gr = dependency_graph(rdb,given,target).get_graph() ;
-    
+
+    // If graph is empty, return a null schedule 
+    if(gr.get_target_nodes() == EMPTY)
+      return executeP(0) ;
+
     cout << "setting up variable types..." << endl ;
     set_var_types(facts,gr) ;
     
