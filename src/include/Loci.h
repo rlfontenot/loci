@@ -122,6 +122,11 @@ using Loci::cross ;
 
 using Loci::Array ;
 using Loci::rule_impl_list ;
+
+#include <blackbox.h>
+using Loci::blackbox;
+using Loci::const_blackbox;
+
 #endif
 
 
