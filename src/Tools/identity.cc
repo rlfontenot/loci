@@ -1,5 +1,5 @@
 #include <Tools/identity.h>
 
 namespace Loci {
-unsigned long IdentityIMPL::id_ = 0 ;
+  //unsigned long IdentityIMPL::id_ = 0 ;
 }
