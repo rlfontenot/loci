@@ -115,6 +115,11 @@ namespace Loci {
     void create_fact(std::string vname, storeRepP st)
     { create_fact(variable(vname),st) ;}
 
+    void update_fact(variable v, storeRepP st) ;
+    void update_fact(std::string vname, storeRepP st)
+    { update_fact(variable(vname),st) ;}
+    
+
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname,const storeRepP st)
     { set_variable_type(variable(vname),st) ; }

@@ -48,6 +48,7 @@ namespace Loci {
 
   private:
     option_set set_of_options ;
+    bool restrict_set ;
     option_map options_db ;
 
   protected:

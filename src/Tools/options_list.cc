@@ -9,6 +9,11 @@ namespace Loci {
 
   options_list::options_list(const string &s) {
     int sz = s.length() ;
+    restrict_set = true ;
+    if(sz == 0) {
+      restrict_set = false ;
+      return ;
+    }
     string option ;
     for(int i=0;i<sz;++i) {
       if(s[i] == ':') {
@@ -282,8 +287,12 @@ namespace Loci {
       }
       string option = parse::get_name(s) ;
       if(set_of_options.find(option) == set_of_options.end()) {
-        cerr << "Invalid option name " << option << " in read options"
-             << endl ;
+        if(restrict_set) {
+          cerr << "Invalid option name " << option << " in read options"
+               << endl ;
+        } else {
+          set_of_options.insert(option) ;
+        }
       }
       parse::kill_white_space(s) ;
       if(s.peek() != '=')
