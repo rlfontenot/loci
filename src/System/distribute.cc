@@ -40,9 +40,12 @@ namespace Loci {
 
     double end_time  = MPI_Wtime() ;
     debugout << "Time taken for metis_facts = " << end_time -start << endl ;
-    fact_db::distribute_infoP df = new fact_db::distribute_info  ;
+    fact_db::distribute_infoP df;
+    if(!facts.is_distributed_start()) {
+       df = new fact_db::distribute_info  ;
+       facts.put_distribute_info(df) ;
+    }
     facts.put_init_ptn(ptn) ;
-    facts.put_distribute_info(df) ;
     return ptn ;
   }
 
