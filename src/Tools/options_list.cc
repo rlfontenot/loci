@@ -227,6 +227,16 @@ namespace Loci {
     case NAME:
       s << name ;
       break ;
+    case NAME_ASSIGN:
+      s << name << '=' ;
+      {
+        value_list_type::const_iterator i=value_list.begin() ;
+        i->Print(s) ;
+        ++i ;
+        if(i!=value_list.end())
+          cerr << "confused setup in NAME_ASSIGN" << endl;
+      }
+      break ;
     case STRING:
       s << "\"" << name << "\"" ;
       break ;
@@ -244,7 +254,7 @@ namespace Loci {
     case LIST:
       s << "[" ;
       for(value_list_type::const_iterator i=value_list.begin();;) {
-        s << *i ;
+        i->Print(s) ;
         ++i ;
         if(i==value_list.end())
           break ;
