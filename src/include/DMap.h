@@ -12,18 +12,17 @@
 #include <Tools/debug.h>
 #include <Map_rep.h>
 
-#include<Tools/hash_map.h>
+#include <Tools/block_hash.h>
 
 
 namespace Loci {
 
-  entitySet image_section(const int *start, const int *end) ;
   class Map ;
   class multiMap ;
   class dMap;
   
   class dMapRepI : public MapRep {
-    HASH_MAP(int,int) attrib_data;
+    block_hash<int> attrib_data;
   public:
     dMapRepI() { }
     dMapRepI(const entitySet &p) { allocate(p) ; }
@@ -54,13 +53,13 @@ namespace Loci {
     virtual void writehdf5(hid_t group,entitySet& en) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP thaw() ;
-    virtual HASH_MAP(int,int) *get_attrib_data() { return &attrib_data; }
+    virtual block_hash<int> *get_attrib_data() { return &attrib_data; }
   } ;
       
   class dMap : public store_instance {
     friend class const_dMap ;
     typedef dMapRepI MapType ;
-    HASH_MAP(int,int) *attrib_data;
+    block_hash<int> *attrib_data;
   public:
     dMap() { setRep(new MapType) ;}
     dMap(const dMap &var) { setRep(var.Rep()) ; }
@@ -88,12 +87,13 @@ namespace Loci {
 
     const int &const_elem(int indx)  const 
     { 
-      return (*attrib_data)[indx]; 
+      return attrib_data->elem(indx); 
     }
 
     int &operator[](int indx) { return elem(indx); }
 
     const int &operator[](int indx) const { return const_elem(indx) ; }
+    const int &operator()(int indx) const { return const_elem(indx) ; }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
@@ -114,7 +114,7 @@ namespace Loci {
 
   class const_dMap : public store_instance {
     typedef dMapRepI MapType ;
-    HASH_MAP(int,int)  *attrib_data;
+    block_hash<int>  *attrib_data;
   public:
     const_dMap()
     { setRep(new MapType); }
@@ -140,10 +140,11 @@ namespace Loci {
     { MapRepP p(Rep()) ; fatal(p==0) ; return p ; }
 
     const int &const_elem(int indx)  const {
-      return (*attrib_data)[indx]; 
+      return attrib_data->elem(indx); 
     }
 
-    const int &operator[](int indx) const { return const_elem(indx) ; }
+    int operator[](int indx) const { return const_elem(indx) ; }
+    int operator()(int indx) const { return const_elem(indx) ; }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;

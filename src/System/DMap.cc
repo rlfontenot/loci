@@ -3,7 +3,10 @@
 #include <multiMap.h>
 #include <Tools/stream.h>
 #include <hdf5_readwrite.h>
+#include <Tools/hash_map.h>
 namespace Loci {
+
+  extern ofstream debugout ;
   
   using std::pair ;
   using std::make_pair ;
@@ -59,11 +62,13 @@ namespace Loci {
 	send_clone[i].push_back(recv_buf[j]) ;
       sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
+
+    entitySet dom = domain() ;
     
     std::vector<HASH_MAP(int, int) > map_entities(MPI_processes) ;
     for(int i = 0; i < MPI_processes; ++i) 
       for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
-	if(attrib_data.find(*vi) != attrib_data.end())
+	if(dom.inSet(*vi))
 	  (map_entities[i])[*vi] = attrib_data[*vi] ;
     
     size_send = 0 ;
@@ -108,8 +113,9 @@ namespace Loci {
       attrib_data[hmi->first] = hmi->second ;
     
     dMap dm ;
-    for(HASH_MAP(int, int)::const_iterator hi = attrib_data.begin();  hi != attrib_data.end(); ++hi)
-      dm[hi->first] = hi->second ;
+    dom = domain() ;
+    for(entitySet::const_iterator ei = dom.begin(); ei != dom.end(); ++ei)
+      dm[*ei] = attrib_data.elem(*ei) ;
     storeRepP sp = dm.Rep() ;
     delete [] send_buf ;
     delete [] recv_buf ;
@@ -130,9 +136,8 @@ namespace Loci {
 
     redundant = domain() -  eset;
     newSet    = eset - domain();
-    
-    for( ci = redundant.begin(); ci != redundant.end(); ++ci)
-         attrib_data.erase(*ci);
+
+    attrib_data.erase_set(redundant) ;
     
     for( ci = newSet.begin(); ci != newSet.end(); ++ci)
       attrib_data[*ci] = 0;
@@ -143,9 +148,7 @@ namespace Loci {
   //**************************************************************************/
   
   dMapRepI::~dMapRepI() 
-  { 
-    attrib_data.clear(); 
-  }
+  {}
   
   //**************************************************************************/
 
@@ -183,9 +186,10 @@ namespace Loci {
   {
     fatal((context-domain()) != EMPTY) ;
     fatal((image(context)-newmap.domain()) != EMPTY) ;
-    
+
     FORALL(context,i) {
-      attrib_data[i] = newmap[attrib_data[i]] ;
+      const int mv = attrib_data.elem(i) ;
+      attrib_data[i] = newmap[mv] ;
     } ENDFORALL ;
     
   }
@@ -266,36 +270,27 @@ namespace Loci {
   
   entitySet dMapRepI::domain() const 
   {
-    HASH_MAP(int,int ) :: const_iterator    ci;
-    entitySet          storeDomain;
-    vector<int>        vec;
+    entitySet dom = attrib_data.domain() ;
+    return dom ;
     
-    for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
-      vec.push_back( ci->first ) ;
-    
-    sort( vec.begin(), vec.end() );
-    
-    for(unsigned  int i = 0; i < vec.size(); i++)
-      storeDomain +=  vec[i];
-    
-    return storeDomain ;
   }
 
   //**************************************************************************/
   
-  entitySet dMapRepI::image(const entitySet &domain) const 
+  entitySet dMapRepI::image(const entitySet &iset) const 
   {
     
     entitySet codomain ;
     entitySet :: const_iterator  ei;
-    HASH_MAP(int,int) ::  const_iterator   ai;   
-  
-    for( ei = domain.begin(); ei != domain.end(); ++ei){
-      ai = attrib_data.find(*ei);
-      if( ai != attrib_data.end() ) {
-	codomain +=   ai->second;
-      }
+    entitySet dom = attrib_data.domain() & iset ;
+    int sz = dom.size() ;
+    vector<int> mlist(sz) ;
+    // Make this high performance
+    int i=0 ;
+    for( ei = dom.begin(); ei != dom.end(); ++ei){
+      mlist[i++] =  attrib_data.elem(*ei) ;
     }
+    codomain = create_entitySet(mlist.begin(),mlist.end()) ;
     return codomain ;
   }
   
@@ -305,9 +300,11 @@ namespace Loci {
   dMapRepI::preimage(const entitySet &codomain) const  
   {
     entitySet domain ;
-    HASH_MAP(int,int) :: const_iterator  ci;
-    for(ci = attrib_data.begin(); ci != attrib_data.end(); ++ci)
-      if(codomain.inSet( ci->second) )  domain  += ci->first;
+    entitySet dom = attrib_data.domain() ;
+    entitySet::const_iterator  ei;
+    for(ei = dom.begin(); ei != dom.end(); ++ei)
+      if(codomain.inSet( attrib_data[*ei] ) )
+         domain  += *ei ;
     return make_pair(domain,domain);
   }
   
@@ -317,25 +314,16 @@ namespace Loci {
   {
     multiMap result ;
     store<int> sizes ;
-    HASH_MAP(int,int ) :: const_iterator    ci;
-    entitySet          storeDomain;
-    vector<int>        vec;
-    for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
-      vec.push_back( ci->first ) ;
-  
-    sort( vec.begin(), vec.end() );
-    for(unsigned int i = 0; i < vec.size(); i++)
-      storeDomain +=  vec[i];
+    entitySet storeDomain = attrib_data.domain() ;
+
     sizes.allocate(storeDomain) ;
     FORALL(storeDomain,i) {
       sizes[i] = 1 ;
-    }ENDFORALL ;
+    } ENDFORALL ;
     result.allocate(sizes) ;
-    ci =  attrib_data.begin() ;
     FORALL(storeDomain,i) {
-      result.begin(i)[0] = ci->second ;
-      ++ci ;
-    }ENDFORALL ;
+      result.begin(i)[0] = attrib_data[i] ;
+    } ENDFORALL ;
     return result ;
   }
 
@@ -343,15 +331,11 @@ namespace Loci {
 
   ostream &dMapRepI::Print(ostream &s) const 
   {
-    HASH_MAP(int,int ) :: const_iterator ci;
+    entitySet dom = domain() ;
+    s << '{' << dom << endl ;
 
-    s << '{' << domain() << endl ;
-
-    FORALL(domain(),ii) {
-      ci = attrib_data.find(ii);
-      if( ci != attrib_data.end()) {
-        s << ci->second << endl ;
-      }
+    FORALL(dom,ii) {
+      s << attrib_data.elem(ii) << endl ;
     } ENDFORALL ;
 
     s << '}' << endl ;
@@ -431,7 +415,7 @@ namespace Loci {
     int       rank = 1;
     hsize_t   dimension;
 
-    entitySet eset(usr_eset & domain());
+    entitySet eset = usr_eset & domain();
 
     int arraySize = eset.size();
     if( arraySize < 1) return;
@@ -444,9 +428,7 @@ namespace Loci {
 
     int indx = 0;
     for( ei = eset.begin(); ei != eset.end(); ++ei) {
-      ci = attrib_data.find(*ei);
-      if( ci == attrib_data.end() )  continue;
-      data[indx++] =  ci->second;
+      data[indx++] =  attrib_data[*ei] ;
     }
 
     dimension       = arraySize;
