@@ -44,7 +44,7 @@ template <class T> class NPTR {
 
     template <class S> explicit NPTR(const NPTR<S> &p, eventNotify *r=0)
     { ptr = 0 ; receiver=r ;  T *pt = dynamic_cast<T *>(p.ptr) ;
-    set_ptr(pt) ; warn(pt == 0) ; }
+    set_ptr(pt) ; warn(p.ptr != 0 && pt == 0) ; }
     
     ~NPTR() { unlink_ptr(); }
     NPTR<T> &operator=(const NPTR<T> &p) { set_ptr(p.ptr) ; return *this; }

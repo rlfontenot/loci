@@ -6,9 +6,9 @@ TARGET = libTools.a #libTools.so
 
 LOCAL_INCLUDES = -I$(LOCI_BASE)/include -I$(LOCI_BASE)/include/hdf5CC
 
-OBJS = fpe.o fpe_sun.o ftrn_reader.o identity.o eventNotify.o \
-       parse.o options_list.o expr.o intervalSet.o digraph.o unit_type.o
-
+OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o \
+       parse.o options_list.o expr.o intervalSet.o digraph.o unit_type.o \
+#	fpe_sun.o
 
 .SUFFIXES: .o .c .cc .f
 
