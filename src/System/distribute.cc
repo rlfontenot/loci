@@ -1103,11 +1103,10 @@ namespace Loci {
 	  temp += l2g[*ti] ;
 	}
 	me = temp & sp->domain() ;
-	for(ti = me.begin(); ti != me.end(); ++ti)
+	for(ti = me.begin(); ti != me.end(); ++ti) {
 	  te += d->g2l[*ti] ;
-	
-	for(ti = me.begin(); ti != me.end(); ++ti) 
 	  my += d->g2l[*ti] ;
+	}
 	
 	recv_size = new int[MPI_processes-1] ;
 	size_request = new MPI_Request[MPI_processes-1] ;
@@ -1138,7 +1137,7 @@ namespace Loci {
 	}
 	nsp = sp->new_store(my) ;
 	int sz = 0 ;
-	int my_sz = sp->pack_size(temp) ;
+	int my_sz = sp->pack_size(me) ;
 	int my_pack = 0 ;
 	int my_unpack = 0 ;
 	int *s_size = new int[MPI_processes-1] ;
@@ -1151,7 +1150,7 @@ namespace Loci {
 	unsigned char* my_stuff = new unsigned char[my_sz] ;
 	store_request = new MPI_Request[MPI_processes-1] ;
 	store_status = new MPI_Status[MPI_processes-1] ;
-	sp->pack(my_stuff, my_pack,my_sz,temp) ;
+	sp->pack(my_stuff, my_pack,my_sz,me) ;
 	send_ptr[0] = new unsigned char[sz] ;
 	for(int i = 1; i < MPI_processes-1; i++)
 	  send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
