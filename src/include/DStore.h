@@ -420,7 +420,7 @@ namespace Loci {
                                    const entitySet &eset)
   {
 
-    int       size, numBytes;
+    int       size, numBytes=0;
     entitySet  ecommon;
     entitySet :: const_iterator ci;
     typedef data_schema_traits<T> converter_traits;
