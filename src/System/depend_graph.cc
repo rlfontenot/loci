@@ -1,5 +1,5 @@
 #include <depend_graph.h>
-#include <distribute.h>
+#include "dist_tools.h"
 #include <map>
 using std::map ;
 #include <vector>
