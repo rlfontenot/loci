@@ -12,7 +12,7 @@ using std::set ;
 // Comment this line out if we want stricter debug options
 #define PRUNE_GRAPH
 #endif
-#define VERBOSE1
+//#define VERBOSE
 
 namespace Loci {
 
@@ -28,13 +28,13 @@ namespace Loci {
     
     rule create_rule(variableSet source, variableSet target, string qualifier) {
       ostringstream oss ;
-      oss << "source(" << source                                                                                                                                                                                                                                                            
+      oss << "source(" << source
           << "),target(" << target
           << "),qualifier(" << qualifier << ")" ;
       rule r(oss.str()) ;
       return r ;
     }
-    
+
     void print_graph_from(variableSet given, const digraph &rule_graph) {
       variableSet working = given ;
       variableSet processed ;
@@ -52,36 +52,22 @@ namespace Loci {
           for(ruleSet::const_iterator ri = var_rules.begin();
               ri!=var_rules.end();
               ++ri) {
-	    cout << " sources :   " << ri->get_info().desc.sources << endl ;
-	    cout << " targets :   " << ri->get_info().desc.targets << endl ;
-	    std::set<vmap_info>::const_iterator vmsi ;
-	    for(vmsi=ri->get_info().desc.sources.begin();
-		vmsi!=ri->get_info().desc.sources.end();
-		++vmsi ) {
-	      for(int i = 0; i < vmsi->mapping.size(); ++i) {
-		for(variableSet::const_iterator vi1 = vmsi->mapping[i].begin();
-		    vi1!=vmsi->mapping[i].end();
-		    ++vi1) {
-		  if(!(processed.inSet(*vi1))) 
-		    new_vars += *vi1 ;
-		}
-	      }
-	    }
-	  }
-	}
-	cout << "------------------------------------------------------------"
-	     << endl ;
-	cout << "VARS=" << working << endl ;
-	cout << "RULES=" << endl << new_rules ;
-	
-	processed_rules += new_rules ;
-	processed += working ;
-	//new_vars -= processed ;
-	working = new_vars ;
+            new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
+          }
+        }
+        cout << "------------------------------------------------------------"
+             << endl ;
+        cout << "VARS="<<working << endl ;
+        cout << "RULES=" << endl << new_rules ;
+        processed_rules += new_rules ;
+        processed += working ;
+        new_vars -= processed ;
+        working = new_vars ;
       }
       cout << "------------------------------------------------------------"
-	   << endl ;
-    }  
+           << endl ;
+    }
+    
     inline void invoke_rule(rule f, digraph &gr) {
       gr.add_edges(f.sources(),f.ident()) ;
       gr.add_edges(f.ident(),f.targets()) ;
@@ -646,7 +632,7 @@ namespace Loci {
     gr.remove_vertices(visited_iteration_rules) ;
     create_looping_rules() ;
 
-#ifdef VERBOSE1
+#ifdef VERBOSE
     print_graph_from(given,gr) ;
 #endif
 
