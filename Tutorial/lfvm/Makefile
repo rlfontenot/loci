@@ -1,5 +1,5 @@
 # Set up LOCI_BASE to point to the location where Loci is installed
-LOCI_BASE = /usr/tmp/lush/Loci/
+LOCI_BASE = /usr/tmp/peo/Loci/
 
 # Include Loci.conf to get all of the rules for compiling Loci programs
 include $(LOCI_BASE)/Loci.conf

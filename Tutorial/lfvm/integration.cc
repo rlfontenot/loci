@@ -2,10 +2,10 @@
 
 /////////////////////////////////////////////////////////////////////////////
 //  Here we are implementing the time integration routine to perform an
-//   explict, first order forward Euler time integration.  We achieve
+//   explicit, first order forward Euler time integration.  We achieve
 //   this integration by computing the following formula
 //
-//  e0^{n+1} = e0^n + \delta t rhs^{n}
+//  e0^{n+1} = e0^{n} + \delta t rhs^{n}
 //
 //  Where area*e0 is the total energy contained within the cell and
 //  rhs is provided by the diffusion source terms (numerical integration of
@@ -47,12 +47,12 @@ public:
   }
   void calculate(Entity e) {
     // Here the computation is simple.  Note that this is just the product
-    // of two paramters.  We are accessing these containers using the []
-    // operator, however we could have just as easily used the * operator.
+    // of two parameters.  We are accessing these containers using the []
+    // operator; however, we could have just as easily used the * operator.
     e0[e] = T_initial[e]*heat_capacity[e] ;
   }
   virtual void compute(const sequence &seq) {
-    // As usual for a pointwise rule, we loop over the entites for which
+    // As usual for a pointwise rule, we loop over the entities for which
     // we are interested in computing.
     do_loop(seq,this) ;
   }

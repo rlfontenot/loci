@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 //
 // Here we are providing a generic or parametric rule for computing gradients
-// at faces in the mesh.   This routine assumes that the to cell centroids on
+// at faces in the mesh.   This routine assumes that the two cell centroids on
 // either side of the face are aligned with the normal of the face and it
 // is computing the gradient in the normal direction.  In an actual model
 // we would perform a more sophisticated gradient computation.
