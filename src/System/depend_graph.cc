@@ -1,4 +1,5 @@
 #include <depend_graph.h>
+#include <distribute.h>
 #include <map>
 using std::map ;
 #include <vector>
@@ -50,7 +51,7 @@ namespace Loci {
       variableSet working = given ;
       variableSet processed ;
       ruleSet processed_rules ;
-      cout << "GRAPH Traversal results:" << endl ;
+      debugout << "GRAPH Traversal results:" << endl ;
       while(working != EMPTY) {
         variableSet new_vars ;
         ruleSet new_rules ;
@@ -66,22 +67,22 @@ namespace Loci {
             new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
           }
         }
-        cout << "------------------------------------------------------------"
+        debugout << "------------------------------------------------------------"
              << endl ;
-        cout << "VARS="<<working << endl ;
-        cout << "RULES=" << endl << new_rules ;
+        debugout << "VARS="<<working << endl ;
+        debugout << "RULES=" << endl << new_rules ;
         processed_rules += new_rules ;
         processed += working ;
         new_vars -= processed ;
         working = new_vars ;
       }
-      cout << "------------------------------------------------------------"
+      debugout << "------------------------------------------------------------"
            << endl ;
     }
     
     inline void invoke_rule(rule f, digraph &gr) {
 #ifdef VERBOSE
-      cerr << "adding rule " << f << endl ;
+      debugout << "adding rule " << f << endl ;
 #endif
       gr.add_edges(f.sources(),f.ident()) ;
       gr.add_edges(f.ident(),f.targets()) ;
@@ -110,7 +111,7 @@ namespace Loci {
     ruleSet fill_graph(variableSet start, const digraph &rule_graph,
                        digraph &gr,variableSet known) {
 #ifdef VERBOSE
-      cout << "fillgraph(start="<<start<<",known="<<known<<")"<<endl ;
+      debugout << "fillgraph(start="<<start<<",known="<<known<<")"<<endl ;
 #endif
       digraph rgt = rule_graph.transpose() ;
       variableSet working = start ;
@@ -118,7 +119,7 @@ namespace Loci {
       ruleSet processed_rules ;
       while(working != EMPTY) {
 #ifdef VERBOSE
-        cout << "fill_graph: working = " << working << endl ;
+        debugout << "fill_graph: working = " << working << endl ;
 #endif
         variableSet new_vars ;
         ruleSet working_rules ;
@@ -184,7 +185,7 @@ namespace Loci {
           working_rules += var_rules ;
 	  
 #ifdef VERBOSE
-          cout << "rules involved = " << var_rules << endl ;
+          debugout << "rules involved = " << var_rules << endl ;
 #endif
           
           time_ident vtime = vi->time() ;
@@ -213,7 +214,7 @@ namespace Loci {
                   rule_depend -= known_processed ;
                   if(rule_depend == EMPTY) {
 #ifdef VERBOSE
-                    cout << "promote rule = " << pr << endl ;
+                    debugout << "promote rule = " << pr << endl ;
 #endif
                     processed_rules += pr ;
                     working_rules += pr ;
@@ -229,7 +230,7 @@ namespace Loci {
         working = new_vars ;
       }
 #ifdef VERBOSE
-      cout << "return from fill_graph" << endl ;
+      debugout << "return from fill_graph" << endl ;
 #endif
       return ruleSet(EMPTY) ;
     }
@@ -304,9 +305,9 @@ namespace Loci {
       known_vars = input_vars ;
 
 #ifdef VERBOSE
-      cout << "build_rules = " << build << endl ;
-      cout << "advance_rules = " << advance << endl ;
-      cout << "collapse_rules = " << collapse << endl ;
+      debugout << "build_rules = " << build << endl ;
+      debugout << "advance_rules = " << advance << endl ;
+      debugout << "collapse_rules = " << collapse << endl ;
 #endif
 
       map<variable,intervalSet> build_offsets ;
@@ -399,7 +400,7 @@ namespace Loci {
 
     void add_rename_dependencies(digraph &gr) {
 #ifdef VERBOSE
-      cout << "add_rename_dependencies()" << endl ;
+      debugout << "add_rename_dependencies()" << endl ;
 #endif
       variableSet all_vars = extract_vars(gr.get_all_vertices()) ;
       ruleSet     all_rules = extract_rules(gr.get_all_vertices()) ;
@@ -445,7 +446,7 @@ namespace Loci {
               if(depend_rules.size() != 0 && ri->type() != rule::COLLAPSE) {
                 gr.add_edges(depend_rules,ri->ident()) ;
 #ifdef VERBOSE
-              cout << "adding edges from " <<depend_rules<<
+              debugout << "adding edges from " <<depend_rules<<
                 " to " <<*ri  << "for rename dependencies" << endl ;
 #endif
               }
@@ -461,9 +462,9 @@ namespace Loci {
 
 
 #ifdef VERBOSE
-    cout << "in dependency_graph:" << endl ;
-    cout << "given = " << given << endl ;
-    cout << "target = " << target << endl ;
+    debugout << "in dependency_graph:" << endl ;
+    debugout << "given = " << given << endl ;
+    debugout << "target = " << target << endl ;
 #endif
     
     ruleSet all_rules = rdb.all_rules() ;
@@ -602,8 +603,8 @@ namespace Loci {
       }
       visited_iteration_rules += scheduled_iteration_rules ;
 #ifdef VERBOSE
-      cout << "new_iteration_rules = " << new_iteration_rules << endl ;
-      cout << "scheduled_iteration_rules = " << scheduled_iteration_rules << endl ;
+      debugout << "new_iteration_rules = " << new_iteration_rules << endl ;
+      debugout << "scheduled_iteration_rules = " << scheduled_iteration_rules << endl ;
 #endif
       
       warn((new_iteration_rules & visited_iteration_rules) != EMPTY) ;
@@ -638,7 +639,7 @@ namespace Loci {
         digraph igt = ig.transpose() ;
         variableSet ivars = extract_vars(ig.get_all_vertices()) ;
 #ifdef VERBOSE
-        cout << "ivars = " << ivars << endl ;
+        debugout << "ivars = " << ivars << endl ;
 #endif
 
         for(variableSet::const_iterator vi=ivars.begin();vi!=ivars.end();++vi) {
@@ -653,8 +654,8 @@ namespace Loci {
                 variable vp(*vi,parent) ;
                 invoke_rule(create_rule(vp,vs,"promote"),gr) ;
 #ifdef VERBOSE
-                cout << "adding promote for iteration " << ip->first << endl ;
-                cout << vp << " to " << vs << endl ;
+                debugout << "adding promote for iteration " << ip->first << endl ;
+                debugout << vp << " to " << vs << endl ;
 #endif
                 if(grt.get_edges(vp.ident()) != EMPTY) {
                   break ;
@@ -666,8 +667,8 @@ namespace Loci {
                 variable vp(*vi,parent) ;
                 invoke_rule(create_rule(vp,vs,"promote"),gr) ;
 #ifdef VERBOSE
-                cout << "adding promote for iteration " << ip->first << endl ;
-                cout << vp << " to " << vs << endl ;
+                debugout << "adding promote for iteration " << ip->first << endl ;
+                debugout << vp << " to " << vs << endl ;
 #endif
               }
                 
@@ -679,7 +680,6 @@ namespace Loci {
     }
 
     gr.remove_vertices(visited_iteration_rules) ;
-    create_looping_rules() ;
 
 #ifdef VERBOSE
     print_graph_from(given,gr) ;
@@ -694,41 +694,6 @@ namespace Loci {
     gr.remove_dangling_vertices() ;
   }
 
-  void dependency_graph::create_looping_rules() {
-    //#define OLDE
-#ifdef OLDE
-    digraph::vertexSet all_vertices = gr.get_all_vertices() ;
-    variableSet all_vars = extract_vars(all_vertices) ;
-    variableSet::const_iterator vi ;
-    map<time_ident,variableSet> tvarmap ;
-    for(vi=all_vars.begin();vi!=all_vars.end();++vi) 
-      if(vi->get_info().offset == 1 || vi->get_info().name==string("OUTPUT")) 
-        tvarmap[vi->time()] += *vi ;
-
-    map<time_ident,variableSet>::const_iterator ii ;
-    for(ii=tvarmap.begin();ii!=tvarmap.end();++ii) {
-      variableSet source = ii->second ;
-      variableSet target ;
-      target += variable(ii->first) ;
-      bool advance_vars = false ;
-      for(vi=source.begin();vi!=source.end();++vi)
-        if(vi->get_info().offset == 1)
-          advance_vars = true ;
-
-      if(advance_vars) {
-        for(vi=source.begin();vi!=source.end();++vi)
-          target += vi->new_offset(0) ;
-        ostringstream oss ;
-        oss << "source(" << source
-            << "),target(" << target
-            << "),qualifier(looping)" ;
-        rule f(oss.str()) ;
-        gr.add_edges(source,f.ident()) ;
-        gr.add_edges(f.ident(),target) ;
-      }
-    }
-#endif
-  }
 
   void dependency_graph::clean_graph(variableSet given, variableSet target) {
     // Remove unnecessary vertices from graph.
@@ -772,16 +737,111 @@ namespace Loci {
     subset -= cleanout ;
 
 #ifdef VERBOSE
-    cout << "cleanout = " << extract_rules(cleanout) << endl ;
+    debugout << "cleanout = " << extract_rules(cleanout) << endl ;
 #endif
+
+    
+    variableSet touched_variables = given ;
+    ruleSet working_rules = extract_rules(subset) ;
+    for(ruleSet::const_iterator ri = working_rules.begin();
+        ri!=working_rules.end();
+        ++ri) {
+      touched_variables += ri->targets() ;
+    }
+
+    ruleSet looping_rules ;
+    
+    digraph::vertexSet cleanout2 ;
+    for(ruleSet::const_iterator ri = working_rules.begin();
+        ri!=working_rules.end();
+        ++ri) {
+      if(ri->get_info().qualifier() != "looping") {
+        if((ri->sources() - touched_variables)!=EMPTY) {
+          cleanout2 += ri->ident() ;
+        }
+      } else
+        looping_rules += *ri ;
+    }
+    
+#ifdef VERBOSE
+    debugout << "cleanout2 = " << extract_rules(cleanout2) << endl ;
+#endif
+
+    subset -= cleanout2 ;
+    
+
+
     
     WARN(subset == EMPTY) ;
 #ifdef VERBOSE
-    cout << "cleaning out rules: " << endl ;
-    cout << extract_rules(gr.get_source_vertices()-subset) ;
+    debugout << "cleaning out rules: " << endl ;
+    debugout << extract_rules(gr.get_source_vertices()-subset) ;
 #endif
     gr = gr.subgraph(subset) ;
+
+    if(looping_rules != EMPTY) {
+      digraph grt = gr.transpose() ;
+      for(ruleSet::const_iterator ri = looping_rules.begin();
+          ri!=looping_rules.end();
+          ++ri) {
+        variableSet sources = ri->sources() ;
+        variableSet::const_iterator vi ;
+        variableSet unused_vars ;
+        for(vi=sources.begin();vi!=sources.end();++vi) {
+          ruleSet rs = extract_rules(grt.get_edges(vi->ident())) ;
+          if(rs == EMPTY)
+            unused_vars += *vi ;
+        }
+        variableSet targets = ri->targets() ;
+        for(vi=targets.begin();vi!=targets.end();++vi) {
+          ruleSet rs = extract_rules(gr.get_edges(vi->ident())) ;
+          if(rs == EMPTY)
+            unused_vars += *vi ;
+        }
+        variableSet shared_vars = variableSet(sources & targets) ;
+        unused_vars -= shared_vars ;
+        variableSet newtargets = variableSet(targets-unused_vars) ;
+        variableSet newsources = variableSet(sources-unused_vars) ;
+        for(vi=newtargets.begin();vi!=newtargets.end();++vi) {
+          variable tvar = *vi ;
+          if(tvar.get_info().name != "OUTPUT" && !tvar.get_info().tvar) {
+            // If a variable isn't being advanced in time, then
+            // it has no buisness in the time loop 
+            while(newtargets.inSet(tvar)) {
+              tvar = tvar.new_offset(tvar.get_info().offset + 1) ;
+            }
+            if(!newsources.inSet(tvar))
+              unused_vars += *vi ;
+          }
+          
+        }
+
+        
+        if(unused_vars != EMPTY) {
+#ifdef VERBOSE
+          debugout << "unused_vars = " << unused_vars << endl ;
+          debugout << "in rule: " << *ri << endl ;
+#endif
+          variableSet looping_input = variableSet(sources-unused_vars) ;
+          variableSet looping_output = variableSet(targets-unused_vars) ;
+          ostringstream oss ;
+          oss << "source("<< looping_input
+              << "),target(" << looping_output
+              << "),qualifier(looping)" ;
+          rule floop(oss.str()) ;
+
+#ifdef VERBOSE
+          debugout << "new loop: " << floop << endl ;
+#endif
+
+          invoke_rule(floop,gr) ;
+          gr.remove_vertex(ri->ident()) ;
+        }
+      }
+    }
+    gr.remove_dangling_vertices() ;
   }
+  
   
 
 }// End namespace Loci

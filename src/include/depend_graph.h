@@ -23,7 +23,6 @@ namespace Loci {
 
   class dependency_graph {
     digraph gr ;
-    void create_looping_rules() ;
     void clean_graph(variableSet given, variableSet target) ;
   public:
     dependency_graph(rule_db &rdb, variableSet given, variableSet target) ;
