@@ -473,7 +473,12 @@ namespace Loci {
   
   
   vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions) {
+    if(num_partitions == 0)
+      num_partitions = MPI_processes ;
     vector<entitySet> ptn ;
+    if(num_partitions == 1)
+      return ptn ;
+    
     debugout << "Synchronising before metis_facts" << endl ;
     MPI_Barrier(MPI_COMM_WORLD) ;
     double start = MPI_Wtime() ;
@@ -486,6 +491,9 @@ namespace Loci {
   }
   
   void  distribute_facts(vector<entitySet> &ptn, fact_db &facts, rule_db &rdb) {
+    if(ptn.size() == 0)
+      return ;
+    
     vector<vector<entitySet> > get_entities(MPI_processes) ;
     double start = MPI_Wtime() ;
     set<vector<variableSet> > maps ;
