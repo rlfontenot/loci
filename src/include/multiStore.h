@@ -763,11 +763,12 @@ namespace Loci {
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    entitySet eset;
+    entitySet eset, ecommon;
     HDF5_ReadDomain(group, eset);
 
-    allocate( eset & user_eset );
-    hdf5read( group, traits_type, eset, eset & user_eset);
+    ecommon = eset & user_eset;
+    allocate( ecommon );
+    hdf5read( group, traits_type, eset, ecommon );
 
   }
 
@@ -789,9 +790,101 @@ namespace Loci {
   void multiStoreRepI<T> :: hdf5read( H5::Group group, IDENTITY_CONVERTER c, 
                                     entitySet &eset, entitySet &user_eset )
   {
-     cout << " Not yet implemented " << endl;
-     exit(0);
-  }
+
+    hsize_t dimension[1];
+    size_t indx = 0, arraySize;
+    int    rank = 1;
+
+    entitySet::const_iterator ci;
+
+    //-------------------------------------------------------------------------
+    // Size of each main container....
+    //--------------------------------------------------------------------------
+
+    H5::DataType  bDatatype  = H5::PredType::NATIVE_INT;
+    H5::DataSet   bDataset   = group.openDataSet( "ContainerSize");
+    H5::DataSpace bDataspace = bDataset.getSpace();
+
+    bDataspace.getSimpleExtentDims( dimension, NULL);
+    int *ibuf = new int[dimension[0]];
+
+    dimension[0]  = eset.size();
+	 bDataset.read( ibuf, H5::PredType::NATIVE_INT );
+
+    store<int> container;
+    container.allocate( eset );
+
+    indx  = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci)
+        container[*ci] = ibuf[indx++];
+
+    delete [] ibuf;
+
+   //---------------------------------------------------------------------------
+   // Calculate the offset of each entity in file ....
+   //---------------------------------------------------------------------------
+   store<int>        bucket;
+   bucket.allocate( user_eset );
+   for( ci = user_eset.begin(); ci != user_eset.end(); ++ci) 
+        bucket[*ci] = container[*ci];
+   allocate( bucket );
+
+   store<unsigned>   offset;
+   offset.allocate( eset );
+
+   arraySize = 0;
+   for( ci = eset.begin(); ci != eset.end(); ++ci) {
+        offset[*ci] = arraySize;
+        arraySize  += container[*ci];
+   }
+
+   //---------------------------------------------------------------------------
+   // Read the data now ....
+   //---------------------------------------------------------------------------
+   int num_intervals = user_eset.num_intervals();
+   interval *it = new interval[num_intervals];
+
+   for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
+
+   T  *data;
+
+   dimension[0] = arraySize;
+   H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
+   H5::DataSpace vDataspace(rank, dimension);
+
+   typedef hdf5_schema_traits<T> traits_type;
+   H5::DataType  vDatatype = traits_type::get_type();
+	H5::DataSet   vDataset   = group.openDataSet( "VariableData");
+
+   hssize_t  start_mem[] = {0};  // determines the starting coordinates.
+   hsize_t   stride[]    = {1};  // which elements are to be selected.
+   hsize_t   block[]     = {1};  // size of element block;
+   hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+   hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+
+   for( int k = 0; k < num_intervals; k++) {
+        count[0] = 0;
+        for( int i = it[k].first; i <= it[k].second; i++)
+                count[0] +=  container[i];
+
+        data = new T[count[0]];
+
+        foffset[0] = offset[it[k].first];
+
+        mDataspace.selectHyperslab(H5S_SELECT_SET, count, start_mem, stride, block);
+        vDataspace.selectHyperslab(H5S_SELECT_SET, count, foffset,   stride, block);
+        vDataset.read( data, vDatatype, mDataspace, vDataspace);
+
+        indx = 0;
+        for( int i = it[k].first; i <= it[k].second; i++) {
+             for( int j = 0; j < container[i]; j++) 
+                  base_ptr[i][j] = data[indx++];
+        }
+
+        delete[] data;
+   }
+}
+
   //**************************************************************************/
 
 
@@ -889,7 +982,7 @@ namespace Loci {
    H5::DataSpace vDataspace(rank, dimension);
 
    H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
-	H5::DataSet   vDataset   = group.openDataSet( "variable");
+	H5::DataSet   vDataset   = group.openDataSet( "VariableData");
 
    hssize_t  start_mem[] = {0};  // determines the starting coordinates.
    hsize_t   stride[]    = {1};  // which elements are to be selected.
@@ -1042,7 +1135,7 @@ namespace Loci {
 
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = converter_traits::get_variable_HDF5_type();
-      H5::DataSet   vDataset  = group.createDataSet( "variable", vDatatype, vDataspace);
+      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
 
       vDataset.write( data, vDatatype );
 
@@ -1065,10 +1158,11 @@ namespace Loci {
   void multiStoreRepI<T>::hdf5write( H5::Group group, IDENTITY_CONVERTER g, 
                                      const entitySet &eset) const
   {
+    int      indx, rank = 1;
+    hsize_t  dimension[1];
 
-/*
     //write out the domain   
-    domain_hdf5write(group, eset);
+    HDF5_WriteDomain(group, eset);
 
     entitySet :: const_iterator ci;
 
@@ -1077,19 +1171,43 @@ namespace Loci {
 // container for allocation purpose
 //-----------------------------------------------------------------------------
     size_t  arraySize= 0;
-    int     count;
+    int     *storeSize;
 
-    for( ci = eset.begin(); ci != eset.end(); ++ci)
-         arraySize  += end(*ci) - begin(*ci);
+    storeSize = new int[eset.size()];
 
-    T  *data, *buf;
+    indx = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         storeSize[indx] = end(*ci) - begin(*ci);
+         arraySize      += storeSize[indx];
+         indx++;
+    }
 
- 	 data =  new T[arraySize];
+//-----------------------------------------------------------------------------
+// Write the Size of each multiStore ....
+//-----------------------------------------------------------------------------
+
+    dimension[0]=  eset.size();
+
+    try {
+      H5::DataSpace sDataspace( rank, dimension );
+      H5::DataType  sDatatype = H5::PredType::NATIVE_INT;
+      H5::DataSet   sDataset  = group.createDataSet( "ContainerSize", sDatatype, sDataspace);
+
+      sDataset.write( storeSize, sDatatype );
+    }
+
+    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array
 //-----------------------------------------------------------------------------
+    T  *data;
 
-    size_t indx = 0;
+ 	 data =  new T[arraySize];
+
+    int  count;
+    indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
          count  = end(*ci) - begin(*ci);
          for( int j = 0; j < count; j++) 
@@ -1101,8 +1219,6 @@ namespace Loci {
 //-----------------------------------------------------------------------------
     typedef hdf5_schema_traits<T> traits_type;
 
-    int rank = 1;
-    hsize_t  dimension[1];
 
     dimension[0] =  arraySize;
 
@@ -1110,7 +1226,7 @@ namespace Loci {
 
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = traits_type::get_type();
-      H5::DataSet   vDataset  = group.createDataSet( "variable", vDatatype, vDataspace);
+      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
 
       vDataset.write( data, vDatatype );
 
@@ -1123,8 +1239,6 @@ namespace Loci {
 // Clean up
 //-----------------------------------------------------------------------------
     delete [] data;
-*/
-
   }; 
 
   //*************************************************************************/
