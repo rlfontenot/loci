@@ -483,7 +483,7 @@ namespace Loci {
     fact_db::distribute_infoP d = new fact_db::distribute_info ;
     d = facts.get_distribute_info() ;
     constraint my_entities ;
-    entitySet re, temp;
+    entitySet re, temp ;
     entitySet::const_iterator ei, ti ;
     if(facts.isDistributed()) {  
       int **send_buffer, **recv_buffer ;

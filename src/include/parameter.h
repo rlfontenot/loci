@@ -245,11 +245,17 @@ namespace Loci {
   }
   template<class T> void paramRepI<T>::gather(const Map &m, storeRepP &st,
                                               const entitySet &context) {
-    warn(true) ;
+
+    param<T> p(st) ;
+    fatal((context - store_domain) != EMPTY) ;
+    store_domain = context ;
   }
   template<class T> void paramRepI<T>::scatter(const Map &m, storeRepP &st,
-                                              const entitySet &context) {
-    warn(true) ;
+					       const entitySet &context) {
+    
+    param<T> p(st) ;
+    fatal((context - store_domain) != EMPTY) ;
+    store_domain = m.image(context) ;
   }
  
   template <class T> int paramRepI<T>::pack_size( const entitySet &e) {
@@ -258,10 +264,10 @@ namespace Loci {
     return(size) ;
   }
   template <class T> void paramRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &e ) {
-    warn(true) ;
+    MPI_Pack(this, sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
   }
   template <class T> void paramRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
-    warn(true) ;
+    MPI_Unpack(ptr, size, &loc, this, sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
   }  
   
   template<class T> store_instance::instance_type

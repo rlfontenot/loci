@@ -41,12 +41,14 @@ namespace Loci {
     comm_list = clist ;
     exec_sequence = seq ;
   }
-  
+   
   execute_precomm::execute_precomm(std::list<comm_info> plist, sequence seq, fact_db &facts) {
     comm_list = plist ;
     exec_sequence = seq ;
   }
-  void execute_postcomm::execute(fact_db &facts) {
+  
+  void execute_precomm::execute(fact_db &facts) {
+    
     MPI_Status *status ;
     MPI_Request *request ;
     std::list<comm_info>::const_iterator li ;
@@ -88,27 +90,30 @@ namespace Loci {
     std::vector<sequence> vseq(n) ; 
     std::vector<entitySet> vset(n) ;
     entitySet recv, send ;
+     
     for(li = comm_list.begin(); li != comm_list.end(); ++li) {
       sp = facts.get_variable(li->v) ;
-      for(vi = li->proc_info.begin() ; vi != li->proc_info.end(); ++vi) {
+      //cout << "variable = " << li->v <<  endl ;
+      for(vi = li->recv_info.begin() ; vi != li->recv_info.end(); ++vi) {
 	if(vi->recv_set != EMPTY) {
 	  r_size[id[vi->processor]] += sp->pack_size(entitySet(vi->recv_set)) ;
-	  sequence tempseq ;
-	  sequence::const_iterator si ;
-	  for(si = vi->recv_set.begin(); si != vi->recv_set.end(); ++si)  
-	    tempseq += d->g2l[*si] ;
-	  vseq[id[vi->processor]] += tempseq ;
+	  vseq[id[vi->processor]] += vi->recv_set ;
 	  recv += vi->processor ;
 	  vvr[id[vi->processor]].push_back(li->v) ; 
+	  // cout << d->myid << "variable  = " << li->v << "    receiving  " << vi->recv_set << "  from   " << vi->processor << endl ;
 	}
+      }
+      for(vi = li->send_info.begin(); vi != li->send_info.end(); ++vi) {
 	if(vi->send_set != EMPTY) {
 	  p_size[id[vi->processor]] += sp->pack_size(vi->send_set) ;
 	  vset[id[vi->processor]] += vi->send_set ; 
 	  send += vi->processor ;
 	  vvs[id[vi->processor]].push_back(li->v) ;
+	  //cout << d->myid <<" variable =  " << li->v <<  "    sending  " << vi->send_set << "  to   " << vi->processor << endl ;
 	}
       }
     }
+    
     recv_count = 0 ;
     for(ei = recv.begin(); ei != recv.end(); ++ei) {
       recv_ptr[id[*ei]] = new unsigned char[r_size[id[*ei]]] ;
@@ -119,19 +124,22 @@ namespace Loci {
     for(ei = send.begin(); ei != send.end(); ++ei) {
       send_ptr[id[*ei]]=new unsigned char[p_size[id[*ei]]] ;
       for(vvi = vvs[id[*ei]].begin(); vvi != vvs[id[*ei]].end(); ++vvi) {
+	//cout << "precomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ; 
 	sp->pack(send_ptr[id[*ei]], loc_pack[id[*ei]],
 		 p_size[id[*ei]], vset[id[*ei]]) ;
 	
-      }
+	//cout << " } " << endl ;
+	
+      } 
       send_procs[send_count] = *ei ;
       send_count++ ;
     }
     request = (MPI_Request *) malloc(recv_count * sizeof(MPI_Request) ) ;
-    status = (MPI_Status *) malloc(recv_count * sizeof(MPI_Status) ) ;
+    status = (MPI_Status *) malloc(recv_count * sizeof(MPI_Status)) ;
     
     for(int i = 0; i < recv_count; i++) {
       MPI_Irecv(recv_ptr[id[recv_procs[i]]], r_size[id[recv_procs[i]]], MPI_PACKED,
-		recv_procs[i], 1, MPI_COMM_WORLD, &request[i]) ;  
+      	recv_procs[i], 1, MPI_COMM_WORLD, &request[i]) ;  
       recv_flag = 1 ;
     }
     
@@ -145,16 +153,26 @@ namespace Loci {
       for(ei = recv.begin(); ei != recv.end(); ++ei) {
 	for(vvi = vvr[id[*ei]].begin(); vvi != vvr[id[*ei]].end(); ++vvi) {
 	  sp = facts.get_variable(*vvi) ;
+	  //cout << "precomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
 	  sp->unpack(recv_ptr[id[*ei]], loc_unpack[id[*ei]], 
 		     r_size[id[*ei]], vseq[id[*ei]]) ;
+	  //cout << " } " << endl ;
 	  
 	}
       }
     }
-   
+    delete [] p_size ;
+    delete [] r_size ;
+    delete [] send_ptr ;
+    delete [] recv_ptr ;
+    delete [] loc_pack ;
+    delete [] loc_unpack ;
+    delete [] send_procs ;
+    delete [] recv_procs ;
+    
   }
-  
-  void execute_precomm::execute(fact_db &facts) {
+   void execute_postcomm::execute(fact_db &facts) {
+     
     MPI_Status *status ;
     MPI_Request *request ;
     std::list<comm_info>::const_iterator li ;
@@ -165,7 +183,7 @@ namespace Loci {
     d = facts.get_distribute_info() ;
     int n, recv_count = 0, send_count = 0, recv_flag = 0 ;
     entitySet procs = d->send_neighbour | d->recv_neighbour ;
-    entitySet::const_iterator ei ; 
+    entitySet::const_iterator ei ;
     n = procs.size() ;
     p_size = new int[n] ;
     r_size = new int[n] ;
@@ -177,7 +195,6 @@ namespace Loci {
     loc_unpack = new int[n] ;
     Map id ;
     id.allocate(procs) ;
-     
     int k = 0 ;
     for(ei = procs.begin(); ei != procs.end(); ++ei) {
       id[*ei] = k ;
@@ -197,24 +214,26 @@ namespace Loci {
     std::vector<sequence> vseq(n) ; 
     std::vector<entitySet> vset(n) ;
     entitySet recv, send ;
+    
     for(li = comm_list.begin(); li != comm_list.end(); ++li) {
       sp = facts.get_variable(li->v) ;
-      for(vi = li->proc_info.begin() ; vi != li->proc_info.end(); ++vi) {
+      //cout << "variable = " << li->v <<  endl ;
+      for(vi = li->recv_info.begin() ; vi != li->recv_info.end(); ++vi) {
 	if(vi->recv_set != EMPTY) {
 	  r_size[id[vi->processor]] += sp->pack_size(entitySet(vi->recv_set)) ;
-	  sequence tempseq ;
-	  sequence::const_iterator si ;
-	  for(si = vi->recv_set.begin(); si != vi->recv_set.end(); ++si)  
-	    tempseq += d->g2l[*si] ;
-	  vseq[id[vi->processor]] += tempseq ;
+	  vseq[id[vi->processor]] += vi->recv_set ;
 	  recv += vi->processor ;
 	  vvr[id[vi->processor]].push_back(li->v) ; 
+	  // cout << d->myid << "variable  = " << li->v << "    receiving  " << vi->recv_set << "  from   " << vi->processor << endl ;
 	}
+      }
+      for(vi = li->send_info.begin(); vi != li->send_info.end(); ++vi) {
 	if(vi->send_set != EMPTY) {
 	  p_size[id[vi->processor]] += sp->pack_size(vi->send_set) ;
 	  vset[id[vi->processor]] += vi->send_set ; 
 	  send += vi->processor ;
 	  vvs[id[vi->processor]].push_back(li->v) ;
+	  //cout << d->myid <<" variable =  " << li->v <<  "    sending  " << vi->send_set << "  to   " << vi->processor << endl ;
 	}
       }
     }
@@ -224,20 +243,21 @@ namespace Loci {
       recv_ptr[id[*ei]] = new unsigned char[r_size[id[*ei]]] ;
       recv_procs[recv_count] = *ei ;
       recv_count++ ;
-    }
+    } 
     send_count = 0 ;
     for(ei = send.begin(); ei != send.end(); ++ei) {
       send_ptr[id[*ei]]=new unsigned char[p_size[id[*ei]]] ;
       for(vvi = vvs[id[*ei]].begin(); vvi != vvs[id[*ei]].end(); ++vvi) {
+	//cout << "postcomm  processor   " <<  d->myid << "variable  =  " << *vvi << " { " ; 
 	sp->pack(send_ptr[id[*ei]], loc_pack[id[*ei]],
 		 p_size[id[*ei]], vset[id[*ei]]) ;
-	
+	//cout << " } " << endl ;
       }
       send_procs[send_count] = *ei ;
       send_count++ ;
     }
     request = (MPI_Request *) malloc(recv_count * sizeof(MPI_Request) ) ;
-    status = (MPI_Status *) malloc(recv_count * sizeof(MPI_Status) ) ;
+    status = (MPI_Status *) malloc(recv_count * sizeof(MPI_Status)) ;
     
     for(int i = 0; i < recv_count; i++) {
       MPI_Irecv(recv_ptr[id[recv_procs[i]]], r_size[id[recv_procs[i]]], MPI_PACKED,
@@ -247,31 +267,42 @@ namespace Loci {
     
     for(int i = 0; i < send_count; ++i) 
       MPI_Send(send_ptr[id[send_procs[i]]], p_size[id[send_procs[i]]], MPI_PACKED, send_procs[i], 1, MPI_COMM_WORLD) ;
-        
-    if((recv_flag) && (recv_count > 0))
+      
+    if((recv_flag))
       MPI_Waitall(recv_count, request, status) ;
     
     if(recv_flag) {
       for(ei = recv.begin(); ei != recv.end(); ++ei) {
 	for(vvi = vvr[id[*ei]].begin(); vvi != vvr[id[*ei]].end(); ++vvi) {
 	  sp = facts.get_variable(*vvi) ;
+	  //cout << "postcomm   processor   " <<  d->myid << "   variable  =  " << *vvi <<  " { " ; 
 	  sp->unpack(recv_ptr[id[*ei]], loc_unpack[id[*ei]], 
 		     r_size[id[*ei]], vseq[id[*ei]]) ;
+	  //cout << " } " << endl ;
 	}
+	 
       }
     }
     
-  }
+    delete [] p_size ;
+    delete [] r_size ;
+    delete [] send_ptr ;
+    delete [] recv_ptr ;
+    delete [] loc_pack ;
+    delete [] loc_unpack ;
+    delete [] send_procs ;
+    delete [] recv_procs ;
+    
+   }
+  
   
   void execute_postcomm::Print(ostream &s) const {
     //cerr << MPI_rank <<"   sending the values to their respective processors " << endl ;
   }
-  
   void execute_precomm::Print(ostream &s) const {
-    // cerr << "filling up the  clone region of  " << MPI_rank << endl ;
+    
   }
-  
-
+     
   void impl_compiler::set_var_existence(fact_db &facts) {
     existential_rule_analysis(impl,facts) ;
   }
@@ -312,13 +343,14 @@ namespace Loci {
     }
     if(facts.isDistributed()) {
       CPTR<execute_list> el = new execute_list ;
-      //el->append_list(new execute_precomm(plist, sequence(exec_seq), facts) ) ;
       el->append_list(new execute_rule(impl, sequence(exec_seq), facts) ) ;
-      el->append_list(new execute_precomm(plist, sequence(exec_seq), facts) ) ;
-      el->append_list(new execute_postcomm(clist, sequence(exec_seq), facts) ) ;
+      el->append_list(new execute_precomm(plist, sequence(exec_seq), facts) ) ; 
+      el->append_list(new execute_postcomm(clist, sequence(exec_seq), facts)) ;
       return executeP(el) ;
     }
     else 
       return new execute_rule(impl,sequence(exec_seq),facts) ;
   }
 }
+ 
+ 

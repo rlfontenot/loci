@@ -15,8 +15,8 @@ namespace Loci {
                               entitySet compute) ;
   void existential_rule_analysis(rule f, fact_db &facts) ;
   entitySet process_rule_requests(rule f, fact_db &facts) ;
-  std::list<comm_info> put_precomm_info(rule impl, fact_db &facts) ;
   std::list<comm_info> put_postcomm_info(rule impl, fact_db &facts) ;
+  std::list<comm_info> put_precomm_info(rule impl, fact_db &facts) ;
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) ;
   std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
@@ -66,8 +66,6 @@ namespace Loci {
     std::list<comm_info> clist ;
     std::list<comm_info> plist ;
   public:
-    std::list<comm_info> get_precomm_info() ;
-    std::list<comm_info> get_postcomm_info() ;
     impl_compiler(rule r)  { impl=r;}
     virtual void set_var_existence(fact_db &facts) ;
     virtual void process_var_requests(fact_db &facts) ;

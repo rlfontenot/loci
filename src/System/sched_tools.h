@@ -74,7 +74,16 @@ namespace Loci {
   
   struct comm_info {
     variable v ;
-    std::vector<proc_details> proc_info ;
+    std::vector<proc_details> send_info ;
+    std::vector<proc_details> recv_info ;
+  } ;
+  class execute_precomm : public execute_modules {
+    std::list<comm_info> comm_list ;
+    sequence exec_sequence ;
+  public:
+    execute_precomm(std::list<comm_info> plist , sequence seq, fact_db &facts) ; 
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
   } ;
   
   class execute_postcomm : public execute_modules {
@@ -86,13 +95,5 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
   } ;
   
-  class execute_precomm : public execute_modules {
-    std::list<comm_info> comm_list ;
-    sequence exec_sequence ;
-  public:
-    execute_precomm(std::list<comm_info> plist , sequence seq, fact_db &facts) ; 
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-  } ; 
 }
 #endif
