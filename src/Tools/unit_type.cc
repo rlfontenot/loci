@@ -1,5 +1,7 @@
 #include <Tools/unit_type.h>
 
+#include <list>
+
 using namespace std ;
 
 namespace Loci {
@@ -494,6 +496,7 @@ namespace Loci {
   void UNIT_type::rem_dup(map<string,int> &num_map,map<string,int> &den_map)
     {
       map<string,int>::iterator mi,mj;
+      list<map<string,int>::iterator> delnum,delden ;
       for(mi= num_map.begin();mi!=num_map.end();++mi)
 	{
 	  for(mj= den_map.begin();mj!=den_map.end();++mj)
@@ -503,19 +506,27 @@ namespace Loci {
 		  int tmp=(*mi).second-(*mj).second;
 		  if(tmp>0){
 		    num_map[(*mi).first]=tmp;
-		    den_map.erase(mj);
+                    delden.push_back(mj) ;
 		  }
 		  else if(tmp<0){
 		    den_map[(*mi).first]=-tmp;
-		    num_map.erase(mi);
+                    delnum.push_back(mi) ;
 		  }
 		  else{
-		    num_map.erase(mi);
-		    den_map.erase(mj);
+                    delnum.push_back(mi) ;
+                    delden.push_back(mj) ;
 		  }
 		}
 	    }
 	}
+      while(!delnum.empty()) {
+        num_map.erase(delnum.back()) ;
+        delnum.pop_back() ;
+      }
+      while(!delden.empty()) {
+        den_map.erase(delden.back()) ;
+        delden.pop_back() ;
+      }
       /*cout<<"Numerator: "<<endl;
       for(mi= num_map.begin();mi!=num_map.end();++mi)
 	cout<<mi->first<<"  "<<mi->second<<endl;
