@@ -1,9 +1,12 @@
 #ifndef CPTR_H
 #define CPTR_H
 
+#include <typeinfo.h>
+
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <Tools/lmutex.h>
+
 
 namespace Loci {
 // Counted Pointer
@@ -32,13 +35,18 @@ class CPTR_type {
 template <class T> class const_CPTR ;
 
 template <class T> class CPTR {
+#ifdef GXX_FIXES
+public:
+#endif
     T *ptr ;
     void unlink_ptr() { if(ptr) ptr->CPTR_type::unlink() ; ptr = 0 ; }
     void link_ptr() { if(ptr) ptr->CPTR_type::link() ; }
     void set_ptr(T *p) { if(p) p->CPTR_type::link() ; unlink_ptr() ; ptr = p ;}
   public:
+#ifndef GXX_FIXES
     template <class S> friend class CPTR ;
     template <class S> friend class const_CPTR ;
+#endif
     
     // OCF Methods
     CPTR(T *p = 0) { ptr = p ; link_ptr(); }
@@ -76,9 +84,11 @@ template <class T> class const_CPTR {
     void link_ptr() { if(ptr) ptr->CPTR_type::link() ; }
     void set_ptr(T *p) { if(p) p->CPTR_type::link() ; unlink_ptr() ; ptr = p ; }
   public:
+#ifndef GXX_FIXES
     template <class S> friend class CPTR ;
     template <class S> friend class const_CPTR ;
-    
+#endif
+
     // OCF Methods
     const_CPTR(const T *p = 0) { ptr = p ; link_ptr(); }
     const_CPTR(const CPTR<T> &p) {ptr = p.ptr;  ; link_ptr(); }

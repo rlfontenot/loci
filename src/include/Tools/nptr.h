@@ -18,6 +18,9 @@ namespace Loci {
   template <class T> class const_NPTR ;
 
   template <class T> class NPTR {
+#ifdef GXX_FIXES
+  public:
+#endif
     T *ptr ;
     eventNotify * receiver ;
     lmutex mutex ;
@@ -39,8 +42,10 @@ namespace Loci {
     void disengage() { if(ptr && receiver) ptr->disengage(receiver) ; }
   public:
     // OCF Methods
+#ifndef GXX_FIXES
     template <class S> friend class NPTR ;
     template <class S> friend class const_NPTR ;
+#endif
     
     NPTR(T *p=0,eventNotify *r=0) { ptr = 0 ; receiver=r ; set_ptr(p) ; }
     NPTR(const NPTR<T> &p,eventNotify *r=0)
@@ -78,6 +83,9 @@ namespace Loci {
   } ;
 
   template <class T> class const_NPTR {
+#ifdef GXX_FIXES
+  public:
+#endif
     const T *ptr ;
     eventNotify * receiver ;
     lmutex mutex ;
@@ -98,8 +106,10 @@ namespace Loci {
     void disengage() const { if(ptr && receiver) ptr->disengage(receiver) ; }
   public:
     // OCF Methods
+#ifndef GXX_FIXES
     template <class S> friend class NPTR ;
     template <class S> friend class const_NPTR ;
+#endif
     const_NPTR(const T *p=0,eventNotify *r=0)
     { ptr = 0 ; receiver=r ; set_ptr(p) ; }
     const_NPTR(const const_NPTR<T> &p)
