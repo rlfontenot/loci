@@ -40,9 +40,8 @@ storeRep *dMapRepI::new_store(const entitySet &p) const
   
 storeRepP dMapRepI::remap(const Map &newmap) const 
 {
-  Map s ;
+  dMap s ;
 
-/*
   entitySet newdomain = newmap.domain() & domain() ;
 
   pair<entitySet,entitySet> mappimage = preimage(newmap.domain()) ;
@@ -52,7 +51,6 @@ storeRepP dMapRepI::remap(const Map &newmap) const
   storeRepP my_store = getRep() ;
   s.Rep()->scatter(newmap,my_store,newdomain) ;
   MapRepP(s.Rep())->compose(newmap,mapimage) ;
-*/
 
   return s.Rep() ;
 }
@@ -96,11 +94,9 @@ void dMapRepI::gather(const Map &m, storeRepP &st, const entitySet &context)
   fatal((m.image(context) - s.domain()) != EMPTY) ; 
   fatal((context - domain()) != EMPTY) ;
 
-  /*
-    FORALL(context,i) {
-      base_ptr[i] = s[m[i]] ;
-    } ENDFORALL ;
-  */
+  FORALL(context,i) {
+      attrib_data[i] = s[m[i]] ;
+  } ENDFORALL ;
 }
 
 //********************************************************************
@@ -112,11 +108,9 @@ void dMapRepI::scatter(const Map &m,storeRepP &st, const entitySet &context)
   fatal((context - s.domain()) != EMPTY) ;
   fatal((m.image(context) - domain()) != EMPTY) ;
 
-  /*
-    FORALL(context,i) {
-      base_ptr[m[i]] = s[i] ;
-    } ENDFORALL ;
-  */
+  FORALL(context,i) {
+      attrib_data[m[i]] = s[i] ;
+  } ENDFORALL ;
 }
 
 //********************************************************************
@@ -307,15 +301,9 @@ void dMapRepI::readhdf5(H5::Group group, entitySet &usr_eset)
 
     hash_map<int, int > :: const_iterator  ci;
     entitySet::const_iterator ei;
-    int           *data;
     hsize_t       dimension;
     entitySet     eset;	
     vector<int>   vec;
-
-    if( usr_eset.size() < 1) {
-        cout << "Warning : Reading entity set is empty " << endl;
-        return;
-    }
 
     H5::DataType  datatype = H5::PredType::NATIVE_INT;
 
@@ -350,7 +338,6 @@ void dMapRepI::readhdf5(H5::Group group, entitySet &usr_eset)
       //-----------------------------------------------------------------------
 
       entitySet  ecommon = eset & usr_eset;
-
 
       int num_intervals = ecommon.num_intervals();
       interval *it = new interval[num_intervals];
