@@ -10,6 +10,7 @@
 namespace Loci {
 enum OpType {
     OP_SCOPE=0x000,
+    OP_AT=0x080, // For using @ to separate namespaces
     // Traditional C operators
     OP_ARROW=0x100, 
     OP_TIMES = 0x300, OP_DIVIDE, OP_MODULUS,
