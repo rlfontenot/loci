@@ -718,7 +718,10 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
       if(rerecv_procs.inSet(recv_info[i].first)) {
-	MPI_Unpack(recv_ptr[i], r_size[i], &loc_unpack, &maxr_size[i], sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
+	int temp ;
+	MPI_Unpack(recv_ptr[i], r_size[i], &loc_unpack, &temp, sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
+	if(temp > maxr_size[i])
+	  maxr_size[i] = temp ;
       }
       else
 	for(int j=0;j<recv_info[i].second.size();++j) {
@@ -784,7 +787,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       delete [] re_status ;
       delete [] re_request ;
     }
-    debugout[MPI_rank] << "done " << endl ;
   }
   
   void execute_comm_reduce::Print(ostream &s) const {

@@ -27,8 +27,8 @@ using std::swap ;
 
 //#define SCATTER_DIST
 //#define UNITY_MAPPING
-
-
+//#define READ_DIST 
+//#define EXIT
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
@@ -76,14 +76,14 @@ namespace Loci {
       for(int k=1;k<*argc;++k)
         (*argv)[k] = (*argv)[k+i-1] ;
     }
-
+    
     if(debug_setup) {
       setup_debugger(execname,debug,hostname) ;
       chopsigs_() ;
     }
     
   }
-
+  
   void Finalize() {
     MPI_Finalize() ;
   }
@@ -95,6 +95,18 @@ namespace Loci {
     entitySet map_entities ;
     variableSet::const_iterator vi ;
     entitySet::const_iterator ei ;
+    /*Initially a serial fact_database is set up on all the
+      processors. We then split the fact_database into p parts if
+      there are p processes. First step to partitioning is setting up
+      the graph . To create the graph we need to extract the entities
+      associated with the stores and the maps and their relationship
+      with each other . This is probably not the most efficient way to 
+      create the graph but it lets us do the partitioning without any
+      prior knowledge about the problem( for example : whether there are
+      faces, cells etc ...). A problem which might occur is poor load
+      balancing. We are not assured that the partitioning is load
+      balanced.  */
+    
     for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
       storeRepP vp = facts.get_variable(*vi) ;
       if(vp->RepType() == MAP) {
@@ -109,7 +121,6 @@ namespace Loci {
 	map_entities += sp->domain() ;
       }
     }
-    
     store<entitySet> dynamic_map ;
     dynamic_map.allocate(map_entities) ;
     for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
@@ -139,6 +150,7 @@ namespace Loci {
     size_adj.allocate(dom_map) ;
     reverse.allocate(dom_map) ;
     count = 0 ;
+    /* First the entities are grouped together by renumbering them. */
     for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
       entities[*ei] = count ;
       ++count ;
@@ -148,12 +160,13 @@ namespace Loci {
       size_adj[count] = dynamic_map[*ei].size() ;  
       ++count ;
     }
+    // Create a reverse mapping to revert to the original numbering 
     count = 0; 
     for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
       reverse[count] = *ei ;
       ++count ;
     }
-   
+
     int *xadj = new int[size_map+1] ;
     int options, numflag, edgecut, wgtflag ;
     int *part = new int[size_map] ;
@@ -171,24 +184,44 @@ namespace Loci {
         adjncy[count] = entities[*di] ;
         count ++ ;
       }
+    /* This part of the code enables to read in a partition from a
+       file  */
+#ifdef READ_DIST
+    ifstream infile("adj") ;
+    for(int i = 0; i < size_map; ++i)
+      infile >> part[i] ;
+#else
+    if(MPI_rank == 0) {
+      double t = MPI_Wtime() ;
+      METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
+      double et = MPI_Wtime() ;
+      debugout[MPI_rank] << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
+      cerr << " Edge cut   " <<  edgecut << endl ;
+    }
+#ifdef EXIT
+    if(MPI_rank == 0) { 
+      ofstream ofile("adj") ;
+      for(int i = 0; i < size_map; i++)
+	ofile << part[i] << endl ;
+    }
+    Finalize() ;
+    exit(0) ;
     
-    double t = MPI_Wtime() ;
-    METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
-    double et = MPI_Wtime() ;
-    debugout[MPI_rank] << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
-    cerr << " Edge cut   " <<  edgecut << endl ;
+#endif
+    
+#endif
     entitySet num_parts = interval(0, num_partitions-1) ;
     store<int> number ;
     store<int> dummy_number ;
     number.allocate(num_parts) ;
     dummy_number.allocate(num_parts) ;
-    for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei)
+    for(ei = num_parts.begin(); ei!= num_parts.end(); ++ei)
       number[*ei] = 0 ;
     
 #ifdef SCATTER_DIST
     // Test code
     unsigned short int seed[3] = {0,0,1} ;
-
+    
     int proc = (nrand48(seed))%num_partitions ;
     for(int i=0;i<size_map;++i) {
       if(i%1 == 0)
@@ -217,18 +250,20 @@ namespace Loci {
       p++ ;
       ptn.push_back(parti) ;
     }
-    
     delete [] xadj ;
     delete [] part ;
     delete [] adjncy ;
   }
   
-  
+  /*This routine loops over all the rules in the database and extracts
+  all the variables associated with the mappings in the head, body and
+  the constraints of the rules. */
+
   void get_mappings(rule_db &rdb, fact_db &facts,
-                    set<vector<variableSet> > &maps_ret){
+                    set<vector<variableSet> > &maps_ret) {
     ruleSet rules = rdb.all_rules() ;
     set<vector<variableSet> > maps ;
-
+    
     for(ruleSet::const_iterator ri = rules.begin(); ri != rules.end(); ++ri) {
       set<vmap_info>::const_iterator vmsi ;
       for(vmsi = ri->get_info().desc.targets.begin();
@@ -325,6 +360,11 @@ namespace Loci {
 
   }
   
+  /*The expand_map routine helps in identifying the clone regions. The
+  entities which are related are found out by taking the image of the
+  maps associated with the rules in the database. The entitySet which
+  is usually passed on to the routine will contain the my_entities
+  associated with a particular process. */
   
   entitySet expand_map(entitySet domain, fact_db &facts,
                        const set<vector<variableSet> > &maps) {
@@ -345,6 +385,8 @@ namespace Loci {
             image += mp->image(p->domain() & locdom) ;
           }
         }
+	// The image of the map is added to the entitySet to be
+	// returned 
         dom += image ;
         locdom = image ;
       }
@@ -408,7 +450,6 @@ namespace Loci {
   }
   
   
-  
   void generate_distribution(fact_db &facts, rule_db &rdb, vector<vector<entitySet> > &get_entities ) {
     int num_procs = MPI_processes ;
     vector<entitySet> ptn ;
@@ -431,11 +472,15 @@ namespace Loci {
     start = MPI_Wtime() ;
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
+      // The clone region is obtained here 
       copy[pnum] = image[pnum] - ptn[pnum] ;
       for(int i = 0; i < num_procs; ++i) {
+	// The information abt the clone region is found out here.  
 	entitySet slice = copy[pnum] & ptn[i] ;
 	get_entities[pnum].push_back(slice) ;
       }
+      //The diagonal elements of the 2D vector (get_entities) contains
+      //my_entities. 
       get_entities[pnum][pnum] = ptn[pnum] ;
     }
     end_time  = MPI_Wtime() ;
@@ -549,6 +594,13 @@ namespace Loci {
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
+    /*xmit data structure contains the information as to what
+      entities are to be send to what processor . The copy data
+      structure contains the entities that are to be received from a
+      particular processor(information regarding the clone region
+      entities). All the entities are stored in their local
+      numbering. A local to global numbering l2g  is provided to send the
+      entities in their original global numbering.*/ 
     for(ei=send_neighbour.begin(); ei != send_neighbour.end();++ei)
       df->xmit.push_back
         (fact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
@@ -573,6 +625,9 @@ namespace Loci {
     
   }
   
+  /*The fill_entitySet routine fills in the clone region entities
+    . The send_buffer and the recv_buffer are allocated only once to
+    contain the maximum clone region */ 
   entitySet fill_entitySet(const entitySet& e, fact_db &facts) {
     
     entitySet re ;
@@ -609,7 +664,8 @@ namespace Loci {
       
       MPI_Request *recv_request = new MPI_Request[d->copy.size()] ;
       MPI_Status *status = new MPI_Status[d->copy.size()] ;
-      
+      /*The recv_size is the maximum possible, so that even if we
+	receive a shorter message there won't be any problem */
       for(int i=0;i<d->copy.size();++i)
         MPI_Irecv(recv_buffer[i],recv_size[i],MPI_INT,d->copy[i].proc,1,
                   MPI_COMM_WORLD, &recv_request[i]) ;
@@ -655,6 +711,13 @@ namespace Loci {
     return re ;
   }
 
+  /*This is an optimization to the fill_entitySet routine to which we
+    passed only an entitySet. In this case we pass in a vector of
+    entitySet so that we can group the communication of entities. This 
+    avoids the additional start up cost incurred when we send the
+    entities corresponding to an entitySet
+    each time . ie with one startup cost ts we can send all the
+    entities required to a particular processor. */
   vector<entitySet> fill_entitySet(const vector<entitySet>& ev,
                                    fact_db &facts) {
 
@@ -748,7 +811,10 @@ namespace Loci {
     } 
     return re ;
   }
-  
+  /*The send_entitySet routine is used to handle cases when there are
+    mapping in the output. Sometimes we might compute entities in the
+    clone region. Since these entities are not owned by the processor
+    it needs to be send to the processor that actually owns them. */
   entitySet send_entitySet(const entitySet& e, fact_db &facts) {
     entitySet re ;
     if(facts.isDistributed()) {  
@@ -786,6 +852,8 @@ namespace Loci {
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 1,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
 
+      /*By intersecting the given entitySet with the clone region
+	entities we can find out which entities are to be sent */
       for(int i=0;i<d->copy.size();++i) {
         entitySet temp = e & d->copy[i].entities ;
 
@@ -974,6 +1042,11 @@ namespace Loci {
     }
   }
   
+  /* This is a routine used for outputting the final result. Each
+     processor send its entitySet (in the global numbering ) to
+     processor 0.Processor 0 collects all the entitySet(including its
+     local one )  and returns an entitySet in global
+     numbering. */ 
   entitySet collect_entitySet(entitySet e, fact_db &facts) {
     if(!facts.isDistributed())
       return e ;
@@ -1058,6 +1131,9 @@ namespace Loci {
     return re ;
   }      
 
+  /* This routine collects the store variables into processor
+     0. Finally we have a single store allocated over the entities in
+     global numbering in processor 0 */
   storeRepP collect_store(storeRepP &sp, fact_db &facts) {
     storeRepP nsp = sp ;
     if(facts.isDistributed())  {  
@@ -1103,7 +1179,8 @@ namespace Loci {
 	MPI_Waitall(MPI_processes-1, recv_request, status) ;
 	
 	for(int k = 0; k < MPI_processes-1; k++) 
-	  MPI_Irecv(&recv_size_bytes[k],1,MPI_INT, k+1,14, MPI_COMM_WORLD, &size_request[k]);  
+	  MPI_Irecv(&recv_size_bytes[k],1,MPI_INT, k+1,14,
+		    MPI_COMM_WORLD, &size_request[k]) ;  
 	
 	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
 	

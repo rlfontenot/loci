@@ -22,7 +22,6 @@ using std::make_pair ;
 
 
 #include <distribute.h>
-
 //#define VERBOSE
 
 namespace Loci {
@@ -33,9 +32,9 @@ namespace Loci {
   vector<digraph::vertexSet> schedule_dag(const digraph &g,
                                           digraph::vertexSet start_vertices,
                                           digraph::vertexSet only_vertices) {
-
+    
     digraph gt = g.transpose() ;
-
+    
     vector<digraph::vertexSet> schedule ; 
     // First schedule any vertices that have no edges leading into them and have
     // not been scheduled previously (in start vertices)
@@ -79,7 +78,9 @@ namespace Loci {
     return schedule ;
   }
 
-  
+  /*The existential information is required to generate an execution
+    schedule . This routine returns a set of entities such that the
+    rule can be applied over those entities. */
   void existential_rule_analysis(rule r, fact_db &facts) {
     
     FATAL(r.type() == rule::INTERNAL) ;
@@ -88,6 +89,8 @@ namespace Loci {
     entitySet::const_iterator ei ;
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
+      // For the distributed memory case we restrict the sources and 
+      // constraints to be within my_entities.  
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       sources &= d->my_entities ;
       constraints &= d->my_entities ;
@@ -95,11 +98,19 @@ namespace Loci {
     }
     const rule_impl::info &rinfo = r.get_info().desc ;
     set<vmap_info>::const_iterator si ;
+    /*The function vmap_source_exist takes into consideration the maps 
+      in the body of the rule . By looping over each of the sources in 
+      the rule and also the constraints we make sure that the
+      attribute specified by the target is implied by the satisfaction 
+      of the attributes in the body of the rule. */
+     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       sources &= vmap_source_exist(*si,facts) ;
-    } 
+    }
+    
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
       constraints &= vmap_source_exist(*si,facts) ;
+    
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((sources & constraints) != constraints) {
 	cerr << "Warning, rule " << r <<
@@ -137,7 +148,9 @@ namespace Loci {
         }
       }
     sources &= constraints ;
-    
+    //The context over which the rule is applied is given by the intersection
+    // of the existential information of the sources with that of the 
+    //  constraints. 
     entitySet context = sources & constraints ;
     
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
@@ -152,6 +165,10 @@ namespace Loci {
 #endif
       }
     }
+    /*Since the unit rules are used for the existential deduction for
+      the case of reduction rules these need to be treated
+      separately. The information need to be communicated at this
+      stage because the unit rules initializes the entities. */
     if(facts.isDistributed()) {
       if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
         WARN(r.targets().size() != 1) ;
@@ -350,7 +367,12 @@ namespace Loci {
      return context ;
   }
 
-
+  /* This routine, in addition to sending the entities that are not
+     owned by a particular processor, a information is stored for
+     performing this communication during the execution of the
+     schedule . We know the entities that a particular processor is
+     supposed to send (send_entities)  . But we need to inform its neighbours that they 
+     are supposed to receive those entities. */ 
   std::list<comm_info>
   put_precomm_info(vector<pair<variable,entitySet> > send_entities,
                    fact_db &facts) {
@@ -394,7 +416,6 @@ namespace Loci {
       for(int i=0;i<d->xmit.size();++i) {
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 2,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
-	//cout << MPI_rank << "  receiving from " << d->xmit[i].proc << endl ;
       }
       for(int i=0;i<d->copy.size();++i) {
         int j=sesz ;
@@ -416,7 +437,6 @@ namespace Loci {
         int send_size = j ;
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
                  2,MPI_COMM_WORLD) ;
-	//cout << MPI_rank << "  sending to " << d->copy[i].proc << endl ;
       }
 
       if(d->xmit.size() > 0) {
@@ -519,6 +539,12 @@ namespace Loci {
     return ret ;
   }
   
+   /* In the case with mapping in the output we might end up computing
+     values for some of the entities in the clone region. In that case 
+     we need to send these values to the processor that actually owns
+     them. The information as to what entities are to be send for a
+     particular variable is returned by the barrier_existential_rule_analysis routine. */
+
   vector<pair<variable,entitySet> >
   barrier_existential_rule_analysis(variableSet vlst,
                                     fact_db &facts) {
@@ -541,7 +567,7 @@ namespace Loci {
       vars.push_back(v) ;
       rules.push_back(r) ;
     }
-
+    
     for(int i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
@@ -555,10 +581,10 @@ namespace Loci {
         ent++ ;
       }
     }
-
-
+    
+    
     vector<entitySet> seinfo ;
-
+    
     map<variable,entitySet> vmap ;
     for(int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
@@ -567,7 +593,7 @@ namespace Loci {
       seinfo.push_back(send_ents) ;
       vmap[v] += send_ents ;
     }
-
+    
     for(int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
       send_entities.push_back(make_pair(v,vmap[v])) ;
@@ -609,7 +635,17 @@ namespace Loci {
     return send_entities ;
   }
 
-  entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
+
+  /*In this routine we fill in the communication data structure needed 
+    for filling in the clone region . From the "copy" data structure we know
+    what all we have to receive from the neighbouring processors(clone
+    region information) . But we need to inform the neighbouring 
+    processors to send us those information also. The
+    clist data structure is set up so that it stores what information
+    need to be send or received from a particular processor so that
+    the clone region is filled up . */
+  
+entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
                           list<comm_info> &clist) {
     entitySet re ;
     if(facts.isDistributed()) {  
@@ -660,7 +696,7 @@ namespace Loci {
         int j=0 ;
         for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
           send_buffer[i][j++] = l2g[*ei] ;
-
+	
         int send_size = temp.size() ;
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
                  3,MPI_COMM_WORLD) ;
@@ -700,9 +736,8 @@ namespace Loci {
     }
     return re ;
   }
-
-
   
+ 
   list<comm_info>
   barrier_process_rule_requests(variableSet vars, fact_db &facts) {
     list<comm_info> clist ;
@@ -748,6 +783,17 @@ namespace Loci {
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
     }
+
+    /* This part sets up the memory allocation needed for the execute routine. 
+       Instead of allocating and deallocating memory each time for
+       receiving a message from a processor we allocate a fixed
+       message size for the receive buffer. Initially the maximum
+       receive size and the maximum send size is set to be the size of
+       an integer. This approach also reduces the cost incurred in
+       sending the sizes in advance before the actual message is
+       sent. 
+    */ 
+
     int nsend = send_info.size() ;
     int nrecv = recv_info.size() ;
     r_size = new int[nrecv] ;
@@ -811,6 +857,20 @@ namespace Loci {
       MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
     }
+
+    /*First we find out the size of the message we are trying to
+      receive using the pack_size method associated with that
+      container. For static containers pack_size returns the correct
+      size for the messages to be received. But for containers like
+      multiStore and storeVec whose sizes gets set at run time
+      pack_size returns a erroneous value. To avoid allocating the
+      wrong buffer size we send the sizes first if the size returned by
+      pack_size is the size of an integer or if it is greater than the
+      maximum send_size(to that particular processor) . In this
+      approach - in the worst case we might end up sending two messages
+      always . 
+      
+    */
     total_size = 0 ;
     const int nsend = send_info.size() ;
     entitySet resend_procs, rerecv_procs ;
@@ -852,6 +912,12 @@ namespace Loci {
       int proc = send_info[i].first ;
       MPI_Send(send_ptr[i],s_size[i],MPI_PACKED,proc,1,MPI_COMM_WORLD) ;
     }
+    /* We receive a message from all the processors in the
+    neighbourhood. Whether the message needs to be received a second
+    time is determined from the size of the message received. If the
+    size of the message is equal to the size of an integer it is added
+    to the list to be received a second time(even if the sent value is
+    a store value or the size of the message to be received. */ 
     if(nrecv > 0) { 
       int err = MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
@@ -868,7 +934,14 @@ namespace Loci {
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
       if(rerecv_procs.inSet(recv_info[i].first)) {
-	MPI_Unpack(recv_ptr[i], r_size[i], &loc_unpack, &maxr_size[i], sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
+	int temp ;
+	/*If the size of the message received is that of an integer
+	then we need to check whether it is greater than the maximum
+	size received so far from that processor. If it is not then
+	the maximum size is set to that value. */
+	MPI_Unpack(recv_ptr[i], r_size[i], &loc_unpack, &temp, sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
+	if(temp > maxr_size[i])
+	  maxr_size[i] = temp ;
       }
       else
 	for(int j=0;j<recv_info[i].second.size();++j) {
@@ -950,7 +1023,7 @@ namespace Loci {
   }
   
   
-  // Sort the communication list so that the recieve sequence is in the
+  // Sort the communication list so that the receive sequence is in the
   // order corresponding to the sending entitySet
   list<comm_info> sort_comm(list<comm_info> slist, fact_db &facts) {
     vector<pair<int,vector<send_var_info> > > send_info ;
@@ -1104,18 +1177,22 @@ namespace Loci {
   void barrier_compiler::process_var_requests(fact_db &facts) {
     if(facts.isDistributed()) {
       list<comm_info> request_comm ;
+      /* The list<comm_info> returned by the
+	 barrier_process_rule_requests contains the communication
+	 information to send and receive the entities in the clone region*/
       request_comm = barrier_process_rule_requests(barrier_vars, facts) ;
       
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
-
+      
       for(vi=send_entities.begin();vi!=send_entities.end();++vi) {
         variable v = vi->first ;
         entitySet send_set = vi->second ;
         send_requested.push_back(make_pair(v,send_set &
                                            facts.get_variable_requests(v))) ;
       }
-
+      /*The put_precomm_info is used in case there is a mapping in the 
+	output for any of the rules. */
       plist = put_precomm_info(send_requested, facts) ;
       clist = request_comm ;
       clist = sort_comm(request_comm,facts) ;
