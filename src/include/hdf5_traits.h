@@ -133,7 +133,7 @@ namespace Loci {
       return ctype;
     }
   };
-
+  /*
   template <class T>
   class hdf5_schema_traits< std::complex<T> > {
   public:
@@ -146,7 +146,24 @@ namespace Loci {
       return ctype;
     }
   };
-
+  */
+  template <class T,int n> 
+    class hdf5_schema_traits< vec<T,n> > {
+    public:
+    typedef IDENTITY_CONVERTER Schema_Converter;
+    static H5::DataType get_type() {
+      H5::CompType ctype(sizeof(vec<T,n>));
+      hdf5_schema_traits<T> hdfT;
+      for(int i=0;i<n;i++){
+	std::ostringstream oss;
+	oss<<"v"<<i;
+	std::string st=oss.str();
+	ctype.insertMember(st.c_str(), i*sizeof(T), hdfT.get_type());	
+      }
+      return ctype;
+    }
+  };
+  
   //---------------------STL vector--------------//
 
   template <class T>
@@ -155,8 +172,8 @@ namespace Loci {
     typedef USER_DEFINED_CONVERTER Schema_Converter;
   };
 
-   template <class T,int n>
-  class hdf5_schema_traits< vec<T,n> > {
+   template <class T>
+  class hdf5_schema_traits< std::complex<T> > {
   public:
     typedef USER_DEFINED_CONVERTER Schema_Converter;
   };
@@ -180,9 +197,9 @@ namespace Loci {
        return hdfT.get_type();
      };
    };
-   
-   template <class T,int n> 
-     class hdf5_schema_converter_traits< vec<T,n> > {
+
+   template <class T> 
+     class hdf5_schema_converter_traits< std::complex<T>  > {
      public:
      typedef Need_Variable_data need_variable_selector;
      typedef int POD_memento_type;

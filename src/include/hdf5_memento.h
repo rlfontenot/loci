@@ -58,25 +58,24 @@ namespace Loci {
 
   };
   
- template <class T,int n> inline void create_store_memento(const vec<T,n>* original_obj,const entitySet en, Memento< vec<T,n> >& memento){
-      vec<T,n> temp_data;
+  template <class T> inline void create_store_memento(const std::complex<T>* original_obj,const entitySet en, Memento< std::complex<T> >& memento){
       int gi=0;
       int* temp_framing =new int[en.size()] ;
-      Memento< vec<T,n> >::info_type temp_info=0;
+      Memento< std::complex<T> >::info_type temp_info=0;
       FORALL(en,ii){
-	temp_info += n;
-	temp_framing[gi]= n;
+	temp_info += 2;
+	temp_framing[gi]= 1;
 	gi++;
       }ENDFORALL
 	 memento.set_info(temp_info);
 	 memento.set_framing(temp_framing);
-	 Memento< vec<T,n> >::variable_type*  temp_variable= new Memento< vec<T,n> >::variable_type[memento.get_info()];
+	 Memento< std::complex<T> >::variable_type*  temp_variable= new Memento< std::complex<T> >::variable_type[2*memento.get_info()];
       int ti=0;
       gi=0;
       FORALL(en,ii){
-	temp_data=original_obj[ii];
 	for(int g=0;g<temp_framing[gi];g++){
-	  temp_variable[ti]=temp_data[g];
+	  temp_variable[ti]=original_obj[ii].imag();
+	  temp_variable[++ti]=original_obj[ii].real();
 	  ti++;
 	}
 	gi++;
@@ -104,22 +103,23 @@ namespace Loci {
 	gi++;
     }ENDFORALL       
  };
-
- template <class T,int n> inline void set_store_memento( vec<T,n>* original_obj,const entitySet en, Memento< vec<T,n> >& memento){
-   Memento< vec<T,n> >::variable_type* temp_data = memento.get_variable();
+ 
+ template <class T> inline void set_store_memento( std::complex<T>* original_obj,const entitySet en, Memento< std::complex<T> >& memento){
+   Memento< std::complex<T> >::variable_type* temp_data = memento.get_variable();
    int* temp_framing = memento.get_framing();
 
    //restore data in original object
    int gi=0,ti=0;
     FORALL(en,ii){
 	for(int g=0;g<temp_framing[gi];g++){
-	  original_obj[ii][g] = temp_data[ti];
+	  std::complex<T> x(temp_data[ti],temp_data[ti++]);
+	  original_obj[ii] = x;
 	  ti++;
 	}
 	gi++;
       }ENDFORALL
  };
-
+ 
  //-----------------create storeVec memento-----------------------//
  //---------------------------------------------------------------//
  template <class W> void create_storeVec_memento(const W* original_obj,const entitySet en,int size, Memento<W>& memento){
@@ -156,29 +156,28 @@ namespace Loci {
       }ENDFORALL
 	 memento.set_variable(temp_variable);
   };
-
- template <class T,int n> inline void create_storeVec_memento(const vec<T,n>* original_obj,const entitySet en,int size, Memento< vec<T,n> >& memento){
-    vec<T,n> temp_data;
+ 
+ template <class T> inline void create_storeVec_memento(const std::complex<T>* original_obj,const entitySet en,int size, Memento< std::complex<T> >& memento){
       int gi=0;
       int* temp_framing =new int[en.size()*size] ;
-      Memento< vec<T,n> >::info_type temp_info=0;
+      Memento< std::complex<T> >::info_type temp_info=0;
       FORALL(en,ii){
 	for(int j=0;j<size;j++){
-	  temp_info += n;
-	  temp_framing[gi]=n;
+	  temp_info += 2;
+	  temp_framing[gi]=1;
 	  gi++;
 	}
       }ENDFORALL
 	 memento.set_info(temp_info);
 	 memento.set_framing(temp_framing);
-	 Memento< vec<T,n> >::variable_type*  temp_variable= new Memento< vec<T,n> >::variable_type[memento.get_info()];
+	 Memento< std::complex<T> >::variable_type*  temp_variable= new Memento< std::complex<T> >::variable_type[2*memento.get_info()];
       int ti=0;
       gi=0;
       FORALL(en,ii){
 	for(int j=0;j<size;j++){
-	  temp_data=original_obj[ii*size+j];
 	  for(int g=0;g<temp_framing[gi];g++){
-	    temp_variable[ti]=temp_data[g];
+	    temp_variable[ti]=original_obj[ii*size+j].imag();
+	    temp_variable[++ti]=original_obj[ii*size+j].real();
 	    ti++;
 	  }
 	  gi++;
@@ -186,7 +185,7 @@ namespace Loci {
       }ENDFORALL
 	 memento.set_variable(temp_variable);
   };
-
+ 
   //-----------------------set storeVec memento-----------------------//
   //---------------------------------------------------------//
   template <class W> void set_storeVec_memento( W* original_obj,const entitySet en,int size, Memento<W>& memento){
@@ -209,9 +208,9 @@ namespace Loci {
      }
    }ENDFORALL
   };
-
-  template <class T,int n> inline void set_storeVec_memento( vec<T,n>* original_obj,const entitySet en,int size, Memento< vec<T,n> >& memento){
-    Memento< vec<T,n> >::variable_type* temp_data = memento.get_variable();
+  
+  template <class T> inline void set_storeVec_memento( std::complex<T>* original_obj,const entitySet en,int size, Memento< std::complex<T> >& memento){
+    Memento< std::complex<T> >::variable_type* temp_data = memento.get_variable();
    int* temp_framing = memento.get_framing();
 
    //restore data in original object
@@ -219,14 +218,15 @@ namespace Loci {
    FORALL(en,ii){
      for(int j=0;j<size;j++){
        for(int g=0;g<temp_framing[gi];g++){
-	 original_obj[ii*size+j][g] = temp_data[ti];
+	 std::complex<T> x(temp_data[ti],temp_data[ti++]);
+	 original_obj[ii*size+j]= x;
 	 ti++;
        }
        gi++;
      }
    }ENDFORALL
   };
-
+  
 //-------------------create param memento-------------------------//
   //----------------------------------------------------------//
   template <class W> void create_param_memento(const W& original_obj,const entitySet en, Memento<W>& memento){
@@ -254,21 +254,20 @@ namespace Loci {
     memento.set_variable(temp_variable);
     memento.set_framing(temp_framing);
  };
-
- template <class T,int n> inline void create_param_memento(const vec<T,n>& original_obj,const entitySet en, Memento< vec<T,n> >& memento){
-    vec<T,n> temp_data;
-    temp_data=original_obj;
-
-    Memento< vec<T,n> >::info_type temp_info=n;
+ 
+ template <class T> inline void create_param_memento(const std::complex<T>& original_obj,const entitySet en, Memento< std::complex<T> >& memento){
+    Memento< std::complex<T> >::info_type temp_info=1;
     memento.set_info(temp_info);
 
     //create dummy framing
     int* temp_framing = new int[en.size()];
 
-    Memento< vec<T,n> >::variable_type*  temp_variable= new Memento< vec<T,n> >::variable_type[memento.get_info()];
-    
+    Memento< std::complex<T> >::variable_type*  temp_variable= new Memento< std::complex<T> >::variable_type[2*memento.get_info()];
+    int gi=0;
     for(int g=0;g<temp_info;g++){
-      temp_variable[g]=temp_data[g];
+      temp_variable[gi]=original_obj.imag();
+      temp_variable[++gi]=original_obj.real();
+      gi++;
     }  
     for(int i=0;i<en.size();i++){
       temp_framing[i]=temp_info;
@@ -276,7 +275,7 @@ namespace Loci {
     memento.set_variable(temp_variable);
     memento.set_framing(temp_framing);
  };
-
+ 
  //--------------------set param memento----------------//
  //-----------------------------------------------------//
  template <class W> void set_param_memento( W& original_obj,const entitySet en, Memento<W>& memento){
@@ -293,18 +292,20 @@ namespace Loci {
      original_obj.push_back(temp_data[g]);
    }
  };
-
- template <class T,int n> inline void set_param_memento( vec<T,n>& original_obj,const entitySet en, Memento< vec<T,n> >& memento){
-  Memento< vec<T,n> >::variable_type* temp_data = memento.get_variable();
+ 
+ template <class T> inline void set_param_memento( std::complex<T>& original_obj,const entitySet en, Memento< std::complex<T> >& memento){
+   Memento< std::complex<T> >::variable_type* temp_data = memento.get_variable();
    int* temp_framing = memento.get_framing();
 
    //restore data in original object
    int gi=0;
    for(int g=0;g<temp_framing[gi];g++){
-     original_obj[g] = temp_data[g];
+     std::complex<T> x(temp_data[gi],temp_data[gi++]);
+     original_obj = x;
+     gi++;
    }
  };
-
+ 
  //--------------------memento hdf5write----------------//
  //-----------------------------------------------------//
  template <class T, class W> void memento_hdf5write(H5::Group group, T t, const Memento<W> &memento,const entitySet &en, int size){
