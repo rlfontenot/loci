@@ -3,6 +3,7 @@
 
 #include <Loci_version.h>
 #include <Map.h>
+#include <multiMap.h>
 #include <store.h>
 #include <storeVec.h>
 #include <parameter.h>
@@ -31,7 +32,7 @@ using Loci::inverseMap ;
 
 using Loci::store ;
 using Loci::const_store ;
-
+using Loci::multiStore ;
 using Loci::storeVec ;
 using Loci::const_storeVec ;
 using Loci::storeMat ;

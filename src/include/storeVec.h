@@ -12,6 +12,8 @@
 #include <hdf5CC/H5cpp.h>
 
 #include <Map.h>
+#include <multiMap.h>
+
 using std::pair ;
 using std::make_pair ;
 

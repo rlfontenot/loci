@@ -1,10 +1,12 @@
 #ifndef STORE_H
-#define STORE_H 1
+#define STORE_H
 
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
-#include <Tools/stream.h>
+#include <istream>
+#include <ostream>
+//#include <Tools/stream.h>
 #include <hdf5CC/H5cpp.h>
 //#include <hdf5_traits.h>
 #include <hdf5_write_template.h>

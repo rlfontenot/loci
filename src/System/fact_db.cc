@@ -58,7 +58,7 @@ namespace Loci {
     fact_infov[info.fact_info_ref].aliases += v ;
     register_variable(v) ;
   }
-
+  
   void fact_db::install_fact_data(variable v, fact_data data) {
     if(free_set == EMPTY) {
       fact_infov.push_back(data) ;
@@ -71,7 +71,7 @@ namespace Loci {
     }
   }
 
-    
+  
   fact_db::fact_info &fact_db::get_fact_info(variable v) {
     vmap_type::iterator mi = vmap.find(remove_synonym(v)) ;
     if(mi == vmap.end()) {
@@ -207,26 +207,52 @@ namespace Loci {
     register_variable(synonym) ;
   }
     
-
+  
   storeRepP fact_db::get_variable(variable v) {
     if(all_vars.inSet(v))
       return storeRepP(get_fact_data(v).data_rep) ;
     else
       return storeRepP(0) ;
   }
-
+  
+  /*
+  fact_db::distribute_info::distribute_info(int myid) {
+    
+    distributed_facts.isDistributed.allocate(interval(myid, myid)) ;
+    distributed_facts.send_neighbour.allocate(interval(myid, myid)) ;
+    distributed_facts.recv_neighbour.allocate(interval(myid, myid)) ;
+    distributed_facts.isDistributed[myid] = 0 ;
+    distributed_facts.my_entities = EMPTY ;
+    
+  }
+  
+  fact_db::distribute_infoP fact_db::get_dist_facts(int myid) {
+    distribute_infoP di = new distribute_info(myid) ;
+    return(di) ;
+  }
+  
+  void fact_db::distribute_info::set_dist_facts(int myid, store<int> isDistributed, constraint my_entities, Map g2l, Map l2g, store<entitySet> send_neighbour, store<entitySet> recv_neighbour) {
+    fact_db::distribute_infoP d = get_dist_facts() ;
+    d->isDistributed[myid] = isDistributed[myid] ;
+    d->my_entities = my_entities ;
+    d->g2l = g2l ;
+    d->l2g = l2g ;
+    d->send_neighbour[myid] = send_neighbour[myid] ;
+    d->recv_neighbour[myid] = recv_neighbour[myid] ;
+  }
+  
+  */
   
   fact_db::time_infoP fact_db::get_time_info(time_ident tl) {
     time_infoP ti = new time_info ;
     if(tl == time_ident())
       return ti ;
     variable time_var(tl) ;
-
+    
     if(get_typed_variables().inSet(time_var))
       ti->time_var = get_variable(time_var) ;
     else
       set_variable_type(time_var,ti->time_var.Rep()) ;
-    
     typedef map<std::string,std::list<variable> >  maptype ;
     maptype &tinfo = time_map[tl] ;
     maptype::const_iterator ii ;

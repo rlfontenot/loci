@@ -1,6 +1,8 @@
 #include <Map.h>
+#include <multiMap.h>
 
 #include <Tools/stream.h>
+
 namespace Loci {
 
   using std::pair ;
