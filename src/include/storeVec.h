@@ -1397,7 +1397,6 @@ namespace Loci {
     *index = new_index ;
     *alloc_pointer = new_alloc_pointer ;
     *base_ptr = new_base_ptr ;
-    
   }
    
   template<class T> void multiStoreRepI<T>::setSizes(const const_multiMap &mm){
@@ -1416,7 +1415,7 @@ namespace Loci {
         if((end(i)-begin(i))<(mm.end(i)-mm.begin(i)))
           problem += i ;
       } ENDFORALL ;
-
+      
       if(problem != EMPTY) {
         std::cerr << "reallocation of multiStore required for entities"
                   << problem << endl
@@ -1615,7 +1614,19 @@ namespace Loci {
   
   template <class T> void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
     
-    entitySet e ;
+    entitySet e = domain() ; 
+    store<int> count;
+    count.allocate(e) ;
+    for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
+      count[*ei] = base_ptr[*ei+1] - base_ptr[*ei] ;
+    
+    for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
+      fatal(!e.inSet(*si)) ;
+      MPI_Unpack(ptr, size, &loc, &base_ptr[*si][0], count[*si]*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+    }
+    
+    /*
+      entitySet e ; 
     store<int> count, count1 ;
     for(int i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) 
@@ -1630,7 +1641,7 @@ namespace Loci {
     
     entitySet::const_iterator ei = e.begin() ;
     
-    for( sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
+    for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
       count[*ei] = count1[*si] ;
       ++ei ;
     }
@@ -1638,6 +1649,7 @@ namespace Loci {
     T **new_index ;
     T *new_alloc_pointer ;
     T **new_base_ptr ;
+   
     multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
     for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) 
       for(int j = 0 ; j < count[*si]; ++j) 
@@ -1649,7 +1661,6 @@ namespace Loci {
     index = new_index ;
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
-    
     for(int i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
 	Loci::int_type stop = seq[i].second ;
@@ -1666,6 +1677,7 @@ namespace Loci {
       }
     }
     dispatch_notify() ;
+    */
   }
   
  
