@@ -65,6 +65,9 @@ namespace Loci {
         entitySet isect = vmi->second & entitySet(pvec[i]);
         if(isect != EMPTY && isect != entitySet(pvec[i])) {
           cerr << "something wrong with pvec" << endl ;
+          cerr << "isect == " << isect << endl ;
+          cerr << "pvec["<< i << "]="<< pvec[i] << endl ;
+          Loci::Abort() ;
         }
         if(isect != EMPTY) 
           vss += vmi->first ;
@@ -683,12 +686,21 @@ namespace Loci {
       storeRepP p = facts.get_variable(*vi) ;
       if(p->RepType() == MAP) {
         MapRepP mp = MapRepP(p->getRep()) ;
-        active_set += p->domain() ;
-        active_set += mp->image(p->domain()) ;
-        set_of_sets.insert(p->domain()) ;
+        entitySet imagetmp = mp->image(p->domain()) ;
+        if(facts.is_distributed_start())
+          imagetmp = all_collect_entitySet(imagetmp) ;
+        active_set += imagetmp ;
+        entitySet tmp = p->domain() ;
+        if(facts.is_distributed_start())
+          tmp = all_collect_entitySet(tmp) ;
+        set_of_sets.insert(tmp) ;
+        active_set += tmp ;
       } else if(p->RepType() == STORE) {
-        active_set += p->domain() ;
-        set_of_sets.insert(p->domain()) ;
+        entitySet tmp = p->domain() ;
+        if(facts.is_distributed_start())
+          tmp = all_collect_entitySet(tmp) ;
+        set_of_sets.insert(tmp) ;
+        active_set += tmp ;
       } else {
         if(p->domain() != ~EMPTY) {
 	  entitySet tmp = p->domain() ;
