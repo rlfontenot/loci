@@ -31,6 +31,7 @@ using std::endl ;
 
 #define HOST_ID "localhost"
 
+
 namespace Loci {
   const char *debug_hostname = HOST_ID ;
   const char *debug_execname = "a.out" ;
@@ -55,7 +56,6 @@ namespace Loci {
     
     int pid = getpid() ;
     char buf[512] ;
-    int breakout ;
     struct stat sb ;
 #ifdef SUN
     const char *xtermpath = "/usr/openwin/bin/xterm" ;
@@ -79,7 +79,7 @@ namespace Loci {
             debug_hostname,debug_program,pid,debug_execname) ;
 #endif
     system(buf) ;
-    breakout = 1 ;
+
     sleep(100) ; /* Wait for debugger to attach */
   }
 
@@ -118,7 +118,7 @@ namespace Loci {
     signal(SIGSEGV,program_trap) ;
     signal(SIGILL,program_trap) ;
     signal(SIGSYS,program_trap) ;
-#ifdef LINUX
+#ifdef HAVE_FENWM
     signal(SIGFPE,program_trap) ;
 #endif
   }
