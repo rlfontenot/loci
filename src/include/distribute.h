@@ -7,6 +7,7 @@
 #include <constraint.h>
 #include <fact_db.h>
 
+#define LOCI_HAS_READ_WRITE_PARTITION 1
  
 namespace Loci {
 
@@ -15,13 +16,11 @@ namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;
-  extern bool EXIT ;
-  extern bool READ_DIST ;
-  extern int NUM_PARTITIONS ;
+
   void Init(int* argc, char*** argv) ;
   void Finalize() ;
   
-  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn ) ;
+  void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 ) ;
   void categories(fact_db &facts,std::vector<interval> &pvec) ;
   
   void get_mappings(rule_db &rdb, fact_db &facts, std::set<std::vector<variableSet> > &maps) ;
@@ -31,8 +30,11 @@ namespace Loci {
 		       const std::set<std::vector<variableSet> > &maps) ;
   
   
-  std::vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb) ;
-  
+  std::vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
+
+  vector<entitySet> read_partition(const char *fname,int num_partitions) ;
+  void write_partition(const char *fname, const vector<entitySet> &ptn) ;
+
   void distribute_facts(std::vector<entitySet> &ptn, fact_db &facts,
                         rule_db &rdb) ;
   

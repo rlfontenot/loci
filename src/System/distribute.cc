@@ -27,8 +27,6 @@ using std::swap ;
 
 //#define SCATTER_DIST
 //#define UNITY_MAPPING
-//#define READ_DIST 
-//#define EXIT
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
@@ -37,9 +35,7 @@ namespace Loci {
   int MPI_processes ;
   int MPI_rank ;
   int num_threads = 1 ;
-  bool EXIT = 0 ;
-  bool READ_DIST = 0 ;
-  int NUM_PARTITIONS = 0 ;
+
   ofstream debugout ;
   
   void Init(int* argc, char*** argv)  {
@@ -90,185 +86,184 @@ namespace Loci {
   void Finalize() {
     MPI_Finalize() ;
   }
+
+  vector<entitySet> read_partition(const char *fname,int num_partitions) {
+    vector<entitySet> ptn ;
+    ifstream infile ;
+    ostringstream oss ;
+    int part ;
+    oss << fname << "." << num_partitions ;
+    string filename = oss.str() ; 
+    infile.open(filename.c_str(), ios::in) ;
+    
+    infile >> part ;
+    int *partition = new int[num_partitions] ;
+    for(int i = 0; i < num_partitions; ++i) 
+      infile >> partition[i] ;
+    for(int i = 0; i < num_partitions; ++i) {
+      entitySet parti ;
+      for(int j = 0; j < partition[i]; ++j) {
+        infile >> part ;
+        parti += part ;
+      }
+      ptn.push_back(parti);
+    }
+    return ptn ;
+  }    
+
+  void write_partition(const char *fname, const vector<entitySet> &ptn) {
+    if(MPI_rank == 0) {
+      int num_partitions = ptn.size() ;
+      ostringstream oss ;
+      oss << fname << "." << num_partitions ;
+      string filename = oss.str() ;
+      ofstream ofile ;
+      entitySet::const_iterator tei ;
+      ofile.open(filename.c_str(), ios::out) ;
+      ofile << num_partitions << endl ;
+      for(int i = 0; i < ptn.size(); ++i) 
+        ofile << ptn[i].size() << endl ;
+      for(int i = 0; i < num_partitions; ++i) {
+        entitySet temp = ptn[i];
+        for(tei = temp.begin(); tei != temp.end(); ++tei)
+          ofile << *tei << endl ;
+      }
+    }
+  }
   
-  void metis_facts(fact_db &facts, vector<entitySet> &ptn) {
-    int num_partitions ;
-    if(NUM_PARTITIONS != 0)
-      num_partitions = NUM_PARTITIONS ;
-    else
+  void metis_facts(fact_db &facts, vector<entitySet> &ptn, int num_partitions) {
+    if(num_partitions == 0)
       num_partitions = MPI_processes ;
     
-    if(READ_DIST) {
-      ifstream infile ;
-      ostringstream oss ;
-      int part ;
-      oss << "part." << num_partitions ;
-      string filename = oss.str() ; 
-      infile.open(filename.c_str(), ios::in) ;
+    variableSet::const_iterator vi ;
+    entitySet::const_iterator ei ;
+    variableSet fact_vars ;
+    fact_vars = facts.get_typed_variables() ;
+    entitySet map_entities ;
       
-      infile >> part ;
-      int *partition = new int[num_partitions] ;
-      for(int i = 0; i < num_partitions; ++i) 
-	infile >> partition[i] ;
-      for(int i = 0; i < num_partitions; ++i) {
-	entitySet parti ;
-	for(int j = 0; j < partition[i]; ++j) {
-	  infile >> part ;
-	  parti += part ;
-	}
-	ptn.push_back(parti);
+    /*Initially a serial fact_database is set up on all the
+      processors. We then split the fact_database into p parts if
+      there are p processes. First step to partitioning is setting up
+      the graph . To create the graph we need to extract the entities
+      associated with the stores and the maps and their relationship
+      with each other . This is probably not the most efficient way to 
+      create the graph but it lets us do the partitioning without any
+      prior knowledge about the problem( for example : whether there are
+      faces, cells etc ...). A problem which might occur is poor load
+      balancing. We are not assured that the partitioning is load
+      balanced.  */
+    for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
+      storeRepP vp = facts.get_variable(*vi) ;
+      if(vp->RepType() == MAP) {
+        MapRepP mp = MapRepP(vp->getRep()) ;
+        FATAL(mp == 0) ;
+        entitySet dom = mp->domain() ;
+        map_entities += dom ;
+        map_entities += mp->image(dom) ;
+      }
+      if(vp->RepType() == STORE) {
+        storeRepP sp = vp->getRep() ;
+        map_entities += sp->domain() ;
       }
     }
     
-    else {
-      variableSet::const_iterator vi ;
-      entitySet::const_iterator ei ;
-      variableSet fact_vars ;
-      fact_vars = facts.get_typed_variables() ;
-      entitySet map_entities ;
-      
-      /*Initially a serial fact_database is set up on all the
-	processors. We then split the fact_database into p parts if
-	there are p processes. First step to partitioning is setting up
-	the graph . To create the graph we need to extract the entities
-	associated with the stores and the maps and their relationship
-	with each other . This is probably not the most efficient way to 
-	create the graph but it lets us do the partitioning without any
-	prior knowledge about the problem( for example : whether there are
-	faces, cells etc ...). A problem which might occur is poor load
-	balancing. We are not assured that the partitioning is load
-	balanced.  */
-      for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
-	storeRepP vp = facts.get_variable(*vi) ;
-	if(vp->RepType() == MAP) {
-	  MapRepP mp = MapRepP(vp->getRep()) ;
-	  FATAL(mp == 0) ;
-	  entitySet dom = mp->domain() ;
-	  map_entities += dom ;
-	  map_entities += mp->image(dom) ;
-	}
-	if(vp->RepType() == STORE) {
-	  storeRepP sp = vp->getRep() ;
-	  map_entities += sp->domain() ;
-	}
+    store<entitySet> dynamic_map ;
+    dynamic_map.allocate(map_entities) ;
+    for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
+      storeRepP vp = facts.get_variable(*vi) ;
+      if(vp->RepType() == MAP) {
+        MapRepP mp = MapRepP(vp->getRep()) ;
+        FATAL(mp == 0) ;
+        multiMap m = mp->get_map() ;
+        entitySet dom = mp->domain() ;
+        for(ei=dom.begin();ei!=dom.end();++ei) {
+          for(const int *i = m.begin(*ei);i != m.end(*ei); ++i) {
+            // Two associations (*ei,*i), (*i,*ei)
+            dynamic_map[*i] += *ei ;
+            dynamic_map[*ei]+= *i ;
+          }
+        }
       }
-      
-      store<entitySet> dynamic_map ;
-      dynamic_map.allocate(map_entities) ;
-      for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
-	storeRepP vp = facts.get_variable(*vi) ;
-	if(vp->RepType() == MAP) {
-	  MapRepP mp = MapRepP(vp->getRep()) ;
-	  FATAL(mp == 0) ;
-	  multiMap m = mp->get_map() ;
-	  entitySet dom = mp->domain() ;
-	  for(ei=dom.begin();ei!=dom.end();++ei) {
-	    for(const int *i = m.begin(*ei);i != m.end(*ei); ++i) {
-	      // Two associations (*ei,*i), (*i,*ei)
-	      dynamic_map[*i] += *ei ;
-	      dynamic_map[*ei]+= *i ;
-	    }
-	  }
-	}
+    }
+    
+    int size_map = map_entities.size() ;
+    Map entities ;
+    Map reverse ;
+    store<int> size_adj ;
+    int count  = 0 ;
+    entitySet dom_map = interval(0, size_map-1) ;
+    entities.allocate(map_entities) ;
+    size_adj.allocate(dom_map) ;
+    reverse.allocate(dom_map) ;
+    count = 0 ;
+    /* First the entities are grouped together by renumbering them. */
+    for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
+      entities[*ei] = count ;
+      ++count ;
+    }
+    count = 0 ;
+    for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) {
+      size_adj[count] = dynamic_map[*ei].size() ;  
+      ++count ;
+    }
+    // Create a reverse mapping to revert to the original numbering 
+    count = 0; 
+    for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
+      reverse[count] = *ei ;
+      ++count ;
+    }
+    
+    int *xadj = new int[size_map+1] ;
+    int options, numflag, edgecut, wgtflag ;
+    int *part = new int[size_map] ;
+    options = 0 ;
+    numflag = 0 ;
+    wgtflag = 0 ;
+    edgecut = 0 ;
+    xadj[0] = 0 ;
+    for(int i = 0; i < size_map; ++i)
+      xadj[i+1] = xadj[i] + size_adj[i] ;
+    int *adjncy = new int[xadj[size_map]] ;
+    count = 0 ;
+    for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) 
+      for(entitySet::const_iterator di = dynamic_map[*ei].begin(); di!=dynamic_map[*ei].end(); ++di)        {
+        adjncy[count] = entities[*di] ;
+        count ++ ;
       }
-      
-      int size_map = map_entities.size() ;
-      Map entities ;
-      Map reverse ;
-      store<int> size_adj ;
-      int count  = 0 ;
-      entitySet dom_map = interval(0, size_map-1) ;
-      entities.allocate(map_entities) ;
-      size_adj.allocate(dom_map) ;
-      reverse.allocate(dom_map) ;
-      count = 0 ;
-      /* First the entities are grouped together by renumbering them. */
-      for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
-	entities[*ei] = count ;
-	++count ;
+    double t = MPI_Wtime() ;
+    METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
+    double et = MPI_Wtime() ;
+    debugout << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
+    cerr << " Edge cut   " <<  edgecut << endl ;
+    
+    entitySet num_parts = interval(0, num_partitions-1) ;
+    store<int> number ;
+    store<int> dummy_number ;
+    number.allocate(num_parts) ;
+    dummy_number.allocate(num_parts) ;
+    for(ei = num_parts.begin(); ei!= num_parts.end(); ++ei)
+      number[*ei] = 0 ;
+    
+    for(int i = 0; i < size_map; i++) 
+      number[part[i]] += 1 ;
+    
+    for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei) {
+      dummy_number[*ei] = 0 ;
+    }
+    multiMap epp ;
+    epp.allocate(number) ;
+    for(int i = 0; i < size_map; i++)
+      epp[part[i]][dummy_number[part[i]]++] = reverse[i] ;
+    for(ei=num_parts.begin();ei!=num_parts.end();++ei) {
+      entitySet parti ;
+      for(const int *ii=epp.begin(*ei);ii!= epp.end(*ei);++ii) {
+        parti += *ii ; 
       }
-      count = 0 ;
-      for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) {
-	size_adj[count] = dynamic_map[*ei].size() ;  
-	++count ;
-      }
-      // Create a reverse mapping to revert to the original numbering 
-      count = 0; 
-      for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
-	reverse[count] = *ei ;
-	++count ;
-      }
-      
-      int *xadj = new int[size_map+1] ;
-      int options, numflag, edgecut, wgtflag ;
-      int *part = new int[size_map] ;
-      options = 0 ;
-      numflag = 0 ;
-      wgtflag = 0 ;
-      edgecut = 0 ;
-      xadj[0] = 0 ;
-      for(int i = 0; i < size_map; ++i)
-	xadj[i+1] = xadj[i] + size_adj[i] ;
-      int *adjncy = new int[xadj[size_map]] ;
-      count = 0 ;
-      for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) 
-	for(entitySet::const_iterator di = dynamic_map[*ei].begin(); di!=dynamic_map[*ei].end(); ++di)        {
-	  adjncy[count] = entities[*di] ;
-	  count ++ ;
-	}
-      double t = MPI_Wtime() ;
-      METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
-      double et = MPI_Wtime() ;
-      debugout << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
-      cerr << " Edge cut   " <<  edgecut << endl ;
-      
-      entitySet num_parts = interval(0, num_partitions-1) ;
-      store<int> number ;
-      store<int> dummy_number ;
-      number.allocate(num_parts) ;
-      dummy_number.allocate(num_parts) ;
-      for(ei = num_parts.begin(); ei!= num_parts.end(); ++ei)
-	number[*ei] = 0 ;
-      
-      for(int i = 0; i < size_map; i++) 
-	number[part[i]] += 1 ;
-      
-      for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei) {
-	dummy_number[*ei] = 0 ;
-      }
-      multiMap epp ;
-      epp.allocate(number) ;
-      for(int i = 0; i < size_map; i++)
-	epp[part[i]][dummy_number[part[i]]++] = reverse[i] ;
-      for(ei=num_parts.begin();ei!=num_parts.end();++ei) {
-	entitySet parti ;
-	for(const int *ii=epp.begin(*ei);ii!= epp.end(*ei);++ii) {
-	  parti += *ii ; 
-	}
-	ptn.push_back(parti) ;
-      }
-      delete [] xadj ;
-      delete [] part ;
-      delete [] adjncy ;
-      if(EXIT) {
-	if(MPI_rank == 0) { 
-	  ostringstream oss ;
-	  oss << "part." << num_partitions ;
-	  string filename = oss.str() ;
-	  ofstream ofile ;
-	  entitySet::const_iterator tei ;
-	  ofile.open(filename.c_str(), ios::out) ;
-	  ofile << num_partitions << endl ;
-	  for(int i = 0; i < ptn.size(); ++i) 
-	    ofile << ptn[i].size() << endl ;
-	  for(int i = 0; i < num_partitions; ++i) {
-	    entitySet temp = ptn[i];
-	    for(tei = temp.begin(); tei != temp.end(); ++tei)
-	      ofile << *tei << endl ;
-	  }
-	}
-      }
-    }    
+      ptn.push_back(parti) ;
+    }
+    delete [] xadj ;
+    delete [] part ;
+    delete [] adjncy ;
   }
 
 
@@ -472,22 +467,14 @@ namespace Loci {
   }
   
   
-  vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb) {
+  vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions) {
     vector<entitySet> ptn ;
     debugout << "Synchronising before metis_facts" << endl ;
     MPI_Barrier(MPI_COMM_WORLD) ;
     double start = MPI_Wtime() ;
-    if(EXIT) {
-      if(MPI_rank == 0)
-	metis_facts(facts,ptn) ;
-    }
-    else
-      metis_facts(facts,ptn) ;
-    if(EXIT) {
-      MPI_Barrier(MPI_COMM_WORLD) ;
-      Finalize() ;
-      exit(0) ;
-    }
+
+    metis_facts(facts,ptn,num_partitions) ;
+
     double end_time  = MPI_Wtime() ;
     debugout << "Time taken for metis_facts = " << end_time -start << endl ;
     return ptn ;

@@ -8,17 +8,29 @@ DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC)
 
 default: Tools System hdf5CC
 
+shared: Tools/libTools.so System/libLoci.so hdf5CC/libhdf5CC.so
+
 install: default
 	LOCI_INSTALL_DIR=$(INSTALL_DIR) bash Install.bash
 
 Tools : FRC
-	cd Tools; $(MAKE) compile LOCI_BASE="$(LOCI_BASE)"
+	cd Tools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libTools.a
 
 hdf5CC : FRC
-	cd hdf5CC; $(MAKE) compile LOCI_BASE="$(LOCI_BASE)"
+	cd hdf5CC; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libhdf5CC.a
 
 System : FRC
-	cd System; $(MAKE) compile LOCI_BASE="$(LOCI_BASE)"
+	cd System; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libLoci.a
+
+Tools/libTools.so: FRC
+	cd Tools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libTools.so
+
+System/libLoci.so: FRC
+	cd System; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libLoci.so
+	
+hdf5CC/libhdf5CC.so : FRC
+	cd hdf5CC; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libhdf5CC.so
+
 
 FRC :
 
