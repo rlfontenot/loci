@@ -36,12 +36,12 @@ namespace Loci {
   bool show_graphs = false ;
   bool show_decoration = false ;
   // flag to enable/disable the dynamic memory management
-  bool use_dynamic_memory = false ;
+  bool use_dynamic_memory = true ;
   // flag to enable/disable output of dynamic memory
   // and multilevel graph decoration information
   bool show_dmm_verbose = false ;
   // flag to enable/disable chomping
-  bool use_chomp = false ;
+  bool use_chomp = true ;
   // flag to visualize the chomping graph
   bool show_chomp = false ;
   // flag to turn on the summary report on chomping
@@ -57,7 +57,7 @@ namespace Loci {
   // flag to use a different scheduler
   // (more memory conservative and more synchronization
   //  points will be generated)
-  bool memory_greedy_schedule = false ;
+  bool memory_greedy_schedule = true ;
   bool use_old_dependency_graph = false ;
   /////////////////////////////
   
@@ -170,6 +170,9 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--dmm")) {
         use_dynamic_memory = true ; // use the dynamic memory management
         i++ ;
+      } else if(!strcmp((*argv)[i],"--nodmm")) {
+        use_dynamic_memory = false ; // use the dynamic memory management
+        i++ ;
       } else if(!strcmp((*argv)[i],"--dmmverbose")) {
         // output some info about dmm
         show_dmm_verbose = true ;
@@ -177,6 +180,10 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--chomp")) {
         // use the chomping scheme
         use_chomp = true ;
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--nochomp")) {
+        // use the chomping scheme
+        use_chomp = false ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--showchomp")) {
         // visualize the chomp graph
@@ -200,6 +207,9 @@ namespace Loci {
         i++ ;
       } else if(!strcmp((*argv)[i],"--memgreedy")) {
         memory_greedy_schedule = true ;
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--nomemgreedy")) {
+        memory_greedy_schedule = false ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--method")) {
         method = atoi((*argv)[i+1]);
