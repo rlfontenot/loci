@@ -1,6 +1,8 @@
 #include <fact_db.h>
 #include <constraint.h>
 #include <Tools/stream.h>
+#include <Tools/debugger.h>
+
 #include <typeinfo>
 
 extern "C" {
@@ -336,6 +338,7 @@ namespace Loci {
       }
       if(conflicts != EMPTY && v.get_info().name != string("OUTPUT")) {
         cerr << "rule " << f << " conflicts with " << conflicts << endl ;
+        debugger_() ;
         exit(-1) ;
       }
     }
