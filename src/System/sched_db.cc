@@ -146,7 +146,7 @@ namespace Loci {
           const vector<string> &p1 = v.get_info().priority ;
           const vector<string> &p2 = mi->second.v.get_info().priority ;
           for(int i=0,j=p1.size()-1,k=p2.size()-1;
-              i<min(p1.size(),p2.size());
+              i<min(int(p1.size()),int(p2.size()));
               ++i,--j,--k)
             if(p1[j] != p2[k]) {
               conflicts += mi->first ;

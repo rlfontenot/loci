@@ -245,7 +245,7 @@ namespace Loci
       ci = attrib_data.find(i);
       if( ci != attrib_data.end() ) {
         vec =  ci->second;
-        for( int j = 0; j < vec.size(); j++) {
+        for(unsigned int j = 0; j < vec.size(); j++) {
           attrib_data[i][j] =   m[vec[j]];
         }
       }
@@ -266,7 +266,7 @@ namespace Loci
     FORALL(context,i) {
       attrib_data[i].clear();
       newVec  =   s[i];
-      for( int j = 0; j < newVec.size(); j++)
+      for(unsigned int j = 0; j < newVec.size(); j++)
         attrib_data[i].push_back( newVec[j] );
     } ENDFORALL ;
     
@@ -282,7 +282,7 @@ namespace Loci
     FORALL(context,i) {
       attrib_data[i].clear();
       newVec  =   s[m[i]];
-      for( int j = 0; j < newVec.size(); j++) 
+      for(unsigned int j = 0; j < newVec.size(); j++) 
         attrib_data[i].push_back( newVec[j] );
     } ENDFORALL ;
   }
@@ -296,7 +296,7 @@ namespace Loci
     FORALL(context,i) {
       attrib_data[m[i]].clear();
       newVec  =   s[i];
-      for( int j = 0; j < newVec.size(); j++) 
+      for(unsigned int j = 0; j < newVec.size(); j++) 
         attrib_data[m[i]].push_back( newVec[j] );
     } ENDFORALL ;
     
@@ -364,7 +364,7 @@ namespace Loci
     
     sort( vec.begin(), vec.end() );
 
-    for( int i = 0; i < vec.size(); i++)
+    for(unsigned int i = 0; i < vec.size(); i++)
       storeDomain +=  vec[i];
     
     return storeDomain ;
@@ -384,7 +384,7 @@ namespace Loci
       ai = attrib_data.find(*ei);
       if( ai != attrib_data.end() ) {
         mapvec = ai->second;
-        for( int i = 0; i < mapvec.size(); i++)
+        for(unsigned int i = 0; i < mapvec.size(); i++)
           codomain +=   mapvec[i];
       }
     }
@@ -455,7 +455,7 @@ namespace Loci
       ci = attrib_data.find(ii);
       if( ci != attrib_data.end()) {
         newVec    = ci->second;
-        for(int i = 0; i < newVec.size(); i++)
+        for(unsigned int i = 0; i < newVec.size(); i++)
           s << newVec[i] << "    ";
         s << endl;
       }
@@ -512,7 +512,6 @@ namespace Loci
   void dmultiMapRepI::readhdf5( hid_t group_id, entitySet &user_eset) 
   {
 
-    HASH_MAP(int, vector<int>)::const_iterator  ci;
     entitySet::const_iterator ei;
     hsize_t       dimension;
     entitySet     eset;	

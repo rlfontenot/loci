@@ -90,7 +90,7 @@ namespace Loci {
              H5P_DEFAULT, data);
 
     eset = EMPTY;
-    for(int i=0;i< dimension;i++){
+    for(unsigned int i=0;i< dimension;i++){
       eset |= interval(data[i],data[i+1]);
       i++;
     }

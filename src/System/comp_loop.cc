@@ -20,7 +20,9 @@ namespace Loci {
                  const executeP &col, const executeP &adv,
                  const time_ident &tl, 
                  list<list<variable> > &rl) :
-      cvar(cv),collapse(col),advance(adv),tlevel(tl),rotate_lists(rl) {
+      collapse(col),advance(adv),
+      cvar(cv),
+      tlevel(tl),rotate_lists(rl) {
       warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
       control_thread = true ;}
     virtual void execute(fact_db &facts) ;
@@ -143,7 +145,7 @@ namespace Loci {
     // Schedule advance part of loop.  First try to schedule any output, then
     // schedule the advance
     digraph::vertexSet visited ;
-    for(int i = 0;i<collapse_sched.size();++i)
+    for(unsigned int i = 0;i<collapse_sched.size();++i)
       visited += collapse_sched[i] ;
     //    vector<digraph::vertexSet>
     //      dag_sched = schedule_dag(dag,visited, visit_vertices(dagt,outputSet)) ;
@@ -155,16 +157,16 @@ namespace Loci {
     else 
       output_present = true ;
 
-    for(int i=0;i<dag_sched.size();++i)
+    for(unsigned int i=0;i<dag_sched.size();++i)
       advance_sched.push_back(dag_sched[i]) ;
   
-    for(int i = 0;i<dag_sched.size();++i)
+    for(unsigned int i = 0;i<dag_sched.size();++i)
       visited += dag_sched[i] ;
     // now schedule everything that hasn't been scheduled
     dag_sched = schedule_dag(dag,visited) ;
     compile_dag_sched(advance_comp,dag_sched,rule_process,dag) ;
     
-    for(int i=0;i<dag_sched.size();++i)
+    for(unsigned int i=0;i<dag_sched.size();++i)
       advance_sched.push_back(dag_sched[i]) ;
 
 

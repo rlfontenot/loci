@@ -277,7 +277,7 @@ namespace Loci {
     
     sort( vec.begin(), vec.end() );
     
-    for( int i = 0; i < vec.size(); i++)
+    for(unsigned  int i = 0; i < vec.size(); i++)
       storeDomain +=  vec[i];
     
     return storeDomain ;
@@ -326,7 +326,7 @@ namespace Loci {
       vec.push_back( ci->first ) ;
   
     sort( vec.begin(), vec.end() );
-    for( int i = 0; i < vec.size(); i++)
+    for(unsigned int i = 0; i < vec.size(); i++)
       storeDomain +=  vec[i];
     sizes.allocate(storeDomain) ;
     FORALL(storeDomain,i) {
@@ -394,8 +394,6 @@ namespace Loci {
 
   void dMapRepI::readhdf5(hid_t group_id, entitySet &usr_eset)
   {
-    HASH_MAP(int, int ) :: const_iterator  ci;
-    entitySet::const_iterator ei;
     hsize_t       dimension;
     entitySet     eset;	
     vector<int>   vec;
