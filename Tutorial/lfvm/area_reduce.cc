@@ -77,8 +77,8 @@ public:
 // The user can also specify his own operators by creating a class and
 // providing a two argument operator().  Examples will be given in other files.
 //
-//                                  / container\    /  operator \
-//                                  vvvvvvvvvvvv   vvvvvvvvvvvvvvvvvvvvvvv
+//                                  / container\    /  operator          \    .
+//                                  vvvvvvvvvvvv   vvvvvvvvvvvvvvvvvvvvvvv    .
 class area_left : public apply_rule<store<double>, Loci::Summation<double> > {
   //  Here we define the containers for the inputs and outputs of our reduction
   // computation  
