@@ -22,9 +22,9 @@ namespace Loci {
   std::list<comm_info>  barrier_process_rule_requests(variableSet vars, fact_db &facts) ;
 
   entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
-                          list<comm_info> &clist) ;
+                          std::list<comm_info> &clist) ;
   
-  list<comm_info> sort_comm(list<comm_info> slist, fact_db &facts) ;
+  std::list<comm_info> sort_comm(std::list<comm_info> slist, fact_db &facts) ;
   
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) ;
@@ -272,7 +272,7 @@ namespace Loci {
     vector<pair<int,vector<send_var_info> > > send_info ;
     vector<pair<int,vector<recv_var_info> > > recv_info ;
   public:
-    execute_comm(list<comm_info> &plist, fact_db &facts) ;
+    execute_comm(std::list<comm_info> &plist, fact_db &facts) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ; 

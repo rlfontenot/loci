@@ -6,6 +6,7 @@ using std::vector ;
 #include <set>
 using std::set ;
 
+using std::list ;
 
 namespace Loci {
   class joiner_oper : public execute_modules {
