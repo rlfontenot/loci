@@ -446,8 +446,8 @@ namespace Loci {
     MPI_Op_free(&create_join_op) ;
   }
   void execute_param_red::execute(fact_db &facts) {
-    void *send_ptr; 
-    void *result_ptr ;
+    unsigned char *send_ptr; 
+    unsigned char *result_ptr ;
     int size ;
     int loc = 0 , loc_result = 0;
     storeRepP sp, tp ;
