@@ -52,8 +52,17 @@ namespace Loci {
     {ptr = 0 ; receiver=r ; set_ptr(p.ptr) ; }
 
     template <class S> explicit NPTR(const NPTR<S> &p, eventNotify *r=0)
-    { ptr = 0 ; receiver=r ;  T *pt = dynamic_cast<T *>(p.ptr) ;
-      set_ptr(pt) ; warn(p.ptr != 0 && pt == 0) ; }
+    {
+      ptr = 0 ; receiver=r ;  T *pt = dynamic_cast<T *>(p.ptr) ;
+#ifdef DEBUG
+      if(pt == 0 && p.ptr != 0) {
+        cerr << "Type Converter on nptr failed!  Could not convert:" << endl
+             << typeid(p.ptr).name() << endl << "To type: "
+             << typeid(T *).name() << endl ;
+      }
+#endif
+      set_ptr(pt) ;
+    }
     
     ~NPTR() { unlink_ptr(); }
     NPTR<T> &operator=(const NPTR<T> &p) { set_ptr(p.ptr) ; return *this; }
@@ -119,13 +128,25 @@ namespace Loci {
 
     template <class S> explicit const_NPTR(const const_NPTR<S> &p) {
       ptr = dynamic_cast<T *>(p.ptr) ;
-      warn(ptr==0) ;
+#ifdef DEBUG
+      if(ptr == 0 && p.ptr != 0) {
+        cerr << "Type Converter on nptr failed!  Could not convert:" << endl
+             << typeid(p.ptr).name() << endl << "To type: "
+             << typeid(T *).name() << endl ;
+      }
+#endif
       link_ptr() ;
     }
 
     template <class S> explicit const_NPTR(const NPTR<S> &p) {
       ptr = dynamic_cast<T *>(p.ptr) ;
-      warn(ptr==0) ;
+#ifdef DEBUG
+      if(ptr == 0 && p.ptr != 0) {
+        cerr << "Type Converter on nptr failed!  Could not convert:" << endl
+             << typeid(p.ptr).name() << endl << "To type: "
+             << typeid(T *).name() << endl ;
+      }
+#endif
       link_ptr() ;
     }
     
