@@ -21,6 +21,8 @@
 #include <Tools/fpe.h>
 #include <scheduler.h>
 #include <distribute.h>
+#include <distribute_io.h>
+#include <distribute_container.h>
 #include <multiStore.h>
 #include <storeMat.h>
 #include <mod_db.h> 
