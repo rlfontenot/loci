@@ -4,6 +4,7 @@
 
 TARGET = libTools.a #libTools.so
 
+
 LOCAL_INCLUDES = -I$(LOCI_BASE)/include -I$(LOCI_BASE)/include/hdf5CC
 
 OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o \
@@ -23,7 +24,7 @@ compile: $(TARGET)
 
 libTools.a: $(OBJS) 
 	$(AR) $(ARFLAGS) libTools.a $(OBJS) 
-	$(RANLIB) $(TARGET)
+	$(RANLIB) libTools.a
 
 libTools.so: $(OBJS)
 	$(LD) $(LDFLAGS) -shared -o libTools.so $(OBJS) 

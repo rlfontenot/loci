@@ -330,7 +330,7 @@ namespace Loci {
     int num_procs = get_entities.size() ;
     int j = 0 ;
     int size = 0 ;
-    distribute_info dist = distribute_info(myid) ;
+    distribute_info dist(myid) ;
     Map g2l, l2g ;
     store<int> isDistributed;
     store<entitySet> send_neighbour, recv_neighbour ;

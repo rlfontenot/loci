@@ -1,7 +1,5 @@
 #include "sched_tools.h"
-#include "sched_mlg.h"
 
-#define DEVELOP
 using std::map ;
 using std::vector ;
 using std::set ;
@@ -77,7 +75,27 @@ namespace Loci {
     }
     
   }
-  
+
+  void post_process_mlg(multiLevelGraph::subGraph &sg) {
+    digraph &gr = sg.gr ;
+    ruleSet gr_rules = extract_rules(sg.graph_v) ;
+    ruleSet::const_iterator ri ;
+    for(ri=gr_rules.begin();ri!=gr_rules.end();++ri) {
+      if((ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT)) {
+        variable unit_var = *(ri->targets().begin()) ;
+        gr.remove_edge(unit_var.ident(),ri->ident()) ;
+        ruleSet reduce_rules = extract_rules(gr.transpose()[unit_var.ident()]) ;
+        reduce_rules -= *ri ;
+        ruleSet::const_iterator rri ;
+        for(rri = reduce_rules.begin();rri != reduce_rules.end();++rri) {
+          gr.remove_edge(unit_var.ident(),rri->ident()) ;
+          gr.add_edge(ri->ident(),rri->ident())  ;
+        }
+      }
+    }
+  }
+                                             
+
   digraph::vertexSet sort_time_hierarchy(multiLevelGraph &mlg) {
     digraph::vertexSet new_vertices ;
     
@@ -134,7 +152,8 @@ namespace Loci {
   }
 
   digraph::vertexSet partition_loops(multiLevelGraph &mlg, int supernode,
-                                     digraph::vertexSet &loops) {
+                                     digraph::vertexSet &loops,
+                                     digraph::vertexSet &recursive) {
     multiLevelGraph::subGraph &sg = *mlg.find(supernode) ;
 
     // First search for looping and collapse rules in this subgraph
@@ -180,10 +199,25 @@ namespace Loci {
       if(ci->size() > 1) {
         ruleSet rr = extract_rules(*ci) ;
         digraph::vertexSet sn = rr ;
-        if((sn & unit) == EMPTY || (sn & apply) == EMPTY) {
+        if((sn & unit) == EMPTY && (sn & apply) == EMPTY) {
           // Found a recursive rule, so make a supernode for it.
           int newnode = mlg.mksnode(supernode,sn) ;
           new_nodes += newnode ;
+          recursive += newnode ;
+          // Edit graph so that the resulting supernode is no longer recursive
+          digraph::vertexSet recursive_bits = sg.gr[newnode] & sg.gr.transpose()[newnode] ;
+
+          // remove the recursive dependency and replace with a dependency
+          // that will make sure that the recursive rule block is executed last.
+          digraph::vertexSet::const_iterator cvi ;
+          digraph::vertexSet recurse_depend ;
+          for(cvi=recursive_bits.begin();cvi!=recursive_bits.end();++cvi) {
+            recurse_depend += sg.gr.transpose()[*cvi] ;
+            sg.gr.remove_edge(*cvi,newnode) ;
+          }
+          recurse_depend -= newnode ;
+            
+          sg.gr.add_edges(recurse_depend,newnode);
         } else {
           sn -= unit ;
           sn -= apply ;
@@ -216,22 +250,184 @@ namespace Loci {
       }
     return new_nodes ;
   }
+
+
+  digraph::vertexSet decompose_conditional_rules(multiLevelGraph &mlg,
+                                                int supernode)
+  {
+    multiLevelGraph::subGraph &sg = *mlg.find(supernode) ;
+
+
+    map<variable,ruleSet> cond_rules ;
+    ruleSet all_rules = extract_rules(sg.graph_v) ;
+
+    digraph::vertexSet looping ;
+    for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) {
+      if(ri->get_info().qualifier() == "looping")
+        looping += ri->ident() ;
+      if(ri->get_info().desc.conditionals != EMPTY) {
+        variableSet conds = ri->get_info().desc.conditionals ;
+        if(conds.size() != 1) {
+          cerr << "improper rule: " << *ri << endl
+               << "Rule Improperly specifies more than one conditional" << endl ;
+          cerr << "Error not recoverable." << endl ;
+          exit(-1) ;
+        }
+        variable cond = *(conds.begin()) ;
+        cond_rules[cond] += *ri ;
+      }
+    }
+    // If no conditional rules return 
+    if(cond_rules.begin() == cond_rules.end()) {
+      return EMPTY ;
+    }
+
+    digraph::vertexSet new_rules ;
+
+    digraph::vertexSet::const_iterator vi ;
+
+    digraph tmpgr = sg.gr ;
+
+    tmpgr.remove_vertices(looping) ;
+    
+
+    // We need to make sure that apply rules work as a group.  We use
+    // a component sort to group them together and remove them
+    // from the graph.  We will replace them after we've decided
+    // what will be in the conditional component.
+    vector<digraph::vertexSet> cs = component_sort(tmpgr).get_components() ;
+    map<int,digraph::vertexSet> cm ;
+    digraph::vertexSet incm ;
+
+
+    for(int i=0;i<cs.size();++i)
+      if(cs[i].size() > 1) {
+        int new_vertex = tmpgr.max_vertex()+1 ;
+        digraph::vertexSet in ;
+        digraph::vertexSet out ;
+        cm[new_vertex] = cs[i] ;
+        cs[i] = extract_rules(cs[i]) ;
+        for(vi=cs[i].begin();vi!=cs[i].end();++vi) {
+          out += tmpgr[*vi] ;
+          in += tmpgr.transpose()[*vi] ;
+        }
+        incm += new_vertex ;
+
+        out -= cs[i] ;
+        in -= cs[i] ;
+
+        in -= out ;// Disable recursive loops
+
+        tmpgr.remove_vertices(cs[i]) ;
+        tmpgr.add_edges(new_vertex,out) ;
+        tmpgr.add_edges(in,new_vertex) ;
+      }
+
+    // Loop over each conditional variable and find the part of the graph
+    // that exclusively connects to the conditional components.  All of
+    // these rules can be treated together when evaluating the conditional
+    map<variable,ruleSet>::const_iterator mi ;
+    for(mi=cond_rules.begin();mi!= cond_rules.end();++mi) {
+
+      digraph tr = tmpgr.transpose() ;
+      digraph::vertexSet component ;
+      // We start with the conditional rules
+      digraph::vertexSet working = mi->second ;
+      while(working != EMPTY) {
+        // Repeatedly search for new vertices in the graph that are exclusively
+        // associated with the conditional rules.  As we find them add them
+        // to the current set of component rules
+        component += working ;
+
+        // First find candidates by following all edges that lead to the
+        // current working set.
+        digraph::vertexSet candidates ;
+        for(vi=working.begin();vi!=working.end();++vi)
+          candidates += tr[*vi] ;
+
+        // Create a new working set by searching through the candidates to
+        // find those verticies that only refer to vertices already found
+        // in the component.
+        working = EMPTY ;
+        for(vi=candidates.begin();vi!=candidates.end();++vi) 
+          if((tmpgr[*vi] & component) == tmpgr[*vi]) {
+            working += *vi ;
+          }
+        // We make sure that we recursively visit the same components by
+        // removing them from our next working set.
+        working -= component ;
+        // We also make sure that we don't follow the conditional variable.
+        // This needs to be computed external to the conditional block
+        working -= mi->first.ident() ;
+
+      }
+
+      // If any apply rules were included, add them back into the current
+      // set of components
+
+      digraph::vertexSet compcm = component & incm ;
+      component -= incm ;
+      for(vi=compcm.begin();vi!=compcm.end();++vi)
+        component += cm[*vi] ;
+
+
+      // Make sure that we don't go outside of the current subgraph
+      component &= sg.graph_v ;
+
+      int new_node =  mlg.mksnode(supernode,component,mi->first) ;
+      new_rules += new_node ;
+      rule new_rule(new_node);
+    }
+
+    return new_rules ;
+  }
   
-  void test_decompose(digraph dg,
-                      digraph::vertexSet sources,
-                      digraph::vertexSet targets) {
+  decomposed_graph::decomposed_graph(digraph dg,
+                                     digraph::vertexSet sources,
+                                     digraph::vertexSet targets) {
+    
     prepare_digraph(dg) ;
-    multiLevelGraph mlg = create_mlg(dg,sources,targets) ;
+    mlg = create_mlg(dg,sources,targets) ;
+
+#ifdef DEBUG
+    digraph::vertexSet all_vertices = mlg.find(mlg.toplevel)->graph_v ;
+#endif
 
     digraph::vertexSet new_vertices = sort_time_hierarchy(mlg) ;
     digraph::vertexSet::const_iterator vi ;
     digraph::vertexSet looping_components ;
+    
     for(vi=new_vertices.begin();vi!=new_vertices.end();++vi) {
-      digraph::vertexSet new_loops ;
-      looping_components += partition_loops(mlg,*vi,new_loops) ;
+      looping_components += partition_loops(mlg,*vi,loops,recursive) ;
     }
+    digraph::vertexSet working = mlg.subgraphs ;
+    digraph::vertexSet conditional_components;
+    for(vi=working.begin();vi!=working.end();++vi) {
+      conditional += decompose_conditional_rules(mlg,*vi) ;
+    }
+    
+    for(vi=mlg.subgraphs.begin();vi!=mlg.subgraphs.end();++vi)
+      post_process_mlg(*mlg.find(*vi)) ;
+  
+#ifdef DEBUG
+    digraph::vertexSet visit ;
+    for(vi=mlg.subgraphs.begin();vi!=mlg.subgraphs.end();++vi) {
+      digraph::vertexSet vl = mlg.find(*vi)->graph_v ;
+      if((vl & visit) != EMPTY) {
+        cerr << "overlapping graphs in mlg" << endl ;
+        cerr << "overlapping variables = " << extract_vars(vl&visit)<< endl ;
+        cerr << "overlapping rules = " << extract_rules(vl&visit)<<endl ;
+      }
+      visit += vl ;
+    }
+
+    if((all_vertices - visit) != EMPTY) {
+      cerr << "some verticies lost in mlg generation" << endl ;
+      cerr << "lost variables = " << extract_vars(all_vertices-visit) << endl ;
+      cerr << "lost rules = " << extract_rules(all_vertices-visit) << endl ;
+    }
+#endif
+    
   }
-    
-    
 
 }

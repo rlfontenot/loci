@@ -6,7 +6,7 @@
 #include <store_rep.h>
 #include <istream>
 #include <ostream>
-//#include <Tools/stream.h>
+
 #include <hdf5CC/H5cpp.h>
 //#include <hdf5_traits.h>
 #include <hdf5_write_template.h>

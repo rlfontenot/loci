@@ -21,11 +21,12 @@ namespace Loci {
     std::map<int,subGraph>  subgrmap ;
     int toplevel ;
 
+    multiLevelGraph() {toplevel = 0;}
     multiLevelGraph(digraph gr, digraph::vertexSet grvtx) ;
     void insert(int id,subGraph g) 
     { warn(find(id) != 0) ; subgrmap[id] = g ; subgraphs += id ; }
     subGraph *find(int id) ;
-    int mksnode(int gr_id, digraph::vertexSet grvtx) ;
+    int mksnode(int gr_id, digraph::vertexSet grvtx, variable cond_var = variable()) ;
   } ;
 
 }

@@ -5,7 +5,9 @@
 #include <Tools/debug.h>
 #include <Tools/nptr.h>
 #include <entitySet.h>
-#include <Tools/stream.h>
+#include <istream>
+#include <ostream>
+
 #include <hdf5CC/H5cpp.h>
 #include <mpi.h>
 

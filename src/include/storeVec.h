@@ -1,11 +1,14 @@
 #ifndef STOREVEC_H
 #define STOREVEC_H 
 
+#include <istream>
+#include <ostream>
+
 #include <Config/conf.h>
 
 #include <Tools/debug.h>
 #include <Tools/tools.h>
-#include <Tools/stream.h>
+
 #include <store_rep.h>
 
 #include <Tools/lmutex.h>

@@ -23,7 +23,7 @@ compile: $(TARGET)
 
 libhdf5CC.a: $(OBJS)
 	$(AR) $(ARFLAGS) libhdf5CC.a $(OBJS) 
-	$(RANLIB) $(TARGET)
+	$(RANLIB) libhdf5CC.a
 
 libhdf5CC.so: $(OBJS)
 	$(LD) $(LDFLAGS) -shared -o libhdf5CC.so $(OBJS) 

@@ -13,6 +13,7 @@ namespace Loci {
   entitySet image_section(const int *start, const int *end) ;
 
   class Map ;
+  class multiMap ;
   
   class MapRepI : public MapRep {
     entitySet store_domain ;
