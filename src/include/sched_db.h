@@ -48,13 +48,13 @@ namespace Loci {
       std::map<rule, entitySet> proc_able_map;
       std::map<rule, entitySet> my_proc_able_map;
       unsigned int policy;
-      bool use_proc_able;
+      bool duplicate_variable;
 #endif
       sched_info(int ref = -1) {
 	sched_info_ref = ref ;
 #ifdef COMP_ENT
 	policy = 0;
-	use_proc_able = false;
+	duplicate_variable = false;
 #endif
       }
     } ;
@@ -191,9 +191,9 @@ namespace Loci {
     
     bool is_policy(variable v, duplicate_policy p);
     
-    bool is_use_proc_able(variable v) { return get_sched_info(v).use_proc_able; }
+    bool is_duplicate_variable(variable v) { return get_sched_info(v).duplicate_variable; }
     
-    void set_use_proc_able(variable v, bool p) { get_sched_info(v).use_proc_able = p; } 
+    void set_duplicate_variable(variable v, bool p) { get_sched_info(v).duplicate_variable = p; } 
 
     entitySet get_proc_able_entities(variable v, rule f) {
       sched_info &finfo = get_sched_info(v);
