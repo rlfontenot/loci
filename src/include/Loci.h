@@ -73,6 +73,10 @@ using Loci::hdf5_schema_traits ;
 using Loci::hdf5_schema_converter_traits ;
 
 using Loci::vector3d ;
+using Loci::norm ;
+using Loci::dot ;
+using Loci::cross ;
+
 using Loci::Array ;
 
 #endif
