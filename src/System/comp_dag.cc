@@ -120,6 +120,7 @@ namespace Loci {
         bool pointwise = false ;
         bool singleton = false ;
         bool recursive = false ;
+        bool unit_rule_exists = false ;
         for(ri=var_rules.begin();ri!=var_rules.end();++ri)
           if(ri->get_info().rule_class != rule::INTERNAL) {
             use_rules += *ri ;
@@ -129,6 +130,8 @@ namespace Loci {
             if(rimp->get_rule_class() == rule_impl::UNIT ||
                rimp->get_rule_class() == rule_impl::APPLY)
               reduction = true ;
+            if(rimp->get_rule_class() == rule_impl::UNIT)
+              unit_rule_exists = true ;
             if(rimp->get_rule_class() == rule_impl::SINGLETON)
               singleton = true ;
           } else {
@@ -139,10 +142,6 @@ namespace Loci {
         WARN(reduction && pointwise || pointwise && singleton ||
              reduction && singleton) ;
 
-        //        if(vi->get_info().name == "qpgrad") {
-        //          cerr << "qpgrad rules = " << var_rules << endl ;
-        //        }
-        
         if((use_rules != EMPTY)) {
           if(pointwise && !recursive && (vi->get_info().name != "OUTPUT")) {
             barrier_vars += *vi ;
@@ -152,7 +151,8 @@ namespace Loci {
           }
           if(reduction) {
             reduce_info[*vi] = use_rules ;
-            reduce_vars += *vi ;
+            if(reduction && unit_rule_exists)
+              reduce_vars += *vi ;
           } if(singleton) {
             singleton_vars += *vi ;
           }

@@ -140,6 +140,7 @@ namespace Loci {
 
     std::vector<std::pair<variable,entitySet> > pre_send_entities ;
     std::list<comm_info> pre_clist ;
+    std::list<comm_info> post_clist ;
     std::list<comm_info> pre_plist ;
 
   public:

@@ -420,8 +420,12 @@ namespace Loci {
     int loc_send = 0, loc_result = 0 ;
     entitySet e ;
     sequence seq ;
+    e += 1 ;
+    seq += 1 ;
     sp = global_join_op->getTargetRep() ;
     tp = global_join_op->getTargetRep() ;
+    tp->allocate(e) ;
+    sp->allocate(e) ;
     sp->unpack(send_ptr, loc_send, *size, seq) ;
     tp->unpack(result_ptr, loc_result, *size, seq) ;
     global_join_op->SetArgs(tp, sp) ;
@@ -441,6 +445,9 @@ namespace Loci {
     sequence seq ;
     MPI_Op create_join_op ;
     sp = facts.get_variable(reduce_var) ;
+    debugout[MPI_rank] << reduce_var << " is " ;
+    sp->Print(debugout[MPI_rank]) ;
+    
     size = sp->pack_size(e) ;
     send_ptr = new unsigned char[size] ;
     result_ptr = new unsigned char[size] ;
@@ -452,7 +459,7 @@ namespace Loci {
   }
   
   void execute_param_red::Print(ostream &s) const {
-    //cout << "performing param reduction " << endl ;
+    s << "param reduction on " << reduce_var << endl ;
   }
   void reduce_param_compiler::set_var_existence(fact_db &facts)  {
     

@@ -508,22 +508,36 @@ namespace Loci {
     ruleSet::const_iterator fi ;
     if(facts.isDistributed()) {
       list<comm_info> request_comm ;
+      map<variable, entitySet> orig_requests ;
+      for(variableSet::const_iterator vi=recurse_vars.begin();
+          vi!=recurse_vars.end();
+          ++vi) {
+        orig_requests[*vi] = facts.get_variable_requests(*vi) ;
+      }
       request_comm = barrier_process_rule_requests(recurse_vars, facts) ;
 
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
 
+      map<variable,entitySet> var_requests, recurse_entities,recurse_comm ;
+      for(variableSet::const_iterator vi=recurse_vars.begin() ;
+          vi!=recurse_vars.end();
+          ++vi) {
+        var_requests[*vi] = facts.get_variable_requests(*vi) ;
+        ruleSet::const_iterator ri ;
+        for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri) {
+          recurse_entities[*vi] += facts.get_existential_info(*vi,*ri) ;
+        }
+      }
+      
       for(vi=pre_send_entities.begin();vi!=pre_send_entities.end();++vi) {
         variable v = vi->first ;
-        entitySet send_set = vi->second ;
+        entitySet send_set = vi->second - recurse_entities[v] ;
         send_requested.push_back(make_pair(v,send_set &
                                            facts.get_variable_requests(v))) ;
       }
       pre_plist = put_precomm_info(send_requested, facts) ;
-      pre_clist = sort_comm(request_comm,facts) ;
-    }
 
-    if(facts.isDistributed()) {
       for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
         fcontrol &fctrl = control_set[*fi] ;
         entitySet control = process_rule_requests(*fi,facts) ;
@@ -535,19 +549,9 @@ namespace Loci {
         }
       }
       map<rule, list<entitySet>::reverse_iterator> rpos ;
-      ruleSet::const_iterator ri ;
 
-      map<variable,entitySet> var_requests, recurse_entities ;
-      for(variableSet::const_iterator vi=recurse_vars.begin() ;
-          vi!=recurse_vars.end();
-          ++vi) {
-        var_requests[*vi] = facts.get_variable_requests(*vi) ;
-        for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri) {
-          recurse_entities[*vi] += facts.get_existential_info(*vi,*ri) ;
-        }
-      }
-      
                        
+      ruleSet::const_iterator ri ;
       for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri)
         rpos[*ri] = control_set[*ri].control_list.rbegin() ;
 
@@ -603,8 +607,36 @@ namespace Loci {
           send_req_var[*vi].push_back(sort_comm(req_comm,facts)) ;
           req_loc += *vei ;
         }
-
+        recurse_comm[*vi] = req_loc ;
       }
+      
+      list<comm_info> pre_req_comm ;
+      list<comm_info>::const_iterator li ;
+      for(li=request_comm.begin();li!=request_comm.end();++li) {
+        entitySet presend = li->send_set - recurse_entities[li->v] ;
+        entitySet prerecv = entitySet(li->recv_set) - recurse_entities[li->v] ;
+        if(presend != EMPTY || prerecv != EMPTY) {
+          comm_info precomm = *li ;
+          precomm.send_set = presend ;
+          precomm.recv_set = sequence(prerecv) ;
+          pre_req_comm.push_back(precomm) ;
+        }
+      }
+      
+      list<comm_info> post_req_comm ;
+      for(variableSet::const_iterator vi = recurse_vars.begin();
+          vi!= recurse_vars.end();
+          ++vi) {
+        variable v = *vi ;
+        entitySet requests = orig_requests[v] ;
+        requests &= recurse_entities[v] ;
+        requests -= recurse_comm[*vi] ;
+        send_requests(requests,v,facts,post_req_comm) ;
+          
+      }
+
+      pre_clist = sort_comm(pre_req_comm,facts) ;
+      post_clist = sort_comm(post_req_comm,facts) ;
     } else {
       for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
         fcontrol &fctrl = control_set[*fi] ;
@@ -687,7 +719,7 @@ namespace Loci {
     } while(!finished) ;
 
     if(facts.isDistributed()) 
-      el->append_list(new execute_comm(pre_clist, facts)) ;
+      el->append_list(new execute_comm(post_clist, facts)) ;
     
     if(el->size() == 0)
       return 0 ;
