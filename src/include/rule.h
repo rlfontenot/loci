@@ -214,10 +214,8 @@ namespace Loci {
     Op join ;
     param<Type> s,t ;
   public:
-    virtual CPTR<joiner> clone() {
-      CPTR<joiner> p = new joinOp<param<Type>,Op> ;
-      return p ;
-    }
+    CPTR<joiner> clone() 
+      { return CPTR<joiner>(new joinOp<param<Type>,Op> ); }
     
     virtual void SetArgs(storeRepP &target, storeRepP &source)
       { s.setRep(source) ; t.setRep(target) ; }
@@ -231,7 +229,7 @@ namespace Loci {
     virtual void Join(Map &t2s, const sequence &seq)
       {join(*t,*s) ;}
   } ;
-  
+
   template<class Type,class Op> class joinOp<storeVec<Type>,Op> : public joiner {
     Op join ;
     storeVec<Type> s,t ;
