@@ -1,6 +1,6 @@
 # Set up LOCI_BASE to point to the location where Loci is installed
 # on your system
-LOCI_BASE = /ccs/mssl/general/loci/debug/Loci-sun4-gcc-rel-1-0-beta-6
+LOCI_BASE = /usr/local/Loci/release
 
 # Include Loci.conf to get all of the rules for compiling Loci programs
 include $(LOCI_BASE)/Loci.conf
@@ -39,14 +39,17 @@ relations: $(EX3_OBJS)
 helpers: $(EX4_OBJS)
 	$(LD) -o helpers $(EX4_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+test: test.o
+	$(LD) -o test test.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+list: list.o
+	$(LD) -o list list.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 lnklst: $(EX5_OBJS)
 	$(LD) -o lnklst $(EX5_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 life:	$(EX6_OBJS)
 	$(LD) -o life $(EX6_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
-esoteric: esoteric.o
-	$(LD) -o esoteric esoteric.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 clean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak
