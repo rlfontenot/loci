@@ -1460,7 +1460,11 @@ namespace Loci {
 
   template<class T> storeRep *multiStoreRepI<T>::new_store(const entitySet &p)
     const {
-    return new multiStoreRepI<T>(p) ;
+    store<int> count ;
+    count.allocate(p) ;
+    for(entitySet::const_iterator ei = p.begin(); ei != p.end(); ++ei)
+      count[*ei] = base_ptr[*ei+1] - base_ptr[*ei] ;
+    return new multiStoreRepI<T>(count) ;
   }
 
   template<class T> storeRepP multiStoreRepI<T>::remap(const Map &m) const {
@@ -1609,19 +1613,11 @@ namespace Loci {
 	size1 += count[indx] ;
       MPI_Pack(&base_ptr[indx1][0], size1 * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
     }
-  }
+  } 
   
   
   template <class T> void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
-    /*
-    entitySet e = domain() ; 
-    store<int> count;
-    count.allocate(e) ;
-    for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
-    count[*ei] = base_ptr[*ei+1] - base_ptr[*ei] ;
-    */
     for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
-      fatal(!e.inSet(*si)) ;
       MPI_Unpack(ptr, size, &loc, &base_ptr[*si][0], (base_ptr[*si+1] - base_ptr[*si]) * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
     }
     
