@@ -68,9 +68,29 @@ namespace Loci {
            << endl ;
     }
     
-    void invoke_rule(rule f, digraph &gr) {
+    inline void invoke_rule(rule f, digraph &gr) {
       gr.add_edges(f.sources(),f.ident()) ;
       gr.add_edges(f.ident(),f.targets()) ;
+    }
+
+    void invoke_rule_wp(rule f, digraph &gr) {
+      variableSet targets = f.targets() ;
+      variableSet sources = f.sources() ;
+      invoke_rule(f,gr) ;
+      for(variableSet::const_iterator vi=targets.begin();
+          vi!=targets.end();
+          ++vi) {
+        if(vi->get_info().priority.size() != 0) {
+          variable v = *vi ;
+          variable vold = v ;
+          while(v.get_info().priority.size() != 0) {
+            v = v.drop_priority() ;
+            rule priority_rule = create_rule(vold,v,"priority") ;
+            invoke_rule(priority_rule,gr) ;
+            vold = v ;
+          }
+        }
+      }
     }
 
     ruleSet fill_graph(variableSet start, const digraph &rule_graph,
@@ -127,7 +147,7 @@ namespace Loci {
               }
               rule_depend -= time_vars ;
               if(rule_depend == EMPTY) {
-                invoke_rule(*ri,gr) ;
+                invoke_rule_wp(*ri,gr) ;
                 new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
               } else {
                 reject_rules += *ri ;
@@ -313,7 +333,7 @@ namespace Loci {
       for(ruleSet::const_iterator ri = all_iteration_rules.begin();
           ri != all_iteration_rules.end();
           ++ri) {
-        invoke_rule(*ri,iteration_graph) ;
+        invoke_rule_wp(*ri,iteration_graph) ;
       }
       build_vars += variable(iteration_time) ;
       //      known_vars += variable(iteration_time) ;
@@ -480,23 +500,7 @@ namespace Loci {
     for(ruleSet::const_iterator ri = working_rules.begin();
         ri != working_rules.end();
         ++ri) {
-      variableSet targets = ri->targets() ;
-      variableSet sources = ri->sources() ;
-      invoke_rule(*ri,rule_graph) ;
-      for(variableSet::const_iterator vi=targets.begin();
-          vi!=targets.end();
-          ++vi) {
-        if(vi->get_info().priority.size() != 0) {
-          variable v = *vi ;
-          variable vold = v ;
-          while(v.get_info().priority.size() != 0) {
-            v = v.drop_priority() ;
-            rule priority_rule = create_rule(vold,v,"priority") ;
-            invoke_rule(priority_rule,rule_graph) ;
-            vold = v ;
-          }
-        }
-      }
+      invoke_rule_wp(*ri,rule_graph) ;
     }
   
     // Fill graph with rules that will compute target.
