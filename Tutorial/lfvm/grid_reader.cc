@@ -61,12 +61,12 @@ void read_triangles(istream &ifile, fact_db &facts) {
   cout << "node_alloc = " << node_alloc << endl ;
   cout << "triangle_alloc = " << triangle_alloc << endl ;
 
-  // create a constraint that represents all cells in the problem.  Useful in some edge
-  // based computations.
+  // create a constraint that represents all cells in the problem.  Useful in
+  // some edge based computations.
   constraint cells ;
   *cells = triangle_alloc ;
   
-  // Positions of the nodes are simply 2-D vectors associated with ever node
+  // Positions of the nodes are simply 2-D vectors associated with every node
   // entity.
   store<vector2d<double> > pos ;
   pos.allocate(node_alloc) ;
@@ -117,14 +117,18 @@ void read_triangles(istream &ifile, fact_db &facts) {
   for(int i=0;i<num_boundaries;++i) {
     // For each boundary, we read in a boundary name, and the corresponding
     // nodes that are associated with the boundary.
+    // Remember:  Adjust the node reference so that it refers to the entities
+    // allocated for nodes.
     kill_comments(ifile) ;
     string boundary_name ;
     ifile >> boundary_name ;
     int num_boundary_nodes ;
     ifile >> num_boundary_nodes ;
     vector<int> bnodes(num_boundary_nodes) ;
-    for(int j=0;j<num_boundary_nodes;++j)
+    for(int j=0;j<num_boundary_nodes;++j) {
       ifile >> bnodes[j] ;
+      bnodes[j] += node_offset ;
+    }
     entitySet boundary_nodes = create_entitySet(bnodes.begin(),bnodes.end()) ;
     constraint boundary_constraint ;
     *boundary_constraint = boundary_nodes ;
