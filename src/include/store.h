@@ -66,33 +66,72 @@ namespace Loci {
     T * get_base_ptr() const { return base_ptr ; }
     
   } ;
-  
-  template<class T> void storeRepI<T>::allocate(const entitySet &ptn) {
-    entitySet common = store_domain & ptn ;
+
+  template<class T> void storeRepI<T>::allocate(const entitySet &eset) {
+
+    if( eset == EMPTY ) {
+      if(alloc_pointer) delete [] alloc_pointer ;
+      base_ptr = 0;
+      store_domain = eset ;
+      return;
+    }
+
+    // Compare the range with the previously assigned values. If the 
+    // new entities are inserted within the "old range", nothing special
+    // need to be done.
+    int   old_range[2], new_range[2];
+
+    old_range[0] = store_domain.Min();
+    old_range[1] = store_domain.Max();
+
+    new_range[0] = eset.Min();
+    new_range[1] = eset.Max();
+
+    entitySet redundant, newSet, ecommon;
+
+    redundant = store_domain - eset;
+    newSet    = eset - store_domain;
+    ecommon   = store_domain & eset;
+
+    if( (old_range[0] == new_range[0]) &&
+        (old_range[1] == new_range[1]) ) {
+      store_domain  = eset;
+      return;
+    }
+
+    // New entities are outside the "Old Range", so make copy of the
+    // entities which are common to the new assignment and old one.
+    // and redo the entire work.
+
     T *tmp_base_ptr, *tmp_alloc_pointer ;
-    tmp_alloc_pointer = 0 ;
-    tmp_base_ptr = 0 ;
-    if(common != EMPTY) {
-      int top = ptn.Min() ;
-      int size = ptn.Max() - top + 1 ;
-      tmp_alloc_pointer = new T[size] ;
-      tmp_base_ptr = tmp_alloc_pointer - top ;
-      FORALL(common,i) {
-	tmp_base_ptr[i] = base_ptr[i] ;
-      } ENDFORALL ;
-    }
+
+    int top           = old_range[0];
+    int arraySize     = old_range[1] - top + 1 ;
+    tmp_alloc_pointer = new T[arraySize];
+    tmp_base_ptr      = tmp_alloc_pointer - top ;
+
+    FORALL(ecommon,i) {
+      tmp_base_ptr[i] = base_ptr[i] ;
+    } ENDFORALL ;
+
     if(alloc_pointer) delete [] alloc_pointer ;
-    alloc_pointer = tmp_alloc_pointer ;
-    base_ptr = tmp_base_ptr ;
-    if(common == EMPTY) {
-      if(ptn != EMPTY) {
-	int top = ptn.Min() ; 
-	int size = ptn.Max()-top+1 ;
-	alloc_pointer = new T[size] ;
-	base_ptr = alloc_pointer - top ;
-      }
-    }
-    store_domain = ptn ;
+
+    alloc_pointer = new T[arraySize];
+    base_ptr      = alloc_pointer - top ;
+
+    top           = eset.Min() ; 
+    arraySize     = eset.Max()-top+1 ;
+    alloc_pointer = new T[arraySize] ;
+    base_ptr      = alloc_pointer - top ;
+
+    // Copy back from temperory storage to the current storage...
+    FORALL(ecommon,i) {
+      base_ptr[i] = tmp_base_ptr[i] ;
+    } ENDFORALL ;
+
+    delete[] tmp_alloc_pointer ;
+
+    store_domain = eset ;
     dispatch_notify() ;
   }
 
