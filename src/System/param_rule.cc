@@ -40,7 +40,7 @@ rule_db local_modify_time_vars(rule_db& rdb, const std::string &sn) {
 }
   
 rule_db parametric_rdb(rule_db& rdb) {
-  Loci::rule_db par_rdb ;
+   Loci::rule_db par_rdb ;
   ruleSet param_target, param_source, use_param_rule, added_rules ;
   variableSet source, target ;
   std::map<variable, ruleSet> mruleset ; // This data structure is
@@ -158,11 +158,17 @@ rule_db parametric_rdb(rule_db& rdb) {
 		    for(variableSet::const_iterator tvsi =
 			  irsi->sources().begin(); tvsi != irsi
 			  ->sources().end(); ++tvsi)
-		      if(variable(*tvsi).get_arg_list().size())
-			if(mvarset.find(variable(*tvsi).get_info().name) != mvarset.end()) 
-			  if(!mvarset.find(variable(*tvsi).get_info().name)->second.inSet(*tvsi))			
+		      if(variable(*tvsi).get_arg_list().size()) {
+			if(mvarset.find(variable(*tvsi).get_info().name) != mvarset.end())
+			  if(!mvarset.find(variable(*tvsi).get_info().name)->second.inSet(*tvsi)) {
 			    newvars += *vci ;
-		    
+			    std::vector<int> vin = variable(*tvsi).get_arg_list() ;
+			    if(vin.size()) 
+			      if(!variable(*(vin.begin())).get_arg_list().size()) {
+				newvars += *tvsi ;
+			      }	
+			  }
+		      }
 		  }
 		}
 	      }
@@ -191,7 +197,6 @@ rule_db parametric_rdb(rule_db& rdb) {
     for(variableSet::const_iterator vsi = working.begin(); vsi != working.end(); ++vsi) {
       std::map<variable, variable> vm ;
       variable v = variable(*vsi) ;
-
       variableSet vs = mvarset.find(v.get_info().name)->second ;
       for(variableSet::const_iterator mvsi = vs.begin(); mvsi != vs.end(); ++mvsi)
 	if(v.get_arg_list().size() == variable(*mvsi).get_arg_list().size()) {
@@ -236,9 +241,8 @@ rule_db parametric_rdb(rule_db& rdb) {
 		  }
 		  else {
 		    std::map<variable, variable>::const_iterator mi = vm.find(tmp) ;
-		    if(mi != vm.end()) {
+		    if(mi != vm.end())
 		      vm[tmp] = mi->second ;
-                    }
 		  }
 		}
 		std::vector<int> ulti = tmp_vint;
@@ -255,9 +259,9 @@ rule_db parametric_rdb(rule_db& rdb) {
 		    else
 		      vec.push_back(tmp_var.ident()) ;
 		  }
-		  if(tmp_vec != vec) {
+		  if(tmp_vec != vec) 
 		    vm[variable(tmp)] = variable(tmp, vec) ;
-                  }		  
+		  
 		  else 
 		    tmp_vint.push_back(tmp.ident()) ;
 		}
@@ -275,8 +279,8 @@ rule_db parametric_rdb(rule_db& rdb) {
 		else
 		  vec.push_back(tmp_var.ident()) ;
 	      }
-	      if(tmp_vint != vec) {
-		vm[variable(*tvsi)] =
+	      if(tmp_vint != vec) { 
+		vm[variable(variable(*tvsi))] =
 		  variable(variable(*tvsi), vec) ;
 		newset +=  variable(variable(*tvsi), vec) ;
 	      }
@@ -330,15 +334,15 @@ rule_db parametric_rdb(rule_db& rdb) {
 		    name.append(par) ;
 		  }
 		}
-	      if(name != orig) {
+	      if(name != orig)
 		vm[variable(orig)] = variable(name) ;
-              }
 	    }
 	    
-	    rule_implP rp = rsi->get_rule_implP()->new_rule_impl() ;
+	    rule_implP rp = rsi->get_rule_implP() ;
 	    rp->rename_vars(vm) ;
 	    if(!added_rules.inSet(rule(rp))) {
 	      par_rdb.add_rule(rule(rp)) ;
+	      cout << "Adding rule " << rule(rp) << endl ;
 	      added_rules += rule(rp) ;
 	    }
 	  }
