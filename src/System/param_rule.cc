@@ -38,7 +38,8 @@ rule_db local_modify_time_vars(rule_db& rdb, const std::string &sn) {
   }
   return new_rdb ;
 }
-  rule rename_rule(rule r, std::map<variable, variable> &vm) { 
+
+rule rename_rule(rule r, std::map<variable, variable> &vm) { 
   std::vector<string> str_vec ;//This is to deal with the renaming
   //of other variables eg. W_f, f_W etc
   std::set<string> ren_tars ; // Create a set  of names of
@@ -188,12 +189,11 @@ rule_db parametric_rdb(rule_db& rdb) {
   }
   //This part handles the recursive parametric rules. 
   ruleSet wrule, nrule ;
+  variableSet newvars ;
   if(param_vars != EMPTY) {
     for(variableSet::const_iterator vsi = param_vars.begin(); vsi !=
 	  param_vars.end(); ++vsi) {
       ruleSet wrule ;
-      //Only if there is a recursive parametric rule there will be
-      //a ruleSet to loop over. 
       if(mruleset.find(variable(*vsi)) != mruleset.end())
 	wrule = mruleset.find(variable(*vsi))->second ;
       nrule = wrule ;
@@ -220,11 +220,11 @@ rule_db parametric_rdb(rule_db& rdb) {
 		      if(variable(*tvsi).get_arg_list().size()) {
 			if(mvarset.find(variable(*tvsi).get_info().name) != mvarset.end())
 			  if(!mvarset.find(variable(*tvsi).get_info().name)->second.inSet(*tvsi)) {
-			    param_vars += *vci ;
+			    newvars += *vci ;
 			    std::vector<int> vin = variable(*tvsi).get_arg_list() ;
 			    if(vin.size()) 
 			      if(!variable(*(vin.begin())).get_arg_list().size()) 
-				param_vars += *tvsi ;
+				newvars += *tvsi ;
 			  }
 		      }
 		  }
@@ -237,6 +237,7 @@ rule_db parametric_rdb(rule_db& rdb) {
       }
     }
   }
+  param_vars += newvars ;
   
   //Add the non parametric rules to the rule database.  
   for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end(); ++rsi) {
