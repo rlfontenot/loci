@@ -56,8 +56,8 @@ namespace Loci {
     std::map<variable,variable> synonyms ;
     variable remove_synonym(variable v) const {
       std::map<variable,variable>::const_iterator mi ;
-      if((mi=synonyms.find(v)) != synonyms.end())
-        return mi->second ;
+      while((mi=synonyms.find(v)) != synonyms.end())
+        v = mi->second ;
       return v ;
     }
 

@@ -164,9 +164,9 @@ namespace Loci {
         variable s = (*(r.sources().begin())) ;
         variable t = (*(r.targets().begin())) ;
         // A rename rule uses alias, while all others use synonym relationships
-        if(r.get_info().qualifier() == "rename")
+        if(r.get_info().qualifier() == "rename") {
           scheds.alias_variable(s,t, facts) ;
-        else {
+        } else {
           scheds.synonym_variable(s,t, facts) ;
         }
       }

@@ -40,10 +40,35 @@ namespace Loci {
   fact_db::~fact_db() {}
 
   void fact_db::synonym_variable(variable v, variable synonym) {
-    v = remove_synonym(v) ;
-    std::map<variable, fact_info>::iterator vmi ;
-    if((vmi = fmap.find(synonym)) != fmap.end()) {
-      fact_info &finfo = vmi->second ;
+
+    // Find all variables that should be synonymous with v
+    variableSet synonym_set ;
+    std::map<variable,variable>::const_iterator mi ;
+    while((mi=synonyms.find(v)) != synonyms.end()) {
+      synonym_set += v ;
+      v = mi->second ;
+    }
+    variable s = synonym;
+    while((mi=synonyms.find(s)) != synonyms.end()) {
+      synonym_set += s ;
+      s = mi->second ;
+    }
+    synonym_set += s ;
+
+    // If the two are already synonymous, we are done
+    if(s == v)
+      return ;
+
+    // Sanity check, nake sure v exists
+    std::map<variable,fact_info>::iterator vmi, vmj ;
+    if((vmi = fmap.find(v)) == fmap.end()) {
+      cerr << "variable type not known for target of synonym" << endl ;
+      abort() ;
+    }
+    // If the synonym already points to a different variable instance,
+    // remove it
+    if((vmj = fmap.find(s)) != fmap.end()) {
+      fact_info &finfo = vmj->second ;
       if((finfo.data_rep->domain() != EMPTY &&
           finfo.data_rep->RepType() != PARAMETER)) {
         cerr << "unable to define synonym variable " << synonym
@@ -51,10 +76,15 @@ namespace Loci {
         cerr << "variable v = " << v << endl ;
         abort() ;
       }
-      // This is a hack
       remove_variable(synonym) ;
     }
-    synonyms[synonym] = v ;
+
+    // Add new synonyms so that they point to v
+    for(variableSet::const_iterator vi = synonym_set.begin();
+        vi!=synonym_set.end();
+        ++vi) {
+      synonyms[*vi] = v ;
+    }
   }
   
   
