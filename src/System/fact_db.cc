@@ -62,11 +62,13 @@ namespace Loci {
     if(s == v)
       return ;
 
-    // Sanity check, nake sure v exists
+    // Sanity check, make sure v exists
     std::map<variable,fact_info>::iterator vmi, vmj ;
     if((vmi = fmap.find(v)) == fmap.end()) {
-      cerr << "variable type not known for target of synonym" << endl ;
-      abort() ;
+      cerr << "WARNING: synonym_variable("<<v<<","<<synonym<<")"<<endl ;
+      cerr << "WARNING: type not known for target of synonym, ignoring operation" << endl ;
+      //      abort() ;
+      return ;
     }
     // If the synonym already points to a different variable instance,
     // remove it
