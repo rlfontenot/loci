@@ -773,21 +773,23 @@ namespace Loci {
     numContainers =  size*eset.size();
 
     return(arraySize*sizeof(typename converter_traits::Converter_Base_Type) +
-           numContainers*sizeof(int));
+           (numContainers+1)*sizeof(int));
   }
 
   //**************************************************************************/
-
   template <class T>
-  void storeVecRepI<T>::pack(void *ptr, int &loc, int &size,
+  void storeVecRepI<T>::pack(void *outbuf, int &position, int &outcount,
                              const entitySet &eset )
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    packdata( traits_type, ptr, loc, size, eset);
-  }
+    int M = get_size() ;
+    MPI_Pack( &M, 1, MPI_INT, outbuf, outcount, &position, 
+              MPI_COMM_WORLD) ;
 
+    packdata( traits_type, outbuf, position, outcount, eset);
+  }
   //**************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T>
@@ -820,9 +822,6 @@ namespace Loci {
   {
 
     int M = get_size() ;
-    MPI_Pack( &M, sizeof(int), MPI_BYTE, outbuf, outcount, &position, 
-              MPI_COMM_WORLD) ;
-
     for(int i = 0; i < eset.num_intervals(); ++i) {
       Loci::int_type indx1 = eset[i].first ;
       Loci::int_type stop  = eset[i].second ;
@@ -883,9 +882,8 @@ namespace Loci {
   }
 
   //**************************************************************************/
-
   template <class T> 
-  void storeVecRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq)
+  void storeVecRepI<T>::unpack(void *inbuf, int &position, int &insize, const sequence &seq)
   {
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
@@ -894,13 +892,21 @@ namespace Loci {
     entitySet ecommon, ediff,eset(seq);
 
     ediff = eset - domain();
+    if( ediff.size() > 0) { 
+      cout << "Error:Entities not part of domain " << ediff <<endl;
+      abort();
+    }
 
-    if( ediff.size() > 0) 
-      cout << " Warning: Entities not part of domain, and not unpacked " << ediff <<endl;
-
-    unpackdata( traits_type, ptr, loc, size, seq);
-
+    int init_size = get_size() ;
+    int M ;
+    MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
+    if(init_size != M) {
+      set_elem_size(M) ;
+    }
+    unpackdata( traits_type, inbuf, position, insize, seq);
   }
+
+
 
   //**************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
@@ -933,15 +939,7 @@ namespace Loci {
                                     int &insize, const sequence &seq)
   {
 
-    int init_size = get_size() ;
-    int M ;
-
-    MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
-
-    if(init_size != M) {
-      set_elem_size(M) ;
-    }
-
+    int M = get_size() ;
     for(int i = 0; i < seq.num_intervals(); ++i) {
       if(seq[i].first > seq[i].second) {
         const Loci::int_type indx1 = seq[i].first ;
@@ -990,8 +988,7 @@ namespace Loci {
         continue;
       }
       for( int ivec = 0; ivec < size; ivec++) {
-        outcount = sizeof(int);
-        MPI_Unpack( inbuf, 1, &position, &stateSize, outcount, 
+        MPI_Unpack( inbuf, insize, &position, &stateSize, 1, 
                     MPI_INT, MPI_COMM_WORLD) ;
         if( stateSize > outbuf.size() ) outbuf.resize(stateSize);
 
@@ -1139,12 +1136,11 @@ namespace Loci {
     vDataspace = H5Screate_simple(rank, &dimension, NULL);
     vDatatype  = H5Tcopy( H5T_NATIVE_INT);
     vDataset   = H5Dcreate(group_id, "SubContainerSize", vDatatype, vDataspace, H5P_DEFAULT);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, vbucket);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &vbucket[0]);
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
-    delete [] vbucket;
 
     //-------------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
@@ -1242,6 +1238,11 @@ namespace Loci {
     offset.allocate(eset);
     int vsize = get_size();
 
+    indx = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci){
+         offset[*ci] = indx;
+         indx       += vsize;
+    }
     int arraySize = vsize*eset.size();
 
     //------------------------------------------------------------------------
