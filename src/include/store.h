@@ -19,7 +19,7 @@ namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;
-  
+
   class Map ;
 
   template<class T> class storeRepI : public storeRep {
@@ -62,11 +62,11 @@ namespace Loci {
                         const entitySet &context) ;
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
-    
+
     virtual int pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
-    
+
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
@@ -107,7 +107,7 @@ namespace Loci {
     // we copy the contents in the overlap region to the new
     // allocated storage
     entitySet ecommon = store_domain & eset ;
-    
+
     T* tmp_alloc_pointer = new T[new_range_max - new_range_min + 1] ;
     T* tmp_base_ptr = tmp_alloc_pointer - new_range_min ;
 
@@ -115,11 +115,11 @@ namespace Loci {
     FORALL(ecommon,i) {
       tmp_base_ptr[i] = base_ptr[i] ;
     } ENDFORALL ;
-    
+
     delete [] alloc_pointer ;
     alloc_pointer = tmp_alloc_pointer ;
     base_ptr = tmp_base_ptr ;
-      
+
     store_domain = eset ;
     dispatch_notify() ;
     return ;
@@ -130,7 +130,7 @@ namespace Loci {
     base_ptr -= offset ;
     dispatch_notify() ;
   }
-  
+
   template<class T> std::ostream &storeRepI<T>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
     FORALL(domain(),ii) {
@@ -139,12 +139,12 @@ namespace Loci {
     s << '}' << std::endl ;
     return s ;
   }
-    
+
 
   template<class T> std::istream &storeRepI<T>::Input(std::istream &s) {
     entitySet e ;
     char ch ;
-        
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
       cerr << "Incorrect Format while reading store" << std::endl ;
@@ -153,12 +153,12 @@ namespace Loci {
     }
     s >> e ;
     allocate(e) ;
-        
+
     FORALL(e,ii) {
       base_ptr[ii] = T() ;
       Loci::streaminput(&base_ptr[ii],1,s) ;
     } ENDFORALL ;
-        
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
       cerr << "Incorrect Format while reading store" << std::endl ;
@@ -172,7 +172,7 @@ namespace Loci {
   template<class T>  storeRepI<T>::~storeRepI<T>() {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
-    
+
   template<class T>  entitySet storeRepI<T>::domain() const {
     return store_domain ;
   }
@@ -199,7 +199,7 @@ namespace Loci {
     store() { setRep(new storeType); }
     store(const store &var) { setRep(var.Rep()) ; }
     store(storeRepP rp) { setRep(rp) ; }
-    
+
     virtual ~store() ;
     virtual void notification() ;
 
@@ -208,40 +208,40 @@ namespace Loci {
       return *this ;
     }
     store<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
-    
+
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
-    
+
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
-    
+
     T &elem(int indx) {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!Rep()->domain().inSet(indx)) ;
-#endif 
+#endif
       return base_ptr[indx]; }
     const T &elem(int indx) const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!Rep()->domain().inSet(indx)) ;
-#endif 
+#endif
       return base_ptr[indx]; }
-    
+
     T &operator[](int indx) { return elem(indx); }
     const T&operator[](int indx) const { return elem(indx); }
-    
+
   } ;
 
   template<class T> store<T>::~store<T>() { }
-    
+
   template<class T> void store<T>::notification() {
     NPTR<storeType> p(Rep()) ;
     if(p != 0)
       base_ptr = p->get_base_ptr() ;
     warn(p == 0) ;
   }
- 
+
   template<class T> inline std::ostream & operator<<(std::ostream &s, const store<T> &t)
   { return t.Print(s) ; }
 
@@ -265,7 +265,7 @@ namespace Loci {
 
 
     virtual instance_type access() const  ;
-        
+
     const_store<T> & operator=(const_store<T> &str) {
       setRep(str.Rep()) ;
       return *this ;
@@ -282,17 +282,17 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     const T &elem(int indx) const {
 #ifdef BOUNDS_CHECK
-      fatal(base_ptr==NULL); 
+      fatal(base_ptr==NULL);
       fatal(!Rep()->domain().inSet(indx)) ;
-#endif 
+#endif
       return base_ptr[indx]; }
-            
+
     const T&operator[](int indx) const { return elem(indx); }
 
   } ;
 
   template<class T> const_store<T>::~const_store<T>() { }
-    
+
   template<class T> void const_store<T>::notification() {
     NPTR<storeType> p(Rep()) ;
     if(p != 0)
@@ -302,14 +302,14 @@ namespace Loci {
 
   template<class T> store_instance::instance_type
   const_store<T>::access() const { return READ_ONLY; }
-        
+
   template<class T> storeRepP storeRepI<T>::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
     store<T> s ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-      
+
     s.Rep()->scatter(m,my_store,newdomain) ;
     return s.Rep() ;
   }
@@ -344,7 +344,7 @@ namespace Loci {
       base_ptr[m[i]] = s[i] ;
     } ENDFORALL ;
   }
-  
+
   //*******************************************************************/
 
   template <class T>
@@ -364,7 +364,7 @@ namespace Loci {
     int numBytes = 0 ;
     entitySet :: const_iterator ci;
     typedef data_schema_traits<T> converter_traits;
-    
+
     T   obj;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       obj  = base_ptr[*ci];
@@ -372,7 +372,7 @@ namespace Loci {
       size      = cvtr.getSize();
       numBytes += size*sizeof(typename converter_traits::Converter_Base_Type) ;
     }
-    
+
     numBytes  += eset.size()*sizeof(int);
     return(numBytes) ;
   }
@@ -380,7 +380,7 @@ namespace Loci {
   //*******************************************************************/
   template <class T> int storeRepI<T>::pack_size( const entitySet &eset) {
     fatal((eset - domain()) != EMPTY);
-	
+
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
 
     return get_mpi_size( schema_converter(), eset );
@@ -388,24 +388,24 @@ namespace Loci {
 
 
   //*******************************************************************/
-  template <class T> 
+  template <class T>
   inline void storeRepI<T>::packdata(IDENTITY_CONVERTER c, void *outbuf,
                                      int &position, int outcount,
-                                     const entitySet &eset )  
+                                     const entitySet &eset )
     {
       for( int i = 0; i < eset.num_intervals(); i++) {
 	const Loci::int_type begin = eset[i].first ;
 	int t = eset[i].second - eset[i].first + 1 ;
-	MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount, 
+	MPI_Pack( &base_ptr[begin], t*sizeof(T), MPI_BYTE, outbuf,outcount,
 		  &position, MPI_COMM_WORLD) ;
       }
     }
-  
+
   //*******************************************************************/
-  
+
   template <class T>
-  inline void storeRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
-                               int &position, int outcount, 
+  inline void storeRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf,
+                               int &position, int outcount,
                                const entitySet &eset )
   {
 
@@ -418,7 +418,7 @@ namespace Loci {
     // container for allocation purpose
     //-------------------------------------------------------------------
     size_t  incount = 0;
-    int     stateSize, maxStateSize = 0; 
+    int     stateSize, maxStateSize = 0;
     typedef data_schema_traits<T> schema_traits ;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
       typename schema_traits::Converter_Type cvtr( base_ptr[*ci] );
@@ -446,16 +446,16 @@ namespace Loci {
                MPI_COMM_WORLD);
 
       incount =  stateSize*typesize;
-      MPI_Pack(inbuf, incount, MPI_BYTE, outbuf, outcount, &position, 
+      MPI_Pack(inbuf, incount, MPI_BYTE, outbuf, outcount, &position,
                MPI_COMM_WORLD) ;
     }
     delete [] inbuf;
   }
   //*******************************************************************/
 
-  template <class T> 
-  void storeRepI<T>::pack( void *outbuf, int &position, int &size, 
-                           const entitySet &usr_eset )  
+  template <class T>
+  void storeRepI<T>::pack( void *outbuf, int &position, int &size,
+                           const entitySet &usr_eset )
   {
 
     typedef typename
@@ -466,12 +466,12 @@ namespace Loci {
     packdata( schema_converter(), outbuf, position, size, usr_eset);
 
   }
- 
+
   //*********************************************************************/
-  template <class T> 
+  template <class T>
   inline void storeRepI<T>::unpackdata(IDENTITY_CONVERTER c, void *inbuf,
                                 int &position,  int insize,
-                                const sequence &seq) 
+                                const sequence &seq)
   {
 
     for(int i = 0; i < seq.num_intervals(); ++i) {
@@ -485,24 +485,24 @@ namespace Loci {
         int t = seq[i].second - seq[i].first + 1 ;
         MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
                     t*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
-      } 
+      }
     }
   }
   //*********************************************************************/
-  template <class T> 
-  inline void storeRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
-                                 int &position, int insize, const sequence &seq) 
+  template <class T>
+  inline void storeRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf,
+                                 int &position, int insize, const sequence &seq)
   {
 
     sequence :: const_iterator ci;
 
     //-------------------------------------------------------------------
-    // Get the sum of each object size and maximum size of object in the 
+    // Get the sum of each object size and maximum size of object in the
     // container for allocation purpose
     //-------------------------------------------------------------------
     int  stateSize, outcount;
 
-    typedef  data_schema_traits<T> converter_traits; 
+    typedef  data_schema_traits<T> converter_traits;
     typename converter_traits::Converter_Base_Type *outbuf;
 
     int typesize = sizeof(converter_traits::Converter_Base_Type);
@@ -513,13 +513,13 @@ namespace Loci {
         continue;
       }
       outcount = sizeof(int);
-      MPI_Unpack(inbuf, insize, &position, &stateSize, 1, 
+      MPI_Unpack(inbuf, insize, &position, &stateSize, 1,
                  MPI_INT, MPI_COMM_WORLD) ;
 
       outbuf = new typename converter_traits::Converter_Base_Type[stateSize];
 
       outcount = stateSize*typesize;
-      MPI_Unpack(inbuf, insize, &position, outbuf, outcount, 
+      MPI_Unpack(inbuf, insize, &position, outbuf, outcount,
                  MPI_BYTE, MPI_COMM_WORLD) ;
 
       typename converter_traits::Converter_Type cvtr( base_ptr[*ci] );
@@ -532,25 +532,25 @@ namespace Loci {
 
   //*******************************************************************/
 
-  template <class T> 
-  void storeRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
+  template <class T>
+  void storeRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq)
   {
 
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
 
-    unpackdata(schema_converter(), ptr, loc, size, seq); 
+    unpackdata(schema_converter(), ptr, loc, size, seq);
   }
 
   //**********************************************************************/
- 
-  
-  template<class T> 
+
+
+  template<class T>
     frame_info storeRepI<T>::read_frame_info(hid_t group_id) {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return read_frame_info(group_id, schema_converter()) ;
   }
-  template<class T> 
+  template<class T>
     frame_info storeRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
     int is_stat = 0 ;
     int sz = 0 ;
@@ -567,9 +567,9 @@ namespace Loci {
     dim[0] = is_stat ;
     dim[1] = sz ;
     MPI_Bcast(&dim, 2, MPI_INT, 0, MPI_COMM_WORLD) ;
-    return frame_info(dim[0], dim[1]); 
+    return frame_info(dim[0], dim[1]);
   }
-  template<class T> 
+  template<class T>
     frame_info storeRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
     hsize_t dimension = 0 ;
     hid_t dataspace ;
@@ -598,16 +598,16 @@ namespace Loci {
     std::vector<int> vint ;
     int  dom_size = domain().size() ;
     read_vector_int(group_id, "second_level", vint, dom_size) ;
-    fi.second_level = vint ; 
+    fi.second_level = vint ;
     return fi ;
   }
-  
-  template<class T> 
+
+  template<class T>
     frame_info storeRepI<T>::write_frame_info(hid_t group_id) {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return write_frame_info(group_id, schema_converter()) ;
   }
-  template<class T> 
+  template<class T>
     frame_info storeRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
     frame_info fi ;
     fi.is_stat = 0 ;
@@ -627,7 +627,7 @@ namespace Loci {
     }
     return fi ;
   }
-  template<class T> 
+  template<class T>
     frame_info storeRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
     entitySet dom = domain() ;
     frame_info fi ;
@@ -635,7 +635,7 @@ namespace Loci {
     fi.size = 1 ;
     int stateSize = 0;
     typedef data_schema_traits<T> schema_traits ;
-    for(entitySet::const_iterator ci = dom.begin(); ci != dom.end(); ++ci) 
+    for(entitySet::const_iterator ci = dom.begin(); ci != dom.end(); ++ci)
       for(int ivec = 0; ivec < fi.size; ivec++){
         typename schema_traits::Converter_Type cvtr(base_ptr[(*ci)*fi.size+ivec] );
         stateSize = cvtr.getSize();
@@ -654,23 +654,23 @@ namespace Loci {
       dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
       H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
       H5Dclose(dataset) ;
-      H5Sclose(dataspace) ; 
+      H5Sclose(dataspace) ;
     }
     write_vector_int(group_id, "second_level", fi.second_level) ;
     return fi ;
   }
-  
-  template<class T> 
+
+  template<class T>
     DatatypeP storeRepI<T>::getType() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return getType(schema_converter()) ;
   }
-  template<class T> 
+  template<class T>
     DatatypeP storeRepI<T>::getType(IDENTITY_CONVERTER g) {
     typedef data_schema_traits<T> traits_type;
     return(traits_type::get_type()) ;
   }
-  template<class T> 
+  template<class T>
     DatatypeP storeRepI<T>::getType(USER_DEFINED_CONVERTER g) {
     typedef data_schema_traits<T> schema_traits ;
     typedef typename schema_traits::Converter_Base_Type dtype;
@@ -678,8 +678,8 @@ namespace Loci {
     return(traits_type::get_type()) ;
   }
   //**************************************************************************/
-  
-  template<class T> 
+
+  template<class T>
     void storeRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& eset) const
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
@@ -688,7 +688,7 @@ namespace Loci {
   }
 
   //**********************************************************************/
-  template <class T> 
+  template <class T>
   void storeRepI<T> :: hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &eset)  const
     {
       if(dimension != 0) {
@@ -701,8 +701,8 @@ namespace Loci {
 	size_t tmp = 0 ;
 	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si)
 	  tmp_array[tmp++] = base_ptr[*si] ;
-      
-      
+
+
 	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
 	H5Sclose(memspace) ;
 	delete [] tmp_array ;
@@ -710,9 +710,9 @@ namespace Loci {
     }
   //*********************************************************************/
 
-  template <class T> 
+  template <class T>
   void storeRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset) const
-    {   
+    {
       typedef data_schema_traits<T> schema_traits ;
       if(dimension != 0) {
 	storeRepP qrep = getRep() ;
@@ -734,10 +734,10 @@ namespace Loci {
 	delete [] tmp_array ;
       }
     }
-  
-  
+
+
   //*********************************************************************/
- template<class T> 
+ template<class T>
   void storeRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &eset)
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
@@ -760,7 +760,7 @@ namespace Loci {
 	if(err < 0) {
 	  cerr << "H5Dread() failed" << endl ;
 	}
-	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
+	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si)
 	  base_ptr[*si] = tmp_array[tmp++] ;
 	H5Sclose(memspace) ;
 	delete [] tmp_array ;
@@ -780,7 +780,7 @@ namespace Loci {
       hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
       std::vector<int> vint = fi.second_level ;
       typedef typename schema_traits::Converter_Base_Type dtype;
-      dtype* tmp_array = new dtype[dimension] ;    
+      dtype* tmp_array = new dtype[dimension] ;
       hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
 			  H5P_DEFAULT, tmp_array) ;
       if(err < 0) {
@@ -789,7 +789,7 @@ namespace Loci {
       size_t tmp = 0 ;
       int bucsize ;
       size_t indx = 0 ;
-      for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) { 
+      for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) {
 	typename data_schema_traits<T>::Converter_Type cvtr(base_ptr[*si]);
 	bucsize = vint[indx++] ;
 	cvtr.setState(tmp_array+tmp, bucsize) ;

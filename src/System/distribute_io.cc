@@ -19,7 +19,47 @@ namespace Loci {
   //ends up in a blocked partitioning format in the global numbering
   //across all the processors. The qrep passed to this routine is in
   //the chunked partitioning format in global numbering.   
-void write_container(hid_t group_id, storeRepP qrep) {
+  void write_container(hid_t group_id, storeRepP qrep) {
+    if(qrep->RepType() == PARAMETER) {
+      if(MPI_rank==0) {
+        frame_info fi = qrep->write_frame_info(group_id) ;
+        int array_size = 0 ;
+        if(fi.size) 
+          if(fi.is_stat)   
+            for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+              array_size += *vi ;
+          else
+            array_size = fi.size  ;
+        else
+          if(fi.is_stat) 
+            for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+              array_size += *vi ;
+          else
+            for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+              array_size += *fvi ;
+
+        if(array_size == 0)
+          array_size = 1 ;
+        hsize_t dimension = array_size ;
+        int rank = 1 ;
+        hssize_t start = 0 ; 
+        hsize_t stride = 1 ;
+        hsize_t count = array_size ;
+
+        hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
+        DatatypeP dp = qrep->getType() ;
+        hid_t datatype = dp->get_hdf5_type() ;
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+        dimension = count ;
+        start += dimension ;
+        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
+        entitySet dom = qrep->domain() ;
+        qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
+        H5Dclose(dataset) ;
+        H5Sclose(dataspace) ;
+      }
+      return ;
+    }
     entitySet dom = qrep->domain() ;
     std::vector<entitySet> dom_vector = all_collect_vectors(dom);
     entitySet q_dom;
@@ -100,6 +140,7 @@ void write_container(hid_t group_id, storeRepP qrep) {
 	  t_qrep->unpack(tmp_send_buf, loc_unpack, total_size, tmp_seq) ;
 	  dimension = arr_sizes[i] ;
 	  count = dimension ; 
+          
 	  H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ; 
 	  start += count ;
 	  dataset = H5Dopen(group_id, "data") ;
@@ -116,6 +157,68 @@ void write_container(hid_t group_id, storeRepP qrep) {
   //EMPTY then it is found by dividing total entities by processors.
   //dom entities are allocated to qrep on local processor.
   void read_container(hid_t group_id, storeRepP qrep, entitySet &dom) {
+    if(qrep->RepType() == PARAMETER) {
+      int pack_size = 0 ;
+      if(MPI_rank==0) {
+        int array_size = 0 ;
+        int vec_size = 0 ;
+        frame_info fi = qrep->read_frame_info(group_id) ;
+        if(fi.size)
+          if(fi.is_stat) {
+            for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+              array_size += *vi ;
+            vec_size = fi.second_level.size() ;
+          } else {
+            if(fi.size > 1)
+              qrep->set_elem_size(fi.size) ;
+            array_size = fi.size ;
+          }
+        else { 
+          if(fi.is_stat) {
+            for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi) 
+              array_size += *vi ;
+            vec_size = fi.second_level.size() + 1 ;
+          }
+          else {
+            for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi) 
+              array_size += *fvi ;
+            vec_size = 1 ;
+          }
+        }
+
+        hid_t dimension = array_size ;
+        hid_t dataset =  H5Dopen(group_id, "data") ;
+        hid_t dataspace = H5Dget_space(dataset) ;
+
+        qrep->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, dom) ;
+        H5Dclose(dataset) ;
+        H5Sclose(dataspace) ;
+
+        pack_size = qrep->pack_size(dom) ;
+
+      }
+
+      // Now broadcast the result to other processors
+      if(MPI_processes > 1) {
+        MPI_Bcast(&pack_size,1,MPI_INT,0,MPI_COMM_WORLD) ;
+        unsigned char *pack_buf = new unsigned char[pack_size] ;
+        if(MPI_rank == 0) {
+          int loc_pack = 0 ;
+          int sz = pack_size ;
+          qrep->pack(pack_buf,loc_pack,sz,dom) ;
+        }
+        MPI_Bcast(pack_buf,pack_size,MPI_PACKED,0,MPI_COMM_WORLD) ;
+        if(MPI_rank != 0) {
+          int loc_pack = 0 ;
+          int sz = pack_size ;
+          qrep->unpack(pack_buf,loc_pack,sz,dom) ;
+        }
+      }
+
+
+      return ;
+    }
+
     entitySet q_dom ;
     if(Loci::MPI_rank == 0)
       Loci::HDF5_ReadDomain(group_id, q_dom) ;
@@ -638,4 +741,55 @@ void write_container(hid_t group_id, storeRepP qrep) {
     delete [] recv_buf ;
     delete [] tmp_buf ;
   }
+
+  void redistribute_write_container(hid_t file_id, std::string vname,
+                               Loci::storeRepP var, fact_db &facts) {
+    hid_t group_id = 0 ;
+    if(Loci::MPI_rank == 0)
+      group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
+    if(Loci::MPI_processes == 1 || var->RepType() == PARAMETER) {
+      Loci::write_container(group_id, var) ;
+    } else {
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      
+      dMap remap = df->remap ;
+      Loci::storeRepP vardist = collect_reorder_store(var,remap,facts) ;
+      Loci::write_container(group_id,vardist) ;
+    }
+    if(Loci::MPI_rank == 0)
+      H5Gclose(group_id) ;
+  }
+
+  void read_container_redistribute(hid_t file_id, std::string vname,
+                                   Loci::storeRepP var, entitySet read_set,
+                                   fact_db &facts) {
+    hid_t group_id = 0;
+    if(Loci::MPI_rank == 0)
+      group_id = H5Gopen(file_id, vname.c_str()) ;
+    if(var->RepType() == PARAMETER) {
+      Loci::read_container(group_id, var, read_set) ;
+      if(Loci::MPI_rank == 0)
+        H5Gclose(group_id) ;
+      return ;
+    }
+    if(Loci::MPI_processes == 1) {
+      Loci::read_container(group_id, var, read_set) ;
+    } else {
+      fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      
+      dMap remap = df->remap ;
+
+      entitySet alloc_dom = EMPTY;
+      Loci::storeRepP new_store = var->new_store(EMPTY) ;
+      Loci::read_container(group_id, new_store , alloc_dom) ;
+      Loci::storeRepP result = var->new_store(read_set) ;
+      Loci::distribute_reorder_store(result,new_store,remap,facts) ;
+      var->copy(result,result->domain()&read_set) ;
+    }
+    if(Loci::MPI_rank == 0)
+      H5Gclose(group_id) ;
+    
+  }
+
+    
 }

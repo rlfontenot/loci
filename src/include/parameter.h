@@ -1,11 +1,11 @@
 #ifndef PARAMETER_H
 #define PARAMETER_H
-   
+
 #ifdef HAVE_CONFIG_H
 #include <config.h> // This must be the first file included
 #endif
 #include <Config/conf.h>
- 
+
 
 #include <mpi.h>
 
@@ -17,20 +17,20 @@
 #include <data_traits.h>
 
 namespace Loci {
-  
+
   template<class T> class paramRepI : public storeRep {
     entitySet store_domain ;
     T attrib_data ;
 
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, frame_info &fi, const entitySet &en);
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset,hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en);
-    
+
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en) const;
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g,const entitySet &en) const;
-    
+
     int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
-    
+
     void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size );
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size );
 
@@ -61,7 +61,7 @@ namespace Loci {
     virtual int pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq)  ;
-    
+
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
@@ -89,25 +89,25 @@ namespace Loci {
   template<class T> paramRepI<T>::~paramRepI<T>() {}
 
   //**************************************************************************/
-    
+
   template<class T>
-  storeRep *paramRepI<T>::new_store(const entitySet &p) const 
+  storeRep *paramRepI<T>::new_store(const entitySet &p) const
   {
     return new paramRepI<T>(p) ;
   }
-  
+
   template<class T>
-  storeRep *paramRepI<T>::new_store(const entitySet &p, const int* cnt) const 
-    {
-      storeRep* sp = 0 ;
-      cerr << " This method should not be called for a parameter " << endl ;
-      return sp ;
-    }
-  
+  storeRep *paramRepI<T>::new_store(const entitySet &p, const int* cnt) const
+  {
+    storeRep* sp = 0 ;
+    cerr << " This method should not be called for a parameter " << endl ;
+    return sp ;
+  }
+
   //**************************************************************************/
 
-  template<class T> 
-  store_type paramRepI<T>::RepType() const 
+  template<class T>
+  store_type paramRepI<T>::RepType() const
   {
     return PARAMETER ;
   }
@@ -119,9 +119,9 @@ namespace Loci {
   }
 
   //**************************************************************************/
-        
-  template<class T> 
-  std::ostream &paramRepI<T>::Print(std::ostream &s) const 
+
+  template<class T>
+  std::ostream &paramRepI<T>::Print(std::ostream &s) const
   {
     s << '{' << domain() << std::endl ;
     Loci::streamoutput(&attrib_data,1,s) ;
@@ -131,12 +131,12 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> 
-  std::istream &paramRepI<T>::Input(std::istream &s) 
+  template<class T>
+  std::istream &paramRepI<T>::Input(std::istream &s)
   {
     entitySet e ;
     char ch ;
-    
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
       s.putback(ch) ;
@@ -146,13 +146,13 @@ namespace Loci {
       Loci::streaminput(&attrib_data,1,s) ;
       return s ;
     }
-        
+
     s >> e ;
     allocate(e) ;
-        
+
     attrib_data = T() ;
     Loci::streaminput(&attrib_data,1,s) ;
-        
+
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
       std::cerr << "Incorrect Format while reading parameter" << std::endl ;
@@ -161,95 +161,159 @@ namespace Loci {
 
     return s ;
   }
-  template<class T> 
-    frame_info paramRepI<T>::read_frame_info(hid_t group_id) {
+  template<class T>
+  frame_info paramRepI<T>::read_frame_info(hid_t group_id) {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return read_frame_info(group_id, schema_converter()) ;
   }
-  
-  template<class T> 
-    frame_info paramRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
-    warn(true) ;
+
+  template<class T>
+  frame_info paramRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    int is_stat = 0 ;
+    int sz = 0 ;
+    hid_t datatype = H5T_NATIVE_INT ;
+    hid_t dataset = H5Dopen(group_id, "is_stat") ;
+    H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
+    H5Dclose(dataset) ;
+    dataset = H5Dopen(group_id, "vec_size") ;
+    H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
+    H5Dclose(dataset) ;
+    return frame_info(is_stat, sz);
+  }
+  template<class T>
+  frame_info paramRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    hsize_t dimension = 0 ;
+    hid_t dataspace ;
+    hid_t datatype = H5T_NATIVE_INT ;
+    hid_t dataset ;
+    int is_stat = 0 ;
+    int sz = 0 ;
     frame_info fi ;
+    dataset = H5Dopen(group_id, "is_stat") ;
+    H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
+    H5Dclose(dataset) ;
+    dataset = H5Dopen(group_id, "vec_size") ;
+    H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
+    H5Dclose(dataset) ;
+    dataset = H5Dopen(group_id, "second_level") ;
+    dataspace = H5Dget_space(dataset) ;
+    H5Sget_simple_extent_dims(dataspace, &dimension, NULL) ;
+    fi.is_stat = is_stat ;
+    fi.size = sz ;
+    std::vector<int> vint ;
+    int tmp ;
+    H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT, &tmp) ;
+    vint.push_back(tmp) ;
+    fi.second_level = vint ;
+    H5Dclose(dataset) ;
+    H5Sclose(dataspace) ;
     return fi ;
   }
-  template<class T> 
-    frame_info paramRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
-  template<class T> 
-    frame_info paramRepI<T>::write_frame_info(hid_t group_id) {
+  template<class T>
+  frame_info paramRepI<T>::write_frame_info(hid_t group_id) {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return write_frame_info(group_id, schema_converter()) ;
   }
-  
-  template<class T> 
-    frame_info paramRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
-    warn(true) ;
+
+  template<class T>
+  frame_info paramRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
     frame_info fi ;
+    fi.is_stat = 0 ;
+    fi.size = 1 ;
+    if(Loci::MPI_rank == 0 ) {
+      hsize_t dimension = 1 ;
+      int rank = 1 ;
+      hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
+      hid_t datatype = H5T_NATIVE_INT ;
+      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
+      H5Dclose(dataset) ;
+      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
+    }
     return fi ;
   }
-  template<class T> 
-    frame_info paramRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
-    warn(true) ;
+  template<class T>
+  frame_info paramRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
     frame_info fi ;
+    fi.is_stat = 1 ;
+    fi.size = 1 ;
+    int stateSize = 0;
+    typedef data_schema_traits<T> schema_traits ;
+    typename schema_traits::Converter_Type cvtr(attrib_data);
+    stateSize = cvtr.getSize();
+    fi.second_level.push_back(stateSize) ;
+
+    hsize_t dimension = 0 ;
+    hid_t dataspace ;
+    hid_t datatype = H5T_NATIVE_INT ;
+    int rank = 1 ;
+    if(MPI_rank == 0) {
+      dimension = 1 ;
+      dataspace = H5Screate_simple(rank, &dimension, NULL) ;
+      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
+      H5Dclose(dataset) ;
+      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
+      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
+    }
+    rank = 1 ;
+    dimension = 1 ;
+    dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+    hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
+                              dataspace,H5P_DEFAULT) ;
+    hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+    H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &fi.second_level[0]) ;
+    H5Sclose(memspace) ;
+    H5Dclose(dataset) ;
+    H5Sclose(dataspace) ;
+    
     return fi ;
   }
-  
-  
-  template<class T> 
-    DatatypeP paramRepI<T>::getType() {
+
+
+  template<class T>
+  DatatypeP paramRepI<T>::getType() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     return getType(schema_converter()) ;
   }
-  template<class T> 
-    DatatypeP paramRepI<T>::getType(IDENTITY_CONVERTER g) {
+  template<class T>
+  DatatypeP paramRepI<T>::getType(IDENTITY_CONVERTER g) {
     typedef data_schema_traits<T> traits_type;
     return(traits_type::get_type()) ;
   }
-  template<class T> 
-    DatatypeP paramRepI<T>::getType(USER_DEFINED_CONVERTER g) {
+  template<class T>
+  DatatypeP paramRepI<T>::getType(USER_DEFINED_CONVERTER g) {
     typedef data_schema_traits<T> schema_traits ;
     typedef typename schema_traits::Converter_Base_Type dtype;
     typedef data_schema_traits<dtype> traits_type;
     return(traits_type::get_type()) ;
   }
   //**************************************************************************/
-  template<class T> 
-  void paramRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset)
+  template<class T>
+  void paramRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &eset)
   {
-    warn(true) ;
-    /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    
-    entitySet eset, ecommon;
-    Loci::HDF5_ReadDomain(group_id, eset);
-
-    ecommon = eset & user_eset;
-    allocate( ecommon );
-    hdf5read(group_id, schema_converter() );
-    */
+    schema_converter traits_output_type;
+    hdf5read(group_id, dataspace, dataset, dimension, name, traits_output_type, fi, eset) ;
   }
 
   //**************************************************************************/
 
-  template<class T> 
-    void paramRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &eset) const
-    {
-      warn(true) ;
-      /*
-      typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-      
-      Loci::HDF5_WriteDomain(group_id, eset);
-      
-      hdf5write(group_id, schema_converter(), eset);
-      */
-    }
-  
+  template<class T>
+  void paramRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &eset) const
+  {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_output_type;
+    hdf5write(group_id, dataspace, dataset, dimension, name, traits_output_type, eset) ;
+  }
+
   //**************************************************************************/
-  
+
   template<class T> class param : public store_instance {
     typedef paramRepI<T> paramType ;
     T * data ;
@@ -267,10 +331,10 @@ namespace Loci {
     param & operator=(const T &v) { *data = v ; return *this ; }
 
     virtual void notification() ;
-    
+
     T * operator->() { return data ; }
     const T * operator->() const { return data ; }
-    
+
     T * operator&() { return data ; }
     const T * operator &() const { return data ; }
 
@@ -304,12 +368,12 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> param<T>::~param() {}
-    
+
   //**************************************************************************/
 
-  template<class T> 
+  template<class T>
   void param<T>::notification()
-  {  
+  {
     NPTR<paramType> p(Rep());
     if(p!=0) data = p->get_param() ;
     warn(p==0);
@@ -317,19 +381,19 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> 
+  template<class T>
   inline std::ostream & operator<<(std::ostream &s, const param<T> &t)
   { return t.Print(s) ; }
 
   //**************************************************************************/
 
-  template<class T> 
+  template<class T>
   inline std::istream & operator>>(std::istream &s, param<T> &t)
   { return t.Input(s) ; }
 
   //**************************************************************************/
 
-  template<class T> 
+  template<class T>
   class const_param : public store_instance {
     typedef T containerType ;
     typedef paramRepI<T> paramType ;
@@ -339,7 +403,7 @@ namespace Loci {
     const_param(const_param<T> &var) { setRep(var.Rep()) ; }
     const_param(param<T> &var) { setRep(var.Rep()) ; }
     const_param(storeRepP rp) { setRep(rp); }
-    
+
     virtual ~const_param() ;
 
     const_param & operator=(const_param<T> &p)
@@ -351,9 +415,9 @@ namespace Loci {
 
     virtual void notification() ;
     virtual instance_type access() const ;
-        
+
     const T * operator->() const { return data ; }
-    
+
     const T * operator &() const { return data ; }
 
     const T &operator*() const { return *data ; }
@@ -367,7 +431,7 @@ namespace Loci {
     }
 
     entitySet domain() const { return Rep()->domain(); }
-    
+
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
 
@@ -377,18 +441,18 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> 
-  void const_param<T>::notification() 
-  {  
+  template<class T>
+  void const_param<T>::notification()
+  {
     NPTR<paramType> p(Rep());
     if(p!=0) data = p->get_param() ;
     warn(p==0);
   }
-    
+
   //**************************************************************************/
 
-  template<class T> 
-  storeRepP paramRepI<T>::remap(const dMap &m) const 
+  template<class T>
+  storeRepP paramRepI<T>::remap(const dMap &m) const
   {
     param<T> r ;
     r.set_entitySet(m.image(m.domain()&domain())) ;
@@ -398,8 +462,8 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> 
-  void paramRepI<T>::copy(storeRepP &st, const entitySet &context) 
+  template<class T>
+  void paramRepI<T>::copy(storeRepP &st, const entitySet &context)
   {
     param<T> p(st) ;
     attrib_data = *p ;
@@ -410,9 +474,9 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> 
+  template<class T>
   void paramRepI<T>::gather(const dMap &m, storeRepP &st,
-                            const entitySet &context) 
+                            const entitySet &context)
   {
     param<T> p(st) ;
     fatal((context - store_domain) != EMPTY) ;
@@ -421,9 +485,9 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> 
+  template<class T>
   void paramRepI<T>::scatter(const dMap &m, storeRepP &st,
-                             const entitySet &context) 
+                             const entitySet &context)
   {
 
     fatal((context - store_domain) != EMPTY) ;
@@ -434,13 +498,13 @@ namespace Loci {
   }
 
   //**************************************************************************/
- 
-  template <class T> 
-  int paramRepI<T>::pack_size( const entitySet &eset) 
+
+  template <class T>
+  int paramRepI<T>::pack_size( const entitySet &eset)
   {
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
-   
+
     return get_mpi_size( schema_converter(), eset );
   }
 
@@ -449,7 +513,7 @@ namespace Loci {
   template <class T>
   int paramRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
   {
-   
+
     return( sizeof(T) ) ;
   }
 
@@ -462,13 +526,13 @@ namespace Loci {
 
     typename schema_traits::Converter_Type cvtr(attrib_data);
     int arraySize = cvtr.getSize() ;
-   
+
     return(arraySize*sizeof(typename schema_traits::Converter_Base_Type) + sizeof(int));
   }
   //**************************************************************************/
 
-  template <class T> 
-  void paramRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &e ) 
+  template <class T>
+  void paramRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &e )
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
 
@@ -480,19 +544,19 @@ namespace Loci {
   void paramRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position,
                                int outcount )
   {
-    MPI_Pack( &attrib_data, sizeof(T), MPI_BYTE, outbuf, outcount, &position, 
+    MPI_Pack( &attrib_data, sizeof(T), MPI_BYTE, outbuf, outcount, &position,
               MPI_COMM_WORLD) ;
   }
 
   //**************************************************************************/
 
-  template <class T> 
-  void paramRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
+  template <class T>
+  void paramRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf,
                                int &position, int outcount )
   {
     int stateSize;
-    
-    typedef data_schema_traits<T> schema_traits; 
+
+    typedef data_schema_traits<T> schema_traits;
     typedef typename schema_traits::Converter_Base_Type dtype;
 
     int typesize = sizeof(dtype);
@@ -505,25 +569,25 @@ namespace Loci {
     MPI_Pack(&stateSize, 1, MPI_INT, outbuf, outcount,&position,
              MPI_COMM_WORLD);
     int incount =  stateSize*typesize;
-    MPI_Pack(&inbuf[0], incount, MPI_BYTE, outbuf, outcount, &position, 
+    MPI_Pack(&inbuf[0], incount, MPI_BYTE, outbuf, outcount, &position,
              MPI_COMM_WORLD) ;
 
   }
   //**************************************************************************/
 
-  template <class T> 
+  template <class T>
   void paramRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq)  {
 
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
 
     unpackdata( schema_converter(), ptr, loc, size);
-  }  
+  }
 
 
   //**************************************************************************/
-  template <class T> 
-  void paramRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position, 
+  template <class T>
+  void paramRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position,
                                  int &insize)
   {
 
@@ -532,14 +596,14 @@ namespace Loci {
       DatatypeP    atom_type = traits_type::get_type();
       MPI_Datatype datatype  = atom_type->get_mpi_type();
     */
-    MPI_Unpack( inbuf, insize, &position, &attrib_data, sizeof(T), 
+    MPI_Unpack( inbuf, insize, &position, &attrib_data, sizeof(T),
                 MPI_BYTE, MPI_COMM_WORLD) ;
 
   }
 
   //***********************************************************************/
-  template <class T> 
-  void paramRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
+  template <class T>
+  void paramRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf,
                                  int &position, int &insize)
   {
 
@@ -548,12 +612,12 @@ namespace Loci {
     typedef data_schema_traits<T> schema_traits;
     typedef typename schema_traits::Converter_Base_Type dtype;
 
-    MPI_Unpack( inbuf, insize, &position, &stateSize, 1, 
+    MPI_Unpack( inbuf, insize, &position, &stateSize, 1,
                 MPI_INT, MPI_COMM_WORLD) ;
     std::vector<dtype> outbuf(stateSize);
 
     outcount = stateSize*sizeof(dtype);
-    MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, 
+    MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount,
                 MPI_BYTE, MPI_COMM_WORLD) ;
     typename schema_traits::Converter_Type  cvtr( attrib_data );
     cvtr.setState( &outbuf[0], stateSize);
@@ -561,161 +625,106 @@ namespace Loci {
   }
 
   //***********************************************************************/
-  
+
   template<class T> store_instance::instance_type
   const_param<T>::access() const
   { return READ_ONLY; }
 
   //**************************************************************************/
-    
-  template<class T> 
+
+  template<class T>
   inline std::ostream & operator<<(std::ostream &s, const const_param<T> &t)
   { return t.Print(s) ; }
 
   //**************************************************************************/
-  template <class T> 
+  template <class T>
   void paramRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset,hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset) const
-    {
-    warn(true) ;
-    /*
-    typedef data_schema_traits<T> traits_type;
+  {
+    if(dimension != 0) {
+      storeRepP qrep = getRep() ;
+      int rank = 1 ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
 
-    DatatypeP  dtype = traits_type::get_type();
-    hid_t vDatatype = dtype->get_hdf5_type();
-
-    int      rank = 1;
-    hsize_t  dimension = 1;
-
-    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-
-    hid_t cparms   = H5Pcreate (H5P_DATASET_CREATE);
-    hid_t vDataset = H5Dcreate(group_id, "VariableData", vDatatype,
-                               vDataspace, cparms);
-    T data;
-    data = attrib_data;
-
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data);
-
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
-    */
+      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &attrib_data) ;
+      H5Sclose(memspace) ;
+    }
   }
 
   //*********************************************************************/
 
-  template <class T> 
+  template <class T>
   void paramRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset) const
   {
-    warn(true) ;
-    /*
     typedef data_schema_traits<T> schema_traits ;
-    typedef typename schema_traits::Converter_Base_Type dtype;
-
-    dtype *data ;
-
-    //------------------------------------------------------------------------
-    // Collect state data from each object and put into 1D array
-    //------------------------------------------------------------------------
-    T Obj;
-    Obj = attrib_data;
-
-    typename schema_traits::Converter_Type cvtr(Obj);
-    int stateSize  = cvtr.getSize();
-
-    data =  new dtype[stateSize];
-
-    cvtr.getState( data, stateSize);
-
-    //-------------------------------------------------------------------------
-    // Write (variable) Data into HDF5 format
-    //-------------------------------------------------------------------------
-
-    typedef data_schema_traits<dtype> traits_type;
-
-    DatatypeP atom_type = traits_type::get_type() ;
-    hid_t vDatatype = atom_type->get_hdf5_type();
-
-    int rank = 1;
-    hsize_t dimension = stateSize;
-    hid_t vDataspace  = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDataset    = H5Dcreate(group_id, "VariableData", vDatatype, vDataspace,
-                                  H5P_DEFAULT);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-
-    //-----------------------------------------------------------------------
-    // Clean up
-    //-----------------------------------------------------------------------
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
-
-    delete [] data;
-    */
+    if(dimension != 0) {
+      storeRepP qrep = getRep() ;
+      int rank = 1 ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+      typedef typename schema_traits::Converter_Base_Type dtype;
+      dtype* tmp_array = new dtype[dimension] ;
+      int stateSize = 0 ;
+      T tmp = attrib_data;
+      typename schema_traits::Converter_Type cvtr(tmp);
+      cvtr.getState(tmp_array, stateSize) ;
+      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
+      H5Sclose(memspace) ;
+      delete [] tmp_array ;
+    }
   }
 
   //**************************************************************************/
-  template <class T> 
+  template <class T>
   void paramRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, frame_info &fi, const entitySet &en)
-    { 
-    /*
-    hsize_t  dimension;
+  {
+    if(dimension != 0) {
+      storeRepP qrep = getRep() ;
+      int rank = 1 ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+      T* tmp_array = new T[dimension] ;
+      hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
+                          H5P_DEFAULT, tmp_array) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
+      }
+      attrib_data = tmp_array[0] ;
 
-    typedef data_schema_traits<T> traits_type;
-    DatatypeP  dtype = traits_type::get_type();
-
-    hid_t vDatatype  = dtype->get_hdf5_type();
-    hid_t vDataset   = H5Dopen(group_id,"VariableData");
-    hid_t vDataspace = H5Dget_space(vDataset);
-    H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
-
-    H5Dread(vDataset, vDatatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &attrib_data);
-
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
-    */
+      H5Sclose(memspace) ;
+      delete [] tmp_array ;
+    }
   }
 
   //*************************************************************************/
 
-  template <class T> 
+  template <class T>
   void paramRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en)
-    { 
-    /*
-    hsize_t   dimension;
-
+  {
     typedef data_schema_traits<T> schema_traits ;
-    typedef typename schema_traits::Converter_Base_Type dtype;
-
-    dtype *data;
-
-    DatatypeP atom_type = data_schema_traits<dtype>::get_type() ;
-    
-    hid_t vDatatype = atom_type->get_hdf5_type();
-
-    //---------------------------------------------------------------------------
-    // Read the data now ....
-    //---------------------------------------------------------------------------
-    hid_t vDataset   = H5Dopen(group_id,"VariableData");
-    hid_t vDataspace = H5Dget_space(vDataset);
-    H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
-
-    size_t  stateSize;
-    stateSize =  dimension;
-    data      = new dtype[stateSize];
-
-    H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, data);
-
-    typename data_schema_traits<T>::Converter_Type cvtr( attrib_data);
-    cvtr.setState( data, stateSize );
-
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
-
-    delete [] data;
-    */
+    if(dimension != 0) {
+      storeRepP qrep = getRep() ;
+      int rank = 1 ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+      std::vector<int> vint = fi.second_level ;
+      typedef typename schema_traits::Converter_Base_Type dtype;
+      dtype* tmp_array = new dtype[dimension] ;
+      hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
+			  H5P_DEFAULT, tmp_array) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
+      }
+      typename data_schema_traits<T>::Converter_Type cvtr(attrib_data);
+      int bucsize = vint[0] ;
+      cvtr.setState(tmp_array, bucsize) ;
+      H5Sclose(memspace) ;
+      delete [] tmp_array ;
+    }
   }
 
   //***************************************************************************
@@ -723,4 +732,3 @@ namespace Loci {
 }
 
 #endif
-    
