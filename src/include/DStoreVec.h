@@ -27,6 +27,7 @@
 namespace Loci {
 
   using std::hash_map ;
+  using std::vector;
 
   template<class T> class dstoreVecRepI : public storeRep {
 
@@ -43,6 +44,14 @@ namespace Loci {
   void hdf5write( H5::Group group, IDENTITY_CONVERTER c, const entitySet &en ) const;
   void hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en ) const;
 
+  int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
+  int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
+
+  void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size, const entitySet &e ) ;
+  void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size, const entitySet &e ) ;
+
+  void unpackdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int &size, const sequence &seq) ;
+  void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int &size, const sequence &seq) ;
 
   public:
     dstoreVecRepI() {}
@@ -117,7 +126,6 @@ namespace Loci {
         return s ;
       }
       entitySet e ;
-      int sz ;
 
       s >> e ;
       s >> size ;
@@ -245,8 +253,10 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
     sort( vec.begin(), vec.end() );
 
-    for( int i = 0; i < vec.size(); i++)
+    for( int i = 0; i < vec.size(); i++) 
          storeDomain +=  vec[i];
+
+    dispatch_notify() ;
 
     return storeDomain ;
   }
@@ -259,13 +269,10 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
     mutex.lock() ;
 
-    if(size != sz) {
-      if(size != 0) warn(size != sz) ;
-    
-      size = sz ;
-      fatal(sz < 1) ;
-      allocate(store_domain) ;
-    }
+    fatal(sz<1);
+
+    size = sz ;
+    allocate(store_domain) ;
 
     mutex.unlock() ;
 
@@ -274,9 +281,9 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
   //****************************************************************************
       
   template<class T> class dstoreVec : public store_instance {
-    typedef dstoreVecRepI<T>    storeType ;
-	 hash_map<int, std::vector<T> >  *attrib_data;
-    int                         size;
+    typedef dstoreVecRepI<T>     storeType ;
+	 hash_map<int, std::vector<T> > *attrib_data;
+    int                          size;
   public:
     typedef std::vector<T> containerType ;
     dstoreVec() {setRep(new storeType) ;}
@@ -296,6 +303,10 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
 
     void setVecSize(int size) {
       Rep()->set_elem_size(size) ;
+    }
+
+    int getVecSize() {
+       return( Rep()->get_size() );
     }
 
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -392,6 +403,8 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
         }
 		  return newVec;
     }
+
+    int vecSize() const { return size ; }
 		       
     std::vector<T>  operator[](int indx) const {
 	     return( elem(indx) );
@@ -450,19 +463,17 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
   template <class T> 
   void dstoreVecRepI<T>::copy(storeRepP &st, const entitySet &context) 
   {
-   /*
-    const_storeVec<T> s(st) ;
+    const_dstoreVec<T> s(st) ;
 
-    int sz = s.size() ;
+    int sz = s.vecSize() ;
     set_elem_size(sz) ;
     fatal((context - domain()) != EMPTY) ;
 
     FORALL(context,i) {
-      T *p = base_ptr + i*sz ;
+	  attrib_data[i].clear();
       for(int j=0;j<sz;++j)
-        p[j] = s[i][j] ;
+        attrib_data[i].push_back(s[i][j]) ;
     } ENDFORALL ;
-   */
 
   }
 
@@ -472,6 +483,9 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
   void dstoreVecRepI<T>::gather(const Map &m, storeRepP &st, const entitySet &context) 
   {
     const_dstoreVec<T> s(st) ;
+
+    fatal((m.image(context) - s.domain()) != EMPTY) ;
+    fatal((context - domain()) != EMPTY) ;
 
     FORALL(context,i) {
       attrib_data[i] = s[m[i]];
@@ -486,83 +500,245 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
   {
     const_dstoreVec<T> s(st) ;
 
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((m.image(context) - domain()) != EMPTY) ;
+
     FORALL(context,i) {
       attrib_data[m[i]] = s[i];
     } ENDFORALL ;
   }
 
   //****************************************************************************
-
   template <class T> 
-  int dstoreVecRepI<T>::pack_size( const entitySet &e) 
+  int dstoreVecRepI<T>::pack_size( const entitySet &eset) 
   {
-    return (sizeof(T)*e.size()*size);
+
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    return get_mpi_size( traits_type, eset );
   }
-  
+
   //****************************************************************************
 
   template <class T> 
-  void dstoreVecRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &e ) 
+  int dstoreVecRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset) 
   {
-      
-/*
-     T     *buf = NULL;
-     int   numBytes, numentity = e.size();
+    return (sizeof(T)*eset.size()*size);
+  }
+  
+  //****************************************************************************
+  template <class T> 
+  int dstoreVecRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset) 
+  {
 
-     numBytes =  size*numentity*sizeof(T);
-     buf      =  (T *)malloc( numBytes);
-     fatal( buf == NULL );
-         
-     entitySet :: const_iterator   ci;
-     hash_map<int,std::vector<T> >  iter;
+    entitySet                :: const_iterator ci;
+    std::hash_map<int,std::vector<T> > :: const_iterator iter;
+    int       arraySize =0, numContainers = 0;
+    std::vector<T> avec;
 
-     int indx = 0;
-     for( ci = e.begin(); ci != e.end(); ++ci){
-         iter = attrib_data.find(ii);
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         iter = attrib_data.find(*ci);
          if( iter != attrib_data.end() ) {
-             newVec = iter->second;
-             for( j = 0; j < size; j++)
-                  buf[indx++] =  newVec[j];
+             avec = iter->second;
+             for( int ivec = 0; ivec < size; ivec++){
+                  Memento<T> memento( avec[ivec] );
+                  arraySize += memento.getSize();
+             }
          }
+    }
+    numContainers =  size*eset.size();
+
+    typedef hdf5_schema_converter_traits<T> converter_traits; 
+
+    return(arraySize*sizeof(typename converter_traits::memento_type) +
+           numContainers*sizeof(int) );
+
+  }
+  //****************************************************************************
+  template <class T> 
+  void dstoreVecRepI<T>::pack(void * ptr, int &loc, int &size, const entitySet &eset ) 
+  {
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    packdata( traits_type, ptr, loc, size, eset);
+  }
+  //****************************************************************************
+
+  template <class T> 
+  void dstoreVecRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position, 
+                                   int outcount, const entitySet &eset ) 
+  {
+     int incount = size*eset.size();
+
+     T *inbuf =  new T[size];
+         
+     vector<T>   avec;
+     entitySet :: const_iterator   ci;
+     hash_map<int,std::vector<T> >::const_iterator iter;
+
+     for( ci = eset.begin(); ci != eset.end(); ++ci){
+         iter = attrib_data.find(*ci);
+         if( iter != attrib_data.end() ) {
+             avec = iter->second;
+             for( int j = 0; j < size; j++)
+                  inbuf[j] =  avec[j];
+             MPI_Pack( inbuf, size*sizeof(T), MPI_BYTE, outbuf, outcount, &position, 
+                       MPI_COMM_WORLD) ;
+         } 
      }
 
-     MPI_Pack( buf, numBytes, MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD);
+     delete [] inbuf;
+  }
 
-     free( buf );
-*/
+  //***************************************************************************
+  template <class T> 
+  void dstoreVecRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, int &position, 
+                                   int outcount, const entitySet &eset ) 
+  {
+    entitySet :: const_iterator   ci;
+
+    hash_map<int,std::vector<T> >::const_iterator iter;
+
+//---------------------------------------------------------------------------------------
+// Get the maximum size of container 
+//---------------------------------------------------------------------------------------
+
+    vector<T>  avec;
+    int stateSize, maxStateSize=0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         iter = attrib_data.find(*ci);
+         if( iter != attrib_data.end() ) {
+             avec = iter->second;
+             for( int ivec = 0; ivec < size; ivec++){
+                  Memento<T> memento( avec[ivec] );
+                  stateSize = memento.getSize();
+                  maxStateSize = max( maxStateSize, stateSize);
+             }
+         }
+    }
+
+    typedef hdf5_schema_converter_traits<T> converter_traits; 
+    typename converter_traits::memento_type *inbuf;
+
+    int typesize = sizeof(typename converter_traits::memento_type);
+    inbuf = new typename converter_traits::memento_type[maxStateSize];
+
+    int incount;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+         iter = attrib_data.find(*ci);
+         if( iter != attrib_data.end() ) {
+             avec = iter->second;
+             for( int ivec = 0; ivec < size; ivec++){
+                  Memento<T> memento( avec[ivec] );
+                  memento.getState( inbuf, stateSize);
+
+                  incount =  sizeof(int);
+                  MPI_Pack(&stateSize,incount, MPI_BYTE, outbuf, outcount,&position,MPI_COMM_WORLD);
+
+                  incount =  stateSize*typesize;
+                  MPI_Pack(inbuf, incount, MPI_BYTE, outbuf, outcount, &position, MPI_COMM_WORLD) ;
+             }
+         }
+    }
+
+    delete [] inbuf;
+  }
+
+  //***************************************************************************
+
+  template <class T> 
+  void dstoreVecRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq)
+  {
+    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    unpackdata( traits_type, ptr, loc, size, seq);
+
   }
 
   //***************************************************************************
   
   template <class T> 
-  void dstoreVecRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq)
+  void dstoreVecRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position, 
+                                     int &insize, const sequence &seq)
   {
-/*
-    Loci :: int_type   indx, jndx;
-    int                numentity, numBytes;
-    T                  *buf;
 
-    for(int i = 0; i < seq.num_intervals(); ++i) {
-        numentity =  abs(seq[i].second - seq[i].first) + 1; 
-        numBytes  =  size*numentity*sizeof(T);
-        buf       =  (T *) malloc( numBytes );
-        MPI_Unpack(ptr, size, &loc, buf, numBytes, MPI_BYTE, MPI_COMM_WORLD) ;
+    T  newObj;
+    T  *outbuf = new T[size];
 
-        jndx = 0;
-        if(seq[i].first > seq[i].second) {
-	        for(indx = seq[i].first; indx >= seq[i].second; --indx) {
-               attrib_data[indx] =  buf[size*jndx];
-               jndx++;
-           }
-        } else {
-	        for(indx = seq[i].first; indx <= seq[i].second; ++indx){
-               attrib_data[indx] =  buf[size*jndx];
-               jndx++;
-           }
-        }
-        free(buf);
+    sequence :: const_iterator ci;
+    int   outcount;
+
+    if( size == 0) {
+        cout << "Error: Size of vector is unknown " << endl;
+        return;
     }
-*/
+
+    for( ci = seq.begin(); ci != seq.end(); ++ci) {
+        if( attrib_data[*ci].size() < size) {
+            attrib_data[*ci].clear();
+            for( int i = 0; i < size; i++) 
+                 attrib_data[*ci].push_back(newObj);
+        }
+        outcount = size*sizeof(T);
+        MPI_Unpack( inbuf, insize, &position, outbuf, outcount, 
+                    MPI_BYTE, MPI_COMM_WORLD) ;
+        for( int i = 0; i < size; i++) 
+             attrib_data[*ci][i] = outbuf[i];
+    }
+
+    delete [] outbuf;
+  }
+
+  //***************************************************************************
+  template <class T> 
+  void dstoreVecRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, int &position, 
+                                 int &insize, const sequence &seq)
+  {
+
+    sequence :: const_iterator ci;
+
+//-----------------------------------------------------------------------------
+// Get the sum of each object size and maximum size of object in the
+// container for allocation purpose
+//-----------------------------------------------------------------------------
+    hash_map<int,vector<T> >::const_iterator   iter;
+
+    int  stateSize, outcount;
+
+    typedef hdf5_schema_converter_traits<T> converter_traits;
+    typename converter_traits::memento_type *outbuf;
+    int typesize = sizeof(typename converter_traits::memento_type);
+
+    if( size == 0) {
+        cout << "Error: Size of vector is unknown " << endl;
+        return;
+    }
+
+    T  newObj;
+    for( ci = seq.begin(); ci != seq.end(); ++ci) {
+        if( attrib_data[*ci].size() < size) {
+            attrib_data[*ci].clear();
+            for( int i = 0; i < size; i++) 
+                 attrib_data[*ci].push_back(newObj);
+        }
+        for( int i = 0; i < size; i++) {
+             outcount = sizeof(int);
+             MPI_Unpack(inbuf, insize, &position, &stateSize, outcount, MPI_BYTE, MPI_COMM_WORLD) ;
+
+             outbuf = new typename converter_traits::memento_type[stateSize];
+
+             outcount = stateSize*typesize;
+             MPI_Unpack(inbuf, insize, &position, outbuf, outcount, MPI_BYTE, MPI_COMM_WORLD) ;
+
+             Memento<T> memento( attrib_data[*ci][i] );
+             attrib_data[*ci][i] = memento.setState( outbuf, stateSize);
+             delete [] outbuf;
+        }
+    }
+
   }
 
   //***************************************************************************
@@ -664,13 +840,13 @@ void dstoreVecRepI<T>::allocate(const entitySet &ptn)
     dimension[0] = 1;
 
     H5::DataType  fdatatype  = H5::PredType::NATIVE_INT;
-	   H5::DataSet   fdataset   = group.openDataSet( "ContainerSize");
-	   H5::DataSpace fdataspace = fdataset.getSpace();
+	 H5::DataSet   fdataset   = group.openDataSet( "ContainerSize");
+	 H5::DataSpace fdataspace = fdataset.getSpace();
 
-	   fdataspace.getSimpleExtentDims( dimension, NULL);
-	   int *vbucket = new int[dimension[0]];
+	 fdataspace.getSimpleExtentDims( dimension, NULL);
+	 int *vbucket = new int[dimension[0]];
 
-	   fdataset.read( vbucket, H5::PredType::NATIVE_INT );
+	 fdataset.read( vbucket, H5::PredType::NATIVE_INT );
     int maxStateSize = *max_element( vbucket, vbucket + (int)dimension[0] );
 
    //---------------------------------------------------------------------------
