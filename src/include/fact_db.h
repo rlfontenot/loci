@@ -37,6 +37,19 @@ namespace Loci {
       store<entitySet> recv_entities ;
       distribute_info() {} ;
     } ;
+    // stuff for communication 
+    struct proc_details {
+      int processor ;
+      entitySet send_set ;
+      sequence recv_set ;
+    } ;
+    
+    struct comm_info {
+      variable v ;
+      std::vector<proc_details> proc_info ;
+    } ;
+    // std::list<comm_info> clist ;
+    //std::list<comm_info> plist ;
     
     typedef CPTR<time_info> time_infoP ;
     typedef CPTR<distribute_info> distribute_infoP ;
@@ -133,8 +146,13 @@ namespace Loci {
     void create_fact(std::string vname, store_instance &si)
       { create_fact(variable(vname),si) ; }
     
+    /* 
+    void put_commun_info(std::list<comm_info> cp) ;
+    std::list<comm_info> get_commun_info() ;
     
-    
+    void put_precommun_info(std::list<comm_info> cp) ;
+    std::list<comm_info> get_precommun_info() ;
+    */
     void update_fact(variable v, storeRepP st) ;
     void update_fact(std::string vname, storeRepP st)
       { update_fact(variable(vname),st) ;}

@@ -10,7 +10,6 @@
 #ifdef PTHREADS
 sem_t thread_barrier, barrier_ack ;
 #endif
-
 //namespace {
   struct exec_info  {
     Loci::executeP exec_routine;
@@ -166,7 +165,7 @@ namespace Loci {
   void execute_destroy_threads::Print(std::ostream &s) const {
     s << "destroy threads" << std::endl ;
   }
-
+  
   void execute_thread_sync::execute(fact_db &facts) {
 #ifdef TRYOUT
     static bool in_barrier = false ;

@@ -22,16 +22,16 @@ namespace Loci {
         std::vector<int> children ;
         time_info() { level_name = "*"; parent_id = 0 ; }
         time_info(const std::string &name, int parent)
-          { level_name = name; parent_id = parent ; }
+	{ level_name = name; parent_id = parent ; }
       } ;
       std::vector<time_info> time_db ;
       int add_level(const std::string &lname,int level) ;
       time_hierarchy()
-        { time_db.push_back(time_info()) ; }
+      { time_db.push_back(time_info()) ; }
       int parent(int i) const{ return time_db[i].parent_id ; }
       const std::string &name(int i) const { return time_db[i].level_name ; }
       const std::vector<int> get_children(int i) const
-        { return time_db[i].children; } ;
+      { return time_db[i].children; } ;
     } ;
   private:
     static time_hierarchy *thp ;
@@ -108,7 +108,7 @@ namespace Loci {
       variable drop_priority() const ;
       variable new_offset(int o) const ;
       int ident() const { return variable::vdb->vars.get_id(*this) ; }
-    };
+    } ;
   private:
     friend class variable::info ;
     struct variable_db {

@@ -20,7 +20,7 @@ namespace Loci {
         rule_seq.push_back(*ri) ;
     }
   }
-        
+  
   rule make_super_rule(variableSet sources, variableSet targets,
                        variable cond) {
     FATAL(targets == EMPTY) ;

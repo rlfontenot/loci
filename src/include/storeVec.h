@@ -1468,7 +1468,7 @@ namespace Loci {
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
-    return s.Rep() ;
+     return s.Rep() ;
   }
   
   template<class T> void multiStoreRepI<T>::copy(storeRepP &st,

@@ -398,6 +398,9 @@ namespace Loci {
     constraint my_entities ;
     entitySet re, temp;
     entitySet::const_iterator ei, ti ;
+    std::list<fact_db::comm_info> plist ;
+    plist = facts.get_precommun_info() ;
+    std::vector<fact_db::proc_details> pvec ;
     if(facts.isDistributed()) {  
       int **send_buffer, **recv_buffer ;
       int *recv_size, *send_size ;
@@ -459,6 +462,7 @@ namespace Loci {
       for(k = 0; k < d->recv_neighbour.size(); ++k) {      
 	if((recv_flag == 1) && (recv_size[k] > 0)) {
 	  for(int i = 0 ; i < recv_size[k]; ++i) {
+	    
 	    re += d->g2l[recv_buffer[k][i]] ;
 	  }
 	}
@@ -560,7 +564,69 @@ namespace Loci {
     return re ;
   }
 
+  void print_global(entitySet e, fact_db &facts) {
+    MPI_Status *status ;
+    MPI_Request *recv_request ;
+    int MAX = 100 ;
+    store<int> is ;
+    Map l2g ;
+    entitySet::const_iterator ti ;
+    fact_db::distribute_infoP d = new fact_db::distribute_info ;
+    d = facts.get_distribute_info() ;
+    l2g = facts.get_variable("l2g") ;
+	
+    if(facts.isDistributed()) {  
+      if(d->myid == 0) {
+	entitySet re ;
+	int **recv_buffer ;
+	int *recv_size ;
+	int k = 0 ;
+	for(ti = e.begin(); ti != e.end(); ++ti)
+	  re += l2g[*ti] ;
+	recv_size = new int[MPI_processes-1] ;
+	recv_buffer = new int*[MPI_processes-1] ;
+	for(int i = 0; i < MPI_processes-1; ++i)
+	  recv_buffer[i] = new int[MAX] ;
+	recv_request = (MPI_Request *) malloc((MPI_processes-1) * sizeof(MPI_Request) ) ;
+	status = (MPI_Status *) malloc((MPI_processes-1) * sizeof(MPI_Status) ) ;
+	
+	for(k = 0; k < MPI_processes-1; k++) 
+	  MPI_Irecv(&recv_buffer[k][0],MAX,MPI_INT, k+1,1, MPI_COMM_WORLD, &recv_request[k] );  
+	
+	MPI_Waitall(MPI_processes-1, recv_request, status) ;
+	
+	for(k = 0; k < MPI_processes-1; ++k)
+	  MPI_Get_count(&status[k], MPI_INT, &recv_size[k]) ;
+	
+	for(k = 0; k < MPI_processes-1; ++k) {      
+	  for(int i = 0 ; i < recv_size[k]; ++i) {
+	    re += recv_buffer[k][i] ;
+	  }
+	}
+	cout << "   " << re << endl ; 
+	delete [] recv_size ;
+	delete [] recv_buffer ;
+	
+      }
+      else {
+	int *send_buffer;
+	int send_size ;
 
+	entitySet temp;
+	send_size = e.size() ;
+	send_buffer = new int[send_size] ;
 
+	for(ti = e.begin(); ti != e.end(); ++ti)
+	  temp += l2g[*ti] ;
+	int j = 0 ;
+	for(ti = temp.begin(); ti != temp.end(); ++ti) {
+	  send_buffer[j] = *ti ;
+	  ++j ;
+	}
+	MPI_Send(&send_buffer[0], send_size, MPI_INT, 0, 1, MPI_COMM_WORLD) ;
+	
+	delete [] send_buffer ;
+      } 
+    }
+  }
 }
-  

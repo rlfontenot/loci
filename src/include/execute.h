@@ -31,7 +31,7 @@ namespace Loci {
     { if(emodule != 0) elist.push_back(emodule) ; }
     int size() const { return elist.size() ; }
   };
-
+    
   class execute_sequence : public execute_modules {
     std::vector<executeP> elist ;
   public:

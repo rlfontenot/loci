@@ -172,8 +172,12 @@ namespace Loci {
       if(srp->domain() == EMPTY) {
         variableSet aliases = facts.get_aliases(*vi) ;
         entitySet all_requests ;
-        for(vii=aliases.begin();vii!=aliases.end();++vii)
-          all_requests += facts.get_variable_requests(*vii) ;
+        for(vii=aliases.begin();vii!=aliases.end();++vii) {
+	  if(facts.isDistributed())
+	    all_requests += facts.variable_existence(*vii) ;
+	  else 
+	    all_requests += facts.get_variable_requests(*vii) ;
+	}
         srp->allocate(all_requests) ;
       }
     }

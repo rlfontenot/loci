@@ -14,7 +14,6 @@
 #include <Tools/intervalSet.h>
 #include <algorithm>
 #include <functional>
-
 namespace Loci {
 
   class Map ;
@@ -320,6 +319,12 @@ namespace Loci {
 	MPI_Unpack(ptr, size, &loc, &base_ptr[indx], t * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
       }
     }
+    /*
+    for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) {
+      MPI_Unpack(ptr, size, &loc, &base_ptr[*si], sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
+      cout <<"   unpack  si = " << *si  << "  " << base_ptr[*si] << endl ;
+    }
+    */
   }  
 }
 

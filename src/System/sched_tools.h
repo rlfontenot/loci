@@ -66,10 +66,33 @@ namespace Loci {
     void existential_analysis(fact_db &facts) ;
     executeP execution_schedule(fact_db &facts, int nth) ;
   } ;
-    
-
-
+  struct proc_details {
+    int processor ;
+    entitySet send_set ;
+    sequence recv_set ;
+  } ;
+  
+  struct comm_info {
+    variable v ;
+    std::vector<proc_details> proc_info ;
+  } ;
+  
+  class execute_postcomm : public execute_modules {
+    std::list<comm_info> comm_list ;
+    sequence exec_sequence ;
+  public:
+    execute_postcomm(std::list<comm_info> clist , sequence seq, fact_db &facts) ; 
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+  
+  class execute_precomm : public execute_modules {
+    std::list<comm_info> comm_list ;
+    sequence exec_sequence ;
+  public:
+    execute_precomm(std::list<comm_info> plist , sequence seq, fact_db &facts) ; 
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ; 
 }
-
-//#define VERBOSE
 #endif
