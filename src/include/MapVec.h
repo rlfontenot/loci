@@ -432,7 +432,6 @@ namespace Loci {
     MapVec<M> s ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-      
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
     
@@ -442,9 +441,14 @@ namespace Loci {
                                               const entitySet &context)  {
     fatal((context-store_domain) != EMPTY) ;
     fatal((image(context)-m.domain()) != EMPTY) ;
+    entitySet dom = m.domain() ;
     FORALL(context,i) {
-      for(int j=0;j<M;++j)
-        base_ptr[i][j] = m[base_ptr[i][j]] ;
+      for(int j=0;j<M;++j) {
+	if(dom.inSet(base_ptr[i][j]))
+	   base_ptr[i][j] = m[base_ptr[i][j]] ;
+	else
+	  base_ptr[i][j] = -1 ;
+      }
     } ENDFORALL ;
   }
   template<int M> void MapVecRepI<M>::copy(storeRepP &st,
@@ -471,7 +475,7 @@ namespace Loci {
   template<int M> void MapVecRepI<M>::scatter(const Map &m, storeRepP &st,
                                            const entitySet &context)  {
     const_MapVec<M> s(st) ;
-    fatal(base_ptr == 0) ;
+    fatal((base_ptr == 0) &&(context != EMPTY)) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
     FORALL(context,i) {

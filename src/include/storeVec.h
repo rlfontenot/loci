@@ -1617,6 +1617,8 @@ namespace Loci {
   
   
   template <class T> void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    if(base_ptr == 0)
+      return ;
     for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
       MPI_Unpack(ptr, size, &loc, &base_ptr[*si][0], (base_ptr[*si+1] - base_ptr[*si]) * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
     }
