@@ -133,6 +133,43 @@ namespace Loci {
     return name ;
   }
 
+	rule_implP rule_impl::add_namespace(const string& n) const {
+#ifndef __GNUG__
+std::string __PRETTY_FUNCTION__("rule_impl::add_namespace(const string&) const");
+#endif
+		cout << __PRETTY_FUNCTION__ << ": " << n << endl;
+		rule_implP with_namespace = new_rule_impl();
+		variableSet vars = with_namespace->get_var_list() ;
+		std::map<variable,variable> new_vars;
+		cout << "------------------------------------------------" << endl ;
+		for(variableSet::variableSetIterator i=vars.begin();i!=vars.end();++i) {
+			new_vars[*i] = i->add_namespace(n);
+			cout << *i << ": " ;
+			vector<string> names = i->get_namespace();
+			cout << names.size() << ": ";
+			for(vector<string>::iterator j = names.begin();j!=names.end();++j) {
+				cout << *j << ": ";
+			}
+			cout << endl;
+		}
+		cout << "------------------------------------------------" << endl ;
+		
+		with_namespace->rename_vars(new_vars);
+		cout << "------------------------------------------------" << endl ;
+		for(variableSet::variableSetIterator i=with_namespace->get_var_list().begin();i!=with_namespace->get_var_list().end();++i) {
+			cout << *i << ": " ;
+			vector<string> names = i->get_namespace();
+			cout << names.size() << ": ";
+			for(vector<string>::iterator j = names.begin();j!=names.end();++j) {
+				cout << *j << ": ";
+			}
+			cout << endl;
+		}
+		cout << "------------------------------------------------" << endl ;
+		return with_namespace ;
+	}
+
+	
   namespace {
     inline void fill_descriptors(set<vmap_info> &v, const exprList &in) {
             
@@ -964,7 +1001,6 @@ variableSet rule_impl::get_var_list() {
     for(global_rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i) 
       add_rule(*i) ;
   }
-
 }
 
 
