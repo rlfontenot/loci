@@ -2,6 +2,7 @@
 #include <constraint.h>
 #include <Tools/stream.h>
 #include <Tools/debugger.h>
+#include <DStore.h>
 
 #include <typeinfo>
 
@@ -23,6 +24,7 @@ using std::make_pair ;
 namespace Loci {
   extern int MPI_processes ;
   extern int MPI_rank ;
+  extern fact_db *exec_current_fact_db;
 
   fact_db::fact_db() {
     constraint EMPTY ;
@@ -35,6 +37,7 @@ namespace Loci {
     for(int i = 0; i < MPI_processes; ++i) {
       init_ptn.push_back(EMPTY) ;
     }
+    exec_current_fact_db = this;
   }
 
   fact_db::~fact_db() {}
@@ -329,46 +332,304 @@ namespace Loci {
     return s ;
   }
 
-  void fact_db::write_hdf5(const char *filename){
+  void fact_db::write_hdf5(const char *fname){
     hid_t  file_id, group_id;
+    char   filename[500], str[100];
+    std::map<variable, fact_info>::const_iterator vmi ;
+
+    strcpy(filename, fname);
+    strcat( filename, "_p");
+    sprintf( str, "%d", Loci::MPI_rank);
+    strcat( filename, str);
+    strcat( filename, ".hdf5");
+
     file_id =  H5Fcreate( filename, H5F_ACC_TRUNC,
                           H5P_DEFAULT, H5P_DEFAULT);
-    std::map<variable, fact_info>::const_iterator vmi ;
+
+    // Write Processor information ....
+    hsize_t  dimension = 2;
+    int      ibuf[]    = {0,1};
+    int      rank      = 1;
+    group_id         = H5Gcreate(file_id, "ProcessorID", 0);
+    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
+    hid_t vDatatype  = H5T_NATIVE_INT;
+    hid_t vDataset   = H5Dcreate(group_id, "Processor", vDatatype, vDataspace,
+                                  H5P_DEFAULT);
+    ibuf[0] = Loci::MPI_rank;
+    ibuf[1] = Loci::MPI_processes;
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, ibuf);
+    H5Sclose( vDataspace );
+    H5Dclose( vDataset   );
+
+    entitySet eset;
+    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
+      variable v=vmi->first;
+      storeRepP store_Rep = get_variable(v);
+      eset += store_Rep->domain();
+    }
+
     for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
       variable v=vmi->first;
       storeRepP store_Rep = get_variable(v);
       entitySet en=store_Rep->domain();
       std::string groupname = (v.get_info()).name;
-      cout<<"Write "<<groupname<<" to HDF5 file "<<endl;
       group_id = H5Gcreate(file_id, groupname.c_str(), 0);
       (store_Rep->getRep())->writehdf5(group_id, en);
     }
     H5Fclose(file_id);
     H5Gclose(group_id);
+
   }
 
-  void fact_db::read_hdf5(const char *filename){
-    hid_t  file_id, group_id;
-    file_id = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+  void fact_db::read_hdf5(const char *fname){
+    hid_t   group_id, group_id1, group_id2;
+    char    filename[500], str[100];
+    hid_t  *file_id;
+
+    entitySet  fileSet;
+    entitySet   eset, myLocalEntity, myGlobalEntity;
+    entitySet::const_iterator ei, ci;
+
+    file_id = new hid_t[Loci::MPI_processes];
+
+    //-----------------------------------------------------------------
+    // First know how many files, the previous execution created. This
+    // is stored in the in the files. and since there was atleast one
+    // processors, get this information from processor 0;
+    //-----------------------------------------------------------------
+    int     iproc, rank=1, ibuf[2], maxFiles;
+    hsize_t dimension = 2;
+    hid_t   vDataspace, vDatatype, vDataset;
+
+
+    strcpy(filename, fname);
+    if( Loci::MPI_rank == 0) {
+      iproc = 0;
+      strcat( filename, "_p");
+      sprintf( str, "%d", iproc);
+      strcat( filename, str);
+      strcat( filename, ".hdf5");
+      file_id[0] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+      vDataspace = H5Screate_simple(rank, &dimension, NULL);
+      vDatatype  = H5T_NATIVE_INT;
+      group_id   = H5Gopen(file_id[0], "/ProcessorID");
+      vDataset   = H5Dopen( group_id, "Processor");
+      H5Dread( vDataset, vDatatype, H5S_ALL, vDataspace, H5P_DEFAULT, ibuf);
+
+      H5Sclose( vDataspace );
+      H5Dclose( vDataset   );
+      H5Fclose( file_id[0] );
+      H5Gclose(group_id);
+
+      maxFiles = ibuf[1];
+    }
+
+    //-----------------------------------------------------------------
+    // Now decide which file(s) I can read from the pool of files, If
+    // there are more processors than number of files, then everyone
+    // can read only one file, otherwise some processors will read
+    // more files than other, which can create redundant entities on
+    // the processors, which need to be migrated to other processor.
+    //-----------------------------------------------------------------
+
+    if( Loci::MPI_processes > 1)
+        MPI_Bcast( &maxFiles, 1, MPI_INT, 0, MPI_COMM_WORLD );
 
     std::map<variable, fact_info>::const_iterator vmi ;
-    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
-      variable v=vmi->first;
-      storeRepP store_Rep = get_variable(v)->getRep();
-      std::string groupname = (v.get_info()).name;
-      cout<<"Read "<<groupname<<" from HDF5 file "<<endl;
-      if(H5Gopen(file_id,groupname.c_str())>0){
-        group_id = H5Gopen(file_id, groupname.c_str());
-        entitySet dom = store_Rep->domain() ;
-        store_Rep->readhdf5(group_id, dom);
-        update_fact(v,store_Rep);
-      }
-      else
-        cerr<<("Warning: variable \""+groupname+"\" is not found in file \""+filename+"\"")<<endl;
+    for( int iproc = Loci::MPI_rank; iproc < maxFiles; iproc+=Loci::MPI_processes) {
+      strcpy(filename, fname);
+      strcat( filename, "_p");
+      sprintf( str, "%d", iproc);
+      strcat( filename, str);
+      strcat( filename, ".hdf5");
+      file_id[iproc] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
     }
-    H5Fclose(file_id);
-    H5Gclose(group_id);
+
+    Loci::fact_db::distribute_infoP d =
+        Loci::exec_current_fact_db->get_distribute_info() ;
+
+
+    entitySet usr_eset, currdom, localdom;
+    Map       lg, currg2l, currl2l;
+
+    if( isDistributed() ) currg2l = d->g2l;
+
+    std::set<string>  donotRead;
+    donotRead.insert("EMPTY");
+    donotRead.insert("UNIVERSE");
+    donotRead.insert("my_entities");
+    donotRead.insert("l2g");
+
+    map<string,entitySet>  gsetRead;
+
+    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
+        variable v=vmi->first;
+        std::string vname = (v.get_info()).name;
+        if( donotRead.find(vname) != donotRead.end()) continue;
+     
+        storeRepP store_Rep = get_variable(v)->getRep();
+        currdom = EMPTY;
+        std::string groupname = vname;
+        for(int iproc=Loci::MPI_rank; iproc < maxFiles; iproc+=Loci::MPI_processes) {
+            group_id1 = H5Gopen(file_id[iproc], "l2g");
+            group_id2 = H5Gopen(file_id[iproc], groupname.c_str() );
+            if( group_id1 > 0 && group_id2 > 0) {
+                // Read the domain of the data. It is written with local numbering
+                HDF5_ReadDomain(group_id2, eset);
+
+                // Get the local->global numbering written in the file ..
+                HDF5_Local2Global(group_id1, eset, lg);
+
+                // We might have different global to local numbering in this run.
+                // convert the global number to local number. and if the local number
+                // is not assigned, use the global number for this run.
+                for( ci = eset.begin(); ci != eset.end(); ++ci) {
+                     gsetRead[vname] += lg[*ci];
+                     if( currg2l.domain().inSet(lg[*ci]) )
+                         currdom += currg2l[lg[*ci]];
+                     else
+                         currdom += lg[*ci];
+                }
+                H5Gclose(group_id1);
+                H5Gclose(group_id2);
+            }
+        }
+        store_Rep->allocate(currdom) ;
+        for(int iproc=Loci::MPI_rank; iproc < maxFiles; iproc+=Loci::MPI_processes) {
+          group_id1 = H5Gopen(file_id[iproc], "l2g");
+          group_id2 = H5Gopen(file_id[iproc], groupname.c_str() );
+
+          if( group_id1 > 0 && group_id2 > 0) {
+            storeRepP tmpStore_Rep = store_Rep->new_store(usr_eset);
+            localdom = ~EMPTY;
+            tmpStore_Rep->readhdf5(group_id2, localdom);
+            localdom = tmpStore_Rep->domain();
+            HDF5_Local2Global(group_id1, localdom, lg);
+            currl2l.allocate( localdom ); // local-local mapping from previous to current
+            for( ci = localdom.begin(); ci != localdom.end(); ++ci) {
+                if( currg2l.domain().inSet(lg[*ci]) )
+                    currl2l[*ci] = currg2l[lg[*ci]];
+                else
+                    currl2l[*ci] = lg[*ci];
+            }
+            tmpStore_Rep = tmpStore_Rep->remap( currl2l );
+            store_Rep->copy( tmpStore_Rep, tmpStore_Rep->domain());
+            H5Gclose(group_id1);
+            H5Gclose(group_id2);
+          }
+        }
+        update_fact(v,store_Rep);
+    }
+
+    for( int iproc = Loci::MPI_rank; iproc < maxFiles; iproc+=Loci::MPI_processes) 
+        H5Fclose(file_id[iproc]);
+
+    delete [] file_id;
+
+    if( Loci::MPI_processes == 1 || isDistributed() == 0) return;
+
+    Map g2l, l2g;
+    l2g = Loci::exec_current_fact_db->get_variable("l2g");
+    g2l = d->g2l;
+    myLocalEntity = d->my_entities;
+
+    for( ei = myLocalEntity.begin(); ei != myLocalEntity.end(); ++ei)
+        myGlobalEntity += l2g[*ei];
+
+    //----------------------------------------------------------------
+    // Now we are ready to allocate appropriate entities to each 
+    // processors. Some of the entities might be read already and 
+    // some will be extracted through redundant array.
+    //----------------------------------------------------------------
+    std::vector<int>  redundantSize(Loci::MPI_processes),
+                      globalRedundant(Loci::MPI_processes),
+                      displ(Loci::MPI_processes),
+                      unpackSize(Loci::MPI_processes);
+ 
+    std::vector<int>  isendbuf;
+    std::vector<unsigned char> packbuf, unpackbuf;
+
+    for(vmi=fmap.begin();vmi!=fmap.end();++vmi) {
+        variable v=vmi->first;
+        std::string vname = (v.get_info()).name;
+        if( donotRead.find(vname) != donotRead.end()) continue;
+
+
+        storeRepP store_Rep = get_variable(v)->getRep();
+        localdom = store_Rep->domain() & myLocalEntity;
+
+        // get the global entity of the container
+
+        // distribution will set the appropriate entities on this
+        // processor. So find the redundant entities on this processor
+        // which need to be migrated to other processor.
+
+        entitySet myGlobalRedundant = gsetRead[vname] - myGlobalEntity;
+        // Let everyone know that global entities each one sending
+        int  numsend  =  myGlobalRedundant.size();
+        MPI_Allgather( &numsend, 1, MPI_INT, &redundantSize[0], 1, 
+                       MPI_INT, MPI_COMM_WORLD);
+
+        int indx = 0;
+        isendbuf.resize(numsend+1);
+        for(ei=myGlobalRedundant.begin(); ei != myGlobalRedundant.end(); ++ei)
+            isendbuf[indx++] = *ei;
+
+
+        // All processor will be sending their "redundant entities". collect
+        // all of them on each processor. Every processor will accept, if
+        // the entity in the "redundant buffer" belongs to the processor,
+        // otherwise, it will reject them..
+        indx = 0;
+        int  numTotal = 0;
+        for( int i = 0; i < Loci::MPI_processes; i++) {
+            displ[i]    = indx;
+            indx       += redundantSize[i];
+            numTotal   += redundantSize[i];
+        }
+
+       globalRedundant.resize(numTotal+1);
+       MPI_Allgatherv( &isendbuf[0], numsend, MPI_INT, &globalRedundant[0], 
+                       &redundantSize[0], &displ[0], MPI_INT, MPI_COMM_WORLD);
+
+       entitySet localSet;
+       sequence  localSeq;
+       for( int i = 0; i < numTotal; i++)  {
+            localSet  += g2l[globalRedundant[i]];
+            localSeq  += g2l[globalRedundant[i]];
+       }
+
+       // Once the information about entities is known, we can pack the 
+       // attributes of the container 
+       int packSize = 0;
+       packSize = store_Rep->pack_size(myGlobalRedundant);
+       packbuf.resize(packSize+4);
+
+       int location = 0;
+       store_Rep->pack( &packbuf[0], location, packSize, localSet);
+ 
+       MPI_Allgather( &packSize, 1, MPI_INT, &unpackSize[0], 1, MPI_INT, 
+                      MPI_COMM_WORLD);
+       indx     = 0;
+       numTotal = 0;
+       for( int i = 0; i < Loci::MPI_processes; i++) {
+            displ[i]  = indx;
+            indx     += unpackSize[i];
+            numTotal += unpackSize[i];
+       }
+
+       unpackbuf.resize(numTotal+4);
+       MPI_Allgatherv( &packbuf[0],  packSize, MPI_BYTE, &unpackbuf[0], &unpackSize[0], 
+                       &displ[0], MPI_BYTE, MPI_COMM_WORLD);
+
+       location = 0;
+       store_Rep->allocate(myLocalEntity);
+       store_Rep->unpack( &unpackbuf[0], location, numTotal, localSeq);
+    }
+
   }
+
+
 
   
   void reorder_facts(fact_db &facts, Map &remap) {
