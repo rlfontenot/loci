@@ -1199,7 +1199,7 @@ namespace Loci {
     const T *begin(int indx) const  { return base_ptr[indx] ; }
     const T *end(int indx) const { return base_ptr[indx+1] ; }
   } ;
-
+  
   
   template<class T> class multiStore : public store_instance {
     typedef multiStoreRepI<T> storeType ;
@@ -1210,17 +1210,17 @@ namespace Loci {
     multiStore() {setRep(new storeType) ;}
     multiStore(multiStore<T> &var) {setRep(var.Rep()) ;}
     multiStore(storeRepP &rp) { setRep(rp) ;}
-
+    
     virtual ~multiStore() ;
     virtual void notification() ;
-
+    
     multiStore<T> & operator=(multiStore<T> &str) {
       setRep(str.Rep()) ;
       return *this ;
     }
-
+    
     multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
-
+    
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const store<int> &sizes) {
       NPTR<storeType> p(Rep()) ;
@@ -1233,6 +1233,7 @@ namespace Loci {
       p->setSizes(m) ;
     }
     const entitySet &domain() const { return Rep()->domain() ; }
+
     //    operator storeRepP() { return Rep() ; }
 
     Vect<T> elem(int indx) {
@@ -1247,12 +1248,16 @@ namespace Loci {
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return Vect<T>(base_ptr[indx],base_ptr[indx+1]-base_ptr[indx]) ; }
-
+    
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
-
+    
   } ;
-
+  template <class T> inline std::ostream & operator<<(std::ostream &s, const multiStore<T> &m)
+    { return m.Print(s) ; }
+  template<class T> inline std::istream & operator>>(std::istream &s, multiStore<T> &m)
+    { return m.Input(s) ; }
+ 
   template<class T> multiStore<T>::~multiStore() {}
   
   template<class T> void multiStore<T>::notification() {
@@ -1271,7 +1276,7 @@ namespace Loci {
     const_multiStore() {setRep(new storeType) ;}
     const_multiStore(const_multiStore<T> &var) {setRep(var.Rep()) ;}
     const_multiStore(storeRepP &rp) { setRep(rp) ;}
-
+    
     virtual ~const_multiStore() ;
     virtual void notification() ;
 

@@ -712,7 +712,7 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;
-
+  
   inline std::ostream & operator<<(std::ostream &s, const multiMap &m)
     { return m.Print(s) ; }
   inline std::istream & operator>>(std::istream &s, multiMap &m)
@@ -723,24 +723,24 @@ namespace Loci {
     const int * const * base_ptr ;
   public:
     const_multiMap() { setRep(new MapType) ; }
-        
+    
     const_multiMap(const_multiMap &var) {  setRep(var.Rep()) ; }
-
+    
     const_multiMap(multiMap &var) { setRep(var.Rep()) ; }
-
+    
     const_multiMap(storeRepP &rp) { setRep(rp) ; }
     
     virtual ~const_multiMap() ;
     virtual void notification() ;
-
+    
     virtual instance_type access() const ;
-        
+    
     const_multiMap & operator=(const_multiMap &str)
     { setRep(str.Rep()) ; return *this ;}
     const_multiMap & operator=(multiMap &str)
     { setRep(str.Rep()) ; return *this ;}
     const_multiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
-
+    
     const entitySet &domain() const { return Rep()->domain(); }
     //    operator storeRepP() { return Rep() ; }
     operator MapRepP() {
