@@ -715,7 +715,7 @@ namespace Loci {
     }
     return clist ;
   }
-
+  
   
   execute_comm::execute_comm(list<comm_info> &plist, fact_db &facts) {
     hash_map<int,vector<send_var_info> > send_data ;
@@ -748,119 +748,93 @@ namespace Loci {
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
     }
-
-    maxr_size = new int[recv_info.size()] ; 
-    maxs_size = new int[send_info.size()] ;
-    for(int i = 0; i < recv_info.size(); ++i)
-      maxr_size[i] = 0 ;
-    for(int i = 0; i < send_info.size(); ++i)
-      maxs_size[i] = 0 ;
-    need_size = 1 ;
+    int nsend = send_info.size() ;
+    int nrecv = recv_info.size() ;
+    r_size = new int[nrecv] ;
+    maxr_size = new int[nrecv] ; 
+    maxs_size = new int[nsend] ;
+    s_size = new int[nsend] ;
+    for(int i = 0; i < nrecv; ++i) {
+      r_size[i] = 0 ;
+      maxr_size[i] = sizeof(int) ;
+    }
+    for(int i = 0; i < nsend; ++i) {
+      maxs_size[i] = sizeof(int) ;
+      s_size[i] = 0 ;
+    }
+    
+    recv_ptr = new unsigned char*[nrecv] ;
+    send_ptr = new unsigned char*[nsend] ;
+    request =  new MPI_Request[nrecv] ;
+    status =  new MPI_Status[nrecv] ;
   }
   
+  execute_comm::~execute_comm() {
+    delete [] maxr_size ;
+    delete [] maxs_size ;
+    delete [] r_size ;
+    delete [] s_size ;
+    delete [] recv_ptr ;
+    delete [] send_ptr ;
+    
+  }
   void execute_comm::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
-    int total_size = 0 ;
-    MPI_Request *size_request =  new MPI_Request[nrecv] ;
-    MPI_Status *size_status =  new MPI_Status[nrecv] ;
-    
-    int *r_size = new int[nrecv] ;
+    int resend_size = 0, rerecv_size = 0 ;
+    MPI_Request  *re_request ;
+    MPI_Status  *re_status ;
+    std::vector<int> send_index ;
+    std::vector<int> recv_index ;
     for(int i=0;i<nrecv;++i) {
       r_size[i] = 0 ;
       for(int j=0;j<recv_info[i].second.size();++j) {
 	storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
 	r_size[i] += sp->pack_size(entitySet((recv_info[i].second[j].seq))) ;
       }
+      if(r_size[i] > maxr_size[i])
+	maxr_size[i] = r_size[i] ;
+      else
+	r_size[i] = maxr_size[i] ;
     }
+    for(int i=0;i<nrecv;++i)
+      recv_ptr[i] = new unsigned char[r_size[i]] ;
     
-    if(need_size) {
-      for(int i=0;i<nrecv;++i) {
-	int proc = recv_info[i].first ;
-	MPI_Irecv(&maxr_size[i], 1, MPI_INT, proc, 2,
-		  MPI_COMM_WORLD, &size_request[i]) ;
-      }
+    for(int i=0;i<nrecv;++i) {
+      int proc = recv_info[i].first ;
+      MPI_Irecv(recv_ptr[i], maxr_size[i], MPI_PACKED, proc, 1,
+                MPI_COMM_WORLD, &request[i]) ;
     }
-    
     const int nsend = send_info.size() ;
-    int *s_size = new int[nsend] ;
+    entitySet resend_procs, rerecv_procs ;
     for(int i=0;i<nsend;++i) {
       s_size[i] = 0 ;
       for(int j=0;j<send_info[i].second.size();++j) {
         storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
       }
-      if((s_size[i] > maxs_size[i]) || (need_size)) {
+      if(s_size[i] > maxs_size[i]) {
 	maxs_size[i] = s_size[i] ;
 	int proc = send_info[i].first ;
-	MPI_Send(&maxs_size[i],1,MPI_INT,proc,2,MPI_COMM_WORLD) ;
+	s_size[i] = sizeof(int) ;
+	send_ptr[i] = new unsigned char[s_size[i]] ;
+	int loc_pack = 0 ;
+	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
+	resend_procs += proc ;
+	send_index.push_back(i) ;
       }
-      total_size += s_size[i] ;
+      else {
+	send_ptr[i] = new unsigned char[s_size[i]] ;
+      }
     }
-    
-    unsigned char **send_ptr = new unsigned char*[nsend] ;
-    send_ptr[0] = new unsigned char[total_size] ;
-    for(int i=1;i<nsend;++i)
-      send_ptr[i] = send_ptr[i-1]+s_size[i-1] ;
-    
-    if((nrecv > 0) && (need_size)) {
-      int err = MPI_Waitall(nrecv, size_request, size_status) ;
-      FATAL(err != MPI_SUCCESS) ;
-      need_size = 0 ;
-    }
-    
-    total_size = 0 ;
-    for(int i=0;i<nrecv;++i) {
-      if(maxr_size[i] > r_size[i])
-	r_size[i] = maxr_size[i] ;
-      total_size += r_size[i] ;
-    }
-    
-    unsigned char **recv_ptr = new unsigned char*[nrecv] ;
-    recv_ptr[0] = new unsigned char[total_size] ;
-    for(int i=1;i<nrecv;++i)
-      recv_ptr[i] = recv_ptr[i-1]+r_size[i-1] ;
-    
-    MPI_Request *request =  new MPI_Request[nrecv] ;
-    MPI_Status *status =  new MPI_Status[nrecv] ;
-    
-    for(int i=0;i<nrecv;++i) {
-      int proc = recv_info[i].first ;
-      MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
-                MPI_COMM_WORLD, &request[i]) ;
-    }
-    
     // Pack the buffer for sending 
     for(int i=0;i<nsend;++i) {
-      /*
-	#ifdef VERBOSE
-	debugout[MPI_rank] << "sending to processor " << send_info[i].first
-	<< endl ;
-	#endif
-      */
-      
-      int loc_pack = 0 ;
-      for(int j=0;j<send_info[i].second.size();++j) {
-        storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
-	
-	/*
-	  #ifdef VERBOSE
-	  debugout[MPI_rank] << "packing variable " << send_info[i].second[j].v
-	  << endl ;
-	  #endif
-	*/
-	
-	/*
-	  if((send_info[i].second[j].set).inSet(0)) {
-	  Loci::debugout[Loci::MPI_rank] << "sending to processor " << send_info[i].first
-	  << endl ;	
-	  Loci::debugout[Loci::MPI_rank] << "packing variable " << send_info[i].second[j].v
-	  << endl ;
-	  }
-	  
-	*/
-	sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
+      if(!resend_procs.inSet(send_info[i].first)) {
+	int loc_pack = 0 ;
+	for(int j=0;j<send_info[i].second.size();++j) {
+	  storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
+	  sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
+	}
       }
-      warn(loc_pack != s_size[i]) ;
     }
     
     // Send Buffer
@@ -868,48 +842,80 @@ namespace Loci {
       int proc = send_info[i].first ;
       MPI_Send(send_ptr[i],s_size[i],MPI_PACKED,proc,1,MPI_COMM_WORLD) ;
     }
-    
     if(nrecv > 0) { 
       int err = MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
+      int *recv_sizes = new int[nrecv] ;
+      for(int i = 0 ; i < nrecv; i++) {
+	MPI_Get_count(&status[i], MPI_BYTE, &recv_sizes[i]) ;  
+	if(recv_sizes[i] == sizeof(int)) {
+	  rerecv_procs += recv_info[i].first ;
+	  recv_index.push_back(i) ;
+	}
+      }
     }
-    
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
-      
-      /*
-	#ifdef VERBOSE
-	debugout[MPI_rank] << "unpacking from processor " <<recv_info[i].first
-	<< endl ;
-	#endif
-      */
-      
-      for(int j=0;j<recv_info[i].second.size();++j) {
-        storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
-	/*
-	  #ifdef VERBOSE
-	  debugout[MPI_rank] << "unpacking variable " << recv_info[i].second[j].v
-	  << endl ;
-	  #endif
-	*/
-	sp->unpack(recv_ptr[i], loc_unpack, r_size[i],
-                   recv_info[i].second[j].seq) ;
+      if(rerecv_procs.inSet(recv_info[i].first)) {
+	MPI_Unpack(recv_ptr[i], r_size[i], &loc_unpack, &maxr_size[i], sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
       }
-      warn(loc_unpack != r_size[i]) ;
+      else
+	for(int j=0;j<recv_info[i].second.size();++j) {
+	  storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
+	  sp->unpack(recv_ptr[i], loc_unpack, r_size[i],
+		     recv_info[i].second[j].seq) ;
+	}
+    }
+    rerecv_size = rerecv_procs.size() ;
+    resend_size = resend_procs.size() ;
+    
+    re_request =  new MPI_Request[rerecv_size] ;
+    re_status =  new MPI_Status[rerecv_size] ;
+    
+    for(int i = 0; i < rerecv_size; i++) {
+      int proc = recv_info[recv_index[i]].first ;
+      delete [] recv_ptr[recv_index[i]] ;
+      recv_ptr[recv_index[i]] = new unsigned char[maxr_size[recv_index[i]]] ;
+      MPI_Irecv(recv_ptr[recv_index[i]], maxr_size[recv_index[i]], MPI_PACKED, proc, 2, MPI_COMM_WORLD, &re_request[i]) ;
+    }
+    for(int i=0;i<resend_size;++i) {
+      int loc_pack = 0 ;
+      delete [] send_ptr[send_index[i]] ;
+      send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
+      for(int j=0;j<send_info[send_index[i]].second.size();++j) {
+        storeRepP sp = facts.get_variable(send_info[send_index[i]].second[j].v) ;
+	sp->pack(send_ptr[send_index[i]], loc_pack,maxs_size[send_index[i]],send_info[send_index[i]].second[j].set);
+      }
     }
     
-    delete [] status ;
-    delete [] size_status ;
-    delete [] size_request ;
-    delete [] request ;
-    delete [] send_ptr[0] ;
-    delete [] send_ptr ;
-    delete [] s_size ;
-    delete [] recv_ptr[0] ;
-    delete [] recv_ptr ;
-    delete [] r_size ;
+    // Send Buffer
+    for(int i=0;i<resend_size;++i) {
+      int proc = send_info[send_index[i]].first ;
+      MPI_Send(send_ptr[send_index[i]],maxs_size[send_index[i]],MPI_PACKED,proc,2,MPI_COMM_WORLD) ;
+    }
+    if(rerecv_size > 0) { 
+      int err = MPI_Waitall(rerecv_size, re_request, re_status) ;
+      FATAL(err != MPI_SUCCESS) ;
+    }
+    for(int i=0;i<rerecv_size;++i) {
+      int loc_unpack = 0;
+      for(int j=0;j<recv_info[recv_index[i]].second.size();++j) {
+        storeRepP sp = facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
+	sp->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
+		   recv_info[recv_index[i]].second[j].seq) ;
+      }
+    }
+    
+    delete [] re_status ;
+    delete [] re_request ;
+    
+    for(int i = 0; i < nsend; i++)
+      delete [] send_ptr[i] ;
+    
+    for(int i = 0; i < nrecv; i++)
+      delete [] recv_ptr[i] ;
   }
-
+  
   void execute_comm::Print(ostream &s) const {
     if(send_info.size()+recv_info.size() > 0) {
       s << "communication block {" << endl ;

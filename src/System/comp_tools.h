@@ -296,11 +296,13 @@ namespace Loci {
   class execute_comm : public execute_modules {
     std::vector<std::pair<int,std::vector<send_var_info> > > send_info ;
     std::vector<std::pair<int,std::vector<recv_var_info> > > recv_info ;
-    int *maxr_size ;
-    int *maxs_size ;
-    bool need_size ;
+    int *maxr_size, *maxs_size, *r_size, *s_size ;
+    unsigned char **recv_ptr , **send_ptr ;
+    MPI_Request *request;
+    MPI_Status *status ;
   public:
     execute_comm(std::list<comm_info> &plist, fact_db &facts) ;
+    ~execute_comm() ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ; 
