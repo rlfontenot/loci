@@ -24,6 +24,10 @@ namespace Loci {
   void expression::Print(ostream &s) const
   {
     switch(op) {
+    case OP_AT:
+      PrintOperation(s,"@") ;
+      break;
+		
     case OP_NAME:
       s << name ;
       break ;
@@ -170,10 +174,9 @@ namespace Loci {
         cout << "*ERR*" ;
         break ;
         
-  case OP_NIL:
-    s <<"" ;
-    break ;
-    
+    case OP_NIL:
+      s <<"" ;
+      break ;
     default:
         cerr << "unexpected operation in void expression::Print(ostream &s)"
              << endl ;
@@ -182,6 +185,10 @@ namespace Loci {
 }
     
 OpType expression::get_oper(istream &s) {
+  if(parse::get_token(s,"@")) {
+    // cout << "in get oper at =" << OP_AT << endl;
+    return OP_AT;
+  }
   if(parse::get_token(s,"&&")) {
     //cout << "in get oper && = " << OP_LOGICAL_AND << endl ; 
     return OP_LOGICAL_AND ;
@@ -317,7 +324,7 @@ exprP expression::expand_oper(istream &s, exprP &p)
   exprList estack ;
   estack.push_back(p) ;
   OpType ot = expression::get_oper(s) ;
-  const unsigned int mask = ~0xff ;
+  const unsigned int mask = ~0x7f ;
   while(ot != OP_ERROR) {
     exprP p2 = expression::get_term(s) ;
     //cout << " in expand_oper p2 = " ;
