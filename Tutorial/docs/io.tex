@@ -76,42 +76,42 @@ int main(int argc, char *argv[])
   Loci::Init(&argc, &argv) ;
   GenerateData();
   hid_t file_id  = H5Fcreate("example", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  hid_t group_id = H5Gcreate(file_id, "atomic", 0) ;
-  Loci::write_container(group_id, "store_int", store_int.Rep()) ; 
+  hid_t group_id = H5Gcreate(file_id, "store_int", 0) ;
+  Loci::write_container(group_id, store_int.Rep()) ; 
   H5Gclose(group_id) ;
   H5Fclose(file_id) ;
   Loci::Finalize() ;
 }
 //*******************************************************************
 \end{verbatim}
-The execution of the above program will produce {\tt example\_p0.hdf5} file. 
+The execution of the above program will produce {\tt example.hdf5} file. 
 \begin{verbatim}
  HDF5 "example" {
 GROUP "/" {
-   GROUP "atomic" {
+   GROUP "store_int" {
       DATASET "Interval Set" {
-         DATATYPE  H5T_STD_I32BE  
+         DATATYPE  H5T_STD_I32LE  
          DATASPACE  SIMPLE { ( 2 ) / ( 2 ) } 
          DATA {
             1, 10
          } 
       } 
-      DATASET "is_stat" {
-         DATATYPE  H5T_STD_I32BE  
-         DATASPACE  SIMPLE { ( 1 ) / ( 1 ) } 
-         DATA {
-            0
-         } 
-      } 
-      DATASET "store_int" {
-         DATATYPE  H5T_STD_I32BE  
+      DATASET "data" {
+         DATATYPE  H5T_STD_I32LE  
          DATASPACE  SIMPLE { ( 10 ) / ( 10 ) } 
          DATA {
             101, 102, 103, 104, 105, 106, 107, 108, 109, 110
          } 
       } 
+      DATASET "is_stat" {
+         DATATYPE  H5T_STD_I32LE  
+         DATASPACE  SIMPLE { ( 1 ) / ( 1 ) } 
+         DATA {
+            0
+         } 
+      } 
       DATASET "vec_size" {
-         DATATYPE  H5T_STD_I32BE  
+         DATATYPE  H5T_STD_I32LE  
          DATASPACE  SIMPLE { ( 1 ) / ( 1 ) } 
          DATA {
             1
@@ -120,6 +120,7 @@ GROUP "/" {
    } 
 } 
 } 
+
 
 \end{verbatim}
 \par Notice the output, HDF5 write all necessary information about the
@@ -136,277 +137,7 @@ example, since the container is a {\tt store}, the {\tt vec\_size} is
   H5T\_STD\_I32BE} tells us that data was 32 bit, and big-endian
 integer data.   
 %
-\section { Writing Compound datatype}
-Creating datatypes which contains another compound datatypes is fairly
-simple. Just define each datatype individually and add these types in 
-the parent datatype.
 
-\begin{verbatim}
- #include <Loci.h>
-using namespace std;
-
-namespace Loci {
-  struct Velocity {
-    Array<double,3>  comp;
-  } ;
-  
-  struct CellAttrib {
-    int      local_id;
-    double   density;
-    double   pressure;
-    Velocity vel;
-  };
-  
-  template <>
-  struct data_schema_traits<Velocity> {
-    typedef IDENTITY_CONVERTER Schema_Converter ;
-    static DatatypeP get_type() {
-      return DatatypeP(comp);
-    }
-  } ;
-  
-  template <>
-  struct data_schema_traits<CellAttrib> {
-     typedef IDENTITY_CONVERTER Schema_Converter ;
-    static DatatypeP get_type() {
-      CompoundDatatypeP  cmpd = CompoundFactory( CellAttrib() );
-      LOCI_INSERT_TYPE(cmpd, CellAttrib, local_id );
-      LOCI_INSERT_TYPE(cmpd, CellAttrib, density  );
-      LOCI_INSERT_TYPE(cmpd, CellAttrib, pressure );
-      LOCI_INSERT_TYPE(cmpd, CellAttrib, vel );
-      return DatatypeP(cmpd);
-    }
-  } ;
-}
-//*******************************************************************
-store<Loci::CellAttrib>  store_CellAttrib ;   // Container
-entitySet                eset;   // EntitySet
-
-//*******************************************************************
-// Create the facts and register with facts database
-//*******************************************************************
-
-void GenerateData()
-{
-  int num = 2;
-  eset = interval(1,num);
-  
-  store_CellAttrib.allocate(eset);
-  for( int j = 1; j <= num; j++) {
-    store_CellAttrib[j].local_id  =   j;
-    store_CellAttrib[j].density   =   0.25*j;
-    store_CellAttrib[j].pressure  =   1.25*j;
-    store_CellAttrib[j].vel.comp[0]  =   1.05*j;
-    store_CellAttrib[j].vel.comp[1]  =   2.05*j;
-    store_CellAttrib[j].vel.comp[2]  =   3.05*j;
-  }
-}
-//*******************************************************************
-int main(int argc, char *argv[])
-{
-  Loci::Init(&argc, &argv) ;
-  GenerateData() ;
-  hid_t file_id  = H5Fcreate("example", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  hid_t group_id = H5Gcreate(file_id, "user_defined", 0) ;
-  Loci::write_container(group_id, "store_CellAttrib", store_CellAttrib.Rep()) ; 
-  H5Gclose(group_id) ;
-  H5Fclose(file_id) ;
-  Loci::Finalize() ;
-}
-
-\end{verbatim}
-\begin{verbatim}
-  HDF5 "example_p0.hdf5" {
-  GROUP "/" {
-    GROUP "store" {
-       DATASET "Interval Set" {
-          DATATYPE { H5T_STD_I32BE }
-          DATASPACE { SIMPLE ( 2 ) / ( 2 ) }
-          DATA {
-             1, 2
-          }
-       }
-       DATASET "VariableData" {
-          DATATYPE {
-             H5T_STD_I32BE "local_id";
-             H5T_IEEE_F64BE "density";
-             H5T_IEEE_F64BE "pressure";
-             {
-                H5T_IEEE_F64BE "Array"[3];
-             } "velocity";
-          }
-          DATASPACE { SIMPLE ( 2 ) / ( 2 ) }
-          DATA {
-             {
-                1,
-                0.25,
-                1.25,
-                {
-                   [ 1.05, 2.05, 3.05 ]
-                }
-             },
-             {
-                2,
-                0.5,
-                2.5,
-                {
-                   [ 2.1, 4.1, 6.1 ]
-                }
-             }
-          }
-       }
-    }
- }
- }
-\end{verbatim}
-
-\section { Writing containers with user defined datatype}
-All attribute containers have to store information from which state of an user defined
-datatype should be reconstructed. Two different cases arises with user defined datatype
-An user defined container may contain objects of varying size and shapes. All these
-information must be stored in the file for later retrieval. 
-
-\par All user defined datatypes requires
-\begin{enumerate}
-\item  input and output stream overloaded functions.
-\item  Specialized template {\tt data\_schema\_traits} class
-\item  A class which can pack and unpack data of an object
-\end{enumerate}
-
-\begin{verbatim}
-   #include <Loci.h>
-   using namespace std;
- 
-   namespace Loci {
-     struct My_Type {
-      list<int>  alist;
-      friend ostream& operator << (ostream &, const My_Type &);
-      friend istream& operator >> (istream &, My_Type &);
-    };
-
-    //*******************************************************************
-    inline std::ostream& operator << ( std::ostream &s, const My_Type &obj)
-  {
-    list<int> :: const_iterator ci;
-    list<int> :: const_iterator begin = obj.alist.begin();
-    list<int> :: const_iterator end   = obj.alist.end();
-    for( ci = begin; ci != end; ++ci)
-      s << *ci <<" ";
-    return s;
-  }
-    //*******************************************************************
-    inline std::istream& operator >> ( std::istream &s, My_Type &obj)
-  {
-    obj.alist.clear();
-    int newval;
-    s >> newval;
-    obj.alist.push_back( newval );
-    return s;
-  }
-  //*******************************************************************
-  class My_Type_SchemaConverter;
-
-  template <>
-  struct data_schema_traits<My_Type> {
-    typedef USER_DEFINED_CONVERTER Schema_Converter ;
-
-    typedef int Converter_Base_Type ;
-    typedef My_Type_SchemaConverter Converter_Type ;
-  };
-
-  class My_Type_SchemaConverter {
-    // For the schema converter, we always store a reference to the object
-    // we are converting schmata for.
-    My_Type &RefObj ;
-  public:
-    explicit My_Type_SchemaConverter(My_Type &new_obj): RefObj(new_obj) {}
-    int getSize() const {
-      return RefObj.alist.size() ;
-    }
-    void getState(int *buf, int &size) {
-      size = getSize() ;
-      int ii=0;
-
-      list<int> :: const_iterator ci;
-      list<int> :: const_iterator begin = RefObj.alist.begin();
-      list<int> :: const_iterator end   = RefObj.alist.end();
-      for(ci = begin; ci != end; ++ci)  {
-        buf[ii++] = *ci;
-      }
-    }
-    void setState(int *buf, int size) {
-      RefObj.alist.clear();
-      list<int> :: iterator ci;
-      for(int i=0;i<size;++i)
-        RefObj.alist.push_back(buf[i]);
-    }
-  };
-  }
-
-
-  store<Loci::My_Type>   data;   // Container
-  entitySet              eset;   // EntitySet
-  fact_db                facts;  // facts database
-
-  void GenerateData()
-  {
-    int num = 2;
-    eset = interval(1,num);
-
-    data.allocate(eset);
-    int indx = 1;
-    for( int j = 0; j < 3; j++) {
-      data[1].alist.push_back(indx);
-      indx++;
-    }
-
-    indx = 1;
-    for( int j = 0; j < 5; j++) {
-      data[2].alist.push_back(indx+100);
-      indx++;
-    }
-
-    facts.create_fact("store",data) ;
- }
-    
- //*******************************************************************
- int main(int argc, char *argv[])
- {
-   
-   GenerateData();
-   facts.write_hdf5( "example");
- }
- //*******************************************************************
-\end{verbatim}
-\begin{verbatim}
-HDF5 "example_p0.hdf5" {
-GROUP "/" {
-   GROUP "store" {
-      DATASET "ContainerSize" {
-         DATATYPE  H5T_STD_I32BE  
-         DATASPACE  SIMPLE { ( 2 ) / ( 2 ) } 
-         DATA {
-            3, 5
-         } 
-      } 
-      DATASET "Interval Set" {
-         DATATYPE  H5T_STD_I32BE  
-         DATASPACE  SIMPLE { ( 2 ) / ( 2 ) } 
-         DATA {
-            1, 2
-         } 
-      } 
-      DATASET "VariableData" {
-         DATATYPE  H5T_STD_I32BE  
-         DATASPACE  SIMPLE { ( 8 ) / ( 8 ) } 
-         DATA {
-            1, 2, 3, 101, 102, 103, 104, 105
-         } 
-      } 
-   } 
-} 
-} 
-\end{verbatim}
 \section {Distributed facts }
 \begin{verbatim} 
   #include <Loci.h>
