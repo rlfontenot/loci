@@ -66,7 +66,7 @@ fi
 for dir in $TARGET_DIRS; do
   echo "Linking" $dir "directory files..."
   cd $source/src/$dir
-  for i in *.cc *.h *.hh *.hpp *.c *.lpr Makefile ; do
+  for i in *.cc *.h *.hh *.hpp *.c *.lpr Makefile Loci ; do
     if [ -f  $i ] ; then
       if [ ! -e $target/Loci/$dir/$i ] ; then
         echo ln -s $source/src/$dir/$i $target/Loci/$dir/$i
@@ -75,14 +75,6 @@ for dir in $TARGET_DIRS; do
     fi
   done
 done
-
-cd $source/src/include
-if [ -f Loci ] ; then
-  if [ ! -e $target/Loci/src/include/Loci ] ; then
-      echo ln -s $source/src/include/Loci $target/Loci/include/Loci
-      ln -s $source/src/include/Loci $target/Loci/include/Loci
-  fi
-fi
 
 echo "** Be sure to set LOCI_BASE=\"$target/Loci\" **"
 
