@@ -95,9 +95,9 @@ typedef struct FUNCLISTHEAD {
   bool is_rule ;
   bool is_cond ;/*04/24*/
   rule_id rule_type ;
-  ExpTreeList* unit_arg ;
+  ExpTreeList* constraint_arg ;
   struct TYPE_LIST* apply_arg ;
-  ExpTreeList* cond_arg ;/*04/24*/
+  ExpTreeList* conditional_arg ;/*04/24*/
 /*  char* singleton_arg ;*/
   FuncListNode* list ;
 } FuncListHead ;

@@ -1224,9 +1224,9 @@ loci_rule
 		(*rhead)->rule_type = POINTWISE_T ;
 		(*rhead)->is_rule = true ;
 		(*rhead)->is_cond = false ;
-		(*rhead)->unit_arg = NULL ;
+		(*rhead)->constraint_arg = NULL ;
 		(*rhead)->apply_arg = NULL ;
-		(*rhead)->cond_arg = NULL ;
+		(*rhead)->conditional_arg = NULL ;
 	}}
 	| SINGLETON_RULE
 	{{
@@ -1235,9 +1235,9 @@ loci_rule
 		(*rhead)->rule_type = SINGLETON_T ;
 		(*rhead)->is_rule = true ;
 		(*rhead)->is_cond = false ;
-		(*rhead)->unit_arg = NULL ;
+		(*rhead)->constraint_arg = NULL ;
 		(*rhead)->apply_arg = NULL ;
-		(*rhead)->cond_arg = NULL ;
+		(*rhead)->conditional_arg = NULL ;
 	}}
 	| POINTWISE_RULE '(' CONDITIONAL identifier<id>/*04/24*/ ')'
 	{{
@@ -1246,12 +1246,12 @@ loci_rule
 		(*rhead)->rule_type = POINTWISE_T ;
 		(*rhead)->is_rule = true ;
 		(*rhead)->is_cond = true ;
-		(*rhead)->unit_arg = NULL ;
+		(*rhead)->constraint_arg = NULL ;
 		(*rhead)->apply_arg = NULL ;
-		(*rhead)->cond_arg = (ExpTreeList *)
+		(*rhead)->conditional_arg = (ExpTreeList *)
 		  malloc(sizeof(ExpTreeList)) ;
-		(*rhead)->cond_arg->node = id ;
-		(*rhead)->cond_arg->next = NULL ;
+		(*rhead)->conditional_arg->node = id ;
+		(*rhead)->conditional_arg->next = NULL ;
 	}}
 	| SINGLETON_RULE '(' CONDITIONAL identifier<id>/*04/24*/ ')'
 	{{
@@ -1260,12 +1260,40 @@ loci_rule
 		(*rhead)->rule_type = SINGLETON_T ;
 		(*rhead)->is_rule = true ;
 		(*rhead)->is_cond = true ;
-		(*rhead)->unit_arg = NULL ;
+		(*rhead)->constraint_arg = NULL ;
 		(*rhead)->apply_arg = NULL ;
-		(*rhead)->cond_arg = (ExpTreeList *)
+		(*rhead)->conditional_arg = (ExpTreeList *)
 		  malloc(sizeof(ExpTreeList)) ;
-		(*rhead)->cond_arg->node = id ;
-		(*rhead)->cond_arg->next = NULL ;
+		(*rhead)->conditional_arg->node = id ;
+		(*rhead)->conditional_arg->next = NULL ;
+	}}
+	| POINTWISE_RULE IDENTIFIER/*CONSTRAINT*/ '(' identifier<id> ')'
+	{{
+		*rhead = (FuncListHead *)
+		  malloc(sizeof(FuncListHead)) ;
+		(*rhead)->rule_type = POINTWISE_T ;
+		(*rhead)->is_rule = true ;
+		(*rhead)->is_cond = false ;
+		(*rhead)->constraint_arg = (ExpTreeList *)
+		  malloc(sizeof(ExpTreeList)) ;
+		(*rhead)->constraint_arg->node = id ;
+		(*rhead)->constraint_arg->next = NULL ;
+		(*rhead)->apply_arg = NULL ;
+		(*rhead)->conditional_arg = NULL ;
+	}}
+	| SINGLETON_RULE IDENTIFIER/*CONSTRAINT*/ '(' identifier<id> ')'
+	{{
+		*rhead = (FuncListHead *)
+		  malloc(sizeof(FuncListHead)) ;
+		(*rhead)->rule_type = SINGLETON_T ;
+		(*rhead)->is_rule = true ;
+		(*rhead)->is_cond = false ;
+		(*rhead)->constraint_arg = (ExpTreeList *)
+		  malloc(sizeof(ExpTreeList)) ;
+		(*rhead)->constraint_arg->node = id ;
+		(*rhead)->constraint_arg->next = NULL ;
+		(*rhead)->apply_arg = NULL ;
+		(*rhead)->conditional_arg = NULL ;
 	}}
 	| UNIT_RULE IDENTIFIER/*CONSTRAINT*/ '(' identifier<id> ')'
 	{{
@@ -1274,12 +1302,40 @@ loci_rule
 		(*rhead)->rule_type = UNIT_T ;
 		(*rhead)->is_rule = true ;
 		(*rhead)->is_cond = false ;
-		(*rhead)->unit_arg = (ExpTreeList *)
+		(*rhead)->constraint_arg = (ExpTreeList *)
 		  malloc(sizeof(ExpTreeList)) ;
-		(*rhead)->unit_arg->node = id ;
-		(*rhead)->unit_arg->next = NULL ;
+		(*rhead)->constraint_arg->node = id ;
+		(*rhead)->constraint_arg->next = NULL ;
 		(*rhead)->apply_arg = NULL ;
-		(*rhead)->cond_arg = NULL ;
+		(*rhead)->conditional_arg = NULL ;
+	}}
+	| APPLY_RULE IDENTIFIER/*CONSTRAINT*/ '(' identifier<id> ')'
+	{{
+		*rhead = (FuncListHead *)
+		  malloc(sizeof(FuncListHead)) ;
+		(*rhead)->rule_type = APPLY_T ;
+		(*rhead)->is_rule = true ;
+		(*rhead)->is_cond = false ;
+		(*rhead)->constraint_arg = (ExpTreeList *)
+		  malloc(sizeof(ExpTreeList)) ;
+		(*rhead)->constraint_arg->node = id ;
+		(*rhead)->constraint_arg->next = NULL ;
+		(*rhead)->apply_arg = NULL ;
+		(*rhead)->conditional_arg = NULL ;
+	}}
+	| APPLY_RULE '(' template_argument_list<t_a_list> ')' IDENTIFIER/*CONSTRAINT*/ '(' identifier<id> ')'
+	{{
+		*rhead = (FuncListHead *)
+		  malloc(sizeof(FuncListHead)) ;
+		(*rhead)->rule_type = APPLY_T ;
+		(*rhead)->is_rule = true ;
+		(*rhead)->is_cond = false ;
+		(*rhead)->constraint_arg = (ExpTreeList *)
+		  malloc(sizeof(ExpTreeList)) ;
+		(*rhead)->constraint_arg->node = id ;
+		(*rhead)->constraint_arg->next = NULL ;
+		(*rhead)->apply_arg = t_a_list ;
+		(*rhead)->conditional_arg = NULL ;
 	}}
 	| APPLY_RULE '(' template_argument_list<t_a_list> ')'
 	{{
@@ -1288,9 +1344,9 @@ loci_rule
 		(*rhead)->rule_type = APPLY_T ;
 		(*rhead)->is_rule = true ;
 		(*rhead)->is_cond = false ;
-		(*rhead)->unit_arg = NULL ;
+		(*rhead)->constraint_arg = NULL ;
 		(*rhead)->apply_arg = t_a_list ;
-		(*rhead)->cond_arg = NULL ;
+		(*rhead)->conditional_arg = NULL ;
 	}}
 	;
 
@@ -1964,8 +2020,8 @@ pointer
 |                                                                      | 
 | Parameters:                                                          |
 | - non-terminals:                                                     |
-|   - compound_statement: is a list of declarations and/or statements  |
-|                         with "{}"                                    |
+|   - compound_statement: is a list of declarations of loci rules or   |
+|                         functions, and/or statements with "{}"       | 
 |   - declaration_list:   is a list of declarations of variables that  |
 |                         will be put into a global hash table         |
 +---------------------------------------------------------------------*/

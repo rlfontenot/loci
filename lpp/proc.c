@@ -135,7 +135,6 @@ void create_tlist
  type_list* next)
 {
    type_info* tmp ;
-
    tmp = (type_info *)malloc
      (sizeof(type_info)) ;
    tmp->type = type ;
@@ -143,7 +142,6 @@ void create_tlist
    tmp->is_elabt = e ;
    tmp->begin_temp = b ;
    tmp->close_temp = c ;
-
    (*tlist) = (type_list *)
      malloc(sizeof(type_list)) ;
    (*tlist)->info = tmp ;
@@ -397,19 +395,25 @@ void process_singleton_rule
    */
    Print_classname(loci_var, func) ;
    Print_namestore(loci_var, func->rule_type) ;
+   if(func->constraint_arg != NULL)
+   {
+      printf("\t\t") ; printf("constraint(\"%s\") ;\n",
+                              func->constraint_arg->node->name) ;
+   } 
    Print_input(loci_var, loci_map, func->rule_type) ;
    Print_output(loci_var, func->rule_type) ;
+
 
    if(func->is_cond == true)
    {
       entry = (table_entry *)findhashent
-        (global_def, func->cond_arg->node->name) ;
+        (global_def, func->conditional_arg->node->name) ;
       if((entry->tlist->info->type==DP_PARAM) &&
          (entry->tlist->next->info->type==DP_BOOL))
       {
          printf("\t") ;
          printf("conditional(\"%s{n}\") ;\n", 
-                func->cond_arg->node->name) ;
+                func->conditional_arg->node->name) ;
 
          printf("}\n") ;
       }
@@ -493,11 +497,12 @@ void process_unit_rule
 */
    Print_classname(loci_var, func) ;
    Print_namestore(loci_var, func->rule_type) ;
-
-   /*   Print_input(loci_var, loci_map, func->rule_type) ;*/
-   printf("\t\t") ; printf("constraint(\"%s\") ;\n",
-                           func->unit_arg->node->name) ;
-
+   if(func->constraint_arg != NULL)
+   {
+      printf("\t\t") ; printf("constraint(\"%s\") ;\n",
+                              func->constraint_arg->node->name) ;
+   } 
+   Print_input(loci_var, loci_map, func->rule_type) ;
    Print_output(loci_var, func->rule_type) ;
 
    printf("\t") ; printf("void calculate(Entity e) {\n") ;
@@ -584,6 +589,11 @@ void process_apply_rule
    */
    Print_classname(loci_var, func) ;
    Print_namestore(loci_var, func->rule_type) ;
+   if(func->constraint_arg != NULL)
+   {
+      printf("\t\t") ; printf("constraint(\"%s\") ;\n",
+                              func->constraint_arg->node->name) ;
+   } 
    Print_input(loci_var, loci_map, func->rule_type) ;
 
    loci_curr_var = loci_var ;
@@ -615,7 +625,7 @@ void process_apply_rule
       loci_curr_var = loci_curr_var->next ;
    }
    printf("\n") ;
-
+   /*
    loci_curr_var = loci_var ;
    printf("\t\t") ; printf("constraint(\"") ;
    while(loci_curr_var->next != NULL)
@@ -641,7 +651,7 @@ void process_apply_rule
    }
    printf("\n") ;
    printf("\t") ; printf("}\n") ;
-
+   */
 
    printf("\t") ; printf("void calculate(Entity e) {\n") ;
    node = func->list ;
@@ -727,6 +737,11 @@ void process_pointwise_rule
 */
    Print_classname(loci_var, func) ;
    Print_namestore(loci_var, func->rule_type) ;
+   if(func->constraint_arg != NULL)
+   {
+      printf("\t\t") ; printf("constraint(\"%s\") ;\n",
+                              func->constraint_arg->node->name) ;
+   } 
    Print_input(loci_var, loci_map, func->rule_type) ;
    Print_output(loci_var, func->rule_type) ;
 
@@ -948,8 +963,7 @@ void Print_namestore
               else
                 printf("(\"") ;
 
-              printf("%s", loci_curr_var->node->name,
-                           loci_curr_var->node->name) ;
+              printf("%s", loci_curr_var->node->name) ;
               if((loci_curr_var->node->list1!=NULL) &&
                  (loci_curr_var->node->list1->node->op==OP_ITER_ARG))
 	      {
@@ -957,8 +971,7 @@ void Print_namestore
                  Print_Iter_Arg(loci_curr_var->node->list1) ;
                  printf("}") ;
               }
-              printf("\",%s) ;\n", loci_curr_var->node->name,
-                                   loci_curr_var->node->name) ;
+              printf("\",%s) ;\n", loci_curr_var->node->name) ;
               break ;
             default:
               break ;
@@ -981,76 +994,118 @@ void Print_input
  ExpTreeList* loci_map,
  rule_id rtype)
 {
+   bool input_flag = false ;
+   bool flag = false ;/*all variables are map_governed*/
+   ExpTreeNode* end_node ;
+
    ExpTreeList* loci_curr_var ;
-   ExpTreeList* loci_curr_map ;
+   /*ExpTreeList* loci_curr_map ;*/
 
    loci_curr_var = loci_var ;
-   loci_curr_map = loci_map ;
-   printf("\t\t") ; printf("input(\"") ;
    while(loci_curr_var->next != NULL)
    {
-      if(loci_curr_var->node->analysis->var.is_map_governed
-         == false)
+      if(loci_curr_var->node->analysis->var.is_output
+         == true)
       {
-         if(loci_curr_var->node->analysis->var.is_output
-            == false)
+         if(loci_curr_var->next->next != NULL)
          {
-	    if(loci_curr_var->node->analysis->var.is_loci_par_var
-               == true)
-            {
-	       Print_OP_FUNC(loci_curr_var->node, rtype) ;
-               if(loci_curr_var->next->next != NULL)
-                 printf(",") ;
-	       /*	       printf(",") ;*/
-            }
-            /*04/07*/
-            else
-            {
-               switch(rtype)
-               {
-                  case POINTWISE_T:
-		    /*case UNIT_T:*/
-                  case APPLY_T:
-                    if(loci_curr_var->node->analysis->var.is_loci_iter_var
-                       == true)
-                      printf("$%s", loci_curr_var->node->name) ;
-		    /*                      printf("$%s,", loci_curr_var->node->name) ;*/
-                    else
-                      printf("%s", loci_curr_var->node->name) ;
-		    /*                      printf("%s,", loci_curr_var->node->name) ;*/
-                    break ;
-                  /*04/08*/
-                  case SINGLETON_T:
-                    if(loci_curr_var->node->analysis->var.is_loci_iter_var == true)
-                      printf("$") ;
-
-                    printf("%s", loci_curr_var->node->name,
-                                 loci_curr_var->node->name) ;
-                    if((loci_curr_var->node->list1!=NULL) &&
-                       (loci_curr_var->node->list1->node->op==OP_ITER_ARG))
-                    {
-                       printf("{") ;
-                       Print_Iter_Arg(loci_curr_var->node->list1) ;
-                       printf("}") ;
-                    }
-		    /*                    printf(",") ;*/
-                    break ;
-                  default:
-                    break ;
-               }
-               if(loci_curr_var->next->next != NULL)
-                 printf(",") ;
-            }
+            printf("\t\t") ; printf("input(\"") ;
+            input_flag = true ;
+            break ;
          }
       }
       loci_curr_var = loci_curr_var->next ;
+   }
 
+   if(input_flag == true)
+   {
+      loci_curr_var = loci_var ;
+      /*loci_curr_map = loci_map ;*/
+
+      /*printf("\t\t") ; printf("input(\"") ;*/
+      while(loci_curr_var->next != NULL)
+      {
+         end_node = loci_curr_var->node ;
+         //printf("end_node = %s\n", end_node->name) ;
+
+         if(loci_curr_var->node->analysis->var.is_map_governed
+            == false)
+         {
+            if(loci_curr_var->node->analysis->var.is_output
+               == false)
+            {
+	       if(loci_curr_var->node->analysis->var.is_loci_par_var
+                  == true)
+               {
+	          Print_OP_FUNC(loci_curr_var->node, rtype) ;
+                  if(loci_curr_var->next->next != NULL)
+                    printf(",") ;
+                  /*printf(",") ;*/
+
+                  flag = true ;/*there is at least one non-map_governed*/
+               }
+               /*04/07*/
+               else
+               {
+                  switch(rtype)
+                  {
+                     case POINTWISE_T:
+		       /*case UNIT_T:*/
+                     case APPLY_T:
+                       if(loci_curr_var->node->analysis->var.is_loci_iter_var
+                          == true)
+                         printf("$%s", loci_curr_var->node->name) ;
+                         /*printf("$%s,", loci_curr_var->node->name) ;*/
+                       else
+                         printf("%s", loci_curr_var->node->name) ;
+                         /*printf("%s,", loci_curr_var->node->name) ;*/
+
+                       flag = true ;/*there is at least one non-map_governed*/
+                       break ;
+                     /*04/08*/
+                     case SINGLETON_T:
+                       if(loci_curr_var->node->analysis->var.is_loci_iter_var == true)
+                         printf("$") ;
+   
+                       printf("%s", loci_curr_var->node->name) ;
+                       if((loci_curr_var->node->list1!=NULL) &&
+                          (loci_curr_var->node->list1->node->op==OP_ITER_ARG))
+                       {
+                          printf("{") ;
+                          Print_Iter_Arg(loci_curr_var->node->list1) ;
+                          printf("}") ;
+                       }
+                       /*printf(",") ;*/
+
+                       flag = true ;/*there is at least one non-map_governed*/
+                       break ;
+                     default:
+                       break ;
+                  }
+                  if(loci_curr_var->next->next != NULL)
+                    printf(",") ;
+               }
+            }
+         }
+         loci_curr_var = loci_curr_var->next ;
+      }
+
+      if(loci_map && loci_map->next != NULL)
+      {
+         /*cl->X->a->b->...*/
+         if((loci_var->node->analysis->var.is_map_governed==true) &&
+            (flag==true))
+           printf(",") ;
+         /*a->b->...->cl->X->...->c*/
+         else if((loci_var->node->analysis->var.is_map_governed==false) &&
+                 (end_node->analysis->var.is_map_governed==false))
+           printf(",") ;
+         /*can be cl->X->cr->X*/
+         Input_Map(loci_map) ;
+      }
+
+      printf("\") ;") ; printf("\n") ;
    }
-   if(loci_map && loci_map->next != NULL) {
-     printf(",") ;
-     Input_Map(loci_map) ;
-   }
-   printf("\") ;") ; printf("\n") ;
 }
 
 /*-------------------------------------------------+
@@ -1101,8 +1156,7 @@ void Print_output
                  if(loci_curr_var->node->analysis->var.is_loci_iter_var == true)
                    printf("$") ;
 
-                 printf("%s", loci_curr_var->node->name,
-                              loci_curr_var->node->name) ;
+                 printf("%s", loci_curr_var->node->name) ;
                  if((loci_curr_var->node->list1!=NULL) &&
                     (loci_curr_var->node->list1->node->op==OP_ITER_ARG))
                  {
@@ -1906,30 +1960,34 @@ void Input_Map
   start = map_list ;
   while(start->next != NULL)
   {
-    name1 = start->node->list1->next->node->name ;
-    prev = start ;
-    curr = start->next ;
-    printf("(%s", start->node->list1->node->name) ;
-    while(curr->next != NULL)
+    if(start->node->list1->next->node->analysis->var.is_output
+       == false)
     {
-      name2 = curr->node->list1->next->node->name ;
-      if(strcmp(name1,name2) == 0)
-      {
+       name1 = start->node->list1->next->node->name ;
+       prev = start ;
+       curr = start->next ;
+       printf("(%s", start->node->list1->node->name) ;
+       while(curr->next != NULL)
+       {
+         name2 = curr->node->list1->next->node->name ;
+         if(strcmp(name1,name2) == 0)
+         {
+            printf(",") ;
+            printf("%s", curr->node->list1->node->name) ;
+            prev->next = curr->next ;
+            curr = curr->next ;
+         }
+         else
+         {
+            curr = curr->next ;
+            prev = prev->next ;
+         }
+       }
+       printf(")->%s", name1) ;
+       if(start->next->next != NULL)
          printf(",") ;
-         printf("%s", curr->node->list1->node->name) ;
-         prev->next = curr->next ;
-         curr = curr->next ;
-      }
-      else
-      {
-         curr = curr->next ;
-         prev = prev->next ;
-      }
+       /*printf(")->%s,", name1) ;*/
     }
-    printf(")->%s", name1) ;
-    if(start->next->next != NULL)
-      printf(",") ;
-    /*    printf(")->%s,", name1) ;*/
     start = start->next ;
   }
   /*  printf("\b") ;*/
