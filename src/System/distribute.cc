@@ -26,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
-//#define UNITY_MAPPING
+#define UNITY_MAPPING
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
@@ -145,7 +145,7 @@ namespace Loci {
     variableSet fact_vars ;
     fact_vars = facts.get_typed_variables() ;
     entitySet map_entities ;
-      
+    
     /*Initially a serial fact_database is set up on all the
       processors. We then split the fact_database into p parts if
       there are p processes. First step to partitioning is setting up
@@ -171,7 +171,6 @@ namespace Loci {
         map_entities += sp->domain() ;
       }
     }
-    
     store<entitySet> dynamic_map ;
     dynamic_map.allocate(map_entities) ;
     for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
@@ -179,18 +178,17 @@ namespace Loci {
       if(vp->RepType() == MAP) {
         MapRepP mp = MapRepP(vp->getRep()) ;
         FATAL(mp == 0) ;
-        multiMap m = mp->get_map() ;
-        entitySet dom = mp->domain() ;
-        for(ei=dom.begin();ei!=dom.end();++ei) {
-          for(const int *i = m.begin(*ei);i != m.end(*ei); ++i) {
-            // Two associations (*ei,*i), (*i,*ei)
+	multiMap m = mp->get_map() ;
+	entitySet dom = mp->domain() ;
+	for(ei=dom.begin();ei!=dom.end();++ei) {
+	  for(const int *i = m.begin(*ei);i != m.end(*ei); ++i) {
+	    // Two associations (*ei,*i), (*i,*ei)
             dynamic_map[*i] += *ei ;
             dynamic_map[*ei]+= *i ;
           }
         }
       }
     }
-    
     int size_map = map_entities.size() ;
     Map entities ;
     Map reverse ;
@@ -430,24 +428,24 @@ namespace Loci {
         active_set += p->domain() ;
         set_of_sets.insert(p->domain()) ;
       } else {
-        //        debugout << *vi<<".domain=" << p->domain() <<endl ;
+        //debugout << *vi<<".domain=" << p->domain() <<endl ;
       }
     }
-
-   vector<int> vals,vals2 ;
-   set<entitySet>::iterator si ;
-   for(si=set_of_sets.begin();si!=set_of_sets.end();++si) {
-     entitySet s = *si & active_set ;
-     for(int i = 0;i < s.num_intervals(); ++i) {
-       vals.push_back(s[i].first-1) ;
-       vals.push_back(s[i].first) ;
-       vals.push_back(s[i].second) ;
-       vals.push_back(s[i].second+1) ;
-     }
-   }
+    
+    vector<int> vals,vals2 ;
+    set<entitySet>::iterator si ;
+    for(si=set_of_sets.begin();si!=set_of_sets.end();++si) {
+      entitySet s = *si & active_set ;
+      for(int i = 0;i < s.num_intervals(); ++i) {
+	vals.push_back(s[i].first-1) ;
+	vals.push_back(s[i].first) ;
+	vals.push_back(s[i].second) ;
+	vals.push_back(s[i].second+1) ;
+      }
+    }
     
     std::sort(vals.begin(),vals.end()) ;
-   
+    
     vals2.push_back(vals[0]) ;
     for(int i=1;i<vals.size();++i) {
       if(vals[i-1] == vals[i])
@@ -470,8 +468,38 @@ namespace Loci {
     }
 
   }
-  
-  
+  /*
+  std::vector<interval> modified_categories(fact_db &facts, std::vector<interval> &pvec) {
+  std::vector<variableSet> vvs(pvec.size()) ;
+  variableSet vars = facts.get_typed_variables() ;
+  std::map<variable, entitySet> vm ;
+  std::map<variable, entitySet>::const_iterator svi ;
+  for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+    entitySet active_set ;
+    storeRepP p = facts.get_variable(*vi) ;
+    if(p->RepType() == MAP) {
+      MapRepP mp = MapRepP(p->getRep()) ;
+      active_set += p->domain() ;
+    }else if(p->RepType() == STORE) 
+      active_set += p->domain() ;
+    if(active_set != EMPTY) {
+      // entitySet collect = all_collect_entitySet(facts, active_set) ; 
+      //vm[*vi] = collect ;
+      //cout << "variable = " << *vi << " global  domain  =  " << collect << endl ;
+      vm[*vi] = active_set ;
+      cout << "variable = " << *vi << " domain  =  " << active_set << endl ;
+    }
+  }
+  for(int i = 0; i < pvec.size(); ++i) {
+    for(svi = vm.begin(); svi != vm.end(); ++svi)
+      if((pvec[i] & svi->second) != EMPTY)
+	vvs[i] += svi->first ;
+    debugout << " category = " << entitySet(pvec[i]) << endl ;
+    debugout << "  variables associated =  " << vvs[i] << endl ;
+  }
+  return pvec ;
+}
+  */
   vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions) {
     if(num_partitions == 0)
       num_partitions = MPI_processes ;
@@ -488,7 +516,7 @@ namespace Loci {
     double end_time  = MPI_Wtime() ;
     debugout << "Time taken for metis_facts = " << end_time -start << endl ;
     return ptn ;
-  }
+  } 
   
   void  distribute_facts(vector<entitySet> &ptn, fact_db &facts, rule_db &rdb) {
     if(ptn.size() == 0)
@@ -529,10 +557,11 @@ namespace Loci {
     Map l2g ;
     constraint my_entities ;
     int isDistributed ;
-    vector<Loci::interval> iv ;
+    vector<Loci::interval> iv ; //, mivl ;
     entitySet::const_iterator ei, ti ;
     vector<entitySet> proc_entities ;
     categories(facts,iv) ;
+    cout << " initial categories.size() = " << iv.size() << endl ;
     entitySet e ;
 #ifdef DEBUG
     //debugout << "categories size = " << iv.size()
@@ -560,7 +589,7 @@ namespace Loci {
           }
         }
     }
-
+    
     entitySet g ;
     
 #ifdef UNITY_MAPPING
@@ -617,6 +646,7 @@ namespace Loci {
     }
     end_time =  MPI_Wtime() ;
     debugout << "  Time taken for creating intitial info =  " << end_time - start << endl ;
+    //debugout << "g2l = " << df->g2l << endl ;
     start = MPI_Wtime() ;
     reorder_facts(facts, df->g2l) ;
     end_time =  MPI_Wtime() ;
@@ -681,7 +711,6 @@ namespace Loci {
       if(d->copy.size() > 0) {
         recv_buffer = new int*[d->copy.size()] ;
         recv_size = new int[d->copy.size()] ;
-
         recv_buffer[0] = new int[d->copy_total_size] ;
         recv_size[0] = d->copy[0].size ;
         for(int i=1;i<d->copy.size();++i) {

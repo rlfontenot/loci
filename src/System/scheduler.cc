@@ -27,18 +27,17 @@ namespace Loci {
     return -1.0 ;
 #endif
   } 
-  
   executeP create_execution_schedule(rule_db &rdb,
                                      fact_db &facts,
                                      std::string target_string,
                                      int nth) {
     num_threads = min(nth,max_threads) ;
-
+    
     //double timer = get_timer() ;
     
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
-
+    
     cout << "generating dependency graph..." << endl ;
     double start_time = MPI_Wtime() ;
     rule_db par_rdb ;
@@ -47,15 +46,37 @@ namespace Loci {
     // If graph is empty, return a null schedule 
     if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;
-
+    
     cout << "setting up variable types..." << endl ;
     set_var_types(facts,gr) ;
-    
     cout << "decomposing graph..." << endl ;
-
-    
     decomposed_graph decomp(gr,given,target) ;
-    graph_compiler compile_graph(decomp) ;
+    variableSet fact_vars, initial_vars ;
+    fact_vars = facts.get_typed_variables() ;
+    for(variableSet::const_iterator vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
+      if(variable(*vi).time().level_name() == "*" ) {
+	storeRepP vp = facts.get_variable(*vi) ;
+	if(vp->RepType() == STORE) {
+	  ostringstream oss ;
+	  oss << "source(" <<"EMPTY"<<')' ;
+	  oss << ",target(" << *vi << ')' ;
+	  string sig = oss.str() ;
+	  rule r(sig) ;
+	  entitySet t ;
+	  if(par_rdb.rules_by_target(*vi) == EMPTY) {
+	    if(facts.isDistributed()) {
+	      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+	      for(int i = 0; i < d->copy.size(); ++i)
+		t += d->copy[i].entities ;
+	      initial_vars += *vi ;
+	      facts.set_existential_info(*vi, r, t) ;
+	    }
+	  }
+	}
+      }
+    }
+    cout << " initial_vars = " << initial_vars << endl ;
+    graph_compiler compile_graph(decomp, initial_vars) ;
     double end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for graph processing  = " << end_time  - start_time << "  seconds " << endl ;
 #ifdef PROFILE_CODE

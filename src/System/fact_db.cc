@@ -21,7 +21,8 @@ using std::make_pair ;
 #include <Tools/parse.h>
 
 namespace Loci {
-  
+  extern int MPI_processes ;
+  extern int MPI_rank ;
   fact_db::fact_db() {
     constraint EMPTY ;
     create_fact("EMPTY",EMPTY) ;
@@ -30,6 +31,9 @@ namespace Loci {
     create_fact("UNIVERSE",UNIVERSE) ;
     distributed_info = 0 ;
     maximum_allocated = 0 ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      init_ptn.push_back(EMPTY) ;
+    }
   }
 
   fact_db::~fact_db() {}
@@ -237,9 +241,46 @@ namespace Loci {
     synonyms[synonym] = v ;
     register_variable(synonym) ;
   }
+
+  std::pair<interval, interval> fact_db::get_distributed_alloc(int size) {
+    int* send_buf = new int[MPI_processes] ;
+    int* size_send = new int[MPI_processes] ;
+    int* size_recv = new int[MPI_processes] ;
+    int* recv_buf = new int[MPI_processes] ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      send_buf[i] = maximum_allocated ;
+      size_send[i] = size ;
+    } 
+    MPI_Alltoall(send_buf, 1, MPI_INT, recv_buf, 1, MPI_INT, MPI_COMM_WORLD) ;
+    MPI_Alltoall(size_send, 1, MPI_INT, size_recv, 1, MPI_INT, MPI_COMM_WORLD) ;
+    std::sort(recv_buf, recv_buf+MPI_processes) ;
+    maximum_allocated = recv_buf[MPI_processes-1] ;
+    int local_max = maximum_allocated ;
+    int global_max = 0 ;
+    for(int i = 0; i < MPI_rank; ++i)
+      local_max += size_recv[i] ;
+    for(int i = 0; i < MPI_processes; ++i) 
+      global_max += size_recv[i] ;
     
+    for(int i = 0 ; i < MPI_processes; ++i) {
+      int local = maximum_allocated ;
+      for(int j = 0; j < i; ++j)
+	local += size_recv[j] ;
+      init_ptn[i] += interval(local, local+size_recv[i]-1) ;
+      // debugout << "Partition for processor  " << i <<"   = " << init_ptn[i] << endl ;
+    }
+   
+    interval local_ivl = interval(local_max, local_max + size - 1) ;
+    interval global_ivl = interval(maximum_allocated, maximum_allocated+global_max-1) ; 
+    maximum_allocated = local_max + size ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+    delete [] size_send ;
+    delete [] size_recv ;
+    return(make_pair(local_ivl, global_ivl)) ;
+  }
   
-  storeRepP fact_db::get_variable(variable v) {
+storeRepP fact_db::get_variable(variable v) {
     if(all_vars.inSet(v))
       return storeRepP(get_fact_data(v).data_rep) ;
     else

@@ -25,8 +25,10 @@ namespace Loci {
     { cerr << "Internal consistency error" << endl ; exit(-1);
     return executeP(0);}
   } ;
-
-  graph_compiler::graph_compiler(decomposed_graph &deco) {
+ 
+  graph_compiler::graph_compiler(decomposed_graph &deco,variableSet
+				 initial_vars) {
+    fact_db_comm = new barrier_compiler(initial_vars) ;
     multiLevelGraph &mlg = deco.mlg ;
     vector<int> levels ;
     baserule = rule(mlg.toplevel) ;
@@ -126,7 +128,7 @@ namespace Loci {
   }
 
   void graph_compiler::existential_analysis(fact_db &facts) {
-  
+    fact_db_comm->set_var_existence(facts) ;
     (rule_process[baserule])->set_var_existence(facts) ;
     variableSet var_requests = baserule.targets() ;
     variableSet::const_iterator vi ;
@@ -135,9 +137,9 @@ namespace Loci {
       facts.variable_request(*vi,vexist) ;
     }
     (rule_process[baserule])->process_var_requests(facts) ;
+    fact_db_comm->process_var_requests(facts) ;
   }
-
-
+  
   class allocate_all_vars : public execute_modules {
   public:
     allocate_all_vars() { control_thread = true ; }
@@ -203,6 +205,7 @@ namespace Loci {
   executeP graph_compiler::execution_schedule(fact_db &facts, int nth) {
 
     CPTR<execute_list> schedule = new execute_list ;
+    schedule->append_list(fact_db_comm->create_execution_schedule(facts));
     schedule->append_list(new allocate_all_vars) ;
     schedule->append_list(new execute_create_threads(nth)) ;
     executeP top_level_schedule = (rule_process[baserule])->

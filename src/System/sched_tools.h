@@ -62,9 +62,10 @@ namespace Loci {
   } ;
 
   struct graph_compiler {
+    rule_compilerP fact_db_comm ;
     rulecomp_map rule_process ;
     rule baserule ;
-    graph_compiler(decomposed_graph &deco) ;
+    graph_compiler(decomposed_graph &deco, variableSet initial_vars ) ;
     void existential_analysis(fact_db &facts) ;
     executeP execution_schedule(fact_db &facts, int nth) ;
   } ;

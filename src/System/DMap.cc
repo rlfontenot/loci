@@ -43,9 +43,7 @@ storeRep *dMapRepI::new_store(const entitySet &p) const
 storeRepP dMapRepI::remap(const Map &newmap) const 
 {
   dMap s ;
-
   entitySet newdomain = newmap.domain() & domain() ;
-
   pair<entitySet,entitySet> mappimage = preimage(newmap.domain()) ;
   newdomain &= mappimage.first ;
   entitySet mapimage = newmap.image(newdomain) ;
@@ -91,7 +89,7 @@ void dMapRepI::copy(storeRepP &st, const entitySet &context)
 
 void dMapRepI::gather(const Map &m, storeRepP &st, const entitySet &context) 
 {
-  const_Map s(st) ;
+  const_dMap s(st) ;
 
   fatal((m.image(context) - s.domain()) != EMPTY) ; 
   fatal((context - domain()) != EMPTY) ;
@@ -105,11 +103,10 @@ void dMapRepI::gather(const Map &m, storeRepP &st, const entitySet &context)
 
 void dMapRepI::scatter(const Map &m,storeRepP &st, const entitySet &context) 
 {
-  const_Map s(st) ;
-
+  const_dMap s(st) ;
   fatal((context - s.domain()) != EMPTY) ;
   fatal((m.image(context) - domain()) != EMPTY) ;
-
+  
   FORALL(context,i) {
       attrib_data[m[i]] = s[i] ;
   } ENDFORALL ;
@@ -230,21 +227,28 @@ dMapRepI::preimage(const entitySet &codomain) const
 
 multiMap dMapRepI::get_map() 
 {
-    multiMap result ;
-/*
-
-    store<int> sizes ;
-    sizes.allocate(store_domain) ;
-    FORALL(store_domain,i) {
-      sizes[i] = 1 ;
-    } ENDFORALL ;
-    result.allocate(sizes) ;
-    FORALL(store_domain,i) {
-      result.begin(i)[0] = base_ptr[i] ;
-    } ENDFORALL ;
-*/
-
-    return result ;
+  multiMap result ;
+  store<int> sizes ;
+  hash_map<int,int > :: const_iterator    ci;
+  entitySet          storeDomain;
+  vector<int>        vec;
+  for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
+    vec.push_back( ci->first ) ;
+  
+  sort( vec.begin(), vec.end() );
+  for( int i = 0; i < vec.size(); i++)
+    storeDomain +=  vec[i];
+  sizes.allocate(storeDomain) ;
+  FORALL(storeDomain,i) {
+    sizes[i] = 1 ;
+  }ENDFORALL ;
+  result.allocate(sizes) ;
+  ci =  attrib_data.begin() ;
+  FORALL(storeDomain,i) {
+    result.begin(i)[0] = ci->second ;
+    ++ci ;
+  }ENDFORALL ;
+  return result ;
 }
 
 //********************************************************************
