@@ -1,7 +1,7 @@
 #include <param_rule.h>
-
+#include <Tools/stream.h>
 using std::string ;
-
+using std::ostringstream ;
 namespace Loci {
 
   rule prepend_time_level(Loci::rule r, string prepend) {
@@ -23,18 +23,50 @@ namespace Loci {
   std::string get_complete_name(variable v) {
     std::string name ;
     std::vector<std::string> prior_vec = v.get_info().priority  ;
-    if(prior_vec.size()) {
-      name.append(prior_vec[0]) ;
+    for(unsigned int i = 0; i < prior_vec.size(); ++i) {
+      name.append(prior_vec[i]) ;
       name.append("::") ;
-      for(unsigned int i = 1; i < prior_vec.size(); ++i) {
-        name.append(prior_vec[i]) ;
-        name.append("::") ;
-      }
+    }
+    std::vector<std::string> ns_vec = v.get_info().get_namespace() ;
+    for(unsigned int i = 0; i < ns_vec.size(); ++i) {
+      name.append(ns_vec[i]) ;
+      name.append("@") ;
     }
     name.append(v.get_info().name) ;
     return name ;
   }
-
+ 
+  std::string get_complete_name_wot(variable v) { 
+    std::string name ;
+    std::vector<std::string> prior_vec = v.get_info().priority  ;
+    for(unsigned int i = 0; i < prior_vec.size(); ++i) {
+      name.append(prior_vec[i]) ;
+      name.append("::") ;
+    }
+    std::vector<std::string> ns_vec = v.get_info().get_namespace() ;
+    for(unsigned int i = 0; i < ns_vec.size(); ++i) {
+      name.append(ns_vec[i]) ;
+      name.append("@") ;
+    }
+    name.append(v.get_info().name) ;
+    std::vector<int> v_ids = v.get_arg_list() ; 
+    ostringstream oss ;
+    if(v_ids.size() != 0) {
+      oss << "(";
+      std::vector<int>::const_iterator vi = v_ids.begin() ;
+      variable temp = variable(*vi) ;
+      temp.get_info().Print(oss) ;
+      ++vi ;
+      for(;vi != v_ids.end(); ++vi) {
+	oss << ",";
+	temp = variable(*vi) ;
+	temp.get_info().Print(oss) ;
+      }
+      oss << ")" ;
+    }
+    name.append(oss.str()) ;
+    return name ; 
+  }
   rule rename_rule(rule r, std::map<variable, variable> &vm) {
     std::vector<string> str_vec ;//This is to deal with the renaming
     //of other variables eg. W_f, f_W etc
@@ -46,14 +78,14 @@ namespace Loci {
       if(((name.find("_")) != string::npos) && (!variable(*tvsi).get_arg_list().size())) {
         for(std::map<variable, variable>::const_iterator mi = vm.begin(); mi != vm.end(); ++mi) {
           std::string sub_name = get_complete_name(mi->first) ;
-          unsigned int i ;
+	  unsigned int i ;
           std::string tmp_name = name ;
           do {
             i = tmp_name.find(sub_name) ;
             if(i != string::npos) {
-              if(i > 0) {
+	      if(i > 0) {
                 if(tmp_name[i-1] == '_') {
-                   str_vec.push_back(name) ;
+		  str_vec.push_back(name) ;
                   tmp_name.erase(i-1, i+sub_name.size()+1) ;
                 }
                 else if((i+sub_name.size()) < tmp_name.size())
@@ -91,7 +123,7 @@ namespace Loci {
         {
           unsigned int i ;
           variable s = variable(*ssi) ; 
-          std::string tmp_name = name ;
+	  std::string tmp_name = name ;
           std::string final_name ;
           int pos = 0 ;
           do {
@@ -104,8 +136,8 @@ namespace Loci {
                 if(tmp_name[i-1] == '_') 
                   if((i+(*ssi).size()) < tmp_name.size()) {
                     if(tmp_name[i+(*ssi).size()] == '_') {
-                      replace = vm[s].get_info().name ;
-                      name = tmp_name.substr(i+(*ssi).size(), tmp_name.size()) ;
+                      replace = get_complete_name(vm[s]); //vm[s].get_info().name ;
+		      name = tmp_name.substr(i+(*ssi).size(), tmp_name.size()) ;
                       tmp_name = name ;
                       final_name.insert(pos, replace) ;
                       pos += replace.size() ;
@@ -121,8 +153,8 @@ namespace Loci {
               else {
                 if((i+(*ssi).size()) < tmp_name.size())
                   if(tmp_name[i+(*ssi).size()] == '_') {
-                    replace = vm[s].get_info().name ;
-                    name = tmp_name.substr(i+(*ssi).size(), tmp_name.size()) ;
+                    replace = get_complete_name(vm[s]) ; //.get_info().name ;
+		    name = tmp_name.substr(i+(*ssi).size(), tmp_name.size()) ;
                     tmp_name = name ;
                     final_name.insert(pos, replace) ;
                     pos += replace.size() ;
@@ -163,8 +195,11 @@ namespace Loci {
             name.append(par) ;
           }
         }
-      if(name != orig)
+      if(name != orig) {
+
         vm[variable(orig)] = variable(name) ;
+	//std::cout << "vm[ " << variable(orig) << " ] = " << variable(name) << endl ;
+      }
     }
     rule_implP rp = r.get_rule_implP() ;
     rp->rename_vars(vm) ;
@@ -323,7 +358,9 @@ namespace Loci {
         variable v = variable(*vsi) ;
         variableSet vs;
         ruleSet rs ;
-        if(mvarset.find(get_complete_name(v)) != mvarset.end()) 
+	if(v.time() != time_ident())
+	  v = variable(get_complete_name_wot(v)) ;
+	if(mvarset.find(get_complete_name(v)) != mvarset.end()) 
           vs = mvarset.find(get_complete_name(v))->second ;
         for(variableSet::const_iterator mvsi = vs.begin(); mvsi != vs.end(); ++mvsi)
           if(v.get_arg_list().size() == variable(*mvsi).get_arg_list().size()) {
@@ -368,7 +405,7 @@ namespace Loci {
               rule_implP rp = r.get_rule_implP() ;
               if(!added_rules.inSet(rule(rp))) {
                 par_rdb.add_rule(rule(rp)) ;
-                //	      cout << "Adding rule " << rule(rp) << endl ;
+		//std::cout << "Adding rule " << rule(rp) << endl ;
                 added_rules += rule(rp) ;
               }
             }
