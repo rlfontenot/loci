@@ -26,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
-#define UNITY_MAPPING
+//#define UNITY_MAPPING
 
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
@@ -551,7 +551,7 @@ namespace Loci {
     facts.put_distribute_info(df) ;
     facts.create_fact("l2g", l2g) ;
     facts.create_fact("my_entities", my_entities) ;
-    debugout[MPI_rank] << "my_entities = " << my_entities << endl ;
+    //    debugout[MPI_rank] << "my_entities = " << my_entities << endl ;
     
   }
   
@@ -1069,6 +1069,7 @@ namespace Loci {
         
         entitySet dom = sp->domain() ;
 	entitySet temp = dom & d->my_entities ;
+
 	int send_size = temp.size() ;
 	int *send_buffer = new int[send_size] ;
 	int sz = sp->pack_size(temp) ;

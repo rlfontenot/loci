@@ -512,7 +512,7 @@ namespace Loci {
         ret += *ri ;
     return ret ;
   }
-  
+
   vector<pair<variable,entitySet> >
   barrier_existential_rule_analysis(variableSet vlst,
                                     fact_db &facts) {
@@ -603,6 +603,7 @@ namespace Loci {
       ruleSet &rs = rules[i] ;
 
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
+        fill_sets[j] += exinfo[j] ;
 #ifdef VERBOSE
         debugout[MPI_rank] << "v=" << v << ",rule ="<<*rsi
                            <<"fill_set="<<fill_sets[j] << endl ;
@@ -711,8 +712,10 @@ namespace Loci {
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       variable v = *vi ;
       entitySet requests = facts.get_variable_requests(v) ;
+
       requests += send_requests(requests, v, facts, clist ) ;
       requests += fill_entitySet(requests, facts) ;
+
       facts.variable_request(v,requests) ;
     }
     return clist ;
@@ -851,6 +854,7 @@ namespace Loci {
     delete [] r_size ;
   }
 
+  
   void execute_comm::Print(ostream &s) const {
     if(send_info.size()+recv_info.size() > 0) {
       s << "communication block {" << endl ;

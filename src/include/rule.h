@@ -161,25 +161,39 @@ namespace Loci {
     Op join ;
     T t,s ;
   public:
-    virtual CPTR<joiner> clone()
-    { return CPTR<joiner>(new joinOp<T,Op> ); }
-
-    virtual storeRepP getTargetRep()
-    { T st ; storeRepP rep = st.Rep(); return rep; }
-
-    virtual void SetArgs(storeRepP &target, storeRepP &source)
-    { s.setRep(source) ; t.setRep(target) ; }
-
-    virtual void Join(const sequence &seq) {
-      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) 
-        join(t[*i],s[*i]) ;
-    }
-
-    virtual void Join(Map &t2s, const sequence &seq) { 
-      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) 
-        join(t[*i],s[t2s[*i]]) ;
-    }
+    virtual CPTR<joiner> clone() ;
+    virtual storeRepP getTargetRep() ;
+    virtual void SetArgs(storeRepP &target, storeRepP &source) ;
+    virtual void Join(const sequence &seq) ;
+    virtual void Join(Map &t2s, const sequence &seq)  ;
   } ;
+
+  template <class T, class Op> CPTR<joiner> joinOp<T,Op>::clone() {
+    return CPTR<joiner>(new joinOp<T,Op> );
+  }
+
+  template <class T, class Op>  storeRepP joinOp<T,Op>::getTargetRep() {
+    T st ;
+    return st.Rep();
+  }
+
+  template <class T, class Op>
+  void joinOp<T,Op>::SetArgs(storeRepP &target, storeRepP &source)
+  { s.setRep(source) ; t.setRep(target) ; }
+
+  template <class T, class Op> void joinOp<T,Op>::Join(const sequence &seq) {
+    for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) 
+      join(t[*i],s[*i]) ;
+  }
+
+  template <class T, class Op>
+  void joinOp<T,Op>::Join(Map &t2s, const sequence &seq){ 
+    for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) 
+      join(t[*i],s[t2s[*i]]) ;
+  }
+
+    
+
 
   template<class Type,class Op> class joinOp<param<Type>,Op> : public joiner {
     Op join ;
@@ -212,7 +226,7 @@ namespace Loci {
     { s.setRep(source) ; t.setRep(target) ; }
 
     virtual storeRepP getTargetRep()
-    { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    { storeVec<Type> st ; storeRepP rep = st.Rep(); return rep; }
 
     virtual void Join(const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
@@ -240,7 +254,7 @@ namespace Loci {
     { s.setRep(source) ; t.setRep(target) ; }
 
     virtual storeRepP getTargetRep()
-    { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    { storeMat<Type> st ; storeRepP rep = st.Rep(); return rep; }
 
     virtual void Join(const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
@@ -311,6 +325,7 @@ namespace Loci {
     }
 
   } ;
+  
   template <class T> struct Summation {
     void operator()(T &res, const T &arg)
     { res += arg ; }

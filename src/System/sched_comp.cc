@@ -1,5 +1,6 @@
 #include "sched_tools.h"
 #include "comp_tools.h"
+#include "distribute.h"
 
 #include <vector>
 using std::vector ;
@@ -176,9 +177,11 @@ namespace Loci {
         variableSet aliases = facts.get_aliases(*vi) ;
         entitySet all_requests ;
         for(vii=aliases.begin();vii!=aliases.end();++vii) {
+#ifdef HACK
 	  if(facts.isDistributed())
 	    all_requests += facts.variable_existence(*vii) ;
-	  else 
+	  else
+#endif
 	    all_requests += facts.get_variable_requests(*vii) ;
 	}
         srp->allocate(all_requests) ;

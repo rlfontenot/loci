@@ -10,6 +10,7 @@ using std::hash_map ;
 
 using std::list ;
 
+//#define VERBOSE
 namespace Loci {
   class joiner_oper : public execute_modules {
     variable joiner_var ;
@@ -105,6 +106,12 @@ namespace Loci {
         const variableSet &tvars = si->var ;
         variableSet::const_iterator vi ;
         for(vi=tvars.begin();vi!=tvars.end();++vi) {
+#ifdef VERBOSE
+          debugout[MPI_rank] << "shadow is " << targets << endl ;
+          debugout[MPI_rank] << "shadow not owned is "
+                             << targets - d->my_entities << endl
+                             << "variable is " << *vi << endl ;
+#endif
           facts.variable_shadow(*vi,targets) ;
         }
       }
@@ -220,12 +227,18 @@ namespace Loci {
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       entitySet requests = vmap_source_requests(*si,facts,compute) ;
       variableSet::const_iterator vi ;
-      for(vi=si->var.begin();vi!=si->var.end();++vi)
-        facts.variable_request(*vi,requests) ;
+      for(vi=si->var.begin();vi!=si->var.end();++vi) {
+        variable v = *vi ;
+        facts.variable_request(v,requests) ;
+#ifdef VERBOSE
+        debugout[MPI_rank] << "rule " << apply << " requesting variable "
+                           << v << " for entities " << requests << endl ;
+#endif
+      }
     }
     
 #ifdef VERBOSE
-      cout << "rule " << apply << " computes over " << compute << endl ;
+      debugout[MPI_rank] << "rule " << apply << " computes over " << compute << endl ;
 #endif
   }
 
@@ -504,11 +517,13 @@ namespace Loci {
       rlist = sort_comm(slist,facts) ;
       clist = sort_comm(request_comm,facts) ;
 
+#ifdef VERBOSE
       if(shadow != EMPTY) {
         debugout[MPI_rank] << "shadow = " << shadow << endl ;
         shadow -= d->my_entities ;
         debugout[MPI_rank] << "shadow/my_entites = " << shadow << endl ;
       }
+#endif
     }
   }
 

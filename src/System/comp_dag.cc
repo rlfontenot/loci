@@ -5,6 +5,11 @@ using std::vector ;
 #include <sys/stat.h>
 
 #include <distribute.h>
+#include <parameter.h>
+
+#include <map>
+using std::map ;
+
 
 namespace Loci {
 
@@ -16,6 +21,8 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
   } ;
 
+  map<variable, int> dump_var_lookup ;
+  
   void execute_dump_var::execute(fact_db &facts) {
     bool do_dump = true ;
     struct stat statbuf ;
@@ -30,6 +37,7 @@ namespace Loci {
     for(variableSet::const_iterator vi=dump_vars.begin();
         vi!=dump_vars.end();++vi) {
       variable v = *vi ;
+      debugout[MPI_rank] << "dumping variable " << v << endl ;
       storeRepP st = facts.get_variable(v) ;
       storeRepP sc = st ;
       if(facts.isDistributed() && st->RepType() == STORE) {
@@ -38,6 +46,12 @@ namespace Loci {
       if(MPI_rank == 0) {
         ostringstream oss ;
         oss << "dump_vars/"<<v ;
+        if(dump_var_lookup.find(v) ==dump_var_lookup.end())
+          dump_var_lookup[v] = 0 ;
+        if(dump_var_lookup[v] != 0)
+          oss << "."<<dump_var_lookup[v] ;
+        dump_var_lookup[v]++ ;
+        
         string filename = oss.str() ;
         ofstream ofile(filename.c_str(),ios::out) ;
         ofile.precision(8) ;
@@ -156,21 +170,21 @@ namespace Loci {
 
       all_vars += reduce_vars;
       
-      if(reduce_info.begin() != reduce_info.end()) {
+      if(reduce_vars != EMPTY) {
         std::map<variable,ruleSet>::const_iterator xi ;
         variableSet vars ;
         for(xi=reduce_info.begin();xi!=reduce_info.end();++xi) {
           vars += xi->first ;
           rule unit_rule ;
           CPTR<joiner> join_op = CPTR<joiner>(0) ;
-          storeRepP sp ;
           ruleSet::const_iterator ri ;
           for(ri=xi->second.begin();ri!=xi->second.end();++ri) {
             if(ri->get_rule_implP()->get_rule_class() == rule_impl::UNIT)
               unit_rule = *ri ;
             else if(ri->get_rule_implP()->get_rule_class() == rule_impl::APPLY){
-              if(join_op == 0)
+              //              if(join_op == 0)
                 join_op = ri->get_rule_implP()->get_joiner() ;
+              //#define TYPEINFO_CHECK
 #ifdef TYPEINFO_CHECK
               else
                 if(typeid(*join_op) !=
@@ -185,19 +199,21 @@ namespace Loci {
             }
           }
           FATAL(join_op == 0) ;
-          sp = join_op->getTargetRep() ;
-          if(sp->RepType() == PARAMETER)
+          storeRepP sp = join_op->getTargetRep() ;
+          if(sp->RepType() == PARAMETER) {
             dag_comp.push_back(new reduce_param_compiler(xi->first,unit_rule,
                                                          join_op)) ;
-          else
+          }else {
             dag_comp.push_back(new reduce_store_compiler(xi->first,unit_rule,
                                                          join_op)) ;
+          }
         }
       }
 
+#ifdef DEBUG
       if(all_vars != EMPTY) 
         dag_comp.push_back(new dump_vars_compiler(all_vars)) ;
-      
+#endif
       if(rules != EMPTY) {
         ruleSet::const_iterator ri ;
         for(ri=rules.begin();ri!=rules.end();++ri) {
