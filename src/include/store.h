@@ -364,7 +364,7 @@ namespace Loci {
     entitySet :: const_iterator ci;
     typedef data_schema_traits<T> converter_traits;
     
-    ecommon = eset;
+    ecommon = eset & domain() ;
     
     T   obj;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
