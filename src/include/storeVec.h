@@ -172,6 +172,8 @@ namespace Loci {
       return ptr[j*size + i] ;
     }
   } ;
+  typedef unsigned char pivot_type ;
+
   
   template <class T> class const_Mat {
   public:
@@ -188,36 +190,17 @@ namespace Loci {
       return const_Mat_partial<T>(ptr,size,idx) ;
     }
 
-    template<class S> void solve_lu(S *b, S *x) const {
+    template<class S> void solve_lu(const S *b, S *x) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
+        x[i] = b[i] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
-          b[i] -= Aj[i]*b[j] ;
-      }
-      S *y = b ;
-      // Do back solver Ux = y
-      const T *Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        x[i] = y[i] ;
-        const T *Aj = Ai + size ;
-        for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
       }
-    }
-    template<class T1,class T2> void solve_lu(Vect<T1> b, T2 *x) const {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        const T *Aj = ptr ;
-        for(int j=0;j<i;++j,Aj+=size)
-          b[i] -= Aj[i]*b[j] ;
-      }
-      T1 *y = b ;
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
-        x[i] = y[i] ;
         const T *Aj = Ai + size ;
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
@@ -225,18 +208,90 @@ namespace Loci {
       }
     }
 
-    template<class T1,class T2> void solve_lu(T1 *b, Vect<T2> x) const {
+    template<class T1,class T2> void solve_lu(const_Vect<T1> b, T2 *x) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
+        x[i] = b[i] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
-          b[i] -= Aj[i]*b[j] ;
+          x[i] -= Aj[i]*x[j] ;
       }
-      T1 *y = b ;
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
-        x[i] = y[i] ;
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class T1,class T2> void solve_lu(const T1 *b, Vect<T2> x) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        x[i] = b[i] ;
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+      }
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class S> void solve_lu_pivot(const S *b, S *x,const pivot_type *pivot) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        x[i] = b[pivot[i]] ;
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+      }
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class T1,class T2> void solve_lu_pivot(const_Vect<T1> b, Vect<T2> x,const_Vect<pivot_type> pivot) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        x[i] = b[pivot[i]] ;
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+      }
+
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class T1,class T2> void solve_lu_pivot(const T1 *b, Vect<T2> x,const pivot_type *pivot) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        x[i] = b[pivot[i]] ;
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+      }
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *Aj = Ai + size ;
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
@@ -286,6 +341,7 @@ namespace Loci {
       return ptr[j*size + i] ;
     }
   } ;
+
   
   template <class T> class Mat {
   public:
@@ -411,19 +467,73 @@ namespace Loci {
           Aj[i] /= Aj[j] ;
       }
     }
+    
+    void decompose_lu_pivot(pivot_type *pivot) {
+      pivot_type piv[256] ;  // Maximum matrix size for pivoting
+      for(int i=0;i<size;++i)
+        pivot[i] = i ;
+      T *Aj = ptr ;
+      for(int j=0;j<size;++j,Aj+= size) {
+        for(int k=0;k<j;++k)
+          if(k!=piv[k])
+            std::swap(Aj[k],Aj[piv[k]]) ;
+        T *Ak = ptr ;
+        for(int k=0;k<j;++k,Ak += size)
+          for(int i=k+1;i<j;++i)
+            Aj[i] -= Ak[i]*Aj[k] ;
+        Ak = ptr ;
+        for(int k=0;k<j;++k,Ak += size)
+          for(int i=j;i<size;++i)
+            Aj[i] -= Ak[i]*Aj[k] ;
+        int mu = j ;
+        for(int k=j+1;k<size;++k)
+          if(std::abs(Aj[mu]) < std::abs(Aj[k]))
+            mu = k ;
+        piv[j] = mu ;
+        if(j!= mu)
+          std::swap(pivot[j],pivot[mu]) ;
+        Ak = ptr ;
+        for(int k=0;k<j+1;++k,Ak += size)
+          if(j != piv[j])
+            std::swap(Ak[j],Ak[piv[j]]) ;
+        if(Aj[j] != 0) {
+          T ajjr = 1./Aj[j] ;
+          for(int i=j+1;i<size;++i)
+            Aj[i] *= ajjr ;
+        }
+      }
+    }
 
-    template<class S> void solve_lu(S *b, S *x) const {
+    template<class S> void solve_lu(const S *b, S *x) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
+        x[i] = b[i] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
-          b[i] -= Aj[i]*b[j] ;
+          x[i] -= Aj[i]*x[j] ;
       }
-      T *y = b ;
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
-        x[i] = y[i] ;
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+
+      }
+    }
+
+    template<class S> void solve_lu(const_Vect<S> &b, S *x) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        x[i] = b[i]
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+      }
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *Aj = Ai + size ;
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
@@ -431,18 +541,18 @@ namespace Loci {
       }
     }
 
-    template<class S> void solve_lu(Vect<S> &b, S *x) const {
+    template<class S> void solve_lu(const S *b, Vect<S> &x) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
+        x[i] = b[i] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
-          b[i] -= Aj[i]*b[j] ;
+          x[i] -= Aj[i]*x[j] ;
       }
       S *y = b ;
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
-        x[i] = y[i] ;
         const T *Aj = Ai + size ;
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
@@ -450,18 +560,54 @@ namespace Loci {
       }
     }
 
-    template<class S> void solve_lu(S *b, Vect<S> &x) const {
+    template<class S> void solve_lu_pivot(const S *b, S *x,const pivot_type *pivot) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
+        x[i] = b[pivot[i]] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
-          b[i] -= Aj[i]*b[j] ;
+          x[i] -= Aj[i]*x[j] ;
       }
-      S *y = b ;
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
-        x[i] = y[i] ;
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class S> void solve_lu_pivot(const_Vect<S> &b, S *x,const pivot_type *pivot) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+
+      for(int i=0;i<size;++i) {
+        x[i] = b[pivot[i]] ;
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+      }
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        const T *Aj = Ai + size ;
+        for(int j=i+1;j<size;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+        x[i] = x[i]/Ai[i] ;
+      }
+    }
+
+    template<class S> void solve_lu_pivot(const S *b, Vect<S> &x,const pivot_type *pivot) const {
+      // Perform forward solve Ly = b, note b becomes y after this step
+      for(int i=0;i<size;++i) {
+        x[i] = b[pivot[i]] ;
+        const T *Aj = ptr ;
+        for(int j=0;j<i;++j,Aj+=size)
+          x[i] -= Aj[i]*x[j] ;
+      }
+      // Do back solver Ux = y
+      const T *Ai = ptr + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *Aj = Ai + size ;
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
