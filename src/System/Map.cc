@@ -6,9 +6,9 @@ namespace Loci {
 
   using std::pair ;
   using std::make_pair ;
-  
-  MapRep::~MapRep() {}
 
+  MapRep::~MapRep() {}
+  
   store_type MapRep::RepType() const { return MAP ; }
         
   void MapRepI::allocate(const entitySet &ptn) {
@@ -33,8 +33,8 @@ namespace Loci {
   storeRep *MapRepI::new_store(const entitySet &p) const {
     return new MapRepI(p)  ;
   }
-
-  storeRepP MapRepI::remap(const Map &m) const{
+  
+  storeRepP MapRepI::remap(const Map &m) const {
     entitySet newdomain = m.domain() & domain() ;
     pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
     newdomain &= mappimage.first ;
@@ -42,10 +42,8 @@ namespace Loci {
     Map s ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-      
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
-    
     return s.Rep() ;
   }
 
@@ -68,7 +66,7 @@ namespace Loci {
 
   void MapRepI::gather(const Map &m, storeRepP &st, const entitySet &context) {
     const_Map s(st) ;
-    fatal(base_ptr == 0) ;
+    fatal(base_ptr == 0 && context != EMPTY) ;
     fatal((m.image(context) - s.domain()) != EMPTY) ; 
     fatal((context - domain()) != EMPTY) ;
     FORALL(context,i) {
@@ -78,7 +76,7 @@ namespace Loci {
 
   void MapRepI::scatter(const Map &m,storeRepP &st, const entitySet &context) {
     const_Map s(st) ;
-    fatal(base_ptr == 0) ;
+    fatal(base_ptr == 0 && context != EMPTY) ;
     fatal((context - s.domain()) != EMPTY) ;
     fatal((m.image(context) - domain()) != EMPTY) ;
     FORALL(context,i) {
@@ -434,10 +432,8 @@ namespace Loci {
     multiMap s ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
-      
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
-    
     return s.Rep() ;
   }
 
