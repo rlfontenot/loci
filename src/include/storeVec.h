@@ -847,14 +847,15 @@ namespace Loci {
       data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    entitySet ecommon, ediff,eset(seq);
-
+#ifdef DEBUG
+    entitySet ediff,eset(seq);
+    
     ediff = eset - domain();
     if( ediff.size() > 0) { 
       cout << "Error:Entities not part of domain " << ediff <<endl;
       abort();
     }
-
+#endif
     int init_size = get_size() ;
     int M ;
     MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
