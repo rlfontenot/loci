@@ -2,6 +2,8 @@
 #define LOCI_H
 
 #include <Loci_version.h>
+#include <Loci_types.h>
+#include <data_traits.h>
 #include <Map.h>
 #include <MapVec.h>
 #include <multiMap.h>
@@ -13,13 +15,9 @@
 #include <Tools/options_list.h>
 #include <Tools/fpe.h>
 #include <scheduler.h>
-#include <hdf5_traits.h>
-#include <hdf5_memento.h>
-#include <Loci_types.h>
 #include <distribute.h>
 #include <multiStore.h>
 #include <storeMat.h>
-#include <data_traits.h>
 
 
 using Loci::entitySet ;

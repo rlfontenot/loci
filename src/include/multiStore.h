@@ -442,7 +442,7 @@ namespace Loci {
     if(index) delete[] index ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   storeRep *multiStoreRepI<T>::new_store(const entitySet &p) const 
@@ -460,7 +460,7 @@ namespace Loci {
     return new multiStoreRepI<T>(count) ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   storeRepP multiStoreRepI<T>::remap(const Map &m) const 
@@ -475,7 +475,7 @@ namespace Loci {
     return s.Rep() ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
   
   template<class T> 
   void multiStoreRepI<T>::copy(storeRepP &st, const entitySet &context) 
@@ -518,7 +518,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
   
   template<class T> 
   void multiStoreRepI<T>::gather(const Map &m, storeRepP &st,
@@ -561,7 +561,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   void multiStoreRepI<T>::scatter(const Map &m, storeRepP &st,
@@ -607,7 +607,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   store_type multiStoreRepI<T>::RepType() const 
@@ -615,7 +615,7 @@ namespace Loci {
     return STORE ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
   
   template<class T> 
   entitySet multiStoreRepI<T>::domain() const 
@@ -623,7 +623,7 @@ namespace Loci {
     return store_domain ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
   
   template<class T> 
   std::ostream &multiStoreRepI<T>::Print(std::ostream &s) const 
@@ -661,7 +661,7 @@ namespace Loci {
     return s ;
   }
 
-  //***************************************************************************/
+  //*************************************************************************/
 
   template<class T> 
   std::istream &multiStoreRepI<T>::Input(std::istream &s) 
@@ -783,7 +783,7 @@ namespace Loci {
   template <class T> 
   int multiStoreRepI<T>::get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset ) 
   {
-
+#ifdef NOT_IMPLEMENTED
     int        arraySize =0;
     entitySet  :: const_iterator ci;
     std::vector<T> avec;
@@ -802,6 +802,9 @@ namespace Loci {
     typedef data_schema_converter_traits<T> converter_traits; 
     return( arraySize*sizeof(typename converter_traits::memento_type) +
             numContainers*sizeof(int) );
+#else
+    std::cerr << "not implemented" << std::endl ;
+#endif
   }
   //**************************************************************************/
 
@@ -874,6 +877,7 @@ namespace Loci {
                                     int &position, int outcount,
                                     const entitySet &eset ) 
   {
+#ifdef NOT_IMPLEMENTED
     int vecsize, stateSize, maxStateSize;
 
     //------------------------------------------------------------------------
@@ -918,6 +922,9 @@ namespace Loci {
   }
 
   delete [] inbuf;
+#else
+    std::cerr << "not implemented" << std::endl ;
+#endif
 
 }
 
@@ -1020,7 +1027,7 @@ void multiStoreRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *ptr, int &loc, i
   }
 }
   
-//**************************************************************************
+//**************************************************************************/
 template <class T> 
 void multiStoreRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
                                     int &position, int insize,
@@ -1239,9 +1246,7 @@ void multiStoreRepI<T> :: hdf5read( hid_t group_id, IDENTITY_CONVERTER c,
   vDataspace = H5Screate_simple(rank, &dimension, NULL);
   vDataset   = H5Dopen(group_id,"VariableData");
 
-  AbstractDatatype  *dtype;
-  typedef data_schema_traits<T> traits_type;
-  dtype = traits_type::instance();
+  DatatypeP dtype = data_schema_traits<T>::get_type();
   vDatatype = dtype->get_hdf5_type();
 
   T *data;
@@ -1277,10 +1282,9 @@ void multiStoreRepI<T> :: hdf5read( hid_t group_id, IDENTITY_CONVERTER c,
   H5Dclose(vDataset);
   H5Sclose(vDataspace);
   H5Sclose(mDataspace);
-  delete dtype;
 }
 
-//**************************************************************************
+//**************************************************************************/
 
 template <class T> 
 void multiStoreRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, 
@@ -1439,12 +1443,13 @@ void multiStoreRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c,
 
 }; 
 
-//**************************************************************************
+//**************************************************************************/
 
 template <class T> 
 void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g, 
                                     const entitySet &eset)  const
 {   
+#ifdef NOT_IMPLEMENTED
   cout << " COMING TO MULTISTORE USER DEFINED " << endl;
   
   int rank = 1;
@@ -1452,10 +1457,10 @@ void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g,
   hid_t    vDataspace, vDataset, vDatatype;
   hid_t cparms     = H5Pcreate (H5P_DATASET_CREATE);
     
-  //-----------------------------------------------------------------------------
+  //---------------------------------------------------------------------------
   // Get the sum of each object size and maximum size of object in the 
   // container for allocation purpose
-  //-----------------------------------------------------------------------------
+  //---------------------------------------------------------------------------
 
   entitySet :: const_iterator ci;
   size_t       arraySize= 0;
@@ -1476,6 +1481,9 @@ void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g,
       bucketSize.push_back( stateSize );
     }
   }
+#else
+    std::cerr << "not implemented" << std::endl ;
+#endif
   /*
     maxBucketSize = *max_element( bucketSize.begin(), bucketSize.end() );
     
@@ -1492,9 +1500,9 @@ void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g,
     H5Tclose( vDatatype );
     delete [] storeSize;
 
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Write the size of each bucket...
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     dimension    =  bucketSize.size();
     int  *bucket = new int[bucketSize.size()];
 
@@ -1519,9 +1527,9 @@ void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g,
 
     data =  new typename converter_traits::memento_type[arraySize];
     buf  =  new typename converter_traits::memento_type[maxBucketSize];
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
 
     indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
@@ -1534,9 +1542,9 @@ void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g,
     }
     }
 
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Write (variable) Data into HDF5 format
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     dimension =  arraySize;
 
     typedef data_schema_traits<dtype> traits_type;
@@ -1548,9 +1556,9 @@ void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g,
     cparms);
     H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
 
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Clean up
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     H5Tclose(vDatatype);
     H5Dclose(vDataset);
     H5Sclose(vDataspace);
@@ -1563,7 +1571,7 @@ void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g,
 
 };
 
-//*************************************************************************
+//*************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
 template <class T> 
 void multiStoreRepI<T>::hdf5write( hid_t group_id, DEFAULT_CONVERTER g, 
@@ -1626,7 +1634,7 @@ void multiStoreRepI<T>::hdf5write( hid_t group_id, DEFAULT_CONVERTER g,
 
 }
 #endif
-//*************************************************************************
+//*************************************************************************/
 
 template <class T> 
 void multiStoreRepI<T>::hdf5write( hid_t group_id, IDENTITY_CONVERTER g, 
@@ -1637,10 +1645,10 @@ void multiStoreRepI<T>::hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
 
   entitySet :: const_iterator ci;
 
-  //-----------------------------------------------------------------------------
+  //---------------------------------------------------------------------------
   // Get the sum of each object size and maximum size of object in the 
   // container for allocation purpose
-  //-----------------------------------------------------------------------------
+  //---------------------------------------------------------------------------
   int     count, newsize;
 
   int  *container = new int[eset.size()];
@@ -1673,9 +1681,9 @@ void multiStoreRepI<T>::hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
 
   delete [] container;
 
-  //-----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
   // Collect state data from each object and put into 1D array
-  //-----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
 
   T  *data;
   data =  new T[arraySize];
@@ -1687,12 +1695,11 @@ void multiStoreRepI<T>::hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
       data[indx++] = base_ptr[*ci][j];
   }
 
-  //-----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
   // Write (variable) Data into HDF5 format
-  //-----------------------------------------------------------------------------
-  AbstractDatatype  *dtype;
+  //--------------------------------------------------------------------------
   typedef data_schema_traits<T> traits_type;
-  dtype = traits_type::instance();
+  DatatypeP dtype = traits_type::get_type();
   vDatatype = dtype->get_hdf5_type();
 
   dimension        = arraySize;

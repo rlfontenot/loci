@@ -6,7 +6,7 @@ include $(LOCI_BASE)/Loci.conf
 
 TARGET = libLoci.a #libLoci.so
 
-OBJS = Loci_version.o variable.o store_rep.o Map.o \
+OBJS = Loci_version.o Loci_Datatypes.o variable.o store_rep.o Map.o \
        constraint.o rule.o fact_db.o execute.o depend_graph.o \
        scheduler.o sched_tools.o sched_mlg.o sched_types.o \
        sched_decompose.o sched_comp.o comp_impl.o comp_reduce.o \

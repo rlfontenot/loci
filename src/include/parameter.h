@@ -134,7 +134,7 @@ namespace Loci {
   template<class T> 
   void paramRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
   {
-
+    /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
@@ -146,7 +146,7 @@ namespace Loci {
     allocate( ecommon );
 
     hdf5read(group_id, traits_output_type );
-
+    */
   }
 
   //**************************************************************************/
@@ -154,11 +154,12 @@ namespace Loci {
   template<class T> 
   void paramRepI<T>::writehdf5( hid_t group_id, entitySet &en) const
   {
-
+    /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
     hdf5write(group_id, traits_output_type, en);
+    */
 
   }
 
@@ -423,8 +424,7 @@ namespace Loci {
 
     typedef data_schema_traits<T> traits_type;
 
-    AbstractDatatype  *dtype;
-    dtype = traits_type::instance();
+    DatatypeP  dtype = traits_type::get_type();
     hid_t vDatatype = dtype->get_hdf5_type();
 
     int rank = 1;
@@ -446,8 +446,6 @@ namespace Loci {
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
 
-    delete dtype;
-
   };
 
   //*********************************************************************/
@@ -458,7 +456,7 @@ namespace Loci {
   {
 
     //write out the domain   
-    HDF5_WriteDomain(group, eset);
+    //    HDF5_WriteDomain(group, eset);
     cout << " NOT WRITTEN SO FAR " << endl;
     exit(0);
     /*

@@ -28,11 +28,14 @@ namespace Loci {
     hash_map<int,T>      attrib_data;
     mutable entitySet    store_domain ;
 
+#ifdef ALLOW_DEFAULT_CONVERTER
     void  hdf5read( hid_t group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
+    void  hdf5write( hid_t group, DEFAULT_CONVERTER c,      const entitySet &en) const;
+#endif
+    
     void  hdf5read( hid_t group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( hid_t group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
 
-    void  hdf5write( hid_t group, DEFAULT_CONVERTER c,      const entitySet &en) const;
     void  hdf5write( hid_t group, IDENTITY_CONVERTER c,     const entitySet &en) const;
     void  hdf5write( hid_t group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
@@ -63,7 +66,7 @@ namespace Loci {
     const hash_map<int,T> *get_attrib_data() const { return &attrib_data; }
   } ;
 
-  //**********************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   void dstoreRepI<T>::allocate(const entitySet &ptn)
@@ -78,7 +81,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //**********************************************************************************
+  //*********************************************************************/
 
   template<class T> 
   std::ostream &dstoreRepI<T>::Print(std::ostream &s) const 
@@ -97,7 +100,7 @@ namespace Loci {
     return s ;
   }
 
-  //**********************************************************************************
+  //************************************************************************/
 
   template<class T> 
   std::istream &dstoreRepI<T>::Input(std::istream &s) 
@@ -130,14 +133,14 @@ namespace Loci {
     return s ;
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template<class T>  
   dstoreRepI<T>::~dstoreRepI<T>() {
     attrib_data.clear();
   }
 
-  //***************************************************************************
+  //*************************************************************************/
     
   template<class T>  
   entitySet dstoreRepI<T>::domain() const 
@@ -157,7 +160,7 @@ namespace Loci {
     return storeDomain ;
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template<class T>
   storeRep *dstoreRepI<T>::new_store(const entitySet &p) const 
@@ -165,7 +168,7 @@ namespace Loci {
     return new dstoreRepI<T>(p) ;
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   store_type dstoreRepI<T>::RepType() const 
@@ -173,7 +176,7 @@ namespace Loci {
     return STORE ;
   }
 
-  //**********************************************************************************
+  //************************************************************************/
 
   template<class T> class dstore : public store_instance {
     typedef dstoreRepI<T>  storeType ;
@@ -224,12 +227,12 @@ namespace Loci {
 
   } ;
 
-  //**********************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   dstore<T>::~dstore<T>() { }
 
-  //***************************************************************************
+  //*************************************************************************/
     
   template<class T> 
   void dstore<T>::notification() 
@@ -240,19 +243,19 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //****************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   inline std::ostream & operator<<(std::ostream &s, const dstore<T> &t)
   { return t.Print(s) ; }
 
-  //****************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   inline std::istream & operator>>(std::istream &s, dstore<T> &t)
   { return t.Input(s) ; }
 
-  //****************************************************************************
+  //************************************************************************/
 
   template<class T> class const_dstore : public store_instance {
     typedef dstoreRepI<T> storeType ;
@@ -300,12 +303,12 @@ namespace Loci {
       
   } ;
 
-  //****************************************************************************
+  //************************************************************************/
 
   template<class T> 
   const_dstore<T>::~const_dstore<T>() { }
 
-  //****************************************************************************
+  //************************************************************************/
     
   template<class T> 
   void const_dstore<T>::notification() 
@@ -316,14 +319,14 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   store_instance::instance_type
   const_dstore<T>::access() const 
   { return READ_ONLY; }
         
-  //****************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   storeRepP dstoreRepI<T>::remap(const Map &m) const 
@@ -344,7 +347,7 @@ namespace Loci {
     return s.Rep() ;
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   void dstoreRepI<T>::copy(storeRepP &st, const entitySet &context)  
@@ -360,7 +363,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   void dstoreRepI<T>::gather(const Map &m, storeRepP &st, const entitySet &context) 
@@ -377,7 +380,7 @@ namespace Loci {
 
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void dstoreRepI<T>::scatter(const Map &m, storeRepP &st, const entitySet &context) 
@@ -392,7 +395,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   void dstoreRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
@@ -411,7 +414,7 @@ namespace Loci {
     hdf5read( group_id, traits_type, eset,  ecommon );
   }
 
-  //**************************************************************************
+  //*************************************************************************/
 
   template<class T> 
   void dstoreRepI<T>::writehdf5( hid_t group_id, entitySet& en) const
@@ -427,7 +430,7 @@ namespace Loci {
     hdf5write(group_id, traits_output_type, en );
   }
 
-  //***************************************************************************
+  //**************************************************************************/
     
   template <class T> 
   int dstoreRepI<T>::pack_size( const entitySet &e) 
@@ -437,7 +440,7 @@ namespace Loci {
     return(size) ;
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template <class T> 
   void dstoreRepI<T>::pack(void *ptr, int &loc, int &size,  const entitySet &e )  
@@ -461,7 +464,7 @@ namespace Loci {
  
   }
 
-  //****************************************************************************
+  //*************************************************************************/
   
   template <class T> 
   void dstoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
@@ -488,7 +491,8 @@ namespace Loci {
     }
   }  
 
-  //***************************************************************************
+#ifdef ALLOW_DEFAULT_CONVERTER
+  //*************************************************************************/
 
   template<class T>
   void  dstoreRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c, 
@@ -521,8 +525,8 @@ namespace Loci {
     H5Sclose( vDataspace );
 
   }
-
-  //***************************************************************************
+#endif
+  //*************************************************************************/
 
   template<class T>
   void  dstoreRepI<T> :: hdf5read( hid_t group_id, IDENTITY_CONVERTER c, 
@@ -541,9 +545,9 @@ namespace Loci {
 
     for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-    //--------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Calculate the offset 
-    //--------------------------------------------------------------------------
+    //------------------------------------------------------------------------
 
     store<unsigned> offset;
     offset.allocate( eset );
@@ -552,7 +556,7 @@ namespace Loci {
     for( ci = eset.begin(); ci != eset.end(); ++ci)
       offset[*ci] = arraySize++;
 
-    //--------------------------------------------------------------------------
+    //------------------------------------------------------------------------
 
     dimension[0] = arraySize;
     hid_t mDataspace = H5Screate_simple(rank, dimension, NULL);   // memory  dataspace
@@ -593,7 +597,7 @@ namespace Loci {
     H5Sclose( vDataspace );
 
   }
-  //***************************************************************************
+  //*************************************************************************/
 
   template<class T>
   void  dstoreRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, 
@@ -711,7 +715,8 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+#ifdef ALLOW_DEFAULT_CONVERTER
+  //*************************************************************************/
   template <class T> 
   void dstoreRepI<T> :: hdf5write( hid_t group_id, DEFAULT_CONVERTER c, 
                                    const entitySet &eset)  const
@@ -742,7 +747,8 @@ namespace Loci {
     H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, memento.c_str());
 
   }
-  //***************************************************************************
+#endif
+  //*************************************************************************/
   template <class T> 
   void dstoreRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER c, 
                                    const entitySet &eset)  const
@@ -791,7 +797,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //*************************************************************************/
 
   template <class T> 
   void dstoreRepI<T> :: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER c, 

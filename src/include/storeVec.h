@@ -10,7 +10,7 @@
 
 namespace Loci {
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template <class T> struct Scalar {
     T val ;
@@ -19,7 +19,7 @@ namespace Loci {
 
   template <class T> Scalar<T> mk_Scalar(T v) { return Scalar<T>(v) ;} 
 
-  //*******************************************************************
+  //*******************************************************************/
   
   template <class T> class Vect ;
   
@@ -51,7 +51,7 @@ namespace Loci {
     }
   } ;
 
-  //******************************************************************
+  //******************************************************************/
 
   template <class T> class Vect {
   public:
@@ -189,7 +189,7 @@ namespace Loci {
     }
   } ;
 
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> class storeVecRepI : public storeRep {
     entitySet    store_domain ;
@@ -256,7 +256,7 @@ namespace Loci {
     int get_size() const { return size ; }
   } ;
 
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> 
   std::ostream &storeVecRepI<T>::Print(std::ostream &s) const
@@ -276,7 +276,7 @@ namespace Loci {
     return s ;
   }
 
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> 
   std::istream &storeVecRepI<T>::Input(std::istream &s)
@@ -320,7 +320,7 @@ namespace Loci {
     return s ;
   }
 
-  //*****************************************************************
+  //*****************************************************************/
   template<class T> 
   void storeVecRepI<T>::allocate(const entitySet &ptn) 
   {
@@ -364,7 +364,7 @@ namespace Loci {
     dispatch_notify() ;
   }
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template<class T> 
   storeVecRepI<T>::~storeVecRepI<T>() 
@@ -372,7 +372,7 @@ namespace Loci {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template<class T>
   storeRep *storeVecRepI<T>::new_store(const entitySet &p) const 
@@ -382,7 +382,7 @@ namespace Loci {
     return sp ;
   }
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template<class T> 
   store_type storeVecRepI<T>::RepType() const 
@@ -390,7 +390,7 @@ namespace Loci {
     return STORE ;
   }
 
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> 
   entitySet storeVecRepI<T>::domain() const 
@@ -398,7 +398,7 @@ namespace Loci {
     return store_domain ;
   }
 
-  //*****************************************************************
+  //*****************************************************************/
 
   template<class T> 
   void storeVecRepI<T>::set_elem_size(int sz) 
@@ -423,7 +423,7 @@ namespace Loci {
     mutex.unlock() ;
   }
 
-  //*******************************************************************
+  //*******************************************************************/
       
   template<class T> class storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
@@ -471,12 +471,12 @@ namespace Loci {
 
   } ;
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template<class T> 
   storeVec<T>::~storeVec<T>() { }
   
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> 
   void storeVec<T>::notification() 
@@ -491,19 +491,19 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> 
   inline std::ostream & operator<<(std::ostream &s, const storeVec<T> &t)
   { return t.Print(s) ; }
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template<class T> 
   inline std::istream & operator>>(std::istream &s, storeVec<T> &t)
   { return t.Input(s) ; }
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template<class T> class const_storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
@@ -557,12 +557,12 @@ namespace Loci {
 
   } ;
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template<class T> 
   const_storeVec<T>::~const_storeVec<T>() { }
 
-  //*******************************************************************
+  //*******************************************************************/
 
   template<class T> 
   void const_storeVec<T>::notification() 
@@ -575,19 +575,19 @@ namespace Loci {
     warn(p == 0) ;
   }
 
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> store_instance::instance_type
   const_storeVec<T>::access() const
   { return READ_ONLY ; }
 
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> 
   inline std::ostream & operator<<(std::ostream &s, const const_storeVec<T> &t)
   { return t.Print(s) ; }
 
-  //************************************************************************
+  //************************************************************************/
 
   template <class T> 
   storeRepP storeVecRepI<T>::remap(const Map &m) const {
@@ -600,7 +600,7 @@ namespace Loci {
     return s.Rep() ;
   }
 
-  //*************************************************************************
+  //*************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::copy(storeRepP &st, const entitySet &context) {
@@ -615,7 +615,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::gather(const Map &m, storeRepP &st,
@@ -634,7 +634,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  //*************************************************************************
+  //*************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::scatter(const Map &m, storeRepP &st,
@@ -653,7 +653,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template<class T> 
   void storeVecRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
@@ -677,7 +677,7 @@ namespace Loci {
 
   }
 
-  //******************************************************************
+  //******************************************************************/
 
   template<class T> 
   void storeVecRepI<T>::writehdf5( hid_t group_id, entitySet &eset) const
@@ -695,7 +695,7 @@ namespace Loci {
 
   }
 
-  //******************************************************************
+  //******************************************************************/
 
   template <class T>
   int storeVecRepI<T>::pack_size( const entitySet &eset)
@@ -741,7 +741,7 @@ namespace Loci {
   }
 #endif
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template <class T>
   int storeVecRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
@@ -754,32 +754,29 @@ namespace Loci {
 
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template <class T>
   int storeVecRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
   {
+    int     arraySize =0, numContainers = 0;
+    entitySet::const_iterator ci;
 
-    int       arraySize =0, numContainers = 0;
-    entitySet  :: const_iterator ci;
-    std::vector<T> avec;
-
+    typedef data_schema_traits<T> converter_traits;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        Memento<T> memento( base_ptr[*ci][ivec]);
-        arraySize += memento.getSize();
+        typename converter_traits::Converter_Type cvtr(base_ptr[*ci][ivec]) ;
+        arraySize += cvtr.getSize() ;
       }
     }
 
     numContainers =  size*eset.size();
-    typedef data_schema_converter_traits<T> converter_traits;
 
-    return(arraySize*sizeof(typename converter_traits::memento_type) +
+    return(arraySize*sizeof(typename converter_traits::Converter_Base_Type) +
            numContainers*sizeof(int));
-
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 
   template <class T>
   void storeVecRepI<T>::pack(void *ptr, int &loc, int &size,
@@ -791,7 +788,7 @@ namespace Loci {
     packdata( traits_type, ptr, loc, size, eset);
   }
 
-  //****************************************************************************
+  //**************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T>
   void storeVecRepI<T>::packdata( DEFAULT_CONVERTER c, void *outbuf,
@@ -820,7 +817,7 @@ namespace Loci {
     }
   }
 #endif
-  //****************************************************************************
+  //**************************************************************************/
   template <class T>
   void storeVecRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position,
                                   int outcount, const entitySet &eset )
@@ -840,14 +837,14 @@ namespace Loci {
     }
   }
 
-  //**************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::packdata( USER_DEFINED_CONVERTER c, void *outbuf, 
                                   int &position, int outcount, 
                                   const entitySet &eset ) 
   {
-    entitySet :: const_iterator   ci;
+    entitySet::const_iterator ci;
     entitySet  ecommon;
 
     ecommon = store_domain&eset;
@@ -856,32 +853,34 @@ namespace Loci {
     // Get the maximum size of container 
     //-------------------------------------------------------------------------
     int stateSize, maxStateSize=0;
+    
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        Memento<T> memento( base_ptr[*ci][ivec] );
-        stateSize = memento.getSize();
+        typename data_schema_traits<T>::Converter_Type
+          cvtr( base_ptr[*ci][ivec] );
+        stateSize = cvtr.getSize();
         maxStateSize = max( maxStateSize, stateSize);
       }
     }
 
     typedef data_schema_converter_traits<T> converter_traits; 
-    typename converter_traits::memento_type *inbuf;
+    typename converter_traits::Converter_Base_Type *inbuf;
 
-    int typesize = sizeof(typename converter_traits::memento_type);
-    inbuf = new typename converter_traits::memento_type[maxStateSize];
+    int typesize = sizeof(typename converter_traits::Converter_Base_Type);
+    inbuf = new typename converter_traits::Converter_Base_Type[maxStateSize];
 
     int incount;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        Memento<T> memento( base_ptr[*ci][ivec]);
-        memento.getState( inbuf, stateSize);
+        typename data_schema_traits<T>::Converter_Type
+          cvtr( base_ptr[*ci][ivec] );
+        cvtr.getState( inbuf, stateSize);
 
-        incount =  sizeof(int);
-        MPI_Pack(&stateSize,incount, MPI_CHAR, outbuf, outcount,&position,
+        MPI_Pack(&stateSize,1, MPI_INT, outbuf, outcount,&position,
                  MPI_COMM_WORLD);
 
         incount =  stateSize*typesize;
-        MPI_Pack(inbuf, incount, MPI_CHAR, outbuf, outcount, &position, 
+        MPI_Pack(inbuf, incount, MPI_BYTE, outbuf, outcount, &position, 
                  MPI_COMM_WORLD) ;
       }
     }
@@ -889,7 +888,7 @@ namespace Loci {
     delete [] inbuf;
   }
 
-  //***************************************************************************
+  //**************************************************************************/
 
   template <class T> 
   void storeVecRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq)
@@ -909,7 +908,7 @@ namespace Loci {
 
   }
 
-  //***************************************************************************
+  //**************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void storeVecRepI<T>::unpackdata( DEFAULT_CONVERTER c, void *inbuf, int &position, 
@@ -940,7 +939,7 @@ namespace Loci {
     }
   }
 #endif
-  //***************************************************************************
+  //**************************************************************************/
   template <class T> 
   void storeVecRepI<T>::unpackdata( IDENTITY_CONVERTER c, void *inbuf, int &position, 
                                     int &insize, const sequence &seq)
@@ -976,7 +975,7 @@ namespace Loci {
 
   }
 
-  //***********************************************************************
+  //***********************************************************************/
   template <class T> 
   void storeVecRepI<T>::unpackdata( USER_DEFINED_CONVERTER c, void *inbuf, 
                                     int &position, int &insize, const sequence &seq)
@@ -990,9 +989,9 @@ namespace Loci {
     //-----------------------------------------------------------------
     int  stateSize, outcount;
 
-    typedef data_schema_converter_traits<T> converter_traits;
-    typename converter_traits::memento_type *outbuf;
-    int typesize = sizeof(typename converter_traits::memento_type);
+    typedef data_schema_traits<T> converter_traits;
+    typename converter_traits::Converter_Base_Type *outbuf;
+    int typesize = sizeof(typename converter_traits::Converter_Base_Type);
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       if( !store_domain.inSet( *ci ) ) {
@@ -1001,22 +1000,22 @@ namespace Loci {
       }
       for( int ivec = 0; ivec < size; ivec++) {
         outcount = sizeof(int);
-        MPI_Unpack( inbuf, insize, &position, &stateSize, outcount, 
-                    MPI_CHAR, MPI_COMM_WORLD) ;
+        MPI_Unpack( inbuf, 1, &position, &stateSize, outcount, 
+                    MPI_INT, MPI_COMM_WORLD) ;
 
-        outbuf = new typename converter_traits::memento_type[stateSize];
+        outbuf = new typename converter_traits::Converter_Base_Type[stateSize];
 
         outcount = stateSize*typesize;
         MPI_Unpack( inbuf, insize, &position, outbuf, outcount, 
-                    MPI_CHAR, MPI_COMM_WORLD) ;
+                    MPI_BYTE, MPI_COMM_WORLD) ;
 
-        Memento<T> memento( base_ptr[*ci][ivec] );
-        base_ptr[*ci][ivec] = memento.setState( outbuf, stateSize);
+        typename converter_traits::Converter_Type  cvtr( base_ptr[*ci][ivec] );
+        cvtr.setState( outbuf, stateSize);
         delete [] outbuf;
       }
     }
   }
-  //*******************************************************************
+  //*******************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void storeVecRepI<T>::hdf5write( hid_t group_id, DEFAULT_CONVERTER g, 
@@ -1050,7 +1049,7 @@ namespace Loci {
   };
 #endif
   
-  //************************************************************************
+  //************************************************************************/
   
   template <class T>  
   void storeVecRepI<T>:: hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
@@ -1070,9 +1069,9 @@ namespace Loci {
 
     int arraySize =  vsize*eset.size();
 
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
 
     T  *data;
     data =  new T[arraySize];
@@ -1083,12 +1082,11 @@ namespace Loci {
         data[indx++] = base_ptr[(*ci)*vsize+ivec];
     }
 
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Write (variable) Data into HDF5 format
-    //-----------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     typedef data_schema_traits<T> traits_type;
-    AbstractDatatype  *dtype;
-    dtype = traits_type::instance();
+    DatatypeP dtype = traits_type::get_type();
     hid_t vDatatype = dtype->get_hdf5_type();
 
     rank      = 1;
@@ -1103,11 +1101,10 @@ namespace Loci {
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
     delete [] data;
-    delete dtype;
 
   };
   
-  //*************************************************************************
+  //*************************************************************************/
   
   template <class T>  
   void storeVecRepI<T> :: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g, 
@@ -1131,21 +1128,23 @@ namespace Loci {
       
     size_t  arraySize= 0;
     int     stateSize, maxStateSize = 0;
-      
+
+    typedef data_schema_traits<T> schema_traits ;
+    
     bucketID = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        Memento<T> memento( base_ptr[*ci][ivec] );
-        stateSize           = memento.getSize();
+        typename schema_traits::ConverterType cvtr( base_ptr[*ci][ivec] );
+        stateSize           = cvtr.getSize();
         vbucket[bucketID++] = stateSize;
         arraySize          += stateSize;
         maxStateSize        = max( stateSize, maxStateSize);
       }
     }
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Write size of each container ...
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     dimension =  size*eset.size();
 
     vDataspace = H5Screate_simple(rank, &dimension, NULL);
@@ -1158,35 +1157,32 @@ namespace Loci {
     H5Tclose( vDatatype );
     delete [] vbucket;
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
       
-    typedef data_schema_converter_traits<T> converter_traits; 
-    typedef typename converter_traits::memento_type dtype;
+    typedef typename schema_traits::Converter_Base_Type dtype;
 
-    dtype *data, *buf;
+    dtype *data ;
       
-    data =  new typename converter_traits::memento_type[arraySize];
-    buf  =  new typename converter_traits::memento_type[maxStateSize];
+    data =  new dtype[arraySize];
 
     size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        Memento<T> memento( base_ptr[*ci][ivec] );
-        memento.getState( buf, stateSize);
-        for( int i = 0; i < stateSize; i++)
-          data[indx++] =  buf[i];
+        typename schema_traits::Converter_Type cvtr( base_ptr[*ci][ivec] );
+        cvtr.getState( data+index, stateSize);
+        index +=stateSize ;
       }
     }
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Write (variable) Data into HDF5 format
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     typedef data_schema_traits<dtype> traits_type;
 
-    AtomicType *atom = traits_type::instance();
-    vDatatype = atom->get_hdf5_type();
+    DatatypeP atom_type = traits_type::get_type() ;
+    vDatatype = atom_type->get_hdf5_type();
 
     dimension =  arraySize;
     vDataspace = H5Screate_simple(rank, &dimension, NULL);
@@ -1202,11 +1198,10 @@ namespace Loci {
     H5Tclose( vDatatype );
       
     delete [] data;
-    delete [] buf;
       
   };
   
-  //***************************************************************************
+  //**************************************************************************/
 #ifdef ALLOW_DEFAULT_CONVERTER
   template <class T> 
   void storeVecRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c,
@@ -1240,7 +1235,7 @@ namespace Loci {
 
   };
 #endif
-  //**************************************************************************
+  //**************************************************************************/
   
   template <class T> 
   void storeVecRepI<T>::hdf5read(hid_t group_id, IDENTITY_CONVERTER convert, 
@@ -1252,18 +1247,18 @@ namespace Loci {
 
     entitySet::const_iterator ci;
 
-    //---------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Calculate the offset of each entity in file ....
-    //---------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     store<unsigned> offset;
     offset.allocate(eset);
     int vsize = get_size();
 
     int arraySize = vsize*eset.size();
 
-    //---------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Read the data now ....
-    //---------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     int num_intervals = user_eset.num_intervals();
     interval *it = new interval[num_intervals];
 
@@ -1273,8 +1268,8 @@ namespace Loci {
     dimension = arraySize;
 
     typedef data_schema_traits<T> traits_type;
-    AbstractDatatype  *dtype;
-    dtype = traits_type::instance();
+
+    DatatypeP dtype = traits_type::get_type();
     hid_t vDatatype = dtype->get_hdf5_type();
 
     hid_t mDataspace = H5Screate_simple(rank, &dimension, NULL);
@@ -1313,11 +1308,9 @@ namespace Loci {
     H5Sclose( vDataspace);
     H5Sclose( mDataspace);
     H5Tclose( vDatatype );
-    delete dtype;
-
   };
   
-  //************************************************************************
+  //************************************************************************/
 
   template <class T> 
   void storeVecRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, 
@@ -1372,10 +1365,12 @@ namespace Loci {
 
     for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-    typedef data_schema_converter_traits<T> converter_traits;
-    converter_traits::memento_type  *data, *buf, dtype;
-
-    vDatatype = get_hdf5_type(dtype );
+    typedef data_schema_traits<T> converter_traits;
+    typename converter_traits::Converter_Base_Type  *data, *buf, dtype;
+    DatatypeP base_type =
+      data_schema_traits<typename converter_traits::Converter_Base_Type>::get_type() ;
+    
+    vDatatype = base_type->get_hdf5_type();
 
     dimension  = arraySize;
     vDataset   = H5Dopen(group_id,"VariableData");
@@ -1390,7 +1385,6 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    buf  = new typename converter_traits::memento_type[maxBucketSize];
 
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
@@ -1399,7 +1393,7 @@ namespace Loci {
           count[0] +=  subcontainer[i][j];
       }
 
-      data = new typename converter_traits::memento_type[count[0]];
+      data = new typename data_schema_traits<T>::Converter_Base_Type[count[0]];
 
       foffset[0] = offset[it[k].first];
       H5Sselect_hyperslab(mDataspace, H5S_SELECT_SET, start_mem, stride, count, block);
@@ -1410,18 +1404,16 @@ namespace Loci {
       int bucsize;
       for( int i = it[k].first; i <= it[k].second; i++) {
         for( int j = 0; j < size; j++) {
-          Memento<T> memento( base_ptr[i][j] );
+          typename data_schema_traits<T>::Converter_Type cvtr( base_ptr[i][j] );
           bucsize = subcontainer[i][j];
-          for( int m = 0; m < bucsize; m++) 
-            buf[m] = data[indx++];
-          base_ptr[i][j] = memento.setState( buf, bucsize );
+          cvtr.setState( data+indx, bucsize );
+          indx += bucsize ;
         }
       }
       delete[] data;
     }
-    delete[] buf;
   }; 
-  //******************************************************************
+  //******************************************************************/
 
 
 }

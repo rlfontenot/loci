@@ -1,6 +1,6 @@
 #ifndef LOCI_TYPES_H
 #define LOCI_TYPES_H
-
+#include <data_traits.h>
 #include <Tools/stream.h>
 namespace Loci {
 
@@ -66,6 +66,7 @@ namespace Loci {
     }
     return s;
   }
+
   //---------------------vector3d------------------//
   template <class T> 
     struct vector3d {
@@ -220,23 +221,18 @@ namespace Loci {
     return vector3d<T>(v1.x/r2,v1.y/r2,v1.z/r2) ;
   }
 
-  /*
   template <class T>
-    class data_schema_traits< vector3d<T> > {
-    public:
+    struct data_schema_traits< vector3d<T> > {
       typedef IDENTITY_CONVERTER Schema_Converter;
-      static hid_t get_hdf5_type() {
-        data_schema_traits<T> hdfT;
-      
-        H5::CompType ctype(sizeof(vector3d<T>));
-        ctype.insertMember("x", HOFFSET(vector3d<T>,x), hdfT.get_type());
-        ctype.insertMember("y", HOFFSET(vector3d<T>,y), hdfT.get_type());
-        ctype.insertMember("z", HOFFSET(vector3d<T>,z), hdfT.get_type());
-       
-        return ctype;
+      static DatatypeP get_type() {
+        vector3d<T> t ;
+        CompoundDatatypeP ct = CompoundFactory(t) ;
+        ct->insert("x",offsetof(vector3d<T>,x),getLociType(t.x)) ;
+        ct->insert("y",offsetof(vector3d<T>,y),getLociType(t.y)) ;
+        ct->insert("z",offsetof(vector3d<T>,z),getLociType(t.z)) ;
+        return DatatypeP(ct) ;
       }
-      };
-  */
+    };
   
   //---------------------vector2d------------------//
   template <class T> 
@@ -379,20 +375,20 @@ namespace Loci {
     return vector2d<T>(v1.x/r2,v1.y/r2) ;
   }
 
-  /*
+  
   template <class T>
-    class data_schema_traits< vector2d<T> > {
+    struct  data_schema_traits< vector2d<T> > {
     public:
       typedef IDENTITY_CONVERTER Schema_Converter;
-      static H5::DataType get_type() {
-        data_schema_traits<T> hdfT;
-        H5::CompType ctype(sizeof(vector2d<T>));
-        ctype.insertMember("x", HOFFSET(vector2d<T>,x), hdfT.get_type());
-        ctype.insertMember("y", HOFFSET(vector2d<T>,y), hdfT.get_type());
-        return ctype;
+      static DatatypeP get_type() {
+        vector2d<T> t ;
+        CompoundDatatypeP ct = CompoundFactory(t) ;
+        ct->insert("x",offsetof(vector2d<T>,x),getLociType(t.x)) ;
+        ct->insert("y",offsetof(vector2d<T>,y),getLociType(t.y)) ;
+        return DattypeP(ct) ;
       }
-      };
-  */
+    };
+  
   
   
   //---------------------Array----------------------//
@@ -442,23 +438,15 @@ namespace Loci {
     return s ;
   }
 
-  /*
+  
   template <class T,unsigned int n> 
-    class data_schema_traits< Array<T,n> > {
-    public:
+  class data_schema_traits< Array<T,n> > {
+  public:
     typedef IDENTITY_CONVERTER Schema_Converter;
-    static H5::DataType get_type() {
-      H5::CompType ctype(sizeof(Array<T,n>));
-      data_schema_traits<T> hdfT;
-      for(int i=0;i<n;i++){
-	std::ostringstream oss;
-	oss<<"v"<<i;
-	std::string st=oss.str();
-	ctype.insertMember(st.c_str(), i*sizeof(T), hdfT.get_type());	
-      }
-      return ctype;
+    static DatatypeP get_type() {
+      int dim = n ;
+      return new ArrayType(getLociType(T()),sizeof(Array<T,n>),1,&dim) ;
     }
-    };
-  */
+  };
 }
 #endif

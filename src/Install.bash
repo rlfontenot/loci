@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-REVISION_NAME='$Name:  $'
+REVISION_NAME='$Name:  exp$'
 
 INSTALL_DIR=${LOCI_INSTALL_DIR-/usr/local}
 
