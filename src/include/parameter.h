@@ -384,7 +384,39 @@ namespace Loci {
   template <class T> 
   void paramRepI<T> :: hdf5write( H5::Group group, DEFAULT_CONVERTER g,
                                   const entitySet &eset ) const
-  {}
+  {
+    //write out the domain   
+    HDF5_WriteDomain(group, eset);
+
+    typedef hdf5_schema_traits<T> traits_type;
+    std::ostringstream oss;
+    oss<< attrib_data;
+    std::string memento = oss.str();
+    hsize_t size = memento.length();
+
+    int rank = 1;
+    hsize_t dimension[1];
+    dimension[0] =  size+1;
+
+    int num_intervals = eset.num_intervals();
+    interval *it = new interval[num_intervals];
+
+
+    try{
+      H5::DataType  datatype = traits_type::get_type();
+      H5::DataSpace dataspace( rank, dimension );
+      H5::DataSet   dataset = group.createDataSet( "param", datatype, dataspace);
+      dataset.write( memento.c_str(), datatype );
+    }
+    catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+
+    delete [] it;
+  }
+
+
+  //****************************************************************************
   
   template <class T> 
   void paramRepI<T> :: hdf5write( H5::Group group, IDENTITY_CONVERTER g,
