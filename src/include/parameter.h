@@ -13,20 +13,27 @@ namespace Loci {
     
   template<class T> class paramRepI : public storeRep {
     entitySet store_domain ;
-    T param ;
+    T param_val ;
   public:
     paramRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ; }
     paramRepI(const entitySet &p) { store_domain = p ;}
     virtual void allocate(const entitySet &p)  ;
     virtual ~paramRepI() ;
-    virtual storeRep *new_store(const entitySet &p) const ;
     virtual store_type RepType() const ;
     virtual const entitySet &domain() const ;
+    virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRepP remap(const Map &m) const ;
+    virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void gather(const Map &m, storeRepP &st,
+                        const entitySet &context)  ;
+    virtual void scatter(const Map &m, storeRepP &st,
+                         const entitySet &context) ;
+
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5( H5::Group group) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
-    T * get_param() { return &param ; }
+    T * get_param() { return &param_val ; }
   } ;
 
   template<class T> void paramRepI<T>::allocate(const entitySet &p) {
@@ -40,6 +47,29 @@ namespace Loci {
     return new paramRepI<T>(p) ;
   }
 
+  template<class T> storeRepP paramRepI<T>::remap(const Map &m) const {
+    param<T> r ;
+    r.set_entitySet(m.image(m.domain()&domain())) ;
+    *r = param_val ;
+    return r.Rep() ;
+  }
+
+  template<class T> void paramRepI<T>::copy(storeRepP &st, const entitySet &context) {
+    param<T> p(st) ;
+    param_val = *p ;
+    warn((store_domain - context) != EMPTY) ;
+    store_domain = context ;
+    dispatch_notify() ;
+  }
+  template<class T> void paramRepI<T>::gather(const Map &m, storeRepP &st,
+                                              const entitySet &context) {
+    warn(true) ;
+  }
+  template<class T> void paramRepI<T>::scatter(const Map &m, storeRepP &st,
+                                              const entitySet &context) {
+    warn(true) ;
+  }
+
   template<class T> store_type paramRepI<T>::RepType() const {
     return PARAMETER ;
   }
@@ -50,7 +80,7 @@ namespace Loci {
         
   template<class T> std::ostream &paramRepI<T>::Print(std::ostream &s) const {
     s << '{' << domain() << std::endl ;
-    s << param << std::endl ;
+    s << param_val << std::endl ;
     s << '}' << std::endl ;
     return s ;
   }
@@ -65,14 +95,14 @@ namespace Loci {
       s.putback(ch) ;
       e = ~EMPTY ;
       allocate(e) ;
-      s>>param ;
+      s>>param_val ;
       return s ;
     }
         
     s >> e ;
     allocate(e) ;
         
-    s >> param ;
+    s >> param_val ;
         
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
@@ -85,7 +115,7 @@ namespace Loci {
   template<class T> void paramRepI<T>::readhdf5( H5::Group group){
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
-    entitySet en=param_hdf5read(group,traits_output_type,param);
+    entitySet en=param_hdf5read(group,traits_output_type,param_val);
     allocate(en);
   }
 
@@ -93,8 +123,8 @@ namespace Loci {
     //entitySet en=domain();
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
-    //schema_converter::hdf5write(group,param,en);
-    param_hdf5write(group,traits_output_type,param,en);
+    //schema_converter::hdf5write(group,param_val,en);
+    param_hdf5write(group,traits_output_type,param_val,en);
   }
 
   template<class T> class param : public store_instance {

@@ -1,55 +1,74 @@
 #include <store_rep.h>
 
 #include <Tools/stream.h>
-
+#include <Map.h>
 
 namespace Loci {
-    storeRep::~storeRep() {}
+  storeRep::~storeRep() {}
 
-    void storeRep::set_elem_size(int sz) { warn(true) ; }
+  void storeRep::set_elem_size(int sz) { warn(true) ; }
 
-    storeRepP storeRep::getRep() { return storeRepP(this) ; }
-    storeRepP storeRep::getRep() const { return storeRepP(const_cast<storeRep *>(this)) ; }
+  storeRepP storeRep::getRep() { return storeRepP(this) ; }
+  storeRepP storeRep::getRep() const { return storeRepP(const_cast<storeRep *>(this)) ; }
     
-    store_instance::instance_type store_instance::access() const {
-        return READ_WRITE ;
-    }
+  store_instance::instance_type store_instance::access() const {
+    return READ_WRITE ;
+  }
 
-    store_ref::~store_ref() {}
+  store_ref::~store_ref() {}
 
-    void store_ref::allocate(const entitySet &ptn) {
-        Rep()->allocate(ptn) ;
-    }
+  void store_ref::allocate(const entitySet &ptn) {
+    Rep()->allocate(ptn) ;
+  }
 
-    storeRep *store_ref::new_store(const entitySet &p) const  {
-        return Rep()->new_store(p) ;
-    }
+  storeRep *store_ref::new_store(const entitySet &p) const  {
+    return Rep()->new_store(p) ;
+  }
 
-    store_type store_ref::RepType() const {
-        return Rep()->RepType() ;
-    }
+  store_type store_ref::RepType() const {
+    return Rep()->RepType() ;
+  }
 
-    ostream &store_ref::Print(ostream &s) const {
-        return Rep()->Print(s) ;
-    }
+  storeRepP store_ref::remap(const Map &m) const {
+    return Rep()->remap(m) ;
+  }
 
-    istream &store_ref::Input(istream &s) {
-        return Rep()->Input(s) ;
-    }
+  void store_ref::copy(storeRepP &st, const entitySet &context) {
+    Rep()->copy(st,context) ;
+  }
 
-    const entitySet &store_ref::domain() const {
-        return Rep()->domain() ;
-    }
+  void store_ref::gather(const Map &m,storeRepP &st,
+                         const entitySet &context) {
+    Rep()->gather(m,st,context) ;
+  }
 
-    storeRepP store_ref::getRep() {
-        return Rep()->getRep() ;
-    }
+  void store_ref::scatter(const Map &m, storeRepP &st,
+                          const entitySet &context) {
+    Rep()->scatter(m,st,context) ;
+  }  
+    
 
-    storeRepP store_ref::getRep() const {
-        return Rep()->getRep() ;
-    }
+  ostream &store_ref::Print(ostream &s) const {
+    return Rep()->Print(s) ;
+  }
 
-    void store_ref::notification() {
-        dispatch_notify() ;
-    }
+  istream &store_ref::Input(istream &s) {
+    return Rep()->Input(s) ;
+  }
+
+  const entitySet &store_ref::domain() const {
+    return Rep()->domain() ;
+  }
+
+  storeRepP store_ref::getRep() {
+    return Rep()->getRep() ;
+  }
+
+  storeRepP store_ref::getRep() const {
+    return Rep()->getRep() ;
+  }
+
+  void store_ref::notification() {
+    dispatch_notify() ;
+  }
 }

@@ -9,20 +9,26 @@
 namespace Loci {
     
   class constraintRep : public storeRep {
-    entitySet constraint ;
+    entitySet constraint_set ;
   public:
     constraintRep() ;
     constraintRep(const entitySet &p) ;
     virtual ~constraintRep() ;
     virtual void allocate(const entitySet &p) ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRepP remap(const Map &m) const ;
+    virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void gather(const Map &m, storeRepP &st,
+                        const entitySet &context)  ;
+    virtual void scatter(const Map &m, storeRepP &st,
+                         const entitySet &context) ;
     virtual store_type RepType() const ;
     virtual const entitySet &domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5( H5::Group group) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
-    entitySet *get_constraint() { return &constraint ; }
+    entitySet *get_constraint() { return &constraint_set ; }
   } ;
 
   class constraint : public store_instance {

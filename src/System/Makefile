@@ -27,11 +27,11 @@ default:
 compile: $(TARGET)
 
 libLoci.a: $(OBJS)
-	$(AR) $(ARFLAGS) libLoci.a $(OBJS) 
+	$(AR) $(ARFLAGS) libLoci.a $(OBJS) ../Tools/libTools.a
 	$(RANLIB) $(TARGET)
 
 libLoci.so: $(OBJS)
-	$(LD) $(LDFLAGS) -shared -o libLoci.so $(OBJS)
+	$(LD) $(LDFLAGS) -shared -o libLoci.so $(OBJS) ../Tools/libTools.a
 
 scheduler.o: scheduler.cc
 	$(CP) $(CFLAGS) $(TEMPLATE_LIB_OPT) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -c scheduler.cc

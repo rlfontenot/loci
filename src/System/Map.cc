@@ -34,6 +34,56 @@ namespace Loci {
     return new MapRepI(p)  ;
   }
 
+  storeRepP MapRepI::remap(const Map &m) const{
+    entitySet newdomain = m.domain() & domain() ;
+    entitySet mapimage = m.image(newdomain) ;
+    Map s ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+      
+    s.Rep()->scatter(m,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(m,mapimage) ;
+    
+    return s.Rep() ;
+  }
+
+  void MapRepI::compose(const Map &m, const entitySet &context) {
+    fatal((context-store_domain) != EMPTY) ;
+    fatal((image(context)-m.domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[i] = m[base_ptr[i]] ;
+    } ENDFORALL ;
+  }
+
+  void MapRepI::copy(storeRepP &st, const entitySet &context) {
+    const_Map s(st) ;
+    fatal((context-domain()) != EMPTY) ;
+    fatal((context-s.domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[i] = s[i] ;
+    } ENDFORALL ;
+  }
+
+  void MapRepI::gather(const Map &m, storeRepP &st, const entitySet &context) {
+    const_Map s(st) ;
+    fatal(base_ptr == 0) ;
+    fatal((m.image(context) - s.domain()) != EMPTY) ;
+    fatal((context - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[i] = s[m[i]] ;
+    } ENDFORALL ;
+  }
+
+  void MapRepI::scatter(const Map &m,storeRepP &st, const entitySet &context) {
+    const_Map s(st) ;
+    fatal(base_ptr == 0) ;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((m.image(context) - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[m[i]] = s[i] ;
+    } ENDFORALL ;
+  }
+
   const entitySet &MapRepI::domain() const {
     return store_domain ;
   }
@@ -375,6 +425,95 @@ namespace Loci {
     return new multiMapRepI()  ;
   }
 
+  storeRepP multiMapRepI::remap(const Map &m) const {
+    warn(true) ;
+    return storeRepP(new multiMapRepI()) ;
+  }
+
+  void multiMapRepI::compose(const Map &m, const entitySet &context) {
+    fatal(alloc_pointer == 0) ;
+    fatal((context-store_domain) != EMPTY) ;
+    fatal((image(context)-m.domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int *ii = base_ptr[i];ii!=base_ptr[i+1];++ii)
+        *ii = m[*ii] ;
+    } ENDFORALL ;
+  }
+
+  void multialloc(const store<int> &count, int ***index, int **alloc_pointer,
+                  int ***base_ptr) {
+    entitySet ptn = count.domain() ;
+    int top = ptn.Min() ;
+    int len = ptn.Max() - top + 2 ;
+    int **new_index = new int *[len] ;
+    int **new_base_ptr = new_index-top ;
+    int sz = 0 ;
+    FORALL(ptn,i) {
+      sz += count[i] ;
+    } ENDFORALL ;
+    int *new_alloc_pointer = new int[sz+1] ;
+    sz = 0 ;
+    for(int ivl=0;ivl<ptn.num_intervals();++ivl) {
+      int i = ptn[ivl].first ;
+      new_base_ptr[i] = new_alloc_pointer + sz ;
+      while(i<=ptn[ivl].second) {
+        sz += count[i] ;
+        ++i ;
+        new_base_ptr[i] = new_alloc_pointer + sz ;
+      }
+    }
+    *index = new_index ;
+    *alloc_pointer = new_alloc_pointer ;
+    *base_ptr = new_base_ptr ;
+  }
+    
+  void multiMapRepI::copy(storeRepP &st, const entitySet &context) {
+    const_multiMap s(st) ;
+    fatal(alloc_pointer == 0) ;
+    fatal((context-domain()) != EMPTY) ;
+    fatal((context-s.domain()) != EMPTY) ;
+
+    store<int> count ;
+    count.allocate(domain()) ;
+    FORALL(domain()-context,i) {
+      count[i] = base_ptr[i+1]-base_ptr[i] ;
+    } ENDFORALL ;
+    FORALL(context,i) {
+      count[i] = s.end(i)-s.begin(i) ;
+    } ENDFORALL ;
+    
+    int **new_index ;
+    int *new_alloc_pointer ;
+    int **new_base_ptr ;
+
+    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+    FORALL(domain()-context,i) {
+      for(int j=0;j<count[i];++j) 
+        new_base_ptr[i][j] = base_ptr[i][j] ;
+    } ENDFORALL ;
+
+    FORALL(context,i) {
+      for(int j=0;j<count[i];++j)
+        new_base_ptr[i][j] = s[i][j] ;
+    } ENDFORALL ;
+
+    if(alloc_pointer) delete[] alloc_pointer ;
+    alloc_pointer = new_alloc_pointer;
+    if(index) delete[] index ;
+    index = new_index ;
+    base_ptr = new_base_ptr ;
+    dispatch_notify() ;
+  }
+
+  void multiMapRepI::gather(const Map &m, storeRepP &st,
+                            const entitySet  &context) {
+    warn(true) ;
+  }
+  void multiMapRepI::scatter(const Map &m, storeRepP &st,
+                             const entitySet  &context) {
+    warn(true) ;
+  }
+  
   const entitySet &multiMapRepI::domain() const {
     return store_domain ;
   }

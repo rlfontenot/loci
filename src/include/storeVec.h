@@ -11,6 +11,8 @@
 #include <Tools/lmutex.h>
 #include <hdf5CC/H5cpp.h>
 
+#include <Map.h>
+
 namespace Loci {
   template <class T> struct Scalar {
     T val ;
@@ -660,6 +662,13 @@ namespace Loci {
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRepP remap(const Map &m) const ;
+    virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void gather(const Map &m, storeRepP &st,
+                        const entitySet &context)  ;
+    virtual void scatter(const Map &m, storeRepP &st,
+                         const entitySet &context) ;
+
     virtual store_type RepType() const ;
     virtual const entitySet &domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
@@ -763,6 +772,27 @@ namespace Loci {
     return new storeVecRepI<T>(p)  ;
   }
 
+  template <class T> storeRepP storeVecRepI<T>::remap(const Map &m) const {
+    warn(true) ;
+    cerr << "remap not implemented" << endl ;
+    return storeRepP(new storeVecRepI<T>()) ;
+  }
+
+  template <class T> void storeVecRepI<T>::copy(storeRepP &st,
+                                                const entitySet &context) {
+    warn(true) ;
+  }
+
+  template <class T> void storeVecRepI<T>::gather(const Map &m, storeRepP &st,
+                                                  const entitySet &context) {
+    warn(true) ;
+  }
+
+  template <class T> void storeVecRepI<T>::scatter(const Map &m, storeRepP &st,
+                                                  const entitySet &context) {
+    warn(true) ;
+  }
+  
   template<class T> store_type storeVecRepI<T>::RepType() const {
     return STORE ;
   }
@@ -1070,6 +1100,13 @@ namespace Loci {
     virtual ~multiStoreRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRepP remap(const Map &m) const ;
+    virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void gather(const Map &m, storeRepP &st,
+                        const entitySet &context)  ;
+    virtual void scatter(const Map &m, storeRepP &st,
+                         const entitySet &context) ;
+
     virtual store_type RepType() const ;
     virtual const entitySet &domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
@@ -1167,6 +1204,24 @@ namespace Loci {
     return new multiStoreRepI<T>(p) ;
   }
 
+  template<class T> storeRepP multiStoreRepI<T>::remap(const Map &m) const {
+    warn(true) ;
+    cerr << "remap not implemented" << endl ;
+    return storeRepP(new multiStoreRepI<T>()) ;
+  }
+  template<class T> void multiStoreRepI<T>::copy(storeRepP &st,
+                                                  const entitySet &context) {
+    warn(true) ;
+  }
+  template<class T> void multiStoreRepI<T>::gather(const Map &m, storeRepP &st,
+                                                  const entitySet &context) {
+    warn(true) ;
+  }
+  template<class T> void multiStoreRepI<T>::scatter(const Map &m, storeRepP &st,
+                                                  const entitySet &context) {
+    warn(true) ;
+  }
+  
   template<class T> store_type multiStoreRepI<T>::RepType() const {
     return STORE ;
   }

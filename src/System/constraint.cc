@@ -1,78 +1,124 @@
 #include <constraint.h>
 #include <Tools/stream.h>
+#include <Map.h>
 
 namespace Loci {
 
 
 
-constraintRep::constraintRep()
-{
-}
-
-constraintRep::constraintRep(const entitySet &p)
-{
-    constraint = p ;
-}
-
-constraintRep::~constraintRep()
-{
-}
-
-void constraintRep::allocate(const entitySet &p)
-{
-    constraint = p ;
-    dispatch_notify() ;
-}
-
-storeRep *constraintRep::new_store(const entitySet &p) const
-{
-    return new constraintRep(p) ;
-}
-
-store_type constraintRep::RepType() const
-{
-    return CONSTRAINT ;
-}
-
-const entitySet &constraintRep::domain() const {
-    return constraint ;
-}
-
-ostream &constraintRep::Print(ostream &s) const {
-    s << constraint << endl ;
-    return s ;
-}
-
-void constraintRep::readhdf5( H5::Group group){
-  try{
-     //get constraint data
-     H5::DataSet dataset_constraint = group.openDataSet( "constraint");
-     H5::DataSpace dataspace_constraint = dataset_constraint.getSpace();
-     hsize_t dims_constraint[1];
-     dataspace_constraint.getSimpleExtentDims( dims_constraint, NULL);
-     int *data_constraint = new int[dims_constraint[0]];
-     dataset_constraint.read( data_constraint, H5::PredType::NATIVE_INT );
-     for(int i=0;i<dims_constraint[0];i++){
-       constraint |=interval(data_constraint[i],data_constraint[i+1]);
-       i++;
-     }
-     delete [] data_constraint;
+  constraintRep::constraintRep()
+  {
   }
-  catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
-  catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
-  catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
-}
 
-void constraintRep::writehdf5( H5::Group group,entitySet& en) const{
-  hsize_t dimf_constraint[1];
-   int RANK=1;
+  constraintRep::constraintRep(const entitySet &p)
+  {
+    constraint_set = p ;
+  }
+
+  constraintRep::~constraintRep()
+  {
+  }
+
+  void constraintRep::allocate(const entitySet &p)
+  {
+    constraint_set = p ;
+    dispatch_notify() ;
+  }
+
+  storeRep *constraintRep::new_store(const entitySet &p) const
+  {
+    return new constraintRep(p) ;
+  }
+
+  storeRepP constraintRep::remap(const Map &m) const {
+    entitySet newconstraint = m.image(m.domain()&constraint_set) ;
+    constraint r ;
+    r = newconstraint ;
+    return r.Rep() ;
+  }
+
+  void constraintRep::copy(storeRepP &st, const entitySet &context) {
+    constraint cs(st) ;
+    entitySet sent,tent ;
+    sent = cs ;
+    tent = constraint_set ;
+    tent -= context ;
+    tent += sent & context ;
+    constraint_set = tent ;
+    dispatch_notify() ;
+  }
+
+  void constraintRep::gather(const Map &m, storeRepP &st,
+                             const entitySet &context) {
+    constraint cs(st) ;
+    entitySet tent = constraint_set ;
+    tent -= context ;
+    entitySet img = cs ;
+    FORALL(context,i) {
+      if(img.inSet(m[i]))
+        tent+=i ;
+    } ENDFORALL ;
+    constraint_set = tent ;
+    dispatch_notify() ;
+  }
+
+  void constraintRep::scatter(const Map &m, storeRepP &st,
+                              const entitySet &context) {
+    constraint cs(st) ;
+    entitySet map_image = m.image(context) ;
+    entitySet tent = constraint_set ;
+    tent -= map_image ;
+    entitySet img = cs ;
+    tent += m.image(context&img) ;
+    constraint_set = tent ;
+    dispatch_notify() ;
+  }
+
+
+  store_type constraintRep::RepType() const
+  {
+    return CONSTRAINT ;
+  }
+
+  const entitySet &constraintRep::domain() const {
+    return constraint_set ;
+  }
+
+  ostream &constraintRep::Print(ostream &s) const {
+    s << constraint_set << endl ;
+    return s ;
+  }
+
+  void constraintRep::readhdf5( H5::Group group){
+    try{
+      //get constraint data
+      H5::DataSet dataset_constraint = group.openDataSet( "constraint");
+      H5::DataSpace dataspace_constraint = dataset_constraint.getSpace();
+      hsize_t dims_constraint[1];
+      dataspace_constraint.getSimpleExtentDims( dims_constraint, NULL);
+      int *data_constraint = new int[dims_constraint[0]];
+      dataset_constraint.read( data_constraint, H5::PredType::NATIVE_INT );
+      for(int i=0;i<dims_constraint[0];i++){
+        constraint_set |=interval(data_constraint[i],data_constraint[i+1]);
+        i++;
+      }
+      delete [] data_constraint;
+    }
+    catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
+    catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+  }
+
+  void constraintRep::writehdf5( H5::Group group,entitySet& en) const{
+    hsize_t dimf_constraint[1];
+    int RANK=1;
     
-    int num_intervals=constraint.num_intervals();
+    int num_intervals=constraint_set.num_intervals();
     dimf_constraint[0]=num_intervals*2;
     interval *it = new interval[num_intervals];
     int *data_constraint = new int[num_intervals*2];//get the constraint data
     for(int i=0;i<num_intervals;i++){
-      it[i]=constraint[i];
+      it[i]=constraint_set[i];
       data_constraint[i*2]=it[i].first;
       data_constraint[i*2+1]=it[i].second;
     }
@@ -88,40 +134,40 @@ void constraintRep::writehdf5( H5::Group group,entitySet& en) const{
     
     delete [] it;
     delete [] data_constraint;
-}
+  }
 
-istream &constraintRep::Input(istream &s) {
+  istream &constraintRep::Input(istream &s) {
     entitySet e ;
     s >> e ;
     allocate(e) ;
     return s ;
-}
+  }
 
-constraint::constraint()
-{
+  constraint::constraint()
+  {
     setRep(new constraintType) ;
-}
+  }
     
-constraint::constraint(constraint &var)
-{
+  constraint::constraint(constraint &var)
+  {
     setRep(var.Rep()) ;
-}
+  }
 
-constraint::constraint(const entitySet &ptn)
-{
+  constraint::constraint(const entitySet &ptn)
+  {
     setRep(new constraintType(ptn)) ;
-}
+  }
 
-constraint::~constraint()
-{
-}
+  constraint::~constraint()
+  {
+  }
 
-void constraint::notification()
-{
+  void constraint::notification()
+  {
     NPTR<constraintType> p(Rep());
     if(p!=0)
       data = p->get_constraint() ;
     warn(p==0);
-}
+  }
 
 }

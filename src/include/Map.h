@@ -8,10 +8,14 @@
 #include <algorithm>
 #include <hdf5CC/H5cpp.h>
 
+#include <store.h>
+
 namespace Loci {
 
   entitySet image_section(const int *start, const int *end) ;
 
+  class Map ;
+  
   class MapRepI : public MapRep {
     entitySet store_domain ;
     int *alloc_pointer ;
@@ -22,6 +26,14 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRepP remap(const Map &m) const ;
+    virtual void compose(const Map &m, const entitySet &context) ;
+    virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void gather(const Map &m, storeRepP &st,
+                        const entitySet &context) ;
+    virtual void scatter(const Map &m, storeRepP &st,
+                         const entitySet &context) ;
+    
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
@@ -76,6 +88,13 @@ namespace Loci {
     //        operator int*() { return base_ptr; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
+
+    entitySet image(const entitySet &dom) const {
+      return MapRepP(Rep())->image(dom) ;
+    }
+    std::pair<entitySet,entitySet> preimage(const entitySet &codomain) const {
+      return MapRepP(Rep())->preimage(codomain) ;
+    }
   } ;
 
   inline std::ostream & operator<<(std::ostream &s, const Map &m)
@@ -135,6 +154,14 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapVecRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRepP remap(const Map &m) const ;
+    virtual void compose(const Map &m, const entitySet &context) ;
+    virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void gather(const Map &m, storeRepP &st,
+                        const entitySet &context) ;
+    virtual void scatter(const Map &m, storeRepP &st,
+                         const entitySet &context) ;
+
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;
@@ -324,6 +351,59 @@ namespace Loci {
 
   template<int M> storeRep *MapVecRepI<M>::new_store(const entitySet &p) const {
     return new MapVecRepI<M>(p) ;
+  }
+  template<int M> storeRepP MapVecRepI<M>::remap(const Map &m) const {
+    entitySet newdomain = m.domain() & domain() ;
+    entitySet mapimage = m.image(newdomain) ;
+    MapVec<M> s ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+      
+    s.Rep()->scatter(m,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(m,mapimage) ;
+    
+    return s.Rep() ;
+  }
+  template<int M> void MapVecRepI<M>::compose(const Map &m,
+                                              const entitySet &context)  {
+    fatal((context-store_domain) != EMPTY) ;
+    fatal((image(context)-m.domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int j=0;j<M;++j)
+        base_ptr[i][j] = m[base_ptr[i][j]] ;
+    } ENDFORALL ;
+  }
+  template<int M> void MapVecRepI<M>::copy(storeRepP &st,
+                                           const entitySet &context)  {
+    const_MapVec<M> s(st) ;
+    fatal((context-domain()) != EMPTY) ;
+    fatal((context-s.domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int j=0;j<M;++j)
+        base_ptr[i][j] = s[i][j] ;
+    } ENDFORALL ;
+  }
+  template<int M> void MapVecRepI<M>::gather(const Map &m, storeRepP &st,
+                                           const entitySet &context)  {
+    const_MapVec<M> s(st) ;
+    fatal(base_ptr == 0) ;
+    fatal((m.image(context) - s.domain()) != EMPTY) ;
+    fatal((context - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int j=0;j<M;++j)
+        base_ptr[i][j] = s[m[i]][j] ;
+    } ENDFORALL ;
+  }
+  template<int M> void MapVecRepI<M>::scatter(const Map &m, storeRepP &st,
+                                           const entitySet &context)  {
+    const_MapVec<M> s(st) ;
+    fatal(base_ptr == 0) ;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((m.image(context) - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int j=0;j<M;++j)
+        base_ptr[m[i]][j] = s[i][j] ;
+    } ENDFORALL ;
   }
 
   template<int M> const entitySet &MapVecRepI<M>::domain() const {
@@ -523,6 +603,14 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~multiMapRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRepP remap(const Map &m) const ;
+    virtual void compose(const Map &m, const entitySet &context) ;
+    virtual void copy(storeRepP &st, const entitySet &context)  ;
+    virtual void gather(const Map &m, storeRepP &st,
+                        const entitySet &context)  ;
+    virtual void scatter(const Map &m, storeRepP &st,
+                         const entitySet &context) ;
+
     virtual const entitySet &domain() const ;
 
     virtual entitySet image(const entitySet &domain) const ;

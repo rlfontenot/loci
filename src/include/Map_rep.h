@@ -6,6 +6,7 @@
 namespace Loci {
 
   class multiMap ;
+  class Map ;
   
   class MapRep : public storeRep {
   public:
@@ -14,6 +15,7 @@ namespace Loci {
     virtual std::pair<entitySet,entitySet>
       preimage(const entitySet &codomain) const = 0 ;
     virtual multiMap get_map() = 0 ;
+    virtual void compose(const Map &m, const entitySet &context) = 0 ;
     virtual store_type RepType() const ;
   } ;
 

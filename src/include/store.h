@@ -8,7 +8,11 @@
 #include <hdf5CC/H5cpp.h>
 //#include <hdf5_traits.h>
 #include <hdf5_write_template.h>
+#include <Map.h>
+
 namespace Loci {
+
+  class Map ;
 
   template<class T> class storeRepI : public storeRep {
     T *alloc_pointer ;
@@ -20,6 +24,13 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~storeRepI()  ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRepP remap(const Map &m) const ;
+    virtual void copy(storeRepP &st, const entitySet &context) ;
+    virtual void gather(const Map &m, storeRepP &st,
+                        const entitySet &context) ;
+    virtual void scatter(const Map &m, storeRepP &st,
+                         const entitySet &context) ;
+    
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
@@ -108,6 +119,45 @@ namespace Loci {
     return new storeRepI<T>(p)  ;
   }
 
+  template<class T> storeRepP storeRepI<T>::remap(const Map &m) const {
+    entitySet newdomain = m.domain() & domain() ;
+    entitySet mapimage = m.image(newdomain) ;
+    store<T> s ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+      
+    s.Rep()->scatter(m,my_store,newdomain) ;
+    return s.Rep() ;
+  }
+
+  template<class T> void storeRepI<T>::copy(storeRepP &st, const entitySet &context)  {
+    const_store<T> s(st) ;
+    FORALL(context,i) {
+      base_ptr[i] = s[i] ;
+    } ENDFORALL ;
+  }
+  template<class T> void storeRepI<T>::gather(const Map &m, storeRepP &st,
+                                              const entitySet &context) {
+    const_store<T> s(st) ;
+    fatal(base_ptr == 0) ;
+    fatal((m.image(context) - s.domain()) != EMPTY) ;
+    fatal((context - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[i] = s[m[i]] ;
+    } ENDFORALL ;
+  }
+
+  template<class T> void storeRepI<T>::scatter(const Map &m, storeRepP &st,
+                                              const entitySet &context) {
+    const_store<T> s(st) ;
+    fatal(base_ptr == 0) ;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((m.image(context) - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[m[i]] = s[i] ;
+    } ENDFORALL ;
+  }
+  
   template<class T> store_type storeRepI<T>::RepType() const {
     return STORE ;
   }

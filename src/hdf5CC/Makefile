@@ -2,7 +2,7 @@
 # Tools Makefile
 # 
 
-TARGET = libhdf5CC.a
+TARGET = libhdf5CC.a #libhdf5CC.so
 
 LOCAL_INCLUDES = -I$(LOCI_BASE)/include -I$(LOCI_BASE)/include/hdf5CC
 
