@@ -125,7 +125,7 @@ GROUP "/" {
 \end{verbatim}
 \par Notice the output, HDF5 write all necessary information about the
 container. EntitySet is written under the {\em Interval Set} dataset
-and the data is written under {\tt store_int} dataset. The {\tt
+and the data is written under {\tt store\_int} dataset. The {\tt
   is\_stat } dataset tells whether the container has atomic type or
 user defined type. A value of 0 indicates that the container has atomic 
 type data and a value of 1 indicates that the container contains user
@@ -375,7 +375,7 @@ fact database and write it out. They can so the same with respect to
 reading also. The example below shows how a user can write out stores
 without dealing with the details of Hdf5. 
 %
-\begin verbatim
+\begin{verbatim}
 #include <Loci.h>
 using namespace std;
 
@@ -509,5 +509,5 @@ int main(int argc, char *argv[])
   Loci::Finalize() ;
 }
  
-\end verbatim
+\end{verbatim}
     
