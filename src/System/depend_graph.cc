@@ -410,7 +410,11 @@ namespace Loci {
               //              digraph grt = gr.transpose() ;
               ruleSet depend_rules = extract_rules(gr[orig_name.ident()]) ;
               depend_rules -= rename_rules ;
-              gr.add_edges(depend_rules,ri->ident()) ;
+              // We ignore renaming dependencies in collapse rules, however
+              // in reality we may need to follow the dependencies back to
+              // the build rules and add them there.
+              if(ri->type() != rule::COLLAPSE)
+                gr.add_edges(depend_rules,ri->ident()) ;
 #ifdef VERBOSE
               cout << "adding edges from " <<depend_rules<<
                 " to " <<*ri << endl ;
