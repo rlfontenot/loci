@@ -3,7 +3,6 @@
 
 #include <Tools/debug.h>
 #include <Map_rep.h>
-#include <hdf5CC/H5cpp.h>
 
 namespace Loci {
 
@@ -42,8 +41,8 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5(H5::Group group, entitySet &en) ;
-    virtual void writehdf5(H5::Group group,entitySet& en) const ;
+    virtual void readhdf5(hid_t group, entitySet &en) ;
+    virtual void writehdf5(hid_t group_id, entitySet& en) const ;
     int * get_base_ptr() const { return base_ptr ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   } ;
@@ -136,7 +135,6 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
   } ;
 
-        
   inline std::ostream & operator<<(std::ostream &s, const const_Map &m)
   { return m.Print(s) ; }
 

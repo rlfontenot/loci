@@ -15,11 +15,11 @@
 #include <scheduler.h>
 #include <hdf5_traits.h>
 #include <hdf5_memento.h>
-#include <hdf5_write_template.h>
 #include <Loci_types.h>
 #include <distribute.h>
 #include <multiStore.h>
 #include <storeMat.h>
+#include <data_traits.h>
 
 
 using Loci::entitySet ;
@@ -69,9 +69,10 @@ using Loci::dstore ;
 using Loci::const_dstore ;
 
 #include <DStoreVec.h>
-//#include <DStoreMat.h>
 using Loci::dstoreVec;
 using Loci::const_dstoreVec;
+
+//#include <DStoreMat.h>
 //using Loci::dstoreMat;
 //using Loci::const_dstoreMat;
 
@@ -108,8 +109,8 @@ using Loci::set_fpe_abort ;
 
 using Loci::options_list ;
 
-using Loci::hdf5_schema_traits ;
-using Loci::hdf5_schema_converter_traits ;
+using Loci::data_schema_traits ;
+using Loci::data_schema_converter_traits ;
 
 using Loci::vector3d ;
 using Loci::vector2d ;

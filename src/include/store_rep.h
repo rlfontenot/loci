@@ -8,7 +8,8 @@
 #include <istream>
 #include <ostream>
 
-#include <hdf5CC/H5cpp.h>
+#include <data_traits.h>
+
 
 namespace Loci {
   enum store_type { STORE, PARAMETER, MAP, CONSTRAINT } ;
@@ -37,8 +38,8 @@ namespace Loci {
     virtual store_type RepType() const = 0 ;
     virtual std::ostream &Print(std::ostream &s) const = 0 ;
     virtual std::istream &Input(std::istream &s) = 0 ;
-    virtual void readhdf5( H5::Group group, entitySet &en) = 0;
-    virtual void writehdf5( H5::Group group,entitySet& en) const =0;
+    virtual void readhdf5( hid_t group,  entitySet &en) = 0;
+    virtual void writehdf5( hid_t group, entitySet &en) const =0;
     virtual entitySet domain() const = 0 ;
     virtual storeRepP getRep() ;
     virtual bool is_static() ;
@@ -90,11 +91,11 @@ namespace Loci {
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group, entitySet &en) {
-      Rep()->readhdf5(group, en);
+    virtual void readhdf5( hid_t group_id, entitySet &en) {
+      Rep()->readhdf5(group_id, en);
     };
-    virtual void writehdf5( H5::Group group,entitySet& en) const {
-      Rep()->writehdf5(group,en);
+    virtual void writehdf5( hid_t group_id, entitySet& en) const {
+      Rep()->writehdf5(group_id, en);
     };
     virtual entitySet domain() const ;
     virtual storeRepP getRep() ;

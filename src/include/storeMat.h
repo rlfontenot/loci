@@ -12,8 +12,6 @@
 #include <store_rep.h>
 #include <matrix.h>
 
-#include <hdf5CC/H5cpp.h>
-
 namespace Loci {
  
   template<class T> class storeMat : public store_instance {

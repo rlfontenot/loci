@@ -12,7 +12,6 @@
 #include <store_rep.h>
 
 #include <Tools/lmutex.h>
-#include <hdf5CC/H5cpp.h>
 
 #include <Map.h>
 #include <multiMap.h>

@@ -9,11 +9,10 @@
 #include <Tools/debug.h>
 #include <Tools/tools.h>
 
+#include <hdf5_readwrite.h>
+
 #include <store_rep.h>
-
 #include <Tools/lmutex.h>
-#include <hdf5CC/H5cpp.h>
-
 #include <storeVec.h>
 #include <Map.h>
 #include <multiMap.h>
@@ -27,13 +26,13 @@ namespace Loci {
     entitySet                 store_domain ;
     hash_map<int,std::vector<T> >  attrib_data;
 
-    void  hdf5read( H5::Group group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
-    void  hdf5read( H5::Group group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
-    void  hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
+    void  hdf5read( hid_t group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
+    void  hdf5read( hid_t group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
+    void  hdf5read( hid_t group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
 
-    void  hdf5write( H5::Group group, DEFAULT_CONVERTER c,      const entitySet &en) const;
-    void  hdf5write( H5::Group group, IDENTITY_CONVERTER c,     const entitySet &en) const;
-    void  hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
+    void  hdf5write( hid_t group, DEFAULT_CONVERTER c,      const entitySet &en) const;
+    void  hdf5write( hid_t group, IDENTITY_CONVERTER c,     const entitySet &en) const;
+    void  hdf5write( hid_t group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
   public:
 
@@ -72,8 +71,8 @@ namespace Loci {
     virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group, entitySet &user_eset) ;
-    virtual void writehdf5( H5::Group group,entitySet& en) const ;
+    virtual void readhdf5( hid_t group, entitySet &user_eset) ;
+    virtual void writehdf5( hid_t group, entitySet& en) const ;
 
     hash_map<int,std::vector<T> > *get_attrib_data(){return &attrib_data; }
   } ;
@@ -353,6 +352,114 @@ namespace Loci {
 
   //**************************************************************************/
  
+  template<class T> 
+  store_type dmultiStoreRepI<T>::RepType() const 
+  {
+    return STORE ;
+  }
+
+  //***************************************************************************/
+  
+  template<class T> 
+  entitySet dmultiStoreRepI<T>::domain() const 
+  {
+    hash_map<int,std::vector<T> > :: const_iterator    ci;
+    entitySet          storeDomain;
+    std::vector<int>        vec;
+
+    for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
+      vec.push_back( ci->first ) ;
+
+    sort( vec.begin(), vec.end() );
+
+    for( int i = 0; i < vec.size(); i++)
+      storeDomain +=  vec[i];
+
+    return storeDomain ;
+  }
+
+  //***************************************************************************/
+  
+  template<class T> 
+  std::ostream &dmultiStoreRepI<T>::Print(std::ostream &s) const 
+  {
+    s << '{' << domain() << endl ;
+
+    hash_map<int,std::vector<T> >  :: const_iterator ci;
+    std::vector<T>    vec;
+
+    FORALL(domain(),ii) {
+      ci =  attrib_data.find(ii);
+      if( ci != attrib_data.end() ) {
+        vec =  ci->second;
+        s << vec.size() << std::endl ;
+      }
+    } ENDFORALL ;
+
+    FORALL(domain(),ii) {
+      ci =  attrib_data.find(ii);
+      if( ci != attrib_data.end() ) {
+        vec = ci->second;
+        s << vec << std::endl;
+      }
+    } ENDFORALL ;
+
+    s << '}' << std::endl ;
+    return s ;
+  }
+
+  //**************************************************************************/
+
+  template<class T> 
+  std::istream &dmultiStoreRepI<T>::Input(std::istream &s) 
+  {
+
+    entitySet  e ;
+    char ch ;
+
+    // Read the opening brackets ...
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '{') {
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
+      s.putback(ch) ;
+      return s ;
+    }
+
+    // Read the interval set ....
+    s >> e ;
+
+    // Read the size of each entity map.
+    store<int> sizes ;
+    sizes.allocate(e) ;
+    FORALL(e,ii) {
+      s >> sizes[ii] ;
+    } ENDFORALL ;
+    allocate(sizes) ;
+
+    // Read the attribute data
+    T          val;
+    std::vector<T>  vec;
+    FORALL(e,ii) {
+      vec.clear();
+      for( int i = 0; i < sizes[ii]; i++) {
+        s >> val;
+        vec.push_back(val);
+      }
+      attrib_data[ii] = vec;
+    } ENDFORALL ;
+            
+    // Close the bracket ..
+    do ch = s.get(); while(ch==' ' || ch=='\n') ;
+    if(ch != '}') {
+      std::cerr << "Incorrect Format while reading store" << std::endl ;
+      s.putback(ch) ;
+    }
+
+    return s ;
+
+  }
+
+  //***************************************************************************/
   template <class T> 
   int dmultiStoreRepI<T>::pack_size(const entitySet &e ) 
   {
@@ -419,244 +526,135 @@ namespace Loci {
   //**************************************************************************/
  
   template<class T> 
-  store_type dmultiStoreRepI<T>::RepType() const 
+  void dmultiStoreRepI<T>::writehdf5(hid_t group_id, entitySet &en) const 
   {
-    return STORE ;
-  }
-
-  //***************************************************************************/
-  
-  template<class T> 
-  entitySet dmultiStoreRepI<T>::domain() const 
-  {
-    hash_map<int,std::vector<T> > :: const_iterator    ci;
-    entitySet          storeDomain;
-    std::vector<int>        vec;
-
-    for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
-      vec.push_back( ci->first ) ;
-
-    sort( vec.begin(), vec.end() );
-
-    for( int i = 0; i < vec.size(); i++)
-      storeDomain +=  vec[i];
-
-    return storeDomain ;
-  }
-
-  //***************************************************************************/
-  
-  template<class T> 
-  std::ostream &dmultiStoreRepI<T>::Print(std::ostream &s) const 
-  {
-    s << '{' << domain() << endl ;
-
-    hash_map<int,std::vector<T> >  :: const_iterator ci;
-    std::vector<T>    vec;
-
-    FORALL(domain(),ii) {
-      ci =  attrib_data.find(ii);
-      if( ci != attrib_data.end() ) {
-        vec =  ci->second;
-        s << vec.size() << std::endl ;
-      }
-    } ENDFORALL ;
-
-    FORALL(domain(),ii) {
-      ci =  attrib_data.find(ii);
-      if( ci != attrib_data.end() ) {
-        vec = ci->second;
-        for( int i = 0; i < vec.size(); i++)
-          s << vec[i] << "  ";
-        s << endl;
-      }
-    } ENDFORALL ;
-
-    s << '}' << std::endl ;
-    return s ;
-  }
-
-  //**************************************************************************/
-
-  template<class T> 
-  std::istream &dmultiStoreRepI<T>::Input(std::istream &s) 
-  {
-
-    entitySet  e ;
-    char ch ;
-
-    // Read the opening brackets ...
-    do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    if(ch != '{') {
-      std::cerr << "Incorrect Format while reading store" << std::endl ;
-      s.putback(ch) ;
-      return s ;
-    }
-
-    // Read the interval set ....
-    s >> e ;
-
-    // Read the size of each entity map.
-    store<int> sizes ;
-    sizes.allocate(e) ;
-    FORALL(e,ii) {
-      s >> sizes[ii] ;
-    } ENDFORALL ;
-    allocate(sizes) ;
-
-    // Read the attribute data
-    T          val;
-    std::vector<T>  vec;
-    FORALL(e,ii) {
-      vec.clear();
-      for( int i = 0; i < sizes[ii]; i++) {
-        s >> val;
-        vec.push_back(val);
-      }
-      attrib_data[ii] = vec;
-    } ENDFORALL ;
-            
-    // Close the bracket ..
-    do ch = s.get(); while(ch==' ' || ch=='\n') ;
-    if(ch != '}') {
-      std::cerr << "Incorrect Format while reading store" << std::endl ;
-      s.putback(ch) ;
-    }
-
-    return s ;
-
-  }
-
-  //***************************************************************************/
-
-  template<class T> 
-  void dmultiStoreRepI<T>::writehdf5(H5::Group group, entitySet &en) const 
-  {
-    typedef typename hdf5_schema_traits<T> ::Schema_Converter 
-      schema_converter;
+    typedef typename data_schema_traits<T> ::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
-    hdf5write(group, traits_output_type, en);
+    hdf5write(group_id, traits_output_type, en);
 
   }
 
   //***************************************************************************/
 
   template<class T> 
-  void dmultiStoreRepI<T>::readhdf5( H5::Group group, entitySet &user_eset) 
+  void dmultiStoreRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset) 
   {
 
-    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
+    /*
+      typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+      schema_converter traits_type;
 
-    entitySet eset, ecommon;
+      entitySet eset, ecommon;
 
-    // Read the entitySet available in file ...
-    HDF5_ReadDomain(group, eset);
+      // Read the entitySet available in file ...
+      HDF5_ReadDomain(group, eset);
 
-    // Intersection of entityset in file and user defined. Only common entitySet
-    // are read from the file ...
-    //
-    ecommon = eset & user_eset ;   
-    allocate( ecommon );
+      // Intersection of entityset in file and user defined. Only common entitySet
+      // are read from the file ...
+      //
+      ecommon = eset & user_eset ;   
+      allocate( ecommon );
 
-    // Read the common entitities ...
-    hdf5read( group, traits_type, eset,  ecommon );
+      // Read the common entitities ...
+      hdf5read( group, traits_type, eset,  ecommon );
+    */
 
   }
 
   //***************************************************************************/
   template <class T> 
-  void dmultiStoreRepI<T> :: hdf5read( H5::Group group, DEFAULT_CONVERTER c, 
+  void dmultiStoreRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c, 
                                        entitySet &eset, entitySet &user_eset)
   {
-     cout << "Fatal error: Default read converter not implemented for dynamic multiStore " << endl;
-     exit(0);
+    cout << "Fatal error: Default read converter not implemented for dynamic multiStore " << endl;
+    exit(0);
   }
 
   //***************************************************************************/
 
   template <class T> 
-  void dmultiStoreRepI<T> :: hdf5read( H5::Group group, IDENTITY_CONVERTER c, 
+  void dmultiStoreRepI<T> :: hdf5read( hid_t group_id, IDENTITY_CONVERTER c, 
                                        entitySet &eset, entitySet &user_eset)
   {
 
-    hsize_t dimension[1];
-    size_t indx = 0, arraySize;
-    int    rank = 1, size;
+    /*
+      hsize_t dimension[1];
+      size_t indx = 0, arraySize;
+      int    rank = 1, size;
 
-    entitySet::const_iterator ci;
-    typedef hdf5_schema_traits<T> traits_type;
+      entitySet::const_iterator ci;
+      typedef hdf5_schema_traits<T> traits_type;
 
-    //-------------------------------------------------------------------------
-    // Size of each main container....
-    //--------------------------------------------------------------------------
+      //-------------------------------------------------------------------------
+      // Size of each main container....
+      //--------------------------------------------------------------------------
 
-    H5::DataType  bDatatype  = H5::PredType::NATIVE_INT;
-    H5::DataSet   bDataset   = group.openDataSet( "ContainerSize");
-    H5::DataSpace bDataspace = bDataset.getSpace();
+      H5::DataType  bDatatype  = H5::PredType::NATIVE_INT;
+      H5::DataSet   bDataset   = group.openDataSet( "ContainerSize");
+      H5::DataSpace bDataspace = bDataset.getSpace();
 
-    bDataspace.getSimpleExtentDims( dimension, NULL);
-    int *ibuf = new int[dimension[0]];
+      bDataspace.getSimpleExtentDims( dimension, NULL);
+      int *ibuf = new int[dimension[0]];
 
-    dimension[0]  = eset.size();
-    bDataset.read( ibuf, H5::PredType::NATIVE_INT );
+      dimension[0]  = eset.size();
+      bDataset.read( ibuf, H5::PredType::NATIVE_INT );
 
-    store<int> container;
-    container.allocate( eset );
+      store<int> container;
+      container.allocate( eset );
 
-    indx  = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci)
+      indx  = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci)
       container[*ci] = ibuf[indx++];
 
-    delete [] ibuf;
+      delete [] ibuf;
 
-    //---------------------------------------------------------------------------
-    // Calculate the offset of each entity in file ....
-    //---------------------------------------------------------------------------
-    store<unsigned>   offset;
-    store<int>        bucket;
+      //---------------------------------------------------------------------------
+      // Calculate the offset of each entity in file ....
+      //---------------------------------------------------------------------------
+      store<unsigned>   offset;
+      store<int>        bucket;
 
-    offset.allocate( eset );
+      offset.allocate( eset );
 
-    bucket.allocate( user_eset );
-    for( ci = user_eset.begin(); ci != user_eset.end(); ++ci) 
+      bucket.allocate( user_eset );
+      for( ci = user_eset.begin(); ci != user_eset.end(); ++ci) 
       bucket[*ci] = container[*ci];
-    allocate( bucket );
+      allocate( bucket );
 
-    arraySize = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      arraySize = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci) {
       offset[*ci] = arraySize;
       arraySize  += container[*ci];
-    }
+      }
 
-    //---------------------------------------------------------------------------
-    // Read the data now ....
-    //---------------------------------------------------------------------------
-    int num_intervals = user_eset.num_intervals();
-    interval *it = new interval[num_intervals];
+      //---------------------------------------------------------------------------
+      // Read the data now ....
+      //---------------------------------------------------------------------------
+      int num_intervals = user_eset.num_intervals();
+      interval *it = new interval[num_intervals];
 
-    for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
+      for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-    T   *data;
+      T   *data;
 
-    dimension[0] = arraySize;
-    H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
-    H5::DataSpace vDataspace(rank, dimension);
+      dimension[0] = arraySize;
+      H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
+      H5::DataSpace vDataspace(rank, dimension);
 
-    H5::DataType vDatatype = traits_type::get_type();
-    H5::DataSet  vDataset   = group.openDataSet( "VariableData");
+      H5::DataType vDatatype = traits_type::get_type();
+      H5::DataSet  vDataset   = group.openDataSet( "VariableData");
 
-    hssize_t  start_mem[] = {0};  // determines the starting coordinates.
-    hsize_t   stride[]    = {1};  // which elements are to be selected.
-    hsize_t   block[]     = {1};  // size of element block;
-    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+      hssize_t  start_mem[] = {0};  // determines the starting coordinates.
+      hsize_t   stride[]    = {1};  // which elements are to be selected.
+      hsize_t   block[]     = {1};  // size of element block;
+      hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+      hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    for( int k = 0; k < num_intervals; k++) {
+      for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
-        count[0] +=  container[i];
+      count[0] +=  container[i];
 
       data = new T[count[0]];
 
@@ -669,108 +667,109 @@ namespace Loci {
       indx = 0;
       int size;
       for( int i = it[k].first; i <= it[k].second; i++) {
-        attrib_data[i].clear();
-        size = container[i];
-        for( int m = 0; m < size; m++)
-          attrib_data[i].push_back( data[indx++] );
+      attrib_data[i].clear();
+      size = container[i];
+      for( int m = 0; m < size; m++)
+      attrib_data[i].push_back( data[indx++] );
       }
 
       delete[] data;
-    }
+      }
+    */
 
   }
 
   //***************************************************************************/
 
   template <class T> 
-  void dmultiStoreRepI<T> :: hdf5write( H5::Group group, DEFAULT_CONVERTER c, 
+  void dmultiStoreRepI<T> :: hdf5write( hid_t group_id, DEFAULT_CONVERTER c, 
                                         const entitySet &eset)  const
   {
-     cout << "Fatal error: Default write converter not implemented for dynamic multiStore " << endl;
-     exit(0);
+    cout << "Fatal error: Default write converter not implemented for dynamic multiStore " << endl;
+    exit(0);
 
 
   }
   //***************************************************************************/
 
   template <class T> 
-  void dmultiStoreRepI<T> :: hdf5write( H5::Group group, IDENTITY_CONVERTER c, 
+  void dmultiStoreRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER c, 
                                         const entitySet &eset)  const
   {
+    /*
+      int      rank = 1;
+      hsize_t  dimension[1];
 
-    int      rank = 1;
-    hsize_t  dimension[1];
+      std::vector<T>   newvec;
+      entitySet :: const_iterator  ei;
+      hash_map<int,std::vector<T> >:: const_iterator ci;
 
-    std::vector<T>   newvec;
-    entitySet :: const_iterator  ei;
-    hash_map<int,std::vector<T> >:: const_iterator ci;
+      //write out the domain   
+      HDF5_WriteDomain(group, eset);
 
-    //write out the domain   
-    HDF5_WriteDomain(group, eset);
+      //-----------------------------------------------------------------------------
+      // Get the sum of each object size and maximum size of object in the 
+      // container for allocation purpose
+      //-----------------------------------------------------------------------------
+      int  *container = new int[eset.size()];
+      size_t  arraySize= 0;
+      int     count;
 
-    //-----------------------------------------------------------------------------
-    // Get the sum of each object size and maximum size of object in the 
-    // container for allocation purpose
-    //-----------------------------------------------------------------------------
-    int  *container = new int[eset.size()];
-    size_t  arraySize= 0;
-    int     count;
-
-    size_t indx = 0;
-    for( ei = eset.begin(); ei != eset.end(); ++ei) {
+      size_t indx = 0;
+      for( ei = eset.begin(); ei != eset.end(); ++ei) {
       ci = attrib_data.find(*ei);
       if( ci != attrib_data.end() ) {
-        newvec      = ci->second;
-        arraySize  += newvec.size();
-        container[indx++] = newvec.size();
+      newvec      = ci->second;
+      arraySize  += newvec.size();
+      container[indx++] = newvec.size();
       }
-    }
+      }
 
-    //-----------------------------------------------------------------------------
-    // Write the Size of each multiStore ....
-    //-----------------------------------------------------------------------------
-    dimension[0]=  eset.size();
+      //-----------------------------------------------------------------------------
+      // Write the Size of each multiStore ....
+      //-----------------------------------------------------------------------------
+      dimension[0]=  eset.size();
 
-    try {
+      try {
       H5::DataSpace sDataspace( rank, dimension );
       H5::DataType  sDatatype = H5::PredType::NATIVE_INT;
       H5::DataSet   sDataset  = group.createDataSet( "ContainerSize", sDatatype, sDataspace);
 
       sDataset.write( container, sDatatype );
-    }
+      }
 
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+      catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+      catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+      catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
 
-    delete [] container;
+      delete [] container;
 
-    //-----------------------------------------------------------------------------
-    // Collect state data from each object and put into 1D array
-    //-----------------------------------------------------------------------------
-    T  *data, *buf;
+      //-----------------------------------------------------------------------------
+      // Collect state data from each object and put into 1D array
+      //-----------------------------------------------------------------------------
+      T  *data, *buf;
 
-    data =  new T[arraySize];
+      data =  new T[arraySize];
 
-    indx = 0;
-    for( ei = eset.begin(); ei != eset.end(); ++ei) {
+      indx = 0;
+      for( ei = eset.begin(); ei != eset.end(); ++ei) {
       ci = attrib_data.find(*ei);
       if( ci != attrib_data.end() ) {
-        newvec  = ci->second;
-        for( int j = 0; j < newvec.size(); j++) 
-          data[indx++] = newvec[j];
+      newvec  = ci->second;
+      for( int j = 0; j < newvec.size(); j++) 
+      data[indx++] = newvec[j];
       }
-    }
+      }
 
-    //-----------------------------------------------------------------------------
-    // Write (variable) Data into HDF5 format
-    //-----------------------------------------------------------------------------
+      //-----------------------------------------------------------------------------
+      // Write (variable) Data into HDF5 format
+      //-----------------------------------------------------------------------------
 
-    typedef hdf5_schema_traits<T> traits_type;
+      typedef hdf5_schema_traits<T> traits_type;
 
-    dimension[0] =  arraySize;
+      dimension[0] =  arraySize;
 
-    try {
+      try {
 
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = traits_type::get_type();
@@ -778,127 +777,129 @@ namespace Loci {
 
       vDataset.write( data, vDatatype );
 
-    }
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+      }
+      catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+      catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+      catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
 
-    //-----------------------------------------------------------------------------
-    // Clean up
-    //-----------------------------------------------------------------------------
-    delete [] data;
+      //-----------------------------------------------------------------------------
+      // Clean up
+      //-----------------------------------------------------------------------------
+      delete [] data;
+    */
   }
 
   //***************************************************************************/
 
   template<class T>
-  void  dmultiStoreRepI<T> :: hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, 
+  void  dmultiStoreRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, 
                                         entitySet &eset, entitySet &user_eset)
   {
 
-    hsize_t dimension[1];
-    size_t indx = 0, arraySize;
-    int    rank = 1;
+    /*
+      hsize_t dimension[1];
+      size_t indx = 0, arraySize;
+      int    rank = 1;
 
-    entitySet::const_iterator ci;
+      entitySet::const_iterator ci;
 
-    //-------------------------------------------------------------------------
-    // Size of each main container....
-    //--------------------------------------------------------------------------
+      //-------------------------------------------------------------------------
+      // Size of each main container....
+      //--------------------------------------------------------------------------
 
-    H5::DataType  bDatatype  = H5::PredType::NATIVE_INT;
-    H5::DataSet   bDataset   = group.openDataSet( "ContainerSize");
-    H5::DataSpace bDataspace = bDataset.getSpace();
+      H5::DataType  bDatatype  = H5::PredType::NATIVE_INT;
+      H5::DataSet   bDataset   = group.openDataSet( "ContainerSize");
+      H5::DataSpace bDataspace = bDataset.getSpace();
 
-    bDataspace.getSimpleExtentDims( dimension, NULL);
-    int *ibuf = new int[dimension[0]];
+      bDataspace.getSimpleExtentDims( dimension, NULL);
+      int *ibuf = new int[dimension[0]];
 
-    dimension[0]  = eset.size();
-    bDataset.read( ibuf, H5::PredType::NATIVE_INT );
+      dimension[0]  = eset.size();
+      bDataset.read( ibuf, H5::PredType::NATIVE_INT );
 
-    store<int> container;
-    container.allocate( eset );
+      store<int> container;
+      container.allocate( eset );
 
-    indx      = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci)
+      indx      = 0;
+      for( ci = eset.begin(); ci != eset.end(); ++ci)
       container[*ci] = ibuf[indx++];
 
-    delete [] ibuf;
+      delete [] ibuf;
 
-    //---------------------------------------------------------------------------
-    // Size of each sub-container ....
-    //---------------------------------------------------------------------------
+      //---------------------------------------------------------------------------
+      // Size of each sub-container ....
+      //---------------------------------------------------------------------------
 
-    H5::DataType  sDatatype  = H5::PredType::NATIVE_INT;
-    H5::DataSet   sDataset   = group.openDataSet( "SubContainerSize");
-    H5::DataSpace sDataspace = sDataset.getSpace();
+      H5::DataType  sDatatype  = H5::PredType::NATIVE_INT;
+      H5::DataSet   sDataset   = group.openDataSet( "SubContainerSize");
+      H5::DataSpace sDataspace = sDataset.getSpace();
 
-    sDataspace.getSimpleExtentDims( dimension, NULL);
-    ibuf = new int[dimension[0]];
+      sDataspace.getSimpleExtentDims( dimension, NULL);
+      ibuf = new int[dimension[0]];
 
-    sDataset.read( ibuf, H5::PredType::NATIVE_INT );
+      sDataset.read( ibuf, H5::PredType::NATIVE_INT );
 
-    int maxBucketSize = *std::max_element( ibuf, ibuf + (int)dimension[0] );
+      int maxBucketSize = *std::max_element( ibuf, ibuf + (int)dimension[0] );
 
-    //---------------------------------------------------------------------------
-    // Calculate the offset of each entity in file ....
-    //---------------------------------------------------------------------------
-    store<unsigned>   offset;
-    store<int>        bucket;
-    dmultiStore<int>  subcontainer;
+      //---------------------------------------------------------------------------
+      // Calculate the offset of each entity in file ....
+      //---------------------------------------------------------------------------
+      store<unsigned>   offset;
+      store<int>        bucket;
+      dmultiStore<int>  subcontainer;
 
-    offset.allocate( eset );
+      offset.allocate( eset );
 
-    bucket.allocate( user_eset );
-    for( ci = user_eset.begin(); ci != user_eset.end(); ++ci) 
+      bucket.allocate( user_eset );
+      for( ci = user_eset.begin(); ci != user_eset.end(); ++ci) 
       bucket[*ci] = container[*ci];
     
-    allocate( bucket );
+      allocate( bucket );
 
-    arraySize = 0;
-    int indx1 = 0, indx2 = 0, size;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      arraySize = 0;
+      int indx1 = 0, indx2 = 0, size;
+      for( ci = eset.begin(); ci != eset.end(); ++ci) {
       offset[*ci] = arraySize;
       for( int i = 0; i < container[*ci]; i++)  {
-        size = ibuf[indx2];
-        arraySize  += size;
-        subcontainer[*ci].push_back( size );
-        indx2++;
+      size = ibuf[indx2];
+      arraySize  += size;
+      subcontainer[*ci].push_back( size );
+      indx2++;
       }
-    }
+      }
 
-    delete [] ibuf;
-    //---------------------------------------------------------------------------
-    // Read the data now ....
-    //---------------------------------------------------------------------------
-    int num_intervals = user_eset.num_intervals();
-    interval *it = new interval[num_intervals];
+      delete [] ibuf;
+      //---------------------------------------------------------------------------
+      // Read the data now ....
+      //---------------------------------------------------------------------------
+      int num_intervals = user_eset.num_intervals();
+      interval *it = new interval[num_intervals];
 
-    for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
+      for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-    typedef hdf5_schema_converter_traits<T> converter_traits; 
-    typename converter_traits::memento_type *data, *buf;
+      typedef hdf5_schema_converter_traits<T> converter_traits; 
+      typename converter_traits::memento_type *data, *buf;
 
-    dimension[0] = arraySize;
-    H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
-    H5::DataSpace vDataspace(rank, dimension);
+      dimension[0] = arraySize;
+      H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
+      H5::DataSpace vDataspace(rank, dimension);
 
-    H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
-    H5::DataSet   vDataset   = group.openDataSet( "VariableData");
+      H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
+      H5::DataSet   vDataset   = group.openDataSet( "VariableData");
 
-    hssize_t  start_mem[] = {0};  // determines the starting coordinates.
-    hsize_t   stride[]    = {1};  // which elements are to be selected.
-    hsize_t   block[]     = {1};  // size of element block;
-    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+      hssize_t  start_mem[] = {0};  // determines the starting coordinates.
+      hsize_t   stride[]    = {1};  // which elements are to be selected.
+      hsize_t   block[]     = {1};  // size of element block;
+      hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+      hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    buf  = new typename converter_traits::memento_type[maxBucketSize];
+      buf  = new typename converter_traits::memento_type[maxBucketSize];
 
-    for( int k = 0; k < num_intervals; k++) {
+      for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++){
-        for( int j = 0; j < subcontainer[i].size(); j++)
-          count[0] +=  subcontainer[i][j];
+      for( int j = 0; j < subcontainer[i].size(); j++)
+      count[0] +=  subcontainer[i][j];
       }
 
       data = new typename converter_traits::memento_type[count[0]];
@@ -913,154 +914,159 @@ namespace Loci {
       int size;
       T      newObj;
       for( int i = it[k].first; i <= it[k].second; i++) {
-        attrib_data[i].clear();
-        for( int j = 0; j < subcontainer[i].size(); j++) {
-          attrib_data[i].push_back( newObj );
-          Memento<T> memento( attrib_data[i][j] );
-          size = subcontainer[i][j];
-          for( int m = 0; m < size; m++)
-            buf[m] = data[indx++];
-          attrib_data[i][j] = memento.setState( buf, size );
-        }
+      attrib_data[i].clear();
+      for( int j = 0; j < subcontainer[i].size(); j++) {
+      attrib_data[i].push_back( newObj );
+      Memento<T> memento( attrib_data[i][j] );
+      size = subcontainer[i][j];
+      for( int m = 0; m < size; m++)
+      buf[m] = data[indx++];
+      attrib_data[i][j] = memento.setState( buf, size );
+      }
       }
 
       delete[] data;
-    }
+      }
 
-    delete[] buf;
+      delete[] buf;
+    */
+    
 
   }
 
   //***************************************************************************/
   
   template <class T> 
-  void dmultiStoreRepI<T> :: hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, 
+  void dmultiStoreRepI<T> :: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER c, 
                                         const entitySet &eset)  const
   {   
 
-    int rank = 1;
-    hsize_t  dimension[1];
+    /*
+      int rank = 1;
+      hsize_t  dimension[1];
 
-    HDF5_WriteDomain(group, eset);
+      HDF5_WriteDomain(group, eset);
 
-    //-----------------------------------------------------------------------------
-    // Get the sum of each object size and maximum size of object in the 
-    // container for allocation purpose
-    //-----------------------------------------------------------------------------
+      //-----------------------------------------------------------------------------
+      // Get the sum of each object size and maximum size of object in the 
+      // container for allocation purpose
+      //-----------------------------------------------------------------------------
 
-    entitySet :: const_iterator ei;
-    size_t       arraySize= 0;
-    int          count, stateSize, *storeSize, maxBucketSize;
-    std::vector<int>  bucketSize;    //  Because we don't know in advance the size
-    std::vector<T>    newvec;
-    hash_map<int,std::vector<T> >:: const_iterator ci;
+      entitySet :: const_iterator ei;
+      size_t       arraySize= 0;
+      int          count, stateSize, *storeSize, maxBucketSize;
+      std::vector<int>  bucketSize;    //  Because we don't know in advance the size
+      std::vector<T>    newvec;
+      hash_map<int,std::vector<T> >:: const_iterator ci;
 
-    storeSize = new int[eset.size()];
+      storeSize = new int[eset.size()];
 
-    size_t indx = 0;
-    for( ei = eset.begin(); ei != eset.end(); ++ei) {
+      size_t indx = 0;
+      for( ei = eset.begin(); ei != eset.end(); ++ei) {
       ci = attrib_data.find(*ei);
       if( ci != attrib_data.end() ) {
-        newvec = ci->second;
-        storeSize[indx++] = newvec.size();
-        for( int j = 0; j < newvec.size(); j++) {
-          Memento<T> memento( newvec[j] );
-          stateSize  = memento.getSize();
-          arraySize += stateSize;
-          bucketSize.push_back( stateSize );
-        }
+      newvec = ci->second;
+      storeSize[indx++] = newvec.size();
+      for( int j = 0; j < newvec.size(); j++) {
+      Memento<T> memento( newvec[j] );
+      stateSize  = memento.getSize();
+      arraySize += stateSize;
+      bucketSize.push_back( stateSize );
       }
-    }
+      }
+      }
 
-    maxBucketSize = *max_element( bucketSize.begin(), bucketSize.end() );
+      maxBucketSize = *max_element( bucketSize.begin(), bucketSize.end() );
 
-    //-----------------------------------------------------------------------------
-    // Write the Size of each multiStore ....
-    //-----------------------------------------------------------------------------
-    dimension[0]=  eset.size();
+      //-----------------------------------------------------------------------------
+      // Write the Size of each multiStore ....
+      //-----------------------------------------------------------------------------
+      dimension[0]=  eset.size();
 
-    try {
+      try {
       H5::DataSpace sDataspace( rank, dimension );
       H5::DataType  sDatatype = H5::PredType::NATIVE_INT;
       H5::DataSet   sDataset  = group.createDataSet( "ContainerSize", sDatatype, sDataspace);
 
       sDataset.write( storeSize, sDatatype );
-    }
+      }
 
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+      catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+      catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+      catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
 
-    //-----------------------------------------------------------------------------
-    // Write the size of each bucket...
-    //-----------------------------------------------------------------------------
-    dimension[0]=  bucketSize.size();
-    int  *bucket = new int[bucketSize.size()];
+      //-----------------------------------------------------------------------------
+      // Write the size of each bucket...
+      //-----------------------------------------------------------------------------
+      dimension[0]=  bucketSize.size();
+      int  *bucket = new int[bucketSize.size()];
 
-    for( int i=0; i< bucketSize.size();i++)
+      for( int i=0; i< bucketSize.size();i++)
       bucket[i] = bucketSize[i];
-    bucketSize.clear();
+      bucketSize.clear();
 
-    try {
+      try {
       H5::DataSpace bDataspace( rank, dimension );
       H5::DataType  bDatatype = H5::PredType::NATIVE_INT;
       H5::DataSet   bDataset  = group.createDataSet("SubContainerSize", bDatatype, bDataspace);
 
       bDataset.write( bucket, bDatatype );
-    }
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+      }
+      catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+      catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+      catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
 
-    typedef hdf5_schema_converter_traits<T> converter_traits; 
-    typename converter_traits::memento_type *data, *buf;
+      typedef hdf5_schema_converter_traits<T> converter_traits; 
+      typename converter_traits::memento_type *data, *buf;
 
-    data =  new typename converter_traits::memento_type[arraySize];
-    buf  =  new typename converter_traits::memento_type[maxBucketSize];
-    //-----------------------------------------------------------------------------
-    // Collect state data from each object and put into 1D array
-    //-----------------------------------------------------------------------------
+      data =  new typename converter_traits::memento_type[arraySize];
+      buf  =  new typename converter_traits::memento_type[maxBucketSize];
+      //-----------------------------------------------------------------------------
+      // Collect state data from each object and put into 1D array
+      //-----------------------------------------------------------------------------
 
-    indx = 0;
-    for( ei = eset.begin(); ei != eset.end(); ++ei) {
+      indx = 0;
+      for( ei = eset.begin(); ei != eset.end(); ++ei) {
       ci = attrib_data.find(*ei);
       if( ci != attrib_data.end() ) {
-        newvec =  ci->second;
-        for( int j = 0; j < newvec.size(); j++) {
-          Memento<T> memento( newvec[j] );
-          memento.getState(buf, stateSize);
-          for( int i = 0; i < stateSize; i++)
-            data[indx++] =  buf[i];
-        }
+      newvec =  ci->second;
+      for( int j = 0; j < newvec.size(); j++) {
+      Memento<T> memento( newvec[j] );
+      memento.getState(buf, stateSize);
+      for( int i = 0; i < stateSize; i++)
+      data[indx++] =  buf[i];
       }
-    }
+      }
+      }
 
-    //-----------------------------------------------------------------------------
-    // Write (variable) Data into HDF5 format
-    //-----------------------------------------------------------------------------
+      //-----------------------------------------------------------------------------
+      // Write (variable) Data into HDF5 format
+      //-----------------------------------------------------------------------------
 
-    dimension[0] =  arraySize;
+      dimension[0] =  arraySize;
 
-    try {
+      try {
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = converter_traits::get_variable_HDF5_type();
       H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
 
       vDataset.write( data, vDatatype );
-    }
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+      }
+      catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
+      catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
+      catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
 
-    //-----------------------------------------------------------------------------
-    // Clean up
-    //-----------------------------------------------------------------------------
-    delete [] data;
-    delete [] buf;
+      //-----------------------------------------------------------------------------
+      // Clean up
+      //-----------------------------------------------------------------------------
+      delete [] data;
+      delete [] buf;
+    */
 
   }
 
   //***************************************************************************/
+
 }
 
 #endif

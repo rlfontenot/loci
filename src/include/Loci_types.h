@@ -220,19 +220,23 @@ namespace Loci {
     return vector3d<T>(v1.x/r2,v1.y/r2,v1.z/r2) ;
   }
 
+  /*
   template <class T>
-    class hdf5_schema_traits< vector3d<T> > {
+    class data_schema_traits< vector3d<T> > {
     public:
       typedef IDENTITY_CONVERTER Schema_Converter;
-      static H5::DataType get_type() {
-        hdf5_schema_traits<T> hdfT;
+      static hid_t get_hdf5_type() {
+        data_schema_traits<T> hdfT;
+      
         H5::CompType ctype(sizeof(vector3d<T>));
         ctype.insertMember("x", HOFFSET(vector3d<T>,x), hdfT.get_type());
         ctype.insertMember("y", HOFFSET(vector3d<T>,y), hdfT.get_type());
         ctype.insertMember("z", HOFFSET(vector3d<T>,z), hdfT.get_type());
+       
         return ctype;
       }
-    };
+      };
+  */
   
   //---------------------vector2d------------------//
   template <class T> 
@@ -375,18 +379,21 @@ namespace Loci {
     return vector2d<T>(v1.x/r2,v1.y/r2) ;
   }
 
+  /*
   template <class T>
-    class hdf5_schema_traits< vector2d<T> > {
+    class data_schema_traits< vector2d<T> > {
     public:
       typedef IDENTITY_CONVERTER Schema_Converter;
       static H5::DataType get_type() {
-        hdf5_schema_traits<T> hdfT;
+        data_schema_traits<T> hdfT;
         H5::CompType ctype(sizeof(vector2d<T>));
         ctype.insertMember("x", HOFFSET(vector2d<T>,x), hdfT.get_type());
         ctype.insertMember("y", HOFFSET(vector2d<T>,y), hdfT.get_type());
         return ctype;
       }
-    };
+      };
+  */
+  
   
   //---------------------Array----------------------//
   template <class T,unsigned int n> class Array {
@@ -435,13 +442,14 @@ namespace Loci {
     return s ;
   }
 
+  /*
   template <class T,unsigned int n> 
-    class hdf5_schema_traits< Array<T,n> > {
+    class data_schema_traits< Array<T,n> > {
     public:
     typedef IDENTITY_CONVERTER Schema_Converter;
     static H5::DataType get_type() {
       H5::CompType ctype(sizeof(Array<T,n>));
-      hdf5_schema_traits<T> hdfT;
+      data_schema_traits<T> hdfT;
       for(int i=0;i<n;i++){
 	std::ostringstream oss;
 	oss<<"v"<<i;
@@ -450,6 +458,7 @@ namespace Loci {
       }
       return ctype;
     }
-  };
+    };
+  */
 }
 #endif

@@ -11,8 +11,6 @@
 
 #include <store_rep.h>
 
-#include <hdf5CC/H5cpp.h>
-
 using std::pair ;
 using std::make_pair ;
 

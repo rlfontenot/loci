@@ -3,7 +3,6 @@
 
 #include <Tools/debug.h>
 #include <Map_rep.h>
-#include <hdf5CC/H5cpp.h>
 
 #include <Map.h>
 #include <store.h>
@@ -45,8 +44,8 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group, entitySet &en) ;
-    virtual void writehdf5( H5::Group group,entitySet& en) const ;
+    virtual void readhdf5( hid_t group, entitySet &en) ;
+    virtual void writehdf5( hid_t group,entitySet& en) const ;
     int ** get_base_ptr() const { return base_ptr ; }
     int *begin(int indx) { return base_ptr[indx] ; }
     int *end(int indx) { return base_ptr[indx+1] ; }
@@ -54,8 +53,9 @@ namespace Loci {
     const int *end(int indx) const { return base_ptr[indx+1] ; }
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
   private:
-    int* get_hdf5_data(H5::Group group,const char* datasetname) ;
-    void put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const ;
+    int* get_hdf5_data(hid_t group, const char* datasetname) ;
+    void put_hdf5_data(hid_t group, int* data,  const char* datasetname, 
+                       hsize_t* dimf) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   } ;
       
@@ -162,8 +162,10 @@ namespace Loci {
   } ;
 
 
+/*
   inline std::ostream & operator<<(std::ostream &s, const const_multiMap &m)
     { return m.Print(s) ; }
+*/
 
   void inverseMap(multiMap &result,
                   const Map &input_map,

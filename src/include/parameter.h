@@ -8,13 +8,9 @@
 #include <store_rep.h>
 #include <istream>
 #include <ostream>
-
-#include <hdf5CC/H5cpp.h>
-#include <hdf5_traits.h>
-#include <hdf5_memento.h>
-
 #include <hdf5_readwrite.h>
 
+#include <data_traits.h>
 
 namespace Loci {
   
@@ -22,13 +18,13 @@ namespace Loci {
     entitySet store_domain ;
     T attrib_data ;
 
-    void hdf5read(H5::Group group, DEFAULT_CONVERTER  g );
-    void hdf5read(H5::Group group, IDENTITY_CONVERTER g );
-    void hdf5read(H5::Group group, USER_DEFINED_CONVERTER g );
+    void hdf5read(hid_t group, DEFAULT_CONVERTER  g );
+    void hdf5read(hid_t group, IDENTITY_CONVERTER g );
+    void hdf5read(hid_t group, USER_DEFINED_CONVERTER g );
 
-    void hdf5write( H5::Group group, DEFAULT_CONVERTER g,     const entitySet &en) const;
-    void hdf5write( H5::Group group, IDENTITY_CONVERTER g,    const entitySet &en) const;
-    void hdf5write( H5::Group group, USER_DEFINED_CONVERTER g,const entitySet &en) const;
+    void hdf5write( hid_t group, DEFAULT_CONVERTER g,     const entitySet &en) const;
+    void hdf5write( hid_t group, IDENTITY_CONVERTER g,    const entitySet &en) const;
+    void hdf5write( hid_t group, USER_DEFINED_CONVERTER g,const entitySet &en) const;
 
   public:
     paramRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ; }
@@ -50,8 +46,8 @@ namespace Loci {
     
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group, entitySet &en) ;
-    virtual void writehdf5( H5::Group group,entitySet& en) const ;
+    virtual void readhdf5( hid_t group, entitySet &en) ;
+    virtual void writehdf5( hid_t group,entitySet& en) const ;
     T *get_param() { return &attrib_data ; }
   } ;
 
@@ -133,33 +129,33 @@ namespace Loci {
 
   //****************************************************************************
   template<class T> 
-  void paramRepI<T>::readhdf5( H5::Group group, entitySet &user_eset)
+  void paramRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
   {
 
-    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
     entitySet eset, ecommon;
-    HDF5_ReadDomain(group, eset);
+    HDF5_ReadDomain(group_id, eset);
 
     ecommon = eset & user_eset;
 
     allocate( ecommon );
 
-    hdf5read(group, traits_output_type );
+    hdf5read(group_id, traits_output_type );
 
   }
 
   //****************************************************************************
 
   template<class T> 
-  void paramRepI<T>::writehdf5( H5::Group group,entitySet &en) const
+  void paramRepI<T>::writehdf5( hid_t group_id, entitySet &en) const
   {
 
-    typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
-    hdf5write(group, traits_output_type, en);
+    hdf5write(group_id, traits_output_type, en);
 
   }
 
@@ -382,89 +378,92 @@ namespace Loci {
   //****************************************************************************
 
   template <class T> 
-  void paramRepI<T> :: hdf5write( H5::Group group, DEFAULT_CONVERTER g,
+  void paramRepI<T> :: hdf5write( hid_t group_id, DEFAULT_CONVERTER g,
                                   const entitySet &eset ) const
   {
-    //write out the domain   
-    HDF5_WriteDomain(group, eset);
-
-    typedef hdf5_schema_traits<T> traits_type;
-    std::ostringstream oss;
-    oss<< attrib_data;
-    std::string memento = oss.str();
-    hsize_t size = memento.length();
+    HDF5_WriteDomain(group_id, eset);
 
     int rank = 1;
     hsize_t dimension[1];
-    dimension[0] =  size+1;
+    std::ostringstream oss;
 
-    int num_intervals = eset.num_intervals();
-    interval *it = new interval[num_intervals];
+    oss<< attrib_data;
 
+    std::string memento = oss.str();
+    hsize_t size  =  memento.length();
+    dimension[0]  =  size+1;
 
-    try{
-      H5::DataType  datatype = traits_type::get_type();
-      H5::DataSpace dataspace( rank, dimension );
-      H5::DataSet   dataset = group.createDataSet( "param", datatype, dataspace);
-      dataset.write( memento.c_str(), datatype );
-    }
-    catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
-    catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
-    catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+    hid_t vDataspace = H5Screate_simple(rank, dimension, NULL);
+    hid_t vDatatype  = H5Tcopy(H5T_NATIVE_CHAR);
+    hid_t vDataset   = H5Dcreate(group_id, "VariableData", vDatatype,
+                                 vDataspace, H5P_DEFAULT);
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+             memento.c_str());
 
-    delete [] it;
+    H5Dclose( vDataset  );
+    H5Sclose( vDataspace);
+
   }
 
 
   //****************************************************************************
   
   template <class T> 
-  void paramRepI<T> :: hdf5write( H5::Group group, IDENTITY_CONVERTER g,
+  void paramRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
                                   const entitySet &eset ) const
   {
 
-    //write out the domain   
-    HDF5_WriteDomain(group, eset);
+    HDF5_WriteDomain(group_id, eset);
 
-//-----------------------------------------------------------------------------
-// Write (variable) Data into HDF5 format
-//-----------------------------------------------------------------------------
-    typedef hdf5_schema_traits<T> traits_type;
+    int arraySize =  eset.size(); 
+
+    typedef data_schema_traits<T> traits_type;
+
+    AbstractDatatype  *dtype;
+    dtype = traits_type::instance();
+    hid_t vDatatype = dtype->get_hdf5_type();
 
     int rank = 1;
-    hsize_t  dimension[1];
+    hsize_t  dimension = eset.size();
 
-    dimension[0] =  1;
+    entitySet :: const_iterator ci;
 
-    try {
+    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
 
-      H5::DataSpace vDataspace( rank, dimension );
-      H5::DataType  vDatatype = traits_type::get_type();
-      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
-      vDataset.write( &attrib_data, vDatatype );
+    hid_t cparms   = H5Pcreate (H5P_DATASET_CREATE);
+    hid_t vDataset = H5Dcreate(group_id, "VariableData", vDatatype,
+                               vDataspace, cparms);
+    T data;
+    data = attrib_data;
 
-    }
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data);
+
+    H5Dclose( vDataset  );
+    H5Sclose( vDataspace);
+    H5Tclose( vDatatype );
+
+    delete dtype;
 
   };
 
   //***********************************************************************
 
   template <class T> 
-  void paramRepI<T> :: hdf5write( H5::Group group, USER_DEFINED_CONVERTER g, 
+  void paramRepI<T> :: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g, 
                                   const entitySet &eset) const
   {
 
     //write out the domain   
     HDF5_WriteDomain(group, eset);
+    cout << " NOT WRITTEN SO FAR " << endl;
+    exit(0);
+    /*
 
 //-----------------------------------------------------------------------------
 // Get the sum of each object size and maximum size of object in the 
 // container for allocation purpose
 //-----------------------------------------------------------------------------
-    typedef hdf5_schema_converter_traits<T> converter_traits; 
+    typedef data_schema_converter_traits<T> converter_traits; 
     converter_traits::memento_type *data, *buf;
 
     Memento<T> memento( &attrib_data );
@@ -481,9 +480,6 @@ namespace Loci {
     int    stateSize;
     memento.getState(data, stateSize);
 
-    for( int i = 0; i < stateSize; i++)
-         cout << data[i] << endl;
-
 //-----------------------------------------------------------------------------
 // Write (variable) Data into HDF5 format
 //-----------------------------------------------------------------------------
@@ -491,37 +487,27 @@ namespace Loci {
     hsize_t  dimension[1];
 
     dimension[0] =  stateSize;
-    cout << stateSize << endl;
-
-    try {
 
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = converter_traits::get_variable_HDF5_type();
       H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
-
       vDataset.write( data, vDatatype );
 
-    }
-    catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
-    catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
-    catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
-
-//-----------------------------------------------------------------------------
-// Clean up
-//-----------------------------------------------------------------------------
     delete [] data;
     delete [] buf;
+*/
   };
 
   //***********************************************************************
 
   template <class T> 
-  void paramRepI<T> :: hdf5read(H5::Group group,DEFAULT_CONVERTER g )
+  void paramRepI<T> :: hdf5read(hid_t group, DEFAULT_CONVERTER g )
   {
 
+/*
     entitySet    eset;
 
-    typedef hdf5_schema_traits <T> traits_type;
+    typedef data_schema_traits <T> traits_type;
     entitySet num;	
 
     //get domain data
@@ -558,20 +544,17 @@ namespace Loci {
     catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
     catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
     catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+*/
 
   };
 
   //***************************************************************************
 
   template <class T> 
-  void paramRepI<T> :: hdf5read(H5::Group group,IDENTITY_CONVERTER g )
+  void paramRepI<T> :: hdf5read(hid_t group_id, IDENTITY_CONVERTER g )
   { 
-
-//-----------------------------------------------------------------------------
-// Write (variable) Data into HDF5 format
-//-----------------------------------------------------------------------------
-
-    typedef hdf5_schema_traits <T> traits_type;
+/*
+    typedef data_schema_traits <T> traits_type;
     H5::DataType  vDatatype = traits_type::get_type();
 
     try {
@@ -582,20 +565,22 @@ namespace Loci {
     catch( H5::HDF5DatasetInterfaceException error   ) { error.printerror(); }
     catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
     catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
+*/
   };
 
   //***************************************************************************
 
   template <class T> 
-  void paramRepI<T> :: hdf5read( H5::Group group, USER_DEFINED_CONVERTER g )
+  void paramRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER g )
   { 
 
+/*
    //---------------------------------------------------------------------------
    // Read the data now ....
    //---------------------------------------------------------------------------
    hsize_t   dimension[1];
 
-   typedef hdf5_schema_converter_traits<T> converter_traits; 
+   typedef data_schema_converter_traits<T> converter_traits; 
    converter_traits::memento_type *data, *buf;
 
    H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
@@ -620,6 +605,7 @@ namespace Loci {
 
    delete [] data;
    delete [] buf;
+*/
 
   };
 

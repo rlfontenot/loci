@@ -6,8 +6,6 @@
 #include <istream>
 #include <ostream>
 
-#include <hdf5CC/H5cpp.h>
-
 namespace Loci {
     
   class constraintRep : public storeRep {
@@ -33,8 +31,8 @@ namespace Loci {
     virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group, entitySet &en) ;
-    virtual void writehdf5( H5::Group group,entitySet& en) const ;
+    virtual void readhdf5(  hid_t group, entitySet &en) ;
+    virtual void writehdf5( hid_t group,entitySet& en) const ;
     entitySet *get_constraint() { return &constraint_set ; }
   } ;
 

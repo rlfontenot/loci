@@ -6,7 +6,6 @@
 
 #include <Tools/debug.h>
 #include <Map_rep.h>
-#include <hdf5CC/H5cpp.h>
 
 #ifdef EXT_HASH_MAP
 #include <ext/hash_map>
@@ -52,8 +51,8 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5(H5::Group group, entitySet &user_eset) ;
-    virtual void writehdf5(H5::Group group,entitySet& en) const ;
+    virtual void readhdf5(hid_t group, entitySet &user_eset) ;
+    virtual void writehdf5(hid_t group,entitySet& en) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     hash_map<int,int> *get_attrib_data() { return &attrib_data; }
   } ;

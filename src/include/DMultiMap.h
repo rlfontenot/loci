@@ -6,7 +6,6 @@
 
 #include <Tools/debug.h>
 #include <Map_rep.h>
-#include <hdf5CC/H5cpp.h>
 #include <DMap.h>
 #include <vector>
 #ifdef EXT_HASH_MAP
@@ -20,39 +19,39 @@
 namespace Loci {
   using std::hash_map ;
 class dmultiMapRepI : public MapRep {
-    entitySet store_domain ;
-    hash_map<int, std::vector<int> >  attrib_data;
+  entitySet store_domain ;
+  hash_map<int, std::vector<int> >  attrib_data;
   public:
-    dmultiMapRepI() { }
+  dmultiMapRepI() { }
     dmultiMapRepI(const store<int> &sizes) { allocate(sizes) ; }
-    void allocate(const store<int> &sizes) ;
-    virtual void allocate(const entitySet &ptn) ;
-    virtual ~dmultiMapRepI() ;
-    virtual storeRep *new_store(const entitySet &p) const ;
-    virtual storeRepP remap(const Map &m) const ;
-    virtual void compose(const Map &m, const entitySet &context) ;
-    virtual void copy(storeRepP &st, const entitySet &context)  ;
-    virtual void gather(const Map &m, storeRepP &st,
-                        const entitySet &context)  ;
-    virtual void scatter(const Map &m, storeRepP &st,
-                         const entitySet &context) ;
-
-    virtual int pack_size(const entitySet &e) ;
-    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
-    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
-    
-    virtual entitySet domain() const ;
-
-    virtual entitySet image(const entitySet &domain) const ;
-    virtual std::pair<entitySet,entitySet>
-      preimage(const entitySet &codomain) const ;
-    virtual multiMap get_map() ;
-    virtual std::ostream &Print(std::ostream &s) const ;
-    virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group, entitySet &user_eset) ;
-    virtual void writehdf5( H5::Group group,entitySet& en) const ;
-    virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-    hash_map<int,std::vector<int> > *get_attrib_data() {return &attrib_data;}
+  void allocate(const store<int> &sizes) ;
+  virtual void allocate(const entitySet &ptn) ;
+  virtual ~dmultiMapRepI() ;
+  virtual storeRep *new_store(const entitySet &p) const ;
+  virtual storeRepP remap(const Map &m) const ;
+  virtual void compose(const Map &m, const entitySet &context) ;
+  virtual void copy(storeRepP &st, const entitySet &context)  ;
+  virtual void gather(const Map &m, storeRepP &st,
+                      const entitySet &context)  ;
+  virtual void scatter(const Map &m, storeRepP &st,
+                       const entitySet &context) ;
+  
+  virtual int pack_size(const entitySet &e) ;
+  virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+  virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
+  
+  virtual entitySet domain() const ;
+  
+  virtual entitySet image(const entitySet &domain) const ;
+  virtual std::pair<entitySet,entitySet>
+  preimage(const entitySet &codomain) const ;
+  virtual multiMap get_map() ;
+  virtual std::ostream &Print(std::ostream &s) const ;
+  virtual std::istream &Input(std::istream &s) ;
+  virtual void readhdf5( hid_t group, entitySet &user_eset) ;
+  virtual void writehdf5( hid_t group_id, entitySet& en) const ;
+  virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+  hash_map<int,std::vector<int> > *get_attrib_data() {return &attrib_data;}
 } ;
       
   //***************************************************************************
@@ -104,7 +103,7 @@ class dmultiMapRepI : public MapRep {
      
       ci = attrib_data->find(indx);
       if( ci == attrib_data->end()) {
-          cerr << "Error: out of range entity " << endl;
+          std::cerr << "Error: out of range entity " << std::endl;
           exit(0);
       }
       
@@ -215,10 +214,9 @@ class dmultiMapRepI : public MapRep {
 
   //***************************************************************************
 
-  void inverseMap( const dmultiMap &in, dmultiMap &out);
   void inverseMap(dmultiMap &result, const dMap &input_map,
                   const entitySet &input_image,
-		   const entitySet &input_preimage) ;
+                  const entitySet &input_preimage) ;
 }
 
 #endif
