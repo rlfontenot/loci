@@ -729,17 +729,6 @@ namespace Loci {
       for(int i = 0; i < Loci::MPI_processes; ++i) 
 	naive_init_ptn[i] += vset[i] ; 
 
-      fact_db::distribute_infoP df ;
-      if(!facts.is_distributed_start()) {
-	df = new fact_db::distribute_info  ;
-	df->chop_ptn = naive_init_ptn ;
-      }
-      else {
-	df = facts.get_distribute_info() ;
-	for(int i = 0; i < Loci::MPI_processes; ++i)
-	  (df->chop_ptn)[i] += naive_init_ptn[i] ;
-      }
-
       dmultiMap left_cells_to_cells, right_cells_to_cells;
       createCelltoCellMapping(tmp_cl, tmp_cr, left_cells_to_cells, right_cells_to_cells, 
 			      local_faces, local_cells, naive_init_ptn) ;
@@ -754,52 +743,44 @@ namespace Loci {
       naive_loc_nodes = global_nodes & new_init_ptn[Loci::MPI_rank] ;
       naive_loc_faces = global_faces & new_init_ptn[Loci::MPI_rank] ;
       naive_loc_cells = global_cells & new_init_ptn[Loci::MPI_rank] ;
-      
-      nodes = facts.get_distributed_alloc(naive_loc_nodes.size()).first ;
-      faces = facts.get_distributed_alloc(naive_loc_faces.size()).first ;
-      cells = facts.get_distributed_alloc(naive_loc_cells.size()).first ;
 
-      Loci::debugout << "nodes = " << nodes << endl;
-      Loci::debugout << "faces = " <<faces << endl ;
-      Loci::debugout << "cells = " << cells << endl ;
+      vector<int> alloc_vector;
+      FORALL(naive_loc_nodes, ni) {
+	alloc_vector.push_back(ni);
+      }ENDFORALL;
 
-      dMap remap ;
-      if(facts.is_distributed_start())
-	remap = df->remap ;
-      entitySet::const_iterator ei = naive_loc_nodes.begin() ;
-      FORALL(nodes, li) {
-	remap[*ei] = li ;
-	++ei ;
-      } ENDFORALL ;
-      
-      ei = naive_loc_cells.begin() ;
-      FORALL(cells, li) {
-	remap[*ei] = li ;
-	++ei ;
-      } ENDFORALL ;
+      nodes = facts.get_distributed_alloc(alloc_vector).first ;
 
-      ei = naive_loc_faces.begin() ;
-      FORALL(faces, li) {
-	remap[*ei] = li ;
-	++ei ;
-      } ENDFORALL ;
+      alloc_vector.resize(0);
+      FORALL(naive_loc_faces, ni) {
+	alloc_vector.push_back(ni);
+      }ENDFORALL;
 
+      faces = facts.get_distributed_alloc(alloc_vector).first ;
+
+      alloc_vector.resize(0);
+      FORALL(naive_loc_cells, ni) {
+	alloc_vector.push_back(ni);
+      }ENDFORALL;
+
+      cells = facts.get_distributed_alloc(alloc_vector).first ;
+
+      vector<std::pair<int, int> > boundary_update;
       FORALL(local_boundary_cells, li) {
-	remap[li] = li;
-      } ENDFORALL ;
+	boundary_update.push_back(std::make_pair(li, li));
+      }ENDFORALL;
 
-      df->remap = remap ;
-
-      facts.put_distribute_info(df) ;
+      facts.update_remap(boundary_update);
     }
     else {
       nodes = facts.get_allocation(npnts) ; 
       faces = facts.get_allocation(nfaces) ;
       cells = facts.get_allocation(ncells);
-      Loci::debugout << "nodes = " << nodes << endl ;
-      Loci::debugout << "faces = " << faces << endl ;
-      Loci::debugout << "cells = " << cells << endl ;
     }
+
+    Loci::debugout << "nodes = " << nodes << endl;
+    Loci::debugout << "faces = " <<faces << endl ;
+    Loci::debugout << "cells = " << cells << endl ;
     
     Map cl, cr ;
     multiMap face2node ;
