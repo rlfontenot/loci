@@ -19,6 +19,11 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
+//#define UNITY_MAPPING
+
+#ifdef SCATTER_DIST
+#define UNITY_MAPPING
+#endif
 
 namespace Loci {
   int MPI_processes ;
@@ -37,6 +42,10 @@ namespace Loci {
       string filename  = oss.str() ;
       debugout[i].open(filename.c_str(),ios::out) ;
     }
+  }
+
+  void Finalize() {
+    MPI_Finalize() ;
   }
   
   void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, store<int> &partition ) {
@@ -378,15 +387,14 @@ namespace Loci {
 
 
     entitySet g ;
-#ifdef SCATTER_DIST
+
+#ifdef UNITY_MAPPING
     for(int i=0;i<proc_entities.size();++i)
       g+= proc_entities[i] ;
     l2g.allocate(g) ;
     for(entitySet::const_iterator ei=g.begin();ei!=g.end();++ei)
       l2g[*ei] = *ei ;
-        
 #else
-
     e = interval(0, size - 1) ;
     l2g.allocate(e) ;
     for(int i = 0; i < proc_entities.size(); ++i) {

@@ -717,28 +717,7 @@ namespace Loci {
     return clist ;
   }
 
-  namespace {
-    struct send_var_info {
-      variable v ;
-      entitySet set ;
-      send_var_info(variable iv, const entitySet &iset) : v(iv),set(iset) {}
-    } ;
-    struct recv_var_info {
-      variable v ;
-      sequence seq ;
-      recv_var_info(variable iv, const sequence &iseq) : v(iv),seq(iseq) {}
-    } ;
-  }
   
-  class execute_comm : public execute_modules {
-    vector<pair<int,vector<send_var_info> > > send_info ;
-    vector<pair<int,vector<recv_var_info> > > recv_info ;
-  public:
-    execute_comm(list<comm_info> &plist, fact_db &facts) ;
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-  } ; 
-
   execute_comm::execute_comm(list<comm_info> &plist, fact_db &facts) {
     hash_map<int,vector<send_var_info> > send_data ;
     hash_map<int,vector<recv_var_info> > recv_data ;
@@ -1077,14 +1056,6 @@ namespace Loci {
     return new execute_thread_sync(oss.str()) ;
   }
   
-  class execute_msg : public execute_modules {
-    std::string msg ;
-  public:
-    execute_msg(string m) : msg(m) {}
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-  } ;
-  
   void execute_msg::execute(fact_db &facts) {  }
   
   void execute_msg::Print(std::ostream &s) const { s << msg << endl ; }
@@ -1109,67 +1080,5 @@ namespace Loci {
     oss << "singleton param " << vars ;
     return executeP(new execute_msg(oss.str())) ;
   }
-  
-  void reduce_param_compiler::set_var_existence(fact_db &facts)  {
-    
-    if(facts.isDistributed()) {
-      constraint my_entities ;
-      my_entities = facts.get_variable("my_entities") ;
-      entitySet targets ;
-      targets = facts.get_existential_info(reduce_var, unit_rule) ;
-      targets = send_entitySet(targets, facts) ;
-      targets &= my_entities ;
-      targets += fill_entitySet(targets, facts) ;
-      facts.set_existential_info(reduce_var,unit_rule,targets) ;
-    }
-  }
-  
-  void reduce_param_compiler::process_var_requests(fact_db &facts) {
-    if(facts.isDistributed()) {
-      entitySet requests = facts.get_variable_requests(reduce_var) ;
-      requests = send_entitySet(requests, facts) ;
-      facts.variable_request(reduce_var,requests) ;
-    }
-  }
-  
-  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts) {
-    ostringstream oss ;
-    oss << "reduce param " << reduce_var ;
-    if(facts.isDistributed()) {
-      CPTR<execute_sequence> el = new execute_sequence ;
-      el->append_list(new execute_thread_sync) ;
-      el->append_list(new execute_param_red(reduce_var, unit_rule, join_op)) ; 
-      return executeP(el) ;
-    }
-    return executeP(new execute_msg(oss.str())) ;
-  }
-  
-  void reduce_store_compiler::set_var_existence(fact_db &facts)  {
-    if(facts.isDistributed()) {
-      constraint my_entities ;
-      my_entities = facts.get_variable("my_entities") ;
-      entitySet targets ;
-      targets = facts.get_existential_info(reduce_var, unit_rule) ;
-      targets += send_entitySet(targets, facts) ;
-      targets &= my_entities ;
-      targets += fill_entitySet(targets, facts) ;
-      facts.set_existential_info(reduce_var,unit_rule,targets) ;
-    }
-  }
-  
-  void reduce_store_compiler::process_var_requests(fact_db &facts) {
-    if(facts.isDistributed()) {
-      entitySet requests = facts.get_variable_requests(reduce_var) ;
-      requests = send_entitySet(requests, facts) ;
-      facts.variable_request(reduce_var,requests) ;
-    }
-  }
-  
-  executeP reduce_store_compiler::create_execution_schedule(fact_db &facts) {
-    ostringstream oss ;
-    oss << "reduce store " << reduce_var ;
-    return executeP(new execute_msg(oss.str())) ;
-  }
-  
   
 }

@@ -17,6 +17,7 @@ namespace Loci {
   extern int num_threads ;
   
   void Init(int* argc, char*** argv) ;
+  void Finalize() ;
   
   void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, store<int> &partition ) ;
   void categories(fact_db &facts,std::vector<interval> &pvec) ;

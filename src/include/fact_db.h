@@ -89,6 +89,7 @@ namespace Loci {
       std::map<rule,existential_info> exist_map ;
       entitySet existence ;
       entitySet requested ;
+      entitySet shadow ; // Used by distributed memory apply rules
       
       fact_info() {fact_info_ref = -1 ; }
       fact_info(int ref)
@@ -216,9 +217,15 @@ namespace Loci {
 
     entitySet variable_existence(variable v) ;
     void variable_request(variable v, entitySet e) ;
+    void set_variable_shadow(variable v, entitySet e)
+    { get_fact_info(v).shadow = e ; }
+    void variable_shadow(variable v, entitySet e)
+    { get_fact_info(v).shadow += e ; }
+    entitySet get_variable_shadow(variable v) const
+    { return get_fact_info(v).shadow ; }
     entitySet get_variable_request(rule f, variable v) ;
     entitySet get_variable_requests(variable v) const 
-      { return  get_fact_info(v).requested ; }
+    { return  get_fact_info(v).requested ; }
     
     bool is_a_Map(variable v) ;
     entitySet image(variable v, entitySet e) ;

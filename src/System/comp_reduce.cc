@@ -1,4 +1,5 @@
 #include "comp_tools.h"
+#include "distribute.h"
 
 #include <vector>
 using std::vector ;
@@ -41,8 +42,70 @@ namespace Loci {
       s << "p["<<i<< "]="<<partition[i]<<endl ;
   }
   
+  entitySet vmap_source_exist_apply(const vmap_info &vmi, fact_db &facts,
+                                    variable reduce_var) {
+    variableSet::const_iterator vi ;
+    entitySet sources = ~EMPTY ;
+    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
+      if(*vi != reduce_var)
+        sources &= facts.variable_existence(*vi) ;
+    vector<variableSet>::const_reverse_iterator mi ;
+    for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
+      entitySet working = ~EMPTY ;
+      for(vi=mi->begin();vi!=mi->end();++vi) {
+        FATAL(!facts.is_a_Map(*vi)) ;
+        working &= facts.preimage(*vi,sources).first ;
+      }
+      sources = working ;
+    }
+    return sources ;
+  }
   
   void apply_compiler::set_var_existence(fact_db &facts) {
+    if(facts.isDistributed()) {
+
+      // Compute the shadow entities produced by using this apply rules.
+      // Any shadow entities that we don't own we will need to exchange
+      // the partial results with other processors.
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      entitySet sources = d->my_entities ;
+      entitySet constraints = d->my_entities ;
+
+      warn(apply.targets().size() != 1) ;
+      variable reduce_var = *apply.targets().begin() ;
+      
+      
+      const rule_impl::info &rinfo = apply.get_info().desc ;
+
+      bool outputmap = false ;
+      set<vmap_info>::const_iterator si ;
+      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+        if(si->mapping.size() != 0)
+          outputmap = true ;
+      }
+      // If there is no output in the mapping, then there will be no
+      // shadow cast from this rule application.
+      if(!outputmap)
+        return ;
+
+      for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+        sources &= vmap_source_exist_apply(*si,facts,reduce_var) ;
+      } 
+      for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+        constraints &= vmap_source_exist(*si,facts) ;
+
+      sources &= constraints ;
+    
+      entitySet context = sources & constraints ;
+      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+        entitySet targets = vmap_target_exist(*si,facts,context) ;
+        const variableSet &tvars = si->var ;
+        variableSet::const_iterator vi ;
+        for(vi=tvars.begin();vi!=tvars.end();++vi) {
+          facts.variable_shadow(*vi,targets) ;
+        }
+      }
+    }
   }
   
   void apply_compiler::process_var_requests(fact_db &facts) {
@@ -58,136 +121,75 @@ namespace Loci {
       tvarmap[tvar] = facts.variable_existence(tvar) ;
     else
       tvarmap[tvar] = facts.get_variable_request(unit_tag,tvar) ;
-    
-    if(facts.isDistributed()) {
-      constraint my_entities ;
-      my_entities = facts.get_variable("my_entities") ;
-      const rule_impl::info &finfo = apply.get_info().desc ;
-      set<vmap_info>::const_iterator si ;
-      entitySet compute ;
-      for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
-	compute |= vmap_target_requests(*si,tvarmap,facts) ;
+
+    const rule_impl::info &finfo = apply.get_info().desc ;
+    set<vmap_info>::const_iterator si ;
+    entitySet compute ;
+    for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
+      compute |= vmap_target_requests(*si,tvarmap,facts) ;
+    }
+    output_mapping = false ;
+    for(si=finfo.targets.begin();si!=finfo.targets.end(); ++si) {
+      variableSet::const_iterator vi ;
+      entitySet comp = compute ;
+      vector<variableSet>::const_iterator mi ;
+      for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
+        output_mapping = true ;
+        entitySet working ;
+        for(vi=mi->begin();vi!=mi->end();++vi) {
+          FATAL(!facts.is_a_Map(*vi)) ;
+          working |= facts.image(*vi,comp) ;
+        }
+        comp = working ;
       }
-      output_mapping = false ;
-      for(si=finfo.targets.begin();si!=finfo.targets.end(); ++si) {
-	variableSet::const_iterator vi ;
-	entitySet comp = compute ;
-	vector<variableSet>::const_iterator mi ;
-	for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
-	  output_mapping = true ;
-	  entitySet working ;
-	  for(vi=mi->begin();vi!=mi->end();++vi) {
-	    FATAL(!facts.is_a_Map(*vi)) ;
-	    working |= facts.image(*vi,comp) ;
-	  }
-	  comp = working ;
-	}
-	for(vi=si->var.begin();vi!=si->var.end();++vi) {
-	  if((comp - facts.variable_existence(*vi)) != EMPTY) {
-	    cerr << "ERROR: Apply rule " << apply <<  endl
-		 << " output mapping forces application to entities where unit does not exist." << endl ;
-	    cerr << "error occurs for entities " <<
-	      entitySet(comp-facts.variable_existence(*vi)) << endl ;
-	    cerr << "error occurs when applying to variable " << *vi << endl;
-	    cerr << "error is not recoverable, terminating scheduling process"
-		 << endl ;
-	    exit(-1) ;
-	  }
-	  facts.variable_request(*vi,comp) ;
-	}
-      }
-      entitySet srcs = my_entities ;
-      entitySet cnstrnts = my_entities ;
-      for(si=finfo.sources.begin();si!=finfo.sources.end();++si)
-	srcs &= vmap_source_exist(*si,facts) ;
-      for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si)
-	cnstrnts &= vmap_source_exist(*si,facts) ;
-      if(finfo.constraints.begin() != finfo.constraints.end())
-	if((srcs & cnstrnts) != cnstrnts) {
-	  cerr << "Warning, reduction rule:" << apply
-	       << "cannot supply all entities of constraint" << endl ;
-	  cerr << "constraints = " <<cnstrnts << endl ;
-	  entitySet sac = srcs & cnstrnts ;
-	  cerr << "srcs & constraints = " << sac << endl ;
-	  //      exit(-1) ;
-	}
-      srcs &= cnstrnts ;
-      
-      // now trim compute to what can be computed.
-      compute &= srcs ;
-      exec_seq = compute ;
-      
-      for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
-	entitySet requests = vmap_source_requests(*si,facts,compute) ;
-	variableSet::const_iterator vi ;
-	for(vi=si->var.begin();vi!=si->var.end();++vi)
-	  facts.variable_request(*vi,requests) ;
+      for(vi=si->var.begin();vi!=si->var.end();++vi) {
+        if((comp - facts.variable_existence(*vi)) != EMPTY) {
+          cerr << "ERROR: Apply rule " << apply <<  endl
+               << " output mapping forces application to entities where unit does not exist." << endl ;
+          cerr << "error occurs for entities " <<
+            entitySet(comp-facts.variable_existence(*vi)) << endl ;
+          cerr << "error occurs when applying to variable " << *vi << endl;
+          cerr << "error is not recoverable, terminating scheduling process"
+               << endl ;
+          exit(-1) ;
+        }
+        facts.variable_request(*vi,comp) ;
       }
     }
-    else {
-      const rule_impl::info &finfo = apply.get_info().desc ;
-      set<vmap_info>::const_iterator si ;
-      entitySet compute ;
-      for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
-	compute |= vmap_target_requests(*si,tvarmap,facts) ;
+
+    entitySet srcs = ~EMPTY ;
+    entitySet cnstrnts = ~EMPTY ;
+
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      srcs = d->my_entities ;
+      cnstrnts = d->my_entities ;
+    }
+
+    for(si=finfo.sources.begin();si!=finfo.sources.end();++si)
+      srcs &= vmap_source_exist(*si,facts) ;
+    for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si)
+      cnstrnts &= vmap_source_exist(*si,facts) ;
+    if(finfo.constraints.begin() != finfo.constraints.end())
+      if((srcs & cnstrnts) != cnstrnts) {
+        cerr << "Warning, reduction rule:" << apply
+             << "cannot supply all entities of constraint" << endl ;
+        cerr << "constraints = " <<cnstrnts << endl ;
+        entitySet sac = srcs & cnstrnts ;
+        cerr << "srcs & constraints = " << sac << endl ;
+        //      exit(-1) ;
       }
-      
-      output_mapping = false ;
-      for(si=finfo.targets.begin();si!=finfo.targets.end(); ++si) {
-	variableSet::const_iterator vi ;
-	entitySet comp = compute ;
-	vector<variableSet>::const_iterator mi ;
-	for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
-	  output_mapping = true ;
-	  entitySet working ;
-	  for(vi=mi->begin();vi!=mi->end();++vi) {
-	    FATAL(!facts.is_a_Map(*vi)) ;
-	    working |= facts.image(*vi,comp) ;
-	  }
-	  comp = working ;
-	}
-	for(vi=si->var.begin();vi!=si->var.end();++vi) {
-	  if((comp - facts.variable_existence(*vi)) != EMPTY) {
-	    cerr << "ERROR: Apply rule " << apply <<  endl
-		 << " output mapping forces application to entities where unit does not exist." << endl ;
-	    cerr << "error occurs for entities " <<
-	      entitySet(comp-facts.variable_existence(*vi)) << endl ;
-	    cerr << "error occurs when applying to variable " << *vi << endl;
-	    cerr << "error is not recoverable, terminating scheduling process"
-		 << endl ;
-	    exit(-1) ;
-	  }
-	  facts.variable_request(*vi,comp) ;
-	}
-      }
-      entitySet srcs = ~EMPTY ;
-      entitySet cnstrnts = ~EMPTY ;
-      for(si=finfo.sources.begin();si!=finfo.sources.end();++si)
-	srcs &= vmap_source_exist(*si,facts) ;
-      for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si)
-	cnstrnts &= vmap_source_exist(*si,facts) ;
-      if(finfo.constraints.begin() != finfo.constraints.end())
-	if((srcs & cnstrnts) != cnstrnts) {
-	  cerr << "Warning, reduction rule:" << apply
-	       << "cannot supply all entities of constraint" << endl ;
-	  cerr << "constraints = " <<cnstrnts << endl ;
-	  entitySet sac = srcs & cnstrnts ;
-	  cerr << "srcs & constraints = " << sac << endl ;
-	  //      exit(-1) ;
-	}
-      srcs &= cnstrnts ;
-      
-      // now trim compute to what can be computed.
-      compute &= srcs ;
-      
-      exec_seq = compute ;
-      
-      for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
-	entitySet requests = vmap_source_requests(*si,facts,compute) ;
-	variableSet::const_iterator vi ;
-	for(vi=si->var.begin();vi!=si->var.end();++vi)
-	  facts.variable_request(*vi,requests) ;
-      }
+    srcs &= cnstrnts ;
+    
+    // now trim compute to what can be computed.
+    compute &= srcs ;
+    exec_seq = compute ;
+    
+    for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
+      entitySet requests = vmap_source_requests(*si,facts,compute) ;
+      variableSet::const_iterator vi ;
+      for(vi=si->var.begin();vi!=si->var.end();++vi)
+        facts.variable_request(*vi,requests) ;
     }
     
 #ifdef VERBOSE
@@ -399,4 +401,275 @@ namespace Loci {
   void execute_param_red::Print(ostream &s) const {
     //cout << "performing param reduction " << endl ;
   }
+  void reduce_param_compiler::set_var_existence(fact_db &facts)  {
+    
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      entitySet targets ;
+      targets = facts.get_existential_info(reduce_var, unit_rule) ;
+      targets = send_entitySet(targets, facts) ;
+      targets &= d->my_entities ;
+      targets += fill_entitySet(targets, facts) ;
+      facts.set_existential_info(reduce_var,unit_rule,targets) ;
+    }
+  }
+  
+  void reduce_param_compiler::process_var_requests(fact_db &facts) {
+    if(facts.isDistributed()) {
+      entitySet requests = facts.get_variable_requests(reduce_var) ;
+      requests = send_entitySet(requests, facts) ;
+      facts.variable_request(reduce_var,requests) ;
+    }
+  }
+  
+  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts) {
+    ostringstream oss ;
+    oss << "reduce param " << reduce_var ;
+    if(facts.isDistributed()) {
+      CPTR<execute_sequence> el = new execute_sequence ;
+      el->append_list(new execute_thread_sync) ;
+      el->append_list(new execute_param_red(reduce_var, unit_rule, join_op)) ; 
+      return executeP(el) ;
+    }
+    return executeP(new execute_msg(oss.str())) ;
+  }
+  
+  void reduce_store_compiler::set_var_existence(fact_db &facts)  {
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      entitySet targets = facts.get_existential_info(reduce_var, unit_rule) ;
+      targets += send_entitySet(targets, facts) ;
+      targets &= d->my_entities ;
+      targets += fill_entitySet(targets, facts) ;
+      facts.set_existential_info(reduce_var,unit_rule,targets) ;
+    }
+  }
+
+  void swap_send_recv(list<comm_info> &cl) {
+    list<comm_info>::iterator li ;
+    for(li=cl.begin();li!=cl.end();++li) {
+      entitySet tmp  = li->send_set ;
+      li->send_set = entitySet(li->recv_set) ;
+      li->recv_set = sequence(tmp) ;
+    }
+  }
+  
+  void reduce_store_compiler::process_var_requests(fact_db &facts) {
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      variableSet vars ;
+      vars += reduce_var ;
+      list<comm_info> request_comm = barrier_process_rule_requests(vars,facts) ;
+
+      entitySet requests = facts.get_variable_requests(reduce_var) ;
+      entitySet shadow = facts.get_variable_shadow(reduce_var) ;
+      shadow &= requests ;
+
+      list<comm_info> slist ;
+      entitySet response = send_requests(shadow, reduce_var,facts,slist) ;
+      swap_send_recv(slist) ;
+
+      rlist = sort_comm(slist,facts) ;
+      clist = sort_comm(request_comm,facts) ;
+
+      if(shadow != EMPTY) {
+        debugout[MPI_rank] << "shadow = " << shadow << endl ;
+        shadow -= d->my_entities ;
+        debugout[MPI_rank] << "shadow/my_entites = " << shadow << endl ;
+      }
+    }
+  }
+
+  class execute_comm_reduce : public execute_modules {
+    vector<pair<int,vector<send_var_info> > > send_info ;
+    vector<pair<int,vector<recv_var_info> > > recv_info ;
+    CPTR<joiner> join_op ;
+  public:
+    execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
+                        CPTR<joiner> jop) ;
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ; 
+
+  execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
+                                           fact_db &facts,
+                                           CPTR<joiner> jop) {
+    join_op = jop ;
+    hash_map<int,vector<send_var_info> > send_data ;
+    hash_map<int,vector<recv_var_info> > recv_data ;
+    list<comm_info>::const_iterator cli ;
+    intervalSet send_procs, recv_procs ;
+    for(cli=plist.begin();cli!=plist.end();++cli) {
+      variable v = cli->v ;
+      if(cli->send_set.size() > 0) {
+        int send_proc = cli->processor ;
+        send_procs += send_proc ;
+        entitySet send_set = cli->send_set ;
+        send_data[send_proc].push_back(send_var_info(v,send_set)) ;
+      }
+      if(cli->recv_set.size() > 0) {
+        int recv_proc = cli->processor ;
+        sequence recv_seq = cli->recv_set ;
+        recv_procs += recv_proc ;
+        recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
+      }
+    }
+
+    for(intervalSet::const_iterator ii=send_procs.begin();
+        ii!=send_procs.end();
+        ++ii) {
+      send_info.push_back(make_pair(*ii,send_data[*ii])) ;
+    }
+    for(intervalSet::const_iterator ii=recv_procs.begin();
+        ii!=recv_procs.end();
+        ++ii) {
+      recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
+    }
+    
+  }
+
+  void execute_comm_reduce::execute(fact_db  &facts) {
+    const int nrecv = recv_info.size() ;
+    int *r_size = new int[nrecv] ;
+    int total_size = 0 ;
+    for(int i=0;i<nrecv;++i) {
+      r_size[i] = 0 ;
+      for(int j=0;j<recv_info[i].second.size();++j) {
+        storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
+        r_size[i] += sp->pack_size(entitySet(recv_info[i].second[j].seq)) ;
+      }
+      total_size += r_size[i] ;
+    }
+    unsigned char **recv_ptr = new unsigned char*[nrecv] ;
+    recv_ptr[0] = new unsigned char[total_size] ;
+    for(int i=1;i<nrecv;++i)
+      recv_ptr[i] = recv_ptr[i-1]+r_size[i-1] ;
+
+    const int nsend = send_info.size() ;
+    int *s_size = new int[nsend] ;
+    total_size = 0 ;
+    for(int i=0;i<nsend;++i) {
+      s_size[i] = 0 ;
+      for(int j=0;j<send_info[i].second.size();++j) {
+        storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
+        s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
+      }
+      total_size += s_size[i] ;
+    }
+    unsigned char **send_ptr = new unsigned char*[nsend] ;
+    send_ptr[0] = new unsigned char[total_size] ;
+    for(int i=1;i<nsend;++i)
+      send_ptr[i] = send_ptr[i-1]+s_size[i-1] ;
+
+    MPI_Request *request =  new MPI_Request[nrecv] ;
+    MPI_Status *status =  new MPI_Status[nrecv] ;
+
+    for(int i=0;i<nrecv;++i) {
+      int proc = recv_info[i].first ;
+      
+      MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
+                MPI_COMM_WORLD, &request[i]) ;
+    }
+
+    // Pack the buffer for sending 
+    for(int i=0;i<nsend;++i) {
+#ifdef VERBOSE
+      debugout[MPI_rank] << "sending to processor " << send_info[i].first
+                         << endl ;
+#endif
+      int loc_pack = 0 ;
+      for(int j=0;j<send_info[i].second.size();++j) {
+        storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
+#ifdef VERBOSE
+        debugout[MPI_rank] << "packing variable " << send_info[i].second[j].v
+                           << endl ;
+#endif
+        sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
+      }
+      warn(loc_pack != s_size[i]) ;
+    }
+
+    // Send Buffer
+    for(int i=0;i<nsend;++i) {
+      int proc = send_info[i].first ;
+      MPI_Send(send_ptr[i],s_size[i],MPI_PACKED,proc,1,MPI_COMM_WORLD) ;
+    }
+    
+    if(nrecv > 0) 
+      MPI_Waitall(nrecv, request, status) ;
+    
+    for(int i=0;i<nrecv;++i) {
+      int loc_unpack = 0;
+#ifdef VERBOSE
+      debugout[MPI_rank] << "unpacking from processor " <<recv_info[i].first
+                         << endl ;
+#endif
+      for(int j=0;j<recv_info[i].second.size();++j) {
+        storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
+        storeRepP sr = sp->new_store(entitySet(recv_info[i].second[j].seq)) ;
+        
+#ifdef VERBOSE
+        debugout[MPI_rank] << "unpacking variable " << recv_info[i].second[j].v
+                           << endl ;
+#endif
+        sr->unpack(recv_ptr[i], loc_unpack, r_size[i],
+                   recv_info[i].second[j].seq) ;
+        CPTR<joiner> op = join_op->clone() ;
+        op->SetArgs(sp,sr) ;
+        op->Join(recv_info[i].second[j].seq) ;
+      }
+      warn(loc_unpack != r_size[i]) ;
+    }
+
+    delete [] status ;
+    delete [] request ;
+    delete [] send_ptr[0] ;
+    delete [] send_ptr ;
+    delete [] s_size ;
+    delete [] recv_ptr[0] ;
+    delete [] recv_ptr ;
+    delete [] r_size ;
+  }
+
+  void execute_comm_reduce::Print(ostream &s) const {
+    if(send_info.size()+recv_info.size() > 0) {
+      s << "reduction block {" << endl ;
+      if(send_info.size() > 0) {
+        s << "Send:" << endl ;
+        for(int i=0;i<send_info.size();++i) {
+          for(int j=0;j<send_info[i].second.size();++j)
+            s << "(" << send_info[i].second[j].v << "," << send_info[i].second[j].set << ") " ;
+          s << " to " << send_info[i].first << endl ;
+        }
+      }
+      if(recv_info.size() > 0) {
+        s << "Recv:" << endl ;
+        for(int i=0;i<recv_info.size();++i) {
+          for(int j=0;j<recv_info[i].second.size();++j)
+            s << "(" << recv_info[i].second[j].v << "," << recv_info[i].second[j].seq << ") " ;
+          s << " from " << recv_info[i].first << endl ;
+        }
+      }
+      s << "}" << endl ;
+    }
+  }
+
+  executeP reduce_store_compiler::create_execution_schedule(fact_db &facts) {
+    if(facts.isDistributed()) {
+      CPTR<execute_sequence> el = new execute_sequence ;
+
+      el->append_list(new execute_comm_reduce(rlist, facts, join_op)) ;
+      el->append_list(new execute_comm(clist, facts)) ;
+      ostringstream oss ;
+      oss << "reduce store " << reduce_var ;
+      el->append_list(new execute_msg(oss.str())) ;
+
+      return executeP(el) ;
+    }
+
+    ostringstream oss ;
+    oss << "reduce store " << reduce_var ;
+    return executeP(new execute_msg(oss.str())) ;
+  }
+  
 }

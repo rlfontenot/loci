@@ -779,8 +779,10 @@ namespace Loci {
   }
 
   template<class T>
-    storeRep *storeVecRepI<T>::new_store(const entitySet &p) const {
-    return new storeVecRepI<T>(p)  ;
+  storeRep *storeVecRepI<T>::new_store(const entitySet &p) const {
+    storeRep *sp = new storeVecRepI<T>(p)  ;
+    sp.set_elem_size(sz) ;
+    return sp ;
   }
 
   template<class T> store_type storeVecRepI<T>::RepType() const {

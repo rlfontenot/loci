@@ -19,7 +19,12 @@ namespace Loci {
   entitySet process_rule_requests(rule f, fact_db &facts) ;
   
   void barrier_existential_rule_analysis(fact_db &facts) ;
-  void barrier_process_rule_requests(fact_db &facts) ;
+  std::list<comm_info>  barrier_process_rule_requests(variableSet vars, fact_db &facts) ;
+
+  entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
+                          list<comm_info> &clist) ;
+  
+  list<comm_info> sort_comm(list<comm_info> slist, fact_db &facts) ;
   
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) ;
@@ -177,6 +182,9 @@ namespace Loci {
     variable reduce_var ;
     rule unit_rule ;
     CPTR<joiner> join_op ;
+
+    std::list<comm_info> rlist ;  // reduction communication
+    std::list<comm_info> clist ;  // comm from owner to requester
   public:
     reduce_store_compiler(const variable &v, const rule &ur,
                           CPTR<joiner> &jop) :
@@ -241,6 +249,35 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts) ;
   } ;
   
+  class execute_msg : public execute_modules {
+    std::string msg ;
+  public:
+    execute_msg(string m) : msg(m) {}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+
+  struct send_var_info {
+    variable v ;
+    entitySet set ;
+    send_var_info(variable iv, const entitySet &iset) : v(iv),set(iset) {}
+  } ;
+  struct recv_var_info {
+    variable v ;
+    sequence seq ;
+    recv_var_info(variable iv, const sequence &iseq) : v(iv),seq(iseq) {}
+  } ;
+
+  class execute_comm : public execute_modules {
+    vector<pair<int,vector<send_var_info> > > send_info ;
+    vector<pair<int,vector<recv_var_info> > > recv_info ;
+  public:
+    execute_comm(list<comm_info> &plist, fact_db &facts) ;
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ; 
+
+
 }
 
 #endif
