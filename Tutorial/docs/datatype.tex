@@ -117,6 +117,7 @@ Loci, has 2D/3D vesions of vector class(mathematical vectors)
  }
 \end{verbatim}
 \item {\bf STL containers with identity schema type}
+All standard STL containers with predefined identity schema types are supported.
 \begin{enumerate}
 \item vector
 \item list
@@ -185,7 +186,8 @@ is fairly easy to create corresponding Loci datatype. For example
 \section{Creating User Defined Datatype}
 \par As explained earlier, whenever the memory allocation in any object is
 not contiguous, it is the users responsibility to serialize the
-data contained in the objects. 
+data contained in the objects.  The skelton of user defined schema type
+will look as follows
 \begin{verbatim}
    // Skelton for datatype having user defined schema
    template <>
@@ -234,15 +236,23 @@ Now we shall give one simple example to show how things work. We define
 one structure with STL list inside it. Since list may not have contiguous
 memory, we define it is defined with user defined schema
 \begin{verbatim}
+
   namespace Loci {
+  /////////////////////////////////////////////////////////////////////////////////
+  // This is an example of conventional C/C++ structure 
+  /////////////////////////////////////////////////////////////////////////////////
+
      struct My_Type {
       list<int>  alist;
       friend ostream& operator << (ostream &, const My_Type &);
       friend istream& operator >> (istream &, My_Type &);
   };
 
-  //////////////////////////////////////////////////////////////////////////////////////
-  class My_Type_SchemaConverter;
+  //------------------------------------------------------------------------------/
+  class My_Type_SchemaConverter;    // Forward Declaration of class
+  //------------------------------------------------------------------------------/
+  // Specialize the data_schema_traits class with "My_Type" class
+  //------------------------------------------------------------------------------/
 
   template <>
   struct data_schema_traits<My_Type> {
@@ -256,6 +266,11 @@ memory, we define it is defined with user defined schema
     // purpose
     typedef My_Type_SchemaConverter Converter_Type ;
   };
+
+  //------------------------------------------------------------------------------/
+  // Define a class which has the responsibity of serialization and deserialization 
+  // of "My_Type" class
+  //------------------------------------------------------------------------------/
 
   class My_Type_SchemaConverter {
     // For the schema converter, we always store a reference to the object
@@ -294,6 +309,7 @@ memory, we define it is defined with user defined schema
         }
   };
   }
+  //------------------------------------------------------------------------------/
 \end{verbatim}
 %
 %
@@ -504,9 +520,9 @@ typedef struct My_Compound_Type_t {
 This datatype has multidimensional array, which is not first class
 objects. We can use {\em ArrayDatatype} to specify the Loci Datatype as
 \begin{verbatim}
-int     rank = 3;
+int     rank  = 3;
 int     dim[] = {10, 5, 2};
-int     sz = 100*sizeof(double);
+int     sz    = 100*sizeof(double);
 
 My_Compound_Type     type;
 CompoundDatatypeP cmpd    = CompoundFactory(My_Compound_Type());
