@@ -423,8 +423,8 @@ namespace Loci {
       abort();
     }
 
-    entitySet::const_iterator ci;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) 
+    sequence::const_iterator ci;
+    for( ci = seq.begin(); ci != seq.end(); ++ci) 
       MPI_Unpack( inbuf, insize, &position, base_ptr[*ci], M, MPI_INT, 
                   MPI_COMM_WORLD) ;
   }

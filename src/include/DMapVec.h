@@ -229,8 +229,6 @@ dMapVecRepI<M>::~dMapVecRepI<M>()
 
 template<unsigned int M> 
 storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
-  // expand broken for DMapVec!
-#ifdef BROKEN
   int *recv_count = new int[MPI_processes] ;
   int *send_count = new int[MPI_processes] ;
   int *send_displacement = new int[MPI_processes] ;
@@ -243,7 +241,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
     entitySet tmp = out_of_dom & init_ptn[i] ;
     for(ei = tmp.begin(); ei != tmp.end(); ++ei)
       copy[i].push_back(*ei) ;
-    sort(copy[i].begin(), copy[i].end()) ;
+    std::sort(copy[i].begin(), copy[i].end()) ;
     send_count[i] = copy[i].size() ;
     size_send += send_count[i] ; 
   }
@@ -274,7 +272,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
     for(int j = recv_displacement[i]; j <
 	  recv_displacement[i]+recv_count[i]; ++j) 
       send_clone[i].push_back(recv_buf[j]) ;
-    sort(send_clone[i].begin(), send_clone[i].end()) ;
+    std::sort(send_clone[i].begin(), send_clone[i].end()) ;
   }
   std::vector<hash_map<int, VEC > > map_entities(MPI_processes) ;
   for(int i = 0; i < MPI_processes; ++i) 
@@ -333,8 +331,7 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
       j += count + 1 ;
     }
   }
-  dmultiMap dmul ;
-  
+  dMapVec<M> dmul ;
   for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
     if(hmi->second.size()) {
       int c = 0;
@@ -344,46 +341,33 @@ storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &
       attrib_data[hmi->first] = VEC() ;
   for(hash_map<int, VEC >::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
     dmul[hi->first] = hi->second ;
-  
-  storeRepP sp = dmul.Rep() ;
   delete [] send_buf ;
   delete [] recv_buf ;
-  delete [] send_map ;
+  delete [] send_map ; 
   delete [] recv_map ;
   delete [] recv_count ;
   delete [] send_count ;
   delete [] send_displacement ;
   delete [] recv_displacement ; 
-  return sp ;
-#else
-  return storeRepP(0) ;
-#endif
-  
+  return dmul.Rep() ;
 }
 //------------------------------------------------------------------------
 template<unsigned int M> 
 multiMap dMapVecRepI<M>::get_map()  
 {
-    multiMap result ;
-    cout << "Error: get_map in MapVec Not yet implemented " << endl;
-    exit(0);
-/*
-    store<int> sizes ;
-    sizes.allocate(store_domain) ;
-
-    FORALL(store_domain,i) {
-      sizes[i] = M ;
-    } ENDFORALL ;
-
-    result.allocate(sizes) ;
-
-    FORALL(store_domain,i) {
-      for(int j=0;j<M;++j) 
-        result.begin(i)[j] = attrib_data[i][j] ;
-    } ENDFORALL ;
-*/
-
-    return result ;
+  multiMap   newmap;
+  entitySet::const_iterator  ei;
+  store<int> count ;
+  entitySet dom = domain() ;
+  count.allocate(dom) ;
+  for(ei = dom.begin(); ei != dom.end(); ++ei)
+    count[*ei] = M ;
+  newmap.allocate(count) ;
+  for(ei = dom.begin(); ei != dom.end(); ++ei) 
+    for(int i = 0; i < count[*ei]; i++)
+      newmap[*ei][i] = attrib_data[*ei][i];
+  
+  return newmap; 
 }
 
 //------------------------------------------------------------------------
@@ -406,7 +390,7 @@ entitySet dMapVecRepI<M>::domain() const
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci ) 
          vec.push_back( ci->first ) ;
 
-    sort( vec.begin(), vec.end() );
+   std:: sort( vec.begin(), vec.end() );
 
     for( int i = 0; i < vec.size(); i++) 
          storeDomain +=  vec[i];

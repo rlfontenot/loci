@@ -307,20 +307,20 @@ namespace Loci {
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
     /*
-      multiStore<T> static_mul ;
-      store<int> count ;
-      entitySet tmp_dom = domain() ;
-      count.allocate(tmp_dom) ;
-      for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei)
+    multiStore<T> static_mul ;
+    store<int> count ;
+    entitySet tmp_dom = domain() ;
+    count.allocate(tmp_dom) ;
+    for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei)
       count[*ei] = s[*ei].size() ;
-      for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei) {
-      int i = 0 ;
-      for(std::vector<int>::const_iterator vi = s[*ei].begin(); vi != s[*ei].end(); ++vi) {
-      static_mul[*ei][i] = *vi ;
-      ++i ;
-      }
-      fatal(i != count[*ei]) ;
-      }
+    for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei) {
+       int i = 0 ;
+       for(std::vector<int>::const_iterator vi = s[*ei].begin(); vi != s[*ei].end(); ++vi) {
+	 static_mul[*ei][i] = *vi ;
+	 ++i ;
+       }
+    }
+    return static_mul.Rep() ;
     */
     return s.Rep() ;
   }
