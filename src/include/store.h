@@ -16,11 +16,10 @@
 #include <functional>
 
 #include <mpi.h>
-
 namespace Loci {
-#ifdef VERBOSE
+  //#ifdef VERBOSE
   extern ofstream debugout[] ;
-#endif
+  //#endif
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;
@@ -31,9 +30,10 @@ namespace Loci {
     T *alloc_pointer ;
     T *base_ptr ;
     entitySet store_domain ;
+    bool istat ;
   public:
-    storeRepI() { alloc_pointer = 0 ; base_ptr = 0 ; }
-    storeRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ; }
+    storeRepI() { alloc_pointer = 0 ; base_ptr = 0;  istat = 0; }
+    storeRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ;istat = 0; }
     virtual void allocate(const entitySet &ptn) ;
     virtual ~storeRepI()  ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -53,10 +53,12 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
+    bool is_static() {return istat; }
     virtual entitySet domain() const ;
     T * get_base_ptr() const { return base_ptr ; }
+    
   } ;
-
+  
   template<class T> void storeRepI<T>::allocate(const entitySet &ptn) {
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
@@ -157,7 +159,7 @@ namespace Loci {
     store() { setRep(new storeType); }
     store(store &var) { setRep(var.Rep()) ; }
     store(storeRepP &rp) { setRep(rp) ; }
-
+    
     virtual ~store() ;
     virtual void notification() ;
 
@@ -165,15 +167,14 @@ namespace Loci {
       setRep(str.Rep()) ;
       return *this ;
     }
-
     store<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
-
+    
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
-
+    
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ;}
-
+    
     //    operator storeRepP() { return Rep() ; }
     T &elem(int indx) {
 #ifdef BOUNDS_CHECK
@@ -187,10 +188,10 @@ namespace Loci {
       fatal(!Rep()->domain().inSet(indx)) ;
 #endif 
       return base_ptr[indx]; }
-            
+    
     T &operator[](int indx) { return elem(indx); }
     const T&operator[](int indx) const { return elem(indx); }
-
+    
   } ;
 
   template<class T> store<T>::~store<T>() { }
@@ -240,7 +241,7 @@ namespace Loci {
 
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
-
+    bool is_static() {return 0 ; }
     //    operator storeRepP() { return Rep() ; }
 
     const T &elem(int indx) const {
@@ -320,6 +321,12 @@ namespace Loci {
       int t = e[i].second - e[i].first + 1 ;  
       MPI_Pack(&base_ptr[begin], t * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
     }
+    /*
+    for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
+      if(*ei == 0) 
+	Loci::debugout[Loci::MPI_rank] << "   packing   " << base_ptr[*ei]
+	     << "   into   " << *ei  << endl ;
+    */
 #ifdef VERBOSE
     debugout[MPI_rank] << "packing("<<e<<")"<<endl ;
     for(entitySet::const_iterator ei = e.begin(); ei != e.end(); ++ei)
@@ -341,6 +348,12 @@ namespace Loci {
 	MPI_Unpack(ptr, size, &loc, &base_ptr[indx], t * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
       }
     }
+    /*
+    for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) 
+      if(*si == 0)
+	Loci::debugout[MPI_rank] << "   unpacking   " << base_ptr[*si]
+				 <<"    into   " << *si << endl ;
+    */
 #ifdef VERBOSE
     debugout[MPI_rank] << "unpack(" << seq << ")" << endl ;
     for(sequence::const_iterator si = seq.begin(); si != seq.end(); si++) 

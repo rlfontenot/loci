@@ -26,7 +26,7 @@ namespace Loci {
     T **base_ptr ;
     int size ;
     lmutex mutex ;
-
+    bool istat ;
     void  hdf5read( H5::Group group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
 
@@ -34,13 +34,13 @@ namespace Loci {
     void  hdf5write( H5::Group group, IDENTITY_CONVERTER c,     const entitySet &en) const;
   public:
     multiStoreRepI()
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
+    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; istat = 1; }
 
     multiStoreRepI(const entitySet &p)
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; store_domain=p;}
+    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; store_domain=p; istat = 1;}
 
     multiStoreRepI(const store<int> &sizes) {
-      index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
+      index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ;istat = 1; }
 
     void allocate(const store<int> &sizes) ;
     void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr) ;
@@ -66,6 +66,7 @@ namespace Loci {
     virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5( H5::Group group, entitySet& en) const ;
 
+    bool is_static() { return istat ; } 
     T ** get_base_ptr() const { return base_ptr ; }
     T *begin(int indx) { return base_ptr[indx] ; }
     T *end(int indx) { return base_ptr[indx+1] ; }
@@ -558,19 +559,16 @@ namespace Loci {
   }
 
   //***************************************************************************/
- 
-  template <class T> 
-  int multiStoreRepI<T>::pack_size(const entitySet &e ) 
-  {
-    int numCount = 0 ;
-    
+  template <class T> int multiStoreRepI<T>::pack_size(const entitySet &e ) {
+    int size = 0 ;
     FORALL(e,i) {
-      numCount = base_ptr[i+1] - base_ptr[i] ;
+      size += base_ptr[i+1] - base_ptr[i] ;
     } ENDFORALL ;
-    
-    return(numCount*sizeof(T)) ;
+    size *= sizeof(T) ;
+    size += e.size() * sizeof(int) ;
+    return(size) ;
   }
-
+  
   //***************************************************************************/
   
   template <class T> 
@@ -582,87 +580,62 @@ namespace Loci {
     // MPI for packing the data.
     //-------------------------------------------------------------------------
     
+  */
     store<int> count ;
     count.allocate(e) ;
-    
     FORALL(e,i) {
       count[i] = base_ptr[i+1] - base_ptr[i] ;
     } ENDFORALL ;
-    
-    for(int i = 0; i < e.num_intervals(); ++i) {
-      Loci::int_type begin = e[i].first ;
-      Loci::int_type end   = e[i].second ;
-      int numCount = 0 ;
-      for(Loci::int_type indx = begin; indx != end+1; ++indx)
-	 numCount += count[indx] ;
-      
-      MPI_Pack(&base_ptr[indx1][0], numCount* sizeof(T), MPI_BYTE, ptr, size,
-               &loc, MPI_COMM_WORLD) ;
-    }
-*/
+    FORALL(e,i) {
+      MPI_Pack(&count[i], sizeof(int), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ; 
+      MPI_Pack(&base_ptr[i][0], count[i] * sizeof(T), MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
+    } ENDFORALL ;
   }
-
+  
   //***************************************************************************/
   
   template <class T> 
-  void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
-  {
-  
-   /*
-    entitySet e ;
-    store<int> count, count1 ;
-    for(int i = 0; i < seq.num_intervals(); ++i) {
-      if(seq[i].first > seq[i].second) 
-	e += interval(seq[i].second, seq[i].first) ;
-      else 
-	e += interval(seq[i].first, seq[i].second) ;
+  void multiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
+    if(base_ptr == 0)
+      return ;
+    store<int> count ;
+    bool conflict = 0 ;
+    int temploc = loc ;
+    entitySet new_dom = domain() | entitySet(seq) ;
+    entitySet ent = domain() - entitySet(seq);
+    count.allocate(new_dom) ;
+    for(entitySet::const_iterator ei = domain().begin(); ei != domain().end(); ++ei)
+      count[*ei] = base_ptr[*ei+1] - base_ptr[*ei] ;
+    for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
+      MPI_Unpack(ptr, size, &loc, &count[*si],sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
+      if(count[*si] != (base_ptr[*si+1] - base_ptr[*si]))
+	conflict = 1 ;
+      loc += count[*si] * sizeof(T) ;
     }
-    count1.allocate(e) ;
-    count.allocate(e) ;
-    for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si)
-      count1[*si] = base_ptr[*si+1] - base_ptr[*si] ;
-    
-    entitySet::const_iterator ei = e.begin() ;
-    
-    for( sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
-      count[*ei] = count1[*si] ;
-      ++ei ;
-    }
-    
-    T **new_index ;
-    T *new_alloc_pointer ;
-    T **new_base_ptr ;
-    multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
-    for(sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) 
-      for(int j = 0 ; j < count[*si]; ++j) 
-	       new_base_ptr[*si][j] = 0 ;
-    
-    if(alloc_pointer) delete[] alloc_pointer ;
-    alloc_pointer = new_alloc_pointer;
-    if(index) delete[] index ;
-    index = new_index ;
-    base_ptr = new_base_ptr ;
-    dispatch_notify() ;
-    
-    for(int i = 0; i < seq.num_intervals(); ++i) {
-      if(seq[i].first > seq[i].second) {
-	Loci::int_type stop = seq[i].second ;
-	for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
-	  MPI_Unpack(ptr, size, &loc, &base_ptr[indx][0], count[indx]*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+    if(conflict) {
+      T **new_index ;
+      T *new_alloc_pointer ;
+      T **new_base_ptr ; 
+      multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
+      for(entitySet::const_iterator ei = ent.begin(); ei != ent.end(); ++ei) {
+	for(int j = 0 ; j < count[*ei]; ++j) 
+	  new_base_ptr[*ei][j] = base_ptr[*ei][j] ;
       }
-      else {
-	Loci::int_type indx1 = seq[i].first ;
-	Loci::int_type stop = seq[i].second ;
-	int sz = 0 ;
-	for(Loci::int_type indx = seq[i].first; indx != stop+1; ++indx)
-	  sz += count[indx] ;
-	MPI_Unpack(ptr, size, &loc, &base_ptr[indx1][0], sz * sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ; 
-      }
+      if(alloc_pointer) delete[] alloc_pointer ;
+      alloc_pointer = new_alloc_pointer;
+      if(index) delete[] index ;
+      index = new_index ;
+      base_ptr = new_base_ptr ;
+      dispatch_notify() ;
     }
-    dispatch_notify() ;
-*/
+    loc = temploc ;
+    
+    for(Loci::sequence::const_iterator si = seq.begin(); si != seq.end(); ++si) {
+      loc += sizeof(int) ;
+      MPI_Unpack(ptr, size, &loc, &base_ptr[*si][0],count[*si]*sizeof(T), MPI_BYTE, MPI_COMM_WORLD) ;
+    }
   }
-
+  
   //***************************************************************************/
   
   template<class T> 

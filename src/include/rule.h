@@ -183,58 +183,62 @@ namespace Loci {
     T st ;
     return st.Rep();
   }
-
+  
   template <class T, class Op>
-  void joinOp<T,Op>::SetArgs(storeRepP &target, storeRepP &source)
+    void joinOp<T,Op>::SetArgs(storeRepP &target, storeRepP &source)
   { s.setRep(source) ; t.setRep(target) ; }
-
+  
   template <class T, class Op> void joinOp<T,Op>::Join(const sequence &seq) {
     for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) 
       join(t[*i],s[*i]) ;
   }
-
+  
+  
+  
   template <class T, class Op>
-  void joinOp<T,Op>::Join(Map &t2s, const sequence &seq){ 
-    for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) 
+    void joinOp<T,Op>::Join(Map &t2s, const sequence &seq){ 
+    for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
       join(t[*i],s[t2s[*i]]) ;
+    }
   }
 
-    
-
-
+  
+  
+  
+  
   template<class Type,class Op> class joinOp<param<Type>,Op> : public joiner {
     Op join ;
     param<Type> s,t ;
   public:
     virtual CPTR<joiner> clone()
-    { return CPTR<joiner>(new joinOp<param<Type>,Op> ); }
-
+      { return CPTR<joiner>(new joinOp<param<Type>,Op> ); }
+    
     virtual void SetArgs(storeRepP &target, storeRepP &source)
-    { s.setRep(source) ; t.setRep(target) ; }
-
+      { s.setRep(source) ; t.setRep(target) ; }
+    
     virtual storeRepP getTargetRep()
-    { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
-
+      { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    
     virtual void Join(const sequence &seq)
-    {join(*t,*s) ;}
-
+      {join(*t,*s) ;}
+    
     virtual void Join(Map &t2s, const sequence &seq)
-    {join(*t,*s) ;}
+      {join(*t,*s) ;}
   } ;
-
+  
   template<class Type,class Op> class joinOp<storeVec<Type>,Op> : public joiner {
     Op join ;
     storeVec<Type> s,t ;
   public:
     virtual CPTR<joiner> clone()
-    { return CPTR<joiner>(new joinOp<storeVec<Type>,Op> ); }
-
+      { return CPTR<joiner>(new joinOp<storeVec<Type>,Op> ); }
+    
     virtual void SetArgs(storeRepP &target, storeRepP &source)
-    { s.setRep(source) ; t.setRep(target) ; }
-
+      { s.setRep(source) ; t.setRep(target) ; }
+    
     virtual storeRepP getTargetRep()
-    { storeVec<Type> st ; storeRepP rep = st.Rep(); return rep; }
-
+      { storeVec<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    
     virtual void Join(const sequence &seq) {
       for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
         Vect<Type> m = t[*i] ;

@@ -19,6 +19,8 @@
 #include <Loci_types.h>
 #include <distribute.h>
 #include <multiStore.h>
+#include <storeMat.h>
+
 
 using Loci::entitySet ;
 using Loci::EMPTY ;
@@ -56,7 +58,7 @@ using Loci::pointwise_rule ;
 using Loci::singleton_rule ;
 using Loci::register_rule ;
 
-#include <storeMat.h>
+
 using Loci::storeMat ;
 using Loci::const_storeMat ;
 

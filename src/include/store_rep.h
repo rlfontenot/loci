@@ -41,6 +41,7 @@ namespace Loci {
     virtual void writehdf5( H5::Group group,entitySet& en) const =0;
     virtual entitySet domain() const = 0 ;
     virtual storeRepP getRep() ;
+    virtual bool is_static() ;
     virtual storeRepP getRep() const ;
   } ;
 
@@ -98,7 +99,7 @@ namespace Loci {
     virtual entitySet domain() const ;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
-        
+    virtual bool is_static() ;    
     virtual void notification() ;
   } ;
   typedef NPTR<store_ref> store_refP ;
