@@ -148,19 +148,21 @@ variable::variable_db *variable::vdb = 0 ;
 
 bool variable::info::operator<(const info &v) const {
     if(tvar != v.tvar)
-      return tvar ;
+      return tvar < v.tvar ;
     else if(assign != v.assign)
-      return assign ;
-    //else if(rename != v.rename)
-    //return rename ;
+      return assign < v.assign ;
+    else if(name != v.name)
+      return name < v.name ;
+    else if(time_id != v.time_id)
+      return time_id < v.time_id ;
+    else if(offset != v.offset)
+      return offset < v.offset ;
+    else if(priority != v.priority)
+      return priority < v.priority ;
+    else if(namespac != v.namespac)
+      return namespac < v.namespac ;
     else
-      return 
-	namespac < v.namespac				||
-        (namespac == v.namespac && name < v.name          ||
-	(name     == v.name     && (time_id < v.time_id   ||
-				    (time_id  == v.time_id  && (offset < v.offset     ||
-	(offset  == v.offset    &&  priority < v.priority)||
-	(priority == v.priority && v_ids < v.v_ids)))))) ; 
+      return v_ids < v.v_ids ;
 }
 
   
@@ -392,7 +394,7 @@ bool variable::info::operator<(const info &v) const {
       cerr << "unable to interpret expression " << e << endl ;
       break ;
     }
-    id = vdb->vars.get_id(v) ; 
+    id = vdb->vars.get_id(v) ;
   }
   
   variable::variable(const time_ident &t) {
