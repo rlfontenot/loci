@@ -48,9 +48,19 @@ area_reduce_cc.tex: ../lfvm/area_reduce.cc
 	cat ../lfvm/area_reduce.cc >> area_reduce_cc.tex
 	echo "\end{verbatim}" >> area_reduce_cc.tex
 
+integration_cc.tex: ../lfvm/integration.cc
+	echo "\begin{verbatim}" > integration_cc.tex
+	cat ../lfvm/integration.cc >> integration_cc.tex
+	echo "\end{verbatim}" >> integration_cc.tex
+
+gradient_cc.tex: ../lfvm/gradient.cc
+	echo "\begin{verbatim}" > gradient_cc.tex
+	cat ../lfvm/gradient.cc >> gradient_cc.tex
+	echo "\end{verbatim}" >> gradient_cc.tex
 
 
-main.dvi : intro.tex dbase.tex containers_cc.tex relations_cc.tex entities_cc.tex helpers_cc.tex Makefile_ex.tex grid_reader_cc.tex setup_edges_cc.tex cell_props_cc.tex area_reduce_cc.tex
+
+main.dvi : intro.tex dbase.tex containers_cc.tex relations_cc.tex entities_cc.tex helpers_cc.tex Makefile_ex.tex grid_reader_cc.tex setup_edges_cc.tex cell_props_cc.tex area_reduce_cc.tex integration_cc.tex gradient_cc.tex
 
 
 

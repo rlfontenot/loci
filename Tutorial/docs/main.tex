@@ -10,7 +10,7 @@
 \setlength{\oddsidemargin}{2cm}
 \setlength{\evensidemargin}{2cm}
 \unitlength=1in
-\title { Loci : A Beginners Tutorial }
+\title { Loci : A Tutorial }
 
 \usepackage{epsf}    % used for importing encapsulated postscript figures
 \usepackage{amsmath} % used for extended formula formatting tools
@@ -20,10 +20,10 @@
 
 
 \begin{document}
-\tableofcontents
-\listoffigures
+%\tableofcontents
+%\listoffigures
 \maketitle
-\include{intro}
+%\include{intro}
 
 \chapter{ Basic Concepts }
 
@@ -31,6 +31,60 @@
 
 In this document we use the {\tt typewriter} font to distinguish
 actual Loci programming keywords, classes, and data-structures.
+
+\section{ Installing Loci}
+
+After you untar Loci you will have a directory structure like so:
+
+\begin{verbatim}
+Loci/
+Loci/src
+Loci/Tutorial
+\end{verbatim}
+
+To install Loci, you need to use {\tt tmpcopy} to make a linked copy
+of the source code (usually to the {\tt /usr/tmp} directory).  You
+can use environment variables to change how the tmpcopy routine works.
+For example, you can set the target directory (where you will be
+compiling the Loci libaries), and the compiler.  For example, to set
+the target directory to {\tt /home/test/OBJ} and the compiler to {\tt
+  gcc3.0}, enter (NOTE: Run tmpcopy from the Loci directory!):
+
+\begin{verbatim}
+LOCI_TARGET=/home/test/OBJ LOCI_COMP=gcc3.0 ./tmpcopy
+\end{verbatim}
+
+The possible compilers that will work with Loci are:  
+
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+{\tt LOCI\_COMP} & Description \\
+\hline
+\hline
+{\tt KCC }      & Kuck and Associates C++ compiler \\
+{\tt gcc }      & gcc 2.95.3 \\
+{\tt gcc3.0}    & gcc 3.0.3 \\
+{\tt CC\_sgi}    & SGI's CC compiler \\
+\hline
+\end{tabular}
+\end{center}
+
+Once you have run the {\tt tmpcopy} command, you probably should
+inspect the {\tt comp.conf} and {\tt sys.conf} files in the target directory.
+The {\tt comp.conf} file configures for the particular compiler that you
+have selected.  You should check that the path to the compiler is
+correct.  The {\tt sys.conf} file configures the particulars of any
+given system.  You will need to make sure that the paths to libraries
+are correct and that the installation directory ({\tt INSTALL\_DIR})
+points to the location where you want to install.  To install Loci
+simply type:
+
+\begin{verbatim}
+make
+make install
+\end{verbatim}
+
 
 \section{ Compiling Loci Programs }
 
@@ -557,12 +611,138 @@ this edge-centric approach.
 \label{fig:area}
 \end{figure}
 
+Note, that reductions can also be used to compute parameter values.
+The specification of the reduction is the same as when the output is
+as store, and the resulting parameter is the reduced (accumulated)
+value.  In fact, an {\tt apply\_rule} is the only valid rule for
+computing parameters from stores.  See the file {\tt stable.cc} in the
+finite-volume example for an illustration of how to specify reductions
+for computing parameters.
+
 \include{area_reduce_cc}
 
 \section{Singleton Rules and Parameter Computations}
 
+Singleton rules are defined for computations that are performed
+exclusively on parameters.  Since these computations are on single
+values that are associated with a group of entities, it is not
+necessary to perform any loops.  However the attribute that is
+computed as a result of the rule is only associated with the entities
+that are in the intersection of the entites given the attributes of
+all of the inputs.  (Note:  In the parallel implementation, all
+parameters are duplicated on each processor, so these singleton rules
+are computed on each processor when parallel processing is used [no
+communication is invoked].)
+
+\begin{verbatim}
+///////////////////////////////////////////////////////////////////////////////
+//
+//  Here we compute a new parameter C by multipling the values contained in
+//  parameters B and C.
+//  
+//  We define a singleton_rule by creating a class that inherits from 
+//  singleton_rule
+class singleton_example : public singleton_rule {
+// Here we define the paramters involved in the computations.
+// ** Note, only parameters allowed in singleton computations!
+  const_param<double> A ;
+  const_param<double> B ;
+  param<double> C ;
+public:
+// Here we provide a constructor that names stores and specifies inputs and
+// outputs like before.
+  collapse_info() {
+    name_store("A",A) ;
+    name_store("B",B) ;
+    name_store("C",C) ;
+    input("A,B") ;
+    output("C") ;
+  }
+
+  virtual void compute(const sequence &seq) {
+// Now in the compute method, we don't loop since we only have a single
+// value representing the entire set of entities.  Instead we use the
+// dereference operator (*) to access the values.
+    *C = (*A)*(*B) ;
+  }
+} ;
+
+// Now we can register this rule like any other Loci Rule
+register_rule<singleton_example> register_singleton_example ;
+\end{verbatim}
+
 \section{Iterative Computations}
 
+
+Iteration is defined by way of three types of rule specifications:
+build rules that construct the iteration, advance rules that advance
+the iteration, and collapse rules that terminate the iteration.  This
+specification follows an analogy to the inductive proof in that build
+rules are analogous to an inductive base while advance rules are
+analogous to an inductive hypothesis.
+
+
+Iterations are specified by adding an iteration label to variable
+identifiers.  Iteration labels are organized into a hierarchy that is
+rooted at stationary time (values that don't iterate).  It is assumed
+that computations can proceed at any given iteration level while
+accessing values computed at either its iteration level or at parent
+levels in the label hierarchy.  The iteration label is just a list of
+iterator variables that follows the variable name enclosed in braces.
+For example, to access value {\tt v} for iteration {\tt n} we have 
+{\tt v\{n\}}.  This relationship between traditional imperative languages
+loop nesting and the iteration label hierarchy is shown in figure
+\ref{fig:nested}. 
+
+\begin{figure}[h]
+\centerline{
+\epsfxsize=3.4in
+\epsfbox{figures/nested.eps}}
+\caption{Nested Loops are characterized by a hierarchy of iteration labels}
+\label{fig:nested}
+\end{figure}
+
+For example, an iteration where a variable named {\tt q} is iterated
+to a converged solution may be described by the following three rules:
+1) a build rule of the form {\tt q\{n=0\}<-initial\_condition}, 2) an
+advance rule similar to {\tt q\{n+1\}<-q\{n\},delta\_q\{n\}}, and 3)
+an iteration collapse rule {\tt
+  solution<-q\{n\},CONDITION(converged\{n\})}.  Iteration in this
+example proceeds by initializing the first iteration, {\tt q\{n=0\}},
+using the build rule.  Next, termination of iteration is then checked
+by computing {\tt converged}, if the test succeeds then the collapse
+rule terminates the iteration.  Finally the iteration advances in time
+by the repeated application of the advance rule which computes values
+for {\tt q} for the next iteration ({\tt\{n+1\}}) given current
+iteration values at time level {\tt\{n\}}.  Note that the completion
+of these rules may require invoking other rules specified in the rule
+database.  In this case, rules that compute {\tt converged\{n\}} and
+{\tt dq\{n\}} will also need to be scheduled.
+
+To support iteration, variables that exist in lower levels of the
+iteration hierarchy are automatically promoted up the iteration
+hierarchy.  Thus a variable that is computed in iteration {\tt\{n\}}
+is communicated to iteration {\tt\{n,it\}} automatically.  In
+addition, rules that are specified completely at the stationary level
+will be promoted to any level of the hierarchy.  This allows for the
+specification of relations that are iteration independent (for
+example, $p = \rho \tilde{R} T$ implies $p^n = \rho^n \tilde{R}^n
+T^n$).
+
+
+\include{integration_cc}
+
+\section{Parametric Rules}
+
+We can also create generic, or parametric rules.  These can be any
+type of rule and allows Loci to create new rules by variable
+substitution.  The output of a parametric rule includes variable names
+that are followed by parenthesis enclosed parameter lists.  When these
+parameters occur in the inputs to the rule, they will be substituted
+by the provided parameter.  See the gradient routine that follows for
+an example of how to develop and use parametric rules.
+
+\include{gradient_cc}
 
 %\include {dbase}
 %\include {example}
