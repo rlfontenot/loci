@@ -29,6 +29,19 @@ namespace Loci {
     digraph get_graph() const { return gr; } 
   };
 
+  // experimental version
+  class dependency_graph2 {
+    digraph gr ;
+    void clean_graph(const variableSet& given,
+                     const variableSet& target) ;
+  public:
+    dependency_graph2(const rule_db& rdb,
+                      const variableSet& given,
+                      const variableSet& target) ;
+    
+    digraph get_graph() const { return gr; } 
+  };
+
 }
 
 #endif
