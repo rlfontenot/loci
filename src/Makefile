@@ -11,7 +11,7 @@ default: Tools System
 shared: Tools/libTools.so System/libLoci.so 
 
 install: default
-	LOCI_INSTALL_DIR=$(INSTALL_DIR) bash Install.bash
+	LOCI_INSTALL_DIR=$(INSTALL_DIR) CPP='$(CPP)' bash Install.bash
 
 Tools : FRC
 	cd Tools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libTools.a
