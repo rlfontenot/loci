@@ -461,7 +461,7 @@ namespace Loci {
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
     return s.Rep() ;
-  }
+  } 
 
   void multiMapRepI::compose(const Map &m, const entitySet &context) {
     fatal(alloc_pointer == 0) ;
@@ -576,7 +576,7 @@ namespace Loci {
     base_ptr = new_base_ptr ;
     dispatch_notify() ;
   }
-
+ 
   void multiMapRepI::scatter(const Map &m, storeRepP &st,
                              const entitySet  &context) {
     store<int> count ;
@@ -591,19 +591,17 @@ namespace Loci {
     int **new_index ;
     int *new_alloc_pointer ;
     int **new_base_ptr ;
-
+    
     multialloc(count, &new_index, &new_alloc_pointer, &new_base_ptr) ;
     FORALL(domain()-m.image(context),i) {
       for(int j=0;j<count[i];++j) 
         new_base_ptr[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
-
     FORALL(context,i) {
       for(int j=0;j<count[m[i]];++j) {
         new_base_ptr[m[i]][j] = s[i][j] ;
       }
     } ENDFORALL ;
-
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = new_alloc_pointer;
     if(index) delete[] index ;

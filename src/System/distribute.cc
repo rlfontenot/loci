@@ -26,7 +26,7 @@ using std::ifstream ;
 using std::swap ;
 
 //#define SCATTER_DIST
-#define UNITY_MAPPING
+//#define UNITY_MAPPING
 
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
@@ -494,7 +494,6 @@ namespace Loci {
     for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {
       df->g2l[l2g[*ei]] = *ei ;
     }
-      
     entitySet send_neighbour ;
     entitySet recv_neighbour ;
     store<entitySet> send_entities ;
@@ -512,14 +511,16 @@ namespace Loci {
     
     send_entities.allocate(send_neighbour) ;
     recv_entities.allocate(recv_neighbour) ;
-    
+    entitySet recv, send ;
     for(ei = recv_neighbour.begin(); ei != recv_neighbour.end(); ++ei) {
       for(ti =  get_entities[myid][*ei].begin(); ti != get_entities[myid][*ei].end(); ++ti)
 	recv_entities[*ei] += df->g2l[*ti] ;
+      recv += recv_entities[*ei] ;
     }
     for(ei = send_neighbour.begin(); ei!= send_neighbour.end(); ++ei) {
       for(ti =  get_entities[*ei][myid].begin(); ti != get_entities[*ei][myid].end(); ++ti)
 	send_entities[*ei] +=  df->g2l[*ti] ;
+      send += send_entities[*ei] ;
     }
     reorder_facts(facts, df->g2l) ;
     isDistributed = 1 ;
@@ -530,6 +531,11 @@ namespace Loci {
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
+    debugout[MPI_rank] << "my_entities = " << df->my_entities << endl ;
+    debugout[MPI_rank] << "send = " << send << endl ;
+    debugout[MPI_rank] << "recv = " << recv << endl ;
+    
+    debugout[MPI_rank] << "global to loc numbering  = " << df->g2l << endl ;
     for(ei=send_neighbour.begin(); ei != send_neighbour.end();++ei)
       df->xmit.push_back
         (fact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
@@ -558,13 +564,13 @@ namespace Loci {
   entitySet fill_entitySet(const entitySet& e, fact_db &facts) {
     
     entitySet re ;
-
+    
     if(facts.isDistributed()) {  
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
       int **send_buffer, **recv_buffer ;
       int *recv_size ;
-
+      
       if(d->copy.size() > 0) {
         recv_buffer = new int*[d->copy.size()] ;
         recv_size = new int[d->copy.size()] ;

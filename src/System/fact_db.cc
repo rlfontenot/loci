@@ -5,9 +5,9 @@
 
 extern "C" {
 #include <hdf5.h>
-}
 
-using std::string ;
+}
+using std::string ; 
 using std::map ;
 using std::make_pair ;
 using std::vector ;

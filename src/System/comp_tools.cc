@@ -15,8 +15,6 @@ using std::map ;
 #else
 #include <hash_map>
 #endif
-using std::hash_map ;
-
 using std::pair ;
 using std::make_pair ;
 
@@ -345,7 +343,7 @@ namespace Loci {
          facts.variable_request(*vi,context) ;
      }
 #ifdef VERBOSE
-     debugout[MPI_rank] << "rule " << r << " computes over " << context << endl ;
+     cout << "rule " << r << " computes over " << context << endl ;
 #endif
      return context ;
   }
@@ -354,12 +352,12 @@ namespace Loci {
   std::list<comm_info>
   put_precomm_info(vector<pair<variable,entitySet> > send_entities,
                    fact_db &facts) {
-
+    
     
     std::list<comm_info> plist ;
     if(send_entities.size() == 0)
       return plist ;
-
+    
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       const int sesz = send_entities.size() ;
@@ -384,27 +382,27 @@ namespace Loci {
         for(int i=1;i<d->copy.size();++i)
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size*sesz+sesz ;
       }
-
+      
       Map l2g ;
       l2g = facts.get_variable("l2g") ;
-
+      
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
-
-      for(int i=0;i<d->xmit.size();++i)
+      
+      for(int i=0;i<d->xmit.size();++i) {
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 2,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
-
-      
+	//cout << MPI_rank << "  receiving from " << d->xmit[i].proc << endl ;
+      }
       for(int i=0;i<d->copy.size();++i) {
         int j=sesz ;
         for(int k=0;k<sesz;++k) {
           entitySet temp = send_entities[k].second & d->copy[i].entities ;
           send_buffer[i][k] = temp.size() ;
-
+	  
           for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
             send_buffer[i][j++] = l2g[*ei] ;
-
+	  
           if(temp != EMPTY) {
             comm_info ci ;
             ci.v = send_entities[k].first ;
@@ -416,6 +414,7 @@ namespace Loci {
         int send_size = j ;
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
                  2,MPI_COMM_WORLD) ;
+	//cout << MPI_rank << "  sending to " << d->copy[i].proc << endl ;
       }
 
       if(d->xmit.size() > 0)
@@ -458,7 +457,6 @@ namespace Loci {
       
     }
     return plist ;
-
   }
   
   vector<entitySet> partition_set(const entitySet &s,int nthreads) {
@@ -516,7 +514,7 @@ namespace Loci {
         ret += *ri ;
     return ret ;
   }
-
+  
   vector<pair<variable,entitySet> >
   barrier_existential_rule_analysis(variableSet vlst,
                                     fact_db &facts) {
@@ -569,10 +567,6 @@ namespace Loci {
     for(int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
       send_entities.push_back(make_pair(v,vmap[v])) ;
-#ifdef VERBOSE
-      debugout[MPI_rank] << "send_entitySet passed " << vmap[v]
-                         << " for variable " << v << endl ;
-#endif
     }
 
 
@@ -580,39 +574,21 @@ namespace Loci {
     if(seinfo.size() != 0) {
       vector<entitySet> send_sets = send_entitySet(seinfo,facts) ;
       for(int i=0;i<seinfo.size();++i) {
-#ifdef VERBOSE
-        debugout[MPI_rank] << "send_entitySet returns " << send_sets[i]
-                           << " for variable " << send_vars[i] << endl ;
-#endif
         exinfo[exent[i]] += send_sets[i] ;
         exinfo[exent[i]] &= d->my_entities ;
       }
     }
-    int j=0;
-#ifdef VERBOSE
-    for(int i=0;i<vars.size();++i) {
-      variable v = vars[i] ;
-      ruleSet &rs = rules[i] ;
-      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
-        debugout[MPI_rank] << "v=" << v << ",rule ="<<*rsi
-                           <<"exinfo="<<exinfo[j++] << endl ;
-      }
-    }
-#endif
+    
     vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
 
-    j=0;
+    int j=0;
     for(int i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
 
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
-        fill_sets[j] += exinfo[j] ;
-#ifdef VERBOSE
-        debugout[MPI_rank] << "v=" << v << ",rule ="<<*rsi
-                           <<"fill_set="<<fill_sets[j] << endl ;
-#endif
-        facts.set_existential_info(v,*rsi,fill_sets[j]) ;
+	exinfo[j] += fill_sets[j] ;
+        facts.set_existential_info(v,*rsi,exinfo[j]) ;
         ++j ;
       }
     }
@@ -624,17 +600,17 @@ namespace Loci {
     entitySet re ;
     if(facts.isDistributed()) {  
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
-
+      
       int **send_buffer, **recv_buffer ;
       int *recv_size ;
-
+      
       if(d->xmit.size() > 0) {
         recv_buffer = new int*[d->xmit.size()] ;
         recv_size = new int[d->xmit.size()] ;
-
+	
         recv_buffer[0] = new int[d->xmit_total_size] ;
         recv_size[0] = d->xmit[0].size ;
-
+	
         for(int i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
           recv_size[i] = d->xmit[i].size ;
@@ -653,10 +629,11 @@ namespace Loci {
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
 
-      for(int i=0;i<d->xmit.size();++i)
+      for(int i=0;i<d->xmit.size();++i) {
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 3,
                   MPI_COMM_WORLD, &recv_request[i] ) ;  
-
+      }
+      
       for(int i=0;i<d->copy.size();++i) {
         entitySet temp = e & d->copy[i].entities ;
 
@@ -687,7 +664,7 @@ namespace Loci {
         re += temp ;
         comm_info ci ;
         ci.v = v ;
-        ci.processor = d->copy[i].proc ;
+        ci.processor = d->xmit[i].proc ;
         ci.send_set = temp ;
         clist.push_back(ci) ;
       }
@@ -716,10 +693,8 @@ namespace Loci {
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       variable v = *vi ;
       entitySet requests = facts.get_variable_requests(v) ;
-
       requests += send_requests(requests, v, facts, clist ) ;
       requests += fill_entitySet(requests, facts) ;
-
       facts.variable_request(v,requests) ;
     }
     return clist ;
@@ -858,7 +833,6 @@ namespace Loci {
     delete [] r_size ;
   }
 
-  
   void execute_comm::Print(ostream &s) const {
     if(send_info.size()+recv_info.size() > 0) {
       s << "communication block {" << endl ;
@@ -882,14 +856,14 @@ namespace Loci {
     }
   }
   
-
+  
   // Sort the communication list so that the recieve sequence is in the
   // order corresponding to the sending entitySet
   list<comm_info> sort_comm(list<comm_info> slist, fact_db &facts) {
     vector<pair<int,vector<send_var_info> > > send_info ;
     vector<pair<int,vector<recv_var_info> > > recv_info ;
-
-
+    
+    
     // First collect information from slist
 
     hash_map<int,vector<send_var_info> > send_data ;
@@ -902,16 +876,16 @@ namespace Loci {
         int send_proc = cli->processor ;
         send_procs += send_proc ;
         entitySet send_set = cli->send_set ;
-        send_data[send_proc].push_back(send_var_info(v,send_set)) ;
+	send_data[send_proc].push_back(send_var_info(v,send_set)) ;
       }
       if(cli->recv_set.size() > 0) {
         int recv_proc = cli->processor ;
         sequence recv_seq = cli->recv_set ;
         recv_procs += recv_proc ;
-        recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
+	recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
       }
     }
-
+    
     for(intervalSet::const_iterator ii=send_procs.begin();
         ii!=send_procs.end();
         ++ii) {
@@ -922,14 +896,15 @@ namespace Loci {
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
     }
-
+    
+    
     // Now build sorted comm list
-
+    
     list<comm_info> clist ;
-
+    
     Map l2g ;
     l2g = facts.get_variable("l2g") ;
-
+    
     const int nrecv = recv_info.size() ;
     int *r_size = new int[nrecv] ;
     int total_size = 0 ;
@@ -944,7 +919,7 @@ namespace Loci {
     recv_ptr[0] = new int[total_size] ;
     for(int i=1;i<nrecv;++i)
       recv_ptr[i] = recv_ptr[i-1]+r_size[i-1] ;
-
+    
     const int nsend = send_info.size() ;
     int *s_size = new int[nsend] ;
     total_size = 0 ;
@@ -959,17 +934,17 @@ namespace Loci {
     send_ptr[0] = new int[total_size] ;
     for(int i=1;i<nsend;++i)
       send_ptr[i] = send_ptr[i-1]+s_size[i-1] ;
-
+    
     MPI_Request *request =  new MPI_Request[nrecv] ;
     MPI_Status *status =  new MPI_Status[nrecv] ;
-
+    
     for(int i=0;i<nrecv;++i) {
       int proc = recv_info[i].first ;
-      
       MPI_Irecv(recv_ptr[i], r_size[i], MPI_INT, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
+     
     }
-
+    
     // Pack the buffer for sending 
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
@@ -983,10 +958,10 @@ namespace Loci {
             ei!=ci.send_set.end();
             ++ei) {
           send_ptr[i][loc_pack++] = l2g[*ei] ;
-        }
+	}
       }
       WARN(loc_pack != s_size[i]) ;
-    }
+    } 
 
     // Send Buffer
     for(int i=0;i<nsend;++i) {
@@ -998,22 +973,22 @@ namespace Loci {
       MPI_Waitall(nrecv, request, status) ;
     
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
-
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
       for(int j=0;j<recv_info[i].second.size();++j) {
         sequence seq ;
-        for(int k=0;k<recv_info[i].second[j].seq.size();++k)
-          seq += d->g2l[recv_ptr[i][loc_unpack++]] ;
-        comm_info ci ;
+        for(int k=0;k<recv_info[i].second[j].seq.size();++k) {
+	  seq += d->g2l[recv_ptr[i][loc_unpack++]] ;
+	}
+	comm_info ci ;
         ci.v = recv_info[i].second[j].v ;
         ci.processor = recv_info[i].first ;
         ci.recv_set = seq ;
-        clist.push_back(ci) ;
+	clist.push_back(ci) ;
       }
       WARN(loc_unpack != r_size[i]) ;
     }
-
+    
     delete [] status ;
     delete [] request ;
     delete [] send_ptr[0] ;
@@ -1035,7 +1010,7 @@ namespace Loci {
     if(facts.isDistributed()) {
       list<comm_info> request_comm ;
       request_comm = barrier_process_rule_requests(barrier_vars, facts) ;
-
+      
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
 
@@ -1047,6 +1022,7 @@ namespace Loci {
       }
 
       plist = put_precomm_info(send_requested, facts) ;
+      clist = request_comm ;
       clist = sort_comm(request_comm,facts) ;
     }
   }

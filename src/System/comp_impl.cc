@@ -5,7 +5,7 @@ namespace Loci {
     do_run = true ;
     if(seq.num_intervals() == 0)
       do_run = false ;
-    
+     
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
