@@ -51,8 +51,26 @@ namespace Loci {
     if(current_rule_id != 0) {
       rule r(current_rule_id) ;
       cerr << "crash occured in rule " << r << endl ;
+
+      if(exec_current_fact_db != 0) {
+        char buf[512] ;
+        sprintf(buf,"crash_dump.%d",MPI_rank) ;
+        ofstream cfile(buf,ios::out) ;
+        cfile << "rule: " << r << endl ;
+        
+        variableSet v = r.sources() ;
+
+        cfile << "facts = {" << endl ;
+        for(variableSet::const_iterator vi=v.begin();vi!=v.end();++vi) {
+          cfile << *vi << ':' ;
+          storeRepP p = Loci::exec_current_fact_db->get_variable(*vi);
+          p->Print(cfile) ;
+        }
+        cfile << "}" << endl ;
+      }
     }
   }
+  
   void Init(int* argc, char*** argv)  {
     
     char *execname = (*argv)[0] ;
