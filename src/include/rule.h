@@ -63,6 +63,7 @@ namespace Loci {
     std::map<variable,variable> rvmap ;
     void source(const std::string &invar) ;
     void target(const std::string &outvar) ;
+    std::string rule_comments ; // the comments for a rule_impl
     
   protected:
     rule_impl(rule_impl &f) { fatal(true) ; }
@@ -76,6 +77,7 @@ namespace Loci {
     void output(const std::string &outvar) { target(outvar) ; }
     void constraint(const std::string &constrain) ;
     void conditional(const std::string &cond) ;
+    void comments(char* c) {rule_comments += c ;}
   public:
     rule_impl() ;
     bool check_perm_bits() const ;
@@ -105,7 +107,8 @@ namespace Loci {
     virtual rule_implP new_rule_impl() const ;
     virtual void compute(const sequence &) = 0 ;
     virtual CPTR<joiner> get_joiner() = 0 ;
-    virtual rule_implP add_namespace(const std::string& n) const;
+    virtual rule_implP add_namespace(const std::string& n) const ;
+    std::string get_comments() const {return rule_comments ;}
   } ;
   
   typedef rule_impl::rule_implP rule_implP ;
