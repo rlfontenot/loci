@@ -88,7 +88,8 @@ namespace Loci {
     MPI_Finalize() ;
   }
   
-  void metis_facts(fact_db &facts, vector<entitySet> &ptn, store<int> &partition ) {
+  void metis_facts(fact_db &facts, vector<entitySet> &ptn) {
+    store<int> partition ;
     int num_partitions = MPI_processes ;
     variableSet fact_vars ;
     fact_vars = facts.get_typed_variables() ;
@@ -258,6 +259,10 @@ namespace Loci {
     delete [] part ;
     delete [] adjncy ;
   }
+
+
+
+
   
   /*This routine loops over all the rules in the database and extracts
   all the variables associated with the mappings in the head, body and
@@ -408,26 +413,31 @@ namespace Loci {
       storeRepP p = facts.get_variable(*vi) ;
       if(p->RepType() == MAP) {
         MapRepP mp = MapRepP(p->getRep()) ;
+        debugout << *vi <<".domain=" << p->domain() ;
         active_set += p->domain() ;
         active_set += mp->image(p->domain()) ;
-      }
-      if(p->RepType() == STORE) {
+        set_of_sets.insert(p->domain()) ;
+        debugout << " Map Image = " << mp->image(p->domain()) <<endl ;
+      } else if(p->RepType() == STORE) {
+        debugout << *vi<<".domain=" << p->domain() <<endl ;
         active_set += p->domain() ;
-      }
-      
-      set_of_sets.insert(p->domain()) ;
-    }
-    vector<int> vals,vals2 ;
-    set<entitySet>::iterator si ;
-    for(si=set_of_sets.begin();si!=set_of_sets.end();++si) {
-      entitySet s = *si & active_set ;
-      for(int i = 0;i < s.num_intervals(); ++i) {
-        vals.push_back(s[i].first-1) ;
-        vals.push_back(s[i].first) ;
-        vals.push_back(s[i].second) ;
-        vals.push_back(s[i].second+1) ;
+        set_of_sets.insert(p->domain()) ;
+      } else {
+        //        debugout << *vi<<".domain=" << p->domain() <<endl ;
       }
     }
+
+   vector<int> vals,vals2 ;
+   set<entitySet>::iterator si ;
+   for(si=set_of_sets.begin();si!=set_of_sets.end();++si) {
+     entitySet s = *si & active_set ;
+     for(int i = 0;i < s.num_intervals(); ++i) {
+       vals.push_back(s[i].first-1) ;
+       vals.push_back(s[i].first) ;
+       vals.push_back(s[i].second) ;
+       vals.push_back(s[i].second+1) ;
+     }
+   }
     
     std::sort(vals.begin(),vals.end()) ;
    
@@ -451,28 +461,55 @@ namespace Loci {
       interval iv(i1,i2) ;
       pvec.push_back(iv) ;
     }
+
   }
   
   
-  void generate_distribution(fact_db &facts, rule_db &rdb, vector<vector<entitySet> > &get_entities ) {
-    int num_procs = MPI_processes ;
+  vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb) {
     vector<entitySet> ptn ;
-    store<int> partition ;
-    set<vector<Loci::variableSet> > maps ;
-    vector<entitySet> copy(num_procs) ;
-    vector<entitySet> image(num_procs) ;
     debugout << "synchronising before metis_facts" << endl ;
     MPI_Barrier(MPI_COMM_WORLD) ;
     double start = MPI_Wtime() ;
-    metis_facts(facts,ptn,partition) ;
+    metis_facts(facts,ptn) ;
     double end_time  = MPI_Wtime() ;
-    debugout << "  time taken for metis_facts =   = " << end_time -start << endl ; 
+    debugout << "  time taken for metis_facts = " << end_time -start << endl ;
+    return ptn ;
+  }
+  
+  void  distribute_facts(vector<entitySet> &ptn, fact_db &facts, rule_db &rdb) {
+    vector<vector<entitySet> > get_entities(MPI_processes) ;
+    double start = MPI_Wtime() ;
+    set<vector<variableSet> > maps ;
+    get_mappings(rdb,facts,maps) ;
+    double end_time  = MPI_Wtime() ;
+    debugout << "  time taken for get_mappings =   = " << end_time -start << endl ; 
+    set<vector<Loci::variableSet> >::const_iterator smi ;
+    
+    start = MPI_Wtime() ;
+    int num_procs = MPI_processes ;
+    vector<entitySet> copy(num_procs) ;
+    vector<entitySet> image(num_procs) ;
+    for(int pnum = 0; pnum < num_procs; pnum++) {
+      image[pnum] = expand_map(ptn[pnum], facts, maps) ;
+      // The clone region is obtained here 
+      copy[pnum] = image[pnum] - ptn[pnum] ;
+      for(int i = 0; i < num_procs; ++i) {
+	// The information abt the clone region is found out here.  
+	entitySet slice = copy[pnum] & ptn[i] ;
+	get_entities[pnum].push_back(slice) ;
+      }
+      //The diagonal elements of the 2D vector (get_entities) contains
+      //my_entities. 
+      get_entities[pnum][pnum] = ptn[pnum] ;
+    }
+    end_time  = MPI_Wtime() ;
+    debugout << "  time taken for all the calls to expand_map is =   = " << end_time-start << endl ; 
+
     start = MPI_Wtime() ;
     get_mappings(rdb,facts,maps) ;
     end_time  = MPI_Wtime() ;
     debugout << "  time taken for get_mappings =   = " << end_time -start << endl ; 
-    set<vector<Loci::variableSet> >::const_iterator smi ;
-    
+
     start = MPI_Wtime() ;
     for(int pnum = 0; pnum < num_procs; pnum++) {
       image[pnum] = expand_map(ptn[pnum], facts, maps) ;
@@ -489,10 +526,6 @@ namespace Loci {
     }
     end_time  = MPI_Wtime() ;
     debugout << "  time taken for all the calls to expand_map is =   = " << end_time-start << endl ; 
-  }
-  
-  void  distribute_facts(vector<vector<entitySet> > &get_entities, fact_db &facts)  {
-    int num_procs = MPI_processes ;
     int myid = MPI_rank ;
     int size = 0 ;
     int j = 0 ;
@@ -552,7 +585,7 @@ namespace Loci {
       }
     }
 #endif
-    
+    df->l2g = l2g ;
     df->g2l.allocate(g) ;
     entitySet ldom = l2g.domain() ;
     for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {
@@ -586,9 +619,9 @@ namespace Loci {
 	send_entities[*ei] +=  df->g2l[*ti] ;
       send += send_entities[*ei] ;
     }
-    double start = MPI_Wtime() ;
+    start = MPI_Wtime() ;
     reorder_facts(facts, df->g2l) ;
-    double end_time =  MPI_Wtime() ;
+    end_time =  MPI_Wtime() ;
     debugout << "  time taken for reordering =  " << end_time - start << endl ; 
     isDistributed = 1 ;
     df->isDistributed = isDistributed ;

@@ -38,6 +38,7 @@ namespace Loci {
       
       int myid ;
       int isDistributed ;
+      Map l2g ;
       Map g2l ;
 
       entitySet my_entities ;

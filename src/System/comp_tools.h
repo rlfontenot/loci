@@ -20,8 +20,11 @@ namespace Loci {
 
   entitySet process_rule_requests(rule f, fact_db &facts) ;
   
-  std::vector<std::pair<variable,entitySet> > barrier_existential_rule_analysis(variableSet vlst, fact_db &facts) ;
-  std::list<comm_info>  barrier_process_rule_requests(variableSet vars, fact_db &facts) ;
+  std::vector<std::pair<variable,entitySet> >
+  barrier_existential_rule_analysis(variableSet vlst, fact_db &facts) ;
+
+  std::list<comm_info>
+  barrier_process_rule_requests(variableSet vars, fact_db &facts) ;
 
   entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
                           std::list<comm_info> &clist) ;
@@ -36,7 +39,8 @@ namespace Loci {
                          const rule &impl, fact_db &facts) ;
   std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
   
-  void create_user_function(unsigned char* , unsigned char* , int*, MPI_Datatype* ) ;
+  void create_user_function(unsigned char* , unsigned char* , int*,
+                            MPI_Datatype* ) ;
   
   typedef std::map<variable,entitySet> vdefmap ;
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
@@ -45,9 +49,9 @@ namespace Loci {
                                  entitySet compute) ;
 
   std::vector<digraph::vertexSet> schedule_dag(const digraph &g,
-                                          digraph::vertexSet start_vertices = EMPTY,
-                                          digraph::vertexSet only_vertices =
-                                          interval(UNIVERSE_MIN,UNIVERSE_MAX)) ;
+                           digraph::vertexSet start_vertices = EMPTY,
+                           digraph::vertexSet only_vertices =
+                           interval(UNIVERSE_MIN,UNIVERSE_MAX)) ;
 
   void compile_dag_sched(std::vector<rule_compilerP> &dag_comp,
                          const std::vector<digraph::vertexSet> &dag_sched,
@@ -224,7 +228,7 @@ namespace Loci {
     variable cond_var ;
   public:
     conditional_compiler(rulecomp_map &rp, digraph gin,
-                           variable conditional) ;
+                         variable conditional) ;
     virtual void set_var_existence(fact_db &facts) ;
     virtual void process_var_requests(fact_db &facts) ;
     virtual executeP create_execution_schedule(fact_db &facts) ;
@@ -296,7 +300,9 @@ namespace Loci {
   class execute_comm : public execute_modules {
     std::vector<std::pair<int,std::vector<send_var_info> > > send_info ;
     std::vector<std::pair<int,std::vector<recv_var_info> > > recv_info ;
-    int *maxr_size, *maxs_size, *r_size, *s_size ;
+    std::vector<std::vector<storeRepP> > send_vars ;
+    std::vector<std::vector<storeRepP> > recv_vars ;
+    int *maxr_size, *maxs_size, *r_size, *s_size, *recv_sizes ;
     unsigned char **recv_ptr , **send_ptr ;
     MPI_Request *request;
     MPI_Status *status ;
@@ -308,6 +314,6 @@ namespace Loci {
   } ; 
 
 
- }
+}
 
 #endif

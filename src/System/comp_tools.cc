@@ -285,7 +285,7 @@ namespace Loci {
 	 
        if(vi->get_info().name == string("OUTPUT")) 
          facts.variable_request(*vi,facts.variable_existence(*vi)) ;
-	 
+       
        // Now fill tvarmap with the requested values for variable *vi
        tvarmap[*vi] = facts.get_variable_request(r,*vi) ;
        //cout << d->myid << "    variable  =  "<< *vi << "   tvarmap  =  " <<
@@ -324,7 +324,7 @@ namespace Loci {
          }
        }
      }
-
+     
      // Unit rules need to apply in the clone region as well, so
      // here we make an exception for unit rules.  (this is because
      // we will be reducing to the clone region and then communicating
@@ -390,10 +390,10 @@ namespace Loci {
       if(d->xmit.size() > 0) {
         recv_buffer = new int*[d->xmit.size()] ;
         recv_size = new int[d->xmit.size()] ;
-
+	
         recv_buffer[0] = new int[d->xmit_total_size*sesz+sesz*d->xmit.size()] ;
         recv_size[0] = d->xmit[0].size*sesz + sesz ;
-
+	
         for(int i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+recv_size[i-1] ;
           recv_size[i] = d->xmit[i].size*sesz+sesz ;
@@ -438,7 +438,7 @@ namespace Loci {
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
                  2,MPI_COMM_WORLD) ;
       }
-
+      
       if(d->xmit.size() > 0) {
 	int err = MPI_Waitall(d->xmit.size(), recv_request, status) ;
         FATAL(err != MPI_SUCCESS) ;
@@ -777,11 +777,17 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         ii!=send_procs.end();
         ++ii) {
       send_info.push_back(make_pair(*ii,send_data[*ii])) ;
+      send_vars.push_back(std::vector<storeRepP>()) ; 
+      for(int i=0;i<send_data[*ii].size();++i) 
+        send_vars.back().push_back(facts.get_variable(send_data[*ii][i].v)) ; 
     }
     for(intervalSet::const_iterator ii=recv_procs.begin();
         ii!=recv_procs.end();
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
+      recv_vars.push_back(std::vector<storeRepP>()) ; 
+      for(int i=0;i<recv_data[*ii].size();++i) 
+        recv_vars.back().push_back(facts.get_variable(recv_data[*ii][i].v)) ; 
     }
 
     /* This part sets up the memory allocation needed for the execute routine. 
@@ -797,6 +803,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     int nsend = send_info.size() ;
     int nrecv = recv_info.size() ;
     r_size = new int[nrecv] ;
+    recv_sizes = new int[nrecv] ; 
     maxr_size = new int[nrecv] ; 
     maxs_size = new int[nsend] ;
     s_size = new int[nsend] ;
@@ -819,6 +826,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     delete [] maxr_size ;
     delete [] maxs_size ;
     delete [] r_size ;
+    delete [] recv_sizes ; 
     delete [] s_size ;
     delete [] recv_ptr ;
     delete [] send_ptr ;
@@ -826,35 +834,38 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     delete [] status ;
     
   }
+  
+  static unsigned char *recv_ptr_buf = 0; 
+  static int recv_ptr_buf_size = 0; 
+  static unsigned char *send_ptr_buf = 0 ; 
+  static int send_ptr_buf_size = 0 ; 
+  
   void execute_comm::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
     std::vector<int> send_index ;
     std::vector<int> recv_index ;
     int total_size = 0 ;
-    unsigned char *send_alloc, *recv_alloc ; 
     MPI_Request *re_request ;
     MPI_Status *re_status ;
     for(int i=0;i<nrecv;++i) {
-      r_size[i] = 0 ;
-      for(int j=0;j<recv_info[i].second.size();++j) {
-	storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
-	r_size[i] += sp->pack_size(entitySet((recv_info[i].second[j].seq))) ;
-
-#ifdef DEBUG
-        entitySet rem = entitySet((recv_info[i].second[j].seq)) - sp->domain() ;
-        if(rem != EMPTY)
-          debugout << "variable " << recv_info[i].second[j].v << " not allocated, but recving entities " << rem << endl ;
-#endif
-      }
-      if(r_size[i] > maxr_size[i])
-	maxr_size[i] = r_size[i] ;
-      else
-	r_size[i] = maxr_size[i] ;
-      total_size += r_size[i] ;
+      r_size[i] = maxr_size[i] ;
+      total_size += maxr_size[i] ;
     }
-    recv_ptr[0] = new unsigned char[total_size] ;
-    recv_alloc = recv_ptr[0] ;
+    /*
+      #ifdef DEBUG
+      entitySet rem = entitySet((recv_info[i].second[j].seq)) - sp->domain() ;
+      if(rem != EMPTY)
+      debugout << "variable " << recv_info[i].second[j].v << " not allocated, but recving entities " << rem << endl ;
+      #endif
+    */
+    if(recv_ptr_buf_size < total_size) { 
+      if(recv_ptr_buf) 
+        delete[] recv_ptr_buf ; 
+      recv_ptr_buf = new unsigned char[total_size] ; 
+      recv_ptr_buf_size = total_size ; 
+    } 
+    recv_ptr[0] = recv_ptr_buf ; 
     for(int i=1;i<nrecv;++i)
       recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
     
@@ -863,7 +874,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
     }
-
+    
     /*First we find out the size of the message we are trying to
       receive using the pack_size method associated with that
       container. For static containers pack_size returns the correct
@@ -883,26 +894,34 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     for(int i=0;i<nsend;++i) {
       s_size[i] = 0 ;
       for(int j=0;j<send_info[i].second.size();++j) {
-        storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
+        storeRepP sp = send_vars[i][j] ; //facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
+	/*
 #ifdef DEBUG
         entitySet rem = send_info[i].second[j].set - sp->domain() ;
         if(rem != EMPTY)
           debugout << "variable " << send_info[i].second[j].v << " not allocated, but sending for entities " << rem << endl ;
 #endif
+	*/
       }
       if((s_size[i] > maxs_size[i]) || (s_size[i] == sizeof(int))) {
-	maxs_size[i] = s_size[i] ;
+	if(s_size[i] > maxs_size[i])
+	  maxs_size[i] = s_size[i] ;
 	int proc = send_info[i].first ;
 	s_size[i] = sizeof(int) ;
 	resend_procs += proc ;
 	send_index.push_back(i) ;
       }
-      total_size += s_size[i] ;
+      total_size += maxs_size[i] ;
     }
-    
-    send_ptr[0] = new unsigned char[total_size] ;
-    send_alloc = send_ptr[0] ;
+    debugout << "resend_procs = " << resend_procs << endl ;
+    if(send_ptr_buf_size < total_size) { 
+      if(send_ptr_buf) 
+        delete[] send_ptr_buf ; 
+      send_ptr_buf = new unsigned char[total_size] ; 
+      send_ptr_buf_size = total_size ; 
+    } 
+    send_ptr[0] = send_ptr_buf ; 
     for(int i = 1; i < nsend; i++)
       send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
     
@@ -911,7 +930,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       int loc_pack = 0 ;
       if(!resend_procs.inSet(send_info[i].first)) {
 	for(int j=0;j<send_info[i].second.size();++j) {
-	  storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
+	  storeRepP sp = send_vars[i][j] ; //facts.get_variable(send_info[i].second[j].v) ;
 	  sp->pack(send_ptr[i], loc_pack,s_size[i],send_info[i].second[j].set);
 	}
       }
@@ -924,15 +943,14 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       MPI_Send(send_ptr[i],s_size[i],MPI_PACKED,proc,1,MPI_COMM_WORLD) ;
     }
     /* We receive a message from all the processors in the
-    neighbourhood. Whether the message needs to be received a second
-    time is determined from the size of the message received. If the
-    size of the message is equal to the size of an integer it is added
-    to the list to be received a second time(even if the sent value is
-    a store value or the size of the message to be received. */ 
+       neighbourhood. Whether the message needs to be received a second
+       time is determined from the size of the message received. If the
+       size of the message is equal to the size of an integer it is added
+       to the list to be received a second time(even if the sent value is
+       a store value or the size of the message to be received. */ 
     if(nrecv > 0) { 
       int err = MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
-      int *recv_sizes = new int[nrecv] ;
       for(int i = 0 ; i < nrecv; i++) {
 	MPI_Get_count(&status[i], MPI_BYTE, &recv_sizes[i]) ;  
 	if(recv_sizes[i] == sizeof(int)) {
@@ -940,23 +958,22 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  recv_index.push_back(i) ;
 	}
       }
-      delete [] recv_sizes ;
     }
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
       if(rerecv_procs.inSet(recv_info[i].first)) {
 	int temp ;
 	/*If the size of the message received is that of an integer
-	then we need to check whether it is greater than the maximum
-	size received so far from that processor. If it is not then
-	the maximum size is set to that value. */
+	  then we need to check whether it is greater than the maximum
+	  size received so far from that processor. If it is not then
+	  the maximum size is set to that value. */
 	MPI_Unpack(recv_ptr[i], r_size[i], &loc_unpack, &temp, sizeof(int), MPI_BYTE, MPI_COMM_WORLD) ;
 	if(temp > maxr_size[i])
 	  maxr_size[i] = temp ;
       }
       else
 	for(int j=0;j<recv_info[i].second.size();++j) {
-	  storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
+	  storeRepP sp = recv_vars[i][j] ; // facts.get_variable(recv_info[i].second[j].v) ;
 	  sp->unpack(recv_ptr[i], loc_unpack, r_size[i],
 		     recv_info[i].second[j].seq) ;
 	}
@@ -977,7 +994,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       int loc_pack = 0 ;
       send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
       for(int j=0;j<send_info[send_index[i]].second.size();++j) {
-        storeRepP sp = facts.get_variable(send_info[send_index[i]].second[j].v) ;
+        storeRepP sp = send_vars[send_index[i]][j] ; //facts.get_variable(send_info[send_index[i]].second[j].v) ;
 	sp->pack(send_ptr[send_index[i]], loc_pack,maxs_size[send_index[i]],send_info[send_index[i]].second[j].set);
       }
     }
@@ -995,15 +1012,13 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     for(int i=0;i<rerecv_size;++i) {
       int loc_unpack = 0;
       for(int j=0;j<recv_info[recv_index[i]].second.size();++j) {
-	storeRepP sp = facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
+	storeRepP sp = recv_vars[recv_index[i]][j] ; //facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
 	sp->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
 		   recv_info[recv_index[i]].second[j].seq) ;
       }
       delete [] recv_ptr[recv_index[i]] ;
     }
     
-    delete recv_alloc ;
-    delete send_alloc ;
     if(rerecv_size > 0) {
       delete [] re_status ;
       delete [] re_request ;

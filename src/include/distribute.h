@@ -29,9 +29,11 @@ namespace Loci {
 		       const std::set<std::vector<variableSet> > &maps) ;
   
   
-  void generate_distribution(fact_db &facts, rule_db &rdb,std::vector<std::vector<entitySet> > &get_entities ) ;
+  std::vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb) ;
   
-  void distribute_facts(std::vector<std::vector<entitySet> > &get_entities, fact_db &facts)   ;
+  void distribute_facts(std::vector<entitySet> &ptn, fact_db &facts,
+                        rule_db &rdb) ;
+  
   entitySet fill_entitySet(const entitySet& e, fact_db &facts) ;
   std::vector<entitySet> fill_entitySet(const std::vector<entitySet>& e,
                                         fact_db &facts) ;

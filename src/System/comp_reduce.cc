@@ -548,8 +548,10 @@ namespace Loci {
 class execute_comm_reduce : public execute_modules {
   vector<pair<int,vector<send_var_info> > > send_info ;
   vector<pair<int,vector<recv_var_info> > > recv_info ;
+  std::vector<std::vector<storeRepP> > send_vars ; 
+  std::vector<std::vector<storeRepP> > recv_vars ; 
   CPTR<joiner> join_op ;
-  int *maxr_size, *maxs_size, *r_size, *s_size ;
+  int *maxr_size, *maxs_size, *r_size, *s_size, *recv_sizes ;
   unsigned char **recv_ptr , **send_ptr ;
   MPI_Request *request;
   MPI_Status *status ;
@@ -589,16 +591,24 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
         ii!=send_procs.end();
         ++ii) {
       send_info.push_back(make_pair(*ii,send_data[*ii])) ;
+      send_vars.push_back(std::vector<storeRepP>()) ; 
+      for(int i=0;i<send_data[*ii].size();++i) 
+        send_vars.back().push_back(facts.get_variable(send_data[*ii][i].v)) ; 
     }
+    
     for(intervalSet::const_iterator ii=recv_procs.begin();
         ii!=recv_procs.end();
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
+      recv_vars.push_back(std::vector<storeRepP>()) ; 
+      for(int i=0;i<recv_data[*ii].size();++i) 
+        recv_vars.back().push_back(facts.get_variable(recv_data[*ii][i].v)) ; 
     }
     
     int nsend = send_info.size() ;
     int nrecv = recv_info.size() ;
     r_size = new int[nrecv] ;
+    recv_sizes = new int[nrecv] ; 
     maxr_size = new int[nrecv] ; 
     maxs_size = new int[nsend] ;
     s_size = new int[nsend] ;
@@ -619,6 +629,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
   execute_comm_reduce::~execute_comm_reduce() {
     delete [] maxr_size ;
     delete [] maxs_size ;
+    delete [] recv_sizes ; 
     delete [] r_size ;
     delete [] s_size ;
     delete [] recv_ptr ;
@@ -626,34 +637,38 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     delete [] request ;
     delete [] status ;
   }
+  static unsigned char *recv_ptr_buf = 0; 
+  static int recv_ptr_buf_size = 0; 
+  static unsigned char *send_ptr_buf = 0 ; 
+  static int send_ptr_buf_size = 0 ; 
+  
+  
   void execute_comm_reduce::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
     std::vector<int> send_index ;
     std::vector<int> recv_index ; 
     int total_size = 0 ;
-    unsigned char *send_alloc, *recv_alloc ; 
     MPI_Request *re_request ;
     MPI_Status *re_status ;
     for(int i=0;i<nrecv;++i) {
-      r_size[i] = 0 ;
-      for(int j=0;j<recv_info[i].second.size();++j) {
-	storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
-	r_size[i] += sp->pack_size(entitySet((recv_info[i].second[j].seq))) ;
-#ifdef DEBUG
-        entitySet rem = entitySet((recv_info[i].second[j].seq)) - sp->domain() ;
-        if(rem != EMPTY)
-          debugout << "variable " << recv_info[i].second[j].v << " not allocated, but recving for reduce entities " << rem << endl ;
-#endif
-      }
-      if(r_size[i] > maxr_size[i])
-	maxr_size[i] = r_size[i] ;
-      else
-	r_size[i] = maxr_size[i] ;
-      total_size += r_size[i] ;
+      r_size[i] = maxr_size[i] ;
+      total_size += maxr_size[i] ;
     }
-    recv_ptr[0] = new unsigned char[total_size] ;
-    recv_alloc = recv_ptr[0] ; 
+    /*
+      #ifdef DEBUG
+      entitySet rem = entitySet((recv_info[i].second[j].seq)) - sp->domain() ;
+      if(rem != EMPTY)
+      debugout << "variable " << recv_info[i].second[j].v << " not allocated, but recving for reduce entities " << rem << endl ;
+      #endif
+    */
+    if(recv_ptr_buf_size < total_size) { 
+      if(recv_ptr_buf) 
+        delete[] recv_ptr_buf ; 
+      recv_ptr_buf = new unsigned char[total_size] ; 
+      recv_ptr_buf_size = total_size ; 
+    } 
+    recv_ptr[0] = recv_ptr_buf ; 
     for(int i=1;i<nrecv;++i)
       recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
     
@@ -670,23 +685,31 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       for(int j=0;j<send_info[i].second.size();++j) {
         storeRepP sp = facts.get_variable(send_info[i].second[j].v) ;
         s_size[i] += sp->pack_size(send_info[i].second[j].set) ;
-#ifdef DEBUG
-        entitySet rem = send_info[i].second[j].set - sp->domain() ;
-        if(rem != EMPTY)
+	/*
+	  #ifdef DEBUG
+	  entitySet rem = send_info[i].second[j].set - sp->domain() ;
+	  if(rem != EMPTY)
           debugout << "variable " << send_info[i].second[j].v << " not allocated, but sending for reduce entities " << rem << endl ;
-#endif
+	  #endif
+	*/
       }
       if((s_size[i] > maxs_size[i]) || ( s_size[i] == sizeof(int))) {
-	maxs_size[i] = s_size[i] ;
+	if(s_size[i] > maxs_size[i])
+	  maxs_size[i] = s_size[i] ;
 	int proc = send_info[i].first ;
 	s_size[i] = sizeof(int) ;
 	resend_procs += proc ;
 	send_index.push_back(i) ;
       }
-      total_size += s_size[i] ;
+      total_size += maxs_size[i] ;
     }
-    send_ptr[0] = new unsigned char[total_size] ;
-    send_alloc = send_ptr[0] ;
+    if(send_ptr_buf_size < total_size) { 
+      if(send_ptr_buf) 
+        delete[] send_ptr_buf ; 
+      send_ptr_buf = new unsigned char[total_size] ; 
+      send_ptr_buf_size = total_size ; 
+    } 
+    send_ptr[0] = send_ptr_buf ; 
     for(int i = 1; i < nsend; i++)
       send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
     // Pack the buffer for sending 
@@ -731,7 +754,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       else
 	for(int j=0;j<recv_info[i].second.size();++j) {
 	  storeRepP sp = facts.get_variable(recv_info[i].second[j].v) ;
-
+	  
 	  storeRepP sr = sp->new_store(EMPTY) ;
 	  sr->allocate(entitySet(recv_info[i].second[j].seq)) ;
           
@@ -781,7 +804,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
         storeRepP sp = facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
 	storeRepP sr = sp->new_store(EMPTY) ;
 	sr->allocate(entitySet(recv_info[recv_index[i]].second[j].seq)) ;
-
+	
 	sr->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
 		   recv_info[recv_index[i]].second[j].seq) ;
 	
@@ -791,8 +814,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       }
       delete [] recv_ptr[recv_index[i]] ;
     }
-    delete recv_alloc ;
-    delete send_alloc ;
     if(rerecv_size > 0) {
       delete [] re_status ;
       delete [] re_request ;
