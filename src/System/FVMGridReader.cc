@@ -658,7 +658,7 @@ namespace Loci {
     } ENDFORALL ;
     FORALL(boundary_cells, ei) {
       identity_map[ei] = ei ;
-    } ENDFORALL ;
+    } ENDFORALL ; 
     
     pos = t_pos.Rep()->remap(identity_map);
     cl = tmp_cl.Rep()->remap(identity_map);
@@ -777,7 +777,17 @@ namespace Loci {
 	remap[*ei] = li ;
 	++ei ;
       } ENDFORALL ;
-      
+
+      ei = naive_loc_faces.begin() ;
+      FORALL(faces, li) {
+	remap[*ei] = li ;
+	++ei ;
+      } ENDFORALL ;
+
+      FORALL(local_boundary_cells, li) {
+	remap[li] = li;
+      } ENDFORALL ;
+
       df->remap = remap ;
 
       facts.put_distribute_info(df) ;
