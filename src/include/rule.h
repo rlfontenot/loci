@@ -54,7 +54,7 @@ namespace Loci {
 
     void base_copy(const rule_impl &f) {
       rule_impl_class = f.rule_impl_class ;
-      name = f.name ;
+      name = f.get_name() ;
       rule_info = f.rule_info ;
       var_table = f.var_table ;
     }
