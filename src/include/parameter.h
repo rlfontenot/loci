@@ -382,6 +382,11 @@ namespace Loci {
   //****************************************************************************
 
   template <class T> 
+  void paramRepI<T> :: hdf5write( H5::Group group, DEFAULT_CONVERTER g,
+                                  const entitySet &eset ) const
+  {}
+  
+  template <class T> 
   void paramRepI<T> :: hdf5write( H5::Group group, IDENTITY_CONVERTER g,
                                   const entitySet &eset ) const
   {
