@@ -341,7 +341,7 @@ namespace Loci {
   public:
     MapVec() { setRep(new MapVecType) ; }
     MapVec(const MapVec<M> &var) { setRep(var.Rep()) ; }
-    MapVec(storeRepP &rp) { setRep(rp) ; }
+    MapVec(storeRepP rp) { setRep(rp) ; }
 
     virtual ~MapVec() ;
 
@@ -400,7 +400,7 @@ namespace Loci {
     const_MapVec() { setRep(new MapVecType) ; }
     const_MapVec(const const_MapVec<M> &var) { setRep(var.Rep()) ; } 
     const_MapVec(const MapVec<M> &var) { setRep(var.Rep()) ; }
-    const_MapVec(storeRepP &rp) { setRep(rp) ; }
+    const_MapVec(storeRepP rp) { setRep(rp) ; }
 
     virtual ~const_MapVec() ;
 

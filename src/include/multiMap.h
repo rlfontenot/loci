@@ -128,7 +128,7 @@ namespace Loci {
     
     const_multiMap(multiMap &var) { setRep(var.Rep()) ; }
     
-    const_multiMap(storeRepP &rp) { setRep(rp) ; }
+    const_multiMap(storeRepP rp) { setRep(rp) ; }
     
     virtual ~const_multiMap() ;
     virtual void notification() ;

@@ -54,7 +54,7 @@ namespace Loci {
   public:
     Map() { setRep(new MapType) ;}
     Map(const Map &var) { setRep(var.Rep()) ; }
-    Map(storeRepP &rp) { setRep(rp) ; }
+    Map(storeRepP rp) { setRep(rp) ; }
 
     virtual ~Map() ;
 
@@ -110,7 +110,7 @@ namespace Loci {
     { setRep(new MapType); }
     const_Map(const const_Map &var) {setRep(var.Rep()) ; }
     const_Map(const Map &var) {setRep(var.Rep()); }
-    const_Map(storeRepP &rp) { setRep(rp) ; }
+    const_Map(storeRepP rp) { setRep(rp) ; }
     
     virtual ~const_Map() ;
     virtual void notification() ;

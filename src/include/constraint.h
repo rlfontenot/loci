@@ -45,7 +45,7 @@ namespace Loci {
     constraint() ;
     constraint(constraint &var) ;
     constraint(const entitySet &ptn) ;
-    constraint(storeRepP &rp) { setRep(rp) ; }
+    constraint(storeRepP rp) { setRep(rp) ; }
     virtual ~constraint() ;
 
     constraint & operator=(constraint &p)

@@ -91,7 +91,7 @@ namespace Loci {
     typedef Vect<T> containerType ;
     multiStore() {setRep(new storeType) ;}
     multiStore(multiStore<T> &var) {setRep(var.Rep()) ;}
-    multiStore(storeRepP &rp) { setRep(rp) ;}
+    multiStore(storeRepP rp) { setRep(rp) ;}
     
     virtual ~multiStore() ;
     virtual void notification() ;
@@ -184,7 +184,7 @@ namespace Loci {
     typedef const_Vect<T> containerType ;
     const_multiStore() {setRep(new storeType) ;}
     const_multiStore(const_multiStore<T> &var) {setRep(var.Rep()) ;}
-    const_multiStore(storeRepP &rp) { setRep(rp) ;}
+    const_multiStore(storeRepP rp) { setRep(rp) ;}
     
     virtual ~const_multiStore() ;
     virtual void notification() ;

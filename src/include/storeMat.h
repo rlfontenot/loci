@@ -25,7 +25,7 @@ namespace Loci {
     typedef Mat<T> containerType ;
     storeMat() {setRep(new storeType) ;}
     storeMat(storeMat &var) {setRep(var.Rep()) ; }
-    storeMat(storeRepP &rp) {setRep(rp) ; }
+    storeMat(storeRepP rp) {setRep(rp) ; }
 
     virtual ~storeMat() ;
     virtual void notification() ;
@@ -106,7 +106,7 @@ namespace Loci {
 
     const_storeMat(const_storeMat<T> &var) { setRep(var.Rep()) ; }
     const_storeMat(storeMat<T> &var) { setRep(var.Rep()) ; }
-    const_storeMat(storeRepP &rp) { setRep(rp) ; }
+    const_storeMat(storeRepP rp) { setRep(rp) ; }
     
     virtual ~const_storeMat() ;
     virtual void notification() ;

@@ -174,7 +174,7 @@ namespace Loci {
     typedef T containerType ;
     store() { setRep(new storeType); }
     store(store &var) { setRep(var.Rep()) ; }
-    store(storeRepP &rp) { setRep(rp) ; }
+    store(storeRepP rp) { setRep(rp) ; }
     
     virtual ~store() ;
     virtual void notification() ;
@@ -235,7 +235,7 @@ namespace Loci {
     const_store() { setRep(new storeType) ; }
     const_store(store<T> &var) { setRep(var.Rep()) ; }
     const_store(const_store &var) { setRep(var.Rep()) ; }
-    const_store(storeRepP &rp) { setRep(rp) ; }
+    const_store(storeRepP rp) { setRep(rp) ; }
 
     virtual ~const_store() ;
     virtual void notification() ;

@@ -172,7 +172,7 @@ namespace Loci {
     typedef T containerType ;
     param() { setRep(new paramType) ; }
     param(param &var) { setRep(var.Rep()) ; }
-    param(storeRepP &rp) { setRep(rp); }
+    param(storeRepP rp) { setRep(rp); }
 
     virtual ~param() ;
 
@@ -251,7 +251,7 @@ namespace Loci {
     const_param() { setRep(new paramType) ; }
     const_param(const_param<T> &var) { setRep(var.Rep()) ; }
     const_param(param<T> &var) { setRep(var.Rep()) ; }
-    const_param(storeRepP &rp) { setRep(rp); }
+    const_param(storeRepP rp) { setRep(rp); }
     
     virtual ~const_param() ;
 

@@ -159,6 +159,10 @@ namespace Loci {
       { update_fact(v,si.Rep()) ; si.setRep(get_variable(v)) ; }
     void update_fact(std::string vname, store_instance &si)
       { update_fact(variable(vname),si) ; }
+
+    storeRepP get_fact(variable &v) { return get_variable(v); }
+    storeRepP get_fact(std::string vname)
+      { return get_variable(variable(vname)) ; }
     
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname,const storeRepP st)
