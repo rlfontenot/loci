@@ -55,6 +55,9 @@ namespace Loci {
     vmap_type vmap ;
     std::vector<sched_data> sched_infov ;
     intervalSet free_set ;
+
+    bool detected_errors ;
+    
     variable remove_synonym(variable v) const {
       std::map<variable,variable>::const_iterator mi ;
       if((mi=synonyms.find(v)) != synonyms.end()) 
@@ -64,7 +67,12 @@ namespace Loci {
   public:
     sched_db() ;
     ~sched_db() ;
-    sched_db(fact_db &facts) ; 
+    sched_db(fact_db &facts) ;
+
+    bool errors_found() {return detected_errors ;}
+    void clear_errors() {detected_errors = false ;}
+    void set_error() { detected_errors = true ; }
+    
     void install_sched_data(variable v, sched_data data) ;
     void install_sched_info(variable v, sched_info info) ;
     
