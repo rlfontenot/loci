@@ -21,6 +21,7 @@ namespace Loci {
     virtual ~constraintRep() ;
     virtual void allocate(const entitySet &p) ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,

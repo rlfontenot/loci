@@ -57,6 +57,7 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~dstoreRepI()  ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
@@ -172,9 +173,15 @@ namespace Loci {
   {
     return new dstoreRepI<T>(p) ;
   }
-
+  template<class T>
+  storeRep *dstoreRepI<T>::new_store(const entitySet &p, const int* cnt) const 
+    {
+      storeRep* sp ;
+      cerr << " This method should not be called for a dstore " << endl ;
+      return sp ;
+    }
   //*************************************************************************/
-
+  
   template<class T> 
   store_type dstoreRepI<T>::RepType() const 
   {

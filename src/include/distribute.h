@@ -75,6 +75,7 @@ namespace Loci {
   
   void write_container(hid_t group_id, const char* name,  storeRepP qrep) ;
   void read_container(hid_t group_id, const char* name,  storeRepP qrep) ;
+  void read_multi_vector_int(hid_t group_id, const char* name, int dim,  std::vector<int>& vint) ;
   void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint) ;
   void write_vector_int(hid_t group_id, const char* name, std::vector<int>& vint) ;
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) ;

@@ -70,6 +70,7 @@ namespace Loci {
     virtual ~multiStoreRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
@@ -459,7 +460,16 @@ namespace Loci {
     
     return new multiStoreRepI<T>(count) ;
   }
-
+  template<class T> 
+    storeRep *multiStoreRepI<T>::new_store(const entitySet &p, const int* cnt) const {
+    store<int> count ;
+    count.allocate(p) ;
+    int t= 0 ;
+    FORALL(p, pi) {
+      count[pi] = cnt[t++] ; 
+    } ENDFORALL ;
+    return new multiStoreRepI<T>(count) ;
+  }
   //*************************************************************************/
 
   template<class T> 
@@ -971,7 +981,7 @@ namespace Loci {
   }
   template<class T> 
     frame_info multiStoreRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
-      hid_t datatype = H5T_NATIVE_INT ;
+    hid_t datatype = H5T_NATIVE_INT ;
     hid_t dataset ;
     int is_stat = 0 ;
     int sz = 0 ;
@@ -991,7 +1001,11 @@ namespace Loci {
     fi.is_stat = dim[0] ;
     fi.size = dim[1] ;
     read_vector_int(group_id, "first_level", fi.first_level) ;
-    read_vector_int(group_id, "second_level", fi.second_level) ;
+    int total_size = fi.first_level.size() ;
+    int dims = 0 ;
+    for(int i = 0; i < total_size; ++i)
+      dims += (fi.first_level)[i] ;
+    read_multi_vector_int(group_id, "second_level", dims, fi.second_level) ;
     return fi ;
   }
   

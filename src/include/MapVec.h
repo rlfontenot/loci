@@ -32,6 +32,7 @@ namespace Loci {
     virtual void allocate(const entitySet &ptn) ;
     virtual ~MapVecRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
     virtual void compose(const dMap &m, const entitySet &context) ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
@@ -107,7 +108,11 @@ namespace Loci {
   template<int M> storeRep *MapVecRepI<M>::new_store(const entitySet &p) const {
     return new MapVecRepI<M>(p) ;
   }
-
+  template<int M> storeRep *MapVecRepI<M>::new_store(const entitySet &p, const int* cnt) const {
+    storeRep* sp ;
+    cerr << " This method should not be called for a MapVec " << endl ;
+    return sp ;
+  }
   //*************************************************************************/
 
   template<int M> entitySet MapVecRepI<M>::domain() const {

@@ -73,6 +73,7 @@ namespace Loci {
     virtual void allocate(const entitySet &p) = 0 ;
     virtual void set_elem_size(int sz) ;
     virtual storeRep *new_store(const entitySet &p) const = 0 ;
+    virtual storeRep *new_store(const entitySet &p, const int* cnt) const = 0 ;
     virtual storeRepP remap(const dMap &m) const = 0 ;
     virtual void copy(storeRepP &st, const entitySet &context) = 0 ;
     virtual void gather(const dMap &m, storeRepP &st,
@@ -126,7 +127,7 @@ namespace Loci {
 
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
-
+    virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,

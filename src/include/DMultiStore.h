@@ -67,13 +67,10 @@ namespace Loci {
 
     //  Member function ...
     void allocate(const store<int> &sizes) ;
-
     virtual void allocate(const entitySet &ptn) ;
-
     virtual storeRep *new_store(const entitySet &p) const ;
-
+    virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
-
     virtual void copy(storeRepP &st, const entitySet &context) ;
 
     virtual void gather(const dMap &m, storeRepP &st,
@@ -296,9 +293,19 @@ namespace Loci {
   {
     return new dmultiStoreRepI<T>(p) ;
   }
-
+  template<class T> 
+    storeRep *dmultiStoreRepI<T>::new_store(const entitySet &p, const int* cnt) const 
+    {
+      store<int> count ;
+      count.allocate(p) ;
+      int t= 0 ;
+      FORALL(p, pi) {
+	count[pi] = cnt[t++] ; 
+      } ENDFORALL ;
+      return new dmultiStoreRepI<T>(count) ;
+    }
   //**************************************************************************/
-
+  
   template<class T> 
   storeRepP dmultiStoreRepI<T>::remap(const dMap &m) const {
     

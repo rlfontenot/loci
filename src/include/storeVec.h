@@ -234,6 +234,7 @@ namespace Loci {
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRep *new_store(const entitySet &eset, const int* p) const ;
     virtual storeRepP remap(const dMap &m) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
@@ -434,6 +435,14 @@ namespace Loci {
     sp->set_elem_size(size) ;
     return sp ;
   }
+  
+  template<class T>
+  storeRep *storeVecRepI<T>::new_store(const entitySet &p, const int* cnt) const 
+    {
+      storeRep* sp ;
+      cerr << " This method should not be called for a storeVec " << endl ;
+      return sp ;
+    }
 
   //*******************************************************************/
 
