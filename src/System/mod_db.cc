@@ -1,5 +1,7 @@
 #include <mod_db.h>
 #include <iostream>
+#include <distribute.h>
+//#define VERBOSE
 namespace Loci {
   using std::cout ;
   std::string remove_space(const std::string &str){
@@ -76,7 +78,11 @@ namespace Loci {
     tmp_str.append(str) ;
     tmp_str.append("_m.so") ;
     std::vector<std::string> default_ns_vec ;
-    
+
+#ifdef VERBOSE
+    debugout << "get_info("<< str << ","<<to_str<<","<< problem_name<<")"
+             << endl ;
+#endif
     if((msi = mod_map.find(tmp_str)) == mod_map.end()) {
       default_ns_vec.push_back(str) ;
       if(Loci::MPI_rank == 0)
@@ -91,21 +97,8 @@ namespace Loci {
 	    cerr << "reason for failure is " << error << endl ;
 	exit(-1) ;
       }
-      md.m_init_model = (void (*)(fact_db &facts, const char *problem_name))
+      md.m_init_model = (void (*)(fact_db &, const char *))
 	dlsym(md.m_library,"init_model") ;
-      if(md.m_init_model != 0) {
-	if(!to_str.empty()) {
-	  size_t tmp = 0 ;
-	  std::string sub_str = to_str ;
-	  while(tmp != std::string::npos) {
-	    tmp = sub_str.find("_") ;
-	    facts.set_namespace(sub_str.substr(0,tmp)) ;
-	    sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
-	  }
-	}
-	md.m_init_model(facts,problem_name) ;
-	facts.unset_namespace() ;
-      }
       md.loaded_rule_list.copy_rule_list(register_rule_list) ;
       md.mod_name = tmp_str ;
       register_rule_list.clear() ;
@@ -118,6 +111,10 @@ namespace Loci {
   mod::mod_db *mod::mdb = 0 ;
   
   void load_module(const std::string from_str, const std::string to_str, rule_db& rdb, std::set<std::string> &str_set) {
+#ifdef VERBOSE
+    debugout << "Calling load_module with " << from_str
+             << "," << to_str << endl ;
+#endif
     std::vector<std::string> using_ns_vec ;
     str_set.insert(from_str) ;
     mod md(from_str) ;
@@ -164,9 +161,16 @@ namespace Loci {
   }
   
   void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) {
+#ifdef VERBOSE
+    debugout << "load_module using " << from_str << "," << to_str
+             << "," << problem_name << endl ;
+#endif
     str_set.insert(from_str) ;
     mod md(from_str, to_str, problem_name, facts) ;
     mod::mod_info m = md.get_info(from_str, to_str, problem_name, facts) ;
+#ifdef VERBOSE
+    debugout << "after get_info" << endl ;
+#endif
     variableSet input_vars, output_vars ;
     std::vector<std::string> using_ns_vec ;
     
@@ -217,6 +221,19 @@ namespace Loci {
 	}
       }
     }
-    
+    if(m.m_init_model != 0) {
+      if(!to_str.empty()) {
+        size_t tmp = 0 ;
+        std::string sub_str = to_str ;
+        while(tmp != std::string::npos) {
+          tmp = sub_str.find("_") ;
+          facts.set_namespace(sub_str.substr(0,tmp)) ;
+          sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
+        }
+      }
+      m.m_init_model(facts,problem_name) ;
+      facts.unset_namespace() ;
+    }
+
   }	 
 }
