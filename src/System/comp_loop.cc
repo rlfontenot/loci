@@ -39,6 +39,8 @@ namespace Loci {
     param<int> time_var ;
     time_var = facts.get_variable(tvar) ;
     // Start iteration by setting iteration variable to zero 
+
+
     *time_var = 0 ;
 
     for(;;) { // Begin looping
@@ -248,6 +250,17 @@ namespace Loci {
 
     for(ri=collapse_comp.rbegin();ri!=collapse_comp.rend();++ri)
       (*ri)->process_var_requests(facts, scheds) ;
+
+    // spread requests over all time iterations
+    list<list<variable> >::const_iterator rli ;
+    for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli) {
+      list<variable>::const_iterator li ;
+      entitySet tot_request ;
+      for(li=rli->begin();li!=rli->end();++li)
+        tot_request += scheds.variable_existence(*li) ;
+      for(li=rli->begin();li!=rli->end();++li)
+        scheds.variable_request(*li,tot_request) ;
+    }
     
   }
   
