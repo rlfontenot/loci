@@ -108,10 +108,12 @@ namespace Loci {
     if(total_domain == EMPTY)
       return ;
 
+    /*
     st = MPI_Wtime() ;
     Loci::debugout << "Time passed since last chomping execution = "
                    << st-et << " seconds " << endl ;
-    st = MPI_Wtime() ;
+                   st = MPI_Wtime() ;
+    */
 
     {
       entitySet first_alloc =
@@ -148,9 +150,11 @@ namespace Loci {
         vi!=chomp_vars_rep.end();++vi)
       (*vi)->allocate(EMPTY) ;
 
+    /*
     et = MPI_Wtime() ;
     Loci::debugout << "\tTime taken for chomping execution = "
-                   << et-st << " seconds " << endl ;
+    << et-st << " seconds " << endl ;
+    */
   }
 
   void execute_chomp::Print(std::ostream& s) const {
