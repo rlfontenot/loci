@@ -352,61 +352,6 @@ namespace Loci {
   template<int M> storeRep *MapVecRepI<M>::new_store(const entitySet &p) const {
     return new MapVecRepI<M>(p) ;
   }
-  template<int M> storeRepP MapVecRepI<M>::remap(const Map &m) const {
-    entitySet newdomain = m.domain() & domain() ;
-    std::pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
-    newdomain &= mappimage.first ;
-    entitySet mapimage = m.image(newdomain) ;
-    MapVec<M> s ;
-    s.allocate(mapimage) ;
-    storeRepP my_store = getRep() ;
-      
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    MapRepP(s.Rep())->compose(m,mapimage) ;
-    
-    return s.Rep() ;
-  }
-  template<int M> void MapVecRepI<M>::compose(const Map &m,
-                                              const entitySet &context)  {
-    fatal((context-store_domain) != EMPTY) ;
-    fatal((image(context)-m.domain()) != EMPTY) ;
-    FORALL(context,i) {
-      for(int j=0;j<M;++j)
-        base_ptr[i][j] = m[base_ptr[i][j]] ;
-    } ENDFORALL ;
-  }
-  template<int M> void MapVecRepI<M>::copy(storeRepP &st,
-                                           const entitySet &context)  {
-    const_MapVec<M> s(st) ;
-    fatal((context-domain()) != EMPTY) ;
-    fatal((context-s.domain()) != EMPTY) ;
-    FORALL(context,i) {
-      for(int j=0;j<M;++j)
-        base_ptr[i][j] = s[i][j] ;
-    } ENDFORALL ;
-  }
-  template<int M> void MapVecRepI<M>::gather(const Map &m, storeRepP &st,
-                                           const entitySet &context)  {
-    const_MapVec<M> s(st) ;
-    fatal(base_ptr == 0) ;
-    fatal((m.image(context) - s.domain()) != EMPTY) ;
-    fatal((context - domain()) != EMPTY) ;
-    FORALL(context,i) {
-      for(int j=0;j<M;++j)
-        base_ptr[i][j] = s[m[i]][j] ;
-    } ENDFORALL ;
-  }
-  template<int M> void MapVecRepI<M>::scatter(const Map &m, storeRepP &st,
-                                           const entitySet &context)  {
-    const_MapVec<M> s(st) ;
-    fatal(base_ptr == 0) ;
-    fatal((context - s.domain()) != EMPTY) ;
-    fatal((m.image(context) - domain()) != EMPTY) ;
-    FORALL(context,i) {
-      for(int j=0;j<M;++j)
-        base_ptr[m[i]][j] = s[i][j] ;
-    } ENDFORALL ;
-  }
 
   template<int M> const entitySet &MapVecRepI<M>::domain() const {
     return store_domain ;
@@ -588,6 +533,61 @@ namespace Loci {
     return m.Print(s) ;
   }
     
+  template<int M> storeRepP MapVecRepI<M>::remap(const Map &m) const {
+    entitySet newdomain = m.domain() & domain() ;
+    std::pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    newdomain &= mappimage.first ;
+    entitySet mapimage = m.image(newdomain) ;
+    MapVec<M> s ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+      
+    s.Rep()->scatter(m,my_store,newdomain) ;
+    MapRepP(s.Rep())->compose(m,mapimage) ;
+    
+    return s.Rep() ;
+  }
+  template<int M> void MapVecRepI<M>::compose(const Map &m,
+                                              const entitySet &context)  {
+    fatal((context-store_domain) != EMPTY) ;
+    fatal((image(context)-m.domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int j=0;j<M;++j)
+        base_ptr[i][j] = m[base_ptr[i][j]] ;
+    } ENDFORALL ;
+  }
+  template<int M> void MapVecRepI<M>::copy(storeRepP &st,
+                                           const entitySet &context)  {
+    const_MapVec<M> s(st) ;
+    fatal((context-domain()) != EMPTY) ;
+    fatal((context-s.domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int j=0;j<M;++j)
+        base_ptr[i][j] = s[i][j] ;
+    } ENDFORALL ;
+  }
+  template<int M> void MapVecRepI<M>::gather(const Map &m, storeRepP &st,
+                                           const entitySet &context)  {
+    const_MapVec<M> s(st) ;
+    fatal(base_ptr == 0) ;
+    fatal((m.image(context) - s.domain()) != EMPTY) ;
+    fatal((context - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int j=0;j<M;++j)
+        base_ptr[i][j] = s[m[i]][j] ;
+    } ENDFORALL ;
+  }
+  template<int M> void MapVecRepI<M>::scatter(const Map &m, storeRepP &st,
+                                           const entitySet &context)  {
+    const_MapVec<M> s(st) ;
+    fatal(base_ptr == 0) ;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((m.image(context) - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      for(int j=0;j<M;++j)
+        base_ptr[m[i]][j] = s[i][j] ;
+    } ENDFORALL ;
+  }
 
   class multiMapRepI : public MapRep {
     entitySet store_domain ;

@@ -119,47 +119,6 @@ namespace Loci {
     return new storeRepI<T>(p)  ;
   }
 
-  template<class T> storeRepP storeRepI<T>::remap(const Map &m) const {
-    entitySet newdomain = m.domain() & domain() ;
-    entitySet mapimage = m.image(newdomain) ;
-    store<T> s ;
-    s.allocate(mapimage) ;
-    storeRepP my_store = getRep() ;
-      
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    return s.Rep() ;
-  }
-
-  template<class T> void storeRepI<T>::copy(storeRepP &st, const entitySet &context)  {
-    const_store<T> s(st) ;
-    fatal((context != EMPTY) && (base_ptr ==0)) ;
-    fatal((context-domain()) != EMPTY) ;
-    FORALL(context,i) {
-      base_ptr[i] = s[i] ;
-    } ENDFORALL ;
-  }
-  template<class T> void storeRepI<T>::gather(const Map &m, storeRepP &st,
-                                              const entitySet &context) {
-    const_store<T> s(st) ;
-    fatal((context != EMPTY) && (base_ptr == 0)) ;
-    fatal((m.image(context) - s.domain()) != EMPTY) ;
-    fatal((context - domain()) != EMPTY) ;
-    FORALL(context,i) {
-      base_ptr[i] = s[m[i]] ;
-    } ENDFORALL ;
-  }
-
-  template<class T> void storeRepI<T>::scatter(const Map &m, storeRepP &st,
-                                              const entitySet &context) {
-    const_store<T> s(st) ;
-    fatal((context != EMPTY) && (base_ptr == 0)) ;
-    fatal((context - s.domain()) != EMPTY) ;
-    fatal((m.image(context) - domain()) != EMPTY) ;
-    FORALL(context,i) {
-      base_ptr[m[i]] = s[i] ;
-    } ENDFORALL ;
-  }
-  
   template<class T> store_type storeRepI<T>::RepType() const {
     return STORE ;
   }
@@ -281,6 +240,47 @@ namespace Loci {
   template<class T> store_instance::instance_type
     const_store<T>::access() const { return READ_ONLY; }
         
+  template<class T> storeRepP storeRepI<T>::remap(const Map &m) const {
+    entitySet newdomain = m.domain() & domain() ;
+    entitySet mapimage = m.image(newdomain) ;
+    store<T> s ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+      
+    s.Rep()->scatter(m,my_store,newdomain) ;
+    return s.Rep() ;
+  }
+
+  template<class T> void storeRepI<T>::copy(storeRepP &st, const entitySet &context)  {
+    const_store<T> s(st) ;
+    fatal((context != EMPTY) && (base_ptr ==0)) ;
+    fatal((context-domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[i] = s[i] ;
+    } ENDFORALL ;
+  }
+  template<class T> void storeRepI<T>::gather(const Map &m, storeRepP &st,
+                                              const entitySet &context) {
+    const_store<T> s(st) ;
+    fatal((context != EMPTY) && (base_ptr == 0)) ;
+    fatal((m.image(context) - s.domain()) != EMPTY) ;
+    fatal((context - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[i] = s[m[i]] ;
+    } ENDFORALL ;
+  }
+
+  template<class T> void storeRepI<T>::scatter(const Map &m, storeRepP &st,
+                                              const entitySet &context) {
+    const_store<T> s(st) ;
+    fatal((context != EMPTY) && (base_ptr == 0)) ;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((m.image(context) - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      base_ptr[m[i]] = s[i] ;
+    } ENDFORALL ;
+  }
+  
 
 }
 

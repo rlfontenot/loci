@@ -930,6 +930,61 @@ namespace Loci {
     { return t.Print(s) ; }
 
 
+  template <class T> storeRepP storeVecRepI<T>::remap(const Map &m) const {
+    entitySet newdomain = m.domain() & domain() ;
+    entitySet mapimage = m.image(newdomain) ;
+    storeVec<T> s ;
+    s.allocate(mapimage) ;
+    storeRepP my_store = getRep() ;
+      
+    s.Rep()->scatter(m,my_store,newdomain) ;
+    return s.Rep() ;
+  }
+
+  template <class T> void storeVecRepI<T>::copy(storeRepP &st,
+                                                const entitySet &context) {
+    const_storeVec<T> s(st) ;
+    int sz = s.vecSize() ;
+    set_elem_size(sz) ;
+    fatal((context - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      T *p = base_ptr + i*sz ;
+      for(int j=0;j<sz;++j)
+        p[j] = s[i][j] ;
+    } ENDFORALL ;
+  }
+
+  template <class T> void storeVecRepI<T>::gather(const Map &m, storeRepP &st,
+                                                  const entitySet &context) {
+    const_storeVec<T> s(st) ;
+    int sz = s.vecSize() ;
+    set_elem_size(sz) ;
+    fatal(base_ptr == 0) ;
+    fatal((m.image(context) - s.domain()) != EMPTY) ;
+    fatal((context - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      T *p = base_ptr + i*sz ;
+      for(int j=0;j<sz;++j)
+        p[j] = s[m[i]][j] ;
+    } ENDFORALL ;
+  }
+
+  template <class T> void storeVecRepI<T>::scatter(const Map &m, storeRepP &st,
+                                                   const entitySet &context) {
+    const_storeVec<T> s(st) ;
+    int sz = s.vecSize() ;
+    set_elem_size(sz) ;
+    fatal(base_ptr == 0) ;
+    fatal((context - s.domain()) != EMPTY) ;
+    fatal((m.image(context) - domain()) != EMPTY) ;
+    FORALL(context,i) {
+      T *p = base_ptr + m[i]*sz ;
+      for(int j=0;j<sz;++j)
+        p[j] = s[i][j] ;
+    } ENDFORALL ;
+  }
+  
+
   template<class T> class storeMat : public store_instance {
     typedef storeVecRepI<T> storeType ;
     T* base_ptr ;
@@ -1058,61 +1113,6 @@ namespace Loci {
   template<class T> inline std::ostream &
     operator<<(std::ostream &s, const const_storeMat<T> &t)
     { return t.Print(s) ; }
-
-  template <class T> storeRepP storeVecRepI<T>::remap(const Map &m) const {
-    entitySet newdomain = m.domain() & domain() ;
-    entitySet mapimage = m.image(newdomain) ;
-    storeVec<T> s ;
-    s.allocate(mapimage) ;
-    storeRepP my_store = getRep() ;
-      
-    s.Rep()->scatter(m,my_store,newdomain) ;
-    return s.Rep() ;
-  }
-
-  template <class T> void storeVecRepI<T>::copy(storeRepP &st,
-                                                const entitySet &context) {
-    const_storeVec<T> s(st) ;
-    int sz = s.vecSize() ;
-    set_elem_size(sz) ;
-    fatal((context - domain()) != EMPTY) ;
-    FORALL(context,i) {
-      T *p = base_ptr + i*sz ;
-      for(int j=0;j<sz;++j)
-        p[j] = s[i][j] ;
-    } ENDFORALL ;
-  }
-
-  template <class T> void storeVecRepI<T>::gather(const Map &m, storeRepP &st,
-                                                  const entitySet &context) {
-    const_storeVec<T> s(st) ;
-    int sz = s.vecSize() ;
-    set_elem_size(sz) ;
-    fatal(base_ptr == 0) ;
-    fatal((m.image(context) - s.domain()) != EMPTY) ;
-    fatal((context - domain()) != EMPTY) ;
-    FORALL(context,i) {
-      T *p = base_ptr + i*sz ;
-      for(int j=0;j<sz;++j)
-        p[j] = s[m[i]][j] ;
-    } ENDFORALL ;
-  }
-
-  template <class T> void storeVecRepI<T>::scatter(const Map &m, storeRepP &st,
-                                                   const entitySet &context) {
-    const_storeVec<T> s(st) ;
-    int sz = s.vecSize() ;
-    set_elem_size(sz) ;
-    fatal(base_ptr == 0) ;
-    fatal((context - s.domain()) != EMPTY) ;
-    fatal((m.image(context) - domain()) != EMPTY) ;
-    FORALL(context,i) {
-      T *p = base_ptr + m[i]*sz ;
-      for(int j=0;j<sz;++j)
-        p[j] = s[i][j] ;
-    } ENDFORALL ;
-  }
-  
 
   template<class T> class multiStoreRepI : public storeRep {
     entitySet store_domain ;

@@ -47,29 +47,6 @@ namespace Loci {
     return new paramRepI<T>(p) ;
   }
 
-  template<class T> storeRepP paramRepI<T>::remap(const Map &m) const {
-    param<T> r ;
-    r.set_entitySet(m.image(m.domain()&domain())) ;
-    *r = param_val ;
-    return r.Rep() ;
-  }
-
-  template<class T> void paramRepI<T>::copy(storeRepP &st, const entitySet &context) {
-    param<T> p(st) ;
-    param_val = *p ;
-    warn((store_domain - context) != EMPTY) ;
-    store_domain = context ;
-    dispatch_notify() ;
-  }
-  template<class T> void paramRepI<T>::gather(const Map &m, storeRepP &st,
-                                              const entitySet &context) {
-    warn(true) ;
-  }
-  template<class T> void paramRepI<T>::scatter(const Map &m, storeRepP &st,
-                                              const entitySet &context) {
-    warn(true) ;
-  }
-
   template<class T> store_type paramRepI<T>::RepType() const {
     return PARAMETER ;
   }
@@ -247,6 +224,29 @@ namespace Loci {
        warn(p==0);
     }
     
+  template<class T> storeRepP paramRepI<T>::remap(const Map &m) const {
+    param<T> r ;
+    r.set_entitySet(m.image(m.domain()&domain())) ;
+    *r = param_val ;
+    return r.Rep() ;
+  }
+
+  template<class T> void paramRepI<T>::copy(storeRepP &st, const entitySet &context) {
+    param<T> p(st) ;
+    param_val = *p ;
+    warn((store_domain - context) != EMPTY) ;
+    store_domain = context ;
+    dispatch_notify() ;
+  }
+  template<class T> void paramRepI<T>::gather(const Map &m, storeRepP &st,
+                                              const entitySet &context) {
+    warn(true) ;
+  }
+  template<class T> void paramRepI<T>::scatter(const Map &m, storeRepP &st,
+                                              const entitySet &context) {
+    warn(true) ;
+  }
+
     
   template<class T> store_instance::instance_type
     const_param<T>::access() const
