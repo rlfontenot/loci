@@ -58,6 +58,7 @@ template<class T> class Handle {
     Handle<T> &operator=(Handle_type i) {
         if(grab!=0) grab->UnlinkGrab() ;
         grab = 0 ;
+	return *this;
     }
     bool null() const  { return grab == 0; }
     // Make Handle point to a newly allocated grab
