@@ -26,25 +26,27 @@ namespace Loci {
     entitySet                 store_domain ;
     hash_map<int,vector<T> >  attrib_data;
 
+    void  hdf5read( H5::Group group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
     void  hdf5read( H5::Group group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
 
-    void  hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
+    void  hdf5write( H5::Group group, DEFAULT_CONVERTER c,      const entitySet &en) const;
     void  hdf5write( H5::Group group, IDENTITY_CONVERTER c,     const entitySet &en) const;
+    void  hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
   public:
 
-//  Constructor ...
+    //  Constructor ...
     dmultiStoreRepI() { }
 
     dmultiStoreRepI(const entitySet &p) { store_domain=p;}
 
     dmultiStoreRepI(const store<int> &sizes) { allocate(sizes) ; }
 
-//  Destructors ...
+    //  Destructors ...
     virtual ~dmultiStoreRepI() ;
 
-//  Member function ...
+    //  Member function ...
     void allocate(const store<int> &sizes) ;
 
     virtual void allocate(const entitySet &ptn) ;
@@ -113,11 +115,11 @@ namespace Loci {
     entitySet domain() const { return Rep()->domain() ; }
 
     vector<T> &elem(int indx) {
-       return( (*attrib_data)[indx] );
+      return( (*attrib_data)[indx] );
     }
 
     vector<T> &operator[](int indx) {
-       return( (*attrib_data)[indx] );
+      return( (*attrib_data)[indx] );
     }
     
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
@@ -147,10 +149,10 @@ namespace Loci {
   template<class T> 
   void dmultiStore<T>::notification() 
   {
-     NPTR<storeType> p(Rep()) ;
-     if(p != 0)
-        attrib_data = p->get_attrib_data() ;
-     warn(p == 0) ;
+    NPTR<storeType> p(Rep()) ;
+    if(p != 0)
+      attrib_data = p->get_attrib_data() ;
+    warn(p == 0) ;
   }
 
   //**************************************************************************/
@@ -184,11 +186,11 @@ namespace Loci {
     const entitySet domain() const { return Rep()->domain() ; }
 
     vector<T> &elem(int indx) {
-        return( (*attrib_data)[indx] );
+      return( (*attrib_data)[indx] );
     }
 
     vector<T> &operator[](int indx) {
-        return( (*attrib_data)[indx] );
+      return( (*attrib_data)[indx] );
     }
 
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
@@ -215,7 +217,7 @@ namespace Loci {
   {
     NPTR<storeType> p(Rep()) ;
     if(p != 0)
-       attrib_data = p->get_attrib_data() ;
+      attrib_data = p->get_attrib_data() ;
     warn(p == 0) ;
   }
 
@@ -235,10 +237,10 @@ namespace Loci {
     T     newObj;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
-         veclength = sizes[*ci];
-         attrib_data[*ci].reserve(veclength);
-         for( int i = 0; i < veclength; i++)
-              attrib_data[*ci].push_back( newObj );
+      veclength = sizes[*ci];
+      attrib_data[*ci].reserve(veclength);
+      for( int i = 0; i < veclength; i++)
+        attrib_data[*ci].push_back( newObj );
     }
 
     store_domain = eset ;
@@ -249,14 +251,14 @@ namespace Loci {
   template<class T> 
   void dmultiStoreRepI<T>::allocate(const entitySet &ptn) 
   {
-     vector<T>   emptyVec;
-     entitySet :: const_iterator  ci;
+    vector<T>   emptyVec;
+    entitySet :: const_iterator  ci;
 
-     for( ci = ptn.begin(); ci != ptn.end(); ++ci)
-          attrib_data[*ci] = emptyVec;
+    for( ci = ptn.begin(); ci != ptn.end(); ++ci)
+      attrib_data[*ci] = emptyVec;
 
-     store_domain = ptn ;
-     dispatch_notify() ;
+    store_domain = ptn ;
+    dispatch_notify() ;
   }
 
   //**************************************************************************/
@@ -264,7 +266,7 @@ namespace Loci {
   template<class T> 
   dmultiStoreRepI<T>::~dmultiStoreRepI() 
   {
-     attrib_data.clear();
+    attrib_data.clear();
   }
 
   //**************************************************************************/
@@ -280,13 +282,11 @@ namespace Loci {
   template<class T> 
   storeRepP dmultiStoreRepI<T>::remap(const Map &m) const {
     dmultiStore<T> s ;
-  /*
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
-  */
 
     return s.Rep() ;
   }
@@ -304,7 +304,7 @@ namespace Loci {
       newVec  =   s[i];
       attrib_data[i].reserve( newVec.size() );
       for( int j = 0; j < newVec.size(); j++)
-           attrib_data[i].push_back( newVec[j] );
+        attrib_data[i].push_back( newVec[j] );
     } ENDFORALL ;
 
     dispatch_notify() ;
@@ -324,7 +324,7 @@ namespace Loci {
       newVec  =   s[m[i]];
       attrib_data[i].reserve( newVec.size() );
       for( int i = 0; i < newVec.size(); i++) 
-           attrib_data[i].push_back( newVec[i] );
+        attrib_data[i].push_back( newVec[i] );
     } ENDFORALL ;
 
     dispatch_notify() ;
@@ -344,7 +344,7 @@ namespace Loci {
       newVec  =   s[i];
       attrib_data[m[i]].reserve( newVec.size() );
       for( int i = 0; i < newVec.size(); i++) 
-           attrib_data[m[i]].push_back( newVec[i] );
+        attrib_data[m[i]].push_back( newVec[i] );
     } ENDFORALL ;
 
     dispatch_notify() ;
@@ -366,57 +366,29 @@ namespace Loci {
   //**************************************************************************/
   
   template <class T> 
-  void dmultiStoreRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &e ) 
+  void dmultiStoreRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &eset ) 
   {
     T    *buf;
-    int   j, numBytes, numentity = e.size();
-
-    entitySet  :: const_iterator ei;
-
-//----------------------------------------------------------------------------
-// In the multi-map it is necessary to pack the size of each entity too.
-// For example.
-// 1    2 3 4
-// 2    5 6 2
-// 3    1
-// 4    2 4
-//
-// Then we will pack as size+map
-// 3 2 3 4 3 5 6 2 1 1 2 2 4
-//----------------------------------------------------------------------------
-/*
-    numBytes = pack_size( e );
-
-    buf   = ( T *) malloc( numBytes );
-    if( buf == NULL ) {
-        cout << "Warning: Cann't allocate memory for packing data " << endl;
-        return;
-    }
-
+    int    numBytes, vecsize;
     vector<T>   newVec;
+    entitySet  :: const_iterator ei;
 
     hash_map<int,vector<T> > :: const_iterator  ci;
  
-    int indx = 0;
-    for( ei = e.begin(); ei != e.end(); ++ei) {
-         ci = attrib_data.find( *ei );
-         if( ci != attrib_data.end() ) {
-             newVec = ci->second;
-             buf[indx++] = newVec.size();
-             for( j = 0; j < newVec.size(); j++) 
-                  buf[indx++] = newVec[j];
-         }
+    for( ei = eset.begin(); ei != eset.end(); ++ei) {
+      ci = attrib_data.find( *ei );
+      if( ci != attrib_data.end() ) {
+        newVec  = ci->second;
+        vecsize = newVec.size();
+        MPI_Pack( &vecsize, 1, MPI_INT,  ptr, size, &loc, MPI_COMM_WORLD) ;
+        buf  =  new T[vecsize];
+        for( int j = 0; j < vecsize; j++) 
+          buf[j] = newVec[j];
+        numBytes = vecsize*sizeof(T);
+        MPI_Pack(buf, numBytes, MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
+        delete [] buf;
+      }
     }
-
-//---------------------------------------------------------------------------
-// At present, we are packing everything at once, hoping that size of
-// buffer is not very large :). May have to change later.
-//---------------------------------------------------------------------------
-
-    MPI_Pack(buf, numBytes, MPI_BYTE, ptr, size, &loc, MPI_COMM_WORLD) ;
-
-    free( buf );
-*/
 
   }
   
@@ -425,50 +397,22 @@ namespace Loci {
   template <class T> 
   void dmultiStoreRepI<T>::unpack(void *ptr, int &loc, int &size, const sequence &seq) 
   {
-/*
-    int            numBytes;
     T             *buf;
-    entitySet      eset;
+    int            vecsize, numBytes;
 
-//----------------------------------------------------------------------------
-// Unfortunately, pack size is known only for entitySet. So create it from
-// sequence.
-//----------------------------------------------------------------------------
-  
-    sequence  :: const_iterator  si;
-    for( si = seq.begin(); si != seq.end(); ++si) 
-         eset +=  *si;
-
-    numBytes = pack_size( eset );
-
-    buf   = ( T *) malloc( numBytes );
-    if( buf == NULL ) {
-        cout << "Warning: Cann't allocate memory for packing data " << endl;
-        return;
-    }
-
-    MPI_Unpack(ptr, size, &loc, buf, numBytes, MPI_BYTE, MPI_COMM_WORLD) ;
-
-    hash_map<int,vector<T> > :: const_iterator  ci;
-
-//----------------------------------------------------------------------------
-// At present, I am clearing the attrib_data for the entity, where unpack is
-// being done. I have no idea whether it will lead to some problems later.
-// Chaman Singh Verma :   25 th May 2001
-//----------------------------------------------------------------------------
- 
-    int indx = 0;
-    int vecsize;
+    sequence :: const_iterator  si;
 
     for( si = seq.begin(); si != seq.end(); ++si) {
-         attrib_data[*si].clear();
-         vecsize = buf[indx++];
-         for( int i = 0; i < vecsize; i++)
-              attrib_data[*si].push_back( buf[indx++] );
+      MPI_Unpack(ptr, size, &loc, &vecsize, 1, MPI_INT, MPI_COMM_WORLD) ;
+      numBytes =  vecsize*sizeof(T);
+      buf      =  new T[vecsize];
+      MPI_Unpack(ptr, size, &loc, buf, numBytes, MPI_BYTE, MPI_COMM_WORLD) ;
+      attrib_data[*si].clear();
+      for( int i = 0; i < vecsize; i++)
+        attrib_data[*si].push_back( buf[i] );
+      delete [] buf;
     }
 
-    free( buf );
-*/
   }
   
   //**************************************************************************/
@@ -489,12 +433,12 @@ namespace Loci {
     vector<int>        vec;
 
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
-         vec.push_back( ci->first ) ;
+      vec.push_back( ci->first ) ;
 
     sort( vec.begin(), vec.end() );
 
     for( int i = 0; i < vec.size(); i++)
-         storeDomain +=  vec[i];
+      storeDomain +=  vec[i];
 
     return storeDomain ;
   }
@@ -512,18 +456,18 @@ namespace Loci {
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
       if( ci != attrib_data.end() ) {
-          vec =  ci->second;
-          s << vec.size() << std::endl ;
+        vec =  ci->second;
+        s << vec.size() << std::endl ;
       }
     } ENDFORALL ;
 
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
       if( ci != attrib_data.end() ) {
-          vec = ci->second;
-          for( int i = 0; i < vec.size(); i++)
-               s << vec[i] << "  ";
-          s << endl;
+        vec = ci->second;
+        for( int i = 0; i < vec.size(); i++)
+          s << vec[i] << "  ";
+        s << endl;
       }
     } ENDFORALL ;
 
@@ -537,21 +481,10 @@ namespace Loci {
   std::istream &dmultiStoreRepI<T>::Input(std::istream &s) 
   {
 
-//----------------------------------------------------------------------------
-// Objective    :  Read the multiStore data with input stream
-// Date         :  31 May,2001
-// Programmer   :  Chaman Singh Verma
-// Place        :  ERC
-// Status       :
-// Description  :
-//
-//
-//----------------------------------------------------------------------------
-
     entitySet  e ;
     char ch ;
 
-// Read the opening brackets ...
+    // Read the opening brackets ...
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '{') {
       std::cerr << "Incorrect Format while reading store" << std::endl ;
@@ -559,10 +492,10 @@ namespace Loci {
       return s ;
     }
 
-// Read the interval set ....
+    // Read the interval set ....
     s >> e ;
 
-// Read the size of each entity map.
+    // Read the size of each entity map.
     store<int> sizes ;
     sizes.allocate(e) ;
     FORALL(e,ii) {
@@ -570,19 +503,19 @@ namespace Loci {
     } ENDFORALL ;
     allocate(sizes) ;
 
-// Read the attribute data
-	T          val;
+    // Read the attribute data
+    T          val;
     vector<T>  vec;
     FORALL(e,ii) {
-	  vec.clear();
-	  for( int i = 0; i < sizes[ii]; i++) {
-	       s >> val;
-		   vec.push_back(val);
-	  }
-	  attrib_data[ii] = vec;
+      vec.clear();
+      for( int i = 0; i < sizes[ii]; i++) {
+        s >> val;
+        vec.push_back(val);
+      }
+      attrib_data[ii] = vec;
     } ENDFORALL ;
             
-// Close the bracket ..
+    // Close the bracket ..
     do ch = s.get(); while(ch==' ' || ch=='\n') ;
     if(ch != '}') {
       std::cerr << "Incorrect Format while reading store" << std::endl ;
@@ -598,11 +531,11 @@ namespace Loci {
   template<class T> 
   void dmultiStoreRepI<T>::writehdf5(H5::Group group, entitySet &en) const 
   {
-   typedef typename hdf5_schema_traits<T> ::Schema_Converter 
-                                            schema_converter;
-   schema_converter traits_output_type;
+    typedef typename hdf5_schema_traits<T> ::Schema_Converter 
+      schema_converter;
+    schema_converter traits_output_type;
 
-   hdf5write(group, traits_output_type, en);
+    hdf5write(group, traits_output_type, en);
 
   }
 
@@ -615,13 +548,29 @@ namespace Loci {
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    entitySet eset;
+    entitySet eset, ecommon;
+
+    // Read the entitySet available in file ...
     HDF5_ReadDomain(group, eset);
 
-    allocate( eset & user_eset );
+    // Intersection of entityset in file and user defined. Only common entitySet
+    // are read from the file ...
+    //
+    ecommon = eset & user_eset ;   
+    allocate( ecommon );
 
-    hdf5read( group, traits_type, eset, eset&user_eset);
+    // Read the common entitities ...
+    hdf5read( group, traits_type, eset,  ecommon );
 
+  }
+
+  //***************************************************************************/
+  template <class T> 
+  void dmultiStoreRepI<T> :: hdf5read( H5::Group group, DEFAULT_CONVERTER c, 
+                                       entitySet &eset, entitySet &user_eset)
+  {
+     cout << "Fatal error: Default read converter not implemented for dynamic multiStore " << endl;
+     exit(0);
   }
 
   //***************************************************************************/
@@ -650,86 +599,97 @@ namespace Loci {
     int *ibuf = new int[dimension[0]];
 
     dimension[0]  = eset.size();
-	 bDataset.read( ibuf, H5::PredType::NATIVE_INT );
+    bDataset.read( ibuf, H5::PredType::NATIVE_INT );
 
     store<int> container;
     container.allocate( eset );
 
     indx  = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci)
-        container[*ci] = ibuf[indx++];
+      container[*ci] = ibuf[indx++];
 
     delete [] ibuf;
 
-   //---------------------------------------------------------------------------
-   // Calculate the offset of each entity in file ....
-   //---------------------------------------------------------------------------
-   store<unsigned>   offset;
-   store<int>        bucket;
+    //---------------------------------------------------------------------------
+    // Calculate the offset of each entity in file ....
+    //---------------------------------------------------------------------------
+    store<unsigned>   offset;
+    store<int>        bucket;
 
-   offset.allocate( eset );
+    offset.allocate( eset );
 
-   bucket.allocate( user_eset );
-   for( ci = user_eset.begin(); ci != user_eset.end(); ++ci) 
-        bucket[*ci] = container[*ci];
-   allocate( bucket );
+    bucket.allocate( user_eset );
+    for( ci = user_eset.begin(); ci != user_eset.end(); ++ci) 
+      bucket[*ci] = container[*ci];
+    allocate( bucket );
 
-   arraySize = 0;
-   for( ci = eset.begin(); ci != eset.end(); ++ci) {
-        offset[*ci] = arraySize;
-        arraySize  += container[*ci];
-   }
+    arraySize = 0;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      offset[*ci] = arraySize;
+      arraySize  += container[*ci];
+    }
 
-   //---------------------------------------------------------------------------
-   // Read the data now ....
-   //---------------------------------------------------------------------------
-   int num_intervals = user_eset.num_intervals();
-   interval *it = new interval[num_intervals];
+    //---------------------------------------------------------------------------
+    // Read the data now ....
+    //---------------------------------------------------------------------------
+    int num_intervals = user_eset.num_intervals();
+    interval *it = new interval[num_intervals];
 
-   for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
+    for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-   T   *data;
+    T   *data;
 
-   dimension[0] = arraySize;
-   H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
-   H5::DataSpace vDataspace(rank, dimension);
+    dimension[0] = arraySize;
+    H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
+    H5::DataSpace vDataspace(rank, dimension);
 
-   H5::DataType vDatatype = traits_type::get_type();
-	H5::DataSet  vDataset   = group.openDataSet( "variable");
+    H5::DataType vDatatype = traits_type::get_type();
+    H5::DataSet  vDataset   = group.openDataSet( "VariableData");
 
-   hssize_t  start_mem[] = {0};  // determines the starting coordinates.
-   hsize_t   stride[]    = {1};  // which elements are to be selected.
-   hsize_t   block[]     = {1};  // size of element block;
-   hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-   hsize_t   count[]     = {0};  // how many positions to select from the dataspace
+    hssize_t  start_mem[] = {0};  // determines the starting coordinates.
+    hsize_t   stride[]    = {1};  // which elements are to be selected.
+    hsize_t   block[]     = {1};  // size of element block;
+    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
+    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-   for( int k = 0; k < num_intervals; k++) {
-        count[0] = 0;
-        for( int i = it[k].first; i <= it[k].second; i++)
-             count[0] +=  container[i];
+    for( int k = 0; k < num_intervals; k++) {
+      count[0] = 0;
+      for( int i = it[k].first; i <= it[k].second; i++)
+        count[0] +=  container[i];
 
-        data = new T[count[0]];
+      data = new T[count[0]];
 
-        foffset[0] = offset[it[k].first];
+      foffset[0] = offset[it[k].first];
 
-        mDataspace.selectHyperslab(H5S_SELECT_SET, count, start_mem, stride, block);
-        vDataspace.selectHyperslab(H5S_SELECT_SET, count, foffset,   stride, block);
-        vDataset.read( data, vDatatype, mDataspace, vDataspace);
+      mDataspace.selectHyperslab(H5S_SELECT_SET, count, start_mem, stride, block);
+      vDataspace.selectHyperslab(H5S_SELECT_SET, count, foffset,   stride, block);
+      vDataset.read( data, vDatatype, mDataspace, vDataspace);
 
-        indx = 0;
-        int size;
-        for( int i = it[k].first; i <= it[k].second; i++) {
-             attrib_data[i].clear();
-             size = container[i];
-             for( int m = 0; m < size; m++)
-                 attrib_data[i].push_back( data[indx++] );
-        }
+      indx = 0;
+      int size;
+      for( int i = it[k].first; i <= it[k].second; i++) {
+        attrib_data[i].clear();
+        size = container[i];
+        for( int m = 0; m < size; m++)
+          attrib_data[i].push_back( data[indx++] );
+      }
 
-        delete[] data;
-   }
+      delete[] data;
+    }
 
   }
 
+  //***************************************************************************/
+
+  template <class T> 
+  void dmultiStoreRepI<T> :: hdf5write( H5::Group group, DEFAULT_CONVERTER c, 
+                                        const entitySet &eset)  const
+  {
+     cout << "Fatal error: Default write converter not implemented for dynamic multiStore " << endl;
+     exit(0);
+
+
+  }
   //***************************************************************************/
 
   template <class T> 
@@ -747,27 +707,27 @@ namespace Loci {
     //write out the domain   
     HDF5_WriteDomain(group, eset);
 
-//-----------------------------------------------------------------------------
-// Get the sum of each object size and maximum size of object in the 
-// container for allocation purpose
-//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
+    // Get the sum of each object size and maximum size of object in the 
+    // container for allocation purpose
+    //-----------------------------------------------------------------------------
     int  *container = new int[eset.size()];
     size_t  arraySize= 0;
     int     count;
 
     size_t indx = 0;
     for( ei = eset.begin(); ei != eset.end(); ++ei) {
-         ci = attrib_data.find(*ei);
-         if( ci != attrib_data.end() ) {
-             newvec      = ci->second;
-             arraySize  += newvec.size();
-             container[indx++] = newvec.size();
-         }
+      ci = attrib_data.find(*ei);
+      if( ci != attrib_data.end() ) {
+        newvec      = ci->second;
+        arraySize  += newvec.size();
+        container[indx++] = newvec.size();
+      }
     }
 
-//-----------------------------------------------------------------------------
-// Write the Size of each multiStore ....
-//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
+    // Write the Size of each multiStore ....
+    //-----------------------------------------------------------------------------
     dimension[0]=  eset.size();
 
     try {
@@ -784,26 +744,26 @@ namespace Loci {
 
     delete [] container;
 
-//-----------------------------------------------------------------------------
-// Collect state data from each object and put into 1D array
-//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
+    // Collect state data from each object and put into 1D array
+    //-----------------------------------------------------------------------------
     T  *data, *buf;
 
     data =  new T[arraySize];
 
     indx = 0;
     for( ei = eset.begin(); ei != eset.end(); ++ei) {
-         ci = attrib_data.find(*ei);
-         if( ci != attrib_data.end() ) {
-             newvec  = ci->second;
-             for( int j = 0; j < newvec.size(); j++) 
-                  data[indx++] = newvec[j];
-         }
+      ci = attrib_data.find(*ei);
+      if( ci != attrib_data.end() ) {
+        newvec  = ci->second;
+        for( int j = 0; j < newvec.size(); j++) 
+          data[indx++] = newvec[j];
+      }
     }
 
-//-----------------------------------------------------------------------------
-// Write (variable) Data into HDF5 format
-//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
+    // Write (variable) Data into HDF5 format
+    //-----------------------------------------------------------------------------
 
     typedef hdf5_schema_traits<T> traits_type;
 
@@ -813,7 +773,7 @@ namespace Loci {
 
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = traits_type::get_type();
-      H5::DataSet   vDataset  = group.createDataSet( "variable", vDatatype, vDataspace);
+      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
 
       vDataset.write( data, vDatatype );
 
@@ -822,9 +782,9 @@ namespace Loci {
     catch( H5::HDF5DataspaceInterfaceException error ) { error.printerror(); }
     catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
 
-//-----------------------------------------------------------------------------
-// Clean up
-//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
+    // Clean up
+    //-----------------------------------------------------------------------------
     delete [] data;
   }
 
@@ -840,8 +800,6 @@ namespace Loci {
     int    rank = 1;
 
     entitySet::const_iterator ci;
-
-    typedef hdf5_schema_converter_traits<T> converter_traits; 
 
     //-------------------------------------------------------------------------
     // Size of each main container....
@@ -918,14 +876,14 @@ namespace Loci {
     for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
     typedef hdf5_schema_converter_traits<T> converter_traits; 
-    converter_traits::memento_type *data, *buf;
+    typename converter_traits::memento_type *data, *buf;
 
     dimension[0] = arraySize;
     H5::DataSpace mDataspace(rank, dimension);   // memory  dataspace
     H5::DataSpace vDataspace(rank, dimension);
 
     H5::DataType  vDatatype  = converter_traits::get_variable_HDF5_type();
-    H5::DataSet   vDataset   = group.openDataSet( "variable");
+    H5::DataSet   vDataset   = group.openDataSet( "VariableData");
 
     hssize_t  start_mem[] = {0};  // determines the starting coordinates.
     hsize_t   stride[]    = {1};  // which elements are to be selected.
@@ -1054,7 +1012,7 @@ namespace Loci {
     catch( H5::HDF5DatatypeInterfaceException error  ) { error.printerror(); }
 
     typedef hdf5_schema_converter_traits<T> converter_traits; 
-    converter_traits::memento_type *data, *buf;
+    typename converter_traits::memento_type *data, *buf;
 
     data =  new typename converter_traits::memento_type[arraySize];
     buf  =  new typename converter_traits::memento_type[maxBucketSize];
@@ -1085,7 +1043,7 @@ namespace Loci {
     try {
       H5::DataSpace vDataspace( rank, dimension );
       H5::DataType  vDatatype = converter_traits::get_variable_HDF5_type();
-      H5::DataSet   vDataset  = group.createDataSet( "variable", vDatatype, vDataspace);
+      H5::DataSet   vDataset  = group.createDataSet( "VariableData", vDatatype, vDataspace);
 
       vDataset.write( data, vDatatype );
     }
