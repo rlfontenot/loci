@@ -282,7 +282,7 @@ namespace Loci {
   class execute_msg : public execute_modules {
     std::string msg ;
   public:
-    execute_msg(string m) : msg(m) {}
+    execute_msg(std::string m) : msg(m) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;

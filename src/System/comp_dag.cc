@@ -1,5 +1,8 @@
 #include "comp_tools.h"
 #include <vector>
+
+#include <Tools/stream.h>
+
 using std::vector ;
 
 #include <sys/stat.h>

@@ -1,5 +1,8 @@
 #include "comp_tools.h"
 #include <distribute.h>
+using std::ostream ;
+using std::endl ;
+
 namespace Loci {
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, sched_db &scheds)  {
     do_run = true ;

@@ -1,6 +1,7 @@
 #include "sched_tools.h"
 #include "distribute.h"
 #include "param_rule.h"
+#include <Tools/stream.h>
 using std::map ;
 using std::vector ;
 using std::set ;
@@ -8,6 +9,12 @@ using std::list ;
 
 using std::pair ;
 using std::make_pair ;
+
+using std::ostringstream ;
+using std::string ;
+using std::endl ;
+using std::cout ;
+using std::ofstream ;
 
 #define PROFILE_CODE
 
@@ -80,7 +87,8 @@ namespace Loci {
       cout << " initial_vars = " << initial_vars << endl ;
     graph_compiler compile_graph(decomp, initial_vars) ;
     double end_time = MPI_Wtime() ;
-    Loci::debugout << "Time taken for graph processing  = " << end_time  - start_time << "  seconds " << endl ;
+    Loci::debugout << "Time taken for graph processing  = "
+                   << end_time  - start_time << "  seconds " << endl ;
 #ifdef PROFILE_CODE
     //timer = get_timer() ;
     //cout << "Graph Processing Time: "<<timer << " seconds" << endl ;
@@ -90,7 +98,8 @@ namespace Loci {
     start_time = MPI_Wtime() ;
     compile_graph.existential_analysis(facts, scheds) ;
     end_time = MPI_Wtime() ;
-    Loci::debugout << "Time taken for existential_analysis  = " << end_time  - start_time << "  seconds " << endl ;
+    Loci::debugout << "Time taken for existential_analysis  = "
+                   << end_time  - start_time << "  seconds " << endl ;
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
     start_time = MPI_Wtime() ;

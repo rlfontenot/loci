@@ -10,7 +10,7 @@
 
 namespace Loci {
   extern double total_memory_usage ;
-  extern ofstream debugout ;
+  extern std::ofstream debugout ;
   //*******************************************************************/
   
   template <class T> struct Scalar {

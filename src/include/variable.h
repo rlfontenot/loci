@@ -4,6 +4,7 @@
 #include <ostream>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 #include <map>
 #include <set>
@@ -103,7 +104,7 @@ namespace Loci {
         //				namespac.push_back("*NONAMESPACE*");
         offset  = 0;
       }
-      ostream &Print(ostream &s) const ;
+      std::ostream &Print(std::ostream &s) const ;
       const time_ident & time() const { return time_id ; }
       const info & get_info() const { return *this ; }
       variable parent() const ;
@@ -131,13 +132,13 @@ namespace Loci {
     variable() { create_vdb() ; id = vdb->vars.get_id(info()) ; }
     explicit variable(int i) { create_vdb() ; id = i ; }
     explicit variable(const exprP &p) ;
-    explicit variable(string s)
+    explicit variable(std::string s)
     { id = variable(expression::create(s)).ident() ; }
     explicit variable(const time_ident &t) ;
     explicit variable(const variable &v, const std::vector<int> &vint) ;
     explicit variable(const variable &v, const time_ident &t) ;
         
-    ostream &Print(std::ostream &s) const { return vdb->vars[id].Print(s) ; }
+    std::ostream &Print(std::ostream &s) const { return vdb->vars[id].Print(s) ; }
     std::string str() const
       { std::ostringstream ss ; Print(ss) ; return ss.str() ; }
 
@@ -162,7 +163,7 @@ namespace Loci {
     variable change_time(const time_ident &ti) const  { return vdb->vars[id].change_time(ti) ; }
   } ;
 
-  inline ostream &operator<<(ostream &s, const variable &v)
+  inline std::ostream &operator<<(std::ostream &s, const variable &v)
     { return v.Print(s) ; }
 
   class variableSet : public intervalSet {

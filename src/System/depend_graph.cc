@@ -5,6 +5,15 @@ using std::map ;
 using std::vector ;
 #include <set>
 using std::set ;
+#include <string>
+using std::string ;
+#include <sstream>
+using std::ostringstream ;
+
+#include <iostream>
+using std::endl ;
+using std::cerr ;
+using std::cout ;
 
 #ifndef DEBUG
 #define PRUNE_GRAPH

@@ -1,10 +1,17 @@
 #include <Tools/debug.h>
 #include <Tools/tools.h>
 #include <Tools/intervalSet.h>
-#include <Tools/stream.h>
 
 #include <algorithm>
 #include <functional>
+
+#include <istream>
+#include <ostream>
+#include <iostream>
+using std::istream ;
+using std::ostream ;
+using std::endl ;
+using std::cerr ;
 
 
 

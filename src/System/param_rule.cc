@@ -1,5 +1,7 @@
 #include <param_rule.h>
 
+using std::string ;
+
 namespace Loci {
 
   rule prepend_time_level(Loci::rule r, string prepend) {

@@ -1,5 +1,5 @@
 #include "sched_tools.h"
-
+#include <Tools/stream.h>
 using std::map ;
 using std::vector ;
 using std::set ;
@@ -10,7 +10,7 @@ using std::make_pair ;
 
 namespace Loci {
 
-  extern ofstream debugout ;
+  extern std::ofstream debugout ;
     // Create variable types in fact database
   // This is a necessary precursor to binding rules to the database
   void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) {

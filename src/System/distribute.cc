@@ -1,5 +1,7 @@
 #include <distribute.h>
 #include <Tools/debug.h>
+#include <entitySet.h>
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -21,6 +23,8 @@ using std::cerr ;
 using std::endl ;
 using std::ios ;
 using std::ifstream ;
+using std::ostream ;
+using std::ostringstream ;
 
 #include <algorithm>
 using std::swap ;
@@ -30,6 +34,8 @@ using std::sort ;
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
+
+#include <Tools/stream.h>
 
 namespace Loci {
   int MPI_processes = 1;

@@ -2,6 +2,8 @@
 #include "comp_tools.h"
 #include "distribute.h"
 
+#include <Tools/stream.h>
+
 #include <vector>
 using std::vector ;
 #include <map>
@@ -149,7 +151,7 @@ namespace Loci {
     allocate_all_vars(fact_db &facts, sched_db &scheds) ;
     void fill_in_requests(fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
-    virtual void Print(ostream &s) const ;
+    virtual void Print(std::ostream &s) const ;
   } ;
   
   
@@ -258,7 +260,7 @@ namespace Loci {
     total_memory_usage = total_size + total_wasted ;
   }
   
-  void allocate_all_vars::Print(ostream &s) const {
+  void allocate_all_vars::Print(std::ostream &s) const {
     s << "allocate all variables" << endl ;
   }
 

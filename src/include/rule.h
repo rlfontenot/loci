@@ -379,7 +379,7 @@ namespace Loci {
       rule_type rule_class ;
       bool output_is_parameter ;
       bool time_advance ;
-      string internal_qualifier ;
+      std::string internal_qualifier ;
         
       const std::string &name() const { return rule_ident ; }
       info() { rule_ident = "NO_RULE" ;}
@@ -393,7 +393,7 @@ namespace Loci {
       const variableSet &maps() const { return map_vars ; }
       const variableSet &constraints() const {return constraint_vars; }
       
-      const string &qualifier() const { return internal_qualifier ; }
+      const std::string &qualifier() const { return internal_qualifier ; }
       rule_type type() const { return rule_class ; }
       time_ident target_time() const { return target_level ; }
       time_ident source_time() const { return source_level ; }

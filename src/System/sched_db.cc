@@ -10,9 +10,11 @@ using std::make_pair ;
 
 #include <Tools/parse.h>
 
-extern "C" {
-#include <hdf5.h>
-}
+//extern "C" {
+//#include <hdf5.h>
+//}
+
+#include <Tools/stream.h>
 
 namespace Loci {
   extern int MPI_processes ;

@@ -7,6 +7,7 @@ using std::list ;
 
 using std::pair ;
 using std::make_pair ;
+using std::ostringstream ;
 
 namespace Loci {
 // Create a sequential ordering of rules based on the concurrent dag schedule

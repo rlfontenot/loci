@@ -1,5 +1,5 @@
-#ifndef STREAM_H
-#define STREAM_H
+#ifndef TOOLS_STREAM_H
+#define TOOLS_STREAM_H
 
 #include <istream>
 #include <ostream>
@@ -23,4 +23,5 @@ using std::ostringstream ;
 using std::string ;
 using std::char_traits ;
 
+  
 #endif

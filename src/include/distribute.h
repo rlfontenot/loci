@@ -13,7 +13,7 @@
  
 namespace Loci {
 
-  extern ofstream debugout ;
+  extern std::ofstream debugout ;
   extern int MPI_processes;
   extern int MPI_rank ;
   extern int num_threads ;

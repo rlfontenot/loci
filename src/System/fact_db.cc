@@ -19,6 +19,11 @@ using std::sort ;
 using std::pair ;
 using std::make_pair ;
 
+using std::istream ;
+using std::ostream ;
+using std::endl ;
+using std::ios ;
+
 #include <Tools/parse.h>
 
 namespace Loci {
@@ -495,21 +500,21 @@ namespace Loci {
 
     // Which files, I am supposed to read from the pool of files.
     std::vector<int> files_assigned;
-    for(int ifile=Loci::MPI_rank; ifile < maxfiles; ifile+=Loci::MPI_processes)
-      files_assigned.push_back(ifile);
+    for(int I=Loci::MPI_rank; I < maxfiles; I+=Loci::MPI_processes)
+      files_assigned.push_back(I);
 
     std::map<variable, fact_info>::const_iterator vmi ;
-    for(int ifile=0;ifile < files_assigned.size(); ifile++){
+    for(int I=0;I < files_assigned.size(); I++){
       strcpy(filename, fname);
       if(Loci::MPI_processes > 1) {
 	strcat( filename, "_");
-	sprintf( str, "%d", files_assigned[ifile]);
+	sprintf( str, "%d", files_assigned[I]);
 	strcat( filename, str);
       }
       strcat( filename, ".hdf5");
       cout << " reading file_name " << filename << endl ;
-      file_id[ifile] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-      if( file_id[ifile] < 0) {
+      file_id[I] = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+      if( file_id[I] < 0) {
         cout << "Warning: Couldn't open file " << filename << endl;
         return;
       }
@@ -587,15 +592,15 @@ namespace Loci {
 
       // first get information about entitset and assign local number to them
    
-      for(int ifile = 0; ifile < files_assigned.size(); ifile++){
-        group_id2 = H5Gopen(file_id[ifile], groupname.c_str() );  
+      for(int I = 0; I < files_assigned.size(); I++){
+        group_id2 = H5Gopen(file_id[I], groupname.c_str() );  
         if( group_id2 < 0) continue;
 
         HDF5_ReadDomain(group_id2, eset);
         H5Gclose(group_id2);
         // get the local->global numbering written in the file ..
 	if( maxfiles > 1) {
-	group_id1 = H5Gopen(file_id[ifile], "l2g");           
+	group_id1 = H5Gopen(file_id[I], "l2g");           
 	if( group_id1 > 0) {
 	  HDF5_Local2Global(group_id1, eset, lg);
 	  H5Gclose(group_id1);         
@@ -848,8 +853,8 @@ namespace Loci {
         std::string groupname = vname;
       
         gsetRead = EMPTY;
-        for(int ifile = 0; ifile < files_assigned.size(); ifile++){
-          group_id2 = H5Gopen(file_id[ifile], groupname.c_str() );  
+        for(int I = 0; I < files_assigned.size(); I++){
+          group_id2 = H5Gopen(file_id[I], groupname.c_str() );  
           if( group_id2 < 0) continue;
           HDF5_ReadDomain(group_id2, eset);
           H5Gclose(group_id2);
@@ -895,8 +900,8 @@ namespace Loci {
 
   
 
-    for(int ifile = 0; ifile < files_assigned.size(); ifile++)
-      H5Fclose(file_id[ifile]);
+    for(int I = 0; I < files_assigned.size(); I++)
+      H5Fclose(file_id[I]);
 
     delete [] file_id;
     delete [] message;

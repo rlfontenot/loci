@@ -4,6 +4,9 @@ using std::vector ;
 using std::list ;
 using std::map ;
 
+using std::ostream ;
+using std::endl ;
+
 namespace Loci {
   
   class execute_loop : public execute_modules {

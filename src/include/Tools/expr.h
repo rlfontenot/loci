@@ -1,7 +1,11 @@
 #ifndef EXPR_H
 #define EXPR_H
 
-#include <Tools/stream.h>
+#include <istream>
+#include <ostream>
+#include <iostream>
+#include <string>
+
 #include <Tools/cptr.h>
 
 #include <list>
@@ -59,7 +63,7 @@ class expression : public CPTR_type {
     const exprList            &expr_list ;
     const std::string         &name ;
     const int                 &int_val ;
-    expression(OpType opin, const string nm, 
+    expression(OpType opin, const std::string nm, 
 	       const exprList &elist, int ival = 0) :
       op(op_priv), expr_list(expr_list_priv), name(name_priv),
       int_val(int_val_priv) 
@@ -74,12 +78,12 @@ class expression : public CPTR_type {
 typedef expression::exprP     exprP ;
 typedef expression::exprList  exprList ;
 
-inline ostream &operator<<(ostream &s, const exprP &exp) {
+inline std::ostream &operator<<(std::ostream &s, const exprP &exp) {
     exp->Print(s) ;
     return s;
 }
 
-inline istream &operator>>(istream &s, exprP &exp) {
+inline std::istream &operator>>(std::istream &s, exprP &exp) {
     exp = expression::create(s) ;
     return s ;
 }

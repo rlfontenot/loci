@@ -16,6 +16,9 @@ using std::map ;
 using std::pair ;
 using std::make_pair ;
 
+using std::string ;
+using std::ostream ;
+using std::ostringstream ;
 
 #include <distribute.h>
 //#define VERBOSE

@@ -11,8 +11,8 @@ namespace Loci {
   class UNIT_type{
 
   public:
-    string unit_kind;//the kind of unit ,such as pressure, time and so on
-    string input_unit;// the unit which you input
+    std::string unit_kind;//the kind of unit ,such as pressure, time and so on
+    std::string input_unit;// the unit which you input
     double input_value;// the value which you input
     enum unit_mode{MKS, CGS, check_available};
     // MKS: use MKS system
@@ -74,7 +74,7 @@ namespace Loci {
     //get the value in converted unit
     double get_value_in(const std::string unit_str);
 
-    UNIT_type(unit_mode in_mode, string in_kind, double in_value, string in_unit) {mode=in_mode,unit_kind=in_kind,value=in_value,input_unit=in_unit;
+    UNIT_type(unit_mode in_mode, std::string in_kind, double in_value, std::string in_unit) {mode=in_mode,unit_kind=in_kind,value=in_value,input_unit=in_unit;
     input_value=value;
     exprP exp;
     exp=expression::create(input_unit);
@@ -102,7 +102,7 @@ namespace Loci {
 
     void change_to_basic_unit(std::map<std::string,int>initial_map,std::map<std::string,int>&num_map,std::map<std::string,int>&den_map,double &conversion_factor);
     void get_conversion(std::map<std::string,int> &num_map, std::map<std::string,int> &den_map,double &conversion_factor);
-    bool check_unit(istream &in, double &value);//check input unit and get the value
+    bool check_unit(std::istream &in, double &value);//check input unit and get the value
     exprP set_default_unit(exprP &in_exp);
     int in_unit_kind();// check the unit_kind is available in db
 
@@ -111,14 +111,14 @@ namespace Loci {
   inline std::ostream &operator<<(std::ostream &s, const UNIT_type &o_unit){
     std::map<std::string,int>::iterator mi,mj;
     std::map<std::string,int> n_map=o_unit.unit_num_map,d_map=o_unit.unit_den_map;
-    /*cout<<"Numerator: "<<endl;
+    /*cout<<"Numerator: "<<std::endl;
       for(mi= n_map.begin();mi!=n_map.end();++mi)
-	cout<<mi->first<<"  "<<mi->second<<endl;
-      cout<<"Denominator: "<<endl;
+	cout<<mi->first<<"  "<<mi->second<<std::endl;
+      cout<<"Denominator: "<<std::endl;
       for(mj= d_map.begin();mj!=d_map.end();++mj)
-      cout<<mj->first<<"  "<<mj->second<<endl;*/
+      cout<<mj->first<<"  "<<mj->second<<std::endl;*/
 
-    s<<endl;
+    s<<std::endl;
     s<<o_unit.conversion_factor*o_unit.input_value;
     s<<" ";
     for(mi= n_map.begin();mi!=n_map.end();++mi){
@@ -154,8 +154,8 @@ namespace Loci {
     return s;
   }
 
-  inline void unit_error(const int e_no, const std::string&err)
+  inline void unit_error(const int e_no, const std::string &err)
     {
-      cerr << "error:" << err << endl;
+      std::cerr << "error:" << err << std::endl;
     }
 }

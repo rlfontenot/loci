@@ -834,7 +834,7 @@ namespace Loci {
   }
 
   //-- check if there is unit and get the value input--//
-  bool UNIT_type::check_unit(istream &in, double &val){
+  bool UNIT_type::check_unit(std::istream &in, double &val){
 
     parse::kill_white_space(in);
   

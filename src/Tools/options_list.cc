@@ -1,7 +1,13 @@
 #include <Tools/options_list.h>
 #include <Tools/parse.h>
 #include <Tools/debug.h>
-#include <Tools/stream.h>
+
+using std::string ;
+using std::ostream ;
+using std::istream ;
+using std::cerr ;
+using std::endl ;
+
 
 using std::make_pair ;
 

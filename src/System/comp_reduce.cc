@@ -6,6 +6,10 @@ using std::vector ;
 #include <set>
 using std::set ;
 
+using std::ostream ;
+using std::endl ;
+using std::ostringstream ;
+
 #include <Tools/hash_map.h>
 
 using std::list ; 

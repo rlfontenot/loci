@@ -154,8 +154,8 @@ namespace Loci {
     
     
     variableSet get_typed_variables() const ;
-    ostream &write(ostream &s) const ;
-    istream &read(istream &s) ;
+    std::ostream &write(std::ostream &s) const ;
+    std::istream &read(std::istream &s) ;
     
     void write_hdf5(const char *filename, int num_partitions = 0);
     void read_hdf5(const char *filename);

@@ -1,7 +1,7 @@
 #ifndef LOCI_TYPES_H
 #define LOCI_TYPES_H
 #include <data_traits.h>
-#include <Tools/stream.h>
+
 namespace Loci {
 
   //-----------STD pair-------------------------------//
