@@ -43,9 +43,21 @@ namespace Loci {
 
   vector<entitySet> new_categories(map<variable, entitySet> &vm, vector<interval> &pvec) {
 
+    map<variable,entitySet>::const_iterator vmi ;
+#ifdef VERBOSE
+    Loci::debugout << "vm section:" << endl ;
+    Loci::debugout << vm.size() << endl ;
+    for(vmi=vm.begin();vmi!=vm.end();++vmi)
+      Loci::debugout << vmi->first << ' ' << vmi->second << endl ;
+    Loci::debugout << pvec.size() <<endl ;
+    for(size_t i = 0;i<pvec.size();++i) {
+      Loci::debugout << pvec[i] << endl ;
+    }
+#endif
+      
+
     // Create groups of variables that form categories
     // This is stored in groupings
-    map<variable,entitySet>::const_iterator vmi ;
     map<variableSet, entitySet> groupings ;
     for(size_t i = 0;i<pvec.size();++i) {
       variableSet vss ;
@@ -124,6 +136,10 @@ namespace Loci {
       Loci::debugout << "******************************************************" << endl ;
 #endif
     }
+#ifdef VERBOSE
+    for(size_t i = 0; i < tmp_pvec.size(); ++i)
+      Loci::debugout << " tmp_pvec[" << i << " ] = " << tmp_pvec[i] << endl ;
+#endif
 
     return tmp_pvec ;
 
@@ -764,6 +780,35 @@ namespace Loci {
       } 
       //      pvec = modified_categories(facts, vm, tmp_pvec) ;
       pvec = new_categories(vm, tmp_pvec) ;      
+
+#ifdef VERBOSE
+      entitySet tot_entities ;
+      for(size_t i = 0;i<pvec.size();++i) {
+        if((tot_entities & pvec[i])!=EMPTY) {
+          Loci::debugout << "pvec is not a partition!" << endl ;
+        }
+        tot_entities += pvec[i] ;
+      }
+      Loci::debugout << "tot_entities = " << tot_entities << endl ;
+      variableSet vars = facts.get_typed_variables() ;
+      for(variableSet::const_iterator vsi = vars.begin(); vsi != vars.end(); ++vsi) {
+        storeRepP p = facts.get_variable(*vsi) ;
+        if((p->RepType() == MAP)) {
+          MapRepP mp = MapRepP(p->getRep()) ;
+          entitySet image_dom = mp->image(p->domain()) ;
+          entitySet out_of_set = image_dom - tot_entities ;
+          entitySet left_out_categories = all_collect_entitySet(out_of_set) ;
+          if(left_out_categories != EMPTY) {
+            Loci::debugout << " left out stuff  = " << left_out_categories  << endl ;
+            //ei = left_out_categories.begin() ;
+            //map_vec[*ei] = left_out_categories ;
+            //sort_vec.push_back(*ei) ;
+            //            tmp_pvec.push_back(left_out_categories) ;
+            //            tot_entities += left_out_categories ;
+          }
+        }
+      }
+#endif
     }
   }
 }
