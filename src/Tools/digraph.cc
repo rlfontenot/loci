@@ -1,9 +1,9 @@
-
 #include <Tools/digraph.h>
 #include <Tools/stream.h>
 #include <Tools/debug.h>
 
-using std::hash_map ;
+#include <vector>
+
 using std::vector ;
 
 namespace Loci {
@@ -76,8 +76,8 @@ namespace Loci {
 
   namespace {
     enum vertex_color { WHITE, GRAY, BLACK } ;
-    typedef std::hash_map<int,vertex_color> vertex_color_map ;
-    typedef hash_map<int,sequence> priority_graph ;
+    typedef HASH_MAP(int,vertex_color) vertex_color_map ;
+    typedef HASH_MAP(int,sequence) priority_graph ;
     typedef digraph::vertexSet vertexSet ;
   }
 
@@ -144,7 +144,7 @@ namespace Loci {
 
       sequence rorder = order.Reverse() ;
       vector<int> omap ;  // order map
-      hash_map<int,int> imap ; // inverse
+      HASH_MAP(int,int) imap ; // inverse
       for(sequence::const_iterator is=rorder.begin();is!=rorder.end();++is) {
         imap[*is] = omap.size() ;
         omap.push_back(*is) ;

@@ -4,21 +4,17 @@
 #include <istream>
 #include <ostream>
 
-extern "C" {
-#include <hdf5.h>
-}
-
 #include <Config/conf.h>
 #include <Tools/debug.h>
 #include <Tools/tools.h>
 
+#include <data_traits.h>
 #include <store_rep.h>
 
 #include <Tools/lmutex.h>
 
 #include <Map.h>
 #include <multiMap.h>
-#include <DMultiStore.h>
 
 namespace Loci {
 
@@ -1196,8 +1192,8 @@ namespace Loci {
       }
       delete[] data;
     }
-
-  }; 
+  
+}
 
   //**************************************************************************/
 
@@ -1291,7 +1287,7 @@ namespace Loci {
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
   
-  }; 
+  }
   //*************************************************************************/
 
   template <class T> 

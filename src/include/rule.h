@@ -77,12 +77,12 @@ namespace Loci {
     rule_impl_type get_rule_class() const { return rule_impl_class ; }
     const info &get_info() const { return rule_info ; }
     void set_store(variable v, const storeRepP &p) ;
-    void set_store(const std::string &name, const storeRepP &p) 
-      { set_store(variable(expression::create(name)),p) ; }
+    void set_store(const std::string &nm, const storeRepP &p) 
+      { set_store(variable(expression::create(nm)),p) ; }
     
     storeRepP get_store(variable v) const ;
-    storeRepP get_store(const std::string &name) const
-      { return get_store(variable(expression::create(name))) ; }
+    storeRepP get_store(const std::string &nm) const
+      { return get_store(variable(expression::create(nm))) ; }
     
     void set_variable_times(time_ident tl) ;
     void copy_store_from(rule_impl &f) ;
@@ -127,8 +127,8 @@ namespace Loci {
   class pointwise_rule : public rule_impl {
   protected:
     pointwise_rule() { rule_class(POINTWISE) ; }
-    void name_store(const std::string &name, store_instance &si)
-      { rule_impl::name_store(name,si) ; }
+    void name_store(const std::string &nm, store_instance &si)
+      { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar)
     { rule_impl::input(invar) ; }
     void output(const std::string &outvar)
@@ -143,8 +143,8 @@ namespace Loci {
   class singleton_rule : public rule_impl {
   protected:
     singleton_rule() { rule_class(SINGLETON) ; }
-    void name_store(const std::string &name, store_instance &si)
-    { rule_impl::name_store(name,si) ; }
+    void name_store(const std::string &nm, store_instance &si)
+    { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar)
     { rule_impl::input(invar) ; }
     void output(const std::string &outvar)
@@ -159,8 +159,8 @@ namespace Loci {
   class unit_rule : public rule_impl {
    protected:
     unit_rule() { rule_class(UNIT) ; }
-    void name_store(const std::string &name, store_instance &si)
-    { rule_impl::name_store(name,si) ; }
+    void name_store(const std::string &nm, store_instance &si)
+    { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar)
     { rule_impl::input(invar) ; }
     void output(const std::string &outvar)
@@ -214,8 +214,10 @@ namespace Loci {
     Op join ;
     param<Type> s,t ;
   public:
-    virtual CPTR<joiner> clone()
-      { return CPTR<joiner>(new joinOp<param<Type>,Op> ); }
+    virtual CPTR<joiner> clone() {
+      CPTR<joiner> p = new joinOp<param<Type>,Op> ;
+      return p ;
+    }
     
     virtual void SetArgs(storeRepP &target, storeRepP &source)
       { s.setRep(source) ; t.setRep(target) ; }

@@ -138,14 +138,13 @@ namespace Loci {
   void paramRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
 
     entitySet eset, ecommon;
     Loci::HDF5_ReadDomain(group_id, eset);
 
     ecommon = eset & user_eset;
     allocate( ecommon );
-    hdf5read(group_id, traits_output_type );
+    hdf5read(group_id, schema_converter() );
   }
 
   //**************************************************************************/
@@ -154,11 +153,10 @@ namespace Loci {
   void paramRepI<T>::writehdf5( hid_t group_id, entitySet &eset) const
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
 
     Loci::HDF5_WriteDomain(group_id, eset);
 
-    hdf5write(group_id, traits_output_type, eset);
+    hdf5write(group_id, schema_converter(), eset);
 
   }
 
@@ -352,8 +350,7 @@ namespace Loci {
   {
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
-    return get_mpi_size( traits_type, eset );
+    return get_mpi_size( schema_converter(), eset );
   }
 
   //**************************************************************************/
@@ -382,9 +379,8 @@ namespace Loci {
   void paramRepI<T>::pack(void *ptr, int &loc, int &size, const entitySet &e ) 
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
 
-    packdata( traits_type, ptr, loc, size);
+    packdata( schema_converter(), ptr, loc, size);
   }
 
   //**************************************************************************/
@@ -428,9 +424,8 @@ namespace Loci {
 
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
 
-    unpackdata( traits_type, ptr, loc, size);
+    unpackdata( schema_converter(), ptr, loc, size);
   }  
 
 
@@ -518,7 +513,7 @@ namespace Loci {
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
 
-  };
+  }
 
   //*********************************************************************/
 
@@ -570,7 +565,7 @@ namespace Loci {
 
     delete [] data;
 
-  };
+  }
 
   //**************************************************************************/
   template <class T> 
@@ -593,7 +588,7 @@ namespace Loci {
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
 
-  };
+  }
 
   //*************************************************************************/
 
@@ -635,7 +630,7 @@ namespace Loci {
 
     delete [] data;
 
-  };
+  }
 
   //***************************************************************************
 

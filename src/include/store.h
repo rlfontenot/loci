@@ -344,9 +344,8 @@ namespace Loci {
   //*******************************************************************/
   template <class T> int storeRepI<T>::pack_size( const entitySet &eset) {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
 
-    return get_mpi_size( traits_type, eset );
+    return get_mpi_size( schema_converter(), eset );
   }
 
 
@@ -423,10 +422,10 @@ namespace Loci {
 
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
 
     warn(usr_eset-domain() != EMPTY) ;
-    packdata( traits_type, outbuf, position, size, usr_eset);
+
+    packdata( schema_converter(), outbuf, position, size, usr_eset);
 
   }
  
@@ -501,9 +500,8 @@ namespace Loci {
 
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
 
-    unpackdata(traits_type, ptr, loc, size, seq); 
+    unpackdata(schema_converter(), ptr, loc, size, seq); 
   }
 
   //**********************************************************************/
@@ -512,7 +510,6 @@ namespace Loci {
   {
 
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
 
     entitySet eset, ecommon;
 
@@ -522,7 +519,7 @@ namespace Loci {
 
     allocate( ecommon );
 
-    hdf5read( group_id, traits_type, eset, ecommon);
+    hdf5read( group_id, schema_converter(), eset, ecommon);
 
   }
 
@@ -532,7 +529,6 @@ namespace Loci {
   void storeRepI<T>::writehdf5( hid_t group_id, entitySet& eset) const
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_output_type;
 
     entitySet     ecommon;
     ecommon = store_domain & eset;
@@ -540,7 +536,7 @@ namespace Loci {
     if( ecommon.size() < 1) return; 
     HDF5_WriteDomain(group_id, ecommon);
 
-    hdf5write(group_id, traits_output_type, ecommon );
+    hdf5write(group_id, schema_converter(), ecommon );
 
   }
 
@@ -661,7 +657,7 @@ namespace Loci {
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
-  };
+  }
 
 
   //*********************************************************************/
@@ -713,7 +709,7 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    T  *data;
+    T  *data = 0;
     int preallocated = 0;
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;

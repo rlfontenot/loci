@@ -209,9 +209,9 @@ namespace Loci {
       if(mi != rvm.end()) {
 	std::pair<smap_iter, smap_iter> sip = var_table.equal_range(mi->first) ;
 	for(smap_iter i = sip.first; i != sip.second; ++i) {
-	  std::pair<variable, store_instance*> vsp = make_pair(mi->second, i->second) ;
-	  tmp_var_table.insert(vsp) ;
-	  
+          //	  std::pair<variable, store_instance*> vsp = make_pair(mi->second, i->second) ;
+          //	  tmp_var_table.insert(vsp) ;
+          tmp_var_table.insert(std::pair<const variable, store_instance *>(mi->second,i->second)) ;
 	}
       } else {
 	tmp_var_table.insert(*si) ;
@@ -240,15 +240,16 @@ namespace Loci {
     rule_info.conditionals = rename_set(rule_info.conditionals,rvm) ;
   }
   
-  void rule_impl::name_store(const string &name, store_instance &si) {
-    variable v(expression::create(name)) ;
+  void rule_impl::name_store(const string &nm, store_instance &si) {
+    variable v(expression::create(nm)) ;
     storeIMap::iterator sp ;
-    std::pair<variable, store_instance*> vsp = make_pair(v, &si) ;
-    var_table.insert(vsp) ;
+    //    std::pair<variable, store_instance*> vsp = make_pair(v, &si) ;
+    //    var_table.insert(vsp) ;
+    var_table.insert(std::pair<const variable, store_instance *>(v,&si)) ;
     //}
     //else {
     //cerr << "ERROR!:  rule_impl::name_store redefinition of '"
-    //   << name << "' in rule '"
+    //   << nm << "' in rule '"
     //   << typeid(*this).name() << "'" << endl ;
     //sp->second = &si ;
     //}
@@ -449,8 +450,9 @@ variableSet rule_impl::get_var_list() {
     storeIMap::iterator j ;
     for(j=var_table.begin();j!=var_table.end();++j) {
       variable v(j->first,tl) ;
-      std::pair<variable, store_instance*>  vsp = make_pair(v, j->second) ;
-      tmp2.insert(vsp) ;
+      //      std::pair<variable, store_instance*>  vsp = make_pair(v, j->second) ;
+      //      tmp2.insert(vsp) ;
+      tmp2.insert(std::pair<const variable, store_instance*>(v,j->second)) ;
     }
     var_table.swap(tmp2) ;
     name = rule_info.rule_identifier() ;

@@ -1,8 +1,7 @@
-
 #include <DMap.h>
 #include <multiMap.h>
 #include <Tools/stream.h>
-#include <hash_map.h>
+
 #include <hdf5_readwrite.h>
 namespace Loci {
   
@@ -10,7 +9,7 @@ namespace Loci {
   using std::make_pair ;
   using std::vector ;
   using std::sort ;
-  //********************************************************************
+  //********************************************************************/
   storeRepP dMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
     int *recv_count = new int[MPI_processes] ;
     int *send_count = new int[MPI_processes] ;
@@ -58,7 +57,7 @@ namespace Loci {
       sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
     
-    std::vector<hash_map<int, int> > map_entities(MPI_processes) ;
+    std::vector<HASH_MAP(int, int) > map_entities(MPI_processes) ;
     for(int i = 0; i < MPI_processes; ++i) 
       for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
 	if(attrib_data.find(*vi) != attrib_data.end())
@@ -78,7 +77,7 @@ namespace Loci {
     int *recv_map = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i) 
-      for(hash_map<int, int>::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+      for(HASH_MAP(int, int)::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
 	send_map[size_send] = miv->first ;
 	++size_send ;
 	send_map[size_send] = miv->second ;
@@ -93,7 +92,7 @@ namespace Loci {
     MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
 		  recv_map, recv_count, recv_displacement, MPI_INT,
 		  MPI_COMM_WORLD) ;  
-    hash_map<int, int> hm ;
+    HASH_MAP(int, int) hm ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
 	    recv_displacement[i]+recv_count[i]-1; ++j) {
@@ -101,11 +100,11 @@ namespace Loci {
 	j++ ;
       }
     }
-    for(hash_map<int, int>::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi) 
+    for(HASH_MAP(int, int)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi) 
       attrib_data[hmi->first] = hmi->second ;
     
     dMap dm ;
-    for(hash_map<int, int>::const_iterator hi = attrib_data.begin();  hi != attrib_data.end(); ++hi)
+    for(HASH_MAP(int, int)::const_iterator hi = attrib_data.begin();  hi != attrib_data.end(); ++hi)
       dm[hi->first] = hi->second ;
     storeRepP sp = dm.Rep() ;
     delete [] send_buf ;
@@ -119,7 +118,7 @@ namespace Loci {
     return sp ;
   }
   
-//********************************************************************
+  //********************************************************************/
   void dMapRepI::allocate(const entitySet &ptn)
   {
     entitySet :: const_iterator   ci;
@@ -132,20 +131,20 @@ namespace Loci {
     dispatch_notify() ;
   }
   
-  //********************************************************************
+  //********************************************************************/
 
   dMapRepI::~dMapRepI() 
   { 
     attrib_data.clear();
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   storeRep *dMapRepI::new_store(const entitySet &p) const 
   {
     return new dMapRepI(p)  ;
   }
-  //********************************************************************
+  //********************************************************************/
   
   storeRepP dMapRepI::remap(const Map &newmap) const 
 {
@@ -169,7 +168,7 @@ namespace Loci {
   return s.Rep() ;
 }
 
-  //********************************************************************
+  //********************************************************************/
 
   void dMapRepI::compose(const Map &newmap, const entitySet &context) 
   {
@@ -182,7 +181,7 @@ namespace Loci {
 
   }
 
-  //********************************************************************
+  //********************************************************************/
 
 
   void dMapRepI::copy(storeRepP &st, const entitySet &context) 
@@ -199,7 +198,7 @@ namespace Loci {
 
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   void dMapRepI::gather(const Map &m, storeRepP &st, const entitySet &context) 
   {
@@ -213,7 +212,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   void dMapRepI::scatter(const Map &m,storeRepP &st, const entitySet &context) 
   {
@@ -226,7 +225,7 @@ namespace Loci {
     } ENDFORALL ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   int dMapRepI::pack_size(const entitySet &e) {
     int size ;
@@ -234,7 +233,7 @@ namespace Loci {
     return(size) ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   void dMapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
@@ -244,7 +243,7 @@ namespace Loci {
                 &position, MPI_COMM_WORLD) ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   void dMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) 
   {
@@ -254,11 +253,11 @@ namespace Loci {
                       1, MPI_INT, MPI_COMM_WORLD) ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   entitySet dMapRepI::domain() const 
   {
-    hash_map<int,int > :: const_iterator    ci;
+    HASH_MAP(int,int)::const_iterator    ci;
     entitySet          storeDomain;
     vector<int>        vec;
 
@@ -273,14 +272,14 @@ namespace Loci {
     return storeDomain ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   entitySet dMapRepI::image(const entitySet &domain) const 
   {
 
     entitySet codomain ;
     entitySet :: const_iterator  ei;
-    hash_map<int,int> ::  const_iterator   ai;   
+    HASH_MAP(int,int)::const_iterator   ai;   
     
     for( ei = domain.begin(); ei != domain.end(); ++ei){
       ai = attrib_data.find(*ei);
@@ -290,25 +289,25 @@ namespace Loci {
     return codomain ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   pair<entitySet,entitySet>
   dMapRepI::preimage(const entitySet &codomain) const  
   {
     entitySet domain ;
-    hash_map<int,int> :: const_iterator  ci;
+    HASH_MAP(int,int)::const_iterator  ci;
     for(ci = attrib_data.begin(); ci != attrib_data.end(); ++ci)
       if(codomain.inSet( ci->second) )  domain  += ci->first;
     return make_pair(domain,domain);
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   multiMap dMapRepI::get_map() 
   {
     multiMap result ;
     store<int> sizes ;
-    hash_map<int,int > :: const_iterator    ci;
+    HASH_MAP(int,int)::const_iterator    ci;
     entitySet          storeDomain;
     vector<int>        vec;
     for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci )
@@ -330,11 +329,11 @@ namespace Loci {
     return result ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   ostream &dMapRepI::Print(ostream &s) const 
   {
-    hash_map<int,int > :: const_iterator ci;
+    HASH_MAP(int,int)::const_iterator ci;
 
     s << '{' << domain() << endl ;
 
@@ -349,7 +348,7 @@ namespace Loci {
     return s ;
   }
 
-  //********************************************************************
+  //********************************************************************/
 
   istream &dMapRepI::Input(istream &s) 
   {
@@ -379,11 +378,11 @@ namespace Loci {
     return s ;
   }
 
-  //*********************************************************************************
+  //*************************************************************************/
 
   void dMapRepI::readhdf5(hid_t group_id, entitySet &usr_eset)
   {
-    hash_map<int, int > :: const_iterator  ci;
+    HASH_MAP(int,int)::const_iterator  ci;
     entitySet::const_iterator ei;
     hsize_t       dimension;
     entitySet     eset;	
@@ -417,7 +416,7 @@ namespace Loci {
     delete [] data;
   } 
 
-  //********************************************************************************
+  //*************************************************************************/
 
   void dMapRepI::writehdf5(hid_t group_id, entitySet& usr_eset) const
   {
@@ -433,7 +432,7 @@ namespace Loci {
 
     vector<int> data(arraySize);
     entitySet :: const_iterator   ei;
-    hash_map<int,int> :: const_iterator  ci;
+    HASH_MAP(int,int)::const_iterator  ci;
 
     int indx = 0;
     for( ei = eset.begin(); ei != eset.end(); ++ei) {
@@ -452,11 +451,11 @@ namespace Loci {
     H5Dclose( dataset   );
   } 
 
-  //******************************************************************************
+  //*************************************************************************/
 
   dMap::~dMap() {}
 
-  //******************************************************************************
+  //*************************************************************************/
 
   void dMap::notification() {
     NPTR<MapType> p(Rep()) ;
@@ -465,11 +464,11 @@ namespace Loci {
     warn(p==0) ;
   }    
 
-  //******************************************************************************
+  //*************************************************************************/
 
   const_dMap::~const_dMap() {}
 
-  //******************************************************************************
+  //*************************************************************************/
 
   void const_dMap::notification() {
     NPTR<MapType> p(Rep()) ;
@@ -478,12 +477,12 @@ namespace Loci {
     warn(p==0) ;
   }
 
-  //**************************************************************************
+  //************************************************************************/
 
   store_instance::instance_type const_dMap::access() const
   { return READ_ONLY ; }
 
-//**************************************************************************
+  //*************************************************************************/
   void inverseMap(multiMap &result, const dMap &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) {

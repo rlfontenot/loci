@@ -13,19 +13,14 @@
 #include <functional>
 #include <hdf5_readwrite.h>
 
-#ifdef EXT_HASH_MAP
-#include <ext/hash_map>
-#else
-#include <hash_map>
-#endif
+#include <Tools/hash_map.h>
 
 namespace Loci {
 
-  using std::hash_map ;
   class Map ;
 
   template<class T> class dstoreRepI : public storeRep {
-    hash_map<int,T>      attrib_data;
+    HASH_MAP(int,T)      attrib_data;
     mutable entitySet    store_domain ;
 
     void  hdf5read( hid_t group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
@@ -69,8 +64,8 @@ namespace Loci {
     virtual void readhdf5( hid_t group, entitySet &user_eset) ;
     virtual void writehdf5( hid_t group,entitySet& en) const ;
     virtual entitySet domain() const;
-    hash_map<int,T> *get_attrib_data() { return &attrib_data; }
-    const hash_map<int,T> *get_attrib_data() const { return &attrib_data; }
+    HASH_MAP(int,T) *get_attrib_data() { return &attrib_data; }
+    const HASH_MAP(int,T) *get_attrib_data() const { return &attrib_data; }
   } ;
 
   //*************************************************************************/
@@ -93,7 +88,7 @@ namespace Loci {
   template<class T> 
   std::ostream &dstoreRepI<T>::Print(std::ostream &s) const 
   {
-    hash_map<int,T> :: const_iterator   ci;
+    HASH_MAP(int,T) :: const_iterator   ci;
 
     s << '{' << domain() << std::endl ;
 
@@ -154,7 +149,7 @@ namespace Loci {
   template<class T>  
   entitySet dstoreRepI<T>::domain() const 
   {
-    hash_map<int,T> :: const_iterator    ci;
+    HASH_MAP(int,T) :: const_iterator    ci;
     entitySet          storeDomain;
     std::vector<int>        vec;
 
@@ -189,7 +184,7 @@ namespace Loci {
 
   template<class T> class dstore : public store_instance {
     typedef dstoreRepI<T>  storeType ;
-    hash_map<int,T>       *attrib_data;
+    HASH_MAP(int,T)       *attrib_data;
   public:
     typedef T containerType ;
     dstore() { setRep(new storeType); }
@@ -217,7 +212,7 @@ namespace Loci {
     }
 
     const T &elem(int indx) const {
-      hash_map<int,T>::const_iterator  citer;
+      HASH_MAP(int,T)::const_iterator  citer;
 
       citer = attrib_data->find(indx);
 
@@ -267,7 +262,7 @@ namespace Loci {
 
   template<class T> class const_dstore : public store_instance {
     typedef dstoreRepI<T> storeType ;
-    hash_map<int,T>      *attrib_data;
+    HASH_MAP(int,T)      *attrib_data;
   public:
     typedef T containerType ;
     const_dstore() { setRep(new storeType) ; }
@@ -297,7 +292,7 @@ namespace Loci {
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
 
     const T &elem(int indx) const {
-      hash_map<int,T> :: const_iterator  citer;
+      HASH_MAP(int,T) :: const_iterator  citer;
 
       citer = attrib_data->find(indx);
 
@@ -781,7 +776,7 @@ namespace Loci {
 
     std::vector<T>   newvec;
     entitySet :: const_iterator  ei;
-    hash_map<int,T>:: const_iterator ci;
+    HASH_MAP(int,T):: const_iterator ci;
 
     int arraySize = eset.size();
 
@@ -830,7 +825,7 @@ namespace Loci {
     hsize_t   dimension;
 
     entitySet :: const_iterator ci;
-    hash_map<int,T> :: const_iterator   iter;
+    HASH_MAP(int,T) :: const_iterator   iter;
 
     //-----------------------------------------------------------------------------
     // Get the sum of each object size and maximum size of object in the 

@@ -5,13 +5,6 @@
 #include <utility>
 #include <entitySet.h>
 
-extern "C" {
-#include <hdf5.h>
-#ifdef inline
-#undef inline
-#endif
-}
-
 #include <Loci_Datatypes.h>
 
 namespace Loci {

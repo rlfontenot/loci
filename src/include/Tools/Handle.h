@@ -21,8 +21,10 @@ namespace Loci {
   public:
     HandleGrab() { count = 1 ; }
     HandleGrab(const HandleGrab &g) : GrabItem(g.GrabItem) { count = 1 ; }
+#ifndef SUN_CC
     template<class S> explicit HandleGrab(S arg) : GrabItem(arg)
     { count = 1 ; }
+#endif
     ~HandleGrab() { fatal(count!=0) ; }
     // add reference to grab
     HandleGrab *LinkGrab() { ++count ; return this ; }
@@ -53,7 +55,9 @@ namespace Loci {
     // OCF Methods
     Handle() {grab = new HandleGrab<T> ; }
     Handle(Handle_type i) { grab = 0 ; }
+#ifndef SUN_CC
     template<class S> explicit Handle(S arg) { grab = new HandleGrab<T>(arg); }
+#endif
     Handle(const Handle<T> & hdl)
     { grab = 0 ; if(hdl.grab != 0) grab = hdl.grab->LinkGrab() ;  }
     ~Handle() { if(grab!=0) grab->UnlinkGrab() ; }

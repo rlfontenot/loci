@@ -562,12 +562,12 @@ namespace Loci {
     }
 
   //change map of numerator or denominator to basic type
-  void UNIT_type::change_to_basic_unit(map<string,int>initial_map,map<string,int>&num_map,map<string,int>&den_map,double &conversion_factor)
+  void UNIT_type::change_to_basic_unit(map<string,int>initial_map,map<string,int>&num_map,map<string,int>&den_map,double &conv_factor)
     {
       map<string,int>::iterator mi;
       exprP exp2;
       exprList numerator, denominator;
-      conversion_factor=1;
+      conv_factor=1;
       //for MKS system
       if(mode==MKS){
 	for(mi= initial_map.begin();mi!=initial_map.end();++mi)
@@ -576,17 +576,17 @@ namespace Loci {
 	    for(int i=0;i!=(*mi).second;i++){//for several same units
 	      //cout<<"IS reference unit"<<endl;       
 	      int where=where_reference_unit((*mi).first);
-	      conversion_factor=conversion_factor*reference_unit_table[where].convert_factor;
+	      conv_factor=conv_factor*reference_unit_table[where].convert_factor;
 	      
 	      if(is_composite_unit(reference_unit_table[where].refer_unit)){
 		string comp=reference_unit_table[where].refer_unit;
 		int where=where_composite_unit(comp);
-		conversion_factor=conversion_factor*composite_unit_table[where].convert_factor;
+		conv_factor=conv_factor*composite_unit_table[where].convert_factor;
 		exp2=expression::create(composite_unit_table[where].derived_unit);
 		seperate_unit(num_map,den_map,exp2);
 	      }
 	      
-	      //cout<<"conversion factor:"<<conversion_factor<<endl;
+	      //cout<<"conversion factor:"<<conv_factor<<endl;
 	    }
 	  }
 	  else if(is_composite_unit((*mi).first)){
@@ -595,10 +595,10 @@ namespace Loci {
 	      //cout<<"IS composite unit"<<endl;
 	      //cout<<(*mi).first<<(*mi).second<<endl;
 	      int where=where_composite_unit((*mi).first);
-	      conversion_factor=conversion_factor*composite_unit_table[where].convert_factor;
+	      conv_factor=conv_factor*composite_unit_table[where].convert_factor;
 	      exp2=expression::create(composite_unit_table[where].derived_unit);
 	      seperate_unit(num_map,den_map,exp2);
-	      //cout<<"conversion factor:"<<conversion_factor<<endl;
+	      //cout<<"conversion factor:"<<conv_factor<<endl;
 	    }
 
 	  }
@@ -609,7 +609,7 @@ namespace Loci {
 	    else
 	      num_map[(*mi).first]=(*mi).second;
 	    //cout<<(*mi).first<<(*mi).second<<endl;
-	    //conversion_factor=conversion_factor*1;
+	    //conv_factor=conv_factor*1;
 	  }
 	  else{
 	    unit_error(4,"Not in MKS database! ");
@@ -624,17 +624,17 @@ namespace Loci {
 	    for(int i=0;i!=(*mi).second;i++){//for several same units
 	      //cout<<"IS reference unit"<<endl;       
 	      int where=where_reference_unit((*mi).first);
-	      conversion_factor=conversion_factor*reference_unit_table[where].convert_factor;
+	      conv_factor=conv_factor*reference_unit_table[where].convert_factor;
 	      
 	      if(is_composite_unit(reference_unit_table[where].refer_unit)){
 		string comp=reference_unit_table[where].refer_unit;
 		int where=where_composite_unit(comp);
-		conversion_factor=conversion_factor*cgs_composite_unit_table[where].convert_factor;
+		conv_factor=conv_factor*cgs_composite_unit_table[where].convert_factor;
 		exp2=expression::create(cgs_composite_unit_table[where].derived_unit);
 		seperate_unit(num_map,den_map,exp2);
 	      }
 	      
-	      //cout<<"conversion factor:"<<conversion_factor<<endl;
+	      //cout<<"conversion factor:"<<conv_factor<<endl;
 	    }
 	  }
 	  else if(is_composite_unit((*mi).first)){
@@ -643,10 +643,10 @@ namespace Loci {
 	      //cout<<"IS composite unit"<<endl;
 	      //cout<<(*mi).first<<(*mi).second<<endl;
 	      int where=where_composite_unit((*mi).first);
-	      conversion_factor=conversion_factor*cgs_composite_unit_table[where].convert_factor;
+	      conv_factor=conv_factor*cgs_composite_unit_table[where].convert_factor;
 	      exp2=expression::create(cgs_composite_unit_table[where].derived_unit);
 	      seperate_unit(num_map,den_map,exp2);
-	      //cout<<"conversion factor:"<<conversion_factor<<endl;
+	      //cout<<"conversion factor:"<<conv_factor<<endl;
 	    }
 
 	  }
@@ -657,18 +657,18 @@ namespace Loci {
 	    else
 	      num_map[(*mi).first]=(*mi).second;
 	    //cout<<(*mi).first<<(*mi).second<<endl;
-	    conversion_factor=conversion_factor*1;
+	    conv_factor=conv_factor*1;
 	  }
 	  else{
 	    unit_error(5,"Not in CGS database! ");
-	    conversion_factor=0;
+	    conv_factor=0;
 	  }
 	}
 	}
     }
 
   //get the units convert to baisc types//
-  void UNIT_type::get_conversion(map<string,int> &num_map, map<string,int> &den_map,double &conversion_factor)
+  void UNIT_type::get_conversion(map<string,int> &num_map, map<string,int> &den_map,double &conv_factor)
     {
       map<string,int> num_map2,den_map2,num_map3,den_map3;
       double num_conversion_factor,den_conversion_factor;
@@ -681,11 +681,11 @@ namespace Loci {
       change_to_basic_unit(den_map,num_map3,den_map3,den_conversion_factor);
   
       if(num_size>0&&den_size>0)
-	conversion_factor=num_conversion_factor/den_conversion_factor;
+	conv_factor=num_conversion_factor/den_conversion_factor;
       else if(num_size>0&&den_size<=0)
-	conversion_factor=num_conversion_factor;
+	conv_factor=num_conversion_factor;
       else if(den_size>0&&num_size<=0)
-	conversion_factor=1/den_conversion_factor;
+	conv_factor=1/den_conversion_factor;
   
       //cout<<endl;
       num_map=combine_units(num_map2,den_map3); 
@@ -757,20 +757,20 @@ namespace Loci {
     }
 
   //change single temperature to basic type -kelvin- by special calculation
-  void UNIT_type::calculate_temperature(exprP &input_expr,double &value){
+  void UNIT_type::calculate_temperature(exprP &input_expr,double &val){
     seperate_unit(unit_num_map,unit_den_map,input_expr); 
     get_conversion(unit_num_map,unit_den_map,conversion_factor);
     if(conversion_factor>0){
       conversion_factor=1;
       switch(is_single_temperature(input_expr)){
       case 1:
-	value=(value+459.67)/1.8;
+	val=(val+459.67)/1.8;
 	break;
       case 2:
-	value=value+273.15;
+	val=val+273.15;
 	break;
       case 3:
-	value=value/1.8;
+	val=val/1.8;
 	break;
       }
     }else
@@ -778,20 +778,20 @@ namespace Loci {
   }
 
 //change basic type -kelvin- to other temperature by special calculation
-  void UNIT_type::reverse_calculate_temperature(exprP &input_expr,double &value){
+  void UNIT_type::reverse_calculate_temperature(exprP &input_expr,double &val){
     seperate_unit(unit_num_map,unit_den_map,input_expr); 
     get_conversion(unit_num_map,unit_den_map,conversion_factor);
     if(conversion_factor>0){
       conversion_factor=1;
       switch(is_single_temperature(input_expr)){
       case 1:
-	value=value*1.8-459.67;
+	val=val*1.8-459.67;
 	break;
       case 2:
-	value=value-273.15;
+	val=val-273.15;
 	break;
       case 3:
-	value=value*1.8;
+	val=val*1.8;
 	break;
       }
     }else
@@ -827,14 +827,14 @@ namespace Loci {
 	  rem_dup(unit_num_map,unit_den_map);
 	  /*cout<<"conversion factor is: "<<conversion_factor<<endl;
 	    cout<<"Input value is: "<<get_value()<<endl;
-	    cout<<"final value is: "<<conversion_factor*value<<endl;*/
+	    cout<<"final value is: "<<conversion_factor*val<<endl;*/
 	}else
 	  cout<<"Not an unit!"<<endl;  
       }
   }
 
   //-- check if there is unit and get the value input--//
-  bool UNIT_type::check_unit(istream &in, double &value){
+  bool UNIT_type::check_unit(istream &in, double &val){
 
     parse::kill_white_space(in);
   
@@ -845,15 +845,15 @@ namespace Loci {
 
     else if(isdigit(in.peek())){
       if(parse::is_real(in)) 
-	value=parse::get_real(in);}
+	val=parse::get_real(in);}
     else if(!isdigit(in.peek())){
-      value=1;
+      val=1;
       cout<<"No input value, set default to 1"<<endl;
     }
     while(!in.eof()&&isspace(in.peek()))//kill white spaces between the value and unit
       in.get();
 
-    input_value=value;
+    input_value=val;
     if(isalpha(in.peek())||parse::is_token(in,"("))
       return true;
     else

@@ -7,15 +7,10 @@
 #include <Tools/debug.h>
 #include <Map_rep.h>
 
-#ifdef EXT_HASH_MAP
-#include <ext/hash_map>
-#else
-#include <hash_map>
-#endif
+#include<Tools/hash_map.h>
 
 
 namespace Loci {
-  using std::hash_map ;
 
   entitySet image_section(const int *start, const int *end) ;
   class Map ;
@@ -24,7 +19,7 @@ namespace Loci {
   
   class dMapRepI : public MapRep {
     entitySet store_domain ;
-    hash_map<int,int> attrib_data;
+    HASH_MAP(int,int) attrib_data;
   public:
     dMapRepI() { }
     dMapRepI(const entitySet &p) { allocate(p) ; }
@@ -54,13 +49,13 @@ namespace Loci {
     virtual void readhdf5(hid_t group, entitySet &user_eset) ;
     virtual void writehdf5(hid_t group,entitySet& en) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-    hash_map<int,int> *get_attrib_data() { return &attrib_data; }
+    HASH_MAP(int,int) *get_attrib_data() { return &attrib_data; }
   } ;
       
   class dMap : public store_instance {
     friend class const_dMap ;
     typedef dMapRepI MapType ;
-    hash_map<int,int> *attrib_data;
+    HASH_MAP(int,int) *attrib_data;
   public:
     dMap() { setRep(new MapType) ;}
     dMap(const dMap &var) { setRep(var.Rep()) ; }
@@ -114,7 +109,7 @@ namespace Loci {
 
   class const_dMap : public store_instance {
     typedef dMapRepI MapType ;
-    hash_map<int,int>  *attrib_data;
+    HASH_MAP(int,int)  *attrib_data;
   public:
     const_dMap()
     { setRep(new MapType); }

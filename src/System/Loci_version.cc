@@ -2,10 +2,10 @@
 
 namespace Loci {
   
-  char *revision_name = "$Name: test-1-1e $" ;
+  const char *revision_name = "$Name:  $" ;
 
   std::string version() {
-    char *p = revision_name;
+    const char *p = revision_name;
     while(*p!=':' && *p!='\0')
       ++p ;
     if(*p!= '\0')

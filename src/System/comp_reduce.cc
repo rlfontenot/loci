@@ -5,13 +5,9 @@
 using std::vector ;
 #include <set>
 using std::set ;
-#ifdef EXT_HASH_MAP
-#include <ext/hash_map>
-#else
-#include <hash_map>
-#endif
 
-using std::hash_map ;
+#include <Tools/hash_map.h>
+
 using std::list ; 
 
 //#define VERBOSE
@@ -564,8 +560,8 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 					 fact_db &facts,
 					 CPTR<joiner> jop) {
   join_op = jop ;
-  hash_map<int,vector<send_var_info> > send_data ;
-  hash_map<int,vector<recv_var_info> > recv_data ;
+  HASH_MAP(int,vector<send_var_info> ) send_data ;
+  HASH_MAP(int,vector<recv_var_info> ) recv_data ;
   list<comm_info>::const_iterator cli ;
   intervalSet send_procs, recv_procs ;
   for(cli=plist.begin();cli!=plist.end();++cli) {
@@ -730,15 +726,14 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     if(nrecv > 0) { 
       int err = MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
-      int *recv_sizes = new int[nrecv] ;
       for(int i = 0 ; i < nrecv; i++) {
-	MPI_Get_count(&status[i], MPI_BYTE, &recv_sizes[i]) ;  
-	if(recv_sizes[i] == sizeof(int)) {
+        int rcv_sizes ;
+	MPI_Get_count(&status[i], MPI_BYTE, &rcv_sizes) ;  
+	if(rcv_sizes == sizeof(int)) {
 	  rerecv_procs += recv_info[i].first ;
 	  recv_index.push_back(i) ;
 	}
       }
-      delete [] recv_sizes ;
     }
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;

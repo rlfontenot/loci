@@ -24,12 +24,12 @@
 #define HOST_ID "localhost"
 
 namespace Loci {
-  char *debug_hostname = HOST_ID ;
-  char *debug_execname = "a.out" ;
-  char *debug_program = "gdb" ;
+  const char *debug_hostname = HOST_ID ;
+  const char *debug_execname = "a.out" ;
+  const char *debug_program = "gdb" ;
   bool debugger_setup = false ;
 
-  void setup_debugger(char *execname, char *gdb, char *hostname) {
+  void setup_debugger(const char *execname, const char *gdb, const char *hostname) {
     debug_execname = execname ;
     debug_program = gdb ;
     debug_hostname = hostname ;
@@ -46,16 +46,16 @@ namespace Loci {
     int breakout ;
     struct stat sb ;
 #ifdef SUN
-    char *xtermpath = "/usr/openwin/bin/xterm" ;
-    char *xtermlibpath = "/usr/openwin/lib:/usr/lib" ;
+    const char *xtermpath = "/usr/openwin/bin/xterm" ;
+    const char *xtermlibpath = "/usr/openwin/lib:/usr/lib" ;
 #endif
 #ifdef LINUX
-    char *xtermpath = "/usr/X11R6/bin/xterm" ;
-    char *xtermlibpath = "/usr/X11R6/lib:/usr/lib:/lib/i686:/lib" ;
+    const char *xtermpath = "/usr/X11R6/bin/xterm" ;
+    const char *xtermlibpath = "/usr/X11R6/lib:/usr/lib:/lib/i686:/lib" ;
 #endif
 #ifdef SGI
-    char *xtermpath = "/usr/bin/X11/xterm" ;
-    char *xtermlibpath = "/usr/lib" ;
+    const char *xtermpath = "/usr/bin/X11/xterm" ;
+    const char *xtermlibpath = "/usr/lib" ;
 #endif
 #ifndef SGI
     sprintf(buf,"export LD_LIBRARY_PATH;LD_LIBRARY_PATH=%s; %s  -display %s -e %s %s %d &",
@@ -75,7 +75,7 @@ namespace Loci {
 
   void program_trap(int sig) /*,code,scp,addr)*/
   {
-    char *sigtype = "(undefined)" ;
+    const char *sigtype = "(undefined)" ;
 
     switch(sig) {
     case SIGBUS:

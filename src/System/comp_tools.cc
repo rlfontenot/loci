@@ -10,12 +10,8 @@ using std::set ;
 using std::list ;
 #include <map>
 using std::map ;
-#ifdef EXT_HASH_MAP
-#include <ext/hash_map>
-#else
-#include <hash_map>
-#endif
-using std::hash_map ;
+
+#include <Tools/hash_map.h>
 
 using std::pair ;
 using std::make_pair ;
@@ -756,8 +752,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   
   
   execute_comm::execute_comm(list<comm_info> &plist, fact_db &facts) {
-    hash_map<int,vector<send_var_info> > send_data ;
-    hash_map<int,vector<recv_var_info> > recv_data ;
+    HASH_MAP(int,vector<send_var_info>) send_data ;
+    HASH_MAP(int,vector<recv_var_info>) recv_data ;
     list<comm_info>::const_iterator cli ;
     intervalSet send_procs, recv_procs ;
     for(cli=plist.begin();cli!=plist.end();++cli) {
@@ -1062,8 +1058,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     
     // First collect information from slist
 
-    hash_map<int,vector<send_var_info> > send_data ;
-    hash_map<int,vector<recv_var_info> > recv_data ;
+    HASH_MAP(int,vector<send_var_info>) send_data ;
+    HASH_MAP(int,vector<recv_var_info>) recv_data ;
     list<comm_info>::const_iterator cli ;
     intervalSet send_procs, recv_procs ;
     for(cli=slist.begin();cli!=slist.end();++cli) {

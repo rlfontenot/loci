@@ -58,11 +58,11 @@ class expression : public CPTR_type {
     const exprList            &expr_list ;
     const std::string         &name ;
     const int                 &int_val ;
-    expression(OpType op, const string nm, 
+    expression(OpType opin, const string nm, 
 	       const exprList &elist, int ival = 0) :
       op(op_priv), expr_list(expr_list_priv), name(name_priv),
       int_val(int_val_priv) 
-      { op_priv = op; expr_list_priv = elist ; name_priv = nm; 
+      { op_priv = opin; expr_list_priv = elist ; name_priv = nm; 
       int_val_priv = ival ;}
     void Print(std::ostream &s) const ;
     static exprP create(std::istream &s) ;

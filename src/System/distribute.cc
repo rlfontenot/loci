@@ -42,8 +42,8 @@ namespace Loci {
   void Init(int* argc, char*** argv)  {
     
     char *execname = (*argv)[0] ;
-    char *hostname = "localhost" ;
-    char *debug = "gdb" ;
+    const char *hostname = "localhost" ;
+    const char *debug = "gdb" ;
     MPI_Init(argc, argv) ;
     MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
@@ -1555,7 +1555,7 @@ namespace Loci {
       MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
 		    recv_buf, recv_count, recv_displacement, MPI_INT,
 		    MPI_COMM_WORLD) ;  
-      hash_map<int, std::set<int> > hm ;
+      HASH_MAP(int, std::set<int> ) hm ;
       for(int i = 0; i < MPI_processes; ++i) {
 	for(int j = recv_displacement[i]; j <
 	      recv_displacement[i]+recv_count[i]-1; ++j) {
@@ -1563,7 +1563,7 @@ namespace Loci {
 	  j++ ;
 	}
       }
-      for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+      for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
 	for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
 	  
 	  result[hmi->first].push_back(*si) ;
@@ -1633,7 +1633,7 @@ namespace Loci {
     MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
 		  recv_buf, recv_count, recv_displacement, MPI_INT,
 		  MPI_COMM_WORLD) ;  
-    hash_map<int, std::set<int> > hm ;
+    HASH_MAP(int, std::set<int> ) hm ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
 	    recv_displacement[i]+recv_count[i]-1; ++j) {
@@ -1641,7 +1641,7 @@ namespace Loci {
 	j++ ;
       }
     }
-    for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+    for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
       for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
 	result[hmi->first].push_back(*si) ;
     
@@ -1660,7 +1660,7 @@ namespace Loci {
     int *send_count = new int[MPI_processes] ;
     int *send_displacement = new int[MPI_processes];
     int *recv_displacement = new int[MPI_processes];
-    std::vector<hash_map<int, std::vector<int> > > map_elems(MPI_processes); 
+    std::vector<HASH_MAP(int, std::vector<int> > ) map_elems(MPI_processes); 
     std::vector<int> tmp_vec ;
     entitySet local_input_image = input_image ;
     local_input_image &= init_ptn[MPI_rank] ;
@@ -1680,7 +1680,7 @@ namespace Loci {
     
     for(int i = 0; i < MPI_processes; ++i) {
       send_count[i] = 2*map_elems[i].size() ;
-      for(hash_map<int, std::vector<int> >::iterator hi = map_elems[i].begin(); hi != map_elems[i].end(); ++hi)
+      for(HASH_MAP(int, std::vector<int> )::iterator hi = map_elems[i].begin(); hi != map_elems[i].end(); ++hi)
 	send_count[i] += hi->second.size() ; 
     }
     int size_send = 0 ;
@@ -1695,7 +1695,7 @@ namespace Loci {
     int *recv_buf = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i) 
-      for(hash_map<int, std::vector<int> >::const_iterator miv = map_elems[i].begin(); miv != map_elems[i].end(); ++miv) {
+      for(HASH_MAP(int, std::vector<int> )::const_iterator miv = map_elems[i].begin(); miv != map_elems[i].end(); ++miv) {
 	send_buf[size_send] = miv->first ;
 	++size_send ;
 	send_buf[size_send] = miv->second.size() ;
@@ -1714,7 +1714,7 @@ namespace Loci {
     MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
 		  recv_buf, recv_count, recv_displacement, MPI_INT,
 		  MPI_COMM_WORLD) ;  
-    hash_map<int, std::set<int> > hm ;
+    HASH_MAP(int, std::set<int> ) hm ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
 	    recv_displacement[i]+recv_count[i]-1; ++j) {
@@ -1724,7 +1724,7 @@ namespace Loci {
 	j += count + 1 ;
       }
     }
-    for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+    for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
       for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
 	result[hmi->first].push_back(*si) ;
     
@@ -1744,7 +1744,7 @@ namespace Loci {
     int *send_count = new int[MPI_processes] ;
     int *send_displacement = new int[MPI_processes];
     int *recv_displacement = new int[MPI_processes];
-    std::vector<hash_map<int, std::vector<int> > > map_elems(MPI_processes); 
+    std::vector<HASH_MAP(int, std::vector<int> > ) map_elems(MPI_processes); 
     std::vector<int> tmp_vec ;
     entitySet local_input_image = input_image ;
     local_input_image &= init_ptn[MPI_rank] ;
@@ -1763,7 +1763,7 @@ namespace Loci {
     }ENDFORALL ;
     for(int i = 0; i < MPI_processes; ++i) {
       send_count[i] = 2*map_elems[i].size() ;
-      for(hash_map<int, std::vector<int> >::iterator hi = map_elems[i].begin(); hi != map_elems[i].end(); ++hi)
+      for(HASH_MAP(int, std::vector<int> )::iterator hi = map_elems[i].begin(); hi != map_elems[i].end(); ++hi)
 	send_count[i] += hi->second.size() ; 
     }
     int size_send = 0 ;
@@ -1778,7 +1778,7 @@ namespace Loci {
     int *recv_buf = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i) 
-      for(hash_map<int, std::vector<int> >::const_iterator miv = map_elems[i].begin(); miv != map_elems[i].end(); ++miv) {
+      for(HASH_MAP(int, std::vector<int> )::const_iterator miv = map_elems[i].begin(); miv != map_elems[i].end(); ++miv) {
 	send_buf[size_send] = miv->first ;
 	++size_send ;
 	send_buf[size_send] = miv->second.size() ;
@@ -1797,7 +1797,7 @@ namespace Loci {
     MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
 		  recv_buf, recv_count, recv_displacement, MPI_INT,
 		  MPI_COMM_WORLD) ;  
-    hash_map<int, std::set<int> > hm ;
+    HASH_MAP(int, std::set<int> ) hm ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
 	    recv_displacement[i]+recv_count[i]-1; ++j) {
@@ -1807,7 +1807,7 @@ namespace Loci {
 	j += count + 1 ;
       }
     }
-    for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+    for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
       for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
 	result[hmi->first].push_back(*si) ;
     delete [] recv_count ;

@@ -21,10 +21,12 @@
 
 #include <algorithm>
 
+#include <Tools/hash_map.h>
+
 namespace Loci {
   template<class T> class dmultiStoreRepI : public storeRep {
     entitySet                 store_domain ;
-    hash_map<int,std::vector<T> >  attrib_data;
+    HASH_MAP(int,std::vector<T>)  attrib_data;
 
     void  hdf5read( hid_t group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( hid_t group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
@@ -81,14 +83,14 @@ namespace Loci {
     virtual void readhdf5( hid_t group, entitySet &user_eset) ;
     virtual void writehdf5( hid_t group, entitySet& en) const ;
 
-    hash_map<int,std::vector<T> > *get_attrib_data(){return &attrib_data; }
+    HASH_MAP(int,std::vector<T>) *get_attrib_data(){return &attrib_data; }
   } ;
 
   //***************************************************************************/
   
   template<class T> class dmultiStore : public store_instance {
     typedef dmultiStoreRepI<T>  storeType ;
-    hash_map<int, std::vector<T> > *attrib_data;
+    HASH_MAP(int, std::vector<T> ) *attrib_data;
   public:
     typedef std::vector<T> containerType ;
     dmultiStore() {setRep(new storeType) ;}
@@ -166,7 +168,7 @@ namespace Loci {
   
   template<class T> class const_dmultiStore : public store_instance {
     typedef dmultiStoreRepI<T> storeType ;
-    hash_map<int, std::vector<T> >   *attrib_data;
+    HASH_MAP(int, std::vector<T> )   *attrib_data;
   public:
     //    typedef const_Vect<T> containerType ;
     const_dmultiStore() {setRep(new storeType) ;}
@@ -385,7 +387,7 @@ namespace Loci {
   template<class T> 
   entitySet dmultiStoreRepI<T>::domain() const 
   {
-    hash_map<int,std::vector<T> > :: const_iterator    ci;
+    HASH_MAP(int,std::vector<T> ) :: const_iterator    ci;
     entitySet          storeDomain;
     std::vector<int>        vec;
 
@@ -407,7 +409,7 @@ namespace Loci {
   {
     s << '{' << domain() << endl ;
 
-    hash_map<int,std::vector<T> >  :: const_iterator ci;
+    HASH_MAP(int,std::vector<T>)  :: const_iterator ci;
 
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
@@ -508,7 +510,7 @@ namespace Loci {
   {
     std::vector<T>   newVec;
     entitySet :: const_iterator  ei;
-    hash_map<int,std::vector<T> >:: const_iterator ci;
+    HASH_MAP(int,std::vector<T>):: const_iterator ci;
 
     int     arraySize =0, numContainers = 0;
     typedef data_schema_traits<T> schema_traits;
@@ -552,7 +554,7 @@ namespace Loci {
     int vsize, incount;
     std::vector<T>   inbuf;
     entitySet :: const_iterator   ci;
-    hash_map<int,std::vector<T> >::const_iterator iter;
+    HASH_MAP(int,std::vector<T> )::const_iterator iter;
 
     for( ci = eset.begin(); ci != eset.end(); ++ci){
       iter = attrib_data.find(*ci);
@@ -969,7 +971,7 @@ namespace Loci {
 
     std::vector<T>   newvec;
     entitySet :: const_iterator  ei;
-    hash_map<int,std::vector<T> >:: const_iterator ci;
+    HASH_MAP(int,std::vector<T> ):: const_iterator ci;
     std::vector<int> container(eset.size());
     size_t  arraySize= 0;
     int     count;
@@ -1040,7 +1042,7 @@ namespace Loci {
 
     std::vector<T>   newVec;
     entitySet :: const_iterator  ei;
-    hash_map<int,std::vector<T> >:: const_iterator ci;
+    HASH_MAP(int,std::vector<T>):: const_iterator ci;
 
     //------------------------------------------------------------------------
     // Get the sum of each object size and maximum size of object in the 

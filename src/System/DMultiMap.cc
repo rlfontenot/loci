@@ -57,7 +57,7 @@ namespace Loci
 	send_clone[i].push_back(recv_buf[j]) ;
       sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
-    std::vector<hash_map<int, std::vector<int> > > map_entities(MPI_processes) ;
+    std::vector<HASH_MAP(int, std::vector<int>) > map_entities(MPI_processes) ;
     for(int i = 0; i < MPI_processes; ++i) 
       for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
 	if(attrib_data.find(*vi) != attrib_data.end())
@@ -65,7 +65,7 @@ namespace Loci
     
     for(int i = 0; i < MPI_processes; ++i) {
       send_count[i] = 2 * map_entities[i].size() ;
-      for(hash_map<int, std::vector<int> >::iterator hi = map_entities[i].begin(); hi != map_entities[i].end(); ++hi)
+      for(HASH_MAP(int, std::vector<int>)::iterator hi = map_entities[i].begin(); hi != map_entities[i].end(); ++hi)
 	send_count[i] += hi->second.size() ; 
     }
     size_send = 0 ;
@@ -80,7 +80,7 @@ namespace Loci
     int *recv_map = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i) 
-      for(hash_map<int, std::vector<int> >::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+      for(HASH_MAP(int, std::vector<int> )::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
 	send_map[size_send] = miv->first ;
 	++size_send ;
 	send_map[size_send] = miv->second.size() ;
@@ -99,7 +99,7 @@ namespace Loci
     MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
 		  recv_map, recv_count, recv_displacement, MPI_INT,
 		  MPI_COMM_WORLD) ;  
-    hash_map<int, std::set<int> > hm ;
+    HASH_MAP(int, std::set<int> ) hm ;
     std::set<int> ss ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
@@ -114,14 +114,14 @@ namespace Loci
       }
     }
     std::vector<int> tmp_vec ;
-    for(hash_map<int, std::set<int> >::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+    for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
       if(hmi->second.size()) 
 	for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
 	  attrib_data[hmi->first].push_back(*si) ;
       else
 	attrib_data[hmi->first] = tmp_vec ;
     dmultiMap dmul ;
-    for(hash_map<int, std::vector<int> >::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
+    for(HASH_MAP(int, std::vector<int> )::const_iterator hi = attrib_data.begin(); hi != attrib_data.end(); ++hi)
       dmul[hi->first] = hi->second ;
     storeRepP sp = dmul.Rep() ;
     delete [] send_buf ;
@@ -212,7 +212,7 @@ namespace Loci
   void dmultiMapRepI::compose(const Map &m, const entitySet &context) 
   {
     vector<int>    vec;
-    hash_map<int,vector<int> > ::const_iterator ci;
+    HASH_MAP(int,vector<int> ) ::const_iterator ci;
     
     //-------------------------------------------------------------------------
     // All the entities in the context should be present in the domain. ie. A->B
@@ -340,7 +340,7 @@ namespace Loci
     
   entitySet dmultiMapRepI::domain() const 
   {
-    hash_map<int,vector<int> > :: const_iterator    ci;
+    HASH_MAP(int,vector<int> ) :: const_iterator    ci;
     entitySet          storeDomain;
     vector<int>        vec;
 
@@ -361,7 +361,7 @@ namespace Loci
   {
     entitySet     codomain ;
     vector<int>   mapvec;
-    hash_map<int,vector<int> >  :: const_iterator   ai;
+    HASH_MAP(int,vector<int> )  :: const_iterator   ai;
     
     entitySet :: const_iterator  ei;
     
@@ -381,7 +381,7 @@ namespace Loci
   pair<entitySet,entitySet>
   dmultiMapRepI::preimage(const entitySet &codomain) const  {
     entitySet domaini,domainu ;
-    hash_map<int,vector<int> >  :: const_iterator   ai ;
+    HASH_MAP(int,vector<int> )::const_iterator   ai ;
     FORALL(domain(),i) {
       bool vali = true ;
       ai = attrib_data.find(i);
@@ -423,7 +423,7 @@ namespace Loci
     
   ostream &dmultiMapRepI::Print(ostream &s) const 
   {
-    hash_map<int,vector<int> > :: const_iterator ci;
+    HASH_MAP(int,vector<int>)::const_iterator ci;
     vector<int>   newVec;
 
     s << '{' << domain() << endl ;
@@ -497,7 +497,7 @@ namespace Loci
   void dmultiMapRepI::readhdf5( hid_t group_id, entitySet &user_eset) 
   {
 
-    hash_map<int, vector<int> > :: const_iterator  ci;
+    HASH_MAP(int, vector<int>)::const_iterator  ci;
     entitySet::const_iterator ei;
     hsize_t       dimension;
     entitySet     eset;	
@@ -573,7 +573,7 @@ namespace Loci
 
     int rank = 1;
     entitySet  :: const_iterator ci;
-    hash_map<int,vector<int> > :: const_iterator iter;
+    HASH_MAP(int,vector<int>)::const_iterator iter;
     vector<int>   mapvec, vecsize, vec;
 
     entitySet   eset(usr_eset&domain());

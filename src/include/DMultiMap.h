@@ -8,19 +8,16 @@
 #include <Map_rep.h>
 #include <DMap.h>
 #include <vector>
-#ifdef EXT_HASH_MAP
-#include <ext/hash_map>
-#else
-#include <hash_map>
-#endif
+
+#include <Tools/hash_map.h>
 
 #include <Map.h>
 #include <store.h>
 namespace Loci {
-  using std::hash_map ;
-class dmultiMapRepI : public MapRep {
+
+  class dmultiMapRepI : public MapRep {
   entitySet store_domain ;
-  hash_map<int, std::vector<int> >  attrib_data;
+  HASH_MAP(int, std::vector<int> )  attrib_data;
   public:
   dmultiMapRepI() { }
     dmultiMapRepI(const store<int> &sizes) { allocate(sizes) ; }
@@ -51,7 +48,7 @@ class dmultiMapRepI : public MapRep {
   virtual void readhdf5( hid_t group, entitySet &user_eset) ;
   virtual void writehdf5( hid_t group_id, entitySet& en) const ;
   virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-  hash_map<int,std::vector<int> > *get_attrib_data() {return &attrib_data;}
+  HASH_MAP(int,std::vector<int> ) *get_attrib_data() {return &attrib_data;}
 } ;
       
   //***************************************************************************
@@ -59,7 +56,7 @@ class dmultiMapRepI : public MapRep {
   class dmultiMap : public store_instance {
     friend class const_dmultiMap ;
     typedef dmultiMapRepI MapType ;
-    hash_map<int, std::vector<int> >   *attrib_data;
+    HASH_MAP(int, std::vector<int> )   *attrib_data;
   public:
     dmultiMap() { setRep(new MapType) ; }
         
@@ -99,7 +96,7 @@ class dmultiMapRepI : public MapRep {
 
     const std::vector<int> &const_elem(int indx)  const 
     {
-      hash_map<int, std::vector<int> > :: const_iterator   ci;
+      HASH_MAP(int, std::vector<int> ) :: const_iterator   ci;
      
       ci = attrib_data->find(indx);
       if( ci == attrib_data->end()) {
@@ -117,7 +114,7 @@ class dmultiMapRepI : public MapRep {
     
     int num_elems(int indx) const 
       {
-	hash_map<int, std::vector<int> > :: const_iterator   ci;
+	HASH_MAP(int, std::vector<int> ) :: const_iterator   ci;
 	std::vector<int>     newVec;
 	
 	ci = attrib_data->find(indx);
@@ -147,7 +144,7 @@ class dmultiMapRepI : public MapRep {
 
   class const_dmultiMap : public store_instance {
     typedef dmultiMapRepI      MapType ;
-    hash_map<int,std::vector<int> > *attrib_data;
+    HASH_MAP(int,std::vector<int> ) *attrib_data;
   public:
     const_dmultiMap() { setRep(new MapType) ; }
     
@@ -181,7 +178,7 @@ class dmultiMapRepI : public MapRep {
     }
 
     const std::vector<int> &const_elem(int indx)  const {
-      hash_map<int,std::vector<int> > :: const_iterator   ci;
+      HASH_MAP(int,std::vector<int> ) :: const_iterator   ci;
       ci = attrib_data->find(indx);
       if( ci == attrib_data->end() ) {
 	cerr << " Trying to access the dmultiMap out of bounds " << endl ;
@@ -195,7 +192,7 @@ class dmultiMapRepI : public MapRep {
     
     int num_elems(int indx) const 
       {
-       hash_map<int,std::vector<int> > :: const_iterator   ci;
+       HASH_MAP(int,std::vector<int> ) :: const_iterator   ci;
        ci = attrib_data->find(indx);
        if( ci != attrib_data->end() )
 	 return( (ci->second).size() );

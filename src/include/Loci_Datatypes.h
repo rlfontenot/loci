@@ -9,6 +9,9 @@
 #include <stddef.h>
 
 extern "C" {
+#ifdef RCSID
+#undef RCSID
+#endif
 #include <hdf5.h>
 #ifdef inline
 #undef inline
@@ -20,7 +23,7 @@ namespace Loci {
   enum AtomType {
     BOOL=1, CHAR, UNSIGNED_CHAR, BYTE,
     SHORT, UNSIGNED_SHORT, INT, UNSIGNED, LONG,
-    UNSIGNED_LONG, FLOAT, DOUBLE, LONG_DOUBLE,
+    UNSIGNED_LONG, FLOAT, DOUBLE, LONG_DOUBLE
   };
 
   class  AbstractDatatype: public CPTR_type {

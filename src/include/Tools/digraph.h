@@ -3,12 +3,7 @@
 
 #include <Tools/intervalSet.h>
 #include <Tools/Handle.h>
-//#include <map>
-#ifdef EXT_HASH_MAP
-#include <ext/hash_map>
-#else
-#include <hash_map>
-#endif
+#include <Tools/hash_map.h>
 
 #include <vector>
 
@@ -26,7 +21,7 @@ namespace Loci {
   private:
     class digraphRep {
     public:
-      typedef std::hash_map<int,vertexSet> graph_matrix ;
+      typedef HASH_MAP(int,vertexSet) graph_matrix ;
       graph_matrix graph ;
       vertexSet source_vertices ;  
       int max_vertex ;

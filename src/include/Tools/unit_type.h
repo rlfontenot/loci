@@ -28,28 +28,28 @@ namespace Loci {
 
     //three tables of unit type - basic, composite, reference types----//
     struct basic_units{
-      char* name;
+      const char* name;
       basic_unit_type unit_type;
       double convert_factor;};  
     static basic_units basic_unit_table[] ;//MKS
     static basic_units cgs_basic_unit_table[];//CGS
    
     struct composite_units{
-      char* name;
-      char* derived_unit;
+      const char* name;
+      const char* derived_unit;
       double convert_factor;};  
     static composite_units composite_unit_table[] ;//MKS
     static composite_units cgs_composite_unit_table[] ;//CGS
   
     struct reference_units{
-      char* name;
-      char* refer_unit;
+      const char* name;
+      const char* refer_unit;
       double convert_factor;};  
     static reference_units reference_unit_table[] ;
 
     struct default_units{//If no unit input, check the default table 
-      char* default_type;//according to the unit_kind
-      char* default_name;
+      const char* default_type;//according to the unit_kind
+      const char* default_name;
     };
     static default_units default_unit_table[] ;
   

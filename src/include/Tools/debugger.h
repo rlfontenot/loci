@@ -2,7 +2,7 @@
 #define DEBUGGER_H
 
 namespace Loci {
-  void setup_debugger(char *execname,char *gdb, char *hostname) ;
+  void setup_debugger(const char *execname,const char *gdb, const char *hostname) ;
   void debugger_() ;
   void chopsigs_() ;
 }
