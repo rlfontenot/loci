@@ -10,7 +10,7 @@ using std::list ;
 #include <set>
 using std::set ;
 
-#define VERBOSE
+//#define VERBOSE
 
 namespace Loci {
   void impl_recurse_compiler::set_var_existence(fact_db &facts) {
@@ -282,14 +282,14 @@ namespace Loci {
   }
 
   void recurse_compiler::set_var_existence(fact_db &facts) {
-    //    warn(facts.isDistributed()) ;
 
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      send_entities = barrier_existential_rule_analysis(recurse_vars,facts) ;
+      pre_send_entities = barrier_existential_rule_analysis(recurse_vars,facts) ;
       my_entities = d->my_entities ;
     }
+
     control_set.clear() ;
 
     ruleSet::const_iterator fi ;
@@ -401,12 +401,49 @@ namespace Loci {
             entitySet sac = srcs & fctrl.constraints ;
             cerr << "srcs & constraints = " << sac << endl ;
             //exit(-1) ;
+
+            const rule_impl::info &rinfo = fi->get_info().desc ;
+            set<vmap_info>::const_iterator si ;
+
+            cerr << "detailed report:" << endl ;
+            cerr<< "fctrl.nr_sources = " << fctrl.nr_sources << endl ;
+            entitySet constraints = fctrl.constraints ;
+            for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+              entitySet sources = vmap_source_exist(*si,facts) ;
+              sources &= my_entities ;
+              if((sources & constraints) != constraints) {
+                cerr << "sources & constraints != constraints for input"
+                     << endl
+                     << sources  << " -- " << *si << endl ;
+                
+                if(si->mapping.size() > 0) {
+                  entitySet working = constraints ;
+                  for(int i=0;i<si->mapping.size();++i) {
+                    entitySet images ;
+                    variableSet::const_iterator vi ;
+                    for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
+                      images |= facts.image(*vi,working) ;
+                    working = images ;
+                  }
+                  variableSet::const_iterator vi ;
+                  for(vi=si->var.begin();vi!=si->var.end();++vi) {
+                    entitySet exist = facts.variable_existence(*vi) ;
+                    entitySet fails = working & ~exist ;
+                    if(fails != EMPTY) {
+                      cerr << "expecting to find variable " << *vi
+                           << " at entities " << fails << endl
+                           << *vi << " exists at entities " << exist << endl ;
+                    }
+                  }
+                }
+              }
+            }
           }
           srcs &= fctrl.constraints ;
         }
 
         fctrl.control_list.push_back(srcs) ;
-
+        
         for(int i=0;i<fctrl.target_maps.size();++i) {
           entitySet trgts = srcs ;
           for(int j=0;j<fctrl.target_maps[i].mapvec.size();++j)
@@ -419,42 +456,56 @@ namespace Loci {
                            << srcs << endl ;
 #endif
       }
+
+      recurse_send_entities.push_back(vector<pair<variable,entitySet> >()) ;
+
+      int deltas = 0 ;
       finished = true ;
       for(vi=tvars.begin();vi!=tvars.end();++vi) {
         entitySet tvar_delta = tvar_update[*vi] - tvar_computed[*vi] ;
+
+        entitySet tvar_other = tvar_delta - my_entities ;
+        recurse_send_entities.back().push_back(make_pair(*vi,tvar_other)) ;
+
+        entitySet recvset = send_entitySet(tvar_other,facts) ;
+        tvar_delta += recvset ;
+        tvar_delta += fill_entitySet(tvar_delta,facts) ;
         if(tvar_delta!=EMPTY)
-          finished = false ;
+          deltas++ ;
+        tvar_update[*vi] += tvar_delta ;
         tvar_computed[*vi] = tvar_update[*vi] ;
       }
+      int deltar = 0 ;
+      if(!facts.isDistributed())
+        deltar = deltas ;
+      else
+        MPI_Allreduce(&deltas,&deltar, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD) ;
+      if(deltar != 0)
+        finished = false ;
     }
 
     for(fi=fset.begin();fi!=fset.end();++fi) {
       fcontrol &fctrl = control_set[*fi] ;
       for(map<variable,entitySet>::const_iterator mi=fctrl.generated.begin();
-          mi!=fctrl.generated.end();++mi)
-        facts.set_existential_info(mi->first,*fi,mi->second) ;
+          mi!=fctrl.generated.end();++mi) {
+
+        entitySet create = mi->second ;
+        create += send_entitySet(create,facts) ;
+        create += fill_entitySet(create,facts) ;
+        
+        facts.set_existential_info(mi->first,*fi,create) ;
+      }
     }
   }
 
   void recurse_compiler::process_var_requests(fact_db &facts) {
-    ruleSet::const_iterator fi ;
-    for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
-      fcontrol &fctrl = control_set[*fi] ;
-      entitySet control = process_rule_requests(*fi,facts) ;
-      list<entitySet>::iterator ci ;
-      entitySet total ;
-      for(ci=fctrl.control_list.begin();ci!=fctrl.control_list.end();++ci) {
-        *ci -= total ;
-        total += *ci ;
-      }
-      do {
-        if(fctrl.control_list.back() == EMPTY)
-          fctrl.control_list.pop_back() ;
-        if(!fctrl.control_list.empty())
-          fctrl.control_list.back() &= control ;
-      } while(!fctrl.control_list.empty() && fctrl.control_list.back() == EMPTY) ;
+    entitySet my_entities = ~EMPTY ;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      my_entities = d->my_entities ;
     }
 
+    ruleSet::const_iterator fi ;
     if(facts.isDistributed()) {
       list<comm_info> request_comm ;
       request_comm = barrier_process_rule_requests(recurse_vars, facts) ;
@@ -462,15 +513,115 @@ namespace Loci {
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
 
-      for(vi=send_entities.begin();vi!=send_entities.end();++vi) {
+      for(vi=pre_send_entities.begin();vi!=pre_send_entities.end();++vi) {
         variable v = vi->first ;
         entitySet send_set = vi->second ;
         send_requested.push_back(make_pair(v,send_set &
                                            facts.get_variable_requests(v))) ;
       }
+      pre_plist = put_precomm_info(send_requested, facts) ;
+      pre_clist = sort_comm(request_comm,facts) ;
+    }
 
-      plist = put_precomm_info(send_requested, facts) ;
-      clist = sort_comm(request_comm,facts) ;
+    if(facts.isDistributed()) {
+      for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
+        fcontrol &fctrl = control_set[*fi] ;
+        entitySet control = process_rule_requests(*fi,facts) ;
+        list<entitySet>::iterator ci ;
+        entitySet total ;
+        for(ci=fctrl.control_list.begin();ci!=fctrl.control_list.end();++ci) {
+          *ci -= total ;
+          total += *ci ;
+        }
+      }
+      map<rule, list<entitySet>::reverse_iterator> rpos ;
+      ruleSet::const_iterator ri ;
+
+      map<variable,entitySet> var_requests, recurse_entities ;
+      for(variableSet::const_iterator vi=recurse_vars.begin() ;
+          vi!=recurse_vars.end();
+          ++vi) {
+        var_requests[*vi] = facts.get_variable_requests(*vi) ;
+        for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri) {
+          recurse_entities[*vi] += facts.get_existential_info(*vi,*ri) ;
+        }
+      }
+      
+                       
+      for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri)
+        rpos[*ri] = control_set[*ri].control_list.rbegin() ;
+
+      map<variable,vector<entitySet> > recurse_send_req ;
+      map<variable,entitySet> all_requests ;
+      bool finished = false ;
+      do {
+        map<variable,entitySet> vreq_map ;
+        for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri) {
+          entitySet &context = *rpos[*ri] ;
+
+          fcontrol &fctrl = control_set[*ri] ;
+          for(int i=0;i<fctrl.target_maps.size();++i) {
+            entitySet ct = var_requests[fctrl.target_maps[i].v] ;
+            for(int j=fctrl.target_maps[i].mapvec.size()-1;j>=0;--j)
+              ct = fctrl.target_maps[i].mapvec[j]->preimage(ct).first ;
+            context &= ct ;
+          }
+          for(int i=0;i<fctrl.recursion_maps.size();++i) {
+            entitySet rq = context ;
+            for(int j=0;j<fctrl.recursion_maps[i].mapvec.size();j++)
+              rq = fctrl.recursion_maps[i].mapvec[j]->image(rq) ;
+            vreq_map[fctrl.recursion_maps[i].v] += rq  ;
+           }
+          
+          
+          rpos[*ri]++ ;
+          if(rpos[*ri] == control_set[*ri].control_list.rend())
+            finished = true ;
+
+          for(variableSet::const_iterator vi = recurse_vars.begin();
+              vi!=recurse_vars.end();
+              ++vi) {
+            all_requests[*vi] += vreq_map[*vi] ;
+            entitySet remain = vreq_map[*vi] & recurse_entities[*vi] ;
+            remain -= my_entities ;
+            recurse_send_req[*vi].push_back(remain) ;
+          }
+       }
+      } while(!finished) ;
+
+      for(variableSet::const_iterator vi = recurse_vars.begin();
+          vi!=recurse_vars.end();
+          ++vi) {
+        std::reverse(recurse_send_req[*vi].begin(),recurse_send_req[*vi].end()) ;
+        entitySet req_loc ;
+        for(vector<entitySet>::iterator vei=recurse_send_req[*vi].begin();
+            vei!=recurse_send_req[*vi].end();
+            ++vei) {
+          *vei -= req_loc ;
+          list<comm_info> req_comm ;
+          send_requests(*vei,*vi,facts,req_comm) ;
+          send_req_var[*vi].push_back(sort_comm(req_comm,facts)) ;
+          req_loc += *vei ;
+        }
+
+      }
+    } else {
+      for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
+        fcontrol &fctrl = control_set[*fi] ;
+        entitySet control = process_rule_requests(*fi,facts) ;
+        list<entitySet>::iterator ci ;
+        entitySet total ;
+        for(ci=fctrl.control_list.begin();ci!=fctrl.control_list.end();++ci) {
+          *ci -= total ;
+          total += *ci ;
+        }
+        do {
+          if(fctrl.control_list.back() == EMPTY)
+            fctrl.control_list.pop_back() ;
+          if(!fctrl.control_list.empty())
+            fctrl.control_list.back() &= control ;
+        } while(!fctrl.control_list.empty() && fctrl.control_list.back() == EMPTY) ;
+      }
     }
     
   }
@@ -479,28 +630,39 @@ namespace Loci {
     CPTR<execute_sequence> el = new execute_sequence ;
     if(facts.isDistributed()) {
       el->append_list(new execute_thread_sync) ;
-      el->append_list(new execute_comm(plist, facts) ) ; 
-      el->append_list(new execute_comm(clist, facts)) ;
+      el->append_list(new execute_comm(pre_plist, facts) ) ; 
+      el->append_list(new execute_comm(pre_clist, facts)) ;
     }
     
     map<rule, list<entitySet>::const_iterator> rpos ;
+    list<vector<pair<variable,entitySet> > >::const_iterator
+      sei = recurse_send_entities.begin() ;
     ruleSet::const_iterator ri ;
-    
+
+    int idx = 0 ;
     for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri)
       rpos[*ri] = control_set[*ri].control_list.begin() ;
 
-    bool finished ;
+    bool finished = false ;
     do {
-      finished = true ;
-      
+      for(variableSet::const_iterator vi=recurse_vars.begin();
+          vi!=recurse_vars.end();
+          ++vi) {
+        vector<list<comm_info> > &commv = send_req_var[*vi] ;
+        if(idx<commv.size() && commv[idx].size() != 0)
+          el->append_list(new execute_comm(commv[idx],facts)) ;
+      }
+      idx++ ;
       for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri) {
         const fcontrol &fctrl = control_set[*ri] ;
         list<entitySet>::const_iterator &li = rpos[*ri] ;
-        if(li != fctrl.control_list.end()) {
-          finished = false ;
+        
+        if(li==fctrl.control_list.end()) 
+          finished = true ;
+        else {
           if(li->size() != 0) {
             const entitySet &exec_seq = *li ;
-
+            
             if(num_threads > 1 && exec_seq.size() > 1 &&
                (*ri).get_info().rule_impl->thread_rule()) {
               execute_par *ep = new execute_par ;
@@ -513,9 +675,19 @@ namespace Loci {
           li++ ;
         }
       }
-      if(num_threads > 1)
-        el->append_list(new execute_thread_sync) ;
+      if(!finished) {
+        if(num_threads > 1)
+          el->append_list(new execute_thread_sync) ;
+        if(facts.isDistributed()) {
+          list<comm_info> plist = put_precomm_info(*sei, facts) ;
+          el->append_list(new execute_comm(plist,facts)) ;
+        }
+        sei++ ;
+      }
     } while(!finished) ;
+
+    if(facts.isDistributed()) 
+      el->append_list(new execute_comm(pre_clist, facts)) ;
     
     if(el->size() == 0)
       return 0 ;

@@ -50,6 +50,9 @@ namespace Loci {
   inline storeRepP collect_store(storeRepP &sp) 
   { return collect_store(sp,*exec_current_fact_db) ;}
 
+  inline entitySet collect_entitySet(entitySet e)
+  { return collect_entitySet(e,*exec_current_fact_db) ; }
+
 }
 
 

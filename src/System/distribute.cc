@@ -28,6 +28,7 @@ using std::swap ;
 //#define SCATTER_DIST
 //#define UNITY_MAPPING
 
+
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
 #endif
@@ -532,10 +533,10 @@ namespace Loci {
     df->myid = myid ;
     df->my_entities = g ;
     debugout[MPI_rank] << "my_entities = " << df->my_entities << endl ;
-    debugout[MPI_rank] << "send = " << send << endl ;
-    debugout[MPI_rank] << "recv = " << recv << endl ;
+    //    debugout[MPI_rank] << "send = " << send << endl ;
+    //    debugout[MPI_rank] << "recv = " << recv << endl ;
     
-    debugout[MPI_rank] << "global to loc numbering  = " << df->g2l << endl ;
+    //    debugout[MPI_rank] << "global to loc numbering  = " << df->g2l << endl ;
     for(ei=send_neighbour.begin(); ei != send_neighbour.end();++ei)
       df->xmit.push_back
         (fact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
@@ -711,6 +712,7 @@ namespace Loci {
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
 #endif
         int j=evsz ;
+        WARN(recieved < evsz) ;
         for(int k=0;k<evsz;++k) {
           for(int l=0;l<recv_buffer[i][k];++l)
             re[k] += d->g2l[recv_buffer[i][j++]] ;
@@ -970,7 +972,6 @@ namespace Loci {
       d = facts.get_distribute_info() ;
       l2g = facts.get_variable("l2g") ;
       if(d->myid == 0) {
-	std::vector<sequence> vseq(MPI_processes-1) ;
 	MPI_Status *status, *size_status ;
 	MPI_Request *recv_request, *size_request ;
 	int **recv_buffer ;
@@ -979,17 +980,24 @@ namespace Loci {
 	entitySet temp = e & d->my_entities ;
 	for(ti = temp.begin(); ti != temp.end(); ++ti)
 	  re += l2g[*ti] ;
+        
 	recv_size = new int[MPI_processes-1] ;
 	size_request = new MPI_Request[MPI_processes-1] ;
 	size_status = new MPI_Status[MPI_processes-1] ;
-	for(k = 0; k < MPI_processes-1; k++) 
-	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);  
+	for(k = 0; k < MPI_processes-1; k++) {
+	  MPI_Irecv(&recv_size[k],1,MPI_INT, k+1,1, MPI_COMM_WORLD, &size_request[k]);
+        }
 	MPI_Waitall(MPI_processes-1, size_request, size_status) ;
 	
-	
 	recv_buffer = new int*[MPI_processes-1] ;
-	for(int i = 0; i < MPI_processes-1; ++i)
-	  recv_buffer[i] = new int[recv_size[i]] ;
+        int total_size = 0 ;
+        for(int i=0;i<MPI_processes-1;++i)
+          total_size += recv_size[i] ;
+        recv_buffer[0] = new int[total_size] ;
+        
+	for(int i = 1; i < MPI_processes-1; ++i)
+	  recv_buffer[i] = recv_buffer[i-1]+recv_size[i-1] ;
+        
 	recv_request = new MPI_Request[MPI_processes-1] ;
 	status = new MPI_Status[MPI_processes-1] ;
 	
@@ -997,15 +1005,20 @@ namespace Loci {
 	  MPI_Irecv(&recv_buffer[k][0], recv_size[k],MPI_INT, k+1,2, MPI_COMM_WORLD, &recv_request[k] );  
 	
 	MPI_Waitall(MPI_processes-1, recv_request, status) ;
-	
+
 	for(k = 0; k < MPI_processes-1; ++k)       
 	  for(int i = 0 ; i < recv_size[k]; ++i) 
 	    re += recv_buffer[k][i] ;
+
+        delete [] recv_buffer[0] ;
 	delete [] recv_buffer ;
 	delete [] recv_size ;
-      }
-      
-      else {
+        delete[] size_request ;
+        delete[] size_status ;
+        
+        delete[] recv_request ;
+        delete[] status ;
+      } else {
 	int *send_buffer;
 	int send_size ;
 	entitySet temp = e & d->my_entities ;

@@ -580,7 +580,7 @@ namespace Loci {
         exinfo[exent[i]] &= d->my_entities ;
       }
     }
-    
+
     vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
 
     int j=0;

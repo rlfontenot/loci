@@ -120,6 +120,7 @@ namespace Loci {
     variableSet recurse_vars ;
     struct fcontrol {
       std::list<entitySet> control_list ;
+
       std::map<variable,entitySet> generated ;
       bool use_constraints ;
       entitySet nr_sources, constraints ;
@@ -131,10 +132,15 @@ namespace Loci {
       std::vector<mapping_info> recursion_maps, target_maps ;
     } ;
     std::map<rule,fcontrol > control_set ;
+    std::list<std::vector<std::pair<variable,entitySet> > > recurse_send_entities ;
+    std::map<variable,std::vector<list<comm_info> > > send_req_var ;
+    std::list<std::list<comm_info> > recurse_clist ;
+    std::list<std::list<comm_info> > recurse_plist ;
+      
 
-    std::vector<std::pair<variable,entitySet> > send_entities ;
-    std::list<comm_info> clist ;
-    std::list<comm_info> plist ;
+    std::vector<std::pair<variable,entitySet> > pre_send_entities ;
+    std::list<comm_info> pre_clist ;
+    std::list<comm_info> pre_plist ;
 
   public:
     recurse_compiler(rulecomp_map &rp, ruleSet rs) : rule_process(rp)

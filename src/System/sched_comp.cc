@@ -10,7 +10,9 @@ using std::map ;
 using std::list ;
 #include <set>
 using std::set ;
+
 //#define HACK ;
+
 namespace Loci {
   class error_compiler : public rule_compiler {
   public:
@@ -102,7 +104,8 @@ namespace Loci {
         // recursive supernode
         ruleSet recurse_rules = extract_rules(p->graph_v) ;
         if(recurse_rules.size() == 1 &&
-           recurse_rules.begin()->get_info().desc.constraints.size() == 0)
+           recurse_rules.begin()->get_info().desc.constraints.size() ==0 &&
+           MPI_processes ==1)
           // Single rule recursion
           rule_process[snrule] =
             new impl_recurse_compiler(*(recurse_rules.begin())) ;
