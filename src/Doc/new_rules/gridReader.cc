@@ -1,5 +1,6 @@
 // This is an example file for the new grid reader when use with
-// the new default_rule and optional_rule. This is NOT a final
+// the new default_rule, optional_rule, and constraint_rule. 
+// This is NOT a final
 // version. We are still working on this feature. As we make progress,
 // I will add corresponding stuff.
 
@@ -36,34 +37,6 @@ namespace heat {
     param<string> modelName ;
     *modelName = filename ;
     facts.create_fact("modelName",modelName) ;
-
-    param<std::string> limiter ;
-    limiter = facts.get_fact("limiter") ;
-
-    if(*limiter == "venkatakrishnan" || *limiter == "V") {
-      constraint V_limiter ;
-      V_limiter = ~EMPTY ;
-      facts.create_fact("V_limiter",V_limiter) ;
-    } else if(*limiter == "barth" || *limiter == "B") {
-      constraint B_limiter ;
-      B_limiter = ~EMPTY ;
-      facts.create_fact("B_limiter",B_limiter) ;
-    } else if(*limiter == "none") {
-      constraint N_limiter ;
-      N_limiter = ~EMPTY ;
-      facts.create_fact("N_limiter",N_limiter) ;
-    } else if(*limiter == "zero") {
-      constraint Z_limiter ;
-      Z_limiter = ~EMPTY ;
-      facts.create_fact("Z_limiter",Z_limiter) ;
-    } else {
-      cerr << "limiter " << *limiter
-           << " not supported for generalized grids" << endl ;
-      cerr << "defaulting to venkatakrishnan limiter" << endl ;
-      constraint V_limiter ;
-      V_limiter = ~EMPTY ;
-      facts.create_fact("V_limiter",V_limiter) ;
-    }    
 
     // the struct "grid_file_info" and "bc_info" are
     // now moved into the header file "gridReader.h"
