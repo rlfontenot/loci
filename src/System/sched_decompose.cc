@@ -1,4 +1,5 @@
 #include "sched_tools.h"
+#include "distribute.h"
 
 using std::map ;
 using std::vector ;
@@ -29,7 +30,9 @@ namespace Loci {
 
     component -= remove_vars ;
 #ifdef VERBOSE
-    cout << "remove_vars = " << extract_vars(remove_vars) ;
+    variableSet remove_vset = extract_vars(remove_vars) ;
+    debugout << "remove_vars = " << remove_vset ;
+    debugout <<endl ;
 #endif
   }
 
@@ -338,7 +341,7 @@ namespace Loci {
             ii != rm_v.end() ;
             ++ii) {
 #ifdef VERBOSE
-          cout << "removing edge " << *ri << "," << rule(*ii) << endl  ;
+          debugout << "removing edge " << *ri << "," << rule(*ii) << endl  ;
 #endif
           tmpgr.remove_edge(id,*ii) ;
         }

@@ -1,5 +1,6 @@
 #include "sched_tools.h"
 #include "sched_mlg.h"
+#include "distribute.h"
 
 //#define VERBOSE
 namespace Loci {
@@ -62,11 +63,11 @@ namespace Loci {
     insert(r.ident(),sg) ;
 #ifdef VERBOSE
     if(extract_rules(sg.incoming_v).size() !=0) {
-      cerr << "extract_rules(sg.incoming_v) = " << extract_rules(sg.incoming_v)
+      debugout << "extract_rules(sg.incoming_v) = " << extract_rules(sg.incoming_v)
            << endl ;
     }
     if(extract_rules(sg.outgoing_v).size() != 0) {
-      cerr << "extract_rules(sg.outgoing_v) = " << extract_rules(sg.outgoing_v)
+      debugout << "extract_rules(sg.outgoing_v) = " << extract_rules(sg.outgoing_v)
            << endl ;
     }
 #endif
