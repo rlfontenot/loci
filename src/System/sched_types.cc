@@ -199,7 +199,6 @@ namespace Loci {
                        << "renaming." << endl ;
                   exit(-1) ;
                 }
-		
                 rename_pair = make_pair(new_name,old_name) ;
                 rename = true ;
               }
@@ -209,11 +208,22 @@ namespace Loci {
       // If a rename variable was found, save this information for later
       // use and continue ;
       if(rename) {
-        //cout << " rule_set = " << rs << endl ;
 	variable v1 = rename_pair.first ;
         variable v2 = rename_pair.second ;
-        variable c1 = var_to_cluster[v1] ;
-        variable c2 = var_to_cluster[v2] ;
+        variable c1 = v1 ;
+        variable c2 = v2 ;
+        if(var_to_cluster.find(v1) != var_to_cluster.end())
+          c1 = var_to_cluster[v1] ;
+        else {
+          var_to_cluster[v1] = v1 ;
+          cerr << "undefined var_to_cluster for " << v1 << endl ;
+        }
+        if(var_to_cluster.find(v2) != var_to_cluster.end())
+          c2 = var_to_cluster[v2] ;
+        else {
+          var_to_cluster[v2] = v2 ;
+          cerr << "undefined var_to_cluster for " << v2 << endl ;
+        }
        	if(c1 == c2) {
           cerr << "Rules that rename variables make variables distinct that are al so equivalent!" << endl ;
           cerr << "variables = " << v1 << "," << v2
@@ -304,8 +314,9 @@ namespace Loci {
 	  st = st->new_store(EMPTY) ;
 	  scheds.set_variable_type(v,st, facts) ;
 	} else {
-	  
+
 	  cerr << "Warning, variable " << v << " not typed!" << endl;
+          
 	}
 	
       }
