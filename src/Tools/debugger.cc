@@ -59,7 +59,7 @@ namespace Loci {
             debug_hostname,debug_program,debug_execname,pid) ;
     system(buf) ;
     breakout = 1 ;
-    sleep(10) ; /* Wait for debugger to attach */
+    sleep(100) ; /* Wait for debugger to attach */
   }
 
 
