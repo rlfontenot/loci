@@ -935,8 +935,8 @@ variableSet rule_impl::get_var_list() {
     return s;
   }
   //Definition of global rule lists
-  global_rule_impl_list global_rule_list ;
-  rule_impl_list init_rule_list ;
+  register_rule_impl_list register_rule_list ;
+  rule_impl_list global_rule_list ;
   
   
   rule_impl_list::~rule_impl_list() {
@@ -966,7 +966,7 @@ variableSet rule_impl::get_var_list() {
       v = p->next ;
     }
   }
-  void rule_impl_list::copy_rule_list(const global_rule_impl_list& rl) {
+  void rule_impl_list::copy_rule_list(const register_rule_impl_list& rl) {
     rule_list_ent *p, *v ;
     for(p = rl.global_list; p != 0; p=v) {
       push_rule(p->rr) ;
@@ -975,16 +975,16 @@ variableSet rule_impl::get_var_list() {
   }
   
   //Declaration of static variable global_list
-  rule_impl_list::rule_list_ent *global_rule_impl_list::global_list = 0 ;
+  rule_impl_list::rule_list_ent *register_rule_impl_list::global_list = 0 ;
   
-  global_rule_impl_list::~global_rule_impl_list() {
+  register_rule_impl_list::~register_rule_impl_list() {
     rule_list_ent *p,*v ;
     for(p=global_list;p!=0;p=v) {
       v = p->next ;
       delete p ;
     }
   }
-  void global_rule_impl_list::clear() {
+  void register_rule_impl_list::clear() {
     rule_list_ent *p,*v ;
     for(p=global_list;p!=0;p=v) {
       v = p->next ;
@@ -992,7 +992,10 @@ variableSet rule_impl::get_var_list() {
     }
     global_list = 0 ;
   }
-  void global_rule_impl_list::push_rule(register_rule_type *p) {
+   bool register_rule_impl_list::empty() {
+     return (global_list == 0) ;
+   }
+  void register_rule_impl_list::push_rule(register_rule_type *p) {
     rule_list_ent *flp = new rule_list_ent(p,global_list) ;
     global_list = flp ;
   }
@@ -1044,7 +1047,7 @@ variableSet rule_impl::get_var_list() {
       if(!(i.get_p())->rr->is_module_rule())
 	add_rule(*i) ;
   }
-  void rule_db::add_rules(global_rule_impl_list &gfl) {
+  void rule_db::add_rules(register_rule_impl_list &gfl) {
     for(rule_impl_list::iterator i=gfl.begin();i!=gfl.end();++i) 
       if(!(i.get_p())->rr->is_module_rule())
 	add_rule(*i) ;

@@ -70,7 +70,7 @@ namespace Loci {
     }
     mod() {
      create_mod_db() ;
-     mod_info md = mod_info(init_rule_list) ;
+     mod_info md = mod_info(global_rule_list) ;
     }
     mod_info &get_info(const std::string name) { 
       return mdb->get_info(name) ; }

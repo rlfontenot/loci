@@ -43,9 +43,9 @@ namespace Loci {
 	    cerr << "reason for failure is " << error << endl ;
 	exit(-1) ;
       }
-      md.loaded_rule_list.copy_rule_list(global_rule_list) ;
+      md.loaded_rule_list.copy_rule_list(register_rule_list) ;
       md.mod_name = tmp_str ;
-      global_rule_list.clear() ;
+      register_rule_list.clear() ;
       put_info(md) ;
       return mod_map[tmp_str] ;
     }
@@ -88,9 +88,9 @@ namespace Loci {
 	md.m_init_model(facts,problem_name) ;
 	facts.unset_namespace() ;
       }
-      md.loaded_rule_list.copy_rule_list(global_rule_list) ;
+      md.loaded_rule_list.copy_rule_list(register_rule_list) ;
       md.mod_name = tmp_str ;
-      global_rule_list.clear() ;
+      register_rule_list.clear() ;
       put_info(md) ;
       return mod_map[tmp_str] ; 
     }

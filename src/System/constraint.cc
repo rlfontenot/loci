@@ -101,11 +101,23 @@ namespace Loci {
     s << constraint_set << endl ;
     return s ;
   }
-
-  void constraintRep::readhdf5( hid_t group_id, entitySet &en){
-    cout << " Didn't read constraints " << endl;
-    exit(0);
-
+  DatatypeP constraintRep::getType() {
+    return DatatypeP(new AtomicType(INT)) ;
+  }
+  frame_info constraintRep::read_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  frame_info constraintRep::write_frame_info(hid_t group_id) {
+    warn(true) ; 
+    frame_info fi ;
+    return fi ;
+  }
+  
+  void constraintRep::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en){
+    warn(true) ;
+    
 /*
     try{
       //get constraint data
@@ -128,8 +140,9 @@ namespace Loci {
 
   }
 
-  void constraintRep::writehdf5( hid_t group_id, entitySet& en) const{
-/*
+  void constraintRep::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const{
+    warn(true) ;
+    /*
     hsize_t dimf_constraint[1];
     int RANK=1;
     

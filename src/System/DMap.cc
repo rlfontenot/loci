@@ -372,10 +372,26 @@ namespace Loci {
     return s ;
   }
 
+   DatatypeP dMapRepI::getType() {
+     return DatatypeP(new AtomicType(INT)) ;
+   }
+  frame_info dMapRepI::read_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  
+  frame_info dMapRepI::write_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+
   //**************************************************************************/
 
-  void dMapRepI::readhdf5(hid_t group_id, entitySet &usr_eset)
-  {
+  void dMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset)  {
+    warn(true) ;
+    /*
     hsize_t       dimension;
     entitySet     eset;	
     vector<int>   vec;
@@ -406,12 +422,16 @@ namespace Loci {
     H5Sclose( vDataspace );
     delete [] it;
     delete [] data;
+    */
   } 
 
   //**************************************************************************/
 
-  void dMapRepI::writehdf5(hid_t group_id, entitySet& usr_eset) const
+  void dMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset) const
   {
+    warn(true) ;
+    
+    /*
     int       rank = 1;
     hsize_t   dimension;
 
@@ -438,6 +458,7 @@ namespace Loci {
 
     H5Sclose( dataspace );
     H5Dclose( dataset   );
+    */
   } 
 
   //**************************************************************************/

@@ -6,7 +6,6 @@ namespace Loci {
   //**************************************************************************/
   void HDF5_WriteDomain(hid_t group_id, const entitySet &en )
 {
-
   hsize_t dimension=0;
 
   int rank = 1;     

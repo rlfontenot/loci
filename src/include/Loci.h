@@ -101,6 +101,7 @@ using Loci::do_loop ;
 using Loci::Entity ;
 
 using Loci::global_rule_list ;
+using Loci::register_rule_list ;
 using Loci::rule_db ;
 
 using Loci::fact_db ;

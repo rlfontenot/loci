@@ -36,11 +36,11 @@ namespace Loci {
     int                       size;
     HASH_MAP(int,std::vector<T>)  attrib_data;
     
-    void hdf5read( hid_t group_id, IDENTITY_CONVERTER     c, entitySet &en, entitySet &usr );
-    void hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr );
+    void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &en) ;
+    void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &usr) ;
 
-    void hdf5write( hid_t group, IDENTITY_CONVERTER c, const entitySet &en ) const;
-    void hdf5write( hid_t group, USER_DEFINED_CONVERTER c, const entitySet &en ) const;
+    void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &en) const;
+    void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
     int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
@@ -50,7 +50,12 @@ namespace Loci {
 
     void unpackdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int &size, const sequence &seq) ;
     void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int &size, const sequence &seq) ;
-
+    DatatypeP getType(IDENTITY_CONVERTER g) ;
+    DatatypeP getType(USER_DEFINED_CONVERTER g) ;
+    frame_info read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
+    frame_info read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
+    frame_info write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
+    frame_info write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
   public:
     dstoreVecRepI() {}
 
@@ -72,14 +77,17 @@ namespace Loci {
     virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5(  hid_t group, entitySet &eset) ;
-    virtual void writehdf5( hid_t group, entitySet &eset) const ;
-
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &eset) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &eset) const ;
+    
     virtual void set_elem_size(int sz) ;
-
+    
     HASH_MAP(int,std::vector<T>) *get_attrib_data() { return &attrib_data; }
     int get_size() const { return size; }
-  } ;
+    virtual DatatypeP getType() ;
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
+  } ; 
 
   //*************************************************************************/
 
@@ -672,36 +680,72 @@ namespace Loci {
     }
 
   }
-
+  template<class T> 
+    frame_info dstoreVecRepI<T>::read_frame_info(hid_t group_id) {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return read_frame_info(group_id, schema_converter()) ;
+  }
+  template<class T> 
+    frame_info dstoreVecRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    frame_info dstoreVecRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+   template<class T> 
+     frame_info dstoreVecRepI<T>::write_frame_info(hid_t group_id) {
+     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+     return write_frame_info(group_id, schema_converter()) ;
+   }
+  template<class T> 
+    frame_info dstoreVecRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    frame_info dstoreVecRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    DatatypeP dstoreVecRepI<T>::getType() {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return getType(schema_converter()) ;
+  }
+  template<class T> 
+    DatatypeP dstoreVecRepI<T>::getType(IDENTITY_CONVERTER g) {
+    typedef data_schema_traits<T> traits_type;
+    return(traits_type::get_type()) ;
+  }
+  template<class T> 
+    DatatypeP dstoreVecRepI<T>::getType(USER_DEFINED_CONVERTER g) {
+    typedef data_schema_traits<T> schema_traits ;
+    typedef typename schema_traits::Converter_Base_Type dtype;
+    typedef data_schema_traits<dtype> traits_type;
+    return(traits_type::get_type()) ;
+  }
   //************************************************************************/
 
   template<class T> 
-  void dstoreVecRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
+  void dstoreVecRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset)
   {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
-
-    entitySet  eset, ecommon;
-
-    Loci::HDF5_ReadDomain(group_id, eset);
-    Loci::HDF5_ReadVecSize(group_id, &size);
-
-    ecommon = eset;
-
-    allocate( ecommon );
-
-    hdf5read( group_id, traits_type, eset, ecommon);
-
-    dispatch_notify() ;
+    
   }
 
   //************************************************************************/
 
   template <class T> 
-  void dstoreVecRepI<T> :: hdf5read( hid_t group_id, IDENTITY_CONVERTER c, 
-                                     entitySet &eset, entitySet &user_eset )
-  {
-
+    void dstoreVecRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &user_eset)
+    {
+      warn(true) ;
+      /*
     hsize_t dimension;
     size_t indx = 0, arraySize;
     int    rank = 1;
@@ -765,16 +809,16 @@ namespace Loci {
           attrib_data[i][ivec] = data[indx++];
       }
     }
-
-  }
-
+      */
+    }
+  
   //************************************************************************/
-
+  
   template <class T> 
-  void dstoreVecRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, 
-                                     entitySet &eset, entitySet &user_eset )
+    void dstoreVecRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &user_eset)
   {
-
+    warn(true) ;
+    /*
     hsize_t  dimension;
     hid_t    vDataspace, vDataset, vDatatype, mDataspace;
 
@@ -880,13 +924,15 @@ namespace Loci {
 
       delete[] data;
     }
+    */
   }
 
   //*************************************************************************/
   template<class T> 
-  void dstoreVecRepI<T>::writehdf5( hid_t group_id, entitySet& usr_eset) const
+  void dstoreVecRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset) const
   {
-
+    warn(true) ;
+    /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
@@ -896,13 +942,15 @@ namespace Loci {
     Loci::HDF5_WriteVecSize( group_id, size);
    
     hdf5write(group_id, traits_output_type, eset );
+    */
   }
   //*************************************************************************/
 
   template <class T>  
-  void dstoreVecRepI<T> ::hdf5write( hid_t group_id, IDENTITY_CONVERTER c, 
-                                     const entitySet &eset ) const
+  void dstoreVecRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &eset) const
   {
+    warn(true) ;
+    /*
     hsize_t   dimension;
     int       rank = 1;
     //------------------------------------------------------------------------
@@ -941,14 +989,16 @@ namespace Loci {
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
+    */
   }
 
   //*************************************************************************/
 
   template <class T>  
-  void dstoreVecRepI<T> ::hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g, 
-                                     const entitySet &eset ) const
+  void dstoreVecRepI<T> ::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset) const
   {
+    warn(true) ;
+    /*
     hsize_t   dimension;
     hid_t     vDataspace, vDataset, vDatatype;
 
@@ -1042,6 +1092,7 @@ namespace Loci {
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
     delete [] vbucket;
+    */
   }
   //*************************************************************************/
 

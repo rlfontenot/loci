@@ -25,7 +25,48 @@ namespace Loci {
 
   typedef NPTR<storeRep> storeRepP ;
   typedef const_NPTR<storeRep> const_storeRepP ;
+  
+  struct frame_info {
+    int is_stat ; 
+    int size ;
+    std::vector<int> first_level ;
+    std::vector<int> second_level ;
+    frame_info() {
+      is_stat = 0 ;
+      size = 0 ;
+    }
+    frame_info(int a , int b) {
+      is_stat = a ;
+      size = b ;
+      
+    }
+    frame_info(int a , int b, std::vector<int> c, std::vector<int> d) {
+      is_stat = a ;
+      size = b ;
+      
+      first_level = c ;
+      second_level = d ;
+    } 
+    frame_info(const frame_info &fi) { 
+      is_stat = fi.is_stat ;
+      size = fi.size ;
+      if(!size)
+	first_level = fi.first_level ;
+      if(is_stat) 
+	second_level = fi.second_level ;
+    }
     
+    frame_info &operator = (const frame_info &fi) { 
+      is_stat = fi.is_stat ;
+      size = fi.size ;
+      if(!size) 
+	first_level = fi.first_level ;
+      if(is_stat)
+	second_level = fi.second_level ;
+      
+      return *this ;
+    }
+  } ;
   class storeRep : public NPTR_type {
   public:
     virtual ~storeRep() ;
@@ -44,12 +85,14 @@ namespace Loci {
     virtual store_type RepType() const = 0 ;
     virtual std::ostream &Print(std::ostream &s) const = 0 ;
     virtual std::istream &Input(std::istream &s) = 0 ;
-    virtual void readhdf5( hid_t group,  entitySet &en) = 0;
-    virtual void writehdf5( hid_t group, entitySet &en) const =0;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) = 0;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &en) const = 0;
     virtual entitySet domain() const = 0 ;
     virtual storeRepP getRep() ;
-    virtual bool is_static() ;
     virtual storeRepP getRep() const ;
+    virtual  DatatypeP getType() = 0 ;
+    virtual frame_info read_frame_info(hid_t group_id) = 0 ;
+    virtual frame_info write_frame_info(hid_t group_id) = 0 ;
   } ;
 
 
@@ -59,18 +102,18 @@ namespace Loci {
   public:
     enum instance_type { READ_WRITE, READ_ONLY } ;
     void setRep(const storeRepP &p)
-    { rep = p ; rep.set_notify(this); notification() ; }
+      { rep = p ; rep.set_notify(this); notification() ; }
     storeRepP Rep() { return rep->getRep(); }
     storeRepP Rep() const { return rep->getRep(); }
     virtual instance_type access() const ;
   } ;
-
+  
   class store_ref : public store_instance, public storeRep {
   public:
     store_ref() {}
     store_ref(storeRepP &p) { setRep(p); }
     virtual ~store_ref() ;
-
+    
     store_ref &operator=(storeRepP &p) {
       setRep(p) ;
       return *this ;
@@ -97,17 +140,25 @@ namespace Loci {
     virtual store_type RepType() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( hid_t group_id, entitySet &en) {
-      Rep()->readhdf5(group_id, en);
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) {
+      Rep()->readhdf5(group_id, dataspace, dataset, dimension, name, fi, en);
     };
-    virtual void writehdf5( hid_t group_id, entitySet& en) const {
-      Rep()->writehdf5(group_id, en);
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const {
+      Rep()->writehdf5(group_id, dataspace, dataset, dimension, name, en);
     };
     virtual entitySet domain() const ;
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
-    virtual bool is_static() ;    
     virtual void notification() ;
+    virtual DatatypeP getType() {
+     return  Rep()->getType() ;
+    }
+    virtual frame_info read_frame_info(hid_t group_id) {
+      return Rep()->read_frame_info(group_id) ;
+    }
+    virtual frame_info write_frame_info(hid_t group_id) {
+      return write_frame_info(group_id) ;
+    }
   } ;
   typedef NPTR<store_ref> store_refP ;
     

@@ -22,21 +22,26 @@ namespace Loci {
     entitySet store_domain ;
     T attrib_data ;
 
-    void hdf5read(hid_t group, IDENTITY_CONVERTER g );
-    void hdf5read(hid_t group, USER_DEFINED_CONVERTER g );
-
-    void hdf5write( hid_t group, IDENTITY_CONVERTER g,    const entitySet &en) const;
-    void hdf5write( hid_t group, USER_DEFINED_CONVERTER g,const entitySet &en) const;
-
+    void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, frame_info &fi, const entitySet &en);
+    void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset,hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en);
+    
+    void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en) const;
+    void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g,const entitySet &en) const;
+    
     int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
-
+    
     void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size );
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size );
 
     void unpackdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int &size);
     void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int &size);
-
+    DatatypeP getType(IDENTITY_CONVERTER g) ;
+    DatatypeP getType(USER_DEFINED_CONVERTER g) ;
+    frame_info read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
+    frame_info read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
+    frame_info write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
+    frame_info write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
   public:
     paramRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ; }
     paramRepI(const entitySet &p) { store_domain = p ;}
@@ -57,9 +62,12 @@ namespace Loci {
     
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( hid_t group, entitySet &en) ;
-    virtual void writehdf5( hid_t group,entitySet& en) const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     T *get_param() { return &attrib_data ; }
+    virtual DatatypeP getType() ;
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
   } ;
 
   //**************************************************************************/
@@ -138,36 +146,95 @@ namespace Loci {
 
     return s ;
   }
-
+  template<class T> 
+    frame_info paramRepI<T>::read_frame_info(hid_t group_id) {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return read_frame_info(group_id, schema_converter()) ;
+  }
+  
+  template<class T> 
+    frame_info paramRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    frame_info paramRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    frame_info paramRepI<T>::write_frame_info(hid_t group_id) {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return write_frame_info(group_id, schema_converter()) ;
+  }
+  
+  template<class T> 
+    frame_info paramRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    frame_info paramRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  
+  
+  template<class T> 
+    DatatypeP paramRepI<T>::getType() {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return getType(schema_converter()) ;
+  }
+  template<class T> 
+    DatatypeP paramRepI<T>::getType(IDENTITY_CONVERTER g) {
+    typedef data_schema_traits<T> traits_type;
+    return(traits_type::get_type()) ;
+  }
+  template<class T> 
+    DatatypeP paramRepI<T>::getType(USER_DEFINED_CONVERTER g) {
+    typedef data_schema_traits<T> schema_traits ;
+    typedef typename schema_traits::Converter_Base_Type dtype;
+    typedef data_schema_traits<dtype> traits_type;
+    return(traits_type::get_type()) ;
+  }
   //**************************************************************************/
   template<class T> 
-  void paramRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset)
+  void paramRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset)
   {
+    warn(true) ;
+    /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-
+    
     entitySet eset, ecommon;
     Loci::HDF5_ReadDomain(group_id, eset);
 
     ecommon = eset & user_eset;
     allocate( ecommon );
     hdf5read(group_id, schema_converter() );
+    */
   }
 
   //**************************************************************************/
 
   template<class T> 
-  void paramRepI<T>::writehdf5( hid_t group_id, entitySet &eset) const
-  {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-
-    Loci::HDF5_WriteDomain(group_id, eset);
-
-    hdf5write(group_id, schema_converter(), eset);
-
-  }
-
+    void paramRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &eset) const
+    {
+      warn(true) ;
+      /*
+      typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+      
+      Loci::HDF5_WriteDomain(group_id, eset);
+      
+      hdf5write(group_id, schema_converter(), eset);
+      */
+    }
+  
   //**************************************************************************/
-
+  
   template<class T> class param : public store_instance {
     typedef paramRepI<T> paramType ;
     T * data ;
@@ -492,9 +559,9 @@ namespace Loci {
 
   //**************************************************************************/
   template <class T> 
-  void paramRepI<T> :: hdf5write( hid_t group_id, IDENTITY_CONVERTER g,
-                                  const entitySet &eset ) const
-  {
+  void paramRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset,hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset) const
+    {
+    warn(true) ;
     /*
     typedef data_schema_traits<T> traits_type;
 
@@ -523,9 +590,9 @@ namespace Loci {
   //*********************************************************************/
 
   template <class T> 
-  void paramRepI<T> :: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g, 
-                                  const entitySet &eset) const
+  void paramRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset) const
   {
+    warn(true) ;
     /*
     typedef data_schema_traits<T> schema_traits ;
     typedef typename schema_traits::Converter_Base_Type dtype;
@@ -574,8 +641,8 @@ namespace Loci {
 
   //**************************************************************************/
   template <class T> 
-  void paramRepI<T> :: hdf5read(hid_t group_id, IDENTITY_CONVERTER g )
-  { 
+  void paramRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, frame_info &fi, const entitySet &en)
+    { 
     /*
     hsize_t  dimension;
 
@@ -598,8 +665,8 @@ namespace Loci {
   //*************************************************************************/
 
   template <class T> 
-  void paramRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER g )
-  { 
+  void paramRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, frame_info &fi, const entitySet &en)
+    { 
     /*
     hsize_t   dimension;
 

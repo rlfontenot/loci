@@ -52,11 +52,14 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( hid_t group, entitySet &en) ;
-    virtual void writehdf5(hid_t group,entitySet& en) const ;
-    VEC * get_base_ptr() const { return base_ptr ; }
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
+    VEC * get_base_ptr() const { return base_ptr; } 
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP thaw() ;
+    virtual DatatypeP getType() ;
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
   } ;
   
   //*************************************************************************/
@@ -520,11 +523,33 @@ namespace Loci {
     } ENDFORALL ;
 #endif
   }      
+
+  
+  template<int M> 
+    DatatypeP MapVecRepI<M>::getType() {
+    return DatatypeP(new AtomicType(INT)) ;
+  }
+  template<int M> 
+    frame_info MapVecRepI<M>::read_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<int M> 
+    frame_info MapVecRepI<M>::write_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  
+  
   //*************************************************************************/
   
   template<int M> 
-  void MapVecRepI<M>::readhdf5( hid_t group_id, entitySet &eset)
+  void MapVecRepI<M>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &eset)
   {
+    warn(true) ;
+    /*
     hsize_t dimension[1];
     int  indx=0, rank=1, size;
  
@@ -593,14 +618,16 @@ namespace Loci {
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
     H5Sclose( mDataspace);
-
+    */
   }
 
   //*************************************************************************/
     
   template<int M> 
-  void MapVecRepI<M>::writehdf5(hid_t group_id,entitySet& usr_eset) const 
+  void MapVecRepI<M>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset) const 
   {
+    warn(true) ;
+    /*
     int     rank = 1;
     hsize_t dimension;
 
@@ -629,6 +656,7 @@ namespace Loci {
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
+    */
   }
   //*************************************************************************/
 }

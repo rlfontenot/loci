@@ -30,17 +30,14 @@ namespace Loci {
     T **base_ptr ;
     int size ;
     lmutex mutex ;
-    bool istat ;
+    
+    void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info&fi, entitySet &en);
+    void  hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &en) ;
+    void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, const entitySet &en) const;
+    void  hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
-    void  hdf5read( hid_t group_id, IDENTITY_CONVERTER c,     entitySet &en,
-                    entitySet &usr);
-    void  hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, entitySet &en,
-                    entitySet &usr);
-    void  hdf5write( hid_t group_id, IDENTITY_CONVERTER c,     const entitySet &en) const;
-    void  hdf5write( hid_t group_id, USER_DEFINED_CONVERTER c, const entitySet &en) const;
-
-    int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
-    int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
+    int get_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset);
+    int get_mpi_size(USER_DEFINED_CONVERTER c, const entitySet &eset);
 
     void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size,
                   const entitySet &e) ;
@@ -51,16 +48,21 @@ namespace Loci {
                     const sequence &seq );
     void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
                     const sequence &seq);
-
+    DatatypeP getType(IDENTITY_CONVERTER g) ;
+    DatatypeP getType(USER_DEFINED_CONVERTER g) ;
+    frame_info read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
+    frame_info read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
+    frame_info write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
+    frame_info write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
   public:
     multiStoreRepI()
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; istat = 1; }
+    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0;}
 
     multiStoreRepI(const entitySet &p)
-    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; store_domain=p; istat = 1;}
+    { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; store_domain=p;}
 
     multiStoreRepI(const store<int> &sizes) {
-      index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ;istat = 1; }
+      index = 0 ; alloc_pointer=0 ; base_ptr = 0; allocate(sizes) ; }
 
     void allocate(const store<int> &sizes) ;
     void multialloc(const store<int> &count, T ***index, T **alloc_pointer, T ***base_ptr) ;
@@ -83,15 +85,17 @@ namespace Loci {
     virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( hid_t group_id, entitySet &en) ;
-    virtual void writehdf5( hid_t group_id, entitySet& en) const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
 
-    bool is_static() { return istat ; } 
     T ** get_base_ptr() const { return base_ptr ; }
     T *begin(int indx) { return base_ptr[indx] ; }
     T *end(int indx) { return base_ptr[indx+1] ; }
     const T *begin(int indx) const  { return base_ptr[indx] ; }
     const T *end(int indx) const { return base_ptr[indx+1] ; }
+    virtual DatatypeP getType() ;
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
   } ;
   
   //*************************************************************************/
@@ -937,11 +941,65 @@ namespace Loci {
       }
     }
   }
+  template<class T> 
+    frame_info multiStoreRepI<T>::read_frame_info(hid_t group_id) {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return read_frame_info(group_id, schema_converter()) ;
+  }
+  template<class T> 
+    frame_info multiStoreRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    frame_info multiStoreRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  
+  template<class T> 
+    frame_info multiStoreRepI<T>::write_frame_info(hid_t group_id) {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return write_frame_info(group_id, schema_converter()) ;
+  }
+  template<class T> 
+    frame_info multiStoreRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    frame_info multiStoreRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<class T> 
+    DatatypeP multiStoreRepI<T>::getType() {
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    return getType(schema_converter()) ;
+  }
+  template<class T> 
+    DatatypeP multiStoreRepI<T>::getType(IDENTITY_CONVERTER g) {
+    typedef data_schema_traits<T> traits_type;
+    return(traits_type::get_type()) ;
+  }
+  template<class T> 
+    DatatypeP multiStoreRepI<T>::getType(USER_DEFINED_CONVERTER g) {
+    typedef data_schema_traits<T> schema_traits ;
+    typedef typename schema_traits::Converter_Base_Type dtype;
+    typedef data_schema_traits<dtype> traits_type;
+    return(traits_type::get_type()) ;
+  }
   //**************************************************************************/
   
   template<class T> 
-  void multiStoreRepI<T>::readhdf5( hid_t group_id, entitySet &user_eset) 
-  {
+    void multiStoreRepI<T>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) 
+    {
+      warn(true) ;
+      /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
@@ -976,16 +1034,16 @@ namespace Loci {
 
     allocate( container);
     hdf5read( group_id, traits_type, eset, dom );
-
+      */
   }
 
   //**************************************************************************/
 
   template <class T> 
-  void multiStoreRepI<T> :: hdf5read( hid_t group_id, IDENTITY_CONVERTER c, 
-                                      entitySet &eset, entitySet &usr_eset )
-  {
-
+    void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &usr_eset)
+    {
+      warn(true) ;
+      /*
     hsize_t dimension;
     hid_t   vDatatype, vDataset, vDataspace, mDataspace;
     size_t indx = 0, arraySize;
@@ -1082,14 +1140,16 @@ namespace Loci {
     H5Dclose(vDataset);
     H5Sclose(vDataspace);
     H5Sclose(mDataspace);
+      */
   }
 
   //**************************************************************************/
 
   template <class T> 
-  void multiStoreRepI<T> :: hdf5read( hid_t group_id, USER_DEFINED_CONVERTER c, 
-                                      entitySet &eset, entitySet &usr_eset)
+    void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER, frame_info &fi, entitySet &usr_eset)
   {
+    warn(true) ;
+    /*
     hsize_t  dimension;
     hid_t    vDataset, vDataspace, vDatatype, mDataspace;
 
@@ -1197,15 +1257,16 @@ namespace Loci {
       }
       delete[] data;
     }
-  
+    */
 }
 
   //**************************************************************************/
 
   template<class T> 
-  void multiStoreRepI<T>::writehdf5(hid_t group_id, entitySet &usr_eset) const 
+  void multiStoreRepI<T>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const 
   {
-
+    warn(true) ;
+    /*
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
 
@@ -1217,15 +1278,15 @@ namespace Loci {
     HDF5_WriteDomain(group_id, eset);
 
     hdf5write(group_id, traits_output_type, eset);
-
+    */
   }
 
   //**************************************************************************/
   template <class T> 
-  void multiStoreRepI<T>::hdf5write( hid_t group_id, IDENTITY_CONVERTER g, 
-                                     const entitySet &eset) const
-  {
-
+  void multiStoreRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset) const
+    {
+      warn(true) ;
+      /*
     hid_t  vDatatype, vDataset, vDataspace;
 
     entitySet :: const_iterator ci;
@@ -1291,17 +1352,18 @@ namespace Loci {
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
     H5Tclose( vDatatype );
-  
+      */
   }
   //*************************************************************************/
 
   template <class T> 
-  void multiStoreRepI<T>:: hdf5write( hid_t group_id, USER_DEFINED_CONVERTER g, 
-                                      const entitySet &eset)  const
-  {   
-    entitySet :: const_iterator ci;
+    void multiStoreRepI<T>:: hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset)  const
+    {   
+      warn(true) ;
+      /*
+      entitySet :: const_iterator ci;
     hid_t     vDataset, vDataspace, vDatatype;
-
+    
     typedef data_schema_traits<T> schema_traits;
     
     //------------------------------------------------------------------------
@@ -1379,6 +1441,7 @@ namespace Loci {
     H5Tclose(vDatatype);
     H5Dclose(vDataset);
     H5Sclose(vDataspace);
+      */
   }
 
   //*************************************************************************/

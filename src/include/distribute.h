@@ -71,7 +71,12 @@ namespace Loci {
   entitySet collect_entitySet(entitySet e, fact_db &facts) ;
   storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
   storeRepP collect_reorder_store(storeRepP &sp, Map &remap, fact_db &facts) ;
-  storeRepP distribute_reorder_store(storeRepP &sp, Map &remap, fact_db &facts) ;
+  void distribute_reorder_store(storeRepP &new_sp, storeRepP sp_init, Map &remap, fact_db &facts) ;
+  
+  void write_container(hid_t group_id, const char* name,  storeRepP qrep) ;
+  void read_container(hid_t group_id, const char* name,  storeRepP qrep) ;
+  void read_vector_int(hid_t group_id, const char* name, std::vector<int>& vint) ;
+  void write_vector_int(hid_t group_id, const char* name, std::vector<int>& vint) ;
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) ;
 
   extern fact_db *exec_current_fact_db ;

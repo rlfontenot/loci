@@ -49,18 +49,18 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( hid_t group, entitySet &en) ;
-    virtual void writehdf5( hid_t group,entitySet& en) const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     int ** get_base_ptr() const { return base_ptr ; }
     int *begin(int indx) { return base_ptr[indx] ; }
     int *end(int indx) { return base_ptr[indx+1] ; }
     const int *begin(int indx) const { return base_ptr[indx] ; }
     const int *end(int indx) const { return base_ptr[indx+1] ; }
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
+    virtual DatatypeP getType() ;
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
   private:
-    int* get_hdf5_data(hid_t group, const char* datasetname) ;
-    void put_hdf5_data(hid_t group, int* data,  const char* datasetname, 
-                       hsize_t* dimf) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP thaw() ; 
   } ;

@@ -54,18 +54,33 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( hid_t group, entitySet &user_eset) ;
-    virtual void writehdf5(hid_t group,entitySet &en) const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace,hid_t dataset, hsize_t dimension, const char* name, entitySet &en) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP thaw() ;
     HASH_MAP(int,VEC) *get_attrib_data() { return &attrib_data; }
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
   } ;
 
-   //-----------------------------------------------------------------------------
-
+  //-----------------------------------------------------------------------------
   template<unsigned int M> 
-  void dMapVecRepI<M>::readhdf5( hid_t group_id, entitySet &user_eset)
+    frame_info dMapVecRepI<M>::read_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<unsigned int M> 
+    frame_info dMapVecRepI<M>::write_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  template<unsigned int M> 
+  void dMapVecRepI<M>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset)
   {
+    warn(true) ;
+    /*
     VEC         vec;
     int         size, rank = 1;
     hsize_t     dimension[1];
@@ -156,13 +171,15 @@ namespace Loci {
     H5Tclose( vDatatype  );
     H5Sclose( mDataspace );
     H5Sclose( vDataspace );
+    */
   }
   //------------------------------------------------------------------------
     
   template<unsigned int M> 
-  void dMapVecRepI<M>::writehdf5(hid_t group_id, entitySet &usr_eset) const 
+  void dMapVecRepI<M>::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const 
   {
-
+    warn(true) ;
+    /*
     hsize_t   dimension;
     int       rank = 1;
     int       vsize = M;
@@ -201,6 +218,7 @@ namespace Loci {
 
     H5Dclose( vDataset   );
     H5Sclose( vDataspace );
+    */
   }
 
   //------------------------------------------------------------------------

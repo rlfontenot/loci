@@ -36,9 +36,12 @@ namespace Loci {
     virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5(  hid_t group, entitySet &en) ;
-    virtual void writehdf5( hid_t group,entitySet& en) const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     entitySet *get_constraint() { return &constraint_set ; }
+    virtual DatatypeP getType() ;
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
   } ;
 
   class constraint : public store_instance {

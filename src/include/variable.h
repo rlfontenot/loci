@@ -129,7 +129,7 @@ namespace Loci {
       std::vector<std::string> get_namespace() const { return namespac ; };
       bool is_time_variable() const {return(tvar) ; } ;
       variable change_time(time_ident ti) const ;
-      const int ident() const { return variable::vdb->vars.get_id(*this) ; }
+      int ident() const { return variable::vdb->vars.get_id(*this) ; }
     } ;
   private:
     friend class variable::info ;

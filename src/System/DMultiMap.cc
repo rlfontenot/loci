@@ -504,12 +504,27 @@ namespace Loci
     }
     return s ;
   }
-
+  DatatypeP dmultiMapRepI::getType() {
+    return DatatypeP(new AtomicType(INT)) ;
+  }
+  
+  frame_info dmultiMapRepI::read_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  frame_info dmultiMapRepI::write_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  
   //**************************************************************************/
 
-  void dmultiMapRepI::readhdf5( hid_t group_id, entitySet &user_eset) 
+  void dmultiMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset)
   {
-
+    warn(true) ;
+    /*
     entitySet::const_iterator ei;
     hsize_t       dimension;
     entitySet     eset;	
@@ -575,14 +590,15 @@ namespace Loci
       }
     }
     delete [] it;
-
+    */
   }
 
   //**************************************************************************/
 
-  void dmultiMapRepI::writehdf5( hid_t group_id, entitySet& usr_eset) const
+  void dmultiMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& usr_eset) const
   {
-
+    warn(true) ;
+    /*
     int rank = 1;
     entitySet  :: const_iterator ci;
     HASH_MAP(int,vector<int>)::const_iterator iter;
@@ -625,6 +641,7 @@ namespace Loci
 
     H5Dclose( v2Dataset  );
     H5Sclose( v2Dataspace);
+    */
   } 
 
   //**************************************************************************/

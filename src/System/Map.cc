@@ -471,9 +471,23 @@ namespace Loci {
     }
     return s ;
   }
-
-  void MapRepI::readhdf5(hid_t group_id, entitySet &usr_eset){
-
+  DatatypeP MapRepI::getType() {
+    return DatatypeP(new AtomicType(INT)) ;
+  }
+  frame_info MapRepI::read_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  frame_info MapRepI::write_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+   }
+  
+  void MapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset){
+    warn(true) ; 
+    /*
     int      rank = 1, indx = 0;
     hid_t    mDataspace, vDataspace, vDataset, vDatatype;
     hsize_t  dimension;
@@ -545,14 +559,15 @@ namespace Loci {
     H5Sclose( mDataspace );
     H5Sclose( vDataspace );
     H5Dclose( vDataset   );
-
+    */
   } 
 
-  void MapRepI::writehdf5(hid_t group_id,entitySet &usr_eset) const{
-
+  void MapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const{
+    warn(true) ;
+    /*
     entitySet eset(usr_eset&domain());
 
-    HDF5_WriteDomain(group_id, eset);
+    HDF5WriteDomain(group_id, eset);
 
     int arraySize =  eset.size(); 
     if( arraySize < 1) return;
@@ -578,7 +593,7 @@ namespace Loci {
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
-
+    */
   } 
 
   Map::~Map() {}
@@ -1097,8 +1112,25 @@ storeRepP multiMapRepI::thaw() {
     return s ;
   }
 
-  void multiMapRepI::readhdf5( hid_t group_id, entitySet &usr_eset) {
-
+  DatatypeP multiMapRepI::getType() {
+    warn(true) ;
+    DatatypeP dp ;
+    return dp ;
+  }
+  frame_info multiMapRepI::read_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  frame_info multiMapRepI::write_frame_info(hid_t group_id) {
+    warn(true) ;
+    frame_info fi ;
+    return fi ;
+  }
+  
+  void multiMapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset) {
+    warn(true) ;
+    /*
     hsize_t dimension;
     hid_t   vDatatype, vDataset, vDataspace, mDataspace;
     size_t indx = 0, arraySize;
@@ -1197,11 +1229,13 @@ storeRepP multiMapRepI::thaw() {
     H5Dclose(vDataset);
     H5Sclose(vDataspace);
     H5Sclose(mDataspace);
-
+    */
   }
 
-  void multiMapRepI::writehdf5( hid_t group_id, entitySet& eset) const{
-    HDF5_WriteDomain(group_id, eset);
+  void multiMapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& eset) const{
+    warn(true) ;
+    /*
+    HDF5WriteDomain(group_id, eset);
 
     hid_t  vDatatype, vDataset, vDataspace;
 
@@ -1263,7 +1297,7 @@ storeRepP multiMapRepI::thaw() {
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
-
+    */
   } 
   
   multiMap::~multiMap() {}

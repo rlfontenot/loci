@@ -49,11 +49,14 @@ namespace Loci {
   virtual multiMap get_map() ;
   virtual std::ostream &Print(std::ostream &s) const ;
   virtual std::istream &Input(std::istream &s) ;
-  virtual void readhdf5( hid_t group, entitySet &user_eset) ;
-  virtual void writehdf5( hid_t group_id, entitySet& en) const ;
+  virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
+  virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
   virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   virtual storeRepP thaw() ;
   HASH_MAP(int,std::vector<int> ) *get_attrib_data() {return &attrib_data;}
+  virtual DatatypeP getType() ;
+  virtual frame_info read_frame_info(hid_t group_id) ;
+  virtual frame_info write_frame_info(hid_t group_id) ;
   } ;
   
   //***************************************************************************

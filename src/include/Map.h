@@ -51,13 +51,17 @@ namespace Loci {
     virtual multiMap get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5(hid_t group, entitySet &en) ;
-    virtual void writehdf5(hid_t group_id, entitySet& en) const ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name,  entitySet& en) const ;
+    
     Entity * get_base_ptr() const { return base_ptr ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP thaw() ;
+    virtual DatatypeP getType() ;
+    virtual frame_info read_frame_info(hid_t group_id) ;
+    virtual frame_info write_frame_info(hid_t group_id) ;
   } ;
-      
+  
   class Map : public store_instance {
     friend class const_Map ;
     typedef MapRepI MapType ;

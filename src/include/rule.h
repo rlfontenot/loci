@@ -526,7 +526,7 @@ namespace Loci {
   public:
     class rule_list_iterator ;
     friend class rule_list_iterator ;
-    friend class global_rule_impl_list ;
+    friend class register_rule_impl_list ;
     class rule_list_ent {
     public:
       rule_list_ent(register_rule_type *p, rule_list_ent *nxt) :
@@ -564,7 +564,7 @@ namespace Loci {
     iterator end() { return iterator(0) ; }
     void clear() ;
     void copy_rule_list(const rule_impl_list &rl) ;
-    void copy_rule_list(const global_rule_impl_list &rl) ;
+    void copy_rule_list(const register_rule_impl_list &rl) ;
     rule_impl_list(const rule_impl_list &x) {
       list = 0 ;
       copy_rule_list(x) ;
@@ -575,27 +575,28 @@ namespace Loci {
       return *this ;
     }
   } ;
-  class global_rule_impl_list : public rule_impl_list {
+  class register_rule_impl_list : public rule_impl_list {
   public:
     static rule_list_ent *global_list ;
-    global_rule_impl_list() {}
-    ~global_rule_impl_list() ;
+    register_rule_impl_list() {}
+    ~register_rule_impl_list() ;
     void clear() ;
+    bool empty() ;
     void push_rule(register_rule_type *p) ;
     
   } ;
-  extern global_rule_impl_list global_rule_list ;    
-  extern rule_impl_list init_rule_list ;    
+  extern register_rule_impl_list register_rule_list ;    
+  extern rule_impl_list global_rule_list ;    
   template<class T> class register_rule : public register_rule_type {
   public:
-    register_rule() { global_rule_list.push_rule(this) ; }
+    register_rule() { register_rule_list.push_rule(this) ; }
     virtual bool is_module_rule()  const{ return false; }
     virtual rule_implP get_func() const { return new copy_rule_impl<T> ; }
   } ;
   
   class register_module : public register_rule_type {
   public:
-    register_module() { global_rule_list.push_rule(this) ; }
+    register_module() { register_rule_list.push_rule(this) ; }
     virtual bool is_module_rule() const{ return true ; }
     virtual rule_implP get_func() const { return 0 ; }
     virtual std::string using_nspace() const = 0 ;
@@ -620,7 +621,7 @@ namespace Loci {
     void add_rule(const rule_implP &fp) ;
     void add_rule(rule f) ;
     void add_rules(rule_impl_list &gfl) ;
-    void add_rules(global_rule_impl_list &gfl) ;
+    void add_rules(register_rule_impl_list &gfl) ;
     rule_implP get_rule(const std::string &name) {
       return name2rule[name].get_info().rule_impl->new_rule_impl() ;
     }
