@@ -40,6 +40,6 @@ make.depend:
 	touch make.depend 
 
 depend: make.depend
-	makedepend -fmake.depend $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -I$(CC_INCLUDE_PATH) *.cc
+	$(MAKEDEPEND) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) *.cc > make.depend
 
 include make.depend				
