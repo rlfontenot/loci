@@ -14,9 +14,15 @@ mkdir -p $target/Loci/hdf5CC
 mkdir -p $target/Loci/lib
 
 cd $target/Loci
+echo ln -s $source/src/Makefile Makefile
 ln -s $source/src/Makefile Makefile
+echo ln -s $source/src/Install.bash Install.bash
+ln -s $source/src/Install.bash Install.bash
+echo ln -s $source/src/include include
 ln -s $source/src/include include
+echo cp $source/src/conf/${COMP}.conf comp.conf
 cp $source/src/conf/${COMP}.conf comp.conf
+echo cp $source/src/conf/${ARCH}.conf sys.conf
 cp $source/src/conf/${ARCH}.conf sys.conf
 
 cd lib
