@@ -1,5 +1,5 @@
-#include "debug.h"
-#include "ftrn_reader.h"
+#include <Tools/debug.h>
+#include <Tools/ftrn_reader.h>
 
 #include <sys/types.h>
 #include <sys/uio.h>

@@ -4,7 +4,7 @@
 
 TARGET = libLoci.a
 
-LOCAL_INCLUDES = -I$(LOCI_BASE)/include -I$(LOCI_BASE)/include/Tools
+LOCAL_INCLUDES = -I$(LOCI_BASE)/include
 
 
 OBJS = variable.o store_rep.o Map.o constraint.o path.o rule.o \

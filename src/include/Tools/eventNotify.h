@@ -1,8 +1,8 @@
 #ifndef EVENTNOTIFY_H
 #define EVENTNOFITY_H
 
-#include "debug.h"
-#include "identity.h"
+#include <Tools/debug.h>
+#include <Tools/identity.h>
 
 
 #include <map>

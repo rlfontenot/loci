@@ -1,7 +1,7 @@
 #ifndef CPTR_H
 #define CPTR_H
 
-#include <debug.h>
+#include <Tools/debug.h>
 
 namespace Loci {
 // Counted Pointer

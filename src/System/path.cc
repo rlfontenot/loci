@@ -1,6 +1,6 @@
-#include "path.h"
+#include <path.h>
 
-#include <stream.h>
+#include <Tools/stream.h>
 
 namespace Loci {
     

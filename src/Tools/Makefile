@@ -4,7 +4,7 @@
 
 TARGET = libTools.a
 
-LOCAL_INCLUDES = -I$(LOCI_BASE)/include/Tools
+LOCAL_INCLUDES = -I$(LOCI_BASE)/include
 
 OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o parse.o options_list.o \
        expr.o intervalSet.o digraph.o

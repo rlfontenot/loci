@@ -1,6 +1,6 @@
-#include "fact_db.h"
-#include "constraint.h"
-#include "stream.h"
+#include <fact_db.h>
+#include <constraint.h>
+#include <Tools/stream.h>
 
 using std::string ;
 using std::map ;
@@ -11,7 +11,7 @@ using std::sort ;
 using std::pair ;
 using std::make_pair ;
 
-#include "parse.h"
+#include <Tools/parse.h>
 
 namespace Loci {
   
@@ -73,7 +73,8 @@ namespace Loci {
     if(mi == vmap.end()) {
       cerr << "error: variable " << v << " does not exist in fact database"
            << endl ;
-      exit(-1) ;
+      //      exit(-1) ;
+      return vmap.begin()->second ;
     }
     return mi->second ;
   }

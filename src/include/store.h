@@ -1,8 +1,8 @@
 #ifndef STORE_H
 #define STORE_H 1
 
-#include "debug.h"
-#include "store_rep.h"
+#include <Tools/debug.h>
+#include <store_rep.h>
 
 namespace Loci {
 

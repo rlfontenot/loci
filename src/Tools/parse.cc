@@ -1,6 +1,6 @@
-#include "parse.h"
+#include <Tools/parse.h>
+#include <Tools/debug.h>
 #include <locale>
-#include "debug.h"
 
 namespace Loci {
 namespace parse {

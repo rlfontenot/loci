@@ -1,9 +1,9 @@
 #ifndef STORE_REP_H
 #define STORE_REP_H
 
-#include "debug.h"
-#include "entitySet.h"
-#include "nptr.h"
+#include <Tools/debug.h>
+#include <Tools/nptr.h>
+#include <entitySet.h>
 
 namespace Loci {
     enum store_type { STORE, PARAMETER, MAP, CONSTRAINT, PATH, GLOBAL } ;

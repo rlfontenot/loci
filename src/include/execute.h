@@ -4,7 +4,7 @@
 #include <ostream>
 #include <list>
 
-#include "cptr.h"
+#include <Tools/cptr.h>
 
 namespace Loci {
   class fact_db ;

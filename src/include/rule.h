@@ -1,7 +1,7 @@
 #ifndef RULE_H
 #define RULE_H
 
-#include <debug.h>
+#include <Tools/debug.h>
 #include <entitySet.h>
 #include <store_rep.h>
 
@@ -11,8 +11,8 @@
 #include <vector>
 #include <set>
 
-#include <cptr.h>
-#include <expr.h>
+#include <Tools/cptr.h>
+#include <Tools/expr.h>
 #include <variable.h>
 
 namespace Loci {

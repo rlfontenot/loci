@@ -1,9 +1,9 @@
 #ifndef NPTR_H
 #define NPTR_H
 
-#include "debug.h"
-#include "eventNotify.h"
-#include "cptr.h"
+#include <Tools/debug.h>
+#include <Tools/eventNotify.h>
+#include <Tools/cptr.h>
 
 namespace Loci {
 

@@ -1,7 +1,7 @@
 #ifndef MAP_REP_H
 #define MAP_REP_H
 
-#include "store_rep.h"
+#include <store_rep.h>
 
 namespace Loci {
 

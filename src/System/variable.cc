@@ -1,6 +1,6 @@
 #include <variable.h>
 
-#include <stream.h>
+#include <Tools/stream.h>
 
 using std::vector ;
 using std::string ;

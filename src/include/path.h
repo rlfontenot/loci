@@ -1,8 +1,8 @@
 #ifndef PATH_H
 #define PATH_H
 
-#include "debug.h"
-#include "store_rep.h"
+#include <Tools/debug.h>
+#include <store_rep.h>
 
 namespace Loci {
     

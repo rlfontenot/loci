@@ -1,9 +1,10 @@
 #ifndef MAP_H_
 #define MAP_H_
 
-#include "debug.h"
-#include "Map_rep.h"
-#include "store.h"
+#include <Tools/debug.h>
+#include <Map_rep.h>
+#include <store.h>
+
 #include <algorithm>
 
 namespace Loci {

@@ -1,7 +1,7 @@
-#include "digraph.h"
-#include "stream.h"
 
-#include <debug.h>
+#include <Tools/digraph.h>
+#include <Tools/stream.h>
+#include <Tools/debug.h>
 
 using std::map ;
 using std::vector ;

@@ -1,6 +1,6 @@
-#include "store_rep.h"
+#include <store_rep.h>
 
-#include <stream.h>
+#include <Tools/stream.h>
 
 
 namespace Loci {

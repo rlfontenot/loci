@@ -1,10 +1,11 @@
-#include "debug.h"
-#include "tools.h"
-#include "intervalSet.h"
+#include <Tools/debug.h>
+#include <Tools/tools.h>
+#include <Tools/intervalSet.h>
+#include <Tools/stream.h>
+
 #include <algorithm>
 #include <functional>
-//#include <cctype>
-#include <stream.h>
+
 
 
 //using namespace std::rel_ops ;

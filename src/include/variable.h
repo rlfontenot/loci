@@ -4,15 +4,14 @@
 #include <ostream>
 #include <iostream>
 #include <sstream>
-//#include <cstdlib>
 
 #include <map>
 #include <set>
 #include <vector>
 #include <list>
 
-#include <expr.h>
-#include <intervalSet.h>
+#include <Tools/expr.h>
+#include <Tools/intervalSet.h>
 
 namespace Loci {
   class time_ident {

@@ -1,8 +1,10 @@
 #ifndef STOREVEC_H
 #define STOREVEC_H 1
 
-#include "debug.h"
-#include "store_rep.h"
+#include <Tools/debug.h>
+#include <Tools/tools.h>
+
+#include <store_rep.h>
 
 namespace Loci {
   template <class T> class Vect ;
@@ -487,7 +489,7 @@ namespace Loci {
             Aj[i] -= Ak[i]*Aj[k] ;
         int mu = j ;
         for(int k=j+1;k<size;++k)
-          if(std::abs(Aj[mu]) < std::abs(Aj[k]))
+          if(abs(Aj[mu]) < abs(Aj[k]))
             mu = k ;
         piv[j] = mu ;
         if(j!= mu)

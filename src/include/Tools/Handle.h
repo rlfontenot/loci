@@ -1,7 +1,7 @@
 #ifndef HANDLE_H
 #define HANDLE_H (1)
 
-#include "debug.h"
+#include <Tools/debug.h>
 
 namespace Loci {
     

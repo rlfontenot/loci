@@ -1,9 +1,9 @@
 #ifndef EXPR_H
 #define EXPR_H
 
-#include <stream.h>
+#include <Tools/stream.h>
+#include <Tools/cptr.h>
 
-#include <cptr.h>
 #include <list>
 #include <string>
 

@@ -1,7 +1,6 @@
-#include "expr.h"
-//#include <locale>
-#include <parse.h>
-#include <stream.h>
+#include <Tools/expr.h>
+#include <Tools/parse.h>
+#include <Tools/stream.h>
 
 namespace Loci {
     

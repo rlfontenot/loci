@@ -1,5 +1,5 @@
-#include "constraint.h"
-#include "stream.h"
+#include <constraint.h>
+#include <Tools/stream.h>
 
 namespace Loci {
 

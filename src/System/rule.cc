@@ -1,6 +1,6 @@
 #include "rule.h"
 
-#include <stream.h>
+#include <Tools/stream.h>
 #include <fact_db.h>
 
 using std::vector ;

@@ -1,5 +1,5 @@
-#include "scheduler.h"
-#include <digraph.h>
+#include <scheduler.h>
+#include <Tools/digraph.h>
 #include <fact_db.h>
 #include <execute.h>
 #include <depend_graph.h>
@@ -2148,12 +2148,6 @@ executeP decompose_graph::execution_schedule(fact_db &facts) {
   
 }
 
-#ifndef _TIMEVAL_T
-struct timeval {
-  time_t tv_sec ;
-  long tv_usec ;
-} ;
-#endif
 
 double get_timer() {
 #ifdef PROFILE_CODE

@@ -1,13 +1,13 @@
 #ifndef INTERVALSET_H
 #define INTERVALSET_H 1
 
-#include <iostream>
-#include "debug.h"
-#include "Handle.h"
-#include "tools.h"
+#include <Tools/debug.h>
+#include <Tools/Handle.h>
+#include <Tools/tools.h>
 
 #include <limits>
 #include <vector>
+#include <iostream>
 
 namespace Loci {
 

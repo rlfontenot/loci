@@ -1,8 +1,8 @@
 #ifndef DEPEND_GRAPH_H
 #define DEPEND_GRAPH_H
 
-#include "digraph.h"
-#include "rule.h"
+#include <Tools/digraph.h>
+#include <rule.h>
 
 namespace Loci {
 

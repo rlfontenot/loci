@@ -8,8 +8,8 @@
 #include <constraint.h>
 #include <path.h>
 #include <rule.h>
-#include <options_list.h>
-#include <fpe.h>
+#include <Tools/options_list.h>
+#include <Tools/fpe.h>
 #include <scheduler.h>
 
 using Loci::entitySet ;

@@ -1,7 +1,7 @@
 #ifndef IDENTITY_H
 #define IDENTITY_H
 
-#include "debug.h"
+#include <Tools/debug.h>
 
 namespace Loci {
 typedef unsigned long id_type ;

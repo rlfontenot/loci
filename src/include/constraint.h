@@ -1,8 +1,8 @@
 #ifndef CONSTRAINT_H
 #define CONSTRAINT_H
 
-#include "debug.h"
-#include "store_rep.h"
+#include <Tools/debug.h>
+#include <store_rep.h>
 
 namespace Loci {
     

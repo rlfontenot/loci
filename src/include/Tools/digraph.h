@@ -1,8 +1,8 @@
 #ifndef DIGRAPH_H
 #define DIGRAPH_H
 
-#include <intervalSet.h>
-#include <Handle.h>
+#include <Tools/intervalSet.h>
+#include <Tools/Handle.h>
 #include <map>
 #include <vector>
 

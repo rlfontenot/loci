@@ -1,4 +1,4 @@
-#include "depend_graph.h"
+#include <depend_graph.h>
 
 #include <map>
 #include <vector>
@@ -7,7 +7,7 @@
 using std::map ;
 using std::vector ;
 
-// #define VERBOSE
+#define VERBOSE
 
 namespace Loci {
 

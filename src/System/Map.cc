@@ -1,6 +1,6 @@
-#include "Map.h"
+#include <Map.h>
 
-#include <stream.h>
+#include <Tools/stream.h>
 
 namespace Loci {
 

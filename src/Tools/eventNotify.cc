@@ -1,4 +1,4 @@
-#include "eventNotify.h"
+#include <Tools/eventNotify.h>
 
 namespace Loci {
 eventDispatcher::eventDispatcher()
