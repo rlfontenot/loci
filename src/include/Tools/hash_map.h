@@ -14,12 +14,11 @@
 #include <hash_map>
 #endif
 
-
-#ifdef GCC_3_1
-#define HASH_MAP(S,T) __gnu_cxx::hash_map<S,T > 
-#else
-#define HASH_MAP(S,T) std::hash_map<S,T > 
+#ifndef EXT_NAMESPACE
+EXT_NAMESPACE=std
 #endif
+
+#define HASH_MAP(S,T) EXT_NAMESPACE::hash_map<S,T > 
 
 #endif
 
