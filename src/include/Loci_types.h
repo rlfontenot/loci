@@ -1,5 +1,5 @@
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef LOCI_TYPES_H
+#define LOCI_TYPES_H
 
 #include <Tools/stream.h>
 namespace Loci {
@@ -221,19 +221,19 @@ namespace Loci {
   }
 
   template <class T>
-  class hdf5_schema_traits< vector3d<T> > {
-  public:
-    typedef IDENTITY_CONVERTER Schema_Converter;
-    static H5::DataType get_type() {
-      hdf5_schema_traits<T> hdfT;
-      H5::CompType ctype(sizeof(vector3d<T>));
-      ctype.insertMember("x", HOFFSET(vector3d<T>,x), hdfT.get_type());
-      ctype.insertMember("y", HOFFSET(vector3d<T>,y), hdfT.get_type());
-      ctype.insertMember("z", HOFFSET(vector3d<T>,z), hdfT.get_type());
-      return ctype;
-    }
-  };
-
+    class hdf5_schema_traits< vector3d<T> > {
+    public:
+      typedef IDENTITY_CONVERTER Schema_Converter;
+      static H5::DataType get_type() {
+        hdf5_schema_traits<T> hdfT;
+        H5::CompType ctype(sizeof(vector3d<T>));
+        ctype.insertMember("x", HOFFSET(vector3d<T>,x), hdfT.get_type());
+        ctype.insertMember("y", HOFFSET(vector3d<T>,y), hdfT.get_type());
+        ctype.insertMember("z", HOFFSET(vector3d<T>,z), hdfT.get_type());
+        return ctype;
+      }
+    };
+  
   //---------------------Array----------------------//
   template <class T,int n> class Array {
     T x[n] ;

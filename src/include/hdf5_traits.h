@@ -5,7 +5,6 @@
 #include <vector>
 #include <complex>
 #include <Tools/stream.h>
-#include <types.h>
 
 namespace Loci {
 
