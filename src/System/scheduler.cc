@@ -37,7 +37,6 @@ namespace Loci {
     
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
-    
     cout << "generating dependency graph..." << endl ;
     double start_time = MPI_Wtime() ;
     rule_db par_rdb ;

@@ -19,7 +19,6 @@ namespace Loci {
   using std::hash_map ;
 
   entitySet image_section(const int *start, const int *end) ;
-
   class Map ;
   class multiMap ;
   class dMap;
@@ -55,7 +54,7 @@ namespace Loci {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(H5::Group group, entitySet &user_eset) ;
     virtual void writehdf5(H5::Group group,entitySet& en) const ;
-
+    virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     hash_map<int,int> *get_attrib_data() { return &attrib_data; }
   } ;
       
@@ -71,7 +70,7 @@ namespace Loci {
     virtual ~dMap() ;
 
     virtual void notification() ;
-
+    
     dMap & operator=(const dMap &str) { setRep(str.Rep()) ; return *this ;}
     dMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
@@ -153,6 +152,10 @@ namespace Loci {
         
   inline std::ostream & operator<<(std::ostream &s, const const_dMap &m)
     { return m.Print(s) ; }
+ 
+  void inverseMap(multiMap &result, const dMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage);
 }
 
 #endif

@@ -7,7 +7,7 @@
 #include <Tools/debug.h>
 #include <Map_rep.h>
 #include <hdf5CC/H5cpp.h>
-
+#include <DMap.h>
 #include <vector>
 #ifdef EXT_HASH_MAP
 #include <ext/hash_map>
@@ -17,7 +17,6 @@
 
 #include <Map.h>
 #include <store.h>
-
 namespace Loci {
   using std::hash_map ;
 class dmultiMapRepI : public MapRep {
@@ -52,10 +51,9 @@ class dmultiMapRepI : public MapRep {
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5( H5::Group group, entitySet &user_eset) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
-
+    virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     hash_map<int,std::vector<int> > *get_attrib_data() {return &attrib_data;}
-
-  } ;
+} ;
       
   //***************************************************************************
 
@@ -91,9 +89,9 @@ class dmultiMapRepI : public MapRep {
     entitySet domain() const { return Rep()->domain() ; }
 
     operator MapRepP() {
-         MapRepP p(Rep()) ;
-         fatal(p==0) ;
-         return p ; 
+      MapRepP p(Rep()) ;
+      fatal(p==0) ;
+      return p ; 
     }
 
     std::vector<int> &elem(int indx) {
@@ -114,22 +112,22 @@ class dmultiMapRepI : public MapRep {
     }
 
     std::vector<int> &operator[](int indx) { return elem(indx); }
-
+    
     const std::vector<int> &operator[](int indx) const 
-    { return const_elem(indx) ; }
-
+      { return const_elem(indx) ; }
+    
     int num_elems(int indx) const 
-    {
-      hash_map<int, std::vector<int> > :: const_iterator   ci;
-      std::vector<int>     newVec;
-     
-      ci = attrib_data->find(indx);
-      if( ci != attrib_data->end())
+      {
+	hash_map<int, std::vector<int> > :: const_iterator   ci;
+	std::vector<int>     newVec;
+	
+	ci = attrib_data->find(indx);
+	if( ci != attrib_data->end())
           return( (ci->second).size() );
-
-      return(0);
-
-    }
+	
+	return(0);
+	
+      }
 
     std::ostream &Print(std::ostream &s) const 
     { return Rep()->Print(s) ; }
@@ -183,27 +181,27 @@ class dmultiMapRepI : public MapRep {
       return p ; 
     }
 
-    const std::vector<int> const_elem(int indx)  const {
-          hash_map<int,std::vector<int> > :: const_iterator   ci;
-          ci = attrib_data->find(indx);
-          if( ci != attrib_data->end() )
-              return( ci->second );
-
-          std::vector<int>  newVec;
-          return( newVec );
+    const std::vector<int> &const_elem(int indx)  const {
+      hash_map<int,std::vector<int> > :: const_iterator   ci;
+      ci = attrib_data->find(indx);
+      if( ci == attrib_data->end() ) {
+	cerr << " Trying to access the dmultiMap out of bounds " << endl ;
+	exit(0) ;
+      }
+      return( ci->second );
     }
 
     const std::vector<int> operator[](int indx) const 
-    { return const_elem(indx) ; }
-
+      { return const_elem(indx) ; }
+    
     int num_elems(int indx) const 
-    {
+      {
        hash_map<int,std::vector<int> > :: const_iterator   ci;
        ci = attrib_data->find(indx);
        if( ci != attrib_data->end() )
-           return( (ci->second).size() );
+	 return( (ci->second).size() );
        return(0);
-    }
+      }
 
     std::ostream &Print(std::ostream &s) const 
     { return Rep()->Print(s) ; }
@@ -217,21 +215,10 @@ class dmultiMapRepI : public MapRep {
 
   //***************************************************************************
 
-  void inverseMap(multiMap &result,
-                  const Map &input_map,
-                  const entitySet &input_image,
-                  const entitySet &input_preimage) ;
-
-  //***************************************************************************
-
-  void inverseMap(multiMap &result,
-                  const multiMap &input_map,
-                  const entitySet &input_image,
-                  const entitySet &input_preimage) ;
-
-  //***************************************************************************
-
   void inverseMap( const dmultiMap &in, dmultiMap &out);
+  void inverseMap(dmultiMap &result, const dMap &input_map,
+                  const entitySet &input_image,
+		   const entitySet &input_preimage) ;
 }
 
 #endif

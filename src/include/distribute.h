@@ -4,6 +4,8 @@
 #include <vector>
 #include <store.h>
 #include <Map.h>
+#include <DMap.h>
+#include <DMultiMap.h>
 #include <constraint.h>
 #include <fact_db.h>
 
@@ -61,6 +63,15 @@ namespace Loci {
 
   inline storeRepP distribute_store(storeRepP &sp)
   { return distribute_store(sp,*exec_current_fact_db) ; }
+
+   void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) ;
+ 
+ void distributed_inverseMap(dmultiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) ;
+  
+ void distributed_inverseMap(dmultiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) ;
+ 
+ void distributed_inverseMap(dmultiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts); 
+ 
 }
 
 

@@ -82,7 +82,6 @@ namespace Loci {
     schedule . This routine returns a set of entities such that the
     rule can be applied over those entities. */
   void existential_rule_analysis(rule r, fact_db &facts) {
-    
     FATAL(r.type() == rule::INTERNAL) ;
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
@@ -103,11 +102,17 @@ namespace Loci {
       the rule and also the constraints we make sure that the
       attribute specified by the target is implied by the satisfaction 
       of the attributes in the body of the rule. */
-     
+   
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+      debugout << "comp_tools  rule = " << r << endl ;
       sources &= vmap_source_exist(*si,facts) ;
+      if(facts.isDistributed()) {
+	Map l2g ;
+	l2g = facts.get_variable("l2g") ;
+	entitySet global_sources = l2g.image(sources) ;	
+	debugout << "comp_tools sources = " << global_sources << endl ;
+      }
     }
-    
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
       constraints &= vmap_source_exist(*si,facts) ;
     
@@ -152,7 +157,6 @@ namespace Loci {
     // of the existential information of the sources with that of the 
     //  constraints. 
     entitySet context = sources & constraints ;
-    
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
       entitySet targets = vmap_target_exist(*si,facts,context) ;
       const variableSet &tvars = si->var ;
@@ -160,8 +164,8 @@ namespace Loci {
       for(vi=tvars.begin();vi!=tvars.end();++vi) {
 	facts.set_existential_info(*vi,r,targets) ;
 #ifdef VERBOSE
-        debugout << "rule " << r << " generating variable " << *vi
-                           << " for entities " << targets << endl ;
+	      debugout << "rule " << r << " generating variable " << *vi
+		       << " for entities " << targets << endl ;
 #endif
       }
     }
@@ -636,7 +640,7 @@ namespace Loci {
           if(vi->get_info().name == vname)
             rv = *vi ;
         }
-        facts.set_existential_info(rv,*rsi,exinfo[j]) ;
+	facts.set_existential_info(rv,*rsi,exinfo[j]) ;
         ++j ;
       }
     }

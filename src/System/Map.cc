@@ -9,7 +9,7 @@ namespace Loci {
   MapRep::~MapRep() {}
   
   store_type MapRep::RepType() const { return MAP ; }
-        
+  
   void MapRepI::allocate(const entitySet &ptn) {
     if(alloc_pointer) delete[] alloc_pointer ;
     alloc_pointer = 0 ;
@@ -202,7 +202,12 @@ namespace Loci {
     } ENDFORALL ;
     return make_pair(domain,domain) ;
   }
-
+  
+  storeRepP MapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
+    storeRepP sp ;
+    warn(true) ;
+    return sp ;
+  }
   multiMap MapRepI::get_map() {
     store<int> sizes ;
     sizes.allocate(store_domain) ;
@@ -437,7 +442,11 @@ namespace Loci {
     } ENDFORALL ;
     allocate(count) ;
   }
-
+  storeRepP multiMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
+    storeRepP sp ;
+    warn(true) ;
+    return sp ;
+  }
   void multiMapRepI::allocate(const store<int> &sizes) {
     int sz = 0 ;
     entitySet ptn = sizes.domain() ;
@@ -984,6 +993,7 @@ namespace Loci {
 #endif
   }
 
+
   void inverseMap(multiMap &result, const multiMap &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) {
@@ -1017,4 +1027,5 @@ namespace Loci {
     } ENDFORALL ;
 #endif
   }
+   
 }

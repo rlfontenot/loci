@@ -48,11 +48,13 @@ namespace Loci {
     virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5(H5::Group group,entitySet& en) const ;
     VEC * get_base_ptr() const { return base_ptr ; }
+    virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    
   private:
     int* get_hdf5_data(H5::Group group,const char* datasetname) ;
     void put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const ;
   } ;
-
+  
  template<int M> void MapVecRepI<M>::readhdf5( H5::Group group, entitySet &eset){
       try{
     	//get domain data
@@ -523,8 +525,13 @@ namespace Loci {
   }
   template <int M> void MapVecRepI<M>::unpack(void *ptr, int &loc, int &size, const sequence &seq) {
     warn(true) ;
-  }  
-
+  } 
+  
+  template<int M> storeRepP MapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
+    storeRepP sp ;
+    warn(true) ;
+    return sp ;
+  }     
   template<int M> void inverseMap (multiMap &result,
                                    const MapVec<M> &input_map,
                                    const entitySet &input_image,
@@ -556,7 +563,9 @@ namespace Loci {
       FATAL(sizes[i] != 0) ;
     } ENDFORALL ;
 #endif
-  }      
+  }
+
+ 
 }
 
 #endif

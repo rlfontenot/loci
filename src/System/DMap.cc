@@ -3,13 +3,119 @@
 #include <multiMap.h>
 #include <Tools/stream.h>
 #include <hash_map.h>
-
+#include <set>
 namespace Loci {
 
   using std::pair ;
   using std::make_pair ;
   using std::vector ;
   using std::sort ;
+  using std::set ;
+  
+  storeRepP dMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
+    int *recv_count = new int[MPI_processes] ;
+    int *send_count = new int[MPI_processes] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
+    entitySet tmp_dom = domain() ;
+    entitySet::const_iterator ei ;
+    int size_send = 0 ;
+    std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      copy[i] = out_of_dom & ptn[i] ;
+      send_count[i] = copy[i].size() ;
+      size_send += send_count[i] ; 
+    }
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += recv_count[i] ;
+    
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      for(ei = copy[i].begin(); ei != copy[i].end(); ++ei) {
+	send_buf[size_send] = *ei ;
+	++size_send ;
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		  recv_buf, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i]; ++j) 
+	send_clone[i] += recv_buf[j] ;
+      //debugout << " send_clone[i] = " << send_clone[i] << endl ;
+    }
+    
+    std::vector<hash_map<int, int> > map_entities(MPI_processes) ;
+    for(int i = 0; i < MPI_processes; ++i) 
+      for(entitySet::const_iterator esi = send_clone[i].begin(); esi != send_clone[i].end(); ++esi) 
+	if(attrib_data.find(*esi) != attrib_data.end())
+	  (map_entities[i])[*esi] = attrib_data[*esi] ;
+    
+    for(int i = 0; i < MPI_processes; ++i)
+      send_count[i] = 2 * map_entities[i].size() ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += send_count[i] ;
+    int *send_map = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += recv_count[i] ;
+    int *recv_map = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i) 
+      for(hash_map<int, int>::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+	send_map[size_send] = miv->first ;
+	++size_send ;
+	send_map[size_send] = miv->second ;
+	++size_send ;
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
+		  recv_map, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+    hash_map<int, int> hm ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i]; ++j) {
+	hm[recv_map[j]] = recv_map[j+1];
+	j++ ;
+      }
+    }
+    for(hash_map<int, int>::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi) 
+      attrib_data[hmi->first] = hmi->second ;
+    
+    dMap dm ;
+    for(hash_map<int, int>::const_iterator hi = attrib_data.begin();  hi != attrib_data.end(); ++hi)
+      dm[hi->first] = hi->second ;
+    storeRepP sp = dm.Rep() ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+    delete [] send_map ;
+    delete [] recv_map ;
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ;
+    return sp ;
+  }
   
 //********************************************************************
         
@@ -216,9 +322,9 @@ dMapRepI::preimage(const entitySet &codomain) const
 {
     entitySet domain ;
     hash_map<int,int> :: const_iterator  ci;
-
-    for( ci = attrib_data.begin(); ci != attrib_data.end(); ++ci)
-         if(codomain.inSet( ci->second) )  domain  += ci->first;
+    
+    for(ci = attrib_data.begin(); ci != attrib_data.end(); ++ci)
+      if(codomain.inSet( ci->second) )  domain  += ci->first;
     
     return make_pair(domain,domain);
 }
@@ -466,5 +572,32 @@ void dMapRepI::writehdf5(H5::Group group, entitySet& eset) const
     { return READ_ONLY ; }
 
 //**************************************************************************
-
+  void inverseMap(multiMap &result, const dMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) {
+    store<int> sizes ;
+    sizes.allocate(input_image) ;
+    FORALL(input_image,i) {
+      sizes[i] = 0 ;
+    } ENDFORALL ;
+    entitySet preloop = input_preimage & input_map.domain() ;
+    FORALL(preloop,i) {
+      if(input_image.inSet(input_map[i]))
+        sizes[input_map[i]] += 1 ;
+    } ENDFORALL ;
+    result.allocate(sizes) ;
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      if(input_image.inSet(elem)) {
+        sizes[elem] -= 1 ;
+        FATAL(sizes[elem] < 0) ;
+        result[elem][sizes[elem]] = i ;
+      }
+    } ENDFORALL ;
+#ifdef DEBUG
+    FORALL(input_image,i) {
+      FATAL(sizes[i] != 0) ;
+    } ENDFORALL ;
+#endif
+  }
 }

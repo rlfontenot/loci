@@ -56,6 +56,7 @@ namespace Loci {
   private:
     int* get_hdf5_data(H5::Group group,const char* datasetname) ;
     void put_hdf5_data(H5::Group group, int* data, const char* datasetname,hsize_t* dimf) const ;
+    virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   } ;
       
   class multiMap : public store_instance {
@@ -168,7 +169,6 @@ namespace Loci {
                   const Map &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) ;
-
   void inverseMap(multiMap &result,
                   const multiMap &input_map,
                   const entitySet &input_image,

@@ -328,7 +328,7 @@ namespace Loci {
       citer = attrib_data->find(indx);
 
       if( citer == attrib_data->end() )
-	warn(true) ;
+	fatal(true) ;
       
       return ( (*attrib_data)[indx] );
       
