@@ -15,7 +15,7 @@
 #endif
 
 #ifndef EXT_NAMESPACE
-EXT_NAMESPACE=std
+#define EXT_NAMESPACE std
 #endif
 
 #define HASH_MAP(S,T) EXT_NAMESPACE::hash_map<S,T > 
