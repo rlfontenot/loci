@@ -5,7 +5,7 @@
 #include <Tools/identity.h>
 #include <Tools/lmutex.h>
 
-#include <map>
+#include <list>
 
 namespace Loci {
     
@@ -18,7 +18,7 @@ namespace Loci {
 
 
   class eventDispatcher {
-    typedef std::map<unsigned long,eventNotify *> notify_list ;
+    typedef std::list<eventNotify *> notify_list ;
     notify_list notify_group ;
     lmutex mutex ;
   public:

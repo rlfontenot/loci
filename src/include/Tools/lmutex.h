@@ -12,20 +12,22 @@ namespace Loci {
 
   class lmutex {
     pthread_mutex_t mutex ;
+    pthread_mutexattr_t mattr ;
   public:
     lmutex() {
-      pthread_mutexattr_t mattr ;
       pthread_mutexattr_init(&mattr) ;
 #ifdef LINUX
       // Linux doesn't have shared attribute for mutexes
 #else
       pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED) ;
 #endif
+      pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_RECURSIVE) ;
       pthread_mutex_init(&mutex,&mattr) ;
-      pthread_mutexattr_destroy(&mattr) ;
     }
     ~lmutex() {
-      pthread_mutex_destroy(&mutex) ;
+      const int err = pthread_mutex_destroy(&mutex) ;
+      fatal(err==EBUSY) ;
+      pthread_mutexattr_destroy(&mattr) ;
     }
     void lock() {
       const int err = pthread_mutex_lock(&mutex) ;

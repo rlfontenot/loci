@@ -7,28 +7,32 @@
 
 namespace Loci {
 
-class NPTR_type : public CPTR_type {
-  mutable eventDispatcher ed ;
+  class NPTR_type : public CPTR_type {
+    mutable eventDispatcher ed ;
   public:
     void engage(eventNotify *en) const { ed.engage(en) ; }
     void disengage(eventNotify *en) const { ed.disengage(en) ; }
     void dispatch_notify() const { ed.dispatch_notify() ; }
-} ;
+  } ;
 
-template <class T> class const_NPTR ;
+  template <class T> class const_NPTR ;
 
-template <class T> class NPTR {
+  template <class T> class NPTR {
     T *ptr ;
     eventNotify * receiver ;
+    lmutex mutex ;
     void unlink_ptr()
-      { disengage() ; if(ptr) ptr->NPTR_type::unlink() ; ptr = 0 ; }
-    void link_ptr() { if(ptr) ptr->NPTR_type::link() ; engage() ; }
+    { disengage() ; if(ptr) ptr->NPTR_type::unlink() ; ptr = 0 ; }
+    void link_ptr()
+    { mutex.lock();if(ptr) ptr->NPTR_type::link() ; engage() ; mutex.unlock();}
     void set_ptr(T *p) {
-        if(p)
-          p->NPTR_type::link() ;
-        unlink_ptr() ;
-        ptr = p ;
-        engage() ;
+      mutex.lock() ;
+      if(p)
+        p->NPTR_type::link() ;
+      unlink_ptr() ;
+      ptr = p ;
+      engage() ;
+      mutex.unlock() ;
     }
     
     void engage() { if(ptr && receiver) ptr->engage(receiver) ; }
@@ -44,7 +48,7 @@ template <class T> class NPTR {
 
     template <class S> explicit NPTR(const NPTR<S> &p, eventNotify *r=0)
     { ptr = 0 ; receiver=r ;  T *pt = dynamic_cast<T *>(p.ptr) ;
-    set_ptr(pt) ; warn(p.ptr != 0 && pt == 0) ; }
+      set_ptr(pt) ; warn(p.ptr != 0 && pt == 0) ; }
     
     ~NPTR() { unlink_ptr(); }
     NPTR<T> &operator=(const NPTR<T> &p) { set_ptr(p.ptr) ; return *this; }
@@ -59,7 +63,7 @@ template <class T> class NPTR {
     bool operator!=( const T *p ) const { return ptr != p ; }
 
     void set_notify(eventNotify *np)
-      { disengage() ; receiver = np ; engage() ; }
+    { mutex.lock(); disengage() ; receiver = np ; engage() ; mutex.unlock(); }
 
     // Dereference Operator
     T &operator*() {return *ptr ; }
@@ -71,20 +75,24 @@ template <class T> class NPTR {
 
     //    T * get_ptr() { return ptr ; }
     //    const T *get_ptr() const { return ptr ; }
-} ;
+  } ;
 
-template <class T> class const_NPTR {
+  template <class T> class const_NPTR {
     const T *ptr ;
     eventNotify * receiver ;
+    lmutex mutex ;
     void unlink_ptr() 
-      { disengage() ; if(ptr) ptr->NPTR_type::unlink() ; ptr = 0 ; }
-    void link_ptr() { if(ptr) ptr->NPTR_type::link() ; engage() ; }
+    { disengage() ; if(ptr) ptr->NPTR_type::unlink() ; ptr = 0 ; }
+    void link_ptr()
+    { mutex.lock(); if(ptr) ptr->NPTR_type::link() ; engage() ; mutex.unlock();}
     void set_ptr(const T *p) {
-        if(p)
-          p->NPTR_type::link() ;
-        unlink_ptr() ;
-        ptr = p ;
-        engage() ;
+      mutex.lock() ;
+      if(p)
+        p->NPTR_type::link() ;
+      unlink_ptr() ;
+      ptr = p ;
+      engage() ;
+      mutex.unlock() ;
     }
     void engage() const { if(ptr && receiver) ptr->engage(receiver) ; }
     void disengage() const { if(ptr && receiver) ptr->disengage(receiver) ; }
@@ -124,7 +132,7 @@ template <class T> class const_NPTR {
     bool operator==( const T *p ) const { return ptr == p ; }
 
     void set_notify(eventNotify *np)
-      { disengage() ; receiver = np ; engage() ; }
+    { mutex.lock() ; disengage() ; receiver = np ; engage() ; mutex.unlock(); }
 
     // Dereference Operator
     const T &operator* () const { return *ptr ; }
@@ -134,7 +142,7 @@ template <class T> class const_NPTR {
 
     //    T * get_ptr() { return ptr ; }
     //    const T *get_ptr() const { return ptr ; }
-} ;
+  } ;
 }
 
 #endif
