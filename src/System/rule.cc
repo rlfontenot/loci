@@ -118,6 +118,7 @@ namespace Loci {
     name = "UNNAMED" ;
     rule_impl_class = UNKNOWN ;
     rule_threading = true ;
+    use_dynamic_schedule = false ;
     relaxed_recursion = false ;
   }
 

@@ -42,6 +42,16 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
   } ;
 
+  class dynamic_schedule_rule: public execute_modules {
+    rule_implP rp ;
+    rule rule_tag ;
+    entitySet exec_set ;
+  public:
+    dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+  
 
   class visitor ;
   
