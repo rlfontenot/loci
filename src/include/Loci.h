@@ -1,31 +1,8 @@
 #ifndef LOCI_H
 #define LOCI_H
 
-#ifdef HAVE_CONFIG_H
-#include <config.h> // This must be the first file included
-#endif
-#include <Config/conf.h>
+#include <Loci>
 
-#include <Loci_version.h>
-#include <Loci_types.h>
-#include <data_traits.h>
-#include <Map.h>
-#include <MapVec.h>
-#include <multiMap.h>
-#include <store.h>
-#include <storeVec.h>
-#include <parameter.h>
-#include <constraint.h>
-#include <rule.h>
-#include <Tools/options_list.h>
-#include <Tools/fpe.h>
-#include <scheduler.h>
-#include <distribute.h>
-#include <distribute_io.h>
-#include <distribute_container.h>
-#include <multiStore.h>
-#include <storeMat.h>
-#include <mod_db.h> 
 using Loci::entitySet ;
 using Loci::create_entitySet ;
 using Loci::EMPTY ;
@@ -68,32 +45,24 @@ using Loci::register_rule ;
 using Loci::storeMat ;
 using Loci::const_storeMat ;
 
-#include <DStore.h>
 using Loci::dstore ;
 using Loci::const_dstore ;
 
-#include <DStoreVec.h>
 using Loci::dstoreVec;
 using Loci::const_dstoreVec;
 
-//#include <DStoreMat.h>
 //using Loci::dstoreMat;
 //using Loci::const_dstoreMat;
 
-
-#include <DMultiStore.h>
 using Loci::dmultiStore;
 using Loci::const_dmultiStore;
 
-#include <DMultiMap.h>
 using Loci:: dmultiMap;
 using Loci:: const_dmultiMap;
 
-#include <DMap.h>
 using Loci:: dMap;
 using Loci:: const_dMap;
 
-#include <DMapVec.h>
 using Loci:: dMapVec;
 using Loci:: const_dMapVec;
 
@@ -126,11 +95,8 @@ using Loci::cross ;
 using Loci::Array ;
 using Loci::rule_impl_list ;
 
-#include <blackbox.h>
 using Loci::blackbox;
 using Loci::const_blackbox;
-
-#include <LociGridReaders.h>
 
 #endif
 
