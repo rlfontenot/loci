@@ -37,7 +37,7 @@ namespace Loci {
     for(int i = 0; i < MPI_processes; ++i) {
       init_ptn.push_back(EMPTY) ;
     }
-    exec_current_fact_db = this;
+    //    exec_current_fact_db = this;
     dist_from_start = 0 ;
     constraint EMPTY_constraint ;
     EMPTY_constraint = EMPTY ;

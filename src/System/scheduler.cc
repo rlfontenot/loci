@@ -569,6 +569,7 @@ namespace Loci {
                                      fact_db &facts,
                                      std::string target_string,
                                      int nth) {
+
     num_threads = min(nth,max_threads) ;
 
     if(facts.is_distributed_start()) {
@@ -715,6 +716,8 @@ namespace Loci {
     //timer = get_timer() ;
     //cout << "Schedule Generation Time: " << timer << " seconds" << endl ;
 #endif
+    // setting this external pointer
+    exec_current_fact_db = &facts ;
     return sched ;
   }
 
@@ -745,6 +748,8 @@ namespace Loci {
     //timeval t1,t2 ;
     double st = MPI_Wtime() ;
     //gettimeofday(&t1,NULL) ;
+    // setting this external pointer
+    exec_current_fact_db = &facts ;
     schedule->execute(facts) ;
     //gettimeofday(&t2,NULL) ;
     double et = MPI_Wtime() ;
