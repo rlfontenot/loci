@@ -30,11 +30,13 @@ namespace Loci {
     hash_map<int,T>      attrib_data;
     mutable entitySet    store_domain ;
 
+    void  hdf5read( H5::Group group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
     void  hdf5read( H5::Group group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
 
-    void  hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
+    void  hdf5write( H5::Group group, DEFAULT_CONVERTER c,      const entitySet &en) const;
     void  hdf5write( H5::Group group, IDENTITY_CONVERTER c,     const entitySet &en) const;
+    void  hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
 
   public:
     dstoreRepI(){}
@@ -139,12 +141,14 @@ namespace Loci {
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    entitySet eset;
+    entitySet eset, ecommon;
 
     HDF5_ReadDomain(group, eset);
-    allocate( eset & user_eset );
 
-    hdf5read( group, traits_type, eset, eset&user_eset);
+    ecommon = eset & user_eset;
+    allocate( ecommon );
+
+    hdf5read( group, traits_type, eset,  ecommon );
   }
 
   //**************************************************************************
@@ -376,12 +380,8 @@ namespace Loci {
   {
     const_dstore<T> s(st) ;
 
-/*
-    fatal((context != EMPTY) && (base_ptr ==0)) ;
+    fatal(context != EMPTY ) ;
     fatal((context-domain()) != EMPTY) ;
-*/
-
-    // fatal( attrib_data == 0);
 
     FORALL(context,i) {
       attrib_data[i] = s[i] ;
@@ -485,6 +485,17 @@ namespace Loci {
   }  
 
   //***************************************************************************
+
+  template<class T>
+  void  dstoreRepI<T> :: hdf5read( H5::Group group, DEFAULT_CONVERTER c, 
+                                   entitySet &eset, entitySet &user_eset)
+  {
+    cout << "Fatal: default converter for dynamic store is not implemented " << endl;
+    exit(0);
+  }
+
+  //***************************************************************************
+
   template<class T>
   void  dstoreRepI<T> :: hdf5read( H5::Group group, IDENTITY_CONVERTER c, 
                                    entitySet &eset, entitySet &user_eset)
@@ -501,8 +512,6 @@ namespace Loci {
    interval *it = new interval[num_intervals];
 
    for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
-
-   cout << " USER ESTE "<< user_eset << endl;
 
    //--------------------------------------------------------------------------
    // Calculate the offset 
@@ -666,6 +675,15 @@ namespace Loci {
 
    delete[] buf;
 
+  }
+
+  //***************************************************************************
+  template <class T> 
+  void dstoreRepI<T> :: hdf5write( H5::Group group, DEFAULT_CONVERTER c, 
+                                  const entitySet &eset)  const
+  {
+    cout << "Fatal: Default write converter for dynamic store not implemented " << endl;
+    exit(0);
   }
   //***************************************************************************
   template <class T> 
