@@ -48,12 +48,11 @@ namespace Loci {
     MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
-    for(int i=0;i<MPI_processes;++i) {
-      ostringstream oss ;
-      oss << "debug."<<MPI_rank ;
-      string filename  = oss.str() ;
-      debugout[i].open(filename.c_str(),ios::out) ;
-    }
+
+    ostringstream oss ;
+    oss << "debug."<<MPI_rank ;
+    string filename  = oss.str() ;
+    debugout[MPI_rank].open(filename.c_str(),ios::out) ;
     
     bool debug_setup = false ;
     int i = 1 ;
