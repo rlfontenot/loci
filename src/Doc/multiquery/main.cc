@@ -95,7 +95,10 @@ int main(int ac, char *av[]) {
   // a single query, except for that we can issue many of them
   // right now. If the user is quering an extensional fact, then
   // Loci won't generate an execution plan, it will simply report
-  // that you are quering an extensional fact.
+  // that you are quering an extensional fact. For any query, the
+  // queried results are maintained in the fact_db until the next
+  // query. Before every query, all intensional facts in the 
+  // fact_db will be "erased."
 #ifdef MULTIQUERY
   if(!Loci::makeQuery(rdb,facts,"area")) {
     cerr << "query failed!" << endl ;
