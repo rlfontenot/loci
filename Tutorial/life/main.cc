@@ -89,6 +89,10 @@ int main(int argc, char *argv[])
 
   setup_facts(facts) ;
 
+  param<int> max_iteration ;
+  *max_iteration = 10 ;
+  facts.create_fact("max_iteration",max_iteration) ;
+
   // Create a rule database called rdb
   rule_db rdb ;
   // Add all of the rules that were inserted into the global_rule_list
