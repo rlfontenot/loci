@@ -173,10 +173,10 @@ namespace Loci {
         count ++ ;
       }
     
-    int t = MPI_Wtime() ;
+    double t = MPI_Wtime() ;
     debugout[MPI_rank] << "Time  before calling METIS_PartGraphKway = " << t << endl ;
     METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
-    int et = MPI_Wtime() ;
+    double et = MPI_Wtime() ;
     debugout[MPI_rank] << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
     cerr << " Edge cut   " <<  edgecut << endl ;
     entitySet num_parts = interval(0, num_partitions-1) ;
@@ -420,10 +420,10 @@ namespace Loci {
     vector<entitySet> image(num_procs) ;
     debugout[MPI_rank] << "synchronising before metis_facts" << endl ;
     MPI_Barrier(MPI_COMM_WORLD) ;
-    int start = MPI_Wtime() ;
+    double start = MPI_Wtime() ;
     debugout[MPI_rank] << " start time = " << start << endl ; 
     metis_facts(facts,ptn,partition) ;
-    int end_time  = MPI_Wtime() ;
+    double end_time  = MPI_Wtime() ;
     debugout[MPI_rank] << "  time taken for metis_facts =   = " << end_time -start << endl ; 
     start = MPI_Wtime() ;
     debugout[MPI_rank]<< " time now is  " << start << endl ; 
@@ -542,10 +542,10 @@ namespace Loci {
 	send_entities[*ei] +=  df->g2l[*ti] ;
       send += send_entities[*ei] ;
     }
-    int start = MPI_Wtime() ;
+    double start = MPI_Wtime() ;
     debugout[MPI_rank]<< " time now is  " << start << endl ; 
     reorder_facts(facts, df->g2l) ;
-    int end_time =  MPI_Wtime() ;
+    double end_time =  MPI_Wtime() ;
     debugout[MPI_rank] << "  time taken for reordering =  " << end_time - start << endl ; 
     isDistributed = 1 ;
     df->isDistributed = isDistributed ;
