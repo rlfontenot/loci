@@ -14,9 +14,6 @@
 #include <ostream>
 #include <store_rep.h>
 #include <variable.h>
-//#include <constraint.h>
-//#include <rule.h>
-//#include <parameter.h>
 #include <Map_rep.h>
 #include <Map.h>
 #include <DMap.h>
@@ -101,6 +98,12 @@ namespace Loci {
     // extensions to the fact_db to distinguish
     // extensional facts and intensional facts
     variableSet extensional_facts ;
+
+    variable add_namespace(variable v) ;
+    // this is the basic method that creats a fact
+    // in the fact_db. It is served as the basis
+    // for create_fact & the create_intensional_fact methods
+    void create_pure_fact(const variable& v, storeRepP st) ;
   public:
     fact_db() ;
     ~fact_db() ;
@@ -135,31 +138,29 @@ namespace Loci {
     storeRepP get_variable_type(std::string vname) const
       { return get_variable_type(variable(vname)) ;}
 
-    // this is the basic method that creats a fact
-    // in the fact_db. It is served as the basis
-    // for create_fact & the create_intensional_fact methods
-    void create_pure_fact(const variable& v, storeRepP st) ;
+      
     
     // create_fact now defaults to create an extensional fact
     // as this is the primary interface for users of Loci
     void create_fact(const variable& v, storeRepP st) {
-      create_pure_fact(v,st) ;
-      extensional_facts += v ;
+      variable tmp_v =add_namespace(v) ;
+      create_pure_fact(tmp_v,st) ;
+      extensional_facts += tmp_v ;
     }
     void create_fact(const std::string& vname, storeRepP st) {
       variable v = variable(vname) ;
-      create_pure_fact(v,st) ;
-      extensional_facts += v ;
+      create_fact(v,st) ;
     }
     void create_fact(const variable& v, store_instance &si) {
-      create_pure_fact(v,si.Rep()) ;
+      variable tmp_v = add_namespace(v) ;
+      create_pure_fact(tmp_v,si.Rep()) ;
       si.setRep(get_variable(v)) ;
-      extensional_facts += v ;
+      extensional_facts += tmp_v ;
     }
     void create_fact(const std::string& vname, store_instance &si) {
-      variable v = variable(vname) ;
+      variable v = add_namespace(variable(vname)) ;
       create_pure_fact(v,si.Rep()) ;
-      si.setRep(get_variable(v)) ;
+      si.setRep(get_variable(vname)) ;
       extensional_facts += v ;
     }
     
@@ -263,18 +264,20 @@ namespace Loci {
     }
     // and then we have the corresponding intensional facts creation
     void create_intensional_fact(const variable& v, storeRepP st) {
-      create_pure_fact(v,st) ;
+      variable v_tmp = add_namespace(v) ;
+      create_pure_fact(v_tmp,st) ;
     }
     void create_intensional_fact(const std::string& vname, storeRepP st) {
-      create_pure_fact(variable(vname),st) ;
+      create_pure_fact(add_namespace(variable(vname)),st) ;
     }
     void create_intensional_fact(const variable& v, store_instance &si) {
-      create_pure_fact(v,si.Rep()) ;
-      si.setRep(get_variable(v)) ;
+      variable v_tmp = add_namespace(v) ;
+      create_pure_fact(v_tmp,si.Rep()) ;
+      si.setRep(get_variable(v_tmp)) ;
     }
     void create_intensional_fact(const std::string& vname,
                                  store_instance &si) {
-      variable v = variable(vname) ;
+      variable v = add_namespace(variable(vname)) ;
       create_pure_fact(v,si.Rep()) ;
       si.setRep(get_variable(v)) ;
     }

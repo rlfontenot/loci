@@ -113,14 +113,7 @@ namespace Loci {
       int max_val = st->domain().Max() ;
       maximum_allocated = max(maximum_allocated,max_val+1) ;
     }
-    variable tmp_v ;
-    if(nspace_vec.size()) {  
-      tmp_v = v ;
-      for(size_t i = 0; i < nspace_vec.size(); ++i)
-	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
-    }
-    else
-      tmp_v = v ;
+    variable tmp_v = add_namespace(v) ;
     
     warn(synonyms.find(tmp_v) != synonyms.end()) ;
     std::map<variable, fact_info>::iterator mi = fmap.find(tmp_v) ;
@@ -131,6 +124,17 @@ namespace Loci {
       cerr << "warning: update_fact: fact does not exist for variable " << tmp_v
 	   << endl ;
   }
+
+  variable fact_db::add_namespace(variable v) {
+    variable tmp_v ;
+    if(nspace_vec.size()) {
+      tmp_v = v ;
+      for(size_t i = 0; i < nspace_vec.size(); ++i)
+        tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
+    } else
+      tmp_v = v ;
+    return tmp_v ;
+  }
   
   void fact_db::create_pure_fact(const variable& v, storeRepP st) {
     
@@ -139,13 +143,8 @@ namespace Loci {
       maximum_allocated = max(maximum_allocated,max_val+1) ;
     }
     variable tmp_v ;
-    if(nspace_vec.size()) {
-      tmp_v = v ;
-      for(size_t i = 0; i < nspace_vec.size(); ++i)
-	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
-    }
-    else
-      tmp_v = v ;
+    tmp_v = v ;
+    
     if(synonyms.find(tmp_v) != synonyms.end()) {
       tmp_v = remove_synonym(tmp_v) ;
       std::map<variable, fact_info>::iterator mi = fmap.find(tmp_v) ;
@@ -352,7 +351,6 @@ namespace Loci {
       //      if(Loci::MPI_rank == 0)
       //	cout << " returning null  storeRep for variable " << tmp_v<< endl ;
       return storeRepP(0) ;
-      
     }
     else
       return storeRepP(mi->second.data_rep) ;
