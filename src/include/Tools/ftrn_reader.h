@@ -1,6 +1,7 @@
 #ifndef FTRN_READER_H
-
 #define FTRN_READER_H 1
+
+#include <Config/conf.h>
 
 namespace Loci {
 class fortran_binary_file {

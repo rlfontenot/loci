@@ -1,6 +1,8 @@
 #ifndef LMUTEX_H
 #define LMUTEX_H
 
+#include <Config/conf.h>
+
 #ifdef PTHREADS
 #include <pthread.h>
 #include <errno.h>

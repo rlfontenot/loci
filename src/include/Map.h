@@ -37,7 +37,7 @@ namespace Loci {
   public:
     Map() { setRep(new MapType) ;}
     Map(Map &var) { setRep(var.Rep()) ; }
-    Map(const entitySet &ptn) { setRep(new MapType(ptn)) ; }
+    Map(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~Map() ;
 
@@ -46,7 +46,6 @@ namespace Loci {
     Map & operator=(Map &str) { setRep(str.Rep()) ; return *this ;}
     Map & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
-    void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
 
     const entitySet &domain() const { return Rep()->domain() ; }
@@ -88,7 +87,8 @@ namespace Loci {
     { setRep(new MapType); }
     const_Map(const_Map &var) {setRep(var.Rep()) ; }
     const_Map(Map &var) {setRep(var.Rep()); }
-
+    const_Map(storeRepP &rp) { setRep(rp) ; }
+    
     virtual ~const_Map() ;
     virtual void notification() ;
 
@@ -245,7 +245,7 @@ namespace Loci {
   public:
     MapVec() { setRep(new MapVecType) ; }
     MapVec(MapVec<M> &var) { setRep(var.Rep()) ; }
-    MapVec(const entitySet &ptn) { setRep(new MapVecType(ptn)) ; }
+    MapVec(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~MapVec() ;
 
@@ -255,7 +255,6 @@ namespace Loci {
     { setRep(str.Rep()) ; return *this ;}
     MapVec & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
-    void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
 
     const entitySet &domain() const { return Rep()->domain() ; }
@@ -396,7 +395,6 @@ namespace Loci {
     { setRep(str.Rep()) ; return *this ;}
     multiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
-    void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const store<int> &sizes) {
       NPTR<MapType> p(Rep()) ;
@@ -448,6 +446,8 @@ namespace Loci {
 
     const_multiMap(multiMap &var) { setRep(var.Rep()) ; }
 
+    const_multiMap(storeRepP &rp) { setRep(rp) ; }
+    
     virtual ~const_multiMap() ;
     virtual void notification() ;
 
@@ -495,7 +495,8 @@ namespace Loci {
 
 
   template<int M> multiMap MapVecRepI<M>::get_map()  {
-    store<int> sizes(store_domain) ;
+    store<int> sizes ;
+    sizes.allocate(store_domain) ;
     FORALL(store_domain,i) {
       sizes[i] = M ;
     } ENDFORALL ;
@@ -512,7 +513,8 @@ namespace Loci {
                                    const MapVec<M> &input_map,
                                    const entitySet &input_image,
                                    const entitySet &input_preimage) {
-    store<int> sizes(input_image) ;
+    store<int> sizes ;
+    sizes.allocate(input_image) ;
     FORALL(input_image,i) {
       sizes[i] = 0 ;
     } ENDFORALL ;

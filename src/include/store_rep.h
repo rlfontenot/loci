@@ -1,6 +1,7 @@
 #ifndef STORE_REP_H
 #define STORE_REP_H
 
+#include <Config/conf.h>
 #include <Tools/debug.h>
 #include <Tools/nptr.h>
 #include <entitySet.h>

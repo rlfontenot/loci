@@ -1,6 +1,7 @@
 #ifndef STORE_H
 #define STORE_H 1
 
+#include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
 
@@ -96,9 +97,7 @@ namespace Loci {
     typedef T containerType ;
     store() { setRep(new storeType); }
     store(store &var) { setRep(var.Rep()) ; }
-    store(const entitySet &ptn) {
-      setRep(new storeType(ptn)) ;
-    }
+    store(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~store() ;
     virtual void notification() ;
@@ -110,7 +109,6 @@ namespace Loci {
 
     store<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
-    void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
 
     entitySet domain() const { return Rep()->domain(); }
@@ -161,7 +159,7 @@ namespace Loci {
     const_store() { setRep(new storeType) ; }
     const_store(store<T> &var) { setRep(var.Rep()) ; }
     const_store(const_store &var) { setRep(var.Rep()) ; }
-    const_store(const entitySet &ptn) { setRep(new storeType(ptn)) ; }
+    const_store(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~const_store() ;
     virtual void notification() ;

@@ -4,6 +4,7 @@
 #include <ostream>
 #include <vector>
 
+#include <Config/conf.h>
 #include <Tools/cptr.h>
 
 namespace Loci {
@@ -24,6 +25,17 @@ namespace Loci {
     std::vector<executeP> elist ;
   public:
     execute_list() {control_thread = true ; }
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+    void append_list(const executeP &emodule) 
+    { if(emodule != 0) elist.push_back(emodule) ; }
+    int size() const { return elist.size() ; }
+  };
+
+  class execute_sequence : public execute_modules {
+    std::vector<executeP> elist ;
+  public:
+    execute_sequence() {control_thread = true ; }
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
     void append_list(const executeP &emodule) 

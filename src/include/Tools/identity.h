@@ -2,18 +2,18 @@
 #define IDENTITY_H
 
 #include <Tools/debug.h>
+#include <Tools/lmutex.h>
 
 namespace Loci {
 typedef unsigned long id_type ;
 
 class IdentityIMPL {
-    id_type id ;
-    static id_type id_ ;
-    IdentityIMPL & operator=(const IdentityIMPL &i)
-    { warn(true) ; return *this; }
+  id_type id ;
+  IdentityIMPL & operator=(const IdentityIMPL &i)
+  { warn(true) ; return *this; }
   public:
-    IdentityIMPL() { id = ++id_ ; }
-    IdentityIMPL(const IdentityIMPL &i) { id = ++id_; } 
+    IdentityIMPL() { id = reinterpret_cast<id_type>(this) ; }
+    IdentityIMPL(const IdentityIMPL &i) { id = reinterpret_cast<id_type>(this);} 
     ~IdentityIMPL() {} ;
     id_type ident() { return id ; }
 } ;

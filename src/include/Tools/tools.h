@@ -1,6 +1,8 @@
 #ifndef TOOLS_H
 #define TOOLS_H
 
+#include <Config/conf.h>
+
 #ifdef NO_CMATH
 #include <math.h>
 #else

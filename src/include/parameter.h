@@ -1,6 +1,7 @@
 #ifndef PARAMETER_H
 #define PARAMETER_H
 
+#include <Config/conf.h>
 #include <Tools/debug.h>
 #include <store_rep.h>
 
@@ -82,7 +83,8 @@ namespace Loci {
     typedef T containerType ;
     param() { setRep(new paramType) ; }
     param(param &var) { setRep(var.Rep()) ; }
-    param(const entitySet &ptn) { setRep(new paramType(ptn)); }
+    param(storeRepP &rp) { setRep(rp); }
+
     virtual ~param() ;
 
     param & operator=(param &p) {setRep(p.Rep()) ; return *this ; }
@@ -152,6 +154,8 @@ namespace Loci {
     const_param() { setRep(new paramType) ; }
     const_param(const_param<T> &var) { setRep(var.Rep()) ; }
     const_param(param<T> &var) { setRep(var.Rep()) ; }
+    const_param(storeRepP &rp) { setRep(rp); }
+    
     virtual ~const_param() ;
 
     const_param & operator=(const_param<T> &p)

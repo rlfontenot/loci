@@ -1,6 +1,8 @@
 #ifndef STOREVEC_H
 #define STOREVEC_H 1
 
+#include<Config/conf.h>
+
 #include <Tools/debug.h>
 #include <Tools/tools.h>
 
@@ -258,55 +260,61 @@ namespace Loci {
     template<class S> void solve_lu_pivot(const S *b, S *x,const pivot_type *pivot) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
+        S xi = b[pivot[i]] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
+          xi -= Aj[i]*x[j] ;
+        x[i] = xi ;
       }
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *Aj = Ai + size ;
+        S xi = x[i] ;
         for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
+          xi -= Aj[i]*x[j] ;
+        x[i] = xi/Ai[i] ;
       }
     }
 
     template<class T1,class T2> void solve_lu_pivot(const_Vect<T1> b, Vect<T2> x,const_Vect<pivot_type> pivot) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
+        T2 xi = b[pivot[i]] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
+          xi -= Aj[i]*x[j] ;
+        x[i] = xi ;
       }
 
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *Aj = Ai + size ;
+        T2 xi = x[i] ;
         for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
+          xi -= Aj[i]*x[j] ;
+        x[i] = xi/Ai[i] ;
       }
     }
 
     template<class T1,class T2> void solve_lu_pivot(const T1 *b, Vect<T2> x,const pivot_type *pivot) const {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
+        T2 xi = b[pivot[i]] ;
         const T *Aj = ptr ;
         for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
+          xi -= Aj[i]*x[j] ;
+        x[i] = xi ;
       }
       // Do back solver Ux = y
       const T *Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *Aj = Ai + size ;
+        T2 xi = x[i] ;
         for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
+          xi -= Aj[i]*x[j] ;
+        x[i] = xi/Ai[i] ;
       }
     }
 
@@ -466,16 +474,21 @@ namespace Loci {
       T *Aj = ptr ;
       for(int j=0;j<size;++j,Aj += size) {
         const T *Ak = ptr ;
-        for(int k=0;k<j;++k,Ak += size)
+        for(int k=0;k<j;++k,Ak += size) {
+          const T Ajk = Aj[k] ;
           for(int i=k+1;i<j;++i)
-            Aj[i] -= Ak[i]*Aj[k] ;
+            Aj[i] -= Ak[i]*Ajk ;
+        }
         Ak = ptr ;
-        for(int k=0;k<j;++k,Ak += size)
+        for(int k=0;k<j;++k,Ak += size) {
+          const T Ajk = Aj[k] ;
           for(int i=j;i<size;++i)
-            Aj[i] -= Ak[i]*Aj[k] ;
-        
+            Aj[i] -= Ak[i]*Ajk ;
+        }
+
+        const T Ajjr = 1./Aj[j] ;
         for(int i=j+1;i<size;++i)
-          Aj[i] /= Aj[j] ;
+          Aj[i] *= Ajjr ;
       }
     }
     
@@ -489,13 +502,17 @@ namespace Loci {
           if(k!=piv[k])
             std::swap(Aj[k],Aj[piv[k]]) ;
         T *Ak = ptr ;
-        for(int k=0;k<j;++k,Ak += size)
+        for(int k=0;k<j;++k,Ak += size) {
+          const T Ajk = Aj[k] ;
           for(int i=k+1;i<j;++i)
-            Aj[i] -= Ak[i]*Aj[k] ;
+            Aj[i] -= Ak[i]*Ajk ;
+        }
         Ak = ptr ;
-        for(int k=0;k<j;++k,Ak += size)
+        for(int k=0;k<j;++k,Ak += size) {
+          const T Ajk = Aj[k] ;
           for(int i=j;i<size;++i)
-            Aj[i] -= Ak[i]*Aj[k] ;
+            Aj[i] -= Ak[i]*Ajk ;
+        }
         int mu = j ;
         for(int k=j+1;k<size;++k)
           if(abs(Aj[mu]) < abs(Aj[k]))
@@ -638,7 +655,7 @@ namespace Loci {
     storeVecRepI() {
       alloc_pointer = 0 ; base_ptr = 0 ; size=0; }
     storeVecRepI(const entitySet &p) {
-      alloc_pointer=0 ; allocate(p) ; }
+      size = 0; alloc_pointer=0 ; allocate(p) ; }
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
     virtual storeRep *new_store(const entitySet &p) const ;
@@ -749,18 +766,11 @@ namespace Loci {
     typedef storeVecRepI<T> storeType ;
     T* base_ptr ;
     int size ;
-    lmutex mutex ;
   public:
     typedef Vect<T> containerType ;
-    storeVec() {
-      setRep(new storeType) ;
-    }
-    storeVec(storeVec<T> &var) {
-      setRep(var.Rep()) ;
-    }
-    storeVec(const entitySet &ptn) {
-      setRep(new storeType(ptn)) ;
-    }
+    storeVec() {setRep(new storeType) ;}
+    storeVec(storeVec<T> &var) {setRep(var.Rep()) ;}
+    storeVec(storeRepP &rp) { setRep(rp) ;}
 
     virtual ~storeVec() ;
     virtual void notification() ;
@@ -775,7 +785,6 @@ namespace Loci {
     void setVecSize(int size) {
       Rep()->set_elem_size(size) ;
     }
-    void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size ; }
 
@@ -824,15 +833,10 @@ namespace Loci {
   public:
     typedef const_Vect<T> containerType ;
     const_storeVec() { setRep(new storeType) ; }
-        
-    const_storeVec(const_storeVec<T> &var) { 
-      setRep(var.Rep()) ;
-    }
-        
-    const_storeVec(storeVec<T> &var) { 
-      setRep(var.Rep()) ;
-    }
-        
+    const_storeVec(const_storeVec<T> &var) {setRep(var.Rep()) ;}
+    const_storeVec(storeVec<T> &var) {setRep(var.Rep()) ;}
+    const_storeVec(storeRepP &rp) { setRep(rp) ; }
+    
     virtual ~const_storeVec() ;
     virtual void notification() ;
 
@@ -903,7 +907,7 @@ namespace Loci {
     typedef Mat<T> containerType ;
     storeMat() {setRep(new storeType) ;}
     storeMat(storeMat &var) {setRep(var.Rep()) ; }
-    storeMat(const entitySet &ptn) {setRep(new storeType(ptn)) ; }
+    storeMat(storeRepP &rp) {setRep(rp) ; }
 
     virtual ~storeMat() ;
     virtual void notification() ;
@@ -918,7 +922,6 @@ namespace Loci {
       size_tot = size*size ;
       Rep()->set_elem_size(size_tot) ; 
     }
-    void initialize(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size_dim; }
     const entitySet &domain() const { return Rep()->domain() ; }
@@ -969,7 +972,8 @@ namespace Loci {
 
     const_storeMat(const_storeMat<T> &var) { setRep(var.Rep()) ; }
     const_storeMat(storeMat<T> &var) { setRep(var.Rep()) ; }
-
+    const_storeMat(storeRepP &rp) { setRep(rp) ; }
+    
     virtual ~const_storeMat() ;
     virtual void notification() ;
 

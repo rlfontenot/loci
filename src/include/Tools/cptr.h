@@ -1,6 +1,7 @@
 #ifndef CPTR_H
 #define CPTR_H
 
+#include <Config/conf.h>
 #include <Tools/debug.h>
 #include <Tools/lmutex.h>
 

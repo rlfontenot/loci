@@ -16,11 +16,21 @@
 #include <variable.h>
 #include <Map.h>
 #include <parameter.h>
+#include <storeVec.h>
 
 namespace Loci {
 
   class fact_db ;
   
+  class joiner : public CPTR_type {
+  public:
+    virtual storeRepP getTargetRep() = 0 ;
+    virtual void Join(storeRepP &target, storeRepP &source,
+                      const sequence &seq) = 0 ;
+    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
+                      const sequence &seq) = 0 ;
+  } ;  
+
   class rule_impl : public CPTR_type {
   public:
     struct info {
@@ -66,7 +76,6 @@ namespace Loci {
 
   public:
     rule_impl() ;
-    virtual ~rule_impl() ;
     bool check_perm_bits() const ;
     bool thread_rule() const { return rule_threading; }
     void initialize(fact_db &facts) ;
@@ -86,6 +95,7 @@ namespace Loci {
 
     virtual rule_implP new_rule_impl() const ;
     virtual void compute(const sequence &) = 0 ;
+    virtual CPTR<joiner> get_joiner() = 0 ;
   } ;
 
   typedef rule_impl::rule_implP rule_implP ;
@@ -96,6 +106,7 @@ namespace Loci {
     copy_rule_impl() {realrule_impl = new T ; base_copy(*realrule_impl) ;}
     virtual rule_implP new_rule_impl() const { return new copy_rule_impl<T> ; }
     virtual void compute(const sequence &s)  { realrule_impl->compute(s) ; }
+    virtual CPTR<joiner> get_joiner() { return realrule_impl->get_joiner() ; }
   } ;
         
   class pointwise_rule : public rule_impl {
@@ -111,6 +122,7 @@ namespace Loci {
     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
     { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
 
   class singleton_rule : public rule_impl {
@@ -126,6 +138,7 @@ namespace Loci {
     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
     { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
   
   class unit_rule : public rule_impl {
@@ -141,42 +154,28 @@ namespace Loci {
     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
     { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
-
-#ifdef OLDWAY
-  class apply_rule : public rule_impl {
-   protected:
-    apply_rule() { rule_class(APPLY) ; }
-    void name_store(const std::string &name, store_instance &si)
-    { rule_impl::name_store(name,si) ; }
-    void input(const std::string &invar)
-    { rule_impl::input(invar) ; }
-    void output(const std::string &outvar)
-    { rule_impl::output(outvar) ; }
-    void constraint(const std::string &constrain)
-    { rule_impl::constraint(constrain) ; }
-    void conditional(const std::string &cond)
-    { rule_impl::conditional(cond) ; }
-  } ;
-#endif
-
-  class joiner : public CPTR_type {
-  public:
-    virtual storeRepP getTargetRep() = 0 ;
-    virtual void Join(storeRepP &target, Map &t2s, const storeRepP &source,
-                      const sequence &seq) = 0 ;
-  } ;  
 
   template <class T, class Op> class joinOp : public joiner {
     Op join ;
   public:
     virtual storeRepP getTargetRep()
     { T st ; storeRepP rep = st.Rep(); return rep; }
-    virtual void Join(storeRepP &target, Map &t2s, const storeRepP &source,
+
+    virtual void Join(storeRepP &target, storeRepP &source,
                       const sequence &seq)
-    { T t(target), s(source) ;
-      for(sequence::const_iterator i=t.begin();i!=t.end();++i) {
-        join(t[i],s[t2s[i]]) ;
+    { T t(target),s(source) ;
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+        join(t[*i],s[*i]) ;
+      }
+    }
+
+    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
+                      const sequence &seq)
+    { T t(target),s(source) ;
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+        join(t[*i],s[t2s[*i]]) ;
       }
     }
   } ;
@@ -186,15 +185,68 @@ namespace Loci {
   public:
     virtual storeRepP getTargetRep()
     { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
-    virtual void Join(storeRepP &target, Map &t2s, const storeRepP &source,
+    virtual void Join(storeRepP &target, storeRepP &source,
                       const sequence &seq) {
-      param<Type> t(target), s(source) ;
+      param<Type> t(target),s(source) ;
       join(*t,*s) ;
+    }
+
+    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
+                      const sequence &seq) {
+      param<Type> s(source),t(target) ;
+      join(*t,*s) ;
+    }
+  } ;
+
+  template<class Type,class Op> class joinOp<storeVec<Type>,Op> : public joiner {
+    Op join ;
+  public:
+    virtual storeRepP getTargetRep()
+    { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    virtual void Join(storeRepP &target, storeRepP &source,
+                      const sequence &seq) {
+      storeVec<Type> t(target),s(source) ;
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+        Vect<Type> m = t[*i] ;
+        join(m,s[*i]) ;
+      }
+    }
+
+    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
+                      const sequence &seq) {
+      storeVec<Type> s(source),t(target) ;
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+        Vect<Type> m = t[*i] ;
+        join(m,s[t2s[*i]]) ;
+      }
+    }
+  } ;
+
+  template<class Type,class Op> class joinOp<storeMat<Type>,Op> : public joiner {
+    Op join ;
+  public:
+    virtual storeRepP getTargetRep()
+    { param<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    virtual void Join(storeRepP &target, storeRepP &source,
+                      const sequence &seq) {
+      storeMat<Type> t(target),s(source) ;
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+        Mat<Type> m = t[*i] ;
+        join(m,s[*i]) ;
+      }
+    }
+
+    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
+                      const sequence &seq) {
+      storeMat<Type> s(source),t(target) ;
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+        Mat<Type> m = t[*i] ;
+        join(m,s[t2s[*i]]) ;
+      }
     }
   } ;
     
   template <class T, class Op > class apply_rule : public rule_impl {
-    CPTR<joinOp<T,Op> > join_obj ;
   protected:
     apply_rule() { rule_class(APPLY) ; }
     void name_store(const std::string &name, store_instance &si)
@@ -211,6 +263,11 @@ namespace Loci {
               const typename T::containerType &t2) {
       Op f ;
       f(t1,t2) ;
+    }
+  public:
+    virtual CPTR<joiner> get_joiner() {
+      CPTR<joinOp<T,Op> > jp = new joinOp<T,Op> ;
+      return CPTR<joiner>(jp) ;
     }
 
   } ;
