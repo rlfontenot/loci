@@ -29,7 +29,6 @@ namespace Loci {
     fcontrol &fctrl = control_set ;
     const rule_impl::info &finfo = impl.get_info().desc ;
     warn(impl.type() == rule::INTERNAL) ;
-
     
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
@@ -414,11 +413,23 @@ namespace Loci {
       scheds.variable_request(rename_var,request) ;
 
 
-
       list<comm_info> request_comm ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
       request_comm = barrier_process_rule_requests(recurse_vars, facts, scheds) ;
       clist = sort_comm(request_comm,facts) ;
+#ifdef COMP_ENT
+      variableSet possible_duplicate_vars;
+      possible_duplicate_vars = input_variables_with_mapping(impl);
+      for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
+	vi != possible_duplicate_vars.end(); vi++) {
+	variable v = *vi;
+	if(!scheds.is_policy(v, sched_db::NEVER)) {
+	  if(scheds.is_policy(v, sched_db::ALWAYS)) {
+	    scheds.set_duplicate_variable(v, true);
+	  }
+	}
+      }
+#endif
     }
   }
 
