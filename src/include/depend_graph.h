@@ -32,8 +32,6 @@ namespace Loci {
   // experimental version
   class dependency_graph2 {
     digraph gr ;
-    void clean_graph(const variableSet& given,
-                     const variableSet& target) ;
   public:
     dependency_graph2(const rule_db& rdb,
                       const variableSet& given,
@@ -43,6 +41,10 @@ namespace Loci {
   };
 
   digraph partition_iteration(digraph gr) ;
+
+  void clean_graph(digraph &gr,
+                   const variableSet& given,
+                   const variableSet& target) ;
 }
 
 #endif

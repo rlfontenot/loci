@@ -684,7 +684,7 @@ namespace Loci {
     
     if(Loci::MPI_rank==0)
       cout << "dynamic scheduling..." << endl ;
-    dynamic_scheduling(gr,facts,given) ;
+    dynamic_scheduling(gr,facts,given,target) ;
 
     sched_db scheds(facts) ;
     if(Loci::MPI_rank==0)

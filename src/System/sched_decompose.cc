@@ -309,7 +309,7 @@ namespace Loci {
           cerr << "improper rule: " << *ri << endl
                << "Rule Improperly specifies more than one conditional" << endl ;
           cerr << "Error not recoverable." << endl ;
-          exit(-1) ;
+          Loci::Abort() ;
         }
         variable cond = *(conds.begin()) ;
         cond_rules[cond] += *ri ;
@@ -442,9 +442,9 @@ namespace Loci {
 
       int new_node =  mlg.mksnode(supernode,component,mi->first) ;
 
+      
       new_rules += new_node ;
       
-      //      rule new_rule(new_node);
     }
 
     return new_rules ;

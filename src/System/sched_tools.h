@@ -123,7 +123,8 @@ class dynamic_schedule_rule: public execute_modules {
    } ;
 
    // experimental dynamic scheduling function
-   void dynamic_scheduling(digraph& gr, fact_db& facts, variableSet& given) ;
+  void dynamic_scheduling(digraph& gr, fact_db& facts, variableSet& given,
+                          variableSet &target) ;
 }
 #endif
 

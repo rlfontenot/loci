@@ -992,7 +992,9 @@ namespace Loci {
       if( (q.empty()) && (step_sched == EMPTY)) {
         cerr << "Loci Graph Scheduler Warning: input graph has cycle(s)"
              << endl ;
-        exit(-1) ;
+        cerr << "waiting rules = " << extract_rules(waiting) << endl ;
+        cerr << "waiting variables = " << extract_vars(waiting) << endl ;
+        Loci::Abort() ;
       }
       waiting -= step_sched ;
       waiting += get_new_reachable(step_sched,gwoa) ;

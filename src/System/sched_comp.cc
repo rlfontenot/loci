@@ -799,8 +799,24 @@ namespace Loci {
     return executeP(schedule) ;
   }
 
+  void clean_empties(digraph &gr,variableSet given, variableSet target, variableSet empties) {
+    variableSet work = empties ;
 
-  void dynamic_scheduling(digraph& gr, fact_db& facts, variableSet& given) {
+    ruleSet del_rules ;
+    for(variableSet::const_iterator vi=work.begin();vi!=work.end();++vi)
+      del_rules += extract_rules(gr[vi->ident()]) ;
+    variableSet candidates ;
+    for(ruleSet::const_iterator ri=del_rules.begin();ri!=del_rules.end();++ri)
+      candidates += ri->targets() ;
+    
+    digraph::vertexSet killvertices = digraph::vertexSet(del_rules) ;
+    killvertices += digraph::vertexSet(work) ;
+    gr.remove_vertices(killvertices) ;
+    digraph grt = gr.transpose() ;
+  }
+  
+  void dynamic_scheduling(digraph& gr, fact_db& facts, variableSet& given,
+                          variableSet &target) {
     // first we need to copy the fact_db
     fact_db local_facts(facts) ;
     // then generate a sched_db from the local_facts
@@ -930,13 +946,26 @@ namespace Loci {
     if(new_given != EMPTY)
       given += new_given ;
 
+    variableSet emptyConstraints ;
     // finally we need to put anything useful into the global fact_db (facts)
     for(variableSet::const_iterator vi=constraints.begin();
         vi!=constraints.end();++vi) {
       storeRepP srp = local_facts.get_variable(*vi) ;
       facts.create_fact(*vi,srp) ;
+      if(GLOBAL_AND(srp->domain()==EMPTY)) {
+        emptyConstraints += *vi ;
+      }
     }
-    
+
+    if(emptyConstraints != EMPTY) {
+      // Remove rules that are connected to empties
+      clean_empties(gr,given,target,emptyConstraints) ;
+
+      given -= emptyConstraints ;
+
+      // Clean any rules that don't connect after empties cleaned
+      clean_graph(gr,given,target) ;
+    }
   }
 
 

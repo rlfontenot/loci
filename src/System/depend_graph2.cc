@@ -750,7 +750,7 @@ namespace Loci {
   } // end of unnamed namespace
     
   // function that clean the dependency graph at last
-  void dependency_graph2::clean_graph(const variableSet& given,
+  void clean_graph(digraph &gr, const variableSet& given,
                                       const variableSet& target) {
     // testing...
     //given -= variable("EMPTY") ;
@@ -984,7 +984,7 @@ namespace Loci {
     //  <<gr.get_all_vertices().size()<<endl ;
 
 
-    clean_graph(given,target) ;
+    clean_graph(gr,given,target) ;
 
     //cerr<<"vertices size after cleaning: "
     //  <<gr.get_all_vertices().size()<<endl ;

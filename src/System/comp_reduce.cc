@@ -208,17 +208,17 @@ namespace Loci {
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((srcs & cnstrnts) != cnstrnts) {
         if(MPI_processes == 1) {
-        cerr << "Warning, reduction rule:" << apply
-             << "cannot supply all entities of constraint" << endl ;
-        cerr << "constraints = " <<cnstrnts << endl ;
-        entitySet sac = srcs & cnstrnts ;
-        cerr << "srcs & constraints = " << sac << endl ;
+          cerr << "Warning, reduction rule:" << apply
+               << "cannot supply all entities of constraint" << endl ;
+          cerr << "constraints = " <<cnstrnts << endl ;
+          entitySet sac = srcs & cnstrnts ;
+          cerr << "srcs & constraints = " << sac << endl ;
         } else {
-        debugout << "Warning, reduction rule:" << apply
-             << "cannot supply all entities of constraint" << endl ;
-        debugout << "constraints = " <<cnstrnts << endl ;
-        entitySet sac = srcs & cnstrnts ;
-        debugout << "srcs & constraints = " << sac << endl ;
+          debugout << "Warning, reduction rule:" << apply
+                   << "cannot supply all entities of constraint" << endl ;
+          debugout << "constraints = " <<cnstrnts << endl ;
+          entitySet sac = srcs & cnstrnts ;
+          debugout << "srcs & constraints = " << sac << endl ;
         }
         scheds.set_error();
 
