@@ -4,7 +4,7 @@
 include sys.conf
 include comp.conf
 
-DEFINES = $(DEBUG) $(MACHINE_SPECIFIC) 
+DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
 LOCI_BASE = ../
 
