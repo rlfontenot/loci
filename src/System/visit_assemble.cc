@@ -3,13 +3,25 @@
 #include <sys/stat.h>
 #include "comp_tools.h"
 
-#include <Tools/stream.h>
 #include "dist_tools.h"
 
+#include <vector>
 using std::vector ;
+#include <map>
 using std::map ;
+#include <string>
+using std::string ;
+
+#include <iostream>
+using std::cout ;
 using std::cerr;
 using std::endl;
+using std::ios ;
+
+#include <fstream>
+using std::ostringstream ;
+using std::ofstream ;
+
 #include <deque>
 using std::deque ;
 
@@ -133,22 +145,57 @@ namespace Loci {
         debugout << "dumping variable " << v << endl ;
         storeRepP st = facts.get_variable(v) ;
         storeRepP sc = st ;
-        if(facts.isDistributed() && st->RepType() == STORE) {
-          sc = collect_store(st,facts) ;
-        }
-        if(MPI_rank == 0) {
+        if(st->RepType() == STORE) {
           ostringstream oss ;
           oss << "dump_vars/"<<v ;
           if(dump_var_lookup.find(v) ==dump_var_lookup.end())
             dump_var_lookup[v] = 0 ;
           if(dump_var_lookup[v] != 0)
-            oss << "."<<dump_var_lookup[v] ;
+            oss << "_"<<dump_var_lookup[v] ;
           dump_var_lookup[v]++ ;
-          
+          oss <<".hdf5" ;
           string filename = oss.str() ;
-          ofstream ofile(filename.c_str(),ios::out) ;
-          ofile.precision(6) ;
-          sc->Print(ofile) ;
+          hid_t file_id=0, group_id=0;
+          
+          if(MPI_rank == 0) {
+            //            cerr << "filename = " << filename << endl ;
+            file_id =  H5Fcreate(filename.c_str(), H5F_ACC_TRUNC,
+                                 H5P_DEFAULT, H5P_DEFAULT) ;
+            group_id = H5Gcreate(file_id, "store", 0) ;
+          }
+          if(MPI_processes == 1) {
+            Loci::write_container(group_id,st) ;
+          } else {
+            entitySet dom = st->domain() ;
+            entitySet tot_dom = Loci::collect_entitySet(dom) ;
+            tot_dom = all_collect_entitySet(dom) ;
+            fact_db::distribute_infoP df = facts.get_distribute_info() ;
+            dMap remap ;
+            remap = df->remap ;
+            sc = collect_reorder_store(st,remap,facts) ;
+            write_container(group_id,sc) ;
+          }
+            
+
+          if(MPI_rank == 0) {
+            H5Gclose(group_id) ;
+            H5Fclose(file_id) ;
+          }
+        } else {
+          if(MPI_rank == 0) {
+            ostringstream oss ;
+            oss << "dump_vars/"<<v ;
+            if(dump_var_lookup.find(v) ==dump_var_lookup.end())
+              dump_var_lookup[v] = 0 ;
+            if(dump_var_lookup[v] != 0)
+              oss << "."<<dump_var_lookup[v] ;
+            dump_var_lookup[v]++ ;
+          
+            string filename = oss.str() ;
+            ofstream ofile(filename.c_str(),ios::out) ;
+            ofile.precision(6) ;
+            sc->Print(ofile) ;
+          }
         }
       }
     }
@@ -282,8 +329,9 @@ namespace Loci {
             if(vi->get_info().priority.size() == 0)
               barrier_vars += *vi ;
           }
-          if(pointwise && recursive && (vi->get_info().name != "OUTPUT")) {
-            all_vars += *vi ;
+          if((priority_rule || pointwise) && recursive && (vi->get_info().name != "OUTPUT")) {
+            if(vi->get_info().priority.size() == 0)
+              all_vars += *vi ;
           }
 
           /*
