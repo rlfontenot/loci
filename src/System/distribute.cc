@@ -11,7 +11,7 @@ using std::ios ;
 using std::ifstream ;
 using std::swap ;
 
-#define SCATTER_DIST
+//#define SCATTER_DIST
 
 namespace Loci {
   int MPI_processes ;
@@ -397,27 +397,31 @@ namespace Loci {
       df->g2l[l2g[*ei]] = *ei ;
     }
       
+    entitySet send_neighbour ;
+    entitySet recv_neighbour ;
+    store<entitySet> send_entities ;
+    store<entitySet> recv_entities ;
     
     for(int i = 0 ; i < num_procs; ++i ) 
       if(myid != i )
 	if(get_entities[myid][i] != EMPTY) 
-	  df->recv_neighbour += i ; 
+	  recv_neighbour += i ; 
     
     for(int i = 0; i < num_procs; ++i)
       if(myid != i)
 	if(get_entities[i][myid] != EMPTY)
-	  df->send_neighbour += i ;
+	  send_neighbour += i ;
     
-    df->send_entities.allocate(df->send_neighbour) ;
-    df->recv_entities.allocate(df->recv_neighbour) ;
+    send_entities.allocate(send_neighbour) ;
+    recv_entities.allocate(recv_neighbour) ;
     
-    for(ei = df->recv_neighbour.begin(); ei!= df->recv_neighbour.end(); ++ei) {
+    for(ei = recv_neighbour.begin(); ei!= recv_neighbour.end(); ++ei) {
       for(ti =  get_entities[myid][*ei].begin(); ti != get_entities[myid][*ei].end(); ++ti)
-	df->recv_entities[*ei] += df->g2l[*ti] ;
+	recv_entities[*ei] += df->g2l[*ti] ;
     }
-    for(ei = df->send_neighbour.begin(); ei!= df->send_neighbour.end(); ++ei) {
+    for(ei = send_neighbour.begin(); ei!= send_neighbour.end(); ++ei) {
       for(ti =  get_entities[*ei][myid].begin(); ti != get_entities[*ei][myid].end(); ++ti)
-	df->send_entities[*ei] +=  df->g2l[*ti] ;
+	send_entities[*ei] +=  df->g2l[*ti] ;
     }
     reorder_facts(facts, df->g2l) ;
     isDistributed = 1 ;
@@ -428,12 +432,12 @@ namespace Loci {
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
-    for(ei=df->send_neighbour.begin(); ei != df->send_neighbour.end();++ei)
+    for(ei=send_neighbour.begin(); ei != send_neighbour.end();++ei)
       df->xmit.push_back
-        (fact_db::distribute_info::dist_data(*ei,df->send_entities[*ei])) ;
-    for(ei=df->recv_neighbour.begin(); ei != df->recv_neighbour.end();++ei)
+        (fact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
+    for(ei=recv_neighbour.begin(); ei != recv_neighbour.end();++ei)
       df->copy.push_back
-        (fact_db::distribute_info::dist_data(*ei,df->recv_entities[*ei])) ;
+        (fact_db::distribute_info::dist_data(*ei,recv_entities[*ei])) ;
     int total = 0 ;
     for(int i=0;i<df->xmit.size();++i)
       total += df->xmit[i].size ;

@@ -34,8 +34,6 @@ namespace Loci {
   }
   
   void execute_rule::Print(ostream &s) const {
-    if(MPI_processes > 1)
-      s <<  "processor : " << MPI_rank  << "\t" ;
     s << rule_tag << " over sequence " << exec_seq << endl ;
   }
   

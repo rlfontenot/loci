@@ -36,10 +36,10 @@ namespace Loci {
         rules = extract_rules(dag_sched[i]) ;
       }
 
-      variableSet barrier_vars ;
+      variableSet barrier_vars, reduce_vars,singleton_vars ;
       variableSet::const_iterator vi ;
 
-      std::map<variable,ruleSet> barrier_info,reduce_info,singleton_info ;
+      std::map<variable,ruleSet> reduce_info ;
       for(vi=vars.begin();vi!=vars.end();++vi) {
         ruleSet var_rules = extract_rules(dagt[(*vi).ident()]) ;
         ruleSet::const_iterator ri ;
@@ -63,20 +63,22 @@ namespace Loci {
              reduction && singleton) ;
         
         if((use_rules != EMPTY)) {
-          if(pointwise)
-            barrier_info[*vi] = use_rules ;
-          if(reduction)
+          if(pointwise) {
+            barrier_vars += *vi ;
+          } if(reduction) {
             reduce_info[*vi] = use_rules ;
-          if(singleton)
-            singleton_info[*vi] = use_rules ;
+            reduce_vars += *vi ;
+          } if(singleton) {
+            singleton_vars += *vi ;
+          }
         }
 
       }
 
-      dag_comp.push_back(new barrier_compiler(barrier_info)) ;
+      dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
 
-      if(singleton_info.begin() != singleton_info.end())
-        dag_comp.push_back(new singleton_var_compiler(singleton_info)) ;
+      if(singleton_vars != EMPTY)
+        dag_comp.push_back(new singleton_var_compiler(singleton_vars)) ;
                            
       if(reduce_info.begin() != reduce_info.end()) {
         std::map<variable,ruleSet>::const_iterator xi ;

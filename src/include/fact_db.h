@@ -49,11 +49,6 @@ namespace Loci {
       int copy_total_size ;
       int xmit_total_size ;
 
-
-      entitySet send_neighbour ;
-      entitySet recv_neighbour ;
-      store<entitySet> send_entities ;
-      store<entitySet> recv_entities ;
       distribute_info() {} ;
     } ;
     

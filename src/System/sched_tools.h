@@ -67,16 +67,12 @@ namespace Loci {
     void existential_analysis(fact_db &facts) ;
     executeP execution_schedule(fact_db &facts, int nth) ;
   } ;
-  struct proc_details {
-    int processor ;
-    entitySet send_set ;
-    sequence recv_set ;
-  } ;
   
   struct comm_info {
     variable v ;
-    std::vector<proc_details> send_info ;
-    std::vector<proc_details> recv_info ;
+    int processor ;
+    entitySet send_set ;
+    sequence recv_set ;
   } ;
 
    class execute_param_red : public execute_modules {

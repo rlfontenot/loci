@@ -22,8 +22,6 @@ namespace Loci {
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) ;
   std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
-  std::list<comm_info> put_postcomm_info(std::map<variable, ruleSet> barrier_info, fact_db &facts) ;
-  std::list<comm_info> put_precomm_info(std::map<variable, ruleSet> barrier_info, fact_db &facts) ;
   
   void create_user_function(unsigned char* , unsigned char* , int*, MPI_Datatype* ) ;
   
@@ -137,23 +135,24 @@ namespace Loci {
   } ;
 
   class barrier_compiler : public rule_compiler {
+    variableSet barrier_vars ;
     std::map<variable, ruleSet> barrier_info ;
     std::vector<std::pair<variable,entitySet> > send_entities ;
     std::list<comm_info> clist ;
     std::list<comm_info> plist ;
   public:
-    barrier_compiler(std::map<variable,ruleSet> &var_map)
-      : barrier_info(var_map) {}
+    barrier_compiler(variableSet &vars)
+      : barrier_vars(vars) {}
     virtual void set_var_existence(fact_db &facts) ;
     virtual void process_var_requests(fact_db &facts) ;
     virtual executeP create_execution_schedule(fact_db &facts) ;
   } ;
 
   class singleton_var_compiler : public rule_compiler {
-    std::map<variable, ruleSet> barrier_info ;
+    variableSet barrier_vars ;
   public:
-    singleton_var_compiler(std::map<variable,ruleSet> &var_map)
-      : barrier_info(var_map) {}
+    singleton_var_compiler(variableSet &vars)
+      :  barrier_vars(vars) {}
     virtual void set_var_existence(fact_db &facts) ;
     virtual void process_var_requests(fact_db &facts) ;
     virtual executeP create_execution_schedule(fact_db &facts) ;
