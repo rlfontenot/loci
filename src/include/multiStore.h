@@ -1120,26 +1120,28 @@ namespace Loci {
   template <class T> 
     void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &eset)
     {
-      storeRepP qrep = getRep() ;
-      int rank = 1 ;
-      DatatypeP dp = qrep->getType() ;
-      hid_t datatype = dp->get_hdf5_type() ;
-      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-      T* tmp_array = new T[dimension] ;
-      size_t tmp = 0 ;
-      hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
-			  H5P_DEFAULT, tmp_array) ;
-      if(err < 0) {
-        cerr << "H5Dread() failed" << endl ;
-      }
-      int loc = 0 ;
-      for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
-	for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
-	  base_ptr[*si][ivec] = tmp_array[tmp++] ;
-	  loc++ ;
+      if(dimension != 0) {
+	storeRepP qrep = getRep() ;
+	int rank = 1 ;
+	DatatypeP dp = qrep->getType() ;
+	hid_t datatype = dp->get_hdf5_type() ;
+	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+	T* tmp_array = new T[dimension] ;
+	size_t tmp = 0 ;
+	hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
+			    H5P_DEFAULT, tmp_array) ;
+	if(err < 0) {
+	  cerr << "H5Dread() failed" << endl ;
 	}
-      H5Sclose(memspace) ;
-      delete [] tmp_array ;
+	int loc = 0 ;
+	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) 
+	  for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
+	    base_ptr[*si][ivec] = tmp_array[tmp++] ;
+	    loc++ ;
+	  }
+	H5Sclose(memspace) ;
+	delete [] tmp_array ;
+      }
     }
   
   //**************************************************************************/
@@ -1148,37 +1150,38 @@ namespace Loci {
     void multiStoreRepI<T>::hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER, frame_info &fi, entitySet &eset)
     {
       typedef data_schema_traits<T> schema_traits ;
-      storeRepP qrep = getRep() ;
-      int rank = 1 ;
-      DatatypeP dp = qrep->getType() ;
-      hid_t datatype = dp->get_hdf5_type() ;
-      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-      std::vector<int> vint = fi.second_level ;
-      typedef typename schema_traits::Converter_Base_Type dtype;
-      dtype* tmp_array = new dtype[dimension] ;    
-      hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
-			  H5P_DEFAULT, tmp_array) ;
-      if(err < 0) {
-        cerr << "H5Dread() failed" << endl ;
-      }
-      size_t tmp = 0 ;
-      int bucsize ;
-      size_t indx = 0 ;
-      int loc = 0 ;
-      for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) {
-	for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
-	  typename data_schema_traits<T>::Converter_Type cvtr(base_ptr[*si][ivec]);
-	  bucsize = vint[indx++] ;
-	  cvtr.setState(tmp_array+tmp, bucsize) ;
-          tmp += bucsize ;
+      if(dimension != 0) {
+	storeRepP qrep = getRep() ;
+	int rank = 1 ;
+	DatatypeP dp = qrep->getType() ;
+	hid_t datatype = dp->get_hdf5_type() ;
+	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+	std::vector<int> vint = fi.second_level ;
+	typedef typename schema_traits::Converter_Base_Type dtype;
+	dtype* tmp_array = new dtype[dimension] ;    
+	hid_t err = H5Dread(dataset,  datatype, memspace, dataspace,
+			    H5P_DEFAULT, tmp_array) ;
+	if(err < 0) {
+	  cerr << "H5Dread() failed" << endl ;
 	}
-	loc++ ;
-      }
+	size_t tmp = 0 ;
+	int bucsize ;
+	size_t indx = 0 ;
+	int loc = 0 ;
+	for(entitySet::const_iterator si = eset.begin(); si != eset.end(); ++si) {
+	  for(int ivec = 0; ivec < (fi.first_level)[loc]; ivec++) {
+	    typename data_schema_traits<T>::Converter_Type cvtr(base_ptr[*si][ivec]);
+	    bucsize = vint[indx++] ;
+	    cvtr.setState(tmp_array+tmp, bucsize) ;
+	    tmp += bucsize ;
+	  }
+	  loc++ ;
+	}
       
-      H5Sclose(memspace) ;
-      delete [] tmp_array ;
-    }
-  
+	H5Sclose(memspace) ;
+	delete [] tmp_array ;
+      }
+    }  
   //**************************************************************************/
 
   template<class T> 
@@ -1193,53 +1196,56 @@ namespace Loci {
   template <class T> 
   void multiStoreRepI<T>::hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &eset) const
     {
-    storeRepP qrep = getRep() ;
-      int rank = 1 ;
-      DatatypeP dp = qrep->getType() ;
-      hid_t datatype = dp->get_hdf5_type() ;
-      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-      T* tmp_array = new T[dimension] ;
-      size_t tmp = 0 ;
-      int newsize = 0 ;
-      for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
-	newsize = end(*si) - begin(*si);
-	for(int ivec = 0; ivec < newsize; ivec++){
-	  tmp_array[tmp++] = base_ptr[*si][ivec] ;
+      if(dimension != 0) {
+	storeRepP qrep = getRep() ;
+	int rank = 1 ;
+	DatatypeP dp = qrep->getType() ;
+	hid_t datatype = dp->get_hdf5_type() ;
+	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+	T* tmp_array = new T[dimension] ;
+	size_t tmp = 0 ;
+	int newsize = 0 ;
+	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
+	  newsize = end(*si) - begin(*si);
+	  for(int ivec = 0; ivec < newsize; ivec++){
+	    tmp_array[tmp++] = base_ptr[*si][ivec] ;
+	  }
 	}
-       }
-      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
-      H5Sclose(memspace) ;
-      delete [] tmp_array ;
-  }
+	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
+	H5Sclose(memspace) ;
+	delete [] tmp_array ;
+      }
+    }
   //*************************************************************************/
 
   template <class T> 
     void multiStoreRepI<T>:: hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &eset)  const
     {   
       typedef data_schema_traits<T> schema_traits ;
-      storeRepP qrep = getRep() ;
-      int rank = 1 ;
-      DatatypeP dp = qrep->getType() ;
-      hid_t datatype = dp->get_hdf5_type() ;
-      hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-      typedef typename schema_traits::Converter_Base_Type dtype;
-      dtype* tmp_array = new dtype[dimension] ;
-      size_t tmp = 0 ;
-      int stateSize = 0 ;
-      int newsize = 0 ;
-      for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
-	newsize = end(*si) - begin(*si);
-	for(int ivec = 0; ivec < newsize; ivec++){
-	  typename schema_traits::Converter_Type cvtr(base_ptr[*si][ivec]);
-	  cvtr.getState(tmp_array+tmp, stateSize) ;
-	  tmp +=stateSize ;
+      if(dimension != 0) {
+	storeRepP qrep = getRep() ;
+	int rank = 1 ;
+	DatatypeP dp = qrep->getType() ;
+	hid_t datatype = dp->get_hdf5_type() ;
+	hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+	typedef typename schema_traits::Converter_Base_Type dtype;
+	dtype* tmp_array = new dtype[dimension] ;
+	size_t tmp = 0 ;
+	int stateSize = 0 ;
+	int newsize = 0 ;
+	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si) {
+	  newsize = end(*si) - begin(*si);
+	  for(int ivec = 0; ivec < newsize; ivec++){
+	    typename schema_traits::Converter_Type cvtr(base_ptr[*si][ivec]);
+	    cvtr.getState(tmp_array+tmp, stateSize) ;
+	    tmp +=stateSize ;
+	  }
 	}
-      }
-      H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
-      H5Sclose(memspace) ;
-      delete [] tmp_array ;
-   
-  }
+	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
+	H5Sclose(memspace) ;
+	delete [] tmp_array ;
+      }   
+    }
 
   //*************************************************************************/
 
