@@ -154,10 +154,12 @@ namespace Loci {
 
     return size;
   };
+*/
 
 
   //******************************************************************************
 
+/*
   template <> 
   inline entitySet get_store_domain(H5::Group group,DEFAULT_CONVERTER g)
   {

@@ -18,6 +18,7 @@
 #include <hdf5_write_template.h>
 #include <Loci_types.h>
 #include <distribute.h>
+#include <multiStore.h>
 
 using Loci::entitySet ;
 using Loci::EMPTY ;
