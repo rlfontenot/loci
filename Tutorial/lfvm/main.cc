@@ -1,7 +1,8 @@
 #include <Loci.h>
 #include <istream>
 #include <iostream>
-
+#include <string>
+#include <fstream>
 #include "prototypes.h"
 
 int main(int argc, char *argv[])
@@ -10,7 +11,7 @@ int main(int argc, char *argv[])
 
   set_fpe_abort() ;
   
-  string query = "solution" ;
+  std::string query = "solution" ;
 
   while(argc>=2 && argv[1][0] == '-') {
     // If user specifies an alternate query, extract it from the
@@ -20,7 +21,7 @@ int main(int argc, char *argv[])
       argc -= 2 ;
       argv += 2 ;
     } else {
-      cerr << "argument " << argv[1] << " is not understood." << endl ;
+      std::cerr << "argument " << argv[1] << " is not understood." << std::endl ;
       argc-- ;
       argv++ ;
     }
@@ -33,7 +34,7 @@ int main(int argc, char *argv[])
   fact_db facts ;
 
 
-  cout << "reading grid file " << grid_filename << endl ;
+  std::cout << "reading grid file " << grid_filename << std::endl ;
   std::ifstream gridf(grid_filename,std::ios::in) ;
   read_triangles(gridf,facts) ;
 
@@ -61,12 +62,12 @@ int main(int argc, char *argv[])
   facts.create_fact("max_iteration",max_iteration) ;
   facts.create_fact("max_time",max_time) ;
 
-  ifstream infile("heat.vars",ios::in) ;
+  std::ifstream infile("heat.vars",std::ios::in) ;
   if(!infile.fail()) {
-    cout << "reading heat.vars"<< endl ;
+    std::cout << "reading heat.vars"<< std::endl ;
     facts.read(infile) ;
   }
-  cout << "max_iteration="<<*max_iteration <<endl;
+  std::cout << "max_iteration="<<*max_iteration << std::endl;
 
   // Setup boundary conditions
 
@@ -86,9 +87,9 @@ int main(int argc, char *argv[])
 
   facts.create_fact("set_temperature_boundary",set_temperature_boundary) ;
 
-  cout << "heat flux boundary nodes = "<< *heat_flux_boundary<<endl ;
-  cout << "temperature prescribed boundary nodes = " <<
-    *set_temperature_boundary << endl ;
+  std::cout << "heat flux boundary nodes = "<< *heat_flux_boundary<<std::endl ;
+  std::cout << "temperature prescribed boundary nodes = " <<
+    *set_temperature_boundary << std::endl ;
   
 
   // Create a rule database called rdb
@@ -106,18 +107,18 @@ int main(int argc, char *argv[])
   executeP schedule = create_execution_schedule(rdb,facts,query) ;
 
   if(schedule == 0) {
-    cerr << "unable to produce execution schedule to satisfy query for "
-         << query << endl ;
+    std::cerr << "unable to produce execution schedule to satisfy query for "
+         << query << std::endl ;
   } else {
     // Save the schedule in the file .schedule for reference
-    ostringstream oss ;
+    std::ostringstream oss ;
     oss << ".schedule" ;
 
     if(num_procs > 1) {
       oss << "-" << myid ;
     }
-    string sched_filename = oss.str() ;
-    ofstream sched_file(sched_filename.c_str(),ios::out) ;
+    std::string sched_filename = oss.str() ;
+    std::ofstream sched_file(sched_filename.c_str(),std::ios::out) ;
     schedule->Print(sched_file) ;
     sched_file.close() ;
 
@@ -126,13 +127,13 @@ int main(int argc, char *argv[])
 
     if(query == "solution") {
       store<double> sol(facts.get_fact("solution")) ;
-      cout << "sol.domain() = " << sol.domain() << endl ;
-      ofstream ofile("res.2dgv",ios::out) ;
+      std::cout << "sol.domain() = " << sol.domain() << std::endl ;
+      std::ofstream ofile("res.2dgv",std::ios::out) ;
       if(ofile.fail()) {
-        cerr << "unable to open 'res.2dgv'" << endl ;
+        std::cerr << "unable to open 'res.2dgv'" << std::endl ;
         exit(-1) ;
       }
-      ofile << "general"<< endl ;
+      ofile << "general"<< std::endl ;
       
       store<vector2d<double> > pos(facts.get_fact("pos")) ;
       entitySet nodes = pos.domain() ;
@@ -146,30 +147,30 @@ int main(int argc, char *argv[])
       entitySet cells = cl.image(faces) + cr.image(interior_faces) ;
       
       
-      ofile << nodes.size() << ' ' << nodes.Min() << endl ;
+      ofile << nodes.size() << ' ' << nodes.Min() << std::endl ;
       
       entitySet::const_iterator ei ;
       for(ei=nodes.begin();ei!=nodes.end();++ei)
-        ofile << pos[*ei] << endl ;
+        ofile << pos[*ei] << std::endl ;
       ofile << faces.size() << ' ' << faces.Min() << ' ' ;
-      ofile << cells.size() << ' ' << cells.Min() << endl ;
+      ofile << cells.size() << ' ' << cells.Min() << std::endl ;
       for(ei=interior_faces.begin();ei!=interior_faces.end();++ei) 
         ofile << edge_nodes[*ei][0] << ' '
               << edge_nodes[*ei][1] << ' '
               << cl[*ei] <<' ' << cr[*ei]
-              << endl ;
+              << std::endl ;
       boundaries = faces-interior_faces ;
       for(ei=boundaries.begin();ei!=boundaries.end();++ei)
         ofile << edge_nodes[*ei][0] << ' '
               << edge_nodes[*ei][1] << ' '
-              << cl[*ei] << " -1" << endl ;
+              << cl[*ei] << " -1" << std::endl ;
 
       for(ei=nodes.begin();ei!=nodes.end();++ei)
-        ofile << sol[*ei] << endl ;
+        ofile << sol[*ei] << std::endl ;
     } else {
       Loci::storeRepP query_var = facts.get_fact(query) ;
-      cout << query << " = " << endl ;
-      query_var->Print(cout) ;
+      std::cout << query << " = " << std::endl ;
+      query_var->Print(std::cout) ;
     }
       
     

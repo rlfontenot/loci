@@ -4,12 +4,17 @@
 #include <iostream>
 using std::cout ;
 using std::endl ;
+using std::istream ;
+using std::cerr ;
 
 #include <vector>
 using std::vector ;
 
 #include <algorithm>
 using std::swap ;
+
+#include <string>
+using std::string ;
 
 //*************************************************************************/
 //* kill_comments(istream &s)                                             */
@@ -18,7 +23,7 @@ using std::swap ;
 //* non-commented input.                                                  */
 //*************************************************************************/
 
-void kill_comments(istream &s) {
+void kill_comments(std::istream &s) {
   Loci::parse::kill_white_space(s) ;
   while(s.peek() == '#') {
     while((s.get()) != '\n' && !s.eof())

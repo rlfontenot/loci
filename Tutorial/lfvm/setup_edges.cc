@@ -93,8 +93,8 @@ void setup_edges(fact_db &facts) {
     }
   }
 
-  cout << "found " << edge_data.size() << " internal edges, "
-       << boundary_edge_data.size() << " on boundary" << endl ;
+  std::cout << "found " << edge_data.size() << " internal edges, "
+	    << boundary_edge_data.size() << " on boundary" << std::endl ;
 
   // First allocate some space
   // For:
@@ -173,7 +173,7 @@ void setup_edges(fact_db &facts) {
 
     double test = cross(pos[end1]-pos[end0],t_center-e_center) ;
     if(test<0) {
-      cerr << "edge " << *ei << " points in the wrong direction" << endl ;
+      std::cerr << "edge " << *ei << " points in the wrong direction" << std::endl ;
     }
   }
 }
