@@ -1,5 +1,4 @@
 #include <variable.h>
-
 #include <Tools/stream.h>
 
 using std::vector ;
@@ -26,11 +25,13 @@ namespace Loci {
       return *vi ;
   } 
    
-time_ident::time_ident(const exprP &exp) {
+  time_ident::time_ident(const exprP &exp) {
     create_thp() ;
     id = 0 ;
-    if(exp->op == OP_NAME) 
+    if(exp->op == OP_NAME) {
+      id = thp->add_level(exp->name,id) ;
       return ;
+    }
     if(exp->op != OP_NAME_BRACE) {
       cerr << "syntax error interpreting time list in expression "
 	   << exp << endl ;
@@ -74,7 +75,8 @@ time_ident::time_ident(const exprP &exp) {
             id = 0 ;
             return ;
         } else {
-	  id = thp->add_level(tname->name,id) ;
+
+          id = thp->add_level(tname->name,id) ;
 	  return ;
         }
     }
@@ -82,8 +84,29 @@ time_ident::time_ident(const exprP &exp) {
     //cerr << "syntax error in time label of name expression "
     //   << exp << endl ;
     id = 0 ;
-}
+  }
 
+  time_ident::time_ident(const std::string &lname, const time_ident &t) {
+    std::list<std::string> names ;
+    time_ident stationary ;
+    time_ident current = t ;
+    while(current!=stationary) {
+      names.push_front(current.level_name()) ;
+      current = current.parent() ;
+    }
+    names.push_front(lname) ;
+    std::list<std::string>::const_iterator li ;
+    create_thp() ;
+    id = 0 ;
+    for(li=names.begin();li!=names.end();++li)
+      id = thp->add_level(*li,id) ;
+  }
+  time_ident::time_ident(const time_ident &t, const std::string &lname) {
+    create_thp() ;
+    id = thp->add_level(lname,t.ident()) ;
+  }                                                                    
+                                                                    
+  
 ostream &time_ident::Print(ostream &s) const {
     if(id==0)
       return s ;
@@ -374,8 +397,13 @@ bool variable::info::operator<(const info &v) const {
     vi.offset = o ;
     return variable(vi) ;
   }
-  
-ostream &variable::info::Print(ostream &s ) const {
+  variable variable::info::change_time(time_ident ti) const {
+    info vi = *this ;
+    vi.time_id = ti ;
+    return variable(vi) ;
+  }
+ 
+  ostream &variable::info::Print(ostream &s ) const {
     if(tvar)
       s << "$" ;
     if(priority.begin() != priority.end()) {
