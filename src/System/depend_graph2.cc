@@ -1139,7 +1139,8 @@ namespace Loci {
       for(size_t i=0;i<groups.size();++i) {
         string level_name = iter.level_name() ;
         char buf[512] ;
-        sprintf(buf,"_%s_%d_",level_name.c_str(),i) ;
+        int ii = i ;
+        sprintf(buf,"_%s_%d_",level_name.c_str(),ii) ;
         string new_level = string(buf) ;
         time_ident ntime = time_ident(iter.parent(),new_level) ;
         map<variable,variable> rvm ;
