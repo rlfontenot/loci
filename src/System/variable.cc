@@ -17,8 +17,6 @@ namespace Loci {
 	break ;
     }
     if(vi==time_db[level].children.end()) {
-      cout << " old time_db size  = " << time_db.size() << endl ;
-      cout << "old adding time_info  "<< lname  << "  " << level << endl ;
       time_db.push_back(time_info(lname,level)) ;
       int n = time_db.size() - 1 ;
       time_db[level].children.push_back(n) ;
