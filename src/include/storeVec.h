@@ -312,47 +312,93 @@ namespace Loci {
 
   //*****************************************************************/
   template<class T> 
-  void storeVecRepI<T>::allocate(const entitySet &ptn) 
+  void storeVecRepI<T>::allocate(const entitySet &eset) 
   {
+    fatal(size < 1) ;
+
+    if(eset == EMPTY) {
+      if(alloc_pointer) delete[] alloc_pointer ;
+      alloc_pointer = 0 ;
+      base_ptr      = 0 ;
+      store_domain = eset ;
+      return;
+    }
+
+    int   old_range[2], new_range[2];
+
+    old_range[0] = store_domain.Min();
+    old_range[1] = store_domain.Max();
+
+    new_range[0] = eset.Min();
+    new_range[1] = eset.Max();
+
+    entitySet redundant, newSet, ecommon;
+
+    redundant = store_domain - eset;
+    newSet    = eset - store_domain;
+    ecommon   = store_domain & eset;
+
+    if( (old_range[0] == new_range[0]) &&
+        (old_range[1] == new_range[1]) ) {
+      store_domain  = eset;
+      return;
+    }
+
+    //------------------------------------------------------------------
+    // Temperory Storage, because new allocation will be done ...
+    //------------------------------------------------------------------
+
+    T *tmp_base_ptr, *tmp_alloc_pointer ;
+
+    int top           = old_range[0];
+    int arraySize     = (old_range[1] - top + 1)*size;
+    tmp_alloc_pointer = new T[arraySize];
+    tmp_base_ptr      = tmp_alloc_pointer - top*size;
+
+    FORALL(ecommon,i) {
+      for(int j=0;j< size;++j)
+        tmp_base_ptr[i*size+j] = base_ptr[i*size+j] ;
+    } ENDFORALL ;
 
     //------------------------------------------------------------------
     // Allocation reclaims all previously hold memeory 
     //------------------------------------------------------------------
 
     if(alloc_pointer) delete[] alloc_pointer ;
-
     alloc_pointer = 0 ;
     base_ptr      = 0 ;
 
-
     //-----------------------------------------------------------------
     // Get the minimum and maximum entity ID from the entitySet and
-    //allocate 
-    // memory of the size = ( max-min+1). Notice that, if the entityset 
-    // contains the entities with ID quite sparse, it will create lots of 
-    // unused block of memory. 
+    // allocate memory of the size = ( max-min+1). Notice that, if the 
+    // entityset contains the entities with ID quite sparse, it will 
+    // create lots of unused block of memory. 
     //------------------------------------------------------------------
 
-    if(size != 0) {
-      fatal(size < 1) ;
-      if(ptn != EMPTY) {
-        int top = ptn.Min() ; int sza = (ptn.Max()-top+1)*size ;
-        alloc_pointer = new T[sza] ;
-        base_ptr = alloc_pointer - top*size ;
-      }
-    }
+    top            = eset.Min() ; 
+    arraySize      = (eset.Max()-top+1)*size ;
+    alloc_pointer  = new T[arraySize] ;
+    base_ptr       = alloc_pointer - top*size ;
+
+    FORALL(ecommon,i) {
+      for(int j=0;j< size;++j)
+        base_ptr[i*size+j] = tmp_base_ptr[i*size+j] ;
+    } ENDFORALL ;
+
+    delete[] tmp_alloc_pointer ;
 
     //------------------------------------------------------------------
     // Domain equals to entitySet provided by the argument.
     //------------------------------------------------------------------
 
-    store_domain = ptn ;
+    store_domain = eset ;
     //------------------------------------------------------------------
     // Let everybody know about the change in memeory location.
     //------------------------------------------------------------------
 
     dispatch_notify() ;
   }
+
 
   //*******************************************************************/
 
@@ -646,6 +692,18 @@ namespace Loci {
   //**************************************************************************/
 
   template <class T>
+  int storeVecRepI<T>::pack_size( const entitySet &eset)
+  {
+
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    return get_mpi_size( traits_type, eset );
+  }
+  //**************************************************************************/
+
+  template <class T>
   inline int storeVecRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
   {
     int size, M ;
@@ -681,17 +739,20 @@ namespace Loci {
   //**************************************************************************/
 
   template <class T>
-  int storeVecRepI<T>::pack_size( const entitySet &eset)
+  void storeVecRepI<T>::pack(void *outbuf, int &position, int &outcount,
+                             const entitySet &eset )
   {
-
-    typedef typename
-      data_schema_traits<T>::Schema_Converter schema_converter;
+    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    return get_mpi_size( traits_type, eset );
+    int M = get_size() ;
+    MPI_Pack( &M, 1, MPI_INT, outbuf, outcount, &position, 
+		MPI_COMM_WORLD) ;
+    
+    packdata( traits_type, outbuf, position, outcount, eset);
   }
 
-  //*************************************************************************/
+  //**************************************************************************/
 
   template <class T>
   inline void storeVecRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf, int &position,
@@ -717,6 +778,10 @@ namespace Loci {
                                   const entitySet &eset ) 
   {
     entitySet::const_iterator ci;
+    entitySet::const_iterator ci;
+    entitySet  ecommon;
+
+    ecommon = store_domain&eset;
 
     warn(ecommon-store_domain != EMPTY) ;
 
@@ -759,21 +824,35 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template <class T>
-  void storeVecRepI<T>::pack(void *outbuf, int &position, int &outcount,
-                             const entitySet &eset )
+  template <class T> 
+  void storeVecRepI<T>::unpack(void *inbuf, int &position, int &insize, const sequence &seq)
   {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    int M = get_size() ;
-    MPI_Pack( &M, 1, MPI_INT, outbuf, outcount, &position, 
-		MPI_COMM_WORLD) ;
+#ifdef DEBUG
+    entitySet ecommon, ediff,eset(seq);
+
+    ediff = eset - domain();
+    if( ediff.size() > 0) { 
+      cout << "Error:Entities not part of domain " << ediff <<endl;
+      abort();
+    }
+#endif
     
-    packdata( traits_type, outbuf, position, outcount, eset);
+    int init_size = get_size() ;
+    int M ;
+    MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
+    warn(M<=0) ;
+    if(M > init_size) {
+      set_elem_size(M) ;
+    }
+    unpackdata( traits_type, inbuf, position, insize, seq);
   }
 
   //**************************************************************************/
+
   template <class T> 
   inline void storeVecRepI<T>::unpackdata( IDENTITY_CONVERTER c,
                                            void *inbuf,
@@ -839,34 +918,6 @@ namespace Loci {
   }
 
   //**************************************************************************/
-  template <class T> 
-  void storeVecRepI<T>::unpack(void *inbuf, int &position, int &insize, const sequence &seq)
-  {
-    typedef typename
-      data_schema_traits<T>::Schema_Converter schema_converter;
-    schema_converter traits_type;
-
-#ifdef DEBUG
-    entitySet ecommon, ediff,eset(seq);
-
-    ediff = eset - domain();
-    if( ediff.size() > 0) { 
-      cout << "Error:Entities not part of domain " << ediff <<endl;
-      abort();
-    }
-#endif
-    
-    int init_size = get_size() ;
-    int M ;
-    MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
-    warn(M<=0) ;
-    if(M > init_size) {
-      set_elem_size(M) ;
-    }
-    unpackdata( traits_type, inbuf, position, insize, seq);
-  }
-
-  //*******************************************************************/
 
   template<class T> 
   void storeVecRepI<T>::writehdf5( hid_t group_id, entitySet &usr_eset) const
