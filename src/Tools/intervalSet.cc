@@ -1,3 +1,5 @@
+#include <cctype>
+
 #include <Tools/debug.h>
 #include <Tools/tools.h>
 #include <Tools/intervalSet.h>
@@ -172,8 +174,9 @@ namespace Loci {
       return i1.second+1 < i2.first ;
     }
   }
-
-    void Union(Handle<pair_vector> &Rep, const interval &ivl) {
+  
+#ifdef ENTITY
+  void Union_inplace (Handle<pair_vector> &Rep, const interval &ivl) {
     Rep.MakeUnique() ;
     interval i(min(ivl.first,ivl.second),
                max(ivl.first,ivl.second)) ;
@@ -181,7 +184,6 @@ namespace Loci {
       Rep->push_back(i) ;
       return ;
     }
-    typedef pair_vector intervalSetRep;
     pair<intervalSetRep::iterator,intervalSetRep::iterator> range ;
     range = equal_range(Rep->begin(),Rep->end(),ivl,
                         interval_porder_union) ;
@@ -206,60 +208,153 @@ namespace Loci {
   }
 
 
-
-
-
-    Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
-			      const Handle<pair_vector> &Rep2) {
-	pair_vector::const_iterator i1 = Rep1->begin() ;
-	pair_vector::const_iterator i2 = Rep2->begin() ;
-	const pair_vector::const_iterator e1 = Rep1->end() ;
-	const pair_vector::const_iterator e2 = Rep2->end() ;
-	const unsigned int size = Rep1->size() + Rep2->size() ;
-	Handle<pair_vector> Rep ;
-	Rep->reserve(size) ;
-	while(i1!=e1 && i2!=e2) {
-	    if(interval_porder_union(*i1,*i2)) {
-		Rep->push_back(*i1) ;
-		++i1 ;
-	    } else if(interval_porder_union(*i2,*i1)) {
-		Rep->push_back(*i2) ;
-		++i2 ;
-	    } else {
-		interval ivl(min((*i1).first,(*i2).first),
-			     max((*i1).second,(*i2).second)) ;
-		++i1 ;
-		++i2 ;
-		bool flag = true ;
-		while(flag) {
-		    flag = false ;
-		    if(i1!=e1 && !interval_porder_union(ivl,*i1)
-		       && !interval_porder_union(*i1,ivl)) {
-			ivl.second = max(ivl.second,(*i1).second) ;
-			++i1 ;
-			flag = true ;
-		    }
-		    if(i2!=e2 && !interval_porder_union(ivl,*i2)
-		       && !interval_porder_union(*i2,ivl)) {
-			ivl.second = max(ivl.second,(*i2).second) ;
-			++i2 ;
-			flag = true ;
-		    }
-		} 
-		Rep->push_back(ivl) ;
-	    }
-	}
-	while(i1!=e1) {
-	    Rep->push_back(*i1) ;
+  Handle<pair_vector> Union(const Handle<pair_vector> &Rep1,
+			    const Handle<pair_vector> &Rep2) {
+    pair_vector::const_iterator i1 = Rep1->begin() ;
+    pair_vector::const_iterator i2 = Rep2->begin() ;
+    const pair_vector::const_iterator e1 = Rep1->end() ;
+    const pair_vector::const_iterator e2 = Rep2->end() ;
+    const unsigned int size = Rep1->size() + Rep2->size() ;
+    Handle<pair_vector> Rep ;
+    Rep->reserve(size) ;
+    while(i1!=e1 && i2!=e2) {
+      if(interval_porder_union(*i1,*i2)) {
+	Rep->push_back(*i1) ;
+	++i1 ;
+      } else if(interval_porder_union(*i2,*i1)) {
+	Rep->push_back(*i2) ;
+	++i2 ;
+      } else {
+	interval ivl(min((*i1).first,(*i2).first),
+		     max((*i1).second,(*i2).second)) ;
+	++i1 ;
+	++i2 ;
+	bool flag = true ;
+	while(flag) {
+	  flag = false ;
+	  if(i1!=e1 && !interval_porder_union(ivl,*i1)
+	     && !interval_porder_union(*i1,ivl)) {
+	    ivl.second = max(ivl.second,(*i1).second) ;
 	    ++i1 ;
-	}
-	while(i2!=e2) {
-	    Rep->push_back(*i2) ;
+	    flag = true ;
+	  }
+	  if(i2!=e2 && !interval_porder_union(ivl,*i2)
+	     && !interval_porder_union(*i2,ivl)) {
+	    ivl.second = max(ivl.second,(*i2).second) ;
 	    ++i2 ;
-	}
-	return Rep ;
+	    flag = true ;
+	  }
+	} 
+	Rep->push_back(ivl) ;
+      }
     }
+    while(i1!=e1) {
+      Rep->push_back(*i1) ;
+      ++i1 ;
+    }
+    while(i2!=e2) {
+      Rep->push_back(*i2) ;
+      ++i2 ;
+    }
+    return Rep ;
+  }
+#endif
 
+#ifndef ENTITY
+  void intervalSet::Union(const interval &ivl) {
+    Rep.MakeUnique() ;
+    interval i(min(ivl.first,ivl.second),
+               max(ivl.first,ivl.second)) ;
+    if(num_intervals() == 0) {
+      Rep->push_back(i) ;
+      return ;
+    }
+    pair<intervalSetRep::iterator,intervalSetRep::iterator> range ;
+    range = equal_range(Rep->begin(),Rep->end(),ivl,
+                        interval_porder_union) ;
+    int range_size = range.second - range.first ;
+    fatal(range_size<0) ;
+    switch(range_size) {
+    case 0:
+      Rep->insert(range.first,i) ;
+      break ;
+    case 1:
+      (*range.first).first = min(i.first,(*range.first).first) ;
+      (*range.first).second = max(i.second,(*range.first).second) ;
+      break ;
+    default:
+      int_type lowval = (*range.first).first ;
+      int_type hival  = (*(range.second-1)).second ;
+      (*range.first).first = min(lowval,i.first) ;
+      (*range.first).second = max(hival,i.second) ;
+      Rep->erase(range.first+1,range.second) ;
+      break ;
+    }
+  }
+
+
+  void intervalSet::Union(const intervalSet &ptn) {
+    intervalSet tmp = intervalSet::Union(*this,ptn) ;
+    Rep = tmp.Rep ;
+  }
+
+
+
+  intervalSet intervalSet::Union(const intervalSet &set1,
+                                 const intervalSet &set2) {
+    intervalSetRep::const_iterator i1 = set1.Rep->begin() ;
+    intervalSetRep::const_iterator i2 = set2.Rep->begin() ;
+    const intervalSetRep::const_iterator e1 = set1.Rep->end() ;
+    const intervalSetRep::const_iterator e2 = set2.Rep->end() ;
+    const unsigned int size = set1.Rep->size() + set2.Rep->size() ;
+    Handle<intervalSetRep> Rep ;
+    Rep->reserve(size) ;
+    while(i1!=e1 && i2!=e2) {
+      if(interval_porder_union(*i1,*i2)) {
+        Rep->push_back(*i1) ;
+        ++i1 ;
+      } else if(interval_porder_union(*i2,*i1)) {
+        Rep->push_back(*i2) ;
+        ++i2 ;
+      } else {
+        interval ivl(min((*i1).first,(*i2).first),
+                     max((*i1).second,(*i2).second)) ;
+        ++i1 ;
+        ++i2 ;
+        bool flag = true ;
+        while(flag) {
+          flag = false ;
+          if(i1!=e1 && !interval_porder_union(ivl,*i1)
+             && !interval_porder_union(*i1,ivl)) {
+            ivl.second = max(ivl.second,(*i1).second) ;
+            ++i1 ;
+            flag = true ;
+          }
+          if(i2!=e2 && !interval_porder_union(ivl,*i2)
+             && !interval_porder_union(*i2,ivl)) {
+            ivl.second = max(ivl.second,(*i2).second) ;
+            ++i2 ;
+            flag = true ;
+          }
+        } 
+        Rep->push_back(ivl) ;
+      }
+    }
+    while(i1!=e1) {
+      Rep->push_back(*i1) ;
+      ++i1 ;
+    }
+    while(i2!=e2) {
+      Rep->push_back(*i2) ;
+      ++i2 ;
+    }
+    intervalSet result ;
+    if(Rep->size() != 0)
+      result.Rep = Rep ;
+    return result ;
+  }
+
+#endif
 
   void intervalSet::Complement() {
     Rep.MakeUnique() ;
