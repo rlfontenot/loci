@@ -21,7 +21,7 @@ namespace Loci {
 #else
       pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED) ;
 #endif
-      pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_RECURSIVE) ;
+      //      pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_RECURSIVE) ;
       pthread_mutex_init(&mutex,&mattr) ;
     }
     ~lmutex() {
