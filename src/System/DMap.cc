@@ -290,7 +290,6 @@ namespace Loci {
     entitySet dom = attrib_data.domain() & iset ;
     int sz = dom.size() ;
     vector<int> mlist(sz) ;
-    // Make this high performance
     int i=0 ;
     for( ei = dom.begin(); ei != dom.end(); ++ei){
       mlist[i++] =  attrib_data.elem(*ei) ;
