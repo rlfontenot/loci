@@ -49,10 +49,6 @@ namespace Loci {
     virtual void writehdf5(hid_t group,entitySet& en) const ;
     VEC * get_base_ptr() const { return base_ptr ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-    
-  private:
-    int* get_hdf5_data(hid_t group, const char* datasetname) ;
-    void put_hdf5_data(hid_t group, int* data, const char* datasetname,hsize_t* dimf) const ;
   } ;
   
   template<int M> void MapVecRepI<M>::allocate(const entitySet &ptn) {
@@ -492,22 +488,20 @@ void MapVecRepI<M>::readhdf5( hid_t group_id, entitySet &eset)
 //*************************************************************************
     
 template<int M> 
-void MapVecRepI<M>::writehdf5(hid_t group_id,entitySet& eset) const 
+void MapVecRepI<M>::writehdf5(hid_t group_id,entitySet& usr_eset) const 
 {
   int     rank = 1;
   int     voffset;
   hsize_t dimension;
 
-  Loci::HDF5_WriteDomain( group_id, eset);
-  Loci::HDF5_WriteVecSize(group_id, M);
-
-  int num_intervals = eset.num_intervals();
-  interval *it = new interval[num_intervals];
-
+  entitySet eset(usr_eset &domain());
   int arraySize = M*eset.size();
   if( arraySize < 1) return;
 
-  int *data = new int[arraySize];
+  Loci::HDF5_WriteDomain( group_id, eset);
+  Loci::HDF5_WriteVecSize(group_id, M);
+
+  std::vector<int> data(arraySize);
   entitySet::const_iterator ci;
 
   size_t indx = 0;
@@ -521,14 +515,10 @@ void MapVecRepI<M>::writehdf5(hid_t group_id,entitySet& eset) const
   hid_t vDatatype  = H5T_NATIVE_INT;
   hid_t vDataset   = H5Dcreate(group_id, "MapVec", vDatatype, vDataspace, 
                                H5P_DEFAULT);
-  H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-
+  H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
 
   H5Dclose( vDataset  );
   H5Sclose( vDataspace);
-
-  delete [] data;
-  delete [] it;
 }
 
 }
