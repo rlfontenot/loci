@@ -438,9 +438,10 @@ namespace Loci {
     //------------------------------------------------------------------------
 
     if(size != sz) {
-      if(size != 0)
+      if(size != 0) {
+	cout << " sz = " << sz << "   size =  " << size << endl ;
         warn(size != sz) ;
-    
+      }
       size = sz ;
       fatal(sz<1) ;
       allocate(store_domain) ;
