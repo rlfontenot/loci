@@ -331,9 +331,9 @@ namespace Loci {
     typedef typename hdf5_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;
 
-    //--------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Read the vector size ...
-    //--------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     hsize_t dimension[1];
 
     dimension[0] = 1;
@@ -378,21 +378,21 @@ namespace Loci {
   void storeVecRepI<T>::allocate(const entitySet &ptn) 
   {
 
-    //---------------------------------------------------------------------------
-    // Allocation reclaims all previously hold memeory 
-    //---------------------------------------------------------------------------
+    //------------------------------------------------------------------------
+    // Allocation reclaims all previously held memory 
+    //------------------------------------------------------------------------
 
     if(alloc_pointer) delete[] alloc_pointer ;
 
     alloc_pointer = 0 ;
     base_ptr      = 0 ;
 
-    //---------------------------------------------------------------------------
+    //------------------------------------------------------------------------
     // Get the minimum and maximum entity ID from the entitySet and allocate 
     // memory of the size = ( max-min+1). Notice that, if the entityset 
     // contains the entities with ID quite sparse, it will create lots of 
     // unused block of memory. 
-    //---------------------------------------------------------------------------
+    //------------------------------------------------------------------------
 
     if(size != 0) {
       fatal(size < 1) ;
@@ -403,15 +403,11 @@ namespace Loci {
       }
     }
 
-    //---------------------------------------------------------------------------
-    // Domain equals to entitySet provided by the argument.
-    //--------------------------------------------------------------------------
-
     store_domain = ptn ;
-    //--------------------------------------------------------------------------
-    // Let everybody know about the change in memeory location.
-    //--------------------------------------------------------------------------
 
+    //------------------------------------------------------------------------
+    // Let all spectators know about the change in memory allocation.
+    //------------------------------------------------------------------------
     dispatch_notify() ;
   }
 
@@ -468,7 +464,8 @@ namespace Loci {
       }
       size = sz ;
       fatal(sz<1) ;
-      allocate(store_domain) ;
+      if(size != 0)
+        allocate(store_domain) ;
     }
 
     mutex.unlock() ;
