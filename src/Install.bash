@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-REVISION_NAME='$Name:  exp$'
+REVISION_NAME='$Name:  $'
 
 INSTALL_DIR=${LOCI_INSTALL_DIR-/usr/local}
 
@@ -16,7 +16,6 @@ mkdir -p $INSTALL_PATH/lib
 
 echo Installing Library Files
 cp Tools/libTools.a $INSTALL_PATH/lib
-cp hdf5CC/libhdf5CC.a $INSTALL_PATH/lib
 cp System/libLoci.a $INSTALL_PATH/lib
 
 echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
@@ -26,7 +25,7 @@ echo Installing \#include files
 mkdir -p $INSTALL_PATH/include
 cp include/*.h $INSTALL_PATH/include
 
-for i in hdf5CC Tools Config; do
+for i in  Tools Config; do
     mkdir -p $INSTALL_PATH/include/$i
     cp include/$i/*.h $INSTALL_PATH/include/$i
 done
