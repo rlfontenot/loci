@@ -381,7 +381,7 @@ namespace Loci {
   
   
   //---------------------Array----------------------//
-  template <class T,unsigned int n> class Array {
+  template <class T,size_t n> class Array {
     T x[n] ;
   public:
     typedef T * iterator ;
@@ -389,38 +389,38 @@ namespace Loci {
     
     Array() {} ;
     Array(const Array<T,n> &v)
-    { for(unsigned int i=0;i<n;++i) x[i] = v.x[i] ; } 
+    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; } 
     Array<T,n> &operator=(const Array<T,n> &v)
-    { for(unsigned int i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
+    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
 
     Array<T,n> &operator +=(const Array<T,n> &v)
-    { for(unsigned int i=0;i<n;++i) x[i] += v.x[i] ; return *this ; }
+    { for(size_t i=0;i<n;++i) x[i] += v.x[i] ; return *this ; }
     Array<T,n> &operator -=(const Array<T,n> &v)
-    { for(unsigned int i=0;i<n;++i) x[i] -= v.x[i] ; return *this ; }
+    { for(size_t i=0;i<n;++i) x[i] -= v.x[i] ; return *this ; }
     Array<T,n> &operator *=(const Array<T,n> &v)
-    { for(unsigned int i=0;i<n;++i) x[i] *= v.x[i] ; return *this ; }
+    { for(size_t i=0;i<n;++i) x[i] *= v.x[i] ; return *this ; }
     Array<T,n> &operator /=(const Array<T,n> &v)
-    { for(unsigned int i=0;i<n;++i) x[i] /= v.x[i] ; return *this ; }
+    { for(size_t i=0;i<n;++i) x[i] /= v.x[i] ; return *this ; }
 
-    T &operator[](unsigned int indx) { return x[indx]; }
-    const T &operator[](unsigned int indx) const { return x[indx] ; }
+    T &operator[](size_t indx) { return x[indx]; }
+    const T &operator[](size_t indx) const { return x[indx] ; }
 
     iterator begin() { return &x[0] ; }
     iterator end() { return begin()+n ; }
     const_iterator begin() const { return &x[0] ; }
     const_iterator end() const { return begin()+n ; }
 
-    unsigned int size() const  { return n ; }
+    size_t size() const  { return n ; }
   } ;
 
-  template <class T,unsigned int n> inline std::ostream &
+  template <class T,size_t n> inline std::ostream &
     operator<<(std::ostream &s, const Array<T,n> &v) {
     for(int i=0;i<n;++i)
       s << v[i] << ' ' ;
     return s ;
   }
 
-  template <class T,unsigned int n> inline std::istream &
+  template <class T,size_t n> inline std::istream &
     operator>>(std::istream &s, Array<T,n> &v) {
     for(int i=0;i<n;++i)
       s >> v[i] ;
@@ -428,7 +428,7 @@ namespace Loci {
   }
 
   
-  template <class T,unsigned int n> 
+  template <class T,size_t n> 
   class data_schema_traits< Array<T,n> > {
   public:
     typedef IDENTITY_CONVERTER Schema_Converter;
