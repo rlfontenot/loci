@@ -7,6 +7,7 @@
 #include <DMultiStore.h>
 #include <hdf5_memento.h>
 #include <store.h>
+#include <vector>
 
 namespace Loci {
 
@@ -680,10 +681,12 @@ namespace Loci {
   //******************************************************************/
 
   template<class T> 
-  void storeVecRepI<T>::writehdf5( hid_t group_id, entitySet &eset) const
+  void storeVecRepI<T>::writehdf5( hid_t group_id, entitySet &usr_eset) const
   {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_output_type;
+
+    entitySet eset(usr_eset&domain());
 
     if( eset.size() < 1) return;
     int vsize = get_size();
@@ -724,9 +727,6 @@ namespace Loci {
   template <class T>
   int storeVecRepI<T>::get_mpi_size( DEFAULT_CONVERTER c, const entitySet &eset)
   {
-    IDENTITY_CONVERTER cc;
-    return get_mpi_size( cc, eset);
-
     std::ostringstream oss;
 
     FORALL(eset,ii) {
@@ -746,7 +746,6 @@ namespace Loci {
   template <class T>
   int storeVecRepI<T>::get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
   {
-
     int size, M ;
     M = get_size() ;
     size = (sizeof(T) * eset.size() * M ) + sizeof(int) ;
@@ -759,13 +758,14 @@ namespace Loci {
   template <class T>
   int storeVecRepI<T>::get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
   {
+
     int     arraySize =0, numContainers = 0;
     entitySet::const_iterator ci;
 
     typedef data_schema_traits<T> converter_traits;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        typename converter_traits::Converter_Type cvtr(base_ptr[*ci][ivec]) ;
+        typename converter_traits::Converter_Type cvtr(base_ptr[(*ci)*size+ivec]) ;
         arraySize += cvtr.getSize() ;
       }
     }
@@ -795,10 +795,6 @@ namespace Loci {
                                   int &position, int outcount,
                                   const entitySet &eset )
   {
-    IDENTITY_CONVERTER cc;
-    packdata( cc, outbuf, position, outcount, eset);
-    return;
-
     std::ostringstream oss;
     std::string memento;
     int  bufSize;
@@ -832,7 +828,7 @@ namespace Loci {
       Loci::int_type stop  = eset[i].second ;
       T *p = base_ptr + M * indx1 ;
       int t = (stop - indx1 + 1) * M ;
-      MPI_Pack( p, t*sizeof(T), MPI_CHAR, outbuf, outcount, &position, 
+      MPI_Pack( p, t*sizeof(T), MPI_BYTE, outbuf, outcount, &position, 
                 MPI_COMM_WORLD) ;
     }
   }
@@ -857,35 +853,33 @@ namespace Loci {
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
         typename data_schema_traits<T>::Converter_Type
-          cvtr( base_ptr[*ci][ivec] );
+          cvtr( base_ptr[(*ci)*size+ivec] );
         stateSize = cvtr.getSize();
         maxStateSize = max( maxStateSize, stateSize);
       }
     }
 
-    typedef data_schema_converter_traits<T> converter_traits; 
-    typename converter_traits::Converter_Base_Type *inbuf;
+    typedef data_schema_traits<T> schema_traits; 
+    typedef typename schema_traits::Converter_Base_Type dtype;
 
-    int typesize = sizeof(typename converter_traits::Converter_Base_Type);
-    inbuf = new typename converter_traits::Converter_Base_Type[maxStateSize];
+    int typesize = sizeof(dtype);
+    vector<dtype> inbuf(maxStateSize);
 
     int incount;
     for( ci = ecommon.begin(); ci != ecommon.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
         typename data_schema_traits<T>::Converter_Type
-          cvtr( base_ptr[*ci][ivec] );
-        cvtr.getState( inbuf, stateSize);
+          cvtr( base_ptr[(*ci)*size+ivec] );
+        cvtr.getState( &inbuf[0], stateSize);
 
         MPI_Pack(&stateSize,1, MPI_INT, outbuf, outcount,&position,
                  MPI_COMM_WORLD);
 
         incount =  stateSize*typesize;
-        MPI_Pack(inbuf, incount, MPI_BYTE, outbuf, outcount, &position, 
+        MPI_Pack(&inbuf[0], incount, MPI_BYTE, outbuf, outcount, &position, 
                  MPI_COMM_WORLD) ;
       }
     }
-
-    delete [] inbuf;
   }
 
   //**************************************************************************/
@@ -914,27 +908,21 @@ namespace Loci {
   void storeVecRepI<T>::unpackdata( DEFAULT_CONVERTER c, void *inbuf, int &position, 
                                     int &insize, const sequence &seq)
   {
-    IDENTITY_CONVERTER  cc;
-    unpackdata( cc, inbuf, position, insize, seq);
-    return;
-
     sequence:: const_iterator ci;
-    char *outbuf;
     int   outcount;
     entitySet eset(seq);
+
+    vector<char> outbuf;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
         MPI_Unpack( inbuf, insize, &position, &outcount, 1,
                     MPI_INT, MPI_COMM_WORLD) ;
-        outbuf   = new char[outcount];
-
-        MPI_Unpack( inbuf, insize, &position, outbuf, outcount,
-                    MPI_CHAR, MPI_COMM_WORLD);
-
+        if( outcount > outbuf.size() ) outbuf.resize( outcount );
+        MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount,
+                    MPI_BYTE, MPI_COMM_WORLD);
         istringstream iss(outbuf);
         iss >> base_ptr[(*ci)*size+ivec];
-        delete [] outbuf;
       }
     }
   }
@@ -948,7 +936,7 @@ namespace Loci {
     int init_size = get_size() ;
     int M ;
 
-    MPI_Unpack(inbuf, insize, &position, &M, sizeof(int), MPI_CHAR, MPI_COMM_WORLD) ;
+    MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
 
     if(init_size != M) {
       set_elem_size(M) ;
@@ -961,7 +949,7 @@ namespace Loci {
         for(Loci::int_type indx = indx1; indx != stop-1; --indx) {
           T *p = base_ptr + M * indx ;
           MPI_Unpack( inbuf, insize, &position, p, sizeof(T) * M, 
-                      MPI_CHAR, MPI_COMM_WORLD) ;
+                      MPI_BYTE, MPI_COMM_WORLD) ;
         }
       } else {
         Loci::int_type indx1 = seq[i].first ;
@@ -969,7 +957,7 @@ namespace Loci {
         T *p = base_ptr + M * indx1 ;
         int t = (stop - indx1 + 1) * M ;
         MPI_Unpack( inbuf, insize, &position, p, t * sizeof(T), 
-                    MPI_CHAR, MPI_COMM_WORLD) ;
+                    MPI_BYTE, MPI_COMM_WORLD) ;
       }
     }
 
@@ -989,9 +977,12 @@ namespace Loci {
     //-----------------------------------------------------------------
     int  stateSize, outcount;
 
-    typedef data_schema_traits<T> converter_traits;
-    typename converter_traits::Converter_Base_Type *outbuf;
-    int typesize = sizeof(typename converter_traits::Converter_Base_Type);
+    typedef data_schema_traits<T> schema_traits;
+    typedef typename schema_traits::Converter_Base_Type dtype;
+
+    int typesize = sizeof(dtype);
+
+    vector<dtype> outbuf;
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       if( !store_domain.inSet( *ci ) ) {
@@ -1002,16 +993,14 @@ namespace Loci {
         outcount = sizeof(int);
         MPI_Unpack( inbuf, 1, &position, &stateSize, outcount, 
                     MPI_INT, MPI_COMM_WORLD) ;
-
-        outbuf = new typename converter_traits::Converter_Base_Type[stateSize];
+        if( stateSize > outbuf.size() ) outbuf.resize(stateSize);
 
         outcount = stateSize*typesize;
-        MPI_Unpack( inbuf, insize, &position, outbuf, outcount, 
+        MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, 
                     MPI_BYTE, MPI_COMM_WORLD) ;
 
-        typename converter_traits::Converter_Type  cvtr( base_ptr[*ci][ivec] );
-        cvtr.setState( outbuf, stateSize);
-        delete [] outbuf;
+        typename schema_traits::Converter_Type  cvtr( base_ptr[(*ci)*size+ivec] );
+        cvtr.setState( &outbuf[0], stateSize);
       }
     }
   }
@@ -1038,14 +1027,13 @@ namespace Loci {
     dimension           = m_size+1;
 
     hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    hid_t vDatatype  = H5Tcopy( H5T_NATIVE_CHAR);
+    hid_t vDatatype  = H5T_NATIVE_CHAR;
     hid_t vDataset   = H5Dcreate(group_id, "VariableData", vDatatype,
                                  vDataspace, H5P_DEFAULT);
     H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, memento.c_str());
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
   };
 #endif
   
@@ -1124,7 +1112,7 @@ namespace Loci {
     entitySet :: const_iterator ci;
     int   bucketID;
       
-    int *vbucket = new int[size*eset.size()];
+    vector<int> vbucket(size*eset.size());
       
     size_t  arraySize= 0;
     int     stateSize, maxStateSize = 0;
@@ -1134,13 +1122,14 @@ namespace Loci {
     bucketID = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        typename schema_traits::ConverterType cvtr( base_ptr[*ci][ivec] );
+        typename schema_traits::Converter_Type cvtr(base_ptr[(*ci)*size+ivec] );
         stateSize           = cvtr.getSize();
         vbucket[bucketID++] = stateSize;
         arraySize          += stateSize;
         maxStateSize        = max( stateSize, maxStateSize);
       }
     }
+
 
     //-------------------------------------------------------------------------
     // Write size of each container ...
@@ -1170,9 +1159,9 @@ namespace Loci {
     size_t indx = 0;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
-        typename schema_traits::Converter_Type cvtr( base_ptr[*ci][ivec] );
-        cvtr.getState( data+index, stateSize);
-        index +=stateSize ;
+        typename schema_traits::Converter_Type cvtr( base_ptr[(*ci)*size+ivec] );
+        cvtr.getState( data+indx, stateSize);
+        indx +=stateSize ;
       }
     }
 
@@ -1207,21 +1196,22 @@ namespace Loci {
   void storeVecRepI<T> :: hdf5read( hid_t group_id, DEFAULT_CONVERTER c,
                                     entitySet &en, entitySet &usr )
   {
-
     hsize_t  dimension;
+    entitySet :: const_iterator ci;
 
-    hid_t vDatatype  = H5Tcopy(H5T_NATIVE_CHAR);
+    hid_t vDatatype  = H5T_NATIVE_CHAR;
     hid_t vDataset   = H5Dopen(group_id,"VariableData");
     hid_t vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    char *ibuf = new char[dimension];
-    H5Dread(vDataset,H5T_NATIVE_CHAR,H5S_ALL,H5S_ALL,H5P_DEFAULT, ibuf);
+    vector<char>  cbuf(dimension);
+
+    H5Dread(vDataset,vDatatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &cbuf[0]);
 
     int vsize = get_size();
 
-    entitySet :: const_iterator ci;
-    istringstream iss(ibuf);
+    istringstream iss(&cbuf[0]);
+
     for( ci = en.begin(); ci != en.end(); ++ci){
       T * p = base_ptr + (*ci)*vsize ;
       for(int i=0;i<vsize;++i,++p)
@@ -1230,8 +1220,6 @@ namespace Loci {
 
     H5Dclose( vDataset  );
     H5Sclose( vDataspace);
-    H5Tclose( vDatatype );
-    delete [] ibuf;
 
   };
 #endif
@@ -1264,7 +1252,6 @@ namespace Loci {
 
     for(int i=0;i< num_intervals;i++) it[i] = user_eset[i];
 
-    T   *data;
     dimension = arraySize;
 
     typedef data_schema_traits<T> traits_type;
@@ -1283,25 +1270,27 @@ namespace Loci {
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
     int voffset;
+
+    std::vector<T>  data;
+
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
       for( int i = it[k].first; i <= it[k].second; i++)
         count[0] +=  size;
 
-      data = new T[count[0]];
+      if( count[0] > data.size() ) data.resize( count[0] );
 
       foffset[0] = offset[it[k].first];
 
       H5Sselect_hyperslab(mDataspace, H5S_SELECT_SET, start,  stride, count, block);
       H5Sselect_hyperslab(vDataspace, H5S_SELECT_SET, foffset,stride, count, block);
-      H5Dread( vDataset, vDatatype, mDataspace, vDataspace, H5P_DEFAULT, data);
+      H5Dread( vDataset, vDatatype, mDataspace, vDataspace, H5P_DEFAULT, &data[0]);
  
       indx = 0;
       for( int i = it[k].first; i <= it[k].second; i++) {
         for( int ivec = 0; ivec < vsize; ivec++)
           base_ptr[i*vsize+ivec] = data[indx++];
       }
-      delete[] data;
     }
 
     H5Dclose( vDataset  );
@@ -1331,10 +1320,10 @@ namespace Loci {
     vDataspace = H5Dget_space(vDataset);
     H5Sget_simple_extent_dims(vDataspace, &dimension, NULL);
 
-    int *ibuf = new int[dimension];
-    H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, ibuf);
+    vector<int> ibuf(dimension);
+    H5Dread(vDataset, vDatatype, H5S_ALL,H5S_ALL,H5P_DEFAULT, &ibuf[0]);
 
-    int maxBucketSize = *std::max_element( ibuf, ibuf + (int)dimension );
+    int maxBucketSize = *std::max_element( ibuf.begin(), ibuf.end() );
 
     //---------------------------------------------------------------------
     // Calculate the offset of each entity in file ....
@@ -1354,7 +1343,7 @@ namespace Loci {
         subcontainer[*ci].push_back( vecsize );
       }
     }
-    delete [] ibuf;
+
 
     //---------------------------------------------------------------------
     // Read the data now ....
@@ -1404,7 +1393,7 @@ namespace Loci {
       int bucsize;
       for( int i = it[k].first; i <= it[k].second; i++) {
         for( int j = 0; j < size; j++) {
-          typename data_schema_traits<T>::Converter_Type cvtr( base_ptr[i][j] );
+          typename data_schema_traits<T>::Converter_Type cvtr( base_ptr[i*size+j] );
           bucsize = subcontainer[i][j];
           cvtr.setState( data+indx, bucsize );
           indx += bucsize ;
