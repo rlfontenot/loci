@@ -970,8 +970,20 @@ namespace Loci {
     }
     // we are now ready to build the graph
     digraph rule_graph_transpose = rule_graph.transpose() ;
-    create_graph(rule_graph,rule_graph_transpose,
-                 target,iter,gr,time_ident()) ;
+    // we collect the toplevel requests
+    variableSet top_request = 
+      create_graph(rule_graph,rule_graph_transpose,
+                   target,iter,gr,time_ident()) ;
+    // we need to compare the top_request with the given
+    // variables to see if the schedule is possible
+    if( (top_request - given) != EMPTY) {
+      cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+      cerr << "ERROR: insufficient fact database!" << endl ;
+      cerr << "These facts are required to compute the query: " << endl ;
+      cerr << "        " << variableSet(top_request-given) << endl ;
+      gr = digraph() ;
+      return ;
+    }
 
     // we now add these built iteration graphs
     for(map<time_ident,iteration>::iterator ip=iter.iteration_rules.begin();
@@ -982,8 +994,6 @@ namespace Loci {
 
     //cerr<<"vertices size before cleaning: "
     //  <<gr.get_all_vertices().size()<<endl ;
-
-
     clean_graph(gr,given,target) ;
 
     //cerr<<"vertices size after cleaning: "
@@ -994,13 +1004,11 @@ namespace Loci {
     // conditionals into independent iterations
     gr = partition_iteration(gr) ;
     
-
     // Add dependencies created by update-in-place rules
     add_rename_dependencies(gr) ;
 
     // Finish cleaing things up
     gr.remove_dangling_vertices() ;
-    
   }
 
   //Search through a graph from a given set of vertices to all connected

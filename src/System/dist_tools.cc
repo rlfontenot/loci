@@ -1090,5 +1090,37 @@ namespace Loci {
     }
     return added_entities;
   }
+
+  // function that restores the fact_db back to its global numbering
+  void restore_global_facts(fact_db& facts) {
+    if(Loci::MPI_rank == 0)
+      cerr << "restore_global_facts" << endl ;
+    fact_db::distribute_infoP df = facts.get_distribute_info() ;
+    // not yet distributed, we don't need to do anything
+    if(df == 0)
+      return ;
+    if(!df->isDistributed)
+      return ;
+
+    facts.remove_variable(variable("l2g")) ;
+    facts.remove_variable(variable("my_entities")) ;
+    df->xmit.clear() ;
+    df->copy.clear() ;
+    dMap l2g ;
+    entitySet dom = df->l2g.domain() ;
+    for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei)
+      l2g[*ei] = df->l2g[*ei] ;
+
+    if(Loci::MPI_rank==0)
+      cerr << "before reorder" << endl ;
+    
+    Loci::reorder_facts(facts, l2g) ;
+
+    if(Loci::MPI_rank==0)
+      cerr << "after reorder" << endl ;
+
+    df->isDistributed = 0 ;
+  }
+
 }
 

@@ -27,6 +27,9 @@ namespace Loci {
 				   const std::set<std::vector<variableSet> > &maps);
   entitySet dist_reverse_expand_map(fact_db &facts,
                                     const std::set<std::vector<variableSet> > &maps);
+
+  // function that restores the fact_db back to its global numbering
+  void restore_global_facts(fact_db& facts) ;
   
 }
 

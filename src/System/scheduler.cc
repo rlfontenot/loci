@@ -625,11 +625,11 @@ namespace Loci {
 
   executeP create_execution_schedule(const rule_db &rdb,
                                      fact_db &facts,
-                                     std::string target_string,
+                                     const variableSet& target,
                                      int nth) {
 
     num_threads = min(nth,max_threads) ;
-
+    
     if(facts.is_distributed_start()) {
       if((MPI_processes > 1)) 
         get_clone(facts, rdb) ;
@@ -641,7 +641,6 @@ namespace Loci {
     
     //double timer = get_timer() ;
     variableSet given = facts.get_typed_variables() ;
-    variableSet target(expression::create(target_string)) ;
     if(Loci::MPI_rank==0)
       cout << "generating dependency graph..." << endl ;
     double start_time = MPI_Wtime() ;
@@ -801,8 +800,40 @@ namespace Loci {
     return sched ;
   }
 
-  bool makeQuery(const rule_db &rdb, fact_db &facts, std::string query) {
-    executeP schedule =  create_execution_schedule(rdb, facts, query) ;
+  bool makeQuery(const rule_db &rdb, fact_db &facts,
+                 const std::string& query) {
+    if(MPI_rank == 0)
+      cout << "Quering facts: " << query << endl ;
+
+    // first check whether queried facts are extensional facts
+    // if so, we don't need to actually perform query on
+    // these extensional facts
+    variableSet target(expression::create(query)) ;
+    variableSet efacts = facts.get_extensional_facts() ;
+    variableSet remove_query ;
+    for(variableSet::const_iterator vi=target.begin();
+        vi!=target.end();++vi) {
+      if(efacts.inSet(*vi))
+        remove_query += *vi ;
+    }
+    target -= remove_query ;
+
+    if(remove_query != EMPTY)
+      if(MPI_rank == 0) {
+        cout << "Queried facts: " << remove_query << " are extensional" ;
+        cout << " facts, query not performed!" << endl ;
+      }
+    if(target == EMPTY)
+      return true ;
+
+    // because we could have multiple queries, we will need to
+    // perform a clean up of fact_db at the beginning
+    facts.erase_intensional_facts() ;
+    // then we need to copy the fact_db
+    // This is because we want to only put the queried facts
+    // back into the global fact_db
+    fact_db local_facts(facts) ;
+    executeP schedule = create_execution_schedule(rdb,local_facts,target) ;
     if(schedule == 0)
       return false ;
 
@@ -824,18 +855,43 @@ namespace Loci {
       schedule->Print(sched_file) ;
       sched_file.close() ;
     }
+    
     // execute schedule
-    //timeval t1,t2 ;
     double st = MPI_Wtime() ;
-    //gettimeofday(&t1,NULL) ;
     // setting this external pointer
-    exec_current_fact_db = &facts ;
-    schedule->execute(facts) ;
-    //gettimeofday(&t2,NULL) ;
+    exec_current_fact_db = &local_facts ;
+    schedule->execute(local_facts) ;
     double et = MPI_Wtime() ;
     Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
     //Loci::debugout << " Time taken for exectution of the schedule = "
     //             << difftime(t1,t2) << " seconds " << endl ;
+    
+    // put the computed results back to the global facts
+    // but we want to restore the facts back to its global
+    // numbering scheme if the fact_db was started
+    // distributed at the beginning, since if it was
+    // started distributed at the beginning, then we've already
+    // done the local renumbering step to the facts.
+    if(local_facts.is_distributed_start()) {
+      fact_db::distribute_infoP df = local_facts.get_distribute_info() ;
+      // first get the local to global dMap
+      dMap l2g ;
+      entitySet dom = df->l2g.domain() ;
+      for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei)
+        l2g[*ei] = df->l2g[*ei] ;
+
+      for(variableSet::const_iterator vi=target.begin();
+          vi!=target.end();++vi) {
+        storeRepP srp = local_facts.get_variable(*vi) ;
+        facts.create_fact(*vi,srp->remap(l2g)) ;
+      }
+    }else{
+      for(variableSet::const_iterator vi=target.begin();
+          vi!=target.end();++vi) {
+        storeRepP srp = local_facts.get_variable(*vi) ;
+        facts.create_fact(*vi,srp) ;
+      }
+    }
 
     if(profile_memory_usage) {
       Loci::debugout << "++++++++Memory Profiling Report++++++++"

@@ -84,6 +84,7 @@ namespace Loci {
       fmap = f.fmap ;
       tmap = f.tmap ;
       nspace_vec = f.nspace_vec ;
+      extensional_facts = f.extensional_facts ;
     }
     
     std::pair<entitySet, entitySet> get_dist_alloc(int size) ;
@@ -96,6 +97,10 @@ namespace Loci {
     std::map<variable,fact_info> fmap ;
     std::map<variable,storeRepP> tmap ;
     std::vector<std::string> nspace_vec ;
+    // support for multiple queries and experimental
+    // extensions to the fact_db to distinguish
+    // extensional facts and intensional facts
+    variableSet extensional_facts ;
   public:
     fact_db() ;
     ~fact_db() ;
@@ -209,6 +214,48 @@ namespace Loci {
     std::ostream &write(std::ostream &s) const ;
     std::istream &read(std::istream &s) ;
     std::istream& read_vars(std::istream& s, const rule_db& rdb) ;
+
+    // support methods for extensional & intensional facts
+    variableSet get_extensional_facts() const {
+      return extensional_facts ;
+    }
+    variableSet get_intensional_facts() const {
+      return variableSet(get_typed_variables()-extensional_facts) ;
+    }
+    // this function is used to aid the transition in the fact_db
+    // currently the only interface in fact_db for creating
+    // facts is through the create_fact() methods. Thus we have
+    // no way to distinguish user created facts. Really the user
+    // ought to use the new "create_extensional_fact()" method
+    // to create a fact in the fact_db. For right now, we need
+    // to call this methods after the grid reader in main.cc
+    // to gather the initial user input facts as extensional facts.
+    void gather_extensional_facts() {
+      extensional_facts = get_typed_variables() ;
+    }
+    void create_extensional_fact(variable v, storeRepP st) {
+      create_fact(v,st) ;
+      extensional_facts += v ;
+    }
+    void create_extensional_fact(std::string vname, storeRepP st) {
+      create_fact(vname,st) ;
+      extensional_facts += variable(vname) ;
+    }
+    void create_extensional_fact(variable v, store_instance &si) {
+      create_fact(v,si) ;
+      extensional_facts += v ;
+    }
+    void create_extensional_fact(std::string vname, store_instance &si) {
+      create_fact(vname,si) ;
+      extensional_facts += variable(vname) ;
+    }
+    // this method erases all intensional facts
+    void erase_intensional_facts() {
+      variableSet intensional_facts = get_intensional_facts() ;
+      for(variableSet::const_iterator vi=intensional_facts.begin();
+          vi!=intensional_facts.end();++vi)
+        remove_variable(*vi) ;
+    }
     
     void write_all_hdf5(const char *filename) ;
     void read_all_hdf5(const char *filename) ;

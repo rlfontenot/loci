@@ -815,8 +815,11 @@ namespace Loci {
     digraph grt = gr.transpose() ;
   }
   
-  void dynamic_scheduling(digraph& gr, fact_db& facts, variableSet& given,
-                          variableSet &target) {
+  void dynamic_scheduling(digraph& gr, fact_db& facts,
+                          // we intend to change given
+                          // to include new generated facts
+                          variableSet& given, 
+                          const variableSet& target) {
     // first we need to copy the fact_db
     fact_db local_facts(facts) ;
     // then generate a sched_db from the local_facts

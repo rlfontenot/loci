@@ -101,7 +101,7 @@ namespace Loci {
     } 
     
   }
-
+  
   string rule_impl::info::rule_identifier() const {
     ostringstream ss ;
     ss << targets << "<-" << sources ;
