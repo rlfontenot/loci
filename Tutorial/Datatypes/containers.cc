@@ -7,6 +7,25 @@ using std::endl ;
 #include <vector>
 using std::vector ;
 
+#include <cstring>
+using std::strncpy ;
+
+// This is an atomic element class.  It is defined here to illustrate that
+// blackbox containers can hold arbitrary datatypes.  Loci will make no
+// attempt to manage the data stored inside of a blackbox.  This includes
+// interprocessor communication as well as serialized input and output.
+class Element {
+  int mAtomicNumber;
+  double mAtomicWeight;
+  char mSymbol[3];
+public:
+  Element() {}
+  Element(const int n, const double w, const char * s)
+    : mAtomicNumber(n), mAtomicWeight(w) {
+    strncpy(mSymbol, s, 2);
+  }
+};
+  
 int main() {
 
   // Create a set of entities over which we will contain values using stores
@@ -48,7 +67,23 @@ int main() {
   const float radius = 1.0 ;
   // To access a float parameter use the [] operator, for example
   const float area = 2.0*float_param[Entity(1)]*radius ;
-  
+
+  //**************************************************************************
+  //* Blackbox:
+  //* Works just like a parameter, except it can hold any data type and is not
+  //* automatically synchronized between processors.
+  //**************************************************************************
+
+  // We cannot pass arguments directly to the constructor of the datatypes
+  // stored in the param or blackbox containers since the actual object being
+  // instantiated is the container class.  Assuming the copy constructor or
+  // assignment operator is valid for the stored datatype, the following
+  // syntax may be used to rapidly assign values to the stored object.
+  blackbox<Element> hydrogen;
+  *hydrogen = Element(1, 1.00794, "H");
+
+  hydrogen.set_entitySet(alloc_set);
+
   //**************************************************************************
   //* Stores:
   //* The store associates entities to values.
