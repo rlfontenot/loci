@@ -16,6 +16,7 @@
 
 #include <Map.h>
 #include <multiMap.h>
+#include <DMultiStore.h>
 
 namespace Loci {
 
@@ -27,11 +28,14 @@ namespace Loci {
     int size ;
     lmutex mutex ;
     bool istat ;
+
+    void  hdf5read( H5::Group group, DEFAULT_CONVERTER c,      entitySet &en, entitySet &usr);
     void  hdf5read( H5::Group group, IDENTITY_CONVERTER c,     entitySet &en, entitySet &usr);
     void  hdf5read( H5::Group group, USER_DEFINED_CONVERTER c, entitySet &en, entitySet &usr);
 
-    void  hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
+    void  hdf5write( H5::Group group, DEFAULT_CONVERTER c,      const entitySet &en) const;
     void  hdf5write( H5::Group group, IDENTITY_CONVERTER c,     const entitySet &en) const;
+    void  hdf5write( H5::Group group, USER_DEFINED_CONVERTER c, const entitySet &en) const;
   public:
     multiStoreRepI()
     { index = 0; alloc_pointer = 0 ; base_ptr = 0 ; size=0; istat = 1; }
@@ -787,6 +791,16 @@ namespace Loci {
 
   //**************************************************************************/
   template <class T> 
+  void multiStoreRepI<T> :: hdf5read( H5::Group group, DEFAULT_CONVERTER c, 
+                                    entitySet &eset, entitySet &user_eset )
+  {
+      cout << "Fatal: Default read converter  not implemented for multiStore" << endl;
+      exit(0);
+
+  }
+  //**************************************************************************/
+
+  template <class T> 
   void multiStoreRepI<T> :: hdf5read( H5::Group group, IDENTITY_CONVERTER c, 
                                     entitySet &eset, entitySet &user_eset )
   {
@@ -1152,6 +1166,14 @@ namespace Loci {
 
   };
 
+  //*************************************************************************/
+  template <class T> 
+  void multiStoreRepI<T>::hdf5write( H5::Group group, DEFAULT_CONVERTER g, 
+                                     const entitySet &eset) const
+  {
+    cout << "Fatal: default converter write not implemented yet for multiStore" << endl;
+    exit(0);
+  }
   //*************************************************************************/
 
   template <class T> 
