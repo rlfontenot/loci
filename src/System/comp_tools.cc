@@ -76,12 +76,12 @@ namespace Loci {
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
     entitySet::const_iterator ei ;
-    
+    entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
-      constraint my_entities ;
-      my_entities = facts.get_variable("my_entities") ;
-      sources &= my_entities ;
-      constraints &= my_entities ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      sources &= d->my_entities ;
+      constraints &= d->my_entities ;
+      my_entities = d->my_entities ;
     }
     const rule_impl::info &rinfo = r.get_info().desc ;
     set<vmap_info>::const_iterator si ;
@@ -96,8 +96,6 @@ namespace Loci {
 	  " cannot supply all entities of constraint" << endl ;
 	cerr << "constraints = " << constraints << endl ;
 	cerr << "sources & constraints = " << (sources & constraints) << endl ;
-        constraint my_entities ;
-        my_entities = facts.get_variable("my_entities") ;
 
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
           entitySet sources = vmap_source_exist(*si,facts) ;
@@ -127,8 +125,6 @@ namespace Loci {
             }
           }
         }
-        cerr << "my_entities = " << *my_entities << endl ;
-        cerr << "proc=" << MPI_rank << endl ;
       }
     sources &= constraints ;
     
@@ -237,134 +233,102 @@ namespace Loci {
      // the requests for the variables that this rule produces
      set<vmap_info>::const_iterator si ;
      entitySet context,isect = ~EMPTY ;
-    
-     if(facts.isDistributed()) {
-       constraint my_entities ;
-       my_entities = facts.get_variable("my_entities") ;
-       
-       for(vi=targets.begin();vi!=targets.end();++vi) {
-	 // This is a hack for the special case of a rule with OUTPUT
-	 // as a target.  In that case we will request OUTPUT for
-	 // all entities that exist.  So we add a request for OUTPUT
-	 // to the fact database
-	 
-	 if(vi->get_info().name == string("OUTPUT")) 
-	   facts.variable_request(*vi,facts.variable_existence(*vi)) ;
-	 
-	 // Now fill tvarmap with the requested values for variable *vi
-	 tvarmap[*vi] = facts.get_variable_request(r,*vi) ;
-	 //cout << d->myid << "    variable  =  "<< *vi << "   tvarmap  =  " <<
-	 //tvarmap[*vi] << endl ;
-       }
-       const rule_impl::info &rinfo = r.get_info().desc ;
-       
-       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-         // Transform the variable requests using the mapping constructs
-         // in *si
-         entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
-         //The context is the union
-         context |= tmp ;
-         isect &= tmp ;
-         //cout <<d->myid <<"      si =  " << *si <<  "   context = " << context << endl ;
-       }
 
-       // If the interstection and the union are not equal, then we are in
-       // danger of not properly allocating variables for computations.  It is
-       // an optimization to check this. For the distributed memory version it
-       // may be useful to always do this if there is a mapping in the
-       // targets of the rule.
+     entitySet filter = ~EMPTY ;
+     if(facts.isDistributed()) {
+       fact_db::distribute_infoP d = facts.get_distribute_info() ;
+       filter = d->my_entities ;
+       isect = d->my_entities ;
+     }
+
+     for(vi=targets.begin();vi!=targets.end();++vi) {
+       // This is a hack for the special case of a rule with OUTPUT
+       // as a target.  In that case we will request OUTPUT for
+       // all entities that exist.  So we add a request for OUTPUT
+       // to the fact database
+	 
+       if(vi->get_info().name == string("OUTPUT")) 
+         facts.variable_request(*vi,facts.variable_existence(*vi)) ;
+	 
+       // Now fill tvarmap with the requested values for variable *vi
+       tvarmap[*vi] = facts.get_variable_request(r,*vi) ;
+       //cout << d->myid << "    variable  =  "<< *vi << "   tvarmap  =  " <<
+       //tvarmap[*vi] << endl ;
+     }
+     const rule_impl::info &rinfo = r.get_info().desc ;
+     
+     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+       // Transform the variable requests using the mapping constructs
+       // in *si
+       entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
+       //The context is the union
+       context |= tmp ;
+       isect &= tmp ;
+       //cout <<d->myid <<"      si =  " << *si <<  "   context = " << context << endl ;
+     }
+     
+     // If the interstection and the union are not equal, then we are in
+     // danger of not properly allocating variables for computations.  It is
+     // an optimization to check this. For the distributed memory version it
+     // may be useful to always do this if there is a mapping in the
+     // targets of the rule.
        
-       if(isect != context) {
-         entitySet working = context ;
-         vector<variableSet>::const_reverse_iterator mi ;
-         for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-           for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
-             entitySet tmp ;
-             for(vi=mi->begin();vi!=mi->end();++vi)
-               tmp |= facts.image(*vi,working) ;
-             working = tmp ;
-           }
-           for(vi=si->var.begin();vi!=si->var.end();++vi) {
-             facts.variable_request(*vi,working) ;
-           }
+     if(isect != context) {
+       entitySet working = context ;
+       vector<variableSet>::const_reverse_iterator mi ;
+       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+         for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
+           entitySet tmp ;
+           for(vi=mi->begin();vi!=mi->end();++vi)
+             tmp |= facts.image(*vi,working) ;
+           working = tmp ;
+         }
+         for(vi=si->var.begin();vi!=si->var.end();++vi) {
+           facts.variable_request(*vi,working) ;
          }
        }
+     }
 
-       entitySet working = context ;      
+     // Unit rules need to apply in the clone region as well, so
+     // here we make an exception for unit rules.  (this is because
+     // we will be reducing to the clone region and then communicating
+     // partial results.
+     if(r.get_info().rule_impl->get_rule_class() != rule_impl::UNIT) {
+       context &= filter ;
+     }
+     
+     entitySet working = context ;      
 
-      // Loop over all sources for this rule and pass on the requests.
-
-       for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-        // First map the context through source mappings
-         entitySet requests;
-         requests = vmap_source_requests(*si,facts,context) ;
-         //cout <<d->myid <<  "   *si  =  "  << *si << "   requests  =  " << re
-         //quests << endl ;
-         entitySet var ;
-         context &= my_entities ;
+     // Loop over all sources for this rule and pass on the requests.
+     
+     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+       // First map the context through source mappings
+       entitySet requests;
+       requests = vmap_source_requests(*si,facts,context) ;
+       //cout <<d->myid <<  "   *si  =  "  << *si << "   requests  =  " << re
+       //quests << endl ;
+       entitySet var ;
         
-         // Now we have the actual requests we are making of other rules
-         // so we can tell the fact database that we are now requesting
-         // these values.
+       // Now we have the actual requests we are making of other rules
+       // so we can tell the fact database that we are now requesting
+       // these values.
 #ifdef VERBOSE
-         debugout[MPI_rank] << "rule " << r << " requesting variables "
-                            << si->var << " for entities " << requests << endl ;
+       debugout[MPI_rank] << "rule " << r << " requesting variables "
+                          << si->var << " for entities " << requests << endl ;
 #endif
-         for(vi=si->var.begin();vi!=si->var.end();++vi)
-           facts.variable_request(*vi,requests) ;
+       for(vi=si->var.begin();vi!=si->var.end();++vi)
+         facts.variable_request(*vi,requests) ;
 	
-         // We also need to pass the requests on to any conditional variables
-         // this rule may have.
+       // We also need to pass the requests on to any conditional variables
+       // this rule may have.
 	
-         for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi) 
-           facts.variable_request(*vi,context) ;
-       }
-     }  else {
-       for(vi=targets.begin();vi!=targets.end();++vi) {
-        if(vi->get_info().name == string("OUTPUT")) 
-          facts.variable_request(*vi,facts.variable_existence(*vi)) ;
-        tvarmap[*vi] = facts.get_variable_request(r,*vi) ;
-       }
-      const rule_impl::info &rinfo = r.get_info().desc ;
-      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-        entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
-        context |= tmp ;
-        isect &= tmp ;
-      } 
-      if(isect != context) {
-        entitySet working = context ;
-	
-        vector<variableSet>::const_reverse_iterator mi ;
-        for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-          for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
-            entitySet tmp ;
-            for(vi=mi->begin();vi!=mi->end();++vi)
-              tmp |= facts.image(*vi,working) ;
-            working = tmp ;
-          }
-          for(vi=si->var.begin();vi!=si->var.end();++vi) {
-            facts.variable_request(*vi,working) ;
-          }
-        } 
-      }
-      
-      // Loop over all sources for this rule and pass on the requests.
-      for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-        // First map the context through source mappings
-        entitySet requests = vmap_source_requests(*si,facts,context) ;
-        for(vi=si->var.begin();vi!=si->var.end();++vi)
-          facts.variable_request(*vi,requests) ;
-      }
-      
-      // We also need to pass the requests on to any conditional variables
-      // this rule may have.
-      for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi)
-        facts.variable_request(*vi,context) ;
+       for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi) 
+         facts.variable_request(*vi,context) ;
      }
 #ifdef VERBOSE
      cout << "rule " << r << " computes over " << context << endl ;
 #endif
-    return context ;
+     return context ;
   }
 
 
@@ -539,8 +503,7 @@ namespace Loci {
                                     fact_db &facts) {
     vector<pair<variable,entitySet> > send_entities ;
     std::map<variable, ruleSet>::iterator mi ;
-    constraint my_entities ;
-    my_entities = facts.get_variable("my_entities") ;
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
     vector<entitySet> exinfo ;
     vector<ruleSet> rules ;
     vector<variable> vars ;
@@ -582,7 +545,7 @@ namespace Loci {
       seinfo.push_back(exinfo[exent[i]]) ;
       entitySet send_ent ;
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) 
-        send_ent += seinfo[i] & ~(*my_entities) ;
+        send_ent += seinfo[i] & ~(d->my_entities) ;
       send_entities.push_back(make_pair(v,send_ent)) ;
     }
 
@@ -592,7 +555,7 @@ namespace Loci {
       vector<entitySet> send_sets = send_entitySet(seinfo,facts) ;
       for(int i=0;i<seinfo.size();++i) {
         exinfo[exent[i]] += send_sets[i] ;
-        exinfo[exent[i]] &= my_entities ;
+        exinfo[exent[i]] &= d->my_entities ;
       }
     }
 
