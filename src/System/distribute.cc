@@ -4242,6 +4242,7 @@ public:
   treeList                    before, after ;
   variableSet get_below_vars() ;
   int is_swapped ;
+  cat_tree() { is_swapped = 0; }
   void Print(ostream &s) ;
   void fill_list(std::list<treeP> &list_tp) ;
   std::list<variableSet> get_categories(variableSet &vs) ;
