@@ -510,7 +510,7 @@ namespace Loci {
 
     vector<int> exent ;
     vector<variable> send_vars ;
-    vector<ruleSet> send_rules ;
+    vector<rule> send_rule ;
 
     int ent = 0 ;
     for(variableSet::const_iterator vi=vlst.begin();vi!=vlst.end();++vi) {
@@ -520,13 +520,15 @@ namespace Loci {
       vars.push_back(v) ;
       rules.push_back(r) ;
 
-      ruleSet srules = extract_rules_with_mapping_in_output(r) ;
-      if(srules != EMPTY) {
-        exent.push_back(ent) ;
-        send_vars.push_back(v) ;
-        send_rules.push_back(srules) ;
+      for(ruleSet::const_iterator ri=r.begin();ri!=r.end();++ri) {
+        if(rule_has_mapping_in_output(*ri)) {
+          exent.push_back(ent) ;
+          send_vars.push_back(v) ;
+          send_rule.push_back(*ri) ;
+        }
+        ent++ ;
       }
-      ent++ ;
+
     }
 
     for(int i=0;i<vars.size();++i) {
@@ -539,14 +541,18 @@ namespace Loci {
 
     vector<entitySet> seinfo ;
 
+    map<variable,entitySet> vmap ;
     for(int i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
-      ruleSet &rs = send_rules[i] ;
+      rule rsend = send_rule[i] ;
       seinfo.push_back(exinfo[exent[i]]) ;
-      entitySet send_ent ;
-      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) 
-        send_ent += seinfo[i] & ~(d->my_entities) ;
-      send_entities.push_back(make_pair(v,send_ent)) ;
+      vmap[v] += seinfo[i] & ~(d->my_entities) ;
+    }
+
+    for(int i=0;i<send_vars.size();++i) {
+      variable v = send_vars[i] ;
+      if(vmap[v] != EMPTY)
+        send_entities.push_back(make_pair(v,vmap[v])) ;
     }
 
 
