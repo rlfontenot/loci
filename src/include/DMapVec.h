@@ -722,7 +722,8 @@ template<unsigned int M> class const_dMapVec ;
       
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
-    
+    return s.Rep() ;
+#ifdef FREEZEONREMAP
     MapVec<M> static_MapVec ;
     entitySet tmp_dom = s.domain() ;
     static_MapVec.allocate(tmp_dom) ;
@@ -731,6 +732,7 @@ template<unsigned int M> class const_dMapVec ;
 	static_MapVec[ei][i] = s[ei][i] ;
     }ENDFORALL ;
     return static_MapVec.Rep() ;
+#endif
   }
 
 //------------------------------------------------------------------------
