@@ -1,12 +1,11 @@
-#ifndef MOD_DB_H
-#define MOD_DB_H
+#ifndef LOCI_MOD_DB_H
+#define LOCI_MOD_DB_H
 #define LOCI_WITH_MODULES
 #ifdef HAVE_CONFIG_H
 #include <config.h> // This must be the first file included
 #endif
-#ifdef HAVE_DLOPEN
 #include <dlfcn.h>
-#endif
+
 #include <rule.h>
 #include <fact_db.h>
 #include <string>
