@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
 {
   Loci::Init(&argc,&argv) ;
 
+
   set_fpe_abort() ;
   
   // query for this variable by default
@@ -173,7 +174,9 @@ int main(int argc, char *argv[])
   std::vector<entitySet> partition = Loci::generate_distribution(facts,rdb) ;
   Loci::distribute_facts(partition, facts, rdb) ;
 
+
   executeP schedule = create_execution_schedule(rdb,facts,query) ;
+
 
   if(schedule == 0) {
     std::cerr << "unable to produce execution schedule to satisfy query for "
@@ -242,10 +245,12 @@ int main(int argc, char *argv[])
       std::cout << query << " = " << std::endl ;
       query_var->Print(std::cout) ;
     }
-      
     
   }
-    
+
+
+  schedule = 0 ;
+
   Loci::Finalize() ;
   return 0 ;
 }
