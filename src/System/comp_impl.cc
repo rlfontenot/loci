@@ -39,14 +39,12 @@ namespace Loci {
     s << rule_tag << " over sequence " << exec_seq << endl ;
   }
   
-  execute_postcomm::execute_postcomm(std::list<comm_info> clist, sequence seq, fact_db &facts) {
+  execute_postcomm::execute_postcomm(std::list<comm_info> clist, fact_db &facts) {
     comm_list = clist ;
-    exec_sequence = seq ;
   }
    
-  execute_precomm::execute_precomm(std::list<comm_info> plist, sequence seq, fact_db &facts) {
+  execute_precomm::execute_precomm(std::list<comm_info> plist, fact_db &facts) {
     comm_list = plist ;
-    exec_sequence = seq ;
   }
   
   void execute_precomm::execute(fact_db &facts) {
@@ -311,10 +309,6 @@ namespace Loci {
   
   void impl_compiler::process_var_requests(fact_db &facts) {
     exec_seq = process_rule_requests(impl,facts) ;
-    if(facts.isDistributed()) {
-      plist = put_precomm_info(impl, facts) ;
-      clist = put_postcomm_info(impl, facts) ;
-    }
   }
   
   executeP impl_compiler::create_execution_schedule(fact_db &facts) {
@@ -343,15 +337,7 @@ namespace Loci {
         el->append_list(new execute_thread_sync) ;
       return executeP(el) ;
     }
-    if(facts.isDistributed()) {
-      CPTR<execute_list> el = new execute_list ;
-      el->append_list(new execute_rule(impl, sequence(exec_seq), facts) ) ;
-      el->append_list(new execute_precomm(plist, sequence(exec_seq), facts) ) ; 
-      el->append_list(new execute_postcomm(clist, sequence(exec_seq), facts)) ;
-      return executeP(el) ;
-    }
-    else 
-      return new execute_rule(impl,sequence(exec_seq),facts) ;
+    return new execute_rule(impl,sequence(exec_seq),facts) ;
   }
 }
  

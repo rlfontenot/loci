@@ -80,18 +80,16 @@ namespace Loci {
   } ;
   class execute_precomm : public execute_modules {
     std::list<comm_info> comm_list ;
-    sequence exec_sequence ;
   public:
-    execute_precomm(std::list<comm_info> plist , sequence seq, fact_db &facts) ; 
+    execute_precomm(std::list<comm_info> plist, fact_db &facts) ; 
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
   
   class execute_postcomm : public execute_modules {
     std::list<comm_info> comm_list ;
-    sequence exec_sequence ;
   public:
-    execute_postcomm(std::list<comm_info> clist , sequence seq, fact_db &facts) ; 
+    execute_postcomm(std::list<comm_info> clist, fact_db &facts) ; 
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;

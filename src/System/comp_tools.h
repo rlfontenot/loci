@@ -15,12 +15,11 @@ namespace Loci {
                               entitySet compute) ;
   void existential_rule_analysis(rule f, fact_db &facts) ;
   entitySet process_rule_requests(rule f, fact_db &facts) ;
-  std::list<comm_info> put_postcomm_info(rule impl, fact_db &facts) ;
-  std::list<comm_info> put_precomm_info(rule impl, fact_db &facts) ;
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
                          const rule &impl, fact_db &facts) ;
   std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
-
+  std::list<comm_info> put_postcomm_info(std::map<variable, ruleSet> barrier_info, fact_db &facts) ;
+  std::list<comm_info> put_precomm_info(std::map<variable, ruleSet> barrier_info, fact_db &facts) ;
   typedef std::map<variable,entitySet> vdefmap ;
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
                                  fact_db &facts) ;
@@ -59,8 +58,6 @@ namespace Loci {
     rule impl ;  // rule to implement
     // existential analysis info
     entitySet exec_seq ;
-    std::list<comm_info> clist ;
-    std::list<comm_info> plist ;
   public:
     impl_compiler(rule r)  { impl=r;}
     virtual void set_var_existence(fact_db &facts) ;
@@ -134,6 +131,8 @@ namespace Loci {
 
   class barrier_compiler : public rule_compiler {
     std::map<variable, ruleSet> barrier_info ;
+    std::list<comm_info> clist ;
+    std::list<comm_info> plist ;
   public:
     barrier_compiler(std::map<variable,ruleSet> &var_map)
       : barrier_info(var_map) {}

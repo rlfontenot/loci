@@ -305,7 +305,7 @@ namespace Loci {
   void fact_db::close_time(fact_db::time_infoP ti) {
     *(ti->time_var) = 0 ;
   }
-
+  
   void fact_db::set_existential_info(variable v, rule f, entitySet x) {
     fact_info &finfo = get_fact_info(v) ;
     if((finfo.existence & x) != EMPTY) {
@@ -342,7 +342,7 @@ namespace Loci {
     einfo.exists += x ;
     finfo.existence += x ;
   }
-
+  
   entitySet fact_db::variable_existence(variable v) {
     if(v.get_info().tvar)  // if time variable, variable exists everywhere
       return ~EMPTY ;
