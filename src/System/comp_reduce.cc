@@ -5,6 +5,8 @@
 using std::vector ;
 #include <set>
 using std::set ;
+#include <hash_map>
+using std::hash_map ;
 
 using std::list ;
 
