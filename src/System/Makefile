@@ -8,7 +8,7 @@ LOCAL_INCLUDES = -I$(LOCI_BASE)/include
 
 
 OBJS = variable.o store_rep.o Map.o constraint.o rule.o \
-       fact_db.o execute.o depend_graph.o scheduler.o
+       fact_db.o execute.o depend_graph.o scheduler.o new_depend_graph.o
 
 
 JUNK = *~ *.ii core ti_files ii_files 
@@ -44,6 +44,6 @@ make.depend:
 	touch make.depend 
 
 depend: make.depend
-	makedepend -fmake.depend $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES) -I$(CC_INCLUDE_PATH) *.cc
+	$(MAKEDEPEND) $(DEFINES) $(INCLUDES) $(LOCAL_INCLUDES)  *.cc > make.depend
 
 include make.depend				

@@ -5,6 +5,7 @@
 #include <fact_db.h>
 #include <execute.h>
 #include <depend_graph.h>
+//#include <new_depend_graph.h>
 #include <Map.h>
 
 #ifdef PROFILE_CODE
@@ -57,7 +58,7 @@ class decompose_graph {
   } ;
   map<rule, super_node_info> supermap ;
   ruleSet supernodes ;
-  rule create_supernode(digraph &g, digraph::nodeSet ns,
+  rule create_supernode(digraph &g, digraph::vertexSet ns,
                         variable cond_var = variable()) ;
   ruleSet recursive_supernodes ;
   ruleSet looping_supernodes ;
@@ -65,7 +66,7 @@ class decompose_graph {
   map<rule, rule_calculator *> rule_process ;
   
 public:
-  decompose_graph(digraph dg,digraph::nodeSet sources, digraph::nodeSet targets) ;
+  decompose_graph(digraph dg,digraph::vertexSet sources, digraph::vertexSet targets) ;
   void existential_analysis(fact_db &facts) ;
   executeP execution_schedule(fact_db &facts, int nth) ;
 } ;
@@ -85,10 +86,10 @@ class loop_calculator : public rule_calculator {
 
   vector<rule> rule_schedule ;
   vector<rule> collapse ;
-  vector<digraph::nodeSet> collapse_sched ;
+  vector<digraph::vertexSet> collapse_sched ;
   variable cond_var ;
   vector<rule> advance ;
-  vector<digraph::nodeSet> advance_sched ;
+  vector<digraph::vertexSet> advance_sched ;
   variableSet advance_vars ;
   time_ident tlevel ;
   variable output ;
@@ -101,110 +102,110 @@ public:
 } ;
 
 
-digraph::nodeSet visit_nodes(digraph dg,digraph::nodeSet begin) {
+digraph::vertexSet visit_vertices(digraph dg,digraph::vertexSet begin) {
 
-  digraph::nodeSet visit = begin ;
-  digraph::nodeSet visited ;
-  digraph::nodeSet::const_iterator ni ;
+  digraph::vertexSet visit = begin ;
+  digraph::vertexSet visited ;
+  digraph::vertexSet::const_iterator ni ;
 
-  // keep visiting nodes until no new nodes are found
+  // keep visiting vertices until no new vertices are found
   while(visit != EMPTY) {
-    digraph::nodeSet newnodes ;
-    // visit all the nodes that this graph leads to
+    digraph::vertexSet newvertices ;
+    // visit all the vertices that this graph leads to
     for(ni=visit.begin();ni!=visit.end();++ni)
-      newnodes += dg[*ni] ;
-    // update visit, but don't re-visit a node
-    visit = newnodes - visited ;
-    visited = visited + newnodes ;
+      newvertices += dg[*ni] ;
+    // update visit, but don't re-visit a vertex
+    visit = newvertices - visited ;
+    visited = visited + newvertices ;
   }
   return visited ;
 }
 
-digraph::nodeSet visit_nodes_exclusive(digraph dg, digraph::nodeSet begin) {
+digraph::vertexSet visit_vertices_exclusive(digraph dg, digraph::vertexSet begin) {
   digraph dgt = dg.transpose() ;
-  digraph::nodeSet visited, visit ;
+  digraph::vertexSet visited, visit ;
 
   visit = begin ;
   visited = visit ;
 
-  // keep visiting nodes until no new nodes are found
+  // keep visiting vertices until no new vertices are found
   while(visit != EMPTY) {
-    digraph::nodeSet::const_iterator ni,nii,no ;
-    digraph::nodeSet newnodes, not_visited = ~visited ;
-    // visit all new nodes and check to see if they contain paths to
-    // new candidate nodes
+    digraph::vertexSet::const_iterator ni,nii,no ;
+    digraph::vertexSet newvertices, not_visited = ~visited ;
+    // visit all new vertices and check to see if they contain paths to
+    // new candidate vertices
     for(ni=visit.begin();ni!=visit.end();++ni) 
       for(nii=dg[*ni].begin();nii!=dg[*ni].end();++nii) { // loop over edges
-        // if this edge leads to a node that can only be reached through
-        // the visited set, then it is a new node to be visited
-        digraph::nodeSet out_bound_nodes = dgt[*nii] & not_visited ;
+        // if this edge leads to a vertex that can only be reached through
+        // the visited set, then it is a new vertex to be visited
+        digraph::vertexSet out_bound_vertices = dgt[*nii] & not_visited ;
 
-        // Check to see if out of bound nodes loop exclusively back to this
-        // node, if so then add it to the list of new nodes.
+        // Check to see if out of bound vertices loop exclusively back to this
+        // vertex, if so then add it to the list of new vertices.
         // This is a little bit of a hack since the graphs analyzed may
         // contain loops no larger than 2 edges and 2 vertexes.
         bool flg = true ;
-        digraph::nodeSet local_not_visit = ~(visited + interval(*nii,*nii));
-        for(no=out_bound_nodes.begin();no!=out_bound_nodes.end();++no) {
+        digraph::vertexSet local_not_visit = ~(visited + interval(*nii,*nii));
+        for(no=out_bound_vertices.begin();no!=out_bound_vertices.end();++no) {
           flg = flg && (dgt[*no] & local_not_visit) == EMPTY ;
         }
         if(flg) 
-          newnodes += *nii ;
+          newvertices += *nii ;
       }
-    // next time we will visit the nodes found in this iteration
-    // update our list of visited nodes.
-    visit = newnodes - visited ;
-    visited += newnodes ;
+    // next time we will visit the vertices found in this iteration
+    // update our list of visited vertices.
+    visit = newvertices - visited ;
+    visited += newvertices ;
   }
   return visited ;
 }
 
 
 // Create a schedule for traversing a directed acyclic graph.  This schedule
-// may be concurrent, or many nodes of the graph may be visited at each
+// may be concurrent, or many vertices of the graph may be visited at each
 // step of the schedule  If the graph contains cycles, the schedule may
-// not include all of the nodes in the graph.
-vector<digraph::nodeSet> schedule_dag(const digraph &g,
-                                      digraph::nodeSet start_nodes = EMPTY,
-                                      digraph::nodeSet only_nodes =
+// not include all of the vertices in the graph.
+vector<digraph::vertexSet> schedule_dag(const digraph &g,
+                                      digraph::vertexSet start_vertices = EMPTY,
+                                      digraph::vertexSet only_vertices =
                                       interval(UNIVERSE_MIN,UNIVERSE_MAX)) {
-  vector<digraph::nodeSet> schedule ;
+  vector<digraph::vertexSet> schedule ;
   digraph gt = g.transpose() ;
-  // First schedule any nodes that have no edges leading into them and have
-  // not been scheduled previously (in start nodes)
-  digraph::nodeSet working = g.get_source_nodes() -
-    (g.get_target_nodes()+start_nodes) ;
+  // First schedule any vertices that have no edges leading into them and have
+  // not been scheduled previously (in start vertices)
+  digraph::vertexSet working = g.get_source_vertices() -
+    (g.get_target_vertices()+start_vertices) ;
   if(working != EMPTY)
     schedule.push_back(working) ;
-  // visited nodes are all nodes that have already been scheduled
-  digraph::nodeSet visited_nodes = start_nodes + working ;
-  // In the beginning our working set are all scheduled nodes
-  working = visited_nodes ;
+  // visited vertices are all vertices that have already been scheduled
+  digraph::vertexSet visited_vertices = start_vertices + working ;
+  // In the beginning our working set are all scheduled vertices
+  working = visited_vertices ;
   while(working != EMPTY) {
-    // While we have nodes to work on, compute additional nodes that
+    // While we have vertices to work on, compute additional vertices that
     // can be scheduled
-    digraph::nodeSet new_nodes ;
-    digraph::nodeSet::const_iterator ni ;
-    // loop over working set and create a list of candidate nodes
+    digraph::vertexSet new_vertices ;
+    digraph::vertexSet::const_iterator ni ;
+    // loop over working set and create a list of candidate vertices
     for(ni=working.begin();ni != working.end(); ++ni)
-      new_nodes += g[*ni] ;
-    // If a node has already been scheduled it can't be scheduled again,
-    // so remove visited nodes
-    new_nodes = new_nodes - visited_nodes    ;
-    // We only schedule nodes that are also in the only_nodes set
-    working = new_nodes & only_nodes ;
-    new_nodes = EMPTY ;
-    // Find any node from this working set that has had all nodes leading
+      new_vertices += g[*ni] ;
+    // If a vertex has already been scheduled it can't be scheduled again,
+    // so remove visited vertices
+    new_vertices = new_vertices - visited_vertices    ;
+    // We only schedule vertices that are also in the only_vertices set
+    working = new_vertices & only_vertices ;
+    new_vertices = EMPTY ;
+    // Find any vertex from this working set that has had all vertices leading
     // to it scheduled
     for(ni=working.begin();ni != working.end(); ++ni) 
-      if((gt[*ni] & visited_nodes) == gt[*ni])
-        new_nodes += *ni ;
-    working = new_nodes ;
-    // and these new nodes to the schedule
-    if(new_nodes != EMPTY)
-      schedule.push_back(new_nodes) ;
-    // update visited nodes set to include scheduled nodes
-    visited_nodes += new_nodes ;
+      if((gt[*ni] & visited_vertices) == gt[*ni])
+        new_vertices += *ni ;
+    working = new_vertices ;
+    // and these new vertices to the schedule
+    if(new_vertices != EMPTY)
+      schedule.push_back(new_vertices) ;
+    // update visited vertices set to include scheduled vertices
+    visited_vertices += new_vertices ;
   }
   return schedule ;
 }
@@ -212,8 +213,8 @@ vector<digraph::nodeSet> schedule_dag(const digraph &g,
 
 // Create a sequential ordering of rules based on the concurrent dag schedule
 void extract_rule_sequence(vector<rule> &rule_seq,
-                           const vector<digraph::nodeSet> &v) {
-  vector<digraph::nodeSet>::const_iterator i ;
+                           const vector<digraph::vertexSet> &v) {
+  vector<digraph::vertexSet>::const_iterator i ;
   for(i=v.begin();i!=v.end();++i) {
     ruleSet rules = extract_rules(*i) ;
     ruleSet::const_iterator ri ;
@@ -247,8 +248,8 @@ rule make_rename_rule(variable new_name, variable old_name) {
 void set_var_types(fact_db &facts, const digraph &dg) {
 
   // Get all the variables and rules represented in the graph
-  variableSet all_vars = extract_vars(dg.get_all_nodes()) ;
-  ruleSet     all_rules = extract_rules(dg.get_all_nodes()) ;
+  variableSet all_vars = extract_vars(dg.get_all_vertices()) ;
+  ruleSet     all_rules = extract_rules(dg.get_all_vertices()) ;
 
   // extract the qualified rules, these are rules that are
   // automatically generated by the system.  Since these rules
@@ -372,7 +373,7 @@ void set_var_types(fact_db &facts, const digraph &dg) {
   }  
 
   // Perform a topological sort on the interal rule graph
-  vector<digraph::nodeSet> components =
+  vector<digraph::vertexSet> components =
     component_sort(irg).get_components() ;
 
   for(int i=0;i<components.size();++i) {
@@ -784,6 +785,9 @@ void joiner_oper::execute(fact_db &facts) {
 
 void joiner_oper::Print(ostream &s) const {
   s << "reducing thread results for variable " << joiner_var << endl ;
+  s << "reducing partitions = " << endl ;
+  for(int i=0;i<var_vec.size();++i)
+    s << "p["<<i<< "]="<<partition[i]<<endl ;
 }
                     
   
@@ -994,13 +998,12 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
 #endif
   CPTR<execute_list> el = new execute_list ;
   if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
-     exec_seq.size() < num_threads*30)
+     exec_seq.size() < num_threads*30 ) {
     el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
-  else if(!apply.get_info().output_is_parameter &&!output_mapping) {
+  } else if(!apply.get_info().output_is_parameter &&!output_mapping) {
     execute_par *ep = new execute_par ;
     parallel_schedule(ep,exec_seq,apply,facts) ;
     el->append_list(ep)  ;
-    el->append_list(new execute_thread_sync) ;
   } else if(apply.get_info().output_is_parameter) {
     variableSet target = apply.targets() ;
     fatal(target.size() != 1) ;
@@ -1077,6 +1080,7 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
       for(int i=0;i<shards.size();++i) {
         if((shard_domains[i] & dom_tot) != EMPTY)
           disjoint = false ;
+        dom_tot += shard_domains[i] ;
       }
       variableSet target = apply.targets() ;
       fatal(target.size() != 1) ;
@@ -1126,7 +1130,7 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
           vv.push_back(var_vec[i]) ;
           for(int j=0;j<decompose.size();++j) {
             vector<entitySet> ve ;
-            ve.push_back(decompose[i]) ;
+            ve.push_back(decompose[j]) ;
             epj->append_list(new joiner_oper(v,sp,ve,vv,j_op)) ;
           }
           el->append_list(epj) ;
@@ -1134,10 +1138,8 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
         }
       }
     }
-
-    //    el->append_list(new execute_rule(apply,sequence(exec_seq),facts)) ;
-    //    el->append_list(new execute_thread_sync) ;
   }
+  el->append_list(new execute_thread_sync) ;
   return executeP(el) ;
 }
 
@@ -1662,7 +1664,7 @@ executeP recurse_calculator::create_execution_schedule(fact_db &facts) {
 class dag_calculator : public rule_calculator {
   digraph dag ;
   vector<rule> rule_schedule ;
-  vector<digraph::nodeSet> dag_sched ;
+  vector<digraph::vertexSet> dag_sched ;
 public:
   dag_calculator(decompose_graph *gr, digraph gin) ;
   virtual void set_var_existence(fact_db &facts) ;
@@ -1676,11 +1678,11 @@ dag_calculator::dag_calculator(decompose_graph *gr, digraph gin) {
   dag_sched = schedule_dag(dag) ;
   extract_rule_sequence(rule_schedule,dag_sched) ;
 #ifdef DEBUG
-  // sanity check, all nodes should be scheduled
-  digraph::nodeSet allnodes ;
+  // sanity check, all vertices should be scheduled
+  digraph::vertexSet allvertices ;
   for(int i=0;i< dag_sched.size();++i) 
-    allnodes += dag_sched[i] ;
-  warn(allnodes != dag.get_all_nodes()) ;
+    allvertices += dag_sched[i] ;
+  warn(allvertices != dag.get_all_vertices()) ;
 #endif
 }
 
@@ -1699,7 +1701,7 @@ void dag_calculator::process_var_requests(fact_db &facts) {
 executeP dag_calculator::create_execution_schedule(fact_db &facts) {
   CPTR<execute_list> elp = new execute_list ;
 
-  vector<digraph::nodeSet>::const_iterator i ;
+  vector<digraph::vertexSet>::const_iterator i ;
   for(i=dag_sched.begin();i!=dag_sched.end();++i) {
     ruleSet rules = extract_rules(*i) ;
     ruleSet::const_iterator ri ;
@@ -1715,19 +1717,19 @@ loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
   graph_ref = gr ;
   dag = gin ;
   ruleSet loopset =
-    extract_rules(gin.get_all_nodes() & gr->looping_rules) ;
+    extract_rules(gin.get_all_vertices() & gr->looping_rules) ;
   if(loopset.size() != 1) {
     cerr << "internal consistency error, loopset size != 1" << endl ;
     exit(-1) ;
   }
 
   tlevel = loopset.begin()->source_time() ;
-  dag.remove_node((*loopset.begin()).ident()) ;
+  dag.remove_vertex((*loopset.begin()).ident()) ;
   digraph dagt = dag.transpose() ;
   ruleSet collapse_rules, all_rules ;
   variableSet collapse_vars ;
   
-  all_rules = extract_rules(dag.get_all_nodes()) ;
+  all_rules = extract_rules(dag.get_all_vertices()) ;
   for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) 
     if(ri->target_time().before(ri->source_time()))
       collapse_rules += *ri ;
@@ -1739,7 +1741,7 @@ loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
     exit(-1) ;
   }
 
-  variableSet all_vars = extract_vars(dag.get_all_nodes()) ;
+  variableSet all_vars = extract_vars(dag.get_all_vertices()) ;
   for(variableSet::const_iterator vi=all_vars.begin();vi!=all_vars.end();++vi)
     if(vi->get_info().offset == 1)
       advance_vars += *vi ;
@@ -1753,17 +1755,17 @@ loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
   outputSet = interval(output.ident(),output.ident()) ;
 
   // Schedule part of graph that leads to collapse
-  collapse_sched = schedule_dag(dag, EMPTY,visit_nodes(dagt,collapse_vars)) ;
+  collapse_sched = schedule_dag(dag, EMPTY,visit_vertices(dagt,collapse_vars)) ;
   extract_rule_sequence(rule_schedule,collapse_sched) ;
   extract_rule_sequence(collapse,collapse_sched) ;
 
   // Schedule advance part of loop.  First try to schedule any output, then
   // schedule the advance
-  digraph::nodeSet visited ;
+  digraph::vertexSet visited ;
   for(int i = 0;i<collapse_sched.size();++i)
     visited += collapse_sched[i] ;
-  vector<digraph::nodeSet>
-    dag_sched = schedule_dag(dag,visited, visit_nodes(dagt,outputSet)) ;
+  vector<digraph::vertexSet>
+    dag_sched = schedule_dag(dag,visited, visit_vertices(dagt,outputSet)) ;
   if(dag_sched.size() == 0)
     output_present = false ;
   else 
@@ -1785,17 +1787,17 @@ loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
   
   
 #ifdef DEBUG
-  // sanity check, all nodes should be scheduled
-  digraph::nodeSet allnodes = visited ;
+  // sanity check, all vertices should be scheduled
+  digraph::vertexSet allvertices = visited ;
   for(int i=0;i< dag_sched.size();++i) 
-    allnodes += dag_sched[i] ;
-  warn(allnodes != dag.get_all_nodes()) ;
-  if(allnodes != dag.get_all_nodes()) {
+    allvertices += dag_sched[i] ;
+  warn(allvertices != dag.get_all_vertices()) ;
+  if(allvertices != dag.get_all_vertices()) {
     cerr << " rules NOT scheduled = " << endl
-         << extract_rules(dag.get_all_nodes() - allnodes) << endl ;
+         << extract_rules(dag.get_all_vertices() - allvertices) << endl ;
     cerr << " variables NOT scheduled = "
-         << extract_vars(dag.get_all_nodes() - allnodes) << endl ;
-    vector<digraph::nodeSet> components =
+         << extract_vars(dag.get_all_vertices() - allvertices) << endl ;
+    vector<digraph::vertexSet> components =
       component_sort(dag).get_components() ;
     for(int i=0;i<components.size();++i) {
       if(components[i].size() > 1) {
@@ -1854,7 +1856,7 @@ executeP loop_calculator::create_execution_schedule(fact_db &facts) {
 class conditional_calculator : public rule_calculator {
   digraph dag ;
   vector<rule> rule_schedule ;
-  vector<digraph::nodeSet> dag_sched ;
+  vector<digraph::vertexSet> dag_sched ;
   variable cond_var ;
 public:
   conditional_calculator(decompose_graph *gr, digraph gin,
@@ -1873,11 +1875,11 @@ conditional_calculator::conditional_calculator(decompose_graph *gr,
   dag_sched = schedule_dag(dag) ;
   extract_rule_sequence(rule_schedule,dag_sched) ;
 #ifdef DEBUG
-  // sanity check, all nodes should be scheduled
-  digraph::nodeSet allnodes ;
+  // sanity check, all vertices should be scheduled
+  digraph::vertexSet allvertices ;
   for(int i=0;i< dag_sched.size();++i) 
-    allnodes += dag_sched[i] ;
-  warn(allnodes != dag.get_all_nodes()) ;
+    allvertices += dag_sched[i] ;
+  warn(allvertices != dag.get_all_vertices()) ;
 #endif
 }
 
@@ -1897,7 +1899,7 @@ void conditional_calculator::process_var_requests(fact_db &facts) {
 executeP conditional_calculator::create_execution_schedule(fact_db &facts) {
   CPTR<execute_list> elp = new execute_list ;
 
-  vector<digraph::nodeSet>::const_iterator i ;
+  vector<digraph::vertexSet>::const_iterator i ;
   for(i=dag_sched.begin();i!=dag_sched.end();++i) {
     ruleSet rules = extract_rules(*i) ;
     ruleSet::const_iterator ri ;
@@ -1983,13 +1985,13 @@ public:
 } ;
 
 decompose_graph::decompose_graph(digraph dg,
-                                 digraph::nodeSet sources,
-                                 digraph::nodeSet targets) {
+                                 digraph::vertexSet sources,
+                                 digraph::vertexSet targets) {
 
 
-  // Add nodes to the graph so that the source variables and target variables
+  // Add vertices to the graph so that the source variables and target variables
   // aren't left dangling.
-  variableSet vars = extract_vars(dg.get_all_nodes()) ;
+  variableSet vars = extract_vars(dg.get_all_vertices()) ;
   start = variable("__START__") ;
   finish = variable("__FINISH__") ;
   dg.add_edges(start.ident(),sources) ;
@@ -1997,18 +1999,18 @@ decompose_graph::decompose_graph(digraph dg,
 
   // In the first step we decompose the graph by sorting the graph
   // into iteraton levels.
-  map<time_ident,digraph::nodeSet> time_sort_nodes ;
+  map<time_ident,digraph::vertexSet> time_sort_vertices ;
 
   for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi)
-    time_sort_nodes[vi->time()] += (*vi).ident() ;
+    time_sort_vertices[vi->time()] += (*vi).ident() ;
 
-  ruleSet rules = extract_rules(dg.get_all_nodes()) ;
+  ruleSet rules = extract_rules(dg.get_all_vertices()) ;
 
   for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
     // sort rules based on time level
     const time_ident rule_time =
       ri->type()==rule::COLLAPSE?ri->source_time():ri->target_time() ;
-    time_sort_nodes[rule_time] += (*ri).ident() ;
+    time_sort_vertices[rule_time] += (*ri).ident() ;
     // collect information about unit rules
     if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
       if(ri->targets().size() != 1) {
@@ -2105,20 +2107,20 @@ decompose_graph::decompose_graph(digraph dg,
       time_stack.push_back(*i) ;
   }
   // proceed from the bottom of the time hierarchy tree, extracting each
-  // time level and constructing a supernode based on that time level.
+  // time level and constructing a super node based on that time level.
   digraph main_graph = dg ;
   for(vector<time_ident>::reverse_iterator
         ti = time_sequence.rbegin();ti!=time_sequence.rend();++ti) 
-    if(time_sort_nodes[*ti] != EMPTY) {
-      rule snode = create_supernode(main_graph,time_sort_nodes[*ti]) ;
+    if(time_sort_vertices[*ti] != EMPTY) {
+      rule svertex = create_supernode(main_graph,time_sort_vertices[*ti]) ;
       if(*ti != time_ident()) {
-        const time_ident rule_time =snode.target_time() ;
-        time_sort_nodes[rule_time] += snode.ident() ;
+        const time_ident rule_time =svertex.target_time() ;
+        time_sort_vertices[rule_time] += svertex.ident() ;
       } else
-        top_level_rule = snode ; 
+        top_level_rule = svertex ; 
 
-      if((snode.sources() & snode.targets()) != EMPTY) {
-        cerr << "warning, time level " << snode << " is recursive." << endl ;
+      if((svertex.sources() & svertex.targets()) != EMPTY) {
+        cerr << "warning, time level " << svertex << " is recursive." << endl ;
         cerr << "build and collapse rules not allowed to form a "
              << "recursive block" << endl ;
         exit(-1) ;
@@ -2132,11 +2134,11 @@ decompose_graph::decompose_graph(digraph dg,
         ri=time_levels.begin();ri!=time_levels.end();++ri) {
     super_node_info &sni = supermap[*ri] ;
     if(*ri != top_level_rule) {
-      ruleSet loop_rules = ruleSet(sni.graph.get_all_nodes() & looping_rules) ;
+      ruleSet loop_rules = ruleSet(sni.graph.get_all_vertices() & looping_rules) ;
       
       if(loop_rules.size() != 1) {
         time_ident ti ;
-        variableSet vars = extract_vars(sni.graph.get_all_nodes()) ;
+        variableSet vars = extract_vars(sni.graph.get_all_vertices()) ;
         for(variableSet::const_iterator vi= vars.begin();vi!=vars.end();++vi) 
           if(ti.before(vi->time()))
             ti = vi->time() ;
@@ -2150,13 +2152,13 @@ decompose_graph::decompose_graph(digraph dg,
       // Insure that collapse rules are included in loop supernode
       sni.graph.add_edges(sni.targets,(*(loop_rules.begin())).ident()) ;
     }
-    vector<digraph::nodeSet> components =
+    vector<digraph::vertexSet> components =
       component_sort(sni.graph).get_components() ;
-    vector<digraph::nodeSet>::const_iterator ci ;
+    vector<digraph::vertexSet>::const_iterator ci ;
     for(ci=components.begin();ci!=components.end();++ci)
       if(ci->size() > 1) {
         variableSet vars = variableSet(*ci & reduce_vars) ;
-        ruleSet loop_rules = ruleSet(sni.graph.get_all_nodes() &
+        ruleSet loop_rules = ruleSet(sni.graph.get_all_vertices() &
                                      looping_rules) ;
         if(vars== EMPTY || loop_rules != EMPTY)
           create_supernode(sni.graph,*ci) ;
@@ -2186,19 +2188,19 @@ decompose_graph::decompose_graph(digraph dg,
         ri=new_rules.begin();ri!=new_rules.end();++ri) {
     super_node_info &sni = supermap[*ri] ;
 
-    ruleSet loop_rules = ruleSet(sni.graph.get_all_nodes() & looping_rules) ;
+    ruleSet loop_rules = ruleSet(sni.graph.get_all_vertices() & looping_rules) ;
 
     digraph gtemp = sni.graph ;
 
     warn(loop_rules.size() > 1) ;
 
     if(loop_rules.size() == 1)
-      gtemp.remove_node((*loop_rules.begin()).ident()) ;
+      gtemp.remove_vertex((*loop_rules.begin()).ident()) ;
     else continue ;
     
-    vector<digraph::nodeSet> components =
+    vector<digraph::vertexSet> components =
       component_sort(gtemp).get_components() ;
-    vector<digraph::nodeSet>::const_iterator ci ;
+    vector<digraph::vertexSet>::const_iterator ci ;
     for(ci=components.begin();ci!=components.end();++ci)
       if(ci->size() > 1) {
         variableSet vars = variableSet(*ci & reduce_vars) ;
@@ -2223,7 +2225,7 @@ decompose_graph::decompose_graph(digraph dg,
         }
       }
   }
-  // Create conditional execution super nodes.
+  // Create conditional execution super vertices.
   // A conditional rule may exclusively depend on other rules for execution
   // In this case, we only need to execute these other rules when the condition
   // is satisified.  This is accomplished by creating a conditional supernode
@@ -2233,10 +2235,10 @@ decompose_graph::decompose_graph(digraph dg,
   for(ruleSet::const_iterator
         ri = new_rules.begin();ri!=new_rules.end();++ri) {
     super_node_info &sni = supermap[*ri] ;
-    digraph::nodeSet graph_nodes = sni.graph.get_all_nodes() &
+    digraph::vertexSet graph_vertices = sni.graph.get_all_vertices() &
       ~sni.sources & ~sni.targets ;
     
-    variableSet cond_vars = variableSet(graph_nodes & conditional_vars) ;
+    variableSet cond_vars = variableSet(graph_vertices & conditional_vars) ;
     // If there are conditional variables in this graph, then decompose them
     if(cond_vars != EMPTY) {
       // loop over conditional variables and extract the functions that
@@ -2247,27 +2249,27 @@ decompose_graph::decompose_graph(digraph dg,
         ruleSet cond_rules = conditional_map[*vi] ;
         // Note, all of the rules that are conditional of this variable
         // should be in this graph, if not report this error and exit.
-        if((graph_nodes & cond_rules) != cond_rules) {
+        if((graph_vertices & cond_rules) != cond_rules) {
           cerr << "problem with conditional functions of variable " << *vi
                << endl ;
           cerr << "rule(s) not in same level of graph:" << endl ;
-          ruleSet except = ruleSet(cond_rules - (graph_nodes & cond_rules)) ;
+          ruleSet except = ruleSet(cond_rules - (graph_vertices & cond_rules)) ;
           cerr << except << endl ;
           cerr << "error not recoverable." << endl ;
           exit(-1) ;
         }
-        // Find the set of nodes that are exclusive in generating the
+        // Find the set of vertices that are exclusive in generating the
         // rules conditional on this variable (*vi)
-        digraph::nodeSet cond_nodes =
-          visit_nodes_exclusive(sni.graph.transpose(), cond_rules) ;
+        digraph::vertexSet cond_vertices =
+          visit_vertices_exclusive(sni.graph.transpose(), cond_rules) ;
         // remove the rules that are exclusive to the conditional evaluation
         // itself
-        cond_nodes = cond_nodes -
-          visit_nodes_exclusive(sni.graph.transpose(),
+        cond_vertices = cond_vertices -
+          visit_vertices_exclusive(sni.graph.transpose(),
                                 interval((*vi).ident(),(*vi).ident())) ;
 
-        // create a super node for this conditional set of rules
-        cond_supernodes += create_supernode(sni.graph,cond_nodes,*vi) ;
+        // create a super vertex for this conditional set of rules
+        cond_supernodes += create_supernode(sni.graph,cond_vertices,*vi) ;
       }
     }
   }
@@ -2277,10 +2279,10 @@ decompose_graph::decompose_graph(digraph dg,
   for(ruleSet::const_iterator
         ri = supernodes.begin();ri!=supernodes.end();++ri) {
     super_node_info &sni = supermap[*ri] ;
-    digraph::nodeSet graph_nodes = sni.graph.get_all_nodes() &
+    digraph::vertexSet graph_vertices = sni.graph.get_all_vertices() &
       ~sni.sources & ~sni.targets ;
-    all_rules += extract_rules(graph_nodes) ;
-    ruleSet loop_rules = ruleSet(sni.graph.get_all_nodes() & looping_rules) ;
+    all_rules += extract_rules(graph_vertices) ;
+    ruleSet loop_rules = ruleSet(sni.graph.get_all_vertices() & looping_rules) ;
     if(loop_rules != EMPTY)
       looping_supernodes += *ri ;
     if(loop_rules == EMPTY && (sni.sources & sni.targets) != EMPTY)
@@ -2293,7 +2295,7 @@ decompose_graph::decompose_graph(digraph dg,
       // to ensure that these cycles are scheduled last.
       digraph g = sni.graph ;
       digraph gt = sni.graph.transpose() ;
-      ruleSet grules = extract_rules(graph_nodes - looping_rules) ;
+      ruleSet grules = extract_rules(graph_vertices - looping_rules) ;
       ruleSet cycle_rule ;
       ruleSet non_cycle_rule ;
       for(ruleSet::const_iterator
@@ -2331,7 +2333,7 @@ decompose_graph::decompose_graph(digraph dg,
     }
   }
 
-  // Create schedule calculators for all graph nodes
+  // Create schedule calculators for all graph vertices
   ruleSet working_set = ruleSet(all_rules - supernodes) ;
   for(ruleSet::const_iterator
         ri = working_set.begin();ri != working_set.end(); ++ri) {
@@ -2373,7 +2375,7 @@ decompose_graph::decompose_graph(digraph dg,
       
     } else {
       // recursive rule block
-      ruleSet recurse_rules = extract_rules(sni.graph.get_all_nodes()) ;
+      ruleSet recurse_rules = extract_rules(sni.graph.get_all_vertices()) ;
       if(recurse_rules.size() == 1 &&
          recurse_rules.begin()->get_info().desc.constraints.size() == 0) {
         rule_process[*ri] =
@@ -2411,15 +2413,15 @@ decompose_graph::decompose_graph(digraph dg,
 }
 
 rule decompose_graph::create_supernode(digraph &g,
-                                       const digraph::nodeSet nodes,
+                                       const digraph::vertexSet vertices,
                                        variable cond_var) {
   // extract rules in this supernode 
-  ruleSet srules = extract_rules(nodes) ;
+  ruleSet srules = extract_rules(vertices) ;
   warn(srules == EMPTY) ;
 
   // include all variables that are sources or sinks to any rule in this
   // supernode in the supernode graph.
-  digraph::nodeSet ns = nodes ;
+  digraph::vertexSet ns = vertices ;
   variableSet sources,targets,locals,local_sources,local_targets ;
 
   // Calculate all sources and targets for rules in this supernode
@@ -2430,13 +2432,13 @@ rule decompose_graph::create_supernode(digraph &g,
     targets += extract_vars(g[id]) ;
   }
 
-  // Add these new nodes to the supernode graph
+  // Add these new vertices to the supernode graph
   ns += sources + targets ;
 
   variableSet all_vars = extract_vars(ns) ;
   // find all variables that are referenced exclusively from within
   // the supernode, that is find all local variables
-  digraph::nodeSet not_ns = ~ns ;
+  digraph::vertexSet not_ns = ~ns ;
   for(variableSet::const_iterator
         vi=all_vars.begin();vi!=all_vars.end();++vi) {
     int id = (*vi).ident() ;
@@ -2447,7 +2449,7 @@ rule decompose_graph::create_supernode(digraph &g,
   }
 
   locals = local_sources & local_targets ;
-  // remove local variables from the super node rule source and target lists
+  // remove local variables from the super vertex rule source and target lists
   sources -= local_sources ;
   targets -= local_targets ;
 
@@ -2462,26 +2464,26 @@ rule decompose_graph::create_supernode(digraph &g,
   sninfo.targets = targets ;
   // remove components of graph that comprise supernode from parent graph
   ns -= (sources + targets) ;
-  g.remove_nodes( ns ) ;
+  g.remove_vertices( ns ) ;
   // create a rule for the supernode
-  rule node_rule = make_super_rule(sources,targets,cond_var) ;
+  rule vertex_rule = make_super_rule(sources,targets,cond_var) ;
   // Add supernode rule to parent graph
-  g.add_edges(sources,node_rule.ident()) ;
-  g.add_edges(node_rule.ident(),targets) ;
+  g.add_edges(sources,vertex_rule.ident()) ;
+  g.add_edges(vertex_rule.ident(),targets) ;
   
   // keep a map of supernodes
-  supermap[node_rule] = sninfo ;
-  supernodes += node_rule ;
+  supermap[vertex_rule] = sninfo ;
+  supernodes += vertex_rule ;
 
 #ifdef VERBOSE
-  cout << "node_rule = " << node_rule << endl ;
+  cout << "vertex_rule = " << vertex_rule << endl ;
   cout << "locals  = " << locals << endl ;
   cout << "rules in block = " << endl << srules << endl ;
   if((sources & targets) != EMPTY)
     cout << "sources & targets = " << variableSet(sources & targets) << endl ;
 #endif
 
-  return node_rule ;
+  return vertex_rule ;
 }
 
 void decompose_graph::existential_analysis(fact_db &facts) {
@@ -2539,15 +2541,17 @@ namespace Loci {
     num_threads = min(nth,max_threads) ;
 
     double timer = get_timer() ;
-    
+
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
+
+    //    new_dependency_graph ndg(rdb,given,target) ;
     
     cout << "generating dependency graph..." << endl ;
     digraph gr = dependency_graph(rdb,given,target).get_graph() ;
 
     // If graph is empty, return a null schedule 
-    if(gr.get_target_nodes() == EMPTY)
+    if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;
 
     cout << "setting up variable types..." << endl ;

@@ -241,9 +241,9 @@ namespace Loci {
 
   void dependency_graph::remove_incorrect_time_promotions() {
     digraph grt = gr.transpose() ;
-    digraph::nodeSet all_nodes = gr.get_all_nodes() ;
-    ruleSet all_rules = extract_rules(all_nodes) ;
-    variableSet all_vars  = extract_vars(all_nodes) ;
+    digraph::vertexSet all_vertices = gr.get_all_vertices() ;
+    ruleSet all_rules = extract_rules(all_vertices) ;
+    variableSet all_vars  = extract_vars(all_vertices) ;
     ruleSet promote_rules,unit_rules ;
     ruleSet::const_iterator fi ;
     for(fi=all_rules.begin();fi!=all_rules.end();++fi) {
@@ -272,12 +272,12 @@ namespace Loci {
     for(fi = unit_rules.begin();fi!=unit_rules.end();++fi)
       gr.add_edges(fi->targets(),(*fi).ident()) ;
 
-    gr.remove_nodes(remove_rules) ;
+    gr.remove_vertices(remove_rules) ;
   }
 
   void dependency_graph::create_looping_rules() {
-    digraph::nodeSet all_nodes = gr.get_all_nodes() ;
-    variableSet all_vars = extract_vars(all_nodes) ;
+    digraph::vertexSet all_vertices = gr.get_all_vertices() ;
+    variableSet all_vars = extract_vars(all_vertices) ;
     variableSet::const_iterator vi ;
     map<time_ident,variableSet> tvarmap ;
     for(vi=all_vars.begin();vi!=all_vars.end();++vi) 
@@ -309,27 +309,27 @@ namespace Loci {
   }
 
   void dependency_graph::clean_graph(variableSet given, variableSet target) {
-    // Remove unnecessary nodes from graph.
-    int virtual_node = gr.max_node() + 1 ;
-    digraph::nodeSet allnodes = gr.get_all_nodes() ;
-    variableSet allvars = extract_vars(allnodes) ;
+    // Remove unnecessary vertices from graph.
+    int virtual_vertex = gr.max_vertex() + 1 ;
+    digraph::vertexSet allvertices = gr.get_all_vertices() ;
+    variableSet allvars = extract_vars(allvertices) ;
     variableSet::const_iterator vi ;
     //  target += variable(expression::create("OUTPUT")) ;
 
-    gr.add_edges(virtual_node, given) ;
-    gr.add_edges(target,virtual_node) ;
+    gr.add_edges(virtual_vertex, given) ;
+    gr.add_edges(target,virtual_vertex) ;
 
-    const vector<digraph::nodeSet> components =
+    const vector<digraph::vertexSet> components =
       component_sort(gr).get_components() ;
 
-    digraph::nodeSet subset = EMPTY ;
+    digraph::vertexSet subset = EMPTY ;
     
     for(int i=0;i<components.size();++i) 
-      if(components[i].inSet(virtual_node)) {
+      if(components[i].inSet(virtual_vertex)) {
         subset = components[i] ;
         break ;
       }
-    subset -= virtual_node ;
+    subset -= virtual_vertex ;
     ruleSet rules = extract_rules(subset) ;
     ruleSet::const_iterator fi ;
     for(fi=rules.begin();fi!=rules.end();++fi)
@@ -338,7 +338,7 @@ namespace Loci {
     WARN(subset == EMPTY) ;
 #ifdef VERBOSE
     cout << "cleaning out rules: " << endl ;
-    cout << extract_rules(gr.get_source_nodes()-subset) ;
+    cout << extract_rules(gr.get_source_vertices()-subset) ;
 #endif
     gr = gr.subgraph(subset) ;
 
