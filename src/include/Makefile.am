@@ -1,0 +1,2 @@
+SUBDIRS = Tools g++-fixes Config
+dist_data_DATA = Loci.h conf.h rule.h DMap.h Loci_Datatypes.h constraint.h sched_db.h DMapVec.h Loci_types.h data_traits.h hdf5_readwrite.h scheduler.h DMultiMap.h Loci_version.h depend_graph.h matrix.h store.h DMultiStore.h Map.h distribute.h multiMap.h storeMat.h DStore.h MapVec.h entitySet.h multiStore.h storeVec.h DStoreMat.h Map_rep.h execute.h param_rule.h store_rep.h DStoreVec.h fact_db.h parameter.h variable.h
