@@ -245,6 +245,35 @@ namespace Loci {
       }
     }
   } ;
+
+  template<class Type, class Op> class joinOp<multiStore<Type>,Op> :
+  public joiner {
+    Op join ;
+  public:
+    virtual storeRepP getTargetRep()
+    { multiStore<Type> st ; storeRepP rep = st.Rep(); return rep; }
+    virtual void Join(storeRepP &target, storeRepP &source,
+                      const sequence &seq) {
+      multiStore<Type> t(target),s(source) ;
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+        int szt = t.end(*i)-t.begin(*i) ;
+        fatal(szt != (s.end(*i)-s.begin(*i))) ;
+        for(int j=0;j<szt;++j)
+          join(t[*i][j],s[*i][j]) ;
+      }
+    }
+
+    virtual void Join(storeRepP &target, Map &t2s, storeRepP &source,
+                      const sequence &seq) {
+      multiStore<Type> s(source),t(target) ;
+      for(sequence::const_iterator i=seq.begin();i!=seq.end();++i) {
+        int szt = t.end(*i)-t.begin(*i) ;
+        fatal(szt != (s.end(t2s[*i])-s.begin(t2s[*i]))) ;
+        for(int j=0;j<szt;++j)
+          join(t[*i][j],s[t2s[*i]][j]) ;
+      }
+    }
+  } ;
     
   template <class T, class Op > class apply_rule : public rule_impl {
   protected:

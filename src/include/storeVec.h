@@ -1078,8 +1078,8 @@ namespace Loci {
     T ** get_base_ptr() const { return base_ptr ; }
     T *begin(int indx) { return base_ptr[indx] ; }
     T *end(int indx) { return base_ptr[indx+1] ; }
-    const int *begin(int indx) const  { return base_ptr[indx] ; }
-    const int *end(int indx) const { return base_ptr[indx+1] ; }
+    const T *begin(int indx) const  { return base_ptr[indx] ; }
+    const T *end(int indx) const { return base_ptr[indx+1] ; }
   } ;
 
   template<class T> void multiStoreRepI<T>::allocate(const store<int> &sizes) {
@@ -1116,16 +1116,33 @@ namespace Loci {
   template<class T> void multiStoreRepI<T>::setSizes(const const_multiMap &mm){
     bmutex l(mutex) ;
 
-    store<int> sizes ;
-    sizes.allocate(store_domain) ;
-    FORALL(store_domain,i) {
-      sizes[i] = 0 ;
-    } ENDFORALL ;
-    entitySet map_set = mm.domain() & store_domain ;
-    FORALL(map_set,i) {
-      sizes[i] = (mm.end(i) - mm.begin(i)) ;
-    } ENDFORALL ;
-    allocate(sizes) ;
+    if(alloc_pointer != 0) {
+      entitySet map_set = mm.domain() & store_domain ;
+      entitySet problem ;
+      FORALL(map_set,i) {
+        if((end(i)-begin(i))>(mm.end(i)-mm.begin(i)))
+          problem += i ;
+      } ENDFORALL ;
+
+      if(problem != EMPTY) {
+        std::cerr << "reallocation of multiStore required for entities"
+                  << problem << endl
+                  << "Currently this reallocation isn't implemented."
+                  << endl ;
+      }
+    } else {
+      store<int> sizes ;
+      sizes.allocate(store_domain) ;
+      FORALL(store_domain,i) {
+        sizes[i] = 0 ;
+      } ENDFORALL ;
+      entitySet map_set = mm.domain() & store_domain ;
+      FORALL(map_set,i) {
+        sizes[i] = (mm.end(i) - mm.begin(i)) ;
+      } ENDFORALL ;
+      allocate(sizes) ;
+    }
+      
   }
   
   template<class T> void multiStoreRepI<T>::allocate(const entitySet &ptn) {
