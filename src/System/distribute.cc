@@ -1693,7 +1693,6 @@ namespace Loci {
     }
     std::vector<int> tmp_sizes = all_collect_sizes(vec_size) ;
     int max_tmp_size = *std::max_element(tmp_sizes.begin(), tmp_sizes.end()) ;
-    int max_eset_size = *std::max_element(interval_sizes.begin(), interval_sizes.end()) ;
     int* tmp_int  ;
     tmp_int = new int[max_tmp_size] ;
     std::vector<int> arr_sizes = all_collect_sizes(array_size) ;
@@ -1734,19 +1733,16 @@ namespace Loci {
       hssize_t start = 0 ; 
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
-      int curr_indx = 0 ;
+      int curr_indx = dom.Min() ;
       int total_size = 0 ;
       int tmp_total_size = 0 ;
-      entitySet max_set = interval(0, max_eset_size-1) ;
-      storeRepP tmp_sp = qrep->new_store(max_set) ; 
       for(int p = 0; p < Loci::MPI_processes; ++p) {
 	entitySet local_set = entitySet(interval(curr_indx, interval_sizes[p]+curr_indx-1)) ;
 	curr_indx += interval_sizes[p] ;
 	hsize_t dimension = arr_sizes[p] ;
 	count = dimension ;
 	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-	entitySet tmp_set = interval(0, local_set.size()-1) ;
-	
+	storeRepP tmp_sp = qrep->new_store(local_set) ; 
 	if(p && tmp_sizes[p]) {
 	  MPI_Recv(tmp_int, tmp_sizes[p], MPI_INT, p, 10,
 		   MPI_COMM_WORLD, &status) ;
@@ -1768,8 +1764,8 @@ namespace Loci {
 	    fi.second_level = vint ;
 	  }
 	}
-	tmp_sp->readhdf5(group_id, dataspace, dataset, dimension, name, fi, tmp_set) ; 
-        tmp_total_size = tmp_sp->pack_size(tmp_set) ;
+	tmp_sp->readhdf5(group_id, dataspace, dataset, dimension, name, fi, local_set) ; 
+	tmp_total_size = tmp_sp->pack_size(local_set) ;
 	if(tmp_total_size > total_size) {
 	  total_size = tmp_total_size ;
 	  if(p)
@@ -1778,7 +1774,7 @@ namespace Loci {
 	}
 	start += count ;
 	int loc = 0 ;
-	tmp_sp->pack(tmp_buf, loc, total_size, tmp_set) ;
+	tmp_sp->pack(tmp_buf, loc, total_size, local_set) ;
 	if(p == 0) {
 	  int loc_unpack = 0 ;
 	  Loci::sequence tmp_seq = Loci::sequence(dom) ;
