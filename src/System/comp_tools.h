@@ -409,8 +409,13 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
     // memory profile function
     int currentMem(void) {
+#ifdef LINUX
       struct mallinfo info = mallinfo() ;
       return info.arena+info.hblkhd ;
+#else
+      cerr << "memProfile not implemented" << endl;
+      return 0 ;
+#endif
     }    
   } ;
 
