@@ -646,8 +646,8 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     std::vector<int> send_index ;
     std::vector<int> recv_index ; 
     int total_size = 0 ;
-    MPI_Request *re_request ;
-    MPI_Status *re_status ;
+    MPI_Request *re_request = 0;
+    MPI_Status *re_status = 0 ;
     for(int i=0;i<nrecv;++i) {
       r_size[i] = maxr_size[i] ;
       total_size += maxr_size[i] ;
