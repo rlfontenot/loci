@@ -252,7 +252,7 @@ namespace Loci {
     else
       return fdata.imageMap[e] = get_sched_data(v).minfo->image(e) ;
   }
-  
+   
   pair<entitySet,entitySet> sched_db::preimage(variable v, entitySet e) {
     sched_data &fdata = get_sched_data(v) ;
     if(!fdata.ismap)
@@ -264,6 +264,38 @@ namespace Loci {
     else
       return fdata.preimageMap[e] = get_sched_data(v).minfo->preimage(e) ;
   }
+  
+#ifdef COMP_ENT
+  void sched_db::add_policy(variable v, duplicate_policy p) {
+    unsigned int policy = get_policy(v);
+    unsigned int temp = 1;
+
+    switch(p) {
+    case NEVER:
+      break;
+    case ALWAYS:
+      temp = temp << 1;
+      break;
+    }
+
+    policy |= temp;
+    set_policy(v, policy);
+  }
+
+  bool sched_db::is_policy(variable v, duplicate_policy p) {
+    unsigned int policy = get_policy(v);
+    unsigned int temp = 1;
+
+    switch(p) {
+    case NEVER:
+      break;
+    case ALWAYS:
+      temp = temp << 1;
+      break;
+    }
+    return (temp & policy);
+  }
+#endif
 
   std::ostream &sched_db::print_summary(fact_db &facts, std::ostream &s) {
     s << "Summary of Existential deduction:" << endl ;
