@@ -30,13 +30,13 @@ public:
   int  getSize()  const
   { return obj.size(); };
 
-  void getState( converter_traits::memento_type *buf, int &size)
+  void getState(typename converter_traits::memento_type *buf, int &size)
   {
     size = obj.size();
     for( int i = 0; i < size; i++) 
          buf[i] = obj[i];
   }
-  vector<T> setState( converter_traits::memento_type *buf, int size)
+  vector<T> setState(typename converter_traits::memento_type *buf, int size)
   {
     obj.clear();
  

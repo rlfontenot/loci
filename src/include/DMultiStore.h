@@ -14,6 +14,7 @@
 #include <Tools/lmutex.h>
 #include <hdf5CC/H5cpp.h>
 
+#include <storeVec.h>
 #include <Map.h>
 #include <multiMap.h>
 
@@ -158,7 +159,7 @@ namespace Loci {
     typedef dmultiStoreRepI<T> storeType ;
     hash_map<int, vector<T> >   *attrib_data;
   public:
-    typedef const_Vect<T> containerType ;
+    //    typedef const_Vect<T> containerType ;
     const_dmultiStore() {setRep(new storeType) ;}
     const_dmultiStore(const_dmultiStore<T> &var) {setRep(var.Rep()) ;}
     const_dmultiStore(storeRepP &rp) { setRep(rp) ;}
@@ -278,7 +279,7 @@ namespace Loci {
 
   template<class T> 
   storeRepP dmultiStoreRepI<T>::remap(const Map &m) const {
-    multiStore<T> s ;
+    dmultiStore<T> s ;
   /*
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
@@ -932,7 +933,7 @@ namespace Loci {
     hssize_t  foffset[]   = {0};  // location (in file) where data is read.
     hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-    buf  = new converter_traits::memento_type[maxBucketSize];
+    buf  = new typename converter_traits::memento_type[maxBucketSize];
 
     for( int k = 0; k < num_intervals; k++) {
       count[0] = 0;
@@ -941,7 +942,7 @@ namespace Loci {
           count[0] +=  subcontainer[i][j];
       }
 
-      data = new converter_traits::memento_type[count[0]];
+      data = new typename converter_traits::memento_type[count[0]];
 
       foffset[0] = offset[it[k].first];
 
@@ -1055,8 +1056,8 @@ namespace Loci {
     typedef hdf5_schema_converter_traits<T> converter_traits; 
     converter_traits::memento_type *data, *buf;
 
-    data =  new converter_traits::memento_type[arraySize];
-    buf  =  new converter_traits::memento_type[maxBucketSize];
+    data =  new typename converter_traits::memento_type[arraySize];
+    buf  =  new typename converter_traits::memento_type[maxBucketSize];
     //-----------------------------------------------------------------------------
     // Collect state data from each object and put into 1D array
     //-----------------------------------------------------------------------------

@@ -98,16 +98,13 @@ class dmultiMapRepI : public MapRep {
     const vector<int> &const_elem(int indx)  const 
     {
       hash_map<int, vector<int> > :: const_iterator   ci;
-      vector<int>     newVec;
      
       ci = attrib_data->find(indx);
       if( ci != attrib_data->end())
           return( ci->second );
-      else {
-          cout << "Error: out of range entity " << endl;
-          exit(0);
-      }
-      return( newVec );
+      
+      cerr << "Error: out of range entity " << endl;
+      exit(0);
     }
 
     vector<int> &operator[](int indx) { return elem(indx); }

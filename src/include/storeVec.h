@@ -10,6 +10,8 @@
 #include <Tools/tools.h>
 
 #include <store_rep.h>
+#include <store.h>
+#include <DMultiStore.h>
 
 #include <Tools/lmutex.h>
 #include <hdf5CC/H5cpp.h>
@@ -909,8 +911,8 @@ namespace Loci {
     typedef hdf5_schema_converter_traits<T> converter_traits; 
     converter_traits::memento_type *data, *buf;
 
-    data =  new converter_traits::memento_type[arraySize];
-    buf  =  new converter_traits::memento_type[maxStateSize];
+    data =  new typename converter_traits::memento_type[arraySize];
+    buf  =  new typename converter_traits::memento_type[maxStateSize];
 
 //-----------------------------------------------------------------------------
 // Collect state data from each object and put into 1D array
@@ -1141,7 +1143,7 @@ namespace Loci {
    //---------------------------------------------------------------------------
    // Calculate the offset of each entity in file ....
    //---------------------------------------------------------------------------
-   store<unsigned>   offset;
+   store< unsigned int >   offset;
    dmultiStore<int>  subcontainer;
    offset.allocate( eset );
 
@@ -1180,7 +1182,7 @@ namespace Loci {
    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
 
-   buf  = new converter_traits::memento_type[maxBucketSize];
+   buf  = new typename converter_traits::memento_type[maxBucketSize];
 
    for( int k = 0; k < num_intervals; k++) {
         count[0] = 0;
@@ -1189,7 +1191,7 @@ namespace Loci {
                   count[0] +=  subcontainer[i][j];
         }
 
-        data = new converter_traits::memento_type[count[0]];
+        data = new typename converter_traits::memento_type[count[0]];
 
         foffset[0] = offset[it[k].first];
 
