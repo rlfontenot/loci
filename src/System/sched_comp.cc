@@ -183,7 +183,9 @@ namespace Loci {
     double total_size = 0 ;
     entitySet dom, total, unused ;
     double total_wasted = 0 ;
-    /*
+
+    //#define DIAGNOSTICS
+#ifdef DIAGNOSTICS
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       if(srp->RepType() == Loci::STORE) {
@@ -231,27 +233,25 @@ namespace Loci {
 	Loci::debugout << " ***************************************************" << endl << endl << endl ;
       }
     }
-    */
+#endif
+
+    //#define HACK
     for(vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
-      if(srp->domain() == EMPTY) {
 #ifdef HACK
-	entitySet all_requests = v_existence[*vi] ;
+          entitySet alloc_dom = v_existence[*vi] + srp->domain() ;
 #else
-	entitySet all_requests = v_requests[*vi] ;
-#endif	  
-	srp->allocate(all_requests) ;
+          entitySet alloc_dom = v_requests[*vi] + srp->domain() ;
+#endif
+      if(srp->domain() == EMPTY) {
+	srp->allocate(alloc_dom) ;
       }
       else {
 	if(srp->RepType() == Loci::STORE) {
-#ifdef HACK
-	  if(srp->domain() != v_existence[*vi]) 
-	    srp->allocate(v_existence[*vi]) ;
-	  
-#else
-	  if(srp->domain() != v_requests[*vi]) 
-	    srp->allocate(v_requests[*vi]) ; 
-#endif
+	  if(alloc_dom != srp->domain()) {
+            Loci::debugout << "reallocating " << *vi << endl ;
+	    srp->allocate(alloc_dom) ;
+          }
 	}
       }
     }
