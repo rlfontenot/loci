@@ -20,7 +20,7 @@ namespace Loci {
   extern double barrier_time ;
   
   void Init(int* argc, char*** argv) ;
-  void Finalize() ;
+  void Finalize() ; 
   void Abort() ;
   
   void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 ) ;
@@ -29,6 +29,7 @@ namespace Loci {
   void get_mappings(rule_db &rdb, fact_db &facts, std::set<std::vector<variableSet> > &maps) ;
   
   void fill_clone(Loci::storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+  std::pair<Loci::storeRepP, Map > send_clone(Loci::storeRepP& sp, Map &m,  entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   entitySet expand_map(entitySet domain, fact_db &facts,
 		       const std::set<std::vector<variableSet> > &maps) ;
   
@@ -51,7 +52,8 @@ namespace Loci {
   void print_global(entitySet e, fact_db &facts) ;
   entitySet collect_entitySet(entitySet e, fact_db &facts) ;
   storeRepP collect_store(storeRepP &sp, fact_db &facts) ;
-  storeRepP reorder_store(storeRepP &sp, Map &remap, fact_db &facts) ;
+  storeRepP collect_reorder_store(storeRepP &sp, Map &remap, fact_db &facts) ;
+  storeRepP distribute_reorder_store(storeRepP &sp, Map &remap, fact_db &facts) ;
   storeRepP distribute_store(storeRepP &sp, fact_db &facts) ;
 
   extern fact_db *exec_current_fact_db ;
@@ -66,16 +68,16 @@ namespace Loci {
 
   inline storeRepP distribute_store(storeRepP &sp)
   { return distribute_store(sp,*exec_current_fact_db) ; }
-
-   void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) ;
- 
- void distributed_inverseMap(dmultiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) ;
   
- void distributed_inverseMap(dmultiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) ;
- 
- void distributed_inverseMap(dmultiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts); 
- entitySet all_collect_entitySet(fact_db &facts, const entitySet &e) ;
- std::vector<entitySet> all_collect_vectors(entitySet &e) ;
+  void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn); 
+  entitySet all_collect_entitySet(fact_db &facts, const entitySet &e) ;
+  std::vector<entitySet> all_collect_vectors(entitySet &e) ;
 }
 #endif
  
