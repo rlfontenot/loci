@@ -92,7 +92,7 @@ namespace Loci {
     return CONSTRAINT ;
   }
 
-  const entitySet &constraintRep::domain() const {
+  entitySet constraintRep::domain() const {
     return constraint_set ;
   }
 
@@ -101,7 +101,7 @@ namespace Loci {
     return s ;
   }
 
-  void constraintRep::readhdf5( H5::Group group){
+  void constraintRep::readhdf5( H5::Group group, entitySet &en){
     try{
       //get constraint data
       H5::DataSet dataset_constraint = group.openDataSet( "constraint");
@@ -119,6 +119,7 @@ namespace Loci {
     catch( H5::HDF5DatasetInterfaceException error ){error.printerror();}
     catch( H5::HDF5DataspaceInterfaceException error ){error.printerror();}
     catch( H5::HDF5DatatypeInterfaceException error ){error.printerror();}
+
   }
 
   void constraintRep::writehdf5( H5::Group group,entitySet& en) const{
