@@ -30,10 +30,10 @@ namespace Loci {
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
     
     virtual store_type RepType() const ;
-    virtual const entitySet &domain() const ;
+    virtual entitySet domain() const ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
-    virtual void readhdf5( H5::Group group) ;
+    virtual void readhdf5( H5::Group group, entitySet &en) ;
     virtual void writehdf5( H5::Group group,entitySet& en) const ;
     entitySet *get_constraint() { return &constraint_set ; }
   } ;
