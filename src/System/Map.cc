@@ -1067,7 +1067,7 @@ storeRepP multiMapRepI::thaw() {
     entitySet domaini,domainu ;
     FORALL(store_domain,i) {
       bool vali = true ;
-      bool valu = begin(i) == end(i)?true:false ;
+      bool valu = false;
       for(const int *ip = begin(i);ip!= end(i);++ip) {
         bool in_set = codomain.inSet(*ip) ;
         vali = vali && in_set ;
