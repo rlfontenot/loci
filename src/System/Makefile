@@ -8,7 +8,7 @@ LOCAL_INCLUDES = -I$(LOCI_BASE)/include
 
 
 OBJS = variable.o store_rep.o Map.o constraint.o rule.o \
-       fact_db.o execute.o depend_graph.o scheduler.o new_depend_graph.o
+       fact_db.o execute.o depend_graph.o scheduler.o
 
 
 JUNK = *~ *.ii core ti_files ii_files 

@@ -146,9 +146,9 @@ namespace Loci {
   storeRepP rule_impl::get_store(variable v) const {
     storeIMap::const_iterator sp ;
     sp = var_table.find(v) ;
-    if(sp == var_table.end()) 
-      cerr << "unable to get store for variable " << v << endl ;
-    fatal(sp == var_table.end()) ;
+    if(sp == var_table.end()) {
+      return storeRepP(0) ;
+    }
     return sp->second->Rep() ;
   }
 

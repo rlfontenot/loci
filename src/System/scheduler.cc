@@ -5,7 +5,6 @@
 #include <fact_db.h>
 #include <execute.h>
 #include <depend_graph.h>
-#include <new_depend_graph.h>
 #include <Map.h>
 
 #ifdef PROFILE_CODE
@@ -27,8 +26,539 @@ using std::pair ;
 using std::make_pair ;
 
 //#define VERBOSE
-
 namespace {
+
+  digraph::vertexSet visit_vertices(digraph dg,digraph::vertexSet begin) {
+
+    digraph::vertexSet visit = begin ;
+    digraph::vertexSet visited ;
+    digraph::vertexSet::const_iterator ni ;
+
+    // keep visiting vertices until no new vertices are found
+    while(visit != EMPTY) {
+      digraph::vertexSet newvertices ;
+      // visit all the vertices that this graph leads to
+      for(ni=visit.begin();ni!=visit.end();++ni)
+        newvertices += dg[*ni] ;
+      // update visit, but don't re-visit a vertex
+      visit = newvertices - visited ;
+      visited = visited + newvertices ;
+    }
+    return visited ;
+  }
+
+  digraph::vertexSet visit_vertices_exclusive(digraph dg, digraph::vertexSet begin) {
+    digraph dgt = dg.transpose() ;
+    digraph::vertexSet visited, visit ;
+
+    visit = begin ;
+    visited = visit ;
+
+    // keep visiting vertices until no new vertices are found
+    while(visit != EMPTY) {
+      digraph::vertexSet::const_iterator ni,nii,no ;
+      digraph::vertexSet newvertices, not_visited = ~visited ;
+      // visit all new vertices and check to see if they contain paths to
+      // new candidate vertices
+      for(ni=visit.begin();ni!=visit.end();++ni) 
+        for(nii=dg[*ni].begin();nii!=dg[*ni].end();++nii) { // loop over edges
+          // if this edge leads to a vertex that can only be reached through
+          // the visited set, then it is a new vertex to be visited
+          digraph::vertexSet out_bound_vertices = dgt[*nii] & not_visited ;
+
+          // Check to see if out of bound vertices loop exclusively back to this
+          // vertex, if so then add it to the list of new vertices.
+          // This is a little bit of a hack since the graphs analyzed may
+          // contain loops no larger than 2 edges and 2 vertexes.
+          bool flg = true ;
+          digraph::vertexSet local_not_visit = ~(visited + interval(*nii,*nii));
+          for(no=out_bound_vertices.begin();no!=out_bound_vertices.end();++no) {
+            flg = flg && (dgt[*no] & local_not_visit) == EMPTY ;
+          }
+          if(flg) 
+            newvertices += *nii ;
+        }
+      // next time we will visit the vertices found in this iteration
+      // update our list of visited vertices.
+      visit = newvertices - visited ;
+      visited += newvertices ;
+    }
+    return visited ;
+  }
+
+
+  // Create a schedule for traversing a directed acyclic graph.  This schedule
+  // may be concurrent, or many vertices of the graph may be visited at each
+  // step of the schedule  If the graph contains cycles, the schedule may
+  // not include all of the vertices in the graph.
+  vector<digraph::vertexSet> schedule_dag(const digraph &g,
+                                          digraph::vertexSet start_vertices = EMPTY,
+                                          digraph::vertexSet only_vertices =
+                                          interval(UNIVERSE_MIN,UNIVERSE_MAX)) {
+    digraph gt = g.transpose() ;
+
+    vector<digraph::vertexSet> schedule ; 
+    // First schedule any vertices that have no edges leading into them and have
+    // not been scheduled previously (in start vertices)
+
+    digraph::vertexSet working = g.get_source_vertices() -
+      (g.get_target_vertices()+start_vertices) ;
+    if(working != EMPTY)
+      schedule.push_back(working) ;
+    // visited vertices are all vertices that have already been scheduled
+    digraph::vertexSet visited_vertices = start_vertices + working ;
+    // In the beginning our working set are all scheduled vertices
+    working = visited_vertices ;
+    while(working != EMPTY) {
+      // While we have vertices to work on, compute additional vertices that
+      // can be scheduled
+      digraph::vertexSet new_vertices ;
+      digraph::vertexSet::const_iterator ni ;
+      // loop over working set and create a list of candidate vertices
+      for(ni=working.begin();ni != working.end(); ++ni)
+        new_vertices += g[*ni] ;
+      // If a vertex has already been scheduled it can't be scheduled again,
+      // so remove visited vertices
+      new_vertices = new_vertices - visited_vertices    ;
+      // We only schedule vertices that are also in the only_vertices set
+      working = new_vertices & only_vertices ;
+      new_vertices = EMPTY ;
+      // Find any vertex from this working set that has had all vertices leading
+      // to it scheduled
+      for(ni=working.begin();ni != working.end(); ++ni) 
+        if((gt[*ni] & visited_vertices) == gt[*ni])
+          new_vertices += *ni ;
+      working = new_vertices ;
+      // and these new vertices to the schedule
+      if(new_vertices != EMPTY)
+        schedule.push_back(new_vertices) ;
+      // update visited vertices set to include scheduled vertices
+      visited_vertices += new_vertices ;
+    }
+    return schedule ;
+  }
+
+
+  // Create a sequential ordering of rules based on the concurrent dag schedule
+  void extract_rule_sequence(vector<rule> &rule_seq,
+                             const vector<digraph::vertexSet> &v) {
+    vector<digraph::vertexSet>::const_iterator i ;
+    for(i=v.begin();i!=v.end();++i) {
+      ruleSet rules = extract_rules(*i) ;
+      ruleSet::const_iterator ri ;
+      for(ri=rules.begin();ri!=rules.end();++ri)
+        rule_seq.push_back(*ri) ;
+    }
+  }
+        
+  rule make_super_rule(variableSet sources, variableSet targets,
+                       variable cond = variable()) {
+    FATAL(targets == EMPTY) ;
+    static int super_node_number = 0 ;
+    ostringstream oss ;
+    oss << "source("<<sources << "),target(" << targets << ")," ;
+    if(cond != variable()) 
+      oss<< "conditional(" << cond << ")," ;
+    oss << "qualifier(SN" << super_node_number++ << ")" ;
+   
+    return rule(oss.str()) ;
+  }
+
+  rule make_rename_rule(variable new_name, variable old_name) {
+    ostringstream oss ;
+    oss << "source(" << old_name << "),target(" << new_name
+        << "),qualifier(rename)"  ;
+    return rule(oss.str()) ;
+  }
+
+  // Create variable types in fact database
+  // This is a necessary precursor to binding rules to the database
+  void set_var_types(fact_db &facts, const digraph &dg) {
+
+    // Get all the variables and rules represented in the graph
+    variableSet all_vars = extract_vars(dg.get_all_vertices()) ;
+    ruleSet     all_rules = extract_rules(dg.get_all_vertices()) ;
+
+    // extract the qualified rules, these are rules that are
+    // automatically generated by the system.  Since these rules
+    // cannot provide type information directly, they are
+    // singled out so that they can be handled as a separate case.
+    ruleSet qualified_rules ;
+    for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) {
+      if(ri->type() == rule::INTERNAL)
+        qualified_rules += *ri ;
+    }
+
+    // We need the transpose of the graph in order to find the rules that
+    // generate a particular variable
+    digraph dgt = dg.transpose() ;
+  
+    vector<pair<variable,variable> > rename_vars ;
+
+    // Loop through the variables and type them when there is an appropriate
+    // rule specification.  Deal with typing rules that rename their targets
+    // separately
+    for(variableSet::const_iterator
+          vi=all_vars.begin();vi!=all_vars.end();++vi) {
+
+      // only deal with rules given to the system by the user
+      ruleSet rs = extract_rules(dgt[(*vi).ident()] - qualified_rules) ;
+      if(rs == EMPTY) {
+        continue ;
+      }
+      // storage for rename specification if one is found
+      pair<variable,variable> rename_pair ;
+      bool rename = false ;
+
+      // Check all rules generating this variable, if the rules specify
+      // renaming a variable for the target, then by default the target
+      // will be an identical type to that of the previous variable.
+      for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri) {
+        set<vmap_info>::const_iterator vmsi ;
+        for(vmsi=ri->get_info().desc.targets.begin();
+            vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
+          if(vmsi->assign.size() != 0) 
+            for(int i=0;i<vmsi->assign.size();++i) {
+              variable new_name = vmsi->assign[i].first ;
+            
+              if(new_name == *vi) {
+                variable old_name = vmsi->assign[i].second ;
+                if(rename && old_name != rename_pair.second) {
+                  cerr << "rule " << *ri << endl 
+                       << " is not consistent with other rules w/respect to "
+                       << "renaming." << endl ;
+                  exit(-1) ;
+                }
+
+                rename_pair = make_pair(new_name,old_name) ;
+                rename = true ;
+              }
+            }
+      }
+
+      // If a rename variable was found, save this information for later
+      // use and continue ;
+      if(rename) {
+        rename_vars.push_back(rename_pair) ;
+        continue ;
+      }
+
+      // Otherwise pick the first rule in the set of rules that generates it
+      // and query the rule for the type of variable *vi.  Set the variable
+      // type appropriately in the fact database.
+
+      rule pick = *rs.begin() ;
+      const rule_impl::info &info = pick.get_info().desc ;
+      storeRepP st = pick.get_info().rule_impl->get_store(*vi) ;
+      facts.set_variable_type(*vi,st) ;
+    
+    }
+
+    // We now have to deal with internally generated rules that do operations
+    // such as promoting variables from one time level to another,
+    // generalizing a variable from a specific time to general time
+    // (e.g. q{n}<-q{n=0}) and rules that create a priority relationship
+    // from priority variables (e.g. qf<-degenerate::qf).
+    // In addition we will deal with variables that may be renamed.
+    // To do this, we must tell the fact database that variables are
+    // synonyms (meaning that the two variable names are completely identical)
+    // and variables that are aliases (meaning that the variable is exclusive
+    // by name).  Since these variables have to be defined from
+    // variables that are already typed and that these rules may
+    // become chained, we need to make sure that we proceed in the
+    // proper order.  We do this by creating a subgraph of these
+    // internal rules, then we perform a topological sort on this
+    // sub-graph to determine the order of typing
+
+    // This is the internal rule graph
+    digraph irg ;
+    // place all promote, generalize, and priority rules into irg
+    for(ruleSet::const_iterator
+          ri = qualified_rules.begin() ; ri != qualified_rules.end();++ri) {
+      if(ri->get_info().qualifier() == "promote" ||
+         ri->get_info().qualifier() == "generalize" ||
+         ri->get_info().qualifier() == "priority") {
+        FATAL((ri->sources()).size()!=1)  ;
+        FATAL((ri->targets()).size()!=1) ;
+        variable source = *((ri->sources()).begin()) ;
+        variable target = *((ri->targets()).begin()) ;
+        irg.add_edge((*ri).ident(),target.ident()) ;
+        irg.add_edge(source.ident(),(*ri).ident()) ;
+      } else if(ri->get_info().qualifier() == "looping") {
+        // create the iteration variable type
+        time_ident tl = ri->source_time() ;
+        variable v(tl) ;
+        param<int> timevar ;
+        storeRepP st = timevar ;
+        facts.set_variable_type(v,st) ;
+      }
+    }
+
+    // Also add rules to represent renaming relationships
+    for(int i=0;i<rename_vars.size();++i) {
+      variable new_var = rename_vars[i].first ;
+      variable old_var = rename_vars[i].second ;
+    
+      rule rr = make_rename_rule(new_var,old_var) ;
+      irg.add_edge(old_var.ident(),rr.ident()) ;
+      irg.add_edge(rr.ident(),new_var.ident()) ;
+    }  
+
+    // Perform a topological sort on the interal rule graph
+    vector<digraph::vertexSet> components =
+      component_sort(irg).get_components() ;
+
+    for(int i=0;i<components.size();++i) {
+      // Note, recursion should not occur among the internal rules
+      FATAL(components[i].size()!=1) ;
+      ruleSet rs = extract_rules(components[i]) ;
+      // Note: components may be rules or variables, thus this check
+      if(rs != EMPTY) {
+        rule r = *rs.begin() ;
+        if(r.sources().size() != 1) 
+          cerr << "rule = " << r << endl ;
+        FATAL(r.sources().size() != 1) ;
+        FATAL(r.targets().size() != 1) ;
+        // get source and target variables
+        variable s = (*(r.sources().begin())) ;
+        variable t = (*(r.targets().begin())) ;
+        // A rename rule uses alias, while all others use synonym relationships
+        if(r.get_info().qualifier() == "rename")
+          facts.alias_variable(s,t) ;
+        else
+          facts.synonym_variable(s,t) ;
+      }
+    }
+
+    // Check to make sure there are no type conflicts, loop over all
+    // rules that are not internally generated.
+    bool type_error = false ;
+    ruleSet::const_iterator ri ;
+    ruleSet rs = all_rules ;
+    rs -= qualified_rules ;
+    variableSet typed_vars = facts.get_typed_variables() ;
+    
+    for(ri=rs.begin();ri!=rs.end();++ri) {
+      variableSet varcheck ;
+      const rule_impl::info &finfo = ri->get_info().desc ;
+
+      // Collect all variables for which are actually read or written in the class
+      set<vmap_info>::const_iterator i ;
+      for(i=finfo.sources.begin();i!=finfo.sources.end();++i) {
+        for(int j=0;j<i->mapping.size();++j)
+          varcheck += i->mapping[j] ;
+        varcheck += i->var ;
+      }
+      for(i=finfo.targets.begin();i!=finfo.targets.end();++i) {
+        for(int j=0;j<i->mapping.size();++j)
+          varcheck += i->mapping[j] ;
+        varcheck += i->var ;
+        for(int k=0;k<i->assign.size();++k) {
+          varcheck -= i->assign[k].first ;
+          varcheck += i->assign[k].second ;
+        }
+      }
+
+      variableSet::const_iterator vi ;
+      for(vi = varcheck.begin();vi!=varcheck.end();++vi) {
+        storeRepP rule_type = ri->get_rule_implP()->get_store(*vi)->getRep() ;
+        if(typed_vars.inSet(*vi)) {
+          storeRepP fact_type = facts.get_variable(*vi)->getRep() ;
+          if(typeid(*rule_type) != typeid(*fact_type)) {
+            cerr << "variable type mismatch for variable " << *vi << " in rule "
+                 << *ri << endl ;
+            cerr << "fact database has type " << typeid(*fact_type).name() << endl ;
+            cerr << "rule has type " << typeid(*rule_type).name() << endl ;
+            type_error = true ;
+          }
+        } else {
+          facts.set_variable_type(*vi,rule_type) ;
+          typed_vars += *vi ;
+        }
+      }
+    }
+    if(type_error)
+      exit(-1) ;
+  }
+
+
+  entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts) {
+    variableSet::const_iterator vi ;
+    entitySet sources = ~EMPTY ;
+    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
+      sources &= facts.variable_existence(*vi) ;
+    vector<variableSet>::const_reverse_iterator mi ;
+    for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
+      entitySet working = ~EMPTY ;
+      for(vi=mi->begin();vi!=mi->end();++vi) {
+        FATAL(!facts.is_a_Map(*vi)) ;
+        working &= facts.preimage(*vi,sources).first ;
+      }
+      sources = working ;
+    }
+    return sources ;
+  }
+
+
+  entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
+                              entitySet compute) {
+    vector<variableSet>::const_iterator mi ;
+    for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
+      if(mi->size() == 1) {
+        variable v = *(mi->begin()) ;
+        FATAL(!facts.is_a_Map(v)) ;
+        compute = facts.image(v,compute) ;
+      } else {
+        variableSet::const_iterator vi ;
+        entitySet images ;
+        for(vi=mi->begin();vi!=mi->end();++vi) {
+          variable v = *vi ;
+          FATAL(!facts.is_a_Map(v)) ;
+          images |= facts.image(v,compute) ;
+        }
+        compute = images ;
+      }
+    }
+    return compute ;
+  }
+
+
+  void existential_rule_analysis(rule f, fact_db &facts) {
+
+    FATAL(f.type() == rule::INTERNAL) ;
+
+    entitySet sources = ~EMPTY ;
+    entitySet constraints = ~EMPTY ;
+    entitySet targets = EMPTY ;
+    const rule_impl::info &finfo = f.get_info().desc ;
+    set<vmap_info>::const_iterator si ;
+    for(si=finfo.sources.begin();si!=finfo.sources.end();++si) 
+      sources &= vmap_source_exist(*si,facts) ;
+    for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si)
+      constraints &= vmap_source_exist(*si,facts) ;
+    if(finfo.constraints.begin() != finfo.constraints.end())
+      if((sources & constraints) != constraints) {
+        cerr << "Warning, rule " << f <<
+          " cannot supply all entities of constraint" << endl ;
+        cerr << "constraints = " << constraints ;
+        cerr << "sources & constraints = " << (sources & constraints) << endl ;
+        //      exit(-1) ;
+      }
+    sources &= constraints ;
+    for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
+      targets = vmap_target_exist(*si,facts,sources) ;
+      const variableSet &tvars = si->var ;
+      variableSet::const_iterator vi ;
+      for(vi=tvars.begin();vi!=tvars.end();++vi)
+        facts.set_existential_info(*vi,f,targets) ;
+    }
+#ifdef VERBOSE
+    cout << "rule " << f << " generating " << targets << endl ;
+#endif
+  }
+  typedef map<variable,entitySet> vdefmap ;
+
+  entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
+                                 fact_db &facts) {
+    variableSet::const_iterator vi ;
+    entitySet targets ;
+    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
+      FATAL(tvarmap.find(*vi) == tvarmap.end()) ;
+      targets |= tvarmap.find(*vi)->second ;
+    }
+    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
+      facts.variable_request(*vi,targets) ;
+  
+    vector<variableSet>::const_reverse_iterator mi ;
+    for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
+      entitySet working = EMPTY ;
+      for(vi=mi->begin();vi!=mi->end();++vi) {
+        FATAL(!facts.is_a_Map(*vi)) ;
+        working |= facts.preimage(*vi,targets).second ;
+      }
+      targets = working ;
+    }
+    return targets ;
+  }
+
+  void vmap_source_requests(const vmap_info &vmi, fact_db &facts,
+                            entitySet compute) {
+    vector<variableSet>::const_iterator mi ;
+    variableSet::const_iterator vi ;
+    for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
+      entitySet working ;
+      for(vi=mi->begin();vi!=mi->end();++vi) {
+        FATAL(!facts.is_a_Map(*vi)) ;
+        working |= facts.image(*vi,compute) ;
+      }
+      compute = working ;
+    }
+    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
+      facts.variable_request(*vi,compute) ;
+  }
+
+  entitySet process_rule_requests(rule f, fact_db &facts) {
+
+    FATAL(f.type() == rule::INTERNAL) ;
+
+    variableSet targets = f.targets() ;
+  
+    variableSet::const_iterator vi ;
+    vdefmap tvarmap ;
+    for(vi=targets.begin();vi!=targets.end();++vi) {
+      if(vi->get_info().name == string("OUTPUT")) 
+        facts.variable_request(*vi,facts.variable_existence(*vi)) ;
+      tvarmap[*vi] = facts.get_variable_request(f,*vi) ;
+    }
+
+    const rule_impl::info &finfo = f.get_info().desc ;
+    set<vmap_info>::const_iterator si ;
+    entitySet compute,isect = ~EMPTY ;
+    for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
+      entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
+      compute |= tmp ;
+      isect &= tmp ;
+    }
+
+    if(isect != compute) {
+      entitySet working = compute ;
+      vector<variableSet>::const_reverse_iterator mi ;
+      for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
+        for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
+          entitySet tmp ;
+          for(vi=mi->begin();vi!=mi->end();++vi)
+            tmp |= facts.image(*vi,working) ;
+          working = tmp ;
+        }
+        for(vi=si->var.begin();vi!=si->var.end();++vi) {
+          facts.variable_request(*vi,working) ;
+#ifdef UNDERSTAND_THIS
+          WARN(facts.get_variable_request(f,*vi) != working) ;
+          if(facts.get_variable_request(f,*vi) != working) {
+            cerr << "f = " << f << endl ;
+            cerr << "*vi = " << *vi << endl ;
+            cerr << "facts.get_variable_request(f,*vi) = "
+                 << facts.get_variable_request(f,*vi)
+                 << ", working = " << working << endl ;
+          }
+#endif
+        }
+      }
+    }
+
+    for(si=finfo.sources.begin();si!=finfo.sources.end();++si) 
+      vmap_source_requests(*si,facts,compute) ;
+
+    for(vi=finfo.conditionals.begin();vi!=finfo.conditionals.end();++vi)
+      facts.variable_request(*vi,compute) ;
+
+#ifdef VERBOSE
+    cout << "rule " << f << " computes over " << compute << endl ;
+#endif
+    return compute ;
+  }
+
+}
 
 class decompose_graph ;
 class rule_calculator ;
@@ -62,7 +592,7 @@ class decompose_graph {
                         variable cond_var = variable()) ;
   ruleSet recursive_supernodes ;
   ruleSet looping_supernodes ;
-
+  
   map<rule, rule_calculator *> rule_process ;
   
 public:
@@ -74,16 +604,18 @@ public:
 class rule_calculator {
 protected:
   decompose_graph *graph_ref ;
-  rule_calculator *calc(const rule &r) { return graph_ref->rule_process[r] ; }
+  
+  rule_calculator *calc(const rule &r) 
+  {return graph_ref->rule_process[r] ;}
 public:
   virtual void set_var_existence(fact_db &facts) = 0 ;
   virtual void process_var_requests(fact_db &facts) = 0 ;
-  virtual executeP create_execution_schedule(fact_db &facts) = 0 ;
+  virtual executeP create_execution_schedule(fact_db &facts) = 0;
 } ;
 
 class loop_calculator : public rule_calculator {
   digraph dag ;
-
+  
   vector<rule> rule_schedule ;
   vector<rule> collapse ;
   vector<digraph::vertexSet> collapse_sched ;
@@ -101,630 +633,283 @@ public:
   virtual executeP create_execution_schedule(fact_db &facts) ;
 } ;
 
+// rule calculator for rule with concrete implementation
+class impl_calculator : public rule_calculator {
+  rule impl ;  // rule to implement
 
-digraph::vertexSet visit_vertices(digraph dg,digraph::vertexSet begin) {
-
-  digraph::vertexSet visit = begin ;
-  digraph::vertexSet visited ;
-  digraph::vertexSet::const_iterator ni ;
-
-  // keep visiting vertices until no new vertices are found
-  while(visit != EMPTY) {
-    digraph::vertexSet newvertices ;
-    // visit all the vertices that this graph leads to
-    for(ni=visit.begin();ni!=visit.end();++ni)
-      newvertices += dg[*ni] ;
-    // update visit, but don't re-visit a vertex
-    visit = newvertices - visited ;
-    visited = visited + newvertices ;
-  }
-  return visited ;
-}
-
-digraph::vertexSet visit_vertices_exclusive(digraph dg, digraph::vertexSet begin) {
-  digraph dgt = dg.transpose() ;
-  digraph::vertexSet visited, visit ;
-
-  visit = begin ;
-  visited = visit ;
-
-  // keep visiting vertices until no new vertices are found
-  while(visit != EMPTY) {
-    digraph::vertexSet::const_iterator ni,nii,no ;
-    digraph::vertexSet newvertices, not_visited = ~visited ;
-    // visit all new vertices and check to see if they contain paths to
-    // new candidate vertices
-    for(ni=visit.begin();ni!=visit.end();++ni) 
-      for(nii=dg[*ni].begin();nii!=dg[*ni].end();++nii) { // loop over edges
-        // if this edge leads to a vertex that can only be reached through
-        // the visited set, then it is a new vertex to be visited
-        digraph::vertexSet out_bound_vertices = dgt[*nii] & not_visited ;
-
-        // Check to see if out of bound vertices loop exclusively back to this
-        // vertex, if so then add it to the list of new vertices.
-        // This is a little bit of a hack since the graphs analyzed may
-        // contain loops no larger than 2 edges and 2 vertexes.
-        bool flg = true ;
-        digraph::vertexSet local_not_visit = ~(visited + interval(*nii,*nii));
-        for(no=out_bound_vertices.begin();no!=out_bound_vertices.end();++no) {
-          flg = flg && (dgt[*no] & local_not_visit) == EMPTY ;
-        }
-        if(flg) 
-          newvertices += *nii ;
-      }
-    // next time we will visit the vertices found in this iteration
-    // update our list of visited vertices.
-    visit = newvertices - visited ;
-    visited += newvertices ;
-  }
-  return visited ;
-}
-
-
-// Create a schedule for traversing a directed acyclic graph.  This schedule
-// may be concurrent, or many vertices of the graph may be visited at each
-// step of the schedule  If the graph contains cycles, the schedule may
-// not include all of the vertices in the graph.
-vector<digraph::vertexSet> schedule_dag(const digraph &g,
-                                      digraph::vertexSet start_vertices = EMPTY,
-                                      digraph::vertexSet only_vertices =
-                                      interval(UNIVERSE_MIN,UNIVERSE_MAX)) {
-  vector<digraph::vertexSet> schedule ;
-  digraph gt = g.transpose() ;
-  // First schedule any vertices that have no edges leading into them and have
-  // not been scheduled previously (in start vertices)
-  digraph::vertexSet working = g.get_source_vertices() -
-    (g.get_target_vertices()+start_vertices) ;
-  if(working != EMPTY)
-    schedule.push_back(working) ;
-  // visited vertices are all vertices that have already been scheduled
-  digraph::vertexSet visited_vertices = start_vertices + working ;
-  // In the beginning our working set are all scheduled vertices
-  working = visited_vertices ;
-  while(working != EMPTY) {
-    // While we have vertices to work on, compute additional vertices that
-    // can be scheduled
-    digraph::vertexSet new_vertices ;
-    digraph::vertexSet::const_iterator ni ;
-    // loop over working set and create a list of candidate vertices
-    for(ni=working.begin();ni != working.end(); ++ni)
-      new_vertices += g[*ni] ;
-    // If a vertex has already been scheduled it can't be scheduled again,
-    // so remove visited vertices
-    new_vertices = new_vertices - visited_vertices    ;
-    // We only schedule vertices that are also in the only_vertices set
-    working = new_vertices & only_vertices ;
-    new_vertices = EMPTY ;
-    // Find any vertex from this working set that has had all vertices leading
-    // to it scheduled
-    for(ni=working.begin();ni != working.end(); ++ni) 
-      if((gt[*ni] & visited_vertices) == gt[*ni])
-        new_vertices += *ni ;
-    working = new_vertices ;
-    // and these new vertices to the schedule
-    if(new_vertices != EMPTY)
-      schedule.push_back(new_vertices) ;
-    // update visited vertices set to include scheduled vertices
-    visited_vertices += new_vertices ;
-  }
-  return schedule ;
-}
-
-
-// Create a sequential ordering of rules based on the concurrent dag schedule
-void extract_rule_sequence(vector<rule> &rule_seq,
-                           const vector<digraph::vertexSet> &v) {
-  vector<digraph::vertexSet>::const_iterator i ;
-  for(i=v.begin();i!=v.end();++i) {
-    ruleSet rules = extract_rules(*i) ;
-    ruleSet::const_iterator ri ;
-    for(ri=rules.begin();ri!=rules.end();++ri)
-      rule_seq.push_back(*ri) ;
-  }
-}
-        
-rule make_super_rule(variableSet sources, variableSet targets,
-                     variable cond = variable()) {
-  FATAL(targets == EMPTY) ;
-  static int super_node_number = 0 ;
-  ostringstream oss ;
-  oss << "source("<<sources << "),target(" << targets << ")," ;
-  if(cond != variable()) 
-    oss<< "conditional(" << cond << ")," ;
-  oss << "qualifier(SN" << super_node_number++ << ")" ;
-   
-  return rule(oss.str()) ;
-}
-
-rule make_rename_rule(variable new_name, variable old_name) {
-  ostringstream oss ;
-  oss << "source(" << old_name << "),target(" << new_name
-      << "),qualifier(rename)"  ;
-  return rule(oss.str()) ;
-}
-
-// Create variable types in fact database
-// This is a necessary precursor to binding rules to the database
-void set_var_types(fact_db &facts, const digraph &dg) {
-
-  // Get all the variables and rules represented in the graph
-  variableSet all_vars = extract_vars(dg.get_all_vertices()) ;
-  ruleSet     all_rules = extract_rules(dg.get_all_vertices()) ;
-
-  // extract the qualified rules, these are rules that are
-  // automatically generated by the system.  Since these rules
-  // cannot provide type information directly, they are
-  // singled out so that they can be handled as a separate case.
-  ruleSet qualified_rules ;
-  for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) {
-    if(ri->type() == rule::INTERNAL)
-      qualified_rules += *ri ;
-  }
-
-  // We need the transpose of the graph in order to find the rules that
-  // generate a particular variable
-  digraph dgt = dg.transpose() ;
-  
-  vector<pair<variable,variable> > rename_vars ;
-
-  // Loop through the variables and type them when there is an appropriate
-  // rule specification.  Deal with typing rules that rename their targets
-  // separately
-  for(variableSet::const_iterator
-        vi=all_vars.begin();vi!=all_vars.end();++vi) {
-
-    // only deal with rules given to the system by the user
-    ruleSet rs = extract_rules(dgt[(*vi).ident()] - qualified_rules) ;
-    if(rs == EMPTY)
-      continue ;
-
-    // storage for rename specification if one is found
-    pair<variable,variable> rename_pair ;
-    bool rename = false ;
-
-    // Check all rules generating this variable, if the rules specify
-    // renaming a variable for the target, then by default the target
-    // will be an identical type to that of the previous variable.
-    for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri) {
-      set<vmap_info>::const_iterator vmsi ;
-      for(vmsi=ri->get_info().desc.targets.begin();
-          vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
-        if(vmsi->assign.size() != 0) 
-          for(int i=0;i<vmsi->assign.size();++i) {
-            variable new_name = vmsi->assign[i].first ;
-            
-            if(new_name == *vi) {
-              variable old_name = vmsi->assign[i].second ;
-              if(rename && old_name != rename_pair.second) {
-                cerr << "rule " << *ri << endl 
-                     << " is not consistent with other rules w/respect to "
-                     << "renaming." << endl ;
-                exit(-1) ;
-              }
-
-              rename_pair = make_pair(new_name,old_name) ;
-              rename = true ;
-            }
-          }
-    }
-
-    // If a rename variable was found, save this information for later
-    // use and continue ;
-    if(rename) {
-      rename_vars.push_back(rename_pair) ;
-      continue ;
-    }
-
-    // Otherwise pick the first rule in the set of rules that generates it
-    // and query the rule for the type of variable *vi.  Set the variable
-    // type appropriately in the fact database.
-
-    rule pick = *rs.begin() ;
-    const rule_impl::info &info = pick.get_info().desc ;
-    storeRepP st = pick.get_info().rule_impl->get_store(*vi) ;
-    facts.set_variable_type(*vi,st) ;
-    
-  }
-
-  // We now have to deal with internally generated rules that do operations
-  // such as promoting variables from one time level to another,
-  // generalizing a variable from a specific time to general time
-  // (e.g. q{n}<-q{n=0}) and rules that create a priority relationship
-  // from priority variables (e.g. qf<-degenerate::qf).
-  // In addition we will deal with variables that may be renamed.
-  // To do this, we must tell the fact database that variables are
-  // synonyms (meaning that the two variable names are completely identical)
-  // and variables that are aliases (meaning that the variable is exclusive
-  // by name).  Since these variables have to be defined from
-  // variables that are already typed and that these rules may
-  // become chained, we need to make sure that we proceed in the
-  // proper order.  We do this by creating a subgraph of these
-  // internal rules, then we perform a topological sort on this
-  // sub-graph to determine the order of typing
-
-  // This is the internal rule graph
-  digraph irg ;
-  // place all promote, generalize, and priority rules into irg
-  for(ruleSet::const_iterator
-        ri = qualified_rules.begin() ; ri != qualified_rules.end();++ri) {
-    if(ri->get_info().qualifier() == "promote" ||
-       ri->get_info().qualifier() == "generalize" ||
-       ri->get_info().qualifier() == "priority") {
-      irg.add_edges((*ri).ident(),dg[(*ri).ident()]) ;
-      irg.add_edges(dgt[(*ri).ident()],(*ri).ident()) ;
-    } else if(ri->get_info().qualifier() == "looping") {
-      // create the iteration variable type
-      time_ident tl = ri->source_time() ;
-      variable v(tl) ;
-      param<int> timevar ;
-      storeRepP st = timevar ;
-      facts.set_variable_type(v,st) ;
-    }
-  }
-
-  // Also add rules to represent renaming relationships
-  for(int i=0;i<rename_vars.size();++i) {
-    variable new_var = rename_vars[i].first ;
-    variable old_var = rename_vars[i].second ;
-    
-    rule rr = make_rename_rule(new_var,old_var) ;
-    irg.add_edge(old_var.ident(),rr.ident()) ;
-    irg.add_edge(rr.ident(),new_var.ident()) ;
-  }  
-
-  // Perform a topological sort on the interal rule graph
-  vector<digraph::vertexSet> components =
-    component_sort(irg).get_components() ;
-
-  for(int i=0;i<components.size();++i) {
-    // Note, recursion should not occur ammong the internal rules
-    FATAL(components[i].size()!=1) ;
-    ruleSet rs = extract_rules(components[i]) ;
-    // Note: components may be rules or variables, thus this check
-    if(rs != EMPTY) {
-      rule r = *rs.begin() ;
-      FATAL(r.sources().size() != 1) ;
-      FATAL(r.targets().size() != 1) ;
-      // get source and target variables
-      variable s = (*(r.sources().begin())) ;
-      variable t = (*(r.targets().begin())) ;
-      // A rename rule uses alias, while all others use synonym relationships
-      if(r.get_info().qualifier() == "rename")
-        facts.alias_variable(s,t) ;
-      else
-        facts.synonym_variable(s,t) ;
-    }
-  }
-
-  // Check to make sure there are no type conflicts, loop over all
-  // rules that are not internally generated.
-  bool type_error = false ;
-  ruleSet::const_iterator ri ;
-  ruleSet rs = all_rules ;
-  rs -= qualified_rules ;
-  for(ri=rs.begin();ri!=rs.end();++ri) {
-    variableSet varcheck ;
-    const rule_impl::info &finfo = ri->get_info().desc ;
-
-    // Collect all variables for which are actually read or written in the class
-    set<vmap_info>::const_iterator i ;
-    for(i=finfo.sources.begin();i!=finfo.sources.end();++i) {
-      for(int j=0;j<i->mapping.size();++j)
-        varcheck += i->mapping[j] ;
-      varcheck += i->var ;
-    }
-    for(i=finfo.targets.begin();i!=finfo.targets.end();++i) {
-      for(int j=0;j<i->mapping.size();++j)
-        varcheck += i->mapping[j] ;
-      varcheck += i->var ;
-      for(int k=0;k<i->assign.size();++k) {
-        varcheck -= i->assign[k].first ;
-        varcheck += i->assign[k].second ;
-      }
-    }
-
-    variableSet::const_iterator vi ;
-    for(vi = varcheck.begin();vi!=varcheck.end();++vi) {
-      storeRepP rule_type = ri->get_rule_implP()->get_store(*vi)->getRep() ;
-      storeRepP fact_type = facts.get_variable(*vi)->getRep() ;
-      if(typeid(*rule_type) != typeid(*fact_type)) {
-        cerr << "variable type mismatch for variable " << *vi << " in rule "
-             << *ri << endl ;
-        cerr << "fact database has type " << typeid(*fact_type).name() << endl ;
-        cerr << "rule has type " << typeid(*rule_type).name() << endl ;
-        type_error = true ;
-      }
-    }
-  }
-  if(type_error)
-    exit(-1) ;
-}
-
-
-entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts) {
-  variableSet::const_iterator vi ;
-  entitySet sources = ~EMPTY ;
-  for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
-    sources &= facts.variable_existence(*vi) ;
-  vector<variableSet>::const_reverse_iterator mi ;
-  for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
-    entitySet working = ~EMPTY ;
-    for(vi=mi->begin();vi!=mi->end();++vi) {
-      FATAL(!facts.is_a_Map(*vi)) ;
-      working &= facts.preimage(*vi,sources).first ;
-    }
-    sources = working ;
-  }
-  return sources ;
-}
-
-
-entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
-                            entitySet compute) {
-  vector<variableSet>::const_iterator mi ;
-  for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
-    if(mi->size() == 1) {
-      variable v = *(mi->begin()) ;
-      FATAL(!facts.is_a_Map(v)) ;
-      compute = facts.image(v,compute) ;
-    } else {
-      variableSet::const_iterator vi ;
-      entitySet images ;
-      for(vi=mi->begin();vi!=mi->end();++vi) {
-        variable v = *vi ;
-        FATAL(!facts.is_a_Map(v)) ;
-        images |= facts.image(v,compute) ;
-      }
-      compute = images ;
-    }
-  }
-  return compute ;
-}
-
-
-void existential_rule_analysis(rule f, fact_db &facts) {
-
-  FATAL(f.type() == rule::INTERNAL) ;
-
-  entitySet sources = ~EMPTY ;
-  entitySet constraints = ~EMPTY ;
-  entitySet targets = EMPTY ;
-  const rule_impl::info &finfo = f.get_info().desc ;
-  set<vmap_info>::const_iterator si ;
-  for(si=finfo.sources.begin();si!=finfo.sources.end();++si) 
-    sources &= vmap_source_exist(*si,facts) ;
-  for(si=finfo.constraints.begin();si!=finfo.constraints.end();++si)
-    constraints &= vmap_source_exist(*si,facts) ;
-  if(finfo.constraints.begin() != finfo.constraints.end())
-    if((sources & constraints) != constraints) {
-      cerr << "Warning, rule " << f <<
-        " cannot supply all entities of constraint" << endl ;
-      cerr << "constraints = " << constraints ;
-      cerr << "sources & constraints = " << (sources & constraints) << endl ;
-      //      exit(-1) ;
-    }
-  sources &= constraints ;
-  for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
-    targets = vmap_target_exist(*si,facts,sources) ;
-    const variableSet &tvars = si->var ;
-    variableSet::const_iterator vi ;
-    for(vi=tvars.begin();vi!=tvars.end();++vi)
-      facts.set_existential_info(*vi,f,targets) ;
-  }
-#ifdef VERBOSE
-  cout << "rule " << f << " generating " << targets << endl ;
-#endif
-}
-typedef map<variable,entitySet> vdefmap ;
-
-entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
-                               fact_db &facts) {
-  variableSet::const_iterator vi ;
-  entitySet targets ;
-  for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
-    FATAL(tvarmap.find(*vi) == tvarmap.end()) ;
-    targets |= tvarmap.find(*vi)->second ;
-  }
-  for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
-    facts.variable_request(*vi,targets) ;
-  
-  vector<variableSet>::const_reverse_iterator mi ;
-  for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
-    entitySet working = EMPTY ;
-    for(vi=mi->begin();vi!=mi->end();++vi) {
-      FATAL(!facts.is_a_Map(*vi)) ;
-      working |= facts.preimage(*vi,targets).second ;
-    }
-    targets = working ;
-  }
-  return targets ;
-}
-
-void vmap_source_requests(const vmap_info &vmi, fact_db &facts,
-                          entitySet compute) {
-  vector<variableSet>::const_iterator mi ;
-  variableSet::const_iterator vi ;
-  for(mi=vmi.mapping.begin();mi!=vmi.mapping.end();++mi) {
-    entitySet working ;
-    for(vi=mi->begin();vi!=mi->end();++vi) {
-      FATAL(!facts.is_a_Map(*vi)) ;
-      working |= facts.image(*vi,compute) ;
-    }
-    compute = working ;
-  }
-  for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
-    facts.variable_request(*vi,compute) ;
-}
-
-entitySet process_rule_requests(rule f, fact_db &facts) {
-
-  FATAL(f.type() == rule::INTERNAL) ;
-
-  variableSet targets = f.targets() ;
-  
-  variableSet::const_iterator vi ;
-  vdefmap tvarmap ;
-  for(vi=targets.begin();vi!=targets.end();++vi) {
-    if(vi->get_info().name == string("OUTPUT")) 
-      facts.variable_request(*vi,facts.variable_existence(*vi)) ;
-    tvarmap[*vi] = facts.get_variable_request(f,*vi) ;
-  }
-
-  const rule_impl::info &finfo = f.get_info().desc ;
-  set<vmap_info>::const_iterator si ;
-  entitySet compute,isect = ~EMPTY ;
-  for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
-    entitySet tmp = vmap_target_requests(*si,tvarmap,facts) ;
-    compute |= tmp ;
-    isect &= tmp ;
-  }
-
-  if(isect != compute) {
-    entitySet working = compute ;
-    vector<variableSet>::const_reverse_iterator mi ;
-    for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
-      for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
-        entitySet tmp ;
-        for(vi=mi->begin();vi!=mi->end();++vi)
-          tmp |= facts.image(*vi,working) ;
-        working = tmp ;
-      }
-      for(vi=si->var.begin();vi!=si->var.end();++vi) {
-        facts.variable_request(*vi,working) ;
-#ifdef UNDERSTAND_THIS
-        WARN(facts.get_variable_request(f,*vi) != working) ;
-        if(facts.get_variable_request(f,*vi) != working) {
-          cerr << "f = " << f << endl ;
-          cerr << "*vi = " << *vi << endl ;
-          cerr << "facts.get_variable_request(f,*vi) = "
-               << facts.get_variable_request(f,*vi)
-               << ", working = " << working << endl ;
-        }
-#endif
-      }
-    }
-  }
-
-  for(si=finfo.sources.begin();si!=finfo.sources.end();++si) 
-    vmap_source_requests(*si,facts,compute) ;
-
-  for(vi=finfo.conditionals.begin();vi!=finfo.conditionals.end();++vi)
-    facts.variable_request(*vi,compute) ;
-
-#ifdef VERBOSE
-  cout << "rule " << f << " computes over " << compute << endl ;
-#endif
-  return compute ;
-}
-
-class execute_rule : public execute_modules {
-  rule_implP rp ;
-  rule rule_tag ;
-  sequence exec_seq ;
+  // existential analysis info
+  entitySet exec_seq ;
 public:
-  execute_rule(rule fi, sequence seq, fact_db &facts) ;
-  execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p) ;
-  virtual void execute(fact_db &facts) ;
-  virtual void Print(std::ostream &s) const ;
+  impl_calculator(decompose_graph *gr, rule r)  { graph_ref = gr; impl=r;}
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
 } ;
 
-execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts)
-{
-  rp = fi.get_rule_implP() ;
-  rule_tag = fi ;
-  rp->initialize(facts) ;
-  exec_seq = seq ;
-  control_thread = false ;
-}
-
-execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
-                           variable v, const storeRepP &p)
-{
-  rp = fi.get_rule_implP() ;
-  rule_tag = fi ;
-  rp->initialize(facts) ;
-  rp->set_store(v,p) ;
-  exec_seq = seq ;
-  control_thread = false ;
-}
-
-void execute_rule::execute(fact_db &facts) {
-  rp->compute(exec_seq) ;
-}
-
-void execute_rule::Print(ostream &s) const {
-  s << rule_tag << " over sequence " << exec_seq << endl ;
-}
-
-class execute_loop : public execute_modules {
-  executeP collapse, advance ;
-  variable cvar ;
-  time_ident tlevel ;
+// rule calculator for single rule recursion
+class impl_recurse_calculator : public rule_calculator {
+  rule impl ;  // rule to implement
+  struct fcontrol {
+    list<entitySet> control_list ;
+    map<variable,entitySet> generated ;
+    bool use_constraints ;
+    entitySet nr_sources, constraints ;
+    struct mapping_info {
+      entitySet total ;
+      vector<MapRepP> mapvec ;
+      vector<variable> mapvar ;
+      variable v ;
+    } ;
+    vector<mapping_info> recursion_maps, target_maps ;
+  } ;
+  fcontrol  control_set ;
+  sequence fastseq ;
+  vector<entitySet > par_schedule ;
 public:
-  execute_loop(const variable &cv,
-               const executeP &col, const executeP &adv,
-               const time_ident &tl) :
-    cvar(cv),collapse(col),advance(adv),tlevel(tl)
-  { warn(col==0 || advance==0) ; control_thread = true ;}
-  virtual void execute(fact_db &facts) ;
-  virtual void Print(std::ostream &s) const ;
+  impl_recurse_calculator(decompose_graph *gr, rule r)
+  { graph_ref = gr; impl = r ;}
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
 } ;
 
-void execute_loop::execute(fact_db &facts) {
-  param<bool> test ;
-  test = facts.get_variable(cvar) ;
-  fact_db::time_infoP tinfo = facts.get_time_info(tlevel) ;
-  facts.initialize_time(tinfo) ;
-  for(;;) {
-    collapse->execute(facts) ;
-    if(*test) {
-      facts.close_time(tinfo) ;
-      return ;
-    }
-    advance->execute(facts) ;
-    facts.advance_time(tinfo) ;
+class recurse_calculator : public rule_calculator {
+  ruleSet recurse_rules ;
+  struct fcontrol {
+    list<entitySet> control_list ;
+    map<variable,entitySet> generated ;
+    bool use_constraints ;
+    entitySet nr_sources, constraints ;
+    struct mapping_info {
+      entitySet total ;
+      vector<MapRepP> mapvec ;
+      variable v ;
+    } ;
+    vector<mapping_info> recursion_maps, target_maps ;
+  } ;
+  map<rule,fcontrol > control_set ;
+public:
+  recurse_calculator(decompose_graph *gr, ruleSet rs)
+  { graph_ref = gr, recurse_rules = rs ; }
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
+} ;
+
+class dag_calculator : public rule_calculator {
+  digraph dag ;
+  vector<rule> rule_schedule ;
+  vector<digraph::vertexSet> dag_sched ;
+public:
+  dag_calculator(decompose_graph *gr, digraph gin) ;
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
+} ;
+
+dag_calculator::dag_calculator(decompose_graph *gr, digraph gin) {
+  graph_ref = gr ;
+  dag = gin ;
+  dag_sched = schedule_dag(dag) ;
+  extract_rule_sequence(rule_schedule,dag_sched) ;
+#ifdef DEBUG
+  // sanity check, all vertices should be scheduled
+  digraph::vertexSet allvertices ;
+  for(int i=0;i< dag_sched.size();++i) 
+    allvertices += dag_sched[i] ;
+  warn(allvertices != dag.get_all_vertices()) ;
+  if(allvertices != dag.get_all_vertices()) {
+    digraph::vertexSet leftout = allvertices ^ dag.get_all_vertices() ;
+    cerr << "leftout rules= " << extract_rules(leftout) << endl ;
+    cerr << "leftout vars = " << extract_vars(leftout) << endl ;
   }
+#endif
 }
 
-void execute_loop::Print(ostream &s) const {
-  s << "Perform loop for time level "<< tlevel << endl ;
-  s << "--compute collapse rule, conditional on " << cvar << endl ;
-  s << "--collapse iteration {" << tlevel << "}"<< endl ;
-  collapse->Print(s) ;
-  s << "--advance iteration {" << tlevel << "}" << endl ;
-  advance->Print(s) ;
-  s << "end of loop for time level " << tlevel << endl ;
-}
+class conditional_calculator : public rule_calculator {
+  digraph dag ;
+  vector<rule> rule_schedule ;
+  vector<digraph::vertexSet> dag_sched ;
+  variable cond_var ;
+public:
+  conditional_calculator(decompose_graph *gr, digraph gin,
+                         variable conditional) ;
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
+} ;
 
-
+// apply rule calculator 
+class apply_calculator : public rule_calculator {
+  rule apply,unit_tag ;  // rule to applyement
   
-class execute_conditional : public execute_modules {
-  executeP conditional ;
-  variable cvar ;
+  // existential analysis info
+  entitySet exec_seq ;
+  bool output_mapping ;
 public:
-  execute_conditional(const executeP &cond, const variable &cv) :
-    conditional(cond),cvar(cv)
-  { warn(cond==0) ; control_thread = true; }
-  virtual void execute(fact_db &facts) ;
-  virtual void Print(std::ostream &s) const ;
+  apply_calculator(decompose_graph *gr, rule r, rule ut)
+  { graph_ref = gr; apply=r; unit_tag = ut ; }
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
 } ;
 
-void execute_conditional::execute(fact_db &facts) {
-  param<bool> test ;
-  test = facts.get_variable(cvar) ;
 
-  if(*test) {
-    conditional->execute(facts) ;
-  }
-}
 
-void execute_conditional::Print(ostream &s) const {
-  s << "--compute rule if conditional " << cvar << " true." << endl ;
-  conditional->Print(s) ;
-  s << "--end conditional" << endl ;
-}
+
+
+class promote_calculator : public rule_calculator {
+  rule r ;
+public:
+  promote_calculator(decompose_graph *gr, rule rin)
+  { graph_ref = gr, r = rin; }
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
+} ;
+class generalize_calculator : public rule_calculator {
+  rule r ;
+public:
+  generalize_calculator(decompose_graph *gr, rule rin)
+  { graph_ref = gr, r = rin; }
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
+} ;
+  
+class priority_calculator : public rule_calculator {
+  rule r ;
+public:
+  priority_calculator(decompose_graph *gr, rule rin)
+  { graph_ref = gr, r = rin; }
+  virtual void set_var_existence(fact_db &facts) ;
+  virtual void process_var_requests(fact_db &facts) ;
+  virtual executeP create_execution_schedule(fact_db &facts) ;
+} ;
+  
+class error_calculator : public rule_calculator {
+public:
+  error_calculator() {}
+  virtual void set_var_existence(fact_db &facts)
+  { cerr << "Internal consistency error" << endl ; exit(-1);}
+  virtual void process_var_requests(fact_db &facts) 
+  { cerr << "Internal consistency error" << endl ; exit(-1);}
+  virtual executeP create_execution_schedule(fact_db &facts)
+  { cerr << "Internal consistency error" << endl ; exit(-1);
+  return executeP(0);}
+} ;
+
+
+
 
 namespace {
+  class execute_rule : public execute_modules {
+    rule_implP rp ;
+    rule rule_tag ;
+    sequence exec_seq ;
+  public:
+    execute_rule(rule fi, sequence seq, fact_db &facts) ;
+    execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p) ;
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+
+  execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts)
+  {
+    rp = fi.get_rule_implP() ;
+    rule_tag = fi ;
+    rp->initialize(facts) ;
+    exec_seq = seq ;
+    control_thread = false ;
+  }
+
+  execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
+                             variable v, const storeRepP &p)
+  {
+    rp = fi.get_rule_implP() ;
+    rule_tag = fi ;
+    rp->initialize(facts) ;
+    rp->set_store(v,p) ;
+    exec_seq = seq ;
+    control_thread = false ;
+  }
+
+  void execute_rule::execute(fact_db &facts) {
+    rp->compute(exec_seq) ;
+  }
+
+  void execute_rule::Print(ostream &s) const {
+    s << rule_tag << " over sequence " << exec_seq << endl ;
+  }
+
+  class execute_loop : public execute_modules {
+    executeP collapse, advance ;
+    variable cvar ;
+    time_ident tlevel ;
+  public:
+    execute_loop(const variable &cv,
+                 const executeP &col, const executeP &adv,
+                 const time_ident &tl) :
+      cvar(cv),collapse(col),advance(adv),tlevel(tl)
+    { warn(col==0 || advance==0) ; control_thread = true ;}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+
+  void execute_loop::execute(fact_db &facts) {
+    param<bool> test ;
+    test = facts.get_variable(cvar) ;
+    fact_db::time_infoP tinfo = facts.get_time_info(tlevel) ;
+    facts.initialize_time(tinfo) ;
+    for(;;) {
+      collapse->execute(facts) ;
+      if(*test) {
+        facts.close_time(tinfo) ;
+        return ;
+      }
+      advance->execute(facts) ;
+      facts.advance_time(tinfo) ;
+    }
+  }
+
+  void execute_loop::Print(ostream &s) const {
+    s << "Perform loop for time level "<< tlevel << endl ;
+    s << "--compute collapse rule, conditional on " << cvar << endl ;
+    s << "--collapse iteration {" << tlevel << "}"<< endl ;
+    collapse->Print(s) ;
+    s << "--advance iteration {" << tlevel << "}" << endl ;
+    advance->Print(s) ;
+    s << "end of loop for time level " << tlevel << endl ;
+  }
+
+
+  
+  class execute_conditional : public execute_modules {
+    executeP conditional ;
+    variable cvar ;
+  public:
+    execute_conditional(const executeP &cond, const variable &cv) :
+      conditional(cond),cvar(cv)
+    { warn(cond==0) ; control_thread = true; }
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
+
+  void execute_conditional::execute(fact_db &facts) {
+    param<bool> test ;
+    test = facts.get_variable(cvar) ;
+
+    if(*test) {
+      conditional->execute(facts) ;
+    }
+  }
+
+  void execute_conditional::Print(ostream &s) const {
+    s << "--compute rule if conditional " << cvar << " true." << endl ;
+    conditional->Print(s) ;
+    s << "--end conditional" << endl ;
+  }
+
   vector<entitySet> partition_set(const entitySet &s,int nthreads) {
     const int min = s.Min() ;
     const int max = s.Max() ;
@@ -761,97 +946,226 @@ namespace {
       ep->append_list(execrule) ;
     }
   }
-}
 
-class joiner_oper : public execute_modules {
-  variable joiner_var ;
-  storeRepP joiner_store ;
-  vector<entitySet> partition ;
-  vector<storeRepP> var_vec ;
-  CPTR<joiner> joiner_op ;
-public:
-  joiner_oper(variable jv, storeRepP &js, vector<entitySet> &ptn,
-              vector<storeRepP> &vv, CPTR<joiner> &jo) :
-    joiner_var(jv), joiner_store(js), partition(ptn),var_vec(vv),
-    joiner_op(jo) {}
-  virtual void execute(fact_db &facts) ;
-  virtual void Print(ostream &s) const ;
-} ;
 
-void joiner_oper::execute(fact_db &facts) {
-  for(int i=0;i<var_vec.size();++i) 
-    joiner_op->Join(joiner_store,var_vec[i],sequence(partition[i])) ;
-}
+  class joiner_oper : public execute_modules {
+    variable joiner_var ;
+    storeRepP joiner_store ;
+    vector<entitySet> partition ;
+    vector<storeRepP> var_vec ;
+    CPTR<joiner> joiner_op ;
+  public:
+    joiner_oper(variable jv, storeRepP &js, vector<entitySet> &ptn,
+                vector<storeRepP> &vv, CPTR<joiner> &jo) :
+      joiner_var(jv), joiner_store(js), partition(ptn),var_vec(vv),
+      joiner_op(jo) {}
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(ostream &s) const ;
+  } ;
 
-void joiner_oper::Print(ostream &s) const {
-  s << "reducing thread results for variable " << joiner_var << endl ;
-  s << "reducing partitions = " << endl ;
-  for(int i=0;i<var_vec.size();++i)
-    s << "p["<<i<< "]="<<partition[i]<<endl ;
-}
+  void joiner_oper::execute(fact_db &facts) {
+    for(int i=0;i<var_vec.size();++i) 
+      joiner_op->Join(joiner_store,var_vec[i],sequence(partition[i])) ;
+  }
+
+  void joiner_oper::Print(ostream &s) const {
+    s << "reducing thread results for variable " << joiner_var << endl ;
+    s << "reducing partitions = " << endl ;
+    for(int i=0;i<var_vec.size();++i)
+      s << "p["<<i<< "]="<<partition[i]<<endl ;
+  }
                     
   
-class allocate_all_vars : public execute_modules {
-public:
-  allocate_all_vars() { control_thread = true ; }
-  virtual void execute(fact_db &facts) ;
-  virtual void Print(ostream &s) const ;
-} ;
+  class allocate_all_vars : public execute_modules {
+  public:
+    allocate_all_vars() { control_thread = true ; }
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(ostream &s) const ;
+  } ;
 
-void allocate_all_vars::execute(fact_db &facts) {
-  variableSet vars = facts.get_typed_variables() ;
-  variableSet::const_iterator vi,vii ;
-  set<time_ident> time_set ;
-  for(vi=vars.begin();vi!=vars.end();++vi)
-    time_set.insert(vi->time()) ;
-  set<time_ident>::const_iterator si ;
-  for(si=time_set.begin();si!=time_set.end();++si) {
-    fact_db::time_infoP tip = facts.get_time_info(*si) ;
-    if(!tip->rotate_lists.empty()) {
-      for(list<list<variable> >::const_iterator llv = tip->rotate_lists.begin();
-          llv != tip->rotate_lists.end();++llv) {
-        entitySet time_space ;
-        for(list<variable>::const_iterator lv=llv->begin();lv!=llv->end();++lv) {
-          variableSet aliases = facts.get_aliases(*lv) ;
-          for(vii=aliases.begin();vii!=aliases.end();++vii)
-            time_space += facts.get_variable_requests(*vii) ;
-        }
-        for(list<variable>::const_iterator lv=llv->begin();lv!=llv->end();++lv) {
-          facts.variable_request(*lv,time_space) ;
+  void allocate_all_vars::execute(fact_db &facts) {
+    variableSet vars = facts.get_typed_variables() ;
+    variableSet::const_iterator vi,vii ;
+    set<time_ident> time_set ;
+    for(vi=vars.begin();vi!=vars.end();++vi)
+      time_set.insert(vi->time()) ;
+    set<time_ident>::const_iterator si ;
+    for(si=time_set.begin();si!=time_set.end();++si) {
+      fact_db::time_infoP tip = facts.get_time_info(*si) ;
+      if(!tip->rotate_lists.empty()) {
+        for(list<list<variable> >::const_iterator llv = tip->rotate_lists.begin();
+            llv != tip->rotate_lists.end();++llv) {
+          entitySet time_space ;
+          for(list<variable>::const_iterator lv=llv->begin();lv!=llv->end();++lv) {
+            variableSet aliases = facts.get_aliases(*lv) ;
+            for(vii=aliases.begin();vii!=aliases.end();++vii)
+              time_space += facts.get_variable_requests(*vii) ;
+          }
+          for(list<variable>::const_iterator lv=llv->begin();lv!=llv->end();++lv) {
+            facts.variable_request(*lv,time_space) ;
+          }
         }
       }
     }
-  }
   
-  for(vi=vars.begin();vi!=vars.end();++vi) {
-    storeRepP srp = facts.get_variable(*vi) ;
-    if(srp->domain() == EMPTY) {
-      variableSet aliases = facts.get_aliases(*vi) ;
-      entitySet all_requests ;
-      for(vii=aliases.begin();vii!=aliases.end();++vii)
-        all_requests += facts.get_variable_requests(*vii) ;
-      srp->allocate(all_requests) ;
+    for(vi=vars.begin();vi!=vars.end();++vi) {
+      storeRepP srp = facts.get_variable(*vi) ;
+      if(srp->domain() == EMPTY) {
+        variableSet aliases = facts.get_aliases(*vi) ;
+        entitySet all_requests ;
+        for(vii=aliases.begin();vii!=aliases.end();++vii)
+          all_requests += facts.get_variable_requests(*vii) ;
+        srp->allocate(all_requests) ;
+      }
     }
   }
+
+  void allocate_all_vars::Print(ostream &s) const {
+    s << "allocate all variables" << endl ;
+  }
 }
 
-void allocate_all_vars::Print(ostream &s) const {
-  s << "allocate all variables" << endl ;
+loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
+  graph_ref = gr ;
+  dag = gin ;
+  ruleSet loopset =
+    extract_rules(gin.get_all_vertices() & gr->looping_rules) ;
+  if(loopset.size() != 1) {
+    cerr << "internal consistency error, loopset size != 1" << endl ;
+    exit(-1) ;
+  }
+
+  tlevel = loopset.begin()->source_time() ;
+  dag.remove_vertex((*loopset.begin()).ident()) ;
+  digraph dagt = dag.transpose() ;
+  ruleSet collapse_rules, all_rules ;
+  variableSet collapse_vars ;
+  
+  all_rules = extract_rules(dag.get_all_vertices()) ;
+  for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) 
+    if(ri->target_time().before(ri->source_time()))
+      collapse_rules += *ri ;
+  
+  if(collapse_rules.size() != 1 ||
+     collapse_rules.begin()->get_info().desc.conditionals.size() != 1 ) {
+    cerr << "collapse for loop at iteration level " << tlevel << " ill-formed"
+         << endl << "error is not recoverable" << endl ;
+    exit(-1) ;
+  }
+
+  variableSet all_vars = extract_vars(dag.get_all_vertices()) ;
+  for(variableSet::const_iterator vi=all_vars.begin();vi!=all_vars.end();++vi)
+    if(vi->get_info().offset == 1)
+      advance_vars += *vi ;
+  
+  collapse_vars = collapse_rules.begin()->targets() ;
+  cond_var = *(collapse_rules.begin()->get_info().desc.conditionals.begin());
+
+  // create Output Variable
+  output = variable(variable("OUTPUT"),tlevel) ;
+  variableSet outputSet ;
+  outputSet = interval(output.ident(),output.ident()) ;
+
+  // Schedule part of graph that leads to collapse
+  collapse_sched = schedule_dag(dag, EMPTY,visit_vertices(dagt,collapse_vars)) ;
+  extract_rule_sequence(rule_schedule,collapse_sched) ;
+  extract_rule_sequence(collapse,collapse_sched) ;
+
+  // Schedule advance part of loop.  First try to schedule any output, then
+  // schedule the advance
+  digraph::vertexSet visited ;
+  for(int i = 0;i<collapse_sched.size();++i)
+    visited += collapse_sched[i] ;
+  vector<digraph::vertexSet>
+    dag_sched = schedule_dag(dag,visited, visit_vertices(dagt,outputSet)) ;
+  if(dag_sched.size() == 0)
+    output_present = false ;
+  else 
+    output_present = true ;
+
+  for(int i=0;i<dag_sched.size();++i)
+    advance_sched.push_back(dag_sched[i]) ;
+  
+  extract_rule_sequence(rule_schedule,dag_sched) ;
+  extract_rule_sequence(advance,dag_sched) ;
+  for(int i = 0;i<dag_sched.size();++i)
+    visited += dag_sched[i] ;
+  // now schedule everything that hasn't been scheduled
+  dag_sched = schedule_dag(dag,visited) ;
+  extract_rule_sequence(rule_schedule,dag_sched) ;
+  extract_rule_sequence(advance,dag_sched) ;
+  for(int i=0;i<dag_sched.size();++i)
+    advance_sched.push_back(dag_sched[i]) ;
+  
+  
+#ifdef DEBUG
+  // sanity check, all vertices should be scheduled
+  digraph::vertexSet allvertices = visited ;
+  for(int i=0;i< dag_sched.size();++i) 
+    allvertices += dag_sched[i] ;
+  warn(allvertices != dag.get_all_vertices()) ;
+  if(allvertices != dag.get_all_vertices()) {
+    cerr << " rules NOT scheduled = " << endl
+         << extract_rules(dag.get_all_vertices() - allvertices) << endl ;
+    cerr << " variables NOT scheduled = "
+         << extract_vars(dag.get_all_vertices() - allvertices) << endl ;
+    vector<digraph::vertexSet> components =
+      component_sort(dag).get_components() ;
+    for(int i=0;i<components.size();++i) {
+      if(components[i].size() > 1) {
+        cerr << "reason: graph not a dag, strongly connected component found"
+             << endl ;
+        cerr << "component rules = " << endl ;
+        cerr << extract_rules(components[i]) << endl ;
+      }
+    }
+    exit(-1) ;
+  }
+#endif
+}
+
+void loop_calculator::set_var_existence(fact_db &facts) {
+  for(int i=0;i<rule_schedule.size();++i) 
+    calc(rule_schedule[i])->set_var_existence(facts) ;
+}
+
+void loop_calculator::process_var_requests(fact_db &facts) {
+  variableSet var_requests = advance_vars ;
+  variableSet::const_iterator vi ;
+  if(output_present)
+    var_requests += output ;
+  for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
+    entitySet vexist = facts.variable_existence(*vi) ;
+    facts.variable_request(*vi,vexist) ;
+  }
+  vector<rule>::reverse_iterator ri ;
+  for(ri=rule_schedule.rbegin();ri!=rule_schedule.rend();++ri)
+    calc(*ri)->process_var_requests(facts) ;
+}
+
+executeP loop_calculator::create_execution_schedule(fact_db &facts) {
+  CPTR<execute_list> col = new execute_list ;
+  for(int i=0;i!=collapse_sched.size();++i) {
+    ruleSet rules = extract_rules(collapse_sched[i]) ;
+    ruleSet::const_iterator ri ;
+    for(ri=rules.begin();ri!=rules.end();++ri)
+      col->append_list(calc(*ri)->create_execution_schedule(facts)) ;
+    if(rules.size() > 0 && num_threads > 1)
+      col->append_list(new execute_thread_sync) ;
+  }
+  CPTR<execute_list> adv = new execute_list ;
+  for(int i=0;i!=advance_sched.size();++i) {
+    ruleSet rules = extract_rules(advance_sched[i]) ;
+    ruleSet::const_iterator ri ;
+    for(ri=rules.begin();ri!=rules.end();++ri)
+      adv->append_list(calc(*ri)->create_execution_schedule(facts)) ;
+    if(rules.size() > 0 && num_threads > 1)
+      adv->append_list(new execute_thread_sync) ;
+  }
+  return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel) ;
 }
 
 
-// rule calculator for rule with concrete implementation
-class impl_calculator : public rule_calculator {
-  rule impl ;  // rule to implement
-
-  // existential analysis info
-  entitySet exec_seq ;
-public:
-  impl_calculator(decompose_graph *gr, rule r)  { graph_ref = gr; impl=r;}
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
 
 void impl_calculator::set_var_existence(fact_db &facts) {
   existential_rule_analysis(impl,facts) ;
@@ -891,20 +1205,6 @@ executeP impl_calculator::create_execution_schedule(fact_db &facts) {
   return new execute_rule(impl,sequence(exec_seq),facts) ;
 }
 
-// apply rule calculator 
-class apply_calculator : public rule_calculator {
-  rule apply,unit_tag ;  // rule to applyement
-
-  // existential analysis info
-  entitySet exec_seq ;
-  bool output_mapping ;
-public:
-  apply_calculator(decompose_graph *gr, rule r, rule ut)
-  { graph_ref = gr; apply=r; unit_tag = ut ; }
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
 
 void apply_calculator::set_var_existence(fact_db &facts) {
 }
@@ -1018,7 +1318,7 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
       var_vec.push_back(rp) ;
       execute_sequence *es = new execute_sequence ;
       es->append_list(new execute_rule(unit_tag,sequence(partition[i]),
-                                        facts,v,rp)) ;
+                                       facts,v,rp)) ;
       es->append_list(new execute_rule(apply,sequence(partition[i]),
                                        facts,v,rp)) ;
       ep->append_list(es) ;
@@ -1142,33 +1442,6 @@ executeP apply_calculator::create_execution_schedule(fact_db &facts) {
   el->append_list(new execute_thread_sync) ;
   return executeP(el) ;
 }
-
-// rule calculator for single rule recursion
-class impl_recurse_calculator : public rule_calculator {
-  rule impl ;  // rule to implement
-  struct fcontrol {
-    list<entitySet> control_list ;
-    map<variable,entitySet> generated ;
-    bool use_constraints ;
-    entitySet nr_sources, constraints ;
-    struct mapping_info {
-      entitySet total ;
-      vector<MapRepP> mapvec ;
-      vector<variable> mapvar ;
-      variable v ;
-    } ;
-    vector<mapping_info> recursion_maps, target_maps ;
-  } ;
-  fcontrol  control_set ;
-  sequence fastseq ;
-  vector<entitySet > par_schedule ;
-public:
-  impl_recurse_calculator(decompose_graph *gr, rule r)
-  { graph_ref = gr; impl = r ;}
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
 
 void impl_recurse_calculator::set_var_existence(fact_db &facts) {
   variableSet::const_iterator vi ;
@@ -1319,8 +1592,8 @@ void impl_recurse_calculator::set_var_existence(fact_db &facts) {
         } else
 #endif
           //        fatal(!read_map_inv[j].domain().inSet(*di)) ;
-        for(mi=read_map_inv[j].begin(*di); mi!=read_map_inv[j].end(*di);++mi) 
-          candidates += *mi ;
+          for(mi=read_map_inv[j].begin(*di); mi!=read_map_inv[j].end(*di);++mi) 
+            candidates += *mi ;
       }
       sdelta = candidates ;
     }
@@ -1428,29 +1701,6 @@ executeP impl_recurse_calculator::create_execution_schedule(fact_db &facts) {
   return new execute_rule(impl,fastseq,facts) ;
 
 }
-
-class recurse_calculator : public rule_calculator {
-  ruleSet recurse_rules ;
-  struct fcontrol {
-    list<entitySet> control_list ;
-    map<variable,entitySet> generated ;
-    bool use_constraints ;
-    entitySet nr_sources, constraints ;
-    struct mapping_info {
-      entitySet total ;
-      vector<MapRepP> mapvec ;
-      variable v ;
-    } ;
-    vector<mapping_info> recursion_maps, target_maps ;
-  } ;
-  map<rule,fcontrol > control_set ;
-public:
-  recurse_calculator(decompose_graph *gr, ruleSet rs)
-  { graph_ref = gr, recurse_rules = rs ; }
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
 
 void recurse_calculator::set_var_existence(fact_db &facts) {
   control_set.clear() ;
@@ -1661,31 +1911,6 @@ executeP recurse_calculator::create_execution_schedule(fact_db &facts) {
     return executeP(el) ;
 }
 
-class dag_calculator : public rule_calculator {
-  digraph dag ;
-  vector<rule> rule_schedule ;
-  vector<digraph::vertexSet> dag_sched ;
-public:
-  dag_calculator(decompose_graph *gr, digraph gin) ;
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
-
-dag_calculator::dag_calculator(decompose_graph *gr, digraph gin) {
-  graph_ref = gr ;
-  dag = gin ;
-  dag_sched = schedule_dag(dag) ;
-  extract_rule_sequence(rule_schedule,dag_sched) ;
-#ifdef DEBUG
-  // sanity check, all vertices should be scheduled
-  digraph::vertexSet allvertices ;
-  for(int i=0;i< dag_sched.size();++i) 
-    allvertices += dag_sched[i] ;
-  warn(allvertices != dag.get_all_vertices()) ;
-#endif
-}
-
   
 void dag_calculator::set_var_existence(fact_db &facts) {
   for(int i=0;i<rule_schedule.size();++i) 
@@ -1712,159 +1937,6 @@ executeP dag_calculator::create_execution_schedule(fact_db &facts) {
   }
   return executeP(elp) ;
 }
-
-loop_calculator::loop_calculator(decompose_graph *gr, digraph gin) {
-  graph_ref = gr ;
-  dag = gin ;
-  ruleSet loopset =
-    extract_rules(gin.get_all_vertices() & gr->looping_rules) ;
-  if(loopset.size() != 1) {
-    cerr << "internal consistency error, loopset size != 1" << endl ;
-    exit(-1) ;
-  }
-
-  tlevel = loopset.begin()->source_time() ;
-  dag.remove_vertex((*loopset.begin()).ident()) ;
-  digraph dagt = dag.transpose() ;
-  ruleSet collapse_rules, all_rules ;
-  variableSet collapse_vars ;
-  
-  all_rules = extract_rules(dag.get_all_vertices()) ;
-  for(ruleSet::const_iterator ri=all_rules.begin();ri!=all_rules.end();++ri) 
-    if(ri->target_time().before(ri->source_time()))
-      collapse_rules += *ri ;
-  
-  if(collapse_rules.size() != 1 ||
-     collapse_rules.begin()->get_info().desc.conditionals.size() != 1 ) {
-    cerr << "collapse for loop at iteration level " << tlevel << " ill-formed"
-         << endl << "error is not recoverable" << endl ;
-    exit(-1) ;
-  }
-
-  variableSet all_vars = extract_vars(dag.get_all_vertices()) ;
-  for(variableSet::const_iterator vi=all_vars.begin();vi!=all_vars.end();++vi)
-    if(vi->get_info().offset == 1)
-      advance_vars += *vi ;
-  
-  collapse_vars = collapse_rules.begin()->targets() ;
-  cond_var = *(collapse_rules.begin()->get_info().desc.conditionals.begin());
-
-  // create Output Variable
-  output = variable(variable("OUTPUT"),tlevel) ;
-  variableSet outputSet ;
-  outputSet = interval(output.ident(),output.ident()) ;
-
-  // Schedule part of graph that leads to collapse
-  collapse_sched = schedule_dag(dag, EMPTY,visit_vertices(dagt,collapse_vars)) ;
-  extract_rule_sequence(rule_schedule,collapse_sched) ;
-  extract_rule_sequence(collapse,collapse_sched) ;
-
-  // Schedule advance part of loop.  First try to schedule any output, then
-  // schedule the advance
-  digraph::vertexSet visited ;
-  for(int i = 0;i<collapse_sched.size();++i)
-    visited += collapse_sched[i] ;
-  vector<digraph::vertexSet>
-    dag_sched = schedule_dag(dag,visited, visit_vertices(dagt,outputSet)) ;
-  if(dag_sched.size() == 0)
-    output_present = false ;
-  else 
-    output_present = true ;
-
-  for(int i=0;i<dag_sched.size();++i)
-    advance_sched.push_back(dag_sched[i]) ;
-  
-  extract_rule_sequence(rule_schedule,dag_sched) ;
-  extract_rule_sequence(advance,dag_sched) ;
-  for(int i = 0;i<dag_sched.size();++i)
-    visited += dag_sched[i] ;
-  // now schedule everything that hasn't been scheduled
-  dag_sched = schedule_dag(dag,visited) ;
-  extract_rule_sequence(rule_schedule,dag_sched) ;
-  extract_rule_sequence(advance,dag_sched) ;
-  for(int i=0;i<dag_sched.size();++i)
-    advance_sched.push_back(dag_sched[i]) ;
-  
-  
-#ifdef DEBUG
-  // sanity check, all vertices should be scheduled
-  digraph::vertexSet allvertices = visited ;
-  for(int i=0;i< dag_sched.size();++i) 
-    allvertices += dag_sched[i] ;
-  warn(allvertices != dag.get_all_vertices()) ;
-  if(allvertices != dag.get_all_vertices()) {
-    cerr << " rules NOT scheduled = " << endl
-         << extract_rules(dag.get_all_vertices() - allvertices) << endl ;
-    cerr << " variables NOT scheduled = "
-         << extract_vars(dag.get_all_vertices() - allvertices) << endl ;
-    vector<digraph::vertexSet> components =
-      component_sort(dag).get_components() ;
-    for(int i=0;i<components.size();++i) {
-      if(components[i].size() > 1) {
-        cerr << "reason: graph not a dag, strongly connected component found"
-             << endl ;
-        cerr << "component rules = " << endl ;
-        cerr << extract_rules(components[i]) << endl ;
-      }
-    }
-    exit(-1) ;
-  }
-#endif
-}
-
-void loop_calculator::set_var_existence(fact_db &facts) {
-  for(int i=0;i<rule_schedule.size();++i) 
-    calc(rule_schedule[i])->set_var_existence(facts) ;
-}
-
-void loop_calculator::process_var_requests(fact_db &facts) {
-  variableSet var_requests = advance_vars ;
-  variableSet::const_iterator vi ;
-  if(output_present)
-    var_requests += output ;
-  for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
-    entitySet vexist = facts.variable_existence(*vi) ;
-    facts.variable_request(*vi,vexist) ;
-  }
-  vector<rule>::reverse_iterator ri ;
-  for(ri=rule_schedule.rbegin();ri!=rule_schedule.rend();++ri)
-    calc(*ri)->process_var_requests(facts) ;
-}
-
-executeP loop_calculator::create_execution_schedule(fact_db &facts) {
-  CPTR<execute_list> col = new execute_list ;
-  for(int i=0;i!=collapse_sched.size();++i) {
-    ruleSet rules = extract_rules(collapse_sched[i]) ;
-    ruleSet::const_iterator ri ;
-    for(ri=rules.begin();ri!=rules.end();++ri)
-      col->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-    if(rules.size() > 0 && num_threads > 1)
-      col->append_list(new execute_thread_sync) ;
-  }
-  CPTR<execute_list> adv = new execute_list ;
-  for(int i=0;i!=advance_sched.size();++i) {
-    ruleSet rules = extract_rules(advance_sched[i]) ;
-    ruleSet::const_iterator ri ;
-    for(ri=rules.begin();ri!=rules.end();++ri)
-      adv->append_list(calc(*ri)->create_execution_schedule(facts)) ;
-    if(rules.size() > 0 && num_threads > 1)
-      adv->append_list(new execute_thread_sync) ;
-  }
-  return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel) ;
-}
-
-class conditional_calculator : public rule_calculator {
-  digraph dag ;
-  vector<rule> rule_schedule ;
-  vector<digraph::vertexSet> dag_sched ;
-  variable cond_var ;
-public:
-  conditional_calculator(decompose_graph *gr, digraph gin,
-                         variable conditional) ;
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
 
 conditional_calculator::conditional_calculator(decompose_graph *gr,
                                                digraph gin,
@@ -1912,16 +1984,6 @@ executeP conditional_calculator::create_execution_schedule(fact_db &facts) {
 }
 
 
-class promote_calculator : public rule_calculator {
-  rule r ;
-public:
-  promote_calculator(decompose_graph *gr, rule rin)
-  { graph_ref = gr, r = rin; }
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
-  
 void promote_calculator::set_var_existence(fact_db &facts) {
 }
 
@@ -1932,16 +1994,6 @@ executeP promote_calculator::create_execution_schedule(fact_db &facts) {
   return executeP(0) ;
 }
 
-class generalize_calculator : public rule_calculator {
-  rule r ;
-public:
-  generalize_calculator(decompose_graph *gr, rule rin)
-  { graph_ref = gr, r = rin; }
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
-  
 void generalize_calculator::set_var_existence(fact_db &facts) {
 }
 
@@ -1952,16 +2004,6 @@ executeP generalize_calculator::create_execution_schedule(fact_db &facts) {
   return executeP(0) ;
 }
 
-class priority_calculator : public rule_calculator {
-  rule r ;
-public:
-  priority_calculator(decompose_graph *gr, rule rin)
-  { graph_ref = gr, r = rin; }
-  virtual void set_var_existence(fact_db &facts) ;
-  virtual void process_var_requests(fact_db &facts) ;
-  virtual executeP create_execution_schedule(fact_db &facts) ;
-} ;
-  
 void priority_calculator::set_var_existence(fact_db &facts) {
 }
 
@@ -1971,18 +2013,6 @@ void priority_calculator::process_var_requests(fact_db &facts) {
 executeP priority_calculator::create_execution_schedule(fact_db &facts) {
   return executeP(0) ;
 }
-
-class error_calculator : public rule_calculator {
-public:
-  error_calculator() {}
-  virtual void set_var_existence(fact_db &facts)
-  { cerr << "Internal consistency error" << endl ; exit(-1);}
-  virtual void process_var_requests(fact_db &facts) 
-  { cerr << "Internal consistency error" << endl ; exit(-1);}
-  virtual executeP create_execution_schedule(fact_db &facts)
-  { cerr << "Internal consistency error" << endl ; exit(-1);
-    return executeP(0);}
-} ;
 
 decompose_graph::decompose_graph(digraph dg,
                                  digraph::vertexSet sources,
@@ -1997,8 +2027,8 @@ decompose_graph::decompose_graph(digraph dg,
   dg.add_edges(start.ident(),sources) ;
   dg.add_edges(targets,finish.ident()) ;
 
-  // In the first step we decompose the graph by sorting the graph
-  // into iteraton levels.
+    // In the first step we decompose the graph by sorting the graph
+    // into iteraton levels.
   map<time_ident,digraph::vertexSet> time_sort_vertices ;
 
   for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi)
@@ -2125,7 +2155,7 @@ decompose_graph::decompose_graph(digraph dg,
              << "recursive block" << endl ;
         exit(-1) ;
       }
-   }
+    }
 
   // Go over each time level and decompose it into strongly connected components
   // At this level, loops remain as a single component.
@@ -2256,6 +2286,7 @@ decompose_graph::decompose_graph(digraph dg,
           ruleSet except = ruleSet(cond_rules - (graph_vertices & cond_rules)) ;
           cerr << except << endl ;
           cerr << "error not recoverable." << endl ;
+          cerr << "error occured while processing " << *ri << endl ;
           exit(-1) ;
         }
         // Find the set of vertices that are exclusive in generating the
@@ -2266,7 +2297,7 @@ decompose_graph::decompose_graph(digraph dg,
         // itself
         cond_vertices = cond_vertices -
           visit_vertices_exclusive(sni.graph.transpose(),
-                                interval((*vi).ident(),(*vi).ident())) ;
+                                   interval((*vi).ident(),(*vi).ident())) ;
 
         // create a super vertex for this conditional set of rules
         cond_supernodes += create_supernode(sni.graph,cond_vertices,*vi) ;
@@ -2305,8 +2336,13 @@ decompose_graph::decompose_graph(digraph dg,
           if(!supernodes.inSet(*rii)) {
             cerr << "internal consistency error, offending rule = "
                  << *rii << endl ;
-            exit(-1) ;
+            digraph::vertexSet lp = g[id] & gt[id] ;
+            cout << "loop = RULES:"<<endl << extract_rules(lp) <<endl
+                 << "VARS: "
+                 << extract_vars(lp) << endl ;
+            //            exit(-1) ;
           }
+          
           variableSet cvars = extract_vars(g[id] & gt[id]) ;
           cycle_rule += *rii ;
           // get other rules that generate cycle variables
@@ -2419,12 +2455,12 @@ rule decompose_graph::create_supernode(digraph &g,
   ruleSet srules = extract_rules(vertices) ;
   warn(srules == EMPTY) ;
 
-  // include all variables that are sources or sinks to any rule in this
-  // supernode in the supernode graph.
+    // include all variables that are sources or sinks to any rule in this
+    // supernode in the supernode graph.
   digraph::vertexSet ns = vertices ;
   variableSet sources,targets,locals,local_sources,local_targets ;
 
-  // Calculate all sources and targets for rules in this supernode
+    // Calculate all sources and targets for rules in this supernode
   digraph gt = g.transpose() ;
   for(ruleSet::const_iterator ii =srules.begin();ii!=srules.end();++ii) {
     int id = (*ii).ident() ;
@@ -2455,7 +2491,7 @@ rule decompose_graph::create_supernode(digraph &g,
 
   super_node_info sninfo ;
   
-  // create supernode info
+    // create supernode info
   sninfo.graph = g.subgraph(ns) ;
   sninfo.graph.add_edges(start.ident(),sources) ;
   sninfo.graph.add_edges(targets,finish.ident()) ;
@@ -2512,7 +2548,10 @@ executeP decompose_graph::execution_schedule(fact_db &facts, int nth) {
   return executeP(schedule) ;
 }
   
-}
+
+
+
+
 
 
 double get_timer() {
@@ -2545,9 +2584,6 @@ namespace Loci {
     variableSet given = facts.get_typed_variables() ;
     variableSet target(expression::create(target_string)) ;
 
-    cout << "new dependency graph processing..." << endl ;
-    new_dependency_graph ndg(rdb,given,target) ;
-    
     cout << "generating dependency graph..." << endl ;
     digraph gr = dependency_graph(rdb,given,target).get_graph() ;
 

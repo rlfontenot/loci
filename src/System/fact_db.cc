@@ -75,10 +75,11 @@ void fact_db::install_fact_data(variable v, fact_data data) {
 fact_db::fact_info &fact_db::get_fact_info(variable v) {
   vmap_type::iterator mi = vmap.find(remove_synonym(v)) ;
   if(mi == vmap.end()) {
-    cerr << "error: variable " << v << " does not exist in fact database"
-         << endl ;
+    //    cerr << "error: variable " << v << " does not exist in fact database"
+    //         << endl ;
     //      exit(-1) ;
-    return vmap.begin()->second ;
+    //    return vmap.begin()->second ;
+    return get_fact_info(variable("EMPTY")) ;
   }
   return mi->second ;
 }

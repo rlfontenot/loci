@@ -1,278 +1,563 @@
 #include <depend_graph.h>
-
 #include <map>
-#include <vector>
-
-
 using std::map ;
+#include <vector>
 using std::vector ;
+#include <set>
+using std::set ;
 
-//#define VERBOSE
+#ifndef DEBUG
+#define PRUNE_GRAPH
+#endif
 
 namespace Loci {
 
-  dependency_graph::dependency_graph(rule_db &rdb, variableSet given,
-                                     variableSet target) {
-    compose_graph(rdb,given) ;
-    remove_incorrect_time_promotions() ;
-    create_looping_rules() ;
-    clean_graph(given,target) ;
-  }
-
-  variableSet dependency_graph::invoke_rule(rule f) {
-#ifdef VERBOSE
-    cout << "invoking rule: " << f << endl ;
-#endif
-    gr.add_edges(f.sources(),f.ident()) ;
-    variableSet targets = f.targets() ;
-    gr.add_edges(f.ident(),targets) ;
-    variableSet new_targets = targets ;
-    for(variableSet::const_iterator vii=targets.begin();
-        vii != targets.end(); ++vii) {
-      variable v = *vii ;
-      if(v.get_info().priority.size() != 0) {
-        variable vold = v ;
-        while(v.get_info().priority.size() != 0) {
-          v = v.drop_priority() ;
-          ostringstream oss ;
-          oss << "source(" << vold << "),target("<<v<<"),qualifier(priority)" ;
-          rule fpri(oss.str()) ;
-          gr.add_edge(vold.ident(),fpri.ident()) ;
-          gr.add_edge(fpri.ident(),v.ident()) ;
-          vold  = v ;
-        }
-        new_targets -= *vii ;
-        new_targets += v ;
-      }
-    }
-    return new_targets ;
-  }
-
-
-
-  void dependency_graph::promote_variable(variable v1, variable v2)
-    {
-      if(v1.get_info().name != string("OUTPUT")) {
-        ostringstream oss ;
-        oss << "source(" << v1 << "),target("<<v2<<"),qualifier(promote)" ;
-        rule f(oss.str()) ;
-        gr.add_edge(v1.ident(),f.ident()) ;
-        gr.add_edge(f.ident(),v2.ident()) ;
-      }
-    }
-
-  void dependency_graph::generalize_variable(variable v1, variable v2)
-    {
+  namespace {
+    rule create_rule(variable sv, variable tv, string qualifier) {
       ostringstream oss ;
-      oss << "source(" << v1 << "),target("<<v2<<"),qualifier(generalize)" ;
-      rule f(oss.str()) ;
-      gr.add_edge(v1.ident(),f.ident()) ;
-      gr.add_edge(f.ident(),v2.ident()) ;
+      oss << "source(" << sv
+          << "),target(" << tv
+          << "),qualifier(" << qualifier << ")" ;
+      rule r(oss.str()) ;
+      return r ;
     }
-
-
-  void dependency_graph::compose_graph(rule_db &rdb, variableSet given)
-    {
-      ruleSet promote_rule ;
-      ruleSet::const_iterator fi ;
-      //  digraph gr ;
-      const ruleSet &known_rules = rdb.all_rules() ;
-      for(fi=known_rules.begin();fi!=known_rules.end();++fi)
-        if(fi->type() == rule::GENERIC)
-          promote_rule += *fi ;
-
-      variableSet known = given ;
-      variableSet working = given ;
-      variableSet processed = given ;
-      variableSet newtime ;
-      variableSet newvars ;
-      intervalSet time_levels ;
-      ruleSet rset ; // set of all invoked rules
-      time_levels += 0 ;
-      for(variableSet::const_iterator i=newvars.begin();i!=newvars.end();++i) 
-        if(!time_levels.inSet(i->time().ident())) 
-          newtime += *i ;
-      working -= newtime ;
-      while(working != EMPTY) {
-#ifdef VERBOSE    
-        cout << "WORKING = " << working << endl ;
-#endif            
-        variableSet::const_iterator i,j ;
-        for(i=working.begin();i!=working.end();++i) {
-          const variable::info &vi = (*i).get_info();
-            
-          if(vi.assign) {
-            variable v2 = i->drop_assign() ; ;
-
-#ifdef VERBOSE
-            cout << "converting variable: " << *i << " to " << v2 << endl ;
-#endif
-            //        gr.add_edge((*i).ident(),v2.ident()) ;
-            generalize_variable(*i,v2) ;
-
-            if(!processed.inSet(v2))
-              newvars += v2 ;
-          } else if(vi.priority.begin() != vi.priority.end()) {
-
-            variable v2 = i->drop_priority() ;
-
-#ifdef VERBOSE
-            cout << "converting  variable: " << *i << " to " << v2 << endl ;
-#endif
-            gr.add_edge((*i).ident(),v2.ident()) ;
-
-            if(!processed.inSet(v2))
-              newvars += v2 ;
-          }
-
-          const ruleSet &fncs = rdb.rules_by_source(*i) ;
-          for(fi=fncs.begin();fi!=fncs.end();++fi) {
-            if(!rset.inSet(*fi) && (fi->sources()-known)==EMPTY) {
-              rset += *fi ;
-              variableSet targets = invoke_rule(*fi) ;
-              newvars += targets - processed ;
-              if(fi->type() == rule::BUILD) {
-                variable tvar(fi->target_time()) ;
-                if(!processed.inSet(tvar)) {
-#ifdef VERBOSE
-                  cout << "tvar = " << tvar << endl ;
-#endif
-                  // add time variable dependency to graph
-                  //              gr.add_edge((*fi).ident(),tvar.ident()) ;
-                  newvars += tvar ;
-                }
-              }
-            }
-          }
-        }
-        variableSet pset ;
-        for(j=newvars.begin();j!=newvars.end();++j) 
-          for(intervalSet::const_iterator ti=time_levels.begin();
-              ti!=time_levels.end();++ti) {
-            if(*ti == 0)
-              continue ;
-            const variable::info &kvi = (*j).get_info() ;
-            time_ident parent = time_ident(*ti).parent() ;
-            if(!kvi.assign && kvi.offset == 0 && kvi.time_id == parent){
-              variable v2(*j,time_ident(*ti)) ;
-              if(!known.inSet(v2)) {
-#ifdef VERBOSE
-                cout << "promoting " << *j << " to " << v2 << endl ;
-#endif
-            
-                //            gr.add_edge((*j).ident(),v2.ident()) ;
-                promote_variable(*j,v2) ;
-                if(!processed.inSet(v2))
-                  pset += v2 ;
-              }
-            }
-          }
-        newvars += pset ;
-
-        processed += working ;
-
-        for(i=newvars.begin();i!=newvars.end();++i) 
-          if(!time_levels.inSet(i->time().ident())) 
-            newtime += *i ;
-        newvars -= newtime ;
-
-        if(newvars == EMPTY && newtime != EMPTY) {
-          i = newtime.begin() ;
-          time_ident time_id = i->time() ;
-          if(!time_levels.inSet(time_id.ident())) {
-#ifdef VERBOSE
-            cout << "new time level found with variable " << *i << endl ;
-#endif
-            time_ident parent = time_id.parent() ;
-            variableSet pset ;
-            for(j=known.begin();j!=known.end();++j) {
-              const variable::info &kvi = (*j).get_info() ;
-              if(!kvi.assign && kvi.offset == 0 && kvi.time_id == parent){
-                variable v2(*j,time_id) ;
-                if(!known.inSet(v2)) {
-#ifdef VERBOSE
-                  cout << "promoting " << *j << " to " << v2 << endl ;
-#endif
-                  //              gr.add_edge((*j).ident(),v2.ident()) ;
-                  promote_variable(*j,v2) ;
-                  pset += v2 ;
-                }
-              }
-            }
-            known += pset ;
-            //                newvars += pset ;
-            for(fi=promote_rule.begin();fi!=promote_rule.end();++fi) {
-              rdb.add_rule(rule(*fi,time_id)) ;
-            }
-            time_levels += time_id.ident() ;
-          }
-          newvars += *i ;
-          newtime -= newvars ;
-        }
     
-        working = newvars ;
-        known += newvars ;
-        newvars = EMPTY ;
-      }
+    rule create_rule(variableSet source, variableSet target, string qualifier) {
+      ostringstream oss ;
+      oss << "source(" << source
+          << "),target(" << target
+          << "),qualifier(" << qualifier << ")" ;
+      rule r(oss.str()) ;
+      return r ;
+    }
 
-      for(variableSet::const_iterator vi=processed.begin();
-          vi != processed.end();++vi) {
-        const ruleSet &fncs = rdb.rules_by_target(*vi) ;
-        ruleSet::const_iterator fi ;
-        for(fi=fncs.begin();fi!=fncs.end();++fi) 
-          if(!rset.inSet(*fi) && (fi->sources()-known)==EMPTY) {
-            rset += *fi ;
-            variableSet new_targets = invoke_rule(*fi) ;
-            WARN((new_targets - processed) != EMPTY) ;
-#ifdef DEBUG
-            if((new_targets-processed) != EMPTY) {
-              cerr << "offending rule is " << *fi << endl ;
-              cerr << "new_targets = " << new_targets << endl;
-              cerr << "processed = " << processed << endl ;
-            }
-#endif
+    void print_graph_from(variableSet given, const digraph &rule_graph) {
+      variableSet working = given ;
+      variableSet processed ;
+      ruleSet processed_rules ;
+      cout << "GRAPH Traversal results:" << endl ;
+      while(working != EMPTY) {
+        variableSet new_vars ;
+        ruleSet new_rules ;
+        for(variableSet::const_iterator vi = working.begin();
+            vi!=working.end();
+            ++vi) {
+          ruleSet var_rules = extract_rules(rule_graph.get_edges(vi->ident())) ;
+          var_rules -= processed_rules ;
+          new_rules += var_rules ;
+          for(ruleSet::const_iterator ri = var_rules.begin();
+              ri!=var_rules.end();
+              ++ri) {
+            new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
           }
+        }
+        cout << "------------------------------------------------------------"
+             << endl ;
+        cout << "VARS="<<working << endl ;
+        cout << "RULES=" << endl << new_rules ;
+        processed_rules += new_rules ;
+        processed += working ;
+        new_vars -= processed ;
+        working = new_vars ;
+      }
+      cout << "------------------------------------------------------------"
+           << endl ;
+    }
+    
+    void invoke_rule(rule f, digraph &gr) {
+      gr.add_edges(f.sources(),f.ident()) ;
+      gr.add_edges(f.ident(),f.targets()) ;
+    }
+
+    ruleSet fill_graph(variableSet start, const digraph &rule_graph,
+                       digraph &gr,variableSet known) {
+      digraph rgt = rule_graph.transpose() ;
+      variableSet working = start ;
+      variableSet processed ;
+      ruleSet processed_rules ;
+      while(working != EMPTY) {
+        variableSet new_vars ;
+        ruleSet working_rules ;
+        processed += working ;
+        variableSet known_processed = processed ;
+        known_processed += known ;
+        for(variableSet::const_iterator vi = working.begin();
+            vi!=working.end();
+            ++vi) {
+          ruleSet var_rules =
+            extract_rules(rule_graph.get_edges(vi->ident())+
+                          rgt.get_edges(vi->ident())) ;
+          var_rules -= processed_rules ;
+          ruleSet reject_rules ;
+          for(ruleSet::const_iterator ri = var_rules.begin() ;
+              ri!=var_rules.end();
+              ++ri) {
+            if(ri->type() == rule::INTERNAL &&
+               ri->qualifier()=="iterating_rule") {
+              invoke_rule(*ri,gr) ;
+              new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
+            } else {
+              variableSet rule_depend = ri->constraints() ;
+#ifdef PRUNE_GRAPH
+              // Adding this line will prune dependency graph to only those
+              // rules that can execute.
+              rule_depend += ri->sources() ;
+#endif
+              if(rule_depend == EMPTY)
+                rule_depend = ri->sources() ;
+                  
+              rule_depend -= rule_graph.get_edges(ri->ident()) ;
+              rule_depend -= known_processed ;
+              variableSet time_vars ;
+              for(variableSet::const_iterator vi = rule_depend.begin();
+                  vi != rule_depend.end();
+                  ++vi) {
+                if(vi->get_info().tvar)
+                  time_vars += *vi ;
+              }
+              rule_depend -= time_vars ;
+              if(rule_depend == EMPTY) {
+                invoke_rule(*ri,gr) ;
+                new_vars += extract_vars(rule_graph.get_edges(ri->ident())) ;
+              } else {
+                reject_rules += *ri ;
+              }
+            }
+          }
+          var_rules -= reject_rules ;
+          processed_rules += var_rules ;
+          working_rules += var_rules ;
+          
+          time_ident vtime = vi->time() ;
+          if(vtime != time_ident()) {
+            variable stationary_var(*vi,time_ident()) ;
+            ruleSet promote_rules =
+              extract_rules(rule_graph.get_edges(stationary_var.ident())+
+                            rgt.get_edges(stationary_var.ident())) ;
+
+            for(ruleSet::const_iterator ri = promote_rules.begin() ;
+                ri!=promote_rules.end();
+                ++ri) {
+              if(ri->type() != rule::TIME_SPECIFIC &&
+                 !(ri->type() == rule::INTERNAL &&
+                   ri->qualifier()=="iterating_rule")) {
+                rule pr(*ri,vtime) ;
+                if(!processed_rules.inSet(pr)) {
+                  variableSet rule_depend = pr.get_info().constraints() ;
+                  // Hack
+                  rule_depend += pr.sources() ;
+                  if(rule_depend == EMPTY) 
+                    rule_depend = pr.sources() ;
+                  rule_depend -= known_processed ;
+                  if(rule_depend == EMPTY) {
+                    processed_rules += pr ;
+                    working_rules += pr ;
+                    invoke_rule(pr,gr) ;
+                    new_vars += pr.targets() ;
+                  }
+                }
+              }
+            }
+          }
+        }
+        new_vars -= processed ;
+        working = new_vars ;
+      }
+      return ruleSet(EMPTY) ;
+    }
+
+    struct graph_info ;
+    
+    struct iteration_info {
+      bool active ;
+      digraph iteration_graph ;
+      time_ident iteration_time ;
+      rule iteration_rule ;
+      ruleSet build,advance,collapse ;
+      variableSet known_vars ;
+      void build_graph(const digraph &rule_graph,variableSet input_vars) ;
+    } ;
+
+    struct graph_info {
+    map<time_ident,iteration_info> iteration_rules ;
+    map<rule,time_ident> iteration_time_ident ;
+    } ;
+
+    
+    void iteration_info::build_graph(const digraph &rule_graph,
+                                     variableSet input_vars) {
+      active = false ;
+      
+    
+      ruleSet rules_that_pass ;
+      for(ruleSet::const_iterator ri = build.begin();ri!=build.end();++ri) {
+        variableSet bs = ri->sources() ;
+        bs -= input_vars ;
+        if(bs == EMPTY)
+          rules_that_pass += *ri ;
+        else {
+          //          cerr << "build rule failed because of " << bs << endl ;
+        }
+      }
+      if(rules_that_pass == EMPTY)
+        return ;   // No build rules can execute, we are finished
+
+      
+      rules_that_pass = EMPTY ;
+      for(ruleSet::const_iterator ri = collapse.begin();
+          ri!=collapse.end();
+          ++ri) {
+        variableSet cs = ri->sources() ;
+        variableSet csp ;
+        for(variableSet::const_iterator vi=cs.begin();vi!=cs.end();++vi) {
+          if(vi->time() != iteration_time)
+            csp += *vi ;
+        }
+        csp -= input_vars ;
+        if(csp == EMPTY)
+          rules_that_pass += *ri ;
+        else {
+          //          cerr << "collapse rule failed because of " << csp << endl ;
+        }
+      }
+      if(rules_that_pass == EMPTY)
+        return ;    // No collapse rules can execute, we are finished
+
+
+      // This iteration can be scheduled so fill out the graph
+      active = true ;
+
+      ruleSet all_iteration_rules ;
+      all_iteration_rules += build ;
+      all_iteration_rules += advance  ;
+      all_iteration_rules += collapse ;
+      variableSet build_vars ;
+      known_vars = input_vars ;
+
+      for(ruleSet::const_iterator ri = build.begin();ri!=build.end();++ri) {
+        variableSet btarget = ri->targets() ;
+        for(variableSet::const_iterator vi = btarget.begin();
+            vi!=btarget.end();
+            ++vi) {
+          warn(!vi->assign) ;
+
+          build_vars += *vi ;
+          variable vt = vi->drop_assign() ;
+          rule gv =  create_rule(*vi,vt,"generalize") ;
+          invoke_rule(gv,iteration_graph) ;
+          if(vi->offset == 0)
+            build_vars += vt ;
+        }
       }
 
-#ifdef VERBOSE
-      cout << "processed_variables = " << processed << endl ;
-#endif
+
+      for(variableSet::const_iterator vi =input_vars.begin();
+          vi!=input_vars.end();
+          ++vi) {
+        variable nv(*vi,iteration_time) ;
+        known_vars += nv ;
+      }
+      for(ruleSet::const_iterator ri = all_iteration_rules.begin();
+          ri != all_iteration_rules.end();
+          ++ri) {
+        invoke_rule(*ri,iteration_graph) ;
+      }
+      build_vars += variable(iteration_time) ;
+      //      known_vars += variable(iteration_time) ;
+      
+      fill_graph(build_vars,rule_graph,iteration_graph,known_vars) ;
+      known_vars += extract_vars(iteration_graph.get_target_vertices()) ;
     }
 
-  void dependency_graph::remove_incorrect_time_promotions() {
-    digraph grt = gr.transpose() ;
-    digraph::vertexSet all_vertices = gr.get_all_vertices() ;
-    ruleSet all_rules = extract_rules(all_vertices) ;
-    variableSet all_vars  = extract_vars(all_vertices) ;
-    ruleSet promote_rules,unit_rules ;
-    ruleSet::const_iterator fi ;
-    for(fi=all_rules.begin();fi!=all_rules.end();++fi) {
-      if(fi->type() == rule::INTERNAL && fi->qualifier() == "promote")
-        promote_rules += *fi ;
-      if(fi->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) 
-        unit_rules += *fi ;
+    variableSet convert_stationary(const variableSet &v) {
+      variableSet result ;
+      variableSet::const_iterator vi ;
+      time_ident stationary_time ;
+      for(vi=v.begin();vi!=v.end();++vi) {
+        if(vi->time() != stationary_time)
+          result += variable(*vi,time_ident()) ;
+        else
+          result += *vi ;
+      }
+      return result ;
+    }
+
+    void add_rename_dependencies(digraph &gr) {
+      variableSet all_vars = extract_vars(gr.get_all_vertices()) ;
+      ruleSet     all_rules = extract_rules(gr.get_all_vertices()) ;
+      
+      // extract the qualified rules, these are rules that are
+      // automatically generated by the system.  Since these rules
+      // cannot provide type information directly, they are
+      // singled out so that they can be handled as a separate case.
+      ruleSet qualified_rules,rename_rules ;
+      for(ruleSet::const_iterator ri=all_rules.begin();
+          ri!=all_rules.end();
+          ++ri) {
+        if(ri->type() == rule::INTERNAL)
+          qualified_rules += *ri ;
+        set<vmap_info>::const_iterator vmsi ;
+        for(vmsi=ri->get_info().desc.targets.begin();
+            vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
+          if(vmsi->assign.size() != 0) 
+            rename_rules += *ri ;
+      }
+      // We need the transpose of the graph in order to find the rules that
+      // generate a particular variable
+
+      ruleSet check_rules = all_rules ;
+      check_rules -= qualified_rules ;
+      for(ruleSet::const_iterator ri=check_rules.begin();
+          ri != check_rules.end();
+          ++ri) {
+        set<vmap_info>::const_iterator vmsi ;
+        for(vmsi=ri->get_info().desc.targets.begin();
+            vmsi!=ri->get_info().desc.targets.end(); ++vmsi)
+          if(vmsi->assign.size() != 0) 
+            for(int i=0;i<vmsi->assign.size();++i) {
+              variable orig_name = vmsi->assign[i].second ;
+              //              digraph grt = gr.transpose() ;
+              ruleSet depend_rules = extract_rules(gr[orig_name.ident()]) ;
+              depend_rules -= rename_rules ;
+              gr.add_edges(depend_rules,ri->ident()) ;
+#ifdef VERBOSE
+              cout << "adding edges from " <<depend_rules<<
+                " to " <<*ri << endl ;
+#endif
+            }
+      }
+      
     }
   
-    variableSet::const_iterator vi ;
-    ruleSet remove_rules ;
-    for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
-      ruleSet var_rules = extract_rules(grt[(*vi).ident()]) ;
-      ruleSet var_promote = var_rules ;
-      var_promote &= promote_rules ;
-      if(var_promote != EMPTY && var_rules != var_promote)
-        remove_rules += var_promote ;
-    }
+  }
+  
+  dependency_graph::dependency_graph(rule_db &rdb, variableSet given,
+                                             variableSet target) {
+
 
 #ifdef VERBOSE
-    cout << "removing rules: " << endl << remove_rules ;
+    cout << "in dependency_graph:" << endl ;
+    cout << "given = " << given << endl ;
+    cout << "target = " << target << endl ;
 #endif
-  
-    // looping unit rules to themselves, this is so that
-    // all reduction rules remain together.
-    for(fi = unit_rules.begin();fi!=unit_rules.end();++fi)
-      gr.add_edges(fi->targets(),(*fi).ident()) ;
+    
+    ruleSet all_rules = rdb.all_rules() ;
 
-    gr.remove_vertices(remove_rules) ;
+    
+    ruleSet::const_iterator ri ;
+
+    graph_info gi ;
+    
+    ruleSet iteration_set ;
+    
+    ruleSet working_rules ;
+    for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
+      const rule::rule_type type = ri->type() ;
+      if(type==rule::BUILD) {
+        gi.iteration_rules[ri->target_time()].build += *ri ;
+      } else if(type == rule::COLLAPSE) {
+        gi.iteration_rules[ri->source_time()].collapse += *ri ;
+      } else if(!ri->time_advance) {
+        working_rules += *ri ;
+      }
+      if(ri->time_advance) {
+        if(type != rule::COLLAPSE)
+          gi.iteration_rules[ri->target_time()].advance += *ri ;
+      }
+    }
+
+
+    map<time_ident,iteration_info>::iterator mi ;
+    
+    for(mi=gi.iteration_rules.begin();mi!=gi.iteration_rules.end();++mi) {
+      mi->second.iteration_time = mi->first ;
+      ruleSet build = mi->second.build ;
+      ruleSet collapse = mi->second.collapse;
+      if(build == EMPTY)  {
+        cerr << "malformed iteration: " << mi->first <<
+          ", no build rules" << endl ;
+        abort() ;
+      }
+      if(collapse == EMPTY)  {
+        cerr << "malformed iteration: " << mi->first <<
+          ", no collapse rules" << endl ;
+        abort() ;
+      }
+      ruleSet iteration_vars ;
+      variableSet source,target ;
+      for(ri=build.begin();ri!=build.end();++ri) {
+        const rule::rule_type type = ri->type() ;
+        source += ri->sources() ;
+      }
+      for(ri=collapse.begin();ri!=collapse.end();++ri) {
+        const rule::rule_type type = ri->type() ;
+        target += ri->targets() ;
+      }
+      rule i_rule = create_rule(source,target,"iterating_rule") ;
+      gi.iteration_time_ident[i_rule] = mi->first ;
+      mi->second.iteration_rule  = i_rule ;
+      iteration_set += i_rule ;
+      if(i_rule.get_info().time_advance) {
+        gi.iteration_rules[i_rule.target_time()].advance += i_rule ;
+      } else {
+        working_rules += i_rule ;
+      }
+    }
+
+    ruleSet dump_iterations ;
+    // Check iterations for validity
+    for(mi=gi.iteration_rules.begin();mi!=gi.iteration_rules.end();++mi) {
+      variableSet build_targets,advance_targets ;
+      ruleSet build = mi->second.build ;
+      ruleSet advance = mi->second.advance;
+      if(advance == EMPTY) {
+        cerr << "malformed iteration: " << mi->first <<
+          ", no advance rules" << endl ;
+        abort() ;
+      }
+    }
+    
+    digraph rule_graph ;
+
+    working_rules -= dump_iterations ;
+
+    
+    for(ruleSet::const_iterator ri = working_rules.begin();
+        ri != working_rules.end();
+        ++ri) {
+      variableSet targets = ri->targets() ;
+      variableSet sources = ri->sources() ;
+      invoke_rule(*ri,rule_graph) ;
+      for(variableSet::const_iterator vi=targets.begin();
+          vi!=targets.end();
+          ++vi) {
+        if(vi->get_info().priority.size() != 0) {
+          variable v = *vi ;
+          variable vold = v ;
+          while(v.get_info().priority.size() != 0) {
+            v = v.drop_priority() ;
+            rule priority_rule = create_rule(vold,v,"priority") ;
+            invoke_rule(priority_rule,rule_graph) ;
+            vold = v ;
+          }
+        }
+      }
+    }
+  
+    // Fill graph with rules that will compute target.
+    fill_graph(given,rule_graph,gr,given) ;
+
+
+    ruleSet scheduled_iteration_rules =
+      extract_rules(gr.get_all_vertices()&iteration_set) ;
+    ruleSet visited_iteration_rules ;
+    variableSet baseline_vars = extract_vars(gr.get_all_vertices()) ;
+    baseline_vars += given ;
+    while(scheduled_iteration_rules != EMPTY) {
+      ruleSet new_iteration_rules ;
+      for(ruleSet::const_iterator ri = scheduled_iteration_rules.begin();
+          ri != scheduled_iteration_rules.end();
+          ++ri) {
+        map<rule,time_ident>::const_iterator tp =
+          gi.iteration_time_ident.find(*ri) ;
+        if(tp == gi.iteration_time_ident.end()) {
+          cerr << "something is wrong"<<endl;
+          abort() ;
+        }
+        map<time_ident,iteration_info>::iterator ip =
+          gi.iteration_rules.find(tp->second) ;
+        if(ip == gi.iteration_rules.end()) {
+          cerr << " rule doesn't exist, confused!"<< endl ;
+          abort() ;
+        }
+        time_ident iteration_time = tp->second ;
+        time_ident parent_time = iteration_time.parent() ;
+
+        variableSet known_vars ;
+        if(parent_time == time_ident()) {
+          known_vars = baseline_vars ;
+        } else {
+          map<time_ident,iteration_info>::iterator ipp =
+            gi.iteration_rules.find(parent_time) ;
+          if(ipp == gi.iteration_rules.end()) {
+            cerr << "parent iteration rule doesn't exit for time level"
+                 << parent_time << endl ;
+            known_vars = baseline_vars ;
+          } else {
+            known_vars = ipp->second.known_vars ;
+          }
+        }
+        ip->second.build_graph(rule_graph,known_vars) ;
+        new_iteration_rules +=
+          extract_rules(ip->second.iteration_graph.get_all_vertices() &
+                        iteration_set) ;
+      }
+      visited_iteration_rules += scheduled_iteration_rules ;
+      warn((new_iteration_rules & visited_iteration_rules) != EMPTY) ;
+      scheduled_iteration_rules = new_iteration_rules ;
+      scheduled_iteration_rules -= visited_iteration_rules ;
+      
+    }
+    map<time_ident, iteration_info>::iterator ip ;
+    // Assemble All of the Iteration Graphs
+    for(ip = gi.iteration_rules.begin();ip!=gi.iteration_rules.end();++ip) {
+      if(ip->second.active) {
+        gr.add_graph(ip->second.iteration_graph) ;
+      }
+    }
+    // Add Promotion Rules!
+    for(ip = gi.iteration_rules.begin();ip!=gi.iteration_rules.end();++ip) {
+      if(ip->second.active) {
+        digraph grt = gr.transpose() ;
+        digraph &ig = ip->second.iteration_graph ;
+        digraph igt = ig.transpose() ;
+        variableSet ivars = extract_vars(ig.get_all_vertices()) ;
+
+        for(variableSet::const_iterator vi=ivars.begin();vi!=ivars.end();++vi) {
+          if(grt.get_edges(vi->ident()) == EMPTY) {
+            const variable::info &kvi = vi->get_info() ;
+            if(!kvi.assign && !kvi.tvar && kvi.offset == 0
+               && kvi.time() == ip->first) {
+              time_ident parent = kvi.time().parent() ;
+              variable vs = *vi ;
+              while(parent != time_ident()) {
+                variable vp(*vi,parent) ;
+                invoke_rule(create_rule(vp,vs,"promote"),gr) ;
+                vs = vp ;
+#ifdef VERBOSE
+                cout << "adding promote for iteration " << ip->first << endl ;
+                cout << vp << " to " << vs << endl ;
+#endif
+                if(grt.get_edges(vp.ident()) != EMPTY) {
+                  break ;
+                }
+                parent = parent.parent() ;
+              }
+              if(parent == time_ident()) {
+                variable vp(*vi,parent) ;
+                invoke_rule(create_rule(vp,vs,"promote"),gr) ;
+#ifdef VERBOSE
+                cout << "adding promote for iteration " << ip->first << endl ;
+                cout << vp << " to " << vs << endl ;
+#endif
+              }
+                
+            }
+          }
+        }
+
+      }
+    }
+
+    gr.remove_vertices(visited_iteration_rules) ;
+    create_looping_rules() ;
+#ifdef VERBOSE
+    print_graph_from(given,gr) ;
+#endif
+
+    clean_graph(given,target) ;
+
+    add_rename_dependencies(gr) ;
   }
 
   void dependency_graph::create_looping_rules() {
@@ -341,8 +626,7 @@ namespace Loci {
     cout << extract_rules(gr.get_source_vertices()-subset) ;
 #endif
     gr = gr.subgraph(subset) ;
-
-     
   }
 
-}
+
+}// End namespace Loci
