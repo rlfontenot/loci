@@ -10,25 +10,19 @@ namespace Loci {
   }
 
   void eventDispatcher::engage(eventNotify *p) {
-    //    bmutex l(mutex) ;
-    mutex.lock() ;
+    bmutex l(mutex) ;
     warn(!p) ;
     notify_group.push_back(p) ;
-    mutex.unlock() ;
   }
 
   void eventDispatcher::disengage(eventNotify *p) {
-    //    bmutex l(mutex) ;
-    using std::cerr ;
-    using std::endl ;
+    bmutex l(mutex) ;
     
-    mutex.lock() ;
     warn(!p) ;
 
     if(notify_group.begin() == notify_group.end()) {
-      mutex.unlock() ;
-      cerr << "disengage with empty list" << endl ;
-      cerr << "p = " << p << endl ;
+      std::cerr << "disengage with empty list" << std::endl ;
+      std::cerr << "p = " << p << std::endl ;
       return ;
     }
     notify_list::iterator nlp = notify_group.end() ;
@@ -36,30 +30,20 @@ namespace Loci {
       /* NULL STATEMENT */ ;
 
     warn(*nlp != p) ;
-    if(*nlp != p) {
-      cerr << "list = " << endl ;
-      for(nlp=notify_group.begin();nlp!=notify_group.end();++nlp)
-        cerr << *nlp << " " ;
-      cerr << endl << "p = " << p << endl ;
-    }
-        
         
     if(*nlp == p)
       notify_group.erase(nlp) ;
-    mutex.unlock() ;
   }    
 
   void eventDispatcher::dispatch_notify() {
-    //    bmutex l(mutex) ;
     mutex.lock() ;
-
     notify_list copy ;
     notify_list::iterator nlp ;
     for(nlp=notify_group.begin();nlp!=notify_group.end();++nlp)
       copy.push_back(*nlp) ;
+    mutex.unlock() ;
     for(nlp=copy.begin();nlp!=copy.end();++nlp) 
       (*nlp)->notification() ;
-    mutex.unlock() ;
   }
 
   eventNotify::~eventNotify() {}
