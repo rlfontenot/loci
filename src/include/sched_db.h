@@ -44,18 +44,14 @@ namespace Loci {
       entitySet existence ;
       entitySet requested ;
       entitySet shadow ; // Used by distributed memory apply rules
-#ifdef COMP_ENT
       std::map<rule, entitySet> proc_able_map;
       std::map<rule, entitySet> my_proc_able_map;
       unsigned int policy;
       bool duplicate_variable;
-#endif
       sched_info(int ref = -1) {
 	sched_info_ref = ref ;
-#ifdef COMP_ENT
 	policy = 0;
 	duplicate_variable = false;
-#endif
       }
     } ;
     void register_variable(variable v) ;
@@ -76,9 +72,7 @@ namespace Loci {
       return v ;
     }
   public:
-#ifdef COMP_ENT
     enum  duplicate_policy{NEVER, ALWAYS};
-#endif
     sched_db() ;
     ~sched_db() ;
     sched_db(fact_db &facts) ;
@@ -183,7 +177,6 @@ namespace Loci {
     entitySet image(variable v, entitySet e) ;
     std::pair<entitySet,entitySet> preimage(variable v, entitySet e) ;
 
-#ifdef COMP_ENT
     void set_policy(variable v, unsigned int p) { get_sched_info(v).policy = p;}
     unsigned int get_policy(variable v) { return get_sched_info(v).policy; }
     
@@ -224,7 +217,6 @@ namespace Loci {
       sched_info &finfo = get_sched_info(v);
       finfo.my_proc_able_map[f] += x;
     }
-#endif
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
   } ;
 }
