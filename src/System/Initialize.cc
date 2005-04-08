@@ -59,6 +59,8 @@ namespace Loci {
   //  points will be generated)
   bool memory_greedy_schedule = true ;
   bool use_old_dependency_graph = false ;
+
+  bool duplicate_work = false;
   /////////////////////////////
   
   ofstream debugout ;
@@ -220,8 +222,17 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--olddg")) {
         use_old_dependency_graph = true ;
         i++ ;
-      } else
+      } else if(!strcmp((*argv)[i],"--duplicate_work")){
+	duplicate_work = true;
+	i++;
+      }
+      else
         break ;
+    }
+
+    if(duplicate_work && use_chomp) {
+      cerr << "WARNING: Duplication of work is not tested properly with chomping." << endl;
+      cerr << "Please use --nochomp." << endl;
     }
     if(i!=1) {
       *argc -= (i-1) ;
