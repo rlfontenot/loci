@@ -36,10 +36,8 @@ using std::vector;
 namespace Loci {
 
   bool rule_has_mapping_in_output(rule r);
-#ifdef COMP_ENT
   variableSet input_variables_with_mapping(rule r);
   variableSet input_variables(rule r);
-#endif
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
                               entitySet compute, sched_db &scheds) ;
@@ -56,10 +54,8 @@ namespace Loci {
   
   std::vector<std::pair<variable,entitySet> >
     barrier_existential_rule_analysis(variableSet vlst, fact_db &facts, sched_db &scheds) ;
-#ifdef COMP_ENT
   std::vector<std::pair<variable,entitySet> >
     send_ent_for_plist(variableSet vlst, fact_db &facts, sched_db &scheds);
-#endif
   std::list<comm_info>
   barrier_process_rule_requests(variableSet vars, fact_db &facts, sched_db &scheds) ;
 

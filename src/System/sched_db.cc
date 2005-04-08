@@ -266,7 +266,6 @@ namespace Loci {
       return fdata.preimageMap[e] = get_sched_data(v).minfo->preimage(e) ;
   }
   
-#ifdef COMP_ENT
   void sched_db::add_policy(variable v, duplicate_policy p) {
     unsigned int policy = get_policy(v);
     unsigned int temp = 1;
@@ -297,7 +296,6 @@ namespace Loci {
     }
     return (temp & policy);
   }
-#endif
 
   std::ostream &sched_db::print_summary(fact_db &facts, std::ostream &s) {
     s << "Summary of Existential deduction:" << endl ;
