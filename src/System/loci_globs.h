@@ -16,6 +16,8 @@ namespace Loci {
   extern bool use_chomp ;
   // flag to enable outputing schedule to file
   extern bool schedule_output ;
+  //flag for duplicating computations to save communication
+  extern bool duplicate_work;
   /////////////////////////////
 }
 

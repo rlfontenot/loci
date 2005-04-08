@@ -8,7 +8,7 @@ using std::ostream ;
 using std::endl ;
 
 #include "visitorabs.h"
-
+#include "loci_globs.h"
 namespace Loci {
   class execute_loop : public execute_modules {
     executeP collapse, advance ;
@@ -219,26 +219,26 @@ namespace Loci {
   }
 
   void loop_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
-#ifdef COMP_ENT
-    variableSet my_vars = advance_vars ;
-    if(output_present)
-      my_vars += output ;
+    if(duplicate_work) {
+      variableSet my_vars = advance_vars ;
+      if(output_present)
+	my_vars += output ;
 
-    for(variableSet::const_iterator vi = my_vars.begin();
-	vi != my_vars.end(); vi++) {
-      scheds.add_policy(*vi, sched_db::NEVER);
-      variable tmp_var(*vi, vi->time());
-      scheds.add_policy(tmp_var, sched_db::NEVER);
-    }
+      for(variableSet::const_iterator vi = my_vars.begin();
+	  vi != my_vars.end(); vi++) {
+	scheds.add_policy(*vi, sched_db::NEVER);
+	variable tmp_var(*vi, vi->time());
+	scheds.add_policy(tmp_var, sched_db::NEVER);
+      }
     
-    list<list<variable> >::const_iterator rli ;
-    for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli) {
-      list<variable>::const_iterator li ;
-      for(li=rli->begin();li!=rli->end();++li) {
-	scheds.add_policy(*li, sched_db::NEVER);
+      list<list<variable> >::const_iterator rli ;
+      for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli) {
+	list<variable>::const_iterator li ;
+	for(li=rli->begin();li!=rli->end();++li) {
+	  scheds.add_policy(*li, sched_db::NEVER);
+	}
       }
     }
-#endif    
     std::vector<rule_compilerP>::iterator i ;
     for(i=collapse_comp.begin();i!=collapse_comp.end();++i)
       (*i)->set_var_existence(facts, scheds) ;

@@ -10,6 +10,7 @@ using std::list ;
 #include <set>
 using std::set ;
 
+#include "loci_globs.h"
 //#define VERBOSE
 
 namespace Loci {
@@ -108,9 +109,10 @@ namespace Loci {
       constraints &= vmap_source_exist(*si,facts, scheds) ;
       fctrl.use_constraints = true ;
     }
-#ifdef COMP_ENT
-    entitySet comp_sources = sources;
-#endif
+    entitySet comp_sources;
+    if(duplicate_work)
+      comp_sources = sources;
+
     sources += fill_entitySet(sources,facts) ;
     if(fctrl.use_constraints)
       constraints += fill_entitySet(constraints,facts) ;
@@ -174,15 +176,17 @@ namespace Loci {
   
     for(int j=rmap.mapvec.size()-1;j>=0;--j)
       sdelta = rmap.mapvec[j]->preimage(sdelta).first ;
-#ifdef COMP_ENT
-    entitySet comp_sdelta = sdelta;
-    comp_sdelta &= comp_sources;
-    comp_sdelta &= my_entities;
-    entitySet comp_tdelta = comp_sdelta;
-    for(size_t j=0;j<tmap.mapvec.size();++j)
-      comp_tdelta = tmap.mapvec[j]->image(comp_tdelta) ;
-    entitySet comp_generated = comp_tdelta;
-#endif    
+
+    entitySet comp_generated;
+    if(duplicate_work) {
+      entitySet comp_sdelta = sdelta;
+      comp_sdelta &= comp_sources;
+      comp_sdelta &= my_entities;
+      entitySet comp_tdelta = comp_sdelta;
+      for(size_t j=0;j<tmap.mapvec.size();++j)
+	comp_tdelta = tmap.mapvec[j]->image(comp_tdelta) ;
+      comp_generated = comp_tdelta;
+    }
     sdelta &= fctrl.nr_sources ;
     sdelta &= my_entities ;
     
@@ -355,21 +359,22 @@ namespace Loci {
         generated += interval(start,finish) ;
       }
   
-#ifdef COMP_ENT
-    comp_sources &= my_entities;
-    for(entitySet::const_iterator
-          ei=comp_sources.begin();ei!=comp_sources.end();++ei)
-      if(exists[*ei]) {
-        const int start = *ei ;
-        const int end = comp_sources.Max() ;
-        int finish = start ;
-        for(;*ei!=end && exists[*ei];++ei)
-          finish = *ei ;
-        if(*ei == end && exists[end])
-          finish = end ;
-        comp_generated += interval(start,finish) ;
+    if(duplicate_work) {
+      comp_sources &= my_entities;
+      for(entitySet::const_iterator
+	    ei=comp_sources.begin();ei!=comp_sources.end();++ei) {
+	if(exists[*ei]) {
+	  const int start = *ei ;
+	  const int end = comp_sources.Max() ;
+	  int finish = start ;
+	  for(;*ei!=end && exists[*ei];++ei)
+	    finish = *ei ;
+	  if(*ei == end && exists[end])
+	    finish = end ;
+	  comp_generated += interval(start,finish) ;
+	}
       }
-#endif  
+    }
   
     fctrl.generated[rvar] = generated ;
 #ifdef VERBOSE
@@ -381,10 +386,10 @@ namespace Loci {
       scheds.set_existential_info(mi->first,impl,mi->second) ;
 
     entitySet create = scheds.get_existential_info(rvar,impl) ;
-#ifdef COMP_ENT
-    scheds.set_my_proc_able_entities(rvar, impl, comp_generated);
-    scheds.add_policy(rvar, sched_db::NEVER);
-#endif
+    if(duplicate_work) {
+      scheds.set_my_proc_able_entities(rvar, impl, comp_generated);
+      scheds.add_policy(rvar, sched_db::NEVER);
+    }
     create += send_entitySet(create,facts) ;
     create += fill_entitySet(create,facts) ;
     scheds.set_existential_info(rvar,impl,create) ;
@@ -417,19 +422,19 @@ namespace Loci {
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
       request_comm = barrier_process_rule_requests(recurse_vars, facts, scheds) ;
       clist = sort_comm(request_comm,facts) ;
-#ifdef COMP_ENT
-      variableSet possible_duplicate_vars;
-      possible_duplicate_vars = input_variables_with_mapping(impl);
-      for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
-	vi != possible_duplicate_vars.end(); vi++) {
-	variable v = *vi;
-	if(!scheds.is_policy(v, sched_db::NEVER)) {
-	  if(scheds.is_policy(v, sched_db::ALWAYS)) {
-	    scheds.set_duplicate_variable(v, true);
+      if(duplicate_work) {
+	variableSet possible_duplicate_vars;
+	possible_duplicate_vars = input_variables_with_mapping(impl);
+	for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
+	    vi != possible_duplicate_vars.end(); vi++) {
+	  variable v = *vi;
+	  if(!scheds.is_policy(v, sched_db::NEVER)) {
+	    if(scheds.is_policy(v, sched_db::ALWAYS)) {
+	      scheds.set_duplicate_variable(v, true);
+	    }
 	  }
 	}
       }
-#endif
     }
   }
 
@@ -708,10 +713,10 @@ namespace Loci {
           mi!=fctrl.generated.end();++mi) {
 
         entitySet create = mi->second;
-#ifdef COMP_ENT
-	scheds.set_my_proc_able_entities(mi->first, *fi, create);
-	scheds.add_policy(mi->first, sched_db::NEVER);
-#endif	
+	if(duplicate_work) {
+	  scheds.set_my_proc_able_entities(mi->first, *fi, create);
+	  scheds.add_policy(mi->first, sched_db::NEVER);
+	}
         create += send_entitySet(create,facts) ;
         create += fill_entitySet(create,facts) ;
         

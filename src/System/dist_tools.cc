@@ -23,7 +23,7 @@ using std::sort;
 #include <fact_db.h>
 #include <constraint.h>
 #include <multiMap.h>
-
+#include "loci_globs.h"
 
 #ifdef SCATTER_DIST
 #define UNITY_MAPPING
@@ -43,10 +43,9 @@ namespace Loci {
     FORALL(global_bdom, i) {
       int tmp = p % Loci::MPI_processes ;
       ptn[tmp] += i ;
-#ifdef COMP_ENT
-      if(tmp == Loci::MPI_rank)
-	facts.global_comp_entities += i;
-#endif
+      if(duplicate_work)
+	if(tmp == Loci::MPI_rank)
+	  facts.global_comp_entities += i;
       p++ ;
     } ENDFORALL ;
     variableSet tmp_vars = facts.get_typed_variables();
@@ -66,34 +65,34 @@ namespace Loci {
         facts.replace_fact(*vi, map_sp) ;
       }
     }
-    
-#ifdef COMP_ENT
-    std::set<std::vector<variableSet> > context_maps ;
-    Loci::get_mappings(rdb, facts, context_maps, 1);
-    facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
-    /*
-     entitySet mySet = ptn[Loci::MPI_rank];
-     for(int k = 0; k < 2; k++) {
-       mySet += Loci::dist_special_expand_map(facts.global_comp_entities,
-					     facts, context_maps) ;
-       facts.global_comp_entities += context_for_map_output(mySet,  facts, context_maps);
-     }
-     */
-    entitySet tmp_set = facts.global_comp_entities;
-#else
-    entitySet tmp_set = ptn[Loci::MPI_rank] ;
-#endif
+
+    entitySet tmp_set;
+    if(duplicate_work) {
+      std::set<std::vector<variableSet> > context_maps ;
+      Loci::get_mappings(rdb, facts, context_maps, 1);
+      facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
+      /*
+	entitySet mySet = ptn[Loci::MPI_rank];
+	for(int k = 0; k < 2; k++) {
+	mySet += Loci::dist_special_expand_map(facts.global_comp_entities,
+	facts, context_maps) ;
+	facts.global_comp_entities += context_for_map_output(mySet,  facts, context_maps);
+	}
+      */
+      tmp_set = facts.global_comp_entities;
+    }
+    else
+      tmp_set = ptn[Loci::MPI_rank] ;
     std::set<std::vector<variableSet> > dist_maps ;
     Loci::get_mappings(rdb,facts,dist_maps) ;
     entitySet tmp_copy, image ;
     image = Loci::dist_expand_map(tmp_set, facts, dist_maps) ;
 
-#ifdef COMP_ENT
-    std::set<std::vector<variableSet> > dist_reverse_maps ;
-    Loci::get_mappings(rdb,facts,dist_reverse_maps, 2) ;
-    image += Loci::dist_reverse_expand_map(facts, dist_reverse_maps);
-#endif
-
+    if(duplicate_work) {
+      std::set<std::vector<variableSet> > dist_reverse_maps ;
+      Loci::get_mappings(rdb,facts,dist_reverse_maps, 2) ;
+      image += Loci::dist_reverse_expand_map(facts, dist_reverse_maps);
+    }
     tmp_copy =  image - ptn[MPI_rank] ; 
     std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
     int *recv_count = new int[MPI_processes] ;
@@ -247,14 +246,13 @@ namespace Loci {
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
-#ifdef COMP_ENT
-    g = EMPTY;
-    for(ei = facts.global_comp_entities.begin();
+    if(duplicate_work) {
+      g = EMPTY;
+      for(ei = facts.global_comp_entities.begin();
 	ei != facts.global_comp_entities.end(); ++ei)
-      g += df->g2l[*ei] ;
-    df->comp_entities = g;
-#endif
-
+	g += df->g2l[*ei] ;
+      df->comp_entities = g;
+    }
     /*xmit data structure contains the information as to what
       entities are to be send to what processor . The copy data
       structure contains the entities that are to be received from a
@@ -988,7 +986,6 @@ namespace Loci {
     return re ;
   }
 
-#ifdef COMP_ENT
   //Finds the context for maps whose final image will be in provided domain.
   entitySet context_for_map_output(entitySet domain, fact_db &facts,
 	      const std::set<std::vector<variableSet> > &maps) {
@@ -1147,7 +1144,6 @@ namespace Loci {
     }
     return special_return ;
   }
-#endif
 
   // function that restores the fact_db back to its global numbering
   void restore_global_facts(fact_db& facts) {

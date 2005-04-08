@@ -10,6 +10,7 @@
 #include <parameter.h>
 #include <fact_db.h>
 #include <Loci_types.h>
+#include "loci_globs.h"
 
 #include <Tools/tools.h>
 #include <map>
@@ -529,13 +530,13 @@ namespace Loci {
       new_init_ptn[i] += v_req[i] ;
     }
 
-#ifdef COMP_ENT
-    dmultiMap right_cells_to_faces;
-    Loci::distributed_inverseMap(right_cells_to_faces, tmp_cr, global_cells, global_faces, naive_init_ptn) ;
-    inverse_sp = Loci::MapRepP(right_cells_to_faces.Rep())->expand(cells_out, naive_init_ptn) ;
-    entitySet cr_inv_ran = Loci::MapRepP(inverse_sp)->image(metis_cell_ptn[Loci::MPI_rank]) ;
-    naive_extra_comp_ent += cr_inv_ran - v_req[Loci::MPI_rank];
-#endif
+    if(duplicate_work) {
+      dmultiMap right_cells_to_faces;
+      Loci::distributed_inverseMap(right_cells_to_faces, tmp_cr, global_cells, global_faces, naive_init_ptn) ;
+      inverse_sp = Loci::MapRepP(right_cells_to_faces.Rep())->expand(cells_out, naive_init_ptn) ;
+      entitySet cr_inv_ran = Loci::MapRepP(inverse_sp)->image(metis_cell_ptn[Loci::MPI_rank]) ;
+      naive_extra_comp_ent += cr_inv_ran - v_req[Loci::MPI_rank];
+    }
 
     entitySet f2n_out = v_req[Loci::MPI_rank] - tmp_face2node.domain() ;
     Loci::storeRepP f2n_sp = Loci::MapRepP(tmp_face2node.Rep())->expand(f2n_out, naive_init_ptn) ; 
@@ -781,15 +782,15 @@ namespace Loci {
       }ENDFORALL;
 
       facts.update_remap(boundary_update);
-#ifdef COMP_ENT
-      fact_db::distribute_infoP df = facts.get_distribute_info();
-      dMap remap;
-      Loci::storeRepP remap_sp = df->remap.Rep();
-      Loci::MapRepP(remap)->copy(remap_sp, remap_sp->domain());
-      entitySet comp_out = naive_extra_comp_ent - remap.domain();
-      remap_sp = Loci::MapRepP(remap.Rep())->expand(comp_out, new_init_ptn);
-      //facts.global_comp_entities += Loci::MapRepP(remap_sp)->image(naive_extra_comp_ent);
-#endif
+      if(duplicate_work) {
+	fact_db::distribute_infoP df = facts.get_distribute_info();
+	dMap remap;
+	Loci::storeRepP remap_sp = df->remap.Rep();
+	Loci::MapRepP(remap)->copy(remap_sp, remap_sp->domain());
+	entitySet comp_out = naive_extra_comp_ent - remap.domain();
+	remap_sp = Loci::MapRepP(remap.Rep())->expand(comp_out, new_init_ptn);
+	//facts.global_comp_entities += Loci::MapRepP(remap_sp)->image(naive_extra_comp_ent);
+      }
     }
     else {
       nodes = facts.get_allocation(npnts) ; 
