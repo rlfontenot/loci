@@ -104,7 +104,8 @@ namespace Loci {
     // Now we create a sorted list of variables based on the number of entities
     vector<pair<variable,int> > vsort ;
     for(vsize_iter = vsizes.begin();vsize_iter!=vsizes.end();++vsize_iter) {
-      vsort.push_back(*vsize_iter) ;
+        vsort.push_back(pair<variable,int>(vsize_iter->first,
+                                           vsize_iter->second));
     }
 
     sort(vsort.begin(),vsort.end(),compare_var_sizes) ;
