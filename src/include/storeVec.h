@@ -747,6 +747,8 @@ namespace Loci {
     int     arraySize =0, numContainers = 0;
     entitySet::const_iterator ci;
 
+    fatal((eset - domain()) != EMPTY);
+
     typedef data_schema_traits<T> converter_traits;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
@@ -766,8 +768,6 @@ namespace Loci {
   template <class T>
   int storeVecRepI<T>::pack_size( const entitySet &eset)
   {
-    fatal((eset - domain()) != EMPTY);
-
     typedef typename
       data_schema_traits<T>::Schema_Converter schema_converter;
     schema_converter traits_type;

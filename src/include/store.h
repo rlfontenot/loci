@@ -364,6 +364,8 @@ namespace Loci {
     entitySet :: const_iterator ci;
     typedef data_schema_traits<T> converter_traits;
 
+    fatal((eset - domain()) != EMPTY);
+
     T   obj;
     for( ci = eset.begin(); ci != eset.end(); ++ci) {
       obj  = base_ptr[*ci];
@@ -378,7 +380,6 @@ namespace Loci {
 
   //*******************************************************************/
   template <class T> int storeRepI<T>::pack_size( const entitySet &eset) {
-    fatal((eset - domain()) != EMPTY);
 
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
 

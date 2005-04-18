@@ -122,7 +122,8 @@ namespace Loci {
            << " failed." << endl ;
       return ;
     }
-    warn((*tmp).second.value_type != NAME) ;
+    warn((*tmp).second.value_type != NAME &&
+         (*tmp).second.value_type != STRING) ;
     name = (*tmp).second.name ;
   }
 
