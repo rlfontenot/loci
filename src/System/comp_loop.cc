@@ -233,12 +233,26 @@ namespace Loci {
     
       list<list<variable> >::const_iterator rli ;
       for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli) {
+        variableSet rvar ;
 	list<variable>::const_iterator li ;
 	for(li=rli->begin();li!=rli->end();++li) {
+          rvar += *li ;
 	  scheds.add_policy(*li, sched_db::NEVER);
 	}
+        scheds.set_variable_rotations(rvar) ;
       }
     }
+
+    list<list<variable> >::const_iterator rli ;
+    for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli) {
+      variableSet rvar ;
+      list<variable>::const_iterator li ;
+      for(li=rli->begin();li!=rli->end();++li) {
+        rvar += *li ;
+      }
+      scheds.set_variable_rotations(rvar) ;
+    }
+
     std::vector<rule_compilerP>::iterator i ;
     for(i=collapse_comp.begin();i!=collapse_comp.end();++i)
       (*i)->set_var_existence(facts, scheds) ;

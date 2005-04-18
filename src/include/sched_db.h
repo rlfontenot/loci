@@ -14,7 +14,7 @@ namespace Loci {
   class sched_db {
     
     struct sched_data {
-      variableSet aliases ;
+      variableSet aliases,rotations ;
       bool ismap ;
       MapRepP minfo ;
       std::map<entitySet,entitySet> imageMap ;
@@ -86,9 +86,12 @@ namespace Loci {
     
     variableSet get_synonyms(variable v) const 
       { return get_sched_info(v).synonyms ; }
-    
+
     variableSet get_aliases(variable v) const
-      { return get_sched_data(v).aliases ; }
+    { return get_sched_data(v).aliases ; }
+
+    variableSet get_rotations(variable v) const
+    { return get_sched_data(v).rotations ; }
     
     void set_variable_type(variable v, storeRepP st, fact_db &facts) ;
     void set_variable_type(std::string vname,const storeRepP st, fact_db &facts)
@@ -115,7 +118,9 @@ namespace Loci {
     void variable_is_fact_at(variable v,entitySet s) ;
     void variable_is_fact_at(std::string vname, const entitySet s)
       { variable_is_fact_at(variable(vname),s) ; }
-    
+
+    void set_variable_rotations(variableSet rot) ;
+     
     void alias_variable(variable v, variable alias, fact_db &facts) ;
     void alias_variable(std::string vname, std::string alias, fact_db &facts)
       { alias_variable(variable(vname),variable(alias), facts) ; }

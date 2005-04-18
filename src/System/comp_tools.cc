@@ -1683,7 +1683,38 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
     map<variable,entitySet> v_requests ;
     for(vi=allocate_vars.begin();vi!=allocate_vars.end();++vi) {
-      variableSet aliases = scheds.get_aliases(*vi) ;
+      variableSet aliases = variableSet(scheds.get_aliases(*vi)+
+                                        scheds.get_synonyms(*vi)+
+                                        scheds.get_rotations(*vi)) ;
+      if(aliases.size() > 1) {
+        // If it looks like there are aliases, then collect all of the
+        // information about name aliasing
+        // Note: Not sure if there is still a problem due to the one-way
+        // nature of aliasing....
+        variableSet work ;
+        for(vii=aliases.begin();vii!=aliases.end();++vii) {
+          work += scheds.get_aliases(*vii) ;
+          work += scheds.get_synonyms(*vii) ;
+          work += scheds.get_rotations(*vii) ;
+        }
+        work -= aliases ;
+        aliases += work ;
+
+        while(work != EMPTY) {
+          variableSet new_vars ;
+      
+          for(vii=work.begin();vii!=work.end();++vii) {
+            new_vars += scheds.get_aliases(*vii) ;
+            new_vars += scheds.get_synonyms(*vii) ;
+            new_vars += scheds.get_rotations(*vii) ;
+          }
+          work=new_vars ;
+          work-=aliases ;
+          aliases += work ; ;
+
+        }
+      }
+          
       entitySet requests ;
       for(vii=aliases.begin();vii!=aliases.end();++vii) {
 	requests += scheds.get_variable_requests(*vii) ;

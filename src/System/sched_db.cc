@@ -92,6 +92,12 @@ namespace Loci {
     for(variableSet::const_iterator vi=aliases.begin();vi!=aliases.end();++vi) 
       get_sched_info(v).fact_installed -= s ;
   }
+
+  void sched_db::set_variable_rotations(variableSet vars) {
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      get_sched_data(*vi).rotations += vars ;
+    }
+  }
   
   void sched_db::alias_variable(variable v, variable alias, fact_db &facts) {
 
