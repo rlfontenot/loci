@@ -1683,9 +1683,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
     map<variable,entitySet> v_requests ;
     for(vi=allocate_vars.begin();vi!=allocate_vars.end();++vi) {
-      variableSet aliases = variableSet(scheds.get_aliases(*vi)+
-                                        scheds.get_synonyms(*vi)+
-                                        scheds.get_rotations(*vi)) ;
+        variableSet aliases = variableSet(scheds.get_aliases(*vi)+
+                                          scheds.get_antialiases(*vi)+
+                                          scheds.get_synonyms(*vi)+
+                                          scheds.get_rotations(*vi)) ;
       if(aliases.size() > 1) {
         // If it looks like there are aliases, then collect all of the
         // information about name aliasing
@@ -1694,6 +1695,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         variableSet work ;
         for(vii=aliases.begin();vii!=aliases.end();++vii) {
           work += scheds.get_aliases(*vii) ;
+          work += scheds.get_antialiases(*vii) ;
           work += scheds.get_synonyms(*vii) ;
           work += scheds.get_rotations(*vii) ;
         }
@@ -1705,6 +1707,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       
           for(vii=work.begin();vii!=work.end();++vii) {
             new_vars += scheds.get_aliases(*vii) ;
+            new_vars += scheds.get_antialiases(*vii) ;
             new_vars += scheds.get_synonyms(*vii) ;
             new_vars += scheds.get_rotations(*vii) ;
           }
@@ -1714,7 +1717,9 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
         }
       }
-          
+#ifdef VERBOSE
+      debugout << "allocating v=" << *vi << ", aliases = " << aliases << endl ;
+#endif
       entitySet requests ;
       for(vii=aliases.begin();vii!=aliases.end();++vii) {
 	requests += scheds.get_variable_requests(*vii) ;

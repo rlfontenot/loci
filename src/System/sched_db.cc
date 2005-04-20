@@ -119,6 +119,8 @@ namespace Loci {
       int ref = get_sched_info(v).sched_info_ref ;
       sched_infov[ref].aliases += alias ;
       install_sched_info(alias,sched_info(ref)) ;
+      ref = get_sched_info(alias).sched_info_ref ;
+      sched_infov[ref].antialiases += v ;
       
     } else if(all_vars.inSet(alias)) {
       alias_variable(alias,v, facts) ;
@@ -154,6 +156,8 @@ namespace Loci {
     vfinfo.synonyms += synonym ;
     synonyms[synonym] = v ;
     all_vars += synonym ;
+    sched_info &sfinfo = get_sched_info(synonym) ;
+    sfinfo.synonyms += v ;
   }
   
   void sched_db::set_existential_info(variable v, rule f, entitySet x) {
