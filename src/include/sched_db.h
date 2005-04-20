@@ -14,7 +14,7 @@ namespace Loci {
   class sched_db {
     
     struct sched_data {
-      variableSet aliases,rotations ;
+      variableSet aliases,rotations,antialiases ;
       bool ismap ;
       MapRepP minfo ;
       std::map<entitySet,entitySet> imageMap ;
@@ -89,6 +89,9 @@ namespace Loci {
 
     variableSet get_aliases(variable v) const
     { return get_sched_data(v).aliases ; }
+
+      variableSet get_antialiases(variable v) const
+    { return get_sched_data(v).antialiases ; }
 
     variableSet get_rotations(variable v) const
     { return get_sched_data(v).rotations ; }
