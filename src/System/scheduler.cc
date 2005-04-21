@@ -721,14 +721,10 @@ namespace Loci {
 	  oss << ",target(" << *vi << ')' ;
 	  string sig = oss.str() ;
 	  rule r(sig) ;
-	  entitySet t ;
 	  if(par_rdb.rules_by_target(*vi) == EMPTY) {
-	    if(facts.isDistributed()) {
-	      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-	      for(size_t i = 0; i < d->copy.size(); ++i)
-		t += d->copy[i].entities ;
+	    if(facts.isDistributed()) { 
+	      scheds.set_existential_info(*vi, r, scheds.variable_existence(*vi));
 	      initial_vars += *vi ;
-	      scheds.set_existential_info(*vi, r, t) ;
 	    }
 	  }
 	}
