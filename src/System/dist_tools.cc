@@ -69,16 +69,30 @@ namespace Loci {
     entitySet tmp_set;
     if(duplicate_work) {
       std::set<std::vector<variableSet> > context_maps ;
-      Loci::get_mappings(rdb, facts, context_maps, 1);
+      if(extra_duplication)
+	Loci::get_mappings(rdb, facts, context_maps);
+      else
+	Loci::get_mappings(rdb, facts, context_maps, 1);
       facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
-      /*
+
+      if(multilevel_duplication) {
 	entitySet mySet = ptn[Loci::MPI_rank];
-	for(int k = 0; k < 2; k++) {
-	mySet += Loci::dist_special_expand_map(facts.global_comp_entities,
-	facts, context_maps) ;
-	facts.global_comp_entities += context_for_map_output(mySet,  facts, context_maps);
-	}
-      */
+	bool continue_adding = true;
+	int num_levels = 1;
+	do{
+	  mySet += Loci::dist_special_expand_map(facts.global_comp_entities,
+						 facts, context_maps) ;
+	  entitySet added_entities = context_for_map_output(mySet,  facts, context_maps);
+	  added_entities -= facts.global_comp_entities;
+	  if(all_collect_entitySet(added_entities) == EMPTY)
+	    continue_adding = false;
+	  else {
+	    facts.global_comp_entities += added_entities;
+	    num_levels++;
+	  }
+	}while(continue_adding);
+	Loci::debugout << "Number of Duplication Levels: " << num_levels << endl; 
+      }
       tmp_set = facts.global_comp_entities;
     }
     else
