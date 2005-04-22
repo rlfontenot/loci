@@ -1,5 +1,5 @@
 #include "sched_tools.h"
-#include <Tools/stream.h>
+
 using std::map ;
 using std::vector ;
 using std::set ;
@@ -7,6 +7,10 @@ using std::list ;
 
 using std::pair ;
 using std::make_pair ;
+
+using std::cerr ;
+using std::endl ;
+using std::ofstream ;
 
 namespace Loci {
 

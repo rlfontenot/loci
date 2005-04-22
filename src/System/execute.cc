@@ -1,10 +1,16 @@
+#include <ostream>
+
 #include <execute.h>
 #include <mpi.h>
 #ifdef PTHREADS
 #include <pthread.h>
 #include <semaphore.h>
 #endif
-#include <Tools/stream.h>
+
+using std::cerr ;
+using std::endl ;
+using std::ostream ;
+
 
 #ifdef PTHREADS
 sem_t thread_barrier, barrier_ack ;

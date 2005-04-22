@@ -1,7 +1,15 @@
+#include <istream>
+#include <ostream>
+#include <iostream>
+
 #include <constraint.h>
-#include <Tools/stream.h>
 #include <Map.h>
 #include <DMap.h>
+
+using std::cerr ;
+using std::endl ;
+using std::ostream ;
+using std::istream ;
 
 namespace Loci {
 

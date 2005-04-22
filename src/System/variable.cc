@@ -1,9 +1,13 @@
 #include <variable.h>
-#include <Tools/stream.h>
 
 using std::vector ;
 using std::string ;
 using std::make_pair ;
+
+using std::cerr ;
+using std::endl ;
+using std::ostream ;
+using std::istream ;
 
 namespace Loci {
   time_ident::time_hierarchy *time_ident::thp = 0 ;
@@ -566,7 +570,7 @@ ostream &variable::info::Print(ostream &s ) const {
     if(size() == 0)
       return name ;
     for(variableSet::const_iterator vi=begin();vi!=end();++vi) {
-      ostringstream ss ;
+      std::ostringstream ss ;
       ss << *vi ;
       name.push_back(ss.str()) ;
     }

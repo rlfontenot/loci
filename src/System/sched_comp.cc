@@ -1,9 +1,10 @@
+#include <ostream>
+#include <iostream>
 #include "sched_tools.h"
 #include "comp_tools.h"
 #include "dist_tools.h"
 #include "visitor.h"
 
-#include <Tools/stream.h>
 
 #include <vector>
 using std::vector ;
@@ -17,6 +18,12 @@ using std::set ;
 using std::string ;
 #include <sstream>
 using std::stringstream ;
+
+
+using std::cout ;
+using std::ostream ;
+using std::cerr ;
+using std::endl ;
 
 //#define HACK ; 
 

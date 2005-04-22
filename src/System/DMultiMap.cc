@@ -1,8 +1,16 @@
+#include <istream>
+#include <ostream>
+#include <iostream>
+
 #include <Map.h>
 #include <DMultiMap.h>
 #include <multiMap.h>
-#include <Tools/stream.h>
-#include <set> 
+
+using std::cerr ;
+using std::endl ;
+using std::ostream ;
+using std::istream ;
+
 namespace Loci 
 {
 

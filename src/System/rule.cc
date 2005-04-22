@@ -1,10 +1,26 @@
-#include "rule.h"
+#include <istream>
+#include <ostream>
+#include <iostream>
+#include <string>
+#include <sstream>
 
-#include <Tools/stream.h>
+#include "rule.h"
 #include <fact_db.h>
+
+#include <vector>
 using std::vector ;
+#include <set>
 using std::set ;
+
 using std::pair ;
+
+using std::cerr ;
+using std::endl ;
+using std::istream ;
+using std::ostream ;
+
+using std::ostringstream ;
+using std::string ;
 
 //#define VERBOSE
 

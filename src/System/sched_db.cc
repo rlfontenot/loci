@@ -1,3 +1,8 @@
+#include <istream>
+#include <ostream>
+#include <iostream>
+#include <fstream>
+
 #include <sched_db.h>
 using std::string ; 
 using std::map ;
@@ -10,11 +15,10 @@ using std::make_pair ;
 
 #include <Tools/parse.h>
 
-//extern "C" {
-//#include <hdf5.h>
-//}
+using std::cerr ;
+using std::endl ;
+using std::ofstream ;
 
-#include <Tools/stream.h>
 
 namespace Loci {
   extern int MPI_processes ;

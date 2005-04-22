@@ -1,12 +1,14 @@
 #include "visitor.h"
 #include "visit_tools.h"
 #include "comp_tools.h"
-#include <Tools/stream.h>
+
 
 using std::vector ;
 using std::map ;
 using std::set ;
 
+using std::cerr ;
+using std::endl ;
 
 namespace Loci {
   extern bool profile_memory_usage ;

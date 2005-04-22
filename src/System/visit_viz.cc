@@ -1,7 +1,7 @@
 #include "visitor.h"
 #include "visit_tools.h"
 #include "comp_tools.h"
-#include <Tools/stream.h>
+
 
 #include <vector>
 using std::vector ;
@@ -9,6 +9,19 @@ using std::vector ;
 using std::map ;
 #include <list>
 using std::list ;
+
+#include <istream>
+#include <ostream>
+#include <iostream>
+
+using std::ostream ;
+using std::istream ;
+using std::cerr ;
+using std::endl ;
+
+#include <fstream>
+
+using std::ofstream ;
 
 namespace Loci {
 

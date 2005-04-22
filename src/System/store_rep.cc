@@ -1,7 +1,9 @@
 #include <store_rep.h>
 
-#include <Tools/stream.h>
 #include <Map.h>
+
+using std::istream ;
+using std::ostream ;
 
 namespace Loci {
   storeRep::~storeRep() {}

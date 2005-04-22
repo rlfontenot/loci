@@ -1,9 +1,20 @@
+#include <istream>
+#include <ostream>
+#include <iostream>
+#include <fstream>
 
 #include <DMap.h>
 #include <multiMap.h>
-#include <Tools/stream.h>
 #include <hdf5_readwrite.h>
 #include <Tools/hash_map.h>
+
+using std::cerr ;
+using std::endl ;
+using std::ostream ;
+using std::istream ;
+using std::ofstream ;
+
+
 namespace Loci {
 
   extern ofstream debugout ;

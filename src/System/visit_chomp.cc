@@ -1,7 +1,6 @@
 #include "visitor.h"
 #include "visit_tools.h"
 #include "comp_tools.h"
-#include <Tools/stream.h>
 
 #include <vector>
 using std::vector ;
@@ -15,6 +14,9 @@ using std::list ;
 using std::pair ;
 using std::make_pair ;
 using std::min ;
+
+using std::cerr ;
+using std::endl ;
 
 // all the searching and graph
 // editing algorithm for chomping 
