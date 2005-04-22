@@ -61,6 +61,8 @@ namespace Loci {
   bool use_old_dependency_graph = false ;
 
   bool duplicate_work = false;
+  bool extra_duplication = false;
+  bool multilevel_duplication = false;
   /////////////////////////////
   
   ofstream debugout ;
@@ -223,6 +225,19 @@ namespace Loci {
         use_old_dependency_graph = true ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--duplicate_work")){
+	duplicate_work = true;
+	i++;
+      } else if(!strcmp((*argv)[i],"--extra_duplication")){
+	extra_duplication = true;
+	duplicate_work = true;
+	i++;
+      } else if(!strcmp((*argv)[i],"--multilevel_duplication")){
+	multilevel_duplication = true;
+	duplicate_work = true;
+	i++;
+      } else if(!strcmp((*argv)[i],"--extreme_duplication")){
+	extra_duplication = true;
+	multilevel_duplication = true;
 	duplicate_work = true;
 	i++;
       }
