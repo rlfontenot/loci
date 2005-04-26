@@ -69,10 +69,7 @@ namespace Loci {
     entitySet tmp_set;
     if(duplicate_work) {
       std::set<std::vector<variableSet> > context_maps ;
-      if(extra_duplication)
-	Loci::get_mappings(rdb, facts, context_maps);
-      else
-	Loci::get_mappings(rdb, facts, context_maps, 1);
+      Loci::get_mappings(rdb, facts, context_maps);
       facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
 
       if(multilevel_duplication) {
