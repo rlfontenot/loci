@@ -15,6 +15,7 @@ namespace Loci {
 
   class orderVisitor: public visitor {
   public:
+    virtual ~orderVisitor() {} ;
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -33,6 +34,7 @@ namespace Loci {
                     const std::map<variable,
                     std::pair<rule,CPTR<joiner> > >& ri):
       all_reduce_vars(arv),reduceInfo(ri) {}
+    virtual ~assembleVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -47,6 +49,7 @@ namespace Loci {
 
   class graphVisualizeVisitor: public visitor {
   public:
+    virtual ~graphVisualizeVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -69,7 +72,7 @@ namespace Loci {
       recurs2t(rvs2t),recurt2s(rvt2s),
       all_recur_vars(allrecurvars),loop_sn(lsn),
       rotate_vtable(rot_vt),loop_shared_table(lsharedt) {}
-
+    virtual ~allocInfoVisitor() {} 
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -116,7 +119,8 @@ namespace Loci {
                       const std::map<variable,variableSet>& prio_s2t,
                       const variableSet& prio_sources)
       :alloc_table(t),loop_sn(lsn),rotate_vtable(rot_vt),
-      prio_s2t(prio_s2t),prio_sources(prio_sources) {}
+       prio_s2t(prio_s2t),prio_sources(prio_sources) {}
+    virtual ~allocGraphVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -137,6 +141,7 @@ namespace Loci {
   public:
     memProfileAllocDecoVisitor(const std::map<int,variableSet>& t,
                                const std::map<int,variableSet>& rot_vt) ;
+    virtual ~memProfileAllocDecoVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -166,6 +171,7 @@ namespace Loci {
                       const std::map<int,variableSet>& lsharedt,
                       const variableSet& promoted_rep,
                       const variableSet& reserved_vars) ;
+    virtual ~deleteInfoVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -241,7 +247,8 @@ namespace Loci {
   // visitor that get all the recurrence variables in the
   // multilevel graph
   class recurInfoVisitor: public visitor {
-  public:
+    public:
+    virtual ~recurInfoVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -333,7 +340,8 @@ namespace Loci {
   public:
     deleteGraphVisitor(const std::map<int,variableSet>& t,
                        const std::map<variable,ruleSet>& rsor)
-      :delete_table(t),recur_source_other_rules(rsor){}
+        :delete_table(t),recur_source_other_rules(rsor){}
+    virtual ~deleteGraphVisitor() {} 
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -349,7 +357,8 @@ namespace Loci {
 
   // visitor to get some inter- super node information
   class snInfoVisitor: public visitor {
-  public:
+    public:
+    virtual ~snInfoVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -414,7 +423,8 @@ namespace Loci {
                       // these are the rename tables
                       const std::map<variable,variableSet>& s2t,
                       const std::map<variable,variableSet>& t2s)
-      :scheds(sd),rvs2t(s2t),rvt2s(t2s) {}
+        :scheds(sd),rvs2t(s2t),rvt2s(t2s) {}
+    virtual ~rotateListVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) {}
     virtual void visit(conditional_compiler& cc) {}
@@ -438,7 +448,8 @@ namespace Loci {
   // visitor that checks if a graph has cycle
   class dagCheckVisitor: public visitor {
   public:
-    dagCheckVisitor(bool v=false):viz(v) {}
+      dagCheckVisitor(bool v=false):viz(v) {}
+    virtual ~dagCheckVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -457,6 +468,7 @@ namespace Loci {
                       const std::map<variable,variableSet>& t2s,
                       const variableSet& input) ;
 
+    virtual ~unTypedVarVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -476,7 +488,8 @@ namespace Loci {
   // visitor that collects all the variables
   // in the multilevel graph
   class getAllVarVisitor: public visitor {
-  public:
+    public:
+    virtual ~getAllVarVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -501,6 +514,7 @@ namespace Loci {
                      const std::set<int>& gsn,
                      const std::set<int>& csn,
                      variableSet& input) ;
+    virtual ~promotePPVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -545,6 +559,7 @@ namespace Loci {
                    const std::map<int,variableSet>& rot_vt,
                    const std::map<int,variableSet>& lsharedt,
                    const variableSet& rv) ;
+    virtual ~chompPPVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -577,7 +592,8 @@ namespace Loci {
     chompRuleVisitor(const variableSet& gv,
                      const variableSet& bv,
                      const std::map<rule,rule>& a2u)
-      :good_vars(gv),bad_vars(bv),apply2unit(a2u) {}
+        :good_vars(gv),bad_vars(bv),apply2unit(a2u) {}
+    virtual ~chompRuleVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -602,6 +618,7 @@ namespace Loci {
   // visitor that assemble and compiler all the chomp_compilers
   class compChompVisitor: public visitor {
   public:
+    virtual ~compChompVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -614,6 +631,7 @@ namespace Loci {
   // graph schedule visitor that is lazy on allocation
   class simLazyAllocSchedVisitor: public visitor {
   public:
+    virtual ~simLazyAllocSchedVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -625,6 +643,7 @@ namespace Loci {
   // visitor that collect the unit and apply information
   class unitApplyMapVisitor: public visitor {
   public:
+    virtual ~unitApplyMapVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -646,6 +665,7 @@ namespace Loci {
   class allocDelNumReportVisitor: public visitor {
   public:
     allocDelNumReportVisitor(std::ostream& sout=std::cout):s(sout) {}
+    virtual ~allocDelNumReportVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -659,6 +679,7 @@ namespace Loci {
   class memGreedySchedVisitor: public visitor {
   public:
     memGreedySchedVisitor(fact_db& fd): facts(fd) {}
+    virtual ~memGreedySchedVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
@@ -669,7 +690,8 @@ namespace Loci {
   } ;
 
   // abstract interface of the prioritize function
-  struct PrioGraph {
+    struct PrioGraph {
+    virtual ~PrioGraph() {}
     virtual void operator()(const digraph&,
                             std::map<int_type,int_type>&) const = 0 ;
   } ;
@@ -679,6 +701,7 @@ namespace Loci {
   class graphSchedulerVisitor: public visitor {
   public:
     graphSchedulerVisitor(const PrioGraph& pf):prio(pf) {}
+    virtual ~graphSchedulerVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;

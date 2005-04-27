@@ -260,9 +260,6 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
    chunkMap[3*i+1]=0;
    chunkMap[3*i+2]=0;
   }     
-  double t1=0.0;
-  double t2=0.0;
-  double t3=0.0;
     
   Loci::ExecuteLoop(&workCompute,&SendInput,&ReceiveInput,&SendOutput,&ReceiveOutput,&Allocate_func,&Deallocate_func,method,yMap,stats,chunkMap,procGrp);
   
