@@ -1,3 +1,4 @@
+#include <Config/conf.h>
 #ifdef SPARC
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,6 +1,4 @@
-#ifdef SPARC
-#define SUN
-#endif
+#include <Config/conf.h>
 
 #include <stdio.h>
 #include <signal.h>
