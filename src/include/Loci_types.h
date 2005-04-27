@@ -216,6 +216,7 @@ namespace Loci {
       static DatatypeP get_type() {
         vector3d<T> t ;
         CompoundDatatypeP ct = CompoundFactory(t) ;
+
         LOCI_INSERT_TYPE(ct,vector3d<T>,x) ;
         LOCI_INSERT_TYPE(ct,vector3d<T>,y) ;
         LOCI_INSERT_TYPE(ct,vector3d<T>,z) ;

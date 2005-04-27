@@ -6,6 +6,10 @@
 #endif
 #include <Config/conf.h>
 
+#ifndef NO_OFFSETOF
+#include <stddef.h>
+#endif
+
 #include <vector>
 #include <utility>
 #include <string>
@@ -341,10 +345,11 @@ namespace Loci {
 #ifdef NO_OFFSETOF
 #define LOCI_INSERT_TYPE(ct,type,variable) \
 { type X ; size_t offset = reinterpret_cast<char *>(&(X.variable)) - reinterpret_cast<char *>(&X) ;\
-   ct->insert(# variable, offset,getLociType(type().variable));}
+   ct->insert(# variable, offset,getLociType(X.variable));}
 #else
 #define LOCI_INSERT_TYPE(ct,type,variable) \
-   ct->insert(# variable, offsetof(type,variable),getLociType(type().variable))
+{ type X ; size_t offset = offsetof(type,variable) ;\
+   ct->insert(# variable, offset,getLociType(X.variable));}
 #endif
 
   template<class T, class S> struct data_schema_traits<std::pair<T,S> > {

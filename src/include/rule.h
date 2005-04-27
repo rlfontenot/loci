@@ -638,8 +638,10 @@ namespace Loci {
 
   class register_rule_type {
   public:
-    virtual rule_implP get_func() const = 0 ;
-    virtual bool is_module_rule() const = 0 ;
+      virtual ~register_rule_type() {}
+      virtual rule_implP get_func() const = 0 ;
+      virtual bool is_module_rule() const = 0 ;
+      
   } ; 
   
   class rule_impl_list {
@@ -718,6 +720,7 @@ namespace Loci {
   class register_module : public register_rule_type {
   public:
     register_module() { register_rule_list.push_rule(this) ; }
+    virtual ~register_module() {}
     virtual bool is_module_rule() const{ return true ; }
     virtual rule_implP get_func() const { return 0 ; }
     virtual std::string using_nspace() const = 0 ;
