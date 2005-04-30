@@ -1,3 +1,7 @@
+#ifdef USE_PETSC
+#include "petsc.h"
+#endif
+
 #include <rule.h>
 #include "dist_tools.h"
 #include "loci_globs.h"
@@ -101,8 +105,12 @@ namespace Loci {
     const char *hostname = "localhost" ;
     const char *debug = "gdb" ;
     //Setting up of the global variables for processor ID and the
-    //total number of processes.  
-    MPI_Init(argc, argv) ;
+    //total number of processes.
+#ifdef USE_PETSC
+  PetscInitialize(argc,argv,(char*)0,(char*)0) ;
+#else    
+  MPI_Init(argc, argv) ;
+#endif
     MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
@@ -263,7 +271,11 @@ namespace Loci {
   }
   //All Loci programs must end with this call. 
   void Finalize() {
+#ifdef USE_PETSC
+    PetscFinalize() ;
+#else
     MPI_Finalize() ;
+#endif
   }
 
   void Abort() {
