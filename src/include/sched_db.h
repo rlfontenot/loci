@@ -44,14 +44,31 @@ namespace Loci {
       entitySet existence ;
       entitySet requested ;
       entitySet shadow ; // Used by distributed memory apply rules
+
+      //////////////////////////Duplication Related:////////////// 
+      //Defines maximum which target variable entities a rule can compute 
       std::map<rule, entitySet> proc_able_map;
+
+      //Defines which target variable entities a rule can compute using context
+      //that is subset of my_entities
       std::map<rule, entitySet> my_proc_able_map;
-      unsigned int policy;
-      bool duplicate_variable;
+
+      unsigned int policy;  //Each bit defines a policy 
+      bool duplicate_variable; //Defines if a variable is duplicated
+      
+      //Applies only to reduce variable: considering all the rules of a variable, 
+      //it defines which entities can definitely computed on a processor
+      entitySet reduce_proc_able_entities; 
+
+      bool reduction_outputmap; //If any of the apply or unit rule has mapping in output
+      //////////////////////////////////////////////////////////////
+
       sched_info(int ref = -1) {
 	sched_info_ref = ref ;
 	policy = 0;
 	duplicate_variable = false;
+	reduce_proc_able_entities = ~EMPTY;
+	reduction_outputmap = false;
       }
     } ;
     void register_variable(variable v) ;
@@ -225,6 +242,27 @@ namespace Loci {
       sched_info &finfo = get_sched_info(v);
       finfo.my_proc_able_map[f] += x;
     }
+
+    entitySet get_reduce_proc_able_entities(variable v) {
+      sched_info &finfo = get_sched_info(v);
+      return(finfo.reduce_proc_able_entities);
+    }
+
+    void set_reduce_proc_able_entities(variable v, entitySet x) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.reduce_proc_able_entities = x;
+    }
+
+    bool is_reduction_outputmap(variable v) {
+      sched_info &finfo = get_sched_info(v);
+      return(finfo.reduction_outputmap);
+    }
+
+    void set_reduction_outputmap(variable v, bool x) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.reduction_outputmap = x;
+    }
+
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
   } ;
 }
