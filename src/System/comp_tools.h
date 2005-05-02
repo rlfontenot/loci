@@ -38,6 +38,7 @@ namespace Loci {
   bool rule_has_mapping_in_output(rule r);
   variableSet input_variables_with_mapping(rule r);
   variableSet input_variables(rule r);
+  void set_duplication_of_variables(variableSet vlst, sched_db &scheds);
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
                               entitySet compute, sched_db &scheds) ;
