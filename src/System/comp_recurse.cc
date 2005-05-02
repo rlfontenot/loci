@@ -386,6 +386,7 @@ namespace Loci {
       scheds.set_existential_info(mi->first,impl,mi->second) ;
 
     entitySet create = scheds.get_existential_info(rvar,impl) ;
+    //Add duplication information to recursive variable
     if(duplicate_work) {
       scheds.set_my_proc_able_entities(rvar, impl, comp_generated);
       scheds.add_policy(rvar, sched_db::NEVER);
@@ -422,19 +423,11 @@ namespace Loci {
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
       request_comm = barrier_process_rule_requests(recurse_vars, facts, scheds) ;
       clist = sort_comm(request_comm,facts) ;
-      if(duplicate_work) {
-	variableSet possible_duplicate_vars;
-	possible_duplicate_vars = input_variables_with_mapping(impl);
-	for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
-	    vi != possible_duplicate_vars.end(); vi++) {
-	  variable v = *vi;
-	  if(!scheds.is_policy(v, sched_db::NEVER)) {
-	    if(scheds.is_policy(v, sched_db::ALWAYS)) {
-	      scheds.set_duplicate_variable(v, true);
-	    }
-	  }
-	}
-      }
+
+      //Find duplication of variables that are associtated with 
+      //rules that compute tvars
+      if(duplicate_work)
+	set_duplication_of_variables(tvars, scheds);
     }
   }
 
