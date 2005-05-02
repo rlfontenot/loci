@@ -39,7 +39,7 @@ namespace Loci {
       dMap g2l ; 
       
       entitySet my_entities ;
-      entitySet comp_entities;
+      entitySet comp_entities;//local numbering of global_comp_entities
       
       std::vector<dist_data> copy ; // Data describing which processors own
       // the entities in the clone region
@@ -51,7 +51,11 @@ namespace Loci {
       distribute_info() {} ;
     } ;
     std::vector<entitySet> init_ptn ;
-    entitySet global_comp_entities;
+
+    //Related to Duplication: global_comp_entities set defines
+    //entities that can be computed on a processor
+    entitySet global_comp_entities; 
+
     typedef CPTR<distribute_info> distribute_infoP ;
     distribute_infoP distributed_info ;
 
