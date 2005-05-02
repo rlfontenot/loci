@@ -17,7 +17,7 @@ using std::list ;
 //#define VERBOSE
 
 namespace Loci {
-   
+
   class joiner_oper : public execute_modules {
     variable joiner_var ;
     storeRepP joiner_store ;
@@ -77,10 +77,6 @@ namespace Loci {
       // Compute the shadow entities produced by using this apply rules.
       // Any shadow entities that we don't own we will need to exchange
       // the partial results with other processors.
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      entitySet sources = d->my_entities ;
-      entitySet constraints = d->my_entities ;
-      
       warn(apply.targets().size() != 1) ;
       variable reduce_var = *apply.targets().begin() ;
       
@@ -93,10 +89,17 @@ namespace Loci {
 	if(si->mapping.size() != 0)
 	  outputmap = true ;
       }
+
       // If there is no mapping in the output, then there will be no
       // shadow cast from this rule application.
       if(!outputmap)
-        return ;
+	// If we are duplicating computations, we need to collect information.
+	// Therefore, even if there is no shadow cast, we need to continue
+	if(!duplicate_work)
+	  return ;
+
+      entitySet sources = ~EMPTY;
+      entitySet constraints = ~EMPTY;
       
       for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
         sources &= vmap_source_exist_apply(*si,facts,reduce_var, scheds) ;
@@ -104,11 +107,33 @@ namespace Loci {
       for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
         constraints &= vmap_source_exist(*si,facts, scheds) ;
 
+      entitySet comp_sources, comp_constraints;
+      if(duplicate_work) {
+	comp_sources = sources;
+	comp_constraints = constraints;
+      }
+      
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      sources &= d->my_entities;
+      constraints &= d->my_entities;
+
       sources &= constraints ;
       
+      if(duplicate_work)
+	comp_sources &= comp_constraints;
+      
       entitySet context = sources & constraints ;
+
+      entitySet comp_context;
+      if(duplicate_work)
+	comp_context = comp_sources & comp_constraints;
+      
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
         entitySet targets = vmap_target_exist(*si,facts,context, scheds) ;
+	entitySet comp_targets;
+	if(duplicate_work)
+	  comp_targets = vmap_target_exist(*si, facts, comp_context, scheds);
+	
         const variableSet &tvars = si->var ;
         variableSet::const_iterator vi ;
 	for(vi=tvars.begin();vi!=tvars.end();++vi) {
@@ -118,17 +143,21 @@ namespace Loci {
                    << targets - d->my_entities << endl
                    << "variable is " << *vi << endl ;
 #endif
-          scheds.variable_shadow(*vi,targets) ;
-	  if(duplicate_work)
-	    scheds.add_policy(*vi, sched_db::NEVER);
+	  if(outputmap)
+	    scheds.variable_shadow(*vi,targets) ;
+	  
+	  //Collect information regarding duplication of rule computation 
+	  if(duplicate_work) {
+	    scheds.set_my_proc_able_entities(*vi, apply, targets);
+	    scheds.set_proc_able_entities(*vi, apply, comp_targets);
+	    scheds.set_existential_info(*vi, apply, EMPTY);
+	  }
         }
       }
     }
   }
-  
-  
+
   void apply_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
-    
 #ifdef VERBOSE
     debugout << "in process_var_requests" << endl ;
 #endif 
@@ -143,26 +172,49 @@ namespace Loci {
       tvarmap[tvar] = scheds.variable_existence(tvar) ;
     else
       tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
-    
+
+    entitySet filter = ~EMPTY;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      filter = d->my_entities ;
+    }
+
     const rule_impl::info &rinfo = apply.get_info().desc ;
     set<vmap_info>::const_iterator si ;
     entitySet compute ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
       compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
     }
-    if(facts.isDistributed()) {
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      compute &= d->my_entities ;
+
+    entitySet comp_compute;
+    if(duplicate_work) {
+      //We will only compute entities which will
+      //produce target entities owned by me if there is mapping in output
+      if(!extra_reduction_duplication && scheds.is_reduction_outputmap(tvar)) 
+	tvarmap[tvar] &= filter;
+      //If we are doing extra reduction duplication or we have no mapping in output
+      //we will compute as much as we can to eliminate communication
+      else
+	tvarmap[tvar] &= (filter + scheds.get_reduce_proc_able_entities(tvar));
+      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+	comp_compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
+      }
     }
+    compute &= filter;
+
     entitySet cnstrnts = ~EMPTY ;
-    if(facts.isDistributed()) {
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      cnstrnts = d->my_entities ;
-    }
+
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
       cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
 
+    entitySet comp_constraints;
+    if(duplicate_work)
+      comp_constraints = cnstrnts;
+    cnstrnts &= filter;
+
     compute &= cnstrnts ;
+    if(duplicate_work)
+      comp_compute &= comp_constraints;
     
     output_mapping = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end(); ++si) {
@@ -195,15 +247,15 @@ namespace Loci {
     }
     
     entitySet srcs = ~EMPTY ;
-    entitySet my_entities = srcs ;
-    if(facts.isDistributed()) {
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      srcs = d->my_entities ;
-      my_entities = d->my_entities ;
-    }
     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       srcs &= vmap_source_exist(*si,facts, scheds) ;
+
+    entitySet comp_srcs;
+    if(duplicate_work)
+      comp_srcs = srcs;
+    srcs &= filter;
+    
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((srcs & cnstrnts) != cnstrnts) {
         if(MPI_processes == 1) {
@@ -223,7 +275,7 @@ namespace Loci {
 
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
           entitySet sources = vmap_source_exist(*si,facts, scheds) ;
-          sources &= my_entities ;
+          sources &= filter;
           if((sources & cnstrnts) != cnstrnts) {
             if(MPI_processes == 1) 
               cerr << "sources & constraints != constraints for input"
@@ -262,17 +314,30 @@ namespace Loci {
         }
       }
     srcs &= cnstrnts ;
-    
+    if(duplicate_work)
+      comp_srcs &= comp_constraints;
     // now trim compute to what can be computed.
     compute &= srcs ;
-    exec_seq = compute ;
+    if(duplicate_work)
+      comp_compute &= comp_srcs;
+
+    if(!duplicate_work || facts.get_variable(tvar)->RepType() == Loci::PARAMETER
+       || !scheds.is_duplicate_variable(tvar)) 
+      exec_seq = compute ;
+    else
+      exec_seq = comp_compute;
     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-      entitySet requests = vmap_source_requests(*si,facts,compute, scheds) ;
+      entitySet requests;
+      if(!duplicate_work || facts.get_variable(tvar)->RepType() == Loci::PARAMETER
+	 || !scheds.is_duplicate_variable(tvar)) 
+	requests = vmap_source_requests(*si,facts,compute, scheds) ;
+      else
+	requests = vmap_source_requests(*si,facts,comp_compute, scheds) ;
       variableSet::const_iterator vi ;
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
         variable v = *vi ;
-        scheds.variable_request(v,requests) ; 
+	scheds.variable_request(v,requests) ;
 #ifdef VERBOSE
 	debugout << "rule " << apply << " requesting variable "
 		 << v << " for entities " << requests << endl ;
@@ -765,9 +830,6 @@ namespace Loci {
     if(facts.isDistributed()) {
       	fact_db::distribute_infoP d = facts.get_distribute_info() ;
       for(size_t i = 0; i < unit_rules.size(); i++) {
-	if(duplicate_work)
-	  scheds.add_policy(reduce_vars[i], sched_db::NEVER);
-
 	entitySet targets ;
 	targets = scheds.get_existential_info(reduce_vars[i], unit_rules[i]) ;
 	targets += send_entitySet(targets, facts) ;
@@ -804,17 +866,6 @@ namespace Loci {
   }
   
   void reduce_store_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
-    if(facts.isDistributed()) {
-      if(duplicate_work)
-	scheds.add_policy(reduce_var, sched_db::NEVER);
-
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      entitySet targets = scheds.get_existential_info(reduce_var, unit_rule) ;
-      targets += send_entitySet(targets, facts) ;
-      targets &= d->my_entities ;
-      targets += fill_entitySet(targets, facts) ;
-      scheds.set_existential_info(reduce_var,unit_rule,targets) ;
-    }
   }
   
   void swap_send_recv(list<comm_info> &cl) {
@@ -825,20 +876,37 @@ namespace Loci {
       li->recv_set = sequence(tmp) ;
     }
   }
-  
+
   void reduce_store_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet vars ;
       vars += reduce_var ;
+
+      //Find out duplication of variables that are associated with rules
+      //that compute reduce variables
+      if(duplicate_work)
+	set_duplication_of_variables(vars, scheds);
       list<comm_info> request_comm = barrier_process_rule_requests(vars,facts, scheds) ;
       entitySet requests = scheds.get_variable_requests(reduce_var) ;
-      entitySet shadow = scheds.get_variable_shadow(reduce_var) ;
+      entitySet shadow;
+
+      //shadow should be empty for the variable which is going to be duplicated
+      //otherwise find out shadow that is going to be entities need to be sent
+      //to the owner processor 
+      if(!duplicate_work || !scheds.is_duplicate_variable(reduce_var))
+	shadow = scheds.get_variable_shadow(reduce_var) ;
+
       shadow &= requests ;
       list<comm_info> slist ;
-      entitySet response = send_requests(shadow, reduce_var,facts,slist) ;
-      swap_send_recv(slist) ;
-      rlist = sort_comm(slist,facts) ;
+
+      //If variable is duplicate variable, we don't need to send request to the 
+      //other procesors because owner processor can ablways compute requests
+      if(!duplicate_work || !scheds.is_duplicate_variable(reduce_var)) {
+	entitySet response = send_requests(shadow, reduce_var,facts,slist) ;
+	swap_send_recv(slist) ;
+	rlist = sort_comm(slist,facts) ;
+      }
       clist = sort_comm(request_comm,facts) ;
       
 #ifdef VERBOSE
@@ -850,7 +918,7 @@ namespace Loci {
 #endif
     }
   }
-  
+
 class execute_comm_reduce : public execute_modules {
   vector<pair<int,vector<send_var_info> > > send_info ;
   vector<pair<int,vector<recv_var_info> > > recv_info ;
