@@ -195,13 +195,24 @@ namespace Loci {
       variableSet::const_iterator vi ;
       for(vi=tvars.begin();vi!=tvars.end();++vi) {
 	scheds.set_existential_info(*vi,r,targets) ;
+
+	//Add information for duplication computation of this rule
 	if(duplicate_work) {
 	  scheds.set_my_proc_able_entities(*vi, r, targets);
 	  scheds.set_proc_able_entities(*vi, r, comp_targets);
-	  if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE
-	     && r.get_info().rule_impl->thread_rule() 
+
+	  if(r.get_info().rule_impl->thread_rule()  
 	     && r.targets().begin()->get_info().name != "OUTPUT") {
-	    scheds.add_policy(*vi, sched_db::ALWAYS);
+	    if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE) 
+	      scheds.add_policy(*vi, sched_db::ALWAYS);
+	    else if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
+	      if(reduction_duplication)
+		scheds.add_policy(*vi, sched_db::ALWAYS);
+	      else
+		scheds.add_policy(*vi, sched_db::NEVER);
+	    }
+	    else 
+	      scheds.add_policy(*vi, sched_db::NEVER);
 	  }
 	  else
 	    scheds.add_policy(*vi, sched_db::NEVER);
@@ -226,7 +237,6 @@ namespace Loci {
 	if(duplicate_work) {
 	  scheds.set_proc_able_entities(v, r,exist);
 	  scheds.set_my_proc_able_entities(v, r,exist);
-	  scheds.add_policy(v, sched_db::NEVER);
 	}
       }
     }
@@ -1049,14 +1059,53 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       variable v = *vi ;
       entitySet requests = scheds.get_variable_requests(v) ;
       if(duplicate_work) {
-	if(scheds.is_duplicate_variable(v)) {
-	  ruleSet r = scheds.get_existential_rules(v);
-	  for(ruleSet::const_iterator ri = r.begin();
-	      ri != r.end(); ri++)
-	    requests -= scheds.get_proc_able_entities(v, *ri);
+	//Find information for reduction variables
+	ruleSet r = scheds.get_existential_rules(v);
+	bool reduction = false;
+	bool outputmap = false;
+	
+	//reduce_proc_able_entities are based on minimal approach taken
+	//which finds entities that can be computed by all rules related to
+	//reduction on a processor.  
+	entitySet reduce_proc_able_entities = ~EMPTY;
+	for(ruleSet::const_iterator ri = r.begin();
+	    ri != r.end(); ri++) {
+	  if(rule_has_mapping_in_output(*ri))
+	    outputmap = true;
+	  if((ri->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) ||
+	     (ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT)) {
+	    reduction = true;
+	    reduce_proc_able_entities &= scheds.get_proc_able_entities(v, *ri);
+	  }
+	}
+
+	//Minimize apropriate requests
+	for(ruleSet::const_iterator ri = r.begin();
+	    ri != r.end(); ri++) {
+	  if(scheds.is_duplicate_variable(v)) { 
+	    if(!reduction) {
+	      requests -= scheds.get_proc_able_entities(v, *ri);
+	    }
+	    else {
+	      if(!outputmap || extra_reduction_duplication) {
+		//We do not need to request entities to the owner if
+		//those entities can be definitely computed on this processor 
+		requests -= reduce_proc_able_entities;
+	      }
+	    }
+	  }
+	}
+
+	//Information needed for later use in apply_compiler
+	if(reduction){
+	  scheds.set_reduce_proc_able_entities(v, reduce_proc_able_entities);
+	  scheds.set_reduction_outputmap(v, outputmap);
 	}
       }
       requests += send_requests(requests, v, facts, clist ) ;
+
+      //Since entities are guranteed to being computed on owner processor,
+      //no need to request them on the other processors
       if(duplicate_work) {
 	if(!scheds.is_duplicate_variable(v))
 	  requests += fill_entitySet(requests, facts) ;
@@ -1532,6 +1581,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     if(facts.isDistributed()) {
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
+
+      //Find out which entities are to be sent on owner processor
+      //based on duplication policies
+      //Find out which variables are duplicate variables
       if(duplicate_work) {
 	send_entities.resize(0);
 	send_entities = send_ent_for_plist(barrier_vars, facts, scheds);
@@ -1815,23 +1868,26 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   (fact_db &facts, sched_db &scheds) {
     return executeP(new execute_memProfileFree(vars)) ;
   }
-  
+
+  //Finds the plist that contains information of entities need to be sent on the 
+  //owner processor based on the duplication policies.
+  //Also defines which variables are duplicate variables.
   std::vector<std::pair<variable,entitySet> >
   send_ent_for_plist(variableSet vlst, fact_db &facts, sched_db &scheds) {
+    
     vector<pair<variable,entitySet> > send_entities ;
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     vector<entitySet> exinfo ;
     vector<variable> vars ;
     vector<ruleSet> rules;
     vector<variable> send_vars ;
+    
     for(variableSet::const_iterator vi=vlst.begin();vi!=vlst.end();++vi) {
-      variable v = *vi ;
-      ruleSet r = scheds.get_existential_rules(v) ; 
-      vars.push_back(v) ;
+      ruleSet r = scheds.get_existential_rules(*vi) ; 
+      vars.push_back(*vi);
       rules.push_back(r);
     }
     
-    variableSet possible_duplicate_vars;
     for(size_t i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
@@ -1840,45 +1896,83 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  send_vars.push_back(v) ;
 	  exinfo.push_back(scheds.get_my_proc_able_entities(v, *rsi)) ;
 	}
-	if(rule_has_mapping_in_output(*rsi)) {
-          possible_duplicate_vars += v;
-        }
-        possible_duplicate_vars += input_variables_with_mapping(*rsi);
-        if(scheds.is_duplicate_variable(v) || possible_duplicate_vars.inSet(v))
-          possible_duplicate_vars += input_variables(*rsi);
       }
     }
     
-    for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
-	vi != possible_duplicate_vars.end(); vi++) {
-      variable v = *vi;
-      if(!scheds.is_policy(v, sched_db::NEVER)) 
-	if(scheds.is_policy(v, sched_db::ALWAYS)) {
-	  scheds.set_duplicate_variable(v, true);
-	}
-    }
+    set_duplication_of_variables(vlst, scheds);
     
     map<variable,entitySet> vmap ;
     for(size_t i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
       entitySet send_ents;
-      if(!scheds.is_policy(v, sched_db::NEVER)) {
-	if(!scheds.is_policy(v, sched_db::ALWAYS)) {
-	  send_ents = exinfo[i] - d->my_entities;
-	}
-	else {
- 	  send_ents = EMPTY;
-	}
-      }
-      else {
+      if(!scheds.is_duplicate_variable(v))
 	send_ents = exinfo[i] - d->my_entities;
-      }
       vmap[v] += send_ents ;
     }
-    for(map<variable,entitySet>::const_iterator mi = vmap.begin(); mi != vmap.end(); mi++) 
+
+    for(map<variable,entitySet>::const_iterator mi = vmap.begin(); 
+	mi != vmap.end(); mi++) 
       send_entities.push_back(make_pair(mi->first,mi->second ));
     
     return send_entities;
+  }
+
+  //Based on the policy selected for a variable, 
+  //it sets the duplication 
+  void process_policy_duplication(variable v, sched_db &scheds) {
+    if(!scheds.is_policy(v, sched_db::NEVER)) 
+      if(scheds.is_policy(v, sched_db::ALWAYS)) 
+	scheds.set_duplicate_variable(v, true);
+  }
+  
+  //It considers all variables which are associated with rules that 
+  //compute tvars, and figures out if they are duplicate variables
+  void set_duplication_of_variables(variableSet tvars, sched_db &scheds) {
+    vector<variable> vars ;
+    vector<ruleSet> rules;
+    for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {
+      variable v = *vi ;
+      ruleSet r = scheds.get_existential_rules(v) ; 
+      vars.push_back(v) ;
+      rules.push_back(r);
+    }
+    
+    variableSet possible_duplicate_vars;
+    //First add variables that have mapping in input or output
+    for(size_t i=0;i<vars.size();++i) {
+      variable v = vars[i] ;
+      ruleSet &rs = rules[i] ;
+      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
+	if(rule_has_mapping_in_output(*rsi)) {
+          possible_duplicate_vars += v;
+        }
+        possible_duplicate_vars += input_variables_with_mapping(*rsi);
+      }
+    }
+
+    //First figure out duplication of variables that have mapping
+    //in input or output
+    for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
+	vi != possible_duplicate_vars.end(); vi++) {
+      process_policy_duplication(*vi, scheds);
+    }
+
+    //Now if target variable is duplicate variable, add the variables
+    //those are in input of the rule which compute that variable
+    possible_duplicate_vars = EMPTY;
+    for(size_t i=0;i<vars.size();++i) {
+      variable v = vars[i] ;
+      ruleSet &rs = rules[i] ;
+      if(scheds.is_duplicate_variable(v))
+	for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi)
+	  possible_duplicate_vars += input_variables(*rsi);
+    }
+
+    //Figure out duplication of newly added variables
+    for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
+	vi != possible_duplicate_vars.end(); vi++) {
+      process_policy_duplication(*vi, scheds);
+    }
   }
   
 } // end of namespace Loci
