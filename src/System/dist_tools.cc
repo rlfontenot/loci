@@ -40,11 +40,14 @@ namespace Loci {
       entitySet tmp = ptn[i] ; 
       ptn[i] = tmp & interval(0, Loci::UNIVERSE_MAX) ;
     }
+
     FORALL(global_bdom, i) {
       int tmp = p % Loci::MPI_processes ;
       ptn[tmp] += i ;
       if(duplicate_work)
 	if(tmp == Loci::MPI_rank)
+	  //Since we are manually adding entities to init_ptn, we also need to 
+	  //add those entities in global_comp_entities
 	  facts.global_comp_entities += i;
       p++ ;
     } ENDFORALL ;
@@ -70,8 +73,10 @@ namespace Loci {
     if(duplicate_work) {
       std::set<std::vector<variableSet> > context_maps ;
       Loci::get_mappings(rdb, facts, context_maps);
+      //Find out entities that can produce target variable entities owned by a processor
       facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
-
+      
+      //Add entities so that maximum depth of duplication can be achieved
       if(multilevel_duplication) {
 	entitySet mySet = ptn[Loci::MPI_rank];
 	bool continue_adding = true;
@@ -257,6 +262,8 @@ namespace Loci {
     my_entities = g ;
     df->myid = myid ;
     df->my_entities = g ;
+
+    //Add comp_entities
     if(duplicate_work) {
       g = EMPTY;
       for(ei = facts.global_comp_entities.begin();
@@ -444,6 +451,9 @@ namespace Loci {
   /*This routine loops over all the rules in the database and extracts
     all the variables associated with the mappings in the head, body and
     the constraints of the rules. */
+  //rule_part = 0: Output and Input of the rule mapping
+  //          = 1: Only Outupt
+  //          = 2: Only Input
   void get_mappings(const rule_db &rdb, fact_db &facts,
                     set<vector<variableSet> > &maps_ret, unsigned int rule_part) {
     ruleSet rules = rdb.all_rules() ;
