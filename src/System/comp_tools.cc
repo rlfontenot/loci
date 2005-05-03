@@ -1064,21 +1064,38 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	bool reduction = false;
 	bool outputmap = false;
 	
-	//reduce_proc_able_entities are based on minimal approach taken
-	//which finds entities that can be computed by all rules related to
-	//reduction on a processor.  
 	entitySet reduce_proc_able_entities = ~EMPTY;
 	for(ruleSet::const_iterator ri = r.begin();
 	    ri != r.end(); ri++) {
 	  if(rule_has_mapping_in_output(*ri))
 	    outputmap = true;
-	  if((ri->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) ||
-	     (ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT)) {
+	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT){
 	    reduction = true;
 	    reduce_proc_able_entities &= scheds.get_proc_able_entities(v, *ri);
 	  }
 	}
+	entitySet tmpSet;
+	if(outputmap)
+	  tmpSet = ~EMPTY;
+	else
+	  tmpSet = EMPTY;
 
+	//if mapping in output, reduce_proc_able_entities are based on minimal approach
+	//which finds intersection entities that can be computed by 
+	//all apply and unit rules
+	//if no mapping in output then, then it is union of entities produced by rules
+	for(ruleSet::const_iterator ri = r.begin();
+	    ri != r.end(); ri++) {
+	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
+	    if(!outputmap)
+	      tmpSet |= scheds.get_proc_able_entities(v, *ri);
+	    else
+	      tmpSet &= scheds.get_proc_able_entities(v, *ri);
+	  }
+	}
+
+	reduce_proc_able_entities &= tmpSet;
+	
 	//Minimize apropriate requests
 	for(ruleSet::const_iterator ri = r.begin();
 	    ri != r.end(); ri++) {
