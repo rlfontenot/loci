@@ -206,7 +206,7 @@ namespace Loci {
 	    if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE) 
 	      scheds.add_policy(*vi, sched_db::ALWAYS);
 	    else if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
-	      if(reduction_duplication)
+	      if(reduction_duplication && facts.get_variable(*vi)->RepType() != Loci::PARAMETER)
 		scheds.add_policy(*vi, sched_db::ALWAYS);
 	      else
 		scheds.add_policy(*vi, sched_db::NEVER);
@@ -347,6 +347,10 @@ namespace Loci {
       
       // Now fill tvarmap with the requested values for variable *vi
       tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
+      
+      if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT)
+	tvarmap[*vi] += scheds.get_extra_unit_request(*vi);
+      
       if(duplicate_work) {
 	if(scheds.is_duplicate_variable(*vi))
 	  tvarmap[*vi] = scheds.get_proc_able_entities(*vi, r) & tvarmap[*vi];
