@@ -219,7 +219,11 @@ namespace Loci {
     output_mapping = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end(); ++si) {
       variableSet::const_iterator vi ;
-      entitySet comp = compute ;
+      entitySet comp;
+      if(!duplicate_work || !scheds.is_duplicate_variable(tvar))
+	comp = compute ;
+      else
+	comp = comp_compute ;
       vector<variableSet>::const_iterator mi ;
       for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
         output_mapping = true ;
@@ -242,7 +246,7 @@ namespace Loci {
           scheds.set_error() ;
           return ;
         }
-        scheds.variable_request(*vi,comp) ;
+        scheds.add_extra_unit_request(*vi,comp) ;
       }
     }
     
@@ -321,23 +325,25 @@ namespace Loci {
     if(duplicate_work)
       comp_compute &= comp_srcs;
 
-    if(!duplicate_work || facts.get_variable(tvar)->RepType() == Loci::PARAMETER
-       || !scheds.is_duplicate_variable(tvar)) 
+    if(!duplicate_work || !scheds.is_duplicate_variable(tvar)) 
       exec_seq = compute ;
     else
       exec_seq = comp_compute;
     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       entitySet requests;
-      if(!duplicate_work || facts.get_variable(tvar)->RepType() == Loci::PARAMETER
-	 || !scheds.is_duplicate_variable(tvar)) 
+      if(!duplicate_work || !scheds.is_duplicate_variable(tvar)) 
 	requests = vmap_source_requests(*si,facts,compute, scheds) ;
       else
 	requests = vmap_source_requests(*si,facts,comp_compute, scheds) ;
       variableSet::const_iterator vi ;
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
         variable v = *vi ;
-	scheds.variable_request(v,requests) ;
+	if(v != tvar)
+	  scheds.variable_request(v,requests) ;
+	else
+	  scheds.add_extra_unit_request(v, requests);
+	
 #ifdef VERBOSE
 	debugout << "rule " << apply << " requesting variable "
 		 << v << " for entities " << requests << endl ;
