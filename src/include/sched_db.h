@@ -44,6 +44,12 @@ namespace Loci {
       entitySet existence ;
       entitySet requested ;
       entitySet shadow ; // Used by distributed memory apply rules
+      
+      //Apply rules may have target variables both on input and output side.
+      //Sometimes apply rules may need to access entities of target variable
+      //which are not requested.  In that case, UNIT rule also allocates these 
+      //entities in addition to entities being requested.
+      entitySet extra_unit_request;
 
       //////////////////////////Duplication Related:////////////// 
       //Defines maximum which target variable entities a rule can compute 
@@ -261,6 +267,16 @@ namespace Loci {
     void set_reduction_outputmap(variable v, bool x) {
       sched_info &finfo = get_sched_info(v);
       finfo.reduction_outputmap = x;
+    }
+
+    void add_extra_unit_request(variable v, entitySet x) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.extra_unit_request += x;
+    }
+
+    entitySet get_extra_unit_request(variable v) {
+      sched_info &finfo = get_sched_info(v);
+      return(finfo.extra_unit_request);
     }
 
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
