@@ -104,11 +104,6 @@ namespace Loci {
     entitySet tmp_copy, image ;
     image = Loci::dist_expand_map(tmp_set, facts, dist_maps) ;
 
-    if(duplicate_work) {
-      std::set<std::vector<variableSet> > dist_reverse_maps ;
-      Loci::get_mappings(rdb,facts,dist_reverse_maps, 2) ;
-      image += Loci::dist_reverse_expand_map(facts, dist_reverse_maps);
-    }
     tmp_copy =  image - ptn[MPI_rank] ; 
     std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
     int *recv_count = new int[MPI_processes] ;
@@ -1093,22 +1088,12 @@ namespace Loci {
 	    }
 
 	    entitySet tmp_out = tmp_preimage_vec[MPI_rank] - p->domain();
-	    storeRepP sp = mp->expand(tmp_out, ptn) ;
-	    p = sp;
-	    mp = MapRepP(p->getRep());
-	    test = MapRepP(sp->getRep());
-
+	    p = mp->expand(tmp_out, ptn) ;
 	    if(tmp_out != EMPTY) {
-	      facts.update_fact(variable(*vi), sp) ;
+	      facts.update_fact(variable(*vi), p) ;
 	      added_entities += tmp_out;
 	    }
 	    tmp_image &= mp->image(mp->domain());
-	    if(test != NULL) {
-	      entitySet test_image = test->image(test->domain());
-	      
-	      entitySet my_image = mp->image(mp->domain());
-	      
-	    }
 	  }
 	  else {
 	    cerr << "variable found by mapping function is not a map" << endl;
