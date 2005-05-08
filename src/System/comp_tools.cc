@@ -1059,6 +1059,25 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   list<comm_info>
   barrier_process_rule_requests(variableSet vars, fact_db &facts, sched_db &scheds) {
     list<comm_info> clist ;
+    entitySet reduce_filter = ~EMPTY ; 
+
+    if(duplicate_work) {
+      if(facts.isDistributed()) {
+	fact_db::distribute_infoP d = facts.get_distribute_info() ;
+	if(multilevel_duplication)
+	  //Because we are calling context_for_map_output multiple times, 
+	  //we have made sure that we have full preimage of any output map
+	  //for comp_entites.
+	  //That means comp entities can be successfully computed for 
+	  //any reduction rule
+	  reduce_filter = d->comp_entities ;
+	else
+	  //Otherwise we can gurantee successful computation of only my_entities 
+	  //for reduction rules 
+	  reduce_filter = d->my_entities ;
+      }
+    }
+
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       variable v = *vi ;
       entitySet requests = scheds.get_variable_requests(v) ;
@@ -1108,11 +1127,14 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	      requests -= scheds.get_proc_able_entities(v, *ri);
 	    }
 	    else {
-	      if(!outputmap || extra_reduction_duplication) {
-		//We do not need to request entities to the owner if
-		//those entities can be definitely computed on this processor 
-		requests -= reduce_proc_able_entities;
-	      }
+	      //If mapping in output, we may not be able compute entities 
+	      //outside reduce_filter successfully 
+	      if(outputmap)
+		reduce_proc_able_entities &= reduce_filter;
+	      
+	      //We do not need to request entities to the owner if
+	      //those entities can be definitely computed on this processor 
+	      requests -= reduce_proc_able_entities;
 	    }
 	  }
 	}
