@@ -18,7 +18,6 @@ namespace Loci {
   extern bool schedule_output ;
   //flag for duplicating computations to save communication
   extern bool duplicate_work;
-  extern bool extra_reduction_duplication;
   extern bool multilevel_duplication;
   extern bool reduction_duplication;
   /////////////////////////////
