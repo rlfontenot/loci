@@ -174,9 +174,14 @@ namespace Loci {
       tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
 
     entitySet filter = ~EMPTY;
+    entitySet reduce_filter = ~EMPTY;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       filter = d->my_entities ;
+      if(multilevel_duplication)
+	reduce_filter = d->comp_entities;
+      else
+	reduce_filter = d-> my_entities;
     }
 
     const rule_impl::info &rinfo = apply.get_info().desc ;
@@ -188,14 +193,13 @@ namespace Loci {
 
     entitySet comp_compute;
     if(duplicate_work) {
-      //We will only compute entities which will
-      //produce target entities owned by me if there is mapping in output
-      if(!extra_reduction_duplication && scheds.is_reduction_outputmap(tvar)) 
-	tvarmap[tvar] &= filter;
-      //If we are doing extra reduction duplication or we have no mapping in output
-      //we will compute as much as we can to eliminate communication
+      //If mapping in output, we will only compute entities which can be
+      //definitely computed successfully on a processor
+      if(scheds.is_reduction_outputmap(tvar)) 
+	tvarmap[tvar] &= reduce_filter;
+      //If we have no mapping in output we will be able to compute more entities
       else
-	tvarmap[tvar] &= (filter + scheds.get_reduce_proc_able_entities(tvar));
+	tvarmap[tvar] &= (reduce_filter + scheds.get_reduce_proc_able_entities(tvar));
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
 	comp_compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
       }
