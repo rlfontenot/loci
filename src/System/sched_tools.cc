@@ -1,4 +1,5 @@
 #include "sched_tools.h"
+#include "loci_globs.h"
 
 using std::map ;
 using std::vector ;
@@ -32,8 +33,27 @@ namespace Loci {
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi ;
     entitySet sources = ~EMPTY ;
-    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
-      sources &= scheds.variable_existence(*vi) ;
+    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
+      if(duplicate_work) {
+	entitySet temp = scheds.variable_existence(*vi) ;
+	if(facts.isDistributed()) {
+	  //Some constraints are applied on map variables
+	  //For that case, the existence of a map is actually its domain on a processor
+	  //If the map is actually not used in the rule other than constraints,
+	  //then that map may not have expanded enough to include necessrary 
+	  //domain on a processor.  We need to communicate to collect existence.
+	  if((facts.get_variable(*vi))->RepType() == MAP) {
+	    temp = collect_entitySet(temp);
+	    temp = all_collect_entitySet(temp);
+	    Map l2g = facts.get_variable("l2g");
+	    temp = l2g.preimage(temp).first;
+	  }
+	}
+	sources &= temp;
+      }
+      else
+	sources &= scheds.variable_existence(*vi) ;
+    }
     vector<variableSet>::const_reverse_iterator mi ;
     for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
       entitySet working = ~EMPTY ;
