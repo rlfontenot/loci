@@ -107,7 +107,8 @@ namespace Loci {
     //Setting up of the global variables for processor ID and the
     //total number of processes.
 #ifdef USE_PETSC
-  PetscInitialize(argc,argv,(char*)0,(char*)0) ;
+    PetscInitialize(argc,argv,(char*)0,(char*)0) ;
+    PetscOptionsSetValue("-options_left","false") ;
 #else    
   MPI_Init(argc, argv) ;
 #endif
