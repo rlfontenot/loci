@@ -709,12 +709,28 @@ namespace Loci {
         visualize_mlg(decomp) ;
       }
     }
+
     //////////////////////////////////////////////////////////////////
     variableSet fact_vars, initial_vars ;
     fact_vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
+      storeRepP vp = facts.get_variable(*vi) ;
+      //Existence of a map is actually its domain on a processor.
+      //It is necessary that existence of a map does not only include the subeset
+      //of my_entities, but also includes the clone entities.
+      //Mainly because, we have some constraints that are applied over maps.
+      //If the map is actually not used in the rule other than its constraints,
+      //then that map may not have expanded enough to include necessrary existence.
+      //For regular execution it won't affect the schedule but for duplication of work, 
+      //it is required for saving communication.
+      if(vp->RepType() == MAP) {
+	if(facts.isDistributed()) {
+	  entitySet exist = scheds.variable_existence(*vi);
+	  exist = fill_entitySet(exist, facts);
+	  scheds.set_variable_existence(*vi, exist);
+	}
+      }
       if(variable(*vi).time().level_name() == "*" ) {
-	storeRepP vp = facts.get_variable(*vi) ;
 	if(vp->RepType() == STORE) {
 	  ostringstream oss ;
 	  oss << "source(" <<"EMPTY"<<')' ;
