@@ -279,6 +279,15 @@ namespace Loci {
       return(finfo.extra_unit_request);
     }
 
+    //For map variables, it is necessary to change existence without
+    //supllying any rules because Loci does not have rules
+    //that create maps
+    void set_variable_existence(variable v, entitySet x) {
+      FATAL(v.Rep()->RepType() != MAP);
+      sched_info &finfo = get_sched_info(v);
+      finfo.existence += x;
+    }
+
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
   } ;
 }
