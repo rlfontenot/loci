@@ -67,6 +67,7 @@ namespace Loci {
   bool duplicate_work = false;
   bool multilevel_duplication = false;
   bool reduction_duplication = false;
+  bool pointwise_duplication = false;
   /////////////////////////////
   
   ofstream debugout ;
@@ -236,9 +237,13 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--duplicate_work")){
 	duplicate_work = true;
 	reduction_duplication = true;
+	pointwise_duplication = true;
 	i++;
       } else if(!strcmp((*argv)[i],"--no_reduction_duplication")){
 	reduction_duplication = false;
+	i++;
+      } else if(!strcmp((*argv)[i],"--no_pointwise_duplication")){
+	pointwise_duplication = false;
 	i++;
       } else if(!strcmp((*argv)[i],"--multilevel_duplication")){
 	multilevel_duplication = true;
@@ -246,6 +251,7 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--extreme_duplication")){
 	multilevel_duplication = true;
 	reduction_duplication = true;
+	pointwise_duplication = true;
 	i++;
       }
       else

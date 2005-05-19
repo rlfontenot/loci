@@ -203,8 +203,12 @@ namespace Loci {
 
 	  if(r.get_info().rule_impl->thread_rule()  
 	     && r.targets().begin()->get_info().name != "OUTPUT") {
-	    if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE) 
-	      scheds.add_policy(*vi, sched_db::ALWAYS);
+	    if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE) { 
+	      if(pointwise_duplication)
+		scheds.add_policy(*vi, sched_db::ALWAYS);
+	      else
+		scheds.add_policy(*vi, sched_db::NEVER);
+	    }
 	    else if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
 	      if(reduction_duplication && facts.get_variable(*vi)->RepType() != Loci::PARAMETER)
 		scheds.add_policy(*vi, sched_db::ALWAYS);

@@ -20,6 +20,7 @@ namespace Loci {
   extern bool duplicate_work;
   extern bool multilevel_duplication;
   extern bool reduction_duplication;
+  extern bool pointwise_duplication;
   /////////////////////////////
 }
 
