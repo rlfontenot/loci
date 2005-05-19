@@ -220,6 +220,13 @@ namespace Loci {
     for(i=chomp_comp.begin();i!=chomp_comp.end();++i) {
       rule r = i->first ;
       rule_compilerP bc = i->second ;
+      // first we check if r is a fake rule
+      if(r.type() == rule::INTERNAL)
+        if(r.get_info().qualifier() == "FAKE") {
+          bc->set_var_existence(facts,scheds) ;
+          continue ;
+        }
+      
       if(r.get_info().rule_impl->get_rule_class() != rule_impl::APPLY)
         existential_rule_analysis(r,facts,scheds) ;
       else
@@ -233,6 +240,13 @@ namespace Loci {
     for(ri=chomp_comp.rbegin();ri!=chomp_comp.rend();++ri) {
       rule r = ri->first ;
       rule_compilerP bc = ri->second ;
+
+      // first we check if r is a fake rule
+      if(r.type() == rule::INTERNAL)
+        if(r.get_info().qualifier() == "FAKE") {
+          bc->process_var_requests(facts,scheds) ;
+          continue ;
+        }
       
       entitySet exec_seq ;
       if(r.get_info().rule_impl->get_rule_class() != rule_impl::APPLY)

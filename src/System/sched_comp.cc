@@ -155,10 +155,11 @@ namespace Loci {
           else
             rule_process[*ri] = new error_compiler ;
         } else {
-          if(ri->get_info().rule_impl->get_rule_class() != rule_impl::APPLY)
-            rule_process[*ri] = new impl_compiler(*ri) ;
-          else
+          if(ri->get_info().rule_impl->get_rule_class()
+                  == rule_impl::APPLY)
             rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
+          else
+            rule_process[*ri] = new impl_compiler(*ri) ;
         }
       }
 
@@ -530,7 +531,7 @@ namespace Loci {
       // and compilation of all other compilers
       // are done at below by graphSchedulerVisitor
       // and the assembleVisitor.
-      compChompVisitor compchompv ;
+      compChompVisitor compchompv(reduceV.get_reduceInfo()) ;
       top_down_visit(compchompv) ;
     }
     
@@ -840,6 +841,7 @@ namespace Loci {
     for(ruleSet::const_iterator ri=rules.begin();
         ri!=rules.end();++ri) {
       if(ri->type() != rule::INTERNAL)
+        // collect constraint rule
         if(ri->get_info().rule_impl->get_rule_class() ==
            rule_impl::CONSTRAINT_RULE) {
           constraint_rules += *ri ;
