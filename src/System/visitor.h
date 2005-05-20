@@ -618,11 +618,15 @@ namespace Loci {
   // visitor that assemble and compiler all the chomp_compilers
   class compChompVisitor: public visitor {
   public:
+    compChompVisitor(const std::map<variable,
+                     std::pair<rule,CPTR<joiner> > >& ri):
+      reduceInfo(ri) {}
     virtual ~compChompVisitor() {}
     virtual void visit(loop_compiler& lc) ;
     virtual void visit(dag_compiler& dc) ;
     virtual void visit(conditional_compiler& cc) ;
   private:
+    std::map<variable,std::pair<rule,CPTR<joiner> > > reduceInfo ;
     void process_rcm(rulecomp_map& rcm) ;
     void schedule_chomp(chomp_compiler& chc) ;
     void compile_chomp(chomp_compiler& chc, const rulecomp_map& rcm) ;
