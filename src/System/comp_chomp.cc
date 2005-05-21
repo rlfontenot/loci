@@ -255,7 +255,9 @@ namespace Loci {
         map<rule,rule>::const_iterator mi ;
         mi = apply2unit.find(r) ;
         FATAL(mi == apply2unit.end()) ;
-        exec_seq = process_applyrule_requests(r,mi->second,facts,scheds) ;
+	//We just need this variable to pass to the process_applyrule_requests. 
+	bool output_mapping; 
+        exec_seq = process_applyrule_requests(r,mi->second,output_mapping, facts,scheds) ;
       }
       // if the exec_seq is empty, we need to take off
       // the corresponding rule from the list
