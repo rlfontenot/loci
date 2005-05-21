@@ -51,7 +51,7 @@ namespace Loci {
   entitySet process_rule_requests(rule f, fact_db &facts, sched_db &scheds) ;
   
   void existential_applyrule_analysis(rule apply, fact_db &facts, sched_db &scheds) ;
-  entitySet process_applyrule_requests(rule apply, rule unit_tag, fact_db &facts, sched_db &scheds) ;
+  entitySet process_applyrule_requests(rule apply, rule unit_tag, bool &output_mapping,fact_db &facts, sched_db &scheds) ;
   
   std::vector<std::pair<variable,entitySet> >
     barrier_existential_rule_analysis(variableSet vlst, fact_db &facts, sched_db &scheds) ;
