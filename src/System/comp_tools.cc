@@ -470,11 +470,7 @@ namespace Loci {
       // Compute the shadow entities produced by using this apply rules.
       // Any shadow entities that we don't own we will need to exchange
       // the partial results with other processors.
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      entitySet sources = d->my_entities ;
-      entitySet constraints = d->my_entities ;
-      
-      WARN(apply.targets().size() != 1) ;
+      warn(apply.targets().size() != 1) ;
       variable reduce_var = *apply.targets().begin() ;
       
       
@@ -486,10 +482,17 @@ namespace Loci {
 	if(si->mapping.size() != 0)
 	  outputmap = true ;
       }
+
       // If there is no mapping in the output, then there will be no
       // shadow cast from this rule application.
       if(!outputmap)
-        return ;
+	// If we are duplicating computations, we need to collect information.
+	// Therefore, even if there is no shadow cast, we need to continue
+	if(!duplicate_work)
+	  return ;
+
+      entitySet sources = ~EMPTY;
+      entitySet constraints = ~EMPTY;
       
       for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
         sources &= vmap_source_exist_apply(*si,facts,reduce_var, scheds) ;
@@ -497,21 +500,51 @@ namespace Loci {
       for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
         constraints &= vmap_source_exist(*si,facts, scheds) ;
 
+      entitySet comp_sources, comp_constraints;
+      if(duplicate_work) {
+	comp_sources = sources;
+	comp_constraints = constraints;
+      }
+      
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      sources &= d->my_entities;
+      constraints &= d->my_entities;
+
       sources &= constraints ;
       
+      if(duplicate_work)
+	comp_sources &= comp_constraints;
+      
       entitySet context = sources & constraints ;
+
+      entitySet comp_context;
+      if(duplicate_work)
+	comp_context = comp_sources & comp_constraints;
+      
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
         entitySet targets = vmap_target_exist(*si,facts,context, scheds) ;
+	entitySet comp_targets;
+	if(duplicate_work)
+	  comp_targets = vmap_target_exist(*si, facts, comp_context, scheds);
+	
         const variableSet &tvars = si->var ;
         variableSet::const_iterator vi ;
 	for(vi=tvars.begin();vi!=tvars.end();++vi) {
 #ifdef VERBOSE
-	debugout << "shadow is " << targets << endl ;
-	debugout << "shadow not owned is "
-			   << targets - d->my_entities << endl
-			   << "variable is " << *vi << endl ;
+          debugout << "shadow is " << targets << endl ;
+          debugout << "shadow not owned is "
+                   << targets - d->my_entities << endl
+                   << "variable is " << *vi << endl ;
 #endif
-	scheds.variable_shadow(*vi,targets) ;
+	  if(outputmap)
+	    scheds.variable_shadow(*vi,targets) ;
+	  
+	  //Collect information regarding duplication of rule computation 
+	  if(duplicate_work) {
+	    scheds.set_my_proc_able_entities(*vi, apply, targets);
+	    scheds.set_proc_able_entities(*vi, apply, comp_targets);
+	    scheds.set_existential_info(*vi, apply, EMPTY);
+	  }
         }
       }
     }
@@ -522,41 +555,81 @@ namespace Loci {
   // function version of apply_compiler::process_var_requests
   // used inside the chomp compiler
   ////////////////////////////////////////////////////////////////////
-  entitySet process_applyrule_requests(rule apply, rule unit_tag, fact_db &facts, sched_db &scheds) {
-
+  entitySet process_applyrule_requests(rule apply, rule unit_tag, bool &output_mapping, fact_db &facts, sched_db &scheds) {
+    
 #ifdef VERBOSE
-    debugout << "in process_var_requests" << endl ;
+    debugout << "in process_applyrule_requests" << endl ;
 #endif 
     vdefmap tvarmap ;
     variableSet targets = apply.targets() ;
     variableSet sources = apply.sources() ;
     
-    FATAL(targets.size() != 1) ;
+    fatal(targets.size() != 1) ;
     variable tvar = *(targets.begin()) ;
     
     if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER) 
       tvarmap[tvar] = scheds.variable_existence(tvar) ;
     else
       tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
-    
+
+    entitySet filter = ~EMPTY;
+    entitySet reduce_filter = ~EMPTY;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      filter = d->my_entities ;
+      if(multilevel_duplication)
+	reduce_filter = d->comp_entities;
+      else
+	reduce_filter = d-> my_entities;
+    }
+
     const rule_impl::info &rinfo = apply.get_info().desc ;
     set<vmap_info>::const_iterator si ;
     entitySet compute ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
       compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
     }
-    if(facts.isDistributed()) {
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      compute &= d->my_entities ;
+
+    entitySet comp_compute;
+    if(duplicate_work) {
+      //If mapping in output, we will only compute entities which can be
+      //definitely computed successfully on a processor
+      if(scheds.is_reduction_outputmap(tvar)) 
+	tvarmap[tvar] &= reduce_filter;
+      //If we have no mapping in output we will be able to compute more entities
+      else
+	tvarmap[tvar] &= (reduce_filter + scheds.get_reduce_proc_able_entities(tvar));
+      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+	comp_compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
+      }
     }
-    // in apply_compiler, we now don't need output_mapping
-    //output_mapping = false ;
+    compute &= filter;
+
+    entitySet cnstrnts = ~EMPTY ;
+
+    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+      cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
+
+    entitySet comp_constraints;
+    if(duplicate_work)
+      comp_constraints = cnstrnts;
+    cnstrnts &= filter;
+
+    compute &= cnstrnts ;
+    if(duplicate_work)
+      comp_compute &= comp_constraints;
+    
+    output_mapping = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end(); ++si) {
       variableSet::const_iterator vi ;
-      entitySet comp = compute ;
+      entitySet comp;
+      if(!duplicate_work || !scheds.is_duplicate_variable(tvar))
+	comp = compute ;
+      else
+	comp = comp_compute ;
       vector<variableSet>::const_iterator mi ;
       for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
-        //output_mapping = true ;
+        output_mapping = true ;
         entitySet working ;
         for(vi=mi->begin();vi!=mi->end();++vi) {
           FATAL(!scheds.is_a_Map(*vi)) ;
@@ -573,41 +646,54 @@ namespace Loci {
           cerr << "error occurs when applying to variable " << *vi << endl;
           cerr << "error is not recoverable, terminating scheduling process"
                << endl ;
-          exit(-1) ;
+          scheds.set_error() ;
+          exit(-1);
         }
-        scheds.variable_request(*vi,comp) ;
+        scheds.add_extra_unit_request(*vi,comp) ;
       }
     }
     
     entitySet srcs = ~EMPTY ;
-    entitySet cnstrnts = srcs ;
-    entitySet my_entities = srcs ;
-    if(facts.isDistributed()) {
-      fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      srcs = d->my_entities ;
-      cnstrnts = d->my_entities ;
-      my_entities = d->my_entities ;
-    }
     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       srcs &= vmap_source_exist(*si,facts, scheds) ;
-    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
-      cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
+
+    entitySet comp_srcs;
+    if(duplicate_work)
+      comp_srcs = srcs;
+    srcs &= filter;
+    
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((srcs & cnstrnts) != cnstrnts) {
-        cerr << "Warning, reduction rule:" << apply
-             << "cannot supply all entities of constraint" << endl ;
-        cerr << "constraints = " <<cnstrnts << endl ;
-        entitySet sac = srcs & cnstrnts ;
-        cerr << "srcs & constraints = " << sac << endl ;
-        //      exit(-1) ;
+        if(MPI_processes == 1) {
+          cerr << "Warning, reduction rule:" << apply
+               << "cannot supply all entities of constraint" << endl ;
+          cerr << "constraints = " <<cnstrnts << endl ;
+          entitySet sac = srcs & cnstrnts ;
+          cerr << "srcs & constraints = " << sac << endl ;
+        } else {
+          debugout << "Warning, reduction rule:" << apply
+                   << "cannot supply all entities of constraint" << endl ;
+          debugout << "constraints = " <<cnstrnts << endl ;
+          entitySet sac = srcs & cnstrnts ;
+          debugout << "srcs & constraints = " << sac << endl ;
+        }
+        scheds.set_error();
+
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
           entitySet sources = vmap_source_exist(*si,facts, scheds) ;
-          sources &= my_entities ;
+          sources &= filter;
           if((sources & cnstrnts) != cnstrnts) {
-            cerr << "sources & constraints != constraints for input"
-                 << endl
-                 << sources  << " -- " << *si << endl ;
+            if(MPI_processes == 1) 
+              cerr << "sources & constraints != constraints for input"
+                   << endl
+                   << sources  << " -- " << *si << endl ;
+            else 
+              debugout << "sources & constraints != constraints for input"
+                   << endl
+                   << sources  << " -- " << *si << endl ;
+
+            scheds.set_error() ;
             
             if(si->mapping.size() > 0) {
               entitySet working = cnstrnts ;
@@ -623,7 +709,11 @@ namespace Loci {
                 entitySet exist = scheds.variable_existence(*vi) ;
                 entitySet fails = working & ~exist ;
                 if(fails != EMPTY) {
-                  cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  if(MPI_processes == 1) 
+                    cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  else
+                    debugout << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
+                  scheds.set_error();
                 }
               }
             }
@@ -631,19 +721,27 @@ namespace Loci {
         }
       }
     srcs &= cnstrnts ;
-    
+    if(duplicate_work)
+      comp_srcs &= comp_constraints;
     // now trim compute to what can be computed.
     compute &= srcs ;
-
-    // in apply_compiler, we now return compute
-    //exec_seq = compute ;
+    if(duplicate_work)
+      comp_compute &= comp_srcs;
     
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-      entitySet requests = vmap_source_requests(*si,facts,compute, scheds) ;
+      entitySet requests;
+      if(!duplicate_work || !scheds.is_duplicate_variable(tvar)) 
+	requests = vmap_source_requests(*si,facts,compute, scheds) ;
+      else
+	requests = vmap_source_requests(*si,facts,comp_compute, scheds) ;
       variableSet::const_iterator vi ;
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
         variable v = *vi ;
-        scheds.variable_request(v,requests) ; 
+	if(v != tvar)
+	  scheds.variable_request(v,requests) ;
+	else
+	  scheds.add_extra_unit_request(v, requests);
+	
 #ifdef VERBOSE
 	debugout << "rule " << apply << " requesting variable "
 		 << v << " for entities " << requests << endl ;
@@ -651,12 +749,10 @@ namespace Loci {
       }
     }
     
-#ifdef VERBOSE
-    debugout << "rule " << apply << " computes over " << compute << endl ;
-#endif
-
-    return compute ;
-
+    if(!duplicate_work || !scheds.is_duplicate_variable(tvar)) 
+      return compute ;
+    else
+      return comp_compute;
   }
 
   
