@@ -258,10 +258,6 @@ namespace Loci {
         break ;
     }
 
-    if(duplicate_work && use_chomp) {
-      cerr << "WARNING: Duplication of work is not tested properly with chomping." << endl;
-      cerr << "Please use --nochomp." << endl;
-    }
     if(i!=1) {
       *argc -= (i-1) ;
       for(int k=1;k<*argc;++k)
