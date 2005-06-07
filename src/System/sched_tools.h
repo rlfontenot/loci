@@ -31,11 +31,9 @@ namespace Loci {
     rule_implP rp ;
     rule rule_tag ; 
     sequence exec_seq ;
-    bool do_run ;
   public:
     execute_rule(rule fi, sequence seq, fact_db &facts, sched_db &scheds) ;
      execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, sched_db &scheds) ;
-    execute_rule(bool output_empty, rule fi, sequence seq, fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;

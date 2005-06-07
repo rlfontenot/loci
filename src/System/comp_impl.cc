@@ -8,7 +8,6 @@ namespace Loci {
   int current_rule_id = 0 ;
   
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, sched_db &scheds)  {
-    do_run = true ;
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -19,7 +18,6 @@ namespace Loci {
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
                              variable v, const storeRepP &p, sched_db &scheds)
   {
-    do_run = true ;
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -28,24 +26,9 @@ namespace Loci {
     control_thread = false ;
   }
   
-  execute_rule::execute_rule(bool output_empty, rule fi, sequence seq, fact_db &facts, sched_db &scheds)
-  {
-    do_run = false ;
-    if(output_empty) {
-      do_run = true ;
-      rp = fi.get_rule_implP() ;
-      rule_tag = fi ;
-      rp->initialize(facts) ;
-      exec_seq = seq ;
-      control_thread = false ; 
-    }
-  }
-  
   void execute_rule::execute(fact_db &facts) {
     current_rule_id = rule_tag.ident() ;
-    if(do_run) {
-      rp->compute(exec_seq) ;
-    }
+    rp->compute(exec_seq) ;
   }
   
   void execute_rule::Print(ostream &s) const {
@@ -83,12 +66,7 @@ namespace Loci {
     }
     if((targets.begin()->get_info()).name == "OUTPUT") {
       CPTR<execute_list> el = new execute_list ;
-      if(exec_seq == EMPTY) {
-	bool output_empty = true ;
-	el->append_list(new execute_rule(output_empty,impl,sequence(exec_seq),facts, scheds)) ;
-      }
-      else
-	el->append_list(new execute_rule(impl,sequence(exec_seq),facts, scheds)) ;
+      el->append_list(new execute_rule(impl,sequence(exec_seq),facts, scheds)) ;
       if(num_threads > 1)
         el->append_list(new execute_thread_sync) ;
       return executeP(el) ;
