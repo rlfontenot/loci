@@ -7,17 +7,16 @@ namespace Loci {
 
   int current_rule_id = 0 ;
   
-  execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, sched_db &scheds)  {
+  execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts, const sched_db &scheds)  {
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
     exec_seq = seq ;
     control_thread = false ;
   }
-  
+   
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
-                             variable v, const storeRepP &p, sched_db &scheds)
-  {
+                             variable v, const storeRepP &p, const sched_db &scheds) {
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -66,15 +65,18 @@ namespace Loci {
     }
     if((targets.begin()->get_info()).name == "OUTPUT") {
       CPTR<execute_list> el = new execute_list ;
-      el->append_list(new execute_rule(impl,sequence(exec_seq),facts, scheds)) ;
+      execution_factory ef(impl,sequence(exec_seq), facts, scheds);
+      el->append_list(ef.create_product());
       if(num_threads > 1)
         el->append_list(new execute_thread_sync) ;
       return executeP(el) ;
     }
     if(impl.get_info().rule_impl->dynamic_schedule_rule() && use_dynamic_scheduling) 
       return new dynamic_schedule_rule(impl,exec_seq,facts, scheds) ;
-    else 
-      return new execute_rule(impl,sequence(exec_seq),facts, scheds) ;
+    else {
+      execution_factory ef(impl,sequence(exec_seq),facts, scheds);
+      return ef.create_product();
+    }
   }
 
 }

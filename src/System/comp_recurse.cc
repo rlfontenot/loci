@@ -441,7 +441,8 @@ namespace Loci {
           seq += sequence(par_schedule[i]) ;
         } else {
           if(seq.size() > 1) {
-            el->append_list(new execute_rule(impl,seq,facts, scheds)) ;
+	    execution_factory ef(impl,seq,facts, scheds);
+	    el->append_list(ef.create_product());
             el->append_list(new execute_thread_sync) ;
             seq = sequence() ;
           }
@@ -452,7 +453,8 @@ namespace Loci {
         }
       }
       if(seq.size() > 1) {
-        el->append_list(new execute_rule(impl,seq,facts, scheds)) ;
+	execution_factory ef(impl,seq,facts, scheds);
+	el->append_list(ef.create_product());
       }
       if(facts.isDistributed()) {
         el->append_list(new execute_thread_sync) ;
@@ -460,8 +462,8 @@ namespace Loci {
       }
       return executeP(el) ;
     }
-
-    return new execute_rule(impl,fastseq,facts, scheds) ;
+    execution_factory ef(impl,fastseq,facts, scheds);
+    return (ef.create_product());
 
   }
 
@@ -932,7 +934,8 @@ namespace Loci {
               parallel_schedule(ep,*li,*ri,facts, scheds) ;
               el->append_list(ep) ;
             } else {
-              el->append_list(new execute_rule(*ri,sequence(*li),facts, scheds)) ;
+	      execution_factory ef(*ri,sequence(*li),facts, scheds) ;
+              el->append_list(ef.create_product());
             }
           }
           li++ ;

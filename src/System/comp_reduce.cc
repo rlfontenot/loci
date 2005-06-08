@@ -87,7 +87,8 @@ namespace Loci {
     CPTR<execute_list> el = new execute_list ;
     if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
        exec_seq.size() < num_threads*30 ) {
-      el->append_list(new execute_rule(apply,sequence(exec_seq),facts, scheds)) ;
+      execution_factory ef(apply,sequence(exec_seq),facts, scheds) ;
+      el->append_list(ef.create_product());
     } else if(!apply.get_info().output_is_parameter &&!output_mapping) {
       execute_par *ep = new execute_par ;
       parallel_schedule(ep,exec_seq,apply,facts, scheds) ;
@@ -106,10 +107,13 @@ namespace Loci {
         rp->allocate(partition[i]) ;
         var_vec.push_back(rp) ;
         execute_sequence *es = new execute_sequence ;
-        es->append_list(new execute_rule(unit_tag,sequence(partition[i]),
-                                         facts,v,rp, scheds)) ;
-        es->append_list(new execute_rule(apply,sequence(partition[i]),
-                                         facts,v,rp, scheds)) ;
+
+	execution_factory ef_unit(unit_tag,sequence(partition[i]), facts, scheds);
+        es->append_list(ef_unit.create_product(v, rp));
+
+	execution_factory ef_apply(apply,sequence(partition[i]), facts, scheds);
+        es->append_list(ef_apply.create_product(v, rp));
+
         ep->append_list(es) ;
       }
       el->append_list(ep) ;
@@ -156,7 +160,8 @@ namespace Loci {
         }
         apply_domain |= pdom ;
         all_contexts |= partition[i] ;
-        ep->append_list(new execute_rule(apply,sequence(context),facts, scheds)) ;
+	execution_factory ef(apply,sequence(context),facts, scheds);
+	ep->append_list(ef.create_product());
       }
       if(shards.size() == 0) {
         el->append_list(ep) ;
@@ -184,10 +189,13 @@ namespace Loci {
 
           var_vec.push_back(rp) ;
           execute_sequence *es = new execute_sequence ;
-          es->append_list(new execute_rule(unit_tag,sequence(shard_domains[i]),
-                                           facts,v,rp, scheds)) ;
-          es->append_list(new execute_rule(apply,sequence(shards[i]),
-                                           facts,v,rp, scheds)) ;
+	  execution_factory ef_unit(unit_tag,sequence(shard_domains[i]),
+				    facts,scheds);
+          es->append_list(ef_unit.create_product(v, rp));
+
+	  execution_factory ef_apply(apply,sequence(shards[i]),
+				    facts, scheds);
+          es->append_list(ef_apply.create_product(v, rp));
           ep->append_list(es) ;
         }
       

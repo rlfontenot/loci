@@ -909,7 +909,8 @@ namespace Loci {
     
     for(vector<entitySet>::const_iterator
           i=par_set.begin();i!=par_set.end();++i) {
-      executeP execrule = new execute_rule(impl,sequence(*i),facts, scheds) ;
+      execution_factory ef(impl,sequence(*i),facts, scheds);
+      executeP execrule = ef.create_product();
       ep->append_list(execrule) ;
     }
   }
