@@ -1,6 +1,8 @@
 #ifndef LOCI_GLOBS_H
 #define LOCI_GLOBS_H
 
+#include <fstream>
+
 namespace Loci {
   extern int num_threads ;
   /////////////////////////////
@@ -21,6 +23,9 @@ namespace Loci {
   extern bool multilevel_duplication;
   extern bool reduction_duplication;
   extern bool pointwise_duplication;
+  extern bool collect_timings;
+  extern std::ofstream timeout;
+  extern double time_duration_to_collect_data;
   /////////////////////////////
 }
 
