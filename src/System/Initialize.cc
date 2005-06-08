@@ -68,9 +68,12 @@ namespace Loci {
   bool multilevel_duplication = false;
   bool reduction_duplication = false;
   bool pointwise_duplication = false;
+  bool collect_timings = false;
+  double time_duration_to_collect_data = MPI_Wtick()*20;
   /////////////////////////////
   
   ofstream debugout ;
+  ofstream timeout;
 
   double total_memory_usage = 0 ;
 
@@ -147,6 +150,7 @@ namespace Loci {
     
     string filename  = oss.str() ;
     debugout.open(filename.c_str(),ios::out) ;
+
     // All the rules in an unnamed namespace are first copied into the 
     // global rule list. To add rules to the rule database we just
     // neeed to use the global_rule_list. Inititally when the rules
@@ -253,6 +257,9 @@ namespace Loci {
 	reduction_duplication = true;
 	pointwise_duplication = true;
 	i++;
+      } else if(!strcmp((*argv)[i],"--collect_timings")){
+	collect_timings = true;
+	i++;
       }
       else
         break ;
@@ -263,7 +270,16 @@ namespace Loci {
       for(int k=1;k<*argc;++k)
         (*argv)[k] = (*argv)[k+i-1] ;
     }
-    
+
+    if(collect_timings) {
+      oss.str("");
+      if(MPI_processes == 1)
+	oss << ".timings";
+      else
+	oss << ".timings-"  << MPI_rank ;
+      filename = oss.str();
+      timeout.open(filename.c_str(), ios::out);
+    }
     set_debug_callback(debug_print_rule) ;
     if(debug_setup) {
       setup_debugger(execname,debug,hostname) ;
