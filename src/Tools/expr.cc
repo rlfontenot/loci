@@ -1,6 +1,7 @@
 #include <Tools/expr.h>
 #include <Tools/parse.h>
 #include <Tools/stream.h>
+#include <Tools/except.h>
 
 namespace Loci {
   using std::cout ;    
@@ -178,113 +179,87 @@ namespace Loci {
       s <<"" ;
       break ;
     default:
-        cerr << "unexpected operation in void expression::Print(ostream &s)"
-             << endl ;
+        throw StringError("unexpected operation in void expression::Print(ostream &s)") ;
         break ;
     }
 }
     
 OpType expression::get_oper(istream &s) {
   if(parse::get_token(s,"@")) {
-    // cout << "in get oper at =" << OP_AT << endl;
     return OP_AT;
   }
   if(parse::get_token(s,"&&")) {
-    //cout << "in get oper && = " << OP_LOGICAL_AND << endl ; 
     return OP_LOGICAL_AND ;
   }
   if(parse::get_token(s,"||")) {
-    //cout << "in get oper || = " << OP_LOGICAL_OR << endl ; 
     return OP_LOGICAL_OR ;
   }
   if(parse::get_token(s,">>")) {
-    //cout << "in get oper >> = " << OP_SHIFT_RIGHT << endl ; 
     return OP_SHIFT_RIGHT ;
   }
   if(parse::get_token(s,"<<")) {
-    //cout << "in get oper << = " << OP_SHIFT_LEFT << endl ; 
     return OP_SHIFT_LEFT ;
   }
   if(parse::get_token(s,"->")) {
-    //cout << "in get oper ->  = " << OP_ARROW << endl ; 
     return OP_ARROW ;
   }
   if(parse::get_token(s,"<=")) {
-    //cout << "in get oper  less than or equal to = " << OP_LE << endl ; 
     return OP_LE ;
   }
   if(parse::get_token(s,">=")) {
-    //cout << "in get oper  greater than or equal to = " << OP_GE << endl ; 
     return OP_GE ;
   }
     if(parse::get_token(s,"==")) {
-      //cout << "in get oper equals =  " << OP_EQUAL << endl ; 
       return OP_EQUAL ;
     }
     if(parse::get_token(s,"!=")) {
-      //cout << "in get oper not_equals =  " << OP_NOT_EQUAL << endl ; 
       return OP_NOT_EQUAL ;
     }
     if(parse::get_token(s,"::")) {
-      //cout << "in get oper scope =  " << OP_SCOPE << endl ; 
       return OP_SCOPE ;
     }
     if(parse::get_token(s,"<")) {
-      //cout << "in get oper  less than = " << OP_LT << endl ; 
       return OP_LT ;
     }
     if(parse::get_token(s,">")) {
-      //cout << "in get oper  greater than = " << OP_GT << endl ; 
       return OP_GT ;
     }
     
     if(parse::get_token(s,"%")) {
-      //cout << "in get oper  modulus =  " << OP_MODULUS << endl ; 
       return OP_MODULUS ;
     }
     if(parse::get_token(s,"+")) {
-      //cout << "in get oper  plus =  " << OP_PLUS << endl ; 
       return OP_PLUS ;
 	} 
     
     if(parse::get_token(s,"-")) {
-      //cout << "in get oper minus = " << OP_MINUS << endl ; 
       return OP_MINUS ;
     }
     if(parse::get_token(s,"*")) {
-      //cout << "in get oper star =  " << OP_TIMES << endl ; 
       return OP_TIMES ;
     }
     if(parse::get_token(s,"/")) {
-      //cout << "in get oper slash =  " << OP_DIVIDE << endl ; 
       return OP_DIVIDE ;
     }
     if(parse::get_token(s,"&")) {
-      //cout << "in get oper & =  " << OP_AND << endl ; 
       return OP_AND ;
     }
     if(parse::get_token(s,"|")) {
-      //cout << "in get oper | =  " << OP_OR << endl ; 
       return OP_OR ;
     }
     if(parse::get_token(s,"^")) {
-      //cout << "in get oper ^ =  " << OP_EXOR << endl ; 
       return OP_EXOR ;
     }
       
     if(parse::get_token(s,",")) {
-      //cout << "in get oper comma  = " << OP_COMMA << endl ; 
       return OP_COMMA ;
     }
     if(parse::get_token(s,"=")) {
-      //cout << "in get oper assign  =  " << OP_ASSIGN << endl ; 
       return OP_ASSIGN ;
     }
     if(parse::get_token(s,":")) {
-      //cout << "in get oper colon =" << OP_COLON << endl ; 
       return OP_COLON ;
     }
-    //cout << "in get oper OP_ERROR  = " << OP_ERROR << endl ; 
     return OP_ERROR ;
 }
 
@@ -320,65 +295,33 @@ exprP expression::create(const string &s)
 
 exprP expression::expand_oper(istream &s, exprP &p)
 {
-  //cout << "In expand oper " << endl ;
   exprList estack ;
   estack.push_back(p) ;
   OpType ot = expression::get_oper(s) ;
   const unsigned int mask = ~0x7f ;
   while(ot != OP_ERROR) {
     exprP p2 = expression::get_term(s) ;
-    //cout << " in expand_oper p2 = " ;
-    //p2->Print(cout) ;
-    //cout << endl ;
     while(estack.size()>1 && ((ot&mask) >= (mask&(estack.back()->op)))) {
-      //cout << " ot&mask = " << (ot&mask) << endl ;
-      //cout << "mask&(estack.back()->op)  =  " << (mask&(estack.back()->op)) << endl ;
-      //cout << " in expand oper popping out " ;
-      //estack.back()->Print(cout)  ;
-      //cout << endl ;
       estack.pop_back() ;
     }
     if(estack.back()->op == ot) {
-      //cout << " ot&mask = " << (ot&mask) << endl ;
-      //cout << "mask&(estack.back()->op)  =  " << (mask&(estack.back()->op)) << endl ;
       estack.back()->expr_list_priv.push_back(p2) ;
     } else if((mask&ot) < (mask&(estack.back()->op))) {
-      //cout << "mask&ot less than mask&estack.back()->op" << endl ;
-      //cout << " ot&mask = " << (ot&mask) << endl ;
-      //cout << "mask&(estack.back()->op)  =  " << (mask&(estack.back()->op)) << endl ;
       exprP np = new expression() ;
       np->op_priv = ot ;
       np->expr_list_priv.push_back(estack.back()->expr_list.back()) ;
-      //cout << " in expand oper after first push_back " ;
-      //np->Print(cout) ;
-      //cout << endl ;
       np->expr_list_priv.push_back(p2) ;
-      //cout << " in expand oper after second push_back " ;
-      //np->Print(cout) ;
-      //cout << endl ;
       estack.back()->expr_list_priv.back() = np ;
       estack.push_back(np) ;
     } else {
-      //cout << "mask&ot greater than mask&estack.back()->op" << endl ;
-      //cout << " ot&mask = " << (ot&mask) << endl ;
-      //cout << "mask&(estack.back()->op)  =  " << (mask&(estack.back()->op)) << endl ;
       exprP np = new expression() ;
       np->op_priv = ot ;
       np->expr_list_priv.push_back(estack.back()) ;
-      //cout << " in expand oper after first push_back " ;
-      //np->Print(cout) ;
-      //cout << endl ;
       np->expr_list_priv.push_back(p2) ;
-      //cout << " in expand oper after second push_back " ;
-      //np->Print(cout) ;
-      //cout << endl ;
       estack.back() = np ;
     }
     ot = expression::get_oper(s) ;
   }
-  //cout << " in expand oper returning  " ;
-  //estack.front()->Print(cout) ;
-  //cout << endl ;
   return estack.front() ;
 }
 
@@ -387,7 +330,6 @@ exprP expression::create(istream &s, char closing) {
   exprP p = new expression ;
   parse::kill_white_space(s) ;
   if(s.eof() || s.peek() == EOF) {
-    //        warn(closing!=';') ;
     p->op_priv = OP_NIL ;
     return p ;
   }
@@ -400,7 +342,6 @@ exprP expression::create(istream &s, char closing) {
   p = expression::get_term(s) ;
   parse::kill_white_space(s) ;
   if(s.eof() || s.peek() == EOF) {
-    //        warn(closing != ';') ;
     return p ;
   }
   
@@ -409,21 +350,12 @@ exprP expression::create(istream &s, char closing) {
     return p ;
   }
   exprP p1 = p ;
-  //cout << " in  create  p1 = "  ;
-  //p1->Print(cout) ;
-  //cout << endl ;
   p = new expression ;
   p->op_priv = expression::get_oper(s) ;
   if(p->op == OP_ERROR) 
     return p ;
   p->expr_list_priv.push_back(p1) ;
-  //cout << " in create after pushing back p1  =  "  ;
-  //p->Print(cout) ;
-  //cout << endl ; 
   p->expr_list_priv.push_back(expression::get_term(s)) ;
-  //cout << " in create after pushing back expression::get_term  =  "  ;
-  //p->Print(cout) ;
-  //cout << endl ; 
   p = expression::expand_oper(s,p) ;
   parse::kill_white_space(s) ;
   if((s.eof() || s.peek() == EOF) && closing == ';')
@@ -438,7 +370,6 @@ exprP expression::create(istream &s, char closing) {
 
 exprP expression::get_name(istream &s) {
   if(parse::get_token(s,"(")) {
-    //cout << "in get_name calling expression::create " << endl ;
     return expression::create(s,')') ;
   }
   if(parse::is_name(s)) {
@@ -448,15 +379,12 @@ exprP expression::get_name(istream &s) {
     char closing = 0 ;
     if(parse::get_token(s,"(")) {
       name->op_priv = OP_FUNC ;
-      //cout << " in get_name oper =  OP_FUNC" << endl ; 
       closing = ')' ;
     } else if(parse::get_token(s,"[")) {
       name->op_priv = OP_ARRAY ;
-      //cout << " in get_name oper =  OP_ARRAY" << endl ; 
       closing = ']' ;
     } else if(parse::get_token(s,"{")) {
       name->op_priv = OP_NAME_BRACE ;
-      //cout << " in get_name oper =  OP_NAME_BRACE" << endl ; 
       closing = '}' ;
     }
     else
@@ -465,15 +393,10 @@ exprP expression::get_name(istream &s) {
     
     if((closing == ')' )&&(parse::get_token(s,"{"))) {
       name->op_priv = OP_FUNC_BRACE;
-      //cout << "setting the op_priv as op_func_brace instead of op_func" << endl ;
-      
+
       name->expr_list_priv.push_back(args) ;
       closing = '}' ;
       exprP brace_args = expression::create(s, closing) ;
-      //cerr << "brace_args = " ;
-      //brace_args->Print(cerr) ;
-      //cerr << endl ;
-      
       name->expr_list_priv.push_back(brace_args) ;
     }
     else {
@@ -482,9 +405,6 @@ exprP expression::get_name(istream &s) {
       else
 	name->expr_list_priv.push_back(args) ;
     }
-    //cout << "in get_name returning  " ;
-    //name->Print(cout) ;
-    //cout << endl ;
     return name ;
   }
   exprP p = new expression ;
@@ -494,12 +414,8 @@ exprP expression::get_name(istream &s) {
 exprP expression::get_term(istream &s)
 {
   if(parse::get_token(s,"(")) {
-    //cout << "in get_term returning expression create " ;
     exprP temp = (expression::create(s,')')) ;
-    //temp->Print(cout) ;
-    //cout << endl ;
     return temp ;
-    //return expression::create(s,')') ;
   }
   if(s.peek() == '-' || s.peek() == '+') {
     char ch = s.get() ;
@@ -511,9 +427,6 @@ exprP expression::get_term(istream &s)
       exprP ival = new expression ;
       ival->int_val_priv = parse::get_int(s) ;
       ival->op_priv = OP_INT ;
-      //cout << "in get_term returning ival after + or minus =   ";
-      //ival->Print(cout) ;
-      //cout << endl ;
       return ival ;
     }
   }
@@ -523,41 +436,26 @@ exprP expression::get_term(istream &s)
     exprP p = new expression ;
     p->op_priv = ot ;
     p->expr_list_priv.push_back(expression::get_term(s)) ;
-    //p->Print(cout) ;
-    //cout << endl ;
     return p ;
   }
   if(parse::is_name(s)) {
-    //cout << "in get_term returning after calling is_name  =   ";
     exprP temp  = (expression::get_name(s)) ;
-    //temp->Print(cout) ;
-    //cout << endl ;
     return temp ;
-    //return expression::get_name(s) ;
     }
     if (parse::is_int(s)) {
         exprP ival = new expression ;
         ival->int_val_priv = parse::get_int(s) ;
         ival->op_priv = OP_INT ;
-	//cout << "in get_term returning after calling is_int  =   ";
-	//ival->Print(cout) ;
-	//cout << endl ;
         return ival ;
     }
     if (parse::is_string(s)) {
       exprP sval = new expression ;
       sval->name_priv = parse::get_string(s) ;
       sval->op_priv = OP_STRING ;
-      //cout << "in get_term returning sval ater calling is_string =   ";
-      //sval->Print(cout) ;
-      //cout << endl ;
       return sval ;
     }
     
     exprP error = new expression ;
-    //cout << "returning error  " ;
-    //error->Print(cout) ;
-    //cout << endl ;
     return error ;
     
 }

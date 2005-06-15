@@ -145,6 +145,7 @@ namespace Loci {
     {"dwt","kg",1.555174e-3},
     {"pound","kg",0.4535924},
     {"lb","kg",0.4535924},
+    {"lbm","kg",0.4535924},
     {"slug","kg",1.459390e1},
     {"ton","kg",1e3},
 
@@ -169,6 +170,7 @@ namespace Loci {
     {"millibar","Pa",1e2},
     {"mbar","Pa",1e2},
     {"psi","Pa",6.894757e3},
+    {"psia","Pa",6.894757e3},
     {"torr","Pa",1.333224e2},
     {"Torr","Pa",1.333224e2},
 
@@ -414,7 +416,7 @@ namespace Loci {
 	    }
 	    break;
 	  default:
-	    cerr<<"Not the unit operation!"<<endl;
+              unit_error(4,"Not the unit operation!") ;
 	    break;
 	  }
 	}
@@ -462,8 +464,9 @@ namespace Loci {
         }
 	break;
       default:
-        cerr << "unknown operator type in unit_type expression parsing!" << endl ;
-        cerr << "op = " << input->op << endl ;
+          string s = "unknown operator type in unit_type expression parsing!" ;
+          cerr << "op = " << input->op << endl ;
+          unit_error(4,s) ;
       }
       //cout<<"size of numerator "<<numerator.size()<<endl;
     }
@@ -626,7 +629,8 @@ namespace Loci {
 	    //conv_factor=conv_factor*1;
 	  }
 	  else{
-	    unit_error(4,"Not in MKS database! ");
+              string tmp = (*mi).first + ": Not in MKS database" ;
+              unit_error(4,tmp);
 	  }
       }
       }
@@ -674,7 +678,8 @@ namespace Loci {
 	    conv_factor=conv_factor*1;
 	  }
 	  else{
-	    unit_error(5,"Not in CGS database! ");
+              string tmp = (*mi).first + ": Not in CGS database!" ;
+	    unit_error(5,tmp);
 	    conv_factor=0;
 	  }
 	}
@@ -737,7 +742,7 @@ namespace Loci {
     if(tmp!=-1)
       in_exp=expression::create(default_unit_table[tmp].default_name);
     else{
-      unit_error(6,"Unit is not compatible with the kind of unit! ");
+        unit_error(6,"Unit is not compatible with the kind of unit! ");
     }
     if(unit_kind=="general"){
       unit_error(7,"You must input a unit!");

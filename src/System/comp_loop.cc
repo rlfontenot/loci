@@ -73,25 +73,6 @@ namespace Loci {
     s << "end of loop for time level " << tlevel << endl ;
   }
   
-  digraph::vertexSet visit_vertices(digraph dg,digraph::vertexSet begin) {
-    
-    digraph::vertexSet visit = begin ;
-    digraph::vertexSet visited ;
-    digraph::vertexSet::const_iterator ni ;
-    
-    // keep visiting vertices until no new vertices are found
-    while(visit != EMPTY) {
-      digraph::vertexSet newvertices ;
-      // visit all the vertices that this graph leads to
-      for(ni=visit.begin();ni!=visit.end();++ni)
-        newvertices += dg[*ni] ;
-      // update visit, but don't re-visit a vertex
-      visit = newvertices - visited ;
-      visited = visited + newvertices ;
-    }
-    return visited ;
-  }
-  
   inline bool offset_sort(const variable &v1, const variable &v2)
   { return v1.get_info().offset > v2.get_info().offset ; }
   
@@ -102,8 +83,7 @@ namespace Loci {
     loop_gr = dag ;
     ruleSet allrules = extract_rules(loop_gr.get_all_vertices()) ;
     
-    ruleSet::const_iterator ri ;
-    for(ri=allrules.begin();ri!=allrules.end();++ri) {
+    for(ruleSet::const_iterator ri=allrules.begin();ri!=allrules.end();++ri) {
       rulecomp_map::const_iterator rmi ;
       rmi = rule_process.find(*ri) ;
       FATAL(rmi == rule_process.end()) ;
@@ -122,12 +102,16 @@ namespace Loci {
 
     if(loopset.size() != 1) {
       cerr << "internal consistency error, loopset size != 1" << endl ;
-      exit(-1) ;
+      cerr << "looping rules = " << loopset << endl ;
+      Loci::Abort() ;
     }
-  
+
     tlevel = loopset.begin()->source_time() ;
     loop_gr.remove_vertex((*loopset.begin()).ident()) ;
     loop_gr.remove_dangling_vertices() ;
+
+    
+    variable OUTPUT(variable("OUTPUT"),tlevel) ;
 
     digraph loop_grt = loop_gr.transpose() ;
   
@@ -136,24 +120,63 @@ namespace Loci {
       cerr << "collapse for loop at iteration level " << tlevel << " ill-formed"
            << endl << "error is not recoverable" << endl ;
       cerr << "rules = " << collapse_rules << endl ;
-      exit(-1) ;
+      Loci::Abort() ;
     }
 
+    variableSet input_vars ;
     variableSet all_vars = extract_vars(loop_gr.get_all_vertices()) ;
-    for(variableSet::const_iterator vi=all_vars.begin();vi!=all_vars.end();++vi)
-      if(vi->get_info().offset == 1)
-        advance_vars += *vi ;
+    for(variableSet::const_iterator vi=all_vars.begin();
+        vi!=all_vars.end();++vi ) {
+
+        if(vi->get_info().offset == 1)
+          advance_vars += *vi ;
+        if(loop_grt[vi->ident()] == EMPTY)
+          input_vars += *vi ;
+    }
+        
   
     collapse_vars = collapse_rules.begin()->targets() ;
     cond_var = *(collapse_rules.begin()->get_info().desc.conditionals.begin());
 
-    collapse_gr = loop_gr.subgraph(visit_vertices(loop_grt,collapse_vars)+collapse_vars) ;
-    digraph::vertexSet collapse_rulesV = collapse_gr.get_all_vertices() & interval(UNIVERSE_MIN,-1) ;
+    variableSet outcond ;
+    ruleSet outrules = extract_rules(loop_grt[OUTPUT.ident()]) ;
+    for(ruleSet::const_iterator ri=outrules.begin();ri!=outrules.end();++ri) 
+      outcond += ri->get_info().desc.conditionals ;
+
+    digraph::vertexSet collapse_search = collapse_vars ;
+
+    collapse_search += input_vars ;
+    collapse_search += outcond ;
+    
+    digraph::vertexSet collapse_part = visit_vertices(loop_grt,collapse_search) ;
+    collapse_part += collapse_search ;
+
+#ifdef MOVE_OUTPUT_TO_COLLAPSE
+    digraph::vertexSet output_set ;
+
+    for(ruleSet::const_iterator ri=outrules.begin();ri!=outrules.end();++ri)
+      if((ri->sources() - collapse_part) == EMPTY) {
+          collapse_search += ri->ident() ;
+      } else {
+          // Later make this verbose
+          //          cerr << *ri << "put in advance because of " << extract_vars(ri->sources()-collapse_part) << endl ;
+          digraph::vertexSet tmp_search  ;
+          tmp_search += ri->ident() ;
+          output_set += visit_vertices(loop_grt,tmp_search)+tmp_search ;
+      }
+    //    output_set -= visit_vertices(loop_grt,collapse_search)+collapse_search ;
+
+    //    cerr << "collapse group = " << extract_rules(output_set) << endl ;
+#endif
+    
+    collapse_gr = loop_gr.subgraph(visit_vertices(loop_grt,collapse_search)+collapse_search) ;
+    collapse_gr.remove_dangling_vertices() ;
+    
+    
+    digraph::vertexSet collapse_rulesV = extract_rules(collapse_gr.get_all_vertices()) ;
     digraph::vertexSet advance_subset = loop_gr.get_all_vertices() - collapse_rulesV ;
     advance_gr = loop_gr.subgraph(advance_subset) ;
     advance_gr.remove_dangling_vertices() ;
-
-    output_present = false ;
 
     all_loop_vars = all_vars ;
 
@@ -221,8 +244,6 @@ namespace Loci {
   void loop_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(duplicate_work) {
       variableSet my_vars = advance_vars ;
-      if(output_present)
-	my_vars += output ;
 
       for(variableSet::const_iterator vi = my_vars.begin();
 	  vi != my_vars.end(); vi++) {
@@ -264,8 +285,6 @@ namespace Loci {
   void loop_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     variableSet var_requests = advance_vars ;
     variableSet::const_iterator vi ;
-    if(output_present)
-      var_requests += output ;
     
     Loci::fact_db::distribute_infoP d ;
     if(facts.isDistributed()) {

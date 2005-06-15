@@ -266,4 +266,24 @@ namespace Loci {
         vertex_list += omap[*is] ;
       }  
     }
+
+  digraph::vertexSet visit_vertices(digraph dg,digraph::vertexSet begin) {
+    
+    digraph::vertexSet visit = begin ;
+    digraph::vertexSet visited ;
+    digraph::vertexSet::const_iterator ni ;
+    
+    // keep visiting vertices until no new vertices are found
+    while(visit != EMPTY) {
+      digraph::vertexSet newvertices ;
+      // visit all the vertices that this graph leads to
+      for(ni=visit.begin();ni!=visit.end();++ni)
+        newvertices += dg[*ni] ;
+      // update visit, but don't re-visit a vertex
+      visit = newvertices - visited ;
+      visited = visited + newvertices ;
+    }
+    return visited ;
+  }
+  
 }

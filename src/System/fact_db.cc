@@ -1,4 +1,5 @@
 #include <typeinfo>
+#include <Tools/except.h>
 
 #include <fact_db.h>
 #include <rule.h>
@@ -400,14 +401,16 @@ namespace Loci {
     return s ;
   }
 
-  istream &fact_db::read(istream &s) {
-    string vname ;
-    parse::kill_white_space(s) ;
-    if(s.peek()!='{') {
-      cerr << "format error in fact_db::read" << endl ;
-      return s ;
-    }
-    s.get() ;
+    istream &fact_db::read(istream &s) {
+    bool syntax_error = false ;
+  try {
+      string vname ;
+      parse::kill_white_space(s) ;
+      if(s.peek()!='{') {
+          throw StringError("format error in fact_db::read") ;
+          return s ;
+      }
+      s.get() ;
     
     for(;;) {
       parse::kill_white_space(s) ;
@@ -416,46 +419,60 @@ namespace Loci {
         break ;
       }
       if(s.peek() == std::char_traits<char>::eof()) {
-        cerr << "unexpected EOF in fact_db::read" << endl ;
-        exit(1) ;
+          throw StringError("unexpected EOF in fact_db::read") ;
       }
       parse::kill_white_space(s) ;
       if(parse::is_name(s)) 
         vname = parse::get_name(s) ;
       else {
-        cerr << "syntax error in fact_db::read" << endl ;
-        exit(1) ;
+          throw StringError("syntax error in fact_db::read") ;
       }
       parse::kill_white_space(s) ;
       if(!parse::get_token(s,":")) {
-        cerr << "syntax error in fact_db::read, no ':' separator"
-             << endl ;
-        exit(1) ;
+        throw StringError("syntax error in fact_db::read, no ':' separator") ;
       }
 
       variable var(vname) ;
-      storeRepP vp = get_variable(var) ;
-      if(vp == 0) {
-        vp = get_variable_type(var) ;
-        if(vp != 0) {
-          create_fact(var,vp) ;
-        }
-        vp = get_variable(var) ;
+      try {
+          storeRepP vp = get_variable(var) ;
+          if(vp == 0) {
+              vp = get_variable_type(var) ;
+              if(vp != 0) {
+                  create_fact(var,vp) ;
+              }
+              vp = get_variable(var) ;
+          }
+          if(vp == 0) {
+              ostringstream oss ;
+              oss << "variable named '" << vname
+                  << "' not found in database in fact_db::read." << endl ;
+              throw StringError(oss.str()) ;
+          }
+          vp->Input(s) ;
+      } catch(const BasicException &err) {
+          err.Print(cerr) ;
+          cerr << "input failed for variable " << vname << endl ;
+          while(s.peek()!=EOF && s.peek() != '\n')
+            s.get() ;
+          syntax_error = true ;
       }
-      if(vp == 0) {
-        cerr << "variable named '" << vname
-             << "' not found in database in fact_db::read." << endl
-             << "Error not recoverable. " << endl ;
-        exit(-1) ;
-      }
-      vp->Input(s) ;
     }
+    } catch(const BasicException &err) {
+        err.Print(cerr) ;
+        throw StringError("read fact_db failed") ;
+    }
+  if(syntax_error) {
+      cerr << "syntax error reading fact db" << endl ;
+      throw StringError("read fact_db failed") ;
+  }
     return s ;
   }
 
   // this read in routine reads the .vars file and set
   // the facts according to the default and optional rules
-  std::istream& fact_db::read_vars(std::istream& s, const rule_db& rdb) {
+    std::istream& fact_db::read_vars(std::istream& s, const rule_db& rdb) {
+    bool syntax_error = false ;
+    try {
     // first of all, we need to process the default and optional rules
     ruleSet special_rules = rdb.get_default_rules() ;
     // first we process the default rules
@@ -469,9 +486,10 @@ namespace Loci {
         // we need to get the storeRep for this variable
         storeRepP srp = rp->get_store(*vi) ;
         if(srp == 0) {
-          cerr << "rule " << *ri << " unable to provide type for " << *vi
-               << endl ;
-          exit(-1) ;
+            ostringstream oss ;
+            oss << "rule " << *ri << " unable to provide type for " << *vi
+                << endl ;
+            throw StringError(oss.str()) ;
         }
         create_fact(*vi,srp) ;        
       }
@@ -492,9 +510,10 @@ namespace Loci {
         // we need to get the storeRep for this variable
         storeRepP srp = rp->get_store(*vi) ;
         if(srp == 0) {
-          cerr << "rule " << *ri << " unable to provide type for " << *vi
-               << endl ;
-          exit(-1) ;
+            ostringstream oss ;
+            oss << "rule " << *ri << " unable to provide type for " << *vi
+                << endl ;
+            throw StringError(oss.str()) ;
         }
         // here we only need to set up the variable type in
         // the fact_db
@@ -505,8 +524,8 @@ namespace Loci {
     string vname ;
     parse::kill_white_space(s) ;
     if(s.peek()!='{') {
-      cerr << "format error in fact_db::read" << endl ;
-      return s ;
+        throw StringError("format error in fact_db::read") ;
+        return s ;
     }
     s.get() ;
     
@@ -517,40 +536,52 @@ namespace Loci {
         break ;
       }
       if(s.peek() == std::char_traits<char>::eof()) {
-        cerr << "unexpected EOF in fact_db::read" << endl ;
-        exit(1) ;
+        throw StringError("unexpected EOF in fact_db::read") ;
       }
       parse::kill_white_space(s) ;
       if(parse::is_name(s)) 
         vname = parse::get_name(s) ;
       else {
-        cerr << "syntax error in fact_db::read" << endl ;
-        exit(1) ;
+          throw StringError("syntax error in fact_db::read") ;
       }
-      parse::kill_white_space(s) ;
-      if(!parse::get_token(s,":")) {
-        cerr << "syntax error in fact_db::read, no ':' separator"
-             << endl ;
-        exit(1) ;
+      try {
+          parse::kill_white_space(s) ;
+          if(!parse::get_token(s,":")) {
+              throw StringError("syntax error in fact_db::read, no ':' separator") ;
+          }
+          
+          variable var(vname) ;
+          storeRepP vp = get_variable(var) ;
+          if(vp == 0) {
+              vp = get_variable_type(var) ;
+              if(vp != 0) {
+                  create_fact(var,vp) ;
+              }
+              vp = get_variable(var) ;
+          }
+          if(vp == 0) {
+              ostringstream oss ;
+              oss << "variable named '" << vname
+                  << "' not found in database in fact_db::read." << endl ;
+              throw StringError(oss.str()) ;
+          }
+          vp->Input(s) ;
+      } catch(const BasicException &err) {
+          err.Print(cerr) ;
+          cerr << "input failed for variable " << vname << endl ;
+          while(s.peek()!=EOF && s.peek() != '\n')
+            s.get() ;
+          syntax_error = true ;
       }
-
-      variable var(vname) ;
-      storeRepP vp = get_variable(var) ;
-      if(vp == 0) {
-        vp = get_variable_type(var) ;
-        if(vp != 0) {
-          create_fact(var,vp) ;
-        }
-        vp = get_variable(var) ;
-      }
-      if(vp == 0) {
-        cerr << "variable named '" << vname
-             << "' not found in database in fact_db::read." << endl
-             << "Error not recoverable. " << endl ;
-        exit(-1) ;
-      }
-      vp->Input(s) ;
     }
+    } catch(const BasicException &err) {
+        err.Print(cerr) ;
+        throw StringError("read fact_db failed") ;
+    }
+  if(syntax_error) {
+      cerr << "syntax error reading fact db"  << endl ;
+      throw StringError("read fact_db failed") ;
+  }
     return s ;
   }
 

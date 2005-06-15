@@ -6,6 +6,9 @@
 #include "dist_tools.h"
 #include "loci_globs.h"
 #include <Tools/debug.h>
+#include <Tools/except.h>
+#include <new>
+using std::bad_alloc ;
 
 #include <stdlib.h>
 #include <string.h>
@@ -105,6 +108,7 @@ namespace Loci {
   //This is the first call to be made for any Loci program be it
   //sequential or parallel. 
   void Init(int* argc, char*** argv)  {
+  try {
     char *execname = (*argv)[0] ;
     const char *hostname = "localhost" ;
     const char *debug = "gdb" ;
@@ -285,6 +289,13 @@ namespace Loci {
       setup_debugger(execname,debug,hostname) ;
     }
     chopsigs_() ;
+  } catch(const BasicException &err) {
+      cerr << "Caught exception in Loci::Initialize()"<<endl ;
+      err.Print(cerr) ;
+  } catch(const bad_alloc &x) {
+      cerr << "Out of memory: " << x.what() <<endl ;
+      Loci::Abort() ;
+  }
   }
   //All Loci programs must end with this call. 
   void Finalize() {

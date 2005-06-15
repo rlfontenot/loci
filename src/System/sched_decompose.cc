@@ -424,6 +424,124 @@ namespace Loci {
 
       }
 
+#define NEWWAY
+#ifdef NEWWAY
+
+      digraph::vertexSet shared_cond_rules = tmpgr[mi->first.ident()] ;
+      shared_cond_rules &= component ;
+
+      vector<digraph::vertexSet> sub_comp ;
+
+      ruleSet cond_rules = extract_rules(shared_cond_rules) ;
+      bool collapse = false ;
+      for(ruleSet::const_iterator ri=cond_rules.begin();
+          ri!=cond_rules.end();++ri) 
+        if(ri->type() == rule::COLLAPSE)
+          collapse = true ;
+        
+
+        
+      if(collapse) { // If this is part of the collapse, keep grouped
+          digraph::vertexSet compcm = component & incm ;
+          component -= incm ;
+          for(vi=compcm.begin();vi!=compcm.end();++vi)
+            component += cm[*vi] ;
+
+          sub_comp.push_back(component) ;
+      } else {
+          // Find out if there are multiple independent sub components of the
+          // conditional.  If we break them into separate supernodes, then
+          // memory allocation should be more efficient.  First identify what
+          // part of the component is associated with each conditonal rule:
+          digraph sgr = tmpgr.subgraph(component) ;
+          digraph sgrt = sgr.transpose() ;
+          for(digraph::vertexSet::const_iterator vi=shared_cond_rules.begin();
+              vi!=shared_cond_rules.end();++vi) {
+              digraph::vertexSet vtmp ;
+              vtmp += *vi ;
+              digraph::vertexSet vtmp2 = visit_vertices(sgrt,vtmp) + vtmp ;
+              digraph::vertexSet compcm = vtmp2 & incm ;
+              vtmp2 -= incm ;
+              for(digraph::vertexSet::const_iterator vi2=compcm.begin();
+                  vi2!=compcm.end();++vi2)
+                vtmp2 += cm[*vi2] ;
+              
+              sub_comp.push_back(vtmp2) ;
+          }
+      } 
+
+      //Find input variables that are computed in this level that are not
+      // part of the component.  Add them, because if multiple conditionals
+      // share the same input, then it is appropriate for them to be grouped
+      // together.  If the computed inputs don't overlap, the components
+      // should be independent to improve memory allocation opportunities
+      
+      digraph grt = sg.gr.transpose() ;
+      for(size_t i=0;i<sub_comp.size();++i) {
+          variableSet comp_vars ;
+          ruleSet rs = extract_rules(sub_comp[i]) ;
+          for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri)
+            comp_vars += ri->sources() ;
+          comp_vars -= mi->first ;
+
+          variableSet cv ;
+          // find computed variables
+          for(variableSet::const_iterator ii=comp_vars.begin();
+              ii!=comp_vars.end();++ii) {
+              ruleSet rs2 = extract_rules(grt[ii->ident()]) ;
+
+              if((rs2&sub_comp[i])==EMPTY) {
+                  for(ruleSet::const_iterator ri=rs2.begin();
+                      ri != rs2.end();++ri) {
+                      if(ri->type() != rule::INTERNAL)
+                        cv += *ii ;
+                  }
+              }
+          }
+          sub_comp[i] += cv ;
+      }
+
+      // Now determine if there is any overlap between subcomponents:
+      digraph::vertexSet overlap,comunion ;
+      for(size_t i=0;i<sub_comp.size();++i) {
+        overlap += sub_comp[i] & comunion ;
+        comunion += sub_comp[i] ;
+      }
+
+      // Create conditional components for each non-overlapping component
+      // put remaining components here
+      digraph::vertexSet remain ;
+
+      for(size_t i=0;i<sub_comp.size();++i)
+        if((sub_comp[i]&overlap) == EMPTY) {
+            // Make sure that we don't go outside of the current subgraph
+            sub_comp[i] &=sg.graph_v ;
+            // Remove variables from component if they have references outside
+            // the component
+            cleanup_component(sg.gr,sub_comp[i]) ;
+
+            // Make supernode for this subcomponent
+            int new_node =  mlg.mksnode(supernode,sub_comp[i],mi->first) ;
+            new_rules += new_node ;
+        } else
+          remain += sub_comp[i] ;
+
+
+      if(remain != EMPTY) {
+          // Make sure that we don't go outside of the current subgraph
+          remain &= sg.graph_v ;
+
+          // Remove variables from component if they have references outside
+          // the component
+          cleanup_component(sg.gr,remain) ;
+
+          
+          int new_node =  mlg.mksnode(supernode,remain,mi->first) ;
+          new_rules += new_node ;
+      }
+
+#else
+      
       // If any apply rules were included, add them back into the current
       // set of components
 
@@ -444,6 +562,7 @@ namespace Loci {
 
       
       new_rules += new_node ;
+#endif
       
     }
 

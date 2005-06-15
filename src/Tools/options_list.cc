@@ -1,10 +1,13 @@
 #include <Tools/options_list.h>
 #include <Tools/parse.h>
 #include <Tools/debug.h>
+#include <Tools/except.h>
+#include <sstream>
 
 using std::string ;
 using std::ostream ;
 using std::istream ;
+using std::ostringstream ;
 using std::cerr ;
 using std::endl ;
 
@@ -13,12 +16,6 @@ using std::make_pair ;
 
 namespace Loci {
 
-  struct parseError {
-    string error_string ;
-    parseError() {error_string = "parse error"; }
-    parseError(const string &s) { error_string = s ; }
-  } ;
-  
   options_list::options_list(const string &s) {
     int sz = s.length() ;
     restrict_set = true ;
@@ -60,9 +57,13 @@ namespace Loci {
   void options_list::getOption(const string &option, bool &value) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
-      cerr << "WARNING:attempt to retrieve BOOLEAN type option " << option
-           << " failed." << endl ;
-      return ;
+
+        string s = "WARNING:attempt to retrieve BOOLEAN type option " ;
+        s+= option ;
+        s+= " failed." ;
+        
+        throw StringError(s) ;
+        return ;
     }
     warn((*tmp).second.value_type != BOOLEAN) ;
     if((*tmp).second.value_type == BOOLEAN)
@@ -79,13 +80,17 @@ namespace Loci {
         Loci::UNIT_type Tu ;
         getOption(option,Tu) ;
         if(!Tu.is_compatible(units)) {
-          cerr << "wrong type of unit for " << option <<": " << Tu << endl ;
-          cerr << "should have units compatible with " << units << endl ;
+            ostringstream oss ;
+          oss << "wrong type of unit for " << option <<": " << Tu << endl ;
+          oss << "should have units compatible with " << units << endl ;
+          throw StringError(oss.str()) ;
         } else {
           value = Tu.get_value_in(units) ;
         }
       } else {
-        cerr << "incorrect type for "<< option << endl ;
+          ostringstream oss ;
+          oss << "incorrect type for "<< option << endl ;
+          throw StringError(oss.str()) ;
       }
     }
 
@@ -94,8 +99,10 @@ namespace Loci {
   void options_list::getOption(const string &option, double &value) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
-      cerr << "WARNING:attempt to retrieve REAL type option " << option
-           << " failed." << endl ;
+        ostringstream oss ;
+        oss << "attempt to retrieve REAL type option " << option
+            << " failed." << endl ;
+        throw StringError(oss.str()) ;
       return ;
     }
     warn((*tmp).second.value_type != REAL) ;
@@ -106,9 +113,11 @@ namespace Loci {
   void options_list::getOption(const string &option, UNIT_type &uvalue) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
-      cerr << "WARNING:attempt to retrieve UNIT_VALUE type option " << option
-           << " failed." << endl ;
-      return ;
+        ostringstream oss ;
+        oss << "attempt to retrieve UNIT_VALUE type option " << option
+            << " failed." << endl ;
+        throw StringError(oss.str()) ;
+        return ;
     }
     warn((*tmp).second.value_type != UNIT_VALUE) ;
     if((*tmp).second.value_type == UNIT_VALUE)
@@ -118,9 +127,11 @@ namespace Loci {
   void options_list::getOption(const string &option, string &name) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
-      cerr << "WARNING:attempt to retrieve NAME type option " << option
-           << " failed." << endl ;
-      return ;
+        ostringstream oss ;
+        oss << "WARNING:attempt to retrieve NAME type option " << option
+            << " failed." << endl ;
+        throw StringError(oss.str()) ;
+        return ;
     }
     warn((*tmp).second.value_type != NAME &&
          (*tmp).second.value_type != STRING) ;
@@ -131,9 +142,11 @@ namespace Loci {
                                arg_list &value_list) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
-      cerr << "WARNING:attempt to retrieve FUNCTION type option " << option
-           << " failed." << endl ;
-      return ;
+        ostringstream oss ;
+        oss << "attempt to retrieve FUNCTION type option " << option
+            << " failed." << endl ;
+        throw StringError(oss.str()) ;
+        return ;
     }
     warn((*tmp).second.value_type != FUNCTION) ;
     
@@ -144,9 +157,11 @@ namespace Loci {
   void options_list::getOption(const string &option, arg_list &value_list) const {
     option_map::const_iterator tmp ;
     if((tmp = options_db.find(option)) == options_db.end()) {
-      cerr << "WARNING:attempt to retrieve LIST type option " << option
-           << " failed." << endl ;
-      return ;
+        ostringstream oss ;
+        oss << "attempt to retrieve LIST type option " << option
+            << " failed." << endl ;
+        throw StringError(oss.str()) ;
+        return ;
     }
     warn((*tmp).second.value_type != LIST) ;
     
@@ -262,8 +277,8 @@ namespace Loci {
         value_list_type::const_iterator i=value_list.begin() ;
         i->Print(s) ;
         ++i ;
-        if(i!=value_list.end())
-          cerr << "confused setup in NAME_ASSIGN" << endl;
+        if(i!=value_list.end()) 
+          throw StringError("confused setup in NAME_ASSIGN") ;
       }
       break ;
     case STRING:
@@ -370,8 +385,8 @@ namespace Loci {
           parse::kill_white_space(s) ;
           
           if(ov.value_type != NAME && ov.value_type != STRING) {
-            cerr << "improper assignement in list" << endl ;
-            ov.value_type = NOT_ASSIGNED ;
+              throw StringError("improper assignement in list") ;
+              ov.value_type = NOT_ASSIGNED ;
           } else
             ov.value_type = NAME_ASSIGN ;
           option_values ov2 ;
@@ -405,16 +420,17 @@ namespace Loci {
         if(bvs == "false")
           v = false ;
         else if(bvs != "true") {
-          cerr << "option_list warning:" << endl ;
-          cerr << "boolean value can only be \"$true\"  or \"$false\""
-               << endl;
+            ostringstream oss ;
+            oss << "option_list warning:" << endl ;
+            oss << "boolean value can only be \"$true\"  or \"$false\""
+                << endl;
+            throw StringError(oss.str()) ;
         }
       }
       value_type = BOOLEAN ;
       boolean_value = v ;
     } else {
-      parseError err("error reading option_values") ;
-      throw err ;
+      throw StringError("error reading option_values") ;
     }
     return s ;
   }
@@ -435,8 +451,10 @@ namespace Loci {
     try {
       parse::kill_white_space(s) ;
       if(s.peek() != '<') {
-        cerr << "format error in options_list::Input" << endl ;
-        cerr << "expected '<', got '" << s.peek() << "'" << endl ;
+          ostringstream oss ;
+          oss << "format error in options_list::Input" << endl ;
+          oss << "expected '<', got '" << s.peek() << "'" << endl ;
+          throw StringError(oss.str()) ;
         return s ;
       }
 
@@ -449,50 +467,63 @@ namespace Loci {
           break ;
         }
         if(!parse::is_name(s)) {
-          cerr << "format error while reading option in option_list::Input"
-               << endl ;
+            throw StringError("format error while reading option in option_list::Input") ;
           return s ;
         }
         string option = parse::get_name(s) ;
         if(set_of_options.find(option) == set_of_options.end()) {
-          if(restrict_set) {
-            cerr << "Invalid option name " << option << " in read options"
-                 << endl ;
+            if(restrict_set) {
+                ostringstream oss ;
+                oss << "Invalid option name " << option << " in read options"
+                    << endl ;
+                throw StringError(oss.str()) ;
           } else {
             set_of_options.insert(option) ;
           }
         }
-        parse::kill_white_space(s) ;
-        option_values v ;
+        try {
+            parse::kill_white_space(s) ;
+            option_values v ;
 
-        if(s.peek() == '=') {
-          s.get() ;
-          parse::kill_white_space(s) ;
-
-          s >> v ;
-        } else {
-          v.value_type = BOOLEAN ;
-          v.boolean_value = true ;
+            if(s.peek() == '=') {
+                s.get() ;
+                parse::kill_white_space(s) ;
+                
+                s >> v ;
+            } else {
+                v.value_type = BOOLEAN ;
+                v.boolean_value = true ;
+            }
+            
+            option_map::iterator tmp ; 
+            if((tmp = options_db.find(option)) == options_db.end()) {
+                tmp = options_db.insert(make_pair(option,v)).first ;
+            } else
+              (*tmp).second = v ;
+            parse::kill_white_space(s) ;
+            if(s.peek()=='>') {
+                s.get() ;
+                break ;
+            }
+            if(s.peek()!=',') {
+                ostringstream oss ;
+                oss << "error reading option " << option << endl ;
+                throw StringError(oss.str()) ;
+            } else
+              s.get() ;
         }
-
-        option_map::iterator tmp ; 
-        if((tmp = options_db.find(option)) == options_db.end()) {
-          tmp = options_db.insert(make_pair(option,v)).first ;
-        } else
-          (*tmp).second = v ;
-        parse::kill_white_space(s) ;
-        if(s.peek()=='>') {
-          s.get() ;
-          break ;
+        catch(const BasicException &err) {
+            err.Print(cerr) ;
+            ostringstream oss ;
+            oss << "error occurred while parsing option " << option
+                << " in options list" ;
+            throw StringError(oss.str()) ;
         }
-        if(s.peek()!=',')
-          cerr << "error reading option " << option << endl ;
-        else
-          s.get() ;
       }
     }
-    catch (parseError err) {
-      cerr << err.error_string << endl ;
+    catch (const BasicException &err) {
+        err.Print(cerr) ;
+        throw StringError("options list parse error") ;
     }
     return s ;
   }
@@ -511,8 +542,10 @@ namespace Loci {
         v.value_type = BOOLEAN ;
         v.boolean_value = true ;
       } else {
-        cerr << "unable to parse input value " << *li << endl ;
-        continue ;
+          ostringstream oss ;
+          oss << "unable to parse input value " << *li << endl ;
+          throw StringError(oss.str()) ;
+          continue ;
       }
       string option  ;
       li->get_value(option) ;

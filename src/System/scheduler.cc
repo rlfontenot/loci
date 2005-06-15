@@ -2,6 +2,10 @@
 #include "sched_tools.h"
 #include "dist_tools.h"
 #include "param_rule.h"
+#include <Tools/except.h>
+#include <new>
+using std::bad_alloc ;
+
 
 using std::map ;
 using std::vector ;
@@ -814,6 +818,7 @@ namespace Loci {
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
+  try {
     if(MPI_rank == 0)
       cout << "Quering facts: " << query << endl ;
 
@@ -980,7 +985,17 @@ namespace Loci {
                      << " of the schedule = "
                      << maxtime << " seconds " << endl ;
     }
-
+  } catch(const BasicException &err) {
+      cerr << "Loci found an error during MakeQuery" << endl ;
+      err.Print(cerr) ;
+      Loci::Abort() ;
+  } catch (const bad_alloc &x) {
+      cerr << "Out of memory: " << x.what() << endl ;
+      Loci::Abort() ;
+  } catch(...) {
+      cerr << "Unknown Exception Caught" << endl ;
+      Loci::Abort() ;
+  }
     return true ;
   }
 

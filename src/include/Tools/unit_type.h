@@ -6,6 +6,8 @@
 #endif
 #include <Config/conf.h>
 
+#include <Tools/except.h>
+
 #include <Tools/parse.h>
 #include <Tools/expr.h>
 #include <stack>
@@ -129,7 +131,7 @@ namespace Loci {
 
   inline void unit_error(const int e_no, const std::string &err)
     {
-      std::cerr << "error:" << err << std::endl;
+        throw StringError(err) ;
     }
 }
 #endif

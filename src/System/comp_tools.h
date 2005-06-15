@@ -97,8 +97,6 @@ namespace Loci {
     std::vector<rule_compilerP> advance_comp ;
     variableSet advance_vars ;
     time_ident tlevel ;
-    variable output ;
-    bool output_present ;
     variableSet all_loop_vars ;
     ////////////
     variableSet collapse_vars ; // the collapse variables

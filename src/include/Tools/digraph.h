@@ -191,7 +191,7 @@ namespace Loci {
     const std::vector<digraph::vertexSet> &get_components() { return components; }
   } ;
 
-
+  digraph::vertexSet visit_vertices(digraph dg,digraph::vertexSet begin) ;
 }
 
 #endif
