@@ -777,10 +777,9 @@ namespace Loci {
       vars &= chc.chomp_vars ;
       digraph chomp_graph_t = chc.chomp_graph.transpose() ;
       variableSet barrier_vars, reduce_vars,singleton_vars,all_vars ;
-      variableSet::const_iterator vi ;
       
-      for(vi=vars.begin();vi!=vars.end();++vi) {
-        ruleSet var_rules = extract_rules(chomp_graph_t[(*vi).ident()]) ;
+      for(variableSet::const_iterator vii=vars.begin();vii!=vars.end();++vii) {
+        ruleSet var_rules = extract_rules(chomp_graph_t[(*vii).ident()]) ;
         ruleSet::const_iterator ri ;
         ruleSet use_rules ;
         bool reduction = false ;
@@ -825,22 +824,22 @@ namespace Loci {
 
         if((use_rules != EMPTY)) {
           if( (priority_rule || pointwise) &&
-              !recursive && (vi->get_info().name != "OUTPUT")) {
+              !recursive && (vii->get_info().name != "OUTPUT")) {
             // Don't use the priority variables for variable barriers
-            if(vi->get_info().priority.size() == 0)
-              barrier_vars += *vi ;
+            if(vii->get_info().priority.size() == 0)
+              barrier_vars += *vii ;
           }
           if( (priority_rule || pointwise) &&
-              recursive && (vi->get_info().name != "OUTPUT")) {
-            if(vi->get_info().priority.size() == 0)
-              all_vars += *vi ;
+              recursive && (vii->get_info().name != "OUTPUT")) {
+            if(vii->get_info().priority.size() == 0)
+              all_vars += *vii ;
           }
 
           if(reduction && unit_rule_exists)
-            reduce_vars += *vi ;
+            reduce_vars += *vii ;
           
           if(singleton) {
-            singleton_vars += *vi ;
+            singleton_vars += *vii ;
           }
         } 
       }
