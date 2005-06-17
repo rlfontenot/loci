@@ -325,12 +325,12 @@ namespace Loci {
   public:
     typedef T containerType ;
     param() { setRep(new paramType) ; }
-    param(param &var) { setRep(var.Rep()) ; }
+    param(param &var) { *data = *(var.data) ; }
     param(storeRepP rp) { setRep(rp); }
 
     virtual ~param() ;
 
-    param & operator=(param &p) {setRep(p.Rep()) ; return *this ; }
+    param & operator=(param &p) {*data = *(var.datra) ; return *this ; }
 
     param & operator=(storeRepP p) {setRep(p) ; return *this ; }
     param & operator=(const T &v) { *data = v ; return *this ; }

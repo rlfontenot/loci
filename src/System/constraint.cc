@@ -13,8 +13,6 @@ using std::istream ;
 
 namespace Loci {
 
-
-
   constraintRep::constraintRep()
   {
   }
@@ -204,7 +202,7 @@ namespace Loci {
     
   constraint::constraint(const constraint &var)
   {
-    setRep(var.Rep()) ;
+      *data = *(var.data) ;
   }
 
   constraint::~constraint()
@@ -227,7 +225,7 @@ namespace Loci {
     
   Constraint::Constraint(const Constraint &var)
   {
-    setRep(var.Rep()) ;
+    *data = *(var.data) ;
   }
 
   Constraint::~Constraint()

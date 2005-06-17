@@ -48,7 +48,7 @@ namespace Loci {
 
   class constraint : public store_instance {
     typedef constraintRep constraintType ;
-    entitySet *data ;
+      entitySet *data ;
   public:
     constraint() ;
     constraint(const constraint &var) ;
@@ -56,7 +56,7 @@ namespace Loci {
     virtual ~constraint() ;
 
     constraint & operator=(const constraint &p)
-    { setRep(p.Rep()) ; return *this ;}
+    { *data = *(p.data) ; return *this ;}
     constraint & operator=(const storeRepP &p)
     { setRep(p) ;  return *this ;}
     constraint & operator=(const entitySet &v)
@@ -64,14 +64,8 @@ namespace Loci {
 
     virtual void notification() ;
     
-    //    entitySet * operator&() { return data ; }
-    //    const entitySet * operator &() const { return data ; }
     entitySet &operator*() { return *data ; }
     
-    //    operator storeRepP() { return Rep() ; }
-
-    //    operator entitySet() { return *data ; }
-    //    operator entitySet() const { return *data ; }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s) ; }
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;
