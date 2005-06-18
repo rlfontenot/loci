@@ -970,11 +970,17 @@ namespace Loci {
         
         if(pos - old_pos > 1) {
           variableSet time_ident_vars ;
+          variableSet real_varset ;
           for(vector<variable>::const_iterator vi2=old_pos;
-              vi2!=pos;++vi2)
+              vi2!=pos;++vi2) {
             time_ident_vars += *vi2 ;
-          
-          cerr << "WARNING: These renamed variables coexist in the same time level, and they refer to the same memory location, this is dangerous!: " << time_ident_vars << endl ;
+            variable v = *vi2 ;
+            while(v.get_info().priority.size() != 0)
+              v = v.drop_priority() ;
+            real_varset += v ;
+          }
+          if(real_varset.size() > 1)
+            cerr << "WARNING: These renamed variables coexist in the same time level, and they refer to the same memory location, this is dangerous!: " << time_ident_vars << endl ;
         }
         old_pos = pos ;
       }
