@@ -94,6 +94,37 @@ namespace Loci {
 }  
 #else
 #ifdef LINUX
+#define _GNU_SOURCE     /* needed to get non POSIX extensions. */
+
+#include <stdio.h>
+#include <signal.h>
+#include <iostream>
+// Floating point exception environment
+#include <fenv.h>
+
+
+extern "C" {
+  void fpe_debugger_(int i)
+  {
+    std::cerr << "floating point exception " << std::endl ;
+    Loci::debugger_() ;
+  }
+}
+
+namespace Loci {
+  
+  void set_fpe_abort()
+  {
+    if(feenableexcept((FE_DIVBYZERO|FE_OVERFLOW|FE_INVALID)) == -1) {
+      std::cerr << "feenableexcept had error, floating point exceptions not caught" << std::endl ;
+    } else {
+      signal(SIGFPE,fpe_debugger_) ;
+    }
+  }
+}
+
+#ifdef OLD_WAY
+
 #include <fpu_control.h>
 #include <signal.h>
 #include <iostream>
@@ -116,6 +147,8 @@ namespace Loci {
     signal(SIGFPE,fpe_debugger_) ;
   }
 }
+#endif
+
 #else
 
 namespace Loci {
