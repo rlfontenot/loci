@@ -18,7 +18,7 @@ namespace Loci {
      rule_impl_list loaded_rule_list ;
       std::string mod_name ;
       void *m_library ;
-      void (*m_init_model)(fact_db &facts, const char *problem_name) ;
+      void (*m_init_model)(fact_db &facts, rule_db &rdb, const char *problem_name) ;
       std::string name() { return mod_name ; } 
       mod_info(rule_impl_list& rl, std::string str) {
 	loaded_rule_list.copy_rule_list(rl) ;

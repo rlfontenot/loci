@@ -97,7 +97,7 @@ namespace Loci {
 	    cerr << "reason for failure is " << error << endl ;
 	exit(-1) ;
       }
-      md.m_init_model = (void (*)(fact_db &, const char *))
+      md.m_init_model = (void (*)(fact_db &, rule_db &, const char *))
 	dlsym(md.m_library,"init_model") ;
       md.loaded_rule_list.copy_rule_list(register_rule_list) ;
       md.mod_name = tmp_str ;
@@ -243,7 +243,7 @@ namespace Loci {
           sub_str = sub_str.substr(tmp+1, sub_str.size()) ;
         }
       }
-      m.m_init_model(facts,problem_name) ;
+      m.m_init_model(facts,rdb,problem_name) ;
       facts.unset_namespace() ;
     }
 

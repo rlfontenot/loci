@@ -128,7 +128,7 @@ namespace Loci {
 
   variable fact_db::add_namespace(variable v) {
     variable tmp_v ;
-    if(nspace_vec.size()) {
+    if((nspace_vec.size() > 0) && (v.get_info().namespac.size() == 0)) {
       tmp_v = v ;
       for(size_t i = 0; i < nspace_vec.size(); ++i)
         tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
@@ -337,14 +337,7 @@ namespace Loci {
   }
   
   storeRepP fact_db::get_variable(variable v) {
-    variable tmp_v ;
-    if(nspace_vec.size()) {  
-      tmp_v = v ;
-      for(size_t i = 0; i < nspace_vec.size(); ++i)
-	tmp_v = tmp_v.add_namespace(nspace_vec[i]) ;
-    }
-    else
-      tmp_v = v ;
+    variable tmp_v = add_namespace(v) ;
     tmp_v = remove_synonym(tmp_v) ;
     std::map<variable, fact_info>::iterator mi =
       fmap.find(remove_synonym(tmp_v)) ;
@@ -476,23 +469,34 @@ namespace Loci {
     // first of all, we need to process the default and optional rules
     ruleSet special_rules = rdb.get_default_rules() ;
     // first we process the default rules
+    variableSet working_vars ;
     for(ruleSet::const_iterator ri=special_rules.begin();
         ri!=special_rules.end();++ri) {
       // first we need to create the facts in the fact_db
       variableSet targets = ri->targets() ;
       rule_implP rp = ri->get_rule_implP() ;
+      bool UseRule = true ;
+      for(variableSet::const_iterator vi=targets.begin();
+          vi!=targets.end();++vi) 
+        if(vi->get_info().namespac != nspace_vec) {
+          UseRule = false ;
+        }
+      if(!UseRule)
+        continue ;
       for(variableSet::const_iterator vi=targets.begin();
           vi!=targets.end();++vi) {
         // we need to get the storeRep for this variable
         storeRepP srp = rp->get_store(*vi) ;
         if(srp == 0) {
-            ostringstream oss ;
-            oss << "rule " << *ri << " unable to provide type for " << *vi
-                << endl ;
-            throw StringError(oss.str()) ;
+          ostringstream oss ;
+          oss << "rule " << *ri << " unable to provide type for " << *vi
+              << endl ;
+          throw StringError(oss.str()) ;
         }
+
         create_fact(*vi,srp) ;        
       }
+    
       // then we need to call the compute method to set
       // the default value for this variable
       rp->initialize(*this) ;
@@ -504,16 +508,26 @@ namespace Loci {
         ri!=special_rules.end();++ri) {
       // first we need to create the facts in the fact_db
       variableSet targets = ri->targets() ;
+      bool UseRule = true ;
+      for(variableSet::const_iterator vi=targets.begin();
+          vi!=targets.end();++vi) 
+        if(vi->get_info().namespac != nspace_vec) {
+          UseRule = false ;
+        }
+      if(!UseRule)
+        continue ;
+
+
       rule_implP rp = ri->get_rule_implP() ;
       for(variableSet::const_iterator vi=targets.begin();
           vi!=targets.end();++vi) {
         // we need to get the storeRep for this variable
         storeRepP srp = rp->get_store(*vi) ;
         if(srp == 0) {
-            ostringstream oss ;
-            oss << "rule " << *ri << " unable to provide type for " << *vi
-                << endl ;
-            throw StringError(oss.str()) ;
+          ostringstream oss ;
+          oss << "rule " << *ri << " unable to provide type for " << *vi
+              << endl ;
+          throw StringError(oss.str()) ;
         }
         // here we only need to set up the variable type in
         // the fact_db
