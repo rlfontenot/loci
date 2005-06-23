@@ -103,7 +103,7 @@ namespace Loci {
     // extensional facts and intensional facts
     variableSet extensional_facts ;
 
-    variable add_namespace(variable v) ;
+    variable add_namespace(variable v) const ;
     // this is the basic method that creats a fact
     // in the fact_db. It is served as the basis
     // for create_fact & the create_intensional_fact methods

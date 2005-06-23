@@ -126,7 +126,7 @@ namespace Loci {
 	   << endl ;
   }
 
-  variable fact_db::add_namespace(variable v) {
+  variable fact_db::add_namespace(variable v) const {
     variable tmp_v ;
     if((nspace_vec.size() > 0) && (v.get_info().namespac.size() == 0)) {
       tmp_v = v ;
@@ -703,10 +703,12 @@ namespace Loci {
   }
 
   void fact_db::set_variable_type(variable v, storeRepP st) {
+    v = add_namespace(v) ;
     tmap[v] = storeRepP(st->new_store(EMPTY)) ;
   }
 
   storeRepP fact_db::get_variable_type(variable v) const {
+    v = add_namespace(v) ;
     map<variable,storeRepP>::const_iterator mi ;
     if((mi=tmap.find(v)) != tmap.end())
       return storeRepP(mi->second->new_store(EMPTY)) ;
