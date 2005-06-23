@@ -94,12 +94,15 @@ namespace Loci {
 }  
 #else
 #ifdef LINUX
-#define _GNU_SOURCE     /* needed to get non POSIX extensions. */
 
 #include <stdio.h>
 #include <signal.h>
 #include <iostream>
+
 // Floating point exception environment
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE     /* needed to get non POSIX extensions. */
+#endif
 #include <fenv.h>
 
 
