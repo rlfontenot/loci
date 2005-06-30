@@ -28,7 +28,7 @@ int size=0;            /*Size of buffer*/
  
   /*To allocate inputs and outputs over the iterate space*/
 void Allocate_func(){
-    
+#ifdef LOCALALLOCATE    
     for(variableSet::const_iterator vi=inputs1.begin();vi!=inputs1.end();++vi) {
       storeRepP sp = local_facts1->get_variable(*vi) ;
       sp->allocate(interval(0,exec_set1.size()-1)) ;     
@@ -37,11 +37,13 @@ void Allocate_func(){
       storeRepP sp = local_facts1->get_variable(*vi) ;
       sp->allocate(interval(0,exec_set1.size()-1)) ;
     }     
+#endif
 }
   /*To deallocate inputs and outputs*/
 void Deallocate_func(){
   
     
+#ifdef LOCALALLOCATE    
     //deallocate the temporaries
     for(variableSet::const_iterator vi=inputs1.begin();vi!=inputs1.end();++vi) {
       storeRepP sp = local_facts1->get_variable(*vi) ;
@@ -51,6 +53,7 @@ void Deallocate_func(){
       storeRepP sp = local_facts1->get_variable(*vi) ;
       sp->allocate(EMPTY) ;
     }
+#endif
 }
 
   // Transfer inputs to dest 
@@ -179,7 +182,9 @@ dynamic_schedule_rule::dynamic_schedule_rule(rule fi, entitySet eset, fact_db &f
   local_compute1 = rp->new_rule_impl() ; //another instance of rule 
   entitySet in = rule_tag.sources() ; //inputs from rule rhs
   outputs = rule_tag.targets() ;      //outputs as in rhs  
-  exec_set = eset ;   
+  exec_set = eset ;
+  int sz = eset.size() ;
+  MPI_Allreduce(&sz,&exec_set_size,1,MPI_INT, MPI_MAX, MPI_COMM_WORLD) ;
   
   // Setup local facts input variables (types only no allocation)
   for(variableSet::const_iterator vi=in.begin();vi!=in.end();++vi) {
@@ -218,6 +223,16 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
   inputs1=inputs;
   outputs1=outputs; 
   extern int method; 
+
+  // Allocate space for LB
+  for(variableSet::const_iterator vi=inputs1.begin();vi!=inputs1.end();++vi) {
+    storeRepP sp = local_facts1->get_variable(*vi) ;
+    sp->allocate(interval(0,exec_set_size-1)) ;     
+  }
+  for(variableSet::const_iterator vi=outputs1.begin();vi!=outputs1.end();++vi) {
+    storeRepP sp = local_facts1->get_variable(*vi) ;
+    sp->allocate(interval(0,exec_set_size-1)) ;
+  }     
   
   int *yMap=new int[2*Loci::MPI_processes]; 
   for(int i = 0; i < Loci::MPI_processes; i++) {
@@ -267,6 +282,15 @@ void dynamic_schedule_rule::execute(fact_db &facts) {
   delete [] stats;
   delete [] chunkMap;
 
+  //deallocate the temporaries
+  for(variableSet::const_iterator vi=inputs1.begin();vi!=inputs1.end();++vi) {
+    storeRepP sp = local_facts1->get_variable(*vi) ;
+    sp->allocate(EMPTY) ;
+  } 
+  for(variableSet::const_iterator vi=outputs1.begin();vi!=outputs1.end();++vi) {
+    storeRepP sp = local_facts1->get_variable(*vi) ;
+    sp->allocate(EMPTY) ;
+  }
 }
    
 

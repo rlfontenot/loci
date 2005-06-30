@@ -70,8 +70,8 @@ class dynamic_schedule_rule: public execute_modules {
     rule_implP local_compute1;
     // rule_implP local_compute2;
     rule rule_tag ;
-    entitySet exec_set ;
-   
+  entitySet exec_set ;
+  int exec_set_size ;
      
   public:
     dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
