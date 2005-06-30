@@ -36,23 +36,29 @@ namespace Loci {
     bool do_run ;
   public:
     execute_rule(rule fi, sequence seq, fact_db &facts, sched_db &scheds) ;
-     execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, sched_db &scheds) ;
+    execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, sched_db &scheds) ;
     execute_rule(bool output_empty, rule fi, sequence seq, fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
   } ;
 
-class dynamic_schedule_rule: public execute_modules {
+  class dynamic_schedule_rule: public execute_modules {
     rule_implP rp ;
     variableSet inputs, outputs ;
     fact_db local_facts;
     rule_implP local_compute1;
     rule rule_tag ;
-    entitySet exec_set ;     
+    entitySet exec_set ;
+    int exec_set_size ;
+    int *yMap, *rstart, *rsize, *chunkMap ;
+    double *stats ;
   public:
     dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
+    virtual ~dynamic_schedule_rule() ;
+  
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+  
    
   } ;
   
@@ -106,18 +112,18 @@ class dynamic_schedule_rule: public execute_modules {
     sequence recv_set ;
   } ;
 
-   class execute_param_red : public execute_modules {
-     vector<variable> reduce_vars ;
-     vector<rule> unit_rules ;
-     MPI_Op create_join_op ;
-     vector<CPTR<joiner> >join_ops ; 
-   public:
-     execute_param_red(vector<variable> reduce_vars, vector<rule> unit_rules,
-                       vector<CPTR<joiner> > join_ops) ; 
-     ~execute_param_red() ;
-     virtual void execute(fact_db &facts) ;
-     virtual void Print(std::ostream &s) const ;
-   } ;
+  class execute_param_red : public execute_modules {
+    vector<variable> reduce_vars ;
+    vector<rule> unit_rules ;
+    MPI_Op create_join_op ;
+    vector<CPTR<joiner> >join_ops ; 
+  public:
+    execute_param_red(vector<variable> reduce_vars, vector<rule> unit_rules,
+                      vector<CPTR<joiner> > join_ops) ; 
+    ~execute_param_red() ;
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+  } ;
 }
 #endif
 
