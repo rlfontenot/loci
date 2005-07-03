@@ -52,6 +52,15 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
   } ;
   
+  class execute_rule_null : public execute_modules {
+  protected:
+    rule rule_tag ; 
+  public:
+    execute_rule_null(rule fi) : rule_tag(fi) {}
+    virtual void execute(fact_db &facts) {}
+    virtual void Print(std::ostream &s) const {s << rule_tag << " over empty sequence."<< endl ;}
+  } ;
+
   class timed_execute_rule: public execute_rule {
   protected:
     double min_time_duration;
@@ -63,21 +72,22 @@ namespace Loci {
     virtual void execute(fact_db &facts);
   };
 
-class dynamic_schedule_rule: public execute_modules {
+  class dynamic_schedule_rule: public execute_modules {
     rule_implP rp ;
     variableSet inputs, outputs ;
     fact_db local_facts;
     rule_implP local_compute1;
-    // rule_implP local_compute2;
     rule rule_tag ;
-  entitySet exec_set ;
-  int exec_set_size ;
-     
+    entitySet exec_set ;
+    int exec_set_size ;
+    int *yMap, *rstart, *rsize, *chunkMap ;
+    double *stats ;
   public:
     dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
+    virtual ~dynamic_schedule_rule() ;
+  
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
-   
   } ;
   
 
