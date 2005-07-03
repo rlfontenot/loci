@@ -283,7 +283,6 @@ namespace Loci {
     //supllying any rules because Loci does not have rules
     //that create maps
     void set_variable_existence(variable v, entitySet x) {
-      FATAL(v.Rep()->RepType() != MAP);
       sched_info &finfo = get_sched_info(v);
       finfo.existence += x;
     }

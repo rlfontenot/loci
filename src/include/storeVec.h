@@ -48,7 +48,7 @@ namespace Loci {
 
     const T &operator[](int idx) const {
 #ifdef BOUNDS_CHECK
-      warn(idx >= size || idx < 0) ;
+      fatal(idx >= size || idx < 0) ;
 #endif
       return ptr[idx] ;
     }
@@ -79,7 +79,7 @@ namespace Loci {
       T *p1 = ptr ;
       const T *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
-      warn(size != t.size) ;
+      fatal(size != t.size) ;
 #endif
       
       for(int i=0;i<size;++i)
@@ -91,7 +91,7 @@ namespace Loci {
       T *p1 = ptr ;
       const T *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
-      warn(size != t.size) ;
+      fatal(size != t.size) ;
 #endif
       
       for(int i=0;i<size;++i)
@@ -133,7 +133,7 @@ namespace Loci {
       T *p1 = ptr ;
       const S *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
-      warn(size != t.size) ;
+      fatal(size != t.size) ;
 #endif
       
       for(int i=0;i<size;++i)
@@ -144,7 +144,7 @@ namespace Loci {
       T *p1 = ptr ;
       const S *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
-      warn(size != t.size) ;
+      fatal(size != t.size) ;
 #endif
       
       for(int i=0;i<size;++i)
@@ -155,7 +155,7 @@ namespace Loci {
       T *p1 = ptr ;
       const S *p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
-      warn(size != t.size) ;
+      fatal(size != t.size) ;
 #endif
       
       for(int i=0;i<size;++i)
@@ -480,15 +480,9 @@ namespace Loci {
     // Change the size of vector held. It will reclaim the memory used before
     // his call. and allocate new one.
     //----------------------------------------------------------------
-    
+
     if(size != sz) {
-      if(size > 0) {
-        if(sz < 1000*size)
-	  size = sz ;
-      }
-      else if (size == 0)
-	if(sz < 1000)
-	  size = sz ;
+      size = sz ;
       allocate(store_domain) ;
     }
     mutex.unlock() ;
