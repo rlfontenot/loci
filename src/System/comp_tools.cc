@@ -470,7 +470,7 @@ namespace Loci {
       // Compute the shadow entities produced by using this apply rules.
       // Any shadow entities that we don't own we will need to exchange
       // the partial results with other processors.
-      warn(apply.targets().size() != 1) ;
+      WARN(apply.targets().size() != 1) ;
       variable reduce_var = *apply.targets().begin() ;
       
       
@@ -564,7 +564,7 @@ namespace Loci {
     variableSet targets = apply.targets() ;
     variableSet sources = apply.sources() ;
     
-    fatal(targets.size() != 1) ;
+    FATAL(targets.size() != 1) ;
     variable tvar = *(targets.begin()) ;
     
     if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER) 
