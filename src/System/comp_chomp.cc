@@ -261,9 +261,12 @@ namespace Loci {
       }
       // if the exec_seq is empty, we need to take off
       // the corresponding rule from the list
-      if(GLOBAL_AND(exec_seq.size()==0)) {
+      if(exec_seq.size() == 0) {
         continue ;
       }
+      //      if(GLOBAL_AND(exec_seq.size()==0)) {
+      //        continue ;
+      //      }
       new_chomp_comp.push_front(*ri) ;
       rule_seq.push_front(exec_seq) ;
     }

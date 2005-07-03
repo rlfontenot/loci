@@ -80,10 +80,6 @@ namespace Loci {
   }
   
   executeP apply_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-#ifndef DEBUG
-    if(exec_seq.size() == 0)
-      return executeP(0) ;
-#endif
     CPTR<execute_list> el = new execute_list ;
     if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
        exec_seq.size() < num_threads*30 ) {
@@ -766,13 +762,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       r_size[i] = maxr_size[i] ;
       total_size += maxr_size[i] ;
     }
-    /*
-      #ifdef DEBUG
-      entitySet rem = entitySet((recv_info[i].second[j].seq)) - sp->domain() ;
-      if(rem != EMPTY)
-      debugout << "variable " << recv_info[i].second[j].v << " not allocated, but recving for reduce entities " << rem << endl ;
-      #endif
-    */
+
     if(recv_ptr_buf_size < total_size) { 
       if(recv_ptr_buf) 
         delete[] recv_ptr_buf ; 
