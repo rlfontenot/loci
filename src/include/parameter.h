@@ -325,13 +325,19 @@ namespace Loci {
   public:
     typedef T containerType ;
     param() { setRep(new paramType) ; }
-    param(param &var) { *data = *(var.data) ; }
+    param(const param &var) {
+      *data = *(var.data) ;
+      set_entitySet(var.domain());
+    }
     param(storeRepP rp) { setRep(rp); }
 
     virtual ~param() ;
 
-    param & operator=(param &p) {*data = *(var.datra) ; return *this ; }
-
+    param & operator=(const param &p) {
+      *data = *(p.data) ;
+      set_entitySet(p.domain());
+      return *this ;
+    }
     param & operator=(storeRepP p) {setRep(p) ; return *this ; }
     param & operator=(const T &v) { *data = v ; return *this ; }
 
@@ -403,10 +409,10 @@ namespace Loci {
     typedef T containerType ;
     typedef paramRepI<T> paramType ;
     const T * data ;
+    const_param(const const_param<T> &var) {setRep(var.Rep()) ;}
+    const_param(param<T> &var) { setRep(var.Rep()) ; }
   public:
     const_param() { setRep(new paramType) ; }
-    const_param(const_param<T> &var) { setRep(var.Rep()) ; }
-    const_param(param<T> &var) { setRep(var.Rep()) ; }
     const_param(storeRepP rp) { setRep(rp); }
 
     virtual ~const_param() ;
