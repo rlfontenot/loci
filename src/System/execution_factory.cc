@@ -12,14 +12,12 @@ namespace Loci {
   
   execute_modules* execution_factory::create_product() {
     if((rule_tag.get_info().output_is_parameter ||
-        rule_tag.get_info().rule_impl->thread_rule())) {
+        !rule_tag.get_info().rule_impl->thread_rule())) {
       if(GLOBAL_AND(exec_seq.size() == 0)) {
         return new execute_rule_null(rule_tag) ;
       }
-    } else if(exec_seq.size() == 0) {
-      return new execute_rule_null(rule_tag) ;
     }
-      
+    
     if(Loci::collect_timings)
       return new timed_execute_rule(rule_tag, exec_seq, facts, scheds,
 				    Loci::time_duration_to_collect_data);
