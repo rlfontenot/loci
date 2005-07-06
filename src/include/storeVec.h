@@ -494,19 +494,19 @@ namespace Loci {
     typedef storeVecRepI<T> storeType ;
     T* base_ptr ;
     int size ;
+    storeVec(const storeVec<T> &var) {setRep(var.Rep()) ;}
+    storeVec<T> & operator=(const storeVec<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
   public:
     typedef Vect<T> containerType ;
     storeVec() {setRep(new storeType) ;}
-    storeVec(storeVec<T> &var) {setRep(var.Rep()) ;}
     storeVec(storeRepP rp) { setRep(rp) ;}
 
     virtual ~storeVec() ;
     virtual void notification() ;
-
-    storeVec<T> & operator=(storeVec<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
 
     storeVec<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
@@ -574,11 +574,20 @@ namespace Loci {
     typedef storeVecRepI<T> storeType ;
     const T* base_ptr ;
     int size ;
+    const_storeVec(const const_storeVec<T> &var) {setRep(var.Rep()) ;}
+    const_storeVec(const storeVec<T> &var) {setRep(var.Rep()) ;}
+    const_storeVec<T> & operator=(const storeVec<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+    const_storeVec<T> & operator=(const const_storeVec<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
   public:
     typedef const_Vect<T> containerType ;
     const_storeVec() { setRep(new storeType) ; }
-    const_storeVec(const_storeVec<T> &var) {setRep(var.Rep()) ;}
-    const_storeVec(storeVec<T> &var) {setRep(var.Rep()) ;}
     const_storeVec(storeRepP rp) { setRep(rp) ; }
     
     virtual ~const_storeVec() ;
@@ -586,15 +595,6 @@ namespace Loci {
 
     virtual instance_type access() const ;
         
-    const_storeVec<T> & operator=(storeVec<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-    const_storeVec<T> & operator=(const_storeVec<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-
     const_storeVec<T> & operator=(storeRepP p) {
       setRep(p) ;
       return *this ;

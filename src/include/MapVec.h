@@ -51,7 +51,7 @@ namespace Loci {
     virtual entitySet image(const entitySet &domain) const ;
     virtual std::pair<entitySet,entitySet>
     preimage(const entitySet &codomain) const ;
-    virtual multiMap get_map() ;
+    virtual storeRepP get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
@@ -89,7 +89,7 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<int M> multiMap MapVecRepI<M>::get_map()  {
+  template<int M> storeRepP MapVecRepI<M>::get_map()  {
     store<int> sizes ;
     sizes.allocate(store_domain) ;
     FORALL(store_domain,i) {
@@ -101,7 +101,7 @@ namespace Loci {
       for(int j=0;j<M;++j) 
         result.begin(i)[j] = base_ptr[i][j] ;
     } ENDFORALL ;
-    return result ;
+    return result.Rep() ;
   }
 
   //*************************************************************************/
@@ -220,17 +220,17 @@ namespace Loci {
     typedef MapVecRepI<M> MapVecType ;
     typedef typename MapVecType::VEC VEC ;
     VEC * base_ptr ;
+    MapVec(const MapVec<M> &var) { setRep(var.Rep()) ; }
+    MapVec & operator=(const MapVec<M> &str)
+    { setRep(str.Rep()) ; return *this ;}
   public:
     MapVec() { setRep(new MapVecType) ; }
-    MapVec(const MapVec<M> &var) { setRep(var.Rep()) ; }
     MapVec(storeRepP rp) { setRep(rp) ; }
 
     virtual ~MapVec() ;
 
     virtual void notification() ;
         
-    MapVec & operator=(const MapVec<M> &str)
-    { setRep(str.Rep()) ; return *this ;}
     MapVec & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -278,10 +278,14 @@ namespace Loci {
     typedef MapVecRepI<M> MapVecType ;
     typedef typename MapVecType::VEC VEC ;
     const VEC * base_ptr ;
-  public:
-    const_MapVec() { setRep(new MapVecType) ; }
     const_MapVec(const const_MapVec<M> &var) { setRep(var.Rep()) ; } 
     const_MapVec(const MapVec<M> &var) { setRep(var.Rep()) ; }
+    const_MapVec & operator=(const const_MapVec<M> &str)
+    { setRep(str.Rep()) ; return *this ;}
+    const_MapVec & operator=(const MapVec<M> &str)
+    { setRep(str.Rep()) ; return *this ;}
+  public:
+    const_MapVec() { setRep(new MapVecType) ; }
     const_MapVec(storeRepP rp) { setRep(rp) ; }
 
     virtual ~const_MapVec() ;
@@ -290,10 +294,6 @@ namespace Loci {
 
     virtual instance_type access() const ;
 
-    const_MapVec & operator=(const const_MapVec<M> &str)
-    { setRep(str.Rep()) ; return *this ;}
-    const_MapVec & operator=(const MapVec<M> &str)
-    { setRep(str.Rep()) ; return *this ;}
     const_MapVec & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     const entitySet domain() const { return Rep()->domain() ; }

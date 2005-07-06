@@ -193,19 +193,19 @@ namespace Loci {
   template<class T> class store : public store_instance {
     typedef storeRepI<T> storeType ;
     T* base_ptr ;
+    store(const store &var) { setRep(var.Rep()) ; }
+    store<T> & operator=(const store<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
   public:
     typedef T containerType ;
     store() { setRep(new storeType); }
-    store(const store &var) { setRep(var.Rep()) ; }
     store(storeRepP rp) { setRep(rp) ; }
 
     virtual ~store() ;
     virtual void notification() ;
 
-    store<T> & operator=(const store<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
     store<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -252,11 +252,20 @@ namespace Loci {
   template<class T> class const_store : public store_instance {
     typedef storeRepI<T> storeType ;
     const T * base_ptr ;
+    const_store(const store<T> &var) { setRep(var.Rep()) ; }
+    const_store(const const_store &var) { setRep(var.Rep()) ; }
+    const_store<T> & operator=(const const_store<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
+    const_store<T> & operator=(const store<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
   public:
     typedef T containerType ;
     const_store() { setRep(new storeType) ; }
-    const_store(store<T> &var) { setRep(var.Rep()) ; }
-    const_store(const_store &var) { setRep(var.Rep()) ; }
     const_store(storeRepP rp) { setRep(rp) ; }
 
     virtual ~const_store() ;
@@ -265,15 +274,6 @@ namespace Loci {
 
     virtual instance_type access() const  ;
 
-    const_store<T> & operator=(const_store<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-
-    const_store<T> & operator=(store<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
 
     const_store<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 

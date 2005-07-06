@@ -211,7 +211,7 @@ namespace Loci {
     }
     proc_entities.clear() ;
 #endif 
-    df->l2g = l2g ;
+    df->l2g = l2g.Rep() ;
     df->g2l.allocate(g) ;
     entitySet ldom = l2g.domain() ;
     for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {

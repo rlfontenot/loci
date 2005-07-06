@@ -433,7 +433,7 @@ namespace Loci
 
   //**************************************************************************/
 
-  multiMap dmultiMapRepI::get_map() 
+  storeRepP dmultiMapRepI::get_map() 
   {
     multiMap   newmap;
     entitySet::const_iterator  ei;
@@ -447,7 +447,7 @@ namespace Loci
       for(int i = 0; i < count[*ei]; i++)
 	newmap[*ei][i] = attrib_data[*ei][i];
     
-    return newmap;
+    return newmap.Rep();
   }
   
   //**************************************************************************/

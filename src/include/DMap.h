@@ -47,7 +47,7 @@ namespace Loci {
     virtual entitySet image(const entitySet &domain) const ;
     virtual std::pair<entitySet,entitySet>
       preimage(const entitySet &codomain) const ;
-    virtual multiMap get_map() ;
+    virtual storeRepP get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
@@ -65,15 +65,20 @@ namespace Loci {
     typedef dMapRepI MapType ;
     block_hash<int> *attrib_data;
   public:
-    dMap() { setRep(new MapType) ;}
+    // These should be private, but too much code currently depends on it
+    // being public.  This code is dangerous because it does a shallow
+    // copy which means that results sometimes may be unpredictable when
+    // these operations are used.
     dMap(const dMap &var) { setRep(var.Rep()) ; }
+    dMap & operator=(const dMap &str) { setRep(str.Rep()) ; return *this ;}
+
+    dMap() { setRep(new MapType) ;}
     dMap(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~dMap() ;
 
     virtual void notification() ;
     
-    dMap & operator=(const dMap &str) { setRep(str.Rep()) ; return *this ;}
     dMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -119,11 +124,16 @@ namespace Loci {
   class const_dMap : public store_instance {
     typedef dMapRepI MapType ;
     block_hash<int>  *attrib_data;
+    const_dMap(const const_dMap &var) {setRep(var.Rep()) ; }
+    const_dMap(const dMap &var) {setRep(var.Rep()); }
+    const_dMap & operator=(const dMap &str) { setRep(str.Rep()) ; return *this ;}
+
+    const_dMap & operator=(const const_dMap &str)
+    { setRep(str.Rep()) ; return *this ;}
+
   public:
     const_dMap()
     { setRep(new MapType); }
-    const_dMap(const const_dMap &var) {setRep(var.Rep()) ; }
-    const_dMap(const dMap &var) {setRep(var.Rep()); }
     const_dMap(storeRepP &rp) { setRep(rp) ; }
     
     virtual ~const_dMap() ;
@@ -131,11 +141,6 @@ namespace Loci {
 
     virtual instance_type access() const ;
         
-    const_dMap & operator=(const dMap &str) { setRep(str.Rep()) ; return *this ;}
-
-    const_dMap & operator=(const const_dMap &str)
-    { setRep(str.Rep()) ; return *this ;}
-
     const_dMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
 
     entitySet domain() const { return Rep()->domain(); }

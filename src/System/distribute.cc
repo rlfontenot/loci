@@ -142,7 +142,7 @@ namespace Loci {
       }
     }
 #endif
-    df->l2g = l2g ;
+    df->l2g = l2g.Rep() ;
     df->g2l.allocate(g) ;
     entitySet ldom = l2g.domain() ;
     for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {
@@ -837,7 +837,7 @@ namespace Loci {
       dMap tmp_dm ;
       for(HASH_MAP(int, int)::const_iterator hmi = tmp_hm.begin(); hmi != tmp_hm.end(); ++hmi) 
 	tmp_dm[hmi->first] = hmi->second ;
-      v_dm[i] = tmp_dm ;
+      v_dm[i] = tmp_dm.Rep() ;
     }
     delete [] send_buf ;
     delete [] recv_buf ;

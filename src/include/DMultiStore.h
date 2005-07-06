@@ -102,19 +102,18 @@ namespace Loci {
   template<class T> class dmultiStore : public store_instance {
     typedef dmultiStoreRepI<T>  storeType ;
     HASH_MAP(int, std::vector<T> ) *attrib_data;
+    dmultiStore(const dmultiStore<T> &var) {setRep(var.Rep()) ;}
+    dmultiStore<T> & operator=(const dmultiStore<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
   public:
     typedef std::vector<T> containerType ;
     dmultiStore() {setRep(new storeType) ;}
-    dmultiStore(dmultiStore<T> &var) {setRep(var.Rep()) ;}
     dmultiStore(storeRepP &rp) { setRep(rp) ;}
     
     virtual ~dmultiStore() ;
     virtual void notification() ;
-    
-    dmultiStore<T> & operator=(dmultiStore<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
     
     dmultiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
     
@@ -180,17 +179,8 @@ namespace Loci {
   template<class T> class const_dmultiStore : public store_instance {
     typedef dmultiStoreRepI<T> storeType ;
     HASH_MAP(int, std::vector<T> )   *attrib_data;
-  public:
-    //    typedef const_Vect<T> containerType ;
-    const_dmultiStore() {setRep(new storeType) ;}
-    const_dmultiStore(const_dmultiStore<T> &var) {setRep(var.Rep()) ;}
-    const_dmultiStore(storeRepP &rp) { setRep(rp) ;}
-    
-    virtual ~const_dmultiStore() ;
-    virtual void notification() ;
-
-    virtual instance_type access() const ;
-    
+    const_dmultiStore(const const_dmultiStore<T> &var) {setRep(var.Rep()) ;}
+    const_dmultiStore(const dmultiStore<T> &var) {setRep(var.Rep()) ;}
     const_dmultiStore<T> & operator=(const dmultiStore<T> &str) {
       setRep(str.Rep()) ;
       return *this ;
@@ -201,6 +191,16 @@ namespace Loci {
       return *this ;
     }
 
+  public:
+    //    typedef const_Vect<T> containerType ;
+    const_dmultiStore() {setRep(new storeType) ;}
+    const_dmultiStore(storeRepP &rp) { setRep(rp) ;}
+    
+    virtual ~const_dmultiStore() ;
+    virtual void notification() ;
+
+    virtual instance_type access() const ;
+    
     const_dmultiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
     const entitySet domain() const { return Rep()->domain() ; }

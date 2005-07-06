@@ -78,7 +78,7 @@ namespace Loci {
       global_comp_entities = f.global_comp_entities ;
       distributed_info = f.distributed_info ;
       synonyms = f.synonyms ;
-      l2g = f.l2g ;
+      l2g = f.l2g.Rep() ; // Note: shallow copy here (copy by reference)
       maximum_allocated = f.maximum_allocated ;
       minimum_allocated = f.minimum_allocated ;
       dist_from_start = f.dist_from_start ;
@@ -228,7 +228,7 @@ namespace Loci {
     std::vector<entitySet>& get_init_ptn() {return init_ptn ;}
     void  put_init_ptn(std::vector<entitySet> &t_init ) {init_ptn = t_init ;}
     Map& get_l2g() { return l2g; } 
-    void put_l2g(Map& lg) { l2g = lg ; }
+    void put_l2g(Map& lg) { l2g = lg.Rep() ; }
     
     fact_db::distribute_infoP get_distribute_info() ;
     void put_distribute_info(fact_db::distribute_infoP dp) ;

@@ -263,20 +263,20 @@ namespace Loci {
     typedef dstoreVecRepI<T>     storeType ;
     HASH_MAP(int, std::vector<T>) *attrib_data;
     int                          vsize;
+    dstoreVec(const dstoreVec<T> &var) {setRep(var.Rep()) ;}
+    dstoreVec<T> & operator=(const dstoreVec<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
   public:
     typedef std::vector<T> containerType ;
     dstoreVec() {setRep(new storeType) ;}
-    dstoreVec(dstoreVec<T> &var) {setRep(var.Rep()) ;}
     dstoreVec(storeRepP &rp) { setRep(rp) ;}
 
     virtual ~dstoreVec() ;
 
     virtual void notification() ;
-
-    dstoreVec<T> & operator=(dstoreVec<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
 
     dstoreVec<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
@@ -343,11 +343,20 @@ namespace Loci {
     typedef dstoreVecRepI<T> storeType ;
     HASH_MAP(int, std::vector<T>)  *attrib_data;
     int size ;
+    const_dstoreVec(const const_dstoreVec<T> &var) {setRep(var.Rep()) ;}
+    const_dstoreVec(const dstoreVec<T> &var) {setRep(var.Rep()) ;}
+    const_dstoreVec<T> & operator=(const dstoreVec<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+    const_dstoreVec<T> & operator=(const const_dstoreVec<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
   public:
     typedef std::vector<T> containerType ;
     const_dstoreVec() { setRep(new storeType) ; }
-    const_dstoreVec(const_dstoreVec<T> &var) {setRep(var.Rep()) ;}
-    const_dstoreVec(dstoreVec<T> &var) {setRep(var.Rep()) ;}
     const_dstoreVec(storeRepP &rp) { setRep(rp) ; }
     
     virtual ~const_dstoreVec() ;
@@ -355,15 +364,6 @@ namespace Loci {
 
     virtual instance_type access() const ;
         
-    const_dstoreVec<T> & operator=(dstoreVec<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-    const_dstoreVec<T> & operator=(const_dstoreVec<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-
     const_dstoreVec<T> & operator=(storeRepP p) {
       setRep(p) ;
       return *this ;

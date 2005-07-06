@@ -738,8 +738,7 @@ namespace Loci {
 	
 	if(isDistributed()) {
 	  fact_db::distribute_infoP df = get_distribute_info() ;
-	  dMap remap = df->remap ;
-	  storeRepP reorder_sp = collect_reorder_store(p, remap, *this) ;
+	  storeRepP reorder_sp = collect_reorder_store(p, df->remap, *this) ;
 	  write_container(group_id, reorder_sp) ;
 	} else 
 	  write_container(group_id, p->getRep()) ;

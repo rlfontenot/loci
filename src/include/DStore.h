@@ -201,19 +201,19 @@ namespace Loci {
   template<class T> class dstore : public store_instance {
     typedef dstoreRepI<T>  storeType ;
     block_hash<T>       *attrib_data;
+    dstore(const dstore &var) { setRep(var.Rep()) ; }
+    dstore<T> & operator=(const dstore<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
   public:
     typedef T containerType ;
     dstore() { setRep(new storeType); }
-    dstore(const dstore &var) { setRep(var.Rep()) ; }
     dstore(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~dstore() ;
     virtual void notification() ;
 
-    dstore<T> & operator=(const dstore<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
 
     dstore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
@@ -269,11 +269,21 @@ namespace Loci {
   template<class T> class const_dstore : public store_instance {
     typedef dstoreRepI<T> storeType ;
     block_hash<T>      *attrib_data;
+    const_dstore(const dstore<T> &var) { setRep(var.Rep()) ; }
+    const_dstore(const const_dstore &var) { setRep(var.Rep()) ; }
+    const_dstore<T> & operator=(const const_dstore<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
+    const_dstore<T> & operator=(const dstore<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
+
   public:
     typedef T containerType ;
     const_dstore() { setRep(new storeType) ; }
-    const_dstore(dstore<T> &var) { setRep(var.Rep()) ; }
-    const_dstore(const_dstore &var) { setRep(var.Rep()) ; }
     const_dstore(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~const_dstore() ;
@@ -281,16 +291,6 @@ namespace Loci {
 
     virtual instance_type access() const  ;
         
-    const_dstore<T> & operator=(const_dstore<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-
-    const_dstore<T> & operator=(dstore<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
-
     const_dstore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
     entitySet domain() const { return Rep()->domain(); }

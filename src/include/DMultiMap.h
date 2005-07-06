@@ -47,7 +47,7 @@ namespace Loci {
   virtual entitySet image(const entitySet &domain) const ;
   virtual std::pair<entitySet,entitySet>
   preimage(const entitySet &codomain) const ;
-  virtual multiMap get_map() ;
+  virtual storeRepP get_map() ;
   virtual std::ostream &Print(std::ostream &s) const ;
   virtual std::istream &Input(std::istream &s) ;
   virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
@@ -66,21 +66,21 @@ namespace Loci {
     friend class const_dmultiMap ;
     typedef dmultiMapRepI MapType ;
     HASH_MAP(int, std::vector<int> )   *attrib_data;
+    dmultiMap(const dmultiMap &var) { setRep(var.Rep()) ; }
+    dmultiMap & operator=(const dmultiMap &str)
+    { setRep(str.Rep()) ; return *this ;}
+
   public:
     dmultiMap() { setRep(new MapType) ; }
         
     dmultiMap(const store<int> &sizes) { setRep( new MapType(sizes) ); }
         
-    dmultiMap(const dmultiMap &var) { setRep(var.Rep()) ; }
 
     dmultiMap(storeRepP p) { setRep(p) ; }
     
     virtual ~dmultiMap() ;
 
     virtual void notification() ;
-
-    dmultiMap & operator=(const dmultiMap &str)
-    { setRep(str.Rep()) ; return *this ;}
 
     dmultiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
@@ -154,12 +154,18 @@ namespace Loci {
   class const_dmultiMap : public store_instance {
     typedef dmultiMapRepI      MapType ;
     HASH_MAP(int,std::vector<int> ) *attrib_data;
+    const_dmultiMap(const const_dmultiMap &var) {  setRep(var.Rep()) ; }
+    const_dmultiMap(const dmultiMap &var) { setRep(var.Rep()) ; }
+    const_dmultiMap & operator=(const const_dmultiMap &str)
+    { setRep(str.Rep()) ; return *this ;}
+
+    const_dmultiMap & operator=(const dmultiMap &str)
+    { setRep(str.Rep()) ; return *this ;}
+
   public:
     const_dmultiMap() { setRep(new MapType) ; }
     
-    const_dmultiMap(const_dmultiMap &var) {  setRep(var.Rep()) ; }
     
-    const_dmultiMap(dmultiMap &var) { setRep(var.Rep()) ; }
     
     const_dmultiMap(storeRepP &rp) { setRep(rp) ; }
     
@@ -168,12 +174,6 @@ namespace Loci {
     
     virtual instance_type access() const ;
     
-    const_dmultiMap & operator=(const_dmultiMap &str)
-    { setRep(str.Rep()) ; return *this ;}
-
-    const_dmultiMap & operator=(dmultiMap &str)
-    { setRep(str.Rep()) ; return *this ;}
-
     const_dmultiMap & operator=(storeRepP p) 
     { setRep(p) ; return *this ;}
     

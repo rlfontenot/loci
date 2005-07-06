@@ -53,7 +53,7 @@ namespace Loci {
     virtual std::pair<entitySet,entitySet>
     preimage(const entitySet &codomain) const ;
 
-    virtual multiMap get_map() ;
+    virtual storeRepP get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
@@ -392,7 +392,7 @@ namespace Loci {
   }
   //------------------------------------------------------------------------
   template<unsigned int M> 
-  multiMap dMapVecRepI<M>::get_map()  
+  storeRepP dMapVecRepI<M>::get_map()  
   {
     multiMap   newmap;
     entitySet::const_iterator  ei;
@@ -406,7 +406,7 @@ namespace Loci {
       for(int i = 0; i < count[*ei]; i++)
         newmap[*ei][i] = attrib_data[*ei][i];
   
-    return newmap; 
+    return newmap.Rep(); 
   }
 
   //------------------------------------------------------------------------
@@ -565,22 +565,18 @@ template<unsigned int M> class const_dMapVec ;
     typedef dMapVecRepI<M> MapVecType ;
     typedef typename MapVecType::VEC VEC ;
     HASH_MAP(int, VEC)     *attrib_data;
+    dMapVec(const dMapVec<M> &var) { setRep(var.Rep()) ; }
+    dMapVec & operator=(const dMapVec<M> &str) { 
+      setRep(str.Rep()) ; 
+      return *this ;
+    }
   public:
     dMapVec() { setRep(new MapVecType) ; }
-    dMapVec(const dMapVec<M> &var) { setRep(var.Rep()) ; }
     dMapVec(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~dMapVec() ;
 
     virtual void notification() ;
-
-    // -----------------------------------------------------------------
-        
-    dMapVec & operator=(const dMapVec<M> &str) { 
-      setRep(str.Rep()) ; 
-      return *this ;
-    }
-    // -----------------------------------------------------------------
 
     dMapVec &operator=(storeRepP p) { 
       setRep(p) ; 
@@ -672,22 +668,22 @@ template<unsigned int M> class const_dMapVec ;
     typedef dMapVecRepI<M> MapVecType ;
     typedef typename MapVecType::VEC VEC ;
     HASH_MAP(int,VEC)  *attrib_data;
-  public:
-    const_dMapVec() { setRep(new MapVecType) ; }
     const_dMapVec(const const_dMapVec<M> &var) { setRep(var.Rep()) ; } 
     const_dMapVec(const dMapVec<M> &var) { setRep(var.Rep()) ; }
+    const_dMapVec & operator=(const const_dMapVec<M> &str)
+    { setRep(str.Rep()) ; return *this ;}
+
+    const_dMapVec & operator=(const dMapVec<M> &str)
+    { setRep(str.Rep()) ; return *this ;}
+
+  public:
+    const_dMapVec() { setRep(new MapVecType) ; }
 
     virtual ~const_dMapVec() ;
 
     virtual void notification() ;
 
     virtual instance_type access() const ;
-
-    const_dMapVec & operator=(const const_dMapVec<M> &str)
-    { setRep(str.Rep()) ; return *this ;}
-
-    const_dMapVec & operator=(const dMapVec<M> &str)
-    { setRep(str.Rep()) ; return *this ;}
 
     const_dMapVec & operator=(storeRepP p) { setRep(p) ; return *this ;}
     

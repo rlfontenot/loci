@@ -47,7 +47,7 @@ namespace Loci {
     virtual entitySet image(const entitySet &domain) const ;
     virtual std::pair<entitySet,entitySet>
       preimage(const entitySet &codomain) const ;
-    virtual multiMap get_map() ;
+    virtual storeRepP get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
@@ -71,19 +71,23 @@ namespace Loci {
     typedef multiMapRepI MapType ;
     int **base_ptr ;
   public:
+
+    // These should be private, as they only perform a shallow copy,
+    // which is dangerous.  For now we leave them public because it would
+    // be too difficult to fix properly.
+    multiMap(const multiMap &var) { setRep(var.Rep()) ; }
+    multiMap & operator=(const multiMap &str)
+    { setRep(str.Rep()) ; return *this ;}
+    
     multiMap() { setRep(new MapType) ; }
         
     multiMap(const store<int> &sizes) { setRep( new MapType(sizes) ); }
-        
-    multiMap(const multiMap &var) { setRep(var.Rep()) ; }
 
     multiMap(storeRepP p) { setRep(p) ; }
     
     virtual ~multiMap() ;
     virtual void notification() ;
 
-    multiMap & operator=(const multiMap &str)
-    { setRep(str.Rep()) ; return *this ;}
     multiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -129,10 +133,14 @@ namespace Loci {
   class const_multiMap : public store_instance {
     typedef multiMapRepI MapType ;
     const int * const * base_ptr ;
+    const_multiMap(const_multiMap &var) {  setRep(var.Rep()) ; }
+    const_multiMap & operator=(const const_multiMap &str)
+    { setRep(str.Rep()) ; return *this ;}
+    const_multiMap & operator=(const multiMap &str)
+    { setRep(str.Rep()) ; return *this ;}
   public:
     const_multiMap() { setRep(new MapType) ; }
     
-    const_multiMap(const_multiMap &var) {  setRep(var.Rep()) ; }
     
     const_multiMap(multiMap &var) { setRep(var.Rep()) ; }
     
@@ -143,10 +151,6 @@ namespace Loci {
     
     virtual instance_type access() const ;
     
-    const_multiMap & operator=(const_multiMap &str)
-    { setRep(str.Rep()) ; return *this ;}
-    const_multiMap & operator=(multiMap &str)
-    { setRep(str.Rep()) ; return *this ;}
     const_multiMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     entitySet domain() const { return Rep()->domain(); }

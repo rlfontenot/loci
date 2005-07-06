@@ -20,11 +20,11 @@ namespace Loci {
   
   template<class T> class blackboxRepI : public storeRep {
     entitySet store_domain;
-    T attrib_data;
+    T *attrib_data;
 
   public:
-    blackboxRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX); }
-    blackboxRepI(const entitySet &p) { store_domain = p;}
+    blackboxRepI() { attrib_data=0; store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX); }
+    blackboxRepI(const entitySet &p) { attrib_data=0; store_domain = p;}
     virtual void allocate(const entitySet &p) ;
     virtual void shift(int_type offset) ;
     virtual ~blackboxRepI();
@@ -49,19 +49,33 @@ namespace Loci {
     virtual DatatypeP getType() ;
     virtual frame_info read_frame_info(hid_t group_id) ;
     virtual frame_info write_frame_info(hid_t group_id) ;
-    T *get_blackbox() { return &attrib_data; }
+    T *get_blackbox() { return attrib_data; }
   };
 
   //**************************************************************************/
 
   template<class T> void blackboxRepI<T>::allocate(const entitySet &p) {
+    if(p == EMPTY) {
+      if(attrib_data != 0) {
+        delete attrib_data ;
+        attrib_data = 0 ;
+      }
+      attrib_data = new T ;
+    } else {
+      if(attrib_data == 0)
+        attrib_data = new T ;
+    }
     store_domain = p;
     dispatch_notify();
   }
 
   //**************************************************************************/
 
-  template<class T> blackboxRepI<T>::~blackboxRepI<T>() {}
+  template<class T> blackboxRepI<T>::~blackboxRepI<T>()
+  {
+    if(attrib_data != 0)
+      delete attrib_data ;
+  }
 
   //**************************************************************************/
 
@@ -165,15 +179,16 @@ namespace Loci {
   template<class T> class blackbox : public store_instance {
     typedef blackboxRepI<T> blackboxType;
     T * data;
+    blackbox(const blackbox &var) { setRep(var.Rep()); }
+    blackbox & operator=(const blackbox &p) {setRep(p.Rep()); return *this; }
   public:
     typedef T containerType;
     blackbox() { setRep(new blackboxType); }
-    blackbox(blackbox &var) { setRep(var.Rep()); }
+
     blackbox(storeRepP rp) { setRep(rp); }
 
     virtual ~blackbox();
 
-    blackbox & operator=(blackbox &p) {setRep(p.Rep()); return *this; }
 
     blackbox & operator=(storeRepP p) {setRep(p); return *this; }
     blackbox & operator=(const T &v) { *data = v; return *this; }
@@ -183,9 +198,6 @@ namespace Loci {
     T * operator->() { return data; }
     const T * operator->() const { return data; }
     
-    T * operator&() { return data; }
-    const T * operator &() const { return data; }
-
     T &operator*() { return *data; }
     const T &operator*() const { return *data; }
 
@@ -221,9 +233,11 @@ namespace Loci {
 
   template<class T> 
   void blackbox<T>::notification()
-  {  
+  {
+    data = 0 ;
     NPTR<blackboxType> p(Rep());
-    if(p!=0) data = p->get_blackbox();
+    if(p!=0)
+      data = p->get_blackbox();
     warn(p==0);
   }
 
@@ -250,18 +264,18 @@ namespace Loci {
     typedef T containerType;
     typedef blackboxRepI<T> blackboxType;
     const T * data;
+    const_blackbox(const const_blackbox<T> &var) { setRep(var.Rep()); }
+    const_blackbox(const blackbox<T> &var) { setRep(var.Rep()); }
+    const_blackbox & operator=(const const_blackbox<T> &p)
+    { setRep(p.Rep); return *this;}
+    const_blackbox & operator=(const blackbox<T> &p)
+    { setRep(p.Rep); return *this;}
   public:
     const_blackbox() { setRep(new blackboxType); }
-    const_blackbox(const_blackbox<T> &var) { setRep(var.Rep()); }
-    const_blackbox(blackbox<T> &var) { setRep(var.Rep()); }
     const_blackbox(storeRepP rp) { setRep(rp); }
     
     virtual ~const_blackbox();
 
-    const_blackbox & operator=(const_blackbox<T> &p)
-    { setRep(p.Rep); return *this;}
-    const_blackbox & operator=(blackbox<T> &p)
-    { setRep(p.Rep); return *this;}
     const_blackbox & operator=(storeRepP p)
     { setRep(p); return *this;}
 
@@ -270,8 +284,6 @@ namespace Loci {
         
     const T * operator->() const { return data; }
     
-    const T * operator &() const { return data; }
-
     const T &operator*() const { return *data; }
 
     const T &operator[](int indx) const {
@@ -308,7 +320,8 @@ namespace Loci {
   {
     blackbox<T> r;
     r.set_entitySet(m.image(m.domain()&domain()));
-    *r = attrib_data;
+    if(attrib_data!=0)
+      *r = *attrib_data;
     return r.Rep();
   }
 
@@ -317,10 +330,11 @@ namespace Loci {
   template<class T> 
   void blackboxRepI<T>::copy(storeRepP &st, const entitySet &context) 
   {
-    blackbox<T> p(st);
-    attrib_data = *p;
     warn((store_domain - context) != EMPTY);
-    store_domain = context;
+    blackbox<T> p(st);
+    allocate(context) ;
+    if(attrib_data != 0)
+      *attrib_data = *p ;
     dispatch_notify();
   }
 

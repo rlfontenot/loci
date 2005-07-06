@@ -368,6 +368,7 @@ namespace Loci {
     return nm ;
   }
   
+#ifdef OLD_STUFF
   std::pair< storeRepP, Map > send_clone( storeRepP& sp, Map &m,  entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
@@ -497,6 +498,7 @@ namespace Loci {
     delete [] recv_displacement ;
     return std::make_pair(tmp_sp, m_int)  ;
   }
+#endif
   
   std::vector< storeRepP> fill_global_clone( storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     int *recv_count = new int[ MPI_processes] ;

@@ -534,7 +534,7 @@ namespace Loci {
     int size_send = 0 ;
     std::vector<entitySet> send_clone( MPI_processes) ;
     std::vector<entitySet> send_dom( MPI_processes) ;
-    std::vector<store<int> > scl( MPI_processes), rcl( MPI_processes) ;
+    std::vector<storeRepP> scl( MPI_processes), rcl( MPI_processes) ;
     
     for(int i = 0; i <  MPI_processes; ++i) {
       send_clone[i] = owned_io_out_of_dom & chop_ptn[i] ;
@@ -551,7 +551,7 @@ namespace Loci {
 	tmp_store[j] = local2io[*ei] ;
 	++ei ;
       }
-      scl[i] = tmp_store ;
+      scl[i] = tmp_store.Rep() ;
       size_send += send_count[i];
     }
     unsigned char *send_buf = new unsigned char[size_send] ;
@@ -560,7 +560,7 @@ namespace Loci {
     
     int loc_pack = 0 ;
     for(int i = 0; i <  MPI_processes; ++i) 
-      scl[i].Rep()->pack(send_buf, loc_pack, size_send, scl[i].domain()) ; 
+      scl[i]->pack(send_buf, loc_pack, size_send, scl[i]->domain()) ; 
     
     size_send = 0 ;
     for(int i = 0; i <  MPI_processes; ++i)
@@ -587,7 +587,7 @@ namespace Loci {
       store<int> tmp_store ;
       tmp_store.allocate(tmp) ;
       tmp_store.Rep()->unpack(recv_buf, loc_unpack, size_send, recv_dom[i]) ; 
-      rcl[i] = tmp_store ;
+      rcl[i] = tmp_store.Rep() ;
     }
     size_send = 0 ;
     for(int i = 0; i <  MPI_processes; ++i) {
@@ -625,9 +625,10 @@ namespace Loci {
     }
     for(int i = 0; i < MPI_processes; ++i) {	
       dMap m;
-      m.allocate(rcl[i].domain()) ;
+      m.allocate(rcl[i]->domain()) ;
+      store<int> RCL(rcl[i]) ;
       FORALL(m.domain(), mi) {
-	m[mi] = rcl[i][mi] ;
+	m[mi] = RCL[mi] ;
       } ENDFORALL ;
 
       if(tmp_sp[i]->domain() != EMPTY)

@@ -430,7 +430,7 @@ namespace Loci {
     } ENDFORALL ;
     return dm.Rep() ;
   }
-  multiMap MapRepI::get_map() {
+  storeRepP MapRepI::get_map() {
     store<int> sizes ;
     sizes.allocate(store_domain) ;
     FORALL(store_domain,i) {
@@ -441,7 +441,7 @@ namespace Loci {
     FORALL(store_domain,i) {
       result.begin(i)[0] = base_ptr[i] ;
     } ENDFORALL ;
-    return result ;
+    return result.Rep() ;
   }
     
   std::ostream &MapRepI::Print(std::ostream &s) const {
@@ -1081,8 +1081,8 @@ storeRepP multiMapRepI::thaw() {
     return make_pair(domaini,domainu) ;
   }
 
-  multiMap multiMapRepI::get_map() {
-    return multiMap(storeRepP(this)) ;
+  storeRepP multiMapRepI::get_map() {
+    return this ;
   }
     
   std::ostream &multiMapRepI::Print(std::ostream &s) const {

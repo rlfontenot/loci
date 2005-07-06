@@ -28,17 +28,17 @@ namespace Loci {
     T* base_ptr ;
     int size_tot ;
     int size_dim ;
+    dstoreMat(const storeMat &var) {setRep(var.Rep()) ; }
+    dstoreMat<T> & operator=(const dstoreMat<T> &str)
+      { setRep(str.Rep()) ; return *this ;}
+
   public:
     typedef Mat<T> containerType ;
     dstoreMat() {setRep(new storeType) ;}
-    dstoreMat(storeMat &var) {setRep(var.Rep()) ; }
     dstoreMat(storeRepP &rp) {setRep(rp) ; }
 
     virtual ~dstoreMat() ;
     virtual void notification() ;
-
-    dstoreMat<T> & operator=(dstoreMat<T> &str)
-      { setRep(str.Rep()) ; return *this ;}
 
     dstoreMat<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
@@ -97,12 +97,18 @@ namespace Loci {
     const T* base_ptr ;
     int size_tot ;
     int size_dim ;
+    const_dstoreMat(const const_dstoreMat<T> &var) { setRep(var.Rep()) ; }
+    const_dstoreMat(const dstoreMat<T> &var) { setRep(var.Rep()) ; }
+    const_dstoreMat<T> & operator=(const const_dstoreMat<T> &str)
+    { setRep(str.Rep()) ; return *this ;}
+
+    const_dstoreMat<T> & operator=(const dstoreMat<T> &str)
+    { setRep(str.Rep()) ; return *this ;}
+
   public:
     typedef const_Mat<T> containerType ;
     const_dstoreMat() { setRep(new storeType) ; }
 
-    const_dstoreMat(const_dstoreMat<T> &var) { setRep(var.Rep()) ; }
-    const_dstoreMat(dstoreMat<T> &var) { setRep(var.Rep()) ; }
     const_dstoreMat(storeRepP &rp) { setRep(rp) ; }
     
     virtual ~const_dstoreMat() ;
@@ -110,12 +116,6 @@ namespace Loci {
 
     virtual instance_type access() const ;
         
-    const_dstoreMat<T> & operator=(const_dstoreMat<T> &str)
-    { setRep(str.Rep()) ; return *this ;}
-
-    const_dstoreMat<T> & operator=(dstoreMat<T> &str)
-    { setRep(str.Rep()) ; return *this ;}
-
     const_dstoreMat<T> & operator=(storeRepP p)
     { setRep(p) ; return *this ; }
 

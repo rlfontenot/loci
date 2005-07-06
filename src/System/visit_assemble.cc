@@ -179,9 +179,7 @@ namespace Loci {
             entitySet tot_dom = Loci::collect_entitySet(dom) ;
             tot_dom = all_collect_entitySet(dom) ;
             fact_db::distribute_infoP df = facts.get_distribute_info() ;
-            dMap remap ;
-            remap = df->remap ;
-            sc = collect_reorder_store(st,remap,facts) ;
+            sc = collect_reorder_store(st,df->remap,facts) ;
             write_container(group_id,sc) ;
           }
             

@@ -325,7 +325,7 @@ namespace Loci {
   
   //**************************************************************************/
   
-  multiMap dMapRepI::get_map() 
+  storeRepP dMapRepI::get_map() 
   {
     multiMap result ;
     store<int> sizes ;
@@ -339,7 +339,7 @@ namespace Loci {
     FORALL(storeDomain,i) {
       result.begin(i)[0] = attrib_data[i] ;
     } ENDFORALL ;
-    return result ;
+    return result.Rep() ;
   }
 
   //**************************************************************************/

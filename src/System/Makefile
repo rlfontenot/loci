@@ -17,8 +17,9 @@ OBJS = Loci_version.o Initialize.o Loci_Datatypes.o variable.o \
        visit_assemble.o visit_deco.o visit_tools.o visit_viz.o\
        visit_chomp.o dynamic_exec.o lbmethods.o FVMGridReader.o \
        dist_tools.o distribute_io.o distribute_container.o \
-       dist_internal.o distribute_old_support.o comp_dynamic.o \
+       dist_internal.o comp_dynamic.o \
        comp_constraint.o execution_factory.o 
+#distribute_old_support.o 
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT1)
 

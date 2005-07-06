@@ -107,19 +107,19 @@ namespace Loci {
     typedef multiStoreRepI<T> storeType ;
     T ** base_ptr ;
     int size ;
+    multiStore(const multiStore<T> &var) {setRep(var.Rep()) ;}
+    multiStore<T> & operator=(const multiStore<T> &str) {
+      setRep(str.Rep()) ;
+      return *this ;
+    }
   public:
     typedef Vect<T> containerType ;
     multiStore() {setRep(new storeType) ;}
-    multiStore(multiStore<T> &var) {setRep(var.Rep()) ;}
     multiStore(storeRepP rp) { setRep(rp) ;}
     
     virtual ~multiStore() ;
     virtual void notification() ;
     
-    multiStore<T> & operator=(multiStore<T> &str) {
-      setRep(str.Rep()) ;
-      return *this ;
-    }
     
     multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
     
@@ -200,17 +200,8 @@ namespace Loci {
     typedef multiStoreRepI<T> storeType ;
     T ** base_ptr ;
     int size ;
-  public:
-    typedef const_Vect<T> containerType ;
-    const_multiStore() {setRep(new storeType) ;}
-    const_multiStore(const_multiStore<T> &var) {setRep(var.Rep()) ;}
-    const_multiStore(storeRepP rp) { setRep(rp) ;}
-    
-    virtual ~const_multiStore() ;
-    virtual void notification() ;
-
-    virtual instance_type access() const ;
-    
+    const_multiStore(const const_multiStore<T> &var) {setRep(var.Rep()) ;}
+    const_multiStore(const multiStore<T> &var) {setRep(var.Rep()) ;}
     const_multiStore<T> & operator=(const multiStore<T> &str) {
       setRep(str.Rep()) ;
       return *this ;
@@ -221,6 +212,16 @@ namespace Loci {
       return *this ;
     }
 
+  public:
+    typedef const_Vect<T> containerType ;
+    const_multiStore() {setRep(new storeType) ;}
+    const_multiStore(storeRepP rp) { setRep(rp) ;}
+    
+    virtual ~const_multiStore() ;
+    virtual void notification() ;
+
+    virtual instance_type access() const ;
+    
     const_multiStore<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
     const entitySet domain() const { return Rep()->domain() ; }

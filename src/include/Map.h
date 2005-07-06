@@ -49,7 +49,7 @@ namespace Loci {
     virtual entitySet image(const entitySet &domain) const ;
     virtual std::pair<entitySet,entitySet>
       preimage(const entitySet &codomain) const ;
-    virtual multiMap get_map() ;
+    virtual storeRepP get_map() ;
     virtual std::ostream &Print(std::ostream &s) const ;
     virtual std::istream &Input(std::istream &s) ;
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
@@ -67,16 +67,16 @@ namespace Loci {
     friend class const_Map ;
     typedef MapRepI MapType ;
     Entity* base_ptr ;
+    Map(const Map &var) { setRep(var.Rep()) ; }
+    Map & operator=(const Map &str) { setRep(str.Rep()) ; return *this ;}
   public:
     Map() { setRep(new MapType) ;}
-    Map(const Map &var) { setRep(var.Rep()) ; }
     Map(storeRepP rp) { setRep(rp) ; }
 
     virtual ~Map() ;
 
     virtual void notification() ;
 
-    Map & operator=(const Map &str) { setRep(str.Rep()) ; return *this ;}
     Map & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
@@ -121,11 +121,14 @@ namespace Loci {
   class const_Map : public store_instance {
     typedef MapRepI MapType ;
     const Entity* base_ptr ;
+    const_Map(const const_Map &var) {setRep(var.Rep()) ; }
+    const_Map(const Map &var) {setRep(var.Rep()); }
+    const_Map & operator=(const Map &str) { setRep(str.Rep()) ; return *this ;}
+    const_Map & operator=(const const_Map &str)
+    { setRep(str.Rep()) ; return *this ;}
   public:
     const_Map()
     { setRep(new MapType); }
-    const_Map(const const_Map &var) {setRep(var.Rep()) ; }
-    const_Map(const Map &var) {setRep(var.Rep()); }
     const_Map(storeRepP rp) { setRep(rp) ; }
     
     virtual ~const_Map() ;
@@ -133,9 +136,6 @@ namespace Loci {
 
     virtual instance_type access() const ;
         
-    const_Map & operator=(const Map &str) { setRep(str.Rep()) ; return *this ;}
-    const_Map & operator=(const const_Map &str)
-    { setRep(str.Rep()) ; return *this ;}
     const_Map & operator=(storeRepP p) { setRep(p) ; return *this ;}
 
     entitySet domain() const { return Rep()->domain(); }
