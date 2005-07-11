@@ -1177,6 +1177,13 @@ variableSet rule_impl::get_var_list() {
     return fp ;
   }
 
+  rule rule::get_rule_by_name(std::string &name) {
+    int myId = rdb->query_name(name);
+    rule myRule(myId);
+    return myRule;
+    
+  }
+  
   namespace {
     // utility function
     inline variableSet get_rule_var_list(const rule& r) {
