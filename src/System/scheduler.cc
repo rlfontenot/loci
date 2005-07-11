@@ -751,7 +751,49 @@ namespace Loci {
       }
     }
     Loci::debugout << " initial_vars = " << initial_vars << endl ;
-    
+
+    if(duplicate_work) {
+      if(use_duplicate_model) {
+	std::ifstream fin(model_file);
+	if(!fin) {
+	  cerr << "Error: Opening the model file " << model_file << endl;
+	  cerr << "Using default duplication policies." << endl;
+	  use_duplicate_model = false;
+	}
+	
+	double comm_ts, comm_tw;
+	double comm_ts1, comm_ts2;
+	fin >> comm_ts1 >> comm_ts2 >> comm_tw;
+	comm_ts = comm_ts2;
+	
+	if(comm_tw < 0)
+	  comm_tw = 0;
+	
+	unsigned int count;
+	fin >> count; 
+	
+	map<rule, pair<double, double> > comp_info;
+	string rule_name;
+	double ts, tw;
+	double ts1, ts2;
+	for(unsigned int i = 0; i < count; i++) {
+	  fin >> rule_name >> ts1 >> ts2 >> tw;
+	  ts = ts2;
+	  if(tw < 0)
+	    tw = 0;
+	  
+	  pair<double, double> tmpModel(ts, tw);
+	  rule myRule = rule::get_rule_by_name(rule_name);
+	  if(myRule.get_info().name() == "NO_RULE") {
+	    cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
+	  }
+	  else
+	    comp_info[myRule] = tmpModel;
+	}
+	scheds.add_model_info(comm_ts, comm_tw, comp_info);
+      }
+    }
+
     graph_compiler compile_graph(decomp, initial_vars) ;
     compile_graph.compile(facts,scheds,given,target) ;
     
