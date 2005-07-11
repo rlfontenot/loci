@@ -418,16 +418,15 @@ namespace Loci {
       request -= my_entities ;
       scheds.variable_request(rename_var,request) ;
 
+      //Find duplication of variables that are associtated with 
+      //rules that compute tvars
+      if(duplicate_work)
+	set_duplication_of_variables(tvars, scheds, facts);
 
       list<comm_info> request_comm ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
       request_comm = barrier_process_rule_requests(recurse_vars, facts, scheds) ;
       clist = sort_comm(request_comm,facts) ;
-
-      //Find duplication of variables that are associtated with 
-      //rules that compute tvars
-      if(duplicate_work)
-	set_duplication_of_variables(tvars, scheds);
     }
   }
 
