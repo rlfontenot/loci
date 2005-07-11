@@ -519,12 +519,25 @@ namespace Loci {
         }
         return fmi->second ;
       }
+      int query_name(std::string &name) {
+	std::map<std::string,int>::iterator fmi ;
+	if((fmi = fmap.find(name)) == fmap.end()) {
+	  fmi = fmap.find("NO_RULE");
+	}
+
+	return fmi->second;
+      }
       const info &get_info(int id) const { return fiv[-(id+1)] ; }
     } ;
     
     static rule_db *rdb ;
     int id ;
-    void create_rdb() {if(0==rdb) rdb = new rule::rule_db ; }
+    void create_rdb() {
+      if(0==rdb) { 
+	rdb = new rule::rule_db ;
+	rule();
+      }
+    }
   protected:
     rule(const rule::info& ri)
       { create_rdb(); id = rdb->get_id(ri) ; }
@@ -562,7 +575,9 @@ namespace Loci {
       s << std::string( (pos==name.end()?name.begin():pos+1),name.end()) ;
       return s ;
     }
-    
+
+    static rule get_rule_by_name(std::string &name);
+        
     bool operator<(const rule &f) const { return id < f.id ; }
     bool operator==(const rule &f) const { return id == f.id ; }
     bool operator!=(const rule &f) const { return id != f.id ; }
@@ -734,17 +749,15 @@ namespace Loci {
     typedef std::map<std::string,rule> rule_map_type ;
       
     static const ruleSet EMPTY_RULE ;
-
     ruleSet known_rules ;
     // rules set for default and optional rules
     ruleSet default_rules ;
     ruleSet optional_rules ;
 
-    rule_map_type name2rule ;
     varmap srcs2rule,trgt2rule ;
+    rule_map_type name2rule ;
 
   public:
-      
     void add_rule(const rule_implP &fp) ;
     void add_rule(rule f) ;
     void add_rules(rule_impl_list &gfl) ;
@@ -752,6 +765,7 @@ namespace Loci {
     rule_implP get_rule(const std::string &name) {
       return name2rule[name].get_info().rule_impl->new_rule_impl() ;
     }
+    
     const ruleSet &all_rules() const { return known_rules ; }
     const ruleSet& get_default_rules() const {return default_rules ;}
     const ruleSet& get_optional_rules() const {return optional_rules ;}
