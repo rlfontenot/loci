@@ -204,14 +204,22 @@ namespace Loci {
 	  if(r.get_info().rule_impl->thread_rule()  
 	     && r.targets().begin()->get_info().name != "OUTPUT") {
 	    if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE) { 
-	      if(pointwise_duplication)
-		scheds.add_policy(*vi, sched_db::ALWAYS);
+	      if(pointwise_duplication) {
+		if(!use_duplicate_model)
+		  scheds.add_policy(*vi, sched_db::ALWAYS);
+		else
+		  scheds.add_policy(*vi, sched_db::MODEL_BASED);
+	      }
 	      else
 		scheds.add_policy(*vi, sched_db::NEVER);
 	    }
 	    else if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
-	      if(reduction_duplication && facts.get_variable(*vi)->RepType() != Loci::PARAMETER)
-		scheds.add_policy(*vi, sched_db::ALWAYS);
+	      if(reduction_duplication && facts.get_variable(*vi)->RepType() != Loci::PARAMETER){
+		if(!use_duplicate_model) 
+		  scheds.add_policy(*vi, sched_db::ALWAYS);
+		else
+		  scheds.add_policy(*vi, sched_db::MODEL_BASED);
+	      }
 	      else
 		scheds.add_policy(*vi, sched_db::NEVER);
 	    }
@@ -246,9 +254,15 @@ namespace Loci {
     }
   }
   
-  
+  //is_request_modification_allowed flag defines if the function is allowed
+  //to add more requests for a variable.
+  //Flag should be false if we are just interested in finding context for a rule
+  //for given requests without modifying requests in the sched_db.
+  //Mainly, this flag is useful with work duplication with a model
+  //to precalculate the execution time to make decision of variable duplication.
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
-                                 fact_db &facts, sched_db &scheds) {
+                                 fact_db &facts, sched_db &scheds, 
+				 bool is_request_modification_allowed) {
     // Here we will compute the context implied by a particular target
     // mapping
     variableSet::const_iterator vi ;
@@ -266,8 +280,10 @@ namespace Loci {
     // variable that a map applies to, then they will request their
     // union.  e.g. for a->(b,c) we make sure that b and c both have
     // the same requests.
-    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
-      scheds.variable_request(*vi,targets) ;
+    if(is_request_modification_allowed){
+      for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
+	scheds.variable_request(*vi,targets) ;
+      }
     }
     
     // Now we are applying the mapping that is applied to the target
@@ -326,8 +342,8 @@ namespace Loci {
     // We use the tvarmap to record the requests for target variables
     // Here we are filling in the requests.
     vdefmap tvarmap ;
-    // Loop over target variables and get requests from fact database
     
+    // Loop over target variables and get requests from fact database
     // Here we compute the context of the rule.  This is the union of all of
     // the requests for the variables that this rule produces
     set<vmap_info>::const_iterator si ;
@@ -351,17 +367,16 @@ namespace Loci {
       
       // Now fill tvarmap with the requested values for variable *vi
       tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
-      
       if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT)
 	tvarmap[*vi] += scheds.get_extra_unit_request(*vi);
-      
       if(duplicate_work) {
-	if(scheds.is_duplicate_variable(*vi))
+	if(scheds.is_duplicate_variable(*vi)) 	
 	  tvarmap[*vi] = scheds.get_proc_able_entities(*vi, r) & tvarmap[*vi];
 	else
 	  tvarmap[*vi] = scheds.get_my_proc_able_entities(*vi, r) & tvarmap[*vi];
       }
     }
+    
     const rule_impl::info &rinfo = r.get_info().desc ;
     bool mapping_in_output = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
@@ -391,75 +406,70 @@ namespace Loci {
       }
       for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
         constraints &= vmap_source_exist(*si,facts, scheds) ;
-
+      
       sources &= constraints ;
       context &= sources ;
       isect &= sources ;
     }
-     // Unit rules need to apply in the clone region as well, so
-     // here we make an exception for unit rules.  (this is because
-     // we will be reducing to the clone region and then communicating
-     // partial results.
+    
+    // Unit rules need to apply in the clone region as well, so
+    // here we make an exception for unit rules.  (this is because
+    // we will be reducing to the clone region and then communicating
+    // partial results.
     if(!duplicate_work) {
       if(r.get_info().rule_impl->get_rule_class() != rule_impl::UNIT) {
 	context &= filter ;
       }
     }
-     // If the interstection and the union are not equal, then we are in
-     // danger of not properly allocating variables for computations.  It is
-     // an optimization to check this. For the distributed memory version it
-     // may be useful to always do this if there is a mapping in the
-     // targets of the rule.
-     if(isect != context) {
-       entitySet working = context ;
-       vector<variableSet>::const_reverse_iterator mi ;
-       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-         for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
-           entitySet tmp ;
-           for(vi=mi->begin();vi!=mi->end();++vi)
-             tmp |= scheds.image(*vi,working) ;
-           working = tmp ;
-         }
-         for(vi=si->var.begin();vi!=si->var.end();++vi) {
-           scheds.variable_request(*vi,working) ;
-         }
-       }
-     }
-
-     entitySet working = context ;      
-
-     // Loop over all sources for this rule and pass on the requests.
-     
-     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
-       // First map the context through source mappings
-       entitySet requests;
-       requests = vmap_source_requests(*si,facts,context, scheds) ;
-       entitySet var ;
-       
-       // Now we have the actual requests we are making of other rules
-       // so we can tell the fact database that we are now requesting
-       // these values.
+    
+    // If the interstection and the union are not equal, then we are in
+    // danger of not properly allocating variables for computations.  It is
+    // an optimization to check this. For the distributed memory version it
+    // may be useful to always do this if there is a mapping in the
+    // targets of the rule.
+    if(isect != context) {
+      entitySet working = context ;
+      vector<variableSet>::const_reverse_iterator mi ;
+      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+	for(mi=si->mapping.rbegin();mi!=si->mapping.rend();++mi) {
+	  entitySet tmp ;
+	  for(vi=mi->begin();vi!=mi->end();++vi)
+	    tmp |= scheds.image(*vi,working) ;
+	  working = tmp ;
+	}
+	for(vi=si->var.begin();vi!=si->var.end();++vi) 
+	  scheds.variable_request(*vi,working) ;
+      }
+    }
+    
+    // Loop over all sources for this rule and pass on the requests.
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+      // First map the context through source mappings
+      entitySet requests;
+      requests = vmap_source_requests(*si,facts,context, scheds) ;
+      entitySet var ;
+      
+      // Now we have the actual requests we are making of other rules
+      // so we can tell the fact database that we are now requesting
+      // these values.
 #ifdef VERBOSE
-       debugout << "local pruning : rule " << r << " requesting variables "
-		<< si->var << " for entities " << requests << endl << endl << endl  ;
+      debugout << "local pruning : rule " << r << " requesting variables "
+	       << si->var << " for entities " << requests << endl << endl << endl  ;
 #endif
-       for(vi=si->var.begin();vi!=si->var.end();++vi) {
-         scheds.variable_request(*vi,requests) ;
-       }
-       
-       // We also need to pass the requests on to any conditional variables
-       // this rule may have.
-       
-       for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi) 
-         scheds.variable_request(*vi,context) ;
-     }
+      for(vi=si->var.begin();vi!=si->var.end();++vi)
+	scheds.variable_request(*vi,requests) ;
+      
+      // We also need to pass the requests on to any conditional variables
+      // this rule may have.
+      for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi) 
+	scheds.variable_request(*vi,context) ;
+    }
 #ifdef VERBOSE
-     debugout << "rule " << r << " computes over " << context << endl ;
+    debugout << "rule " << r << " computes over " << context << endl ;
 #endif
-
-     return context ;
+    return context ;
   }
-
+  
   ////////////////////////////////////////////////////////////////////
   // function version of apply_compiler::set_var_existence
   // used inside the chomp compiler
@@ -556,14 +566,14 @@ namespace Loci {
   // used inside the chomp compiler
   ////////////////////////////////////////////////////////////////////
   entitySet process_applyrule_requests(rule apply, rule unit_tag, bool &output_mapping, fact_db &facts, sched_db &scheds) {
-    
+
 #ifdef VERBOSE
     debugout << "in process_applyrule_requests" << endl ;
 #endif 
     vdefmap tvarmap ;
+    
     variableSet targets = apply.targets() ;
     variableSet sources = apply.sources() ;
-    
     FATAL(targets.size() != 1) ;
     variable tvar = *(targets.begin()) ;
     
@@ -571,7 +581,7 @@ namespace Loci {
       tvarmap[tvar] = scheds.variable_existence(tvar) ;
     else
       tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
-
+    
     entitySet filter = ~EMPTY;
     entitySet reduce_filter = ~EMPTY;
     if(facts.isDistributed()) {
@@ -580,18 +590,10 @@ namespace Loci {
       if(multilevel_duplication)
 	reduce_filter = d->comp_entities;
       else
-	reduce_filter = d-> my_entities;
+	reduce_filter = d->my_entities;
     }
 
-    const rule_impl::info &rinfo = apply.get_info().desc ;
-    set<vmap_info>::const_iterator si ;
-    entitySet compute ;
-    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-      compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
-    }
-
-    entitySet comp_compute;
-    if(duplicate_work) {
+    if(duplicate_work && scheds.is_duplicate_variable(tvar)) {
       //If mapping in output, we will only compute entities which can be
       //definitely computed successfully on a processor
       if(scheds.is_reduction_outputmap(tvar)) 
@@ -599,34 +601,31 @@ namespace Loci {
       //If we have no mapping in output we will be able to compute more entities
       else
 	tvarmap[tvar] &= (reduce_filter + scheds.get_reduce_proc_able_entities(tvar));
-      for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
-	comp_compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
-      }
     }
-    compute &= filter;
+
+    const rule_impl::info &rinfo = apply.get_info().desc ;
+    set<vmap_info>::const_iterator si ;
+    entitySet compute ;
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) 
+      compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
+
+    if(!duplicate_work || !scheds.is_duplicate_variable(tvar))
+      compute &= filter;
 
     entitySet cnstrnts = ~EMPTY ;
 
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
       cnstrnts &= vmap_source_exist(*si,facts, scheds) ;
 
-    entitySet comp_constraints;
-    if(duplicate_work)
-      comp_constraints = cnstrnts;
-    cnstrnts &= filter;
+    if(!duplicate_work || !scheds.is_duplicate_variable(tvar))
+      cnstrnts &= filter;
 
     compute &= cnstrnts ;
-    if(duplicate_work)
-      comp_compute &= comp_constraints;
-    
+
     output_mapping = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end(); ++si) {
       variableSet::const_iterator vi ;
-      entitySet comp;
-      if(!duplicate_work || !scheds.is_duplicate_variable(tvar))
-	comp = compute ;
-      else
-	comp = comp_compute ;
+      entitySet comp = compute;
       vector<variableSet>::const_iterator mi ;
       for(mi=si->mapping.begin();mi!=si->mapping.end();++mi) {
         output_mapping = true ;
@@ -658,24 +657,22 @@ namespace Loci {
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       srcs &= vmap_source_exist(*si,facts, scheds) ;
 
-    entitySet comp_srcs;
-    if(duplicate_work)
-      comp_srcs = srcs;
-    srcs &= filter;
+    if(!duplicate_work || !scheds.is_duplicate_variable(tvar))
+      srcs &= filter;
     
     if(rinfo.constraints.begin() != rinfo.constraints.end())
-      if((srcs & cnstrnts) != cnstrnts) {
+      if((srcs & cnstrnts & filter) != (cnstrnts & filter)) {
         if(MPI_processes == 1) {
           cerr << "Warning, reduction rule:" << apply
                << "cannot supply all entities of constraint" << endl ;
-          cerr << "constraints = " <<cnstrnts << endl ;
-          entitySet sac = srcs & cnstrnts ;
+          cerr << "constraints = " << (cnstrnts&filter) << endl ;
+          entitySet sac = srcs & cnstrnts & filter ;
           cerr << "srcs & constraints = " << sac << endl ;
         } else {
           debugout << "Warning, reduction rule:" << apply
                    << "cannot supply all entities of constraint" << endl ;
-          debugout << "constraints = " <<cnstrnts << endl ;
-          entitySet sac = srcs & cnstrnts ;
+          debugout << "constraints = " << (cnstrnts&filter) << endl ;
+          entitySet sac = srcs & cnstrnts & filter; ;
           debugout << "srcs & constraints = " << sac << endl ;
         }
         scheds.set_error();
@@ -683,20 +680,20 @@ namespace Loci {
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
           entitySet sources = vmap_source_exist(*si,facts, scheds) ;
           sources &= filter;
-          if((sources & cnstrnts) != cnstrnts) {
+          if((sources & cnstrnts & filter) != (cnstrnts&filter)) {
             if(MPI_processes == 1) 
               cerr << "sources & constraints != constraints for input"
                    << endl
-                   << sources  << " -- " << *si << endl ;
+                   << (sources & filter) << " -- " << *si << endl ;
             else 
               debugout << "sources & constraints != constraints for input"
                    << endl
-                   << sources  << " -- " << *si << endl ;
+                   << (sources & filter) << " -- " << *si << endl ;
 
             scheds.set_error() ;
             
             if(si->mapping.size() > 0) {
-              entitySet working = cnstrnts ;
+              entitySet working = cnstrnts & filter;
               for(size_t i=0;i<si->mapping.size();++i) {
                 entitySet images ;
                 variableSet::const_iterator vi ;
@@ -721,19 +718,13 @@ namespace Loci {
         }
       }
     srcs &= cnstrnts ;
-    if(duplicate_work)
-      comp_srcs &= comp_constraints;
+
     // now trim compute to what can be computed.
     compute &= srcs ;
-    if(duplicate_work)
-      comp_compute &= comp_srcs;
-    
+
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       entitySet requests;
-      if(!duplicate_work || !scheds.is_duplicate_variable(tvar)) 
-	requests = vmap_source_requests(*si,facts,compute, scheds) ;
-      else
-	requests = vmap_source_requests(*si,facts,comp_compute, scheds) ;
+      requests = vmap_source_requests(*si,facts,compute, scheds) ;
       variableSet::const_iterator vi ;
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
         variable v = *vi ;
@@ -748,14 +739,9 @@ namespace Loci {
 #endif
       }
     }
-    
-    if(!duplicate_work || !scheds.is_duplicate_variable(tvar)) 
-      return compute ;
-    else
-      return comp_compute;
+    return compute ;
   }
 
-  
   /* This routine, in addition to sending the entities that are not
      owned by a particular processor,  information is stored for
      performing this communication during the execution of the
@@ -1161,23 +1147,9 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   barrier_process_rule_requests(variableSet vars, fact_db &facts, sched_db &scheds) {
     list<comm_info> clist ;
     entitySet reduce_filter = ~EMPTY ; 
-
-    if(duplicate_work) {
-      if(facts.isDistributed()) {
-	fact_db::distribute_infoP d = facts.get_distribute_info() ;
-	if(multilevel_duplication)
-	  //Because we are calling context_for_map_output multiple times, 
-	  //we have made sure that we have full preimage of any output map
-	  //for comp_entites.
-	  //That means comp entities can be successfully computed for 
-	  //any reduction rule
-	  reduce_filter = d->comp_entities ;
-	else
-	  //Otherwise we can gurantee successful computation of only my_entities 
-	  //for reduction rules 
-	  reduce_filter = d->my_entities ;
-      }
-    }
+    fact_db::distribute_infoP d;
+    if(facts.isDistributed())
+      d = facts.get_distribute_info() ;
 
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       variable v = *vi ;
@@ -1186,68 +1158,31 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	//Find information for reduction variables
 	ruleSet r = scheds.get_existential_rules(v);
 	bool reduction = false;
-	bool outputmap = false;
 	
-	entitySet reduce_proc_able_entities = ~EMPTY;
 	for(ruleSet::const_iterator ri = r.begin();
-	    ri != r.end(); ri++) {
-	  if(rule_has_mapping_in_output(*ri))
-	    outputmap = true;
-	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT){
+	    ri != r.end(); ri++)
+	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT)
 	    reduction = true;
-	    reduce_proc_able_entities &= scheds.get_proc_able_entities(v, *ri);
-	  }
-	}
-	entitySet tmpSet;
-	if(outputmap)
-	  tmpSet = ~EMPTY;
-	else
-	  tmpSet = EMPTY;
-
-	//if mapping in output, reduce_proc_able_entities are based on minimal approach
-	//which finds intersection entities that can be computed by 
-	//all apply and unit rules
-	//if no mapping in output then, then it is union of entities produced by rules
-	for(ruleSet::const_iterator ri = r.begin();
-	    ri != r.end(); ri++) {
-	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
-	    if(!outputmap)
-	      tmpSet |= scheds.get_proc_able_entities(v, *ri);
-	    else
-	      tmpSet &= scheds.get_proc_able_entities(v, *ri);
-	  }
-	}
-
-	reduce_proc_able_entities &= tmpSet;
 	
 	//Minimize apropriate requests
-	for(ruleSet::const_iterator ri = r.begin();
-	    ri != r.end(); ri++) {
-	  if(scheds.is_duplicate_variable(v)) { 
-	    if(!reduction) {
+	if(scheds.is_duplicate_variable(v)) { 
+	  if(!reduction) {
+	    for(ruleSet::const_iterator ri = r.begin();
+		ri != r.end(); ri++) {
 	      requests -= scheds.get_proc_able_entities(v, *ri);
 	    }
-	    else {
-	      //If mapping in output, we may not be able compute entities 
-	      //outside reduce_filter successfully 
-	      if(outputmap)
-		reduce_proc_able_entities &= reduce_filter;
-	      
-	      //We do not need to request entities to the owner if
-	      //those entities can be definitely computed on this processor 
-	      requests -= reduce_proc_able_entities;
-	    }
 	  }
-	}
-
-	//Information needed for later use in apply_compiler
-	if(reduction){
-	  scheds.set_reduce_proc_able_entities(v, reduce_proc_able_entities);
-	  scheds.set_reduction_outputmap(v, outputmap);
-	}
+	  else {
+	    //We do not need to request entities to the owner if
+	    //those entities can be definitely computed on this processor 
+	    requests -= scheds.get_reduce_proc_able_entities(v);
+	  }
+	}	
       }
-      requests += send_requests(requests, v, facts, clist ) ;
 
+      entitySet recv_requests = send_requests(requests, v, facts, clist ) ;
+      requests += recv_requests;
+      
       //Since entities are guranteed to being computed on owner processor,
       //no need to request them on the other processors
       if(duplicate_work) {
@@ -1720,19 +1655,16 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       send_entities = barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
     }
   }
-  
+
   void barrier_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
-
-      //Find out which entities are to be sent on owner processor
-      //based on duplication policies
-      //Find out which variables are duplicate variables
       if(duplicate_work) {
-	send_entities.resize(0);
-	send_entities = send_ent_for_plist(barrier_vars, facts, scheds);
+	//Find out which variables are duplicate variables
+	set_duplication_of_variables(barrier_vars, scheds, facts);
       }
+
       list<comm_info> request_comm ;
       /* The list<comm_info> returned by the
 	 barrier_process_rule_requests contains the communication
@@ -1741,12 +1673,20 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       clist = request_comm ;
       clist = sort_comm(request_comm,facts) ;
       
-      for(vi=send_entities.begin();vi!=send_entities.end();++vi) {
-        variable v = vi->first ;
-        entitySet send_set = vi->second ;
-        send_requested.push_back(make_pair(v,send_set &
-                                           scheds.get_variable_requests(v))) ;
+      //Find out which entities are to be sent on owner processor
+      //based on duplication policies
+      if(!duplicate_work) {
+	for(vi=send_entities.begin();vi!=send_entities.end();++vi) {
+	  variable v = vi->first ;
+	  entitySet send_set = vi->second ;
+	  send_requested.push_back(make_pair(v,send_set &
+					     scheds.get_variable_requests(v))) ;
+	}
       }
+      else {
+	send_requested = send_ent_for_plist(barrier_vars, facts, scheds);
+      }
+      
       /*The put_precomm_info is used in case there is a mapping in the 
 	output for any of the rules. */
       plist = put_precomm_info(send_requested, facts) ;
@@ -1769,8 +1709,6 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   void execute_msg::execute(fact_db &facts) {  }
   
   void execute_msg::Print(std::ostream &s) const { s << msg << endl ; }
-  
-  
   
   void singleton_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed())
@@ -2018,7 +1956,6 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   //Also defines which variables are duplicate variables.
   std::vector<std::pair<variable,entitySet> >
   send_ent_for_plist(variableSet vlst, fact_db &facts, sched_db &scheds) {
-    
     vector<pair<variable,entitySet> > send_entities ;
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     vector<entitySet> exinfo ;
@@ -2043,35 +1980,260 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
     }
     
-    set_duplication_of_variables(vlst, scheds);
-    
     map<variable,entitySet> vmap ;
     for(size_t i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
       entitySet send_ents;
       if(!scheds.is_duplicate_variable(v))
 	send_ents = exinfo[i] - d->my_entities;
+
       vmap[v] += send_ents ;
     }
 
     for(map<variable,entitySet>::const_iterator mi = vmap.begin(); 
 	mi != vmap.end(); mi++) 
-      send_entities.push_back(make_pair(mi->first,mi->second ));
-    
+      send_entities.push_back(make_pair(mi->first,mi->second & scheds.get_variable_requests(mi->first)));
     return send_entities;
+  }
+
+  entitySet sending_comm_processors(entitySet sendSet, fact_db &facts) {
+    entitySet send_procs;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info(); 
+      for(unsigned int i = 0; i < d->copy.size(); i++) {
+	if((d->copy[i].entities & sendSet) != EMPTY)
+	  send_procs += d->copy[i].proc;
+      }
+    }
+    return send_procs;
   }
 
   //Based on the policy selected for a variable, 
   //it sets the duplication 
-  void process_policy_duplication(variable v, sched_db &scheds) {
-    if(!scheds.is_policy(v, sched_db::NEVER)) 
-      if(scheds.is_policy(v, sched_db::ALWAYS)) 
+  void process_policy_duplication(variable v, sched_db &scheds, fact_db &facts) {
+    if(!scheds.is_policy(v, sched_db::NEVER)) {
+      if(scheds.is_policy(v, sched_db::ALWAYS)) {
 	scheds.set_duplicate_variable(v, true);
+      }
+      else if(scheds.is_policy(v, sched_db::MODEL_BASED)){
+	double original_comm_time = 0, duplication_comm_time = 0;
+	double original_comp_time = 0, duplication_comp_time = 0;
+	
+	fact_db::distribute_infoP d = facts.get_distribute_info();
+	ruleSet r = scheds.get_existential_rules(v);
+	bool reduction = false;
+	for(ruleSet::const_iterator ri = r.begin();
+	    ri != r.end(); ri++)
+	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) 
+	    reduction = true;
+	
+	entitySet initial_requests = scheds.get_variable_requests(v);
+	entitySet proc_able;
+	entitySet my_proc_able;
+	entitySet shadow;
+	if(!reduction) {
+	  for(ruleSet::const_iterator ri = r.begin();
+	      ri != r.end(); ri++) {
+	    proc_able += scheds.get_proc_able_entities(v, *ri);
+	    my_proc_able += scheds.get_my_proc_able_entities(v, *ri);
+	  }
+	}
+	else {
+	  proc_able += scheds.get_reduce_proc_able_entities(v);
+	  shadow += scheds.get_variable_shadow(v);
+	}
+ 
+	entitySet original_clist_entities = initial_requests - d->my_entities;
+	entitySet duplication_clist_entities = (initial_requests - d->my_entities) - proc_able;
+	entitySet original_clist_procs = sending_comm_processors(original_clist_entities, facts);
+		
+	entitySet duplication_clist_procs = sending_comm_processors(duplication_clist_entities, facts);
+	vector<entitySet> temp = send_entitySetv(original_clist_entities, facts);
+	for(int i = 0; i < Loci::MPI_processes; i++) {
+	  if(temp[i].size() > 0) {
+	    original_clist_procs += i;
+	    original_clist_entities += temp[i];
+	  }
+	}
+
+	temp = send_entitySetv(duplication_clist_entities, facts);
+	for(int i = 0; i < Loci::MPI_processes; i++) {
+	  if(temp[i].size() > 0) {
+	    duplication_clist_procs += i;
+	    duplication_clist_entities += temp[i];
+	  }
+	}
+	
+	storeRepP vRep = facts.get_variable(v);
+	double original_clist_comm = 0, duplication_clist_comm = 0;
+	if(original_clist_entities != EMPTY) {
+ 	  int size = vRep->pack_size(original_clist_entities);
+ 	  original_clist_comm = (scheds.get_comm_model().ts*original_clist_procs.size()) +
+	    scheds.get_comm_model().tw*size;
+ 	}
+
+	if(duplication_clist_entities != EMPTY) {
+ 	  int size = vRep->pack_size(duplication_clist_entities);
+ 	  duplication_clist_comm = (scheds.get_comm_model().ts*duplication_clist_procs.size()) +
+	    scheds.get_comm_model().tw*size;
+ 	}
+
+	entitySet recv_requests = send_entitySet(initial_requests , facts);
+	entitySet requests;
+	requests = initial_requests + recv_requests;
+	requests += fill_entitySet(requests, facts);
+
+	entitySet original_plist_entities;
+	if(!reduction)
+	  original_plist_entities = (requests - d->my_entities) & my_proc_able;
+	else
+	  original_plist_entities = (requests - d->my_entities) & shadow;
+
+	entitySet original_plist_procs = sending_comm_processors(original_plist_entities, facts);
+	
+	temp = send_entitySetv(original_plist_entities, facts);
+	for(int i = 0; i < Loci::MPI_processes; i++) {
+	  if(temp[i].size() > 0) {
+	    original_plist_procs += i;
+	    original_plist_entities += temp[i];
+	  }
+	}
+
+	double original_plist_comm = 0;
+	if(original_plist_entities != EMPTY) {
+	  int size = vRep->pack_size(original_plist_entities);
+	  original_plist_comm = scheds.get_comm_model().ts*original_plist_procs.size() + scheds.get_comm_model().tw*size;
+	}
+
+	if(original_clist_comm > 0)
+	  original_comm_time += original_clist_comm;
+	if(duplication_clist_comm > 0)
+	  duplication_comm_time += duplication_clist_comm;
+	if(original_plist_comm > 0)
+	  original_comm_time += original_plist_comm;
+	    
+ 	for(ruleSet::const_iterator ri = r.begin();
+ 	    ri != r.end(); ri++) {
+	  entitySet original_context;
+	  entitySet comp_context;
+	  vdefmap original_tvarmap;
+	  vdefmap comp_tvarmap;
+	  
+	  if(reduction){
+	    FATAL(ri->targets().size() > 1);
+	    if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
+	      original_tvarmap[v] = (requests & 
+				     scheds.get_my_proc_able_entities(v, *ri));
+	      comp_tvarmap[v] = (initial_requests + duplication_clist_entities)
+		& scheds.get_proc_able_entities(v, *ri);
+	    }
+	    else {
+	      original_tvarmap[v] = requests;
+	      comp_tvarmap[v] = initial_requests + duplication_clist_entities;
+	      entitySet reduce_filter;
+	      if(multilevel_duplication)
+		reduce_filter = d->comp_entities;
+	      else
+		reduce_filter = d->my_entities;
+	      if(scheds.is_reduction_outputmap(v))
+		comp_tvarmap[v] &= reduce_filter;
+	      else
+		comp_tvarmap[v] &= (reduce_filter + scheds.get_reduce_proc_able_entities(v));
+	    }
+	  }
+	  else {
+	    original_tvarmap[v] = requests & scheds.get_my_proc_able_entities(v, *ri);
+	    comp_tvarmap[v] = (initial_requests + duplication_clist_entities)
+	      & scheds.get_proc_able_entities(v, *ri);
+	    
+	  }
+	  
+	  const rule_impl::info &rinfo = ri->get_info().desc ;
+	  bool mapping_in_output = false ;
+	  set<vmap_info>::const_iterator si ;
+	  for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+	    // Transform the variable requests using the mapping constructs
+	    // in *si
+	    //The context is the union
+	    if((si->var).inSet(v)) {
+	      // Check to see if there is mapping in the output
+	      if(si->mapping.size() != 0)
+		mapping_in_output = true ;
+	      
+	      if(si->var.size() > 1) {
+		variableSet::const_iterator vi ;  
+		for(vi = si->var.begin(); vi != si->var.end(); vi++) {
+		  if(*vi != v) {
+		    comp_tvarmap[*vi] = comp_tvarmap[v];
+		    original_tvarmap[*vi] = original_tvarmap[v];
+		  }
+		}
+	      }
+	      original_context |= vmap_target_requests(*si, original_tvarmap,facts, scheds, false) ;
+	      comp_context |= vmap_target_requests(*si,comp_tvarmap,facts, scheds, false) ;
+	    }
+	  }
+	  
+	  if(reduction)
+	    if(ri->get_info().rule_impl->get_rule_class() != rule_impl::UNIT)
+	      original_context &= d->my_entities;
+	  
+	  if(mapping_in_output || (reduction && ri->get_info().rule_impl->get_rule_class() != rule_impl::UNIT)) {
+	    entitySet sources = ~EMPTY ;
+	    entitySet constraints = ~EMPTY ;
+	    set<vmap_info>::const_iterator si ;
+	    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) 
+	      sources &= vmap_source_exist(*si,facts, scheds) ;
+	    
+	    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+	      constraints &= vmap_source_exist(*si,facts, scheds) ;
+	    
+	    sources &= constraints ;
+	    original_context &= sources ;
+	    comp_context &= sources;
+	  }
+	  
+	  double ts, tw;
+	  scheds.get_comp_model(*ri).get_parameters(ts, tw);
+	  if(ts >= scheds.get_comp_model(*ri).INVALID_TS) {
+	    if(original_context.size() > 0) 
+	      original_comp_time += ts + tw*original_context.size(); 
+
+	    if(comp_context.size() > 0) 
+	      duplication_comp_time += ts + tw*comp_context.size();
+	  }
+	  else {
+	    cerr << "rule " << r << " is not in the model."  << endl;
+	  }
+	}
+
+	double time[4];
+	double max_time[4];
+	time[0] = original_comm_time;
+	time[1] = original_comp_time;
+	time[2] = duplication_comm_time;
+	time[3] = duplication_comp_time;
+	
+	MPI_Allreduce(time, max_time, 4, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+	if((max_time[0] + max_time[1]) - (max_time[2] + max_time[3]) 
+	   > -0.000000000000000001)
+	  scheds.set_duplicate_variable(v, true);
+	
+	scheds.add_original_communication_time(v, original_comm_time);
+	scheds.add_original_computation_time(v, original_comp_time);
+	scheds.add_duplication_communication_time(v, duplication_comm_time);
+	scheds.add_duplication_computation_time(v, duplication_comp_time);
+
+      }
+    }
   }
+	
+	
   
   //It considers all variables which are associated with rules that 
   //compute tvars, and figures out if they are duplicate variables
-  void set_duplication_of_variables(variableSet tvars, sched_db &scheds) {
+  void set_duplication_of_variables(variableSet tvars, sched_db &scheds,
+				    fact_db &facts) {
     vector<variable> vars ;
     vector<ruleSet> rules;
     for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {
@@ -2081,42 +2243,38 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       rules.push_back(r);
     }
     
-    variableSet possible_duplicate_vars;
+    variableSet current_possible_duplicate_vars, future_possible_duplicate_vars;
+    current_possible_duplicate_vars += tvars & scheds.get_possible_duplicate_vars();
     //First add variables that have mapping in input or output
     for(size_t i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
 	if(rule_has_mapping_in_output(*rsi)) {
-          possible_duplicate_vars += v;
+          current_possible_duplicate_vars += v;
         }
-        possible_duplicate_vars += input_variables_with_mapping(*rsi);
+        current_possible_duplicate_vars += tvars & (input_variables_with_mapping(*rsi));
+	future_possible_duplicate_vars += input_variables_with_mapping(*rsi) - tvars;
       }
     }
 
-    //First figure out duplication of variables that have mapping
-    //in input or output
-    for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
-	vi != possible_duplicate_vars.end(); vi++) {
-      process_policy_duplication(*vi, scheds);
+    //Figure out duplication of variables which are subset of tvars
+    for(variableSet::const_iterator vi = current_possible_duplicate_vars.begin();
+	vi != current_possible_duplicate_vars.end(); vi++) {
+      process_policy_duplication(*vi, scheds, facts);
     }
 
     //Now if target variable is duplicate variable, add the variables
     //those are in input of the rule which compute that variable
-    possible_duplicate_vars = EMPTY;
     for(size_t i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
       if(scheds.is_duplicate_variable(v))
 	for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi)
-	  possible_duplicate_vars += input_variables(*rsi);
+	  future_possible_duplicate_vars += input_variables(*rsi);
     }
 
-    //Figure out duplication of newly added variables
-    for(variableSet::const_iterator vi = possible_duplicate_vars.begin();
-	vi != possible_duplicate_vars.end(); vi++) {
-      process_policy_duplication(*vi, scheds);
-    }
+    scheds.add_possible_duplicate_vars(future_possible_duplicate_vars);
   }
   
 } // end of namespace Loci
