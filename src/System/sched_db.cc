@@ -12,7 +12,6 @@ using std::list ;
 using std::sort ;
 using std::pair ;
 using std::make_pair ;
-
 #include <Tools/parse.h>
 
 using std::cerr ;
@@ -289,8 +288,10 @@ namespace Loci {
     case ALWAYS:
       temp = temp << 1;
       break;
+    case MODEL_BASED:
+      temp = temp << 2;
+      break;
     }
-
     policy |= temp;
     variableSet synonyms = get_synonyms(v);
     for(variableSet::const_iterator vi = synonyms.begin(); vi != synonyms.end(); vi++)
@@ -300,17 +301,33 @@ namespace Loci {
   bool sched_db::is_policy(variable v, duplicate_policy p) {
     unsigned int policy = get_policy(v);
     unsigned int temp = 1;
-
     switch(p) {
     case NEVER:
       break;
     case ALWAYS:
       temp = temp << 1;
       break;
+    case MODEL_BASED:
+      temp = temp << 2;
+      break;
     }
     return (temp & policy);
   }
 
+  void sched_db::add_model_info(double comm_ts, double comm_tw,
+				const map<rule, pair<double, double> > &comp_info) {
+    comm_model.ts = comm_ts;
+    comm_model.tw = comm_tw;
+    
+    for(map<rule, pair<double, double> >::const_iterator mi = comp_info.begin();
+	mi != comp_info.end(); mi++) {
+      model tmpModel(mi->second.first, mi->second.second);
+      comp_model[mi->first] = tmpModel;
+    }
+  }
+
+  const double sched_db::model::INVALID_TS = -100000;
+  
   std::ostream &sched_db::print_summary(fact_db &facts, std::ostream &s) {
     s << "Summary of Existential deduction:" << endl ;
     std::map<variable,sched_info>::const_iterator mi ;
