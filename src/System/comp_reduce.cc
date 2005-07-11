@@ -610,6 +610,70 @@ namespace Loci {
     }
   }
 
+  //For duplication of work only.
+  //It adds information of reduce_proc_able_entities and reduction_output_map to sched_db.
+  void set_reduction_info(variableSet vars, sched_db &scheds, fact_db &facts) {
+    entitySet reduce_filter = ~EMPTY ; 
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
+    if(multilevel_duplication)
+      //Because we are calling context_for_map_output multiple times, 
+      //we have made sure that we have full preimage of any output map
+      //for comp_entities.
+      //That means comp entities can be successfully computed for 
+      //any reduction rule
+      reduce_filter = d->comp_entities ;
+    else
+      //Otherwise we can gurantee successful computation of only my_entities 
+      //for reduction rules 
+      reduce_filter = d->my_entities ;
+    
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      variable v = *vi ;
+      //Find information for reduction variables
+      ruleSet r = scheds.get_existential_rules(v);
+      bool outputmap = false;
+      
+      entitySet reduce_proc_able_entities = ~EMPTY;
+      for(ruleSet::const_iterator ri = r.begin();
+	  ri != r.end(); ri++) {
+	if(rule_has_mapping_in_output(*ri))
+	  outputmap = true;
+	if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT){
+	  reduce_proc_able_entities &= scheds.get_proc_able_entities(v, *ri);
+	}
+      }
+      entitySet tmpSet;
+      if(outputmap)
+	tmpSet = ~EMPTY;
+      else
+	tmpSet = EMPTY;
+      
+      //if mapping in output, reduce_proc_able_entities are based on minimal approach
+      //which finds intersection entities that can be computed by 
+      //all apply and unit rules
+      //if no mapping in output then, then it is union of entities produced by rules
+      for(ruleSet::const_iterator ri = r.begin();
+	  ri != r.end(); ri++) {
+	if(ri->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
+	  if(!outputmap)
+	    tmpSet |= scheds.get_proc_able_entities(v, *ri);
+	  else
+	    tmpSet &= scheds.get_proc_able_entities(v, *ri);
+	}
+      }
+      
+      reduce_proc_able_entities &= tmpSet;
+      //If mapping in output, we may not be able compute entities 
+      //outside reduce_filter successfully 
+      if(outputmap)
+	reduce_proc_able_entities &= reduce_filter;
+      
+      //Information needed for later use
+      scheds.set_reduce_proc_able_entities(v, reduce_proc_able_entities);
+      scheds.set_reduction_outputmap(v, outputmap);
+    }
+  }
+
   void reduce_store_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
@@ -618,21 +682,21 @@ namespace Loci {
 
       //Find out duplication of variables that are associated with rules
       //that compute reduce variables
-      if(duplicate_work)
-	set_duplication_of_variables(vars, scheds);
+      if(duplicate_work) {
+	set_reduction_info(vars, scheds, facts);
+	set_duplication_of_variables(vars, scheds, facts);
+      }
       list<comm_info> request_comm = barrier_process_rule_requests(vars,facts, scheds) ;
       entitySet requests = scheds.get_variable_requests(reduce_var) ;
       entitySet shadow;
-
-      //shadow should be empty for the variable which is going to be duplicated
-      //otherwise find out shadow that is going to be entities need to be sent
-      //to the owner processor 
-      if(!duplicate_work || !scheds.is_duplicate_variable(reduce_var))
+      //Shadow should be empty for the variable which is going to be duplicated
+      //Shadow is going to be entities need to be sent to the owner processor 
+      if(!duplicate_work || !scheds.is_duplicate_variable(reduce_var)) {
 	shadow = scheds.get_variable_shadow(reduce_var) ;
+	shadow &= requests ;
+      }
 
-      shadow &= requests ;
       list<comm_info> slist ;
-
       //If variable is duplicate variable, we don't need to send request to the 
       //other procesors because owner processor can ablways compute requests
       if(!duplicate_work || !scheds.is_duplicate_variable(reduce_var)) {
@@ -640,6 +704,7 @@ namespace Loci {
 	swap_send_recv(slist) ;
 	rlist = sort_comm(slist,facts) ;
       }
+
       clist = sort_comm(request_comm,facts) ;
       
 #ifdef VERBOSE
