@@ -912,6 +912,93 @@ namespace Loci {
     }
     return re ;
   }
+
+  //Similar to send_entitySet defined above.
+  //Instead of returning set of entities, it returns
+  //vector of entitySet describing exactly which entities 
+  //are received from which processor.
+  vector<entitySet> send_entitySetv(const entitySet& e, fact_db &facts) {
+    vector<entitySet> re(Loci::MPI_processes);
+    if(facts.isDistributed()) {  
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+
+      int **send_buffer = 0 ;
+      int **recv_buffer = 0 ;
+      int *recv_size = 0 ;
+
+      if(d->xmit.size() > 0) {
+        recv_buffer = new int*[d->xmit.size()] ;
+        recv_size = new int[d->xmit.size()] ;
+
+        recv_buffer[0] = new int[d->xmit_total_size] ;
+        recv_size[0] = d->xmit[0].size ;
+
+        for(size_t i=1;i<d->xmit.size();++i) {
+          recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
+          recv_size[i] = d->xmit[i].size ;
+        }
+      }
+      
+      if(d->copy.size() > 0 ) {
+        send_buffer = new int*[d->copy.size()] ;
+        send_buffer[0] = new int[d->copy_total_size] ;
+        for(size_t i=1;i<d->copy.size();++i)
+          send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
+      }
+      Map l2g ;
+      l2g = facts.get_variable("l2g") ;
+
+      MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
+      MPI_Status *status = new MPI_Status[d->xmit.size()] ;
+
+      for(size_t i=0;i<d->xmit.size();++i)
+	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 1,
+                  MPI_COMM_WORLD, &recv_request[i] ) ;  
+
+      /*By intersecting the given entitySet with the clone region
+	entities we can find out which entities are to be sent */
+      for(size_t i=0;i<d->copy.size();++i) {
+        entitySet temp = e & d->copy[i].entities ;
+
+        int j=0 ;
+        for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
+          send_buffer[i][j++] = l2g[*ei] ;
+
+        int send_size = temp.size() ;
+        MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
+                 1,MPI_COMM_WORLD) ;
+      }
+      
+      if(d->xmit.size() > 0) {
+#ifdef DEBUG
+	int err =
+#endif
+          MPI_Waitall(d->xmit.size(), recv_request, status) ;
+	FATAL(err != MPI_SUCCESS) ;
+      }
+      
+      for(size_t i=0;i<d->xmit.size();++i) {
+        int recieved ;
+	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
+        for(int j=0;j<recieved;++j)
+          re[d->xmit[i].proc] += d->g2l[recv_buffer[i][j]] ;
+      }
+
+      if(d->xmit.size() > 0) {
+        delete [] recv_size ;
+        delete [] recv_buffer[0] ;
+        delete [] recv_buffer ;
+      }
+      if(d->copy.size() > 0) {
+        delete [] send_buffer[0] ;
+        delete [] send_buffer ;
+      }
+      delete [] recv_request ;
+      delete [] status ;
+      
+    }
+    return re ;
+  }
   
   vector<entitySet> send_entitySet(const vector<entitySet>& ev,
                                    fact_db &facts) {

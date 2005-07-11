@@ -20,6 +20,7 @@ namespace Loci {
   std::vector<entitySet> fill_entitySet(const std::vector<entitySet>& e,
                                         fact_db &facts) ;
   entitySet send_entitySet(const entitySet& e, fact_db &facts) ;
+  std::vector<entitySet> send_entitySetv(const entitySet& e, fact_db &facts) ;
   std::vector<entitySet> send_entitySet(const std::vector<entitySet>& e,
                                         fact_db &facts) ;
   void metis_facts(fact_db &facts, std::vector<entitySet> &ptn, int num_partitions = 0 );
