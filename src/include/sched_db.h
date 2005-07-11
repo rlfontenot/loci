@@ -67,6 +67,9 @@ namespace Loci {
       entitySet reduce_proc_able_entities; 
 
       bool reduction_outputmap; //If any of the apply or unit rule has mapping in output
+
+      double original_computation_time, duplication_computation_time;
+      double original_communication_time, duplication_communication_time;
       //////////////////////////////////////////////////////////////
 
       sched_info(int ref = -1) {
@@ -75,8 +78,29 @@ namespace Loci {
 	duplicate_variable = false;
 	reduce_proc_able_entities = ~EMPTY;
 	reduction_outputmap = false;
+
+	original_computation_time = 0;
+	duplication_computation_time = 0;
+	original_communication_time = 0;
+	duplication_communication_time = 0;
       }
     } ;
+
+    struct model {
+      double ts, tw;
+      static const double INVALID_TS;
+      model(double t0, double tc) {
+	ts = t0;
+	tw = tc;
+      }
+      model() { ts = INVALID_TS; tw = 0;}
+      void get_parameters(double &t0, double &tc) { t0 = ts; tc = tw; }
+      void set_parameters(double t0, double tc) { ts = t0; tw = tc; }
+    };
+
+    variableSet possible_duplicate_vars;
+    std::map<rule, model> comp_model;
+    model comm_model;
     void register_variable(variable v) ;
   
     variableSet all_vars ;
@@ -95,7 +119,7 @@ namespace Loci {
       return v ;
     }
   public:
-    enum  duplicate_policy{NEVER, ALWAYS};
+    enum  duplicate_policy{NEVER, ALWAYS, MODEL_BASED};
     sched_db() ;
     ~sched_db() ;
     sched_db(fact_db &facts) ;
@@ -217,7 +241,11 @@ namespace Loci {
     
     bool is_duplicate_variable(variable v) { return get_sched_info(v).duplicate_variable; }
     
-    void set_duplicate_variable(variable v, bool p) { get_sched_info(v).duplicate_variable = p; } 
+    void set_duplicate_variable(variable v, bool p) {
+      variableSet synonyms = get_synonyms(v);
+      for(variableSet::const_iterator vi = synonyms.begin(); vi != synonyms.end(); vi++)
+	get_sched_info(*vi).duplicate_variable = p;
+    } 
 
     entitySet get_proc_able_entities(variable v, rule f) {
       sched_info &finfo = get_sched_info(v);
@@ -286,7 +314,67 @@ namespace Loci {
       sched_info &finfo = get_sched_info(v);
       finfo.existence += x;
     }
+    void add_model_info(double comm_ts, double comm_tw, const std::map<rule, std::pair<double, double> > &comp_info);
 
+    void add_original_computation_time(variable v, double add) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.original_computation_time += add;
+    }
+    
+    void add_duplication_computation_time(variable v, double add) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.duplication_computation_time += add;
+    }
+    
+    void add_original_communication_time(variable v, double add) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.original_communication_time += add;
+    }
+
+    void add_duplication_communication_time(variable v, double add) {
+      sched_info &finfo = get_sched_info(v);
+      finfo.duplication_communication_time += add;
+    }
+
+    double get_precalculated_original_computation_time(variable v) {
+      sched_info &finfo = get_sched_info(v);
+      return(finfo.original_computation_time);
+    }
+
+    double get_precalculated_duplication_computation_time(variable v) {
+      sched_info &finfo = get_sched_info(v);
+      return(finfo.duplication_computation_time);
+    }
+
+    double get_precalculated_original_communication_time(variable v) {
+      sched_info &finfo = get_sched_info(v);
+      return(finfo.original_communication_time);
+    }
+
+    double get_precalculated_duplication_communication_time(variable v) {
+      sched_info &finfo = get_sched_info(v);
+      return(finfo.duplication_communication_time);
+    }
+
+    model get_comp_model(rule r) const {
+      std::map<rule, model>::const_iterator mi = comp_model.find(r);
+      if(mi != comp_model.end())
+	return mi->second;
+      else {
+	return model(model::INVALID_TS, 0);
+      }
+    }
+    
+    model get_comm_model() const { return comm_model; }
+
+    variableSet get_possible_duplicate_vars() const { return possible_duplicate_vars; }
+    void add_possible_duplicate_vars(variableSet vars) {
+      for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); vi++) {
+	variableSet synonyms = get_synonyms(*vi);
+	possible_duplicate_vars += synonyms;
+      }
+    }
+    
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
   } ;
 }
