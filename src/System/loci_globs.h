@@ -26,6 +26,8 @@ namespace Loci {
   extern bool collect_timings;
   extern std::ofstream timeout;
   extern double time_duration_to_collect_data;
+  extern bool use_duplicate_model;
+  extern char * model_file;
   /////////////////////////////
 }
 

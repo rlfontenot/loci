@@ -73,6 +73,8 @@ namespace Loci {
   bool pointwise_duplication = false;
   bool collect_timings = false;
   double time_duration_to_collect_data = MPI_Wtick()*20;
+  bool use_duplicate_model = false;
+  char * model_file;
   /////////////////////////////
   
   ofstream debugout ;
@@ -264,6 +266,10 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--collect_timings")){
 	collect_timings = true;
 	i++;
+      } else if(!strcmp((*argv)[i],"--use_duplicate_model")){
+	use_duplicate_model = true;
+	model_file = (*argv)[i+1];
+	i += 2;
       }
       else
         break ;
@@ -278,9 +284,9 @@ namespace Loci {
     if(collect_timings) {
       oss.str("");
       if(MPI_processes == 1)
-	oss << ".timings";
+	oss << "comp_timings";
       else
-	oss << ".timings-"  << MPI_rank ;
+	oss << "comp_timings-"  << MPI_rank ;
       filename = oss.str();
       timeout.open(filename.c_str(), ios::out);
     }
