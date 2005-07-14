@@ -326,8 +326,6 @@ namespace Loci {
     }
   }
 
-  const double sched_db::model::INVALID_TS = -100000;
-  
   std::ostream &sched_db::print_summary(fact_db &facts, std::ostream &s) {
     s << "Summary of Existential deduction:" << endl ;
     std::map<variable,sched_info>::const_iterator mi ;

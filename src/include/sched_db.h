@@ -88,12 +88,12 @@ namespace Loci {
 
     struct model {
       double ts, tw;
-      static const double INVALID_TS;
+      static bool is_valid_val(double val) { return (val > -99999); }
       model(double t0, double tc) {
 	ts = t0;
 	tw = tc;
       }
-      model() { ts = INVALID_TS; tw = 0;}
+      model() { ts = -100000; tw = -100000;}
       void get_parameters(double &t0, double &tc) { t0 = ts; tc = tw; }
       void set_parameters(double t0, double tc) { ts = t0; tw = tc; }
     };
@@ -361,7 +361,7 @@ namespace Loci {
       if(mi != comp_model.end())
 	return mi->second;
       else {
-	return model(model::INVALID_TS, 0);
+	return model(-100000, -100000);
       }
     }
     
