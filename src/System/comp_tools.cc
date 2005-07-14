@@ -2195,18 +2195,33 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  
 	  double ts, tw;
 	  scheds.get_comp_model(*ri).get_parameters(ts, tw);
-	  if(ts >= scheds.get_comp_model(*ri).INVALID_TS) {
-	    if(original_context.size() > 0) 
-	      original_comp_time += ts + tw*original_context.size(); 
-
-	    if(comp_context.size() > 0) 
-	      duplication_comp_time += ts + tw*comp_context.size();
+	  if(scheds.get_comp_model(*ri).is_valid_val(ts)) {
+	    original_comp_time += ts;
+	    duplication_comp_time += ts;
+	    if(scheds.get_comp_model(*ri).is_valid_val(tw)) {
+	      if(original_context.size() > 0) 
+		original_comp_time += tw*original_context.size(); 
+	      
+	      if(comp_context.size() > 0) 
+		duplication_comp_time += tw*comp_context.size();
+	    }
+	    else if(comp_context.size() > 0 || original_context.size() > 0) {
+	      cerr << "Error: rule " << " has model problems." << endl;
+	      cerr << "Value of tw is invalid for a rule." << endl;
+	      cerr << "It may be because no linear regression is performed using data of a previous run" << endl;
+	    }
 	  }
 	  else {
-	    cerr << "rule " << r << " is not in the model."  << endl;
+	    cerr << "Error: rule " << r << " is not in the model."  << endl;
 	  }
 	}
 
+	if(duplication_comp_time < 0)
+	  duplication_comp_time = 0;
+
+	if(duplication_comp_time < 0)
+	  original_comp_time = 0;
+		
 	double time[4];
 	double max_time[4];
 	time[0] = original_comm_time;
@@ -2227,8 +2242,6 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
     }
   }
-	
-	
   
   //It considers all variables which are associated with rules that 
   //compute tvars, and figures out if they are duplicate variables
