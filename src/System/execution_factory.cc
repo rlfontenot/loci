@@ -47,29 +47,7 @@ namespace Loci {
   }
 
   void timed_execute_rule::execute(fact_db &facts) {
-    int count = 0;
-    double et;
-    double st = MPI_Wtime();
-    sequence empty_seq;
-    do{
-      rp->compute(empty_seq);
-      et = MPI_Wtime();
-      count++;
-    }while(et - st < min_time_duration); 
-
-    //rule_tag.PrintName(timeout);
-    timeout << rule_tag.get_info().name();
-    timeout << "\t" << count << "\t" << et-st << "\t";
-    count = 0;
-    st = MPI_Wtime();
-    do{
-      rp->compute(exec_seq);
-      et = MPI_Wtime();
-      count++;
-    }while(et - st < min_time_duration);
-      
-    timeout << exec_seq.size() <<"\t" << count << "\t" << et-st << "\t";
-    
+    rp->compute(exec_seq);
     std::map<variable, std::pair<int, unsigned char *> > storeMap;
     variableSet targets = rule_tag.targets();
     for(variableSet::const_iterator vi = targets.begin(); 
@@ -82,6 +60,46 @@ namespace Loci {
       std::pair<int, unsigned char *> myPair(size, buf);
       storeMap[*vi] = myPair;
     }
+
+    const int num_reps = 5;
+    timeout << rule_tag.get_info().name() << endl;
+
+    sequence empty_seq;
+    double et, st;
+    int count;
+    for(int i = 0; i < num_reps; i++) {
+      st = MPI_Wtime();
+      count = 0;
+      do{
+	rp->compute(empty_seq);
+	et = MPI_Wtime();
+	count++;
+      }while(et - st < min_time_duration); 
+      
+      timeout << count << "\t" << et-st << "\t";
+    }
+
+    timeout << endl;
+    timeout << exec_seq.size() << "\t";
+    for(int i = 0; i < num_reps; i++) {
+      count = 0;
+      st = MPI_Wtime();
+      do{
+	rp->compute(exec_seq);
+	et = MPI_Wtime();
+	count++;
+      }while(et - st < min_time_duration);
+      
+      timeout << count << "\t" << et-st << "\t";
+      for(std::map<variable, std::pair<int, unsigned char*> >::iterator mi = storeMap.begin();
+	  mi != storeMap.end(); mi++) {
+	storeRepP vRep = facts.get_variable(mi->first);
+	int position = 0;
+	vRep->unpack(mi->second.second, position, mi->second.first, vRep->domain());
+      }
+    }
+
+    timeout << endl;
     
     int size_factor[4];
     if(exec_seq.size() <= 100) {
@@ -130,16 +148,27 @@ namespace Loci {
 	  my_seq += exec_seq;
 	}
       }
-      count = 0;
-      st = MPI_Wtime();
-      do{
-	rp->compute(my_seq);
-	et = MPI_Wtime();
-	count++;
-      }while(et - st < min_time_duration);
-      timeout << my_seq.size() <<"\t" << count << "\t" << et-st << "\t";
+      timeout << my_seq.size() << "\t";
+      for(int j = 0; j < num_reps; j++) {
+	count = 0;
+	st = MPI_Wtime();
+	do{
+	  rp->compute(my_seq);
+	  et = MPI_Wtime();
+	  count++;
+	}while(et - st < min_time_duration);
+	timeout << count << "\t" << et-st << "\t";
+	for(std::map<variable, std::pair<int, unsigned char*> >::iterator mi = storeMap.begin();
+	    mi != storeMap.end(); mi++) {
+	  storeRepP vRep = facts.get_variable(mi->first);
+	  int position = 0;
+	  vRep->unpack(mi->second.second, position, mi->second.first, vRep->domain());
+	}
+	
+      }
+      timeout << endl;
     }
-    timeout << endl;
+
     for(std::map<variable, std::pair<int, unsigned char*> >::iterator mi = storeMap.begin();
 	mi != storeMap.end(); mi++) {
       storeRepP vRep = facts.get_variable(mi->first);
