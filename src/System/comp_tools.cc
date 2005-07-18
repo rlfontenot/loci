@@ -2010,10 +2010,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
   //Based on the policy selected for a variable, 
   //it sets the duplication 
-  void process_policy_duplication(variable v, sched_db &scheds, fact_db &facts) {
+  bool process_policy_duplication(variable v, sched_db &scheds, fact_db &facts) {
     if(!scheds.is_policy(v, sched_db::NEVER)) {
       if(scheds.is_policy(v, sched_db::ALWAYS)) {
-	scheds.set_duplicate_variable(v, true);
+	//scheds.set_duplicate_variable(v, true);
+	return true;
       }
       else if(scheds.is_policy(v, sched_db::MODEL_BASED)){
 	double original_comm_time = 0, duplication_comm_time = 0;
@@ -2222,6 +2223,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	if(duplication_comp_time < 0)
 	  original_comp_time = 0;
 		
+	scheds.add_original_communication_time(v, original_comm_time);
+	scheds.add_original_computation_time(v, original_comp_time);
+	scheds.add_duplication_communication_time(v, duplication_comm_time);
+	scheds.add_duplication_computation_time(v, duplication_comp_time);
+
 	double time[4];
 	double max_time[4];
 	time[0] = original_comm_time;
@@ -2232,15 +2238,17 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	MPI_Allreduce(time, max_time, 4, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	if((max_time[0] + max_time[1]) - (max_time[2] + max_time[3]) 
 	   > -0.000000000000000001)
-	  scheds.set_duplicate_variable(v, true);
+	  //scheds.set_duplicate_variable(v, true);
+	  return true;
+	else
+	  return false;
 	
-	scheds.add_original_communication_time(v, original_comm_time);
-	scheds.add_original_computation_time(v, original_comp_time);
-	scheds.add_duplication_communication_time(v, duplication_comm_time);
-	scheds.add_duplication_computation_time(v, duplication_comp_time);
-
       }
+      else 
+	return false;
     }
+    else
+      return false;
   }
   
   //It considers all variables which are associated with rules that 
@@ -2271,12 +2279,19 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
     }
 
+    bool all_true = true;
     //Figure out duplication of variables which are subset of tvars
     for(variableSet::const_iterator vi = current_possible_duplicate_vars.begin();
 	vi != current_possible_duplicate_vars.end(); vi++) {
-      process_policy_duplication(*vi, scheds, facts);
+      if(!process_policy_duplication(*vi, scheds, facts))
+	all_true = false;
     }
-
+    
+    if(all_true) 
+      for(variableSet::const_iterator vi = current_possible_duplicate_vars.begin();
+	  vi != current_possible_duplicate_vars.end(); vi++)
+	scheds.set_duplicate_variable(*vi, true);
+    
     //Now if target variable is duplicate variable, add the variables
     //those are in input of the rule which compute that variable
     for(size_t i=0;i<vars.size();++i) {
