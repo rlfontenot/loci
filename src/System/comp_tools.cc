@@ -2242,7 +2242,6 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  return true;
 	else
 	  return false;
-	
       }
       else 
 	return false;
@@ -2279,19 +2278,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
     }
 
-    bool all_true = true;
     //Figure out duplication of variables which are subset of tvars
     for(variableSet::const_iterator vi = current_possible_duplicate_vars.begin();
-	vi != current_possible_duplicate_vars.end(); vi++) {
-      if(!process_policy_duplication(*vi, scheds, facts))
-	all_true = false;
-    }
-    
-    if(all_true) 
-      for(variableSet::const_iterator vi = current_possible_duplicate_vars.begin();
-	  vi != current_possible_duplicate_vars.end(); vi++)
-	scheds.set_duplicate_variable(*vi, true);
-    
+	vi != current_possible_duplicate_vars.end(); vi++)
+      scheds.set_duplicate_variable(*vi, process_policy_duplication(*vi, scheds, facts));     
+
     //Now if target variable is duplicate variable, add the variables
     //those are in input of the rule which compute that variable
     for(size_t i=0;i<vars.size();++i) {
