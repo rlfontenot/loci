@@ -38,6 +38,7 @@ namespace Loci {
   bool rule_has_mapping_in_output(rule r);
   variableSet input_variables_with_mapping(rule r);
   variableSet input_variables(rule r);
+  bool process_policy_duplication(variable v, sched_db &scheds, fact_db &facts);
   void set_duplication_of_variables(variableSet vlst, sched_db &scheds, fact_db &facts);
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) ;
   entitySet vmap_target_exist(const vmap_info &vmi, fact_db &facts,
@@ -490,6 +491,7 @@ namespace Loci {
     std::vector<std::pair<rule,rule_compilerP> > chomp_comp ;
     std::deque<entitySet> rule_seq ;
     std::map<rule,rule> apply2unit ;
+    std::vector<variableSet> barrier_sets;
   public:
     chomp_compiler(const digraph& cgraph,const variableSet& cvars,
                    const std::map<rule,rule>& a2u) ;
