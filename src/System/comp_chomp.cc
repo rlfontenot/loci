@@ -1,13 +1,14 @@
 #include "dist_tools.h" // for use of Loci::debugout
 #include "comp_tools.h"
 #include "visitorabs.h"
+#include "loci_globs.h"
 #include <vector>
 using std::vector ;
 #include <deque>
 using std::deque ;
 #include <map>
 using std::map ;
-
+using std::set;
 #include <malloc.h>
 
 #ifdef LINUX
@@ -213,10 +214,12 @@ namespace Loci {
   chomp_compiler::chomp_compiler(const digraph& cgraph,
                                  const variableSet& cvars,
                                  const map<rule,rule>& a2u)
-    :chomp_graph(cgraph),chomp_vars(cvars),apply2unit(a2u) {}
+    :chomp_graph(cgraph),chomp_vars(cvars),apply2unit(a2u) {
+  }
 
   void chomp_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
     vector<pair<rule,rule_compilerP> >::iterator i ;
+    variableSet tvars;
     for(i=chomp_comp.begin();i!=chomp_comp.end();++i) {
       rule r = i->first ;
       rule_compilerP bc = i->second ;
@@ -226,15 +229,103 @@ namespace Loci {
           bc->set_var_existence(facts,scheds) ;
           continue ;
         }
-      
+
       if(r.get_info().rule_impl->get_rule_class() != rule_impl::APPLY)
         existential_rule_analysis(r,facts,scheds) ;
       else
         existential_applyrule_analysis(r,facts,scheds) ;
+
+      if(duplicate_work) {
+	const rule_impl::info &rinfo = r.get_info().desc;
+	set<vmap_info>::const_iterator si ;
+	for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+	  tvars += si->var;
+	}
+      }
+    }
+
+    if(duplicate_work) {
+      variableSet all_barrier_vars;
+      for(unsigned int i = 0; i < barrier_sets.size(); i++) 
+	all_barrier_vars += barrier_sets[i];
+
+      //If work duplication is selected then making sure that model based approach
+      //is not used inside chomp compiler.
+      //Mainly because all variables in chomp chain should be consistent because
+      //there is no communication allowed inside the chain.
+      for(variableSet::const_iterator vi = all_barrier_vars.begin();
+	  vi != all_barrier_vars.end(); vi++)
+	scheds.add_policy(*vi, sched_db::ALWAYS);
+   
+      tvars -= all_barrier_vars;
+      barrier_sets.push_back(tvars);
+      all_barrier_vars += tvars;
+
+      //To find which are variables to connected through rules
+      //Each element of vector represent a set of variables which are connected
+      //through rules of chomp compiler.
+      //These variables are either barrier_variables or target variables
+      vector<variableSet> variable_dependancy; 
+      map<variable, bool> duplication_map; 
+      for(int i = barrier_sets.size() - 1; i >= 0; i--) {
+ 	std::map<variable, ruleSet> var2rules;
+ 	for(variableSet::const_iterator vi = barrier_sets[i].begin();
+ 	    vi != barrier_sets[i].end(); vi++) {
+ 	  var2rules[*vi] = scheds.get_existential_rules(*vi);
+ 	}
+
+	for(variableSet::const_iterator vi = barrier_sets[i].begin(); vi != barrier_sets[i].end(); vi++) {
+	  if(!tvars.inSet(*vi))
+	    duplication_map[*vi] = process_policy_duplication(*vi, scheds, facts);
+	  bool found = false;  //To check if variable already exist in variable_dependancy
+	  for(unsigned int j = 0; j < variable_dependancy.size(); j++) {
+	    if(variable_dependancy[j].inSet(*vi)) {
+	      found = true;
+	      for(ruleSet::const_iterator rsi = var2rules[*vi].begin();
+		  rsi != var2rules[*vi].end(); ++rsi) {
+		variableSet temp = input_variables(*rsi);
+		for(variableSet::const_iterator vsi = temp.begin(); vsi != temp.end(); vsi++)
+		  variable_dependancy[j] += scheds.get_synonyms(*vsi) & all_barrier_vars;
+		  
+	      }
+	    }
+	  }
+
+	  if(!found) {
+	    variableSet tmpVars;
+	    tmpVars += *vi;
+	    for(ruleSet::const_iterator rsi = var2rules[*vi].begin();
+		rsi != var2rules[*vi].end(); ++rsi) {
+	      variableSet temp = input_variables(*rsi);
+	      for(variableSet::const_iterator vsi = temp.begin(); vsi != temp.end(); vsi++)
+		tmpVars += scheds.get_synonyms(*vsi) & all_barrier_vars;
+	      
+	    }
+
+	    variable_dependancy.push_back(tmpVars);
+	  }
+	}
+      }
+      for(unsigned int i = 0; i < variable_dependancy.size(); i++) {
+	bool alltrue = true;  //To check if each variable in chomp chain is capable of duplication 
+	for(variableSet::const_iterator vi = variable_dependancy[i].begin();
+	    vi != variable_dependancy[i].end(); vi++) 
+	  if(!tvars.inSet(*vi))
+	    alltrue &= duplication_map[*vi];
+
+	//If any of the variables in chomp chain cannot be duplicated then
+	//all of the variables should not be duplicated including the target variables
+	//which are using chomp variables as input
+	if(!alltrue)
+	  for(variableSet::const_iterator vi = variable_dependancy[i].begin();
+	      vi != variable_dependancy[i].end(); vi++)
+	    scheds.add_policy(*vi, sched_db::NEVER);
+      }
     }
   }
   
   void chomp_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
+
     deque<pair<rule,rule_compilerP> > new_chomp_comp ;
     vector<pair<rule,rule_compilerP> >::reverse_iterator ri ;
     for(ri=chomp_comp.rbegin();ri!=chomp_comp.rend();++ri) {
