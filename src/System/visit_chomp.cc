@@ -1,6 +1,7 @@
 #include "visitor.h"
 #include "visit_tools.h"
 #include "comp_tools.h"
+#include "loci_globs.h"
 
 #include <vector>
 using std::vector ;
@@ -848,11 +849,14 @@ namespace Loci {
       rule fake = create_rule(variable("A"),variable("B"),"FAKE");
 
       all_vars += barrier_vars ;
-      if(barrier_vars != EMPTY)
+      if(barrier_vars != EMPTY) {
         chc.
           chomp_comp.
           push_back(make_pair(fake,
                               new barrier_compiler(barrier_vars))) ;
+	if(duplicate_work)
+	  chc.barrier_sets.push_back(barrier_vars);
+      }
       
       all_vars += singleton_vars ;
 
@@ -891,17 +895,30 @@ namespace Loci {
                                     new reduce_store_compiler(xi->first,
                                                               unit_rule,
                                                               join_op))) ;
+	      if(duplicate_work) {
+		variableSet temp;
+		temp += xi->first;
+		chc.barrier_sets.push_back(temp);
+	      }
             }
           }
         }
       }
-      if(reduce_var_vector.size() != 0)
+      if(reduce_var_vector.size() != 0) {
         chc.
           chomp_comp.
           push_back(make_pair(fake,
                               new reduce_param_compiler(reduce_var_vector,
                                                         unit_rule_vector,
                                                         join_op_vector))) ;
+	if(duplicate_work) {
+	  variableSet myVars;
+	  for(unsigned int i = 0; i < reduce_var_vector.size(); i++)
+	    myVars += reduce_var_vector[i];
+	  
+	  chc.barrier_sets.push_back(myVars);
+	}
+      }
       
       for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri){
         // this barrier_compiler bc is just a fake compiler
