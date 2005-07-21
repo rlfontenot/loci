@@ -362,6 +362,17 @@ namespace Loci {
       }
       variableSet::const_iterator vi ;
       for(vi = varcheck.begin();vi!=varcheck.end();++vi) {
+        if(ri->get_rule_implP()==0) {
+          cerr << "rule " << *ri << " has no rule_implP" <<endl ;
+          type_error = true ;
+          continue ;
+        } else if(ri->get_rule_implP()->get_store(*vi) == 0) {
+          cerr << "variable " << *vi << " not found in rule "
+               << *ri << endl ;
+          type_error = true ;
+          continue ;
+        }
+          
         storeRepP rule_type = ri->get_rule_implP()->get_store(*vi)->getRep() ;
         if(typed_vars.inSet(*vi)) {
           storeRepP fact_type = facts.get_variable(*vi)->getRep() ;
