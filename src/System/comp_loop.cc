@@ -36,7 +36,7 @@ namespace Loci {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
     // initialize conditional variables to true
-    *test = true ;
+    //    *test = true ;
     
     param<int> time_var ;
     time_var = facts.get_variable(tvar) ;
@@ -48,6 +48,12 @@ namespace Loci {
     for(;;) { // Begin looping
       //First evaluate the collapse condition
       collapse->execute(facts) ;
+
+#ifdef VERBOSE
+      cerr << cvar << " = " << *test << endl ;
+      cerr << tvar << " = " << *time_var << endl ;
+#endif
+
       if(*test) {// If collapse condition satisfied, were finished
         return ;
       }
@@ -57,8 +63,17 @@ namespace Loci {
       // We are finished with this iteration, so rotate variables and
       // add one to the iterate
       list<list<variable> >::const_iterator rli ;
-      for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli)
+      for(rli = rotate_lists.begin();rli!=rotate_lists.end();++rli) {
+#ifdef VERBOSE
+        cerr << "rotating [ " ;
+        for(list<variable>::const_iterator rlii=rli->begin();rlii!=rli->end();
+            ++rlii) {
+          cerr << *rlii << ' ' ;
+        }
+        cerr << "]" << endl ;
+#endif
         facts.rotate_vars(*rli) ;
+      }
       *time_var += 1 ;
     }
   }
