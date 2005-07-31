@@ -74,6 +74,7 @@ namespace Loci {
   bool collect_timings = false;
   double time_duration_to_collect_data = MPI_Wtick()*20;
   bool use_duplicate_model = false;
+  bool use_simple_partition = false ;
   char * model_file;
   /////////////////////////////
   
@@ -190,6 +191,9 @@ namespace Loci {
         i++ ;
       } else if(!strcmp((*argv)[i],"--decoration")) {
         show_decoration = true ; // visualize the decorated multilevel graph
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--simple_partition")) {
+        use_simple_partition = true ; // use the dynamic memory management
         i++ ;
       } else if(!strcmp((*argv)[i],"--dmm")) {
         use_dynamic_memory = true ; // use the dynamic memory management

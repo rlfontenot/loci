@@ -860,6 +860,8 @@ namespace Loci {
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
+    double t1 = MPI_Wtime() ;
+    
   try {
     if(MPI_rank == 0)
       cout << "Quering facts: " << query << endl ;
@@ -1038,7 +1040,12 @@ namespace Loci {
       cerr << "Unknown Exception Caught" << endl ;
       Loci::Abort() ;
   }
-    return true ;
+
+  double t2 = MPI_Wtime() ;
+  debugout << "Time to execute query for '" << query << "' is " << t2-t1
+           << endl ;
+  return true ;
+
   }
 
 } // end of namespace Loci

@@ -29,6 +29,7 @@ extern "C" {
 
 namespace Loci {
 
+  extern bool use_simple_partition ;
   //Following assumption is needed for the next three functions
   //Assumption: We follow the convention that boundary cells are always on right side 
   //of a face.
@@ -119,29 +120,43 @@ namespace Loci {
     
     // Create initial allocation of nodes, faces, and cells
     int node_ivl = npnts / Loci::MPI_processes;
+    int node_ivl_rem = npnts % Loci::MPI_processes ;
+    int node_accum = 0 ;
     int face_ivl = nfaces / Loci::MPI_processes;
+    int face_ivl_rem = nfaces % Loci::MPI_processes ;
+    int face_accum = 0 ;
     int cell_ivl = ncells / Loci::MPI_processes;
+    int cell_ivl_rem = ncells % Loci::MPI_processes ;
+    int cell_accum = 0 ;
     
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       int nodes_base = max_alloc ;
       int faces_base = max_alloc+npnts ;
       int cells_base = max_alloc+npnts+nfaces ;
+      int j = Loci::MPI_processes - i - 1 ;
+      int node_accum_update = node_accum + node_ivl + ((j<node_ivl_rem)?1:0) ;
+      int face_accum_update = face_accum + face_ivl + ((j<face_ivl_rem)?1:0) ;
+      int cell_accum_update = cell_accum + cell_ivl + ((j<cell_ivl_rem)?1:0) ;
+      
       if(i == Loci::MPI_processes-1) {
-	local_nodes[i] = interval(nodes_base + i*node_ivl,
+	local_nodes[i] = interval(nodes_base + node_accum,
                                   nodes_base + npnts - 1) ;
-	local_faces[i] = interval(faces_base + i*face_ivl,
+	local_faces[i] = interval(faces_base + face_accum,
                                   faces_base + nfaces-1) ;
-	local_cells[i] = interval(cells_base + i*cell_ivl,
+	local_cells[i] = interval(cells_base + cell_accum,
 				  cells_base + ncells-1) ;
       }
       else {
-	local_nodes[i] = interval(nodes_base + i*node_ivl,
-                                  nodes_base + i*node_ivl + node_ivl - 1) ;
-	local_faces[i] = interval(faces_base + i*face_ivl,
-                                  faces_base + i*face_ivl + face_ivl - 1) ;
-	local_cells[i] = interval(cells_base + i*cell_ivl,
-                                  cells_base + i*cell_ivl + cell_ivl - 1) ;
+	local_nodes[i] = interval(nodes_base + node_accum,
+                                  nodes_base + node_accum_update - 1) ;
+	local_faces[i] = interval(faces_base + face_accum,
+                                  faces_base + face_accum_update - 1) ;
+	local_cells[i] = interval(cells_base + cell_accum,
+                                  cells_base + cell_accum_update - 1) ;
       }
+      node_accum = node_accum_update ;
+      face_accum = face_accum_update ;
+      cell_accum = cell_accum_update ;
     }
 
     // Distribute positions
@@ -680,6 +695,7 @@ namespace Loci {
   //Input: facts and grid file name
   //Output: true if sucess 
   bool readFVMGrid(fact_db &facts, string filename) {
+    double t1 = MPI_Wtime() ;
     
     vector<entitySet> local_nodes;
     vector<entitySet> local_cells;
@@ -738,13 +754,20 @@ namespace Loci {
       for(int i = 0; i < Loci::MPI_processes; ++i) 
 	naive_init_ptn[i] += vset[i] ; 
 
-      dmultiMap left_cells_to_cells, right_cells_to_cells;
-      createCelltoCellMapping(tmp_cl, tmp_cr, left_cells_to_cells, right_cells_to_cells, 
-			      local_faces, local_cells, naive_init_ptn) ;
-
-      vector<entitySet> metis_cell_ptn = metisPartitionOfCells(local_cells, left_cells_to_cells,
-							       right_cells_to_cells);
-
+      vector<entitySet> metis_cell_ptn ;
+      if(!use_simple_partition) {
+        dmultiMap left_cells_to_cells, right_cells_to_cells;
+        createCelltoCellMapping(tmp_cl, tmp_cr, left_cells_to_cells, right_cells_to_cells, 
+                                local_faces, local_cells, naive_init_ptn) ;
+        
+        metis_cell_ptn = metisPartitionOfCells(local_cells,
+                                               left_cells_to_cells,
+                                               right_cells_to_cells);
+      } else {
+        for(int i=0;i<Loci::MPI_processes; ++i)
+          metis_cell_ptn.push_back(local_cells[i]) ;
+      }
+      //      debugout << "metis_cell_ptn = " << metis_cell_ptn << endl  ;
       entitySet naive_extra_comp_ent;
       vector<entitySet> new_init_ptn = newPartitionUsingCellPartition(naive_init_ptn, metis_cell_ptn, 
 								      global_nodes, global_faces, global_cells,
@@ -864,6 +887,9 @@ namespace Loci {
     facts.create_fact("face2node",face2node) ;
     facts.create_fact("boundary_names", boundary_names) ;
     
+    double t2 = MPI_Wtime() ;
+    debugout << "Time to read in file '" << filename << ", is " << t2-t1
+             << endl ;
     return true ;
   }
 }
