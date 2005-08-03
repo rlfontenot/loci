@@ -585,6 +585,7 @@ namespace Loci {
       entitySet vexist = scheds.variable_existence(*vi) ;
       scheds.variable_request(*vi,vexist) ;
     }
+    scheds.add_possible_duplicate_vars(var_requests);
     (rule_process[baserule])->process_var_requests(facts, scheds) ;
     fact_db_comm->process_var_requests(facts, scheds) ;
   }
