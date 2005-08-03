@@ -258,10 +258,13 @@ namespace Loci {
 
   void loop_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(duplicate_work) {
-      variableSet my_vars = advance_vars ;
-
-      for(variableSet::const_iterator vi = my_vars.begin();
-	  vi != my_vars.end(); vi++) {
+      
+      for(variableSet::const_iterator vi = collapse_vars.begin();
+	  vi != collapse_vars.end(); vi++)
+	scheds.add_policy(*vi, sched_db::NEVER);
+	
+      for(variableSet::const_iterator vi = advance_vars.begin();
+	  vi != advance_vars.end(); vi++) {
 	scheds.add_policy(*vi, sched_db::NEVER);
 	variable tmp_var(*vi, vi->time());
 	scheds.add_policy(tmp_var, sched_db::NEVER);
