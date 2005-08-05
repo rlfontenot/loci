@@ -165,6 +165,16 @@ namespace Loci {
     
     digraph::vertexSet collapse_part = visit_vertices(loop_grt,collapse_search) ;
     collapse_part += collapse_search ;
+    // for the collapse part, we also need to add all the rule targets
+    // into the graph. Because the collapse part is formed by searching
+    // back from the collapse_search, it is possible that we won't include
+    // a rule's targets if the rule's targets do not connect to other parts
+    // of the collapse graph
+    ruleSet collapse_rule_set = extract_rules(collapse_part) ;
+    for(ruleSet::const_iterator ri=collapse_rule_set.begin();
+        ri!=collapse_rule_set.end();++ri) {
+      collapse_part += extract_vars(loop_gr[ri->ident()]) ;
+    }
 
 #ifdef MOVE_OUTPUT_TO_COLLAPSE
     digraph::vertexSet output_set ;
@@ -184,7 +194,7 @@ namespace Loci {
     //    cerr << "collapse group = " << extract_rules(output_set) << endl ;
 #endif
     
-    collapse_gr = loop_gr.subgraph(visit_vertices(loop_grt,collapse_search)+collapse_search) ;
+    collapse_gr = loop_gr.subgraph(collapse_part) ;
     collapse_gr.remove_dangling_vertices() ;
     
     

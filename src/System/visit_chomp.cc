@@ -180,66 +180,89 @@ namespace Loci {
 
       return (has_path(gr,targets,sources) || (problem_vars != EMPTY)) ;
     }
+    
+    // this function computes the internal variables
+    // (variables that are not the source and target) of a digraph
+    inline variableSet get_internal_vars(const digraph& gr) {
+      return extract_vars(gr.get_source_vertices() &
+                          gr.get_target_vertices()) ;
+    }
 
     // this function generates a temporary graph for chomping
     // it first merges in a chomping candidate and then brings
     // in any necessary rules and variables
+
+    // because when we merge new vertices into the existing graph
+    // the source & target vertices of the existing graph could
+    // become internal, and thus we need to bring in all the rules
+    // that connect to these "new" internal variables. And this
+    // is a repeat process, we will stop only if no new internal
+    // variables are genrated
     digraph gen_tmp_graph(const digraph& cur_gr,
                           const digraph::vertexSet& new_vertices,
                           const digraph& gr) {
-      // first we need to compute the current internal variables
-      variableSet cur_internal_vars =
-        extract_vars(cur_gr.get_source_vertices() &
-                     cur_gr.get_target_vertices()) ;
-      // then generate a new graph
-      digraph new_gr = gr.subgraph(cur_gr.get_all_vertices() + new_vertices) ;
-      // then compute any new internal variables
-      variableSet new_internal_vars =
-        extract_vars(new_gr.get_source_vertices() &
-                     new_gr.get_target_vertices()) ;
-      variableSet diff = variableSet(new_internal_vars - cur_internal_vars) ;
-      // bring in any relevant rules
-      ruleSet additional_rules ;
-      for(variableSet::const_iterator vi=diff.begin();
-          vi!=diff.end();++vi) {
-        additional_rules += gr[vi->ident()] ;
+      digraph grt = gr.transpose() ;
+      digraph::vertexSet graph_vertices = cur_gr.get_all_vertices() ;
+      graph_vertices += new_vertices ;
+      variableSet cur_internal_vars = get_internal_vars(cur_gr) ;
+      variableSet new_internal_vars ;
+      // we repeat until no new internal vertices are generated
+      digraph new_gr ;
+      while(true) {
+        new_gr = gr.subgraph(graph_vertices) ;
+        new_internal_vars = get_internal_vars(new_gr) ;
+        variableSet diff = variableSet(new_internal_vars - cur_internal_vars) ;
+        if(diff == EMPTY)
+          break ;
+        // then bring in any relevant rules
+        ruleSet addon_rules ;
+        for(variableSet::const_iterator vi=diff.begin();
+            vi!=diff.end();++vi) {
+          addon_rules += extract_rules(gr[vi->ident()]) ;
+          addon_rules += extract_rules(grt[vi->ident()]) ;
+        }
+        addon_rules -= extract_rules(new_gr.get_all_vertices()) ;
+        graph_vertices += get_ruleSet_vertexSet(addon_rules) ;
+        cur_internal_vars = new_internal_vars ;
       }
-      additional_rules -= extract_rules(new_gr.get_all_vertices()) ;
-      digraph::vertexSet additional_vertices =
-        get_ruleSet_vertexSet(additional_rules) ;
-      return gr.subgraph(new_gr.get_all_vertices() + additional_vertices) ;
+      return new_gr ;
     }
 
     // this function merges two chomping graphs and
     // returns the new resulting graph
+
+    // this function works the same as the above one (gen_tmp_graph)
+    // we will have to repeat until no new internal variables are
+    // introduced into the new graph
     digraph merge_2_graphs(const digraph& gr1, const digraph& gr2,
                            const digraph& gr) {
-      variableSet gr1_st = extract_vars(gr1.get_source_vertices() -
-                                        gr1.get_target_vertices()) ;
-      gr1_st += extract_vars(gr1.get_target_vertices() -
-                             gr1.get_source_vertices()) ;
-      variableSet gr2_st = extract_vars(gr2.get_source_vertices() -
-                                        gr2.get_target_vertices()) ;
-      gr2_st += extract_vars(gr2.get_target_vertices() -
-                             gr2.get_source_vertices()) ;
-      digraph new_gr = gr1 ;
-      new_gr += gr2 ;
-
-      variableSet internal_vars =
-        extract_vars(new_gr.get_source_vertices() -
-                     new_gr.get_target_vertices()) ;
-
-      internal_vars &= variableSet(gr1_st + gr2_st) ;
-
-      ruleSet additional_rules ;
-      for(variableSet::const_iterator vi=internal_vars.begin();
-          vi!=internal_vars.end();++vi) {
-        additional_rules += gr[vi->ident()] ;
+      digraph grt = gr.transpose() ;
+      digraph::vertexSet graph_vertices ;
+      graph_vertices += gr1.get_all_vertices() ;
+      graph_vertices += gr2.get_all_vertices() ;
+      variableSet cur_internal_vars, new_internal_vars ;
+      cur_internal_vars += get_internal_vars(gr1) ;
+      cur_internal_vars += get_internal_vars(gr2) ;
+      digraph new_gr ;
+      
+      while(true) {
+        new_gr = gr.subgraph(graph_vertices) ;
+        new_internal_vars = get_internal_vars(new_gr) ;
+        variableSet diff = variableSet(new_internal_vars - cur_internal_vars) ;
+        if(diff == EMPTY)
+          break ;
+        // then bring in any relevant rules
+        ruleSet addon_rules ;
+        for(variableSet::const_iterator vi=diff.begin();
+            vi!=diff.end();++vi) {
+          addon_rules += extract_rules(gr[vi->ident()]) ;
+          addon_rules += extract_rules(grt[vi->ident()]) ;
+        }
+        addon_rules -= extract_rules(new_gr.get_all_vertices()) ;
+        graph_vertices += get_ruleSet_vertexSet(addon_rules) ;
+        cur_internal_vars = new_internal_vars ;
       }
-      additional_rules -= extract_rules(new_gr.get_all_vertices()) ;
-      digraph::vertexSet additional_vertices =
-        get_ruleSet_vertexSet(additional_rules) ;
-      return gr.subgraph(new_gr.get_all_vertices() + additional_vertices) ;
+      return new_gr ;
     }
 
 #define CHOMP_OPT
@@ -250,6 +273,8 @@ namespace Loci {
     void get_chomp_chains(list<chomp_chain>& result,
                           const variableSet& chomp_vars,
                           const digraph& gr) {
+      if(chomp_vars.size() == 0)
+        return ;
       // we first get a topological order
       // of the chomp_vars 
       vector<digraph::vertexSet> gr_order =
@@ -401,6 +426,15 @@ namespace Loci {
       for(list<chomp_chain>::iterator li=temp_result2.begin();
           li!=temp_result2.end();++li) {
 #ifdef CHOMP_OPT_MORE
+        // In this section of chomp optimization, we try to
+        // recover any possible chomp vars in a single chomp chain.
+        // At the beginning, we know what the chomp candidates are.
+        // However at the above steps, they may be discarded due to
+        // various problems. Here for any chomp candiates that are
+        // in the chain and are discarded and are NOT in any other
+        // chains, we try to reclaim them again. If no problems
+        // occur, we will accept them.
+        
         // it is important to use reference(&) here,
         // because we want to dynamically update temp_result2
         // so that in the following "gcio iter" we can have
@@ -709,6 +743,15 @@ namespace Loci {
       gr.add_edges(chomp_rule.ident(), target_vars_vertices) ;
     }
   }
+
+  namespace {
+    // a utility function for defining += for list<chomp_chain>
+    void operator+=(list<chomp_chain>& l1, const list<chomp_chain>& l2) {
+      for(list<chomp_chain>::const_iterator li=l2.begin();
+          li!=l2.end();++li)
+        l1.push_back(*li) ;
+    }
+  }
   
   void chompRuleVisitor::visit(loop_compiler& lc) {
     list<chomp_chain> c ;
@@ -717,14 +760,26 @@ namespace Loci {
     
     c = find_chain(lc.collapse_gr) ;
     if(!c.empty()) {
-      all_chains[-lc.cid] = c ;
+      // all_chains[-lc.cid] = c ;
+      // here we sould not distinguish the collapse graph
+      // from the advance graph by setting its graph id to
+      // a negative number. Because the purpose of the
+      // "all_chains" is to record the whole chomping chains
+      // in the multi-level graph for later visualization and
+      // summarization. For if we adding the negative number
+      // as the index, later we will not be able to get a sorted
+      // order to print the information. And thus it is
+      // important to use the "+=" in assigning the chains
+      // to the record, because otherwise we'll erase the
+      // existing records.
+      all_chains[lc.cid] += c ;
       edit_gr(lc.collapse_gr,c,lc.rule_compiler_map) ;
       edit_gr(lc.loop_gr,c,tmp) ;
     }
     
     c = find_chain(lc.advance_gr) ;
     if(!c.empty()) {
-      all_chains[lc.cid] = c ;
+      all_chains[lc.cid] += c ;
       edit_gr(lc.advance_gr,c,lc.rule_compiler_map) ;
       edit_gr(lc.loop_gr,c,tmp) ;
     }
@@ -921,12 +976,12 @@ namespace Loci {
       }
       
       for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri){
-        // this barrier_compiler bc is just a fake compiler
-        // to be used in the pair
         rulecomp_map::const_iterator rmi ;
         rmi = rcm.find(*ri) ;
         FATAL(rmi == rcm.end()) ;
         //rule_compilerP bc = new barrier_compiler(vars) ;
+        // the rule compiler rmi->second is only included
+        // as a place holder but servers no purpose in this case
         chc.chomp_comp.push_back(make_pair(*ri,rmi->second)) ;
       }
     }
