@@ -268,11 +268,6 @@ namespace Loci {
 
   void loop_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(duplicate_work) {
-      
-      for(variableSet::const_iterator vi = collapse_vars.begin();
-	  vi != collapse_vars.end(); vi++)
-	scheds.add_policy(*vi, sched_db::NEVER);
-	
       for(variableSet::const_iterator vi = advance_vars.begin();
 	  vi != advance_vars.end(); vi++) {
 	scheds.add_policy(*vi, sched_db::NEVER);
