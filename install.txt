@@ -1,0 +1,29 @@
+How to compile and install the Loci libraries
+
+Execute
+./tmpcopy <OBJDIR>
+where <OBJDIR> is the directory where the object files will be stored
+when compiling.  tmpcopy without any arguments will use /usr/tmp/<userid>
+
+Once this is completed there will be sample configuration files set up in
+<OBJDIR>.  These files are called sys.conf and comp.conf.
+
+sys.conf is for setting up where libraries and system utilities are located
+comp.conf is for making compiler specific settings.
+
+By default, tmpcopy will copy an example configuration file for your system
+into sys.conf and the gcc compiler comp.conf.  Look in src/conf for other
+example configuration files.
+
+Edit this file to match your system.
+
+Then to compile enter
+
+make
+
+To install at the INSTALL_PATH directory (in sys.conf) type
+
+make install
+
+After installing, set LOCI_BASE to the INSTALL_PATH directory in the
+Makefiles of applications that use Loci

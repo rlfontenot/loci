@@ -3,7 +3,7 @@
 source=`pwd`
 target=${LOCI_TARGET-/usr/tmp/$LOGNAME/}
 
-COMP=${LOCI_COMP-gcc3.2}
+COMP=${LOCI_COMP-gcc}
 ARCH=${LOCI_ARCH-`uname -s`}
 
 if [ $# -eq 1 ]; then
