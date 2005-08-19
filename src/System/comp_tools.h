@@ -113,6 +113,9 @@ namespace Loci {
     digraph advance_gr ;
     rulecomp_map rule_compiler_map ;
     ////////////////
+
+    //To add communication manually for advance variable at the end of advance_comp
+    std::list<comm_info> advance_variables_barrier; 
   public:
     loop_compiler(rulecomp_map &rp, digraph gin, int id) ;
     virtual void accept(visitor& v) ;

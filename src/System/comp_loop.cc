@@ -271,7 +271,7 @@ namespace Loci {
       for(variableSet::const_iterator vi = advance_vars.begin();
 	  vi != advance_vars.end(); vi++) {
 	scheds.add_policy(*vi, sched_db::NEVER);
-	variable tmp_var(*vi, vi->time());
+	variable tmp_var = vi->new_offset(vi->get_info().offset - 1);
 	scheds.add_policy(tmp_var, sched_db::NEVER);
       }
     
@@ -338,7 +338,19 @@ namespace Loci {
       for(li=rli->begin();li!=rli->end();++li)
         scheds.variable_request(*li,tot_request) ;
     }
-    
+
+
+    for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
+      entitySet tot_request = scheds.get_variable_requests(*vi);
+      variable tmp_var = vi->new_offset(vi->get_info().offset - 1);
+      tot_request += scheds.get_variable_requests(tmp_var);
+      scheds.variable_request(*vi, tot_request);
+    }
+
+    if(facts.isDistributed()) {
+      advance_variables_barrier = barrier_process_rule_requests(var_requests, facts, scheds);
+      advance_variables_barrier = sort_comm(advance_variables_barrier, facts);
+    }
   }
   
   executeP loop_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
@@ -356,6 +368,9 @@ namespace Loci {
       adv->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
 
+    if(facts.isDistributed())
+      adv->append_list(new execute_comm(advance_variables_barrier, facts));
+    
     return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists) ;
   }
 
