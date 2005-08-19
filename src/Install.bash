@@ -10,10 +10,14 @@ MACHINE=`uname -p`
 if [ $SYSTEM == "Linux" ]; then MACHINE=`uname -m` ; fi
 
 REV=`echo $REVISION_NAME| sed -e 's/.*: *//' -e 's/ *\$$//'`
-echo $REV
-echo $REVISION_NAME
+
 # If no revision name, set the default to be month-day-year
-if [ $REV == "" ]; then REV=`date +%m.%d.%y` ; fi
+if [ -n "$REV" ]; then 
+echo Revision: $REV
+else
+REV=`date +%m.%d.%y`
+echo Date: $REV
+fi
 
 INSTALL_PATH=$INSTALL_DIR/Loci-$SYSTEM-$MACHINE-$COMP_NAME-$REV/
 
