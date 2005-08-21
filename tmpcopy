@@ -3,8 +3,14 @@
 source=`pwd`
 target=${LOCI_TARGET-/usr/tmp/$LOGNAME/}
 
-COMP=${LOCI_COMP-gcc}
 ARCH=${LOCI_ARCH-`uname -s`}
+
+if [ $ARCH == "IRIX64" ]; then
+# If IRIX OS, default to sgi compiler, otherwise default to gcc
+  COMP=${LOCI_COMP-CC_sgi}
+else
+  COMP=${LOCI_COMP-gcc}
+fi
 
 if [ $# -eq 1 ]; then
   target=$1
@@ -76,6 +82,6 @@ for dir in $TARGET_DIRS; do
   done
 done
 
-echo "** Be sure to set LOCI_BASE=\"$target/Loci\" **"
+#echo "** Be sure to set LOCI_BASE=\"$target/Loci\" **"
 
 
