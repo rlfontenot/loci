@@ -344,7 +344,7 @@ namespace Loci {
       entitySet tot_request = scheds.get_variable_requests(*vi);
       variable tmp_var = vi->new_offset(vi->get_info().offset - 1);
       tot_request += scheds.get_variable_requests(tmp_var);
-      scheds.variable_request(*vi, tot_request);
+      //      scheds.variable_request(*vi, tot_request);
     }
 
     if(facts.isDistributed()) {
