@@ -1,8 +1,11 @@
-
 #if defined(__GNUC__)
 
 #if defined(__INTEL_COMPILER)
 // Intel Compiler
+
+#define USE_MAP_FOR_HASH_MAP
+//#define EXT_HASH_MAP
+//#define EXT_NAMESPACE std
 
 #else
 
