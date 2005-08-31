@@ -85,9 +85,11 @@ namespace Loci {
 
   extern int current_rule_id ;
 
+
   void debug_print_rule() {
     if(current_rule_id != 0) {
       rule r(current_rule_id) ;
+      current_rule_id = 0 ;
       cerr << "crash occured in rule " << r << endl ;
 
       if(exec_current_fact_db != 0) {
