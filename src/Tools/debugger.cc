@@ -46,6 +46,7 @@ namespace Loci {
   void set_debug_callback(void (*dcb)()) {
     debug_callback = dcb ;
   }
+
   
   void setup_debugger(const char *execname, const char *gdb, const char *hostname) {
     debug_execname = execname ;
@@ -57,16 +58,23 @@ namespace Loci {
   void debugger_()
   {
 
-    if(debug_callback != 0)
-      (*debug_callback)() ;
-    
+
+    void (*dbc)() = debug_callback ;
+    debug_callback = 0 ;
+
     int MPI_rank ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
     cerr << "program failed on processor " << MPI_rank << endl ;
 
+    if(dbc == 0)
+      MPI_Abort(MPI_COMM_WORLD,-1) ;
+
     if(!debugger_setup)
       MPI_Abort(MPI_COMM_WORLD,-1);
     
+    if(dbc != 0)
+      (*dbc)() ;
+
     int pid = getpid() ;
     char buf[512] ;
 #ifdef SUN

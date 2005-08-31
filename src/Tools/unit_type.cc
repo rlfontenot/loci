@@ -36,6 +36,8 @@ namespace Loci {
     {"rad","radians",1},
     {"deg","radians",0.01745329251994329576923690768488612713443},
     {"degrees","radians",0.01745329251994329576923690768488612713443},
+    {"rotations","radians",2*M_PI},
+      
     //abbreviation of SI
     {"m","meter",1},
     {"kg","kilogram",1},
