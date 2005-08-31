@@ -84,6 +84,11 @@ namespace Loci {
     {"W","kilogram*meter/second/second*meter/second",1},
     {"pascal","kilogram*meter/second/second/meter/meter",1},
     {"Pa","kilogram*meter/second/second/meter/meter",1},
+
+    {"rph","radians/second",1.7453292519943295769236907684887e-3},
+    {"rpm","radians/second",0.10471975511965977461542144610932},
+    {"rps","radians/second",6.2831853071795864769252867665592},
+
     {0,0,0}
   };
 
@@ -211,10 +216,6 @@ namespace Loci {
     {"kPa","pascal",1000},
     {"Btu","joule",1055.87},
 
-    {"rph","radians/sec",1.7453292519943295769236907684887e-3},
-    {"rpm","radians/sec",0.10471975511965977461542144610932},
-    {"rps","radians/sec",6.2831853071795864769252867665592},
-
     {0,0,0}
   };
 
@@ -266,6 +267,11 @@ namespace Loci {
     {"W","gram*centimeter/second/second*centimeter/second",100000},
     {"pascal","gram*centimeter/second/second/centimeter/centimeter",10000},
     {"Pa","gram*centimeter/second/second/centimeter/centimeter",10000},
+
+    {"rph","radians/second",1.7453292519943295769236907684887e-3},
+    {"rpm","radians/second",0.10471975511965977461542144610932},
+    {"rps","radians/second",6.2831853071795864769252867665592},
+
     {0,0,0}
 
   };
@@ -587,8 +593,7 @@ namespace Loci {
       conv_factor=1;
       //for MKS system
       if(mode==MKS){
-	for(mi= initial_map.begin();mi!=initial_map.end();++mi)
-	  {
+	for(mi= initial_map.begin();mi!=initial_map.end();++mi) {
 	  if(is_reference_unit((*mi).first)){ 
 	    for(int i=0;i!=(*mi).second;i++){//for several same units
 	      //cout<<"IS reference unit"<<endl;       
@@ -605,8 +610,7 @@ namespace Loci {
 	      
 	      //cout<<"conversion factor:"<<conv_factor<<endl;
 	    }
-	  }
-	  else if(is_composite_unit((*mi).first)){
+	  } else if(is_composite_unit((*mi).first)){
 	    
 	    for(int i=0;i!=(*mi).second;i++){
 	      //cout<<"IS composite unit"<<endl;
@@ -617,9 +621,8 @@ namespace Loci {
 	      seperate_unit(num_map,den_map,exp2);
 	      //cout<<"conversion factor:"<<conv_factor<<endl;
 	    }
-
-	  }
-	  else if(is_basic_unit((*mi).first)){
+            
+	  } else if(is_basic_unit((*mi).first)){
 	    //cout<<"IS basic unit"<<endl;
 	    if(num_map.find((*mi).first)!=num_map.end())
 	      num_map[(*mi).first]=num_map[(*mi).first]+(*mi).second;
@@ -627,8 +630,7 @@ namespace Loci {
 	      num_map[(*mi).first]=(*mi).second;
 	    //cout<<(*mi).first<<(*mi).second<<endl;
 	    //conv_factor=conv_factor*1;
-	  }
-	  else{
+	  } else{
               string tmp = (*mi).first + ": Not in MKS database" ;
               unit_error(4,tmp);
 	  }
