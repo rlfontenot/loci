@@ -18,6 +18,8 @@ using std::set ;
 using std::string ;
 #include <sstream>
 using std::stringstream ;
+#include <utility>
+using std::pair ;
 
 
 using std::cout ;
@@ -61,6 +63,7 @@ namespace Loci {
     // all chomped variables
     //variableSet all_chomped_vars = variableSet(EMPTY) ;
     variableSet all_chomped_vars ;
+    bool in_internal_query = false ;
   }
   
   class error_compiler : public rule_compiler {
@@ -156,6 +159,12 @@ namespace Loci {
             rule_process[*ri] = new error_compiler ;
         } else {
           if(ri->get_info().rule_impl->get_rule_class()
+             == rule_impl::CONSTRAINT_RULE)
+            rule_process[*ri] = new constraint_compiler(*ri) ;
+          else if(ri->get_info().rule_impl->get_rule_class()
+             == rule_impl::MAP_RULE)
+            rule_process[*ri] = new map_compiler(*ri) ;
+          else if(ri->get_info().rule_impl->get_rule_class()
                   == rule_impl::APPLY)
             rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
           else
@@ -221,9 +230,14 @@ namespace Loci {
   
   fact_db *exec_current_fact_db = 0 ;
 
+  //#define COMPILE_PROGRESS
   void graph_compiler::compile(fact_db& facts,sched_db& scheds,
                                const variableSet& given,
                                const variableSet& target) {
+#ifdef COMPILE_PROGRESS
+    if(Loci::MPI_rank==0)
+      cerr << "[Graph Compile Phase] Start!" << endl ;
+#endif
     /***********************************
     1. unordered visitor phase (1..n)
          top -> down
@@ -279,20 +293,27 @@ namespace Loci {
     unitApplyMapVisitor reduceV ;
     top_down_visit(reduceV) ;
 
+#ifdef COMPILE_PROGRESS
+    if(Loci::MPI_rank==0)
+      cerr << "[Graph Compile Phase] Passed Information Collection!" << endl ;
+#endif
+
     det1 = MPI_Wtime() ;
 
     if(use_dynamic_memory) {
       if(Loci::MPI_rank == 0)
-        cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
+        if(!in_internal_query)
+          cout << "USING DYNAMIC MEMORY MANAGEMENT" << endl ;
     }
 
     // chomping searching and graph editing
     if(use_chomp) {
-      if(Loci::MPI_rank == 0) 
-        cout << "USING CHOMPING"
-             << " (chomping size: "
-             << chomping_size << "KB)"
-             << endl ;
+      if(Loci::MPI_rank == 0)
+        if(!in_internal_query)
+          cout << "USING CHOMPING"
+               << " (chomping size: "
+               << chomping_size << "KB)"
+               << endl ;
       
       cst = MPI_Wtime() ;
       chompPPVisitor cppv(facts,
@@ -302,7 +323,7 @@ namespace Loci {
                                       recv.get_rename_target_vars())
                           ) ;
       top_down_visit(cppv) ;
-      
+
       chompRuleVisitor crv(cppv.get_good_vars(),
                            cppv.get_bad_vars(),
                            reduceV.get_apply2unit()) ;
@@ -426,12 +447,23 @@ namespace Loci {
                              div.get_recur_source_other_rules()) ;
       top_down_visit(dgv) ;
       det2 = MPI_Wtime() ;
+
+#ifdef COMPILE_PROGRESS
+    if(Loci::MPI_rank==0)
+      cerr << "[Graph Compile Phase] Passed Memory "
+           << "Management Decoration!" << endl ;
+#endif
       
       // check if the decorated graphs are acyclic
       dagCheckVisitor dagcV(true) ;
       top_down_visit(dagcV) ;
 
-      if(show_dmm_verbose) {
+#ifdef COMPILE_PROGRESS
+    if(Loci::MPI_rank==0)
+      cerr << "[Graph Compile Phase] Passed Graph Cycle Check!" << endl ;
+#endif
+
+      if(show_dmm_verbose && !in_internal_query) {
         // the output stream
         ostream& os = cout ;
         //print out the loop rotate list variables
@@ -533,14 +565,19 @@ namespace Loci {
       // and the assembleVisitor.
       compChompVisitor compchompv(reduceV.get_reduceInfo()) ;
       top_down_visit(compchompv) ;
+#ifdef COMPILE_PROGRESS
+    if(Loci::MPI_rank==0)
+      cerr << "[Graph Compile Phase] Passed Chomping Compilation!" << endl ;
+#endif    
     }
-    
+
     //orderVisitor ov ;    
     //bottom_up_visit(ov) ;
     schedst = MPI_Wtime() ;
     if(!memory_greedy_schedule) {
       if(Loci::MPI_rank == 0)
-        cout << "graph scheduling... (computation greedy)" << endl ;
+        if(!in_internal_query)
+          cout << "graph scheduling... (computation greedy)" << endl ;
       // the old scheduling comp greedy function
       //simLazyAllocSchedVisitor lazyschedv ;
       //top_down_visit(lazyschedv) ;
@@ -549,7 +586,8 @@ namespace Loci {
       top_down_visit(gsv) ;
     } else {
       if(Loci::MPI_rank == 0)
-        cout << "graph scheduling... (memory greedy)" << endl ;
+        if(!in_internal_query)
+          cout << "graph scheduling... (memory greedy)" << endl ;
       // the old mem greedy scheduling function
       //memGreedySchedVisitor mgsv(facts) ;
       //top_down_visit(mgsv) ;
@@ -557,23 +595,40 @@ namespace Loci {
       graphSchedulerVisitor gsv(mgp) ;
       top_down_visit(gsv) ;
     }
+#ifdef COMPILE_PROGRESS
+    if(Loci::MPI_rank==0)
+      cerr << "[Graph Compile Phase] Passed Graph Scheduling!" << endl ;
+#endif
+
     schedet = MPI_Wtime() ;
     
     assembleVisitor av(reduceV.get_all_reduce_vars(),
                        reduceV.get_reduceInfo());
     bottom_up_visit(av) ;
 
+#ifdef COMPILE_PROGRESS
+    if(Loci::MPI_rank==0)
+      cerr << "[Graph Compile Phase] Passed Schedule Assembly!" << endl ;
+#endif
+
     // setting this external pointer
     exec_current_fact_db = &facts ;
 
-    if(use_dynamic_memory)
-      Loci::debugout << "Time taken for dmm graph decoration = "
-                     << (det1-dst1) + (det2-dst2) << " seconds " << endl ;
-    if(use_chomp)
-      Loci::debugout << "Time taken for chomping subgraph searching = "
-                     << cet-cst << " seconds " << endl ;
-    Loci::debugout << "Time taken for graph scheduling = "
-                   << schedet-schedst << " sceonds " << endl ;
+    if(!in_internal_query)
+      if(use_dynamic_memory)
+        Loci::debugout << "Time taken for dmm graph decoration = "
+                       << (det1-dst1) + (det2-dst2) << " seconds " << endl ;
+    if(!in_internal_query)
+      if(use_chomp)
+        Loci::debugout << "Time taken for chomping subgraph searching = "
+                       << cet-cst << " seconds " << endl ;
+    if(!in_internal_query)
+      Loci::debugout << "Time taken for graph scheduling = "
+                     << schedet-schedst << " sceonds " << endl ;
+#ifdef COMPILE_PROGRESS
+    if(Loci::MPI_rank==0)
+      cerr << "[Graph Compile Phase] Graph Compile Phase End!" << endl ;
+#endif
   }
   
   void graph_compiler::existential_analysis(fact_db &facts, sched_db &scheds) {
@@ -821,7 +876,7 @@ namespace Loci {
     digraph::vertexSet killvertices = digraph::vertexSet(del_rules) ;
     killvertices += digraph::vertexSet(work) ;
     gr.remove_vertices(killvertices) ;
-    digraph grt = gr.transpose() ;
+    //digraph grt = gr.transpose() ;
   }
   
   void dynamic_scheduling(digraph& gr, fact_db& facts,
@@ -970,6 +1025,7 @@ namespace Loci {
         emptyConstraints += *vi ;
       }
     }
+    //cout << "emptyConstraints: " << emptyConstraints << endl ;
 
     if(emptyConstraints != EMPTY) {
       // Remove rules that are connected to empties
@@ -981,6 +1037,283 @@ namespace Loci {
       clean_graph(gr,given,target) ;
     }
   }
+
+  // this is the function to compute all maps
+  // in the stationary time level
+
+  // NOTE: the user_query argument is what the user issued
+  // for query in the makeQuery function. This is passed in
+  // bacause we don't need to issue internal queries for
+  // these user_query facts if they happen to be relations also.
+#define RENUMBER
+  void stationary_relation_gen(rule_db& par_rdb,
+                               fact_db& facts,
+                               const variableSet& user_query) {
+    // we'll first generate the dependency graph
+    // according to the initial facts and rules database
+    variableSet given = facts.get_typed_variables() ;
+    digraph gr ;
+    given -= variable("EMPTY") ;
+    gr = dependency_graph2(par_rdb,given,user_query).get_graph() ;
+
+    //create_digraph_dot_file(gr,"dependgr.dot") ;
+    //std::string cmd = "dotty dependgr.dot" ;
+    //system(cmd.c_str()) ;
+    
+    // If graph is empty, we just return without any further actions
+    if(gr.get_target_vertices() == EMPTY)
+      return ;
+
+    // we need to collect which relations are to be
+    // generated in the stationary time level
+    // but we'll need to query the relations according
+    // to their topological order since the new
+    // relations may change the existential analysis
+    vector<digraph::vertexSet> order =
+      component_sort(gr).get_components() ;
+
+    // this variable is used to keep track of which set
+    // of relations have been reached, we don't need to
+    // issue queries for these relations later. This is
+    // necessary because it is possible that a relation
+    // is generated by multiple rules and the topological
+    // sorting of the dependency graph serialized these
+    // rules so that we might see the relation in multiple
+    // places.
+    bool has_map = false ;
+    variableSet seen_relations = user_query ;
+    vector<pair<ruleSet,variableSet> > relations ;
+    for(vector<digraph::vertexSet>::const_iterator vi=order.begin();
+        vi!=order.end();++vi) {
+      ruleSet rules = extract_rules(*vi) ;
+
+      ruleSet step_rules ;
+      variableSet step_relations ;
+      for(ruleSet::const_iterator ri=rules.begin();
+          ri!=rules.end();++ri) {
+        variableSet local_relations ;
+        if(ri->type() != rule::INTERNAL) {
+          // collect mapping rule and constraint rule target info.
+          if( (ri->get_info().rule_impl->get_rule_class() ==
+               rule_impl::MAP_RULE) ||
+              (ri->get_info().rule_impl->get_rule_class() ==
+               rule_impl::CONSTRAINT_RULE)
+              ) {
+            variableSet targets = ri->targets() ;
+            for(variableSet::const_iterator vi=targets.begin();
+                vi!=targets.end();++vi) {
+              if(vi->time() != time_ident()) {
+                cerr << "\tDynamic scheduling of non-stationary time relation"
+                     << " is not currently supported. Aborting..." << endl ;
+                cerr << "\tAborted because of: " << *vi << endl ;
+                Loci::Abort() ;
+              }
+              if(!has_map) {
+                storeRepP srp ;
+                srp = ri->get_info().rule_impl->get_store(*vi) ;
+                if(srp->RepType() == Loci::MAP)
+                  has_map = true ;
+              }
+            }
+            // this is to ensure that the targets are either
+            // not user queried facts or the by-products of
+            // user queried facts
+            if( (targets & user_query) == EMPTY)
+              local_relations += targets ;
+          }
+        }
+        local_relations -= seen_relations ;
+        if(local_relations != EMPTY) {
+          step_rules += *ri ;
+          step_relations += local_relations ;
+          seen_relations += local_relations ;
+        }
+      }
+      if(step_relations != EMPTY)
+        relations.push_back(make_pair(step_rules,step_relations)) ;
+    }
+    // if we don't find any relation, we then quit.
+    if(relations.empty()) {
+      return ;
+    }
+    // Okay we have gathered all the relations to be generated
+    // in the stationary time level. We can now issue the
+    // internal queries to compute these relations.
+
+    // we need to collect all the empty constraints if any
+    // at the end, we need to remove any rule that involves
+    // the empty constraints
+    in_internal_query = true ;
+    variableSet empty_constraints ;
+    // if we don't see any maps being generated, then we
+    // can optimize the internal query. i.e., we can group
+    // the queries together, we don't need to query according
+    // to the topological order as there will not be any
+    // changes in the existential and global->local numbering
+    // changes during the internal queries.
+    if(!has_map) {
+      ruleSet all_rules ;
+      variableSet all_queries ;
+      for(vector<pair<ruleSet,variableSet> >::const_iterator
+            vi=relations.begin();vi!=relations.end();++vi) {
+        all_rules += vi->first ;
+        all_queries += vi->second ;
+      }
+      fact_db clone(facts) ;
+      // before each internal query, we need to
+      // perform the global -> local renumbering
+      // since the fact_db facts is in global numbering state
+#ifdef RENUMBER
+      if(clone.is_distributed_start()) {
+        if((MPI_processes > 1)) 
+          get_clone(clone, par_rdb) ;
+        else
+          Loci::serial_freeze(clone) ; 
+      } else {
+        Loci::serial_freeze(clone) ;
+      }
+#else
+      Loci::serial_freeze(clone) ;
+#endif
+      if(!internalQuery(par_rdb, clone, all_queries)) {
+        cerr << "Internal Query Failed, Aborting..." << endl ;
+        Loci::Abort() ;
+      }
+      // then we remove in the rule database the rules
+      // that generate the relations
+      par_rdb.remove_rules(all_rules) ;
+      
+      // Okay, now we need to put back the computed relations
+      // to the original fact_db and restore the global numbering
+#ifdef RENUMBER
+      if(clone.is_distributed_start()) {
+        fact_db::distribute_infoP df = clone.get_distribute_info() ;
+        for(variableSet::const_iterator vi2=all_queries.begin();
+            vi2!=all_queries.end();++vi2) {
+          storeRepP srp = clone.get_variable(*vi2) ;
+          if(srp->RepType() == Loci::CONSTRAINT)
+            if(GLOBAL_AND(srp->domain()==EMPTY)) {
+              empty_constraints += *vi2 ;
+              // we don't create empty constraints in
+              // the global fact database
+              continue ;
+            }
+          facts.create_intensional_fact(*vi2,(srp->remap(df->dl2g))->freeze()) ;
+        }
+      }else{
+        for(variableSet::const_iterator vi2=all_queries.begin();
+            vi2!=all_queries.end();++vi2) {
+          storeRepP srp = clone.get_variable(*vi2) ;
+          if(srp->RepType() == Loci::CONSTRAINT)
+            if(GLOBAL_AND(srp->domain()==EMPTY)) {
+              empty_constraints += *vi2 ;
+              continue ;
+            }
+          facts.create_intensional_fact(*vi2,srp) ;
+        }
+      }
+#else
+      for(variableSet::const_iterator vi2=all_queries.begin();
+          vi2!=all_queries.end();++vi2) {
+        storeRepP srp = clone.get_variable(*vi2) ;
+        if(srp->RepType() == Loci::CONSTRAINT)
+          if(GLOBAL_AND(srp->domain()==EMPTY)) {
+            empty_constraints += *vi2 ;
+            continue ;
+          }
+        facts.create_intensional_fact(*vi2,srp) ;
+      }
+#endif      
+    }else { // if(has_map), then we need to make successive queries
+      for(vector<pair<ruleSet,variableSet> >::const_iterator
+            vi=relations.begin();vi!=relations.end();++vi) {
+        fact_db clone(facts) ;
+        // before each internal query, we need to
+        // perform the global -> local renumbering
+        // since the fact_db facts is in global numbering state
+#ifdef RENUMBER
+        if(clone.is_distributed_start()) {
+          if((MPI_processes > 1)) 
+            get_clone(clone, par_rdb) ;
+          else
+            Loci::serial_freeze(clone) ; 
+        } else {
+          Loci::serial_freeze(clone) ;
+        }
+#else
+        Loci::serial_freeze(clone) ;
+#endif
+        // get the relations that we need to query
+        ruleSet relationRules = vi->first ;
+        variableSet queries = vi->second ;
+        if(!internalQuery(par_rdb, clone, queries)) {
+          cerr << "Internal Query Failed, Aborting..." << endl ;
+          Loci::Abort() ;
+        }
+        // then we remove in the rule database the rules
+        // that generate the relations
+        par_rdb.remove_rules(relationRules) ;
+      
+        // Okay, now we need to put back the computed relations
+        // to the original fact_db and restore the global numbering
+#ifdef RENUMBER
+        if(clone.is_distributed_start()) {
+          fact_db::distribute_infoP df = clone.get_distribute_info() ;
+          for(variableSet::const_iterator vi2=queries.begin();
+              vi2!=queries.end();++vi2) {
+            storeRepP srp = clone.get_variable(*vi2) ;
+            if(srp->RepType() == Loci::CONSTRAINT)
+              if(GLOBAL_AND(srp->domain()==EMPTY)) {
+                empty_constraints += *vi2 ;
+                // we don't create empty constraints in
+                // the global fact database
+                continue ;
+              }
+            // we do not need to remap any maps from local -> global
+            // because they are generated in the global numbering
+            if(srp->RepType() == Loci::MAP)
+              facts.create_intensional_fact(*vi2,srp) ;
+            else
+              facts.create_intensional_fact(*vi2,srp->remap(df->dl2g)) ;
+          }
+        }else{
+          for(variableSet::const_iterator vi2=queries.begin();
+              vi2!=queries.end();++vi2) {
+            storeRepP srp = clone.get_variable(*vi2) ;
+            if(srp->RepType() == Loci::CONSTRAINT)
+              if(GLOBAL_AND(srp->domain()==EMPTY)) {
+                empty_constraints += *vi2 ;
+                continue ;
+              }
+            facts.create_intensional_fact(*vi2,srp) ;
+          }
+        }
+#else
+        for(variableSet::const_iterator vi2=queries.begin();
+            vi2!=queries.end();++vi2) {
+          storeRepP srp = clone.get_variable(*vi2) ;
+          if(srp->RepType() == Loci::CONSTRAINT)
+            if(GLOBAL_AND(srp->domain()==EMPTY)) {
+              empty_constraints += *vi2 ;
+              continue ;
+            }
+          facts.create_intensional_fact(*vi2,srp) ;
+        }
+#endif        
+      }
+    } // end of if(!has_map)
+    // finally we remove all the rules that derived from
+    // any empty constraints
+    //cout << "empty constraints: " << empty_constraints << endl ;
+    ruleSet del_rules ;
+    for(variableSet::const_iterator vi=empty_constraints.begin();
+        vi!=empty_constraints.end();++vi)
+      del_rules += extract_rules(gr[vi->ident()]) ;
+    
+    par_rdb.remove_rules(del_rules) ;
+
+    in_internal_query = false ;
+  }//end of stationary_map_gen
 
 
 }

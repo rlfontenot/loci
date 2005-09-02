@@ -238,6 +238,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &eset, const int* p) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
@@ -665,6 +667,28 @@ namespace Loci {
     return s.Rep() ;
   }
 
+  template<class T>
+  storeRepP storeVecRepI<T>::freeze() {
+    return getRep() ;
+  }
+
+  // This method is also incorrect for reasons
+  // see the comments before storeRepI<T>::thaw()
+  // in store.h
+  template<class T>
+  storeRepP storeVecRepI<T>::thaw() {
+    return getRep() ;
+//     dstoreVec<T> ds ;
+//     ds.setVecSize(size) ;
+//     for(entitySet::const_iterator ei=store_domain.begin();
+//         ei!=store_domain.end();++ei) {
+//       T* b = base_ptr+( (*ei)*size) ;
+//       T* e = b + size ; 
+//       ds[*ei] = std::vector<T>(b,e) ;
+//     }
+//     return ds.Rep() ;
+  }
+  
   //*************************************************************************/
 
   template <class T> 

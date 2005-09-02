@@ -36,6 +36,7 @@ namespace Loci {
       int myid ;
       int isDistributed ;
       Map l2g ;
+      dMap dl2g ; // the dynamic version of l2g
       dMap g2l ; 
       
       entitySet my_entities ;
@@ -76,7 +77,6 @@ namespace Loci {
     void copy_all_from(const fact_db& f) {
       init_ptn = f.init_ptn ;
       global_comp_entities = f.global_comp_entities ;
-      distributed_info = f.distributed_info ;
       synonyms = f.synonyms ;
       l2g = f.l2g.Rep() ; // Note: shallow copy here (copy by reference)
       maximum_allocated = f.maximum_allocated ;
@@ -86,6 +86,43 @@ namespace Loci {
       tmap = f.tmap ;
       nspace_vec = f.nspace_vec ;
       extensional_facts = f.extensional_facts ;
+      /* we cannot use the following direct assignment
+         to copy the distributed_info from f since
+         distributed_info is a NPTR pointer and is
+         reference counted this would not be a true copy
+      */
+      // distributed_info = f.distributed_info ;
+      distribute_infoP& df = distributed_info ;
+      const distribute_infoP& fdf = f.distributed_info ;
+      if(fdf == 0) {
+        df = 0 ;
+        return ;
+      }
+      df = new distribute_info ;
+      df->myid = fdf->myid ;
+      df->isDistributed = fdf->isDistributed ;
+//       df->l2g = (fdf->l2g).Rep() ;
+//       df->g2l = (fdf->g2l).Rep() ;
+      // we make a deep copy of the maps
+      entitySet l2g_alloc = fdf->l2g.domain() ;
+      entitySet g2l_alloc = fdf->g2l.domain() ;
+      df->l2g.allocate(l2g_alloc) ;
+      df->g2l.allocate(g2l_alloc) ;
+      for(entitySet::const_iterator ei=l2g_alloc.begin();
+          ei!=l2g_alloc.end();++ei) {
+        df->l2g[*ei] = fdf->l2g[*ei] ;
+        df->dl2g[*ei] = fdf->l2g[*ei] ;
+      }
+      for(entitySet::const_iterator ei=g2l_alloc.begin();
+          ei!=g2l_alloc.end();++ei)
+        df->g2l[*ei] = fdf->g2l[*ei] ;
+      df->my_entities = fdf->my_entities ;
+      df->comp_entities = fdf->comp_entities ;
+      df->copy = fdf->copy ;
+      df->xmit = fdf->xmit ;
+      df->copy_total_size = fdf->copy_total_size ;
+      df->xmit_total_size = fdf->xmit_total_size ;
+      df->remap = fdf->remap ;
     }
     
     std::pair<entitySet, entitySet> get_dist_alloc(int size) ;

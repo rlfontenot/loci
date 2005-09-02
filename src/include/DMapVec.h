@@ -59,6 +59,8 @@ namespace Loci {
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace,hid_t dataset, hsize_t dimension, const char* name, entitySet &en) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    virtual DatatypeP getType() ;
+    virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     HASH_MAP(int,VEC) *get_attrib_data() { return &attrib_data; }
     virtual frame_info read_frame_info(hid_t group_id) ;
@@ -335,7 +337,7 @@ namespace Loci {
         ++size_send ;
         send_map[size_send] = miv->second.size() ;
         ++size_send ;
-        for(int j = 0; j < M; ++j) { 
+        for(unsigned int j = 0; j < M; ++j) { 
           send_map[size_send] = (miv->second)[j] ;
           ++size_send ;
         }
@@ -387,10 +389,12 @@ namespace Loci {
     return dmul.Rep() ;
   }
 
-  template<unsigned int M> storeRepP thaw() {
-    return dMapVecRepI<M>::getRep() ;
-  }
   //------------------------------------------------------------------------
+  template<unsigned int M>
+  DatatypeP dMapVecRepI<M>::getType() {
+    return DatatypeP(new AtomicType(INT)) ;
+  }
+  
   template<unsigned int M> 
   storeRepP dMapVecRepI<M>::get_map()  
   {
@@ -439,7 +443,7 @@ namespace Loci {
 
     std:: sort( vec.begin(), vec.end() );
 
-    for( int i = 0; i < vec.size(); i++) 
+    for(std::vector<int>::size_type i = 0; i < vec.size(); i++) 
       storeDomain +=  vec[i];
 
     return storeDomain ;
@@ -487,7 +491,7 @@ namespace Loci {
       ci = attrib_data.find( i );
       if( ci != attrib_data.end() ) {
         aVec = ci->second;
-        for(int j=0;j<M;++j) {
+        for(unsigned int j=0;j<M;++j) {
           bool in_set = codomain.inSet(aVec[j]) ;
           vali = vali && in_set ;
           valu = valu || in_set ;
@@ -542,7 +546,7 @@ namespace Loci {
     allocate(e) ;
 
     FORALL(e,ii) {
-      for(int j=0;j<M;++j)
+      for(unsigned int j=0;j<M;++j)
         s >> attrib_data[ii][j] ;
     } ENDFORALL ;
     
@@ -678,6 +682,7 @@ template<unsigned int M> class const_dMapVec ;
 
   public:
     const_dMapVec() { setRep(new MapVecType) ; }
+    const_dMapVec(storeRepP &rp) { setRep(rp) ; }
 
     virtual ~const_dMapVec() ;
 
@@ -750,18 +755,28 @@ template<unsigned int M> class const_dMapVec ;
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
     return s.Rep() ;
-#ifdef FREEZEONREMAP
-    MapVec<M> static_MapVec ;
-    entitySet tmp_dom = s.domain() ;
-    static_MapVec.allocate(tmp_dom) ;
-    FORALL(tmp_dom, ei) {
-      for(int i = 0; i < M; ++i)
-	static_MapVec[ei][i] = s[ei][i] ;
-    }ENDFORALL ;
-    return static_MapVec.Rep() ;
-#endif
   }
 
+  // this method has the same dependency problem
+  // as commented in store.h before the thaw() method
+  template<unsigned int M>
+  storeRepP dMapVecRepI<M>::freeze() {
+    return getRep() ;
+//     MapVec<M> static_MapVec ;
+//     entitySet tmp_dom = domain() ;
+//     static_MapVec.allocate(tmp_dom) ;
+//     FORALL(tmp_dom, ei) {
+//       for(unsigned int i = 0; i < M; ++i)
+// 	static_MapVec[ei][i] = attrib_data[ei][i] ;
+//     }ENDFORALL ;
+//     return static_MapVec.Rep() ;
+  }
+
+  template<unsigned int M>
+  storeRepP dMapVecRepI<M>::thaw() {
+    return getRep() ;
+  }
+  
 //------------------------------------------------------------------------
 
   template<unsigned int M> 
@@ -775,7 +790,7 @@ template<unsigned int M> class const_dMapVec ;
     entitySet dom = m.domain() ;
 
     FORALL(context,i) {
-      for(int j=0;j<M;++j) {
+      for(unsigned int j=0;j<M;++j) {
         if(dom.inSet(attrib_data[i][j]))
           attrib_data[i][j] = m[attrib_data[i][j]] ;
         else

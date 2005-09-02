@@ -538,6 +538,19 @@ namespace Loci {
                                                sched_db& scheds) ;
   } ;
 
+  // map rule compiler for rule that computes maps
+  class map_compiler : public rule_compiler {
+    rule map_impl ;  // rule that computes a map
+    // existential analysis info
+    entitySet exec_seq ;
+  public:
+    map_compiler(rule r)  { map_impl=r;}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts,
+                                               sched_db &scheds) ;
+  } ;
 
 }
 

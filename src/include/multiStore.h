@@ -74,6 +74,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
@@ -491,6 +493,25 @@ namespace Loci {
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
     return s.Rep() ;
+  }
+
+  template<class T>
+  storeRepP multiStoreRepI<T>::freeze() {
+    return getRep() ;
+  }
+
+  template<class T>
+  storeRepP multiStoreRepI<T>::thaw() {
+    dmultiStore<T> ds ;
+    for(entitySet::const_iterator ei=store_domain.begin();
+        ei!=store_domain.end();++ei) {
+      std::vector<T> v ;
+      ds[*ei] = v ;
+      int t = end(*ei) - begin(*ei) ;
+      for(int i=0;i<t;++i)
+        ds[*ei].push_back(base_ptr[*ei][i]) ;
+    }
+    return ds.Rep() ;
   }
 
   //*************************************************************************/

@@ -416,7 +416,7 @@ namespace Loci {
 
   template <class T,size_t n> inline std::ostream &
     operator<<(std::ostream &s, const Array<T,n> &v) {
-    for(int i=0;i<n;++i)
+    for(size_t i=0;i<n;++i)
       s << v[i] << ' ' ;
     return s ;
   }

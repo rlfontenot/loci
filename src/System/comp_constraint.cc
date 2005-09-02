@@ -11,7 +11,6 @@ namespace Loci {
     rule_implP rp ;
     rule rule_tag ;
     sequence exec_seq ;
-    bool do_run ;
   public:
     execute_constraint_rule(rule fi, sequence seq,
                             fact_db &facts, sched_db &scheds) ;
@@ -22,7 +21,6 @@ namespace Loci {
   execute_constraint_rule::
   execute_constraint_rule(rule fi, sequence seq,
                           fact_db& facts, sched_db& scheds) {
-    do_run = true ;
     rp = fi.get_rule_implP() ;
     rule_tag = fi ;
     rp->initialize(facts) ;
@@ -32,9 +30,7 @@ namespace Loci {
   
   void execute_constraint_rule::execute(fact_db &facts) {
     current_rule_id = rule_tag.ident() ;
-    if(do_run) {
-      rp->compute(exec_seq) ;
-    }
+    rp->compute(exec_seq) ;
   }
   
   void execute_constraint_rule::Print(ostream &s) const {

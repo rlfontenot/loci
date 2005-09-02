@@ -24,6 +24,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
@@ -76,7 +78,40 @@ namespace Loci {
   inline std::istream & operator>>(std::istream &s, constraint &t)
     { return t.Input(s) ; }
 
-
+  // a const version of constraint class
+  class const_constraint: public store_instance {
+    typedef constraintRep constraintType ;
+    entitySet *data ;
+  public:
+    const_constraint() { setRep(new constraintType) ;}
+    const_constraint(const constraint& var) {setRep(var.Rep()) ;}
+    const_constraint(const storeRepP& rp) {setRep(rp) ;}
+    const_constraint& operator=(const const_constraint& p) {
+      setRep(p.Rep()) ;
+      return *this ;
+    }
+    const_constraint& operator=(const storeRepP& p) {
+      setRep(p) ;
+      return *this ;
+    }
+    const_constraint& operator=(const entitySet& v) {
+      *data = v ;
+      return *this ;
+    }
+    virtual ~const_constraint() {}
+    virtual void notification() {
+      NPTR<constraintType> p(Rep());
+      if(p!=0)
+        data = p->get_constraint() ;
+      warn(p==0);
+    }
+    virtual instance_type access() const {return READ_ONLY ;}
+    const entitySet& operator*() const {return *data ;}
+    std::ostream& Print(std::ostream& s) const {return Rep()->Print(s) ;}
+  } ;
+  inline std::ostream & operator<<(std::ostream &s, const const_constraint &t)
+    { return t.Print(s) ; }
+  
   // a duplicate of the constraint class
   class Constraint : public store_instance {
     typedef constraintRep constraintType ;

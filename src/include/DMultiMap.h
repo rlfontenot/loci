@@ -53,6 +53,7 @@ namespace Loci {
   virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
   virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
   virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+  virtual storeRepP freeze() ;
   virtual storeRepP thaw() ;
   HASH_MAP(int,std::vector<int> ) *get_attrib_data() {return &attrib_data;}
   virtual DatatypeP getType() ;
@@ -224,6 +225,12 @@ namespace Loci {
                   const entitySet &input_image,
                   const entitySet &input_preimage) ;
   void inverseMap(dmultiMap &result, const Map &input_map,
+                  const entitySet &input_image,
+		  const entitySet &input_preimage) ;
+  void inverseMap(dmultiMap &result, const const_dMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) ;
+  void inverseMap(dmultiMap &result, const const_Map &input_map,
                   const entitySet &input_image,
 		  const entitySet &input_preimage) ;
 }

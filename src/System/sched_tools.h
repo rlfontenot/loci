@@ -157,6 +157,9 @@ namespace Loci {
    void dynamic_scheduling(digraph& gr, fact_db& facts,
                            variableSet& given,
                            const variableSet& target) ;
+   // experimental dynamic mapping generation
+   // in the stationary time level
+   void stationary_relation_gen(rule_db&, fact_db&, const variableSet&) ;
 }
 #endif
 

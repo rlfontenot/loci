@@ -50,7 +50,7 @@ namespace Loci {
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,MAP_RULE,UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
@@ -195,6 +195,22 @@ namespace Loci {
     void conditional(const std::string &cond)
       { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+  } ;
+
+  class map_rule: public rule_impl {
+  protected:
+    map_rule() { rule_class(MAP_RULE) ; }
+    void name_store(const std::string& nm, store_instance& si)
+      {rule_impl::name_store(nm,si) ; }
+    void input(const std::string& invar)
+      {rule_impl::input(invar) ;}
+    void output(const std::string& outvar)
+      {rule_impl::output(outvar) ;}
+    void constraint(const std::string& constrain)
+      {rule_impl::constraint(constrain) ;}
+    void conditional(const std::string& cond)
+      {rule_impl::conditional(cond) ;}
+    virtual CPTR<joiner> get_joiner() {return CPTR<joiner>(0) ;}
   } ;
   
   class pointwise_rule : public rule_impl {
@@ -762,6 +778,8 @@ namespace Loci {
     void add_rule(rule f) ;
     void add_rules(rule_impl_list &gfl) ;
     void add_rules(register_rule_impl_list &gfl) ;
+    void remove_rule(rule f) ;
+    void remove_rules(const ruleSet& rs) ;
     rule_implP get_rule(const std::string &name) {
       return name2rule[name].get_info().rule_impl->new_rule_impl() ;
     }

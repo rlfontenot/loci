@@ -33,6 +33,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const;
     virtual storeRepP remap(const dMap &m) const;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context);
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
@@ -323,6 +325,16 @@ namespace Loci {
     if(attrib_data!=0)
       *r = *attrib_data;
     return r.Rep();
+  }
+
+  template<class T>
+  storeRepP blackboxRepI<T>::freeze() {
+    return getRep() ;
+  }
+
+  template<class T>
+  storeRepP blackboxRepI<T>::thaw() {
+    return getRep() ;
   }
 
   //**************************************************************************/

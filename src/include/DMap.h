@@ -53,6 +53,7 @@ namespace Loci {
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     virtual block_hash<int> *get_attrib_data() { return &attrib_data; }
     virtual DatatypeP getType() ;

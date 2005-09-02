@@ -23,6 +23,7 @@
 #include <Map.h>
 #include <multiMap.h>
 
+#include <vector>
 #include <algorithm>
 
 #include <Tools/hash_map.h>
@@ -67,6 +68,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
@@ -232,7 +235,7 @@ namespace Loci {
 
     std::sort( vec.begin(), vec.end() );
 
-    for( int i = 0; i < vec.size(); i++) 
+    for(std::vector<int>::size_type i = 0; i < vec.size(); i++) 
       storeDomain +=  vec[i];
 
     dispatch_notify() ;
@@ -434,17 +437,25 @@ namespace Loci {
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
+    return s.Rep() ;
+  }
+
+  template<class T>
+  storeRepP dstoreVecRepI<T>::freeze() {
     storeVec<T> static_storeVec ;
-    entitySet tmp_dom = s.domain() ;
+    entitySet tmp_dom = domain() ;
     static_storeVec.allocate(tmp_dom) ;
-    int sz = s.getVecSize() ;
-    static_storeVec.setVecSize(sz) ;
+    static_storeVec.setVecSize(size) ;
     FORALL(tmp_dom, ei) {
-      for(int i = 0; i < sz; ++i)
-	static_storeVec[ei][i] = s[ei][i] ;
+      for(int i = 0; i < size; ++i)
+	static_storeVec[ei][i] = attrib_data[ei][i] ;
     }ENDFORALL ;
     return static_storeVec.Rep() ;
-    //return s.Rep() ;
+  }
+
+  template<class T>
+  storeRepP dstoreVecRepI<T>::thaw() {
+    return getRep() ;
   }
 
   //*************************************************************************/

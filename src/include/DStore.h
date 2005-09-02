@@ -61,6 +61,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
@@ -341,18 +343,26 @@ namespace Loci {
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
     
-    store<T> static_store ;
-    entitySet tmp_dom = s.domain();
-    static_store.allocate(tmp_dom) ;
-    for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei)
-      static_store[*ei] = s[*ei] ;
-    return static_store.Rep() ;
-    
-    //return s.Rep() ;
+    return s.Rep() ;
   }
 
-  //*************************************************************************/
+  template<class T>
+  storeRepP dstoreRepI<T>::freeze() {
+    store<T> static_store ;
+    entitySet tmp_dom = domain();
+    static_store.allocate(tmp_dom) ;
+    for(entitySet::const_iterator ei = tmp_dom.begin();
+        ei != tmp_dom.end(); ++ei)
+      static_store[*ei] = attrib_data[*ei] ;
+    return static_store.Rep() ;
+  }
 
+  template<class T>
+  storeRepP dstoreRepI<T>::thaw() {
+    return getRep() ;
+  }
+  // **********************************************************************/
+  
   template<class T> 
   void dstoreRepI<T>::copy(storeRepP &st, const entitySet &context)  
   {

@@ -39,6 +39,14 @@ namespace Loci {
     return Rep()->remap(m) ;
   }
 
+  storeRepP store_ref::freeze() {
+    return Rep()->freeze() ;
+  }
+
+  storeRepP store_ref::thaw() {
+    return Rep()->thaw() ;
+  }
+
   void store_ref::copy(storeRepP &st, const entitySet &context) {
     Rep()->copy(st,context) ;
   }

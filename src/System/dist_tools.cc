@@ -60,11 +60,12 @@ namespace Loci {
           entitySet global_tmp_dom = Loci::all_collect_entitySet(tmp_dom) ;
           constraint tmp ;
           *tmp = global_tmp_dom ;
-          facts.update_fact(variable(*vi), tmp) ; 
+          //facts.update_fact(variable(*vi), tmp) ;
+          facts.replace_fact(*vi,tmp) ;
         }
       }
       if(tmp_sp->RepType() == Loci::MAP) {
-        storeRepP map_sp = Loci::MapRepP(tmp_sp->getRep())->thaw() ; 
+        storeRepP map_sp = Loci::MapRepP(tmp_sp->getRep())->thaw() ;
         facts.replace_fact(*vi, map_sp) ;
       }
     }
@@ -103,7 +104,6 @@ namespace Loci {
     Loci::get_mappings(rdb,facts,dist_maps) ;
     entitySet tmp_copy, image ;
     image = Loci::dist_expand_map(tmp_set, facts, dist_maps) ;
-
     tmp_copy =  image - ptn[MPI_rank] ; 
     std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
     int *recv_count = new int[MPI_processes] ;
@@ -212,6 +212,7 @@ namespace Loci {
     proc_entities.clear() ;
 #endif 
     df->l2g = l2g.Rep() ;
+    df->dl2g = MapRepP(l2g.Rep())->thaw() ;
     df->g2l.allocate(g) ;
     entitySet ldom = l2g.domain() ;
     for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {
@@ -225,7 +226,7 @@ namespace Loci {
       if(myid != i )
         if(copy[i] != EMPTY) 
           recv_neighbour += i ; 
-  
+
     for(int i = 0; i < MPI_processes; ++i)
       if(myid != i)
         if(send_clone[i] != EMPTY)
@@ -279,7 +280,7 @@ namespace Loci {
     for(ei=recv_neighbour.begin(); ei != recv_neighbour.end();++ei)
       df->copy.push_back
         (fact_db::distribute_info::dist_data(*ei,recv_entities[*ei])) ;
-  
+
     int total = 0 ;
     for(size_t i=0;i<df->xmit.size();++i)
       total += df->xmit[i].size ;
@@ -616,7 +617,8 @@ namespace Loci {
 	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ; 
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
 	    if(sp->domain() != tmp_dom) {
-	      facts.update_fact(variable(*vi), sp) ; 
+	      //facts.update_fact(variable(*vi), sp) ;
+              facts.replace_fact(*vi,sp) ;
 	    }
 	    image +=  MapRepP(sp)->image((sp->domain()) & locdom) ;
 	  }
@@ -1177,7 +1179,8 @@ namespace Loci {
 	    entitySet tmp_out = tmp_preimage_vec[MPI_rank] - p->domain();
 	    p = mp->expand(tmp_out, ptn) ;
 	    if(tmp_out != EMPTY) {
-	      facts.update_fact(variable(*vi), p) ;
+	      //facts.update_fact(variable(*vi), p) ;
+              facts.replace_fact(*vi,p) ;
 	      added_entities += tmp_out;
 	    }
 	    tmp_image &= mp->image(mp->domain());
@@ -1223,7 +1226,8 @@ namespace Loci {
 	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ; 
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
 	    if(sp->domain() != tmp_dom) {
-	      facts.update_fact(variable(*vi), sp) ; 
+	      //facts.update_fact(variable(*vi), sp) ;
+              facts.replace_fact(*vi,sp) ;
 	    }
 	    image +=  MapRepP(sp)->image((sp->domain()) & locdom) ;
 

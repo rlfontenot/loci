@@ -610,7 +610,7 @@ namespace Loci {
       ++ei ;
     } ENDFORALL ;
       
-    pos = t_pos.Rep()->remap(remap);
+    pos = t_pos.Rep()->remap(remap)->freeze() ;
 
     ei = loc_faces.begin() ;
     FORALL(faces, li) {
@@ -648,9 +648,9 @@ namespace Loci {
     remap_sp = Loci::MapRepP(remap.Rep())->expand(remap_out, cell_ptn) ;
     remap.setRep(remap_sp) ; 
 
-    cl = tmp_cl.Rep()->remap(remap);
-    cr = tmp_cr.Rep()->remap(remap);
-    face2node = tmp_face2node.Rep()->remap(remap);
+    cl = tmp_cl.Rep()->remap(remap)->freeze() ;
+    cr = tmp_cr.Rep()->remap(remap)->freeze() ;
+    face2node = tmp_face2node.Rep()->remap(remap)->freeze() ;
   }
 
   //Note: This function is designed for serial version.
@@ -684,9 +684,9 @@ namespace Loci {
       identity_map[ei] = ei ;
     } ENDFORALL ; 
     
-    pos = t_pos.Rep()->remap(identity_map);
-    cl = tmp_cl.Rep()->remap(identity_map);
-    cr = tmp_cr.Rep()->remap(identity_map);
+    pos = t_pos.Rep()->remap(identity_map)->freeze() ;
+    cl = tmp_cl.Rep()->remap(identity_map)->freeze() ;
+    cr = tmp_cr.Rep()->remap(identity_map)->freeze() ;
     face2node = MapRepP(tmp_face2node.Rep())->get_map();
 
   }

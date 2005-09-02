@@ -664,9 +664,9 @@ namespace Loci {
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP  p = facts.get_variable(*vi) ;
       if(facts.is_distributed_start())
-        facts.replace_fact(*vi,p->remap(remap)) ;
+        facts.replace_fact(*vi,(p->remap(remap))->freeze()) ;
       else
-        facts.update_fact(*vi,p->remap(remap)) ;
+        facts.update_fact(*vi,(p->remap(remap))->freeze()) ;
     }
   }
 
@@ -698,7 +698,7 @@ namespace Loci {
 
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP  p = facts.get_variable(*vi) ;
-      facts.replace_fact(*vi,p->remap(m)) ;
+      facts.replace_fact(*vi,(p->remap(m))->freeze()) ;
     }
   }
 

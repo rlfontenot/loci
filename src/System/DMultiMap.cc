@@ -18,9 +18,6 @@ namespace Loci
   using std::make_pair ;
   using std::vector ;
   using std::sort ;
-  storeRepP dmultiMapRepI::thaw() {
-    return getRep() ;
-  }
   storeRepP dmultiMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
     int *recv_count = new int[MPI_processes] ;
     int *send_count = new int[MPI_processes] ;
@@ -230,13 +227,29 @@ namespace Loci
     s.Rep()->scatter(m,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(m,mapimage) ;
     
-    multiMap   newmap; 
-    newmap = MapRepP(s.Rep())->get_map() ;
-    return newmap.Rep() ;  
-   
-    // return s.Rep() ;
+    return s.Rep() ;
   }
-  
+
+  storeRepP dmultiMapRepI::thaw() {
+    return getRep() ;
+  }
+
+  storeRepP dmultiMapRepI::freeze() {
+    multiMap static_map ;
+    store<int> count ;
+    entitySet dom = domain() ;
+    count.allocate(dom) ;
+    for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei)
+      count[*ei] = attrib_data[*ei].size() ;
+    static_map.allocate(count) ;
+    for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei) {
+      int i=0 ;
+      for(std::vector<int>::const_iterator vi=attrib_data[*ei].begin();
+          vi!=attrib_data[*ei].end();++vi,++i)
+        static_map[*ei][i] = *vi ;
+    }
+    return static_map.Rep() ;
+  }
   //**************************************************************************/
   
   void dmultiMapRepI::compose(const dMap &m, const entitySet &context) 
@@ -724,5 +737,34 @@ namespace Loci
 	result[elem].push_back(i) ;
     } ENDFORALL ;
   }
-}
+  void inverseMap(dmultiMap &result, const const_dMap &input_map,
+                  const entitySet &input_image,
+		  const entitySet &input_preimage) {
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int> tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      if(input_image.inSet(elem)) 
+	result[elem].push_back(i) ;
+    } ENDFORALL ;
+  }
+  void inverseMap(dmultiMap &result, const const_Map &input_map,
+                  const entitySet &input_image,
+		  const entitySet &input_preimage) {
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int> tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      if(input_image.inSet(elem)) 
+	result[elem].push_back(i) ;
+    } ENDFORALL ;
+  }
+
+} // end of namespace Loci
 

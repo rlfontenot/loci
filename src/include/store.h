@@ -56,6 +56,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
@@ -302,7 +304,8 @@ namespace Loci {
   template<class T> store_instance::instance_type
   const_store<T>::access() const { return READ_ONLY; }
 
-  template<class T> storeRepP storeRepI<T>::remap(const dMap &m) const {
+  template<class T>
+  storeRepP storeRepI<T>::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
     store<T> s ;
@@ -313,6 +316,47 @@ namespace Loci {
     return s.Rep() ;
   }
 
+  template<class T> storeRepP storeRepI<T>::freeze() {
+    return getRep() ;
+  }
+
+  // this method is currently not correct. But I have
+  // presently no better way to design it. As the thaw()
+  // method of storeRepI would create a dstore and the
+  // freeze() method of dstoreRepI would create a store
+  // this creates a mutual dependency relationship.
+  // As both methods need to access the internal members
+  // of the other class, there seems to have no way to
+  // resolve this in the header file.
+  // Since both class definition do not need to know
+  // the other class, it is the DEFINITION of the METHODS
+  // that need to know the other class, we can move the
+  // definition of storeRepPI::thaw and dstoreRepI::freeze
+  // to their own ".cc" implementation file. But the problem
+  // is that they are both template definitions. Usually
+  // template definition will have to stay in the header
+  // file or there will be linking errors later.
+  // The C++ standard does permit separate compilation of
+  // templates just as usual functions and classes. But
+  // we will need to use the "export" keyword to do so.
+  // As of today, most c++ compilers do not support the "export"
+  // keyword (The Comeau C++ compiler and the Intel 7.x C++
+  // compiler are the only existing ones that I know of).
+  // GCC currently does not support "export." And therefore
+  // I have no way to resolve this problem currently.
+  // If this method is called, it will likely trigger a
+  // runtime type error or crash (depending on context), as it
+  // just returns the static RepI instead of a dynamic RepI.
+  // We need to address this issue in the future.
+  template<class T> storeRepP storeRepI<T>::thaw() {
+    return getRep() ;
+//     dstore<T> ds ;
+//     for(entitySet::const_iterator ei=store_domain.begin();
+//         ei!=store_domain.end();++ei)
+//       ds[*ei] = base_ptr[*ei] ;
+//     return ds.Rep() ;
+  }
+  
   template<class T> void storeRepI<T>::copy(storeRepP &st, const entitySet &context)  {
     const_store<T> s(st) ;
     fatal((context != EMPTY) && (base_ptr ==0)) ;

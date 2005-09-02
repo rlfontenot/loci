@@ -24,6 +24,7 @@
 
 #include <DMultiMap.h>
 
+#include <vector>
 #include <algorithm>
 
 #include <Tools/hash_map.h>
@@ -72,6 +73,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
 
     virtual void gather(const dMap &m, storeRepP &st,
@@ -316,30 +319,41 @@ namespace Loci {
   storeRepP dmultiStoreRepI<T>::remap(const dMap &m) const {
     
     dmultiStore<T> s ;
-    /*
     entitySet newdomain = m.domain() & domain() ;
     entitySet mapimage = m.image(newdomain) ;
     s.allocate(mapimage) ;
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(m,my_store,newdomain) ;
-    typename multiStore<T> static_mul ;
-    store<int> count ;
-    entitySet tmp_dom = domain() ;
-    count.allocate(tmp_dom) ;
-    for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei)
-      count[*ei] = s[*ei].size() ;
-    for(entitySet::const_iterator ei = tmp_dom.begin(); ei != tmp_dom.end(); ++ei) {
-      int i = 0 ;
-      for(std::vector<int>::const_iterator vi = s[*ei].begin(); vi != s[*ei].end(); ++vi) {
-	static_mul[*ei][i] = *vi ;
-	++i ;
-      }
-    }
-    return static_mul.Rep() ;
-    */
     return s.Rep() ;
   }
 
+  template<class T> class multiStore ;
+  template<class T>
+  storeRepP dmultiStoreRepI<T>::freeze() {
+    multiStore<T> static_mul ;
+    store<int> count ;
+    entitySet tmp_dom = domain() ;
+    count.allocate(tmp_dom) ;
+    for(entitySet::const_iterator ei = tmp_dom.begin();
+        ei != tmp_dom.end(); ++ei)
+      count[*ei] = attrib_data[*ei].size() ;
+    static_mul.allocate(count) ;
+    for(entitySet::const_iterator ei = tmp_dom.begin();
+        ei != tmp_dom.end(); ++ei) {
+      int i = 0 ;
+      for(typename std::vector<T>::const_iterator vi=attrib_data[*ei].begin();
+          vi != attrib_data[*ei].end(); ++vi,++i) {
+	static_mul[*ei][i] = *vi ;
+      }
+    }
+    return static_mul.Rep() ;
+  }
+
+  template<class T>
+  storeRepP dmultiStoreRepI<T>::thaw() {
+    return getRep() ;
+  }
+  
   //**************************************************************************/
   
   template<class T> 
@@ -352,7 +366,7 @@ namespace Loci {
       attrib_data[i].clear();
       newVec  =   s[i];
       attrib_data[i].reserve( newVec.size() );
-      for( int j = 0; j < newVec.size(); j++)
+      for(typename std::vector<T>::size_type j = 0; j < newVec.size(); j++)
         attrib_data[i].push_back( newVec[j] );
     } ENDFORALL ;
 
@@ -372,7 +386,7 @@ namespace Loci {
       attrib_data[i].clear();
       newVec  =   s[m[i]];
       attrib_data[i].reserve( newVec.size() );
-      for( int i = 0; i < newVec.size(); i++) 
+      for(typename std::vector<T>::size_type i = 0; i < newVec.size(); i++) 
         attrib_data[i].push_back( newVec[i] );
     } ENDFORALL ;
 
@@ -419,7 +433,7 @@ namespace Loci {
 
     std::sort( vec.begin(), vec.end() );
 
-    for( int i = 0; i < vec.size(); i++)
+    for(std::vector<int>::size_type i = 0; i < vec.size(); i++)
       storeDomain +=  vec[i];
 
     return storeDomain ;
@@ -660,7 +674,7 @@ namespace Loci {
                                        int &insize, const sequence &seq)
   {
 
-    int   outcount, vsize;
+    unsigned int   outcount, vsize;
     std::vector<T>  outbuf;
     sequence :: const_iterator ci;
 
@@ -674,7 +688,7 @@ namespace Loci {
       outcount = vsize*sizeof(T);
       MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, 
                   MPI_BYTE, MPI_COMM_WORLD) ;
-      for( int ivec = 0; ivec < vsize; ivec++) 
+      for(typename std::vector<T>::size_type ivec = 0; ivec < vsize; ivec++) 
         attrib_data[*ci][ivec] = outbuf[ivec];
     }
   }

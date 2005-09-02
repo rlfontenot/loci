@@ -435,6 +435,18 @@ namespace Loci {
             retval = false ;
           }
           break ;
+        case MAP_RULE:
+          if(mi->second->Rep()->RepType() != MAP) {
+            cerr << "-------------------------------------------------"<<endl;
+            cerr << "Map rule should have targets" << endl;
+            cerr << " of constraint. Perhaps this rule should be a" << endl;
+	    cerr << "pointwise_rule, or apply_rule."<< endl ;
+            cerr << "Error occured for rule " << get_name()
+		 << " and variable " << *si << endl ;
+            cerr << "-------------------------------------------------"<<endl;
+            retval = false ;
+          }
+          break ;
         case SINGLETON:
           if(mi->second->Rep()->RepType() != PARAMETER &&
 	     mi->second->Rep()->RepType() != BLACKBOX) {
@@ -488,8 +500,7 @@ namespace Loci {
         cerr << "Error occured in rule '"
              << typeid(*this).name() << "'" << endl ;
         exit(-1) ;
-      } 
-      
+      }
       sp->second->setRep(srp) ;
     }
   }
@@ -1487,6 +1498,44 @@ variableSet rule_impl::get_var_list() {
       if(!(i.get_p())->rr->is_module_rule())
 	add_rule(*i) ;
   }
+
+  void rule_db::remove_rule(rule f) {
+    string fname = f.get_info().rule_impl->get_name() ;
+    rule_map_type::const_iterator fmti = name2rule.find(fname) ;
+    if(fmti != name2rule.end()) {
+      fname = f.get_info().name() ;
+    }
+    name2rule.erase(fname) ;
+    // remove rules in the appropriate categories
+    if(f.get_info().rule_impl->get_rule_class() == rule_impl::DEFAULT) {
+      default_rules -= f ;
+      return ;
+    }
+    if(f.get_info().rule_impl->get_rule_class() == rule_impl::OPTIONAL) {
+      optional_rules -= f ;
+      return ;
+    }
+
+    known_rules -= f ;
+    variableSet svars = f.sources() ;
+    variableSet tvars = f.targets() ;
+    for(variableSet::const_iterator i=svars.begin();i!=svars.end();++i)
+      srcs2rule[*i] -= f ;
+    for(variableSet::const_iterator i=tvars.begin();i!=tvars.end();++i) {
+      variable v = *i ;
+      while(v.get_info().priority.size() != 0) {
+        trgt2rule[v] += f ;
+        v = v.drop_priority() ;
+      }
+      trgt2rule[v] -= f ;
+    }
+  }
+  
+  void rule_db::remove_rules(const ruleSet& rs) {
+    for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri)
+      remove_rule(*ri) ;
+  }
+
 }
 
 

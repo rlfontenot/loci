@@ -421,6 +421,10 @@ namespace Loci {
     delete [] recv_displacement ;
     return sp ;
   }
+
+  storeRepP MapRepI::freeze() {
+    return getRep() ;
+  }
   
   storeRepP MapRepI::thaw() {
     
@@ -770,16 +774,23 @@ namespace Loci {
     delete [] recv_displacement ; 
     return sp ;
   }
- 
-storeRepP multiMapRepI::thaw() {
-  dmultiMap dm ;
-  FORALL(store_domain, i) {
-    int tmp = end(i)-begin(i) ;
-    for(int j = 0; j < tmp; ++j)
-      dm[i].push_back(base_ptr[i][j]) ;
-  } ENDFORALL ;
-  return(dm.Rep()) ;
-}
+
+  storeRepP multiMapRepI::freeze() {
+    return getRep() ;
+  }
+  
+  storeRepP multiMapRepI::thaw() {
+    dmultiMap dm ;
+    FORALL(store_domain, i) {
+      int tmp = end(i)-begin(i) ;
+      std::vector<int> tv ;
+      dm[i] = tv ;
+      for(int j = 0; j < tmp; ++j)
+        dm[i].push_back(base_ptr[i][j]) ;
+    } ENDFORALL ;
+    return(dm.Rep()) ;
+  }
+  
   void multiMapRepI::allocate(const store<int> &sizes) {
     
    int sz = 0 ;
@@ -832,8 +843,8 @@ storeRepP multiMapRepI::thaw() {
   }
   storeRepP multiMapRepI::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
-    //    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
-    //    newdomain &= mappimage.first ;
+    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    newdomain &= mappimage.first ;
     entitySet mapimage = m.image(newdomain) ;
     multiMap s ;
     s.allocate(mapimage) ;
@@ -1242,5 +1253,71 @@ storeRepP multiMapRepI::thaw() {
     } ENDFORALL ;
 #endif
   }
-   
-}
+
+  void inverseMap(multiMap &result, const const_Map &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) {
+    store<int> sizes ;
+    sizes.allocate(input_image) ;
+
+    FORALL(input_image,i) {
+      sizes[i] = 0 ;
+    } ENDFORALL ;
+    entitySet preloop = input_preimage & input_map.domain() ;
+    FORALL(preloop,i) {
+      if(input_image.inSet(input_map[i]))
+        sizes[input_map[i]] += 1 ;
+    } ENDFORALL ;
+    result.allocate(sizes) ;
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      if(input_image.inSet(elem)) {
+        sizes[elem] -= 1 ;
+        FATAL(sizes[elem] < 0) ;
+        result[elem][sizes[elem]] = i ;
+      }
+    } ENDFORALL ;
+#ifdef DEBUG
+    FORALL(input_image,i) {
+      FATAL(sizes[i] != 0) ;
+    } ENDFORALL ;
+#endif
+  }
+  
+
+  void inverseMap(multiMap &result, const const_multiMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) {
+    store<int> sizes ;
+    sizes.allocate(input_image) ;
+    
+    FORALL(input_image,i) {
+      sizes[i] = 0 ;
+    } ENDFORALL ;
+    entitySet preloop = input_preimage & input_map.domain() ;
+
+    FORALL(preloop,i) {
+      for(const int *mi=input_map.begin(i);mi!=input_map.end(i);++mi)
+        if(input_image.inSet(*mi))
+          sizes[*mi] += 1 ;
+    } ENDFORALL ;
+    result.allocate(sizes) ;
+    FORALL(preloop,i) {
+      for(const int *mi=input_map.begin(i);mi!=input_map.end(i);++mi) {
+        int elem = *mi ;
+        if(input_image.inSet(elem)) {
+          sizes[elem] -= 1 ;
+          FATAL(sizes[elem] < 0) ;
+          result[elem][sizes[elem]] = i ;
+        }
+      }
+    } ENDFORALL ;
+#ifdef DEBUG
+    FORALL(input_image,i) {
+      FATAL(sizes[i] != 0) ;
+    } ENDFORALL ;
+#endif
+  }
+
+  
+} // end of namespace Loci

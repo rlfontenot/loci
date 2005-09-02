@@ -12,6 +12,7 @@
 #include <DMultiMap.h>
 #include <fact_db.h>
 #include <Map.h>
+#include <multiMap.h>
 
 namespace Loci {
   dMap distribute_dMap(dMap m, const std::vector<entitySet> &init_ptn) ;
@@ -21,13 +22,51 @@ namespace Loci {
   inline storeRepP distribute_store(storeRepP &sp)
     { return distribute_store(sp,*exec_current_fact_db) ; }
 
-  void distributed_inverseMap(dmultiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  void distributed_inverseMap(dmultiMap &result, const dMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
   
-  void distributed_inverseMap(dmultiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  void distributed_inverseMap(dmultiMap &result, const Map &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
   
-  void distributed_inverseMap(dmultiMap &result, const dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
+  void distributed_inverseMap(dmultiMap &result,
+                              const dmultiMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
   
-  void distributed_inverseMap(dmultiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn); 
+  void distributed_inverseMap(dmultiMap &result,
+                              const multiMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn); 
+
+  void distributed_inverseMap(dmultiMap &result,
+                              const const_dMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result,
+                              const const_Map &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result,
+                              const const_dmultiMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn) ;
+  
+  void distributed_inverseMap(dmultiMap &result,
+                              const const_multiMap &input_map,
+                              const entitySet &input_image,
+                              const entitySet &input_preimage,
+                              std::vector<entitySet> &init_ptn); 
 
   storeRepP collect_global_store(storeRepP &sp) ;
 

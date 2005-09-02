@@ -573,6 +573,313 @@ namespace Loci {
     delete [] recv_buf ;
   }
 
+  void distributed_inverseMap(dmultiMap &result, const const_dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+
+    entitySet preloop = input_preimage & input_map.domain() ;
+    int *recv_count = new int[MPI_processes] ;
+    int *send_count = new int[MPI_processes] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
+    std::vector<std::vector<int> > map_elems(MPI_processes) ;
+    std::vector<int> tmp_vec ;
+    tmp_vec.reserve(1) ;
+    entitySet local_input_image = input_image ;
+    local_input_image &= init_ptn[MPI_rank] ;
+    FORALL(local_input_image,i) {
+      result[i] = tmp_vec ;
+    }ENDFORALL ;
+
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      if(input_image.inSet(elem))
+        for(int j = 0; j < MPI_processes; ++j)
+          if(init_ptn[j].inSet(elem)) {
+            map_elems[j].push_back(elem) ;
+            map_elems[j].push_back(i) ;
+          }
+    }ENDFORALL ;
+    
+    for(int i = 0; i < MPI_processes; ++i)
+      send_count[i] = map_elems[i].size() ;
+
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+                 MPI_COMM_WORLD) ;
+
+    int size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += send_count[i] ;
+    int *send_buf = new int[size_send] ;
+
+    int size_recv = 0 ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      size_recv += recv_count[i] ;
+    }
+    int *recv_buf = new int[size_recv] ;
+
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      for(std::vector<int>::const_iterator vi = map_elems[i].begin(); vi != map_elems[i].end(); ++vi) {
+        send_buf[size_send] = *vi ;
+        ++size_send ;
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+                  recv_buf, recv_count, recv_displacement, MPI_INT,
+                  MPI_COMM_WORLD) ;
+
+    for(int j=0;j<size_recv;j+=2) {
+      result[recv_buf[j]].push_back(recv_buf[j+1]) ;
+    }
+
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+  }
+
+  void distributed_inverseMap(dmultiMap &result, const const_Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+
+    entitySet preloop = input_preimage & input_map.domain() ;
+    int *recv_count = new int[MPI_processes] ;
+    int *send_count = new int[MPI_processes] ;
+    int *send_displacement = new int[MPI_processes];
+    int *recv_displacement = new int[MPI_processes];
+    std::vector<std::vector<int> > map_elems(MPI_processes) ;
+    std::vector<int> tmp_vec ;
+    entitySet local_input_image = input_image ;
+    local_input_image &= init_ptn[MPI_rank] ;
+    FORALL(local_input_image,i) {
+      result[i] = tmp_vec ;
+    }ENDFORALL ;
+    FORALL(preloop,i) {
+      int elem = input_map[i] ;
+      std::vector<int> tmp_vec ;
+      if(input_image.inSet(elem))
+	for(int j = 0; j < MPI_processes; ++j)
+	  if(init_ptn[j].inSet(elem)) {
+	    map_elems[j].push_back(elem) ;
+	    map_elems[j].push_back(i) ;
+	  }
+    }ENDFORALL ;
+
+    for(int i = 0; i < MPI_processes; ++i)
+      send_count[i] = map_elems[i].size() ;
+
+    int size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += map_elems[i].size() ;
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      size_send += recv_count[i] ;
+    }
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      for(std::vector<int>::const_iterator vi = map_elems[i].begin(); vi != map_elems[i].end(); ++vi) {
+	send_buf[size_send] = *vi ;
+	++size_send ;
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		  recv_buf, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;
+    HASH_MAP(int, std::set<int> ) hm ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i]-1; ++j) {
+	hm[recv_buf[j]].insert(recv_buf[j+1]);
+	j++ ;
+      }
+    }
+    for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+      for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
+	result[hmi->first].push_back(*si) ;
+
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+  }
+
+  void distributed_inverseMap(dmultiMap &result, const const_dmultiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+    entitySet preloop = input_preimage & input_map.domain() ;
+    int *recv_count = new int[MPI_processes] ;
+    int *send_count = new int[MPI_processes] ;
+    int *send_displacement = new int[MPI_processes];
+    int *recv_displacement = new int[MPI_processes];
+    std::vector<HASH_MAP(int, std::vector<int> > ) map_elems(MPI_processes);
+    std::vector<int> tmp_vec ;
+    entitySet local_input_image = input_image ;
+    local_input_image &= init_ptn[MPI_rank] ;
+    FORALL(local_input_image,i) {
+      result[i] = tmp_vec ;
+    }ENDFORALL ;
+
+    FORALL(preloop,i) {
+      for(std::vector<int>::const_iterator mi = input_map[i].begin(); mi != input_map[i].end(); ++mi) {
+	int elem = *mi ;
+	if(input_image.inSet(elem))
+	  for(int j = 0; j < MPI_processes; ++j)
+	    if(init_ptn[j].inSet(elem))
+	      (map_elems[j])[elem].push_back(i) ;
+      }
+    } ENDFORALL ;
+
+    for(int i = 0; i < MPI_processes; ++i) {
+      send_count[i] = 2*map_elems[i].size() ;
+      for(HASH_MAP(int, std::vector<int> )::iterator hi = map_elems[i].begin(); hi != map_elems[i].end(); ++hi)
+	send_count[i] += hi->second.size() ;
+    }
+    int size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += send_count[i] ;
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += recv_count[i] ;
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      for(HASH_MAP(int, std::vector<int> )::const_iterator miv = map_elems[i].begin(); miv != map_elems[i].end(); ++miv) {
+	send_buf[size_send] = miv->first ;
+	++size_send ;
+	send_buf[size_send] = miv->second.size() ;
+	++size_send ;
+	for(std::vector<int>::const_iterator vi = miv->second.begin(); vi != miv->second.end(); ++vi) {
+	  send_buf[size_send] = *vi ;
+	  ++size_send ;
+	}
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		  recv_buf, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;
+    HASH_MAP(int, std::set<int> ) hm ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i]-1; ++j) {
+	int count = recv_buf[j+1] ;
+	for(int k = 0; k < count; ++k)
+	  hm[recv_buf[j]].insert(recv_buf[j+k+2]);
+	j += count + 1 ;
+      }
+    }
+    for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+      for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
+	result[hmi->first].push_back(*si) ;
+
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+  }
+
+  void distributed_inverseMap(dmultiMap &result, const const_multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) {
+    entitySet preloop = input_preimage & input_map.domain() ;
+    int *recv_count = new int[MPI_processes] ;
+    int *send_count = new int[MPI_processes] ;
+    int *send_displacement = new int[MPI_processes];
+    int *recv_displacement = new int[MPI_processes];
+    std::vector<HASH_MAP(int, std::vector<int> > ) map_elems(MPI_processes);
+    std::vector<int> tmp_vec ;
+    entitySet local_input_image = input_image ;
+    local_input_image &= init_ptn[MPI_rank] ;
+    FORALL(local_input_image,i) {
+      result[i] = tmp_vec ;
+    }ENDFORALL ;
+
+    FORALL(preloop,i) {
+      for(const int *mi = input_map.begin(i); mi != input_map.end(i); ++mi) {
+	int elem = *mi ;
+	if(input_image.inSet(elem))
+	  for(int j = 0; j < MPI_processes; ++j)
+	    if(init_ptn[j].inSet(elem))
+	      (map_elems[j])[i].push_back(elem) ;
+      }
+    }ENDFORALL ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      send_count[i] = 2*map_elems[i].size() ;
+      for(HASH_MAP(int, std::vector<int> )::iterator hi = map_elems[i].begin(); hi != map_elems[i].end(); ++hi)
+	send_count[i] += hi->second.size() ;
+    }
+    int size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += send_count[i] ;
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += recv_count[i] ;
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      for(HASH_MAP(int, std::vector<int> )::const_iterator miv = map_elems[i].begin(); miv != map_elems[i].end(); ++miv) {
+	send_buf[size_send] = miv->first ;
+	++size_send ;
+	send_buf[size_send] = miv->second.size() ;
+	++size_send ;
+	for(std::vector<int>::const_iterator vi = miv->second.begin(); vi != miv->second.end(); ++vi) {
+	  send_buf[size_send] = *vi ;
+	  ++size_send ;
+	}
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		  recv_buf, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;
+    HASH_MAP(int, std::set<int> ) hm ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i]-1; ++j) {
+	int count = recv_buf[j+1] ;
+	for(int k = 0; k < count; ++k)
+	  hm[recv_buf[j+k+2]].insert(recv_buf[j]);
+	j += count + 1 ;
+      }
+    }
+    for(HASH_MAP(int, std::set<int> )::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+      for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
+	result[hmi->first].push_back(*si) ;
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+  }
+
   /* This routine collects the store variables into processor
      0. Finally we have a single store allocated over the entities in
      global numbering in processor 0 */

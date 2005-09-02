@@ -627,13 +627,66 @@ namespace Loci {
     
   }
 
+  void prune_graph(digraph& gr, variableSet& given,
+                   const variableSet& target, fact_db& facts) {
+    variableSet known_vars = facts.get_typed_variables() ;
+    variableSet vars = extract_vars(gr.get_all_vertices()) ;
+    variableSet empty_constraints ;
+    for(variableSet::const_iterator vi=vars.begin();
+        vi!=vars.end();++vi) {
+      if(!known_vars.inSet(*vi))
+        continue ;
+      storeRepP srp = facts.get_variable(*vi) ;
+      if(srp->RepType() != Loci::CONSTRAINT)
+        continue ;
+      if(GLOBAL_AND(srp->domain() == EMPTY))
+        empty_constraints += *vi ;
+    }
+    ruleSet del_rules ;
+    for(variableSet::const_iterator vi=empty_constraints.begin();
+        vi!=empty_constraints.end();++vi)
+      del_rules += extract_rules(gr[vi->ident()]) ;
+    gr.remove_vertices(digraph::vertexSet(empty_constraints) +
+                       digraph::vertexSet(del_rules)) ;
+    given -= empty_constraints ;
+    clean_graph(gr,given,target) ;
+  }
+
+  template<class MULTIMAP>
+  void write_out_mmap(const MULTIMAP& m, char* s) {
+    ofstream o(s,std::ios::out) ;
+    for(entitySet::const_iterator ei=m.domain().begin();
+        ei!=m.domain().end();++ei) {
+      o << *ei << " --> " ;
+      for(int i=0;i<m.num_elems(*ei);++i)
+        o << m[*ei][i] << " " ;
+      o << endl ;
+    }
+    o.close() ;
+  }
+  
+#define ENABLE_RELATION_GEN
+  //#define ENABLE_DYNAMIC_SCHEDULING
   executeP create_execution_schedule(const rule_db &rdb,
                                      fact_db &facts,
                                      const variableSet& target,
                                      int nth) {
-
     num_threads = min(nth,max_threads) ;
     
+    rule_db par_rdb ;
+    par_rdb = parametric_rdb(rdb,target) ;
+
+    ////////////////decorate the dependency graph/////////////////////
+    //if(Loci::MPI_rank==0)
+    //cout << "decorating dependency graph to include allocation..." << endl ;
+    //deco_depend_gr(gr,given) ;
+    //////////////////////////////////////////////////////////////////
+#ifdef ENABLE_RELATION_GEN
+    if(Loci::MPI_rank==0)
+      cout << "Stationary Relation Generation..." << endl ;
+    stationary_relation_gen(par_rdb, facts, target) ;
+#endif
+    // then we need to perform global -> local renumbering
     if(facts.is_distributed_start()) {
       if((MPI_processes > 1)) 
         get_clone(facts, rdb) ;
@@ -642,15 +695,11 @@ namespace Loci {
     } else {
       Loci::serial_freeze(facts) ;
     }
-    
-    //double timer = get_timer() ;
+    // then we can generate the dependency graph
     variableSet given = facts.get_typed_variables() ;
     if(Loci::MPI_rank==0)
       cout << "generating dependency graph..." << endl ;
     double start_time = MPI_Wtime() ;
-    rule_db par_rdb ;
-    par_rdb = parametric_rdb(rdb,target) ;
-
     digraph gr ;
     if(use_old_dependency_graph) {
       gr = dependency_graph(par_rdb,given,target).get_graph() ;
@@ -661,18 +710,9 @@ namespace Loci {
       given -= variable("EMPTY") ;
       gr = dependency_graph2(par_rdb,given,target).get_graph() ;
     }
-    //compare_dependency_graph(gr2,gr) ;
-    
     // If graph is empty, return a null schedule 
     if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;
-
-    ////////////////decorate the dependency graph/////////////////////
-    //if(Loci::MPI_rank==0)
-    //cout << "decorating dependency graph to include allocation..." << endl ;
-    //deco_depend_gr(gr,given) ;
-    //////////////////////////////////////////////////////////////////
-    
     ////////////////////////////////////////////////////////////////////////
     std::string dottycmd = "dotty " ;
     if(Loci::MPI_rank==0) {
@@ -684,11 +724,15 @@ namespace Loci {
       }
     }
     ////////////////////////////////////////////////////////////////////////
-    
+#ifdef ENABLE_DYNAMIC_SCHEDULING
     if(Loci::MPI_rank==0)
       cout << "dynamic scheduling..." << endl ;
     dynamic_scheduling(gr,facts,given,target) ;
-
+#endif
+    ////////////////////
+    //prune_graph(gr,given,target,facts) ;
+    ////////////////////
+    
     sched_db scheds(facts) ;
     if(Loci::MPI_rank==0)
       cout << "setting up variable types..." << endl ;
@@ -858,13 +902,198 @@ namespace Loci {
     return sched ;
   }
 
+
+  // this function is used to create an execution schedule
+  // for internalQuery below. This function and the internalQuery
+  // function are mainly intended to be used by the Loci scheduler
+  // to compute intermediate values.
+
+  // NOTE: the passed in rule database is the expanded parametric
+  // rule database since the expanded rule base is what we needed
+  // and this expansion process only needs to be performed once.
+  //#define INTERNAL_VERBOSE
+  executeP create_internal_execution_schedule(rule_db& par_rdb,
+                                              fact_db &facts,
+                                              const variableSet& target,
+                                              int nth) {
+    num_threads = min(nth,max_threads) ;
+    // since this function is always executed inside
+    // the create_execution_schedule function so the
+    // fact database is always in the local number state
+    // thus we don't need to perform the global -> local
+    // renumbering step
+    
+    variableSet given = facts.get_typed_variables() ;
+#ifdef INTERNAL_VERBOSE
+    if(Loci::MPI_rank==0) {
+      cout << "[Internal] generating dependency graph..." << endl ;
+    }
+#endif
+    // as the usual process, we'll need to generate
+    // the dependency graph
+    digraph gr ;
+#ifdef INTERNAL_VERBOSE
+    if(Loci::MPI_rank==0)
+      cout << "\t[Internal] (recursive backward searching version)" << endl ;
+#endif
+    given -= variable("EMPTY") ;
+    gr = dependency_graph2(par_rdb,given,target).get_graph() ;
+    // If graph is empty, return a null schedule 
+    if(gr.get_target_vertices() == EMPTY)
+      return executeP(0) ;
+
+    ////////////////////////////////////////////////////////////////////////
+//     std::string dottycmd = "dotty " ;
+//     if(Loci::MPI_rank==0) {
+//       if(show_graphs) {
+//         cout << "creating visualization file for dependency graph..." << endl ;
+//         create_digraph_dot_file(gr,"dependgr.dot") ;
+//         std::string cmd = dottycmd + "dependgr.dot" ;
+//         system(cmd.c_str()) ;
+//       }
+//     }
+    ////////////////////////////////////////////////////////////////////////
+    
+    sched_db scheds(facts) ;
+#ifdef INTERNAL_VERBOSE
+    if(Loci::MPI_rank==0)
+      cout << "[Internal] setting up variable types..." << endl ;
+#endif
+    set_var_types(facts,gr,scheds) ;
+
+#ifdef INTERNAL_VERBOSE
+    if(Loci::MPI_rank==0)
+      cout << "[Internal] decomposing graph..." << endl ;
+#endif
+    decomposed_graph decomp(gr,given,target) ;
+
+#ifdef INTERNAL_VERBOSE
+    if(Loci::MPI_rank==0) {
+      cerr << "[Internal] setting initial variables..." << endl ;
+    }
+#endif
+    variableSet fact_vars, initial_vars ;
+    fact_vars = facts.get_typed_variables() ;
+    for(variableSet::const_iterator vi=fact_vars.begin();
+        vi!=fact_vars.end();++vi) {
+      storeRepP vp = facts.get_variable(*vi) ;
+      //Existence of a map is actually its domain on a processor.
+      //It is necessary that existence of a map does not only include
+      //the subeset of my_entities, but also includes the clone entities.
+      //Mainly because, we have some constraints that are applied over maps.
+      //If the map is actually not used in the rule other than its constraints,
+      //then that map may not have expanded enough to include necessrary
+      //existence. For regular execution it won't affect the schedule but
+      //for duplication of work, it is required for saving communication.
+      if(vp->RepType() == MAP) {
+	if(facts.isDistributed()) {
+	  entitySet exist = scheds.variable_existence(*vi);
+	  exist = fill_entitySet(exist, facts);
+	  scheds.set_variable_existence(*vi, exist);
+	}
+      }
+      if(variable(*vi).time().level_name() == "*" ) {
+	if(vp->RepType() == STORE) {
+	  ostringstream oss ;
+	  oss << "source(" <<"EMPTY"<<')' ;
+	  oss << ",target(" << *vi << ')' ;
+	  string sig = oss.str() ;
+	  rule r(sig) ;
+	  if(par_rdb.rules_by_target(*vi) == EMPTY) {
+	    if(facts.isDistributed()) { 
+	      scheds.set_existential_info(*vi, r,
+                                          scheds.variable_existence(*vi));
+	      initial_vars += *vi ;
+	    }
+	  }
+	}
+      }
+    }
+    //    Loci::debugout << " initial_vars = " << initial_vars << endl ;
+
+#ifdef INTERNAL_VERBOSE
+    if(Loci::MPI_rank==0)
+      cerr << "[Internal] compiling graph..." << endl;
+#endif
+    graph_compiler compile_graph(decomp, initial_vars) ;
+    compile_graph.compile(facts,scheds,given,target) ;
+    
+#ifdef INTERNAL_VERBOSE
+    if(Loci::MPI_rank==0)
+      cout << "[Internal] existential analysis..." << endl ;
+#endif
+    compile_graph.existential_analysis(facts, scheds) ;
+
+#ifdef INTERNAL_VERBOSE
+    if(Loci::MPI_rank==0)
+      cout << "[Internal] creating execution schedule..." << endl;
+#endif
+    executeP sched =  compile_graph.execution_schedule
+      (facts,scheds,initial_vars,num_threads) ;
+    
+    if(GLOBAL_OR(scheds.errors_found())) {
+      if(MPI_rank == 0) {
+        cerr << "[Internal] error in generating schedule" << endl ;
+        if(MPI_processes != 1)
+          cerr << "[Internal] see debug files for more information" << endl ;
+        cerr << "[Internal] Aborting..." << endl ;
+
+      }
+      Loci::Abort() ;
+    }
+    exec_current_fact_db = &facts ;
+    return sched ;
+  }
+
+  // this function is used by the Loci scheduler to issue
+  // queries for intermediate relations. It is basically a
+  // reduced version of the user function makeQuery
+  // NOTE: the passed in rule database is the expanded parametric
+  // rule database since the expanded rule base is what we needed
+  // and this expansion process only needs to be performed once.
+  bool internalQuery(rule_db& par_rdb, fact_db& facts,
+                     const variableSet& query) {
+    if(MPI_rank == 0) {
+      cout << "[Internal] Quering facts: " << query << endl ;
+    }
+    // Here, we won't erase the intentional facts since
+    // we are using them to provide schedules later
+
+    // But we do need to copy the fact_db before we
+    // start to make the query
+    // This is because we want to only put the queried facts
+    // back into the global fact_db
+    fact_db local_facts(facts) ;
+    executeP schedule =
+      create_internal_execution_schedule(par_rdb,local_facts,query) ;
+    if(schedule == 0)
+      return false ;
+
+    // If a schedule was generated, execute it
+#ifdef INTERNAL_VERBOSE
+    if(MPI_rank == 0)
+      cout << "[Internal] begin query execution" << endl ;
+#endif
+    exec_current_fact_db = &local_facts ;
+    schedule->execute(local_facts) ;
+    
+    for(variableSet::const_iterator vi=query.begin();
+        vi!=query.end();++vi) {
+      storeRepP srp = local_facts.get_variable(*vi) ;
+      facts.create_intensional_fact(*vi,srp) ;
+    }
+
+    return true ;
+  }
+
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
     double t1 = MPI_Wtime() ;
     
   try {
-    if(MPI_rank == 0)
+    if(MPI_rank == 0) {
       cout << "Quering facts: " << query << endl ;
+    }
 
     // first check whether queried facts are extensional facts
     // if so, we don't need to actually perform query on
@@ -881,7 +1110,7 @@ namespace Loci {
 
     if(remove_query != EMPTY)
       if(MPI_rank == 0) {
-        cout << "Queried facts: " << remove_query << " are extensional" ;
+        cout << "Queried facts: \"" << remove_query << "\" are extensional" ;
         cout << " facts, action not performed on these facts!" << endl ;
       }
     if(target == EMPTY)
@@ -1049,3 +1278,4 @@ namespace Loci {
   }
 
 } // end of namespace Loci
+

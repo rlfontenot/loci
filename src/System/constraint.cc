@@ -56,6 +56,14 @@ namespace Loci {
     return r.Rep() ;
   }
 
+  storeRepP constraintRep::freeze() {
+    return getRep() ;
+  }
+
+  storeRepP constraintRep::thaw() {
+    return getRep() ;
+  }
+
   void constraintRep::copy(storeRepP &st, const entitySet &context) {
     constraint cs(st) ;
     entitySet sent,tent ;

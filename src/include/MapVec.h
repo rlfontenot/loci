@@ -58,6 +58,7 @@ namespace Loci {
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     VEC * get_base_ptr() const { return base_ptr; } 
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     virtual DatatypeP getType() ;
     virtual frame_info read_frame_info(hid_t group_id) ;
@@ -456,15 +457,18 @@ namespace Loci {
     warn(true) ;
     return sp ;
   }
+
+  template<int M> storeRepP MapVecRepI<M>::freeze() {
+    return getRep() ;
+  }
+  
   template<int M > storeRepP MapVecRepI<M>::thaw() {
-    /*
     dMapVec<M> dm ;
     FORALL(store_domain, i) {
-      for(int j = 0; j < M; ++j)
-	dm[i].push_back(base_ptr[i][j]) ;
+      for(int j=0;j<M;++j)
+        dm[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
-    */
-    return getRep() ;
+    return dm.Rep() ;
   }
   //*************************************************************************/
   

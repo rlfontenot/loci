@@ -75,7 +75,18 @@ namespace Loci {
     virtual void set_elem_size(int sz) ;
     virtual storeRep *new_store(const entitySet &p) const = 0 ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const = 0 ;
+    // the remap method merely renumbers the container
+    // according to the passed in map
     virtual storeRepP remap(const dMap &m) const = 0 ;
+    // virtual storeRepP remap(const Map& m) const = 0 ;
+    // the freeze method converts a dynamic container to
+    // a static one. For already static container,
+    // its Rep() is returned    
+    virtual storeRepP freeze() = 0 ;
+    // the thaw method converts a static container to
+    // a dynamic one. For already dynamic container,
+    // its Rep() is returned ;
+    virtual storeRepP thaw() = 0 ;
     virtual void copy(storeRepP &st, const entitySet &context) = 0 ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) = 0 ;
@@ -107,6 +118,8 @@ namespace Loci {
       { rep = p ; rep.set_notify(this); notification() ; }
     storeRepP Rep() { return rep->getRep(); }
     storeRepP Rep() const { return rep->getRep(); }
+    storeRepP getRep() {return rep->getRep() ;}
+    storeRepP getRep() const {return rep->getRep() ;}
     virtual instance_type access() const ;
   } ;
   
@@ -131,6 +144,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;

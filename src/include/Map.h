@@ -33,6 +33,8 @@ namespace Loci {
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP freeze() ;
+    virtual storeRepP thaw() ;
     virtual void compose(const dMap &m, const entitySet &context) ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
@@ -57,7 +59,6 @@ namespace Loci {
     
     Entity * get_base_ptr() const { return base_ptr ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-    virtual storeRepP thaw() ;
     virtual DatatypeP getType() ;
     virtual frame_info read_frame_info(hid_t group_id) ;
     virtual frame_info write_frame_info(hid_t group_id) ;

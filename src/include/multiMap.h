@@ -63,6 +63,7 @@ namespace Loci {
     virtual frame_info write_frame_info(hid_t group_id) ;
   private:
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    virtual storeRepP freeze() ;
     virtual storeRepP thaw() ; 
   } ;
       
@@ -184,6 +185,14 @@ namespace Loci {
                   const entitySet &input_preimage) ;
   void inverseMap(multiMap &result,
                   const multiMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) ;
+  void inverseMap(multiMap &result,
+                  const const_Map &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) ;
+  void inverseMap(multiMap &result,
+                  const const_multiMap &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) ;
 

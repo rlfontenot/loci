@@ -365,8 +365,9 @@ namespace Loci {
       }
 
       all_vars += barrier_vars ;
-      if(barrier_vars != EMPTY)
+      if(barrier_vars != EMPTY) {
         dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
+      }
       
       all_vars += singleton_vars ;
 
@@ -981,7 +982,7 @@ namespace Loci {
       // create a priority queue
       priority_queue<sched_item,vector<sched_item>,comp_sched_item> q ;
       create_queue(waiting,pmap,q) ;
-      FATAL(q.size() != waiting.size()) ;
+      FATAL(q.size() != (unsigned int)waiting.size()) ;
       digraph::vertexSet step_sched ;
       while( (!q.empty()) && (step_sched == EMPTY)) {
         step_sched = pop_queue(q) ;

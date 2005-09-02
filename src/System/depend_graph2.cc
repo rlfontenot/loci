@@ -630,6 +630,15 @@ namespace Loci {
               next += extract_vars(rule_graph_transpose[ri->ident()]) ;
             }
           }
+          // if pre_rules are empty and we are in the stationary time
+          // then this *vi is a top level requests because no one
+          // at this time can generate *vi
+          if(pre_rules == EMPTY) {
+            if(tlevel == time_ident()) {
+              requests += *vi ;
+              continue ;
+            }
+          }
           visited_rules += pre_rules ;
           if(tlevel != time_ident()) {
             // If a priority variable, then definitely don't promote
@@ -976,15 +985,15 @@ namespace Loci {
                    target,iter,gr,time_ident()) ;
     // we need to compare the top_request with the given
     // variables to see if the schedule is possible
-    if( (top_request - given) != EMPTY) {
-      cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
-      cerr << "ERROR: insufficient fact database!" << endl ;
-      cerr << "These facts are required to compute the query: " << endl ;
-      cerr << "        " << variableSet(top_request-given) << endl ;
-      gr = digraph() ;
-      return ;
-    }
-
+//     if( (top_request - given) != EMPTY) {
+//       cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
+//       cerr << "ERROR: insufficient fact database!" << endl ;
+//       cerr << "These facts are required to compute the query: " << endl ;
+//       cerr << "        " << variableSet(top_request-given) << endl ;
+//       gr = digraph() ;
+//       return ;
+//     }
+    
     // we now add these built iteration graphs
     for(map<time_ident,iteration>::iterator ip=iter.iteration_rules.begin();
         ip!=iter.iteration_rules.end();++ip)

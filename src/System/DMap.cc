@@ -24,9 +24,6 @@ namespace Loci {
   using std::vector ;
   using std::sort ;
   //**************************************************************************/
-  storeRepP dMapRepI::thaw() {
-    return getRep() ;
-  } 
   storeRepP dMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
     int *recv_count = new int[MPI_processes] ;
     int *send_count = new int[MPI_processes] ;
@@ -186,16 +183,22 @@ namespace Loci {
     storeRepP my_store = getRep() ;
     s.Rep()->scatter(newmap,my_store,newdomain) ;
     MapRepP(s.Rep())->compose(newmap,mapimage) ;
-    
+        
+    return s.Rep() ;
+  }
+  
+  storeRepP dMapRepI::freeze() {
     Map m ;
-    m.allocate(s.domain()) ;
-    FORALL(s.domain(), i) {
-      m[i] = s[i] ;
+    m.allocate(domain()) ;
+    FORALL(domain(), i) {
+      m[i] = attrib_data[i] ;
     } ENDFORALL ;
     return m.Rep() ;
-    
-    //return s.Rep() ;
   }
+  
+  storeRepP dMapRepI::thaw() {
+    return getRep() ;
+  } 
   
   //**************************************************************************/
   
