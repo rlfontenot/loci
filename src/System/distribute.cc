@@ -2,7 +2,7 @@
 #include "dist_tools.h"
 #include <Tools/debug.h>
 #include <entitySet.h>
-
+#include <store.h>
 #include "Tools/debugger.h"
 
 #include <vector>

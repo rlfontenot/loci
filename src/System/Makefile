@@ -19,7 +19,6 @@ OBJS = Loci_version.o Initialize.o Loci_Datatypes.o variable.o \
        dist_tools.o distribute_io.o distribute_container.o \
        dist_internal.o comp_dynamic.o \
        comp_constraint.o execution_factory.o comp_map.o
-#       store.o DStore.o
 #distribute_old_support.o 
 
 COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT1)

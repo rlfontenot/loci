@@ -1,3 +1,4 @@
+#include <store.h>
 #include "comp_tools.h"
 #include "dist_tools.h"
 #include "visitorabs.h"
