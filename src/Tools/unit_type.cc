@@ -1,4 +1,5 @@
 #include <Tools/unit_type.h>
+#include <Tools/tools.h>
 
 #include <list>
 
@@ -59,7 +60,7 @@ namespace Loci {
     {"mm","meter",0.001},
 
     {"minute","second",60},//time
-    {"min","second",10},
+    {"min","second",60},
     {"hour","second",3600},
     {"h","second",3600},
     {"day","second",86400},
@@ -243,7 +244,7 @@ namespace Loci {
 
     //time
     {"minute","second",60},
-    {"min","second",10},
+    {"min","second",60},
     {"hour","second",3600},
     {"h","second",3600},
     {"day","second",86400},

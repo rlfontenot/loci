@@ -39,8 +39,12 @@ namespace Loci {
 	       MPI_COMM_WORLD, &status) ;  
       for(int i = 0; i < sizes[MPI_rank]; ++i)
 	vint.push_back(tmp_int[i]) ;
-    } else { 
-      hssize_t start = 0 ; 
+    } else {
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       for(int p = 0; p < Loci::MPI_processes; ++p) {
@@ -91,7 +95,11 @@ namespace Loci {
       for(int i = 0; i < sizes[MPI_rank]; ++i)
 	vint.push_back(tmp_int[i]) ;
     } else { 
-      hssize_t start = 0 ; 
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       for(int p = 0; p < Loci::MPI_processes; ++p) {
@@ -142,7 +150,11 @@ namespace Loci {
     } else {
       hid_t datatype = H5T_NATIVE_INT ;
       int rank = 1 ;
-      hssize_t start = 0 ; 
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       hsize_t dimension = tot_entities ;
