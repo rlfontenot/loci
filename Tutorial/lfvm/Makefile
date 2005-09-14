@@ -1,5 +1,5 @@
 # Set up LOCI_BASE to point to the location where Loci is installed
-LOCI_BASE = /usr/tmp/lush/Loci
+LOCI_BASE ?= /simcenter/data4/loci/opt/Loci-Linux-i686-mpic++-rel-3-0-p1
 
 # Include Loci.conf to get all of the rules for compiling Loci programs
 include $(LOCI_BASE)/Loci.conf
@@ -17,10 +17,6 @@ JUNK = *~ *.ii core ti_files
 default:
 	  $(MAKE) $(TARGET)
 
-.SUFFIXES: .loci
-.loci.cc: 
-	lpp <$*.loci > $*.cc
-
 # To compile a Loci program, use the .cc or .C prefix on your Loci source 
 # modules and link using a command similar to below.
 $(TARGET): $(OBJS) FRC
@@ -31,9 +27,8 @@ FRC:
 clean:
 	  rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak
 
-make.depend:
-	  $(MAKEDEPEND) $(CFLAGS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES)\
-	     $(LOCAL_INCLUDES) *.cc > make.depend
 
-depend: make.depend
-include make.depend
+DEPEND_FILES=$(subst .o,.d,$(OBJS))
+
+#include automatically generated dependencies
+include $(DEPEND_FILES)

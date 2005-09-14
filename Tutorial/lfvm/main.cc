@@ -7,6 +7,9 @@
 
 int main(int argc, char *argv[])
 {
+  using std::cerr ;
+  using std::endl ;
+  
   Loci::Init(&argc,&argv) ;
 
 
@@ -14,8 +17,6 @@ int main(int argc, char *argv[])
   
   // query for this variable by default
   std::string query = "solution" ;
-  // use this number of threads by default
-  int nthreads = 1;
   // do not write out facts by default
   bool write_facts = false;
   // do not write out rules by default
@@ -23,20 +24,11 @@ int main(int argc, char *argv[])
 
   // Parse out the LOCI specific arguments.
   //	-q queryvar	make alternative queries
-  //	-t numthreads	specify how many threads to use for parallel processing
   //	-fact		print out the fact database during program execution
   //	-rule		print out the rule database during program execution
   for (int i=1; i<argc; i++) {
     if (!strcmp(argv[i], "-q") && (i+1) < argc) {
       query = argv[i+1];
-      for (int j=0; j<argc-i-2; j++) {
-	argv[i+j] = argv[i+j+2];
-      }
-      argc -= 2;
-      i--;
-    }
-    else if (!strcmp(argv[i], "-t") && (i+1) < argc) {
-      nthreads = atoi(argv[i+1]);
       for (int j=0; j<argc-i-2; j++) {
 	argv[i+j] = argv[i+j+2];
       }
@@ -171,86 +163,61 @@ int main(int argc, char *argv[])
     }
   }
 
-  std::vector<entitySet> partition = Loci::generate_distribution(facts,rdb) ;
-  Loci::distribute_facts(partition, facts, rdb) ;
-
-
-  executeP schedule = create_execution_schedule(rdb,facts,query) ;
-
-
-  if(schedule == 0) {
-    std::cerr << "unable to produce execution schedule to satisfy query for "
-	      << query << std::endl ;
+  // Query Loci for fact derived fact 'solution'
+  if(!Loci::makeQuery(rdb,facts,query)) {
+    cerr << "query failed!" << endl ;
+    Loci::Abort() ;
   }
-  else {
-    // Save the schedule in the file .schedule for reference
-    std::ostringstream oss ;
-    oss << ".schedule" ;
 
-    if(num_procs > 1) {
-      oss << "-" << myid ;
+
+  if(query == "solution") {
+    store<double> sol(facts.get_fact("solution")) ;
+    std::cout << "sol.domain() = " << sol.domain() << std::endl ;
+    std::ofstream ofile("res.2dgv",std::ios::out) ;
+    if(ofile.fail()) {
+      std::cerr << "unable to open 'res.2dgv'" << std::endl ;
+      exit(-1) ;
     }
-    std::string sched_filename = oss.str() ;
-    std::ofstream sched_file(sched_filename.c_str(),std::ios::out) ;
-    schedule->Print(sched_file) ;
-    sched_file.close() ;
-
-    // execute schedule
-    schedule->execute(facts) ;
-
-    if(query == "solution") {
-      store<double> sol(facts.get_fact("solution")) ;
-      std::cout << "sol.domain() = " << sol.domain() << std::endl ;
-      std::ofstream ofile("res.2dgv",std::ios::out) ;
-      if(ofile.fail()) {
-        std::cerr << "unable to open 'res.2dgv'" << std::endl ;
-        exit(-1) ;
-      }
-      ofile << "general"<< std::endl ;
+    ofile << "general"<< std::endl ;
       
-      store<vector2d<double> > pos(facts.get_fact("pos")) ;
-      entitySet nodes = pos.domain() ;
-      Map cl(facts.get_fact("cl")) ;
-      Map cr(facts.get_fact("cr")) ;
-      MapVec<2> edge_nodes(facts.get_fact("edge_nodes")) ;
-      entitySet faces = edge_nodes.domain() ;
-      constraint boundary_edges(facts.get_fact("boundary_edges")) ;
-      entitySet boundaries = *boundary_edges ;
-      entitySet interior_faces = faces - boundaries ;
-      entitySet cells = cl.image(faces) + cr.image(interior_faces) ;
-      
-      
-      ofile << nodes.size() << ' ' << nodes.Min() << std::endl ;
-      
-      entitySet::const_iterator ei ;
-      for(ei=nodes.begin();ei!=nodes.end();++ei)
-        ofile << pos[*ei] << std::endl ;
-      ofile << faces.size() << ' ' << faces.Min() << ' ' ;
-      ofile << cells.size() << ' ' << cells.Min() << std::endl ;
-      for(ei=interior_faces.begin();ei!=interior_faces.end();++ei) 
-        ofile << edge_nodes[*ei][0] << ' '
-              << edge_nodes[*ei][1] << ' '
-              << cl[*ei] <<' ' << cr[*ei]
-              << std::endl ;
-      boundaries = faces-interior_faces ;
-      for(ei=boundaries.begin();ei!=boundaries.end();++ei)
-        ofile << edge_nodes[*ei][0] << ' '
-              << edge_nodes[*ei][1] << ' '
-              << cl[*ei] << " -1" << std::endl ;
-
-      for(ei=nodes.begin();ei!=nodes.end();++ei)
-        ofile << sol[*ei] << std::endl ;
-    } else {
-      Loci::storeRepP query_var = facts.get_fact(query) ;
-      std::cout << query << " = " << std::endl ;
-      query_var->Print(std::cout) ;
-    }
+    store<vector2d<double> > pos(facts.get_fact("pos")) ;
+    entitySet nodes = pos.domain() ;
+    Map cl(facts.get_fact("cl")) ;
+    Map cr(facts.get_fact("cr")) ;
+    MapVec<2> edge_nodes(facts.get_fact("edge_nodes")) ;
+    entitySet faces = edge_nodes.domain() ;
+    constraint boundary_edges(facts.get_fact("boundary_edges")) ;
+    entitySet boundaries = *boundary_edges ;
+    entitySet interior_faces = faces - boundaries ;
+    entitySet cells = cl.image(faces) + cr.image(interior_faces) ;
     
+    
+    ofile << nodes.size() << ' ' << nodes.Min() << std::endl ;
+    
+    entitySet::const_iterator ei ;
+    for(ei=nodes.begin();ei!=nodes.end();++ei)
+      ofile << pos[*ei] << std::endl ;
+    ofile << faces.size() << ' ' << faces.Min() << ' ' ;
+    ofile << cells.size() << ' ' << cells.Min() << std::endl ;
+    for(ei=interior_faces.begin();ei!=interior_faces.end();++ei) 
+      ofile << edge_nodes[*ei][0] << ' '
+            << edge_nodes[*ei][1] << ' '
+            << cl[*ei] <<' ' << cr[*ei]
+            << std::endl ;
+    boundaries = faces-interior_faces ;
+    for(ei=boundaries.begin();ei!=boundaries.end();++ei)
+      ofile << edge_nodes[*ei][0] << ' '
+            << edge_nodes[*ei][1] << ' '
+            << cl[*ei] << " -1" << std::endl ;
+    
+    for(ei=nodes.begin();ei!=nodes.end();++ei)
+      ofile << sol[*ei] << std::endl ;
+  } else {
+    Loci::storeRepP query_var = facts.get_fact(query) ;
+    std::cout << query << " = " << std::endl ;
+    query_var->Print(std::cout) ;
   }
-
-
-  schedule = 0 ;
-
+  
   Loci::Finalize() ;
   return 0 ;
 }
