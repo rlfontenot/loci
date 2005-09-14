@@ -49,7 +49,11 @@ namespace Loci {
           array_size = 1 ;
         hsize_t dimension = array_size ;
         int rank = 1 ;
-        hssize_t start = 0 ; 
+#ifdef H5_INTERFACE_1_6_4
+        hsize_t start = 0 ;
+#else
+        hssize_t start = 0 ;
+#endif
         hsize_t stride = 1 ;
         hsize_t count = array_size ;
 
@@ -118,7 +122,11 @@ namespace Loci {
     } else {
       int rank = 1 ;
       hsize_t dimension = 1 ;
-      hssize_t start = 0 ; 
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
       hsize_t stride = 1 ;
       hsize_t count = arr_sizes[0] ;
       dimension =  tot_arr_size ;
@@ -335,7 +343,11 @@ namespace Loci {
     } else {
       hid_t dataset =  H5Dopen(group_id, "data") ;
       hid_t dataspace = H5Dget_space(dataset) ;
-      hssize_t start = 0 ; 
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
       hsize_t stride = 1 ;
       hsize_t count = 0 ;
       int curr_indx = 0 ;

@@ -22,6 +22,15 @@ extern "C" {
 #ifdef inline
 #undef inline
 #endif
+#if(H5_VERS_MAJOR>1)
+#define H5_INTERFACE_1_6_4
+#endif
+#if(H5_VERS_MAJOR==1 && H5_VERS_MINOR > 6)
+#define H5_INTERFACE_1_6_4
+#endif
+#if(H5_VERS_MAJOR==1 && H5_VERS_MINOR == 6 && H5_VERS_RELEASE >3)
+#define H5_INTERFACE_1_6_4
+#endif  
 }
 
 namespace Loci {
