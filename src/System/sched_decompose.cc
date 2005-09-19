@@ -390,6 +390,7 @@ namespace Loci {
         tmpgr.add_edges(in,new_vertex) ;
       }
 
+#ifdef PRIORITY_FIX_EXPERIMENTAL
     // Find Priority variable clusters
     std::map<variable, variableSet> prio_vars ;
 
@@ -440,7 +441,7 @@ namespace Loci {
       tmpgr.add_edges(in,new_vertex) ;
     }      
 
-
+#endif
     // Loop over each conditional variable and find the part of the graph
     // that exclusively connects to the conditional components.  All of
     // these rules can be treated together when evaluating the conditional
