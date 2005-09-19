@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <math.h>
-#include "mpi.h"
 #include <Loci.h>
 #include <iostream>
 using std::cout ;

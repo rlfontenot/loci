@@ -35,7 +35,7 @@ using std::cout ;
 
 namespace Loci {
   int MPI_processes = 1;
-  int MPI_rank ;
+  int MPI_rank = 0 ;
   int num_threads = 1 ;
   int method = 3 ;
   /////////////////////////////
@@ -320,6 +320,7 @@ namespace Loci {
 
   void Abort() {
     debugger_() ;
+    MPI_Abort(MPI_COMM_WORLD,-1) ;
   }
 
 }

@@ -41,6 +41,7 @@
 
 #if defined(LOCI_SYS_IRIX64)
 #undef SGI
+
 #define SGI
 #endif
 
@@ -58,4 +59,8 @@
 #if defined(LOCI_SYS_Darwin)
 #define BSD
 #define DARWIN
+#endif
+
+#ifndef MPI_NO_CPPBIND
+#define MPI_NO_CPPBIND
 #endif
