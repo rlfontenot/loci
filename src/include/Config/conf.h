@@ -55,3 +55,7 @@
 #define SPARC
 #endif
 
+#if defined(LOCI_SYS_Darwin)
+#define BSD
+#define DARWIN
+#endif
