@@ -606,7 +606,7 @@ namespace Loci {
 
     if(loop_num < 0) {
       cerr << "ERROR calling only_loop_alloc() with loop_num < 0" << endl ;
-      exit(-1) ;
+      Loci::Abort() ;
     }
     // we check if we need to flip the id, if we are processing
     // the collapse graph of the loop
@@ -619,7 +619,7 @@ namespace Loci {
              << "is allowed to have negative id number for its"
              << "collapse graph, the caller(id): " << id
              << " is not a loop compiler" << endl ;
-        exit(-1) ;
+        Loci::Abort() ;
       }
     }
 
@@ -630,7 +630,7 @@ namespace Loci {
         cerr << "ERROR calling only_loop_alloc() function,"
              << "caller(id): " << id << " is not a loop compiler"
              << " and therefore cannot use loop_num with 0!" << endl ;
-        exit(-1) ;
+        Loci::Abort() ;
       }
     }
 

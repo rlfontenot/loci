@@ -39,8 +39,7 @@ namespace Loci {
     infile.open(filename.c_str(), ios::in) ;
     if(infile.fail()) {
       cerr << "File " << filename <<  "   not found \n First create the file using -exit option \n " << endl ;
-      Finalize() ;
-      exit(0) ;
+      Loci::Abort() ;
     }
     infile >> part ;
     FATAL(part != num_partitions) ;

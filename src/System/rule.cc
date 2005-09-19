@@ -499,7 +499,7 @@ namespace Loci {
              << endl ;
         cerr << "Error occured in rule '"
              << typeid(*this).name() << "'" << endl ;
-        exit(-1) ;
+        Loci::Abort() ;
       }
       sp->second->setRep(srp) ;
     }
@@ -1272,13 +1272,13 @@ variableSet rule_impl::get_var_list() {
           cerr << "unable to interpret internal rule representation"
                << endl ;
           cerr << "rule was given " << s << endl ;
-          exit(1) ;
+          Loci::Abort() ;
         }
       } else {
         cerr << "syntax error parsing internal rule representation"
              << endl ;
         cerr << "rule was given " << s << endl ;
-        exit(1) ;
+        Loci::Abort() ;
       }
             
           

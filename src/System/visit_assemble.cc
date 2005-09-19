@@ -774,7 +774,7 @@ namespace Loci {
       if(sched_v < 0) {
         if(visited_vertices.inSet(sched_v)) {
           cerr << "ERROR in scheduling..." << endl ;
-          exit(-1) ;
+          Loci::Abort() ;
         }
         step_sched += sched_v ;
         waiting -= step_sched ;
@@ -814,12 +814,12 @@ namespace Loci {
       if(sched_v >= 0) {
         cout << "Cannot proceed in graph scheduling!"
              << " The graph may have cycles!" << endl ;
-        exit(-1) ;
+        Loci::Abort() ;
       }
       // we schedule this rule
       if(visited_vertices.inSet(sched_v)) {
         cerr << "ERROR in scheduling..." << endl ;
-        exit(-1) ;
+        Loci::Abort() ;
       }
       step_sched += sched_v ;
       waiting -= step_sched ;
@@ -1189,7 +1189,7 @@ namespace Loci {
     for(vi=components.begin();vi!=components.end();++vi) {
       if(vi->size() != 1) {
         cerr << "Chomping graph error: Cycle(s) detected" << endl ;
-        exit(-1) ;
+        Loci::Abort() ;
       }
       pmap[*(vi->begin())] = weight++ ;
     }

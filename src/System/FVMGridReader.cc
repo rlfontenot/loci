@@ -220,7 +220,7 @@ namespace Loci {
 	if(cl[*ei] < 0) 
 	  if(cr[*ei] < 0) {
 	    cerr << " boundary condition on both sides of a face?" << endl ;
-	    exit(1) ;
+	    Loci::Abort() ;
 	  } else {
 	    int tmp_swap = cr[*ei] ;
 	    cr[*ei] = cl[*ei] ;
@@ -264,7 +264,7 @@ namespace Loci {
 	if(cl[*ei] < 0) 
 	  if(cr[*ei] < 0) {
 	    cerr << "2 boundary condition on both sides of a face?" << endl ;
-	    exit(1) ;
+	    Loci::Abort() ;
 	  } else {
 	    int tmp = cr[*ei] ;
 	    cr[*ei] = cl[*ei] ;

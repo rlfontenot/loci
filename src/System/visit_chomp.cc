@@ -722,7 +722,7 @@ namespace Loci {
         if(diff_rules != EMPTY)
           cerr << "These rules should be taken out: " << diff_rules << endl ;
         cerr << "The chomped vars in this chain are: " << chomp_vars << endl ;
-        exit(-1) ;
+        Loci::Abort() ;
       }
       
       // get other possible nodes (outside of the chomp_graph)

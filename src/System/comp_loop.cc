@@ -257,7 +257,7 @@ namespace Loci {
           }
         }
       }
-      exit(-1) ;
+      Loci::Abort() ;
     }
   } 
   */

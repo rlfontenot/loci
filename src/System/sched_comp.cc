@@ -70,13 +70,13 @@ namespace Loci {
   public:
     error_compiler() {}
     virtual void accept(visitor& v)
-    { cerr << "Internal consistency error" << endl ; exit(-1);}
+    { cerr << "Internal consistency error" << endl ; Loci::Abort();}
     virtual void set_var_existence(fact_db &facts, sched_db &scheds)
-    { cerr << "Internal consistency error" << endl ; exit(-1);}
+    { cerr << "Internal consistency error" << endl ; Loci::Abort();}
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) 
-    { cerr << "Internal consistency error" << endl ; exit(-1);}
+    { cerr << "Internal consistency error" << endl ; Loci::Abort();}
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds)
-    { cerr << "Internal consistency error" << endl ; exit(-1);
+    { cerr << "Internal consistency error" << endl ; Loci::Abort();
     return executeP(0);}
   } ;
 

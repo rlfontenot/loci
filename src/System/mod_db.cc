@@ -53,7 +53,7 @@ namespace Loci {
 	if(error)
 	  if(Loci::MPI_rank == 0)
 	    cerr << "reason for failure is " << error << endl ;
-	exit(-1) ;
+	Loci::Abort() ;
       }
       //Copy the loaded rule_list to the mod_info rule_list. 
       md.loaded_rule_list.copy_rule_list(register_rule_list) ;
@@ -95,7 +95,7 @@ namespace Loci {
 	if(error)
 	  if(Loci::MPI_rank == 0)
 	    cerr << "reason for failure is " << error << endl ;
-	exit(-1) ;
+	Loci::Abort() ;
       }
       md.m_init_model = (void (*)(fact_db &, rule_db &, const char *))
 	dlsym(md.m_library,"init_model") ;

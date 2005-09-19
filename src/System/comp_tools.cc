@@ -646,7 +646,7 @@ namespace Loci {
           cerr << "error is not recoverable, terminating scheduling process"
                << endl ;
           scheds.set_error() ;
-          exit(-1);
+          Loci::Abort();
         }
         scheds.add_extra_unit_request(*vi,comp) ;
       }

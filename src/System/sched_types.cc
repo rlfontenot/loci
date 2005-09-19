@@ -201,7 +201,7 @@ namespace Loci {
                   cerr << "rule " << *ri << endl 
                        << " is not consistent with other rules w/respect to "
                        << "renaming." << endl ;
-                  exit(-1) ;
+                  Loci::Abort() ;
                 }
                 rename_pair = make_pair(new_name,old_name) ;
                 rename = true ;
@@ -391,7 +391,7 @@ namespace Loci {
       }
     }
     if(type_error)
-      exit(-1) ;
+      Loci::Abort() ;
   }
 
 
