@@ -217,12 +217,12 @@ namespace Loci {
     if(!is_super_node(collapse_node)) {
       cerr << "Internal error, the collapse part of loop compiler: "
            << lc.cid << " does not have a collapse rule" << endl ;
-      exit(-1) ;
+      Loci::Abort() ;
     }
     int collapse_id = get_supernode_num(collapse_node) ;
     if(collapse_id == -1) {
       cerr << "Error: conditional node has wrong id number" << endl ;
-      exit(-1) ;
+      Loci::Abort() ;
     }
 
     loop_col_table[lc.cid] = collapse_id ;
@@ -349,7 +349,7 @@ namespace Loci {
         found = ret.find(*si) ;
         if(found != ret.end()) {
           cerr << "multilevel graph error!" << endl ;
-          exit(-1) ;
+          Loci::Abort() ;
         }
         ret[*si] = mi->first ;
       }
@@ -485,7 +485,7 @@ namespace Loci {
                << "error occured on variable " << ii->first
                << "{" << lc.tlevel << "}"
                << endl ;
-          exit(-1) ;
+          Loci::Abort() ;
         }
       }
     }
@@ -582,20 +582,40 @@ namespace Loci {
     return true ;
   }
 
+  void print_cycles(digraph gr) {
+    // if graph is empty, it is dag
+    if(is_dg_empty(gr))
+      return ;
+
+    vector<digraph::vertexSet> clusters =
+      component_sort(gr).get_components() ;
+    
+    for(vector<digraph::vertexSet>::size_type i=0;i<clusters.size();++i) {
+      digraph::vertexSet potential_cycle_v = clusters[i] ;
+      if(potential_cycle_v.size() != 1) {
+        cerr << "potential cycle contains variables: " << extract_vars(potential_cycle_v) << endl ;
+        cerr << "rules:" << endl << extract_rules(potential_cycle_v) << endl ;
+      }
+
+    }
+  }
+
   void dagCheckVisitor::visit(loop_compiler& lc) {
     if(!check_dag(lc.collapse_gr)) {
       cerr << "ERROR: the collapse graph of loop super node("
            << lc.cid << ") has cycle(s)" << endl ;
+      print_cycles(lc.collapse_gr) ;
       if(viz)
         visualize(cerr) ;
-      exit(-1) ;
+      Loci::Abort() ;
     }
     if(!check_dag(lc.advance_gr)) {
       cerr << "ERROR: the advance graph of loop super node("
            << lc.cid << ") has cycle(s)" << endl ;
+      print_cycles(lc.advance_gr) ;
       if(viz)
         visualize(cerr) ;
-      exit(-1) ;
+      Loci::Abort() ;
     }
   }
   
@@ -603,9 +623,10 @@ namespace Loci {
     if(!check_dag(dc.dag_gr)) {
       cerr << "ERROR: the graph of dag super node("
            << dc.cid << ") has cycle(s)" << endl ;
+      print_cycles(dc.dag_gr) ;
       if(viz)
         visualize(cerr) ;
-      exit(-1) ;
+      Loci::Abort() ;
     }
   }
   
@@ -613,9 +634,10 @@ namespace Loci {
     if(!check_dag(cc.cond_gr)) {
       cerr << "ERROR: the graph of conditional super node("
            << cc.cid << ") has cycle(s)" << endl ;
+      print_cycles(cc.cond_gr) ;
       if(viz)
         visualize(cerr) ;
-      exit(-1) ;
+      Loci::Abort() ;
     }
   }
 
