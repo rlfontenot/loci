@@ -69,12 +69,12 @@ namespace Loci {
     if(dbc == 0)
       MPI_Abort(MPI_COMM_WORLD,-1) ;
 
-    if(!debugger_setup)
-      MPI_Abort(MPI_COMM_WORLD,-1);
-    
     if(dbc != 0)
       (*dbc)() ;
 
+    if(!debugger_setup)
+      MPI_Abort(MPI_COMM_WORLD,-1);
+    
     int pid = getpid() ;
     char buf[512] ;
 #ifdef SUN
