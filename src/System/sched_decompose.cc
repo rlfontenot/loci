@@ -1,6 +1,8 @@
 #include "sched_tools.h"
 #include "distribute.h"
 
+//#define VERBOSE
+
 using std::map ;
 using std::vector ;
 using std::set ;
@@ -24,8 +26,10 @@ namespace Loci {
         ++vi) {
       const int id = (*vi).ident() ;
       if((grt[id]-component) != EMPTY
-         || (gr[id]-component) != EMPTY)
-        remove_vars += id ;
+         || (gr[id]-component) != EMPTY) {
+        remove_vars += id ; 
+        
+      }
     }
 
     component -= remove_vars ;
@@ -57,13 +61,13 @@ namespace Loci {
         if(ri->targets().size() != 1) {
           cerr << "unit rule must have only one variable as target: "
                << endl << *ri << endl ;
-          exit(-1) ;
+          Loci::Abort() ;
         }
         variable unit_var = *(ri->targets().begin()) ;
         if(reduce_vars.inSet(unit_var)) {
           cerr << "only one unit rule may be defined for reduction variable "
                << unit_var << endl ;
-          exit(-1) ;
+          Loci::Abort() ;
         }
         reduce_vars += unit_var ;
 
@@ -86,12 +90,12 @@ namespace Loci {
                  << unit_var << endl ;
             cerr << "This rule should be an apply rule. (offending rule is):"
                  << endl << *rii << endl ;
-            exit(-1) ;
+            Loci::Abort() ;
           }
           if(rii->targets().size() != 1) {
             cerr << "apply rule should apply to only one reduction variable"
                  << endl << "offending rule is:" << endl << *rii << endl ;
-            exit(-1) ;
+            Loci::Abort() ;
           }
           // Here we add the dependency
           dg.add_edge(unit_var.ident(),(*rii).ident()) ;
@@ -348,6 +352,7 @@ namespace Loci {
         }
       }
     }
+
     
     // We need to make sure that apply rules work as a group.  We use
     // a component sort to group them together and remove them
@@ -357,9 +362,14 @@ namespace Loci {
     map<int,digraph::vertexSet> cm ;
     digraph::vertexSet incm ;
 
+    int nid = 0 ;
     for(size_t i=0;i<cs.size();++i)
       if(cs[i].size() > 1) {
-        int new_vertex = tmpgr.max_vertex()+1 ;
+        char buf[512] ;
+        sprintf(buf,"__internal__@Vertex_%d",nid) ;
+        nid++ ;
+        variable tmp(buf) ;
+        int new_vertex = tmp.ident() ; //tmpgr.max_vertex()+1 ;
         digraph::vertexSet in ;
         digraph::vertexSet out ;
         cm[new_vertex] = cs[i] ;
@@ -379,9 +389,58 @@ namespace Loci {
         tmpgr.add_edges(new_vertex,out) ;
         tmpgr.add_edges(in,new_vertex) ;
       }
-  
-  
+
+    // Find Priority variable clusters
+    std::map<variable, variableSet> prio_vars ;
+
+    ruleSet rset = extract_rules(tmpgr.get_all_vertices()) ;
+
+    for(ruleSet::const_iterator ri = rset.begin();ri!=rset.end();++ri) {
+      if(ri->get_info().qualifier() == "priority") {
+        variable v = *ri->sources().begin() ;
+        while(v.get_info().priority.size() != 0)
+          v = v.drop_priority() ;
+        prio_vars[v] += ri->sources() ;
+        prio_vars[v] += ri->targets() ;
+      }
+    }
+
+    std::map<variable, variableSet>::const_iterator mvi ;
+    for(mvi=prio_vars.begin();mvi!=prio_vars.end();++mvi) {
+      digraph::vertexSet  prio_cluster ;
+      digraph tr = tmpgr.transpose() ;
+      variableSet::const_iterator vi ;
+      for(vi=mvi->second.begin(); vi!=mvi->second.end();++vi) {
+        prio_cluster += vi->ident() ;
+        prio_cluster += tr[vi->ident()] ;
+      }
+      char buf[512] ;
+      sprintf(buf,"__internal_prio__@Vertex_%d",nid) ;
+      nid++ ;
+      variable tmp(buf) ;
+      int new_vertex = tmp.ident() ; //tmpgr.max_vertex()+1 ;
+      digraph::vertexSet in ;
+      digraph::vertexSet out ;
+      cm[new_vertex] = prio_cluster ;
+      prio_cluster = extract_rules(prio_cluster) ;
+      digraph::vertexSet::const_iterator Vi ;
+      for(Vi=prio_cluster.begin();Vi!=prio_cluster.end();++Vi) {
+        out += tmpgr[*Vi] ;
+        in += tmpgr.transpose()[*Vi] ;
+      }
+      incm += new_vertex ;
+
+      out -= prio_cluster ;
+      in -= prio_cluster ;
+
+      in -= out ;// Disable recursive loops
       
+      tmpgr.remove_vertices(prio_cluster) ;
+      tmpgr.add_edges(new_vertex,out) ;
+      tmpgr.add_edges(in,new_vertex) ;
+    }      
+
+
     // Loop over each conditional variable and find the part of the graph
     // that exclusively connects to the conditional components.  All of
     // these rules can be treated together when evaluating the conditional
@@ -393,6 +452,10 @@ namespace Loci {
       // We start with the conditional rules
       digraph::vertexSet working = mi->second ;
 
+#ifdef VERBOSE
+      debugout  << "computing component for conditional " <<  mi->first <<endl ;
+#endif
+      digraph::vertexSet candidates ;
       while(working != EMPTY) {
         // Repeatedly search for new vertices in the graph that are exclusively
         // associated with the conditional rules.  As we find them add them
@@ -401,7 +464,6 @@ namespace Loci {
 
         // First find candidates by following all edges that lead to the
         // current working set.
-        digraph::vertexSet candidates ;
         for(vi=working.begin();vi!=working.end();++vi)
           candidates += tr[*vi] ;
 
@@ -409,21 +471,69 @@ namespace Loci {
         // find those verticies that only refer to vertices already found
         // in the component.
 
+        // We don't need to try things already in the component
+        candidates -= component ;
+        // We don't search the conditional variable as it needs to be
+        // outside the conditional block.
+        candidates -= mi->first.ident() ;
+#ifdef VERBOSE
+        debugout << "candidate vars = " << extract_vars(candidates) <<endl ;
+        debugout << "candidate rules = " << extract_rules(candidates) << endl ;
+#endif
+
         working = EMPTY ;
         for(vi=candidates.begin();vi!=candidates.end();++vi) {
-          if((tmpgr[*vi] & component) == tmpgr[*vi]) {
+          if((tmpgr[*vi] - component) == EMPTY) {
             working += *vi ;
-          }
+          } 
         }
-        // We make sure that we recursively visit the same components by
-        // removing them from our next working set.
-        working -= component ;
-        // We also make sure that we don't follow the conditional variable.
-        // This needs to be computed external to the conditional block
-        working -= mi->first.ident() ;
-
       }
 
+      bool clean = false ;
+      do {
+        variableSet component_vars = extract_vars(component) ;
+        component_vars -= incm ;// Don't include virtual node "variables"
+        clean = true ;
+        digraph::vertexSet cleanSet ;
+        for(variableSet::const_iterator v=component_vars.begin();
+            v != component_vars.end();
+            ++v) {
+          if((tmpgr[v->ident()] - component) != EMPTY  ||
+             (tr[v->ident()] - component) != EMPTY) {
+            // Variable should not be inside component, remove all things that
+            // lead to this variable from the component
+            clean = false ;
+            working = EMPTY ;
+            working += v->ident() ;
+            cleanSet += v->ident() ;
+            digraph::vertexSet vtouch ;
+            while(working != EMPTY) {
+              vtouch += working ;
+              digraph::vertexSet candidates = EMPTY ;
+              digraph::vertexSet::const_iterator vv ;
+              for(vv=working.begin();vv!=working.end();++vv)
+                candidates += tr[*vv] ;
+              working = candidates ;
+              working -= vtouch ;
+            }
+            cleanSet += vtouch ;
+          }
+        }
+        ruleSet r = extract_rules(cleanSet & component) ;
+#ifdef VERBOSE
+        if(r!=EMPTY)
+          debugout << "cleaning rules " << r << endl ;
+#endif
+
+        component -= cleanSet ;
+      } while(!clean) ;
+
+
+#ifdef VERBOSE
+      debugout << "variables for conditional " << mi->first
+               << " are " << extract_vars(component) << endl ;
+#endif
+      
 #define NEWWAY
 #ifdef NEWWAY
 
