@@ -59,6 +59,7 @@ namespace Loci {
     }
     block_hash &operator=(block_hash &cp) {
       copy_hash(cp) ;
+      return *this ;
     }
 
     T & elem(int n) {
