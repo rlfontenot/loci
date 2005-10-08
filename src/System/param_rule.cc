@@ -339,9 +339,9 @@ namespace Loci {
                       nrule = mruleset.find(variable(*ivci))->second ;
                       for(ruleSet::const_iterator irsi = nrule.begin(); irsi 
                             != nrule.end(); ++irsi) {
-                        for(variableSet::const_iterator tvsi =
-                              irsi->sources().begin(); tvsi != irsi
-                              ->sources().end(); ++tvsi)
+                        variableSet src = irsi->sources() ;
+                        for(variableSet::const_iterator tvsi = src.begin();
+                            tvsi != src.end(); ++tvsi)
                           if(variable(*tvsi).get_arg_list().size()) {
                             if(mvarset.find(get_complete_name(variable(*tvsi))) != mvarset.end())
                               if(!mvarset.find(get_complete_name(variable(*tvsi)))->second.inSet(*tvsi)) {
