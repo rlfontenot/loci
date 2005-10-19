@@ -586,11 +586,27 @@ namespace Loci {
   executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
    
     if(facts.isDistributed()) {
-      CPTR<execute_sequence> el = new execute_sequence ; 
+      vector<variable> red ;
+      vector<rule> ulist ;
+      vector<CPTR<joiner> > jop ;
+
+      for(size_t i=0;i<reduce_vars.size();++i) {
+        if(GLOBAL_OR(scheds.get_variable_requests(reduce_vars[i])!=EMPTY)) {
+          red.push_back(reduce_vars[i]) ;
+          ulist.push_back(unit_rules[i]) ;
+          jop.push_back(join_ops[i]) ;
+        }
+      }
+      if(red.size() > 0) 
+        return new execute_param_red(red,ulist,jop) ;
+      else
+        return 0 ;
+
+      //        CPTR<execute_sequence> el = new execute_sequence ; 
       //el->append_list(new execute_thread_sync) ;
  
-      el->append_list(new execute_param_red(reduce_vars, unit_rules, join_ops)) ;
-      return executeP(el) ;
+      //      el->append_list(new execute_param_red(reduce_vars, unit_rules, join_ops)) ;
+      //      return executeP(el) ;
     }
     ostringstream oss ;
     for(size_t i = 0; i < reduce_vars.size(); i++) 
