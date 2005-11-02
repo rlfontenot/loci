@@ -18,7 +18,7 @@ namespace Loci {
       }
     }
     
-    if(Loci::collect_timings && rule_tag.targets().begin()->get_info().name != "OUTPUT")
+    if(Loci::collect_timings && rule_tag.targets().begin()->get_info().name != "OUTPUT" && rule_tag.get_info().rule_impl->thread_rule())
       return new timed_execute_rule(rule_tag, exec_seq, facts, scheds,
 				    Loci::time_duration_to_collect_data);
     else
@@ -29,7 +29,7 @@ namespace Loci {
     //    if(GLOBAL_AND(exec_seq.size() ==0)) {
     //      return new execute_rule_null(rule_tag) ;
     //    }
-    if(Loci::collect_timings)
+    if(Loci::collect_timings && rule_tag.targets().begin()->get_info().name != "OUTPUT" && rule_tag.get_info().rule_impl->thread_rule())
       return new timed_execute_rule(rule_tag, exec_seq, facts, v, p, scheds,
 				    Loci::time_duration_to_collect_data);
     else
