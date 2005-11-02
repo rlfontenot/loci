@@ -27,7 +27,22 @@ extern "C" {
   void ParMETIS_PartKway(idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, int *, int *, idxtype *, MPI_Comm *);
 }
 
-namespace Loci {
+namespace Loci { 
+
+  vector<entitySet> randomPartition(entitySet ent) {
+    vector<int> ent_vect;
+    vector<entitySet> ptn(Loci::MPI_processes);
+    for(entitySet::const_iterator ei = ent.begin(); 
+	ei != ent.end(); ei++) 
+      ent_vect.push_back(*ei);
+
+    for(int i = 0; i < ent.size(); i++) {
+      int tmp = rand();
+      tmp = tmp % Loci::MPI_processes;
+      ptn[tmp] += ent_vect[i];
+    }
+    return ptn;
+  }
 
   extern bool use_simple_partition ;
   //Following assumption is needed for the next three functions
@@ -759,10 +774,13 @@ namespace Loci {
         dmultiMap left_cells_to_cells, right_cells_to_cells;
         createCelltoCellMapping(tmp_cl, tmp_cr, left_cells_to_cells, right_cells_to_cells, 
                                 local_faces, local_cells, naive_init_ptn) ;
-        
-        metis_cell_ptn = metisPartitionOfCells(local_cells,
-                                               left_cells_to_cells,
-                                               right_cells_to_cells);
+
+	if(Loci::random_partition) 
+	  metis_cell_ptn = randomPartition(global_cells);
+	else
+	  metis_cell_ptn = metisPartitionOfCells(local_cells,
+						 left_cells_to_cells,
+						 right_cells_to_cells);
       } else {
         for(int i=0;i<Loci::MPI_processes; ++i)
           metis_cell_ptn.push_back(local_cells[i]) ;
