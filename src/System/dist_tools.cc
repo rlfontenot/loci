@@ -29,7 +29,6 @@ using std::sort;
 #define UNITY_MAPPING
 #endif
 namespace Loci {
-
   void get_clone(fact_db &facts, const rule_db &rdb) {
     fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     std::vector<entitySet> &ptn = facts.get_init_ptn() ;
@@ -73,7 +72,14 @@ namespace Loci {
     entitySet tmp_set;
     if(duplicate_work) {
       std::set<std::vector<variableSet> > context_maps ;
-      Loci::get_mappings(rdb, facts, context_maps);
+
+      if(extended_duplication) 
+	Loci::get_mappings(rdb, facts, context_maps);
+      else 
+	Loci::get_mappings(rdb, facts, context_maps, 1);
+
+      context_maps = classify_moderate_maps(facts, context_maps);
+
       //Find out entities that can produce target variable entities owned by a processor
       facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
       
@@ -94,6 +100,7 @@ namespace Loci {
 	    num_levels++;
 	  }
 	}while(continue_adding);
+	facts.global_comp_entities += mySet;
 	Loci::debugout << "Number of Duplication Levels: " << num_levels << endl; 
       }
       tmp_set = facts.global_comp_entities;
@@ -1091,6 +1098,59 @@ namespace Loci {
     return re ;
   }
 
+  std::set<std::vector<variableSet> > classify_moderate_maps(fact_db &facts, const std::set<std::vector<variableSet> > &maps) {
+    variableSet vars = facts.get_typed_variables() ;
+    std::set<std::vector<variableSet> >::const_iterator smi ;
+    std::set<std::vector<variableSet> > return_maps;
+    for(smi = maps.begin(); smi != maps.end(); ++smi) {
+      entitySet domain;
+      entitySet image;
+      entitySet tmp;
+      const vector<variableSet> &mv = *smi ;
+      for(unsigned int i = 0; i < mv.size(); i++) {
+	variableSet v = mv[i] ;
+	v &= vars ;
+	if(i == 0) {
+	  for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
+	    storeRepP p = facts.get_variable(*vi) ;
+	    if(p->RepType() ==  MAP) {
+	      MapRepP mp =  MapRepP(p->getRep()) ;
+	      domain += mp->domain();
+	    }
+	  }
+	  domain = all_collect_entitySet(domain);
+	  tmp = domain;
+	}
+	  
+	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
+	  storeRepP p = facts.get_variable(*vi) ;
+	  if(p->RepType() ==  MAP) {
+	    MapRepP mp =  MapRepP(p->getRep()) ;
+	    image += mp->image(tmp);
+	  }
+	}
+
+	tmp = all_collect_entitySet(image);
+	image = EMPTY;
+      }
+
+      image = tmp;
+      Loci::debugout << "map ratio: " << 1.0*domain.size()/image.size() << endl;
+      for(unsigned int i = 0; i < mv.size(); i++) {
+	Loci::debugout << "(" << mv[i] << ")  ->  "; 
+      }
+      Loci::debugout << endl;
+      if(domain.size()*1.0 > image.size() *  10.0) {
+	facts.intensive_output_maps.insert(*smi);
+      }
+      else {
+	return_maps.insert(*smi);
+      }
+    }
+    return return_maps;
+  } 
+
+  
   //Finds the context for maps whose final image will be in provided domain.
   entitySet context_for_map_output(entitySet domain, fact_db &facts,
 	      const std::set<std::vector<variableSet> > &maps) {
