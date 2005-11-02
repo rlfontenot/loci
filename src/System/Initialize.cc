@@ -71,12 +71,15 @@ namespace Loci {
   bool multilevel_duplication = false;
   bool reduction_duplication = false;
   bool pointwise_duplication = false;
+  bool extended_duplication = false;
   bool collect_timings = false;
   double time_duration_to_collect_data = MPI_Wtick()*20;
   bool use_duplicate_model = false;
   bool use_simple_partition = false ;
   char * model_file;
   /////////////////////////////
+
+  bool random_partition = false;
   
   ofstream debugout ;
   ofstream timeout;
@@ -254,6 +257,7 @@ namespace Loci {
 	duplicate_work = true;
 	reduction_duplication = true;
 	pointwise_duplication = true;
+	extended_duplication = true;
 	i++;
       } else if(!strcmp((*argv)[i],"--no_reduction_duplication")){
 	reduction_duplication = false;
@@ -261,13 +265,18 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--no_pointwise_duplication")){
 	pointwise_duplication = false;
 	i++;
+      } else if(!strcmp((*argv)[i],"--no_extended_duplication")){
+	extended_duplication = false;
+	i++;
       } else if(!strcmp((*argv)[i],"--multilevel_duplication")){
 	multilevel_duplication = true;
 	i++;
       } else if(!strcmp((*argv)[i],"--extreme_duplication")){
+	duplicate_work = true;
 	multilevel_duplication = true;
 	reduction_duplication = true;
 	pointwise_duplication = true;
+	extended_duplication = true;
 	i++;
       } else if(!strcmp((*argv)[i],"--collect_timings")){
 	collect_timings = true;
@@ -276,6 +285,9 @@ namespace Loci {
 	use_duplicate_model = true;
 	model_file = (*argv)[i+1];
 	i += 2;
+      } else if(!strcmp((*argv)[i],"--random_partition")){
+	random_partition = true;
+	i++;
       }
       else
         break ;
