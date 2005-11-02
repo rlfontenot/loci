@@ -30,6 +30,7 @@ namespace Loci {
                                     const std::set<std::vector<variableSet> > &maps);
   entitySet dist_special_expand_map(entitySet domain, fact_db &facts,
 				    const std::set<std::vector<variableSet> > &maps);
+  std::set<std::vector<variableSet> > classify_moderate_maps(fact_db &facts, const std::set<std::vector<variableSet> > &maps);
   // function that restores the fact_db back to its global numbering
   void restore_global_facts(fact_db& facts) ;
   
