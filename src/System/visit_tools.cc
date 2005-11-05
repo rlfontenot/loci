@@ -215,13 +215,19 @@ namespace Loci {
       }
     }
     if(!is_super_node(collapse_node)) {
-      cerr << "Internal error, the collapse part of loop compiler: "
-           << lc.cid << " does not have a collapse rule" << endl ;
+      if(MPI_rank == 0)
+        cerr << "Internal error, the collapse part of loop compiler: "
+             << lc.cid << " does not have a collapse rule" << endl ;
+      debugout << "Internal error, the collapse part of loop compiler: "
+               << lc.cid << " does not have a collapse rule" << endl ;
+      
       Loci::Abort() ;
     }
     int collapse_id = get_supernode_num(collapse_node) ;
     if(collapse_id == -1) {
-      cerr << "Error: conditional node has wrong id number" << endl ;
+      if(MPI_rank == 0)
+        cerr << "Error: conditional node has wrong id number" << endl ;
+      debugout << "Error: conditional node has wrong id number" << endl ;
       Loci::Abort() ;
     }
 
@@ -348,7 +354,9 @@ namespace Loci {
         map<int,int>::const_iterator found ;
         found = ret.find(*si) ;
         if(found != ret.end()) {
-          cerr << "multilevel graph error!" << endl ;
+          if(MPI_rank==0)
+            cerr << "multilevel graph error!" << endl ;
+          debugout << "multilevel graph error!" << endl ;
           Loci::Abort() ;
         }
         ret[*si] = mi->first ;
@@ -480,11 +488,18 @@ namespace Loci {
         lc.rotate_lists.push_back(ii->second) ;
       } else {
         if(ii->second.size() !=2) {
-          cerr << "unable to have history on variables aliased in time"
-               << endl
-               << "error occured on variable " << ii->first
-               << "{" << lc.tlevel << "}"
-               << endl ;
+          if(MPI_rank == 0) 
+            cerr << "unable to have history on variables aliased in time"
+                 << endl
+                 << "error occured on variable " << ii->first
+                 << "{" << lc.tlevel << "}"
+                 << endl ;
+          
+          debugout << "unable to have history on variables aliased in time"
+                   << endl
+                   << "error occured on variable " << ii->first
+                   << "{" << lc.tlevel << "}"
+                   << endl ;
           Loci::Abort() ;
         }
       }
@@ -593,8 +608,13 @@ namespace Loci {
     for(vector<digraph::vertexSet>::size_type i=0;i<clusters.size();++i) {
       digraph::vertexSet potential_cycle_v = clusters[i] ;
       if(potential_cycle_v.size() != 1) {
-        cerr << "potential cycle contains variables: " << extract_vars(potential_cycle_v) << endl ;
-        cerr << "rules:" << endl << extract_rules(potential_cycle_v) << endl ;
+        if(MPI_rank == 0) {
+          cerr << "potential cycle contains variables: " << extract_vars(potential_cycle_v) << endl ;
+          cerr << "rules:" << endl << extract_rules(potential_cycle_v) << endl ;
+        }
+        debugout << "potential cycle contains variables: " << extract_vars(potential_cycle_v) << endl ;
+        debugout << "rules:" << endl << extract_rules(potential_cycle_v) << endl ;
+        
       }
 
     }
@@ -602,16 +622,24 @@ namespace Loci {
 
   void dagCheckVisitor::visit(loop_compiler& lc) {
     if(!check_dag(lc.collapse_gr)) {
-      cerr << "ERROR: the collapse graph of loop super node("
-           << lc.cid << ") has cycle(s)" << endl ;
+      if(MPI_rank == 0)
+        cerr << "ERROR: the collapse graph of loop super node("
+             << lc.cid << ") has cycle(s)" << endl ;
+      debugout << "ERROR: the collapse graph of loop super node("
+               << lc.cid << ") has cycle(s)" << endl ;
+      
       print_cycles(lc.collapse_gr) ;
       if(viz)
         visualize(cerr) ;
       Loci::Abort() ;
     }
     if(!check_dag(lc.advance_gr)) {
-      cerr << "ERROR: the advance graph of loop super node("
-           << lc.cid << ") has cycle(s)" << endl ;
+      if(MPI_rank == 0)
+        cerr << "ERROR: the advance graph of loop super node("
+             << lc.cid << ") has cycle(s)" << endl ;
+      debugout << "ERROR: the advance graph of loop super node("
+               << lc.cid << ") has cycle(s)" << endl ;
+      
       print_cycles(lc.advance_gr) ;
       if(viz)
         visualize(cerr) ;
@@ -621,8 +649,13 @@ namespace Loci {
   
   void dagCheckVisitor::visit(dag_compiler& dc) {
     if(!check_dag(dc.dag_gr)) {
-      cerr << "ERROR: the graph of dag super node("
-           << dc.cid << ") has cycle(s)" << endl ;
+      if(MPI_rank == 0)
+        cerr << "ERROR: the graph of dag super node("
+             << dc.cid << ") has cycle(s)" << endl ;
+
+      debugout << "ERROR: the graph of dag super node("
+               << dc.cid << ") has cycle(s)" << endl ;
+      
       print_cycles(dc.dag_gr) ;
       if(viz)
         visualize(cerr) ;
@@ -632,8 +665,12 @@ namespace Loci {
   
   void dagCheckVisitor::visit(conditional_compiler& cc) {
     if(!check_dag(cc.cond_gr)) {
-      cerr << "ERROR: the graph of conditional super node("
-           << cc.cid << ") has cycle(s)" << endl ;
+      if(MPI_rank == 0)
+        cerr << "ERROR: the graph of conditional super node("
+             << cc.cid << ") has cycle(s)" << endl ;
+      debugout << "ERROR: the graph of conditional super node("
+               << cc.cid << ") has cycle(s)" << endl ;
+
       print_cycles(cc.cond_gr) ;
       if(viz)
         visualize(cerr) ;
@@ -976,12 +1013,6 @@ namespace Loci {
 
       sort(all_targets.begin(),all_targets.end(),time_before) ;
 
-      /*
-      cerr << "found target cluster: " ;
-      copy(all_targets.begin(),all_targets.end(),
-           ostream_iterator<variable>(cerr,",")) ;
-      cerr << endl ;
-      */
       
       vector<variable>::iterator pos ;
       vector<variable>::iterator old_pos = all_targets.begin() ;
@@ -1001,8 +1032,11 @@ namespace Loci {
               v = v.drop_priority() ;
             real_varset += v ;
           }
-          if(real_varset.size() > 1)
-            cerr << "WARNING: These renamed variables coexist in the same time level, and they refer to the same memory location, this is dangerous!: " << time_ident_vars << endl ;
+          if(real_varset.size() > 1) {
+            if(MPI_rank == 0)
+              cerr << "WARNING: These renamed variables coexist in the same time level, and they refer to the same memory location, this is dangerous!: " << time_ident_vars << endl ;
+            debugout << "WARNING: These renamed variables coexist in the same time level, and they refer to the same memory location, this is dangerous!: " << time_ident_vars << endl ;
+          }
         }
         old_pos = pos ;
       }
@@ -1042,27 +1076,45 @@ namespace Loci {
       found = generalize_s2t.find(*vi) ;
       FATAL(found == generalize_s2t.end()) ;
       if(found->second.size() > 1) {
-        cerr << "WARNING: " << *vi << " is in the chain of "
-             << "generalize rules, but it forms multiple targets: "
-             << found->second << endl ;
+        if(MPI_rank == 0)
+          cerr << "WARNING: " << *vi << " is in the chain of "
+               << "generalize rules, but it forms multiple targets: "
+               << found->second << endl ;
+        debugout << "WARNING: " << *vi << " is in the chain of "
+               << "generalize rules, but it forms multiple targets: "
+               << found->second << endl ;
       }
       if(promote_source.inSet(*vi)) {
-        cerr << "\tit is also in the chain of promote rules " ;
+        if(MPI_rank == 0)
+          cerr << "\tit is also in the chain of promote rules " ;
+        debugout << "\tit is also in the chain of promote rules " ;
+        
         found = promote_s2t.find(*vi) ;
         FATAL(found == promote_s2t.end()) ;
-        cerr << "forms targets: " << found->second << endl ;
+        if(MPI_rank == 0)
+          cerr << "forms targets: " << found->second << endl ;
+        debugout << "forms targets: " << found->second << endl ;
       }
       if(priority_source.inSet(*vi)) {
-        cerr << "\tit is also in the chain of priority rules " ;
+        if(MPI_rank == 0)
+          cerr << "\tit is also in the chain of priority rules " ;
+        debugout << "\tit is also in the chain of priority rules " ;
+        
         found = priority_s2t.find(*vi) ;
         FATAL(found == priority_s2t.end()) ;
-        cerr << "forms targets: " << found->second << endl ;
+        if(MPI_rank == 0)
+          cerr << "forms targets: " << found->second << endl ;
+        debugout << "forms targets: " << found->second << endl ;
       }
       if(rename_source.inSet(*vi)) {
-        cerr << "\tit is also in the chain of rename rules " ;
+        if(MPI_rank == 0)
+          cerr << "\tit is also in the chain of rename rules " ;
+        debugout << "\tit is also in the chain of rename rules " ;
         found = rename_s2t.find(*vi) ;
         FATAL(found == rename_s2t.end()) ;
-        cerr << "forms targets: " << found->second << endl ;
+        if(MPI_rank == 0)
+          cerr << "forms targets: " << found->second << endl ;
+        debugout << "forms targets: " << found->second << endl ;
       }
     }
 
@@ -1071,27 +1123,43 @@ namespace Loci {
       found = priority_s2t.find(*vi) ;
       FATAL(found == priority_s2t.end()) ;
       if(found->second.size() > 1) {
-        cerr << "WARNING: " << *vi << " is in the chain of "
+        if(MPI_rank == 0)
+          cerr << "WARNING: " << *vi << " is in the chain of "
+               << "priority rules, but it forms multiple targets: "
+               << found->second << endl ;
+        debugout << "WARNING: " << *vi << " is in the chain of "
              << "priority rules, but it forms multiple targets: "
              << found->second << endl ;
       }
       if(generalize_source.inSet(*vi)) {
-        cerr << "\tit is also in the chain of generalize rules " ;
+        if(MPI_rank == 0)
+          cerr << "\tit is also in the chain of generalize rules " ;
+        debugout << "\tit is also in the chain of generalize rules " ;
         found = generalize_s2t.find(*vi) ;
         FATAL(found == generalize_s2t.end()) ;
-        cerr << "forms targets: " << found->second << endl ;
+        if(MPI_rank == 0)
+          cerr << "forms targets: " << found->second << endl ;
+        debugout << "forms targets: " << found->second << endl ;
       }
       if(promote_source.inSet(*vi)) {
-        cerr << "\tit is also in the chain of promote rules " ;
+        if(MPI_rank == 0)
+          cerr << "\tit is also in the chain of promote rules " ;
+        debugout << "\tit is also in the chain of promote rules " ;
         found = promote_s2t.find(*vi) ;
         FATAL(found == promote_s2t.end()) ;
-        cerr << "forms targets: " << found->second << endl ;
+        if(MPI_rank == 0)
+          cerr << "forms targets: " << found->second << endl ;
+        debugout << "forms targets: " << found->second << endl ;
       }
       if(rename_source.inSet(*vi)) {
-        cerr << "\tit is also in the chain of rename rules " ;
+        if(MPI_rank == 0)
+          cerr << "\tit is also in the chain of rename rules " ;
+        debugout << "\tit is also in the chain of rename rules " ;
         found = rename_s2t.find(*vi) ;
         FATAL(found == rename_s2t.end()) ;
-        cerr << "forms targets: " << found->second << endl ;
+        if(MPI_rank == 0)
+          cerr << "forms targets: " << found->second << endl ;
+        debugout << "forms targets: " << found->second << endl ;
       }
     }
 
@@ -1101,8 +1169,12 @@ namespace Loci {
       found = rename_s2t.find(*vi) ;
       if(found != rename_s2t.end()) {
         variableSet rt = found->second ;
-        cerr << "WARNING: promoted variable: " << *vi
-             << " is renamed to: " << rt << endl ;
+        if(MPI_rank == 0) 
+          cerr << "WARNING: promoted variable: " << *vi
+               << " is renamed to: " << rt << endl ;
+        debugout << "WARNING: promoted variable: " << *vi
+                 << " is renamed to: " << rt << endl ;
+        
       }
     }
 
@@ -1111,8 +1183,11 @@ namespace Loci {
       found = rename_s2t.find(*vi) ;
       if(found != rename_s2t.end()) {
         variableSet rt = found->second ;
-        cerr << "WARNING: input variable: " << *vi
-             << " is renamed to: " << rt << endl ;
+        if(MPI_rank==0)
+          cerr << "WARNING: input variable: " << *vi
+               << " is renamed to: " << rt << endl ;
+        debugout << "WARNING: input variable: " << *vi
+                 << " is renamed to: " << rt << endl ;
       }
       variableSet::const_iterator vi2 ;
       variableSet target ;
@@ -1121,10 +1196,15 @@ namespace Loci {
       for(vi2=target.begin();vi2!=target.end();++vi2) {
         found = rename_s2t.find(*vi) ;
         if(found != rename_s2t.end()) {
-          cerr << "WARNING: variable " << *vi2
-               << " is promoted from input variable " << *vi
-               << " but is renamed to: " << found->second
-               << endl ;
+          if(MPI_rank == 0)
+            cerr << "WARNING: variable " << *vi2
+                 << " is promoted from input variable " << *vi
+                 << " but is renamed to: " << found->second
+                 << endl ;
+          debugout << "WARNING: variable " << *vi2
+                   << " is promoted from input variable " << *vi
+                   << " but is renamed to: " << found->second
+                   << endl ;
         }
       }
     }
@@ -1183,23 +1263,37 @@ namespace Loci {
             else
               if(typeid(*join_op) !=
                  typeid(*(ri->get_rule_implP()->get_joiner()))) {
-                cerr << "Warning:  Not all apply rules for variable "
-                     << xi->first << " have identical join operations!"
-                     << endl ;
+                if(MPI_rank ==0)
+                  cerr << "Warning:  Not all apply rules for variable "
+                       << xi->first << " have identical join operations!"
+                       << endl ;
+                debugout << "Warning:  Not all apply rules for variable "
+                         << xi->first << " have identical join operations!"
+                         << endl ;
               }
 #endif
           } else {
-            cerr << "Warning: reduction variable " << xi->first
-                 << " has a non-reduction rule contributing\
+            if(MPI_rank == 0)
+              cerr << "Warning: reduction variable " << xi->first
+                   << " has a non-reduction rule contributing\
  to its computation,"
-                 << endl << "offending rule is " << *ri << endl ;
+                   << endl << "offending rule is " << *ri << endl ;
+            debugout << "Warning: reduction variable " << xi->first
+                     << " has a non-reduction rule contributing\
+ to its computation,"
+                     << endl << "offending rule is " << *ri << endl ;
           }
         }
         if(join_op == 0) {
-          cerr << "unable to find any apply rules to complete\
+          if(MPI_rank == 0)
+            cerr << "unable to find any apply rules to complete\
  the reduction defined by rule"
-               << endl
-               << unit_rule << endl ;
+                 << endl
+                 << unit_rule << endl ;
+          debugout << "unable to find any apply rules to complete\
+ the reduction defined by rule"
+                   << endl
+                   << unit_rule << endl ;
         }
         FATAL(join_op == 0) ;
         // fill all the maps
