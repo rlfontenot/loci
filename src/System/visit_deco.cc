@@ -18,7 +18,9 @@ namespace Loci {
   ////////////////////////////////////////////////////////////////
   namespace {
     // working is a set of recurrence variables. This function
-    // filters the variables that do not need to be allocated
+    // filters the variables that do not need to be allocated.
+    // i.e., this function returns the recurrence variables in
+    // the "working" set that do NOT need to be allocated.
     variableSet filte_recur_nonalloc(const variableSet& working,
                                      const variableSet& testing,
                                      const map<variable,variableSet>& s2t,
@@ -75,8 +77,8 @@ namespace Loci {
     // problem related to the priority variables. for example:
     // heat::u_f{n,it} vs. u_f{n,it}
     // For any recurrence variable, we allocate the one
-    // we first see, and once that one gets allocated, we
-    // mark any other related recurrence variables not
+    // we first see, and once the first one gets allocated,
+    // we mark any other related recurrence variables not
     // to be allocated.
     working_vars -= allocated_vars ;
     variableSet takeoff =
@@ -310,14 +312,39 @@ namespace Loci {
       // get computed
       if(prio_sources.inSet(*varIter)) {
         variableSet prio_targets = get_all_recur_vars(prio_s2t,*varIter) ;
+        // variable set to mark variables not in the current graph
+        // and needed to perform a complete search of rules later.
+        // see comments below.
+        variableSet empty_psrules_vars = variableSet(EMPTY) ;
         for(variableSet::const_iterator pvi=prio_targets.begin();
             pvi!=prio_targets.end();++pvi) {
           digraph::vertexSet psrules = grt[pvi->ident()] ;
-          source_rules += get_vertexSet(extract_rules(psrules)) ;
+          // however if the psrules (source rules) for this
+          // priority variable is empty, then the variable
+          // is not in the present graph, but it is still possible
+          // that we have rules in the graph that compute it
+          // we therefore need to perform a search on all rule
+          // targets to see if it actually get generated in
+          // the current graph. We mark this variable for
+          // such a search later.
+          ruleSet rs = extract_rules(psrules) ;
+          if(rs == EMPTY) {
+            empty_psrules_vars += *pvi ;
+          }
+          source_rules += get_vertexSet(rs) ;
+        } // end for(pvi)
+        // perform a complete search if necessary
+        if(empty_psrules_vars != EMPTY) {
+          for(ruleSet::const_iterator ruleIter=rules.begin();
+              ruleIter!=rules.end();++ruleIter) {
+            variableSet targets = ruleIter->targets() ;
+            if( (targets & empty_psrules_vars) != EMPTY)
+              source_rules += ruleIter->ident() ;
+          }
         }
       }
       
-      // we create a rule for allocation
+      // now we create a rule for allocation
       variable sv("CREATE") ;
       rule alloc_rule = create_rule(sv,*varIter,"ALLOCATE") ;
       // edit graph
@@ -329,7 +356,7 @@ namespace Loci {
       alloc_vars -= *varIter ;
     }
     // if alloc_vars is not empty, it must contain loop rotate list
-    // variables. we allocate them here
+    // variables. we allocate them at here
     for(ruleSet::const_iterator ruleIter=rules.begin();
         ruleIter!=rules.end();++ruleIter) {
       variableSet rotate_vars ;
