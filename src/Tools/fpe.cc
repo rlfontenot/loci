@@ -45,54 +45,6 @@ namespace Loci {
 }
                       
 #else
-#ifdef HAVE_FENWM
-
-
-#include <fenvwm.h>
-#include <iostream>
-using std::cerr ;
-using std::endl ;
-
-namespace Loci {
-  int report_overflow(struct sigcontext_struct *sig,
-                      struct i387_hard_struct *fpu)
-  {
-    cerr << "FPU Overflow exception occured at "
-         << (void *) fpu->fip << endl ;
-    abort() ;
-    return 0 ;
-  }
-  int report_divzero(struct sigcontext_struct *sig,
-                      struct i387_hard_struct *fpu)
-  {
-    cerr << "FPU Divide by Zero exception occured at "
-         << (void *) fpu->fip << endl ;
-    abort() ;
-    return 0 ;
-  }
-  int report_invalid(struct sigcontext_struct *sig,
-                     struct i387_hard_struct *fpu)
-  {
-    cerr << "FPU INVALID operation exception occured at "
-         << (void *) fpu->fip << endl ;
-    abort() ;
-    return 0 ;
-  }
-
-  ftrap_t overflow = (ftrap_t) &report_overflow;
-  ftrap_t divzero  = (ftrap_t) &report_divzero ;
-  ftrap_t invalid  = (ftrap_t)&report_invalid ;
-  
-  void set_fpe_abort() {
-    fesetvector(&overflow,FE_OVERFLOW) ;
-    feenabletraps(FE_OVERFLOW) ;
-    fesetvector(&divzero,FE_DIVBYZERO) ;
-    feenabletraps(FE_DIVBYZERO) ;
-    fesetvector(&invalid,FE_INVALID) ;
-    feenabletraps(FE_INVALID) ;
-  }
-}  
-#else
 #ifdef LINUX
 
 #include <stdio.h>
@@ -105,32 +57,8 @@ namespace Loci {
 #endif
 #include <fenv.h>
 
-
-extern "C" {
-  void fpe_debugger_(int i)
-  {
-    std::cerr << "floating point exception " << std::endl ;
-    Loci::debugger_() ;
-  }
-}
-
-namespace Loci {
-  
-  void set_fpe_abort()
-  {
-    if(feenableexcept((FE_DIVBYZERO|FE_OVERFLOW|FE_INVALID)) == -1) {
-      std::cerr << "feenableexcept had error, floating point exceptions not caught" << std::endl ;
-    } else {
-      signal(SIGFPE,fpe_debugger_) ;
-    }
-  }
-}
-
-#ifdef OLD_WAY
-
-#include <fpu_control.h>
-#include <signal.h>
-#include <iostream>
+using std::cerr ;
+using std::endl ;
 
 extern "C" {
   void fpe_debugger_(int i)
@@ -144,13 +72,22 @@ namespace Loci {
   
   void set_fpe_abort()
   {
-    fpu_control_t cw =
-      _FPU_DEFAULT & ~(_FPU_MASK_IM | _FPU_MASK_ZM | _FPU_MASK_OM);
-    _FPU_SETCW(cw);
-    signal(SIGFPE,fpe_debugger_) ;
+#ifdef SYSTEM_ITANIUM64
+    
+    if(feenableexcept((FE_DIVBYZERO)) == -1) {
+      std::cerr << "feenableexcept had error, floating point exceptions not caught" << std::endl ;
+    } else {
+      signal(SIGFPE,fpe_debugger_) ;
+    }
+#else
+    if(feenableexcept((FE_DIVBYZERO|FE_OVERFLOW|FE_INVALID)) == -1) {
+      std::cerr << "feenableexcept had error, floating point exceptions not caught" << std::endl ;
+    } else {
+      signal(SIGFPE,fpe_debugger_) ;
+    }
+#endif
   }
 }
-#endif
 
 #else
 
@@ -161,7 +98,6 @@ namespace Loci {
     
   }
 }
-#endif
 #endif
 #endif
 #endif
