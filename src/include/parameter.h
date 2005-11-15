@@ -410,7 +410,7 @@ namespace Loci {
   class const_param : public store_instance {
     typedef T containerType ;
     typedef paramRepI<T> paramType ;
-    const T * data ;
+    const T * restrict data ;
     const_param(const const_param<T> &var) {setRep(var.Rep()) ;}
     const_param(param<T> &var) { setRep(var.Rep()) ; }
   public:
@@ -429,13 +429,13 @@ namespace Loci {
     virtual void notification() ;
     virtual instance_type access() const ;
 
-    const T * operator->() const { return data ; }
+    const T * restrict operator->() const { return data ; }
 
-    const T * operator &() const { return data ; }
+    const T * restrict operator &() const { return data ; }
 
-    const T &operator*() const { return *data ; }
+    const T & restrict operator*() const { return *data ; }
 
-    const T &operator[](int indx) const {
+    const T & restrict operator[](int indx) const {
 #ifdef BOUNDS_CHECK
       fatal(data == NULL) ;
       fatal(!Rep()->domain().inSet(indx)) ;

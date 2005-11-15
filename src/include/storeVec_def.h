@@ -28,7 +28,7 @@ namespace Loci {
   template <class T> class const_Vect {
   public:
     friend class Vect<T> ;
-    const T *ptr ;
+    const T * restrict ptr ;
 #ifdef BOUNDS_CHECK
     int size ;
 #endif
@@ -39,14 +39,14 @@ namespace Loci {
       size = sz ;
 #endif
     }
-    const T &operator[](int idx) const {
+    const T &restrict operator[](int idx) const {
 #ifdef BOUNDS_CHECK
       fatal(idx >= size || idx < 0) ;
 #endif
       return ptr[idx] ;
     }
 
-    operator const T *() const {
+    operator const T *restrict () const {
       return ptr ;
     }
   } ;
@@ -292,7 +292,7 @@ namespace Loci {
 
   template<class T> class const_storeVec : public store_instance {
     typedef storeVecRepI<T> storeType ;
-    const T* base_ptr ;
+    const T* restrict base_ptr ;
     int size ;
     const_storeVec(const const_storeVec<T> &var) {setRep(var.Rep()) ;}
     const_storeVec(const storeVec<T> &var) {setRep(var.Rep()) ;}
