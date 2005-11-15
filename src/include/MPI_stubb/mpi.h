@@ -633,9 +633,9 @@ inline int  MPI_Initialized(int *){return 0;}
 
 inline int  MPI_Abort(MPI_Comm, int){
 #ifndef NO_CSTDLIB
-  std::abort();
+  std::exit(-1);
 #else
-  abort() ;
+  exit(-1) ;
 #endif
   return -1;}
 
