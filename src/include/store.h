@@ -251,7 +251,7 @@ namespace Loci {
 
   template<class T> class const_store : public store_instance {
     typedef storeRepI<T> storeType ;
-    const T * base_ptr ;
+    const T * restrict base_ptr ;
     const_store(const store<T> &var) { setRep(var.Rep()) ; }
     const_store(const const_store &var) { setRep(var.Rep()) ; }
     const_store<T> & operator=(const const_store<T> &str) {
@@ -279,14 +279,14 @@ namespace Loci {
 
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
-    const T &elem(int indx) const {
+    const T & restrict elem(int indx) const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
       fatal(!Rep()->domain().inSet(indx)) ;
 #endif
       return base_ptr[indx]; }
 
-    const T&operator[](int indx) const { return elem(indx); }
+    const T& restrict operator[](int indx) const { return elem(indx); }
 
   } ;
 
