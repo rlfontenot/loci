@@ -1,3 +1,7 @@
+#ifdef restrict
+#undef restrict
+#endif
+
 #if defined(__GNUC__)
 
 #if defined(__INTEL_COMPILER)
@@ -7,8 +11,9 @@
 //#define EXT_HASH_MAP
 //#define EXT_NAMESPACE std
 
+#define restrict __restrict
 #else
-
+#define restrict __restrict__
 // GCC Compilers
 #if (__GNUC__==3) && (__GNUC_MINOR__==0)
 #define EXT_HASH_MAP
@@ -28,7 +33,7 @@
 
 #endif
 #else
-
+#define restrict
 #if defined(__sgi)
 // SGI Compiler
 #define NO_CSTDLIB
@@ -48,6 +53,11 @@
 #if defined(LOCI_SYS_Linux)
 #undef LINUX
 #define LINUX
+
+#endif
+
+#if defined(LOCI_ARCH_ia64)
+#define SYSTEM_ITANIUM64
 #endif
 
 #if defined(LOCI_SYS_SunOS)
