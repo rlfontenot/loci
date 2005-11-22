@@ -21,6 +21,8 @@ namespace Loci {
     if(Loci::collect_timings && rule_tag.targets().begin()->get_info().name != "OUTPUT" && rule_tag.get_info().rule_impl->thread_rule())
       return new timed_execute_rule(rule_tag, exec_seq, facts, scheds,
 				    Loci::time_duration_to_collect_data);
+    else if(Loci::measure_rule_timings)
+      return new measure_timings_execute_rule(rule_tag, exec_seq, facts, scheds);
     else
       return new execute_rule(rule_tag, exec_seq, facts, scheds);
   }
@@ -32,6 +34,8 @@ namespace Loci {
     if(Loci::collect_timings && rule_tag.targets().begin()->get_info().name != "OUTPUT" && rule_tag.get_info().rule_impl->thread_rule())
       return new timed_execute_rule(rule_tag, exec_seq, facts, v, p, scheds,
 				    Loci::time_duration_to_collect_data);
+    else if(Loci::measure_rule_timings)
+      return new measure_timings_execute_rule(rule_tag, exec_seq, facts, v, p, scheds);
     else
       return new execute_rule(rule_tag, exec_seq, facts, v, p, scheds);
   }
@@ -176,5 +180,20 @@ namespace Loci {
       vRep->unpack(mi->second.second, position, mi->second.first, vRep->domain());
       delete [] mi->second.second;
     }
+  }
+
+  measure_timings_execute_rule::measure_timings_execute_rule(rule fi, sequence seq, fact_db &facts, const sched_db &scheds)
+    :execute_rule(fi, seq, facts, scheds) {
+  }
+  
+  measure_timings_execute_rule::measure_timings_execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, const sched_db &scheds)
+    :execute_rule(fi, seq, facts, v, p, scheds){
+  }
+
+  void measure_timings_execute_rule::execute(fact_db &facts) {  
+    double st = MPI_Wtime();
+    rp->compute(exec_seq);
+    double et = MPI_Wtime();
+    ruleTimeOut << rule_tag.get_info().name() << "\n" <<  exec_seq.size() << "\t" << et - st << "\t" << (et-st)/exec_seq.size() << endl;
   }
 }
