@@ -80,9 +80,11 @@ namespace Loci {
   /////////////////////////////
 
   bool random_partition = false;
+  bool measure_rule_timings = false;
   
   ofstream debugout ;
   ofstream timeout;
+  ofstream ruleTimeOut;
 
   double total_memory_usage = 0 ;
 
@@ -288,6 +290,9 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--random_partition")){
 	random_partition = true;
 	i++;
+      } else if(!strcmp((*argv)[i],"--measure_rule_timings")){
+	measure_rule_timings = true;
+	i++;
       }
       else
         break ;
@@ -308,6 +313,25 @@ namespace Loci {
       filename = oss.str();
       timeout.open(filename.c_str(), ios::out);
     }
+
+    if(measure_rule_timings) {
+      oss.str("");
+      if(MPI_processes == 1)
+	oss << "rule_timings";
+      else
+	oss << "rule_timings-"  << MPI_rank ;
+      filename = oss.str();
+      ruleTimeOut.open(filename.c_str(), ios::out);
+      ruleTimeOut << "Output Format:" << endl;
+      ruleTimeOut << "===============================================" << endl;
+      ruleTimeOut << endl;
+      ruleTimeOut << "Rule Name " << endl;
+      ruleTimeOut << "Context Size\tTime Taken\tAverage Time" << endl;
+      ruleTimeOut << endl;
+      ruleTimeOut << "+++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+      ruleTimeOut << endl;
+    }
+
     set_debug_callback(debug_print_rule) ;
     if(debug_setup) {
       setup_debugger(execname,debug,hostname) ;
