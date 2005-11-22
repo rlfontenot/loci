@@ -31,6 +31,9 @@ namespace Loci {
   extern char * model_file;
   /////////////////////////////
   extern bool random_partition;
+
+  extern bool measure_rule_timings;
+  extern std::ofstream ruleTimeOut;
 }
 
 #endif
