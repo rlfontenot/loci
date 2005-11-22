@@ -72,6 +72,15 @@ namespace Loci {
     virtual void execute(fact_db &facts);
   };
 
+  class measure_timings_execute_rule: public execute_rule {
+  public:
+    measure_timings_execute_rule(rule fi, sequence seq, fact_db &facts,
+		       const sched_db &scheds);
+    measure_timings_execute_rule(rule fi, sequence seq, fact_db &facts, variable v,
+		       const storeRepP &p, const sched_db &scheds);
+    virtual void execute(fact_db &facts);
+  };
+
   class dynamic_schedule_rule: public execute_modules {
     rule_implP rp ;
     variableSet inputs, outputs ;
