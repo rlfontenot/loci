@@ -10,6 +10,7 @@
 #define USE_MAP_FOR_HASH_MAP
 //#define EXT_HASH_MAP
 //#define EXT_NAMESPACE std
+#define HAVE_IVDEP
 
 #define restrict __restrict
 #else
@@ -33,12 +34,14 @@
 
 #endif
 #else
-#define restrict
 #if defined(__sgi)
 // SGI Compiler
 #define NO_CSTDLIB
 #define NO_CMATH
 //#define MPI_NO_CPPBIND
+#define restrict __restrict
+#else
+#define restrict
 #endif
 
 #endif

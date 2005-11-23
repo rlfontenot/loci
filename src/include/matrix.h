@@ -61,7 +61,7 @@ namespace Loci {
     //************************************************************************
 
     template<class S> 
-    void solve_lu(const S * restrict b, S *restrict x) const {
+    void solve_lu(const S * restrict b, S *restrict x) const restrict {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
@@ -82,8 +82,7 @@ namespace Loci {
     //*************************************************************************
 
     template<class T1,class T2> 
-    void solve_lu(const_Vect<T1> b, T2 *restrict x) const 
-    {
+    void solve_lu(const_Vect<T1> b, T2 *restrict x) const  restrict {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
@@ -104,8 +103,7 @@ namespace Loci {
     //************************************************************************
 
     template<class T1,class T2> 
-    void solve_lu(const T1 * restrict b, Vect<T2> xin) const 
-    {
+    void solve_lu(const T1 * restrict b, Vect<T2> xin) const restrict {
       T2 * restrict x = xin ;
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
@@ -127,8 +125,7 @@ namespace Loci {
     //************************************************************************
 
     template<class S> 
-    void solve_lu_pivot(const S * restrict b, S *restrict x,const pivot_type * restrict pivot) const 
-    {
+    void solve_lu_pivot(const S * restrict b, S *restrict x,const pivot_type * restrict pivot) const restrict {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
         S xi = b[pivot[i]] ;
@@ -152,8 +149,7 @@ namespace Loci {
 
     template<class T1,class T2> 
     void solve_lu_pivot( const_Vect<T1> b, Vect<T2> xin, 
-                         const_Vect<pivot_type> pivot) const 
-    {
+                         const_Vect<pivot_type> pivot) const restrict {
       T2 * restrict x = xin ;
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
@@ -178,8 +174,7 @@ namespace Loci {
     //************************************************************************
 
     template<class T1,class T2> 
-    void solve_lu_pivot(const T1 * restrict b, Vect<T2> xin,const pivot_type *restrict pivot) const 
-    {
+    void solve_lu_pivot(const T1 * restrict b, Vect<T2> xin,const pivot_type *restrict pivot) const restrict {
       T2 * restrict x = xin ;
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
@@ -203,7 +198,7 @@ namespace Loci {
     //************************************************************************
 
     template<class Tin,class Tout>
-    void dotprod_accum(const Tin *restrict vin, Tout * restrict vout) const {
+    void dotprod_accum(const Tin *restrict vin, Tout * restrict vout) const restrict {
       const T * restrict Aij = ptr;
       for(int j=0;j<size;++j) {
         const Tin in = vin[j] ;
@@ -215,7 +210,7 @@ namespace Loci {
     //************************************************************************
 
     template<class Tin,class Tout>
-    void dotprod_accum(const Vect<Tin> &vin, Tout *vout) const {
+    void dotprod_accum(const Vect<Tin> &vin, Tout *vout) const restrict {
       const T * restrict Aij = ptr;
       const Tin * restrict vi = vin ;
       Tout * restrict vo = vout ;
@@ -229,7 +224,7 @@ namespace Loci {
     //************************************************************************
 
     template<class Tin,class Tout>
-    void dotprod_accum(const const_Vect<Tin> &vin, Tout *vout) const {
+    void dotprod_accum(const const_Vect<Tin> &vin, Tout *vout) const restrict {
       const T * restrict Aij = ptr;
       const Tin * restrict vi = vin ;
       Tout * restrict vo = vout ;
@@ -245,7 +240,7 @@ namespace Loci {
   //************************************************************************
 
   template <class T> class Mat_partial {
-    T *ptr ;
+    T *restrict ptr ;
     int size ;
     int i ;
   public:
@@ -285,35 +280,35 @@ namespace Loci {
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator=(const Scalar<S> &s) {
+    void operator=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
       for(int i=0;i<size*size;++i)
         *p1++ = s.val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator+=(const Scalar<S> &s) {
+    void operator+=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
       for(int i=0;i<size*size;++i)
         *p1++ += s.val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator*=(const Scalar<S> &s) {
+    void operator*=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
       for(int i=0;i<size*size;++i)
         *p1++ *= s.val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator-=(const Scalar<S> &s) {
+    void operator-=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
       for(int i=0;i<size*size;++i)
         *p1++ -= s.val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator/=(const Scalar<S> &s) {
+    void operator/=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
       for(int i=0;i<size*size;++i)
         *p1++ /= s.val ;
@@ -356,7 +351,7 @@ namespace Loci {
     }
     //------------------------------------------------------------------------
     
-    Mat_partial<T> operator[](int idx) {
+    Mat_partial<T> operator[](int idx) restrict {
 #ifdef BOUNDS_CHECK
       warn(idx >= size || idx < 0) ;
 #endif
@@ -364,7 +359,7 @@ namespace Loci {
     }
 
     //------------------------------------------------------------------------
-    Mat_partial<T> operator[](int idx) const {
+    Mat_partial<T> operator[](int idx) const restrict {
 #ifdef BOUNDS_CHECK
       warn(idx >= size || idx < 0) ;
 #endif
@@ -373,7 +368,7 @@ namespace Loci {
 
     //------------------------------------------------------------------------
 
-    void decompose_lu() {
+    void decompose_lu() restrict {
       // GAXPY from of LU decomposition algorithm 
       T *restrict Aj = ptr ;
       for(int j=0;j<size;++j,Aj += size) {
@@ -397,7 +392,7 @@ namespace Loci {
     }
     //------------------------------------------------------------------------
     
-    void decompose_lu_pivot(pivot_type *pivot) {
+    void decompose_lu_pivot(pivot_type *pivot) restrict {
       pivot_type piv[256] ;  // Maximum matrix size for pivoting
       for(int i=0;i<size;++i)
         pivot[i] = i ;
@@ -439,7 +434,7 @@ namespace Loci {
     //------------------------------------------------------------------------
 
     template<class S> 
-    void solve_lu(const S *restrict b, S *restrict x) const {
+    void solve_lu(const S *restrict b, S *restrict x) const restrict {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
@@ -459,7 +454,7 @@ namespace Loci {
     //------------------------------------------------------------------------
 
     template<class S> 
-    void solve_lu(const_Vect<S> &bin, S *restrict x) const {
+    void solve_lu(const_Vect<S> &bin, S *restrict x) const restrict {
       S *restrict b = bin ;
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
@@ -480,7 +475,7 @@ namespace Loci {
     //------------------------------------------------------------------------
 
     template<class S> 
-    void solve_lu(const S *restrict b, Vect<S> &xin) const {
+    void solve_lu(const S *restrict b, Vect<S> &xin) const restrict {
       S *restrict x = xin ;
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
@@ -502,7 +497,7 @@ namespace Loci {
     //------------------------------------------------------------------------
 
     template<class S> 
-    void solve_lu_pivot(const S * restrict b, S *restrict x,const pivot_type *restrict pivot) const {
+    void solve_lu_pivot(const S * restrict b, S *restrict x,const pivot_type *restrict pivot) const restrict {
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
         x[i] = b[pivot[i]] ;
@@ -522,7 +517,7 @@ namespace Loci {
     //------------------------------------------------------------------------
 
     template<class S> 
-    void solve_lu_pivot(const_Vect<S> &bin, S *restrict x,const pivot_type *restrict pivot) const {
+    void solve_lu_pivot(const_Vect<S> &bin, S *restrict x,const pivot_type *restrict pivot) const restrict {
       // Perform forward solve Ly = b, note b becomes y after this step
       S *restrict b = bin ;
       for(int i=0;i<size;++i) {
@@ -543,7 +538,8 @@ namespace Loci {
     //------------------------------------------------------------------------
 
     template<class S> 
-    void solve_lu_pivot(const S *restrict b, Vect<S> &xin,const pivot_type *restrict pivot) const {
+    void solve_lu_pivot(const S *restrict b, Vect<S> &xin,const pivot_type *restrict pivot) const restrict {
+      S *restrict x = xin ;
       // Perform forward solve Ly = b, note b becomes y after this step
       for(int i=0;i<size;++i) {
         x[i] = b[pivot[i]] ;

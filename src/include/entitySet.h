@@ -221,34 +221,101 @@ namespace Loci {
   }
 
   template<class Op> inline void do_loop(const sequence &seq, Op f) {
-    for(int i=0;i<seq.num_intervals();++i) {
-      const bool dir = seq[i].first>seq[i].second?false:true ;
-      const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
-      for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
-        f(indx) ;
+    const int ni = seq.num_intervals() ; 
+    for(int i=0;i<ni;++i) {
+      const Loci::int_type start = seq[i].first ;
+      const Loci::int_type stop = seq[i].second  ;
+      if(seq[i].first<=seq[i].second)	
+	for(Loci::int_type indx=start;indx!=stop+1;++indx) 
+	  f(indx) ;
+      else
+	for(Loci::int_type indx=start;indx!=stop-1;--indx) 
+	  f(indx) ;
     }
   }
   
   template<class T> inline void do_loop(const sequence &seq, T *cp,
                                         void(T::*pmf)(Entity) ) {
-    for(int i=0;i<seq.num_intervals();++i) {
-      const bool dir = seq[i].first>seq[i].second?false:true ;
-      const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
-      for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
+    const int ni = seq.num_intervals() ;
+    for(int i=0;i<ni;++i) {
+      const Loci::int_type i1 = seq[i].first ;
+      const Loci::int_type i2 = seq[i].second  ;
+      const Loci::int_type start = min(i1,i2) ;
+      const Loci::int_type stop = max(i1,i2) ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(Loci::int_type indx=start;indx!=stop+1;++indx) 
         (cp->*pmf)(indx) ;
     }
   }
 
   template<class T> inline void do_loop(const sequence &seq, T *cp) {
-    for(int i=0;i<seq.num_intervals();++i) {
-      const bool dir = seq[i].first>seq[i].second?false:true ;
-      const Loci::int_type stop = seq[i].second + (dir?1:-1) ;
-      for(Loci::int_type indx=seq[i].first;indx!=stop;dir?++indx:--indx) 
+    const int ni = seq.num_intervals() ;
+    for(int i=0;i<ni;++i) {
+      const Loci::int_type i1 = seq[i].first ;
+      const Loci::int_type i2 = seq[i].second  ;
+      const Loci::int_type start = min(i1,i2) ;
+      const Loci::int_type stop = max(i1,i2) ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(Loci::int_type indx=start;indx!=stop+1;++indx) 
         cp->calculate(indx) ;
     }
   }
 
+  template<class T> inline void do_segments(const sequence &seq, T *cp,
+                                        void(T::*pmf)(Entity) ) {
+    const int ni = seq.num_intervals() ;
+    for(int i=0;i<ni;++i) {
+      const Loci::int_type i1 = seq[i].first ;
+      const Loci::int_type i2 = seq[i].second  ;
+      const Loci::int_type start = min(i1,i2) ;
+      const Loci::int_type stop = max(i1,i2) ;
+      (cp->*pmf)(start,stop-start+1) ;
+    }
+  }
 
+  template<class T> inline void do_segments(const sequence &seq, T *cp) {
+    const int ni = seq.num_intervals() ;
+    for(int i=0;i<ni;++i) {
+      const Loci::int_type i1 = seq[i].first ;
+      const Loci::int_type i2 = seq[i].second  ;
+      const Loci::int_type start = min(i1,i2) ;
+      const Loci::int_type stop = max(i1,i2) ;
+      cp->segment(start,stop-start+1) ;
+    }
+  }
+
+  template<class T> inline void do_loop_seq(const sequence &seq, T *cp,
+                                        void(T::*pmf)(Entity) ) {
+    const int ni = seq.num_intervals() ;
+    for(int i=0;i<ni;++i) {
+      const Loci::int_type start = seq[i].first ;
+      const Loci::int_type stop = seq[i].second  ;
+      if(seq[i].first<=seq[i].second)	
+	for(Loci::int_type indx=start;indx!=stop+1;++indx) 
+	  (cp->*pmf)(indx) ;
+      else
+	for(Loci::int_type indx=start;indx!=stop-1;--indx) 
+	  (cp->*pmf)(indx) ;
+    }
+  }
+
+  template<class T> inline void do_loop_seq(const sequence &seq, T *cp) {
+    const int ni = seq.num_intervals() ;
+    for(int i=0;i<ni;++i) {
+      const Loci::int_type start = seq[i].first ;
+      const Loci::int_type stop = seq[i].second  ;
+      if(seq[i].first<=seq[i].second)	
+	for(Loci::int_type indx=start;indx!=stop+1;++indx) 
+	  cp->calculate(indx) ;
+      else
+	for(Loci::int_type indx=start;indx!=stop-1;--indx) 
+	  cp->calculate(indx) ;
+    }
+  }
 }
 
 #endif
