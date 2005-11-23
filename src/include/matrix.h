@@ -66,6 +66,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
         const T *restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -73,6 +76,9 @@ namespace Loci {
       const T *restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
@@ -87,6 +93,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
         const T *restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -94,6 +103,9 @@ namespace Loci {
       const T * restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
@@ -109,6 +121,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
         const T * restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -116,6 +131,9 @@ namespace Loci {
       const T * restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T * restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
@@ -130,6 +148,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         S xi = b[pivot[i]] ;
         const T * restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           xi -= Aj[i]*x[j] ;
         x[i] = xi ;
@@ -139,6 +160,9 @@ namespace Loci {
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *restrict Aj = Ai + size ;
         S xi = x[i] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           xi -= Aj[i]*x[j] ;
         x[i] = xi/Ai[i] ;
@@ -155,6 +179,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         T2 xi = b[pivot[i]] ;
         const T * restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           xi -= Aj[i]*x[j] ;
         x[i] = xi ;
@@ -165,6 +192,9 @@ namespace Loci {
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T * restrict Aj = Ai + size ;
         T2 xi = x[i] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           xi -= Aj[i]*x[j] ;
         x[i] = xi/Ai[i] ;
@@ -180,6 +210,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         T2 xi = b[pivot[i]] ;
         const T * restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           xi -= Aj[i]*x[j] ;
         x[i] = xi ;
@@ -189,6 +222,9 @@ namespace Loci {
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T * restrict Aj = Ai + size ;
         T2 xi = x[i] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           xi -= Aj[i]*x[j] ;
         x[i] = xi/Ai[i] ;
@@ -202,6 +238,9 @@ namespace Loci {
       const T * restrict Aij = ptr;
       for(int j=0;j<size;++j) {
         const Tin in = vin[j] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int i=0;i<size;++i,Aij++)
           vout[i] += (*Aij)*in ;
       }
@@ -216,6 +255,9 @@ namespace Loci {
       Tout * restrict vo = vout ;
       for(int j=0;j<size;++j) {
         const Tin in = vi[j] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int i=0;i<size;++i,Aij++)
           vo[i] += (*Aij)*in ;
       }
@@ -230,6 +272,9 @@ namespace Loci {
       Tout * restrict vo = vout ;
       for(int j=0;j<size;++j) {
         const Tin in = vi[j] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int i=0;i<size;++i,Aij++)
           vo[i] += (*Aij)*in ;
       }
@@ -267,6 +312,9 @@ namespace Loci {
       T *restrict p1 = ptr ;
       const T *restrict p2 = t.ptr ;
       
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ = *p2++ ;
     }
@@ -275,6 +323,9 @@ namespace Loci {
       T *restrict p1 = ptr ;
       const T *restrict p2 = t.ptr ;
       
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ = *p2++ ;
     }
@@ -282,6 +333,9 @@ namespace Loci {
     template <class S> 
     void operator=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ = s.val ;
     }
@@ -289,6 +343,9 @@ namespace Loci {
     template <class S> 
     void operator+=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ += s.val ;
     }
@@ -296,6 +353,9 @@ namespace Loci {
     template <class S> 
     void operator*=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ *= s.val ;
     }
@@ -303,6 +363,9 @@ namespace Loci {
     template <class S> 
     void operator-=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ -= s.val ;
     }
@@ -310,6 +373,9 @@ namespace Loci {
     template <class S> 
     void operator/=(const Scalar<S> &restrict s) {
       T *restrict p1 = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ /= s.val ;
     }
@@ -319,6 +385,9 @@ namespace Loci {
       T *restrict p1 = ptr ;
       const S *restrict p2 = t.ptr ;
       
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ += *p2++ ;
     }
@@ -328,6 +397,9 @@ namespace Loci {
       T *restrict p1 = ptr ;
       const S *restrict p2 = t.ptr ;
       
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ += *p2++ ;
     }
@@ -337,6 +409,9 @@ namespace Loci {
       T *restrict p1 = ptr ;
       const S *restrict p2 = t.ptr ;
       
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ -= *p2++ ;
     }
@@ -346,6 +421,9 @@ namespace Loci {
       T *restrict p1 = ptr ;
       const S *restrict p2 = t.ptr ;
       
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
       for(int i=0;i<size*size;++i)
         *p1++ -= *p2++ ;
     }
@@ -375,24 +453,33 @@ namespace Loci {
         const T *restrict Ak = ptr ;
         for(int k=0;k<j;++k,Ak += size) {
           const T Ajk = Aj[k] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
           for(int i=k+1;i<j;++i)
             Aj[i] -= Ak[i]*Ajk ;
         }
         Ak = (T * restrict) ptr ;
         for(int k=0;k<j;++k,Ak += size) {
           const T Ajk = Aj[k] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
           for(int i=j;i<size;++i)
             Aj[i] -= Ak[i]*Ajk ;
         }
 
         const T Ajjr = 1./Aj[j] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int i=j+1;i<size;++i)
           Aj[i] *= Ajjr ;
       }
     }
     //------------------------------------------------------------------------
     
-    void decompose_lu_pivot(pivot_type *pivot) restrict {
+    void decompose_lu_pivot(pivot_type *restrict pivot) restrict {
       pivot_type piv[256] ;  // Maximum matrix size for pivoting
       for(int i=0;i<size;++i)
         pivot[i] = i ;
@@ -404,12 +491,18 @@ namespace Loci {
         T *restrict Ak = ptr ;
         for(int k=0;k<j;++k,Ak += size) {
           const T Ajk = Aj[k] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
           for(int i=k+1;i<j;++i)
             Aj[i] -= Ak[i]*Ajk ;
         }
         Ak = (T * restrict) ptr ;
         for(int k=0;k<j;++k,Ak += size) {
           const T Ajk = Aj[k] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
           for(int i=j;i<size;++i)
             Aj[i] -= Ak[i]*Ajk ;
         }
@@ -426,6 +519,9 @@ namespace Loci {
             std::swap(Ak[j],Ak[piv[j]]) ;
         if(Aj[j] != 0) {
           T ajjr = 1./Aj[j] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
           for(int i=j+1;i<size;++i)
             Aj[i] *= ajjr ;
         }
@@ -439,6 +535,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
         const T *Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -446,6 +545,9 @@ namespace Loci {
       const T * restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
@@ -460,6 +562,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
         const T * restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -467,6 +572,9 @@ namespace Loci {
       const T *restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T * restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
@@ -481,6 +589,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[i] ;
         const T * restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -489,6 +600,9 @@ namespace Loci {
       const T *restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
@@ -502,6 +616,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[pivot[i]] ;
         const T *restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -509,6 +626,9 @@ namespace Loci {
       const T *restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
@@ -523,6 +643,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[pivot[i]] ;
         const T *restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -530,6 +653,9 @@ namespace Loci {
       const T *restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
@@ -544,6 +670,9 @@ namespace Loci {
       for(int i=0;i<size;++i) {
         x[i] = b[pivot[i]] ;
         const T * restrict Aj = ptr ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=0;j<i;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
       }
@@ -551,6 +680,9 @@ namespace Loci {
       const T *restrict Ai = ptr + size*(size-1) ;
       for(int i=size-1;i>=0;--i,Ai-=size) {
         const T *restrict Aj = Ai + size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
         for(int j=i+1;j<size;++j,Aj+=size)
           x[i] -= Aj[i]*x[j] ;
         x[i] = x[i]/Ai[i] ;
