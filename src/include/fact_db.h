@@ -59,6 +59,7 @@ namespace Loci {
     typedef CPTR<distribute_info> distribute_infoP ;
     distribute_infoP distributed_info ;
 
+    std::set<std::vector<variableSet> > intensive_output_maps;    
   private:
     struct fact_info {
       store_refP data_rep ;
