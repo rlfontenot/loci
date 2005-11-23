@@ -554,6 +554,10 @@ namespace Loci {
 	    scheds.set_my_proc_able_entities(*vi, apply, targets);
 	    scheds.set_proc_able_entities(*vi, apply, comp_targets);
 	    scheds.set_existential_info(*vi, apply, EMPTY);
+
+	    if(is_intensive_rule_output_mapping(apply, facts)) {
+	      scheds.add_policy(*vi, sched_db::NEVER);
+	    }
 	  }
         }
       }
@@ -899,6 +903,57 @@ namespace Loci {
       executeP execrule = ef.create_product();
       ep->append_list(execrule) ;
     }
+  }
+  
+  set<vector<variableSet> >
+  get_rule_output_mappings(rule my_rule, const fact_db &facts) {
+    set<vector<variableSet> > return_maps;
+    set<vmap_info>::const_iterator vmsi ;
+    for(vmsi = my_rule.get_info().desc.targets.begin();
+	vmsi != my_rule.get_info().desc.targets.end();
+	++vmsi) {
+      if(vmsi->mapping.size() != 0) {
+	vector<variableSet> vvs ;
+	for(size_t i = 0; i < vmsi->mapping.size(); ++i) {
+	  variableSet v ;
+	  for(variableSet::const_iterator vi = vmsi->mapping[i].begin();
+	      vi != vmsi->mapping[i].end();
+	      ++vi) {
+	    v += variable(*vi,time_ident()) ;
+	  }
+	  vvs.push_back(v) ;
+	}
+	return_maps.insert(vvs) ;
+      }
+    }
+    return return_maps;
+  }
+
+  bool is_same_mappings(const vector<variableSet> &map1, const vector<variableSet> &map2) {
+    if(map1.size() != map2.size())
+      return false;
+    for(unsigned int i = 0; i < map1.size(); i++) {
+      if(map1[i] != map2[i])
+	return false;
+    }
+
+    return true;
+    
+  }
+  bool is_intensive_rule_output_mapping(rule my_rule, const fact_db &facts) {
+    if(!rule_has_mapping_in_output(my_rule))
+      return false;
+    set<vector<variableSet> > my_output_mappings = get_rule_output_mappings(my_rule, facts);
+    std::set<std::vector<variableSet> >::const_iterator smi ;
+    for(smi = my_output_mappings.begin(); smi != my_output_mappings.end() ; ++smi) {
+      std::set<std::vector<variableSet> >::const_iterator fsmi ;
+      for(fsmi = facts.intensive_output_maps.begin(); fsmi != facts.intensive_output_maps.end(); ++fsmi) {
+	if(is_same_mappings(*smi, *fsmi))
+	  return true;
+      }
+    }
+
+    return false;
   }
 
   bool rule_has_mapping_in_output(rule r) {
