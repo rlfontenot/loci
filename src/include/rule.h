@@ -659,6 +659,8 @@ namespace Loci {
       
   } ; 
   
+  class register_rule_impl_list ;
+  
   class rule_impl_list {
   public:
     class rule_list_iterator ;

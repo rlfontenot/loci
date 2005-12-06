@@ -401,7 +401,7 @@ namespace Loci {
       parse::kill_white_space(s) ;
       if(s.peek()!='{') {
           throw StringError("format error in fact_db::read") ;
-          return s ;
+          //          return s ;
       }
       s.get() ;
     
@@ -539,7 +539,7 @@ namespace Loci {
     parse::kill_white_space(s) ;
     if(s.peek()!='{') {
         throw StringError("format error in fact_db::read") ;
-        return s ;
+        //        return s ;
     }
     s.get() ;
     

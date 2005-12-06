@@ -111,7 +111,7 @@ namespace Loci {
 	MPI_Bcast(data, 3, MPI_INT, 0, MPI_COMM_WORLD) ;
     }
     else {
-      int data[3] ;
+      int data[3] = {0,0,0} ;
       MPI_Bcast(data, 3, MPI_INT, 0, MPI_COMM_WORLD) ;
       npnts = data[0] ;
       nfaces = data[1] ;

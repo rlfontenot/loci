@@ -41,7 +41,15 @@
 //#define MPI_NO_CPPBIND
 #define restrict __restrict
 #else
+#if defined(__PGI)
+/* Portland group compiler*/
+#define restrict __restrict
+#define HAVE_IVDEP
+#define NO_FENV
+#else
 #define restrict
+#endif
+
 #endif
 
 #endif

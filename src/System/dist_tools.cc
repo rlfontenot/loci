@@ -899,7 +899,7 @@ namespace Loci {
       }
       
       for(size_t i=0;i<d->xmit.size();++i) {
-        int recieved ;
+        int recieved = 0 ;
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
         for(int j=0;j<recieved;++j)
           re += d->g2l[recv_buffer[i][j]] ;
@@ -986,7 +986,7 @@ namespace Loci {
       }
       
       for(size_t i=0;i<d->xmit.size();++i) {
-        int recieved ;
+        int recieved = 0;
 	MPI_Get_count(&status[i], MPI_INT, &recieved) ;
         for(int j=0;j<recieved;++j)
           re[d->xmit[i].proc] += d->g2l[recv_buffer[i][j]] ;

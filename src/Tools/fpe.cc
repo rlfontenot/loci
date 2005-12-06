@@ -51,11 +51,13 @@ namespace Loci {
 #include <signal.h>
 #include <iostream>
 
+#ifndef NO_FENV
 // Floating point exception environment
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE     /* needed to get non POSIX extensions. */
 #endif
 #include <fenv.h>
+#endif
 
 using std::cerr ;
 using std::endl ;
@@ -72,6 +74,8 @@ namespace Loci {
   
   void set_fpe_abort()
   {
+#ifndef NO_FENV
+
 #ifdef SYSTEM_ITANIUM64
     
     if(feenableexcept((FE_DIVBYZERO)) == -1) {
@@ -85,6 +89,8 @@ namespace Loci {
     } else {
       signal(SIGFPE,fpe_debugger_) ;
     }
+#endif
+
 #endif
   }
 }

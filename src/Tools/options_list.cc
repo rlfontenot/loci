@@ -63,7 +63,6 @@ namespace Loci {
         s+= " failed." ;
         
         throw StringError(s) ;
-        return ;
     }
     warn((*tmp).second.value_type != BOOLEAN) ;
     if((*tmp).second.value_type == BOOLEAN)
@@ -103,7 +102,6 @@ namespace Loci {
         oss << "attempt to retrieve REAL type option " << option
             << " failed." << endl ;
         throw StringError(oss.str()) ;
-      return ;
     }
     warn((*tmp).second.value_type != REAL) ;
     if((*tmp).second.value_type == REAL)
@@ -117,7 +115,6 @@ namespace Loci {
         oss << "attempt to retrieve UNIT_VALUE type option " << option
             << " failed." << endl ;
         throw StringError(oss.str()) ;
-        return ;
     }
     warn((*tmp).second.value_type != UNIT_VALUE) ;
     if((*tmp).second.value_type == UNIT_VALUE)
@@ -131,7 +128,6 @@ namespace Loci {
         oss << "WARNING:attempt to retrieve NAME type option " << option
             << " failed." << endl ;
         throw StringError(oss.str()) ;
-        return ;
     }
     warn((*tmp).second.value_type != NAME &&
          (*tmp).second.value_type != STRING) ;
@@ -146,7 +142,6 @@ namespace Loci {
         oss << "attempt to retrieve FUNCTION type option " << option
             << " failed." << endl ;
         throw StringError(oss.str()) ;
-        return ;
     }
     warn((*tmp).second.value_type != FUNCTION) ;
     
@@ -161,7 +156,6 @@ namespace Loci {
         oss << "attempt to retrieve LIST type option " << option
             << " failed." << endl ;
         throw StringError(oss.str()) ;
-        return ;
     }
     warn((*tmp).second.value_type != LIST) ;
     
@@ -386,7 +380,7 @@ namespace Loci {
           
           if(ov.value_type != NAME && ov.value_type != STRING) {
               throw StringError("improper assignement in list") ;
-              ov.value_type = NOT_ASSIGNED ;
+              //              ov.value_type = NOT_ASSIGNED ;
           } else
             ov.value_type = NAME_ASSIGN ;
           option_values ov2 ;
@@ -455,7 +449,7 @@ namespace Loci {
           oss << "format error in options_list::Input" << endl ;
           oss << "expected '<', got '" << s.peek() << "'" << endl ;
           throw StringError(oss.str()) ;
-        return s ;
+          //        return s ;
       }
 
       s.get() ;
@@ -468,7 +462,7 @@ namespace Loci {
         }
         if(!parse::is_name(s)) {
             throw StringError("format error while reading option in option_list::Input") ;
-          return s ;
+            //          return s ;
         }
         string option = parse::get_name(s) ;
         if(set_of_options.find(option) == set_of_options.end()) {
@@ -545,7 +539,7 @@ namespace Loci {
           ostringstream oss ;
           oss << "unable to parse input value " << *li << endl ;
           throw StringError(oss.str()) ;
-          continue ;
+          //          continue ;
       }
       string option  ;
       li->get_value(option) ;

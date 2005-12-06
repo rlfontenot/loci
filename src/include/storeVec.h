@@ -99,78 +99,117 @@ namespace Loci {
     }
 
 
-    template <class S> void operator=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        *p1++ = s.val ;
+    template <class S> void operator=(const Scalar<S> &restrict s) restrict {
+      T * restrict p1 = ptr ;
+      const S val = s.val ;
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] = val ;
     }
 
-    template <class S> void operator+=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        *p1++ += s.val ;
+    template <class S> void operator+=(const Scalar<S> &restrict s) restrict {
+      T *restrict p1 = ptr ;
+      const S val = s.val ;
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] += val ;
     }
       
-    template <class S> void operator*=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        *p1++ *= s.val ;
+    template <class S> void operator*=(const Scalar<S> &restrict s) restrict {
+      T *restrict p1 = ptr ;
+      const S val = s.val ;
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] *= val ;
     }
       
-    template <class S> void operator-=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        *p1++ -= s.val ;
+    template <class S> void operator-=(const Scalar<S> &restrict s) restrict {
+      T * restrict p1 = ptr ;
+      const S val = s.val ;
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] -= val ;
     }
       
-    template <class S> void operator/=(const Scalar<S> &s) {
-      T *p1 = ptr ;
-      for(int i=0;i<size;++i)
-        *p1++ /= s.val ;
+    template <class S> void operator/=(const Scalar<S> &restrict s) restrict {
+      T *restrict p1 = ptr ;
+      const S val = s.val ;
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] /= val ;
     }
 
-    template <class S> void operator+=(const Vect<S> &t) {
-      T *p1 = ptr ;
-      const S *p2 = t.ptr ;
+    template <class S> void operator+=(const Vect<S> &restrict t) restrict {
+      T *restrict p1 = ptr ;
+      const S *restrict p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
       fatal(size != t.size) ;
 #endif
-      
-      for(int i=0;i<size;++i)
-        *p1++ += *p2++ ;
+
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] += p2[i] ;
     }
 
-    template <class S> void operator+=(const const_Vect<S> &t) {
-      T *p1 = ptr ;
-      const S *p2 = t.ptr ;
+    template <class S> void operator+=(const const_Vect<S> &restrict t) restrict {
+      T *restrict p1 = ptr ;
+      const S *restrict p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
       fatal(size != t.size) ;
 #endif
-      
-      for(int i=0;i<size;++i)
-        *p1++ += *p2++ ;
+
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] += p2[i] ;
     }
 
-    template <class S> void operator-=(const Vect<S> &t) {
-      T *p1 = ptr ;
-      const S *p2 = t.ptr ;
+    template <class S> void operator-=(const Vect<S> &restrict t) restrict {
+      T *restrict p1 = ptr ;
+      const S *restrict p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
       fatal(size != t.size) ;
 #endif
-      
-      for(int i=0;i<size;++i)
-        *p1++ -= *p2++ ;
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] -= p2[i] ;
     }
 
-    template <class S> void operator-=(const const_Vect<S> &t) {
-      T *p1 = ptr ;
-      const S *p2 = t.ptr ;
+    template <class S> void operator-=(const const_Vect<S> &restrict t) restrict {
+      T *restrict p1 = ptr ;
+      const S *restrict p2 = t.ptr ;
 #ifdef BOUNDS_CHECK
       fatal(size != t.size) ;
 #endif
-      
-      for(int i=0;i<size;++i)
-        *p1++ -= *p2++ ;
+      const int sz = size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz;++i)
+        p1[i] -= p2[i] ;
     }
 
     T &operator[](int idx) {

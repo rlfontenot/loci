@@ -914,7 +914,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
         MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
       for(int i = 0 ; i < nrecv; i++) {
-        int rcv_sizes ;
+        int rcv_sizes = 0 ;
 	MPI_Get_count(&status[i], MPI_BYTE, &rcv_sizes) ;  
 	if(rcv_sizes == sizeof(int)) {
 	  rerecv_procs += recv_info[i].first ;

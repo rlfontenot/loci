@@ -180,7 +180,7 @@ namespace Loci {
       break ;
     default:
         throw StringError("unexpected operation in void expression::Print(ostream &s)") ;
-        break ;
+        //        break ;
     }
 }
     

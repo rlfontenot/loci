@@ -54,7 +54,9 @@ namespace Loci {
       s << *(reinterpret_cast<const double *>(p)) ;
       return s ;
     case LONG_DOUBLE:
-      s << *(reinterpret_cast<const long double *>(p)) ;
+      {double d = *(reinterpret_cast<const long double *>(p)) ;
+      s << d ;
+      }
       return s ;
     case INT:
       s << *(reinterpret_cast<const int *>(p)) ;
@@ -99,8 +101,11 @@ namespace Loci {
       s >> *(reinterpret_cast<double *>(p)) ;
       return s ;
     case LONG_DOUBLE:
-      s >> *(reinterpret_cast<long double *>(p)) ;
+      {double d ;
+      s >> d ;
+      *(reinterpret_cast<long double *>(p)) = d ;
       return s ;
+      }
     case INT:
       s >> *(reinterpret_cast<int *>(p)) ;
       return s ;
@@ -288,7 +293,7 @@ namespace Loci {
       cerr << "Syntax error in CompoundType::input()" << endl ;
       return s ;
     }
-    return s ;
+    //    return s ;
   }
 
   int CompoundType::bytesize() const {
