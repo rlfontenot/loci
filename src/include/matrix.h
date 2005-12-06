@@ -20,7 +20,88 @@ using std::pair ;
 using std::make_pair ;
 
 namespace Loci {
+  typedef unsigned char pivot_type ;
 
+  template< class T1, class T2, class T3 >
+  inline void dotprod_accum(const T1 * const restrict A,
+                const T2 * const restrict vin,
+                T3 * restrict vo,
+                int size) {
+    for(int j=0;j<size;++j) {
+      const T2 in = vin[j] ;
+      const T1 *restrict Aj = A+size*j ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+        for(int i=0;i<size;++i)
+          vo[i] += (Aj[i])*in ;
+      }
+    }
+
+  template<class T1, class T2, class T3> 
+  inline void solve_lu(const T1 * restrict A,
+                       const T2 *restrict b,
+                       T3 *restrict x,
+                       int size) {
+    // Perform forward solve Ly = b, note b becomes y after this step
+    for(int i=0;i<size;++i) {
+      T3 tmp = b[i] ;
+      const T1 * restrict Aij = A+i ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int j=0;j<i;++j,Aij+=size)
+        tmp -= *Aij*x[j] ;
+      x[i] = tmp ;
+
+
+    }
+    // Do back solver Ux = y
+    const T1 *restrict Ai = A + size*(size-1) ;
+    for(int i=size-1;i>=0;--i,Ai-=size) {
+      const T1 *restrict Aj = Ai + size ;
+      T3 tmp = x[i] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int j=i+1;j<size;++j,Aj+=size)
+        tmp -= Aj[i]*x[j] ;
+      x[i] = tmp/Ai[i] ;
+    }
+  }
+
+
+  template<class T1, class T2, class T3> 
+  inline void solve_lu_pivot(const T1 * restrict A,
+                             const T2 * restrict b,
+                             T3 * restrict x,
+                             const pivot_type * restrict pivot,
+                             int size) {
+      // Perform forward solve Ly = b, note b becomes x after this step
+      for(int i=0;i<size;++i) {
+        T3 xi = b[pivot[i]] ;
+        const T1 * restrict Aj = A ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+        for(int j=0;j<i;++j,Aj+=size)
+          xi -= Aj[i]*x[j] ;
+        x[i] = xi ;
+      }
+      // Do back solver Ux = y
+      const T1 * restrict Ai = A + size*(size-1) ;
+      for(int i=size-1;i>=0;--i,Ai-=size) {
+        const T1 *restrict Aj = Ai + size ;
+        T3 xi = x[i] ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+        for(int j=i+1;j<size;++j,Aj+=size)
+          xi -= Aj[i]*x[j] ;
+        x[i] = xi/Ai[i] ;
+      }
+    }
+  
   template <class T> class Mat ;
 
   //**************************************************************************
@@ -41,7 +122,6 @@ namespace Loci {
 
   //**************************************************************************
 
-  typedef unsigned char pivot_type ;
   
   template <class T> class const_Mat {
   public:
@@ -60,224 +140,79 @@ namespace Loci {
 
     //************************************************************************
 
-    template<class S> 
-    void solve_lu(const S * restrict b, S *restrict x) const restrict {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
+    template<class S1, class S2> 
+    void solve_lu(const S1 *b, S2 *x) const restrict {
+      Loci::solve_lu(ptr,b,x,size) ;
     }
 
     //*************************************************************************
 
     template<class T1,class T2> 
-    void solve_lu(const_Vect<T1> b, T2 *restrict x) const  restrict {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T * restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
+    void solve_lu(const_Vect<T1> b, T2 * x) const  restrict {
+      Loci::solve_lu(ptr,&b[0],x,size) ;
     }
 
     //************************************************************************
 
     template<class T1,class T2> 
-    void solve_lu(const T1 * restrict b, Vect<T2> xin) const restrict {
-      T2 * restrict x = xin ;
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T * restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T * restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T * restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
+    void solve_lu(const_Vect<T1> b, Vect<T2> x) const  restrict {
+      Loci::solve_lu(ptr,&b[0],&x[0],size) ;
+    }
+
+    //************************************************************************
+
+    template<class T1,class T2> 
+    void solve_lu(const T1 *b, Vect<T2> x) const restrict {
+      Loci::solve_lu(ptr,b,&x[0],size) ;
     }
 
     //************************************************************************
 
     template<class S> 
-    void solve_lu_pivot(const S * restrict b, S *restrict x,const pivot_type * restrict pivot) const restrict {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        S xi = b[pivot[i]] ;
-        const T * restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi ;
-      }
-      // Do back solver Ux = y
-      const T * restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *restrict Aj = Ai + size ;
-        S xi = x[i] ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi/Ai[i] ;
-      }
+    void solve_lu_pivot(const S *b, S * x,const pivot_type * pivot) const restrict {
+      Loci::solve_lu_pivot(ptr,b,x,pivot,size) ;
     }
 
     //************************************************************************
 
     template<class T1,class T2> 
-    void solve_lu_pivot( const_Vect<T1> b, Vect<T2> xin, 
+    void solve_lu_pivot( const_Vect<T1> b, Vect<T2> x, 
                          const_Vect<pivot_type> pivot) const restrict {
-      T2 * restrict x = xin ;
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        T2 xi = b[pivot[i]] ;
-        const T * restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi ;
-      }
-
-      // Do back solver Ux = y
-      const T *restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T * restrict Aj = Ai + size ;
-        T2 xi = x[i] ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi/Ai[i] ;
-      }
+      Loci::solve_lu_pivot(ptr,&b[0],&x[0],&pivot[0],size) ;
     }
 
     //************************************************************************
 
     template<class T1,class T2> 
-    void solve_lu_pivot(const T1 * restrict b, Vect<T2> xin,const pivot_type *restrict pivot) const restrict {
-      T2 * restrict x = xin ;
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        T2 xi = b[pivot[i]] ;
-        const T * restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi ;
-      }
-      // Do back solver Ux = y
-      const T * restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T * restrict Aj = Ai + size ;
-        T2 xi = x[i] ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          xi -= Aj[i]*x[j] ;
-        x[i] = xi/Ai[i] ;
-      }
+    void solve_lu_pivot(const T1 *b, Vect<T2> x,
+                        const pivot_type *pivot) const restrict {
+      Loci::solve_lu_pivot(ptr,b,&x[0],pivot,size) ;
     }
 
     //************************************************************************
 
     template<class Tin,class Tout>
-    void dotprod_accum(const Tin *restrict vin, Tout * restrict vout) const restrict {
-      const T * restrict Aij = ptr;
-      for(int j=0;j<size;++j) {
-        const Tin in = vin[j] ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int i=0;i<size;++i,Aij++)
-          vout[i] += (*Aij)*in ;
-      }
+    void dotprod_accum(const Tin *vin, Tout *vout) const restrict {
+      Loci::dotprod_accum(ptr,vin,vout,size) ;
     } 
 
     //************************************************************************
 
     template<class Tin,class Tout>
-    void dotprod_accum(const Vect<Tin> &vin, Tout *vout) const restrict {
-      const T * restrict Aij = ptr;
-      const Tin * restrict vi = vin ;
-      Tout * restrict vo = vout ;
-      for(int j=0;j<size;++j) {
-        const Tin in = vi[j] ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int i=0;i<size;++i,Aij++)
-          vo[i] += (*Aij)*in ;
-      }
+    void dotprod_accum(const Vect<Tin> vin, Tout *vout) const restrict {
+      Loci::dotprod_accum(ptr,&vin[0],vout,size) ;
     }
 
     //************************************************************************
 
     template<class Tin,class Tout>
-    void dotprod_accum(const const_Vect<Tin> &vin, Tout *vout) const restrict {
-      const T * restrict Aij = ptr;
-      const Tin * restrict vi = vin ;
-      Tout * restrict vo = vout ;
-      for(int j=0;j<size;++j) {
-        const Tin in = vi[j] ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int i=0;i<size;++i,Aij++)
-          vo[i] += (*Aij)*in ;
-      }
+    void dotprod_accum(const const_Vect<Tin> vin, Tout *vout) const restrict {
+      Loci::dotprod_accum(ptr,&vin[0],vout,size) ;
+    }
+
+    template<class Tin,class Tout>
+    void dotprod_accum(const const_Vect<Tin> vin, Vect<Tout> vout) const restrict {
+      Loci::dotprod_accum(ptr,&vin[0],&vout[0],size) ;
     }
 
   } ;
@@ -308,124 +243,135 @@ namespace Loci {
     Mat(T *p ,int sz) : ptr(p),size(sz) {}
 
     //------------------------------------------------------------------------
-    void operator=(const Mat<T> &t) {
+    void operator=(const Mat<T> &t) restrict {
       T *restrict p1 = ptr ;
       const T *restrict p2 = t.ptr ;
-      
+      const int sz2 = size*size ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ = *p2++ ;
+      for(int i=0;i<sz2;++i)
+        p1[i] = p2[i] ;
     }
     //------------------------------------------------------------------------
-    void operator=(const const_Mat<T> &t) {
+    void operator=(const const_Mat<T> &t) restrict {
       T *restrict p1 = ptr ;
       const T *restrict p2 = t.ptr ;
-      
+      const int sz2 = size*size ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ = *p2++ ;
+      for(int i=0;i<sz2;++i)
+        p1[i] = p2[i] ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator=(const Scalar<S> &restrict s) {
+    void operator=(const Scalar<S> &restrict s) restrict {
       T *restrict p1 = ptr ;
+      const int sz2 = size*size ;
+      S val = s.val ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ = s.val ;
+      for(int i=0;i<sz2;++i)
+        p1[i] = val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator+=(const Scalar<S> &restrict s) {
+    void operator+=(const Scalar<S> &restrict s) restrict {
       T *restrict p1 = ptr ;
+      const int sz2 = size*size ; ;
+      S val = s.val ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ += s.val ;
+      for(int i=0;i<sz2;++i)
+        p1[i] += val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator*=(const Scalar<S> &restrict s) {
+    void operator*=(const Scalar<S> &restrict s) restrict {
       T *restrict p1 = ptr ;
+      const int sz2 = size*size ;
+      S val = s.val ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ *= s.val ;
+      for(int i=0;i<sz2;++i)
+        p1[i] *= val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator-=(const Scalar<S> &restrict s) {
+    void operator-=(const Scalar<S> &restrict s) restrict {
       T *restrict p1 = ptr ;
+      S val = s.val ;
+      const int sz2 = size*size ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ -= s.val ;
+      for(int i=0;i<sz2;++i)
+        p1[i] -= val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator/=(const Scalar<S> &restrict s) {
+    void operator/=(const Scalar<S> &restrict s) restrict {
       T *restrict p1 = ptr ;
+      S val = s.val ;
+      const int sz2 = size*size ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ /= s.val ;
+      for(int i=0;i<sz2;++i)
+        p1[i] /= val ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator+=(const Mat<S> &t) {
-      T *restrict p1 = ptr ;
-      const S *restrict p2 = t.ptr ;
-      
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-      for(int i=0;i<size*size;++i)
-        *p1++ += *p2++ ;
-    }
-    //------------------------------------------------------------------------
-    template <class S> 
-    void operator+=(const const_Mat<S> &t) {
+    void operator+=(const Mat<S> &restrict t) restrict {
       T *restrict p1 = ptr ;
       const S *restrict p2 = t.ptr ;
-      
+      const int sz2 = size*size ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ += *p2++ ;
+      for(int i=0;i<sz2;++i)
+        p1[i] += p2[i] ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator-=(const Mat<S> &t) {
+    void operator+=(const const_Mat<S> &restrict t) restrict {
       T *restrict p1 = ptr ;
       const S *restrict p2 = t.ptr ;
+      const int sz2 = size*size ;
       
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ -= *p2++ ;
+      for(int i=0;i<sz2;++i)
+        p1[i] += p2[i] ;
     }
     //------------------------------------------------------------------------
     template <class S> 
-    void operator-=(const const_Mat<S> &t) {
+    void operator-=(const Mat<S> &restrict t) restrict {
       T *restrict p1 = ptr ;
       const S *restrict p2 = t.ptr ;
-      
+      const int sz2 = size*size ;
 #ifdef HAVE_IVDEP
 #pragma ivdep
 #endif
-      for(int i=0;i<size*size;++i)
-        *p1++ -= *p2++ ;
+      for(int i=0;i<sz2;++i)
+        p1[i] -= p2[i] ;
+    }
+    //------------------------------------------------------------------------
+    template <class S> 
+    void operator-=(const const_Mat<S> &restrict t) restrict {
+      T *restrict p1 = ptr ;
+      const S *restrict p2 = t.ptr ;
+      const int sz2 = size*size ;
+#ifdef HAVE_IVDEP
+#pragma ivdep
+#endif
+      for(int i=0;i<sz2;++i)
+        p1[i] -= p2[i] ;
     }
     //------------------------------------------------------------------------
     
@@ -529,164 +475,52 @@ namespace Loci {
     }
     //------------------------------------------------------------------------
 
-    template<class S> 
-    void solve_lu(const S *restrict b, S *restrict x) const restrict {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T *Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T * restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
+    template<class S1, class S2> 
+    void solve_lu(const S1 * b, S2 *x) const restrict {
+      Loci::solve_lu(ptr,b,x,size) ;
+    }
+
+    //------------------------------------------------------------------------
+
+    template<class S1, class S2> 
+    void solve_lu(const_Vect<S1> b, S2 * x) const restrict {
+      Loci::solve_lu(ptr,&b[0],x,size) ;
+    }
+
+    //------------------------------------------------------------------------
+
+    template<class S1, class S2> 
+    void solve_lu(const S1 *b, Vect<S2> x) const restrict {
+      Loci::solve_lu(ptr,b,&x[0],size) ;
+    }
+
+    //------------------------------------------------------------------------
+    template<class S1, class S2> 
+    void solve_lu(const_Vect<S1> b, Vect<S2> x) const restrict {
+      Loci::solve_lu(ptr,&b[0],&x[0],size) ;
+    }
+
+    //------------------------------------------------------------------------
+
+    template<class T1, class T2> 
+    void solve_lu_pivot(const T1 *b, T2 *x,
+                        const pivot_type *pivot) const restrict {
+      Loci::solve_lu_pivot(ptr,b,x,pivot,size) ;
+    }
+
+    //------------------------------------------------------------------------
+
+    template<class T1, class T2> 
+    void solve_lu_pivot(const_Vect<T1> &b, T2 *x,
+                        const pivot_type *restrict pivot) const restrict {
+      Loci::solve_lu_pivot(ptr,&b[0],x,pivot,size) ;
     }
     //------------------------------------------------------------------------
 
-    template<class S> 
-    void solve_lu(const_Vect<S> &bin, S *restrict x) const restrict {
-      S *restrict b = bin ;
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T * restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T * restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-    //------------------------------------------------------------------------
-
-    template<class S> 
-    void solve_lu(const S *restrict b, Vect<S> &xin) const restrict {
-      S *restrict x = xin ;
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[i] ;
-        const T * restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      S *y = b ;
-      // Do back solver Ux = y
-      const T *restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-    //------------------------------------------------------------------------
-
-    template<class S> 
-    void solve_lu_pivot(const S * restrict b, S *restrict x,const pivot_type *restrict pivot) const restrict {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
-        const T *restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-    //------------------------------------------------------------------------
-
-    template<class S> 
-    void solve_lu_pivot(const_Vect<S> &bin, S *restrict x,const pivot_type *restrict pivot) const restrict {
-      // Perform forward solve Ly = b, note b becomes y after this step
-      S *restrict b = bin ;
-      for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
-        const T *restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
-    }
-    //------------------------------------------------------------------------
-
-    template<class S> 
-    void solve_lu_pivot(const S *restrict b, Vect<S> &xin,const pivot_type *restrict pivot) const restrict {
-      S *restrict x = xin ;
-      // Perform forward solve Ly = b, note b becomes y after this step
-      for(int i=0;i<size;++i) {
-        x[i] = b[pivot[i]] ;
-        const T * restrict Aj = ptr ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=0;j<i;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-      }
-      // Do back solver Ux = y
-      const T *restrict Ai = ptr + size*(size-1) ;
-      for(int i=size-1;i>=0;--i,Ai-=size) {
-        const T *restrict Aj = Ai + size ;
-#ifdef HAVE_IVDEP
-#pragma ivdep
-#endif
-        for(int j=i+1;j<size;++j,Aj+=size)
-          x[i] -= Aj[i]*x[j] ;
-        x[i] = x[i]/Ai[i] ;
-      }
+    template<class T1, class T2> 
+    void solve_lu_pivot(const T1 *b, Vect<T2> &x,
+                        const pivot_type *pivot) const restrict {
+      Loci::solve_lu_pivot(ptr,b,&x[0],pivot,size) ;
     }
 
     //------------------------------------------------------------------------
