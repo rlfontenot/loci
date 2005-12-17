@@ -722,7 +722,11 @@ variableSet rule_impl::get_var_list() {
     for(variableSet::const_iterator
           i=tvar_types.begin();i!=tvar_types.end();++i) {
       //      cerr << "i=" << *i << endl ;
-      if(rule_impl->get_store(*i)->RepType()==PARAMETER) {
+      if(rule_impl->get_store(*i)==0) {
+        cerr << "unable to access variable " << *i << endl ;
+        cerr << " error occured in rule " ;
+        rule_impl->Print(cerr) ;
+      } else if(rule_impl->get_store(*i)->RepType()==PARAMETER) {
         if(i!=tvars.begin() && !output_is_parameter) {
           cerr << "can't mix parameters and stores in target" << endl
                << "error occured in rule ";
