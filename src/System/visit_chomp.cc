@@ -908,7 +908,7 @@ namespace Loci {
         chc.
           chomp_comp.
           push_back(make_pair(fake,
-                              new barrier_compiler(barrier_vars))) ;
+                              CPTR<Loci::rule_compiler>(new barrier_compiler(barrier_vars)))) ;
 	if(duplicate_work)
 	  chc.barrier_sets.push_back(barrier_vars);
       }
@@ -919,7 +919,7 @@ namespace Loci {
         chc.
           chomp_comp.
           push_back(make_pair(fake,
-                              new singleton_var_compiler(singleton_vars))) ;
+                              CPTR<Loci::rule_compiler>(new singleton_var_compiler(singleton_vars)))) ;
 
       all_vars += reduce_vars;
 
@@ -947,9 +947,10 @@ namespace Loci {
               chc.
                 chomp_comp.
                 push_back(make_pair(fake,
-                                    new reduce_store_compiler(xi->first,
-                                                              unit_rule,
-                                                              join_op))) ;
+                                    CPTR<rule_compiler>(
+                       new reduce_store_compiler(xi->first,
+                                                 unit_rule,
+                                                 join_op)))) ;
 	      if(duplicate_work) {
 		variableSet temp;
 		temp += xi->first;
@@ -963,9 +964,9 @@ namespace Loci {
         chc.
           chomp_comp.
           push_back(make_pair(fake,
-                              new reduce_param_compiler(reduce_var_vector,
+                              CPTR<rule_compiler>(new reduce_param_compiler(reduce_var_vector,
                                                         unit_rule_vector,
-                                                        join_op_vector))) ;
+                                                        join_op_vector)))) ;
 	if(duplicate_work) {
 	  variableSet myVars;
 	  for(unsigned int i = 0; i < reduce_var_vector.size(); i++)

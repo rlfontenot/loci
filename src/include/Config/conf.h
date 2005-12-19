@@ -47,7 +47,12 @@
 #define HAVE_IVDEP
 #define NO_FENV
 #else
+#ifdef __SUNPRO_CC
+#define USE_MAP_FOR_HASH_MAP
 #define restrict
+#else
+#define restrict
+#endif
 #endif
 
 #endif

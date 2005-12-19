@@ -102,7 +102,7 @@ namespace Loci {
   //************************************************************************/
 
   template<class T> 
-  dstoreVecRepI<T>::~dstoreVecRepI<T>() 
+  dstoreVecRepI<T>::~dstoreVecRepI() 
   {
     attrib_data.clear();
   }

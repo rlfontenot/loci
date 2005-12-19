@@ -173,7 +173,7 @@ namespace Loci {
   //*******************************************************************/
 
   template<class T> 
-  storeVecRepI<T>::~storeVecRepI<T>() 
+  storeVecRepI<T>::~storeVecRepI() 
   {
     if(alloc_pointer) delete[] alloc_pointer ;
   }

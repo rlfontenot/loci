@@ -188,7 +188,7 @@ namespace Loci {
   //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  dMapVecRepI<M>::~dMapVecRepI<M>() 
+  dMapVecRepI<M>::~dMapVecRepI() 
   {
     attrib_data.clear();
   }
@@ -501,7 +501,7 @@ namespace Loci {
   //-----------------------------------------------------------------------
 
   template<unsigned int M>  
-  dMapVec<M>::~dMapVec<M>() { }
+  dMapVec<M>::~dMapVec() { }
 
   //------------------------------------------------------------------------
 

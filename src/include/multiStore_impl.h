@@ -534,14 +534,14 @@ namespace Loci {
   inline int multiStoreRepI<T>::get_mpi_size(IDENTITY_CONVERTER c, const entitySet &eset ) 
   {
 
-    int size = 0 ;
+    int sze = 0 ;
     FORALL(eset,i) {
-      size += end(i)- begin(i) ;
+      sze += end(i)- begin(i) ;
     } ENDFORALL ;
 
-    size *= sizeof(T) ;
-    size += eset.size()*sizeof(int) ;
-    return(size) ;
+    sze *= sizeof(T) ;
+    sze += eset.size()*sizeof(int) ;
+    return sze ;
   }
 
   //**************************************************************************/

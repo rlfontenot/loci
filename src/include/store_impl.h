@@ -95,7 +95,7 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<class T>  storeRepI<T>::~storeRepI<T>() {
+  template<class T>  storeRepI<T>::~storeRepI() {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
 

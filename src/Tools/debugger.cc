@@ -109,33 +109,33 @@ namespace Loci {
   }
 
 
+  extern "C" {
+    void program_trap(int sig) /*,code,scp,addr)*/
+    {
+      const char *sigtype = "(undefined)" ;
 
-  void program_trap(int sig) /*,code,scp,addr)*/
-  {
-    const char *sigtype = "(undefined)" ;
-
-    switch(sig) {
-    case SIGBUS:
-      sigtype = "a Bus Error" ;
-      break ;
-    case SIGSEGV:
-      sigtype = "a Segmentation Violation" ;
-      break ;
-    case SIGILL:
-      sigtype = "an Illegal Instruction Call" ;
-      break ;
-    case SIGSYS:
-      sigtype = "an Illegal System Call" ;
-      break ;
-    case SIGFPE:
-      sigtype = "a Floating Point Exception" ;
-      break ;
+      switch(sig) {
+      case SIGBUS:
+        sigtype = "a Bus Error" ;
+        break ;
+      case SIGSEGV:
+        sigtype = "a Segmentation Violation" ;
+        break ;
+      case SIGILL:
+        sigtype = "an Illegal Instruction Call" ;
+        break ;
+      case SIGSYS:
+        sigtype = "an Illegal System Call" ;
+        break ;
+      case SIGFPE:
+        sigtype = "a Floating Point Exception" ;
+        break ;
+      }
+      fprintf(stderr,"ERROR: Program terminated due to %s\n",sigtype) ;
+      debugger_() ;
+      MPI_Abort(MPI_COMM_WORLD,-1) ;
     }
-    fprintf(stderr,"ERROR: Program terminated due to %s\n",sigtype) ;
-    debugger_() ;
-    MPI_Abort(MPI_COMM_WORLD,-1) ;
   }
-
 
   void chopsigs_()
   {

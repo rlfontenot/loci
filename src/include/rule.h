@@ -77,7 +77,7 @@ namespace Loci {
     void output(const std::string &outvar) { target(outvar) ; }
     void constraint(const std::string &constrain) ;
     void conditional(const std::string &cond) ;
-    void comments(char* c) {rule_comments += c ;}
+    void comments(const char* c) {rule_comments += c ;}
   public:
     rule_impl() ;
     bool check_perm_bits() const ;
@@ -426,8 +426,8 @@ namespace Loci {
   template <class T, class Op > class apply_rule : public rule_impl {
   protected:
     apply_rule() { rule_class(APPLY) ; }
-    void name_store(const std::string &name, store_instance &si)
-    { rule_impl::name_store(name,si) ; }
+    void name_store(const std::string &n, store_instance &si)
+    { rule_impl::name_store(n,si) ; }
     void input(const std::string &invar)
     { rule_impl::input(invar) ; }
     void output(const std::string &outvar)

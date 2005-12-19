@@ -242,8 +242,8 @@ namespace Loci {
     bool is_duplicate_variable(variable v) { return get_sched_info(v).duplicate_variable; }
     
     void set_duplicate_variable(variable v, bool p) {
-      variableSet synonyms = get_synonyms(v);
-      for(variableSet::const_iterator vi = synonyms.begin(); vi != synonyms.end(); vi++)
+      variableSet syns = get_synonyms(v);
+      for(variableSet::const_iterator vi = syns.begin(); vi != syns.end(); vi++)
 	get_sched_info(*vi).duplicate_variable = p;
     } 
 
@@ -370,8 +370,8 @@ namespace Loci {
     variableSet get_possible_duplicate_vars() const { return possible_duplicate_vars; }
     void add_possible_duplicate_vars(variableSet vars) {
       for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); vi++) {
-	variableSet synonyms = get_synonyms(*vi);
-	possible_duplicate_vars += synonyms;
+	variableSet syns = get_synonyms(*vi);
+	possible_duplicate_vars += syns;
       }
     }
     

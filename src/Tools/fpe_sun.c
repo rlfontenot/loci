@@ -10,7 +10,7 @@
 extern void fpe_debugger_() ;
 
 void SPARC_ieee_abort(int sig, siginfo_t *sip, ucontext_t *uap) {
-  char *label;
+  const char *label;
   
   switch (sip->si_code) {
   case FPE_FLTINV: label = "invalid operand"; break;

@@ -23,7 +23,7 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<int M> MapVecRepI<M>::~MapVecRepI<M>() {
+  template<int M> MapVecRepI<M>::~MapVecRepI() {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
 

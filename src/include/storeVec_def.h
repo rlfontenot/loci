@@ -268,8 +268,8 @@ namespace Loci {
     virtual ~storeVec() {}
     virtual void notification() ;
     storeVec<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
-    void setVecSize(int size) {
-      Rep()->set_elem_size(size) ;
+    void setVecSize(int sz) {
+      Rep()->set_elem_size(sz) ;
     }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size ; }
