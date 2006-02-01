@@ -551,9 +551,11 @@ namespace Loci {
     int        arraySize =0, vsize, numContainers = 0;
 
     entitySet  :: const_iterator ci;
-    typedef data_schema_traits<T> schema_traits; 
+    typedef data_schema_traits<T> schema_traits;
 
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+    entitySet sdom = eset & domain() ;
+
+    for( ci = sdom.begin(); ci != sdom.end(); ++ci) {
       vsize = end(*ci) - begin(*ci) ;
       numContainers  += vsize;
       for( int ivec = 0; ivec < vsize; ivec++){

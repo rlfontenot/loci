@@ -217,10 +217,9 @@ namespace Loci {
 
     fatal((eset - domain()) != EMPTY);
 
-    T   obj;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
-      obj  = base_ptr[*ci];
-      typename converter_traits::Converter_Type cvtr(obj);
+    entitySet sdom = eset & domain() ;
+    for( ci = sdom.begin(); ci != sdom.end(); ++ci) {
+      typename converter_traits::Converter_Type cvtr(base_ptr[*ci]);
       size      = cvtr.getSize();
       numBytes += size*sizeof(typename converter_traits::Converter_Base_Type) ;
     }

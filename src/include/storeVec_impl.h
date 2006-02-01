@@ -387,8 +387,9 @@ namespace Loci {
 
     fatal((eset - domain()) != EMPTY);
 
+    entitySet sdom = eset & domain() ;
     typedef data_schema_traits<T> converter_traits;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+    for( ci = sdom.begin(); ci != sdom.end(); ++ci) {
       for( int ivec = 0; ivec < size; ivec++){
         typename converter_traits::Converter_Type cvtr(base_ptr[(*ci)*size+ivec]) ;
         arraySize += cvtr.getSize() ;
