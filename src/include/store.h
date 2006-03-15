@@ -168,7 +168,7 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<class T>  storeRepI<T>::~storeRepI<T>() {
+  template<class T>  storeRepI<T>::~storeRepI() {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
 
@@ -232,7 +232,7 @@ namespace Loci {
 
   } ;
 
-  template<class T> store<T>::~store<T>() { }
+  template<class T> store<T>::~store() { }
 
   template<class T> void store<T>::notification() {
     NPTR<storeType> p(Rep()) ;
@@ -290,7 +290,7 @@ namespace Loci {
 
   } ;
 
-  template<class T> const_store<T>::~const_store<T>() { }
+  template<class T> const_store<T>::~const_store() { }
 
   template<class T> void const_store<T>::notification() {
     NPTR<storeType> p(Rep()) ;

@@ -469,7 +469,7 @@ namespace Loci {
   //*******************************************************************/
 
   template<class T> 
-  storeVecRepI<T>::~storeVecRepI<T>() 
+  storeVecRepI<T>::~storeVecRepI() 
   {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
@@ -549,8 +549,8 @@ namespace Loci {
 
     storeVec<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
 
-    void setVecSize(int size) {
-      Rep()->set_elem_size(size) ;
+    void setVecSize(int sz) {
+      Rep()->set_elem_size(sz) ;
     }
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
     int vecSize() const { return size ; }
@@ -578,7 +578,7 @@ namespace Loci {
   //*******************************************************************/
 
   template<class T> 
-  storeVec<T>::~storeVec<T>() { }
+  storeVec<T>::~storeVec() { }
   
   //******************************************************************/
 
@@ -664,7 +664,7 @@ namespace Loci {
   //*******************************************************************/
 
   template<class T> 
-  const_storeVec<T>::~const_storeVec<T>() { }
+  const_storeVec<T>::~const_storeVec() { }
 
   //*******************************************************************/
 

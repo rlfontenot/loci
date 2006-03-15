@@ -905,21 +905,22 @@ namespace Loci {
 
       all_vars += barrier_vars ;
       if(barrier_vars != EMPTY) {
+        CPTR<rule_compiler> cp = new barrier_compiler(barrier_vars) ;
         chc.
           chomp_comp.
-          push_back(make_pair(fake,
-                              new barrier_compiler(barrier_vars))) ;
+          push_back(make_pair(fake,cp)) ;
 	if(duplicate_work)
 	  chc.barrier_sets.push_back(barrier_vars);
       }
       
       all_vars += singleton_vars ;
 
-      if(singleton_vars != EMPTY)
+      if(singleton_vars != EMPTY) {
+        CPTR<rule_compiler> cp =  new singleton_var_compiler(singleton_vars) ;
         chc.
           chomp_comp.
-          push_back(make_pair(fake,
-                              new singleton_var_compiler(singleton_vars))) ;
+          push_back(make_pair(fake,cp)) ;
+      }
 
       all_vars += reduce_vars;
 
@@ -944,12 +945,13 @@ namespace Loci {
               join_op_vector.push_back(join_op) ;
             } else {
               WARN(sp->RepType()!=STORE) ;
+              CPTR<rule_compiler> cp = new reduce_store_compiler(xi->first,
+                                                              unit_rule,
+                                                              join_op) ;
+
               chc.
                 chomp_comp.
-                push_back(make_pair(fake,
-                                    new reduce_store_compiler(xi->first,
-                                                              unit_rule,
-                                                              join_op))) ;
+                push_back(make_pair(fake,cp)) ;
 	      if(duplicate_work) {
 		variableSet temp;
 		temp += xi->first;
@@ -960,12 +962,13 @@ namespace Loci {
         }
       }
       if(reduce_var_vector.size() != 0) {
+        CPTR<rule_compiler> cp = new reduce_param_compiler(reduce_var_vector,
+                                                           unit_rule_vector,
+                                                           join_op_vector) ;
+
         chc.
           chomp_comp.
-          push_back(make_pair(fake,
-                              new reduce_param_compiler(reduce_var_vector,
-                                                        unit_rule_vector,
-                                                        join_op_vector))) ;
+          push_back(make_pair(fake, cp)) ;
 	if(duplicate_work) {
 	  variableSet myVars;
 	  for(unsigned int i = 0; i < reduce_var_vector.size(); i++)

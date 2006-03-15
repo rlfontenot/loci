@@ -71,7 +71,7 @@ namespace Loci {
 
   //**************************************************************************/
 
-  template<class T> blackboxRepI<T>::~blackboxRepI<T>()
+  template<class T> blackboxRepI<T>::~blackboxRepI()
   {
     if(attrib_data != 0)
       delete attrib_data ;

@@ -1,3 +1,5 @@
+//#define VERBOSE
+
 #include <depend_graph.h>
 #include "dist_tools.h"
 #include <map>
@@ -152,10 +154,23 @@ namespace Loci {
       ruleSet::const_iterator ri ;
       for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
         const rule::rule_type rtype = ri->type() ;
-        if(rtype == rule::BUILD)
+        if(rtype == rule::BUILD) {
+          if(ri->target_time().parent()  != ri->source_time()) {
+            cerr << "ERROR: malformed build rule, time levels should increment only one level" << endl
+                 << *ri << endl ;
+          }          
           iter.iteration_rules[ri->target_time()].build += *ri ;
-        else if(rtype == rule::COLLAPSE) {
-            iter.iteration_rules[ri->source_time()].collapse += *ri ;
+        } else if(rtype == rule::COLLAPSE) {
+          variableSet cond = ri->get_info().desc.conditionals ;
+          if(cond.size() != 1) {
+            cerr << "ERROR: malformed collapse rule with no conditionals:"
+                 << endl
+                 << *ri << endl ;
+          } else if(ri->target_time()  != ri->source_time().parent()) {
+            cerr << "ERROR: malformed collapse rule, time levels should increment only one level" << endl
+                 << *ri << endl ;
+          }          
+          iter.iteration_rules[ri->source_time()].collapse += *ri ;
         } else if(!ri->time_advance) {
           working_rules += *ri ;
         }
@@ -563,6 +578,9 @@ namespace Loci {
                              const variableSet& search_requests,
                              iteration_info& iter, digraph& gr,
                              time_ident tlevel) {
+#ifdef VERBOSE
+      debugout << "create_graph(tlevel="<<tlevel<<")" << endl ;
+#endif
       // setting up useful variables
       variableSet dont_promote, changing_vars ;
       variableSet requests ;
@@ -583,6 +601,9 @@ namespace Loci {
       ruleSet visited_rules ;
       variableSet working_vars = search_requests ;
       while(working_vars != EMPTY) {
+#ifdef VERBOSE
+        debugout << "working vars = " << working_vars << endl ;
+#endif
         visited_vars += working_vars ;
         variableSet next ;
         for(variableSet::const_iterator vi=working_vars.begin();
@@ -599,11 +620,22 @@ namespace Loci {
             // this is an error if (vi->time() after tlevel)
             cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
             cerr << "ERROR: variable time higher than iteration time."
-                 << "variable: " << *vi << " iteration time: "
-                 << tlevel << endl ;
-            Abort() ;
+                 << endl 
+                 << "variable: " << *vi << " iteration time: {"
+                 << tlevel << "}" <<  endl ;
+#ifdef VERBOSE
+            cerr << "working vars = " << working_vars << endl ;
+            cerr << "rules  generating variable = "
+                 << extract_rules(rule_graph_transpose[vi->ident()]) << endl ;
+            cerr << "rules consuming variable = " 
+                 << extract_rules(rule_graph[vi->ident()]) << endl ;
+#endif
+            //            Abort() ;
           }
           pre_rules -= visited_rules ;
+#ifdef VERBOSE
+          debugout << "var= " << *vi << endl ;
+#endif
           for(ruleSet::const_iterator ri=pre_rules.begin();
               ri!=pre_rules.end();++ri) {
             if( (ri->type() == rule::INTERNAL) &&
@@ -625,9 +657,16 @@ namespace Loci {
                 instantiate_iteration(tp->second,iter,rule_graph,
                                       rule_graph_transpose) ;
               next += iteration_requests ;
+#ifdef VERBOSE
+              debugout << "iteration_requests = " << iteration_requests
+                       << endl << " rule = " << *ri << endl ;
+#endif
             } else {
               invoke_rule_wp(*ri,gr) ;
               next += extract_vars(rule_graph_transpose[ri->ident()]) ;
+#ifdef VERBOSE
+              debugout << " rule = " << *ri << endl ;
+#endif
             }
           }
           visited_rules += pre_rules ;

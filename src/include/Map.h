@@ -15,9 +15,11 @@ namespace Loci {
   // The integer version of image_section.
   entitySet image_section(const int *start, const int *end) ;
 
+#ifdef ENTITY
   // The Entity version of image_section.
   entitySet image_section(const Entity *start, const Entity *end);
-
+#endif
+  
   class Map ;
   class multiMap ;
   

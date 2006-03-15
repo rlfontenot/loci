@@ -77,7 +77,7 @@ namespace Loci {
     void output(const std::string &outvar) { target(outvar) ; }
     void constraint(const std::string &constrain) ;
     void conditional(const std::string &cond) ;
-    void comments(char* c) {rule_comments += c ;}
+    void comments(const char* c) {rule_comments += c ;}
   public:
     rule_impl() ;
     bool check_perm_bits() const ;

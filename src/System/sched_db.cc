@@ -293,8 +293,8 @@ namespace Loci {
       break;
     }
     policy |= temp;
-    variableSet synonyms = get_synonyms(v);
-    for(variableSet::const_iterator vi = synonyms.begin(); vi != synonyms.end(); vi++)
+    variableSet syns = get_synonyms(v);
+    for(variableSet::const_iterator vi = syns.begin(); vi != syns.end(); vi++)
       set_policy(*vi, policy);
   }
 

@@ -83,7 +83,7 @@ namespace Loci {
 
   //*************************************************************************/
 
-  template<int M> MapVecRepI<M>::~MapVecRepI<M>() {
+  template<int M> MapVecRepI<M>::~MapVecRepI() {
     if(alloc_pointer) delete[] alloc_pointer ;
   }
 
@@ -257,7 +257,7 @@ namespace Loci {
     std::istream &Input(std::istream &s) { return Rep()->Input(s) ; }
   } ;
 
-  template<int M>  MapVec<M>::~MapVec<M>() { }
+  template<int M>  MapVec<M>::~MapVec() { }
 
   template<int M> void MapVec<M>::notification() {
     NPTR<MapVecType> p(Rep()) ;

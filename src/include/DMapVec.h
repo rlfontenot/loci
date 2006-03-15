@@ -248,7 +248,7 @@ namespace Loci {
   //------------------------------------------------------------------------
 
   template<unsigned int M> 
-  dMapVecRepI<M>::~dMapVecRepI<M>() 
+  dMapVecRepI<M>::~dMapVecRepI() 
   {
     attrib_data.clear();
   }
@@ -609,7 +609,7 @@ template<unsigned int M> class const_dMapVec ;
 
     const VEC &const_elem(int indx)  const { 
       typename HASH_MAP(int,VEC)::const_iterator ci;
-      ci = attrib_data->find(index);
+      ci = attrib_data->find(indx);
       if( ci != attrib_data->end()) return ci->second();
     }
 
@@ -634,7 +634,7 @@ template<unsigned int M> class const_dMapVec ;
   //-----------------------------------------------------------------------
 
   template<unsigned int M>  
-  dMapVec<M>::~dMapVec<M>() { }
+  dMapVec<M>::~dMapVec() { }
 
   //------------------------------------------------------------------------
 

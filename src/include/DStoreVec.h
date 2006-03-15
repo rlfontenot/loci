@@ -190,7 +190,7 @@ namespace Loci {
   //************************************************************************/
 
   template<class T> 
-  dstoreVecRepI<T>::~dstoreVecRepI<T>() 
+  dstoreVecRepI<T>::~dstoreVecRepI() 
   {
     attrib_data.clear();
   }
@@ -311,7 +311,7 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T> 
-  dstoreVec<T>::~dstoreVec<T>() { }
+  dstoreVec<T>::~dstoreVec() { }
 
   //*************************************************************************/
 
@@ -396,7 +396,7 @@ namespace Loci {
   //*************************************************************************/
 
   template<class T> 
-  const_dstoreVec<T>::~const_dstoreVec<T>() { }
+  const_dstoreVec<T>::~const_dstoreVec() { }
 
   //*************************************************************************/
 

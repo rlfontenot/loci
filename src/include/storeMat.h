@@ -15,6 +15,7 @@
 #include <Tools/tools.h>
 
 #include <store_rep.h>
+#include <storeVec.h>
 #include <matrix.h>
 
 namespace Loci {
@@ -68,7 +69,7 @@ namespace Loci {
   //**************************************************************************/
 
   template<class T> 
-  storeMat<T>::~storeMat<T>() { }
+  storeMat<T>::~storeMat() { }
 
   //**************************************************************************/
 
@@ -146,7 +147,7 @@ namespace Loci {
   //***************************************************************************/
 
   template<class T> 
-  const_storeMat<T>::~const_storeMat<T>() { }
+  const_storeMat<T>::~const_storeMat() { }
 
   //***************************************************************************/
 
