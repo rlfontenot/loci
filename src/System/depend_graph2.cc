@@ -1,5 +1,3 @@
-//#define VERBOSE
-
 #include <depend_graph.h>
 #include "dist_tools.h"
 #include <map>
@@ -33,6 +31,9 @@ namespace Loci {
       oss << ",qualifier(" << qualifier << ')' ;
       string sig = oss.str() ;
       rule r(sig) ;
+#ifdef VERBOSE
+      debugout << "create_rule("<<sig<<")" << endl ;
+#endif
       return r ;
     }
     
@@ -791,11 +792,75 @@ namespace Loci {
   // function that clean the dependency graph at last
   void clean_graph(digraph &gr, const variableSet& given,
                                       const variableSet& target) {
+
     // testing...
     //given -= variable("EMPTY") ;
-
-    ruleSet all_cleaned_rules ;
     bool cleaned_rules = false ;
+    ruleSet all_cleaned_rules ;
+
+    // First remove any OUTPUT rules that are using values computed in
+    // their iteration level.
+
+    {
+      digraph::vertexSet allvertices = gr.get_all_vertices() ;
+      variableSet allvars = extract_vars(allvertices) ;
+      variableSet outputs ;
+      digraph grt = gr.transpose() ;
+      for(variableSet::const_iterator vi=allvars.begin();
+          vi!=allvars.end();++vi) {
+        variable ov = *vi ;
+        if(ov.get_info().name == "OUTPUT")
+          outputs += *vi ;
+      }
+      ruleSet remove_rules ;
+      for(variableSet::const_iterator vi=outputs.begin();
+          vi!=outputs.end();++vi) {
+        ruleSet outrules = extract_rules(grt[vi->ident()]) ;
+        ruleSet outloop = extract_rules(gr[vi->ident()]) ;
+
+        outrules -= outloop ;
+
+        ruleSet::const_iterator ri ;
+        for(ri=outrules.begin();ri!=outrules.end();++ri) {
+          digraph::vertexSet working, breadth ;
+          working += ri->ident() ;
+          
+          while(working != EMPTY) {
+            digraph::vertexSet visit ;
+            for(digraph::vertexSet::const_iterator dvi=working.begin();
+                dvi != working.end();++dvi)
+              visit += grt[*dvi] ;
+            ruleSet vrules = extract_rules(visit) ;
+            ruleSet::const_iterator vri ;
+            for(vri=vrules.begin();vri!=vrules.end();++vri) {
+              // Don't follow rules out of the iteration
+              if( (vri->type() == rule::INTERNAL) &&
+                  ((vri->qualifier() == "promote") ||
+                  (vri->qualifier() == "generalize"))) {
+                visit -= vri->ident() ;
+              }
+            }
+            breadth += working ;
+            visit -= breadth ;
+            working = visit ;
+          }
+
+          if((extract_rules(breadth) & outloop) == EMPTY) {
+            debugout << "removing non-participating output rule " << *ri << endl ;
+            remove_rules += *ri ;
+          }
+        }
+          
+      }
+
+      for(ruleSet::const_iterator ri=remove_rules.begin();
+          ri!=remove_rules.end(); ++ri)
+        gr.remove_vertex(ri->ident()) ;
+
+      all_cleaned_rules += remove_rules ;
+
+    }
+    
     do { // Keep cleaning until nothing left to clean!
         
       // Remove unnecessary vertices from graph.
