@@ -26,7 +26,7 @@ public:
   }
 
   virtual void compute(const sequence &seq) {
-    do_loop(seq,this,&initial_condition::calculate) ;
+    do_loop(seq,this) ;
   }
 } ;
 

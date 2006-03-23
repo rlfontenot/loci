@@ -13,8 +13,56 @@
 
 using namespace std ;
 
-int main()
+int main(int argc, char *argv[])
 {
+  Loci::Init(&argc,&argv) ;
+
+
+  set_fpe_abort() ;
+  
+  // query for this variable by default
+  std::string query = "solution" ;
+  // do not write out facts by default
+  bool write_facts = false;
+  // do not write out rules by default
+  bool write_rules = false;
+
+  // Parse out the LOCI specific arguments.
+  //	-q queryvar	make alternative queries
+  //	-fact		print out the fact database during program execution
+  //	-rule		print out the rule database during program execution
+  for (int i=1; i<argc; i++) {
+    if (!strcmp(argv[i], "-q") && (i+1) < argc) {
+      query = argv[i+1];
+      for (int j=0; j<argc-i-2; j++) {
+	argv[i+j] = argv[i+j+2];
+      }
+      argc -= 2;
+      i--;
+    }
+    else if (!strcmp(argv[i], "-fact")) {
+      write_facts = !write_facts;
+      for (int j=0; j<argc-i-1; j++) {
+	argv[i+j] = argv[i+j+1];
+      }
+      argc -= 1;
+      i--;
+    }
+    else if (!strcmp(argv[i], "-rule")) {
+      write_rules = !write_rules;
+      for (int j=0; j<argc-i-1; j++) {
+	argv[i+j] = argv[i+j+1];
+      }
+      argc -= 1;
+      i--;
+    }
+    else {
+      std::cerr << "argument " << argv[i] << " is not understood."
+		<< std::endl;
+    }
+  }      
+
+  
   const int N = 50 ; // Number of points in grid.
 
   //-----------------------------------------------------------------
@@ -108,31 +156,58 @@ int main()
   rule_db rdb ;
   rdb.add_rules(global_rule_list) ;
 
-  //-----------------------------------------------------------------
-  // Create and execute the schedule to  obtains the solution
-  //-----------------------------------------------------------------
-  executeP schedule = create_execution_schedule(rdb,facts,"solution") ;
+  if (Loci::MPI_processes == 1) {
+    // Write out the initial fact database if -fact
+    if (write_facts) {
+      char fn_facts[11];
+      strcpy(fn_facts, "facts_init");
+      std::ofstream of_facts(fn_facts);
 
-  schedule->Print(cout) ;                   // Display schedule
+      facts.write(of_facts);
 
-  schedule->execute(facts) ;           // Execute the schedule
+      of_facts.close();
+    }
 
+    // Write out the rule database if -rule
+    if (write_rules) {
+      char fn_rules[6];
+      strcpy(fn_rules, "rules");
+      std::ofstream of_rules(fn_rules);
+
+      Loci::ruleSet rset = rdb.all_rules();
+      Loci::ruleSet::const_iterator itr;
+      for (itr = rset.begin(); itr!=rset.end(); itr++) {
+	of_rules << *itr << std::endl;
+      }
+
+      of_rules.close();
+    }
+  }
+
+  // Query Loci for fact derived fact 'solution'
+  if(!Loci::makeQuery(rdb,facts,query)) {
+    cerr << "query failed!" << endl ;
+    Loci::Abort() ;
+  }
+  
   //-----------------------------------------------------------------
   // Final Step: Query the database for solution:
   //-----------------------------------------------------------------
 
-  store<float> usol ;
-  usol = facts.get_variable("solution") ;
+  if(query == "solution") {
+    store<float> usol ;
+    usol = facts.get_variable("solution") ;
 
-  cout << "The solution is : " <<endl;
-  for(ei=cells.begin();ei!=cells.end();++ei) 
-    cout << ""<< *ei<<" "<<usol[*ei]<<endl ;
-
+    cout << "The solution is : " <<endl;
+    for(ei=cells.begin();ei!=cells.end();++ei) 
+      cout << ""<< *ei<<" "<<usol[*ei]<<endl ;
+  }
   //-----------------------------------------------------------------
   // End of computations::
   //-----------------------------------------------------------------
 
-  return(0);
+  Loci::Finalize() ;
+  return 0;
 
 }
 //*******************************************************************

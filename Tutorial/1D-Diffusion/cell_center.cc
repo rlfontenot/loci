@@ -24,7 +24,7 @@ public:
   }
 
   virtual void compute(const sequence &seq) {
-    do_loop(seq,this,&cell_center::calculate) ;
+    do_loop(seq,this) ;
   }
 } ;
 

@@ -34,10 +34,10 @@ SOURCE_FILES =	area_reduce_cc.tex \
 		helpers_cc.tex \
 		integration_cc.tex \
 		Makefile_ex.tex \
-		petsc1_main_cc.tex \
-		petsc1_rules_cc.tex \
 		relations_cc.tex \
 		setup_edges_cc.tex
+#		petsc1_main_cc.tex \
+#		petsc1_rules_cc.tex \
 
 main.dvi: ${TEX_FILES} ${IMAGE_FILES} ${SOURCE_FILES}
 	latex main; bibtex main; latex main

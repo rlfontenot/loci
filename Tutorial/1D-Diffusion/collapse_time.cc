@@ -21,7 +21,7 @@ public:
   }
 
   virtual void compute(const sequence &seq) {
-    do_loop(seq,this,&collapse_time::calculate) ;
+    do_loop(seq,this) ;
   }
 } ;
   

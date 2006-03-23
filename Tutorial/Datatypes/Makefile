@@ -1,11 +1,11 @@
 # Set up LOCI_BASE to point to the location where Loci is installed
-# on your system
-#LOCI_BASE = /usr/local/Loci/release
-LOCI_BASE = /usr/tmp/lush/Loci
+LOCI_BASE ?= /simcenter/data4/loci/opt/Loci-Linux-i686-mpic++-rel-3-0-p8
 
 # Include Loci.conf to get all of the rules for compiling Loci programs
 include $(LOCI_BASE)/Loci.conf
 
+COPTLESS=-g
+COPT=-g
 
 TARGET = entities containers relations helpers
 
@@ -38,12 +38,13 @@ relations: $(EX3_OBJS)
 helpers: $(EX4_OBJS)
 	$(LD) -o helpers $(EX4_OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+FRC:
+
 clean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak
+	  rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak
 
-make.depend:
-	$(MAKEDEPEND) $(CFLAGS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) $(LOCAL_INCLUDES) *.cc > make.depend
 
-depend: make.depend
+DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
-include make.depend
+#include automatically generated dependencies
+include $(DEPEND_FILES)

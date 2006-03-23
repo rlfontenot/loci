@@ -88,9 +88,11 @@ int main(int argc, char *argv[]) {
   // assignment operator is valid for the stored datatype, the following
   // syntax may be used to rapidly assign values to the stored object.
   blackbox<Element> hydrogen;
-  *hydrogen = Element(1, 1.00794, "H");
 
   hydrogen.set_entitySet(alloc_set);
+
+  *hydrogen = Element(1, 1.00794, "H");
+
 
   //**************************************************************************
   //* Stores:

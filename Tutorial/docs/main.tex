@@ -35,63 +35,64 @@
 \setcounter{page}{1}
 
 \include{intro}
-\include{lfvm}
+%\include{lfvm}
 
 \chapter{ Basic Concepts }
 \section{Notation used in this document}
 In this document we use the {\tt typewriter} font to distinguish
 actual Loci programming keywords, classes, and data-structures.
-\section{ Installing Loci}
-After you untar Loci you will have a directory structure like so:
 
-\begin{verbatim}
-Loci/
-Loci/src
-Loci/Tutorial
-\end{verbatim}
+%% \section{ Installing Loci}
+%% After you untar Loci you will have a directory structure like so:
 
-To install Loci, you need to use {\tt tmpcopy} to make a linked copy
-of the source code (usually to the {\tt /usr/tmp} directory).  You
-can use environment variables to change how the tmpcopy routine works.
-For example, you can set the target directory (where you will be
-compiling the Loci libraries), and the compiler.  For example, to set
-the target directory to {\tt /home/test/OBJ} and the compiler to {\tt
-  gcc3.0}, enter (NOTE: Run tmpcopy from the Loci directory!):
+%% \begin{verbatim}
+%% Loci/
+%% Loci/src
+%% Loci/Tutorial
+%% \end{verbatim}
 
-\begin{verbatim}
-LOCI_TARGET=/home/test/OBJ LOCI_COMP=gcc3.0 ./tmpcopy
-\end{verbatim}
+%% To install Loci, you need to use {\tt tmpcopy} to make a linked copy
+%% of the source code (usually to the {\tt /usr/tmp} directory).  You
+%% can use environment variables to change how the tmpcopy routine works.
+%% For example, you can set the target directory (where you will be
+%% compiling the Loci libraries), and the compiler.  For example, to set
+%% the target directory to {\tt /home/test/OBJ} and the compiler to {\tt
+%%   gcc3.0}, enter (NOTE: Run tmpcopy from the Loci directory!):
 
-The possible compilers that will work with Loci are:  
+%% \begin{verbatim}
+%% LOCI_TARGET=/home/test/OBJ LOCI_COMP=gcc3.0 ./tmpcopy
+%% \end{verbatim}
 
-\begin{center}
-\begin{tabular}{|l|l|}
-\hline
-{\tt LOCI\_COMP} & Description \\
-\hline
-\hline
-{\tt KCC }      & Kuck and Associates C++ compiler \\
-{\tt gcc }      & gcc 2.95.3 \\
-{\tt gcc3.0}    & gcc 3.0.3 \\
-{\tt CC\_sgi}    & SGI's CC compiler \\
-\hline
-\end{tabular}
-\end{center}
+%% The possible compilers that will work with Loci are:  
 
-Once you have run the {\tt tmpcopy} command, you probably should
-inspect the {\tt comp.conf} and {\tt sys.conf} files in the target directory.
-The {\tt comp.conf} file configures for the particular compiler that you
-have selected.  You should check that the path to the compiler is
-correct.  The {\tt sys.conf} file configures the particulars of any
-given system.  You will need to make sure that the paths to libraries
-are correct and that the installation directory ({\tt INSTALL\_DIR})
-points to the location where you want to install.  To install Loci
-simply type:
+%% \begin{center}
+%% \begin{tabular}{|l|l|}
+%% \hline
+%% {\tt LOCI\_COMP} & Description \\
+%% \hline
+%% \hline
+%% {\tt KCC }      & Kuck and Associates C++ compiler \\
+%% {\tt gcc }      & gcc 2.95.3 \\
+%% {\tt gcc3.0}    & gcc 3.0.3 \\
+%% {\tt CC\_sgi}    & SGI's CC compiler \\
+%% \hline
+%% \end{tabular}
+%% \end{center}
 
-\begin{verbatim}
-make
-make install
-\end{verbatim}
+%% Once you have run the {\tt tmpcopy} command, you probably should
+%% inspect the {\tt comp.conf} and {\tt sys.conf} files in the target directory.
+%% The {\tt comp.conf} file configures for the particular compiler that you
+%% have selected.  You should check that the path to the compiler is
+%% correct.  The {\tt sys.conf} file configures the particulars of any
+%% given system.  You will need to make sure that the paths to libraries
+%% are correct and that the installation directory ({\tt INSTALL\_DIR})
+%% points to the location where you want to install.  To install Loci
+%% simply type:
+
+%% \begin{verbatim}
+%% make
+%% make install
+%% \end{verbatim}
 
 
 \section{ Compiling Loci Programs }
@@ -279,7 +280,7 @@ more other entities related to it.  The following source code
 demonstrates the basic user interface for the Map family of classes.
 
 
-%\include{relations_cc}
+\include{relations_cc}
 
 \section{Loci Helper Classes}
 
@@ -294,18 +295,6 @@ classes for three and two dimensional vectors are also provided.  See
 the following example code to see how to use these helper classes.
 
 \include{helpers_cc}
-
-\section{Loci Initialization}
-
-<<<<<<< main.tex
-Before any of the main Loci functionality can be used (that is the
-components that follow this section), Loci must be initialized.  Loci
-has an initialize function that must be called before executing Loci
-functionality and a finalize method that must be called just before
-exiting the program.  For example, see below:
-=======
->>>>>>> 1.11
-
 
 \chapter{Representing and Manipulating Data Structures}
 \section{Creating Data Structures in Loci}
@@ -794,24 +783,8 @@ an example of how to develop and use parametric rules.
 %\appendix{io}
 \include {io}
 
-\chapter{Loci Helper Classes}
-\section{Loci Helper Classes}
-
-Loci also provides a few helper classes that are often useful in
-numerical computations.  
-One is the {\tt Array} template class which provides a
-mechanism for creating Arrays as first class objects that are
-appropriate for using as classes used in templated containers. ({\it
-Never use C arrays in templated containers.  Their semantics are
-different from other C++ objects and may break templated code in
-unexpected ways.})  In addition to the {\tt Array} template class,
-classes for three and two dimensional vectors are also provided.  See
-the following example code to see how to use these helper classes.
-
-\include{helpers_cc}
-
 \include{module}
-\include{third_party}
+%\include{third_party}
 
 \end{document}
 

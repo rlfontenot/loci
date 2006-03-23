@@ -18,7 +18,7 @@ public:
   }
 
   virtual void compute(const sequence &seq) {
-    do_loop(seq,this,&left_bc::calculate) ;
+    do_loop(seq,this);
   }
 } ;
 
@@ -49,7 +49,7 @@ public:
   }
 
   virtual void compute(const sequence &seq) {
-    do_loop(seq,this,&right_bc::calculate) ;
+    do_loop(seq,this) ;
   }
 } ;
 

@@ -30,7 +30,7 @@ public:
   }
 
   virtual void compute(const sequence &seq) {
-    do_loop(seq,this,&advance_time::calculate) ;
+    do_loop(seq,this) ; // call calculate over sequence seq
   }
 } ;
 

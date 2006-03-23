@@ -1,5 +1,5 @@
 # Set up LOCI_BASE to point to the location where Loci is installed
-LOCI_BASE ?= /simcenter/data4/loci/opt/Loci-Linux-i686-mpic++-rel-3-0-p1
+LOCI_BASE ?= /simcenter/data4/loci/opt/Loci-Linux-i686-mpic++-rel-3-0-p8
 
 # Include Loci.conf to get all of the rules for compiling Loci programs
 include $(LOCI_BASE)/Loci.conf

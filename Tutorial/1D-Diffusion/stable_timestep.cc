@@ -50,7 +50,7 @@ public:
   }
 
   virtual void compute(const sequence &seq) {
-    do_loop(seq,this,&timestep_apply::calculate) ;
+    do_loop(seq,this) ; 
   }
   
 } ;

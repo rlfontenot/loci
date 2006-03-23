@@ -27,7 +27,7 @@ public:
   }
 
   virtual void compute(const sequence &seq) {
-    do_loop(seq,this,&interface_gradient::calculate) ;
+    do_loop(seq,this) ;
   }
 } ;
 
