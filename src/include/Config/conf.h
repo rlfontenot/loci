@@ -47,12 +47,17 @@
 #define HAVE_IVDEP
 #define NO_FENV
 #else
-#ifdef __SUNPRO_CC
+#if defined(__SUNPRO_CC)
+/* Sun CC compiler */
 #define USE_MAP_FOR_HASH_MAP
-#define restrict
+#define SUN_CC
+#define restrict 
 #else
+
 #define restrict
+
 #endif
+
 #endif
 
 #endif

@@ -152,9 +152,22 @@ namespace Loci {
       ruleSet::const_iterator ri ;
       for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
         const rule::rule_type rtype = ri->type() ;
-        if(rtype == rule::BUILD)
+        if(rtype == rule::BUILD) {
+          if(ri->target_time().parent()  != ri->source_time()) {
+            cerr << "ERROR: malformed build rule, time levels should increment only one level" << endl
+                 << *ri << endl ;
+          }          
           iter.iteration_rules[ri->target_time()].build += *ri ;
-        else if(rtype == rule::COLLAPSE) {
+        } else if(rtype == rule::COLLAPSE) {
+          variableSet cond = ri->get_info().desc.conditionals ;
+          if(cond.size() != 1) {
+            cerr << "ERROR: malformed collapse rule with no conditionals:"
+                 << endl
+                 << *ri << endl ;
+          } else if(ri->target_time()  != ri->source_time().parent()) {
+            cerr << "ERROR: malformed collapse rule, time levels should increment only one level" << endl
+                 << *ri << endl ;
+          }          
             iter.iteration_rules[ri->source_time()].collapse += *ri ;
         } else if(!ri->time_advance) {
           working_rules += *ri ;
@@ -599,9 +612,9 @@ namespace Loci {
             // this is an error if (vi->time() after tlevel)
             cerr << __FILE__ << ", Line " << __LINE__ << ": "  ;
             cerr << "ERROR: variable time higher than iteration time."
-                 << "variable: " << *vi << " iteration time: "
-                 << tlevel << endl ;
-            Abort() ;
+                 << "variable: " << *vi << " iteration time: {"
+                 << tlevel  << "}" << endl ;
+            //            Abort() ;
           }
           pre_rules -= visited_rules ;
           for(ruleSet::const_iterator ri=pre_rules.begin();
@@ -761,11 +774,75 @@ namespace Loci {
   // function that clean the dependency graph at last
   void clean_graph(digraph &gr, const variableSet& given,
                                       const variableSet& target) {
+
     // testing...
     //given -= variable("EMPTY") ;
-
-    ruleSet all_cleaned_rules ;
     bool cleaned_rules = false ;
+    ruleSet all_cleaned_rules ;
+
+    // First remove any OUTPUT rules that are using values computed in
+    // their iteration level.
+
+    {
+      digraph::vertexSet allvertices = gr.get_all_vertices() ;
+      variableSet allvars = extract_vars(allvertices) ;
+      variableSet outputs ;
+      digraph grt = gr.transpose() ;
+      for(variableSet::const_iterator vi=allvars.begin();
+          vi!=allvars.end();++vi) {
+        variable ov = *vi ;
+        if(ov.get_info().name == "OUTPUT")
+          outputs += *vi ;
+      }
+      ruleSet remove_rules ;
+      for(variableSet::const_iterator vi=outputs.begin();
+          vi!=outputs.end();++vi) {
+        ruleSet outrules = extract_rules(grt[vi->ident()]) ;
+        ruleSet outloop = extract_rules(gr[vi->ident()]) ;
+
+        outrules -= outloop ;
+
+        ruleSet::const_iterator ri ;
+        for(ri=outrules.begin();ri!=outrules.end();++ri) {
+          digraph::vertexSet working, breadth ;
+          working += ri->ident() ;
+          
+          while(working != EMPTY) {
+            digraph::vertexSet visit ;
+            for(digraph::vertexSet::const_iterator dvi=working.begin();
+                dvi != working.end();++dvi)
+              visit += grt[*dvi] ;
+            ruleSet vrules = extract_rules(visit) ;
+            ruleSet::const_iterator vri ;
+            for(vri=vrules.begin();vri!=vrules.end();++vri) {
+              // Don't follow rules out of the iteration
+              if( (vri->type() == rule::INTERNAL) &&
+                  ((vri->qualifier() == "promote") ||
+                  (vri->qualifier() == "generalize"))) {
+                visit -= vri->ident() ;
+              }
+            }
+            breadth += working ;
+            visit -= breadth ;
+            working = visit ;
+          }
+
+          if((extract_rules(breadth) & outloop) == EMPTY) {
+            debugout << "removing non-participating output rule " << *ri << endl ;
+            remove_rules += *ri ;
+          }
+        }
+          
+      }
+
+      for(ruleSet::const_iterator ri=remove_rules.begin();
+          ri!=remove_rules.end(); ++ri)
+        gr.remove_vertex(ri->ident()) ;
+
+      all_cleaned_rules += remove_rules ;
+
+    }
+    
     do { // Keep cleaning until nothing left to clean!
         
       // Remove unnecessary vertices from graph.

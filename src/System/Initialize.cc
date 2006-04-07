@@ -127,6 +127,8 @@ namespace Loci {
 #ifdef USE_PETSC
     PetscInitialize(argc,argv,(char*)0,(char*)0) ;
     PetscOptionsSetValue("-options_left","false") ;
+
+    //    PetscOptionsSetValue("-options_left","false") ;
 #else    
   MPI_Init(argc, argv) ;
 #endif

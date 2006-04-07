@@ -17,6 +17,11 @@ namespace Loci {
     std::string rn ;
     while(*p!='$' &&  *p!=' ' && *p!='\0') 
       rn += *p++ ;
+
+    rn += " Compiled On " ;
+    rn += __DATE__ ;
+    rn += " " ;
+    rn += __TIME__ ;
     return rn ;
   }
 }
