@@ -955,6 +955,9 @@ namespace Loci {
           pvi!=promoted.end();++pvi)
         others += extract_rules(gr[*pvi]) ;
 
+      if(others == EMPTY) {
+        cerr << "others should not be empty, promoted = " << extract_vars(promoted) << endl ;
+      }
       FATAL(others == EMPTY) ;
 
       if(is_rep(gr,others)) {
