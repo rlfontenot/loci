@@ -674,6 +674,8 @@ namespace Loci {
       virtual bool is_module_rule() const = 0 ;
       
   } ; 
+
+  class register_rule_impl_list ;
   
   class rule_impl_list {
   public:
