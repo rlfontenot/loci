@@ -1,19 +1,28 @@
-ACCENT = /home/mz33/accent-0.7/accent/accent
-ART    = /home/mz33/accent-0.7/art/art.o
-LEX    = flex
-CC     = gcc
+LOCI_BASE=/usr/local/Loci-Linux-x86_64-mpic++-rel-3-0-p8/
+include $(LOCI_BASE)/Loci.conf
+COPT = -g
 
-default: cins
+# List the name of your compiled program here
+TARGET = lpp
 
-cins:	FRC
-	$(ACCENT) parser.acc
-	$(LEX) parser.lex
-	$(CC) -o lpp -g memory.c hash.c proc.c yygrammar.c lex.yy.c auxil.c $(ART)
 
-FRC:
+# List your object files here
+OBJS =  lpp.o main.o
+
+
+LOCAL_LIBS =
+
+JUNK = *~ core ti_files ii_files rii_files 
+
+default:
+	$(MAKE) $(TARGET) 
+
+all: $(TARGET) 
+
+
+$(TARGET): $(OBJS) 
+	$(LD) -o $(TARGET) $(OBJS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+FRC : 
 
 clean:
-	rm -fr lpp lex.yy.c yygrammar.c yygrammar.h
-
-clean1:
-	rm -fr lpp lex.yy.c yygrammar.c yygrammar.h *~
+	rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak *.o $(OTHER_APPS)
