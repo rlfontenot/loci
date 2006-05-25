@@ -397,6 +397,53 @@ namespace {
 }
 
 
+void parseFile::process_Prelude(std::ostream &outputFile,
+                                const map<variable,string> &vnames) {
+  outputFile << "    void prelude(const sequence &seq) { " ;
+  is.get() ;
+  
+  int openbrace = 1 ;
+  for(;;) {
+    killspout(outputFile) ;
+    if(is.peek() == EOF)
+      throw parseError("unexpected EOF") ;
+      
+    if(is.peek() == '}') {
+      is.get() ;
+      outputFile << '}' ;
+      
+      openbrace-- ;
+      if(openbrace == 0)
+        break ;
+    }
+    if(is.peek() == '{') {
+      is.get() ;
+      outputFile << '{' ;
+      openbrace++ ;
+      continue ;
+    }
+    if(is.peek() == '$') {
+      string name ;
+      variable v ;
+      is.get() ;
+      var vin ;
+      vin.get(is) ;
+      v = variable(vin.str()) ;
+
+      map<variable,string>::const_iterator vmi = vnames.find(v) ;
+      if(vmi == vnames.end()) {
+        cerr << "variable " << v << " is unknown to this rule!" << endl ;
+        throw parseError("type error") ;
+      }
+      outputFile << vmi->second  ;
+    }
+    char c = is.get() ;
+    if(c == '\n')
+      line_no++ ;
+    outputFile << c ;
+  } ;
+}
+
 void parseFile::process_Compute(std::ostream &outputFile,
                                 const map<variable,string> &vnames) {
   outputFile << "    void compute(const sequence &seq) { " ;
@@ -438,6 +485,8 @@ void parseFile::process_Compute(std::ostream &outputFile,
       outputFile << "(*" << vmi->second << ')' ;
     }
     char c = is.get() ;
+    if(c == '\n')
+      line_no++ ;
     outputFile << c ;
   } ;
 }
@@ -450,6 +499,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
     is.get() ;
   if(is.peek() == '\n') {
     is.get() ;
+    line_no++ ;
   }
   syncFile(outputFile) ;
   killspout(outputFile) ;
@@ -497,8 +547,25 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         name = get_name(is) ;
       else {
         is.get() ;
+        if(is.peek() == '*') {
+          is.get() ;
+          var vin ;
+          vin.get(is) ;
+          line_no += vin.num_lines() ;
+          variable v(vin.str()) ;
+          map<variable,string>::const_iterator vmi = vnames.find(v) ;
+          if(vmi == vnames.end()) {
+            cerr << "variable " << v << " is unknown to this rule!" << endl ;
+            throw parseError("type error") ;
+          }
+          
+          outputFile << vmi->second ;
+          continue ;
+        }
+        
         var vin ;
         vin.get(is) ;
+        line_no += vin.num_lines() ;
         v = variable(vin.str()) ;
       }
       list<variable> vlist ;
@@ -552,7 +619,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         map<variable,string>::const_iterator vmi = vnames.find(v) ;
         if(vmi == vnames.end()) {
           cerr << "variable " << v << " is unknown to this rule!" << endl ;
-          throw parseError("type error") ;
+          throw parseError("type error: is this variable in the rule signature?") ;
         }
         outputFile << vmi->second << "[_e_]" ;
       }
@@ -560,6 +627,8 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         outputFile << ']' ;
     }
     char c = is.get() ;
+    if(c == '\n')
+      line_no++ ;
     outputFile << c ;
   } ;
 }
@@ -587,7 +656,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   
 
   string constraint, conditional ;
+  list<string> options ;
+  list<pair<variable,variable> > inplace ;
   
+  bool use_prelude = false ;
   while(is.peek() == ',') {
     is.get() ;
     killsp() ;
@@ -600,18 +672,40 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       con.get(is) ;
       constraint = con.str() ;
       line_no += con.num_lines() ;
-    }
-    if(s == "conditional") {
+    } else if(s == "conditional") {
       nestedparenstuff con ;
       con.get(is) ;
       conditional = con.str() ;
       line_no += con.num_lines() ;
+    } else if(s == "inplace") {
+      nestedparenstuff ip ;
+      ip.get(is) ;
+      line_no += ip.num_lines() ;
+      exprP p = expression::create(ip.str()) ;
+      exprList l = collect_associative_op(p,OP_OR) ;
+      if(l.size() != 2) 
+        throw parseError("inplace needs two variables with a '|' separator") ;
+        
+      exprList::const_iterator i = l.begin() ;
+      variable v1(*i) ;
+      ++i ;
+      variable v2(*i) ;
+      inplace.push_back(pair<variable,variable>(v1,v2)) ;
+    
+    } else if(s == "prelude") {
+      use_prelude=true ;
+      killsp() ;
+      continue ;
+    } else if(s == "option") {
+      nestedparenstuff ip ;
+      ip.get(is) ;
+      line_no += ip.num_lines() ;
+      options.push_back(ip.str()) ;
+    } else {
+      throw parseError("unknown rule modifier") ;
     }
     killsp() ;
   }
-  
-  if(is.peek() != '{')
-    throw parseError("syntax error, expecting '{'") ;
 
   string sig = signature.str() ;
   string heads,bodys ;
@@ -693,6 +787,12 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     }
     vnames[*vi] = name ;
   }
+
+  list<pair<variable,variable> >::const_iterator ipi ;
+  for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
+    vnames[ipi->first] = vnames[ipi->second] ;
+  }
+  
   map<variable,pair<string,string> > local_type_map ;
   for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
     variable v = *vi ;
@@ -714,7 +814,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
         while(v.get_info().namespac.size() != 0)
           v = v.drop_namespace() ;
         if((mi = type_map.find(v)) == type_map.end()) {
-          cerr << "unable to determine type of variable " << *vi << endl ;
+          string s ;
+          s = "unable to determine type of variable " ;
+          s += v.str() ;
+          throw parseError(s) ;
         }
       }
     }
@@ -740,9 +843,14 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   }
   outputFile << " {" << endl ;
   syncFile(outputFile) ;
-  
-  input -= output ;
+
+  variableSet outs = output ;
+  for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
+    outs -= ipi->first ;
+    outs += ipi->second ;
+  }
   variableSet ins = input ;
+  ins -= outs ;
   for(vi=ins.begin();vi!=ins.end();++vi) {
     map<variable,pair<string,string> >::const_iterator mi ;
     if((mi = local_type_map.find(*vi)) == local_type_map.end()) {
@@ -754,7 +862,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     syncFile(outputFile) ;
   }
   bool output_param = false ;
-  for(vi=output.begin();vi!=output.end();++vi) {
+  for(vi=outs.begin();vi!=outs.end();++vi) {
     map<variable,pair<string,string> >::const_iterator mi ;
     if((mi = local_type_map.find(*vi)) == local_type_map.end()) {
       cerr << "unknown type for variable " << *vi << endl ;
@@ -771,6 +879,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   syncFile(outputFile) ;
   outputFile <<   "    " << class_name << "() {" << endl ;
   syncFile(outputFile) ;
+  for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
+    all_vars -= ipi->first ;
+  }
+
   for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
     outputFile << "       name_store(\"" << *vi << "\","
                << vnames[*vi] << ") ;" << endl ;
@@ -780,8 +892,40 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     outputFile <<   "       input(\"" << bodys << "\") ;" << endl ;
     syncFile(outputFile) ;
   }
-  outputFile <<   "       output(\"" << heads << "\") ;" << endl ;
-  syncFile(outputFile) ;
+
+  for(i=targets.begin();i!=targets.end();++i) {
+    outputFile <<   "       output(\"" ;
+    for(size_t j=0;j<i->mapping.size();++j)
+      outputFile << i->mapping[j] << "->" ;
+
+    // Output target variables, adding inplace notation if needed
+    variableSet::const_iterator vi ;
+    if(i->var.size() > 1)
+      outputFile << '(' ;
+    for(vi=i->var.begin();vi!=i->var.end();++vi) {
+      if(vi != i->var.begin())
+        outputFile << ',' ;
+      for(ipi=inplace.begin();ipi!=inplace.end();++ipi) {
+        if((ipi->first) == *vi)
+          break ;
+      }
+      if(ipi!=inplace.end()) {
+        if(i->mapping.size() == 0 || i->var.size() > 1)
+          outputFile << ipi->first << "=" << ipi->second ;
+        else
+          outputFile << '('<<ipi->first << "=" << ipi->second <<')';
+      } else
+        outputFile << *vi ;
+    }
+    if(i->var.size() > 1)
+      outputFile << ')' ;
+
+    outputFile <<  "\") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+  //  outputFile <<   "       output(\"" << heads << "\") ;" << endl ;
+  //  syncFile(outputFile) ;
+
   if(constraint!="") {
     outputFile <<   "       constraint(\"" << constraint << "\") ;" << endl ;
     syncFile(outputFile) ;
@@ -790,22 +934,78 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   if(conditional!="") {
     outputFile <<   "       conditional(\"" << conditional << "\") ;" << endl ;
     syncFile(outputFile) ;
-  }  
+  }
+  list<string>::const_iterator lsi ;
+  for(lsi=options.begin();lsi!=options.end();++lsi) {
+    string s = *lsi ;
+    bool has_paren = false ;
+    for(size_t i = 0;i<s.size();++i)
+      if(s[i] == '(')
+        has_paren = true ;
+    outputFile <<   "       " << s ;
+    if(!has_paren)
+      outputFile << "()" ;
+    outputFile << " ;" << endl;
+    syncFile(outputFile) ;
+  }
   outputFile <<   "    }" << endl ;
   syncFile(outputFile) ;
+
+  bool use_compute = true ;
+
+  if(use_prelude) {
+    process_Prelude(outputFile,vnames) ;
+    killsp() ;
+    if(is.peek() == ';') {
+      is.get() ;
+      use_compute = false ;
+    }
+    if(is_name(is)) {
+      string s = get_name(is) ;
+      if(s != "compute") {
+        throw parseError("syntax error, expecting 'compute'") ;
+      }
+    }
+    killsp() ;
+  }
+
+  
+  if(use_compute && is.peek() != '{')
+    throw parseError("syntax error, expecting '{'") ;
+
+  bool sized_outputs = false;
+  variableSet outsmi = outs ;
+  outsmi -= input ;
+  for(vi=outsmi.begin();vi!=outsmi.end();++vi) {
+    string ot = local_type_map[*vi].first ;
+    if(ot == "storeVec" || ot == "storeMat" || ot == "multiStore")
+      sized_outputs = true ;
+  }
+
+    
+    
 
   if(rule_type == "singleton" ||
      rule_type == "optional"  ||
      rule_type == "default" ||
      (output_param && rule_type != "apply") ) {
+    if(use_prelude) 
+      throw parseError("inappropriate prelude") ;
     process_Compute(outputFile,vnames) ;
   } else {
-    process_Calculate(outputFile,vnames) ;
+    if(use_compute)
+      process_Calculate(outputFile,vnames) ;
 
     outputFile <<   "    void compute(const sequence &seq) { " << endl ;
     syncFile(outputFile) ;
-    outputFile <<   "      do_loop(seq,this) ;" << endl ;
-    syncFile(outputFile) ;
+    if(use_prelude) {
+      outputFile <<   "      prelude(seq) ;" << endl ;
+      syncFile(outputFile) ;
+    }
+    if(use_compute) {
+      outputFile <<   "      do_loop(seq,this) ;" << endl ;
+      syncFile(outputFile) ;
+    }
     outputFile <<   "    }" << endl ;
     syncFile(outputFile) ;
   }
@@ -814,9 +1014,12 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   outputFile << "register_rule<"<<class_name<<"> register_"<<class_name
              << " ;" << endl ;
   syncFile(outputFile) ;
+  if(!use_prelude && sized_outputs && (rule_type != "apply")) 
+    throw parseError("need prelude to size output type!") ;
 }
 
 void parseFile::processFile(string file, ostream &outputFile) {
+  bool error = false ;
   filename = file ;
   line_no = 1 ;
   is.open(file.c_str(),ios::in) ;
@@ -854,9 +1057,7 @@ void parseFile::processFile(string file, ostream &outputFile) {
             
             
           } else {
-            
-            cerr << filename << ':'<<line_no << " Loci Preprocessor key " <<
-              key << " unknown!" << endl ;
+            throw parseError("syntax error: unknown key") ;
           }
         } else {
           cerr << filename << ':' << line_no << " syntax error" << endl ;
@@ -880,8 +1081,11 @@ void parseFile::processFile(string file, ostream &outputFile) {
       char buf[512] ;
       is.getline(buf,512) ;
       line_no++ ;
-      cerr << "remaining line = " << buf << endl ;
+      //      cerr << "remaining line = " << buf << endl ;
+      error = true ;
     }
+
   } while(!is.eof()) ;
-    
+  if(error)
+    throw parseError("syntax error") ;
 }

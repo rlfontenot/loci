@@ -37,8 +37,10 @@ class parseFile {
     outputFile << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
   }
 
+  void process_Prelude(std::ostream &outputFile,
+                       const std::map<Loci::variable,std::string> &vnames) ;
   void process_Compute(std::ostream &outputFile,
-                         const std::map<Loci::variable,std::string> &vnames) ;
+                       const std::map<Loci::variable,std::string> &vnames) ;
   void process_Calculate(std::ostream &outputFile,
                          const std::map<Loci::variable,std::string> &vnames) ;
   void setup_Type(std::ostream &outputFile) ;
@@ -46,6 +48,8 @@ class parseFile {
 public:
   parseFile() {
     line_no = 0 ;
+    Loci::variable OUTPUT("OUTPUT") ;
+    type_map[OUTPUT] = std::pair<std::string,std::string>("param","<bool>") ;
   }
   void processFile(std::string file, std::ostream &outputFile) ;
 } ;
