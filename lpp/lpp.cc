@@ -55,6 +55,127 @@ string get_string(istream &s) {
   return str ;
 }
 
+bool is_comment(istream &s) {
+  if(s.peek() != '/')
+    return false ;
+  s.get() ;
+  char c = s.peek() ;
+  s.unget() ;
+  if(c == '/' || c == '*')
+    return true ;
+  return false ;
+}
+
+istream &killComment(istream &s, int & lines) {
+  s.get() ;
+  char c = s.get()  ;
+  if(c == '/') { // read to end of line
+    while(s.peek() != EOF && s.peek() !='\n')
+      s.get() ;
+    if(s.peek() == '\n') {
+      lines++ ;
+      s.get() ;
+    }
+    return s ;
+  }
+  for(;;) {
+    if(s.peek() == EOF)
+      break ;
+    char c = s.get() ;
+    if(c == '\n')
+      lines++ ;
+    if(c == '*') {
+      if(s.peek() == '/') {
+        s.get() ;
+        break ;
+      }
+    }
+  }
+  return s ;
+}
+    
+istream &killsp(istream &s, int &lines) {
+
+  bool foundstuff = false ;
+  do {
+    foundstuff = false ;
+    while(s.peek() == ' ' || s.peek() == '\t' || s.peek() == '\n'
+          || s.peek() == '\r') {
+      if(s.peek() == '\n') lines++ ;
+      s.get();
+      foundstuff = true ;
+    }
+    if(is_comment(s)) {
+      killComment(s,lines) ;
+      foundstuff = true ;
+    }
+  } while(foundstuff) ;
+  return s ;
+}
+
+istream &killCommentOut(istream &s, int & lines,ostream &out) {
+  s.get() ;
+  out << '/' ;
+  char c = s.get()  ;
+  out << c ;
+  if(c == '/') { // read to end of line
+    while(s.peek() != EOF && s.peek() !='\n') {
+      char c = s.get() ;
+      out << c ;
+    }
+    if(s.peek() == '\n') {
+      lines++ ;
+      s.get() ;
+      out << '\n' ;
+    }
+    return s ;
+  }
+  for(;;) {
+    if(s.peek() == EOF)
+      break ;
+    char c = s.get() ;
+    out << c ;
+    if(c == '\n')
+      lines++ ;
+    if(c == '*') {
+      if(s.peek() == '/') {
+        out << '/' ;
+        s.get() ;
+        break ;
+      }
+    }
+  }
+  return s ;
+}
+    
+istream &killspOut(istream &s, int &lines, ostream &out) {
+
+  bool foundstuff = false ;
+  do {
+    foundstuff = false ;
+    while(s.peek() == ' ' || s.peek() == '\t' || s.peek() == '\n'
+          || s.peek() == '\r') {
+      if(s.peek() == '\n') lines++ ;
+      char c = s.get();
+      out << c ;
+      foundstuff = true ;
+    }
+    if(is_comment(s)) {
+      killCommentOut(s,lines,out) ;
+      foundstuff = true ;
+    }
+  } while(foundstuff) ;
+  return s ;
+}
+
+void parseFile::killsp() {
+  ::killsp(is,line_no) ;
+}
+
+void parseFile::killspout(std::ostream &outputFile) {
+  ::killspOut(is,line_no,outputFile) ;
+}
+
 class parsebase {
 public:
   int lines ;
@@ -470,9 +591,15 @@ void parseFile::process_Compute(std::ostream &outputFile,
       continue ;
     }
     if(is.peek() == '$') {
-      string name ;
       variable v ;
       is.get() ;
+      bool deref = true ;
+      if(is.peek() == '*') {
+        is.get() ;
+        deref = false ;
+      }
+      
+
       var vin ;
       vin.get(is) ;
       v = variable(vin.str()) ;
@@ -482,7 +609,11 @@ void parseFile::process_Compute(std::ostream &outputFile,
         cerr << "variable " << v << " is unknown to this rule!" << endl ;
         throw parseError("type error") ;
       }
-      outputFile << "(*" << vmi->second << ')' ;
+      if(type_map[v].first == "Constraint" || !deref) {
+        outputFile << vmi->second  ;
+      } else {
+        outputFile << "(*" << vmi->second << ')' ;
+      }
     }
     char c = is.get() ;
     if(c == '\n')
@@ -657,6 +788,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
 
   string constraint, conditional ;
   list<string> options ;
+  list<string> comments ;
   list<pair<variable,variable> > inplace ;
   
   bool use_prelude = false ;
@@ -701,6 +833,11 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       ip.get(is) ;
       line_no += ip.num_lines() ;
       options.push_back(ip.str()) ;
+    } else if(s == "comments") {
+      nestedparenstuff ip ;
+      ip.get(is) ;
+      line_no += ip.num_lines() ;
+      comments.push_back(ip.str()) ;
     } else {
       throw parseError("unknown rule modifier") ;
     }
@@ -868,7 +1005,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       cerr << "unknown type for variable " << *vi << endl ;
       throw parseError("untyped Loci variable") ;
     }
-    if(mi->second.first == "param") {
+    if(vi->get_info().name != "OUTPUT" && mi->second.first == "param") {
       output_param= true ;
     }
     outputFile << "    " << mi->second.first <<  mi->second.second ;
@@ -948,6 +1085,11 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     outputFile << " ;" << endl;
     syncFile(outputFile) ;
   }
+  for(lsi=comments.begin();lsi!=comments.end();++lsi) {
+    outputFile <<   "       comments(" << *lsi << ") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+
   outputFile <<   "    }" << endl ;
   syncFile(outputFile) ;
 
@@ -988,7 +1130,8 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   if(rule_type == "singleton" ||
      rule_type == "optional"  ||
      rule_type == "default" ||
-     (output_param && rule_type != "apply") ) {
+     rule_type == "constraint" ||
+     (output_param && rule_type != "apply" ) ) {
     if(use_prelude) 
       throw parseError("inappropriate prelude") ;
     process_Compute(outputFile,vnames) ;

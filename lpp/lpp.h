@@ -18,21 +18,9 @@ class parseFile {
   int line_no ;
   std::ifstream is ;
   std::map<Loci::variable,std::pair<std::string,std::string> > type_map ;
-  void killsp() {
-    while(is.peek() == ' ' || is.peek() == '\t' || is.peek() == '\n'
-          || is.peek() == '\r') {
-      if(is.peek() == '\n') line_no++ ;
-      is.get();
-    }
-  }
-  void killspout(std::ostream &outputFile) {
-    while(is.peek() == ' ' || is.peek() == '\t' || is.peek() == '\n'
-          || is.peek() == '\r') {
-      if(is.peek() == '\n') line_no++ ;
-      char c = is.get();
-      outputFile << c ;
-    }
-  }
+  void killsp() ;
+  void killspout(std::ostream &outputFile) ;
+
   void syncFile(std::ostream &outputFile) {
     outputFile << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
   }
