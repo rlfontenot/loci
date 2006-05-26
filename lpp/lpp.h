@@ -42,4 +42,5 @@ public:
   void processFile(std::string file, std::ostream &outputFile) ;
 } ;
 
+extern std::list<std::string> include_dirs ;
 #endif

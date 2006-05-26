@@ -1165,9 +1165,23 @@ void parseFile::processFile(string file, ostream &outputFile) {
   bool error = false ;
   filename = file ;
   line_no = 1 ;
+  
   is.open(file.c_str(),ios::in) ;
   if(is.fail()) {
-    throw parseError("can't open") ;
+    list<string>::const_iterator li ;
+    for(li=include_dirs.begin();li!=include_dirs.end();++li) {
+      string s = *li + "/" + file ;
+      is.clear() ;
+      is.open(s.c_str(),ios::in) ;
+      if(!is.fail())
+        break ;
+    }
+    if(is.fail()) {
+      string s = "can't open include file '" ;
+      s += file ;
+      s += "'" ;
+      throw parseError(s) ;
+    }
   }
   char c ;
   syncFile(outputFile) ;
