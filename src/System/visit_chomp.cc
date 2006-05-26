@@ -543,6 +543,8 @@ namespace Loci {
     // don't have outgoing edges, and variables that connect
     // to any internal rules or rename variables
     // or variables that are generated in more that one levels
+    // and variables that connect to unit rules (since unit rule can
+    // only be executed once).
     for(variableSet::const_iterator vi=remaining_vars.begin();
         vi!=remaining_vars.end();++vi) {
       
@@ -587,12 +589,11 @@ namespace Loci {
       for(ruleSet::const_iterator rii=tmp.begin();
           rii!=tmp.end();++rii)
         if(is_internal_rule(*rii) || !thread_rule(*rii) ||
-           has_output_in_targets(*rii)
+           has_output_in_targets(*rii) ||
 #ifdef DISABLE_APPLY             
-           || rii->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
-#else
-          ){
-#endif          
+           rii->get_info().rule_impl->get_rule_class() == rule_impl::APPLY ||
+#endif
+           rii->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
         bad_vars += *vi ;
         break ;
       }
