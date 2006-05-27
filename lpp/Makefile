@@ -1,6 +1,6 @@
-LOCI_BASE=/usr/local/Loci-Linux-x86_64-mpic++-rel-3-0-p8/
+#LOCI_BASE=/usr/local/Loci-Linux-x86_64-mpic++-rel-3-0-p8/
 include $(LOCI_BASE)/Loci.conf
-COPT = -g
+#COPT = -g
 
 # List the name of your compiled program here
 TARGET = lpp

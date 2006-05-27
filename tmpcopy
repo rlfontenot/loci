@@ -21,11 +21,13 @@ if [ $# -eq 2 ]; then
 fi
 
 TARGET_DIRS="System Tools include include/Tools include/Config include/MPI_stubb"
+TOOLS_DIRS="lpp"
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
 mkdir -p $target/Loci
 mkdir -p $target/Loci/lib
+mkdir -p $target/Loci/bin
 
 for i in $TARGET_DIRS ; do
   echo -n $i " "
@@ -33,9 +35,11 @@ for i in $TARGET_DIRS ; do
 done
 echo
 
-#if [ ! -e $target/Loci/include/g++-fixes ]; then
-#  ln -s $source/src/include/g++-fixes $target/Loci/include/g++-fixes
-#fi
+for i in $TOOLS_DIRS ; do
+  echo -n $i " "
+  mkdir -p $target/Loci/$i
+done
+echo
 
 cd $target/Loci
 if [ ! -e Makefile ]; then
@@ -68,6 +72,10 @@ if [ ! -e libLoci.a ]; then
   ln -s ../System/libLoci.a libLoci.a
 fi
 
+cd ../bin
+if [ ! -e lpp ] ; then 
+  ln -s ../lpp/lpp lpp
+fi
 
 for dir in $TARGET_DIRS; do
   echo "Linking" $dir "directory files..."
@@ -77,6 +85,19 @@ for dir in $TARGET_DIRS; do
       if [ ! -e $target/Loci/$dir/$i ] ; then
         echo ln -s $source/src/$dir/$i $target/Loci/$dir/$i
         ln -s $source/src/$dir/$i $target/Loci/$dir/$i
+      fi
+    fi
+  done
+done
+
+for dir in $TOOLS_DIRS; do
+  echo "Linking" $dir "directory files..."
+  cd $source/$dir
+  for i in *.cc *.h *.hh *.hpp *.c *.lpr Makefile Loci ; do
+    if [ -f  $i ] ; then
+      if [ ! -e $target/Loci/$dir/$i ] ; then
+        echo ln -s $source/$dir/$i $target/Loci/$dir/$i
+        ln -s $source/$dir/$i $target/Loci/$dir/$i
       fi
     fi
   done

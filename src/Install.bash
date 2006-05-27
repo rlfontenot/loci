@@ -26,10 +26,14 @@ echo INSTALL_PATH = $INSTALL_PATH
 echo Making Directories
 mkdir -p $INSTALL_PATH
 mkdir -p $INSTALL_PATH/lib
+mkdir -p $INSTALL_PATH/bin
 
 echo Installing Library Files
 cp Tools/libTools.a $INSTALL_PATH/lib
 cp System/libLoci.a $INSTALL_PATH/lib
+
+echo Installing Loci Tools
+cp lpp/lpp $INSTALL_PATH/bin
 
 echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
 cp Loci.conf comp.conf sys.conf $INSTALL_PATH
