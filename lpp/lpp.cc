@@ -674,6 +674,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       bool first_name = is_name(is) ;
       string name ;
       variable v ;
+      string brackets ;
       if(first_name) 
         name = get_name(is) ;
       else {
@@ -698,8 +699,16 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         vin.get(is) ;
         line_no += vin.num_lines() ;
         v = variable(vin.str()) ;
+        killsp() ;
+        if(is.peek() == '[') {
+          nestedbracketstuff nb ;
+          nb.get(is) ;
+          brackets = "[" + nb.str() + "]" ;
+          line_no += nb.num_lines() ;
+        }
       }
       list<variable> vlist ;
+      list<string> blist ;
       bool dangling_arrow = false ;
 
       for(;;) { // scan for ->$ chain
@@ -715,6 +724,15 @@ void parseFile::process_Calculate(std::ostream &outputFile,
             var vin ;
             vin.get(is) ;
             vlist.push_back(variable(vin.str())) ;
+            string brk ;
+            killsp() ;
+            if(is.peek() == '[') {
+              nestedbracketstuff nb ;
+              nb.get(is) ;
+              brk = "[" + nb.str() +"]";
+              line_no += nb.num_lines() ;
+            }
+            blist.push_back(brk) ;
           } else {
             dangling_arrow = true ;
             break ;
@@ -754,14 +772,40 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         }
         outputFile << vmi->second << "[_e_]" ;
       }
-      for(size_t i=0;i<vlist.size();++i)
-        outputFile << ']' ;
+      //      for(size_t i=0;i<vlist.size();++i)
+      //        outputFile << ']' ;
+      outputFile << brackets ;
+      list<string>::const_iterator rbi ;
+      for(rbi=blist.begin();rbi!=blist.end();++rbi) {
+        outputFile << ']' << *rbi ;
+      }
+        
     }
     char c = is.get() ;
     if(c == '\n')
       line_no++ ;
     outputFile << c ;
   } ;
+}
+
+
+string var2name(variable v) {
+  string vn = v.str() ;
+  string name ;
+  name += "_" ;
+  for(size_t si=0;si!=vn.size();++si) {
+    if(isalpha(vn[si]) || isdigit(vn[si]) || vn[si] == '_')
+      name += vn[si] ;
+    if(vn[si]=='{' || vn[si] == '}')
+      name += '_' ;
+    if(vn[si]=='=')
+      name += "_EQ_" ;
+    if(vn[si]=='+')
+      name += "_P_" ;
+    if(vn[si]=='-')
+      name += "_M_" ;
+  }
+  return name ;
 }
 
 void parseFile::setup_Rule(std::ostream &outputFile) {
@@ -908,21 +952,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   all_vars += output ;
   
   for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
-    string vn = (*vi).str() ;
-    string name ;
-    for(size_t si=0;si!=vn.size();++si) {
-      if(isalpha(vn[si]) || isdigit(vn[si]) || vn[si] == '_')
-        name += vn[si] ;
-      if(vn[si]=='{' || vn[si] == '}')
-        name += '_' ;
-      if(vn[si]=='=')
-        name += "_EQ_" ;
-      if(vn[si]=='+')
-        name += "_P_" ;
-      if(vn[si]=='-')
-        name += "_M_" ;
-    }
-    vnames[*vi] = name ;
+    vnames[*vi] = var2name(*vi) ;
   }
 
   list<pair<variable,variable> >::const_iterator ipi ;
