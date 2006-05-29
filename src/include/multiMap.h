@@ -73,6 +73,27 @@ namespace Loci {
     int **base_ptr ;
   public:
 
+    class arrayHelper {
+      int *first ;
+      int *last ;
+    public:
+      arrayHelper(int *f, int *l) : first(f), last(l){}
+      int size() { return last-first ; }
+      int &operator[](int indx) { return first[indx] ; }
+      int *begin() { return first ; }
+      int *end() { return last; }
+    } ;
+    class arrayHelper_const {
+      const int *first ;
+      const int *last ;
+    public:
+      arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
+      int size() { return last-first ; }
+      const int &operator[](int indx) { return first[indx] ; }
+      const int *begin() { return first ; }
+      const int *end() { return last; }
+    } ;
+        
     // These should be private, as they only perform a shallow copy,
     // which is dangerous.  For now we leave them public because it would
     // be too difficult to fix properly.
@@ -102,20 +123,36 @@ namespace Loci {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
       return p ; }
-    int *elem(int indx) {
+    arrayHelper elem(int indx) {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
-      return base_ptr[indx]; }
-    const int *const_elem(int indx)  const {
+      return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
+    }
+    arrayHelper_const const_elem(int indx)  const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
-      return base_ptr[indx]; }
-    int *operator[](int indx) { return elem(indx); }
-    const int *operator[](int indx) const { return const_elem(indx) ; }
+      return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
+    }
+
+    arrayHelper operator[](int indx) {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper(base_ptr[indx],base_ptr[indx+1]) ;
+    }
+    arrayHelper_const operator[](int indx) const {
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]) ;
+    }
+      
     int num_elems(int indx) const {return base_ptr[indx+1]-base_ptr[indx];}
     int *begin(int indx) { return base_ptr[indx] ; }
     int *end(int indx) { return base_ptr[indx+1] ; }
@@ -140,6 +177,17 @@ namespace Loci {
     const_multiMap & operator=(const multiMap &str)
     { setRep(str.Rep()) ; return *this ;}
   public:
+    class arrayHelper_const {
+      const int *first ;
+      const int *last ;
+    public:
+      arrayHelper_const(const int *f, const int *l) : first(f), last(l){}
+      int size() { return last-first ; }
+      const int &operator[](int indx) { return first[indx] ; }
+      const int *begin() { return first ; }
+      const int *end() { return last; }
+    } ;
+
     const_multiMap() { setRep(new MapType) ; }
     
     
@@ -160,13 +208,18 @@ namespace Loci {
       MapRepP p(Rep()) ;
       fatal(p==0) ;
       return p ; }
-    const int *const_elem(int indx)  const {
+    arrayHelper_const const_elem(int indx)  const {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif
-      return base_ptr[indx]; }
-    const int *operator[](int indx) const { return const_elem(indx) ; }
+      return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }
+    arrayHelper_const operator[](int indx) const { 
+#ifdef BOUNDS_CHECK
+      fatal(base_ptr==NULL); 
+      fatal(!((Rep()->domain()).inSet(indx))) ;
+#endif
+      return arrayHelper_const(base_ptr[indx],base_ptr[indx+1]); }
     int num_elems(int indx) const {return base_ptr[indx+1]-base_ptr[indx];}
     const int *begin(int indx) const { return base_ptr[indx] ; }
     const int *end(int indx) const { return base_ptr[indx+1] ; }
