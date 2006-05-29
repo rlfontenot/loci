@@ -107,8 +107,7 @@ istream &killsp(istream &s, int &lines) {
     }
     if(is_comment(s)) {
       killComment(s,lines) ;
-      foundstuff = true ;
-    }
+      foundstuff = true ;    }
   } while(foundstuff) ;
   return s ;
 }
@@ -168,12 +167,16 @@ istream &killspOut(istream &s, int &lines, ostream &out) {
   return s ;
 }
 
-void parseFile::killsp() {
+int parseFile::killsp() {
+  int l = line_no ;
   ::killsp(is,line_no) ;
+  return l-line_no ;
 }
 
-void parseFile::killspout(std::ostream &outputFile) {
+int parseFile::killspout(std::ostream &outputFile) {
+  int l = line_no ;
   ::killspOut(is,line_no,outputFile) ;
+  return l-line_no ;
 }
 
 class parsebase {
@@ -298,8 +301,10 @@ public:
   templlist<typestuff> templ_args ;
   istream &get(istream &s) {
     killsp(s) ;
-    if(is_name(s)) {
-      name = get_name(s) ;
+    if(isalpha(s.peek()) || s.peek() == '_') {
+      char c = s.peek() ;
+      while(isalpha(c = s.peek()) || isdigit(c) || c == '_' ||  c == ':')
+        name += s.get() ;
     } else if(isdigit(s.peek())) {
       while(isdigit(s.peek())) {
         name += s.get() ;
@@ -622,6 +627,24 @@ void parseFile::process_Compute(std::ostream &outputFile,
   } ;
 }
 
+string getNumber(std::istream &is) {
+  string num ;
+  while(isdigit(is.peek()))
+    num+= is.get();
+  if(is.peek() == '.') {
+    num += is.get() ;
+    while(isdigit(is.peek()))
+      num+= is.get();
+  }
+  if(is.peek() == 'e' || is.peek() == 'E') {
+    num += is.get() ;
+    if(is.peek() == '-' || is.peek() == '+')
+      num += is.get() ;
+    while(isdigit(is.peek()))
+      num += is.get() ;
+  }
+  return num ;
+}
 void parseFile::process_Calculate(std::ostream &outputFile,
                                   const map<variable,string> &vnames) {
   outputFile << "    void calculate(Entity _e_) { " << endl ;
@@ -669,8 +692,24 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       continue ;
     }
           
-    
+    if(is.peek() == '#') {
+      is.get() ;
+      outputFile << '#' ;
+      while(is.peek() != '\n') {
+        char c = is.get() ;
+        outputFile << c ;
+      }
+      killspout(outputFile) ;
+      continue ;
+    }
+
+    if(isdigit(is.peek())) {
+      outputFile << getNumber(is) ;
+      continue ;
+    }
+
     if(is_name(is) || is.peek() == '$') {
+      int lcount = 0 ;
       bool first_name = is_name(is) ;
       string name ;
       variable v ;
@@ -684,6 +723,8 @@ void parseFile::process_Calculate(std::ostream &outputFile,
           var vin ;
           vin.get(is) ;
           line_no += vin.num_lines() ;
+          lcount += vin.num_lines() ;
+          
           variable v(vin.str()) ;
           map<variable,string>::const_iterator vmi = vnames.find(v) ;
           if(vmi == vnames.end()) {
@@ -698,6 +739,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         var vin ;
         vin.get(is) ;
         line_no += vin.num_lines() ;
+        lcount += vin.num_lines();
         v = variable(vin.str()) ;
         killsp() ;
         if(is.peek() == '[') {
@@ -705,6 +747,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
           nb.get(is) ;
           brackets = "[" + nb.str() + "]" ;
           line_no += nb.num_lines() ;
+          lcount += nb.num_lines() ;
         }
       }
       list<variable> vlist ;
@@ -712,25 +755,26 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       bool dangling_arrow = false ;
 
       for(;;) { // scan for ->$ chain
-        killsp() ;
+        lcount += killsp() ;
         if(is.peek() != '-')
           break ;
         char c=is.get() ;
         if(c== '-' && is.peek() == '>') {
           c=is.get() ;
-          killsp() ;
+          lcount += killsp() ;
           if(is.peek() == '$') {
             is.get() ;
             var vin ;
             vin.get(is) ;
             vlist.push_back(variable(vin.str())) ;
             string brk ;
-            killsp() ;
+            lcount += killsp() ;
             if(is.peek() == '[') {
               nestedbracketstuff nb ;
               nb.get(is) ;
               brk = "[" + nb.str() +"]";
               line_no += nb.num_lines() ;
+              lcount += nb.num_lines() ;
             }
             blist.push_back(brk) ;
           } else {
@@ -750,7 +794,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         throw parseError("syntax error, near '->' operator") ;
 
       if(first_name && (vlist.size() == 0)) {
-        outputFile << name << ' ';
+        outputFile << name << ' ' ;
         continue ;
       }
       list<variable>::reverse_iterator ri ;
@@ -779,7 +823,9 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       for(rbi=blist.begin();rbi!=blist.end();++rbi) {
         outputFile << ']' << *rbi ;
       }
-        
+
+      for(int i=0;i<lcount;++i)
+        outputFile << endl ;
     }
     char c = is.get() ;
     if(c == '\n')
@@ -912,6 +958,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     if(c == '.')
       break ;
   }
+  class_name += '0' + (cnt/100)%10 ;
+  class_name += '0' + (cnt/10)%10 ;
+  class_name += '0' + (cnt)%10 ;
+  cnt++ ;
   class_name += "_rule_" ;
   if(conditional != "")
     sig += "_" + conditional ;
@@ -953,6 +1003,12 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   
   for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
     vnames[*vi] = var2name(*vi) ;
+    if(vi->get_info().priority.size() != 0) {
+      variable v = *vi ;
+      while(v.get_info().priority.size() != 0)
+        v = v.drop_priority() ;
+      vnames[v] = vnames[*vi] ;
+    }
   }
 
   list<pair<variable,variable> >::const_iterator ipi ;

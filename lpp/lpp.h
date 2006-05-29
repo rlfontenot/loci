@@ -14,12 +14,13 @@ struct parseError {
 } ;
   
 class parseFile {
+  int cnt ;
   std::string filename ;
   int line_no ;
   std::ifstream is ;
   std::map<Loci::variable,std::pair<std::string,std::string> > type_map ;
-  void killsp() ;
-  void killspout(std::ostream &outputFile) ;
+  int killsp() ;
+  int killspout(std::ostream &outputFile) ;
 
   void syncFile(std::ostream &outputFile) {
     outputFile << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
@@ -36,6 +37,7 @@ class parseFile {
 public:
   parseFile() {
     line_no = 0 ;
+    cnt = 0 ;
     Loci::variable OUTPUT("OUTPUT") ;
     type_map[OUTPUT] = std::pair<std::string,std::string>("param","<bool>") ;
   }
