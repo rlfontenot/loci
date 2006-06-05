@@ -56,6 +56,12 @@ namespace Loci {
   rule multiLevelGraph::make_super_rule(variableSet sources,
                                         variableSet targets,
                                         variable cond) {
+    if(targets == EMPTY) {
+      cerr << "make_super_rule called with targets == EMPTY" << endl ;
+      cerr << "sources = " << sources << endl ;
+      cerr << "cond = " << cond << endl ;
+    }
+    
     FATAL(targets == EMPTY) ;
     ostringstream oss ;
     oss << "source("<<sources << "),target(" << targets << ")," ;
