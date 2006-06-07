@@ -223,7 +223,52 @@ namespace Loci {
         return DatatypeP(ct) ;
       }
     };
+
+  template<class T>  struct tensor3d : public vector3d<vector3d< T > > {
+    tensor3d() {}
+    tensor3d(vector3d<T> xx,vector3d<T> yy, vector3d<T> zz)
+      : vector3d<vector3d< T> > (xx,yy,zz) {}
+    tensor3d(const tensor3d &v) : vector3d<vector3d< T> >(v) {}
+  } ;
+
+  template<class T> inline vector3d<T> dot(const tensor3d<T> &t,
+                                           const vector3d<T> &v) {
+    return vector3d<T>(dot(t.x,v),dot(t.y,v),dot(t.z,v)) ;
+  }
+
+  template<class T> inline tensor3d<T> product(const tensor3d<T> &t1,
+                                               const tensor3d<T> &t2) {
+    tensor3d<T> temp ;
+    temp.x.x = t1.x.x*t2.x.x+t1.x.y*t2.y.x+t1.x.z*t2.z.x ;
+    temp.y.x = t1.y.x*t2.x.x+t1.y.y*t2.y.x+t1.y.z*t2.z.x ;
+    temp.z.x = t1.z.x*t2.x.x+t1.z.y*t2.y.x+t1.z.z*t2.z.x ;
+
+    temp.x.y = t1.x.x*t2.x.y+t1.x.y*t2.y.y+t1.x.z*t2.z.y ;
+    temp.y.y = t1.y.x*t2.x.y+t1.y.y*t2.y.y+t1.y.z*t2.z.y ;
+    temp.z.y = t1.z.x*t2.x.y+t1.z.y*t2.y.y+t1.z.z*t2.z.y ;
+
+    temp.x.z = t1.x.x*t2.x.z+t1.x.y*t2.y.z+t1.x.z*t2.z.z ;
+    temp.y.z = t1.y.x*t2.x.z+t1.y.y*t2.y.z+t1.y.z*t2.z.z ;
+    temp.z.z = t1.z.x*t2.x.z+t1.z.y*t2.y.z+t1.z.z*t2.z.z ;
+
+    return temp ;
+  }
+
+  template <class T>
+    struct data_schema_traits< tensor3d<T> > {
+      typedef IDENTITY_CONVERTER Schema_Converter;
+      static DatatypeP get_type() {
+        vector3d<T> t ;
+        CompoundDatatypeP ct = CompoundFactory(t) ;
+
+        LOCI_INSERT_TYPE(ct,tensor3d<T>,x) ;
+        LOCI_INSERT_TYPE(ct,tensor3d<T>,y) ;
+        LOCI_INSERT_TYPE(ct,tensor3d<T>,z) ;
+        return DatatypeP(ct) ;
+      }
+    };
   
+    
   //---------------------vector2d------------------//
   template <class T> 
     struct vector2d {
@@ -444,5 +489,47 @@ namespace Loci {
     typedef char Converter_Base_Type ;
     typedef StringStreamConverter<options_list> Converter_Type ;
   } ;
+
+  // For allocating temporary arrays of small size
+  const int tmp_array_internal_SIZE=25 ;
+  template <class T> class tmp_array {
+    int sz ;
+    T data[tmp_array_internal_SIZE] ;
+    T * p ;
+    void alloc(int size) {
+      sz = size ;
+      p = data ;
+      if(sz > tmp_array_internal_SIZE)
+        p = new T[sz] ;
+    }
+    void free() {
+      if(sz > tmp_array_internal_SIZE)
+        delete[] p ;
+    }
+    tmp_array() { alloc(0) ; }
+  public:
+    tmp_array(int size) {
+      alloc(size) ;
+    }
+    tmp_array(const tmp_array &ta) {
+      alloc(ta.sz) ;
+      for(int i=0;i<sz;++i)
+        p[i] = ta.p[i] ;
+    }
+    tmp_array &operator=(const tmp_array &ta) {
+      free() ;
+      alloc(ta.sz) ;
+      for(int i=0;i<sz;++i)
+        p[i] = ta.p[i] ;
+      return *this ;
+    }
+    ~tmp_array() { free(); }
+    T & operator[](int i) { return p[i] ; }
+    T & operator[](int i) const { return p[i] ; }
+    operator T *() { return p ; }
+    operator const T *() const { return p ; }
+  } ;
+      
 }
+
 #endif

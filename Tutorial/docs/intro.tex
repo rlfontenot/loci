@@ -1,11 +1,21 @@
 \chapter{An Introduction to Loci}
 
-Loci is a programming framework for computational simulation of
-physical fields.  It is particularly well adapted for computational
-fluid dynamics.  It provides a descriptive rather than imperative
-programming style.  The programs emitted by Loci satisfy these
-descriptions, as the locus of a geometrical description is a figure
-satisfying that description.
+Loci is a both a C++ library and a programming framework specifically
+designed for developing computational simulations of physical fields,
+such as computational fluid dynamics.  One advantage the framework
+provides is automatic parallelization.  Once an application is
+described within the Loci framework, the application can be executed
+in parallel without change, even though the description within the
+framework included no explicit parallel directives.  A particular
+advantage of the programming framework is that it provides a formal
+framework for the development of simulation knowledge-bases using {\em logic-relational} abstractions.  While logic-re
+
+Loci is a programming framework
+for computational simulation of physical fields.  It is particularly
+well adapted for computational fluid dynamics.  It provides a
+descriptive rather than imperative programming style.  The programs
+emitted by Loci satisfy these descriptions, as the locus of a
+geometrical description is a figure satisfying that description.
 
 Loci intends to help a developer manage the complexity of a software
 project.  Loci appeals to logic programming, and to ideas about

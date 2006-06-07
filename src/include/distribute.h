@@ -55,6 +55,13 @@ namespace Loci {
     { return collect_entitySet(e,*exec_current_fact_db) ; }
 
   entitySet all_collect_entitySet(const entitySet &e) ;
+
+  inline entitySet all_collect_entitySet(entitySet localset,fact_db &facts) {
+    if(facts.is_distributed_start())
+      return Loci::all_collect_entitySet(localset) ;
+    return localset ;
+  }
+  
   std::vector<entitySet> all_collect_vectors(entitySet &e) ;
   int GLOBAL_OR(int b) ;
   int GLOBAL_AND(int b) ;
@@ -65,6 +72,8 @@ namespace Loci {
   // in the fuel cell program//from distribute.h //////
   Map distribute_global_map(Map &m, const std::vector<entitySet> &vset) ;
   Map distribute_gmap(Map &m, const std::vector<entitySet> &vset) ;
+
 }
+
 #endif
  

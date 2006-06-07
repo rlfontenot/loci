@@ -233,6 +233,13 @@ namespace Loci {
   void inverseMap(dmultiMap &result, const const_Map &input_map,
                   const entitySet &input_image,
 		  const entitySet &input_preimage) ;
+  void inverseMap(dmultiMap &result, const dmultiMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) ;
+  void inverseMap(dmultiMap &result, const multiMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) ;
+  
 }
 
 #endif

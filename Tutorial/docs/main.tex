@@ -1,9 +1,6 @@
-%Time-stamp: <2002-09-06 12:21:41 peo>
 \documentclass[10pt,epsf]{book}
-\renewcommand\familydefault{ptm}
-\DeclareMathAlphabet{\mathmyrm}{OT1}{ptm}{m}{n}
-\DeclareMathAlphabet{\mathmybf}{OT1}{ptm}{bx}{n}
-\SetMathAlphabet{\mathmyrm}{bold}{OT1}{ptm}{bx}{n}
+\title { Loci : A Tutorial }
+
 \setlength{\textheight}{7.75in}
 \setlength{\textwidth}{5.7in}
 \setlength{\parskip}{3mm}
@@ -15,7 +12,6 @@
 \setlength{\oddsidemargin}{2cm}
 \setlength{\evensidemargin}{2cm}
 \unitlength=1in
-\title { Loci : A Tutorial }
 
 \usepackage{epsf}    % used for importing encapsulated postscript figures
 \usepackage{amsmath} % used for extended formula formatting tools
@@ -38,71 +34,19 @@
 %\include{lfvm}
 
 \chapter{ Basic Concepts }
+
 \section{Notation used in this document}
 In this document we use the {\tt typewriter} font to distinguish
 actual Loci programming keywords, classes, and data-structures.
-
-%% \section{ Installing Loci}
-%% After you untar Loci you will have a directory structure like so:
-
-%% \begin{verbatim}
-%% Loci/
-%% Loci/src
-%% Loci/Tutorial
-%% \end{verbatim}
-
-%% To install Loci, you need to use {\tt tmpcopy} to make a linked copy
-%% of the source code (usually to the {\tt /usr/tmp} directory).  You
-%% can use environment variables to change how the tmpcopy routine works.
-%% For example, you can set the target directory (where you will be
-%% compiling the Loci libraries), and the compiler.  For example, to set
-%% the target directory to {\tt /home/test/OBJ} and the compiler to {\tt
-%%   gcc3.0}, enter (NOTE: Run tmpcopy from the Loci directory!):
-
-%% \begin{verbatim}
-%% LOCI_TARGET=/home/test/OBJ LOCI_COMP=gcc3.0 ./tmpcopy
-%% \end{verbatim}
-
-%% The possible compilers that will work with Loci are:  
-
-%% \begin{center}
-%% \begin{tabular}{|l|l|}
-%% \hline
-%% {\tt LOCI\_COMP} & Description \\
-%% \hline
-%% \hline
-%% {\tt KCC }      & Kuck and Associates C++ compiler \\
-%% {\tt gcc }      & gcc 2.95.3 \\
-%% {\tt gcc3.0}    & gcc 3.0.3 \\
-%% {\tt CC\_sgi}    & SGI's CC compiler \\
-%% \hline
-%% \end{tabular}
-%% \end{center}
-
-%% Once you have run the {\tt tmpcopy} command, you probably should
-%% inspect the {\tt comp.conf} and {\tt sys.conf} files in the target directory.
-%% The {\tt comp.conf} file configures for the particular compiler that you
-%% have selected.  You should check that the path to the compiler is
-%% correct.  The {\tt sys.conf} file configures the particulars of any
-%% given system.  You will need to make sure that the paths to libraries
-%% are correct and that the installation directory ({\tt INSTALL\_DIR})
-%% points to the location where you want to install.  To install Loci
-%% simply type:
-
-%% \begin{verbatim}
-%% make
-%% make install
-%% \end{verbatim}
-
 
 \section{ Compiling Loci Programs }
 
 The most direct way to compile Loci programs is to use the Makefile
 template provided in this tutorial.  It is usually as simple as
-including the Loci.conf file that comes as part of your Loci
-installation.  See the following makefile for an example.
+including the {\tt Loci.conf} file that comes as part of your Loci
+installation.  See appendix \ref{chap:makefile} for an example
+makefile or refer to examples in the tutorial directory.
 
-\include{Makefile_ex}
 
 \section{Loci Initialization}
 
@@ -130,67 +74,6 @@ int main(int argc, char *argv[]) {
 \end{verbatim}
 
 
-
-\section{Running an Example}
-
-Most of the computations discussed in this document are part of an example
-Loci implementation of the finite-volume method applied to the
-two-dimensional heat conduction problem.  You will find this code
-under the {\tt lfvm} directory provided with the tutorial.  If you
-compile the {\tt lfvm} tutorial you will be able to run example
-queries to see the computations proceed for the rule we have just
-described above.  We can run the above program by executing {\tt lfvm}
-with the flag {\tt -q area} to query for area.  The resulting query
-produces output such as:
-
-\begin{verbatim}
-% ./lfvm -q area example_grid
-reading grid file example_grid
-node_alloc = ([0,24])
-triangle_alloc = ([25,60])
-constraint = BC_bottom nodes = ([0,3])
-constraint = BC_left nodes = ([0,0][7,7][14,14][21,21])
-constraint = BC_top nodes = ([21,24])
-constraint = BC_right nodes = ([3,3][10,10][17,17][24,24])
-found 48 internal edges, 12 on boundary
-max_iteration=10000
-heat flux boundary nodes = ([21,24])
-temperature prescribed boundary nodes = ([0,3][7,7][10,10][14,14][17,17][21,21][24,24])
-generating dependency graph...
-Adding rule gradDotN(T)<-(cl,cr)->(centroid,T)
-setting up variable types...
-decomposing graph...
-existential analysis...
-creating execution schedule...
-area = 
-{([25,60])
-0.25
-....
-\end{verbatim}
-
-We can see the execution schedule produced by the Loci query by
-examining the file {\tt ./schedule} provided by the {\tt lfvm} example
-program.  For example:
-
-\begin{verbatim}
-% more .schedule
-allocate all variables
-create 1 threads
-thread barrier ()
-
-area<-triangle_nodes->pos  over sequence ([25,60])
-thread barrier area
-
-destroy threads
-\end{verbatim}
-
-As we can see, the schedule is simple:  we have called the compute
-method for our area rule and passed it a sequence that includes all
-triangles in our grid.
-
-
-
-
 \section{Entities, Sets, and Sequences}
 
 In Loci, computations are represented by associating (binding) values
@@ -198,9 +81,8 @@ In Loci, computations are represented by associating (binding) values
 rather abstract terms, in Loci we often will often interchange the
 meaning of entity with the integer identifier that is used to label a
 given entity.  Thus we may talk of entity $1$ when we are really
-referring to the entity labeled $1$.  (Do not count on this remaining
-true indefinitely.  We plan to change Loci to make entities
-first-class objects.) 
+referring to the entity labeled $1$.  
+%(Do not count on this remaining true indefinitely.  We plan to change Loci to make entities first-class objects.) 
 
 It is useful to consider groups of entities that have similar
 attributes.  In Loci we have two data structures for representing sets
@@ -213,7 +95,7 @@ entities using the {\tt entitySet} class we can also create new sets
 of entities using unions, intersections, and other useful set
 operations.  
 
-The {\tt entitySet} class provides a true set semantics.
+The {\tt entitySet} class provides true set semantics.
 That is, ordering of insertion is not preserved and there is no
 duplication.  Either an entity is in the set or it is not.  If we need
 to preserve the order of entities for looping or other control then we
@@ -776,7 +658,14 @@ an example of how to develop and use parametric rules.
 %\include {dbase}
 %\include {example}
 %\include {make}
-%\include {appendix}
+
+%% Appendicies
+\appendix
+
+\chapter { Makefile Example}
+\label{chap:makefile}
+\include{Makefile_ex}
+
 
 %\appendix{datatype}
 \include {datatype}
@@ -785,6 +674,7 @@ an example of how to develop and use parametric rules.
 
 \include{module}
 %\include{third_party}
+
 
 \end{document}
 

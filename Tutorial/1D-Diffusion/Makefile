@@ -1,14 +1,15 @@
 # This is the Loci base directory.
-LOCI_BASE ?= /simcenter/data4/loci/opt/Loci-Linux-i686-mpic++-rel-3-0-p8
+LOCI_BASE ?= /usr/tmp/lush/Loci
 # List the name of your compiled program here
 TARGET = onedheat
 
 include $(LOCI_BASE)/Loci.conf
+LPP=../lpp
 
 # List your object files here
-OBJS =  main.o advance_time.o boundary_conditions.o cell_center.o \
-        collapse_time.o gradient.o initial_conditions.o stable_timestep.o
-
+OBJS =  main.o heat.o
+#advance_time.o boundary_conditions.o cell_center.o \
+#        collapse_time.o gradient.o initial_conditions.o stable_timestep.o
 
 
 JUNK = *~  core ti_files ii_files make.depend make.depend.bak

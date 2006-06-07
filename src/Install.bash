@@ -1,25 +1,6 @@
 #!/bin/bash
 
-REVISION_NAME='$Name:  $'
-
-INSTALL_DIR=${LOCI_INSTALL_DIR-/usr/local}
-
-COMP_NAME=`echo $CPP | sed -e 's/ .*//' -e 's/.*\///'`
-SYSTEM=`uname -s`
-MACHINE=`uname -p`
-if [ $SYSTEM == "Linux" ]; then MACHINE=`uname -m` ; fi
-
-REV=`echo $REVISION_NAME| sed -e 's/.*: *//' -e 's/ *\$$//'`
-
-# If no revision name, set the default to be month-day-year
-if [ -n "$REV" ]; then 
-echo Revision: $REV
-else
-REV=`date +%m.%d.%y`
-echo Date: $REV
-fi
-
-INSTALL_PATH=$INSTALL_DIR/Loci-$SYSTEM-$MACHINE-$COMP_NAME-$REV/
+INSTALL_PATH=$INSTALL_DIR/$LOCI_INSTALL_DIR
 
 echo INSTALL_PATH = $INSTALL_PATH
 
@@ -29,8 +10,8 @@ mkdir -p $INSTALL_PATH/lib
 mkdir -p $INSTALL_PATH/bin
 
 echo Installing Library Files
-cp Tools/libTools.a $INSTALL_PATH/lib
-cp System/libLoci.a $INSTALL_PATH/lib
+cp Tools/libTools.so $INSTALL_PATH/lib
+cp System/libLoci.so $INSTALL_PATH/lib
 
 echo Installing Loci Tools
 cp lpp/lpp $INSTALL_PATH/bin

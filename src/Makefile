@@ -1,17 +1,23 @@
 #
 # 
-LOCI_BASE = ../
-include sys.conf
-include comp.conf
+LOCI_BASE = $(shell pwd)
+
+include Loci.conf
+
+#include sys.conf
+#include comp.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
-default: Tools System lpp #Tools/libTools.so System/libLoci.so
+default: library lpp FVMtools
 
+library: shared
+
+static: Tools System
 shared: Tools/libTools.so System/libLoci.so 
 
 install: default
-	LOCI_INSTALL_DIR=$(INSTALL_DIR) CPP='$(CPP)' bash Install.bash
+	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) bash Install.bash
 
 Tools : FRC
 	cd Tools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libTools.a
@@ -26,11 +32,15 @@ Tools/libTools.so: FRC
 System/libLoci.so: FRC
 	cd System; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libLoci.so
 
-lpp: FRC
+lpp: library
 	cd lpp; $(MAKE) LOCI_BASE="$(LOCI_BASE)" lpp
 
+FVMtools: library
+	cd FVMtools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
 FRC :
 
+FVMMod: library lpp
+	cd FVMMod; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
 
 JUNK =
 

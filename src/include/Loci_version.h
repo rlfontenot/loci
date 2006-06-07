@@ -16,6 +16,8 @@
 
 #define LOCI_MODIFIED_FACT_DISTRIBUTE
 
+#define LOCI_VERSION_3_1_RELEASE
+
 namespace Loci {
   std::string version() ;
 }

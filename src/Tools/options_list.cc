@@ -92,6 +92,10 @@ namespace Loci {
           oss << "incorrect type for "<< option << endl ;
           throw StringError(oss.str()) ;
       }
+    } else {
+      ostringstream oss ;
+      oss << "options list cannot find option " << option << endl ;
+      throw StringError(oss.str()) ;
     }
 
   }

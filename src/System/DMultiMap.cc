@@ -766,5 +766,43 @@ namespace Loci
     } ENDFORALL ;
   }
 
+  void inverseMap(dmultiMap &result, const dmultiMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) {
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int> tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      std::vector<int>::const_iterator vi ;
+      for(vi=input_map[i].begin();vi!=input_map[i].end();++vi) {
+        int elem = *vi ;
+        if(input_image.inSet(elem)) 
+          result[elem].push_back(i) ;
+      }
+    } ENDFORALL ;
+    
+  }
+  
+  void inverseMap(dmultiMap &result, const multiMap &input_map,
+                  const entitySet &input_image,
+                  const entitySet &input_preimage) {
+    entitySet preloop = input_preimage & input_map.domain() ;
+    std::vector<int> tmp_vec ;
+    FORALL(input_image,i) {
+      result[i] = tmp_vec ;
+    } ENDFORALL ;
+    FORALL(preloop,i) {
+      for(const Entity *ep = input_map.begin(i);ep!=input_map.end(i);++ep) {
+        int elem = *ep ;
+        if(input_image.inSet(elem)) 
+          result[elem].push_back(i) ;
+      }
+    } ENDFORALL ;
+    
+  }
+
+  
 } // end of namespace Loci
 

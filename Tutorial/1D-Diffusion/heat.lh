@@ -1,0 +1,16 @@
+// Types for 1-D diffusion equation
+
+// Grid
+$type il Map ;
+$type ir Map ;
+$type cl Map ;
+$type cr Map ;
+$type x store<float> ;
+$type xc store<float> ;
+$type ux store<float> ;
+$type nu param<float> ;
+$type dt param<float> ;
+$type u store<float> ;
+$type solution store<float> ;
+$type simulation_finished param<bool> ;
+$type max_iteration param<int> ;

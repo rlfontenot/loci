@@ -157,7 +157,30 @@ namespace Loci {
   inline std::ostream & operator<<(std::ostream &s, const const_Map &m)
   { return m.Print(s) ; }
 
-  const int IMAGE_THRESHOLD = 4 ;
+  const int IMAGE_THRESHOLD = 4 ; 
+
+  inline entitySet remapSet(entitySet s, const Map &m) {
+    entitySet t ;
+    std::vector<int> vec ;
+    std::vector<int>::const_iterator vi ;
+    FORALL(s,fc) {
+      vec.push_back(m[fc]) ;
+      //t += m[fc] ;
+    } ENDFORALL ;
+    std::sort(vec.begin(), vec.end()) ;
+    for(vi = vec.begin(); vi != vec.end(); ++vi)
+      t += *vi ;
+    return t ;
+  }
+
+  inline void remapMap(Map &m, const Map &remap, Map &tmp) {
+    FORALL(m.domain(),fc) {
+      tmp[remap[fc]] = m[fc] ;
+    } ENDFORALL ;
+    FORALL(m.domain(),fc) {
+      m[fc] = tmp[fc] ;
+    } ENDFORALL ;
+  }
 }
 
 

@@ -55,22 +55,48 @@ int main(int argc, char *argv[])
       }
       argc -= 1;
       i--;
-    }
-    else {
+    } else {
       std::cerr << "argument " << argv[i] << " is not understood."
 		<< std::endl;
     }
   }      
 
+  //-----------------------------------------------------------------
+  // Create Rule Database
+  //-----------------------------------------------------------------
   
-  const int N = 50 ; // Number of points in grid.
+  rule_db rdb ;
+  rdb.add_rules(global_rule_list) ;
 
   //-----------------------------------------------------------------
-  // Create a 1-d unstructured grid ; Node and Cells are identified
-  // separately.
+  // Create Fact Database
   //-----------------------------------------------------------------
-  entitySet nodes  = interval(0,N) ;
-  entitySet cells  = interval(N+1,2*N);
+  fact_db facts ;
+
+
+  ifstream file("heat.vars",ios::in) ;
+  if(ifile.fail()) {
+    cerr << "can't open 'heat.vars'" << endl ;
+    exit(-1) ;
+  }
+
+  param<int> Nin ;
+  *Nin = 50 ;
+  
+  facts.read_vars(ifile,rdb) ;
+  
+  Nin = facts.get_variable("N") ;
+  
+  const int N = *Nin ; // Number of points in grid.
+
+  //-----------------------------------------------------------------
+  // Create a 1-d unstructured grid ; Allocate space for nodes and
+  // cells.  Distribute to processors using a simple block partition
+  //-----------------------------------------------------------------
+  pair<entitySet,entitySet> node_alloc =
+    facts.get_distributed_alloc(block_partition(N)) ;
+  pair<entitySet,entitySet> cell_alloc = 
+    facts.get_distributed_alloc(block_partition(N-1)) ;
 
   //-----------------------------------------------------------------
   // Generate 1D grid positions at the nodes.
@@ -114,10 +140,6 @@ int main(int argc, char *argv[])
     ir[*ei] = *ei - N ;
   }
 
-  //-----------------------------------------------------------------
-  // Create Facts Database
-  //-----------------------------------------------------------------
-  fact_db facts ;
 
   facts.create_fact("il",il) ;
   facts.create_fact("ir",ir) ;
@@ -148,13 +170,6 @@ int main(int argc, char *argv[])
 
   facts.create_fact("left_boundary",left_boundary) ;
   facts.create_fact("right_boundary",right_boundary) ;
-
-  //-----------------------------------------------------------------
-  // Create Rule database ...
-  //-----------------------------------------------------------------
-  
-  rule_db rdb ;
-  rdb.add_rules(global_rule_list) ;
 
   if (Loci::MPI_processes == 1) {
     // Write out the initial fact database if -fact

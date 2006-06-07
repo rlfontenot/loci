@@ -21,7 +21,7 @@ if [ $# -eq 2 ]; then
 fi
 
 TARGET_DIRS="System Tools include include/Tools include/Config include/MPI_stubb"
-TOOLS_DIRS="lpp"
+TOOLS_DIRS="lpp FVMtools FVMMod"
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -65,22 +65,53 @@ if [ ! -e sys.conf ]; then
 fi
 
 cd lib
-if [ ! -e libTools.a ]; then
-  ln -s ../Tools/libTools.a libTools.a
+#if [ ! -e libTools.a ]; then
+#  ln -s ../Tools/libTools.a libTools.a
+#fi
+#if [ ! -e libLoci.a ]; then
+#  ln -s ../System/libLoci.a libLoci.a
+#fi
+if [ ! -e libTools.so ]; then
+  ln -s ../Tools/libTools.so libTools.so
 fi
-if [ ! -e libLoci.a ]; then
-  ln -s ../System/libLoci.a libLoci.a
+if [ ! -e libLoci.so ]; then
+  ln -s ../System/libLoci.so libLoci.so
 fi
 
 cd ../bin
 if [ ! -e lpp ] ; then 
   ln -s ../lpp/lpp lpp
 fi
+if [ ! -e extract ] ; then
+  ln -s ../FVMtools/extract extract
+fi
+if [ ! -e pb ] ; then
+  ln -s ../FVMtools/pb pb
+fi
+if [ ! -e solidMesh2xdr ] ; then
+  ln -s ../FVMtools/solidMesh2xdr solidMesh2xdr
+fi
+if [ ! -e solidMesh2xdrMPI ] ; then
+  ln -s ../FVMtools/solidMesh2xdrMPI solidMesh2xdrMPI
+fi
+if [ ! -e xdr2cobalt ] ; then
+  ln -s ../FVMtools/xdr2cobalt xdr2cobalt
+fi
+if [ ! -e cobalt2xdr ] ; then
+  ln -s ../FVMtools/cobalt2xdr cobalt2xdr
+fi
+if [ ! -e plot3d2xdr ] ; then
+  ln -s ../FVMtools/plot3d2xdr plot3d2xdr
+fi
+if [ ! -e xdropt ] ; then
+  ln -s ../FVMtools/xdropt xdropt
+fi
+
 
 for dir in $TARGET_DIRS; do
   echo "Linking" $dir "directory files..."
   cd $source/src/$dir
-  for i in *.cc *.h *.hh *.hpp *.c *.lpr Makefile Loci ; do
+  for i in *.cc *.h *.hh *.hpp *.c *.loci *.lh Makefile Loci ; do
     if [ -f  $i ] ; then
       if [ ! -e $target/Loci/$dir/$i ] ; then
         echo ln -s $source/src/$dir/$i $target/Loci/$dir/$i
@@ -93,7 +124,7 @@ done
 for dir in $TOOLS_DIRS; do
   echo "Linking" $dir "directory files..."
   cd $source/$dir
-  for i in *.cc *.h *.hh *.hpp *.c *.lpr Makefile Loci ; do
+  for i in *.cc *.h *.hh *.hpp *.c *.loci *.lh Makefile Loci ; do
     if [ -f  $i ] ; then
       if [ ! -e $target/Loci/$dir/$i ] ; then
         echo ln -s $source/$dir/$i $target/Loci/$dir/$i

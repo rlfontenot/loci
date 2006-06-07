@@ -490,6 +490,18 @@ public:
   }
 } ;
 
+variable convertVariable(variable v) {
+  variable::info vinfo = v.get_info() ;
+  vinfo.priority = std::vector<std::string>() ;
+  for(size_t i=0;i<vinfo.v_ids.size();++i) {
+    std::ostringstream ss ;
+    ss << 'X' << i << endl ;
+    variable xi = variable(ss.str()) ;
+    vinfo.v_ids[i] = xi.ident() ;
+  }
+  return variable(vinfo) ;
+}
+
 void parseFile::setup_Type(std::ostream &outputFile) {
   var vin ;
   vin.get(is) ;
@@ -501,6 +513,7 @@ void parseFile::setup_Type(std::ostream &outputFile) {
     throw parseError("syntax error, missing ';'") ;
   is.get() ;
   variable v(vin.str()) ;
+  v = convertVariable(v) ;
   outputFile << "// $type " << v << ' ' << tin.str() ;
   int nl = vin.num_lines()+tin.num_lines() ;
   line_no += nl ;
@@ -595,6 +608,28 @@ void parseFile::process_Compute(std::ostream &outputFile,
       openbrace++ ;
       continue ;
     }
+    if(is.peek() == '"') {
+      is.get() ;
+      outputFile << '"' ;
+      while(is.peek() != '"' && is.peek() != EOF) {
+        char c = is.get() ;
+        outputFile << c ;
+      }
+      is.get() ;
+      outputFile << '"' ;
+      continue ;
+    }
+    if(is.peek() == '\'') {
+      is.get() ;
+      outputFile << '\'' ;
+      while(is.peek() != '\'' && is.peek() != EOF) {
+        char c = is.get() ;
+        outputFile << c ;
+      }
+      is.get() ;
+      outputFile << '\'' ;
+      continue ;
+    }      
     if(is.peek() == '$') {
       variable v ;
       is.get() ;
@@ -677,6 +712,28 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       openbrace++ ;
       continue ;
     }
+    if(is.peek() == '"') {
+      is.get() ;
+      outputFile << '"' ;
+      while(is.peek() != '"' && is.peek() != EOF) {
+        char c = is.get() ;
+        outputFile << c ;
+      }
+      is.get() ;
+      outputFile << '"' ;
+      continue ;
+    }
+    if(is.peek() == '\'') {
+      is.get() ;
+      outputFile << '\'' ;
+      while(is.peek() != '\'' && is.peek() != EOF) {
+        char c = is.get() ;
+        outputFile << c ;
+      }
+      is.get() ;
+      outputFile << '\'' ;
+      continue ;
+    }      
     if(is.peek() == '/') {
       is.get() ;
       outputFile << '/' ;
@@ -1023,9 +1080,8 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       local_type_map[v] = pair<string,string>("param","<int> ") ;
       continue ;
     }
-    while(v.get_info().priority.size() != 0)
-      v = v.drop_priority() ;
 
+    v = convertVariable(v) ;
     map<variable,pair<string,string> >::const_iterator mi ;
     if((mi = type_map.find(v)) == type_map.end()) {
       v = v.new_offset(0) ;
@@ -1056,9 +1112,9 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     outputFile << "< " << tinfo.first << tinfo.second <<","
                << apply_op.str() ;
     if(tinfo.first == "storeVec") {
-      outputFile << "Vect<" << tinfo.second <<" > " ;
+      outputFile << "<Vect" << tinfo.second <<" > " ;
     } else if(tinfo.first == "storeMat") {
-      outputFile << "Mat<" << tinfo.second <<" > " ;
+      outputFile << "<Mat" << tinfo.second <<" > " ;
     } else {
       outputFile << tinfo.second ;
     }

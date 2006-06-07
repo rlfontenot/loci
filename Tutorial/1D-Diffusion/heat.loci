@@ -1,0 +1,107 @@
+#include <Loci.h>
+
+$include "oned.lt"
+
+//-------------------------------------------------------------------
+// Objective :  Compute u{n+1} based on explicit euler time integration method
+//-------------------------------------------------------------------
+
+$rule pointwise(u{n+1}<-u{n},nu{n},dt{n},(ir{n},il{n})->(ux{n},x{n})) {
+  $u{n+1} = $nu{n}*$dt{n}*($ir{n}->$ux{n}-$il{n}->$ux{n})/
+                           ($ir{n}->$x{n}-$il{n}->$x{n}) ;
+}
+
+
+//*******************************************************************
+// Compute boundary condition at leftmost interface. At left we are
+// imposing Neumann Boundary Condition.
+//*******************************************************************
+
+$rule pointwise(ux), constraint(left_boundary) {
+   $ux = -1 ;
+}
+
+//*******************************************************************
+// Compute boundary condition at rightmost interface. At right we are
+// imposing Neumann Boundary Condition.
+//*******************************************************************
+
+$rule pointwise(ux<-x,cl->(u,xc)), constraint(right_boundary) {
+   $ux = $cl->$u/($cl->$xc-$x) ;
+}
+
+//*******************************************************************
+// Compute center of cells: Also make sure to compute the centroid of
+// only those cells, where left and right interface entities are
+// defined.
+//*******************************************************************
+
+$rule pointwise(xc<-(il,ir)->x) {
+  $xc = .5*($il->$x + $ir->$x) ;
+}
+
+
+//*******************************************************************
+// When simulation is finished, copy current iteration results to
+// solution
+//*******************************************************************
+
+$rule pointwise(solution<-u{n}),conditional(simulation_finished{n}) {
+	$solution = $u{n} ;
+}
+
+
+//*******************************************************************
+// Condition that determines when iteration is complete
+//*******************************************************************
+
+$rule singleton(simulation_finished<-$n,max_iteration) {
+   $simulation_finished = ($$n >= $max_iteration) ;
+}
+
+//*******************************************************************
+// Compute gradient of u at all internal interfaces. An internal face
+// is a face having left and right cell mapping defined. Since a
+// boundary face has only one cell adjacent to it, it willn't calculate
+// gradient at those points.
+//*******************************************************************
+
+$rule pointwise(ux<-(cl,cr)->(u,xc)) {
+  $ux = ($cl->$u-$cr->$u)/($cl->$xc-$cr->$xc) ;
+}
+
+
+//*******************************************************************
+//Initializing values at time= 0 using u(x,0) = f(x). Since "xc" is
+//used, it will calculate the values are cell-centers.
+//*******************************************************************
+
+float f(float x) {
+  return 0 ;
+}
+
+
+$rule pointwise(u{n=0}<-xc) {
+   $u{n=0} = f($xc) ;
+}
+
+
+//*******************************************************************
+// Compute maximum stable timestep for simulation.  Use reduction rule
+// and calculate timestep as a function of local conditions.  The global
+// timestep is the minimum of these local timesteps
+//*******************************************************************
+
+$rule unit(dt), constraint(UNIVERSE) {
+   $dt = 1e30 ; // largest allowble timestep
+}
+
+$rule apply(dt<-dt,(cl,cr)->xc,nu)[Loci::Minimum] {
+    float dx = abs($cr->$xc-$cl->$xc) ;
+    // Compute timestep as 1/2 of maximum stable timestep
+    float local_dt = dx*dx*$nu/4. ;  
+
+    join($dt,local_dt) ; // Set dt = min(dt,local_dt)
+}
+
+
