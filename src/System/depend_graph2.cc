@@ -798,6 +798,7 @@ namespace Loci {
     bool cleaned_rules = false ;
     ruleSet all_cleaned_rules ;
 
+
     // First remove any OUTPUT rules that are using values computed in
     // their iteration level.
 
@@ -852,6 +853,20 @@ namespace Loci {
         }
           
       }
+
+ 
+      // remove promote rules when the target is computed from other rules
+      ruleSet rs = extract_rules(allvertices) ;
+      for(ruleSet::const_iterator ri = rs.begin();ri!=rs.end();++ri) {
+        if(ri->type() == rule::INTERNAL && ri->qualifier() == "promote") {
+          variable v = *(ri->targets().begin()) ;
+          if(grt[v.ident()].size() > 1) {
+            cout << "remove rule " << *ri << endl ;
+            remove_rules += *ri ;
+          }
+        }
+      }
+     
 
       for(ruleSet::const_iterator ri=remove_rules.begin();
           ri!=remove_rules.end(); ++ri)
