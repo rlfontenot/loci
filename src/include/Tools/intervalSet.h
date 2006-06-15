@@ -402,7 +402,7 @@ namespace Loci {
 
   inline intervalSet intervalSet::operator<<(int rotval) const {
     intervalSet retp = (*this) ;
-    retp >>= rotval ;
+    retp <<= rotval ;
     return retp ;
   }
 
