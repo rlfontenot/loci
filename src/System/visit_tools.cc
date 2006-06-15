@@ -1298,7 +1298,7 @@ namespace Loci {
                    << endl
                    << unit_rule << endl ;
         }
-        FATAL(join_op == 0) ;
+        WARN(join_op == 0) ;
         // fill all the maps
         for(ri=apply_rules.begin();ri!=apply_rules.end();++ri)
           apply2unit[*ri] = unit_rule ;
