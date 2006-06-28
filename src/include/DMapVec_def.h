@@ -104,7 +104,7 @@ namespace Loci {
     // -----------------------------------------------------------------
     const VEC &const_elem(int indx)  const { 
       typename HASH_MAP(int,VEC)::const_iterator ci;
-      ci = attrib_data->find(index);
+      ci = attrib_data->find(indx);
       if( ci != attrib_data->end()) return ci->second();
     }
     // -----------------------------------------------------------------
