@@ -1014,7 +1014,7 @@ storeRepP multiMapRepI::thaw() {
       vsize    = end(*ci) - begin(*ci);
       MPI_Pack( &vsize, 1, MPI_INT, outbuf,outcount,
                 &position, MPI_COMM_WORLD) ;
-      MPI_Pack( &base_ptr[*ci], vsize, MPI_INT, outbuf,outcount,
+      MPI_Pack( base_ptr[*ci], vsize, MPI_INT, outbuf,outcount,
                 &position, MPI_COMM_WORLD) ;
     }
 
@@ -1027,7 +1027,13 @@ storeRepP multiMapRepI::thaw() {
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       MPI_Unpack( inbuf, insize, &position, &vsize,
                   1, MPI_INT, MPI_COMM_WORLD) ;
-      MPI_Unpack( inbuf, insize, &position, &base_ptr[*ci],
+#ifdef DEBUG
+      if(vsize != end(*ci)-begin(*ci))
+        cerr << "vsize = " << vsize << ",actual = " << end(*ci)-begin(*ci)
+             << ",ci = " << *ci << endl ;
+#endif
+      fatal(vsize != end(*ci)-begin(*ci)) ;
+      MPI_Unpack( inbuf, insize, &position, base_ptr[*ci],
                   vsize, MPI_INT, MPI_COMM_WORLD) ;
     }
   }   
