@@ -934,11 +934,13 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   
 
   string constraint, conditional ;
+  string parametric_var ;
   list<string> options ;
   list<string> comments ;
   list<pair<variable,variable> > inplace ;
   
   bool use_prelude = false ;
+  bool is_specialized = false ;
   while(is.peek() == ',') {
     is.get() ;
     killsp() ;
@@ -950,6 +952,11 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       nestedparenstuff con ;
       con.get(is) ;
       constraint = con.str() ;
+      line_no += con.num_lines() ;
+    } else if(s == "parametric") {
+      nestedparenstuff con ;
+      con.get(is) ;
+      parametric_var = con.str() ;
       line_no += con.num_lines() ;
     } else if(s == "conditional") {
       nestedparenstuff con ;
@@ -975,6 +982,8 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       use_prelude=true ;
       killsp() ;
       continue ;
+    } else if(s == "specialized") {
+      is_specialized = true ;
     } else if(s == "option") {
       nestedparenstuff ip ;
       ip.get(is) ;
@@ -1210,6 +1219,15 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     syncFile(outputFile) ;
   }
 
+  if(parametric_var != "") {
+    outputFile <<   "       set_parametric_variable(\""
+               << parametric_var << "\") ;" << endl ;
+    syncFile(outputFile) ;
+  }
+  if(is_specialized) {
+    outputFile <<   "       set_specialized() ; " << endl ;
+    syncFile(outputFile) ;
+  }
   if(conditional!="") {
     outputFile <<   "       conditional(\"" << conditional << "\") ;" << endl ;
     syncFile(outputFile) ;
