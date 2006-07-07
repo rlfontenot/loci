@@ -457,9 +457,11 @@ namespace Loci {
     global_io_dom = all_collect_entitySet(global_io_dom);
 
     if(global_loci_dom.size() != global_io_dom.size()) {
-      cerr << "remap is not able to provide information of all entities.";
-      cerr << "loci_entities: " << global_loci_dom << " has total " << global_loci_dom.size() << endl; 
-      cerr << "mapped io_entities : " << global_io_dom << " has total "  << global_io_dom.size() << endl;
+      cerr << "remap is not able to provide information of all entities."<<endl;
+      cerr << "see debug files for details " << endl ;
+      debugout << "remap is not able to provide information of all entities.";
+      debugout << "loci_entities: " << global_loci_dom << " has total " << global_loci_dom.size() << endl; 
+      debugout << "mapped io_entities : " << global_io_dom << " has total "  << global_io_dom.size() << endl;
     }
 
     dMap reverse ; //Mapping from loci entities to io entities 

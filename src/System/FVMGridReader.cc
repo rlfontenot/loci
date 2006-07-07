@@ -22,28 +22,29 @@ using std::string ;
 #include <vector>
 using std::vector ;
 
+#include <malloc.h>
+
 extern "C" {
   typedef int idxtype ;
   void ParMETIS_PartKway(idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, int *, int *, idxtype *, MPI_Comm *);
 }
 
-namespace Loci { 
+namespace Loci {
 
-  vector<entitySet> randomPartition(entitySet ent) {
-    vector<int> ent_vect;
-    vector<entitySet> ptn(Loci::MPI_processes);
-    for(entitySet::const_iterator ei = ent.begin(); 
-	ei != ent.end(); ei++) 
-      ent_vect.push_back(*ei);
-
-    for(int i = 0; i < ent.size(); i++) {
-      int tmp = rand();
-      tmp = tmp % Loci::MPI_processes;
-      ptn[tmp] += ent_vect[i];
-    }
-    return ptn;
+  void memSpace(string s) {
+#define DIAG
+#ifdef DIAG
+    struct mallinfo info = mallinfo() ;
+    debugout << s << ": minfo, arena=" << info.arena
+             << ", ordblks=" << info.ordblks
+             << ", hblks="<< info.hblks
+             << ", hblkhd="<< info.hblkhd
+             << ", uordblks=" << info.uordblks
+             << ", fordblks="<<info.fordblks
+             << ", keepcost="<<info.keepcost << endl ;
+    debugout.flush() ;
+#endif
   }
-
   extern bool use_simple_partition ;
   //Following assumption is needed for the next three functions
   //Assumption: We follow the convention that boundary cells are always on right side 
@@ -80,9 +81,10 @@ namespace Loci {
   bool readGridXDR(vector<entitySet> &local_nodes, 
 		   vector<entitySet> &local_faces, 
 		   vector<entitySet> &local_cells,
-		   dstore<vector3d<double> > &pos, dMap &cl, dMap &cr,
-		   dmultiMap &face2node, int max_alloc, string filename) {
-    
+		   store<vector3d<double> > &pos, Map &cl, Map &cr,
+		   multiMap &face2node, int max_alloc, string filename) {
+
+    memSpace("begin readGridXDR") ;
     local_nodes.resize(Loci::MPI_processes);
     local_faces.resize(Loci::MPI_processes);
     local_cells.resize(Loci::MPI_processes);
@@ -126,7 +128,7 @@ namespace Loci {
 	MPI_Bcast(data, 3, MPI_INT, 0, MPI_COMM_WORLD) ;
     }
     else {
-      int data[3] ;
+      int data[3] = {0,0,0} ;
       MPI_Bcast(data, 3, MPI_INT, 0, MPI_COMM_WORLD) ;
       npnts = data[0] ;
       nfaces = data[1] ;
@@ -174,6 +176,7 @@ namespace Loci {
       cell_accum = cell_accum_update ;
     }
 
+    memSpace("read file, before node redistribution") ;
     // Distribute positions
     if(Loci::MPI_rank == 0) {
       double *tmp_pos ;
@@ -183,6 +186,7 @@ namespace Loci {
           return false ;
       
       int tmp = 0 ;
+      pos.allocate(local_nodes[Loci::MPI_rank]) ;
       for(entitySet::const_iterator ei = local_nodes[Loci::MPI_rank].begin(); ei != local_nodes[Loci::MPI_rank].end(); ++ei) {
 	vector3d<double> t(tmp_pos[tmp], tmp_pos[tmp+1], tmp_pos[tmp+2]) ;
 	tmp += 3 ;
@@ -206,6 +210,7 @@ namespace Loci {
       MPI_Recv(tmp_pos,recv_count,MPI_DOUBLE,0,9,MPI_COMM_WORLD,&status) ;
 
       int tmp = 0 ;
+      pos.allocate(local_nodes[Loci::MPI_rank]) ;
       for(entitySet::const_iterator ei = local_nodes[Loci::MPI_rank].begin(); ei != local_nodes[Loci::MPI_rank].end(); ++ei) {
 	vector3d<double> t(tmp_pos[tmp], tmp_pos[tmp+1], tmp_pos[tmp+2]) ;
 	tmp += 3 ;
@@ -214,7 +219,9 @@ namespace Loci {
       
       delete [] tmp_pos ;
     }
-
+    cl.allocate(local_faces[Loci::MPI_rank]) ;
+    cr.allocate(local_faces[Loci::MPI_rank]) ;
+    
     store<int> local_count ;
     local_count.allocate(local_faces[Loci::MPI_rank]) ;
     std::vector<int> offset ;
@@ -235,7 +242,7 @@ namespace Loci {
 	if(cl[*ei] < 0) 
 	  if(cr[*ei] < 0) {
 	    cerr << " boundary condition on both sides of a face?" << endl ;
-	    Loci::Abort() ;
+	    exit(1) ;
 	  } else {
 	    int tmp_swap = cr[*ei] ;
 	    cr[*ei] = cl[*ei] ;
@@ -279,7 +286,7 @@ namespace Loci {
 	if(cl[*ei] < 0) 
 	  if(cr[*ei] < 0) {
 	    cerr << "2 boundary condition on both sides of a face?" << endl ;
-	    Loci::Abort() ;
+	    exit(1) ;
 	  } else {
 	    int tmp = cr[*ei] ;
 	    cr[*ei] = cl[*ei] ;
@@ -349,98 +356,48 @@ namespace Loci {
       xdr_destroy(&xdr_handle) ;
       fclose(FP) ;
     }
+    memSpace("returning from grid reader") ;
     return true;
   }
 
-  //Note: This function should not be called for serial version
-  //Input: 
-  // max_alloc(maximum allocated entity for fact_db that is 
-  //                 the minimum entity for the returned distribution)
-  // number of  nodes, faces and cells
-  //Output: Returns naive distribution(init_ptn of fact_db) by allocating number of nodes, faces, cells
-  vector<entitySet> getNaiveDistribution(int max_alloc,unsigned int num_nodes,
-					 unsigned int num_faces,unsigned int num_cells) {
-    fact_db local_facts ;
-    local_facts.set_maximum_allocated(max_alloc) ;
-    local_facts.get_distributed_alloc(num_nodes) ;
-    local_facts.get_distributed_alloc(num_faces) ;
-    local_facts.get_distributed_alloc(num_cells) ;
-    return(local_facts.get_init_ptn()) ;
-  }
 
-  //Note: This function should not be called for serial version
-  //Description: It does the preprocessing and creates datastrctures to call metisPartitionOfCells.
-  //Input: 
-  // tmp_cl, tmp_cr: mapping from faces to their left and right cells respectively
-  // local_faces, local_cells: partition of faces and cells
-  // init_ptn: partition of all entities
-  //Output:
-  // left_cells_to_cells, right_cells_to_cells: cell to cell mapping for cells on the left
-  //      side and right side of the faces respectively
-  // tmp_cl(modified), tmp_cr(modified): expanded for the faces which do not belong to 
-  //       a processor but these faces has cells that belong to that processor on left
-  //       and right side respectively
-  void createCelltoCellMapping(dMap &tmp_cl, dMap &tmp_cr,  dmultiMap &left_cells_to_cells,
-			       dmultiMap &right_cells_to_cells, const vector<entitySet> &local_faces,
-			       const vector<entitySet> &local_cells, vector<entitySet> init_ptn) {
-    entitySet cells, faces;
-    for(int i = 0; i < Loci::MPI_processes; i++) {
-      cells += local_cells[i];
-      faces += local_faces[i];
+  using std::vector ;
+  using std::pair ;
+  extern void distributed_inverseMap(multiMap &result,
+                                     vector<pair<Entity,Entity> > &input,
+                                     entitySet input_image,
+                                     entitySet input_preimage,
+                                     const std::vector<entitySet> &init_ptn) ;
+  
+  vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells, 
+                                             const Map &cl, const Map &cr) {
+
+
+    entitySet dom = cl.domain() & cr.domain() ;
+    entitySet::const_iterator ei ;
+    int cnt = 0 ;
+    for(ei=dom.begin();ei!=dom.end();++ei) {
+      if(cl[*ei] > 0 && cr[*ei]>0)
+        cnt++ ;
+    }
+    vector<pair<int,int> > rawMap(cnt*2) ;
+    int j = 0 ;
+    for(ei=dom.begin();ei!=dom.end();++ei) {
+      if(cl[*ei] > 0 && cr[*ei]>0) {
+        rawMap[j++] = pair<int,int>(cl[*ei],cr[*ei]) ;
+        rawMap[j++] = pair<int,int>(cr[*ei],cl[*ei]) ;
+      }
     }
 
-    entitySet local_interior_faces = getInteriorFaces(MapRepP(tmp_cr.Rep()));
-    entitySet global_interior_faces = all_collect_entitySet(local_interior_faces) ;
+    sort(rawMap.begin(),rawMap.end()) ;
 
-    Loci::distributed_inverseMap(left_cells_to_cells, tmp_cl, cells, global_interior_faces, init_ptn) ;
-    Loci::distributed_inverseMap(right_cells_to_cells, tmp_cr, cells, global_interior_faces, init_ptn) ;
+    multiMap cell2cell ;
+    entitySet all_cells ;
+    for(int i=0;i<MPI_processes;++i)
+      all_cells += local_cells[i] ;
+    distributed_inverseMap(cell2cell,rawMap, all_cells,all_cells,local_cells) ;
 
-    entitySet cl_out, cr_out ;
-    
-    //faces of which local cells are on left side
-    entitySet cl_inv_ran = Loci::MapRepP(left_cells_to_cells.Rep())->image(local_cells[Loci::MPI_rank]) ;
-
-    //faces of which local cells are on left side but faces don't belong to this processor.
-    //Since all faces in left_cells_to_cells are interior faces, there should be another processor
-    //which has cells that belong to right side of these faces
-    cr_out  = cl_inv_ran - local_faces[Loci::MPI_rank] ;
-    
-    //Right now we have cells->faces and faces->cells mapping. We need to have cells->cells mapping.  
-    //For that we need the information of the all faces for which local cells are either right or left sides
-    Loci::storeRepP crsp = Loci::MapRepP(tmp_cr.Rep())->expand(cr_out, init_ptn) ;
-    tmp_cr.setRep(crsp);
-    
-    //same logic as above to expand tmp_cl
-    entitySet cr_inv_ran = Loci::MapRepP(right_cells_to_cells.Rep())->image(local_cells[Loci::MPI_rank]) ;
-    cl_out  = cr_inv_ran - local_faces[Loci::MPI_rank] ; 
-    Loci::storeRepP clsp = Loci::MapRepP(tmp_cl.Rep())->expand(cl_out, init_ptn) ;
-    tmp_cl.setRep(clsp);
-    
-    //Now we can get cells->cells mapping for the metis patitioning of cells
-    Loci::MapRepP(left_cells_to_cells.Rep())->compose(tmp_cr, left_cells_to_cells.domain()) ;
-    Loci::MapRepP(right_cells_to_cells.Rep())->compose(tmp_cl, right_cells_to_cells.domain()) ;
-  }
-  
-  //Note: This function should not be called for serial version
-  //Input:
-  // local_cells: current partition of cells
-  // cell->cell mappings
-  //Output:
-  // metis partition of cells
-  vector<entitySet> metisPartitionOfCells(const vector<entitySet> &local_cells, 
-					  const dmultiMap &left_cells_to_cells, 
-					  const dmultiMap &right_cells_to_cells) {
-
-    //create parameters to call ParMetis for partitioning the cells
-    dmultiMap dynamic_map ;
-    FORALL(local_cells[Loci::MPI_rank], lci) {
-      std::vector<int> tmp_int ;
-      for(size_t i = 0; i < left_cells_to_cells[lci].size(); ++i)
-	tmp_int.push_back(left_cells_to_cells[lci][i]) ;
-      for(size_t i = 0; i < right_cells_to_cells[lci].size(); ++i)
-	tmp_int.push_back(right_cells_to_cells[lci][i]) ;
-      dynamic_map[lci] = tmp_int ;
-    } ENDFORALL ;
+    vector<pair<int,int> >().swap(rawMap) ; // Free up memory from rawMap
     int count = 0 ;
     int size_map = local_cells[Loci::MPI_rank].size() ;
     entitySet dom_map = Loci::interval(0, size_map-1) ;
@@ -448,7 +405,7 @@ namespace Loci {
     size_adj.allocate(dom_map) ;
     count = 0 ;
     for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) {
-      size_adj[count] = dynamic_map[*ei].size() ;  
+      size_adj[count] = cell2cell.end(*ei)-cell2cell.begin(*ei) ;
       ++count ;
     }
 
@@ -467,16 +424,19 @@ namespace Loci {
       
     int *adjncy = new int[xadj[size_map]] ;
     count = 0 ;
-    for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) 
-      for(size_t i = 0; i != dynamic_map[*ei].size(); ++i)        {
-	adjncy[count] = dynamic_map[*ei][i] - cmin ;
+    for(entitySet::const_iterator ei = local_cells[Loci::MPI_rank].begin(); ei != local_cells[Loci::MPI_rank].end(); ++ei) {
+      size_t sz = cell2cell.end(*ei)-cell2cell.begin(*ei) ;
+      for(size_t i = 0; i != sz; ++i)        {
+	adjncy[count] = cell2cell[*ei][i] - cmin ;
 	count ++ ;
       }
+    }
+    cell2cell.setRep(multiMap().Rep()) ;// Free up memory from multiMap
+    
     vdist[0] = 0 ;
     for(int i = 1; i <= Loci::MPI_processes; ++i) 
       vdist[i] = vdist[i-1] + local_cells[i-1].size() ;
       
-    MPI_Barrier(MPI_COMM_WORLD) ;
 #ifndef MPI_STUBB
     MPI_Comm mc = MPI_COMM_WORLD ;
     int num_partitions = Loci::MPI_processes ;
@@ -505,167 +465,233 @@ namespace Loci {
     
   }
   
-  //Note: This function should not be called for serial version
-  //Input:
-  // naive_init_ptn: initial naive partition of cells
-  // metis_cell_ptn: partition of cells given by metis
-  // global_nodes, global_faces, global_cells: entites on all processors for  nodes, faces, cells
-  // t_pos: position vector of nodes
-  // tmp_cl, tmp_cr: mapping from faces to cells on left and right side
-  // tmp_face2node: mapping from faces to nodes 
-  //Output: 
-  // partition of all entities based on the cell partition given by metis
-  // tmp_cl, tmp_cr, tmp_face2node, t_pos (all modified): Adds information of newly
-  // added entities to my ownership
-  vector<entitySet> newPartitionUsingCellPartition(vector<entitySet> naive_init_ptn, 
-						   vector<entitySet> metis_cell_ptn,
-						   entitySet global_nodes,
-						   entitySet global_faces,
-						   entitySet global_cells,
-						   dstore<vector3d<double> > &t_pos, 
-						   dMap &tmp_cl, dMap &tmp_cr, 
-						   dmultiMap &tmp_face2node,
-						   entitySet &naive_extra_comp_ent) {
 
-    std::vector<entitySet> new_init_ptn = naive_init_ptn ;
+  void redistribute_container(const vector<entitySet> &ptn,
+                              const vector<entitySet> &ptn_t,
+                              entitySet new_alloc,
+                              storeRepP inRep,storeRepP outRep) {
+    vector<sequence> rdom(MPI_processes) ;
+    vector<int> send_sizes(MPI_processes) ;
+    // Determine how to redistribute current domain to new processors
 
-    //remove old cells and add new cells to the partition
-    for(int i = 0; i < Loci::MPI_processes; ++i) {
-      metis_cell_ptn[i] = all_collect_entitySet(metis_cell_ptn[i]) ;
-      new_init_ptn[i] -= global_cells ;
-      new_init_ptn[i] += metis_cell_ptn[i] ; 
-    } 
-    
-    dmultiMap left_cells_to_faces ;
-    Loci::distributed_inverseMap(left_cells_to_faces, tmp_cl, global_cells, global_faces, naive_init_ptn) ;
-
-    //cells that are added to my ownership
-    entitySet cells_out = metis_cell_ptn[Loci::MPI_rank] - left_cells_to_faces.domain();
-
-    Loci::storeRepP inverse_sp = Loci::MapRepP(left_cells_to_faces.Rep())->expand(cells_out, naive_init_ptn) ;
-
-    entitySet cl_inv_ran = Loci::MapRepP(inverse_sp)->image(metis_cell_ptn[Loci::MPI_rank]) ;
-      
-    //faces that are added to my ownership
-    entitySet faces_out = cl_inv_ran - tmp_cl.domain() ;
-      
-    Loci::storeRepP clsp = Loci::MapRepP(tmp_cl.Rep())->expand(faces_out, naive_init_ptn) ;
-    tmp_cl.setRep(clsp);
-    
-    std::vector<entitySet> v_req = all_collect_vectors(cl_inv_ran) ;
-      
-    //remove old faces and add new faces to the partition
-    for(int i = 0; i < Loci::MPI_processes; ++i) {
-      new_init_ptn[i] -= global_faces ;
-      new_init_ptn[i] += v_req[i] ;
+    entitySet::const_iterator ei = new_alloc.begin() ;
+    for(int i=0;i<MPI_processes;++i) {
+      send_sizes[i] = inRep->pack_size(ptn[i]) ;
+      sequence s ;
+      for(entitySet::const_iterator si=ptn_t[i].begin();si!=ptn_t[i].end();++si) {
+        s += *ei ;
+        ++ei ;
+      }
+      rdom[i] = s ;
     }
-
-    if(duplicate_work) {
-      dmultiMap right_cells_to_faces;
-      Loci::distributed_inverseMap(right_cells_to_faces, tmp_cr, global_cells, global_faces, naive_init_ptn) ;
-      inverse_sp = Loci::MapRepP(right_cells_to_faces.Rep())->expand(cells_out, naive_init_ptn) ;
-      entitySet cr_inv_ran = Loci::MapRepP(inverse_sp)->image(metis_cell_ptn[Loci::MPI_rank]) ;
-      naive_extra_comp_ent += cr_inv_ran - v_req[Loci::MPI_rank];
-    }
-
-    entitySet f2n_out = v_req[Loci::MPI_rank] - tmp_face2node.domain() ;
-    Loci::storeRepP f2n_sp = Loci::MapRepP(tmp_face2node.Rep())->expand(f2n_out, naive_init_ptn) ; 
-    tmp_face2node.setRep(f2n_sp);
+    WARN(ei != new_alloc.end()) ;
     
-    entitySet my_nodes = Loci::MapRepP(tmp_face2node.Rep())->image(v_req[Loci::MPI_rank]) ;
-    v_req = all_collect_vectors(my_nodes) ;
+    vector<int> recv_sizes(MPI_processes) ;
+    MPI_Alltoall(&send_sizes[0],1,MPI_INT,
+                 &recv_sizes[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int size_send = 0 ;
+    int size_recv = 0 ;
+    for(int i=0;i<MPI_processes;++i) {
+      size_send += send_sizes[i] ;
+      size_recv += recv_sizes[i] ;
+    }
+    //    outRep->allocate(new_alloc) ;
+    unsigned char *send_store = new unsigned char[size_send] ;
+    unsigned char *recv_store = new unsigned char[size_recv] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
 
-    //In case of tie of node ownership, 
-    //resolve it by giving node entity to the processor who has lower rank
-    //remove old nodes and add new nodes to the partition
-    for(int i = 0; i < Loci::MPI_processes; ++i) {
-      for(int j = i+1 ; j < Loci::MPI_processes; ++j) {
-	entitySet  tmp = v_req[i] & v_req[j] ;
-	v_req[j] -= tmp ;
-      } 
-      new_init_ptn[i] -= global_nodes ;
-      new_init_ptn[i] += v_req[i] ;
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i <  MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_sizes[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_sizes[i-1] ;
+    }
+    int loc_pack = 0 ;
+    for(int i = 0; i <  MPI_processes; ++i) 
+      inRep->pack(send_store, loc_pack, size_send, ptn[i]) ;
+    
+    
+    MPI_Alltoallv(send_store,&send_sizes[0], send_displacement , MPI_PACKED,
+		  recv_store, &recv_sizes[0], recv_displacement, MPI_PACKED,
+		  MPI_COMM_WORLD) ;  
+    loc_pack = 0 ;
+    for(int i = 0; i <  MPI_processes; ++i) {
+      outRep->unpack(recv_store, loc_pack, size_recv, rdom[i]) ; 
     }
     
-    //add information of newly added faces to tmp_cr and nodes to t_pos
-    entitySet cr_out = cl_inv_ran - tmp_cr.domain() ;
-    Loci::storeRepP crsp = Loci::MapRepP(tmp_cr.Rep())->expand(cr_out, naive_init_ptn) ;
-    tmp_cr.setRep(crsp);
-    
-    entitySet pos_out = my_nodes - t_pos.domain() ;
-    Loci::storeRepP t_pos_sp = t_pos.Rep() ;
-    entitySet total_dom = t_pos.domain() + my_nodes ;
-    fill_clone(t_pos_sp, pos_out, naive_init_ptn) ;
-      
-    return new_init_ptn;
+    delete[] recv_displacement ;
+    delete[] send_displacement ;
+    delete[] recv_store ;
+    delete[] send_store ;
   }
 
-  //Note: This function should not be called for serial version.  copyGridStructure is used for that.
-  //Input:
-  // loc_nodes, loc_faces, loc_cells: old entities of nodes, cells and faces to my ownership
-  // tmp_cl, tmp_cr: old mapping from face to cell on left and right side
-  // tmp_face2node: old mapping from face to nodes
-  // t_pos: position of old nodes
+  inline bool fieldSort(const std::pair<Entity,Entity> &p1,
+                        const std::pair<Entity,Entity> &p2) {
+    return p1.first < p2.first ;
+  }
+  
+  void remapGrid(vector<entitySet> &node_ptn,
+                 vector<entitySet> &face_ptn,
+                 vector<entitySet> &cell_ptn,
+                 vector<entitySet> &node_ptn_t,
+                 vector<entitySet> &face_ptn_t,
+                 vector<entitySet> &cell_ptn_t,
+                 store<vector3d<double> > &t_pos, Map &tmp_cl,
+                 Map &tmp_cr, multiMap &tmp_face2node, 
+                 entitySet nodes, entitySet faces, entitySet cells,
+                 store<vector3d<double> > &pos, Map &cl, Map &cr,
+                 multiMap &face2node) {
 
-  // nodes, faces, cells: new entities of nodes, faces and cells to my ownership
-  //Output:
-  // cl, cl: new mapping from face to cell
-  // face2node: new mapping from face to nodes
-  // pos: position reamapped to new nodes
-  void remapGridStructures(entitySet loc_nodes, entitySet loc_faces, entitySet loc_cells, 
-			   const dstore<vector3d<double> > &t_pos, const dMap &tmp_cl,
-			   const dMap &tmp_cr, const dmultiMap &tmp_face2node, 
-			   entitySet nodes, entitySet faces, entitySet cells,
-		   	   store<vector3d<double> > &pos, Map &cl, Map &cr, multiMap &face2node) {
+    pos.allocate(nodes) ;
+    cl.allocate(faces) ;
+    cr.allocate(faces) ;
+    entitySet old_nodes = t_pos.domain() ;
+    redistribute_container(node_ptn,node_ptn_t,nodes,t_pos.Rep(),pos.Rep()) ;
+    t_pos.allocate(EMPTY) ;
+    redistribute_container(face_ptn,face_ptn_t,faces,tmp_cr.Rep(),cr.Rep()) ;
+    tmp_cr.allocate(EMPTY) ;
+    redistribute_container(face_ptn,face_ptn_t,faces,tmp_cl.Rep(),cl.Rep()) ;
+    tmp_cl.allocate(EMPTY) ;
 
+    using std::pair ;
+    vector<pair<Entity,Entity> > sortlist(faces.size()) ;
+    
+    store<int> count ;
+    entitySet infaces = tmp_face2node.domain() ;
+    count.allocate(infaces) ;
+    for(entitySet::const_iterator ii=infaces.begin();ii!=infaces.end();++ii)
+      count[*ii] = tmp_face2node.end(*ii)-tmp_face2node.begin(*ii) ;
+    store<int> count_reorder ;
+    count_reorder.allocate(faces) ;
+    redistribute_container(face_ptn,face_ptn_t,faces,count.Rep(),count_reorder.Rep()) ;
+
+    face2node.allocate(count_reorder) ;
+    redistribute_container(face_ptn,face_ptn_t,faces,tmp_face2node.Rep(),
+                           face2node.Rep()) ;
+    tmp_face2node.allocate(EMPTY) ;
+
+    // sort faces
+    int i=0 ;
+    FORALL(faces,fc) {
+      Entity minc = min(cr[fc],cl[fc]) ;
+      Entity maxc = max(cr[fc],cl[fc]) ;
+      cr[fc] = minc ;
+      cl[fc] = maxc ;
+      sortlist[i++] = pair<Entity,Entity>(minc,fc) ;
+    } ENDFORALL ;
+    sort(sortlist.begin(),sortlist.end(),fieldSort) ;
+    i = 0 ;
+    Map convert ;
+    convert.allocate(faces) ;
+    FORALL(faces,fc) {
+      convert[fc] = sortlist[i++].second ;
+      count_reorder[fc] = (face2node.end(convert[fc])-
+                           face2node.begin(convert[fc])) ;
+    } ENDFORALL ;
+    Map clt,crt ;
+    clt.allocate(faces) ;
+    crt.allocate(faces) ;
+    FORALL(faces,fc) {
+      clt[fc] = cl[convert[fc]] ;
+      crt[fc] = cr[convert[fc]] ;
+    } ENDFORALL ;
+    cl.setRep(clt.Rep()) ;
+    cr.setRep(crt.Rep()) ;
+    multiMap face2nodet ;
+    face2nodet.allocate(count_reorder) ;
+    FORALL(faces,fc) {
+      int sz = count_reorder[fc] ;
+      for(int j=0;j<sz;++j)
+        face2nodet[fc][j] = face2node[convert[fc]][j] ;
+    } ENDFORALL ;
+    face2node.setRep(face2nodet.Rep()) ;
+    // Remember to add an update remap!!!
+    
+    using std::cout ;
+    using std::endl ;
+
+    vector<int> saddr(MPI_processes)  ;
+    for(int i=0;i<MPI_processes;++i) {
+      saddr[i] = node_ptn[i].size() ;
+    }
+    vector<int> raddr(MPI_processes) ;
+    MPI_Alltoall(&saddr[0],1,MPI_INT,
+                 &raddr[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int b = *nodes.begin() ;
+    int sum = 0 ;
+    for(int i=0;i<MPI_processes;++i) {
+      int tmp = raddr[i] ;
+      raddr[i] = b+sum ;
+      sum += tmp ;
+    }
+    MPI_Alltoall(&raddr[0],1,MPI_INT,
+                 &saddr[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+
+    // Renumber maps (targets nodes and cells)
     dMap remap;
-    entitySet::const_iterator ei = loc_nodes.begin() ;
-    FORALL(nodes, li) {
-      remap[*ei] = li ;
-      ++ei ;
-    } ENDFORALL ;
-      
-    pos = t_pos.Rep()->remap(remap)->freeze() ;
+    for(int i=0;i<MPI_processes;++i) {
+      int k = 0 ;
+      FORALL(node_ptn[i], li) {
+        remap[li] = saddr[i]+k ;
+        k++ ;
+      } ENDFORALL ;
+    }
 
-    ei = loc_faces.begin() ;
-    FORALL(faces, li) {
-      remap[*ei] = li ;
-      ++ei ;
-    } ENDFORALL ;
-      
-    ei = loc_cells.begin() ;
-    FORALL(cells, li) {
-      remap[*ei] = li ;
-      ++ei ;
-    } ENDFORALL ;
+    entitySet orig_cells ;
+    for(int i=0;i<MPI_processes;++i) {
+      saddr[i] = cell_ptn[i].size() ;
+      orig_cells += cell_ptn[i] ;
+    }
+    MPI_Alltoall(&saddr[0],1,MPI_INT,
+                 &raddr[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    b = *cells.begin() ;
+    sum = 0 ;
+    for(int i=0;i<MPI_processes;++i) {
+      int tmp = raddr[i] ;
+      raddr[i] = b+sum ;
+      sum += tmp ;
+    }
+    MPI_Alltoall(&raddr[0],1,MPI_INT,
+                 &saddr[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
 
-    entitySet loc_boundary_cells = getBoundaryCells(Loci::MapRepP(tmp_cr.Rep()));
+    for(int i=0;i<MPI_processes;++i) {
+      int k = 0 ;
+      FORALL(cell_ptn[i], li) {
+        remap[li] = saddr[i]+k ;
+        k++ ;
+      } ENDFORALL ;
+    }
+
+    entitySet loc_boundary_cells = getBoundaryCells(MapRepP(cr.Rep()));
+    loc_boundary_cells = all_collect_entitySet(loc_boundary_cells) ;
+
     FORALL(loc_boundary_cells, li) {
       remap[li] = li;
     } ENDFORALL ;
 
+    
+    entitySet out_of_dom ;
+    MapRepP f2n = MapRepP(face2node.Rep()) ;
+    out_of_dom += cr.image(cr.domain())-(orig_cells+loc_boundary_cells) ;
+    out_of_dom += cl.image(cl.domain())-orig_cells ;
+    out_of_dom += f2n->image(f2n->domain())-old_nodes ;
+    entitySet old_dom = orig_cells+old_nodes ;
+    vector<entitySet> old_ptn = all_collect_vectors(old_dom) ;
+    {
+      storeRepP PRep = remap.Rep() ;
+      fill_clone(PRep,out_of_dom,old_ptn) ;
+    }
 
-    std::vector<entitySet> node_ptn = all_collect_vectors(loc_nodes) ;
-    std::vector<entitySet> cell_ptn = all_collect_vectors(loc_cells) ;
+    MapRepP(face2node.Rep())->compose(remap,faces) ;
+    MapRepP(cr.Rep())->compose(remap,faces) ;
+    MapRepP(cl.Rep())->compose(remap,faces) ;
 
-    //Next few lines adds information of entities of nodes and cells belong to other processors  to the remap
-    //That information is needed to call remap() on tmp_face2node, tmp_cl and tmp_cr
-    entitySet entities_accessed = Loci::MapRepP(tmp_face2node.Rep())->image(loc_faces) ;
-    entitySet remap_out = entities_accessed - loc_nodes ;
-    Loci::storeRepP remap_sp = Loci::MapRepP(remap.Rep())->expand(remap_out, node_ptn) ;
-    remap.setRep(remap_sp) ; 
-
-    entities_accessed = Loci::MapRepP(tmp_cl.Rep())->image(loc_faces) ;
-    remap_out = entities_accessed - loc_cells ;
-    entities_accessed = Loci::MapRepP(tmp_cr.Rep())->image(loc_faces) ;
-    entities_accessed &= interval(0, Loci::UNIVERSE_MAX) ;
-    remap_out += entities_accessed - loc_cells ;
-    remap_sp = Loci::MapRepP(remap.Rep())->expand(remap_out, cell_ptn) ;
-    remap.setRep(remap_sp) ; 
-
-    cl = tmp_cl.Rep()->remap(remap)->freeze() ;
-    cr = tmp_cr.Rep()->remap(remap)->freeze() ;
-    face2node = tmp_face2node.Rep()->remap(remap)->freeze() ;
   }
 
   //Note: This function is designed for serial version.
@@ -677,9 +703,9 @@ namespace Loci {
   //Output:
   // pos, cl, cr, face2node: static version of structures in the Input 
   void copyGridStructures( entitySet nodes, entitySet faces, entitySet cells,
-			   const dstore<vector3d<double> > &t_pos,
-			   const dMap &tmp_cl, const dMap &tmp_cr,
-			   const dmultiMap &tmp_face2node,
+			   const store<vector3d<double> > &t_pos,
+			   const Map &tmp_cl, const Map &tmp_cr,
+			   const multiMap &tmp_face2node,
 			   store<vector3d<double> > &pos, Map &cl, Map &cr,
 			   multiMap &face2node) {
 
@@ -699,26 +725,193 @@ namespace Loci {
       identity_map[ei] = ei ;
     } ENDFORALL ; 
     
-    pos = t_pos.Rep()->remap(identity_map)->freeze() ;
-    cl = tmp_cl.Rep()->remap(identity_map)->freeze() ;
-    cr = tmp_cr.Rep()->remap(identity_map)->freeze() ;
+    pos = t_pos.Rep()->remap(identity_map);
+    cl = tmp_cl.Rep()->remap(identity_map);
+    cr = tmp_cr.Rep()->remap(identity_map);
     face2node = MapRepP(tmp_face2node.Rep())->get_map();
 
   }
 
+  vector<entitySet> partitionFaces(vector<entitySet> cell_ptn, const Map &cl,
+                                   const Map &cr) {
+    dstore<short> P ;
+    entitySet cells ;
+    for(int i=0;i<MPI_processes;++i) {
+      FORALL(cell_ptn[i],cc) {
+        P[cc] = i ;
+      } ENDFORALL ;
+      cells+= cell_ptn[i] ;
+    }
+    vector<entitySet> ptn_cells = all_collect_vectors(cells) ;
+    entitySet faces = cl.domain() & cr.domain() ;
+    entitySet dom = cl.image(faces) | cr.image(faces) ;
+    dom -= interval(UNIVERSE_MIN,-1) ;
+    dom -= cells ;
+    {
+      storeRepP PRep = P.Rep() ;
+      fill_clone(PRep,dom,ptn_cells) ;
+    }
+    vector<entitySet> face_ptn(MPI_processes) ;
+    FORALL(faces,fc) {
+      if(cl[fc]<0)
+        face_ptn[P[cr[fc]]] += fc ;
+      else if(cr[fc]<0)
+        face_ptn[P[cl[fc]]] += fc ;
+      else if(P[cl[fc]] == P[cr[fc]])
+        face_ptn[P[cl[fc]]] += fc ;
+      else if((P[cl[fc]]%MPI_processes) > (P[cr[fc]]%MPI_processes))
+        face_ptn[P[cl[fc]]] += fc ;
+      else
+        face_ptn[P[cr[fc]]] += fc ;
+    } ENDFORALL ;
+    return face_ptn ;
+  }
+
+  vector<entitySet> partitionNodes(vector<entitySet> face_ptn, MapRepP face2node,entitySet old_node_dom) {
+    dstore<int> np ;
+    entitySet nall ;
+    for(int i=0;i<MPI_processes;++i) {
+      entitySet ntouch = face2node->image(face_ptn[i]) ;
+      nall += ntouch ;
+      FORALL(ntouch,nn) {
+        np[nn] = i ;
+      } ENDFORALL ;
+    }
+    vector<entitySet> node_ptn_old = all_collect_vectors(old_node_dom) ;
+    vector<int> send_sz(MPI_processes) ;
+    vector<entitySet> sendSets(MPI_processes) ;
+    for(int i=0;i<MPI_processes;++i) {
+      if(i != MPI_rank)
+        sendSets[i] = nall & node_ptn_old[i] ;
+      send_sz[i] = sendSets[i].size()*2 ;
+    }
+    vector<int> recv_sz(MPI_processes) ;
+    MPI_Alltoall(&send_sz[0],1,MPI_INT,
+                 &recv_sz[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int size_send = 0 ;
+    int size_recv = 0 ;
+    for(int i=0;i<MPI_processes;++i) {
+      size_send += send_sz[i] ;
+      size_recv += recv_sz[i] ;
+    }
+    //    outRep->allocate(new_alloc) ;
+    int *send_store = new int[size_send] ;
+    int *recv_store = new int[size_recv] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
+
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i <  MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_sz[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
+    }
+    for(int i = 0; i <  MPI_processes; ++i) {
+      int j = 0 ;
+      FORALL(sendSets[i],ss) {
+        send_store[send_displacement[i]+j*2] = ss ;
+        send_store[send_displacement[i]+j*2+1] = np[ss] ;
+        j++ ;
+      } ENDFORALL ;
+    }
+    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
+		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+
+    for(int i = 0; i <  MPI_processes; ++i) 
+      for(int j=0;j<recv_sz[i]/2;++j) {
+        int i1 = recv_store[recv_displacement[i]+j*2]  ;
+        int i2 = recv_store[recv_displacement[i]+j*2+1] ;
+        nall += i1 ;
+        np[i1] = i2 ;
+      }
+    delete[] recv_displacement ;
+    delete[] send_displacement ;
+    delete[] recv_store ;
+    delete[] send_store ;
+    
+    
+    vector<entitySet> node_ptn(MPI_processes) ;
+
+    FATAL(((nall&old_node_dom)-old_node_dom) != EMPTY) ;
+
+    FORALL(old_node_dom,nn) {
+
+      node_ptn[np[nn]] += nn ;
+    } ENDFORALL ;
+    //    for(int i=0;i<MPI_processes;++i)
+    //      debugout << "node_ptn[" << i << "]=" << node_ptn[i] << endl ;
+    return node_ptn ;
+  }
+
+  vector<entitySet> transposePtn(const vector<entitySet> &ptn) {
+    vector<int> send_sz(MPI_processes) ;
+    for(int i=0;i<MPI_processes;++i)
+      send_sz[i] = ptn[i].num_intervals()*2 ;
+    vector<int> recv_sz(MPI_processes) ;
+    MPI_Alltoall(&send_sz[0],1,MPI_INT,
+                 &recv_sz[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int size_send = 0 ;
+    int size_recv = 0 ;
+    for(int i=0;i<MPI_processes;++i) {
+      size_send += send_sz[i] ;
+      size_recv += recv_sz[i] ;
+    }
+    //    outRep->allocate(new_alloc) ;
+    int *send_store = new int[size_send] ;
+    int *recv_store = new int[size_recv] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
+
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i <  MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_sz[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
+    }
+    for(int i = 0; i <  MPI_processes; ++i)
+      for(int j=0;j<ptn[i].num_intervals();++j) {
+        send_store[send_displacement[i]+j*2] = ptn[i][j].first ;
+        send_store[send_displacement[i]+j*2+1] = ptn[i][j].second ;
+      }
+    
+    
+    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
+		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+
+    vector<entitySet> ptn_t(MPI_processes) ;
+    for(int i = 0; i <  MPI_processes; ++i) 
+      for(int j=0;j<recv_sz[i]/2;++j) {
+        int i1 = recv_store[recv_displacement[i]+j*2]  ;
+        int i2 = recv_store[recv_displacement[i]+j*2+1] ;
+        ptn_t[i] += interval(i1,i2) ;
+      }
+    delete[] recv_displacement ;
+    delete[] send_displacement ;
+    delete[] recv_store ;
+    delete[] send_store ;
+
+    return ptn_t ;
+  }
+    
+    
   //Description: Reads grid structures in the fact database
   //Input: facts and grid file name
   //Output: true if sucess 
   bool readFVMGrid(fact_db &facts, string filename) {
     double t1 = MPI_Wtime() ;
-    
+
+    memSpace("readFVMGrid Start") ;
     vector<entitySet> local_nodes;
     vector<entitySet> local_cells;
     vector<entitySet> local_faces;
     
-    dstore<vector3d<double> > t_pos;
-    dMap tmp_cl, tmp_cr;
-    dmultiMap tmp_face2node;
+    store<vector3d<double> > t_pos;
+    Map tmp_cl, tmp_cr;
+    multiMap tmp_face2node;
     
     int max_alloc = facts.get_max_alloc();
 
@@ -727,147 +920,156 @@ namespace Loci {
 		    max_alloc, filename))
       return false;
 
-    int npnts = 0, nfaces = 0, ncells = 0;
-    for(int i = 0; i < Loci::MPI_processes; i++) {
-      npnts += local_nodes[i].size();
-      nfaces += local_faces[i].size();
-      ncells += local_cells[i].size();
-    }
+    memSpace("after reading grid") ;
 
-    entitySet nodes, faces, cells; 
-    entitySet naive_loc_nodes, naive_loc_faces, naive_loc_cells ;
-    
-    if(Loci::MPI_processes > 1) {
-      entitySet global_nodes, global_faces, global_cells;
-      for(int i = 0; i < Loci::MPI_processes; i++) {
-	global_nodes += local_nodes[i];
-	global_faces += local_faces[i];
-	global_cells += local_cells[i];
-      }
-      entitySet local_boundary_cells = getBoundaryCells(Loci::MapRepP(tmp_cr.Rep()));
+    // Identify boundary tags
+    entitySet local_boundary_cells = getBoundaryCells(MapRepP(tmp_cr.Rep()));
       
-      entitySet global_boundary_cells = Loci::all_collect_entitySet(local_boundary_cells) ;
+    entitySet global_boundary_cells = all_collect_entitySet(local_boundary_cells) ;
+    std::vector<entitySet> vset = Loci::all_collect_vectors(local_boundary_cells) ;
+    if(MPI_processes == 1) {
+
+      int npnts = local_nodes[0].size();
+      int nfaces = local_faces[0].size();
+      int ncells = local_cells[0].size();
+
+      entitySet nodes = facts.get_allocation(npnts) ; 
+      entitySet faces = facts.get_allocation(nfaces) ;
+      entitySet cells = facts.get_allocation(ncells);
+
+      store<vector3d<double> > pos ;
+      Map cl ;
+      Map cr ;
+      multiMap face2node ;
+      copyGridStructures(nodes, faces, cells,
+                         t_pos, tmp_cl, tmp_cr, tmp_face2node,
+                         pos, cl, cr, face2node);
+      
       store<string> boundary_names ;
       boundary_names.allocate(global_boundary_cells) ;
-      if(Loci::MPI_rank == 0) 
-	Loci::debugout << "boundaries identified as:" ;
+      Loci::debugout << " boundaries identified as:" ;
       FORALL(global_boundary_cells, bc) {
-	char buf[512] ;
-	sprintf(buf,"BC_%d",-bc) ;
-	boundary_names[bc] = string(buf) ;
-	if(Loci::MPI_rank == 0)
-	  Loci::debugout << " " << boundary_names[bc] ;
+        char buf[512] ;
+        sprintf(buf,"BC_%d",-bc) ;
+        boundary_names[bc] = string(buf) ;
+	debugout << " " << boundary_names[bc] ;
       } ENDFORALL ;
-      if(Loci::MPI_rank == 0)
-	Loci::debugout << endl ;
+    
+      Loci::debugout << endl ;
 
-      Loci::debugout << "original boundaries: " << global_boundary_cells << endl;
-      std::vector<entitySet> vset = Loci::all_collect_vectors(local_boundary_cells) ;
-
-      std::vector<entitySet> naive_init_ptn = getNaiveDistribution(max_alloc, local_nodes[Loci::MPI_rank].size(), local_faces[Loci::MPI_rank].size(), local_cells[Loci::MPI_rank].size());
+      param<int> min_node ;
+      *min_node = 0;
+    
+      facts.create_fact("min_node", min_node) ;
       
-      for(int i = 0; i < Loci::MPI_processes; ++i) 
-	naive_init_ptn[i] += vset[i] ; 
-
-      vector<entitySet> metis_cell_ptn ;
-      if(!use_simple_partition) {
-        dmultiMap left_cells_to_cells, right_cells_to_cells;
-        createCelltoCellMapping(tmp_cl, tmp_cr, left_cells_to_cells, right_cells_to_cells, 
-                                local_faces, local_cells, naive_init_ptn) ;
-
-	if(Loci::random_partition) 
-	  metis_cell_ptn = randomPartition(global_cells);
-	else
-	  metis_cell_ptn = metisPartitionOfCells(local_cells,
-						 left_cells_to_cells,
-						 right_cells_to_cells);
-      } else {
-        for(int i=0;i<Loci::MPI_processes; ++i)
-          metis_cell_ptn.push_back(local_cells[i]) ;
-      }
-      //      debugout << "metis_cell_ptn = " << metis_cell_ptn << endl  ;
-      entitySet naive_extra_comp_ent;
-      vector<entitySet> new_init_ptn = newPartitionUsingCellPartition(naive_init_ptn, metis_cell_ptn, 
-								      global_nodes, global_faces, global_cells,
-								      t_pos, tmp_cl, tmp_cr, tmp_face2node,
-								      naive_extra_comp_ent);
-
-      naive_loc_nodes = global_nodes & new_init_ptn[Loci::MPI_rank] ;
-      naive_loc_faces = global_faces & new_init_ptn[Loci::MPI_rank] ;
-      naive_loc_cells = global_cells & new_init_ptn[Loci::MPI_rank] ;
-
-      vector<int> alloc_vector;
-      FORALL(naive_loc_nodes, ni) {
-	alloc_vector.push_back(ni);
-      }ENDFORALL;
-
-      nodes = facts.get_distributed_alloc(alloc_vector).first ;
-
-      alloc_vector.resize(0);
-      FORALL(naive_loc_faces, ni) {
-	alloc_vector.push_back(ni);
-      }ENDFORALL;
-
-      faces = facts.get_distributed_alloc(alloc_vector).first ;
-
-      alloc_vector.resize(0);
-      FORALL(naive_loc_cells, ni) {
-	alloc_vector.push_back(ni);
-      }ENDFORALL;
-
-      cells = facts.get_distributed_alloc(alloc_vector).first ;
-
-      vector<std::pair<int, int> > boundary_update;
-      FORALL(local_boundary_cells, li) {
-	boundary_update.push_back(std::make_pair(li, li));
-      }ENDFORALL;
-
-      facts.update_remap(boundary_update);
-      if(duplicate_work) {
-	fact_db::distribute_infoP df = facts.get_distribute_info();
-	dMap remap;
-	Loci::storeRepP remap_sp = df->remap.Rep();
-	Loci::MapRepP(remap)->copy(remap_sp, remap_sp->domain());
-	entitySet comp_out = naive_extra_comp_ent - remap.domain();
-	remap_sp = Loci::MapRepP(remap.Rep())->expand(comp_out, new_init_ptn);
-	//facts.global_comp_entities += Loci::MapRepP(remap_sp)->image(naive_extra_comp_ent);
-      }
+      facts.create_fact("cl", cl) ;
+      facts.create_fact("cr", cr) ;
+      facts.create_fact("pos", pos) ;
+      facts.create_fact("face2node",face2node) ;
+      facts.create_fact("boundary_names", boundary_names) ;
+      return true ;
+        
+    
     }
-    else {
-      nodes = facts.get_allocation(npnts) ; 
-      faces = facts.get_allocation(nfaces) ;
-      cells = facts.get_allocation(ncells);
+
+    memSpace("before partitioning") ;
+    // Partition Cells
+    vector<entitySet> cell_ptn ;
+    if(!use_simple_partition) {
+      cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr) ;
+    } else {
+      cell_ptn = vector<entitySet>(MPI_processes) ;
+      cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
     }
+
+    memSpace("mid partitioning") ;
+    vector<entitySet> face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr) ;
+    memSpace("after partitionFaces") ;
+    vector<entitySet> node_ptn = partitionNodes(face_ptn,
+                                                MapRepP(tmp_face2node.Rep()),
+                                                t_pos.domain()) ;
+    //    vector<entitySet> node_ptn(MPI_processes) ;
+    //    node_ptn[MPI_rank] = local_nodes[MPI_rank] ;
+    memSpace("after partitioning") ;
+
+    vector<entitySet> cell_ptn_t = transposePtn(cell_ptn) ;
+    vector<entitySet> face_ptn_t = transposePtn(face_ptn) ;
+    vector<entitySet> node_ptn_t = transposePtn(node_ptn) ;
+
+    int newnodes = 0 ;
+    for(int p=0;p<MPI_processes;++p)
+      newnodes += node_ptn_t[p].size() ;
+
+    vector<int> node_alloc(newnodes) ;
+    int i=0;
+    for(int p=0;p<MPI_processes;++p)
+      FORALL(node_ptn_t[p], ni) {
+        node_alloc[i++] = ni ;
+      } ENDFORALL;
+    
+    entitySet nodes = facts.get_distributed_alloc(node_alloc).first ;
+    node_alloc.resize(0) ;
+
+    int newfaces = 0 ;
+    for(int p=0;p<MPI_processes;++p)
+      newfaces += face_ptn_t[p].size() ;
+    
+    vector<int> face_alloc(newfaces) ;
+    i = 0 ;
+    for(int p=0;p<MPI_processes;++p)
+      FORALL(face_ptn_t[p], ni) {
+        face_alloc[i++] = ni ;
+      }ENDFORALL;
+
+    entitySet faces = facts.get_distributed_alloc(face_alloc).first ;
+    face_alloc.resize(0) ;
+
+    int newcells = 0 ;
+    for(int p=0;p<MPI_processes;++p)
+      newcells += cell_ptn_t[p].size() ;
+    
+    vector<int> cell_alloc(newcells) ;
+    i = 0 ;
+    for(int p=0;p<MPI_processes;++p)
+      FORALL(cell_ptn_t[p], ni) {
+        cell_alloc[i++] = ni ;
+      }ENDFORALL;
+    
+    entitySet cells = facts.get_distributed_alloc(cell_alloc).first ;
 
     Loci::debugout << "nodes = " << nodes << endl;
     Loci::debugout << "faces = " <<faces << endl ;
     Loci::debugout << "cells = " << cells << endl ;
-    
+
+    vector<std::pair<int, int> > boundary_update;
+    FORALL(local_boundary_cells, li) {
+      boundary_update.push_back(std::make_pair(li, li));
+    }ENDFORALL;
+
+    memSpace("before update_remap") ;
+    facts.update_remap(boundary_update);
+    memSpace("after update_remap") ;
+
+    memSpace("before remapGridStructures") ;
     Map cl, cr ;
     multiMap face2node ;
     store<vector3d<double> > pos ;
-    if(Loci::MPI_processes > 1)
-      remapGridStructures(naive_loc_nodes, naive_loc_faces, naive_loc_cells,
-			  t_pos, tmp_cl, tmp_cr, tmp_face2node,
-			  nodes, faces, cells,
-			  pos, cl, cr, face2node);
-    else 
-      copyGridStructures(nodes, faces, cells, t_pos, tmp_cl, tmp_cr, tmp_face2node, pos, cl, cr, face2node);
-    
-    entitySet boundary_cells, local_boundary_cells;
 
-    if(Loci::MPI_processes > 1) {
-      local_boundary_cells = getBoundaryCells(Loci::MapRepP(cr.Rep()));
-      boundary_cells = Loci::all_collect_entitySet(local_boundary_cells) ;
-    }
-    else
-      boundary_cells = getBoundaryCells(Loci::MapRepP(cr.Rep()));
+    remapGrid(node_ptn, face_ptn, cell_ptn,
+              node_ptn_t, face_ptn_t, cell_ptn_t,
+              t_pos, tmp_cl, tmp_cr, tmp_face2node,
+              nodes, faces, cells,
+              pos, cl, cr, face2node);
+    memSpace("after remapGridStructures") ;
+
+    local_boundary_cells = getBoundaryCells(Loci::MapRepP(cr.Rep()));
+    entitySet boundary_cells = Loci::all_collect_entitySet(local_boundary_cells) ;
+
     store<string> boundary_names ;
+
     boundary_names.allocate(boundary_cells) ;
     if(Loci::MPI_rank == 0) {
-      if(Loci::MPI_processes > 1) 
-	Loci::debugout << " new" ;
-      Loci::debugout << " boundaries identified as:" ;
+      Loci::debugout << "boundaries identified as:" ;
     }      
 
     FORALL(boundary_cells, bc) {
@@ -881,16 +1083,23 @@ namespace Loci {
     if(Loci::MPI_rank == 0)
       Loci::debugout << endl ;
 
-    if(Loci::MPI_processes > 1) {
-      vector<entitySet> vset = all_collect_vectors(local_boundary_cells) ;
-      for(int i = 0; i < Loci::MPI_processes; ++i) {
-	vector<entitySet> tmp_init_ptn = facts.get_init_ptn() ;
-	tmp_init_ptn[i] += vset[i] ;
-	Loci::debugout << " init_ptn[" <<i << "] = " << tmp_init_ptn[i] << endl ;
-	facts.put_init_ptn(tmp_init_ptn);
-      }
+    memSpace("before init_ptn fixup") ;
+    entitySet bset = boundary_cells ;
+    int bsize = bset.size()/MPI_processes + 1 ;
+    entitySet::const_iterator bi = bset.begin() ;
+    vector<entitySet> bdist(MPI_processes) ;
+    for(int i=0;bi!=bset.end();++bi,++i) 
+      bdist[i/bsize] += *bi ;
+      
+    vector<entitySet> tmp_init_ptn = facts.get_init_ptn() ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      tmp_init_ptn[i] += bdist[i] ;
+      debugout << " init_ptn[" <<i << "] = " << tmp_init_ptn[i] << endl ;
     }
+    facts.put_init_ptn(tmp_init_ptn);
+    memSpace("after init_ptn fixup") ;
 
+    
     param<int> min_node ;
 
     if(Loci::MPI_processes > 1)
@@ -898,16 +1107,27 @@ namespace Loci {
     else 
       *min_node = 0;
     
-    facts.create_fact("min_node", min_node) ; 
+    facts.create_fact("min_node", min_node) ;
+    
     facts.create_fact("cl", cl) ;
     facts.create_fact("cr", cr) ;
     facts.create_fact("pos", pos) ;
     facts.create_fact("face2node",face2node) ;
     facts.create_fact("boundary_names", boundary_names) ;
+
+    //    debugout << "pos.domain() = " << pos.domain() << endl ;
+    //    debugout << "cl.domain() = " << cl.domain() << endl;
+    //    debugout << "cl.image() = " << cl.image(cl.domain()) << endl ;
+    //    debugout << "cr.domain() = " << cr.domain() << endl;
+    //    debugout << "cr.image() = " << cr.image(cr.domain()) << endl ;
+    //    debugout << "face2node.domain() = " << face2node.domain() << endl;
+    //    debugout << "face2node.image() = " << MapRepP(face2node.Rep())->image(face2node.domain()) << endl ;
     
+
     double t2 = MPI_Wtime() ;
     debugout << "Time to read in file '" << filename << ", is " << t2-t1
              << endl ;
+    memSpace("returning from FVM grid reader") ;
     return true ;
   }
 }

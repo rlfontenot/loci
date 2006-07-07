@@ -1,6 +1,7 @@
 #include <Map.h>
 #include <multiMap.h>
 #include <DMultiMap.h>
+#include <Tools/hash_map.h>
 #include <iostream>
 
 namespace Loci {
@@ -498,113 +499,10 @@ namespace Loci {
   
   void MapRepI::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &usr_eset){
     warn(true) ; 
-    /*
-    int      rank = 1, indx = 0;
-    hid_t    mDataspace, vDataspace, vDataset, vDatatype;
-    hsize_t  dimension;
-    entitySet  eset;
-    entitySet::const_iterator  ci;
-
-    HDF5_ReadDomain(group_id, eset);
-
-    store<int>  offset;
-    offset.allocate( eset );
-
-    indx     = 0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci)
-      offset[*ci] = indx++;
-
-    //--------------------------------------------------------------------
-    // Read the data now ....
-    //--------------------------------------------------------------------
-    usr_eset = usr_eset&eset;
-    int num_intervals = usr_eset.num_intervals();
-
-    allocate( usr_eset );
-
-    if( num_intervals == 0) {
-      std::cout << "Warning: Number of intervals are zero : " << endl;
-      return;
-    }
-
-    interval *it = new interval[num_intervals];
-
-    for(int i=0;i< num_intervals;i++) it[i] = usr_eset[i];
-
-    vDatatype = H5T_NATIVE_INT;
-
-    std::vector<int>  data;
-
-    dimension  = eset.size();
-    mDataspace = H5Screate_simple(rank, &dimension, NULL);
-    vDataspace = H5Screate_simple(rank, &dimension, NULL);
-    vDataset   = H5Dopen( group_id, "Map");
-
-    hssize_t  start[]     = {0};  // determines the starting coordinates.
-    hsize_t   stride[]    = {1};  // which elements are to be selected.
-    hsize_t   block[]     = {1};  // size of element block;
-    hssize_t  foffset[]   = {0};  // location (in file) where data is read.
-    hsize_t   count[]     = {0};  // how many positions to select from the dataspace
-
-    for( int k = 0; k < num_intervals; k++) {
-      count[0] = 0;
-      for( int i = it[k].first; i <= it[k].second; i++)
-        count[0] += 1;
-
-      if( count[0] > data.size()) data.resize(count[0]);
-
-      foffset[0] = offset[it[k].first];
-
-      H5Sselect_hyperslab(mDataspace, H5S_SELECT_SET, start,  stride,
-                          count, block);
-      H5Sselect_hyperslab(vDataspace, H5S_SELECT_SET, foffset,stride,
-                          count, block);
-      H5Dread( vDataset, vDatatype, mDataspace, vDataspace,
-               H5P_DEFAULT, &data[0]);
-
-      indx = 0;
-      for( int i = it[k].first; i <= it[k].second; i++) 
-        base_ptr[i] = data[indx++];
-    }
-
-    H5Sclose( mDataspace );
-    H5Sclose( vDataspace );
-    H5Dclose( vDataset   );
-    */
   } 
 
   void MapRepI::writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet &usr_eset) const{
     warn(true) ;
-    /*
-    entitySet eset(usr_eset&domain());
-
-    HDF5WriteDomain(group_id, eset);
-
-    int arraySize =  eset.size(); 
-    if( arraySize < 1) return;
-
-    hid_t vDatatype = H5T_NATIVE_INT;
-
-    int rank = 1;
-    hsize_t  dimension = arraySize;
-
-    entitySet :: const_iterator ci;
-
-    hid_t vDataspace = H5Screate_simple(rank, &dimension, NULL);
-
-    std::vector<int> data(arraySize);
-    int indx =0;
-    for( ci = eset.begin(); ci != eset.end(); ++ci) 
-      data[indx++] = base_ptr[*ci];
-
-    hid_t cparms   = H5Pcreate (H5P_DATASET_CREATE);
-    hid_t vDataset = H5Dcreate(group_id, "Map", vDatatype,
-                               vDataspace, cparms);
-    H5Dwrite(vDataset, vDatatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &data[0]);
-
-    H5Dclose( vDataset  );
-    H5Sclose( vDataspace);
-    */
   } 
 
   Map::~Map() {}
@@ -782,11 +680,10 @@ namespace Loci {
   storeRepP multiMapRepI::thaw() {
     dmultiMap dm ;
     FORALL(store_domain, i) {
-      int tmp = end(i)-begin(i) ;
-      std::vector<int> tv ;
-      dm[i] = tv ;
-      for(int j = 0; j < tmp; ++j)
-        dm[i].push_back(base_ptr[i][j]) ;
+      int sz = end(i)-begin(i) ;
+      std::vector<int,malloc_alloc<int> >(sz).swap(dm[i]) ;
+      for(int j = 0; j < sz; ++j)
+        dm[i][j] = base_ptr[i][j] ;
     } ENDFORALL ;
     return(dm.Rep()) ;
   }
@@ -843,8 +740,8 @@ namespace Loci {
   }
   storeRepP multiMapRepI::remap(const dMap &m) const {
     entitySet newdomain = m.domain() & domain() ;
-    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
-    newdomain &= mappimage.first ;
+    //    pair<entitySet,entitySet> mappimage = preimage(m.domain()) ;
+    //    newdomain &= mappimage.first ;
     entitySet mapimage = m.image(newdomain) ;
     multiMap s ;
     s.allocate(mapimage) ;
@@ -1025,7 +922,7 @@ namespace Loci {
       vsize    = end(*ci) - begin(*ci);
       MPI_Pack( &vsize, 1, MPI_INT, outbuf,outcount,
                 &position, MPI_COMM_WORLD) ;
-      MPI_Pack( &base_ptr[*ci], vsize, MPI_INT, outbuf,outcount,
+      MPI_Pack( base_ptr[*ci], vsize, MPI_INT, outbuf,outcount,
                 &position, MPI_COMM_WORLD) ;
     }
 
@@ -1038,7 +935,13 @@ namespace Loci {
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       MPI_Unpack( inbuf, insize, &position, &vsize,
                   1, MPI_INT, MPI_COMM_WORLD) ;
-      MPI_Unpack( inbuf, insize, &position, &base_ptr[*ci],
+#ifdef DEBUG
+      if(vsize != end(*ci)-begin(*ci))
+        cerr << "vsize = " << vsize << ",actual = " << end(*ci)-begin(*ci)
+             << ",ci = " << *ci << endl ;
+#endif
+      fatal(vsize != end(*ci)-begin(*ci)) ;
+      MPI_Unpack( inbuf, insize, &position, base_ptr[*ci],
                   vsize, MPI_INT, MPI_COMM_WORLD) ;
     }
   }   
@@ -1253,71 +1156,5 @@ namespace Loci {
     } ENDFORALL ;
 #endif
   }
-
-  void inverseMap(multiMap &result, const const_Map &input_map,
-                  const entitySet &input_image,
-                  const entitySet &input_preimage) {
-    store<int> sizes ;
-    sizes.allocate(input_image) ;
-
-    FORALL(input_image,i) {
-      sizes[i] = 0 ;
-    } ENDFORALL ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-    FORALL(preloop,i) {
-      if(input_image.inSet(input_map[i]))
-        sizes[input_map[i]] += 1 ;
-    } ENDFORALL ;
-    result.allocate(sizes) ;
-    FORALL(preloop,i) {
-      int elem = input_map[i] ;
-      if(input_image.inSet(elem)) {
-        sizes[elem] -= 1 ;
-        FATAL(sizes[elem] < 0) ;
-        result[elem][sizes[elem]] = i ;
-      }
-    } ENDFORALL ;
-#ifdef DEBUG
-    FORALL(input_image,i) {
-      FATAL(sizes[i] != 0) ;
-    } ENDFORALL ;
-#endif
-  }
-  
-
-  void inverseMap(multiMap &result, const const_multiMap &input_map,
-                  const entitySet &input_image,
-                  const entitySet &input_preimage) {
-    store<int> sizes ;
-    sizes.allocate(input_image) ;
-    
-    FORALL(input_image,i) {
-      sizes[i] = 0 ;
-    } ENDFORALL ;
-    entitySet preloop = input_preimage & input_map.domain() ;
-
-    FORALL(preloop,i) {
-      for(const int *mi=input_map.begin(i);mi!=input_map.end(i);++mi)
-        if(input_image.inSet(*mi))
-          sizes[*mi] += 1 ;
-    } ENDFORALL ;
-    result.allocate(sizes) ;
-    FORALL(preloop,i) {
-      for(const int *mi=input_map.begin(i);mi!=input_map.end(i);++mi) {
-        int elem = *mi ;
-        if(input_image.inSet(elem)) {
-          sizes[elem] -= 1 ;
-          FATAL(sizes[elem] < 0) ;
-          result[elem][sizes[elem]] = i ;
-        }
-      }
-    } ENDFORALL ;
-#ifdef DEBUG
-    FORALL(input_image,i) {
-      FATAL(sizes[i] != 0) ;
-    } ENDFORALL ;
-#endif
-  }
-
-  
-} // end of namespace Loci
+   
+}

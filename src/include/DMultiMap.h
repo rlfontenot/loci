@@ -14,14 +14,15 @@
 #include <DMap.h>
 #include <vector>
 
-#include <Tools/hash_map.h>
+#include <Tools/block_hash.h>
+#include <Tools/malloc_alloc.h>
 
 #include <Map.h>
 #include <store.h>
 namespace Loci {
 
   class dmultiMapRepI : public MapRep {
-  HASH_MAP(int, std::vector<int> )  attrib_data;
+    block_hash<std::vector<int,malloc_alloc<int> > >  attrib_data;
   public:
   dmultiMapRepI() { }
     dmultiMapRepI(const store<int> &sizes) { allocate(sizes) ; }
@@ -53,9 +54,9 @@ namespace Loci {
   virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
   virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
   virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
-  virtual storeRepP freeze() ;
-  virtual storeRepP thaw() ;
-  HASH_MAP(int,std::vector<int> ) *get_attrib_data() {return &attrib_data;}
+    virtual storeRepP thaw() ;
+    virtual storeRepP freeze() ;
+    block_hash<std::vector<int, malloc_alloc<int> > > *get_attrib_data() {return &attrib_data;}
   virtual DatatypeP getType() ;
   virtual frame_info read_frame_info(hid_t group_id) ;
   virtual frame_info write_frame_info(hid_t group_id) ;
@@ -66,7 +67,7 @@ namespace Loci {
   class dmultiMap : public store_instance {
     friend class const_dmultiMap ;
     typedef dmultiMapRepI MapType ;
-    HASH_MAP(int, std::vector<int> )   *attrib_data;
+    block_hash<std::vector<int,malloc_alloc<int> > > *attrib_data;
     dmultiMap(const dmultiMap &var) { setRep(var.Rep()) ; }
     dmultiMap & operator=(const dmultiMap &str)
     { setRep(str.Rep()) ; return *this ;}
@@ -100,40 +101,22 @@ namespace Loci {
       return p ; 
     }
 
-    std::vector<int> &elem(int indx) {
+    std::vector<int,malloc_alloc<int> > &elem(int indx) {
       return (*attrib_data)[indx]; 
     }
 
-    const std::vector<int> &const_elem(int indx)  const 
+    const std::vector<int,malloc_alloc<int> > &const_elem(int indx)  const 
     {
-      HASH_MAP(int, std::vector<int> ) :: const_iterator   ci;
-     
-      ci = attrib_data->find(indx);
-      if( ci == attrib_data->end()) {
-          std::cerr << "Error: out of range entity " << std::endl;
-          exit(0);
-      }
-      
-      return ci->second ;
+      return attrib_data->elem(indx) ;
     }
 
-    std::vector<int> &operator[](int indx) { return elem(indx); }
+    std::vector<int,malloc_alloc<int> > &operator[](int indx) { return elem(indx); }
     
-    const std::vector<int> &operator[](int indx) const 
+    const std::vector<int,malloc_alloc<int> > &operator[](int indx) const 
       { return const_elem(indx) ; }
     
     int num_elems(int indx) const 
-      {
-	HASH_MAP(int, std::vector<int> ) :: const_iterator   ci;
-	std::vector<int>     newVec;
-	
-	ci = attrib_data->find(indx);
-	if( ci != attrib_data->end())
-          return( (ci->second).size() );
-	
-	return(0);
-	
-      }
+    { return const_elem(indx).size() ; }
 
     std::ostream &Print(std::ostream &s) const 
     { return Rep()->Print(s) ; }
@@ -154,7 +137,7 @@ namespace Loci {
 
   class const_dmultiMap : public store_instance {
     typedef dmultiMapRepI      MapType ;
-    HASH_MAP(int,std::vector<int> ) *attrib_data;
+    block_hash<std::vector<int,malloc_alloc<int> > > *attrib_data;
     const_dmultiMap(const const_dmultiMap &var) {  setRep(var.Rep()) ; }
     const_dmultiMap(const dmultiMap &var) { setRep(var.Rep()) ; }
     const_dmultiMap & operator=(const const_dmultiMap &str)
@@ -187,27 +170,15 @@ namespace Loci {
       return p ; 
     }
 
-    const std::vector<int> &const_elem(int indx)  const {
-      HASH_MAP(int,std::vector<int> ) :: const_iterator   ci;
-      ci = attrib_data->find(indx);
-      if( ci == attrib_data->end() ) {
-	cerr << " Trying to access the dmultiMap out of bounds " << endl ;
-	exit(0) ;
-      }
-      return( ci->second );
+    const std::vector<int,malloc_alloc<int> > &const_elem(int indx)  const {
+      return attrib_data->elem(indx) ;
     }
 
-    const std::vector<int> operator[](int indx) const 
+    const std::vector<int,malloc_alloc<int> > operator[](int indx) const 
       { return const_elem(indx) ; }
     
     int num_elems(int indx) const 
-      {
-       HASH_MAP(int,std::vector<int> ) :: const_iterator   ci;
-       ci = attrib_data->find(indx);
-       if( ci != attrib_data->end() )
-	 return( (ci->second).size() );
-       return(0);
-      }
+    {return const_elem(indx).size() ;}
 
     std::ostream &Print(std::ostream &s) const 
     { return Rep()->Print(s) ; }
@@ -232,14 +203,14 @@ namespace Loci {
                   const entitySet &input_preimage) ;
   void inverseMap(dmultiMap &result, const const_Map &input_map,
                   const entitySet &input_image,
-		  const entitySet &input_preimage) ;
+                  const entitySet &input_preimage) ;
   void inverseMap(dmultiMap &result, const dmultiMap &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) ;
   void inverseMap(dmultiMap &result, const multiMap &input_map,
                   const entitySet &input_image,
                   const entitySet &input_preimage) ;
-  
+
 }
 
 #endif

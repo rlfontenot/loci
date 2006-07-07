@@ -1,7 +1,7 @@
 #include "dist_tools.h"
 #include <Tools/debug.h>
 #include <entitySet.h>
-
+#include "Tools/hash_map.h"
 
 #include "Tools/debugger.h"
 
