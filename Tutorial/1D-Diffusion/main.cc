@@ -1,17 +1,71 @@
-//*******************************************************************
-//  Solution of 1D Diffusion equation using LOCI Framework:
-// This was written as a part of "LOCI Beginner's Tutorial".
-//
-// Modified By:
-// Chaman Singh Verma
-// Mississippi State University.
-// 22 Feb. 2001
-//
-//*******************************************************************
 #include <Loci.h>
 #include <iostream>
 
 using namespace std ;
+
+// Generate a 1d grid over the number line from [0,1] consiting of N segments
+void generate_grid(fact_db &facts, int N) {
+  // Allocate the nodes and cells of the grid
+  entitySet nodes = facts.get_allocation(N+1) ;
+  entitySet cells = facts.get_allocation(N) ;
+
+  // setup x coordinates for nodes
+  store<float> x ;
+  x.allocate(nodes) ;
+  float dx = 1./float(N) ; // Uniform delta x
+  entitySet::const_iterator ni ;
+  float xtmp = 0 ;
+  for(ni=nodes.begin();ni!=nodes.end();++ni) {
+    x[*ni] = xtmp ;
+    xtmp += dx ;
+  }
+  // Add node positions to facts
+  facts.create_fact("x",x) ;
+
+  // Find the nodes that are on the left and right side of cells
+  // by shifting the allocated numberings to the left or right by one
+  entitySet left_nodes = (nodes >> 1) & nodes ;
+  entitySet right_nodes = (nodes << 1) & nodes ;
+
+  // Allocate maps for the left cell and right cell of a node
+  Map cl,cr,il,ir ;
+  cl.allocate(left_nodes) ;
+  cr.allocate(right_nodes) ;
+  il.allocate(cells) ;
+  ir.allocate(cells) ;
+  entitySet::const_iterator ci ;
+  // Assign left nodes to cells in consecutive order
+  ci = cells.begin() ;
+  for(ni=left_nodes.begin();ni!=left_nodes.end();++ni,++ci) {
+    cl[*ni] = *ci ;
+    ir[*ci] = *ni ;
+  }
+  // Assign right nodes to cells in consecutive order
+  ci = cells.begin() ;
+  for(ni=right_nodes.begin();ni!=right_nodes.end();++ni,++ci) {
+    cr[*ni] = *ci ;
+    il[*ci] = *ni ;
+  }
+
+  facts.create_fact("cl",cl) ;
+  facts.create_fact("cr",cr) ;
+  facts.create_fact("il",il) ;
+  facts.create_fact("ir",ir) ;
+  
+  constraint geom_cells ;
+  *geom_cells = cells ;
+  facts.create_fact("geom_cells",geom_cells) ;
+
+  // Identify boundary conditions
+  constraint left_boundary ;
+  constraint right_boundary ;
+  *right_boundary = cl.domain() - cr.domain() ;
+  *left_boundary = cr.domain() - cl.domain() ;
+
+  facts.create_fact("left_boundary",left_boundary) ;
+  facts.create_fact("right_boundary",right_boundary) ;
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -74,7 +128,7 @@ int main(int argc, char *argv[])
   fact_db facts ;
 
 
-  ifstream file("heat.vars",ios::in) ;
+  ifstream ifile("heat.vars",ios::in) ;
   if(ifile.fail()) {
     cerr << "can't open 'heat.vars'" << endl ;
     exit(-1) ;
@@ -89,87 +143,7 @@ int main(int argc, char *argv[])
   
   const int N = *Nin ; // Number of points in grid.
 
-  //-----------------------------------------------------------------
-  // Create a 1-d unstructured grid ; Allocate space for nodes and
-  // cells.  Distribute to processors using a simple block partition
-  //-----------------------------------------------------------------
-  pair<entitySet,entitySet> node_alloc =
-    facts.get_distributed_alloc(block_partition(N)) ;
-  pair<entitySet,entitySet> cell_alloc = 
-    facts.get_distributed_alloc(block_partition(N-1)) ;
-
-  //-----------------------------------------------------------------
-  // Generate 1D grid positions at the nodes.
-  //-----------------------------------------------------------------
-  store<float> x; 
-  x.allocate(nodes);
-
-  entitySet::const_iterator ei ; // Generic iterator
-
-  for(ei=nodes.begin();ei!=nodes.end();++ei)
-    x[*ei] = float(*ei)/float(N);
-  //-----------------------------------------------------------------
-  // Create mapping from interface to cells
-  // cl = cell left , cr = cell right
-  //-----------------------------------------------------------------
-  
-  Map cl,cr ;
-  cl.allocate(nodes-interval(0,0)) ; // do not allocate for leftmost interface
-  cr.allocate(nodes-interval(N,N)) ; // do not allocate for rightmost interface
-
-  // Assign maps from nodes to cells
-  // cl = {(i,l) | i \in [1,N], l = i+N}
-  // cr = {(i,r) | i \in [0,N-1], r = i+N+1}
-  for(ei=cl.domain().begin();ei!=cl.domain().end();++ei) 
-    cl[*ei] = *ei + N;
-  for(ei=cr.domain().begin();ei!=cr.domain().end();++ei) 
-    cr[*ei] = *ei + N + 1;
-
-  //-----------------------------------------------------------------
-  // Create mapping from cells to interface
-  // il = interface left, ir = interface right
-  // il = {(c,l) | c \in cells, l = c-N-1},   
-  // ir = {(c,r) | c \in cells, l = c-N}
-  //-----------------------------------------------------------------
-  Map il,ir ;
-  il.allocate(cells) ;
-  ir.allocate(cells) ;
-
-  for(ei=cells.begin();ei!=cells.end();++ei) {
-    il[*ei] = *ei - N - 1 ;
-    ir[*ei] = *ei - N ;
-  }
-
-
-  facts.create_fact("il",il) ;
-  facts.create_fact("ir",ir) ;
-  facts.create_fact("x", x) ;
-  facts.create_fact("cl",cl) ;
-  facts.create_fact("cr",cr);
-
-  // Diffusion constant
-  param<float> nu ;
-  *nu = 1.0 ;
-  facts.create_fact("nu",nu) ;
-
-  // Number of iterations to run simulation
-  param<int> max_iteration ;
-  *max_iteration = 100 ;
-  facts.create_fact("max_iteration",max_iteration) ;
-
-  // Minimum L1 norm for convergence test
-  param<double> error_tolerance;
-  *error_tolerance = 1.0E-03;
-  facts.create_fact( "error_tolerance", error_tolerance);
-
-  // Identify boundary conditions
-  constraint left_boundary ;
-  constraint right_boundary ;
-  *right_boundary = cl.domain() - cr.domain() ;
-  *left_boundary = cr.domain() - cl.domain() ;
-
-  facts.create_fact("left_boundary",left_boundary) ;
-  facts.create_fact("right_boundary",right_boundary) ;
+  generate_grid(facts,N) ;
 
   if (Loci::MPI_processes == 1) {
     // Write out the initial fact database if -fact
@@ -214,7 +188,9 @@ int main(int argc, char *argv[])
     usol = facts.get_variable("solution") ;
 
     cout << "The solution is : " <<endl;
-    for(ei=cells.begin();ei!=cells.end();++ei) 
+    entitySet::const_iterator ei ;
+    entitySet dom = usol.domain() ;
+    for(ei=dom.begin();ei!=dom.end();++ei) 
       cout << ""<< *ei<<" "<<usol[*ei]<<endl ;
   }
   //-----------------------------------------------------------------

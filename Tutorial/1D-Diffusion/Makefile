@@ -4,12 +4,9 @@ LOCI_BASE ?= /usr/tmp/lush/Loci
 TARGET = onedheat
 
 include $(LOCI_BASE)/Loci.conf
-LPP=../lpp
-
+#COPT=-g
 # List your object files here
-OBJS =  main.o heat.o
-#advance_time.o boundary_conditions.o cell_center.o \
-#        collapse_time.o gradient.o initial_conditions.o stable_timestep.o
+OBJS =  main.o heat2.o
 
 
 JUNK = *~  core ti_files ii_files make.depend make.depend.bak

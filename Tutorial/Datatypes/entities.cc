@@ -1,8 +1,6 @@
 // Example program illustrating how to manipulate Entity, entitySet,
 // and sequence data structures in Loci
 
-// Time-stamp: <2003-02-12 16:19:12 peo>.
-
 // Every Loci program includes the Loci header file.
 #include <Loci.h>
 
@@ -24,7 +22,7 @@ int main(int argc,char *argv[])
   // An Entity is labeled by an integer.
   // The collections of entities discussed below are represented by
   // collections of integers.
-  Entity e10(10) ;  // First, the entity labeled by integer 10
+  Entity e10 = Entity(10) ;  // First, the entity labeled by integer 10
   cout << "e10 = " << e10 << endl ;
 
   ////////////////////////////////////////////////////////////////////////////
@@ -49,8 +47,6 @@ int main(int argc,char *argv[])
   cout << "C = " << C << endl ;
   cout << "F = " << F << endl ; 
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Efficiency: intervalSet.
   ////////////////////////////////////////////////////////////////////////////
   // For efficiency, an entitySet is stored as an ordered set; 
   // more precisely, as an ordered set of ordered intervals.
@@ -91,17 +87,27 @@ int main(int argc,char *argv[])
   // [gives the set ([5,100]) without duplicating 14 and 15]
   cout << "E = B union C =  " << E << endl ;
 
+
+
+  
   ////////////////////////////////////////////////////////////////////////////
   // Distinguished constants
   ////////////////////////////////////////////////////////////////////////////
   // EMPTY is a distinguished constant for the empty set.
   cout << "EMPTY = " << EMPTY << endl ;
 
+  
   // UNIVERSE_MAX and UNIVERSE_MIN are distinguished constants for the
   // largest and smallest integers that may be used to label entities.
   cout << "UNIVERSE_MAX = " << Loci::UNIVERSE_MAX << endl ;
   cout << "UNIVERSE_MIN = " << Loci::UNIVERSE_MIN << endl ;
 
+  // Another useful derived constant is ~EMPTY or not EMPTY, the '~' operator
+  // provides the set complement with respect to the universal set, therefore
+  // ~EMPTY is the universal set (Set of all possible entities).
+
+  cout << "Universal Set = " << ~EMPTY << endl ;
+  
   ////////////////////////////////////////////////////////////////////////////
   // Set membership
   ////////////////////////////////////////////////////////////////////////////

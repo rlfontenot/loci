@@ -18,8 +18,7 @@
 \usepackage{amssymb}
 \usepackage{theorem}
 \usepackage{euscript}
-
-%\includeonly{intro}
+\usepackage{longtable}
 
 \begin{document}
 %\small
@@ -31,7 +30,6 @@
 \setcounter{page}{1}
 
 \include{intro}
-%\include{lfvm}
 
 \chapter{ Basic Concepts }
 
@@ -45,7 +43,7 @@ The most direct way to compile Loci programs is to use the Makefile
 template provided in this tutorial.  It is usually as simple as
 including the {\tt Loci.conf} file that comes as part of your Loci
 installation.  See appendix \ref{chap:makefile} for an example
-makefile or refer to examples in the tutorial directory.
+makefile or refer to example Makefiles in the tutorial directory.
 
 
 \section{Loci Initialization}
@@ -54,8 +52,11 @@ Before any of the main Loci functionality can be used (that is the
 components that follow this section), Loci must be initialized.  Loci
 has an initialize function that must be called before executing Loci
 functionality and a finalize method that must be called just before
-exiting the program.  For example, see below:
-
+exiting the program.  Note, that the include file {\tt \#include
+  <Loci.h>} includes all commonly used components of the Loci
+framework, including definitions of the initialization routines.  For
+example, see below:
+\clearpage
 \begin{verbatim}
 #include <Loci.h>
 
@@ -73,27 +74,31 @@ int main(int argc, char *argv[]) {
 }
 \end{verbatim}
 
-
 \section{Entities, Sets, and Sequences}
 
-In Loci, computations are represented by associating (binding) values
-(attributes) to entities.  Although entities can be considered in
-rather abstract terms, in Loci we often will often interchange the
-meaning of entity with the integer identifier that is used to label a
-given entity.  Thus we may talk of entity $1$ when we are really
-referring to the entity labeled $1$.  
-%(Do not count on this remaining true indefinitely.  We plan to change Loci to make entities first-class objects.) 
+Probably the most fundamental concept of Loci is that of entities.  In
+Loci, computations are represented by associating values with
+entities.  Although entities can be considered in rather abstract
+terms, in Loci we often will often interchange the meaning of entity
+with the integer identifier that is used to label a given entity.
+Thus we may talk of entity $1$ when we are really referring to the
+entity labeled $1$.  Note, that while the entity itself is immutable,
+its label may change in the course of executing a Loci program, and in
+particular when Loci schedules parallel programs.  Generally the user
+is unaware of this fact, but it can become important in a few cases
+that will be mentioned in later examples.
 
-It is useful to consider groups of entities that have similar
-attributes.  In Loci we have two data structures for representing sets
-of entities:  1) the {\tt interval} and 2) the {\tt entitySet}.  For
-example, if we wish to represent the entities labeled from $1$ to
-$100$ we would use the Loci class {\tt interval(1,100)}.  On the other
-hand, the {\tt entitySet} can be used to represent arbitrary
-collections of entities.  Once we have described a collection of
-entities using the {\tt entitySet} class we can also create new sets
-of entities using unions, intersections, and other useful set
-operations.  
+As important as the concept of entity is the concept of entity
+collections.  Generally, it is useful to consider groups of entities
+that have similar attributes.  In Loci we have two provided types for
+representing sets of entities: 1) the {\tt interval} and 2) the {\tt
+  entitySet}.  For example, if we wish to represent the entities
+labeled from $1$ to $100$ we would use the Loci type {\tt
+  interval(1,100)}.  On the other hand, the {\tt entitySet} can be
+used to represent arbitrary collections of entities.  Once we have
+described a collection of entities using the {\tt entitySet} class we
+can also create new sets of entities using unions, intersections, and
+other useful set operations.
 
 The {\tt entitySet} class provides true set semantics.
 That is, ordering of insertion is not preserved and there is no
@@ -108,9 +113,8 @@ ever a need to keep track of a particular ordering of entities, then
 sequences are the data-structure that accomplishes this task.
 
 The following program segment (included with the tutorial programs)
-provides examples of how to create and use the {\tt  entitySet} and
-{\tt sequence} classes.  This provides examples of the most commonly
-used programming techniques for these classes.
+provides examples of how to create and use sets and sequence of
+entities in Loci.
 
 \include{entities_cc}
 
@@ -118,51 +122,614 @@ used programming techniques for these classes.
 
 In Loci, containers are entity based.  That is, a container provides
 an association between entities and values.  There are two basic types
-of containers, parameters and stores.
+of containers: stores and parameters.  Stores are used to associate
+values with entities, while parameters are used to associate a value
+with a sent of entities.  For example, in a simulation the each nodes
+of a mesh will have a position vector, and this will be represented in
+Loci using a store container.  However, the time-step of a simulation
+is a single value that is shared by all of the simulation entities and
+this will be represented using a parameter in Loci.  The {\tt store} is a
+templated container that can be used to contain arbitrary types.  For
+example:
+\begin{verbatim}
+  // We create a store of floats
+  store<float> x ;
+  // We create a store of float vectors, this is OK also
+  store<std::vector<float> > particles ;
+\end{verbatim}
 
-Parameters provide a way of associating a single value with a set of
-entities.  With respect to the set of entities that they are associated
-with, parameter variables behave much like global variables.  There are
-two parameter containers: param and blackbox, which differ in their
-scope and intended usage.  The param variables are synchronized over all
-of the processors and can only be used with first class objects that Loci
-knows about.  The blackbox variables are not synchronized over processors
-and can hold any data type.  Blackbox containers are intended to be used
-to hold data structures for third party libraries, or other data types
-that Loci is not able to manage directly.
+Once we create the store container we can use the {\tt allocate()}
+method to allocate values over some set of entities.  For example, to
+allocate the above containers over 100 entities we would use code such
+as:
+\begin{verbatim}
+   // allocate stores x and particles
+   entitySet alloc_set = interval(1,100) ;
+   x.allocate(alloc_set) ;
+   particles.allocate(alloc_set) ;
+\end{verbatim}
 
-Stores provide a one-to-one correspondence between entities and values.
-In shorter terms, stores look like very flexible arrays.  The stores
-come in a variety of forms that allow various types of run-time selection
-of the sizes of the types they contain.  For example, the storeVec
-provides a store that contains vectors whose size isn't specified until
-run time.
+After allocating the container, we can access the values of the
+container using the array operator.  In this sense a store looks like
+an array with array bounds that are general sets.  For example, if we
+want to initialize the contents of our containers we might use code
+that iterates over the allocated set such as the following:
+\begin{verbatim}
+  // initialize the container to the value zero
+  entitySet::const_iterator ei ;
+  for( ei = alloc_set.begin(); ei != alloc_set.end(); ++ei) {
+    x[*ei] = 0 ;
+    particles[*ei].push_back(0) ; // Calling vector method push_back()
+  }
+\end{verbatim}
 
-Perhaps the fastest way to learn how to apply Loci containers is to see
-them in action.  The following is a short program that illustrates the
-syntax of Loci containers and some basic examples of their application.
+Note, we can also query the domain, or defining set of entities, for any container by using the {\tt domain()} method.  For example
+\begin{verbatim}
+  // write out all of store x to cout
+  entitySet xdom = x.domain() ;
+  for( ei = xdom.begin(); ei != xdom.end(); ++ei) 
+    cout << "x["<<*ei<<"]=" << x[*ei] << endl ;
+\end{verbatim}
 
-\include{containers_cc}
+For parameters Loci provides the {\tt param} templated class.  This
+class can also be used to hold arbitrary types.  It associates a given
+value with a collection of entities.  By default this collection of
+entities is the universal set, but there are methods for limiting this
+to any subset of entities.  We create a param similar to the store
+type with code such as:
+\begin{verbatim}
+  // Create the timestep
+  param<float> timestep ;
+\end{verbatim}
+We then can assign a value to the parameter using the dereferencing
+{\tt *} operator.  For example:
+\begin{verbatim}
+   // Set the timestep to 1ms
+   *timestep = 1e-3 ;
+\end{verbatim}
+Similarly we can assign a value for a subset of entities (such as a
+boundary entities) using the parameters facility as well.  By default
+the param associates a value with all possible entities, but this
+association can be changed using the {\tt set\_entitySet()} member
+function.  For example:
+\begin{verbatim}
+  param<real> Twall ; // Create wall temperature
+  Twall = 300 ;
+  // Constraint Twall to only apply to boundary entities (as given)
+  entitySet wallBoundary = interval(1000,1500) ; 
+  Twall.set_entitySet(wallBoundary) ;
+\end{verbatim}
+
+%storeVec and storeMat
+
+% Parameters provide a way of associating a single value with a set of
+% entities.  With respect to the set of entities that they are associated
+% with, parameter variables behave much like global variables.  There are
+% two parameter containers: param and blackbox, which differ in their
+% scope and intended usage.  The param variables are synchronized over all
+% of the processors and can only be used with first class objects that Loci
+% knows about.  The blackbox variables are not synchronized over processors
+% and can hold any data type.  Blackbox containers are intended to be used
+% to hold data structures for third party libraries, or other data types
+% that Loci is not able to manage directly.
+
+% Stores provide a one-to-one correspondence between entities and values.
+% In shorter terms, stores look like very flexible arrays.  The stores
+% come in a variety of forms that allow various types of run-time selection
+% of the sizes of the types they contain.  For example, the storeVec
+% provides a store that contains vectors whose size isn't specified until
+% run time.
+
 
 \section{Loci Relations}
+
 In addition to containers, Loci provides ways of describing
 relationships between entities.  The simplest of these relationships
 is the constraint.  The constraint simply identifies a grouping of
-entities and is used to assign attributes to entities.  For example,
-a boundary condition may be specified by placing those entities in the
-boundary in a boundary constraint.  The most basic of the relations is
-the Map.  This provides a means of describing the relationship between
-entities.  Maps are used to describe the data-structures typically
-encountered in unstructured mesh computations and come in a variety of
-forms in Loci.  The basic {\tt Map} class provides a one-by-one
-correspondence whereas the {\tt MapVec} templated class provides a
-one-to-many correspondence.  Similarly, the {\tt multiMap} class
-provides the most generic interface where each entity may have 0 or
-more other entities related to it.  The following source code
-demonstrates the basic user interface for the Map family of classes.
+entities and is used to assign attributes to entities.  For example, a
+boundary condition may be specified by placing those entities in the
+boundary in a boundary constraint.  For example, suppose entities
+labeled $1,2,$ and $3$ are at an inflow boundary, we might construct
+such a structure by creating a constraint and assigning these entities
+to the constraint.  For example:
+\begin{verbatim}
+   // set inflow constraint
+   constraint inflow ;
+   *inflow = entitySet(interval(1,3)) ;
+\end{verbatim}
+Alternatively, constraints might be used to enable and disable some
+feature in the solver.  In this setting a constraint may either
+contain the empty set, or may contain all possible entities.  For
+example, we might use a constraint to select between having viscous
+terms or not using the following type of setup:
+\begin{verbatim}
+
+   constraint viscous ;
+   *viscous = EMPTY ; // default to not empty 
+   if(mu_set) // If viscosity set, then enable viscous terms
+     *viscous = ~EMPTY ; // Constraint set to contain all entities
+\end{verbatim}
+Note that in this setup we use the tilde to complement the {\tt EMPTY} set
+to achieve the result of identifying every entity.  This set will contain
+all entities not in the empty set (e.g. everything).  
+
+Constraints can identify a group of entities are related, however it
+cannot provide a relationship from one entity to another (e.g. how do
+faces relate to cells, what nodes make up a face, etc).  We use a {\tt
+  Map} container to describe these types of relationships.  The {\tt
+  Map} is used to relate any given entity with another.  The map is
+analogous to a {\tt store} that contains entities, and as such can be
+allocated, and assigned values similar to a generalized array much
+like the {\tt store} container.  For example, if we wanted to create a {\tt Map} for all entities to the left of an entity in a number line we might write code such as:
+\begin{verbatim}
+  entitySet nodes = interval(0,10) ; // A number line from 0 to 10
+  entitySet left = (nodes >> 1) & nodes ; // Shift set to get nodes that
+                                          // have a left side
+  // Create Maping from current node to the node to the left
+  Map leftNode ;
+  leftNode.allocate(left) ; // Allocate over all entities tha have a left side
+  // Assign left node by looping over left nodes and nodes at the same time
+  entitySet::const_iterator ni = nodes.begin() ;
+  for(entitySet::const_iterator li=left.begin();li!=left.begin();++li,++ni)
+    leftNode[*li] = *ni ; // node *ni is to the left of node *li
+\end{verbatim}
+
+Loci also includes other types of map containers such as {\tt mapVec}
+and {\tt multiMap} which provide mechanisms for having multiple entity
+associations.  They will be discussed later in the tutorial as we get
+to more advanced topics.
+
+\section{Databases within Loci}
+
+One of the facilities that Loci provides is the management of fact and
+rule databases.  The fact database provides a repository for the
+containers described earlier.  Once a container is put in the fact
+database, it can be retrieved at a later time by its assigned name.  For example, if we wanted to store the {\tt leftNode } map computed in the previous section into a Loci fact database we would use the {\tt create\_fact()} method.  For example:
+\begin{verbatim}
+  fact_db facts ; // Create the fact database
+  
+  // Insert leftNode into the fact database
+  facts.create_fact("leftNode",leftNode) ;
+\end{verbatim}
+
+The fact can later be retrieved from the fact database using the {\tt get\_fact()} method.  For example, we can pass the fact database into a function and then use it to get a copy of the {\tt leftNode} map with code such as:
+\begin{verbatim}
+void worker(fact_db &facts) {
+  Map leftNode ;  // Create Map container
+  leftNode = facts.get_fact("leftNode") ;
+  // ... code using leftNode follows
+}
+\end{verbatim}
+
+In addition to the fact database, Loci provides a facility for storing
+rules that describe computations that can generate new facts.  We will
+describe rules more in the following section.  Usually the user has
+minimal interaction with the rule database.  In general, the user
+creates the rule database and fills it with rules that were registered
+with the system automatically before {\tt main()} executes.  As in the
+following example:
+\begin{verbatim}
+  rule_db rdb ; // create the rule database called rdb
+  rdb.add_rules(global_rule_list) ; // Add all registered rules to the database
+\end{verbatim}
+Both the fact database and the rule database are fundamental to
+programming using the Loci framework.  The fact database describes
+what you know about a problem, the rule database describes what you
+can derive.  Both of these components are used to make Loci queries
+using the {\tt Loci::makeQuery} command.  For example to query for the
+computed temperature one would implement code such as:
+\begin{verbatim}
+ // Query Loci for fact derived fact 'temperature'
+  if(!Loci::makeQuery(rdb,facts,"temperature")) {
+    cerr << "query failed!" << endl ;
+  }
+\end{verbatim}
+In most Loci programs, the user queries for the generic variable
+``solution'' which just indicates that final solution to the problem.
+For most time dependent problems, the most interesting information is
+the intermediate values obtained in the time evolution, not the final
+value.
+
+\section{A Simple Example}
+
+Since specification languages are not typically encountered when
+implementing discretization based numerical schemes, a simple example
+problem will be used to illustrate the basic ideas and motivations
+behind the rule-based approach to application development.  For this
+purpose the one-dimensional linear diffusion problem is selected.  A formal
+description of this problem in the interval  $x\in[0,1]$ for a given
+diffusion constant $\nu$, is described by the equations
+\begin{align}
+\label{eq3:diffuse}
+u_t      & =  \nu u_{xx},~ x \in (0,1), t>0,\\
+\label{eq3:diffuseinitial}
+u(x,0)   & =  f(x),~ x \in [0,1],\\
+\label{eq3:diffuseb0}
+u_x(0,t) & =  g(t), \mbox{ where } g(0) = f_x(0), \mbox{ and }\\
+\label{eq3:diffuseb1}
+u_x(1,t) & =  h(t), \mbox{ where } h(0) = f_x(1).
+\end{align}
+
+Equations (\ref{eq3:diffuse}) through (\ref{eq3:diffuseb1}) formally
+define the problem to be solved; however, the methodology of solution
+is left open.  A complete specification for finding an analytical
+solution might be stated as follows: using the Laplace transforms and
+associated algebraic identities, find the value of the function
+$u(x,t)$ such that the definitions given in equations
+(\ref{eq3:diffuse}) through (\ref{eq3:diffuseb1}) are satisfied.
+Notice that this specification contains three distinct parts: 1) a
+definition of the problem, 2) a collection of transformations, and 3)
+a goal that must be satisfied.  For this case, an analytic solution to
+the problem may be found for a few specific
+functions $f(x)$, $g(t)$, and $h(t)$.  In general, however, analytical
+solutions to PDE problems of interest to engineering are either
+impractical or impossible, due to the complexity of the geometries
+involved and the non-linearity of the equations themselves.  For this
+reason, approximate numerical methods are often used to solve PDE
+based problems.  However, the basic approach of problem and solution
+specification through definitions, transformations, and goals 
+applies equally well to numerical solution methods.  The question is,
+how does one formally specify the problem and solution methodology for
+these numerical methods in this definition-transformation-goal style?
 
 
-\include{relations_cc}
+\subsection{A Finite Volume Solution}
+
+The first step in numerically approximating the function $u(x,t)$ is
+the discretization of the spatial domain (in this case the interval
+$[0,1]$).  For this example, the finite volume discretization method
+is chosen.\footnote{Other discretization schemes follow similar lines.
+  See Appendix \ref{app:numerical} for alternative discretization
+  examples.} Using this discretization approach, the interval $[0,1]$
+is divided into $N$ sub-intervals, as illustrated in figure
+\ref{fig3:oned}.  To facilitate describing the discretization process,
+the $N$ sub-intervals, or cells, are labeled by $c = N+1, \cdots, 2N$,
+while the interfaces at the boundaries of sub-intervals are labeled $i
+= 0, \cdots, N$.  Note that the typical labeling used for theoretical
+purposes would include half step labels for the interfaces, while a
+typical unstructured application code might label both cells and
+interfaces starting from zero and use context to distinguish between
+the two cases.  However, for the purposes of automating reasoning
+about these entities of computations it is assumed that these labels
+are integers and that independent computational sites (in this case,
+cells and interfaces) are labeled distinctly.  The proposed labeling
+satisfies both of these constraints.
+
+\begin{figure}[htbp]
+ \centerline{
+  \epsfxsize=5.50in
+  \epsfbox{figures/one-d.eps}}
+ \caption{A Discretization of the Interval $[0,1]$}
+ \label{fig3:oned}
+\end{figure}
+
+As illustrated in figure \ref{fig3:oned}, the discretization yields
+$N+1$ interfaces which have the positions given by
+\begin{equation}
+x = \lbrace (i,x_i) | i \in [0, \cdots, N], x_i = i/N \rbrace.
+\label{eq3:interfacex}
+\end{equation}
+Notice that the variable $x$ in this equation is described by a set of
+ordered pairs where the first entry is the entity identifier, whereas
+the second entry is the value bound to that entity.  This is a more
+general abstraction of the array.  For example {\tt x[i]} is
+represented abstractly as $\lbrace x_i | (i,x_i) \in x \rbrace$.
+
+In addition, this discretization yields $N$ intervals, or cells, which
+are represented by the mappings between cells and interfaces by way of
+the following relationships
+\begin{equation}
+\begin{array}{rcl}
+il & = & \lbrace (c,l) | c \in [N+1, \cdots, 2N], l = c-N-1 \rbrace,\\
+ir & = & \lbrace (c,r) | c \in [N+1, \cdots, 2N], r = c-N \rbrace.\\
+\end{array}
+\label{eq3:cellmaps}
+\end{equation}
+The mappings $il$ and $ir$ provide mappings from every cell to their
+left and right interfaces.  The domain of $ir$ and $il$ is $[N+1,
+\cdots, 2N]$, or the cells in the discretization, while the ranges are
+$\mathrm{ran}(ir) = [0, \cdots, N-1]$ and $\mathrm{ran}(il) = [1, \cdots, N]$.  This
+mapping is used to conveniently describe subscripts, {\it i.e.}
+$x_{c-N} = ir \rightarrow x$, where the composition operator,
+$\rightarrow$, defines the application of the mapping, as in
+\begin{equation}
+il\rightarrow x = \lbrace (c,x_l) | (c,l) \in il, (l,x_l) \in x \rbrace.
+\end{equation}
+Using this notation, it is possible to conveniently describe cell
+based calculations.  For example, a generic description of each cell
+center is given by
+\begin{equation}
+\label{eq3:cellcenter}
+x = (ir \rightarrow x + il \rightarrow x)/2.
+\end{equation}
+Note that the definition of $x$ provided by equation
+(\ref{eq3:cellcenter}) is only applicable to cells since only cells are in
+the domain of maps $ir$ and $il$; however, this does not prevent the
+definition of $x$ for other entities (for example, interfaces) via
+other rules.
+
+The mappings $il$ and $ir$ are used to describe the first
+step of the finite volume discretization, where integration of
+equation (\ref{eq3:diffuse}) over each cell produces the equation
+\begin{equation}
+\int_{t_n}^{t_{n+1}} \int_{il \rightarrow x}^{ir \rightarrow x} u_t dx
+dt = \int_{t_n}^{t_{n+1}} \nu(ir \rightarrow u_x - il \rightarrow
+u_x) dt.
+\label{eq3:diffinteg}
+\end{equation}
+
+Equation (\ref{eq3:diffinteg}) is an exact equation, which can be
+integrated numerically to obtain a numerical solution algorithm.
+For example, a first order end-point rule is applied to the time
+integrations while a second order mid-point rule is applied to the space
+integrations to obtain a finite-volume numerical method, expressed as
+\begin{equation}
+u^{n+1} = u^n + \nu \Delta t
+\left[ \frac{ir \rightarrow u^n_x - il \rightarrow u^n_x}
+          {ir\rightarrow x - il\rightarrow x}\right]
+\label{eq3:timeadvance}
+\end{equation}
+
+Equation (\ref{eq3:timeadvance}) describes the numerical method for
+advancing the time step, but it is not complete.  The gradient term,
+$u^n_x$, located at the interfaces has not been defined as a numerical
+approximation.  The most straightforward approximation for $u_x$ is a
+central difference formula using the values at the cell centers at
+either side of the interface.  In order to perform this calculation it
+will be convenient to have a mapping from interfaces to cells similar to
+the development of $il$ and $ir$.  These mappings are defined by
+the relations
+\begin{equation}
+\begin{array}{rcl}
+cl & = & \lbrace (i,l) | i \in [1, \cdots, N], l = i+N \rbrace,\\
+cr & = & \lbrace (i,r) | i \in [0, \cdots, N-1], r = i+N+1 \rbrace.\\
+\end{array}
+\label{eq3:facemaps}
+\end{equation}
+
+Using the definitions of $cl$ and $cr$ of (\ref{eq3:facemaps}), a
+numerical approximation to the gradient can be given as
+\begin{equation}
+u_x^n = \frac{cr\rightarrow u^n - cl\rightarrow u^n}
+           {cr\rightarrow x - cl\rightarrow x}.
+\label{eq3:ux}
+\end{equation}
+Notice that this equation uses the x-coordinate at the cell centers
+that is computed by equation (\ref{eq3:cellcenter}).  In addition,
+since this rule uses both maps $cr$ and $cl$, it only defines $u_x$ on
+the intersection of the domains of $cr$ and $cl$, given by $[1, \cdots,
+N-1]$.  By this reasoning, equation (\ref{eq3:ux}) only provides
+gradients at the internal faces of the domain.  The gradient at the
+boundary faces is provided by the boundary conditions given in
+equations (\ref{eq3:diffuseb0}) and (\ref{eq3:diffuseb1}).  The
+question is, how do these boundary conditions specify $u_x$ at the
+boundaries without specifying $u_x$ everywhere in the domain?
+Obviously additional information must be provided that constrains
+the application of boundary condition gradients only to the boundary
+interfaces.  A solution to this problem can be found with the
+observation that the boundary interfaces have the distinction that
+either $cl$ is defined or $cr$ is defined, but not both.  Using this
+fact, the rules for calculating the boundary gradients can be given by
+\begin{equation}
+\begin{aligned}
+u_x^n & = g(n \Delta t), \mbox{constraint}\lbrace \neg \mathrm{dom}(cl) \wedge
+\mathrm{dom}(cr) \rbrace, \label{eq3:brule0}\\
+u_x^n & = h(n \Delta t), \mbox{constraint}\lbrace \mathrm{dom}(cl)
+\wedge \neg \mathrm{dom}(cr) \rbrace. %\label{eq3:brule1}
+\end{aligned}
+\end{equation}
+Here the constraint term added to the rule indicates a constraint on
+the application of the rule.  In this case it constrains the
+application of the boundary conditions to the appropriate boundary faces.
+
+At this point, the computation of $u^{n+1}$ from $u^n$ is completely
+specified.  However, before any such iteration can begin, an initial
+value, or $u^{n=0}$, must be given.  To be consistent with the finite
+volume formulation, the derivation of the initial conditions begins
+with the integral form of equation (\ref{eq3:diffuseinitial}), given by
+\begin{equation}
+\int^{ir\rightarrow x}_{il\rightarrow x} u^{n=0} dx =
+\int^{ir\rightarrow x}_{il\rightarrow x} f(x) dx.
+\end{equation}
+Using a midpoint rule to numerically integrate this equation one
+obtains the rule
+\begin{equation}
+u^{n=0} = f(x), \mbox{constraint}\lbrace (il,ir)\rightarrow x\rbrace.
+\label{eq3:ic}
+\end{equation}
+For this rule, the constraint is used to indicate that although the
+coordinates of the interfaces cancel in the derivation, their
+existence is predicated by the integration.  In other words, the
+derivation assumed a cell perspective that includes left and right
+interface positions.
+
+\subsection{On Problem Specification}
+
+For an analytic solution method, equations (\ref{eq3:diffuse}) through
+(\ref{eq3:diffuseb1}) are sufficient to define the problem at hand.
+For numerical solution methods, additional definitions are required,
+due to the fact that these are inexact methods.  For example, there
+are often tradeoffs between discretization and accuracy that require
+additional specification.  In addition, since discretization for
+complex geometries (grid generation) is not a completely automatic
+process, the discretization becomes part of the problem definition for
+numerical solution methods.  For the example diffusion problem already
+introduced, the definition of the numerical problem consists of
+spatially independent information such as the diffusion constant
+$\nu$, the initial condition function $f(x)$, the numerical time step
+$\Delta t$, and a representation of the discretization of space.  The
+discretization of space is given by a set of positions,
+(\ref{eq3:interfacex}), and the collection of mappings given in
+(\ref{eq3:cellmaps}) and (\ref{eq3:facemaps}).  Table
+\ref{table3:facts} summarizes these formal definitions for the example
+diffusion problem.
+
+
+\begin{table}[htbp]
+\caption{ A Summary of Definitions for the Example Diffusion
+  Problem}
+\label{table3:facts}
+\begin{center}
+  \begin{tabular}{|l|l|}
+    \hline
+    fact      & meaning \\
+    \hline
+    $\nu$     & given diffusion constant  \\
+    $f(x)$     & given initial condition  \\
+    $g(t)$     & given left bc \\
+    $h(t)$     & given right bc  \\
+    $\Delta t$& given time-step  \\
+    $x$       & $\lbrace (i,x_i) | i \in [0, \cdots, N], x_i = i/N    \rbrace$\\
+    $il$      & $\lbrace (c,l)   | c \in [N+1, \cdots, 2N], l = c-N-1 \rbrace$\\
+    $ir$      & $\lbrace (c,r)   | c \in [N+1, \cdots, 2N], r = c-N   \rbrace$\\
+    $cl$      & $\lbrace (i,l)   | i \in [1, \cdots, N], l = i+N      \rbrace$\\
+    $cr$      & $\lbrace (i,r)   | i \in [0, \cdots, N-1], r = i+N+1  \rbrace$\\
+    \hline
+  \end{tabular}
+\end{center}
+\end{table}
+
+
+
+\subsection{On Specification of Process}
+
+Given the definition of the problem, the process of solving the
+problem is dictated by a prescribed set of transformations.  For
+example, consider equation (\ref{eq3:cellcenter}) as an example of a
+transformation that transforms $x$ located at $il$ and $ir$ into a
+cell $x$.  To simplify discussions of the structure of the
+calculations, the transformation rules are represented by a rule
+signature that is denoted by a list of targets of the transformation
+delineated from the sources of the transformation by the left arrow
+symbol, '$\leftarrow$'.  Thus the cell center position calculation is
+represented by the rule signature $x \leftarrow (ir,il)\rightarrow x$.
+This rule signature represents the augmentation of the set of ordered
+pairs defined in equation (\ref{eq3:interfacex}) with the additional
+set given as
+\begin{equation}
+x\leftarrow\lbrace (c, x_c) |  x_c = (x_l + x_r)/2,
+                               (l,x_l) \in x, (r,x_r) \in x, 
+                               (c,l) \in il, (c,r) \in ir \rbrace.
+\end{equation}
+For the moment, the augmentation of $x$ with this set can be
+considered as a set union operation, with the caveat that it will
+become more complex once issues of specification consistency are
+considered.  Given this notation, the specification of the finite
+volume scheme derived in this section can be summarized by six rules
+given in table \ref{table3:rules}.
+
+\begin{table}[htbp]
+\caption{ A Summary of Rules Describing the Solution of the Example
+    Diffusion Problem.}
+\label{table3:rules}
+\begin{center}
+  \begin{tabular}{|l|l|l|}
+    \hline
+    Rule  & Rule Signature & Equation\\
+    \hline
+    Rule 1 & $x \leftarrow (ir,il)\rightarrow x $ &
+    (\ref{eq3:cellcenter})\\
+    Rule 2 & $u^{n+1} \leftarrow u^n,(ir,il)\rightarrow(u_x^n,x)$ &
+    (\ref{eq3:timeadvance})\\
+    Rule 3 & $u_x^n \leftarrow (cr,cl)\rightarrow(u^n,x)$ &
+    (\ref{eq3:ux})\\
+    Rule 4 & $u_x^n \leftarrow  g, n, \Delta t, \mbox{constraint}\lbrace 
+    \neg \mathrm{dom}(cl) \wedge \mathrm{dom}(cr) \rbrace$&
+    (\ref{eq3:brule0})\\
+    Rule 5 & $u_x^n \leftarrow  h, n, \Delta t, \mbox{constraint}\lbrace 
+    \mathrm{dom}(cl) \wedge \neg \mathrm{dom}(cr) \rbrace$ &
+    (\ref{eq3:brule1})\\
+    Rule 6 & $u^{n=0} \leftarrow f,x,\mbox{constraint}\lbrace(il,ir)\rightarrow
+    x\rbrace $ &
+    (\ref{eq3:ic})\\
+    \hline
+  \end{tabular}
+\end{center}
+\end{table}
+
+\subsection{Implementing the  Problem Specification}
+
+How does one translate the definition of the problem given in table
+\ref{table3:facts} and the specification of the solution method given
+in table \ref{table3:rules} into an implementation that can solve for
+$u^n, n=0,1, \cdots$?  One accomplishes this implementation by
+starting from what is known and using the rules of table
+\ref{table3:rules} to incrementally derive the specified goal.  As in
+Prolog\cite{Clocksin.87}\cite{Sterling.86}, rule resolution, a
+generalization of modus ponens, is used to produce these incremental
+derivations.  In other words, rules are applied where their sources
+are satisfied.  The set of entities that satisfy a rule's sources is
+the context of the rule.  For example, Rule 1 from table
+\ref{table3:rules} can be resolved with the definitions of $il$, $ir$,
+and $x$ given in table \ref{table3:facts} for the entities numbered
+$N+1, \cdots, 2N$.  Similarly, once Rule 1 is resolved, Rule 6 can be
+resolved using the values of $x$ generated by Rule 1.  Iteration is
+recovered by way of induction.  For example, if a rule generates
+$u^{n=0}$ while another rule generates $u^{n+1}$, then these two rules
+can be used to iteratively generate $u^n$ for $n=0,1, \cdots$.  Thus
+by resolving the rules that provide the interface and boundary
+gradients $u_x^n$ a complete schedule as shown in table
+\ref{table3:schedule} can be derived from the given specification.
+
+\begin{table}[htbp]
+\caption{ A Deduced Execution Schedule for the Example
+  Diffusion Problem}
+\begin{center}
+  \begin{tabular}{|l|l|l|l|}
+    \hline
+    Rule Used & variable computed  & context          & comment \\
+    \hline
+    Rule 1 & compute $x_c$         & $c=N+1, \cdots, 2N$ & cell centers\\
+    Rule 6 & compute $u^{n=0}_c$   & $c=N+1, \cdots, 2N$ & initial conditions \\
+    Loop   &                       & define $n=0$     & for $n=0,\cdots$ \\
+    Rule 4 & compute $(u_x)^n_i$   & $i=0$       & left boundary condition\\
+    Rule 5 & compute $(u_x)^n_i$   & $i=N$       & right boundary condition\\
+    Rule 3 & compute $(u_x)^n_i$   & $i=1..N-1$  & diffusion flux at time $n$\\
+    Rule 2 & compute $u^{n+1}_i$   & $i=0..N$    & advance time-step\\
+    End Loop &                     & loop to Rule 4 & replace $n=n+1$, repeat\\
+    \hline
+  \end{tabular}
+\end{center}
+\label{table3:schedule}
+\end{table}
+
+\subsection{Variations: Reductions}
+
+The specification of the finite volume solution method for the
+one-dimensional diffusion equation has been given, but this simple
+example has left out some important infrastructure that will require
+special treatment if efficient implementations are desired.  The
+choice of a time integration used in this example is not stable for
+any time step, $\Delta t$, and in a typical application a stable
+time-step would be computed as part of the iteration calculation.  For
+non-linear equations the stable time-step is a function of mesh
+spacing and dependent variables and as such can not be computed in
+advance.  The usual approach is to compute the maximum stable
+time-step for each cell in the domain and then choose the smallest of
+these time-steps as the global time-step control.  It is important to
+notice that the time-step is a single value that is a function of a
+set of entities (namely cells).  In addition, this is not any ordinary
+function, it is a function obtained by applying an operation to some
+set of values.  The result of such a process is always that the set of
+values becomes reduced to a single value by a process called
+reduction.  Reduction processes are common in the implementation of
+unstructured applications.  There are basically two forms of
+reductions that are found in these applications.  One, like the
+time-step control discussed here, involves applying the reduction over
+a large set of entities to obtain a global quantity, while the other
+involves reducing through mappings from one set of entities to another
+to obtain a set of local quantities (as in summing forces from cells
+to nodes).  The second of these operations is often used to reduce the
+number of connectivity lists required by the unstructured algorithm,
+since reductions through maps can represent functions requiring
+inverses of the same map.  Thus using these local reductions it is
+possible to save computing and storing an inverse of an existing map.
+Since reductions are quite common in unstructured applications, some
+support for these cases must be provided by any specification system
+for unstructured numerical algorithms.  The particular approach
+presented in this thesis will be discussed in the subsequent sections.
+
+
 
 \section{Loci Helper Classes}
 

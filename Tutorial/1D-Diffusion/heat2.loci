@@ -16,6 +16,8 @@ $type ux store<float> ; // derivative of u (du/dx)
 $type residual store<float> ; // steady state residual
 $type uflux store<float> ; // flux of u at interface
 
+$type integrateBoundary(X) store<float> ;
+
 // Input parameters
 $type max_iteration param<int> ;  // How many timesteps to take
 $type N param<int> ;              // How many nodes
@@ -49,8 +51,20 @@ float f(float xc) {
   return xc*(1-xc) ;
 }
 
-$rule pointwise(u{n=0}<-xc) {
-  $u{n=0} = f($xc) ;
+$type u_ic store<float> ;
+
+$rule pointwise(u_ic<-xc) {
+  $u_ic = f($xc) ;
+}
+
+
+$type EulerIntegrate(X,Y) store<float> ;
+$type X store<float> ;
+$type Y store<float> ;
+$type Y_ic store<float> ;
+
+$rule pointwise(EulerIntegrate(X,Y){n=0}<-Y_ic) {
+  $EulerIntegrate(X,Y){n=0} = $Y_ic ;
 }
 
 //*******************************************************************
@@ -58,8 +72,8 @@ $rule pointwise(u{n=0}<-xc) {
 // solution
 //*******************************************************************
 
-$rule pointwise(solution<-u{n}),conditional(simulation_finished{n}) {
-  $solution = $u{n} ;
+$rule pointwise(EulerIntegrate(X,Y)<-EulerIntegrate(X,Y){n}),conditional(simulation_finished{n}) {
+  $EulerIntegrate(X,Y) = $EulerIntegrate(X,Y){n} ;
 }
 
 
@@ -74,23 +88,70 @@ $rule singleton(simulation_finished<-$n,max_iteration) {
 // Objective :  Compute u{n+1} based on explicit euler time integration method
 //-------------------------------------------------------------------
 
-$rule pointwise(u{n+1}<-u{n},dt{n},residual{n},L) {
-  $u{n+1} = $u{n}+$dt{n}*$residual{n}/$L ;
+$rule pointwise(EulerIntegrate(X,Y){n+1}<-EulerIntegrate(X,Y){n},dt{n},X{n},L) {
+  $EulerIntegrate(X,Y){n+1} = $EulerIntegrate(X,Y){n}+$dt{n}*$X{n}/$L ;
 }
 
-
-// Steady residual, divergence of flux of u
-$rule pointwise(residual<-(il,ir)->uflux) {
-  $residual = $ir->$uflux-$il->$uflux ;
+$rule pointwise(Y<-EulerIntegrate(X,Y)),parametric(EulerIntegrate(X,Y)) {
+  $Y = $EulerIntegrate(X,Y) ;
 }
 
+$rule pointwise(solution<-EulerIntegrate(residual,u)) {
+  $solution = $EulerIntegrate(residual,u) ;
+}
+
+$rule pointwise(residual<-integrateBoundary(uflux)) {
+  $residual = $integrateBoundary(uflux) ;
+}
+
+// $rule pointwise(u{n=0}<-u_ic) {
+//   $u{n=0} = $u_ic ;
+// }
+// //*******************************************************************
+// // When simulation is finished, copy current iteration results to
+// // solution
+// //*******************************************************************
+
+// $rule pointwise(solution<-u{n}),conditional(simulation_finished{n}) {
+// 	$solution = $u{n} ;
+// }
+
+
+// //*******************************************************************
+// // Condition that determines when iteration is complete
+// //*******************************************************************
+
+// $rule singleton(simulation_finished<-$n,max_iteration) {
+//    $simulation_finished = ($$n >= $max_iteration) ;
+// }
+// //-------------------------------------------------------------------
+// // Objective :  Compute u{n+1} based on explicit euler time integration method
+// //-------------------------------------------------------------------
+
+// $rule pointwise(u{n+1}<-u{n},dt{n},integrateBoundary(uflux){n},L) {
+//   $u{n+1} = $u{n}+$dt{n}*$integrateBoundary(uflux){n}/$L ;
+// }
+
+
+$type X store<float> ;
+
+$rule unit(integrateBoundary(X)),constraint(geom_cells) {
+  $integrateBoundary(X) = 0 ;
+}
+$rule apply(cl->integrateBoundary(X)<-X)[Loci::Summation] {
+  join($cl->$integrateBoundary(X),$X) ;
+}
+$rule apply(cr->integrateBoundary(X)<-X)[Loci::Summation] {
+  join($cr->$integrateBoundary(X),-$X) ;
+}
+    
 
 $rule pointwise(uflux<-nu,ux) {
   $uflux = $nu*$ux ;
 }
 
-$rule pointwise(L<-(il,ir)->x) {
-  $L = $ir->$x-$il->$x ;
+$rule pointwise(L<-integrateBoundary(x)) {
+  $L = $integrateBoundary(x) ;
 }
 
 //*******************************************************************
@@ -117,8 +178,17 @@ $rule pointwise(ub), constraint(right_boundary) {
 // defined.
 //*******************************************************************
 
-$rule pointwise(xc<-(il,ir)->x) {
-  $xc = .5*($il->$x + $ir->$x) ;
+//$rule pointwise(xc<-(il,ir)->x) {
+//  $xc = .5*($il->$x + $ir->$x) ;
+//}
+$rule unit(xc), constraint(geom_cells) {
+  $xc = 0 ;
+}
+$rule apply(cl->xc <- x)[Loci::Summation] {
+  join($cl->$xc,.5*$x) ;
+}
+$rule apply(cr->xc <- x)[Loci::Summation] {
+  join($cr->$xc,.5*$x) ;
 }
 
 

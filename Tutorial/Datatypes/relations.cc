@@ -156,9 +156,9 @@ int main(int argc, char *argv[])
     d2[*ei] = *ei ;
 
   cout << "d2.domain() =" << d2.domain() << endl ;
-  Map d3 ;
-  d3 = mp->remap(d2) ;
-  cout << "d3 = " << d3 << endl ;
+  //  Map d3 ;
+  //  d3 = mp->remap(d2) ;
+  //  cout << "d3 = " << d3 << endl ;
   constraint x ;
   x = ~EMPTY ;
   constraint y ;
