@@ -83,11 +83,18 @@ namespace Loci {
   
   rule instantiateRule(rule r, variable v) {
     variableSet target = r.targets() ;
-    if(target.size() != 1) {
-      cerr << "can't handle parametric rules with multiple outputs!" << endl ;
-      cerr << "rule = " << r << "variable " << v << endl ;
+    variable vt ;
+    rule_implP rp = r.get_rule_implP() ;
+    fatal(rp == 0) ;
+    if(rp->is_parametric_provided()) {
+      vt = rp->get_parametric_variable() ;
+    } else {
+      if(target.size() != 1) {
+        cerr << "can't handle parametric rules with multiple outputs!" << endl ;
+        cerr << "rule = " << r << "variable " << v << endl ;
+      }
+      vt = *target.begin() ;
     }
-    variable vt = *target.begin() ;
     // Find substution rules
     map<string,variable> transform_map ;
     std::vector<int> alt = vt.get_arg_list() ;
@@ -124,7 +131,6 @@ namespace Loci {
       }
     }
 
-    rule_implP rp = r.get_rule_implP() ;
     rp->rename_vars(vm) ;
     return(rule(rp)) ;
   }
@@ -162,13 +168,26 @@ namespace Loci {
     for(ruleSet::const_iterator rsi = rset.begin(); rsi != rset.end();++rsi) {
       variableSet target = rsi->targets() ;
       bool param=false ;
-      for(variableSet::const_iterator vsi = target.begin(); vsi !=
-            target.end(); ++vsi) { 
-        int psize = variable(*vsi).get_arg_list().size() ;
-        if(psize > 0) {
-          param_rule_key rk(vsi->get_info().name,psize) ;
+      rule_implP rp = rsi->get_rule_implP() ;
+      if(rp == 0)
+        continue ;
+      if(!rp->is_specialized()) {
+        if(rp->is_parametric_provided()) {
+          variable pv = rp->get_parametric_variable() ;
+          int psize = pv.get_arg_list().size() ;
+          param_rule_key rk(pv.get_info().name,psize) ;
           prule_db[rk] += *rsi ;
           param = true ;
+        } else {
+          for(variableSet::const_iterator vsi = target.begin(); vsi !=
+                target.end(); ++vsi) { 
+            int psize = variable(*vsi).get_arg_list().size() ;
+            if(psize > 0) {
+              param_rule_key rk(vsi->get_info().name,psize) ;
+              prule_db[rk] += *rsi ;
+              param = true ;
+            }
+          }
         }
       }
       if(!param)

@@ -56,6 +56,9 @@ namespace Loci {
     bool rule_threading ;
     bool use_dynamic_schedule ;
     bool relaxed_recursion ;
+    bool specialized_parametric ;
+    bool use_parametric_variable ;
+    variable ParametricVariable ;
     mutable std::string name ;
     info rule_info ;
     typedef std::multimap<variable, store_instance *> storeIMap ;
@@ -71,6 +74,11 @@ namespace Loci {
     void disable_threading() { rule_threading = false ; }
     void enable_dynamic_scheduling() { use_dynamic_schedule = true ; }
     void set_relaxed_recursion() { relaxed_recursion = true ; }
+    void set_specialized() { specialized_parametric = true ; }
+    void set_parametric_variable(const std::string name) {
+      use_parametric_variable = true ;
+      ParametricVariable = variable(name) ;
+    }
     void rule_name(const std::string &name) ;
     void name_store(const std::string &name,store_instance &si) ;
     void input(const std::string &invar) { source(invar) ; }
@@ -84,6 +92,9 @@ namespace Loci {
     bool thread_rule() const { return rule_threading; }
     bool dynamic_schedule_rule() const { return use_dynamic_schedule; }
     bool is_relaxed() const { return relaxed_recursion ; }
+    bool is_specialized() { return specialized_parametric; }
+    bool is_parametric_provided() { return use_parametric_variable ; }
+    variable get_parametric_variable() { return ParametricVariable ; }
     void initialize(fact_db &facts) ;
     std::string get_name() const ;
     rule_impl_type get_rule_class() const { return rule_impl_class ; }

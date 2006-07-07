@@ -167,6 +167,8 @@ namespace Loci {
     rule_threading = true ;
     use_dynamic_schedule = false ;
     relaxed_recursion = false ;
+    specialized_parametric = false ;
+    use_parametric_variable = false ;
   }
 
   void rule_impl::rule_name(const string &fname) {
