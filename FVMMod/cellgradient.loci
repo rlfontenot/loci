@@ -1,0 +1,956 @@
+#include <Loci.h>
+#include "metrics.h"
+#include "periodic.h"
+
+$include "metrics.lh"
+
+namespace Loci {
+
+  $type gradStencil param<std::string> ;
+  
+  $rule default(gradStencil),
+    comments("Select stencil used for computing gradients.  Options include 'standard', 'full', and 'green'.  Standard includes cells that share a face, while the full stencil includes any cell that shares a node, 'green' implements a green's theorem gradient.")
+  {
+    $gradStencil = "standard" ;
+  }
+
+  $type stencilStandard Constraint ;
+  $type stencilFull Constraint ;
+  $type greensGradient Constraint ;
+ 
+  $rule constraint(stencilStandard,stencilFull,greensGradient<-gradStencil) {
+    $stencilStandard = EMPTY ;
+    $stencilFull = EMPTY ;
+    $greensGradient = EMPTY ;
+    if($gradStencil == "standard") {
+      $stencilStandard = $*gradStencil.domain() ;
+    } else if($gradStencil == "full") {
+      $stencilFull = $*gradStencil.domain() ;
+    } else if($gradStencil == "green") {
+      $greensGradient = $*gradStencil.domain() ;
+    } else {
+      cerr << "gradStencil " << $gradStencil << " of unknown type" << endl ;
+      Loci::Abort() ;
+    }
+  }
+
+  $type X storeVec<real> ;
+  $type X_f storeVec<real> ;
+  
+  $rule pointwise(gradv(X)<-(lower,upper)->(cl,cr)->(X,vol),(lower,upper)->area,boundary_map->(X_f,area),vol),
+                                constraint(geom_cells,greensGradient), prelude {
+    $gradv(X).setVecSize($X.vecSize()) ;
+  } compute {
+    const real rvol = 1./$vol ;
+    const int vs = $*X.vecSize() ;
+    for(int i=0;i<vs;++i) {
+      vect3d gradsum = vect3d(0.0,0.0,0.0);
+      for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
+        const real vl = li->$cl->$vol ;
+        const real vr = li->$cr->$vol ;
+        const real xf = (li->$cl->$X[i]*vr+li->$cr->$X[i]*vl)/(vl+vr) ;
+        gradsum -= xf*li->$area.sada*li->$area.n ;
+      }
+      for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
+        const real vl = ui->$cl->$vol ;
+        const real vr = ui->$cr->$vol ;
+        const real xf = (ui->$cl->$X[i]*vr+ui->$cr->$X[i]*vl)/(vl+vr) ;
+        gradsum += xf*ui->$area.sada*ui->$area.n ;
+      }
+      for(const Entity *bi = $boundary_map.begin();bi!=$boundary_map.end();
+          ++bi) {
+        gradsum += bi->$X_f[i]*bi->$area.sada*bi->$area.n ;
+      }
+
+      $gradv(X)[i] = gradsum*rvol  ; 
+    }
+  }
+
+  $type X store<real> ;
+  $type X_f store<real> ;
+
+  $rule pointwise(grads(X)<-(lower,upper)->(cl,cr)->(X,vol),(lower,upper)->area,boundary_map->(X_f,area),vol),
+    constraint(geom_cells,greensGradient) {
+    const real rvol = 1./$vol ;
+    vect3d gradsum = vect3d(0.0,0.0,0.0);
+    for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
+      const real vl = li->$cl->$vol ;
+      const real vr = li->$cr->$vol ;
+      const real xf = (li->$cl->$X*vr+li->$cr->$X*vl)/(vl+vr) ;
+      gradsum -= xf*li->$area.sada*li->$area.n ;
+    }
+    for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
+      const real vl = ui->$cl->$vol ;
+      const real vr = ui->$cr->$vol ;
+      const real xf = (ui->$cl->$X*vr+ui->$cr->$X*vl)/(vl+vr) ;
+      gradsum += xf*ui->$area.sada*ui->$area.n ;
+    }
+    for(const Entity *bi = $boundary_map.begin();bi!=$boundary_map.end();
+        ++bi) {
+      gradsum += bi->$X_f*bi->$area.sada*bi->$area.n ;
+    }
+    
+    $grads(X)= gradsum*rvol  ; 
+  }
+
+
+  $type X store<vect3d> ;
+  $type X_f store<vect3d> ;
+  
+  $rule pointwise(gradv3d(X)<-(lower,upper)->(cl,cr)->(X,vol),(lower,upper)->area,boundary_map->(X_f,area),vol),
+    constraint(geom_cells,greensGradient) {
+    tens3d gradsum = tens3d(vect3d(0,0,0),vect3d(0,0,0),vect3d(0,0,0)) ;
+    const real rvol = 1./$vol ;
+    
+    for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
+      const real vl = li->$cl->$vol ;
+      const real vr = li->$cr->$vol ;
+      const vect3d xf = (li->$cl->$X*vr+li->$cr->$X*vl)/(vl+vr) ;
+      gradsum.x -= xf.x*li->$area.sada*li->$area.n ;
+      gradsum.y -= xf.y*li->$area.sada*li->$area.n ;
+      gradsum.z -= xf.z*li->$area.sada*li->$area.n ;
+    }
+    for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
+      const real vl = ui->$cl->$vol ;
+      const real vr = ui->$cr->$vol ;
+      const vect3d xf = (ui->$cl->$X*vr+ui->$cr->$X*vl)/(vl+vr) ;
+      gradsum.x += xf.x*ui->$area.sada*ui->$area.n ;
+      gradsum.y += xf.y*ui->$area.sada*ui->$area.n ;
+      gradsum.z += xf.z*ui->$area.sada*ui->$area.n ;
+    }
+    for(const Entity *bi = $boundary_map.begin();bi!=$boundary_map.end();
+        ++bi) {
+      gradsum.x += bi->$X_f.x*bi->$area.sada*bi->$area.n ;
+      gradsum.y += bi->$X_f.y*bi->$area.sada*bi->$area.n ;
+      gradsum.z += bi->$X_f.z*bi->$area.sada*bi->$area.n ;
+    }
+
+    $gradv3d(X).x = gradsum.x*rvol  ; 
+    $gradv3d(X).y = gradsum.y*rvol  ; 
+    $gradv3d(X).z = gradsum.z*rvol  ; 
+  }
+
+  namespace {
+    void computeWeights(vect3d *wvec, const vect3d *deltas, const real *areas,
+                        int ndeltas) {
+      tmp_array<vect3d> weights(ndeltas) ;
+
+      real r[3][3] ;
+      r[0][0] = 0 ;
+      for(int i=0;i<ndeltas;++i) {
+        r[0][0] += deltas[i].x*deltas[i].x ;
+        weights[i] = deltas[i] ;
+      }
+      r[0][0] = sqrt(r[0][0]) ;
+      r[0][0] = max(r[0][0],1e-30) ;
+
+      const real rr00 = 1./r[0][0] ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].x *= rr00 ;
+      r[0][1] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[0][1] += weights[i].x*weights[i].y ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].y -= r[0][1]*weights[i].x ;
+      r[0][2] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[0][2] += weights[i].x*weights[i].z ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].z -= r[0][2]*weights[i].x ;
+      r[1][1] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[1][1] += weights[i].y*weights[i].y ;
+      r[1][1] = sqrt(r[1][1]) ;
+      r[1][1] = max(r[1][1],1e-30) ;
+      const real rr11 = 1./r[1][1] ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].y *= rr11 ;
+
+      r[1][2] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[1][2] += weights[i].y*weights[i].z ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].z -= r[1][2]*weights[i].y ;
+      r[2][2] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[2][2] += weights[i].z*weights[i].z ;
+      r[2][2] = sqrt(r[2][2]) ;
+      r[2][2] = max(r[2][2],1e-30) ;
+      const real rr22 = 1./r[2][2] ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].z *= rr22 ;
+      // Compute R inverse
+      //
+      // Rinv[0] = R^-1[0][0]
+      // Rinv[1] = R^-1[0][1]
+      // Rinv[2] = R^-1[0][2]
+      // Rinv[3] = R^-1[1][1]
+      // Rinv[4] = R^-1[1][2]
+      // Rinv[5] = R^-1[2][2]
+      real Rinv[6] ;
+      Rinv[0] = rr00 ;
+      Rinv[1] = -r[0][1]*rr00*rr11 ;
+      Rinv[2] = (r[0][1]*r[1][2]-r[0][2]*r[1][1])*rr00*rr11*rr22 ;
+      Rinv[3] = rr11 ;
+      Rinv[4] = -r[1][2]*rr11*rr22 ;
+      Rinv[5] = rr22 ;
+
+      for(int i=0;i<ndeltas;++i) {
+        real weightx = Rinv[0]*weights[i].x + Rinv[1]*weights[i].y +
+          Rinv[2]*weights[i].z ;
+        real weighty = Rinv[3]*weights[i].y + Rinv[4]*weights[i].z ;
+        real weightz = Rinv[5]*weights[i].z ;
+        wvec[i] = vect3d(weightx,weighty,weightz)*areas[i] ;
+      }
+    }
+  }
+
+  void centerWeights(real *wcent, const vect3d *deltas, int ndeltas) {
+    for(int kk=0;kk<2;++kk) {
+      vect3d center = vect3d(0.,0.,0.) ;
+      for(int i=0;i<ndeltas;++i) {
+        center += wcent[i]*deltas[i] ;
+      }
+
+      real r[4][4] ;
+      for(int i=0;i<4;++i) {
+        r[i][0] = 0.0 ;
+        r[i][1] = 0.0 ;
+        r[i][2] = 0.0 ;
+        r[i][3] = 0.0 ;
+      }
+      real wtot = 0 ;
+      for(int i=0;i<ndeltas;++i) {
+        const real W = wcent[i] ;
+        wtot+=W ;
+        const real W2 = W*W ;
+        r[0][0] += W2*deltas[i].x*deltas[i].x ;
+        r[0][1] += W2*deltas[i].y*deltas[i].x ;
+        r[0][2] += W2*deltas[i].z*deltas[i].x ;
+        r[0][3] += W*deltas[i].x ;
+        r[1][0] += W2*deltas[i].x*deltas[i].y ;
+        r[1][1] += W2*deltas[i].y*deltas[i].y ;
+        r[1][2] += W2*deltas[i].z*deltas[i].y ;
+        r[1][3] += W*deltas[i].y ;
+        r[2][0] += W2*deltas[i].x*deltas[i].z ;
+        r[2][1] += W2*deltas[i].y*deltas[i].z ;
+        r[2][2] += W2*deltas[i].z*deltas[i].z ;
+        r[2][3] += W*deltas[i].z ;
+        r[3][0] += W*deltas[i].x ;
+        r[3][1] += W*deltas[i].y ;
+        r[3][2] += W*deltas[i].z ;
+        r[3][3] += W ;
+      }
+      real b[4] = {0.0,0.0,0.0,wtot} ;
+      real y[4],x[4] ;
+      for(int i=0;i<4;++i) {
+        /* compute l_ij's */
+        for(int j=i+1;j<4;++j) {
+          r[j][i] = r[j][i]/r[i][i] ;
+        }
+        /* compute u_ij's */
+        for(int j=i+1;j<4;++j)
+          for(int k=i+1;k<4;++k)
+            r[j][k] -= r[j][i]*r[i][k] ;
+      }
+      
+      
+      
+      /* do forward solve Ly=b */
+      for(int i=0;i<4;i++) {
+        y[i] = b[i] ;
+        for(int j=0;j<i;j++)
+          y[i] -= r[i][j]*y[j] ;
+      }
+      
+      /* do backward solve Ux=y */
+      for(int i=3;i>=0;i--) {
+        x[i] = y[i] ;
+        for(int j=i+1;j<4;j++)
+          x[i] -= r[i][j]*x[j] ;
+        x[i] = x[i]/r[i][i] ;
+      }
+      
+      vect3d vx = vect3d(x[0],x[1],x[2]) ;
+      real k = x[3] ;
+      real wsum = 0.0 ;
+      vect3d newcent = vect3d(0.0,0.0,0.0) ;
+
+
+      int badcount = 0 ;
+      
+      for(int i=0;i<ndeltas;++i) {
+        real wadjust = k+dot(vx,wcent[i]*deltas[i]) ;
+        wcent[i] *= max(wadjust,0.0) ;
+        if(wadjust < -0.0)
+          badcount++ ;
+        wsum += wcent[i] ;
+        newcent += wcent[i]*deltas[i] ;
+      }
+
+      if(badcount ==0)
+        return ;
+
+      //      cout << "bad stencil, retrying" << endl ;
+      //      cout << "badcount = " << badcount << endl ;
+      //      cout << "cent = " << center << endl ;
+      //      cout << "vx = " << vx  << ",k="<<k<<",wsum="<< wsum << ",newcent="<<
+      //        newcent << endl;
+      
+    }
+    cerr << "Warning: BAD STENCIL after second try " << endl ;
+  }
+
+  class gridQRfactor2 : public pointwise_rule {
+    const_multiMap cellStencil,boundary_map,lower,upper ;
+    const_store<Area> area ;
+    const_store<vect3d> cellcenter,facecenter ;
+    multiStore<vect3d> LSWeights,LSBWeights ;
+
+  public:
+    gridQRfactor2() {
+      name_store("cellStencil",cellStencil) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("cellcenter",cellcenter) ;
+      name_store("facecenter",facecenter) ;
+      name_store("LSWeights",LSWeights) ;
+      name_store("LSBWeights",LSBWeights) ;
+      name_store("lower",lower) ;
+      name_store("upper",upper) ;
+      name_store("area",area) ;
+      input("(lower,upper,boundary_map)->area") ;
+      input("cellcenter") ;
+      input("cellStencil->cellcenter") ;
+      input("boundary_map->facecenter") ;
+      output("LSWeights,LSBWeights") ;
+    }
+    void calculate(Entity cc) {
+      int nstencil = (cellStencil.end(cc)-cellStencil.begin(cc)) ;
+      int nbcs =     (boundary_map.end(cc)-boundary_map.begin(cc)) ;
+      int ndeltas = nstencil+nbcs ;
+
+      tmp_array<vect3d> deltas(ndeltas) ;
+      tmp_array<vect3d> weights(ndeltas) ;
+      tmp_array<real> areas(ndeltas) ;
+      const vect3d center = cellcenter[cc] ;
+      int ncount = 0 ;
+      for(int i=0;i<nstencil;++i) {
+        Entity c = cellStencil[cc][i] ;
+        vect3d diff = cellcenter[c]-center ;
+        real rr = 1./norm(diff) ;
+        areas[ncount] = rr ;
+        deltas[ncount++] = rr*diff ;
+      }
+
+      for(int i=0;i<nbcs;++i) {
+        Entity f = boundary_map[cc][i] ;
+        vect3d diff = facecenter[f]-center ;
+        real rr = 1./norm(diff) ;
+        areas[ncount] = rr ;
+        deltas[ncount++] = rr*diff ;
+      }
+      tmp_array<vect3d> wvec(ndeltas) ;
+      tmp_array<real> wcent(ndeltas) ;
+
+      // If this is defined, try to select the most suitable subset of points
+      // for the stencil based on cell face normals
+      //#define SELECTIVE_STENCIL  
+#ifdef SELECTIVE_STENCIL
+      for(int i=0;i<ndeltas;++i)
+        wcent[i] = 0.0 ;
+      for(const Entity *ip = lower.begin(cc);ip!=lower.end(cc);++ip) {
+        vect3d n = area[*ip].n ;
+
+        int mindir = 0 ;
+        int maxdir = 0 ;
+        real mindot = dot(n,deltas[0]) ;
+        real maxdot = dot(n,deltas[0]) ;
+        
+        for(int i=1;i<ndeltas;++i) {
+          real dotnx = dot(n,deltas[i]) ;
+          if(dotnx < mindot) {
+            mindot = dotnx ;
+            mindir = i ;
+          }
+          if(dotnx > maxdot) {
+            maxdot = dotnx ;
+            maxdir = i ;
+          }
+        }
+        wcent[mindir] = 1.0 ;
+        wcent[maxdir] = 1.0 ;
+      }
+
+      for(const Entity *ip = upper.begin(cc);ip!=upper.end(cc);++ip) {
+        vect3d n = area[*ip].n ;
+
+        int mindir = 0 ;
+        int maxdir = 0 ;
+        real mindot = dot(n,deltas[0]) ;
+        real maxdot = dot(n,deltas[0]) ;
+        
+        for(int i=1;i<ndeltas;++i) {
+          real dotnx = dot(n,deltas[i]) ;
+          if(dotnx < mindot) {
+            mindot = dotnx ;
+            mindir = i ;
+          }
+          if(dotnx > maxdot) {
+            maxdot = dotnx ;
+            maxdir = i ;
+          }
+        }
+        wcent[mindir] = 1.0 ;
+        wcent[maxdir] = 1.0 ;
+      }
+      for(const Entity *ip = boundary_map.begin(cc);ip!=boundary_map.end(cc);++ip) {
+        vect3d n = area[*ip].n ;
+
+        int mindir = 0 ;
+        int maxdir = 0 ;
+        real mindot = dot(n,deltas[0]) ;
+        real maxdot = dot(n,deltas[0]) ;
+        
+        for(int i=1;i<ndeltas;++i) {
+          real dotnx = dot(n,deltas[i]) ;
+          if(dotnx < mindot) {
+            mindot = dotnx ;
+            mindir = i ;
+          }
+          if(dotnx > maxdot) {
+            maxdot = dotnx ;
+            maxdir = i ;
+          }
+        }
+        wcent[mindir] = 1.0 ;
+        wcent[maxdir] = 1.0 ;
+      }
+#else
+      for(int i=0;i<ndeltas;++i)
+        wcent[i] = 1.0 ;
+#endif
+      
+      centerWeights(wcent,deltas,ndeltas) ;
+
+      for(int i=0;i<ndeltas;++i) {
+        areas[i] *= wcent[i] ;
+        deltas[i] *= wcent[i] ;
+      }
+
+      
+      
+      computeWeights(wvec,deltas,areas,ndeltas) ;
+
+      ncount = 0 ;
+      for(int i=0;i<nstencil;++i) 
+        LSWeights[cc][i] = wvec[ncount++] ;
+      for(int i=0;i<nbcs;++i)
+        LSBWeights[cc][i] = wvec[ncount++] ;
+    }
+    void compute(const sequence &seq) {
+      LSWeights.setSizes(cellStencil) ;
+      LSBWeights.setSizes(boundary_map) ;
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<gridQRfactor2> register_gridQRfactor2 ;
+
+  class gradvec2 : public pointwise_rule {
+    const_multiMap cellStencil,boundary_map ;
+    const_storeVec<real> X,X_f ;
+    const_multiStore<vect3d> LSWeights, LSBWeights ;
+    storeVec<vect3d> gradv ;
+    int vs ;
+  public:
+    gradvec2() {
+      name_store("cellStencil",cellStencil) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("X",X) ;
+      name_store("X_f",X_f) ;
+      name_store("gradv(X)",gradv) ;
+      name_store("LSWeights",LSWeights) ;
+      name_store("LSBWeights",LSBWeights) ;
+      input("LSWeights,LSBWeights") ;
+      input("cellStencil->X") ;
+      input("boundary_map->X_f") ;
+      input("X") ;
+      output("gradv(X)") ;
+      constraint("geom_cells,stencilFull") ;
+    }
+    void calculate(Entity cc) {
+
+      for(int i=0;i<vs;++i) {
+        vect3d Qt_b = vect3d(0,0,0) ;
+        real X_center = X[cc][i] ;
+        int count = 0 ;
+        for(const int *li = cellStencil.begin(cc);li!=cellStencil.end(cc);++li) {
+          real df = X[*li][i] - X_center ;
+          Qt_b += df*LSWeights[cc][count++] ;
+        }
+        count = 0 ;
+        for(const int *bi = boundary_map.begin(cc);bi!=boundary_map.end(cc);
+            ++bi) {
+          real df = X_f[*bi][i] - X_center ;
+          Qt_b += df*LSBWeights[cc][count++] ;
+        }
+
+        gradv[cc][i] = Qt_b ; 
+      }
+    }
+    virtual void compute(const sequence &seq) {
+      vs = X.vecSize() ;
+      gradv.setVecSize(vs) ;
+
+      do_loop(seq,this) ;
+    }
+  } ;
+
+
+  class gradscalar2 : public pointwise_rule {
+    const_multiMap cellStencil,boundary_map ;
+    const_store<real> X,X_f ;
+    const_multiStore<vect3d> LSWeights, LSBWeights ;
+    store<vect3d> grads ;
+  public:
+
+    gradscalar2() {
+      name_store("cellStencil",cellStencil) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("X",X) ;
+      name_store("X_f",X_f) ;
+      name_store("grads(X)",grads) ;
+      name_store("LSWeights",LSWeights) ;
+      name_store("LSBWeights",LSBWeights) ;
+      input("LSWeights,LSBWeights") ;
+      input("cellStencil->X") ;
+      input("boundary_map->X_f") ;
+      input("X") ;
+      output("grads(X)") ;
+      constraint("geom_cells,stencilFull") ;
+    }
+    void calculate(Entity cc) {
+
+      vect3d Qt_b = vect3d(0,0,0) ;
+      real X_center = X[cc] ;
+      int count = 0 ;
+      for(const int *li = cellStencil.begin(cc);li!=cellStencil.end(cc);++li) {
+        real df = X[*li] - X_center ;
+        Qt_b += df*LSWeights[cc][count++] ;
+      }
+      count = 0 ;
+      for(const int *bi = boundary_map.begin(cc);bi!=boundary_map.end(cc);
+          ++bi) {
+        real df = X_f[*bi] - X_center ;
+        Qt_b += df*LSBWeights[cc][count++] ;
+      }
+
+      grads[cc] = Qt_b ; 
+      
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+
+  class gradvec3d2 : public pointwise_rule {
+    const_multiMap cellStencil,boundary_map ;
+    const_store<vect3d> X,X_f ;
+    const_multiStore<vect3d> LSWeights, LSBWeights ;
+    store<tens3d> grads ;
+  public:
+    gradvec3d2() {
+      name_store("cellStencil",cellStencil) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("X",X) ;
+      name_store("X_f",X_f) ;
+      name_store("gradv3d(X)",grads) ;
+      name_store("LSWeights",LSWeights) ;
+      name_store("LSBWeights",LSBWeights) ;
+      input("LSWeights,LSBWeights") ;
+      input("cellStencil->X") ;
+      input("boundary_map->X_f") ;
+      input("X") ;
+      output("gradv3d(X)") ;
+      constraint("geom_cells,stencilFull") ;
+    }
+    void calculate(Entity cc) {
+      tens3d Qt_b = tens3d(vect3d(0,0,0),vect3d(0,0,0),vect3d(0,0,0)) ;
+      const vect3d X_center = X[cc] ;
+      int count = 0 ;
+      for(const int *li = cellStencil.begin(cc);li!=cellStencil.end(cc);++li) {
+        const vect3d df = X[*li] - X_center ;
+        vect3d Weight = LSWeights[cc][count++] ;
+        Qt_b.x += df.x*Weight ;
+        Qt_b.y += df.y*Weight ;
+        Qt_b.z += df.z*Weight ;
+      }
+      count = 0 ;
+      for(const int *bi = boundary_map.begin(cc);bi!=boundary_map.end(cc);
+          ++bi) {
+        const vect3d df = X_f[*bi] - X_center ;
+        vect3d Weight = LSBWeights[cc][count++] ;
+        Qt_b.x += df.x*Weight ;
+        Qt_b.y += df.y*Weight ;
+        Qt_b.z += df.z*Weight ;
+      }
+      grads[cc] = Qt_b ; 
+      
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  
+  register_rule<gradvec2> register_grad_vec2 ;
+  register_rule<gradscalar2> register_grad_scalar2 ;
+  register_rule<gradvec3d2> register_grad_vec3d2 ;
+  
+
+  class gridQRfactor : public pointwise_rule {
+    const_multiMap lower, upper,boundary_map ;
+    const_Map cl,cr ;
+    const_store<vect3d> cellcenter,facecenter ;
+    const_store<Area> area ;
+    store<vect3d> Wf_l, Wf_r ;
+  public:
+    gridQRfactor() {
+      name_store("lower",lower) ;
+      name_store("upper",upper) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("facecenter",facecenter) ;
+      name_store("cellcenter",cellcenter) ;
+      name_store("area",area) ;
+      name_store("Wf_l",Wf_l) ;
+      name_store("Wf_r",Wf_r) ;
+      input("lower->cl->cellcenter") ;
+      input("upper->cr->cellcenter") ;
+      input("boundary_map->facecenter") ;
+      input("(lower,upper,boundary_map)->area") ;
+      input("cellcenter") ;
+      output("lower->Wf_r") ;
+      output("upper->Wf_l") ;
+      output("boundary_map->Wf_l") ;
+      constraint("geom_cells,stencilStandard") ;
+    }
+
+    void calculate(Entity c) {
+      int ndeltas =
+        (lower.end(c)-lower.begin(c)) +
+        (upper.end(c)-upper.begin(c)) +
+        (boundary_map.end(c)-boundary_map.begin(c)) ;
+
+      tmp_array<vect3d> deltas(ndeltas) ;
+      tmp_array<vect3d> weights(ndeltas) ;
+      tmp_array<real> areas(ndeltas) ;
+      const vect3d center = cellcenter[c] ;
+      int ncount = 0 ;
+      for(const Entity *lp=lower.begin(c);lp!=lower.end(c);++lp) {
+        areas[ncount] = area[*lp].sada ;
+        deltas[ncount++] = area[*lp].sada*(cellcenter[cl[*lp]] - center) ;
+      }
+      for(const Entity *up=upper.begin(c);up!=upper.end(c);++up) {
+        areas[ncount] = area[*up].sada ;
+        deltas[ncount++] = area[*up].sada*(cellcenter[cr[*up]] - center) ;
+      }
+      for(const Entity *bi=boundary_map.begin(c);bi!=boundary_map.end(c);++bi) {
+        areas[ncount] = area[*bi].sada ;
+        deltas[ncount++] = area[*bi].sada*(facecenter[*bi] - center) ;
+      }
+
+      tmp_array<vect3d> wvec(ndeltas) ;
+
+      computeWeights(wvec,deltas,areas,ndeltas) ;
+
+      ncount = 0 ;
+
+      for(const int *li = lower.begin(c);li!=lower.end(c);++li) {
+	Wf_r[*li] = wvec[ncount++] ;
+      }
+      for(const int *ui = upper.begin(c);ui!=upper.end(c);++ui) {
+        Wf_l[*ui] = wvec[ncount++] ;
+      }
+      for(const int *bi = boundary_map.begin(c);bi!=boundary_map.end(c);++bi) {
+	Wf_l[*bi] = wvec[ncount++] ;
+      }
+
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class gradvec : public pointwise_rule {
+    const_multiMap lower, upper,boundary_map ;
+    const_Map cl,cr ;
+    const_storeVec<real> X,X_f ;
+    const_store<vect3d> Wf_l, Wf_r ;
+    storeVec<vect3d> gradv ;
+    int vs ;
+  public:
+    gradvec() {
+      name_store("lower",lower) ;
+      name_store("upper",upper) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("X",X) ;
+      name_store("X_f",X_f) ;
+      name_store("gradv(X)",gradv) ;
+      name_store("Wf_l",Wf_l) ;
+      name_store("Wf_r",Wf_r) ;
+      input("lower->Wf_r") ;
+      input("upper->Wf_l") ;
+      input("boundary_map->Wf_l") ;
+      input("lower->cl->X") ;
+      input("upper->cr->X") ;
+      input("boundary_map->X_f") ;
+      input("X") ;
+      output("gradv(X)") ;
+      constraint("geom_cells,stencilStandard") ;
+    }
+    void calculate(Entity cc) {
+
+      for(int i=0;i<vs;++i) {
+        vect3d Qt_b = vect3d(0,0,0) ;
+        real X_center = X[cc][i] ;
+        for(const int *li = lower.begin(cc);li!=lower.end(cc);++li) {
+          real df = X[cl[*li]][i] - X_center ;
+          Qt_b += df*Wf_r[*li] ;
+        }
+        for(const int *ui = upper.begin(cc);ui!=upper.end(cc);++ui) {
+          real df = X[cr[*ui]][i] - X_center ;
+          Qt_b += df*Wf_l[*ui] ;
+        }
+        for(const int *bi = boundary_map.begin(cc);bi!=boundary_map.end(cc);
+            ++bi) {
+          real df = X_f[*bi][i] - X_center ;
+          Qt_b += df*Wf_l[*bi] ;
+        }
+
+        gradv[cc][i] = Qt_b ; 
+      }
+    }
+    virtual void compute(const sequence &seq) {
+      vs = X.vecSize() ;
+      gradv.setVecSize(vs) ;
+
+      do_loop(seq,this) ;
+    }
+  } ;
+
+
+  class gradscalar : public pointwise_rule {
+    const_multiMap lower, upper,boundary_map ;
+    const_Map cl,cr ;
+    const_store<real> X,X_f ;
+    const_store<vect3d> Wf_l, Wf_r ;
+    store<vect3d> grads ;
+    int vs ;
+  public:
+
+    gradscalar() {
+      name_store("lower",lower) ;
+      name_store("upper",upper) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("X",X) ;
+      name_store("X_f",X_f) ;
+      name_store("grads(X)",grads) ;
+      name_store("Wf_l",Wf_l) ;
+      name_store("Wf_r",Wf_r) ;
+      input("lower->Wf_r") ;
+      input("upper->Wf_l") ;
+      input("boundary_map->Wf_l") ;
+      input("lower->cl->X") ;
+      input("upper->cr->X") ;
+      input("boundary_map->X_f") ;
+      input("X") ;
+      output("grads(X)") ;
+      constraint("geom_cells,stencilStandard") ;
+    }
+    void calculate(Entity cc) {
+
+      vect3d Qt_b = vect3d(0,0,0) ;
+      real X_center = X[cc] ;
+      for(const int *li = lower.begin(cc);li!=lower.end(cc);++li) {
+        real df = X[cl[*li]] - X_center ;
+        Qt_b += df*Wf_r[*li] ;
+      }
+      for(const int *ui = upper.begin(cc);ui!=upper.end(cc);++ui) {
+        real df = X[cr[*ui]] - X_center ;
+        Qt_b += df*Wf_l[*ui] ;
+      }
+      for(const int *bi = boundary_map.begin(cc);bi!=boundary_map.end(cc);
+          ++bi) {
+        real df = X_f[*bi] - X_center ;
+        Qt_b += df*Wf_l[*bi] ;
+      }
+
+      grads[cc] = Qt_b ; 
+      
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+
+  class gradvec3d : public pointwise_rule {
+    const_multiMap lower, upper,boundary_map ;
+    const_Map cl,cr ;
+    const_store<vect3d> X,X_f ;
+    const_store<vect3d> Wf_l, Wf_r ;
+    store<tens3d> grads ;
+    int vs ;
+  public:
+    gradvec3d() {
+      name_store("lower",lower) ;
+      name_store("upper",upper) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("X",X) ;
+      name_store("X_f",X_f) ;
+      name_store("gradv3d(X)",grads) ;
+      name_store("Wf_l",Wf_l) ;
+      name_store("Wf_r",Wf_r) ;
+      input("lower->Wf_r") ;
+      input("upper->Wf_l") ;
+      input("boundary_map->Wf_l") ;
+      input("lower->cl->X") ;
+      input("upper->cr->X") ;
+      input("boundary_map->X_f") ;
+      input("X") ;
+      output("gradv3d(X)") ;
+      constraint("geom_cells,stencilStandard") ;
+    }
+    void calculate(Entity cc) {
+      tens3d Qt_b = tens3d(vect3d(0,0,0),vect3d(0,0,0),vect3d(0,0,0)) ;
+      const vect3d X_center = X[cc] ;
+      for(const int *li = lower.begin(cc);li!=lower.end(cc);++li) {
+        const vect3d df = X[cl[*li]] - X_center ;
+        Qt_b.x += df.x*Wf_r[*li] ;
+        Qt_b.y += df.y*Wf_r[*li] ;
+        Qt_b.z += df.z*Wf_r[*li] ;
+      }
+      for(const int *ui = upper.begin(cc);ui!=upper.end(cc);++ui) {
+        const vect3d df = X[cr[*ui]] - X_center ;
+        Qt_b.x += df.x*Wf_l[*ui] ;
+        Qt_b.y += df.y*Wf_l[*ui] ;
+        Qt_b.z += df.z*Wf_l[*ui] ;
+      }
+      for(const int *bi = boundary_map.begin(cc);bi!=boundary_map.end(cc);
+          ++bi) {
+        const vect3d df = X_f[*bi] - X_center ;
+        Qt_b.x += df.x*Wf_l[*bi] ;
+        Qt_b.y += df.y*Wf_l[*bi] ;
+        Qt_b.z += df.z*Wf_l[*bi] ;
+      }
+      grads[cc] = Qt_b ; 
+      
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  
+  register_rule<gridQRfactor> register_gridQRfactor ;
+
+  register_rule<gradvec> register_grad_vec ;
+  register_rule<gradscalar> register_grad_scalar ;
+  register_rule<gradvec3d> register_grad_vec3d ;
+
+  class periodic_grads : public pointwise_rule {
+    store<vect3d> grads ;
+    const_Map pmap,ref,cl,cr ;
+    const_store<rigid_transform> periodicTransform ;
+  public:
+    periodic_grads() {
+      name_store("grads(X)",grads) ;
+      name_store("pmap",pmap) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("ref",ref) ;
+      name_store("periodicTransform",periodicTransform) ;
+      input("pmap->cl->grads(X)") ;
+      input("pmap->ref->periodicTransform") ;
+      output("cr->grads(X)") ;
+      constraint("periodicFaces") ;
+    }
+    void calculate(Entity pf) {
+      const rigid_transform &frame = periodicTransform[ref[pmap[pf]]] ;
+      grads[cr[pf]] = frame.rotate_vec(grads[cl[pmap[pf]]]) ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<periodic_grads> periodic_grads ;
+
+  class periodic_gradv : public pointwise_rule {
+    storeVec<vect3d> gradv ;
+    const_Map pmap,ref,cl,cr ;
+    const_store<rigid_transform> periodicTransform ;
+  public:
+    periodic_gradv() {
+      name_store("gradv(X)",gradv) ;
+      name_store("pmap",pmap) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("ref",ref) ;
+      name_store("periodicTransform",periodicTransform) ;
+      input("pmap->cl->gradv(X)") ;
+      input("pmap->ref->periodicTransform") ;
+      output("cr->gradv(X)") ;
+      constraint("periodicFaces") ;
+    }
+    void calculate(Entity pf) {
+      const rigid_transform &frame = periodicTransform[ref[pmap[pf]]] ;
+      for(int i=0;i<gradv.vecSize();++i)
+        gradv[cr[pf]][i] = frame.rotate_vec(gradv[cl[pmap[pf]]][i]) ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+
+  register_rule<periodic_gradv> periodic_gradv ;
+
+  class periodic_gradv3d : public pointwise_rule {
+    store<tens3d> gradv3d ;
+    const_Map pmap,ref,cl,cr ;
+    const_store<rigid_transform> periodicTransform ;
+  public:
+    periodic_gradv3d() {
+      name_store("gradv3d(X)",gradv3d) ;
+      name_store("pmap",pmap) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("ref",ref) ;
+      name_store("periodicTransform",periodicTransform) ;
+      input("pmap->cl->gradv3d(X)") ;
+      input("pmap->ref->periodicTransform") ;
+      output("cr->gradv3d(X)") ;
+      constraint("periodicFaces") ;
+    }
+    void calculate(Entity pf) {
+      const rigid_transform &frame = periodicTransform[ref[pmap[pf]]] ;
+      gradv3d[cr[pf]] = frame.rotate_tensor(gradv3d[cl[pmap[pf]]]) ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<periodic_gradv3d> periodic_gradv3d ;
+  
+}

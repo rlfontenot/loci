@@ -1,0 +1,1256 @@
+#include <Loci.h>
+//#include "const.h"
+#include "metrics.h"
+
+#include <vector>
+#include <algorithm>
+using std::vector ;
+using std::sort ;
+using std::unique ;
+
+namespace Loci {
+ 
+  class node_identify : public singleton_rule {
+    param<bool> sim_nodes ;
+    const_multiMap face2node ;
+  public:
+    node_identify() {
+      name_store("sim_nodes",sim_nodes) ;
+      name_store("face2node",face2node) ;
+      constraint("face2node->pos") ;
+      output("face2node->sim_nodes") ;
+    }
+    void calculate(Entity e) {
+      sim_nodes[e] = true ;
+    }
+    virtual void compute(const sequence &seq) {
+      *sim_nodes = true ;
+    }
+  } ;
+  register_rule<node_identify> register_node_identify ;
+
+  class unit_vecSize : public unit_rule {
+    param<int> vecSize ;
+  public:
+    unit_vecSize() {
+      name_store("vecSize(X)",vecSize) ;
+      constraint("UNIVERSE") ;
+      output("vecSize(X)") ;
+    }
+    void compute(const sequence &seq) {
+      *vecSize = 0 ;
+    }
+  } ;
+
+  class apply_vecSize : public apply_rule<param<int>, Loci::Maximum<int> > {
+    param<int> vecSize ;
+    const_storeVec<real> X ;
+  public:
+    apply_vecSize() {
+      name_store("vecSize(X)",vecSize) ;
+      name_store("X",X) ;
+      input("X") ;
+      output("vecSize(X)") ;
+    }
+    void compute(const sequence &seq) {
+      *vecSize = X.vecSize() ;
+    }
+  } ;
+
+  register_rule<unit_vecSize> register_unit_vecSize ;
+  register_rule<apply_vecSize> register_apply_vecSize ;
+
+  class nodalw_unit : public unit_rule {
+    store<float> nodalw_sum ;
+  public:
+    nodalw_unit() {
+      name_store("nodalw_sum",nodalw_sum) ;
+      constraint("pos") ;
+      output("nodalw_sum") ;
+    }
+    void calculate(Entity nd) {
+      nodalw_sum[nd] = 0.0 ;
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+  register_rule<nodalw_unit> register_nodalw_unit ;
+  // Compute total number of elements contributing to a node
+  class cell2node_weights :
+    public apply_rule<store<float>, Loci::Summation<float> > {
+    const_multiMap upper, lower,boundary_map ;
+
+    const_multiMap face2node ;
+    const_store<vect3d> pos, cellcenter ;
+
+    store<float> nodalw_sum ;
+
+    vector<int> node_list ;
+  public:
+    cell2node_weights() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  cell2node_weights::cell2node_weights() {
+    name_store("nodalw_sum",nodalw_sum) ;
+    name_store("face2node",face2node) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("pos",pos) ;
+    name_store("cellcenter",cellcenter) ;
+
+    constraint("geom_cells") ;
+    input("cellcenter") ;
+    input("(upper,lower,boundary_map)->face2node->pos") ;
+    
+    input("(upper,lower,boundary_map)->face2node->nodalw_sum") ;
+    output("(upper,lower,boundary_map)->face2node->nodalw_sum") ;
+  }
+
+  void cell2node_weights::calculate(Entity cc) {
+
+    node_list.clear() ;
+    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    sort(node_list.begin(),node_list.end()) ;
+    vector<int>::iterator ns = node_list.begin() ;
+    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    
+    
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      const real weight = 1./norm(pos[nd]-cellcenter[cc]) ;
+      nodalw_sum[nd] += weight ;
+    }
+
+  }
+
+  void cell2node_weights::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<cell2node_weights> register_cell2node_weights ;
+  
+
+  
+  class nodal_unit : public unit_rule {
+    const_param<int > vecSizeX ;
+    storeVec<float> nodal_sum ;
+  public:
+    nodal_unit() {
+      name_store("vecSize(X)",vecSizeX) ;
+      name_store("nodal_sum(X)",nodal_sum) ;
+      constraint("pos") ;
+      input("vecSize(X)") ;
+      output("nodal_sum(X)") ;
+    }
+    void calculate(Entity nd) {
+      nodal_sum[nd] = mk_Scalar(0.0) ;
+    }
+    virtual void compute(const sequence &seq) {
+      nodal_sum.setVecSize(*vecSizeX) ;
+      do_loop(seq,this) ;
+    }
+  } ;
+  register_rule<nodal_unit> register_nodal_unit ;
+
+  class cell2node :
+    public apply_rule<storeVec<float>, Loci::Summation<Vect<float> > > {
+    const_multiMap upper, lower,boundary_map ;
+    const_store<vect3d> cellcenter ;
+    const_storeVec<real> X ;
+
+    const_multiMap face2node ;
+    const_store<vect3d> pos ;
+    storeVec<float> nodal_sum ;
+    vector<int> node_list ;
+  public:
+    cell2node() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  cell2node::cell2node() {
+    name_store("nodal_sum(X)",nodal_sum) ;
+    name_store("face2node",face2node) ;
+    name_store("pos",pos) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+
+    constraint("geom_cells") ;
+    input("cellcenter,X") ;
+    input("(upper,lower,boundary_map)->face2node->pos") ;
+    input("(upper,lower,boundary_map)->face2node->nodal_sum(X)") ;
+    output("(upper,lower,boundary_map)->face2node->nodal_sum(X)") ;
+  }
+
+  void cell2node::calculate(Entity cc) {
+
+    node_list.clear() ;
+    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    sort(node_list.begin(),node_list.end()) ;
+    vector<int>::iterator ns = node_list.begin() ;
+    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+
+    const int vs = X.vecSize() ;
+    
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      const real weight = 1./norm(pos[nd]-cellcenter[cc]) ;
+      for(int i=0;i<vs;++i)
+        nodal_sum[nd][i] += weight*X[cc][i] ;
+    }  
+
+  }
+
+  void cell2node::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<cell2node> register_cell2node ;
+  
+
+  class compute_nodal : public pointwise_rule {
+    const_storeVec<float> nodal_sum ;
+    const_store<float> nodalw_sum ;
+    storeVec<float> nodal ;
+  public:
+    compute_nodal() {
+      name_store("nodal_sum(X)",nodal_sum) ;
+      name_store("nodalw_sum",nodalw_sum) ;
+      name_store("cell2nodeV(X)",nodal) ;
+      input("nodal_sum(X),nodalw_sum") ;
+      constraint("pos") ;
+      output("cell2nodeV(X)") ;
+    }
+    void calculate(Entity nd) {
+      real rsum = 1./(real(nodalw_sum[nd])+1e-20) ;
+      for(int i=0;i<nodal_sum.vecSize();++i) {
+        nodal[nd][i] = nodal_sum[nd][i]*rsum ;
+      }
+    } ;
+    virtual void compute(const sequence &seq) {
+      nodal.setVecSize(nodal_sum.vecSize()) ;
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<compute_nodal>  register_compute_nodal ;
+
+
+  class boundary_node_identify : public singleton_rule {
+    param<bool> boundary_node ;
+    const_multiMap face2node ;
+  public:
+    boundary_node_identify() {
+      name_store("boundary_node",boundary_node) ;
+      name_store("face2node",face2node) ;
+      constraint("ci,no_symmetry_BC") ;
+      output("face2node->boundary_node") ;
+    }
+    void calculate(Entity e) {
+      boundary_node[e] = true ;
+    }
+    virtual void compute(const sequence &seq) {
+      *boundary_node = true ;
+      //      do_loop(seq,this) ;
+    }
+  } ;
+
+
+  class boundary_nodalw_unit : public unit_rule {
+    store<float> boundary_nodalw_sum ;
+  public:
+    boundary_nodalw_unit() {
+      name_store("boundary_nodalw_sum",boundary_nodalw_sum) ;
+      constraint("pos") ;
+      output("boundary_nodalw_sum") ;
+    }
+    void calculate(Entity nd) {
+      boundary_nodalw_sum[nd] = 0.0 ;
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class boundary_nodalw_apply :
+    public apply_rule<store<float>, Loci::Summation<float> > {
+
+    store<float> boundary_nodalw_sum ;
+    const_store<vect3d> pos ;
+    const_store<vect3d> facecenter ;
+    const_multiMap face2node ;
+  public:
+    boundary_nodalw_apply() {
+      name_store("boundary_nodalw_sum",boundary_nodalw_sum) ;
+      name_store("pos",pos) ;
+      name_store("facecenter",facecenter) ;
+      name_store("face2node",face2node) ;
+      input("face2node->(pos,boundary_nodalw_sum),facecenter") ;
+      constraint("ci,no_symmetry_BC") ;
+      output("face2node->boundary_nodalw_sum") ;
+    }
+    void calculate(Entity fc) {
+      for(const Entity * ni=face2node.begin(fc);ni!=face2node.end(fc);++ni) {
+        int nd = *ni ;
+        const real weight = 1./norm(pos[nd]-facecenter[fc]) ;
+        boundary_nodalw_sum[nd] += weight ;
+      }
+    }
+
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class boundary_nodal_unit : public unit_rule {
+    const_param<int> vecSizeX ;
+    storeVec<float> boundary_nodal_sum ;
+
+  public:
+    boundary_nodal_unit() {
+      name_store("vecSize(X)",vecSizeX) ;
+      name_store("boundary_nodal_sum(X)",boundary_nodal_sum) ;
+      input("vecSize(X)") ;
+      output("boundary_nodal_sum(X)") ;
+    }
+    void calculate(Entity nd) {
+      boundary_nodal_sum[nd] = mk_Scalar(0.0) ;
+    }
+    virtual void compute(const sequence &seq) {
+      boundary_nodal_sum.setVecSize(*vecSizeX) ;
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class boundary_nodal_apply :
+    public apply_rule<storeVec<float>, Loci::Summation<Vect<float> > > {
+
+    storeVec<float> boundary_nodal_sum ;
+    const_storeVec<real> X_f ;
+    const_store<vect3d> pos ;
+    const_store<vect3d> facecenter ;
+
+    const_multiMap face2node ;
+  public:
+    boundary_nodal_apply() {
+      name_store("boundary_nodal_sum(X)",boundary_nodal_sum) ;
+      name_store("X_f",X_f) ;
+      name_store("pos",pos) ;
+      name_store("facecenter",facecenter) ;
+      name_store("face2node",face2node) ;
+      input("face2node->(pos,boundary_nodal_sum(X)),X_f,facecenter") ;
+      constraint("ci,no_symmetry_BC") ;
+      output("face2node->boundary_nodal_sum(X)") ;
+    }
+    void calculate(Entity fc) {
+      for(const Entity * ni=face2node.begin(fc);ni!=face2node.end(fc);++ni) {
+        int nd = *ni ;
+        const real weight = 1./norm(pos[nd]-facecenter[fc]) ;
+        for(int j=0;j<boundary_nodal_sum.vecSize();++j)
+          boundary_nodal_sum[nd][j] += X_f[fc][j]*weight ;
+      }
+    }
+
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class boundary_compute_nodal : public pointwise_rule {
+    const_storeVec<float> boundary_nodal_sum ;
+    const_store<float> boundary_nodalw_sum ;
+    storeVec<float> nodal ;
+  public:
+    boundary_compute_nodal() {
+      name_store("boundary_nodal_sum(X)",boundary_nodal_sum) ;
+      name_store("boundary_nodalw_sum",boundary_nodalw_sum) ;
+      name_store("boundary::cell2nodeV(X)",nodal) ;
+      constraint("boundary_node") ;
+      input("boundary_nodal_sum(X)") ;
+      input("boundary_nodalw_sum") ;
+      output("boundary::cell2nodeV(X)") ;
+    }
+    void calculate(Entity nd) {
+      real rsum = 1./(real(boundary_nodalw_sum[nd])+1e-20) ;
+      for(int i=0;i<boundary_nodal_sum.vecSize();++i) {
+        nodal[nd][i] = boundary_nodal_sum[nd][i]*rsum ;
+      }
+    } ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  void boundary_compute_nodal::compute(const sequence &seq) {
+    nodal.setVecSize(boundary_nodal_sum.vecSize()) ;
+    do_loop(seq,this) ;
+  }
+
+  register_rule<boundary_node_identify> register_boundary_node_identify ;
+  
+  register_rule<boundary_nodal_unit> register_boundary_nodal_unit ;
+  register_rule<boundary_nodal_apply> register_boundary_nodal_apply ;
+
+  register_rule<boundary_nodalw_unit> register_boundary_nodalw_unit ;
+  register_rule<boundary_nodalw_apply> register_boundary_nodalw_apply ;
+
+  register_rule<boundary_compute_nodal>  register_boundary_compute_nodal ;
+
+
+
+
+  class c2n_scalar_unit : public unit_rule {
+    store<float> c2n_scalar_sum ;
+  public:
+    c2n_scalar_unit() {
+      name_store("c2n_scalar_sum(X)",c2n_scalar_sum) ;
+      constraint("pos") ;
+      output("c2n_scalar_sum(X)") ;
+    }
+    void calculate(Entity nd) {
+      c2n_scalar_sum[nd] = 0;
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+  register_rule<c2n_scalar_unit> register_c2n_scalar_unit ;
+
+  class c2n_scalar : public apply_rule<store<float>, Loci::Summation<float> > {
+    const_multiMap upper, lower, boundary_map ;
+    const_multiMap face2node ;
+    const_store<vect3d> pos ;
+    const_store<vect3d> cellcenter ;
+    const_store<real> X ;
+
+    store<float> c2n_scalar_sum ;
+    vector<int> node_list ;
+  public:
+    c2n_scalar() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  c2n_scalar::c2n_scalar() {
+    name_store("c2n_scalar_sum(X)",c2n_scalar_sum) ;
+    name_store("face2node",face2node) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("pos",pos) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+
+    constraint("geom_cells") ;
+    input("X") ;
+    input("cellcenter") ;
+    input("(upper,lower,boundary_map)->face2node->pos") ;
+    input("(upper,lower,boundary_map)->face2node->c2n_scalar_sum(X)") ;
+    output("(upper,lower,boundary_map)->face2node->c2n_scalar_sum(X)") ;
+  }
+
+  void c2n_scalar::calculate(Entity cc) {
+
+    node_list.clear() ;
+    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    sort(node_list.begin(),node_list.end()) ;
+    vector<int>::iterator ns = node_list.begin() ;
+    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    
+    
+    
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      const real weight = 1./norm(pos[nd]-cellcenter[cc]) ;
+      join(c2n_scalar_sum[nd],float(X[cc]*weight)) ;
+    }
+
+  }
+
+  void c2n_scalar::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<c2n_scalar> register_c2n_scalar ;
+
+  class compute_scalar_nodal : public pointwise_rule {
+    const_store<float> nodal_sum ;
+    const_store<float> nodalw_sum ;
+    store<float> nodal ;
+  public:
+    compute_scalar_nodal() {
+      name_store("c2n_scalar_sum(X)",nodal_sum) ;
+      name_store("nodalw_sum",nodalw_sum) ;
+      name_store("cell2node(X)",nodal) ;
+      input("c2n_scalar_sum(X),nodalw_sum") ;
+      constraint("pos") ;
+      output("cell2node(X)") ;
+    }
+    void calculate(Entity nd) {
+      real rsum = 1./(real(nodalw_sum[nd])+1e-20) ;
+      nodal[nd] = nodal_sum[nd]*rsum ;
+    } ;
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<compute_scalar_nodal> register_compute_scalar_nodal ;
+
+  class boundary_scalar_unit : public unit_rule {
+    store<float> boundary_scalar_sum ;
+  public:
+    boundary_scalar_unit() {
+      name_store("boundary_scalar_sum(X)",boundary_scalar_sum) ;
+      constraint("pos") ;
+      output("boundary_scalar_sum(X)") ;
+    }
+    void calculate(Entity nd) {
+      boundary_scalar_sum[nd] = 0.0 ;
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class boundary_scalar_apply :
+    public apply_rule<store<float>, Loci::Summation<float> > {
+
+    store<float> boundary_scalar_sum ;
+    const_store<real> X_f ;
+    const_store<vect3d> pos ;
+    const_store<vect3d> facecenter ;
+
+    const_multiMap face2node ;
+  public:
+    boundary_scalar_apply() {
+      name_store("boundary_scalar_sum(X)",boundary_scalar_sum) ;
+      name_store("X_f",X_f) ;
+      name_store("pos",pos) ;
+      name_store("facecenter",facecenter) ;
+      name_store("face2node",face2node) ;
+      input("face2node->(pos,boundary_scalar_sum(X)),X_f,facecenter") ;
+      constraint("ci,no_symmetry_BC") ;
+      output("face2node->boundary_scalar_sum(X)") ;
+    }
+    void calculate(Entity fc) {
+      for(const Entity * ni=face2node.begin(fc);ni!=face2node.end(fc);++ni) {
+        int nd = *ni ;
+        const real weight = 1./norm(pos[nd]-facecenter[fc]) ;
+        boundary_scalar_sum[nd] += X_f[fc]*weight ;
+      }
+    }
+
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class boundary_compute_scalar_nodal : public pointwise_rule {
+    const_store<float> boundary_scalar_sum ;
+    const_store<float> boundary_nodalw_sum ;
+    store<float> c2n ;
+  public:
+    boundary_compute_scalar_nodal() {
+      name_store("boundary_scalar_sum(X)",boundary_scalar_sum) ;
+      name_store("boundary_nodalw_sum",boundary_nodalw_sum) ;
+      name_store("boundary::cell2node(X)",c2n) ;
+      constraint("boundary_node") ;
+      input("boundary_scalar_sum(X),boundary_nodalw_sum") ;
+      output("boundary::cell2node(X)") ;
+    }
+    void calculate(Entity nd) {
+      real rsum = 1./(real(boundary_nodalw_sum[nd])+1e-20) ;
+      c2n[nd] = boundary_scalar_sum[nd]*rsum ;
+    }
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  void boundary_compute_scalar_nodal::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<boundary_scalar_unit> register_boundary_scalar_unit ;
+  register_rule<boundary_scalar_apply> register_boundary_scalar_apply ;
+  register_rule<boundary_compute_scalar_nodal> register_boundary_compute_scalar_nodal ;
+
+  class c2n_v3d_unit : public unit_rule {
+    store<vector3d<float> > c2n_v3d_sum ;
+  public:
+    c2n_v3d_unit() {
+      name_store("c2n_v3d_sum(X)",c2n_v3d_sum) ;
+      constraint("pos") ;
+      output("c2n_v3d_sum(X)") ;
+    }
+    void calculate(Entity nd) {
+      c2n_v3d_sum[nd] = vector3d<float>(0.,0.,0.);
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+  register_rule<c2n_v3d_unit> register_c2n_v3d_unit ;
+
+  class c2n_v3d : public apply_rule<store<vector3d<float> >,
+                  Loci::Summation<vector3d<float> > > {
+    const_multiMap upper, lower,boundary_map ;
+    const_multiMap face2node ;
+    const_store<vect3d> pos ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> X ;
+
+    store<vector3d<float> > c2n_v3d_sum ;
+    vector<int> node_list ;
+  public:
+    c2n_v3d() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  c2n_v3d::c2n_v3d() {
+    name_store("c2n_v3d_sum(X)",c2n_v3d_sum) ;
+    name_store("face2node",face2node) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("pos",pos) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+
+    constraint("geom_cells") ;
+    input("X") ;
+    input("cellcenter") ;
+    input("(upper,lower,boundary_map)->face2node->pos") ;
+    input("(upper,lower,boundary_map)->face2node->c2n_v3d_sum(X)") ;
+    output("(upper,lower,boundary_map)->face2node->c2n_v3d_sum(X)") ;
+  }
+
+  void c2n_v3d::calculate(Entity cc) {
+
+    node_list.clear() ;
+    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    sort(node_list.begin(),node_list.end()) ;
+    vector<int>::iterator ns = node_list.begin() ;
+    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    
+    
+    
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      const real weight = 1./norm(pos[nd]-cellcenter[cc]) ;
+      vector3d<float> v(X[cc].x*weight,X[cc].y*weight,X[cc].z*weight) ;
+      join(c2n_v3d_sum[nd],v) ;
+    }
+
+  }
+
+  void c2n_v3d::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<c2n_v3d> register_c2n_v3d ;
+
+  class compute_v3d_nodal : public pointwise_rule {
+    const_store<vector3d<float> > nodal_sum ;
+    const_store<float> nodalw_sum ;
+    store<vector3d<float> > nodal ;
+  public:
+    compute_v3d_nodal() {
+      name_store("c2n_v3d_sum(X)",nodal_sum) ;
+      name_store("nodalw_sum",nodalw_sum) ;
+      name_store("cell2node_v3d(X)",nodal) ;
+      input("c2n_v3d_sum(X),nodalw_sum") ;
+      constraint("pos") ;
+      output("cell2node_v3d(X)") ;
+    }
+    void calculate(Entity nd) {
+      real rsum = 1./(real(nodalw_sum[nd])+1e-20) ;
+      nodal[nd] = nodal_sum[nd]*rsum ;
+    } ;
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<compute_v3d_nodal> register_compute_v3d_nodal ;
+
+  class boundary_v3d_unit : public unit_rule {
+    store<vector3d<float> > boundary_v3d_sum ;
+  public:
+    boundary_v3d_unit() {
+      name_store("boundary_v3d_sum(X)",boundary_v3d_sum) ;
+      constraint("pos") ;
+      output("boundary_v3d_sum(X)") ;
+    }
+    void calculate(Entity nd) {
+      boundary_v3d_sum[nd] = vector3d<float>(0.0,0.0,0.0) ;
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class boundary_v3d_apply : public apply_rule<store<vector3d<float> >,
+                             Loci::Summation<vector3d<float> > > {
+
+    store<vector3d<float> > boundary_v3d_sum ;
+    const_store<vect3d> X_f ;
+    const_store<vect3d> pos ;
+    const_store<vect3d> facecenter ;
+
+    const_multiMap face2node ;
+  public:
+    boundary_v3d_apply() {
+      name_store("boundary_v3d_sum(X)",boundary_v3d_sum) ;
+      name_store("X_f",X_f) ;
+      name_store("pos",pos) ;
+      name_store("facecenter",facecenter) ;
+      name_store("face2node",face2node) ;
+      input("face2node->(pos,boundary_v3d_sum(X)),X_f,facecenter") ;
+      constraint("ci,no_symmetry_BC") ;
+      output("face2node->boundary_v3d_sum(X)") ;
+    }
+    void calculate(Entity fc) {
+      for(const Entity * ni=face2node.begin(fc);ni!=face2node.end(fc);++ni) {
+        int nd = *ni ;
+        const real weight = 1./norm(pos[nd]-facecenter[fc]) ;
+        vector3d<float> v(X_f[fc].x*weight,X_f[fc].y*weight,X_f[fc].z*weight) ;
+        boundary_v3d_sum[nd] += v ;
+      }
+    }
+
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  class boundary_compute_v3d_nodal : public pointwise_rule {
+    const_store<vector3d<float> > boundary_v3d_sum ;
+    const_store<float> boundary_nodalw_sum ;
+    store<vector3d<float> > c2n ;
+  public:
+    boundary_compute_v3d_nodal() {
+      name_store("boundary_v3d_sum(X)",boundary_v3d_sum) ;
+      name_store("boundary_nodalw_sum",boundary_nodalw_sum) ;
+      name_store("boundary::cell2node_v3d(X)",c2n) ;
+      constraint("boundary_node") ; 
+      input("boundary_v3d_sum(X),boundary_nodalw_sum") ;
+      output("boundary::cell2node_v3d(X)") ;
+    }
+    void calculate(Entity nd) {
+      real rsum = 1./(real(boundary_nodalw_sum[nd])+1e-20) ;
+      c2n[nd] = boundary_v3d_sum[nd]*rsum ;
+    }
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  void boundary_compute_v3d_nodal::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<boundary_v3d_unit> register_boundary_v3d_unit ;
+  register_rule<boundary_v3d_apply> register_boundary_v3d_apply ;
+  register_rule<boundary_compute_v3d_nodal> register_boundary_compute_v3d_nodal ;
+
+
+  class scalar_error_unit : public unit_rule {
+    store<float> node_error ;
+  public:
+    scalar_error_unit() {
+      name_store("scalar_node_error(L,R)",node_error) ;
+      constraint("pos") ;
+      output("scalar_node_error(L,R)") ;
+    }
+    void calculate(Entity e) {
+      node_error[e] = 0. ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<scalar_error_unit> register_scalar_error_unit ;
+
+  class scalar_error_apply: public apply_rule<store<float>,
+                            Loci::Maximum<float> > {
+
+    const_store<double> L,R ;
+    const_multiMap face2node ;
+    store<float> node_error ;
+  public:
+    scalar_error_apply() {
+      name_store("face2node",face2node) ;
+      name_store("L",L) ;
+      name_store("R",R) ;
+      name_store("scalar_node_error(L,R)",node_error) ;
+      input("L,R") ;
+      input("face2node->scalar_node_error(L,R)") ;
+      output("face2node->scalar_node_error(L,R)") ;
+    }
+    void calculate(Entity e) {
+      float err = fabs(L[e]-R[e]) ;
+      for(const Entity *n = face2node.begin(e);n!=face2node.end(e);++n) {
+        join(node_error[*n],err) ;
+      }
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<scalar_error_apply> register_scalar_error_apply ;
+
+  class scalar_cell_error_unit : public unit_rule {
+    store<double> node_error ;
+  public:
+    scalar_cell_error_unit() {
+      name_store("scalar_cell_error(L,R)",node_error) ;
+      constraint("geom_cells") ;
+      output("scalar_cell_error(L,R)") ;
+    }
+    void calculate(Entity e) {
+      node_error[e] = 0. ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<scalar_cell_error_unit> register_scalar_cell_error_unit ;
+
+  class scalar_cell_error_apply: public apply_rule<store<double>,
+                            Loci::Maximum<double> > {
+
+    const_store<double> L,R ;
+    const_Map cl,cr ;
+    store<double> node_error ;
+  public:
+    scalar_cell_error_apply() {
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("L",L) ;
+      name_store("R",R) ;
+      name_store("scalar_cell_error(L,R)",node_error) ;
+      input("L,R") ;
+      constraint("(cl,cr)->geom_cells") ;
+      input("(cl,cr)->scalar_cell_error(L,R)") ;
+      output("(cl,cr)->scalar_cell_error(L,R)") ;
+    }
+    void calculate(Entity e) {
+      double err = fabs(L[e]-R[e]) ;
+      join(node_error[cl[e]],err) ;
+      join(node_error[cr[e]],err) ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<scalar_cell_error_apply> register_scalar_cell_error_apply ;
+
+
+  class face2nodeMax_unit : public unit_rule {
+    store<float> nodeval ;
+  public:
+    face2nodeMax_unit() {
+      name_store("face2nodeMax(X)",nodeval) ;
+      constraint("pos") ;
+      output("face2nodeMax(X)") ;
+    }
+    void calculate(Entity e) {
+      nodeval[e] = 0. ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<face2nodeMax_unit> register_face2nodeMax_unit ;
+
+  class face2nodeMax_apply: public apply_rule<store<float>,
+                            Loci::Maximum<float> > {
+
+    const_store<double> X ;
+    const_multiMap face2node ;
+    store<float> nodeval ;
+  public:
+    face2nodeMax_apply() {
+      name_store("face2node",face2node) ;
+      name_store("X",X) ;
+      name_store("face2nodeMax(X)",nodeval) ;
+      input("X") ;
+      input("face2node->face2nodeMax(X)") ;
+      output("face2node->face2nodeMax(X)") ;
+    }
+    void calculate(Entity e) {
+      double val = X[e] ; ;
+      for(const Entity *ep = face2node.begin(e);ep!=face2node.end(e);++ep)
+        join(nodeval[*ep],val) ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<face2nodeMax_apply> register_face2nodeMax_apply ;
+
+  class cell2nodeMax : public unit_rule {
+    store<float> node_value ;
+  public:
+    cell2nodeMax() {
+      name_store("cell2nodeMax(X)",node_value) ;
+      constraint("pos") ;
+      output("cell2nodeMax(X)") ;
+    }
+    void calculate(Entity e) {
+      node_value[e] = std::numeric_limits<float>::min() ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<cell2nodeMax> register_cell2nodeMax ;
+
+  class c2nMax : public apply_rule<store<float>, Loci::Maximum<float> > {
+    const_multiMap upper, lower, boundary_map ;
+    const_multiMap face2node ;
+    const_store<real> X ;
+
+    store<float> cell2nodeMax ;
+    vector<int> node_list ;
+  public:
+    c2nMax() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  c2nMax::c2nMax() {
+    name_store("cell2nodeMax(X)",cell2nodeMax) ;
+    name_store("face2node",face2node) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("X",X) ;
+
+    constraint("geom_cells") ;
+    input("X") ;
+    input("(upper,lower,boundary_map)->face2node->cell2nodeMax(X)") ;
+    output("(upper,lower,boundary_map)->face2node->cell2nodeMax(X)") ;
+  }
+
+  void c2nMax::calculate(Entity cc) {
+
+    node_list.clear() ;
+    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    sort(node_list.begin(),node_list.end()) ;
+    vector<int>::iterator ns = node_list.begin() ;
+    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    
+    
+    
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      join(cell2nodeMax[nd],float(X[cc])) ;
+    }
+
+  }
+
+  void c2nMax::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<c2nMax> register_c2nMax ;
+
+  class cell2nodeMaxMag : public unit_rule {
+    store<float> node_value ;
+  public:
+    cell2nodeMaxMag() {
+      name_store("cell2nodeMaxMag(X)",node_value) ;
+      constraint("pos") ;
+      output("cell2nodeMaxMag(X)") ;
+    }
+    void calculate(Entity e) {
+      node_value[e] = 0 ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<cell2nodeMaxMag> register_cell2nodeMaxMag ;
+
+  struct max_mag_join {
+    void operator()(float &f1, const float &f2) {
+      if(fabs(f2) > fabs(f1))
+        f1 = f2 ;
+    }
+  } ;
+  
+  class c2nMaxMag : public apply_rule<store<float>, max_mag_join > {
+    const_multiMap upper, lower, boundary_map ;
+    const_multiMap face2node ;
+    const_store<real> X ;
+
+    store<float> cell2nodeMaxMag ;
+    vector<int> node_list ;
+  public:
+    c2nMaxMag() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  c2nMaxMag::c2nMaxMag() {
+    name_store("cell2nodeMaxMag(X)",cell2nodeMaxMag) ;
+    name_store("face2node",face2node) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("X",X) ;
+
+    constraint("geom_cells") ;
+    input("X") ;
+    input("(upper,lower,boundary_map)->face2node->cell2nodeMaxMag(X)") ;
+    output("(upper,lower,boundary_map)->face2node->cell2nodeMaxMag(X)") ;
+  }
+
+  void c2nMaxMag::calculate(Entity cc) {
+
+    node_list.clear() ;
+    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    sort(node_list.begin(),node_list.end()) ;
+    vector<int>::iterator ns = node_list.begin() ;
+    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    
+    
+    
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      join(cell2nodeMaxMag[nd],float(X[cc])) ;
+    }
+
+  }
+
+  void c2nMaxMag::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<c2nMaxMag> register_c2nMaxMag ;
+
+  class cell2nodeMin : public unit_rule {
+    store<float> node_value ;
+  public:
+    cell2nodeMin() {
+      name_store("cell2nodeMin(X)",node_value) ;
+      constraint("pos") ;
+      output("cell2nodeMin(X)") ;
+    }
+    void calculate(Entity e) {
+      node_value[e] = std::numeric_limits<float>::max() ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<cell2nodeMin> register_cell2nodeMin ;
+
+  class c2nMin : public apply_rule<store<float>, Loci::Minimum<float> > {
+    const_multiMap upper, lower, boundary_map ;
+    const_multiMap face2node ;
+    const_store<real> X ;
+
+    store<float> cell2nodeMin ;
+    vector<int> node_list ;
+  public:
+    c2nMin() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  c2nMin::c2nMin() {
+    name_store("cell2nodeMin(X)",cell2nodeMin) ;
+    name_store("face2node",face2node) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("X",X) ;
+
+    constraint("geom_cells") ;
+    input("X") ;
+    input("(upper,lower,boundary_map)->face2node->cell2nodeMin(X)") ;
+    output("(upper,lower,boundary_map)->face2node->cell2nodeMin(X)") ;
+  }
+
+  void c2nMin::calculate(Entity cc) {
+
+    node_list.clear() ;
+    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    sort(node_list.begin(),node_list.end()) ;
+    vector<int>::iterator ns = node_list.begin() ;
+    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    
+    
+    
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      join(cell2nodeMin[nd],float(X[cc])) ;
+    }
+
+  }
+
+  void c2nMin::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<c2nMin> register_c2nMin ;
+
+
+  class cell2nodeVectorMax : public unit_rule {
+    store<vector3d<float> > node_value ;
+  public:
+    cell2nodeVectorMax() {
+      name_store("cell2nodeVectorMax(X)",node_value) ;
+      constraint("pos") ;
+      output("cell2nodeVectorMax(X)") ;
+    }
+    void calculate(Entity e) {
+        node_value[e] = vector3d<float>(0.,0.,0.) ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<cell2nodeVectorMax> register_cell2nodeVectorMax ;
+
+  struct maxVect3d {
+    void operator()(vector3d<float> &r, const vector3d<float> &s) {
+        //      if(dot(s,s) > dot(r,r))
+        if(s.x*s.x+s.y*s.y+s.z*s.z > r.x*r.x+r.y*r.y+r.z*r.z)
+          r = s ;
+      }
+  } ;
+
+
+  class c2nVectorMax : public apply_rule<store<vector3d<float> >, maxVect3d > {
+    const_multiMap upper, lower, boundary_map ;
+    const_multiMap face2node ;
+    const_store<vect3d> X ;
+
+    store<vector3d<float> > cell2nodeVectorMax ;
+    vector<int> node_list ;
+  public:
+    c2nVectorMax() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  c2nVectorMax::c2nVectorMax() {
+    name_store("cell2nodeVectorMax(X)",cell2nodeVectorMax) ;
+    name_store("face2node",face2node) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("X",X) ;
+
+    constraint("geom_cells") ;
+    input("X") ;
+    input("(upper,lower,boundary_map)->face2node->cell2nodeVectorMax(X)") ;
+    output("(upper,lower,boundary_map)->face2node->cell2nodeVectorMax(X)") ;
+  }
+
+  void c2nVectorMax::calculate(Entity cc) {
+
+    node_list.clear() ;
+    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
+      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+        node_list.push_back(*ni) ;
+    sort(node_list.begin(),node_list.end()) ;
+    vector<int>::iterator ns = node_list.begin() ;
+    vector<int>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    
+    
+    
+    for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
+      int nd = *vi ;
+      vector3d<float> xf = vector3d<float>(X[cc].x,X[cc].y,X[cc].z) ;
+      join(cell2nodeVectorMax[nd],xf) ;
+    }
+
+  }
+
+  void c2nVectorMax::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+  register_rule<c2nVectorMax> register_c2nVectorMax ;
+
+}
