@@ -114,7 +114,8 @@ void FVUsage(char *s) {
 }
 
 namespace {
-inline bool compare_face(const std::vector<int> &face1, const std::vector<int> &face2) {
+  typedef std::vector<int,Loci::malloc_alloc<int> > MapVector ;
+inline bool compare_face(const MapVector &face1, const MapVector &face2) {
   if(face1.size() != face2.size())
     return false ;
   size_t fsz = face1.size() ;
@@ -158,7 +159,7 @@ int FieldViewExtract(int ac, char *av[]) {
     static int pyramid_walls[5] = { A_WALL, A_WALL, A_WALL, A_WALL, A_WALL };
   */
   
-  char *ncyc = "grid" ;
+  const char *ncyc = "grid" ;
   int ibuf[10] ;
   char fv[80] ;
   char name_buf[500] ;
@@ -381,7 +382,7 @@ int FieldViewExtract(int ac, char *av[]) {
     cout << " Reading in boundary values " << endl ;
     tmp = 0 ;
     do{
-      std::vector<int> tmp_vec ;
+      MapVector tmp_vec ;
       int dummy ;
       char c ; 
       double d ;
@@ -423,13 +424,13 @@ int FieldViewExtract(int ac, char *av[]) {
     entitySet tmp_face ;
     entitySet left_out ;
     for(entitySet::const_iterator ei = qf_dom.begin(); ei != qf_dom.end(); ++ei) {
-      std::vector<int> tmp_vec = qf_f2n[*ei] ;
+      MapVector tmp_vec = qf_f2n[*ei] ;
       std::sort(tmp_vec.begin(), tmp_vec.end()) ;
       int nd1 = tmp_vec[0] ;
       bool match = false ;
       //for(int j = 0; j < node2face[nd1].size(); ++j) {
       for(entitySet::const_iterator pi = node2face[nd1].begin(); pi != node2face[nd1].end(); ++pi) {	
-	std::vector<int> fn ;
+	MapVector fn ;
 	for(const int* k = face2node.begin(*pi); k != face2node.end(*pi); ++k)
 	  fn.push_back(*k) ;
 	std::sort(fn.begin(), fn.end()) ;
