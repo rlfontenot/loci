@@ -682,7 +682,10 @@ string getNumber(std::istream &is) {
 }
 void parseFile::process_Calculate(std::ostream &outputFile,
                                   const map<variable,string> &vnames) {
-  outputFile << "    void calculate(Entity _e_) { " << endl ;
+  if(prettyOutput)
+    outputFile << "    void calculate(Entity e) { " << endl ;
+  else
+    outputFile << "    void calculate(Entity _e_) { " << endl ;
   is.get() ;
   while(is.peek() == ' ' || is.peek() == '\t')
     is.get() ;
@@ -871,7 +874,10 @@ void parseFile::process_Calculate(std::ostream &outputFile,
           cerr << "variable " << v << " is unknown to this rule!" << endl ;
           throw parseError("type error: is this variable in the rule signature?") ;
         }
-        outputFile << vmi->second << "[_e_]" ;
+        if(prettyOutput)
+          outputFile << vmi->second << "[e]" ;
+        else
+          outputFile << vmi->second << "[_e_]" ;
       }
       //      for(size_t i=0;i<vlist.size();++i)
       //        outputFile << ']' ;
@@ -895,7 +901,8 @@ void parseFile::process_Calculate(std::ostream &outputFile,
 string var2name(variable v) {
   string vn = v.str() ;
   string name ;
-  name += "_" ;
+  if(!prettyOutput)
+    name += "L_" ;
   for(size_t si=0;si!=vn.size();++si) {
     if(isalpha(vn[si]) || isdigit(vn[si]) || vn[si] == '_')
       name += vn[si] ;
@@ -908,6 +915,8 @@ string var2name(variable v) {
     if(vn[si]=='-')
       name += "_M_" ;
   }
+  if(!prettyOutput)
+    name += "_" ;
   return name ;
 }
 

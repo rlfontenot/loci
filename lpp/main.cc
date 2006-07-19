@@ -4,6 +4,8 @@ using namespace std ;
 
 list<string> include_dirs ;
 
+bool prettyOutput = false ;
+
 void Usage(int argc, char *argv[]) {
   cerr << "Loci Pre-Processor Usage:" << endl ;
   cerr << argv[0] <<" -I<dir> filename.loci -o filename.cc" << endl ;
@@ -22,6 +24,9 @@ int main(int argc, char *argv[]) {
       if(argv[i][1] == 'I') {
         string dir = &argv[i][2] ;
         include_dirs.push_back(dir) ;
+      }
+      if(argv[i][1] == 'p') {
+        prettyOutput = true ;
       }
       if(argv[i][1] == 'o') {
         if(i+1>argc || out_given)

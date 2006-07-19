@@ -8,6 +8,8 @@
 #include <fstream>
 #include <map>
 
+extern bool prettyOutput ;
+
 struct parseError {
   std::string error_type ;
   parseError(std::string errs) : error_type(errs) {}
@@ -23,7 +25,8 @@ class parseFile {
   int killspout(std::ostream &outputFile) ;
 
   void syncFile(std::ostream &outputFile) {
-    outputFile << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
+    if(!prettyOutput)
+      outputFile << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
   }
 
   void process_Prelude(std::ostream &outputFile,
