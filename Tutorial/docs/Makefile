@@ -15,20 +15,22 @@ tutorial.pdf: main.dvi
 	rm tutorial.ps
 
 main.dvi: ${TEX_FILES} ${SOURCE_FILES}
-	latex main; bibtex main; latex main
+	latex main; latex mfain
 
 Makefile_ex.tex: ../1D-Diffusion/Makefile
-	echo '\begin{verbatim}' > Makefile_ex.tex
+	cat begin.tex > Makefile_ex.tex
 	cat ../1D-Diffusion/Makefile >> Makefile_ex.tex
 	echo '\end{verbatim}' >> Makefile_ex.tex
 
 entities_cc.tex: ../Datatypes/entities.cc
-	echo '\begin{verbatim}' > entities_cc.tex
+	cat begin.tex > entities_cc.tex
 	cat ../Datatypes/entities.cc >> entities_cc.tex
 	echo '\end{verbatim}' >> entities_cc.tex
 
 helpers_cc.tex: ../Datatypes/helpers.cc
-	echo '\begin{verbatim}' > helpers_cc.tex
+	cat begin.tex > helpers_cc.tex
 	cat ../Datatypes/helpers.cc >> helpers_cc.tex
 	echo '\end{verbatim}' >> helpers_cc.tex
+
+
 
