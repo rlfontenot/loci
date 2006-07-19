@@ -39,6 +39,10 @@ SOURCE_FILES =	area_reduce_cc.tex \
 #		petsc1_main_cc.tex \
 #		petsc1_rules_cc.tex \
 
+tutorial.pdf: main.dvi
+	dvips -Ppdf -o main.ps main
+	ps2pdf main.ps
+
 main.dvi: ${TEX_FILES} ${IMAGE_FILES} ${SOURCE_FILES}
 	latex main; bibtex main; latex main
 
