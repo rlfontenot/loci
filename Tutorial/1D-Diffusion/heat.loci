@@ -1,32 +1,19 @@
 #include <Loci.h>
 
-// Setup Types for initial facts
-$type il Map ; // interface left
-$type ir Map ; // interface right
-$type cl Map ; // cell left
-$type cr Map ; // cell right
-$type x store<float> ; // node positions
+$include "mesh.lh"
 
 // Derived variables
 $type xc store<float> ; // cell center
-$type L store<float> ;  // cell length
-$type u store<float> ;  // Solution variable
+$type L  store<float> ; // cell length
+$type u  store<float> ; // Solution variable
 $type ub store<float> ; // solution variable at boundary
 $type ux store<float> ; // derivative of u (du/dx)
-$type residual store<float> ; // steady state residual
-$type uflux store<float> ; // flux of u at interface
+$type R  store<float> ; // Diffusion residual equation
 
 // Input parameters
-$type max_iteration param<int> ;  // How many timesteps to take
 $type N param<int> ;              // How many nodes
 $type nu param<float> ;           // diffusion coefficient
-
-
-// Timestepping control
-$type dt param<float> ; // timestep
-$type solution store<float> ; // final value
-$type simulation_finished param<bool> ; // check for completion
-
+$type max_iteration param<int> ;  // How many timesteps to take
 
 $rule default(N) {
   $N=50 ;
@@ -40,6 +27,68 @@ $rule default(max_iteration) {
   $max_iteration = 100 ;
 }
 
+
+
+// Timestepping control
+$type dt param<float> ; // timestep
+$type solution store<float> ; // final value
+$type simulation_finished param<bool> ; // check for completion
+
+// Rule 1: compute the cell center from node positions
+$rule pointwise(xc<-(il,ir)->x) {
+  $xc = .5*($il->$x + $ir->$x) ;
+}
+
+// Rule 2: compute the cell integral (Length)
+$rule pointwise(L<-(il,ir)->x) {
+  $L = $ir->$x-$il->$x ;
+}
+
+// Rule 3: compute the gradient of u
+$rule pointwise(ux<-(cl,cr)->(u,xc)) {
+  float dx = $cr->$xc - $cl->$xc ;
+  float du = $cr->$u  - $cl->$u ;
+  $ux = du/dx ;
+}
+
+//*******************************************************************
+// Rules 4 and 5: Compute gradient at boundary
+//*******************************************************************
+
+$type h param<float> ;
+$type g param<float> ;
+
+$rule default(h) { $h = -1 ; } // h(t) = -1 ;
+$rule default(g) { $g = 0 ; }  // g(t) = 0 ;
+
+// Neuman boundary condition at left boundary (h(t) = -1)
+$rule pointwise(ux<-h), constraint(left_boundary) {
+  $ux = $h ;
+}
+
+// Dirichlet boundary at right boundary (g(t) = 0 )
+$rule pointwise(ub<-g), constraint(right_boundary) {
+  $ub = $g ;
+}
+
+// Compute gradient at boundary from ub
+$rule pointwise(ux<-x,ub,cl->(u,xc)) {
+  float dx = $x  - $cl->$xc ;
+  float du = $ub - $cl->$u ;
+  $ux = du/dx ;
+}
+
+// Rule 6: residual equation used by time integration
+$rule pointwise(R<-nu,L,(il,ir)->ux) {
+  $R = $nu*($ir->$ux-$il->$ux)/$L ;
+}
+
+//*******************************************************************
+// Timestepping Algorithm
+//*******************************************************************
+
+
+
 //*******************************************************************
 //Initializing values at time= 0 using u(x,0) = f(x). Since "xc" is
 //used, it will calculate the values are cell-centers.
@@ -49,13 +98,23 @@ float f(float xc) {
   return xc*(1-xc) ;
 }
 
+// Rule 7: initialization of iteration (build rule)
 $rule pointwise(u{n=0}<-xc) {
   $u{n=0} = f($xc) ;
 }
 
+// Rule 8: time advance using explicit Euler time integration algorithm
+$rule pointwise(u{n+1}<-u{n},dt{n},R{n}) {
+  $u{n+1} = $u{n}+$dt{n}*$R{n} ;
+}
+
+
+
 //*******************************************************************
-// When simulation is finished, copy current iteration results to
-// solution
+// Extra details, how do we terminate the loop?  We provide a
+// collapse rule that will compute the final solution when we
+// decide the simulation is finished.  "solution" becomes the
+// generic goal of the program similar to "main" in a C program.
 //*******************************************************************
 
 $rule pointwise(solution<-u{n}),conditional(simulation_finished{n}) {
@@ -63,86 +122,9 @@ $rule pointwise(solution<-u{n}),conditional(simulation_finished{n}) {
 }
 
 
-//*******************************************************************
 // Condition that determines when iteration is complete
-//*******************************************************************
-
 $rule singleton(simulation_finished<-$n,max_iteration) {
    $simulation_finished = ($$n >= $max_iteration) ;
-}
-//-------------------------------------------------------------------
-// Objective :  Compute u{n+1} based on explicit euler time integration method
-//-------------------------------------------------------------------
-
-$rule pointwise(u{n+1}<-u{n},dt{n},residual{n},L) {
-  $u{n+1} = $u{n}+$dt{n}*$residual{n}/$L ;
-}
-
-
-// Steady residual, divergence of flux of u
-$rule pointwise(residual<-(il,ir)->uflux) {
-  $residual = $ir->$uflux-$il->$uflux ;
-}
-
-
-$rule pointwise(uflux<-nu,ux) {
-  $uflux = $nu*$ux ;
-}
-
-$rule pointwise(L<-(il,ir)->x) {
-  $L = $ir->$x-$il->$x ;
-}
-
-//*******************************************************************
-// Compute boundary condition at leftmost interface. At left we are
-// imposing Neumann Boundary Condition, u_x = -1 ;
-//*******************************************************************
-
-$rule pointwise(ux), constraint(left_boundary) {
-   $ux = -1 ;
-}
-
-
-//*******************************************************************
-// Compute boundary condition at rightmost interface. At right we are
-// imposing Dirichlet boundary condition, u=0 ;
-//*******************************************************************
-$rule pointwise(ub), constraint(right_boundary) {
-  $ub = 0 ;
-}
-
-//*******************************************************************
-// Compute center of cells: Also make sure to compute the centroid of
-// only those cells, where left and right interface entities are
-// defined.
-//*******************************************************************
-
-$rule pointwise(xc<-(il,ir)->x) {
-  $xc = .5*($il->$x + $ir->$x) ;
-}
-
-
-
-//*******************************************************************
-// Compute gradient of u at all internal interfaces. An internal face
-// is a face having left and right cell mapping defined. Since a
-// boundary face has only one cell adjacent to it, it willn't calculate
-// gradient at those points.
-//*******************************************************************
-
-$rule pointwise(ux<-(cl,cr)->(u,xc)) {
-  float dx = $cr->$xc - $cl->$xc ;
-  float du = $cr->$u  - $cl->$u ;
-  $ux = du/dx ;
-}
-//*******************************************************************
-// Compute gradient at boundary
-//*******************************************************************
-
-$rule pointwise(ux<-x,ub,cl->(u,xc)) {
-  float dx = $x  - $cl->$xc ;
-  float du = $ub - $cl->$u ;
-  $ux = du/dx ;
 }
 
 
@@ -155,13 +137,11 @@ $rule pointwise(ux<-x,ub,cl->(u,xc)) {
 //*******************************************************************
 
 $rule unit(dt), constraint(UNIVERSE) {
-   $dt = 1e30 ; // largest allowble timestep
+   $dt = std::numeric_limits<float>::max() ; // largest allowble timestep
 }
 
-$rule apply(dt<-dt,(cl,cr)->xc,nu)[Loci::Minimum] {
-    float dx = abs($cr->$xc-$cl->$xc) ;
-    float local_dt = dx*dx/($nu*2.) ;  
-
+$rule apply(dt<-L,nu)[Loci::Minimum] {
+    float local_dt = $L*$L/(2.*$nu) ;  
     join($dt,local_dt) ; // Set dt = min(dt,local_dt)
 }
 

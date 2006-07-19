@@ -1,0 +1,7 @@
+
+// Setup Types for initial facts
+$type il Map ; // interface left
+$type ir Map ; // interface right
+$type cl Map ; // cell left
+$type cr Map ; // cell right
+$type x store<float> ; // node positions

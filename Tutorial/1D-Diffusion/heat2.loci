@@ -1,11 +1,6 @@
 #include <Loci.h>
 
-// Setup Types for initial facts
-$type il Map ; // interface left
-$type ir Map ; // interface right
-$type cl Map ; // cell left
-$type cr Map ; // cell right
-$type x store<float> ; // node positions
+$include "mesh.lh"
 
 // Derived variables
 $type xc store<float> ; // cell center
@@ -13,22 +8,15 @@ $type L store<float> ;  // cell length
 $type u store<float> ;  // Solution variable
 $type ub store<float> ; // solution variable at boundary
 $type ux store<float> ; // derivative of u (du/dx)
-$type residual store<float> ; // steady state residual
+$type R store<float> ; // steady state residual
 $type uflux store<float> ; // flux of u at interface
 
-$type integrateBoundary(X) store<float> ;
+$type cellIntegrate(X) store<float> ;
 
 // Input parameters
 $type max_iteration param<int> ;  // How many timesteps to take
 $type N param<int> ;              // How many nodes
 $type nu param<float> ;           // diffusion coefficient
-
-
-// Timestepping control
-$type dt param<float> ; // timestep
-$type solution store<float> ; // final value
-$type simulation_finished param<bool> ; // check for completion
-
 
 $rule default(N) {
   $N=50 ;
@@ -42,20 +30,11 @@ $rule default(max_iteration) {
   $max_iteration = 100 ;
 }
 
-//*******************************************************************
-//Initializing values at time= 0 using u(x,0) = f(x). Since "xc" is
-//used, it will calculate the values are cell-centers.
-//*******************************************************************
 
-float f(float xc) {
-  return xc*(1-xc) ;
-}
-
-$type u_ic store<float> ;
-
-$rule pointwise(u_ic<-xc) {
-  $u_ic = f($xc) ;
-}
+// Timestepping control
+$type dt param<float> ; // timestep
+$type solution store<float> ; // final value
+$type eulerTimestepFinished param<bool> ; // check for completion
 
 
 $type EulerIntegrate(X,Y) store<float> ;
@@ -72,7 +51,8 @@ $rule pointwise(EulerIntegrate(X,Y){n=0}<-Y_ic) {
 // solution
 //*******************************************************************
 
-$rule pointwise(EulerIntegrate(X,Y)<-EulerIntegrate(X,Y){n}),conditional(simulation_finished{n}) {
+$rule pointwise(EulerIntegrate(X,Y)<-EulerIntegrate(X,Y){n}),
+                conditional(eulerTimestepFinished{n}) {
   $EulerIntegrate(X,Y) = $EulerIntegrate(X,Y){n} ;
 }
 
@@ -81,77 +61,65 @@ $rule pointwise(EulerIntegrate(X,Y)<-EulerIntegrate(X,Y){n}),conditional(simulat
 // Condition that determines when iteration is complete
 //*******************************************************************
 
-$rule singleton(simulation_finished<-$n,max_iteration) {
-   $simulation_finished = ($$n >= $max_iteration) ;
+$rule singleton(eulerTimestepFinished<-$n,max_iteration) {
+  $eulerTimestepFinished = ($$n >= $max_iteration) ;
 }
 //-------------------------------------------------------------------
 // Objective :  Compute u{n+1} based on explicit euler time integration method
 //-------------------------------------------------------------------
 
-$rule pointwise(EulerIntegrate(X,Y){n+1}<-EulerIntegrate(X,Y){n},dt{n},X{n},L) {
-  $EulerIntegrate(X,Y){n+1} = $EulerIntegrate(X,Y){n}+$dt{n}*$X{n}/$L ;
+$rule pointwise(EulerIntegrate(X,Y){n+1}<-EulerIntegrate(X,Y){n},dt{n},X{n}) {
+  $EulerIntegrate(X,Y){n+1} = $EulerIntegrate(X,Y){n}+$dt{n}*$X{n} ;
 }
 
+// Extract integration variable so that the residual function can use it
 $rule pointwise(Y<-EulerIntegrate(X,Y)),parametric(EulerIntegrate(X,Y)) {
   $Y = $EulerIntegrate(X,Y) ;
 }
 
-$rule pointwise(solution<-EulerIntegrate(residual,u)) {
-  $solution = $EulerIntegrate(residual,u) ;
+//*******************************************************************
+//Initializing values at time= 0 using u(x,0) = f(x). Since "xc" is
+//used, it will calculate the values are cell-centers.
+//*******************************************************************
+
+float initialCondition(float xc) {
+  return xc*(1-xc) ;
 }
 
-$rule pointwise(residual<-integrateBoundary(uflux)) {
-  $residual = $integrateBoundary(uflux) ;
+$type u_ic store<float> ;
+
+$rule pointwise(u_ic<-xc) {
+  $u_ic = initialCondition($xc) ;
 }
 
-// $rule pointwise(u{n=0}<-u_ic) {
-//   $u{n=0} = $u_ic ;
-// }
-// //*******************************************************************
-// // When simulation is finished, copy current iteration results to
-// // solution
-// //*******************************************************************
 
-// $rule pointwise(solution<-u{n}),conditional(simulation_finished{n}) {
-// 	$solution = $u{n} ;
-// }
+// Ask to solve the problem by using the Euler Integration on the function
+// residual, integrating the variable u
+$rule pointwise(solution<-EulerIntegrate(R,u)) {
+  $solution = $EulerIntegrate(R,u) ;
+}
 
-
-// //*******************************************************************
-// // Condition that determines when iteration is complete
-// //*******************************************************************
-
-// $rule singleton(simulation_finished<-$n,max_iteration) {
-//    $simulation_finished = ($$n >= $max_iteration) ;
-// }
-// //-------------------------------------------------------------------
-// // Objective :  Compute u{n+1} based on explicit euler time integration method
-// //-------------------------------------------------------------------
-
-// $rule pointwise(u{n+1}<-u{n},dt{n},integrateBoundary(uflux){n},L) {
-//   $u{n+1} = $u{n}+$dt{n}*$integrateBoundary(uflux){n}/$L ;
-// }
-
+// The 1d diffusion residue
+$rule pointwise(R<-nu,cellIntegrate(ux),L) {
+  $R = $nu*$cellIntegrate(ux)/$L ;
+}
 
 $type X store<float> ;
 
-$rule unit(integrateBoundary(X)),constraint(geom_cells) {
-  $integrateBoundary(X) = 0 ;
+// A general function for integrating over a cell boundary
+$rule unit(cellIntegrate(X)),constraint(geom_cells) {
+  $cellIntegrate(X) = 0 ;
 }
-$rule apply(cl->integrateBoundary(X)<-X)[Loci::Summation] {
-  join($cl->$integrateBoundary(X),$X) ;
+$rule apply(cl->cellIntegrate(X)<-X)[Loci::Summation] {
+  join($cl->$cellIntegrate(X),$X) ;
 }
-$rule apply(cr->integrateBoundary(X)<-X)[Loci::Summation] {
-  join($cr->$integrateBoundary(X),-$X) ;
-}
-    
-
-$rule pointwise(uflux<-nu,ux) {
-  $uflux = $nu*$ux ;
+$rule apply(cr->cellIntegrate(X)<-X)[Loci::Summation] {
+  join($cr->$cellIntegrate(X),-$X) ;
 }
 
-$rule pointwise(L<-integrateBoundary(x)) {
-  $L = $integrateBoundary(x) ;
+// We find the length of an interval by integrating the position x
+$rule pointwise(L<-cellIntegrate(x)) {
+  $L = $cellIntegrate(x) ;
 }
 
 //*******************************************************************
@@ -172,15 +140,6 @@ $rule pointwise(ub), constraint(right_boundary) {
   $ub = 0 ;
 }
 
-//*******************************************************************
-// Compute center of cells: Also make sure to compute the centroid of
-// only those cells, where left and right interface entities are
-// defined.
-//*******************************************************************
-
-//$rule pointwise(xc<-(il,ir)->x) {
-//  $xc = .5*($il->$x + $ir->$x) ;
-//}
 $rule unit(xc), constraint(geom_cells) {
   $xc = 0 ;
 }

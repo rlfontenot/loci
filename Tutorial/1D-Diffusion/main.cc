@@ -133,12 +133,9 @@ int main(int argc, char *argv[])
     cerr << "can't open 'heat.vars'" << endl ;
     exit(-1) ;
   }
-
-  param<int> Nin ;
-  *Nin = 50 ;
-  
   facts.read_vars(ifile,rdb) ;
   
+  param<int> Nin ;
   Nin = facts.get_variable("N") ;
   
   const int N = *Nin ; // Number of points in grid.
@@ -192,7 +189,17 @@ int main(int argc, char *argv[])
     entitySet dom = usol.domain() ;
     for(ei=dom.begin();ei!=dom.end();++ei) 
       cout << ""<< *ei<<" "<<usol[*ei]<<endl ;
+  } else {
+    // If we queried for something else, print out the results
+    using Loci::variableSet ;
+    variableSet queries = variableSet(Loci::expression::create(query)) ;
+    for(variableSet::const_iterator vi=queries.begin();vi!=queries.end();++vi){
+      Loci::storeRepP rep = facts.get_variable(*vi) ;
+      cout << "variable " << *vi << "= " << endl ;
+      rep->Print(cout) ;
+    }
   }
+   
   //-----------------------------------------------------------------
   // End of computations::
   //-----------------------------------------------------------------
