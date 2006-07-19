@@ -39,7 +39,6 @@ int main(int argc, char *argv[])
 
   cout << "total = " << total << endl ;
 
-
   // 3d vectors are supported as types, templated by the type of x,y, and z
   vector3d<double> v1(0.0,1.0,2.0),v2(1.0,2.0,0.0),v3(2.0,1.0,0.0) ;
 
@@ -47,7 +46,6 @@ int main(int argc, char *argv[])
   // way including scalar vector multiply.  For example, the vector found by
   // "averaging" the vectors v1, v2, and v3 is computed as follows.
   vector3d<double> avg = (v1+v2+v3)/3.0 ;
-
 
   // Also 3dvectors support cross and dot products
   vector3d<double> cross_product = cross(v1,v2) ;
@@ -64,7 +62,6 @@ int main(int argc, char *argv[])
   cout << "cross_product = " << cross_product << endl ;
   cout << "areav1xv2 = " << areav1xv2 << endl ;
   cout << "dotcross = " << dotcross << endl ;
-
   
   // 2d vectors are supported as types, templated by the type of x and y
   vector2d<double> v4(1.0,1.0),v5(-1.0,1.0),v6(2.0,3.0) ;
@@ -77,7 +74,6 @@ int main(int argc, char *argv[])
 
   // Of course all operators are overloaded as in the 3d vector case.
   vector2d<double> twodavg = (v4+v5+v6)/3.0 ;
-
 
   cout << "twodcross = " << twodcross << endl ;
   cout << "twoddot =   " << twoddot << endl ;
