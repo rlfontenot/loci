@@ -15,7 +15,7 @@ tutorial.pdf: main.dvi
 	rm tutorial.ps
 
 main.dvi: ${TEX_FILES} ${SOURCE_FILES}
-	latex main; latex mfain
+	latex main; latex main
 
 Makefile_ex.tex: ../1D-Diffusion/Makefile
 	cat begin.tex > Makefile_ex.tex
