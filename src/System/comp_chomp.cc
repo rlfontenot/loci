@@ -200,14 +200,19 @@ namespace Loci {
   }
 
   void execute_chomp::Print(std::ostream& s) const {
+    printIndent(s) ;
     s << "--Start chomping: (chomping interval size: "
       << chomp_size << ", iter number: " << chomp_iter
       << ", total domain: " << total_domain
       << ")" << endl ;
+    printIndent(s) ;
     s << "--Perform chomping for the following rule sequence: " << endl ;
     for(vector<pair<rule,rule_compilerP> >::const_iterator
-          vi=chomp_comp.begin();vi!=chomp_comp.end();++vi)
+          vi=chomp_comp.begin();vi!=chomp_comp.end();++vi) {
+      printIndent(s) ;
       s << "-- " << vi->first << endl ;
+    }
+    printIndent(s) ;
     s << "--End chomping" << endl ;
   }
   

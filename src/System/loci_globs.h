@@ -7,6 +7,7 @@ namespace Loci {
   extern int num_threads ;
   /////////////////////////////
   // flags to turn on/off the visualization feature
+  extern bool verbose ;
   extern bool show_graphs ;
   extern bool show_decoration ;
   // flag to enable/disable the dynamic memory management
@@ -34,6 +35,13 @@ namespace Loci {
 
   extern bool measure_rule_timings;
   extern std::ofstream ruleTimeOut;
+  extern int printLevel ;
+  inline std::ostream &printIndent(std::ostream &s) {
+    for(int i=0;i<printLevel;++i)
+      s << "  " ;
+    return s ;
+  }
+      
 }
 
 #endif

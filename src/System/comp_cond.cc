@@ -6,6 +6,7 @@ using std::ostream ;
 using std::endl ;
 
 #include "visitorabs.h"
+#include "loci_globs.h"
 
 namespace Loci {
 
@@ -30,9 +31,13 @@ namespace Loci {
   }
 
   void execute_conditional::Print(ostream &s) const {
-    s << "--compute rule if conditional " << cvar << " true." << endl ;
+    printIndent(s) ;
+    s << "if(" << cvar << ") {" << endl ;
+    printLevel++ ;
     conditional->Print(s) ;
-    s << "--end conditional" << endl ;
+    printLevel-- ;
+    printIndent(s) ;
+    s << "} // if("<< cvar <<")" << endl ;
   }
 
   conditional_compiler::conditional_compiler(rulecomp_map &rule_process,

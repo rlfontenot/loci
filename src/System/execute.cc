@@ -1,7 +1,9 @@
 #include <ostream>
 
 #include <execute.h>
-#include <mpi.h>
+#include "loci_globs.h"
+#include <distribute.h>
+
 #ifdef PTHREADS
 #include <pthread.h>
 #include <semaphore.h>
@@ -165,14 +167,16 @@ namespace Loci {
   }
 
   void execute_create_threads::Print(std::ostream &s) const {
-    s << "create " << num_threads << " threads" << std::endl ;
+    if(verbose)
+      s << "create " << num_threads << " threads" << std::endl ;
   }
 
   void execute_destroy_threads::execute(fact_db &facts) {
   }
 
   void execute_destroy_threads::Print(std::ostream &s) const {
-    s << "destroy threads" << std::endl ;
+    if(verbose)
+      s << "destroy threads" << std::endl ;
   }
   
   void execute_thread_sync::execute(fact_db &facts) {
@@ -227,7 +231,8 @@ namespace Loci {
   }
   
   void execute_thread_sync::Print(std::ostream &s) const {
-    s << "thread barrier " << note << std::endl ;
+    if(verbose || MPI_processes > 1)
+      s << "thread barrier " << note << std::endl ;
   }
 
 }

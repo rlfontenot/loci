@@ -38,6 +38,7 @@ namespace Loci {
   int MPI_rank = 0 ;
   int num_threads = 1 ;
   int method = 3 ;
+  bool verbose = false ;
   /////////////////////////////
   // flags to turn on/off the visualization feature
   bool show_graphs = false ;
@@ -187,6 +188,9 @@ namespace Loci {
         debug = (*argv)[i+1] ;
         schedule_output = true ;
         i+=2 ;
+      } else if(!strcmp((*argv)[i],"--verbose")) {
+        verbose = true ;
+        i++ ;
       } else if(!strcmp((*argv)[i],"--threads")) {
         cerr << "warning --threads not yet implemented" << endl ;
         num_threads = atoi((*argv)[i+1]) ;

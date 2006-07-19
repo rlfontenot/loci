@@ -7,9 +7,12 @@ using std::map ;
 using std::ostream ;
 using std::endl ;
 
+
 #include "visitorabs.h"
 #include "loci_globs.h"
 namespace Loci {
+  int printLevel = 0 ;
+  
   class execute_loop : public execute_modules {
     executeP collapse, advance ;
     variable cvar ;
@@ -79,13 +82,26 @@ namespace Loci {
   }
   
   void execute_loop::Print(ostream &s) const {
-    s << "Perform loop for time level "<< tlevel << endl ;
-    s << "--compute collapse rule, conditional on " << cvar << endl ;
-    s << "--collapse iteration {" << tlevel << "}"<< endl ;
+    printIndent(s) ;
+    s << "Iteration Loop{"<< tlevel << "} {" << endl ;
+    printLevel+=2 ;
+    //    printIndent(s) ;
+    //    s << "--compute collapse of {" <<tlevel << "} , conditional on " << cvar << endl ;
+    //    printIndent(s) ;
+    //    s << "--collapse iteration {" << tlevel << "}"<< endl ;
     collapse->Print(s) ;
-    s << "--advance iteration {" << tlevel << "}" << endl ;
+    s<< endl ;
+    printIndent(s) ;
+    s << "-------------- Exit of Loop{" << tlevel << "}"<< endl ;
+    printIndent(s) ;
+    s << "if(" << cvar << ") break ;" << endl ;
+    s << endl ;
+    //    printIndent(s) ;
+    //    s << "--advance iteration {" << tlevel << "}" << endl ;
     advance->Print(s) ;
-    s << "end of loop for time level " << tlevel << endl ;
+    printLevel-=2;
+    printIndent(s) ;
+    s << "} // {" << tlevel  << "}" << endl ;
   }
   
   inline bool offset_sort(const variable &v1, const variable &v2)

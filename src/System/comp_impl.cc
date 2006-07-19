@@ -1,5 +1,6 @@
 #include "comp_tools.h"
 #include "dist_tools.h"
+#include "loci_globs.h"
 using std::ostream ;
 using std::endl ;
 
@@ -31,7 +32,13 @@ namespace Loci {
   }
   
   void execute_rule::Print(ostream &s) const {
-    s << rule_tag << "  over sequence " << exec_seq << endl ;
+    printIndent(s) ;
+    s << rule_tag << " over sequence " ;
+    if(verbose || exec_seq.num_intervals() < 4) {
+      s << exec_seq << endl ;
+    } else {
+      s << "[ ... ]" << endl ;
+    }
   }
   
   void impl_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {

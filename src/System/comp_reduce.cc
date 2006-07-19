@@ -556,8 +556,11 @@ namespace Loci {
     delete [] result_ptr ;
   }
   void execute_param_red::Print(ostream &s) const {
-    for(size_t i = 0 ; i < reduce_vars.size(); i++) 
-      s << "param reduction on " << reduce_vars[i] << endl ;
+    if(verbose || MPI_processes > 1)
+      for(size_t i = 0 ; i < reduce_vars.size(); i++) {
+        printIndent(s) ;
+        s << "param reduction on " << reduce_vars[i] << endl ;
+      }
   }
   void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed()) {
@@ -608,10 +611,14 @@ namespace Loci {
       //      el->append_list(new execute_param_red(reduce_vars, unit_rules, join_ops)) ;
       //      return executeP(el) ;
     }
-    ostringstream oss ;
-    for(size_t i = 0; i < reduce_vars.size(); i++) 
-      oss << "reduce param " << reduce_vars[i] << std::endl;
-    return executeP(new execute_msg(oss.str())) ;
+    if(verbose || MPI_processes > 1) {
+      ostringstream oss ;
+      for(size_t i = 0; i < reduce_vars.size(); i++) 
+        oss << "reduce param " << reduce_vars[i] << std::endl;
+      return executeP(new execute_msg(oss.str())) ;
+    } else
+      return 0 ;
+    
   }
   
   void reduce_store_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
@@ -1003,20 +1010,25 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
   void execute_comm_reduce::Print(ostream &s) const {
     int sz = 0 ;
     if(send_info.size()+recv_info.size() > 0) {
+      printIndent(s) ;
       s << "reduction block {" << endl ;
+      printIndent(s) ;
       if(send_info.size() > 0) {
         s << "Send:" << endl ;
+        printIndent(s) ;
         for(size_t i=0;i<send_info.size();++i) {
           for(size_t j=0;j<send_info[i].second.size();++j) {
             s << send_info[i].second[j].v << "  " ;
 	    sz += (send_info[i].second[j].set).size() ;
 	  }
 	  s << " to " << send_info[i].first << endl ;
+          printIndent(s) ;
         }
 	s << " Total entities sent = " << sz << endl ;	
       }
       sz = 0 ;
       if(recv_info.size() > 0) {
+        printIndent(s) ;
         s << "Recv:" << endl ;
         for(size_t i=0;i<recv_info.size();++i) {
           for(size_t j=0;j<recv_info[i].second.size();++j) {
@@ -1024,7 +1036,9 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	    sz += (recv_info[i].second[j].seq).size() ;
 	  }
           s << " from " << recv_info[i].first << endl ;
+          printIndent(s) ;
         }
+        printIndent(s) ;
 	s << " Total entities recieved = " << sz << endl ;	
       }
       s << "}" << endl ;
@@ -1037,15 +1051,18 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       
       el->append_list(new execute_comm_reduce(rlist, facts, join_op)) ;
       el->append_list(new execute_comm(clist, facts)) ;
-      ostringstream oss ;
-      oss << "reduce store " << reduce_var ;
-      el->append_list(new execute_msg(oss.str())) ;
-
+      if(verbose || MPI_processes > 1) {
+        ostringstream oss ;
+        oss << "reduce store " << reduce_var ;
+        el->append_list(new execute_msg(oss.str())) ;
+      }
       return executeP(el) ;
     }
 
-    ostringstream oss ;
-    oss << "reduce store " << reduce_var ;
-    return executeP(new execute_msg(oss.str())) ;
+    if(verbose || MPI_processes > 1) {
+      ostringstream oss ;
+      oss << "reduce store " << reduce_var ;
+      return executeP(new execute_msg(oss.str())) ;
+    }
   }
 }

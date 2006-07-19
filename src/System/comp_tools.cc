@@ -1,4 +1,5 @@
 #include "comp_tools.h"
+#include "loci_globs.h"
 
 #include <mpi.h>  
 
@@ -1531,24 +1532,31 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   void execute_comm::Print(ostream &s) const {
     int sz = 0 ;
     if(send_info.size()+recv_info.size() > 0) {
+      printIndent(s) ;
       s << "communication block {" << endl ;
       if(send_info.size() > 0) {
+        printIndent(s) ;
         s << "Send:" << endl ;
+        printIndent(s) ;
         for(size_t i=0;i<send_info.size();++i) {
           for(size_t j=0;j<send_info[i].second.size();++j) { 
             s << send_info[i].second[j].v << ' ' ;
 	    sz += (send_info[i].second[j].set).size() ;
 	  }
 	  s << " to " << send_info[i].first << endl ;
+          printIndent(s) ;
         }
 	s << " Total entities sent = " << sz << endl ;
       }
       if(recv_info.size() > 0) {
+        printIndent(s) ;
         s << "Recv:" << endl ;
+        printIndent(s) ;
         for(size_t i=0;i<recv_info.size();++i) {
           for(size_t j=0;j<recv_info[i].second.size();++j)
             s << recv_info[i].second[j].v << ' '  ;
           s << " from " << recv_info[i].first << endl ;
+          printIndent(s) ;
         }
       }
       s << "}" << endl ;
@@ -1763,7 +1771,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   
   void execute_msg::execute(fact_db &facts) {  }
   
-  void execute_msg::Print(std::ostream &s) const { s << msg << endl ; }
+  void execute_msg::Print(std::ostream &s) const {
+    printIndent(s) ;
+    s << msg << endl ;
+  }
   
   void singleton_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed())
@@ -1781,13 +1792,16 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
   
-  executeP singleton_var_compiler::create_execution_schedule(fact_db &facts 
-, sched_db &scheds) {
-    variableSet vars ;
-    vars = barrier_vars ;
-    ostringstream oss ;
-    oss << "singleton param " << vars ;
-    return executeP(new execute_msg(oss.str())) ;
+  executeP singleton_var_compiler::create_execution_schedule(fact_db &facts,
+                                                             sched_db &scheds){
+    if(verbose) {
+      variableSet vars ;
+      vars = barrier_vars ;
+      ostringstream oss ;
+      oss << "singleton param " << vars ;
+      return executeP(new execute_msg(oss.str())) ;
+    }
+    return executeP(0) ;
   }
   
   /////////////////////////////////////////////////////////////////////////
@@ -1837,8 +1851,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   }
 
   void execute_allocate_var::Print(std::ostream &s) const {
-    if(allocate_vars != EMPTY)
+    if(verbose && allocate_vars != EMPTY) {
+      printIndent(s) ;
       s << "allocating variables " << allocate_vars << endl ;
+    }
   }
 
   class execute_free_var : public execute_modules {
@@ -1858,8 +1874,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   }
 
   void execute_free_var::Print(std::ostream &s) const {
-    if(free_vars != EMPTY)
+    if(verbose && free_vars != EMPTY) {
+      printIndent(s) ;
       s << "deallocating variables " << free_vars << endl ;
+    }
   }
 
   void allocate_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
@@ -1934,9 +1952,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   //////////////////  memory profiling compiler code //////////////////////
   /////////////////////////////////////////////////////////////////////////
   void execute_memProfileAlloc::Print(std::ostream &s) const {
-    if(vars != EMPTY)
+    if(vars != EMPTY) {
+      printIndent(s) ;
       s << "memory profiling check point (allocate: " << vars
         << ")" << endl ;
+    }
   }
 
   void execute_memProfileAlloc::execute(fact_db& facts) {
@@ -1965,9 +1985,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   }
 
   void execute_memProfileFree::Print(std::ostream &s) const {
-    if(vars != EMPTY)
+    if(vars != EMPTY) {
+      printIndent(s) ;
       s << "memory profiling check point (free: " << vars
         << ")" << endl ;
+    }
   }
 
   void execute_memProfileFree::execute(fact_db& facts) {
