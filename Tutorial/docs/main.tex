@@ -1,5 +1,5 @@
 \documentclass[10pt,epsf]{book}
-\title { Loci : A Tutorial }
+\title { {\it Loci} : A Tutorial }
 
 \setlength{\textheight}{7.75in}
 \setlength{\textwidth}{5.7in}
@@ -35,25 +35,25 @@
 
 \section{Notation used in this document}
 In this document we use the {\tt typewriter} font to distinguish
-actual Loci programming keywords, classes, and data-structures.
+actual {\it Loci} programming keywords, classes, and data-structures.
 
-\section{ Compiling Loci Programs }
+\section{ Compiling {\it Loci} Programs }
 
-The most direct way to compile Loci programs is to use the Makefile
+The most direct way to compile {\it Loci} programs is to use the Makefile
 template provided in this tutorial.  It is usually as simple as
-including the {\tt Loci.conf} file that comes as part of your Loci
+including the {\tt Loci.conf} file that comes as part of your {\it Loci}
 installation.  See appendix \ref{chap:makefile} for an example
 makefile or refer to example Makefiles in the tutorial directory.
 
 
-\section{Loci Initialization}
+\section{{\it Loci} Initialization}
 
-Before any of the main Loci functionality can be used (that is the
-components that follow this section), Loci must be initialized.  Loci
-has an initialize function that must be called before executing Loci
+Before any of the main {\it Loci} functionality can be used (that is the
+components that follow this section), {\it Loci} must be initialized.  {\it Loci}
+has an initialize function that must be called before executing {\it Loci}
 functionality and a finalize method that must be called just before
 exiting the program.  Note, that the include file {\tt \#include
-  <Loci.h>} includes all commonly used components of the Loci
+  <Loci.h>} includes all commonly used components of the {\it Loci}
 framework, including definitions of the initialization routines.  For
 example, see below:
 \clearpage
@@ -76,24 +76,24 @@ int main(int argc, char *argv[]) {
 
 \section{Entities, Sets, and Sequences}
 
-Probably the most fundamental concept of Loci is that of entities.  In
-Loci, computations are represented by associating values with
+Probably the most fundamental concept of {\it Loci} is that of entities.  In
+{\it Loci}, computations are represented by associating values with
 entities.  Although entities can be considered in rather abstract
-terms, in Loci we often will often interchange the meaning of entity
+terms, in {\it Loci} we often will often interchange the meaning of entity
 with the integer identifier that is used to label a given entity.
 Thus we may talk of entity $1$ when we are really referring to the
 entity labeled $1$.  Note, that while the entity itself is immutable,
-its label may change in the course of executing a Loci program, and in
-particular when Loci schedules parallel programs.  Generally the user
+its label may change in the course of executing a {\it Loci} program, and in
+particular when {\it Loci} schedules parallel programs.  Generally the user
 is unaware of this fact, but it can become important in a few cases
 that will be mentioned in later examples.
 
 As important as the concept of entity is the concept of entity
 collections.  Generally, it is useful to consider groups of entities
-that have similar attributes.  In Loci we have two provided types for
+that have similar attributes.  In {\it Loci} we have two provided types for
 representing sets of entities: 1) the {\tt interval} and 2) the {\tt
   entitySet}.  For example, if we wish to represent the entities
-labeled from $1$ to $100$ we would use the Loci type {\tt
+labeled from $1$ to $100$ we would use the {\it Loci} type {\tt
   interval(1,100)}.  On the other hand, the {\tt entitySet} can be
 used to represent arbitrary collections of entities.  Once we have
 described a collection of entities using the {\tt entitySet} class we
@@ -107,28 +107,28 @@ to preserve the order of entities for looping or other control then we
 use the {\tt sequence } class.  The {\tt sequence} class provides
 operations for concatenation and reversal and can be thought
 of as a list of entity labels.  It should be noted that users
-generally don't create sequences in Loci, but rather the scheduler
+generally don't create sequences in {\it Loci}, but rather the scheduler
 generates sequence of entities for computations.  However, if there is
 ever a need to keep track of a particular ordering of entities, then
 sequences are the data-structure that accomplishes this task.
 
 The following program segment (included with the tutorial programs)
 provides examples of how to create and use sets and sequence of
-entities in Loci.
+entities in {\it Loci}.
 
 \include{entities_cc}
 
-\section{Loci Containers}
+\section{{\it Loci} Containers}
 
-In Loci, containers are entity based.  That is, a container provides
+In {\it Loci}, containers are entity based.  That is, a container provides
 an association between entities and values.  There are two basic types
 of containers: stores and parameters.  Stores are used to associate
 values with entities, while parameters are used to associate a value
 with a sent of entities.  For example, in a simulation the each nodes
 of a mesh will have a position vector, and this will be represented in
-Loci using a store container.  However, the time-step of a simulation
+{\it Loci} using a store container.  However, the time-step of a simulation
 is a single value that is shared by all of the simulation entities and
-this will be represented using a parameter in Loci.  The {\tt store} is a
+this will be represented using a parameter in {\it Loci}.  The {\tt store} is a
 templated container that can be used to contain arbitrary types.  For
 example:
 \begin{verbatim}
@@ -171,7 +171,7 @@ Note, we can also query the domain, or defining set of entities, for any contain
     cout << "x["<<*ei<<"]=" << x[*ei] << endl ;
 \end{verbatim}
 
-For parameters Loci provides the {\tt param} templated class.  This
+For parameters {\it Loci} provides the {\tt param} templated class.  This
 class can also be used to hold arbitrary types.  It associates a given
 value with a collection of entities.  By default this collection of
 entities is the universal set, but there are methods for limiting this
@@ -207,11 +207,11 @@ function.  For example:
 % with, parameter variables behave much like global variables.  There are
 % two parameter containers: param and blackbox, which differ in their
 % scope and intended usage.  The param variables are synchronized over all
-% of the processors and can only be used with first class objects that Loci
+% of the processors and can only be used with first class objects that {\it Loci}
 % knows about.  The blackbox variables are not synchronized over processors
 % and can hold any data type.  Blackbox containers are intended to be used
 % to hold data structures for third party libraries, or other data types
-% that Loci is not able to manage directly.
+% that {\it Loci} is not able to manage directly.
 
 % Stores provide a one-to-one correspondence between entities and values.
 % In shorter terms, stores look like very flexible arrays.  The stores
@@ -221,9 +221,9 @@ function.  For example:
 % run time.
 
 
-\section{Loci Relations}
+\section{{\it Loci} Relations}
 
-In addition to containers, Loci provides ways of describing
+In addition to containers, {\it Loci} provides ways of describing
 relationships between entities.  The simplest of these relationships
 is the constraint.  The constraint simply identifies a grouping of
 entities and is used to assign attributes to entities.  For example, a
@@ -274,17 +274,17 @@ like the {\tt store} container.  For example, if we wanted to create a {\tt Map}
     leftNode[*li] = *ni ; // node *ni is to the left of node *li
 \end{verbatim}
 
-Loci also includes other types of map containers such as {\tt mapVec}
+{\it Loci} also includes other types of map containers such as {\tt mapVec}
 and {\tt multiMap} which provide mechanisms for having multiple entity
 associations.  They will be discussed later in the tutorial as we get
 to more advanced topics.
 
-\section{Databases within Loci}
+\section{Databases within {\it Loci}}
 
-One of the facilities that Loci provides is the management of fact and
+One of the facilities that {\it Loci} provides is the management of fact and
 rule databases.  The fact database provides a repository for the
 containers described earlier.  Once a container is put in the fact
-database, it can be retrieved at a later time by its assigned name.  For example, if we wanted to store the {\tt leftNode } map computed in the previous section into a Loci fact database we would use the {\tt create\_fact()} method.  For example:
+database, it can be retrieved at a later time by its assigned name.  For example, if we wanted to store the {\tt leftNode } map computed in the previous section into a {\it Loci} fact database we would use the {\tt create\_fact()} method.  For example:
 \begin{verbatim}
   fact_db facts ; // Create the fact database
   
@@ -301,21 +301,23 @@ void worker(fact_db &facts) {
 }
 \end{verbatim}
 
-In addition to the fact database, Loci provides a facility for storing
+In addition to the fact database, {\it Loci} provides a facility for storing
 rules that describe computations that can generate new facts.  We will
-describe rules more in the following section.  Usually the user has
-minimal interaction with the rule database.  In general, the user
-creates the rule database and fills it with rules that were registered
-with the system automatically before {\tt main()} executes.  As in the
+describe rules more in the following section.  Usually the user
+doesn't directly manipulate the rule database, but rather tells {\it Loci}
+when to install rules into the rule database that the has been
+identified by the {\it Loci} framework.  In general, the user creates the
+rule database and fills it with rules that were registered with the
+system automatically before {\tt main()} executes.  As in the
 following example:
 \begin{verbatim}
   rule_db rdb ; // create the rule database called rdb
   rdb.add_rules(global_rule_list) ; // Add all registered rules to the database
 \end{verbatim}
 Both the fact database and the rule database are fundamental to
-programming using the Loci framework.  The fact database describes
+programming using the {\it Loci} framework.  The fact database describes
 what you know about a problem, the rule database describes what you
-can derive.  Both of these components are used to make Loci queries
+can derive.  Both of these components are used to make {\it Loci} queries
 using the {\tt Loci::makeQuery} command.  For example to query for the
 computed temperature one would implement code such as:
 \begin{verbatim}
@@ -324,21 +326,37 @@ computed temperature one would implement code such as:
     cerr << "query failed!" << endl ;
   }
 \end{verbatim}
-In most Loci programs, the user queries for the generic variable
+In most {\it Loci} programs, the user queries for the generic variable
 ``solution'' which just indicates that final solution to the problem.
 For most time dependent problems, the most interesting information is
 the intermediate values obtained in the time evolution, not the final
 value.
 
-\section{A Simple Example}
 
-Since specification languages are not typically encountered when
-implementing discretization based numerical schemes, a simple example
-problem will be used to illustrate the basic ideas and motivations
-behind the rule-based approach to application development.  For this
-purpose the one-dimensional linear diffusion problem is selected.  A formal
-description of this problem in the interval  $x\in[0,1]$ for a given
-diffusion constant $\nu$, is described by the equations
+\section{{\it Loci} Helper Classes}
+
+{\it Loci} also provides a few helper classes that are often useful in
+numerical computations.  One is the {\tt Array} template class which provides a
+mechanism for creating Arrays as first class objects that are
+appropriate for using as classes used in templated containers. ({\it
+Never use C arrays in templated containers.  Their semantics are
+different from other C++ objects and may break templated code in
+unexpected ways.})  In addition to the {\tt Array} template class,
+classes for three and two dimensional vectors are also provided.  See
+the following example code to see how to use these helper classes.
+
+\include{helpers_cc}
+
+\chapter{A Simple Example}
+
+Before we begin describing how to create rules in the {\it Loci} framework,
+first lets consider a simple example problem so we can show how the
+problem is decomposed into facts and rules.  In this case, let us
+consider the one-dimensional time-dependent diffusion equation as
+discretized by a finite-volume method. A formal description of this
+problem is as thus: given the interval $x\in[0,1]$ for a given
+diffusion constant $\nu$, the one-dimensional time-dependent diffusion
+equation is described by the equations
 \begin{align}
 \label{eq3:diffuse}
 u_t      & =  \nu u_{xx},~ x \in (0,1), t>0,\\
@@ -347,7 +365,7 @@ u(x,0)   & =  f(x),~ x \in [0,1],\\
 \label{eq3:diffuseb0}
 u_x(0,t) & =  g(t), \mbox{ where } g(0) = f_x(0), \mbox{ and }\\
 \label{eq3:diffuseb1}
-u_x(1,t) & =  h(t), \mbox{ where } h(0) = f_x(1).
+u(1,t) & =  h(t), \mbox{ where } h(0) = f(1).
 \end{align}
 
 Equations (\ref{eq3:diffuse}) through (\ref{eq3:diffuseb1}) formally
@@ -360,32 +378,33 @@ $u(x,t)$ such that the definitions given in equations
 Notice that this specification contains three distinct parts: 1) a
 definition of the problem, 2) a collection of transformations, and 3)
 a goal that must be satisfied.  For this case, an analytic solution to
-the problem may be found for a few specific
-functions $f(x)$, $g(t)$, and $h(t)$.  In general, however, analytical
-solutions to PDE problems of interest to engineering are either
-impractical or impossible, due to the complexity of the geometries
-involved and the non-linearity of the equations themselves.  For this
-reason, approximate numerical methods are often used to solve PDE
-based problems.  However, the basic approach of problem and solution
-specification through definitions, transformations, and goals 
-applies equally well to numerical solution methods.  The question is,
-how does one formally specify the problem and solution methodology for
-these numerical methods in this definition-transformation-goal style?
+the problem may be found for a few specific functions $f(x)$, $g(t)$,
+and $h(t)$.  In general, however, analytical solutions to PDE problems
+of interest to engineering are either impractical or impossible, due
+to the complexity of the geometries involved and the non-linearity of
+the equations themselves.  For this reason, approximate numerical
+methods are often used to solve PDE based problems.  However, the
+basic approach of problem and solution specification through
+definitions, transformations, and goals applies equally well to
+numerical solution methods.  The question is, how does one formally
+specify the problem and solution methodology for these numerical
+methods in this definition-transformation-goal style?  Let us explore
+this question as we derive a finite-volume discretization of the
+time-dependent diffusion equation.
 
 
-\subsection{A Finite Volume Solution}
+\section{A Finite Volume Solution}
 
-The first step in numerically approximating the function $u(x,t)$ is
-the discretization of the spatial domain (in this case the interval
-$[0,1]$).  For this example, the finite volume discretization method
-is chosen.\footnote{Other discretization schemes follow similar lines.
-  See Appendix \ref{app:numerical} for alternative discretization
-  examples.} Using this discretization approach, the interval $[0,1]$
-is divided into $N$ sub-intervals, as illustrated in figure
-\ref{fig3:oned}.  To facilitate describing the discretization process,
-the $N$ sub-intervals, or cells, are labeled by $c = N+1, \cdots, 2N$,
-while the interfaces at the boundaries of sub-intervals are labeled $i
-= 0, \cdots, N$.  Note that the typical labeling used for theoretical
+The first step in any discretization method is to numerically
+approximate the function $u(x,t)$ as a discretization of the
+spatial domain (in this case the interval $[0,1]$).  For this example,
+the finite volume discretization method is chosen.  Using
+this discretization approach, the interval $[0,1]$ is divided into $N$
+sub-intervals, as illustrated in figure \ref{fig3:oned}.  To
+facilitate describing the discretization process, the $N$
+sub-intervals, or cells, are labeled by $c = N+1, \cdots, 2N$, while
+the interfaces at the boundaries of sub-intervals are labeled $i = 0,
+\cdots, N$.  Note that the typical labeling used for theoretical
 purposes would include half step labels for the interfaces, while a
 typical unstructured application code might label both cells and
 interfaces starting from zero and use context to distinguish between
@@ -440,7 +459,7 @@ based calculations.  For example, a generic description of each cell
 center is given by
 \begin{equation}
 \label{eq3:cellcenter}
-x = (ir \rightarrow x + il \rightarrow x)/2.
+x_c = (ir \rightarrow x + il \rightarrow x)/2.
 \end{equation}
 Note that the definition of $x$ provided by equation
 (\ref{eq3:cellcenter}) is only applicable to cells since only cells are in
@@ -452,27 +471,29 @@ The mappings $il$ and $ir$ are used to describe the first
 step of the finite volume discretization, where integration of
 equation (\ref{eq3:diffuse}) over each cell produces the equation
 \begin{equation}
-\int_{t_n}^{t_{n+1}} \int_{il \rightarrow x}^{ir \rightarrow x} u_t dx
-dt = \int_{t_n}^{t_{n+1}} \nu(ir \rightarrow u_x - il \rightarrow
-u_x) dt.
+\frac{d}{dt} \int_{il \rightarrow x}^{ir \rightarrow x} u dx
+ =  \int_{il \rightarrow x}^{ir \rightarrow x} \nu u_{xx} dx = \nu(ir \rightarrow u_x - il \rightarrow u_x) .
 \label{eq3:diffinteg}
 \end{equation}
 
 Equation (\ref{eq3:diffinteg}) is an exact equation, which can be
 integrated numerically to obtain a numerical solution algorithm.
-For example, a first order end-point rule is applied to the time
-integrations while a second order mid-point rule is applied to the space
-integrations to obtain a finite-volume numerical method, expressed as
+For example, when a second order mid-point rule is used to evaluate the spatial
+integrations, these equations become:
 \begin{equation}
-u^{n+1} = u^n + \nu \Delta t
-\left[ \frac{ir \rightarrow u^n_x - il \rightarrow u^n_x}
-          {ir\rightarrow x - il\rightarrow x}\right]
-\label{eq3:timeadvance}
+\frac{d}{dt} u = \frac{\nu}{L}
+\left[ {ir \rightarrow u_x - il \rightarrow u_x} \right],
+\label{eq3:fvm}
+\end{equation}
+where 
+\begin{equation}
+L = \int_{il \rightarrow x}^{ir \rightarrow x} dx = ir \rightarrow x - il \rightarrow x.
+\label{eq3:length}
 \end{equation}
 
-Equation (\ref{eq3:timeadvance}) describes the numerical method for
-advancing the time step, but it is not complete.  The gradient term,
-$u^n_x$, located at the interfaces has not been defined as a numerical
+Equation (\ref{eq3:fvm}) describes the numerical method for
+the spatial integrations, but it is not complete.  The gradient term,
+$u_x$, located at the interfaces has not been defined as a numerical
 approximation.  The most straightforward approximation for $u_x$ is a
 central difference formula using the values at the cell centers at
 either side of the interface.  In order to perform this calculation it
@@ -490,8 +511,8 @@ cr & = & \lbrace (i,r) | i \in [0, \cdots, N-1], r = i+N+1 \rbrace.\\
 Using the definitions of $cl$ and $cr$ of (\ref{eq3:facemaps}), a
 numerical approximation to the gradient can be given as
 \begin{equation}
-u_x^n = \frac{cr\rightarrow u^n - cl\rightarrow u^n}
-           {cr\rightarrow x - cl\rightarrow x}.
+  u_x = \frac{cr\rightarrow u - cl\rightarrow u}
+{cr\rightarrow x_c - cl\rightarrow x_c}.
 \label{eq3:ux}
 \end{equation}
 Notice that this equation uses the x-coordinate at the cell centers
@@ -512,15 +533,33 @@ either $cl$ is defined or $cr$ is defined, but not both.  Using this
 fact, the rules for calculating the boundary gradients can be given by
 \begin{equation}
 \begin{aligned}
-u_x^n & = g(n \Delta t), \mbox{constraint}\lbrace \neg \mathrm{dom}(cl) \wedge
+u_x & = g(t), \mbox{constraint}\lbrace \neg \mathrm{dom}(cl) \wedge
 \mathrm{dom}(cr) \rbrace, \label{eq3:brule0}\\
-u_x^n & = h(n \Delta t), \mbox{constraint}\lbrace \mathrm{dom}(cl)
+u & = h(t), \mbox{constraint}\lbrace \mathrm{dom}(cl)
 \wedge \neg \mathrm{dom}(cr) \rbrace. %\label{eq3:brule1}
 \end{aligned}
 \end{equation}
 Here the constraint term added to the rule indicates a constraint on
 the application of the rule.  In this case it constrains the
 application of the boundary conditions to the appropriate boundary faces.
+
+At this point we have not selected the time integration method.  For
+this simple example we will use the explicit first order Euler time
+integration method which is expressed using the following notation:
+\begin{equation}
+\frac{(u^{n+1}-u^{n})}{\Delta t} = R(u^n),
+\end{equation}
+where
+\begin{equation}
+R(u) = \nu \frac{{ir \rightarrow u_x - il \rightarrow u_x} }{L}.
+\label{eq3:residue}
+\end{equation}
+Rearranging we arrive at the following time integration scheme:
+\begin{equation}
+u^{n+1} = u^{n} + \Delta t R(u^n)
+\label{eq3:eulerStep}
+\end{equation}
+
 
 At this point, the computation of $u^{n+1}$ from $u^n$ is completely
 specified.  However, before any such iteration can begin, an initial
@@ -543,13 +582,13 @@ existence is predicated by the integration.  In other words, the
 derivation assumed a cell perspective that includes left and right
 interface positions.
 
-\subsection{On Problem Specification}
+\section{On Problem Specification}
 
 For an analytic solution method, equations (\ref{eq3:diffuse}) through
 (\ref{eq3:diffuseb1}) are sufficient to define the problem at hand.
 For numerical solution methods, additional definitions are required,
 due to the fact that these are inexact methods.  For example, there
-are often tradeoffs between discretization and accuracy that require
+are often trade-offs between discretization and accuracy that require
 additional specification.  In addition, since discretization for
 complex geometries (grid generation) is not a completely automatic
 process, the discretization becomes part of the problem definition for
@@ -591,13 +630,13 @@ diffusion problem.
 
 
 
-\subsection{On Specification of Process}
+\section{On Specification of Process}
 
 Given the definition of the problem, the process of solving the
 problem is dictated by a prescribed set of transformations.  For
 example, consider equation (\ref{eq3:cellcenter}) as an example of a
 transformation that transforms $x$ located at $il$ and $ir$ into a
-cell $x$.  To simplify discussions of the structure of the
+cell $x_c$.  To simplify discussions of the structure of the
 calculations, the transformation rules are represented by a rule
 signature that is denoted by a list of targets of the transformation
 delineated from the sources of the transformation by the left arrow
@@ -607,7 +646,7 @@ This rule signature represents the augmentation of the set of ordered
 pairs defined in equation (\ref{eq3:interfacex}) with the additional
 set given as
 \begin{equation}
-x\leftarrow\lbrace (c, x_c) |  x_c = (x_l + x_r)/2,
+x_c \leftarrow\lbrace (c, x_c) |  x_c = (x_l + x_r)/2,
                                (l,x_l) \in x, (r,x_r) \in x, 
                                (c,l) \in il, (c,r) \in ir \rbrace.
 \end{equation}
@@ -615,7 +654,7 @@ For the moment, the augmentation of $x$ with this set can be
 considered as a set union operation, with the caveat that it will
 become more complex once issues of specification consistency are
 considered.  Given this notation, the specification of the finite
-volume scheme derived in this section can be summarized by six rules
+volume scheme derived in this section can be summarized by eight rules
 given in table \ref{table3:rules}.
 
 \begin{table}[htbp]
@@ -627,19 +666,21 @@ given in table \ref{table3:rules}.
     \hline
     Rule  & Rule Signature & Equation\\
     \hline
-    Rule 1 & $x \leftarrow (ir,il)\rightarrow x $ &
+    Rule 1 & $x_c \leftarrow (ir,il)\rightarrow x $ &
     (\ref{eq3:cellcenter})\\
-    Rule 2 & $u^{n+1} \leftarrow u^n,(ir,il)\rightarrow(u_x^n,x)$ &
-    (\ref{eq3:timeadvance})\\
-    Rule 3 & $u_x^n \leftarrow (cr,cl)\rightarrow(u^n,x)$ &
+    Rule 2 & $ L \leftarrow (ir,il)\rightarrow x $ &
+    (\ref{eq3:length})\\
+    Rule 3 & $u_x \leftarrow (cr,cl)\rightarrow(u,x_c)$ &
     (\ref{eq3:ux})\\
-    Rule 4 & $u_x^n \leftarrow  g, n, \Delta t, \mbox{constraint}\lbrace 
-    \neg \mathrm{dom}(cl) \wedge \mathrm{dom}(cr) \rbrace$&
-    (\ref{eq3:brule0})\\
-    Rule 5 & $u_x^n \leftarrow  h, n, \Delta t, \mbox{constraint}\lbrace 
+    Rule 4 & $u_x \leftarrow  h, t, \mbox{constraint}\lbrace 
     \mathrm{dom}(cl) \wedge \neg \mathrm{dom}(cr) \rbrace$ &
-    (\ref{eq3:brule1})\\
-    Rule 6 & $u^{n=0} \leftarrow f,x,\mbox{constraint}\lbrace(il,ir)\rightarrow
+    (\ref{eq3:brule0})\\
+    Rule 5 & $u_x \leftarrow  g, t, \mbox{constraint}\lbrace 
+    \mathrm{dom}(cr) \wedge \neg \mathrm{dom}(cl) \rbrace$ &
+    (\ref{eq3:brule0})\\
+    Rule 6 & $R\leftarrow \nu,L,(ir,il)\rightarrow u_x$ & (\ref{eq3:residue})\\
+    Rule 7 & $u^{n+1} \leftarrow u^n, R^n, \Delta t$ & (\ref{eq3:eulerStep})\\
+    Rule 8 & $u^{n=0} \leftarrow f,x_c,\mbox{constraint}\lbrace(il,ir)\rightarrow
     x\rbrace $ &
     (\ref{eq3:ic})\\
     \hline
@@ -647,584 +688,628 @@ given in table \ref{table3:rules}.
 \end{center}
 \end{table}
 
-\subsection{Implementing the  Problem Specification}
+\section{On Interpreting the Problem Specification}
 
-How does one translate the definition of the problem given in table
-\ref{table3:facts} and the specification of the solution method given
-in table \ref{table3:rules} into an implementation that can solve for
-$u^n, n=0,1, \cdots$?  One accomplishes this implementation by
-starting from what is known and using the rules of table
-\ref{table3:rules} to incrementally derive the specified goal.  As in
-Prolog\cite{Clocksin.87}\cite{Sterling.86}, rule resolution, a
-generalization of modus ponens, is used to produce these incremental
-derivations.  In other words, rules are applied where their sources
-are satisfied.  The set of entities that satisfy a rule's sources is
-the context of the rule.  For example, Rule 1 from table
-\ref{table3:rules} can be resolved with the definitions of $il$, $ir$,
-and $x$ given in table \ref{table3:facts} for the entities numbered
-$N+1, \cdots, 2N$.  Similarly, once Rule 1 is resolved, Rule 6 can be
-resolved using the values of $x$ generated by Rule 1.  Iteration is
-recovered by way of induction.  For example, if a rule generates
-$u^{n=0}$ while another rule generates $u^{n+1}$, then these two rules
-can be used to iteratively generate $u^n$ for $n=0,1, \cdots$.  Thus
-by resolving the rules that provide the interface and boundary
-gradients $u_x^n$ a complete schedule as shown in table
-\ref{table3:schedule} can be derived from the given specification.
+The eight rules described in the preceding section form the basis of
+creating a {\it Loci} program.  Before we consider how to do this, lets
+first consider how the facts given in table \ref{table3:facts} and the
+computational elements described in table \ref{table3:rules} can be
+composed to create a time dependent simulation.  Note, that the final
+values of interest are the values for $u^n, n=0,1, \cdots$.  It is
+clear to see that rules 7 and 8 describe how to accomplish this
+computation.  However, more information is needed to complete the
+operation, specifically note that we need the residual $R$ evaluated
+at iteration level $n$, denoted by $R^n$.  However, also note that the
+residual rule given by rule 6 does not have a time notation (no
+superscript $n$).  This rule is said to be described at stationary
+time, that is the relationship is established as an invariant to
+iteration.  That is, R is defined as the same relationship among
+variables regardless of iteration identifier.  In this case, we know
+that we will need to compute $R$ for every time-step because it is a
+function of $u$ which itself is dependent on the iteration.  Usually
+when converting a paper description of an algorithm a program
+implementation we need to make these determinations.  In {\it Loci}, this is
+automatically performed by time promotion deductions.  That is, {\it Loci}
+will automatically determine that the residual and gradients of $u$
+will need to be recomputed each time-step, while $x_c$ and $L$ will
+not.  To accomplish this {\it Loci} will invoke either rule promotions or
+variable promotions, that is that if we have a rule
+$x_c\leftarrow(ir,il)\rightarrow x$ then {\it Loci} may either promote the
+rule to the iteration (e.g $x_c^n\leftarrow(ir^n,il^n)\rightarrow
+x^n$, or promote the variable to the iteration (e.g. $x_c^n\leftarrow
+x_c$), as needed to satisfy the computation.  As a policy, {\it Loci} only
+schedules computations at an iteration as required, all other
+computations are performed once and reused through iterations using
+variable promotion.
 
-\begin{table}[htbp]
-\caption{ A Deduced Execution Schedule for the Example
-  Diffusion Problem}
-\begin{center}
-  \begin{tabular}{|l|l|l|l|}
-    \hline
-    Rule Used & variable computed  & context          & comment \\
-    \hline
-    Rule 1 & compute $x_c$         & $c=N+1, \cdots, 2N$ & cell centers\\
-    Rule 6 & compute $u^{n=0}_c$   & $c=N+1, \cdots, 2N$ & initial conditions \\
-    Loop   &                       & define $n=0$     & for $n=0,\cdots$ \\
-    Rule 4 & compute $(u_x)^n_i$   & $i=0$       & left boundary condition\\
-    Rule 5 & compute $(u_x)^n_i$   & $i=N$       & right boundary condition\\
-    Rule 3 & compute $(u_x)^n_i$   & $i=1..N-1$  & diffusion flux at time $n$\\
-    Rule 2 & compute $u^{n+1}_i$   & $i=0..N$    & advance time-step\\
-    End Loop &                     & loop to Rule 4 & replace $n=n+1$, repeat\\
-    \hline
-  \end{tabular}
-\end{center}
-\label{table3:schedule}
-\end{table}
+\section{Creating the Fact Database}
 
-\subsection{Variations: Reductions}
-
-The specification of the finite volume solution method for the
-one-dimensional diffusion equation has been given, but this simple
-example has left out some important infrastructure that will require
-special treatment if efficient implementations are desired.  The
-choice of a time integration used in this example is not stable for
-any time step, $\Delta t$, and in a typical application a stable
-time-step would be computed as part of the iteration calculation.  For
-non-linear equations the stable time-step is a function of mesh
-spacing and dependent variables and as such can not be computed in
-advance.  The usual approach is to compute the maximum stable
-time-step for each cell in the domain and then choose the smallest of
-these time-steps as the global time-step control.  It is important to
-notice that the time-step is a single value that is a function of a
-set of entities (namely cells).  In addition, this is not any ordinary
-function, it is a function obtained by applying an operation to some
-set of values.  The result of such a process is always that the set of
-values becomes reduced to a single value by a process called
-reduction.  Reduction processes are common in the implementation of
-unstructured applications.  There are basically two forms of
-reductions that are found in these applications.  One, like the
-time-step control discussed here, involves applying the reduction over
-a large set of entities to obtain a global quantity, while the other
-involves reducing through mappings from one set of entities to another
-to obtain a set of local quantities (as in summing forces from cells
-to nodes).  The second of these operations is often used to reduce the
-number of connectivity lists required by the unstructured algorithm,
-since reductions through maps can represent functions requiring
-inverses of the same map.  Thus using these local reductions it is
-possible to save computing and storing an inverse of an existing map.
-Since reductions are quite common in unstructured applications, some
-support for these cases must be provided by any specification system
-for unstructured numerical algorithms.  The particular approach
-presented in this thesis will be discussed in the subsequent sections.
-
-
-
-\section{Loci Helper Classes}
-
-Loci also provides a few helper classes that are often useful in
-numerical computations.  One is the {\tt Array} template class which provides a
-mechanism for creating Arrays as first class objects that are
-appropriate for using as classes used in templated containers. ({\it
-Never use C arrays in templated containers.  Their semantics are
-different from other C++ objects and may break templated code in
-unexpected ways.})  In addition to the {\tt Array} template class,
-classes for three and two dimensional vectors are also provided.  See
-the following example code to see how to use these helper classes.
-
-\include{helpers_cc}
-
-\chapter{Representing and Manipulating Data Structures}
-\section{Creating Data Structures in Loci}
-
-In Loci, data structures are represented as relations between entities
-using Maps.  These data structures, and associated initial values, are
-stored in a repository called the fact database which is managed by
-the {\tt fact\_db} class.  The fact database is what Loci uses to
-coordinate values between computations.  All Loci containers, (e.g.
-store, Map, etc.) can be registered into the fact database.
-
-For example, we create a fact database that contains the fact ``value'' using the {\tt create\_fact} member function as follows:
+Before we begin performing computations we have to describe how to
+express the information in table \ref{table3:facts} as a {\it Loci} fact
+database ({\tt fact\_db}).  The code we are about to describe is
+included in the {\tt 1D-Diffusion} directory in the {\it Loci} tutorial.
+The facts described in this table are essentially the result of a one
+dimensional grid generation process that is handled by the {\tt
+  generate\_grid} function as described below:
 \begin{verbatim}
-      // Create a Fact Database
-      fact_db facts ;
-
-      // Create a new value
-      store<double> value ;
-      // ...
-      // ... Read In Values
-      // ...
-   
-      // Insert value into the fact database
-      facts.create_fact("value",value) ;
+// Generate a 1d grid over the number line from [0,1] consiting of N segments
+// The resulting grid is installed in the fact_db facts 
+void generate_grid(fact_db &facts, int N) {
+\end{verbatim}
+The first step to generating this discretization of the interval
+$[0,1]$ is to allocate space for the nodes and cells that will
+comprise the final grid.  We ask the fact database to generate unique
+entity numbers for these entities using the {\tt get\_allocation() }
+method:
+\begin{verbatim}
+  // Allocate the nodes and cells of the grid
+  entitySet nodes = facts.get_allocation(N+1) ;
+  entitySet cells = facts.get_allocation(N) ;
+\end{verbatim}
+Now that we have these allocations we can first create the fact
+``x''.  This fact use the {\tt store} container as it is an
+association of floating point values with entities.  This container is
+first allocated over the prescribed entities.  The values are assigned
+by giving the lowest numbered entity the value of $x=0$, and then
+adding a delta x to subsequent values.  The resulting values are then
+placed in the fact database using the {\tt create\_fact} method, as
+shown below:
+\begin{verbatim}
+  // setup x coordinates for nodes
+  store<float> x ;
+  x.allocate(nodes) ;
+  float dx = 1./float(N) ; // Uniform delta x
+  entitySet::const_iterator ni ;
+  float xtmp = 0 ;
+  // iterate over nodes and assign positions by adding dx to
+  // preceeding x value
+  for(ni=nodes.begin();ni!=nodes.end();++ni) {
+    x[*ni] = xtmp ;
+    xtmp += dx ;
+  }
+  // Add node positions to facts
+  facts.create_fact("x",x) ;
 \end{verbatim}
 
-Once containers are registered in the fact database, we can later
-extract the values that were placed in the fact database using the 
-{\tt get\_fact} member function.  For example, we can obtain the
-current values from the fact database as follows:
+Now we need to develop the connectivity relations between cells and
+nodes as described by {\tt cl} (cell left), {\tt cr} (cell right),
+{\tt il} (interface left), and {\tt ir} (interface right).  Note that
+while all cells will have a value for {\tt il} and {\tt ir}, only the
+interior nodes will simultaneously have values for {\tt cl} and {\tt
+  cr}.  To compute the nodes that will be used for these maps, we use
+the shifting operator of the entity set which adds or subtracts values
+from all entity identifiers, as in:
 \begin{verbatim}
-      store<double> value(facts.get_fact("value")) ;
+  // Find the nodes that are on the left and right side of cells
+  // by shifting the allocated numberings to the left or right by one
+  entitySet left_nodes = (nodes >> 1) & nodes ;
+  entitySet right_nodes = (nodes << 1) & nodes ;
 \end{verbatim}
-
-Also if we wish to allocate new entities, we can ask the fact database
-for a new allocation by calling the method {\tt get\_allocation} with
-an argument of the number of entities that you need allocated.  For
-example:
+We now have the sets needed to allocate these containers.  Note that
+since we are describing a relationship between various entities, the
+container that we use is a {\tt Map}.  A Map can be thought of as a
+{\tt store} that contains entity identifiers instead of values.  The
+allocation is performed as follows:
 \begin{verbatim}
-      entitySet node_entities = facts.get_allocation(number_of_nodes) ;
+  // Allocate maps for the left cell and right cell of a node
+  Map cl,cr,il,ir ;
+  cl.allocate(left_nodes) ;
+  cr.allocate(right_nodes) ;
+  il.allocate(cells) ;
+  ir.allocate(cells) ;
 \end{verbatim}
-
-For a more detailed example, refer to the subroutine listed below
-which reads in a file that defines a triangulated mesh.  The mesh file
-consists of a list of points in 2-D space and a list of triangles that
-are formed using those points.  This file reader installs the node
-positions and the triangle definitions in the fact database passed
-into its argument list.  The mesh is defined by two Loci containers.
-One is a {\tt store} that contains 2-D vectors named ``pos'' that
-defines the nodal positions and a {\tt MapVec} named
-``triangle\_nodes'' that defines the three nodes that form a triangle
-in a counter-clockwise ordering.
-
-\include{grid_reader_cc}
-
-\section{Transforming Data structures in Loci}
-
-We may need to transform data structures from one form to another
-before they are useful for computations.  For example, if we are
-to use the mesh of triangles read in the previous section in a
-finite-volume based algorithm, we would usually need an edge-centric
-data structure rather than a cell-centric data structure that the
-triangle definition provides.  So, we would like to convert this
-triangle based data structure to one that consists of edges.  Each
-edge is defined by two nodes and two cells on either side.  Boundary
-edges will be require special treatment since there is no outer
-triangle.  We will create a ``ghost'' cell in these cases to make the
-data structure consistent for all edges.  Also, we will want to make
-sure that each edge is represented in this data structure only once.
-
-We create this edge-based data structure by looping over the three
-edges of each triangle, and by searching neighboring triangles to find a
-triangle that shares the same edge.  Once we find this triangle, then
-we know the two nodes and two cells that form an edge.  In order to
-make sure that we don't find the same edge twice, we mark triangles
-that we visit and only insert the edge we find when none of the
-triangles have been visited before.  If we can't find a matching
-triangle, then we know the edge must be a boundary edge that requires
-a ghost cell allocation.
-
-In order to search only the neighboring triangles, we need to
-transpose the ``triangle\_nodes'' in order to obtain a mapping from
-nodes to the triangles that are defined using that node.  A transpose
-of a map is found using the {\tt inverseMap} function.  This function has
-four arguments.  The first is a {\tt multiMap} that is returned by the
-function.  The second is the {\tt Map} that will be transposed.
-Following this are the entities for which the transposed map will be
-defined (in this case it will be all the nodes in the problem).  The
-final argument is the entities that describe the region of the map
-that will be transposed.  In this case, we are interested in
-transposing the {\tt triangle\_node} map for all triangles.  Therefore
-to get the map from nodes to all neighboring triangles we execute the
-function 
+Now we are able to create these {\tt Map}s.  We use a technique of
+finding a correspondence between left nodes and cells or right nodes
+and cells to establish this relationship.  In addition, we build both
+{\tt cl} and {\tt ir} at the same time recognizing that one map is
+simply the transpose of the other as illustrated below:
 \begin{verbatim}
-  Loci::inverseMap(nodes2tri,triangle_nodes,node_set,triangle_set) ;
-\end{verbatim}
-
-Once we have the map from nodes to triangles, we can choose one of the
-nodes of an edge to search for the triangle that contains the same
-edge.  Once we have set up the preliminaries, we use a vector to store
-each edge as we find it.  Once we know how many edges are in the mesh,
-we can allocate entities for the edges and create the maps
-representing the edge data structure.  For this we create three maps,
-``cl'', ``cr'', and ``edge\_nodes'' representing the left and right
-cells and the two nodes that define the edge.  The following code
-shows how to set up these data structures using Loci.
-
-\include{setup_edges_cc}
-
-\chapter{Computational Rule Specification}
-
-In Loci, computations are performed by executing rules.  At a high
-level, it is useful to think of Loci as a ``make'' program for
-managing simulation computations instead of compilations.  A Loci rule
-includes a documentation section that describes the values that it
-depends upon and the values that it produces, combined with a
-computation method that can perform the documented computation when
-needed.  The following sections will describe how to perform various
-types of computations using Loci rules.
-
-\section{Rule Signatures}
-
-Before we begin describing Loci rules, we should first describe how we
-name Loci rules.  Rule signatures are the names of Loci rules.  Loci
-will only allow one computation of a given rule signature, so we can
-use rule signatures to identify any given computational component in a
-Loci program.  The simplest rule signature just shows outputs of the
-rule followed by the inputs.  The inputs and outputs are divided by
-the ``{\tt <- }'' symbol.  For example, a rule that inputs values {\tt
-  A} and {\tt B} to produce output {\tt C} has a rule signature as
-follows:
-
-\begin{verbatim}
-C<-A,B
-\end{verbatim}
-
-If relations (such as the {\tt Map} {\tt cl}
-and the {\tt Map} {\tt cr} in the edge-based data structure of the
-previous section) are used in a computation, then they are included 
-in the rule signature.
-For example, a computation that computes a value {\tt D }
-by averaging value {\tt C } on both sides of any given face would
-be documented by the rule signature:
-
-\begin{verbatim}
-D<-(cl,cr)->C
-\end{verbatim}
-
-What this rule signature means is that {\tt D } is computed by
-accessing {\tt C } through the relations identified as 
-{\tt cl } and {\tt cr }.  Note that in these rule signatures, 
-the comma binds more weakly than
-the mapping right arrow operator.  The
-parentheses, therefore, are required.
-
-\section{Rule Databases}
-
-Rules are managed through the use of a rule database class called
-``{\tt rule\_db }''.  Generally users put rules in the rule database
-from the {\tt global\_rule\_list }, a list of rules that is created
-before {\tt main} is called by {\tt register\_rule } templates.  As a
-result, the usual way that a rule database is manipulated in Loci is
-to insert all of the rules in the global rule list.  This is
-accomplished with the following code segment: 
-
-\begin{verbatim}
-  ////////////////////////////////////////////////////////////////////
-  // rule_db and global_rule_list are defined in Loci.h
-  ////////////////////////////////////////////////////////////////////
-  // Create a rule database called rdb
-  rule_db rdb ;
-
-  ////////////////////////////////////////////////////////////////////
-  // Add all of the rules that were inserted into the global_rule_list
-  // by register_rule<> types into the rule database rdb
-  ////////////////////////////////////////////////////////////////////
-  rdb.add_rules(global_rule_list) ;
-\end{verbatim}
-
-\section{Creating an execution schedule}
-
-Once we have a database of facts and a database of computational
-rules, Loci can use these databases to satisfy queries.  We obtain an
-execution schedule that can compute these results using the function
-{\tt create\_execution\_schedule} provided by Loci.  This function
-takes three arguments, 1) the rule database of computations to use for
-this query, 2) the fact database of data structures and initial
-values, and 3) a C++ string that contains the variable name that we
-wish to query for.  This function returns an {\tt executeP} which is a
-pointer to the execution schedule.  {\tt executeP} is a counted
-pointer that will automatically delete the memory allocated to the
-schedule when the object is destructed.  If a schedule could not be
-determined, {\tt create\_execution\_schedule} returns a null pointer.  
-
-We can then execute the schedule by calling the execute member
-function of the execution schedule, as in
-\begin{verbatim}
-  schedule->execute(facts) ;
-\end{verbatim}
-
-As an additional detail, if we wish to execute on a distributed memory
-machine, we must first distribute the fact database across processors
-before beginning the scheduling.  This is accomplished using the {\tt
-  generate\_distribution} and {\tt distribute\_facts} functions
-provided by Loci.  See the below code segment for a more complete
-example.
-
-\begin{verbatim}
-  ////////////////////////////////////////////////////////////////////
-  // Here we distribute the fact database, if we are running on
-  // multiple processors.  If we are running serially then these
-  // operations have no effect.
-  // First we obtain a partition of entities based on the current
-  // rules and facts
-  ////////////////////////////////////////////////////////////////////
-  std::vector<entitySet> partition = Loci::generate_distribution(facts,rdb) ;
-  ////////////////////////////////////////////////////////////////////
-  // Now we use this distribution to partition the facts to processors.
-  // The assumption at this point is that every processor has 
-  // identical facts and rdb.
-  ////////////////////////////////////////////////////////////////////
-  Loci::distribute_facts(partition, facts, rdb) ;
-
-  ////////////////////////////////////////////////////////////////////
-  // Here we ask Loci to create an execution schedule that will use
-  // the rules in the rule database ``rdb'' and the data in the
-  // fact database ``facts'' to obtain the variable(s) specified in
-  // query.  Here query is a c++ string that contains the name of
-  // the variable that we are querying for (or a comma separated
-  // list if we wish to query for more than one variable).
-  ////////////////////////////////////////////////////////////////////
-  executeP schedule = create_execution_schedule(rdb,facts,query) ;
-
-  ////////////////////////////////////////////////////////////////////
-  // If Loci is unable to derive an execution schedule it will return
-  // a null pointer.
-  if(schedule == 0) {
-    // Output a diagnostic if no schedule can be obtained
-    cerr << "unable to produce execution schedule to satisfy query for "
-         << query << endl ;
-  } else {
-    //////////////////////////////////////////////////////////////////
-    // here we actually execute the computation schedule.  The
-    // result will be placed into the fact database ``facts'' for
-    // later extraction.
-    //////////////////////////////////////////////////////////////////
-    schedule->execute(facts) ;
-
-    //////////////////////////////////////////////////////////////////
-    // Here the execution is complete and the requested computations
-    // are in facts.
+  entitySet::const_iterator ci ;
+  // Assign left nodes to cells in consecutive order
+  ci = cells.begin() ;
+  for(ni=left_nodes.begin();ni!=left_nodes.end();++ni,++ci) {
+    cl[*ni] = *ci ;
+    ir[*ci] = *ni ;
+  }
+  // Assign right nodes to cells in consecutive order
+  ci = cells.begin() ;
+  for(ni=right_nodes.begin();ni!=right_nodes.end();++ni,++ci) {
+    cr[*ni] = *ci ;
+    il[*ci] = *ni ;
   }
 \end{verbatim}
-
-
-
-
-\section{Pointwise Computations}
-
-A rule is implemented as a class that provides a constructor that
-documents the inputs and outputs to the computation and a virtual
-compute method that provides computations for arbitrary collections of
-entities.  The most fundamental of these computations is the pointwise
-rule.  The pointwise rule represents a computation that can be applied
-individually, entity by entity.  For example, consider the case of
-computing the area of each triangle in the triangular mesh described
-earlier.  In order to compute the area of any given triangle we need
-to access the positions of the triangle's three nodes.  These node
-positions can be accessed using the {\tt triangle\_nodes} map.  The
-areas of all of the triangles in the mesh can be computed by looping
-over all entities that have the {\tt triangle\_nodes} defined.  More
-precisely, not only must {\tt triangle\_nodes} be defined, but the
-entities that this map refers to must also have the attribute {\tt
-  pos}.  This set of entities is called the context of the rule and
-represents the possible entities over which the computational
-subroutine may be called.  A rule that computed areas in such a
-fashion would have a rule signature of
+We now install these relations in the fact database:
 \begin{verbatim}
-area<-triangle_nodes->pos
+  facts.create_fact("cl",cl) ;
+  facts.create_fact("cr",cr) ;
+  facts.create_fact("il",il) ;
+  facts.create_fact("ir",ir) ;
 \end{verbatim}
-where area would be the attribute that this computational routine
-would provide when the inputs are provided.  
-
-In order to define a pointwise rule, the user defines a class that
-inherits from the class {\tt pointwise\_rule} that is provided in {\tt
-  Loci.h}.  This class will contain the {\tt store}, {\tt Map}, and
-{\tt param} containers that will be used for the computations.  Input
-containers should use the {\tt const\_} prefix which establishes that
-the container can only be accessed in a read-only mode.  The
-constructor of the rule is responsible for registering the containers
-used in the computations and documenting the inputs and outputs of the
-rule.  The containers are registered using the rule member function
-{\tt name\_store()}.  This function attaches a symbolic name (string)
-to the containers so that they can be attached to containers stored in
-any given fact database when an execution schedule is formed.
-Additionally, {\tt input} and {\tt output} methods are provided to
-document both input and output data of the given computation
-encapsulated by the rule.  Below, a simple example shows how to create
-a pointwise rule to compute areas and centroids of triangles in the
-triangular mesh.
-
-
-\include{cell_props_cc}
-
-\section{Reduction Computations}
-
-There is an alternative approach that we could have taken in the
-computation of areas.  Instead of looping over triangles, instead we
-could have looped over edges and computed the area contribution
-associated with each edge as illustrated in figure \ref{fig:area}.  We
-define the edge area contribution as the area of the triangle formed
-by the two edge nodes and the centroid of the cell.  Obviously the
-triangle area is equal to the sum of all of the edge area
-contributions.  This computation method has the advantage that it can
-be made to compute the area of any general polygon, whereas the
-previous approach was limited only to triangles.  Also, since a
-natural way of expressing this computation is to loop over edges
-(which is typically what is required in finite-volume computations) we
-may be able to dispense with storing the relation {\tt
-  triangle\_nodes} all together.  However, if we wish to define this
-computation via iteration over edges, we will need to sum up the
-results incrementally.  As a result we won't be able to express this
-computation as a pointwise rule since the computation of area does not
-occur completely point by point, but instead is spread out over
-several edge updates.
-
-For this style of computation we need to describe a reduction.  In
-Loci we describe a reduction through the use of {\tt unit\_rule} and
-{\tt apply\_rule}.  The {\tt unit\_rule} defines the identity of the
-operator over which we are doing the reduction, while a set of {\tt
-  apply\_rule}s define the summing update that we perform as we are
-adding each edges contribution to its neighboring triangles.
-Following is an example program that shows how to compute areas using
-this edge-centric approach.
-
-\begin{figure}[h]
-\centerline{
-\epsfxsize=3.2in
-\epsfbox{figures/edge_area.eps}}
-\caption{Computing Triangle Area by Accumulating Edge Contributions}
-\label{fig:area}
-\end{figure}
-
-Note that reductions can also be used to compute parameter values.
-The specification of the reduction is the same as when the output is
-a store, and the resulting parameter is the reduced (accumulated)
-value.  In fact, an {\tt apply\_rule} is the only valid rule for
-computing parameters from stores.  See the file {\tt stable.cc} in the
-finite-volume example for an illustration of how to specify reductions
-for computing parameters.
-
-\include{area_reduce_cc}
-
-\section{Singleton Rules and Parameter Computations}
-
-Singleton rules are defined for computations that are performed
-exclusively on parameters.  Since these computations are on single
-values that are associated with a group of entities, it is not
-necessary to perform any loops.  However the attribute that is
-computed as a result of the rule is only associated with the entities
-that are in the intersection of the entities given the attributes of
-all of the inputs.  (Note:  In the parallel implementation, all
-parameters are duplicated on each processor, so these singleton rules
-are computed on each processor when parallel processing is used [no
-communication is invoked].)
-
+Now we must compute the entities that are on the boundaries.  We do
+this by examining the domain (entities for which a container has a
+definition) of the {\tt cl} and {\tt cr} maps, similar to the previous
+specifications.  There are two boundaries in this one dimensional
+problem, the left boundary and the right boundary.  They are
+represented by {\tt constraint} containers which are special data
+types used in {\it Loci} to give sets of entities special attributes.  The
+boundary condition constraints are specified below:
 \begin{verbatim}
-//////////////////////////////////////////////////////////////////////////////
-//
-//
-//  Here we compute a new parameter C by multiplying the values contained in
-//  parameters A and B.
-//  
-//  We define a singleton rule by creating a class that inherits from 
-//  the class singleton_rule.
-class singleton_example : public singleton_rule {
-// Here we define the paramters involved in the computations.
-// ** Note, only parameters allowed in singleton computations!
-  const_param<double> A ;
-  const_param<double> B ;
-  param<double> C ;
-public:
-// Here we provide a constructor that names stores and specifies inputs and
-// outputs as before.
-  collapse_info() {
-    name_store("A",A) ;
-    name_store("B",B) ;
-    name_store("C",C) ;
-    input("A,B") ;
-    output("C") ;
-  }
+  // Identify boundary conditions
+  constraint left_boundary ;
+  constraint right_boundary ;
+  *right_boundary = cl.domain() - cr.domain() ;
+  *left_boundary = cr.domain() - cl.domain() ;
 
-  virtual void compute(const sequence &seq) {
-// Now in the compute method, we don't loop since we only have a single
-// value representing the entire set of entities.  Instead we use the
-// dereference operator (*) to access the values.
-    *C = (*A)*(*B) ;
-  }
-} ;
-
-// Now we can register this rule like any other Loci Rule
-register_rule<singleton_example> register_singleton_example ;
+  facts.create_fact("left_boundary",left_boundary) ;
+  facts.create_fact("right_boundary",right_boundary) ;
+\end{verbatim}
+Finally, for some computations it is useful to identify the geometric
+cells in the problem (for example if ghost cells were employed.)  Here
+we can easily create such an identification using a constraint as in:
+\begin{verbatim}
+  constraint geom_cells ;
+  *geom_cells = cells ;
+  facts.create_fact("geom_cells",geom_cells) ;
 \end{verbatim}
 
-\section{Iterative Computations}
+Now we have created a {\it Loci} implementation of the facts described in
+table \ref{table3:facts}.  To complete the {\it Loci} implementation we will
+need to describe the rules as well.  This is discussed next.
+
+\section{Creating the rule database}
+
+To capture what is specified in the table \ref{table3:rules} we will
+create a database of rules.  To simplify this process we use the {\it Loci}
+preprocessor that will convert rule specifications into standard C++
+code.  A program that has a {\tt .loci} postfix will automatically be
+compiled with the {\it Loci} preprocessor if you use one of the provided
+example makefiles.  Any valid C++ source file is also a valid {\it Loci}
+preprocessor file, that is we are free to mix standard C++ code and
+{\it Loci} specific directives in this file.  The {\it Loci} preprocessor becomes
+activated through the use of the ``{\tt \$}'' symbol as will be
+described in the following paragraphs.
+
+In the beginning you will want to tell the {\it Loci} preprocessor what the
+types of the {\it Loci} variables that you will be working with.  For
+example, the {\it Loci} preprocessor will need to know what the types of the
+facts that were created earlier to describe the one-dimensional mesh.
+We can describe the types to the preprocessor using the {\tt \$type}
+keyword.  This first argument after this keyword is the variable name,
+while the second argument is the type.  The statement ends with a
+semicolon.  For example, the type definitions for the initial fact
+database are given by:
+\begin{verbatim}
+// Setup Types for initial facts
+$type il Map ; // interface left
+$type ir Map ; // interface right
+$type cl Map ; // cell left
+$type cr Map ; // cell right
+$type x store<float> ; // node positions
+\end{verbatim}
+
+Generally we would like to share types between separate files to
+simplify compilation and source code management.  It is possible to do
+this with the {\it Loci} preprocessor.  For example, the above definition
+can be put into a header file, say the file {\tt "mesh.lh"} and then
+included into the {\it Loci} program using the keyword {\tt \$include}.
+NOTE: this must be {\tt \$include} not the C preprocessor directive
+{\tt \#include}!  For example, to include the above type information
+file use the line:
+\begin{verbatim}
+$include "mesh.lh"
+\end{verbatim}
+
+\subsection{Specifying User Tunable Inputs}
+Before we begin specifying the {\it Loci} rules as described in table
+\ref{table3:rules}, lets discuss feature of {\it Loci} that allow the user
+to easily change some of the facts used to describe the simulation.
+In this case, the user may want to change the viscosity, the number of
+cells in the discretization, or the number of time-steps to simulate.
+All of these parameters can be given default values using special {\it Loci}
+rules, and then the user can change these default values by providing
+a special ``vars'' file.  For example, we can specify the default
+values for these parameters with the following lines of code:
+\begin{verbatim}
+// Input parameters
+$type N param<int> ;              // How many nodes
+$type nu param<float> ;           // diffusion coefficient
+
+$rule default(N) {
+  $N=50 ;
+}
+
+$rule default(nu) {
+  $nu = 1.0 ;
+}
+\end{verbatim}
+
+In these lines of code we can see our first {\it Loci} rules.  The rules are
+preceded with {\tt \$type} specifiers so that {\it Loci} will know the types
+of the variables.  Then the {\tt \$rule} specifier tells the {\it Loci}
+preprocessor that a rule is about to be defined.  Immediately after
+the {\tt \$rule} specifier is the rule type that specifies the type of
+the rule.  The rule signature is provided in the parenthesized region,
+while the braces enclose the code actually executed when the rule is
+required.  The {\tt default} rule type is specifically to provide a
+mechanism for users to change a given value in the fact database, but
+also to provide a default value if the user does not specify one.
+Note the use of the ``{\tt \$} '' to identify the {\it Loci} variables in
+the computational part that is enclosed in braces.  We also note that
+we provide the {\tt optional} rule type to specify values that the
+user can provide, but for which no default value will be provided if
+the user provides no value.  In this case, the facts will simply not
+contain this attribute. 
+
+To utilize these {\tt default} and {\tt optional} rule types, the user
+must specifically read in values from a user provided file.  For
+example, we read in the user provided values from a file called {\tt
+  heat.vars} in the file {\tt main.cc} with the following code:
+
+\begin{verbatim}
+  ifstream ifile("heat.vars",ios::in) ;
+  if(ifile.fail()) {
+    cerr << "can't open 'heat.vars'" << endl ;
+    exit(-1) ;
+  }
+  facts.read_vars(ifile,rdb) ;
+\end{verbatim}
+
+The user provided vars file consists of a braces delimited list of
+variable assignments.  For example, a typical {\tt heat.vars} file
+might look something like:
+\begin{verbatim}
+{
+N: 10
+nu: 10.0
+}
+\end{verbatim}
+
+\subsection{Basic Rule Specification}
+Now we can begin with the implementation of the rules described in
+table \ref{table3:rules} in {\it Loci}.  The first of these rules is the
+computation of the cell center, denoted by the variable {\tt xc} which
+is represented in {\it Loci} by the following code:
+\begin{verbatim}
+// Rule 1: compute the cell center from node positions
+$rule pointwise(xc<-(il,ir)->x) {
+  $xc = .5*($il->$x + $ir->$x) ;
+}
+\end{verbatim}
+In this specification, the {\tt \$rule} directive tells the loci
+preprocessor that we are about to describe a {\it Loci} rule.  The keyword
+{\tt pointwise} that follows indicates that the rule represents a
+point by point computation.  The parenthesis that follow describe the
+rule signature which documents what the rule will use for inputs and
+outputs.  Note that the comma in the rule signature binds most
+tightly, so we use parenthesis to group items.  For example,
+{\tt(il,ir)->x} means the same thing as {\tt il->x,ir->x}.  Similarly,
+{\tt il->(x,y)} would mean {\tt il->x} and {\tt il->y}, whereas {\tt
+  il->x,y} would mean {\tt il->x} and {\tt y}.  Note, when several
+variables are listed on both the sides of the ``{\tt ->}'' operator,
+then all combinations are implied.  Thus {\tt (il,ir)->(x,y)} is
+equivalent to {\tt il->x} and {\tt ir->x} and {\tt il->y} and {\tt
+  ir->y}.  The code that follows the signature is the actual
+implementation of equation (\ref{eq3:cellcenter}) where the ``{\tt
+  \$}'' is used to identify the use of {\it Loci} variables.  NOTE: It is
+important that the rule signature match the implementation: if {\tt
+  \$il->\$x} is in the implementation then {\tt il->x} needs to be in
+the rule signature.  If not, then {\it Loci} may schedule the rule
+incorrectly.
+
+\subsection{Boundary Conditions and Constraints}
+
+Rule 3 provides a method for computing interface gradients.  However,
+this rule only provides values for the internal interfaces as these
+are the only interfaces that have both {\tt cl} and {\tt cr}
+attributes.  Boundary conditions are used to define {\tt ux} at the
+left and right boundaries. For example, at the left boundary $u_x =
+h(t)$.   If we simply defined a rule to define {\tt ux} in this way,
+how do we limit the specification to only apply to the left boundary?
+To do this we use a rule constraint.  The rule constraint is a set of
+entities that constrain the rule application.  A constraint applied to
+the rule makes two assertions: 1) the rule can only be applied for
+entities in found in the constraint set, and 2) all inputs to the rule
+must be availble for the entire set of entities found in the
+constraint. Thus, we can use the {\tt left\_boundary} constraint that
+was placed in the fact database to apply this boundary condition as
+illustrated in the following code:
+
+\begin{verbatim}
+// Neuman boundary condition at left boundary, ux = h(t)
+$rule pointwise(ux<-h), constraint(left_boundary) {
+  $ux = $h ;
+}
+\end{verbatim}
+
+\subsection{Specifying Iterating Algorithms}
+The implementation of rules 2-6 follow a similar procedure as rule 1,
+and can be found in the tutorial under the file ``{\tt heat.loci}''.
+The time-stepping rules 7 and 8 require a bit more discussion.  First
+we need to discuss how we represent the superscripts in this rule
+notation.  For example, how is $u^n$ represented in {\it Loci} code?  The
+superscript is represented in a brace delimited region that follows the
+variable name, so that $u^n$ becomes {\tt u\{n\}} in a {\it Loci} rule
+signature and {\tt \$u\{n\}} in the implementation. Also note that the
+type specifications don't include the superscript, therefore the type
+statement for this variable will be:
+\begin{verbatim}
+$type u store<float> ; // Solution variable
+\end{verbatim}
+
+Now we can specify rules 7 and 8 in a straightforward manner as follows:
+\begin{verbatim}
+// Rule 7: initialization of iteration (build rule)
+$rule pointwise(u{n=0}<-xc) {
+  $u{n=0} = f($xc) ;
+}
+
+// Rule 8: time advance using explicit Euler time integration algorithm
+$rule pointwise(u{n+1}<-u{n},dt{n},R{n}) {
+  $u{n+1} = $u{n}+$dt{n}*$R{n} ;
+}
+\end{verbatim}
+
+Note that the above to rules play different roles in describing the
+iteration.  Rule 7 is called a ``build'' rule in {\it Loci}.  It describes
+how to build the initial values of an iteration.  It is distinguished
+by having an output at with a time specification that includes the
+``='' operator.  Rule 7 is called an ``advance'' rule in {\it Loci}.  The
+advance rule describes how to advance a variable to the next
+iteration.  It is characterized by having an output that is at an
+advanced time level from its inputs.  These two rules tell {\it Loci} how to
+iterate the variable {\tt u} forward in time, but does not describe
+how, or when, to end the iteration.  For this we need a collapse rule
+which is a rule that tells {\it Loci} how to compute a value that results
+from the iteration.  For example, we might have a collapse rule that
+computes a variable called ``{\tt solution}'' that represents the
+solution of the time integration problem.  Such a rule would be
+represented as:
+\begin{verbatim}
+$rule pointwise(solution<-u{n}),conditional(simulation_finished{n}) {
+  $solution = $u{n} ;
+}
+\end{verbatim}
+Notice that this rule has an additional ``{\tt conditional}'' clause.
+This clause is used to tell {\it Loci} when it is OK to terminate or
+``collapse'' the iteration.  This termination condition will be
+provided by another rule as described next.  For the moment we will
+use the criterion that when the iteration variable {\tt n} reaches a
+predetermined value, the loop will terminate.  This is accomplished
+with the following code:
+
+\begin{verbatim}
+$type max_iteration param<int> ;
+$type simulation_finished param<bool> ;
+
+// Condition that determines when iteration is complete
+$rule singleton(simulation_finished<-$n,max_iteration) {
+   $simulation_finished = ($$n >= $max_iteration) ;
+}
+\end{verbatim}
+
+First notice that the type of {\tt simulation\_finished} is a bool
+parameter.  This is a single boolean value shared by all of the
+iterating entities.  The loop will terminate when this value evaluates
+to {\it true}.  Also notice that this rule is a {\tt singleton} rule.
+This means that the rule is computing a single value.  Singleton rules
+are used to compute parameters from other parameters, and thus apply
+to single values rather than collections arrayed over entities.
+Finally, notice that we can access the value of the iterating
+superscript by using the ``{\tt \$n}'' variable name.  This is a
+special variable (always typed as an integer parameter) that contains
+the current iteration number.  Also, notice that when using this
+variable in the implementation, two ``{\tt \$}'' symbols appear.  The
+purpose of this rule should be clear at this point: when {\tt \$n} is
+equal to {\tt max\_iteration} then {\tt simulation\_finished} is
+true, otherwise it is false.  Thus this specifies when {\it Loci} should
+terminate the iteration.
+
+\subsection{Next Step: Global Reductions}
+
+The above specification is nearly complete.  However we have left out
+one important detail and that is the specification of the time-step,
+$\Delta t$.  How do we arrive at this time-step size?  One approach
+would be to have the user specify this parameter by providing a
+{\tt default} rule.  This would allow the user to input a specific
+time-step.  However, since the explicit Euler time-stepping algorithm
+has a stability bound, it might be better if the solver computed a
+stable time-step.  The stability limit for this algorithm is given by
+the equation:
+\begin{equation}
+\Delta t = \frac{1}{2}\frac{L^2}{\nu}.
+\end{equation}
+However, since it is possible for the mesh to be non-uniform in our
+formulation, we would like to find out what is the smallest possible
+time-step by applying this equation to all possible cells.  We can
+accomplish this operation by using a global reduction.  For a global
+reduction, the output of the rule is a parameter, indicating that
+there will be a single value shared by many entities.  Reductions in
+{\it Loci} are specified using two different rule types: {\tt unit} and {\tt
+  apply}.  A reduction is always defined with respect to some operator
+that 1) has an identity, 2) is associative, and 3) is commutative.
+In this example we will use the minimum operator that an identity (the
+largest possible number) and is associative and commutative.  The
+computation of the global stable time-step is given by the following
+{\it Loci} code:
+\begin{verbatim}
+$type dt param<int> ; // simulation timestep
+
+$rule unit(dt), constraint(UNIVERSE) {
+   $dt = std::numeric_limits<float>::max() ; // largest allowble timestep
+}
+
+$rule apply(dt<-L,nu)[Loci::Minimum] {
+    float local_dt = $L*$L/(2.*$nu) ;  // Stable timestep
+    join($dt,local_dt) ; // Set dt = min(dt,local_dt)
+}
+\end{verbatim}
+
+Here we see the unit rule being applied to compute the identity of the
+operator.  In this specific case we use the C++ standard to query the
+maximum floating point value to assign to {\tt dt}. Notice that we
+provide a constraint of {\tt UNIVERSE} which indicates that {\tt dt}
+will be associated with all entities in the simulation.  The rule that
+follows is the apply rule that specifies that the {\tt Loci::Minimum}
+operator will be used.  {\it Loci} provides the following operators: {\tt
+  Loci::Summation}, {\tt Loci::Product}, {\tt Loci::Maximum}, and {\tt
+  Loci::Minimum}.  Other operations can be defined by the user as will
+be described in later sections.  Here the apply rule uses the {\tt
+  join} operator to combine the local stable time-steps with the
+global time-step.  The first argument to the join operator is the
+variable that is being reduced, while the second argument is the
+variable that is being combined.  
+
+Note, there are some important cautions that should be mentioned
+here.  First, it is important that the unit rule assigns the identity
+value because it is possible that this rule may be computed and
+combined multiple times (particularly in the parallel), therefore it
+is not OK, for example, to have the unit rule assign a partial sum
+expecting that the value will only be added once.  Second, it can be
+deceptively easy to violate the associative and commutative properties
+of the operator.  For example, consider the following {\it Loci} code:
+\begin{verbatim}
+$rule apply(sum<-terms)[Loci::Summation] {
+    if($sum < 1) // Error!  Result depends on order terms are summed!
+      join($sum,$terms) ; 
+}
+\end{verbatim}
+Note, it is not the if statement that is wrong, but rather the
+conditional on the partially summed result.  For example, the
+following code is OK:
+\begin{verbatim}
+$rule apply(sum<-terms)[Loci::Summation] {
+    if($terms < 1) // OK, result is independent of summing order
+      join($sum,$terms) ; 
+}
+\end{verbatim}
+
+\subsection{The {\it Loci} Generated Schedule}
 
 
-Iteration is defined by way of three types of rule specifications:
-build rules that construct the iteration, advance rules that advance
-the iteration, and collapse rules that terminate the iteration.  This
-specification follows an analogy to the inductive proof in that build
-rules are analogous to an inductive base while advance rules are
-analogous to an inductive hypothesis.
+\subsection{Local Reductions: An Alternative}
+
+The fact database described in this example included two sets of
+maps.  One set of maps provided an association from cells to
+interfaces ({\tt il,ir}), and another provided an association from
+interfaces to cells ({\tt cl,cr}).  However, these maps are
+intrinsically related to one another in that {\tt il} is the transpose
+of {\tt cr} and {\tt ir} is the transpose of {\tt cr}.  Since these
+maps represent a storage overhead, it is reasonable to ask if they are
+both necessary.  In fact, we can eliminate one pair of maps if we
+reorganize some of our computations so that they shift from being cell
+centric to being interface centric.  Note, that this represents a
+common trade-off found in unstructured solver algorithms, and {\it Loci}
+provides techniques that allows us to develop algorithms that can
+reduce the amount of connectivity storage required.  
+
+For example, consider the computation of the cell centers described
+by the rule:
+\begin{verbatim}
+$rule pointwise(xc<-(il,ir)->x) { $xc = .5*($il->$x + $ir->$x) ; }
+\end{verbatim}
+
+This rule is cell centric: the context of the rule (where computations
+occur) is cells, as cells are the entities that have attributes {\tt
+  il} and {\tt ir}.  Can we transform this rule so that it uses the
+face centric maps {\tt cl} and {\tt cr}?  Yes, we can.  But the
+resulting computation is somewhat less straightforward.  Essentially
+the computation is transformed whereby we visit all of the interfaces
+in the line and each interface will add half of its position to each
+side.  When all interfaces add their parts, then the final total will
+be the cell center.  This computation is similar to the global
+reduction described earlier with one important difference: this
+computation results in many cell centers, not just one.  This
+many-to-many reduction process is called a local reduction.  A local
+reduction is described in the same way as a global reduction in {\it Loci},
+the only difference is that the result of the local reduction is a
+store rather than a parameter.  Thus, we use a unit/apply combination
+to describe the computation much like the previous example.  Here is
+an example of three rules that can replace the cell center computation
+using {\tt cl} and {\tt cr} maps:
+\begin{verbatim}
+$rule unit(xc), constraint(geom_cells) {  $xc = 0 ; }
+$rule apply(cl->xc <- x)[Loci::Summation] {  join($cl->$xc,.5*$x) ; }
+$rule apply(cr->xc <- x)[Loci::Summation] {  join($cr->$xc,.5*$x) ; }
+\end{verbatim}
+First note that we have a unit rule that assigns the value of the cell
+center to the identity of summation (zero).  Also note that the rule
+is constrained to exist only for geometric cells (we put this
+constraint {\tt geom\_cells} in the fact database, as described
+earlier).  This constraint keeps this rule from defining values for
+entities that are not cells.  Now to compute the cell center we look
+at each interface and add half its position to both the left and right
+sides.  These three rules are equivalent to Rule 1, but use the maps
+{\tt cl} and {\tt cr} instead.  Note that the map appears in the
+output of the rule rather than the input, and this is essentially how
+the map becomes transposed.  In fact, as a rule of thumb, usually
+pointwise rules have mappings in the inputs, while apply rules have
+mappings in their outputs for exactly this reason.  Applying this
+technique to other rules that use {\tt il} and {\tt ir} it is possible
+to completely eliminate the need for these maps.
+
+{\it Note: it would be tempting to combine these two rules
+into one adding to both the left and right sides at the same time.
+However, the boundary faces would be left out in this case, since they
+don't have both a left and right side.}
 
 
-Iterations are specified by adding an iteration label to variable
-identifiers.  Iteration labels are organized into a hierarchy that is
-rooted at stationary time (values that don't iterate).  It is assumed
-that computations can proceed at any given iteration level while
-accessing values computed at either its iteration level or at parent
-levels in the label hierarchy.  The iteration label is just a list of
-iterator variables that follows the variable name enclosed in braces.
-For example, to access value {\tt v} for iteration {\tt n} we have 
-{\tt v\{n\}}.  This relationship between traditional imperative
-languages' 
-loop nesting and the iteration label hierarchy is shown in figure
-\ref{fig:nested}. 
+\subsection{Getting Sophisticated: Parametric Rules}
 
-\begin{figure}[h]
-\centerline{
-\epsfxsize=3.4in
-\epsfbox{figures/nested.eps}}
-\caption{Nested Loops are characterized by a hierarchy of iteration labels}
-\label{fig:nested}
-\end{figure}
+When developing {\it Loci} rules, one quickly will notice patterns that are
+repeated in many different rules.  In such cases it would be useful to
+define a family of rules that can be called upon to act on different
+variables.  For example, it would be useful to define a gradient
+operator that could apply to different variables, then rather than
+have variable {\tt ux} and an associated rule to compute this specific
+gradient, it would be useful to have a way of specifying {\tt grad(u)}
+instead.  We can do this using parametric rules.  For this one
+dimensional heat equation, there are several cases where it would be
+useful to have a parametric rules to capture these common structures.
+One example is the integration of fluxes that results in a difference
+between interfaces.  It would be useful to have a cell integral
+function to perform this common operation.  In addition, specifying
+this as a parametric rule will simplify the process of converting to
+using the {\tt cl} and {\tt cr} maps.  
 
-For example, an iteration where a variable named {\tt q} is iterated
-to a converged solution may be described by the following three rules:
-1) a build rule of the form {\tt q\{n=0\}<-initial\_condition}, 2) an
-advance rule similar to {\tt q\{n+1\}<-q\{n\},delta\_q\{n\}}, and 3)
-an iteration collapse rule {\tt
-  solution<-q\{n\},CONDITION(converged\{n\})}.  Iteration in this
-example proceeds by initializing the first iteration, {\tt q\{n=0\}},
-using the build rule.  Next, termination of iteration is checked
-by computing {\tt converged}.  If the test succeeds then the collapse
-rule terminates the iteration.  Finally the iteration advances in time
-by the repeated application of the advance rule which computes values
-for {\tt q} for the next iteration ({\tt\{n+1\}}) given current
-iteration values at time level {\tt\{n\}}.  Note that the completion
-of these rules may require invoking other rules specified in the rule
-database.  In this case, rules that compute {\tt converged\{n\}} and
-{\tt dq\{n\}} will also need to be scheduled.
+Parametric rules are defined by parametric variables.  A parametric
+variable is one that has parameters as defined by a parenthesized list
+of substitution keys.  Thus, for example, if we want to create a cell
+integration of some variable, we can provide that using the paremetric
+variable {\tt cellIntegrate(X)}
 
-To support iteration, variables that exist in lower levels of the
-iteration hierarchy are automatically promoted up the iteration
-hierarchy.  Thus a variable that is computed in iteration {\tt\{n\}}
-is communicated to iteration {\tt\{n,it\}} automatically.  In
-addition, rules that are specified completely at the stationary level
-will be promoted to any level of the hierarchy.  This allows for the
-specification of relations that are iteration independent (for
-example, $p = \rho \tilde{R} T$ implies $p^n = \rho^n \tilde{R}^n
-T^n$).
+\begin{verbatim}
+$type cellIntegrate(X) store<float> ;
+$type X store<float> ;
 
+$rule pointwise(cellIntegrate(X)<-(il,ir)->X) {
+   $cellIntegrate(X) = $ir->$X - $il->$X ;
+}
+\end{verbatim}
 
-\include{integration_cc}
+\begin{verbatim}
+// The 1d diffusion residue
+$rule pointwise(R<-nu,cellIntegrate(ux),L) { $R = $nu*$cellIntegrate(ux)/$L ;}
+\end{verbatim}
 
-\section{Parametric Rules}
+\begin{verbatim}
 
-We can also create generic, or parametric rules.  These can be any
-type of rule and allows Loci to create new rules by variable
-substitution.  The output of a parametric rule includes variable names
-that are followed by parenthesis enclosed parameter lists.  When these
-parameters occur in the inputs to the rule, they will be substituted
-by the provided parameter.  See the gradient routine that follows for
-an example of how to develop and use parametric rules.
+// A general function for integrating over a cell boundary
+$rule unit(cellIntegrate(X)),constraint(geom_cells) {
+  $cellIntegrate(X) = 0 ;
+}
+$rule apply(cl->cellIntegrate(X)<-X)[Loci::Summation] {
+  join($cl->$cellIntegrate(X),$X) ;
+}
+$rule apply(cr->cellIntegrate(X)<-X)[Loci::Summation] {
+  join($cr->$cellIntegrate(X),-$X) ;
+}
+\end{verbatim}
 
-\include{gradient_cc}
+\begin{verbatim}
+// We find the length of an interval by integrating the position x
+$rule pointwise(L<-cellIntegrate(x)) { $L = $cellIntegrate(x) ; }
+\end{verbatim}
 
-%\include {dbase}
-%\include {example}
-%\include {make}
 
 %% Appendicies
 \appendix
