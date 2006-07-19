@@ -195,6 +195,12 @@ namespace Loci {
     }
 
     variableSet parvars = scanRulesForParametrics(par_rdb.all_rules()) ;
+    for(variableSet::const_iterator vi=query_vars.begin();vi!=query_vars.end();++vi) {
+      if(variable(*vi).get_arg_list().size() > 0) {
+        parvars += *vi ;
+      }
+    }
+    
 #ifdef VERBOSE
     std::cout << "parvars = " << parvars << endl ;
     debugout << "parvars = " << parvars << endl ;
