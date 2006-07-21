@@ -457,7 +457,8 @@ namespace Loci {
     }
     
     FORALL(local_input_image,i) {
-      vector<int,malloc_alloc<int> >(sizes[i]).swap(result[i]) ;
+      vector<int,malloc_alloc<int> > tmp(sizes[i]) ;
+      tmp.swap(result[i]) ;
     }ENDFORALL ;
 
     for(int i=0;i<size_recv;++i) {

@@ -503,7 +503,8 @@ namespace Loci
     allocate(sizes) ;
         
     FORALL(e,ii) {
-      std::vector<int,malloc_alloc<int> >(sizes[ii]).swap(attrib_data[ii]) ;
+      std::vector<int,malloc_alloc<int> > tmp(sizes[ii]) ;
+      tmp.swap(attrib_data[ii]) ;
       for( int i = 0; i < sizes[ii]; i++)
         s >> attrib_data[ii][i] ;
     } ENDFORALL ;
