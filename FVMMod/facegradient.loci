@@ -1,10 +1,13 @@
 #include <Loci.h>
 #include <Tools/tools.h>
-//#include "sciTypes.h"
-#include "metrics.h"
 
 namespace Loci {
 
+  typedef vector3d<real_t> vect3d ;
+  typedef tensor3d<real_t> tens3d ;
+  typedef real_t real ;
+  
+  
   class gradient_f : public pointwise_rule {
     const_storeVec<vect3d> gradX ;
     const_store<real> vol ;

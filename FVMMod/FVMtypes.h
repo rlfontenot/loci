@@ -8,7 +8,6 @@
 #include <Tools/tools.h>
 
 namespace Loci {
-  const double pi = M_PI ;
   
   typedef double real;
   typedef vector3d<double> vect3d;

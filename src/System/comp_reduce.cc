@@ -1064,5 +1064,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       oss << "reduce store " << reduce_var ;
       return executeP(new execute_msg(oss.str())) ;
     }
+    return executeP(0) ; 
   }
 }

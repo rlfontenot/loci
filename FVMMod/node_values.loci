@@ -1,6 +1,5 @@
 #include <Loci.h>
-//#include "const.h"
-#include "metrics.h"
+$include "FVM.lh"
 
 #include <vector>
 #include <algorithm>
@@ -8,119 +7,45 @@ using std::vector ;
 using std::sort ;
 using std::unique ;
 
+
 namespace Loci {
- 
-  class node_identify : public singleton_rule {
-    param<bool> sim_nodes ;
-    const_multiMap face2node ;
-  public:
-    node_identify() {
-      name_store("sim_nodes",sim_nodes) ;
-      name_store("face2node",face2node) ;
-      constraint("face2node->pos") ;
-      output("face2node->sim_nodes") ;
-    }
-    void calculate(Entity e) {
-      sim_nodes[e] = true ;
-    }
-    virtual void compute(const sequence &seq) {
-      *sim_nodes = true ;
-    }
-  } ;
-  register_rule<node_identify> register_node_identify ;
+  typedef vector3d<real_t> vect3d ;
+  typedef real_t real ;
 
-  class unit_vecSize : public unit_rule {
-    param<int> vecSize ;
-  public:
-    unit_vecSize() {
-      name_store("vecSize(X)",vecSize) ;
-      constraint("UNIVERSE") ;
-      output("vecSize(X)") ;
-    }
-    void compute(const sequence &seq) {
-      *vecSize = 0 ;
-    }
-  } ;
+  $type sim_nodes param<bool> ;
 
-  class apply_vecSize : public apply_rule<param<int>, Loci::Maximum<int> > {
-    param<int> vecSize ;
-    const_storeVec<real> X ;
-  public:
-    apply_vecSize() {
-      name_store("vecSize(X)",vecSize) ;
-      name_store("X",X) ;
-      input("X") ;
-      output("vecSize(X)") ;
-    }
-    void compute(const sequence &seq) {
-      *vecSize = X.vecSize() ;
-    }
-  } ;
-
-  register_rule<unit_vecSize> register_unit_vecSize ;
-  register_rule<apply_vecSize> register_apply_vecSize ;
-
-  class nodalw_unit : public unit_rule {
-    store<float> nodalw_sum ;
-  public:
-    nodalw_unit() {
-      name_store("nodalw_sum",nodalw_sum) ;
-      constraint("pos") ;
-      output("nodalw_sum") ;
-    }
-    void calculate(Entity nd) {
-      nodalw_sum[nd] = 0.0 ;
-    }
-    virtual void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-  register_rule<nodalw_unit> register_nodalw_unit ;
-  // Compute total number of elements contributing to a node
-  class cell2node_weights :
-    public apply_rule<store<float>, Loci::Summation<float> > {
-    const_multiMap upper, lower,boundary_map ;
-
-    const_multiMap face2node ;
-    const_store<vect3d> pos, cellcenter ;
-
-    store<float> nodalw_sum ;
-
-    vector<int> node_list ;
-  public:
-    cell2node_weights() ;
-    void calculate(Entity cc) ;
-    virtual void compute(const sequence &seq) ;
-  } ;
-
-  cell2node_weights::cell2node_weights() {
-    name_store("nodalw_sum",nodalw_sum) ;
-    name_store("face2node",face2node) ;
-    name_store("upper",upper) ;
-    name_store("lower",lower) ;
-    name_store("boundary_map",boundary_map) ;
-    name_store("pos",pos) ;
-    name_store("cellcenter",cellcenter) ;
-
-    constraint("geom_cells") ;
-    input("cellcenter") ;
-    input("(upper,lower,boundary_map)->face2node->pos") ;
-    
-    input("(upper,lower,boundary_map)->face2node->nodalw_sum") ;
-    output("(upper,lower,boundary_map)->face2node->nodalw_sum") ;
+  $rule singleton(face2node->sim_nodes),constraint(face2node->pos) {
+    $sim_nodes = true ;
   }
 
-  void cell2node_weights::calculate(Entity cc) {
+  $type vecSize(X) param<int> ;
+  $type X storeVec<real> ;
 
-    node_list.clear() ;
-    for(const Entity *fi=upper.begin(cc);fi!=upper.end(cc);++fi)
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+  $rule unit(vecSize(X)), constraint(UNIVERSE) {
+    $vecSize(X) = 0 ;
+  }
+
+
+  $rule apply(vecSize(X)<-X)[Loci::Maximum], prelude {
+    join(*$vecSize(X),$X.vecSize()) ;
+  } ;
+
+  $type nodalw_sum store<float> ;
+
+  $rule unit(nodalw_sum), constraint(pos) {
+    $nodalw_sum = 0 ;
+  }
+
+  $rule apply((upper,lower,boundary_map)->nodalw_sum<-cellcenter,(upper,lower,boundary_map)->face2node->pos)[Loci::Summation],constraint(geom_cells) {
+    vector<Entity> node_list(0) ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
         node_list.push_back(*ni) ;
-    for(const Entity *fi=lower.begin(cc);fi!=lower.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
         node_list.push_back(*ni) ;
-    for(const Entity *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) 
-      for(const Entity *ni=face2node.begin(*fi);ni!=face2node.end(*fi);++ni)
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
         node_list.push_back(*ni) ;
     sort(node_list.begin(),node_list.end()) ;
     vector<int>::iterator ns = node_list.begin() ;
@@ -129,19 +54,12 @@ namespace Loci {
     
     for(vector<int>::iterator vi = ns;vi!=ne;++vi) {
       int nd = *vi ;
-      const real weight = 1./norm(pos[nd]-cellcenter[cc]) ;
-      nodalw_sum[nd] += weight ;
+      Entity *p = &nd ;
+      const real weight = 1./norm(p->$pos-$cellcenter) ;
+      join($nodalw_sum,weight) ;
     }
 
   }
-
-  void cell2node_weights::compute(const sequence &seq) {
-    do_loop(seq,this) ;
-  }
-
-  register_rule<cell2node_weights> register_cell2node_weights ;
-  
-
   
   class nodal_unit : public unit_rule {
     const_param<int > vecSizeX ;
@@ -239,10 +157,10 @@ namespace Loci {
     compute_nodal() {
       name_store("nodal_sum(X)",nodal_sum) ;
       name_store("nodalw_sum",nodalw_sum) ;
-      name_store("cell2nodeV(X)",nodal) ;
+      name_store("cell2node_v(X)",nodal) ;
       input("nodal_sum(X),nodalw_sum") ;
       constraint("pos") ;
-      output("cell2nodeV(X)") ;
+      output("cell2node_v(X)") ;
     }
     void calculate(Entity nd) {
       real rsum = 1./(real(nodalw_sum[nd])+1e-20) ;
@@ -387,11 +305,11 @@ namespace Loci {
     boundary_compute_nodal() {
       name_store("boundary_nodal_sum(X)",boundary_nodal_sum) ;
       name_store("boundary_nodalw_sum",boundary_nodalw_sum) ;
-      name_store("boundary::cell2nodeV(X)",nodal) ;
+      name_store("boundary::cell2node_v(X)",nodal) ;
       constraint("boundary_node") ;
       input("boundary_nodal_sum(X)") ;
       input("boundary_nodalw_sum") ;
-      output("boundary::cell2nodeV(X)") ;
+      output("boundary::cell2node_v(X)") ;
     }
     void calculate(Entity nd) {
       real rsum = 1./(real(boundary_nodalw_sum[nd])+1e-20) ;
@@ -1171,9 +1089,9 @@ namespace Loci {
     store<vector3d<float> > node_value ;
   public:
     cell2nodeVectorMax() {
-      name_store("cell2nodeVectorMax(X)",node_value) ;
+      name_store("cell2nodeMaxv3d(X)",node_value) ;
       constraint("pos") ;
-      output("cell2nodeVectorMax(X)") ;
+      output("cell2nodeMaxv3d(X)") ;
     }
     void calculate(Entity e) {
         node_value[e] = vector3d<float>(0.,0.,0.) ;
@@ -1208,7 +1126,7 @@ namespace Loci {
   } ;
 
   c2nVectorMax::c2nVectorMax() {
-    name_store("cell2nodeVectorMax(X)",cell2nodeVectorMax) ;
+    name_store("cell2nodeMaxv3d(X)",cell2nodeVectorMax) ;
     name_store("face2node",face2node) ;
     name_store("upper",upper) ;
     name_store("lower",lower) ;
@@ -1217,8 +1135,8 @@ namespace Loci {
 
     constraint("geom_cells") ;
     input("X") ;
-    input("(upper,lower,boundary_map)->face2node->cell2nodeVectorMax(X)") ;
-    output("(upper,lower,boundary_map)->face2node->cell2nodeVectorMax(X)") ;
+    input("(upper,lower,boundary_map)->face2node->cell2nodeMaxv3d(X)") ;
+    output("(upper,lower,boundary_map)->face2node->cell2nodeMaxv3d(X)") ;
   }
 
   void c2nVectorMax::calculate(Entity cc) {

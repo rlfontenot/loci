@@ -9,7 +9,7 @@ include Loci.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
-default: library lpp FVMtools
+default: library lpp FVMtools FVMMod
 
 library: shared
 

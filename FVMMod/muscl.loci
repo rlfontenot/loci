@@ -1,8 +1,5 @@
 #include <Loci>
 #include <Tools/tools.h>
-#include "metrics.h"
-//#include "const.h"
-#include "periodic.h"
 
 // The following functions help to construct the flux terms 
 // and flux Jacobian at the interface of the cell.
@@ -20,47 +17,9 @@
 
 namespace Loci {
 
-  class left_rho : public pointwise_rule {
-    const_store<real> leftrho ;
-    store<real> rho_l ;
-  public:
-    left_rho() {
-      name_store("leftsP(rho,Zero)",leftrho) ;
-      name_store("rho_l",rho_l) ;
-
-      input("leftsP(rho,Zero)") ;
-      output("rho_l") ;
-    }
-    void calculate(Entity fc) {
-      rho_l[fc] = leftrho[fc] ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-  class right_rho : public pointwise_rule {
-    const_store<real> rightrho ;
-    store<real> rho_r ;
-  public:
-    right_rho() {
-      name_store("rightsP(rho,Zero)",rightrho) ;
-      name_store("rho_r",rho_r) ;
-
-      input("rightsP(rho,Zero)") ;
-      output("rho_r") ;
-    }
-    void calculate(Entity fc) {
-      rho_r[fc] = rightrho[fc] ;
-    }
-    void compute(const sequence &seq) {
-      do_loop(seq,this) ;
-    }
-  } ;
-
-
-  register_rule<left_rho> register_left_rho ;
-  register_rule<right_rho> register_right_rho ;
+  typedef vector3d<real_t> vect3d ;
+  typedef tensor3d<real_t> tens3d ;
+  typedef real_t real ;
   
   // The following is to get the face value using gradient approach.
   class muscl_left_scalar : public pointwise_rule {

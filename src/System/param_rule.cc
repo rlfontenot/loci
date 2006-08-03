@@ -16,6 +16,18 @@ namespace Loci {
   typedef pair<string,int> param_rule_key ;
   typedef map<param_rule_key, ruleSet> param_rule_db ;
 
+  string var2key(variable v) {
+    if(v.get_info().namespac.size() == 0) {
+      return v.get_info().name ;
+    }
+    vector<string> ns = v.get_info().namespac ;
+    string n ;
+    for(size_t i = 0;i<ns.size();++i)
+      n+= ns[i] + '@' ;
+    n += v.get_info().name ;
+    return n ;
+  }
+  
   // Return set of parametic variables that were accessed by the given ruleSet
   variableSet scanRulesForParametrics(ruleSet rs) {
     ruleSet::const_iterator ri ;
@@ -141,7 +153,7 @@ namespace Loci {
     for(vi=pvars.begin();vi!=pvars.end();++vi) {
       variable v = *vi ;
       int psize = v.get_arg_list().size() ;
-      param_rule_key rk(v.get_info().name,psize) ;
+      param_rule_key rk(var2key(v),psize) ;
       param_rule_db::const_iterator pri = prule_db.find(rk) ;
       if(pri==prule_db.end()) {
         if(MPI_rank == 0)
@@ -175,7 +187,7 @@ namespace Loci {
         if(rp->is_parametric_provided()) {
           variable pv = rp->get_parametric_variable() ;
           int psize = pv.get_arg_list().size() ;
-          param_rule_key rk(pv.get_info().name,psize) ;
+          param_rule_key rk(var2key(pv),psize) ;
           prule_db[rk] += *rsi ;
           param = true ;
         } else {
@@ -183,7 +195,7 @@ namespace Loci {
                 target.end(); ++vsi) { 
             int psize = variable(*vsi).get_arg_list().size() ;
             if(psize > 0) {
-              param_rule_key rk(vsi->get_info().name,psize) ;
+              param_rule_key rk(var2key(*vsi),psize) ;
               prule_db[rk] += *rsi ;
               param = true ;
             }

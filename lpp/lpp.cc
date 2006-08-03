@@ -649,7 +649,9 @@ void parseFile::process_Compute(std::ostream &outputFile,
         cerr << "variable " << v << " is unknown to this rule!" << endl ;
         throw parseError("type error") ;
       }
-      if(type_map[v].first == "Constraint" || !deref) {
+      map<variable,pair<string,string> >::const_iterator mi ;
+      if(((mi = type_map.find(v)) != type_map.end()) &&
+         (mi->second.first == "Constraint" || !deref)) {
         outputFile << vmi->second  ;
       } else {
         outputFile << "(*" << vmi->second << ')' ;
@@ -1098,7 +1100,6 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       local_type_map[v] = pair<string,string>("param","<int> ") ;
       continue ;
     }
-
     v = convertVariable(v) ;
     map<variable,pair<string,string> >::const_iterator mi ;
     if((mi = type_map.find(v)) == type_map.end()) {
@@ -1106,7 +1107,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       v = v.drop_assign() ;
       while(v.time() != time_ident())
         v = v.parent() ;
-      
+      debugout << "dropped v = " << v << endl ;
       if((mi = type_map.find(v)) == type_map.end()) {
         while(v.get_info().namespac.size() != 0)
           v = v.drop_namespace() ;

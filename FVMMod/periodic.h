@@ -1,6 +1,6 @@
 #ifndef PERIODIC_H
 #define PERIODIC_H
-
+#ifdef OLD
 #include <Loci.h>
 #include <string>
 #include "FVMtypes.h"
@@ -79,4 +79,6 @@ namespace Loci {
     }
   } ;
 }
+#endif
+
 #endif

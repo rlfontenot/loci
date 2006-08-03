@@ -81,17 +81,9 @@ namespace Loci {
     return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z ;
   }
 
-  //  template <class T> inline T dot(const vector3d<T> &v1, const T ra2[]) {
-  //    return v1.x*ra2[0] + v1.y*ra2[1] + v1.z*ra2[2] ;
-  //  }
-
   template <class T> inline T norm(const vector3d<T> &v) {
     return sqrt(v.x*v.x+v.y*v.y+v.z*v.z) ;
   }
-
-  //  template <class T> inline T dot(const T ra1[], const vector3d<T> &v2) {
-  //    return ra1[0]*v2.x + ra1[1]*v2.y + ra1[2]*v2.z ;
-  //  }
 
   template<class T> inline vector3d<T> cross(const vector3d<T> &v1, const vector3d<T> &v2) {
     return vector3d<T>(v1.y*v2.z-v1.z*v2.y,
@@ -214,8 +206,7 @@ namespace Loci {
     struct data_schema_traits< vector3d<T> > {
       typedef IDENTITY_CONVERTER Schema_Converter;
       static DatatypeP get_type() {
-        vector3d<T> t ;
-        CompoundDatatypeP ct = CompoundFactory(t) ;
+        CompoundDatatypeP ct = CompoundFactory(vector3d<T>() ) ;
 
         LOCI_INSERT_TYPE(ct,vector3d<T>,x) ;
         LOCI_INSERT_TYPE(ct,vector3d<T>,y) ;
@@ -258,8 +249,7 @@ namespace Loci {
     struct data_schema_traits< tensor3d<T> > {
       typedef IDENTITY_CONVERTER Schema_Converter;
       static DatatypeP get_type() {
-        vector3d<T> t ;
-        CompoundDatatypeP ct = CompoundFactory(t) ;
+        CompoundDatatypeP ct = CompoundFactory(tensor3d<T>()) ;
 
         LOCI_INSERT_TYPE(ct,tensor3d<T>,x) ;
         LOCI_INSERT_TYPE(ct,tensor3d<T>,y) ;

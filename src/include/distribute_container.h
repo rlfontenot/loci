@@ -125,6 +125,25 @@ namespace Loci {
   void distributed_inverseMap(multiMap &result, const multiMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn);
   
 
+  inline void distributed_inverseMap(multiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      Loci::inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }      
+
+  inline void distributed_inverseMap(multiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, fact_db &facts) {
+    if(facts.is_distributed_start()) {
+      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+      Loci::distributed_inverseMap(result, input_map, input_image, input_preimage, init_ptn) ;
+    } else {
+      Loci::inverseMap(result,input_map,input_image,input_preimage) ;
+    }
+  }
+
+
 }
 
 #endif

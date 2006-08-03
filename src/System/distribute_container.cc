@@ -344,6 +344,7 @@ namespace Loci {
     entitySet local_input_image = input_image ;
     local_input_image &= init_ptn[MPI_rank] ;
     store<int> sizes ;
+
     sizes.allocate(local_input_image) ;
     FORALL(local_input_image,i) {
       sizes[i] = 0 ;

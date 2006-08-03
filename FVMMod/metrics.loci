@@ -1,12 +1,10 @@
 #include <Loci.h>
 #include <Tools/tools.h>
 
-#include "metrics.h"
-
-$include "metrics.lh"
+$include "FVM.lh"
 
 namespace Loci {
-  const real EPSILON=1e-33 ;
+  const real_t EPSILON=1e-33 ;
   $type centroid param<std::string> ;
   $type exactCentroid Constraint ;
   
@@ -22,16 +20,16 @@ namespace Loci {
   } 
 
   $rule pointwise(area<-face2node->pos,facecenter) {
-     const vect3d center = $facecenter ;
+     const vector3d<real_t> center = $facecenter ;
      const Entity *first = $face2node.begin() ;
      const Entity *last = ($face2node.end()-1) ;
-     vect3d sum(cross(last->$pos-center,first->$pos-center)) ;
+     vector3d<real_t> sum(cross(last->$pos-center,first->$pos-center)) ;
      for(const Entity * ni=$face2node.begin()+1;ni!=($face2node.end());ni++) {
        const Entity *np = ni-1 ;
        sum = sum + cross(np->$pos-center,ni->$pos-center) ;
      }
      $area.n = sum ;
-     const real sada = sqrt(dot(sum,sum)) ;
+     const real_t sada = sqrt(dot(sum,sum)) ;
      $area.n *= 1./(sada+EPSILON) ;  //normalized normal vector of the face
      $area.sada = 0.5*sada ;  //area of the face
   }
@@ -39,8 +37,8 @@ namespace Loci {
 #define STRONG_CHECK
 
   $rule pointwise(vol<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)) {
-    real sum = 0.0 ;
-    vect3d dv ;
+    real_t sum = 0.0 ;
+    vector3d<real_t> dv ;
     for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
       dv = nf->$facecenter - $cellcenter ;
       sum = sum + nf->$area.sada*(dot(dv,nf->$area.n)) ;
@@ -114,8 +112,8 @@ namespace Loci {
   $rule pointwise(ln,mn<-area) {
     // find vectors orthogonal to axn,ayn,azn
 
-    vect3d l ; // vect3d defined in sciTypes.h
-    const vect3d &an = $area.n ; 
+    vector3d<real_t> l ; // vect3d defined in sciTypes.h
+    const vector3d<real_t> &an = $area.n ; 
     //an.x, an.y, an.z are the x,y, and z components of an
     // Attempt to minimize cancellation error when finding orthogonal vector.
     // Find the coordinate direction which is largest and base orthognality
@@ -151,7 +149,7 @@ namespace Loci {
     }
 
     warn(dot(l,l) < EPSILON) ; // Sanity check (should never happen)
-    const real lsr = 1./sqrt(dot(l,l)) ;
+    const real_t lsr = 1./sqrt(dot(l,l)) ;
     l *= lsr ;  //normalize the vector
     warn(dot(an,l) > 1e-9) ; // Sanity check, l and an should be orthogonal 
     
@@ -161,23 +159,23 @@ namespace Loci {
 
 
   $rule pointwise(facecenter<-face2node->pos) {
-    vect3d nodesum(0.0,0.0,0.0) ;
-    real lensum = 0 ;
+    vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+    real_t lensum = 0 ;
     warn($face2node.begin() == $face2node.end() ||
          $face2node.begin()+1 == $face2node.end()) ;
     for(const Entity *id=$face2node.begin();id+1!=$face2node.end();++id) {
       const Entity *nd = id+1 ;
-      vect3d edge_loc = 0.5*(id->$pos + nd->$pos) ;
-      vect3d edge_vec = id->$pos - nd->$pos ;
-      real len = sqrt(dot(edge_vec,edge_vec)) ;
+      vector3d<real_t> edge_loc = 0.5*(id->$pos + nd->$pos) ;
+      vector3d<real_t> edge_vec = id->$pos - nd->$pos ;
+      real_t len = sqrt(dot(edge_vec,edge_vec)) ;
       nodesum += len*edge_loc ;
       lensum += len ;
     }
     const Entity *id = $face2node.begin() ;
     const Entity *idend = $face2node.end() - 1 ;
-    vect3d edge_loc = 0.5*(id->$pos + idend->$pos) ;
-    vect3d edge_vec = id->$pos - idend->$pos ;
-    real len = sqrt(dot(edge_vec,edge_vec)) ;
+    vector3d<real_t> edge_loc = 0.5*(id->$pos + idend->$pos) ;
+    vector3d<real_t> edge_vec = id->$pos - idend->$pos ;
+    real_t len = sqrt(dot(edge_vec,edge_vec)) ;
     nodesum += len*edge_loc ;
     lensum += len ;
     
@@ -185,8 +183,8 @@ namespace Loci {
   }
 
   $rule pointwise(cellcenter<-(upper,lower,boundary_map)->(facecenter,area)) {
-    vect3d nodesum(0.0,0.0,0.0) ;
-    real areasum = 0 ;
+    vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+    real_t areasum = 0 ;
     for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
       nodesum += id->$area.sada*id->$facecenter ;
       areasum += id->$area.sada ;
@@ -216,41 +214,41 @@ namespace Loci {
   $rule pointwise(truecentroid::facecenter<-face2node->pos)
     ,constraint(exactCentroid,face2node->pos) {
     // Compute wireframe centroid for face
-    vect3d nodesum(0.0,0.0,0.0) ;
-    real lensum = 0 ;
+    vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+    real_t lensum = 0 ;
     warn($face2node.begin() == $face2node.end() ||
          $face2node.begin()+1 == $face2node.end()) ;
     for(const Entity *id=$face2node.begin();id+1!=$face2node.end();++id) {
       const Entity *nd = id+1 ;
-      vect3d edge_loc = 0.5*(id->$pos + nd->$pos) ;
-      vect3d edge_vec = id->$pos - nd->$pos ;
-      real len = sqrt(dot(edge_vec,edge_vec)) ;
+      vector3d<real_t> edge_loc = 0.5*(id->$pos + nd->$pos) ;
+      vector3d<real_t> edge_vec = id->$pos - nd->$pos ;
+      real_t len = sqrt(dot(edge_vec,edge_vec)) ;
       nodesum += len*edge_loc ;
       lensum += len ;
     }
     const Entity *id = $face2node.begin() ;
     const Entity *idend = $face2node.end() - 1 ;
-    vect3d edge_loc = 0.5*(id->$pos + idend->$pos) ;
-    vect3d edge_vec = id->$pos - idend->$pos ;
-    real len = sqrt(dot(edge_vec,edge_vec)) ;
+    vector3d<real_t> edge_loc = 0.5*(id->$pos + idend->$pos) ;
+    vector3d<real_t> edge_vec = id->$pos - idend->$pos ;
+    real_t len = sqrt(dot(edge_vec,edge_vec)) ;
     nodesum += len*edge_loc ;
     lensum += len ;
     
-    vect3d tmpcenter = nodesum/lensum ;
+    vector3d<real_t> tmpcenter = nodesum/lensum ;
     
     // compute centroid using triangles formed by wireframe centroid
-    vect3d centroidsum(0.0,0.0,0.0) ;
-    real facearea = 0 ;
+    vector3d<real_t> centroidsum(0.0,0.0,0.0) ;
+    real_t facearea = 0 ;
     for(const Entity *id=$face2node.begin();id+1!=$face2node.end();++id) {
       const Entity *nd = id+1 ;
-      const vect3d t_centroid = (id->$pos + nd->$pos + tmpcenter)/3.0 ;
-      const real t_area = 0.5*norm(cross(id->$pos-tmpcenter,
+      const vector3d<real_t> t_centroid = (id->$pos + nd->$pos + tmpcenter)/3.0 ;
+      const real_t t_area = 0.5*norm(cross(id->$pos-tmpcenter,
                                          nd->$pos-tmpcenter)) ;
       centroidsum += t_area*t_centroid ;
       facearea += t_area ;
     }
-    const vect3d t_centroid = (id->$pos + idend->$pos + tmpcenter)/3.0 ;
-    const real t_area = 0.5*norm(cross(id->$pos-tmpcenter,
+    const vector3d<real_t> t_centroid = (id->$pos + idend->$pos + tmpcenter)/3.0 ;
+    const real_t t_area = 0.5*norm(cross(id->$pos-tmpcenter,
                                        idend->$pos-tmpcenter)) ;
     centroidsum += t_area*t_centroid ;
     facearea += t_area ;
@@ -293,31 +291,31 @@ namespace Loci {
       direction[count++] = 1.0 ;
     }
 
-    vect3d tmpcenter = vect3d(0,0,0) ;
+    vector3d<real_t> tmpcenter = vector3d<real_t>(0,0,0) ;
     for(int i=0;i<num_faces;++i) {
       const Entity *f = &facemap[i] ;
       tmpcenter += f->$facecenter ;
     }
     tmpcenter *= 1.0/real(num_faces) ;
 
-    vect3d cellcentroid = vect3d(0,0,0) ;
-    real cellvolume = 0.0;
+    vector3d<real_t> cellcentroid = vector3d<real_t>(0,0,0) ;
+    real_t cellvolume = 0.0;
     for(int i=0;i<num_faces;++i) {
       const Entity *f = &facemap[i] ;
 
-      vect3d fcentroid = vect3d(0,0,0) ;
-      real fvol = 0 ;
+      vector3d<real_t> fcentroid = vector3d<real_t>(0,0,0) ;
+      real_t fvol = 0 ;
       
       int nfnode = f->$face2node.size() ;
-      const vect3d v3 = f->$facecenter-tmpcenter ;
-      const vect3d p3p4 = f->$facecenter+tmpcenter ;
+      const vector3d<real_t> v3 = f->$facecenter-tmpcenter ;
+      const vector3d<real_t> p3p4 = f->$facecenter+tmpcenter ;
       for(int j=0;j<nfnode;++j) {
-        const vect3d p1 = f->$face2node[j]->$pos ;
-        const vect3d p2 = f->$face2node[(j+1)==nfnode?0:j+1]->$pos ;
-        const vect3d v1 = (p1-tmpcenter) ;
-        const vect3d v2 = (p2-tmpcenter) ;
-        const real v = dot(cross(v1,v2),v3) ; // six times volume
-        const vect3d x = ((p1+p2)+p3p4) ;// 4 times center
+        const vector3d<real_t> p1 = f->$face2node[j]->$pos ;
+        const vector3d<real_t> p2 = f->$face2node[(j+1)==nfnode?0:j+1]->$pos ;
+        const vector3d<real_t> v1 = (p1-tmpcenter) ;
+        const vector3d<real_t> v2 = (p2-tmpcenter) ;
+        const real_t v = dot(cross(v1,v2),v3) ; // six times volume
+        const vector3d<real_t> x = ((p1+p2)+p3p4) ;// 4 times center
         fcentroid += v*x ;
         fvol += v ;
       }

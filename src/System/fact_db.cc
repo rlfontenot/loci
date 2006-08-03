@@ -269,8 +269,6 @@ namespace Loci {
       }
       
       global_ivl = entitySet(interval(maximum_allocated, maximum_allocated+global_max-1)) ;
-      if(size > 0)
-	maximum_allocated = local_max + size ;
 
       global_comp_entities += local_ivl;
       
@@ -278,10 +276,12 @@ namespace Loci {
       delete [] recv_buf ;
       delete [] size_send ;
       delete [] size_recv ;
+      maximum_allocated = max(maximum_allocated,global_ivl.Max()+1) ;
       return(make_pair(local_ivl, global_ivl)) ;
     }
     entitySet alloc = entitySet(interval(maximum_allocated,maximum_allocated+size-1)) ;
     maximum_allocated += size ;
+    
     init_ptn[0] += alloc ;
     global_comp_entities += alloc;
     return (make_pair(alloc, alloc)) ;
