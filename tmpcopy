@@ -77,6 +77,9 @@ fi
 if [ ! -e libLoci.so ]; then
   ln -s ../System/libLoci.so libLoci.so
 fi
+if [ ! -e fvm_m.so ]; then
+  ln -s ../FVMMod/fvm_m.so fvm_m.so
+fi
 
 cd ../bin
 if [ ! -e lpp ] ; then 
