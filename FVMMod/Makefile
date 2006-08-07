@@ -7,7 +7,7 @@ INCLUDES =
 # Put objects in the module here
 OBJS =\
 	metrics.o cellgradient.o facegradient.o limiter.o muscl.o\
-	node_values.o
+	node_values.o bcstuff.o surfaceIntegrations.o petsc.o
 
 
 

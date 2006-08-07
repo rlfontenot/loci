@@ -398,7 +398,7 @@ time-dependent diffusion equation.
 The first step in any discretization method is to numerically
 approximate the function $u(x,t)$ as a discretization of the
 spatial domain (in this case the interval $[0,1]$).  For this example,
-the finite volume discretization method is chosen.  Using
+the finite-volume discretization method is chosen.  Using
 this discretization approach, the interval $[0,1]$ is divided into $N$
 sub-intervals, as illustrated in figure \ref{fig3:oned}.  To
 facilitate describing the discretization process, the $N$
@@ -468,7 +468,7 @@ definition of $x$ for other entities (for example, interfaces) via
 other rules.
 
 The mappings $il$ and $ir$ are used to describe the first
-step of the finite volume discretization, where integration of
+step of the finite-volume discretization, where integration of
 equation (\ref{eq3:diffuse}) over each cell produces the equation
 \begin{equation}
 \frac{d}{dt} \int_{il \rightarrow x}^{ir \rightarrow x} u dx
@@ -563,9 +563,10 @@ u^{n+1} = u^{n} + \Delta t R(u^n)
 
 At this point, the computation of $u^{n+1}$ from $u^n$ is completely
 specified.  However, before any such iteration can begin, an initial
-value, or $u^{n=0}$, must be given.  To be consistent with the finite
-volume formulation, the derivation of the initial conditions begins
-with the integral form of equation (\ref{eq3:diffuseinitial}), given by
+value, or $u^{n=0}$, must be given.  To be consistent with the
+finite-volume formulation, the derivation of the initial conditions
+begins with the integral form of equation (\ref{eq3:diffuseinitial}),
+given by
 \begin{equation}
 \int^{ir\rightarrow x}_{il\rightarrow x} u^{n=0} dx =
 \int^{ir\rightarrow x}_{il\rightarrow x} f(x) dx.
@@ -653,9 +654,9 @@ x_c \leftarrow\lbrace (c, x_c) |  x_c = (x_l + x_r)/2,
 For the moment, the augmentation of $x$ with this set can be
 considered as a set union operation, with the caveat that it will
 become more complex once issues of specification consistency are
-considered.  Given this notation, the specification of the finite
-volume scheme derived in this section can be summarized by eight rules
-given in table \ref{table3:rules}.
+considered.  Given this notation, the specification of the
+finite-volume scheme derived in this section can be summarized by
+eight rules given in table \ref{table3:rules}.
 
 \begin{table}[htbp]
 \caption{ A Summary of Rules Describing the Solution of the Example
@@ -1622,6 +1623,148 @@ directory under the file {\tt "heat2.loci"}.
 %\subsection{Other Tricks}
 
 %\subsection{Advanced Exercises}
+
+\chapter{A Three Dimensional Solver}
+
+To get into some more practical applications of Loci, lets consider
+the development of a three dimensional implicit heat equation solver.
+For this example we will use the finite-volume module that is included
+as part of the Loci framework that provides utilities for reading
+three dimensional unstructured meshes, applying boundary conditions to
+these meshes, and facilities for computing standard operators and
+integrations used in finite-volume discretizations.  Before we begin,
+lets state the problem that we wish to solve, namely the time
+dependent heat equation in three dimensions which is given by the equation
+\begin{equation}
+\frac{\partial}{\partial t} (\rho e) = \nabla \cdot (k \nabla T),
+\end{equation}
+where $\rho$ is the material density, $e$ is the heat energy, $k$ is
+the material conductivity, and $T$ is the temperature.  If we assume a
+constant heat capacity, $c_p$, then temperature is given by the
+equation $T=e*c_p$.
+
+This is equation is solved using a finite-volume discretization by
+integrating the equation above over each mesh cell (using the
+divergence theorem on the right-hand-side).  Thus we can
+rewrite this equation as
+\begin{equation}
+\int_{\Omega_c} \frac{\partial}{\partial t} (\rho e) ~dV =
+\int_{\partial\Omega_c} k \nabla T \cdot dS,
+\end{equation}
+where $\Omega_c$ represents the volume occupied by cell $c$, and
+$\partial\Omega_c$ represents its respective surface.  We can then
+derive a second order finite-volume scheme by employing a midpoint
+numerical integration to arrive at the discrete equation
+\begin{equation}
+\frac{d}{dt} (\rho e) = \frac{1}{\mathcal{V}_c}\sum_{f\in{faces}}
+\left[ \mathcal{A}_f k \left(\nabla T_f \cdot \vec{n}_f\right) \right].
+\end{equation}
+To arrive at a final scheme, we must select a method for integrating
+this equation in time.  For this example, we will employ an implicit
+backward Euler time integration method which is written as
+\begin{equation}
+\frac{Q^{n+1}-Q^n}{\Delta t} = R(Q^{n+1}),
+\end{equation}
+where $Q=\rho e$ and the residual function, $R(Q)$, is given by 
+\begin{equation}
+R = \frac{1}{\mathcal{V}_c}\sum_{f\in{faces}}
+\left[ \mathcal{A}_f k \left(\nabla T_f \cdot \vec{n}_f\right)
+\right].
+\label{fvmresidual}
+\end{equation}
+We can then linearize the equation by using Taylors theorem to arrive
+at
+\begin{equation}
+R(Q^{n+1}) = R(Q) + \frac{\partial R(Q)}{\partial Q} \Delta Q +
+O(\Delta t^2),
+\end{equation}
+where $\Delta Q = Q^{n+1}-Q^n$.  Now we can state state the implicit
+scheme for solving the heat equation as
+\begin{equation}
+\left[ \frac{1}{\Delta t} I + \frac{\partial R(Q)}{\partial Q}\right]\Delta Q =
+R(Q).
+\label{fvmscheme}
+\end{equation}
+Thus we can solve this problem by combining equation (\ref{fvmscheme})
+and (\ref{fvmresidual}).  Note that the term in square brackets on the
+right of equation (\ref{fvmscheme}) is a matrix, and thus the overall
+equation forms a linear system that must be solved to determine the
+change in $Q$, given by $\Delta Q$.
+
+Now we can begin to describe how to solve this equation using the Loci
+framework.  First we need to construct a fact database that contains a
+representation of the finite-volume mesh.  This will be provided in
+the following sections.
+
+\section{Using the Loci finite-volume module}
+
+Loci provides a finite-volume module that provides common facilities
+for building finite-volume methods.  The first step to using this
+module is to load the rules from the finite-volume module into the
+rule database.  This is accomplished with the following code:
+\begin{verbatim}
+   rule_db rdb ; // Create the rule database
+   rdb.add_rules(global_rule_list) ; // Add any user defined rules ;
+
+   // Load in the finite-volume module called "fvm"
+   Loci::load_module("fvm",rdb) ;
+\end{verbatim}
+
+The finite-volume module provides facilities for computing cell and
+face centroids, finding gradients, performing integrations,
+interpolating from cell to nodal values, and solving linear systems.
+The types for these rules are defined in the Loci include file
+"FVM.lh" which can be included using the Loci preprocessor by
+including the following line at the beginning of your {\tt .loci}
+program file:
+\begin{verbatim}
+$include "FVM.lh"
+\end{verbatim}
+
+In addition to a collection of rules for performing finite volume
+computations, Loci provides a function for reading in parallel a
+finite-volume mesh file and creating the appropriate data-structures
+in the Loci fact database.  Before reading in the grid, we read in the
+user defined facts using the {\tt read\_vars} method of the fact
+database. Once we have done this, we can read in the mesh file with
+the function called {\tt Loci::setupFVMGrid} which gets passed the
+filename and the fact database.  This subroutine will place the
+finite-volume data-structures into the provided fact database.  For
+example, we can read the mesh file {\tt heat.xdr} with the following
+code:
+\begin{verbatim}
+  // First read in user defined facts
+  ifstream ifile("heat.vars",ios::in) ;
+  facts.read_vars(ifile,rdb) ;
+
+  // Next read in the grid file
+  string file = "heat.xdr"
+  if(!Loci::setupFVMGrid(facts,file)) {
+    cerr << "unable to read grid file '" << file << "'" << endl ;
+    Loci::Abort() ;
+  }
+\end{verbatim}
+
+\begin{table}[htbp]
+\caption{ A Summary of Facts Describing the 3-D finite-volume mesh.}
+\begin{center}
+  \begin{tabular}{|l|l|l|l|}
+    \hline
+    Fact  & Type & Location & Description\\
+    \hline\hline
+    {\tt pos} & {\tt store<vector3d>} & nodes & Node Positions\\
+    {\tt face2node} & {\tt multiMap} & faces & Nodes that form a
+    face\\
+    {\tt cl} & {\tt Map} & faces & cell left of face\\
+    {\tt cr} & {\tt Map} & faces & cell right of face\\
+    {\tt ref} & {\tt Map} & boundary faces & map to refering category\\
+    {\tt geom\_cells} & {\tt constraint} & physical cells & set of actual cells\\
+{\tt cells} & {\tt constraint} & cells & cells including ghost cells\\
+    {\tt boundary\_names} & {\tt store<string>} & boundary categories & boundary category name\\
+    \hline
+  \end{tabular}
+\end{center}
+\end{table}
 
 %% Appendicies
 \appendix

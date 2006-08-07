@@ -127,7 +127,6 @@ int main(int argc, char *argv[])
   //-----------------------------------------------------------------
   fact_db facts ;
 
-
   ifstream ifile("heat.vars",ios::in) ;
   if(ifile.fail()) {
     cerr << "can't open 'heat.vars'" << endl ;

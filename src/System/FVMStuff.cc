@@ -914,6 +914,7 @@ namespace Loci {
     create_ci_map(facts) ;
     
   }
+
   void createLowerUpper(fact_db &facts) {
     constraint geom_cells,interior_faces,boundary_faces ;
     constraint faces = facts.get_variable("faces") ;
@@ -953,5 +954,117 @@ namespace Loci {
     facts.create_fact("boundary_map",boundary_map) ;
   }
 
-  
+  // This currently only works SINGLE PROCESSOR
+  void createEdges(fact_db &facts) {
+    using std::vector ;
+    using std::pair ;
+    using namespace Loci ;
+    
+    multiMap face2node ;
+    face2node = facts.get_variable("face2node") ;
+    entitySet faces = face2node.domain() ;
+
+    // Loop over faces and create list of edges (with duplicates)
+    entitySet::const_iterator ei = faces.begin();
+    vector<pair<Entity,Entity> > emap ;
+    for(ei = faces.begin();ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      for(int i=0;i<sz-1;++i) {
+        Entity e1 = face2node[*ei][i] ;
+        Entity e2 = face2node[*ei][i+1] ;
+        emap.push_back(pair<Entity,Entity>(min(e1,e2),max(e1,e2))) ;
+      }
+      Entity e1 = face2node[*ei][0] ;
+      Entity e2 = face2node[*ei][sz-1] ;
+      emap.push_back(pair<Entity,Entity>(min(e1,e2),max(e1,e2))) ;
+    }
+
+    // Sort edges and remove duplicates
+    sort(emap.begin(),emap.end()) ;
+    vector<pair<Entity,Entity> >::iterator uend = unique(emap.begin(),emap.end()) ;
+
+    // Allocate entities for new edges
+    int num_edges = uend - emap.begin() ;
+    cout << "num_edges = " << num_edges << endl ;
+    entitySet edges = facts.get_distributed_alloc(num_edges).first ;
+
+    // Copy edge nodes into a MapVec
+    MapVec<2> edge ;
+    edge.allocate(edges) ;
+    vector<pair<Entity,Entity> >::iterator pi = emap.begin() ;
+    for(ei=edges.begin();ei!=edges.end();++ei,++pi) {
+      edge[*ei][0] = pi->first ;
+      edge[*ei][1] = pi->second ;
+    }
+
+    // Add edge2node data structure to fact databse
+    facts.create_fact("edge2node",edge) ;
+
+
+    // Now create face2edge data-structure
+    // We need to create a lower node to edge mapping to facilitate the
+    // searches.  First get map from edge to lower node
+    Map el ; // Lower edge map
+    el.allocate(edges) ;
+    for(ei=edges.begin();ei!=edges.end();++ei,++pi) {
+      el[*ei] = edge[*ei][0] ;
+    }
+
+    // Now invert this map to get nodes-> edges that have this as a first entry
+    multiMap n2e ;
+    // Get nodes
+    store<vector3d<real_t> > pos ;
+    pos = facts.get_variable("pos") ;
+    entitySet nodes = pos.domain() ;
+    // Get mapping from nodes to edges from lower numbered node
+    //    distributed_inverseMap(n2e, el, nodes, edges, facts) ;
+    inverseMap(n2e, el, nodes, edges) ;
+
+
+    // Now create face2edge map with same size as face2node
+    multiMap face2edge ;
+    store<int> count ;
+    count.allocate(faces) ;
+    for(ei = faces.begin();ei!=faces.end();++ei) 
+      count[*ei] = face2node[*ei].size() ;
+    face2edge.allocate(count) ;
+
+    // Now loop over faces, for each face search for matching edge and
+    // store in the new face2edge structure
+    for(ei = faces.begin();ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      // Loop over edges of the face
+      for(int i=0;i<sz-1;++i) {
+        Entity t1 = face2node[*ei][i] ;
+        Entity t2 = face2node[*ei][i+1] ;
+        Entity e1 = min(t1,t2) ;
+        Entity e2 = max(t1,t2) ;
+        face2edge[*ei][i] = -1 ;
+        // search for matching edge
+        for(int j=0;j<n2e[e1].size();++j) {
+          int e = n2e[e1][j] ;
+          if(edge[e][0] == e1 && edge[e][1] == e2) 
+            face2edge[*ei][i] = e ;
+        }
+        if(face2edge[*ei][i] == -1)
+          cerr << "not able to find edge for face " << *ei << endl ;
+      }
+      // Work on closing edge
+      Entity t1 = face2node[*ei][0] ;
+      Entity t2 = face2node[*ei][sz-1] ;
+      Entity e1 = min(t1,t2) ;
+      Entity e2 = max(t1,t2) ;
+      face2edge[*ei][sz-1] = -1 ;
+      for(int j=0;j<n2e[e1].size();++j) {
+        int e = n2e[e1][j] ;
+        if(edge[e][0] == e1 && edge[e][1] == e2) 
+          face2edge[*ei][sz-1] = e ;
+      }
+      if(face2edge[*ei][sz-1] == -1)
+        cerr << "not able to find edge for face " << *ei << endl ;
+      
+    }
+    // Add face2edge to the fact database
+    facts.create_fact("face2edge",face2edge) ;
+  }
 }

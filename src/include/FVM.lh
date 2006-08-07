@@ -4,6 +4,7 @@ $type cl Map ;
 $type cr Map ;
 $type ci Map ;
 $type ref Map ;
+$type pmap Map ;
 $type face2node multiMap ;
 
 $type upper multiMap ;
@@ -50,3 +51,7 @@ $type cell2nodeMaxMag(X) store<float > ;
 $type cell2nodeMaxv3d(X) store<vector3d<float> > ;
 
 $type BC_options store<Loci::options_list> ;
+
+$type integrateSurface(X) store<Loci::real_t> ;
+
+$type petscScalarSolve(X) store<Loci::real_t> ;

@@ -79,6 +79,10 @@ namespace Loci {
   } ;
   
   void load_module(const std::string from_str, const std::string to_str, rule_db& rdb, std::set<std::string> &str_set) ;
+  inline void load_module(std::string module_name,rule_db &rdb) {
+    std::set<std::string> str_set ;
+    load_module(module_name,"",rdb,str_set) ;
+  }
   
   void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) ;	 
 }

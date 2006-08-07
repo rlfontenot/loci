@@ -1025,6 +1025,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   if(head == 0) {
     heads = sig ;
     head = expression::create(heads) ;
+    exprList tmp ;
+    tmp = collect_associative_op(head,OP_COMMA) ; 
+    if(tmp.size() > 1)
+      throw parseError("rule signature missing <- operator!") ;
   }
   
   string class_name = "file_" ;
