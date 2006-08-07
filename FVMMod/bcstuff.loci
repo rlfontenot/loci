@@ -1,0 +1,7 @@
+#include <Loci.h>
+
+
+namespace Loci {
+  $type boundary_conditions param<Loci::options_list> ;
+  $rule optional(boundary_conditions) {}
+}

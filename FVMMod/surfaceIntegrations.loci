@@ -1,0 +1,26 @@
+#include <Loci.h>
+
+$include "FVM.lh"
+
+namespace Loci {
+
+
+  $type X store<vector3d<real_t> > ;
+  
+  $rule unit(integrateSurface(X)),constraint(geom_cells) {
+    $integrateSurface(X) = 0 ;
+  }
+
+  // Interior Faces
+  $rule apply((cl,cr)->integrateSurface(X)<-area,X)[Loci::Summation],constraint((cl,cr)->geom_cells) {
+    real_t Xdotn = $area.sada*dot($X,$area.n) ;
+    join($cl->$integrateSurface(X),Xdotn) ;
+    join($cr->$integrateSurface(X),-Xdotn) ; // Sign change due to normal dir
+  }
+
+  // Boundary Faces
+  $rule apply(cl->integrateSurface(X)<-area,X)[Loci::Summation],constraint(ref) {
+    real_t Xdotn = $area.sada*dot($X,$area.n) ;
+    join($cl->$integrateSurface(X),Xdotn) ;
+  }
+}
