@@ -1745,7 +1745,47 @@ code:
   }
 \end{verbatim}
 
+At this stage a set of facts have been installed in the fact database
+({\tt facts}) that describes the unstructured finite-volume mesh.
+These facts are summarized in table \ref{fvmfacts} shown below.  These
+include the variable {\tt pos} which contains the 3d vector positions
+of the nodes, the variable {\tt face2node} which contains the nodes in
+a right-hand-rule order that form the faces.  The variables {\tt cl}
+and {\tt cr} contain the cells to the left and right side of the face
+respectively as is illustrated in figure \ref{face2node}.  Note that
+the face2node map provides a very specific ordering.  Namely, when
+using the right-hand rule, the normal of the face points away from the
+left cell and into the right cell.  In addition, all boundary faces
+have a normal pointing out of the boundary which means that the left
+cell is the cell next to the boundary and the right cell is a
+``ghost'' or ficticious cell which might be used to implement certian
+boundary conditions (such as periodic boundaries).  Another important
+aspect of the orientation of the {\tt face2node} map is that it
+relates to a coloring of the cells such that the left cell is a lower
+numbered ``color''.  Thus, if one follows faces from left to right, it
+is impossible to end up back where one began.  This fact will be used
+in later sections when matrix assembly is required.
+
+\begin{figure}[htbp]
+ \centerline{
+  \epsfxsize=3in
+  \epsfbox{figures/face.eps}}
+ \caption{The {\tt face2node} map and its relationship to neighboring cells}
+ \label{face2node}
+\end{figure}
+
+All boundary faces have a map variable called {\tt ref} that refers to
+a common entity that represents the boundary surface.  The name of
+each boundary surface is provided in the the {\tt boundary\_name}
+fact.  These two variables can be used to assign boundary conditions
+as will be described in the following section.  Finally the constraint
+{\tt geom\_cells} is a set that contains all geometrically defined
+({\it i.e.} physical) cells in the grid, while the constraint {\tt
+  cells} contains all cells including non-physical ``ghost'' cells
+created at the boundary.
+
 \begin{table}[htbp]
+\label{fvmfacts}
 \caption{ A Summary of Facts Describing the 3-D finite-volume mesh.}
 \begin{center}
   \begin{tabular}{|l|l|l|l|}
@@ -1758,13 +1798,94 @@ code:
     {\tt cl} & {\tt Map} & faces & cell left of face\\
     {\tt cr} & {\tt Map} & faces & cell right of face\\
     {\tt ref} & {\tt Map} & boundary faces & map to refering category\\
+    {\tt boundary\_names} & {\tt store<string>} & boundary categories & boundary category name\\
     {\tt geom\_cells} & {\tt constraint} & physical cells & set of actual cells\\
 {\tt cells} & {\tt constraint} & cells & cells including ghost cells\\
-    {\tt boundary\_names} & {\tt store<string>} & boundary categories & boundary category name\\
     \hline
   \end{tabular}
 \end{center}
 \end{table}
+
+\subsection{ Setting boundary conditions}
+
+When developing solvers for unstructured grids, it is useful for the
+user to specify information that will be associated with various
+boundary conditions.  For example, in the heat solver we may wish to
+provide an adiabatic and a specified temperature (dirichlet) boundary
+condition.  This can be accomplished by using the {\tt
+  boundary\_conditions} variable in the vars file.  This variable will
+assign boundary conditions to the various boundary names.  For
+example, the {\tt vars} file input
+\begin{verbatim}
+boundary_conditions: <
+ BC_1=adiabatic, BC_2=adiabatic, // opposing slice faces
+ BC_3=adiabatic, BC_4=adiabatic, // Two symmetry planes
+ BC_5=specified(Twall=300K),     // inner surface
+ BC_6=specified(Twall=3000K)     // outer surface
+>
+\end{verbatim}
+would specify that some of the boundary surfaces, namely those
+identified as {\tt BC\_1}, {\tt BC\_2}, {\tt BC\_3}, and {\tt BC\_4}
+will be have adiabatic boundary conditions, while two boundary
+surfaces, {\tt BC\_5} and {\tt BC\_6} will be given specified
+temperatures.  Loci provides the {\tt setupBoundaryConditions}
+subroutine for parsing this {\tt vars} file input to create
+constraints that can be used by Loci rules to apply boundary
+conditions.  This is created by calling the subroutine as follows:
+\begin{verbatim}
+   setupBoundaryConditions(facts) ;
+\end{verbatim}
+This routine parses the {\tt boundary\_conditions} variable and sets
+up constraints with the name of the assigned boundary condition with
+an appended ``{\tt \_BC}''.  Thus after this rountine is called the
+constraints {\tt adiabatic\_BC} is created that contains all of the
+faces of {\tt BC\_1} through {\tt BC\_4}, while the constraint {\tt
+  specified\_BC} is created to contain all of the faces of {\tt BC\_5}
+and {\tt BC\_6}.  In addition, a constraint is created called {\tt
+  Twall\_BCoption} that contains the {\bf surface entities} associated with
+{\tt BC\_5} and {\tt BC\_6}.  These constraints indicate that it will
+be safe to extract these values from the options list that is created
+called {\tt BC\_options}.  Thus, we can extract the value of {\tt
+  Twall} by using a rule such as the following:
+\begin{verbatim}
+// Extract Twall from boundary condition options
+$rule pointwise(Twall<-BC_options),constraint(Twall_BCoption) {
+  $BC_options.getOptionUnits("Twall","kelvin",$Twall) ;
+}
+\end{verbatim}
+
+Once we have extracted the boundary option specified by the user, this
+value can then be used to enforce the boundary condition.  For
+example, if we wanted to set the face temperature, {\tt
+  temperature\_f}, for the specified boundary conditions we would use
+the following:
+\begin{verbatim}
+// Temperature at wall set to specified condition
+$rule pointwise(temperature_f<-ref->Twall),constraint(specified_BC) {
+  $temperature_f = $ref->$Twall ;
+}
+\end{verbatim}
+
+\subsection{ Creating matrix data-structures}
+\begin{verbatim}
+   createLowerUpper(facts) ;
+\end{verbatim}
+
+\begin{figure}[htbp]
+ \centerline{
+  \epsfxsize=3.5in
+  \epsfbox{figures/cell.eps}}
+ \caption{Upper and lower maps viewed from the cell}
+
+\end{figure}
+
+\begin{figure}[htbp]
+ \centerline{
+  \epsfxsize=5in
+  \epsfbox{figures/mat.eps}}
+ \caption{Matrix Data-Structure as used by the finite-volume module}
+
+\end{figure}
 
 %% Appendicies
 \appendix
