@@ -1,0 +1,19 @@
+#include <Loci.h>
+#include "coeff.h"
+#include "sciTypes.h"
+
+$include "FVM.lh"
+$include "heat.lh"
+
+namespace heat {
+
+  $rule pointwise(temperature<-rhoe,Cpcoeff,Density) {
+    $temperature = $Cpcoeff.solveI($rhoe/$Density) ;
+  }
+
+  $rule pointwise(temperature_f<-(cl,cr)->(temperature,vol)) {
+    $temperature_f = ($cl->$temperature*$cr->$vol+$cr->$temperature*$cl->$vol)
+      /($cl->$vol+$cr->$vol) ;
+  }
+
+}

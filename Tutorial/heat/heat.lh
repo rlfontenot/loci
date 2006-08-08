@@ -1,0 +1,15 @@
+
+typedef Loci::real_t real ;
+typedef vector3d<Loci::real_t> vect3d ;
+
+$type temperature store<real> ;
+$type temperature_f store<real> ;
+$type qresidual store<real> ;
+$type Twall store<real> ;
+
+$type conductivity param<real> ;
+
+$type qdot store<vect3d> ;
+
+
+

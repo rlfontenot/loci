@@ -1,0 +1,44 @@
+#include <Loci.h>
+// Get Finte Volume Data structures
+$include "FVM.lh"
+$include "heat.lh"
+
+$rule default(conductivity) {
+  $conductivity = 1.0 ;
+}
+
+$rule pointwise(temperature<-cellcenter) {
+  $temperature = 300.0 ;
+}
+    
+// First compute flux at faces
+$rule pointwise(qdot<-conductivity,grads_f(temperature),area) {
+  $qdot = -$conductivity*$grads_f(temperature) ;
+}
+
+$rule pointwise(qresidual<-integrateSurface(qdot),vol) {
+  $qresidual = $integrateSurface(qdot)/$vol ;
+}
+
+
+// Handle Boundary Conditions
+// Adiabatic Wall, qdot = 0, grad(temperature) = 0
+$rule pointwise(adiabatic::qdot),constraint(adiabatic_BC) {
+  $qdot = vect3d(0,0,0) ;
+}
+
+$rule pointwise(temperature_f<-ci->temperature),constraint(adiabatic_BC) {
+  $temperature_f = $ci->$temperature ;
+}
+
+// Temperature Specified Wall
+// Temperature at wall set to specified condition
+$rule pointwise(temperature_f<-ref->Twall),constraint(specified_BC) {
+  $temperature_f = $ref->$Twall ;
+}
+
+// Extract Twall from boundary condition options
+$rule pointwise(Twall<-BC_options),constraint(Twall_BCoption) {
+  $BC_options.getOptionUnits("Twall","kelvin",$Twall) ;
+}
+
