@@ -1,0 +1,52 @@
+#include <Loci.h>
+using namespace std ;
+$include "FVM.lh"
+$include "heat.lh"
+
+$type doPlot param<bool> ;
+
+$rule singleton(doPlot<-$n,plot_freq) {
+  $doPlot = (($$n % $plot_freq) == 0) ;
+}
+
+$rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
+  constraint(pos),conditional(doPlot), option(disable_threading),
+  prelude {
+  int iter = *$$n % *$plot_modulo ;
+  ostringstream oss ;
+  string varname = "temperature" ;
+  oss << "output/" << varname << "_hdf5." << iter ;
+  string filename = oss.str() ;
+
+  if(Loci::MPI_rank == 0)
+    cout << "writing file " << filename << endl ;
+
+  // Create an hdf5 file
+  hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT,H5P_DEFAULT) ;
+
+  // Write the values of the nodal temperatures into the file
+  Loci::writeContainer(file_id,varname,$cell2node(temperature).Rep()) ;
+
+  // Close the hdf5 file
+  Loci::hdf5CloseFile(file_id) ;
+} ;
+
+
+// Output the L2 residual
+$type L2_residual param<real> ;
+
+$rule unit(L2_residual), constraint(geom_cells) {
+  $L2_residual = 0 ;
+}
+
+$rule apply(L2_residual<-qresidual)[Loci::Summation] {
+  join($L2_residual,$qresidual*$qresidual) ;
+}
+
+$rule singleton(OUTPUT<-L2_residual,$n),option(disable_threading) {
+  if(Loci::MPI_rank==0) {
+    cout << "R" << $$n << ":" << $L2_residual << endl ;
+  }
+}
+

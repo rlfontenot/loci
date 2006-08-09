@@ -6,7 +6,7 @@ TARGET = heat
 include $(LOCI_BASE)/Loci.conf
 #COPT=-g
 # List your object files here
-OBJS  =  main.o residual.o
+OBJS  =  main.o residual.o matrix.o euler.o varFileInputs.o plot.o 
 
 JUNK = *~  core ti_files ii_files make.depend make.depend.bak
 

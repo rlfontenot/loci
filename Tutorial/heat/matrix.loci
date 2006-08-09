@@ -1,0 +1,73 @@
+#include <Loci.h>
+
+$include "FVM.lh"
+$include "heat.lh"
+
+//  Assemble the matrix formed by del R/del Q
+
+$type dqdotdQl store<real> ; // del flux/del Q_r
+$type dqdotdQr store<real> ; // del flux/del Q_l
+
+$rule pointwise(dqdotdQl<-conductivity,(cl,cr)->cellcenter,area,cl->(Density,Cp)) {
+  real distance = dot($cl->$cellcenter-$cr->$cellcenter,$area.n) ;
+  $dqdotdQl = $area.sada*$conductivity/($cl->$Density*$cl->$Cp*distance) ;
+}
+
+$rule pointwise(dqdotdQr<-conductivity,(cl,cr)->cellcenter,area,cr->(Density,Cp)) {
+  real distance = dot($cl->$cellcenter-$cr->$cellcenter,$area.n) ;
+  $dqdotdQr = -$area.sada*$conductivity/($cr->$Density*$cr->$Cp*distance) ;
+}
+
+
+// Boundary condition jacobains
+$rule pointwise(dqdotdQl<-conductivity,facecenter,cl->cellcenter,area,cl->(Density,Cp)),constraint(specified_BC) {
+  real distance = dot($cl->$cellcenter-$facecenter,$area.n) ;
+  $dqdotdQl = $area.sada*$conductivity/($cl->$Density*$cl->$Cp*distance) ;
+}
+
+$rule pointwise(dqdotdQl),constraint(adiabatic_BC) {
+  $dqdotdQl = 0 ;
+}
+
+$type heat_B store<real> ;
+$type heat_D store<real> ;
+$type heat_L store<real> ;
+$type heat_U store<real> ;
+
+// Assemble the matrix
+$rule pointwise(heat_B<-qresidual) {
+  $heat_B = $qresidual ;
+}
+
+$type sumDiagonal store<real> ;
+
+$rule unit(sumDiagonal), constraint(geom_cells) {
+  $sumDiagonal = 0 ;
+}
+
+$rule apply((cl,cr)->sumDiagonal<-dqdotdQl,dqdotdQr)[Loci::Summation],
+  constraint((cl,cr)->sumDiagonal) {
+  join($cl->$sumDiagonal,$dqdotdQl) ;
+  join($cr->$sumDiagonal,-$dqdotdQr) ;
+}
+
+$rule apply(cl->sumDiagonal<-dqdotdQl)[Loci::Summation],constraint(ref) {
+  join($cl->$sumDiagonal,$dqdotdQl) ;
+}
+
+$rule pointwise(heat_D<-sumDiagonal,deltaT,vol) {
+  $heat_D = $vol/$deltaT - $sumDiagonal ; ///$vol ;
+}
+
+$rule pointwise(heat_L<-dqdotdQr,cr->vol) {
+  $heat_L = -$dqdotdQr; ///$cr->$vol ;
+}
+
+$rule pointwise(heat_U<-dqdotdQl,cl->vol) {
+  $heat_U = $dqdotdQl; ///$cl->$vol ;
+}
+
+$rule pointwise(deltaQ<-petscScalarSolve(heat)) {
+  $deltaQ = $petscScalarSolve(heat) ;
+}
+  

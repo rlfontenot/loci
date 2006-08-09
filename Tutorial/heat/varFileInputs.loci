@@ -1,46 +1,41 @@
 #include <Loci.h>
-#include "sciTypes.h"
-#include "coeff.h"
 
+$include "FVM.lh"
 $include "heat.lh"
 // This file has rules for default and optional variable
  
-namespace heat {
 
-  $rule default(dtmax),
-    comments("The maximum timestep that the code will take.  If cflmax is not specified, then this will be the global timestep.") {
-    
-    $dtmax = 0 ;
-  }
+$rule default(deltaT),
+  comments("Timestep used in the simulation") {
+  $deltaT = 1 ;
+}
 
-  $rule default(print_freq),
-    comments("The frequency the code will print residual and other information") {
-    $print_freq = 0 ;
-  }
+$rule default(T_initial),
+  comments("Initial Temperature of solid (in kelvin)") {
+  $T_initial = 300 ;
+}
 
-  $rule default(linear_iter),
-    comments("The maximum number of linear solver iterations used in petsc.") {
-    $linear_iter = 1000 ;
-  }
+$rule default(Density),
+  comments("Solid Material Density in kg/m^3") {
+  $Density = 300 ;
+}
 
-  $rule default(T_initial),
-    comments("Initial Temperature of solid (in kelvin)") {
-    $T_initial = 300 ;
-  }
+$rule default(conductivity) {
+  $conductivity = 1.0 ;
+}
 
-  $rule optional(Density),
-    comments("Solid Material Density in kg/m^3") {
-      $Density = 300 ;
-  }
+$rule default(Cp) {
+  $Cp = 1.0 ;
+}
 
+$rule default(stop_iter) {
+  $stop_iter = 10 ;
+}
 
-  $rule optional(Kcoeff),
-    comments("Curve Fit for solid material conductivity") {
-      //      *Kcoeff = 300 ;
-  }
+$rule default(plot_freq) {
+  $plot_freq = 10 ;
+}
 
-  $rule optional(Cpcoeff),
-    comments("Curve Fit for solid material Cp") {
-      //      *Cpcoeff = 300 ;
-  }
+$rule default(plot_modulo) {
+  $plot_modulo = 10 ;
 }

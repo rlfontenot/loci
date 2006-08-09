@@ -1,0 +1,34 @@
+#include <Loci.h>
+$include "FVM.lh"
+$include "heat.lh"
+
+// Initial Conditions
+
+$rule pointwise(Q{n=0}<-Density,Cp,T_initial) {
+  $Q{n=0} = $Density*$Cp*$T_initial ;
+}
+
+// Compute temperature from energy
+$rule pointwise(temperature<-Q,Density,Cp), constraint(geom_cells) {
+  $temperature = $Q/($Density*$Cp) ;
+}
+
+//$rule pointwise(Q{n+1}<-Q{n},qresidual{n},deltaT{n}), constraint(geom_cells) {
+//  $Q{n+1} = $Q{n}+$deltaT{n}*$qresidual{n} ;
+//}
+
+$rule pointwise(Q{n+1}<-Q{n},deltaQ{n}), constraint(geom_cells) {
+  $Q{n+1} = $Q{n}+ $deltaQ{n} ;
+}
+
+$type finishTimestep param<bool> ;
+
+$rule singleton(finishTimestep<-$n,stop_iter) {
+  $finishTimestep = ($$n >= $stop_iter) ;
+}
+
+$type solution store<real> ;
+
+$rule pointwise(solution<-Q{n}),conditional(finishTimestep{n}),constraint(geom_cells) {
+  $solution = $Q{n} ;
+}

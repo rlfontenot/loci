@@ -7,9 +7,19 @@ $type temperature_f store<real> ;
 $type qresidual store<real> ;
 $type Twall store<real> ;
 
+
+$type qdot store<real> ;
+
+$type deltaT param<real> ;
 $type conductivity param<real> ;
+$type Cp param<real> ;
+$type Density param<real> ;
+$type T_initial param<real> ;
+$type stop_iter param<int> ;
+$type plot_freq param<int> ;
+$type plot_modulo param<int> ;
 
-$type qdot store<vect3d> ;
-
+$type Q store<real> ;
+$type deltaQ store<real> ;
 
 

@@ -53,7 +53,20 @@ int main(int argc, char *argv[])
 		<< std::endl;
     }
   }      
-  
+
+#ifdef TEST
+  // if output directory doesn't exist, create one
+  struct stat statbuf ;
+  if(stat("output",&statbuf))
+    mkdir("output",0755) ;
+  else
+    if(!S_ISDIR(statbuf.st_mode)) {
+      cerr << "file 'output' should be a directory!, rename 'output' and start again."
+           << endl ;
+      Loci::Abort() ;
+    }
+#endif
+
   //-----------------------------------------------------------------
   // Create Rule Database
   //-----------------------------------------------------------------
@@ -70,7 +83,11 @@ int main(int argc, char *argv[])
   fact_db facts ;
 
 
-  char *filename = "test" ;
+  if(argc <= 1) {
+    cerr << "must provide case name as argument" << endl ;
+    Loci::Abort() ;
+  }
+  char *filename = argv[1] ;
   // Read in the vars file
   char buf[512] ;
   sprintf(buf,"%s.vars",filename) ;
@@ -120,14 +137,16 @@ int main(int argc, char *argv[])
   //-----------------------------------------------------------------
 
   if(query == "solution") {
-    store<float> usol ;
-    usol = facts.get_variable("solution") ;
+    Loci::storeRepP sol = facts.get_variable("solution") ;
+    // Create an hdf5 file
+    hid_t file_id = Loci::hdf5CreateFile("sol.hdf5",H5F_ACC_TRUNC,
+                                         H5P_DEFAULT,H5P_DEFAULT) ;
 
-    cout << "The solution is : " <<endl;
-    entitySet::const_iterator ei ;
-    entitySet dom = usol.domain() ;
-    for(ei=dom.begin();ei!=dom.end();++ei) 
-      cout << ""<< *ei<<" "<<usol[*ei]<<endl ;
+    // Write the values of the nodal temperatures into the file
+    Loci::writeContainer(file_id,"sol",sol) ;
+    
+    // Close the hdf5 file
+    Loci::hdf5CloseFile(file_id) ;
   } else {
     // If we queried for something else, print out the results
     using Loci::variableSet ;
