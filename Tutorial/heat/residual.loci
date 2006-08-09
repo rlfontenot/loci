@@ -10,19 +10,21 @@ $rule pointwise(qdot<-conductivity,grads_f(temperature),area) {
 
 
 
+// Add up contributions from all faces
 $rule unit(qresidual),constraint(geom_cells) {
   $qresidual = 0 ;
 }
 
-$rule apply((cl,cr)->qresidual<-qdot)[Loci::Summation],
-  constraint((cl,cr)->geom_cells) {
+// Add to left cell
+$rule apply(cl->qresidual<-qdot)[Loci::Summation],
+  constraint(cl->geom_cells) {
   join($cl->$qresidual,$qdot) ;
-  join($cr->$qresidual,-$qdot) ;
 }
 
-$rule apply(cl->qresidual<-qdot)[Loci::Summation],
-  constraint(ref) {
-  join($cl->$qresidual,$qdot) ;
+// Add to right cell, note sign change due to normal pointing into cell
+$rule apply(cr->qresidual<-qdot)[Loci::Summation],
+  constraint(cr->geom_cells) {
+  join($cr->$qresidual,-$qdot) ;
 }
 
 // Handle Boundary Conditions
@@ -45,4 +47,3 @@ $rule pointwise(temperature_f<-ref->Twall),constraint(specified_BC) {
 $rule pointwise(Twall<-BC_options),constraint(Twall_BCoption) {
   $BC_options.getOptionUnits("Twall","kelvin",$Twall) ;
 }
-

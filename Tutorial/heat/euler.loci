@@ -13,22 +13,24 @@ $rule pointwise(temperature<-Q,Density,Cp), constraint(geom_cells) {
   $temperature = $Q/($Density*$Cp) ;
 }
 
-//$rule pointwise(Q{n+1}<-Q{n},qresidual{n},deltaT{n}), constraint(geom_cells) {
-//  $Q{n+1} = $Q{n}+$deltaT{n}*$qresidual{n} ;
-//}
-
+// Note deltaQ will be computed as a result of the linear system
+// assembly found in matrix.loci
 $rule pointwise(Q{n+1}<-Q{n},deltaQ{n}), constraint(geom_cells) {
   $Q{n+1} = $Q{n}+ $deltaQ{n} ;
 }
 
+// Determine when we will finish timestepping
 $type finishTimestep param<bool> ;
 
 $rule singleton(finishTimestep<-$n,stop_iter) {
-  $finishTimestep = ($$n >= $stop_iter) ;
+  $finishTimestep = ($$n > $stop_iter) ;
 }
 
+// Solution is the general result that we provide.  It is similar to main
+// in a C program in that this is the default query.
 $type solution store<real> ;
 
+// Collapse to solution when we are finished iterating
 $rule pointwise(solution<-Q{n}),conditional(finishTimestep{n}),constraint(geom_cells) {
   $solution = $Q{n} ;
 }

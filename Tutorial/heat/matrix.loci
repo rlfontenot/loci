@@ -8,65 +8,96 @@ $include "heat.lh"
 $type dqdotdQl store<real> ; // del flux/del Q_r
 $type dqdotdQr store<real> ; // del flux/del Q_l
 
+// Derivative of flux from left side
 $rule pointwise(dqdotdQl<-conductivity,(cl,cr)->cellcenter,area,cl->(Density,Cp)) {
   real distance = dot($cl->$cellcenter-$cr->$cellcenter,$area.n) ;
   $dqdotdQl = $area.sada*$conductivity/($cl->$Density*$cl->$Cp*distance) ;
 }
 
+// Derivative of flux from right side
 $rule pointwise(dqdotdQr<-conductivity,(cl,cr)->cellcenter,area,cr->(Density,Cp)) {
   real distance = dot($cl->$cellcenter-$cr->$cellcenter,$area.n) ;
   $dqdotdQr = -$area.sada*$conductivity/($cr->$Density*$cr->$Cp*distance) ;
 }
 
 
-// Boundary condition jacobains
+// derivatives of boundary flux for specified temperature wall
 $rule pointwise(dqdotdQl<-conductivity,facecenter,cl->cellcenter,area,cl->(Density,Cp)),constraint(specified_BC) {
   real distance = dot($cl->$cellcenter-$facecenter,$area.n) ;
   $dqdotdQl = $area.sada*$conductivity/($cl->$Density*$cl->$Cp*distance) ;
 }
 
+// derivative of boundary flux for adiabatic wall (zero)
 $rule pointwise(dqdotdQl),constraint(adiabatic_BC) {
   $dqdotdQl = 0 ;
 }
 
+// Assemble the linear system (L+D+U)x = B
+// First assembly the heat linear system in the variables
+// heat_B, heat_L, heat_U, and heat_D
 $type heat_B store<real> ;
 $type heat_D store<real> ;
 $type heat_L store<real> ;
 $type heat_U store<real> ;
 
-// Assemble the matrix
+// Note, we are solving the system given by
+// [vol/deltT I - del R/del Q] delta Q = R
+// From this B = R (qresidual)
+// and L,U, and D are assembled from flux derivatives
+
+// The right hand side is straight forward.
 $rule pointwise(heat_B<-qresidual) {
   $heat_B = $qresidual ;
 }
 
+// To compute the diagonal term, we first must sum the diagonal
+// contributions from the flux derivatives.
 $type sumDiagonal store<real> ;
 
+// Add up diagonal contributions from flux derivatives
 $rule unit(sumDiagonal), constraint(geom_cells) {
   $sumDiagonal = 0 ;
 }
 
-$rule apply((cl,cr)->sumDiagonal<-dqdotdQl,dqdotdQr)[Loci::Summation],
-  constraint((cl,cr)->sumDiagonal) {
+// Add contribution from face to left cells
+// (e.g. d R(Ql,Qr)/d Ql goes to diagonal of the left cell)
+$rule apply(cl->sumDiagonal<-dqdotdQl)[Loci::Summation],
+  constraint(cl->geom_cells) {
   join($cl->$sumDiagonal,$dqdotdQl) ;
+}
+
+// Add contribution from face to right cells 
+// (e.g. d R(Ql,Qr)/d Qr goes to diagonal of the right cell)
+// Note sign change due to normal pointing in
+$rule apply(cr->sumDiagonal<-dqdotdQr)[Loci::Summation],
+  constraint(cr->geom_cells) {
   join($cr->$sumDiagonal,-$dqdotdQr) ;
 }
 
-$rule apply(cl->sumDiagonal<-dqdotdQl)[Loci::Summation],constraint(ref) {
-  join($cl->$sumDiagonal,$dqdotdQl) ;
-}
-
+// Compute matrix diagonal term
+// Note that while it would be tempting to put the vol/deltaT term in the
+// unit rule of the sumDiagonal reduction and eliminate this second rule, it
+// would be incorrect.  The unit rule of a reduction must assign the identity
+// of the operator (Summation), and vol/deltaT is generally not the identity
+// of the summation operator.  Thus we have to assemble the diagonal term
+// using a two step process, reduction to get sumDiagonal first.
 $rule pointwise(heat_D<-sumDiagonal,deltaT,vol) {
   $heat_D = $vol/$deltaT - $sumDiagonal ; ///$vol ;
 }
 
-$rule pointwise(heat_L<-dqdotdQr,cr->vol) {
-  $heat_L = -$dqdotdQr; ///$cr->$vol ;
+// Compute matrix lower term from flux derivatives
+// Note, we are subtracting del R/del Q in the matrix so there is an extra
+// sign change here
+$rule pointwise(heat_L<-dqdotdQr) {
+  $heat_L = -$dqdotdQr; 
 }
 
-$rule pointwise(heat_U<-dqdotdQl,cl->vol) {
-  $heat_U = $dqdotdQl; ///$cl->$vol ;
+// Compute matrix upper term from flux derivatives
+$rule pointwise(heat_U<-dqdotdQl) {
+  $heat_U = $dqdotdQl;
 }
 
+// Solve linear system described by heat_B, heat_D, heat_L, heat_U
 $rule pointwise(deltaQ<-petscScalarSolve(heat)) {
   $deltaQ = $petscScalarSolve(heat) ;
 }

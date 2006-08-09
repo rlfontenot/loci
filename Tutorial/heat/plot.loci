@@ -3,12 +3,22 @@ using namespace std ;
 $include "FVM.lh"
 $include "heat.lh"
 
+// Compute when we want to make plot files
 $type doPlot param<bool> ;
 
 $rule singleton(doPlot<-$n,plot_freq) {
   $doPlot = (($$n % $plot_freq) == 0) ;
 }
 
+
+// OUTPUT is a special Loci variable.  Loci will compute rules that result
+// in OUTPUT if it can, even though this wasn't explcitly needed to satisfy
+// the query.  The conditional statement will cause this rule to be
+// conditionally executed only when doPlot is true.  The constraint(pos)
+// makes sure that we output for all nodes of the mesh.  The argument
+// option(disable_threading) tells Loci that we are doing special computations
+// that may be sensitive to computation order, so don't do fancy optimizations
+// on this rule, just make one call and evaluate all entities at one time.
 $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
   constraint(pos),conditional(doPlot), option(disable_threading),
   prelude {
@@ -36,6 +46,7 @@ $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
 // Output the L2 residual
 $type L2_residual param<real> ;
 
+// Compute the total L2 residual using a global reduction
 $rule unit(L2_residual), constraint(geom_cells) {
   $L2_residual = 0 ;
 }
@@ -44,9 +55,12 @@ $rule apply(L2_residual<-qresidual)[Loci::Summation] {
   join($L2_residual,$qresidual*$qresidual) ;
 }
 
+// Here we check the MPI_rank so that we only output from processor
+// zero, otherwise the message would be printed p times from each
+// processor
 $rule singleton(OUTPUT<-L2_residual,$n),option(disable_threading) {
   if(Loci::MPI_rank==0) {
-    cout << "R" << $$n << ":" << $L2_residual << endl ;
+    cout << "R" << $$n << ": " << sqrt($L2_residual) << endl ;
   }
 }
 
