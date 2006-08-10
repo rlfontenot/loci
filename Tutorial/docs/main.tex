@@ -860,25 +860,25 @@ need to describe the rules as well.  This is discussed next.
 \section{Creating the rule database}
 
 To capture what is specified in the table \ref{table3:rules} we will
-create a database of rules.  To simplify this process we use the {\it Loci}
-preprocessor that will convert rule specifications into standard C++
-code.  A program that has a {\tt .loci} postfix will automatically be
-compiled with the {\it Loci} preprocessor if you use one of the provided
-example makefiles.  Any valid C++ source file is also a valid {\it Loci}
-preprocessor file, that is we are free to mix standard C++ code and
-{\it Loci} specific directives in this file.  The {\it Loci} preprocessor becomes
-activated through the use of the ``{\tt \$}'' symbol as will be
-described in the following paragraphs.
+create a database of rules.  To simplify this process we use the {\it
+  Loci} preprocessor that will convert rule specifications into
+standard C++ code.  A program that has a {\tt .loci} postfix will
+automatically be compiled with the {\it Loci} preprocessor if you use
+one of the provided example makefiles.  Any valid C++ source file is
+also a valid {\it Loci} preprocessor file, that is we are free to mix
+standard C++ code and {\it Loci} specific directives in this file.
+The {\it Loci} preprocessor becomes activated through the use of the
+``{\tt \$}'' symbol as will be described in the following paragraphs.
 
-In the beginning you will want to tell the {\it Loci} preprocessor what the
-types of the {\it Loci} variables that you will be working with.  For
-example, the {\it Loci} preprocessor will need to know what the types of the
-facts that were created earlier to describe the one-dimensional mesh.
-We can describe the types to the preprocessor using the {\tt \$type}
-keyword.  This first argument after this keyword is the variable name,
-while the second argument is the type.  The statement ends with a
-semicolon.  For example, the type definitions for the initial fact
-database are given by:
+In the beginning you will want to tell the {\it Loci} preprocessor
+what the types of the {\it Loci} variables that you will be working
+with.  For example, the {\it Loci} preprocessor will need to know what
+the types of the facts that were created earlier to describe the
+one-dimensional mesh.  We can describe the types to the preprocessor
+using the {\tt \$type} keyword.  This first argument after this
+keyword is the variable name, while the second argument is the type.
+The statement ends with a semicolon.  For example, the type
+definitions for the initial fact database are given by:
 \begin{verbatim}
 // Setup Types for initial facts
 $type il Map ; // interface left
@@ -977,12 +977,12 @@ $rule pointwise(xc<-(il,ir)->x) {
 }
 \end{verbatim}
 In this specification, the {\tt \$rule} directive tells the loci
-preprocessor that we are about to describe a {\it Loci} rule.  The keyword
-{\tt pointwise} that follows indicates that the rule represents a
-point by point computation.  The parenthesis that follow describe the
-rule signature which documents what the rule will use for inputs and
-outputs.  Note that the comma in the rule signature binds most
-tightly, so we use parenthesis to group items.  For example,
+preprocessor that we are about to describe a {\it Loci} rule.  The
+keyword {\tt pointwise} that follows indicates that the rule
+represents a point by point computation.  The parenthesis that follow
+describe the rule signature which documents what the rule will use for
+inputs and outputs.  Note that the comma in the rule signature binds
+most tightly, so we use parenthesis to group items.  For example,
 {\tt(il,ir)->x} means the same thing as {\tt il->x,ir->x}.  Similarly,
 {\tt il->(x,y)} would mean {\tt il->x} and {\tt il->y}, whereas {\tt
   il->x,y} would mean {\tt il->x} and {\tt y}.  Note, when several
@@ -991,8 +991,8 @@ then all combinations are implied.  Thus {\tt (il,ir)->(x,y)} is
 equivalent to {\tt il->x} and {\tt ir->x} and {\tt il->y} and {\tt
   ir->y}.  The code that follows the signature is the actual
 implementation of equation (\ref{eq3:cellcenter}) where the ``{\tt
-  \$}'' is used to identify the use of {\it Loci} variables.  NOTE: It is
-important that the rule signature match the implementation: if {\tt
+  \$}'' is used to identify the use of {\it Loci} variables.  NOTE: It
+is important that the rule signature match the implementation: if {\tt
   \$il->\$x} is in the implementation then {\tt il->x} needs to be in
 the rule signature.  If not, then {\it Loci} may schedule the rule
 incorrectly.
@@ -1010,7 +1010,7 @@ To do this we use a rule constraint.  The rule constraint is a set of
 entities that constrain the rule application.  A constraint applied to
 the rule makes two assertions: 1) the rule can only be applied for
 entities in found in the constraint set, and 2) all inputs to the rule
-must be availble for the entire set of entities found in the
+must be available for the entire set of entities found in the
 constraint. Thus, we can use the {\tt left\_boundary} constraint that
 was placed in the fact database to apply this boundary condition as
 illustrated in the following code:
@@ -1212,15 +1212,15 @@ a little bit easier to read and understand.
 
 Before we look at the entire program, lets first consider what happens
 if we query for a variable that is easier to compute, for example the
-timestep control, {\tt dt}.  The heat program contains code for the
+time-step control, {\tt dt}.  The heat program contains code for the
 user to specify a query different from ``solution'' by using the {\tt
-  -q} flag.  Thus we can query for the stable timestep using the
+  -q} flag.  Thus we can query for the stable time-step using the
 command:
 \begin{verbatim}
 ./heat --scheduleoutput --nochomp -q dt
 \end{verbatim}
 
-In addition to computing the stable timestep, this command generates a
+In addition to computing the stable time-step, this command generates a
 file called {\tt .schedule} that contains the execution schedule:
 \begin{verbatim}
 dt<-CONSTRAINT(UNIVERSE) over sequence ([0,20])
@@ -1278,14 +1278,14 @@ Iteration Loop{n} {
 While this schedule is similar to the previous schedule, we observe
 many new features that weren't present in the previous example.  First
 we see that in the beginning several variables are computed that will
-be used during the timestepping portion of the algorithm.  This is
+be used during the time-stepping portion of the algorithm.  This is
 followed by a sequence of variable promotion operations indicated by
 lines such as:
 \begin{verbatim}
 promote:cr{n}<-cr
 \end{verbatim}
 This line indicates that the variable {\tt cr} will be used unchanged
-during the {\tt n} iteration.  In essense it is basically indicating
+during the {\tt n} iteration.  In essence it is basically indicating
 that {\tt cr} and {\tt cr\{n\}} are the same variable.  This will
 allow rules that have been promoted to the time-stepping iteration to
 access these variables.  We then notice that the initial conditions
@@ -1316,7 +1316,7 @@ Looking at the schedule generated by Loci can be helpful in learning
 how to use {\it Loci}.  Experiment with changing how rules are
 implemented, what they input, for example, and examine how this
 changes the schedule.  For example, what happens if the stable
-timestep computation input the variable {\tt u}?  What changes would
+time-step computation input the variable {\tt u}?  What changes would
 {\it Loci} need to make to the schedule?
 
 \subsection{Local Reductions: An Alternative}
@@ -1409,7 +1409,7 @@ their outputs.  A parametric variable is one that has parameters as
 defined by a parenthesized list of substitution keys.  Thus, for
 example, if we want to create a cell integration of some variable, we
 can provide that using the parametric variable {\tt cellIntegrate(X)}.
-How {\it Loci} interpets the parametric variables depends on where the
+How {\it Loci} interprets the parametric variables depends on where the
 variable occurs in the rule signature.  If the parametric variable is
 in the output of a rule, then the rule is parametric and describes a
 family of rules that can be obtained by performing substitutions of
@@ -1519,7 +1519,7 @@ $rule pointwise(EulerIntegrate(X,Y){n=0}<-Y_ic) {
 Notice that here the special role that the underscore character plays
 in parametric rules.  That is a variable {\tt YY} will not be
 substituted as it is different from {\tt Y}.  However, when the
-underscore is present, the substitition occurs on each part between
+underscore is present, the substitution occurs on each part between
 the underscore characters.  Thus when a rule asks for the variable
 {\tt EulerIntegrate(R,u)} the above rule will instantiate the rule
 with the signature
@@ -1571,7 +1571,7 @@ $rule pointwise(Y<-EulerIntegrate(X,Y)),parametric(EulerIntegrate(X,Y)) {
   $Y = $EulerIntegrate(X,Y) ;
 }
 \end{verbatim}
-Now with this rule availabe, the time integration loop will create a
+Now with this rule available, the time integration loop will create a
 variable {\tt u} that can be used by the residual function, {\tt R}. 
 
 
@@ -1656,18 +1656,18 @@ $\partial\Omega_c$ represents its respective surface.  We can then
 derive a second order finite-volume scheme by employing a midpoint
 numerical integration to arrive at the discrete equation
 \begin{equation}
-\frac{d}{dt} (\rho e) = \frac{1}{\mathcal{V}_c}\sum_{f\in{faces}}
+\mathcal{V}_c \frac{d}{dt} (\rho e) = \sum_{f\in{faces}}
 \left[ \mathcal{A}_f k \left(\nabla T_f \cdot \vec{n}_f\right) \right].
 \end{equation}
 To arrive at a final scheme, we must select a method for integrating
 this equation in time.  For this example, we will employ an implicit
 backward Euler time integration method which is written as
 \begin{equation}
-\frac{Q^{n+1}-Q^n}{\Delta t} = R(Q^{n+1}),
+\mathcal{V}_c\frac{Q^{n+1}-Q^n}{\Delta t} = R(Q^{n+1}),
 \end{equation}
 where $Q=\rho e$ and the residual function, $R(Q)$, is given by 
 \begin{equation}
-R = \frac{1}{\mathcal{V}_c}\sum_{f\in{faces}}
+R = \sum_{f\in{faces}}
 \left[ \mathcal{A}_f k \left(\nabla T_f \cdot \vec{n}_f\right)
 \right].
 \label{fvmresidual}
@@ -1675,13 +1675,14 @@ R = \frac{1}{\mathcal{V}_c}\sum_{f\in{faces}}
 We can then linearize the equation by using Taylors theorem to arrive
 at
 \begin{equation}
-R(Q^{n+1}) = R(Q) + \frac{\partial R(Q)}{\partial Q} \Delta Q +
+R(Q^{n+1}) = R(Q^n) + \frac{\partial R(Q)}{\partial Q} \Delta Q +
 O(\Delta t^2),
 \end{equation}
-where $\Delta Q = Q^{n+1}-Q^n$.  Now we can state state the implicit
-scheme for solving the heat equation as
+where $\Delta Q = Q^{n+1}-Q^n$.  Now we can now rearrange these
+equations to state an implicit scheme for solving the heat equation
+as
 \begin{equation}
-\left[ \frac{1}{\Delta t} I + \frac{\partial R(Q)}{\partial Q}\right]\Delta Q =
+\left[ \frac{\mathcal{V}_c}{\Delta t} I - \frac{\partial R(Q)}{\partial Q}\right]\Delta Q =
 R(Q).
 \label{fvmscheme}
 \end{equation}
@@ -1693,8 +1694,8 @@ change in $Q$, given by $\Delta Q$.
 
 Now we can begin to describe how to solve this equation using the Loci
 framework.  First we need to construct a fact database that contains a
-representation of the finite-volume mesh.  This will be provided in
-the following sections.
+representation of the finite-volume mesh as will be described in the
+following sections.
 
 \section{Using the Loci finite-volume module}
 
@@ -1714,7 +1715,7 @@ The finite-volume module provides facilities for computing cell and
 face centroids, finding gradients, performing integrations,
 interpolating from cell to nodal values, and solving linear systems.
 The types for these rules are defined in the Loci include file
-"FVM.lh" which can be included using the Loci preprocessor by
+``FVM.lh'' which can be included using the Loci preprocessor by
 including the following line at the beginning of your {\tt .loci}
 program file:
 \begin{verbatim}
@@ -1758,7 +1759,7 @@ using the right-hand rule, the normal of the face points away from the
 left cell and into the right cell.  In addition, all boundary faces
 have a normal pointing out of the boundary which means that the left
 cell is the cell next to the boundary and the right cell is a
-``ghost'' or ficticious cell which might be used to implement certian
+``ghost'' or fictitious cell which might be used to implement certain
 boundary conditions (such as periodic boundaries).  Another important
 aspect of the orientation of the {\tt face2node} map is that it
 relates to a coloring of the cells such that the left cell is a lower
@@ -1797,7 +1798,7 @@ created at the boundary.
     face\\
     {\tt cl} & {\tt Map} & faces & cell left of face\\
     {\tt cr} & {\tt Map} & faces & cell right of face\\
-    {\tt ref} & {\tt Map} & boundary faces & map to refering category\\
+    {\tt ref} & {\tt Map} & boundary faces & map to referring category\\
     {\tt boundary\_names} & {\tt store<string>} & boundary categories & boundary category name\\
     {\tt geom\_cells} & {\tt constraint} & physical cells & set of actual cells\\
 {\tt cells} & {\tt constraint} & cells & cells including ghost cells\\
@@ -1811,7 +1812,7 @@ created at the boundary.
 When developing solvers for unstructured grids, it is useful for the
 user to specify information that will be associated with various
 boundary conditions.  For example, in the heat solver we may wish to
-provide an adiabatic and a specified temperature (dirichlet) boundary
+provide an adiabatic and a specified temperature (Dirichlet) boundary
 condition.  This can be accomplished by using the {\tt
   boundary\_conditions} variable in the vars file.  This variable will
 assign boundary conditions to the various boundary names.  For
@@ -1837,7 +1838,7 @@ conditions.  This is created by calling the subroutine as follows:
 \end{verbatim}
 This routine parses the {\tt boundary\_conditions} variable and sets
 up constraints with the name of the assigned boundary condition with
-an appended ``{\tt \_BC}''.  Thus after this rountine is called the
+an appended ``{\tt \_BC}''.  Thus after this routine is called the
 constraints {\tt adiabatic\_BC} is created that contains all of the
 faces of {\tt BC\_1} through {\tt BC\_4}, while the constraint {\tt
   specified\_BC} is created to contain all of the faces of {\tt BC\_5}
@@ -1867,25 +1868,522 @@ $rule pointwise(temperature_f<-ref->Twall),constraint(specified_BC) {
 \end{verbatim}
 
 \subsection{ Creating matrix data-structures}
+
+Before we begin to make a query, we will need to setup the matrix data-structures that will be used by the linear system solvers.  We do that with the following call:
 \begin{verbatim}
    createLowerUpper(facts) ;
 \end{verbatim}
+This subroutine call will install the multiMaps ``upper'' and
+``lower'' into the fact database that are created by transposing the
+``cr'' and ``cl'' maps.   These two data-structures represent the
+upper and lower triangular portions of the matrix as will be explained
+in the matrix assembly section that follows.  We would also mention
+that many utilities in the finite-volume module make use of these
+maps, so it would be a good idea to make this call when you plan on
+using the ``fvm'' module as we are in this example.
+
+
+\section{Computing the residual function}
+
+The first step in computing the residual function, $R(Q)$ is to
+compute the integrated flux through any given face.  This is the term
+inside of the summation of equation (\ref{fvmresidual}).  This
+equation can easily be evaluated using the rules available through the
+``fvm'' module which can provide the areas, normal vectors, and
+gradients required.  The variable {\tt area} provides both the normal
+vector ({\tt \$area.n}) and the magnitude ({\tt \$area.sada} - sada
+stands for square root of area dot area).  The gradient at a face is
+provided by the parametric variable ({\tt grads\_f(X)}, thus the heat
+flux through a face ({\tt qdot}) is computed using the following Loci rule:
+\begin{verbatim}
+// Compute the heat flux through faces
+$rule pointwise(qdot<-conductivity,grads_f(temperature),area) {
+  $qdot = $area.sada*$conductivity*dot($grads_f(temperature),$area.n) ;
+}
+\end{verbatim}
+
+Note that this will compute fluxes at the face and boundaries.
+However, if we know the flux a particular kind of boundary face
+(e.g. adiabatic walls) then we need to provide an alternative
+computation.  This can present a problem for Loci: if there are two
+ways to compute {\tt qdot}, which one is correct?  Loci will generate
+an error about conflicting rules when such ties exist.  However, we
+can tell Loci how to resolve such a conflict by using a priority
+specifier in the signature.  For example, if we use {\tt
+  adiabatic::qdot} in the output of the signature, then Loci will know
+that this form of qdot is a specialized form that is preferred over the
+general {\tt qdot}.  Thus we can override the above rule for adiabatic
+boundaries, setting the flux identically to zero here, using the rule:
+\begin{verbatim}
+// Handle Boundary Conditions
+// Adiabatic Wall, qdot = 0, grad(temperature) = 0
+$rule pointwise(adiabatic::qdot),constraint(adiabatic_BC) {
+  $qdot = 0 ;
+}
+\end{verbatim}
+Another note about priority specification.  Priorities form a
+hierarchy so that a priority specification overrides any rule without
+priority specification.  And we can then override one priority with
+another by adding additional names with ``::'' separators.  For
+example, {\tt new::adiabatic::qdot} could be used to override
+{\tt adiabatic::qdot}.  However, {\tt specified::qdot} would not override
+{\tt adiabatic::qdot} because both have the same priority level.
+
+Note that we have computed the fluxes for each face, however the
+computation described in equation (\ref{fvmresidual}) is a sum for
+each cell over all the faces of that given cell.  However, we have
+computed values located at the faces in the mesh, not the cells.  How
+do we perform the cell based sum?  For this operation we use a local
+reduction to reduce the face values to sums over cells.  The basic
+idea is to visit all faces and sum the fluxes to their corresponding
+left and right cells.  As with all reductions in Loci, this operation
+starts with a unit rule that assigns the initial value of the residual
+to the identity of our reduction operator.  In this case, we will use
+the summation operator, and so this identity is zero.  So we begin the
+summation with the following unit rule:
+\begin{verbatim}
+// Add up contributions from all faces, only define qresidual for geom_cells
+$rule unit(qresidual),constraint(geom_cells) {
+  $qresidual = 0 ;
+}
+\end{verbatim}
+
+To complete the summation, we must now visit each cell and add its
+contribution to the left and right sides.  For each face we use the
+{\tt join} method to add {\tt qdot} to the left cell residual.  Then
+we do the same for the right side of faces.  However, we note that
+since the face is oriented such that the normal points into the right
+side, we must change the sign of qdot before adding into the residual
+on this side.  Also note that we could have used the {\tt +=} operator
+instead of using {\tt join}, however using join is preferred as it
+guarantees that we are using the selected operator (in this case {\tt
+  Loci::Summation}).  If you aren't consistent in the use of operators
+with apply rules, you may get inconsistent results, particularly when
+running in parallel.
+\begin{verbatim}
+// Add to left cell
+$rule apply(cl->qresidual<-qdot)[Loci::Summation],
+  constraint(cl->geom_cells) {
+  join($cl->$qresidual,$qdot) ;
+}
+
+// Add to right cell, note sign change due to normal pointing into cell
+$rule apply(cr->qresidual<-qdot)[Loci::Summation],
+  constraint(cr->geom_cells) {
+  join($cr->$qresidual,-$qdot) ;
+}
+\end{verbatim}
+
+Note that in order to compute the gradient of temperatures as is
+required in the first rule that computes {\tt qdot}, that we need to
+also provide values for temperatures at the boundary faces.  This is
+provided through the variable {\tt temperature\_f}.  Note, that in
+general if we want to find the gradient of variable {\tt X}, then the
+variable {\tt X\_f} needs to also be defined at the boundary faces.  We
+derive the boundary temperature based on the boundary condition.  For
+an adiabatic wall we just use the cell temperature inside as the wall
+temperature.  Since the temperature of the cell next to the boundary
+is on the left side of the boundary face (all boundary faces have
+normals pointing out of the domain), then we simply set the wall
+temperature to {\tt cl->temperature}, as we do in the following rule:
+
+\begin{verbatim}
+// Compute boundary temperatures
+// adiabatic,  dT/dx = 0, so copy temperature from cell to face
+$rule pointwise(temperature_f<-cl->temperature),constraint(adiabatic_BC) {
+  $temperature_f = $cl->$temperature ;
+}
+\end{verbatim}
+
+For a temperature specified wall, we simply set the boundary face
+temperature to the user specified value.  We can get this value using
+the {\tt ref} map, provided that a rule to extract this from
+{\tt BC\_options} has already been provided (see previous section on boundary
+conditions).  Thus for the specified temperature boundary condition,
+we compute the temperature with the following rule:
+
+\clearpage
+\begin{verbatim}
+// Temperature Specified Wall
+$rule pointwise(temperature_f<-ref->Twall),constraint(specified_BC) {
+  $temperature_f = $ref->$Twall ;
+}
+\end{verbatim}
+
+We have now described how to compute the residual.  Now we need to
+assemble the matrix on the left-hand-side of equation
+(\ref{fvmscheme}) to complete the solver.  This is described in the
+next section.
+
+\section{Assembling the matrix}
+
+Before describing the assembly of the matrix, lets first begin with the computation of derivatives of the face fluxes with respect to the variables at each side.  However, to properly describe the matrix, we will need to have some idea of how the gradient function is implemented.  For the purpose of assembling the Jacobian, we will use the following approximation of the flux function, which will be a reasonable approximation for most grids of reasonable quality.  Note the flux function is expressed as
+\begin{equation}
+\dot{q} = \mathcal{A}_f k \left( \nabla T_f \cdot \vec{n}_f\right) \approx \mathcal{A}_f k \left(\frac{T_l-T_r}{(\vec{x}_l-\vec{x}_r)\cdot \vec{n}_f}\right),
+\end{equation}
+where $T_l$, $x_l$, $T_r$, and $x_r$ are the temperatures and cell centroids of the left and right side of the face respectively.  Given this, we can then determine the derivatives of this flux with respect to the left and right conservative variable values.  Thus we arrive at the following derivatives:
+\begin{equation}
+\frac{\partial \dot{q}}{\partial Q_l} = \frac{\partial \dot{q}}{\partial T_l} \frac{\partial T_l}{\partial Q_l} = \frac{\mathcal{A}_f k }{(\vec{x}_l-\vec{x}_r)\cdot \vec{n}_f}\frac{\partial T_l}{\partial Q_l},
+\end{equation}
+and
+\begin{equation}
+\frac{\partial \dot{q}}{\partial Q_r} = \frac{\partial \dot{q}}{\partial T_r} \frac{\partial T_r}{\partial Q_r} = -\frac{\mathcal{A}_f k }{(\vec{x}_l-\vec{x}_r)\cdot \vec{n}_f}\frac{\partial T_r}{\partial Q_r}.
+\end{equation}
+
+These derivatives are easily implemented as Loci rules such as the following:
+\begin{verbatim}
+// Derivative of flux from left side
+$rule pointwise(dqdotdQl<-conductivity,(cl,cr)->cellcenter,area,cl->dTdQ) {
+  real distance = dot($cl->$cellcenter-$cr->$cellcenter,$area.n) ;
+  $dqdotdQl = $area.sada*$conductivity*$cl->$dTdQ/distance ;
+}
+
+// Derivative of flux from right side
+$rule pointwise(dqdotdQr<-conductivity,(cl,cr)->cellcenter,area,cr->dTdQ) {
+  real distance = dot($cl->$cellcenter-$cr->$cellcenter,$area.n) ;
+  $dqdotdQr = -$area.sada*$conductivity*$cr->$dTdQ/distance ;
+}
+\end{verbatim}
+
+Note, however, that these derivatives only apply at the interior faces
+where {\tt cellcenter} exists on both sides of the face.  We need
+separate derivations for the derivatives of the flux at the boundary
+faces.  here we implement two obvious boundary conditions flux
+derivatives that follow easily from the above formulations:
+
+\begin{verbatim}
+// derivatives of boundary flux for specified temperature wall
+$rule pointwise(dqdotdQl<-conductivity,facecenter,cl->(cellcenter,dTdQ),area),
+  constraint(specified_BC) {
+  real distance = dot($cl->$cellcenter-$facecenter,$area.n) ;
+  $dqdotdQl = $area.sada*$conductivity*$cl->$dTdQ/distance ;
+}
+
+// derivative of boundary flux for adiabatic wall (zero)
+$rule pointwise(dqdotdQl),constraint(adiabatic_BC) {
+  $dqdotdQl = 0 ;
+}
+\end{verbatim}
+
+Before describing how to assemble these derivatives into a system
+matrix, we should spend a little more time describing data-structures
+that were created by the call to {\tt setupFVMGrid} and to {\tt
+  createLowerUpper}.  While the topology of the face2node map has
+already been discussed, it should be noted that the selection of the
+local face coordinates could be considered arbitrarily.  However, in
+the Loci finite-volume tools, we have a specific method of choosing
+this ordering: specifically the faces are oriented so that the normals
+point from a lower equation number to a higher equation number.  This
+allows us to associate the matrix non-zero structure directly with the
+mesh data-structure.  Thus, when we invert the {\tt cr} map we get a
+map that corresponds to the upper triangular part of the system
+matrix, where the off-diagonal components are stored at the faces.
+Similarly, the inverse of the {\tt cl} map provides us with the upper
+triangular part of the system matrix.  We can now describe the system
+matrix using the left and right flux derivatives located at the faces
+that form the L and U components of the system matrix, supplementing
+this with a diagonal element, D, stored at the cells.  This is
+illustrated in figure \ref{cellperspective} which shows the flux
+Jacobians from the left and right sides (denoted as fjp and fjm
+respectively) located at the cells, and the D entries associated with
+the cell.  Alternatively, one can look at figure
+\ref{matrixperspective} to get the matrix assembly view.  Here we see
+that along a row the {\tt lower} map can be used to access the lower
+non-zero elements, while the corresponding {\tt cl} map can be used to
+find the corresponding equation with that non-zero entry.  A similar
+procedure is used to describe the upper matrix, only using the {\tt
+  upper} map and {\t cr} to accomplish the same goal. This provides us
+with a convenient representation of the assembled matrix.
+
 
 \begin{figure}[htbp]
  \centerline{
-  \epsfxsize=3.5in
+  \epsfxsize=2.4in
   \epsfbox{figures/cell.eps}}
  \caption{Upper and lower maps viewed from the cell}
-
+\label{cellperspective}
 \end{figure}
 
 \begin{figure}[htbp]
  \centerline{
-  \epsfxsize=5in
+  \epsfxsize=4.5in
   \epsfbox{figures/mat.eps}}
  \caption{Matrix Data-Structure as used by the finite-volume module}
-
+\label{matrixperspective}
 \end{figure}
+\clearpage
+\subsection{And now the assembly}
+
+Now we can describe the procedure for assembling the linear system.
+First we provide the overall linear system with a name that will be
+used to collect the different parts of the system.  For example, lets
+call this system the {\tt heat} system of equations.  Then we form the
+linear system by creating the variables {\tt heat\_B} for the
+right-hand-side, and {\tt heat\_L}, {\tt heat\_U}, and {\tt heat\_D}
+for the system matrix, $A=L+D+U$.  First the creation of heat\_B is
+straightforward as it is just the residual function.  This is easily
+implemented as:
+\begin{verbatim}
+$rule pointwise(heat_B<-qresidual) {
+  $heat_B = $qresidual ;
+}
+\end{verbatim}
+
+The computation of the diagonal term is somewhat more complex.  The
+diagonal term will involve the derivatives of the fluxes (with
+appropriate sign changes to account for normal vector orientation),
+plus the term that appears due to the time derivative.  We perform
+this operation with two steps.  First we compute the sum of all
+diagonal contributions from the flux derivatives using a local
+reduction similar to what was done for the residual evaluation.
+However, in this case we have to select the derivative side so that
+it results in a diagonal contribution.  This is accomplished with the
+following code:
+
+\begin{verbatim}
+// To compute the diagonal term, we first must sum the diagonal
+// contributions from the flux derivatives.
+$type sumDiagonal store<real> ;
+
+// Add up diagonal contributions from flux derivatives
+$rule unit(sumDiagonal), constraint(geom_cells) {
+  $sumDiagonal = 0 ;
+}
+
+// Add contribution from face to left cells
+// (e.g. d R(Ql,Qr)/d Ql goes to diagonal of the left cell)
+$rule apply(cl->sumDiagonal<-dqdotdQl)[Loci::Summation],
+  constraint(cl->geom_cells) {
+  join($cl->$sumDiagonal,$dqdotdQl) ;
+}
+
+// Add contribution from face to right cells 
+// (e.g. d R(Ql,Qr)/d Qr goes to diagonal of the right cell)
+// Note sign change due to normal pointing into the cell
+$rule apply(cr->sumDiagonal<-dqdotdQr)[Loci::Summation],
+  constraint(cr->geom_cells) {
+  join($cr->$sumDiagonal,-$dqdotdQr) ;
+}
+\end{verbatim}
+
+We can now form the diagonal term of the matrix with the
+straightforward Loci pointwise rule:
+\begin{verbatim}
+$rule pointwise(heat_D<-sumDiagonal,deltaT,vol) {
+  $heat_D = $vol/$deltaT - $sumDiagonal ; 
+}
+\end{verbatim}
+Note, that it would be tempting to put the term {\tt \$vol/\$deltaT}
+into the unit rule of $sumDiagonal$ to save a rule implementation.
+However such an approach would be incorrect as Loci expects the unit
+rule to initialize the variable to the identity of the reduction
+operator.  Since this value would not be the identity, some of the
+reasoning that Loci uses to prove programs, in particular parallel
+programs, would be incorrect.  Note, that it would be possible to
+combine this with the reduction by having another apply rule add in
+the {\tt vol/deltaT} term. However, this would be provided by an
+additional apply rule, not the unit rule.
+
+
+To finish the assembly of the linear system we need to describe the
+upper and lower triangular portions of the matrix.  Note that for the
+description of these terms we need to carefully consider the signs of
+the resulting system.  Recall that the system matrix subtracts the
+flux derivatives, and we also need to take into consideration the sign
+changes due to normal vector compatibility with the divergence
+theorem.  Here is the logic:  The lower portion of the matrix consists
+of derivatives of fluxes that were summed into the current cell
+through it's {\tt cr} map with respect to the cell $Q$ on the left
+side of this face.  Because this was summed with a change of sign due
+to the normal pointing into the cell, and the subtraction in the system
+matrix, this term is $- (- (\frac{\partial \dot{q}}{\partial Q_l}))$.
+The upper off-diagonal terms, by similar argument, will be $-
+(\frac{\partial \dot{q}}{\partial Q_r})$.  The following rules define
+the off-diagonal parts of the matrix and complete the assembly of the
+linear system.
+\begin{verbatim}
+// Compute matrix lower term from flux derivatives
+// Note, we are subtracting del R/del Q in the matrix so there is an extra
+// sign change here
+$rule pointwise(heat_L<-dqdotdQl) {
+  $heat_L = $dqdotdQl; 
+}
+
+// Compute matrix upper term from flux derivatives
+$rule pointwise(heat_U<-dqdotdQr) {
+  $heat_U = -$dqdotdQr;
+}
+\end{verbatim}
+
+Now that we have formed the linear system, we can use a parametric
+rule from the ``fvm'' module to use the PETSc toolkit to solve the
+linear system by using the following rule:
+\begin{verbatim}
+// Solve linear system described by heat_B, heat_D, heat_L, heat_U
+$rule pointwise(deltaQ<-petscScalarSolve(heat)) {
+  $deltaQ = $petscScalarSolve(heat) ;
+}
+\end{verbatim}
+
+\section{Performing the time integration}
+
+Now we have nearly all of the components in place to build the
+implicit time integration method.  The completion of this process
+follows the same lines as the explicit Euler integration provided in
+the one-dimensional example.  We begin this time-stepping method by
+building the first iteration value for the conservative variable.
+This is accomplished using the following ``build'' rule:
+\begin{verbatim}
+// Initial Conditions
+$rule pointwise(Q{n=0}<-Density,Cp,T_initial) {
+  $Q{n=0} = $Density*$Cp*$T_initial ;
+}
+\end{verbatim}
+Now that we have $Q^{n=0}$ defined, we can iterate by simply defining
+how to get from $Q^n$ to $Q^{n+1}$.  This step is trivial using the
+{\tt deltaQ} computed in the previous section.  The ``advance'' rule
+that does this is specified as:
+\begin{verbatim}
+// Advance the timestep using linear system solution
+$rule pointwise(Q{n+1}<-Q{n},deltaQ{n}), constraint(geom_cells) {
+  $Q{n+1} = $Q{n}+ $deltaQ{n} ;
+}
+\end{verbatim}
+
+The specification so far gives us the ability to iterate forward in
+time, but provides no provisions for terminating the iteration.  We
+must provide the conditions of termination and a ``collapse'' rule
+that tells Loci what to do in the event of termination.  We compute
+the condition for termination by detecting when a user provided stop
+iteration has been reached with the following rule:
+\begin{verbatim}
+// Determine when we will finish timestepping
+$rule singleton(finishTimestep<-$n,stop_iter) {
+  $finishTimestep = ($$n > $stop_iter) ;
+}
+\end{verbatim}
+
+We can now specify how to collapse the iteration.  In this case, we
+collapse to the variable {\tt solution} which is the generic query
+that we usually make for Loci applications.  This query plays the same
+sort of role as {\tt main} in a C program in that it provides us a
+standard place to start a Loci program.  The collapse rule is simply
+implemented as described below:
+\begin{verbatim}
+// Collapse to solution when we are finished iterating
+$rule pointwise(solution<-Q{n}),conditional(finishTimestep{n}),
+  constraint(geom_cells) {
+  $solution = $Q{n} ;
+}
+\end{verbatim}
+
+\section{Closing the equations}
+
+At this stage, the solution to the time dependent heat equation is not
+quite in place.  While we have described how to compute {\tt deltaQ},
+the computation of this variable requires the computation of {\tt
+  qdot}, which in turn requires a definition for {temperature}.  So far
+we have described how the conservative variable $Q=\rho e$ evolves in
+time, but we have not related this to temperature.  We can do this by
+using the relationship that $e = C_p T$, thus $T = Q/(\rho C_p)$.  We
+can use this relationship to establish the temperature as a function
+of {\tt Q} with the rule:
+\begin{verbatim}
+// Compute temperature from energy
+$rule pointwise(temperature<-Q,Density,Cp), constraint(geom_cells) {
+  $temperature = $Q/($Density*$Cp) ;
+}
+\end{verbatim}
+In addition to the temperature, we also needed the tranformational
+derivative $\frac{\partial T}{\partial Q}$ in order to compute the
+system matrix.  This is provided by the following rule:
+\begin{verbatim}
+// Compute transformation derivative from temperature to Q
+$rule singleton(dTdQ<-Density,Cp) {
+  $dTdQ = 1./($Cp*$Density) ;
+}
+\end{verbatim}
+At this point, we will be able to solve the three-dimensional heat
+equation in a form that is automatically parallelizable.
+
+\section{Creating plot files}
+
+So far we have developed a solver, but even though the solution is
+time-dependent, we only get to see the final ``solution'' that is
+placed in the fact database, when we would like to view the time
+evolution of the solution.  Loci provides a facility whereby rules can
+be executed as the time-stepping algorithm proceeds.  We can do this
+by creating a variable that computes a special variable called {\tt
+  OUTPUT}.  The variable {\tt OUTPUT} is a special variable that is
+automatically requested in all iteration loops.  If the variables that
+are input to the rule are being evaluated in the iteration, then this
+rule will be executed.  For example, suppose that we wish to display
+the steady residual each timestep, then we could implement a rule such
+as:
+\begin{verbatim}
+$rule singleton(OUTPUT<-L2Norm(qresidual,geom_cells),$n),
+  option(disable_threading) {
+  if(Loci::MPI_rank==0) {
+    cout << "R" << $$n << ": " << $L2Norm(qresidual,geom_cells) << endl ;
+  }
+}
+\end{verbatim}
+Lets note several important artifacts about this rule.  First note
+that the signature indicates that the result of the computation is a
+variable called {\tt OUTPUT} which indicates that the main purpose of
+this rule will be to have some effect on the outside world. The rule
+is inputing the variable {\tt L2Norm(qresidual,geom\_cells)} which
+results in the computation of the L2-norm of {\tt qresidual} for all entities
+that are in the constraint {\tt geom\_cells}... in other words the
+L2-norm of the steady state residual.  The rule also inputs the
+current timestep {\tt \$n} so that it can report it along with the
+residual output. Also note the conditional on {\tt Loci::MPI\_rank}
+equal to zero.  This conditional statement is there to prevent
+multiple outputs from each processor when running in parallel.  Also
+note the use of the option {\tt disable\_threading}.  This option
+tells Loci that this rule is sensitive to the order that computations
+occur, and to make sure not to do any optimziations that would cause
+the computation to be called multiple times.
+
+Now we can see how to print simple output to the screen, but how do we
+get a chance to make a plot of the simulated temperature field?  We
+can perform a similar operation by using Loci's built in facility to
+write containers (in parallel or serial) to a portable HDF5 file.  
+
+\begin{verbatim}
+$rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
+  constraint(pos),conditional(doPlot), option(disable_threading),
+  prelude {
+  int iter = *$$n % *$plot_modulo ;
+  ostringstream oss ;
+  string varname = "temperature" ;
+  oss << "output/" << varname << "_hdf5." << iter ;
+  string filename = oss.str() ;
+
+  if(Loci::MPI_rank == 0)
+    cout << "writing file " << filename << endl ;
+
+  // Create an hdf5 file
+  hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT,H5P_DEFAULT) ;
+
+  // Write the values of the nodal temperatures into the file
+  Loci::writeContainer(file_id,varname,$cell2node(temperature).Rep()) ;
+
+  // Close the hdf5 file
+  Loci::hdf5CloseFile(file_id) ;
+} ;
+\end{verbatim}
+
+\begin{verbatim}
+// Compute when we want to make plot files
+$type doPlot param<bool> ;
+
+$rule singleton(doPlot<-$n,plot_freq) {
+  $doPlot = (($$n % $plot_freq) == 0) ;
+}
+\end{verbatim}
+
 
 %% Appendicies
 \appendix
