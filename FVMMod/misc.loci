@@ -1,0 +1,36 @@
+#include <Loci.h>
+
+$include "FVM.lh"
+
+namespace Loci {
+
+  $type L2_TMP(X,Y) param<real_t> ;
+  $type X store<real_t> ;
+  
+  $rule unit(L2_TMP(X,Y)),constraint(Y) {
+    $L2_TMP(X,Y) = 0 ;
+  }
+  $rule apply(L2_TMP(X,Y)<-X)[Loci::Summation],constraint(Y) {
+    join($L2_TMP(X,Y),$X*$X) ;
+  }
+
+  $rule singleton(L2Norm(X,Y)<-L2_TMP(X,Y)) {
+    $L2Norm(X,Y) = sqrt($L2_TMP(X,Y)) ;
+  }
+
+  $rule unit(L1Norm(X,Y)), constraint(Y) {
+    $L1Norm(X,Y) = 0 ;
+  }
+
+  $rule apply(L1Norm(X,Y)<-X)[Loci::Summation], constraint(Y) {
+    join($L1Norm(X,Y),abs($X)) ;
+  }
+
+  $rule unit(LinfNorm(X,Y)),constraint(Y) {
+    $LinfNorm(X,Y)=0 ;
+  }
+
+  $rule apply(LinfNorm(X,Y)<-X)[Loci::Maximum],constraint(Y) {
+    join($LinfNorm(X,Y),abs($X)) ;
+  }
+}
