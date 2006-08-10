@@ -53,5 +53,10 @@ $type cell2nodeMaxv3d(X) store<vector3d<float> > ;
 $type BC_options store<Loci::options_list> ;
 
 $type integrateSurface(X) store<Loci::real_t> ;
+$type integrateFlux(X) store<Loci::real_t> ;
 
 $type petscScalarSolve(X) store<Loci::real_t> ;
+
+$type L2Norm(X,Y) param<Loci::real_t> ;
+$type L1Norm(X,Y) param<Loci::real_t> ;
+$type LinfNorm(X,Y) param<Loci::real_t> ;

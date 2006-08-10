@@ -1,6 +1,22 @@
 #ifdef USE_PETSC
 #include "petsc.h"
+#include <petscerror.h>
+#include <petscvec.h>
+#include <petscksp.h>
+// Force key petsc functions to load. (Helps when using static libraries)
+void dummyFunctionDependencies(int i) {
+  int localSize=0,globalSize=0 ;
+  struct _p_Vec *v=0 ;
+  struct _p_Mat *m=0 ;
+  struct _p_KSP *ksp=0 ;
+  int ierr = VecSetSizes(v,localSize,globalSize) ;
+  ierr = MatCreateMPIAIJ(MPI_COMM_WORLD,0,0,0,0,0,0,0,0,&m) ;
+  ierr = KSPSetFromOptions(ksp) ;
+  dummyFunctionDependencies(ierr) ;
+}
+
 #endif
+
 
 #include <rule.h>
 #include "dist_tools.h"
