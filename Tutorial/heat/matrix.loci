@@ -9,22 +9,23 @@ $type dqdotdQl store<real> ; // del flux/del Q_r
 $type dqdotdQr store<real> ; // del flux/del Q_l
 
 // Derivative of flux from left side
-$rule pointwise(dqdotdQl<-conductivity,(cl,cr)->cellcenter,area,cl->(Density,Cp)) {
+$rule pointwise(dqdotdQl<-conductivity,(cl,cr)->cellcenter,area,cl->dTdQ) {
   real distance = dot($cl->$cellcenter-$cr->$cellcenter,$area.n) ;
-  $dqdotdQl = $area.sada*$conductivity/($cl->$Density*$cl->$Cp*distance) ;
+  $dqdotdQl = $area.sada*$conductivity*$cl->$dTdQ/distance ;
 }
 
 // Derivative of flux from right side
-$rule pointwise(dqdotdQr<-conductivity,(cl,cr)->cellcenter,area,cr->(Density,Cp)) {
+$rule pointwise(dqdotdQr<-conductivity,(cl,cr)->cellcenter,area,cr->dTdQ) {
   real distance = dot($cl->$cellcenter-$cr->$cellcenter,$area.n) ;
-  $dqdotdQr = -$area.sada*$conductivity/($cr->$Density*$cr->$Cp*distance) ;
+  $dqdotdQr = -$area.sada*$conductivity*$cr->$dTdQ/distance ;
 }
 
 
 // derivatives of boundary flux for specified temperature wall
-$rule pointwise(dqdotdQl<-conductivity,facecenter,cl->cellcenter,area,cl->(Density,Cp)),constraint(specified_BC) {
+$rule pointwise(dqdotdQl<-conductivity,facecenter,cl->(cellcenter,dTdQ),area),
+  constraint(specified_BC) {
   real distance = dot($cl->$cellcenter-$facecenter,$area.n) ;
-  $dqdotdQl = $area.sada*$conductivity/($cl->$Density*$cl->$Cp*distance) ;
+  $dqdotdQl = $area.sada*$conductivity*$cl->$dTdQ/distance ;
 }
 
 // derivative of boundary flux for adiabatic wall (zero)
@@ -82,19 +83,19 @@ $rule apply(cr->sumDiagonal<-dqdotdQr)[Loci::Summation],
 // of the summation operator.  Thus we have to assemble the diagonal term
 // using a two step process, reduction to get sumDiagonal first.
 $rule pointwise(heat_D<-sumDiagonal,deltaT,vol) {
-  $heat_D = $vol/$deltaT - $sumDiagonal ; ///$vol ;
+  $heat_D = $vol/$deltaT - $sumDiagonal ; 
 }
 
 // Compute matrix lower term from flux derivatives
 // Note, we are subtracting del R/del Q in the matrix so there is an extra
 // sign change here
-$rule pointwise(heat_L<-dqdotdQr) {
-  $heat_L = -$dqdotdQr; 
+$rule pointwise(heat_L<-dqdotdQl) {
+  $heat_L = $dqdotdQl; 
 }
 
 // Compute matrix upper term from flux derivatives
-$rule pointwise(heat_U<-dqdotdQl) {
-  $heat_U = $dqdotdQl;
+$rule pointwise(heat_U<-dqdotdQr) {
+  $heat_U = -$dqdotdQr;
 }
 
 // Solve linear system described by heat_B, heat_D, heat_L, heat_U

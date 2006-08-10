@@ -8,7 +8,11 @@ $rule pointwise(qdot<-conductivity,grads_f(temperature),area) {
   $qdot = $area.sada*$conductivity*dot($grads_f(temperature),$area.n) ;
 }
 
-
+// Handle Boundary Conditions
+// Adiabatic Wall, qdot = 0, grad(temperature) = 0
+$rule pointwise(adiabatic::qdot),constraint(adiabatic_BC) {
+  $qdot = 0 ;
+}
 
 // Add up contributions from all faces
 $rule unit(qresidual),constraint(geom_cells) {
@@ -27,18 +31,14 @@ $rule apply(cr->qresidual<-qdot)[Loci::Summation],
   join($cr->$qresidual,-$qdot) ;
 }
 
-// Handle Boundary Conditions
-// Adiabatic Wall, qdot = 0, grad(temperature) = 0
-$rule pointwise(adiabatic::qdot),constraint(adiabatic_BC) {
-  $qdot = 0 ;
-}
 
-$rule pointwise(temperature_f<-ci->temperature),constraint(adiabatic_BC) {
-  $temperature_f = $ci->$temperature ;
+// Compute boundary temperatures
+// adiabatic,  dT/dx = 0, so copy temperature from cell to face
+$rule pointwise(temperature_f<-cl->temperature),constraint(adiabatic_BC) {
+  $temperature_f = $cl->$temperature ;
 }
 
 // Temperature Specified Wall
-// Temperature at wall set to specified condition
 $rule pointwise(temperature_f<-ref->Twall),constraint(specified_BC) {
   $temperature_f = $ref->$Twall ;
 }

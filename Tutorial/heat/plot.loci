@@ -42,25 +42,13 @@ $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
   Loci::hdf5CloseFile(file_id) ;
 } ;
 
-
-// Output the L2 residual
-$type L2_residual param<real> ;
-
-// Compute the total L2 residual using a global reduction
-$rule unit(L2_residual), constraint(geom_cells) {
-  $L2_residual = 0 ;
-}
-
-$rule apply(L2_residual<-qresidual)[Loci::Summation] {
-  join($L2_residual,$qresidual*$qresidual) ;
-}
-
 // Here we check the MPI_rank so that we only output from processor
 // zero, otherwise the message would be printed p times from each
 // processor
-$rule singleton(OUTPUT<-L2_residual,$n),option(disable_threading) {
+$rule singleton(OUTPUT<-L2Norm(qresidual,geom_cells),$n),
+  option(disable_threading) {
   if(Loci::MPI_rank==0) {
-    cout << "R" << $$n << ": " << sqrt($L2_residual) << endl ;
+    cout << "R" << $$n << ": " << $L2Norm(qresidual,geom_cells) << endl ;
   }
 }
 
