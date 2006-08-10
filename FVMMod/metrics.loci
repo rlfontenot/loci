@@ -103,10 +103,6 @@ namespace Loci {
     join($grid_vol,$vol) ;
   }
 
-  $rule pointwise(at), constraint(area) {
-    $at = 0 ;
-  }
-        
   //The following class gives the two perpendicular vectors in the face to 
   //form the orthogonal coordinates of the face along with the normal vector
   $rule pointwise(ln,mn<-area) {

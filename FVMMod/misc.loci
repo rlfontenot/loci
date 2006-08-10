@@ -4,33 +4,33 @@ $include "FVM.lh"
 
 namespace Loci {
 
-  $type L2_TMP(X,Y) param<real_t> ;
+  $type L2_TMP(X) param<real_t> ;
   $type X store<real_t> ;
   
-  $rule unit(L2_TMP(X,Y)),constraint(Y) {
-    $L2_TMP(X,Y) = 0 ;
+  $rule unit(L2_TMP(X)),constraint(geom_cells) {
+    $L2_TMP(X) = 0 ;
   }
-  $rule apply(L2_TMP(X,Y)<-X)[Loci::Summation],constraint(Y) {
-    join($L2_TMP(X,Y),$X*$X) ;
-  }
-
-  $rule singleton(L2Norm(X,Y)<-L2_TMP(X,Y)) {
-    $L2Norm(X,Y) = sqrt($L2_TMP(X,Y)) ;
+  $rule apply(L2_TMP(X)<-X,vol)[Loci::Summation],constraint(geom_cells) {
+    join($L2_TMP(X),$X*$X*$vol) ;
   }
 
-  $rule unit(L1Norm(X,Y)), constraint(Y) {
-    $L1Norm(X,Y) = 0 ;
+  $rule singleton(L2Norm(X)<-L2_TMP(X),grid_vol) {
+    $L2Norm(X) = sqrt($L2_TMP(X)/$grid_vol) ;
   }
 
-  $rule apply(L1Norm(X,Y)<-X)[Loci::Summation], constraint(Y) {
-    join($L1Norm(X,Y),abs($X)) ;
+  $rule unit(L1Norm(X)), constraint(geom_cells) {
+    $L1Norm(X) = 0 ;
   }
 
-  $rule unit(LinfNorm(X,Y)),constraint(Y) {
-    $LinfNorm(X,Y)=0 ;
+  $rule apply(L1Norm(X)<-X,vol,grid_vol)[Loci::Summation], constraint(geom_cells) {
+    join($L1Norm(X),abs($X)*$vol/$grid_vol) ;
   }
 
-  $rule apply(LinfNorm(X,Y)<-X)[Loci::Maximum],constraint(Y) {
-    join($LinfNorm(X,Y),abs($X)) ;
+  $rule unit(LinfNorm(X)),constraint(geom_cells) {
+    $LinfNorm(X)=0 ;
+  }
+
+  $rule apply(LinfNorm(X)<-X)[Loci::Maximum],constraint(geom_cells) {
+    join($LinfNorm(X),abs($X)) ;
   }
 }
