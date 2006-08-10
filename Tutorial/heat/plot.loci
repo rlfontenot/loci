@@ -44,9 +44,9 @@ $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
 // Here we check the MPI_rank so that we only output from processor
 // zero, otherwise the message would be printed p times from each
 // processor
-$rule singleton(OUTPUT<-L2Norm(qresidual,geom_cells),$n),
+$rule singleton(OUTPUT<-L2Norm(qresidual),$n),
   option(disable_threading) {
   if(Loci::MPI_rank==0) {
-    cout << "R" << $$n << ": " << $L2Norm(qresidual,geom_cells) << endl ;
+    cout << "R" << $$n << ": " << $L2Norm(qresidual) << endl ;
   }
 }
