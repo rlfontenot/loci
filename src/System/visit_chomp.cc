@@ -22,6 +22,9 @@ using std::endl ;
 // all the searching and graph
 // editing algorithm for chomping 
 namespace Loci {
+
+  // show some debug information for the chomp chain discover algorithm
+  //#define CHOMP_DEBUG
   
   //////////////////////////////////////////////////////////////
   // some helper functions 
@@ -119,6 +122,10 @@ namespace Loci {
     // find any chains that contains v and then
     // remove those chains from the list and
     // patch them back to the search list
+    // HOWEVER, BECAUSE OF THE RECENT REVISION OF ALGORITHMS,
+    // ESPECIALLY WITH THE MORE ROBUST gen_tmp_graph FUNCTION,
+    // THIS NOTIFY ACTION MAY NOT BE NECESSARY. We'll revise this
+    // in the future.
     void notify_existchains(list<chomp_chain>& result,
                             list<variable>& chomp_vars_order,
                             variableSet& valid_chomp_vars,
@@ -161,7 +168,12 @@ namespace Loci {
     // test for self-cycle and non-chompable
     // internal variables in a graph
     // test_gr is a subgraph of gr
-    inline bool has_problem(const digraph& gr,const digraph& test_gr,
+#ifdef CHOMP_DEBUG
+    namespace {
+      int problem_code = 0 ;
+    } 
+#endif
+    inline bool has_problem(const digraph& gr, const digraph& test_gr,
                             const variableSet& validChompVars) {
       digraph::vertexSet sources = test_gr.get_source_vertices()
         - test_gr.get_target_vertices() ;
@@ -178,6 +190,12 @@ namespace Loci {
       variableSet problem_vars =
         variableSet(internal_vars - validChompVars) ;
 
+#ifdef CHOMP_DEBUG
+      if(has_path(gr,targets,sources))
+        problem_code = 1 ;
+      else if(problem_vars != EMPTY)
+        problem_code = 2 ;
+#endif
       return (has_path(gr,targets,sources) || (problem_vars != EMPTY)) ;
     }
     
@@ -265,8 +283,20 @@ namespace Loci {
       return new_gr ;
     }
 
-#define CHOMP_OPT
-#define CHOMP_OPT_MORE
+
+    //////////////////////////////////////////////////
+    // CHOMP_OPT currently has a logical bug inside 
+    // More work is needed to fix it in the future. 
+    // The bug is that in the first opt pass, when the algorithm
+    // merges two chomp chains, it is possible to include
+    // chomped variables in other chains as either source
+    // or target variables in the merge chain. This would
+    // cause problem as it brings the chomped variable in other
+    // chains visible.
+    //////////////////////////////////////////////////
+    //#define CHOMP_OPT
+    //#define CHOMP_OPT_MORE
+
     // given a digraph and all the chomping candidate
     // variables inside it, this function will return
     // all chomping chains by merging variables together
@@ -304,17 +334,52 @@ namespace Loci {
                                           grt[begin.ident()]) ;
         variableSet sub_chomp_vars ;
         sub_chomp_vars += begin ;
+        // generate an initial graph for this single starting var
         digraph cur_chomp_gr =
           gr.subgraph(get_ruleSet_vertexSet(all_rules)) ;
+        // however, we need to make sure that this is a complete graph.
+        // that is, we need to make sure any internal variables have
+        // all connected vertices included. This is an issue because for
+        // complex rules, it may be possible to have multiple targets,
+        // and one of these target may be chosen as our "begin" variable.
+        // for complex graphs, other targets may become internal
+        // variables in the graph. If we don't include all their
+        // connected vertices, it would cause problem later.
+        while(true) {
+          // get current internal variables
+          variableSet cur_internal_vars =
+            get_internal_vars(cur_chomp_gr) ;
+          digraph::vertexSet graph_vertices =
+            cur_chomp_gr.get_all_vertices() ;
+          // then bring in any relevant rules
+          ruleSet add_rules ;
+          for(variableSet::const_iterator vi=cur_internal_vars.begin();
+              vi!=cur_internal_vars.end();++vi) {
+            add_rules += extract_rules(gr[vi->ident()]) ;
+            add_rules += extract_rules(grt[vi->ident()]) ;
+          }
+          add_rules -= extract_rules(graph_vertices) ;
+          if(add_rules == EMPTY)
+            break ;
+          graph_vertices += get_ruleSet_vertexSet(add_rules) ;
+          cur_chomp_gr = gr.subgraph(graph_vertices) ;
+        }
+        
         // remove the first variable from the list
         chomp_vars_order.pop_front() ;
 
+#ifdef CHOMP_DEBUG
+        cerr << "Start merging from var: " << begin << endl ;
+#endif
         bool merge = true ;
         while(merge) {
           merge = false ;
           vector<list<variable>::iterator> remove ;
           for(list<variable>::iterator lvi=chomp_vars_order.begin();
               lvi!=chomp_vars_order.end();++lvi){
+#ifdef CHOMP_DEBUG
+            cerr << "--testing merging on var: " << *lvi << endl ;
+#endif
             ruleSet rvs_rules = extract_rules(grt[lvi->ident()]) ;
             ruleSet fwd_rules = extract_rules(gr[lvi->ident()]) ;
             ruleSet reachable_rules = ruleSet(rvs_rules + fwd_rules) ;
@@ -332,13 +397,36 @@ namespace Loci {
                 cur_chomp_gr = test_gr ;
                 remove.push_back(lvi) ;
                 merge = true ;
+#ifdef CHOMP_DEBUG
+                cerr << "  --merge accepted" << endl ;
+#endif
               }
+#ifdef CHOMP_DEBUG
+              else {
+                cerr << "  --merge rejected (due to constraints" ;
+                if(problem_code == 1)
+                  cerr << " [path problem]" ;
+                else if(problem_code == 2)
+                  cerr << " [internval var problem]" ;
+                cerr << ")" << endl ;
+              }
+#endif
             }
+#ifdef CHOMP_DEBUG
+            else
+              cerr << "  --merge rejected (due to no shared vars)" << endl ;
+#endif
           } // end-of-for(chomp_vars_order)
           // remove those merged variables from the list
           for(vector<list<variable>::iterator>::size_type i=0;
               i!=remove.size();++i)
             chomp_vars_order.erase(remove[i]) ;
+#ifdef CHOMP_DEBUG
+          if(merge) {
+            cerr << endl ;
+            cerr << "--restart merge testing" << endl ;
+          }
+#endif
         }//end-of-while(merge)
 
         // if the chain just contains one chompable variable
@@ -348,11 +436,20 @@ namespace Loci {
           if(has_problem(gr,cur_chomp_gr,valid_chomp_vars)) {
             variable v = *(sub_chomp_vars.begin()) ;
             valid_chomp_vars -= v ;
+
+#ifdef CHOMP_DEBUG
+            cerr << "Valid_chomp_vars removed (single): " << v << endl ;
+#endif
             chomp_vars_order.remove(v) ;
             // we need to notify existed chains of this change
             // this variable might be silently included
             // into other chains because it may be target of
-            // other chompable variables
+            // other chompable variables and thus is already included
+            // as an internal variable (as a by-product) in other chain.
+            // HOWEVER, BECAUSE OF THE RECENT REVISION OF ALGORITHMS,
+            // ESPECIALLY WITH THE MORE ROBUST gen_tmp_graph FUNCTION,
+            // THIS NOTIFY ACTION MAY NOT BE NECESSARY. We'll revise this
+            // in the future.
             notify_existchains(temp_result,chomp_vars_order,
                                valid_chomp_vars,v) ;
             continue ;
@@ -370,9 +467,20 @@ namespace Loci {
               rmvi!=intersection.end();++rmvi)
             chomp_vars_order.remove(*rmvi) ;
           valid_chomp_vars -= intersection ;
+
+#ifdef CHOMP_DEBUG
+          cerr << "Valid_chomp_vars removed (intersection): "
+               << intersection << endl ;
+#endif
         }
 
         valid_chomp_vars -= sub_chomp_vars ;
+
+#ifdef CHOMP_DEBUG
+        cerr << "Valid_chomp_vars removed (sub_chomp): "
+             << sub_chomp_vars << endl ;
+#endif
+        
 #ifdef CHOMP_OPT
         temp_result.push_back(make_pair(cur_chomp_gr,sub_chomp_vars)) ;
 #else
