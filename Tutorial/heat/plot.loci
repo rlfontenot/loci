@@ -10,7 +10,6 @@ $rule singleton(doPlot<-$n,plot_freq) {
   $doPlot = (($$n % $plot_freq) == 0) ;
 }
 
-
 // OUTPUT is a special Loci variable.  Loci will compute rules that result
 // in OUTPUT if it can, even though this wasn't explcitly needed to satisfy
 // the query.  The conditional statement will cause this rule to be
@@ -51,4 +50,3 @@ $rule singleton(OUTPUT<-L2Norm(qresidual,geom_cells),$n),
     cout << "R" << $$n << ": " << $L2Norm(qresidual,geom_cells) << endl ;
   }
 }
-

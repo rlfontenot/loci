@@ -3,7 +3,7 @@ $include "FVM.lh"
 $include "heat.lh"
 
 // Initial Conditions
-$rule pointwise(Q{n=0}<-Density,Cp,T_initial) {
+$rule pointwise(Q{n=0}<-Density,Cp,T_initial),constraint(geom_cells) {
   $Q{n=0} = $Density*$Cp*$T_initial ;
 }
 
@@ -25,19 +25,12 @@ $rule singleton(finishTimestep<-$n,stop_iter) {
 $type solution store<real> ;
 
 // Collapse to solution when we are finished iterating
-$rule pointwise(solution<-Q{n}),conditional(finishTimestep{n}),constraint(geom_cells) {
-  $solution = $Q{n} ;
-}
-
+$rule pointwise(solution<-Q{n}),conditional(finishTimestep{n}),
+  constraint(geom_cells) { $solution = $Q{n} ; }
 
 // Functions to tie it all together.
 // Compute temperature from energy
-$rule pointwise(temperature<-Q,Density,Cp), constraint(geom_cells) {
-  $temperature = $Q/($Density*$Cp) ;
-}
+$rule pointwise(temperature<-Q,Density,Cp) { $temperature = $Q/($Density*$Cp);}
 
 // Compute transformation derivative from temperature to Q
-$rule singleton(dTdQ<-Density,Cp) {
-  $dTdQ = 1./($Cp*$Density) ;
-}
-
+$rule singleton(dTdQ<-Density,Cp) {$dTdQ = 1./($Cp*$Density);}

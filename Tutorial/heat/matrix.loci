@@ -29,9 +29,7 @@ $rule pointwise(dqdotdQl<-conductivity,facecenter,cl->(cellcenter,dTdQ),area),
 }
 
 // derivative of boundary flux for adiabatic wall (zero)
-$rule pointwise(dqdotdQl),constraint(adiabatic_BC) {
-  $dqdotdQl = 0 ;
-}
+$rule pointwise(dqdotdQl),constraint(adiabatic_BC) {$dqdotdQl = 0 ;}
 
 // Assemble the linear system (L+D+U)x = B
 // First assembly the heat linear system in the variables
@@ -76,12 +74,6 @@ $rule apply(cr->sumDiagonal<-dqdotdQr)[Loci::Summation],
 }
 
 // Compute matrix diagonal term
-// Note that while it would be tempting to put the vol/deltaT term in the
-// unit rule of the sumDiagonal reduction and eliminate this second rule, it
-// would be incorrect.  The unit rule of a reduction must assign the identity
-// of the operator (Summation), and vol/deltaT is generally not the identity
-// of the summation operator.  Thus we have to assemble the diagonal term
-// using a two step process, reduction to get sumDiagonal first.
 $rule pointwise(heat_D<-sumDiagonal,deltaT,vol) {
   $heat_D = $vol/$deltaT - $sumDiagonal ; 
 }
