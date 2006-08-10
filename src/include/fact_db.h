@@ -6,12 +6,16 @@
 #endif
 #include <Config/conf.h>
 
+#include <Tools/except.h>
 
 #include <string>
 #include <map>
 #include <vector>
 #include <list>
+#include <iostream>
+#include <istream>
 #include <ostream>
+#include <fstream>
 #include <store_rep.h>
 #include <variable.h>
 #include <Map_rep.h>
@@ -276,7 +280,18 @@ namespace Loci {
     variableSet get_typed_variables() const ;
     std::ostream &write(std::ostream &s) const ;
     std::istream &read(std::istream &s) ;
+    void setupDefaults(const rule_db &rdb) ;
     std::istream& read_vars(std::istream& s, const rule_db& rdb) ;
+
+    void read_vars(std::string filename, const rule_db &rdb) {
+      std::ifstream ifile(filename.c_str(),std::ios::in) ;
+      if(ifile.fail()) {
+        std::string error = std::string("Can't open '") +filename + "'" ;
+        throw(StringError(error)) ;
+      }
+      read_vars(ifile,rdb) ;
+      ifile.close() ;
+    }
 
     /////////////////////////////////////////////////////////
     // support methods for extensional & intensional facts //

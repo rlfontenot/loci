@@ -17,7 +17,6 @@ $type area store<Loci::Area> ;
 $type vol store<Loci::real_t> ;
 $type grid_vol param<Loci::real_t> ;
 
-$type at store<Loci::real_t> ;
 $type mn store<Loci::vector3d<Loci::real_t> > ;
 $type ln store<Loci::vector3d<Loci::real_t> > ;
 
@@ -57,6 +56,6 @@ $type integrateFlux(X) store<Loci::real_t> ;
 
 $type petscScalarSolve(X) store<Loci::real_t> ;
 
-$type L2Norm(X,Y) param<Loci::real_t> ;
-$type L1Norm(X,Y) param<Loci::real_t> ;
-$type LinfNorm(X,Y) param<Loci::real_t> ;
+$type L2Norm(X) param<Loci::real_t> ;
+$type L1Norm(X) param<Loci::real_t> ;
+$type LinfNorm(X) param<Loci::real_t> ;

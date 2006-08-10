@@ -45,24 +45,33 @@ namespace Loci {
       return 0 ;
   }
     
+  inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var, fact_db &facts) {
+
+    redistribute_write_container(file_id,vname,var,facts) ;
+  }
+  inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet, fact_db &facts) {
+    read_container_redistribute(file_id,vname,var,readSet, facts) ;
+  }
 
   inline void writeContainer(hid_t file_id,std::string vname, Loci::storeRepP var) {
     if(Loci::exec_current_fact_db == 0) {
-      fact_db facts ;// Hack!!
-      redistribute_write_container(file_id,vname,var,facts) ;
+      std::cerr << "Loci::writeContainer()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
     } else
       redistribute_write_container(file_id,vname,var,
                                    *Loci::exec_current_fact_db) ;
   }
   inline void readContainer(hid_t file_id, std::string vname, Loci::storeRepP var, entitySet readSet) {
     if(Loci::exec_current_fact_db == 0) {
-      fact_db facts ; // Hack!!
-      read_container_redistribute(file_id,vname,var,readSet,facts) ;
+      std::cerr << "Loci::readContainer()" ;
+      std::cerr << "this routine needs a fact database argument when called outside of a rule!" << endl ;
+      Loci::Abort() ;
     } else
       read_container_redistribute(file_id,vname,var,readSet,
                                   *Loci::exec_current_fact_db) ;
   }
-
+  
                              
 }
 

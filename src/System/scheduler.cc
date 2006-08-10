@@ -1088,6 +1088,7 @@ namespace Loci {
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
+    facts.setupDefaults(rdb) ;
     double t1 = MPI_Wtime() ;
     
   try {
@@ -1124,8 +1125,9 @@ namespace Loci {
     // back into the global fact_db
     fact_db local_facts(facts) ;
     executeP schedule = create_execution_schedule(rdb,local_facts,target) ;
-    if(schedule == 0)
-      return false ;
+    if(schedule == 0) 
+      throw StringError("makeQuery: query failed!") ;
+     
 
     // If a schedule was generated, execute it
     if(MPI_rank == 0)

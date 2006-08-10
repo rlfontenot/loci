@@ -697,16 +697,24 @@ namespace Loci {
     constraint no_symmetry_BC ;
 
     entitySet symmetry ;
-    
+
+    storeRepP tmp = facts.get_variable("boundary_names") ;
+    if(tmp == 0) 
+      throw(StringError("boundary_names not found in setupBoundaryConditions! Grid file read?")) ;
+      
     store<string> boundary_names ;
-    boundary_names = facts.get_variable("boundary_names") ;
+    boundary_names = tmp ;
     Map ref ;
     ref = facts.get_variable("ref") ;
     entitySet dom = boundary_names.domain() ;
     dom = all_collect_entitySet(dom) ;
     
     param<options_list> bc_info ;
-    bc_info = facts.get_variable("boundary_conditions") ;
+    tmp = facts.get_variable("boundary_conditions") ;
+    if(tmp == 0)
+      throw(StringError("boundary_conditions not found in setupBoundaryConditions! Is vars file read?")) ;
+    bc_info = tmp ;
+    
     param<real_t> Lref ;
     *Lref = 1.0 ;
     storeRepP p = facts.get_variable("Lref") ;
