@@ -2294,7 +2294,7 @@ $rule pointwise(temperature<-Q,Density,Cp), constraint(geom_cells) {
   $temperature = $Q/($Density*$Cp) ;
 }
 \end{verbatim}
-In addition to the temperature, we also needed the tranformational
+In addition to the temperature, we also needed the transformational
 derivative $\frac{\partial T}{\partial Q}$ in order to compute the
 system matrix.  This is provided by the following rule:
 \begin{verbatim}
@@ -2318,13 +2318,13 @@ by creating a variable that computes a special variable called {\tt
 automatically requested in all iteration loops.  If the variables that
 are input to the rule are being evaluated in the iteration, then this
 rule will be executed.  For example, suppose that we wish to display
-the steady residual each timestep, then we could implement a rule such
+the steady residual each time-step, then we could implement a rule such
 as:
 \begin{verbatim}
-$rule singleton(OUTPUT<-L2Norm(qresidual,geom_cells),$n),
+$rule singleton(OUTPUT<-L2Norm(qresidual),$n),
   option(disable_threading) {
   if(Loci::MPI_rank==0) {
-    cout << "R" << $$n << ": " << $L2Norm(qresidual,geom_cells) << endl ;
+    cout << "R" << $$n << ": " << $L2Norm(qresidual) << endl ;
   }
 }
 \end{verbatim}
@@ -2332,23 +2332,22 @@ Lets note several important artifacts about this rule.  First note
 that the signature indicates that the result of the computation is a
 variable called {\tt OUTPUT} which indicates that the main purpose of
 this rule will be to have some effect on the outside world. The rule
-is inputing the variable {\tt L2Norm(qresidual,geom\_cells)} which
-results in the computation of the L2-norm of {\tt qresidual} for all entities
-that are in the constraint {\tt geom\_cells}... in other words the
-L2-norm of the steady state residual.  The rule also inputs the
-current timestep {\tt \$n} so that it can report it along with the
-residual output. Also note the conditional on {\tt Loci::MPI\_rank}
-equal to zero.  This conditional statement is there to prevent
-multiple outputs from each processor when running in parallel.  Also
-note the use of the option {\tt disable\_threading}.  This option
-tells Loci that this rule is sensitive to the order that computations
-occur, and to make sure not to do any optimziations that would cause
-the computation to be called multiple times.
+is inputing the variable {\tt L2Norm(qresidual)} which results in the
+computation of the volume integrated L2-norm of the steady state residual, {\tt qresidual}.  The
+rule also inputs the current time-step {\tt \$n} so that it can report
+it along with the residual output. Also note the conditional on {\tt
+  Loci::MPI\_rank} equal to zero.  This conditional statement is there
+to prevent multiple outputs from each processor when running in
+parallel.  Also note the use of the option {\tt disable\_threading}.
+This option tells Loci that this rule is sensitive to the order that
+computations occur, and to make sure not to do any optimizations that
+would cause the computation to be called multiple times.
 
 Now we can see how to print simple output to the screen, but how do we
 get a chance to make a plot of the simulated temperature field?  We
 can perform a similar operation by using Loci's built in facility to
-write containers (in parallel or serial) to a portable HDF5 file.  
+read/write containers (in parallel or serial) to a portable HDF5 file.
+An example of such a rule follows:
 
 \begin{verbatim}
 $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
@@ -2374,6 +2373,35 @@ $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
   Loci::hdf5CloseFile(file_id) ;
 } ;
 \end{verbatim}
+In this rule we output the special variable {\tt OUTPUT} which
+indicates that this rule will be executed if the inputs are being
+computed in the given iteration.  The rule inputs the parametric
+variable {\tt cell2node(temperature)} which will interpolate from the
+cell values of {\tt temperature} and the boundary face values {\tt
+  temperature\_f}.  We constrain the rule to apply to all entities that
+have a value for {\tt pos} (which are the nodes in the mesh), and we
+add the option {\tt disable\_threading} which makes sure that all
+processors will act on this rule in a synchronized and indivisible
+manner.  An important thing to note is the existence of the {\tt
+  prelude} keyword is indicating that we are describing activities
+that operate on the containers (usually as a prelude to computations),
+rather than the values contained within the containers.  We need this
+keyword because we are about to write the {\it containers} to a file.
+In the prelude, when we access a particular variable, we are not
+accessing the contents, but rather the container itself.  Thus, to
+access the value of the parameter {\tt plot\_modulo} we use the {\tt
+  *} operator ({\it e.g.} {\tt *\$plot\_modulo}.  In this particular
+case, we write the file out into the ``output'' directory with a name
+that is compatible with using the ``extract'' post processing
+utility.  We write the container out using the {\tt writeContainer}
+function, and note that we use the {\tt .Rep()} method to get the
+abstract representation of the container to pass to this routine.
+Finally, note that we have placed a conditional execution argument on
+this rule (conditional execution statements can be placed on collapse
+rules that end iterations or rules that output the variable {\tt
+  OUTPUT}).  This conditional statement is to allow us to only
+occasionally write out this file.  We provide a separate rule to
+compute the conditional variable ({\tt doPlot}) as implemented below:
 
 \begin{verbatim}
 // Compute when we want to make plot files
@@ -2384,21 +2412,69 @@ $rule singleton(doPlot<-$n,plot_freq) {
 }
 \end{verbatim}
 
+\section{Running the solver}
+
+The heat solver described can be used to solve the heat equation on
+general unstructured grids, and can exploit massively parallel
+distributed memory clusters.  The source code to a complete heat
+solver is provided in the {\tt heat} directory of the tutorial.  A
+test grid and vars file has been included in the directory for your
+experimentation.  To run the example case use the command
+\begin{verbatim}
+mpirun -np 1 ./heat test
+\end{verbatim}
+
+Note you can also look at the schedule that is generated by Loci using
+the {\tt --scheduleoutput} option.  The {--nochomp} option disables
+the chomping optimization which may make the schedule easier to
+understand.  For example to see the schedule generated by Loci run
+\begin{verbatim}
+mpirun -np 1 ./heat --scheduleoutput --nochomp test
+\end{verbatim}
+
+The heat solver will dump plot files into the {\tt output}
+subdirectory. A post-processing tool called {\tt extract} can be used
+to convert these files into a format that can be visualized by various
+visualization packages including {\it ensight}, {\it fieldview}, and
+{\it tecplot}.  For example to see the results of the simulation after
+10 iterations using ensight, one enters the command:
+\begin{verbatim}
+extract -en test 10 ntemperature
+\end{verbatim}
+This creates a directory {\tt ensight\_test} that contains an ensight case
+file for visualization of the solution results.  The argument
+ntemperature tells extract that you want to extract the nodal plot
+variable {\tt temperature} that is stored in the {\tt output
+  directory}.  Use {\tt extract -help} for more information.
+
+\chapter{Run Time Sized Vectors and Matricies}
+
+\chapter{Debugging Hints}
 
 %% Appendicies
 \appendix
 
 \chapter { Makefile Example}
 \label{chap:makefile}
+Compiling Loci programs is easy if you copy the make file from the
+heat example directory in the tutorial and adapt it to your
+application.  All that is needed is to edit {\tt LOCI\_BASE} to point
+to the directory where Loci is installed, let {\tt OBJS} point to a
+list of the object files that will be compiled into your final
+executable.  Finally, use the {\tt TARGET} variable to set the
+executable name.  The makefile is given as a reference on the
+following page.
+
 \include{Makefile_ex}
 
+\include {fvm}
 
-%\appendix{datatype}
 \include {datatype}
+
 %\appendix{io}
 %\include {io}
 
-\include{module}
+%\include{module}
 %\include{third_party}
 
 

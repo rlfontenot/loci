@@ -17,9 +17,9 @@ tutorial.pdf: main.dvi
 main.dvi: ${TEX_FILES} ${SOURCE_FILES}
 	latex main; latex main
 
-Makefile_ex.tex: ../1D-Diffusion/Makefile
+Makefile_ex.tex: ../heat/Makefile
 	cat begin.tex > Makefile_ex.tex
-	cat ../1D-Diffusion/Makefile >> Makefile_ex.tex
+	cat ../heat/Makefile >> Makefile_ex.tex
 	echo '\end{verbatim}' >> Makefile_ex.tex
 
 entities_cc.tex: ../Datatypes/entities.cc
