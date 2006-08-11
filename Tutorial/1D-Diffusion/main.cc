@@ -127,12 +127,8 @@ int main(int argc, char *argv[])
   //-----------------------------------------------------------------
   fact_db facts ;
 
-  ifstream ifile("heat.vars",ios::in) ;
-  if(ifile.fail()) {
-    cerr << "can't open 'heat.vars'" << endl ;
-    exit(-1) ;
-  }
-  facts.read_vars(ifile,rdb) ;
+  string varsFile = "heat.vars" ;
+  facts.read_vars(varsFile,rdb) ;
   
   param<int> Nin ;
   Nin = facts.get_variable("N") ;
