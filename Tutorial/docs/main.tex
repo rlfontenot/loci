@@ -947,12 +947,8 @@ example, we read in the user provided values from a file called {\tt
   heat.vars} in the file {\tt main.cc} with the following code:
 
 \begin{verbatim}
-  ifstream ifile("heat.vars",ios::in) ;
-  if(ifile.fail()) {
-    cerr << "can't open 'heat.vars'" << endl ;
-    exit(-1) ;
-  }
-  facts.read_vars(ifile,rdb) ;
+  string varsFile = "heat.vars" ;
+  facts.read_vars(varsFile,rdb) ;
 \end{verbatim}
 
 The user provided vars file consists of a braces delimited list of
@@ -1735,8 +1731,8 @@ example, we can read the mesh file {\tt heat.xdr} with the following
 code:
 \begin{verbatim}
   // First read in user defined facts
-  ifstream ifile("heat.vars",ios::in) ;
-  facts.read_vars(ifile,rdb) ;
+  string varsFile = "heat.vars" ;
+  facts.read_vars(varsFile,rdb) ;
 
   // Next read in the grid file
   string file = "heat.xdr"
@@ -2017,11 +2013,22 @@ next section.
 
 \section{Assembling the matrix}
 
-Before describing the assembly of the matrix, lets first begin with the computation of derivatives of the face fluxes with respect to the variables at each side.  However, to properly describe the matrix, we will need to have some idea of how the gradient function is implemented.  For the purpose of assembling the Jacobian, we will use the following approximation of the flux function, which will be a reasonable approximation for most grids of reasonable quality.  Note the flux function is expressed as
+Before describing the assembly of the matrix, lets first begin with
+the computation of derivatives of the face fluxes with respect to the
+variables at each side.  However, to properly describe the matrix, we
+will need to have some idea of how the gradient function is
+implemented.  For the purpose of assembling the Jacobian, we will use
+the following approximation of the flux function, which will be a
+reasonable approximation for most grids of reasonable quality.  Note
+the flux function is expressed as
 \begin{equation}
 \dot{q} = \mathcal{A}_f k \left( \nabla T_f \cdot \vec{n}_f\right) \approx \mathcal{A}_f k \left(\frac{T_l-T_r}{(\vec{x}_l-\vec{x}_r)\cdot \vec{n}_f}\right),
 \end{equation}
-where $T_l$, $x_l$, $T_r$, and $x_r$ are the temperatures and cell centroids of the left and right side of the face respectively.  Given this, we can then determine the derivatives of this flux with respect to the left and right conservative variable values.  Thus we arrive at the following derivatives:
+where $T_l$, $x_l$, $T_r$, and $x_r$ are the temperatures and cell
+centroids of the left and right side of the face respectively.  Given
+this, we can then determine the derivatives of this flux with respect
+to the left and right conservative variable values.  Thus we arrive at
+the following derivatives:
 \begin{equation}
 \frac{\partial \dot{q}}{\partial Q_l} = \frac{\partial \dot{q}}{\partial T_l} \frac{\partial T_l}{\partial Q_l} = \frac{\mathcal{A}_f k }{(\vec{x}_l-\vec{x}_r)\cdot \vec{n}_f}\frac{\partial T_l}{\partial Q_l},
 \end{equation}
@@ -2333,15 +2340,16 @@ that the signature indicates that the result of the computation is a
 variable called {\tt OUTPUT} which indicates that the main purpose of
 this rule will be to have some effect on the outside world. The rule
 is inputing the variable {\tt L2Norm(qresidual)} which results in the
-computation of the volume integrated L2-norm of the steady state residual, {\tt qresidual}.  The
-rule also inputs the current time-step {\tt \$n} so that it can report
-it along with the residual output. Also note the conditional on {\tt
-  Loci::MPI\_rank} equal to zero.  This conditional statement is there
-to prevent multiple outputs from each processor when running in
-parallel.  Also note the use of the option {\tt disable\_threading}.
-This option tells Loci that this rule is sensitive to the order that
-computations occur, and to make sure not to do any optimizations that
-would cause the computation to be called multiple times.
+computation of the volume integrated L2-norm of the steady state
+residual, {\tt qresidual}.  The rule also inputs the current time-step
+{\tt \$n} so that it can report it along with the residual output.
+Also note the conditional on {\tt Loci::MPI\_rank} equal to zero.
+This conditional statement is there to prevent multiple outputs from
+each processor when running in parallel.  Also note the use of the
+option {\tt disable\_threading}.  This option tells Loci that this
+rule is sensitive to the order that computations occur, and to make
+sure not to do any optimizations that would cause the computation to
+be called multiple times.
 
 Now we can see how to print simple output to the screen, but how do we
 get a chance to make a plot of the simulated temperature field?  We
@@ -2447,9 +2455,129 @@ ntemperature tells extract that you want to extract the nodal plot
 variable {\tt temperature} that is stored in the {\tt output
   directory}.  Use {\tt extract -help} for more information.
 
-\chapter{Run Time Sized Vectors and Matricies}
+\chapter{Using storeVec and storeMat}
+
+Loci provides facilities for having vectors and matricies that have a
+size that is not known until the program executes.  This facility
+would be used, for example, when the number of chemical species is not
+known until specified by the user, or other applications where the
+size of inforation stored at each entity could be specified by user
+input.  For these applications we have the containers {\tt storeVec}
+and {\tt storeMat}.  These containers have a method {\tt setVecSize()}
+that must be called before values are written to the container.
+Generally this method will be required for pointwise and unit rules
+that are responsible for creating {\tt storeVec} or {\tt storeMat}
+containers.  Below is an example of a rule that computes a {\tt storeVec}:
+\begin{verbatim}
+  $type Ivec storeVec<double> ;
+  $type numBands param<int> ;
+  $type Omegas param<vector<double> > ;
+
+  $rule pointwise(Ivec{n=0}<-numBands,Omegas),constraint(geom_cells),
+    prelude {
+    $Ivec{n=0}.setVecSize(*$numBands*(*$Omegas).size()) ;
+  } compute {
+    $Ivec{n=0} = mk_Scalar(0) ;
+  }
+\end{verbatim}
+Note that this code includes a {\tt prelude} block and a {\tt compute}
+block.  The prelude block operates on the containers and is executed
+before the compute block.  The compute block describes, like most Loci
+rules, what to do for each entity that satisfies the rule signature.
+In other words, the {\tt compute} block operates on values, while the
+{\tt prelude} block operates on the containers.
+
+The {\tt storeVec} container creates array of values for each entity.
+In general you can assign or ues the {\tt +=}, {\tt-=}, {\tt \*=}, or
+{\tt /=} operators with these arrays.  The {\tt mk\_Scalar()} function in
+the above code converts a scalar value to a vector with the same
+scalar value repeated for each entity.  These operators facilitate a
+straightforward approach to operating on arrays and matricies.
+However, it is also perfectly acceptable to operate on the individual
+vector entries using the array operator, ({\tt []}), such as
+demonstrated with a rewrite of the above rule shown below:
+\begin{verbatim}
+  // An equivalent variation of the above code
+  $rule pointwise(Ivec{n=0}<-numBands,Omegas),constraint(geom_cells),
+    prelude {
+    $Ivec{n=0}.setVecSize(*$numBands*(*$Omegas).size()) ;
+  } compute {
+    const int vs = $numBands*$Omegas.size() ;
+    for(int i=0;i<vs;++i) // Loop over vector and set each entry to zero
+      $Ivec{n=0}[i] = 0 ;
+  }
+\end{verbatim}
+
 
 \chapter{Debugging Hints}
+
+Debugging techniques for Loci programming is both similar to and
+different from standard programming methods.  First you can use
+debuggers such as {\tt gdb} on Loci programs, although you may want to
+edit the Makefile to include a line to enable the debugging option and
+recompile.  The line you will add is given as:
+\begin{verbatim}
+COPT = -g
+\end{verbatim}
+In addition, after {\tt Loci::Initialize()} you can call the function
+{\tt set\_fpe\_abort()} which will cause floating point exceptions to
+abort the program.  In addition, for parallel programs, you can get
+Loci to automatically create terminal windows with debuggers running
+on any processes that aborted if you call the program with the
+following options:
+\begin{verbatim}
+heat --display $DISPLAY --debug gdb test
+\end{verbatim}
+
+In Loci programs, you frequently need to understand why a rule isn't
+being included in a schedule, or why a schedule is not being formed.
+There are several techniques that are useful for figuring out what is
+going on in the Loci schedule.  Probably the most useful file in this
+regard is the files dumped into the {\tt debug/} directory.  These
+files contain descriptions of rules that were removed from the
+schedule with an explanation of why ({e.g.} what information was
+missing that made it impossible to execute that rule).  This is often
+very useful in determining what is going on.  In addition, it is
+usually helpful to examine the schedule files created when using the
+option {\tt --scheduleoutput}.  Usually this is more useful when
+combined with the {\tt --nochomp} option that disables some
+optimizations that may make the schedule hard to read.  Usually
+inspections of the schedule are targeted in that we are looking for a
+particular rule, when it is executed and over what entities.
+
+In addition to the above techniques, there are several ways that we
+can use the Loci scheduler to help identify problems.  The first is to
+use constraints.  If a rule is being used in a schedule, but not over
+the entities expected, it can be useful to temporarily add a
+constraint to force the rule to be executed over a particular set of
+entitites.  For example, if a value should be available for all faces,
+adding {\tt constraint(area)} will force Loci to tell you what
+variables kept the rule from satisfying the constraint.  However, in
+general it is a good idea to use constraints in a limited fashion, as
+in the end a constraint limits the way in which a rule might be used.
+So, once the debugging is finished it is a good idea to remove any
+unnecessary constraints. 
+
+Another approach is to add dummy rules to shortcut part of the
+computations.  For example, in the heat solver if we are wondering why
+the advance rule isn't being called, we could add rules that we know
+can be scheduled to fill in part of the code.  For example, we could
+shortcircuit the {\tt deltaQ} computation with the rule:
+\begin{verbatim}
+$rule pointwise(deltaQ<-Q) {
+// Dummy rule to check for schedule consistency
+} 
+\end{verbatim}
+If Loci is able to generate a reasonable schedule, you can then change
+the inputs to the rule to discover where the computations were having
+trouble.  For example changing the rule to the following would check
+to see that we were able to derive the variable {\tt heat\_B}:
+\begin{verbatim}
+$rule pointwise(deltaQ<-heat_B) {
+// Dummy rule to check for schedule consistency
+} 
+\end{verbatim}
+
 
 %% Appendicies
 \appendix

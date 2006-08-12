@@ -1,0 +1,92 @@
+\chapter{The {\tt fvm} Module Services}
+
+\section{Grid Metrics}
+
+\begin{center}
+\begin{tabular}[h]{|l|l|}
+\hline
+{\tt cellcenter} & Cell Centroid\\
+{\tt vol} & Cell Volume\\
+{\tt facecenter} & Face Centroid\\
+{\tt area} & Face Area and Normal\\
+{\tt grid\_vol} & Total Grid Volume\\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Spatial Gradients}
+
+\begin{center}
+\begin{tabular}[h]{|l|l|}
+\hline
+{\tt grads(X)} & Scalar Gradient at Cell \\
+{\tt gradv(X)} & Vector (array) Gradient at Cell\\
+{\tt gradv3d(X)} & 3-D Vector Gradient at Cell\\
+{\tt grads\_f(X)} & Scalar Gradient at Face\\
+{\tt gradv\_f(X)} & Vector (array) Gradient at Face\\
+{\tt gradv3d\_f(X)} & 3-D Vector Gradient at Face\\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Face Extrapolations}
+
+\begin{center}
+\begin{tabular}[h]{|l|l|}
+\hline
+{\tt lefts(X)} & Scalar Extrapolation to Face Left Side \\
+{\tt rights(X)} & Scalar Extrapolation to Face Right Side \\
+{\tt leftsP(X,M)} & Bounded Scalar Extrapolation to Face Left Side \\
+{\tt rightsP(X,M)} & Bounded Scalar Extrapolation to Face Right Side \\
+{\tt leftvM(X)} & Mixture Extrapolation to Face Left Side \\
+{\tt rightvM(X)} & Mixture Extrapolation to Face Right Side \\
+{\tt leftv3d(X)} & 3-D vector Extrapolation to Face Left Side \\
+{\tt rightv3d(X)} & 3-D vector Extrapolation to Face Right Side \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Nodal Interpolations}
+
+\begin{center}
+\begin{tabular}[h]{|l|l|}
+\hline
+{\tt cell2node(X)} & interpolate scalar to mesh nodes \\
+{\tt cell2node\_v(X)} & interpolate vector to mesh nodes \\
+{\tt cell2node\_v3d(X)} & interpolate 3-D vector to mesh nodes \\
+{\tt cell2nodeMax(X)} & mesh nodes get maximum neighbor value \\
+{\tt cell2nodeMin(X)} & mesh nodes get minimum neighbor value \\
+{\tt cell2nodeMaxMag(X)} & mesh nodes get maximum magnitude neighbor value \\
+{\tt cell2nodeMaxv3d(X)} & Maximum neighboring 3d value \\
+\hline
+\end{tabular}
+\end{center}
+
+
+%\section{Surface Integrations}
+
+
+\section{Linear System Solvers}
+
+\begin{center}
+\begin{tabular}[h]{|l|l|}
+\hline
+{\tt petscScalarSolve(X) } & solve linear system one dof per cell \\
+{\tt petscBlockedSolve(X) } & solve linear system with many dof per cell (double input)\\
+{\tt petscBlockedSSolve(X) } & solve linear system with many dof per cell (float input)\\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Basic Norms}
+
+\begin{center}
+\begin{tabular}[h]{|l|l|}
+\hline
+{\tt L1Norm(X)} & Volume Integrated L1-norm \\
+{\tt L2Norm(X)} & Volume Integrated L2-norm \\
+{\tt LinfNorm(X)} & Infinity Norm \\
+\hline
+\end{tabular}
+\end{center}
+
