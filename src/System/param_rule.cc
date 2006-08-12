@@ -97,7 +97,7 @@ namespace Loci {
     variableSet target = r.targets() ;
     variable vt ;
     rule_implP rp = r.get_rule_implP() ;
-    fatal(rp == 0) ;
+    FATAL(rp == 0) ;
     if(rp->is_parametric_provided()) {
       vt = rp->get_parametric_variable() ;
     } else {

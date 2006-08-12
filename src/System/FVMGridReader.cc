@@ -1142,10 +1142,10 @@ namespace Loci {
     cr = facts.get_fact("cr") ;
     entitySet bdom = boundary_names.domain() ;
     Loci::debugout << "boundary_names = " << boundary_names << endl ;
-#define DEBUG
+    //#define DEBUG
 #ifdef DEBUG
     entitySet bdom2 = all_collect_entitySet(bdom,facts) ;
-    fatal(bdom2 != bdom) ;
+    FATAL(bdom2 != bdom) ;
 #endif
     int ndom = bdom.size() ;
     int nloc = ndom/Loci::MPI_processes ;
@@ -1155,7 +1155,7 @@ namespace Loci {
     pair<entitySet,entitySet> alloc = facts.get_distributed_alloc(nloc) ;
     store<string> bn2 ;
     bn2.allocate(alloc.second) ;
-    fatal(bdom.size() != alloc.second.size()) ;
+    FATAL(bdom.size() != alloc.second.size()) ;
     Map mp ;
     mp.allocate(bdom) ;
     entitySet::const_iterator i1 = bdom.begin() ;
