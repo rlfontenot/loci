@@ -55,6 +55,8 @@ $type integrateSurface(X) store<Loci::real_t> ;
 $type integrateFlux(X) store<Loci::real_t> ;
 
 $type petscScalarSolve(X) store<Loci::real_t> ;
+$type petscBlockedSolve(X) store<Loci::real_t> ;
+$type petscBlockedSSolve(X) store<Loci::real_t> ;
 
 $type L2Norm(X) param<Loci::real_t> ;
 $type L1Norm(X) param<Loci::real_t> ;
