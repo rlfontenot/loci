@@ -26,218 +26,6 @@ using std::sort ;
 
 namespace Loci {
   
-  // This routine does a generalized partitioning of the entities in
-  // the fact database and returns the partition. 
-  vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions) {
-    if(num_partitions == 0)
-      num_partitions = MPI_processes ;
-    vector<entitySet> ptn ;
-    if(num_partitions == 1)
-      return ptn ;
-    
-    debugout << "Synchronising before metis_facts" << endl ;
-    double start = MPI_Wtime() ;
-
-    metis_facts(facts,ptn,num_partitions) ;
-
-    double end_time  = MPI_Wtime() ;
-    debugout << "Time taken for metis_facts = " << end_time -start << endl ;
-    fact_db::distribute_infoP df;
-    if(!facts.is_distributed_start()) {
-       df = new fact_db::distribute_info  ;
-       facts.put_distribute_info(df) ;
-    }
-    facts.put_init_ptn(ptn) ;
-    return ptn ;
-  }
-
-  void  distribute_facts(vector<entitySet> &ptn, fact_db &facts, rule_db &rdb) {
-    if(ptn.size() == 0)
-      return ;
-    
-    vector<vector<entitySet> > get_entities(MPI_processes) ;
-    double start = MPI_Wtime() ;
-    set<vector<variableSet> > maps ;
-    get_mappings(rdb,facts,maps) ;
-    double end_time  = MPI_Wtime() ;
-    debugout << "Time taken for get_mappings =   = " << end_time -start << endl ; 
-    start = MPI_Wtime() ;
-    int num_procs = MPI_processes ;
-    vector<entitySet> copy(num_procs) ;
-    vector<entitySet> image(num_procs) ;
-    entitySet tmp ;
-    for(int pnum = 0; pnum < num_procs; pnum++) {
-      image[pnum] = expand_map(ptn[pnum], facts, maps) ;
-      // The clone region is obtained here 
-      copy[pnum] = image[pnum] - ptn[pnum] ;
-      if(pnum != MPI_rank)
-	tmp += copy[pnum] ;
-      for(int i = 0; i < num_procs; ++i) {
-	// The information abt the clone region is found out here.  
-	entitySet slice = copy[pnum] & ptn[i] ;
-	get_entities[pnum].push_back(slice) ;
-      }
-      //The diagonal elements of the 2D vector (get_entities) contains
-      //my_entities. 
-      get_entities[pnum][pnum] = ptn[pnum] ;
-    }
-    end_time  = MPI_Wtime() ;
-    debugout << "Time taken for all the calls to expand_map is =   = " << end_time-start << endl ; 
-    start = MPI_Wtime() ;
-    int myid = MPI_rank ;
-    int size = 0 ;
-    fact_db::distribute_infoP df = facts.get_distribute_info()  ;
-    Map l2g ;
-    constraint my_entities ;
-    int isDistributed ;
-    vector<entitySet> iv ;
-    entitySet::const_iterator ei, ti ;
-    vector<entitySet> proc_entities ;
-    categories(facts,iv) ;
-    debugout << " initial categories.size() = " << iv.size() << endl ;
-    entitySet e ;
-#ifdef DEBUG
-    //debugout << "categories size = " << iv.size()
-    //                 << " {" << endl ;
-    //for(int i = 0; i < iv.size(); ++i) 
-    //debugout << iv[i] << endl ;
-    
-    //debugout << "}" << endl ;
-#endif
-    for(size_t i = 0; i < iv.size(); ++i) {
-      // Within each category:
-      // 1) Number local processor entities first
-      e = get_entities[myid][myid] & iv[i] ; 
-      if(e != EMPTY){
-	proc_entities.push_back(e) ;
-	size += e.size() ;
-      }
-      // 2) Number clone region entities next
-      for(int j = 0; j < num_procs; ++j) 
-        if(myid != j) {
-          e = get_entities[myid][j] & iv[i];
-          if(e != EMPTY) {
-            proc_entities.push_back(e) ;
-            size += e.size() ;
-          }
-        }
-    }
-    
-    entitySet g ;
-    
-#ifdef UNITY_MAPPING
-    for(int i=0;i<proc_entities.size();++i)
-      g+= proc_entities[i] ;
-    l2g.allocate(g) ;
-    for(entitySet::const_iterator ei=g.begin();ei!=g.end();++ei)
-      l2g[*ei] = *ei ;
-#else
-    int j = 0 ;
-    e = interval(0, size - 1) ;
-    l2g.allocate(e) ;
-    for(size_t i = 0; i < proc_entities.size(); ++i) {
-      g += proc_entities[i] ;
-      for(ei = proc_entities[i].begin(); ei != proc_entities[i].end(); ++ei ) {
-	l2g[j] = *ei ;
-	++j ;
-      }
-    }
-#endif
-    df->l2g = l2g.Rep() ;
-    df->g2l.allocate(g) ;
-    entitySet ldom = l2g.domain() ;
-    for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {
-      df->g2l[l2g[*ei]] = *ei ;
-    }
-    entitySet send_neighbour ;
-    entitySet recv_neighbour ;
-    store<entitySet> send_entities ;
-    store<entitySet> recv_entities ;
-    
-    for(int i = 0 ; i < num_procs; ++i) 
-      if(myid != i )
-	if(get_entities[myid][i] != EMPTY) 
-	  recv_neighbour += i ; 
-    
-    for(int i = 0; i < num_procs; ++i)
-      if(myid != i)
-	if(get_entities[i][myid] != EMPTY)
-	  send_neighbour += i ;
-    
-
-    send_entities.allocate(send_neighbour) ;
-    recv_entities.allocate(recv_neighbour) ;
-
-    entitySet recv, send ;
-    for(ei = recv_neighbour.begin(); ei != recv_neighbour.end(); ++ei) {
-      for(ti =  get_entities[myid][*ei].begin(); ti != get_entities[myid][*ei].end(); ++ti)
-	recv_entities[*ei] += df->g2l[*ti] ;
-      recv += recv_entities[*ei] ;
-    }
-    for(ei = send_neighbour.begin(); ei!= send_neighbour.end(); ++ei) {
-      for(ti =  get_entities[*ei][myid].begin(); ti != get_entities[*ei][myid].end(); ++ti)
-	send_entities[*ei] +=  df->g2l[*ti] ;
-      send += send_entities[*ei] ;
-    }
-    end_time =  MPI_Wtime() ;
-    debugout << "  Time taken for creating intitial info =  " << end_time - start << endl ;
-    //debugout << "g2l = " << df->g2l << endl ;
-    start = MPI_Wtime() ;
-    reorder_facts(facts, df->g2l) ;
-    end_time =  MPI_Wtime() ;
-    debugout << "  Time taken for reordering =  " << end_time - start << endl ; 
-    start = MPI_Wtime() ;
-    isDistributed = 1 ;
-    df->isDistributed = isDistributed ;
-    g = EMPTY ;
-    for(ei = get_entities[myid][myid].begin(); ei != get_entities[myid][myid].end(); ++ei)
-      g += df->g2l[*ei] ;
-    my_entities = g ;
-    df->myid = myid ;
-    df->my_entities = g ;
-#ifdef DEBUG
-    // debugout << "my_entities = " << g << endl ;
-#endif
-    /*xmit data structure contains the information as to what
-      entities are to be send to what processor . The copy data
-      structure contains the entities that are to be received from a
-      particular processor(information regarding the clone region
-      entities). All the entities are stored in their local
-      numbering. A local to global numbering l2g  is provided to send the
-      entities in their original global numbering.*/ 
-    for(ei=send_neighbour.begin(); ei != send_neighbour.end();++ei)
-      df->xmit.push_back
-        (fact_db::distribute_info::dist_data(*ei,send_entities[*ei])) ;
-    for(ei=recv_neighbour.begin(); ei != recv_neighbour.end();++ei)
-      df->copy.push_back
-        (fact_db::distribute_info::dist_data(*ei,recv_entities[*ei])) ;
-
-    
-    int total = 0 ;
-    for(size_t i=0;i<df->xmit.size();++i)
-      total += df->xmit[i].size ;
-    df->xmit_total_size = total ;
-    
-    total = 0 ;
-    for(size_t i=0;i<df->copy.size();++i)
-      total += df->copy[i].size ;
-    df->copy_total_size = total ;
-    
-    
-    facts.put_distribute_info(df) ;
-    // this needs to be an intensional fact
-    facts.create_intensional_fact("l2g", l2g) ;
-    facts.put_l2g(l2g) ;
-    facts.create_intensional_fact("my_entities", my_entities) ;
-    end_time =  MPI_Wtime() ;
-    debugout << "  Time taken for creating final info =  " << end_time - start << endl ;
-  }
-  
-  /* This is a routine used for outputting the final result. Each
-     processor send its entitySet (in the global numbering ) to
-     processor 0.Processor 0 collects all the entitySet(including its
-     local one )  and returns an entitySet in global
-     numbering. */ 
   entitySet collect_entitySet(entitySet e, fact_db &facts) {
     if(!facts.isDistributed())
       return e ;
@@ -328,6 +116,121 @@ namespace Loci {
     return re ;
   }      
 
+  using std::vector ;
+  void fill_clone( storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
+
+    vector<entitySet> recv_req(MPI_processes) ;
+    for(int i=0;i<MPI_processes;++i)
+      if(i!=MPI_rank) 
+        recv_req[i] = out_of_dom & init_ptn[i] ;
+
+    // send the recieve requests
+    int *recv_count = new int[ MPI_processes] ;
+    int *send_count = new int[ MPI_processes] ;
+    int *send_displacement = new int[ MPI_processes] ;
+    int *recv_displacement = new int[ MPI_processes] ;
+    for(int i=0;i<MPI_processes;++i)
+      send_count[i] = recv_req[i].num_intervals() * 2 ;
+    MPI_Alltoall(send_count,1,MPI_INT, recv_count, 1, MPI_INT,MPI_COMM_WORLD) ;
+
+    
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i=1;i<MPI_processes;++i) {
+      send_displacement[i] = send_displacement[i-1]+send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1]+recv_count[i-1] ;
+    }
+    int mp = MPI_processes-1 ;
+    int send_sizes = send_displacement[mp]+send_count[mp] ;
+    int recv_sizes = recv_displacement[mp]+recv_count[mp] ;
+    int * send_set_buf = new int[send_sizes] ;
+    int * recv_set_buf = new int[recv_sizes] ;
+    for(int i=0;i<MPI_processes;++i) {
+      for(int j=0;j<recv_req[i].num_intervals();++j) {
+        send_set_buf[send_displacement[i]+j*2  ] = recv_req[i][j].first ;
+        send_set_buf[send_displacement[i]+j*2+1] = recv_req[i][j].second ;
+      }
+    }
+
+    MPI_Alltoallv(send_set_buf, send_count, send_displacement , MPI_INT,
+		  recv_set_buf, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;
+
+    vector<entitySet> send_set(MPI_processes) ;
+    for(int i=0;i<MPI_processes;++i) {
+      for(int j=0;j<recv_count[i]/2;++j) {
+        int i1 = recv_set_buf[recv_displacement[i]+j*2  ] ;
+        int i2 = recv_set_buf[recv_displacement[i]+j*2+1] ;
+        send_set[i] += interval(i1,i2) ;
+      }
+    }
+    delete[] recv_set_buf ;
+    delete[] send_set_buf ;
+    
+#ifdef DEBUG
+    // Sanity check, no send set should be outside of entities we own
+    entitySet mydom = init_ptn[MPI_rank] ;
+    for(int i=0;i<MPI_processes;++i) {
+      if((send_set[i] & mydom) != send_set[i]) {
+        cerr << "problem with partitioning in fill_clone!" ;
+        debugout << "send_set["<< i << "] = " << send_set[i]
+                 << "not owned = " << (send_set[i]-mydom) << endl ;
+      }
+    }
+#endif
+    
+    // Now that we know what we are sending and receiving (from recv_req and
+    // send_set) we can communicate the actual information...
+
+    // Compute sizes of sending buffers
+    for(int i=0;i<MPI_processes;++i) 
+      send_count[i] =  sp->pack_size(send_set[i]) ;
+
+    // Get sizes needed for receiving buffers
+    MPI_Alltoall(send_count,1,MPI_INT, recv_count, 1, MPI_INT,MPI_COMM_WORLD) ;
+
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i=1;i<MPI_processes;++i) {
+      send_displacement[i] = send_displacement[i-1]+send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1]+recv_count[i-1] ;
+    }
+
+    send_sizes = send_displacement[mp]+send_count[mp] ;
+    recv_sizes = recv_displacement[mp]+recv_count[mp] ;
+
+    unsigned char *send_store = new unsigned char[send_sizes] ;
+    unsigned char *recv_store = new unsigned char[recv_sizes] ;
+
+    for(int i=0;i<send_sizes;++i)
+      send_store[i] = 0 ;
+    
+
+    for(int i = 0; i <  MPI_processes; ++i) {
+      int loc_pack = 0 ;
+      sp->pack(&send_store[send_displacement[i]], loc_pack, send_count[i],
+               send_set[i]) ;
+    }
+    
+    MPI_Alltoallv(send_store, send_count, send_displacement, MPI_PACKED,
+		  recv_store, recv_count, recv_displacement, MPI_PACKED,
+		  MPI_COMM_WORLD) ;
+
+    for(int i = 0; i <  MPI_processes; ++i) {
+      int loc_pack = 0 ;
+      sp->unpack(&recv_store[recv_displacement[i]], loc_pack,recv_count[i],
+                 sequence(recv_req[i])) ; 
+    }
+    delete[] recv_store ;
+    delete[] send_store ;
+
+    delete[] recv_count ;
+    delete[] send_count ;
+    delete[] send_displacement ;
+    delete[] recv_displacement ;
+  }
+    
+#ifdef OLD_CODE
   void fill_clone( storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
@@ -424,6 +327,7 @@ namespace Loci {
     delete [] send_displacement ;
     delete [] recv_displacement ;
   }
+#endif
   
   storeRepP send_clone_non( storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     int *recv_count = new int[ MPI_processes] ;
@@ -627,6 +531,11 @@ namespace Loci {
     return tmp_sp ;
   }
 
+  // This only used by the code for the min2noslip computation!  Is it really
+  // needed?
+#define MINNOSLIP
+#ifdef MINNOSLIP
+  
   dMap send_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
@@ -735,7 +644,7 @@ namespace Loci {
     delete [] recv_displacement ;
     return tmp_dm ;
   }
-
+  
   std::vector<dMap> send_global_map(Map &dm, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     int *recv_count = new int[ MPI_processes] ;
     int *send_count = new int[ MPI_processes] ;
@@ -850,6 +759,7 @@ namespace Loci {
     delete [] recv_displacement ;
     return v_dm ;
   }
+#endif
   
   entitySet all_collect_entitySet(const entitySet &e) {
     entitySet collect ;

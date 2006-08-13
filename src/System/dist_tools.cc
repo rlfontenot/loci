@@ -260,6 +260,12 @@ namespace Loci {
     isDistributed = 1 ;
     df->isDistributed = isDistributed ;
     g = EMPTY ;
+#ifdef DEBUG
+    entitySet g2ldom = df->g2l.domain() ;
+    if(ptn[myid]-g2ldom != EMPTY) {
+      cerr << "problem with g2l " << ptn[myid]-g2ldom << endl ;
+    }
+#endif
     for(ei = ptn[myid].begin(); ei != ptn[myid].end(); ++ei)
       g += df->g2l[*ei] ;
     my_entities = g ;

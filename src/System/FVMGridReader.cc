@@ -36,7 +36,7 @@ extern "C" {
 namespace Loci {
 
   void memSpace(string s) {
-#define DIAG
+    //#define DIAG
 #ifdef DIAG
     struct mallinfo info = mallinfo() ;
     debugout << s << ": minfo, arena=" << info.arena
@@ -755,6 +755,7 @@ namespace Loci {
       fill_clone(PRep,dom,ptn_cells) ;
     }
     vector<entitySet> face_ptn(MPI_processes) ;
+    entitySet boundary_faces ; // Boundary between processors
     FORALL(faces,fc) {
       if(cl[fc]<0)
         face_ptn[P[cr[fc]]] += fc ;
@@ -762,11 +763,47 @@ namespace Loci {
         face_ptn[P[cl[fc]]] += fc ;
       else if(P[cl[fc]] == P[cr[fc]])
         face_ptn[P[cl[fc]]] += fc ;
-      else if((P[cl[fc]]%MPI_processes) > (P[cr[fc]]%MPI_processes))
-        face_ptn[P[cl[fc]]] += fc ;
       else
-        face_ptn[P[cr[fc]]] += fc ;
+        boundary_faces += fc ;
     } ENDFORALL ;
+
+
+    // Number of balancing steps.  In the balancing step, the faces that
+    // share proceessors are allocated by selected processors, then all
+    // processors share current face counts.
+    int STEPS = min(MPI_processes,7) ;
+    for(int s=0;s<STEPS;++s) {
+      
+      vector<int> curr_sizes(MPI_processes),tot_sizes(MPI_processes) ;
+      for(int i=0;i<MPI_processes;++i)
+        curr_sizes[i] = face_ptn[i].size() ;
+      
+      MPI_Allreduce(&curr_sizes[0],&tot_sizes[0],MPI_processes,MPI_INT,MPI_SUM,
+                    MPI_COMM_WORLD) ;
+
+      if(s == 0 && MPI_rank ==0) {
+        debugout << "fixed face sizes:" ;
+        for(int i=0;i<MPI_processes;++i)
+          debugout << ' ' << tot_sizes[i] ;
+        debugout << endl ;
+      }
+      //    debugout << "number of tossup faces = " << boundary_faces.size() << endl ;
+
+      if(MPI_rank%STEPS == s) { // My processors turn to assign faces
+        FORALL(boundary_faces,fc) {
+          int Pl = P[cl[fc]] ;
+          int Pr = P[cr[fc]] ;
+          if(tot_sizes[Pl] < tot_sizes[Pr]) {
+            tot_sizes[Pl]+=1 ;
+            face_ptn[Pl] += fc ;
+          } else {
+            tot_sizes[Pr]+=1 ;
+            face_ptn[Pr] += fc ;
+          }
+        } ENDFORALL ;
+      }
+    }
+    
     return face_ptn ;
   }
 
@@ -1039,10 +1076,14 @@ namespace Loci {
     
     entitySet cells = facts.get_distributed_alloc(cell_alloc).first ;
 
-    Loci::debugout << "nodes = " << nodes << endl;
-    Loci::debugout << "faces = " <<faces << endl ;
-    Loci::debugout << "cells = " << cells << endl ;
+    Loci::debugout << "nodes = " << nodes << ", size= "
+                   << nodes.size() << endl;
+    Loci::debugout << "faces = " << faces << ", size = "
+                   << faces.size() << endl ;
+    Loci::debugout << "cells = " << cells << ", size = "
+                   << cells.size() << endl ;
 
+    
     vector<std::pair<int, int> > boundary_update;
     FORALL(local_boundary_cells, li) {
       boundary_update.push_back(std::make_pair(li, li));
@@ -1085,6 +1126,7 @@ namespace Loci {
     if(Loci::MPI_rank == 0)
       Loci::debugout << endl ;
 
+#ifdef OLD
     memSpace("before init_ptn fixup") ;
     entitySet bset = boundary_cells ;
     int bsize = bset.size()/MPI_processes + 1 ;
@@ -1100,7 +1142,7 @@ namespace Loci {
     }
     facts.put_init_ptn(tmp_init_ptn);
     memSpace("after init_ptn fixup") ;
-
+#endif
     
     param<int> min_node ;
 
@@ -1340,8 +1382,6 @@ namespace Loci {
     faces = facts.get_variable("faces") ;
     interior_faces = facts.get_variable("interior_faces") ;
     entitySet total_dom = Loci::MapRepP(face2node.Rep())->image(*faces) + pos.domain() ;
-    entitySet out_of_dom = total_dom - pos.domain() ;
-    int tmp_out = out_of_dom.size() ;
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
     Loci::storeRepP pos_sp = pos.Rep() ;
     dstore<vector3d<real_t> > tmp_pos ;
@@ -1349,8 +1389,8 @@ namespace Loci {
       tmp_pos[pi] = pos[pi] ;
     } ENDFORALL ;
     Loci::storeRepP sp = tmp_pos.Rep() ;
-    if(GLOBAL_OR(tmp_out)) 
-      fill_clone(sp, out_of_dom, init_ptn) ;
+    if(MPI_processes > 1) 
+      fill_clone(sp, total_dom, init_ptn) ;
     entitySet face_dom = face2node.domain() ;
     fpos.allocate(face_dom) ;
     FORALL(face_dom,fc) {
@@ -1370,6 +1410,8 @@ namespace Loci {
     constraint geom_cells ;
     geom_cells = facts.get_variable("geom_cells") ;
     entitySet tmp_cells =  cl.image(*faces) | cr.image(*interior_faces) ;
+    // Add cells owned by this processor!
+    tmp_cells += (*geom_cells)& init_ptn[MPI_rank] ; 
     cpos.allocate(tmp_cells) ;
     cnum.allocate(tmp_cells) ;
     FORALL(tmp_cells,cc) {
