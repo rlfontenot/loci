@@ -18,12 +18,6 @@
 #include <fact_db.h>
 #include <store_rep.h>
 
-
-//#include <store.h>
-//#include <constraint.h>
-//#include <DMultiMap.h>
-
-
 namespace Loci {
 
   extern std::ofstream debugout ;
@@ -41,11 +35,6 @@ namespace Loci {
   
   storeRepP send_clone_non(storeRepP& sp, entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
   std::vector<storeRepP> send_global_clone_non(storeRepP &sp , entitySet &out_of_dom,  std::vector<entitySet> &init_ptn) ;
-  
-  std::vector<entitySet> generate_distribution(fact_db &facts, rule_db &rdb, int num_partitions = 0) ;
-
-  void distribute_facts(std::vector<entitySet> &ptn, fact_db &facts,
-                        rule_db &rdb) ;
   
   entitySet collect_entitySet(entitySet e, fact_db &facts) ;
 
