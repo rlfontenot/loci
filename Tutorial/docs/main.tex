@@ -1,16 +1,17 @@
-\documentclass[10pt,epsf]{book}
+\documentclass[10pt,epsf,letterpaper,twoside]{book}
 \title { {\it Loci} : A Tutorial }
 
-\setlength{\textheight}{7.75in}
+\setlength{\textheight}{8.3in}
 \setlength{\textwidth}{5.7in}
 \setlength{\parskip}{3mm}
 \setlength{\parindent}{0.0in}
+
 \setlength{\topmargin}{5mm}
-%\setlength{\bottommargin}{5mm}
+%% %\setlength{\bottommargin}{5mm}
 \setlength{\headheight}{5mm}
 \setlength{\headsep}{5mm}
 \setlength{\oddsidemargin}{2cm}
-\setlength{\evensidemargin}{2cm}
+\setlength{\evensidemargin}{0cm}
 \unitlength=1in
 
 \usepackage{epsf}    % used for importing encapsulated postscript figures
@@ -21,17 +22,19 @@
 \usepackage{longtable}
 
 \begin{document}
+\maketitle
 %\small
 \tableofcontents
 %\listoffigures
-\maketitle
-\thispagestyle{empty}
-\newpage
+%\thispagestyle{empty}
+
+\cleardoublepage
 \setcounter{page}{1}
 
 \include{intro}
 
 \chapter{ Basic Concepts }
+
 
 \section{Notation used in this document}
 In this document we use the {\tt typewriter} font to distinguish
@@ -291,8 +294,10 @@ database, it can be retrieved at a later time by its assigned name.  For example
   // Insert leftNode into the fact database
   facts.create_fact("leftNode",leftNode) ;
 \end{verbatim}
-
-The fact can later be retrieved from the fact database using the {\tt get\_fact()} method.  For example, we can pass the fact database into a function and then use it to get a copy of the {\tt leftNode} map with code such as:
+The fact can later be retrieved from the fact database using the {\tt
+get\_fact()} method.  For example, we can pass the fact database into
+a function and then use it to get a copy of the {\tt leftNode} map
+with code such as:
 \begin{verbatim}
 void worker(fact_db &facts) {
   Map leftNode ;  // Create Map container
@@ -805,6 +810,7 @@ and cells to establish this relationship.  In addition, we build both
 {\tt cl} and {\tt ir} at the same time recognizing that one map is
 simply the transpose of the other as illustrated below:
 \begin{verbatim}
+
   entitySet::const_iterator ci ;
   // Assign left nodes to cells in consecutive order
   ci = cells.begin() ;
@@ -910,6 +916,7 @@ All of these parameters can be given default values using special {\it Loci}
 rules, and then the user can change these default values by providing
 a special ``vars'' file.  For example, we can specify the default
 values for these parameters with the following lines of code:
+\newpage
 \begin{verbatim}
 // Input parameters
 $type N param<int> ;              // How many nodes
@@ -966,6 +973,7 @@ Now we can begin with the implementation of the rules described in
 table \ref{table3:rules} in {\it Loci}.  The first of these rules is the
 computation of the cell center, denoted by the variable {\tt xc} which
 is represented in {\it Loci} by the following code:
+\newpage
 \begin{verbatim}
 // Rule 1: compute the cell center from node positions
 $rule pointwise(xc<-(il,ir)->x) {
@@ -1844,6 +1852,7 @@ and {\tt BC\_6}.  In addition, a constraint is created called {\tt
 be safe to extract these values from the options list that is created
 called {\tt BC\_options}.  Thus, we can extract the value of {\tt
   Twall} by using a rule such as the following:
+\newpage
 \begin{verbatim}
 // Extract Twall from boundary condition options
 $rule pointwise(Twall<-BC_options),constraint(Twall_BCoption) {
@@ -1998,7 +2007,6 @@ the {\tt ref} map, provided that a rule to extract this from
 conditions).  Thus for the specified temperature boundary condition,
 we compute the temperature with the following rule:
 
-\clearpage
 \begin{verbatim}
 // Temperature Specified Wall
 $rule pointwise(temperature_f<-ref->Twall),constraint(specified_BC) {
@@ -2118,7 +2126,7 @@ with a convenient representation of the assembled matrix.
  \caption{Matrix Data-Structure as used by the finite-volume module}
 \label{matrixperspective}
 \end{figure}
-\clearpage
+%\clearpage
 \subsection{And now the assembly}
 
 Now we can describe the procedure for assembling the linear system.
@@ -2251,6 +2259,7 @@ how to get from $Q^n$ to $Q^{n+1}$.  This step is trivial using the
 {\tt deltaQ} computed in the previous section.  The ``advance'' rule
 that does this is specified as:
 \begin{verbatim}
+
 // Advance the timestep using linear system solution
 $rule pointwise(Q{n+1}<-Q{n},deltaQ{n}), constraint(geom_cells) {
   $Q{n+1} = $Q{n}+ $deltaQ{n} ;
@@ -2304,6 +2313,7 @@ $rule pointwise(temperature<-Q,Density,Cp), constraint(geom_cells) {
 In addition to the temperature, we also needed the transformational
 derivative $\frac{\partial T}{\partial Q}$ in order to compute the
 system matrix.  This is provided by the following rule:
+\newpage
 \begin{verbatim}
 // Compute transformation derivative from temperature to Q
 $rule singleton(dTdQ<-Density,Cp) {
@@ -2357,6 +2367,7 @@ can perform a similar operation by using Loci's built in facility to
 read/write containers (in parallel or serial) to a portable HDF5 file.
 An example of such a rule follows:
 
+\newpage
 \begin{verbatim}
 $rule pointwise(OUTPUT<-cell2node(temperature),$n,plot_modulo),
   constraint(pos),conditional(doPlot), option(disable_threading),
@@ -2410,7 +2421,7 @@ rules that end iterations or rules that output the variable {\tt
   OUTPUT}).  This conditional statement is to allow us to only
 occasionally write out this file.  We provide a separate rule to
 compute the conditional variable ({\tt doPlot}) as implemented below:
-
+\newpage
 \begin{verbatim}
 // Compute when we want to make plot files
 $type doPlot param<bool> ;
@@ -2497,6 +2508,7 @@ However, it is also perfectly acceptable to operate on the individual
 vector entries using the array operator, ({\tt []}), such as
 demonstrated with a rewrite of the above rule shown below:
 \begin{verbatim}
+
   // An equivalent variation of the above code
   $rule pointwise(Ivec{n=0}<-numBands,Omegas),constraint(geom_cells),
     prelude {

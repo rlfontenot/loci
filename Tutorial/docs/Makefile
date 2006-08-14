@@ -10,9 +10,13 @@ SOURCE_FILES =  entities_cc.tex \
 		Makefile_ex.tex
 
 tutorial.pdf: main.dvi
-	dvips -Ppdf -o tutorial.ps main
+	dvips -t letter -Ppdf -o tutorial.ps main
 	ps2pdf tutorial.ps
 	rm tutorial.ps
+clean: FRC
+	./clean
+
+FRC:
 
 main.dvi: ${TEX_FILES} ${SOURCE_FILES}
 	latex main; latex main

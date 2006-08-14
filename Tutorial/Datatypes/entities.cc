@@ -47,13 +47,13 @@ int main(int argc,char *argv[])
   cout << "C = " << C << endl ;
   cout << "F = " << F << endl ; 
 
+
   ////////////////////////////////////////////////////////////////////////////
   // For efficiency, an entitySet is stored as an ordered set; 
   // more precisely, as an ordered set of ordered intervals.
   // The class for an ordered set of ordered intervals is
   // intervalSet.  Lower-level methods and operators take intervalSet
   // and interval arguments.  
-
 
   ////////////////////////////////////////////////////////////////////////////
   // Adjunction
@@ -87,9 +87,6 @@ int main(int argc,char *argv[])
   // [gives the set ([5,100]) without duplicating 14 and 15]
   cout << "E = B union C =  " << E << endl ;
 
-
-
-  
   ////////////////////////////////////////////////////////////////////////////
   // Distinguished constants
   ////////////////////////////////////////////////////////////////////////////
@@ -199,7 +196,6 @@ int main(int argc,char *argv[])
 
   // We can also check to see if a particular entity label is in a
   // entitySet using the inSet() method.  For example
-
   if(A.inSet(5))
     cout << "entity labeled 5 is in entitySet A" << endl ;
 
@@ -293,17 +289,11 @@ int main(int argc,char *argv[])
   cout << "Cseq = " << Cseq << endl ;
 
   // Similarly we can reverse the order of a sequence using the Reverse()
-
   // method.  For example
   Cseq.Reverse() ;
 
   // Cseq = ([17,16][14,14][1,1][12,12][15,15][10,0])
   cout << "reversed Cseq = " << Cseq << endl ;
-
-  ////////////////////////////////////////////////////////////////////////////
-  // size, num_intervals, Append (interval), Append (sequence), 
-  // Append (intervalSet), Input
-  //
 
   Loci::Finalize() ;
   return 0 ;
