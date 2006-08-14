@@ -52,8 +52,8 @@ void TECUsage(char *s) {
        << string(s) << "-tec ssme 200 fOH" << endl ;
 }
 
-  int TECINI(const char *problem_name,const char *variables_name,
-             const char *tec_name,const char *dot,int *Debug,int *VIsDouble) {
+  int TECINI(char *problem_name,char *variables_name,
+             char *tec_name,char *dot,int *Debug,int *VIsDouble) {
 
   ostringstream oss ;
 
@@ -68,8 +68,8 @@ void TECUsage(char *s) {
   return(0) ;
 }
 
-  int TECZNE(const char *zone_name, int *npnts, int *ncells,char *tec_name,
-             const char *block_type, const char *elem_type) {
+  int TECZNE(char *zone_name, int *npnts, int *ncells,char *tec_name,
+             char *block_type, char *elem_type) {
 
   ostringstream oss ;
 
@@ -131,9 +131,8 @@ int TecplotExtract(int ac, char *av[]) {
     TECUsage(av[0]) ;
     exit(0) ;
   }
-
-  char tstr[] = "grid" ;
-  char *ncyc = tstr ;
+   
+  char *ncyc = "grid" ;
   int ibuf[10] ;
   char name_buf[500] ;
   char *problem_name = av[1] ;
@@ -297,9 +296,14 @@ cout << "IFP_GRD: " << IFP_GRD << endl ;
       strcat(variables_name,", \"") ; strcat(variables_name,&var_buf[i][1]) ;
       strcat(variables_name,"Z") ; strcat(variables_name,"\"") ;
     }
+    else if(var_buf[i][0]=='n' || var_buf[i][0]=='f') {
+      strcat(variables_name,", \"") ;
+      strcat(variables_name,var_buf[i]+1) ;
+      strcat(variables_name,"\"") ;
+    }
     else {
       strcat(variables_name,", \"") ;
-      strcat(variables_name,&var_buf[i][1]) ;
+      strcat(variables_name,var_buf[i]) ;
       strcat(variables_name,"\"") ;
     }
   }
@@ -835,5 +839,6 @@ cout << "IFP_GRD: " << IFP_GRD << endl ;
 
   return(0) ;
 } 
+
 
 

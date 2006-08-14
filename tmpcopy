@@ -29,6 +29,8 @@ mkdir -p $target/Loci
 mkdir -p $target/Loci/lib
 mkdir -p $target/Loci/bin
 
+ln -s $source/Tutorial $target/Loci/Tutorial
+
 for i in $TARGET_DIRS ; do
   echo -n $i " "
   mkdir -p $target/Loci/$i

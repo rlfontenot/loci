@@ -16,7 +16,10 @@ library: shared
 static: Tools System
 shared: Tools/libTools.so System/libLoci.so 
 
-install: default
+docs:
+	cd Tutorial/docs; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
+
+install: default docs
 	INSTALL_DIR=$(INSTALL_DIR) LOCI_INSTALL_DIR=$(LOCI_INSTALL_DIR) bash Install.bash
 
 Tools : FRC
