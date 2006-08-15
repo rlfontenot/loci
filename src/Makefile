@@ -1,7 +1,7 @@
 #
 # 
 LOCI_BASE = $(shell pwd)
-
+LOCI_COMPILE = true
 include Loci.conf
 
 #include sys.conf
