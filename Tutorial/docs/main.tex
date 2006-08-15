@@ -1880,12 +1880,12 @@ Before we begin to make a query, we will need to setup the matrix data-structure
 \end{verbatim}
 This subroutine call will install the multiMaps ``upper'' and
 ``lower'' into the fact database that are created by transposing the
-``cr'' and ``cl'' maps.   These two data-structures represent the
-upper and lower triangular portions of the matrix as will be explained
-in the matrix assembly section that follows.  We would also mention
-that many utilities in the finite-volume module make use of these
-maps, so it would be a good idea to make this call when you plan on
-using the ``fvm'' module as we are in this example.
+``cl'' and ``cr'' maps respectively.  These two data-structures
+represent the upper and lower triangular portions of the matrix as
+will be explained in the matrix assembly section that follows.  We
+would also mention that many utilities in the finite-volume module
+make use of these maps, so it would be a good idea to make this call
+when you plan on using the ``fvm'' module as we are in this example.
 
 
 \section{Computing the residual function}
@@ -2091,7 +2091,7 @@ this ordering: specifically the faces are oriented so that the normals
 point from a lower equation number to a higher equation number.  This
 allows us to associate the matrix non-zero structure directly with the
 mesh data-structure.  Thus, when we invert the {\tt cr} map we get a
-map that corresponds to the upper triangular part of the system
+map that corresponds to the lower triangular part of the system
 matrix, where the off-diagonal components are stored at the faces.
 Similarly, the inverse of the {\tt cl} map provides us with the upper
 triangular part of the system matrix.  We can now describe the system
