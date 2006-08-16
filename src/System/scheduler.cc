@@ -45,7 +45,6 @@ namespace Loci {
 
   ////////////////////////////
   // global flags
-  extern bool use_old_dependency_graph ;
   extern bool profile_memory_usage ;
   extern bool show_graphs ;
   extern void deco_depend_gr(digraph& gr,const variableSet& given) ;
@@ -701,15 +700,10 @@ namespace Loci {
       cout << "generating dependency graph..." << endl ;
     double start_time = MPI_Wtime() ;
     digraph gr ;
-    if(use_old_dependency_graph) {
-      gr = dependency_graph(par_rdb,given,target).get_graph() ;
-    }
-    else {
-      if(Loci::MPI_rank==0)
-        cout << "\t(recursive backward searching version)" << endl ;
-      given -= variable("EMPTY") ;
-      gr = dependency_graph2(par_rdb,given,target).get_graph() ;
-    }
+
+    given -= variable("EMPTY") ;
+    gr = dependency_graph2(par_rdb,given,target).get_graph() ;
+
     // If graph is empty, return a null schedule 
     if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;

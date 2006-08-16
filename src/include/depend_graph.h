@@ -21,14 +21,6 @@ namespace Loci {
     return variableSet(ns & interval(0,UNIVERSE_MAX)) ;
   }
 
-  class dependency_graph {
-    digraph gr ;
-    void clean_graph(variableSet given, variableSet target) ;
-  public:
-    dependency_graph(rule_db &rdb, variableSet given, variableSet target) ;
-    digraph get_graph() const { return gr; } 
-  };
-
   // experimental version
   class dependency_graph2 {
     digraph gr ;

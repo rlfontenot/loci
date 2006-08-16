@@ -82,7 +82,6 @@ namespace Loci {
   // (more memory conservative and more synchronization
   //  points will be generated)
   bool memory_greedy_schedule = true ;
-  bool use_old_dependency_graph = false ;
 
   bool duplicate_work = false;
   bool multilevel_duplication = false;
@@ -96,7 +95,6 @@ namespace Loci {
   char * model_file;
   /////////////////////////////
 
-  bool random_partition = false;
   bool measure_rule_timings = false;
   
   ofstream debugout ;
@@ -279,9 +277,6 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--balance")) {
         use_dynamic_scheduling = true ;
         i++ ;
-      } else if(!strcmp((*argv)[i],"--olddg")) {
-        use_old_dependency_graph = true ;
-        i++ ;
       } else if(!strcmp((*argv)[i],"--duplicate_work")){
 	duplicate_work = true;
 	reduction_duplication = true;
@@ -314,9 +309,6 @@ namespace Loci {
 	use_duplicate_model = true;
 	model_file = (*argv)[i+1];
 	i += 2;
-      } else if(!strcmp((*argv)[i],"--random_partition")){
-	random_partition = true;
-	i++;
       } else if(!strcmp((*argv)[i],"--measure_rule_timings")){
 	measure_rule_timings = true;
 	i++;
