@@ -1182,10 +1182,14 @@ namespace Loci {
         if(vi->time() == iter || iter < vi->time())
           iter_vars += *vi ;
 
+      if(looping_rule.size() == 0)
+        continue ;
+      
       // There should only be one looping rule at this stage, if not
       // something weird is going on.
       if(looping_rule.size() != 1) {
         cerr << "something confused in iteration conflict analysis" << endl;
+        cerr << "looping_rule = " << looping_rule << endl ;
         return gr ;
       }
 
