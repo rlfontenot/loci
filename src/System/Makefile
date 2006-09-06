@@ -15,7 +15,7 @@ OBJS = Loci_version.o Initialize.o Loci_Datatypes.o variable.o \
        comp_loop.o comp_chomp.o comp_tools.o distribute.o categories.o \
        param_rule.o sched_db.o  hdf5_readwrite.o mod_db.o \
        visit_assemble.o visit_deco.o visit_tools.o visit_viz.o\
-       visit_chomp.o dynamic_exec.o lbmethods.o FVMGridReader.o \
+       visit_chomp.o dynamic_exec.o FVMGridReader.o \
        FVMStuff.o dist_tools.o distribute_io.o \
        distribute_container.o dist_internal.o comp_dynamic.o \
        comp_constraint.o execution_factory.o comp_map.o
