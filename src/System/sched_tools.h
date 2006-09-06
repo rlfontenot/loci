@@ -79,9 +79,6 @@ namespace Loci {
     rule_implP local_compute1;
     rule rule_tag ;
     entitySet exec_set ;
-    int exec_set_size ;
-    int *yMap, *rstart, *rsize, *chunkMap ;
-    double *stats ;
   public:
     dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
     virtual ~dynamic_schedule_rule() ;

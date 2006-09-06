@@ -37,7 +37,7 @@ namespace Loci {
   int MPI_processes = 1;
   int MPI_rank = 0 ;
   int num_threads = 1 ;
-  int method = 3 ;
+  int method = 1 ; // Method is iterative weighted static (default)
   /////////////////////////////
   // flags to turn on/off the visualization feature
   bool show_graphs = false ;
