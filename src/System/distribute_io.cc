@@ -525,7 +525,7 @@ namespace Loci {
     entitySet dom_global = l2gP->image(dom) ;
 
     FATAL(dom.size() != dom_global.size()) ;
-    debugout << "dom = " << dom << ", dom_global = " << dom_global << endl ;
+    //    debugout << "dom = " << dom << ", dom_global = " << dom_global << endl ;
 
     entitySet gset = findBoundingSet(dom_global) ;
     entitySet oset = findBoundingSet(remap.preimage(gset).first) ;
@@ -533,7 +533,7 @@ namespace Loci {
     WARN(gset.size() != oset.size()) ; // Not necessarily an error, but I
     // want to know when this happens.
 
-    debugout << "gset = " << gset << ", oset = " << oset << endl ;
+    //    debugout << "gset = " << gset << ", oset = " << oset << endl ;
 
     // Compute map from local numbering to file numbering
     Map newnum ;
@@ -565,14 +565,14 @@ namespace Loci {
     int sz = max_val-min_val+1 ;
     vector<entitySet> out_ptn(p) ;
     int cnt = 0 ;
-    debugout << "out_ptn = " << endl ;
+    //    debugout << "out_ptn = " << endl ;
     for(int i=0;i<p;++i) {
       int psz = sz/p + (i<(sz%p)?1:0) ;
       out_ptn[i] = interval(min_val+cnt,min_val+cnt+psz-1) ;
       cnt += psz ;
-      debugout << i << " - " << out_ptn[i] << endl ;
+      //      debugout << i << " - " << out_ptn[i] << endl ;
     }
-    debugout << "send_sets = " << endl ;
+    //    debugout << "send_sets = " << endl ;
     vector<entitySet> send_sets(p) ;
     vector<sequence> send_seqs(p) ;
     for(int i=0;i<p;++i) {
@@ -582,7 +582,7 @@ namespace Loci {
         s+= newnum[j] ;
       } ENDFORALL ;
       send_seqs[i] = s ;
-      debugout << i << " - " << send_sets[i]  << " , " << s << endl ;
+      //      debugout << i << " - " << send_sets[i]  << " , " << s << endl ;
     }
     vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
 
@@ -590,7 +590,7 @@ namespace Loci {
     for(int i=0;i<p;++i)
       file_dom += entitySet(recv_seqs[i]) ;
 
-    debugout << "file_dom = " << file_dom << endl ;
+    //    debugout << "file_dom = " << file_dom << endl ;
     storeRepP qcol_rep ;
     qcol_rep = sp->new_store(file_dom) ;
 
