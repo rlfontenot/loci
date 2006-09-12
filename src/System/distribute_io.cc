@@ -224,6 +224,7 @@ namespace Loci {
           int sz = pack_size ;
           qrep->unpack(pack_buf,loc_pack,sz,dom) ;
         }
+        delete[] pack_buf ;
       }
 
 
@@ -441,6 +442,69 @@ namespace Loci {
     delete [] tmp_int ; 
   }
 
+  entitySet findBoundingSet(entitySet in) {
+    Entity max_val = in.Max() ;
+    Entity min_val = in.Min() ;
+    Entity gmin_val = min_val;
+    Entity gmax_val = max_val ;
+    MPI_Allreduce(&min_val,&gmin_val,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+    MPI_Allreduce(&max_val,&gmax_val,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+
+    return entitySet(interval(gmin_val,gmax_val)) ;
+  }
+
+  vector<sequence> transposeSeq(const vector<sequence> sv) {
+     vector<int> send_sz(MPI_processes) ;
+    for(int i=0;i<MPI_processes;++i)
+      send_sz[i] = sv[i].num_intervals()*2 ;
+    vector<int> recv_sz(MPI_processes) ;
+    MPI_Alltoall(&send_sz[0],1,MPI_INT,
+                 &recv_sz[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int size_send = 0 ;
+    int size_recv = 0 ;
+    for(int i=0;i<MPI_processes;++i) {
+      size_send += send_sz[i] ;
+      size_recv += recv_sz[i] ;
+    }
+    //    outRep->allocate(new_alloc) ;
+    int *send_store = new int[size_send] ;
+    int *recv_store = new int[size_recv] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
+
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i <  MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_sz[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
+    }
+    for(int i = 0; i <  MPI_processes; ++i)
+      for(int j=0;j<sv[i].num_intervals();++j) {
+        send_store[send_displacement[i]+j*2] = sv[i][j].first ;
+        send_store[send_displacement[i]+j*2+1] = sv[i][j].second ;
+      }
+    
+    
+    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
+		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+
+    vector<sequence> sv_t(MPI_processes) ;
+    for(int i = 0; i <  MPI_processes; ++i) 
+      for(int j=0;j<recv_sz[i]/2;++j) {
+        int i1 = recv_store[recv_displacement[i]+j*2]  ;
+        int i2 = recv_store[recv_displacement[i]+j*2+1] ;
+        sv_t[i] += interval(i1,i2) ;
+      }
+    delete[] recv_displacement ;
+    delete[] send_displacement ;
+    delete[] recv_store ;
+    delete[] send_store ;
+
+    return sv_t ;
+  }
+  
   //This routine returns a storeRep which is created by using passed
   //storeRep sp and map remap.  It is used whenever a storeRep needs to 
   //be converted in global numbering to write out to a file.  
@@ -448,218 +512,135 @@ namespace Loci {
   //to loci entities(global numbering of Loci)
   storeRepP collect_reorder_store(storeRepP &sp, dMap& remap, fact_db &facts) {
     entitySet dom = sp->domain() ;
-    dom =  collect_entitySet(dom) ;
-    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
-    entitySet loci_dom = init_ptn[MPI_rank] & dom ;
-    
-    entitySet global_loci_dom  =  all_collect_entitySet(dom) ;
-    entitySet global_io_dom = remap.preimage(global_loci_dom).first;
-    global_io_dom = all_collect_entitySet(global_io_dom);
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
+    Loci::constraint my_entities ; 
+    my_entities = d->my_entities ;
+    dom = *my_entities & dom ;
 
-    if(global_loci_dom.size() != global_io_dom.size()) {
-      cerr << "remap is not able to provide information of all entities."<<endl;
-      cerr << "see debug files for details " << endl ;
-      debugout << "remap is not able to provide information of all entities.";
-      debugout << "loci_entities: " << global_loci_dom << " has total " << global_loci_dom.size() << endl; 
-      debugout << "mapped io_entities : " << global_io_dom << " has total "  << global_io_dom.size() << endl;
-    }
 
-    dMap reverse ; //Mapping from loci entities to io entities 
-    {
-      dmultiMap d_remap ;
-      if(facts.is_distributed_start())
-        distributed_inverseMap(d_remap, remap, global_loci_dom, global_io_dom, init_ptn) ;
-      else
-        inverseMap(d_remap, remap, global_loci_dom, global_loci_dom) ;
-      
-      FORALL(loci_dom, ri) {
-        if(d_remap[ri].size() == 1)
-          reverse[ri] = d_remap[ri][0] ;
-        else
-          if(d_remap[ri].size() > 1)
-            cerr << "inverse of remap has multiple entries!" << endl ;
-      } ENDFORALL ;
-    }
-    
     Map l2g ;
     l2g = facts.get_variable("l2g") ;
+    MapRepP l2gP = MapRepP(l2g.Rep()) ;
 
-    entitySet local_dom =  MapRepP(l2g.Rep())->preimage(loci_dom).first ;
+    entitySet dom_global = l2gP->image(dom) ;
 
-    if(loci_dom.size() != local_dom.size()) {
-      cerr << "Something fishy going on with l2g, which does not seem to give one to one and onto mapping.";
-      cerr << "loci_dom: " << loci_dom << " has total " << loci_dom.size() << endl;
-      cerr << "local_dom: " << local_dom << " has total " << local_dom.size() << endl;
-    }
+    FATAL(dom.size() != dom_global.size()) ;
+    debugout << "dom = " << dom << ", dom_global = " << dom_global << endl ;
 
-    Map local2io ;
-    local2io.allocate(local_dom) ;
-    FORALL(local_dom, ri) {
-      local2io[ri] = l2g[ri] ;
-    } ENDFORALL ;
-    
-    local_dom = MapRepP(local2io.Rep())->preimage(reverse.domain()).first ;
-    MapRepP(local2io.Rep())->compose(reverse, local_dom) ;
-    entitySet io_owned =  MapRepP(local2io.Rep())->image(local_dom) ;
+    entitySet gset = findBoundingSet(dom_global) ;
+    entitySet oset = findBoundingSet(remap.preimage(gset).first) ;
 
-    std::vector<entitySet> chop_ptn(Loci::MPI_processes);
-    if(global_io_dom != EMPTY) {
-      int min = global_io_dom.Min();
-      int max = global_io_dom.Max();
-      int sz = (max - min + 1)/Loci::MPI_processes;
-      for(int i = 0; i < MPI_processes; i++) {
-	entitySet tmpEnt;
-	if(i < MPI_processes - 1) {
-	  if(sz != 0)
-	    tmpEnt = interval(min + i*sz, min + (i+1)*sz-1);
-	}
-	else 
-	  tmpEnt = interval(min + i*sz, max);
-	tmpEnt &= global_io_dom;
-	chop_ptn[i] = tmpEnt;
-      }
-    }
+    WARN(gset.size() != oset.size()) ; // Not necessarily an error, but I
+    // want to know when this happens.
 
-    entitySet io_dom = chop_ptn[MPI_rank]; 
-    entitySet owned_io_out_of_dom, filled_io_entities, filled_local_entities ;
-    
-    FORALL(local_dom, ii) {
-      if(io_dom.inSet(local2io[ii])) { 
-	filled_io_entities += local2io[ii] ;
-	filled_local_entities += ii ;
-      }
-    } ENDFORALL ;
+    debugout << "gset = " << gset << ", oset = " << oset << endl ;
 
-    owned_io_out_of_dom = io_owned - filled_io_entities ;
+    // Compute map from local numbering to file numbering
+    Map newnum ;
+    newnum.allocate(dom) ;
+    {
+      dmultiMap d_remap ;
 
-    storeRepP local2io_sp = MapRepP(local2io.Rep())->thaw() ;
-    dMap d_local2io(local2io_sp) ; 
+      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
 
-    storeRepP qcol_rep ;
-    qcol_rep = sp->new_store(io_dom) ;
-    if(filled_local_entities != EMPTY)
-      qcol_rep->scatter(d_local2io, sp, filled_local_entities) ;
+      distributed_inverseMap(d_remap, remap, gset, oset, init_ptn) ;
 
-    int *recv_count = new int[ MPI_processes] ;
-    int *send_count = new int[ MPI_processes] ;
-    int *send_displacement = new int[ MPI_processes] ;
-    int *recv_displacement = new int[ MPI_processes] ;
-    entitySet::const_iterator ei ;
-    int size_send = 0 ;
-    std::vector<entitySet> send_clone( MPI_processes) ;
-    std::vector<entitySet> send_dom( MPI_processes) ;
-    std::vector<storeRepP> scl( MPI_processes), rcl( MPI_processes) ;
-    
-    for(int i = 0; i <  MPI_processes; ++i) {
-      send_clone[i] = owned_io_out_of_dom & chop_ptn[i] ;
-      send_dom[i] = MapRepP(local2io.Rep())->preimage(send_clone[i]).first ;
-      entitySet tmp = send_dom[i];
-      store<int> tmp_store ;
-      entitySet tmpEnt;
-      if(tmp.size())
-	tmpEnt = interval(0, tmp.size() - 1);
-      tmp_store.allocate(tmpEnt) ;
-      send_count[i] = tmp_store.Rep()->pack_size(tmpEnt) ;
-      ei = tmp.begin() ;
-      for(int j = 0; j < tmp.size(); ++j) {
-	tmp_store[j] = local2io[*ei] ;
-	++ei ;
-      }
-      scl[i] = tmp_store.Rep() ;
-      size_send += send_count[i];
-    }
-    unsigned char *send_buf = new unsigned char[size_send] ;
-    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
-    
-    int loc_pack = 0 ;
-    for(int i = 0; i <  MPI_processes; ++i) 
-      scl[i]->pack(send_buf, loc_pack, size_send, scl[i]->domain()) ; 
-    
-    size_send = 0 ;
-    for(int i = 0; i <  MPI_processes; ++i)
-      size_send += recv_count[i] ;
-    
-    unsigned char *recv_buf = new unsigned char[size_send] ;
-    send_displacement[0] = 0 ;
-    recv_displacement[0] = 0 ;
-    for(int i = 1; i <  MPI_processes; ++i) {
-      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
-      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
-    }
-    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_PACKED,
-		  recv_buf, recv_count, recv_displacement, MPI_PACKED,
-		  MPI_COMM_WORLD) ;  
-    std::vector< sequence> recv_dom( MPI_processes) ;
-    int loc_unpack = 0 ;
-    for(int i = 0; i <  MPI_processes; ++i) {
-      int tmp_size = recv_count[i] / sizeof(int) ;
-      entitySet tmp ;
-      if(tmp_size > 0)
-	tmp = interval(0, tmp_size-1) ;
-      recv_dom[i] =  sequence(tmp) ;
-      store<int> tmp_store ;
-      tmp_store.allocate(tmp) ;
-      tmp_store.Rep()->unpack(recv_buf, loc_unpack, size_send, recv_dom[i]) ; 
-      rcl[i] = tmp_store.Rep() ;
-    }
-    size_send = 0 ;
-    for(int i = 0; i <  MPI_processes; ++i) {
-      send_count[i] =  sp->pack_size(send_dom[i]) ;
-      size_send += send_count[i] ;
-    }
-    
-    unsigned char *send_store = new unsigned char[size_send] ;
-    std::vector<storeRepP> tmp_sp( MPI_processes) ;
-    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
-    int size_recv = 0 ;
-    for(int i = 0; i <  MPI_processes; ++i) {
-      tmp_sp[i] = sp->new_store(entitySet(recv_dom[i])) ;
-      size_recv += recv_count[i] ;
-    }
-    unsigned char *recv_store = new unsigned char[size_recv] ;
-    send_displacement[0] = 0 ;
-    recv_displacement[0] = 0 ;
-    for(int i = 1; i <  MPI_processes; ++i) {
-      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
-      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
-    }
-    loc_pack = 0 ;
-    for(int i = 0; i <  MPI_processes; ++i) {
-      sp->pack(send_store, loc_pack, size_send, send_dom[i]) ;
-    }
-    
-    MPI_Alltoallv(send_store,send_count, send_displacement , MPI_PACKED,
-		  recv_store, recv_count, recv_displacement, MPI_PACKED,
-		  MPI_COMM_WORLD) ;  
-    loc_unpack = 0 ;
-    for(int i = 0; i < MPI_processes; ++i) {
-      tmp_sp[i]->unpack(recv_store, loc_unpack, size_recv, recv_dom[i]) ; 
-    }
-    for(int i = 0; i < MPI_processes; ++i) {	
-      dMap m;
-      m.allocate(rcl[i]->domain()) ;
-      store<int> RCL(rcl[i]) ;
-      FORALL(m.domain(), mi) {
-	m[mi] = RCL[mi] ;
+
+      FORALL(dom,i) {
+#ifdef DEBUG
+        if(d_remap[l2g[i]].size() != 1)
+          cerr << "inverse of remap has multiple entries!" << endl ;
+#endif
+        newnum[i] = d_remap[l2g[i]][0] ;
       } ENDFORALL ;
-
-      if(tmp_sp[i]->domain() != EMPTY)
-	qcol_rep->scatter(m, tmp_sp[i], tmp_sp[i]->domain()) ;  
     }
+    
+    
 
-    delete [] send_buf ;
-    delete [] recv_buf ;
-    delete [] send_store ;
-    delete [] recv_store ;
-    delete [] recv_count ;
-    delete [] send_count ;
-    delete [] send_displacement ;
-    delete [] recv_displacement ;
+    int p = MPI_processes ;
+
+    Entity max_val = oset.Max() ;
+    Entity min_val = oset.Min() ;
+    
+    int sz = max_val-min_val+1 ;
+    vector<entitySet> out_ptn(p) ;
+    int cnt = 0 ;
+    debugout << "out_ptn = " << endl ;
+    for(int i=0;i<p;++i) {
+      int psz = sz/p + (i<(sz%p)?1:0) ;
+      out_ptn[i] = interval(min_val+cnt,min_val+cnt+psz-1) ;
+      cnt += psz ;
+      debugout << i << " - " << out_ptn[i] << endl ;
+    }
+    debugout << "send_sets = " << endl ;
+    vector<entitySet> send_sets(p) ;
+    vector<sequence> send_seqs(p) ;
+    for(int i=0;i<p;++i) {
+      send_sets[i] = newnum.preimage(out_ptn[i]).first ;
+      sequence s ;
+      FORALL(send_sets[i],j) {
+        s+= newnum[j] ;
+      } ENDFORALL ;
+      send_seqs[i] = s ;
+      debugout << i << " - " << send_sets[i]  << " , " << s << endl ;
+    }
+    vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
+
+    entitySet file_dom ;
+    for(int i=0;i<p;++i)
+      file_dom += entitySet(recv_seqs[i]) ;
+
+    debugout << "file_dom = " << file_dom << endl ;
+    storeRepP qcol_rep ;
+    qcol_rep = sp->new_store(file_dom) ;
+
+    int *send_sizes = new int[p] ;
+    int *recv_sizes = new int[p] ;
+
+    for(int i=0;i<p;++i)
+      send_sizes[i] = sp->pack_size(send_sets[i]) ;
+
+    MPI_Alltoall(&send_sizes[0],1,MPI_INT,
+                 &recv_sizes[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int *send_dspl = new int[p] ;
+    int *recv_dspl = new int[p] ;
+    send_dspl[0] = 0 ;
+    recv_dspl[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      send_dspl[i] = send_dspl[i-1] + send_sizes[i-1] ;
+      recv_dspl[i] = recv_dspl[i-1] + recv_sizes[i-1] ;
+    }
+    int send_sz = send_dspl[p-1] + send_sizes[p-1] ;
+    int recv_sz = recv_dspl[p-1] + recv_sizes[p-1] ;
+
+    unsigned char *send_store = new unsigned char[send_sz] ;
+    unsigned char *recv_store = new unsigned char[recv_sz] ;
+
+    for(int i=0;i<p;++i) {
+      int loc_pack = 0 ;
+      sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
+               send_sets[i]) ;
+    }
+    MPI_Alltoallv(send_store, &send_sizes[0], send_dspl, MPI_PACKED,
+		  recv_store, &recv_sizes[0], recv_dspl, MPI_PACKED,
+		  MPI_COMM_WORLD) ;  
+    for(int i=0;i<p;++i) {
+      int loc_pack = 0 ;
+      qcol_rep->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
+                       recv_seqs[i]) ;
+    }
+    delete[] recv_store ;
+    delete[] send_store ;
+    delete[] recv_dspl ;
+    delete[] send_dspl ;
+    delete[] recv_sizes ;
+    delete[] send_sizes ;
+
     return qcol_rep ;
   } 
 
+  
   //This routine fills new_sp storeRep for allocated entities using passed 
   //storeRep sp_init and map remap.  It is used whenever a storeRep needs to 
   //be converted in local numbering after it is read from a file. 

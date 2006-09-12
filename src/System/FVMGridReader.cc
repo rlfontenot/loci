@@ -1126,24 +1126,6 @@ namespace Loci {
     if(Loci::MPI_rank == 0)
       Loci::debugout << endl ;
 
-#ifdef OLD
-    memSpace("before init_ptn fixup") ;
-    entitySet bset = boundary_cells ;
-    int bsize = bset.size()/MPI_processes + 1 ;
-    entitySet::const_iterator bi = bset.begin() ;
-    vector<entitySet> bdist(MPI_processes) ;
-    for(int i=0;bi!=bset.end();++bi,++i) 
-      bdist[i/bsize] += *bi ;
-      
-    vector<entitySet> tmp_init_ptn = facts.get_init_ptn() ;
-    for(int i = 0; i < Loci::MPI_processes; ++i) {
-      tmp_init_ptn[i] += bdist[i] ;
-      debugout << " init_ptn[" <<i << "] = " << tmp_init_ptn[i] << endl ;
-    }
-    facts.put_init_ptn(tmp_init_ptn);
-    memSpace("after init_ptn fixup") ;
-#endif
-    
     param<int> min_node ;
 
     if(Loci::MPI_processes > 1)

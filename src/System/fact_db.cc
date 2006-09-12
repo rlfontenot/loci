@@ -400,7 +400,7 @@ namespace Loci {
       string vname ;
       parse::kill_white_space(s) ;
       if(s.peek()!='{') {
-        throw StringError("format error in fact_db::read") ;
+        throw StringError("format error in fact_db::read, missing '{'") ;
         return s ;
       }
       s.get() ;
@@ -422,7 +422,9 @@ namespace Loci {
         }
         parse::kill_white_space(s) ;
         if(!parse::get_token(s,":")) {
-          throw StringError("syntax error in fact_db::read, no ':' separator") ;
+          ostringstream oss ;
+          oss << "syntax error in fact_db::read, no ':' separator for variable '" << vname << "'" ;
+          throw StringError(oss.str()) ;
         }
 
         variable var(vname) ;
@@ -442,11 +444,21 @@ namespace Loci {
             throw StringError(oss.str()) ;
           }
           vp->Input(s) ;
+          parse::kill_white_space(s) ;
+          if(s.peek() != '}' && !parse::is_name(s)) {
+            ostringstream oss ;
+            oss << "syntax error in fact_db::read while reading variable '" << vname << "'" ;
+            throw StringError(oss.str()) ;
+          }
         } catch(const BasicException &err) {
           err.Print(cerr) ;
           cerr << "input failed for variable " << vname << endl ;
-          while(s.peek()!=EOF && s.peek() != '\n')
-            s.get() ;
+          cerr << "near the following text: \"" ;
+          while(s.peek()!=EOF&&s.peek()!='\n'&&s.peek()!='\r')
+            cerr << char(s.get()) ;
+          cerr << "\"" << endl ;
+         
+ 
           syntax_error = true ;
         }
       }
@@ -609,11 +621,21 @@ namespace Loci {
             throw StringError(oss.str()) ;
           }
           vp->Input(s) ;
+          parse::kill_white_space(s) ;
+          if(s.peek() != '}' && !parse::is_name(s)) {
+            ostringstream oss ;
+            oss << "syntax error in fact_db::read while reading variable '" << vname << "'" ;
+            throw StringError(oss.str()) ;
+          }
         } catch(const BasicException &err) {
           err.Print(cerr) ;
           cerr << "input failed for variable " << vname << endl ;
-          while(s.peek()!=EOF && s.peek() != '\n')
-            s.get() ;
+          cerr << "near the following text: \"" ;
+          while(s.peek()!=EOF&&s.peek()!='\n'&&s.peek()!='\r')
+            cerr << char(s.get()) ;
+          cerr << "\"" << endl ;
+         
+ 
           syntax_error = true ;
         }
       }
