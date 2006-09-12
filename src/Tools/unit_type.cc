@@ -54,6 +54,9 @@ namespace Loci {
     //metric system
     {"centimeter","meter",0.01},//length
     {"cm","meter",0.01},
+    {"micrometer","meter",1e-6},
+    {"micron","meter",1e-6},
+    {"angstrom","meter",1e-10},
     {"kilometer","meter",1000},
     {"km","meter",1000},
     {"milimeter","meter",0.001},
