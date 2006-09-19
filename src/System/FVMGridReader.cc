@@ -787,7 +787,6 @@ namespace Loci {
           debugout << ' ' << tot_sizes[i] ;
         debugout << endl ;
       }
-      //    debugout << "number of tossup faces = " << boundary_faces.size() << endl ;
 
       if(MPI_rank%STEPS == s) { // My processors turn to assign faces
         FORALL(boundary_faces,fc) {
@@ -880,8 +879,7 @@ namespace Loci {
 
       node_ptn[np[nn]] += nn ;
     } ENDFORALL ;
-    //    for(int i=0;i<MPI_processes;++i)
-    //      debugout << "node_ptn[" << i << "]=" << node_ptn[i] << endl ;
+
     return node_ptn ;
   }
 
@@ -1141,15 +1139,6 @@ namespace Loci {
     facts.create_fact("face2node",face2node) ;
     facts.create_fact("boundary_names", boundary_names) ;
 
-    //    debugout << "pos.domain() = " << pos.domain() << endl ;
-    //    debugout << "cl.domain() = " << cl.domain() << endl;
-    //    debugout << "cl.image() = " << cl.image(cl.domain()) << endl ;
-    //    debugout << "cr.domain() = " << cr.domain() << endl;
-    //    debugout << "cr.image() = " << cr.image(cr.domain()) << endl ;
-    //    debugout << "face2node.domain() = " << face2node.domain() << endl;
-    //    debugout << "face2node.image() = " << MapRepP(face2node.Rep())->image(face2node.domain()) << endl ;
-    
-
     double t2 = MPI_Wtime() ;
     debugout << "Time to read in file '" << filename << ", is " << t2-t1
              << endl ;
@@ -1165,8 +1154,7 @@ namespace Loci {
     Map cr ;
     cr = facts.get_fact("cr") ;
     entitySet bdom = boundary_names.domain() ;
-    Loci::debugout << "boundary_names = " << boundary_names << endl ;
-    //#define DEBUG
+
 #ifdef DEBUG
     entitySet bdom2 = all_collect_entitySet(bdom,facts) ;
     FATAL(bdom2 != bdom) ;
@@ -1175,7 +1163,7 @@ namespace Loci {
     int nloc = ndom/Loci::MPI_processes ;
     if((ndom%MPI_processes) > Loci::MPI_rank)
       nloc++ ;
-    Loci::debugout << "ndom = " << ndom << "nloc = " << nloc << endl ;
+
     pair<entitySet,entitySet> alloc = facts.get_distributed_alloc(nloc) ;
     store<string> bn2 ;
     bn2.allocate(alloc.second) ;
@@ -1190,7 +1178,6 @@ namespace Loci {
     for(i1=bdom.begin();i1!=bdom.end();++i1)
       bn2[mp[*i1]] = boundary_names[*i1] ;
 
-    Loci::debugout << "bn2 = " << bn2 << endl ;
     entitySet refdom = cr.preimage(bdom).first ;
     Map ref ;
     ref.allocate(refdom) ;
@@ -1218,7 +1205,7 @@ namespace Loci {
     std::sort(vec.begin(), vec.end()) ;
     for(vi = vec.begin(); vi != vec.end(); ++vi)
       *geom_cells += *vi ;
-    // debugout << " boundary_faces = " << boundary_faces << endl ;
+
     FORALL(*boundary_faces,fc) {
       *geom_cells += cl[fc] ;
     } ENDFORALL ;
@@ -1344,14 +1331,14 @@ namespace Loci {
       left_out = *geom_cells - visited ; 
       work = interval(left_out.Min(), left_out.Min()) ;
     }
-    //Loci::debugout << " color = " << color << endl ;
+
     FORALL(*interior_faces,fc) {
       //FATAL(color[cl[fc]] == color[cr[fc]]) ;
       // if((init_ptn[Loci::MPI_rank].inSet(cl[fc])) && (init_ptn[Loci::MPI_rank].inSet(cr[fc])))
       if(color[cl[fc]] > color[cr[fc]])
         std::swap(cl[fc],cr[fc]) ;
     } ENDFORALL ;
-    //Loci::debugout << " color = " << color << endl ;
+
   }
   void make_faces_consistent(fact_db &facts) {
     store<vector3d<real_t> > pos ;
