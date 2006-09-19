@@ -13,13 +13,12 @@ using std::sort;
 #include <Tools/debug.h>
 #include <entitySet.h>
 #include "dist_tools.h"
-#include <rule.h>
 #include <fact_db.h>
 #include <constraint.h>
 #include <multiMap.h>
 
 namespace Loci {
-  
+
   //This is a generalized routine for writing out storeRepP's. Has
   //been tested for stores, storeVecs and multiStores. The initial
   //store in the local numbering is first redistributed such that it
@@ -106,6 +105,7 @@ namespace Loci {
     int tot_arr_size = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
       tot_arr_size += arr_sizes[i] ;
+
     if(Loci::MPI_rank != 0) {
       MPI_Status status ;
       int send_size_buf ;
@@ -137,35 +137,43 @@ namespace Loci {
 	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
 	dimension = count ;
 	start += dimension ;
+
 	hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
 	qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
 	H5Dclose(dataset) ;
-	
+
 	for(int i = 1; i < Loci::MPI_processes; ++i) {
 	  MPI_Status status ;
 	  int recv_total_size ;
 	  entitySet tmpset = dom_vector[i];
+
 	  Loci::storeRepP t_qrep = qrep->new_store(tmpset) ;
+
 	  int loc_unpack = 0 ;
 	  int flag = 1 ;
 	  MPI_Send(&flag, 1, MPI_INT, i, 10, MPI_COMM_WORLD) ;
 	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, MPI_COMM_WORLD, &status) ;
 	  MPI_Recv(tmp_send_buf, recv_total_size, MPI_PACKED, i, 12, MPI_COMM_WORLD, &status) ;
+
 	  Loci::sequence tmp_seq = Loci::sequence(tmpset) ;
 	  t_qrep->unpack(tmp_send_buf, loc_unpack, total_size, tmp_seq) ;
 	  dimension = arr_sizes[i] ;
 	  count = dimension ; 
-          
+
 	  H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ; 
 	  start += count ;
+
 	  dataset = H5Dopen(group_id, "data") ;
 	  t_qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", tmpset) ;
+          t_qrep->allocate(EMPTY) ;
+
 	  H5Dclose(dataset) ;
 	}
 	H5Sclose(dataspace) ;
       }
     }
     delete [] tmp_send_buf ;
+
   }
 
   //This routine reads storeReps from .hdf5 file. If dom specified is 
@@ -511,6 +519,7 @@ namespace Loci {
   //remap is mapping from io entities(read from grid file)
   //to loci entities(global numbering of Loci)
   storeRepP collect_reorder_store(storeRepP &sp, dMap& remap, fact_db &facts) {
+
     entitySet dom = sp->domain() ;
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     Loci::constraint my_entities ; 
@@ -525,7 +534,6 @@ namespace Loci {
     entitySet dom_global = l2gP->image(dom) ;
 
     FATAL(dom.size() != dom_global.size()) ;
-    //    debugout << "dom = " << dom << ", dom_global = " << dom_global << endl ;
 
     entitySet gset = findBoundingSet(dom_global) ;
     entitySet oset = findBoundingSet(remap.preimage(gset).first) ;
@@ -533,7 +541,6 @@ namespace Loci {
     WARN(gset.size() != oset.size()) ; // Not necessarily an error, but I
     // want to know when this happens.
 
-    //    debugout << "gset = " << gset << ", oset = " << oset << endl ;
 
     // Compute map from local numbering to file numbering
     Map newnum ;
@@ -554,7 +561,8 @@ namespace Loci {
         newnum[i] = d_remap[l2g[i]][0] ;
       } ENDFORALL ;
     }
-    
+
+
     
 
     int p = MPI_processes ;
@@ -565,14 +573,13 @@ namespace Loci {
     int sz = max_val-min_val+1 ;
     vector<entitySet> out_ptn(p) ;
     int cnt = 0 ;
-    //    debugout << "out_ptn = " << endl ;
+
     for(int i=0;i<p;++i) {
       int psz = sz/p + (i<(sz%p)?1:0) ;
       out_ptn[i] = interval(min_val+cnt,min_val+cnt+psz-1) ;
       cnt += psz ;
-      //      debugout << i << " - " << out_ptn[i] << endl ;
     }
-    //    debugout << "send_sets = " << endl ;
+
     vector<entitySet> send_sets(p) ;
     vector<sequence> send_seqs(p) ;
     for(int i=0;i<p;++i) {
@@ -582,7 +589,6 @@ namespace Loci {
         s+= newnum[j] ;
       } ENDFORALL ;
       send_seqs[i] = s ;
-      //      debugout << i << " - " << send_sets[i]  << " , " << s << endl ;
     }
     vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
 
@@ -590,9 +596,9 @@ namespace Loci {
     for(int i=0;i<p;++i)
       file_dom += entitySet(recv_seqs[i]) ;
 
-    //    debugout << "file_dom = " << file_dom << endl ;
     storeRepP qcol_rep ;
     qcol_rep = sp->new_store(file_dom) ;
+
 
     int *send_sizes = new int[p] ;
     int *recv_sizes = new int[p] ;
@@ -617,14 +623,17 @@ namespace Loci {
     unsigned char *send_store = new unsigned char[send_sz] ;
     unsigned char *recv_store = new unsigned char[recv_sz] ;
 
+
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
                send_sets[i]) ;
     }
+
     MPI_Alltoallv(send_store, &send_sizes[0], send_dspl, MPI_PACKED,
 		  recv_store, &recv_sizes[0], recv_dspl, MPI_PACKED,
-		  MPI_COMM_WORLD) ;  
+		  MPI_COMM_WORLD) ;
+
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       qcol_rep->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
