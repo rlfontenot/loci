@@ -538,7 +538,7 @@ namespace {
 
 void parseFile::process_Prelude(std::ostream &outputFile,
                                 const map<variable,string> &vnames) {
-  outputFile << "    void prelude(const sequence &seq) { " ;
+  outputFile << "    void prelude(const Loci::sequence &seq) { " ;
   is.get() ;
   
   int openbrace = 1 ;
@@ -585,7 +585,7 @@ void parseFile::process_Prelude(std::ostream &outputFile,
 
 void parseFile::process_Compute(std::ostream &outputFile,
                                 const map<variable,string> &vnames) {
-  outputFile << "    void compute(const sequence &seq) { " ;
+  outputFile << "    void compute(const Loci::sequence &seq) { " ;
   is.get() ;
   
   int openbrace = 1 ;
@@ -1126,7 +1126,27 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     local_type_map[*vi] = mi->second ;
   }
 
-  outputFile << "class " << class_name << " : public " << rule_type << "_rule" ;
+  if(!prettyOutput)
+    outputFile << "namespace {" ;
+  outputFile << "class " << class_name << " : public Loci::" << rule_type << "_rule" ;
+  if(rule_type == "pointwise") {
+    for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi) {
+      if(type_map[*vi].first == "param") {
+        throw(parseError("pointwise rule cannot compute param, use singleton")) ;
+      }
+    }
+  }
+  if(rule_type == "singleton") {
+    for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi) {
+      string t = type_map[*vi].first ;
+      if(t == "store" || t == "storeVec" || t == "multiStore") {
+        throw(parseError("singleton rule cannot compute store's, use pointwise")) ;
+      }
+    }
+  }
+    
+              
+
   if(rule_type == "apply") {
     if(output.size() != 1) 
       throw parseError("apply rule should have only one output variable") ;
@@ -1159,7 +1179,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
       cerr << "unknown type for variable " << *vi << endl ;
       throw parseError("untyped Loci variable") ;
     }
-    outputFile << "    const_" << mi->second.first <<  mi->second.second ;
+    if(!prettyOutput) 
+      outputFile << "    Loci::const_" << mi->second.first <<  mi->second.second ;
+    else 
+      outputFile << "    const_" << mi->second.first <<  mi->second.second ;
     outputFile << " " << vnames[*vi] << " ; " << endl ;
     syncFile(outputFile) ;
   }
@@ -1173,7 +1196,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     if(vi->get_info().name != "OUTPUT" && mi->second.first == "param") {
       output_param= true ;
     }
-    outputFile << "    " << mi->second.first <<  mi->second.second ;
+    if(!prettyOutput)
+      outputFile << "    Loci::" << mi->second.first <<  mi->second.second ;
+    else
+      outputFile << "    " << mi->second.first <<  mi->second.second ;
     outputFile << " " << vnames[*vi] << " ; " << endl ;
     syncFile(outputFile) ;
   }
@@ -1313,7 +1339,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     if(use_compute)
       process_Calculate(outputFile,vnames) ;
 
-    outputFile <<   "    void compute(const sequence &seq) { " << endl ;
+    outputFile <<   "    void compute(const Loci::sequence &seq) { " << endl ;
     syncFile(outputFile) ;
     if(use_prelude) {
       outputFile <<   "      prelude(seq) ;" << endl ;
@@ -1327,10 +1353,21 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     syncFile(outputFile) ;
   }
   outputFile <<   "} ;" << endl ;
-    syncFile(outputFile) ;
-  outputFile << "register_rule<"<<class_name<<"> register_"<<class_name
-             << " ;" << endl ;
   syncFile(outputFile) ;
+
+  if(!prettyOutput)
+    outputFile << "Loci::register_rule<"<<class_name<<"> register_"<<class_name
+               << " ;" << endl ;
+  else
+    outputFile << "register_rule<"<<class_name<<"> register_"<<class_name
+               << " ;" << endl ;
+  syncFile(outputFile) ;
+
+  if(!prettyOutput) {
+    outputFile << "}" << endl ;
+    syncFile(outputFile) ;
+  }
+
   if(!use_prelude && sized_outputs && (rule_type != "apply")) 
     throw parseError("need prelude to size output type!") ;
 }
