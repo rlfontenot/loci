@@ -27,12 +27,18 @@ default:
 
 compile: $(TARGET)
 
-libLoci.a: $(OBJS)
+libLoci.a: $(OBJS) 
 	$(AR) $(ARFLAGS) libLoci.a $(OBJS) 
 	$(RANLIB) libLoci.a
+
 LIB_OBJS=$(OBJS:.o=_lo.o)
-libLoci.so: $(LIB_OBJS)
+libLoci.so: $(LIB_OBJS) 
 	$(SHARED_LD) $(SHARED_LD_FLAGS) libLoci.so $(LIB_FLAGS) $(LIB_OBJS) 
+
+Loci_version.o: FORCE
+Loci_version_lo.o: FORCE
+
+FORCE:
 
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
