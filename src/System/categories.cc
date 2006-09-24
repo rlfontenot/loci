@@ -32,71 +32,6 @@ using std::ostringstream ;
 
 namespace Loci {
 
-  // Collect entitities to a unified entitySet that is distributed across processors according to the partition ptn.
-  entitySet dist_collect_entitySet(entitySet inSet, const vector<entitySet> &ptn) {
-    const int p = MPI_processes ;
-    vector<entitySet> distSet(p) ;
-    for(int i=0;i<p;++i) 
-      distSet[i] = inSet & ptn[i] ;
-
-    vector<int> send_sz(p) ;
-    for(int i=0;i<p;++i)
-      if(i!=MPI_rank)
-        send_sz[i] = distSet[i].num_intervals()*2 ;
-      else
-        send_sz[i] = 0 ;
-    
-    vector<int> recv_sz(p) ;
-    MPI_Alltoall(&send_sz[0],1,MPI_INT,
-                 &recv_sz[0],1,MPI_INT,
-                 MPI_COMM_WORLD) ;
-
-    int size_send = 0 ;
-    int size_recv = 0 ;
-    for(int i=0;i<p;++i) {
-      size_send += send_sz[i] ;
-      size_recv += recv_sz[i] ;
-    }
-
-    int *send_store = new int[size_send] ;
-    int *recv_store = new int[size_recv] ;
-    int *send_displacement = new int[p] ;
-    int *recv_displacement = new int[p] ;
-
-    send_displacement[0] = 0 ;
-    recv_displacement[0] = 0 ;
-    for(int i = 1; i <  p; ++i) {
-      send_displacement[i] = send_displacement[i-1] + send_sz[i-1] ;
-      recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
-    }
-    for(int i = 0; i <  p; ++i)
-      if(i != MPI_rank)
-        for(int j=0;j<distSet[i].num_intervals();++j) {
-          send_store[send_displacement[i]+j*2] = distSet[i][j].first ;
-          send_store[send_displacement[i]+j*2+1] = distSet[i][j].second ;
-        }
-    
-    
-    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
-		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
-
-    entitySet retval = distSet[MPI_rank] ;
-    for(int i = 0; i <  p; ++i) 
-      for(int j=0;j<recv_sz[i]/2;++j) {
-        int i1 = recv_store[recv_displacement[i]+j*2]  ;
-        int i2 = recv_store[recv_displacement[i]+j*2+1] ;
-        retval += interval(i1,i2) ;
-      }
-    delete[] recv_displacement ;
-    delete[] send_displacement ;
-    delete[] recv_store ;
-    delete[] send_store ;
-
-    return retval ;
-  }
-  
-  
   inline bool compare_var_sizes(const pair<variable,int> &p1, const pair<variable,int> &p2) {
     return p1.second > p2.second ;
   }
@@ -195,16 +130,36 @@ namespace Loci {
     cmap.clear() ;
     vector<interval> pvec ;
     getLocalIntervals(pvec,vm) ;
+    
     vector<variableSet> cat_names(pvec.size()) ;
+#ifdef VERBOSE
+    debugout << "pvec.size() = " << pvec.size()
+
+             << "vm.size() = " << vm.size() << endl ;
+#endif
+
+    map<entitySet, variableSet> vt ;
     map<variable,entitySet>::const_iterator mi ;
     for(mi=vm.begin();mi!=vm.end();++mi) {
-      variable v = mi->first ;
-      entitySet e = mi->second ;
+      vt[mi->second] += mi->first ;
+    } ;
+#ifdef VERBOSE
+    debugout << "pvec.size() = " << pvec.size()
+             << " vm.size() = " << vm.size() 
+             << " vt.size() = " << vt.size() << endl ;
+#endif
+    map<entitySet,variableSet>::const_iterator mt ;
+    
+    for(mt=vt.begin();mt!=vt.end();++mt) {
+      variableSet vs = mt->second ;
+      entitySet e = mt->first ;
       for(size_t i=0;i<pvec.size();++i) {
-        entitySet isect = entitySet(pvec[i]) & e ;
-        if(isect != EMPTY) {
+        if(e.inSet(pvec[i].first)) {
+#ifdef DEBUG
+          entitySet isect = entitySet(pvec[i]) & e ;
           WARN(isect != pvec[i]) ;
-          cat_names[i] += v ;
+#endif
+          cat_names[i] += vs ;
         }
       }
     }
@@ -328,23 +283,31 @@ namespace Loci {
   void categories(fact_db &facts,vector<entitySet> &pvec) {
     map<variable, entitySet> vm ;
     getVariableAssociations(vm,facts) ;
+
     map<variableSet, entitySet> cmap ;
     getLocalCategories(cmap,vm) ;
+
     vector<variableSet> cat_list ;
     vector<variable> var_list ;
     getGlobalCategories(cat_list,var_list,cmap,vm) ;
+
     vector<pair<variable,int> > var_sizes ;
     getVarSizes(var_sizes,var_list,vm) ;
+
     vector<pair<variableSet,string> > cat_keys ;
     getCategoryKeys(cat_keys,var_sizes,cat_list) ;
 
     pvec.clear() ;
+#ifdef VERBOSE
     debugout << "num_categories = " << cat_list.size() <<endl ;
+#endif
     for(size_t i=0;i<cat_keys.size();++i) {
       variableSet vset = cat_keys[i].first ;
       entitySet eset = cmap[vset] ;
       pvec.push_back(all_collect_entitySet(eset)) ;
+#ifdef VERBOSE
       debugout << "category " << cat_keys[i].first << " = " << cat_keys[i].second << ", pvec_n = " << pvec[i].num_intervals() <<  endl ;
+#endif
 
     }
   }

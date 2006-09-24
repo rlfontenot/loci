@@ -4,12 +4,14 @@
 #include <distribute.h>
 #include <distribute_io.h>
 #include <distribute_container.h>
+#include <vector>
 
 namespace Loci {
 
   extern bool use_dynamic_scheduling ;
   void get_clone(fact_db &facts, const rule_db &rdb) ;
   void categories(fact_db &facts,std::vector<entitySet> &pvec) ;
+  entitySet dist_collect_entitySet(entitySet inSet, const std::vector<entitySet> &ptn) ;
   void get_mappings(const rule_db &rdb, fact_db &facts, std::set<std::vector<variableSet> > &maps, unsigned int rule_part = 0) ;
   
   entitySet expand_map(entitySet domain, fact_db &facts,
