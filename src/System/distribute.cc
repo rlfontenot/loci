@@ -657,7 +657,7 @@ namespace Loci {
     return v_dm ;
   }
 #endif
-  
+
   // Collect entitities to a unified entitySet that is distributed across
   // processors according to the partition ptn.
   entitySet dist_collect_entitySet(entitySet inSet, const vector<entitySet> &ptn) {
@@ -723,7 +723,75 @@ namespace Loci {
     return retval ;
   }
   
-  
+  entitySet dist_expand_entitySet(entitySet inSet, entitySet copy,
+                                  const vector<entitySet> &ptn) {
+    vector<int> send_req(ptn.size()) ;
+    for(size_t i=0;i < ptn.size();++i)
+      if((copy&ptn[i]) != EMPTY)
+        send_req[i] = 1 ;
+      else
+        send_req[i] = 0 ;
+    vector<int> recv_req(ptn.size()) ;
+    MPI_Alltoall(&send_req[0],1,MPI_INT, &recv_req[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    vector<int> send_sizes(ptn.size()) ;
+    int send_intervals = inSet.num_intervals() ;
+    
+    for(size_t i=0;i < ptn.size();++i)
+      if(recv_req[i]!=0)
+        send_sizes[i] = send_intervals ;
+      else
+        send_sizes[i] = 0 ;
+    vector<int> recv_sizes(ptn.size()) ;
+    MPI_Alltoall(&send_sizes[0],1,MPI_INT, &recv_sizes[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    vector<vector<int> > recv_buffers ;
+    vector<int> buf_size ;
+    vector<int> proc ;
+    vector<MPI_Request> recv_Requests ;
+    for(size_t i=0;i < ptn.size();++i) {
+      if(recv_sizes[i] != 0) {
+        int recv_size = recv_sizes[i]*2 ;
+        recv_buffers.push_back(vector<int>(recv_size))  ;
+        buf_size.push_back(recv_sizes[i]) ;
+        recv_Requests.push_back(MPI_Request()) ;
+        proc.push_back(i) ;
+      }
+    }
+    for(size_t i=0;i < recv_buffers.size();++i) {
+      int recv_size = buf_size[i]*2 ;
+      
+      MPI_Irecv(&recv_buffers[i][0],recv_size,MPI_INT, proc[i],3,
+                MPI_COMM_WORLD,&recv_Requests[i]) ;
+    }
+
+    vector<int> send_buf(send_intervals*2) ;
+    for(int j=0;j < send_intervals;++j) {
+      send_buf[j*2] = inSet[j].first ;
+      send_buf[j*2+1] = inSet[j].second ;
+    }
+
+    for(size_t i=0;i < ptn.size();++i) {
+      if(send_sizes[i] != 0) {
+        MPI_Send(&send_buf[0],send_intervals*2,MPI_INT,i,3,
+                 MPI_COMM_WORLD) ;
+      }
+    }
+    for(size_t i=0;i<recv_Requests.size();++i) {
+      MPI_Status stat ;
+      MPI_Wait(&recv_Requests[i], &stat ) ;
+    }
+    entitySet recvSet ;
+    for(size_t i=0;i<recv_buffers.size();++i)
+      for(int j=0;j<buf_size[i];++j) {
+        recvSet += interval(recv_buffers[i][j*2],recv_buffers[i][j*2+1]) ;
+      }
+
+    inSet += recvSet ;
+    return inSet ;
+  }
+    
+    
   entitySet all_collect_entitySet(const entitySet &e) {
     entitySet collect ;
     if(MPI_processes > 1) {

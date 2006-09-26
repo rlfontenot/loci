@@ -304,7 +304,7 @@ namespace Loci {
     for(size_t i=0;i<cat_keys.size();++i) {
       variableSet vset = cat_keys[i].first ;
       entitySet eset = cmap[vset] ;
-      pvec.push_back(all_collect_entitySet(eset)) ;
+      pvec.push_back(eset) ;
 #ifdef VERBOSE
       debugout << "category " << cat_keys[i].first << " = " << cat_keys[i].second << ", pvec_n = " << pvec[i].num_intervals() <<  endl ;
 #endif

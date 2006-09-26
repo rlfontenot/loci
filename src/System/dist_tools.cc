@@ -13,7 +13,6 @@ using std::endl;
 #include <algorithm>
 using std::sort;
 
-#include "metis.h"
 #include <mpi.h>
 
 #include <Tools/debug.h>
@@ -25,26 +24,23 @@ using std::sort;
 #include <multiMap.h>
 #include "loci_globs.h"
 
-#ifdef SCATTER_DIST
-#define UNITY_MAPPING
-#endif
 namespace Loci {
   void get_clone(fact_db &facts, const rule_db &rdb) {
     fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     std::vector<entitySet> &ptn = facts.get_init_ptn() ;
-    entitySet bdom = ptn[Loci::MPI_rank] & interval(Loci::UNIVERSE_MIN, -1) ;
-    entitySet global_bdom = Loci::all_collect_entitySet(bdom) ;
+    entitySet bdom = ptn[MPI_rank] & interval(UNIVERSE_MIN, -1) ;
+    entitySet global_bdom = all_collect_entitySet(bdom) ;
     int p = 0; 
-    for(int i = 0; i < Loci::MPI_processes; ++i) {
+    for(int i = 0; i < MPI_processes; ++i) {
       entitySet tmp = ptn[i] ; 
-      ptn[i] = tmp & interval(0, Loci::UNIVERSE_MAX) ;
+      ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
     }
 
     FORALL(global_bdom, i) {
-      int tmp = p % Loci::MPI_processes ;
+      int tmp = p % MPI_processes ;
       ptn[tmp] += i ;
       if(duplicate_work)
-	if(tmp == Loci::MPI_rank)
+	if(tmp == MPI_rank)
 	  //Since we are manually adding entities to init_ptn, we also need to 
 	  //add those entities in global_comp_entities
 	  facts.global_comp_entities += i;
@@ -52,19 +48,19 @@ namespace Loci {
     } ENDFORALL ;
     variableSet tmp_vars = facts.get_typed_variables();
     for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
-      Loci::storeRepP tmp_sp = facts.get_variable(*vi) ;
-      if(tmp_sp->RepType() == Loci::CONSTRAINT) {
+      storeRepP tmp_sp = facts.get_variable(*vi) ;
+      if(tmp_sp->RepType() == CONSTRAINT) {
         entitySet tmp_dom = tmp_sp->domain() ;
         if(tmp_dom != ~EMPTY) {
-          entitySet global_tmp_dom = Loci::all_collect_entitySet(tmp_dom) ;
+          entitySet global_tmp_dom = all_collect_entitySet(tmp_dom) ;
           constraint tmp ;
           *tmp = global_tmp_dom ;
           //facts.update_fact(variable(*vi), tmp) ;
           facts.replace_fact(*vi,tmp) ;
         }
       }
-      if(tmp_sp->RepType() == Loci::MAP) {
-        storeRepP map_sp = Loci::MapRepP(tmp_sp->getRep())->thaw() ;
+      if(tmp_sp->RepType() == MAP) {
+        storeRepP map_sp = MapRepP(tmp_sp->getRep())->thaw() ;
         facts.replace_fact(*vi, map_sp) ;
       }
     }
@@ -74,22 +70,22 @@ namespace Loci {
       std::set<std::vector<variableSet> > context_maps ;
 
       if(extended_duplication) 
-	Loci::get_mappings(rdb, facts, context_maps);
+	get_mappings(rdb, facts, context_maps);
       else 
-	Loci::get_mappings(rdb, facts, context_maps, 1);
+	get_mappings(rdb, facts, context_maps, 1);
 
       context_maps = classify_moderate_maps(facts, context_maps);
 
       //Find out entities that can produce target variable entities owned by a processor
-      facts.global_comp_entities += context_for_map_output(ptn[Loci::MPI_rank], facts, context_maps);
+      facts.global_comp_entities += context_for_map_output(ptn[MPI_rank], facts, context_maps);
       
       //Add entities so that maximum depth of duplication can be achieved
       if(multilevel_duplication) {
-	entitySet mySet = ptn[Loci::MPI_rank];
+	entitySet mySet = ptn[MPI_rank];
 	bool continue_adding = true;
 	int num_levels = 1;
 	do{
-	  mySet += Loci::dist_special_expand_map(facts.global_comp_entities,
+	  mySet += dist_special_expand_map(facts.global_comp_entities,
 						 facts, context_maps) ;
 	  entitySet added_entities = context_for_map_output(mySet,  facts, context_maps);
 	  added_entities -= facts.global_comp_entities;
@@ -101,16 +97,16 @@ namespace Loci {
 	  }
 	}while(continue_adding);
 	facts.global_comp_entities += mySet;
-	Loci::debugout << "Number of Duplication Levels: " << num_levels << endl; 
+	debugout << "Number of Duplication Levels: " << num_levels << endl; 
       }
       tmp_set = facts.global_comp_entities;
     }
     else
-      tmp_set = ptn[Loci::MPI_rank] ;
+      tmp_set = ptn[MPI_rank] ;
     std::set<std::vector<variableSet> > dist_maps ;
-    Loci::get_mappings(rdb,facts,dist_maps) ;
+    get_mappings(rdb,facts,dist_maps) ;
     entitySet tmp_copy, image ;
-    image = Loci::dist_expand_map(tmp_set, facts, dist_maps) ;
+    image = dist_expand_map(tmp_set, facts, dist_maps) ;
     tmp_copy =  image - ptn[MPI_rank] ; 
     std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
     int *recv_count = new int[MPI_processes] ;
@@ -168,15 +164,20 @@ namespace Loci {
     constraint my_entities ;
     int isDistributed ;
     std::vector<entitySet> iv ; 
+    categories(facts,iv) ;
+    for(size_t i=0;i < iv.size(); ++i) 
+      //      iv[i] = all_collect_entitySet(iv[i]) ;
+      iv[i] = dist_expand_entitySet(iv[i],tmp_copy,ptn) ;
+    
+
     entitySet::const_iterator ti ;
     vector<entitySet> proc_entities ;
-    Loci::categories(facts,iv) ;
     entitySet e ;
 
     debugout << " initial_categories =  " << iv.size() << endl ;
   
     for(size_t i = 0; i < iv.size(); ++i) {
-      //    Loci::debugout << " iv[ " << i << " ] = " << iv[i] << endl ;
+      //    debugout << " iv[ " << i << " ] = " << iv[i] << endl ;
       // Within each category:
       // 1) Number local processor entities first
       e = ptn[myid] & iv[i] ; 
@@ -196,16 +197,7 @@ namespace Loci {
     }
     iv.clear() ;
     entitySet g ; 
-    //#define UNITY_MAPPING
-#ifdef UNITY_MAPPING
-    cout << "Using Unity Mapping " << endl ;
-    for(int i=0;i<proc_entities.size();++i)
-      g+= proc_entities[i] ;
-    l2g.allocate(g) ;
-    for(entitySet::const_iterator ei=g.begin();ei!=g.end();++ei)
-      l2g[*ei] = *ei ;
-#else
-    MPI_Barrier(MPI_COMM_WORLD) ;
+
     int j = 0 ;
     e = interval(0, size-1) ;
     l2g.allocate(e) ;
@@ -217,7 +209,7 @@ namespace Loci {
       }
     }
     proc_entities.clear() ;
-#endif 
+
     df->l2g = l2g.Rep() ;
     df->dl2g = MapRepP(l2g.Rep())->thaw() ;
     df->g2l.allocate(g) ;
@@ -252,11 +244,11 @@ namespace Loci {
         send_entities[*ei] +=  df->g2l[*ti] ;
     }
     double end_time =  MPI_Wtime() ;
-    Loci::debugout << "  Time taken for creating intitial info =  " << end_time - start << endl ;
+    debugout << "  Time taken for creating initial info =  " << end_time - start << endl ;
     start = MPI_Wtime() ;
-    Loci::reorder_facts(facts, df->g2l) ;
+    reorder_facts(facts, df->g2l) ;
     end_time =  MPI_Wtime() ;
-    Loci::debugout << "  Time taken for reordering =  " << end_time - start << endl ; 
+    debugout << "  Time taken for reordering =  " << end_time - start << endl ; 
     isDistributed = 1 ;
     df->isDistributed = isDistributed ;
     g = EMPTY ;
@@ -307,154 +299,6 @@ namespace Loci {
     facts.create_intensional_fact("l2g", l2g) ;
     facts.put_l2g(l2g) ;
     facts.create_intensional_fact("my_entities",my_entities);
-  }
-  
-  void metis_facts(fact_db &facts, vector<entitySet> &ptn, int num_partitions) {
-    if(num_partitions == 0)
-      num_partitions = MPI_processes ;
-    
-    variableSet::const_iterator vi ;
-    entitySet::const_iterator ei ;
-    variableSet fact_vars ;
-    fact_vars = facts.get_typed_variables() ;
-    entitySet map_entities ;
-    
-    /*Initially a serial fact_database is set up on all the
-      processors. We then split the fact_database into p parts if
-      there are p processes. First step to partitioning is setting up
-      the graph . To create the graph we need to extract the entities
-      associated with the stores and the maps and their relationship
-      with each other . This is probably not the most efficient way to 
-      create the graph but it lets us do the partitioning without any
-      prior knowledge about the problem( for example : whether there are
-      faces, cells etc ...). A problem which might occur is poor load
-      balancing. We are not assured that the partitioning is load
-      balanced.  */
-    for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
-      storeRepP vp = facts.get_variable(*vi) ;
-      if(vp->RepType() == MAP) {
-        MapRepP mp = MapRepP(vp->getRep()) ;
-        FATAL(mp == 0) ;
-        entitySet dom = mp->domain() ;
-        map_entities += dom ;
-        map_entities += mp->image(dom) ;
-      }
-      if(vp->RepType() == STORE) {
-	map_entities += vp->domain() ;
-      }
-    }
-    store<entitySet> dynamic_map ;
-    dynamic_map.allocate(map_entities) ;
-    int map_count = 0 ;
-    for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
-      storeRepP vp = facts.get_variable(*vi) ;
-      if(vp->RepType() == MAP) {
-	map_count++ ;
-        MapRepP mp = MapRepP(vp->getRep()) ;
-        FATAL(mp == 0) ;
-	multiMap m = mp->get_map() ;
-	entitySet dom = mp->domain() ;
-	for(ei=dom.begin();ei!=dom.end();++ei) {
-	  for(const int *i = m.begin(*ei);i != m.end(*ei); ++i) {
-	    // Two associations (*ei,*i), (*i,*ei)
-            dynamic_map[*i] += *ei ;
-            dynamic_map[*ei]+= *i ;
-          }
-        }
-      }
-    }
-    if(!map_count) {
-      for(vi=fact_vars.begin();vi!=fact_vars.end();++vi) {
-	storeRepP vp = facts.get_variable(*vi) ;
-	if(vp->RepType() == STORE) {
-	  entitySet dom = vp->domain() ; 
-	  for(ei=dom.begin();ei!=dom.end();++ei) {
-	    dynamic_map[*ei] += *ei ;
-	  }
-	}
-      }
-    }
-    int size_map = map_entities.size() ;
-    Map entities ;
-    Map reverse ;
-    store<int> size_adj ;
-    int count  = 0 ;
-    entitySet dom_map = interval(0, size_map-1) ;
-    entities.allocate(map_entities) ;
-    size_adj.allocate(dom_map) ;
-    reverse.allocate(dom_map) ;
-    count = 0 ;
-    /* First the entities are grouped together by renumbering them. */
-    for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
-      entities[*ei] = count ;
-      ++count ;
-    }
-    count = 0 ;
-    for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) {
-      size_adj[count] = dynamic_map[*ei].size() ;  
-      ++count ;
-    }
-    // Create a reverse mapping to revert to the original numbering 
-    count = 0; 
-    for(ei = map_entities.begin(); ei!=map_entities.end(); ++ei) {
-      reverse[count] = *ei ;
-      ++count ;
-    }
-    
-    int *xadj = new int[size_map+1] ;
-    int options, numflag, edgecut, wgtflag ;
-    int *part = new int[size_map] ;
-    options = 0 ;
-    numflag = 0 ;
-    wgtflag = 0 ;
-    edgecut = 0 ;
-    xadj[0] = 0 ;
-    for(int i = 0; i < size_map; ++i) {
-      xadj[i+1] = xadj[i] + size_adj[i] ;
-    }
-    int *adjncy = new int[xadj[size_map]] ;
-    count = 0 ;
-    for(ei = map_entities.begin(); ei != map_entities.end(); ++ei) 
-      for(entitySet::const_iterator di = dynamic_map[*ei].begin(); di!=dynamic_map[*ei].end(); ++di)        {
-        adjncy[count] = entities[*di] ;
-        count ++ ;
-      }
-    double t = MPI_Wtime() ;
-#ifndef MPI_STUBB
-    METIS_PartGraphKway(&size_map,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part) ;
-#endif
-    double et = MPI_Wtime() ;
-    debugout << "Time taken for METIS_PartGraphKway = " << et - t << "  seconds " << endl ;
-    debugout << " Edge cut   " <<  edgecut << endl ;
-    
-    entitySet num_parts = interval(0, num_partitions-1) ;
-    store<int> number ;
-    store<int> dummy_number ;
-    number.allocate(num_parts) ;
-    dummy_number.allocate(num_parts) ;
-    for(ei = num_parts.begin(); ei!= num_parts.end(); ++ei)
-      number[*ei] = 0 ;
-    
-    for(int i = 0; i < size_map; i++) 
-      number[part[i]] += 1 ;
-    
-    for(ei = num_parts.begin(); ei!=num_parts.end(); ++ei) {
-      dummy_number[*ei] = 0 ;
-    }
-    multiMap epp ;
-    epp.allocate(number) ;
-    for(int i = 0; i < size_map; i++)
-      epp[part[i]][dummy_number[part[i]]++] = reverse[i] ;
-    for(ei=num_parts.begin();ei!=num_parts.end();++ei) {
-      entitySet parti ;
-      for(const int *ii=epp.begin(*ei);ii!= epp.end(*ei);++ii) {
-        parti += *ii ; 
-      }
-      ptn.push_back(parti) ;
-    }
-    delete [] xadj ;
-    delete [] part ;
-    delete [] adjncy ;
   }
   
   /*This routine loops over all the rules in the database and extracts
@@ -566,42 +410,6 @@ namespace Loci {
 
   }
   
-  /*The expand_map routine helps in identifying the clone regions. The
-    entities which are related are found out by taking the image of the
-    maps associated with the rules in the database. The entitySet which
-    is usually passed on to the routine will contain the my_entities
-    associated with a particular process. This routine doesn't need to
-    perform any communication as the whole map is present on all the
-    processors. */
-  
-  entitySet expand_map(entitySet domain, fact_db &facts,
-                       const set<vector<variableSet> > &maps) {
-    entitySet dom = domain ;
-    variableSet vars = facts.get_typed_variables() ;
-    set<vector<variableSet> >::const_iterator smi ;
-    for(smi = maps.begin(); smi != maps.end(); ++smi) {
-      entitySet locdom = domain ;
-      const vector<variableSet> &mv = *smi ;
-      for(size_t i = 0; i < mv.size(); ++i) {
-        variableSet v = mv[i] ;
-        v &= vars ;
-        entitySet image ;
-        for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
-          storeRepP p = facts.get_variable(*vi) ;
-	  if(p->RepType() == MAP) {
-            MapRepP mp = MapRepP(p->getRep()) ;
-            image += mp->image(p->domain() & locdom) ;
-          }
-        }
-	// The image of the map is added to the entitySet to be
-	// returned 
-        dom += image ;
-        locdom = image ;
-      }
-    }
-    return dom ;
-  }
-
   //This routine  is similar to the expand map but it works for maps
   //which are distributed across processors. 
   entitySet dist_expand_map(entitySet domain, fact_db &facts,
@@ -933,7 +741,7 @@ namespace Loci {
   //vector of entitySet describing exactly which entities 
   //are received from which processor.
   vector<entitySet> send_entitySetv(const entitySet& e, fact_db &facts) {
-    vector<entitySet> re(Loci::MPI_processes);
+    vector<entitySet> re(MPI_processes);
     if(facts.isDistributed()) {  
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
 
@@ -1141,11 +949,11 @@ namespace Loci {
       }
 
       image = tmp;
-      Loci::debugout << "map ratio: " << 1.0*domain.size()/image.size() << endl;
+      debugout << "map ratio: " << 1.0*domain.size()/image.size() << endl;
       for(unsigned int i = 0; i < mv.size(); i++) {
-	Loci::debugout << "(" << mv[i] << ")  ->  "; 
+	debugout << "(" << mv[i] << ")  ->  "; 
       }
-      Loci::debugout << endl;
+      debugout << endl;
       if(domain.size()*1.0 > image.size() *  10.0) {
 	facts.intensive_output_maps.insert(*smi);
       }
@@ -1170,96 +978,26 @@ namespace Loci {
       for(int i = mv.size() -1; i >= 0; --i) {
 	variableSet v = mv[i] ;
 	v &= vars ;
-	std::vector<entitySet>  tmp_preimage_vec(Loci::MPI_processes);
+	std::vector<entitySet>  tmp_preimage_vec(MPI_processes);
 	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
 	  storeRepP p = facts.get_variable(*vi) ;
 	  if(p->RepType() ==  MAP) {
 	    MapRepP mp =  MapRepP(p->getRep()) ;
-	    for(int j = 0; j < Loci::MPI_processes; j++) {
+	    for(int j = 0; j < MPI_processes; j++) {
 	      tmp_preimage_vec[j] += mp->preimage(preimage_vec[j]).second;
 	    }
 	  }
 	}
-	for(int j = 0; j < Loci::MPI_processes; j++) {
+	for(int j = 0; j < MPI_processes; j++) {
 	  preimage_vec[j] = all_collect_entitySet(tmp_preimage_vec[j]);
 	}
 
 	if(i == 0) {
-	  context += preimage_vec[Loci::MPI_rank];
+	  context += preimage_vec[MPI_rank];
 	}
       }
     }
     return context ;
-  }
-
-  //Reverse expand maps makes following sure:
-  //If a map has : b->a, c->a then, if b is in the domain of a processor,
-  //c should be added to the domain. 
-  entitySet dist_reverse_expand_map(fact_db &facts,
-				    const std::set<std::vector<variableSet> > &maps) {   
-    entitySet added_entities = EMPTY;
-    std::vector<entitySet> ptn = facts.get_init_ptn() ;
-    
-    for(int i = 0; i < MPI_processes; ++i) {
-      entitySet tmp = ptn[i] ;
-      ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
-    }
-    variableSet vars = facts.get_typed_variables() ;
-    std::set<std::vector<variableSet> >::const_iterator smi ;
-    for(smi = maps.begin(); smi != maps.end(); ++smi) {
-      const vector<variableSet> &mv = *smi ;
-      entitySet image = ~EMPTY ;
-      if(mv.size()) {
-	variableSet v = mv[mv.size() -1];
-	v &= vars;
-	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
-	  storeRepP p = facts.get_variable(*vi) ;
-	  if(p->RepType() ==  MAP) {
-	    MapRepP mp =  MapRepP(p->getRep()) ;
-	    image &= mp->image(mp->domain());
-	  }
-	  else {
-	    cerr << "variable found by mapping function is not a map" << endl;
-	    Loci::Abort();
-	  }
-	}
-      }
-      for(int i = mv.size() - 1; i >= 0; --i) {
-	variableSet v = mv[i] ;
-	v &= vars ;
-	entitySet tmp_image = ~EMPTY;
-	std::vector<entitySet> image_vec = all_collect_vectors(image);
-	MapRepP test;
-	for(variableSet::const_iterator vi = v.begin(); vi != v.end(); ++vi) {
-	  storeRepP p = facts.get_variable(*vi) ;
-	  if(p->RepType() ==  MAP) {
-	    MapRepP mp =  MapRepP(p->getRep()) ;
-	    std::vector<entitySet> tmp_preimage_vec(MPI_processes);
-	    for(int j = 0; j < MPI_processes; j++) {
-	      tmp_preimage_vec[j] = mp->preimage(image_vec[j]).first;
-	    }
-	    for(int j = 0; j < MPI_processes; j++) {
-	      tmp_preimage_vec[j] = all_collect_entitySet(tmp_preimage_vec[j]);
-	    }
-
-	    entitySet tmp_out = tmp_preimage_vec[MPI_rank] - p->domain();
-	    p = mp->expand(tmp_out, ptn) ;
-	    if(tmp_out != EMPTY) {
-	      //facts.update_fact(variable(*vi), p) ;
-              facts.replace_fact(*vi,p) ;
-	      added_entities += tmp_out;
-	    }
-	    tmp_image &= mp->image(mp->domain());
-	  }
-	  else {
-	    cerr << "variable found by mapping function is not a map" << endl;
-	    Loci::Abort();
-	  }
-	}
-	image = tmp_image;
-      }
-    }
-    return added_entities;
   }
 
   //It works just like dist_expand_map except the return entities only contain the image
@@ -1310,7 +1048,7 @@ namespace Loci {
 
   // function that restores the fact_db back to its global numbering
   void restore_global_facts(fact_db& facts) {
-    if(Loci::MPI_rank == 0)
+    if(MPI_rank == 0)
       cerr << "restore_global_facts" << endl ;
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     // not yet distributed, we don't need to do anything
@@ -1328,12 +1066,12 @@ namespace Loci {
     for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei)
       l2g[*ei] = df->l2g[*ei] ;
 
-    if(Loci::MPI_rank==0)
+    if(MPI_rank==0)
       cerr << "before reorder" << endl ;
     
-    Loci::reorder_facts(facts, l2g) ;
+    reorder_facts(facts, l2g) ;
 
-    if(Loci::MPI_rank==0)
+    if(MPI_rank==0)
       cerr << "after reorder" << endl ;
 
     df->isDistributed = 0 ;
