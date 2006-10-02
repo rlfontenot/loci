@@ -12,7 +12,8 @@ OBJS =  lpp.o main.o
 
 LOCAL_LIBS =
 
-JUNK = *~ core ti_files ii_files rii_files 
+# Junk files that are created while editing and running cases
+JUNK = $(wildcard *~)  core 
 
 default:
 	$(MAKE) $(TARGET) 
@@ -25,4 +26,13 @@ $(TARGET): $(OBJS)
 FRC : 
 
 clean:
-	rm -fr $(OBJS) $(TARGET) $(JUNK) make.depend make.depend.bak *.o $(OTHER_APPS)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK)
+
+distclean:
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
+
+DEPEND_FILES=$(subst .o,.d,$(OBJS))
+
+
+#include automatically generated dependencies
+include $(DEPEND_FILES)
