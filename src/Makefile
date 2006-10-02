@@ -51,12 +51,16 @@ clean:
 	rm -f $(JUNK)
 	cd Tools ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd System ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
+	cd FVMtools; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
+	cd FVMMod; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 	cd lpp ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 
 distclean:
 	rm -f $(JUNK)
 	cd Tools ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd System ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
+	cd FVMtools; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
+	cd FVMMod; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd lpp ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 
 
