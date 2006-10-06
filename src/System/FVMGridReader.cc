@@ -15,8 +15,8 @@
 
 #include <Tools/tools.h>
 #include <map>
-#include <rpc/rpc.h>
-#include <rpc/xdr.h>
+
+#include <Tools/xdr.h>
 
 #include <list>
 using std::list ;
