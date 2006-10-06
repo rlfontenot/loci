@@ -9,6 +9,7 @@ extern
 "C" {
   extern bool_t xdr_int(XDR *xdrs, int *ip) ;
   extern bool_t xdr_double(XDR *xdrs, double *dp) ;
+  extern bool_t xdr_char(XDR *xdrs, char *cp) ;
   extern void xdrstdio_create (XDR *xdrs, FILE *file, enum xdr_op xop) ;
   //  extern void xdr_destroy(XDR *xdrs) ;
   // HACK
