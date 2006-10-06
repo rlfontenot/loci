@@ -1,3 +1,6 @@
+#ifndef LOCI_CONFIGURATION_INCLUDE
+#define LOCI_CONFIGURATION_INCLUDE
+
 #ifdef restrict
 #undef restrict
 #endif
@@ -92,6 +95,12 @@
 #define DARWIN
 #endif
 
+#ifdef __CYGWIN__
+#define NO_XDR_CPP_PROTOTYPES
+#endif
+
 #ifndef MPI_NO_CPPBIND
 #define MPI_NO_CPPBIND
+#endif
+
 #endif
