@@ -6,7 +6,10 @@
 #include <floatingpoint.h>
 #include <siginfo.h>
 #endif
+
+#ifndef __CYGWIN__
 #include <ucontext.h>
+#endif
 
 #ifdef SUN
 #include <sys/machsig.h>
@@ -81,6 +84,10 @@ namespace Loci {
     const char *xtermlibpath = "/usr/openwin/lib:/usr/lib" ;
 #endif
 #ifdef LINUX
+    const char *xtermpath = "/usr/X11R6/bin/xterm" ;
+    const char *xtermlibpath = "/usr/X11R6/lib:/usr/lib:/lib/i686:/lib" ;
+#endif
+#ifdef __CYGWIN__
     const char *xtermpath = "/usr/X11R6/bin/xterm" ;
     const char *xtermlibpath = "/usr/X11R6/lib:/usr/lib:/lib/i686:/lib" ;
 #endif
