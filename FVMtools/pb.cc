@@ -51,8 +51,7 @@ using std::bind2nd ;
 
 #include <sys/time.h>
 
-#include <rpc/rpc.h>
-#include <rpc/xdr.h>
+#include "Tools/xdr.h"
 
 #include <sstream>
 using std::stringstream ;

@@ -7,8 +7,9 @@ using std::string ;
 #include <fstream>
 #include <string>
 #include <sstream>
-#include <rpc/rpc.h>
-#include <rpc/xdr.h>
+
+#include "Tools/xdr.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 using std::istream ;

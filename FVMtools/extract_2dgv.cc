@@ -11,8 +11,7 @@
 #include <list>
 #include <string>
 
-#include <rpc/rpc.h>
-#include <rpc/xdr.h>
+#include "Tools/xdr.h"
 
 using std::string ;
 

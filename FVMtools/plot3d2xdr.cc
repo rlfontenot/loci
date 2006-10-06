@@ -1,6 +1,5 @@
 #include <Loci.h>
-#include <rpc/rpc.h>
-#include <rpc/xdr.h>
+#include "Tools/xdr.h"
 #include <Tools/stream.h>
 #include <Tools/ftrn_reader.h>
 #include <Tools/tools.h>
