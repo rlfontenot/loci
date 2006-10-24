@@ -1107,6 +1107,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     v = convertVariable(v) ;
     map<variable,pair<string,string> >::const_iterator mi ;
     if((mi = type_map.find(v)) == type_map.end()) {
+
       v = v.new_offset(0) ;
       v = v.drop_assign() ;
       while(v.time() != time_ident())
@@ -1123,6 +1124,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
         }
       }
     }
+
     local_type_map[*vi] = mi->second ;
   }
 
@@ -1131,14 +1133,14 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   outputFile << "class " << class_name << " : public Loci::" << rule_type << "_rule" ;
   if(rule_type == "pointwise") {
     for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi) {
-      if(type_map[*vi].first == "param") {
+      if(local_type_map[*vi].first == "param") {
         throw(parseError("pointwise rule cannot compute param, use singleton")) ;
       }
     }
   }
   if(rule_type == "singleton") {
     for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi) {
-      string t = type_map[*vi].first ;
+      string t = local_type_map[*vi].first ;
       if(t == "store" || t == "storeVec" || t == "multiStore") {
         throw(parseError("singleton rule cannot compute store's, use pointwise")) ;
       }
