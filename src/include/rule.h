@@ -452,6 +452,18 @@ namespace Loci {
       Op f ;
       f(t1,t2) ;
     }
+    
+    template<class U> void join(Vect<U> t1,
+                                const_Vect<U> t2) {
+      Op f ;
+      f(t1,t2) ;
+    }
+
+    template<class U> void join(Mat<U> t1,
+                                const_Mat<U> t2) {
+      Op f ;
+      f(t1,t2) ;
+    }
   public:
     virtual CPTR<joiner> get_joiner() {
       CPTR<joinOp<T,Op> > jp = new joinOp<T,Op> ;
@@ -468,21 +480,30 @@ namespace Loci {
   template <class T> struct Summation {
     void operator()(T &res, const T &arg)
     { res += arg ; }
+    template <class U> void operator()(T &res, const U &arg)
+    { res += arg ; }
   } ;
 
   template <class T> struct Product {
     void operator()(T &res, const T &arg)
     { res *= arg ; }
+    template <class U> void operator()(T &res, const U &arg)
+    { res *= arg ; }
+
   } ;
 
   template <class T> struct Maximum {
     void operator()(T &res ,const T &arg)
+    { res = max(res,arg) ; }
+    template <class U> void operator()(T &res, const U &arg)
     { res = max(res,arg) ; }
   } ;
 
   template <class T> struct Minimum {
     void operator()(T &res, const T &arg)
     { res = min(res,arg) ; }
+    template <class U> void operator()(T &res, const U &arg)
+    { res = max(res,arg) ; }
   } ;
   
   class rule {
