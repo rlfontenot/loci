@@ -1133,7 +1133,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   outputFile << "class " << class_name << " : public Loci::" << rule_type << "_rule" ;
   if(rule_type == "pointwise") {
     for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi) {
-      if(local_type_map[*vi].first == "param") {
+      if(local_type_map[*vi].first == "param" && vi->get_info().name != "OUTPUT") {
         throw(parseError("pointwise rule cannot compute param, use singleton")) ;
       }
     }
