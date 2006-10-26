@@ -1,6 +1,11 @@
 #include "lpp.h"
 #include <ctype.h>
 #include <set>
+#include <iostream>
+#include <sstream>
+
+using std::istringstream ;
+using std::ostringstream ;
 
 using std::pair ;
 using std::list ;
@@ -682,6 +687,205 @@ string getNumber(std::istream &is) {
   }
   return num ;
 }
+
+string parseFile::process_String(string in,
+                                 const map<variable,string> &vnames) {
+  ostringstream outputFile ;
+  istringstream is(in) ;
+
+  int line_no = 0 ;
+
+  for(;;) {
+    ::killspOut(is,line_no,outputFile) ;
+
+    if(is.peek() == EOF)
+      break ;
+      
+    if(is.peek() == '}') {
+      is.get() ;
+      outputFile << '}' ;
+      continue ;
+    }
+    if(is.peek() == '{') {
+      is.get() ;
+      outputFile << '{' ;
+      continue ;
+    }
+    if(is.peek() == '"') {
+      is.get() ;
+      outputFile << '"' ;
+      while(is.peek() != '"' && is.peek() != EOF) {
+        char c = is.get() ;
+        outputFile << c ;
+      }
+      is.get() ;
+      outputFile << '"' ;
+      continue ;
+    }
+    if(is.peek() == '\'') {
+      is.get() ;
+      outputFile << '\'' ;
+      while(is.peek() != '\'' && is.peek() != EOF) {
+        char c = is.get() ;
+        outputFile << c ;
+      }
+      is.get() ;
+      outputFile << '\'' ;
+      continue ;
+    }      
+    if(is.peek() == '/') {
+      is.get() ;
+      outputFile << '/' ;
+      if(is.peek() == '/') { // comment line
+        is.get() ;
+        outputFile << '/' ;
+        while(is.peek() != '\n') {
+          char c = is.get() ;
+          outputFile << c ;
+        }
+        ::killspOut(is,line_no,outputFile) ;
+      }
+      continue ;
+    }
+          
+    if(is.peek() == '#') {
+      is.get() ;
+      outputFile << '#' ;
+      while(is.peek() != '\n') {
+        char c = is.get() ;
+        outputFile << c ;
+      }
+      ::killspOut(is,line_no,outputFile) ;
+      continue ;
+    }
+
+    if(isdigit(is.peek())) {
+      outputFile << getNumber(is) ;
+      continue ;
+    }
+
+    if(is_name(is) || is.peek() == '$') {
+      bool first_name = is_name(is) ;
+      string name ;
+      variable v ;
+      string brackets ;
+      if(first_name) 
+        name = get_name(is) ;
+      else {
+        is.get() ;
+        if(is.peek() == '*') {
+          is.get() ;
+          var vin ;
+          vin.get(is) ;
+          
+          variable v(vin.str()) ;
+          map<variable,string>::const_iterator vmi = vnames.find(v) ;
+          if(vmi == vnames.end()) {
+            cerr << "variable " << v << " is unknown to this rule!" << endl ;
+            throw parseError("type error") ;
+          }
+          
+          outputFile << vmi->second ;
+          continue ;
+        }
+        
+        var vin ;
+        vin.get(is) ;
+        v = variable(vin.str()) ;
+        ::killspOut(is,line_no,outputFile) ;
+        if(is.peek() == '[') {
+          nestedbracketstuff nb ;
+          nb.get(is) ;
+          string binfo = process_String(nb.str(),vnames) ;
+          brackets = "[" + binfo + "]" ;
+        }
+      }
+      list<variable> vlist ;
+      list<string> blist ;
+      bool dangling_arrow = false ;
+
+      for(;;) { // scan for ->$ chain
+        ::killspOut(is,line_no,outputFile) ;
+        if(is.peek() != '-')
+          break ;
+        char c=is.get() ;
+        if(c== '-' && is.peek() == '>') {
+          c=is.get() ;
+          ::killspOut(is,line_no,outputFile) ;
+          if(is.peek() == '$') {
+            is.get() ;
+            var vin ;
+            vin.get(is) ;
+            vlist.push_back(variable(vin.str())) ;
+            string brk ;
+            ::killspOut(is,line_no,outputFile) ;
+            if(is.peek() == '[') {
+              nestedbracketstuff nb ;
+              nb.get(is) ;
+              string binfo = process_String(nb.str(),vnames) ;
+              brk = "[" + binfo +"]";
+            }
+            blist.push_back(brk) ;
+          } else {
+            dangling_arrow = true ;
+            break ;
+          }
+        } else {
+          is.unget() ;
+          break ;
+        }
+      }
+      if(dangling_arrow && first_name) {
+        outputFile << name << " ->" ;
+        continue ;
+      }
+      if(dangling_arrow)
+        throw parseError("syntax error, near '->' operator") ;
+
+      if(first_name && (vlist.size() == 0)) {
+        outputFile << name << ' ' ;
+        continue ;
+      }
+      list<variable>::reverse_iterator ri ;
+      for(ri=vlist.rbegin();ri!=vlist.rend();++ri) {
+        map<variable,string>::const_iterator vmi = vnames.find(*ri) ;
+        if(vmi == vnames.end()) {
+          cerr << "variable " << *ri << " is unknown to this rule!" << endl ;
+          throw parseError("type error") ;
+        }
+        outputFile << vmi->second << '[' ;
+      }
+      if(first_name) {
+        outputFile << '*' << name ;
+      } else {
+        map<variable,string>::const_iterator vmi = vnames.find(v) ;
+        if(vmi == vnames.end()) {
+          cerr << "variable " << v << " is unknown to this rule!" << endl ;
+          throw parseError("type error: is this variable in the rule signature?") ;
+        }
+        if(prettyOutput)
+          outputFile << vmi->second << "[e]" ;
+        else
+          outputFile << vmi->second << "[_e_]" ;
+      }
+
+      outputFile << brackets ;
+      list<string>::const_iterator rbi ;
+      for(rbi=blist.begin();rbi!=blist.end();++rbi) {
+        outputFile << ']' << *rbi ;
+      }
+
+    }
+    if(is.peek() != EOF) {
+      char c = is.get() ;
+      outputFile << c ;
+    }
+  } 
+
+  
+  return outputFile.str() ;
+}
+                                 
 void parseFile::process_Calculate(std::ostream &outputFile,
                                   const map<variable,string> &vnames) {
   if(prettyOutput)
@@ -807,7 +1011,8 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         if(is.peek() == '[') {
           nestedbracketstuff nb ;
           nb.get(is) ;
-          brackets = "[" + nb.str() + "]" ;
+          string binfo = process_String(nb.str(),vnames) ;
+          brackets = "[" + binfo + "]" ;
           line_no += nb.num_lines() ;
           lcount += nb.num_lines() ;
         }
@@ -834,7 +1039,8 @@ void parseFile::process_Calculate(std::ostream &outputFile,
             if(is.peek() == '[') {
               nestedbracketstuff nb ;
               nb.get(is) ;
-              brk = "[" + nb.str() +"]";
+              string binfo = process_String(nb.str(),vnames) ;
+              brk = "[" + binfo +"]";
               line_no += nb.num_lines() ;
               lcount += nb.num_lines() ;
             }
@@ -881,8 +1087,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
         else
           outputFile << vmi->second << "[_e_]" ;
       }
-      //      for(size_t i=0;i<vlist.size();++i)
-      //        outputFile << ']' ;
+
       outputFile << brackets ;
       list<string>::const_iterator rbi ;
       for(rbi=blist.begin();rbi!=blist.end();++rbi) {
@@ -896,7 +1101,7 @@ void parseFile::process_Calculate(std::ostream &outputFile,
     if(c == '\n')
       line_no++ ;
     outputFile << c ;
-  } ;
+  } 
 }
 
 

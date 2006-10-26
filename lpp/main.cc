@@ -36,6 +36,12 @@ int main(int argc, char *argv[]) {
         i++ ;
         out_given = true ;
       }
+      if(argv[i][1] == 'v') {
+        cout << "Loci version: " << Loci::version() << endl ;
+      }
+      if(argv[i][1] == 'V') {
+        cout << "Loci version: " << Loci::version() << endl ;
+      }
     } else {
       if(file_given == true) {
         cerr << "multiple filenames given" << endl ;

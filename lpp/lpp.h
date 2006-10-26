@@ -29,6 +29,9 @@ class parseFile {
       outputFile << "#line " << line_no << " \"" << filename << "\"" << std::endl ;
   }
 
+  std::string process_String(std::string instring,
+                       const std::map<Loci::variable,std::string> &vnames) ;
+                        
   void process_Prelude(std::ostream &outputFile,
                        const std::map<Loci::variable,std::string> &vnames) ;
   void process_Compute(std::ostream &outputFile,
