@@ -180,6 +180,7 @@ namespace Loci {
                                  storeRepP face2nodeRep,
                                  storeRepP refRep,
                                  storeRepP bnamesRep,
+                                 storeRepP posRep,
                                  entitySet localCells,
                                  fact_db &facts) ;
 
@@ -191,6 +192,7 @@ namespace Loci {
                                  storeRepP face2nodeRep,
                                  storeRepP refRep,
                                  storeRepP bnamesRep,
+                                 storeRepP posRep,
                                  entitySet localCells) {
     if(Loci::exec_current_fact_db == 0) {
       std::cerr << "Loci::parallelWriteGridTopology()" ;
@@ -198,12 +200,10 @@ namespace Loci {
       Loci::Abort() ;
     } else
       parallelWriteGridTopology(filename, upperRep, lowerRep, boundary_mapRep,
-                                face2nodeRep, refRep, bnamesRep, localCells,
-                                *Loci::exec_current_fact_db) ;
+                                face2nodeRep, refRep, bnamesRep, posRep,
+                                localCells, *Loci::exec_current_fact_db) ;
   }
   
-
-#define LOCI_NEW_UNORDERED_WRITE 1
                              
 }
 

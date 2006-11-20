@@ -16,9 +16,8 @@ using std::cout ;
 
 namespace Loci {
 
-  storeRepP get_node_remap(fact_db &facts) {
-    storeRepP posRep = facts.get_variable("pos") ;
-    entitySet nodes = posRep->domain() ;
+  storeRepP get_node_remap(fact_db &facts,entitySet nodes) {
+
     if(MPI_processes == 1) {
       int minNode = nodes.Min() ;
       
@@ -30,13 +29,14 @@ namespace Loci {
       return nm.Rep() ;
     }
     
+    vector<entitySet> init_ptn = facts.get_init_ptn() ;
     fact_db::distribute_infoP df = facts.get_distribute_info() ;
     Map l2g ;
     l2g = df->l2g.Rep() ;
     dMap g2f ;
     g2f = df->g2f.Rep() ;
 
-    entitySet gnodes = l2g.image(nodes) ;
+    entitySet gnodes = l2g.image(nodes&l2g.domain()) ;
     entitySet gset = findBoundingSet(gnodes) ;
 
     int minNode = gset.Min() ;
@@ -45,7 +45,6 @@ namespace Loci {
     newnum.allocate(nodes) ;
 
     // Expand g2f to include clone regions
-    vector<entitySet> init_ptn = facts.get_init_ptn() ;
     entitySet out_of_dom = gnodes - init_ptn[MPI_rank] ;
     g2f.setRep(MapRepP(g2f.Rep())->expand(out_of_dom, init_ptn)) ;
 
@@ -252,14 +251,15 @@ namespace Loci {
   }
   
   void parallelWriteGridTopology(const char *filename,
-                                    storeRepP upperRep,
-                                    storeRepP lowerRep,
-                                    storeRepP boundary_mapRep,
-                                    storeRepP face2nodeRep,
-                                    storeRepP refRep,
-                                    storeRepP bnamesRep,
-                                    entitySet localCells,
-                                    fact_db &facts) {
+                                 storeRepP upperRep,
+                                 storeRepP lowerRep,
+                                 storeRepP boundary_mapRep,
+                                 storeRepP face2nodeRep,
+                                 storeRepP refRep,
+                                 storeRepP bnamesRep,
+                                 storeRepP posRep,
+                                 entitySet localCells,
+                                 fact_db &facts) {
     const_multiMap upper(upperRep),lower(lowerRep),
       boundary_map(boundary_mapRep),face2node(face2nodeRep) ;
     const_Map ref(refRep) ;
@@ -311,7 +311,7 @@ namespace Loci {
     int prism_no = 0 ;
 
     Map node_remap ;
-    node_remap = get_node_remap(facts) ;
+    node_remap = get_node_remap(facts,posRep->domain()) ;
 
     vector<int> generalCellNfaces ;
     vector<int> generalCellNsides ;
