@@ -1,631 +1,353 @@
-#include <Loci.h>
-//#include "read_grid.h"
-//#include "sciTypes.h"
-#include <iostream>
-#include <fstream>
-
-#include <utility>
-#include <algorithm>
+#include <Loci.h> 
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 #include <string>
-#include <vector>
-#include <list>
-#include <string>
-
-#include "Tools/xdr.h"
-
 using std::string ;
-
-//using namespace std ;
-using std::ifstream ;
-using std::cout ;
-using std::cin ;
-using std::endl ;
-using std::cerr ;
+#include <iostream> 
+#include <fstream>
+#include <string>
+#include <sstream>
 using std::vector ;
-using std::list ;
+using std::string ;
+using std::cerr ;
+using std::endl ;
+using std::cout ;
+using std::map ;
+using std::ofstream ;
 using std::ios ;
 
-//using chem::vect3d ;
+#include "extract.h"
 
-typedef vector3d<double> vect3d ;
-
-
-int twoDExtract(int ac, char *av[]) {
-  bool found_flag = false ;
-  vector<int> bc ;
-  enum coord_view { XR,XY,XZ,YZ } ;
-  coord_view view_type = XY ;
-  
-  do {
-    found_flag = true ;
-    if(ac > 2 && !strcmp(av[1],"-bc")) {
-      int ibc = -atoi(av[2]) ;
-      bc.push_back(ibc) ;
-      av+=2 ;
-      ac-=2 ;
-    } else if(ac > 1 && !strcmp(av[1],"-xr")) {
-      view_type = XR ;
-      av++ ;
-      ac-- ;
-    } else if(ac > 1 && !strcmp(av[1],"-xy")) {
-      view_type = XY ;
-      av++ ;
-      ac-- ;
-    } else if(ac > 1 && !strcmp(av[1],"-xz")) {
-      view_type = XZ ;
-      av++ ;
-      ac-- ;
-    } else if(ac > 1 && !strcmp(av[1],"-yz")) {
-      view_type = YZ ;
-      av++ ;
-      ac-- ;
-    } else {
-      found_flag = false ;
-    }
-  } while(found_flag) ;
-  
-  char *problem_name = av[1] ;
-  ac-- ;
-  av++ ;
-  bool data = false ;
-  char bstr[] = "0" ;
-  char *ncyc = bstr ;
-  int type = 0 ;
-  int number_type= 0 ;
-  char *varfile = 0 ;
-  bool vectorval = false ;
-  if(ac >= 2) {
-    data = true ;
-    ncyc = av[1] ;
-  }
-  if(ac == 3) {
-    type = *av[2] ;
-    if(type >= '0' && type <= '9') {
-      number_type = atoi(av[2]) ;
-    }
-    if(type == 'n') {
-      varfile = av[2]+1 ;
-    }
-    if(type == 'v') {
-        varfile = av[2]+1 ;
-        vectorval = true ;
-    }
+void get_2dgv(string casename, string iteration,
+              vector<string> variables,
+              vector<int> variable_types,
+              vector<string> variable_filenames,
+              vector<string> boundaries,
+              int view) {
+  fatal(MPI_processes != 1) ;
+  store<vector3d<double> > pos ;
+  string posname = "output/grid_pos." + iteration + "_" + casename ;
+  hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
+                                     H5F_ACC_RDONLY,
+                                     H5P_DEFAULT) ;
+  if(file_id < 0) {
+    cerr << "unable to get grid positions for iteration " << iteration
+         << endl ;
+    cerr << "does file '" << posname << "' exist?" << endl ;
+    exit(-1) ;
   }
 
   fact_db facts ;
-  string gridfile = string(problem_name) + string(".xdr") ;
-  if(!Loci::readFVMGrid(facts,gridfile)) {
-    cerr << "Unable to read file '" << gridfile << "'" << endl
-         << "unable to continue." << endl ;
-    return -1 ;
-  }
+  Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
+  Loci::hdf5CloseFile(file_id) ;
+  int npnts = pos.domain().size() ;
 
-  Map cr ;
-  cr = facts.get_fact("cr") ;
-  Map cl ;
-  cl = facts.get_fact("cl") ;
-  multiMap face2node ;
-  face2node = facts.get_fact("face2node") ;
-  entitySet img = cr.image(cr.domain()) ;
-  img &= interval(Loci::UNIVERSE_MIN,-1) ;
 
-  if(bc.size() == 0)
-    bc.push_back(-1) ;
+  Loci::hdf5CloseFile(file_id) ;
+
+  vector<Array<int,3> > edges ;
+
+  string gridtopo = "output/" + casename +".topo" ;
+
+
+  file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
   
-  entitySet negative_numbers  ;
-  for(size_t i=0;i<bc.size();++i)
-    negative_numbers += bc[i] ;
+  hid_t bndg = H5Gopen(file_id,"boundaries") ;
+  hsize_t num_bcs = 0 ;
+  H5Gget_num_objs(bndg,&num_bcs) ;
+  vector<string> processed_bcs ;
 
-  entitySet boundary_faces = cr.preimage(negative_numbers).first ;
-  cout << "boundary_faces = " << boundary_faces.size() << endl ;
+  int nelem = 1 ;
+  for(hsize_t bc=0;bc<num_bcs;++bc) {
+    char buf[1024] ;
+    memset(buf, '\0', 1024) ;
+    H5Gget_objname_by_idx(bndg,bc,buf,sizeof(buf)) ;
+    buf[1023]='\0' ;
 
-  store<vect3d> pos ;
-  pos = facts.get_fact("pos") ;
+    int bc_to_extract = false;
+    for(size_t k=0;k<boundaries.size();++k)
+      if(boundaries[k] == buf)
+        bc_to_extract = true ;
+    if(!bc_to_extract)
+      continue ;
+    processed_bcs.push_back(string(buf)) ;
+    cout << "processing bc: " << buf << endl ;
+    hid_t bcg = H5Gopen(bndg,buf) ;
+    
+    int nquads = sizeElementType(bcg,"quads") ;
+    int ntrias = sizeElementType(bcg,"triangles") ;
+    int ngeneral = sizeElementType(bcg,"nside_sizes") ;
+    
+    vector<Array<int,3> > trias(ntrias) ;
+    readElementType(bcg,"triangles",trias) ;
+    vector<Array<int,4> > quads(nquads) ;
+    readElementType(bcg,"quads",quads) ;
+    vector<int> nside_sizes(ngeneral) ;
+    readElementType(bcg,"nside_sizes",nside_sizes) ;
+    int nside_nodes_size = sizeElementType(bcg,"nside_nodes") ;
+    vector<int> nside_nodes(nside_nodes_size) ;
+    readElementType(bcg,"nside_nodes",nside_nodes) ;
 
-  
-  multiMap node2face ;
-  Loci::inverseMap(node2face,face2node,pos.domain(),face2node.domain()) ;
-
-  cerr << "node2face.domain()" << node2face.domain() << endl ;
-  dMap El,Er,N1,N2 ;
-  int edge_count = 0 ;
-  int count2 = 0 ;
-  store<bool> visited ;
-  visited.allocate(face2node.domain()) ;
-  FORALL(face2node.domain(),i) {
-    visited[i] = false ;
-  } ENDFORALL ;
-  FORALL(boundary_faces,fc) {
-    visited[fc] = true ;
-    int nf = face2node.end(fc) - face2node.begin(fc) ;
-    for(int i=0;i<nf;++i) {
-      int n1 = face2node[fc][(i==0)?(nf-1):(i-1)] ;
-      int n2 = face2node[fc][i] ;
-      bool found_match = false ;
-      for(Entity *e = node2face.begin(n1);e!=node2face.end(n1);++e) {
-        if(cr[*e] >= 0 || *e == fc) 
-          continue ; // not a boundary face, continue
-        int nf2 = face2node.end(*e)-face2node.begin(*e) ;
-        int k ;
-        for(k=0;k<nf2;++k)
-          if(face2node[*e][k] == n1)
-            break ;
-        if(k==nf2) {
-          cerr << "didn't find n1!" << endl ;
-        }
-        if(face2node[*e][(k==0)?(nf2-1):(k-1)] == n2 ||
-           face2node[*e][(k+1==nf2)?0:(k+1)] == n2) {
-          // found match
-          if(found_match) {
-            cerr << "found 2 matches for face " << endl ;
-          }
-          if(!visited[*e]) { // Only add an edge if it hasn't been seen before
-            El[edge_count] = fc ;
-            Er[edge_count] = *e ;
-            if(!negative_numbers.inSet(cr[*e])) 
-              Er[edge_count] = cr[*e] ;
-            N1[edge_count] = n1 ;
-            N2[edge_count] = n2 ;
-            edge_count++ ;
-          } else
-            count2++ ;
-          found_match = true ;
-          break ;
-        }
-      }
-      if(!found_match) {
-        cerr << "didn't find match for face" << endl ;
-      }
+    for(int i=0;i<ntrias;++i) {
+      Array<int,3> e ;
+      e[0] = min(trias[i][0],trias[i][1]) ;
+      e[1] = max(trias[i][0],trias[i][1]) ;
+      e[2] = nelem ;
+      edges.push_back(e) ;
+      e[0] = min(trias[i][2],trias[i][1]) ;
+      e[1] = max(trias[i][2],trias[i][1]) ;
+      edges.push_back(e) ;
+      e[0] = min(trias[i][2],trias[i][0]) ;
+      e[1] = max(trias[i][2],trias[i][0]) ;
+      edges.push_back(e) ;
+      nelem++ ;
     }
-  } ENDFORALL ;
-
-  entitySet subnodes = N1.image(N1.domain()) + N2.image(N2.domain()) ;
-  cout << "nodes count = " << subnodes.size() << endl ;
-  cout << "edge_count = " << edge_count << endl ;
-  store<int> node_numbers ;
-  node_numbers.allocate(subnodes) ;
-  int cnt = 1 ;
-  FORALL(subnodes,nd) {
-    node_numbers[nd] = cnt ;
-    cnt++ ;
-  } ENDFORALL ;
-  store<int> cell_numbers ;
-  cell_numbers.allocate(boundary_faces) ;
-  cnt = 1 ;
-  FORALL(boundary_faces,cl) {
-    cell_numbers[cl] = cnt ;
-    cnt++ ;
-  } ENDFORALL ;
-
-  string *species=0 ;
-  int squery=-1 ;
-  char filename[512] ;
-
-  store<float> value ;
-  entitySet valdom = pos.domain() ;
-  value.allocate(valdom) ;
-  for(entitySet::const_iterator ei=valdom.begin();ei!=valdom.end();++ei)
-    value[*ei] = 0 ;
-  
-  if(data) {
-    entitySet::const_iterator ptr = valdom.begin() ;
-
-    if(varfile == 0) {
-      sprintf(filename,"output/qn_xdr.%s",ncyc) ;
-      FILE *FP = fopen(filename, "r") ;
-      if(FP == NULL) {
-        cerr << "open failed on " << filename << endl ;
-        exit(EXIT_FAILURE) ;
+    for(int i=0;i<nquads;++i) {
+      Array<int,3> e ;
+      e[0] = min(quads[i][0],quads[i][1]) ;
+      e[1] = max(quads[i][0],quads[i][1]) ;
+      e[2] = nelem ;
+      edges.push_back(e) ;
+      e[0] = min(quads[i][2],quads[i][1]) ;
+      e[1] = max(quads[i][2],quads[i][1]) ;
+      edges.push_back(e) ;
+      e[0] = min(quads[i][2],quads[i][3]) ;
+      e[1] = max(quads[i][2],quads[i][3]) ;
+      edges.push_back(e) ;
+      e[0] = min(quads[i][0],quads[i][3]) ;
+      e[1] = max(quads[i][0],quads[i][3]) ;
+      edges.push_back(e) ;
+      nelem++ ;
+    }
+    int off = 0 ;
+    for(int i=0;i<ngeneral;++i) {
+      int sz = nside_sizes[i] ;
+      int n1 = nside_nodes[off] ;
+      int n2 = nside_nodes[off+sz-1] ;
+      Array<int,3> e ;
+      e[0] = min(n1,n2) ;
+      e[1] = max(n1,n2) ;
+      e[2] = nelem ;
+      edges.push_back(e) ;
+      for(int j=1;j<sz;++j) {
+        int n1 = nside_nodes[off+j-1] ;
+        int n2 = nside_nodes[off+j] ;
+        e[0] = min(n1,n2) ;
+        e[1] = max(n1,n2) ;
+        e[2] = nelem ;
+        edges.push_back(e) ;
       }
-      XDR xdr_handle ;
-      xdrstdio_create(&xdr_handle, FP, XDR_DECODE) ;
-      int ns ;
-      char tmp_char[256] ;
-      int tmp_size = 0 ;
-      xdr_int(&xdr_handle, &ns) ;
-      species = new string[ns];
-      int numvars = 7 + ns ;
-      int nv = numvars ;
-      for(int i=0;i<ns;++i) {
-        xdr_int(&xdr_handle, &tmp_size) ;
-        for(int j = 0; j < tmp_size; ++j)
-          xdr_char(&xdr_handle, &tmp_char[j]) ;
-        for(int k = 0; k < tmp_size; ++k)
-          species[i] += tmp_char[k] ;
-      }
-      int nnodes  =0;
-      xdr_int(&xdr_handle, &nnodes) ;
-      
-      if(type == 'f') {
-        string s = string(av[2]+1) ;
-        for(int i=0;i<ns;++i)
-          if(species[i] == s)
-            squery = i ;
-        if(squery == -1) {
-          cerr << "species " << s << " not in data " << endl ;
-          exit(EXIT_FAILURE) ;
-        }
-      }
-      
-      double *qb = new double[nv] ;
-      for(int i=0;i<nnodes;++i) {
-        for(int ii=0;ii<nv;++ii) 
-          xdr_double(&xdr_handle, &qb[ii]) ;
-        double r =  qb[0] ;
-        double u =  qb[1] ;
-        double v =  qb[2] ;
-        double w =  qb[3] ;
-        double a =  qb[4] ;
-        double T =  qb[5] ;
-        double P =  qb[6] ;
-        double U = sqrt(u*u+v*v+w*w) ;
-        double M = U/a ;
-        double Gamma = a*a*r/P ;
-        double Rt = P/(r*T) ;
-        int t ;
-        double val = 0 ;
-        switch(type) {
-        case 'r':
-          val = r ;
-          break ;
-        case 'P':
-          val = P ;
-          break ;
-        case 'p':
-          val = log10(P)  ;
-          break ;
-        case 'u':
-          val = U ;
-          break ;
-        case 'm':
-          val = M ;
-          break ;
-        case 't':
-          val = T ;
-          break ;
-        case 'a':
-          val = a ;
-          break ;
-        case 'g':
-          val = Gamma ;
-          break ;
-        case 'R':
-          val = Rt ;
-          break ;
-        case '0':
-          val = u ;
-          break ;
-        case '1':
-          val = v ;
-          break ;
-        case '2':
-          val = w ;
-          break ;
-        case 'f':
-          t = squery+7 ;
-          val =  qb[t] ;
-          break ;
-        default:
-          cerr << "wrong type"<< endl ;
-          exit(EXIT_FAILURE) ;
-        }
-        if(ptr == valdom.end()) {
-          cerr << "node_domain smaller than nodal data file!" << endl ;
-          break ;
-        }
-        value[*ptr]  = val ;
-        ptr++ ;
-        
-      }
-    } else {
-      char tmp_name[512] ;
-      sprintf(tmp_name, "output/%s_hdf5.%s",varfile, ncyc) ;
-      cout << "opening file " << tmp_name << endl ;
-      hid_t file_id, group_id ;
-      file_id = H5Fopen(tmp_name,H5F_ACC_RDONLY, H5P_DEFAULT) ;
-      group_id = H5Gopen(file_id,varfile) ;
-      store<float> var ;
-      entitySet tmpdom = EMPTY ;
-      Loci::read_container(group_id, var.Rep(), tmpdom) ;
-      H5Gclose(group_id) ;
-      H5Fclose(file_id) ;
-      if(tmpdom.size() != valdom.size()) {
-        cerr << " domains don't match in size for variable " << tmp_name
-             << endl ;
-      } else {
-        for(entitySet::const_iterator ei=valdom.begin(),ti=tmpdom.begin();
-            ei!=valdom.end();++ei,++ti) {
-          value[*ei] = var[*ti] ;
-        }
-      }
+      off += sz ;
+      nelem++ ;
     }
   }
-  char out_name[512] ;
-  if(!data) {
-    sprintf(out_name,"%s.2dgv",problem_name) ;
-  } else if(varfile != 0) {
-    sprintf(out_name,"%s.%s",varfile,ncyc) ;
-  } else if((type >='0' && type <='9'))
-    sprintf(out_name,"%d.%s",number_type,ncyc) ;
-  else if(type != 'f')
-    sprintf(out_name,"%c.%s",type,ncyc) ;
-  else
-    sprintf(out_name,"%s.%s",species[squery].c_str(),ncyc) ;
+  sort(edges.begin(),edges.end()) ;
+  vector<int> node_set(edges.size()*2) ;
+  for(size_t i=0;i<edges.size();++i) {
+    node_set[i*2] = edges[i][0] ;
+    node_set[i*2+1] = edges[i][1] ;
+  }
+  if(processed_bcs.size() != boundaries.size()) {
+    cerr << "Warning: Not all boundaries were found in the input file!"
+         << endl
+         << "         Check -bc flags!"
+         << endl ;
+  }
+  if(node_set.size() == 0) {
+    cerr << "nothing to process in 2dgv extract!  Exiting."
+         << endl ;
+    exit(-1) ;
+  }
+  sort(node_set.begin(),node_set.end()) ;
+  node_set.erase(unique(node_set.begin(),node_set.end()),node_set.end()) ;
+
+  int mx = node_set[0] ;
+  int mn = node_set[0] ;
+  for(size_t i=0;i<node_set.size();++i) {
+    mx = max(mx,node_set[i]) ;
+    mn = min(mn,node_set[i]) ;
+  }
   
-  std::ofstream out(out_name,ios::out) ;
+  entitySet nset = interval(mn,mx);
+
+  store<int> nmap ;
+  
+  nmap.allocate(nset) ;
+  int minpos = pos.domain().Min() ;
+  for(size_t i=0;i<node_set.size();++i) {
+    nmap[node_set[i]] = i+1 ;
+  }
+
+  string vname = variables[0] ;
+  string outname = vname + '.' + iteration ;
+  std::ofstream out(outname.c_str(),ios::out) ;
   out.precision(16) ;
-  out << "general" << endl ;
-  out << subnodes.size() << ' ' << '1' << endl ;
-  FORALL(subnodes,nd) {
+  out << "general " << endl ;
+  out << node_set.size() << " 1" << endl ;
+  for(size_t i=0;i<node_set.size();++i) {
+    int nd = node_set[i]-1+minpos ;
     double x = pos[nd].x ;
     double y = pos[nd].y ;
     double z = pos[nd].z ;
 
-    double r = sqrt(y*y+z*z) ;
-    switch(view_type) {
-    case XR:
-      out << x << ' ' << r << endl ;
+    switch(view) {
+    case VIEWXR:
+      out << x << ' ' << sqrt(y*y+z*z) << endl ;
       break ;
-    case XY:
+    case VIEWXY:
       out << x << ' ' << y << endl ;
       break ;
-    case XZ:
+    case VIEWXZ:
       out << x << ' ' << z << endl ;
       break ;
-    case YZ:
+    case VIEWYZ:
       out << y << ' ' << z << endl ;
       break ;
     default:
       cerr << "wrong output coordinate system!" << endl ;
       exit(EXIT_FAILURE) ;
     }
-  } ENDFORALL ;
-  out << edge_count << " 1 " << cnt << " 1" << endl ;
-  
-  for(int i=0;i<edge_count;++i) {
-    out << node_numbers[N1[i]] << ' '
-        << node_numbers[N2[i]] << ' '
-        << cell_numbers[El[i]] << ' ' ;
-    if(Er[i] < 0)
-      out << Er[i] << endl ;
-    else
-      out << cell_numbers[Er[i]] << endl ;
-  }
-  
-  
-  FORALL(subnodes,nd) {
-    out << value[nd] << endl ;
-  } ENDFORALL ;
-
-  return 0 ;
-}
-
-int asciiExtract(int ac, char *av[]) {
-  char *problem_name = av[1] ;
-  ac-- ;
-  av++ ;
-  char bstr[] = "0" ;
-  char *ncyc = bstr ;
-  int type = 0 ;
-  //  int number_type= 0 ;
-  if(ac >= 2)
-    ncyc = av[1] ;
-
-  fact_db facts ;
-  string gridfile = string(problem_name) + string(".xdr") ;
-  if(!Loci::readFVMGrid(facts,gridfile)) {
-    cerr << "Unable to read file '" << gridfile << "'" << endl
-         << "unable to continue." << endl ;
-    exit(EXIT_FAILURE) ;
   }
 
-
-  store<vect3d> pos ;
-  pos = facts.get_fact("pos") ;
-
-  
-
-  string *species=0 ;
-  int squery=-1 ;
-  char filename[512] ;
-
-  list<Loci::storeRepP> value_list ;
-
-  while(ac >= 3) {
-    store<float> value ;
-    entitySet valdom = pos.domain() ;
-    value.allocate(valdom) ;
-    entitySet::const_iterator ptr = valdom.begin() ;
-
-    char *varfile = 0 ;
-    bool vectorvar = false ;
-    char *speciesname =0;
-    type = *av[2] ;
-    //    if(type >= '0' && type <= '9') {
-    //      number_type = atoi(av[2]) ;
-    //    }
-    if(type == 'n') {
-      varfile = av[2]+1 ;
+  vector<Array<int,4> > edge_f ;
+  for(size_t i=0;i<edges.size();) {
+    Array<int,4> e ;
+    e[0] = nmap[edges[i][0]] ;
+    e[1] = nmap[edges[i][1]] ;
+    e[2] = edges[i][2] ;
+    e[3] = -1 ;
+    ++i ;
+    if(i<edges.size()             &&
+       edges[i][0]==edges[i-1][0] &&
+       edges[i][1]==edges[i-1][1] ) {
+      e[3] = edges[i][2] ;
+      ++i ;
     }
-    if(type == 'v') {
-      varfile = av[2]+1 ;
-      vectorvar = true ;
+    edge_f.push_back(e) ;
+  }    
+
+  out << edge_f.size() << " 1 " << nelem-1 << " 1" << endl ;
+  for(size_t i=0;i<edge_f.size();++i)
+    out << edge_f[i][0] << ' '
+        << edge_f[i][1] << ' '
+        << edge_f[i][2] << ' '
+        << edge_f[i][3] << endl ;
+
+  const string var_name(variables[0]) ;
+  const int vt = variable_types[0] ;
+  const string filename(variable_filenames[0]) ;
+  switch(vt) {
+  case NODAL_SCALAR:
+    {
+      hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+                                         H5F_ACC_RDONLY,
+                                         H5P_DEFAULT) ;
+      if(file_id < 0) {
+        cerr << "unable to open file '" << filename << "'!" << endl ;
+        return ;
+      }
+
+      fact_db facts ;
+      store<float> scalar ;
+      Loci::readContainer(file_id,var_name,scalar.Rep(),EMPTY,facts) ;
+      entitySet dom = scalar.domain() ;
+
+      int min_val= dom.Min() ;
+      for(size_t i=0;i<node_set.size();++i) {
+        int nd = node_set[i]-1+min_val ;
+        out << scalar[nd] << endl ;
+      }
+      Loci::hdf5CloseFile(file_id) ;
     }
-    if(type == 'f') {
-      speciesname = av[2]+1 ;
+    break;
+  case NODAL_DERIVED:
+    {
+      vector<float> dval(npnts) ;
+      getDerivedVar(dval,var_name,casename,iteration) ;
+
+      for(size_t i=0;i<node_set.size();++i) {
+        int nd = node_set[i]-1 ;
+        out << dval[nd] << endl ;
+      }
     }
-    ac-- ;
-    av++ ;
-    if(type == 'x' || type == 'y' || type == 'z') {
-      for(entitySet::const_iterator ii=valdom.begin();ii != valdom.end();++ii) {
-        if(type == 'x')
-          value[*ii] = pos[*ii].x ;
-        if(type == 'y')
-          value[*ii] = pos[*ii].y ;
-        if(type == 'z')
-          value[*ii] = pos[*ii].z ;
+    break;
+  case NODAL_VECTOR:
+    {
+      hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+                                         H5F_ACC_RDONLY,
+                                         H5P_DEFAULT) ;
+      if(file_id < 0) {
+        cerr << "unable to open file '" << filename << "'!" << endl ;
+        exit(-1) ;
       }
-    } else if(varfile == 0) {
-      sprintf(filename,"output/qn_xdr.%s",ncyc) ;
-      FILE *FP = fopen(filename, "r") ;
-      if(FP == NULL) {
-        cerr << "open failed on " << filename << endl ;
-        exit(EXIT_FAILURE) ;
-      }
-      XDR xdr_handle ;
-      xdrstdio_create(&xdr_handle, FP, XDR_DECODE) ;
-      int ns ;
-      char tmp_char[256] ;
-      int tmp_size = 0 ;
-      xdr_int(&xdr_handle, &ns) ;
-    
-      species = new string[ns];
-      int numvars = 7 + ns ;
-      int nv = numvars ;
-      for(int i=0;i<ns;++i) {
-        xdr_int(&xdr_handle, &tmp_size) ;
-        for(int j = 0; j < tmp_size; ++j)
-          xdr_char(&xdr_handle, &tmp_char[j]) ;
-        for(int k = 0; k < tmp_size; ++k)
-          species[i] += tmp_char[k] ;
-      }
-      int nnodes  =0;
-      xdr_int(&xdr_handle, &nnodes) ;
-    
-      if(type == 'f') {
-        string s = string(speciesname) ;
-        for(int i=0;i<ns;++i)
-          if(species[i] == s)
-            squery = i ;
-        if(squery == -1) {
-          cerr << "species " << s << " not in data " << endl ;
-          exit(EXIT_FAILURE) ;
-        }
-      }
-    
-      double *qb = new double[nv] ;
-      for(int i=0;i<nnodes;++i) {
-        for(int ii=0;ii<nv;++ii) 
-          xdr_double(&xdr_handle, &qb[ii]) ;
-        double r =  qb[0] ;
-        double u =  qb[1] ;
-        double v =  qb[2] ;
-        double w =  qb[3] ;
-        double a =  qb[4] ;
-        double T =  qb[5] ;
-        double P =  qb[6] ;
-        double U = sqrt(u*u+v*v+w*w) ;
-        double M = U/a ;
-        double Gamma = a*a*r/P ;
-        double Rt = P/(r*T) ;
-        int t ;
-        double val = 0 ;
-        switch(type) {
-        case 'r':
-          val = r ;
-          break ;
-        case 'P':
-          val = P ;
-          break ;
-        case 'p':
-          val = log10(P)  ;
-          break ;
-        case 'u':
-          val = U ;
-          break ;
-        case 'm':
-          val = M ;
-          break ;
-        case 't':
-          val = T ;
-          break ;
-        case 'a':
-          val = a ;
-          break ;
-        case 'g':
-          val = Gamma ;
-          break ;
-        case 'R':
-          val = Rt ;
-          break ;
-        case '0':
-          val = u ;
-          break ;
-        case '1':
-          val = v ;
-          break ;
-        case '2':
-          val = w ;
-          break ;
-        case 'f':
-          t = squery+7 ;
-          val =  qb[t] ;
-          break ;
-        default:
-          cerr << "wrong type"<< endl ;
-          exit(EXIT_FAILURE) ;
-        }
-        if(ptr == valdom.end()) {
-          cerr << "node_domain smaller than nodal data file!" << endl ;
-          break ;
-        }
-        value[*ptr]  = val ;
-        ptr++ ;
       
+      fact_db facts ;
+      store<vector3d<float> > vec ;
+      Loci::readContainer(file_id,var_name,vec.Rep(),EMPTY,facts) ;
+      entitySet dom = vec.domain() ;
+
+      int min_val= dom.Min() ;
+      for(size_t i=0;i<node_set.size();++i) {
+        int nd = node_set[i]-1+min_val ;
+        out << norm(vec[nd]) << endl ;
       }
-    } else {
-        if(vectorvar) {
-            char tmp_name[512] ;
-            sprintf(tmp_name, "output/%s_hdf5.%s",varfile, ncyc) ;
-            hid_t file_id, group_id ;
-            file_id = H5Fopen(tmp_name,H5F_ACC_RDONLY, H5P_DEFAULT) ;
-            group_id = H5Gopen(file_id,varfile) ;
-            store<vector3d<float> > var ;
-            cerr << "reading " << tmp_name << endl ;
-            Loci::read_container(group_id, var.Rep(), valdom) ;
-            H5Gclose(group_id) ;
-            H5Fclose(file_id) ;
+      Loci::hdf5CloseFile(file_id) ;
+    }
+    break;
+  case NODAL_MASSFRACTION:
+    {
+      string filename = "output/mix." + iteration + "_" + casename ;
+    
+      hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+                                         H5F_ACC_RDONLY,
+                                         H5P_DEFAULT) ;
+      if(file_id < 0) {
+        cerr << "unable to open file '" << filename << "'!" << endl ;
+        exit(-1) ;
+      }
 
+      fact_db facts ;
+      storeVec<float> mix ;
+      Loci::readContainer(file_id,"mixture",mix.Rep(),EMPTY,facts) ;
+      param<string> species_names ;
+      Loci::readContainer(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
+      Loci::hdf5CloseFile(file_id) ;
+      
+      map<string,int> smap ;
+      std::istringstream iss(*species_names) ;
+      for(int i=0;i<mix.vecSize();++i) {
+        string s ;
+        iss >> s ;
+        smap[s] = i ;
+      }
+      
+      entitySet dom = mix.domain() ;
 
-            store<float> valuex,valuey ;
-            valuex.allocate(valdom) ;
-            valuey.allocate(valdom) ;
-            for(entitySet::const_iterator ei=valdom.begin();
-                ei!=valdom.end();++ei) {
-                valuex[*ei] = var[*ei].x ;
-                valuey[*ei] = var[*ei].y ;
-                value[*ei] = var[*ei].z ;
-            }
-            value_list.push_back(valuex.Rep()) ;
-            value_list.push_back(valuey.Rep()) ;
-            
-        } else {
-            char tmp_name[512] ;
-            sprintf(tmp_name, "output/%s_hdf5.%s",varfile, ncyc) ;
-            hid_t file_id, group_id ;
-            file_id = H5Fopen(tmp_name,H5F_ACC_RDONLY, H5P_DEFAULT) ;
-            group_id = H5Gopen(file_id,varfile) ;
-            store<double> var ;
-            Loci::read_container(group_id, var.Rep(), valdom) ;
-            H5Gclose(group_id) ;
-            H5Fclose(file_id) ;
-            for(entitySet::const_iterator ei=valdom.begin();
-                ei!=valdom.end();++ei) {
-                value[*ei] = var[*ei] ;
-            }
+      vector<float> vec(npnts) ;
+    
+      string sp = string(var_name.c_str()+1) ;
+      map<string,int>::const_iterator mi = smap.find(sp) ;
+      if(mi == smap.end()) {
+        cerr << "warning, species " << sp << " does not exist in dataset!"
+             << endl ;
+      } else {
+        const int ind = mi->second ;
+        int c = 0 ;
+        FORALL(dom,nd) {
+          vec[c++] = mix[nd][ind] ;
+        } ENDFORALL ;
+        
+        for(size_t i=0;i<node_set.size();++i) {
+          int nd = node_set[i]-1 ;
+          out << vec[nd] << endl ;
         }
+      }
     }
-    value_list.push_back(value.Rep()) ;
+    break ;
+  default:
+    cerr << "unable to process variable " << var_name << endl ;
+    cerr << "this variable type can not be plotted by 2dgv" << endl ;
+    break ;
   }
-  entitySet dom = pos.domain() ;
-  for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei) {
-    list<Loci::storeRepP>::const_iterator li ;
-    for(li=value_list.begin();li!=value_list.end();++li) {
-      store<float> v ;
-      v = *li ;
-      cout << v[*ei] << ' ' ;
-    }
-    cout << endl ;
-  }
-  return 0 ;
 }

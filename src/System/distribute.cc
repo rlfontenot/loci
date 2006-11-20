@@ -31,7 +31,7 @@ namespace Loci {
       entitySet::const_iterator ti ;
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       d = facts.get_distribute_info() ;
-      l2g = facts.get_variable("l2g") ;
+      l2g = d->l2g.Rep() ;
       if(MPI_processes == 1) {
 	entitySet temp = e ;
 	for(ti = temp.begin(); ti != temp.end(); ++ti)

@@ -789,7 +789,7 @@ namespace Loci {
       }
       
       Map l2g ;
-      l2g = facts.get_variable("l2g") ;
+      l2g = d->l2g.Rep() ;
       
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
@@ -1132,7 +1132,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
       }
       Map l2g ;
-      l2g = facts.get_variable("l2g") ;
+      l2g = d->l2g.Rep() ;
 
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
@@ -1609,8 +1609,9 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     
     list<comm_info> clist ;
     
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
     Map l2g ;
-    l2g = facts.get_variable("l2g") ;
+    l2g = d->l2g.Rep() ;
     
     const int nrecv = recv_info.size() ;
     int *r_size = new int[nrecv] ;
@@ -1684,7 +1685,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       FATAL(err != MPI_SUCCESS) ;
     }
     
-    fact_db::distribute_infoP d = facts.get_distribute_info() ;
+
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
       for(size_t j=0;j<recv_info[i].second.size();++j) {

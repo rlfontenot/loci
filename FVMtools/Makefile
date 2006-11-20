@@ -8,7 +8,8 @@ TARGET = extract
 OTHER_APPS = cobalt2xdr solidMesh2xdr solidMesh2xdrMPI plot3d2xdr pb xdr2cobalt xdropt 
 
 # List your object files here
-OBJS =  fv_extract.o tec_extract.o extract.o extract_2dgv.o ensight_extract.o
+OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o
+
 
 
 LOCAL_LIBS =

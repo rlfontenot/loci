@@ -2,6 +2,7 @@
 # System Makefile
 # 
 
+
 include $(LOCI_BASE)/Loci.conf
 
 TARGET = libLoci.a #libLoci.so
@@ -20,7 +21,7 @@ OBJS = Loci_version.o Initialize.o Loci_Datatypes.o variable.o \
        distribute_container.o dist_internal.o comp_dynamic.o \
        comp_constraint.o execution_factory.o comp_map.o
 
-COPT = $(CC_DEBUG) $(CC_LIB_FLAGS) $(CC_OPT1)
+COPT = $(CC_LIB_FLAGS) $(COPTLESS)
 
 default:
 	cd .. ; make -f Makefile System

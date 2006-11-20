@@ -1096,12 +1096,15 @@ void parseFile::process_Calculate(std::ostream &outputFile,
 
       for(int i=0;i<lcount;++i)
         outputFile << endl ;
+      continue ;
     }
+
     char c = is.get() ;
     if(c == '\n')
       line_no++ ;
     outputFile << c ;
-  } 
+
+  }
 }
 
 

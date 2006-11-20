@@ -44,13 +44,15 @@ namespace Loci {
     // to their global numbering scheme
     if(facts.is_distributed_start()) {
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
+      dMap dl2g ;
+      dl2g = MapRepP(df->l2g.Rep())->thaw() ;
       for(variableSet::const_iterator vi=sources.begin();
           vi!=sources.end();++vi) {
         storeRepP srp = facts.get_variable(*vi) ;
         // Note, we can use facts.replace_fact here
         // But doing so will require rebind the rule
         // to the fact_db
-        facts.update_fact(*vi,srp->remap(df->dl2g)) ;
+        facts.update_fact(*vi,srp->remap(dl2g)) ;
         //facts.replace_fact(*vi,srp->remap(l2g)) ;
       }
     }
@@ -66,12 +68,15 @@ namespace Loci {
     // at last will likely to lose data.
     if(facts.is_distributed_start()) {
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
-
+      dMap g2l ;
+      entitySet ldom = df->l2g.domain() ;
+      FORALL(ldom,i) {
+        g2l[df->l2g[i]] = i ;
+      } ENDFORALL ;
       for(variableSet::const_iterator vi=sources.begin();
           vi!=sources.end();++vi) {
         storeRepP srp = facts.get_variable(*vi) ;
-        facts.update_fact(*vi,srp->remap(df->g2l)) ;
-        //facts.replace_fact(*vi,srp->remap(df->g2l)) ;
+        facts.update_fact(*vi,srp->remap(g2l)) ;
       }
     }
   }

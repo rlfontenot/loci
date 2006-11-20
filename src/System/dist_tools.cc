@@ -211,7 +211,6 @@ namespace Loci {
     proc_entities.clear() ;
 
     df->l2g = l2g.Rep() ;
-    df->dl2g = MapRepP(l2g.Rep())->thaw() ;
     df->g2l.allocate(g) ;
     entitySet ldom = l2g.domain() ;
     for(entitySet::const_iterator ei=ldom.begin();ei!=ldom.end();++ei) {
@@ -296,8 +295,6 @@ namespace Loci {
     df->copy_total_size = total ;
     facts.put_distribute_info(df) ;
     // this needs to be an intensional fact
-    facts.create_intensional_fact("l2g", l2g) ;
-    facts.put_l2g(l2g) ;
     facts.create_intensional_fact("my_entities",my_entities);
   }
   
@@ -486,7 +483,7 @@ namespace Loci {
       
       
       Map l2g ;
-      l2g = facts.get_variable("l2g") ;
+      l2g = d->l2g.Rep() ;
       
       MPI_Request *recv_request = new MPI_Request[d->copy.size()] ;
       MPI_Status *status = new MPI_Status[d->copy.size()] ;
@@ -584,7 +581,7 @@ namespace Loci {
         
       
       Map l2g ;
-      l2g = facts.get_variable("l2g") ;
+      l2g = d->l2g.Rep() ;
       
       MPI_Request *recv_request = new MPI_Request[d->copy.size()] ;
       MPI_Status *status = new MPI_Status[d->copy.size()] ;
@@ -682,7 +679,7 @@ namespace Loci {
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
       }
       Map l2g ;
-      l2g = facts.get_variable("l2g") ;
+      l2g = d->l2g.Rep() ;
 
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
@@ -769,7 +766,7 @@ namespace Loci {
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size ;
       }
       Map l2g ;
-      l2g = facts.get_variable("l2g") ;
+      l2g = d->l2g.Rep() ;
 
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
@@ -854,7 +851,7 @@ namespace Loci {
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size*evsz+evsz ;
       }
       Map l2g ;
-      l2g = facts.get_variable("l2g") ;
+      l2g = d->l2g.Rep();
 
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
@@ -1057,7 +1054,6 @@ namespace Loci {
     if(!df->isDistributed)
       return ;
 
-    facts.remove_variable(variable("l2g")) ;
     facts.remove_variable(variable("my_entities")) ;
     df->xmit.clear() ;
     df->copy.clear() ;

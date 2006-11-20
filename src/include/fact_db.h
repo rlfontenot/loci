@@ -39,9 +39,8 @@ namespace Loci {
       
       int myid ;
       int isDistributed ;
-      Map l2g ;
-      dMap dl2g ; // the dynamic version of l2g
-      dMap g2l ; 
+      Map l2g ; // local numbering to global numbering
+      dMap g2l ; // global numbering to local numbering
       
       entitySet my_entities ;
       entitySet comp_entities;//local numbering of global_comp_entities
@@ -52,7 +51,8 @@ namespace Loci {
       // send entities that this processor owns
       int copy_total_size ;
       int xmit_total_size ;
-      dMap remap ;
+      //      dMap remap ;
+      dMap g2f ; // Global to file numbering
       distribute_info() {} ;
     } ;
     std::vector<entitySet> init_ptn ;
@@ -83,7 +83,6 @@ namespace Loci {
       init_ptn = f.init_ptn ;
       global_comp_entities = f.global_comp_entities ;
       synonyms = f.synonyms ;
-      l2g = f.l2g.Rep() ; // Note: shallow copy here (copy by reference)
       maximum_allocated = f.maximum_allocated ;
       minimum_allocated = f.minimum_allocated ;
       dist_from_start = f.dist_from_start ;
@@ -106,8 +105,6 @@ namespace Loci {
       df = new distribute_info ;
       df->myid = fdf->myid ;
       df->isDistributed = fdf->isDistributed ;
-//       df->l2g = (fdf->l2g).Rep() ;
-//       df->g2l = (fdf->g2l).Rep() ;
       // we make a deep copy of the maps
       entitySet l2g_alloc = fdf->l2g.domain() ;
       entitySet g2l_alloc = fdf->g2l.domain() ;
@@ -116,7 +113,6 @@ namespace Loci {
       for(entitySet::const_iterator ei=l2g_alloc.begin();
           ei!=l2g_alloc.end();++ei) {
         df->l2g[*ei] = fdf->l2g[*ei] ;
-        df->dl2g[*ei] = fdf->l2g[*ei] ;
       }
       for(entitySet::const_iterator ei=g2l_alloc.begin();
           ei!=g2l_alloc.end();++ei)
@@ -127,12 +123,12 @@ namespace Loci {
       df->xmit = fdf->xmit ;
       df->copy_total_size = fdf->copy_total_size ;
       df->xmit_total_size = fdf->xmit_total_size ;
-      df->remap = fdf->remap ;
+      //      df->remap = fdf->remap ;
+      df->g2f = fdf->g2f ;
     }
     
     std::pair<entitySet, entitySet> get_dist_alloc(int size) ;
     
-    Map l2g ;
     int maximum_allocated ;
     int minimum_allocated ;
     int dist_from_start ;
@@ -269,8 +265,6 @@ namespace Loci {
     int is_distributed_start() {return dist_from_start ;}
     std::vector<entitySet>& get_init_ptn() {return init_ptn ;}
     void  put_init_ptn(std::vector<entitySet> &t_init ) {init_ptn = t_init ;}
-    Map& get_l2g() { return l2g; } 
-    void put_l2g(Map& lg) { l2g = lg.Rep() ; }
     
     fact_db::distribute_infoP get_distribute_info() ;
     void put_distribute_info(fact_db::distribute_infoP dp) ;

@@ -1188,6 +1188,8 @@ namespace Loci {
 #ifdef RENUMBER
       if(clone.is_distributed_start()) {
         fact_db::distribute_infoP df = clone.get_distribute_info() ;
+        dMap dl2g ;
+        dl2g = MapRepP(df->l2g.Rep())->thaw() ;
         for(variableSet::const_iterator vi2=all_queries.begin();
             vi2!=all_queries.end();++vi2) {
           storeRepP srp = clone.get_variable(*vi2) ;
@@ -1198,7 +1200,7 @@ namespace Loci {
               // the global fact database
               continue ;
             }
-          facts.create_intensional_fact(*vi2,(srp->remap(df->dl2g))->freeze()) ;
+          facts.create_intensional_fact(*vi2,(srp->remap(dl2g))->freeze()) ;
         }
       }else{
         for(variableSet::const_iterator vi2=all_queries.begin();
@@ -1259,6 +1261,8 @@ namespace Loci {
 #ifdef RENUMBER
         if(clone.is_distributed_start()) {
           fact_db::distribute_infoP df = clone.get_distribute_info() ;
+          dMap dl2g ;
+          dl2g = MapRepP(df->l2g.Rep())->thaw() ;
           for(variableSet::const_iterator vi2=queries.begin();
               vi2!=queries.end();++vi2) {
             storeRepP srp = clone.get_variable(*vi2) ;
@@ -1274,7 +1278,7 @@ namespace Loci {
             if(srp->RepType() == Loci::MAP)
               facts.create_intensional_fact(*vi2,srp) ;
             else
-              facts.create_intensional_fact(*vi2,srp->remap(df->dl2g)) ;
+              facts.create_intensional_fact(*vi2,srp->remap(dl2g)) ;
           }
         }else{
           for(variableSet::const_iterator vi2=queries.begin();

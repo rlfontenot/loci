@@ -32,6 +32,7 @@ namespace Loci {
   std::set<std::vector<variableSet> > classify_moderate_maps(fact_db &facts, const std::set<std::vector<variableSet> > &maps);
   // function that restores the fact_db back to its global numbering
   void restore_global_facts(fact_db& facts) ;
+  entitySet findBoundingSet(entitySet in) ;
   
 }
 

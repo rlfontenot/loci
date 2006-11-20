@@ -293,7 +293,8 @@ namespace Loci {
       fatal(distributed_info == NULL);
       
       for(std::vector<std::pair<int, int> >::const_iterator vi = remap_update.begin(); vi != remap_update.end(); vi++) {
-	distributed_info->remap[vi->first] = vi->second;
+        //	distributed_info->remap[vi->first] = vi->second;
+        distributed_info->g2f[vi->second] = vi->first ;
       }
     }
   }
@@ -775,7 +776,7 @@ namespace Loci {
     read_hdf5(filename, vars) ; 
   }
   void fact_db::write_hdf5(const char *filename, variableSet &vars) {
-    hid_t  file_id=0, group_id=0;
+    hid_t  file_id=0 ;
     if(Loci::MPI_rank == 0) 
       file_id =  H5Fcreate(filename, H5F_ACC_TRUNC,
 			   H5P_DEFAULT, H5P_DEFAULT) ;
@@ -784,17 +785,7 @@ namespace Loci {
     for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
       storeRepP  p = get_variable(*vi) ;
       if(p->RepType() == STORE) {
-	if(MPI_rank == 0)
-	  group_id = H5Gcreate(file_id, (variable(*vi).get_info().name).c_str(), 0) ;
-	
-	if(isDistributed()) {
-	  fact_db::distribute_infoP df = get_distribute_info() ;
-	  storeRepP reorder_sp = collect_reorder_store(p, df->remap, *this) ;
-	  write_container(group_id, reorder_sp) ;
-	} else 
-	  write_container(group_id, p->getRep()) ;
-	if(MPI_rank == 0)
-	  H5Gclose(group_id) ;
+        writeContainer(file_id,variable(*vi).get_info().name,p,*this) ;
       }
     }
     if(Loci::MPI_rank == 0) 
@@ -803,18 +794,13 @@ namespace Loci {
   
   
   void fact_db::read_hdf5(const char *filename, variableSet &vars) {
-    hid_t  file_id=0, group_id=0;
+    hid_t  file_id=0 ;
     if(Loci::MPI_rank == 0) 
       file_id =  H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT) ;
     for(variableSet::const_iterator vi = vars.begin(); vi != vars.end(); ++vi) {
       storeRepP  p = get_variable(*vi) ;
       if(p->RepType() == STORE) {
-	if(Loci::MPI_rank == 0) 
-	  group_id = H5Gopen(file_id, (variable(*vi).get_info().name).c_str()) ;
-	entitySet dom = p->domain() ;
-	read_container(group_id, p, dom) ;
-	if(Loci::MPI_rank == 0) 
-	  H5Gclose(group_id) ;
+        readContainer(file_id,variable(*vi).get_info().name,p,EMPTY,*this) ;
       }
     }
     if(Loci::MPI_rank == 0) 

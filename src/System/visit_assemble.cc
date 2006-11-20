@@ -164,30 +164,11 @@ namespace Loci {
           dump_var_lookup[v]++ ;
           oss <<".hdf5" ;
           string filename = oss.str() ;
-          hid_t file_id=0, group_id=0;
-          
-          if(MPI_rank == 0) {
-            //            cerr << "filename = " << filename << endl ;
-            file_id =  H5Fcreate(filename.c_str(), H5F_ACC_TRUNC,
-                                 H5P_DEFAULT, H5P_DEFAULT) ;
-            group_id = H5Gcreate(file_id, "store", 0) ;
-          }
-          if(MPI_processes == 1) {
-            Loci::write_container(group_id,st) ;
-          } else {
-            entitySet dom = st->domain() ;
-            entitySet tot_dom = Loci::collect_entitySet(dom) ;
-            tot_dom = all_collect_entitySet(dom) ;
-            fact_db::distribute_infoP df = facts.get_distribute_info() ;
-            sc = collect_reorder_store(st,df->remap,facts) ;
-            write_container(group_id,sc) ;
-          }
-            
-
-          if(MPI_rank == 0) {
-            H5Gclose(group_id) ;
-            H5Fclose(file_id) ;
-          }
+          hid_t file_id=0 ;
+          file_id = hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                   H5P_DEFAULT, H5P_DEFAULT) ;
+          writeContainer(file_id,v.get_info().name,st,facts) ;
+          hdf5CloseFile(file_id) ;
         } else {
           if(MPI_rank == 0) {
             ostringstream oss ;
