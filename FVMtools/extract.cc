@@ -265,7 +265,6 @@ void getDerivedVar(vector<float> &dval, string var_name,
 }
 
 void setup_grid_topology(string casename, string iteration) {
-#ifdef LOCI_NEW_UNORDERED_WRITE
   fact_db facts ;
   string file = casename + ".xdr" ;
   if(!Loci::setupFVMGrid(facts,file)) {
@@ -284,18 +283,19 @@ void setup_grid_topology(string casename, string iteration) {
   ref = facts.get_variable("ref") ;
   boundary_names = facts.get_variable("boundary_names") ;
   geom_cells = facts.get_variable("geom_cells") ;
+  store<vector3d<double> > pos ;
+  pos = facts.get_variable("pos") ;
   
   Loci::parallelWriteGridTopology(filename.c_str(),
                                   upper.Rep(),lower.Rep(),boundary_map.Rep(),
                                   face2node.Rep(),
                                   ref.Rep(),
                                   boundary_names.Rep(),
+                                  pos.Rep(),
                                   *geom_cells,
                                   facts) ;
 
   filename = "output/grid_pos." + iteration + "_" + casename ;
-  store<vector3d<double> > pos ;
-  pos = facts.get_variable("pos") ;
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
   
@@ -303,7 +303,6 @@ void setup_grid_topology(string casename, string iteration) {
   
   Loci::hdf5CloseFile(file_id) ;
 
-#endif
 }
 
 
