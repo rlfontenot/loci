@@ -222,7 +222,7 @@ void process_ascii_bndry(string casename, string iteration,
                          vector<int> variable_types,
                          vector<string> variable_filenames,
                          vector<string> boundaries) ;
-int  sizeElementType(hid_t group_id, char *element_name) ;
+int  sizeElementType(hid_t group_id, const char *element_name) ;
 
 template<class T> void readElementType(hid_t group_id, const char *element_name,
                                        vector<T> &v) {

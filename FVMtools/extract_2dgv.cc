@@ -8,6 +8,7 @@ using std::string ;
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <algorithm>
 using std::vector ;
 using std::string ;
 using std::cerr ;
@@ -16,7 +17,8 @@ using std::cout ;
 using std::map ;
 using std::ofstream ;
 using std::ios ;
-
+using std::sort ;
+using std::unique ;
 #include "extract.h"
 
 void get_2dgv(string casename, string iteration,

@@ -8,6 +8,7 @@ using std::string ;
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <algorithm>
 using std::vector ;
 using std::string ;
 using std::cerr ;
@@ -16,6 +17,8 @@ using std::cout ;
 using std::map ;
 using std::ofstream ;
 using std::ios ;
+using std::sort ;
+using std::unique ;
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -79,7 +82,7 @@ void Usage(int ac, char *av[]) {
   exit(-1) ;
 }
 
-int  sizeElementType(hid_t group_id, char *element_name) {
+int  sizeElementType(hid_t group_id, const char *element_name) {
   hid_t dataset = H5Dopen(group_id,element_name) ;
   if(dataset < 0) {
     H5Eclear() ;
