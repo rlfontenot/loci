@@ -37,7 +37,7 @@ namespace Loci {
     return set ;
   }
 
-  vector<int> simplePartition(int mn, int mx, int p) {
+  vector<int> simplePartitionVec(int mn, int mx, int p) {
     vector<int> nums(p+1) ;
     int n = mx-mn+1 ;
     int dn = n/p ; // divisor
@@ -55,7 +55,7 @@ namespace Loci {
   vector<entitySet> simplePartition(int mn, int mx, MPI_Comm comm) {
     int p = 1 ;
     MPI_Comm_size(comm,&p) ;
-    vector<int> pl = simplePartition(mn,mx,p) ;
+    vector<int> pl = simplePartitionVec(mn,mx,p) ;
     vector<entitySet> ptn(p) ;
     for(int i=0;i<p;++i)
       ptn[i] = interval(pl[i],pl[i+1]-1) ;
@@ -705,7 +705,7 @@ namespace Loci {
     // Get input (file) distribution
     int imx = GLOBAL_MAX(input->domain().Max()) ;
     int imn = GLOBAL_MIN(input->domain().Min()) ;
-    vector<int> fptn = simplePartition(imn,imx,p) ;
+    vector<int> fptn = simplePartitionVec(imn,imx,p) ;
 
     // Get distribution plan
     vector<vector<pair<int,int> > > dist_plan(p) ;
