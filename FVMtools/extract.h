@@ -157,6 +157,7 @@ class fv_topo_handler : public grid_topo_handler {
   int part_id ;
   vector<Array<int,4> > ordinary_faces ;
   vector<vector<int> > part_nodes ;
+  vector<int> elem_ids ;
   bool first_var ;
   bool first_boundary ;
   FILE *OFP ;
