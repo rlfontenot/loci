@@ -171,19 +171,8 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   ibuf[0] = 1 ; // Number of grids 
   fwrite(ibuf, sizeof(int), 1, OFP) ;
 
-  // Number of face types (boundary flags)
-  ibuf[0] = bc_names.size() ;
-  fwrite(ibuf, sizeof(int), 1, OFP) ;
-
-  for(size_t i=0;i<bc_names.size();++i) {
-    ibuf[0] = 0 ; // Results flag... how do we deal with this.
-    ibuf[1] = 1 ; // Normals should be consistent
-    fwrite(ibuf,sizeof(int),2,OFP) ;
-    memset(fv,'\0',80) ;
-    sprintf(fv, "%s",bc_names[i].c_str()) ;
-    fwrite(&fv, sizeof(char), 80, OFP) ;
-  }
   vector<string> nlist ;
+  vector<string> blist ;
   for(size_t i=0;i<variables.size();++i) {
     int vt = variable_types[i] ;
     if(vt == NODAL_SCALAR || vt == NODAL_DERIVED || vt == NODAL_MASSFRACTION)
@@ -194,7 +183,31 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
       nlist.push_back(v + "y") ;
       nlist.push_back(v + "z") ;
     }
+    if(vt == BOUNDARY_SCALAR || vt == BOUNDARY_DERIVED_SCALAR) {
+      blist.push_back(variables[i]) ;
+    }
+    if(vt == BOUNDARY_VECTOR || vt == BOUNDARY_DERIVED_VECTOR) {
+      string v = variables[i] ;
+      blist.push_back(v + "x ; " + v) ;
+      blist.push_back(v + "y") ;
+      blist.push_back(v + "z") ;
+    }
   }
+  // Number of face types (boundary flags)
+  ibuf[0] = bc_names.size() ;
+  fwrite(ibuf, sizeof(int), 1, OFP) ;
+
+  for(size_t i=0;i<bc_names.size();++i) {
+    ibuf[0] = 0 ; // zero, no boundary variables
+    if(blist.size() > 0)
+      ibuf[0] = 1 ;
+    ibuf[1] = 1 ; // Normals should be consistent
+    fwrite(ibuf,sizeof(int),2,OFP) ;
+    memset(fv,'\0',80) ;
+    sprintf(fv, "%s",bc_names[i].c_str()) ;
+    fwrite(&fv, sizeof(char), 80, OFP) ;
+  }
+
   // Nodal variables
   ibuf[0] = nlist.size() ;
   fwrite(ibuf,sizeof(int),1,OFP) ;
@@ -203,18 +216,23 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
     sprintf(fv, "%s",nlist[i].c_str()) ;
     fwrite(&fv, sizeof(char), 80, OFP) ;
   }
-  // boundary variables (not implemented now)
-  ibuf[0] = 0 ;
+  // boundary variables 
+  ibuf[0] = blist.size() ;
   fwrite(ibuf,sizeof(int),1,OFP) ;
+  for(size_t i=0;i<blist.size();++i) {
+    memset(fv,'\0',80) ;
+    sprintf(fv, "%s",blist[i].c_str()) ;
+    fwrite(&fv, sizeof(char), 80, OFP) ;
+  }
 }
 void fv_topo_handler::close() {
   if(first_boundary) {
     int ibuf[2] ;
     ibuf[0] = FV_BNDRY_VARS ;
     fwrite(ibuf,sizeof(int),1,OFP) ;
-    fclose(OFP) ;
     first_boundary=false ;
   }
+  fclose(OFP) ;
 }
 void fv_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts) {
   int ibuf[2] ;
@@ -367,8 +385,10 @@ void fv_topo_handler::create_boundary_part(string name,int node_set[],
 
 void fv_topo_handler::write_quads(Array<int,4> quads[],
                                   int quads_ids[], int nquads) {
-  for(int i=0;i<nquads;++i)
+  for(int i=0;i<nquads;++i) {
     ordinary_faces.push_back(quads[i]) ;
+    elem_ids.push_back(quads_ids[i]) ;
+  }
 }
 void fv_topo_handler::write_trias(Array<int,3> trias[],
                                   int trias_ids[], int ntrias) {
@@ -380,6 +400,7 @@ void fv_topo_handler::write_trias(Array<int,3> trias[],
     a[3] = 0 ;
     
     ordinary_faces.push_back(a) ;
+    elem_ids.push_back(trias_ids[i]) ;
   }
 }
 
@@ -390,6 +411,9 @@ void fv_topo_handler::write_general_face(int nside_sizes[],
   int ibuf[4] ;
   ibuf[1] = part_id ;
   ibuf[2] = ngeneral+ordinary_faces.size() ;
+  for(int i=0;i<ngeneral;++i) {
+    elem_ids.push_back(nside_ids[i]) ;
+  }
   if(ngeneral == 0) {
     ibuf[0] = FV_FACES ;
     fwrite(ibuf,sizeof(int),3,OFP) ;
@@ -489,9 +513,18 @@ void fv_topo_handler::output_boundary_scalar(float val[], int node_set[],
     int ibuf[2] ;
     ibuf[0] = FV_BNDRY_VARS ;
     fwrite(ibuf,sizeof(int),1,OFP) ;
-    fclose(OFP) ;
     first_boundary=false ;
   }
+  vector<float> valout(elem_ids.size()) ;
+  dMap einv ;
+  for(size_t i=0;i<elem_ids.size();++i) {
+    einv[elem_ids[i]] = i ;
+    valout[i] = 0.0 ;
+  }
+  for(int i=0;i<nvals;++i) {
+    valout[einv[node_set[i]]] = val[i] ;
+  }
+  fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
 }  
 
 void fv_topo_handler::output_boundary_vector(vector3d<float> val[],
@@ -507,7 +540,27 @@ void fv_topo_handler::output_boundary_vector(vector3d<float> val[],
     int ibuf[2] ;
     ibuf[0] = FV_BNDRY_VARS ;
     fwrite(ibuf,sizeof(int),1,OFP) ;
-    fclose(OFP) ;
     first_boundary=false ;
   }
+  vector<float> valout(elem_ids.size()) ;
+  dMap einv ;
+  for(size_t i=0;i<elem_ids.size();++i) {
+    einv[elem_ids[i]] = i ;
+    valout[i] = 0.0 ;
+  }
+  for(int i=0;i<nvals;++i) 
+    valout[einv[node_set[i]]] = val[i].x ;
+  fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
+
+  for(size_t i=0;i<elem_ids.size();++i) 
+    valout[i] = 0.0 ;
+  for(int i=0;i<nvals;++i) 
+    valout[einv[node_set[i]]] = val[i].y ;
+  fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
+
+  for(size_t i=0;i<elem_ids.size();++i) 
+    valout[i] = 0.0 ;
+  for(int i=0;i<nvals;++i) 
+    valout[einv[node_set[i]]] = val[i].z ;
+  fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
 }  
