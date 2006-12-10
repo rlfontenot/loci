@@ -493,7 +493,7 @@ namespace Loci {
       H5Sclose(dataspace) ;
     }
     delete [] tmp_buf ;
-    delete [] tmp_int ; 
+    delete [] tmp_int ;
   }
 
   entitySet findBoundingSet(entitySet in) {
@@ -588,7 +588,6 @@ namespace Loci {
     newnum.allocate(dom) ;
     FORALL(dom,i) {
       newnum[i] = g2f[l2g[i]] ;
-      debugout << "newnum["<< i << "] = " << newnum[i] << endl ;
     } ENDFORALL ;
 
     int imx = std::numeric_limits<int>::min() ;
@@ -624,7 +623,6 @@ namespace Loci {
     for(int i=0;i<p;++i)
       file_dom += entitySet(recv_seqs[i]) ;
 
-    debugout << "file_dom = " << file_dom << endl ;
     storeRepP qcol_rep ;
     qcol_rep = sp->new_store(file_dom) ;
 
@@ -709,6 +707,7 @@ namespace Loci {
 
     // Get distribution plan
     vector<vector<pair<int,int> > > dist_plan(p) ;
+    int np = (imx-imn+1)/p ; // number of elements per processor
     FORALL(resultSet,i) {
       int fn = newnum[i] ;
       if(fn < imn || fn > imx) {
@@ -718,17 +717,19 @@ namespace Loci {
         Loci::Abort() ;
       }
       // processor that contains this value
-      int r = p*(fn-imn)/(imx-imn+1) ;
-      for(;;) { // refine
+      int r = min((fn-imn)/np,p-1) ; // Guess which processor
+      for(;;) { // search from guess
         if(fn >= fptn[r] && fn < fptn[r+1])
           break ;
         r+= (fn < fptn[r])?-1:1 ;
+        if(r < 0 || r >= p) {
+          debugout << "bad r in processor search " << r << endl ;
+        }
         FATAL(r >= p) ;
         FATAL(r < 0) ;
       }
       dist_plan[r].push_back(pair<int,int>(fn,i)) ;
     } ENDFORALL ;
-
     // Compute recv requests from distribution plan
     vector<sequence> recv_seq(p),send_req(p) ;
     for(int i=0;i<p;++i) {
@@ -774,7 +775,6 @@ namespace Loci {
     unsigned char *send_store = new unsigned char[send_sz] ;
     unsigned char *recv_store = new unsigned char[recv_sz] ;
 
-
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       input->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
@@ -816,6 +816,7 @@ namespace Loci {
   void read_container_redistribute(hid_t file_id, std::string vname,
                                    storeRepP var, entitySet read_set,
                                    fact_db &facts) {
+
     hid_t group_id = 0;
     if(MPI_rank == 0)
       group_id = H5Gopen(file_id, vname.c_str()) ;
@@ -837,7 +838,6 @@ namespace Loci {
     }
     if(MPI_rank == 0)
       H5Gclose(group_id) ;
-    
   }
 
   void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) {
