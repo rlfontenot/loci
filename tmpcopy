@@ -21,7 +21,7 @@ if [ $# -eq 2 ]; then
 fi
 
 TARGET_DIRS="System Tools include include/Tools include/Config include/MPI_stubb"
-TOOLS_DIRS="lpp FVMtools FVMMod"
+TOOLS_DIRS="lpp FVMtools FVMMod ParMetis-3.1 ParMetis-3.1/METISLib ParMetis-3.1/ParMETISLib"
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
@@ -81,6 +81,12 @@ if [ ! -e libLoci.so ]; then
 fi
 if [ ! -e fvm_m.so ]; then
   ln -s ../FVMMod/fvm_m.so fvm_m.so
+fi
+if [ ! -e libmetis.so ] ; then
+  ln -s ../ParMetis-3.1/METISLib/libmetis.so libmetis.so
+fi
+if [ ! -e libparmetis.so ] ; then
+  ln -s ../ParMetis-3.1/ParMETISLib/libparmetis.so libparmetis.so
 fi
 
 cd ../bin

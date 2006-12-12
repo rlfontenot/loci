@@ -13,6 +13,9 @@ echo Installing Library Files
 cp Tools/libTools.so $INSTALL_PATH/lib
 cp System/libLoci.so $INSTALL_PATH/lib
 cp FVMMod/fvm_m.so $INSTALL_PATH/lib
+cp ParMetis-3.1/METISLib/libmetis.so $INSTALL_PATH/lib
+cp ParMetis-3.1/ParMETISLib/libparmetis.so $INSTALL_PATH/lib
+
 
 echo Installing Loci Tools
 cp lpp/lpp $INSTALL_PATH/bin
