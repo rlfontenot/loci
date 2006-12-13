@@ -114,6 +114,25 @@ enum {
 	MPI_2INTEGER		= 39,
 	_MPI_SGI_TYPE_LAST
 };
+const int MPI_TYPE_SIZE[] =
+  {0,
+   sizeof(char),sizeof(short),sizeof(int),sizeof(long),
+   sizeof(unsigned char), sizeof(unsigned short), sizeof(unsigned int),
+   sizeof(unsigned long),
+   sizeof(float),sizeof(double),sizeof(long double), sizeof(long long),
+   sizeof(int), sizeof(float),sizeof(double), 2*sizeof(float),2*sizeof(double),
+   sizeof(bool), sizeof(char), 1,2,4,8,4,8,16,1,1,1,1,
+   sizeof(float)+sizeof(int),sizeof(double)+sizeof(int),
+   sizeof(long)+sizeof(int),2*sizeof(int)} ;
+
+inline int MPI_GET_TYPE_SIZE(int type) {
+  if(size_t(type) > sizeof(MPI_TYPE_SIZE)/sizeof(int))
+    return 1 ;
+  else
+    return MPI_TYPE_SIZE[type] ;
+}
+
+  
 
 #define MPI_LONG_LONG_INT	MPI_LONG_LONG
 
@@ -367,56 +386,29 @@ inline int  MPI_Get_elements(MPI_Status *, MPI_Datatype, int *){err_report(); re
 
 /* 3.13 */
 
-inline int  MPI_Pack(void *inbuf, int incount, MPI_Datatype datatype, void *outbuf, int outcount, int *position, MPI_Comm comm){
-  int size = 8 ; 
-  switch(datatype) {
-  case MPI_INT:
-    size = sizeof(int) ;
-    break;
-  case MPI_BYTE:
-    size = 1 ;
-    break ;
-  default:
-    std::cerr << "MPI_Pack not implemented for type" << std::endl ;
-  }
-  size *= incount ;
-  unsigned char *buf = (unsigned char *)outbuf ;
-  memcpy(buf+*position,inbuf,size) ;
-  *position += size ;
+inline int  MPI_Pack(void *buf, int count, MPI_Datatype datatype,
+                     void *packbuf, int packsize, int *packpos,
+                     MPI_Comm comm){
+  int size = MPI_GET_TYPE_SIZE(datatype) ;
+  size *= count ;
+  memcpy(((char *)packbuf)+*packpos,buf,size) ;
+  *packpos += size;
   return 0 ;
 }
 
-inline int  MPI_Unpack(void *inbuf, int insize, int *position, void *outbuf, int outcount, MPI_Datatype datatype, MPI_Comm comm) {
-  int size = 8 ;
-  switch(datatype) {
-  case MPI_INT:
-    size = sizeof(int) ;
-    break;
-  case MPI_BYTE:
-    size = 1 ;
-    break ;
-  default:
-    std::cerr << "MPI_Pack not implemented for type" << std::endl ;
-  }
-  size *= insize ;
-  unsigned char *buf = (unsigned char *) outbuf ;
-  memcpy(buf+*position,inbuf,size) ;
-  *position += size ;
+inline int  MPI_Unpack(void *packbuf, int packsize, int *packpos,
+                       void *buf, int count, MPI_Datatype datatype,
+                       MPI_Comm comm) {
+  int size = MPI_GET_TYPE_SIZE(datatype) ;
+  size *= count ;
+
+  memcpy(buf,((char *)packbuf)+*packpos,size) ;
+  *packpos += size;
   return 0 ;
 }
 
 inline int  MPI_Pack_size(int incount, MPI_Datatype datatype , MPI_Comm comm, int *size){
-  *size = incount*8  ;
-  switch(datatype) {
-  case MPI_INT:
-    *size = incount*sizeof(int) ;
-    break;
-  case MPI_BYTE:
-    *size = incount ;
-    break ;
-  default:
-    std::cerr << "MPI_Pack not implemented for type" << std::endl ;
-  }
+  *size = MPI_GET_TYPE_SIZE(datatype)*incount ;
   return 0 ;
 }
 
@@ -430,7 +422,11 @@ inline int  MPI_Bcast(void *, int, MPI_Datatype, int, MPI_Comm){ return 0 ;}
 
 /* 4.5 */
 
-inline int  MPI_Gather(void *, int, MPI_Datatype, void *, int, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
+inline int  MPI_Gather(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+                       void *recvbuf, int recvcnt, MPI_Datatype recvtype,
+                       int root , MPI_Comm comm)
+{  memcpy(recvbuf,sendbuf,MPI_GET_TYPE_SIZE(recvtype)*recvcnt) ; return 0 ; }
+
 
 inline int  MPI_Gatherv(void *, int, MPI_Datatype, void *, int *, int *, MPI_Datatype, int, MPI_Comm){err_report(); return -1;}
 
@@ -442,54 +438,55 @@ inline int  MPI_Scatterv(void *, int *, int *, MPI_Datatype, void *, int, MPI_Da
 
 /* 4.7 */
 
-inline int  MPI_Allgather(void *, int, MPI_Datatype, void *, int, MPI_Datatype, MPI_Comm){err_report(); return -1;}
+inline int  MPI_Allgather(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+                          void *recvbuf, int recvcnt, MPI_Datatype recvtype,
+                          MPI_Comm comm )
+{memcpy(recvbuf,sendbuf,MPI_GET_TYPE_SIZE(recvtype)*recvcnt) ; return 0 ; }
 
-inline int  MPI_Allgatherv(void *, int, MPI_Datatype, void *, int *, int *, MPI_Datatype, MPI_Comm){err_report(); return -1;}
+inline int  MPI_Allgatherv(void *sendbuf, int sendcnt, MPI_Datatype sendtype,
+                           void *recvbuf, int *recvcounts, int *displs,
+                           MPI_Datatype recvtype, MPI_Comm comm)
+{ const int sz = MPI_GET_TYPE_SIZE(recvtype) ;
+ memcpy(((char *)recvbuf)+displs[0]*sz, sendbuf,sz*recvcounts[0]);
+ return 0 ; } 
 
 /* 4.8 */
 
 inline int  MPI_Alltoall(void *send, int ssz, MPI_Datatype dts, void *recv, int rsz, MPI_Datatype dtr, MPI_Comm comm){
-  if(dts == MPI_INT && dtr == MPI_INT) {
-    int *is = (int *) send ;
-    int *rs = (int *) recv ;
-    for(int i=0;i<rsz;++i)
-      rs[i] = is[i] ;
-  } else {
-    err_report() ;
-  }
+  memcpy(recv,send,MPI_GET_TYPE_SIZE(dts)*rsz) ;
   return 0;
 }
 
-inline int  MPI_Alltoallv(void *, int *, int *, MPI_Datatype, void *, int *, int *, MPI_Datatype, MPI_Comm){
-  //  err_report();
-  return 0;
+inline int  MPI_Alltoallv(void *sendbuf, int *sendcnts, int *sdispls,
+                          MPI_Datatype sendtype,
+                          void *recvbuf, int *recvcnts, int *rdispls,
+                          MPI_Datatype recvtype, MPI_Comm comm)
+{ const int sz = MPI_GET_TYPE_SIZE(recvtype) ;
+ memcpy(((char *)recvbuf)+rdispls[0]*sz,((char *)sendbuf)+sdispls[0]*sz,
+        recvcnts[0]*sz) ;
+ return 0 ;
 }
 
 /* 4.9 */
 
-inline int  MPI_Reduce(void *, void *, int, MPI_Datatype, MPI_Op, int, MPI_Comm){err_report(); return -1;}
+inline int  MPI_Reduce(void *sendbuf, void *recvbuf, int count,
+                       MPI_Datatype type, MPI_Op op, int root, MPI_Comm comm)
+{memcpy(recvbuf,sendbuf,MPI_GET_TYPE_SIZE(type)*count) ; return 0 ; } 
 
 inline int  MPI_Op_create(MPI_User_function *, int, MPI_Op *){err_report(); return -1;}
 
 inline int  MPI_Op_free(MPI_Op *){err_report(); return -1;}
 
-inline int  MPI_Allreduce(void *p1, void *p2, int sz, MPI_Datatype dt, MPI_Op op , MPI_Comm comm)
-{
-  if(MPI_INT == dt) {
-    int *ip1 = (int *) p1 ;
-    int *ip2 = (int *) p2 ;
-    for(int i=0;i<sz;++i)
-      ip2[i] = ip1[i] ;
-  } else {
-    err_report() ;
-  }
-  return 0 ;
-}
+inline int  MPI_Allreduce(void *sendbuf, void *recvbuf, int count,
+                          MPI_Datatype type, MPI_Op op , MPI_Comm comm)
+{ memcpy(recvbuf,sendbuf,MPI_GET_TYPE_SIZE(type)*count) ; return 0 ; } 
 
 
 /* 4.10 */
 
-inline int  MPI_Reduce_scatter(void *, void *, int *, MPI_Datatype, MPI_Op, MPI_Comm){err_report(); return -1;}
+inline int  MPI_Reduce_scatter(void *, void *, int *, MPI_Datatype, MPI_Op, MPI_Comm){
+  err_report() ; return -1 ;
+}
 
 /* 4.11 */
 
