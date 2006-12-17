@@ -1,0 +1,369 @@
+#include <Loci.h>
+$include "FVM.lh"
+#include <vector>
+using std::vector ;
+#include <algorithm>
+using std::sort ;
+using std::unique ;
+
+namespace Loci {
+  $type frinkNodalMax(X) store<real_t> ;
+  $type frinkNodalMin(X) store<real_t> ;
+  $type X store<real_t> ;
+  $type X_f store<real_t> ;
+
+  using std::max ;
+  using std::min ;
+  
+  $rule unit(frinkNodalMax(X)), constraint(pos) {
+    $frinkNodalMax(X) = std::numeric_limits<real_t>::min() ;
+  }
+  $rule apply(face2node->frinkNodalMax(X)<-cl->X)[Loci::Maximum] {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalMax(X),$cl->$X) ;
+  }
+  $rule apply(face2node->frinkNodalMax(X)<-cr->X)[Loci::Maximum] {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalMax(X),$cr->$X) ;
+  }
+  $rule apply(face2node->frinkNodalMax(X)<-X_f)[Loci::Maximum],constraint(ci->X) {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalMax(X),$X_f) ;
+  }
+
+  $rule unit(frinkNodalMin(X)), constraint(pos) {
+    $frinkNodalMin(X) = std::numeric_limits<real_t>::max() ;
+  }
+  $rule apply(face2node->frinkNodalMin(X)<-cl->X)[Loci::Minimum] {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalMin(X),$cl->$X) ;
+  }
+  $rule apply(face2node->frinkNodalMin(X)<-cr->X)[Loci::Minimum] {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalMin(X),$cr->$X) ;
+  }
+  $rule apply(face2node->frinkNodalMin(X)<-X_f)[Loci::Minimum],constraint(ci->X) {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalMin(X),$X_f) ;
+  }
+
+  $type frinkNodalv3dMax(X) store<vector3d<real_t> > ;
+  $type frinkNodalv3dMin(X) store<vector3d<real_t> > ;
+  $type X store<vector3d<real_t> > ;
+  $type X_f store<vector3d<real_t> > ;
+
+  inline vector3d<real_t> max(const vector3d<real_t> &v1,
+                              const vector3d<real_t> &v2) {
+    return vector3d<real_t>(std::max(v1.x,v2.x),
+                            std::max(v1.y,v2.y),
+                            std::max(v1.z,v2.z)) ;
+  }
+
+  inline vector3d<real_t> min(const vector3d<real_t> &v1,
+                              const vector3d<real_t> &v2) {
+    return vector3d<real_t>(std::min(v1.x,v2.x),
+                            std::min(v1.y,v2.y),
+                            std::min(v1.z,v2.z)) ;
+  }
+  
+
+  $rule unit(frinkNodalv3dMax(X)), constraint(pos) {
+    const real_t mn = std::numeric_limits<real_t>::min() ;
+    $frinkNodalv3dMax(X) = vector3d<real_t>(mn,mn,mn) ;
+  }
+  $rule apply(face2node->frinkNodalv3dMax(X)<-cl->X)[Loci::Maximum] {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalv3dMax(X),$cl->$X) ;
+  }
+  $rule apply(face2node->frinkNodalv3dMax(X)<-cr->X)[Loci::Maximum] {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalv3dMax(X),$cr->$X) ;
+  }
+  $rule apply(face2node->frinkNodalv3dMax(X)<-X_f)[Loci::Maximum],constraint(ci->X) {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalv3dMax(X),$X_f) ;
+  }
+
+  $rule unit(frinkNodalv3dMin(X)), constraint(pos) {
+    const real_t mx = std::numeric_limits<real_t>::max() ;
+    $frinkNodalv3dMin(X) = vector3d<real_t>(mx,mx,mx) ;
+  }
+  $rule apply(face2node->frinkNodalv3dMin(X)<-cl->X)[Loci::Minimum] {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalv3dMin(X),$cl->$X) ;
+  }
+  $rule apply(face2node->frinkNodalv3dMin(X)<-cr->X)[Loci::Minimum] {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalv3dMin(X),$cr->$X) ;
+  }
+  $rule apply(face2node->frinkNodalv3dMin(X)<-X_f)[Loci::Minimum],constraint(ci->X) {
+    int nsz = $face2node.size() ;
+    for(int i=0;i<nsz;++i)
+      join($face2node[i]->$frinkNodalv3dMin(X),$X_f) ;
+  }
+
+
+
+  $type frinkNodalvMax(X) storeVec<real_t> ;
+  $type frinkNodalvMin(X) storeVec<real_t> ;
+  $type X storeVec<real_t> ;
+  $type X_f storeVec<real_t> ;
+  $type vecSize(X) param<int> ;
+
+
+  $rule unit(frinkNodalvMax(X)<-vecSize(X)), constraint(pos), prelude {
+    $frinkNodalvMax(X).setVecSize(*$vecSize(X)) ;
+  } compute {
+    $frinkNodalvMax(X) = mk_Scalar(std::numeric_limits<real_t>::min()) ;
+  }
+  $rule apply(face2node->frinkNodalvMax(X)<-cl->X)[Loci::Maximum] {
+    const int sz = $face2node.size() ;
+    for(int i=0;i<sz;++i)
+      join($face2node[i]->$frinkNodalvMax(X),$cl->$X) ;
+  }
+  $rule apply(face2node->frinkNodalvMax(X)<-cr->X)[Loci::Maximum] {
+    const int sz = $face2node.size() ;
+    for(int i=0;i<sz;++i)
+      join($face2node[i]->$frinkNodalvMax(X),$cr->$X) ;
+  }
+  $rule apply(face2node->frinkNodalvMax(X)<-X_f)[Loci::Maximum],
+    constraint(ci->X) {
+    const int sz = $face2node.size() ;
+    for(int i=0;i<sz;++i)
+      join($face2node[i]->$frinkNodalvMax(X),$X_f) ;
+  }
+
+  $rule unit(frinkNodalvMin(X)<-vecSize(X)), constraint(pos), prelude {
+    $frinkNodalvMin(X).setVecSize(*$vecSize(X)) ;
+  } compute {
+    $frinkNodalvMin(X) = mk_Scalar(std::numeric_limits<real_t>::max()) ;
+  }
+  $rule apply(face2node->frinkNodalvMin(X)<-cl->X)[Loci::Minimum] {
+    const int sz = $face2node.size() ;
+    for(int i=0;i<sz;++i)
+      join($face2node[i]->$frinkNodalvMin(X),$cl->$X) ;
+  }
+  $rule apply(face2node->frinkNodalvMin(X)<-cr->X)[Loci::Minimum] {
+    const int sz = $face2node.size() ;
+    for(int i=0;i<sz;++i)
+      join($face2node[i]->$frinkNodalvMin(X),$cr->$X) ;
+  }
+  $rule apply(face2node->frinkNodalvMin(X)<-X_f)[Loci::Minimum],
+    constraint(ci->X) {
+    const int sz = $face2node.size() ;
+    for(int i=0;i<sz;++i)
+      join($face2node[i]->$frinkNodalvMin(X),$X_f) ;
+  }
+
+  // Now code to compute nodal values
+
+  $type frink_nodal_weights store<real_t> ;
+
+  $rule unit(frink_nodal_weights), constraint(pos) {
+    $frink_nodal_weights = 0 ;
+  }
+
+  $rule apply((upper,lower,boundary_map)->face2node->frink_nodal_weights<-(upper,lower,boundary_map)->face2node->frink_nodal_weights,cellcenter,(upper,lower,boundary_map)->face2node->pos)[Loci::Summation],constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+    for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
+      const real_t weight = 1./norm(vi->$pos-$cellcenter) ;
+      join(vi->$frink_nodal_weights,weight) ;
+    }
+  }
+
+  $type Wf_l store<vector3d<real_t> > ;
+  $type Wf_r store<vector3d<real_t> > ;
+
+  $type frinkNodal(X) store<real_t> ;
+  $type X store<real_t> ;
+  $type X_f store<real_t> ;
+
+  
+  $rule unit(frinkNodal(X)),constraint(pos) {
+    $frinkNodal(X) = 0 ;
+  }
+
+  $rule apply((upper,lower,boundary_map)->face2node->frinkNodal(X)<-
+              (upper,lower,boundary_map)->face2node->frink_nodal_weights,
+              cellcenter,(upper,lower,boundary_map)->face2node->pos,
+              (upper,lower,boundary_map)->face2node->frinkNodalMax(X),
+              (upper,lower,boundary_map)->face2node->frinkNodalMin(X),
+              lower->Wf_r,(upper,boundary_map)->Wf_l,
+              X,lower->cl->X,upper->cr->X,boundary_map->X_f
+              )[Loci::Summation],constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    // Now compute gradient
+
+    vector3d<real_t> gradx = vector3d<real_t>(0,0,0) ;
+    real_t X_center = $X ;
+    for(const int *li = $lower.begin();li!=$lower.end();++li) {
+      real_t df = li->$cl->$X - X_center ;
+      gradx += df*li->$Wf_r ;
+    }
+    for(const int *ui = $upper.begin();ui!=$upper.end();++ui) {
+      real_t df = ui->$cr->$X - X_center ;
+      gradx += df*ui->$Wf_l ;
+    }
+    for(const int *bi = $boundary_map.begin();bi!=$boundary_map.end(); ++bi) {
+      real_t df = bi->$X_f - X_center ;
+      gradx += df*bi->$Wf_l ;
+    }
+
+    // grads[cc] = Qt_b ; 
+
+    // compute weighted sum of node extrapolations
+    for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
+      const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+      real_t x_p = $X + dot(gradx,dv) ;
+
+      // Limit extrapolation
+      x_p = min(x_p,vi->$frinkNodalMax(X)) ;
+      x_p = max(x_p,vi->$frinkNodalMin(X)) ;
+
+      // Compute weighted contribution to node
+      const real_t x_contrib = x_p/(norm(dv)*vi->$frink_nodal_weights) ;
+      join(vi->$frinkNodal(X),x_contrib) ;
+    }
+  }
+
+  $type frinkNodalv3d(X) store<vector3d<real_t> > ;
+
+  $type X store<vector3d<real_t> > ;
+  $type X_f store<vector3d<real_t> > ;
+
+  
+  $rule unit(frinkNodalv3d(X)),constraint(pos) {
+    $frinkNodalv3d(X) = vector3d<real_t>(0,0,0) ;
+  }
+
+  $rule apply((upper,lower,boundary_map)->face2node->frinkNodalv3d(X)<-
+              (upper,lower,boundary_map)->face2node->frink_nodal_weights,
+              cellcenter,(upper,lower,boundary_map)->face2node->pos,
+              (upper,lower,boundary_map)->face2node->frinkNodalv3dMax(X),
+              (upper,lower,boundary_map)->face2node->frinkNodalv3dMin(X),
+              lower->Wf_r,(upper,boundary_map)->Wf_l,
+              X,lower->cl->X,upper->cr->X,boundary_map->X_f
+              )[Loci::Summation],constraint(geom_cells) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    // Now compute gradient
+
+    const vector3d<real_t> X_center = $X ;
+    tensor3d<real_t>  gradx = tensor3d<real_t> (vector3d<real_t>(0,0,0),vector3d<real_t>(0,0,0),vector3d<real_t>(0,0,0)) ;
+    for(const int *li = $lower.begin();li!=$lower.end();++li) {
+      vector3d<real_t> df = li->$cl->$X - X_center ;
+      gradx.x += df.x*li->$Wf_r ;
+      gradx.y += df.y*li->$Wf_r ;
+      gradx.z += df.z*li->$Wf_r ;
+    }
+    for(const int *ui = $upper.begin();ui!=$upper.end();++ui) {
+      vector3d<real_t> df = ui->$cr->$X - X_center ;
+      gradx.x += df.x*ui->$Wf_l ;
+      gradx.y += df.y*ui->$Wf_l ;
+      gradx.z += df.z*ui->$Wf_l ;
+    }
+    for(const int *bi = $boundary_map.begin();bi!=$boundary_map.end(); ++bi) {
+      vector3d<real_t> df = bi->$X_f - X_center ;
+      gradx.x += df.x*bi->$Wf_l ;
+      gradx.y += df.y*bi->$Wf_l ;
+      gradx.z += df.z*bi->$Wf_l ;
+    }
+
+    // compute weighted sum of node extrapolations
+    for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
+      const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+      vector3d<real_t> x_p = $X + dot(gradx,dv) ;
+
+      // Limit extrapolation
+      x_p = min(x_p,vi->$frinkNodalv3dMax(X)) ;
+      x_p = max(x_p,vi->$frinkNodalv3dMin(X)) ;
+
+      // Compute weighted contribution to node
+      const vector3d<real_t> x_contrib = x_p/(norm(dv)*vi->$frink_nodal_weights) ;
+      join(vi->$frinkNodalv3d(X),x_contrib) ;
+    }
+  }
+
+  
+}
