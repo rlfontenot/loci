@@ -498,6 +498,14 @@ namespace Loci {
     template <class U> void operator()(T &res, const U &arg)
     { res = max(res,arg) ; }
   } ;
+  template <class T> struct Maximum<Vect<T> > {
+    template <class U> void operator()(Vect<T> &res ,const U &arg)
+    {
+      int vs = res.getSize() ;
+      for(int i=0;i<vs;++i)
+        res[i] = max(res[i],arg[i]) ;
+    }
+  } ;  
 
   template <class T> struct Minimum {
     void operator()(T &res, const T &arg)
@@ -505,6 +513,15 @@ namespace Loci {
     template <class U> void operator()(T &res, const U &arg)
     { res = max(res,arg) ; }
   } ;
+  template <class T> struct Minimum<Vect<T> > {
+    template <class U> void operator()(Vect<T> &res ,const U &arg)
+    {
+      int vs = res.getSize() ;
+      for(int i=0;i<vs;++i)
+        res[i] = min(res[i],arg[i]) ;
+    }
+  } ;  
+
   
   class rule {
   public:
