@@ -443,5 +443,216 @@ namespace Loci {
       }
     }
   }
+
+  // Second order area integration
+  $type frinkIntegrate(X) store<real_t> ;
+  $type X store<real_t> ;
   
+  $rule pointwise(frinkIntegrate(X)<-area,facecenter,face2node->pos,face2node->frinkNodal(X)) {
+    const int sz = $face2node.size() ;
+    const vector3d<real_t> center = $facecenter ;
+    real_t sum = 0 ;
+    for(int i=0;i<sz;++i) {
+      int n1 = i ;
+      int n2 = (i+1)%sz ;
+      const vector3d<real_t> v1 = $face2node[n1]->$pos-center ;
+      const vector3d<real_t> v2 = $face2node[n2]->$pos-center ;
+      const real_t X1 = $face2node[n1]->$frinkNodal(X) ;
+      const real_t X2 = $face2node[n1]->$frinkNodal(X) ;
+      // 2*dot(A,n)
+      const real_t Axn2 = dot(cross(v1,v2),$area.n) ;
+      sum += (X1+X2)*Axn2 ;
+    }
+    $frinkIntegrate(X) = sum/(4.*$area.sada) ;
+  }
+  $type frinkIntegratev(X) storeVec<real_t> ;
+  $type X storeVec<real_t> ;
+  
+  $rule pointwise(frinkIntegratev(X)<-area,facecenter,face2node->pos,face2node->frinkNodalv(X)), prelude {
+    $frinkIntegratev(X).setVecSize($frinkNodalv(X).vecSize()) ;
+  } compute {
+    const int sz = $face2node.size() ;
+    const vector3d<real_t> center = $facecenter ;
+    int nv = $*frinkNodalv(X).vecSize() ;
+    for(int i=0;i<nv;++i) {
+      real_t sum = 0 ;
+      for(int f=0;f<sz;++f) {
+        int n1 = f ;
+        int n2 = (f+1)%sz ;
+        const vector3d<real_t> v1 = $face2node[n1]->$pos-center ;
+        const vector3d<real_t> v2 = $face2node[n2]->$pos-center ;
+        const real_t X1 = $face2node[n1]->$frinkNodalv(X)[i] ;
+        const real_t X2 = $face2node[n1]->$frinkNodalv(X)[i] ;
+        // 2*dot(A,n)
+        const real_t Axn2 = dot(cross(v1,v2),$area.n) ;
+        sum += (X1+X2)*Axn2 ;
+      }
+      $frinkIntegratev(X)[i] = sum/(4.*$area.sada) ;
+    }
+  }
+
+  $type frinkIntegratev3d(X) store<vector3d<real_t> > ;
+  $type X store<vector3d<real_t> > ;
+  
+  $rule pointwise(frinkIntegratev3d(X)<-area,facecenter,face2node->pos,face2node->frinkNodalv3d(X)) {
+    const int sz = $face2node.size() ;
+    const vector3d<real_t> center = $facecenter ;
+    vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
+    for(int i=0;i<sz;++i) {
+      int n1 = i ;
+      int n2 = (i+1)%sz ;
+      const vector3d<real_t> v1 = $face2node[n1]->$pos-center ;
+      const vector3d<real_t> v2 = $face2node[n2]->$pos-center ;
+      const vector3d<real_t> X1 = $face2node[n1]->$frinkNodalv3d(X) ;
+      const vector3d<real_t> X2 = $face2node[n1]->$frinkNodalv3d(X) ;
+      // 2*dot(A,n)
+      const real_t Axn2 = dot(cross(v1,v2),$area.n) ;
+      sum += (X1+X2)*Axn2 ;
+    }
+    $frinkIntegratev3d(X) = sum/(4.*$area.sada) ;
+  }
+
+  $type X storeVec<real_t> ;
+  $type X_f storeVec<real_t> ;
+  
+  
+  $rule pointwise(gradv(X)<-(lower,upper)->(area,frinkIntegratev(X)),
+                  boundary_map->(X_f,area),vol),
+    constraint(geom_cells,frinkGradient), prelude {
+    $gradv(X).setVecSize($frinkIntegratev(X).vecSize()) ;
+  } compute {
+    const real_t rvol = 1./$vol ;
+    const int vs = $*frinkIntegratev(X).vecSize() ;
+    for(int i=0;i<vs;++i) {
+      vector3d<real_t> gradsum = vector3d<real_t>(0.0,0.0,0.0);
+      for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
+        const real_t xf = li->$frinkIntegratev(X)[i] ;
+        gradsum -= xf*li->$area.sada*li->$area.n ;
+      }
+      for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
+        const real_t xf = ui->$frinkIntegratev(X)[i] ;
+         gradsum += xf*ui->$area.sada*ui->$area.n ;
+      }
+      for(const Entity *bi = $boundary_map.begin();bi!=$boundary_map.end();
+          ++bi) {
+        gradsum += bi->$X_f[i]*bi->$area.sada*bi->$area.n ;
+      }
+
+       $gradv(X)[i] = gradsum*rvol  ; 
+    }
+  }
+
+  $type X store<real_t> ;
+  $type X_f store<real_t> ;
+
+  $rule pointwise(grads(X)<-(lower,upper)->(area,frinkIntegrate(X)),boundary_map->(X_f,area,frinkIntegrate(X)),vol),
+    constraint(geom_cells,frinkGradient) {
+    const real_t rvol = 1./$vol ;
+    vector3d<real_t> gradsum = vector3d<real_t>(0.0,0.0,0.0);
+    for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
+      const real_t xf = li->$frinkIntegrate(X) ;
+      gradsum -= xf*li->$area.sada*li->$area.n ;
+    }
+    for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
+      const real_t xf = ui->$frinkIntegrate(X) ;
+      gradsum += xf*ui->$area.sada*ui->$area.n ;
+    }
+    for(const Entity *bi = $boundary_map.begin();bi!=$boundary_map.end();
+        ++bi) {
+      gradsum += bi->$X_f*bi->$area.sada*bi->$area.n ;
+    }
+    
+    $grads(X)= gradsum*rvol  ; 
+  }
+
+
+  $type X store<vector3d<real_t> > ;
+  $type X_f store<vector3d<real_t> > ;
+  
+  $rule pointwise(gradv3d(X)<-(lower,upper)->(frinkIntegratev3d(X),area),boundary_map->(X_f,area),vol),
+    constraint(geom_cells,frinkGradient) {
+    tensor3d<real_t>  gradsum = tensor3d<real_t> (vector3d<real_t>(0,0,0),vector3d<real_t>(0,0,0),vector3d<real_t>(0,0,0)) ;
+    const real_t rvol = 1./$vol ;
+    
+    for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
+      const vector3d<real_t> xf = li->$frinkIntegratev3d(X) ;
+      gradsum.x -= xf.x*li->$area.sada*li->$area.n ;
+      gradsum.y -= xf.y*li->$area.sada*li->$area.n ;
+      gradsum.z -= xf.z*li->$area.sada*li->$area.n ;
+    }
+    for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
+      const vector3d<real_t> xf = ui->$frinkIntegratev3d(X) ;
+      gradsum.x += xf.x*ui->$area.sada*ui->$area.n ;
+      gradsum.y += xf.y*ui->$area.sada*ui->$area.n ;
+      gradsum.z += xf.z*ui->$area.sada*ui->$area.n ;
+    }
+    for(const Entity *bi = $boundary_map.begin();bi!=$boundary_map.end();
+        ++bi) {
+      gradsum.x += bi->$X_f.x*bi->$area.sada*bi->$area.n ;
+      gradsum.y += bi->$X_f.y*bi->$area.sada*bi->$area.n ;
+      gradsum.z += bi->$X_f.z*bi->$area.sada*bi->$area.n ;
+    }
+
+    $gradv3d(X).x = gradsum.x*rvol  ; 
+    $gradv3d(X).y = gradsum.y*rvol  ; 
+    $gradv3d(X).z = gradsum.z*rvol  ; 
+  }
+
+  // Frink face gradients:
+  $type X store<real_t> ;
+  $type X_f store<real_t> ;
+
+  $rule pointwise(frink::grads_f(X)<-(cl,cr)->(X,cellcenter),
+                  face2node->(frinkNodal(X),pos)),
+    constraint(frinkGradient,(cl,cr)->cellcenter) {
+    const int sz = $face2node.size() ;
+    const vector3d<real_t> center_l = $cl->$cellcenter ;
+    const vector3d<real_t> center_r = $cr->$cellcenter ;
+    vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
+    real_t lvol = 0 ;
+
+    for(int i=0;i<sz;++i) {
+      int n1 = i ;
+      int n2 = (i+1)%sz ;
+      const real_t X1 = $face2node[n1]->$frinkNodal(X) ;
+      const real_t X2 = $face2node[n1]->$frinkNodal(X) ;
+      // 2*dot(A,n)
+      const vector3d<real_t> v1l = $face2node[n1]->$pos-center_l ;
+      const vector3d<real_t> v2l = $face2node[n2]->$pos-center_l ;
+      sum -= ($cl->$X+X1+X2)*cross(v1l,v2l) ;
+      const vector3d<real_t> v1r = $face2node[n1]->$pos-center_r ;
+      const vector3d<real_t> v2r = $face2node[n2]->$pos-center_r ;
+      const vector3d<real_t> crossr = cross(v1r,v2r) ;
+      sum += ($cr->$X+X1+X2)*crossr ;
+      lvol += dot(center_r-center_l,crossr) ;
+    }
+    $grads_f(X) = sum/lvol ;
+  }
+
+  $rule pointwise(frink::grads_f(X)<-ci->(X,cellcenter),X_f,facecenter,
+                  face2node->(frinkNodal(X),pos)),
+    constraint(frinkGradient,ci->cellcenter) {
+    const int sz = $face2node.size() ;
+    const vector3d<real_t> center_l = $ci->$cellcenter ;
+    const vector3d<real_t> center_r = $facecenter ;
+    vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
+    real_t lvol = 0 ;
+
+    for(int i=0;i<sz;++i) {
+      int n1 = i ;
+      int n2 = (i+1)%sz ;
+      const real_t X1 = $face2node[n1]->$frinkNodal(X) ;
+      const real_t X2 = $face2node[n1]->$frinkNodal(X) ;
+      // 2*dot(A,n)
+      const vector3d<real_t> v1l = $face2node[n1]->$pos-center_l ;
+      const vector3d<real_t> v2l = $face2node[n2]->$pos-center_l ;
+      sum -= ($ci->$X+X1+X2)*cross(v1l,v2l) ;
+      const vector3d<real_t> v1r = $face2node[n1]->$pos-center_r ;
+      const vector3d<real_t> v2r = $face2node[n2]->$pos-center_r ;
+      const vector3d<real_t> crossr = cross(v1r,v2r) ;
+      sum += ($X_f+X1+X2)*crossr ;
+      lvol += dot(center_r-center_l,crossr) ;
+    }
+    $grads_f(X) = sum/lvol ;
+  }
 }

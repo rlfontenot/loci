@@ -636,7 +636,8 @@ namespace Loci {
       output("lower->Wf_r") ;
       output("upper->Wf_l") ;
       output("boundary_map->Wf_l") ;
-      constraint("geom_cells,stencilStandard") ;
+      //      constraint("geom_cells,stencilStandard") ;
+      constraint("geom_cells") ;
     }
 
     void calculate(Entity c) {
