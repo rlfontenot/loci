@@ -938,6 +938,9 @@ namespace Loci {
     }
   }
 
+  // This doesn't seem to work... why?
+#ifdef FRINK_FACE_GRAD
+
   $type X store<vector3d<real_t> > ;
   $type X_f store<vector3d<real_t> > ;
 
@@ -978,6 +981,7 @@ namespace Loci {
     $gradv3d_f(X).z = sumz*rlvol ;
   }
 
+
   $rule pointwise(frink::gradv3d_f(X)<-ci->(X,cellcenter),X_f,facecenter,
                   face2node->(frinkNodalv3d(X),pos)),
     constraint(frinkGradient,ci->cellcenter) {
@@ -1014,5 +1018,5 @@ namespace Loci {
     $gradv3d_f(X).y = sumy*rlvol ;
     $gradv3d_f(X).z = sumz*rlvol ;
   }
-
+#endif
 }
