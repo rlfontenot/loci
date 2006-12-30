@@ -356,9 +356,113 @@ namespace Loci {
       ncells = cellSet.size() ;
       fcluster += fc ;
     }
-    std::cout << "fcluster.size() = " << fcluster.size() << endl ;
-    std::cout << "nodeSet = " << nodeSet.Max()-nodeSet.Min()+1 << endl ;
+    dMap node2local ;
+    dMap cell2local ;
+    int cnt = 0 ;
+    for(ei = nodeSet.begin();ei!=nodeSet.end();++ei) {
+      node2local[*ei] = cnt++ ;
+    }
+    cnt = 0 ;
+    for(ei = cellSet.begin();ei!=cellSet.end();++ei) {
+      cell2local[*ei] = cnt++ ;
+    }
+
+    vector<pair<int,Entity> > face_order(fcluster.size()) ;
+    cnt = 0 ;
+    for(ei=fcluster.begin();ei!=fcluster.end();++ei)
+      face_order[cnt++] = pair<int,Entity>(face2node[*ei].size(),*ei) ;
+    sort(face_order.begin(),face_order.end()) ;
+    vector<pair<int,int> > rll ;
+    int lsz = face_order[0].first ;
+    cnt = 0 ;
+    for(size_t i=0;i<face_order.size();++i) {
+      if(lsz!=face_order[i].first) {
+        while(cnt > 255) {
+          rll.push_back(pair<int,int>(lsz,255)) ;
+          cnt -= 255 ;
+        }
+        rll.push_back(pair<int,int>(lsz,cnt)) ;
+        cnt = 0 ;
+        lsz = face_order[i].first ;
+      }
+      cnt++ ;
+    }
+    while(cnt > 255) {
+      rll.push_back(pair<int,int>(lsz,255)) ;
+      cnt -= 255 ;
+    }
+    rll.push_back(pair<int,int>(lsz,cnt)) ;
+
+    int num_fnodes = 0 ;
+    int num_fcells = 0 ;
+    for(size_t i=0;i<rll.size();++i) {
+      num_fnodes += rll[i].first*rll[i].second ;
+      num_fcells += 2*rll[i].second ;
+    }
+
+    cnt = nodeSet.size()/2 ;
+    int median = nodeSet.Min() ;
+    for(ei=nodeSet.begin();ei!=nodeSet.end();++ei)
+      if(cnt-- == 0)
+        median = *ei ;
+    int num_fnode_miss = 0 ;
+    for(ei=nodeSet.begin();ei!=nodeSet.end();++ei)
+      if(*ei - median > 32767 || *ei - median < -32511)
+        num_fnode_miss++ ;
+
+    median = 0 ;
+    cnt = cellSet.size()/2 ;
+    for(ei=cellSet.begin();ei!=cellSet.end();++ei)
+      if(cnt-- == 0)
+        median = *ei ;
+    int num_fcell_miss = 0 ;
+    for(ei=cellSet.begin();ei!=cellSet.end();++ei)
+      if(*ei - median > 32767 || *ei - median < -32511) 
+        num_fcell_miss++ ;
+    
+        
+    std::cout << "fcluster = " << fcluster.size() 
+              << ", nodeSet = " << nodeSet.size()  
+              << ", cellSet = " << cellSet.size() << endl ;
+    std::cout << "rll = " ;
+    for(size_t i=0;i<rll.size();++i) 
+      std::cout << " ("<<rll[i].first<<','<< rll[i].second << ")" ;
+    std::cout << endl ;
+    std::cout << "node_miss = " << double(num_fnode_miss)*100.0/double(num_fnodes) << "%" 
+              << ", cell_miss = " << double(num_fcell_miss)*100.0/double(num_fcells) << "%" << endl ;
     //    std::cout << "cellSet = " << cellSet << endl ;
+
+    int cluster_size = 0 ;
+
+    // node offset
+    cluster_size += 6 ;
+    // node offset table
+    cluster_size += 1 ; // table size field
+    cluster_size += nodeSet.size()*2 ; // table
+    // node miss table
+    cluster_size += 1 ; // miss table size field
+    cluster_size += 6*num_fnode_miss ;
+    // cell offset
+    cluster_size += 6 ;
+    // cell offset table ;
+    cluster_size += 1 ;
+    cluster_size += cellSet.size()*2 ;
+    // cell miss table 
+    cluster_size += 1 ; // miss table size field
+    cluster_size += 6*num_fcell_miss ;
+    // face info sizes
+    // rll data
+    cluster_size += rll.size()*2 ;
+    cluster_size += num_fnodes ;
+    cluster_size += num_fcells ;
+
+    // Compute uncompressed cluster size
+    int norm_size = 0;
+    norm_size += num_fnodes*4 + num_fcells*4 + fcluster.size()*4 ;
+
+    std::cout << "compression factor = " << double(norm_size)/double(cluster_size) << endl ;
+    
+    
     
     return fcluster ;
   }
