@@ -30,6 +30,9 @@ FRC :
 xdr2cobalt: xdr2cobalt.o
 	$(LD) -o xdr2cobalt xdr2cobalt.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+xdr2vog: xdr2vog.o
+	$(LD) -o xdr2vog xdr2vog.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 cobalt2xdr: cobalt2xdr.o
 	$(LD) -o cobalt2xdr cobalt2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
