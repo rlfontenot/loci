@@ -461,6 +461,18 @@ namespace Loci {
 
     // remove any deleted or reserved variables
     working_vars -= deleted_vars ;
+
+    // get the interface variable
+    // flip id if it is negative
+    if(id < 0) id = -id ;
+    map<int,variableSet>::const_iterator mf ;
+    variableSet vars_by_others ;
+    for(mf=sn_del_interface.begin();mf!=sn_del_interface.end();++mf) {
+      if(mf->first != id)
+        vars_by_others += mf->second ;
+    }
+
+    working_vars -= vars_by_others ;
     
     return working_vars ;    
   }
@@ -488,6 +500,7 @@ namespace Loci {
       // if this variable is in the recurrence variable table,
       // we'll also need to get the rules that the recurrence variable
       // reach
+
       if(all_recur_sources != EMPTY) {
         // get the recurrence source variables that are in this graph
         digraph::vertexSet in_graph_recur_vars ;
@@ -496,6 +509,7 @@ namespace Loci {
           if(allv.inSet(vi->ident()))
             in_graph_recur_vars += vi->ident() ;
         }
+
         if(in_graph_recur_vars != EMPTY) {
           ruleSet others ;
           for(digraph::vertexSet::const_iterator
@@ -510,10 +524,17 @@ namespace Loci {
           ruleSet subtract ;
           for(ruleSet::const_iterator ruleIter=others.begin();
               ruleIter!=others.end();++ruleIter) {
-            variable target = *(ruleIter->targets().begin()) ;
-            if(only_vars.inSet(target))
+            if( (ruleIter->get_info().qualifier() == "promote") ||
+                (ruleIter->get_info().qualifier() == "generalize") ||
+                (ruleIter->get_info().qualifier() == "priority")
+                )
               subtract += *ruleIter ;
+
+            //variable target = *(ruleIter->targets().begin()) ;
+            //if(only_vars.inSet(target))
+            //subtract += *ruleIter ;
           }
+
           others -= subtract ;
           if(others != EMPTY) {
             target_rules += others ;
@@ -539,6 +560,7 @@ namespace Loci {
       if(let_it_go(gr,target_rules,*varIter)) {
         continue ;
       }
+
       // otherwise we can delete the variable here
       delete_here += *varIter ;
     }
@@ -587,9 +609,8 @@ namespace Loci {
     // deleted in the advance graph, because we want to
     // delete them again later upon exit of the loop
     variableSet before = variableSet(shared - deleted_vars) ;
-    variableSet after ;
     looping_algr(working_vars,lc.advance_gr,lc.cid,0) ;
-    after = variableSet(shared - deleted_vars) ;
+    variableSet after = variableSet(shared - deleted_vars) ;
 
     // reset to empty
     current_lshared_vars = variableSet(EMPTY) ;
@@ -772,11 +793,18 @@ namespace Loci {
       // this only applies to non loop rotate variables
       digraph grt = gr.transpose() ;
       ruleSet source_rules = extract_rules(grt[v.ident()]) ;
+
       if(source_rules.size() == 1) {
-        if(is_super_node(source_rules.begin()))
-          if(inSet(graph_sn,get_supernode_num(*source_rules.begin())))
-            if(!all_rot_vars.inSet(v))
+        if(is_super_node(source_rules.begin())) {
+          int sn_id = get_supernode_num(*source_rules.begin()) ;
+          if(inSet(graph_sn,sn_id)) {
+            if(!all_rot_vars.inSet(v)) {
+              // add the escape info to the record
+              sn_del_interface[sn_id] += v ;
               return true ;
+            }
+          }
+        }
       }
       return false ;
     }
@@ -796,13 +824,21 @@ namespace Loci {
         }
       }
     }
+
+    int sn_id = -1 ;
+    if(supernode_num == 1)
+      sn_id = get_supernode_num(supernode) ;
+
     if(supernode_num == 1) {
       // check to see if it is a conditional node
       // if it is, we delete it in the graph
-      if(inSet(cond_sn,get_supernode_num(supernode)))
+      if(inSet(cond_sn,sn_id))
         return false ;
-      else if(rules.size() == 1)
+      else if(rules.size() == 1) {
+        // add the escape info.
+        sn_del_interface[sn_id] += v ;
         return true ;
+      }
     }
     if(supernode_num != 1)
       return false ;
@@ -819,7 +855,10 @@ namespace Loci {
         break ;
       }
     }
-    
+    if(ret) {
+      // add the escape info.
+      sn_del_interface[sn_id] += v ;
+    }
     return ret ;
   }
 
@@ -831,8 +870,9 @@ namespace Loci {
     // need to be deleted in the graph
     map<int,variableSet>::const_iterator found ;
     found = delete_table.find(id) ;
-    FATAL(found == delete_table.end()) ;
-    variableSet delete_vars = found->second ;
+    variableSet delete_vars = variableSet(EMPTY) ;
+    if(found != delete_table.end())
+      delete_vars = found->second ;
 
     if(delete_vars == EMPTY) return ;
     
@@ -881,6 +921,7 @@ namespace Loci {
             target_rules += ruleIter->ident() ;
         }
       }
+
       // if target_ruls is still empty, then the variable must
       // be in the graph, but it is a leaf node, we append the
       // deletion rule after the variable itself.

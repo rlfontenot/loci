@@ -242,6 +242,20 @@ namespace Loci {
     // variable that stores the current loop shared variables
     // for determine the deletion in a loop
     variableSet current_lshared_vars ;
+
+    // The following additions are here to fix problems in
+    // the current deallocation algorithms that do not communicate
+    // information properly between super nodes. In the future,
+    // it would be better to reimplement the allocation and deallocation
+    // algorithms entirely in a much cleaner way.
+    
+    // this structure is used to record the responsibility to process
+    // deallocation requests for interface variables for every super node.
+    // interface variables are those variables that across the boundary
+    // of super nodes, i.e., the inputs and outputs of a super node.
+    // This structure essentially records the escape information computed
+    // in the "let_it_go" function.
+    std::map<int,variableSet> sn_del_interface ;
   } ;
 
   // visitor that get all the recurrence variables in the
