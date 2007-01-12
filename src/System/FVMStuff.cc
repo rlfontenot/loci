@@ -318,7 +318,6 @@ namespace Loci {
     vector<int> generalCellNodes ;
     
     // Generate Cells
-    vector<int> boundary_face_list ;
     FORALL(localCells,cc) {
       int nfaces = upper[cc].size()+lower[cc].size()+boundary_map[cc].size() ;
       tmp_array<int> faces(nfaces) ;
@@ -372,7 +371,6 @@ namespace Loci {
         int fc = boundary_map[cc][i] ;
         faces[nf] = fc ;
         nf++ ;
-        boundary_face_list.push_back(fc) ;
         int fsz = face2node[fc].size() ;
         if(fsz == 3) {
           tri_faces[tcnt][0] = node_remap[face2node[fc][0]] ;
@@ -473,9 +471,9 @@ namespace Loci {
     }
 
 
-    entitySet fset = create_entitySet(boundary_face_list.begin(),
-                                      boundary_face_list.end()) ;
-    
+    // Identify Boundary faces to be written by this processor
+    entitySet  fset = (MapRepP(boundary_mapRep)->image(localCells)+
+                       MapRepP(upperRep)->image(localCells)) & ref.domain() ;
 
     for(size_t i=0;i<bnamelist.size();++i) {
       hid_t bc_id = 0 ;

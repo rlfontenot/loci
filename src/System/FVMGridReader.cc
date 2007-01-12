@@ -1209,31 +1209,24 @@ namespace Loci {
     FORALL(*boundary_faces,fc) {
       *geom_cells += cl[fc] ;
     } ENDFORALL ;
-    if(facts.is_distributed_start()) {
-      std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
-      entitySet global_geom = all_collect_entitySet(*geom_cells,facts) ;
-      *geom_cells = global_geom & init_ptn[ MPI_rank] ;
-      *boundary_faces &= init_ptn[ MPI_rank] ;
-      std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size()) ;
-      entitySet tmp_ghost = ghost_pair.first ;
-      entitySet::const_iterator ei = tmp_ghost.begin() ;
-      FORALL(*boundary_faces,fc) {
-	cr[fc] = *ei++;
-      } ENDFORALL ;
-      *ghost_cells = ghost_pair.first ;
-    }
-    else {
-      int gc = (*geom_cells).Max()+1 ;
-      int gl = gc ;
-      FORALL(*boundary_faces,fc) {
-	cr[fc] = gc++;
-      } ENDFORALL ;
-      *ghost_cells = interval(gl,gc-1) ;
-    }
+
+    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    entitySet global_geom = all_collect_entitySet(*geom_cells,facts) ;
+    *geom_cells = global_geom & init_ptn[ MPI_rank] ;
+    *boundary_faces &= init_ptn[ MPI_rank] ;
+    std::pair<entitySet, entitySet> ghost_pair = facts.get_distributed_alloc((*boundary_faces).size()) ;
+    entitySet tmp_ghost = ghost_pair.first ;
+    entitySet::const_iterator ei = tmp_ghost.begin() ;
+    FORALL(*boundary_faces,fc) {
+      cr[fc] = *ei++;
+    } ENDFORALL ;
+    *ghost_cells = ghost_pair.first ;
+
     facts.update_fact("cr",cr) ;
+
     *cells = *geom_cells + *ghost_cells ;
+
     facts.create_fact("geom_cells",geom_cells) ;
-    
     facts.create_fact("ghost_cells",ghost_cells) ;
     facts.create_fact("cells",cells) ;
 
@@ -1241,17 +1234,21 @@ namespace Loci {
     Loci::debugout << "ghost_cells = " << *ghost_cells << endl ;
     Loci::debugout << "cells = " << *cells << endl ;
   }
+
   void create_face_info(fact_db &facts) {
     Map cl, cr ;
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
     constraint faces ;
     faces = (cl.domain() & cr.domain()) ;
+    //    faces = all_collect_entitySet(*faces) ;
+    
     facts.create_fact("faces",faces) ;
     entitySet bcset = interval(Loci::UNIVERSE_MIN,-1) ;
     entitySet bcfaces = cr.preimage(bcset).first ;
     constraint boundary_faces ;
     boundary_faces = bcfaces ;
+    //    boundary_faces = all_collect_entitySet(bcfaces) ;
     constraint interior_faces ;
     interior_faces = (*faces-*boundary_faces) ;
     facts.create_fact("boundary_faces",boundary_faces) ;

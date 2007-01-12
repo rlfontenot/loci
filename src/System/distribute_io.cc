@@ -323,7 +323,7 @@ namespace Loci {
     }
     if(qrep->domain() == EMPTY)
       qrep->allocate(dom) ;
-    FATAL(qrep->domain() != dom) ;
+    //    FATAL(qrep->domain() != dom) ;
     frame_info fi = qrep->read_frame_info(group_id) ;
     int array_size = 0 ;
     int vec_size = 0 ;
@@ -482,7 +482,7 @@ namespace Loci {
 	      qrep->set_elem_size(fi.size) ;
 	  if(qrep->domain() == EMPTY)
 	    qrep->allocate(dom) ;
-	  FATAL(dom != qrep->domain()) ;
+          //	  FATAL(dom != qrep->domain()) ;
 	  qrep->unpack(tmp_buf, loc_unpack, total_size, tmp_seq) ;
 	} else { 
 	  MPI_Send(&total_size, 1, MPI_INT, p, 11, MPI_COMM_WORLD) ;

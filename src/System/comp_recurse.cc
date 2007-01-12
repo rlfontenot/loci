@@ -203,7 +203,7 @@ namespace Loci {
       par_schedule.push_back(sdelta) ;
     else
       fastseq += sequence(sdelta) ;
-    
+
     entitySet generated = tdelta ;
     const entitySet nr_sources = fctrl.nr_sources ;
     entitySet exists_alloc = nr_sources ;
@@ -349,31 +349,15 @@ namespace Loci {
 
     for(entitySet::const_iterator
           ei=nr_sources.begin();ei!=nr_sources.end();++ei)
-      if(exists[*ei]) {
-        const int start = *ei ;
-        const int end = nr_sources.Max() ;
-        int finish = start ;
-        for(;*ei!=end && exists[*ei];++ei)
-          finish = *ei ;
-        if(*ei == end && exists[end])
-          finish = end ;
-        generated += interval(start,finish) ;
-      }
+      if(exists[*ei]) 
+        generated += *ei ;
   
     if(duplicate_work) {
       comp_sources &= my_entities;
       for(entitySet::const_iterator
 	    ei=comp_sources.begin();ei!=comp_sources.end();++ei) {
-	if(exists[*ei]) {
-	  const int start = *ei ;
-	  const int end = comp_sources.Max() ;
-	  int finish = start ;
-	  for(;*ei!=end && exists[*ei];++ei)
-	    finish = *ei ;
-	  if(*ei == end && exists[end])
-	    finish = end ;
-	  comp_generated += interval(start,finish) ;
-	}
+	if(exists[*ei]) 
+	  comp_generated += *ei ;
       }
     }
   
@@ -383,8 +367,9 @@ namespace Loci {
 #endif
     
     for(map<variable,entitySet>::const_iterator mi=fctrl.generated.begin();
-        mi!=fctrl.generated.end();++mi)
+        mi!=fctrl.generated.end();++mi) {
       scheds.set_existential_info(mi->first,impl,mi->second) ;
+    }
 
     entitySet create = scheds.get_existential_info(rvar,impl) ;
     //Add duplication information to recursive variable
