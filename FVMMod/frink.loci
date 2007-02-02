@@ -1,3 +1,4 @@
+#define DEBUG
 #include <Loci.h>
 $include "FVM.lh"
 #include <vector>
@@ -14,6 +15,7 @@ namespace Loci {
 
   using std::max ;
   using std::min ;
+  using std::cout ;
   
   $rule unit(frinkNodalMax(X)), constraint(pos) {
     $frinkNodalMax(X) = std::numeric_limits<real_t>::min() ;
@@ -663,20 +665,63 @@ namespace Loci {
   $rule pointwise(frinkIntegrate(X)<-area,facecenter,face2node->pos,face2node->frinkNodal(X)) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center = $facecenter ;
-    real_t sum = 0 ;
+
+    // We will use the Laplacian to compute a second order accurate
+    // value for the face centroid from nodal values
+    // We project the face coordinates into a two dimensional plane
+    // with the same normal as the face.
+    
+    // First compute local coordinate system
+    vector3d<real_t> n = $area.n ;
+    vector3d<real_t> v1 = $face2node[0]->$pos-center ;
+    vector3d<real_t> v2 = $face2node[1]->$pos-$face2node[0]->$pos ;
+    v1 = v1-n*dot(v1,n) ;
+    v1 = v1/norm(v1) ;
+    v2 = v2-n*dot(v2,n) ;
+    v2 = v2-v1*dot(v1,v2) ;
+    v2 = v2/norm(v2) ;
+    // v1 and v2 are the face coordinate unit vectors
+
+    // Now we solve an optimation problem whereby we minimize the variance
+    // of the weights
+    real_t Rx = 0 ;
+    real_t Ry = 0 ;
+    real_t Ixx = 0 ;
+    real_t Ixy = 0 ;
+    real_t Iyy = 0 ;
+    
+    // v1 and v2 are orthogonal face coordinate normal vectors
     for(int i=0;i<sz;++i) {
-      int n1 = i ;
-      int n2 = (i+1)%sz ;
-      const vector3d<real_t> v1 = $face2node[n1]->$pos-center ;
-      const vector3d<real_t> v2 = $face2node[n2]->$pos-center ;
-      const real_t X1 = $face2node[n1]->$frinkNodal(X) ;
-      const real_t X2 = $face2node[n1]->$frinkNodal(X) ;
-      // 2*dot(A,n)
-      const real_t Axn2 = dot(cross(v1,v2),$area.n) ;
-      sum += (X1+X2)*Axn2 ;
+      const vector3d<real_t> dv = $face2node[i]->$pos-center ;
+      const real_t xl = dot(dv,v1) ;
+      const real_t yl = dot(dv,v2) ;
+      Rx += xl ;
+      Ry += yl ;
+      Ixx += xl*xl ;
+      Ixy += xl*yl ;
+      Iyy += yl*yl ;
     }
-    $frinkIntegrate(X) = sum/(4.*$area.sada) ;
+    const real_t rcoef = 1./(Ixx*Iyy-Ixy*Ixy) ;
+    const real_t lambdax = (Ixy*Ry-Iyy*Rx)*rcoef ;
+    const real_t lambday = (Ixy*Rx-Ixx*Ry)*rcoef ;
+
+    //Now we compute the weighted sums for the interpolation value
+    real_t Xc = 0 ;
+    real_t w_tot = 0 ;
+    for(int i=0;i<sz;++i) {
+      const vector3d<real_t> dv = $face2node[i]->$pos-center ;
+      const real_t xl = dot(dv,v1) ;
+      const real_t yl = dot(dv,v2) ;
+      const real_t dw = lambdax*xl+lambday*yl ;
+      const real_t w = (1.+dw) ;
+      w_tot += w ;
+      warn(w<0.0) ;
+      Xc += w*$face2node[i]->$frinkNodal(X) ;
+    }
+    $frinkIntegrate(X) = Xc/w_tot ;
+    
   }
+  
   $type frinkIntegratev(X) storeVec<real_t> ;
   $type X storeVec<real_t> ;
   
@@ -685,22 +730,67 @@ namespace Loci {
   } compute {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center = $facecenter ;
-    int nv = $*frinkNodalv(X).vecSize() ;
-    for(int i=0;i<nv;++i) {
-      real_t sum = 0 ;
-      for(int f=0;f<sz;++f) {
-        int n1 = f ;
-        int n2 = (f+1)%sz ;
-        const vector3d<real_t> v1 = $face2node[n1]->$pos-center ;
-        const vector3d<real_t> v2 = $face2node[n2]->$pos-center ;
-        const real_t X1 = $face2node[n1]->$frinkNodalv(X)[i] ;
-        const real_t X2 = $face2node[n1]->$frinkNodalv(X)[i] ;
-        // 2*dot(A,n)
-        const real_t Axn2 = dot(cross(v1,v2),$area.n) ;
-        sum += (X1+X2)*Axn2 ;
-      }
-      $frinkIntegratev(X)[i] = sum/(4.*$area.sada) ;
+
+    // We will use the Laplacian to compute a second order accurate
+    // value for the face centroid from nodal values
+    // We project the face coordinates into a two dimensional plane
+    // with the same normal as the face.
+    
+    // First compute local coordinate system
+    vector3d<real_t> n = $area.n ;
+    vector3d<real_t> v1 = $face2node[0]->$pos-center ;
+    vector3d<real_t> v2 = $face2node[1]->$pos-$face2node[0]->$pos ;
+    v1 = v1-n*dot(v1,n) ;
+    v1 = v1/norm(v1) ;
+    v2 = v2-n*dot(v2,n) ;
+    v2 = v2-v1*dot(v1,v2) ;
+    v2 = v2/norm(v2) ;
+    // v1 and v2 are the face coordinate unit vectors
+
+    // Now we solve an optimation problem whereby we minimize the variance
+    // of the weights
+    real_t Rx = 0 ;
+    real_t Ry = 0 ;
+    real_t Ixx = 0 ;
+    real_t Ixy = 0 ;
+    real_t Iyy = 0 ;
+    
+    // v1 and v2 are orthogonal face coordinate normal vectors
+    for(int i=0;i<sz;++i) {
+      const vector3d<real_t> dv = $face2node[i]->$pos-center ;
+      const real_t xl = dot(dv,v1) ;
+      const real_t yl = dot(dv,v2) ;
+      Rx += xl ;
+      Ry += yl ;
+      Ixx += xl*xl ;
+      Ixy += xl*yl ;
+      Iyy += yl*yl ;
     }
+    const real_t rcoef = 1./(Ixx*Iyy-Ixy*Ixy) ;
+    const real_t lambdax = (Ixy*Ry-Iyy*Rx)*rcoef ;
+    const real_t lambday = (Ixy*Rx-Ixx*Ry)*rcoef ;
+
+    //Now we compute the weighted sums for the interpolation value
+
+    const int nv = $*frinkNodalv(X).vecSize() ;
+    for(int j=0;j<nv;++j)
+      $frinkIntegratev(X)[j] = 0 ;
+    real_t w_tot = 0 ;
+    for(int i=0;i<sz;++i) {
+      const vector3d<real_t> dv = $face2node[i]->$pos-center ;
+      const real_t xl = dot(dv,v1) ;
+      const real_t yl = dot(dv,v2) ;
+      
+      const real_t dw = lambdax*xl+lambday*yl ;
+      const real_t w = (1.+dw) ;
+      w_tot += w ;
+      warn(w<0.0) ;
+      for(int j=0;j<nv;++j)
+        $frinkIntegratev(X)[j] += w*$face2node[i]->$frinkNodalv(X)[j] ;
+    }
+    for(int j=0;j<nv;++j)
+      $frinkIntegratev(X)[j] *= 1./w_tot ;
+
   }
 
   $type frinkIntegratev3d(X) store<vector3d<real_t> > ;
@@ -709,19 +799,60 @@ namespace Loci {
   $rule pointwise(frinkIntegratev3d(X)<-area,facecenter,face2node->pos,face2node->frinkNodalv3d(X)) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center = $facecenter ;
-    vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
+
+    // We will use the Laplacian to compute a second order accurate
+    // value for the face centroid from nodal values
+    // We project the face coordinates into a two dimensional plane
+    // with the same normal as the face.
+    
+    // First compute local coordinate system
+    vector3d<real_t> n = $area.n ;
+    vector3d<real_t> v1 = $face2node[0]->$pos-center ;
+    vector3d<real_t> v2 = $face2node[1]->$pos-$face2node[0]->$pos ;
+    v1 = v1-n*dot(v1,n) ;
+    v1 = v1/norm(v1) ;
+    v2 = v2-n*dot(v2,n) ;
+    v2 = v2-v1*dot(v1,v2) ;
+    v2 = v2/norm(v2) ;
+    // v1 and v2 are the face coordinate unit vectors
+
+    // Now we solve an optimation problem whereby we minimize the variance
+    // of the weights
+    real_t Rx = 0 ;
+    real_t Ry = 0 ;
+    real_t Ixx = 0 ;
+    real_t Ixy = 0 ;
+    real_t Iyy = 0 ;
+    
+    // v1 and v2 are orthogonal face coordinate normal vectors
     for(int i=0;i<sz;++i) {
-      int n1 = i ;
-      int n2 = (i+1)%sz ;
-      const vector3d<real_t> v1 = $face2node[n1]->$pos-center ;
-      const vector3d<real_t> v2 = $face2node[n2]->$pos-center ;
-      const vector3d<real_t> X1 = $face2node[n1]->$frinkNodalv3d(X) ;
-      const vector3d<real_t> X2 = $face2node[n1]->$frinkNodalv3d(X) ;
-      // 2*dot(A,n)
-      const real_t Axn2 = dot(cross(v1,v2),$area.n) ;
-      sum += (X1+X2)*Axn2 ;
+      const vector3d<real_t> dv = $face2node[i]->$pos-center ;
+      const real_t xl = dot(dv,v1) ;
+      const real_t yl = dot(dv,v2) ;
+      Rx += xl ;
+      Ry += yl ;
+      Ixx += xl*xl ;
+      Ixy += xl*yl ;
+      Iyy += yl*yl ;
     }
-    $frinkIntegratev3d(X) = sum/(4.*$area.sada) ;
+    const real_t rcoef = 1./(Ixx*Iyy-Ixy*Ixy) ;
+    const real_t lambdax = (Ixy*Ry-Iyy*Rx)*rcoef ;
+    const real_t lambday = (Ixy*Rx-Ixx*Ry)*rcoef ;
+
+    //Now we compute the weighted sums for the interpolation value
+    vector3d<real_t> Xc = vector3d<real_t>(0,0,0) ;
+    real_t w_tot = 0 ;
+    for(int i=0;i<sz;++i) {
+      const vector3d<real_t> dv = $face2node[i]->$pos-center ;
+      const real_t xl = dot(dv,v1) ;
+      const real_t yl = dot(dv,v2) ;
+      const real_t dw = lambdax*xl+lambday*yl ;
+      const real_t w = (1.+dw) ;
+      w_tot += w ;
+      warn(w<0.0) ;
+      Xc += w*$face2node[i]->$frinkNodalv3d(X) ;
+    }
+    $frinkIntegratev3d(X) = Xc/w_tot ;
   }
 
   $type X storeVec<real_t> ;

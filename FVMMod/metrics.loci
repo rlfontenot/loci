@@ -251,78 +251,73 @@ namespace Loci {
     
     $facecenter = centroidsum/facearea ;
   }
-
-#ifdef NOTUSED
-  /* chem::get_vw_cellcenter : pointwise_rule
-   *	Computes the centroid of a cell using a center-of-mass-type calculation:
-   *		- Determine a temporary cell center by performing an average
-   *		  of the centers of the faces.
-   *		- Decompose the cell into tetrahedra with vertices specified
-   *		  by the temporary cell center, the centers of each face, and
-   *		  the two endpoints for all of the edges of the faces.
-   *		- Compute the centroid and volume of each tetrahedron
-   *		- Perform the volume weighted average of the tetrahedra
-   *		  centroids
-   */
-
-
-
-  $rule pointwise(truecentroid::cellcenter<-(upper,lower,boundary_map)->facecenter,(upper,lower,boundary_map)->face2node->pos),constraint(geom_cells,exactCentroid) {
-    const int num_faces = ($upper.size()+$lower.size()+$boundary_map.size()) ;
-    tmp_array<Entity> facemap(num_faces) ;
-    tmp_array<real> direction(num_faces) ;
-      
-    int count = 0;
-    for(const Entity * f=$upper.begin(); f!=$upper.end(); ++f) {
-      facemap[count] = *f ;
-      direction[count++] = 1.0 ;
+  $rule pointwise(truecentroid::cellcenter<-
+                  (upper,lower,boundary_map)->(facecenter,area),
+                  (upper,lower,boundary_map)->face2node->pos
+                  ),constraint(geom_cells,exactCentroid) {
+    vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+    real_t areasum = 0 ;
+    for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
+      nodesum += id->$area.sada*id->$facecenter ;
+      areasum += id->$area.sada ;
     }
-    for(const Entity * f=$lower.begin(); f!=$lower.end(); ++f) {
-      facemap[count] = *f ;
-      direction[count++] = -1.0 ;
+    for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
+      nodesum += id->$area.sada*id->$facecenter ;
+      areasum += id->$area.sada ;
     }
-    for(const int * f=$boundary_map.begin();
-        f!=$boundary_map.end(); ++f) {
-      facemap[count] = *f ;
-      direction[count++] = 1.0 ;
+    for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
+      nodesum += id->$area.sada*id->$facecenter ;
+      areasum += id->$area.sada ;
     }
+    const vector3d<real_t> p4(nodesum/areasum) ; // approximate center
 
-    vector3d<real_t> tmpcenter = vector3d<real_t>(0,0,0) ;
-    for(int i=0;i<num_faces;++i) {
-      const Entity *f = &facemap[i] ;
-      tmpcenter += f->$facecenter ;
-    }
-    tmpcenter *= 1.0/real(num_faces) ;
-
-    vector3d<real_t> cellcentroid = vector3d<real_t>(0,0,0) ;
-    real_t cellvolume = 0.0;
-    for(int i=0;i<num_faces;++i) {
-      const Entity *f = &facemap[i] ;
-
-      vector3d<real_t> fcentroid = vector3d<real_t>(0,0,0) ;
-      real_t fvol = 0 ;
-      
-      int nfnode = f->$face2node.size() ;
-      const vector3d<real_t> v3 = f->$facecenter-tmpcenter ;
-      const vector3d<real_t> p3p4 = f->$facecenter+tmpcenter ;
-      for(int j=0;j<nfnode;++j) {
-        const vector3d<real_t> p1 = f->$face2node[j]->$pos ;
-        const vector3d<real_t> p2 = f->$face2node[(j+1)==nfnode?0:j+1]->$pos ;
-        const vector3d<real_t> v1 = (p1-tmpcenter) ;
-        const vector3d<real_t> v2 = (p2-tmpcenter) ;
-        const real_t v = dot(cross(v1,v2),v3) ; // six times volume
-        const vector3d<real_t> x = ((p1+p2)+p3p4) ;// 4 times center
-        fcentroid += v*x ;
-        fvol += v ;
+    vector3d<real_t> csum(0.,0.,0.) ;
+    real_t vol = 0 ;
+    for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
+      int sz = id->$face2node.size() ;
+      for(int i=0;i<sz;++i){
+        int nd1 = i ;
+        int nd2 = (i+1)%sz ;
+        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
+        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
+        const vector3d<real_t> p3 = id->$facecenter ;
+        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
+        const real_t v = -dot(p4-p3,cross(p1-p3,p2-p3)) ;
+        csum += v*centroid ;
+        vol += v ;
       }
-
-      cellvolume += fvol*direction[i] ;
-      cellcentroid += fcentroid*direction[i] ;
     }
-    $cellcenter = cellcentroid/(4.*cellvolume);
+    for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
+      int sz = id->$face2node.size() ;
+      for(int i=0;i<sz;++i){
+        int nd1 = i ;
+        int nd2 = (i+1)%sz ;
+        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
+        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
+        const vector3d<real_t> p3 = id->$facecenter ;
+        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
+        const real_t v = dot(p4-p3,cross(p1-p3,p2-p3)) ;
+        csum += v*centroid ;
+        vol += v ;
+      }
+    }
+    for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
+      int sz = id->$face2node.size() ;
+      for(int i=0;i<sz;++i){
+        int nd1 = i ;
+        int nd2 = (i+1)%sz ;
+        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
+        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
+        const vector3d<real_t> p3 = id->$facecenter ;
+        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
+        const real_t v = -dot(p4-p3,cross(p1-p3,p2-p3)) ;
+        csum += v*centroid ;
+        vol += v ;
+      }
+    }
+    $cellcenter = .25*csum/vol ;
   }
 
-#endif
   
   $type max_fpc param<int> ;
 
