@@ -945,6 +945,276 @@ namespace Loci {
   $type X store<real_t> ;
   $type X_f store<real_t> ;
 
+  namespace {
+    void computeWeights(vector3d<real_t> *wvec, const vector3d<real_t> *deltas, const real_t *areas,
+                        int ndeltas) {
+      tmp_array<vector3d<real_t> > weights(ndeltas) ;
+
+      real_t r[3][3] ;
+      r[0][0] = 0 ;
+      for(int i=0;i<ndeltas;++i) {
+        r[0][0] += deltas[i].x*deltas[i].x ;
+        weights[i] = deltas[i] ;
+      }
+      r[0][0] = sqrt(r[0][0]) ;
+      r[0][0] = max(r[0][0],1e-30) ;
+
+      const real_t rr00 = 1./r[0][0] ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].x *= rr00 ;
+      r[0][1] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[0][1] += weights[i].x*weights[i].y ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].y -= r[0][1]*weights[i].x ;
+      r[0][2] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[0][2] += weights[i].x*weights[i].z ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].z -= r[0][2]*weights[i].x ;
+      r[1][1] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[1][1] += weights[i].y*weights[i].y ;
+      r[1][1] = sqrt(r[1][1]) ;
+      r[1][1] = max(r[1][1],1e-30) ;
+      const real_t rr11 = 1./r[1][1] ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].y *= rr11 ;
+
+      r[1][2] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[1][2] += weights[i].y*weights[i].z ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].z -= r[1][2]*weights[i].y ;
+      r[2][2] = 0 ;
+      for(int i=0;i<ndeltas;++i)
+        r[2][2] += weights[i].z*weights[i].z ;
+      r[2][2] = sqrt(r[2][2]) ;
+      r[2][2] = max(r[2][2],1e-30) ;
+      const real_t rr22 = 1./r[2][2] ;
+      for(int i=0;i<ndeltas;++i)
+        weights[i].z *= rr22 ;
+      // Compute R inverse
+      //
+      // Rinv[0] = R^-1[0][0]
+      // Rinv[1] = R^-1[0][1]
+      // Rinv[2] = R^-1[0][2]
+      // Rinv[3] = R^-1[1][1]
+      // Rinv[4] = R^-1[1][2]
+      // Rinv[5] = R^-1[2][2]
+      real_t Rinv[6] ;
+      Rinv[0] = rr00 ;
+      Rinv[1] = -r[0][1]*rr00*rr11 ;
+      Rinv[2] = (r[0][1]*r[1][2]-r[0][2]*r[1][1])*rr00*rr11*rr22 ;
+      Rinv[3] = rr11 ;
+      Rinv[4] = -r[1][2]*rr11*rr22 ;
+      Rinv[5] = rr22 ;
+
+      for(int i=0;i<ndeltas;++i) {
+        real_t weightx = Rinv[0]*weights[i].x + Rinv[1]*weights[i].y +
+          Rinv[2]*weights[i].z ;
+        real_t weighty = Rinv[3]*weights[i].y + Rinv[4]*weights[i].z ;
+        real_t weightz = Rinv[5]*weights[i].z ;
+        wvec[i] = vector3d<real_t>(weightx,weighty,weightz)*areas[i] ;
+      }
+    }
+  }
+
+  $rule pointwise(frink::grads_f(X)<-(cl,cr)->(X,cellcenter),
+                  face2node->(frinkNodal(X),pos),
+                  facecenter,frinkIntegrate(X)),
+    constraint(frinkGradient,(cl,cr)->cellcenter) {
+    const int nnodes = $face2node.size() ;
+    const int ndeltas = nnodes+2 ;
+    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
+    tmp_array<real_t> rdists(ndeltas) ;
+    const vector3d<real_t> center = $facecenter ;
+    deltas[0] = $cl->$cellcenter-center ;
+    deltas[1] = $cr->$cellcenter-center ;
+    for(int i=0;i<nnodes;++i)
+      deltas[i+2] = $face2node[i]->$pos -center ;
+    for(int i=0;i<ndeltas;++i) {
+      rdists[i] = 1./norm(deltas[i]) ;
+      deltas[i] *= rdists[i] ;
+    }
+
+    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
+    computeWeights(wvec,deltas,rdists,ndeltas) ;
+  
+    real_t Xc = $frinkIntegrate(X) ;
+    vector3d<real_t> grad  = wvec[0]*($cl->$X-Xc)+wvec[1]*($cr->$X-Xc) ;
+    for(int i=0;i<nnodes;++i)
+      grad += wvec[i+2]*($face2node[i]->$frinkNodal(X)-Xc) ;
+    $grads_f(X) = grad ;
+  }
+
+  $rule pointwise(frink::grads_f(X)<-ci->(X,cellcenter),
+                  face2node->(frinkNodal(X),pos),
+                  facecenter,X_f),
+    constraint(frinkGradient,ci->cellcenter) {
+    const int nnodes = $face2node.size() ;
+    const int ndeltas = nnodes+1 ;
+    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
+    tmp_array<real_t> rdists(ndeltas) ;
+    const vector3d<real_t> center = $facecenter ;
+    deltas[0] = $ci->$cellcenter-center ;
+    for(int i=0;i<nnodes;++i)
+      deltas[i+1] = $face2node[i]->$pos -center ;
+    for(int i=0;i<ndeltas;++i) {
+      rdists[i] = 1./norm(deltas[i]) ;
+      deltas[i] *= rdists[i] ;
+    }
+
+    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
+    computeWeights(wvec,deltas,rdists,ndeltas) ;
+  
+    real_t Xc = $X_f ;
+    vector3d<real_t> grad  = wvec[0]*($ci->$X-Xc) ;
+    for(int i=0;i<nnodes;++i)
+      grad += wvec[i+1]*($face2node[i]->$frinkNodal(X)-Xc) ;
+    $grads_f(X) = grad ;
+  }
+  $type X storeVec<real_t> ;
+  $type X_f storeVec<real_t> ;
+
+  $rule pointwise(frink::gradv_f(X)<-(cl,cr)->(X,cellcenter),
+                  face2node->(frinkNodalv(X),pos),
+                  facecenter,frinkIntegratev(X)),
+    constraint(frinkGradient,(cl,cr)->cellcenter),prelude {
+    $gradv_f(X).setVecSize($X.vecSize()) ;
+  } compute {
+    
+    const int nnodes = $face2node.size() ;
+    const int ndeltas = nnodes+2 ;
+    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
+    tmp_array<real_t> rdists(ndeltas) ;
+    const vector3d<real_t> center = $facecenter ;
+    deltas[0] = $cl->$cellcenter-center ;
+    deltas[1] = $cr->$cellcenter-center ;
+    for(int i=0;i<nnodes;++i)
+      deltas[i+2] = $face2node[i]->$pos -center ;
+    for(int i=0;i<ndeltas;++i) {
+      rdists[i] = 1./norm(deltas[i]) ;
+      deltas[i] *= rdists[i] ;
+    }
+
+    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
+    computeWeights(wvec,deltas,rdists,ndeltas) ;
+  
+    const int vs = $*gradv_f(X).vecSize() ;
+    for(int j=0;j<vs;++j) {
+      real_t Xc = $frinkIntegratev(X)[j] ;
+      vector3d<real_t> grad = wvec[0]*($cl->$X[j]-Xc)+wvec[1]*($cr->$X[j]-Xc) ;
+      for(int i=0;i<nnodes;++i)
+        grad += wvec[i+2]*($face2node[i]->$frinkNodalv(X)[j]-Xc) ;
+      $gradv_f(X)[j] = grad ;
+    }
+  }
+
+  $rule pointwise(frink::gradv_f(X)<-ci->(X,cellcenter),
+                  face2node->(frinkNodalv(X),pos),
+                  facecenter,X_f),
+    constraint(frinkGradient,ci->cellcenter),prelude {
+    $gradv_f(X).setVecSize($X.vecSize()) ;
+  } compute {
+    const int nnodes = $face2node.size() ;
+    const int ndeltas = nnodes+1 ;
+    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
+    tmp_array<real_t> rdists(ndeltas) ;
+    const vector3d<real_t> center = $facecenter ;
+    deltas[0] = $ci->$cellcenter-center ;
+    for(int i=0;i<nnodes;++i)
+      deltas[i+1] = $face2node[i]->$pos -center ;
+    for(int i=0;i<ndeltas;++i) {
+      rdists[i] = 1./norm(deltas[i]) ;
+      deltas[i] *= rdists[i] ;
+    }
+
+    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
+    computeWeights(wvec,deltas,rdists,ndeltas) ;
+  
+    const int vs = $*gradv_f(X).vecSize() ;
+    for(int j=0;j<vs;++j) {
+      real_t Xc = $X_f[j] ;
+      vector3d<real_t> grad  = wvec[0]*($ci->$X[j]-Xc) ;
+      for(int i=0;i<nnodes;++i)
+        grad += wvec[i+1]*($face2node[i]->$frinkNodalv(X)[j]-Xc) ;
+      $gradv_f(X)[j] = grad ;
+    }
+  }
+
+  $type X store<vector3d<real_t> > ;
+  $type X_f store<vector3d<real_t> > ;
+
+  $rule pointwise(frink::gradv3d_f(X)<-(cl,cr)->(X,cellcenter),
+                  face2node->(frinkNodalv3d(X),pos),
+                  facecenter,frinkIntegratev3d(X)),
+    constraint(frinkGradient,(cl,cr)->cellcenter) {
+    const int nnodes = $face2node.size() ;
+    const int ndeltas = nnodes+2 ;
+    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
+    tmp_array<real_t> rdists(ndeltas) ;
+    const vector3d<real_t> center = $facecenter ;
+    deltas[0] = $cl->$cellcenter-center ;
+    deltas[1] = $cr->$cellcenter-center ;
+    for(int i=0;i<nnodes;++i)
+      deltas[i+2] = $face2node[i]->$pos -center ;
+    for(int i=0;i<ndeltas;++i) {
+      rdists[i] = 1./norm(deltas[i]) ;
+      deltas[i] *= rdists[i] ;
+    }
+
+    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
+    computeWeights(wvec,deltas,rdists,ndeltas) ;
+  
+    vector3d<real_t> Xc = $frinkIntegratev3d(X) ;
+    tensor3d<real_t>  grad ;
+    grad.x  = wvec[0]*($cl->$X.x-Xc.x)+wvec[1]*($cr->$X.x-Xc.x) ;
+    grad.y  = wvec[0]*($cl->$X.y-Xc.y)+wvec[1]*($cr->$X.y-Xc.y) ;
+    grad.z  = wvec[0]*($cl->$X.z-Xc.z)+wvec[1]*($cr->$X.z-Xc.z) ;
+    for(int i=0;i<nnodes;++i) {
+      grad.x += wvec[i+2]*($face2node[i]->$frinkNodalv3d(X).x-Xc.x) ;
+      grad.y += wvec[i+2]*($face2node[i]->$frinkNodalv3d(X).y-Xc.y) ;
+      grad.z += wvec[i+2]*($face2node[i]->$frinkNodalv3d(X).z-Xc.z) ;
+    }
+    $gradv3d_f(X) = grad ;
+  }
+
+  $rule pointwise(frink::gradv3d_f(X)<-ci->(X,cellcenter),
+                  face2node->(frinkNodalv3d(X),pos),
+                  facecenter,X_f),
+    constraint(frinkGradient,ci->cellcenter) {
+    const int nnodes = $face2node.size() ;
+    const int ndeltas = nnodes+1 ;
+    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
+    tmp_array<real_t> rdists(ndeltas) ;
+    const vector3d<real_t> center = $facecenter ;
+    deltas[0] = $ci->$cellcenter-center ;
+    for(int i=0;i<nnodes;++i)
+      deltas[i+1] = $face2node[i]->$pos -center ;
+    for(int i=0;i<ndeltas;++i) {
+      rdists[i] = 1./norm(deltas[i]) ;
+      deltas[i] *= rdists[i] ;
+    }
+
+    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
+    computeWeights(wvec,deltas,rdists,ndeltas) ;
+  
+    vector3d<real_t> Xc = $X_f ;
+    tensor3d<real_t>  grad ;
+    grad.x  = wvec[0]*($ci->$X.x-Xc.x) ;
+    grad.y  = wvec[0]*($ci->$X.y-Xc.y) ;
+    grad.z  = wvec[0]*($ci->$X.z-Xc.z) ;
+    for(int i=0;i<nnodes;++i) {
+      grad.x += wvec[i+1]*($face2node[i]->$frinkNodalv3d(X).x-Xc.x) ;
+      grad.y += wvec[i+1]*($face2node[i]->$frinkNodalv3d(X).y-Xc.y) ;
+      grad.z += wvec[i+1]*($face2node[i]->$frinkNodalv3d(X).z-Xc.z) ;
+    }
+    $gradv3d_f(X) = grad ;
+  }
+
+#ifdef OLD
+
   $rule pointwise(frink::grads_f(X)<-(cl,cr)->(X,cellcenter),
                   face2node->(frinkNodal(X),pos)),
     constraint(frinkGradient,(cl,cr)->cellcenter) {
@@ -1070,7 +1340,6 @@ namespace Loci {
   }
 
   // This doesn't seem to work... why?
-#ifdef FRINK_FACE_GRAD
 
   $type X store<vector3d<real_t> > ;
   $type X_f store<vector3d<real_t> > ;
@@ -1106,12 +1375,14 @@ namespace Loci {
       sumz += ($cr->$X.z+X1.z+X2.z)*crossr ;
       lvol += dot(center_r-center_l,crossr) ;
     }
+
     const real_t rlvol = 1./lvol ;
     $gradv3d_f(X).x = sumx*rlvol ;
     $gradv3d_f(X).y = sumy*rlvol ;
     $gradv3d_f(X).z = sumz*rlvol ;
   }
 
+#ifdef FRINK_FACE_GRAD
 
   $rule pointwise(frink::gradv3d_f(X)<-ci->(X,cellcenter),X_f,facecenter,
                   face2node->(frinkNodalv3d(X),pos)),
@@ -1149,5 +1420,6 @@ namespace Loci {
     $gradv3d_f(X).y = sumy*rlvol ;
     $gradv3d_f(X).z = sumz*rlvol ;
   }
+#endif
 #endif
 }
