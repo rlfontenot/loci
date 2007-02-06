@@ -1020,6 +1020,9 @@ namespace Loci {
     }
   }
 
+  // The Least Squares face gradient appears to not be stable, its use is not
+  // recommended at this time.
+#ifdef LS_FACE_GRAD
   $rule pointwise(frink::grads_f(X)<-(cl,cr)->(X,cellcenter),
                   face2node->(frinkNodal(X),pos),
                   facecenter,frinkIntegrate(X)),
@@ -1146,6 +1149,7 @@ namespace Loci {
   $type X store<vector3d<real_t> > ;
   $type X_f store<vector3d<real_t> > ;
 
+
   $rule pointwise(frink::gradv3d_f(X)<-(cl,cr)->(X,cellcenter),
                   face2node->(frinkNodalv3d(X),pos),
                   facecenter,frinkIntegratev3d(X)),
@@ -1179,7 +1183,6 @@ namespace Loci {
     }
     $gradv3d_f(X) = grad ;
   }
-
   $rule pointwise(frink::gradv3d_f(X)<-ci->(X,cellcenter),
                   face2node->(frinkNodalv3d(X),pos),
                   facecenter,X_f),
@@ -1212,8 +1215,10 @@ namespace Loci {
     }
     $gradv3d_f(X) = grad ;
   }
-
-#ifdef OLD
+#else
+  // Frink face gradients:
+  $type X store<real_t> ;
+  $type X_f store<real_t> ;
 
   $rule pointwise(frink::grads_f(X)<-(cl,cr)->(X,cellcenter),
                   face2node->(frinkNodal(X),pos)),
@@ -1278,7 +1283,7 @@ namespace Loci {
     $gradv_f(X).setVecSize($X.vecSize()) ;
   } compute {
     const int vs = $*gradv_f(X).vecSize() ;
-    
+
     const int sz = $face2node.size() ;
     const vector3d<real_t> center_l = $cl->$cellcenter ;
     const vector3d<real_t> center_r = $cr->$cellcenter ;
@@ -1319,7 +1324,7 @@ namespace Loci {
     for(int j=0;j<vs;++j) {
       vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
       real_t lvol = 0 ;
-      
+
       for(int i=0;i<sz;++i) {
         int n1 = i ;
         int n2 = (i+1)%sz ;
@@ -1338,8 +1343,6 @@ namespace Loci {
       $gradv_f(X)[j] = sum/lvol ;
     }
   }
-
-  // This doesn't seem to work... why?
 
   $type X store<vector3d<real_t> > ;
   $type X_f store<vector3d<real_t> > ;
@@ -1375,14 +1378,11 @@ namespace Loci {
       sumz += ($cr->$X.z+X1.z+X2.z)*crossr ;
       lvol += dot(center_r-center_l,crossr) ;
     }
-
     const real_t rlvol = 1./lvol ;
     $gradv3d_f(X).x = sumx*rlvol ;
     $gradv3d_f(X).y = sumy*rlvol ;
     $gradv3d_f(X).z = sumz*rlvol ;
   }
-
-#ifdef FRINK_FACE_GRAD
 
   $rule pointwise(frink::gradv3d_f(X)<-ci->(X,cellcenter),X_f,facecenter,
                   face2node->(frinkNodalv3d(X),pos)),
@@ -1411,8 +1411,8 @@ namespace Loci {
       const vector3d<real_t> v2r = $face2node[n2]->$pos-center_r ;
       const vector3d<real_t> crossr = cross(v1r,v2r) ;
       sumx += ($X_f.x+X1.x+X2.x)*crossr ;
-      sumy += ($X_f.x+X1.x+X2.x)*crossr ;
-      sumz += ($X_f.x+X1.x+X2.x)*crossr ;
+      sumy += ($X_f.y+X1.y+X2.y)*crossr ;
+      sumz += ($X_f.z+X1.z+X2.z)*crossr ;
       lvol += dot(center_r-center_l,crossr) ;
     }
     const real_t rlvol = 1./lvol ;
@@ -1421,5 +1421,5 @@ namespace Loci {
     $gradv3d_f(X).z = sumz*rlvol ;
   }
 #endif
-#endif
 }
+
