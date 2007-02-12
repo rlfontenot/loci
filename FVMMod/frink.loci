@@ -8,8 +8,8 @@ using std::sort ;
 using std::unique ;
 
 namespace Loci {
-  $type frinkNodalMax(X) store<real_t> ;
-  $type frinkNodalMin(X) store<real_t> ;
+  $type NGTNodalMax(X) store<real_t> ;
+  $type NGTNodalMin(X) store<real_t> ;
   $type X store<real_t> ;
   $type X_f store<real_t> ;
 
@@ -17,46 +17,46 @@ namespace Loci {
   using std::min ;
   using std::cout ;
   
-  $rule unit(frinkNodalMax(X)), constraint(pos) {
-    $frinkNodalMax(X) = std::numeric_limits<real_t>::min() ;
+  $rule unit(NGTNodalMax(X)), constraint(pos) {
+    $NGTNodalMax(X) = std::numeric_limits<real_t>::min() ;
   }
-  $rule apply(face2node->frinkNodalMax(X)<-cl->X)[Loci::Maximum] {
+  $rule apply(face2node->NGTNodalMax(X)<-cl->X)[Loci::Maximum] {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalMax(X),$cl->$X) ;
+      join($face2node[i]->$NGTNodalMax(X),$cl->$X) ;
   }
-  $rule apply(face2node->frinkNodalMax(X)<-cr->X)[Loci::Maximum] {
+  $rule apply(face2node->NGTNodalMax(X)<-cr->X)[Loci::Maximum] {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalMax(X),$cr->$X) ;
+      join($face2node[i]->$NGTNodalMax(X),$cr->$X) ;
   }
-  $rule apply(face2node->frinkNodalMax(X)<-X_f)[Loci::Maximum],constraint(ci->X) {
+  $rule apply(face2node->NGTNodalMax(X)<-X_f)[Loci::Maximum],constraint(ci->X) {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalMax(X),$X_f) ;
+      join($face2node[i]->$NGTNodalMax(X),$X_f) ;
   }
 
-  $rule unit(frinkNodalMin(X)), constraint(pos) {
-    $frinkNodalMin(X) = std::numeric_limits<real_t>::max() ;
+  $rule unit(NGTNodalMin(X)), constraint(pos) {
+    $NGTNodalMin(X) = std::numeric_limits<real_t>::max() ;
   }
-  $rule apply(face2node->frinkNodalMin(X)<-cl->X)[Loci::Minimum] {
+  $rule apply(face2node->NGTNodalMin(X)<-cl->X)[Loci::Minimum] {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalMin(X),$cl->$X) ;
+      join($face2node[i]->$NGTNodalMin(X),$cl->$X) ;
   }
-  $rule apply(face2node->frinkNodalMin(X)<-cr->X)[Loci::Minimum] {
+  $rule apply(face2node->NGTNodalMin(X)<-cr->X)[Loci::Minimum] {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalMin(X),$cr->$X) ;
+      join($face2node[i]->$NGTNodalMin(X),$cr->$X) ;
   }
-  $rule apply(face2node->frinkNodalMin(X)<-X_f)[Loci::Minimum],constraint(ci->X) {
+  $rule apply(face2node->NGTNodalMin(X)<-X_f)[Loci::Minimum],constraint(ci->X) {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalMin(X),$X_f) ;
+      join($face2node[i]->$NGTNodalMin(X),$X_f) ;
   }
 
-  $type frinkNodalv3dMax(X) store<vector3d<real_t> > ;
-  $type frinkNodalv3dMin(X) store<vector3d<real_t> > ;
+  $type NGTNodalv3dMax(X) store<vector3d<real_t> > ;
+  $type NGTNodalv3dMin(X) store<vector3d<real_t> > ;
   $type X store<vector3d<real_t> > ;
   $type X_f store<vector3d<real_t> > ;
 
@@ -75,108 +75,108 @@ namespace Loci {
   }
   
 
-  $rule unit(frinkNodalv3dMax(X)), constraint(pos) {
+  $rule unit(NGTNodalv3dMax(X)), constraint(pos) {
     const real_t mn = std::numeric_limits<real_t>::min() ;
-    $frinkNodalv3dMax(X) = vector3d<real_t>(mn,mn,mn) ;
+    $NGTNodalv3dMax(X) = vector3d<real_t>(mn,mn,mn) ;
   }
-  $rule apply(face2node->frinkNodalv3dMax(X)<-cl->X)[Loci::Maximum] {
+  $rule apply(face2node->NGTNodalv3dMax(X)<-cl->X)[Loci::Maximum] {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalv3dMax(X),$cl->$X) ;
+      join($face2node[i]->$NGTNodalv3dMax(X),$cl->$X) ;
   }
-  $rule apply(face2node->frinkNodalv3dMax(X)<-cr->X)[Loci::Maximum] {
+  $rule apply(face2node->NGTNodalv3dMax(X)<-cr->X)[Loci::Maximum] {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalv3dMax(X),$cr->$X) ;
+      join($face2node[i]->$NGTNodalv3dMax(X),$cr->$X) ;
   }
-  $rule apply(face2node->frinkNodalv3dMax(X)<-X_f)[Loci::Maximum],constraint(ci->X) {
+  $rule apply(face2node->NGTNodalv3dMax(X)<-X_f)[Loci::Maximum],constraint(ci->X) {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalv3dMax(X),$X_f) ;
+      join($face2node[i]->$NGTNodalv3dMax(X),$X_f) ;
   }
 
-  $rule unit(frinkNodalv3dMin(X)), constraint(pos) {
+  $rule unit(NGTNodalv3dMin(X)), constraint(pos) {
     const real_t mx = std::numeric_limits<real_t>::max() ;
-    $frinkNodalv3dMin(X) = vector3d<real_t>(mx,mx,mx) ;
+    $NGTNodalv3dMin(X) = vector3d<real_t>(mx,mx,mx) ;
   }
-  $rule apply(face2node->frinkNodalv3dMin(X)<-cl->X)[Loci::Minimum] {
+  $rule apply(face2node->NGTNodalv3dMin(X)<-cl->X)[Loci::Minimum] {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalv3dMin(X),$cl->$X) ;
+      join($face2node[i]->$NGTNodalv3dMin(X),$cl->$X) ;
   }
-  $rule apply(face2node->frinkNodalv3dMin(X)<-cr->X)[Loci::Minimum] {
+  $rule apply(face2node->NGTNodalv3dMin(X)<-cr->X)[Loci::Minimum] {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalv3dMin(X),$cr->$X) ;
+      join($face2node[i]->$NGTNodalv3dMin(X),$cr->$X) ;
   }
-  $rule apply(face2node->frinkNodalv3dMin(X)<-X_f)[Loci::Minimum],constraint(ci->X) {
+  $rule apply(face2node->NGTNodalv3dMin(X)<-X_f)[Loci::Minimum],constraint(ci->X) {
     int nsz = $face2node.size() ;
     for(int i=0;i<nsz;++i)
-      join($face2node[i]->$frinkNodalv3dMin(X),$X_f) ;
+      join($face2node[i]->$NGTNodalv3dMin(X),$X_f) ;
   }
 
 
 
-  $type frinkNodalvMax(X) storeVec<real_t> ;
-  $type frinkNodalvMin(X) storeVec<real_t> ;
+  $type NGTNodalvMax(X) storeVec<real_t> ;
+  $type NGTNodalvMin(X) storeVec<real_t> ;
   $type X storeVec<real_t> ;
   $type X_f storeVec<real_t> ;
   $type vecSize(X) param<int> ;
 
 
-  $rule unit(frinkNodalvMax(X)<-vecSize(X)), constraint(pos), prelude {
-    $frinkNodalvMax(X).setVecSize(*$vecSize(X)) ;
+  $rule unit(NGTNodalvMax(X)<-vecSize(X)), constraint(pos), prelude {
+    $NGTNodalvMax(X).setVecSize(*$vecSize(X)) ;
   } compute {
-    $frinkNodalvMax(X) = mk_Scalar(std::numeric_limits<real_t>::min()) ;
+    $NGTNodalvMax(X) = mk_Scalar(std::numeric_limits<real_t>::min()) ;
   }
-  $rule apply(face2node->frinkNodalvMax(X)<-cl->X)[Loci::Maximum] {
+  $rule apply(face2node->NGTNodalvMax(X)<-cl->X)[Loci::Maximum] {
     const int sz = $face2node.size() ;
     for(int i=0;i<sz;++i)
-      join($face2node[i]->$frinkNodalvMax(X),$cl->$X) ;
+      join($face2node[i]->$NGTNodalvMax(X),$cl->$X) ;
   }
-  $rule apply(face2node->frinkNodalvMax(X)<-cr->X)[Loci::Maximum] {
+  $rule apply(face2node->NGTNodalvMax(X)<-cr->X)[Loci::Maximum] {
     const int sz = $face2node.size() ;
     for(int i=0;i<sz;++i)
-      join($face2node[i]->$frinkNodalvMax(X),$cr->$X) ;
+      join($face2node[i]->$NGTNodalvMax(X),$cr->$X) ;
   }
-  $rule apply(face2node->frinkNodalvMax(X)<-X_f)[Loci::Maximum],
+  $rule apply(face2node->NGTNodalvMax(X)<-X_f)[Loci::Maximum],
     constraint(ci->X) {
     const int sz = $face2node.size() ;
     for(int i=0;i<sz;++i)
-      join($face2node[i]->$frinkNodalvMax(X),$X_f) ;
+      join($face2node[i]->$NGTNodalvMax(X),$X_f) ;
   }
 
-  $rule unit(frinkNodalvMin(X)<-vecSize(X)), constraint(pos), prelude {
-    $frinkNodalvMin(X).setVecSize(*$vecSize(X)) ;
+  $rule unit(NGTNodalvMin(X)<-vecSize(X)), constraint(pos), prelude {
+    $NGTNodalvMin(X).setVecSize(*$vecSize(X)) ;
   } compute {
-    $frinkNodalvMin(X) = mk_Scalar(std::numeric_limits<real_t>::max()) ;
+    $NGTNodalvMin(X) = mk_Scalar(std::numeric_limits<real_t>::max()) ;
   }
-  $rule apply(face2node->frinkNodalvMin(X)<-cl->X)[Loci::Minimum] {
+  $rule apply(face2node->NGTNodalvMin(X)<-cl->X)[Loci::Minimum] {
     const int sz = $face2node.size() ;
     for(int i=0;i<sz;++i)
-      join($face2node[i]->$frinkNodalvMin(X),$cl->$X) ;
+      join($face2node[i]->$NGTNodalvMin(X),$cl->$X) ;
   }
-  $rule apply(face2node->frinkNodalvMin(X)<-cr->X)[Loci::Minimum] {
+  $rule apply(face2node->NGTNodalvMin(X)<-cr->X)[Loci::Minimum] {
     const int sz = $face2node.size() ;
     for(int i=0;i<sz;++i)
-      join($face2node[i]->$frinkNodalvMin(X),$cr->$X) ;
+      join($face2node[i]->$NGTNodalvMin(X),$cr->$X) ;
   }
-  $rule apply(face2node->frinkNodalvMin(X)<-X_f)[Loci::Minimum],
+  $rule apply(face2node->NGTNodalvMin(X)<-X_f)[Loci::Minimum],
     constraint(ci->X) {
     const int sz = $face2node.size() ;
     for(int i=0;i<sz;++i)
-      join($face2node[i]->$frinkNodalvMin(X),$X_f) ;
+      join($face2node[i]->$NGTNodalvMin(X),$X_f) ;
   }
 
   // Now code to compute nodal values
 
-  $type frink_nodal_weights store<real_t> ;
+  $type NGT_nodal_weights store<real_t> ;
 
-  $rule unit(frink_nodal_weights), constraint(pos) {
-    $frink_nodal_weights = 0 ;
+  $rule unit(NGT_nodal_weights), constraint(pos) {
+    $NGT_nodal_weights = 0 ;
   }
 
-  $rule apply((upper,lower,boundary_map)->face2node->frink_nodal_weights<-(upper,lower,boundary_map)->face2node->frink_nodal_weights,cellcenter,(upper,lower,boundary_map)->face2node->pos)[Loci::Summation],constraint(geom_cells) {
+  $rule apply((upper,lower,boundary_map)->face2node->NGT_nodal_weights<-(upper,lower,boundary_map)->face2node->NGT_nodal_weights,cellcenter,(upper,lower,boundary_map)->face2node->pos)[Loci::Summation],constraint(geom_cells) {
     int sztot = 0 ;
     
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
@@ -203,56 +203,77 @@ namespace Loci {
     vector<Entity>::iterator ns = node_list.begin() ;
     for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
       const real_t weight = 1./norm(vi->$pos-$cellcenter) ;
-      join(vi->$frink_nodal_weights,weight) ;
+      join(vi->$NGT_nodal_weights,weight) ;
     }
   }
 
-  $type frinkLimiting param<std::string> ;
+  $type NGTLimiting param<std::string> ;
 
-  $rule default(frinkLimiting),
-    comments("use nodal extent limiting on the frink based gradient.  Option is 'yes' or 'no'")
+  $rule default(NGTLimiting),
+    comments("use nodal extent limiting on the NGT based gradient.  Option is 'yes', 'no'")
   {
-    $frinkLimiting = "yes" ;
+    $NGTLimiting = "yes" ;
   }
 
-  $type frinkLimitingOn Constraint ;
-  $type frinkLimitingOff Constraint ;
+  $type NGTLimitingOn Constraint ;
+  $type NGTLimitingOff Constraint ;
+  $type frinkNodalMethod Constraint ;
 
-  $rule constraint(frinkLimitingOn,frinkLimitingOff<-frinkLimiting) {
-    $frinkLimitingOn = EMPTY ;
-    $frinkLimitingOff = EMPTY ;
-    if($frinkLimiting == "yes") {
-      $frinkLimitingOn = $*frinkLimiting.domain() ;
-    } else if($frinkLimiting == "no") {
-      $frinkLimitingOff = $*frinkLimiting.domain() ;
+  $rule constraint(frinkNodalMethod,NGTLimitingOn,NGTLimitingOff<-NGTLimiting) {
+    $frinkNodalMethod = EMPTY ;
+    $NGTLimitingOn = EMPTY ;
+    $NGTLimitingOff = EMPTY ;
+    if($NGTLimiting == "yes") {
+      $NGTLimitingOn = $*NGTLimiting.domain() ;
+    } else if($NGTLimiting == "no") {
+      $NGTLimitingOff = $*NGTLimiting.domain() ;
+    } else if($NGTLimiting == "frink") {
+      $frinkNodalMethod = $*NGTLimiting.domain() ;
     } else {
       if(Loci::MPI_rank == 0) {
-        cerr << "frinkLimiting must be 'yes' or 'no'" << endl ;
+        cerr << "NGTLimiting must be 'yes', 'no', or 'frink'" << endl ;
       }
-      $frinkLimitingOff = $*frinkLimiting.domain() ;
+      $NGTLimitingOff = $*NGTLimiting.domain() ;
     }
   }
+
+  $type NGTViscous param<std::string> ;
+
+  $rule default(NGTViscous),
+                comments("Use nodal green's theorem for viscous face gradients? 'yes' or 'no' setting.") {
+    $NGTViscous = "yes" ;
+  }
+
+  $type UseNGTViscous Constraint ;
+
+  $rule constraint(UseNGTViscous<-NGTViscous) {
+    $UseNGTViscous = EMPTY ;
+    if($NGTViscous == "yes") {
+      $UseNGTViscous = $*NGTViscous.domain() ;
+    } 
+  }
+
   
   $type Wf_l store<vector3d<real_t> > ;
   $type Wf_r store<vector3d<real_t> > ;
 
-  $type frinkNodal(X) store<real_t> ;
+  $type NGTNodal(X) store<real_t> ;
   $type X store<real_t> ;
   $type X_f store<real_t> ;
 
   
-  $rule unit(frinkNodal(X)),constraint(pos) {
-    $frinkNodal(X) = 0 ;
+  $rule unit(NGTNodal(X)),constraint(pos) {
+    $NGTNodal(X) = 0 ;
   }
 
-  $rule apply((upper,lower,boundary_map)->face2node->frinkNodal(X)<-
-              (upper,lower,boundary_map)->face2node->frink_nodal_weights,
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodal(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
               cellcenter,(upper,lower,boundary_map)->face2node->pos,
-              (upper,lower,boundary_map)->face2node->frinkNodalMax(X),
-              (upper,lower,boundary_map)->face2node->frinkNodalMin(X),
+              (upper,lower,boundary_map)->face2node->NGTNodalMax(X),
+              (upper,lower,boundary_map)->face2node->NGTNodalMin(X),
               lower->Wf_r,(upper,boundary_map)->Wf_l,
               X,lower->cl->X,upper->cr->X,boundary_map->X_f
-              )[Loci::Summation],constraint(geom_cells,frinkLimitingOn) {
+              )[Loci::Summation],constraint(geom_cells,NGTLimitingOn) {
     int sztot = 0 ;
     
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
@@ -303,20 +324,20 @@ namespace Loci {
       real_t x_p = $X + dot(gradx,dv) ;
 
       // Limit extrapolation
-      x_p = min(x_p,vi->$frinkNodalMax(X)) ;
-      x_p = max(x_p,vi->$frinkNodalMin(X)) ;
+      x_p = min(x_p,vi->$NGTNodalMax(X)) ;
+      x_p = max(x_p,vi->$NGTNodalMin(X)) ;
       // Compute weighted contribution to node
-      const real_t x_contrib = x_p/(norm(dv)*vi->$frink_nodal_weights) ;
-      join(vi->$frinkNodal(X),x_contrib) ;
+      const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+      join(vi->$NGTNodal(X),x_contrib) ;
     }
   }
 
-  $rule apply((upper,lower,boundary_map)->face2node->frinkNodal(X)<-
-              (upper,lower,boundary_map)->face2node->frink_nodal_weights,
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodal(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
               cellcenter,(upper,lower,boundary_map)->face2node->pos,
               lower->Wf_r,(upper,boundary_map)->Wf_l,
               X,lower->cl->X,upper->cr->X,boundary_map->X_f
-              )[Loci::Summation],constraint(geom_cells,frinkLimitingOff) {
+              )[Loci::Summation],constraint(geom_cells,NGTLimitingOff) {
     int sztot = 0 ;
     
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
@@ -367,29 +388,68 @@ namespace Loci {
       real_t x_p = $X + dot(gradx,dv) ;
 
       // Compute weighted contribution to node
-      const real_t x_contrib = x_p/(norm(dv)*vi->$frink_nodal_weights) ;
-      join(vi->$frinkNodal(X),x_contrib) ;
+      const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+      join(vi->$NGTNodal(X),x_contrib) ;
     }
   }
 
-  $type frinkNodalv3d(X) store<vector3d<real_t> > ;
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodal(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
+              cellcenter,(upper,lower,boundary_map)->face2node->pos,
+              X)[Loci::Summation],constraint(geom_cells,frinkNodalMethod) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
+      const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+      real_t x_p = $X  ;
+
+      // Compute weighted contribution to node
+      const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+      join(vi->$NGTNodal(X),x_contrib) ;
+    }
+  }
+
+  $type NGTNodalv3d(X) store<vector3d<real_t> > ;
 
   $type X store<vector3d<real_t> > ;
   $type X_f store<vector3d<real_t> > ;
 
   
-  $rule unit(frinkNodalv3d(X)),constraint(pos) {
-    $frinkNodalv3d(X) = vector3d<real_t>(0,0,0) ;
+  $rule unit(NGTNodalv3d(X)),constraint(pos) {
+    $NGTNodalv3d(X) = vector3d<real_t>(0,0,0) ;
   }
 
-  $rule apply((upper,lower,boundary_map)->face2node->frinkNodalv3d(X)<-
-              (upper,lower,boundary_map)->face2node->frink_nodal_weights,
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodalv3d(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
               cellcenter,(upper,lower,boundary_map)->face2node->pos,
-              (upper,lower,boundary_map)->face2node->frinkNodalv3dMax(X),
-              (upper,lower,boundary_map)->face2node->frinkNodalv3dMin(X),
+              (upper,lower,boundary_map)->face2node->NGTNodalv3dMax(X),
+              (upper,lower,boundary_map)->face2node->NGTNodalv3dMin(X),
               lower->Wf_r,(upper,boundary_map)->Wf_l,
               X,lower->cl->X,upper->cr->X,boundary_map->X_f
-              )[Loci::Summation],constraint(geom_cells,frinkLimitingOn) {
+              )[Loci::Summation],constraint(geom_cells,NGTLimitingOn) {
     int sztot = 0 ;
     
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
@@ -444,21 +504,21 @@ namespace Loci {
       vector3d<real_t> x_p = $X + dot(gradx,dv) ;
 
       // Limit extrapolation
-      x_p = min(x_p,vi->$frinkNodalv3dMax(X)) ;
-      x_p = max(x_p,vi->$frinkNodalv3dMin(X)) ;
+      x_p = min(x_p,vi->$NGTNodalv3dMax(X)) ;
+      x_p = max(x_p,vi->$NGTNodalv3dMin(X)) ;
       
       // Compute weighted contribution to node
-      const vector3d<real_t> x_contrib = x_p/(norm(dv)*vi->$frink_nodal_weights) ;
-      join(vi->$frinkNodalv3d(X),x_contrib) ;
+      const vector3d<real_t> x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+      join(vi->$NGTNodalv3d(X),x_contrib) ;
     }
   }
 
-  $rule apply((upper,lower,boundary_map)->face2node->frinkNodalv3d(X)<-
-              (upper,lower,boundary_map)->face2node->frink_nodal_weights,
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodalv3d(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
               cellcenter,(upper,lower,boundary_map)->face2node->pos,
               lower->Wf_r,(upper,boundary_map)->Wf_l,
               X,lower->cl->X,upper->cr->X,boundary_map->X_f
-              )[Loci::Summation],constraint(geom_cells,frinkLimitingOff) {
+              )[Loci::Summation],constraint(geom_cells,NGTLimitingOff) {
     int sztot = 0 ;
     
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
@@ -513,30 +573,70 @@ namespace Loci {
       vector3d<real_t> x_p = $X + dot(gradx,dv) ;
 
       // Compute weighted contribution to node
-      const vector3d<real_t> x_contrib = x_p/(norm(dv)*vi->$frink_nodal_weights) ;
-      join(vi->$frinkNodalv3d(X),x_contrib) ;
+      const vector3d<real_t> x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+      join(vi->$NGTNodalv3d(X),x_contrib) ;
     }
   }
 
-  $type frinkNodalv(X) storeVec<real_t> ;
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodalv3d(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
+              cellcenter,(upper,lower,boundary_map)->face2node->pos,
+              X)[Loci::Summation],constraint(geom_cells,frinkNodalMethod) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    // compute weighted sum of node extrapolations
+    for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
+      const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+      vector3d<real_t> x_p = $X ;
+
+      // Compute weighted contribution to node
+      const vector3d<real_t> x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+      join(vi->$NGTNodalv3d(X),x_contrib) ;
+    }
+  }
+
+  $type NGTNodalv(X) storeVec<real_t> ;
   $type X storeVec<real_t> ;
   $type X_f storeVec<real_t> ;
 
   
-  $rule unit(frinkNodalv(X)<-vecSize(X)),constraint(pos), prelude {
-    $frinkNodalv(X).setVecSize(*$vecSize(X)) ;
+  $rule unit(NGTNodalv(X)<-vecSize(X)),constraint(pos), prelude {
+    $NGTNodalv(X).setVecSize(*$vecSize(X)) ;
   } compute {
-    $frinkNodalv(X) = mk_Scalar(0) ;
+    $NGTNodalv(X) = mk_Scalar(0) ;
   }
 
-  $rule apply((upper,lower,boundary_map)->face2node->frinkNodalv(X)<-
-              (upper,lower,boundary_map)->face2node->frink_nodal_weights,
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodalv(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
               cellcenter,(upper,lower,boundary_map)->face2node->pos,
-              (upper,lower,boundary_map)->face2node->frinkNodalvMax(X),
-              (upper,lower,boundary_map)->face2node->frinkNodalvMin(X),
+              (upper,lower,boundary_map)->face2node->NGTNodalvMax(X),
+              (upper,lower,boundary_map)->face2node->NGTNodalvMin(X),
               lower->Wf_r,(upper,boundary_map)->Wf_l,
               X,lower->cl->X,upper->cr->X,boundary_map->X_f
-              )[Loci::Summation],constraint(geom_cells,frinkLimitingOn) {
+              )[Loci::Summation],constraint(geom_cells,NGTLimitingOn) {
     int sztot = 0 ;
     
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
@@ -563,7 +663,7 @@ namespace Loci {
     vector<Entity>::iterator ns = node_list.begin() ;
 
     // Now compute gradient
-    const int vs = $*frinkNodalv(X).vecSize() ;
+    const int vs = $*NGTNodalv(X).vecSize() ;
 
     for(int i=0;i<vs;++i) {
       vector3d<real_t> gradx = vector3d<real_t>(0,0,0) ;
@@ -587,21 +687,21 @@ namespace Loci {
         real_t x_p = $X[i] + dot(gradx,dv) ;
 
         // Limit extrapolation
-        x_p = min(x_p,vi->$frinkNodalvMax(X)[i]) ;
-        x_p = max(x_p,vi->$frinkNodalvMin(X)[i]) ;
+        x_p = min(x_p,vi->$NGTNodalvMax(X)[i]) ;
+        x_p = max(x_p,vi->$NGTNodalvMin(X)[i]) ;
 
         // Compute weighted contribution to node
-        const real_t x_contrib = x_p/(norm(dv)*vi->$frink_nodal_weights) ;
-        vi->$frinkNodalv(X)[i] += x_contrib ;
+        const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+        vi->$NGTNodalv(X)[i] += x_contrib ;
       }
     }
   }
-  $rule apply((upper,lower,boundary_map)->face2node->frinkNodalv(X)<-
-              (upper,lower,boundary_map)->face2node->frink_nodal_weights,
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodalv(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
               cellcenter,(upper,lower,boundary_map)->face2node->pos,
               lower->Wf_r,(upper,boundary_map)->Wf_l,
               X,lower->cl->X,upper->cr->X,boundary_map->X_f
-              )[Loci::Summation],constraint(geom_cells,frinkLimitingOff) {
+              )[Loci::Summation],constraint(geom_cells,NGTLimitingOff) {
     int sztot = 0 ;
     
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
@@ -628,7 +728,7 @@ namespace Loci {
     vector<Entity>::iterator ns = node_list.begin() ;
 
     // Now compute gradient
-    const int vs = $*frinkNodalv(X).vecSize() ;
+    const int vs = $*NGTNodalv(X).vecSize() ;
 
     for(int i=0;i<vs;++i) {
       vector3d<real_t> gradx = vector3d<real_t>(0,0,0) ;
@@ -652,17 +752,62 @@ namespace Loci {
         real_t x_p = $X[i] + dot(gradx,dv) ;
 
         // Compute weighted contribution to node
-        const real_t x_contrib = x_p/(norm(dv)*vi->$frink_nodal_weights) ;
-        vi->$frinkNodalv(X)[i] += x_contrib ;
+        const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+        vi->$NGTNodalv(X)[i] += x_contrib ;
+      }
+    }
+  }
+
+  $rule apply((upper,lower,boundary_map)->face2node->NGTNodalv(X)<-
+              (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
+              cellcenter,(upper,lower,boundary_map)->face2node->pos,
+              X)[Loci::Summation],constraint(geom_cells,frinkNodalMethod) {
+    int sztot = 0 ;
+    
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      sztot += fi->$face2node.size() ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      sztot += fi->$face2node.size() ;
+
+    vector<Entity> node_list(sztot) ;
+    int cnt = 0 ;
+    for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
+      for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
+        node_list[cnt++] = *ni ;
+    
+    sort(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
+    vector<Entity>::iterator ns = node_list.begin() ;
+
+    // Now compute gradient
+    const int vs = $*NGTNodalv(X).vecSize() ;
+
+    for(int i=0;i<vs;++i) {
+      // compute weighted sum of node extrapolations
+      for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
+        const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+        real_t x_p = $X[i] ;
+
+        // Compute weighted contribution to node
+        const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+        vi->$NGTNodalv(X)[i] += x_contrib ;
       }
     }
   }
 
   // Second order area integration
-  $type frinkIntegrate(X) store<real_t> ;
+  $type NGTIntegrate(X) store<real_t> ;
   $type X store<real_t> ;
   
-  $rule pointwise(frinkIntegrate(X)<-area,facecenter,face2node->pos,face2node->frinkNodal(X)) {
+  $rule pointwise(NGTIntegrate(X)<-area,facecenter,face2node->pos,face2node->NGTNodal(X)) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center = $facecenter ;
 
@@ -716,17 +861,17 @@ namespace Loci {
       const real_t w = (1.+dw) ;
       w_tot += w ;
       warn(w<0.0) ;
-      Xc += w*$face2node[i]->$frinkNodal(X) ;
+      Xc += w*$face2node[i]->$NGTNodal(X) ;
     }
-    $frinkIntegrate(X) = Xc/w_tot ;
+    $NGTIntegrate(X) = Xc/w_tot ;
     
   }
   
-  $type frinkIntegratev(X) storeVec<real_t> ;
+  $type NGTIntegratev(X) storeVec<real_t> ;
   $type X storeVec<real_t> ;
   
-  $rule pointwise(frinkIntegratev(X)<-area,facecenter,face2node->pos,face2node->frinkNodalv(X)), prelude {
-    $frinkIntegratev(X).setVecSize($frinkNodalv(X).vecSize()) ;
+  $rule pointwise(NGTIntegratev(X)<-area,facecenter,face2node->pos,face2node->NGTNodalv(X)), prelude {
+    $NGTIntegratev(X).setVecSize($NGTNodalv(X).vecSize()) ;
   } compute {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center = $facecenter ;
@@ -772,9 +917,9 @@ namespace Loci {
 
     //Now we compute the weighted sums for the interpolation value
 
-    const int nv = $*frinkNodalv(X).vecSize() ;
+    const int nv = $*NGTNodalv(X).vecSize() ;
     for(int j=0;j<nv;++j)
-      $frinkIntegratev(X)[j] = 0 ;
+      $NGTIntegratev(X)[j] = 0 ;
     real_t w_tot = 0 ;
     for(int i=0;i<sz;++i) {
       const vector3d<real_t> dv = $face2node[i]->$pos-center ;
@@ -786,17 +931,17 @@ namespace Loci {
       w_tot += w ;
       warn(w<0.0) ;
       for(int j=0;j<nv;++j)
-        $frinkIntegratev(X)[j] += w*$face2node[i]->$frinkNodalv(X)[j] ;
+        $NGTIntegratev(X)[j] += w*$face2node[i]->$NGTNodalv(X)[j] ;
     }
     for(int j=0;j<nv;++j)
-      $frinkIntegratev(X)[j] *= 1./w_tot ;
+      $NGTIntegratev(X)[j] *= 1./w_tot ;
 
   }
 
-  $type frinkIntegratev3d(X) store<vector3d<real_t> > ;
+  $type NGTIntegratev3d(X) store<vector3d<real_t> > ;
   $type X store<vector3d<real_t> > ;
   
-  $rule pointwise(frinkIntegratev3d(X)<-area,facecenter,face2node->pos,face2node->frinkNodalv3d(X)) {
+  $rule pointwise(NGTIntegratev3d(X)<-area,facecenter,face2node->pos,face2node->NGTNodalv3d(X)) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center = $facecenter ;
 
@@ -850,30 +995,30 @@ namespace Loci {
       const real_t w = (1.+dw) ;
       w_tot += w ;
       warn(w<0.0) ;
-      Xc += w*$face2node[i]->$frinkNodalv3d(X) ;
+      Xc += w*$face2node[i]->$NGTNodalv3d(X) ;
     }
-    $frinkIntegratev3d(X) = Xc/w_tot ;
+    $NGTIntegratev3d(X) = Xc/w_tot ;
   }
 
   $type X storeVec<real_t> ;
   $type X_f storeVec<real_t> ;
   
   
-  $rule pointwise(gradv(X)<-(lower,upper)->(area,frinkIntegratev(X)),
+  $rule pointwise(gradv(X)<-(lower,upper)->(area,NGTIntegratev(X)),
                   boundary_map->(X_f,area),vol),
-    constraint(geom_cells,frinkGradient), prelude {
-    $gradv(X).setVecSize($frinkIntegratev(X).vecSize()) ;
+    constraint(geom_cells,NGTGradient), prelude {
+    $gradv(X).setVecSize($NGTIntegratev(X).vecSize()) ;
   } compute {
     const real_t rvol = 1./$vol ;
-    const int vs = $*frinkIntegratev(X).vecSize() ;
+    const int vs = $*NGTIntegratev(X).vecSize() ;
     for(int i=0;i<vs;++i) {
       vector3d<real_t> gradsum = vector3d<real_t>(0.0,0.0,0.0);
       for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
-        const real_t xf = li->$frinkIntegratev(X)[i] ;
+        const real_t xf = li->$NGTIntegratev(X)[i] ;
         gradsum -= xf*li->$area.sada*li->$area.n ;
       }
       for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
-        const real_t xf = ui->$frinkIntegratev(X)[i] ;
+        const real_t xf = ui->$NGTIntegratev(X)[i] ;
          gradsum += xf*ui->$area.sada*ui->$area.n ;
       }
       for(const Entity *bi = $boundary_map.begin();bi!=$boundary_map.end();
@@ -888,16 +1033,16 @@ namespace Loci {
   $type X store<real_t> ;
   $type X_f store<real_t> ;
 
-  $rule pointwise(grads(X)<-(lower,upper)->(area,frinkIntegrate(X)),boundary_map->(X_f,area,frinkIntegrate(X)),vol),
-    constraint(geom_cells,frinkGradient) {
+  $rule pointwise(grads(X)<-(lower,upper)->(area,NGTIntegrate(X)),boundary_map->(X_f,area,NGTIntegrate(X)),vol),
+    constraint(geom_cells,NGTGradient) {
     const real_t rvol = 1./$vol ;
     vector3d<real_t> gradsum = vector3d<real_t>(0.0,0.0,0.0);
     for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
-      const real_t xf = li->$frinkIntegrate(X) ;
+      const real_t xf = li->$NGTIntegrate(X) ;
       gradsum -= xf*li->$area.sada*li->$area.n ;
     }
     for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
-      const real_t xf = ui->$frinkIntegrate(X) ;
+      const real_t xf = ui->$NGTIntegrate(X) ;
       gradsum += xf*ui->$area.sada*ui->$area.n ;
     }
     for(const Entity *bi = $boundary_map.begin();bi!=$boundary_map.end();
@@ -912,19 +1057,19 @@ namespace Loci {
   $type X store<vector3d<real_t> > ;
   $type X_f store<vector3d<real_t> > ;
   
-  $rule pointwise(gradv3d(X)<-(lower,upper)->(frinkIntegratev3d(X),area),boundary_map->(X_f,area),vol),
-    constraint(geom_cells,frinkGradient) {
+  $rule pointwise(gradv3d(X)<-(lower,upper)->(NGTIntegratev3d(X),area),boundary_map->(X_f,area),vol),
+    constraint(geom_cells,NGTGradient) {
     tensor3d<real_t>  gradsum = tensor3d<real_t> (vector3d<real_t>(0,0,0),vector3d<real_t>(0,0,0),vector3d<real_t>(0,0,0)) ;
     const real_t rvol = 1./$vol ;
     
     for(const Entity *li = $lower.begin();li!=$lower.end();++li) {
-      const vector3d<real_t> xf = li->$frinkIntegratev3d(X) ;
+      const vector3d<real_t> xf = li->$NGTIntegratev3d(X) ;
       gradsum.x -= xf.x*li->$area.sada*li->$area.n ;
       gradsum.y -= xf.y*li->$area.sada*li->$area.n ;
       gradsum.z -= xf.z*li->$area.sada*li->$area.n ;
     }
     for(const Entity *ui = $upper.begin();ui!=$upper.end();++ui) {
-      const vector3d<real_t> xf = ui->$frinkIntegratev3d(X) ;
+      const vector3d<real_t> xf = ui->$NGTIntegratev3d(X) ;
       gradsum.x += xf.x*ui->$area.sada*ui->$area.n ;
       gradsum.y += xf.y*ui->$area.sada*ui->$area.n ;
       gradsum.z += xf.z*ui->$area.sada*ui->$area.n ;
@@ -941,288 +1086,19 @@ namespace Loci {
     $gradv3d(X).z = gradsum.z*rvol  ; 
   }
 
-  // Frink face gradients:
+  // NGT face gradients:
   $type X store<real_t> ;
   $type X_f store<real_t> ;
 
-  namespace {
-    void computeWeights(vector3d<real_t> *wvec, const vector3d<real_t> *deltas, const real_t *areas,
-                        int ndeltas) {
-      tmp_array<vector3d<real_t> > weights(ndeltas) ;
-
-      real_t r[3][3] ;
-      r[0][0] = 0 ;
-      for(int i=0;i<ndeltas;++i) {
-        r[0][0] += deltas[i].x*deltas[i].x ;
-        weights[i] = deltas[i] ;
-      }
-      r[0][0] = sqrt(r[0][0]) ;
-      r[0][0] = max(r[0][0],1e-30) ;
-
-      const real_t rr00 = 1./r[0][0] ;
-      for(int i=0;i<ndeltas;++i)
-        weights[i].x *= rr00 ;
-      r[0][1] = 0 ;
-      for(int i=0;i<ndeltas;++i)
-        r[0][1] += weights[i].x*weights[i].y ;
-      for(int i=0;i<ndeltas;++i)
-        weights[i].y -= r[0][1]*weights[i].x ;
-      r[0][2] = 0 ;
-      for(int i=0;i<ndeltas;++i)
-        r[0][2] += weights[i].x*weights[i].z ;
-      for(int i=0;i<ndeltas;++i)
-        weights[i].z -= r[0][2]*weights[i].x ;
-      r[1][1] = 0 ;
-      for(int i=0;i<ndeltas;++i)
-        r[1][1] += weights[i].y*weights[i].y ;
-      r[1][1] = sqrt(r[1][1]) ;
-      r[1][1] = max(r[1][1],1e-30) ;
-      const real_t rr11 = 1./r[1][1] ;
-      for(int i=0;i<ndeltas;++i)
-        weights[i].y *= rr11 ;
-
-      r[1][2] = 0 ;
-      for(int i=0;i<ndeltas;++i)
-        r[1][2] += weights[i].y*weights[i].z ;
-      for(int i=0;i<ndeltas;++i)
-        weights[i].z -= r[1][2]*weights[i].y ;
-      r[2][2] = 0 ;
-      for(int i=0;i<ndeltas;++i)
-        r[2][2] += weights[i].z*weights[i].z ;
-      r[2][2] = sqrt(r[2][2]) ;
-      r[2][2] = max(r[2][2],1e-30) ;
-      const real_t rr22 = 1./r[2][2] ;
-      for(int i=0;i<ndeltas;++i)
-        weights[i].z *= rr22 ;
-      // Compute R inverse
-      //
-      // Rinv[0] = R^-1[0][0]
-      // Rinv[1] = R^-1[0][1]
-      // Rinv[2] = R^-1[0][2]
-      // Rinv[3] = R^-1[1][1]
-      // Rinv[4] = R^-1[1][2]
-      // Rinv[5] = R^-1[2][2]
-      real_t Rinv[6] ;
-      Rinv[0] = rr00 ;
-      Rinv[1] = -r[0][1]*rr00*rr11 ;
-      Rinv[2] = (r[0][1]*r[1][2]-r[0][2]*r[1][1])*rr00*rr11*rr22 ;
-      Rinv[3] = rr11 ;
-      Rinv[4] = -r[1][2]*rr11*rr22 ;
-      Rinv[5] = rr22 ;
-
-      for(int i=0;i<ndeltas;++i) {
-        real_t weightx = Rinv[0]*weights[i].x + Rinv[1]*weights[i].y +
-          Rinv[2]*weights[i].z ;
-        real_t weighty = Rinv[3]*weights[i].y + Rinv[4]*weights[i].z ;
-        real_t weightz = Rinv[5]*weights[i].z ;
-        wvec[i] = vector3d<real_t>(weightx,weighty,weightz)*areas[i] ;
-      }
-    }
-  }
-
-  // The Least Squares face gradient appears to not be stable, its use is not
-  // recommended at this time.
-#ifdef LS_FACE_GRAD
-  $rule pointwise(frink::grads_f(X)<-(cl,cr)->(X,cellcenter),
-                  face2node->(frinkNodal(X),pos),
-                  facecenter,frinkIntegrate(X)),
-    constraint(frinkGradient,(cl,cr)->cellcenter) {
-    const int nnodes = $face2node.size() ;
-    const int ndeltas = nnodes+2 ;
-    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
-    tmp_array<real_t> rdists(ndeltas) ;
-    const vector3d<real_t> center = $facecenter ;
-    deltas[0] = $cl->$cellcenter-center ;
-    deltas[1] = $cr->$cellcenter-center ;
-    for(int i=0;i<nnodes;++i)
-      deltas[i+2] = $face2node[i]->$pos -center ;
-    for(int i=0;i<ndeltas;++i) {
-      rdists[i] = 1./norm(deltas[i]) ;
-      deltas[i] *= rdists[i] ;
-    }
-
-    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
-    computeWeights(wvec,deltas,rdists,ndeltas) ;
-  
-    real_t Xc = $frinkIntegrate(X) ;
-    vector3d<real_t> grad  = wvec[0]*($cl->$X-Xc)+wvec[1]*($cr->$X-Xc) ;
-    for(int i=0;i<nnodes;++i)
-      grad += wvec[i+2]*($face2node[i]->$frinkNodal(X)-Xc) ;
-    $grads_f(X) = grad ;
-  }
-
-  $rule pointwise(frink::grads_f(X)<-ci->(X,cellcenter),
-                  face2node->(frinkNodal(X),pos),
-                  facecenter,X_f),
-    constraint(frinkGradient,ci->cellcenter) {
-    const int nnodes = $face2node.size() ;
-    const int ndeltas = nnodes+1 ;
-    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
-    tmp_array<real_t> rdists(ndeltas) ;
-    const vector3d<real_t> center = $facecenter ;
-    deltas[0] = $ci->$cellcenter-center ;
-    for(int i=0;i<nnodes;++i)
-      deltas[i+1] = $face2node[i]->$pos -center ;
-    for(int i=0;i<ndeltas;++i) {
-      rdists[i] = 1./norm(deltas[i]) ;
-      deltas[i] *= rdists[i] ;
-    }
-
-    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
-    computeWeights(wvec,deltas,rdists,ndeltas) ;
-  
-    real_t Xc = $X_f ;
-    vector3d<real_t> grad  = wvec[0]*($ci->$X-Xc) ;
-    for(int i=0;i<nnodes;++i)
-      grad += wvec[i+1]*($face2node[i]->$frinkNodal(X)-Xc) ;
-    $grads_f(X) = grad ;
-  }
-  $type X storeVec<real_t> ;
-  $type X_f storeVec<real_t> ;
-
-  $rule pointwise(frink::gradv_f(X)<-(cl,cr)->(X,cellcenter),
-                  face2node->(frinkNodalv(X),pos),
-                  facecenter,frinkIntegratev(X)),
-    constraint(frinkGradient,(cl,cr)->cellcenter),prelude {
-    $gradv_f(X).setVecSize($X.vecSize()) ;
-  } compute {
-    
-    const int nnodes = $face2node.size() ;
-    const int ndeltas = nnodes+2 ;
-    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
-    tmp_array<real_t> rdists(ndeltas) ;
-    const vector3d<real_t> center = $facecenter ;
-    deltas[0] = $cl->$cellcenter-center ;
-    deltas[1] = $cr->$cellcenter-center ;
-    for(int i=0;i<nnodes;++i)
-      deltas[i+2] = $face2node[i]->$pos -center ;
-    for(int i=0;i<ndeltas;++i) {
-      rdists[i] = 1./norm(deltas[i]) ;
-      deltas[i] *= rdists[i] ;
-    }
-
-    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
-    computeWeights(wvec,deltas,rdists,ndeltas) ;
-  
-    const int vs = $*gradv_f(X).vecSize() ;
-    for(int j=0;j<vs;++j) {
-      real_t Xc = $frinkIntegratev(X)[j] ;
-      vector3d<real_t> grad = wvec[0]*($cl->$X[j]-Xc)+wvec[1]*($cr->$X[j]-Xc) ;
-      for(int i=0;i<nnodes;++i)
-        grad += wvec[i+2]*($face2node[i]->$frinkNodalv(X)[j]-Xc) ;
-      $gradv_f(X)[j] = grad ;
-    }
-  }
-
-  $rule pointwise(frink::gradv_f(X)<-ci->(X,cellcenter),
-                  face2node->(frinkNodalv(X),pos),
-                  facecenter,X_f),
-    constraint(frinkGradient,ci->cellcenter),prelude {
-    $gradv_f(X).setVecSize($X.vecSize()) ;
-  } compute {
-    const int nnodes = $face2node.size() ;
-    const int ndeltas = nnodes+1 ;
-    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
-    tmp_array<real_t> rdists(ndeltas) ;
-    const vector3d<real_t> center = $facecenter ;
-    deltas[0] = $ci->$cellcenter-center ;
-    for(int i=0;i<nnodes;++i)
-      deltas[i+1] = $face2node[i]->$pos -center ;
-    for(int i=0;i<ndeltas;++i) {
-      rdists[i] = 1./norm(deltas[i]) ;
-      deltas[i] *= rdists[i] ;
-    }
-
-    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
-    computeWeights(wvec,deltas,rdists,ndeltas) ;
-  
-    const int vs = $*gradv_f(X).vecSize() ;
-    for(int j=0;j<vs;++j) {
-      real_t Xc = $X_f[j] ;
-      vector3d<real_t> grad  = wvec[0]*($ci->$X[j]-Xc) ;
-      for(int i=0;i<nnodes;++i)
-        grad += wvec[i+1]*($face2node[i]->$frinkNodalv(X)[j]-Xc) ;
-      $gradv_f(X)[j] = grad ;
-    }
-  }
-
-  $type X store<vector3d<real_t> > ;
-  $type X_f store<vector3d<real_t> > ;
 
 
-  $rule pointwise(frink::gradv3d_f(X)<-(cl,cr)->(X,cellcenter),
-                  face2node->(frinkNodalv3d(X),pos),
-                  facecenter,frinkIntegratev3d(X)),
-    constraint(frinkGradient,(cl,cr)->cellcenter) {
-    const int nnodes = $face2node.size() ;
-    const int ndeltas = nnodes+2 ;
-    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
-    tmp_array<real_t> rdists(ndeltas) ;
-    const vector3d<real_t> center = $facecenter ;
-    deltas[0] = $cl->$cellcenter-center ;
-    deltas[1] = $cr->$cellcenter-center ;
-    for(int i=0;i<nnodes;++i)
-      deltas[i+2] = $face2node[i]->$pos -center ;
-    for(int i=0;i<ndeltas;++i) {
-      rdists[i] = 1./norm(deltas[i]) ;
-      deltas[i] *= rdists[i] ;
-    }
-
-    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
-    computeWeights(wvec,deltas,rdists,ndeltas) ;
-  
-    vector3d<real_t> Xc = $frinkIntegratev3d(X) ;
-    tensor3d<real_t>  grad ;
-    grad.x  = wvec[0]*($cl->$X.x-Xc.x)+wvec[1]*($cr->$X.x-Xc.x) ;
-    grad.y  = wvec[0]*($cl->$X.y-Xc.y)+wvec[1]*($cr->$X.y-Xc.y) ;
-    grad.z  = wvec[0]*($cl->$X.z-Xc.z)+wvec[1]*($cr->$X.z-Xc.z) ;
-    for(int i=0;i<nnodes;++i) {
-      grad.x += wvec[i+2]*($face2node[i]->$frinkNodalv3d(X).x-Xc.x) ;
-      grad.y += wvec[i+2]*($face2node[i]->$frinkNodalv3d(X).y-Xc.y) ;
-      grad.z += wvec[i+2]*($face2node[i]->$frinkNodalv3d(X).z-Xc.z) ;
-    }
-    $gradv3d_f(X) = grad ;
-  }
-  $rule pointwise(frink::gradv3d_f(X)<-ci->(X,cellcenter),
-                  face2node->(frinkNodalv3d(X),pos),
-                  facecenter,X_f),
-    constraint(frinkGradient,ci->cellcenter) {
-    const int nnodes = $face2node.size() ;
-    const int ndeltas = nnodes+1 ;
-    tmp_array<vector3d<real_t> > deltas(ndeltas) ;
-    tmp_array<real_t> rdists(ndeltas) ;
-    const vector3d<real_t> center = $facecenter ;
-    deltas[0] = $ci->$cellcenter-center ;
-    for(int i=0;i<nnodes;++i)
-      deltas[i+1] = $face2node[i]->$pos -center ;
-    for(int i=0;i<ndeltas;++i) {
-      rdists[i] = 1./norm(deltas[i]) ;
-      deltas[i] *= rdists[i] ;
-    }
-
-    tmp_array<vector3d<real_t> > wvec(ndeltas) ;
-    computeWeights(wvec,deltas,rdists,ndeltas) ;
-  
-    vector3d<real_t> Xc = $X_f ;
-    tensor3d<real_t>  grad ;
-    grad.x  = wvec[0]*($ci->$X.x-Xc.x) ;
-    grad.y  = wvec[0]*($ci->$X.y-Xc.y) ;
-    grad.z  = wvec[0]*($ci->$X.z-Xc.z) ;
-    for(int i=0;i<nnodes;++i) {
-      grad.x += wvec[i+1]*($face2node[i]->$frinkNodalv3d(X).x-Xc.x) ;
-      grad.y += wvec[i+1]*($face2node[i]->$frinkNodalv3d(X).y-Xc.y) ;
-      grad.z += wvec[i+1]*($face2node[i]->$frinkNodalv3d(X).z-Xc.z) ;
-    }
-    $gradv3d_f(X) = grad ;
-  }
-#else
-  // Frink face gradients:
+  // NGT face gradients:
   $type X store<real_t> ;
   $type X_f store<real_t> ;
 
-  $rule pointwise(frink::grads_f(X)<-(cl,cr)->(X,cellcenter),
-                  face2node->(frinkNodal(X),pos)),
-    constraint(frinkGradient,(cl,cr)->cellcenter) {
+  $rule pointwise(NGT::grads_f(X)<-(cl,cr)->(X,cellcenter),
+                  face2node->(NGTNodal(X),pos)),
+    constraint(NGTGradient,UseNGTViscous,(cl,cr)->cellcenter) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center_l = $cl->$cellcenter ;
     const vector3d<real_t> center_r = $cr->$cellcenter ;
@@ -1232,8 +1108,8 @@ namespace Loci {
     for(int i=0;i<sz;++i) {
       int n1 = i ;
       int n2 = (i+1)%sz ;
-      const real_t X1 = $face2node[n1]->$frinkNodal(X) ;
-      const real_t X2 = $face2node[n1]->$frinkNodal(X) ;
+      const real_t X1 = $face2node[n1]->$NGTNodal(X) ;
+      const real_t X2 = $face2node[n1]->$NGTNodal(X) ;
       // 2*dot(A,n)
       const vector3d<real_t> v1l = $face2node[n1]->$pos-center_l ;
       const vector3d<real_t> v2l = $face2node[n2]->$pos-center_l ;
@@ -1247,9 +1123,9 @@ namespace Loci {
     $grads_f(X) = sum/lvol ;
   }
 
-  $rule pointwise(frink::grads_f(X)<-ci->(X,cellcenter),X_f,facecenter,
-                  face2node->(frinkNodal(X),pos)),
-    constraint(frinkGradient,ci->cellcenter) {
+  $rule pointwise(NGT::grads_f(X)<-ci->(X,cellcenter),NGTIntegrate(X),facecenter,
+                  face2node->(NGTNodal(X),pos)),
+    constraint(NGTGradient,UseNGTViscous,ci->cellcenter) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center_l = $ci->$cellcenter ;
     const vector3d<real_t> center_r = $facecenter ;
@@ -1259,8 +1135,8 @@ namespace Loci {
     for(int i=0;i<sz;++i) {
       int n1 = i ;
       int n2 = (i+1)%sz ;
-      const real_t X1 = $face2node[n1]->$frinkNodal(X) ;
-      const real_t X2 = $face2node[n1]->$frinkNodal(X) ;
+      const real_t X1 = $face2node[n1]->$NGTNodal(X) ;
+      const real_t X2 = $face2node[n1]->$NGTNodal(X) ;
       // 2*dot(A,n)
       const vector3d<real_t> v1l = $face2node[n1]->$pos-center_l ;
       const vector3d<real_t> v2l = $face2node[n2]->$pos-center_l ;
@@ -1268,7 +1144,7 @@ namespace Loci {
       const vector3d<real_t> v1r = $face2node[n1]->$pos-center_r ;
       const vector3d<real_t> v2r = $face2node[n2]->$pos-center_r ;
       const vector3d<real_t> crossr = cross(v1r,v2r) ;
-      sum += ($X_f+X1+X2)*crossr ;
+      sum += ($NGTIntegrate(X)+X1+X2)*crossr ;
       lvol += dot(center_r-center_l,crossr) ;
     }
     $grads_f(X) = sum/lvol ;
@@ -1277,9 +1153,9 @@ namespace Loci {
   $type X storeVec<real_t> ;
   $type X_f storeVec<real_t> ;
 
-  $rule pointwise(frink::gradv_f(X)<-(cl,cr)->(X,cellcenter),
-                  face2node->(frinkNodalv(X),pos)),
-    constraint(frinkGradient,(cl,cr)->cellcenter),prelude {
+  $rule pointwise(NGT::gradv_f(X)<-(cl,cr)->(X,cellcenter),
+                  face2node->(NGTNodalv(X),pos)),
+    constraint(NGTGradient,UseNGTViscous,(cl,cr)->cellcenter),prelude {
     $gradv_f(X).setVecSize($X.vecSize()) ;
   } compute {
     const int vs = $*gradv_f(X).vecSize() ;
@@ -1295,8 +1171,8 @@ namespace Loci {
       for(int i=0;i<sz;++i) {
         int n1 = i ;
         int n2 = (i+1)%sz ;
-        const real_t X1 = $face2node[n1]->$frinkNodalv(X)[j] ;
-        const real_t X2 = $face2node[n1]->$frinkNodalv(X)[j] ;
+        const real_t X1 = $face2node[n1]->$NGTNodalv(X)[j] ;
+        const real_t X2 = $face2node[n1]->$NGTNodalv(X)[j] ;
         // 2*dot(A,n)
         const vector3d<real_t> v1l = $face2node[n1]->$pos-center_l ;
         const vector3d<real_t> v2l = $face2node[n2]->$pos-center_l ;
@@ -1311,12 +1187,12 @@ namespace Loci {
     }
   }
 
-  $rule pointwise(frink::gradv_f(X)<-ci->(X,cellcenter),X_f,facecenter,
-                  face2node->(frinkNodalv(X),pos)),
-      constraint(frinkGradient,ci->cellcenter), prelude {
-    $gradv_f(X).setVecSize($X_f.vecSize()) ;
+  $rule pointwise(NGT::gradv_f(X)<-ci->(X,cellcenter),NGTIntegratev(X),facecenter,
+                  face2node->(NGTNodalv(X),pos)),
+      constraint(NGTGradient,UseNGTViscous,ci->cellcenter), prelude {
+    $gradv_f(X).setVecSize($X.vecSize()) ;
   } compute {
-    const int vs = $*X_f.vecSize() ;
+    const int vs = $*X.vecSize() ;
     const int sz = $face2node.size() ;
     const vector3d<real_t> center_l = $ci->$cellcenter ;
     const vector3d<real_t> center_r = $facecenter ;
@@ -1328,8 +1204,8 @@ namespace Loci {
       for(int i=0;i<sz;++i) {
         int n1 = i ;
         int n2 = (i+1)%sz ;
-        const real_t X1 = $face2node[n1]->$frinkNodalv(X)[j] ;
-        const real_t X2 = $face2node[n1]->$frinkNodalv(X)[j] ;
+        const real_t X1 = $face2node[n1]->$NGTNodalv(X)[j] ;
+        const real_t X2 = $face2node[n1]->$NGTNodalv(X)[j] ;
         // 2*dot(A,n)
         const vector3d<real_t> v1l = $face2node[n1]->$pos-center_l ;
         const vector3d<real_t> v2l = $face2node[n2]->$pos-center_l ;
@@ -1337,7 +1213,7 @@ namespace Loci {
         const vector3d<real_t> v1r = $face2node[n1]->$pos-center_r ;
         const vector3d<real_t> v2r = $face2node[n2]->$pos-center_r ;
         const vector3d<real_t> crossr = cross(v1r,v2r) ;
-        sum += ($X_f[j]+X1+X2)*crossr ;
+        sum += ($NGTIntegratev(X)[j]+X1+X2)*crossr ;
         lvol += dot(center_r-center_l,crossr) ;
       }
       $gradv_f(X)[j] = sum/lvol ;
@@ -1347,9 +1223,9 @@ namespace Loci {
   $type X store<vector3d<real_t> > ;
   $type X_f store<vector3d<real_t> > ;
 
-  $rule pointwise(frink::gradv3d_f(X)<-(cl,cr)->(X,cellcenter),
-                  face2node->(frinkNodalv3d(X),pos)),
-    constraint(frinkGradient,(cl,cr)->cellcenter) {
+  $rule pointwise(NGT::gradv3d_f(X)<-(cl,cr)->(X,cellcenter),
+                  face2node->(NGTNodalv3d(X),pos)),
+    constraint(NGTGradient,UseNGTViscous,(cl,cr)->cellcenter) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center_l = $cl->$cellcenter ;
     const vector3d<real_t> center_r = $cr->$cellcenter ;
@@ -1361,8 +1237,8 @@ namespace Loci {
     for(int i=0;i<sz;++i) {
       int n1 = i ;
       int n2 = (i+1)%sz ;
-      const vector3d<real_t> X1 = $face2node[n1]->$frinkNodalv3d(X) ;
-      const vector3d<real_t> X2 = $face2node[n1]->$frinkNodalv3d(X) ;
+      const vector3d<real_t> X1 = $face2node[n1]->$NGTNodalv3d(X) ;
+      const vector3d<real_t> X2 = $face2node[n1]->$NGTNodalv3d(X) ;
       // 2*dot(A,n)
       const vector3d<real_t> v1l = $face2node[n1]->$pos-center_l ;
       const vector3d<real_t> v2l = $face2node[n2]->$pos-center_l ;
@@ -1384,9 +1260,9 @@ namespace Loci {
     $gradv3d_f(X).z = sumz*rlvol ;
   }
 
-  $rule pointwise(frink::gradv3d_f(X)<-ci->(X,cellcenter),X_f,facecenter,
-                  face2node->(frinkNodalv3d(X),pos)),
-    constraint(frinkGradient,ci->cellcenter) {
+  $rule pointwise(NGT::gradv3d_f(X)<-ci->(X,cellcenter),NGTIntegratev3d(X),facecenter,
+                  face2node->(NGTNodalv3d(X),pos)),
+    constraint(NGTGradient,UseNGTViscous,ci->cellcenter) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center_l = $ci->$cellcenter ;
     const vector3d<real_t> center_r = $facecenter ;
@@ -1398,8 +1274,8 @@ namespace Loci {
     for(int i=0;i<sz;++i) {
       int n1 = i ;
       int n2 = (i+1)%sz ;
-      const vector3d<real_t> X1 = $face2node[n1]->$frinkNodalv3d(X) ;
-      const vector3d<real_t> X2 = $face2node[n1]->$frinkNodalv3d(X) ;
+      const vector3d<real_t> X1 = $face2node[n1]->$NGTNodalv3d(X) ;
+      const vector3d<real_t> X2 = $face2node[n1]->$NGTNodalv3d(X) ;
       // 2*dot(A,n)
       const vector3d<real_t> v1l = $face2node[n1]->$pos-center_l ;
       const vector3d<real_t> v2l = $face2node[n2]->$pos-center_l ;
@@ -1410,9 +1286,9 @@ namespace Loci {
       const vector3d<real_t> v1r = $face2node[n1]->$pos-center_r ;
       const vector3d<real_t> v2r = $face2node[n2]->$pos-center_r ;
       const vector3d<real_t> crossr = cross(v1r,v2r) ;
-      sumx += ($X_f.x+X1.x+X2.x)*crossr ;
-      sumy += ($X_f.y+X1.y+X2.y)*crossr ;
-      sumz += ($X_f.z+X1.z+X2.z)*crossr ;
+      sumx += ($NGTIntegratev3d(X).x+X1.x+X2.x)*crossr ;
+      sumy += ($NGTIntegratev3d(X).y+X1.y+X2.y)*crossr ;
+      sumz += ($NGTIntegratev3d(X).z+X1.z+X2.z)*crossr ;
       lvol += dot(center_r-center_l,crossr) ;
     }
     const real_t rlvol = 1./lvol ;
@@ -1420,6 +1296,5 @@ namespace Loci {
     $gradv3d_f(X).y = sumy*rlvol ;
     $gradv3d_f(X).z = sumz*rlvol ;
   }
-#endif
 }
 

@@ -9,18 +9,19 @@ namespace Loci {
     comments("Select stencil used for computing gradients.  Options include 'standard', 'full', and 'green'.  Standard includes cells that share a face, while the full stencil includes any cell that shares a node, 'green' implements a green's theorem gradient.")
   {
     $gradStencil = "standard" ;
+    //    $gradStencil = "NGT" ;
   }
 
   $type stencilStandard Constraint ;
   $type stencilFull Constraint ;
   $type greensGradient Constraint ;
-  $type frinkGradient Constraint ;
+  $type NGTGradient Constraint ;
  
-  $rule constraint(frinkGradient,stencilStandard,stencilFull,greensGradient<-gradStencil) {
+  $rule constraint(NGTGradient,stencilStandard,stencilFull,greensGradient<-gradStencil) {
     $stencilStandard = EMPTY ;
     $stencilFull = EMPTY ;
     $greensGradient = EMPTY ;
-    $frinkGradient = EMPTY ;
+    $NGTGradient = EMPTY ;
     if($gradStencil == "standard") {
       $stencilStandard = $*gradStencil.domain() ;
     } else if($gradStencil == "full") {
@@ -28,7 +29,9 @@ namespace Loci {
     } else if($gradStencil == "green") {
       $greensGradient = $*gradStencil.domain() ;
     } else if($gradStencil == "frink") {
-      $frinkGradient = $*gradStencil.domain() ;
+      $NGTGradient = $*gradStencil.domain() ;
+    } else if($gradStencil == "NGT") {
+      $NGTGradient = $*gradStencil.domain() ;
     }else {
       cerr << "gradStencil " << $gradStencil << " of unknown type" << endl ;
       Loci::Abort() ;
