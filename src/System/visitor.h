@@ -312,6 +312,14 @@ namespace Loci {
     {return rename_source_vars ;}
     variableSet get_rename_target_vars() const
     {return rename_target_vars ;}
+
+    // this function returns *all* reachable recurrence
+    // variables from the given variableSet. we look reachable
+    // variables in both the "recur_vars_t2s" and "recur_vars_s2t"
+    // table, i.e., these two tables form a directed graph for
+    // recurrence variable
+    variableSet
+    get_reachable(const variableSet&) const ;
   protected:
     void gather_info(const digraph& gr) ;
     void gather_info2(const ruleSet& rs) ;

@@ -389,6 +389,10 @@ namespace Loci {
                                                      recv.get_recur_vars_s2t()
                                                      ) ;
       delInfoV_reserved += target ;
+      // any recurrence variables connected to target should not
+      // be deallocated
+      delInfoV_reserved += recv.get_reachable(target) ;
+
       delInfoV_reserved += untypevarV.get_untyped_vars() ;
       delInfoV_reserved += cluster_remaining ;
 

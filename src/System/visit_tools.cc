@@ -182,6 +182,30 @@ namespace Loci {
     gather_info2(rc.get_rules()) ;
   }
 
+  variableSet
+  recurInfoVisitor::get_reachable(const variableSet& vs) const {
+    variableSet working, visited ;
+    map<variable, variableSet>::const_iterator mi ;
+    working += vs ;
+    while(working != EMPTY) {
+      visited += working ;
+      variableSet next ;
+      for(variableSet::const_iterator vi=working.begin();
+          vi!=working.end();++vi) {
+        mi = recur_vars_t2s.find(*vi) ;
+        if(mi != recur_vars_t2s.end())
+          next += mi->second ;
+        mi = recur_vars_s2t.find(*vi) ;
+        if(mi != recur_vars_s2t.end())
+          next += mi->second ;
+      }
+      next -= visited ;
+      working = next ;
+    }
+    visited -= vs ;
+    return visited ;
+  }
+  
   /////////////////////////////////////////////////////////////
   // snInfoVisitor
   /////////////////////////////////////////////////////////////
