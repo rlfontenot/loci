@@ -800,7 +800,7 @@ namespace Loci {
         const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
         vi->$NGTNodalv(X)[i] += x_contrib ;
       }
-      if($boundary_map.size() == 0) {
+      if($boundary_map.size() != 0) {
         real_t Xf = 0 ;
         for(const Entity *fi=$boundary_map.begin();
             fi!=$boundary_map.end();++fi)
