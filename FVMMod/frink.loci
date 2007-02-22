@@ -420,16 +420,20 @@ namespace Loci {
       join(vi->$NGTNodal(X),x_contrib) ;
     }
     real_t Xf = 0 ;
-    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi)
-      Xf+= fi->$X_f ;
-    Xf /= real_t($boundary_map.size()) ;
-    for(entitySet::const_iterator vi = bnode_set.begin();vi!=bnode_set.end();++vi) {
-      const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
-      real_t x_p = Xf  ;
+    if($boundary_map.size() != 0) {
+      for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi)
+        Xf+= fi->$X_f ;
+      Xf /= real_t($boundary_map.size()) ;
 
-      // Compute weighted contribution to node
-      const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
-      join(vi->$NGTNodal(X),x_contrib) ;
+      for(entitySet::const_iterator vi = bnode_set.begin();
+          vi!=bnode_set.end();++vi) {
+        const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+        real_t x_p = Xf  ;
+        
+        // Compute weighted contribution to node
+        const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+        join(vi->$NGTNodal(X),x_contrib) ;
+      }
     }
   }
 
@@ -609,16 +613,18 @@ namespace Loci {
       join(vi->$NGTNodalv3d(X),x_contrib) ;
     }
     vector3d<real_t> Xf = vector3d<real_t>(0,0,0) ;
-    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi)
-      Xf+= fi->$X_f ;
-    Xf /= real_t($boundary_map.size()) ;
-    for(entitySet::const_iterator vi = bnode_set.begin();vi!=bnode_set.end();++vi) {
-      const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
-      vector3d<real_t> x_p = Xf  ;
-
-      // Compute weighted contribution to node
-      const vector3d<real_t> x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
-      join(vi->$NGTNodalv3d(X),x_contrib) ;
+    if($boundary_map.size() != 0) {
+      for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi)
+        Xf+= fi->$X_f ;
+      Xf /= real_t($boundary_map.size()) ;
+      for(entitySet::const_iterator vi = bnode_set.begin();vi!=bnode_set.end();++vi) {
+        const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+        vector3d<real_t> x_p = Xf  ;
+        
+        // Compute weighted contribution to node
+        const vector3d<real_t> x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+        join(vi->$NGTNodalv3d(X),x_contrib) ;
+      }
     }
 
   }
@@ -794,16 +800,20 @@ namespace Loci {
         const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
         vi->$NGTNodalv(X)[i] += x_contrib ;
       }
-      real_t Xf = 0 ;
-      for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi)
-        Xf+= fi->$X_f[i] ;
-      Xf /= real_t($boundary_map.size()) ;
-      for(entitySet::const_iterator vi = bnode_set.begin();vi!=bnode_set.end();++vi) {
-        const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
-        real_t x_p = Xf  ;
+      if($boundary_map.size() == 0) {
+        real_t Xf = 0 ;
+        for(const Entity *fi=$boundary_map.begin();
+            fi!=$boundary_map.end();++fi)
+          Xf+= fi->$X_f[i] ;
+        Xf /= real_t($boundary_map.size()) ;
+        for(entitySet::const_iterator vi = bnode_set.begin();
+            vi!=bnode_set.end();++vi) {
+          const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+          real_t x_p = Xf  ;
 
-        const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
-        vi->$NGTNodalv(X)[i]+=x_contrib ;
+          const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+          vi->$NGTNodalv(X)[i]+=x_contrib ;
+        }
       }
     }
   }
