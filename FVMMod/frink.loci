@@ -396,7 +396,7 @@ namespace Loci {
   $rule apply((upper,lower,boundary_map)->face2node->NGTNodal(X)<-
               (upper,lower,boundary_map)->face2node->NGT_nodal_weights,
               cellcenter,(upper,lower,boundary_map)->face2node->pos,
-              X)[Loci::Summation],constraint(geom_cells,frinkNodalMethod) {
+              X,boundary_map->X_f)[Loci::Summation],constraint(geom_cells,frinkNodalMethod) {
     int sztot = 0 ;
     
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
@@ -406,25 +406,38 @@ namespace Loci {
     for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
       sztot += fi->$face2node.size() ;
 
-    vector<Entity> node_list(sztot) ;
-    int cnt = 0 ;
+    entitySet node_set,bnode_set ;
+
     for(const Entity *fi=$upper.begin();fi!=$upper.end();++fi)
       for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
-        node_list[cnt++] = *ni ;
+        node_set += *ni ;
     for(const Entity *fi=$lower.begin();fi!=$lower.end();++fi) 
       for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
-        node_list[cnt++] = *ni ;
+        node_set += *ni ;
     for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi) 
       for(const Entity *ni=fi->$face2node.begin();ni!=fi->$face2node.end();++ni)
-        node_list[cnt++] = *ni ;
-    
-    sort(node_list.begin(),node_list.end()) ;
-    vector<Entity>::iterator ne = unique(node_list.begin(),node_list.end()) ;
-    vector<Entity>::iterator ns = node_list.begin() ;
+        bnode_set += *ni ;
 
-    for(vector<Entity>::iterator vi = ns;vi!=ne;++vi) {
+    node_set -= bnode_set ;
+    
+
+
+    
+    for(entitySet::const_iterator vi = node_set.begin();vi!=node_set.end();++vi) {
       const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
       real_t x_p = $X  ;
+
+      // Compute weighted contribution to node
+      const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
+      join(vi->$NGTNodal(X),x_contrib) ;
+    }
+    real_t Xf = 0 ;
+    for(const Entity *fi=$boundary_map.begin();fi!=$boundary_map.end();++fi)
+      Xf+= fi->$X_f ;
+    Xf /= real_t($boundary_map.size()) ;
+    for(entitySet::const_iterator vi = bnode_set.begin();vi!=bnode_set.end();++vi) {
+      const vector3d<real_t> dv = (vi->$pos-$cellcenter) ;
+      real_t x_p = Xf  ;
 
       // Compute weighted contribution to node
       const real_t x_contrib = x_p/(norm(dv)*vi->$NGT_nodal_weights) ;
@@ -1091,13 +1104,44 @@ namespace Loci {
   $type X_f store<real_t> ;
 
 
+  // Compute extrema sensor
+
+  $type extremaBeta(X) store<real_t> ;
+  $type X store<real_t> ;
+
+  $rule pointwise(extremaBeta(X)<-lower->cl->X,upper->cr->X,boundary_map->X_f,X) {
+    real_t Xmax = std::numeric_limits<real_t>::min() ;
+    real_t Xmin = std::numeric_limits<real_t>::max() ;
+    const size_t supper = $upper.size() ;
+    const size_t slower = $lower.size() ;
+    const size_t sbmap = $boundary_map.size() ;
+    for(size_t i=0;i<supper;++i) {
+      Xmax = max(Xmax,$upper[i]->$cr->$X) ;
+      Xmin = min(Xmin,$upper[i]->$cr->$X) ;
+    } 
+    for(size_t i=0;i<slower;++i) {
+      Xmax = max(Xmax,$lower[i]->$cl->$X) ;
+      Xmin = min(Xmin,$lower[i]->$cl->$X) ;
+    }
+    //    for(size_t i=0;i<sbmap;++i) {
+      //      Xmax = max(Xmax,$boundary_map[i]->$X_f) ;
+      //      Xmin = min(Xmin,$boundary_map[i]->$X_f) ;
+    //    }   
+    real_t Beta = 1.0 ;
+    if($X > Xmax) {
+      Beta = (Xmax-Xmin)/($X-Xmin) ;
+    } else if ($X < Xmin) {
+      Beta = (Xmax-Xmin)/(Xmax-$X) ;
+    }
+    $extremaBeta(X) = Beta ;
+  }
 
   // NGT face gradients:
   $type X store<real_t> ;
   $type X_f store<real_t> ;
 
-  $rule pointwise(NGT::grads_f(X)<-(cl,cr)->(X,cellcenter),
-                  face2node->(NGTNodal(X),pos)),
+  $rule pointwise(NGT::grads_f(X)<-(cl,cr)->(X,cellcenter,extremaBeta(X)),
+                  face2node->(NGTNodal(X),pos),area),
     constraint(NGTGradient,UseNGTViscous,(cl,cr)->cellcenter) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center_l = $cl->$cellcenter ;
@@ -1121,10 +1165,16 @@ namespace Loci {
       lvol += dot(center_r-center_l,crossr) ;
     }
     $grads_f(X) = sum/lvol ;
+    const real_t gdotn = dot($grads_f(X),$area.n) ;
+    const real_t gdotn_s = ($cr->$X-$cl->$X)/
+      dot($cr->$cellcenter-$cl->$cellcenter,$area.n) ;
+    real_t Beta = min($cl->$extremaBeta(X),$cr->$extremaBeta(X)) ;
+    real_t Bs = Beta*Beta ;
+    $grads_f(X) += $area.n*(1.-Bs)*(gdotn_s-gdotn) ;
   }
 
-  $rule pointwise(NGT::grads_f(X)<-ci->(X,cellcenter),NGTIntegrate(X),facecenter,
-                  face2node->(NGTNodal(X),pos)),
+  $rule pointwise(NGT::grads_f(X)<-area,ci->(X,cellcenter,extremaBeta(X)),
+                  X_f,facecenter, face2node->(NGTNodal(X),pos)),
     constraint(NGTGradient,UseNGTViscous,ci->cellcenter) {
     const int sz = $face2node.size() ;
     const vector3d<real_t> center_l = $ci->$cellcenter ;
@@ -1144,10 +1194,17 @@ namespace Loci {
       const vector3d<real_t> v1r = $face2node[n1]->$pos-center_r ;
       const vector3d<real_t> v2r = $face2node[n2]->$pos-center_r ;
       const vector3d<real_t> crossr = cross(v1r,v2r) ;
-      sum += ($NGTIntegrate(X)+X1+X2)*crossr ;
+      sum += ($X_f+X1+X2)*crossr ;
       lvol += dot(center_r-center_l,crossr) ;
     }
     $grads_f(X) = sum/lvol ;
+
+    const real_t gdotn = dot($grads_f(X),$area.n) ;
+    const real_t gdotn_s = ($X_f-$ci->$X)/
+      dot($facecenter-$ci->$cellcenter,$area.n) ;
+    real_t Beta = $ci->$extremaBeta(X) ;
+    real_t Bs = Beta*Beta ;
+    $grads_f(X) += $area.n*(1.-Bs)*(gdotn_s-gdotn) ;
   }
 
   $type X storeVec<real_t> ;
