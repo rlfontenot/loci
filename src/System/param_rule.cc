@@ -61,6 +61,7 @@ namespace Loci {
       else
         vname.back() += name[i] ;
     }
+
     vector<variable> subst ;
     for(size_t i=0;i<vname.size();++i) {
       map<string,variable>::const_iterator ii = transform_map.find(vname[i]) ;
@@ -73,6 +74,7 @@ namespace Loci {
     for(size_t i=1;i<vname.size();++i)
       sname += '_' + vname[i] ;
     vinfo.name = sname ;
+
     // Now substitute arguments
     vector<int> args = vinfo.v_ids ;
     for(size_t i=0;i<subst.size();++i) {
@@ -90,6 +92,7 @@ namespace Loci {
       args[i] = tmp.ident() ;
     }
     vinfo.v_ids = args ;
+
     return variable(vinfo) ;
   }
   
@@ -111,6 +114,7 @@ namespace Loci {
     map<string,variable> transform_map ;
     std::vector<int> alt = vt.get_arg_list() ;
     std::vector<int> aln = v.get_arg_list() ;
+
     if(alt.size() != aln.size()) {
       cerr << "arg lists for parametric rule " << r << " don't match variable " << v << endl ;
       cerr << "this should not happen!" << endl ;
@@ -126,7 +130,6 @@ namespace Loci {
 #ifdef VERBOSE
       cout << " ("<< tv.get_info().name << "," << sv << ")" << endl ;
 #endif
-
     }
 
 
@@ -136,6 +139,7 @@ namespace Loci {
     variableSet all_vars = target ;
     all_vars += r.sources() ;
     variableSet:: const_iterator vi ;
+
     for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
       variable sv = applySubstitution(transform_map,*vi) ;
       if(sv != *vi) {
@@ -225,6 +229,7 @@ namespace Loci {
 #endif
       processed += parvars ;
       ruleSet newrules = instantiateParametrics(prule_db,parvars) ;
+
 #ifdef VERBOSE
       cout << "generating rules = " << endl << newrules << endl ;
 #endif

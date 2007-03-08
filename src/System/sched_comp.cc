@@ -35,6 +35,7 @@ namespace Loci {
   extern double total_memory_usage ;
   extern bool show_decoration ;
   extern bool use_dynamic_memory ;
+  extern bool dmm_no_deallocation ;
   extern bool show_dmm_verbose ;
   extern bool use_chomp ;
   extern bool show_chomp ;
@@ -408,7 +409,7 @@ namespace Loci {
                            untypevarV.get_untyped_vars()
                            ) ;
       top_down_visit(aiv) ;
-      
+
       // compute how to do deletion
       deleteInfoVisitor div(get_loop_alloc_table(aiv.get_alloc_table(),
                                                  snv.get_subnode_table(),
@@ -426,7 +427,9 @@ namespace Loci {
                             rotlv.get_loop_shared_table(),
                             promoted_rep,delInfoV_reserved
                             ) ;
-      top_down_visit(div) ;
+      if(!dmm_no_deallocation) {
+        top_down_visit(div) ;
+      }
       
       // decorate the graph to insert allocation rules
       allocGraphVisitor agv(aiv.get_alloc_table(),
@@ -449,7 +452,8 @@ namespace Loci {
       // decorate the graph to insert deletion rules
       deleteGraphVisitor dgv(div.get_delete_table(),
                              div.get_recur_source_other_rules()) ;
-      top_down_visit(dgv) ;
+      if(!dmm_no_deallocation)
+        top_down_visit(dgv) ;
       det2 = MPI_Wtime() ;
 
 #ifdef COMPILE_PROGRESS

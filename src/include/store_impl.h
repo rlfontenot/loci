@@ -359,7 +359,8 @@ namespace Loci {
 
     for( ci = seq.begin(); ci != seq.end(); ++ci) {
       if( !store_domain.inSet( *ci ) ) {
-        std::cout << "Warning: entity not in entitySet  : " << *ci << endl;
+        std::cout << "Warning: entity not in entitySet  : "
+                  << *ci << std::endl;
         continue;
       }
       outcount = sizeof(int);

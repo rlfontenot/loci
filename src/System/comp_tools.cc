@@ -1475,7 +1475,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       else
 	for(size_t j=0;j<recv_info[i].second.size();++j) {
-	  storeRepP sp = recv_vars[i][j] ; // facts.get_variable(recv_info[i].second[j].v) ; 
+	  storeRepP sp = recv_vars[i][j] ; // facts.get_variable(recv_info[i].second[j].v) ;
 	  sp->unpack(recv_ptr[i], loc_unpack, r_size[i],
 		     recv_info[i].second[j].seq) ;
 	}

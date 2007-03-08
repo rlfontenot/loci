@@ -942,7 +942,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	  storeRepP sp = recv_vars[i][j] ;//facts.get_variable(recv_info[i].second[j].v) ;
 	  storeRepP sr = sp->new_store(EMPTY) ;
 	  sr->allocate(entitySet(recv_info[i].second[j].seq)) ;
-          
 	  sr->unpack(recv_ptr[i], loc_unpack, r_size[i],
 		     recv_info[i].second[j].seq) ;
 	  CPTR<joiner> op = join_op->clone() ;
@@ -991,7 +990,6 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	storeRepP sp = recv_vars[i][j] ;//facts.get_variable(recv_info[recv_index[i]].second[j].v) ;
 	storeRepP sr = sp->new_store(EMPTY) ;
 	sr->allocate(entitySet(recv_info[recv_index[i]].second[j].seq)) ;
-	
 	sr->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
 		   recv_info[recv_index[i]].second[j].seq) ;
 	

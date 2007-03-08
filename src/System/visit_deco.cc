@@ -95,8 +95,10 @@ namespace Loci {
   
   variableSet allocInfoVisitor::gather_info(const digraph& gr,
                                             const variableSet& working_vars) {
-    if(working_vars == EMPTY)
-      return variableSet(EMPTY) ;
+    // NOTE: even if the passed in working_vars is EMPTY, we cannot return
+    // from this function yet, because we need to look for possible
+    // loop supernodes in the current graph and if found, allocate its
+    // rotation list!
     
     // obtain the transpose of the graph
     digraph grt = gr.transpose() ;

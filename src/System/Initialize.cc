@@ -82,6 +82,11 @@ namespace Loci {
   // (more memory conservative and more synchronization
   //  points will be generated)
   bool memory_greedy_schedule = true ;
+  // flag to disable memory deallocation decoration
+  // if use_dynamic_memory==true. this is more of a
+  // debugging tool. in this mode, we only have
+  // memory allocation and no memory deallocation
+  bool dmm_no_deallocation = false ;
 
   bool duplicate_work = false;
   bool multilevel_duplication = false;
@@ -229,6 +234,9 @@ namespace Loci {
         i++ ;
       } else if(!strcmp((*argv)[i],"--dmm")) {
         use_dynamic_memory = true ; // use the dynamic memory management
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--dmmnofree")) {
+        dmm_no_deallocation = true ; // do not do deallocation
         i++ ;
       } else if(!strcmp((*argv)[i],"--nodmm")) {
         use_dynamic_memory = false ; // use the dynamic memory management
