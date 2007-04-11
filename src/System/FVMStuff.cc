@@ -10,6 +10,8 @@ using std::string ;
 #include <vector>
 using std::vector ;
 using std::pair ;
+#include <algorithm>
+using std::sort ;
 
 #include "dist_tools.h"
 using std::cout ;
@@ -1637,4 +1639,498 @@ namespace Loci {
     // Add face2edge to the fact database
     facts.create_fact("face2edge",face2edge) ;
   }
+
+  // a parallel sample sort for vector<pair<int, int> >
+  // the passed in vector is the local SORTED data. NOTE:
+  // the precondition to this routine is that the passed
+  // in vector is sorted!!!
+  // after sorting, this function puts the new sorted pairs
+  // that are local to a processor in the data argument.
+  void
+  par_sort(vector<pair<int,int> >& data, MPI_Comm comm) {
+    // first get the processor id and total number of processors
+    int my_id, num_procs ;
+    MPI_Comm_size(comm, &num_procs) ;
+    MPI_Comm_rank(comm, &my_id) ;
+    if(num_procs <= 1)
+      return ;                  // single process, no need to proceed
+    // get the number of local elements
+    int local_size = data.size() ;
+    // then select num_procs-1 equally spaced elements as splitters
+    int* splitters = new int[num_procs] ;
+    int even_space = local_size / (num_procs-1) ;
+    int start_idx = even_space / 2 ;
+    int space_idx = start_idx ;
+    for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
+      splitters[i] = data[space_idx].first ;
+    // gather the splitters to all processors as samples
+    int sample_size = num_procs * (num_procs-1) ;
+    int* samples = new int[sample_size] ;
+    MPI_Allgather(splitters, num_procs-1, MPI_INT,
+                  samples, num_procs-1, MPI_INT, comm) ;
+    // now we've obtained all the samples, first we sort them
+    sort(samples, samples+sample_size) ;
+    // select new splitters in the sorted samples
+    even_space = sample_size / (num_procs-1) ;
+    start_idx = even_space / 2 ;
+    space_idx = start_idx ;
+    for(int i=0;i<num_procs-1;++i,space_idx+=even_space)
+      splitters[i] = samples[space_idx] ;
+    // the last one set as maximum possible integer
+    splitters[num_procs-1] = std::numeric_limits<int>::max() ;
+
+    // now we can assign local elements to buckets (processors)
+    // according to the new splitters. first we will compute
+    // the size of each bucket and communicate them first
+    int* scounts = new int[num_procs] ;
+    for(int i=0;i<num_procs;++i)
+      scounts[i] = 0 ;
+    { // using a block just to make the definition of "i" and "j" local
+      int i, j ;
+      for(j=i=0;i<local_size;++i) {
+        if(data[i].first < splitters[j])
+          scounts[j]++ ;
+        else {
+          ++j ;
+          while(data[i].first >= splitters[j]) {
+            scounts[j] = 0 ;
+            ++j ;
+          }
+          scounts[j]++ ;
+        }
+      }
+    }
+    // but since one local element contains two integers (a pair of int),
+    // we will need to double the size
+    for(int i=0;i<num_procs;++i)
+      scounts[i] *= 2 ;
+    // now we compute the sending displacement for each bucket
+    int* sdispls = new int[num_procs] ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<num_procs;++i)
+      sdispls[i] = sdispls[i-1] + scounts[i-1] ;
+    // communicate this information to all processors so that each will
+    // know how many elements are expected from every other processor
+    int* rcounts = new int[num_procs] ;
+    MPI_Alltoall(scounts, 1, MPI_INT, rcounts, 1, MPI_INT, comm) ;
+    // then based on the received info. we will need to compute the
+    // receive displacement
+    int* rdispls = new int[num_procs] ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<num_procs;++i)
+      rdispls[i] = rdispls[i-1] + rcounts[i-1] ;
+    // then we will need to pack the elements in local into
+    // a buffer and communicate them
+    int* local_pairs = new int[local_size*2] ;
+    int count = 0 ;
+    for(int i=0;i<local_size;++i) {
+      local_pairs[count++] = data[i].first ;
+      local_pairs[count++] = data[i].second ;
+    }
+    // then we allocate buffer for new local elements
+    int new_local_size = rdispls[num_procs-1] + rcounts[num_procs-1] ;
+    int* sorted_pairs = new int[new_local_size] ;
+    // finally we communicate local_pairs to each processor
+    MPI_Alltoallv(local_pairs, scounts, sdispls, MPI_INT,
+                  sorted_pairs, rcounts, rdispls, MPI_INT, comm) ;
+    // release buffers
+    delete[] splitters ;
+    delete[] samples ;
+    delete[] scounts ;
+    delete[] sdispls ;
+    delete[] rcounts ;
+    delete[] rdispls ;
+    delete[] local_pairs ;
+    // finally we unpack the buffer into a vector of pairs
+    data.resize(new_local_size/2) ;
+    int data_idx = 0 ;
+    for(int i=0;i<new_local_size;i+=2,data_idx++)
+      data[data_idx] = pair<int,int>(sorted_pairs[i],sorted_pairs[i+1]) ;
+    // release the final buffer
+    delete[] sorted_pairs ;
+    // finally we sort the new local vector
+    sort(data.begin(), data.end()) ;
+  }
+
+  namespace {
+    // a utility that returns the global sum
+    int
+    global_sum(int l) {
+      int g ;
+      MPI_Allreduce(&l, &g, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD) ;
+      return g ;
+    }
+    // a utility function that takes an entitySet from a processor
+    // and returns a vector of entitySet gathered from all processors
+    vector<entitySet>
+    gather_all_entitySet(const entitySet& eset) {
+      int local_size = eset.size() ;
+      int global_size = global_sum(local_size) ;
+      // compute receive counts from all processors
+      int* recv_counts = new int[MPI_processes] ;
+      MPI_Allgather(&local_size, 1, MPI_INT,
+                    recv_counts, 1, MPI_INT, MPI_COMM_WORLD) ;
+      // then compute receive displacement
+      int* recv_displs = new int[MPI_processes] ;
+      recv_displs[0] = 0 ;
+      for(int i=1;i<MPI_processes;++i)
+        recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+      // pack the local eset into an array
+      int* local_eset = new int[local_size] ;
+      int count = 0 ;
+      for(entitySet::const_iterator ei=eset.begin();
+          ei!=eset.end();++ei,++count)
+        local_eset[count] = *ei ;
+      // allocate the entire array for all data from all processors
+      int* global_eset = new int[global_size] ;
+      // communicate to obtain all esets from every processors
+      MPI_Allgatherv(local_eset, local_size, MPI_INT,
+                     global_eset, recv_counts, recv_displs,
+                     MPI_INT, MPI_COMM_WORLD) ;
+      delete[] local_eset ;
+      delete[] recv_counts ;
+      // unpack the raw buffer into a vector<entitySet>
+      vector<entitySet> ret(MPI_processes) ;
+      int k = 0 ;
+      for(int i=0;i<MPI_processes;++i) {
+        int limit ;
+        if(i == MPI_processes-1)
+          limit = global_size ;
+        else
+          limit = recv_displs[i+1] ;
+        for(;k<limit;++k)
+          ret[i] += global_eset[k] ;
+      }
+      delete[] recv_displs ;
+      delete[] global_eset ;
+
+      return ret ;
+    }
+    // this function transposes the passed in vector<entitySet>
+    // by an all to all personalized communication
+    vector<entitySet>
+    transpose_vector_entitySet(const vector<entitySet>& in) {
+      // first compute the send count and displacement
+      int* send_counts = new int[MPI_processes] ;
+      for(int i=0;i<MPI_processes;++i)
+        send_counts[i] = in[i].size() ;
+      int* send_displs = new int[MPI_processes] ;
+      send_displs[0] = 0 ;
+      for(int i=1;i<MPI_processes;++i)
+        send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+      // then communicate this get the recv info.
+      int* recv_counts = new int[MPI_processes] ;
+      MPI_Alltoall(send_counts, 1, MPI_INT,
+                   recv_counts, 1, MPI_INT, MPI_COMM_WORLD) ;
+      int* recv_displs = new int[MPI_processes] ;
+      recv_displs[0] = 0 ;
+      for(int i=1;i<MPI_processes;++i)
+        recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+      // all info. gathered, ready to do MPI_Alltoallv
+      // first pack data into a raw buffer.
+      int buf_size = 0 ;
+      for(int i=0;i<MPI_processes;++i)
+        buf_size += send_counts[i] ;
+      int* send_buf = new int[buf_size] ;
+      int buf_idx = 0 ;
+      for(int i=0;i<MPI_processes;++i) {
+        const entitySet& eset = in[i] ;
+        for(entitySet::const_iterator ei=eset.begin();
+            ei!=eset.end();++ei,++buf_idx)
+          send_buf[buf_idx] = *ei ;
+      }
+      // allocate receive buffer
+      int recv_size = 0 ;
+      for(int i=0;i<MPI_processes;++i)
+        recv_size += recv_counts[i] ;
+      int* recv_buf = new int[recv_size] ;
+      // communicate
+      MPI_Alltoallv(send_buf, send_counts,
+                    send_displs, MPI_INT,
+                    recv_buf, recv_counts,
+                    recv_displs, MPI_INT, MPI_COMM_WORLD) ;
+      delete[] send_counts ;
+      delete[] send_displs ;
+      delete[] recv_counts ;
+      delete[] send_buf ;
+      // unpack recv buffer into a vector of entitySet
+      vector<entitySet> out(MPI_processes) ;    
+      int k = 0 ;
+      for(int i=0;i<MPI_processes;++i) {
+        int limit ;
+        if(i == MPI_processes-1)
+          limit = recv_size ;
+        else
+          limit = recv_displs[i+1] ;
+        for(;k<limit;++k)
+          out[i] += recv_buf[k] ;
+      }
+      delete[] recv_displs ;
+      delete[] recv_buf ;
+
+      return out ;
+    }
+    // end of unnamed namespace
+  }
+  
+  // This one will work in parallel :)
+
+  //#define BOUNDARY_DUPLICATE_DETECT
+  void
+  createEdgesPar(fact_db &facts) {
+    multiMap face2node ;
+    face2node = facts.get_variable("face2node") ;
+    entitySet faces = face2node.domain() ;
+
+    // Loop over faces and create list of edges (with duplicates)
+    vector<pair<Entity,Entity> > emap ;
+    for(entitySet::const_iterator ei=faces.begin();
+        ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      for(int i=0;i<sz-1;++i) {
+        Entity e1 = face2node[*ei][i] ;
+        Entity e2 = face2node[*ei][i+1] ;
+        emap.push_back(pair<Entity,Entity>(min(e1,e2),max(e1,e2))) ;
+      }
+      Entity e1 = face2node[*ei][0] ;
+      Entity e2 = face2node[*ei][sz-1] ;
+      emap.push_back(pair<Entity,Entity>(min(e1,e2),max(e1,e2))) ;
+    }
+
+    // Sort edges and remove duplicates
+    sort(emap.begin(),emap.end()) ;
+    vector<pair<Entity,Entity> >::iterator uend ;
+    uend = unique(emap.begin(), emap.end()) ;
+    emap.erase(uend, emap.end()) ;
+    // then sort emap in parallel
+    par_sort(emap, MPI_COMM_WORLD) ;
+    // remove duplicates again in the new sorted vector
+    uend = unique(emap.begin(), emap.end()) ;
+    emap.erase(uend, emap.end()) ;
+#ifdef BOUNDARY_DUPLICATE_DETECT
+    if(MPI_processes > 1) {
+      // then we will need to remove duplicates along the boundaries
+      // we send the first element in the vector to the left neighbor
+      // processor (my_id - 1) and each processor compares its last
+      // element with the received element. if they are the same,
+      // then the processor will remove its last element
+
+      // HOWEVER if the parallel sort was done using the sample sort
+      // algorithm, then this step is not necessary. Because in the
+      // sample sort, elements are partitioned to processors according
+      // to sample splitters, it is therefore guaranteed that no
+      // duplicates will be crossing the processor boundaries.
+      int sendbuf[2] ;
+      int recvbuf[2] ;
+      if(!emap.empty()) {
+        sendbuf[0] = emap[0].first ;
+        sendbuf[1] = emap[0].second ;
+      } else {
+        // if there is no local data, we set the send buffer
+        // to be the maximum integer so that we don't have problems
+        // in the later comparing stage
+        sendbuf[0] = std::numeric_limits<int>::max() ;
+        sendbuf[1] = std::numeric_limits<int>::max() ;
+      }
+      MPI_Status status ;
+      if(MPI_rank == 0) {
+        // rank 0 only receives from 1, no sending needed
+        MPI_Recv(recvbuf, 2, MPI_INT,
+                 1/*source*/, 0/*msg tag*/,
+                 MPI_COMM_WORLD, &status) ;
+      } else if(MPI_rank == MPI_processes-1) {
+        // the last processes only sends to the second last processes,
+        // no receiving is needed
+        MPI_Send(sendbuf, 2, MPI_INT,
+                 MPI_rank-1/*dest*/, 0/*msg tag*/, MPI_COMM_WORLD) ;
+      } else {
+        // others will send to MPI_rank-1 and receive from MPI_rank+1
+        MPI_Sendrecv(sendbuf, 2, MPI_INT, MPI_rank-1/*dest*/,0/*msg tag*/,
+                     recvbuf, 2, MPI_INT, MPI_rank+1/*source*/,0/*tag*/,
+                     MPI_COMM_WORLD, &status) ;
+      }
+      // then compare the results with last element in local emap
+      if( (MPI_rank != MPI_processes-1) && (!emap.empty())){
+        const pair<Entity,Entity>& last = emap.back() ;
+        if( (recvbuf[0] == last.first) &&
+            (recvbuf[1] == last.second)) {
+          emap.pop_back() ;
+        }
+      }
+    } // end if(MPI_Processes > 1)
+#endif
+    
+    // Allocate entities for new edges
+    int num_edges = emap.size() ;
+    entitySet edges = facts.get_distributed_alloc(num_edges).first ;
+
+    // Copy edge nodes into a MapVec
+    MapVec<2> edge ;
+    edge.allocate(edges) ;
+    vector<pair<Entity,Entity> >::iterator pi = emap.begin() ;
+    for(entitySet::const_iterator ei=edges.begin();
+        ei!=edges.end();++ei,++pi) {
+      edge[*ei][0] = pi->first ;
+      edge[*ei][1] = pi->second ;
+    }
+
+    // Add edge2node data structure to fact databse
+    facts.create_fact("edge2node",edge) ;
+
+    // Now create face2edge data-structure
+    // We need to create a lower node to edge mapping to facilitate the
+    // searches.  First get map from edge to lower node
+    Map el ; // Lower edge map
+    el.allocate(edges) ;
+    for(entitySet::const_iterator ei=edges.begin();
+        ei!=edges.end();++ei,++pi) {
+      el[*ei] = edge[*ei][0] ;
+    }
+
+    // Now invert this map to get nodes-> edges that have this as a first entry
+    multiMap n2e ;
+    // Get nodes
+    // Get mapping from nodes to edges from lower numbered node
+    
+    // note inorder to use the distributed_inverseMap, we need
+    // to provide a vector of entitySet partitions. for this 
+    // case, it is NOT the node (pos.domain()) distribution,
+    // instead it is the el Map image distribution
+    entitySet el_image = el.image(el.domain()) ;
+    vector<entitySet> el_image_partitions =
+      gather_all_entitySet(el_image) ;
+    distributed_inverseMap(n2e, el, el_image, edges, el_image_partitions) ;
+
+    // Now create face2edge map with same size as face2node
+    multiMap face2edge ;
+    store<int> count ;
+    count.allocate(faces) ;
+    for(entitySet::const_iterator ei = faces.begin();
+        ei!=faces.end();++ei) 
+      count[*ei] = face2node[*ei].size() ;
+    face2edge.allocate(count) ;
+
+    // before computing the face2edge map, we will need to gather
+    // necessary info among all processors since the edge map is
+    // distributed across all the processors. we need to retrieve
+    // those that are needed from other processors.
+
+    // we will first need to figure out the set of edges we need
+    // but are not on the local processor
+
+    // but we need to access the n2e map in the counting and it
+    // is possible that the local n2e map does not have enough
+    // data we are looking for, therefore we need to expand it
+    // first to include possible clone regions
+    entitySet nodes_accessed ;
+    for(entitySet::const_iterator ei=faces.begin();
+        ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      for(int i=0;i<sz-1;++i) {
+        Entity t1 = face2node[*ei][i] ;
+        Entity t2 = face2node[*ei][i+1] ;
+        Entity e1 = min(t1,t2) ;
+        nodes_accessed += e1 ;
+      }
+      // Work on closing edge
+      Entity t1 = face2node[*ei][0] ;
+      Entity t2 = face2node[*ei][sz-1] ;
+      Entity e1 = min(t1,t2) ;
+      nodes_accessed += e1 ;
+    }
+    // we then expand the n2e map
+    entitySet nodes_out_domain = nodes_accessed - n2e.domain() ;    
+    n2e.setRep(MapRepP(n2e.Rep())->expand(nodes_out_domain,
+                                          el_image_partitions)) ;
+    // okay, then we are going to expand the edge map
+    // first count all the edges we need
+    entitySet edges_accessed ;
+    for(entitySet::const_iterator ei=faces.begin();
+        ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      for(int i=0;i<sz-1;++i) {
+        Entity t1 = face2node[*ei][i] ;
+        Entity t2 = face2node[*ei][i+1] ;
+        Entity e1 = min(t1,t2) ;
+        for(int j=0;j<n2e[e1].size();++j) {
+          int e = n2e[e1][j] ;
+          edges_accessed += e ;
+        }
+      }
+      // Work on closing edge
+      Entity t1 = face2node[*ei][0] ;
+      Entity t2 = face2node[*ei][sz-1] ;
+      Entity e1 = min(t1,t2) ;
+      for(int j=0;j<n2e[e1].size();++j) {
+        int e = n2e[e1][j] ;
+        edges_accessed += e ;
+      }
+    }
+    vector<entitySet> edge_partitions = gather_all_entitySet(edge.domain()) ;
+    entitySet edges_out_domain = edges_accessed - edge.domain() ;
+    // but since there is no expand method implemented for
+    // MapVec at this time, we will just do a hack to convert
+    // the MapVec to a multiMap to reuse the expand code.
+    multiMap edge2 ;
+    store<int> edge2_count ;
+    entitySet edge_dom = edge.domain() ;
+    edge2_count.allocate(edge_dom) ;
+    for(entitySet::const_iterator ei=edge_dom.begin();
+        ei!=edge_dom.end();++ei)
+      edge2_count[*ei] = 2 ;
+    edge2.allocate(edge2_count) ;
+    for(entitySet::const_iterator ei=edge_dom.begin();
+        ei!=edge_dom.end();++ei) {
+      edge2[*ei][0] = edge[*ei][0] ;
+      edge2[*ei][1] = edge[*ei][1] ;
+    }
+    edge2.setRep(MapRepP(edge2.Rep())->expand(edges_out_domain,
+                                              edge_partitions)) ;
+    // we are now ready for the face2edge map
+
+    // Now loop over faces, for each face search for matching edge and
+    // store in the new face2edge structure
+    for(entitySet::const_iterator ei=faces.begin();
+        ei!=faces.end();++ei) {
+      int sz = face2node[*ei].size() ;
+      // Loop over edges of the face
+      for(int i=0;i<sz-1;++i) {
+        Entity t1 = face2node[*ei][i] ;
+        Entity t2 = face2node[*ei][i+1] ;
+        Entity e1 = min(t1,t2) ;
+        Entity e2 = max(t1,t2) ;
+        face2edge[*ei][i] = -1 ;
+        // search for matching edge
+        for(int j=0;j<n2e[e1].size();++j) {
+          int e = n2e[e1][j] ;
+          if(edge2[e][0] == e1 && edge2[e][1] == e2) {
+            face2edge[*ei][i] = e ;
+            break ;
+          }
+        }
+        if(face2edge[*ei][i] == -1)
+          cerr << "ERROR: not able to find edge for face " << *ei << endl ;
+      }
+      // Work on closing edge
+      Entity t1 = face2node[*ei][0] ;
+      Entity t2 = face2node[*ei][sz-1] ;
+      Entity e1 = min(t1,t2) ;
+      Entity e2 = max(t1,t2) ;
+      face2edge[*ei][sz-1] = -1 ;
+      for(int j=0;j<n2e[e1].size();++j) {
+        int e = n2e[e1][j] ;
+        if(edge2[e][0] == e1 && edge2[e][1] == e2) {
+          face2edge[*ei][sz-1] = e ;
+          break ;
+        }
+      }
+      if(face2edge[*ei][sz-1] == -1)
+        cerr << "ERROR: not able to find edge for face " << *ei << endl ;
+      
+    }
+    // Add face2edge to the fact database
+    facts.create_fact("face2edge",face2edge) ;
+    
+  } // end of createEdgesPar
+
 }

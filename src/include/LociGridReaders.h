@@ -111,6 +111,7 @@ namespace Loci {
   bool setupFVMGrid(fact_db &facts, std::string filename) ;
   void setupBoundaryConditions(fact_db &facts) ;
   void createLowerUpper(fact_db &facts) ;
+  void createEdgesPar(fact_db& facts) ;
 
   class octree {
     std::vector<Loci::vector3d<double> > vlist ;
