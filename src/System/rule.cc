@@ -199,9 +199,10 @@ namespace Loci {
             
       for(exprList::const_iterator i = in.begin();i!=in.end();++i) {
         vmap_info di(*i) ;
-        if(v.find(di) != v.end())
+        if(v.find(di) != v.end()) {
           cerr << "Warning, duplicate variable in var set." << endl ;
-        else
+          cerr << "expr = " << di << endl ;
+        } else
           v.insert(di) ;
       }
     }
