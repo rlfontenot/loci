@@ -548,7 +548,7 @@ namespace Loci {
     // Sample 100000 points total max, but at least 50 per processor.
     // If target_pnts is smaller than this sample all the points
     const int sample_size = min(max(5000/p,50),(int)target_pnts.size()) ;
-    int samp_freq = target_pnts.size()/sample_size ;
+    int samp_freq = max(int(target_pnts.size()/sample_size),1) ;
     int nsamples = target_pnts.size()/samp_freq ;
 
     vector<double> rmin(lM,1e65) ;
