@@ -1,6 +1,6 @@
 #ifndef PNN_H
 #define PNN_H
-#include <Loci>
+//#include <Loci>
 #include "kd_tree.h"
 #include <mpi.h>
 
@@ -9,7 +9,7 @@ namespace Loci {
                                 const std::vector<int> &target_ids,
                                 const std::vector<kdTree::coord3d> &search_pnts,
                                 std::vector<int> &closest,
-                                MPI_Comm comm) ;
+                                MPI_Comm comm,bool rebalance=false) ;
 }
 
 

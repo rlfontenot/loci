@@ -18,10 +18,20 @@ namespace Loci {
                      const vector<int> &ids) {
       // allocate space for pnts, copy input values into data structure
       pnts.reserve(inpnts.size()) ;
+
+      for(int d=0;d<3;++d) {
+        bbox.minc[d] =  std::numeric_limits<float>::max() ;
+        bbox.minc[0] = -std::numeric_limits<float>::max() ;
+      }
+
       for(size_t i=0;i<inpnts.size();++i) {
         coord_info ci ;
         ci.coords = inpnts[i] ;
         ci.id = ids[i] ;
+        for(int d=0;d<3;++d) {
+          bbox.minc[d] = min(bbox.minc[d],ci.coords[d]) ;
+          bbox.maxc[d] = max(bbox.maxc[d],ci.coords[d]) ;
+        }
         pnts.push_back(ci) ;
       }
       // allocate space for the splits
@@ -35,6 +45,18 @@ namespace Loci {
     kd_tree::kd_tree(vector<coord_info> &inpnts) {
       // allocate space for pnts, copy input values into data structure
       pnts.swap(inpnts) ;
+
+      // Compute bounding box
+      for(int d=0;d<3;++d) {
+        bbox.minc[d] =  std::numeric_limits<float>::max() ;
+        bbox.minc[0] = -std::numeric_limits<float>::max() ;
+      }
+      for(size_t i=0;i<pnts.size();++i) {
+        for(int d=0;d<3;++d) {
+          bbox.minc[d] = min(bbox.minc[d],pnts[i].coords[d]) ;
+          bbox.maxc[d] = max(bbox.maxc[d],pnts[i].coords[d]) ;
+        }
+      }
 
       // allocate space for the splits
       vector<int> tmp(pnts.size(),-1) ;
@@ -296,5 +318,80 @@ namespace Loci {
       // Return the id of the current closest point
       return id ;
     }
+
+    inline bool pt_in_box(coord3d v,const kd_tree::bounds &b1) {
+      return
+        (v[0] >= b1.minc[0] && v[0] <= b1.maxc[0]) &&
+        (v[1] >= b1.minc[1] && v[1] <= b1.maxc[1]) &&
+        (v[2] >= b1.minc[2] && v[2] <= b1.maxc[2]) ;
+    }
+    inline coord3d pselect(const kd_tree::bounds &b, int sel) {
+      coord3d v ;
+      v[0] = ((sel&1)==0)?b.maxc[0]:b.minc[0] ;
+      v[1] = ((sel&2)==0)?b.maxc[1]:b.minc[1] ;
+      v[2] = ((sel&4)==0)?b.maxc[2]:b.minc[2] ;
+      return v ;
+    }
+    
+    bool box_intersect(const kd_tree::bounds &b1, const kd_tree::bounds &b2) {
+      bool test = false ;
+      for(int i=0;i<8;++i)
+        test = test || pt_in_box(pselect(b1,i),b2) || pt_in_box(pselect(b2,i),b1) ;
+      return test ;
+    }
+    // recursively search for points in a bounding box, add them to the
+    // vector passed in.
+    void kd_tree::find_box(int start, int end, int depth,
+                           vector<coord_info> &found_pts,
+                           const bounds &box, bounds bnds) {
+      const int sz = end-start ;
+
+      // Check if the entire box is in bounds then add all of the current
+      // points...
+
+      if(box.minc[0] >= bnds.minc[0] &&
+         box.maxc[0] <= bnds.maxc[0] &&
+         box.minc[1] >= bnds.minc[1] &&
+         box.maxc[1] <= bnds.maxc[1] &&
+         box.minc[2] >= bnds.minc[2] &&
+         box.maxc[2] <= bnds.maxc[2]) {
+        for(int i=start;i<end;++i) 
+          found_pts.push_back(pnts[i]);
+
+        return ;
+      }
+         
+
+      // In base case perform linear search to find closest point
+      if(sz <= kd_bin_size)  {
+        if(sz == 0) // If size is zero, just return the root pivot
+          return ;
+        // search points and add them if they are in the box
+        for(int i=start;i<end;++i)
+          if(pt_in_box(pnts[i].coords,box))
+            found_pts.push_back(pnts[i]);
+        return ;
+      }
+
+      const int coord = depth%3 ;
+
+      // otherwise search for which leaf contains our point
+      int id = start ;
+
+      if(pt_in_box(pnts[id].coords,box))
+        found_pts.push_back(pnts[id]);
+         
+      // Compute the bounding box for the left and right kd-tree partitions
+      bounds bnds_left = bnds ;
+      bounds bnds_right = bnds ;
+      bnds_left.maxc[coord] = pnts[start].coords[coord] ;
+      bnds_right.minc[coord] = pnts[start].coords[coord] ;
+
+      find_box(start+1,splits[start], depth+1,
+               found_pts, box, bnds_left) ;
+      find_box(splits[start],end, depth+1,
+               found_pts, box, bnds_right) ;
+    }
+ 
   }
 }

@@ -66,6 +66,7 @@ namespace Loci {
     private:
       // These two arrays form an implicit kdtree where split gives the dividing
       // line between the two halves of the tree for the current pivot
+      bounds bbox ;  // Top level bounding box
       std::vector<coord_info> pnts ;
       std::vector<int> splits ;
 
@@ -91,7 +92,13 @@ namespace Loci {
       // and bounds as we go
       int find_closest(int start,int end, int depth, const coord3d &v,
                        double &rmin,bounds bnds) ;
-  
+
+      // recursively search for points in a bounding box, add them to the
+      // vector passed in.
+      void find_box(int start, int end, int depth,
+                    std::vector<coord_info> &found_pts,
+                    const bounds &box, bounds bnds) ;
+      
 
     public:
       kd_tree(const std::vector<coord3d> &inpnts,
@@ -104,7 +111,7 @@ namespace Loci {
       }
       // Search for the closest point using the kd_tree
       int find_closest(coord3d v, double &rmin) {
-        const int sp = find_closest(0,pnts.size(),0,v,rmin,bounds()) ;
+        const int sp = find_closest(0,pnts.size(),0,v,rmin,bbox) ;
         if(sp < 0)
           return std::numeric_limits<int>::min() ;
         // Look up id of matched point
@@ -115,7 +122,11 @@ namespace Loci {
         double rmin = std::numeric_limits<double>::max() ;
         return find_closest(v,rmin) ;
       }
-    } ;
+
+      void find_box(std::vector<coord_info> &found_pts, bounds box) {
+        find_box(0,pnts.size(),0,found_pts,box,bbox) ;
+      }
+     } ;
   }
 }
 

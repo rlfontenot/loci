@@ -344,15 +344,13 @@ namespace Loci {
 
 
     // First search with the points that we have
-    {  
-      vector<kd_tree::coord_info> targ_send = tcopy ;
+    vector<kd_tree::coord_info> targ_send = tcopy ;
 
-      kd_tree kd(targ_send) ;
-
-      for(int i=0;i<lM;++i) {
-        close_pair[i].first=scopy[i].id ;
-        close_pair[i].second = kd.find_closest(scopy[i].coords,rmin[i]) ;
-      }
+    kd_tree kd(targ_send) ;
+    
+    for(int i=0;i<lM;++i) {
+      close_pair[i].first=scopy[i].id ;
+      close_pair[i].second = kd.find_closest(scopy[i].coords,rmin[i]) ;
     }
 
     if(p > 1) { // If there are other processors, communicate points to
@@ -392,17 +390,12 @@ namespace Loci {
       vector<int> scounts(p,0) ;
       vector<kd_tree::coord_info> pntlist ;
       if(!no_tpnts) 
-        for(int i=0;i<p;++i) 
-          if(i!=myid && box_intersect(bnd_req[i],pbnds[myid])) {
-            kd_tree::bounds check_box = bnd_req[i] ;
-            for(int j=0;j<tcopy.size();++j) {
-              if(pt_in_box(tcopy[j].coords,check_box)) {
-                scounts[i]++ ;
-                pntlist.push_back(tcopy[j]) ;
-              }
-            }
-          }
-    
+        for(int i=0;i<p;++i) {
+          int bsz = pntlist.size() ;
+          kd.find_box(pntlist,bnd_req[i]) ;
+          scounts[i] = pntlist.size()-bsz ;
+        }
+      
       for(size_t i=0;i<scounts.size();++i) 
         scounts[i]*=sizeof(kd_tree::coord_info) ;
     
@@ -531,20 +524,187 @@ namespace Loci {
       close_pt[i] = kd.find_closest(search_pnts[i]) ;
   }
 
+  void parallelNN_SampleSearch(const vector<coord3d> &target_pnts,
+                               const vector<int> &target_ids,
+                               const vector<coord3d> &search_pnts,
+                               vector<int> &close_pt,
+                               MPI_Comm comm) {
+
+    int p = 0 ;
+    int myid = 0 ;
+    /* Get the number of processors and my processor identification */
+    MPI_Comm_size(comm,&p) ;
+    MPI_Comm_rank(comm,&myid) ;
+
+    int lM = search_pnts.size() ;
+
+    if(p==1) {
+      kd_tree kd(target_pnts,target_ids) ;
+      for(int i=0;i<lM;++i) 
+        close_pt[i] = kd.find_closest(search_pnts[i]) ;
+      return ;
+    }
+
+    // Sample 100000 points total max, but at least 50 per processor.
+    // If target_pnts is smaller than this sample all the points
+    const int sample_size = min(max(5000/p,50),(int)target_pnts.size()) ;
+    int samp_freq = target_pnts.size()/sample_size ;
+    int nsamples = target_pnts.size()/samp_freq ;
+
+    vector<double> rmin(lM,1e65) ;
+
+    {// First sample the targets
+      vector<coord3d> sample_pts(nsamples) ;
+      vector<int> sample_ids(nsamples) ;
+      for(int i=0;i<nsamples;++i) {
+        sample_pts[i] = target_pnts[i*samp_freq] ;
+        sample_ids[i] = target_ids[i*samp_freq] ;
+      }
+
+      int tsz = nsamples ;
+      vector<int> rcounts(p) ;
+      MPI_Allgather(&tsz,1,MPI_INT,&rcounts[0],1,MPI_INT,comm) ;
+      vector<int> rdispls(p) ;
+      rdispls[0] = 0 ;
+      for(int i=1;i<p;++i) {
+        rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
+      }
+      int rsize = rdispls[p-1]+rcounts[p-1] ;
+      
+      vector<coord3d> tpnts(rsize);
+      vector<int> tids(rsize) ;
+      MPI_Allgatherv((void *)&sample_ids[0],tsz,MPI_INT,
+                     &tids[0],&rcounts[0],&rdispls[0],
+                     MPI_INT,comm) ;
+      for(int i=0;i<p;++i)
+        rcounts[i] *= 3 ;
+      rdispls[0] = 0 ;
+      for(int i=1;i<p;++i) {
+        rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
+      }
+      rsize = rdispls[p-1]+rcounts[p-1] ;
+      
+      
+      MPI_Allgatherv((void *)&sample_pts[0],tsz*3,MPI_DOUBLE,
+                     &tpnts[0],&rcounts[0],&rdispls[0],
+                     MPI_DOUBLE,comm) ;
+      
+      kd_tree kd(tpnts,tids) ;
+
+      for(int i=0;i<lM;++i) 
+        close_pt[i] = kd.find_closest(search_pnts[i],rmin[i]) ;
+    }
+
+    // Compute remaining target points
+    vector<kd_tree::coord_info> remains(target_pnts.size()-nsamples) ;
+    int pt = 0 ;
+    int cnt = 0 ;
+    const int max_pt = nsamples*samp_freq ;
+    for(int i=0;i<target_pnts.size();++i) 
+      if(i==pt && pt < max_pt) {
+        pt += samp_freq ;
+      } else {
+        remains[cnt].coords[0] = target_pnts[i][0] ;
+        remains[cnt].coords[1] = target_pnts[i][1] ;
+        remains[cnt].coords[2] = target_pnts[i][2] ;
+        remains[cnt].id = target_ids[i] ;
+        cnt++ ;
+      }
+
+
+    // Compute bounding box of space to be searched
+    kd_tree::bounds bndi ;
+    for(int d=0;d<3;++d) {
+      bndi.minc[d] = .25*std::numeric_limits<double>::max() ;
+      bndi.maxc[d] = -.25*std::numeric_limits<double>::max() ;
+    }
+    for(int i=0;i<lM;++i) {
+      double r = sqrt(rmin[i]) ;
+      coord3d v = search_pnts[i] ;
+      for(int d=0;d<3;++d) {
+        bndi.minc[d] = min(bndi.minc[d],v[d]-r) ;
+        bndi.maxc[d] = max(bndi.maxc[d],v[d]+r) ;
+      }
+    }
+
+    // Communicate bounds request to other processors
+    vector<kd_tree::bounds> bnd_req(p) ;
+    MPI_Allgather(&bndi,6,MPI_DOUBLE,&bnd_req[0],6,MPI_DOUBLE,comm) ;
+    
+
+    // Now communicate points that processors need to complete NN search
+    vector<int> scounts(p,0) ;
+    vector<kd_tree::coord_info> pntlist ;
+    if(remains.size() != 0) {
+      kd_tree kdr(remains) ;
+      for(int i=0;i<p;++i) { // Find points in i'th processor bounding box
+        int bsz = pntlist.size() ;
+        kdr.find_box(pntlist,bnd_req[i]) ;
+        scounts[i] = pntlist.size()-bsz ;
+      }
+    }
+    for(size_t i=0;i<scounts.size();++i) 
+      scounts[i]*=sizeof(kd_tree::coord_info) ;
+    
+    vector<int> sdispls(p) ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i)
+      sdispls[i] = sdispls[i-1]+scounts[i-1] ;
+    
+    vector<int> rcounts(p) ;
+    MPI_Alltoall(&scounts[0],1,MPI_INT,&rcounts[0],1,MPI_INT,comm) ;
+    
+    vector<int> rdispls(p) ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
+    }
+    
+    int result_size = (rdispls[p-1]+rcounts[p-1])/sizeof(kd_tree::coord_info) ;
+
+    vector<kd_tree::coord_info> pcollect(result_size) ;
+    
+    MPI_Alltoallv(&pntlist[0],&scounts[0],&sdispls[0],MPI_BYTE,
+                  &pcollect[0],&rcounts[0],&rdispls[0],MPI_BYTE,
+                  comm) ;
+
+    // Now we have collected all remaining points we need to complete the
+    // search
+    kd_tree kd_xfer(pcollect) ;
+
+    // Check to see if we have a updated minimum
+    for(int i=0;i<lM;++i) {
+      int id = kd_xfer.find_closest(search_pnts[i],rmin[i]) ;
+      if(id >=0)
+        close_pt[i] = id ;
+    }
+
+  }
+
   void parallelNearestNeighbors(const vector<coord3d> &target_pnts,
                                 const vector<int> &target_ids,
                                 const vector<coord3d> &search_pnts,
                                 vector<int> &close_pt,
-                                MPI_Comm comm) {
+                                MPI_Comm comm, bool rebalance) {
 
     int num_targets = 0 ;
     int lsz = target_pnts.size() ;
     MPI_Allreduce(&lsz,&num_targets,1,MPI_INT,MPI_SUM,comm) ;
-    if(num_targets > 200000)
-      parallelNN_DistributedSearch(target_pnts,target_ids,search_pnts,close_pt,
-                                   comm) ;
-    else
+    
+    if(num_targets <= 100000) {
       parallelNN_GatherSearch(target_pnts,target_ids,search_pnts,close_pt,
                               comm) ;
+    } else {
+
+      if(rebalance) {
+        // Maybe a re-balanced sample search would be better
+        parallelNN_DistributedSearch(target_pnts,target_ids,search_pnts,
+                                     close_pt, comm) ;
+      } else {
+        parallelNN_SampleSearch(target_pnts,target_ids,search_pnts,
+                                close_pt, comm) ;
+      }
+    }
+
   }
 }
