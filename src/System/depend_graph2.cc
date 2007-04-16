@@ -1,5 +1,6 @@
 #include <depend_graph.h>
 #include "dist_tools.h"
+#include "loci_globs.h"
 #include <map>
 using std::map ;
 #include <vector>
@@ -775,6 +776,8 @@ namespace Loci {
   void clean_graph(digraph &gr, const variableSet& given,
                                       const variableSet& target) {
 
+    bool debugging = MPI_processes == 1 || verbose ;
+    
     // testing...
     //given -= variable("EMPTY") ;
     bool cleaned_rules = false ;
@@ -828,7 +831,8 @@ namespace Loci {
           }
 
           if((extract_rules(breadth) & outloop) == EMPTY) {
-            debugout << "removing non-participating output rule " << *ri << endl ;
+            if(debugging)
+              debugout << "removing non-participating output rule " << *ri << endl ;
             remove_rules += *ri ;
           }
         }
@@ -872,16 +876,16 @@ namespace Loci {
       for(fi=rules.begin();fi!=rules.end();++fi)
         subset += fi->targets() ;
 
-#ifdef VERBOSE
-      // some debugout info
-      ruleSet rulesNOTinComponent =
-        ruleSet(extract_rules(gr.get_all_vertices()) - rules) ;
-      debugout << "The following rules are cleaned out because they"
-               << " are not in the targets->sources component: {{{{{"
-               << endl ;
-      debugout << rulesNOTinComponent ;
-      debugout << "}}}}}" << endl << endl ;
-#endif
+      if(debugging) {
+        // some debugout info
+        ruleSet rulesNOTinComponent =
+          ruleSet(extract_rules(gr.get_all_vertices()) - rules) ;
+        debugout << "The following rules are cleaned out because they"
+                 << " are not in the targets->sources component: {{{{{"
+                 << endl ;
+        debugout << rulesNOTinComponent ;
+        debugout << "}}}}}" << endl << endl ;
+      }
         
       // Check for looping rules here, don't clean looping rule if it is
       // in the subset.
@@ -890,12 +894,12 @@ namespace Loci {
       for(fi=rules.begin();fi!=rules.end();++fi) {
         if(fi->get_info().qualifier() != "looping")
           if((subset & fi->sources()) != fi->sources()) {
-            //#ifdef VERBOSE
-            debugout << "cleanout " << *fi << endl ;
-            debugout << "because of variables "
-                     << extract_vars(fi->sources()-subset)
-                     << endl ;
-            //#endif
+            if(debugging) {
+              debugout << "cleanout " << *fi << endl ;
+              debugout << "because of variables "
+                       << extract_vars(fi->sources()-subset)
+                       << endl ;
+            }
             cleanout += fi->ident() ;
           }
       }
@@ -920,12 +924,12 @@ namespace Loci {
         if(ri->get_info().qualifier() != "looping") {
           if((ri->sources() - touched_variables)!=EMPTY) {
             cleanout2 += ri->ident() ;
-            //#ifdef VERBOSE
-            debugout << "cleanout " << *ri << endl ;
-            debugout << "because of variables "
-                     << extract_vars(ri->sources()-touched_variables)
-                     << endl ;
-            //#endif
+            if(debugging) {
+              debugout << "cleanout " << *ri << endl ;
+              debugout << "because of variables "
+                       << extract_vars(ri->sources()-touched_variables)
+                       << endl ;
+            }
           }
         } else
           looping_rules += *ri ;
@@ -990,10 +994,10 @@ namespace Loci {
               
             invoke_rule(floop,gr) ;
             gr.remove_vertex(ri->ident()) ;
-#ifdef VERBOSE
-            debugout << "restructure iteration: " << floop << endl ;
-            debugout << "originally was: " << *ri << endl ;
-#endif
+            if(debugging) {
+              debugout << "restructure iteration: " << floop << endl ;
+              debugout << "originally was: " << *ri << endl ;
+            }
           }
         }
       }
@@ -1006,12 +1010,86 @@ namespace Loci {
     } while (cleaned_rules) ;
   }
     
+  // return only the rules that can be used with the given facts
+  ruleSet active_rules(ruleSet rin,variableSet given) {
+    ruleSet outrules ;
+    digraph gr ;
+    for(ruleSet::const_iterator ri=rin.begin();ri!=rin.end();++ri) {
+      variableSet inputs = ri->constraints() ;
+      if(inputs == EMPTY)
+        inputs = ri->sources() ;
+      variableSet outputs = ri->targets() ;
+      int rid = ri->ident() ;
+      inputs -= outputs ;
+      if(inputs == EMPTY)
+        outrules += *ri ;
+      variableSet::const_iterator vi ;
+      for(vi=inputs.begin();vi!=inputs.end();++vi) {
+        variable v = *vi ;
+        variable::info vinfo = v.get_info() ;
+        vinfo.assign = false ;
+        vinfo.time_id = time_ident() ;
+        vinfo.offset = 0 ;
+        variable vn(vinfo) ;
+        if(vinfo.tvar)
+          given += vn ;
+        gr.add_edge(vn.ident(),rid) ;
+      }
+      for(vi=outputs.begin();vi!=outputs.end();++vi) {
+        variable v = *vi ;
+        variable::info vinfo = v.get_info() ;
+        vinfo.assign = false ;
+        vinfo.time_id = time_ident() ;
+        vinfo.offset = 0 ;
+        variable vn(vinfo) ;
+        gr.add_edge(rid,vn.ident()) ;
+      }
 
+    }
+    digraph::vertexSet working = intervalSet(given) ;
+    digraph::vertexSet visited_vertices = working ;
+    digraph gt = gr.transpose() ;
+    while(working != EMPTY) {
+      // While we have vertices to work on, compute additional vertices that
+      // can be scheduled
+      digraph::vertexSet new_vertices ;
+      digraph::vertexSet::const_iterator ni ;
+      // loop over working set and create a list of candidate vertices
+      for(ni=working.begin();ni != working.end(); ++ni) 
+        new_vertices += gr[*ni] ;
+      
+      // If a vertex has already been scheduled it can't be scheduled again,
+      // so remove visited vertices
+      new_vertices = new_vertices - visited_vertices    ;
+      // We only schedule vertices that are also in the only_vertices set
+      working = new_vertices ;
+      new_vertices = EMPTY ;
+      // Find any vertex from this working set that has had all vertices leading
+      // to it scheduled
+      for(ni=working.begin();ni != working.end(); ++ni) 
+        if((gt[*ni] & visited_vertices) == gt[*ni])
+          new_vertices += *ni ;
+      working = new_vertices ;
+      // update visited vertices set to include scheduled vertices
+      visited_vertices += new_vertices ;
+    }
+    outrules += extract_rules(visited_vertices) ;
+
+    if(MPI_processes == 1 || verbose) {
+      rin -= outrules ;
+      debugout << "pre-elimination of the following nonactive rules:"
+               << rin << endl ;
+
+    }
+    return outrules ;
+  }
+  
   dependency_graph2::dependency_graph2(const rule_db& rdb,
                                        const variableSet& given,
                                        const variableSet& target) {
     // at first, we get all the rules in the rule database
     ruleSet all_rules = rdb.all_rules() ;
+    //ruleSet all_rules = active_rules(rdb.all_rules(),given) ;
     // then we classify all the iterations in the rule database,
     // while also pick out non iteration rules
     // all the iteration information is stored in an
