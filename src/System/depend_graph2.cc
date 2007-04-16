@@ -876,7 +876,7 @@ namespace Loci {
       for(fi=rules.begin();fi!=rules.end();++fi)
         subset += fi->targets() ;
 
-      if(debugging) {
+      if(verbose) {
         // some debugout info
         ruleSet rulesNOTinComponent =
           ruleSet(extract_rules(gr.get_all_vertices()) - rules) ;
@@ -1021,19 +1021,19 @@ namespace Loci {
       variableSet outputs = ri->targets() ;
       int rid = ri->ident() ;
       inputs -= outputs ;
-      if(inputs == EMPTY)
-        outrules += *ri ;
       variableSet::const_iterator vi ;
+      variableSet vinSet,voutSet ;
       for(vi=inputs.begin();vi!=inputs.end();++vi) {
         variable v = *vi ;
         variable::info vinfo = v.get_info() ;
         vinfo.assign = false ;
         vinfo.time_id = time_ident() ;
         vinfo.offset = 0 ;
+        vinfo.priority = vector<std::string>() ;
         variable vn(vinfo) ;
         if(vinfo.tvar)
           given += vn ;
-        gr.add_edge(vn.ident(),rid) ;
+        vinSet += vn ;
       }
       for(vi=outputs.begin();vi!=outputs.end();++vi) {
         variable v = *vi ;
@@ -1041,49 +1041,70 @@ namespace Loci {
         vinfo.assign = false ;
         vinfo.time_id = time_ident() ;
         vinfo.offset = 0 ;
+        vinfo.priority = vector<std::string>() ;
         variable vn(vinfo) ;
+        voutSet += vn ;
+      }
+      vinSet -= voutSet ;
+      if(vinSet == EMPTY) {
+        given += voutSet ;
+        outrules += *ri ;
+      }
+      for(vi=vinSet.begin();vi!=vinSet.end();++vi) {
+        variable vn = *vi ;
+        gr.add_edge(vn.ident(),rid) ;
+      }
+      for(vi=voutSet.begin();vi!=voutSet.end();++vi) {
+        variable vn = *vi ;
         gr.add_edge(rid,vn.ident()) ;
       }
 
     }
-    digraph::vertexSet working = intervalSet(given) ;
-    digraph::vertexSet visited_vertices = working ;
+    variableSet working = given ;
+    variableSet visited_vars = working ;
+    variableSet visited_rules ;
     digraph gt = gr.transpose() ;
     while(working != EMPTY) {
       // While we have vertices to work on, compute additional vertices that
       // can be scheduled
-      digraph::vertexSet new_vertices ;
-      digraph::vertexSet::const_iterator ni ;
+      ruleSet rule_consider ;
+      variableSet::const_iterator ni ;
       // loop over working set and create a list of candidate vertices
       for(ni=working.begin();ni != working.end(); ++ni) 
-        new_vertices += gr[*ni] ;
-      
-      // If a vertex has already been scheduled it can't be scheduled again,
-      // so remove visited vertices
-      new_vertices = new_vertices - visited_vertices    ;
-      // We only schedule vertices that are also in the only_vertices set
-      working = new_vertices ;
-      new_vertices = EMPTY ;
-      // Find any vertex from this working set that has had all vertices leading
-      // to it scheduled
-      for(ni=working.begin();ni != working.end(); ++ni) 
-        if((gt[*ni] & visited_vertices) == gt[*ni])
-          new_vertices += *ni ;
-      working = new_vertices ;
-      // update visited vertices set to include scheduled vertices
-      visited_vertices += new_vertices ;
+        rule_consider += extract_rules(gr[ni->ident()]) ;
+        
+      rule_consider -= visited_rules ;
+      ruleSet::const_iterator ri ;
+      ruleSet new_rules ;
+      variableSet new_vars ;
+      for(ri=rule_consider.begin();ri!=rule_consider.end();++ri) {
+        int id = ri->ident() ;
+        if((entitySet(extract_vars(gt[id])) & entitySet(visited_vars))
+           == entitySet(gt[id])) {
+          new_rules += *ri ;
+          new_vars += extract_vars(gr[id]) ;
+        }
+      }
+      new_vars -= visited_vars ;
+      visited_vars += new_vars ;
+      working = new_vars ;
+      visited_rules += new_rules ;
     }
-    outrules += extract_rules(visited_vertices) ;
+    
+
+    outrules += visited_rules ;
 
     if(MPI_processes == 1 || verbose) {
       rin -= outrules ;
-      for(ruleSet::const_iterator ri=rin.begin();ri!=rin.end();++ri) {
-        debugout << "due to "
-                 << extract_vars(gt[ri->ident()]-visited_vertices)
-                 << endl ;
-        debugout << "eliminating " << *ri << endl ;
+      if(rin != EMPTY) {
+        debugout << "precleaning rules that cannot be scheduled based on given facts:" << endl ;
+        for(ruleSet::const_iterator ri=rin.begin();ri!=rin.end();++ri) {
+          variableSet x = extract_vars(gt[ri->ident()]) ;
+          x -= visited_vars ;
+          debugout << "eliminating " << *ri  
+                   << " due to " << x << endl ;
+        }
       }
-
     }
     return outrules ;
   }
@@ -1092,10 +1113,8 @@ namespace Loci {
                                        const variableSet& given,
                                        const variableSet& target) {
     // at first, we get all the rules in the rule database
-    ruleSet all_rules = rdb.all_rules() ;
-    debugout << "given = " << given << endl ;
-    debugout << "target = " << target << endl ;
-    //ruleSet all_rules = active_rules(rdb.all_rules(),given) ;
+    //ruleSet all_rules = rdb.all_rules() ;
+    ruleSet all_rules = active_rules(rdb.all_rules(),given) ;
     // then we classify all the iterations in the rule database,
     // while also pick out non iteration rules
     // all the iteration information is stored in an
