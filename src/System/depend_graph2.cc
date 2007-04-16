@@ -1077,8 +1077,12 @@ namespace Loci {
 
     if(MPI_processes == 1 || verbose) {
       rin -= outrules ;
-      debugout << "pre-elimination of the following nonactive rules:"
-               << rin << endl ;
+      for(ruleSet::const_iterator ri=rin.begin();ri!=rin.end();++ri) {
+        debugout << "due to "
+                 << extract_vars(gt[ri->ident()]-visited_vertices)
+                 << endl ;
+        debugout << "eliminating " << *ri << endl ;
+      }
 
     }
     return outrules ;
@@ -1089,6 +1093,8 @@ namespace Loci {
                                        const variableSet& target) {
     // at first, we get all the rules in the rule database
     ruleSet all_rules = rdb.all_rules() ;
+    debugout << "given = " << given << endl ;
+    debugout << "target = " << target << endl ;
     //ruleSet all_rules = active_rules(rdb.all_rules(),given) ;
     // then we classify all the iterations in the rule database,
     // while also pick out non iteration rules
