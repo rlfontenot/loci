@@ -1374,7 +1374,7 @@ namespace Loci
 
   void SendInput (int dest, int tStart, int tSize)
   {
-    int position, size, pSize, tPos;
+    int position, size=0, pSize, tPos;
     int bufInfo[3];
 
     //compute buffer size
@@ -1446,7 +1446,7 @@ namespace Loci
 
   void SendOutput (int dest, int tStart, int tSize, double *tTime)
   {
-    int position, size, tPos, pSize;
+    int position, size=0, tPos, pSize;
     int bufInfo[3];
 
     //compute buffer size
