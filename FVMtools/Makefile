@@ -54,10 +54,10 @@ predicates.o:
 	$(CC) $(COPT) -c $(DEFINES) predicates.c
 
 clean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(OTHER_APPS) $(JUNK) *.o
 
 distclean:
-	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
+	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES) $(OTHER_APPS) *.o
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
