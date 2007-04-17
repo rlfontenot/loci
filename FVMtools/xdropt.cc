@@ -1,5 +1,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
+#include <time.h>
 #include <iostream>
 #include <fstream>
 #include <Tools/xdr.h>
