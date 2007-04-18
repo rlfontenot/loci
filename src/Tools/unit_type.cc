@@ -227,7 +227,7 @@ namespace Loci {
 
   UNIT_type::composite_units UNIT_type::cgs_composite_unit_table[]={
     //abbreviation of SI
-    {"m","centimeter",0.1},
+    {"m","centimeter",0.01},
     {"kilogram","gram",1000},
     {"g","gram",1},
     {"kg","gram",1000},
@@ -238,9 +238,9 @@ namespace Loci {
     {"cd","candela",1},
 
     //metric system
-    {"kilometer","centimeter",1000000},
-    {"km","centimeter",1000000},
-    {"meter","centimeter",1000},
+    {"kilometer","centimeter",100000},
+    {"km","centimeter",100000},
+    {"meter","centimeter",100},
     {"milimeter","centimeter",0.1},
     {"mm","centimeter",0.1},
     {"cm","centimeter",1},
@@ -255,6 +255,14 @@ namespace Loci {
     {"year","second",31536000},
     {"y","second",31536000},
     {"shake","second",1e-8},
+    {"millisecond","second",1e-3},
+    {"ms","second",1e-3},
+    {"microsecond","second",1e-6},
+    {"us","second",1e-6},
+    {"usec","second",1e-6},
+    {"nanosecond","second",1e-9},
+    {"ns","second",1e-9},
+    {"picosecond","second",1e-12},
 
     //temperature interval
     {"Fahrenheit","kelvin",0.5555556},
@@ -265,14 +273,14 @@ namespace Loci {
     {"C","kelvin",1},
 
     //composite unit
-    {"newton","gram*centimeter/second/second",10000},
-    {"N","gram*centimeter/second/second",10000},
-    {"joule","gram*centimeter/second/second*centimeter",100000},
-    {"J","gram*centimeter/second/second*centimeter",100000},
-    {"watt","gram*centimeter/second/second*centimeter/second",100000},
-    {"W","gram*centimeter/second/second*centimeter/second",100000},
-    {"pascal","gram*centimeter/second/second/centimeter/centimeter",10000},
-    {"Pa","gram*centimeter/second/second/centimeter/centimeter",10000},
+    {"newton","gram*centimeter/second/second",1e5},
+    {"N","gram*centimeter/second/second",1e5},
+    {"joule","gram*centimeter/second/second*centimeter",1e7},
+    {"J","gram*centimeter/second/second*centimeter",1e7},
+    {"watt","gram*centimeter/second/second*centimeter/second",1e7},
+    {"W","gram*centimeter/second/second*centimeter/second",1e7},
+    {"pascal","gram*centimeter/second/second/centimeter/centimeter",10},
+    {"Pa","gram*centimeter/second/second/centimeter/centimeter",10},
 
     {"rph","radians/second",1.7453292519943295769236907684887e-3},
     {"rpm","radians/second",0.10471975511965977461542144610932},
@@ -291,7 +299,7 @@ namespace Loci {
     {"time","second"},
     {"Time","second"},
     {"Temperature","K"},
-    {"tmeperature","K"},
+    {"temperature","K"},
     {"electric_current","A"},
     {"Electric_current","A"},
     {"Amount_of_substance","mole"},
