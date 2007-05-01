@@ -387,10 +387,10 @@ namespace Loci {
       bnds_left.maxc[coord] = pnts[start].coords[coord] ;
       bnds_right.minc[coord] = pnts[start].coords[coord] ;
 
-      find_box(start+1,splits[start], depth+1,
-               found_pts, box, bnds_left) ;
-      find_box(splits[start],end, depth+1,
-               found_pts, box, bnds_right) ;
+      if(box.minc[coord] <= bnds_left.maxc[coord])
+        find_box(start+1,splits[start], depth+1, found_pts, box, bnds_left) ;
+      if(box.maxc[coord] >= bnds_right.minc[coord])
+        find_box(splits[start],end, depth+1, found_pts, box, bnds_right) ;
     }
  
   }

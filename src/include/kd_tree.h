@@ -124,6 +124,14 @@ namespace Loci {
       }
 
       void find_box(std::vector<coord_info> &found_pts, bounds box) {
+        if(box.maxc[0] < bbox.minc[0] ||
+           box.minc[0] > bbox.maxc[0] ||
+           box.maxc[1] < bbox.minc[1] ||
+           box.minc[1] > bbox.maxc[1] ||
+           box.maxc[2] < bbox.minc[2] ||
+           box.minc[2] > bbox.maxc[2]) // Check for intersection
+          return ;// if boxes don't intersect, we don't search
+        // otherwise find points contained in box
         find_box(0,pnts.size(),0,found_pts,box,bbox) ;
       }
      } ;
