@@ -12,6 +12,8 @@ using std::set;
 #include <fact_db.h>
 #include <constraint.h>
 #include <multiMap.h>
+#include <algorithm>
+using std::sort ;
 
 namespace Loci {
 

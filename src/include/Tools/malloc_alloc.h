@@ -9,8 +9,13 @@ namespace Loci {
     typedef const value_type* const_pointer;
     typedef value_type&       reference;
     typedef const value_type& const_reference;
+#if defined(__sgi)
+    typedef size_t       size_type;
+    typedef ptrdiff_t    difference_type;
+#else
     typedef std::size_t       size_type;
     typedef std::ptrdiff_t    difference_type;
+#endif
     
     template <class U> 
     struct rebind { typedef malloc_alloc<U> other; };
@@ -27,13 +32,23 @@ namespace Loci {
     }
     
     pointer allocate(size_type n, const_pointer = 0) {
+#if defined(__sgi)
+      void* p = malloc(n * sizeof(T));
+      if (!p)
+        throw std::bad_alloc();
+#else
       void* p = std::malloc(n * sizeof(T));
       if (!p)
         throw std::bad_alloc();
+#endif
       return static_cast<pointer>(p);
     }
     
+#if defined(__sgi)
+    void deallocate(pointer p, size_type) { free(p); }
+#else
     void deallocate(pointer p, size_type) { std::free(p); }
+#endif
     
     size_type max_size() const { 
       return static_cast<size_type>(-1) / sizeof(T);

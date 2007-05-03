@@ -214,7 +214,7 @@ int Server(int ac, char *av[], int Id, int numProcessors)
 
   // Computes number of nodes to send to each PE
    
-  int nodes_send,nodes_sendlast,num,ctr,temp,count,flag=0;  
+  int nodes_send,nodes_sendlast,num,ctr,temp,count, flag=0;  
   num = num_nodes/npes;
    
   if( num_nodes % npes == 0)
@@ -530,7 +530,7 @@ int Server(int ac, char *av[], int Id, int numProcessors)
     }
      
   
-  int  y = 0; 
+  //  int  y = 0; 
   // Multiplying by 4 because each key has x,y,z co-ordinate and index
   
   for(int i=0;i<npes;i++)
@@ -673,7 +673,7 @@ int Server(int ac, char *av[], int Id, int numProcessors)
   // A final SAMPLE SORT is required based on the new node numbering 
   // to align the nodes in selected Ordering 
    
-  y=0;
+  //  y=0;
   int *split = new int[npes];
   int *scount = new int[npes];
   
@@ -1951,7 +1951,7 @@ void Client(int id, int numProcessors,int ac,char *av[]) {
     }
 
   
-  int  y=0;
+  //  int  y=0;
   // Multiplying by 4 because there are x,y,z coordinates and the key number
   
   for(int i=0;i<npes;i++)
@@ -2370,7 +2370,7 @@ void Client(int id, int numProcessors,int ac,char *av[]) {
   for(int i=0;i<npes;i++)
     scount1[i]=0;
        
-  y=0;
+  //  y=0;
   
   for(int i=0;i<nfaces_send;i++)
     {

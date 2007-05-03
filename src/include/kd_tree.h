@@ -2,7 +2,12 @@
 #define KDTREE_H
 #include <vector>
 #include <algorithm>
+#include <Config/conf.h>
+#ifdef NO_CMATH
+#include <math.h>
+#else
 #include <cmath>
+#endif
 #include <limits>
 
 namespace Loci {

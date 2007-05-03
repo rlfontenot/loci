@@ -831,7 +831,7 @@ int Server(int ac, char *av[], int Id, int numProcessors)
       
 
   // Calculating total number of vol elmn that would be received by PE 0 
-  int cellnum,vol_elmn;
+  int cellnum, vol_elmn;
 
   vol_elmn = num_hex+num_tets+num_pent5+num_pent6;       
     

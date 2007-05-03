@@ -24,6 +24,8 @@ using std::list ;
 using std::string ;
 #include <vector>
 using std::vector ;
+#include <algorithm>
+using std::sort ;
 using std::pair ;
 
 #include <malloc.h>

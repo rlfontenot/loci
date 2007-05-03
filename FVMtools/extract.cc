@@ -222,12 +222,12 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
     if(var_name == "y") {
       FORALL(dom,nd) {
-        dval[c++] = pos[nd].x ;
+        dval[c++] = pos[nd].y ;
       } ENDFORALL ;
     }
     if(var_name == "z") {
       FORALL(dom,nd) {
-        dval[c++] = pos[nd].x ;
+        dval[c++] = pos[nd].z ;
       } ENDFORALL ;
     }
   } else if(var_name == "0" || var_name =="1" || var_name == "2") {
@@ -273,7 +273,7 @@ void setup_grid_topology(string casename, string iteration) {
   if(!Loci::setupFVMGrid(facts,file)) {
     cerr << "unable to read grid " << file << endl ;
   }
-  createLowerUpper(facts) ;
+  Loci::createLowerUpper(facts) ;
   string filename = "output/"+casename+".topo" ;
   multiMap upper,lower,boundary_map,face2node ;
   Map ref ;
@@ -375,7 +375,7 @@ void extract_grid(string casename, string iteration,
 
   Array<int,5> events ;
   topo->fileWritingSequence(events) ;
-  FATAL(Loci::MPI_processes != 1) ;
+  fatal(MPI_processes != 1) ;
   store<vector3d<float> > pos ;
   string posname = "output/grid_pos." + iteration + "_" + casename ;
   hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),

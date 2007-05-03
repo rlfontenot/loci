@@ -12,6 +12,7 @@ using std::vector ;
 using std::pair ;
 #include <algorithm>
 using std::sort ;
+using std::unique ;
 
 #include "dist_tools.h"
 using std::cout ;
