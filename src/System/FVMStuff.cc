@@ -156,6 +156,10 @@ namespace Loci {
     hex[1] = quad_faces[quad_id[0]][2] ;
     hex[2] = quad_faces[quad_id[0]][1] ;
     hex[3] = quad_faces[quad_id[0]][0] ;
+    hex[0] = hex[0] ;
+    hex[1] = hex[1] ;
+    hex[2] = hex[2] ;
+    hex[3] = hex[3] ;
     for(int i = 0; i < 4; i+=2) {
       int n1 = hex[i] ;
       int n2 = hex[i+1] ;
@@ -182,6 +186,10 @@ namespace Loci {
     prism[0] = tri_faces[0][2] ;
     prism[1] = tri_faces[0][1] ;
     prism[2] = tri_faces[0][0] ;
+    prism[3] = prism[0] ;
+    prism[4] = prism[1] ;
+    prism[5] = prism[2] ;
+    
     int n1 = prism[0] ;
     int n2 = prism[1] ;
     int n3 = prism[2] ;
@@ -194,6 +202,7 @@ namespace Loci {
           prism[3] = quad_faces[j][(k+3)%4] ;
           cnt++ ;
         }
+          
         if((f1 == n2 && f2 == n3)) {
           prism[4] = quad_faces[j][(k+3)%4] ;
           prism[5] = quad_faces[j][(k+2)%4] ;
@@ -211,6 +220,7 @@ namespace Loci {
     pyramid[1] = quad_faces[0][2] ;
     pyramid[2] = quad_faces[0][1] ;
     pyramid[3] = quad_faces[0][0] ;
+    pyramid[4] = pyramid[0] ;
     for(int i=0;i<3;++i) {
       int nd = tri_faces[0][i] ;
       if(nd != pyramid[0] && nd != pyramid[1] &&

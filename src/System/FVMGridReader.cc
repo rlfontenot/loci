@@ -1310,30 +1310,30 @@ namespace Loci {
     FORALL(*geom_cells,cc) {
       color[cc] = -1 ;
     } ENDFORALL ;
-    entitySet work = interval((*geom_cells).Min(),(*geom_cells).Min()) ;
     int col = (*geom_cells).Min() ;
-    entitySet visited ;
-    entitySet left_out = ~EMPTY ;
+    vector<int> visited ;
+    entitySet left_out = *geom_cells ;
     while(left_out != EMPTY) {
-      while(work != EMPTY) {
-	entitySet working ;
-	FORALL(work,cc) {
+      vector<int> work ;
+      work.push_back(left_out.Min()) ;
+      while(work.size() != 0) {
+	vector<int> working ;
+	for(size_t i=0;i<work.size();++i) {
+          int cc = work[i] ;
 	  if(color[cc] == -1) {
 	    color[cc] = col++ ;
-	    visited += cc ;
+	    visited.push_back(cc) ;
 	    for(const int *pi = c2c.begin(cc);pi!=c2c.end(cc);++pi)
-	      working += *pi ;
+	      working.push_back(*pi) ;
 	  }
-	} ENDFORALL ;
-	work = working ;
+	}
+        work.swap(working) ;
       }
-      left_out = *geom_cells - visited ; 
-      work = interval(left_out.Min(), left_out.Min()) ;
+      entitySet visitSet = create_intervalSet(visited.begin(),visited.end()) ;
+      left_out -= visitSet ;
     }
 
     FORALL(*interior_faces,fc) {
-      //FATAL(color[cl[fc]] == color[cr[fc]]) ;
-      // if((init_ptn[Loci::MPI_rank].inSet(cl[fc])) && (init_ptn[Loci::MPI_rank].inSet(cr[fc])))
       if(color[cl[fc]] > color[cr[fc]])
         std::swap(cl[fc],cr[fc]) ;
     } ENDFORALL ;
@@ -1343,6 +1343,8 @@ namespace Loci {
     store<vector3d<real_t> > pos ;
     pos = facts.get_variable("pos") ;
     store<vector3d<real_t> > fpos ;
+    store<vector3d<real_t> > area ;
+    
     multiMap face2node ;
     face2node = facts.get_variable("face2node") ;
     constraint faces ;
@@ -1361,20 +1363,35 @@ namespace Loci {
       fill_clone(sp, total_dom, init_ptn) ;
     entitySet face_dom = face2node.domain() ;
     fpos.allocate(face_dom) ;
-    FORALL(face_dom,fc) {
-      fpos[fc] = vector3d<real_t>(0,0,0) ; ;
-    } ENDFORALL ;
+    area.allocate(face_dom) ;
+
     FORALL(face_dom,fc) {
       int nnodes = face2node.end(fc) - face2node.begin(fc) ;
-      for(int i=0;i<nnodes;++i) 
-	fpos[fc] += (tmp_pos[face2node[fc][i]]) ;
-      fpos[fc] = fpos[fc]/double(nnodes) ;
+      vector3d<real_t> fp(0,0,0) ;
+      real_t w = 0 ;
+      for(int i=0;i<nnodes;++i) {
+        vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
+        vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
+
+        real_t len = norm(p1-p2) ;
+
+        fp += len*(p1+p2) ;
+        w += len ;
+      }
+      fpos[fc] = fp/(2.*w) ;
+      vector3d<real_t> a(0,0,0) ;
+      for(int i=0;i<nnodes;++i) {
+        vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
+        vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
+        a += cross(p1-fpos[fc],p2-fpos[fc]) ;
+      }
+      area[fc] = .5*a ;
     } ENDFORALL ;
     Map cl,cr ;
     cl = facts.get_variable("cl") ;
     cr = facts.get_variable("cr") ;
     dstore<vector3d<real_t> > cpos ;
-    dstore<int> cnum ;
+    dstore<real_t> cnum ;
     constraint geom_cells ;
     geom_cells = facts.get_variable("geom_cells") ;
     entitySet tmp_cells =  cl.image(*faces) | cr.image(*interior_faces) ;
@@ -1387,12 +1404,14 @@ namespace Loci {
       cnum[cc] = 0 ;
     } ENDFORALL ;
     FORALL(*faces,fc) {
-      cpos[cl[fc]] += fpos[fc] ;
-      cnum[cl[fc]] += 1 ;
+      real_t A = norm(area[fc]) ;
+      cpos[cl[fc]] += A*fpos[fc] ;
+      cnum[cl[fc]] += A ;
     } ENDFORALL ;
     FORALL(*interior_faces,fc) {
-      cpos[cr[fc]] += fpos[fc] ;
-      cnum[cr[fc]] += 1 ;
+      real_t A = norm(area[fc]) ;
+      cpos[cr[fc]] += A*fpos[fc] ;
+      cnum[cr[fc]] += A ;
     } ENDFORALL ;
     Loci::storeRepP cp_sp = cpos.Rep() ;
     Loci::storeRepP cn_sp = cnum.Rep() ;
@@ -1402,7 +1421,7 @@ namespace Loci {
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       entitySet dom = v_cpos[i]->domain() & cpos.domain() ;
       dstore<vector3d<real_t> > tmp_cpos(v_cpos[i]) ;
-      dstore<int> tmp_cnum(v_cnum[i]) ;
+      dstore<real_t> tmp_cnum(v_cnum[i]) ;
       FORALL(dom, di) {
 	cpos[di] += tmp_cpos[di] ;
 	cnum[di] += tmp_cnum[di] ;
@@ -1411,20 +1430,46 @@ namespace Loci {
     fill_clone(cp_sp, clone_cells, init_ptn) ;
     fill_clone(cn_sp, clone_cells, init_ptn) ;   
     FORALL(tmp_cells,cc) {
-      cpos[cc] = cpos[cc]/double(cnum[cc]) ;
+      cpos[cc] = cpos[cc]/cnum[cc] ;
     } ENDFORALL ;
-    
-    FORALL(*faces,fc) {
+
+    vector<int> broken_faces ;
+
+    FORALL(*interior_faces,fc) {
+      vector3d<real_t> dv = cpos[cr[fc]]-cpos[cl[fc]] ; 
+      vector3d<real_t> dv2 = fpos[fc]-cpos[cl[fc]] ; 
+      vector3d<real_t> dv3 = cpos[cr[fc]]-fpos[fc] ; 
+
+      int t1 = (dot(area[fc],dv) <0.0)?1:0 ;
+      int t2 = (dot(area[fc],dv2) <0.0)?1:0 ;
+      int t3 = (dot(area[fc],dv3) <0.0)?1:0 ;
+      int test = t1+t2+t3 ;
+      if(test != 3 && test != 0) {
+        debugout << "problem with face located at " << fpos[fc]
+                 << endl ;
+        broken_faces.push_back(fc) ;
+      }
+
+      
+      else if(t1 == 1) { // Face oriented incorrectly
+	int i = 0 ;
+	int j = face2node.end(fc) - face2node.begin(fc) -1 ;
+	while(i < j) {
+          std::swap(face2node[fc][i],face2node[fc][j]) ;
+	  i++ ;
+	  j-- ;
+	} 
+      }
+    } ENDFORALL ;
+
+    entitySet boundary_faces = *faces - *interior_faces ;
+    FORALL(boundary_faces,fc) {
       const vector3d<real_t> center = fpos[fc] ;
-      const int first = *(face2node.begin(fc)) ;
-      const int last  = *(face2node.end(fc)-1) ;
-      vector3d<real_t> area(cross(tmp_pos[last]-center,tmp_pos[first]-center)) ;
-      for(const int* ni=face2node.begin(fc)+1;ni!=(face2node.end(fc));ni++) 
-	area = area + cross(tmp_pos[*(ni-1)]-center,tmp_pos[*(ni)]-center) ;
+
       vector3d<real_t> ccenter ;
       ccenter = cpos[cl[fc]] ;
       vector3d<real_t> dv = center-ccenter ;
-      if(dot(area,dv) < 0.0) {
+      if(dot(area[fc],dv) < 0.0) {
 	int i = 0 ;
 	int j = face2node.end(fc) - face2node.begin(fc) -1 ;
 	while(i < j) {
@@ -1435,6 +1480,17 @@ namespace Loci {
       }
       
     } ENDFORALL ;
+
+    int rsize = 0 ;
+    int size = broken_faces.size() ;
+    
+    MPI_Allreduce(&size,&rsize,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+    if(rsize!=0) {
+      if(MPI_rank == 0) {
+        cerr << "Bad Grid: Non-Convex Cell (centroid outside cell bounds)" << endl ;
+      }
+      Loci::Abort() ;
+    }
   }
 
 
