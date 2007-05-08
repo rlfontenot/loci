@@ -33,7 +33,7 @@ namespace Loci {
   // function that restores the fact_db back to its global numbering
   void restore_global_facts(fact_db& facts) ;
   entitySet findBoundingSet(entitySet in) ;
-  
+  rule_db replace_map_constraints(fact_db& facts, const rule_db& rdb) ;
 }
 
 #endif

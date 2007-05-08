@@ -3,6 +3,7 @@
 #include "dist_tools.h"
 #include "param_rule.h"
 #include <Tools/except.h>
+#include <constraint.h>
 #include <new>
 using std::bad_alloc ;
 
@@ -674,6 +675,7 @@ namespace Loci {
     
     rule_db par_rdb ;
     par_rdb = parametric_rdb(rdb,target) ;
+    par_rdb = replace_map_constraints(facts,par_rdb) ;
 
     ////////////////decorate the dependency graph/////////////////////
     //if(Loci::MPI_rank==0)
@@ -705,8 +707,11 @@ namespace Loci {
     gr = dependency_graph2(par_rdb,given,target).get_graph() ;
 
     // If graph is empty, return a null schedule 
-    if(gr.get_target_vertices() == EMPTY)
+    if(gr.get_target_vertices() == EMPTY) {
+      if(Loci::MPI_rank == 0)
+        cerr << "Warning: empty dependency graph!" << endl ;
       return executeP(0) ;
+    }
     ////////////////////////////////////////////////////////////////////////
     std::string dottycmd = "dotty " ;
     if(Loci::MPI_rank==0) {

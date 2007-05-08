@@ -6,6 +6,7 @@
 
 #include "rule.h"
 #include <fact_db.h>
+#include <constraint.h>
 
 #include <vector>
 using std::vector ;
@@ -442,7 +443,7 @@ namespace Loci {
           if(mi->second->Rep()->RepType() != MAP) {
             cerr << "-------------------------------------------------"<<endl;
             cerr << "Map rule should have targets" << endl;
-            cerr << " of constraint. Perhaps this rule should be a" << endl;
+            cerr << " of map. Perhaps this rule should be a" << endl;
 	    cerr << "pointwise_rule, or apply_rule."<< endl ;
             cerr << "Error occured for rule " << get_name()
 		 << " and variable " << *si << endl ;
@@ -508,7 +509,92 @@ namespace Loci {
     }
   }
 
-variableSet rule_impl::get_var_list() {
+  void
+  rule_impl::replace_map_constraints(fact_db& facts) {
+    // NOTE: because the rule_info utilizes a set<vmap_info> as
+    // the basic components, it is therefore more complicated
+    // to replace any contents inside, since the iterator
+    // to an std::set data-structure is always const (regardless
+    // of "const_iterator" or "iterator"), we'll actually need to
+    // insert a new vmap_info and erase the original one instead.
+    
+    // check to see if the constraints are Maps
+    vector<vmap_info> new_vmap_info ;
+    
+    set<vmap_info>::iterator si=rule_info.constraints.begin() ;
+    set<vmap_info>::iterator si_bak ;
+
+    while(si != rule_info.constraints.end()) {
+      // for the constraint data, the "mapping," "assign" fields
+      // within the vmap_info structure should all be empty
+      // If not, there is likely a problem there, and in our case
+      // we wouldn't want to continue.
+      if(!si->mapping.empty() || !si->assign.empty()) {
+        ++si ;
+        continue ;
+      }
+      // get all the constraint variable names
+      variableSet maps ;
+      variableSet new_constraints ;
+      for(variableSet::const_iterator vi=si->var.begin();
+          vi!=si->var.end();++vi) {
+        // get the storeRepP in the fact_db for the var
+        storeRepP srp = facts.get_variable(*vi) ;
+        if(srp == 0)
+          continue ;
+        // see if it is a Map
+        if(srp->RepType() != MAP)
+          continue ;
+        // it is a map, we need to create a constraint
+        // and replace it in the rule
+        // get the name of *vi
+        string map_name = (vi->get_info()).name ;
+        // generate a new name
+        string new_name = "__" + map_name + "_MAP_constraint__" ;
+        // create a real constraint
+        // NOTE: other rules might have already created it
+        // then in this case, we don't create it
+        storeRepP crp = facts.get_variable(new_name) ;
+        if(crp == 0) {
+          Loci::constraint mapc ;
+          *mapc = srp->domain() ;
+          // install it in fact_db
+          facts.create_fact(new_name, mapc) ;
+        }
+        // record the changes
+        maps += *vi ;
+        new_constraints += variable(new_name) ;
+      }
+      if(maps != EMPTY) {
+        // we know we need to replace the vmap_info
+        vmap_info nv(*si) ;
+        // modify the vmap_info var field
+        for(variableSet::const_iterator vi=maps.begin();
+            vi!=maps.end();++vi)
+          nv.var -= *vi ;
+        
+        for(variableSet::const_iterator vi=new_constraints.begin();
+            vi!=new_constraints.end();++vi)
+          nv.var += *vi ;
+
+        new_vmap_info.push_back(nv) ;
+
+        // erase the original copy
+        si_bak = si ;
+        ++si_bak ;
+        rule_info.constraints.erase(si) ;
+        si = si_bak ;
+      } else
+        ++si ;
+    }
+    // insert new vmap_info objects
+    for(vector<vmap_info>::const_iterator vi=new_vmap_info.begin();
+        vi!=new_vmap_info.end();++vi)
+      rule_info.constraints.insert(*vi) ;
+    
+  }
+  
+  variableSet rule_impl::get_var_list() {
     storeIMap::iterator sp ;
     set<vmap_info>::const_iterator i ;
     variableSet vset ;
@@ -1193,6 +1279,19 @@ variableSet rule_impl::get_var_list() {
   rule_implP rule::info::get_rule_implP() const {
     rule_implP fp = rule_impl->new_rule_impl() ;
     return fp ;
+  }
+
+  void
+  rule::rename(const std::string& s) {
+    // get the rule info.
+    rule::info& info = rdb->fiv[-(id+1)] ;
+    // save the old name
+    std::string old_name = info.name() ;
+    // replace the "rule_ident" inside ;
+    info.rule_ident = s ;
+    // then replace the rdb->fmap
+    rdb->fmap.erase(old_name) ;
+    rdb->fmap[s] = id ;
   }
 
   rule rule::get_rule_by_name(std::string &name) {

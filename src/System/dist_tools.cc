@@ -4,6 +4,8 @@ using std::vector;
 #include <set>
 using std::set;
 
+#include <string>
+using std::string ;
 
 #include <iostream>
 using std::cout;
@@ -46,6 +48,7 @@ namespace Loci {
 	  facts.global_comp_entities += i;
       p++ ;
     } ENDFORALL ;
+    
     variableSet tmp_vars = facts.get_typed_variables();
     for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
       storeRepP tmp_sp = facts.get_variable(*vi) ;
@@ -105,6 +108,7 @@ namespace Loci {
       tmp_set = ptn[MPI_rank] ;
     std::set<std::vector<variableSet> > dist_maps ;
     get_mappings(rdb,facts,dist_maps) ;
+
     entitySet tmp_copy, image ;
     image = dist_expand_map(tmp_set, facts, dist_maps) ;
     tmp_copy =  image - ptn[MPI_rank] ; 
@@ -334,7 +338,7 @@ namespace Loci {
 	for(vmsi = ri->get_info().desc.sources.begin();
 	    vmsi != ri->get_info().desc.sources.end();
 	    ++vmsi) {
-	  if(vmsi->mapping.size() != 0) {
+          //	  if(vmsi->mapping.size() != 0) {
 	    vector<variableSet> vvs ;
 	    for(size_t i = 0; i < vmsi->mapping.size(); ++i) {
 	      variableSet v ;
@@ -345,8 +349,46 @@ namespace Loci {
 	      }
 	      vvs.push_back(v) ;
 	    }
-	    maps.insert(vvs) ;
-	  }
+            // we need to also check to see if there's
+            // any maps in "var" field. This is currently just
+            // a hack to make the input of a chain of maps
+            // work correctly. e.g., we have a rule like this:
+            // A <- B->C->D, E. "B, C, and D" are all Maps,
+            // currently, when building the rule, only
+            // "B->C" is recorded in the vmap_info's mapping
+            // field and the "D" is recorded in the "var"
+            // field in the vmap_info record. In parallel run,
+            // this will cause that the Map "D" not being
+            // expanded and will lead to later problems.
+            // Therefore, here we also need to check into
+            // the "var" field to see if there's any Map
+            // inside, in case of yes, we need to collect
+            // them as Maps so that they are also expanded.
+            // 
+            // NOTE: this is only a hack, to fix this
+            // elegantly and correctly, we need to modify the
+            // rule building procedures. Also, recording a
+            // Map in the "var" field in the vmap_info structure
+            // is probably not a very good idea and may not
+            // be entirely safe to other analyses. So we
+            // definitely need to fix this in the future
+            // if we intend to support a chain of Maps
+            // as rule input.
+            variableSet vs ;
+            for(variableSet::const_iterator vi=vmsi->var.begin();
+                vi!=vmsi->var.end();++vi) {
+              storeRepP srp = facts.get_variable(*vi) ;
+              if(srp == 0)
+                continue ;
+              if(srp->RepType() == MAP)
+                vs += variable(*vi,time_ident()) ;
+            }
+            if(vs != EMPTY)
+              vvs.push_back(vs) ;
+
+            if(!vvs.empty())
+              maps.insert(vvs) ;
+            //	  }
 	}
 	
 	for(vmsi = ri->get_info().desc.constraints.begin();
@@ -410,7 +452,8 @@ namespace Loci {
   //This routine  is similar to the expand map but it works for maps
   //which are distributed across processors. 
   entitySet dist_expand_map(entitySet domain, fact_db &facts,
-			    const std::set<std::vector<variableSet> > &maps) {   
+			    const std::set<std::vector<variableSet> > &maps) {
+
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
     for(int i = 0; i < MPI_processes; ++i) {
       entitySet tmp = ptn[i] ;
@@ -1073,5 +1116,51 @@ namespace Loci {
     df->isDistributed = 0 ;
   }
 
+  // The motivation of this routine is that in the parallel code,
+  // a Map used as constraint will often not be expanded enough to
+  // include the clone region, thus causing problems in the rule
+  // execution schedule. Since the context of the rule including
+  // the clone region
+  // will often exceeds the domain of the constraint, this will either
+  // cause the clone region not being computed properly, or in the case
+  // of unit/apply rule, cause conflicts in the existential analysis.
+  //
+  // We could expand the Maps used in rule contraints to include the
+  // clone region. However doing so would often require duplicating
+  // the Map on all processes, thus incurring a memory cost, or else,
+  // we would be allocating the Map on domains that do not have
+  // meaningful values for the Map.
+  rule_db
+  replace_map_constraints(fact_db& facts, const rule_db& rdb) {
+
+    rule_db new_rdb ;
+    ruleSet all_rules = rdb.all_rules() ;
+
+    for(ruleSet::const_iterator ri=all_rules.begin();
+        ri!=all_rules.end();++ri) {
+
+      rule_implP rp = ri->get_rule_implP() ;
+      if(rp == 0) {
+        new_rdb.add_rule(*ri) ;
+        continue ;
+      }
+
+      // save the old rule name
+      string old_name = ri->get_info().name() ;
+      
+      rp->replace_map_constraints(facts) ;
+
+      rule nr(rp) ;
+      // rename the rule to its old name gives the rule
+      // signature to still have the original Map name
+      // in the constraint field, which is easier for
+      // the output routine and for users to read
+      nr.rename(old_name) ;
+      
+      new_rdb.add_rule(nr) ;
+    }
+    return new_rdb ;
+  }
+  
 }
 
