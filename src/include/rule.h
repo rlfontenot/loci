@@ -107,6 +107,33 @@ namespace Loci {
     storeRepP get_store(const std::string &nm) const
       { return get_store(variable(expression::create(nm))) ; }
     
+    // This function checks to
+    // see if the rule contains constraints that are of type Map. In case
+    // of yes, it creates identical constraints
+    // (whose value equal the Map domain) in the fact_db and substitutes
+    // the Map constraints in the rule with the real constraints.
+    //
+    // The motivation of this function is that in the parallel code,
+    // a Map constraint will often not be expanded enough to include
+    // the clone region, thus causing problems in the rule execution
+    // schedule. Since the context of the rule including the clone region
+    // will often exceed the domain of the constraint, this will either
+    // cause the clone region not being computed properly, or in the case
+    // of unit/apply rule, cause conflicts in the existential analysis.
+    //
+    // We could expand the Maps used in rule contraints to include the
+    // clone region. However doing so would often require duplicating
+    // the Map on all processes, thus incurring a memory cost, or else,
+    // we would be allocating the Map on domains that do not have
+    // meaningful values for the Map.
+    //
+    // Thus, here we are doing a substitution to replace all Maps
+    // in rule constraint as real constraint variable. If substitution
+    // have happened, "facts" may include newly created constraints;
+    // the rules may have its "vmap_info" structure modified
+    // to reflect the substitution of constraints for maps.
+    void replace_map_constraints(fact_db& facts) ;
+    
     void set_variable_times(time_ident tl) ;
     void copy_store_from(rule_impl &f) ;
     void Print(std::ostream &s) const ;
@@ -640,6 +667,9 @@ namespace Loci {
       s << std::string( (pos==name.end()?name.begin():pos+1),name.end()) ;
       return s ;
     }
+    // this function is used to rename a rule
+    // i.e., modify the corresponding string inside
+    void rename(const std::string&) ;
 
     static rule get_rule_by_name(std::string &name);
         
