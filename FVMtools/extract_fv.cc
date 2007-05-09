@@ -121,6 +121,22 @@ unsigned int fv_encode_elem_header (int elem_type, int wall_info[])
     return header;
 }
 
+string convert_fv_compatible(string var) {
+  if(var == "i")
+    return string("i_") ;
+  if(var == "j")
+    return string("j_") ;
+  if(var == "k")
+    return string("k_") ;
+  if(var == "x")
+    return string("x_") ;
+  if(var == "y")
+    return string("y_") ;
+  if(var == "z")
+    return string("z_") ;
+  return var ;
+}
+
 void fv_topo_handler::open(string casename, string iteration ,int inpnts,
                            int intets, int inprsm, int inpyrm,
                            int inhexs, int ingen,
@@ -134,7 +150,7 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   nhexs = inhexs ;
   ngen = ingen ;
   part_id = 1 ;
-  filename = casename + "_fv."+iteration ;
+  filename = casename + "_fv."+iteration + ".bin";
   OFP = fopen(filename.c_str(), "wb") ;
   if(OFP == NULL) {
     cerr << "can't open file " << filename << endl ;
@@ -175,19 +191,20 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   vector<string> blist ;
   for(size_t i=0;i<variables.size();++i) {
     int vt = variable_types[i] ;
+    const string var(convert_fv_compatible(variables[i])) ;
     if(vt == NODAL_SCALAR || vt == NODAL_DERIVED || vt == NODAL_MASSFRACTION)
-      nlist.push_back(variables[i]) ;
+      nlist.push_back(var) ;
     if(vt == NODAL_VECTOR) {
-      string v = variables[i] ;
+      string v = var ;
       nlist.push_back(v + "x ; " + v) ;
       nlist.push_back(v + "y") ;
       nlist.push_back(v + "z") ;
     }
     if(vt == BOUNDARY_SCALAR || vt == BOUNDARY_DERIVED_SCALAR) {
-      blist.push_back(variables[i]) ;
+      blist.push_back(var) ;
     }
     if(vt == BOUNDARY_VECTOR || vt == BOUNDARY_DERIVED_VECTOR) {
-      string v = variables[i] ;
+      string v = var ;
       blist.push_back(v + "x ; " + v) ;
       blist.push_back(v + "y") ;
       blist.push_back(v + "z") ;
