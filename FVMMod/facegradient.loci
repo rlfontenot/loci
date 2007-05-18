@@ -10,7 +10,7 @@ namespace Loci {
   $rule default(faceGradStencil),
     comments("Determines how face gradients will be computed.  May be 'positive' or 'limited'") {
     $faceGradStencil = "positive" ;
-    //    $faceGradStencil = "limited" ;
+    //$faceGradStencil = "limited" ;
   }
 
   $type positiveFaceStencil Constraint ;
@@ -167,7 +167,7 @@ namespace Loci {
     const real dvrvl = 1./(vr+vl) ;
     const int vs = $*gradv_f(X).vecSize() ;
     for(int i=0;i<vs;++i) {
-      const real lim = $cr->$limiterv(X)[i]*$cl->$limiterv(X)[i] ;
+      const real lim = min($cr->$limiterv(X)[i],$cl->$limiterv(X)[i]) ;
       const vect3d gradAvg=($cr->$gradv(X)[i]*vl+$cl->$gradv(X)[i]*vr)*dvrvl ;
       const vect3d gradTan=gradAvg-dot(gradAvg,n)*n ;
       const vect3d gradNorm=n*($cr->$X[i]-
@@ -207,7 +207,7 @@ namespace Loci {
     const real vr = $cr->$vol ;
     const real vl = $cl->$vol ;
     const real dvrvl = 1./(vr+vl) ;
-    const real lim =$cl->$limiters(X)*$cr->$limiters(X) ;
+    const real lim =min($cl->$limiters(X),$cr->$limiters(X)) ;
     const vect3d gradAvg = ($cr->$grads(X)*vl+$cl->$grads(X)*vr)*dvrvl ;
     const vect3d gradTan=gradAvg-dot(gradAvg,n)*n ;
     const vect3d gradNorm = n*($cr->$X-
@@ -242,19 +242,19 @@ namespace Loci {
     const real vl = $cl->$vol ;
     const real dvrvl = 1./(vr+vl) ;
 
-    real lim = $cr->$limiterv3d(X).x*$cl->$limiterv3d(X).x ;
+    real lim = min($cr->$limiterv3d(X).x,$cl->$limiterv3d(X).x) ;
     vect3d gradAvg = ($cr->$gradv3d(X).x*vl+$cl->$gradv3d(X).x*vr)*dvrvl ;
     vect3d gradTan = gradAvg-dot(gradAvg,n)*n ;
     vect3d gradNorm = n*($cr->$X.x-($cl->$X.x+lim*dot(gradTan,delta)) )*rdist ;
     $gradv3d_f(X).x = gradTan + gradNorm ;
 
-    lim = $cr->$limiterv3d(X).y*$cl->$limiterv3d(X).y ;
+    lim = min($cr->$limiterv3d(X).y,$cl->$limiterv3d(X).y) ;
     gradAvg = ($cr->$gradv3d(X).y*vl+$cl->$gradv3d(X).y*vr)*dvrvl ;
     gradTan = gradAvg-dot(gradAvg,n)*n ;
     gradNorm = n*($cr->$X.y-($cl->$X.y + lim*dot(gradTan,delta)) )*rdist ;
     $gradv3d_f(X).y  = gradTan + gradNorm ;
 
-    lim = $cr->$limiterv3d(X).z*$cl->$limiterv3d(X).z ;
+    lim = min($cr->$limiterv3d(X).z,$cl->$limiterv3d(X).z) ;
     gradAvg = ($cr->$gradv3d(X).z*vl+$cl->$gradv3d(X).z*vr)*dvrvl ;
     gradTan = gradAvg-dot(gradAvg,n)*n ;
     gradNorm = n*($cr->$X.z-($cl->$X.z + lim*dot(gradTan,delta)) )*rdist ;
