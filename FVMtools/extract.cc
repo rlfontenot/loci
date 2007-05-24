@@ -207,6 +207,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       cerr << "unable to get grid positions for iteration " << iteration
            << endl ;
       cerr << "does file '" << posname << "' exist?" << endl ;
+      Loci::Abort() ;
       exit(-1) ;
     }
 
@@ -385,6 +386,7 @@ void extract_grid(string casename, string iteration,
     cerr << "unable to get grid positions for iteration " << iteration
          << endl ;
     cerr << "does file '" << posname << "' exist?" << endl ;
+    Loci::Abort() ;
     exit(-1) ;
   }
 
@@ -628,6 +630,7 @@ void extract_grid(string casename, string iteration,
                                              H5P_DEFAULT) ;
           if(file_id < 0) {
             cerr << "unable to open file '" << filename << "'!" << endl ;
+            Loci::Abort() ;
             exit(-1) ;
           }
           
@@ -902,11 +905,13 @@ int main(int ac, char *av[]) {
     if(boundaries.size() == 0) {
       process_ascii_nodal(casename,iteration,
                           variables,variable_type,variable_file) ;
+      Loci::Finalize() ;
       exit(0) ;
     } else {
       process_ascii_bndry(casename,iteration,
                           variables,variable_type,variable_file,
                           boundaries) ;
+      Loci::Finalize() ;
       exit(0) ;
     }
   }
@@ -923,6 +928,7 @@ int main(int ac, char *av[]) {
     }
     get_2dgv(casename,iteration,variables,variable_type,variable_file,
              boundaries,view) ;
+    Loci::Finalize() ;
     exit(0) ;
   }
   
@@ -946,5 +952,6 @@ int main(int ac, char *av[]) {
   if(topo_out != 0) {
     extract_grid(casename,iteration,topo_out,variables,variable_type,variable_file) ;
   }
+  Loci::Finalize() ;
 }
 

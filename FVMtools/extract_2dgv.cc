@@ -37,6 +37,7 @@ void get_2dgv(string casename, string iteration,
     cerr << "unable to get grid positions for iteration " << iteration
          << endl ;
     cerr << "does file '" << posname << "' exist?" << endl ;
+    Loci::Abort() ;
     exit(-1) ;
   }
 
@@ -159,6 +160,7 @@ void get_2dgv(string casename, string iteration,
   if(node_set.size() == 0) {
     cerr << "nothing to process in 2dgv extract!  Exiting."
          << endl ;
+    Loci::Abort() ;
     exit(-1) ;
   }
   sort(node_set.begin(),node_set.end()) ;
@@ -208,6 +210,7 @@ void get_2dgv(string casename, string iteration,
       break ;
     default:
       cerr << "wrong output coordinate system!" << endl ;
+      Loci::Abort() ;
       exit(EXIT_FAILURE) ;
     }
   }
@@ -281,6 +284,7 @@ void get_2dgv(string casename, string iteration,
                                          H5P_DEFAULT) ;
       if(file_id < 0) {
         cerr << "unable to open file '" << filename << "'!" << endl ;
+        Loci::Abort() ;
         exit(-1) ;
       }
       
@@ -306,6 +310,7 @@ void get_2dgv(string casename, string iteration,
                                          H5P_DEFAULT) ;
       if(file_id < 0) {
         cerr << "unable to open file '" << filename << "'!" << endl ;
+        Loci::Abort() ;
         exit(-1) ;
       }
 

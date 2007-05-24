@@ -34,6 +34,7 @@ void process_ascii_nodal(string casename, string iteration,
     cerr << "unable to get grid positions for iteration " << iteration
          << endl ;
     cerr << "does file '" << posname << "' exist?" << endl ;
+    Loci::Abort() ;
     exit(-1) ;
   }
 
@@ -91,6 +92,7 @@ void process_ascii_nodal(string casename, string iteration,
                                            H5P_DEFAULT) ;
         if(file_id < 0) {
           cerr << "unable to open file '" << filename << "'!" << endl ;
+          Loci::Abort() ;
           exit(-1) ;
         }
       
@@ -125,6 +127,7 @@ void process_ascii_nodal(string casename, string iteration,
                                            H5P_DEFAULT) ;
         if(file_id < 0) {
           cerr << "unable to open file '" << filename << "'!" << endl ;
+          Loci::Abort() ;
           exit(-1) ;
         }
 
@@ -255,6 +258,7 @@ void process_ascii_bndry(string casename, string iteration,
     hid_t file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
     if(file_id < 0) {
       cerr << "unable to open file '" << filename << "'!" << endl ;
+      Loci::Abort() ;
       exit(-1) ;
     }
         
@@ -415,6 +419,7 @@ void process_ascii_bndry(string casename, string iteration,
   }
   if(values.size() == 0) {
     cerr << "no values to extract!" << endl ;
+    Loci::Abort() ;
     exit(-1) ;
   }
   for(int i=0;i<nelem;++i) {
