@@ -1313,68 +1313,44 @@ namespace VOG {
     return true ;
   }
 
-  int entitySetMedian(const entitySet &Set) {
-    int md = Set.size()/2 ;
-    const int ni = Set.num_intervals() ;
-    for(int i=0;i<ni;++i) {
-      int isz = Set[i].second-Set[i].first+1 ;
-      if(md <= isz) 
-        return Set[i].first+md ;
-      md -= isz ;
-    }
-    return 0 ;
+  void writeUnsignedVal(vector<unsigned char>& cluster, unsigned long long val) {
+    do {
+      unsigned char byte = val & 0x7f ;
+      val = val >> 7 ;
+      if(val != 0) {
+        byte |= 0x80 ;
+      }
+      cluster.push_back(byte) ;
+    } while(val != 0) ;
   }
   
-  //  const int OffsetSize = 3 ;
-  // Size of offset table, for testing 2 bytes
-  const int OffsetSize = 3 ;
-  // identifier size
-  const int idSize = 6 ;
-
-  void writeIdent(vector<unsigned char> &cluster, long long val) {
-    for(int j=0;j<idSize;++j) {
-      unsigned char byte = val & 0xff ;
-      val = val >> 8 ;
-      cluster.push_back(byte) ;
+  void writeSignedVal(vector<unsigned char> &cluster, long long val) {
+    bool sign = false ;
+    if(val < 0) {
+      sign = true ;
+      val = -val ;
     }
+    unsigned char byte = val & 0x3f ;
+    if(sign)
+      byte |= 0x40 ;
+    val = val >> 6 ;
+    if(val != 0)
+      byte |= 0x80 ;
+    cluster.push_back(byte) ;
+    if((byte & 0x80) == 0x80)
+      writeUnsignedVal(cluster,val) ;
   }
 
   void writeTable(vector<unsigned char> &cluster, entitySet set) {
-    int offsetRange = (1 << (8*OffsetSize))-1 ;
-    // Compute the node offset
-    int median = entitySetMedian(set) ;
-    int base = max(set.Min(),median-offsetRange/2) ;
-
-    writeIdent(cluster,base) ;
-
-    unsigned char tab_size = set.size() ;
-    cluster.push_back(tab_size) ;
-
-    vector<int> miss_table ;
-    entitySet::const_iterator ei ;
-    for(ei = set.begin();ei!=set.end();++ei) {
-      int nd = *ei ;
-      int off = nd-base ;
-      if(off < 0 || off > offsetRange-256) { // miss
-        off = 0 ;
-        for(int i=0;i<OffsetSize-1;++i) {
-          off |= 0xff ;
-          off = off << 8 ;
-        }
-        off |= miss_table.size() ;
-        miss_table.push_back(nd) ;
-      }
-      for(int i = 0; i < OffsetSize;++i) {
-        unsigned char byte = off & 0xff ;
-        off = off >> 8 ;
-        cluster.push_back(byte) ;
-      }
-    }
-    unsigned char Miss = miss_table.size() ;
-    cout << "Base = " << base << ",Miss = " << int(Miss) << endl ;
-    cluster.push_back(Miss) ;
-    for(int i=0;i<Miss;++i) {
-      writeIdent(cluster,miss_table[i]) ;
+    entitySet::const_iterator ei = set.begin() ;
+    unsigned char sz = set.size() ;
+    cluster.push_back(sz) ;
+    writeSignedVal(cluster,*ei) ;
+    long long last = *ei ;
+    for(++ei;ei!=set.end();++ei) {
+      unsigned long diff = *ei - last ;
+      last = *ei ;
+      writeUnsignedVal(cluster,diff) ;
     }
   }
   
@@ -1387,8 +1363,6 @@ namespace VOG {
     vector<unsigned char> cluster ;
 
 
-    writeTable(cluster,nodeSet) ;
-    writeTable(cluster,cellSet) ;
 
     dMap node2local ;
     dMap cell2local ;
@@ -1431,7 +1405,7 @@ namespace VOG {
 
     // Now write out the faces for each size category
     cnt = 0 ;
-    for(int i=0;i<rll.size();++i) {
+    for(size_t i=0;i<rll.size();++i) {
       cluster.push_back(rll[i].first) ;
       cluster.push_back(rll[i].second) ;
       int nds = rll[i].first ;
@@ -1445,19 +1419,21 @@ namespace VOG {
         cluster.push_back(cell2local[cr[fc]]) ;
       }
     }
+    // A zero face size marks end of cluster
+    cluster.push_back(0) ;
 
+    writeTable(cluster,nodeSet) ;
+    writeTable(cluster,cellSet) ;
     // Cluster finished,return ;
     return cluster ;
 
     
   }
-
-  
   
   entitySet faceCluster(const multiMap &face2node,
                         const Map &cl, const Map &cr, entitySet faces,
                         vector<unsigned char> &cluster_info,
-                        vector<unsigned int> &cluster_sizes) {
+                        vector<unsigned short> &cluster_sizes) {
     entitySet faceSet ;
     entitySet nodeSet ;
     entitySet cellSet ;
@@ -1499,7 +1475,8 @@ namespace VOG {
     cluster_sizes.push_back(cluster_size) ;
     for(int i=0;i<cluster_size;++i)
       cluster_info.push_back(cluster[i]) ;
-    
+
+#ifdef VERBOSE
     // Compute uncompressed cluster size
     int norm_size = 0;
 
@@ -1513,7 +1490,7 @@ namespace VOG {
     cout << "cluster_size = "<<cluster_size << "norm_size = " << norm_size <<
       endl ;
     std::cout << "compression factor = " << double(norm_size)/double(cluster_size) << endl ;
-    
+#endif
     
     
     return fcluster ;
@@ -1632,7 +1609,7 @@ int main(int ac, char *av[]) {
   } ENDFORALL ;
 
   vector<unsigned char> cluster_info ;
-  vector<unsigned int> cluster_sizes ;
+  vector<unsigned short> cluster_sizes ;
   while(faces != EMPTY) {
     entitySet fcluster = faceCluster(tmp_face2node,tmp_cl,tmp_cr,faces,
                                      cluster_info,cluster_sizes) ;

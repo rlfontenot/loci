@@ -33,6 +33,9 @@ xdr2cobalt: xdr2cobalt.o
 xdr2vog: xdr2vog.o
 	$(LD) -o xdr2vog xdr2vog.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+vog2xdr: vog2xdr.o
+	$(LD) -o vog2xdr vog2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 cobalt2xdr: cobalt2xdr.o
 	$(LD) -o cobalt2xdr cobalt2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
