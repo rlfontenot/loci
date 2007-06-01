@@ -366,7 +366,440 @@ namespace Loci {
     return true;
   }
 
+  template<class T> void readVectorDist(hid_t group_id,
+                                        const char *vector_name,
+                                        vector<int> sizes,
+                                        vector<T> &v) {
 
+    hid_t dataset = 0 ;
+    hid_t dspace = 0 ;
+
+    if(MPI_rank == 0) {
+      dataset = H5Dopen(group_id,vector_name) ;
+      if(dataset < 0) {
+        cerr << "unable to open dataset" << endl ;
+        Loci::Abort() ;
+      }
+      dspace = H5Dget_space(dataset) ;
+    }
+    v.resize(sizes[MPI_rank]) ;
+
+    if(MPI_rank == 0) { // read in vector from processor 0, send to other
+      // processors
+      int lsz = sizes[0] ;
+      
+      hsize_t dimension = lsz ;
+      hsize_t count = dimension ;
+      hsize_t stride = 1 ;
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
+
+      H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
+      start += dimension  ;
+
+      int rank = 1 ;
+      hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
+
+      typedef data_schema_traits<T> traits_type ;
+      Loci::DatatypeP dp = traits_type::get_type() ;
+          hid_t datatype = dp->get_hdf5_type() ;
+      hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
+                          &v[0]) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
+        FATAL(err < 0) ;
+        Loci::Abort() ;
+      }
+      H5Sclose(memspace) ;
+
+      // now read in remaining processor segments and send to corresponding
+      // processor
+      for(int i=1;i<MPI_processes;++i) {
+        // read in remote processor data
+        int sz = sizes[i] ;
+        vector<T> tmp(sz) ;
+        dimension = sz ;
+        count = dimension ;
+        H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
+        start += dimension  ;
+
+        memspace = H5Screate_simple(rank,&dimension,NULL) ;
+        hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
+                            &tmp[0]) ;
+        if(err < 0) {
+          cerr << "H5Dread() failed" << endl ;
+          FATAL(err < 0) ;
+          Loci::Abort() ;
+        }
+        H5Sclose(memspace) ;
+
+        // send to remote processor
+        MPI_Send(&tmp[0],sz*sizeof(T),MPI_BYTE,i,0,MPI_COMM_WORLD) ;
+      }
+      H5Dclose(dataset) ;
+      H5Sclose(dspace) ;
+
+    } else {
+      int size = sizes[MPI_rank] ;
+      MPI_Status status ;
+      MPI_Recv(&v[0],size*sizeof(T),MPI_BYTE,0,0,MPI_COMM_WORLD,&status) ;
+    }
+  }
+  int getClusterNumFaces(unsigned char *cluster) {
+    int num_faces = 0 ;
+    while(*cluster != 0) {
+      int npnts = *cluster ;
+      cluster++ ;
+      int nfaces = *cluster ;
+      cluster++ ;
+      num_faces += nfaces ;
+      
+      cluster += nfaces * (npnts + 2) ;
+    }
+    return num_faces ;
+  }
+  
+  int fillClusterFaceSizes(unsigned char *cluster, int *sizes) {
+    int num_faces = 0 ;
+    while(*cluster != 0) {
+      int npnts = *cluster ;
+      cluster++ ;
+      int nfaces = *cluster ;
+      cluster++ ;
+      for(int i=0;i<nfaces;++i)
+        *sizes++ = npnts ;
+      num_faces += nfaces ;
+      
+      cluster += nfaces * (npnts + 2) ;
+    }
+    return num_faces ;
+  }
+
+  unsigned char *readSignedVal(unsigned char *p, long &val) {
+    unsigned char byte = *p++ ;
+
+    int shift = 6 ;
+    bool sign = (byte & 0x40)==0x40 ;
+    val = byte & 0x3f ;
+    while((byte & 0x80) == 0x80) {
+      byte = *p++ ;
+      int chunk = byte & 0x7f ;
+      val += (chunk << shift) ;
+      shift += 7 ;
+    }
+    if(sign)
+      val = -val ;
+    return p ;
+  }
+  
+  unsigned char *readUnsignedVal(unsigned char *p, long &val) {
+    unsigned char byte = *p++ ;
+    int shift = 7 ;
+    val = byte & 0x7f ;
+
+    while((byte & 0x80) == 0x80) {
+      byte = *p++ ;
+      int chunk = byte & 0x7f ;
+      val += (chunk << shift) ;
+      shift += 7 ;
+    }
+    return p ;
+  }
+
+  unsigned char *readTable(unsigned char *p, long table[]) {
+    int sz = *p++ ;
+    // Get table size... note zero indicates maximum size
+    if(sz == 0)
+      sz = 256 ;
+
+    // Get first table entry
+    p = readSignedVal(p,table[0]) ;
+
+    // Remaining entries are offsets
+    for(int i=1;i<sz;++i) {
+      long off ;
+      p = readUnsignedVal(p,off) ;
+      table[i] = table[i-1]+off ;
+    }
+    return p ;
+  }    
+      
+  int fillFaceInfo(unsigned char *cluster, multiMap &face2node,
+                   Map &cl, Map &cr, int face_base) {
+    int num_faces = 0 ;
+    while(*cluster != 0) {
+      int npnts = *cluster ;
+      cluster++ ;
+      int nfaces = *cluster ;
+      cluster++ ;
+      for(int i=0;i<nfaces;++i) {
+        int fc = face_base+num_faces+i ;
+        for(int j=0;j<npnts;++j)
+          face2node[fc][j] = *cluster++ ;
+        cl[fc] = *cluster++ ;
+        cr[fc] = *cluster++ ;
+      }
+      num_faces += nfaces ;
+    }
+    cluster++ ;
+    // read in tables
+    long nodeTable[256] ;
+    cluster = readTable(cluster,nodeTable) ;
+    long cellTable[256] ;
+    cluster = readTable(cluster,cellTable) ;
+    for(int i=0;i<num_faces;++i) {
+      int fc = face_base+i ;
+      int fsz = face2node[fc].size() ;
+      for(int j=0;j<fsz;++j)
+        face2node[fc][j] = nodeTable[face2node[fc][j]] ;
+      cl[fc] = cellTable[cl[fc]] ;
+      cr[fc] = cellTable[cr[fc]] ;
+    }
+    return num_faces ;
+  }
+
+  //Description: Reads grid structures from grid file in the .vog format.
+  //Input: file name and max_alloc (starting of entity assignment - node base)
+  //Output: 
+  // local_cells, local_nodes, local_faces: partition of nodes, faces, cells 
+  // pos: position of nodes
+  // cl: Mapping from face to cell on the left side
+  // cr: Mapping from face to cell on the right side
+  // face2node: MultiMapping from a face to nodes
+  bool readGridVOG(vector<entitySet> &local_nodes, 
+		   vector<entitySet> &local_faces, 
+		   vector<entitySet> &local_cells,
+		   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+		   multiMap &face2node, int max_alloc, string filename) {
+    local_nodes.resize(Loci::MPI_processes);
+    local_faces.resize(Loci::MPI_processes);
+    local_cells.resize(Loci::MPI_processes);
+
+    hid_t file_id = 0 ;
+    hid_t face_g = 0 ;
+    hid_t node_g = 0 ;
+    hid_t dataset = 0 ;
+    hid_t dspace = 0 ;
+    int nnodes = 0 ;
+    if(MPI_rank == 0) {
+      file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+      face_g = H5Gopen(file_id,"face_info") ;
+      node_g = H5Gopen(file_id,"node_info") ;
+
+      // First read in and disribute node positions...
+      dataset = H5Dopen(node_g,"positions") ;
+      dspace = H5Dget_space(dataset) ;
+      hsize_t size = 0 ;
+      H5Sget_simple_extent_dims(dspace,&size,NULL) ;
+      nnodes = size ;
+    }
+
+    MPI_Bcast(&nnodes,1,MPI_INT,0,MPI_COMM_WORLD) ;
+
+    // create node allocation
+    int npnts = nnodes ;
+    int node_ivl = npnts / Loci::MPI_processes;
+    int node_ivl_rem = npnts % Loci::MPI_processes ;
+    int node_accum = 0 ;
+    int nodes_base = max_alloc ;
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      int j = Loci::MPI_processes - i - 1 ;
+      int node_accum_update = node_accum + node_ivl + ((j<node_ivl_rem)?1:0) ;
+      if(i == Loci::MPI_processes-1) {
+	local_nodes[i] = interval(nodes_base + node_accum,
+                                  nodes_base + npnts - 1) ;
+      } else {
+	local_nodes[i] = interval(nodes_base + node_accum,
+                                  nodes_base + node_accum_update - 1) ;
+      }
+      node_accum = node_accum_update ;
+    }
+
+    pos.allocate(local_nodes[MPI_rank]) ;
+    if(MPI_rank == 0) { // read in node positions, send to other processors
+      // read processor zero section first
+      int lst = local_nodes[MPI_rank].Min() ;
+      int lsz = local_nodes[0].size() ;
+
+      hsize_t dimension = lsz ;
+      hsize_t count = dimension ;
+      hsize_t stride = 1 ;
+#ifdef H5_INTERFACE_1_6_4
+      hsize_t start = 0 ;
+#else
+      hssize_t start = 0 ;
+#endif
+
+      H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
+      start += dimension  ;
+
+      int rank = 1 ;
+      hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
+      typedef data_schema_traits<vector3d<double> > traits_type ;
+      DatatypeP dp = traits_type::get_type() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
+                          &pos[lst]) ;
+      if(err < 0) {
+        cerr << "H5Dread() failed" << endl ;
+        FATAL(err < 0) ;
+        Loci::Abort() ;
+      }
+      H5Sclose(memspace) ;
+
+      // now read in remaining processor segments and send to corresponding
+      // processor
+      for(int i=1;i<MPI_processes;++i) {
+        // read in remote processor data
+        int sz = local_nodes[i].size() ;
+        vector<vector3d<double> > tpos(sz) ;
+        dimension = sz ;
+        count = dimension ;
+        H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
+        start += dimension  ;
+
+        memspace = H5Screate_simple(rank,&dimension,NULL) ;
+        hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
+                            &tpos[0]) ;
+        if(err < 0) {
+          cerr << "H5Dread() failed" << endl ;
+          FATAL(err < 0) ;
+          Loci::Abort() ;
+        }
+        H5Sclose(memspace) ;
+
+        // send to remote processor
+        MPI_Send(&tpos[0],sz*3,MPI_DOUBLE,i,0,MPI_COMM_WORLD) ;
+      }
+      H5Dclose(dataset) ;
+      H5Sclose(dspace) ;
+      H5Gclose(node_g) ;
+    } else {
+      // Receive nodes from root processor
+      FATAL(local_nodes[MPI_rank].num_intervals()!=1) ;
+      int start = local_nodes[MPI_rank].Min() ;
+      int size = local_nodes[MPI_rank].size() ;
+      MPI_Status status ;
+      MPI_Recv(&pos[start],size*3,MPI_DOUBLE,0,0,MPI_COMM_WORLD,&status) ;
+    }
+
+    vector<unsigned char> cluster_info ;
+    vector<unsigned short> cluster_sizes ;
+    // Now read in face clusters
+    int nclusters = 0 ;
+    if(MPI_rank == 0) {
+      dataset = H5Dopen(face_g,"cluster_sizes") ;
+      dspace = H5Dget_space(dataset) ;
+      hsize_t size = 0 ;
+      H5Sget_simple_extent_dims(dspace,&size,NULL) ;
+      nclusters = size ;
+    }
+    MPI_Bcast(&nclusters,1,MPI_INT,0,MPI_COMM_WORLD) ;
+
+    vector<int> cluster_dist(MPI_processes) ;
+    int sum = 0 ;
+    for(int i=0;i<MPI_processes;++i) {
+      cluster_dist[i] = nclusters/MPI_processes +
+        ((nclusters%MPI_processes)>i?1:0);
+      sum += cluster_dist[i] ;
+    }
+    FATAL(sum != nclusters) ;
+    readVectorDist(face_g,"cluster_sizes",cluster_dist,cluster_sizes) ;
+
+    int cluster_info_size = 0 ;
+    for(size_t i=0;i<cluster_sizes.size();++i)
+      cluster_info_size += cluster_sizes[i] ;
+
+    MPI_Allgather(&cluster_info_size,1,MPI_INT,&cluster_dist[0],1,MPI_INT,
+                  MPI_COMM_WORLD) ;
+    readVectorDist(face_g,"cluster_info",cluster_dist,cluster_info) ;
+
+    vector<int> cluster_offset(cluster_sizes.size()+1) ;
+    cluster_offset[0] = 0 ;
+    for(size_t i=0;i<cluster_sizes.size();++i)
+      cluster_offset[i+1] = cluster_offset[i] + cluster_sizes[i] ;
+    
+    int tot_faces = 0 ;
+    for(size_t i=0;i<cluster_sizes.size();++i) {
+      int nfaces = getClusterNumFaces(&cluster_info[cluster_offset[i]]) ;
+      tot_faces += nfaces ;
+    }
+
+    // Now get a face allocation for each processor
+    vector<int> faces_pp(MPI_processes) ;
+    MPI_Allgather(&tot_faces,1,MPI_INT,&faces_pp[0],1,MPI_INT,
+                  MPI_COMM_WORLD) ;
+
+    int face_accum = 0 ;
+    int faces_base = max_alloc + nnodes ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      local_faces[i] = interval(faces_base + face_accum,
+                                faces_base + face_accum+faces_pp[i]- 1) ;
+      face_accum += faces_pp[i] ;
+    }
+    int cells_base = faces_base + face_accum ;
+    
+
+    store<int> counts ;
+    counts.allocate(local_faces[MPI_rank]) ;
+    tot_faces = local_faces[MPI_rank].Min() ;
+    for(size_t i=0;i<cluster_sizes.size();++i) {
+      int nfaces = fillClusterFaceSizes(&cluster_info[cluster_offset[i]],
+                                        &counts[tot_faces]) ;
+      tot_faces += nfaces ;
+    }
+    face2node.allocate(counts) ;
+    cl.allocate(local_faces[MPI_rank]) ;
+    cr.allocate(local_faces[MPI_rank]) ;
+    int face_base = local_faces[MPI_rank].Min() ;
+    for(size_t i=0;i<cluster_sizes.size();++i) {
+      int nfaces = fillFaceInfo(&cluster_info[cluster_offset[i]],
+                                face2node,cl,cr,face_base) ;
+      face_base += nfaces ;
+    }
+
+
+    int max_cell = 0 ;
+    FORALL(local_faces[MPI_rank],fc) {
+      int fsz = face2node[fc].size() ;
+      for(int i=0;i<fsz;++i)
+        face2node[fc][i] += nodes_base ;
+      max_cell = max(max_cell,cl[fc]) ;
+      max_cell = max(max_cell,cr[fc]) ;
+      cl[fc] += cells_base ;
+      if(cr[fc] >= 0)
+        cr[fc] += cells_base ;
+    } ENDFORALL ;
+
+    int global_max_cell = max_cell ;
+    MPI_Allreduce(&max_cell,&global_max_cell,1,MPI_INT,MPI_MAX,
+                  MPI_COMM_WORLD) ;
+
+    int ncells = global_max_cell+1 ;
+    int cell_ivl = ncells / MPI_processes;
+    int cell_ivl_rem = ncells % MPI_processes ;
+    int cell_accum = 0 ;
+    
+    for(int i = 0; i < Loci::MPI_processes; ++i) {
+      int j = MPI_processes - i - 1 ;
+      int cell_accum_update = cell_accum + cell_ivl + ((j<cell_ivl_rem)?1:0) ;
+      
+      if(i == MPI_processes-1) {
+	local_cells[i] = interval(cells_base + cell_accum,
+				  cells_base + ncells-1) ;
+      } else {
+	local_cells[i] = interval(cells_base + cell_accum,
+                                  cells_base + cell_accum_update - 1) ;
+      }
+      cell_accum = cell_accum_update ;
+    }
+
+    return true ;
+  }
+    
   extern void distributed_inverseMap(multiMap &result,
                                      vector<pair<Entity,Entity> > &input,
                                      entitySet input_image,
@@ -582,8 +1015,8 @@ namespace Loci {
     FORALL(faces,fc) {
       Entity minc = min(cr[fc],cl[fc]) ;
       Entity maxc = max(cr[fc],cl[fc]) ;
-      cr[fc] = minc ;
-      cl[fc] = maxc ;
+      //      cr[fc] = minc ;
+      //      cl[fc] = maxc ;
       sortlist[i++] = pair<Entity,Entity>(minc,fc) ;
     } ENDFORALL ;
     sort(sortlist.begin(),sortlist.end(),fieldSort) ;
@@ -955,10 +1388,27 @@ namespace Loci {
     
     int max_alloc = facts.get_max_alloc() ;
 
-    if(!readGridXDR(local_nodes, local_faces, local_cells,
-		    t_pos, tmp_cl, tmp_cr, tmp_face2node,
-		    max_alloc, filename))
-      return false;
+    bool useVOG = false ;
+    
+    string input_file = filename ;
+    string::size_type spos = string::npos ;
+    if((spos = input_file.rfind('.')) != string::npos) {
+      input_file.erase(0,spos) ;
+      if(input_file == ".vog")
+        useVOG = true ;
+    }
+
+    if(useVOG) {
+      if(!readGridVOG(local_nodes, local_faces, local_cells,
+                      t_pos, tmp_cl, tmp_cr, tmp_face2node,
+                      max_alloc, filename))
+        return false;
+    } else {      
+      if(!readGridXDR(local_nodes, local_faces, local_cells,
+                      t_pos, tmp_cl, tmp_cr, tmp_face2node,
+                      max_alloc, filename))
+        return false;
+    }
 
     memSpace("after reading grid") ;
 
@@ -1504,11 +1954,25 @@ namespace Loci {
 
     create_ref(facts) ;
     create_ghost_cells(facts) ;
-    memSpace("before color matrix") ;
-    color_matrix(facts, COLOR_DFS) ;
-    memSpace("before make_faces_consistent") ;
-    make_faces_consistent(facts) ;
 
+    bool useVOG = false ;
+    
+    string input_file = filename ;
+    string::size_type spos = string::npos ;
+    if((spos = input_file.rfind('.')) != string::npos) {
+      input_file.erase(0,spos) ;
+      if(input_file == ".vog")
+        useVOG = true ;
+    }
+
+    if(!useVOG) {
+      memSpace("before color matrix") ;
+      color_matrix(facts, COLOR_DFS) ;
+      memSpace("before make_faces_consistent") ;
+      make_faces_consistent(facts) ;
+    } else {
+      //      make_faces_consistent(facts) ;
+    }
     return true ;
   }
 
