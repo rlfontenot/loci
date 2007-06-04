@@ -461,7 +461,7 @@ namespace Loci {
 
     int rsize = rdispls[p-1]+rcounts[p-1] ;
 
-    if(rsize!= close_pt.size()) {
+    if(size_t(rsize)!= close_pt.size()) {
       cerr << "rsize = " << rsize << ", close_pt.size() = " << close_pt.size()
            << endl ;
       cerr << "confused close_pt redistribution" << endl ;
@@ -600,7 +600,7 @@ namespace Loci {
     int pt = 0 ;
     int cnt = 0 ;
     const int max_pt = nsamples*samp_freq ;
-    for(int i=0;i<target_pnts.size();++i) 
+    for(int i=0;i<int(target_pnts.size());++i) 
       if(i==pt && pt < max_pt) {
         pt += samp_freq ;
       } else {
