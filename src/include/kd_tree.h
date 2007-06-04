@@ -10,6 +10,7 @@
 #endif
 #include <limits>
 
+#define HAS_KD_TREE_BOX_SEARCH
 namespace Loci {
   namespace kdTree {
     // 3-D vector class
@@ -83,7 +84,7 @@ namespace Loci {
       // is the projected distance (squared) from the sphere center to
       // the current dividing plane and coord is the current dividing plane.
       bool insphere(const coord3d &v,double r, double proj_d,
-                    bounds bnd, int coord) ;
+                    bounds bnd, int coord) const ;
 
       // Recursively build the kd tree
       // start points to the pivot element, end is one past the last element
@@ -91,18 +92,23 @@ namespace Loci {
       void build_kd(int start, int end, int depth) ;
 
       // Recursively search for the depth of the kd tree
-      int depth_search(int start,int end,int depth) ;
+      int depth_search(int start,int end,int depth) const ;
 
       // recursively search for the closest point, refining minimum distance
       // and bounds as we go
       int find_closest(int start,int end, int depth, const coord3d &v,
-                       double &rmin,bounds bnds) ;
+                       double &rmin,bounds bnds) const ;
 
       // recursively search for points in a bounding box, add them to the
       // vector passed in.
       void find_box(int start, int end, int depth,
                     std::vector<coord_info> &found_pts,
-                    const bounds &box, bounds bnds) ;
+                    const bounds &box, bounds bnds) const ;
+
+      int find_closest_box(int start, int end, int depth,
+                            const coord3d &v, double &rmin,
+                            const bounds &box,
+                            bounds bnds) const ;
       
 
     public:
@@ -115,20 +121,20 @@ namespace Loci {
         return depth_search(0,pnts.size(),0) ;
       }
       // Search for the closest point using the kd_tree
-      int find_closest(coord3d v, double &rmin) {
+      int find_closest(coord3d v, double &rmin) const {
         const int sp = find_closest(0,pnts.size(),0,v,rmin,bbox) ;
         if(sp < 0)
           return std::numeric_limits<int>::min() ;
         // Look up id of matched point
         return pnts[sp].id ;
       }
-      int find_closest(coord3d v) {
+      int find_closest(coord3d v) const {
         // Start with infinite closest point distance
         double rmin = std::numeric_limits<double>::max() ;
         return find_closest(v,rmin) ;
       }
 
-      void find_box(std::vector<coord_info> &found_pts, bounds box) {
+      void find_box(std::vector<coord_info> &found_pts, bounds box) const {
         if(box.maxc[0] < bbox.minc[0] ||
            box.minc[0] > bbox.maxc[0] ||
            box.maxc[1] < bbox.minc[1] ||
@@ -138,6 +144,27 @@ namespace Loci {
           return ;// if boxes don't intersect, we don't search
         // otherwise find points contained in box
         find_box(0,pnts.size(),0,found_pts,box,bbox) ;
+      }
+
+      int find_closest_box(coord3d v, bounds box, double &rmin) const {
+        if(box.maxc[0] < bbox.minc[0] ||
+           box.minc[0] > bbox.maxc[0] ||
+           box.maxc[1] < bbox.minc[1] ||
+           box.minc[1] > bbox.maxc[1] ||
+           box.maxc[2] < bbox.minc[2] ||
+           box.minc[2] > bbox.maxc[2]) // Check for intersection
+          // if boxes don't intersect, we don't search
+          return std::numeric_limits<int>::min() ;
+        // otherwise find points contained in box
+        const int sp = find_closest_box(0,pnts.size(),0,v,rmin,box,bbox) ;
+        if(sp < 0)
+          return std::numeric_limits<int>::min() ;
+        return pnts[sp].id ;
+      }
+      int find_closest_box(coord3d v, bounds box) const {
+        // Start with infinite closest point distance
+        double rmin = std::numeric_limits<double>::max() ;
+        return find_closest_box(v,box,rmin) ;
       }
      } ;
   }

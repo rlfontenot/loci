@@ -151,7 +151,7 @@ namespace Loci {
     }
 
     // Find depth of tree
-    int kd_tree::depth_search(int start,int end,int depth) {
+    int kd_tree::depth_search(int start,int end,int depth) const {
       const int sz = end-start ;
       if(sz <= kd_bin_size) // Were done now, so return
         return depth ;
@@ -170,7 +170,7 @@ namespace Loci {
     // is only applied for bouding boxes for which the center is outside, but
     // the radius may project into the bounding box.
     bool kd_tree::insphere(const coord3d &v,double r, double proj_d,
-                           bounds bnd, int coord) {
+                           bounds bnd, int coord) const {
       if(proj_d > r) // sphere not touching dividing plane, so test fails
         return false ;
       // Now check if circle in bounding plane is in bounds
@@ -227,7 +227,7 @@ namespace Loci {
     // rmin is the current best known estimate for the distance to the closest
     // point.  bnds is the current bounding box.
     int kd_tree::find_closest(int start,int end, int depth, const coord3d &v,
-                              double &rmin,bounds bnds) {
+                              double &rmin,bounds bnds) const {
   
       const int sz = end-start ;
 
@@ -343,7 +343,7 @@ namespace Loci {
     // vector passed in.
     void kd_tree::find_box(int start, int end, int depth,
                            vector<coord_info> &found_pts,
-                           const bounds &box, bounds bnds) {
+                           const bounds &box, bounds bnds) const {
       const int sz = end-start ;
 
       // Check if the entire box is in bounds then add all of the current
@@ -391,6 +391,108 @@ namespace Loci {
         find_box(start+1,splits[start], depth+1, found_pts, box, bnds_left) ;
       if(box.maxc[coord] >= bnds_right.minc[coord])
         find_box(splits[start],end, depth+1, found_pts, box, bnds_right) ;
+    }
+
+    // Search for the closest corresponding point to the vector defined by v
+    // rmin is the current best known estimate for the distance to the closest
+    // point.  bnds is the current bounding box.
+    int kd_tree::find_closest_box(int start,int end, int depth,
+                                  const coord3d &v, double &rmin,
+                                  const bounds &box,
+                                  bounds bnds) const {
+  
+      const int sz = end-start ;
+
+      // In base case perform linear search to find closest point
+      if(sz <= kd_bin_size)  {
+        if(sz == 0) // If size is zero, just return the root pivot
+          return -1 ;
+        int pt = -1 ;
+        // search points and add them if they are in the box
+        for(int i=start;i<end;++i)
+          if(pt_in_box(pnts[i].coords,box)) {
+            double rtmp = dist2(v,pnts[i].coords) ;
+            if(rtmp < rmin) {
+              pt = i ;
+              rmin = rtmp ;
+            }
+          }
+        return pt ;
+      }
+
+      const int coord = depth%3 ;
+
+      // otherwise search for which leaf contains our point
+      int id = -1 ;
+      // Check to see if the partitioning node is closer than current closest find
+      if(pt_in_box(pnts[start].coords,box)) {
+        double rtmp = dist2(v,pnts[start].coords) ;
+        if(rtmp < rmin) {
+          rmin = rtmp ;
+          id = start ;
+        }
+      }
+
+      // Find the projected distance to the current cutting plane
+      double proj_d = v[coord]-pnts[start].coords[coord] ;
+      proj_d = proj_d*proj_d ; // square since we are comparing squared distances
+
+      // is the point we are searching for on the left side of this partition?
+      // we want to search in the containing partition first so that we
+      // get a good estimate of the closest radius as early as possible
+      const bool left = (v[coord] <= pnts[start].coords[coord]) ;
+      // Compute the bounding box for the left and right kd-tree partitions
+      bounds bnds_left = bnds ;
+      bounds bnds_right = bnds ;
+      bnds_left.maxc[coord] = pnts[start].coords[coord] ;
+      bnds_right.minc[coord] = pnts[start].coords[coord] ;
+
+      if(left) { // traverse left side first
+        double proj_d2 = v[coord]-bnds_left.minc[coord] ;
+        proj_d2 = proj_d2*proj_d2 ;
+
+        // Check if sphere is in left side bounding box
+        if(box.minc[coord] <= bnds_left.maxc[coord]) {
+          if(v[coord] >= bnds_left.minc[coord] ||
+             insphere(v,rmin,proj_d2,bnds_left,coord)) {
+            int id1= find_closest_box(start+1,splits[start], depth+1, v, rmin, box,bnds_left) ;
+            // If a closer point is found, update id.
+            if(id1 >= 0)
+              id = id1 ;
+          }
+        }
+        // Now check the right side bounding box
+        if(box.maxc[coord] >= bnds_right.minc[coord]) {
+          if(insphere(v,rmin,proj_d,bnds_right,coord)) {
+            // If so, search this side for closest point
+            int id2= find_closest_box(splits[start],end, depth+1, v, rmin, box,bnds_right) ;
+            // If we find a closer point, update
+            if(id2 >= 0)
+              id = id2 ;
+          }
+        }
+      } else { // Search right side first
+        // Do same thing as left side just search right side of tree first
+        double proj_d2 = v[coord]-bnds_right.maxc[coord] ;
+        proj_d2 = proj_d2*proj_d2 ;
+        if(box.maxc[coord] >= bnds_right.minc[coord]) {
+          if(v[coord] <= bnds_right.maxc[coord] ||
+             insphere(v,rmin,proj_d2,bnds_right,coord)) {
+            int id1 = find_closest_box(splits[start],end, depth+1, v, rmin, box, bnds_right) ;
+            if(id1 >= 0)
+              id = id1 ;
+          }
+        }
+        if(box.minc[coord] <= bnds_left.maxc[coord]) {
+          if(insphere(v,rmin,proj_d,bnds_left,coord)) {
+            int id2= find_closest_box(start+1,splits[start], depth+1, v, rmin, box, bnds_left) ;
+            if(id2 >= 0)
+              id = id2 ;
+          }
+        }
+      }
+      // Return the id of the current closest point
+      return id ;
     }
  
   }
