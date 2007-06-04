@@ -2,6 +2,7 @@
 #include <LociGridReaders.h>
 #include <Tools/tools.h>
 #include <map>
+#include "pnn.h"
 
 #include <list>
 using std::list ;
@@ -592,173 +593,6 @@ namespace Loci {
   
 
 
-  // Oct Tree code
-  
-  void octree::collect_points(vector<int> &v, int node) {
-    for(int i=0;i<8;++i) {
-      if(otree[node][i]>0)
-        collect_points(v,otree[node][i]) ;
-      if(otree[node][i]<0)
-        v.push_back(otree[node][i]) ;
-    }
-  }
-
-  void octree::insert_tree(int node, int i,
-                           double xl, double xh,
-                           double yl, double yh,
-                           double zl, double zh) {
-    double xm = 0.5*(xl+xh) ;
-    double ym = 0.5*(yl+yh) ;
-    double zm = 0.5*(zl+zh) ;
-
-    bool tx = vlist[i].x < xm ;
-    bool ty = vlist[i].y < ym ;
-    bool tz = vlist[i].z < zm ;
-    int idx = (tx?0:4)+(ty?0:2)+(tz?0:1) ;
-
-    double xo = tx?xl:xh ;
-    double yo = ty?yl:yh ;
-    double zo = tz?zl:zh ;
-    
-    xl = min(xo,xm) ;
-    xh = max(xo,xm) ;
-    yl = min(yo,ym) ;
-    yh = max(yo,ym) ;
-    zl = min(zo,zm) ;
-    zh = max(zo,zm) ; 
-    
-    if(otree[node][idx] == 0) {
-      otree[node][idx] = -(i+1) ;
-      return ;
-    }
-    if(otree[node][idx] > 0) {
-      insert_tree(otree[node][idx],i,xl,xh,yl,yh,zl,zh) ;
-    } else {
-      int j = (-otree[node][idx])-1 ;
-      vector3d<double> dif = vlist[i]-vlist[j] ;
-      double n1 = abs(dif.x)+abs(dif.y)+abs(dif.z) ;
-      if(n1 < 1e-9 ) {
-        cerr << "n1 = " << n1 << endl ;
-        cerr << "duplicate points, ignoring second entry" << endl ;
-        cerr << "pnt["<< i << "] = " << vlist[i]
-             << ", pnt["<< j << "] = " << vlist[j] << endl ;
-
-        return ;
-      }
-      otree.push_back(Array<int,8>()) ;
-      int id = otree.size() - 1; 
-      for(int k=0;k<8;++k) 
-        otree[id][k] = 0 ;
-      otree[node][idx] = id ;
-      insert_tree(id,i,xl,xh,yl,yh,zl,zh) ;
-      insert_tree(id,j,xl,xh,yl,yh,zl,zh) ;
-    }
-  }
-
-  void octree::find_path(vector<unsigned char> &v,
-                         int node, vector3d<double> &pt,
-                         double xl, double xh,
-                         double yl, double yh,
-                         double zl, double zh) {
-
-    vector<int> node_path ;
-    do {
-      double xm = 0.5*(xl+xh) ;
-      double ym = 0.5*(yl+yh) ;
-      double zm = 0.5*(zl+zh) ;
-
-      bool tx = pt.x < xm ;
-      bool ty = pt.y < ym ;
-      bool tz = pt.z < zm ;
-      int idx = (tx?0:4)+(ty?0:2)+(tz?0:1) ;
-
-      double xo = tx?xl:xh ;
-      double yo = ty?yl:yh ;
-      double zo = tz?zl:zh ;
-    
-      xl = min(xo,xm) ;
-      xh = max(xo,xm) ;
-      yl = min(yo,ym) ;
-      yh = max(yo,ym) ;
-      zl = min(zo,zm) ;
-      zh = max(zo,zm) ; 
-      if(xl > pt.x || xh <pt.x )
-        cerr << "xerror"<< endl ;
-      if(yl > pt.y || yh <pt.y )
-        cerr << "yerror"<< endl ;
-      if(zl > pt.z || zh <pt.z )
-        cerr << "zerror"<< endl ;
-  
-      v.push_back((unsigned char) idx) ;
-      node_path.push_back(node) ;
-      node = otree[node][idx] ;
-    } while(node > 0) ;
-  }
-  void octree::find_neighbors(vector<int> &points,const vector<unsigned char> &v) {
-
-    if(v.size() <= 1) {
-      collect_points(points,0) ;
-      for(unsigned int i=0;i<points.size();++i) {
-        points[i] = -points[i]-1 ;
-      }
-      return ;
-    } 
-    vector<unsigned char > tmp = v ;
-    tmp.pop_back() ;
-
-    for(int i=0;i<3;++i) 
-      for(int j=0;j<3;++j)
-        for(int k=0;k<3;++k) {
-          vector<unsigned char> path = tmp ;
-          if(i==1)
-            if(inc_path(path,0))
-              continue ;
-          if(i==2) 
-            if(dec_path(path,0))
-              continue ;
-          if(j==1)
-            if(inc_path(path,1))
-              continue ;
-          if(j==2) 
-            if(dec_path(path,1))
-              continue ;
-          if(k==1)
-            if(inc_path(path,2))
-              continue ;
-          if(k==2) 
-            if(dec_path(path,2))
-              continue ;
-          int nd = get_node_from_path(path) ;
-          if(nd > 0) {
-            collect_points(points,nd) ;
-          } if(nd < 0) {
-            points.push_back(nd) ;
-          }
-        
-        }
-  
-    for(unsigned int i=0;i<points.size();++i) {
-      points[i] = -points[i]-1 ;
-    }
-    return ;
-  }
-
-  void octree::print_path(vector3d<double> &pt) {
-    vector<unsigned char> path ;
-    find_path(path,0,pt,xmin,xmax,ymin,ymax,zmin,zmax) ;
-    std::cout << pt 
-         << ' ' << xmin
-         << ' ' << xmax
-         << ' ' << ymin
-         << ' ' << ymax
-         << ' ' << zmin
-         << ' ' << zmax
-         << ' ' << "path = " ;
-    for(unsigned int i=0;i<path.size();++i) {
-      cout << (int)path[i] ;
-    }
-    cout << endl ;
-  }
   
   namespace {
     void get_vect3dOption(const options_list &ol,std::string vname,
@@ -992,103 +826,6 @@ namespace Loci {
     } ; 
   }
 
-  void point_connect_3d(const dstore<vector3d<double> > &p1, entitySet p1set,
-                        const dstore<vector3d<double> > &p2, entitySet p2set,
-                        dMap &leftc, dMap &rightc, double tol,
-                        fact_db &facts) {
-    int npnts = p2set.size() ;
-    vector<vector3d<double> > pnts(npnts) ;
-    vector<Entity> ids(npnts) ;
-    int cnt = 0 ;
-    vector3d<double>   bmin(1e30,1e30,1e30),bmax(-1e30,-1e30,-1e30) ;
-    for(entitySet::const_iterator ei=p2set.begin();ei!=p2set.end();++ei) {
-      const vector3d<double>  pt = p2[*ei] ;
-      pnts[cnt] = pt ;
-      ids[cnt++] = *ei ;
-      bmin.x = min(pt.x,bmin.x) ;
-      bmax.x = max(pt.x,bmax.x) ;
-      bmin.y = min(pt.y,bmin.y) ;
-      bmax.y = max(pt.y,bmax.y) ;
-      bmin.z = min(pt.z,bmin.z) ;
-      bmax.z = max(pt.z,bmax.z) ;
-    }
-    for(entitySet::const_iterator ei=p1set.begin();ei!=p1set.end();++ei) {
-      const vector3d<double>  pt = p1[*ei] ;
-      bmin.x = min(pt.x,bmin.x) ;
-      bmax.x = max(pt.x,bmax.x) ;
-      bmin.y = min(pt.y,bmin.y) ;
-      bmax.y = max(pt.y,bmax.y) ;
-      bmin.z = min(pt.z,bmin.z) ;
-      bmax.z = max(pt.z,bmax.z) ;
-    }
-
-    bmax.x += 1e-33 ;
-    bmax.y += 1e-33 ;
-    bmax.z += 1e-33 ;
-    bmin.x -= 1e-32 ;
-    bmin.y -= 1e-32 ;
-    bmin.z -= 1e-32 ;
-    
-    double refdist = norm(bmin-bmax)*1e-3 ;
-    
-    octree search_tree(pnts,bmin,bmax) ;
-
-    vector<Entity> connect1, connect2 ;
-    
-    for(entitySet::const_iterator ei=p1set.begin();ei!=p1set.end();++ei) {
-      const vector3d<double>  pt = p1[*ei] ;
-      vector<int> neighbors ;
-      search_tree.find_close_points(neighbors,pt) ;
-      
-      if(neighbors.size() == 0) {
-        cerr << "neighbors size is zero in node_connect_3d!" << endl ;
-        continue ;
-      }
-
-      double closedist = dot((pt-pnts[neighbors[0]]),
-                           (pt-pnts[neighbors[0]])) ;
-      int close_id = 0 ;
-      for(size_t i=1;i<neighbors.size();++i) {
-        double dist2 = dot((pt-pnts[neighbors[i]]),
-                         (pt-pnts[neighbors[i]])) ;
-        if(closedist > dist2) {
-          closedist = dist2 ;
-          close_id = i ;
-        }
-      }
-      if(closedist <= refdist*refdist) {
-        connect1.push_back(*ei) ;
-        connect2.push_back(ids[neighbors[close_id]]) ;
-      }
-    }
-    
-    for(size_t i=0;i<connect1.size();++i) {
-      leftc[connect1[i]] = connect1[i] ;
-      rightc[connect1[i]] = connect2[i] ;
-    }
-    entitySet t1set = create_entitySet(connect1.begin(),connect1.end()) ;
-    entitySet t2set = create_entitySet(connect2.begin(),connect2.end()) ;
-
-#ifdef OLD
-    if(t1set != p1set || t2set != p2set) {
-      std::cerr << "no point matched connectivity in interface!" << std::endl ;
-      cerr << "p1set = " << p1set << "t1set = " << t1set << endl ;
-      cerr << "p2set = " << p2set << "t2set = " << t2set << endl ;
-      cerr << "outputing debug file 'connect.debug'" << endl ;
-      std::ofstream outfile("connect.debug",std::ios::out) ;
-      outfile.precision(16) ;
-      outfile << p1set.size() << endl ;
-      for(entitySet::const_iterator ei= p1set.begin();ei!=p1set.end();++ei)
-        outfile << *ei << ' '  <<p1[*ei] << endl ;
-      outfile << p2set.size() << endl ;
-      for(entitySet::const_iterator ei= p2set.begin();ei!=p2set.end();++ei)
-        outfile << *ei << ' ' <<  p2[*ei] << endl ;
-      
-      outfile.close() ;
-      Abort() ;
-    }
-#endif
-  }
 
   void setup_periodic_bc(list<pair<periodic_info,periodic_info> >
                          &periodic_list,fact_db &facts) {
@@ -1133,6 +870,7 @@ namespace Loci {
       periodic_transform[bc1] = rigid_transform(center,v,angle,trans) ;
       periodic_transform[bc2] = rigid_transform(center,v,-angle,-1.*trans) ;
 
+      // Compute face centers for point matching
       dstore<vector3d<real_t> > p1center ;
       entitySet p1Set = ii->first.bset ;
       rigid_transform tran = periodic_transform[bc1] ;
@@ -1158,64 +896,67 @@ namespace Loci {
         p2center[*ei] = tot ;
       }
 
-      if(facts.is_distributed_start()) {
-        
-        storeRepP sfp = p1center.Rep() ;
-        storeRepP ffp = p2center.Rep() ;
-        dstore<vector3d<real_t> > global_p1center ;
-        global_p1center = collect_global_store(sfp) ;
-        dstore<vector3d<real_t> > global_p2center ;
-        global_p2center = collect_global_store(ffp) ;
+      // Find closest points
+      vector<kdTree::coord3d> p1(p1center.domain().size()) ;
+      vector<int> p1id(p1center.domain().size()) ;
+      int cnt = 0 ;
+      FORALL(p1center.domain(),fc) {
+        p1[cnt][0] = p1center[fc].x ;
+        p1[cnt][1] = p1center[fc].y ;
+        p1[cnt][2] = p1center[fc].z ;
+        p1id[cnt] = fc ;
+        cnt++ ;
+      } ENDFORALL ;
 
+      vector<kdTree::coord3d> p2(p2center.domain().size()) ;
+      vector<int> p2id(p2center.domain().size()) ;
+      cnt = 0 ;
+      FORALL(p2center.domain(),fc) {
+        p2[cnt][0] = p2center[fc].x ;
+        p2[cnt][1] = p2center[fc].y ;
+        p2[cnt][2] = p2center[fc].z ;
+        p2id[cnt] = fc ;
+        cnt++ ;
+      } ENDFORALL ;
+
+      vector<int> p1closest(p1.size()) ;
+
+      parallelNearestNeighbors(p2,p2id,p1,p1closest,MPI_COMM_WORLD) ;
+
+      vector<int> p2closest(p2.size()) ;
+      parallelNearestNeighbors(p1,p1id,p2,p2closest,MPI_COMM_WORLD) ;
       
-        // Connect solid and fluid faces using centers.
-        dMap lc,rc ;
+      for(size_t i=0;i<p1.size();++i)
+        pmap[p1id[i]] = p1closest[i] ;
+      for(size_t i=0;i<p2.size();++i)
+        pmap[p2id[i]] = p2closest[i] ;
 
+      // Check to make sure connection is one-to-one
+      dstore<int> check ;
+      for(size_t i=0;i<p2.size();++i)
+        check[p2id[i]] = p2closest[i] ;
+
+      entitySet p1map = create_entitySet(p1closest.begin(),p1closest.end()) ;
+      storeRepP sp = check.Rep() ;
+      std::vector<entitySet> init_ptn ;
+      if(facts.is_distributed_start()) {
+        init_ptn = facts.get_init_ptn() ;
+        fill_clone(sp, p1map, init_ptn) ;
+      }
+      bool periodic_problem = false ;
+      for(size_t i=0;i<p1id.size();++i) 
+        if(check[pmap[p1id[i]]] != p1id[i])
+          periodic_problem = true ;
+      if(GLOBAL_OR(periodic_problem)) {
         if(MPI_rank == 0) {
-          point_connect_3d(global_p1center,global_p1center.domain(),
-                           global_p2center,global_p2center.domain(),
-                           lc,rc,
-                           1e-5,facts) ;
-          if(lc.domain() != global_p1center.domain() ||
-             rc.image(rc.domain()) != global_p2center.domain()) {
-            cerr << "periodic boundary not point matched!" << endl ;
-            Abort() ;
-          }
-            
+          cerr << "Periodic boundary did not connect properly, is boundary point matched?" << endl ;
+          Loci::Abort() ;
         }
-
-        dMap lpmap_glob ;
-        FORALL(lc.domain(),i) {
-          lpmap_glob[lc[i]] = rc[i] ;
-          lpmap_glob[rc[i]] = lc[i] ;
-        } ENDFORALL ;
-
-        dMap lpmap ;
-        lpmap = distribute_dMap(lpmap_glob,init_ptn) ;
-
-        FORALL(lpmap.domain(),i) {
-          pmap[i] = lpmap[i] ;
-        } ENDFORALL  ;
-
-      } else {
-        dMap lc , rc ;
-        point_connect_3d(p1center,p1center.domain(),
-                         p2center,p2center.domain(),
-                         lc,rc,1e-5,facts) ;
-        if(lc.domain() != p1center.domain() ||
-           rc.image(rc.domain()) != p2center.domain()) {
-          cerr << "periodic boundary not point matched!" << endl ;
-          Abort() ;
-        }
-
-        FORALL(lc.domain(),i) {
-          pmap[lc[i]] = rc[i] ;
-          pmap[rc[i]] = lc[i] ;
-        } ENDFORALL ;
       }
     }
 
-    
+
+    // Add periodic datastructures to fact database
     facts.create_fact("pmap",pmap) ;
     facts.create_fact("periodicTransform",periodic_transform) ;
 
@@ -1235,7 +976,7 @@ namespace Loci {
     constraint notPeriodicCells ;
     *notPeriodicCells = ~pcells ;
     facts.create_fact("notPeriodicCells",notPeriodicCells) ;
-  }
+  } 
 
   void create_ci_map(fact_db &facts) {
     constraint boundary_faces ;
