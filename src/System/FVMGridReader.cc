@@ -1446,11 +1446,6 @@ namespace Loci {
     
       Loci::debugout << endl ;
 
-      param<int> min_node ;
-      *min_node = 0;
-    
-      facts.create_fact("min_node", min_node) ;
-      
       facts.create_fact("cl", cl) ;
       facts.create_fact("cr", cr) ;
       facts.create_fact("pos", pos) ;
@@ -1576,15 +1571,6 @@ namespace Loci {
     if(Loci::MPI_rank == 0)
       Loci::debugout << endl ;
 
-    param<int> min_node ;
-
-    if(Loci::MPI_processes > 1)
-      *min_node = max_alloc ;
-    else 
-      *min_node = 0;
-    
-    facts.create_fact("min_node", min_node) ;
-    
     facts.create_fact("cl", cl) ;
     facts.create_fact("cr", cr) ;
     facts.create_fact("pos", pos) ;
