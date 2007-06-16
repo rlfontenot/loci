@@ -150,7 +150,7 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   nhexs = inhexs ;
   ngen = ingen ;
   part_id = 1 ;
-  filename = casename + "_fv."+iteration + ".bin";
+  filename = casename + "_fv_"+iteration + ".bin";
   OFP = fopen(filename.c_str(), "wb") ;
   if(OFP == NULL) {
     cerr << "can't open file " << filename << endl ;
