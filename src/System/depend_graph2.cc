@@ -1131,6 +1131,23 @@ namespace Loci {
     if(!check_iteration(iter))
       return ; // because gr is empty now
 
+    // finally, we will need to remove any rule that
+    // generates any given variable. because given
+    // variables are assumed to be extensional and
+    // do not need to be computed again.
+    {
+      ruleSet rules_to_remove ;
+      for(ruleSet::const_iterator ri=working_rules.begin();
+          ri!=working_rules.end();++ri) {
+        variableSet targets = ri->targets() ;
+        // we only remove rule whose targets are COMPLETELY
+        // included in the given variableSet
+        if( (targets - given) == EMPTY)
+          rules_to_remove += *ri ;
+      }
+      working_rules -= rules_to_remove ;
+    }
+
     // then we build a digraph that has all the working
     // rules (stationary rules + time specific rules +
     // iterating rules) inside
@@ -1196,7 +1213,7 @@ namespace Loci {
     // Add dependencies created by update-in-place rules
     add_rename_dependencies(gr) ;
 
-    // Finish cleaing things up
+    // Finish cleaning things up
     gr.remove_dangling_vertices() ;
   }
 
