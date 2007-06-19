@@ -887,7 +887,7 @@ namespace Loci {
       input("pmap->cl->grads(X)") ;
       input("pmap->ref->periodicTransform") ;
       output("cr->grads(X)") ;
-      constraint("periodicFaces") ;
+      constraint("periodicFaces,cl->X") ;
     }
     void calculate(Entity pf) {
       const rigid_transform &frame = periodicTransform[ref[pmap[pf]]] ;
@@ -915,7 +915,7 @@ namespace Loci {
       input("pmap->cl->gradv(X)") ;
       input("pmap->ref->periodicTransform") ;
       output("cr->gradv(X)") ;
-      constraint("periodicFaces") ;
+      constraint("periodicFaces,cl->X") ;
     }
     void calculate(Entity pf) {
       const rigid_transform &frame = periodicTransform[ref[pmap[pf]]] ;
@@ -945,7 +945,7 @@ namespace Loci {
       input("pmap->cl->gradv3d(X)") ;
       input("pmap->ref->periodicTransform") ;
       output("cr->gradv3d(X)") ;
-      constraint("periodicFaces") ;
+      constraint("periodicFaces,cl->X") ;
     }
     void calculate(Entity pf) {
       const rigid_transform &frame = periodicTransform[ref[pmap[pf]]] ;
