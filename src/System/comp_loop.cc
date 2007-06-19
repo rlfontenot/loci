@@ -356,13 +356,24 @@ namespace Loci {
     }
 
 
-    for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
-      entitySet tot_request = scheds.get_variable_requests(*vi);
-      variable tmp_var = vi->new_offset(vi->get_info().offset - 1);
-      tot_request += scheds.get_variable_requests(tmp_var);
-      //      scheds.variable_request(*vi, tot_request);
-    }
+    // this block of code is apparently not used
+//     for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
+//       entitySet tot_request = scheds.get_variable_requests(*vi);
+//       variable tmp_var = vi->new_offset(vi->get_info().offset - 1);
+//       tot_request += scheds.get_variable_requests(tmp_var);
+//       //      scheds.variable_request(*vi, tot_request);
+//     }
 
+    // then we need to remove all the non-store variables from
+    // var_requests to prevent any parallel communications
+    variableSet non_stores ;
+    for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
+      storeRepP sp = facts.get_variable(*vi) ;
+      if(sp->RepType() != STORE)
+        non_stores += *vi ;
+    }
+    var_requests -= non_stores ;
+    
     if(facts.isDistributed()) {
       advance_variables_barrier = barrier_process_rule_requests(var_requests, facts, scheds);
       advance_variables_barrier = sort_comm(advance_variables_barrier, facts);
