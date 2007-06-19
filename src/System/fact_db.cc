@@ -726,6 +726,9 @@ namespace Loci {
   
   void serial_freeze(fact_db &facts) {
     variableSet vars = facts.get_typed_variables() ;
+#ifdef SERIAL_FREEZE_OLD_REMAP_IMPL
+    // this is a obsoleted implementation and would soon be removed
+    // when the new code is tested to become stable.
     entitySet map_entities ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP  p = facts.get_variable(*vi) ;
@@ -735,8 +738,14 @@ namespace Loci {
         map_entities += dom ;
         map_entities += mp->image(dom) ;
       }
+      /*
       if(p->RepType() == STORE) {
         map_entities += p->domain() ;
+        }
+      */
+      else {
+        if(p->domain() != ~EMPTY)
+          map_entities += p->domain() ;
       }
     }
     dMap m ;
@@ -751,6 +760,11 @@ namespace Loci {
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       storeRepP  p = facts.get_variable(*vi) ;
       facts.replace_fact(*vi,(p->remap(m))->freeze()) ;
+    }
+#endif
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      storeRepP p = facts.get_variable(*vi) ;
+      facts.replace_fact(*vi, p->freeze()) ;
     }
   }
 
