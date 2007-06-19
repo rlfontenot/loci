@@ -1014,9 +1014,6 @@ namespace Loci {
     int i=0 ;
     FORALL(faces,fc) {
       Entity minc = min(cr[fc],cl[fc]) ;
-      Entity maxc = max(cr[fc],cl[fc]) ;
-      //      cr[fc] = minc ;
-      //      cl[fc] = maxc ;
       sortlist[i++] = pair<Entity,Entity>(minc,fc) ;
     } ENDFORALL ;
     sort(sortlist.begin(),sortlist.end(),fieldSort) ;
