@@ -1116,7 +1116,7 @@ namespace Loci {
     real_t Xmin = std::numeric_limits<real_t>::max() ;
     const size_t supper = $upper.size() ;
     const size_t slower = $lower.size() ;
-    const size_t sbmap = $boundary_map.size() ;
+    //    const size_t sbmap = $boundary_map.size() ;
     for(size_t i=0;i<supper;++i) {
       Xmax = max(Xmax,$upper[i]->$cr->$X) ;
       Xmin = min(Xmin,$upper[i]->$cr->$X) ;
