@@ -82,6 +82,36 @@ namespace Loci {
     }
   }
 
+  // blackbox_compiler code
+  void
+  blackbox_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
+    // set UNIVERSE existence for all targets
+    variableSet targets = impl.targets() ;
+    for(variableSet::const_iterator vi=targets.begin();
+        vi!=targets.end();++vi)
+      scheds.set_existential_info(*vi, impl, ~EMPTY) ;
+  }
+
+  void
+  blackbox_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
+    // everyone will need to request for their existence
+    variableSet targets = impl.targets() ;
+    for(variableSet::const_iterator vi=targets.begin();
+        vi!=targets.end();++vi)
+      scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
+
+    variableSet sources = impl.sources() ;
+    for(variableSet::const_iterator vi=sources.begin();
+        vi!=sources.end();++vi)
+      scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
+  }
+
+  executeP
+  blackbox_compiler::create_execution_schedule(fact_db& facts,
+                                               sched_db& scheds) {
+    return new execute_rule(impl, ~EMPTY, facts, scheds);
+  }
+
 }
  
  

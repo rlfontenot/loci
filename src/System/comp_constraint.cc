@@ -39,23 +39,26 @@ namespace Loci {
   
   void constraint_compiler::set_var_existence(fact_db& facts,
                                               sched_db& scheds)
-  {}
+  {
+    existential_rule_analysis(constraint_rule,facts, scheds) ;
+  }
   
   void constraint_compiler::process_var_requests(fact_db& facts,
                                                  sched_db& scheds) {
     variableSet var_requests = constraint_rule.targets() ;
     variableSet::const_iterator vi ;
+    // all constraints would need to request for everything
     for(vi=var_requests.begin();vi!=var_requests.end();++vi) {
-      scheds.variable_request(*vi,~EMPTY) ;
+      scheds.variable_request(*vi,~EMPTY) ;//scheds.variable_existence(*vi)) ;
     }
     
-    process_rule_requests(constraint_rule,facts, scheds) ;
+    exec_seq = process_rule_requests(constraint_rule,facts, scheds) ;
   }
   
   executeP constraint_compiler::create_execution_schedule(fact_db& facts,
                                                           sched_db& scheds) {
     return new execute_constraint_rule(constraint_rule,
-                                       ~EMPTY, facts,scheds) ;
+                                       exec_seq, facts,scheds) ;
   }
 
 }

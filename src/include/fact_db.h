@@ -313,6 +313,12 @@ namespace Loci {
                                  store_instance &si) {
       create_fact(vname,si) ;
     }
+    // this method will convert all intensional facts (if any) in
+    // the fact database to extensional facts
+    void make_all_extensional() {
+      variableSet intensional_facts = get_intensional_facts() ;
+      extensional_facts += intensional_facts ;
+    }
     // and then we have the corresponding intensional facts creation
     void create_intensional_fact(const variable& v, storeRepP st) {
       variable v_tmp = add_namespace(v) ;
@@ -351,7 +357,7 @@ namespace Loci {
     void make_intensional_fact(const std::string& vname) {
       make_intensional_fact(variable(vname)) ;
     }
-    
+
     void write_all_hdf5(const char *filename) ;
     void read_all_hdf5(const char *filename) ;
     void write_hdf5(const char *filename, variableSet &vars) ;

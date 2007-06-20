@@ -44,13 +44,14 @@ namespace Loci {
   public:
     struct info {
       std::set<vmap_info> sources, targets, constraints ;
+      std::set<vmap_info> dynamic_constraints ;
       variableSet conditionals ;
       std::string rule_identifier() const ;
       variableSet input_vars() const ;
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,MAP_RULE,UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,MAP_RULE,BLACKBOX_RULE,UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
@@ -133,6 +134,8 @@ namespace Loci {
     // the rules may have its "vmap_info" structure modified
     // to reflect the substitution of constraints for maps.
     void replace_map_constraints(fact_db& facts) ;
+
+    void split_constraints(const variableSet& dc) ;
     
     void set_variable_times(time_ident tl) ;
     void copy_store_from(rule_impl &f) ;
@@ -228,8 +231,10 @@ namespace Loci {
     { rule_impl::input(invar) ; }
     void output(const std::string &outvar)
     { rule_impl::output(outvar) ; }
-    void constraint(const std::string &constrain)
-    { rule_impl::constraint(constrain) ; }
+    // do we allow constraint in a constraint rule???
+    // I don't think so currently --- so we disable it for now.
+//     void constraint(const std::string &constrain)
+//     { rule_impl::constraint(constrain) ; }
     void conditional(const std::string &cond)
       { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
@@ -251,6 +256,22 @@ namespace Loci {
     virtual CPTR<joiner> get_joiner() {return CPTR<joiner>(0) ;}
   } ;
   
+  class blackbox_rule : public rule_impl {
+  protected:
+    blackbox_rule() { rule_class(BLACKBOX_RULE) ; }
+    void name_store(const std::string &nm, store_instance &si)
+    { rule_impl::name_store(nm,si) ; }
+    void input(const std::string &invar)
+    { rule_impl::input(invar) ; }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+    { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+  } ;
+
   class pointwise_rule : public rule_impl {
   protected:
     pointwise_rule() { rule_class(POINTWISE) ; }

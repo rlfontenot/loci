@@ -5,7 +5,6 @@
 #include "dist_tools.h"
 #include "visitor.h"
 
-
 #include <vector>
 using std::vector ;
 #include <map>
@@ -160,15 +159,18 @@ namespace Loci {
             rule_process[*ri] = new error_compiler ;
         } else {
           if(ri->get_info().rule_impl->get_rule_class()
-             == rule_impl::CONSTRAINT_RULE)
+             == rule_impl::CONSTRAINT_RULE) // a constraint rule
             rule_process[*ri] = new constraint_compiler(*ri) ;
           else if(ri->get_info().rule_impl->get_rule_class()
-             == rule_impl::MAP_RULE)
+                  == rule_impl::MAP_RULE) // a map rule (to be revised)
             rule_process[*ri] = new map_compiler(*ri) ;
           else if(ri->get_info().rule_impl->get_rule_class()
-                  == rule_impl::APPLY)
+                  == rule_impl::BLACKBOX_RULE) // a blackbox rule
+            rule_process[*ri] = new blackbox_compiler(*ri) ;
+          else if(ri->get_info().rule_impl->get_rule_class()
+                  == rule_impl::APPLY) // an apply rule
             rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
-          else
+          else                  // a normal concrete rule
             rule_process[*ri] = new impl_compiler(*ri) ;
         }
       }
@@ -871,7 +873,8 @@ namespace Loci {
     return executeP(schedule) ;
   }
 
-  void clean_empties(digraph &gr,variableSet given, variableSet target, variableSet empties) {
+  void clean_empties(digraph &gr,variableSet given,
+                     variableSet target, variableSet empties) {
     variableSet work = empties ;
 
     ruleSet del_rules ;
@@ -898,28 +901,32 @@ namespace Loci {
     sched_db scheds(local_facts) ;
     
     ruleSet rules = extract_rules(gr.get_all_vertices()) ;
-    variableSet constraints ;
+    variableSet constraints ;   // this set represents
+                                // static level constraints
     ruleSet constraint_rules ;
     // then we will need to find out whether there are any
     // constraints being generated
     for(ruleSet::const_iterator ri=rules.begin();
         ri!=rules.end();++ri) {
-      if(ri->type() != rule::INTERNAL)
+      if(ri->type() != rule::INTERNAL) {
         // collect constraint rule
         if(ri->get_info().rule_impl->get_rule_class() ==
            rule_impl::CONSTRAINT_RULE) {
           constraint_rules += *ri ;
           variableSet targets = ri->targets() ;
           for(variableSet::const_iterator vi=targets.begin();
-              vi!=targets.end();++vi)
+              vi!=targets.end();++vi) {
             if(vi->time() != time_ident()) {
-              cerr << "Dynamic scheduling of non-stationary time relations"
-                   << " are not currently supported." << endl ;
-              cerr << *vi << endl ;
+              cerr << "computing constraints that are NOT in"
+                   << " the stationary time is NOT supported!"
+                   << endl ;
               Loci::Abort() ;
             }
-          constraints += targets ;
+            else
+              constraints += *vi ;
+          }
         }
+      } // end if(ri->type() != rule::INTERNAL)
     }
     if(constraints == EMPTY)
       return ;
@@ -960,7 +967,7 @@ namespace Loci {
 
     digraph dgrt = dgr.transpose() ;
     ruleSet allrules = extract_rules(dgr.get_all_vertices()) ;
-    // Collect information on unit rules on this level
+    // Collect information on unit rules in this level
     map<rule,rule> apply_to_unit ;
     for(ruleSet::const_iterator ri=allrules.begin();
         ri!=allrules.end();++ri) {
@@ -1046,6 +1053,158 @@ namespace Loci {
     }
   }
 
+  void
+  dynamic_scheduling2(rule_db& par_rdb, fact_db& facts,
+                       const variableSet& user_query) {
+    // we'll first generate the dependency graph
+    // according to the initial facts and rules database
+    variableSet given = facts.get_typed_variables() ;
+    digraph gr ;
+    given -= variable("EMPTY") ;
+    gr = dependency_graph2(par_rdb,given,user_query).get_graph() ;
+
+    // If graph is empty, we just return without any further actions
+    if(gr.get_target_vertices() == EMPTY)
+      return ;
+
+    // then we need to copy the fact_db
+    fact_db local_facts(facts) ;
+    // then generate a sched_db from the local_facts
+    sched_db scheds(local_facts) ;
+    
+    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
+    variableSet constraints ;   // this set represents
+                                // static level constraints
+    ruleSet constraint_rules ;
+    // then we will need to find out whether there are any
+    // constraints being generated
+    for(ruleSet::const_iterator ri=rules.begin();
+        ri!=rules.end();++ri) {
+      if(ri->type() != rule::INTERNAL) {
+        // collect constraint rule
+        if(ri->get_info().rule_impl->get_rule_class() ==
+           rule_impl::CONSTRAINT_RULE) {
+          constraint_rules += *ri ;
+          variableSet targets = ri->targets() ;
+          for(variableSet::const_iterator vi=targets.begin();
+              vi!=targets.end();++vi) {
+            if(vi->time() != time_ident()) {
+              cerr << "computing constraints that are NOT in"
+                   << " the stationary time is NOT supported!"
+                   << endl ;
+              Loci::Abort() ;
+            }
+            else
+              constraints += *vi ;
+          }
+        }
+      } // end if(ri->type() != rule::INTERNAL)
+    }
+    if(constraints == EMPTY)
+      return ;
+    // we will need to construct a graph that computes the relations
+    digraph dgr ;
+    digraph grt = gr.transpose() ;
+    digraph::vertexSet targets ;
+    for(variableSet::const_iterator vi=constraints.begin();
+        vi!=constraints.end();++vi)
+      targets += vi->ident() ;
+    digraph::vertexSet working = targets ;
+    digraph::vertexSet visited ;
+    while(working!=EMPTY) {
+      visited += working ;
+      digraph::vertexSet new_vs ;
+      for(digraph::vertexSet::const_iterator vi=working.begin();
+          vi!=working.end();++vi)
+        new_vs += grt[*vi] ;
+      new_vs -= visited ;
+      working = new_vs ;
+    }
+    dgr = gr.subgraph(visited) ;
+    // check for cycles
+    vector<digraph::vertexSet> clusters =
+      component_sort(dgr).get_components() ;
+    
+    for(vector<digraph::vertexSet>::size_type i=0;i<clusters.size();++i) {
+      digraph::vertexSet potential_cycle_v = clusters[i] ;
+      if(potential_cycle_v.size() != 1) {
+        cerr << "Current dynamic scheduling only supports DAG!" << endl ;
+        Loci::Abort() ;
+      }
+    }
+
+    // now we have the digraph for this scheduling,
+    // we will have to set up any variable types in it.
+    set_var_types(local_facts,dgr,scheds) ;
+
+    digraph dgrt = dgr.transpose() ;
+    ruleSet allrules = extract_rules(dgr.get_all_vertices()) ;
+    // Collect information on unit rules in this level
+    map<rule,rule> apply_to_unit ;
+    for(ruleSet::const_iterator ri=allrules.begin();
+        ri!=allrules.end();++ri) {
+      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
+        variable unit_var = *(ri->targets().begin()) ;
+        ruleSet apply_rules = extract_rules(dgrt[unit_var.ident()]) ;
+        for(ruleSet::const_iterator rii=apply_rules.begin();
+            rii!=apply_rules.end();
+            ++rii) {
+          apply_to_unit[*rii] = *ri ;
+        }
+      }
+    }
+
+    rulecomp_map rule_process ;
+    for(ruleSet::const_iterator ri=allrules.begin();
+        ri!=allrules.end();++ri) {
+      if(ri->type() == rule::INTERNAL) {
+        if(ri->get_info().qualifier() == "promote")
+          rule_process[*ri] = new promote_compiler(*ri) ;
+        else if(ri->get_info().qualifier() == "generalize")
+          rule_process[*ri] = new generalize_compiler(*ri) ;
+        else if(ri->get_info().qualifier() == "priority")
+          rule_process[*ri] = new priority_compiler(*ri) ;
+        else
+          rule_process[*ri] = new error_compiler ;
+      } else {
+        if(ri->get_info().rule_impl->get_rule_class() != rule_impl::APPLY) {
+          if(ri->get_info().rule_impl->get_rule_class() ==
+             rule_impl::CONSTRAINT_RULE)
+            rule_process[*ri] = new constraint_compiler(*ri) ;
+          else
+            rule_process[*ri] = new impl_compiler(*ri) ;
+        }
+        else
+          rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
+      } 
+    }
+    dynamic_compiler dc(rule_process,dgr,0) ;
+    dc.collect_reduce_info() ;
+    dc.schedule() ;
+    dc.compile() ;
+    dc.set_var_existence(local_facts,scheds) ;
+    dc.process_var_requests(local_facts,scheds) ;
+    exec_current_fact_db = &local_facts ;
+    (dc.create_execution_schedule(local_facts,scheds))->execute(local_facts) ;
+
+    // then we remove in the rule database the rules
+    // that generate the constraints
+    par_rdb.remove_rules(constraint_rules) ;
+    
+    // finally we need to put anything useful into the global fact_db (facts)
+    for(variableSet::const_iterator vi=constraints.begin();
+        vi!=constraints.end();++vi) {
+      storeRepP srp = local_facts.get_variable(*vi) ;
+      // we don't create empty constraints in
+      // the global fact database
+      if(GLOBAL_AND(srp->domain()==EMPTY))
+        continue ;
+      // this fact needs to be intensional one
+      facts.create_intensional_fact(*vi,srp) ;
+    }
+  }
+  
+  
   // this is the function to compute all maps
   // in the stationary time level
 
@@ -1326,6 +1485,214 @@ namespace Loci {
 
     in_internal_query = false ;
   }//end of stationary_map_gen
+
+  // experimental code to process static & dynamic constraints in
+  // a unified way, this is the stage 1 --- mainly to compute the
+  // static constraints and also to do some pre-process to those
+  // dynamic ones
+  // this function returns all the dynamic constraints discovered
+  // for the computations that lead to the supplied query.
+  variableSet
+  constraint_process_stage1(rule_db& rdb, fact_db& facts,
+                            const variableSet& query) {
+    // we'll first generate the dependency graph
+    // according to the initial facts and rules database
+    variableSet given = facts.get_typed_variables() ;
+    digraph gr ;
+    given -= variable("EMPTY") ;
+    gr = dependency_graph2(rdb,given,query).get_graph() ;
+
+    // If graph is empty, we just return without any further actions
+    if(gr.get_target_vertices() == EMPTY)
+      return variableSet(EMPTY) ;
+
+    // we will first classify static & dynamic constraints here
+    // based on the constructed dependency graph.    
+    ruleSet rules = extract_rules(gr.get_all_vertices()) ;
+    variableSet static_constraints ;
+    variableSet dynamic_constraints ;
+    ruleSet constraint_rules ;
+
+    // iterating all constraint rules and collect info.
+    for(ruleSet::const_iterator ri=rules.begin();
+        ri!=rules.end();++ri) {
+      if(ri->type() != rule::INTERNAL) {
+        // collect constraint rule
+        if(ri->get_info().rule_impl->get_rule_class() ==
+           rule_impl::CONSTRAINT_RULE) {
+          constraint_rules += *ri ;
+          variableSet targets = ri->targets() ;
+          for(variableSet::const_iterator vi=targets.begin();
+              vi!=targets.end();++vi) {
+            if(vi->time() != time_ident()) {
+              // classified as a dynamic constraint
+              // however, we need to drop any assigns or offsets
+              // it might have. e.g., the target of a constraint_rule
+              // may be of "A{n=0}", or "A{n+1}", however we want the
+              // normal form: "A{n}"
+              dynamic_constraints += (vi->new_offset(0)).drop_assign() ;
+            } else
+              static_constraints += *vi ;
+          }
+        }
+      } // end if(ri->type() != rule::INTERNAL)
+    }
+    // then we will need to compute those that are static here
+    if(static_constraints == EMPTY)
+      return dynamic_constraints ;
+    // we will need to construct a graph that computes the static ones
+    digraph dgr ;
+    digraph grt = gr.transpose() ;
+    digraph::vertexSet targets ;
+    for(variableSet::const_iterator vi=static_constraints.begin();
+        vi!=static_constraints.end();++vi)
+      targets += vi->ident() ;
+    digraph::vertexSet working = targets ;
+    digraph::vertexSet visited ;
+    while(working!=EMPTY) {
+      visited += working ;
+      digraph::vertexSet new_vs ;
+      for(digraph::vertexSet::const_iterator vi=working.begin();
+          vi!=working.end();++vi)
+        new_vs += grt[*vi] ;
+      new_vs -= visited ;
+      working = new_vs ;
+    }
+    dgr = gr.subgraph(visited) ;
+    // check for cycles
+    vector<digraph::vertexSet> clusters =
+      component_sort(dgr).get_components() ;
+    
+    for(vector<digraph::vertexSet>::size_type i=0;i<clusters.size();++i) {
+      digraph::vertexSet potential_cycle_v = clusters[i] ;
+      if(potential_cycle_v.size() != 1) {
+        cerr << "Error: cyclic dependence detected for static constraints"
+             << endl ;
+        Loci::Abort() ;
+      }
+    }
+
+    // The following is sort of a mini query, it is probably better
+    // in the future to use a unified query infrastructure!
+    // (to be revised in the future...)
+    
+    // we need to copy the fact_db for this local computation
+    fact_db local_facts(facts) ;
+    // then generate a sched_db from the local_facts
+    sched_db scheds(local_facts) ;
+        
+    // now we have the digraph for this scheduling,
+    // we will have to set up any variable types in it.
+    set_var_types(local_facts,dgr,scheds) ;
+
+    digraph dgrt = dgr.transpose() ;
+    ruleSet allrules = extract_rules(dgr.get_all_vertices()) ;
+    // Collect information on unit rules in this level
+    map<rule,rule> apply_to_unit ;
+    for(ruleSet::const_iterator ri=allrules.begin();
+        ri!=allrules.end();++ri) {
+      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
+        variable unit_var = *(ri->targets().begin()) ;
+        ruleSet apply_rules = extract_rules(dgrt[unit_var.ident()]) ;
+        for(ruleSet::const_iterator rii=apply_rules.begin();
+            rii!=apply_rules.end();
+            ++rii) {
+          apply_to_unit[*rii] = *ri ;
+        }
+      }
+    }
+
+    rulecomp_map rule_process ;
+    for(ruleSet::const_iterator ri=allrules.begin();
+        ri!=allrules.end();++ri) {
+      if(ri->type() == rule::INTERNAL) {
+        if(ri->get_info().qualifier() == "promote")
+          rule_process[*ri] = new promote_compiler(*ri) ;
+        else if(ri->get_info().qualifier() == "generalize")
+          rule_process[*ri] = new generalize_compiler(*ri) ;
+        else if(ri->get_info().qualifier() == "priority")
+          rule_process[*ri] = new priority_compiler(*ri) ;
+        else
+          rule_process[*ri] = new error_compiler ;
+      } else {
+        if(ri->get_info().rule_impl->get_rule_class() != rule_impl::APPLY) {
+          if(ri->get_info().rule_impl->get_rule_class() ==
+             rule_impl::CONSTRAINT_RULE)
+            rule_process[*ri] = new constraint_compiler(*ri) ;
+          else
+            rule_process[*ri] = new impl_compiler(*ri) ;
+        }
+        else
+          rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
+      } 
+    }
+    dynamic_compiler dc(rule_process,dgr,0) ;
+    dc.collect_reduce_info() ;
+    dc.schedule() ;
+    dc.compile() ;
+    dc.set_var_existence(local_facts,scheds) ;
+    dc.process_var_requests(local_facts,scheds) ;
+    exec_current_fact_db = &local_facts ;
+    (dc.create_execution_schedule(local_facts,scheds))->execute(local_facts) ;
+
+    // finished static constraints computation.
+    variableSet empty_constraints ;
+    // finally we need to put anything useful into the global fact_db (facts)
+    for(variableSet::const_iterator vi=static_constraints.begin();
+        vi!=static_constraints.end();++vi) {
+      storeRepP srp = local_facts.get_variable(*vi) ;
+      FATAL(srp == 0) ;
+      // put the constraints into fact_db
+      facts.create_intensional_fact(*vi,srp) ;
+      if(GLOBAL_AND(srp->domain()==EMPTY)) {
+        empty_constraints += *vi ;
+      }
+    }
+
+    // we will remove those rules in the rdb that has any
+    // empty_constraints as sources because they do not
+    // constribute to any of the useful computation.
+    if(empty_constraints != EMPTY) {
+      ruleSet all_db_rules = rdb.all_rules() ;
+      ruleSet rules_to_remove ;
+      for(ruleSet::const_iterator ri=all_db_rules.begin();
+          ri!=all_db_rules.end();++ri) {
+        variableSet cs = ri->constraints() ;
+        if( (cs & empty_constraints) != EMPTY)
+          rules_to_remove += *ri ;
+      }
+      rdb.remove_rules(rules_to_remove) ;
+    }
+    return dynamic_constraints ;
+  }
+
+  // stage2 --- generate new rule_db and setting up things for
+  // dynamic constraints
+  rule_db
+  constraint_process_stage2(const rule_db& rdb, fact_db& facts,
+                            const variableSet& dynamic_constraints) {
+
+    // generate a new rule_db that splits the static & dynamic
+    // constraints inside the rule_impl data-structure
+    rule_db new_rdb ;
+    ruleSet all_rules = rdb.all_rules() ;
+
+    for(ruleSet::const_iterator ri=all_rules.begin();
+        ri!=all_rules.end();++ri) {
+
+      rule_implP rp = ri->get_rule_implP() ;
+      if(rp == 0) {
+        new_rdb.add_rule(*ri) ;
+        continue ;
+      }
+
+      // split static & dynamic constraints
+      rp->split_constraints(dynamic_constraints) ;
+      rule nr(rp) ;
+      new_rdb.add_rule(nr) ;
+    }
+    return new_rdb ;    
+  }
 
 
 }

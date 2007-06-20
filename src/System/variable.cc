@@ -619,11 +619,13 @@ ostream &variable::info::Print(ostream &s ) const {
   vmap_info::vmap_info(const exprP &e) {
     exprList l = collect_associative_op(e,OP_ARROW) ;
     exprList v = collect_associative_op(l.back(),OP_COMMA) ;
+
     for(exprList::const_iterator i=v.begin();i!=v.end();++i) {
+      
       if((*i)->op == OP_ASSIGN) {
 	variable varid((*i)->expr_list.front()) ;
 	variable asnid((*i)->expr_list.back()) ;
-	
+
 	var += varid ;
             assign.push_back(make_pair(varid,asnid)) ;
       } else {
@@ -632,7 +634,7 @@ ostream &variable::info::Print(ostream &s ) const {
     }
     
     l.pop_back() ;
-    for(exprList::const_iterator j = l.begin();j!=l.end();++j) 
+    for(exprList::const_iterator j = l.begin();j!=l.end();++j)
       mapping.push_back(variableSet(*j)) ;
   }
 

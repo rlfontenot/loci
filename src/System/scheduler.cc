@@ -667,6 +667,7 @@ namespace Loci {
   
 #define ENABLE_RELATION_GEN
   //#define ENABLE_DYNAMIC_SCHEDULING
+  //#define ENABLE_DYNAMIC_SCHEDULING_2
   executeP create_execution_schedule(const rule_db &rdb,
                                      fact_db &facts,
                                      const variableSet& target,
@@ -696,6 +697,13 @@ namespace Loci {
     } else {
       Loci::serial_freeze(facts) ;
     }
+
+#ifdef ENABLE_DYNAMIC_SCHEDULING_2
+    if(Loci::MPI_rank==0)
+      cout << "dynamic scheduling2..." << endl ;
+    dynamic_scheduling2(par_rdb,facts,target) ;
+#endif
+    
     // then we can generate the dependency graph
     variableSet given = facts.get_typed_variables() ;
     if(Loci::MPI_rank==0)
@@ -731,7 +739,7 @@ namespace Loci {
     ////////////////////
     //prune_graph(gr,given,target,facts) ;
     ////////////////////
-    
+
     sched_db scheds(facts) ;
     if(Loci::MPI_rank==0)
       cout << "setting up variable types..." << endl ;

@@ -127,6 +127,13 @@ namespace Loci {
         ss << "," ;
       ss << "CONSTRAINT(" << constraints << ")" ;
     }
+
+    if(!dynamic_constraints.empty()) {
+      if(!constraints.empty())
+        ss << "," ;
+      ss << "DYNAMIC_CONSTRAINT(" << dynamic_constraints << ")" ;
+    }
+    
     if(conditionals != EMPTY)
       ss << ",CONDITIONAL(" << conditionals << ")" ;
     return ss.str() ;
@@ -451,6 +458,18 @@ namespace Loci {
             retval = false ;
           }
           break ;
+        case BLACKBOX_RULE:
+          if(mi->second->Rep()->RepType() != BLACKBOX) {
+            cerr << "-------------------------------------------------"<<endl;
+            cerr << "Blackbox rule should have targets" << endl;
+            cerr << " of blackbox. Perhaps this rule should be a" << endl;
+	    cerr << "pointwise_rule, or apply_rule."<< endl ;
+            cerr << "Error occured for rule " << get_name()
+		 << " and variable " << *si << endl ;
+            cerr << "-------------------------------------------------"<<endl;
+            retval = false ;
+          }
+          break ;
         case SINGLETON:
           if(mi->second->Rep()->RepType() != PARAMETER &&
 	     mi->second->Rep()->RepType() != BLACKBOX) {
@@ -593,6 +612,58 @@ namespace Loci {
       rule_info.constraints.insert(*vi) ;
     
   }
+
+  void
+  rule_impl::split_constraints(const variableSet& dc) {
+
+    vector<vmap_info> new_constraints ;
+    
+    set<vmap_info>::iterator si=rule_info.constraints.begin() ;
+    set<vmap_info>::iterator si_bak ;
+
+    // split the constraints field into static & dynamic ones
+    while(si != rule_info.constraints.end()) {
+      variableSet local_dc ;
+      // get the constraints variables
+      for(variableSet::const_iterator vi=si->var.begin();
+          vi!=si->var.end();++vi) {
+        // since a constraints variables may appear in other forms
+        // e.g., having an offset, or an assign operator, e.g.,
+        // if we have a dynamic constraints A{n}, it may appear in
+        // a rule as "A{n=0}" or "A{n+1}". therefore, we need to
+        // drop possible assigns and offsets.
+        variable nv = (vi->new_offset(0)).drop_assign() ;
+        if(dc.inSet(nv))
+          local_dc += *vi ;
+      }
+      if(local_dc != EMPTY) {
+        // make a copy of vmap_info
+        vmap_info dc_copy(*si) ;
+        // modify its var field
+        dc_copy.var = local_dc ;
+        // insert it into the dynamic_constraints set
+        rule_info.dynamic_constraints.insert(dc_copy) ;
+
+        // construct a new copy of static constraints
+        variableSet local_sc = variableSet(si->var - local_dc) ;
+        if(local_sc != EMPTY) {
+          vmap_info sc_copy(*si) ;
+          sc_copy.var = local_sc ;
+          new_constraints.push_back(sc_copy) ;
+        }
+        // then erase original copy in constraints set
+        si_bak = si ;
+        ++si_bak ;
+        rule_info.constraints.erase(si) ;
+        si = si_bak ;
+      } else
+        ++si ;
+    }
+    // finally push the new static constraints ones to the set
+    rule_info.constraints.insert(new_constraints.begin(),
+                                 new_constraints.end()) ;
+  }
+  
   
   variableSet rule_impl::get_var_list() {
     storeIMap::iterator sp ;

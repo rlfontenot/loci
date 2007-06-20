@@ -33,8 +33,9 @@ namespace Loci {
   entitySet vmap_source_exist(const vmap_info &vmi, fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi ;
     entitySet sources = ~EMPTY ;
-    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi)
+    for(vi=vmi.var.begin();vi!=vmi.var.end();++vi) {
       sources &= scheds.variable_existence(*vi) ;
+    }
 
     vector<variableSet>::const_reverse_iterator mi ;
     for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {

@@ -530,6 +530,7 @@ namespace Loci {
   // rule compiler for constraint rules
   class constraint_compiler : public rule_compiler {
     rule constraint_rule ;  // the constraint rule
+    entitySet exec_seq ;
   public:
     constraint_compiler(rule r)  { constraint_rule=r;}
     virtual void accept(visitor& v) {}
@@ -551,6 +552,18 @@ namespace Loci {
     virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
     virtual executeP create_execution_schedule(fact_db &facts,
                                                sched_db &scheds) ;
+  } ;
+
+  // rule compiler for blackbox rule
+  class blackbox_compiler : public rule_compiler {
+    rule impl ;  // rule to implement
+  public:
+    blackbox_compiler(rule r)  { impl=r;}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP
+    create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
 }

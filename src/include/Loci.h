@@ -52,6 +52,7 @@ using Loci::singleton_rule ;
 using Loci::default_rule ;
 using Loci::constraint_rule ;
 using Loci::map_rule ;
+using Loci::blackbox_rule ;
 using Loci::optional_rule ;
 using Loci::register_rule ;
 

@@ -106,7 +106,7 @@ namespace Loci {
       the rule and also the constraints we make sure that the
       attribute specified by the target is implied by the satisfaction 
       of the attributes in the body of the rule. */
-    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) 
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       sources &= vmap_source_exist(*si,facts, scheds) ;
     
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si) 
@@ -582,7 +582,7 @@ namespace Loci {
     FATAL(targets.size() != 1) ;
     variable tvar = *(targets.begin()) ;
     
-    if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER) 
+    if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER)
       tvarmap[tvar] = scheds.variable_existence(tvar) ;
     else
       tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
@@ -611,7 +611,7 @@ namespace Loci {
     const rule_impl::info &rinfo = apply.get_info().desc ;
     set<vmap_info>::const_iterator si ;
     entitySet compute ;
-    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) 
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si)
       compute |= vmap_target_requests(*si,tvarmap,facts, scheds) ;
 
     if(!duplicate_work || !scheds.is_duplicate_variable(tvar))
