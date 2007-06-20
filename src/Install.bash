@@ -27,6 +27,9 @@ cp FVMtools/solidMesh2xdr $INSTALL_PATH/bin
 cp FVMtools/solidMesh2xdrMPI $INSTALL_PATH/bin
 cp FVMtools/xdr2cobalt $INSTALL_PATH/bin
 cp FVMtools/xdropt $INSTALL_PATH/bin
+cp FVMtools/xdr2vog $INSTALL_PATH/bin
+cp FVMtools/vog2xdr $INSTALL_PATH/bin
+cp FVMtools/cfd++2xdr $INSTALL_PATH/bin
 
 echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
 cp Loci.conf comp.conf sys.conf $INSTALL_PATH
