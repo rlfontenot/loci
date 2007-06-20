@@ -154,8 +154,7 @@ namespace Loci {
   $type X storeVec<real> ;
   $type X_f storeVec<real> ;
   
-  $rule pointwise(gradv_f(X)<-(cr,cl)->(X,cellcenter,gradv(X),vol),
-                  (cl,cr)->limiterv(X),area),
+  $rule pointwise(gradv_f(X)<-(cr,cl)->(X,cellcenter,gradv(X),vol),area),
     constraint(limitedFaceStencil,(cl,cr)->X), prelude {
     $gradv_f(X).setVecSize($X.vecSize()) ;
   } compute {
@@ -167,11 +166,16 @@ namespace Loci {
     const real dvrvl = 1./(vr+vl) ;
     const int vs = $*gradv_f(X).vecSize() ;
     for(int i=0;i<vs;++i) {
-      const real lim = min($cr->$limiterv(X)[i],$cl->$limiterv(X)[i]) ;
-      const vect3d gradAvg=($cr->$gradv(X)[i]*vl+$cl->$gradv(X)[i]*vr)*dvrvl ;
+      const vect3d gl = $cl->$gradv(X)[i] ;
+      const vect3d gr = $cr->$gradv(X)[i] ;
+      const vect3d dgrad = gl-gr ;
+      const real xi = dot(dgrad,dgrad)/(dot(gl,gl)+dot(gr,gr)+1e-33) ;
+      const real L_v = max(1.-xi,0.0) ;
+
+      const vect3d gradAvg=(gr*vl+gl*vr)*dvrvl ;
       const vect3d gradTan=gradAvg-dot(gradAvg,n)*n ;
       const vect3d gradNorm=n*($cr->$X[i]-
-                               ($cl->$X[i] + lim*dot(gradTan,delta)) )*rdist ;
+                               ($cl->$X[i] + L_v*dot(gradTan,delta)) )*rdist ;
       $gradv_f(X)[i] = gradTan + gradNorm ;
     }
   }
@@ -198,8 +202,7 @@ namespace Loci {
   $type X store<real> ;
   $type X_f store<real> ;
 
-  $rule pointwise(grads_f(X)<-(cr,cl)->(X,cellcenter,grads(X),vol),
-                  (cl,cr)->limiters(X), area),
+  $rule pointwise(grads_f(X)<-(cr,cl)->(X,cellcenter,grads(X),vol),area),
     constraint(limitedFaceStencil,(cl,cr)->X) {
     const vect3d delta = $cr->$cellcenter-$cl->$cellcenter ;
     const vect3d n = $area.n ;
@@ -207,11 +210,16 @@ namespace Loci {
     const real vr = $cr->$vol ;
     const real vl = $cl->$vol ;
     const real dvrvl = 1./(vr+vl) ;
-    const real lim =min($cl->$limiters(X),$cr->$limiters(X)) ;
-    const vect3d gradAvg = ($cr->$grads(X)*vl+$cl->$grads(X)*vr)*dvrvl ;
-    const vect3d gradTan=gradAvg-dot(gradAvg,n)*n ;
+
+    const vect3d gl = $cl->$grads(X) ;
+    const vect3d gr = $cr->$grads(X) ;
+    const vect3d dgrad = gl-gr ;
+    const real xi = dot(dgrad,dgrad)/(dot(gl,gl)+dot(gr,gr)+1e-33) ;
+    const real L_v = max(1.-xi,0.0) ;
+    const vect3d gradAvg = (gr*vl+gl*vr)*dvrvl ;
+    const vect3d gradTan=gradAvg-dot(gradAvg,n)*n ;    
     const vect3d gradNorm = n*($cr->$X-
-                               ($cl->$X+lim*dot(gradTan,delta)))*rdist ;
+                               ($cl->$X+L_v*dot(gradTan,delta)))*rdist ;
       
     $grads_f(X) = gradTan + gradNorm ;
   }
@@ -232,8 +240,7 @@ namespace Loci {
   $type X store<vect3d> ;
   $type X_f store<vect3d> ;
 
-  $rule pointwise(gradv3d_f(X)<-(cr,cl)->(X,cellcenter,gradv3d(X),vol),
-                  (cl,cr)->limiterv3d(X),area),
+  $rule pointwise(gradv3d_f(X)<-(cr,cl)->(X,cellcenter,gradv3d(X),vol),area),
     constraint(limitedFaceStencil,(cl,cr)->X) {
     const vect3d delta = $cr->$cellcenter-$cl->$cellcenter ;
     const vect3d n = $area.n ;
@@ -242,22 +249,34 @@ namespace Loci {
     const real vl = $cl->$vol ;
     const real dvrvl = 1./(vr+vl) ;
 
-    real lim = min($cr->$limiterv3d(X).x,$cl->$limiterv3d(X).x) ;
-    vect3d gradAvg = ($cr->$gradv3d(X).x*vl+$cl->$gradv3d(X).x*vr)*dvrvl ;
+    vect3d gl = $cl->$gradv3d(X).x ;
+    vect3d gr = $cr->$gradv3d(X).x ;
+    vect3d dgrad = gl-gr ;
+    real xi = dot(dgrad,dgrad)/(dot(gl,gl)+dot(gr,gr)+1e-33) ;
+    real L_v = max(1.-xi,0.0) ;
+    vect3d gradAvg = (gr*vl+gl*vr)*dvrvl ;
     vect3d gradTan = gradAvg-dot(gradAvg,n)*n ;
-    vect3d gradNorm = n*($cr->$X.x-($cl->$X.x+lim*dot(gradTan,delta)) )*rdist ;
+    vect3d gradNorm = n*($cr->$X.x-($cl->$X.x+L_v*dot(gradTan,delta)) )*rdist ;
     $gradv3d_f(X).x = gradTan + gradNorm ;
 
-    lim = min($cr->$limiterv3d(X).y,$cl->$limiterv3d(X).y) ;
-    gradAvg = ($cr->$gradv3d(X).y*vl+$cl->$gradv3d(X).y*vr)*dvrvl ;
+    gl = $cl->$gradv3d(X).y ;
+    gr = $cr->$gradv3d(X).y ;
+    dgrad = gl-gr ;
+    xi = dot(dgrad,dgrad)/(dot(gl,gl)+dot(gr,gr)+1e-33) ;
+    L_v = max(1.-xi,0.0) ;
+    gradAvg = (gr*vl+gl*vr)*dvrvl ;
     gradTan = gradAvg-dot(gradAvg,n)*n ;
-    gradNorm = n*($cr->$X.y-($cl->$X.y + lim*dot(gradTan,delta)) )*rdist ;
+    gradNorm = n*($cr->$X.y-($cl->$X.y + L_v*dot(gradTan,delta)) )*rdist ;
     $gradv3d_f(X).y  = gradTan + gradNorm ;
 
-    lim = min($cr->$limiterv3d(X).z,$cl->$limiterv3d(X).z) ;
-    gradAvg = ($cr->$gradv3d(X).z*vl+$cl->$gradv3d(X).z*vr)*dvrvl ;
+    gl = $cl->$gradv3d(X).z ;
+    gr = $cr->$gradv3d(X).z ;
+    dgrad = gl-gr ;
+    xi = dot(dgrad,dgrad)/(dot(gl,gl)+dot(gr,gr)+1e-33) ;
+    L_v = max(1.-xi,0.0) ;
+    gradAvg = (gr*vl+gl*vr)*dvrvl ;
     gradTan = gradAvg-dot(gradAvg,n)*n ;
-    gradNorm = n*($cr->$X.z-($cl->$X.z + lim*dot(gradTan,delta)) )*rdist ;
+    gradNorm = n*($cr->$X.z-($cl->$X.z + L_v*dot(gradTan,delta)) )*rdist ;
     $gradv3d_f(X).z  = gradTan + gradNorm ;
   }
 
