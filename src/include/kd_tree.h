@@ -112,8 +112,10 @@ namespace Loci {
       
 
     public:
+      // Build kd tree from list of points and their id's
       kd_tree(const std::vector<coord3d> &inpnts,
               const std::vector<int> &ids) ;
+      // Build kd tree using kd_tree internal data structure
       kd_tree(std::vector<coord_info> &inpnts) ;
 
       // User routine to get depth of the kd_tree
@@ -121,6 +123,8 @@ namespace Loci {
         return depth_search(0,pnts.size(),0) ;
       }
       // Search for the closest point using the kd_tree
+      // rmin is current best known radius (squared)
+      // returns id if found, otherwise returns smallest int
       int find_closest(coord3d v, double &rmin) const {
         const int sp = find_closest(0,pnts.size(),0,v,rmin,bbox) ;
         if(sp < 0)
@@ -128,12 +132,15 @@ namespace Loci {
         // Look up id of matched point
         return pnts[sp].id ;
       }
+      // Search for closest point without concern for current best known
+      // rmin
       int find_closest(coord3d v) const {
         // Start with infinite closest point distance
         double rmin = std::numeric_limits<double>::max() ;
         return find_closest(v,rmin) ;
       }
 
+      // Find all of the points within a given bounding box
       void find_box(std::vector<coord_info> &found_pts, bounds box) const {
         if(box.maxc[0] < bbox.minc[0] ||
            box.minc[0] > bbox.maxc[0] ||
@@ -146,6 +153,8 @@ namespace Loci {
         find_box(0,pnts.size(),0,found_pts,box,bbox) ;
       }
 
+      // Find the closest point that is within a given bounding box
+      // rmin argument works like find_closest
       int find_closest_box(coord3d v, bounds box, double &rmin) const {
         if(box.maxc[0] < bbox.minc[0] ||
            box.minc[0] > bbox.maxc[0] ||
@@ -161,6 +170,7 @@ namespace Loci {
           return std::numeric_limits<int>::min() ;
         return pnts[sp].id ;
       }
+      // Same as above, only no rmin provided by user.
       int find_closest_box(coord3d v, bounds box) const {
         // Start with infinite closest point distance
         double rmin = std::numeric_limits<double>::max() ;
