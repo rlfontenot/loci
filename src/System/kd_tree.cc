@@ -137,6 +137,7 @@ namespace Loci {
       int split = p1 ;
       splits[start] = split ;
 
+#ifdef DEBUG
       // Verify split
       for(int i=start+1;i<split;++i)
         if(pnts[i].coords[coord] > pval)
@@ -144,7 +145,8 @@ namespace Loci {
       for(int i=split;i<end;++i)
         if(pnts[i].coords[coord] <= pval)
           std::cerr << "split error" << std::endl ;
-  
+#endif
+      
       // Construct left and right tree branches recursively
       build_kd(start+1, split, depth+1) ;
       build_kd(split,   end,   depth+1) ;
