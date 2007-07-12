@@ -531,6 +531,21 @@ namespace {
   inline void fill_descriptors(set<vmap_info> &v, const exprList &in) {
     
     for(exprList::const_iterator i = in.begin();i!=in.end();++i) {
+      // This needs to be improved to use an actual variable syntax
+      // certification.  This test will just get the blindingly obvious
+      if((*i)->op != OP_ARROW &&
+         (*i)->op != OP_NAME &&
+         (*i)->op != OP_FUNC &&
+         (*i)->op != OP_NAME_BRACE &&
+         (*i)->op != OP_FUNC_BRACE &&
+         (*i)->op != OP_SCOPE &&
+         (*i)->op != OP_AT &&
+         (*i)->op != OP_DOLLAR) {
+        cerr << "malformed descriptor: " ;
+        (*i)->Print(cerr) ;
+        cerr << endl ;
+        throw parseError("rule signature error") ;
+      }
       vmap_info di(*i) ;
       if(v.find(di) != v.end())
         cerr << "Warning, duplicate variable in var set." << endl ;
@@ -1332,7 +1347,6 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
         }
       }
     }
-
     local_type_map[*vi] = mi->second ;
   }
 
