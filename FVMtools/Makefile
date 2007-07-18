@@ -1,11 +1,12 @@
 include $(LOCI_BASE)/Loci.conf
 
 COPT = $(COPTLESS)
+#COPT = -g -O0 #$(COPTLESS)
 
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr solidMesh2xdrMPI plot3d2xdr pb xdr2cobalt xdropt 
+OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr solidMesh2xdrMPI plot3d2xdr pb xdr2cobalt xdropt xdr2vog vog2xdr
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o

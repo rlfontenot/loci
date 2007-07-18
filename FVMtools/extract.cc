@@ -795,6 +795,11 @@ int main(int ac, char *av[]) {
     Usage(ac,av) ;
   }
 
+  if(variables.size() == 0) {
+    variables.push_back("x") ;
+    variables.push_back("y") ;
+    variables.push_back("z") ;
+  }
   vector<int> variable_type(variables.size()) ;
   vector<string> variable_file(variables.size()) ;
   for(size_t i=0;i<variables.size();++i) {
@@ -805,16 +810,6 @@ int main(int ac, char *av[]) {
       variable_type[i] = NODAL_SCALAR ;
       variable_file[i] = filename ;
       continue ;
-    }
-    // Handle old nodal scalar format
-    if(var[0] == 'n') {
-      filename = "output/" + string(var.c_str()+1) + "_hdf5." + iteration ;
-      if(stat(filename.c_str(),&tmpstat)== 0) {
-        variables[i] = string(var.c_str()+1) ;
-        variable_type[i] = NODAL_SCALAR ;
-        variable_file[i] = filename ;
-        continue ;
-      }
     }
       
     filename = "output/" + var + "_sca." + iteration + "_" + casename ;
