@@ -1,5 +1,5 @@
 # This is the Loci base directory.
-LOCI_BASE ?= /usr/tmp/lush/Loci
+LOCI_BASE = /usr/tmp/pa121/Loci
 # List the name of your compiled program here
 TARGET = heat
 

@@ -70,8 +70,8 @@ void generate_grid(fact_db &facts, int N) {
 int main(int argc, char *argv[])
 {
   Loci::Init(&argc,&argv) ;
-
-
+    
+   
   set_fpe_abort() ;
   
   // query for this variable by default
@@ -166,10 +166,12 @@ int main(int argc, char *argv[])
   }
 
   // Query Loci for fact derived fact 'solution'
+//  cout<<"\nQuery Started\n";
   if(!Loci::makeQuery(rdb,facts,query)) {
     cerr << "query failed!" << endl ;
     Loci::Abort() ;
   }
+//  cout<<"\nQuery Ended\n";
   
   //-----------------------------------------------------------------
   // Final Step: Query the database for solution:
