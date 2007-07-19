@@ -17,6 +17,18 @@ void dummyFunctionDependencies(int i) {
 
 #endif
 
+/*
+
+#ifdef USE_PAPI
+#include "papi.h"
+  int perr;
+ if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
+         cerr<<"\nerror during initialization\n";
+
+#endif
+
+*/
+
 
 #include <rule.h>
 #include "dist_tools.h"

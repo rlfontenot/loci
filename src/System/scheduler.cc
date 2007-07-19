@@ -6,8 +6,6 @@
 #include <constraint.h>
 #include <new>
 using std::bad_alloc ;
-
-
 using std::map ;
 using std::vector ;
 using std::set ;
@@ -30,6 +28,18 @@ using std::ofstream ;
 ///////////////////////////////////
 
 #define PROFILE_CODE
+
+
+
+#ifdef USE_PAPI
+
+#include "papi.h"
+#define N 64*64
+#define NCOUNTS 6
+
+#endif
+
+
 
 namespace Loci {
   double LociAppPeakMemory = 0 ;
@@ -1095,6 +1105,25 @@ namespace Loci {
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
+
+
+#ifdef USE_PAPI
+ int perr,ev_set=PAPI_NULL;
+     int i,ncnt,k;
+                                                                                                                                                              
+                                                                                                                                                              
+      if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
+         cerr<<"\nerror during initialization\n";
+                                                                                                                                                              
+     unsigned char v[N];
+long_long counts[NCOUNTS];
+  int evlist[NCOUNTS];
+  char evname[NCOUNTS][PAPI_MAX_STR_LEN];
+  int retval;
+#endif
+
+
+
     facts.setupDefaults(rdb) ;
     double t1 = MPI_Wtime() ;
     
@@ -1131,6 +1160,63 @@ namespace Loci {
     // This is because we want to only put the queried facts
     // back into the global fact_db
     fact_db local_facts(facts) ;
+
+
+
+#ifdef USE_PAPI
+
+if((perr=PAPI_create_eventset(&ev_set)))
+  cout<<"\nPAPAI_create_evebtset failed."<<PAPI_strerror(perr)<<"\n";  
+
+
+if((retval= PAPI_multiplex_init())<PAPI_OK)
+    cout<<"\nEvent set multiplexing initialization error\n";
+                                                                                                                                                              
+retval=PAPI_set_multiplex(ev_set);
+if((retval==PAPI_EINVAL) &&(PAPI_get_multiplex(ev_set)>0))
+  cout<<"This event set already hs multiplexing enabled";
+else if(retval !=PAPI_OK)  cout<<"\nSet multiplexing error\n";
+else cout<<"\nsuccess\n";
+                                                                                                                                                              
+retval=PAPI_get_multiplex(ev_set);
+if(retval>0) cout<<"This event set is ready for multiplexing";
+if(retval==0)cout<<"This venet set is not enabled for multip0lexig";
+if(retval<0) cout<<"\nerror\n";
+                                                                                                                                                              
+if((perr=PAPI_add_event(ev_set,PAPI_L1_DCH)))
+     cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
+
+
+if((perr=PAPI_add_event(ev_set,PAPI_L1_ICH)))
+      cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
+
+if((perr=PAPI_add_event(ev_set,PAPI_L2_DCM)))
+	 cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
+
+if((perr=PAPI_add_event(ev_set,PAPI_L2_ICM)))
+	 cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
+
+
+if((perr=PAPI_list_events(ev_set,evlist,&ncnt)))
+	 cout<<__LINE__<<"PAPI_list_events failed."<<PAPI_strerror(perr)<<"\n";
+
+
+cout<<"\n number of events"<<ncnt<<"\n";
+ for(i=0;i<ncnt;i++)
+    if((perr=PAPI_event_code_to_name(evlist[i],evname[i])) == PAPI_ENOTPRESET)
+      {}
+    else if(perr!=PAPI_OK)
+	cout<<__LINE__<<" Naming event failed."<<PAPI_strerror(perr)<<"[i="<<i<<" event="<<evlist[i]<<"\n";
+
+                                                                                                                                                              
+                                                                                                                                                              
+ if((perr=PAPI_start(ev_set)))
+    cout<<"\nPAPI_start_event failed."<<PAPI_strerror(perr)<<"\n";
+
+#endif
+
+
+
     executeP schedule = create_execution_schedule(rdb,local_facts,target) ;
     if(schedule == 0) 
       throw StringError("makeQuery: query failed!") ;
@@ -1161,7 +1247,23 @@ namespace Loci {
     exec_current_fact_db = &local_facts ;
     schedule->execute(local_facts) ;
     double et = MPI_Wtime() ;
-    Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
+
+
+
+#ifdef USE_PAPI
+      if((perr=PAPI_read(ev_set,counts)))
+       cout<<"PAPI_read failed."<<PAPI_strerror(perr)<<"\n";
+                                                                                                                                                              
+                                                                                                                                                             
+cout<<"Counts registered\n";
+  for(i=0;i<ncnt;i++) 
+      cout<<evname[i]<<"="<<counts[i]<<"\n";
+
+ 
+#endif
+
+
+Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
     //Loci::debugout << " Time taken for exectution of the schedule = "
     //             << difftime(t1,t2) << " seconds " << endl ;
     

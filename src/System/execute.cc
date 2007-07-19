@@ -1,5 +1,4 @@
 #include <ostream>
-
 #include <execute.h>
 #include "loci_globs.h"
 #include <distribute.h>
