@@ -20,6 +20,11 @@ if [ $# -eq 2 ]; then
   COMP=$2
 fi
 
+if [ ${target:0:1} != "/" ]; then
+   target=`pwd`/${target}
+   echo setting target to \'$target\'
+fi
+
 TARGET_DIRS="System Tools include include/Tools include/Config include/MPI_stubb"
 TOOLS_DIRS="lpp FVMtools FVMMod ParMetis-3.1 ParMetis-3.1/METISLib ParMetis-3.1/ParMETISLib"
 
