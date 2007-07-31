@@ -31,6 +31,10 @@ using std::cerr ;
 
 using Loci::fact_db ;
 using Loci::debugout ;
+namespace Loci {
+  extern vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
+                                             const Map &cl, const Map &cr) ;
+}
 namespace VOG {
   using Loci::entitySet ;
   using Loci::MapRepP ;
@@ -852,7 +856,7 @@ namespace VOG {
     
     int max_alloc = facts.get_max_alloc() ;
 
-    if(!readGridXDR(local_nodes, local_faces, local_cells,
+    if(!VOG::readGridXDR(local_nodes, local_faces, local_cells,
 		    t_pos, tmp_cl, tmp_cr, tmp_face2node,
 		    max_alloc, filename))
       return false;
@@ -905,18 +909,21 @@ namespace VOG {
     // Partition Cells
     vector<entitySet> cell_ptn ;
     //    if(!use_simple_partition) {
-    //      cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr) ;
+    cell_ptn = Loci::newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr) ;
     //    } else {
-      cell_ptn = vector<entitySet>(MPI_processes) ;
-      cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
+    //cell_ptn = vector<entitySet>(MPI_processes) ;
+    //    cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
       //    }
 
+    //vector<entitySet> face_ptn(MPI_processes) ;
+    //    face_ptn[MPI_rank] = local_faces[MPI_rank] ;
+    
     vector<entitySet> face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr) ;
     vector<entitySet> node_ptn = partitionNodes(face_ptn,
                                                 MapRepP(tmp_face2node.Rep()),
                                                 t_pos.domain()) ;
     //    vector<entitySet> node_ptn(MPI_processes) ;
-    //    node_ptn[MPI_rank] = local_nodes[MPI_rank] ;
+    //        node_ptn[MPI_rank] = local_nodes[MPI_rank] ;
 
     vector<entitySet> cell_ptn_t = transposePtn(cell_ptn) ;
     vector<entitySet> face_ptn_t = transposePtn(face_ptn) ;
@@ -1043,6 +1050,36 @@ namespace VOG {
     facts.create_fact("interior_faces",interior_faces) ;
   }
 
+  void create_cell_info(fact_db &facts) {
+    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+
+    Map cl,cr ;
+    cl = facts.get_variable("cl") ;
+    cr = facts.get_variable("cr") ;
+    constraint faces ;
+    constraint interior_faces ;
+    constraint boundary_faces ;
+    faces = facts.get_variable("faces") ;
+    interior_faces = facts.get_variable("interior_faces") ;
+    boundary_faces = facts.get_variable("boundary_faces") ;
+    
+    vector<int> vec ;
+    FORALL(*interior_faces,fc) {
+      vec.push_back(cl[fc]) ;
+      vec.push_back(cr[fc]) ;
+    } ENDFORALL ;
+    FORALL(*boundary_faces,fc) {
+      vec.push_back(cl[fc]) ;
+    } ENDFORALL ;
+
+    entitySet geom_cells = Loci::create_entitySet(vec.begin(),vec.end()) ;
+    entitySet global_geom = all_collect_entitySet(geom_cells,facts) ;
+    geom_cells = global_geom & init_ptn[ MPI_rank] ;
+
+    constraint gC ;
+    *gC = geom_cells ;
+    facts.create_fact("geom_cells",gC) ;
+  }
   void color_matrix(fact_db &facts, matrix_coloring_type mct) {
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
 
@@ -1066,10 +1103,12 @@ namespace VOG {
     } ENDFORALL ;
 
     entitySet geom_cells = Loci::create_entitySet(vec.begin(),vec.end()) ;
+    entitySet global_geom = all_collect_entitySet(geom_cells,facts) ;
+    geom_cells = global_geom & init_ptn[ MPI_rank] ;
 
-    constraint gC ;
-    *gC = geom_cells ;
-    facts.create_fact("geom_cells",gC) ;
+    //    constraint gC ;
+    //    *gC = geom_cells ;
+    //    facts.create_fact("geom_cells",gC) ;
 
     multiMap c2c ;
     store<int> sizes ;
@@ -1135,9 +1174,21 @@ namespace VOG {
       left_out -= visitSet ;
     }
 
+    multiMap face2node ;
+    face2node = facts.get_variable("face2node") ;
+
     FORALL(*interior_faces,fc) {
-      if(color[cl[fc]] > color[cr[fc]])
+      if(color[cl[fc]] > color[cr[fc]]) {
+        // change face orientation to match matrix coloring
         std::swap(cl[fc],cr[fc]) ;
+        int i = 0 ;
+        int j = face2node[fc].size() - 1;
+       	while(i < j) {
+          std::swap(face2node[fc][i],face2node[fc][j]) ;
+          i++ ;
+          j-- ;
+        } 
+      }
     } ENDFORALL ;
 
   }
@@ -1299,16 +1350,23 @@ namespace VOG {
 
   bool inputXDRGrid(fact_db &facts, string filename) {
 
-    cerr << "reading " << filename << endl ;
+    if(MPI_rank == 0)
+      cerr << "reading " << filename << endl ;
+    
     if(!VOG::readFVMGrid(facts,filename))
       return false ;
 
-    
-    create_face_info(facts) ;
-    cerr << "coloring matrix" << endl ;
-    color_matrix(facts, COLOR_DFS) ;
-    cerr << "orienting faces" << endl ;
-    make_faces_consistent(facts) ;
+    VOG::create_face_info(facts) ;
+    VOG::create_cell_info(facts) ;
+
+    if(MPI_rank == 0) 
+      cerr << "orienting faces" << endl ;
+    VOG::make_faces_consistent(facts) ;
+
+    if(MPI_rank == 0)
+      cerr << "coloring matrix" << endl ;
+    VOG::color_matrix(facts, VOG::COLOR_DFS) ;
+
 
     return true ;
   }
@@ -1426,8 +1484,6 @@ namespace VOG {
     writeTable(cluster,cellSet) ;
     // Cluster finished,return ;
     return cluster ;
-
-    
   }
   
   entitySet faceCluster(const multiMap &face2node,
@@ -1542,12 +1598,27 @@ int main(int ac, char *av[]) {
   cr = facts.get_variable("cr") ;
   face2node = facts.get_variable("face2node") ;
 
+  long long local_num_nodes = t_pos.domain().size() ;
+  long long local_num_faces = face2node.domain().size()  ;
+  long long local_num_cells = (*geom_cells).size() ;
+  long long num_nodes = 0 ;
+  long long num_faces = 0 ;
+  long long num_cells = 0 ;
+
+  // Reduce these variables
+  MPI_Allreduce(&local_num_nodes,&num_nodes,1,MPI_LONG_LONG_INT,MPI_SUM,MPI_COMM_WORLD) ;
+  MPI_Allreduce(&local_num_faces,&num_faces,1,MPI_LONG_LONG_INT,MPI_SUM,MPI_COMM_WORLD) ;
+  MPI_Allreduce(&local_num_cells,&num_cells,1,MPI_LONG_LONG_INT,MPI_SUM,MPI_COMM_WORLD) ;
+
   if(MPI_rank == 0) {
+    cerr << "writing vog file..." << endl ;
     H5Gclose(group_id) ;
     group_id = H5Gcreate(file_id,"file_info",0) ;
-    long long num_nodes = t_pos.domain().size() ;
-    long long num_faces = face2node.domain().size()  ;
-    long long num_cells = (*geom_cells).size() ;
+
+    cerr << "num_nodes = " << num_nodes << endl
+         << "num_cells = " << num_cells << endl
+         << "num_faces = " << num_faces << endl ;
+
     hsize_t dims = 1 ;
     hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
@@ -1567,21 +1638,25 @@ int main(int ac, char *av[]) {
     group_id = H5Gcreate(file_id,"face_info",0) ;
   }
   
-  
-  cout << "geom_cells = " << geom_cells << endl ;
-  cout << "nodes = " << t_pos.domain() << endl ;
-  // Reorder faces
-
-  cerr << "reordering faces" << endl ;
   entitySet faces = face2node.domain() ;
   vector<pair<pair<int,int>, int> > f_ord(faces.size()) ;
   int i = 0 ;
-  FORALL(faces,fc) {
-    f_ord[i].first.first = cl[fc] ;
-    f_ord[i].first.second = cr[fc] ;
-    f_ord[i].second = fc ;
-    i++ ;
-  } ENDFORALL ;
+  // For small number of cells, sort to keep bc groupings
+  if(num_cells<60000) {
+    FORALL(faces,fc) {
+      f_ord[i].first.first = cr[fc] ;
+      f_ord[i].first.second = cl[fc] ;
+      f_ord[i].second = fc ;
+      i++ ;
+    } ENDFORALL ;
+  } else {
+    FORALL(faces,fc) {
+      f_ord[i].first.first = cl[fc] ;
+      f_ord[i].first.second = cr[fc] ;
+      f_ord[i].second = fc ;
+      i++ ;
+    } ENDFORALL ;
+  }
   sort(f_ord.begin(),f_ord.end()) ;
 
   i=0 ;
@@ -1596,7 +1671,11 @@ int main(int ac, char *av[]) {
   tmp_cl.allocate(faces) ;
   tmp_cr.allocate(faces) ;
   i=0 ;
-  int mc = (*geom_cells).Min() ;
+  
+  int mci = (*geom_cells).Min() ;
+  int mc = 0 ;
+  MPI_Allreduce(&mci,&mc,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD) ;
+
   FORALL(faces,fc) {
     int nfc = f_ord[i].second ;
     tmp_cl[fc] = cl[nfc]-mc ;
@@ -1615,7 +1694,7 @@ int main(int ac, char *av[]) {
                                      cluster_info,cluster_sizes) ;
     faces -= fcluster ;
   }
-  cout << "num_clusters = " << cluster_sizes.size() << endl ;
+  //  cout << "num_clusters = " << cluster_sizes.size() << endl ;
 
   writeUnorderedVector(group_id,"cluster_sizes",cluster_sizes) ;
   writeUnorderedVector(group_id,"cluster_info",cluster_info) ;
