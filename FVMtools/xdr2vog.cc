@@ -1,19 +1,5 @@
-#include <store.h>
-#include <DStore.h>
-#include <Map.h>
-#include <DMap.h>
-#include <multiMap.h>
-#include <DMultiMap.h>
-#include <constraint.h>
-#include <distribute.h>
-#include <distribute_container.h>
-#include <distribute_io.h>
-#include <parameter.h>
-#include <fact_db.h>
-#include <Loci_types.h>
-#include <LociGridReaders.h>
+#include <Loci.h>
 
-#include <Tools/tools.h>
 #include <map>
 
 #include <Tools/xdr.h>
@@ -29,7 +15,7 @@ using std::cout ;
 using std::endl ;
 using std::cerr ;
 
-using Loci::fact_db ;
+//using Loci::fact_db ;
 using Loci::debugout ;
 namespace Loci {
   extern vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
@@ -41,29 +27,14 @@ namespace Loci {
                                      const std::vector<entitySet> &init_ptn) ;
 }
 namespace VOG {
-  using Loci::entitySet ;
   using Loci::MapRepP ;
   using Loci::storeRepP ;
-  using Loci::sequence ;
-  using Loci::interval ;
+  using Loci::MPI_processes ;
+  using Loci::MPI_rank ;
   using Loci::create_intervalSet ;
   using Loci::UNIVERSE_MIN ;
   using Loci::UNIVERSE_MAX ;
-  using Loci::store ;
-  using Loci::dstore ;
-  using Loci::param ;
-  using Loci::Map ;
-  using Loci::dMap ;
-  using Loci::multiMap ;
-  using Loci::constraint ;
-  using Loci::vector3d ;
-  using Loci::real_t ;
-  using Loci::EMPTY ;
-  using Loci::Entity ;
-  using Loci::MPI_processes ;
-  using Loci::MPI_rank ;
-  using Loci::distributed_inverseMap ;
-  
+
   struct nodeSort {
     int key ;
     int orig_id ;
@@ -105,7 +76,7 @@ namespace VOG {
   bool readGridXDR(vector<entitySet> &local_nodes, 
 		   vector<entitySet> &local_faces, 
 		   vector<entitySet> &local_cells,
-		   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+		   store<vector3d<double> > &pos, Map &cl, Map &cr,
 		   multiMap &face2node, int max_alloc, string filename) {
 
     local_nodes.resize(Loci::MPI_processes);
@@ -210,7 +181,7 @@ namespace VOG {
       int tmp = 0 ;
       pos.allocate(local_nodes[Loci::MPI_rank]) ;
       for(entitySet::const_iterator ei = local_nodes[Loci::MPI_rank].begin(); ei != local_nodes[Loci::MPI_rank].end(); ++ei) {
-	vector3d<real_t> t(tmp_pos[tmp], tmp_pos[tmp+1], tmp_pos[tmp+2]) ;
+	vector3d<double> t(tmp_pos[tmp], tmp_pos[tmp+1], tmp_pos[tmp+2]) ;
 	tmp += 3 ;
 	pos[*ei] = t ; 
       }
@@ -234,7 +205,7 @@ namespace VOG {
       int tmp = 0 ;
       pos.allocate(local_nodes[Loci::MPI_rank]) ;
       for(entitySet::const_iterator ei = local_nodes[Loci::MPI_rank].begin(); ei != local_nodes[Loci::MPI_rank].end(); ++ei) {
-	vector3d<real_t> t(tmp_pos[tmp], tmp_pos[tmp+1], tmp_pos[tmp+2]) ;
+	vector3d<double> t(tmp_pos[tmp], tmp_pos[tmp+1], tmp_pos[tmp+2]) ;
 	tmp += 3 ;
 	pos[*ei] = t ; 
       }
@@ -455,10 +426,10 @@ namespace VOG {
                  vector<entitySet> &node_ptn_t,
                  vector<entitySet> &face_ptn_t,
                  vector<entitySet> &cell_ptn_t,
-                 store<vector3d<real_t> > &t_pos, Map &tmp_cl,
+                 store<vector3d<double> > &t_pos, Map &tmp_cl,
                  Map &tmp_cr, multiMap &tmp_face2node, 
                  entitySet nodes, entitySet faces, entitySet cells,
-                 store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+                 store<vector3d<double> > &pos, Map &cl, Map &cr,
                  multiMap &face2node) {
 
     pos.allocate(nodes) ;
@@ -620,10 +591,10 @@ namespace VOG {
   //Output:
   // pos, cl, cr, face2node: static version of structures in the Input 
   void copyGridStructures( entitySet nodes, entitySet faces, entitySet cells,
-			   const store<vector3d<real_t> > &t_pos,
+			   const store<vector3d<double> > &t_pos,
 			   const Map &tmp_cl, const Map &tmp_cr,
 			   const multiMap &tmp_face2node,
-			   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+			   store<vector3d<double> > &pos, Map &cl, Map &cr,
 			   multiMap &face2node) {
 
     entitySet boundary_cells = getBoundaryCells(Loci::MapRepP(tmp_cr.Rep()));
@@ -860,7 +831,7 @@ namespace VOG {
     vector<entitySet> local_cells;
     vector<entitySet> local_faces;
     
-    store<vector3d<real_t> > t_pos;
+    store<vector3d<double> > t_pos;
     Map tmp_cl, tmp_cr;
     multiMap tmp_face2node;
     
@@ -886,7 +857,7 @@ namespace VOG {
       entitySet faces = facts.get_distributed_alloc(nfaces).first ;
       entitySet cells = facts.get_distributed_alloc(ncells).first;
 
-      store<vector3d<real_t> > pos ;
+      store<vector3d<double> > pos ;
       Map cl ;
       Map cr ;
       multiMap face2node ;
@@ -998,7 +969,7 @@ namespace VOG {
 
     Map cl, cr ;
     multiMap face2node ;
-    store<vector3d<real_t> > pos ;
+    store<vector3d<double> > pos ;
 
     remapGrid(node_ptn, face_ptn, cell_ptn,
               node_ptn_t, face_ptn_t, cell_ptn_t,
@@ -1066,116 +1037,90 @@ namespace VOG {
     geom_cells = global_geom&init_ptn[MPI_rank] ; 
   }
   
-  void colorMatrix(fact_db &facts) {
-    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
 
-    Map cl,cr ;
-    cl = facts.get_variable("cl") ;
-    cr = facts.get_variable("cr") ;
-
-    entitySet faces, interior_faces, boundary_faces, geom_cells ;
-    getGridInfo(facts, faces, interior_faces, boundary_faces,geom_cells) ;
-
-    multiMap c2c ;
-    store<int> sizes ;
-    sizes.allocate(geom_cells) ;    
-    FORALL(geom_cells, cc) {
-      sizes[cc] = 0 ;
-    } ENDFORALL ;
-    FORALL(interior_faces,fc) {
-      if((init_ptn[Loci::MPI_rank].inSet(cl[fc]))&& (init_ptn[Loci::MPI_rank].inSet(cr[fc]))) 
-	sizes[cl[fc]]++ ;
-      if((init_ptn[Loci::MPI_rank].inSet(cr[fc])) && (init_ptn[Loci::MPI_rank].inSet(cl[fc])))
-	sizes[cr[fc]]++ ;
-    } ENDFORALL ;
-    c2c.allocate(sizes) ;
-    FORALL(interior_faces,fc) {
-      if((init_ptn[Loci::MPI_rank].inSet(cl[fc]))  && (init_ptn[Loci::MPI_rank].inSet(cr[fc]))) 
-	c2c[cl[fc]][--sizes[cl[fc]]] = cr[fc] ;
-      if((init_ptn[Loci::MPI_rank].inSet(cr[fc])) && (init_ptn[Loci::MPI_rank].inSet(cl[fc]))) 
-	c2c[cr[fc]][--sizes[cr[fc]]] = cl[fc] ;
-    } ENDFORALL ;
-    dstore<int> color ;
-    entitySet out_of_dom ;
-    
-    entitySet glob_geom = Loci::all_collect_entitySet(geom_cells) ;
-    FORALL(interior_faces,fc) {
-      if(!init_ptn[Loci::MPI_rank].inSet(cl[fc]))
-	out_of_dom += cl[fc] ;
-      if(!init_ptn[Loci::MPI_rank].inSet(cr[fc]))
-	out_of_dom += cr[fc] ;
-    } ENDFORALL ;
-    
-    for(int i = 0; i < Loci::MPI_processes; ++i) {
-      init_ptn[i] &= glob_geom ;
-      entitySet tmp_set =  (init_ptn[i] & out_of_dom) ;
-      for(entitySet::const_iterator ei = tmp_set.begin(); ei != tmp_set.end(); ++ei)
-	color[*ei] = init_ptn[i].Min() ;
+  vector<int> simplePartitionVec(int mn, int mx, int p) {
+    vector<int> nums(p+1) ;
+    int n = mx-mn+1 ;
+    int dn = n/p ; // divisor
+    int rn = n%p ; // remainder
+    int start = mn ;
+    nums[0] = start ;
+    for(int i=0;i<p;++i) {
+      start += dn+((i<rn)?1:0) ;
+      nums[i+1] = start ;
     }
-    FORALL(geom_cells,cc) {
-      color[cc] = -1 ;
-    } ENDFORALL ;
-    int col = (geom_cells).Min() ;
-    vector<int> visited ;
-    entitySet left_out = geom_cells ;
-    while(left_out != EMPTY) {
-      vector<int> work ;
-      work.push_back(left_out.Min()) ;
-      while(work.size() != 0) {
-	vector<int> working ;
-	for(size_t i=0;i<work.size();++i) {
-          int cc = work[i] ;
-	  if(color[cc] == -1) {
-	    color[cc] = col++ ;
-	    visited.push_back(cc) ;
-	    for(const int *pi = c2c.begin(cc);pi!=c2c.end(cc);++pi)
-	      working.push_back(*pi) ;
-	  }
-	}
-        work.swap(working) ;
-      }
-      entitySet visitSet = create_intervalSet(visited.begin(),visited.end()) ;
-      left_out -= visitSet ;
+    FATAL(start != mx+1) ;
+    return nums ;
+  }
+
+  vector<entitySet> getDist(entitySet &nodes, entitySet &faces,
+                            entitySet &cells,
+                            store<vector3d<double> > &pos,
+                            Map &cl, Map &cr, multiMap &face2node) {
+                            
+  // First establish current distribution of entities across processors
+    vector<entitySet> ptn(MPI_processes) ; // entity Partition
+
+    // Get entity distributions
+    nodes = pos.domain() ;
+    entitySet allNodes = all_collect_entitySet(nodes) ;
+    vector<int> nodesizes(MPI_processes) ;
+    int size = nodes.size() ;
+    MPI_Allgather(&size,1,MPI_INT,&nodesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+    int cnt = allNodes.Min() ;
+    for(int i=0;i<MPI_processes;++i) {
+      ptn[i] = interval(cnt,cnt+nodesizes[i]-1) ;
+      cnt += nodesizes[i] ;
     }
 
-    multiMap face2node ;
-    face2node = facts.get_variable("face2node") ;
-
-    FORALL(interior_faces,fc) {
-      if(color[cl[fc]] > color[cr[fc]]) {
-        // change face orientation to match matrix coloring
-        std::swap(cl[fc],cr[fc]) ;
-        int i = 0 ;
-        int j = face2node[fc].size() - 1;
-       	while(i < j) {
-          std::swap(face2node[fc][i],face2node[fc][j]) ;
-          i++ ;
-          j-- ;
-        } 
-      }
-    } ENDFORALL ;
-
+    faces = face2node.domain() ;
+    entitySet allFaces = all_collect_entitySet(faces) ;
+    vector<int> facesizes(MPI_processes) ;
+    size = faces.size() ;
+    MPI_Allgather(&size,1,MPI_INT,&facesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
+    cnt = allFaces.Min() ;
+    for(int i=0;i<MPI_processes;++i) {
+      ptn[i] += interval(cnt,cnt+facesizes[i]-1) ;
+      cnt += facesizes[i] ;
+    }
+    
+    entitySet tmp_cells = cl.image(cl.domain())+cr.image(cr.domain()) ;
+    entitySet loc_geom_cells = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
+    entitySet geom_cells = Loci::all_collect_entitySet(loc_geom_cells) ;
+    int mn = geom_cells.Min() ;
+    int mx = geom_cells.Max() ;
+    vector<int> pl = simplePartitionVec(mn,mx,MPI_processes) ;
+    for(int i=0;i<MPI_processes;++i)
+      ptn[i] += interval(pl[i],pl[i+1]-1) ;
+    nodes = allNodes ;
+    faces = allFaces ;
+    cells = geom_cells ;
+    return ptn ;
   }
 
   // Establish geometrically consistent face orientation
+  void orientFaces(store<vector3d<double> > &pos,
+                   Map &cl, Map &cr, multiMap &face2node) {
 
-  void orientFaces(fact_db &facts) {
-    store<vector3d<real_t> > pos ;
-    pos = facts.get_variable("pos") ;
-    store<vector3d<real_t> > fpos ;
-    store<vector3d<real_t> > area ;
+    entitySet nodes, faces,cells ;
+    vector<entitySet> init_ptn = getDist(nodes,faces,cells,
+                                         pos,cl,cr,face2node);
     
-    multiMap face2node ;
-    face2node = facts.get_variable("face2node") ;
-    std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
+    store<vector3d<double> > fpos ;
+    store<vector3d<double> > area ;
 
-    entitySet faces, interior_faces, boundary_faces, geom_cells ;
-    getGridInfo(facts, faces, interior_faces, boundary_faces,geom_cells) ;
-    
+    entitySet loc_faces = faces & init_ptn[MPI_rank] ;
+    entitySet geom_cells = cells ;
+    entitySet negs = interval(UNIVERSE_MIN,-1) ;
+    entitySet boundary_faces = cr.preimage(negs).first ;
+    entitySet interior_faces = loc_faces - boundary_faces ;
+
+    entitySet myNodes = nodes & init_ptn[MPI_rank] ;
     entitySet total_dom =
-      Loci::MapRepP(face2node.Rep())->image(faces) + pos.domain() ;
+      Loci::MapRepP(face2node.Rep())->image(loc_faces) + myNodes ;
 
-    dstore<vector3d<real_t> > tmp_pos ;
+
+    dstore<vector3d<double> > tmp_pos ;
     FORALL(pos.domain(), pi) {
       tmp_pos[pi] = pos[pi] ;
     } ENDFORALL ;
@@ -1191,61 +1136,59 @@ namespace VOG {
 
     FORALL(face_dom,fc) {
       int nnodes = face2node.end(fc) - face2node.begin(fc) ;
-      vector3d<real_t> fp(0,0,0) ;
-      real_t w = 0 ;
+      vector3d<double> fp(0,0,0) ;
+      double w = 0 ;
       for(int i=0;i<nnodes;++i) {
-        vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
-        vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
+        vector3d<double> p1 = (tmp_pos[face2node[fc][i]]) ;
+        vector3d<double> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
 
-        real_t len = norm(p1-p2) ;
+        double len = norm(p1-p2) ;
 
         fp += len*(p1+p2) ;
         w += len ;
       }
       fpos[fc] = fp/(2.*w) ;
-      vector3d<real_t> a(0,0,0) ;
+      vector3d<double> a(0,0,0) ;
       for(int i=0;i<nnodes;++i) {
-        vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
-        vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
+        vector3d<double> p1 = (tmp_pos[face2node[fc][i]]) ;
+        vector3d<double> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
         a += cross(p1-fpos[fc],p2-fpos[fc]) ;
       }
       area[fc] = .5*a ;
     } ENDFORALL ;
 
-    Map cl,cr ;
-    cl = facts.get_variable("cl") ;
-    cr = facts.get_variable("cr") ;
-    dstore<vector3d<real_t> > cpos ;
-    dstore<real_t> cnum ;
 
-    entitySet tmp_cells =  cl.image(faces) | cr.image(interior_faces) ;
+    dstore<vector3d<double> > cpos ;
+    dstore<double> cnum ;
+
+    entitySet tmp_cells =  cl.image(loc_faces) | cr.image(interior_faces) ;
     // Add cells owned by this processor!
-    tmp_cells += (geom_cells)& init_ptn[MPI_rank] ; 
+    tmp_cells += cells & init_ptn[MPI_rank] ; 
     cpos.allocate(tmp_cells) ;
     cnum.allocate(tmp_cells) ;
     FORALL(tmp_cells,cc) {
-      cpos[cc] = vector3d<real_t>(0,0,0) ;
+      cpos[cc] = vector3d<double>(0,0,0) ;
       cnum[cc] = 0 ;
     } ENDFORALL ;
-    FORALL(faces,fc) {
-      real_t A = norm(area[fc]) ;
+    FORALL(loc_faces,fc) {
+      double A = norm(area[fc]) ;
       cpos[cl[fc]] += A*fpos[fc] ;
       cnum[cl[fc]] += A ;
     } ENDFORALL ;
     FORALL(interior_faces,fc) {
-      real_t A = norm(area[fc]) ;
+      double A = norm(area[fc]) ;
       cpos[cr[fc]] += A*fpos[fc] ;
       cnum[cr[fc]] += A ;
     } ENDFORALL ;
     Loci::storeRepP cp_sp = cpos.Rep() ;
     Loci::storeRepP cn_sp = cnum.Rep() ;
-    entitySet clone_cells = tmp_cells - geom_cells ;
+    entitySet clone_cells = tmp_cells - (cells&init_ptn[MPI_rank]) ;
     std::vector<Loci::storeRepP> v_cpos = send_global_clone_non(cp_sp, clone_cells, init_ptn) ;
     std::vector<Loci::storeRepP> v_cnum = send_global_clone_non(cn_sp, clone_cells, init_ptn) ;
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       entitySet dom = v_cpos[i]->domain() & cpos.domain() ;
-      dstore<vector3d<real_t> > tmp_cpos(v_cpos[i]) ;
-      dstore<real_t> tmp_cnum(v_cnum[i]) ;
+      dstore<vector3d<double> > tmp_cpos(v_cpos[i]) ;
+      dstore<double> tmp_cnum(v_cnum[i]) ;
       FORALL(dom, di) {
 	cpos[di] += tmp_cpos[di] ;
 	cnum[di] += tmp_cnum[di] ;
@@ -1260,9 +1203,9 @@ namespace VOG {
     vector<int> broken_faces ;
 
     FORALL(interior_faces,fc) {
-      vector3d<real_t> dv = cpos[cr[fc]]-cpos[cl[fc]] ; 
-      vector3d<real_t> dv2 = fpos[fc]-cpos[cl[fc]] ; 
-      vector3d<real_t> dv3 = cpos[cr[fc]]-fpos[fc] ; 
+      vector3d<double> dv = cpos[cr[fc]]-cpos[cl[fc]] ; 
+      vector3d<double> dv2 = fpos[fc]-cpos[cl[fc]] ; 
+      vector3d<double> dv3 = cpos[cr[fc]]-fpos[fc] ; 
 
       int t1 = (dot(area[fc],dv) <0.0)?1:0 ;
       int t2 = (dot(area[fc],dv2) <0.0)?1:0 ;
@@ -1288,11 +1231,11 @@ namespace VOG {
 
 
     FORALL(boundary_faces,fc) {
-      const vector3d<real_t> center = fpos[fc] ;
+      const vector3d<double> center = fpos[fc] ;
 
-      vector3d<real_t> ccenter ;
+      vector3d<double> ccenter ;
       ccenter = cpos[cl[fc]] ;
-      vector3d<real_t> dv = center-ccenter ;
+      vector3d<double> dv = center-ccenter ;
       if(dot(area[fc],dv) < 0.0) {
 	int i = 0 ;
 	int j = face2node.end(fc) - face2node.begin(fc) -1 ;
@@ -1317,6 +1260,106 @@ namespace VOG {
     }
   }
 
+
+  void colorMatrix(store<vector3d<double> > &pos,
+                   Map &cl, Map &cr, multiMap &face2node) {
+    
+    entitySet nodes, faces,cells ;
+    vector<entitySet> ptn = getDist(nodes,faces,cells,
+                                    pos,cl,cr,face2node);
+    entitySet loc_faces = faces & ptn[MPI_rank] ;
+    entitySet geom_cells = cells & ptn[MPI_rank] ;
+    entitySet negs = interval(UNIVERSE_MIN,-1) ;
+    entitySet boundary_faces = cr.preimage(negs).first ;
+    entitySet interior_faces = loc_faces - boundary_faces ;
+
+    using std::pair ;
+    vector<pair<Entity,Entity> > cellmap(interior_faces.size()*2) ;
+    int cnt = 0 ;
+    FORALL(interior_faces,fc) {
+      cellmap[cnt++] = pair<Entity,Entity>(cl[fc],cr[fc]) ;
+      cellmap[cnt++] = pair<Entity,Entity>(cr[fc],cl[fc]) ;
+    } ENDFORALL ;
+    multiMap c2c ;
+    Loci::distributed_inverseMap(c2c,cellmap,cells,cells,ptn) ;
+    int ncells = cells.size() ;
+    int loc_index = geom_cells.Min() - cells.Min();
+    store<int> ctmp ;
+    ctmp.allocate(geom_cells) ;
+    FORALL(geom_cells,cc) {
+      ctmp[cc] = -1 ;
+    } ENDFORALL ;
+
+    int col = ncells*Loci::MPI_rank ;
+    
+    vector<int> visited ;
+    entitySet left_out = geom_cells ;
+    int lo_p = geom_cells.Min() ;
+    while(left_out != EMPTY) {
+      vector<int> work ;
+      work.push_back(left_out.Min()) ;
+      while(work.size() != 0) {
+	vector<int> working ;
+	for(size_t i=0;i<work.size();++i) {
+          int cc = work[i] ;
+          if(ctmp[cc] == -1) {
+            ctmp[cc] = col++ ;
+            visited.push_back(cc) ;
+            for(const int *pi = c2c.begin(cc);pi!=c2c.end(cc);++pi)
+              if(geom_cells.inSet(*pi) && ctmp[*pi] == -1) {
+                working.push_back(*pi) ;
+              }
+          }
+	}
+        work.swap(working) ;
+      }
+      left_out = EMPTY ;
+      entitySet candidates = geom_cells & interval(lo_p,UNIVERSE_MAX) ;
+      FORALL(candidates,cc) {
+        if(ctmp[cc] == -1) {
+          left_out += cc ;
+          break ;
+        }
+      } ENDFORALL ;
+      if(left_out != EMPTY)
+        lo_p = left_out.Min() ;
+    }
+
+    dstore<int> color ;
+    FORALL(geom_cells,cc) {
+      color[cc] = ctmp[cc];
+    } ENDFORALL ;
+
+    entitySet clone_cells = cl.image(interior_faces)
+      + cr.image(interior_faces) ;
+    clone_cells -= geom_cells ;
+    Loci::storeRepP cp_sp = color.Rep() ;
+    fill_clone(cp_sp, clone_cells, ptn) ;
+
+    FORALL(interior_faces,fc) {
+      int color_l = color[cl[fc]] ;
+      int color_r = color[cr[fc]] ;
+      if(color_l == color_r) 
+        cerr << "color equal == " << color_l << endl ;
+      if(color_l == -1 |+ color_r == -1)
+        cerr << "matrix coloring internal error" << endl ;
+                                                              
+      if(color_l > color_r) {
+        // change face orientation to match matrix coloring
+        std::swap(cl[fc],cr[fc]) ;
+        int i = 0 ;
+        int j = face2node[fc].size() - 1;
+       	while(i < j) {
+          std::swap(face2node[fc][i],face2node[fc][j]) ;
+          i++ ;
+          j-- ;
+        } 
+      }
+    } ENDFORALL ;
+    
+  }
+
+
   bool inputXDRGrid(fact_db &facts, string filename) {
 
     // Read in the xdr grid
@@ -1324,11 +1367,6 @@ namespace VOG {
       cerr << "reading " << filename << endl ;
     if(!readGridFile(facts,filename))
       return false ;
-
-    // establish face left-right orientation
-    if(MPI_rank == 0) 
-      cerr << "orienting faces" << endl ;
-    orientFaces(facts) ;
 
     return true ;
   }
@@ -1636,21 +1674,6 @@ namespace VOG {
     }
   }
 
-  vector<int> simplePartitionVec(int mn, int mx, int p) {
-    vector<int> nums(p+1) ;
-    int n = mx-mn+1 ;
-    int dn = n/p ; // divisor
-    int rn = n%p ; // remainder
-    int start = mn ;
-    nums[0] = start ;
-    for(int i=0;i<p;++i) {
-      start += dn+((i<rn)?1:0) ;
-      nums[i+1] = start ;
-    }
-    FATAL(start != mx+1) ;
-    return nums ;
-  }
-
   void getCellCenters(store<vector3d<double> > &cellcenter,
                       store<vector3d<double> > &pos,
                       Map &cl, Map &cr, multiMap &face2node,
@@ -1664,7 +1687,7 @@ namespace VOG {
     entitySet total_dom =
       Loci::MapRepP(face2node.Rep())->image(faces) + pos.domain() ;
 
-    dstore<vector3d<real_t> > tmp_pos ;
+    dstore<vector3d<double> > tmp_pos ;
     FORALL(pos.domain(), pi) {
       tmp_pos[pi] = pos[pi] ;
     } ENDFORALL ;
@@ -1674,35 +1697,35 @@ namespace VOG {
       fill_clone(sp, total_dom, ptn) ;
     }
     
-    store<vector3d<real_t> > fpos, area ;
+    store<vector3d<double> > fpos, area ;
     fpos.allocate(faces) ;
     area.allocate(faces) ;
 
     FORALL(faces,fc) {
       int nnodes = face2node[fc].size() ;
-      vector3d<real_t> fp(0,0,0) ;
-      real_t w = 0 ;
+      vector3d<double> fp(0,0,0) ;
+      double w = 0 ;
       for(int i=0;i<nnodes;++i) {
-        vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
-        vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
+        vector3d<double> p1 = (tmp_pos[face2node[fc][i]]) ;
+        vector3d<double> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
 
-        real_t len = norm(p1-p2) ;
+        double len = norm(p1-p2) ;
 
         fp += len*(p1+p2) ;
         w += len ;
       }
       fpos[fc] = fp/(2.*w) ;
-      vector3d<real_t> a(0,0,0) ;
+      vector3d<double> a(0,0,0) ;
       for(int i=0;i<nnodes;++i) {
-        vector3d<real_t> p1 = (tmp_pos[face2node[fc][i]]) ;
-        vector3d<real_t> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
+        vector3d<double> p1 = (tmp_pos[face2node[fc][i]]) ;
+        vector3d<double> p2 = (tmp_pos[face2node[fc][(i+1)%nnodes]]) ;
         a += cross(p1-fpos[fc],p2-fpos[fc]) ;
       }
       area[fc] = .5*a ;
     } ENDFORALL ;
 
-    dstore<vector3d<real_t> > cpos ;
-    dstore<real_t> cnum ;
+    dstore<vector3d<double> > cpos ;
+    dstore<double> cnum ;
 
     // Add cells owned by this processor!
     tmp_cells &= interval(0,UNIVERSE_MAX) ;
@@ -1710,17 +1733,17 @@ namespace VOG {
     cpos.allocate(tmp_cells) ;
     cnum.allocate(tmp_cells) ;
     FORALL(tmp_cells,cc) {
-      cpos[cc] = vector3d<real_t>(0,0,0) ;
+      cpos[cc] = vector3d<double>(0,0,0) ;
       cnum[cc] = 0 ;
     } ENDFORALL ;
     FORALL(faces,fc) {
-      real_t A = norm(area[fc]) ;
+      double A = norm(area[fc]) ;
       cpos[cl[fc]] += A*fpos[fc] ;
       cnum[cl[fc]] += A ;
     } ENDFORALL ;
     FORALL(faces,fc) {
       if(cr[fc] >= 0) {
-        real_t A = norm(area[fc]) ;
+        double A = norm(area[fc]) ;
         cpos[cr[fc]] += A*fpos[fc] ;
         cnum[cr[fc]] += A ;
       }
@@ -1737,8 +1760,8 @@ namespace VOG {
 
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       entitySet dom = v_cpos[i]->domain() & cpos.domain() ;
-      dstore<vector3d<real_t> > tmp_cpos(v_cpos[i]) ;
-      dstore<real_t> tmp_cnum(v_cnum[i]) ;
+      dstore<vector3d<double> > tmp_cpos(v_cpos[i]) ;
+      dstore<double> tmp_cnum(v_cnum[i]) ;
       FORALL(dom, di) {
 	cpos[di] += tmp_cpos[di] ;
 	cnum[di] += tmp_cnum[di] ;
@@ -1993,7 +2016,8 @@ namespace VOG {
     sort(list.begin(),list.end()) ;
     return ;
   }    
-    
+
+
   // Optimize indicies of mesh to increase locality
   void optimizeMesh(store<vector3d<double> > &pos,
                     Map &cl, Map &cr, multiMap &face2node) {
@@ -2349,7 +2373,7 @@ int main(int ac, char *av[]) {
   string outfile = av[1] ;
   outfile += ".vog" ;
 
-  store<vector3d<real_t> > pos;
+  store<vector3d<double> > pos;
   Map cl, cr;
   multiMap face2node;
 
@@ -2361,18 +2385,22 @@ int main(int ac, char *av[]) {
       Loci::Abort() ;
     }
 
-    if(MPI_rank == 0)
-      cerr << "coloring matrix" << endl ;
-    colorMatrix(facts) ;
-
-
-
     pos = facts.get_variable("pos")->getRep() ;
     cl = facts.get_variable("cl")->getRep() ;
     cr = facts.get_variable("cr")->getRep() ;
     face2node = facts.get_variable("face2node")->getRep() ;
 
   }
+
+
+  // establish face left-right orientation
+  if(MPI_rank == 0) 
+    cerr << "orienting faces" << endl ;
+  orientFaces(pos,cl,cr,face2node) ;
+    
+  if(MPI_rank == 0)
+    cerr << "coloring matrix" << endl ;
+  colorMatrix(pos,cl,cr,face2node) ;
 
   if(optimize) {
     if(MPI_rank == 0) 

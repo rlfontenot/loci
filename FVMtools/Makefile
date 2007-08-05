@@ -1,12 +1,12 @@
 include $(LOCI_BASE)/Loci.conf
 
 COPT = $(COPTLESS)
-#COPT = -g -O0 #$(COPTLESS)
+#COPT = -g -O0 
 
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr solidMesh2xdrMPI plot3d2xdr pb xdr2cobalt xdropt xdr2vog vog2xdr
+OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o
@@ -49,14 +49,9 @@ plot3d2xdr: plot3d2xdr.o
 solidMesh2xdr: solidMesh2xdr.o
 	$(LD) -o solidMesh2xdr solidMesh2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-solidMesh2xdrMPI: solidMesh2xdrMPI.o
-	$(LD) -o solidMesh2xdrMPI solidMesh2xdrMPI.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
-xdropt: xdropt.o
-	$(LD) -o xdropt xdropt.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
-
 pb: pb.o predicates.o
 	$(LD) -o pb pb.o predicates.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 predicates.o:
 	$(CC) $(COPT) -c $(DEFINES) predicates.c
 
