@@ -104,11 +104,17 @@ fi
 if [ ! -e pb ] ; then
   ln -s ../FVMtools/pb pb
 fi
+if [ ! -e xdr2vog ] ; then
+  ln -s ../FVMtools/xdr2vog xdr2vog
+fi
+if [ ! -e vog2xdr ] ; then
+  ln -s ../FVMtools/vog2xdr vog2xdr
+fi
+if [ ! -e ugrid2vog ] ; then
+  ln -s ../FVMtools/ugrid2vog ugrid2vog
+fi
 if [ ! -e solidMesh2xdr ] ; then
   ln -s ../FVMtools/solidMesh2xdr solidMesh2xdr
-fi
-if [ ! -e solidMesh2xdrMPI ] ; then
-  ln -s ../FVMtools/solidMesh2xdrMPI solidMesh2xdrMPI
 fi
 if [ ! -e xdr2cobalt ] ; then
   ln -s ../FVMtools/xdr2cobalt xdr2cobalt
@@ -118,9 +124,6 @@ if [ ! -e cobalt2xdr ] ; then
 fi
 if [ ! -e plot3d2xdr ] ; then
   ln -s ../FVMtools/plot3d2xdr plot3d2xdr
-fi
-if [ ! -e xdropt ] ; then
-  ln -s ../FVMtools/xdropt xdropt
 fi
 
 
