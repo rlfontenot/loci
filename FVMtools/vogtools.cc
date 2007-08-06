@@ -12,6 +12,8 @@ using std::pair ;
 using std::cout ;
 using std::endl ;
 using std::cerr ;
+using std::ifstream ;
+using std::ios ;
 
 //using Loci::fact_db ;
 using Loci::debugout ;
@@ -25,6 +27,46 @@ namespace Loci {
                                      const std::vector<entitySet> &init_ptn) ;
 }
 namespace VOG {
+
+  vector<BC_descriptor> readTags(string filename) {
+    vector<BC_descriptor> bcs ;
+    ifstream file(filename.c_str(),ios::in) ;
+    if(file.fail()) {
+      cerr << "unable to open '" << filename << "'" << endl ;
+
+
+      return bcs ;
+    }
+    while(file.peek() != EOF && file.peek() != '\n' && file.peek() != '\r')
+      file.get() ;
+    while(file.peek() != EOF && (file.peek() == '\n' || file.peek() == '\r'))
+      file.get() ;
+    while(file.peek() != EOF) {
+      BC_descriptor BC ;
+      char c ;
+      c = file.get() ;
+      if(c != '#') 
+        cerr << "expected to get a hash while reading '" << filename << "'"
+             << endl ;
+      int id = 0 ;
+      file >> id ;
+      BC.id = id ;
+      c = file.get() ;
+      if(c != ':')
+        cerr << "expected to get a colon while reading '" << filename << "'"
+             << endl ;
+      string name ;
+      file >> name ;
+      BC.name = name ;
+      file >> BC.BC >> BC.Visc >> BC.Recon >> BC.Source >> BC.Trans
+           >> BC.Rebuild ;
+      bcs.push_back(BC) ;
+      while(file.peek() != EOF && file.peek() != '#')
+        file.get() ;
+    }
+    return bcs ;
+  }
+  
   using Loci::MapRepP ;
   using Loci::storeRepP ;
   using Loci::MPI_processes ;
@@ -606,13 +648,14 @@ namespace VOG {
     vector<pair<pair<int,int>, int> > f_ord(faces.size()) ;
     int i = 0 ;
     // For small number of cells, sort to keep bc groupings
-    if(num_cells<60000) {
+    if(num_cells<100000) {
       FORALL(faces,fc) {
         f_ord[i].first.first = cr[fc] ;
         f_ord[i].first.second = cl[fc] ;
         f_ord[i].second = fc ;
         i++ ;
       } ENDFORALL ;
+      sort(f_ord.begin(),f_ord.end()) ;
     } else {
       FORALL(faces,fc) {
         f_ord[i].first.first = cl[fc] ;
@@ -621,7 +664,6 @@ namespace VOG {
         i++ ;
       } ENDFORALL ;
     }
-    sort(f_ord.begin(),f_ord.end()) ;
 
     i=0 ;
     store<int> count ;
@@ -1007,7 +1049,7 @@ namespace VOG {
       keyList[cnt++].key_id = cc ;
     } ENDFORALL ;
 
-    parSampleSort(keyList,MPI_COMM_WORLD) ;
+   parSampleSort(keyList,MPI_COMM_WORLD) ;
 
     vector<int> keysizes(MPI_processes) ;
     size = keyList.size() ;

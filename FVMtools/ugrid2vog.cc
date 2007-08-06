@@ -1,4 +1,3 @@
-#define DEBUG
 #include <Loci.h>
 #include "vogtools.h"
 #include <sys/stat.h>
@@ -931,6 +930,51 @@ int main(int ac, char* av[]) {
 
   readUGRID(infile, binary, pos,qfaces,tfaces,tets,pyramids,prisms,hexs) ;
 
+  vector<BC_descriptor> bcs ;
+  vector<int> transsurf ;
+  if(MPI_rank == 0) {
+    string tagsfile = string(filename) + ".tags" ;
+    bcs = readTags(tagsfile) ;
+    cout << "boundary faces:"<< endl ;
+    for(int i=0;i<bcs.size();++i)
+      if(bcs[i].Trans)
+        transsurf.push_back(bcs[i].id) ;
+    
+    for(int i=0;i<bcs.size();++i)
+      cout << bcs[i].name << ' ' << bcs[i].id << endl ;
+  }
+  int trans_size = transsurf.size() ;
+  MPI_Bcast(&trans_size,1,MPI_INT,0,MPI_COMM_WORLD) ;
+  if(trans_size != 0) {
+    if(MPI_rank != 0)
+      transsurf = vector<int>(trans_size) ;
+    MPI_Bcast(&transsurf[0],trans_size,MPI_INT,0,MPI_COMM_WORLD) ;
+
+    if(MPI_rank == 0) 
+      cout << "removing transparent surfaces" << endl ;
+
+    vector<Array<int,5> > qtfaces ;
+    for(size_t i=0;i<qfaces.size();++i) {
+      bool trans = false ;
+      for(int j=0;j<trans_size;++j)
+        if(qfaces[i][4] == -transsurf[j])
+          trans = true ;
+      if(!trans)
+        qtfaces.push_back(qfaces[i]) ;
+    }
+    qfaces.swap(qtfaces) ;
+
+    vector<Array<int,4> > ttfaces ;
+    for(size_t i=0;i<tfaces.size();++i) {
+      bool trans = false ;
+      for(int j=0;j<trans_size;++j)
+        if(tfaces[i][3] == -transsurf[j])
+          trans = true ;
+      if(!trans)
+        ttfaces.push_back(tfaces[i]) ;
+    }
+    tfaces.swap(ttfaces) ;
+  }
   multiMap face2node ;
   Map cl,cr ;
 
@@ -957,7 +1001,4 @@ int main(int ac, char* av[]) {
   VOG::writeVOG(outfile, pos, cl, cr, face2node) ;
 
   Loci::Finalize() ;
-
-
-
 }

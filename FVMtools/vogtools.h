@@ -3,6 +3,15 @@
 #include <vector>
 #include <string>
 namespace VOG {
+
+  struct BC_descriptor {
+    std::string name ;
+    int id ;
+    bool BC,Visc,Recon,Source,Trans,Rebuild ;
+  } ;
+
+  extern std::vector<BC_descriptor> readTags(std::string filename) ;
+
   using std::vector ;
   // Utility routine for sample sort
   template <class T> void parGetSplitters(vector<T> &splitters,

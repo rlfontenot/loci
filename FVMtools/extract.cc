@@ -270,7 +270,12 @@ void getDerivedVar(vector<float> &dval, string var_name,
 
 void setup_grid_topology(string casename, string iteration) {
   fact_db facts ;
-  string file = casename + ".xdr" ;
+  string file = casename + ".vog" ;
+  struct stat tmpstat ;
+  if(stat(file.c_str(),&tmpstat) != 0) {
+    file = casename + ".xdr" ;
+  }
+
   if(!Loci::setupFVMGrid(facts,file)) {
     cerr << "unable to read grid " << file << endl ;
   }
