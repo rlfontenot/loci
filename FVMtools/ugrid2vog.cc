@@ -263,7 +263,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       for(int i=quaddist[R];i<quaddist[R+1];++i) {
         qfaces[i][4] = 0 ;
         if(!binary)
-          fscanf(IFP, "%d%d%d", &qfaces[i][0], &qfaces[i][1], &qfaces[i][2],
+          fscanf(IFP, "%d%d%d%d", &qfaces[i][0], &qfaces[i][1], &qfaces[i][2],
                  qfaces[i][3]) ;  
         else { 
           fread(&qfaces[i][0], sizeof(int), 4, IFP) ;
@@ -279,7 +279,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         for(int i=0;i<lqsz;++i) {
           qtmp[i][4] = 0 ;
           if(!binary)
-            fscanf(IFP, "%d%d%d", &qtmp[i][0], &qtmp[i][1], &qtmp[i][2],
+            fscanf(IFP, "%d%d%d%d", &qtmp[i][0], &qtmp[i][1], &qtmp[i][2],
                    &qtmp[i][3]) ;
           else { 
             fread(&qtmp[i][0], sizeof(int), 4, IFP) ;
@@ -297,7 +297,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     { // triangles
       for(int i=triadist[R];i<triadist[R+1];++i) {
         if(!binary)
-          fscanf(IFP, "%d%d%d", &tfaces[i][3]) ;
+          fscanf(IFP, "%d", &tfaces[i][3]) ;
         else { 
           fread(&tfaces[i][3], sizeof(int), 1, IFP) ;
           if(reverse_byteorder)
@@ -312,7 +312,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         int ltsz = triadist[p+1]-triadist[p] ;
         for(int i=0;i<ltsz;++i) {
           if(!binary)
-            fscanf(IFP, "%d%d%d", &ttmp[i]) ;
+            fscanf(IFP, "%d", &ttmp[i]) ;
           else { 
             fread(&ttmp[i], sizeof(int), 1, IFP) ;
             if(reverse_byteorder)
@@ -327,7 +327,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     { // Quads
       for(int i=quaddist[R];i<quaddist[R+1];++i) {
         if(!binary)
-          fscanf(IFP, "%d%d%d", &qfaces[i][4]) ;
+          fscanf(IFP, "%d", &qfaces[i][4]) ;
         else { 
           fread(&qfaces[i][4], sizeof(int), 1, IFP) ;
           if(reverse_byteorder)
@@ -342,7 +342,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         int lqsz = quaddist[p+1]-quaddist[p] ;
         for(int i=0;i<lqsz;++i) {
           if(!binary)
-            fscanf(IFP, "%d%d%d", &qtmp[i]) ;
+            fscanf(IFP, "%d", &qtmp[i]) ;
           else { 
             fread(&qtmp[i], sizeof(int), 1, IFP) ;
             if(reverse_byteorder)
@@ -386,7 +386,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   if(R == 0) {
     for(int i=tetsdist[R];i<tetsdist[R+1];++i) {
       if(!binary)
-        fscanf(IFP, "%d%d%d", &tets[i][0], &tets[i][1],
+        fscanf(IFP, "%d%d%d%d", &tets[i][0], &tets[i][1],
                &tets[i][2], &tets[i][3]) ;  
       else { 
         fread(&tets[i][0], sizeof(int), 4, IFP) ;
@@ -401,7 +401,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       int ltsz = tetsdist[p+1]-tetsdist[p] ;
       for(int i=0;i<ltsz;++i) {
         if(!binary)
-          fscanf(IFP, "%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
+          fscanf(IFP, "%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
                  &ttmp[i][3]) ;  
         else { 
           fread(&ttmp[i][0], sizeof(int), 4, IFP) ;
@@ -426,7 +426,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   if(R == 0) {
     for(int i=pyrmdist[R];i<pyrmdist[R+1];++i) {
       if(!binary)
-        fscanf(IFP, "%d%d%d", &pyramids[i][0], &pyramids[i][1],
+        fscanf(IFP, "%d%d%d%d%d", &pyramids[i][0], &pyramids[i][1],
                &pyramids[i][2], &pyramids[i][3], &pyramids[i][4]) ;  
       else { 
         fread(&pyramids[i][0], sizeof(int), 5, IFP) ;
@@ -441,7 +441,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       int ltsz = pyrmdist[p+1]-pyrmdist[p] ;
       for(int i=0;i<ltsz;++i) {
         if(!binary)
-          fscanf(IFP, "%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
+          fscanf(IFP, "%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
                  &ttmp[i][3], &ttmp[i][4]) ;  
         else { 
           fread(&ttmp[i][0], sizeof(int), 5, IFP) ;
@@ -466,7 +466,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   if(R == 0) {
     for(int i=prsmdist[R];i<prsmdist[R+1];++i) {
       if(!binary)
-        fscanf(IFP, "%d%d%d", &prisms[i][0], &prisms[i][1],
+        fscanf(IFP, "%d%d%d%d%d%d", &prisms[i][0], &prisms[i][1],
                &prisms[i][2], &prisms[i][3], &prisms[i][4],
                &prisms[i][5]) ;  
       else { 
@@ -482,7 +482,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       int ltsz = prsmdist[p+1]-prsmdist[p] ;
       for(int i=0;i<ltsz;++i) {
         if(!binary)
-          fscanf(IFP, "%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
+          fscanf(IFP, "%d%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
                  &ttmp[i][3], &ttmp[i][4], &ttmp[i][5]) ;  
         else { 
           fread(&ttmp[i][0], sizeof(int), 6, IFP) ;
@@ -507,7 +507,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   if(R == 0) {
     for(int i=hexsdist[R];i<hexsdist[R+1];++i) {
       if(!binary)
-        fscanf(IFP, "%d%d%d", &hexs[i][0], &hexs[i][1],
+        fscanf(IFP, "%d%d%d%d%d%d%d%d", &hexs[i][0], &hexs[i][1],
                &hexs[i][2], &hexs[i][3], &hexs[i][4],
                &hexs[i][5], &hexs[i][6], &hexs[i][7]) ;  
       else { 
@@ -523,8 +523,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       int ltsz = hexsdist[p+1]-hexsdist[p] ;
       for(int i=0;i<ltsz;++i) {
         if(!binary)
-          fscanf(IFP, "%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
-                 &ttmp[i][3], &ttmp[i][4], &ttmp[i][5],
+          fscanf(IFP, "%d%d%d%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1],
+                 &ttmp[i][2], &ttmp[i][3], &ttmp[i][4], &ttmp[i][5],
                  &ttmp[i][6], &ttmp[i][7]) ;  
         else { 
           fread(&ttmp[i][0], sizeof(int), 8, IFP) ;
