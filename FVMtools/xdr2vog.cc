@@ -1105,9 +1105,26 @@ int main(int ac, char *av[]) {
   
   if(MPI_rank == 0)
     cerr << "writing VOG file" << endl ;
-  VOG::writeVOG(outfile, pos, cl, cr, face2node) ;
+
+  vector<BC_descriptor> bcs ;
+
+  if(MPI_rank == 0) {
+    string tagsfile = string(av[1]) + ".tags" ;
+    bcs = readTags(tagsfile) ;
+    if(bcs.size() != 0) {
+      cout << "boundary faces:"<< endl ;
+      for(int i=0;i<bcs.size();++i)
+        cout << bcs[i].name << ' ' << bcs[i].id << endl ;
+    }
+  }
+
+  vector<pair<int,string> > surf_ids ;
+  for(size_t i=0;i<bcs.size();++i)
+    surf_ids.push_back(pair<int,string>(bcs[i].id,bcs[i].name)) ;
+  
+  VOG::writeVOG(outfile, pos, cl, cr, face2node,surf_ids) ;
 
   Loci::Finalize() ;
   return 0 ;
-
 }
+  

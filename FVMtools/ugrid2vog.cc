@@ -932,9 +932,13 @@ int main(int ac, char* av[]) {
 
   vector<BC_descriptor> bcs ;
   vector<int> transsurf ;
+  
   if(MPI_rank == 0) {
     string tagsfile = string(filename) + ".tags" ;
     bcs = readTags(tagsfile) ;
+    if(bcs.size() == 0) {
+      cerr << "unable to read '" << tagsfile << "'" << endl ;
+    }
     cout << "boundary faces:"<< endl ;
     for(int i=0;i<bcs.size();++i)
       if(bcs[i].Trans)
@@ -975,6 +979,10 @@ int main(int ac, char* av[]) {
     }
     tfaces.swap(ttfaces) ;
   }
+  vector<pair<int,string> > surf_ids ;
+  for(size_t i=0;i<bcs.size();++i)
+    surf_ids.push_back(pair<int,string>(bcs[i].id,bcs[i].name)) ;
+  
   multiMap face2node ;
   Map cl,cr ;
 
@@ -998,7 +1006,7 @@ int main(int ac, char* av[]) {
   
   if(MPI_rank == 0)
     cerr << "writing VOG file" << endl ;
-  VOG::writeVOG(outfile, pos, cl, cr, face2node) ;
+  VOG::writeVOG(outfile, pos, cl, cr, face2node,surf_ids) ;
 
   Loci::Finalize() ;
 }

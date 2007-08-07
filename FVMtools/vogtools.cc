@@ -32,9 +32,6 @@ namespace VOG {
     vector<BC_descriptor> bcs ;
     ifstream file(filename.c_str(),ios::in) ;
     if(file.fail()) {
-      cerr << "unable to open '" << filename << "'" << endl ;
-
-
       return bcs ;
     }
     while(file.peek() != EOF && file.peek() != '\n' && file.peek() != '\r')
@@ -574,11 +571,28 @@ namespace VOG {
 
 
   void writeVOG(string filename,store<vector3d<double> > &pos,
-                Map &cl, Map &cr, multiMap &face2node) {
+                Map &cl, Map &cr, multiMap &face2node,
+                vector<pair<int,string> > surface_ids) {
     // write grid file
     hid_t file_id = 0, group_id = 0 ;
     if(MPI_rank == 0) {
       file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
+      if(surface_ids.size() != 0) {
+        group_id = H5Gcreate(file_id,"surface_info",0) ;
+        for(size_t i=0;i<surface_ids.size();++i) {
+          hid_t bc_id = 0 ;
+          bc_id = H5Gcreate(group_id,surface_ids[i].second.c_str(),0) ;
+          hsize_t dims = 1 ;
+          hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
+          
+          hid_t att_id = H5Acreate(bc_id,"Ident", H5T_NATIVE_INT,
+                                   dataspace_id, H5P_DEFAULT) ;
+          H5Awrite(att_id,H5T_NATIVE_INT,&surface_ids[i].first) ;
+          H5Aclose(att_id) ;
+          H5Gclose(bc_id) ;
+        }
+        H5Gclose(group_id) ;
+      }
       group_id = H5Gcreate(file_id,"node_info",0) ;
     }
 
