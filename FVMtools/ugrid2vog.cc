@@ -129,14 +129,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&num_vol_hexs,sizeof(int),1) ;
     }
-    
-    cout << " Number of  nodes = " << num_nodes << endl ;
-    cout << " Number of surface triangles = " << num_sf_trias << endl ;
-    cout << " Number of surface quads = " << num_sf_quads << endl ;
-    cout << " Number of volume tetrahedras = " << num_vol_tets << endl ;
-    cout << " Number of volume pents_5 = " << num_vol_pents5 << endl ;
-    cout << " Number of volume pents6 = " << num_vol_pents6 << endl ;
-    cout << " Number of volume hexahedra = " << num_vol_hexs << endl ;
+
+    cout << "nnodes=" << num_nodes <<",ntria="<<num_sf_trias
+         << ",nquad="<<num_sf_quads<<",ntets="<<num_vol_tets
+         << ",npyrm="<<num_vol_pents5<<",nprsm="<<num_vol_pents6
+         << ",nhex="<<num_vol_hexs << endl ;
   }
 
   Array<int,7> data ;
@@ -264,7 +261,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         qfaces[i][4] = 0 ;
         if(!binary)
           fscanf(IFP, "%d%d%d%d", &qfaces[i][0], &qfaces[i][1], &qfaces[i][2],
-                 qfaces[i][3]) ;  
+                 &qfaces[i][3]) ;  
         else { 
           fread(&qfaces[i][0], sizeof(int), 4, IFP) ;
           if(reverse_byteorder)
@@ -940,12 +937,13 @@ int main(int ac, char* av[]) {
       cerr << "unable to read '" << tagsfile << "'" << endl ;
     }
     cout << "boundary faces:"<< endl ;
-    for(int i=0;i<bcs.size();++i)
+    for(size_t i=0;i<bcs.size();++i)
       if(bcs[i].Trans)
         transsurf.push_back(bcs[i].id) ;
     
-    for(int i=0;i<bcs.size();++i)
-      cout << bcs[i].name << ' ' << bcs[i].id << endl ;
+    for(size_t i=0;i<bcs.size();++i)
+      cout << ' ' << bcs[i].name ;
+    cout << endl ;
   }
   int trans_size = transsurf.size() ;
   MPI_Bcast(&trans_size,1,MPI_INT,0,MPI_COMM_WORLD) ;
