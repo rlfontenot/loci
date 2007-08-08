@@ -1019,7 +1019,10 @@ namespace Loci {
       throw(StringError("boundary_names not found in setupBoundaryConditions! Grid file read?")) ;
       
     store<string> boundary_names ;
+    store<string> boundary_tags ;
     boundary_names = tmp ;
+    boundary_tags = facts.get_variable("boundary_tags") ;
+    
     Map ref ;
     ref = facts.get_variable("ref") ;
     entitySet dom = boundary_names.domain() ;
@@ -1045,12 +1048,12 @@ namespace Loci {
       entitySet bfaces = ref.preimage(bcset).first ;
 
       string bname = boundary_names[bc] ;
-
+      string tname = boundary_tags[bc] ;
       //      cout << "boundary_name =" << bname << endl ;
       constraint bconstraint ;
       *bconstraint = bfaces ;
 
-      facts.create_fact(bname,bconstraint) ;
+      facts.create_fact(tname,bconstraint) ;
       debugout << "boundary " << bname << " = " << *bconstraint << endl ;
       
       option_value_type vt =

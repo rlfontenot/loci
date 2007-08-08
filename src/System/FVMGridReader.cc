@@ -12,6 +12,7 @@
 #include <Loci_types.h>
 #include <LociGridReaders.h>
 #include "loci_globs.h"
+#include <sstream>
 
 #include <Tools/tools.h>
 #include <map>
@@ -27,6 +28,8 @@ using std::vector ;
 #include <algorithm>
 using std::sort ;
 using std::pair ;
+using std::ostringstream ;
+using std::istringstream ;
 
 #include <malloc.h>
 
@@ -573,7 +576,8 @@ namespace Loci {
 		   vector<entitySet> &local_faces,
 		   vector<entitySet> &local_cells,
 		   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
-		   multiMap &face2node, int max_alloc, string filename) {
+		   multiMap &face2node, int max_alloc, string filename,
+                   vector<pair<int,string> > &boundary_ids) {
     local_nodes.resize(Loci::MPI_processes);
     local_faces.resize(Loci::MPI_processes);
     local_cells.resize(Loci::MPI_processes);
@@ -589,6 +593,43 @@ namespace Loci {
       face_g = H5Gopen(file_id,"face_info") ;
       node_g = H5Gopen(file_id,"node_info") ;
 
+      /* Save old error handler */
+      herr_t (*old_func)(void*);
+      void *old_client_data;
+      H5Eget_auto(&old_func, &old_client_data);
+
+      /* Turn off error handling */
+      H5Eset_auto(NULL, NULL);
+
+      // Check to see if the file has surface info
+      hid_t bc_g = H5Gopen(file_id,"surface_info") ;
+
+      /* Restore previous error handler */
+      H5Eset_auto(old_func, old_client_data);
+
+      boundary_ids.clear() ;
+      // If surface info, then check surfaces
+      if(bc_g > 0) {
+        hsize_t num_bcs = 0 ;
+        H5Gget_num_objs(bc_g,&num_bcs) ;
+        for(hsize_t bc=0;bc<num_bcs;++bc) {
+          char buf[1024] ;
+          memset(buf, '\0', 1024) ;
+          H5Gget_objname_by_idx(bc_g,bc,buf,sizeof(buf)) ;
+          buf[1023]='\0' ;
+          
+          string name = string(buf) ;
+          hid_t sf_g = H5Gopen(bc_g,buf) ;
+          hid_t id_a = H5Aopen_name(sf_g,"Ident") ;
+          int ident ;
+          H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
+          H5Aclose(id_a) ;
+          H5Gclose(sf_g) ;
+          boundary_ids.push_back(pair<int,string>(ident,name)) ;
+        }
+        H5Gclose(bc_g) ;
+      }
+
       // First read in and disribute node positions...
       dataset = H5Dopen(node_g,"positions") ;
       dspace = H5Dget_space(dataset) ;
@@ -597,6 +638,35 @@ namespace Loci {
       nnodes = size ;
     }
 
+    // Share boundary tag data with all other processors
+    int bsz = boundary_ids.size() ;
+    MPI_Bcast(&bsz,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    if(bsz > 0) {
+      string buf ;
+      if(MPI_rank == 0) {
+        ostringstream oss ;
+        
+        for(int i=0;i<bsz;++i)
+          oss << boundary_ids[i].first << ' ' << boundary_ids[i].second << ' ';
+        buf = oss.str() ;
+      }
+      int bufsz = buf.size() ;
+      MPI_Bcast(&bufsz,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      char *data = new char[bufsz+1] ;
+      if(MPI_rank == 0)
+        strcpy(data,buf.c_str()) ;
+      MPI_Bcast(data,bufsz,MPI_CHAR,0,MPI_COMM_WORLD) ;
+      buf = string(data) ;
+      istringstream iss(buf) ;
+      boundary_ids.clear() ;
+      for(int i=0;i<bsz;++i) {
+        int id ;
+        string name ;
+        iss >> id >> name ;
+        boundary_ids.push_back(pair<int,string>(id,name)) ;
+      }
+    }
+      
     MPI_Bcast(&nnodes,1,MPI_INT,0,MPI_COMM_WORLD) ;
 
     // create node allocation
@@ -1395,10 +1465,11 @@ namespace Loci {
         useVOG = true ;
     }
 
+    vector<pair<int,string> > boundary_ids ;
     if(useVOG) {
       if(!readGridVOG(local_nodes, local_faces, local_cells,
                       t_pos, tmp_cl, tmp_cr, tmp_face2node,
-                      max_alloc, filename))
+                      max_alloc, filename, boundary_ids))
         return false;
     } else {
       if(!readGridXDR(local_nodes, local_faces, local_cells,
@@ -1431,16 +1502,32 @@ namespace Loci {
                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
                          pos, cl, cr, face2node);
 
+
       store<string> boundary_names ;
+      store<string> boundary_tags ;
       boundary_names.allocate(global_boundary_cells) ;
+      boundary_tags.allocate(global_boundary_cells) ;
       Loci::debugout << " boundaries identified as:" ;
+
+      
+      
       FORALL(global_boundary_cells, bc) {
         char buf[512] ;
         sprintf(buf,"BC_%d",-bc) ;
+        boundary_tags[bc] = string(buf) ;
         boundary_names[bc] = string(buf) ;
 	debugout << " " << boundary_names[bc] ;
       } ENDFORALL ;
 
+      for(size_t i=0;i<boundary_ids.size();++i) {
+        int id = boundary_ids[i].first ;
+        if(global_boundary_cells.inSet(-id))
+          boundary_names[-id] = boundary_ids[i].second ;
+      }
+
+      FORALL(global_boundary_cells, bc) {
+	debugout << " " << boundary_names[bc] ;
+      } ENDFORALL ;
       Loci::debugout << endl ;
 
       facts.create_fact("cl", cl) ;
@@ -1448,9 +1535,8 @@ namespace Loci {
       facts.create_fact("pos", pos) ;
       facts.create_fact("face2node",face2node) ;
       facts.create_fact("boundary_names", boundary_names) ;
+      facts.create_fact("boundary_tags", boundary_tags) ;
       return true ;
-
-
     }
 
     memSpace("before partitioning") ;
@@ -1551,28 +1637,38 @@ namespace Loci {
     entitySet boundary_cells = Loci::all_collect_entitySet(local_boundary_cells) ;
 
     store<string> boundary_names ;
-
+    store<string> boundary_tags ;
     boundary_names.allocate(boundary_cells) ;
-    if(Loci::MPI_rank == 0) {
-      Loci::debugout << "boundaries identified as:" ;
-    }
+    boundary_tags.allocate(boundary_cells) ;
+    
 
     FORALL(boundary_cells, bc) {
       char buf[512] ;
       sprintf(buf,"BC_%d",-bc) ;
       boundary_names[bc] = string(buf) ;
-      if(Loci::MPI_rank == 0 )
-	Loci::debugout << " " << boundary_names[bc] ;
+      boundary_tags[bc] = string(buf) ;
     } ENDFORALL ;
 
-    if(Loci::MPI_rank == 0)
+    for(size_t i=0;i<boundary_ids.size();++i) {
+      int id = boundary_ids[i].first ;
+      if(boundary_cells.inSet(-id))
+        boundary_names[-id] = boundary_ids[i].second ;
+    }
+
+    if(Loci::MPI_rank == 0) {
+      Loci::debugout << "boundaries identified as:" ;
+      FORALL(boundary_cells, bc) {
+        debugout << " " << boundary_names[bc] ;
+      } ENDFORALL ;
       Loci::debugout << endl ;
+    }
 
     facts.create_fact("cl", cl) ;
     facts.create_fact("cr", cr) ;
     facts.create_fact("pos", pos) ;
     facts.create_fact("face2node",face2node) ;
     facts.create_fact("boundary_names", boundary_names) ;
+    facts.create_fact("boundary_tags", boundary_names) ;
 
     double t2 = MPI_Wtime() ;
     debugout << "Time to read in file '" << filename << ", is " << t2-t1
@@ -1585,7 +1681,9 @@ namespace Loci {
 
   void create_ref(fact_db &facts) {
     store<string> boundary_names ;
+    store<string> boundary_tags ;
     boundary_names = facts.get_fact("boundary_names") ;
+    boundary_tags = facts.get_fact("boundary_tags") ;
     Map cr ;
     cr = facts.get_fact("cr") ;
     entitySet bdom = boundary_names.domain() ;
@@ -1602,6 +1700,9 @@ namespace Loci {
     pair<entitySet,entitySet> alloc = facts.get_distributed_alloc(nloc) ;
     store<string> bn2 ;
     bn2.allocate(alloc.second) ;
+    store<string> bt2 ;
+    bt2.allocate(alloc.second) ;
+    
     FATAL(bdom.size() != alloc.second.size()) ;
     Map mp ;
     mp.allocate(bdom) ;
@@ -1610,8 +1711,10 @@ namespace Loci {
     for(;i1!=bdom.end();++i1,++i2)
       mp[*i1] = *i2 ;
 
-    for(i1=bdom.begin();i1!=bdom.end();++i1)
+    for(i1=bdom.begin();i1!=bdom.end();++i1) {
       bn2[mp[*i1]] = boundary_names[*i1] ;
+      bt2[mp[*i1]] = boundary_tags[*i1] ;
+    }
 
     entitySet refdom = cr.preimage(bdom).first ;
     Map ref ;
@@ -1621,6 +1724,7 @@ namespace Loci {
       ref[*i1] = mp[cr[*i1]] ;
     facts.create_fact("ref",ref) ;
     facts.update_fact("boundary_names",bn2) ;
+    facts.update_fact("boundary_tags",bt2) ;
   }
 
   void create_ghost_cells(fact_db &facts) {
