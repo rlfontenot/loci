@@ -34,32 +34,102 @@ namespace VOG {
     if(file.fail()) {
       return bcs ;
     }
-    while(file.peek() != EOF && file.peek() != '\n' && file.peek() != '\r')
-      file.get() ;
-    while(file.peek() != EOF && (file.peek() == '\n' || file.peek() == '\r'))
-      file.get() ;
-    while(file.peek() != EOF) {
-      BC_descriptor BC ;
-      char c ;
-      c = file.get() ;
-      if(c != '#') 
-        cerr << "expected to get a hash while reading '" << filename << "'"
-             << endl ;
-      int id = 0 ;
-      file >> id ;
-      BC.id = id ;
-      c = file.get() ;
-      if(c != ':')
-        cerr << "expected to get a colon while reading '" << filename << "'"
-             << endl ;
-      string name ;
-      file >> name ;
-      BC.name = name ;
-      file >> BC.BC >> BC.Visc >> BC.Recon >> BC.Source >> BC.Trans
-           >> BC.Rebuild ;
-      bcs.push_back(BC) ;
-      while(file.peek() != EOF && file.peek() != '#')
-        file.get() ;
+    char buf[128] ;
+    file.getline(buf,128) ;
+    if(strncmp(buf,"# Generated",11) == 0) {
+      cout << "Tagfile: " << buf << endl ;
+      // New tag file, dump first two lines
+      file.getline(buf,128) ;
+      file.getline(buf,128) ;
+      int nsp = 0 ;
+      for(int i=0;i<120;++i) {
+        if(buf[i] == '\0')
+          break ;
+        if(isspace(buf[i])) {
+          nsp++ ;
+          while(isspace(buf[i]))
+            i++ ;
+        }
+        if(strncmp(&buf[i],"Trans",5) == 0)
+          break ;
+      }
+          
+      int n2trans = nsp-1 ;
+      while(file.peek() != EOF) {
+        int id = -1;
+        file >> id ;
+        if(id == -1)
+          break ;
+        string name ;
+        file >> name ;
+        if(name == "")
+          break ;
+        bool trans ;
+        for(int i=0;i<n2trans;++i)
+          file >> trans ;
+        BC_descriptor BC ;
+        BC.id = id ;
+        BC.name = name ;
+        BC.Trans = trans ;
+        file.getline(buf,128) ;
+        bcs.push_back(BC) ;
+        while(file.peek() != EOF && (isspace(file.peek())))
+          file.get() ;
+      }
+    } else {
+      if(strncmp(buf,"#ID:",4) != 0) {
+        cerr << "unable to interpret tag file format" << endl ;
+        cerr << "first line: " << buf << endl ;
+        return bcs ;
+      }
+      int nsp = 0 ;
+      for(int i=0;i<120;++i) {
+        if(buf[i] == '\0')
+          break ;
+        if(isspace(buf[i])) {
+          nsp++ ;
+          while(isspace(buf[i]))
+            i++ ;
+        }
+        if(strncmp(&buf[i],"Trans",5) == 0)
+          break ;
+      }
+      int n2trans = nsp-1 ;
+      while(file.peek() != EOF) {
+        while(file.peek() != EOF&&file.peek() != '#')
+          file.get() ;
+
+        char c ;
+        c = file.get() ;
+        if(c != '#') {
+          cerr << "expected to get a hash while reading '" << filename << "'"
+               << endl ;
+          bcs.clear() ;
+          return bcs ;
+        }
+        int id = 0 ;
+        file >> id ;
+        c = file.get() ;
+        if(c != ':') {
+          cerr << "expected to get a colon while reading '" << filename << "'"
+               << endl ;
+          bcs.clear() ;
+          return bcs ;
+        }
+        string name ;
+        file >> name ;
+        bool trans ;
+        for(int i=0;i<n2trans;++i)
+          file >> trans ;
+        BC_descriptor BC ;
+        BC.id = id ;
+        BC.name = name ;
+        BC.Trans = trans ;
+        file.getline(buf,128) ;
+        bcs.push_back(BC) ;
+        while(file.peek() != EOF && (isspace(file.peek())))
+          file.get() ;
+      }
     }
     return bcs ;
   }
@@ -327,7 +397,7 @@ namespace VOG {
     multiMap c2c ;
     Loci::distributed_inverseMap(c2c,cellmap,cells,cells,ptn) ;
     int ncells = cells.size() ;
-    int loc_index = geom_cells.Min() - cells.Min();
+
     store<int> ctmp ;
     ctmp.allocate(geom_cells) ;
     FORALL(geom_cells,cc) {

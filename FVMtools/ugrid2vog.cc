@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <iostream>
 #include <fstream>
-#include <algorithm> 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -36,10 +36,10 @@ void ug_io_reverse_byte_order
   int Number)
 
 {
- 
+
 /*
  * Set file format and host to big or little endian byte ordering.
- * 
+ *
  */
 
   char *Data_Byte_Ptr;
@@ -84,7 +84,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   pyramids.clear() ;
   prisms.clear() ;
   hexs.clear() ;
-  
+
   int num_nodes, num_sf_trias, num_sf_quads ;
   int num_vol_tets, num_vol_pents5, num_vol_pents6, num_vol_hexs ;
 
@@ -102,7 +102,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       exit(-1) ;
     }
 
-  
+
     if(!binary) {
       fscanf(IFP, "%d%d%d", &num_nodes, & num_sf_trias, & num_sf_quads) ;
       fscanf(IFP, "%d%d%d%d", &num_vol_tets, &num_vol_pents5, &num_vol_pents6, &num_vol_hexs) ;
@@ -146,11 +146,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
   data[6] = num_vol_hexs ;
   MPI_Bcast(&data[0],7,MPI_INT,0,MPI_COMM_WORLD) ;
   num_nodes      = data[0] ;
-  num_sf_trias   = data[1] ; 
-  num_sf_quads   = data[2] ; 
-  num_vol_tets   = data[3] ; 
-  num_vol_pents5 = data[4] ; 
-  num_vol_pents6 = data[5] ; 
+  num_sf_trias   = data[1] ;
+  num_sf_quads   = data[2] ;
+  num_vol_tets   = data[3] ;
+  num_vol_pents5 = data[4] ;
+  num_vol_pents6 = data[5] ;
   num_vol_hexs   = data[6] ;
 
   vector<int> node_ptns = VOG::simplePartitionVec(0,num_nodes-1,P) ;
@@ -159,7 +159,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     local_nodes[i] = interval(node_ptns[i],node_ptns[i+1]-1) ;
 
   pos.allocate(local_nodes[R]) ;
-               
+
   if(R == 0) { // Read in positions
 
     FORALL(local_nodes[0],nd) {
@@ -211,9 +211,9 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     FORALL(nodeSet,nd) {
       vector3d<double> t(tmp_pos[tmp], tmp_pos[tmp+1], tmp_pos[tmp+2]) ;
       tmp += 3 ;
-      pos[nd] = t ; 
+      pos[nd] = t ;
     } ENDFORALL ;
-      
+
   }
 
   vector<int> triadist = VOG::simplePartitionVec(0,num_sf_trias-1,P) ;
@@ -229,8 +229,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         tfaces[i][3] = 0 ;
         if(!binary)
           fscanf(IFP, "%d%d%d", &tfaces[i][0], &tfaces[i][1],
-                 &tfaces[i][2]) ;  
-        else { 
+                 &tfaces[i][2]) ;
+        else {
           fread(&tfaces[i][0], sizeof(int), 3, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&tfaces[i][0],sizeof(int),3) ;
@@ -244,8 +244,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         for(int i=0;i<ltsz;++i) {
           ttmp[i][3] = 0 ;
           if(!binary)
-            fscanf(IFP, "%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2]) ;  
-          else { 
+            fscanf(IFP, "%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2]) ;
+          else {
             fread(&ttmp[i][0], sizeof(int), 3, IFP) ;
             if(reverse_byteorder)
               ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),3) ;
@@ -261,14 +261,14 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         qfaces[i][4] = 0 ;
         if(!binary)
           fscanf(IFP, "%d%d%d%d", &qfaces[i][0], &qfaces[i][1], &qfaces[i][2],
-                 &qfaces[i][3]) ;  
-        else { 
+                 &qfaces[i][3]) ;
+        else {
           fread(&qfaces[i][0], sizeof(int), 4, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&qfaces[i][0],sizeof(int),4) ;
         }
       }
-      
+
       int qsz = max(quaddist[1]-quaddist[0],quaddist[P]-quaddist[P-1]) ;
       vector<Array<int,5> > qtmp(qsz) ;
       for(int p=1;p<P;++p) {
@@ -278,7 +278,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
           if(!binary)
             fscanf(IFP, "%d%d%d%d", &qtmp[i][0], &qtmp[i][1], &qtmp[i][2],
                    &qtmp[i][3]) ;
-          else { 
+          else {
             fread(&qtmp[i][0], sizeof(int), 4, IFP) ;
             if(reverse_byteorder)
               ug_io_reverse_byte_order(&qtmp[i][0],sizeof(int),4) ;
@@ -295,7 +295,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       for(int i=triadist[R];i<triadist[R+1];++i) {
         if(!binary)
           fscanf(IFP, "%d", &tfaces[i][3]) ;
-        else { 
+        else {
           fread(&tfaces[i][3], sizeof(int), 1, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&tfaces[i][3],sizeof(int),1) ;
@@ -310,7 +310,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         for(int i=0;i<ltsz;++i) {
           if(!binary)
             fscanf(IFP, "%d", &ttmp[i]) ;
-          else { 
+          else {
             fread(&ttmp[i], sizeof(int), 1, IFP) ;
             if(reverse_byteorder)
               ug_io_reverse_byte_order(&ttmp[i],sizeof(int),1) ;
@@ -325,14 +325,14 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       for(int i=quaddist[R];i<quaddist[R+1];++i) {
         if(!binary)
           fscanf(IFP, "%d", &qfaces[i][4]) ;
-        else { 
+        else {
           fread(&qfaces[i][4], sizeof(int), 1, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&qfaces[i][4],sizeof(int),1) ;
         }
         qfaces[i][4] = -qfaces[i][4] ;
       }
-      
+
       int qsz = max(quaddist[1]-quaddist[0],quaddist[P]-quaddist[P-1]) ;
       vector<int> qtmp(qsz) ;
       for(int p=1;p<P;++p) {
@@ -340,7 +340,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         for(int i=0;i<lqsz;++i) {
           if(!binary)
             fscanf(IFP, "%d", &qtmp[i]) ;
-          else { 
+          else {
             fread(&qtmp[i], sizeof(int), 1, IFP) ;
             if(reverse_byteorder)
               ug_io_reverse_byte_order(&qtmp[i],sizeof(int),1) ;
@@ -350,7 +350,7 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
           MPI_Send(&qtmp[0],lqsz,MPI_INT,p,8,MPI_COMM_WORLD) ;
       }
     }
-    
+
   } else {
     MPI_Status status ;
     int tsz = tfaces.size() ;
@@ -384,8 +384,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     for(int i=tetsdist[R];i<tetsdist[R+1];++i) {
       if(!binary)
         fscanf(IFP, "%d%d%d%d", &tets[i][0], &tets[i][1],
-               &tets[i][2], &tets[i][3]) ;  
-      else { 
+               &tets[i][2], &tets[i][3]) ;
+      else {
         fread(&tets[i][0], sizeof(int), 4, IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&tets[i][0],sizeof(int),4) ;
@@ -399,8 +399,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       for(int i=0;i<ltsz;++i) {
         if(!binary)
           fscanf(IFP, "%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
-                 &ttmp[i][3]) ;  
-        else { 
+                 &ttmp[i][3]) ;
+        else {
           fread(&ttmp[i][0], sizeof(int), 4, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),4) ;
@@ -424,8 +424,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     for(int i=pyrmdist[R];i<pyrmdist[R+1];++i) {
       if(!binary)
         fscanf(IFP, "%d%d%d%d%d", &pyramids[i][0], &pyramids[i][1],
-               &pyramids[i][2], &pyramids[i][3], &pyramids[i][4]) ;  
-      else { 
+               &pyramids[i][2], &pyramids[i][3], &pyramids[i][4]) ;
+      else {
         fread(&pyramids[i][0], sizeof(int), 5, IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&pyramids[i][0],sizeof(int),5) ;
@@ -439,8 +439,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       for(int i=0;i<ltsz;++i) {
         if(!binary)
           fscanf(IFP, "%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
-                 &ttmp[i][3], &ttmp[i][4]) ;  
-        else { 
+                 &ttmp[i][3], &ttmp[i][4]) ;
+        else {
           fread(&ttmp[i][0], sizeof(int), 5, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),5) ;
@@ -465,8 +465,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       if(!binary)
         fscanf(IFP, "%d%d%d%d%d%d", &prisms[i][0], &prisms[i][1],
                &prisms[i][2], &prisms[i][3], &prisms[i][4],
-               &prisms[i][5]) ;  
-      else { 
+               &prisms[i][5]) ;
+      else {
         fread(&prisms[i][0], sizeof(int), 6, IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&prisms[i][0],sizeof(int),6) ;
@@ -480,8 +480,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       for(int i=0;i<ltsz;++i) {
         if(!binary)
           fscanf(IFP, "%d%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
-                 &ttmp[i][3], &ttmp[i][4], &ttmp[i][5]) ;  
-        else { 
+                 &ttmp[i][3], &ttmp[i][4], &ttmp[i][5]) ;
+        else {
           fread(&ttmp[i][0], sizeof(int), 6, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),6) ;
@@ -506,8 +506,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       if(!binary)
         fscanf(IFP, "%d%d%d%d%d%d%d%d", &hexs[i][0], &hexs[i][1],
                &hexs[i][2], &hexs[i][3], &hexs[i][4],
-               &hexs[i][5], &hexs[i][6], &hexs[i][7]) ;  
-      else { 
+               &hexs[i][5], &hexs[i][6], &hexs[i][7]) ;
+      else {
         fread(&hexs[i][0], sizeof(int), 8, IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&hexs[i][0],sizeof(int),8) ;
@@ -522,8 +522,8 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         if(!binary)
           fscanf(IFP, "%d%d%d%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1],
                  &ttmp[i][2], &ttmp[i][3], &ttmp[i][4], &ttmp[i][5],
-                 &ttmp[i][6], &ttmp[i][7]) ;  
-        else { 
+                 &ttmp[i][6], &ttmp[i][7]) ;
+        else {
           fread(&ttmp[i][0], sizeof(int), 8, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),8) ;
@@ -576,7 +576,7 @@ void convert2face(store<vector3d<double> > &pos,
   if(posDom != EMPTY)
     maxid = posDom.Max()+1 ;
   int cellid ;
-  
+
   MPI_Allreduce(&maxid,&cellid,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
   int cellbase = cellid ;
   int ncells = tets.size()+pyramids.size()+prisms.size()+hexs.size() ;
@@ -584,7 +584,7 @@ void convert2face(store<vector3d<double> > &pos,
   MPI_Allgather(&ncells,1,MPI_INT,&cellsizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
   for(int i=0;i<MPI_rank;++i)
     cellid += cellsizes[i] ;
-  
+
   int num_quad_faces =
     qfaces.size() + pyramids.size()+ prisms.size()*3 + hexs.size()*6 ;
 
@@ -615,14 +615,14 @@ void convert2face(store<vector3d<double> > &pos,
 
     tria[tf].nodes[0] = tets[i][1] ;
     tria[tf].nodes[1] = tets[i][2] ;
-    tria[tf].nodes[2] = tets[i][3] ; 
+    tria[tf].nodes[2] = tets[i][3] ;
     tria[tf++].cell = cellid ;
-   
+
     tria[tf].nodes[0] = tets[i][3] ;
     tria[tf].nodes[1] = tets[i][2] ;
     tria[tf].nodes[2] = tets[i][0] ;
     tria[tf++].cell = cellid ;
-  
+
     tria[tf].nodes[0] = tets[i][0] ;
     tria[tf].nodes[1] = tets[i][2] ;
     tria[tf].nodes[2] = tets[i][1] ;
@@ -637,22 +637,22 @@ void convert2face(store<vector3d<double> > &pos,
     tria[tf].nodes[1] = pyramids[i][1] ;
     tria[tf].nodes[2] = pyramids[i][2] ;
     tria[tf++].cell = cellid ;
-   
+
     tria[tf].nodes[0] = pyramids[i][4] ;
     tria[tf].nodes[1] = pyramids[i][2] ;
     tria[tf].nodes[2] = pyramids[i][3] ;
     tria[tf++].cell = cellid ;
-   
+
     tria[tf].nodes[0] = pyramids[i][3] ;
     tria[tf].nodes[1] = pyramids[i][2] ;
     tria[tf].nodes[2] = pyramids[i][0] ;
     tria[tf++].cell = cellid ;
-   
+
     tria[tf].nodes[0] = pyramids[i][0] ;
     tria[tf].nodes[1] = pyramids[i][2] ;
     tria[tf].nodes[2] = pyramids[i][1] ;
     tria[tf++].cell = cellid ;
-    
+
     quad[qf].nodes[0] = pyramids[i][0] ;
     quad[qf].nodes[1] = pyramids[i][1] ;
     quad[qf].nodes[2] = pyramids[i][4] ;
@@ -667,24 +667,24 @@ void convert2face(store<vector3d<double> > &pos,
     tria[tf].nodes[1] = prisms[i][4] ;
     tria[tf].nodes[2] = prisms[i][5] ;
     tria[tf++].cell = cellid ;
-   
+
     tria[tf].nodes[0] = prisms[i][0] ;
     tria[tf].nodes[1] = prisms[i][2] ;
     tria[tf].nodes[2] = prisms[i][1] ;
     tria[tf++].cell = cellid ;
-   
+
     quad[qf].nodes[0] = prisms[i][0] ;
     quad[qf].nodes[1] = prisms[i][1] ;
     quad[qf].nodes[2] = prisms[i][4] ;
     quad[qf].nodes[3] = prisms[i][3] ;
     quad[qf++].cell = cellid ;
-    
+
     quad[qf].nodes[0] = prisms[i][1] ;
     quad[qf].nodes[1] = prisms[i][2] ;
     quad[qf].nodes[2] = prisms[i][5] ;
     quad[qf].nodes[3] = prisms[i][4] ;
     quad[qf++].cell = cellid ;
-    
+
     quad[qf].nodes[0] = prisms[i][3] ;
     quad[qf].nodes[1] = prisms[i][5] ;
     quad[qf].nodes[2] = prisms[i][2] ;
@@ -701,37 +701,37 @@ void convert2face(store<vector3d<double> > &pos,
     quad[qf].nodes[2] = hexs[i][5] ;
     quad[qf].nodes[3] = hexs[i][4] ;
     quad[qf++].cell = cellid ;
-    
+
     quad[qf].nodes[0] = hexs[i][1] ;
     quad[qf].nodes[1] = hexs[i][2] ;
     quad[qf].nodes[2] = hexs[i][6] ;
     quad[qf].nodes[3] = hexs[i][5] ;
     quad[qf++].cell = cellid ;
-    
+
     quad[qf].nodes[0] = hexs[i][2] ;
     quad[qf].nodes[1] = hexs[i][3] ;
     quad[qf].nodes[2] = hexs[i][7] ;
     quad[qf].nodes[3] = hexs[i][6] ;
     quad[qf++].cell = cellid ;
-    
+
     quad[qf].nodes[0] = hexs[i][4] ;
     quad[qf].nodes[1] = hexs[i][7] ;
     quad[qf].nodes[2] = hexs[i][3] ;
     quad[qf].nodes[3] = hexs[i][0] ;
     quad[qf++].cell = cellid ;
-    
+
     quad[qf].nodes[0] = hexs[i][4] ;
     quad[qf].nodes[1] = hexs[i][5] ;
     quad[qf].nodes[2] = hexs[i][6] ;
     quad[qf].nodes[3] = hexs[i][7] ;
     quad[qf++].cell = cellid ;
-    
+
     quad[qf].nodes[0] = hexs[i][3] ;
     quad[qf].nodes[1] = hexs[i][2] ;
     quad[qf].nodes[2] = hexs[i][1] ;
     quad[qf].nodes[3] = hexs[i][0] ;
     quad[qf++].cell = cellid ;
-    
+
     cellid++ ;
   }
 
@@ -750,7 +750,7 @@ void convert2face(store<vector3d<double> > &pos,
     tria[i].nodes[0] -= 1 ;
     tria[i].nodes[1] -= 1 ;
     tria[i].nodes[2] -= 1 ;
-    
+
     if(tria[i].nodes[0] > tria[i].nodes[1])
       std::swap(tria[i].nodes[0],tria[i].nodes[1]) ;
     if(tria[i].nodes[0] > tria[i].nodes[2])
@@ -778,7 +778,7 @@ void convert2face(store<vector3d<double> > &pos,
       }
     for(size_t j=0;j<4;++j)
       tmp_face[j] = quad[i].nodes[(j+nv)&0x3] ;
-    // next make orientation so that it will match other face 
+    // next make orientation so that it will match other face
     if(tmp_face[1] < tmp_face[3])
       for(int j=0;j<4;++j)
         quad[i].nodes[j] = tmp_face[j] ;
@@ -811,7 +811,7 @@ void convert2face(store<vector3d<double> > &pos,
 
   int ntria = tria.size()/2 ;
   int nquad = quad.size()/2 ;
-  
+
   int nfaces = ntria+nquad ;
 
   ncells = 0 ;
@@ -864,7 +864,7 @@ void convert2face(store<vector3d<double> > &pos,
     cr[fc] = min(c1,c2) ;
     fc++ ;
   }
-  
+
 }
 
 int main(int ac, char* av[]) {
@@ -878,7 +878,7 @@ int main(int ac, char* av[]) {
   bool binary = 0;
   if(ac == 3) {
     tmp_str.append(av[2]) ;
-    if(!strcmp(av[1],"-b")) 
+    if(!strcmp(av[1],"-b"))
       binary = 1 ;
     else if(!strcmp(av[1],"-o"))
       optimize = false ;
@@ -889,7 +889,7 @@ int main(int ac, char* av[]) {
   } else if(ac == 2) {
       tmp_str.append(av[1]) ;
   } else {
-    cerr << "ugrid2vog requires one argument" << endl 
+    cerr << "ugrid2vog requires one argument" << endl
          << " (the -b flag may be specified for binary files)" << endl;
       exit(-1) ;
   }
@@ -908,7 +908,7 @@ int main(int ac, char* av[]) {
       binary = true ;
     }
   }
-    
+
   if(!binary)
     sprintf(buf,"%s.ugrid",filename) ;
   else
@@ -916,7 +916,7 @@ int main(int ac, char* av[]) {
   string infile = buf ;
 
   string outfile = string(filename) + string(".vog") ;
-  
+
   store<vector3d<double> > pos ;
   vector<Array<int,5> > qfaces ;
   vector<Array<int,4> > tfaces ;
@@ -929,18 +929,19 @@ int main(int ac, char* av[]) {
 
   vector<BC_descriptor> bcs ;
   vector<int> transsurf ;
-  
+
   if(MPI_rank == 0) {
     string tagsfile = string(filename) + ".tags" ;
     bcs = readTags(tagsfile) ;
     if(bcs.size() == 0) {
       cerr << "unable to read '" << tagsfile << "'" << endl ;
     }
-    cout << "boundary faces:"<< endl ;
+
     for(size_t i=0;i<bcs.size();++i)
       if(bcs[i].Trans)
         transsurf.push_back(bcs[i].id) ;
-    
+
+    cout << "boundary faces:" ;
     for(size_t i=0;i<bcs.size();++i)
       cout << ' ' << bcs[i].name ;
     cout << endl ;
@@ -952,7 +953,7 @@ int main(int ac, char* av[]) {
       transsurf = vector<int>(trans_size) ;
     MPI_Bcast(&transsurf[0],trans_size,MPI_INT,0,MPI_COMM_WORLD) ;
 
-    if(MPI_rank == 0) 
+    if(MPI_rank == 0)
       cout << "removing transparent surfaces" << endl ;
 
     vector<Array<int,5> > qtfaces ;
@@ -980,7 +981,7 @@ int main(int ac, char* av[]) {
   vector<pair<int,string> > surf_ids ;
   for(size_t i=0;i<bcs.size();++i)
     surf_ids.push_back(pair<int,string>(bcs[i].id,bcs[i].name)) ;
-  
+
   multiMap face2node ;
   Map cl,cr ;
 
@@ -988,20 +989,20 @@ int main(int ac, char* av[]) {
                face2node,cl,cr) ;
 
   // establish face left-right orientation
-  if(MPI_rank == 0) 
+  if(MPI_rank == 0)
     cerr << "orienting faces" << endl ;
   VOG::orientFaces(pos,cl,cr,face2node) ;
-    
+
   if(MPI_rank == 0)
     cerr << "coloring matrix" << endl ;
   VOG::colorMatrix(pos,cl,cr,face2node) ;
 
   if(optimize) {
-    if(MPI_rank == 0) 
+    if(MPI_rank == 0)
       cerr << "optimizing mesh layout" << endl ;
     VOG::optimizeMesh(pos,cl,cr,face2node) ;
   }
-  
+
   if(MPI_rank == 0)
     cerr << "writing VOG file" << endl ;
   VOG::writeVOG(outfile, pos, cl, cr, face2node,surf_ids) ;

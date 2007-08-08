@@ -7,7 +7,7 @@ namespace VOG {
   struct BC_descriptor {
     std::string name ;
     int id ;
-    bool BC,Visc,Recon,Source,Trans,Rebuild ;
+    bool Trans ;
   } ;
 
   extern std::vector<BC_descriptor> readTags(std::string filename) ;
