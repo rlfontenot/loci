@@ -24,11 +24,10 @@ cp FVMtools/extract $INSTALL_PATH/bin
 cp FVMtools/pb $INSTALL_PATH/bin
 cp FVMtools/plot3d2xdr $INSTALL_PATH/bin
 cp FVMtools/solidMesh2xdr $INSTALL_PATH/bin
-cp FVMtools/solidMesh2xdrMPI $INSTALL_PATH/bin
 cp FVMtools/xdr2cobalt $INSTALL_PATH/bin
-cp FVMtools/xdropt $INSTALL_PATH/bin
 cp FVMtools/xdr2vog $INSTALL_PATH/bin
 cp FVMtools/vog2xdr $INSTALL_PATH/bin
+cp FVMtools/ugrid2vog $INSTALL_PATH/bin
 cp FVMtools/cfd++2xdr $INSTALL_PATH/bin
 
 echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
