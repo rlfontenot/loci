@@ -9,8 +9,8 @@ namespace Loci {
   
   $rule default(faceGradStencil),
     comments("Determines how face gradients will be computed.  May be 'positive' or 'limited'") {
-    $faceGradStencil = "positive" ;
-    //$faceGradStencil = "limited" ;
+    //$faceGradStencil = "positive" ;
+    $faceGradStencil = "limited" ;
   }
 
   $type positiveFaceStencil Constraint ;
