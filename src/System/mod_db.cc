@@ -1,8 +1,14 @@
 #include <mod_db.h>
+#include "loci_globs.h"
 #include <iostream>
 #include <distribute.h>
+#include <vector>
+#include <string>
 //#define VERBOSE
 namespace Loci {
+  using std::vector ;
+  using std::string ;
+
   using std::cout ;
   std::string remove_space(const std::string &str){
     std::string tmp_str ;
@@ -27,6 +33,31 @@ namespace Loci {
       }
     }
   }
+
+  void *dlopen_helper(string module) {
+    void *tmp ;
+    for(size_t i=0;i<ModuleDirectoryPath.size();++i) {
+      string test = ModuleDirectoryPath[i] + "/" + module ;
+      tmp = dlopen(test.c_str(),RTLD_GLOBAL|RTLD_NOW) ;
+      if(tmp != 0) {
+        Loci::debugout << "reading modules in from file '" << test <<"'" << endl ;
+        return tmp ;
+      }
+    }
+    tmp = dlopen(module.c_str(),RTLD_GLOBAL|RTLD_NOW) ;
+    if(tmp == 0) {
+      if(Loci::MPI_rank == 0)
+        cerr << "unable to open " << module << endl ;
+      const char *error = dlerror() ;
+      if(error)
+        if(Loci::MPI_rank == 0)
+          cerr << "reason for failure is " << error << endl ;
+      Loci::Abort() ;
+    }
+    Loci::debugout << "reading modules in from file '" << module <<"'" << endl ;
+    return tmp ;
+  }
+  
   //The rules loaded in from a module are stored in a data-structure
   //called mod_info. There is a static struct mod_db which stores the
   //mod_infos' so that we load in the rules from a module only
@@ -45,7 +76,7 @@ namespace Loci {
       default_ns_vec.push_back(str) ;
       if(Loci::MPI_rank == 0)
 	cout << "Loading  in rules from  " << tmp_str << endl ;
-      md.m_library = dlopen(tmp_str.c_str(),RTLD_GLOBAL|RTLD_NOW) ;
+      md.m_library = dlopen_helper(tmp_str) ;
       if(md.m_library == 0) {
 	if(Loci::MPI_rank == 0)
 	  cerr << "unable to open " << tmp_str.c_str() << endl ;
@@ -87,7 +118,7 @@ namespace Loci {
       default_ns_vec.push_back(str) ;
       if(Loci::MPI_rank == 0)
 	cout << "Loading  in rules from  " << tmp_str << endl ;
-      md.m_library = dlopen(tmp_str.c_str(),RTLD_GLOBAL|RTLD_NOW) ;
+      md.m_library = dlopen_helper(tmp_str) ;
       if(md.m_library == 0) {
 	if(Loci::MPI_rank == 0)
 	  cerr << "unable to open " << tmp_str.c_str() << endl ;

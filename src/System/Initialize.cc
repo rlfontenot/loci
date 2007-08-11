@@ -50,6 +50,8 @@ using std::bad_alloc ;
 
 #include <iostream>
 #include <fstream>
+#include <vector>
+
 using std::cout ;
 using std::cerr ; 
 using std::endl ;
@@ -60,6 +62,7 @@ using std::ofstream ;
 using std::string ;
 using std::ostringstream ;
 using std::cout ;
+using std::vector ;
 
 namespace Loci {
   int MPI_processes = 1;
@@ -122,6 +125,7 @@ namespace Loci {
 
   extern int current_rule_id ;
 
+  vector<string> ModuleDirectoryPath ;
 
   void debug_print_rule() {
     if(current_rule_id != 0) {
@@ -147,9 +151,36 @@ namespace Loci {
       }
     }
   }
+
+  void AddModuleSearchDir(string dirname) {
+    ModuleDirectoryPath.push_back(dirname) ;
+  }
+  
   //This is the first call to be made for any Loci program be it
   //sequential or parallel. 
   void Init(int* argc, char*** argv)  {
+
+    char *p ;
+    if((p = getenv("LOCI_MODULE_PATH")) == 0) 
+      p = getenv("LD_LIBRARY_PATH") ;
+    if(p != 0) {
+      char *r ;
+      while((r=index(p,':')) != 0) {
+        string tmp ;
+        while(p != r)
+          tmp += *p++ ;
+        p=r+1 ;
+        if(tmp != "")
+          ModuleDirectoryPath.push_back(tmp) ;
+      }
+      string tmp = p ;
+      if(p != "") ;
+      ModuleDirectoryPath.push_back(tmp) ;
+    }
+#ifdef LOCI_RPATH
+    ModuleDirectoryPath.push_back(string(LOCI_RPATH)) ;
+#endif
+    
   try {
     char *execname = (*argv)[0] ;
     const char *hostname = "localhost" ;

@@ -5,7 +5,7 @@
 #include <config.h> // This must be the first file included
 #endif
 #include <Config/conf.h>
-
+#include <string>
 #include <Loci_version.h>
 #include <Loci_types.h>
 #include <data_traits.h>
@@ -43,6 +43,11 @@
 
 #include <LociGridReaders.h>
 #include <pnn.h>
+
+#define HAS_MODULE_SEARCH_DIR
+namespace Loci {
+  extern void AddModuleSearchDir(std::string dirname);
+}
 
 #endif
 
