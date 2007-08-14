@@ -408,7 +408,7 @@ namespace Loci {
 
       typedef data_schema_traits<T> traits_type ;
       Loci::DatatypeP dp = traits_type::get_type() ;
-          hid_t datatype = dp->get_hdf5_type() ;
+      hid_t datatype = dp->get_hdf5_type() ;
       hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
                           &v[0]) ;
       if(err < 0) {
@@ -588,24 +588,27 @@ namespace Loci {
     hid_t dataset = 0 ;
     hid_t dspace = 0 ;
     int nnodes = 0 ;
+    int failure = 0 ; // No failure
+    /* Save old error handler */
+    herr_t (*old_func)(void*) = 0;
+    void *old_client_data = 0 ;
     if(MPI_rank == 0) {
-      file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
-      face_g = H5Gopen(file_id,"face_info") ;
-      node_g = H5Gopen(file_id,"node_info") ;
-
-      /* Save old error handler */
-      herr_t (*old_func)(void*);
-      void *old_client_data;
       H5Eget_auto(&old_func, &old_client_data);
 
       /* Turn off error handling */
       H5Eset_auto(NULL, NULL);
 
+      file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+      if(file_id <= 0) 
+        failure = 1 ;
+
+      face_g = H5Gopen(file_id,"face_info") ;
+      node_g = H5Gopen(file_id,"node_info") ;
+
+
       // Check to see if the file has surface info
       hid_t bc_g = H5Gopen(file_id,"surface_info") ;
 
-      /* Restore previous error handler */
-      H5Eset_auto(old_func, old_client_data);
 
       boundary_ids.clear() ;
       // If surface info, then check surfaces
@@ -633,11 +636,18 @@ namespace Loci {
       // First read in and disribute node positions...
       dataset = H5Dopen(node_g,"positions") ;
       dspace = H5Dget_space(dataset) ;
+      if(dataset <=0 || dspace <=0)
+        failure = true ;
+        
       hsize_t size = 0 ;
       H5Sget_simple_extent_dims(dspace,&size,NULL) ;
       nnodes = size ;
-    }
 
+    }
+    int fail_state = 0 ;
+    MPI_Allreduce(&failure,&fail_state,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+    if(fail_state != 0)
+      return false ;
     // Share boundary tag data with all other processors
     int bsz = boundary_ids.size() ;
     MPI_Bcast(&bsz,1,MPI_INT,0,MPI_COMM_WORLD) ;
@@ -763,6 +773,9 @@ namespace Loci {
     if(MPI_rank == 0) {
       dataset = H5Dopen(face_g,"cluster_sizes") ;
       dspace = H5Dget_space(dataset) ;
+      if(dataset <=0 || dspace <=0)
+        failure = true ;
+      
       hsize_t size = 0 ;
       H5Sget_simple_extent_dims(dspace,&size,NULL) ;
       nclusters = size ;
@@ -786,6 +799,16 @@ namespace Loci {
     MPI_Allgather(&cluster_info_size,1,MPI_INT,&cluster_dist[0],1,MPI_INT,
                   MPI_COMM_WORLD) ;
     readVectorDist(face_g,"cluster_info",cluster_dist,cluster_info) ;
+
+    if(MPI_rank == 0) {
+      H5Gclose(face_g) ;
+      H5Fclose(file_id) ;
+      /* Restore previous error handler */
+      H5Eset_auto(old_func, old_client_data);
+    }
+    MPI_Allreduce(&failure,&fail_state,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+    if(fail_state != 0)
+      return false ;
 
     vector<int> cluster_offset(cluster_sizes.size()+1) ;
     cluster_offset[0] = 0 ;
