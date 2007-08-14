@@ -574,7 +574,7 @@ namespace Loci {
 
       writeUnorderedVector(bc_id,"nside_sizes",nsizes) ;
       writeUnorderedVector(bc_id,"nside_nodes",nsidenodes) ;
-      writeUnorderedVector(bc_id,"nside_ids",genc_ids) ;
+      writeUnorderedVector(bc_id,"nside_id",genc_ids) ;
       
       if(MPI_rank == 0) {
         H5Gclose(bc_id) ;
