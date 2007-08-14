@@ -40,16 +40,16 @@ int TECINI(const char *problem_name,const char *variables_name,
 }
 
 int TECZNE(const char *zone_name, int *npnts, int *ncells,const char *tec_name,
-           const char *block_type, const char *elem_type) {
+           const char *elem_type) {
 
-  ostringstream oss ;
-
-  oss << tec_name ;
-  string filename = oss.str() ;
+  string filename = tec_name ;
   ofstream ofile(filename.c_str(),ios::app) ;
  
-  ofile << "Zone, T = " << zone_name << ", n = " << *npnts << ", e = " <<
-    *ncells << ", F = " << block_type << ", ET = " << elem_type << endl ;
+  ofile << "ZONE, T = \"" << zone_name << '"'
+        << ", DATAPACKING=BLOCK" 
+        << ", n = " << *npnts
+        << ", e = " << *ncells
+        << ", ZONETYPE = " << elem_type << endl ;
   ofile.close() ;
 
   return(0) ;
@@ -108,7 +108,8 @@ void tecplot_topo_handler::open(string casename, string iteration ,int inpnts,
   npyrm = inpyrm ;
   nhexs = inhexs ;
   ngen = ingen ;
-  part_id = 1 ;
+  nvars = 3 ;
+
   filename = "tec_"+casename+"_"+iteration+".dat" ;
   int ncells = ntets+nprsm+npyrm+nhexs ;
   string varstring = "\"x\", \"y\", \"z\"" ;
@@ -117,10 +118,12 @@ void tecplot_topo_handler::open(string casename, string iteration ,int inpnts,
        variable_types[i] == NODAL_DERIVED ||
        variable_types[i] == NODAL_MASSFRACTION) {
       varstring += ", \"" + variables[i] + '"' ;
+      nvars++ ;
     } else if(variable_types[i] == NODAL_VECTOR) {
       varstring += ", \"" + variables[i] +".x\"" ;
       varstring += ", \"" + variables[i] +".y\"" ;
       varstring += ", \"" + variables[i] +".z\"" ;
+      nvars += 3;
     } else {
       cerr << "boundary variable " << variables[i] << "not currently supported by tecplot extractor" << endl ;
     }
@@ -129,12 +132,16 @@ void tecplot_topo_handler::open(string casename, string iteration ,int inpnts,
   int VIsDouble = 0 ;
   TECINI(casename.c_str(),varstring.c_str(),filename.c_str(),
          ".",&Debug,&VIsDouble) ;
-  TECZNE("SINGLE_ZONE",&npnts,&ncells,filename.c_str(),"FEBLOCK","BRICK") ;
+  TECZNE("VOLUME_MESH",&npnts,&ncells,filename.c_str(),"FEBRICK") ;
   
 }
-void tecplot_topo_handler::close() {
+void tecplot_topo_handler::close_mesh_elements() {
   int ncells = bricks.size() ;
   TECNOD(&bricks[0][0],&ncells, filename.c_str()) ;
+}
+
+
+void tecplot_topo_handler::close() {
 }
 void tecplot_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts) {
   vector<float> pos_x(npnts),pos_y(npnts),pos_z(npnts) ;
@@ -208,24 +215,67 @@ void tecplot_topo_handler::write_general_cell(int nfaces[], int nnfaces,
 
 void tecplot_topo_handler::create_boundary_part(string name,int node_set[],
                                                 int npnts) {
+  boundary_name = name ;
+  ordinary_faces.clear() ;
+  node_ids.clear() ;
+  for(int i=0;i<npnts;++i)
+    node_ids.push_back(node_set[i]) ;
 }
   
 
 void tecplot_topo_handler::write_quads(Array<int,4> quads[],
                                        int quads_ids[], int nquads) {
+  for(int i=0;i<nquads;++i) {
+    ordinary_faces.push_back(quads[i]) ;
+    elem_ids.push_back(quads_ids[i]) ;
+  }
 }
 void tecplot_topo_handler::write_trias(Array<int,3> trias[],
                                        int trias_ids[], int ntrias) {
+  for(int i=0;i<ntrias;++i) {
+    Array<int,4> a ;
+    a[0] = trias[i][0] ;
+    a[1] = trias[i][1] ;
+    a[2] = trias[i][2] ;
+    a[3] = trias[i][2] ;
+    
+    ordinary_faces.push_back(a) ;
+    elem_ids.push_back(trias_ids[i]) ;
+  }
 }
 
 void tecplot_topo_handler::write_general_face(int nside_sizes[],
                                               int nside_ids[], int ngeneral,
                                               int nside_nodes[],
                                               int nside_nodes_size) {
+  if(ngeneral != 0) {
+    cerr << "general boundary facets ignored in tecplot extract"
+         << endl ;
+  }
+
+  ofstream ofile(filename.c_str(),ios::app) ;
+
+  int nelm = ordinary_faces.size() ;
+  ofile << "ZONE T = \"" << boundary_name << '"'
+        << ", N = " << npnts
+        << ", E = " << nelm
+        << ", ZONETYPE=FEQUADRILATERAL"
+        << ",VARSHARELIST = ([1" ;
+  for(int i=1;i<nvars;++i)
+    ofile << ',' << i+1 ;
+  ofile << "]=1)" << endl ;
+
+  for(int i=0;i<nelm;++i)
+    ofile << node_ids[ordinary_faces[i][0]-1] << ' '
+          << node_ids[ordinary_faces[i][1]-1] << ' '
+          << node_ids[ordinary_faces[i][2]-1] << ' '
+          << node_ids[ordinary_faces[i][3]-1] << endl ;
 }
 
 void tecplot_topo_handler::close_boundary_part() {
-  part_id++ ;
+  ordinary_faces.clear() ;
+  node_ids.clear() ;
+  boundary_name = "" ;
 }
 
 void tecplot_topo_handler::output_nodal_scalar(float val[], int npnts,

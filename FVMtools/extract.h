@@ -109,11 +109,22 @@ class tecplot_topo_handler : public grid_topo_handler {
   string filename ;
   int npnts ;
   int ntets, nprsm, npyrm, nhexs, ngen ;
-  int part_id ;
+  int nvars ;
   vector<Array<int, 8> > bricks ;
+  string boundary_name ;
+  vector<Array<int,4> > ordinary_faces ;
+  vector<int> node_ids ;
+  vector<int> elem_ids ;
 public:
   tecplot_topo_handler(){}
   virtual ~tecplot_topo_handler() {}
+  virtual void fileWritingSequence(Array<int,5> &sequence) {
+    sequence[0] = GRID_POSITIONS ;
+    sequence[1] = NODAL_VARIABLES ;
+    sequence[2] = GRID_VOLUME_ELEMENTS ;
+    sequence[3] = GRID_BOUNDARY_ELEMENTS ;
+    sequence[4] = BOUNDARY_VARIABLES ;
+  }
   virtual void open(string casename, string iteration ,int npnts,
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
                     const vector<string> &bc_names,
@@ -129,7 +140,7 @@ public:
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
-  virtual void close_mesh_elements() {}
+  virtual void close_mesh_elements() ;
   virtual void create_boundary_part(string name,int node_set[], int npnts) ;
   virtual void write_quads(Array<int,4> quads[], int quad_ids[],
                            int nquads) ;
