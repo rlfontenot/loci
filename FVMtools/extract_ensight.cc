@@ -48,11 +48,26 @@ void ensight_topo_handler::open(string casename, string iteration ,int inpnts,
 
   string geo_filename =  casename + ".geo" ;
   string case_filename = dirname + "/" + casename + ".case" ;
+  string particle_filename ;
+  
+  // scan to see if particle geometry is included
+  for(size_t i=0;i<variable_types.size();++i) {
+    if( (variable_types[i] == PARTICLE_SCALAR) ||
+        (variable_types[i] == PARTICLE_VECTOR)) {
+      particle_output = true ;
+      particle_geo_filename = casename + "_particles.geo" ;
+    }
+  }
+  
   ofstream of(case_filename.c_str(),ios::out) ;
   of << "FORMAT" << endl ;
   of << "type:  ensight gold" << endl ;
   of << "GEOMETRY" << endl ;
   of << "model:  " << geo_filename << endl ;
+  if(particle_output) {
+    of << "measured:  " << particle_geo_filename << endl ;
+    particle_geo_filename = dirname + "/" + particle_geo_filename ;
+  }
 
   geo_filename = dirname + "/"+geo_filename ;
   if(variables.size() > 0) {
@@ -74,6 +89,14 @@ void ensight_topo_handler::open(string casename, string iteration ,int inpnts,
       }
       if(vt == BOUNDARY_VECTOR) {
         of << "vector per element:\t " << variables[i] << '\t'
+           << variables[i] << endl ;
+      }
+      if(vt == PARTICLE_SCALAR) {
+        of << "scalar per measured node:\t " << variables[i] << '\t'
+           << variables[i] << endl ;
+      }
+      if(vt == PARTICLE_VECTOR) {
+        of << "vector per measured node:\t " << variables[i] << '\t'
            << variables[i] << endl ;
       }
     }
@@ -602,4 +625,107 @@ void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
     }
   }
   fclose(FP) ;
-}  
+}
+
+void
+ensight_topo_handler::create_particle_positions
+(vector3d<float> pos[], int pts) {
+
+  FILE *FP = 0 ;
+  FP = fopen(particle_geo_filename.c_str(), "wb") ;
+  if(FP==0) {
+    cerr << "can't open file '" << particle_geo_filename
+         << "' for writing particle geometry info!" << endl ;
+    return ;
+  }
+  
+  char tmp_buf[80] ;
+
+  memset(tmp_buf, '\0', 80) ;
+  sprintf(tmp_buf,"C Binary") ;
+  fwrite(tmp_buf, sizeof(char), 80, FP) ;
+  
+  memset(tmp_buf, '\0', 80) ;
+  sprintf(tmp_buf, "particle positions") ;
+  fwrite(tmp_buf, sizeof(char), 80, FP) ;
+
+  memset(tmp_buf, '\0', 80) ;
+  sprintf(tmp_buf, "particle coordinates") ;
+  fwrite(tmp_buf, sizeof(char), 80, FP) ;
+
+  // number of points
+  fwrite(&pts, sizeof(int), 1, FP) ;
+  // point ids
+  for(int i=1;i<pts+1;++i)
+    fwrite(&i, sizeof(int), 1, FP) ;
+  // point coordinates
+  for(int i=0;i<pts;++i) {
+    float x = pos[i].x ;
+    float y = pos[i].y ;
+    float z = pos[i].z ;
+    fwrite(&x, sizeof(float), 1, FP) ;
+    fwrite(&y, sizeof(float), 1, FP) ;
+    fwrite(&z, sizeof(float), 1, FP) ;
+  }
+  
+  fclose(FP) ;
+}
+
+void
+ensight_topo_handler::output_particle_scalar(float val[],
+                                             int np, string valname) {
+  string filename = dirname + '/' + valname ;
+  FILE *FP = 0 ;
+  FP = fopen(filename.c_str(), "wb") ;
+  if(FP==0) {
+    cerr << "can't open file '" << filename
+         << "' for writing variable info!" << endl ;
+    return ;
+  }
+
+  char tmp_buf[80] ;
+
+  memset(tmp_buf, '\0', 80) ;
+  sprintf(tmp_buf, "Per particle scalar: %s", valname.c_str()) ;
+  fwrite(tmp_buf, sizeof(char), 80, FP) ;
+
+  for(int i=0;i<np;++i)
+    fwrite(&val[i], sizeof(float), 1, FP) ;
+
+  fclose(FP) ;
+}
+
+void
+ensight_topo_handler::output_particle_vector(vector3d<float> val[],
+                                             int np, string valname) {
+  string filename = dirname + '/' + valname ;
+  FILE *FP = 0 ;
+  FP = fopen(filename.c_str(), "wb") ;
+  if(FP==0) {
+    cerr << "can't open file '" << filename
+         << "' for writing variable info!" << endl ;
+    return ;
+  }
+
+  char tmp_buf[80] ;
+
+  memset(tmp_buf, '\0', 80) ;
+  sprintf(tmp_buf, "Per particle vector: %s", valname.c_str()) ;
+  fwrite(tmp_buf, sizeof(char), 80, FP) ;
+
+  for(int i=0;i<np;++i) {
+    float x = val[i].x ;
+    float y = val[i].y ;
+    float z = val[i].z ;
+    
+    fwrite(&x, sizeof(float), 1, FP) ;
+    fwrite(&y, sizeof(float), 1, FP) ;
+    fwrite(&z, sizeof(float), 1, FP) ;
+  }
+
+  fclose(FP) ;
+}
+
+// ... the end ...
+
+

@@ -1,21 +1,23 @@
 #ifndef EXTRACT_H
 #define EXTRACT_H
 
-enum var_type {NODAL_SCALAR,NODAL_VECTOR,NODAL_DERIVED,NODAL_MASSFRACTION, BOUNDARY_SCALAR,BOUNDARY_VECTOR, BOUNDARY_DERIVED_SCALAR, BOUNDARY_DERIVED_VECTOR, UNDEFINED} ;
+enum var_type {NODAL_SCALAR,NODAL_VECTOR,NODAL_DERIVED,NODAL_MASSFRACTION, BOUNDARY_SCALAR,BOUNDARY_VECTOR, BOUNDARY_DERIVED_SCALAR, BOUNDARY_DERIVED_VECTOR, PARTICLE_SCALAR, PARTICLE_VECTOR, UNDEFINED} ;
 enum view_type {VIEWXY=0,VIEWYZ=1,VIEWXZ=2,VIEWXR=3}  ;
 
 
-enum gridWritingPhases { GRID_POSITIONS, GRID_VOLUME_ELEMENTS, GRID_BOUNDARY_ELEMENTS, NODAL_VARIABLES,BOUNDARY_VARIABLES } ;
+enum gridWritingPhases { GRID_POSITIONS, GRID_VOLUME_ELEMENTS, GRID_BOUNDARY_ELEMENTS, NODAL_VARIABLES,BOUNDARY_VARIABLES, PARTICLE_POSITIONS, PARTICLE_VARIABLES} ;
 
 class grid_topo_handler {
 public:
   virtual ~grid_topo_handler() {}
-  virtual void fileWritingSequence(Array<int,5> &sequence) {
+  virtual void fileWritingSequence(Array<int,7> &sequence) {
     sequence[0] = GRID_POSITIONS ;
     sequence[1] = GRID_VOLUME_ELEMENTS ;
     sequence[2] = GRID_BOUNDARY_ELEMENTS ;
     sequence[3] = NODAL_VARIABLES ;
     sequence[4] = BOUNDARY_VARIABLES ;
+    sequence[5] = PARTICLE_POSITIONS ;
+    sequence[6] = PARTICLE_VARIABLES ;
   }
   virtual void open(string casename, string iteration ,int npnts,
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
@@ -51,7 +53,12 @@ public:
                                       int nvals, string valname) = 0 ;
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) = 0 ;
-    
+
+  virtual void create_particle_positions(vector3d<float> pos[], int np) = 0 ;
+  virtual void output_particle_scalar(float val[],
+                                      int np, string valname) = 0 ;
+  virtual void output_particle_vector(vector3d<float> val[],
+                                      int np, string valname) = 0 ;
 } ;
 
 class ensight_topo_handler : public grid_topo_handler {
@@ -66,8 +73,11 @@ class ensight_topo_handler : public grid_topo_handler {
   vector<vector<int> > part_nside_ids ;
   
   vector<vector3d<float> > positions ;
+
+  bool particle_output ;
+  string particle_geo_filename ;
 public:
-  ensight_topo_handler(){OFP=0;}
+  ensight_topo_handler(){OFP=0;particle_output=false;}
   virtual ~ensight_topo_handler() {}
   virtual void open(string casename, string iteration ,int npnts,
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
@@ -102,7 +112,11 @@ public:
                                       int nvals, string valname) ;
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
-    
+  
+  virtual void create_particle_positions(vector3d<float> pos[], int np) ;
+  virtual void output_particle_scalar(float val[], int np, string valname) ;
+  virtual void output_particle_vector(vector3d<float> val[],
+                                      int np, string valname) ;
 } ;
 
 class tecplot_topo_handler : public grid_topo_handler {
@@ -118,12 +132,14 @@ class tecplot_topo_handler : public grid_topo_handler {
 public:
   tecplot_topo_handler(){}
   virtual ~tecplot_topo_handler() {}
-  virtual void fileWritingSequence(Array<int,5> &sequence) {
+  virtual void fileWritingSequence(Array<int,7> &sequence) {
     sequence[0] = GRID_POSITIONS ;
     sequence[1] = NODAL_VARIABLES ;
     sequence[2] = GRID_VOLUME_ELEMENTS ;
     sequence[3] = GRID_BOUNDARY_ELEMENTS ;
     sequence[4] = BOUNDARY_VARIABLES ;
+    sequence[5] = PARTICLE_POSITIONS ;
+    sequence[6] = PARTICLE_VARIABLES ;
   }
   virtual void open(string casename, string iteration ,int npnts,
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
@@ -159,6 +175,11 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
     
+  virtual void create_particle_positions(vector3d<float> pos[], int np) {}
+  virtual void output_particle_scalar(float val[],
+                                      int np, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[],
+                                      int np, string valname) {}
 } ;
 
 class fv_topo_handler : public grid_topo_handler {
@@ -175,12 +196,14 @@ class fv_topo_handler : public grid_topo_handler {
 public:
   fv_topo_handler(){OFP=0;first_var = true ; first_boundary=true ;}
   virtual ~fv_topo_handler() {}
-  virtual void fileWritingSequence(Array<int,5> &sequence) {
+  virtual void fileWritingSequence(Array<int,7> &sequence) {
     sequence[0] = GRID_POSITIONS ;
     sequence[1] = GRID_BOUNDARY_ELEMENTS ;
     sequence[2] = GRID_VOLUME_ELEMENTS ;
     sequence[3] = NODAL_VARIABLES ;
     sequence[4] = BOUNDARY_VARIABLES ;
+    sequence[5] = PARTICLE_POSITIONS ;
+    sequence[6] = PARTICLE_VARIABLES ;
   }
   virtual void open(string casename, string iteration ,int npnts,
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
@@ -216,6 +239,11 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
     
+  virtual void create_particle_positions(vector3d<float> pos[], int np) {}
+  virtual void output_particle_scalar(float val[],
+                                      int np, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[],
+                                      int np, string valname) {}
 } ;
 
 void get_2dgv(string casename, string iteration,

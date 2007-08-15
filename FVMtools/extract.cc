@@ -324,7 +324,10 @@ void extract_grid(string casename, string iteration,
   vector<string> bnd_scalar_vars,bnd_scalar_filenames ;
   vector<string> bnd_vector_vars,bnd_vector_filenames ;
   vector<string> mfvars ;
+  vector<string> pt_scalar_vars, pt_scalar_filenames ;
+  vector<string> pt_vector_vars, pt_vector_filenames ;
 
+  bool particle_extract = false ;
   {
     vector<string> vname ;
     vector<int> vtype;
@@ -353,6 +356,16 @@ void extract_grid(string casename, string iteration,
         bnd_vector_vars.push_back(var_name) ;
         bnd_vector_filenames.push_back(filename) ;
         break ;
+      case PARTICLE_SCALAR:
+        pt_scalar_vars.push_back(var_name) ;
+        pt_scalar_filenames.push_back(filename) ;
+        particle_extract = true ;
+        break ;
+      case PARTICLE_VECTOR:
+        pt_vector_vars.push_back(var_name) ;
+        pt_vector_filenames.push_back(filename) ;
+        particle_extract = true ;
+        break ;
       default:
         cerr << "unable to process variable " << var_name << endl ;
         break ;
@@ -373,13 +386,23 @@ void extract_grid(string casename, string iteration,
       vfile.push_back(bnd_vector_filenames[i]) ;
       vtype.push_back(BOUNDARY_VECTOR) ;
     }
+    for(size_t i=0;i<pt_scalar_vars.size();++i) {
+      vname.push_back(pt_scalar_vars[i]) ;
+      vfile.push_back(pt_scalar_filenames[i]) ;
+      vtype.push_back(PARTICLE_SCALAR) ;
+    }
+    for(size_t i=0;i<pt_vector_vars.size();++i) {
+      vname.push_back(pt_vector_vars[i]) ;
+      vfile.push_back(pt_vector_filenames[i]) ;
+      vtype.push_back(PARTICLE_VECTOR) ;
+    }
 
     variables = vname ;
     variable_filenames = vfile ;
     variable_types = vtype ;
   }
 
-  Array<int,5> events ;
+  Array<int,7> events ;
   topo->fileWritingSequence(events) ;
   fatal(MPI_processes != 1) ;
   store<vector3d<float> > pos ;
@@ -444,7 +467,7 @@ void extract_grid(string casename, string iteration,
              bc_names, variables,variable_types) ;
 
 
-  for(int i=0;i<5;++i) {
+  for(int i=0;i<7;++i) {
     switch(events[i]) {
     case GRID_POSITIONS:
       {
@@ -621,6 +644,9 @@ void extract_grid(string casename, string iteration,
           case BOUNDARY_SCALAR:
           case BOUNDARY_VECTOR:
             break ;
+          case PARTICLE_SCALAR:
+          case PARTICLE_VECTOR:
+            break ;
           default:
             cerr << "unable to process variable " << var_name << endl ;
             break ;
@@ -731,6 +757,62 @@ void extract_grid(string casename, string iteration,
         }
       }
       break;
+    case PARTICLE_POSITIONS:
+      if(particle_extract) {
+        string posname = "output/particle_pos." + iteration + "_" + casename ;
+        hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
+                                           H5F_ACC_RDONLY,
+                                           H5P_DEFAULT) ;
+        if(file_id < 0) {
+          cerr << "unable to get particle positions for iteration "
+               << iteration << endl ;
+          Loci::Abort() ;
+          exit(-1) ;
+        }
+        
+        int np = sizeElementType(file_id, "particle position") ;
+        vector<vector3d<float> > ppos(np) ;
+        readElementType(file_id, "particle position", ppos) ;
+        
+        topo->create_particle_positions(&ppos[0], np) ;
+      }
+      break ;
+    case PARTICLE_VARIABLES:
+      for(size_t v=0;v<pt_scalar_vars.size();++v) {
+        const string varname(pt_scalar_vars[v]) ;
+        const string filename(pt_scalar_filenames[v]) ;
+        hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+                                           H5F_ACC_RDONLY, H5P_DEFAULT) ;
+        if(file_id < 0) {
+          cerr << "unable to open file '" << filename << "'!" << endl ;
+          continue ;
+        }
+        int np = sizeElementType(file_id, varname.c_str()) ;
+        vector<float> scalar(np) ;
+        readElementType(file_id, varname.c_str(), scalar) ;
+
+        topo->output_particle_scalar(&scalar[0], np, varname) ;
+        
+      }
+
+      for(size_t v=0;v<pt_vector_vars.size();++v) {
+        const string varname(pt_vector_vars[v]) ;
+        const string filename(pt_vector_filenames[v]) ;
+        hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
+                                           H5F_ACC_RDONLY, H5P_DEFAULT) ;
+
+        if(file_id < 0) {
+          cerr << "unable to open file '" << filename << "'!" << endl ;
+          continue ;
+        }
+        int np = sizeElementType(file_id, varname.c_str()) ;
+        vector<vector3d<float> > vec(np) ;
+        readElementType(file_id, varname.c_str(), vec) ;
+
+        topo->output_particle_vector(&vec[0], np, varname) ;
+      }
+      
+      break ;
     default:
       cerr << "internal error, problem with topo sequence" << endl ;
     }
@@ -807,6 +889,9 @@ int main(int ac, char *av[]) {
   }
   vector<int> variable_type(variables.size()) ;
   vector<string> variable_file(variables.size()) ;
+
+  bool particle_info_requested = false ;
+  
   for(size_t i=0;i<variables.size();++i) {
     const string var(variables[i]) ;
     string filename = "output/" + var + "_hdf5." + iteration ;
@@ -840,6 +925,22 @@ int main(int ac, char *av[]) {
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = BOUNDARY_VECTOR ;
       variable_file[i] = filename ;
+      continue ;
+    }
+
+    filename = "output/" + var + "_ptsca." + iteration + "_" + casename ;
+    if(stat(filename.c_str(),&tmpstat)==0) {
+      variable_type[i] = PARTICLE_SCALAR ;
+      variable_file[i] = filename ;
+      particle_info_requested = true ;
+      continue ;
+    }
+
+    filename = "output/" + var + "_ptvec." + iteration + "_" + casename ;
+    if(stat(filename.c_str(),&tmpstat)==0) {
+      variable_type[i] = PARTICLE_VECTOR ;
+      variable_file[i] = filename ;
+      particle_info_requested = true ;
       continue ;
     }
 
@@ -890,6 +991,20 @@ int main(int ac, char *av[]) {
   }
 
   H5Eset_auto(NULL,NULL) ;
+
+  // we will first check to see if particle position is present
+  // in case of any particle information extraction
+  if(particle_info_requested) {
+    string filename = "output/particle_pos." + iteration + "_" + casename ;
+    struct stat tmpstat ;
+    if(stat(filename.c_str(),&tmpstat)!=0) {
+      cerr << "Warning: particle geometry '" << filename << "' must"
+           << " be presented for any"
+           << " particle related variable extraction." << endl ;
+      Loci::Finalize() ;
+      exit(-1) ;
+    }
+  }
 
   string filename = "output/" +  casename + ".topo" ;
   struct stat tmpstat ;
