@@ -1395,6 +1395,103 @@ namespace Loci {
     facts.create_fact("face2edge",face2edge) ;
   }
 
+  // this is a general routine that balances the pair vector
+  // on each process, it redistributes the pair vector
+  // among the processes such that each process holds
+  // roughly the same number of elements, it maintains the
+  // original global elements ordering in the redistribution
+  void
+  parallel_balance_pair_vector(vector<pair<int,int> >& vp,
+                               MPI_Comm comm) {
+    int num_procs = 0 ;
+    MPI_Comm_size(comm,&num_procs) ;
+
+    // we still use an all-to-all personalized communication
+    // algorithm to balance the element numbers on processes.
+    // we pick (p-1) equally spaced element as the splitters
+    // and then re-split the global vector sequence to balance
+    // the number of elements on processes.
+
+    int vp_size = vp.size() ;
+    int global_vp_size = 0 ;
+    MPI_Allreduce(&vp_size, &global_vp_size,
+                  1, MPI_INT, MPI_SUM, comm) ;
+
+    int space = global_vp_size / num_procs ;
+    // compute a global range for the elements on each process
+    int global_end = 0 ;
+    MPI_Scan(&vp_size, &global_end, 1, MPI_INT, MPI_SUM, comm) ;
+    int global_start = global_end - vp_size ;
+
+    vector<int> splitters(num_procs) ;
+    // splitters are just global index number
+    splitters[0] = space ;
+    for(int i=1;i<num_procs-1;++i)
+      splitters[i] = splitters[i-1] + space ;
+    splitters[num_procs-1] = global_vp_size ;
+
+    // split and communicate the vector of particles
+    vector<int> send_counts(num_procs, 0) ;
+    int part_start = global_start ;
+    for(int idx=0;idx<num_procs;++idx) {
+      if(part_start == global_end)
+        break ;
+      if(splitters[idx] > part_start) {
+        int part_end ;
+        if(splitters[idx] < global_end)
+          part_end = splitters[idx] ;
+        else
+          part_end = global_end ;
+        send_counts[idx] = part_end - part_start ;
+        part_start = part_end ;
+      }
+    }
+      
+    for(size_t i=0;i<send_counts.size();++i)
+      send_counts[i] *= 2 ;
+
+    vector<int> send_displs(num_procs) ;
+    send_displs[0] = 0 ;
+    for(int i=1;i<num_procs;++i)
+      send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+
+    vector<int> recv_counts(num_procs) ;
+    MPI_Alltoall(&send_counts[0], 1, MPI_INT,
+                 &recv_counts[0], 1, MPI_INT, comm) ;
+
+    vector<int> recv_displs(num_procs) ;
+    recv_displs[0] = 0 ;
+    for(int i=1;i<num_procs;++i)
+      recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+
+    int total_recv_size = recv_displs[num_procs-1] +
+      recv_counts[num_procs-1] ;
+
+    // prepare send and recv buffer
+    vector<int> send_buf(vp_size*2) ;
+    int count = 0 ;
+    for(int i=0;i<vp_size;++i) {
+      send_buf[count++] = vp[i].first ;
+      send_buf[count++] = vp[i].second ;
+    }
+    // release vp buffer to save some memory because we no longer need it
+    vector<pair<int,int> >().swap(vp) ;
+    // prepare recv buffer
+    vector<int> recv_buf(total_recv_size) ;
+
+    MPI_Alltoallv(&send_buf[0], &send_counts[0],
+                  &send_displs[0], MPI_INT,
+                  &recv_buf[0], &recv_counts[0],
+                  &recv_displs[0], MPI_INT, comm) ;
+    // finally extract the data to fill the pair vector
+    // release send_buf first to save some memory
+    vector<int>().swap(send_buf) ;
+    vp.resize(total_recv_size/2) ;
+    count = 0 ;
+    for(int i=0;i<total_recv_size;i+=2,count++)
+      vp[count] = pair<int,int>(recv_buf[i], recv_buf[i+1]) ;
+  }
+  
   // a parallel sample sort for vector<pair<int, int> >
   // the passed in vector is the local SORTED data. NOTE:
   // the precondition to this routine is that the passed
@@ -1652,13 +1749,35 @@ namespace Loci {
       emap.push_back(pair<Entity,Entity>(min(e1,e2),max(e1,e2))) ;
     }
 
+    // before we do the parallel sorting, we perform a check
+    // to see if every process at least have one data element in
+    // the "emap", if not, then the parallel sample sort would fail
+    // and we pre-balance the "emap" on every process before do the
+    // sorting
+    if(GLOBAL_OR(emap.empty())) {
+      parallel_balance_pair_vector(emap, MPI_COMM_WORLD) ;
+    }
     // Sort edges and remove duplicates
     sort(emap.begin(),emap.end()) ;
     vector<pair<Entity,Entity> >::iterator uend ;
     uend = unique(emap.begin(), emap.end()) ;
     emap.erase(uend, emap.end()) ;
     // then sort emap in parallel
-    par_sort(emap, MPI_COMM_WORLD) ;
+    // but we check again to see if every process has at least one
+    // element, if not, that means that the total element number is
+    // less than the total number of processes, we split the communicator
+    // so that only those do have elements would participate in the
+    // parallel sample sorting
+    if(GLOBAL_OR(emap.empty())) {
+      MPI_Comm sub_comm ;
+      int color = emap.empty() ;
+      MPI_Comm_split(MPI_COMM_WORLD, color, MPI_rank, &sub_comm) ;
+      if(!emap.empty())
+        par_sort(emap, sub_comm) ;
+      MPI_Comm_free(&sub_comm) ;
+    } else {
+      par_sort(emap, MPI_COMM_WORLD) ;
+    }
     // remove duplicates again in the new sorted vector
     uend = unique(emap.begin(), emap.end()) ;
     emap.erase(uend, emap.end()) ;
