@@ -1,5 +1,3 @@
-#define VERBOSE
-#define DEBUG
 #include <store.h>
 #include <DStore.h>
 #include <Map.h>
