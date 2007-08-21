@@ -568,6 +568,87 @@ namespace Loci {
     return num_faces ;
   }
 
+  bool readBCfromVOG(string filename,
+                 vector<pair<int,string> > &boundary_ids) {
+    hid_t file_id = 0 ;
+    hid_t dataset = 0 ;
+    hid_t dspace = 0 ;
+    int failure = 0 ; // No failure
+    /* Save old error handler */
+    herr_t (*old_func)(void*) = 0;
+    void *old_client_data = 0 ;
+    if(MPI_rank == 0) {
+      H5Eget_auto(&old_func, &old_client_data);
+
+      /* Turn off error handling */
+      H5Eset_auto(NULL, NULL);
+
+      file_id = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
+      if(file_id <= 0) 
+        failure = 1 ;
+
+      // Check to see if the file has surface info
+      hid_t bc_g = H5Gopen(file_id,"surface_info") ;
+
+      boundary_ids.clear() ;
+      // If surface info, then check surfaces
+      if(bc_g > 0) {
+        hsize_t num_bcs = 0 ;
+        H5Gget_num_objs(bc_g,&num_bcs) ;
+        for(hsize_t bc=0;bc<num_bcs;++bc) {
+          char buf[1024] ;
+          memset(buf, '\0', 1024) ;
+          H5Gget_objname_by_idx(bc_g,bc,buf,sizeof(buf)) ;
+          buf[1023]='\0' ;
+          
+          string name = string(buf) ;
+          hid_t sf_g = H5Gopen(bc_g,buf) ;
+          hid_t id_a = H5Aopen_name(sf_g,"Ident") ;
+          int ident ;
+          H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
+          H5Aclose(id_a) ;
+          H5Gclose(sf_g) ;
+          boundary_ids.push_back(pair<int,string>(ident,name)) ;
+        }
+        H5Gclose(bc_g) ;
+        H5Fclose(file_id) ;
+        /* Restore previous error handler */
+        H5Eset_auto(old_func, old_client_data);
+      }
+    }
+    // Share boundary tag data with all other processors
+    int bsz = boundary_ids.size() ;
+    MPI_Bcast(&bsz,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    if(bsz > 0) {
+      string buf ;
+      if(MPI_rank == 0) {
+        ostringstream oss ;
+        
+        for(int i=0;i<bsz;++i)
+          oss << boundary_ids[i].first << ' ' << boundary_ids[i].second << ' ';
+        buf = oss.str() ;
+      }
+      int bufsz = buf.size() ;
+      MPI_Bcast(&bufsz,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      char *data = new char[bufsz+1] ;
+      if(MPI_rank == 0)
+        strcpy(data,buf.c_str()) ;
+      MPI_Bcast(data,bufsz,MPI_CHAR,0,MPI_COMM_WORLD) ;
+      buf = string(data) ;
+      istringstream iss(buf) ;
+      boundary_ids.clear() ;
+      for(int i=0;i<bsz;++i) {
+        int id ;
+        string name ;
+        iss >> id >> name ;
+        boundary_ids.push_back(pair<int,string>(id,name)) ;
+      }
+    }
+    if(failure)
+      return false ;
+    return true ;
+  }
+  
   //Description: Reads grid structures from grid file in the .vog format.
   //Input: file name and max_alloc (starting of entity assignment - node base)
   //Output:
