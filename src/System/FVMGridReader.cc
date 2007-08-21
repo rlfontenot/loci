@@ -1,3 +1,5 @@
+#define VERBOSE
+#define DEBUG
 #include <store.h>
 #include <DStore.h>
 #include <Map.h>
@@ -423,32 +425,36 @@ namespace Loci {
       for(int i=1;i<MPI_processes;++i) {
         // read in remote processor data
         int sz = sizes[i] ;
-        vector<T> tmp(sz) ;
-        dimension = sz ;
-        count = dimension ;
-        H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
-        start += dimension  ;
+        if(sz > 0) {
+          vector<T> tmp(sz) ;
+          dimension = sz ;
+          count = dimension ;
+          H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count, NULL) ;
+          start += dimension  ;
+          
+          memspace = H5Screate_simple(rank,&dimension,NULL) ;
+          hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
+                              &tmp[0]) ;
+          if(err < 0) {
+            cerr << "H5Dread() failed" << endl ;
+            FATAL(err < 0) ;
+            Loci::Abort() ;
+          }
+          H5Sclose(memspace) ;
 
-        memspace = H5Screate_simple(rank,&dimension,NULL) ;
-        hid_t err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
-                            &tmp[0]) ;
-        if(err < 0) {
-          cerr << "H5Dread() failed" << endl ;
-          FATAL(err < 0) ;
-          Loci::Abort() ;
+          // send to remote processor
+          MPI_Send(&tmp[0],sz*sizeof(T),MPI_BYTE,i,0,MPI_COMM_WORLD) ;
         }
-        H5Sclose(memspace) ;
-
-        // send to remote processor
-        MPI_Send(&tmp[0],sz*sizeof(T),MPI_BYTE,i,0,MPI_COMM_WORLD) ;
       }
       H5Dclose(dataset) ;
       H5Sclose(dspace) ;
 
     } else {
       int size = sizes[MPI_rank] ;
-      MPI_Status status ;
-      MPI_Recv(&v[0],size*sizeof(T),MPI_BYTE,0,0,MPI_COMM_WORLD,&status) ;
+      if(size > 0) {
+        MPI_Status status ;
+        MPI_Recv(&v[0],size*sizeof(T),MPI_BYTE,0,0,MPI_COMM_WORLD,&status) ;
+      }
     }
   }
   int getClusterNumFaces(unsigned char *cluster) {
