@@ -3,7 +3,8 @@
 #include <map>
 
 #include <Tools/xdr.h>
-
+#include <sstream>
+using std::istringstream ;
 #include <list>
 using std::list ;
 #include <string>
@@ -1048,20 +1049,78 @@ int main(int ac, char *av[]) {
   bool optimize = true ;
   
   Loci::Init(&ac,&av) ;
+
+  string Lref = "1 meter" ;
   while(ac>=2 && av[1][0] == '-') {
     // If user specifies an alternate query, extract it from the
     // command line.
-    if(ac >= 2 && !strcmp(av[1],"-o")) {
-      ac -= 1 ;
-      av += 1 ;
+    if(ac >= 3 && !strcmp(av[1],"-Lref")) {
+      Lref = av[2] ;
+      ac -= 2 ;
+      av += 2 ;
+    } else if(ac >= 2 && !strcmp(av[1],"-v")) {
+      cout << "Loci version: " << Loci::version() << endl ;
+      if(ac == 2) {
+        Loci::Finalize() ;
+        exit(0) ;
+      }
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-o")) {
       optimize = false ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-in")) {
+      Lref = "1 inch" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-ft")) {
+      Lref = "1 foot" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-cm")) {
+      Lref = "1 centimeter" ;
+      ac-- ;
+      av++ ;
+    } else {
+      cerr << "argument " << av[1] << " is not understood." << endl ;
+      ac-- ;
+      av++ ;
     }
   }
 
+
   if(ac != 2) {
-    cerr << "xdr2vog takes one argument (the casename)" << endl ;
-    Loci::Abort() ;
+    cerr << "Usage: xdr2vog <options> <file>" << endl
+         << "Where options are listed below and <file> is the filename sans postfix" << endl
+         << "flags:" << endl
+         << "  -o  : disable optimization that reorders nodes and faces" << endl
+         << "  -v  : display version" << endl
+         << "  -in : input grid is in inches" << endl
+         << "  -ft : input grid is in feet" << endl
+         << "  -cm : input grid is in centimeters" << endl
+         << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
+         << endl ;
+      exit(-1) ;
   }
+
+  if(Lref == "")
+    Lref = "1 meter" ;
+  
+  if(!isdigit(Lref[0])) {
+    Lref = string("1") + Lref ;
+  }
+
+  Loci::UNIT_type tp ;
+  istringstream iss(Lref) ;
+  iss >> tp ;
+  double posScale = tp.get_value_in("meter") ;
+  
+  cout << "input grid file units = " << tp ;
+  if(posScale != 1.0) 
+    cout << " = " << posScale << " meters " ;
+  cout << endl ;
+
   string filename = av[1] ;
   filename += ".xdr" ;
 
@@ -1087,6 +1146,11 @@ int main(int ac, char *av[]) {
 
   }
 
+  if(posScale != 1.0) {
+    FORALL(pos.domain(),nd) {
+      pos[nd] *= posScale ;
+    } ENDFORALL ;
+  }
 
   // establish face left-right orientation
   if(MPI_rank == 0) 

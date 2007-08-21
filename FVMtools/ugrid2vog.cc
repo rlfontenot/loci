@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <algorithm>
 #include <string>
@@ -14,7 +15,7 @@ using std::cerr ;
 using std::ios ;
 using std::string ;
 using std::vector ;
-
+using std::istringstream ;
 using Loci::Array ;
 using Loci::MPI_rank ;
 using Loci::MPI_processes ;
@@ -876,24 +877,85 @@ int main(int ac, char* av[]) {
   const char *filename ;
   std::string tmp_str ;
   bool binary = 0;
-  if(ac == 3) {
-    tmp_str.append(av[2]) ;
-    if(!strcmp(av[1],"-b"))
+  string Lref = "1 meter" ;
+  while(ac>=2 && av[1][0] == '-') {
+    // If user specifies an alternate query, extract it from the
+    // command line.
+    if(ac >= 3 && !strcmp(av[1],"-Lref")) {
+      Lref = av[2] ;
+      ac -= 2 ;
+      av += 2 ;
+    } else if(ac >= 2 && !strcmp(av[1],"-v")) {
+      cout << "Loci version: " << Loci::version() << endl ;
+      if(ac == 2) {
+        Loci::Finalize() ;
+        exit(0) ;
+      }
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-b")) {
       binary = 1 ;
-    else if(!strcmp(av[1],"-o"))
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-o")) {
       optimize = false ;
-    else {
-      cerr << "options: -b for binary file format, -o to disable output optimization" << endl ;
-      exit(-1) ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-in")) {
+      Lref = "1 inch" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-ft")) {
+      Lref = "1 foot" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-cm")) {
+      Lref = "1 centimeter" ;
+      ac-- ;
+      av++ ;
+    } else {
+      cerr << "argument " << av[1] << " is not understood." << endl ;
+      ac-- ;
+      av++ ;
     }
-  } else if(ac == 2) {
-      tmp_str.append(av[1]) ;
+  }
+
+
+  if(ac == 2) {
+    tmp_str.append(av[1]) ;
   } else {
-    cerr << "ugrid2vog requires one argument" << endl
-         << " (the -b flag may be specified for binary files)" << endl;
+    cerr << "Usage: ugrid2vog <options> <file>" << endl
+         << "Where options are listed below and <file> is the filename sans postfix" << endl
+         << "flags:" << endl
+         << "  -b  : assume input file is binary" << endl
+         << "  -o  : disable optimization that reorders nodes and faces" << endl
+         << "  -v  : display version" << endl
+         << "  -in : input grid is in inches" << endl
+         << "  -ft : input grid is in feet" << endl
+         << "  -cm : input grid is in centimeters" << endl
+         << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
+         << endl ;
       exit(-1) ;
   }
 
+  if(Lref == "")
+    Lref = "1 meter" ;
+  
+  if(!isdigit(Lref[0])) {
+    Lref = string("1") + Lref ;
+  }
+
+  Loci::UNIT_type tp ;
+  istringstream iss(Lref) ;
+  iss >> tp ;
+  double posScale = tp.get_value_in("meter") ;
+  
+  cout << "input grid file units = " << tp ;
+  if(posScale != 1.0) 
+    cout << " = " << posScale << " meters " ;
+  cout << endl ;
+  
+  // Check machines internal byte order
   check_order() ;
 
   int loc = 0;
@@ -927,6 +989,12 @@ int main(int ac, char* av[]) {
 
   readUGRID(infile, binary, pos,qfaces,tfaces,tets,pyramids,prisms,hexs) ;
 
+  if(posScale != 1.0) {
+    FORALL(pos.domain(),nd) {
+      pos[nd] *= posScale ;
+    } ENDFORALL ;
+  }
+  
   vector<BC_descriptor> bcs ;
   vector<int> transsurf ;
 
