@@ -1049,12 +1049,13 @@ namespace Loci {
 
       string bname = boundary_names[bc] ;
       string tname = boundary_tags[bc] ;
-      //      cout << "boundary_name =" << bname << endl ;
+
       constraint bconstraint ;
       *bconstraint = bfaces ;
 
       facts.create_fact(tname,bconstraint) ;
-      debugout << "boundary " << bname << " = " << *bconstraint << endl ;
+      debugout << "boundary " << bname << "("<< tname << ") = "
+               << *bconstraint << endl ;
       
       option_value_type vt =
         bc_info->getOptionValueType(bname);
