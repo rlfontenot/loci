@@ -1695,7 +1695,7 @@ namespace Loci {
     facts.create_fact("pos", pos) ;
     facts.create_fact("face2node",face2node) ;
     facts.create_fact("boundary_names", boundary_names) ;
-    facts.create_fact("boundary_tags", boundary_names) ;
+    facts.create_fact("boundary_tags", boundary_tags) ;
 
     double t2 = MPI_Wtime() ;
     debugout << "Time to read in file '" << filename << ", is " << t2-t1
