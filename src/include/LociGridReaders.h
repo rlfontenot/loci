@@ -109,6 +109,8 @@ namespace Loci {
 
   bool readFVMGrid(fact_db &facts, std::string filename) ;
   bool setupFVMGrid(fact_db &facts, std::string filename) ;
+  bool readBCfromVOG(std::string filename,
+                     std::vector<std::pair<int,std::string> > &boundary_ids) ;
   void setupBoundaryConditions(fact_db &facts) ;
   void createLowerUpper(fact_db &facts) ;
   void createEdgesPar(fact_db& facts) ;
