@@ -115,102 +115,10 @@ namespace Loci {
   void createLowerUpper(fact_db &facts) ;
   void createEdgesPar(fact_db& facts) ;
 
-  class octree {
-    std::vector<Loci::vector3d<double> > vlist ;
-    std::vector<Loci::Array<int,8> > otree ;
-    double xmin,ymin,zmin,xmax,ymax,zmax ;
-    void insert_tree(int node, int i,
-                     double xl, double xh,
-                     double yl, double yh,
-                     double zl, double zh) ;
-    void find_path(std::vector<unsigned char> &v,
-                   int node, Loci::vector3d<double> &pt,
-                   double xl, double xh,
-                   double yl, double yh,
-                   double zl, double zh) ;
-    void find_neighbors(std::vector<int> &nl,
-                        const std::vector<unsigned char> &v) ;
-    void collect_points(std::vector<int> &v,int node) ;
-    int get_node_from_path(const std::vector<unsigned char> &v) {
-      int node = 0 ;
-      for(unsigned int i=0;i<v.size();++i) {
-        node = otree[node][v[i]] ;
-        if(node <= 0) {
-          break ;
-        }
-      }
-      return node ;
-    }
-    
-    bool inc_path(std::vector<unsigned char> &v, int dim) {
-      int bit = 1<<dim ;
-      int carry = bit ;
-      for(int i=v.size()-1;i>=0;--i) {
-        int nc = carry & v[i] ;
-        v[i] = carry ^ v[i] ;
-        carry = nc ;
-      }
-      return carry != 0 ;
-    }
-    bool dec_path(std::vector<unsigned char> &v, int dim) {
-      int bit = 1<<dim ;
-      int carry = bit ;
-      for(int i=v.size()-1;i>=0;--i) {
-        int nc = carry & ~v[i] ;
-        v[i] = carry ^ v[i] ;
-        carry = nc ;
-      }
-      return carry != 0 ;
-    }
-  public:
-    octree(const std::vector<Loci::vector3d<double> > &input,
-           Loci::vector3d<double> bmin,
-           Loci::vector3d<double> bmax) : vlist(input) {
-      xmin = min(bmin.x,bmax.x) ;
-      xmax = max(bmin.x,bmax.x) ;
-      ymin = min(bmin.y,bmax.y) ;
-      ymax = max(bmin.y,bmax.y) ;
-      zmin = min(bmin.z,bmax.z) ;
-      zmax = max(bmin.z,bmax.z) ;
-      for(unsigned int i=0;i<vlist.size();++i) {
-        xmin = min(vlist[i].x,xmin) ;
-        xmax = max(vlist[i].x,xmax) ;
-        ymin = min(vlist[i].y,ymin) ;
-        ymax = max(vlist[i].y,ymax) ;
-        zmin = min(vlist[i].z,zmin) ;
-        zmax = max(vlist[i].z,zmax) ;
-      }
-      xmin = min(xmin,min(ymin,zmin)) ;
-      ymin = xmin;
-      zmin = xmin ;
-      xmax = max(xmax,max(ymax,zmax)) ;
-      ymax = xmax ;
-      zmax = xmax ;
-      otree.push_back(Loci::Array<int,8>()) ;
-      for(unsigned int i=0;i<8;++i)
-        otree[0][i] = 0 ;
-      for(unsigned int i=0;i<vlist.size();++i) {
-        insert_tree(0,i,xmin,xmax,ymin,ymax,zmin,zmax) ;
-      }
-    }
-    void find_close_points(std::vector<int> &points,
-                           Loci::vector3d<double> pt) {
-      Loci::vector3d<double> pti = pt ;
-      pti.x = min(pti.x,xmax) ;
-      pti.x = max(pti.x,xmin) ;
-      pti.y = min(pti.y,ymax) ;
-      pti.y = max(pti.y,ymin) ;
-      pti.z = min(pti.z,zmax) ;
-      pti.z = max(pti.z,zmin) ;
-      std::vector<unsigned char> path ;
-      find_path(path,0,pti,xmin,xmax,ymin,ymax,zmin,zmax) ;
-      find_neighbors(points,path) ;
-    }
-    void print_path(Loci::vector3d<double> &pt) ;
-        
 
-  } ;
-  
+  extern void writeVOG(std::string filename,store<vector3d<double> > &pos,
+                       Map &cl, Map &cr, multiMap &face2node,
+                       std::vector<std::pair<int,std::string> > surfaceids) ;
 }
 
 #endif

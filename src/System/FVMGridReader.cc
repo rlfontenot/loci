@@ -571,8 +571,6 @@ namespace Loci {
   bool readBCfromVOG(string filename,
                  vector<pair<int,string> > &boundary_ids) {
     hid_t file_id = 0 ;
-    hid_t dataset = 0 ;
-    hid_t dspace = 0 ;
     int failure = 0 ; // No failure
     /* Save old error handler */
     herr_t (*old_func)(void*) = 0;

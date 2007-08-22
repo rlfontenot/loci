@@ -1073,7 +1073,7 @@ int main(int ac, char* av[]) {
 
   if(MPI_rank == 0)
     cerr << "writing VOG file" << endl ;
-  VOG::writeVOG(outfile, pos, cl, cr, face2node,surf_ids) ;
+  Loci::writeVOG(outfile, pos, cl, cr, face2node,surf_ids) ;
 
   Loci::Finalize() ;
 }

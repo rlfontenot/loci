@@ -1177,7 +1177,7 @@ int main(int ac, char *av[]) {
     bcs = readTags(tagsfile) ;
     if(bcs.size() != 0) {
       cout << "boundary faces:"<< endl ;
-      for(int i=0;i<bcs.size();++i)
+      for(size_t i=0;i<bcs.size();++i)
         cout << bcs[i].name << ' ' << bcs[i].id << endl ;
     }
   }
@@ -1186,7 +1186,7 @@ int main(int ac, char *av[]) {
   for(size_t i=0;i<bcs.size();++i)
     surf_ids.push_back(pair<int,string>(bcs[i].id,bcs[i].name)) ;
   
-  VOG::writeVOG(outfile, pos, cl, cr, face2node,surf_ids) ;
+  Loci::writeVOG(outfile, pos, cl, cr, face2node,surf_ids) ;
 
   Loci::Finalize() ;
   return 0 ;

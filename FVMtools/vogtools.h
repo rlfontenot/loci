@@ -104,9 +104,6 @@ namespace VOG {
                           Map &cl, Map &cr, multiMap &face2node) ;
   extern void colorMatrix(store<vector3d<double> > &pos,
                           Map &cl, Map &cr, multiMap &face2node) ;
-  extern void writeVOG(std::string filename,store<vector3d<double> > &pos,
-                       Map &cl, Map &cr, multiMap &face2node,
-                       std::vector<std::pair<int,std::string> > surfaceids) ;
   extern vector<int> simplePartitionVec(int mn, int mx, int p) ;
 
 }
