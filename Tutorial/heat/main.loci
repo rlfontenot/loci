@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     facts.read_vars(varsFile,rdb) ;
     
     // Read in the XDR file
-    string gridFile = casename + ".xdr" ;
+    string gridFile = casename + ".vog" ;
     if(!Loci::setupFVMGrid(facts,gridFile)) {
       cerr << "unable to read grid file '" << gridFile << "'" << endl ;
       Loci::Abort() ;

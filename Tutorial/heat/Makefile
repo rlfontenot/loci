@@ -1,5 +1,5 @@
 # This is the Loci base directory.
-LOCI_BASE = /usr/tmp/pa121/Loci
+LOCI_BASE = /usr/tmp/lush/Loci
 # List your object files here
 OBJS  =  main.o residual.o matrix.o euler.o varFileInputs.o plot.o 
 # List the name of your compiled program here
@@ -25,7 +25,7 @@ JUNK = $(wildcard *~) $(wildcard crash_dump.*)  core debug output $(wildcard .sc
 # ".cc" files created from .loci files
 LOCI_INTERMEDIATE_FILES = $(subst .loci,.cc, $(wildcard *.loci) )
 
-allclean:
+distclean:
 	rm -fr $(OBJS) $(TARGET) $(JUNK) $(LOCI_INTERMEDIATE_FILES) $(DEPEND_FILES) 
 
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
