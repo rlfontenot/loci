@@ -770,7 +770,6 @@ namespace Loci {
   exprP UNIT_type::input(istream &in){
     exprP exp;
     
-    cout<<"input the expression"<<endl;
     if(check_unit(in, value)){
       in>>input_unit;
       exp=expression::create(input_unit);
