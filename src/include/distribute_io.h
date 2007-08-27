@@ -204,7 +204,104 @@ namespace Loci {
                                 localCells, *Loci::exec_current_fact_db) ;
   }
   
-                             
+
+
+    // Utility routine for sample sort
+  template <class T,class Cmp> void parGetSplitters(std::vector<T> &splitters,
+                                                    const std::vector<T> &input,
+                                                    Cmp cmp,
+                                                    MPI_Comm comm) {
+    int p = 0 ;
+    MPI_Comm_size(comm,&p) ;
+
+    splitters = std::vector<T>(p-1) ;
+    std::vector<T> allsplits(p*(p-1)) ;
+
+    int nlocal = input.size() ;
+    if(nlocal < p) {
+      std::cerr << "sample sort needs at least p elements per processor"
+                << std::endl ;
+    }
+    for(int i=1;i<p;++i) 
+      splitters[i-1] = input[(i*nlocal)/p] ;
+
+    int tsz = sizeof(T) ;
+    MPI_Allgather(&splitters[0],(p-1)*tsz,MPI_BYTE,
+                  &allsplits[0],(p-1)*tsz,MPI_BYTE,comm) ;
+    
+    sort(allsplits.begin(),allsplits.end(),cmp) ;
+    for(int i=1;i<p;++i)
+      splitters[i-1] = allsplits[i*(p-1)] ;
+    //    splitters[p-1] = std::numeric_limits<T>::max() ;
+    return ;
+  }
+
+
+  template <class T, class Cmp>
+  void parSplitSort(std::vector<T> &list, std::vector<T> &splitters,
+                    Cmp cmp, MPI_Comm comm) {
+    int p = 0 ;
+    MPI_Comm_size(comm,&p) ;
+    if(p == 1) // if serial run, we are finished
+      return ;
+
+    int s=0 ;
+    std::vector<int> scounts(p,0) ;
+    for(size_t i=0;i<list.size();++i)
+      if(s == p-1 || cmp(list[i] , splitters[s]) ) 
+        scounts[s]++ ;
+      else {
+        while((s!=p-1) && !cmp(list[i],splitters[s]))
+          ++s ;
+        scounts[s]++ ;
+      }
+
+    for(size_t i=0;i<scounts.size();++i) 
+      scounts[i]*=sizeof(T) ;
+
+    std::vector<int> sdispls(p) ;
+    sdispls[0] = 0 ;
+    for(int i=1;i<p;++i)
+      sdispls[i] = sdispls[i-1]+scounts[i-1] ;
+
+    std::vector<int> rcounts(p) ;
+    MPI_Alltoall(&scounts[0],1,MPI_INT,&rcounts[0],1,MPI_INT,comm) ;
+
+    std::vector<int> rdispls(p) ;
+    rdispls[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      rdispls[i] = rdispls[i-1]+rcounts[i-1] ;
+    }
+  
+    int result_size = (rdispls[p-1]+rcounts[p-1])/sizeof(T) ;
+
+    std::vector<T> sorted_pnts(result_size) ;
+
+    MPI_Alltoallv(&list[0],&scounts[0],&sdispls[0],MPI_BYTE,
+                  &sorted_pnts[0],&rcounts[0],&rdispls[0],MPI_BYTE,
+                  comm) ;
+
+    list.swap(sorted_pnts) ;
+    sort(list.begin(),list.end()) ;
+    return ;
+  }
+
+  template <class T, class Cmp>
+  void parSampleSort(std::vector<T> &list, Cmp cmp, MPI_Comm comm) {
+    // First sort list locally
+    sort(list.begin(),list.end(),cmp) ;
+
+    int p = 0 ;
+    MPI_Comm_size(comm,&p) ;
+    if(p == 1) // if serial run, we are finished
+      return ;
+
+    std::vector<T> splitters ;
+    parGetSplitters(splitters,list,cmp,comm) ;
+
+    parSplitSort(list,splitters,cmp,comm) ;
+  }
+
 }
 
 #endif
