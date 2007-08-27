@@ -1,4 +1,5 @@
 #include <Loci.h>
+$include "FVM.lh"
 
 using std::cerr ;
 using std::endl ;
@@ -7,20 +8,11 @@ namespace Loci {
   typedef vector3d<real_t> vect3d ;
   typedef tensor3d<real_t> tens3d ;
   typedef real_t real ;
-  
-  class default_Kl: public default_rule {
-    param<double> Kl ;
-  public:
-    default_Kl() {
-      name_store("Kl",Kl) ;
-      output("Kl") ;
-      comments("This parameter is a smoothness parameter for the venkatakrishnan limiter.  A value of zero will not allow overshoots, while a larger value may allow some overshoots to ensure accuracy in locally smooth regions.  The typical values for this parameter range from .1 to 100") ;
-    }
-    virtual void compute(const sequence& seq) {
-      *Kl = 1.0 ;
-    }
-  } ;
-  register_rule<default_Kl> register_default_Kl ;
+
+  $type Kl param<real> ;
+  $rule default(Kl),comments("This parameter is a smoothness parameter for the venkatakrishnan limiter.  A value of zero will not allow overshoots, while a larger value may allow some overshoots to ensure accuracy in locally smooth regions.  The typical values for this parameter range from .1 to 100") {
+    $Kl = 1.0 ;
+  }
 
   class default_limiter: public default_rule {
     param<std::string> limiter ;
