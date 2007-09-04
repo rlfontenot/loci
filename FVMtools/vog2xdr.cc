@@ -163,7 +163,7 @@ namespace VOG {
   }    
       
   int fillFaceInfo(unsigned char *cluster, multiMap &face2node,
-                   Map &cl, Map &cr, int face_base) {
+                   Loci::Map &cl, Loci::Map &cr, int face_base) {
     int num_faces = 0 ;
     while(*cluster != 0) {
       int npnts = *cluster ;
@@ -243,7 +243,7 @@ int main(int ac, char *av[]) {
   }
   multiMap face2node ;
   face2node.allocate(counts) ;
-  Map cl,cr ;
+  Loci::Map cl,cr ;
   cl.allocate(faces) ;
   cr.allocate(faces) ;
   int face_base = 0 ;
