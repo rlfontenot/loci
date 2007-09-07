@@ -960,4 +960,75 @@ namespace Loci {
 
   register_rule<get_vlimiter3d> register_vlimiter3d ;
 
+    class periodic_limiters : public pointwise_rule {
+    store<real_t> limiters ;
+    const_Map pmap,cl,cr ;
+  public:
+    periodic_limiters() {
+      name_store("limiters(X)",limiters) ;
+      name_store("pmap",pmap) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      input("pmap->cl->limiters(X)") ;
+      output("cr->limiters(X)") ;
+      constraint("periodicFaces,cl->X") ;
+    }
+    void calculate(Entity pf) {
+      limiters[cr[pf]] = limiters[cl[pmap[pf]]] ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<periodic_limiters> periodic_limiters ;
+
+  class periodic_limiterv : public pointwise_rule {
+    storeVec<real_t > limiterv ;
+    const_Map pmap,cl,cr ;
+  public:
+    periodic_limiterv() {
+      name_store("limiterv(X)",limiterv) ;
+      name_store("pmap",pmap) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      input("pmap->cl->limiterv(X)") ;
+      output("cr->limiterv(X)") ;
+      constraint("periodicFaces,cl->X") ;
+    }
+    void calculate(Entity pf) {
+      for(int i=0;i<limiterv.vecSize();++i)
+        limiterv[cr[pf]][i] = limiterv[cl[pmap[pf]]][i] ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+
+  register_rule<periodic_limiterv> periodic_limiterv ;
+
+  class periodic_limiterv3d : public pointwise_rule {
+    store<vector3d<real_t> > limiterv3d ;
+    const_Map pmap,cl,cr ;
+  public:
+    periodic_limiterv3d() {
+      name_store("limiterv3d(X)",limiterv3d) ;
+      name_store("pmap",pmap) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      input("pmap->cl->limiterv3d(X)") ;
+      output("cr->limiterv3d(X)") ;
+      constraint("periodicFaces,cl->X") ;
+    }
+    void calculate(Entity pf) {
+      limiterv3d[cr[pf]] = limiterv3d[cl[pmap[pf]]] ;
+    }
+    void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<periodic_limiterv3d> periodic_limiterv3d ;
+
 }
