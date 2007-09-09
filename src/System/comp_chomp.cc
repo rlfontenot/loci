@@ -24,6 +24,7 @@ using std::set;
 #endif
 
 namespace Loci {
+  extern int current_rule_id ;
   extern int chomping_size ;
   extern bool profile_memory_usage ;
 
@@ -48,7 +49,7 @@ namespace Loci {
   class execute_chomp: public execute_modules {
     entitySet total_domain ;
     vector<pair<rule,rule_compilerP> > chomp_comp ;
-    vector<rule_implP> chomp_compP ;
+    vector<pair<int,rule_implP> > chomp_compP ;
     deque<entitySet> rule_seq ;
     variableSet chomp_vars ;
     vector<vector<entitySet> > seq_table ;
@@ -70,11 +71,13 @@ namespace Loci {
 
       for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
           vi!=comp.end();++vi)
-        chomp_compP.push_back((vi->first).get_rule_implP()) ;
+        chomp_compP.push_back(pair<int,rule_implP>
+                              ((vi->first).ident(),
+                               (vi->first).get_rule_implP())) ;
 
-      for(vector<rule_implP>::iterator vi=chomp_compP.begin();
+      for(vector<pair<int,rule_implP> >::iterator vi=chomp_compP.begin();
           vi!=chomp_compP.end();++vi)
-        (*vi)->initialize(facts) ;
+        vi->second->initialize(facts) ;
 
       for(variableSet::const_iterator vi=chomp_vars.begin();
           vi!=chomp_vars.end();++vi) {
@@ -135,9 +138,9 @@ namespace Loci {
   void execute_chomp::execute(fact_db& facts) {
     if(total_domain == EMPTY) {
       // call the compute() method at least once
-      vector<rule_implP>::iterator vri ;
+      vector<pair<int,rule_implP> >::iterator vri ;
       for(vri=chomp_compP.begin();vri!=chomp_compP.end();++vri) {
-        (*vri)->compute(sequence(EMPTY)) ;
+        vri->second->compute(sequence(EMPTY)) ;
       }
       return ;
     }
@@ -169,10 +172,11 @@ namespace Loci {
     int count = 0 ;
     for(vvi=seq_table.begin();vvi!=seq_table.end();++vvi,++count) {
       vector<entitySet>::const_iterator vei ;
-      vector<rule_implP>::iterator vri ;
+      vector<pair<int, rule_implP> >::iterator vri ;
       for(vri=chomp_compP.begin(),vei=vvi->begin();
           vri!=chomp_compP.end();++vri,++vei) {
-        (*vri)->compute(sequence(*vei)) ;
+        current_rule_id = vri->first ;
+        vri->second->compute(sequence(*vei)) ;
       }
       // we shift the alloc domain for each chomp_vars_repS
       // first get the offset
