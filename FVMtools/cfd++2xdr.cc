@@ -438,9 +438,6 @@ int main(int ac, char* av[]) {
 
   cout << "writing face information..." << endl ;
   
-  size_t btf = 0 ;
-  size_t bqf = 0 ;
-  
   int off = 0 ;
 
   int num_tri = tflist.size()/2 ;
