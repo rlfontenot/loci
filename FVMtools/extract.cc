@@ -404,7 +404,7 @@ void extract_grid(string casename, string iteration,
 
   Array<int,7> events ;
   topo->fileWritingSequence(events) ;
-  fatal(MPI_processes != 1) ;
+  FATAL(Loci::MPI_processes != 1) ;
   store<vector3d<float> > pos ;
   string posname = "output/grid_pos." + iteration + "_" + casename ;
   hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
