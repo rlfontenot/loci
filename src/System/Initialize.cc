@@ -133,7 +133,7 @@ namespace Loci {
       current_rule_id = 0 ;
       cerr << "crash occured in rule " << r << endl ;
 
-      if(exec_current_fact_db != 0) {
+      if(verbose && exec_current_fact_db != 0) {
         char buf[512] ;
         sprintf(buf,"crash_dump.%d",MPI_rank) ;
         ofstream cfile(buf,ios::out) ;
