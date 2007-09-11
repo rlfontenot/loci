@@ -233,7 +233,7 @@ namespace Loci {
     vector<digraph::vertexSet>::const_iterator ci ;
    
 
-    // Here we check all of the components (larger than on vertex).  We
+    // Here we check all of the components (larger than one vertex).  We
     // eliminate the reduction rules (which can't be part of a recursive block)
     for(ci=recurse_components.begin();ci!=recurse_components.end();++ci)
       if(ci->size() > 1) {
@@ -275,21 +275,82 @@ namespace Loci {
     // Add these edges so that the collapse rules will be
     // included in the loop component.
     sg.gr.add_edges(collapse,*(looping.begin())) ;
-    
+
     vector<digraph::vertexSet> components =
       component_sort(sg.gr).get_components() ;
 
+    // Identify components, Also identify candidates that
+    // may be added to components if needed.
+    digraph::vertexSet candidates ;
+    vector<digraph::vertexSet> comp ;
     for(ci=components.begin();ci!=components.end();++ci)
-      if(ci->size() > 1) {
-        if((*ci & looping) != EMPTY) {
-          digraph::vertexSet component_parts = *ci ;
-          //          cleanup_component(sg.gr,component_parts) ;
-          int newnode = mlg.mksnode(supernode,component_parts) ; 
-          new_nodes += newnode ;
-          loops += newnode ;
-          break ;
-        }
+      if(ci->size() > 1)
+        comp.push_back(*ci) ;
+      else {
+        int id = *(*ci).begin() ;
+        if(id<0) {
+          rule r(id) ;
+          if(r.type() == rule::INTERNAL) {
+            if(r.get_info().qualifier() != "generalize" &&
+               r.get_info().qualifier() != "promote")
+              candidates += *ci ;
+          } else
+            candidates += *ci ;
+        } else
+          candidates += *ci ;
       }
+
+    // Include any candidates that are uniquely referenced by a component
+    // into the component.
+    digraph grt = sg.gr.transpose() ;
+    for(size_t i=0;i<comp.size();++i) {
+      digraph::vertexSet cs = comp[i] ;
+      digraph::vertexSet imageSet ;
+      digraph::vertexSet::const_iterator vi ;
+      for(vi=cs.begin();vi!=cs.end();++vi) 
+        imageSet += grt[*vi] ;
+      // imageSet is the set of all rules/variables that have inputs
+      // to this component
+      imageSet -= cs ;
+      imageSet &= candidates ;
+
+      digraph::vertexSet found ;
+      do {
+        // Search through the imageSet for components are exclusively used
+        // by this component.
+        found = EMPTY ;
+        for(vi=imageSet.begin();vi!=imageSet.end();++vi) {
+          digraph::vertexSet touch = sg.gr[*vi] ;
+          if((touch & cs)==touch) // vertex only accessing component, include
+            found += *vi ;
+        }
+        cs += found ; // Add found vertices to component
+        for(vi=found.begin();vi!=found.end();++vi) 
+          imageSet += grt[*vi] ;
+        imageSet -= cs ;
+        imageSet -= found ;
+        imageSet &= candidates ;
+        // Repeat until no new vertices are found
+      } while(found != EMPTY) ;
+
+      // Add these vertices of exclusive reference to the component
+      // and remove them from the list of candidates
+      cs -= comp[i] ;
+      candidates -= cs ;
+      comp[i] += cs ;
+    }
+
+    // Now make subgraphs for these looping components
+    for(ci=comp.begin();ci!=comp.end();++ci)
+      if((*ci & looping) != EMPTY) {
+        digraph::vertexSet component_parts = *ci ;
+        //          cleanup_component(sg.gr,component_parts) ;
+        int newnode = mlg.mksnode(supernode,component_parts) ; 
+        new_nodes += newnode ;
+        loops += newnode ;
+        break ;
+      }
+
     return new_nodes ;
   }
 
