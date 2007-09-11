@@ -333,6 +333,18 @@ namespace Loci {
         // Repeat until no new vertices are found
       } while(found != EMPTY) ;
 
+
+      // remove any variables in the set that access verticies outside
+      // of the new candidate component
+      variableSet vars = extract_vars(cs) ;
+      digraph::vertexSet except ;
+      for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+        digraph::vertexSet s = grt[vi->ident()] ;
+        if(!((s & cs) == s))
+          except += vi->ident() ;
+      }
+      cs -= except ;
+
       // Add these vertices of exclusive reference to the component
       // and remove them from the list of candidates
       cs -= comp[i] ;
