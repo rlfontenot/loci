@@ -217,6 +217,17 @@ namespace Loci {
 	}
 	H5Sclose(dataspace) ;
       }
+      //add else part by Qiuhan to avoid MPI communication get stuck
+      else{
+	for(int i = 1; i < MPI_processes; ++i) {
+	  MPI_Status status ;
+	  int recv_total_size ;
+          int flag = 1 ;
+          MPI_Send(&flag, 1, MPI_INT, i, 10, MPI_COMM_WORLD) ;
+	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, MPI_COMM_WORLD, &status) ;
+	  MPI_Recv(tmp_send_buf, recv_total_size, MPI_PACKED, i, 12, MPI_COMM_WORLD, &status) ;
+        }
+      }
     }
     delete [] tmp_send_buf ;
 
