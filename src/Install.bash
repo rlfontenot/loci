@@ -59,7 +59,7 @@ cp Tutorial/1D-Diffusion/*.vars $INSTALL_PATH/docs/1D-Diffusion
 cp Tutorial/heat/Makefile $INSTALL_PATH/docs/heat
 cp Tutorial/heat/*.loci $INSTALL_PATH/docs/heat
 cp Tutorial/heat/*.lh $INSTALL_PATH/docs/heat
-cp Tutorial/heat/*.xdr $INSTALL_PATH/docs/heat
+cp Tutorial/heat/*.vog $INSTALL_PATH/docs/heat
 cp Tutorial/heat/*.vars $INSTALL_PATH/docs/heat
 
 cp Tutorial/Datatypes/Makefile $INSTALL_PATH/docs/Datatypes
