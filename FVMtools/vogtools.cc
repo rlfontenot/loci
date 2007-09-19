@@ -814,7 +814,7 @@ namespace VOG {
       keyList[cnt++].key_id = cc ;
     } ENDFORALL ;
 
-   parSampleSort(keyList,MPI_COMM_WORLD) ;
+    Loci::parSampleSort(keyList,MPI_COMM_WORLD) ;
 
     vector<int> keysizes(MPI_processes) ;
     size = keyList.size() ;
@@ -859,7 +859,6 @@ namespace VOG {
 
     vector<int> scounts(p,0) ;
     for(size_t i=0;i<send_sets.size();++i) {
-      debugout << send_sets[i] << endl ;
       int nod_tot = 0 ;
       FORALL(send_sets[i],fc) {
         nod_tot += face2node[fc].size() ;
@@ -876,7 +875,6 @@ namespace VOG {
     // Fill in send buffers
     for(size_t i=0;i<send_sets.size();++i) {
       int k = sdispls[i] ;
-      debugout << "send_size = "<< send_sets.size() << endl ;
       sbuffer[k++] = send_sets[i].size() ;
       FORALL(send_sets[i],fc) {
         sbuffer[k++] = cl[fc] ;
@@ -1016,7 +1014,7 @@ namespace VOG {
       cnt++ ;
     } ENDFORALL ;
 
-    parSampleSort(node_data,MPI_COMM_WORLD) ;
+    Loci::parSampleSort(node_data,MPI_COMM_WORLD) ;
 
     size = node_data.size() ;
     MPI_Allgather(&size,1,MPI_INT,&keysizes[0],1,MPI_INT,MPI_COMM_WORLD) ;

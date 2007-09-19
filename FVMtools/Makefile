@@ -1,7 +1,7 @@
 include $(LOCI_BASE)/Loci.conf
 
 COPT = $(COPTLESS)
-#COPT = -g -O0 
+#COPT = -g -O0 -DDEBUG -DBOUNDS_CHECK
 
 # List the name of your compiled program here
 TARGET = extract
