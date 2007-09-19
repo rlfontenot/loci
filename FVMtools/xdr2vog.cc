@@ -1115,11 +1115,13 @@ int main(int ac, char *av[]) {
   istringstream iss(Lref) ;
   iss >> tp ;
   double posScale = tp.get_value_in("meter") ;
-  
-  cout << "input grid file units = " << tp ;
-  if(posScale != 1.0) 
-    cout << " = " << posScale << " meters " ;
-  cout << endl ;
+
+  if(Loci::MPI_rank == 0) {
+    cout << "input grid file units = " << tp ;
+    if(posScale != 1.0) 
+      cout << " = " << posScale << " meters " ;
+    cout << endl ;
+  }
 
   string filename = av[1] ;
   filename += ".xdr" ;
