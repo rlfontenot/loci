@@ -5,6 +5,7 @@
 #endif
 #include <Config/conf.h>
 
+#include <Tools/debug.h>
 #include <mpi.h>
 
 #include <vector>
@@ -248,8 +249,8 @@ namespace Loci {
     int i2 = rdist[r+1]-1 ;
     for(int i=0;i<p;++i) {
       if(sdist[i]<=i2 && sdist[i+1]-1>=i1) { // intersection
-        int li = max(i1,sdist[i]) ;
-        int ri = min(i2,sdist[i+1]-1) ;
+        int li = std::max(i1,sdist[i]) ;
+        int ri = std::min(i2,sdist[i+1]-1) ;
         int len = ri-li+1 ;
         FATAL(len <= 0) ;
         int s2 = li-rdist[r] ;
@@ -270,8 +271,8 @@ namespace Loci {
     i2 = sdist[r+1]-1 ;
     for(int i=0;i<p;++i) {
       if(i != r && rdist[i]<=i2 && rdist[i+1]-1>=i1) { // intersection
-        int li = max(i1,rdist[i]) ;
-        int ri = min(i2,rdist[i+1]-1) ;
+        int li = std::max(i1,rdist[i]) ;
+        int ri = std::min(i2,rdist[i+1]-1) ;
         int len = ri-li+1 ;
         int s1 = li-sdist[r] ;
         FATAL(s1 < 0) ;
