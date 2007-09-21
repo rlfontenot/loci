@@ -551,7 +551,7 @@ struct triaFace {
   int cell ;
 } ;
 
-inline bool operator<(const quadFace &f1, const quadFace &f2) {
+inline bool quadCompare(const quadFace &f1, const quadFace &f2) {
   return ((f1.nodes[0] < f2.nodes[0]) ||
           (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] < f2.nodes[1]) ||
           (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
@@ -560,7 +560,7 @@ inline bool operator<(const quadFace &f1, const quadFace &f2) {
            f1.nodes[2] == f2.nodes[2] && f1.nodes[3] < f2.nodes[3])) ;
 }
 
-inline bool operator<(const triaFace &f1, const triaFace &f2) {
+inline bool triaCompare(const triaFace &f1, const triaFace &f2) {
   return ((f1.nodes[0] < f2.nodes[0]) ||
           (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] < f2.nodes[1]) ||
           (f1.nodes[0] == f2.nodes[0] && f1.nodes[1] == f2.nodes[1] &&
@@ -792,14 +792,14 @@ void convert2face(store<vector3d<double> > &pos,
   int mtsz ;
   MPI_Allreduce(&tsz,&mtsz,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
   if(mtsz != 0) {
-    VOG::parSampleSort(tria,MPI_COMM_WORLD) ;
+    Loci::parSampleSort(tria,triaCompare,MPI_COMM_WORLD) ;
   }
 
   int qsz = quad.size() ;
   int mqsz ;
   MPI_Allreduce(&qsz,&mqsz,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
   if(mqsz != 0) {
-    VOG::parSampleSort(quad,MPI_COMM_WORLD) ;
+    Loci::parSampleSort(quad,quadCompare,MPI_COMM_WORLD) ;
   }
   if((tria.size() & 1) == 1) {
     cerr << "non-even number of triangle faces! inconsistent!" << endl ;
@@ -949,11 +949,13 @@ int main(int ac, char* av[]) {
   istringstream iss(Lref) ;
   iss >> tp ;
   double posScale = tp.get_value_in("meter") ;
-  
-  cout << "input grid file units = " << tp ;
-  if(posScale != 1.0) 
-    cout << " = " << posScale << " meters " ;
-  cout << endl ;
+
+  if(Loci::MPI_rank == 0) {
+    cout << "input grid file units = " << tp ;
+    if(posScale != 1.0) 
+      cout << " = " << posScale << " meters " ;
+    cout << endl ;
+  }
   
   // Check machines internal byte order
   check_order() ;
