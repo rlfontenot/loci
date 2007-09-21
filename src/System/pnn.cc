@@ -520,8 +520,23 @@ namespace Loci {
     kd_tree kd(tpnts,tids) ;
 
     int lM = search_pnts.size() ;
-    for(int i=0;i<lM;++i) 
-      close_pt[i] = kd.find_closest(search_pnts[i]) ;
+    // Check to see if we have a updated minimum
+    if(lM > 0) {
+      double rmin = 1e65 ;
+      coord3d curr_pt ;
+      close_pt[0] = kd.find_closest(search_pnts[0],rmin,curr_pt) ;
+      int curr_id = close_pt[0] ;
+        
+      for(int i=1;i<lM;++i) {
+        rmin = dist2(search_pnts[i],curr_pt) ;
+        close_pt[i] = curr_id ;
+        int id = kd.find_closest(search_pnts[i],rmin,curr_pt) ;
+        if(id >=0) {
+          close_pt[i] = id ;
+          curr_id = id ;
+        }
+      }
+    }
   }
 
   void parallelNN_SampleSearch(const vector<coord3d> &target_pnts,
@@ -591,8 +606,24 @@ namespace Loci {
       
       kd_tree kd(tpnts,tids) ;
 
-      for(int i=0;i<lM;++i) 
-        close_pt[i] = kd.find_closest(search_pnts[i],rmin[i]) ;
+      // Check to see if we have a updated minimum
+      int curr_id = -1 ;
+      coord3d curr_pt ;
+      for(int i=0;i<lM;++i) {
+        if(curr_id >= 0) {
+          // distance to recent closest point
+          double ro = dist2(search_pnts[i],curr_pt) ;
+          if(ro < rmin[i]) { // It is closer, so update closest point
+            rmin[i] = ro ;
+            close_pt[i] = curr_id ;
+          }
+        }
+        int id = kd.find_closest(search_pnts[i],rmin[i],curr_pt) ;
+        if(id >=0) {
+          close_pt[i] = id ;
+          curr_id = id ; // Update current closest point
+        }
+      }
     }
 
     // Compute remaining target points
@@ -673,10 +704,25 @@ namespace Loci {
     kd_tree kd_xfer(pcollect) ;
 
     // Check to see if we have a updated minimum
+    int curr_id = -1 ;
+    coord3d curr_pt ;
     for(int i=0;i<lM;++i) {
-      int id = kd_xfer.find_closest(search_pnts[i],rmin[i]) ;
-      if(id >=0)
+      // First check to see if previous closest point is also close to this
+      // point
+      if(curr_id >= 0) {
+        // distance to recent closest point
+        double ro = dist2(search_pnts[i],curr_pt) ;
+        if(ro < rmin[i]) { // It is closer, so update closest point
+          rmin[i] = ro ;
+          close_pt[i] = curr_id ;
+        }
+      }
+      
+      int id = kd_xfer.find_closest(search_pnts[i],rmin[i],curr_pt) ;
+      if(id >=0) {
         close_pt[i] = id ;
+        curr_id = id ; // Update current closest point
+      }
     }
 
   }

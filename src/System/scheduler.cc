@@ -52,7 +52,7 @@ namespace Loci {
   variable LociAppLargestFreeVar("EMPTY") ;
   double LociAppPMTemp = 0 ;
 
-  double LociInputVarsSize = 0 ;  
+  double LociInputVarsSize = 0 ;
 
   ////////////////////////////
   // global flags
@@ -82,7 +82,7 @@ namespace Loci {
 #else
     return -1.0 ;
 #endif
-  }  
+  }
 
   namespace {
     // pretty printing of a rule's signature
@@ -104,7 +104,7 @@ namespace Loci {
       }
     }
   } // end of unnamed namespace
-  
+
   ////////////////////////////////////////////////////////////////////
   // the following part are functions to visualize loci internal graphs
   // they create files to be used by "dot", "lefty" and "dotty"
@@ -118,12 +118,12 @@ namespace Loci {
 
     outf<<"digraph G {\n" ;
     //outf<<"size = \"8.5,11\";\n" ;
-    
+
     for(ri=allvertices.begin();ri!=allvertices.end();++ri) {
 
       digraph::vertexSet outvertices = dg[*ri] ;
       digraph::vertexSet incomevertices = dgt[*ri] ;
-      
+
       if(*ri < 0) {
         rule r(*ri) ;
         if(r.type() == rule::INTERNAL)
@@ -156,7 +156,7 @@ namespace Loci {
         }
         continue ;
       }
-        
+
       if(*ri < 0) {
         rule r(*ri) ;
         digraph::vertexSet::const_iterator ii ;
@@ -181,7 +181,7 @@ namespace Loci {
             variable v2(*ii) ;
             outf<<"\""<<v<<"\""<<" -> "<<"\""<<v2<<"\""<<";\n" ;
           }
-        }        
+        }
       }
     }
     outf<<"}\n" ;
@@ -205,7 +205,7 @@ namespace Loci {
     // reads until ':'
     // e.g. SN12: .....
     std::string number = rqualifier.substr(2,rqualifier.size()-2) ;
-    
+
     // get the cluster name
     std::string clustername = "cluster" ;
     clustername += number ;
@@ -315,7 +315,7 @@ namespace Loci {
       }
     }else { // sid is a variable
       variable sv(sid) ;
-      
+
       // pick a node in tid
       int repnode = *(mlg.find(tid)->graph_v-mlg.subgraphs).begin() ;
       if(repnode < 0) { // if the picked node is a rule
@@ -334,17 +334,17 @@ namespace Loci {
 
   // recursively layout from the toplevel to the bottom
   // this function just lists which nodes belongs to which cluster(supernode)
-  // and does not do connections. 
+  // and does not do connections.
   void layout_super_node(multiLevelGraph &mlg, int sid, std::ofstream &outf)
   {
     static int baseclustercounter = 0 ;
     // colors that fill the clusters
     static vector<string> cluster_color ;
     /*
-    cluster_color.push_back("thistle") ;
-    cluster_color.push_back("wheat") ;
-    cluster_color.push_back("seashell") ;
-    cluster_color.push_back("honeydew") ;
+      cluster_color.push_back("thistle") ;
+      cluster_color.push_back("wheat") ;
+      cluster_color.push_back("seashell") ;
+      cluster_color.push_back("honeydew") ;
     */
     cluster_color.push_back("blueviolet") ;
     cluster_color.push_back("darkorange") ;
@@ -356,7 +356,7 @@ namespace Loci {
     std::stringstream ss ;
     ss << baseclustercounter++ ;
     clustername += ss.str() ;
-      
+
     outf << clustername << " {" << '\n' ;
     // label the cluster
     outf << "label = " << "\"" << rule(sid) << "\"" << ";" << '\n' ;
@@ -365,7 +365,7 @@ namespace Loci {
     outf << "fontcolor=slateblue;" << '\n' ;
     outf << "fontsize=10;" << '\n' ;
     outf << "fontname=Helvetica;" << '\n' ;
-    
+
     multiLevelGraph::subGraph *p = mlg.find(sid) ;
     ruleSet level_rules = extract_rules(p->graph_v-mlg.subgraphs) ;
     digraph gr = p->gr ;
@@ -382,7 +382,7 @@ namespace Loci {
 
     // vertex set that holds all the previously placed vertices
     static digraph::vertexSet placed ;
-    
+
     for(ri=allvertices.begin();ri!=allvertices.end();++ri) {
       digraph::vertexSet outvertices = gr[*ri] ;
       digraph::vertexSet incomevertices = grt[*ri] ;
@@ -391,7 +391,7 @@ namespace Loci {
       // exclude any super nodes
       if( (!placed.inSet(*ri)) && (!is_super_rule(*ri))) {
         placed += *ri ;
-        
+
         if(*ri < 0) {
           rule r(*ri) ;
           if(r.type() == rule::INTERNAL)
@@ -416,7 +416,7 @@ namespace Loci {
         }
       }
     }
-    
+
     for(ri=allvertices.begin();ri!=allvertices.end();++ri) {
 
       if(*ri < 0) {
@@ -449,7 +449,7 @@ namespace Loci {
 
     // define the usual edge color
     std::string edge_color = "slategray" ;
-    
+
     for(vector<int>::const_iterator levelItr=levels.begin();
         levelItr!=levels.end();++levelItr) {
       multiLevelGraph::subGraph *p = mlg.find(*levelItr) ;
@@ -457,16 +457,16 @@ namespace Loci {
 
       // Remove any rules in that are not in graph_v but are in gr
       ruleSet errs = extract_rules(gr.get_all_vertices()-p->graph_v) ;
-      gr.remove_vertices(errs) ;      
+      gr.remove_vertices(errs) ;
       digraph grt = gr.transpose() ;
-      
+
       digraph::vertexSet allvertices = gr.get_all_vertices() ;
       digraph::vertexSet::const_iterator ri ;
-    
+
       for(ri=allvertices.begin();ri!=allvertices.end();++ri) {
         digraph::vertexSet outvertices = gr[*ri] ;
         digraph::vertexSet incomevertices = grt[*ri] ;
-      
+
         if(*ri < 0) {// a rule
           //if it is a super rule
           if(is_super_rule(*ri)) {
@@ -508,12 +508,12 @@ namespace Loci {
               outf<<"\""<<v<<"\""<<" -> "<<"\""<<v2<<"\""
                   <<"[style=bold,color="<<edge_color<<"]"<<";\n" ;
             }
-          }        
+          }
         }
       }
     }
   }
-  
+
   void create_mlg_dot_file(decomposed_graph &deco, const char* fname)
   {
     multiLevelGraph &mlg = deco.mlg ;
@@ -560,13 +560,13 @@ namespace Loci {
       // Remove any rules in that are not in graph_v but are in gr
       ruleSet errs = extract_rules(gr.get_all_vertices()-p->graph_v) ;
       gr.remove_vertices(errs) ;
-      
+
       std::string sname = "levels" ;
       std::stringstream ss ;
       ss << levelcounter++ ;
       sname.append(ss.str()) ;
       sname.append(".dot") ;
-      
+
       create_digraph_dot_file(gr,sname.c_str()) ;
       std::string cmd = "dotty " ;
       cmd += sname ;
@@ -634,7 +634,7 @@ namespace Loci {
       cerr << vars2only << endl ;
       cerr << "}}}}}" << endl << endl ;
     }
-    
+
   }
 
   void prune_graph(digraph& gr, variableSet& given,
@@ -674,7 +674,7 @@ namespace Loci {
     }
     o.close() ;
   }
-  
+
 #define ENABLE_RELATION_GEN
   //#define ENABLE_DYNAMIC_SCHEDULING
   //#define ENABLE_DYNAMIC_SCHEDULING_2
@@ -683,7 +683,7 @@ namespace Loci {
                                      const variableSet& target,
                                      int nth) {
     num_threads = min(nth,max_threads) ;
-    
+
     rule_db par_rdb ;
     par_rdb = parametric_rdb(rdb,target) ;
     par_rdb = replace_map_constraints(facts,par_rdb) ;
@@ -699,21 +699,28 @@ namespace Loci {
     stationary_relation_gen(par_rdb, facts, target) ;
 #endif
     // then we need to perform global -> local renumbering
+    double tf1 = MPI_Wtime() ;
     if(facts.is_distributed_start()) {
-      if((MPI_processes > 1)) 
+      if((MPI_processes > 1))
         get_clone(facts, rdb) ;
       else
-        Loci::serial_freeze(facts) ; 
+        Loci::serial_freeze(facts) ;
     } else {
       Loci::serial_freeze(facts) ;
     }
 
+    double tf2 = MPI_Wtime() ;
+    double tlocal = tf2-tf1 ;
+    double tglobal = 0 ;
+    MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
+    debugout << "time to convert to local numbering " << tglobal<<endl ;
+    
 #ifdef ENABLE_DYNAMIC_SCHEDULING_2
     if(Loci::MPI_rank==0)
       cout << "dynamic scheduling2..." << endl ;
     dynamic_scheduling2(par_rdb,facts,target) ;
 #endif
-    
+
     // then we can generate the dependency graph
     variableSet given = facts.get_typed_variables() ;
     if(Loci::MPI_rank==0)
@@ -724,7 +731,7 @@ namespace Loci {
     given -= variable("EMPTY") ;
     gr = dependency_graph2(par_rdb,given,target).get_graph() ;
 
-    // If graph is empty, return a null schedule 
+    // If graph is empty, return a null schedule
     if(gr.get_target_vertices() == EMPTY) {
       if(Loci::MPI_rank == 0)
         cerr << "Warning: empty dependency graph!" << endl ;
@@ -753,8 +760,11 @@ namespace Loci {
     sched_db scheds(facts) ;
     if(Loci::MPI_rank==0)
       cout << "setting up variable types..." << endl ;
+    tf1=MPI_Wtime() ;
     set_var_types(facts,gr,scheds) ;
-
+    tf2=MPI_Wtime() ;
+    debugout << "time to set var types = " << tf2-tf1 << endl ;
+    
     //////////////
     //scheds.print_summary(facts,cout) ;
     //////////////
@@ -786,7 +796,7 @@ namespace Loci {
       //Mainly because, we have some constraints that are applied over maps.
       //If the map is actually not used in the rule other than its constraints,
       //then that map may not have expanded enough to include necessrary existence.
-      //For regular execution it won't affect the schedule but for duplication of work, 
+      //For regular execution it won't affect the schedule but for duplication of work,
       //it is required for saving communication.
       if(vp->RepType() == MAP) {
 	if(facts.isDistributed()) {
@@ -803,7 +813,7 @@ namespace Loci {
 	  string sig = oss.str() ;
 	  rule r(sig) ;
 	  if(par_rdb.rules_by_target(*vi) == EMPTY) {
-	    if(facts.isDistributed()) { 
+	    if(facts.isDistributed()) {
 	      scheds.set_existential_info(*vi, r, scheds.variable_existence(*vi));
 	      initial_vars += *vi ;
 	    }
@@ -821,18 +831,18 @@ namespace Loci {
 	  cerr << "Using default duplication policies." << endl;
 	  use_duplicate_model = false;
 	}
-	
+
 	double comm_ts, comm_tw;
 	double comm_ts1, comm_ts2;
 	fin >> comm_ts1 >> comm_ts2 >> comm_tw;
 	comm_ts = comm_ts2;
-	
+
 	if(comm_tw < 0)
 	  comm_tw = 0;
-	
+
 	unsigned int count;
-	fin >> count; 
-	
+	fin >> count;
+
 	map<rule, pair<double, double> > comp_info;
 	string rule_name;
 	double ts, tw;
@@ -842,7 +852,7 @@ namespace Loci {
 	  ts = ts2;
 	  if(tw < 0)
 	    tw = 0;
-	  
+
 	  pair<double, double> tmpModel(ts, tw);
 	  rule myRule = rule::get_rule_by_name(rule_name);
 	  if(myRule.get_info().name() == "NO_RULE") {
@@ -857,7 +867,7 @@ namespace Loci {
 
     graph_compiler compile_graph(decomp, initial_vars) ;
     compile_graph.compile(facts,scheds,given,target) ;
-    
+
     double end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for graph processing  = "
                    << end_time  - start_time << "  seconds " << endl ;
@@ -875,18 +885,21 @@ namespace Loci {
                    << end_time  - start_time << "  seconds " << endl ;
     ///////////////////////////////////
     /*
-    if(Loci::MPI_rank==0) {
+      if(Loci::MPI_rank==0) {
       ofstream exinfo(".exis") ;
       scheds.print_summary(facts,exinfo) ;
       exinfo.close() ;
-    }
+      }
     */
     ///////////////////////////////////
+    tf1 = MPI_Wtime() ;
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
     executeP sched =  compile_graph.execution_schedule
       (facts,scheds,initial_vars,num_threads) ;
-    
+    tf2 = MPI_Wtime() ;
+    debugout << "compiling schedule time = " << tf2-tf1 << endl ;
+
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {
         cerr << "error in generating schedule, dumping schedule files" << endl ;
@@ -900,17 +913,17 @@ namespace Loci {
       if(MPI_processes > 1) {
         oss << "-" << MPI_rank ;
       }
-    
+
       string sched_filename = oss.str() ;
       ofstream sched_file(sched_filename.c_str(),ios::out) ;
       sched->Print(sched_file) ;
       sched_file.close() ;
-    
-      
+
+
       Loci::Abort() ;
     }
     //scheds.print_summary(facts,Loci::debugout) ;
-#ifdef PROFILE_CODE    
+#ifdef PROFILE_CODE
     //timer = get_timer() ;
     //cout << "Schedule Generation Time: " << timer << " seconds" << endl ;
 #endif
@@ -939,7 +952,7 @@ namespace Loci {
     // fact database is always in the local number state
     // thus we don't need to perform the global -> local
     // renumbering step
-    
+
     variableSet given = facts.get_typed_variables() ;
 #ifdef INTERNAL_VERBOSE
     if(Loci::MPI_rank==0) {
@@ -955,22 +968,22 @@ namespace Loci {
 #endif
     given -= variable("EMPTY") ;
     gr = dependency_graph2(par_rdb,given,target).get_graph() ;
-    // If graph is empty, return a null schedule 
+    // If graph is empty, return a null schedule
     if(gr.get_target_vertices() == EMPTY)
       return executeP(0) ;
 
     ////////////////////////////////////////////////////////////////////////
-//     std::string dottycmd = "dotty " ;
-//     if(Loci::MPI_rank==0) {
-//       if(show_graphs) {
-//         cout << "creating visualization file for dependency graph..." << endl ;
-//         create_digraph_dot_file(gr,"dependgr.dot") ;
-//         std::string cmd = dottycmd + "dependgr.dot" ;
-//         system(cmd.c_str()) ;
-//       }
-//     }
+    //     std::string dottycmd = "dotty " ;
+    //     if(Loci::MPI_rank==0) {
+    //       if(show_graphs) {
+    //         cout << "creating visualization file for dependency graph..." << endl ;
+    //         create_digraph_dot_file(gr,"dependgr.dot") ;
+    //         std::string cmd = dottycmd + "dependgr.dot" ;
+    //         system(cmd.c_str()) ;
+    //       }
+    //     }
     ////////////////////////////////////////////////////////////////////////
-    
+
     sched_db scheds(facts) ;
 #ifdef INTERNAL_VERBOSE
     if(Loci::MPI_rank==0)
@@ -1017,7 +1030,7 @@ namespace Loci {
 	  string sig = oss.str() ;
 	  rule r(sig) ;
 	  if(par_rdb.rules_by_target(*vi) == EMPTY) {
-	    if(facts.isDistributed()) { 
+	    if(facts.isDistributed()) {
 	      scheds.set_existential_info(*vi, r,
                                           scheds.variable_existence(*vi));
 	      initial_vars += *vi ;
@@ -1034,7 +1047,7 @@ namespace Loci {
 #endif
     graph_compiler compile_graph(decomp, initial_vars) ;
     compile_graph.compile(facts,scheds,given,target) ;
-    
+
 #ifdef INTERNAL_VERBOSE
     if(Loci::MPI_rank==0)
       cout << "[Internal] existential analysis..." << endl ;
@@ -1047,7 +1060,7 @@ namespace Loci {
 #endif
     executeP sched =  compile_graph.execution_schedule
       (facts,scheds,initial_vars,num_threads) ;
-    
+
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {
         cerr << "[Internal] error in generating schedule" << endl ;
@@ -1070,6 +1083,8 @@ namespace Loci {
   // and this expansion process only needs to be performed once.
   bool internalQuery(rule_db& par_rdb, fact_db& facts,
                      const variableSet& query) {
+    double t1 = MPI_Wtime() ;
+    
     if(MPI_rank == 0) {
       cout << "[Internal] Quering facts: " << query << endl ;
     }
@@ -1080,9 +1095,11 @@ namespace Loci {
     // start to make the query
     // This is because we want to only put the queried facts
     // back into the global fact_db
+
     fact_db local_facts(facts) ;
     executeP schedule =
       create_internal_execution_schedule(par_rdb,local_facts,query) ;
+
     if(schedule == 0)
       return false ;
 
@@ -1093,298 +1110,305 @@ namespace Loci {
 #endif
     exec_current_fact_db = &local_facts ;
     schedule->execute(local_facts) ;
-    
+
     for(variableSet::const_iterator vi=query.begin();
         vi!=query.end();++vi) {
       storeRepP srp = local_facts.get_variable(*vi) ;
       facts.create_intensional_fact(*vi,srp) ;
     }
-
+    double t2 = MPI_Wtime() ;
+    double tlocal = t2-t1 ;
+    double tglobal = 0 ;
+    MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
+    debugout << "time to execute internal query " << tglobal <<endl;
     return true ;
   }
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
 
-
+    MPI_Barrier(MPI_COMM_WORLD) ;
 #ifdef USE_PAPI
- int perr,ev_set=PAPI_NULL;
-     int i,ncnt,k;
-                                                                                                                                                              
-                                                                                                                                                              
-      if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
-         cerr<<"\nerror during initialization\n";
-                                                                                                                                                              
-     unsigned char v[N];
-long_long counts[NCOUNTS];
-  int evlist[NCOUNTS];
-  char evname[NCOUNTS][PAPI_MAX_STR_LEN];
-  int retval;
+    int perr,ev_set=PAPI_NULL;
+    int i,ncnt,k;
+    if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
+      cerr<<"\nerror during initialization\n";
+    unsigned char v[N];
+    long_long counts[NCOUNTS];
+    int evlist[NCOUNTS];
+    char evname[NCOUNTS][PAPI_MAX_STR_LEN];
+    int retval;
 #endif
 
 
 
     facts.setupDefaults(rdb) ;
     double t1 = MPI_Wtime() ;
-    
-  try {
-    if(MPI_rank == 0) {
-      cout << "Quering facts: " << query << endl ;
-    }
 
-    // first check whether queried facts are extensional facts
-    // if so, we don't need to actually perform query on
-    // these extensional facts
-    variableSet target(expression::create(query)) ;
-    variableSet efacts = facts.get_extensional_facts() ;
-    variableSet remove_query ;
-    for(variableSet::const_iterator vi=target.begin();
-        vi!=target.end();++vi) {
-      if(efacts.inSet(*vi))
-        remove_query += *vi ;
-    }
-    target -= remove_query ;
-
-    if(remove_query != EMPTY)
+    try {
       if(MPI_rank == 0) {
-        cout << "Queried facts: \"" << remove_query << "\" are extensional" ;
-        cout << " facts, action not performed on these facts!" << endl ;
+        cout << "Quering facts: " << query << endl ;
       }
-    if(target == EMPTY)
-      return true ;
 
-    // because we could have multiple queries, we will need to
-    // perform a clean up of fact_db at the beginning
-    facts.erase_intensional_facts() ;
-    // then we need to copy the fact_db
-    // This is because we want to only put the queried facts
-    // back into the global fact_db
-    fact_db local_facts(facts) ;
+      // first check whether queried facts are extensional facts
+      // if so, we don't need to actually perform query on
+      // these extensional facts
+      variableSet target(expression::create(query)) ;
+      variableSet efacts = facts.get_extensional_facts() ;
+      variableSet remove_query ;
+      for(variableSet::const_iterator vi=target.begin();
+          vi!=target.end();++vi) {
+        if(efacts.inSet(*vi))
+          remove_query += *vi ;
+      }
+      target -= remove_query ;
+
+      if(remove_query != EMPTY)
+        if(MPI_rank == 0) {
+          cout << "Queried facts: \"" << remove_query << "\" are extensional" ;
+          cout << " facts, action not performed on these facts!" << endl ;
+        }
+      if(target == EMPTY)
+        return true ;
+
+      // because we could have multiple queries, we will need to
+      // perform a clean up of fact_db at the beginning
+      facts.erase_intensional_facts() ;
+      // then we need to copy the fact_db
+      // This is because we want to only put the queried facts
+      // back into the global fact_db
+      fact_db local_facts(facts) ;
 
 
 
 #ifdef USE_PAPI
 
-if((perr=PAPI_create_eventset(&ev_set)))
-  cout<<"\nPAPAI_create_evebtset failed."<<PAPI_strerror(perr)<<"\n";  
+      if((perr=PAPI_create_eventset(&ev_set)))
+        cout<<"\nPAPAI_create_evebtset failed."<<PAPI_strerror(perr)<<"\n";
 
 
-if((retval= PAPI_multiplex_init())<PAPI_OK)
-    cout<<"\nEvent set multiplexing initialization error\n";
-                                                                                                                                                              
-retval=PAPI_set_multiplex(ev_set);
-if((retval==PAPI_EINVAL) &&(PAPI_get_multiplex(ev_set)>0))
-  cout<<"This event set already hs multiplexing enabled";
-else if(retval !=PAPI_OK)  cout<<"\nSet multiplexing error\n";
-else cout<<"\nsuccess\n";
-                                                                                                                                                              
-retval=PAPI_get_multiplex(ev_set);
-if(retval>0) cout<<"This event set is ready for multiplexing";
-if(retval==0)cout<<"This venet set is not enabled for multip0lexig";
-if(retval<0) cout<<"\nerror\n";
-                                                                                                                                                              
-if((perr=PAPI_add_event(ev_set,PAPI_L1_DCH)))
-     cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
+      if((retval= PAPI_multiplex_init())<PAPI_OK)
+        cout<<"\nEvent set multiplexing initialization error\n";
+
+      retval=PAPI_set_multiplex(ev_set);
+      if((retval==PAPI_EINVAL) &&(PAPI_get_multiplex(ev_set)>0))
+        cout<<"This event set already hs multiplexing enabled";
+      else if(retval !=PAPI_OK)  cout<<"\nSet multiplexing error\n";
+      else cout<<"\nsuccess\n";
+
+      retval=PAPI_get_multiplex(ev_set);
+      if(retval>0) cout<<"This event set is ready for multiplexing";
+      if(retval==0)cout<<"This venet set is not enabled for multip0lexig";
+      if(retval<0) cout<<"\nerror\n";
+
+      if((perr=PAPI_add_event(ev_set,PAPI_L1_DCH)))
+        cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
 
-if((perr=PAPI_add_event(ev_set,PAPI_L1_ICH)))
-      cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
+      if((perr=PAPI_add_event(ev_set,PAPI_L1_ICH)))
+        cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
-if((perr=PAPI_add_event(ev_set,PAPI_L2_DCM)))
-	 cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
+      if((perr=PAPI_add_event(ev_set,PAPI_L2_DCM)))
+        cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
-if((perr=PAPI_add_event(ev_set,PAPI_L2_ICM)))
-	 cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
-
-
-if((perr=PAPI_list_events(ev_set,evlist,&ncnt)))
-	 cout<<__LINE__<<"PAPI_list_events failed."<<PAPI_strerror(perr)<<"\n";
+      if((perr=PAPI_add_event(ev_set,PAPI_L2_ICM)))
+        cout<<__LINE__<<"PAPI_add_event failed."<<PAPI_strerror(perr)<<"\n";
 
 
-cout<<"\n number of events"<<ncnt<<"\n";
- for(i=0;i<ncnt;i++)
-    if((perr=PAPI_event_code_to_name(evlist[i],evname[i])) == PAPI_ENOTPRESET)
-      {}
-    else if(perr!=PAPI_OK)
-	cout<<__LINE__<<" Naming event failed."<<PAPI_strerror(perr)<<"[i="<<i<<" event="<<evlist[i]<<"\n";
+      if((perr=PAPI_list_events(ev_set,evlist,&ncnt)))
+        cout<<__LINE__<<"PAPI_list_events failed."<<PAPI_strerror(perr)<<"\n";
 
-                                                                                                                                                              
-                                                                                                                                                              
- if((perr=PAPI_start(ev_set)))
-    cout<<"\nPAPI_start_event failed."<<PAPI_strerror(perr)<<"\n";
 
+      cout<<"\n number of events"<<ncnt<<"\n";
+      for(i=0;i<ncnt;i++)
+        if((perr=PAPI_event_code_to_name(evlist[i],evname[i])) == PAPI_ENOTPRESET)
+          {}
+        else if(perr!=PAPI_OK)
+          cout<<__LINE__<<" Naming event failed."<<PAPI_strerror(perr)<<"[i="<<i<<" event="<<evlist[i]<<"\n";
+      if((perr=PAPI_start(ev_set)))
+        cout<<"\nPAPI_start_event failed."<<PAPI_strerror(perr)<<"\n";
 #endif
 
 
 
-    executeP schedule = create_execution_schedule(rdb,local_facts,target) ;
-    if(schedule == 0) 
-      throw StringError("makeQuery: query failed!") ;
-     
+      double ces1 = MPI_Wtime() ;
+      executeP schedule = create_execution_schedule(rdb,local_facts,target) ;
+      if(schedule == 0)
+        throw StringError("makeQuery: query failed!") ;
 
-    // If a schedule was generated, execute it
-    if(MPI_rank == 0)
-      cout << "begin execution" << endl ;
 
-    if(schedule_output) {
-      // Save the schedule in the file .schedule for reference
-      ostringstream oss ;
-      oss << ".schedule" ;
+      double ces2 = MPI_Wtime() ;
+      double tlocal = ces2-ces1 ;
+      double tglobal = 0 ;
+      MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
+      debugout << "time to create schedule " << tglobal<<endl ;
       
-      if(MPI_processes > 1) {
-        oss << "-" << MPI_rank ;
+      // If a schedule was generated, execute it
+      if(MPI_rank == 0)
+        cout << "begin execution" << endl ;
+
+      if(schedule_output) {
+        // Save the schedule in the file .schedule for reference
+        ostringstream oss ;
+        oss << ".schedule" ;
+
+        if(MPI_processes > 1) {
+          oss << "-" << MPI_rank ;
+        }
+
+        string sched_filename = oss.str() ;
+        ofstream sched_file(sched_filename.c_str(),ios::out) ;
+        schedule->Print(sched_file) ;
+        sched_file.close() ;
       }
-      
-      string sched_filename = oss.str() ;
-      ofstream sched_file(sched_filename.c_str(),ios::out) ;
-      schedule->Print(sched_file) ;
-      sched_file.close() ;
-    }
-    
-    // execute schedule
-    double st = MPI_Wtime() ;
-    // setting this external pointer
-    exec_current_fact_db = &local_facts ;
-    schedule->execute(local_facts) ;
-    double et = MPI_Wtime() ;
+
+      // execute schedule
+      double st = MPI_Wtime() ;
+      // setting this external pointer
+      exec_current_fact_db = &local_facts ;
+      schedule->execute(local_facts) ;
+      double et = MPI_Wtime() ;
 
 
 
 #ifdef USE_PAPI
       if((perr=PAPI_read(ev_set,counts)))
-       cout<<"PAPI_read failed."<<PAPI_strerror(perr)<<"\n";
-                                                                                                                                                              
-                                                                                                                                                             
-cout<<"Counts registered\n";
-  for(i=0;i<ncnt;i++) 
-      cout<<evname[i]<<"="<<counts[i]<<"\n";
+        cout<<"PAPI_read failed."<<PAPI_strerror(perr)<<"\n";
 
- 
+
+      cout<<"Counts registered\n";
+      for(i=0;i<ncnt;i++)
+        cout<<evname[i]<<"="<<counts[i]<<"\n";
+
+
 #endif
 
 
-Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
-    //Loci::debugout << " Time taken for exectution of the schedule = "
-    //             << difftime(t1,t2) << " seconds " << endl ;
-    
-    // put the computed results back to the global facts
-    // but we want to restore the facts back to its global
-    // numbering scheme if the fact_db was started
-    // distributed at the beginning, since if it was
-    // started distributed at the beginning, then we've already
-    // done the local renumbering step to the facts.
-    if(local_facts.is_distributed_start()) {
-      fact_db::distribute_infoP df = local_facts.get_distribute_info() ;
-      // first get the local to global dMap
-      dMap l2g ;
-      entitySet dom = df->l2g.domain() ;
-      for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei)
-        l2g[*ei] = df->l2g[*ei] ;
+      Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
+      //Loci::debugout << " Time taken for exectution of the schedule = "
+      //             << difftime(t1,t2) << " seconds " << endl ;
 
-      for(variableSet::const_iterator vi=target.begin();
-          vi!=target.end();++vi) {
-        storeRepP srp = local_facts.get_variable(*vi) ;
-        // the results are clearly intensional facts
-        facts.create_intensional_fact(*vi,srp->remap(l2g)) ;
-      }
-    }else{
-      for(variableSet::const_iterator vi=target.begin();
-          vi!=target.end();++vi) {
-        storeRepP srp = local_facts.get_variable(*vi) ;
-        facts.create_intensional_fact(*vi,srp) ;
-      }
-    }
+      // put the computed results back to the global facts
+      // but we want to restore the facts back to its global
+      // numbering scheme if the fact_db was started
+      // distributed at the beginning, since if it was
+      // started distributed at the beginning, then we've already
+      // done the local renumbering step to the facts.
+      double tv1 = MPI_Wtime() ;
+      if(local_facts.is_distributed_start()) {
+        fact_db::distribute_infoP df = local_facts.get_distribute_info() ;
+        // first get the local to global dMap
+        dMap l2g ;
+        entitySet dom = df->l2g.domain() ;
+        for(entitySet::const_iterator ei=dom.begin();ei!=dom.end();++ei)
+          l2g[*ei] = df->l2g[*ei] ;
 
-    if(profile_memory_usage) {
-      Loci::debugout << "++++++++Memory Profiling Report++++++++"
-                     << endl ;
-      Loci::debugout << "Peak Memory used: " << LociAppPeakMemory
-                     << " bytes ("
-                     << LociAppPeakMemory/(1024*1024)
-                     << "MB)" << endl ;
-      
-      Loci::debugout << "Total allocation requests: "
-                     << LociAppAllocRequestBeanCounting
-                     << " bytes ("
-                     << LociAppAllocRequestBeanCounting/(1024*1024)
-                     << "MB)" << endl ;
-      
-      Loci::debugout << "Total recycle requests: "
-                     << LociAppFreeRequestBeanCounting
-                     << " bytes ("
-                     << LociAppFreeRequestBeanCounting/(1024*1024)
-                     << "MB)" << endl ;
-      
-      Loci::debugout << "Peak Memory in bean counting: "
-                     << LociAppPeakMemoryBeanCounting << " bytes ("
-                     << LociAppPeakMemoryBeanCounting/(1024*1024)
-                     << "MB)" << endl ;
-      Loci::debugout << "The largest allocation was: "
-                     << LociAppLargestAlloc << " bytes ("
-                     << LociAppLargestAlloc/(1024*1024) << "MB)"
-                     << " for variable: " << LociAppLargestAllocVar
-                     << endl ;
-      Loci::debugout << "The largest recycle was: "
-                     << LociAppLargestFree << " bytes ("
-                     << LociAppLargestFree/(1024*1024) << "MB)"
-                     << " for variable: " << LociAppLargestFreeVar
-                     << endl ;
-      Loci::debugout << "All input variables size: "
-                     << LociInputVarsSize << " bytes ("
-                     << LociInputVarsSize/(1024*1024) << "MB)"
-                     << endl ;
+        for(variableSet::const_iterator vi=target.begin();
+            vi!=target.end();++vi) {
+          storeRepP srp = local_facts.get_variable(*vi) ;
+          // the results are clearly intensional facts
+          facts.create_intensional_fact(*vi,srp->remap(l2g)) ;
+        }
+      }else{
+        for(variableSet::const_iterator vi=target.begin();
+            vi!=target.end();++vi) {
+          storeRepP srp = local_facts.get_variable(*vi) ;
+          facts.create_intensional_fact(*vi,srp) ;
+        }
+      }
+      double tv2 = MPI_Wtime() ;
+      debugout << "fact processing time = " << tv2-tv1 << endl ;
+
+      if(profile_memory_usage) {
+        Loci::debugout << "++++++++Memory Profiling Report++++++++"
+                       << endl ;
+        Loci::debugout << "Peak Memory used: " << LociAppPeakMemory
+                       << " bytes ("
+                       << LociAppPeakMemory/(1024*1024)
+                       << "MB)" << endl ;
+
+        Loci::debugout << "Total allocation requests: "
+                       << LociAppAllocRequestBeanCounting
+                       << " bytes ("
+                       << LociAppAllocRequestBeanCounting/(1024*1024)
+                       << "MB)" << endl ;
+
+        Loci::debugout << "Total recycle requests: "
+                       << LociAppFreeRequestBeanCounting
+                       << " bytes ("
+                       << LociAppFreeRequestBeanCounting/(1024*1024)
+                       << "MB)" << endl ;
+
+        Loci::debugout << "Peak Memory in bean counting: "
+                       << LociAppPeakMemoryBeanCounting << " bytes ("
+                       << LociAppPeakMemoryBeanCounting/(1024*1024)
+                       << "MB)" << endl ;
+        Loci::debugout << "The largest allocation was: "
+                       << LociAppLargestAlloc << " bytes ("
+                       << LociAppLargestAlloc/(1024*1024) << "MB)"
+                       << " for variable: " << LociAppLargestAllocVar
+                       << endl ;
+        Loci::debugout << "The largest recycle was: "
+                       << LociAppLargestFree << " bytes ("
+                       << LociAppLargestFree/(1024*1024) << "MB)"
+                       << " for variable: " << LociAppLargestFreeVar
+                       << endl ;
+        Loci::debugout << "All input variables size: "
+                       << LociInputVarsSize << " bytes ("
+                       << LociInputVarsSize/(1024*1024) << "MB)"
+                       << endl ;
+        if(MPI_processes > 1) {
+          // code to find out the largest memory bounds on all processes
+          double LargestPeakMemory = 0 ;
+          MPI_Allreduce(&LociAppPeakMemory,
+                        &LargestPeakMemory,
+                        1, MPI_DOUBLE,
+                        MPI_MAX,MPI_COMM_WORLD) ;
+
+          double LargestPeakMemoryBeanCounting = 0 ;
+          MPI_Allreduce(&LociAppPeakMemoryBeanCounting,
+                        &LargestPeakMemoryBeanCounting,
+                        1, MPI_DOUBLE,
+                        MPI_MAX,MPI_COMM_WORLD) ;
+
+          Loci::debugout << endl ;
+          Loci::debugout << "The global largest Peak Memory: "
+                         << LargestPeakMemory << " bytes ("
+                         << LargestPeakMemory/(1024*1024) << "MB)"
+                         << endl ;
+          Loci::debugout << "The global largest Peak Memory in bean counting: "
+                         << LargestPeakMemoryBeanCounting << " bytes ("
+                         << LargestPeakMemoryBeanCounting/(1024*1024) << "MB)"
+                         << endl ;
+        }
+      }
+
+      // communicate the execution time
       if(MPI_processes > 1) {
-        // code to find out the largest memory bounds on all processes
-        double LargestPeakMemory = 0 ;
-        MPI_Allreduce(&LociAppPeakMemory,
-                      &LargestPeakMemory,
-                      1, MPI_DOUBLE,
-                      MPI_MAX,MPI_COMM_WORLD) ;
-        
-        double LargestPeakMemoryBeanCounting = 0 ;
-        MPI_Allreduce(&LociAppPeakMemoryBeanCounting,
-                      &LargestPeakMemoryBeanCounting,
-                      1, MPI_DOUBLE,
-                      MPI_MAX,MPI_COMM_WORLD) ;
-
-        Loci::debugout << endl ;
-        Loci::debugout << "The global largest Peak Memory: "
-                       << LargestPeakMemory << " bytes ("
-                       << LargestPeakMemory/(1024*1024) << "MB)"
-                       << endl ;
-        Loci::debugout << "The global largest Peak Memory in bean counting: "
-                       << LargestPeakMemoryBeanCounting << " bytes ("
-                       << LargestPeakMemoryBeanCounting/(1024*1024) << "MB)"
-                       << endl ;
+        double mytime = et-st ;
+        double maxtime = 0 ;
+        MPI_Allreduce(&mytime,&maxtime,1,
+                      MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD) ;
+        Loci::debugout << "Global max time taken for exectution"
+                       << " of the schedule = "
+                       << maxtime << " seconds " << endl ;
       }
-    }
-
-    // communicate the execution time
-    if(MPI_processes > 1) {
-      double mytime = et-st ;
-      double maxtime = 0 ;
-      MPI_Allreduce(&mytime,&maxtime,1,
-                    MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD) ;
-      Loci::debugout << "Global max time taken for exectution"
-                     << " of the schedule = "
-                     << maxtime << " seconds " << endl ;
-    }
-  } catch(const BasicException &err) {
+    } catch(const BasicException &err) {
       cerr << "Loci found an error during MakeQuery" << endl ;
       err.Print(cerr) ;
       Loci::Abort() ;
-  } catch (const bad_alloc &x) {
+    } catch (const bad_alloc &x) {
       cerr << "Out of memory: " << x.what() << endl ;
       Loci::Abort() ;
-  } catch(...) {
+    } catch(...) {
       cerr << "Unknown Exception Caught" << endl ;
       Loci::Abort() ;
-  }
+    }
 
-  double t2 = MPI_Wtime() ;
-  debugout << "Time to execute query for '" << query << "' is " << t2-t1
-           << endl ;
-  return true ;
+    double t2 = MPI_Wtime() ;
+    debugout << "Time to execute query for '" << query << "' is " << t2-t1
+             << endl ;
+    return true ;
 
   }
 

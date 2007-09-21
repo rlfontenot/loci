@@ -1584,6 +1584,13 @@ namespace Loci {
         return false;
     }
 
+    double t3 = MPI_Wtime() ;
+    double raw_read_time = t3-t1 ;
+    double raw_read_global = 0 ;
+    MPI_Allreduce(&raw_read_time,&raw_read_global, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
+    if(MPI_rank==0)
+      Loci::debugout << "Primitive file reading time = " << raw_read_global << endl ;
+    
     memSpace("after reading grid") ;
 
     // Identify boundary tags
@@ -1777,8 +1784,13 @@ namespace Loci {
     facts.create_fact("boundary_tags", boundary_tags) ;
 
     double t2 = MPI_Wtime() ;
-    debugout << "Time to read in file '" << filename << ", is " << t2-t1
-             << endl ;
+    double tlocal = t2-t1 ;
+    double tglobal = 0 ;
+    MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
+
+    if(MPI_rank == 0)
+      debugout << "Time to read in file '" << filename << ", is " << tglobal
+               << endl ;
     memSpace("returning from FVM grid reader") ;
     return true ;
   }
