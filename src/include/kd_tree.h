@@ -125,17 +125,6 @@ namespace Loci {
       // Search for the closest point using the kd_tree
       // rmin is current best known radius (squared)
       // returns id if found, otherwise returns smallest int
-      int find_closest(coord3d v, double &rmin, coord3d &pt) const {
-        const int sp = find_closest(0,pnts.size(),0,v,rmin,bbox) ;
-        if(sp < 0)
-          return std::numeric_limits<int>::min() ;
-        // Look up id of matched point
-        pt = pnts[sp].coords ;
-        return pnts[sp].id ;
-      }
-      // Search for the closest point using the kd_tree
-      // rmin is current best known radius (squared)
-      // returns id if found, otherwise returns smallest int
       int find_closest(coord3d v, double &rmin) const {
         const int sp = find_closest(0,pnts.size(),0,v,rmin,bbox) ;
         if(sp < 0)

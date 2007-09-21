@@ -699,7 +699,6 @@ namespace Loci {
     stationary_relation_gen(par_rdb, facts, target) ;
 #endif
     // then we need to perform global -> local renumbering
-    double tf1 = MPI_Wtime() ;
     if(facts.is_distributed_start()) {
       if((MPI_processes > 1))
         get_clone(facts, rdb) ;
@@ -709,12 +708,6 @@ namespace Loci {
       Loci::serial_freeze(facts) ;
     }
 
-    double tf2 = MPI_Wtime() ;
-    double tlocal = tf2-tf1 ;
-    double tglobal = 0 ;
-    MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
-    debugout << "time to convert to local numbering " << tglobal<<endl ;
-    
 #ifdef ENABLE_DYNAMIC_SCHEDULING_2
     if(Loci::MPI_rank==0)
       cout << "dynamic scheduling2..." << endl ;
@@ -760,11 +753,8 @@ namespace Loci {
     sched_db scheds(facts) ;
     if(Loci::MPI_rank==0)
       cout << "setting up variable types..." << endl ;
-    tf1=MPI_Wtime() ;
     set_var_types(facts,gr,scheds) ;
-    tf2=MPI_Wtime() ;
-    debugout << "time to set var types = " << tf2-tf1 << endl ;
-    
+
     //////////////
     //scheds.print_summary(facts,cout) ;
     //////////////
@@ -892,13 +882,10 @@ namespace Loci {
       }
     */
     ///////////////////////////////////
-    tf1 = MPI_Wtime() ;
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
     executeP sched =  compile_graph.execution_schedule
       (facts,scheds,initial_vars,num_threads) ;
-    tf2 = MPI_Wtime() ;
-    debugout << "compiling schedule time = " << tf2-tf1 << endl ;
 
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {
@@ -1095,11 +1082,9 @@ namespace Loci {
     // start to make the query
     // This is because we want to only put the queried facts
     // back into the global fact_db
-
     fact_db local_facts(facts) ;
     executeP schedule =
       create_internal_execution_schedule(par_rdb,local_facts,query) ;
-
     if(schedule == 0)
       return false ;
 
@@ -1120,14 +1105,14 @@ namespace Loci {
     double tlocal = t2-t1 ;
     double tglobal = 0 ;
     MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
-    debugout << "time to execute internal query " << tglobal <<endl;
+    debugout << "time to execute internal query " << tglobal ;
     return true ;
   }
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
 
-    MPI_Barrier(MPI_COMM_WORLD) ;
+
 #ifdef USE_PAPI
     int perr,ev_set=PAPI_NULL;
     int i,ncnt,k;
@@ -1241,7 +1226,7 @@ namespace Loci {
       double tlocal = ces2-ces1 ;
       double tglobal = 0 ;
       MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
-      debugout << "time to create schedule " << tglobal<<endl ;
+      debugout << "time to create schedule " << tglobal ;
       
       // If a schedule was generated, execute it
       if(MPI_rank == 0)
@@ -1294,7 +1279,6 @@ namespace Loci {
       // distributed at the beginning, since if it was
       // started distributed at the beginning, then we've already
       // done the local renumbering step to the facts.
-      double tv1 = MPI_Wtime() ;
       if(local_facts.is_distributed_start()) {
         fact_db::distribute_infoP df = local_facts.get_distribute_info() ;
         // first get the local to global dMap
@@ -1316,8 +1300,6 @@ namespace Loci {
           facts.create_intensional_fact(*vi,srp) ;
         }
       }
-      double tv2 = MPI_Wtime() ;
-      debugout << "fact processing time = " << tv2-tv1 << endl ;
 
       if(profile_memory_usage) {
         Loci::debugout << "++++++++Memory Profiling Report++++++++"

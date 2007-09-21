@@ -39,6 +39,9 @@ extern "C" {
 }
 
 namespace Loci {
+  extern void ORBPartition(const vector<vector3d<float> > &pnts,
+                           vector<int> &procid,
+                           MPI_Comm comm) ;
 
   void memSpace(string s) {
     //#define DIAG
@@ -55,6 +58,7 @@ namespace Loci {
 #endif
   }
   extern bool use_simple_partition ;
+  extern bool use_orb_partition ;
   //Following assumption is needed for the next three functions
   //Assumption: We follow the convention that boundary cells are always on right side
   //of a face.
@@ -1543,6 +1547,143 @@ namespace Loci {
     return ptn_t ;
   }
 
+  inline bool sortFirstORB(const pair<int,pair<int,int> > &p1,
+                           const pair<int,pair<int,int> > &p2) {
+    return p1.first < p2.first ;
+  }
+
+  void assignOwner(vector<pair<int,pair<int,int> > > &scratchPad,
+                   vector<entitySet> ptn,
+                   vector<entitySet> &out_ptn) {
+
+    std::sort(scratchPad.begin(),scratchPad.end()) ;
+    vector<pair<int,pair<int,int> > >::iterator i1,i2 ;
+
+    // Note, we are assuming scratch pad is non-zero size
+    i1 = scratchPad.begin() ;
+    i2 = i1+1 ;
+    while(i2!=scratchPad.end()) {
+      while(i2!=scratchPad.end() &&
+            i1->first==i2->first && i1->second.first==i2->second.first) {
+        i1->second.second += i2->second.second ;
+        i2++ ;
+      }
+      i1++ ;
+      if(i2!=scratchPad.end()) {
+        *i1 = *i2 ;
+        i2++ ;
+      }
+    }
+    scratchPad.erase(i1,scratchPad.end()) ;
+
+    vector<pair<int,pair<int,int> > > nsplits(MPI_processes-1) ;
+    for(int i=1;i<MPI_processes;++i) {
+      nsplits[i-1].first = ptn[i].Min() ;
+      nsplits[i-1].second.first = 0 ;
+      nsplits[i-1].second.second = 0 ;
+    }
+
+    parSplitSort(scratchPad,nsplits,sortFirstORB,MPI_COMM_WORLD) ;
+
+    for(size_t x=0;x!=scratchPad.size();) {
+      size_t y = x+1 ;
+      while (y < scratchPad.size() &&
+             scratchPad[x].first == scratchPad[y].first)
+        ++y ;
+
+      int imax = 0 ;
+      int pmax = -1 ;
+      for(size_t j=x;j<y;++j) {
+        // Sum total number of references from this processor
+        int tot = scratchPad[j].second.second ;
+        for(size_t k=j+1;k<y;++k)
+          if(scratchPad[j].second.first == scratchPad[k].second.first)
+            tot += scratchPad[k].second.second ;
+        if(tot > imax) {
+          imax = tot ;
+          pmax = scratchPad[j].second.first ;
+        }
+      }
+      int nd = scratchPad[x].first ;
+      out_ptn[pmax] += nd ;
+      x = y ;
+    }
+  }
+
+    
+  bool ORB_Partition_Mesh(const vector<entitySet> &local_nodes,
+                          const vector<entitySet> &local_faces,
+                          const vector<entitySet> &local_cells,
+                          const store<vector3d<real_t> > &pos,
+                          const Map &cl, const Map &cr,
+                          const multiMap &face2node,
+                          vector<entitySet> &cell_ptn,
+                          vector<entitySet> &face_ptn,
+                          vector<entitySet> &node_ptn) {
+
+    vector<entitySet> tmp(MPI_processes) ; // Initialize partition vectors
+    cell_ptn = tmp ;
+    face_ptn = tmp ;
+    node_ptn = tmp ;
+
+    // Compute face center
+    dstore<vector3d<float> > tmp_pos ;
+    FORALL(pos.domain(),pi) {
+      tmp_pos[pi] = vector3d<float>(pos[pi].x,pos[pi].y,pos[pi].z) ;
+    } ENDFORALL ;
+    entitySet fdom = face2node.domain() ;
+    entitySet total_dom =
+      Loci::MapRepP(face2node.Rep())->image(fdom) + pos.domain() ;
+    Loci::storeRepP sp = tmp_pos.Rep() ;
+    vector<entitySet> ptn = local_nodes ;
+    fill_clone(sp,total_dom,ptn) ;
+    vector<vector3d<float> > fcenter(fdom.size()) ;
+    int i=0 ;
+    FORALL(fdom,fc) {
+      int sz = face2node[fc].size() ;
+      vector3d<float> pnt(0.,0.,0.) ;
+      for(int ii=0;ii<sz;++ii)
+        pnt += tmp_pos[face2node[fc][ii]] ;
+      pnt *= 1./float(sz) ;
+      fcenter[i++] = pnt ;
+    } ENDFORALL ;
+
+    // perform ORB partition of faces
+    vector<int> fprocmap ;
+    ORBPartition(fcenter,fprocmap,MPI_COMM_WORLD) ;
+    i=0 ;
+    // Create face_ptn ;
+    FORALL(fdom,fc) {
+      face_ptn[fprocmap[i++]] += fc ;
+    } ENDFORALL ;
+
+    // Now find node_ptn and cell_ptn that best matches the face partition
+    vector<pair<int,pair<int,int> > > scratchPad ;
+    i=0 ;
+    FORALL(fdom,fc) {
+      pair<int,int> p2i(fprocmap[i++],1) ;
+      int sz = face2node[fc].size() ;
+      for(int ii=0;ii<sz;++ii)
+        scratchPad.push_back(pair<int,pair<int,int> >(face2node[fc][ii],p2i)) ;
+    } ENDFORALL ;
+
+    assignOwner(scratchPad,local_nodes,node_ptn) ;
+
+
+    scratchPad.clear() ;
+
+    i=0 ;
+    FORALL(fdom,fc) {
+      pair<int,int> p2i(fprocmap[i++],1) ;
+      scratchPad.push_back(pair<int,pair<int,int> >(cl[fc],p2i)) ;
+      if(cr[fc] >=0)
+        scratchPad.push_back(pair<int,pair<int,int> >(cr[fc],p2i)) ;
+    } ENDFORALL ;
+
+    assignOwner(scratchPad,local_cells,cell_ptn) ;
+
+  }
+
 
   //Description: Reads grid structures in the fact database
   //Input: facts and grid file name
@@ -1584,13 +1725,6 @@ namespace Loci {
         return false;
     }
 
-    double t3 = MPI_Wtime() ;
-    double raw_read_time = t3-t1 ;
-    double raw_read_global = 0 ;
-    MPI_Allreduce(&raw_read_time,&raw_read_global, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
-    if(MPI_rank==0)
-      Loci::debugout << "Primitive file reading time = " << raw_read_global << endl ;
-    
     memSpace("after reading grid") ;
 
     // Identify boundary tags
@@ -1653,25 +1787,44 @@ namespace Loci {
     }
 
     memSpace("before partitioning") ;
-    // Partition Cells
-    vector<entitySet> cell_ptn ;
-    if(!use_simple_partition) {
-      cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr) ;
+
+    vector<entitySet> cell_ptn,face_ptn,node_ptn ;
+
+    if(use_orb_partition) {
+      ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
+                         t_pos, tmp_cl, tmp_cr, tmp_face2node,
+                         cell_ptn,face_ptn,node_ptn) ;
+                    
+#ifdef TESTORB
+    entitySet pdom = t_pos.domain() ;
+    vector<vector3d<float> > ptmp(pdom.size()) ;
+    int ii=0 ;
+    FORALL(pdom,nd) {
+      ptmp[ii++] = vector3d<float>(t_pos[nd].x,t_pos[nd].y,t_pos[nd].z) ;
+    } ENDFORALL ;
+
+    vector<int> pid ;
+    ORBPartition(ptmp,pid,MPI_COMM_WORLD) ;
+#endif
     } else {
-      cell_ptn = vector<entitySet>(MPI_processes) ;
-      cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
+      // Partition Cells
+      if(!use_simple_partition) {
+        cell_ptn = newMetisPartitionOfCells(local_cells,tmp_cl,tmp_cr) ;
+      } else {
+        cell_ptn = vector<entitySet>(MPI_processes) ;
+        cell_ptn[MPI_rank] = local_cells[MPI_rank] ;
+      }
+
+      memSpace("mid partitioning") ;
+      face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr) ;
+      memSpace("after partitionFaces") ;
+
+      node_ptn = partitionNodes(face_ptn,
+                                MapRepP(tmp_face2node.Rep()),
+                                t_pos.domain()) ;
     }
-
-    memSpace("mid partitioning") ;
-    vector<entitySet> face_ptn = partitionFaces(cell_ptn,tmp_cl,tmp_cr) ;
-    memSpace("after partitionFaces") ;
-    vector<entitySet> node_ptn = partitionNodes(face_ptn,
-                                                MapRepP(tmp_face2node.Rep()),
-                                                t_pos.domain()) ;
-    //    vector<entitySet> node_ptn(MPI_processes) ;
-    //    node_ptn[MPI_rank] = local_nodes[MPI_rank] ;
     memSpace("after partitioning") ;
-
+      
     vector<entitySet> cell_ptn_t = transposePtn(cell_ptn) ;
     vector<entitySet> face_ptn_t = transposePtn(face_ptn) ;
     vector<entitySet> node_ptn_t = transposePtn(node_ptn) ;
@@ -1784,13 +1937,8 @@ namespace Loci {
     facts.create_fact("boundary_tags", boundary_tags) ;
 
     double t2 = MPI_Wtime() ;
-    double tlocal = t2-t1 ;
-    double tglobal = 0 ;
-    MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
-
-    if(MPI_rank == 0)
-      debugout << "Time to read in file '" << filename << ", is " << tglobal
-               << endl ;
+    debugout << "Time to read in file '" << filename << ", is " << t2-t1
+             << endl ;
     memSpace("returning from FVM grid reader") ;
     return true ;
   }
