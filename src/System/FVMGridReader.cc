@@ -1611,7 +1611,7 @@ namespace Loci {
   }
 
     
-  bool ORB_Partition_Mesh(const vector<entitySet> &local_nodes,
+  void ORB_Partition_Mesh(const vector<entitySet> &local_nodes,
                           const vector<entitySet> &local_faces,
                           const vector<entitySet> &local_cells,
                           const store<vector3d<real_t> > &pos,
