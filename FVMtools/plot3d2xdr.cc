@@ -255,7 +255,7 @@ int main(int ac, char* av[]) {
   nodes = interval(base,base+totsz-1) ;
   base += totsz ;
   pos.allocate(*nodes) ;
-  
+
   *geom_nodes = *nodes ;
   
   for(int b=0;b<num_blocks;++b) {
@@ -268,7 +268,11 @@ int main(int ac, char* av[]) {
     for(int i=0;i<sz;++i)
       infile >> pos[i+o].z ;
   }
-    
+
+  if(infile.fail()) {
+    cerr << "had problems reading '" << buf << "', check file." << endl ;
+    exit(-1) ;
+  }
   for(int b=0;b<num_blocks;++b) {
     const int ni = blk[b].ni ;
     const int nj = blk[b].nj ;
@@ -295,6 +299,10 @@ int main(int ac, char* av[]) {
   for(entitySet::const_iterator fi=faces.begin();fi!=faces.end();++fi) {
     cl[*fi] = -1 ;
     cr[*fi] = -1 ;
+    qnds[*fi][0] = -1 ;
+    qnds[*fi][1] = -1 ;
+    qnds[*fi][2] = -1 ;
+    qnds[*fi][3] = -1 ;
   }
   
   north.allocate(*geom_cells) ;
