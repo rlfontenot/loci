@@ -6,7 +6,6 @@
 #include <vector>
 
 namespace Loci {
-  extern std::vector<std::string> ModuleDirectoryPath ;
   extern int num_threads ;
   /////////////////////////////
   // flags to turn on/off the visualization feature

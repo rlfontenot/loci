@@ -31,6 +31,7 @@ void dummyFunctionDependencies(int i) {
 
 
 #include <rule.h>
+#include <mod_db.h>
 #include "dist_tools.h"
 #include "loci_globs.h"
 #include <Tools/debug.h>
@@ -126,7 +127,6 @@ namespace Loci {
 
   extern int current_rule_id ;
 
-  vector<string> ModuleDirectoryPath ;
 
   void debug_print_rule() {
     if(current_rule_id != 0) {
@@ -153,36 +153,10 @@ namespace Loci {
     }
   }
 
-  void AddModuleSearchDir(string dirname) {
-    ModuleDirectoryPath.push_back(dirname) ;
-  }
   
   //This is the first call to be made for any Loci program be it
   //sequential or parallel. 
   void Init(int* argc, char*** argv)  {
-
-    char *p ;
-    if((p = getenv("LOCI_MODULE_PATH")) == 0) 
-      p = getenv("LD_LIBRARY_PATH") ;
-    if(p != 0) {
-      char *r ;
-      while((r=index(p,':')) != 0) {
-        string tmp ;
-        while(p != r)
-          tmp += *p++ ;
-        p=r+1 ;
-        if(tmp != "")
-          ModuleDirectoryPath.push_back(tmp) ;
-      }
-      string tmp = p ;
-      if(p != "") ;
-      ModuleDirectoryPath.push_back(tmp) ;
-    }
-#ifdef LOCI_RPATH
-    ModuleDirectoryPath.push_back(string(LOCI_RPATH)) ;
-#endif
-    
-  try {
     char *execname = (*argv)[0] ;
     const char *hostname = "localhost" ;
     const char *debug = "gdb" ;
@@ -191,14 +165,17 @@ namespace Loci {
 #ifdef USE_PETSC
     PetscInitialize(argc,argv,(char*)0,(char*)0) ;
     PetscOptionsSetValue("-options_left","false") ;
-
-    //    PetscOptionsSetValue("-options_left","false") ;
 #else    
-  MPI_Init(argc, argv) ;
+    MPI_Init(argc, argv) ;
 #endif
-    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
+
+    //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
+    //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
+
+    try {
+
     //Create a debug file for each process
     ostringstream oss ;
     // if output directory doesn't exist, create one
@@ -230,6 +207,31 @@ namespace Loci {
     
     string filename  = oss.str() ;
     debugout.open(filename.c_str(),ios::out) ;
+
+    char *p = 0 ;
+    if((p = getenv("LOCI_MODULE_PATH")) == 0) 
+      p = getenv("LD_LIBRARY_PATH") ;
+    if(p != 0) {
+      string pathlist = string(p) ;
+      string path ;
+      for(string::const_iterator si = pathlist.begin();
+          si!= pathlist.end();
+          ++si) {
+        if(*si != ':')
+          path += *si ;
+        else {
+          if(path != "") 
+            AddModuleSearchDir(path) ;
+          path = "" ;
+        }
+      }
+      if(path != "") 
+        AddModuleSearchDir(path) ;
+    }
+
+#ifdef LOCI_RPATH
+    { string rpath = LOCI_RPATH ; AddModuleSearchDir(rpath) ; }
+#endif
 
     if(GLOBAL_OR(stat("output",&statbuf)!=0)) {
       if(MPI_rank == 0)

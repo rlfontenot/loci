@@ -9,6 +9,12 @@ namespace Loci {
   using std::vector ;
   using std::string ;
 
+  vector<string> ModuleDirectoryPath ;
+
+  void AddModuleSearchDir(string dirname) {
+    ModuleDirectoryPath.push_back(dirname) ;
+  }
+
   using std::cout ;
   std::string remove_space(const std::string &str){
     std::string tmp_str ;
