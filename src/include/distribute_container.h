@@ -111,8 +111,6 @@ namespace Loci {
     }
   }
 
-  storeRepP collect_global_store(storeRepP &sp) ;
-
   void distributed_inverseMap(multiMap &result, const dMap &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
   
   void distributed_inverseMap(multiMap &result, const Map &input_map, const entitySet &input_image, const entitySet &input_preimage, std::vector<entitySet> &init_ptn) ;
