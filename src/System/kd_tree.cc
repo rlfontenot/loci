@@ -327,6 +327,13 @@ namespace Loci {
         (v[1] >= b1.minc[1] && v[1] <= b1.maxc[1]) &&
         (v[2] >= b1.minc[2] && v[2] <= b1.maxc[2]) ;
     }
+    inline bool pt_in_boxb(coord3d v,const kd_tree::bounds &b1) {
+      return
+        (v[0] >= b1.minc[0] && v[0] < b1.maxc[0]) &&
+        (v[1] >= b1.minc[1] && v[1] < b1.maxc[1]) &&
+        (v[2] >= b1.minc[2] && v[2] < b1.maxc[2]) ;
+    }
+    
     inline coord3d pselect(const kd_tree::bounds &b, int sel) {
       coord3d v ;
       v[0] = ((sel&1)==0)?b.maxc[0]:b.minc[0] ;
@@ -412,7 +419,7 @@ namespace Loci {
         int pt = -1 ;
         // search points and add them if they are in the box
         for(int i=start;i<end;++i)
-          if(pt_in_box(pnts[i].coords,box)) {
+          if(pt_in_boxb(pnts[i].coords,box)) {
             double rtmp = dist2(v,pnts[i].coords) ;
             if(rtmp < rmin) {
               pt = i ;
@@ -427,7 +434,7 @@ namespace Loci {
       // otherwise search for which leaf contains our point
       int id = -1 ;
       // Check to see if the partitioning node is closer than current closest find
-      if(pt_in_box(pnts[start].coords,box)) {
+      if(pt_in_boxb(pnts[start].coords,box)) {
         double rtmp = dist2(v,pnts[start].coords) ;
         if(rtmp < rmin) {
           rmin = rtmp ;
