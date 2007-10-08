@@ -264,7 +264,7 @@ namespace Loci {
               priority_rule = true ;
 
             if(ri->get_info().rule_class == rule::INTERNAL)
-              if(ri->get_info().qualifier() == "CHOMP") {
+              if(is_chomp_node(ri)) {
                 // we need to actually look into the chomping
                 // graph to find out the rules that generate
                 // this variable and dertermin the types of

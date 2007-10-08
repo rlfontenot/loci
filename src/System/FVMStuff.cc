@@ -1751,9 +1751,9 @@ namespace Loci {
     }
 
     // before we do the parallel sorting, we perform a check
-    // to see if every process at least have one data element in
+    // to see if every process at least has one data element in
     // the "emap", if not, then the parallel sample sort would fail
-    // and we pre-balance the "emap" on every process before do the
+    // and we pre-balance the "emap" on every process before the
     // sorting
     if(GLOBAL_OR(emap.empty())) {
       parallel_balance_pair_vector(emap, MPI_COMM_WORLD) ;
