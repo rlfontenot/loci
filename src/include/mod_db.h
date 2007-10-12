@@ -85,6 +85,7 @@ namespace Loci {
   }
   
   void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) ;	 
+  void AddModuleSearchDir(std::string dirname) ;
 }
 
 #endif

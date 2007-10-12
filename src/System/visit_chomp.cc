@@ -214,7 +214,7 @@ namespace Loci {
     // the source & target vertices of the existing graph could
     // become internal, and thus we need to bring in all the rules
     // that connect to these "new" internal variables. And this
-    // is a repeat process, we will stop only if no new internal
+    // is a repeated process, we will stop only if no new internal
     // variables are genrated
     digraph gen_tmp_graph(const digraph& cur_gr,
                           const digraph::vertexSet& new_vertices,
@@ -756,8 +756,21 @@ namespace Loci {
 
     return chomp_chain_list ;    
   } // end-of-find_chain function
+
+  namespace {
+    // here is a small function that is used as a predicate
+    // to replace "(){}," chars in a chomp rule signature
+    inline bool
+    chomp_sig_replace1(char c) {
+      return (c=='(' || c=='{' || c==',') ;
+    }
+    inline bool
+    chomp_sig_replace2(char c) {
+      return (c==')' || c=='}') ;
+    }
+  }
   
-    // edit the graph to have the chomp node,
+  // edit the graph to have the chomp node,
   void chompRuleVisitor::edit_gr(digraph& gr,const list<chomp_chain>& cc,
                                  rulecomp_map& rcm) {
     if(cc.empty())
@@ -767,11 +780,11 @@ namespace Loci {
       digraph chomp_graph = li->first ;
       variableSet chomp_vars = li->second ;
       digraph::vertexSet chomp_vars_vertices = get_vertexSet(chomp_vars) ;
-      
+
       digraph::vertexSet all_vertices = chomp_graph.get_all_vertices() ;
       ruleSet all_rules = extract_rules(all_vertices) ;
       digraph::vertexSet rules_vertices = get_vertexSet(all_rules) ;
-      
+
       // nodes that lead to the constructed super node
       // and nodes that leave the super node
       digraph::vertexSet
@@ -804,12 +817,60 @@ namespace Loci {
       }
       
       // make a rule for the chomp_graph
+
+      // NOTE: it is possible to create identical rule signatures
+      // for the different chomping node (because their sources
+      // and targets are exactly the same). therefore we will
+      // need to try to create unique rule signature for each
+      // chomping node in order to avoid clash in associating
+      // chomping node with rule compilers. we do so by creating
+      // a rule qualifier that includes the chomped variables.
+      // For example, if a chomp node has sources A,B, and targets
+      // C,D, and the actual chomped variable is X,Y, then its
+      // rule signature will look like:
+      // CHOMP_X_Y_CHOMP:C,D <- A,B
+      // this guarantees that each chomp rule signature is
+      // different from each other
+      std::stringstream chomp_qualifier_ss ;
+      chomp_qualifier_ss << "CHOMP_" ;
+      for(variableSet::const_iterator vi=chomp_vars.begin();
+          vi!=chomp_vars.end();++vi)
+        chomp_qualifier_ss << *vi << "_" ;
+      chomp_qualifier_ss << "CHOMP" ;
+      // replace the characters "({," inside with "_"
+      std::string chomp_qualifier = chomp_qualifier_ss.str() ;
+      std::replace_if(chomp_qualifier.begin(),
+                      chomp_qualifier.end(), chomp_sig_replace1, '_') ;
+      // remove characters ")}"
+      chomp_qualifier.erase(std::remove_if(chomp_qualifier.begin(),
+                                           chomp_qualifier.end(),
+                                           chomp_sig_replace2),
+                            chomp_qualifier.end()) ;
       rule chomp_rule = create_rule(extract_vars(source_vars_vertices),
                                     extract_vars(target_vars_vertices),
-                                    "CHOMP") ;
-
+                                    chomp_qualifier) ;
+#ifdef CHOMP_DEBUG
+      rulecomp_map::iterator rcm_find = rcm.find(chomp_rule) ;
+      if(rcm_find != rcm.end()) {
+        cerr << "ERROR: Creating identical chomping super rules. "
+             << "This should not happen. Chomping processing failed!"
+             << endl ;
+        cerr << "--Problem occurred on rule chain: " << all_rules << endl ;
+        chomp_compiler* chc =
+          dynamic_cast<chomp_compiler*>(&(*(rcm_find->second))) ;
+        if(chc != 0) {
+          cerr << "--This is what we already have: "
+               << extract_rules((chc->chomp_graph).get_all_vertices())
+               << endl ;
+        }
+        Loci::Abort() ;
+      } else
+        rcm[chomp_rule] = new chomp_compiler(chomp_graph,
+                                             chomp_vars,apply2unit) ;
+#else
       rcm[chomp_rule] = new chomp_compiler(chomp_graph,
                                            chomp_vars,apply2unit) ;
+#endif
       
       // the vertices to be taken out
       digraph::vertexSet takeout_vertices =
