@@ -134,6 +134,8 @@ string convert_fv_compatible(string var) {
     return string("y_") ;
   if(var == "z")
     return string("z_") ;
+  if(var == "R")
+    return string("R_") ;
   return var ;
 }
 
