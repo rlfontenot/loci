@@ -55,7 +55,19 @@ namespace Loci {
   inline bool is_super_node(const rule& r) {
     std::string rqualifier = r.get_info().qualifier() ;
 
-    return (rqualifier.substr(0,2) == "SN") ;
+    return ( (!rqualifier.empty()) && rqualifier.substr(0,2) == "SN") ;
+  }
+
+  // this one returns if a super rule node is a chomping rule
+  // by comparing the first 5 characters to the string "CHOMP"
+  inline bool
+  is_chomp_node(const rule& r) {
+    std::string q = r.get_info().qualifier() ;
+    return ( (!q.empty()) && q.substr(0,5) == "CHOMP") ;
+  }
+  inline bool
+  is_chomp_node(const ruleSet::const_iterator& ri) {
+    return is_chomp_node(*ri) ;
   }
 
   inline int get_supernode_num(const rule& r) {
