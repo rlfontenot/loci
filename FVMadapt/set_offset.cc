@@ -37,7 +37,7 @@ public:
     int num_procs = Loci::MPI_processes;
     int my_id = Loci::MPI_rank;
 
-   cerr << "num_original_nodes " << num_original_nodes << endl; 
+  
     Loci::constraint edges, geom_cells, faces;
     Loci::storeRepP e2n = Loci::exec_current_fact_db->get_variable("edge2node");
     *edges = e2n->domain();
