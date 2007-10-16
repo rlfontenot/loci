@@ -341,7 +341,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
         //index the node
     int   nindex = 0;
     for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
-          (*np)->tag = nodeTag[face_entity[i]][nindex++];
+          (*np)->tag = nodeTag[face_entity[i+2]][nindex++];
           //  checkNode(*np);
     } 
       
