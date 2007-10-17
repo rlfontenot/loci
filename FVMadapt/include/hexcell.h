@@ -130,7 +130,7 @@ public:
 
 
   int get_num_fine_faces()const;//for mxfpc
-   
+ double get_min_edge_length();   
  
   void split(std::list<Node*>& node_list,
              std::list<Edge*>& edge_list,
@@ -146,7 +146,13 @@ public:
                std::list<Edge*>& edge_list,
                std::list<QuadFace*>& face_list,
                std::vector<HexCell*>& cells);
-  
+
+  //used in make_hex_cellplan.cc
+  void resplit(int level,
+               std::list<Node*>& node_list,
+               std::list<Edge*>& edge_list,
+               std::list<QuadFace*>& face_list);
+
   //this function check if aFace is one of the face
   //return -1: No
   //return i in [0, 6), Yes, face[i] == aFace
@@ -174,7 +180,8 @@ public:
 
   //after a cell is split, compose the cell plan according to the tree structure 
   std::vector<char> make_cellplan();
-
+  //make a plan for isotropical split an original hex cell level levels 
+  std::vector<char> make_cellplan(int level);
 
 
 
@@ -182,11 +189,13 @@ public:
 
 
   //if any edge is more than 1 levels down than my level, split myself, then balance each child 
-  bool balance_cell(std::list<Node*>& node_list,
+  bool balance_cell(int split_mode,
+                    std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
                     std::list<QuadFace*>& face_list);
 
-  void rebalance_cells(std::list<Node*>& node_list,
+  void rebalance_cells(int split_mode,
+                       std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list,
                        std::list<QuadFace*>& face_list);
 

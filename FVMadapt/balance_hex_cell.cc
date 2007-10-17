@@ -57,6 +57,7 @@ class advance_hex_cell_updated : public pointwise_rule{
   const_multiMap lower;
   const_multiMap upper;
   const_multiMap boundary_map;
+   const_param<int> split_mode_par;
    const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
@@ -78,6 +79,7 @@ public:
     name_store("upper", upper);
     name_store("boundary_map", boundary_map);
     name_store("boundary_map", boundary_map);
+     name_store("split_mode_par", split_mode_par);
     name_store("hex2face", hex2face);
     name_store("hex2node", hex2node);
     name_store("hexOrientCode", orientCode);
@@ -92,7 +94,7 @@ public:
     name_store("tmpFacePlan{n}", facePlan);
     name_store("tmpEdgePlan{n}", edgePlan);
     name_store("isIndivisible", isIndivisible);
- 
+  input("split_mode_par");
     input("cellUnchanged{n},tmpCellPlan{n}, hex2face, hex2node, hexOrientCode, isIndivisible");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge-> tmpEdgePlan{n}");
@@ -153,7 +155,7 @@ public:
     
     //balance cells
     if(!isIndivisible[cc]){
-      aCell->rebalance_cells(node_list, edge_list, face_list);
+      aCell->rebalance_cells(*split_mode_par, node_list, edge_list, face_list);
     }
         
     

@@ -111,6 +111,42 @@ void Prism::resplit( const std::vector<char>& cellPlan,
   } 
 }
 
+//used in make_prism_cellplan.cc
+void Prism::resplit( int level,
+                     std::list<Node*>& node_list,
+                     std::list<Edge*>& edge_list,
+                     std::list<QuadFace*>& quadface_list,
+                     std::list<Face*>& face_list){
+ 
+  if(level <= 0) return;
+  int currentLevel = level;
+  
+  queue<Prism*> Q;
+  Q.push(this);
+  Prism* current;
+  
+ 
+  while(!Q.empty()){
+    current = Q.front();
+    
+    if(currentLevel > 0){
+      current-> mySplitCode = 3;
+      current->split(node_list, edge_list, quadface_list, face_list);
+      
+      for(int i = 0; i <current->numChildren(); i++){
+        Q.push(current->childCell[i]);
+      }
+      currentLevel--;
+    }
+    else{
+      current-> mySplitCode = 0;
+    }
+    Q.pop();
+  } 
+}
+
+
+
 
 //This function check if aCell is my neighbor is direction dd
 // edge neighbor is excluded. if two faces overlap area is not zero
@@ -888,10 +924,23 @@ bool Prism::getTagged(){
   return tagged;
 }
 
- 
+  //find the minimum edge length in a cell(before split)
+double Prism::get_min_edge_length(){
+  std::vector<Edge*> edges = get_edges();
+  std::vector<double> edge_length(3*nfold);
+  for(int i = 0; i < 3*nfold; i++)edge_length[i] = edges[i]->get_length();
+    
+  double min_length = edge_length[0];
+  for(int i = 1; i < 3*nfold; i++){
+    min_length = min(min_length, edge_length[i]);
+  }
+  return min_length;
+}
+
+
 void Prism::setSplitCode(int split_mode){
   if( getTagged()){
-   
+    
     if(mySplitCode != 0){
       
       cerr<<"WARNING:mySplitCode is not zero in setSplitCode" << endl;
@@ -992,7 +1041,27 @@ std::vector<char> Prism::make_cellplan(){
   return cellPlan;
 }
 
-bool Prism::balance_cell(std::list<Node*>& node_list,
+std::vector<char> Prism::make_cellplan(int level){
+  
+  std::vector<char> cellPlan;
+ 
+  
+  if(level <= 0) {
+    reduce_vector(cellPlan);
+    return cellPlan;
+  }
+
+  cellPlan.push_back(3);
+  for(int i = 1; i < level; i++){
+    int total_num_children = 6*(1 << (3*(i -1)));
+    for(int j = 0; j < total_num_children; j++) cellPlan.push_back(3);
+  }
+  reduce_vector(cellPlan);
+  return cellPlan;
+}
+
+bool Prism::balance_cell(int split_mode,
+                         std::list<Node*>& node_list,
                          std::list<Edge*>& edge_list,
                          std::list<QuadFace*>& qface_list,
                          std::list<Face*>& gface_list){ 
@@ -1004,26 +1073,39 @@ bool Prism::balance_cell(std::list<Node*>& node_list,
   if(childCell == 0){
     
     needBalance = false;
-    bitset<2> code;
-    for(int i = 0; i < 2*nfold; i++){
-      if( edge[i]->depth_greater_than_1()){
-        code.set(1);
+   
+
+    if(split_mode == 2){
+
+      for(int i = 0; i < 3*nfold; i++){
+        if(edge[i]->depth_greater_than_1()){
+          mySplitCode = 3;
+          break;
+        }
       }
-    }
-    for(int i = 2*nfold; i < 3*nfold; i++){
-      if( edge[i]->depth_greater_than_1()){
-        code.set(0);
+      
+    }else{
+      bitset<2> code;
+      
+      for(int i = 0; i < 2*nfold; i++){
+        if( edge[i]->depth_greater_than_1()){
+          code.set(1);
+        }
       }
-    }
-  
-    mySplitCode = char(code.to_ulong());
-        
+      for(int i = 2*nfold; i < 3*nfold; i++){
+        if( edge[i]->depth_greater_than_1()){
+          code.set(0);
+        }
+      }
+    
+      mySplitCode = char(code.to_ulong());
+    }    
     needBalance = (mySplitCode != 0);
     if(needBalance) {
       split(node_list, edge_list, qface_list, gface_list);
     
       for(int i = 0; i < numChildren(); i++){
-        childCell[i]->balance_cell(node_list, edge_list, qface_list,gface_list );
+        childCell[i]->balance_cell(split_mode,node_list, edge_list, qface_list,gface_list );
       }
     }
   }
@@ -1031,20 +1113,26 @@ bool Prism::balance_cell(std::list<Node*>& node_list,
   else{
     needBalance = false;
     for(int i = 0; i < numChildren(); i++){
-      needBalance = needBalance || (childCell[i]->balance_cell(node_list, edge_list, qface_list, gface_list));
+      needBalance = needBalance || (childCell[i]->balance_cell(split_mode, node_list, edge_list, qface_list, gface_list));
     }
     
   }
   return needBalance;
 }
 
-void Prism::rebalance_cells(std::list<Node*>& node_list,
-                           std::list<Edge*>& edge_list,
+
+
+
+
+
+void Prism::rebalance_cells(int split_mode,
+                            std::list<Node*>& node_list,
+                            std::list<Edge*>& edge_list,
                             std::list<QuadFace*>& qface_list,
                             std::list<Face*>& gface_list){ 
   bool need_balance_more = true;
   while(need_balance_more){
-    need_balance_more = balance_cell(node_list, edge_list, qface_list, gface_list); 
+    need_balance_more = balance_cell(split_mode, node_list, edge_list, qface_list, gface_list); 
   }
 }
 

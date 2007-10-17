@@ -78,6 +78,36 @@ void HexCell::resplit( const std::vector<char>& cellPlan,
   } 
 }
 
+void HexCell::resplit(int level,
+                      std::list<Node*>& node_list,
+                      std::list<Edge*>& edge_list,
+                      std::list<QuadFace*>& face_list){
+  if(level <= 0) return;
+  int currentLevel = level;
+  queue<HexCell*> Q;
+  Q.push(this);
+  HexCell* current;
+  
+  while(!Q.empty()){
+    current = Q.front();
+    
+     if(currentLevel > 0){
+      current-> mySplitCode = 7;
+      current->split(node_list, edge_list, face_list);
+      
+      for(int i = 0; i <current->numChildren(); i++){
+        Q.push(current->childCell[i]);
+      }
+      currentLevel--;
+     }
+    else{
+    current-> mySplitCode = 0;
+    }
+    
+    Q.pop();
+  } 
+}
+
 
 void HexCell::empty_resplit( const std::vector<char>& cellPlan){
   if(cellPlan.size() == 0){
@@ -1036,7 +1066,18 @@ bool HexCell::getTagged(){
 }
       
   
-  
+   //find the minimum edge length in a cell(before split)
+double HexCell::get_min_edge_length(){
+  std::vector<Edge*> edges = get_edges();
+  std::vector<double> edge_length(12);
+  for(int i = 0; i < 12; i++)edge_length[i] = edges[i]->get_length();
+    
+  double min_length = edge_length[0];
+  for(int i = 1; i < 12; i++){
+    min_length = min(min_length, edge_length[i]);
+  }
+  return min_length;
+} 
 
 
  //return a splitCode
@@ -1242,8 +1283,26 @@ std::vector<char> HexCell::make_cellplan(){
   reduce_vector(cellPlan);
   return cellPlan;
 }
+std::vector<char> HexCell::make_cellplan(int level){
+  
+  std::vector<char> cellPlan;
+ 
+  
+  if(level <= 0) {
+    reduce_vector(cellPlan);
+    return cellPlan;
+  }
 
-bool HexCell::balance_cell(std::list<Node*>& node_list,
+  cellPlan.push_back(7);
+  for(int i = 1; i < level; i++){
+    int total_num_children = 1 << (3*i);
+    for(int j = 0; j < total_num_children; j++) cellPlan.push_back(7);
+  }
+  reduce_vector(cellPlan);
+  return cellPlan;
+}
+bool HexCell::balance_cell(int split_mode,
+                           std::list<Node*>& node_list,
                            std::list<Edge*>& edge_list,
                            std::list<QuadFace*>& face_list){ 
 
@@ -1254,48 +1313,58 @@ bool HexCell::balance_cell(std::list<Node*>& node_list,
   if(childCell == 0){
     
     needBalance = false;
-    bitset<3> code;
-    for(int i = 0; i < 4; i++){
-      if( edge[i]->depth_greater_than_1()){
-        code.set(2);
+    if(split_mode == 2){
+      for(int i = 0; i < 12; i++){
+        if( edge[i]->depth_greater_than_1()){
+          mySplitCode = 7;
+          break;
+        }
       }
     }
-    for(int i = 4; i < 8; i++){
-      if( edge[i]->depth_greater_than_1()){
+    else{
+      bitset<3> code;
+      for(int i = 0; i < 4; i++){
+        if( edge[i]->depth_greater_than_1()){
+          code.set(2);
+        }
+      }
+      for(int i = 4; i < 8; i++){
+        if( edge[i]->depth_greater_than_1()){
         code.set(1);
+        }
       }
-    }
-    for(int i = 8; i < 12; i++){
-      if( edge[i]->depth_greater_than_1()){
-        code.set(0);
+      for(int i = 8; i < 12; i++){
+        if( edge[i]->depth_greater_than_1()){
+          code.set(0);
+        }
       }
+      mySplitCode = char(code.to_ulong());
     }
-    mySplitCode = char(code.to_ulong());
-        
     needBalance = mySplitCode != 0;
     split(node_list, edge_list, face_list);
     
     for(int i = 0; i < numChildren(); i++){
-      childCell[i]->balance_cell(node_list, edge_list, face_list);
+      childCell[i]->balance_cell(split_mode, node_list, edge_list, face_list);
     }
   }
 
   else{
     needBalance = false;
     for(int i = 0; i < numChildren(); i++){
-      needBalance = needBalance || (childCell[i]->balance_cell(node_list, edge_list, face_list));
+      needBalance = needBalance || (childCell[i]->balance_cell(split_mode,node_list, edge_list, face_list));
     }
     
   }
   return needBalance;
 }
 
-void HexCell::rebalance_cells(std::list<Node*>& node_list,
+void HexCell::rebalance_cells(int split_mode,
+                              std::list<Node*>& node_list,
                            std::list<Edge*>& edge_list,
                            std::list<QuadFace*>& face_list){ 
   bool need_balance_more = true;
   while(need_balance_more){
-    need_balance_more = balance_cell(node_list, edge_list, face_list); 
+    need_balance_more = balance_cell(split_mode, node_list, edge_list, face_list); 
   }
 }
 

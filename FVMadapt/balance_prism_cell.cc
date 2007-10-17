@@ -58,6 +58,7 @@ class advance_cell_updated_prism : public pointwise_rule{
   const_multiMap lower;
   const_multiMap upper;
   const_multiMap boundary_map;
+  const_param<int> split_mode_par;
    const_store<Array<char, 5> > prism2face;
   const_store<Array<char, 6> > prism2node;
   const_store<Array<char, 5> > orientCode;
@@ -79,6 +80,7 @@ public:
     name_store("upper", upper);
     name_store("boundary_map", boundary_map);
     name_store("boundary_map", boundary_map);
+ name_store("split_mode_par", split_mode_par);
     name_store("prism2face", prism2face);
     name_store("prism2node", prism2node);
     name_store("prismOrientCode", orientCode);
@@ -93,7 +95,7 @@ public:
     name_store("tmpFacePlan{n}", facePlan);
     name_store("tmpEdgePlan{n}", edgePlan);
     name_store("isIndivisible", isIndivisible);
- 
+  input("split_mode_par");
     input("cellUnchanged{n},tmpCellPlan{n}, prism2face, prism2node, prismOrientCode, isIndivisible");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge-> tmpEdgePlan{n}");
@@ -151,7 +153,7 @@ public:
     
     //balance cells
     if(!isIndivisible[cc]){
-      aCell->rebalance_cells(node_list, edge_list, qface_list, gface_list);
+      aCell->rebalance_cells(*split_mode_par, node_list, edge_list, qface_list, gface_list);
     }
         
     

@@ -126,7 +126,8 @@ public:
   inline void setFace(int faceID, QuadFace* aFace){
     quadface[faceID] = aFace;
   }
-    
+  
+  double get_min_edge_length();
   //define if this is tagged for refinement
   bool get_tagged();
   int get_num_fine_faces();//for mxfpc
@@ -160,6 +161,13 @@ public:
                std::list<Face*>& face_list,
                std::vector<Prism*>& prism_cells);
 
+  //used in make_prism_cellplan.cc
+  void Prism::resplit( int level,
+                       std::list<Node*>& node_list,
+                       std::list<Edge*>& edge_list,
+                       std::list<QuadFace*>& quadface_list,
+                       std::list<Face*>& face_list);
+ 
   void empty_split();
   void empty_resplit(const std::vector<char>& cellPlan);
   
@@ -211,7 +219,9 @@ public:
   void setSplitCode(int split_mode);
  //after a cell is split, compose the cell plan according to the tree structure 
   std::vector<char> make_cellplan();
-
+  
+  //make a plan for isotropical split an original prism cell level levels 
+  std::vector<char> make_cellplan(int level);
   
   inline std::vector<Edge*> get_edges(){
   
@@ -226,12 +236,14 @@ public:
     return edges;
   }
   //if any edge is more than 1 levels down than my level, split myself, then balance each child 
-  bool balance_cell(std::list<Node*>& node_list,
+  bool balance_cell(int split_mode,
+                    std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
                     std::list<QuadFace*>& qface_list,
                     std::list<Face*>& gface_list);
   
-  void rebalance_cells(std::list<Node*>& node_list,
+  void rebalance_cells(int split_mode,
+                       std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list,
                        std::list<QuadFace*>& qface_list,
                        std::list<Face*>& gface_list);

@@ -140,17 +140,32 @@ public:
       for(int i = 0; i < numCells; i++){
         cells[i]->setSplitCode(*split_mode_par);
         if(cells[i]->getMySplitCode()!=0) {
-          cell_split = true;
-          cells[i]->split(node_list, edge_list, qface_list, gface_list);
+          if(*split_mode_par == 2){
+            double min_edge_length =cells[i]->get_min_edge_length();
+            int split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));  
+            cells[i]->resplit(min(Globals::levels,split_level),node_list, edge_list, qface_list, gface_list);
+            cell_split = true;
+          }
+          else{
+            cell_split = true;
+            cells[i]->split(node_list, edge_list, qface_list, gface_list);
+          }
         }
       }
-        if(cell_split)aCell->rebalance_cells(node_list, edge_list, qface_list, gface_list);
+      if(cell_split)aCell->rebalance_cells(*split_mode_par, node_list, edge_list, qface_list, gface_list);
       
     }
     else{
       aCell->setSplitCode(*split_mode_par);
       if(aCell->getMySplitCode() != 0 ){
-        aCell->split(node_list, edge_list, qface_list, gface_list);
+        if(*split_mode_par == 2){
+          double min_edge_length =aCell->get_min_edge_length();
+          int split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+          aCell->resplit(min(Globals::levels, split_level), node_list, edge_list, qface_list, gface_list); 
+        }
+        else{
+          aCell->split(node_list, edge_list, qface_list, gface_list);
+        }
       }
     }
   
@@ -244,8 +259,14 @@ public:
   
       
     //write new cellPlan
-    if((aCell->getMySplitCode()) != 0 ) newCellPlan[cc].push_back(aCell->getMySplitCode());
-
+    if((aCell->getMySplitCode()) != 0  && *split_mode_par == 2){
+      double min_edge_length =aCell->get_min_edge_length();
+      int split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+      newCellPlan[cc] =  aCell->make_cellplan(min(Globals::levels, split_level));
+    }
+    else if(aCell->getMySplitCode() != 0   && *split_mode_par != 2){
+      newCellPlan[cc].push_back(aCell->getMySplitCode());
+    }
     
     //clean up
     if(aCell != 0){
