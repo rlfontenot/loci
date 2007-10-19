@@ -904,7 +904,7 @@ bool Prism::getTagged(){
   }
 
   for(int i = nfold; i < 2*nfold; i++){
-    if(gnrlface[1]->needReverse[i]){
+    if(gnrlface[1]->needReverse[i%nfold]){
       nodes[i] = gnrlface[1]->edge[i%nfold]-> tail;
     }
     else{
