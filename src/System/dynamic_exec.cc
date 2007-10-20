@@ -32,7 +32,7 @@ namespace Loci
 
 // set to 1 to activate debugging statements for:
 #define DEBUGOUT 0		// load balancing messages
-#define SHOWTIMES 1		// summary timings
+#define SHOWTIMES 0		// summary timings
 
 // static methods
 #define NLB		0	// no load balancing
@@ -445,6 +445,10 @@ namespace Loci
     rp = fi.get_rule_implP ();
     rule_tag = fi;
     exec_set = eset;
+    if(exec_set.num_intervals() > 1) {
+      cerr << "dynamic scheduling code assumes exec_set contains only one interval" << endl ;
+      Loci::Abort() ;
+    }
     local_compute1 = rp->new_rule_impl ();
     entitySet in = rule_tag.sources ();
     outputs = rule_tag.targets ();
@@ -1335,7 +1339,12 @@ namespace Loci
 	      int chunkDest, double mu)
   {
     int bufInfo[3], pSize, tPos;
-    pSize = 3 * sizeof (int) + sizeof (double);
+    int size ;
+    MPI_Pack_size(3,MPI_INT,MPI_COMM_WORLD,&size) ;
+    pSize = size ;
+    MPI_Pack_size(1,MPI_DOUBLE,MPI_COMM_WORLD,&size) ;
+    pSize += size ;
+    
     GetBuffer (pSize);
     bufInfo[0] = chunkStart;
     bufInfo[1] = chunkSize;
@@ -1361,7 +1370,12 @@ namespace Loci
     int bufInfo[3], pSize, tPos;
     MPI_Status tStatus;
 
-    pSize = 3 * sizeof (int) + sizeof (double);
+    int size ;
+    MPI_Pack_size(3,MPI_INT,MPI_COMM_WORLD,&size) ;
+    pSize = size ;
+    MPI_Pack_size(1,MPI_DOUBLE,MPI_COMM_WORLD,&size) ;
+    pSize += size ;
+
     GetBuffer (pSize);
     MPI_Recv (buf, pSize, MPI_PACKED, src, action, MPI_COMM_WORLD, &tStatus);
     tPos = 0;
@@ -1374,47 +1388,40 @@ namespace Loci
 
   void SendInput (int dest, int tStart, int tSize)
   {
-    int position, size=0, pSize, tPos;
+    int position, pSize ;
     int bufInfo[3];
 
-    //compute buffer size
-//    size = 0;
-//    for (variableSet::const_iterator vi = inputs1.begin ();
-//	 vi != inputs1.end (); ++vi)
-//      {
-//	storeRepP s_ptr = facts1->get_variable (*vi);
-//	size += s_ptr->pack_size (interval (tStart, tStart + tSize - 1));
-//      }
-//    pSize = size + 12;		// 3 ints = 12 bytes
-    pSize = 12 + inputPackSize (tStart, tSize);
+    int size ;
+    MPI_Pack_size(3,MPI_INT,MPI_COMM_WORLD,&size) ;
+    pSize = size ;
+    pSize += inputPackSize (tStart, tSize);
+
     GetBuffer (pSize);
     //Pack chunk info
     bufInfo[0] = tStart;
     bufInfo[1] = tSize;
-    bufInfo[2] = size;
-    tPos = 0;
-    MPI_Pack (bufInfo, 3, MPI_INT, buf, pSize, &tPos, MPI_COMM_WORLD);
-    //Pack inputs from facts
+    bufInfo[2] = pSize;
     position = 0;
+    MPI_Pack (bufInfo, 3, MPI_INT, buf, pSize, &position, MPI_COMM_WORLD);
     entitySet myent = interval (tStart, tStart + tSize - 1);
     for (variableSet::const_iterator vi = inputs1.begin ();
 	 vi != inputs1.end (); ++vi)
       {
 	storeRepP s_ptr = facts1->get_variable (*vi);
-	s_ptr->pack (&buf[tPos], position, size, myent);
+	s_ptr->pack (&buf[0], position, pSize, myent);
       }
     MPI_Send (buf, pSize, MPI_PACKED, dest, WORK_REMOTE, MPI_COMM_WORLD);
 
 #if DEBUGOUT
     Loci::
       debugout << "SendInput " << myRank << "->" << dest << ", chunk=" <<
-      tStart << "," << tSize << "," << size << endl;
+      tStart << "," << tSize << "," << pSize << endl;
 #endif
   }
 
   void ReceiveInput (int src, int msgSize, int *tStart, int *tSize)
   {
-    int position, tPos, size;
+    int position, size;
     MPI_Status tStatus;
     int bufInfo[3];
 
@@ -1422,18 +1429,17 @@ namespace Loci
     MPI_Recv (buf, msgSize, MPI_PACKED, src, WORK_REMOTE, MPI_COMM_WORLD,
 	      &tStatus);
     //unpack chunk info
-    tPos = 0;
-    MPI_Unpack (buf, msgSize, &tPos, bufInfo, 3, MPI_INT, MPI_COMM_WORLD);
+    position = 0;
+    MPI_Unpack (buf, msgSize, &position, bufInfo, 3, MPI_INT, MPI_COMM_WORLD);
     *tStart = bufInfo[0];
     *tSize = bufInfo[1];
     size = bufInfo[2];
     //unpack inputs into local facts
-    position = 0;
     for (variableSet::const_iterator vi = inputs1.begin ();
 	 vi != inputs1.end (); ++vi)
       {
 	storeRepP s_ptr = local_facts1->get_variable (*vi);
-	s_ptr->unpack (&buf[tPos], position, size,
+	s_ptr->unpack (&buf[0], position, size,
 		       sequence (interval (0, *tSize - 1)));
       }
 
@@ -1446,7 +1452,7 @@ namespace Loci
 
   void SendOutput (int dest, int tStart, int tSize, double *tTime)
   {
-    int position, size=0, tPos, pSize;
+    int position, pSize;
     int bufInfo[3];
 
     //compute buffer size
@@ -1458,23 +1464,28 @@ namespace Loci
 //	size += s_ptr->pack_size (interval (0, tSize - 1));
 //      }
 //    pSize = size + 3 * sizeof (int) + sizeof (double);
-    pSize = 3 * sizeof (int) + sizeof (double) + outputPackSize (0, tSize);
+    int size ;
+    MPI_Pack_size(3,MPI_INT,MPI_COMM_WORLD,&size) ;
+    pSize = size ;
+    MPI_Pack_size(1,MPI_DOUBLE,MPI_COMM_WORLD,&size) ;
+    pSize += size ;
+    pSize += outputPackSize (0, tSize);
+    
     GetBuffer (pSize);
     //Pack chunk info
     bufInfo[0] = tStart;
     bufInfo[1] = tSize;
-    bufInfo[2] = size;
-    tPos = 0;
-    MPI_Pack (bufInfo, 3, MPI_INT, buf, pSize, &tPos, MPI_COMM_WORLD);
-    MPI_Pack (tTime, 1, MPI_DOUBLE, buf, pSize, &tPos, MPI_COMM_WORLD);
-    //Pack outputs
+    bufInfo[2] = pSize;
     position = 0;
+    MPI_Pack (bufInfo, 3, MPI_INT, buf, pSize, &position, MPI_COMM_WORLD);
+    MPI_Pack (tTime, 1, MPI_DOUBLE, buf, pSize, &position, MPI_COMM_WORLD);
+    //Pack outputs
     entitySet myent2 = interval (0, tSize - 1);
     for (variableSet::const_iterator vi = outputs1.begin ();
 	 vi != outputs1.end (); ++vi)
       {
 	storeRepP s_ptr = local_facts1->get_variable (*vi);
-	s_ptr->pack (&buf[tPos], position, size, myent2);
+	s_ptr->pack (&buf[0], position, pSize, myent2);
       }
     //Send outputs
     MPI_Send (buf, pSize, MPI_PACKED, dest, RECV_OUTPUT, MPI_COMM_WORLD);
@@ -1482,34 +1493,34 @@ namespace Loci
 #if DEBUGOUT
     Loci::
       debugout << "SendOutput " << myRank << "->" << dest << ", chunk=" <<
-      tStart << "," << tSize << "," << size << endl;
+      tStart << "," << tSize << "," << pSize << endl;
 #endif
   }
 
   void ReceiveOutput (int src, int msgSize, int *iters, double *tTime)
   {
     MPI_Status tStatus;
-    int position, tPos, tStart, tSize, size;
+    int position, tStart, tSize, size;
     int bufInfo[3];
 
     GetBuffer (msgSize);
     MPI_Recv (buf, msgSize, MPI_PACKED, src, RECV_OUTPUT, MPI_COMM_WORLD,
 	      &tStatus);
     //unpack chunk info
-    tPos = 0;
-    MPI_Unpack (buf, msgSize, &tPos, bufInfo, 3, MPI_INT, MPI_COMM_WORLD);
-    MPI_Unpack (buf, msgSize, &tPos, tTime, 1, MPI_DOUBLE, MPI_COMM_WORLD);
+    position = 0;
+    MPI_Unpack (buf, msgSize, &position, bufInfo, 3, MPI_INT, MPI_COMM_WORLD);
+    MPI_Unpack (buf, msgSize, &position, tTime, 1, MPI_DOUBLE, MPI_COMM_WORLD);
     tStart = bufInfo[0];
     tSize = bufInfo[1];
     size = bufInfo[2];
     *iters = tSize;
     //unpack outputs into facts
-    position = 0;
+
     for (variableSet::const_iterator vi = outputs1.begin ();
 	 vi != outputs1.end (); ++vi)
       {
 	storeRepP s_ptr = facts1->get_variable (*vi);
-	s_ptr->unpack (&buf[tPos], position, size,
+	s_ptr->unpack (&buf[0], position, size,
 		       sequence (interval (tStart, tStart + tSize - 1)));
       }
 
