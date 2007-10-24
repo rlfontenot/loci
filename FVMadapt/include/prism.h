@@ -36,9 +36,7 @@ public:
   Prism():nfold(0),mySplitCode(0),gnrlface(0),quadface(0), parentCell(0),
            childCell(0){faceOrient.reset();}
   
-  Prism(int n):nfold(n),mySplitCode(0),parentCell(0), childCell(0){
-    gnrlface = new Face*[2];
-    quadface = new QuadFace*[n];
+  Prism(int n):nfold(n),mySplitCode(0),gnrlface(new Face*[2]), quadface(new QuadFace*[n]), parentCell(0), childCell(0){
     faceOrient.reset();
   }
   
@@ -119,10 +117,10 @@ public:
   }
   
   //used in build_prismcell.cc
-    inline void setFace(int faceID, Face* aFace){
-     gnrlface[faceID] = aFace;
-   }
-
+  inline void setFace(int faceID, Face* aFace){
+    gnrlface[faceID] = aFace;
+  }
+  
   inline void setFace(int faceID, QuadFace* aFace){
     quadface[faceID] = aFace;
   }

@@ -54,9 +54,7 @@ std::vector<int32> contain_2d(const std::vector<pair<Range2d, int32> >& faceMap,
 class QuadFace{
 public:
   //constructors 
-  QuadFace(int numEdge):child(0),childx(0), childy(0),code(char(0)){
-    edge = new Edge*[numEdge];
-  }
+  QuadFace(int numEdge):edge(new Edge*[numEdge]),child(0),childx(0), childy(0),code(char(0)){}
   //used for empty_split
   QuadFace():edge(0), child(0),childx(0), childy(0),code(char(0)){}
   QuadFace( Edge** e):edge(e),child(0), childx(0), childy(0),code(char(0)){}

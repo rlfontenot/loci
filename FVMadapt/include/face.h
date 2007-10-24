@@ -26,10 +26,7 @@ public:
   //constructors, it's important for child to be initialized to zero
   //for both memory management and for split
 
-  Face(int n):numEdge(n),child(0){
-    edge = new Edge*[numEdge];
-    needReverse = new bool[numEdge];
-  }
+  Face(int n):numEdge(n),edge(new Edge*[n]),needReverse(new bool[n]),child(0){}
   
   Face(int n, Edge** e, bool* r):numEdge(n),edge(e), needReverse(r),child(0){}
 

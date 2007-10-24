@@ -36,11 +36,8 @@ class DiamondCell
 public:
   
   //constructor; 
-  DiamondCell(char m):nfold(m),cellIndex(0),childCell(0), faceMarked(0){
-    face = new Face*[2*m];
-    faceOrient = new char[2*m];
-
-  }
+  DiamondCell(char m):nfold(m),cellIndex(0),childCell(0),
+                     face(new Face*[2*m]), faceOrient(new char[2*m]), faceMarked(0){}
   
   
   //destructor
