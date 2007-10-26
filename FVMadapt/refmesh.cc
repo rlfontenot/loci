@@ -7,7 +7,7 @@
 //#include <algorithm>
 #include <Loci.h>
 //#include "hexcell.h"
-//#include "defines.h"
+#include "defines.h"
 //#include <rpc/xdr.h>
 //#include <rpc/rpc.h>
 using std::string;
@@ -41,9 +41,9 @@ int main(int argc, char ** argv) {
   // Here's where we parse out the command line arguments that are
   // relevant to this program.
   int j=1;
-  // string pathname = "/scratch/qxue/output/";
-  //  string pathname = "/var/tmp/qxue/grid/";
-  string pathname = "";
+  //string pathname = "../gridgen/restore/mixedcell/";
+  // string pathname = "/var/tmp/qxue/grid/";
+   string pathname = "";
   bool restart = false;
   bool xdr = true;
 
@@ -137,85 +137,82 @@ int main(int argc, char ** argv) {
   createEdgesPar(facts) ;
    Loci:: parallelClassifyCell(facts);
  
-//   std::cout << "Making query." << std::endl;
-//   if(!Loci::makeQuery(rules, facts, "num_original_nodes")) {
+ cerr << currentMem() << " after read in grid " <<  Loci::MPI_rank << endl;
+
+  
+ //  std::cout << "Making query." << std::endl;
+//   if(!Loci::makeQuery(rules, facts, "num_inner_nodes,num_fine_cells")) {
 //     std::cerr << "query failed!" << std::endl;
 //     Loci::Abort();
 //   }
-//   param<int> num_original_nodes;
-//   num_original_nodes = facts.get_variable("num_original_nodes");
-//   cerr << "num_oridinal_nodes " << *num_original_nodes << endl; 
-  
-  std::cout << "Making query." << std::endl;
-  if(!Loci::makeQuery(rules, facts, "num_inner_nodes,num_fine_cells")) {
-    std::cerr << "query failed!" << std::endl;
-    Loci::Abort();
-  }
 
-
-  Loci::storeRepP num_inner_nodes;
-  num_inner_nodes = facts.get_variable("num_inner_nodes");
-  facts.create_fact("num_inner_nodes_copy", num_inner_nodes);
-  
-  Loci::storeRepP num_fine_cells;
-  num_fine_cells = facts.get_variable("num_fine_cells");
-  facts.create_fact("num_fine_cells_copy", num_fine_cells);
-  
-  std::cout << "Making query." << std::endl;
-  if(!Loci::makeQuery(rules, facts, "inner_nodes,fine_faces")) {
-    std::cerr << "query failed!" << std::endl;
-    Loci::Abort();
-  }
-
-  Loci::storeRepP inner_nodes;
-  inner_nodes = facts.get_variable("inner_nodes");
-  facts.create_fact("inner_nodes_copy", inner_nodes);
-  
-  Loci::storeRepP fine_faces;
-  fine_faces = facts.get_variable("fine_faces");
-  facts.create_fact("fine_faces_copy", fine_faces);
-  
-
-  
-  std::cout << "Making query." << std::endl;
-  if(!Loci::makeQuery(rules, facts, "npnts")) {
-    std::cerr << "query failed!" << std::endl;
-    Loci::Abort();
-  }
  
 
-    Loci::storeRepP npnts;
+//   Loci::storeRepP num_inner_nodes;
+//   num_inner_nodes = facts.get_variable("num_inner_nodes");
+//   facts.create_fact("num_inner_nodes_copy", num_inner_nodes);
   
-    npnts = facts.get_variable("npnts");
+//   Loci::storeRepP num_fine_cells;
+//   num_fine_cells = facts.get_variable("num_fine_cells");
+//   facts.create_fact("num_fine_cells_copy", num_fine_cells);
   
-   facts.create_fact("npnts_copy", npnts);
+//     cerr << currentMem() << " after num_inner_nodes " <<  Loci::MPI_rank << endl;
 
-   // cout << "npnts: " << num_points <<" myID : " << Loci::MPI_rank << std::endl;
-  
-  std::cout << "Making query." << std::endl;
-  if(!Loci::makeQuery(rules, facts, "ncells")) {
-    std::cerr << "query failed!" << std::endl;
-    Loci::Abort();
-  }
- 
-  Loci::storeRepP ncells;
-  ncells = facts.get_variable("ncells");
-  facts.create_fact("ncells_copy", ncells);
- 
-  
- std::cout << "Making query." << std::endl;
-  if(!Loci::makeQuery(rules, facts, "nfaces")) {
-    std::cerr << "query failed!" << std::endl;
-    Loci::Abort();
-  }
+//     std::cout << "Making query." << std::endl;
+//   if(!Loci::makeQuery(rules, facts, "inner_nodes,fine_faces")) {
+//     std::cerr << "query failed!" << std::endl;
+//     Loci::Abort();
+//   }
 
-   Loci::storeRepP nfaces;
-   //  param<int> nfaces;
-  nfaces = facts.get_variable("nfaces");
-  facts.create_fact("nfaces_copy", nfaces);
+//   Loci::storeRepP inner_nodes;
+//   inner_nodes = facts.get_variable("inner_nodes");
+//   facts.create_fact("inner_nodes_copy", inner_nodes);
+  
+//   Loci::storeRepP fine_faces;
+//   fine_faces = facts.get_variable("fine_faces");
+//   facts.create_fact("fine_faces_copy", fine_faces);
+  
+//   cerr << currentMem() << " after inner_nodes " <<  Loci::MPI_rank << endl;
+  
+//   std::cout << "Making query." << std::endl;
+//   if(!Loci::makeQuery(rules, facts, "npnts")) {
+//     std::cerr << "query failed!" << std::endl;
+//     Loci::Abort();
+//   }
+ 
+
+//     Loci::storeRepP npnts;
+  
+//     npnts = facts.get_variable("npnts");
+  
+//    facts.create_fact("npnts_copy", npnts);
+
+//    // cout << "npnts: " << num_points <<" myID : " << Loci::MPI_rank << std::endl;
+  
+//   std::cout << "Making query." << std::endl;
+//   if(!Loci::makeQuery(rules, facts, "ncells")) {
+//     std::cerr << "query failed!" << std::endl;
+//     Loci::Abort();
+//   }
+ 
+//   Loci::storeRepP ncells;
+//   ncells = facts.get_variable("ncells");
+//   facts.create_fact("ncells_copy", ncells);
  
   
+//  std::cout << "Making query." << std::endl;
+//   if(!Loci::makeQuery(rules, facts, "nfaces")) {
+//     std::cerr << "query failed!" << std::endl;
+//     Loci::Abort();
+//   }
 
+//    Loci::storeRepP nfaces;
+//    //  param<int> nfaces;
+//   nfaces = facts.get_variable("nfaces");
+//   facts.create_fact("nfaces_copy", nfaces);
+ 
+  
+//   cerr << currentMem() << " after nfaces " <<  Loci::MPI_rank << endl;
   
   if(!Loci::makeQuery(rules, facts, "pos_output")) {
     std::cerr << "query failed!" << std::endl;

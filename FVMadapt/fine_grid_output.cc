@@ -36,12 +36,12 @@ public:
   node_output_file(){
     name_store("node_output", node_output);
     name_store("outfile_par", outfile_par);
-    name_store("inner_nodes_copy", inner_nodes);
+    name_store("inner_nodes", inner_nodes);
  
  
     
     input("outfile_par");
-    input("inner_nodes_copy");
+    input("inner_nodes");
  
     
     output("node_output");
@@ -142,21 +142,20 @@ public:
     inner_nodes_sizes = Loci::all_collect_sizes(num_local_inner_nodes);
    
     int inner_nodes_buf_size =  (*std::max_element(inner_nodes_sizes.begin(), inner_nodes_sizes.end()))*3;
-    if(inner_nodes_buf_size != 0){
-      double* inner_nodes_buf = new double[inner_nodes_buf_size];
-   
+    double* inner_nodes_buf = new double[inner_nodes_buf_size];
+     cerr << currentMem() << " node_output " <<  Loci::MPI_rank << endl;
     //first process 0 write out its inner_nodes
     if(my_id == 0){
-      if(num_local_inner_nodes != 0){
-        FORALL(local_edges, cc){
-          for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
-            vect3d p = inner_nodes[cc][i];
-            xdr_double(&xdr_handle, &p.x) ; 
-            xdr_double(&xdr_handle, &p.y) ;
-            xdr_double(&xdr_handle, &p.z) ;
-            
-          }
-        }ENDFORALL;
+    
+      FORALL(local_edges, cc){
+        for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
+          vect3d p = inner_nodes[cc][i];
+          xdr_double(&xdr_handle, &p.x) ; 
+          xdr_double(&xdr_handle, &p.y) ;
+          xdr_double(&xdr_handle, &p.z) ;
+          
+        }
+      }ENDFORALL;
       FORALL(local_cells, cc){
         for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
           vect3d p = inner_nodes[cc][i];
@@ -175,66 +174,63 @@ public:
           
         }
       }ENDFORALL;
-      }
+      
       //then process 0 recv data from other processes
       for(int i = 1; i < num_procs; i++){
-        if(inner_nodes_sizes[i] != 0){
-          MPI_Status status;
-          int flag = 1;
-          MPI_Send(&flag, 1, MPI_INT, i, 12, MPI_COMM_WORLD) ;
-          MPI_Recv(inner_nodes_buf,inner_nodes_buf_size,
-                   MPI_DOUBLE, i, 13, MPI_COMM_WORLD, &status) ;
-          //write the buffer out
-          for(int j = 0; j <inner_nodes_sizes[i]*3; j++)
-            xdr_double(&xdr_handle, &inner_nodes_buf[j]);
-        }
+        MPI_Status status;
+        int flag = 1;
+        MPI_Send(&flag, 1, MPI_INT, i, 12, MPI_COMM_WORLD) ;
+        MPI_Recv(inner_nodes_buf,inner_nodes_buf_size,
+                 MPI_DOUBLE, i, 13, MPI_COMM_WORLD, &status) ;
+        //write the buffer out
+        for(int j = 0; j <inner_nodes_sizes[i]*3; j++)
+          xdr_double(&xdr_handle, &inner_nodes_buf[j]);
       }
       fclose (out);
       xdr_destroy(&xdr_handle) ;
     }else{
       //process [1,numprocs-1] send data to process 0
-      if(num_local_inner_nodes != 0){
-        MPI_Status status ;
-        //pack the buf
-        int index=0;
-        FORALL(local_edges,cc){
-          for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
-            vect3d p = inner_nodes[cc][i];
-            inner_nodes_buf[index++] = p.x;
-            inner_nodes_buf[index++] = p.y;
-            inner_nodes_buf[index++] = p.z;
-            
-          }
-        }ENDFORALL;
-        FORALL(local_cells,cc){
-          for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
-            vect3d p = inner_nodes[cc][i];
-            inner_nodes_buf[index++] = p.x;
-            inner_nodes_buf[index++] = p.y;
-            inner_nodes_buf[index++] = p.z;
-            
-          }
-        }ENDFORALL;
-        FORALL(local_faces,cc){
-          for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
-            vect3d p = inner_nodes[cc][i];
-            inner_nodes_buf[index++] = p.x;
-            inner_nodes_buf[index++] = p.y;
-            inner_nodes_buf[index++] = p.z;
-            
-          }  
-        }ENDFORALL;
-        
-        int flag = 0 ;
-        MPI_Recv(&flag, 1, MPI_INT, 0, 12, MPI_COMM_WORLD, &status) ;
-        if(flag) {
-          MPI_Send(inner_nodes_buf, inner_nodes_sizes[my_id]*3, MPI_DOUBLE, 0, 13, MPI_COMM_WORLD) ;
+      MPI_Status status ;
+      //pack the buf
+      int index=0;
+      FORALL(local_edges,cc){
+        for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
+          vect3d p = inner_nodes[cc][i];
+          inner_nodes_buf[index++] = p.x;
+          inner_nodes_buf[index++] = p.y;
+          inner_nodes_buf[index++] = p.z;
+         
+        }
+      }ENDFORALL;
+      FORALL(local_cells,cc){
+        for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
+          vect3d p = inner_nodes[cc][i];
+          inner_nodes_buf[index++] = p.x;
+          inner_nodes_buf[index++] = p.y;
+          inner_nodes_buf[index++] = p.z;
+          
+        }
+      }ENDFORALL;
+      FORALL(local_faces,cc){
+       for(unsigned int i = 0; i < inner_nodes[cc].size(); i++){
+          vect3d p = inner_nodes[cc][i];
+          inner_nodes_buf[index++] = p.x;
+          inner_nodes_buf[index++] = p.y;
+          inner_nodes_buf[index++] = p.z;
+          
         }  
-      }//finish output inner nodes
-    }
+      }ENDFORALL;
+      
+      int flag = 0 ;
+      MPI_Recv(&flag, 1, MPI_INT, 0, 12, MPI_COMM_WORLD, &status) ;
+      if(flag) {
+        MPI_Send(inner_nodes_buf, inner_nodes_sizes[my_id]*3, MPI_DOUBLE, 0, 13, MPI_COMM_WORLD) ;
+      }  
+    }//finish output inner nodes
+
     delete [] inner_nodes_buf;
-    }//if(inner_nodes_buf_size != 0)
-    
+
+   
   }
 } ;
 register_rule<node_output_file> register_node_output_file;
@@ -251,11 +247,11 @@ public:
   face_output_file(){
     name_store("face_output", face_output);
     name_store("outfile_par", outfile_par);
-    name_store("fine_faces_copy", fine_faces);
+    name_store("fine_faces", fine_faces);
 
     
     input("outfile_par");
-    input("fine_faces_copy");
+    input("fine_faces");
 
     output("face_output");
     disable_threading();
@@ -292,9 +288,9 @@ public:
           c1 = fine_faces[cc][f][0];
           c2 = fine_faces[cc][f][1];
           xdr_int(&xdr_handle, &offset) ; 
-          xdr_int(&xdr_handle, &c1) ;
-          xdr_int(&xdr_handle, &c2) ;
-          offset += fine_faces[cc][f].size()-2;
+           xdr_int(&xdr_handle, &c1) ;
+           xdr_int(&xdr_handle, &c2) ;
+           offset += fine_faces[cc][f].size()-2;
         }
         
       }ENDFORALL; 
@@ -366,9 +362,8 @@ public:
     //first output interior faces
     int offset = 0;
     int c1, c2;
-
-    //each process compute num_local_interior_faces of all local_cells and local_interior_faces
     int num_local_interior_faces = 0;
+    
     FORALL(local_cells, cc){
       num_local_interior_faces += fine_faces[cc].size();
     }ENDFORALL; 
@@ -376,94 +371,86 @@ public:
       num_local_interior_faces += fine_faces[cc].size();
     }ENDFORALL;
     
-   
-    std::vector<int> interior_neib_sizes; //the num_local_interior_faces of all process
-    interior_neib_sizes = Loci::all_collect_sizes(num_local_interior_faces);
     
+    std::vector<int> interior_neib_sizes;
+    interior_neib_sizes = Loci::all_collect_sizes(num_local_interior_faces);
     int interior_buf_size =  (*std::max_element(interior_neib_sizes.begin(), interior_neib_sizes.end()))*3;
+    int* interior_buf = new int[interior_buf_size];
 
-    if(interior_buf_size != 0){
-      int* interior_buf = new int[interior_buf_size];
-
-
-      //first process 0 write out its neib
-      if(my_id == 0){
-        if(num_local_interior_faces != 0){ 
-          FORALL(local_cells, cc){
-            for(unsigned int f = 0; f < fine_faces[cc].size(); f++){
-              c1 = fine_faces[cc][f][0];
-              c2 = fine_faces[cc][f][1];
-              xdr_int(&xdr_handle, &offset) ; 
-              xdr_int(&xdr_handle, &c1) ;
-              xdr_int(&xdr_handle, &c2) ;
-              
-              offset += fine_faces[cc][f].size()-2;
-            }
-            
-          }ENDFORALL; 
-          FORALL(local_interior_faces, cc){
-            for(unsigned int f = 0; f < fine_faces[cc].size(); f++){
-              c1 = fine_faces[cc][f][0];
-              c2 = fine_faces[cc][f][1];
-              xdr_int(&xdr_handle, &offset) ; 
-              xdr_int(&xdr_handle, &c1) ;
-              xdr_int(&xdr_handle, &c2) ;
-              offset += fine_faces[cc][f].size()-2;
-            }
-          }ENDFORALL;
+    cerr << currentMem() << " face_output " <<  Loci::MPI_rank << endl;
+    //first process 0 write out its neib
+    if(my_id == 0){
+      
+      FORALL(local_cells, cc){
+        for(unsigned int f = 0; f < fine_faces[cc].size(); f++){
+          c1 = fine_faces[cc][f][0];
+          c2 = fine_faces[cc][f][1];
+          xdr_int(&xdr_handle, &offset) ; 
+          xdr_int(&xdr_handle, &c1) ;
+          xdr_int(&xdr_handle, &c2) ;
+         
+          offset += fine_faces[cc][f].size()-2;
         }
+        
+      }ENDFORALL; 
+      FORALL(local_interior_faces, cc){
+        for(unsigned int f = 0; f < fine_faces[cc].size(); f++){
+          c1 = fine_faces[cc][f][0];
+          c2 = fine_faces[cc][f][1];
+          xdr_int(&xdr_handle, &offset) ; 
+          xdr_int(&xdr_handle, &c1) ;
+          xdr_int(&xdr_handle, &c2) ;
+          offset += fine_faces[cc][f].size()-2;
+        }
+      }ENDFORALL;
+      
       //then process 0 recv data from other processes
-        for(int i = 1; i < num_procs; i++){
-          if(interior_neib_sizes[i] !=0){//prevent MPI communication deadlock
-            MPI_Status status;
-            int flag = 1;
-            MPI_Send(&flag, 1, MPI_INT, i, 14, MPI_COMM_WORLD) ;
-            MPI_Recv(interior_buf,interior_buf_size,
-                     MPI_INT, i, 15, MPI_COMM_WORLD, &status) ;
-            //write the buffer out
-            for(int j = 0; j <interior_neib_sizes[i]; j++){
-              xdr_int(&xdr_handle, &offset) ; 
-              xdr_int(&xdr_handle, &interior_buf[3*j+1]);
-              xdr_int(&xdr_handle, &interior_buf[3*j+2]);
-              offset += interior_buf[3*j];
-            }
-          }
+      for(int i = 1; i < num_procs; i++){
+        MPI_Status status;
+        int flag = 1;
+        MPI_Send(&flag, 1, MPI_INT, i, 14, MPI_COMM_WORLD) ;
+        MPI_Recv(interior_buf,interior_buf_size,
+                 MPI_INT, i, 15, MPI_COMM_WORLD, &status) ;
+        //write the buffer out
+        for(int j = 0; j <interior_neib_sizes[i]; j++){
+          xdr_int(&xdr_handle, &offset) ; 
+          xdr_int(&xdr_handle, &interior_buf[3*j+1]);
+          xdr_int(&xdr_handle, &interior_buf[3*j+2]);
+          offset += interior_buf[3*j];
         }
-        
-      }else{
-        //process [1,numprocs-1] send data to process 0
-        
-        if(num_local_interior_faces != 0){
-          MPI_Status status ;
-          //pack the buf
-          int index=0;
-          
-          FORALL(local_cells,cc){
-            for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-              interior_buf[index++] = fine_faces[cc][f].size()-2;
-              interior_buf[index++] = fine_faces[cc][f][0];
-              interior_buf[index++] = fine_faces[cc][f][1];
-            }
-          }ENDFORALL;
-          FORALL(local_interior_faces,cc){
-            for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-              interior_buf[index++] = fine_faces[cc][f].size()-2;
-              interior_buf[index++] = fine_faces[cc][f][0];
-              interior_buf[index++] = fine_faces[cc][f][1];
-            } 
-          }ENDFORALL;
-          
-          int flag = 0 ;
-          MPI_Recv(&flag, 1, MPI_INT, 0, 14, MPI_COMM_WORLD, &status) ;
-          if(flag) {
-            MPI_Send(interior_buf, interior_neib_sizes[my_id]*3, MPI_INT, 0, 15, MPI_COMM_WORLD) ;
-          }  
-        }//finish output interior offset, c1, c2
       }
-      delete [] interior_buf;
-    }//if(interior_buf_size != 0)
 
+    }else{
+      //process [1,numprocs-1] send data to process 0
+      MPI_Status status ;
+      //pack the buf
+      int index=0;
+      
+      FORALL(local_cells,cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          interior_buf[index++] = fine_faces[cc][f].size()-2;
+          interior_buf[index++] = fine_faces[cc][f][0];
+          interior_buf[index++] = fine_faces[cc][f][1];
+        }
+      }ENDFORALL;
+      FORALL(local_interior_faces,cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          interior_buf[index++] = fine_faces[cc][f].size()-2;
+          interior_buf[index++] = fine_faces[cc][f][0];
+          interior_buf[index++] = fine_faces[cc][f][1];
+        } 
+      }ENDFORALL;
+      
+      int flag = 0 ;
+      MPI_Recv(&flag, 1, MPI_INT, 0, 14, MPI_COMM_WORLD, &status) ;
+      if(flag) {
+        MPI_Send(interior_buf, interior_neib_sizes[my_id]*3, MPI_INT, 0, 15, MPI_COMM_WORLD) ;
+      }  
+    }//finish output interior offset, c1, c2
+
+    delete [] interior_buf;
     //then output boundary faces
+
     int num_local_boundary_faces = 0;
    
     
@@ -476,69 +463,62 @@ public:
     
     boundary_neib_sizes = Loci::all_collect_sizes(num_local_boundary_faces);
     int boundary_buf_size =  (*std::max_element(boundary_neib_sizes.begin(), boundary_neib_sizes.end()))*3;
-
-    if(boundary_buf_size !=0){
-      int* boundary_buf = new int[boundary_buf_size];
+    int* boundary_buf = new int[boundary_buf_size];
 
 
     //first process 0 write out its neib
     if(my_id == 0){
-      if(num_local_boundary_faces != 0){  
-        FORALL(local_boundary_faces, cc){
-          for(unsigned int f = 0; f < fine_faces[cc].size(); f++){
-            c1 = fine_faces[cc][f][0];
-            c2 = fine_faces[cc][f][1];
-            xdr_int(&xdr_handle, &offset) ; 
-            xdr_int(&xdr_handle, &c1) ;
-            xdr_int(&xdr_handle, &c2) ;
-            offset += fine_faces[cc][f].size()-2;
-          }
-        }ENDFORALL;
-      }
+      
+      FORALL(local_boundary_faces, cc){
+        for(unsigned int f = 0; f < fine_faces[cc].size(); f++){
+          c1 = fine_faces[cc][f][0];
+          c2 = fine_faces[cc][f][1];
+          xdr_int(&xdr_handle, &offset) ; 
+          xdr_int(&xdr_handle, &c1) ;
+          xdr_int(&xdr_handle, &c2) ;
+          offset += fine_faces[cc][f].size()-2;
+        }
+      }ENDFORALL;
+      
       //then process 0 recv data from other processes
       for(int i = 1; i < num_procs; i++){
-        if(boundary_neib_sizes[i] !=0){
-          MPI_Status status;
-          int flag = 1;
-          MPI_Send(&flag, 1, MPI_INT, i, 16, MPI_COMM_WORLD) ;
-          MPI_Recv(boundary_buf,boundary_buf_size,
-                   MPI_INT, i, 17, MPI_COMM_WORLD, &status) ;
-          //write the buffer out
-          for(int j = 0; j <boundary_neib_sizes[i]; j++){
-            xdr_int(&xdr_handle, &offset) ; 
-            xdr_int(&xdr_handle, &boundary_buf[3*j+1]);
-            xdr_int(&xdr_handle, &boundary_buf[3*j+2]);
-            offset += boundary_buf[3*j];
-          }
-        
-          xdr_int(&xdr_handle, &offset) ;
+        MPI_Status status;
+        int flag = 1;
+        MPI_Send(&flag, 1, MPI_INT, i, 16, MPI_COMM_WORLD) ;
+        MPI_Recv(boundary_buf,boundary_buf_size,
+                 MPI_INT, i, 17, MPI_COMM_WORLD, &status) ;
+        //write the buffer out
+        for(int j = 0; j <boundary_neib_sizes[i]; j++){
+          xdr_int(&xdr_handle, &offset) ; 
+          xdr_int(&xdr_handle, &boundary_buf[3*j+1]);
+          xdr_int(&xdr_handle, &boundary_buf[3*j+2]);
+          offset += boundary_buf[3*j];
         }
       }
+      xdr_int(&xdr_handle, &offset) ; 
     }else{
       //process [1,numprocs-1] send data to process 0
-      if(num_local_boundary_faces !=0){
-        MPI_Status status ;
-        //pack the buf
-        int index=0;
-        FORALL(local_boundary_faces,cc){
-          for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-            boundary_buf[index++] = fine_faces[cc][f].size()-2;
-            boundary_buf[index++] = fine_faces[cc][f][0];
-            boundary_buf[index++] = fine_faces[cc][f][1];
-          } 
-        }ENDFORALL;
-        
-        int flag = 0 ;
-        MPI_Recv(&flag, 1, MPI_INT, 0, 16, MPI_COMM_WORLD, &status) ;
-        if(flag) {
-          MPI_Send(boundary_buf, boundary_neib_sizes[my_id]*3, MPI_INT, 0, 17, MPI_COMM_WORLD) ;
-        }
-      }
+      MPI_Status status ;
+      //pack the buf
+      int index=0;
+      FORALL(local_boundary_faces,cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          boundary_buf[index++] = fine_faces[cc][f].size()-2;
+          boundary_buf[index++] = fine_faces[cc][f][0];
+          boundary_buf[index++] = fine_faces[cc][f][1];
+        } 
+      }ENDFORALL;
+      
+      int flag = 0 ;
+      MPI_Recv(&flag, 1, MPI_INT, 0, 16, MPI_COMM_WORLD, &status) ;
+      if(flag) {
+        MPI_Send(boundary_buf, boundary_neib_sizes[my_id]*3, MPI_INT, 0, 17, MPI_COMM_WORLD) ;
+      }  
     }//finish output boundary offset, c1, c2
 
 
     delete [] boundary_buf;
-    }//if(boundary_buf_size !=0)
+
     
     //start interior face2node,
     int f2n_vec_size = 0;
@@ -557,81 +537,72 @@ public:
     f2n_sizes = Loci::all_collect_sizes(f2n_vec_size);
    
     int f2n_buf_size =  *std::max_element(f2n_sizes.begin(), f2n_sizes.end());
-    if(f2n_buf_size !=0){
-      int* f2n_buf = new int[f2n_buf_size];
+    int* f2n_buf = new int[f2n_buf_size];
+   
+    //first process 0 write out its f2n
+    if(my_id == 0){
+      int nindex = 0;
       
-      //first process 0 write out its f2n
-      if(my_id == 0){
-        if(f2n_vec_size != 0){
-          int nindex = 0;
-          
-          FORALL(local_cells, cc){
-            for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-              for(unsigned int i = 2; i < fine_faces[cc][f].size(); i++){
-                nindex = fine_faces[cc][f][i]-1;
-                xdr_int(&xdr_handle, &nindex) ; 
-              }
-            }
-          }ENDFORALL; 
-          FORALL(local_interior_faces, cc){
-            for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-              for(unsigned int i = 2; i < fine_faces[cc][f].size(); i++){
-                nindex = fine_faces[cc][f][i]-1;
-                xdr_int(&xdr_handle, &nindex) ; 
-              }
-            }
-          }ENDFORALL;
-        }
-        //then process 0 recv data from other processes
-        for(int i = 1; i < num_procs; i++){
-          if(f2n_sizes[i] !=0){
-            MPI_Status status;
-            int flag = 1;
-            MPI_Send(&flag, 1, MPI_INT, i, 18, MPI_COMM_WORLD) ;
-            MPI_Recv(f2n_buf,f2n_buf_size,
-                     MPI_INT, i, 19, MPI_COMM_WORLD, &status) ;
-            //write the buffer out
-            for(int j = 0; j <f2n_sizes[i]; j++){
-              xdr_int(&xdr_handle, &f2n_buf[j]) ; 
-            }
+      FORALL(local_cells, cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          for(unsigned int i = 2; i < fine_faces[cc][f].size(); i++){
+            nindex = fine_faces[cc][f][i]-1;
+            xdr_int(&xdr_handle, &nindex) ; 
           }
         }
-      }else{
-        //process [1,numprocs-1] send data to process 0
-        if(f2n_vec_size != 0){
-          MPI_Status status ;
-          //pack the buf
-          int index=0;
-          
-          FORALL(local_cells,cc){
-            for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-              for(unsigned int j = 2; j < fine_faces[cc][f].size(); j++){ 
-                f2n_buf[index++] = fine_faces[cc][f][j]-1;
-              }
-            }
-          }ENDFORALL;
-          FORALL(local_interior_faces,cc){
-            for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-              for(unsigned int j = 2; j < fine_faces[cc][f].size(); j++){ 
-                f2n_buf[index++] = fine_faces[cc][f][j]-1;
-              }
-            }
-          }ENDFORALL;
-          
-          int flag = 0 ;
-          MPI_Recv(&flag, 1, MPI_INT, 0, 18, MPI_COMM_WORLD, &status) ;
-          if(flag) {
-            MPI_Send(f2n_buf, f2n_sizes[my_id], MPI_INT, 0, 19, MPI_COMM_WORLD) ;
+      }ENDFORALL; 
+      FORALL(local_interior_faces, cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          for(unsigned int i = 2; i < fine_faces[cc][f].size(); i++){
+            nindex = fine_faces[cc][f][i]-1;
+            xdr_int(&xdr_handle, &nindex) ; 
           }
         }
-      }//finish output interior face2node
+      }ENDFORALL;
       
-      delete [] f2n_buf;
-    
-    }//if(f2n_buf_size !=0)
+      //then process 0 recv data from other processes
+      for(int i = 1; i < num_procs; i++){
+        MPI_Status status;
+        int flag = 1;
+        MPI_Send(&flag, 1, MPI_INT, i, 18, MPI_COMM_WORLD) ;
+        MPI_Recv(f2n_buf,f2n_buf_size,
+                 MPI_INT, i, 19, MPI_COMM_WORLD, &status) ;
+        //write the buffer out
+        for(int j = 0; j <f2n_sizes[i]; j++){
+          xdr_int(&xdr_handle, &f2n_buf[j]) ; 
+        }
+      }
+    }else{
+      //process [1,numprocs-1] send data to process 0
+      MPI_Status status ;
+      //pack the buf
+      int index=0;
+      
+      FORALL(local_cells,cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          for(unsigned int j = 2; j < fine_faces[cc][f].size(); j++){ 
+            f2n_buf[index++] = fine_faces[cc][f][j]-1;
+          }
+        }
+      }ENDFORALL;
+      FORALL(local_interior_faces,cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          for(unsigned int j = 2; j < fine_faces[cc][f].size(); j++){ 
+            f2n_buf[index++] = fine_faces[cc][f][j]-1;
+          }
+        }
+      }ENDFORALL;
+      
+      int flag = 0 ;
+      MPI_Recv(&flag, 1, MPI_INT, 0, 18, MPI_COMM_WORLD, &status) ;
+      if(flag) {
+        MPI_Send(f2n_buf, f2n_sizes[my_id], MPI_INT, 0, 19, MPI_COMM_WORLD) ;
+      }  
+    }//finish output interior face2node
 
-    
+    delete [] f2n_buf;
     //start boundary face2node,
+
     int f2n_boundary_size = 0;
     FORALL(local_boundary_faces, cc){
       for(unsigned int f = 0; f < fine_faces[cc].size(); f++)
@@ -644,64 +615,56 @@ public:
    
 
     int f2n_boundary_buf_size =  *std::max_element(f2n_boundary_sizes.begin(), f2n_boundary_sizes.end());
-
-    if(f2n_boundary_buf_size  != 0 ){
-      int* f2n_boundary_buf = new int[f2n_boundary_buf_size];
-      
-      //first process 0 write out its f2n
-      if(my_id == 0){
-        if(f2n_boundary_size !=0){
-          int nindex = 0;
-          FORALL(local_boundary_faces, cc){
-            for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-              for(unsigned int i = 2; i < fine_faces[cc][f].size(); i++){
-                nindex = fine_faces[cc][f][i]-1;
-                xdr_int(&xdr_handle, &nindex) ; 
-              }
-            }
-          }ENDFORALL;
-        }
-        //then process 0 recv data from other processes
-        for(int i = 1; i < num_procs; i++){
-          if(f2n_boundary_sizes[i] != 0){
-            MPI_Status status;
-            int flag = 1;
-            MPI_Send(&flag, 1, MPI_INT, i, 20, MPI_COMM_WORLD) ;
-            MPI_Recv(f2n_boundary_buf,f2n_boundary_buf_size,
-                     MPI_INT, i, 21, MPI_COMM_WORLD, &status) ;
-            //write the buffer out
-            for(int j = 0; j <f2n_boundary_sizes[i]; j++){
-              xdr_int(&xdr_handle, &f2n_boundary_buf[j]) ; 
-            }
+    int* f2n_boundary_buf = new int[f2n_boundary_buf_size];
+   
+    //first process 0 write out its f2n
+    if(my_id == 0){
+      int nindex = 0;
+      FORALL(local_boundary_faces, cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          for(unsigned int i = 2; i < fine_faces[cc][f].size(); i++){
+            nindex = fine_faces[cc][f][i]-1;
+            xdr_int(&xdr_handle, &nindex) ; 
           }
         }
-        fclose (out);
-        xdr_destroy(&xdr_handle) ;
-        
-      }else{
-        //process [1,numprocs-1] send data to process 0
-        if(f2n_boundary_size != 0){
-          MPI_Status status ;
-          //pack the buf
-          int index=0;
-          FORALL(local_boundary_faces,cc){
-            for(unsigned f = 0; f < fine_faces[cc].size(); f++){
-              for(unsigned int j = 2; j < fine_faces[cc][f].size(); j++){ 
-                f2n_boundary_buf[index++] = fine_faces[cc][f][j]-1;
-              }
-            }
-          }ENDFORALL;
-          
-          int flag = 0 ;
-          MPI_Recv(&flag, 1, MPI_INT, 0, 20, MPI_COMM_WORLD, &status) ;
-          if(flag) {
-            MPI_Send(f2n_boundary_buf, f2n_boundary_sizes[my_id], MPI_INT, 0, 21, MPI_COMM_WORLD) ;
+      }ENDFORALL;
+      
+      //then process 0 recv data from other processes
+      for(int i = 1; i < num_procs; i++){
+        MPI_Status status;
+        int flag = 1;
+        MPI_Send(&flag, 1, MPI_INT, i, 20, MPI_COMM_WORLD) ;
+        MPI_Recv(f2n_boundary_buf,f2n_boundary_buf_size,
+                 MPI_INT, i, 21, MPI_COMM_WORLD, &status) ;
+        //write the buffer out
+        for(int j = 0; j <f2n_boundary_sizes[i]; j++){
+          xdr_int(&xdr_handle, &f2n_boundary_buf[j]) ; 
+        }
+      }
+      fclose (out);
+      xdr_destroy(&xdr_handle) ;
+      
+    }else{
+      //process [1,numprocs-1] send data to process 0
+      MPI_Status status ;
+      //pack the buf
+      int index=0;
+      FORALL(local_boundary_faces,cc){
+        for(unsigned f = 0; f < fine_faces[cc].size(); f++){
+          for(unsigned int j = 2; j < fine_faces[cc][f].size(); j++){ 
+            f2n_boundary_buf[index++] = fine_faces[cc][f][j]-1;
           }
         }
-      }//finish output boundary face2node
+      }ENDFORALL;
       
-      delete [] f2n_boundary_buf;
-    }//if(f2n_boundary_buf_size !=0)
+      int flag = 0 ;
+      MPI_Recv(&flag, 1, MPI_INT, 0, 20, MPI_COMM_WORLD, &status) ;
+      if(flag) {
+        MPI_Send(f2n_boundary_buf, f2n_boundary_sizes[my_id], MPI_INT, 0, 21, MPI_COMM_WORLD) ;
+      }  
+    }//finish output boundary face2node
+    
+    delete [] f2n_boundary_buf;
   }
 } ;
 register_rule<face_output_file> register_face_output_file;
@@ -724,16 +687,16 @@ public:
   pos_output_file(){
     name_store("pos_output", pos_output);
     name_store("outfile_par", outfile_par);
-    name_store("npnts_copy", npnts_par);
-    name_store("ncells_copy", ncells_par);
-    name_store("nfaces_copy", nfaces_par);
+    name_store("npnts", npnts_par);
+    name_store("ncells", ncells_par);
+    name_store("nfaces", nfaces_par);
     name_store("pos", pos);
  
     
     input("outfile_par");
-    input("npnts_copy");
-    input("ncells_copy");
-    input("nfaces_copy");
+    input("npnts");
+    input("ncells");
+    input("nfaces");
     input("pos");
     
     output("pos_output");
@@ -851,54 +814,49 @@ public:
     
    
     //allocate buf
-    if(total_size != 0){
-      double* buf = new double[total_size];
-  
+    double* buf = new double[total_size];
+    cerr << currentMem() << " pos_output " <<  Loci::MPI_rank << endl;
     
-      //first process 0 write out its pos_io
-      if(my_id == 0){
-        FORALL(nodes, cc){
-          xdr_double(&xdr_handle, &pos_io[cc].x) ; 
-          xdr_double(&xdr_handle, &pos_io[cc].y) ;
-          xdr_double(&xdr_handle, &pos_io[cc].z) ;
+    //first process 0 write out its pos_io
+    if(my_id == 0){
+      FORALL(nodes, cc){
+        xdr_double(&xdr_handle, &pos_io[cc].x) ; 
+        xdr_double(&xdr_handle, &pos_io[cc].y) ;
+        xdr_double(&xdr_handle, &pos_io[cc].z) ;
+       
+      }ENDFORALL;
+      //then process 0 recv data from other processes
+      for(int i = 1; i < num_procs; i++){
+        MPI_Status status;
+        int flag = 1;
+       	  MPI_Send(&flag, 1, MPI_INT, i, 10, MPI_COMM_WORLD) ;
+          MPI_Recv(buf,total_size, MPI_DOUBLE, i, 11, MPI_COMM_WORLD, &status) ;
+          //write the buffer out
+          for(int j = 0; j <sort_max[i]*3; j++) {
+            xdr_double(&xdr_handle, &buf[j]);
+          }
           
-        }ENDFORALL;
-        //then process 0 recv data from other processes
-        for(int i = 1; i < num_procs; i++){
-          if(sort_max[i] != 0){
-            MPI_Status status;
-            int flag = 1;
-            MPI_Send(&flag, 1, MPI_INT, i, 10, MPI_COMM_WORLD) ;
-            MPI_Recv(buf,total_size, MPI_DOUBLE, i, 11, MPI_COMM_WORLD, &status) ;
-            //write the buffer out
-            for(int j = 0; j <sort_max[i]*3; j++) {
-              xdr_double(&xdr_handle, &buf[j]);
-            }
-          }
-        }
-        fclose(out);
-        xdr_destroy(&xdr_handle) ; 
-      }else{
-        if(local_size != 0){
-          //process [1,numprocs-1] send data to process 0
-          MPI_Status status ;
-          //pack the buf
-          int index=0;
-          FORALL(nodes,cc){
-            buf[index++] = pos_io[cc].x;
-            buf[index++] = pos_io[cc].y;
-            buf[index++] = pos_io[cc].z;
-          }ENDFORALL;
-          int flag = 0 ;
-          MPI_Recv(&flag, 1, MPI_INT, 0, 10, MPI_COMM_WORLD, &status) ;
-          if(flag) { 
-            MPI_Send(buf, sort_max[my_id]*3, MPI_DOUBLE, 0, 11, MPI_COMM_WORLD) ;
-          }
-        }
-      }//finish output pos
-        
-      delete [] buf;
-    }
+      }
+      fclose(out);
+      xdr_destroy(&xdr_handle) ; 
+    }else{
+      //process [1,numprocs-1] send data to process 0
+      MPI_Status status ;
+      //pack the buf
+      int index=0;
+      FORALL(nodes,cc){
+        buf[index++] = pos_io[cc].x;
+        buf[index++] = pos_io[cc].y;
+        buf[index++] = pos_io[cc].z;
+      }ENDFORALL;
+      int flag = 0 ;
+      MPI_Recv(&flag, 1, MPI_INT, 0, 10, MPI_COMM_WORLD, &status) ;
+      if(flag) { 
+        MPI_Send(buf, sort_max[my_id]*3, MPI_DOUBLE, 0, 11, MPI_COMM_WORLD) ;
+      }  
+    }//finish output pos
+    
+    delete [] buf;
   }
 } ;
 register_rule<pos_output_file> register_pos_output_file;
