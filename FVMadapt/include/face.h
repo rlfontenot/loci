@@ -159,6 +159,10 @@ public:
                std::list<Edge*>& edge_list,
                std::vector<Face*>& fine_face);
 
+   void resplit(const std::vector<char>& facePlan,
+               std::list<Node*>& node_list,
+               std::list<Edge*>& edge_list);
+
   //for prism, when built prism cell, triangle face is built as node 0->1->2->0 and
   //node 3->4->->5->3, and it will split with orientCode
   void resplit(const std::vector<char>& facePlan,
