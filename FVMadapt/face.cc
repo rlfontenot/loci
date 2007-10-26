@@ -622,7 +622,64 @@ void Face::resplit(const std::vector<char>& facePlan,
   }
   reduce_vector(fine_face);
 }
+//this function split  a general face according to facePlan,
 
+void Face::resplit(const std::vector<char>& facePlan,
+                   std::list<Node*>& node_list,
+                   std::list<Edge*>& edge_list){
+  
+                          
+  
+  if(facePlan.size() == 0) {
+    return;
+  }
+  
+
+  //assume the first code in facePlan is 1
+  std::queue<Face*> Q;
+  Q.push(this);
+  
+  Face* current;
+  unsigned int index = 0;
+  char currentCode;
+
+  while(!Q.empty()){
+    current = Q.front();
+    if(index >= facePlan.size()){
+      currentCode = 0;
+    }
+    else{ 
+      //take a code from facePlan
+      currentCode = facePlan[index];
+      index++;  
+    }
+    
+    
+    switch(currentCode)
+      {
+        
+        //0 no split,this is a leaf, output faces
+      case 0:
+        break;
+        
+      case 1:
+        current->split(node_list, edge_list);
+        
+        for(int i = 0; i < current->numEdge; i++){
+          Q.push(current->child[i]); 
+        }        
+        break;
+        
+      default:
+        cerr <<"WARNING: illegal splitcode in function Face::resplit()" << endl;
+     
+        break;
+      }
+    
+    Q.pop();
+  }
+ 
+}
 //for build prism when built prism cell, triangle face is built as node 0->1->2->0 and
 //node 3->4->->5->3, and it will split with orientCode
 void Face::resplit(const std::vector<char>& facePlan,

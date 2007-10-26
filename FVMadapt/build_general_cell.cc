@@ -21,125 +21,7 @@ using std::cout;
 std::vector<char> transfer_plan_q2g(const std::vector<char>& facePlan);
 
 
-// Face* build_general_face( const Entity* face2node, int num_edge,
-//                           const Entity* face2edge,
-//                           const const_MapVec<2>& edge2node,
-//                           const const_store<vect3d>& pos,
-//                           const const_store<std::vector<char> >& edgePlan,
-//                           std::list<Node*>& bnode_list,
-//                           std::list<Edge*>& edge_list){
-  
 
-//   Node** node = new Node*[num_edge];
-  
-//   for(int nindex = 0; nindex < num_edge; nindex++){
-//     node[nindex] = new Node(pos[face2node[nindex]]);
-//     bnode_list.push_back(node[nindex]);
-//   }
-  
-//   //define each edge and put it into edge_list
-  
-//   Edge** edge = new Edge*[num_edge];
-//   bool* needReverse = new bool[num_edge];
-  
-//   for(int eindex = 0; eindex < num_edge; eindex++){
-//     //define the edge
-//     edge[eindex] = new Edge();
-//     edge_list.push_back(edge[eindex]);
-    
-//     if(edge2node[face2edge[eindex]][0] == face2node[eindex]  && edge2node[face2edge[eindex]][1] == face2node[eindex==(num_edge-1)?0:eindex+1])
-//       {
-//         edge[eindex]->head = node[eindex];
-//         edge[eindex]->tail = node[eindex==(num_edge-1)?0:(eindex+1)];
-//         needReverse[eindex] = false;
-//       }
-//     else{
-//       edge[eindex]->tail = node[eindex];
-//       edge[eindex]->head = node[eindex==(num_edge-1)?0:(eindex+1)];
-//       needReverse[eindex] = true;
-//     }
-    
-//     //replit the edge
-//     edge[eindex]->resplit(edgePlan[face2edge[eindex]], bnode_list);
-//   }
-  
-//   //define the face
-//   Face* aFace = new Face(num_edge, edge, needReverse);
-//   if(node != 0){
-//     delete [] node;
-//     node = 0;
-//   }
-//   return aFace;
-// }
-
-// //parallel version, build a face and index all the boundary nodes
-// Face* build_general_face( const Entity* face2node, int num_edge,
-//                           const Entity* face2edge,
-//                           const const_MapVec<2>& edge2node,
-//                           const const_store<vect3d>& pos,
-//                           const const_store<int>& node_offset,
-//                           const const_store<std::vector<char> >& edgePlan,
-//                           std::list<Node*>& bnode_list,
-//                           std::list<Edge*>& edge_list,
-//                           const Map& node_l2f){
-//   entitySet nodes;
-//   for(int i = 0; i < num_edge; i++){
-//     nodes += face2node[i];
-//   }
-    
-//   Node** node = new Node*[num_edge];
-//   for(int nindex = 0; nindex < num_edge; nindex++){
-   
-//     node[nindex] = new Node(pos[face2node[nindex]], node_l2f[face2node[nindex]]);
-//     bnode_list.push_back(node[nindex]);
-//   }
-  
-//   //define each edge and put it into edge_list
-  
-//   Edge** edge = new Edge*[num_edge];
-//   bool* needReverse = new bool[num_edge];
-  
-//   //define edges and index its inner nodes
-//   std::list<Node*>::const_iterator bnode_begin = --(bnode_list.end());
-  
-//   for(int eindex = 0; eindex < num_edge; eindex++){
-//     //define the edge
-//     edge[eindex] = new Edge();
-//     edge_list.push_back(edge[eindex]);
-    
-//     if(edge2node[face2edge[eindex]][0] == face2node[eindex] && edge2node[face2edge[eindex]][1] == face2node[eindex==(num_edge-1)?0:eindex+1])
-//       {
-//         edge[eindex]->head = node[eindex];
-//         edge[eindex]->tail = node[eindex==(num_edge-1)?0:(eindex+1)];
-//         needReverse[eindex] = false;
-//       }
-//     else{
-//       edge[eindex]->tail = node[eindex];
-//       edge[eindex]->head = node[eindex==(num_edge-1)?0:(eindex+1)];
-//       needReverse[eindex] = true;
-//     }
-    
-//     //replit the edge
-//     edge[eindex]->resplit(edgePlan[face2edge[eindex]], bnode_list);
-//     int nindex = node_offset[face2edge[eindex]];
-    
-//     for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
-//       (*np)->index =  nindex++;
-//       //  cout << (*np)->index << " " << (*np)->p << endl;
-//     }
-    
-//     bnode_begin = --(bnode_list.end());
-    
-//   }
-  
-//   //define the face
-//   Face* aFace = new Face(num_edge, edge, needReverse);
-//   if(node != 0){
-//     delete [] node;
-//     node = 0;
-//   }
-//   return aFace;
-// }
 
 std::vector<Entity> reorder_nodes(const Map& node_remap, const entitySet& localSet){
   
@@ -279,14 +161,14 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     }
     
     //resplit each face
-    std::vector<Face*> fine_face;
+ 
     if(is_quadface[faces[i]]){
       std::vector<char> newPlan = transfer_plan_q2g(facePlan[faces[i]]);
      
-      face[i]->resplit(newPlan, bnode_list, edge_list,fine_face);
+      face[i]->resplit(newPlan, bnode_list, edge_list);
     }
     else{
-      face[i]->resplit(facePlan[faces[i]], bnode_list, edge_list,fine_face);
+      face[i]->resplit(facePlan[faces[i]], bnode_list, edge_list);
     }
   }
   
@@ -573,11 +455,11 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
       
       //replit each face
       
-      std::vector<Face*> fine_face;
+     
       if(is_quadface[faces[i]]){
         std::vector<char> newPlan = transfer_plan_q2g(facePlan[faces[i]]);
         
-        face[i]->resplit(newPlan, bnode_list, edge_list,fine_face);
+        face[i]->resplit(newPlan, bnode_list, edge_list);
         //to tag the node of inner nodes of face[i], first build a quadface with integer coordinates,
         //resplit it
         // tag the inner nodes of the quadface
@@ -594,13 +476,12 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                                                 edgePlan,
                                                 tmp_bnode_list,
                                                 edge_list);
-      std::vector<QuadFace*> fine_qfaces;
+    
       //resplit the quadface to get node index
       tmp_qface->resplit(facePlan[faces[i]],
                          char(0),
                          tmp_node_list,
-                         edge_list,
-                         fine_qfaces);
+                         edge_list);
       
       int   nindex = 0;
       for(std::list<Node*>::const_iterator np = tmp_node_list.begin(); np!= tmp_node_list.end(); np++){
@@ -617,7 +498,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
 
 
       
-      tmp_face->resplit(newPlan, tmp_node_list2, edge_list, fine_face);
+      tmp_face->resplit(newPlan, tmp_node_list2, edge_list);
 
       std::list<Node*>::const_iterator tmp_np2 = tmp_node_list2.begin();
       for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++, tmp_np2++){
@@ -645,7 +526,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
         
       }
       else{
-        face[i]->resplit(facePlan[faces[i]], bnode_list, edge_list,fine_face);
+        face[i]->resplit(facePlan[faces[i]], bnode_list, edge_list);
         //index the node
         int   nindex = 0;
         for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
@@ -902,12 +783,12 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     
     //replit each face
     
-    std::vector<Face*> fine_face;
+   
     if(is_quadface[faces[i]]){
       //first transfer quadface plan to face plan
       std::vector<char> newPlan = transfer_plan_q2g(facePlan[faces[i]]);
       //resplit face[i]
-      face[i]->resplit(newPlan, bnode_list, edge_list,fine_face);
+      face[i]->resplit(newPlan, bnode_list, edge_list);
       //to index the node of inner nodes of face[i], first build a quadface with integer coordinates,
       //resplit it
       // index the inner nodes of the quadface
@@ -924,13 +805,12 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                                                 edgePlan,
                                                 tmp_bnode_list,
                                                 edge_list);
-      std::vector<QuadFace*> fine_qfaces;
+   
       //resplit the quadface to get node index
       tmp_qface->resplit(facePlan[faces[i]],
                          char(0),
                          tmp_node_list,
-                         edge_list,
-                         fine_qfaces);
+                         edge_list);
       
       int   nindex = node_offset[faces[i]];
       for(std::list<Node*>::const_iterator np = tmp_node_list.begin(); np!= tmp_node_list.end(); np++){
@@ -947,7 +827,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
 
 
       
-      tmp_face->resplit(newPlan, tmp_node_list2, edge_list, fine_face);
+      tmp_face->resplit(newPlan, tmp_node_list2, edge_list);
 
       std::list<Node*>::const_iterator tmp_np2 = tmp_node_list2.begin();
       for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++, tmp_np2++){
@@ -973,7 +853,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
       cleanup_list(tmp_bnode_list);
     }
     else{
-      face[i]->resplit(facePlan[faces[i]], bnode_list, edge_list,fine_face);
+      face[i]->resplit(facePlan[faces[i]], bnode_list, edge_list);
        //index the node
       int   nindex = node_offset[faces[i]];
       for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
