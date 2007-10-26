@@ -81,8 +81,11 @@ REFOBJS =	classify_cell.o \
 		cellplan_io.o \
 		set_offset.o \
 		get_fine_grid.o \
+		get_fine_face.o \
 		get_hex_fine_grid.o \
+		get_hex_fine_face.o \
 		get_prism_fine_grid.o \
+		get_prism_fine_face.o \
 		fine_grid_output.o  \
 		merge_mixed_face.o \
 		transfer_plan.o \
