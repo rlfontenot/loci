@@ -237,16 +237,6 @@ QuadFace* build_quad_face( const Entity* face2node,
                            std::list<Node*>& bnode_list,
                            std::list<Edge*>& edge_list);
 
-//serial version
-// QuadFace* build_quad_face( const Entity* face2node, 
-//                            const Entity* face2edge,
-//                            const const_MapVec<2>& edge2node,
-//                            const const_store<vect3d>& pos,
-//                            const const_store<std::vector<char> >& edgePlan,
-//                            const store<int>& node_offset,
-//                            int offset_min,
-//                            std::list<Node*>& bnode_list,
-//                            std::list<Edge*>& edge_list);
 
 //parallel version
 QuadFace* build_quad_face( const Entity* face2node, 
