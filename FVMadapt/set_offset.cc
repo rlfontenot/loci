@@ -25,10 +25,10 @@ class get_node_offset : public pointwise_rule {
   
 public:
   get_node_offset(){
-    name_store("num_inner_nodes_copy", num_inner_nodes);
+    name_store("num_inner_nodes", num_inner_nodes);
     name_store("num_original_nodes", num_original_nodes);
     name_store("node_offset", node_offset);
-    input("num_inner_nodes_copy");
+    input("num_inner_nodes");
     input("num_original_nodes");
     output("node_offset");
     disable_threading();
@@ -138,9 +138,9 @@ class get_cell_offset : public pointwise_rule {
     
 public:
   get_cell_offset(){
-    name_store("num_fine_cells_copy", num_fine_cells);
+    name_store("num_fine_cells", num_fine_cells);
     name_store("cell_offset", cell_offset);
-    input("num_fine_cells_copy");
+    input("num_fine_cells");
     output("cell_offset");
     disable_threading();
   }
@@ -221,8 +221,8 @@ class apply_npnts : public apply_rule<param<int>, Loci::Summation<int> >{
 public:
   apply_npnts(){
     name_store("npnts", npnts);
-    name_store("num_inner_nodes_copy", num_inner_nodes);
-    input("num_inner_nodes_copy");
+    name_store("num_inner_nodes", num_inner_nodes);
+    input("num_inner_nodes");
     input("npnts");
     output("npnts");
    
@@ -264,9 +264,9 @@ class apply_ncells : public apply_rule<param<int>, Loci::Summation<int> >{
 public:
   apply_ncells(){
     name_store("ncells", ncells);
-    name_store("num_fine_cells_copy", num_fine_cells);
+    name_store("num_fine_cells", num_fine_cells);
     input("ncells");
-    input("num_fine_cells_copy");
+    input("num_fine_cells");
     output("ncells");
     constraint("geom_cells");
   }
@@ -302,9 +302,9 @@ class apply_nfaces : public apply_rule<param<int>, Loci::Summation<int> >{
 public:
   apply_nfaces(){
     name_store("nfaces", nfaces);
-    name_store("fine_faces_copy", fine_faces);
+    name_store("fine_faces", fine_faces);
     input("nfaces");
-    input("fine_faces_copy");
+    input("fine_faces");
     output("nfaces");
   }
   virtual void compute(const sequence &seq){
