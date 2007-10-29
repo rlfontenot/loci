@@ -13,7 +13,7 @@ using std::vector;
 
 
 
-class get_interior_face_grid_gh:public pointwise_rule{
+class get_interior_face_faces_gh:public pointwise_rule{
 
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
@@ -36,14 +36,14 @@ class get_interior_face_grid_gh:public pointwise_rule{
   const_store<int> cell_offset;
  
     
-  store<Loci::FineNodes> inner_nodes;
+
   store<Loci::FineFaces> fine_faces;
   const_blackbox<Loci::storeRepP> node_remap;
    Map node_l2f;
   
  
 public:
-  get_interior_face_grid_gh(){
+  get_interior_face_faces_gh(){
    name_store("facePlan", facePlan);
     name_store("edgePlan", edgePlan);
     name_store("cellPlan", cellPlan);
@@ -64,7 +64,7 @@ public:
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
     name_store("iface_remap", node_remap);
-    name_store("inner_nodes", inner_nodes);
+
     name_store("fine_faces", fine_faces);
     
     input("facePlan, node_offset");
@@ -76,7 +76,7 @@ public:
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
     input("face2node->pos");
     input("iface_remap");
-    output("inner_nodes,fine_faces");
+    output("fine_faces");
     constraint("cl->gnrlcells, cr->hexcells");
   }
   virtual void compute(const sequence &seq){
@@ -102,9 +102,7 @@ public:
       
 
       if(facePlan[f].size() == 0){
-        //num of inner nodes is 0
-        vector<vect3d>().swap(inner_nodes[f]);
-
+       
         //num of fine faces is 1. 
         aFace->set_f2n(faceVertex);
         vector<vector<int> >(1).swap(fine_faces[f]); 
@@ -149,11 +147,11 @@ public:
                      node_list,
                      edge_list,
                      leaves);
-      //put node_list into inner_nodes[f] and index the node_list
-    vector<vect3d>(node_list.size()).swap(inner_nodes[f]);
+      // and index the node_list
+   
     int nindex = 0;
     for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++,nindex++){
-      inner_nodes[f][nindex] = (*np)->p;
+   
       (*np)->index = node_offset[f] + nindex;
     }
    
@@ -234,10 +232,10 @@ public:
   }
 };
 
-register_rule<get_interior_face_grid_gh> register_get_interior_face_grid_gh;
+register_rule<get_interior_face_faces_gh> register_get_interior_face_faces_gh;
 
 
-class get_interior_face_grid_hg:public pointwise_rule{
+class get_interior_face_faces_hg:public pointwise_rule{
    const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
   const_store<std::vector<char> > cellPlan;
@@ -259,12 +257,12 @@ class get_interior_face_grid_hg:public pointwise_rule{
   const_store<int> cell_offset;
  
     
-  store<Loci::FineNodes> inner_nodes;
+ 
   store<Loci::FineFaces> fine_faces;
   const_blackbox<Loci::storeRepP> node_remap;
    Map node_l2f;
 public:
-  get_interior_face_grid_hg(){
+  get_interior_face_faces_hg(){
     name_store("facePlan", facePlan);
     name_store("edgePlan", edgePlan);
     name_store("cellPlan", cellPlan);
@@ -285,7 +283,7 @@ public:
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
     name_store("iface_remap", node_remap);
-    name_store("inner_nodes", inner_nodes);
+ 
     name_store("fine_faces", fine_faces);
     
     input("facePlan, node_offset");
@@ -297,7 +295,7 @@ public:
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
     input("face2node->pos");
     input("iface_remap");
-    output("inner_nodes,fine_faces");
+    output("fine_faces");
     constraint("cr->gnrlcells, cl->hexcells");
   }
   virtual void compute(const sequence &seq){
@@ -324,9 +322,7 @@ public:
       
 
       if(facePlan[f].size() == 0){
-        //num of inner nodes is 0
-        vector<vect3d>().swap(inner_nodes[f]);
-
+       
         //num of fine faces is 1. 
         aFace->set_f2n(faceVertex);
         vector<vector<int> >(1).swap(fine_faces[f]); 
@@ -370,11 +366,11 @@ public:
                      node_list,
                      edge_list,
                      leaves);
-      //put node_list into inner_nodes[f] and index the node_list
-    vector<vect3d>(node_list.size()).swap(inner_nodes[f]);
+      // and index the node_list
+   
     int nindex = 0;
     for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++,nindex++){
-      inner_nodes[f][nindex] = (*np)->p;
+   
       (*np)->index = node_offset[f] + nindex;
     }
    
@@ -457,9 +453,9 @@ public:
   }
 };
 
-register_rule<get_interior_face_grid_hg> register_get_interior_face_grid_hg;
+register_rule<get_interior_face_faces_hg> register_get_interior_face_faces_hg;
 
-class get_interior_face_grid_gp:public pointwise_rule{
+class get_interior_face_faces_gp:public pointwise_rule{
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
   const_store<std::vector<char> > cellPlan;
@@ -481,12 +477,12 @@ class get_interior_face_grid_gp:public pointwise_rule{
   const_store<int> cell_offset;
  
     
-  store<Loci::FineNodes> inner_nodes;
+ 
   store<Loci::FineFaces> fine_faces;
   const_blackbox<Loci::storeRepP> node_remap;
    Map node_l2f;
 public:
-  get_interior_face_grid_gp(){
+  get_interior_face_faces_gp(){
      name_store("facePlan", facePlan);
     name_store("edgePlan", edgePlan);
     name_store("cellPlan", cellPlan);
@@ -507,7 +503,7 @@ public:
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
     name_store("iface_remap", node_remap);
-    name_store("inner_nodes", inner_nodes);
+ 
     name_store("fine_faces", fine_faces);
     
     input("facePlan, node_offset");
@@ -519,7 +515,7 @@ public:
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
     input("face2node->pos");
     input("iface_remap");
-    output("inner_nodes,fine_faces");
+    output("fine_faces");
     constraint("cl->gnrlcells, cr->prisms");
   }
   virtual void compute(const sequence &seq){
@@ -553,8 +549,7 @@ public:
       
 
         if(facePlan[f].size() == 0){
-          //num of inner nodes is 0
-          vector<vect3d>().swap(inner_nodes[f]);
+          
           
           //num of fine faces is 1. 
           aqFace->set_f2n(faceVertex);
@@ -603,8 +598,7 @@ public:
                                     node_l2f);
         
        if(facePlan[f].size() == 0){
-          //num of inner nodes is 0
-          vector<vect3d>().swap(inner_nodes[f]);
+         
           
           //num of fine faces is 1. 
           agFace->set_f2n(faceVertex);
@@ -649,11 +643,11 @@ public:
        num_leaves = fine_gfaces.size();
       }
 
-      //put node_list into inner_nodes[f] and index the node_list
-      vector<vect3d>(node_list.size()).swap(inner_nodes[f]);
+      //and index the node_list
+     
       int nindex = 0;
       for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++,nindex++){
-        inner_nodes[f][nindex] = (*np)->p;
+     
         (*np)->index = node_offset[f] + nindex;
       }
    
@@ -744,9 +738,9 @@ public:
   }
 };
 
-register_rule<get_interior_face_grid_gp> register_get_interior_face_grid_gp;
+register_rule<get_interior_face_faces_gp> register_get_interior_face_faces_gp;
 
-class get_interior_face_grid_pg:public pointwise_rule{
+class get_interior_face_faces_pg:public pointwise_rule{
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
   const_store<std::vector<char> > cellPlan;
@@ -768,12 +762,12 @@ class get_interior_face_grid_pg:public pointwise_rule{
   const_store<int> cell_offset;
  
     
-  store<Loci::FineNodes> inner_nodes;
+ 
   store<Loci::FineFaces> fine_faces;
   const_blackbox<Loci::storeRepP> node_remap;
    Map node_l2f;
 public:
-  get_interior_face_grid_pg(){
+  get_interior_face_faces_pg(){
       name_store("facePlan", facePlan);
     name_store("edgePlan", edgePlan);
     name_store("cellPlan", cellPlan);
@@ -794,7 +788,7 @@ public:
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
     name_store("iface_remap", node_remap);
-    name_store("inner_nodes", inner_nodes);
+ 
     name_store("fine_faces", fine_faces);
     
     input("facePlan, node_offset");
@@ -806,7 +800,7 @@ public:
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
     input("face2node->pos");
     input("iface_remap");
-    output("inner_nodes,fine_faces");
+    output("fine_faces");
     constraint("cr->gnrlcells, cl->prisms");
   }
   virtual void compute(const sequence &seq){
@@ -841,9 +835,7 @@ public:
       
 
         if(facePlan[f].size() == 0){
-          //num of inner nodes is 0
-          vector<vect3d>().swap(inner_nodes[f]);
-          
+                   
           //num of fine faces is 1. 
           aqFace->set_f2n(faceVertex);
           vector<vector<int> >(1).swap(fine_faces[f]); 
@@ -891,8 +883,7 @@ public:
                                     node_l2f);
         
        if(facePlan[f].size() == 0){
-          //num of inner nodes is 0
-          vector<vect3d>().swap(inner_nodes[f]);
+         
           
           //num of fine faces is 1. 
           agFace->set_f2n(faceVertex);
@@ -945,11 +936,11 @@ public:
        num_leaves = fine_gfaces.size();
       }
 
-      //put node_list into inner_nodes[f] and index the node_list
-      vector<vect3d>(node_list.size()).swap(inner_nodes[f]);
+      // and index the node_list
+      
       int nindex = 0;
       for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++,nindex++){
-        inner_nodes[f][nindex] = (*np)->p;
+      
         (*np)->index = node_offset[f] + nindex;
       }
    
@@ -1041,10 +1032,10 @@ public:
   }
 };
 
-register_rule<get_interior_face_grid_pg> register_get_interior_face_grid_pg;
+register_rule<get_interior_face_faces_pg> register_get_interior_face_faces_pg;
 
 
-class get_interior_face_grid_hp:public pointwise_rule{
+class get_interior_face_faces_hp:public pointwise_rule{
   const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
   const_store<std::vector<char> > cellPlan;
@@ -1069,12 +1060,11 @@ class get_interior_face_grid_hp:public pointwise_rule{
   const_store<int> cell_offset;
  
     
-  store<Loci::FineNodes> inner_nodes;
-  store<Loci::FineFaces> fine_faces;
+    store<Loci::FineFaces> fine_faces;
   const_blackbox<Loci::storeRepP> node_remap;
    Map node_l2f;
 public:
-  get_interior_face_grid_hp(){
+  get_interior_face_faces_hp(){
     name_store("facePlan", facePlan);
     name_store("edgePlan", edgePlan);
     name_store("cellPlan", cellPlan);
@@ -1098,7 +1088,7 @@ public:
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
     name_store("iface_remap", node_remap);
-    name_store("inner_nodes", inner_nodes);
+  
     name_store("fine_faces", fine_faces);
     
     input("facePlan, node_offset");
@@ -1111,7 +1101,7 @@ public:
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
     input("face2node->pos");
     input("iface_remap");
-    output("inner_nodes,fine_faces");
+    output("fine_faces");
     constraint("cl->hexcells, cr->prisms");
   }
   virtual void compute(const sequence &seq){
@@ -1137,8 +1127,7 @@ public:
       
 
       if(facePlan[f].size() == 0){
-        //num of inner nodes is 0
-        vector<vect3d>().swap(inner_nodes[f]);
+        
 
         //num of fine faces is 1. 
         aFace->set_f2n(faceVertex);
@@ -1184,11 +1173,11 @@ public:
                      node_list,
                      edge_list,
                      leaves);
-      //put node_list into inner_nodes[f] and index the node_list
-    vector<vect3d>(node_list.size()).swap(inner_nodes[f]);
+      // and index the node_list
+    
     int nindex = 0;
     for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++,nindex++){
-      inner_nodes[f][nindex] = (*np)->p;
+    
       (*np)->index = node_offset[f] + nindex;
     }
    
@@ -1262,9 +1251,9 @@ public:
   }
 };
 
-register_rule<get_interior_face_grid_hp> register_get_interior_face_grid_hp;
+register_rule<get_interior_face_faces_hp> register_get_interior_face_faces_hp;
 
-class get_interior_face_grid_ph:public pointwise_rule{
+class get_interior_face_faces_ph:public pointwise_rule{
  const_store<std::vector<char> > facePlan;
   const_store<std::vector<char> > edgePlan;
   const_store<std::vector<char> > cellPlan;
@@ -1289,12 +1278,12 @@ class get_interior_face_grid_ph:public pointwise_rule{
   const_store<int> cell_offset;
  
     
-  store<Loci::FineNodes> inner_nodes;
+  
   store<Loci::FineFaces> fine_faces;
   const_blackbox<Loci::storeRepP> node_remap;
    Map node_l2f; 
 public:
-  get_interior_face_grid_ph(){
+  get_interior_face_faces_ph(){
      name_store("facePlan", facePlan);
     name_store("edgePlan", edgePlan);
     name_store("cellPlan", cellPlan);
@@ -1318,7 +1307,7 @@ public:
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
     name_store("iface_remap", node_remap);
-    name_store("inner_nodes", inner_nodes);
+  
     name_store("fine_faces", fine_faces);
     
     input("facePlan, node_offset");
@@ -1331,7 +1320,7 @@ public:
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
     input("face2node->pos");
     input("iface_remap");
-    output("inner_nodes,fine_faces");
+    output("fine_faces");
    
     constraint("cr->hexcells, cl->prisms");
   }
@@ -1358,8 +1347,7 @@ public:
       
 
       if(facePlan[f].size() == 0){
-        //num of inner nodes is 0
-        vector<vect3d>().swap(inner_nodes[f]);
+       
 
         //num of fine faces is 1. 
         aFace->set_f2n(faceVertex);
@@ -1407,11 +1395,11 @@ public:
                      node_list,
                      edge_list,
                      leaves);
-      //put node_list into inner_nodes[f] and index the node_list
-    vector<vect3d>(node_list.size()).swap(inner_nodes[f]);
+      //and index the node_list
+   
     int nindex = 0;
     for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++,nindex++){
-      inner_nodes[f][nindex] = (*np)->p;
+   
       (*np)->index = node_offset[f] + nindex;
     }
    
@@ -1485,5 +1473,5 @@ public:
   }
 };
 
-register_rule<get_interior_face_grid_ph> register_get_interior_face_grid_ph;
+register_rule<get_interior_face_faces_ph> register_get_interior_face_faces_ph;
 
