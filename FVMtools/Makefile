@@ -40,6 +40,9 @@ ugrid2vog: ugrid2vog.o vogtools.o
 vog2xdr: vog2xdr.o
 	$(LD) -o vog2xdr vog2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+vogmerge: vogmerge.o
+	$(LD) -o vogmerge vogmerge.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 cobalt2xdr: cobalt2xdr.o
 	$(LD) -o cobalt2xdr cobalt2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
@@ -68,4 +71,4 @@ DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
 
 #include automatically generated dependencies
-include $(DEPEND_FILES)
+-include $(DEPEND_FILES)
