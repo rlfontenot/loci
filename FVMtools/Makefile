@@ -6,7 +6,7 @@ COPT = $(COPTLESS)
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog
+OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog vogmerge vogcheck
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o
@@ -27,6 +27,10 @@ all: $(TARGET) $(OTHER_APPS)
 $(TARGET): $(OBJS) 
 	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 FRC : 
+
+
+vogcheck: vogCheck.o
+	$(LD) -o vogcheck vogCheck.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 xdr2cobalt: xdr2cobalt.o
 	$(LD) -o xdr2cobalt xdr2cobalt.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)

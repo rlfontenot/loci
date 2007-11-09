@@ -544,11 +544,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
 struct quadFace {
   Array<int,4> nodes ;
   int cell ;
+  bool left ;
 } ;
 
 struct triaFace {
   Array<int,3> nodes ;
   int cell ;
+  bool left ;
 } ;
 
 inline bool quadCompare(const quadFace &f1, const quadFace &f2) {
@@ -599,11 +601,13 @@ void convert2face(store<vector3d<double> > &pos,
   for(size_t i=0;i<tfaces.size();++i) {
     for(int n=0;n<3;++n)
       tria[tf].nodes[n] = tfaces[i][n] ;
+    tria[tf].left = true ;
     tria[tf++].cell = tfaces[i][3] ;
   }
   for(size_t i=0;i<qfaces.size();++i) {
     for(int n=0;n<4;++n)
       quad[qf].nodes[n] = qfaces[i][n] ;
+    quad[qf].left = true ;
     quad[qf++].cell = qfaces[i][4] ;
   }
 
@@ -612,21 +616,26 @@ void convert2face(store<vector3d<double> > &pos,
     tria[tf].nodes[0] = tets[i][0] ;
     tria[tf].nodes[1] = tets[i][1] ;
     tria[tf].nodes[2] = tets[i][3] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     tria[tf].nodes[0] = tets[i][1] ;
     tria[tf].nodes[1] = tets[i][2] ;
     tria[tf].nodes[2] = tets[i][3] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
+    
 
     tria[tf].nodes[0] = tets[i][3] ;
     tria[tf].nodes[1] = tets[i][2] ;
     tria[tf].nodes[2] = tets[i][0] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     tria[tf].nodes[0] = tets[i][0] ;
     tria[tf].nodes[1] = tets[i][2] ;
     tria[tf].nodes[2] = tets[i][1] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     cellid++ ;
@@ -637,27 +646,32 @@ void convert2face(store<vector3d<double> > &pos,
     tria[tf].nodes[0] = pyramids[i][4] ;
     tria[tf].nodes[1] = pyramids[i][1] ;
     tria[tf].nodes[2] = pyramids[i][2] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     tria[tf].nodes[0] = pyramids[i][4] ;
     tria[tf].nodes[1] = pyramids[i][2] ;
     tria[tf].nodes[2] = pyramids[i][3] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     tria[tf].nodes[0] = pyramids[i][3] ;
     tria[tf].nodes[1] = pyramids[i][2] ;
     tria[tf].nodes[2] = pyramids[i][0] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     tria[tf].nodes[0] = pyramids[i][0] ;
     tria[tf].nodes[1] = pyramids[i][2] ;
     tria[tf].nodes[2] = pyramids[i][1] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     quad[qf].nodes[0] = pyramids[i][0] ;
     quad[qf].nodes[1] = pyramids[i][1] ;
     quad[qf].nodes[2] = pyramids[i][4] ;
     quad[qf].nodes[3] = pyramids[i][3] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
     cellid++ ;
   }
@@ -667,29 +681,34 @@ void convert2face(store<vector3d<double> > &pos,
     tria[tf].nodes[0] = prisms[i][3] ;
     tria[tf].nodes[1] = prisms[i][4] ;
     tria[tf].nodes[2] = prisms[i][5] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     tria[tf].nodes[0] = prisms[i][0] ;
     tria[tf].nodes[1] = prisms[i][2] ;
     tria[tf].nodes[2] = prisms[i][1] ;
+    tria[tf].left = true ;
     tria[tf++].cell = cellid ;
 
     quad[qf].nodes[0] = prisms[i][0] ;
     quad[qf].nodes[1] = prisms[i][1] ;
     quad[qf].nodes[2] = prisms[i][4] ;
     quad[qf].nodes[3] = prisms[i][3] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     quad[qf].nodes[0] = prisms[i][1] ;
     quad[qf].nodes[1] = prisms[i][2] ;
     quad[qf].nodes[2] = prisms[i][5] ;
     quad[qf].nodes[3] = prisms[i][4] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     quad[qf].nodes[0] = prisms[i][3] ;
     quad[qf].nodes[1] = prisms[i][5] ;
     quad[qf].nodes[2] = prisms[i][2] ;
     quad[qf].nodes[3] = prisms[i][0] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     cellid++ ;
@@ -701,36 +720,42 @@ void convert2face(store<vector3d<double> > &pos,
     quad[qf].nodes[1] = hexs[i][1] ;
     quad[qf].nodes[2] = hexs[i][5] ;
     quad[qf].nodes[3] = hexs[i][4] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     quad[qf].nodes[0] = hexs[i][1] ;
     quad[qf].nodes[1] = hexs[i][2] ;
     quad[qf].nodes[2] = hexs[i][6] ;
     quad[qf].nodes[3] = hexs[i][5] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     quad[qf].nodes[0] = hexs[i][2] ;
     quad[qf].nodes[1] = hexs[i][3] ;
     quad[qf].nodes[2] = hexs[i][7] ;
     quad[qf].nodes[3] = hexs[i][6] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     quad[qf].nodes[0] = hexs[i][4] ;
     quad[qf].nodes[1] = hexs[i][7] ;
     quad[qf].nodes[2] = hexs[i][3] ;
     quad[qf].nodes[3] = hexs[i][0] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     quad[qf].nodes[0] = hexs[i][4] ;
     quad[qf].nodes[1] = hexs[i][5] ;
     quad[qf].nodes[2] = hexs[i][6] ;
     quad[qf].nodes[3] = hexs[i][7] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     quad[qf].nodes[0] = hexs[i][3] ;
     quad[qf].nodes[1] = hexs[i][2] ;
     quad[qf].nodes[2] = hexs[i][1] ;
     quad[qf].nodes[3] = hexs[i][0] ;
+    quad[qf].left = true ;
     quad[qf++].cell = cellid ;
 
     cellid++ ;
@@ -752,13 +777,18 @@ void convert2face(store<vector3d<double> > &pos,
     tria[i].nodes[1] -= 1 ;
     tria[i].nodes[2] -= 1 ;
 
-    if(tria[i].nodes[0] > tria[i].nodes[1])
+    if(tria[i].nodes[0] > tria[i].nodes[1]) {
       std::swap(tria[i].nodes[0],tria[i].nodes[1]) ;
-    if(tria[i].nodes[0] > tria[i].nodes[2])
+      tria[i].left = !tria[i].left ;
+    }
+    if(tria[i].nodes[0] > tria[i].nodes[2]) {
       std::swap(tria[i].nodes[0],tria[i].nodes[2]) ;
-    if(tria[i].nodes[1] > tria[i].nodes[2])
-      std::swap(tria[i].nodes[1],tria[i].nodes[2]
-) ;
+      tria[i].left = !tria[i].left ;
+    }
+    if(tria[i].nodes[1] > tria[i].nodes[2]) {
+      std::swap(tria[i].nodes[1],tria[i].nodes[2]) ;
+      tria[i].left = !tria[i].left ;
+    }
   }
 
   // prepare quad faces (sort them, but be careful)
@@ -783,9 +813,11 @@ void convert2face(store<vector3d<double> > &pos,
     if(tmp_face[1] < tmp_face[3])
       for(int j=0;j<4;++j)
         quad[i].nodes[j] = tmp_face[j] ;
-    else
+    else {
       for(size_t j=0;j<4;++j)
         quad[i].nodes[j] = tmp_face[(4 - j) &0x3 ] ;
+      quad[i].left = !quad[i].left ;
+    }
   }
 
   int tsz = tria.size() ;
@@ -846,8 +878,34 @@ void convert2face(store<vector3d<double> > &pos,
       cerr << "two boundary faces glued together, probably a tranparent surface is causing the problem!"<< endl ;
       Loci::Abort() ;
     }
-    cl[fc] = max(c1,c2) ;
-    cr[fc] = min(c1,c2) ;
+    if(c1 < 0) {
+      cl[fc] = c2 ;
+      cr[fc] = c1 ;
+      if(tria[i*2+1].left)
+        for(int j=0;j<3;++j)
+          face2node[fc][j] = tria[i*2+1].nodes[j] ;
+      else
+        for(int j=0;j<3;++j)
+          face2node[fc][j] = tria[i*2+1].nodes[2-j] ;
+    } else if(c2 < 0) {
+      cl[fc] = c1 ;
+      cr[fc] = c2 ;
+      if(tria[i*2].left)
+        for(int j=0;j<3;++j)
+          face2node[fc][j] = tria[i*2].nodes[j] ;
+      else
+        for(int j=0;j<3;++j)
+          face2node[fc][j] = tria[i*2].nodes[2-j] ;
+    } else {
+      if(!tria[i*2].left) 
+        std::swap(c1,c2) ;
+      cl[fc] = c1 ;
+      cr[fc] = c2 ;
+      if((tria[i*2].left && tria[i*2+1].left) ||
+         (!tria[i*2].left && !tria[i*2+1].left)) {
+        cerr << "consistency error" << endl ;
+      }
+    }
     fc++ ;
   }
   for(int i=0;i<nquad;++i) {
@@ -861,8 +919,35 @@ void convert2face(store<vector3d<double> > &pos,
       cerr << "two boundary faces glued together, probably a tranparent surface is causing the problem!"<< endl ;
       Loci::Abort() ;
     }
-    cl[fc] = max(c1,c2) ;
-    cr[fc] = min(c1,c2) ;
+    
+    if(c1 < 0) {
+      cl[fc] = c2 ;
+      cr[fc] = c1 ;
+      if(quad[i*2+1].left)
+        for(int j=0;j<4;++j)
+          face2node[fc][j] = quad[i*2+1].nodes[j] ;
+      else
+        for(int j=0;j<4;++j)
+          face2node[fc][j] = quad[i*2+1].nodes[3-j] ;
+    } else if(c2 < 0) {
+      cl[fc] = c1 ;
+      cr[fc] = c2 ;
+      if(quad[i*2].left)
+        for(int j=0;j<4;++j)
+          face2node[fc][j] = quad[i*2].nodes[j] ;
+      else
+        for(int j=0;j<4;++j)
+          face2node[fc][j] = quad[i*2].nodes[3-j] ;
+    } else {
+      if(!quad[i*2].left) 
+        std::swap(c1,c2) ;
+      cl[fc] = c1 ;
+      cr[fc] = c2 ;
+      if((quad[i*2].left && quad[i*2+1].left) ||
+         (!quad[i*2].left && !quad[i*2+1].left)) {
+        cerr << "consistency error" << endl ;
+      }
+    }
     fc++ ;
   }
 
@@ -1058,10 +1143,13 @@ int main(int ac, char* av[]) {
   convert2face(pos,qfaces,tfaces,tets,pyramids,prisms,hexs,
                face2node,cl,cr) ;
 
+  // This code is no longer needed, the face orientation is established
+  // in convert2face
+  
   // establish face left-right orientation
-  if(MPI_rank == 0)
-    cerr << "orienting faces" << endl ;
-  VOG::orientFaces(pos,cl,cr,face2node) ;
+  //  if(MPI_rank == 0)
+  //    cerr << "orienting faces" << endl ;
+  //  VOG::orientFaces(pos,cl,cr,face2node) ;
 
   if(MPI_rank == 0)
     cerr << "coloring matrix" << endl ;
