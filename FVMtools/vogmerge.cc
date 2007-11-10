@@ -167,7 +167,7 @@ int main(int ac, char *av[]) {
       }
     }
   }
-
+  
   unsigned long numNodes = 0 ;
   unsigned long numFaces = 0 ;
   unsigned long numCells = 0 ;
@@ -197,6 +197,9 @@ int main(int ac, char *av[]) {
     H5Awrite(att_id,H5T_NATIVE_LLONG,&numCells) ;
     H5Aclose(att_id) ;
     H5Gclose(file_id) ;
+    cout << "numNodes = " << numNodes
+         << ", numFaces = " << numFaces
+         << ", numCells = " << numCells << endl ;
   }
 
   {
@@ -433,7 +436,7 @@ int main(int ac, char *av[]) {
 
     // Write cluster_info
 
-    int cluster_info_size = 0 ;
+    long cluster_info_size = 0 ;
     for(size_t s=0;s<cluster_sizes.size();++s) 
       cluster_info_size += cluster_sizes[s] ;
 
@@ -448,7 +451,9 @@ int main(int ac, char *av[]) {
     
     vector<unsigned char > data(8096) ;
     while(cluster_info_size > 0) {
-      int sz = min(cluster_info_size,8096) ;
+      int sz = 8096 ;
+      if(cluster_info_size < 8096)
+        sz = cluster_info_size ;
       
       fread(&data[0],sz,1,scratch) ;
 
