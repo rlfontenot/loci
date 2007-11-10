@@ -375,7 +375,7 @@ namespace Loci {
 
   template<class T> void readVectorDist(hid_t group_id,
                                         const char *vector_name,
-                                        vector<int> sizes,
+                                        vector<long> sizes,
                                         vector<T> &v) {
 
     hid_t dataset = 0 ;
@@ -393,7 +393,7 @@ namespace Loci {
 
     if(MPI_rank == 0) { // read in vector from processor 0, send to other
       // processors
-      int lsz = sizes[0] ;
+      long lsz = sizes[0] ;
 
       hsize_t dimension = lsz ;
       hsize_t count = dimension ;
@@ -426,7 +426,7 @@ namespace Loci {
       // processor
       for(int i=1;i<MPI_processes;++i) {
         // read in remote processor data
-        int sz = sizes[i] ;
+        long sz = sizes[i] ;
         if(sz > 0) {
           vector<T> tmp(sz) ;
           dimension = sz ;
@@ -452,13 +452,14 @@ namespace Loci {
       H5Sclose(dspace) ;
 
     } else {
-      int size = sizes[MPI_rank] ;
+      long size = sizes[MPI_rank] ;
       if(size > 0) {
         MPI_Status status ;
         MPI_Recv(&v[0],size*sizeof(T),MPI_BYTE,0,0,MPI_COMM_WORLD,&status) ;
       }
     }
   }
+
   int getClusterNumFaces(unsigned char *cluster) {
     int num_faces = 0 ;
     while(*cluster != 0) {
@@ -674,7 +675,7 @@ namespace Loci {
     hid_t node_g = 0 ;
     hid_t dataset = 0 ;
     hid_t dspace = 0 ;
-    int nnodes = 0 ;
+    long nnodes = 0 ;
     int failure = 0 ; // No failure
     /* Save old error handler */
     herr_t (*old_func)(void*) = 0;
@@ -764,10 +765,10 @@ namespace Loci {
       }
     }
       
-    MPI_Bcast(&nnodes,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    MPI_Bcast(&nnodes,1,MPI_LONG,0,MPI_COMM_WORLD) ;
 
     // create node allocation
-    int npnts = nnodes ;
+    long npnts = nnodes ;
     int node_ivl = npnts / Loci::MPI_processes;
     int node_ivl_rem = npnts % Loci::MPI_processes ;
     int node_accum = 0 ;
@@ -856,7 +857,7 @@ namespace Loci {
     vector<unsigned char> cluster_info ;
     vector<unsigned short> cluster_sizes ;
     // Now read in face clusters
-    int nclusters = 0 ;
+    long nclusters = 0 ;
     if(MPI_rank == 0) {
       dataset = H5Dopen(face_g,"cluster_sizes") ;
       dspace = H5Dget_space(dataset) ;
@@ -867,10 +868,10 @@ namespace Loci {
       H5Sget_simple_extent_dims(dspace,&size,NULL) ;
       nclusters = size ;
     }
-    MPI_Bcast(&nclusters,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    MPI_Bcast(&nclusters,1,MPI_LONG,0,MPI_COMM_WORLD) ;
 
-    vector<int> cluster_dist(MPI_processes) ;
-    int sum = 0 ;
+    vector<long> cluster_dist(MPI_processes) ;
+    long sum = 0 ;
     for(int i=0;i<MPI_processes;++i) {
       cluster_dist[i] = nclusters/MPI_processes +
         ((nclusters%MPI_processes)>i?1:0);
@@ -879,11 +880,11 @@ namespace Loci {
     FATAL(sum != nclusters) ;
     readVectorDist(face_g,"cluster_sizes",cluster_dist,cluster_sizes) ;
 
-    int cluster_info_size = 0 ;
+    long cluster_info_size = 0 ;
     for(size_t i=0;i<cluster_sizes.size();++i)
       cluster_info_size += cluster_sizes[i] ;
 
-    MPI_Allgather(&cluster_info_size,1,MPI_INT,&cluster_dist[0],1,MPI_INT,
+    MPI_Allgather(&cluster_info_size,1,MPI_LONG,&cluster_dist[0],1,MPI_LONG,
                   MPI_COMM_WORLD) ;
     readVectorDist(face_g,"cluster_info",cluster_dist,cluster_info) ;
 
@@ -897,7 +898,7 @@ namespace Loci {
     if(fail_state != 0)
       return false ;
 
-    vector<int> cluster_offset(cluster_sizes.size()+1) ;
+    vector<long> cluster_offset(cluster_sizes.size()+1) ;
     cluster_offset[0] = 0 ;
     for(size_t i=0;i<cluster_sizes.size();++i)
       cluster_offset[i+1] = cluster_offset[i] + cluster_sizes[i] ;
