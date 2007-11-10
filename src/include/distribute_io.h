@@ -78,13 +78,13 @@ namespace Loci {
   template<class T> void writeUnorderedVector(hid_t group_id,
                                               const char *element_name,
                                               std::vector<T> &v) {
-    int local_size = v.size() ;
-    std::vector<int> recv_sizes(MPI_processes) ;
-    MPI_Gather(&local_size,1,MPI_INT,
-               &recv_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
+    long local_size = v.size() ;
+    std::vector<long> recv_sizes(MPI_processes) ;
+    MPI_Gather(&local_size,1,MPI_LONG,
+               &recv_sizes[0],1,MPI_LONG,0,MPI_COMM_WORLD) ;
 
     if(MPI_rank == 0) {
-      int array_size = 0 ;
+      hsize_t array_size = 0 ;
       for(int i=0;i<MPI_processes;++i)
         array_size += recv_sizes[i] ;
       if(array_size == 0)
