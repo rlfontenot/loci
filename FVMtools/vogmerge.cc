@@ -330,7 +330,7 @@ int main(int ac, char *av[]) {
       dataset = H5Dopen(face_g,"cluster_info") ;
       dspace = H5Dget_space(dataset) ;
       start = 0 ;
-      for(unsigned int c=0;c<size;++c) { // Loop over clusters
+      for(size_t c=0;c<size;++c) { // Loop over clusters
         count = csizes[c] ;
         vector<unsigned char> cluster(count) ;
         H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
