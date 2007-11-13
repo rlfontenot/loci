@@ -753,7 +753,7 @@ namespace Loci {
       char *data = new char[bufsz+1] ;
       if(MPI_rank == 0)
         strcpy(data,buf.c_str()) ;
-      MPI_Bcast(data,bufsz,MPI_CHAR,0,MPI_COMM_WORLD) ;
+      MPI_Bcast(data,bufsz+1,MPI_CHAR,0,MPI_COMM_WORLD) ;
       buf = string(data) ;
       istringstream iss(buf) ;
       boundary_ids.clear() ;
