@@ -207,7 +207,7 @@ public:
         cerr <<"can not open " << *tagfile_par << " for input" << endl;
         Loci::Abort();
       }
-      // cout << "Reading in tag file." << *tagfile_par << " for nodeTag " << endl;
+   
     }
     //find the length of the file
     
@@ -215,113 +215,71 @@ public:
     
     //serial version
     if(nprocs == 1){
-      
-      // storeRepP pos = (Loci::exec_current_fact_db)->get_variable("pos");
-      // int num_original_nodes = (pos->domain()).size();
-      
       char tag;
-     
-       for(int i = 0; i < *num_original_nodes; i++) inFile>>tag;
+      for(int i = 0; i < *num_original_nodes; i++) inFile>>tag;
+      
+      Loci::constraint edges, geom_cells, faces;
+      Loci::storeRepP e2n = (Loci::exec_current_fact_db)->get_variable("edge2node");
+      *edges = e2n->domain();
+      faces = (Loci::exec_current_fact_db)->get_variable("faces");
+      geom_cells = (Loci::exec_current_fact_db)->get_variable("geom_cells");
+        
+      FORALL(*edges, cc){
+        if(num_inner_nodes[cc] != 0){
+          std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
+          for(int i = 0; i < num_inner_nodes[cc]; i++){
+            if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
+            else nodeTag[cc][i] = 0;
+          }
+        }else{
+          std::vector<char>(1).swap(nodeTag[cc]);
+          nodeTag[cc].clear();
+        }
+        
+      }ENDFORALL; 
       
       
-        
-        Loci::constraint edges, geom_cells, faces;
-        Loci::storeRepP e2n = (Loci::exec_current_fact_db)->get_variable("edge2node");
-        *edges = e2n->domain();
-        faces = (Loci::exec_current_fact_db)->get_variable("faces");
-        geom_cells = (Loci::exec_current_fact_db)->get_variable("geom_cells");
-        
-        FORALL(*edges, cc){
-          //  int vec_size = num_inner_nodes[cc];
-          // cout << "edges: " << num_inner_nodes[cc] << "   " << cc << endl;
-          if(num_inner_nodes[cc] != 0){
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
-              else nodeTag[cc][i] = 0;
-            }
+      
+      FORALL(*geom_cells, cc){
+        if(num_inner_nodes[cc] != 0){
+          std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
+          for(int i = 0; i < num_inner_nodes[cc]; i++){
+            if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
+            else nodeTag[cc][i] = 0;
           }
-        }ENDFORALL; 
+        }else{
+          std::vector<char>(1).swap(nodeTag[cc]);
+          nodeTag[cc].clear();
+        }
+      }ENDFORALL;
         
-        
-        
-        FORALL(*geom_cells, cc){
-          // int vec_size = num_inner_nodes[cc];
-          // cout << "cells: " << num_inner_nodes[cc] << "   " << cc << endl;
-          if(num_inner_nodes[cc] != 0){
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
-              else nodeTag[cc][i] = 0;
-            }
+      FORALL(*faces, cc){
+        if(num_inner_nodes[cc] != 0){
+          std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
+          for(int i = 0; i < num_inner_nodes[cc]; i++){
+            if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
+            else nodeTag[cc][i] = 0;
           }
-        }ENDFORALL;
-        
-        FORALL(*faces, cc){
-          // int vec_size = num_inner_nodes[cc];
-          // cout << "faces: " << num_inner_nodes[cc] << "   " << cc << endl;
-          if(num_inner_nodes[cc] != 0){
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
-              else nodeTag[cc][i] = 0;
-            }
-          }
-        }ENDFORALL;
+        }else{
+          std::vector<char>(1).swap(nodeTag[cc]);
+          nodeTag[cc].clear();
+        }
+      }ENDFORALL;
       
       
       //close tagfile
       inFile.close();
-      // cout << "Finish reading  nodeTag " << endl;
+      
       return;
     }
     //parallel version
-
-    
-   //  Loci::storeRepP  sp = (Loci::exec_current_fact_db)->get_variable("pos");
-    
-//     //get the locally owned node dom
-//     entitySet dom = sp->domain() ;
-    
-     fact_db::distribute_infoP d = (Loci::exec_current_fact_db)->get_distribute_info() ;
-     Loci::constraint my_entities ; 
-     my_entities = d->my_entities ;
-//     dom = *my_entities & dom ;
     
     
-//     //map local node dom to global node dom,
-//     // and check if the size of  two dom is the same 
-//     Map l2g ;
-//     l2g = d->l2g.Rep() ;
-//     MapRepP l2gP = MapRepP(l2g.Rep()) ;
-//     entitySet dom_global = l2gP->image(dom) ;
-//     FATAL(dom.size() != dom_global.size()) ;
+    fact_db::distribute_infoP d = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    Loci::constraint my_entities ; 
+    my_entities = d->my_entities ;
     
-//     //get map from global to file
-//     dMap g2f ;
-//     g2f = d->g2f.Rep() ;
     
-//     // Compute map from local numbering to file numbering
-//     Map newnum ;
-//     newnum.allocate(dom) ;
-//     FORALL(dom,i) {
-//       newnum[i] = g2f[l2g[i]] ;
-//     } ENDFORALL ;
-    
-//     //local min and max of file numbering of node dom
-//     int imx = std::numeric_limits<int>::min() ;
-//     int imn = std::numeric_limits<int>::max() ;
-    
-//     FORALL(dom,i) {
-//       imx = max(newnum[i],imx) ;
-//       imn = min(newnum[i],imn) ;
-//     } ENDFORALL ;
-    
-//     //find the min and max value over all processes
-//     imx = GLOBAL_MAX(imx) ;
-//     imn = GLOBAL_MIN(imn) ;
-
-  
     //start working on nodeTag
     
     Loci::constraint edges, geom_cells, faces;
@@ -335,35 +293,47 @@ public:
     local_edges = (*my_entities) & (*edges) ;
     local_faces = (*my_entities) & (*faces);
     local_geom_cells = (*my_entities)&(*geom_cells);
-      
-  
+    
+    
 
     
-      
-      //compute num of local inner nodes on each process
-      int num_local_inner_nodes = 0;
-      
-      FORALL(local_edges, ei){
-        num_local_inner_nodes += num_inner_nodes[ei];
-      }ENDFORALL;
-      //write out cell_nodes first, then write face_nodes
-      FORALL(local_geom_cells, ei){
-        num_local_inner_nodes += num_inner_nodes[ei];
-      }ENDFORALL;
-      
-      FORALL(local_faces, ei){
-        num_local_inner_nodes += num_inner_nodes[ei];
-      }ENDFORALL;
-      
-      
-      //compute buf_size on each process
-      unsigned int  buf_size = 0;
-      MPI_Allreduce(&num_local_inner_nodes, &buf_size, 1, MPI_INT,
-                    MPI_MAX, MPI_COMM_WORLD);
+    
+    //compute num of local inner nodes on each process
+    int num_local_inner_nodes = 0;
+    
+    FORALL(local_edges, ei){
+      num_local_inner_nodes += num_inner_nodes[ei];
+    }ENDFORALL;
+    //write out cell_nodes first, then write face_nodes
+    FORALL(local_geom_cells, ei){
+      num_local_inner_nodes += num_inner_nodes[ei];
+    }ENDFORALL;
+    
+    FORALL(local_faces, ei){
+      num_local_inner_nodes += num_inner_nodes[ei];
+    }ENDFORALL;
+    
+    
+    //compute buf_size on each process
+    unsigned int  buf_size = 0;
+    MPI_Allreduce(&num_local_inner_nodes, &buf_size, 1, MPI_INT,
+                  MPI_MAX, MPI_COMM_WORLD);
+    
+    if(buf_size == 0){
 
-      if(buf_size == 0){
-        return;
-      }
+      FORALL(local_edges, cc){
+        nodeTag[cc].clear();
+      }ENDFORALL;
+      FORALL(local_geom_cells, cc){
+        nodeTag[cc].clear();
+      }ENDFORALL;
+      
+      FORALL(local_faces, cc){
+        nodeTag[cc].clear();
+      }ENDFORALL;
+      
+      return;
+    }
 
       
       //process 0 find out size of buffer for each process
@@ -374,42 +344,48 @@ public:
       
       if(Loci::MPI_rank == 0){
         char tag;
-        // int num_original_nodes = imx-imn+1;
+        
         for(int i = 0; i < *num_original_nodes; i++) inFile>>tag;
         //process 0 read in its local nodeTag
         FORALL(local_edges, cc){
           if(num_inner_nodes[cc] != 0){
-            // int vec_size = num_inner_nodes[cc];
             std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
             for(int i = 0; i < num_inner_nodes[cc]; i++){
               if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
               else nodeTag[cc][i] = 0;
             }
+          }else{
+             std::vector<char>(1).swap(nodeTag[cc]);
+            nodeTag[cc].clear();
           }
           
-      }ENDFORALL; 
-      
+        }ENDFORALL; 
+        
     
         
         FORALL(local_geom_cells, cc){
           if(num_inner_nodes[cc] != 0){
-            // int vec_size = num_inner_nodes[cc];
             std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
             for(int i = 0; i < num_inner_nodes[cc]; i++){
               if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
               else nodeTag[cc][i] = 0;
             }
+          }else{
+             std::vector<char>(1).swap(nodeTag[cc]);
+            nodeTag[cc].clear();
           }
         }ENDFORALL;
         
         FORALL(local_faces, cc){
           if(num_inner_nodes[cc] != 0){
-            // int vec_size = num_inner_nodes[cc];
-          std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-          for(int i = 0; i < num_inner_nodes[cc]; i++){
-            if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
-            else nodeTag[cc][i] = 0;
-          }
+            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
+            for(int i = 0; i < num_inner_nodes[cc]; i++){
+              if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
+              else nodeTag[cc][i] = 0;
+            }
+          }else{
+             std::vector<char>(1).swap(nodeTag[cc]);
+            nodeTag[cc].clear();
           }
         }ENDFORALL;
         
@@ -428,38 +404,49 @@ public:
         if(recv_size != 0){
           MPI_Status status;
           MPI_Recv(&nbuf[0], buf_size, MPI_CHAR, 0, 11, MPI_COMM_WORLD, &status);
-          
-          int ptr = 0;
-          FORALL(local_edges, cc){
-            if(num_inner_nodes[cc] != 0){
+        }  
+        int ptr = 0;
+        FORALL(local_edges, cc){
+          if(num_inner_nodes[cc] != 0){
             
-              std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-              for(int i = 0; i < num_inner_nodes[cc]; i++){
-                nodeTag[cc][i] = nbuf[ptr++];
-              }
+            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
+            for(int i = 0; i < num_inner_nodes[cc]; i++){
+              nodeTag[cc][i] = nbuf[ptr++];
             }
-          }ENDFORALL; 
-          
-          FORALL(local_geom_cells, cc){
-            if(num_inner_nodes[cc]!= 0){
-             
-              std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-              for(int i = 0; i < num_inner_nodes[cc]; i++){
-                nodeTag[cc][i] = nbuf[ptr++];
-              }
+          }else{
+             std::vector<char>(1).swap(nodeTag[cc]);
+            nodeTag[cc].clear();
+          }
+        }ENDFORALL; 
+        
+        FORALL(local_geom_cells, cc){
+          if(num_inner_nodes[cc]!= 0){
+            
+            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
+            for(int i = 0; i < num_inner_nodes[cc]; i++){
+              nodeTag[cc][i] = nbuf[ptr++];
             }
-          }ENDFORALL;
-          
-          FORALL(local_faces, cc){
-            if(num_inner_nodes[cc] != 0){
-              std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-              for(int i = 0; i < num_inner_nodes[cc]; i++){
-                nodeTag[cc][i] = nbuf[ptr++];
-              }
+          }else{
+             std::vector<char>(1).swap(nodeTag[cc]);
+            nodeTag[cc].clear();
+          }
+        }ENDFORALL;
+        
+        FORALL(local_faces, cc){
+          if(num_inner_nodes[cc] != 0){
+            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
+            for(int i = 0; i < num_inner_nodes[cc]; i++){
+              nodeTag[cc][i] = nbuf[ptr++];
             }
-          }ENDFORALL;
-        }
+          }else{
+             std::vector<char>(1).swap(nodeTag[cc]);
+            nodeTag[cc].clear();
+          }
+        }ENDFORALL;
+        
       }
+        
+  
          
    
       //clean up
