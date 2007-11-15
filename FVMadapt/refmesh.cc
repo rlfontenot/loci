@@ -126,7 +126,7 @@ int main(int argc, char ** argv) {
   rules.add_rules(global_rule_list);
   
  
-  std::cout <<"reading in meshfile" << std::endl;
+ if(Loci::MPI_rank == 0) std::cout <<"reading in meshfile" << std::endl;
   // Read in the mesh file.  Setup Loci datastructures
   if(!Loci::setupFVMGrid(facts,meshfile)) {
     std::cerr << "unable to read grid file '" << meshfile << "'" << std::endl ;
@@ -135,100 +135,27 @@ int main(int argc, char ** argv) {
   
   createLowerUpper(facts) ;
   createEdgesPar(facts) ;
-   Loci:: parallelClassifyCell(facts);
- 
- cerr << currentMem() << " after read in grid " <<  Loci::MPI_rank << endl;
-
-  
- //  std::cout << "Making query." << std::endl;
-//   if(!Loci::makeQuery(rules, facts, "num_inner_nodes,num_fine_cells")) {
-//     std::cerr << "query failed!" << std::endl;
-//     Loci::Abort();
-//   }
-
- 
-
-//   Loci::storeRepP num_inner_nodes;
-//   num_inner_nodes = facts.get_variable("num_inner_nodes");
-//   facts.create_fact("num_inner_nodes_copy", num_inner_nodes);
-  
-//   Loci::storeRepP num_fine_cells;
-//   num_fine_cells = facts.get_variable("num_fine_cells");
-//   facts.create_fact("num_fine_cells_copy", num_fine_cells);
-  
-//     cerr << currentMem() << " after num_inner_nodes " <<  Loci::MPI_rank << endl;
-
-//     std::cout << "Making query." << std::endl;
-//   if(!Loci::makeQuery(rules, facts, "inner_nodes,fine_faces")) {
-//     std::cerr << "query failed!" << std::endl;
-//     Loci::Abort();
-//   }
-
-//   Loci::storeRepP inner_nodes;
-//   inner_nodes = facts.get_variable("inner_nodes");
-//   facts.create_fact("inner_nodes_copy", inner_nodes);
-  
-//   Loci::storeRepP fine_faces;
-//   fine_faces = facts.get_variable("fine_faces");
-//   facts.create_fact("fine_faces_copy", fine_faces);
-  
-//   cerr << currentMem() << " after inner_nodes " <<  Loci::MPI_rank << endl;
-  
-//   std::cout << "Making query." << std::endl;
-//   if(!Loci::makeQuery(rules, facts, "npnts")) {
-//     std::cerr << "query failed!" << std::endl;
-//     Loci::Abort();
-//   }
- 
-
-//     Loci::storeRepP npnts;
-  
-//     npnts = facts.get_variable("npnts");
-  
-//    facts.create_fact("npnts_copy", npnts);
-
-//    // cout << "npnts: " << num_points <<" myID : " << Loci::MPI_rank << std::endl;
-  
-//   std::cout << "Making query." << std::endl;
-//   if(!Loci::makeQuery(rules, facts, "ncells")) {
-//     std::cerr << "query failed!" << std::endl;
-//     Loci::Abort();
-//   }
- 
-//   Loci::storeRepP ncells;
-//   ncells = facts.get_variable("ncells");
-//   facts.create_fact("ncells_copy", ncells);
- 
-  
-//  std::cout << "Making query." << std::endl;
-//   if(!Loci::makeQuery(rules, facts, "nfaces")) {
-//     std::cerr << "query failed!" << std::endl;
-//     Loci::Abort();
-//   }
-
-//    Loci::storeRepP nfaces;
-//    //  param<int> nfaces;
-//   nfaces = facts.get_variable("nfaces");
-//   facts.create_fact("nfaces_copy", nfaces);
- 
-  
-//   cerr << currentMem() << " after nfaces " <<  Loci::MPI_rank << endl;
+  Loci:: parallelClassifyCell(facts);
   
   if(!Loci::makeQuery(rules, facts, "pos_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
- 
-
+  
    if(!Loci::makeQuery(rules, facts, "node_output")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
    }
-
+   
    if(!Loci::makeQuery(rules, facts, "face_output")) {
      std::cerr << "query failed!" << std::endl;
      Loci::Abort();
-    }
+   }
+ 
+
+ 
+  
+  
   // Tell Loci to cleanup after itself and exit gracefully.
   Loci::Finalize();
   
