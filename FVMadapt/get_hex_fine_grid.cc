@@ -34,12 +34,12 @@ class get_hex_cell_nodes : public pointwise_rule{
   const_multiMap face2edge;
   const_MapVec<2> edge2node;
   const_store<vect3d> pos;
-  const_store<int> node_offset;
-
+  
+ const_blackbox<Loci::storeRepP> node_remap;
   store<Loci::FineNodes> inner_nodes;
  
-  const_blackbox<Loci::storeRepP> node_remap;
-  Map node_l2f;
+
+
 public:
   get_hex_cell_nodes(){
     name_store("cellPlan", cellPlan);
@@ -56,27 +56,27 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("pos", pos);
-    name_store("node_offset", node_offset);
+  
 
     name_store("inner_nodes", inner_nodes);
-   
     name_store("node_remap", node_remap);
+
     
-    input("cellPlan,node_offset");
-      input("(hex2face, hex2node, hexOrientCode)");
-    input("(lower, upper, boundary_map)->(facePlan, node_offset)");
-    input("(lower, upper, boundary_map)->face2edge->(edgePlan,node_offset)");
+    input("cellPlan");
+    input("(hex2face, hex2node, hexOrientCode)");
+    input("(lower, upper, boundary_map)->(facePlan)");
+    input("(lower, upper, boundary_map)->face2edge->(edgePlan)");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
-    input("node_remap");
+ input("node_remap");
     output("inner_nodes");
        constraint("hexcells");
   }
   virtual void compute(const sequence &seq){
-    if(seq.size()!=0){
-      node_l2f = *node_remap;
+   
+   
       do_loop(seq, this);
-    }
+   
    
   }
   void calculate(Entity cc){
@@ -108,8 +108,6 @@ public:
                                        pos,
                                        edgePlan,
                                        facePlan,
-                                       node_offset,
-                                       node_l2f,
                                        bnode_list,
                                        edge_list,
                                        face_list);
@@ -128,7 +126,6 @@ public:
     int nindex = 0;
     for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++, nindex++){
       inner_nodes[cc][nindex]=(*np)->p;
-      (*np)->index = node_offset[cc] + nindex;
     }
     
     //clean up

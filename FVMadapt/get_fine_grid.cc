@@ -31,7 +31,7 @@ class get_general_cell_nodes : public pointwise_rule{
   const_multiMap face2edge;
   const_MapVec<2> edge2node;
   const_store<vect3d> pos;
-  const_store<int> node_offset;
+
 
   const_store<bool> is_quadface;
   store<Loci::FineNodes> inner_nodes;
@@ -49,15 +49,15 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("pos", pos);
-    name_store("node_offset", node_offset);
+
 
     name_store("inner_nodes", inner_nodes);
     name_store("node_remap", node_remap);
     name_store("is_quadface", is_quadface);
     
-    input("cellPlan,node_offset");
-    input("(lower, upper, boundary_map)->(facePlan,is_quadface, node_offset)");
-    input("(lower, upper, boundary_map)->face2edge->(edgePlan,node_offset)");
+    input("cellPlan");
+    input("(lower, upper, boundary_map)->(facePlan,is_quadface)");
+    input("(lower, upper, boundary_map)->face2edge->edgePlan");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
     input("node_remap");
@@ -96,7 +96,6 @@ public:
                                       pos,
                                       edgePlan,
                                       facePlan,
-                                      node_offset,
                                       bnode_list,
                                       edge_list,
                                       face_list,
@@ -119,7 +118,6 @@ public:
     int nindex = 0;
     for(std::list<Node*>::const_iterator np = node_list.begin(); np!= node_list.end(); np++, nindex++){
       inner_nodes[cc][nindex]=(*np)->p;
-      (*np)->index = node_offset[cc] + nindex;
     }
   
     
