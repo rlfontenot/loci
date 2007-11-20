@@ -200,13 +200,17 @@ namespace Loci {
   }
 
 
-  void writeVOG(string filename,store<vector3d<double> > &pos,
-                Map &cl, Map &cr, multiMap &face2node,
-                vector<pair<int,string> > surface_ids) {
-    // write grid file
-    hid_t file_id = 0, group_id = 0 ;
-    if(MPI_rank == 0) {
+
+  hid_t writeVOGOpen(string filename) {
+    hid_t file_id = 0 ;
+    if(MPI_rank==0) 
       file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
+    return file_id ;
+  }
+  
+  void writeVOGSurf(hid_t file_id, vector<pair<int,string> > surface_ids) {
+    hid_t group_id = 0 ;
+    if(MPI_rank == 0) {
       if(surface_ids.size() != 0) {
         group_id = H5Gcreate(file_id,"surface_info",0) ;
         for(size_t i=0;i<surface_ids.size();++i) {
@@ -223,21 +227,47 @@ namespace Loci {
         }
         H5Gclose(group_id) ;
       }
-      group_id = H5Gcreate(file_id,"node_info",0) ;
     }
+  }
+
+  void writeVOGNode(hid_t file_id, store<vector3d<double> > &pos) {
+    hid_t group_id = 0 ;
+    
+    if(MPI_rank == 0) group_id = H5Gcreate(file_id,"node_info",0) ;
 
     // Write out node info
-    {
-      entitySet nodes = pos.domain() ;
-      vector<vector3d<double> > vpos(nodes.size()) ;
-      int cnt = 0 ;
-      entitySet::const_iterator ei ;
-      for(ei=nodes.begin();ei!=nodes.end();++ei)
-        vpos[cnt++] = pos[*ei] ;
-      writeUnorderedVector(group_id,"positions",vpos) ;
-    }
-  
+    entitySet nodes = pos.domain() ;
+    vector<vector3d<double> > vpos(nodes.size()) ;
+    int cnt = 0 ;
+    entitySet::const_iterator ei ;
+    for(ei=nodes.begin();ei!=nodes.end();++ei)
+      vpos[cnt++] = pos[*ei] ;
+    writeUnorderedVector(group_id,"positions",vpos) ;
 
+    if(MPI_rank == 0) H5Gclose(group_id) ;
+
+    long long local_num_nodes = pos.domain().size() ;
+    long long num_nodes = 0 ;
+    MPI_Allreduce(&local_num_nodes,&num_nodes,1,MPI_LONG_LONG_INT,
+                  MPI_SUM,MPI_COMM_WORLD) ;
+
+    if(MPI_rank == 0) {
+      group_id = H5Gcreate(file_id,"file_info",0) ;
+
+      cerr << "num_nodes = " << num_nodes << endl ;
+
+      hsize_t dims = 1 ;
+      hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
+    
+      hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+                               dataspace_id, H5P_DEFAULT) ;
+      H5Awrite(att_id,H5T_NATIVE_LLONG,&num_nodes) ;
+      H5Aclose(att_id) ;
+      H5Gclose(group_id) ;
+    }
+  }
+
+  void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
     // Compute cell set
     entitySet tmp_cells = cl.image(cl.domain())+cr.image(cr.domain()) ;
     entitySet loc_geom_cells = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
@@ -247,37 +277,28 @@ namespace Loci {
     multiMap tmp_face2node;
 
   
-    long long local_num_nodes = pos.domain().size() ;
     long long local_num_faces = face2node.domain().size()  ;
 
   
     long long num_cells = geom_cells.size() ;
-    long long num_nodes = 0 ;
     long long num_faces = 0 ;
 
     // Reduce these variables
-    MPI_Allreduce(&local_num_nodes,&num_nodes,1,MPI_LONG_LONG_INT,
-                  MPI_SUM,MPI_COMM_WORLD) ;
     MPI_Allreduce(&local_num_faces,&num_faces,1,MPI_LONG_LONG_INT,
                   MPI_SUM,MPI_COMM_WORLD) ;
 
+    hid_t group_id = 0 ;
     if(MPI_rank == 0) {
-      H5Gclose(group_id) ;
-      group_id = H5Gcreate(file_id,"file_info",0) ;
+      group_id = H5Gopen(file_id,"file_info") ;
 
-      cerr << "num_nodes = " << num_nodes << endl
-           << "num_cells = " << num_cells << endl
+      cerr << "num_cells = " << num_cells << endl
            << "num_faces = " << num_faces << endl ;
 
       hsize_t dims = 1 ;
       hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;
     
-      hid_t att_id = H5Acreate(group_id,"numNodes", H5T_STD_I64BE,
+      hid_t att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
                                dataspace_id, H5P_DEFAULT) ;
-      H5Awrite(att_id,H5T_NATIVE_LLONG,&num_nodes) ;
-      H5Aclose(att_id) ;
-      att_id = H5Acreate(group_id,"numFaces", H5T_STD_I64BE,
-                         dataspace_id, H5P_DEFAULT) ;
       H5Awrite(att_id,H5T_NATIVE_LLONG,&num_faces) ;
       H5Aclose(att_id) ;
       att_id = H5Acreate(group_id,"numCells", H5T_STD_I64BE,
@@ -349,7 +370,24 @@ namespace Loci {
   
     if(MPI_rank == 0) {
       H5Gclose(group_id) ;
-      H5Fclose(file_id) ;
     }
   }
+
+  void writeVOGClose(hid_t file_id) {
+    if(MPI_rank == 0) H5Fclose(file_id) ;
+  }
+  
+      
+
+  void writeVOG(string filename,store<vector3d<double> > &pos,
+                Map &cl, Map &cr, multiMap &face2node,
+                vector<pair<int,string> > surface_ids) {
+    // write grid file
+    hid_t file_id = writeVOGOpen(filename) ;
+    writeVOGSurf(file_id,surface_ids) ;
+    writeVOGNode(file_id,pos) ;
+    writeVOGFace(file_id,cl,cr,face2node) ;
+    writeVOGClose(file_id) ;
+  }
+
 }
