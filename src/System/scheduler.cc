@@ -684,8 +684,10 @@ namespace Loci {
                                      int nth) {
     num_threads = min(nth,max_threads) ;
 
+    variableSet parVars = target ;
+    parVars += facts.get_extensional_facts() ;
     rule_db par_rdb ;
-    par_rdb = parametric_rdb(rdb,target) ;
+    par_rdb = parametric_rdb(rdb,parVars) ;
     par_rdb = replace_map_constraints(facts,par_rdb) ;
 
     ////////////////decorate the dependency graph/////////////////////
