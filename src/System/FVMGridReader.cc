@@ -652,6 +652,76 @@ namespace Loci {
     return true ;
   }
   
+  unsigned long readAttributeLong(hid_t group, char *name) {
+    hid_t id_a = H5Aopen_name(group,name) ;
+    unsigned long val = 0;
+    H5Aread(id_a,H5T_NATIVE_ULONG,&val) ;
+    H5Aclose(id_a) ;
+    return val ;
+  }
+  
+  bool readVolTags(hid_t input_fid,
+                   vector<pair<string,Loci::entitySet> > &volDat) {
+    using namespace Loci ;
+    /* Save old error handler */
+    herr_t (*old_func)(void*) = 0;
+    void *old_client_data = 0 ;
+    H5Eget_auto(&old_func, &old_client_data);
+    /* Turn off error handling */
+    H5Eset_auto(NULL, NULL);
+    
+    vector<pair<string,entitySet> > volTags ;
+    hid_t cell_info = H5Gopen(input_fid,"cell_info") ;
+    if(cell_info > 0) {
+      vector<string> vol_tag ;
+      vector<entitySet> vol_set ;
+      vector<int> vol_id ;
+      
+      hsize_t num_tags = 0 ;
+      H5Gget_num_objs(cell_info,&num_tags) ;
+      for(hsize_t tg=0;tg<num_tags;++tg) {
+        char buf[1024] ;
+        memset(buf, '\0', 1024) ;
+        H5Gget_objname_by_idx(cell_info,tg,buf,sizeof(buf)) ;
+        buf[1023]='\0' ;
+        
+        string name = string(buf) ;
+        hid_t vt_g = H5Gopen(cell_info,buf) ;
+        hid_t id_a = H5Aopen_name(vt_g,"Ident") ;
+        int ident ;
+        H5Aread(id_a,H5T_NATIVE_INT,&ident) ;
+        H5Aclose(id_a) ;
+        entitySet dom ;
+        HDF5_ReadDomain(vt_g,dom) ;
+        vol_tag.push_back(name) ;
+        vol_set.push_back(dom) ;
+        vol_id.push_back(ident) ;
+        H5Gclose(vt_g) ;
+      }
+      int maxi =0 ;
+      for(size_t i=0;i<vol_id.size();++i)
+        maxi = max(vol_id[i],maxi) ;
+      vector<pair<string,entitySet> > tmp(maxi+1) ;
+      volTags.swap(tmp) ;
+      for(size_t i=0;i<vol_id.size();++i) {
+        volTags[vol_id[i]].first = vol_tag[i] ;
+        volTags[vol_id[i]].second = vol_set[i] ;
+      }
+    } else {
+      hid_t file_info = H5Gopen(input_fid,"file_info") ;
+      long numCells = readAttributeLong(file_info,"numCells") ;
+      volTags.push_back(pair<string,entitySet>
+                        (string("Main"),
+                         entitySet(interval(0,numCells-1)))) ;
+      H5Gclose(file_info) ;
+    }
+  
+    /* Restore previous error handler */
+    H5Eset_auto(old_func, old_client_data);
+    volDat.swap(volTags) ;
+    return true ;
+  }
+
   //Description: Reads grid structures from grid file in the .vog format.
   //Input: file name and max_alloc (starting of entity assignment - node base)
   //Output:
@@ -665,7 +735,8 @@ namespace Loci {
 		   vector<entitySet> &local_cells,
 		   store<vector3d<real_t> > &pos, Map &cl, Map &cr,
 		   multiMap &face2node, int max_alloc, string filename,
-                   vector<pair<int,string> > &boundary_ids) {
+                   vector<pair<int,string> > &boundary_ids,
+                   vector<pair<string,entitySet> > &volTags) {
     local_nodes.resize(Loci::MPI_processes);
     local_faces.resize(Loci::MPI_processes);
     local_cells.resize(Loci::MPI_processes);
@@ -888,6 +959,43 @@ namespace Loci {
                   MPI_COMM_WORLD) ;
     readVectorDist(face_g,"cluster_info",cluster_dist,cluster_info) ;
 
+
+    // Read in volume tag information
+    vector<pair<string,Loci::entitySet> > volDat ;
+    if(MPI_rank == 0) {
+      readVolTags(file_id,volDat) ;
+    }
+    int nvtags = volDat.size() ;
+    MPI_Bcast(&nvtags,1,MPI_INT,0,MPI_COMM_WORLD) ;
+    for(int i=0;i<nvtags;++i) {
+      int sz = 0 ;
+      if(MPI_rank == 0) sz = volDat[i].first.size() ;
+      MPI_Bcast(&sz,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      char *buf = new char[sz+1] ;
+      buf[sz] = '\0' ;
+      if(MPI_rank == 0) strcpy(buf,volDat[i].first.c_str()) ;
+      MPI_Bcast(buf,sz,MPI_CHAR,0,MPI_COMM_WORLD) ;
+      string name = string(buf) ;
+      delete[] buf ;
+      int nivals = 0 ;
+      if(MPI_rank == 0) nivals = volDat[i].second.num_intervals() ;
+      MPI_Bcast(&nivals,1,MPI_INT,0,MPI_COMM_WORLD) ;
+
+      int *ibuf = new int[nivals*2] ;
+      if(MPI_rank == 0) 
+        for(int j=0;j<nivals;++j) {
+          ibuf[j*2]= volDat[i].second[j].first ;
+          ibuf[j*2+1]= volDat[i].second[j].second ;
+        }
+      MPI_Bcast(ibuf,nivals*2,MPI_INT,0,MPI_COMM_WORLD) ;
+      entitySet set ;
+      for(int j=0;j<nivals;++j) 
+        set += interval(ibuf[j*2],ibuf[j*2+1]) ;
+      if(MPI_rank != 0) 
+        volDat.push_back(pair<string,entitySet>(name,set)) ;
+    }
+
+    volTags.swap(volDat) ;
     if(MPI_rank == 0) {
       H5Gclose(face_g) ;
       H5Fclose(file_id) ;
@@ -943,6 +1051,9 @@ namespace Loci {
     }
 
 
+    for(size_t i=0;i<volTags.size();++i)
+      volTags[i].second = (volTags[i].second >> cells_base) ;
+    
     int max_cell = 0 ;
     FORALL(local_faces[MPI_rank],fc) {
       int fsz = face2node[fc].size() ;
@@ -1161,7 +1272,8 @@ namespace Loci {
                  Map &tmp_cr, multiMap &tmp_face2node,
                  entitySet nodes, entitySet faces, entitySet cells,
                  store<vector3d<real_t> > &pos, Map &cl, Map &cr,
-                 multiMap &face2node) {
+                 multiMap &face2node,
+                 fact_db &facts) {
 
     pos.allocate(nodes) ;
     cl.allocate(faces) ;
@@ -1223,8 +1335,20 @@ namespace Loci {
         face2nodet[fc][j] = face2node[convert[fc]][j] ;
     } ENDFORALL ;
     face2node.setRep(face2nodet.Rep()) ;
-    // Remember to add an update remap!!!
 
+    // update remap from global to file numbering for faces after sorting
+    fact_db::distribute_infoP df = facts.get_distribute_info() ;
+    dMap g2f ;
+    g2f = df->g2f.Rep() ;
+    vector<pair<int, int> > remap_update(faces.size()) ;
+    int cnt=0 ;
+    FORALL(faces,fc) {
+      remap_update[cnt].second = fc ;
+      remap_update[cnt].first = g2f[convert[fc]] ;
+      cnt++ ;
+    } ENDFORALL ;
+    facts.update_remap(remap_update) ;
+    
     using std::cout ;
     using std::endl ;
 
@@ -1714,10 +1838,11 @@ namespace Loci {
     }
 
     vector<pair<int,string> > boundary_ids ;
+    vector<pair<string,entitySet> > volTags ;
     if(useVOG) {
       if(!readGridVOG(local_nodes, local_faces, local_cells,
                       t_pos, tmp_cl, tmp_cr, tmp_face2node,
-                      max_alloc, filename, boundary_ids))
+                      max_alloc, filename, boundary_ids,volTags))
         return false;
     } else {
       if(!readGridXDR(local_nodes, local_faces, local_cells,
@@ -1784,6 +1909,15 @@ namespace Loci {
       facts.create_fact("face2node",face2node) ;
       facts.create_fact("boundary_names", boundary_names) ;
       facts.create_fact("boundary_tags", boundary_tags) ;
+      for(size_t i=0;i<volTags.size();++i) {
+        param<string> Tag ;
+        *Tag = volTags[i].first ;
+        Tag.set_entitySet(volTags[i].second) ;
+        ostringstream oss ;
+        oss << "volumeTag(" << volTags[i].first << ")" ;
+        facts.create_fact(oss.str(),Tag) ;
+      }
+        
       return true ;
     }
 
@@ -1795,18 +1929,6 @@ namespace Loci {
       ORB_Partition_Mesh(local_nodes, local_faces, local_cells,
                          t_pos, tmp_cl, tmp_cr, tmp_face2node,
                          cell_ptn,face_ptn,node_ptn) ;
-                    
-#ifdef TESTORB
-    entitySet pdom = t_pos.domain() ;
-    vector<vector3d<float> > ptmp(pdom.size()) ;
-    int ii=0 ;
-    FORALL(pdom,nd) {
-      ptmp[ii++] = vector3d<float>(t_pos[nd].x,t_pos[nd].y,t_pos[nd].z) ;
-    } ENDFORALL ;
-
-    vector<int> pid ;
-    ORBPartition(ptmp,pid,MPI_COMM_WORLD) ;
-#endif
     } else {
       // Partition Cells
       if(!use_simple_partition) {
@@ -1897,7 +2019,7 @@ namespace Loci {
               node_ptn_t, face_ptn_t, cell_ptn_t,
               t_pos, tmp_cl, tmp_cr, tmp_face2node,
               nodes, faces, cells,
-              pos, cl, cr, face2node);
+              pos, cl, cr, face2node,facts);
     memSpace("after remapGridStructures") ;
 
     local_boundary_cells = getBoundaryCells(Loci::MapRepP(cr.Rep()));
@@ -1936,6 +2058,27 @@ namespace Loci {
     facts.create_fact("face2node",face2node) ;
     facts.create_fact("boundary_names", boundary_names) ;
     facts.create_fact("boundary_tags", boundary_tags) ;
+
+    // update remap from global to file numbering for faces after sorting
+    fact_db::distribute_infoP df = facts.get_distribute_info() ;
+    dMap g2f ;
+    g2f = df->g2f.Rep() ;
+
+    for(size_t i=0;i<volTags.size();++i) {
+      param<string> Tag ;
+      *Tag = volTags[i].first ;
+
+      // Map entitySet to new ordering
+      entitySet tagset ;
+      FORALL(cells,cc) {
+        if(volTags[i].second.inSet(g2f[cc])) 
+          tagset += cc ;
+      } ENDFORALL ;
+      Tag.set_entitySet(tagset) ;
+      ostringstream oss ;
+      oss << "volumeTag(" << volTags[i].first << ")" ;
+      facts.create_fact(oss.str(),Tag) ;
+    }
 
     double t2 = MPI_Wtime() ;
     debugout << "Time to read in file '" << filename << ", is " << t2-t1
