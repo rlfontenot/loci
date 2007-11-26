@@ -120,7 +120,7 @@ namespace Loci {
         
         seq_table.push_back(seq_vec) ;
 
-        copy_total_domain -= seg ;
+        copy_total_domain &= interval(high_pos+1,Loci::UNIVERSE_MAX) ;
 
         if(copy_total_domain != EMPTY)
           chomp_offset.push_back(copy_total_domain.Min() - low_pos) ;
