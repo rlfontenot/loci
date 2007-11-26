@@ -458,13 +458,22 @@ namespace Loci {
       Rep = EMPTY.Rep ;
       return ;
     }
-    Rep.MakeUnique() ;
-    Rep->erase(range.second,Rep->end()) ;
-    Rep->erase(Rep->begin(),range.first) ;
-    range.first = Rep->begin() ;
-    range.second = Rep->end()-1 ;
-    (*range.first).first = max(ivl.first,(*range.first).first) ;
-    (*range.second).second = min(ivl.second,(*range.second).second) ;
+
+    // Make new pair vector
+    pair_vector pv(range_size) ;
+    int cnt = 0 ;
+    while(range.first!=range.second) {
+      pv[cnt++] = *range.first ;
+      ++range.first ;
+    }
+    const int_type l = range_size-1 ;
+    pv[0].first  = max(ivl.first, pv[0].first) ;
+    pv[l].second = min(ivl.second,pv[l].second) ;
+
+    // Make new Rep, and make this set refer to it.
+    Handle<pair_vector> Rpnew ;
+    Rpnew->swap(pv) ;
+    Rep = Rpnew ;
     return ;
   }
 
