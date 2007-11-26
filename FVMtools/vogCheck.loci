@@ -19,15 +19,16 @@ int main(int ac, char *av[]) {
   string query = "report" ;
   // if output directory doesn't exist, create one
   struct stat statbuf ;
-  if(stat("output",&statbuf))
-    mkdir("output",0755) ;
-  else
-    if(!S_ISDIR(statbuf.st_mode)) {
-      cerr << "file 'output' should be a directory!, rename 'output' and start again."
-           << endl ;
-      Loci::Abort() ;
-    }
   if(Loci::MPI_rank == 0) {
+    if(stat("output",&statbuf))
+      mkdir("output",0755) ;
+    else
+      if(!S_ISDIR(statbuf.st_mode)) {
+        cerr << "file 'output' should be a directory!, rename 'output' and start again."
+             << endl ;
+        Loci::Abort() ;
+      }
+
     cout << "Loci version: " << Loci::version() << endl ;
   }
 
@@ -39,7 +40,14 @@ int main(int ac, char *av[]) {
 
   
   if(ac > 1) {
-    string filename = string(av[1])+".vog" ;
+    string filename = string(av[1]) +".vog" ;
+    if(stat(filename.c_str(),&statbuf)) {
+      filename = string(av[1]) +".xdr" ;
+      if(stat(filename.c_str(),&statbuf)) {
+        cerr << "unable to open grid file for case '" << string(av[1]) << "'" << endl ;
+        exit(-1) ;
+      }
+    }
     param<std::string> modelName ;
     *modelName = string(av[1]) ;
     facts.create_fact("modelName",modelName) ;
