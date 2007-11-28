@@ -1056,6 +1056,11 @@ namespace Loci {
       facts.create_fact(tname,bconstraint) ;
       debugout << "boundary " << bname << "("<< tname << ") = "
                << *bconstraint << endl ;
+      param<string> boundarySet ;
+      *boundarySet = bname ;
+      string factname = "boundaryName(" + bname + ")" ;
+      boundarySet.set_entitySet(bfaces) ;
+      facts.create_fact(factname,boundarySet) ;
       
       option_value_type vt =
         bc_info->getOptionValueType(bname);
