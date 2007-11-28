@@ -813,7 +813,9 @@ int main(int ac, char *av[]) {
   }
   vector<pair<string,entitySet> > volTags ;
 
-  volTags.push_back(pair<string,entitySet>(string("Main"),volTagMap["Main"])) ;
+  if(volTagMap["Main"] != Loci::EMPTY)
+    volTags.push_back(pair<string,entitySet>(string("Main"),volTagMap["Main"])) ;
+  
                     
   map<string,entitySet>::const_iterator vtmi ;
   for(vtmi=volTagMap.begin();vtmi!=volTagMap.end();++vtmi) {
