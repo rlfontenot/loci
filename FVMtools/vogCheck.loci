@@ -217,10 +217,12 @@ $rule apply(maxCellAngle<-cellFaceAngle)[Loci::Maximum] {
 }
 
 $type report param<bool> ;
-$rule singleton(report<-volRatio,maxCellAngle,topo) {
+$type minVol param<double> ;
+$rule singleton(report<-volRatio,maxCellAngle,minVol,topo) {
   if(Loci::MPI_rank == 0) {
     cout << "max volume ratio = " << $volRatio << endl ;
     cout << "max cell to face angle = " << $maxCellAngle << endl ;
+    cout << "minimum cell volume " << $minVol << endl ;
   }
   $report = true ;
 }
@@ -288,12 +290,37 @@ void scalar_node_output::compute(const sequence &seq) {
 
 OUTPUT_SCALAR("cell2nodeMax(cellVolRatio)",volumeRatio) ;
 OUTPUT_SCALAR("cell2nodeMax(cellFaceAngle)",cellFaceAngle) ;
+OUTPUT_SCALAR("cell2nodeMin(vol)",cellVol) ;
 
 
+$rule unit(minVol),constraint(geom_cells) {
+  $minVol = 1e33 ;
+}
+$rule apply(minVol<-vol)[Loci::Minimum] {
+  join($minVol,$vol) ;
+}
 
+// Test of new type of parametric rules
+$type volTag_X store<double> ;
+$type  volumeTag(X) param<string> ;
 
+$type volumeComponent_X param<double> ;
+$rule unit(volumeComponent_X),constraint(volumeTag(X)),
+  parametric(volumeTag(X)) {
+  $volumeComponent_X = 0 ;
+}
+$rule apply(volumeComponent_X<-vol)[Loci::Summation],constraint(volumeTag(X)),
+  parametric(volumeTag(X)) {
+  join($volumeComponent_X,$vol) ;
+}
 
+$type topo param<int> ;
 
+$rule apply(topo<-volumeTag(X),volumeComponent_X)[Loci::Maximum],
+  parametric(volumeTag(X)),option(disable_threading), prelude {
 
+  if(Loci::MPI_rank == 0)
+    cout << "Volume of component " << *$volumeTag(X) << " is " << *$volumeComponent_X << endl ;
+} ;
 
 
