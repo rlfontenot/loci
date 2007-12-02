@@ -104,13 +104,14 @@ namespace Loci {
 #endif
       hsize_t stride = 1 ;
       hsize_t count = recv_sizes[0] ;
-      hid_t dataset = H5Dcreate(group_id,element_name,dp->get_hdf5_type(),
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
                                 dataspace, H5P_DEFAULT) ;
       if(count != 0) {
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                             &start, &stride, &count, NULL) ;
         hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+        H5Dwrite(dataset,datatype,memspace,dataspace,
                  H5P_DEFAULT, &v[0]) ;
         H5Sclose(memspace) ;
       }
@@ -127,14 +128,14 @@ namespace Loci {
         count = recv_sizes[i] ;
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+        H5Dwrite(dataset,datatype,memspace,dataspace,
                  H5P_DEFAULT, &rv[0]) ;
         H5Sclose(memspace) ;
       }
 
       H5Dclose(dataset) ;
       H5Sclose(dataspace) ;
-      
+      H5Tclose(datatype) ;
     } else {
       if(local_size == 0)
         return ;
