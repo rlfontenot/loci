@@ -78,13 +78,13 @@ namespace Loci {
   template<class T> void writeUnorderedVector(hid_t group_id,
                                               const char *element_name,
                                               std::vector<T> &v) {
-    int local_size = v.size() ;
-    std::vector<int> recv_sizes(MPI_processes) ;
-    MPI_Gather(&local_size,1,MPI_INT,
-               &recv_sizes[0],1,MPI_INT,0,MPI_COMM_WORLD) ;
+    long local_size = v.size() ;
+    std::vector<long> recv_sizes(MPI_processes) ;
+    MPI_Gather(&local_size,1,MPI_LONG,
+               &recv_sizes[0],1,MPI_LONG,0,MPI_COMM_WORLD) ;
 
     if(MPI_rank == 0) {
-      int array_size = 0 ;
+      hsize_t array_size = 0 ;
       for(int i=0;i<MPI_processes;++i)
         array_size += recv_sizes[i] ;
       if(array_size == 0)
@@ -104,13 +104,14 @@ namespace Loci {
 #endif
       hsize_t stride = 1 ;
       hsize_t count = recv_sizes[0] ;
-      hid_t dataset = H5Dcreate(group_id,element_name,dp->get_hdf5_type(),
+      hid_t datatype = dp->get_hdf5_type() ;
+      hid_t dataset = H5Dcreate(group_id,element_name,datatype,
                                 dataspace, H5P_DEFAULT) ;
       if(count != 0) {
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                             &start, &stride, &count, NULL) ;
         hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+        H5Dwrite(dataset,datatype,memspace,dataspace,
                  H5P_DEFAULT, &v[0]) ;
         H5Sclose(memspace) ;
       }
@@ -127,14 +128,14 @@ namespace Loci {
         count = recv_sizes[i] ;
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
         hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
-        H5Dwrite(dataset,dp->get_hdf5_type(),memspace,dataspace,
+        H5Dwrite(dataset,datatype,memspace,dataspace,
                  H5P_DEFAULT, &rv[0]) ;
         H5Sclose(memspace) ;
       }
 
       H5Dclose(dataset) ;
       H5Sclose(dataspace) ;
-      
+      H5Tclose(datatype) ;
     } else {
       if(local_size == 0)
         return ;

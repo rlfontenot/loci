@@ -131,8 +131,13 @@ namespace Loci {
     if(MPI_rank == 0)
       HDF5_WriteDomain(group_id, q_dom);
     frame_info fi = qrep->write_frame_info(group_id) ;
-    if(q_dom == EMPTY)
+
+    if(q_dom == EMPTY) {
+      delete[]  tmp_send_buf ;
       return ;
+    }
+
+    
     int array_size = 0 ;
     if(fi.size) 
       if(fi.is_stat)   
@@ -152,6 +157,7 @@ namespace Loci {
     for(int i = 0; i < MPI_processes; ++i)
       tot_arr_size += arr_sizes[i] ;
 
+    
     if(MPI_rank != 0) {
       MPI_Status status ;
       int send_size_buf ;
@@ -177,23 +183,23 @@ namespace Loci {
       hsize_t count = arr_sizes[0] ;
       dimension =  tot_arr_size ;
       if(dimension != 0) {
-	hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
+        hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
 	DatatypeP dp = qrep->getType() ;
-	hid_t datatype = dp->get_hdf5_type() ;
-	H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-	dimension = count ;
-	start += dimension ;
-
-	hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-	qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
-	H5Dclose(dataset) ;
+        hid_t datatype = dp->get_hdf5_type() ;
+        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+        dimension = count ;
+        start += dimension ;
+        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
+        qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
+        H5Dclose(dataset) ;
+        
 
 	for(int i = 1; i < MPI_processes; ++i) {
 	  MPI_Status status ;
 	  int recv_total_size ;
 	  entitySet tmpset = dom_vector[i];
 
-	  storeRepP t_qrep = qrep->new_store(tmpset) ;
+          storeRepP t_qrep = qrep->new_store(tmpset) ;
 
 	  int loc_unpack = 0 ;
 	  int flag = 1 ;
@@ -202,20 +208,21 @@ namespace Loci {
 	  MPI_Recv(tmp_send_buf, recv_total_size, MPI_PACKED, i, 12, MPI_COMM_WORLD, &status) ;
 
 	  sequence tmp_seq = sequence(tmpset) ;
-	  t_qrep->unpack(tmp_send_buf, loc_unpack, total_size, tmp_seq) ;
+          t_qrep->unpack(tmp_send_buf, loc_unpack, total_size, tmp_seq) ;
 	  dimension = arr_sizes[i] ;
 	  count = dimension ; 
 
-	  H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ; 
+          H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ; 
 	  start += count ;
 
-	  dataset = H5Dopen(group_id, "data") ;
-	  t_qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", tmpset) ;
+          dataset = H5Dopen(group_id, "data") ;
+          t_qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", tmpset) ;
           t_qrep->allocate(EMPTY) ;
 
-	  H5Dclose(dataset) ;
+          H5Dclose(dataset) ;
 	}
-	H5Sclose(dataspace) ;
+        H5Sclose(dataspace) ;
+        H5Tclose(datatype) ;
       }
       //add else part by Qiuhan to avoid MPI communication get stuck
       else{
@@ -230,7 +237,6 @@ namespace Loci {
       }
     }
     delete [] tmp_send_buf ;
-
   }
 
   //This routine reads storeReps from .hdf5 file. If dom specified is 

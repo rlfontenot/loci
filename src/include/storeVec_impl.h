@@ -747,6 +747,7 @@ namespace Loci {
 	}
 	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
 	H5Sclose(memspace) ;
+        H5Tclose(datatype) ;
 	delete [] tmp_array ;
       }
     }
@@ -776,6 +777,7 @@ namespace Loci {
 	}
 	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
 	H5Sclose(memspace) ;
+        H5Tclose(datatype) ;
 	delete [] tmp_array ;
       }
     }
@@ -814,6 +816,7 @@ namespace Loci {
 	    base_ptr[(*si)*qs+ivec] = tmp_array[tmp++] ;
 	  }
 	H5Sclose(memspace) ;
+        H5Tclose(datatype) ;
 	delete [] tmp_array ;
       }
     }
@@ -851,6 +854,7 @@ namespace Loci {
 	  }
         
 	H5Sclose(memspace) ;
+        H5Tclose(datatype) ;
 	delete [] tmp_array ;
       }
     }

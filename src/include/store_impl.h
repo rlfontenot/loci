@@ -556,6 +556,7 @@ namespace Loci {
 
 	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
 	H5Sclose(memspace) ;
+        H5Tclose(datatype) ;
 	delete [] tmp_array ;
       }
     }
@@ -582,6 +583,7 @@ namespace Loci {
 	}
 	H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
 	H5Sclose(memspace) ;
+        H5Tclose(datatype) ;
 	delete [] tmp_array ;
       }
     }
@@ -614,6 +616,7 @@ namespace Loci {
 	for(entitySet::const_iterator si = eset.begin(); si != eset.end();++si)
 	  base_ptr[*si] = tmp_array[tmp++] ;
 	H5Sclose(memspace) ;
+        H5Tclose(datatype) ;
 	delete [] tmp_array ;
       }
     }
@@ -647,6 +650,7 @@ namespace Loci {
 	tmp += bucsize ;
       }
       H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
       delete [] tmp_array ;
     }
   }

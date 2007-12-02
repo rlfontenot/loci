@@ -244,7 +244,7 @@ namespace Loci {
 
     FORALL(domain(),ii) {
       ci =  attrib_data.find(ii);
-      if( ci != attrib_data.end() ) continue;
+      if( ci == attrib_data.end() ) continue;
       s << ci->second.size() << std::endl ;
     } ENDFORALL ;
 
@@ -982,8 +982,7 @@ namespace Loci {
 
     std::vector<dtype> data(arraySize);
     indx = 0;
-    for( ei = eset.begin(); ei != eset.end(); ++ei) {
-      ci = attrib_data.find(*ei);
+    for( ei = eset.begin(); ei != eset.end(); ++ei) {      ci = attrib_data.find(*ei);
       if( ci == attrib_data.end() ) continue;
       newVec =  ci->second;
       for( int ivec = 0; ivec < newVec.size(); ivec++) {

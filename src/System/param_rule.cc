@@ -160,9 +160,9 @@ namespace Loci {
       param_rule_key rk(var2key(v),psize) ;
       param_rule_db::const_iterator pri = prule_db.find(rk) ;
       if(pri==prule_db.end()) {
-        if(MPI_rank == 0)
-          cerr << "WARNING: Unable to intantiate parametric rules for variable "
-               << v << endl ;
+        //        if(MPI_rank == 0)
+        //          cerr << "WARNING: Unable to intantiate parametric rules for variable "
+        //               << v << endl ;
         debugout << "Unable to intantiate parametric rules for variable "
                  << v << endl ;
         continue ;
@@ -219,10 +219,10 @@ namespace Loci {
     
 #ifdef VERBOSE
     std::cout << "parvars = " << parvars << endl ;
-    debugout << "parvars = " << parvars << endl ;
 #endif
     
     ruleSet processed ;
+    int cnt = 0 ;
     while(parvars != EMPTY) {
 #ifdef VERBOSE
       cout << "prcessing variables " << parvars << endl ;
@@ -238,6 +238,14 @@ namespace Loci {
       for(ri=newrules.begin();ri!=newrules.end();++ri)
         par_rdb.add_rule(*ri) ;
       parvars -= processed ;
+      cnt++ ;
+      if(cnt == 100) {
+        if(MPI_rank == 0) 
+          cerr << "Warning, parametric rule instatiation 100 levels deep!" << endl
+               << "Probably this is caused by a recursive parametric rule" << endl
+               << "currently working on the parametric variables:" << endl
+               << parvars << endl ;
+      }
     }
     
     return par_rdb ;

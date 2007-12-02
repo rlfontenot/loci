@@ -671,6 +671,7 @@ namespace Loci {
 
       H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &attrib_data) ;
       H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
     }
   }
 
@@ -694,6 +695,7 @@ namespace Loci {
       cvtr.getState(tmp_array, stateSize) ;
       H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, tmp_array) ;
       H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
       delete [] tmp_array ;
     }
   }
@@ -717,6 +719,7 @@ namespace Loci {
       attrib_data = tmp_array[0] ;
 
       H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
       delete [] tmp_array ;
     }
   }
@@ -745,6 +748,7 @@ namespace Loci {
       int bucsize = vint[0] ;
       cvtr.setState(tmp_array, bucsize) ;
       H5Sclose(memspace) ;
+      H5Tclose(datatype) ;
       delete [] tmp_array ;
     }
   }

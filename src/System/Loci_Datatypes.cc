@@ -186,7 +186,9 @@ namespace Loci {
     H5Tinsert_array(vDatatype, "Array", 0, rank, array_dims, NULL, hdf5T);
     return vDatatype ;
 #else
-    return   H5Tarray_create(hdf5T,rank,array_dims,NULL) ;
+    hid_t rtype = H5Tarray_create(hdf5T,rank,array_dims,NULL) ;
+    H5Tclose(hdf5T) ;
+    return  rtype ;
 #endif
   }
 
@@ -234,6 +236,7 @@ namespace Loci {
     for(size_t i = 0; i < type_list.size(); i++) {
       hdf5T = type_list[i].type_data->get_hdf5_type() ;
       H5Tinsert(vDatatype,type_list[i].name.c_str(), type_list[i].offset,hdf5T) ;
+      H5Tclose(hdf5T) ;
     }
     return vDatatype ;
   }
