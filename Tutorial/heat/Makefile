@@ -31,4 +31,4 @@ distclean:
 DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
 #include automatically generated dependencies
-include $(DEPEND_FILES)
+-include $(DEPEND_FILES)
