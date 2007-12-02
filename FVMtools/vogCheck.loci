@@ -1,0 +1,326 @@
+#include <Loci.h>
+#include <string>
+#include <iostream>
+#include <sstream>
+#include <sys/stat.h>
+#include <unistd.h>
+$include "FVM.lh"
+
+using std::string ;
+using std::endl ;
+using std::cerr ;
+using std::cout ;
+using std::ostringstream ;
+
+
+int main(int ac, char *av[]) {
+  Loci::Init(&ac, &av) ;
+  // default query 
+  string query = "report" ;
+  // if output directory doesn't exist, create one
+  struct stat statbuf ;
+  if(Loci::MPI_rank == 0) {
+    if(stat("output",&statbuf))
+      mkdir("output",0755) ;
+    else
+      if(!S_ISDIR(statbuf.st_mode)) {
+        cerr << "file 'output' should be a directory!, rename 'output' and start again."
+             << endl ;
+        Loci::Abort() ;
+      }
+
+    cout << "Loci version: " << Loci::version() << endl ;
+  }
+
+  rule_db rdb ;
+  rdb.add_rules(global_rule_list) ;
+
+  fact_db facts ;
+  Loci::load_module("fvm",rdb) ;
+
+  
+  if(ac > 1) {
+    string filename = string(av[1]) +".vog" ;
+    if(stat(filename.c_str(),&statbuf)) {
+      filename = string(av[1]) +".xdr" ;
+      if(stat(filename.c_str(),&statbuf)) {
+        cerr << "unable to open grid file for case '" << string(av[1]) << "'" << endl ;
+        exit(-1) ;
+      }
+    }
+    param<std::string> modelName ;
+    *modelName = string(av[1]) ;
+    facts.create_fact("modelName",modelName) ;
+    Loci::setupFVMGrid(facts,filename) ;
+    createLowerUpper(facts) ;
+    if(!Loci::makeQuery(rdb,facts,query)) {
+      cerr << "query for '" << query << "' failed. " << endl ;
+      Loci::Abort() ;
+    }
+    
+  }
+}
+$type topo param<int> ;
+
+$rule unit(topo),constraint(UNIVERSE) {
+  $topo = 0 ;
+}
+
+class output_grid_topology : public apply_rule<param<int>, Loci::Maximum<int> > {
+  param<int> topo ;
+  const_multiMap upper,lower,boundary_map,face2node ;
+  const_store<vector3d<double> > pos ;
+  const_Map ref ;
+  const_store<string> boundary_names ;
+  const_param<string> modelName ;
+public:
+  output_grid_topology() {
+    name_store("topo",topo) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("face2node",face2node) ;
+    name_store("ref",ref) ;
+    name_store("boundary_names",boundary_names) ;
+    name_store("modelName",modelName) ;
+    name_store("pos",pos) ;
+    input("modelName") ;
+    input("(upper,lower,boundary_map)->face2node->pos") ;
+    input("boundary_map->ref->boundary_names") ;
+    output("topo") ;
+    disable_threading() ;
+  }
+    
+  void compute(const sequence &seq) ;
+} ;
+
+
+
+void output_grid_topology::compute(const sequence &seq) {
+  if(Loci::MPI_rank == 0)
+    cout << "calling write grid topology" << endl ;
+  string filename = "output/"+*modelName+".topo" ;
+  Loci::parallelWriteGridTopology(filename.c_str(),
+                                  upper.Rep(),lower.Rep(),boundary_map.Rep(),
+                                  face2node.Rep(),
+                                  ref.Rep(),
+                                  boundary_names.Rep(),
+                                  pos.Rep(),
+                                  entitySet(seq)) ;
+}
+
+
+register_rule<output_grid_topology> register_output_grid_topology ;
+
+void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
+              const_param<string> &modelName) {
+  ostringstream oss ;
+  int cycle = 0 ;
+    
+  oss << "output/grid_pos." << cycle << "_" << *modelName ;
+  string filename = oss.str() ;
+
+  if(Loci::MPI_rank == 0)
+    cout << "writing file " << filename << endl ;
+
+
+  hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                        H5P_DEFAULT, H5P_DEFAULT) ;
+
+  Loci::writeContainer(file_id,"pos",pos.Rep()) ;
+
+  Loci::hdf5CloseFile(file_id) ;
+}
+
+class output_grid_positions: public apply_rule<param<int>, Loci::Maximum<int> > {
+  const_store<vector3d<double> > pos ;
+  const_param<string> modelName ;
+  param<int> topo ;
+public:
+  output_grid_positions() {
+    name_store("pos",pos) ;
+    name_store("modelName",modelName) ;
+    name_store("topo",topo) ;
+      
+    constraint("pos") ;
+    input("pos") ;
+    input("modelName") ;
+    output("topo") ;
+  }
+  void compute(const sequence &seq) {
+    dump_pos(seq,pos,modelName) ;
+  }
+} ;
+register_rule<output_grid_positions> register_output_grid_positions ;
+
+$type cellVolRatio store<double> ;
+
+$rule unit(cellVolRatio),constraint(vol) {
+  $cellVolRatio = 1 ;
+}
+
+$type ratio store<double> ;
+$rule pointwise(ratio<-(cl,cr)->vol) {
+  $ratio = max($cl->$vol,$cr->$vol)/min($cl->$vol,$cr->$vol) ;
+}
+$rule apply(cl->cellVolRatio<-ratio)[Loci::Maximum] {
+  join($cl->$cellVolRatio,$ratio) ;
+}
+$rule apply(cr->cellVolRatio<-ratio) [Loci::Maximum] {
+  join($cr->$cellVolRatio,$ratio) ;
+}
+
+
+$type volRatio param<double> ;
+
+$rule unit(volRatio),constraint(vol) {
+  $volRatio = 0 ;
+}
+
+$rule apply(volRatio<-cellVolRatio)[Loci::Maximum] {
+  join($volRatio,$cellVolRatio) ;
+}
+
+
+$type faceAngle store<double> ;
+
+$rule pointwise(faceAngle<-cl->cellcenter,cr->cellcenter,area) {
+  vector3d<double> v1 = $cl->$cellcenter-$cr->$cellcenter ;
+  vector3d<double> v2 = $area.n*dot(v1,$area.n) ;
+  $faceAngle = 360*acos(fabs(dot(v1,v2))/(norm(v1)*norm(v2)))/(2*3.1415927) ;
+}
+
+$rule pointwise(faceAngle<-ci->cellcenter,facecenter,area) {
+  vector3d<double> v1 = $ci->$cellcenter-$facecenter ;
+  vector3d<double> v2 = $area.n*dot(v1,$area.n) ;
+  $faceAngle = 360*acos(fabs(dot(v1,v2))/(norm(v1)*norm(v2)))/(2*3.1415927) ;
+}
+
+$type cellFaceAngle store<double> ;
+
+$rule unit(cellFaceAngle),constraint(vol) {
+  $cellFaceAngle = 0 ;
+}
+$rule apply(cl->cellFaceAngle<-faceAngle)[Loci::Maximum] {
+  join($cl->$cellFaceAngle,$faceAngle) ;
+}
+$rule apply(cr->cellFaceAngle<-faceAngle)[Loci::Maximum] {
+  join($cr->$cellFaceAngle,$faceAngle) ;
+}
+
+$type maxCellAngle param<double> ;
+$rule unit(maxCellAngle), constraint(vol) {
+  $maxCellAngle = 0 ;
+}
+$rule apply(maxCellAngle<-cellFaceAngle)[Loci::Maximum] {
+  join($maxCellAngle,$cellFaceAngle) ;
+}
+
+$type report param<bool> ;
+$type minVol param<double> ;
+$rule singleton(report<-volRatio,maxCellAngle,minVol,topo) {
+  if(Loci::MPI_rank == 0) {
+    cout << "max volume ratio = " << $volRatio << endl ;
+    cout << "max cell to face angle = " << $maxCellAngle << endl ;
+    cout << "minimum cell volume " << $minVol << endl ;
+  }
+  $report = true ;
+}
+
+
+class scalar_node_output : public apply_rule<param<int>, Loci::Maximum<int> > {
+  std::string var_name ;
+  std::string value_name ;
+  Loci::const_store<float> c2n ;
+  Loci::const_param<std::string> modelName ;
+  Loci::param<int> topo ;
+public:
+  scalar_node_output(const char *vname, const char *valname) ;
+  virtual void compute(const Loci::sequence &seq) ;
+} ;
+
+void dump_scalar(const sequence &seq,const_store<float> &c2n,
+                 const_param<string> &modelName,
+                 string type,
+                 string sname) {
+    
+  ostringstream oss ;
+  int cycle = 0;
+    
+  oss << "output/" << sname << "_" << type << "." << cycle
+      << "_" << *modelName ;
+  string filename = oss.str() ;
+
+  if(Loci::MPI_rank == 0)
+    cout << "writing file " << filename << endl ;
+
+
+  hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+
+  Loci::writeContainer(file_id,sname,c2n.Rep()) ;
+
+  Loci::hdf5CloseFile(file_id) ;
+}
+  
+scalar_node_output::scalar_node_output(const char *vname,
+                                       const char *valname) {
+  var_name = string(vname) ;
+  value_name = string(valname) ;
+  string var_name_time = var_name; 
+  name_store(var_name_time, c2n) ;
+  name_store("modelName",modelName) ;
+  name_store("topo",topo) ;
+    
+  constraint("pos") ;
+  input("modelName") ;
+  input(var_name_time);
+  output("topo") ;
+}
+void scalar_node_output::compute(const sequence &seq) {
+  dump_scalar(seq,c2n, modelName,"sca",value_name) ;
+}	
+
+
+
+#define OUTPUT_SCALAR(X,Y) class OUT_##Y : public scalar_node_output {\
+                           public:\
+                           OUT_##Y() : scalar_node_output(X,#Y){}\
+                           }; register_rule<OUT_##Y> register_OUT_##Y 
+
+OUTPUT_SCALAR("cell2nodeMax(cellVolRatio)",volumeRatio) ;
+OUTPUT_SCALAR("cell2nodeMax(cellFaceAngle)",cellFaceAngle) ;
+OUTPUT_SCALAR("cell2nodeMin(vol)",cellVol) ;
+
+
+$rule unit(minVol),constraint(geom_cells) {
+  $minVol = 1e33 ;
+}
+$rule apply(minVol<-vol)[Loci::Minimum] {
+  join($minVol,$vol) ;
+}
+
+// Test of new type of parametric rules
+$type volTag_X store<double> ;
+$type  volumeTag(X) param<string> ;
+
+$type volumeComponent_X param<double> ;
+$rule unit(volumeComponent_X),constraint(volumeTag(X)),
+  parametric(volumeTag(X)) {
+  $volumeComponent_X = 0 ;
+}
+$rule apply(volumeComponent_X<-vol)[Loci::Summation],constraint(volumeTag(X)),
+  parametric(volumeTag(X)) {
+  join($volumeComponent_X,$vol) ;
+}
+
+$type topo param<int> ;
+
+$rule apply(topo<-volumeTag(X),volumeComponent_X)[Loci::Maximum],
+  parametric(volumeTag(X)),option(disable_threading), prelude {
+
+  if(Loci::MPI_rank == 0)
+    cout << "Volume of component " << *$volumeTag(X) << " is " << *$volumeComponent_X << endl ;
+} ;
+
+

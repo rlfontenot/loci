@@ -1,12 +1,12 @@
 include $(LOCI_BASE)/Loci.conf
 
 COPT = $(COPTLESS)
-#COPT = -g -O0 
+#COPT = -g -O0 -DDEBUG -DBOUNDS_CHECK
 
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog
+OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog vogmerge vogcheck
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o
@@ -28,6 +28,10 @@ $(TARGET): $(OBJS)
 	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 FRC : 
 
+
+vogcheck: vogCheck.o
+	$(LD) -o vogcheck vogCheck.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 xdr2cobalt: xdr2cobalt.o
 	$(LD) -o xdr2cobalt xdr2cobalt.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
@@ -39,6 +43,9 @@ ugrid2vog: ugrid2vog.o vogtools.o
 
 vog2xdr: vog2xdr.o
 	$(LD) -o vog2xdr vog2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+vogmerge: vogmerge.o
+	$(LD) -o vogmerge vogmerge.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 cobalt2xdr: cobalt2xdr.o
 	$(LD) -o cobalt2xdr cobalt2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
@@ -68,4 +75,4 @@ DEPEND_FILES=$(subst .o,.d,$(OBJS))
 
 
 #include automatically generated dependencies
-include $(DEPEND_FILES)
+-include $(DEPEND_FILES)
