@@ -276,39 +276,34 @@ namespace Loci {
         show_decoration = true ; // visualize the decorated multilevel graph
         i++ ;
       } else if(!strcmp((*argv)[i],"--simple_partition")) {
-        use_simple_partition = true ; // use the dynamic memory management
+        use_simple_partition = true ; //  partition domain using n/p cuts
         i++ ;
       } else if(!strcmp((*argv)[i],"--orb_partition")) {
-        use_orb_partition = true ; // use the dynamic memory management
+        use_orb_partition = true ; // partition mesh using ORB method
         i++ ;
       } else if(!strcmp((*argv)[i],"--dmm")) {
-        use_dynamic_memory = true ; // use the dynamic memory management
+        use_dynamic_memory = true ; // use dynamic memory management
         i++ ;
       } else if(!strcmp((*argv)[i],"--dmmnofree")) {
         dmm_no_deallocation = true ; // do not do deallocation
         i++ ;
       } else if(!strcmp((*argv)[i],"--nodmm")) {
-        use_dynamic_memory = false ; // use the dynamic memory management
+        use_dynamic_memory = false ; // use static preallocation 
         i++ ;
       } else if(!strcmp((*argv)[i],"--dmmverbose")) {
-        // output some info about dmm
-        show_dmm_verbose = true ;
+        show_dmm_verbose = true ; // output some info about dmm
         i++ ;
       } else if(!strcmp((*argv)[i],"--chomp")) {
-        // use the chomping scheme
-        use_chomp = true ;
+        use_chomp = true ; // use the chomping scheme
         i++ ;
       } else if(!strcmp((*argv)[i],"--nochomp")) {
-        // use the chomping scheme
-        use_chomp = false ;
+        use_chomp = false ; // don't use the chomping scheme
         i++ ;
       } else if(!strcmp((*argv)[i],"--showchomp")) {
-        // visualize the chomp graph
-        show_chomp = true ;
+        show_chomp = true ; // visualize the chomp graph
         i++ ;
       } else if(!strcmp((*argv)[i],"--chompverbose")) {
-        // summary report
-        chomp_verbose = true ;
+        chomp_verbose = true ; // enable chomping summary report
         i++ ;
       } else if(!strcmp((*argv)[i],"--chompingsize")) {
         std::stringstream ss ;
