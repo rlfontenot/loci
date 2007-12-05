@@ -115,6 +115,10 @@ int main(int argc, char ** argv) {
   *planfile_par = planFile;
   facts.create_fact("planfile_par",planfile_par) ;
 
+  param<std::string> meshfile_par ;
+  *meshfile_par = meshfile;
+  facts.create_fact("meshfile_par",meshfile_par) ;
+
   param<std::string> outfile_par ;
   *outfile_par = outFile;
   facts.create_fact("outfile_par",outfile_par) ;
@@ -137,10 +141,10 @@ int main(int argc, char ** argv) {
   createEdgesPar(facts) ;
   Loci:: parallelClassifyCell(facts);
   
-  if(!Loci::makeQuery(rules, facts, "pos_output")) {
-    std::cerr << "query failed!" << std::endl;
-    Loci::Abort();
-  }
+//   if(!Loci::makeQuery(rules, facts, "pos_output")) {
+//     std::cerr << "query failed!" << std::endl;
+//     Loci::Abort();
+//   }
   
    if(!Loci::makeQuery(rules, facts, "node_output")) {
     std::cerr << "query failed!" << std::endl;

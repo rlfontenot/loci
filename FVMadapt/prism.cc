@@ -524,7 +524,8 @@ void set_prism_faces(const std::vector<Prism*>& cells,
               // tempNeib ->faceMarked.set(nf);
              
               if(dd < 2){
-                gfaces[cells[i]->gnrlface[dd]] =  NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex);
+                if(dd == 1) gfaces[cells[i]->gnrlface[dd]] =  NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex);
+                else gfaces[cells[i]->gnrlface[dd]] =  NeibIndex( tempNeib ->cellIndex,cells[i]->cellIndex);
                 tempNeib ->faceMarked.set(nf);
               }
               else{
@@ -532,7 +533,9 @@ void set_prism_faces(const std::vector<Prism*>& cells,
                 if(commonfaces.size() != 1){
                   cerr << "WARNING: more than one commom face" << endl;
                 }
-                qfaces[commonfaces[0]] = NeibIndex(cells[i]->cellIndex, tempNeib->cellIndex);
+                //faceOrient == 0, point outward
+                if(!((cells[i]->faceOrient).test(dd-2))) qfaces[commonfaces[0]] = NeibIndex(cells[i]->cellIndex, tempNeib->cellIndex);
+                else qfaces[commonfaces[0]] = NeibIndex( tempNeib->cellIndex,cells[i]->cellIndex);
               }
             }
             
@@ -568,11 +571,14 @@ void set_prism_faces(const std::vector<Prism*>& cells,
                   if(commonfaces.size() != 1){
                     cerr << "WARNING: more than one commom face" << endl;
                   }
-                  qfaces[commonfaces[0]] = NeibIndex(cells[i]->cellIndex, current->cellIndex);
+                  //faceOrient == 0 point outward
+                  if(!((cells[i]->faceOrient).test(dd-2)))  qfaces[commonfaces[0]] = NeibIndex(cells[i]->cellIndex, current->cellIndex);
+                  else qfaces[commonfaces[0]] = NeibIndex( current->cellIndex,cells[i]->cellIndex);
                 }
                 else{//dd<2, leaves
-                                                                       
-                  gfaces[current->gnrlface[currentNf]] = NeibIndex(cells[i]->cellIndex, current->cellIndex);
+                  //dd == 1 point outward                                                      
+                  if(dd == 1) gfaces[current->gnrlface[currentNf]] = NeibIndex(cells[i]->cellIndex, current->cellIndex);
+                  else  gfaces[current->gnrlface[currentNf]] = NeibIndex(current->cellIndex,cells[i]->cellIndex);
                   current->faceMarked.set(currentNf);
                 }
                 

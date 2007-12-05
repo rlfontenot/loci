@@ -324,15 +324,7 @@ void set_hex_faces(const std::vector<HexCell*>& cells,
           cells[i]->faceMarked.set(dd);
           
           tempNeib = cells[i]->findNeighbor(dd);
-          /*
-          if(true){
-            char nf = (dd%2==0?(dd+1):(dd-1));
-           
-            if(tempNeib != 0 && (!is_overlapped(cells[i]->face[dd], tempNeib->face[nf]))){
-              cerr <<" not a neighbor" << endl;
-            }
-          }  
-          */
+         
           //if no neib, don't output the face
           //there is a neib
           if(tempNeib != 0){
@@ -347,7 +339,9 @@ void set_hex_faces(const std::vector<HexCell*>& cells,
               if(cells[i]->face[dd]->code != 0){
                 cerr << "WARNING: face not a leaf" << endl;
               }
-              faces[cells[i]->face[dd]] =  NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex);
+              
+              if(dd%2 == 0) faces[cells[i]->face[dd]] =  NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex);
+              else  faces[cells[i]->face[dd]] =  NeibIndex( tempNeib ->cellIndex,cells[i]->cellIndex);
             }
             
             else if(!isSibling) {
@@ -377,7 +371,8 @@ void set_hex_faces(const std::vector<HexCell*>& cells,
                   if(commonfaces.size() != 1){
                     cerr << "WARNING: more than one commom face" << endl;
                   }
-                  faces[commonfaces[0]] = NeibIndex(cells[i]->cellIndex, current->cellIndex);
+                  if(dd%2 == 0) faces[commonfaces[0]] = NeibIndex(cells[i]->cellIndex, current->cellIndex);
+                  else faces[commonfaces[0]] = NeibIndex(current->cellIndex,cells[i]->cellIndex);
                 }
                 
                 //if myself > neighbor do nothing

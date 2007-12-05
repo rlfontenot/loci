@@ -126,7 +126,7 @@ public:
       node_offset[ei] = noffset;
       noffset += num_inner_nodes[ei];
     }ENDFORALL;
-    
+   
   }
 } ;
 register_rule<get_node_offset> register_get_node_offset;
@@ -242,77 +242,77 @@ register_rule<apply_npnts> register_apply_npnts;
 
 
 
-class init_ncells : public unit_rule{
-  param<int> ncells;
-public:
-  init_ncells(){
-    name_store("ncells", ncells);
-    output("ncells");
-    constraint("UNIVERSE");
+// class init_ncells : public unit_rule{
+//   param<int> ncells;
+// public:
+//   init_ncells(){
+//     name_store("ncells", ncells);
+//     output("ncells");
+//     constraint("UNIVERSE");
     
-  }
-  //parameter, no loop
-  virtual void compute(const sequence &seq){
-    *ncells = 0;
-  }
-}; 
-register_rule<init_ncells> register_init_ncells;
+//   }
+//   //parameter, no loop
+//   virtual void compute(const sequence &seq){
+//     *ncells = 0;
+//   }
+// }; 
+// register_rule<init_ncells> register_init_ncells;
 
-class apply_ncells : public apply_rule<param<int>, Loci::Summation<int> >{
-  param<int> ncells;
-  const_store<int> num_fine_cells;
-public:
-  apply_ncells(){
-    name_store("ncells", ncells);
-    name_store("num_fine_cells", num_fine_cells);
-    input("ncells");
-    input("num_fine_cells");
-    output("ncells");
-    constraint("geom_cells");
-  }
-  virtual void compute(const sequence &seq){
-     do_loop(seq, this);
-  }
-  void calculate(Entity cc){
-    join(*ncells, num_fine_cells[cc]);
-  }
-}; 
-register_rule<apply_ncells> register_apply_ncells;
+// class apply_ncells : public apply_rule<param<int>, Loci::Summation<int> >{
+//   param<int> ncells;
+//   const_store<int> num_fine_cells;
+// public:
+//   apply_ncells(){
+//     name_store("ncells", ncells);
+//     name_store("num_fine_cells", num_fine_cells);
+//     input("ncells");
+//     input("num_fine_cells");
+//     output("ncells");
+//     constraint("geom_cells");
+//   }
+//   virtual void compute(const sequence &seq){
+//      do_loop(seq, this);
+//   }
+//   void calculate(Entity cc){
+//     join(*ncells, num_fine_cells[cc]);
+//   }
+// }; 
+// register_rule<apply_ncells> register_apply_ncells;
 
 
-class init_nfaces : public unit_rule{
-  param<int> nfaces;
+// class init_nfaces : public unit_rule{
+//   param<int> nfaces;
   
-public:
-  init_nfaces(){
-    name_store("nfaces", nfaces);
-    output("nfaces");
-    constraint("UNIVERSE");
-  }
-  //parameter, no loop
-  virtual void compute(const sequence &seq){
-    *nfaces = 0;
-  }
-}; 
-register_rule<init_nfaces> register_init_nfaces;
+// public:
+//   init_nfaces(){
+//     name_store("nfaces", nfaces);
+//     output("nfaces");
+//     constraint("UNIVERSE");
+//   }
+//   //parameter, no loop
+//   virtual void compute(const sequence &seq){
+//     *nfaces = 0;
+//   }
+// }; 
+// register_rule<init_nfaces> register_init_nfaces;
 
-class apply_nfaces : public apply_rule<param<int>, Loci::Summation<int> >{
-  param<int> nfaces;
-  const_store<Loci::FineFaces> fine_faces;
-public:
-  apply_nfaces(){
-    name_store("nfaces", nfaces);
-    name_store("fine_faces", fine_faces);
-    input("nfaces");
-    input("fine_faces");
-    output("nfaces");
-  }
-  virtual void compute(const sequence &seq){
-    do_loop(seq, this);
-  }
-  void calculate(Entity cc){
-    join(*nfaces, fine_faces[cc].size());
-  }
-}; 
-register_rule<apply_nfaces> register_apply_nfaces;
+// class apply_nfaces : public apply_rule<param<int>, Loci::Summation<int> >{
+//   param<int> nfaces;
+//   const_store<Loci::FineFaces> fine_faces;
+// public:
+//   apply_nfaces(){
+//     name_store("nfaces", nfaces);
+//     name_store("fine_faces", fine_faces);
+//     input("nfaces");
+//     input("fine_faces");
+//     output("nfaces");
+//   }
+//   virtual void compute(const sequence &seq){
+//     do_loop(seq, this);
+//   }
+//   void calculate(Entity cc){
+//     join(*nfaces, fine_faces[cc].size());
+//   }
+// }; 
+// register_rule<apply_nfaces> register_apply_nfaces;
 

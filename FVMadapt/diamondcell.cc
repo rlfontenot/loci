@@ -823,7 +823,9 @@ void set_general_faces(const Cell* aCell,
             //if neib is a leaf, marked its face
             if(isALeaf){
               tempNeib ->faceMarked[nf] = true;
-              faces.push_back(make_pair(cells[i]->face[ff], NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex)));
+              //if face ff point outward cells[i]
+              if(cells[i]->faceOrient[ff] == 1)faces.push_back(make_pair(cells[i]->face[ff], NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex)));
+              else faces.push_back(make_pair(cells[i]->face[ff], NeibIndex( tempNeib ->cellIndex,cells[i]->cellIndex)));
             }
             //if myself > neighbor do nothing
             

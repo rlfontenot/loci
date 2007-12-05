@@ -400,7 +400,7 @@ public:
     name_store("cl", cl);
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
-    name_store("boundary_names", boundary_names);
+    name_store("boundary_tags", boundary_names);
     name_store("ref", ref);
   
     name_store("fine_faces", fine_faces);
@@ -411,7 +411,7 @@ public:
     input("cl->(upper, lower, boundary_map)->face2node->pos");
     input("cl->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
     input("face2node->pos");
-    input("ref->boundary_names");
+    input("ref->boundary_tags");
     input("bface_remap");
     output("fine_faces");
     constraint("cl->gnrlcells, boundary_faces");
