@@ -87,7 +87,9 @@ namespace Loci {
     fact_db local_facts;
     rule_implP local_compute1;
     rule rule_tag ;
+    entitySet pre_exec_set ;
     entitySet exec_set ;
+    
   public:
     dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
     virtual ~dynamic_schedule_rule() ;
