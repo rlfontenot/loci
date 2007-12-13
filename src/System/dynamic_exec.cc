@@ -444,10 +444,22 @@ namespace Loci
     // Loci initializations
     rp = fi.get_rule_implP ();
     rule_tag = fi;
+    pre_exec_set = EMPTY ;
     exec_set = eset;
     if(exec_set.num_intervals() > 1) {
-      cerr << "dynamic scheduling code assumes exec_set contains only one interval" << endl ;
-      Loci::Abort() ;
+      int mxival = 0 ;
+      int mxival_size = exec_set[0].second-exec_set[0].first ;
+      for(int i=1;i<exec_set.num_intervals();++i) {
+        int ival_size = exec_set[i].second-exec_set[i].first ;
+        if(ival_size > mxival_size) {
+          mxival = i ;
+          mxival_size = ival_size ;
+        }
+      }
+      entitySet maxSet = entitySet(exec_set[mxival]) ;
+      exec_set = maxSet ;
+      pre_exec_set = eset-maxSet ;
+      debugout << "dynamic scheduling code non-optimal due to multiple intervals in exec set" << endl ;
     }
     local_compute1 = rp->new_rule_impl ();
     entitySet in = rule_tag.sources ();
@@ -2147,6 +2159,9 @@ namespace Loci
 
     extern int method;
 
+    // Hack to handle non-contiguos sets.
+    if(pre_exec_set != EMPTY)
+      rp->compute(sequence(pre_exec_set)) ;
 #if SHOWTIMES
     wall1 = MPI_Wtime ();
     wall2 = wall1;
