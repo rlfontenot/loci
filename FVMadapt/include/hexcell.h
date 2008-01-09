@@ -372,7 +372,19 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& face_list);
 
-
+HexCell* build_hex_cell(const Entity* lower, int lower_size,
+                        const Entity* upper, int upper_size,
+                        const Entity* boundary_map, int boundary_map_size,
+                        const Array<char,6>& hex2face,
+                        const Array<char,8>& hex2node,
+                        const Array<char,6>& orientCode,
+                        const const_multiMap& face2node,
+                        const const_multiMap& face2edge,
+                        const const_MapVec<2>& edge2node,
+                        const const_store<vect3d>& pos,
+                        std::list<Node*>& bnode_list,
+                        std::list<Edge*>& edge_list,
+                        std::list<QuadFace*>& face_list);
 //this function collect 6 faces of a cell 
 Array<Entity, 6> collect_hex_faces( const Entity*  lower,  const Entity* upper,
                                 const Entity* boundary_map,  const Array<char, 6>& hex2face);
