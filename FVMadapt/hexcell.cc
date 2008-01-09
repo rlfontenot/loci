@@ -340,7 +340,7 @@ void set_hex_faces(const std::vector<HexCell*>& cells,
                 cerr << "WARNING: face not a leaf" << endl;
               }
               
-              if(dd%2 == 0) faces[cells[i]->face[dd]] =  NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex);
+              if(dd==0 || dd==3 || dd==4) faces[cells[i]->face[dd]] =  NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex);
               else  faces[cells[i]->face[dd]] =  NeibIndex( tempNeib ->cellIndex,cells[i]->cellIndex);
             }
             
@@ -371,7 +371,7 @@ void set_hex_faces(const std::vector<HexCell*>& cells,
                   if(commonfaces.size() != 1){
                     cerr << "WARNING: more than one commom face" << endl;
                   }
-                  if(dd%2 == 0) faces[commonfaces[0]] = NeibIndex(cells[i]->cellIndex, current->cellIndex);
+                  if(dd==0 || dd ==3 || dd ==4) faces[commonfaces[0]] = NeibIndex(cells[i]->cellIndex, current->cellIndex);
                   else faces[commonfaces[0]] = NeibIndex(current->cellIndex,cells[i]->cellIndex);
                 }
                 
@@ -1301,12 +1301,11 @@ bool HexCell::balance_cell(int split_mode,
                            std::list<Edge*>& edge_list,
                            std::list<QuadFace*>& face_list){ 
 
-  std::vector<Edge*> edge = get_edges();
-  
+ 
   bool  needBalance = false;
 
   if(childCell == 0){
-    
+    std::vector<Edge*> edge = get_edges();
     needBalance = false;
     if(split_mode == 2){
       for(int i = 0; i < 12; i++){
@@ -1335,11 +1334,14 @@ bool HexCell::balance_cell(int split_mode,
       }
       mySplitCode = char(code.to_ulong());
     }
-    needBalance = mySplitCode != 0;
-    split(node_list, edge_list, face_list);
+    if(mySplitCode !=0){
+      needBalance = true;
+      
+      split(node_list, edge_list, face_list);
     
-    for(int i = 0; i < numChildren(); i++){
-      childCell[i]->balance_cell(split_mode, node_list, edge_list, face_list);
+      for(int i = 0; i < numChildren(); i++){
+        childCell[i]->balance_cell(split_mode, node_list, edge_list, face_list);
+      }
     }
   }
 
@@ -1358,7 +1360,10 @@ void HexCell::rebalance_cells(int split_mode,
                            std::list<Edge*>& edge_list,
                            std::list<QuadFace*>& face_list){ 
   bool need_balance_more = true;
+  int  count = 0;
   while(need_balance_more){
+    count++;
+    //if(count>30)    cerr << "count: " << count << endl;
     need_balance_more = balance_cell(split_mode, node_list, edge_list, face_list); 
   }
 }
