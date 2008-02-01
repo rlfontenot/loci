@@ -115,6 +115,12 @@ namespace Loci {
   bool use_simple_partition = false ;
   bool use_orb_partition = false ;
   char * model_file;
+  // these flags are used to indicate additional weights
+  // for mesh cells during the initial partitioning stage
+  // Note: this is currently only designed for the ParMETIS
+  // partitioning routine
+  bool load_cell_weights = false ;
+  string cell_weight_file ;
   /////////////////////////////
 
   bool measure_rule_timings = false;
@@ -364,6 +370,10 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--measure_rule_timings")){
 	measure_rule_timings = true;
 	i++;
+      } else if(!strcmp((*argv)[i],"--load_cell_weights")){
+        load_cell_weights = true ;
+        cell_weight_file = (*argv)[i+1] ;
+	i+=2 ;
       }
       else
         break ;

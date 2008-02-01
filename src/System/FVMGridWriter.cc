@@ -106,7 +106,7 @@ namespace Loci {
     cnt = 0 ;
     for(ei=fcluster.begin();ei!=fcluster.end();++ei)
       face_order[cnt++] = pair<int,Entity>(face2node[*ei].size(),*ei) ;
-    sort(face_order.begin(),face_order.end()) ;
+    std::sort(face_order.begin(),face_order.end()) ;
     vector<pair<int,int> > rll ;
     int lsz = face_order[0].first ;
     cnt = 0 ;
@@ -320,7 +320,7 @@ namespace Loci {
         f_ord[i].second = fc ;
         i++ ;
       } ENDFORALL ;
-      sort(f_ord.begin(),f_ord.end()) ;
+      std::sort(f_ord.begin(),f_ord.end()) ;
     } else {
       FORALL(faces,fc) {
         f_ord[i].first.first = cl[fc] ;

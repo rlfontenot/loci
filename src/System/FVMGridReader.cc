@@ -32,13 +32,20 @@ using std::ostringstream ;
 using std::istringstream ;
 
 #include <malloc.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 extern "C" {
   typedef int idxtype ;
   void ParMETIS_PartKway(idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, int *, int *, idxtype *, MPI_Comm *);
+  void ParMETIS_V3_PartKway(idxtype *, idxtype *, idxtype *, idxtype *, idxtype *, int *, int *, int *, int *, float *, float *, int *, int *, idxtype *, MPI_Comm *);
 }
 
 namespace Loci {
+  extern void read_container(hid_t group_id,
+                             storeRepP qrep, entitySet &dom) ;
+
   extern void ORBPartition(const vector<vector3d<float> > &pnts,
                            vector<int> &procid,
                            MPI_Comm comm) ;
@@ -59,6 +66,8 @@ namespace Loci {
   }
   extern bool use_simple_partition ;
   extern bool use_orb_partition ;
+  extern bool load_cell_weights ;
+  extern string cell_weight_file ;
   //Following assumption is needed for the next three functions
   //Assumption: We follow the convention that boundary cells are always on right side
   //of a face.
@@ -1173,7 +1182,99 @@ namespace Loci {
     int wgtflag = 0 ;
     int numflag = 0 ;
     int options = 0 ;
-    ParMETIS_PartKway(vdist,xadj,adjncy,NULL,NULL,&wgtflag,&numflag,&num_partitions,&options,&edgecut,part, &mc) ;
+
+    // read in additional vertex weights if any
+    if(load_cell_weights) {
+      // check if the file exists
+      int file_exists = 1 ;
+      if(Loci::MPI_rank == 0) {
+        struct stat buf ;
+        if(stat(cell_weight_file.c_str(),&buf) == -1 ||
+           !S_ISREG(buf.st_mode))
+          file_exists = 0 ;
+      }
+      MPI_Bcast(&file_exists,1,MPI_INT,0,MPI_COMM_WORLD) ;
+      
+      if(file_exists == 1) {
+        if(Loci::MPI_rank == 0) {
+          std::cout << "ParMETIS reading additional cell weights from: "
+                    << cell_weight_file << std::endl ;
+        }
+        
+        // create a hdf5 handle
+        hid_t file_id = Loci::hdf5OpenFile(cell_weight_file.c_str(),
+                                           H5F_ACC_RDONLY, H5P_DEFAULT) ;
+        if(file_id < 0) {
+          std::cerr << "...file reading failed..., Aborting" << std::endl ;
+          Loci::Abort() ;
+        }
+        
+        // read
+        hid_t group_id = 0 ;
+        if(MPI_rank == 0)
+          group_id = H5Gopen(file_id, "cell weight") ;
+
+        entitySet dom = local_cells[Loci::MPI_rank] ;
+        store<int> cell_weights ;
+        Loci::read_container(group_id, cell_weights.Rep(), dom) ;
+
+        if(MPI_rank == 0)
+          H5Gclose(group_id) ;
+        
+        Loci::hdf5CloseFile(file_id) ;
+
+        // compute necessary ParMETIS data-structure
+        wgtflag = 2 ;           // weights on the vertices only
+        int ncon = 2 ;          // number of weights per vertex
+        int nparts = Loci::MPI_processes ; // number of partitions
+        int tpwgts_len = ncon*nparts ;
+        float* tpwgts = new float[tpwgts_len] ;
+        for(int i=0;i<tpwgts_len;++i)
+          tpwgts[i] = 1.0 / nparts ;
+
+        float* ubvec = new float[ncon] ;
+        for(int i=0;i<ncon;++i)
+          ubvec[i] = 1.05 ;     // as recommended by the ParMETIS manual
+
+        // now construct the vertex weights
+        idxtype* vwgt = new idxtype[ncon*size_map] ;
+        int cnt = 0 ;
+        for(entitySet::const_iterator
+              ei=local_cells[Loci::MPI_rank].begin();
+            ei!=local_cells[Loci::MPI_rank].end();++ei,cnt+=ncon) {
+          // first weight for cell is 1 (the cell computation)
+          vwgt[cnt] = 1 ;
+          // the second weight is from the store cell_weights[*ei]
+          vwgt[cnt+1] = cell_weights[*ei] ;
+        }
+
+        // now call the ParMETIS routine (V3)
+        ParMETIS_V3_PartKway(vdist,xadj,adjncy,vwgt,NULL,
+                             &wgtflag,&numflag,&ncon,&nparts,
+                             tpwgts,ubvec,&options,&edgecut,part,&mc) ;
+
+        delete[] vwgt ;
+        delete[] ubvec ;
+        delete[] tpwgts ;
+          
+      } else {
+        // if weight file does not exist, then we would
+        // fall back to the non weighted partition
+        if(Loci::MPI_rank == 0) {
+          std::cout << "ParMETIS cell weight file not found, "
+                    << "using non-weighted partition..." << std::endl ;
+        }
+        ParMETIS_PartKway(vdist,xadj,adjncy,NULL,NULL,
+                          &wgtflag,&numflag,&num_partitions,
+                          &options,&edgecut,part, &mc) ;
+      }
+      
+    } else {
+      // use the old metis routine
+      ParMETIS_PartKway(vdist,xadj,adjncy,NULL,NULL,
+                        &wgtflag,&numflag,&num_partitions,
+                        &options,&edgecut,part, &mc) ;
+    }
 #endif
     if(Loci::MPI_rank == 0)
       Loci::debugout << " Parmetis Edge cut   " <<  edgecut << endl ;
@@ -1909,6 +2010,7 @@ namespace Loci {
       facts.create_fact("face2node",face2node) ;
       facts.create_fact("boundary_names", boundary_names) ;
       facts.create_fact("boundary_tags", boundary_tags) ;
+
       for(size_t i=0;i<volTags.size();++i) {
         param<string> Tag ;
         *Tag = volTags[i].first ;
