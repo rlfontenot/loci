@@ -962,7 +962,7 @@ int main(int ac, char* av[]) {
   const char *filename ;
   std::string tmp_str ;
   bool binary = 0;
-  string Lref = "1 meter" ;
+  string Lref = "NOSCALE" ;
   while(ac>=2 && av[1][0] == '-') {
     // If user specifies an alternate query, extract it from the
     // command line.
@@ -998,6 +998,10 @@ int main(int ac, char* av[]) {
       Lref = "1 centimeter" ;
       ac-- ;
       av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-m")) {
+      Lref = "1 meter" ;
+      ac-- ;
+      av++ ;
     } else {
       cerr << "argument " << av[1] << " is not understood." << endl ;
       ac-- ;
@@ -1005,6 +1009,11 @@ int main(int ac, char* av[]) {
     }
   }
 
+  if(Lref == "NOSCALE") {
+    cerr << "Must set grid units!" << endl
+         << "Use options -in, -ft, -cm, -m, or -Lref to set grid units." << endl ;
+    exit(-1) ;
+  }
 
   if(ac == 2) {
     tmp_str.append(av[1]) ;
@@ -1018,6 +1027,7 @@ int main(int ac, char* av[]) {
          << "  -in : input grid is in inches" << endl
          << "  -ft : input grid is in feet" << endl
          << "  -cm : input grid is in centimeters" << endl
+         << "  -cm : input grid is in meters" << endl
          << "  -Lref <units> : 1 unit in input grid is <units> long" << endl
          << endl ;
       exit(-1) ;

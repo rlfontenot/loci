@@ -1,5 +1,4 @@
 #include "vogtools.h"
-
 #include <map>
 
 #include <list>
@@ -17,6 +16,7 @@ using std::ios ;
 
 //using Loci::fact_db ;
 using Loci::debugout ;
+
 namespace Loci {
   extern vector<entitySet> newMetisPartitionOfCells(const vector<entitySet> &local_cells,
                                              const Map &cl, const Map &cr) ;
@@ -64,6 +64,19 @@ namespace VOG {
         file >> name ;
         if(name == "")
           break ;
+        string tmp = name ;
+        size_t nsz = name.size() ;
+        if(!(name[0] >= 'a' && name[0] <= 'z') &&
+           !(name[0] >= 'A' && name[0] <= 'Z'))
+          name[0] = '_' ;
+        for(size_t i=1;i<nsz;++i) 
+          if(!(name[i] >= 'a' && name[i] <= 'z') &&
+             !(name[i] >= 'A' && name[i] <= 'Z') &&
+             !(name[i] >= '0' && name[i] <= '9'))
+            name[i] = '_' ;
+        if(tmp != name) 
+          cerr << "Renaming tag '" << tmp << "' to '" << name << "'!" << endl ;
+        
         bool trans ;
         for(int i=0;i<n2trans;++i)
           file >> trans ;
@@ -118,6 +131,19 @@ namespace VOG {
         }
         string name ;
         file >> name ;
+        string tmp = name ;
+        size_t nsz = name.size() ;
+        if(!(name[0] >= 'a' && name[0] <= 'z') &&
+           !(name[0] >= 'A' && name[0] <= 'Z'))
+          name[0] = '_' ;
+        for(size_t i=1;i<nsz;++i) 
+          if(!(name[i] >= 'a' && name[i] <= 'z') &&
+             !(name[i] >= 'A' && name[i] <= 'Z') &&
+             !(name[i] >= '0' && name[i] <= '9'))
+            name[i] = '_' ;
+        if(tmp != name) 
+          cerr << "Renaming tag '" << tmp << "' to '" << name << "'!" << endl ;
+
         bool trans ;
         for(int i=0;i<n2trans;++i)
           file >> trans ;
