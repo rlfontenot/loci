@@ -30,52 +30,41 @@ namespace Loci {
 
   class constraint_limiter: public constraint_rule {
     const_param<std::string> limiter ;
-    Constraint V_limiter, B_limiter, N_limiter, Z_limiter ;
+    Constraint V_limiter, B_limiter, N_limiter, Z_limiter,NB_limiter ;
   public:
     constraint_limiter() {
       name_store("limiter",limiter) ;
       name_store("V_limiter",V_limiter) ;
       name_store("B_limiter",B_limiter) ;
+      name_store("NB_limiter",NB_limiter) ;
       name_store("N_limiter",N_limiter) ;
       name_store("Z_limiter",Z_limiter) ;
       input("limiter") ;
-      output("V_limiter,B_limiter,N_limiter,Z_limiter") ;
+      output("V_limiter,B_limiter,NB_limiter,N_limiter,Z_limiter") ;
     }
     virtual void compute(const sequence& seq) {
       //      std::cerr << "Setting limiter constraints!" << endl ;
+      V_limiter = EMPTY ;
+      B_limiter = EMPTY ;
+      NB_limiter = EMPTY ;
+      N_limiter = EMPTY ;
+      Z_limiter = EMPTY ;
+      
       if(*limiter == "venkatakrishnan" || *limiter == "V") {
         V_limiter = ~EMPTY ;
-        /////
-        B_limiter = EMPTY ;
-        N_limiter = EMPTY ;
-        Z_limiter = EMPTY ;
       } else if(*limiter == "barth" || *limiter == "B") {
         B_limiter = ~EMPTY ;
-        /////
-        V_limiter = EMPTY ;
-        N_limiter = EMPTY ;
-        Z_limiter = EMPTY ;
+      } else if(*limiter == "nodalbarth" || *limiter == "NB") {
+        NB_limiter = ~EMPTY ;
       } else if(*limiter == "none") {
         N_limiter = ~EMPTY ;
-        /////
-        V_limiter = EMPTY ;
-        B_limiter = EMPTY ;
-        Z_limiter = EMPTY ;
       } else if(*limiter == "zero") {
         Z_limiter = ~EMPTY ;
-        //////
-        V_limiter = EMPTY ;
-        B_limiter = EMPTY ;
-        N_limiter = EMPTY ;
       } else {
         cerr << "limiter " << *limiter
              << " not supported for generalized grids" << endl ;
         cerr << "defaulting to venkatakrishnan limiter" << endl ;
         V_limiter = ~EMPTY ;
-        //////
-        B_limiter = EMPTY ;
-        N_limiter = EMPTY ;
-        Z_limiter = EMPTY ;
       }
     }
   } ;
@@ -1031,4 +1020,303 @@ namespace Loci {
 
   register_rule<periodic_limiterv3d> periodic_limiterv3d ;
 
+
+  // Nodal Barth Limiter
+  class nodal_barth_scalar : public pointwise_rule {
+
+    store<real> limiter ;
+    const_multiMap upper, lower, boundary_map ;
+    const_multiMap face2node ;
+    const_store<real> X ;
+    const_store<vect3d> pos,cellcenter ;
+    const_store<real> nodMax,nodMin ;
+    const_store<vect3d> Xgrad ;
+    int vs ;
+  public:
+    nodal_barth_scalar() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  nodal_barth_scalar::nodal_barth_scalar() {
+    name_store("limiters(X)",limiter) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("face2node",face2node) ;
+    name_store("pos",pos) ;
+    name_store("X",X) ;
+    name_store("NGTNodalMax(X)",nodMax) ;
+    name_store("NGTNodalMin(X)",nodMin) ;
+    name_store("grads(X)",Xgrad) ;
+
+    constraint("geom_cells,NB_limiter") ;
+    input("cellcenter,X,grads(X)") ;
+    input("upper->face2node->(pos,NGTNodalMax(X),NGTNodalMin(X))") ;
+    input("lower->face2node->(pos,NGTNodalMax(X),NGTNodalMin(X))") ;
+    input("boundary_map->face2node->(pos,NGTNodalMax(X),NGTNodalMin(X))") ;
+    output("limiters(X)") ;
+  }
+
+  void nodal_barth_scalar::calculate(Entity cc) {
+
+    const real Xcc = X[cc] ;
+    const vect3d Xgr = Xgrad[cc] ;
+    const vect3d cent = cellcenter[cc] ;
+    real lim = 1.0 ; 
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const int fc = *fi ;
+      int fsz = face2node[fc].size() ;
+      for(int i=0;i<fsz;++i) {
+        const int nd = face2node[fc][i] ;
+        const vect3d drl = pos[nd] - cent ;
+        real Xf = Xcc + dot(Xgr,drl) ;
+        real qdif = Xf-Xcc ;
+        if(qdif > 0)
+          lim = min(lim,(nodMax[nd]-Xcc)/qdif) ;
+        if(qdif < 0)
+          lim = min(lim,(nodMin[nd]-Xcc)/qdif) ;
+      }
+    }
+    
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const int fc = *fi ;
+      int fsz = face2node[fc].size() ;
+      for(int i=0;i<fsz;++i) {
+        const int nd = face2node[fc][i] ;
+        const vect3d drl = pos[nd] - cent ;
+        real Xf = Xcc + dot(Xgr,drl) ;
+        real qdif = Xf-Xcc ;
+        if(qdif > 0)
+          lim = min(lim,(nodMax[nd]-Xcc)/qdif) ;
+        if(qdif < 0)
+          lim = min(lim,(nodMin[nd]-Xcc)/qdif) ;
+      }
+    }    
+    limiter[cc] = lim ;
+  }
+
+  void nodal_barth_scalar::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+
+  register_rule<nodal_barth_scalar> register_nodal_barth_scalar ;
+
+  class nodal_barth_3d : public pointwise_rule {
+    store<vect3d> limiter3d ;
+    const_multiMap upper, lower, boundary_map ;
+    const_multiMap face2node ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> pos ;
+    const_store<vect3d> nodMax,nodMin ;
+    const_store<vect3d> X ;
+    const_store<tens3d> Xgrad ;
+    int vs ;
+  public:
+    nodal_barth_3d() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  nodal_barth_3d::nodal_barth_3d() {
+    name_store("limiterv3d(X)",limiter3d) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("face2node",face2node) ;
+    name_store("pos",pos) ;
+    name_store("NGTNodalv3dMax(X)",nodMax) ;
+    name_store("NGTNodalv3dMin(X)",nodMin) ;
+    name_store("X",X) ;
+    name_store("gradv3d(X)",Xgrad) ;
+
+    constraint("geom_cells,NB_limiter") ;
+    input("cellcenter,X,gradv3d(X)") ;
+    input("upper->face2node->(pos,NGTNodalv3dMax(X),NGTNodalv3dMin(X))") ;
+    input("lower->face2node->(pos,NGTNodalv3dMax(X),NGTNodalv3dMin(X))") ;
+    input("boundary_map->face2node->(pos,NGTNodalv3dMax(X),NGTNodalv3dMin(X))") ;
+
+    output("limiterv3d(X)") ;
+  }
+
+  void nodal_barth_3d::calculate(Entity cc) {
+
+    const vect3d Xcc = X[cc] ;
+    const tens3d Xgr = Xgrad[cc] ;
+    const vect3d cent = cellcenter[cc] ;
+
+    vect3d lim = vect3d(1.0,1.0,1.0) ; 
+    for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+      const int fc = *fi ;
+      int fsz = face2node[fc].size() ;
+      for(int i=0;i<fsz;++i) {
+        const int nd = face2node[fc][i] ;
+        const vect3d drl = pos[nd] - cent ;
+        vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
+        vect3d qdif = Xf-Xcc ;
+        if(qdif.x > 0)
+          lim.x = min(lim.x,(nodMax[nd].x-Xcc.x)/qdif.x) ;
+        if(qdif.x < 0)
+          lim.x = min(lim.x,(nodMin[nd].x-Xcc.x)/qdif.x) ;
+        if(qdif.y > 0)
+          lim.y = min(lim.y,(nodMax[nd].y-Xcc.y)/qdif.y) ;
+        if(qdif.y < 0)
+          lim.y = min(lim.y,(nodMin[nd].y-Xcc.y)/qdif.y) ;
+        if(qdif.z > 0)
+          lim.z = min(lim.z,(nodMax[nd].z-Xcc.z)/qdif.z) ;
+        if(qdif.z < 0)
+          lim.z = min(lim.z,(nodMin[nd].z-Xcc.z)/qdif.z) ;
+      }
+    }
+    
+    for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+      const int fc = *fi ;
+      int fsz = face2node[fc].size() ;
+      for(int i=0;i<fsz;++i) {
+        const int nd = face2node[fc][i] ;
+        const vect3d drl = pos[nd] - cent ;
+        vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
+        vect3d qdif = Xf-Xcc ;
+        if(qdif.x > 0)
+          lim.x = min(lim.x,(nodMax[nd].x-Xcc.x)/qdif.x) ;
+        if(qdif.x < 0)
+          lim.x = min(lim.x,(nodMin[nd].x-Xcc.x)/qdif.x) ;
+        if(qdif.y > 0)
+          lim.y = min(lim.y,(nodMax[nd].y-Xcc.y)/qdif.y) ;
+        if(qdif.y < 0)
+          lim.y = min(lim.y,(nodMin[nd].y-Xcc.y)/qdif.y) ;
+        if(qdif.z > 0)
+          lim.z = min(lim.z,(nodMax[nd].z-Xcc.z)/qdif.z) ;
+        if(qdif.z < 0)
+          lim.z = min(lim.z,(nodMin[nd].z-Xcc.z)/qdif.z) ;
+      }
+    }
+    
+    limiter3d[cc] = lim ;
+  }
+
+  void nodal_barth_3d::compute(const sequence &seq) {
+    do_loop(seq,this) ;
+  }
+
+
+  register_rule<nodal_barth_3d> register_nodal_barth_3d ;
+
+  class nodal_barth_vec : public pointwise_rule {
+    storeVec<real> limiterv ;
+    const_multiMap upper, lower, boundary_map ;
+    const_Map cl, cr ;
+    const_store<vect3d> cellcenter ;
+    const_store<vect3d> facecenter ;
+    const_storeVec<real> X, X_f ;
+    const_storeVec<vect3d> Xgrad ;
+  public:
+    nodal_barth_vec() ;
+    void calculate(Entity cc) ;
+    virtual void compute(const sequence &seq) ;
+  } ;
+
+  nodal_barth_vec::nodal_barth_vec() {
+    name_store("limiterv(X)",limiterv) ;
+    name_store("cl",cl) ;
+    name_store("cr",cr) ;
+    name_store("upper",upper) ;
+    name_store("lower",lower) ;
+    name_store("boundary_map",boundary_map) ;
+    name_store("facecenter",facecenter) ;
+    name_store("cellcenter",cellcenter) ;
+    name_store("X",X) ;
+    name_store("X_f",X_f) ;
+    name_store("gradv(X)",Xgrad) ;
+
+    constraint("geom_cells,NB_limiter") ;
+    input("cellcenter,X,gradv(X)") ;
+    input("upper->cr->X") ;
+    input("upper->facecenter") ;
+    input("lower->cl->X") ;
+    input("lower->facecenter") ;
+    input("boundary_map->X_f") ;
+    input("boundary_map->facecenter") ;
+    output("limiterv(X)") ;
+  }
+
+  void nodal_barth_vec::calculate(Entity cc) {
+    const int vs = X.vecSize() ;
+    for(int i=0;i<vs;++i) {
+      const real Xcc = X[cc][i] ;
+      real qmax = Xcc ;
+      real qmin = qmax ;
+      const vect3d Xgr = Xgrad[cc][i] ;
+
+      for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X[cr[fc]][i]) ;
+        qmax = max(qmax,X[cr[fc]][i]) ;
+      }
+      for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X[cl[fc]][i]) ;
+        qmax = max(qmax,X[cl[fc]][i]) ;
+      }
+
+      for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+        const int fc = *fi ;
+        qmin = min(qmin,X_f[fc][i]) ;
+        qmax = max(qmax,X_f[fc][i]) ;
+      }
+
+      real limi = 1.0 ; 
+      for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
+        const int fc = *fi ;
+        const vect3d drl = facecenter[fc] - cellcenter[cc] ;
+        real Xf = Xcc + dot(Xgr,drl) ;
+        real qdif = Xf-Xcc ;
+        real lim = 1.0 ;
+        if(qdif > 0)
+          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+        if(qdif < 0)
+          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+        limi = min (limi,lim) ;
+      }
+     
+      for(const int *fi=lower.begin(cc);fi!=lower.end(cc);++fi) {
+        const int fc = *fi ;
+        const vect3d drl = facecenter[fc] - cellcenter[cc] ;
+        real Xf = Xcc + dot(Xgr,drl) ;
+        real qdif = Xf-Xcc ;
+        real lim = 1.0 ;
+        if(qdif > 0)
+          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+        if(qdif < 0)
+          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+        limi = min (limi,lim) ;
+      }
+
+      for(const int *fi=boundary_map.begin(cc);fi!=boundary_map.end(cc);++fi) {
+        const int fc = *fi ;
+        const vect3d drl = facecenter[fc] - cellcenter[cc] ;
+        real Xf = Xcc + dot(Xgr,drl) ;
+        real qdif = Xf-Xcc ;
+        real lim = 1.0 ;
+        if(qdif > 0)
+          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+        if(qdif < 0)
+          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+        limi = min (limi,lim) ;
+      }
+      
+      limiterv[cc][i] = limi ;
+    }
+  }
+
+  void nodal_barth_vec::compute(const sequence &seq) {
+    limiterv.setVecSize(X.vecSize()) ;
+    do_loop(seq,this) ;
+  }
+
+  register_rule<nodal_barth_vec> register_nodal_barth_vec ;
+    
 }
