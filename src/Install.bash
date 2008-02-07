@@ -1,4 +1,24 @@
 #!/bin/bash
+###############################################################################
+#
+# Copyright 2008, Mississippi State University
+#
+# This file is part of the Loci Framework.
+#
+# The Loci Framework is free software: you can redistribute it and/or modify
+# it under the terms of the Lesser GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The Loci Framework is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Lesser GNU General Public License for more details.
+#
+# You should have received a copy of the Lesser GNU General Public License
+# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+#
+###############################################################################
 
 INSTALL_PATH=$INSTALL_DIR/$LOCI_INSTALL_DIR
 
@@ -31,6 +51,8 @@ cp FVMtools/ugrid2vog $INSTALL_PATH/bin
 cp FVMtools/cfd++2xdr $INSTALL_PATH/bin
 cp FVMtools/vogmerge $INSTALL_PATH/bin
 cp FVMtools/vogcheck $INSTALL_PATH/bin
+cp FVMadapt/refmesh $INSTALL_PATH/bin
+cp FVMadapt/marker $INSTALL_PATH/bin
 
 echo cp Loci.conf comp.conf sys.conf $INSTALL_PATH
 cp Loci.conf comp.conf sys.conf $INSTALL_PATH

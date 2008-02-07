@@ -1,5 +1,24 @@
+###############################################################################
 #
-# 
+# Copyright 2008, Mississippi State University
+#
+# This file is part of the Loci Framework.
+#
+# The Loci Framework is free software: you can redistribute it and/or modify
+# it under the terms of the Lesser GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The Loci Framework is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Lesser GNU General Public License for more details.
+#
+# You should have received a copy of the Lesser GNU General Public License
+# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+#
+###############################################################################
+#
 LOCI_BASE = $(shell pwd)
 LOCI_COMPILE = true
 include Loci.conf
@@ -9,7 +28,7 @@ include Loci.conf
 
 DEFINES = $(DEBUG) $(SYSTEM_DEFINES) $(MACHINE_SPECIFIC) 
 
-default: library lpp FVMtools FVMMod
+default: library lpp FVMtools FVMMod FVMadapt
 
 library: shared
 
@@ -41,12 +60,15 @@ System/libLoci.so: FRC
 lpp: library
 	cd lpp; $(MAKE) LOCI_BASE="$(LOCI_BASE)" lpp
 
-FVMtools: library
+FVMtools: library lpp
 	cd FVMtools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
 FRC :
 
 FVMMod: library lpp
 	cd FVMMod; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
+
+FVMadapt: library
+	cd FVMadapt; $(MAKE) LOCI_BASE="$(LOCI_BASE)" default
 
 JUNK =
 
@@ -57,6 +79,7 @@ clean:
 	cd ParMetis-3.1 ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd FVMtools; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMMod; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
+	cd FVMadapt; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 	cd lpp ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 
 distclean:
@@ -66,6 +89,6 @@ distclean:
 	cd ParMetis-3.1 ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
 	cd FVMtools; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMMod; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
+	cd FVMadapt; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd lpp ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
-
 
