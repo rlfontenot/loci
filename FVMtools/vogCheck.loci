@@ -184,16 +184,24 @@ $rule apply(volRatio<-cellVolRatio)[Loci::Maximum] {
 
 $type faceAngle store<double> ;
 
-$rule pointwise(faceAngle<-cl->cellcenter,cr->cellcenter,area) {
-  vector3d<double> v1 = $cl->$cellcenter-$cr->$cellcenter ;
-  vector3d<double> v2 = $area.n*dot(v1,$area.n) ;
-  $faceAngle = 360*acos(fabs(dot(v1,v2))/(norm(v1)*norm(v2)))/(2*3.1415927) ;
+$rule pointwise(faceAngle<-cl->cellcenter,cr->cellcenter,facecenter) {
+  // maximum angle between line segment connecting cellcenters and line
+  // segments that connect cell centers to face centers.
+  vector3d<double> v1 = $cr->$cellcenter-$cl->$cellcenter ;
+  vector3d<double> v2 = $facecenter-$cl->$cellcenter ;
+  vector3d<double> v3 = $cr->$cellcenter-$facecenter ;
+  double nv1 = norm(v1) ;
+  double nv2 = norm(v2) ;
+  double nv3 = norm(v3) ;
+  double rad2deg = 360./(2.*3.1415927) ;
+  $faceAngle = rad2deg*acos(min(dot(v1,v2)/(nv1*nv2),dot(v1,v3)/(nv1*nv3))) ;
 }
 
 $rule pointwise(faceAngle<-ci->cellcenter,facecenter,area) {
   vector3d<double> v1 = $ci->$cellcenter-$facecenter ;
   vector3d<double> v2 = $area.n*dot(v1,$area.n) ;
-  $faceAngle = 360*acos(fabs(dot(v1,v2))/(norm(v1)*norm(v2)))/(2*3.1415927) ;
+  double rad2deg = 360./(2.*3.1415927) ;
+  $faceAngle = rad2deg*acos(fabs(dot(v1,v2))/(norm(v1)*norm(v2))) ;
 }
 
 $type cellFaceAngle store<double> ;
@@ -215,6 +223,49 @@ $rule unit(maxCellAngle), constraint(vol) {
 $rule apply(maxCellAngle<-cellFaceAngle)[Loci::Maximum] {
   join($maxCellAngle,$cellFaceAngle) ;
 }
+
+
+$type faceTwisted store<double> ;
+$rule pointwise(faceTwisted<-cl->cellcenter,cr->cellcenter,facecenter,face2node->pos,area) {
+  int sz = $face2node.size() ;
+  double maxlen = 0 ;
+  for(int i=0;i<sz;++i) {
+    const vector3d<double> dv = $facecenter-$face2node[i]->$pos ;
+    maxlen = max(dot(dv,dv),maxlen) ;
+  }
+  const vector3d<double> n = $area.n ;
+  double t = dot($facecenter-$cl->$cellcenter,n)/
+    (dot($cr->$cellcenter-$cl->$cellcenter,n)) ;
+  vector3d<double> xf = $cr->$cellcenter*t+$cl->$cellcenter*(1-t) ;
+  const vector3d<double> dv = xf-$facecenter ;
+  $faceTwisted = dot(dv,dv)/maxlen ;
+}
+
+$rule pointwise(faceTwisted<-ci->cellcenter,facecenter,face2node->pos,area) {
+  int sz = $face2node.size() ;
+  double maxlen = 0 ;
+  for(int i=0;i<sz;++i) {
+    const vector3d<double> dv = $facecenter-$face2node[i]->$pos ;
+    maxlen = max(dot(dv,dv),maxlen) ;
+  }
+  vector3d<double> dv = $facecenter-$ci->$cellcenter ;
+  dv -= $area.n*dot(dv,$area.n) ;
+  $faceTwisted = dot(dv,dv)/maxlen ;
+}
+
+$type cellTwist store<double> ;
+
+$rule unit(cellTwist),constraint(vol) {
+  $cellTwist = 0 ;
+}
+$rule apply(cl->cellTwist<-faceTwisted)[Loci::Maximum] {
+  join($cl->$cellTwist,$faceTwisted) ;
+}
+$rule apply(cr->cellTwist<-faceTwisted)[Loci::Maximum] {
+  join($cr->$cellTwist,$faceTwisted) ;
+}
+
+  
 
 $type report param<bool> ;
 $type minVol param<double> ;
@@ -290,6 +341,7 @@ void scalar_node_output::compute(const sequence &seq) {
 
 OUTPUT_SCALAR("cell2nodeMax(cellVolRatio)",volumeRatio) ;
 OUTPUT_SCALAR("cell2nodeMax(cellFaceAngle)",cellFaceAngle) ;
+OUTPUT_SCALAR("cell2nodeMax(cellTwist)",cellTwist) ;
 OUTPUT_SCALAR("cell2nodeMin(vol)",cellVol) ;
 
 
