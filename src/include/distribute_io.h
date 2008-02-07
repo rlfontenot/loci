@@ -15,12 +15,6 @@
 #include <store.h>
 namespace Loci {
 
-  //  void write_container(hid_t group_id, storeRepP qrep) ;
-  //  void read_container(hid_t group_id, storeRepP qrep, entitySet &dom) ;
-
-  //  storeRepP collect_reorder_store(storeRepP &sp, dMap &remap, fact_db &facts) ;
-  //  void distribute_reorder_store(storeRepP &new_sp, storeRepP sp_init, dMap &remap, fact_db &facts) ;
-
   void redistribute_write_container(hid_t file_id, std::string vname,
                                     Loci::storeRepP var, fact_db &facts) ;
   void read_container_redistribute(hid_t file_id, std::string vname,
@@ -74,6 +68,12 @@ namespace Loci {
       read_container_redistribute(file_id,vname,var,readSet,
                                   *Loci::exec_current_fact_db) ;
   }
+
+  void writeContainerRAW(hid_t file_id, std::string vname,
+                         storeRepP var, MPI_Comm comm) ;
+
+  void readContainerRAW(hid_t file_id, std::string vname,
+                        storeRepP var, MPI_Comm comm ) ;
 
   template<class T> void writeUnorderedVector(hid_t group_id,
                                               const char *element_name,

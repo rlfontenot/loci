@@ -43,9 +43,6 @@ extern "C" {
 }
 
 namespace Loci {
-  extern void read_container(hid_t group_id,
-                             storeRepP qrep, entitySet &dom) ;
-
   extern void ORBPartition(const vector<vector3d<float> > &pnts,
                            vector<int> &procid,
                            MPI_Comm comm) ;
@@ -1210,16 +1207,15 @@ namespace Loci {
         }
         
         // read
-        hid_t group_id = 0 ;
-        if(MPI_rank == 0)
-          group_id = H5Gopen(file_id, "cell weight") ;
-
         entitySet dom = local_cells[Loci::MPI_rank] ;
         store<int> cell_weights ;
-        Loci::read_container(group_id, cell_weights.Rep(), dom) ;
 
-        if(MPI_rank == 0)
-          H5Gclose(group_id) ;
+        readContainerRAW(file_id,"cell weight", cell_weights.Rep(),
+                         MPI_COMM_WORLD) ;
+        if(cell_weights.domain() != local_cells[Loci::MPI_rank]) {
+          cerr << "cell weights partition inconsistent!" << endl ;
+          Loci::Abort() ;
+        }
         
         Loci::hdf5CloseFile(file_id) ;
 

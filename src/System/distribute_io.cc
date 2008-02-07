@@ -65,79 +65,84 @@ namespace Loci {
       
      
 
-  //This is a generalized routine for writing out storeRepP's. Has
-  //been tested for stores, storeVecs and multiStores. The initial
-  //store in the local numbering is first redistributed such that it
-  //ends up in a blocked partitioning format in the global numbering
-  //across all the processors. The qrep passed to this routine is in
-  //the chunked partitioning format in global numbering.   
-  void write_container(hid_t group_id, storeRepP qrep) {
-    if(qrep->RepType() == PARAMETER) {
-      if(MPI_rank==0) {
-        frame_info fi = qrep->write_frame_info(group_id) ;
-        int array_size = 0 ;
-        if(fi.size) 
-          if(fi.is_stat)   
-            for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-              array_size += *vi ;
-          else
-            array_size = fi.size  ;
+  void write_parameter(hid_t group_id, storeRepP qrep, MPI_Comm comm) {
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(rank==0) {
+      frame_info fi = qrep->write_frame_info(group_id) ;
+      int array_size = 0 ;
+      if(fi.size) 
+        if(fi.is_stat)   
+          for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+            array_size += *vi ;
         else
-          if(fi.is_stat) 
-            for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-              array_size += *vi ;
-          else
-            for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
-              array_size += *fvi ;
-
-        if(array_size == 0)
-          array_size = 1 ;
-        hsize_t dimension = array_size ;
-        int rank = 1 ;
+          array_size = fi.size  ;
+      else
+        if(fi.is_stat) 
+          for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+            array_size += *vi ;
+        else
+          for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
+            array_size += *fvi ;
+      
+      if(array_size == 0)
+        array_size = 1 ;
+      hsize_t dimension = array_size ;
+      int rank = 1 ;
 #ifdef H5_INTERFACE_1_6_4
-        hsize_t start = 0 ;
+      hsize_t start = 0 ;
 #else
-        hssize_t start = 0 ;
+      hssize_t start = 0 ;
 #endif
-        hsize_t stride = 1 ;
-        hsize_t count = array_size ;
-
-        hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
-        DatatypeP dp = qrep->getType() ;
-        hid_t datatype = dp->get_hdf5_type() ;
-        H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
-        dimension = count ;
-        start += dimension ;
-        hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
-        entitySet dom = qrep->domain() ;
-        qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
-        H5Dclose(dataset) ;
-        H5Sclose(dataspace) ;
-      }
-      return ;
+      hsize_t stride = 1 ;
+      hsize_t count = array_size ;
+      
+      hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
+      DatatypeP dp = qrep->getType() ;
+      hid_t datatype = dp->get_hdf5_type() ;
+      H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+      dimension = count ;
+      start += dimension ;
+      hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
+      entitySet dom = ~EMPTY ;
+      qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
     }
-    entitySet dom = qrep->domain() ;
-    std::vector<entitySet> dom_vector = all_collect_vectors(dom);
+  }
+  
+  void write_store(hid_t group_id, storeRepP qrep, entitySet dom, int offset, MPI_Comm comm) {
+    int rank = 0 ;
+    int np = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    MPI_Comm_size(comm,&np) ;
+
+    // Shift domain by offset
+    entitySet dom_file = dom >> offset ;
+
+    // Compute overall domain across processors
+    std::vector<entitySet> dom_vector = all_collect_vectors(dom_file);
     entitySet q_dom;
-    for(int i = 0; i < MPI_processes; i++) 
+    for(int i = 0; i < np; i++) 
       q_dom += dom_vector[i];
 
-    unsigned char* tmp_send_buf ;
+    if(rank == 0)
+      HDF5_WriteDomain(group_id, q_dom);
+
+    // If nothing to write, don't proceed
+    if(q_dom == EMPTY) 
+      return ;
+
+    // Allocate buffer for largest processor buffer size
     std::vector<int> sort_max ;
     int local_size = qrep->pack_size(dom) ;
     sort_max = all_collect_sizes(local_size) ;
     int total_size = *std::max_element(sort_max.begin(), sort_max.end() );
-    tmp_send_buf = new unsigned char[total_size] ;
-    if(MPI_rank == 0)
-      HDF5_WriteDomain(group_id, q_dom);
+    vector<unsigned char> tmp_send_buf(total_size) ;
+
+
     frame_info fi = qrep->write_frame_info(group_id) ;
 
-    if(q_dom == EMPTY) {
-      delete[]  tmp_send_buf ;
-      return ;
-    }
-
-    
     int array_size = 0 ;
     if(fi.size) 
       if(fi.is_stat)   
@@ -154,24 +159,28 @@ namespace Loci {
 	  array_size += *fvi ;
     std::vector<int> arr_sizes = all_collect_sizes(array_size) ;
     int tot_arr_size = 0 ;
-    for(int i = 0; i < MPI_processes; ++i)
+    for(int i = 0; i < np; ++i)
       tot_arr_size += arr_sizes[i] ;
 
     
-    if(MPI_rank != 0) {
+    if(rank != 0) {
+      // Client processor code, pack data into send buffer
       MPI_Status status ;
       int send_size_buf ;
       send_size_buf = qrep->pack_size(dom) ;
       int tot_size = send_size_buf ;
       int loc_pack = 0 ;
-      qrep->pack(tmp_send_buf, loc_pack, total_size, dom) ;
+      qrep->pack(&tmp_send_buf[0], loc_pack, total_size, dom) ;
+      // Wait for signal to send message to root processor
       int flag = 0 ;
-      MPI_Recv(&flag,1, MPI_INT, 0, 10, MPI_COMM_WORLD, &status) ;
+      MPI_Recv(&flag,1, MPI_INT, 0, 10, comm, &status) ;
+      // received token to send, so send message
       if(flag) {
-	MPI_Send(&tot_size, 1, MPI_INT, 0, 11, MPI_COMM_WORLD) ;
-	MPI_Send(tmp_send_buf, tot_size, MPI_PACKED, 0, 12, MPI_COMM_WORLD) ;
+	MPI_Send(&tot_size, 1, MPI_INT, 0, 11, comm) ;
+	MPI_Send(&tmp_send_buf[0], tot_size, MPI_PACKED, 0, 12, comm) ;
       }
     } else {
+      // Begin writing array
       int rank = 1 ;
       hsize_t dimension = 1 ;
 #ifdef H5_INTERFACE_1_6_4
@@ -183,6 +192,7 @@ namespace Loci {
       hsize_t count = arr_sizes[0] ;
       dimension =  tot_arr_size ;
       if(dimension != 0) {
+        // First write local data
         hid_t dataspace =  H5Screate_simple(rank, &dimension, NULL) ;
 	DatatypeP dp = qrep->getType() ;
         hid_t datatype = dp->get_hdf5_type() ;
@@ -192,23 +202,26 @@ namespace Loci {
         hid_t dataset = H5Dcreate(group_id, "data", datatype, dataspace, H5P_DEFAULT) ;
         qrep->writehdf5(group_id, dataspace, dataset, dimension, "data", dom) ;
         H5Dclose(dataset) ;
-        
 
-	for(int i = 1; i < MPI_processes; ++i) {
+        // Now write remaining vectors
+
+	for(int i = 1; i < np; ++i) {
 	  MPI_Status status ;
 	  int recv_total_size ;
-	  entitySet tmpset = dom_vector[i];
+          // Allocate over 0-size-1, this allows for greater scalability when
+          // sets data exceeds 2gig
+	  entitySet tmpset = interval(0,dom_vector[i].size()-1);
 
           storeRepP t_qrep = qrep->new_store(tmpset) ;
 
 	  int loc_unpack = 0 ;
 	  int flag = 1 ;
-	  MPI_Send(&flag, 1, MPI_INT, i, 10, MPI_COMM_WORLD) ;
-	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, MPI_COMM_WORLD, &status) ;
-	  MPI_Recv(tmp_send_buf, recv_total_size, MPI_PACKED, i, 12, MPI_COMM_WORLD, &status) ;
+	  MPI_Send(&flag, 1, MPI_INT, i, 10, comm) ;
+	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, comm, &status) ;
+	  MPI_Recv(&tmp_send_buf[0], recv_total_size, MPI_PACKED, i, 12, comm, &status) ;
 
 	  sequence tmp_seq = sequence(tmpset) ;
-          t_qrep->unpack(tmp_send_buf, loc_unpack, total_size, tmp_seq) ;
+          t_qrep->unpack(&tmp_send_buf[0], loc_unpack, total_size, tmp_seq) ;
 	  dimension = arr_sizes[i] ;
 	  count = dimension ; 
 
@@ -226,121 +239,117 @@ namespace Loci {
       }
       //add else part by Qiuhan to avoid MPI communication get stuck
       else{
-	for(int i = 1; i < MPI_processes; ++i) {
+	for(int i = 1; i < np; ++i) {
 	  MPI_Status status ;
 	  int recv_total_size ;
           int flag = 1 ;
-          MPI_Send(&flag, 1, MPI_INT, i, 10, MPI_COMM_WORLD) ;
-	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, MPI_COMM_WORLD, &status) ;
-	  MPI_Recv(tmp_send_buf, recv_total_size, MPI_PACKED, i, 12, MPI_COMM_WORLD, &status) ;
+          MPI_Send(&flag, 1, MPI_INT, i, 10, comm) ;
+	  MPI_Recv(&recv_total_size, 1, MPI_INT, i, 11, comm, &status) ;
+	  MPI_Recv(&tmp_send_buf[0], recv_total_size, MPI_PACKED, i, 12, comm, &status) ;
         }
       }
     }
-    delete [] tmp_send_buf ;
+  }
+  
+  void write_container(hid_t group_id, storeRepP qrep) {
+    int offset = 0 ;
+    if(qrep->RepType() == PARAMETER) 
+      write_parameter(group_id,qrep,MPI_COMM_WORLD) ;
+    else
+      write_store(group_id,qrep,qrep->domain(),offset,MPI_COMM_WORLD) ;
   }
 
-  //This routine reads storeReps from .hdf5 file. If dom specified is 
-  //EMPTY then it is found by dividing total entities by processors.
-  //dom entities are allocated to qrep on local processor.
-  void read_container(hid_t group_id, storeRepP qrep, entitySet &dom) {
-    if(qrep->RepType() == PARAMETER) {
-      int pack_size = 0 ;
-      if(MPI_rank==0) {
-        int array_size = 0 ;
-        frame_info fi = qrep->read_frame_info(group_id) ;
-        if(fi.size)
-          if(fi.is_stat) {
-            for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
-              array_size += *vi ;
-          } else {
-            if(fi.size > 1)
-              qrep->set_elem_size(fi.size) ;
-            array_size = fi.size ;
-          }
-        else { 
+  void read_parameter(hid_t group_id, storeRepP qrep, MPI_Comm comm) {
+    int pack_size = 0 ;
+    int rank = 0 ;
+    int np = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    MPI_Comm_size(comm,&np) ;
+
+    if(rank==0) {
+      int array_size = 0 ;
+      frame_info fi = qrep->read_frame_info(group_id) ;
+      if(fi.size)
+        if(fi.is_stat) {
+          for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi)
+            array_size += *vi ;
+        } else {
+          if(fi.size > 1)
+            qrep->set_elem_size(fi.size) ;
+          array_size = fi.size ;
+        } else { 
           if(fi.is_stat) {
             for(std::vector<int>::const_iterator vi = fi.second_level.begin(); vi != fi.second_level.end(); ++vi) 
               array_size += *vi ;
-          }
-          else {
+          } else {
             for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi) 
               array_size += *fvi ;
           }
         }
+      
+      hid_t dimension = array_size ;
+      hid_t dataset =  H5Dopen(group_id, "data") ;
+      hid_t dataspace = H5Dget_space(dataset) ;
+      entitySet dom = ~EMPTY ;
+      qrep->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, dom) ;
+      H5Dclose(dataset) ;
+      H5Sclose(dataspace) ;
 
-        hid_t dimension = array_size ;
-        hid_t dataset =  H5Dopen(group_id, "data") ;
-        hid_t dataspace = H5Dget_space(dataset) ;
+      pack_size = qrep->pack_size(dom) ;
 
-        qrep->readhdf5(group_id, dataspace, dataset, dimension, "data", fi, dom) ;
-        H5Dclose(dataset) ;
-        H5Sclose(dataspace) ;
-
-        pack_size = qrep->pack_size(dom) ;
-
-      }
-
-      // Now broadcast the result to other processors
-      if(MPI_processes > 1) {
-        MPI_Bcast(&pack_size,1,MPI_INT,0,MPI_COMM_WORLD) ;
-        unsigned char *pack_buf = new unsigned char[pack_size] ;
-        if(MPI_rank == 0) {
-          int loc_pack = 0 ;
-          int sz = pack_size ;
-          qrep->pack(pack_buf,loc_pack,sz,dom) ;
-        }
-        MPI_Bcast(pack_buf,pack_size,MPI_PACKED,0,MPI_COMM_WORLD) ;
-        if(MPI_rank != 0) {
-          int loc_pack = 0 ;
-          int sz = pack_size ;
-          qrep->unpack(pack_buf,loc_pack,sz,dom) ;
-        }
-        delete[] pack_buf ;
-      }
-
-
-      return ;
     }
+
+    // Now broadcast the result to other processors
+    if(np > 1) {
+      MPI_Bcast(&pack_size,1,MPI_INT,0,comm) ;
+      unsigned char *pack_buf = new unsigned char[pack_size] ;
+      if(rank == 0) {
+        int loc_pack = 0 ;
+        int sz = pack_size ;
+        entitySet dom = ~EMPTY ;
+        qrep->pack(pack_buf,loc_pack,sz,dom) ;
+      }
+      MPI_Bcast(pack_buf,pack_size,MPI_PACKED,0,comm) ;
+      if(rank != 0) {
+        int loc_pack = 0 ;
+        int sz = pack_size ;
+        entitySet dom = ~EMPTY ;
+        qrep->unpack(pack_buf,loc_pack,sz,dom) ;
+      }
+      delete[] pack_buf ;
+    }
+  }
+  
+  void read_store(hid_t group_id, storeRepP qrep, int &offset, MPI_Comm comm) {
+    offset = 0 ;
+    int rank = 0 ;
+    int np = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    MPI_Comm_size(comm,&np) ;
 
     // Here we read in a store container.  First lets read in the domain
     entitySet q_dom ;
-    if(MPI_rank == 0)
+    if(rank == 0)
       HDF5_ReadDomain(group_id, q_dom) ;
 
     // Now lets share the domain with all other processors ;
-    q_dom = BcastEntitySet(q_dom,0,MPI_COMM_WORLD) ;
+    q_dom = BcastEntitySet(q_dom,0,comm) ;
 
     unsigned char* tmp_buf = 0;
     std::vector<int> interval_sizes ;
-
-    int sz = dom.size() ;
-    int total_sz = 0 ;
-    MPI_Allreduce(&sz,&total_sz,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
-    if(total_sz == 0) {
-      if(q_dom != EMPTY) {
-        vector<entitySet> ptn = simplePartition(q_dom.Min(),q_dom.Max(),
-                                                MPI_COMM_WORLD) ;
-        for(int i=0;i<MPI_processes;++i) {
-          entitySet qset = ptn[i] &q_dom ;
-          interval_sizes.push_back(qset.size()) ;
-          if(i == MPI_rank) 
-            dom = qset ;
-        }
-      } else
-        for(int i=0;i<MPI_processes;++i) 
-          interval_sizes.push_back(0) ;
-    } else {
-      interval_sizes = all_collect_sizes(dom.size()) ;
-      entitySet tset = all_collect_entitySet(dom) ;
-      if(tset != q_dom) {
-	cerr << "The total domain of the container and the sum of domains across the processors does not match" << endl ;
-	cerr << "q_dom = " << q_dom << endl ;
-	cerr << "tset = " << tset << endl ;
+    entitySet dom ;
+    if(q_dom != EMPTY) {
+      vector<entitySet> ptn = simplePartition(q_dom.Min(),q_dom.Max(),comm) ;
+      for(int i=0;i<np;++i) {
+        entitySet qset = ptn[i] &q_dom ;
+        interval_sizes.push_back(qset.size()) ;
       }
-    }
-    if(qrep->domain() == EMPTY)
-      qrep->allocate(dom) ;
-    //    FATAL(qrep->domain() != dom) ;
+      dom = ptn[rank] &q_dom ;
+    } else
+        for(int i=0;i<np;++i) 
+          interval_sizes.push_back(0) ;
+    
+
     frame_info fi = qrep->read_frame_info(group_id) ;
     int array_size = 0 ;
     int vec_size = 0 ;
@@ -374,10 +383,10 @@ namespace Loci {
     tmp_int = new int[max_tmp_size] ;
     std::vector<int> arr_sizes = all_collect_sizes(array_size) ;
     int tot_arr_size = 0 ;
-    for(int i = 0; i < MPI_processes; ++i)
+    for(int i = 0; i < np; ++i)
       tot_arr_size += arr_sizes[i] ;
     MPI_Status status ;
-    if(MPI_rank != 0) {
+    if(rank != 0) {
       int t = 0 ;
       if(fi.size) { 
 	if(fi.size > 1)
@@ -398,19 +407,17 @@ namespace Loci {
 	  for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
 	    tmp_int[t++] = *fvi ;
       }
-      if(tmp_sizes[MPI_rank])
-	MPI_Send(tmp_int, tmp_sizes[MPI_rank], MPI_INT, 0, 10, MPI_COMM_WORLD) ;
+      if(tmp_sizes[rank])
+	MPI_Send(tmp_int, tmp_sizes[rank], MPI_INT, 0, 10, comm) ;
       int total_size = 0 ;
-      MPI_Recv(&total_size, 1, MPI_INT, 0, 11,
-	       MPI_COMM_WORLD, &status) ;  
+      MPI_Recv(&total_size, 1, MPI_INT, 0, 11,comm, &status) ;  
       tmp_buf = new unsigned char[total_size] ;
-      MPI_Recv(tmp_buf, total_size, MPI_PACKED, 0, 12,
-	       MPI_COMM_WORLD, &status) ;  
+      MPI_Recv(tmp_buf, total_size, MPI_PACKED, 0, 12, comm, &status) ;
+      offset = dom.Min() ;
+      dom <<= offset ;
+      qrep->allocate(dom) ;
       sequence tmp_seq = sequence(dom) ;
       int loc_unpack = 0 ;
-      if(qrep->domain() == EMPTY)
-	qrep->allocate(dom) ;
-      FATAL(dom != qrep->domain()) ;
       qrep->unpack(tmp_buf, loc_unpack, total_size, tmp_seq) ;
     } else {
       hid_t dataset =  H5Dopen(group_id, "data") ;
@@ -432,7 +439,7 @@ namespace Loci {
       if(fi.size) 
 	tmp_sp = qrep->new_store(max_set) ; 
       
-      for(int p = 0; p < MPI_processes; ++p) {
+      for(int p = 0; p < np; ++p) {
 	entitySet local_set;
 	if(interval_sizes[p] > 0) 
 	  local_set = entitySet(interval(curr_indx, interval_sizes[p]+curr_indx-1)) ;
@@ -444,8 +451,7 @@ namespace Loci {
 	if(local_set.size())
 	  tmp_set = interval(0, local_set.size()-1) ;
 	if(p && tmp_sizes[p]) {
-	  MPI_Recv(tmp_int, tmp_sizes[p], MPI_INT, p, 10,
-		   MPI_COMM_WORLD, &status) ;
+	  MPI_Recv(tmp_int, tmp_sizes[p], MPI_INT, p, 10, comm, &status) ;
 	  std::vector<int> vint, fvint ;
 	  int t = 0 ;
 	  if(fi.size) {
@@ -493,17 +499,19 @@ namespace Loci {
 	  t_sp->pack(tmp_buf, loc, total_size, tmp_set) ;
 	if(p == 0) {
 	  int loc_unpack = 0 ;
-	  sequence tmp_seq = sequence(dom) ;
+          
 	  if(fi.size) 
 	    if(fi.size > 1) 
 	      qrep->set_elem_size(fi.size) ;
-	  if(qrep->domain() == EMPTY)
-	    qrep->allocate(dom) ;
-          //	  FATAL(dom != qrep->domain()) ;
+
+          offset = dom.Min() ;
+          dom <<= offset ;
+	  sequence tmp_seq = sequence(dom) ;
+          qrep->allocate(dom) ;
 	  qrep->unpack(tmp_buf, loc_unpack, total_size, tmp_seq) ;
 	} else { 
-	  MPI_Send(&total_size, 1, MPI_INT, p, 11, MPI_COMM_WORLD) ;
-	  MPI_Send(tmp_buf, total_size, MPI_PACKED, p, 12, MPI_COMM_WORLD) ;
+	  MPI_Send(&total_size, 1, MPI_INT, p, 11, comm) ;
+	  MPI_Send(tmp_buf, total_size, MPI_PACKED, p, 12, comm) ;
 	}
       }
       H5Dclose(dataset) ;
@@ -575,31 +583,38 @@ namespace Loci {
 
     return sv_t ;
   }
-  
-  //This routine returns a storeRep which is created by using passed
-  //storeRep sp and map remap.  It is used whenever a storeRep needs to 
-  //be converted in global numbering to write out to a file.  
-  //remap is mapping from io entities(read from grid file)
-  //to loci entities(global numbering of Loci)
-  storeRepP collect_reorder_store(storeRepP &sp, fact_db &facts) {
 
-    entitySet dom = sp->domain() ;
-    fact_db::distribute_infoP d = facts.get_distribute_info() ;
+
+  // Convert container from local numbering to file numbering
+  // pass in store rep pointer: sp
+  // entitySet to write: dom
+  // return offset in file numbering (each processor will allocate from zero,
+  // add offset to domain to get actual file numbering)
+  // distribution info pointer (dist)
+  // MPI Communicator
+  storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
+                            fact_db::distribute_infoP dist, MPI_Comm comm) {
+
+
+    // Get local numbering of entities owned by this processor, only write
+    // out these entities.
     constraint my_entities ; 
-    my_entities = d->my_entities ;
+    my_entities = dist->my_entities ;
     dom = *my_entities & dom ;
 
-
+    // Get mapping from local to global numbering
     Map l2g ;
-    l2g = d->l2g.Rep() ;
-    MapRepP l2gP = MapRepP(l2g.Rep()) ;
+    l2g = dist->l2g.Rep() ;
+    // Compute domain in global numbering
+    entitySet dom_global = l2g.image(dom) ;
 
-    entitySet dom_global = l2gP->image(dom) ;
-
+    // This shouldn't happen
     FATAL(dom.size() != dom_global.size()) ;
 
+    // Now get global to file numbering
     dMap g2f ;
-    g2f = d->g2f.Rep() ;
+    g2f = dist->g2f.Rep() ;
+
     // Compute map from local numbering to file numbering
     Map newnum ;
     newnum.allocate(dom) ;
@@ -610,51 +625,85 @@ namespace Loci {
     int imx = std::numeric_limits<int>::min() ;
     int imn = std::numeric_limits<int>::max() ;
 
-    
+    // Find bounds in file numbering from this processor
     FORALL(dom,i) {
       imx = max(newnum[i],imx) ;
       imn = min(newnum[i],imn) ;
     } ENDFORALL ;
 
+    // Find overall bounds
     imx = GLOBAL_MAX(imx) ;
     imn = GLOBAL_MIN(imn) ;
-    
-    int p = MPI_processes ;
 
-    
-    vector<entitySet> out_ptn = simplePartition(imn,imx,MPI_COMM_WORLD) ;
+    // Get number of processors
+    int p = 0 ;
+    MPI_Comm_size(comm,&p) ;
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    // Get partitioning of file numbers across processors
+    vector<entitySet> out_ptn = simplePartition(imn,imx,comm) ;
 
+    // Now compute where to send data to put in file ordering
     vector<entitySet> send_sets(p) ;
     vector<sequence> send_seqs(p) ;
+
+    // Loop over processors and compute sets of entities to send
+    // To efficiently compute this mapping, first sort the transpose
+    // of the newnum map to quickly find the set of entities to send
+    // without searching entire newnum map for each processor
+    vector<pair<int,int> > file2num(dom.size()) ;
+    size_t cnt = 0 ;
+    FORALL(dom,ii) {
+      file2num[cnt].first = newnum[ii] ;
+      file2num[cnt].second = ii ;
+      cnt++ ;
+    } ENDFORALL ;
+    sort(file2num.begin(),file2num.end()) ;
+
+    // Check each processor, find out which sets to send
+    cnt = 0 ;
     for(int i=0;i<p;++i) {
-      send_sets[i] = newnum.preimage(out_ptn[i]).first ;
+      int mxi = out_ptn[i].Max() ;
+      while(cnt < file2num.size() && file2num[cnt].first <= mxi) {
+        send_sets[i] += file2num[cnt].second ;
+        cnt++ ;
+      }
       sequence s ;
       FORALL(send_sets[i],j) {
         s+= newnum[j] ;
       } ENDFORALL ;
       send_seqs[i] = s ;
     }
+
+    //Get the sequences of where we place the data when we receive it
     vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
 
+
+    // shift by the offset
+    offset = out_ptn[rank].Min() ;
+    for(int i=0;i<p;++i)
+      recv_seqs[i] <<= offset ;
+
+    // Compute allocation domain
     entitySet file_dom ;
     for(int i=0;i<p;++i)
       file_dom += entitySet(recv_seqs[i]) ;
 
+    // allocate store over shifted domain
     storeRepP qcol_rep ;
     qcol_rep = sp->new_store(file_dom) ;
-
-
-    int *send_sizes = new int[p] ;
-    int *recv_sizes = new int[p] ;
+    
+    // Now communicate the container
+    vector<int> send_sizes(p),recv_sizes(p) ;
 
     for(int i=0;i<p;++i)
       send_sizes[i] = sp->pack_size(send_sets[i]) ;
 
     MPI_Alltoall(&send_sizes[0],1,MPI_INT,
                  &recv_sizes[0],1,MPI_INT,
-                 MPI_COMM_WORLD) ;
-    int *send_dspl = new int[p] ;
-    int *recv_dspl = new int[p] ;
+                 comm) ;
+
+    vector<int> send_dspl(p),recv_dspl(p) ;
     send_dspl[0] = 0 ;
     recv_dspl[0] = 0 ;
     for(int i=1;i<p;++i) {
@@ -664,8 +713,8 @@ namespace Loci {
     int send_sz = send_dspl[p-1] + send_sizes[p-1] ;
     int recv_sz = recv_dspl[p-1] + recv_sizes[p-1] ;
 
-    unsigned char *send_store = new unsigned char[send_sz] ;
-    unsigned char *recv_store = new unsigned char[recv_sz] ;
+    vector<unsigned char> send_store(send_sz) ;
+    vector<unsigned char> recv_store(recv_sz) ;
 
 
     for(int i=0;i<p;++i) {
@@ -674,79 +723,72 @@ namespace Loci {
                send_sets[i]) ;
     }
 
-    MPI_Alltoallv(send_store, &send_sizes[0], send_dspl, MPI_PACKED,
-		  recv_store, &recv_sizes[0], recv_dspl, MPI_PACKED,
-		  MPI_COMM_WORLD) ;
+    MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
+		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
+		  comm) ;
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       qcol_rep->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
                        recv_seqs[i]) ;
     }
-    delete[] recv_store ;
-    delete[] send_store ;
-    delete[] recv_dspl ;
-    delete[] send_dspl ;
-    delete[] recv_sizes ;
-    delete[] send_sizes ;
-
     return qcol_rep ;
-  } 
+  }
 
-  
-  // result allocated over local numbering 
-  // input is in file numbering
-  // Routine redistributes input to be arranged in the local numbering
-  // and placed in result.
-  // input is assumed to be partitioned by simplePartion
-  
-  void distribute_reorder_store(storeRepP &result, entitySet resultSet,
-                                storeRepP input, fact_db &facts ) {
-    fact_db::distribute_infoP df = facts.get_distribute_info() ;
-      
-    dMap g2f ;
-    g2f = df->g2f.Rep() ;
-    Map l2g ;
-    l2g = df->l2g.Rep() ;
-
+  void File2LocalOrder(storeRepP &result, entitySet resultSet,
+                       storeRepP input, int offset,
+                       fact_db::distribute_infoP dist,
+                       MPI_Comm comm) {
     Map newnum ;
     newnum.allocate(resultSet) ;
 
+    if(dist !=0 ) {
+      dMap g2f ;
+      g2f = dist->g2f.Rep() ;
+      Map l2g ;
+      l2g = dist->l2g.Rep() ;
+      FORALL(resultSet,i) {
+        newnum[i] = g2f[l2g[i]] ;
+      } ENDFORALL ;
+    } else {
+      FORALL(resultSet,i) {
+        newnum[i] = i ;
+      } ENDFORALL ;
+    }
+    
+    int p = 0 ;
+    MPI_Comm_size(comm,&p) ;
+    int mn = input->domain().Min() ;
+    int mx = input->domain().Max() ;
+    if(input->domain() != EMPTY) {
+      mn += offset ;
+      mx += offset ;
+    }
+    vector<int> allmx(p) ;
+    vector<int> allmn(p) ;
+    MPI_Allgather(&mx,1,MPI_INT,&allmx[0],1,MPI_INT,comm) ;
+    MPI_Allgather(&mn,1,MPI_INT,&allmn[0],1,MPI_INT,comm) ;
+    
+    vector<pair<int,int> > file_requests ;
     FORALL(resultSet,i) {
-      newnum[i] = g2f[l2g[i]] ;
+      file_requests.push_back(pair<int,int>(newnum[i],i)) ;
     } ENDFORALL ;
-
-    const int p = MPI_processes ;
-    // Get input (file) distribution
-    int imx = GLOBAL_MAX(input->domain().Max()) ;
-    int imn = GLOBAL_MIN(input->domain().Min()) ;
-    vector<int> fptn = simplePartitionVec(imn,imx,p) ;
-
+    sort(file_requests.begin(),file_requests.end()) ;
     // Get distribution plan
     vector<vector<pair<int,int> > > dist_plan(p) ;
-    int np = (imx-imn+1)/p ; // number of elements per processor
-    FORALL(resultSet,i) {
-      int fn = newnum[i] ;
-      if(fn < imn || fn > imx) {
-        cerr << "Problem with distribute_reorder_store, index out of bounds"
-             << endl ;
-        cerr << "fn = " << fn << "imx = " << imx << "imn = " << imn << endl ;
+
+    int proc = 0 ;
+    for(size_t i=0;i<file_requests.size();++i) {
+      int fn = file_requests[i].first ;
+      while(proc < p && (fn < allmn[proc] || fn > allmx[proc]))
+        proc++ ;
+      if(fn < allmn[proc] || fn > allmx[proc]) {
+        cerr << "Unable to find processor that contains entity!" << endl ;
         Loci::Abort() ;
       }
-      // processor that contains this value
-      int r = min((fn-imn)/np,p-1) ; // Guess which processor
-      for(;;) { // search from guess
-        if(fn >= fptn[r] && fn < fptn[r+1])
-          break ;
-        r+= (fn < fptn[r])?-1:1 ;
-        if(r < 0 || r >= p) {
-          debugout << "bad r in processor search " << r << endl ;
-        }
-        FATAL(r >= p) ;
-        FATAL(r < 0) ;
-      }
-      dist_plan[r].push_back(pair<int,int>(fn,i)) ;
-    } ENDFORALL ;
+      dist_plan[proc].push_back(pair<int,int>(fn,file_requests[i].second)) ;
+    }
+
     // Compute recv requests from distribution plan
     vector<sequence> recv_seq(p),send_req(p) ;
     for(int i=0;i<p;++i) {
@@ -765,21 +807,20 @@ namespace Loci {
     // from this processor
     vector<sequence> send_seq = transposeSeq(send_req) ;
     vector<entitySet> send_sets(p) ;
-    for(int i=0;i<p;++i)
+    for(int i=0;i<p;++i) {
+      send_seq[i] <<= offset ;
       send_sets[i] = entitySet(send_seq[i]) ;
+    }
     
-    int *send_sizes = new int[p] ;
-    int *recv_sizes = new int[p] ;
+    vector<int> send_sizes(p), recv_sizes(p) ;
 
 
     for(int i=0;i<p;++i)
       send_sizes[i] = input->pack_size(send_sets[i]) ;
 
-    MPI_Alltoall(&send_sizes[0],1,MPI_INT,
-                 &recv_sizes[0],1,MPI_INT,
-                 MPI_COMM_WORLD) ;
-    int *send_dspl = new int[p] ;
-    int *recv_dspl = new int[p] ;
+    MPI_Alltoall(&send_sizes[0],1,MPI_INT,&recv_sizes[0],1,MPI_INT, comm) ;
+    
+    vector<int> send_dspl(p), recv_dspl(p) ;
     send_dspl[0] = 0 ;
     recv_dspl[0] = 0 ;
     for(int i=1;i<p;++i) {
@@ -789,8 +830,7 @@ namespace Loci {
     int send_sz = send_dspl[p-1] + send_sizes[p-1] ;
     int recv_sz = recv_dspl[p-1] + recv_sizes[p-1] ;
 
-    unsigned char *send_store = new unsigned char[send_sz] ;
-    unsigned char *recv_store = new unsigned char[recv_sz] ;
+    vector<unsigned char> send_store(send_sz), recv_store(recv_sz) ;
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
@@ -798,34 +838,86 @@ namespace Loci {
                send_sets[i]) ;
     }
 
-    MPI_Alltoallv(send_store, &send_sizes[0], send_dspl, MPI_PACKED,
-		  recv_store, &recv_sizes[0], recv_dspl, MPI_PACKED,
-		  MPI_COMM_WORLD) ;
+    MPI_Alltoallv(&send_store[0], &send_sizes[0], &send_dspl[0], MPI_PACKED,
+		  &recv_store[0], &recv_sizes[0], &recv_dspl[0], MPI_PACKED,
+		  comm) ;
 
     for(int i=0;i<p;++i) {
       int loc_pack = 0 ;
       result->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
                      recv_seq[i]) ;
     }
-    delete[] recv_store ;
-    delete[] send_store ;
-    delete[] recv_dspl ;
-    delete[] send_dspl ;
-    delete[] recv_sizes ;
-    delete[] send_sizes ;
   }
+  
 
-  void redistribute_write_container(hid_t file_id, std::string vname,
-                               storeRepP var, fact_db &facts) {
+  void writeContainerRAW(hid_t file_id, std::string vname,
+                           storeRepP var, MPI_Comm comm) {
     hid_t group_id = 0 ;
     if(MPI_rank == 0)
       group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
-    if(MPI_processes == 1 || var->RepType() == PARAMETER) {
-      write_container(group_id, var) ;
+
+    if(var->RepType() != PARAMETER) {
+      int offset = 0 ;
+      write_store(group_id,var,var->domain(),offset,comm) ;
     } else {
-      storeRepP vardist = collect_reorder_store(var,facts) ;
-      write_container(group_id,vardist) ;
+      write_parameter(group_id, var,comm) ;
     }
+    if(MPI_rank == 0)
+      H5Gclose(group_id) ;
+  }
+
+  void readContainerRAW(hid_t file_id, std::string vname,
+                                   storeRepP var, 
+                                   MPI_Comm comm ) {
+    hid_t group_id = 0;
+    if(MPI_rank == 0)
+      group_id = H5Gopen(file_id, vname.c_str()) ;
+    if(var->RepType() == PARAMETER) {
+      read_parameter(group_id, var, comm) ;
+      if(MPI_rank == 0)
+        H5Gclose(group_id) ;
+      return ;
+    }
+
+    // Read in store in file numbering
+    int offset = 0 ;
+    read_store( group_id, var,offset,MPI_COMM_WORLD) ;
+    var->shift(offset) ;
+
+    if(MPI_rank == 0)
+      H5Gclose(group_id) ;
+  }
+  
+  void redistribute_write_container(hid_t file_id, std::string vname,
+                               storeRepP var, fact_db &facts) {
+    fact_db::distribute_infoP dist = facts.get_distribute_info() ;
+    if(dist == 0) {
+      writeContainerRAW(file_id,vname,var,MPI_COMM_WORLD) ;
+      return ;
+    }
+    
+    hid_t group_id = 0 ;
+    if(MPI_rank == 0)
+      group_id = H5Gcreate(file_id, vname.c_str(), 0) ;
+
+    // Redistribute container to map from local to global numbering
+    if(var->RepType() != PARAMETER && MPI_processes != 1) {
+      // parallel store write.. reorder to file numbering then write out
+      // reorder from local to file numbering
+      int offset = 0 ;
+      entitySet dom = var->domain() ;
+      // Create container vardist that is ordered across processors in the
+      // file numbering, the domain of this container shifted by offset
+      // is the actual file numbering.
+      storeRepP vardist = Local2FileOrder(var,dom,offset,dist,MPI_COMM_WORLD) ;
+      // Write out container that has been distributed in the file numbering
+      write_store(group_id,vardist,vardist->domain(),offset,MPI_COMM_WORLD) ;
+    } else {
+      // No need to reorder container if parameter or only one 
+      // processor, so just write out the container.
+      write_container(group_id, var) ;
+    }
+
     if(MPI_rank == 0)
       H5Gclose(group_id) ;
   }
@@ -833,33 +925,40 @@ namespace Loci {
   void read_container_redistribute(hid_t file_id, std::string vname,
                                    storeRepP var, entitySet read_set,
                                    fact_db &facts) {
-
+    fact_db::distribute_infoP dist = facts.get_distribute_info() ;
+    if(dist == 0) {
+      readContainerRAW(file_id,vname,var,MPI_COMM_WORLD) ;
+      return ;
+    }
     hid_t group_id = 0;
     if(MPI_rank == 0)
       group_id = H5Gopen(file_id, vname.c_str()) ;
     if(var->RepType() == PARAMETER) {
-      read_container(group_id, var, read_set) ;
+      read_parameter(group_id, var, MPI_COMM_WORLD) ;
       if(MPI_rank == 0)
         H5Gclose(group_id) ;
       return ;
     }
-    if(MPI_processes == 1) {
-      read_container(group_id, var, read_set) ;
-    } else {
-      entitySet alloc_dom = EMPTY;
-      storeRepP new_store = var->new_store(EMPTY) ;
-      read_container(group_id, new_store , alloc_dom) ;
-      storeRepP result = var->new_store(read_set) ;
-      distribute_reorder_store(result,read_set,new_store,facts) ;
-      var->copy(result,read_set) ;
-    }
+
+    // Read in store in file numbering
+    int offset = 0 ;
+    storeRepP new_store = var->new_store(EMPTY) ;
+    read_store( group_id, new_store,offset,MPI_COMM_WORLD) ;
+
+    // Allocate space for reordered container
+    storeRepP result = var->new_store(read_set) ;
+    // map from file number to local numbering
+    File2LocalOrder(result,read_set,new_store,offset,dist,MPI_COMM_WORLD) ;
+
+    // Copy results into container
+    var->copy(result,read_set) ;
+
     if(MPI_rank == 0)
       H5Gclose(group_id) ;
   }
 
   void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) {
     vector<int> ids(local_set.size()) ;
-      
       
     int c = 0 ;
     if(MPI_processes > 1) {
