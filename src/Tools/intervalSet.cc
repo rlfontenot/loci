@@ -610,4 +610,26 @@ namespace Loci {
     return *this ;
   }
 
+  sequence &sequence::operator>>=(int rotval) {
+    Rep.MakeUnique() ;
+    for(sequenceRep::iterator i = Rep->begin();i!=Rep->end();++i) {
+      if(i->first != UNIVERSE_MIN)
+        i->first += rotval ;
+      if(i->second != UNIVERSE_MAX)
+        i->second += rotval ;
+    }
+    return *this ;
+  }
+
+  sequence &sequence::operator<<=(int rotval) {
+    Rep.MakeUnique() ;
+    for(sequenceRep::iterator i = Rep->begin();i!=Rep->end();++i) {
+      if(i->first != UNIVERSE_MIN)
+        i->first -= rotval ;
+      if(i->second != UNIVERSE_MAX)
+        i->second -= rotval ;
+    }
+    return *this ;
+  }
+
 }
