@@ -29,8 +29,14 @@ namespace Loci{
 // Routine redistributes input to be arranged in the local numbering
 // and placed in result.
 // input is assumed to be partitioned by simplePartion
-void distribute_reorder_store(Loci::storeRepP &result, entitySet resultSet,
-                              Loci::storeRepP input, fact_db &facts );
+//void distribute_reorder_store(Loci::storeRepP &result, entitySet resultSet,
+//                              Loci::storeRepP input, fact_db &facts );
+  
+
+  void File2LocalOrder(storeRepP &result, entitySet resultSet,
+                       storeRepP input, int offset,
+                       fact_db::distribute_infoP dist,
+                       MPI_Comm comm);
 
 }
 
@@ -163,8 +169,11 @@ public:
     //redistribute temp_posTag to local node dom
     
     Loci::storeRepP posTagRepP = posTag.getRep();
-    Loci::distribute_reorder_store(posTagRepP, dom, temp_posTag.getRep(),
-                                   *(Loci::exec_current_fact_db));
+    Loci::File2LocalOrder(posTagRepP, dom, temp_posTag.getRep(), 0,
+                          Loci::exec_current_fact_db->get_distribute_info(),
+                          MPI_COMM_WORLD) ;
+    //    Loci::distribute_reorder_store(posTagRepP, dom, temp_posTag.getRep(),
+    //                                   *(Loci::exec_current_fact_db));
             
     delete [] buf;
     //process 0 close file

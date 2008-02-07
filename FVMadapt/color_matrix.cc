@@ -23,7 +23,8 @@ using Loci::UNIVERSE_MAX;
 using Loci::UNIVERSE_MIN;
 
 namespace Loci{
-storeRepP collect_reorder_store(storeRepP &sp, fact_db &facts);
+  storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
+                            fact_db::distribute_infoP dist, MPI_Comm comm) ;
   std::vector<int> all_collect_sizes(int size);
  std::vector<int> simplePartitionVec(int mn, int mx, int p);
 }
@@ -155,7 +156,11 @@ void writeVOGNode(hid_t file_id,
   //reorder store first, from local to io entities
   
   store<vect3d> pos_io;
-  pos_io =  collect_reorder_store(pos, *(Loci::exec_current_fact_db));
+  //  pos_io =  collect_reorder_store(pos, *(Loci::exec_current_fact_db));
+  int offset = 0 ;
+  pos_io = Local2FileOrder(pos,pos->domain(),offset,
+                           Loci::exec_current_fact_db->get_distribute_info(),
+                           MPI_COMM_WORLD) ;
   entitySet nodes = pos_io.domain();
 
   //compute the size of pos
