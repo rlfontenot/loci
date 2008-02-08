@@ -1,4 +1,25 @@
 #!/bin/bash
+###############################################################################
+#
+# Copyright 2008, Mississippi State University
+#
+# This file is part of the Loci Framework.
+#
+# The Loci Framework is free software: you can redistribute it and/or modify
+# it under the terms of the Lesser GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The Loci Framework is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Lesser GNU General Public License for more details.
+#
+# You should have received a copy of the Lesser GNU General Public License
+# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+#
+###############################################################################
+
 
 source=`pwd`
 target=${LOCI_TARGET-/usr/tmp/$LOGNAME/}
@@ -26,7 +47,7 @@ if [ ${target:0:1} != "/" ]; then
 fi
 
 TARGET_DIRS="System Tools include include/Tools include/Config include/MPI_stubb"
-TOOLS_DIRS="lpp FVMtools FVMMod ParMetis-3.1 ParMetis-3.1/METISLib ParMetis-3.1/ParMETISLib"
+TOOLS_DIRS="lpp FVMadapt FVMadapt/include FVMtools FVMMod ParMetis-3.1 ParMetis-3.1/METISLib ParMetis-3.1/ParMETISLib"
 
 echo -n "Making Directory Structure: "
 mkdir -p $target
