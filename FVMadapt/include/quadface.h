@@ -153,7 +153,7 @@ public:
   
   
   //the center of the face, defined as the mass center of 4 nodes
-  inline Node* QuadFace::centroid(){
+  inline Node* centroid(){
     vect3d nodes[4];
     //get nodes
     for(int i = 0; i <2; i++){

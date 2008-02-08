@@ -42,6 +42,11 @@
 using std::cerr;
 using std::endl;
 
+std::vector<int32> get_c1_hex(const std::vector<char>& cellPlan,
+                              const std::vector<char>& facePlan,
+                              char orientCode,
+                              char findex) ;
+
 
 
 class HexCell
@@ -147,7 +152,6 @@ public:
     return -1;
   }
   
-
 
   int get_num_fine_faces()const;//for mxfpc
  double get_min_edge_length();   

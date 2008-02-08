@@ -43,6 +43,10 @@
 using std::cerr;
 using std::endl;
 
+std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
+                                const std::vector<char>& facePlan,
+                                char orientCode,
+                                int faceID);
 
 
 class Prism
@@ -180,7 +184,7 @@ public:
                std::vector<Prism*>& prism_cells);
 
   //used in make_prism_cellplan.cc
-  void Prism::resplit( int level,
+  void resplit( int level,
                        std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list,
                        std::list<QuadFace*>& quadface_list,
@@ -205,7 +209,7 @@ public:
   bool  isSiblingNeighbor(const Prism* aCell, int dd, int &nf)const;
 
   //get real sibling neib
-  Prism* Prism::getSiblingNeib(int dd, int& nf);
+  Prism* getSiblingNeib(int dd, int& nf);
 
   //only use it when dd >=2
   inline int parentFace(int dd){
