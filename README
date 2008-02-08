@@ -1,0 +1,12 @@
+
+The source code in the ParMetis-3.1 directory is provided by the
+University of Minnesota and is provided here as an installation
+convenience.  See
+http://glaros.dtc.umn.edu/gkhome/metis/parmetis/overview for more
+information about parallel METIS.
+
+All other source code in this directory is provided by Mississippi
+State University as free software under the Lesser GNU General Public
+License version 3.  See the file COPYING.LESSER for license terms.
+
+- Ed Luke
