@@ -1,11 +1,7 @@
-#LOCI_BASE = /usr/tmp/qxue/Loci
-#LOCI_BASE ?= /simcenter/data4/loci/opt/Loci-Linux-i686-mpic++-rel-3-1-exp-7
-#LOCI_BASE ?= /simcenter/data4/loci/opt/Loci-Linux-i686-mpic++-08.09.07
 include $(LOCI_BASE)/Loci.conf
 
 #COPTLESS =	-O0 -g -ansi -pedantic
-COPTLESS =	-O0 -g 
-COPT =		$(COPTLESS)
+#COPT =		$(COPTLESS)
 
 MARKOBJS =	classify_cell.o \
 		transfer_fc.o \
@@ -97,11 +93,11 @@ REFOBJS =	classify_cell.o \
 
 
 
-MODULES =	-lxml2	
+#MODULES =	-lxml2	
 
 #LOCAL_LIBS =	
 
-LOCAL_LIBS      = -L/usr/lib 
+LOCAL_LIBS      = -lxml2 #-L/usr/lib 
 JUNK =		*~ \
 		core \
 		ti_files \
@@ -110,13 +106,13 @@ JUNK =		*~ \
 
 INCLUDES=	-I./include  -I/usr/include/libxml2
 
-default: mymarker myrefmesh 
+default: marker refmesh 
 
-mymarker: $(MARKOBJS) $(MODULES) 
-	$(LD) -o  mymarker  $(MARKOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+marker: $(MARKOBJS) $(MODULES) 
+	$(LD) -o  marker  $(MARKOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-myrefmesh:$(REFOBJS) $(MODULES) 
-	$(LD) -o  myrefmesh  $(REFOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+refmesh:$(REFOBJS) $(MODULES) 
+	$(LD) -o  refmesh  $(REFOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 
 FRC :
@@ -125,7 +121,7 @@ clean:
 	rm -fr $(MARKOBJS) $(REFOBJS)  $(TARGET) $(JUNK)
 
 distclean: clean
-	rm -fr $(DEPEND_FILES) myrefmesh mymarker
+	rm -fr $(DEPEND_FILES) refmesh marker
 
 DEPEND_FILES=$(subst .o,.d,$(MARKOBJS) $(REFOBJS))
 #include automatically generated dependencies
