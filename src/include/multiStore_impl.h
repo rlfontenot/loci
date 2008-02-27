@@ -773,73 +773,14 @@ namespace Loci {
       }
     }
   }
-  template<class T> 
-    frame_info multiStoreRepI<T>::read_frame_info(hid_t group_id) {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    return read_frame_info(group_id, schema_converter()) ;
-  }
-  template<class T> 
-    frame_info multiStoreRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
-    int is_stat = 0 ;
-    int sz = 0 ;
-    if(Loci::MPI_rank == 0) {
-      hid_t datatype = H5T_NATIVE_INT ;
-      hid_t dataset = H5Dopen(group_id, "is_stat") ;
-      H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
-      H5Dclose(dataset) ;
-      dataset = H5Dopen(group_id, "vec_size") ;
-      H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
-      H5Dclose(dataset) ;
-    }
-    int dim[2] ;
-    dim[0] = is_stat ;
-    dim[1] = sz ;
-    MPI_Bcast(&dim, 2, MPI_INT, 0, MPI_COMM_WORLD) ;
-    frame_info fi ;
-    fi.is_stat = dim[0] ;
-    fi.size = dim[1] ;
-    int dom_size = domain().size() ;
-    read_vector_int(group_id, "first_level", fi.first_level, dom_size) ;
-    return fi ;
-  }
-  template<class T> 
-    frame_info multiStoreRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
-    hid_t datatype = H5T_NATIVE_INT ;
-    hid_t dataset ;
-    int is_stat = 0 ;
-    int sz = 0 ;
-    frame_info fi ;
-    if(Loci::MPI_rank == 0) {
-      dataset = H5Dopen(group_id, "is_stat") ;
-      H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
-      H5Dclose(dataset) ;
-      dataset = H5Dopen(group_id, "vec_size") ;
-      H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
-      H5Dclose(dataset) ;
-    }
-    int dim[2] ;
-    dim[0] = is_stat ;
-    dim[1] = sz ;
-    MPI_Bcast(&dim, 2, MPI_INT, 0, MPI_COMM_WORLD) ;
-    fi.is_stat = dim[0] ;
-    fi.size = dim[1] ;
-    int dom_size = domain().size() ;
-    read_vector_int(group_id, "first_level", fi.first_level, dom_size) ;
-    int total_size = fi.first_level.size() ;
-    int dims = 0 ;
-    for(int i = 0; i < total_size; ++i)
-      dims += (fi.first_level)[i] ;
-    read_multi_vector_int(group_id, "second_level", dims, fi.second_level) ;
-    return fi ;
-  }
   
   template<class T> 
-    frame_info multiStoreRepI<T>::write_frame_info(hid_t group_id) {
+    frame_info multiStoreRepI<T>::get_frame_info() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    return write_frame_info(group_id, schema_converter()) ;
+    return get_frame_info(schema_converter()) ;
   }
   template<class T> 
-    frame_info multiStoreRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    frame_info multiStoreRepI<T>::get_frame_info(IDENTITY_CONVERTER g) {
     frame_info fi ;
     fi.is_stat = 0 ;
     fi.size = 0 ;
@@ -849,24 +790,10 @@ namespace Loci {
       newsize = end(*ci) - begin(*ci);
       fi.first_level.push_back(newsize) ;
     }
-    if(Loci::MPI_rank == 0 ) {
-      hsize_t dimension = 1 ;
-      int rank = 1 ;
-      hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
-      hid_t datatype = H5T_NATIVE_INT ;
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
-      H5Dclose(dataset) ;
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
-      H5Dclose(dataset) ;
-      H5Sclose(dataspace) ;
-    }
-    write_vector_int(group_id, "first_level", fi.first_level) ;
     return fi ;
   }
   template<class T> 
-    frame_info multiStoreRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    frame_info multiStoreRepI<T>::get_frame_info(USER_DEFINED_CONVERTER g) {
     int vsize ;
     entitySet dom = domain() ;
     frame_info fi ;
@@ -884,23 +811,6 @@ namespace Loci {
         fi.second_level.push_back(stateSize) ;
       }
     }
-    hsize_t dimension = 0 ;
-    hid_t dataspace ;
-    hid_t datatype = H5T_NATIVE_INT ;
-    int rank = 1 ;
-    if(MPI_rank == 0) {
-      dimension = 1 ;
-      dataspace = H5Screate_simple(rank, &dimension, NULL) ;
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
-      H5Dclose(dataset) ;
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
-      H5Dclose(dataset) ;
-      H5Sclose(dataspace) ; 
-    }
-    write_vector_int(group_id, "first_level", fi.first_level) ;
-    write_vector_int(group_id, "second_level", fi.second_level) ;
     return fi ;
   }
   template<class T> 

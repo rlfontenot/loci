@@ -69,10 +69,8 @@ namespace Loci {
                     const sequence &seq) ;
     DatatypeP getType(IDENTITY_CONVERTER g) ;
     DatatypeP getType(USER_DEFINED_CONVERTER g) ;
-    frame_info read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
-    frame_info read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
-    frame_info write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
-    frame_info write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
+    frame_info get_frame_info(IDENTITY_CONVERTER g) ;
+    frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
     storeRepI() { alloc_pointer = 0 ; base_ptr = 0; }
     storeRepI(const entitySet &p) { alloc_pointer=0 ; allocate(p) ;}
@@ -102,8 +100,7 @@ namespace Loci {
     virtual entitySet domain() const ;
     T * get_base_ptr() const { return base_ptr ; }
     virtual DatatypeP getType() ;
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
   } ;
 
   template<class T> class store : public store_instance {

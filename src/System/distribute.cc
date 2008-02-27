@@ -871,26 +871,29 @@ namespace Loci {
   }
 
 
-  std::vector<entitySet> all_collect_vectors(entitySet &e) {
-    int *recv_count = new int[ MPI_processes] ;
-    int *send_count = new int[ MPI_processes] ;
-    int *send_displacement = new int[ MPI_processes];
-    int *recv_displacement = new int[ MPI_processes];
+  std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) {
+    int np = 1 ;
+    MPI_Comm_size(comm,&np) ;
+    int rnk = 0 ;
+    MPI_Comm_rank(comm,&rnk) ;
+    int *recv_count = new int[ np ] ;
+    int *send_count = new int[ np ] ;
+    int *send_displacement = new int[ np ];
+    int *recv_displacement = new int[ np ];
     int size_send = 0 ;
 
-    for(int i = 0; i <  MPI_processes; ++i) {
+    for(int i = 0; i <  np; ++i) {
       send_count[i] = e.num_intervals()*2 ;
       size_send += send_count[i] ; 
     }  
     int *send_buf = new int[size_send] ;
-    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		 MPI_COMM_WORLD) ; 
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT, comm) ; 
     size_send = 0 ;
-    for(int i = 0; i <  MPI_processes; ++i)
+    for(int i = 0; i <  np ; ++i)
       size_send += recv_count[i] ;
     int *recv_buf = new int[size_send] ;
     size_send = 0 ;
-    for(int i = 0; i <  MPI_processes; ++i) {
+    for(int i = 0; i <  np ; ++i) {
       for(int j=0;j<e.num_intervals();++j) {
         send_buf[size_send++] = e[j].first ;
         send_buf[size_send++] = e[j].second ;
@@ -898,16 +901,16 @@ namespace Loci {
     }
     send_displacement[0] = 0 ;
     recv_displacement[0] = 0 ;
-    for(int i = 1; i <  MPI_processes; ++i) {
+    for(int i = 1; i <  np ; ++i) {
       send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
       recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
     } 
     MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
 		  recv_buf, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
-    std::vector<entitySet> vset( MPI_processes) ;
+		  comm) ;  
+    std::vector<entitySet> vset( np ) ;
     
-    for(int i = 0; i < MPI_processes; ++i) {
+    for(int i = 0; i < np ; ++i) {
       int *buf = recv_buf+recv_displacement[i] ;
       for(int j=0;j<recv_count[i];j+=2) {
         vset[i] += interval(buf[j],buf[j+1]) ;
@@ -920,6 +923,9 @@ namespace Loci {
     delete [] send_buf ;
     delete [] recv_buf ;
     return vset ;
+  }
+  std::vector<entitySet> all_collect_vectors(entitySet &e) {
+    return all_collect_vectors(e,MPI_COMM_WORLD) ;
   }
 
   int GLOBAL_OR(int b) {

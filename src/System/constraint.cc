@@ -150,12 +150,8 @@ namespace Loci {
   DatatypeP constraintRep::getType() {
     return DatatypeP(new AtomicType(INT)) ;
   }
-  frame_info constraintRep::read_frame_info(hid_t group_id) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
-  frame_info constraintRep::write_frame_info(hid_t group_id) {
+
+  frame_info constraintRep::get_frame_info() {
     warn(true) ; 
     frame_info fi ;
     return fi ;

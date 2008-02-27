@@ -540,12 +540,7 @@ namespace Loci
     return DatatypeP(new AtomicType(INT)) ;
   }
   
-  frame_info dmultiMapRepI::read_frame_info(hid_t group_id) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
-  frame_info dmultiMapRepI::write_frame_info(hid_t group_id) {
+  frame_info dmultiMapRepI::get_frame_info() {
     warn(true) ;
     frame_info fi ;
     return fi ;

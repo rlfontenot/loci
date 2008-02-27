@@ -65,10 +65,8 @@ namespace Loci {
                     const sequence &seq) ;
     DatatypeP getType(IDENTITY_CONVERTER g) ;
     DatatypeP getType(USER_DEFINED_CONVERTER g) ;
-    frame_info read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
-    frame_info read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
-    frame_info write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
-    frame_info write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
+    frame_info get_frame_info(IDENTITY_CONVERTER g) ;
+    frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
     dstoreRepI(){}
     dstoreRepI(const entitySet &p) { allocate(p) ; }
@@ -99,8 +97,7 @@ namespace Loci {
     block_hash<T> *get_attrib_data() { return &attrib_data; }
     const block_hash<T> *get_attrib_data() const { return &attrib_data; }
     virtual DatatypeP getType() ;
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
   } ; 
 
   template<class T> class dstore : public store_instance {

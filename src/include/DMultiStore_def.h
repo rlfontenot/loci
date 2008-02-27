@@ -61,10 +61,8 @@ namespace Loci {
     void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int &size, const sequence &seq) ;
     DatatypeP getType(IDENTITY_CONVERTER g) ;
     DatatypeP getType(USER_DEFINED_CONVERTER g) ;
-    frame_info read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
-    frame_info read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
-    frame_info write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
-    frame_info write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
+    frame_info get_frame_info(IDENTITY_CONVERTER g) ;
+    frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
 
     //  Constructor ...
@@ -107,8 +105,7 @@ namespace Loci {
 
     HASH_MAP(int,std::vector<T>) *get_attrib_data(){return &attrib_data; }
     virtual DatatypeP getType() ;
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
   } ;
 
   template<class T> class dmultiStore : public store_instance {

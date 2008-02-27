@@ -578,13 +578,7 @@ namespace Loci {
     return DatatypeP(new AtomicType(INT)) ;
   }
   template<int M> 
-    frame_info MapVecRepI<M>::read_frame_info(hid_t group_id) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
-  template<int M> 
-    frame_info MapVecRepI<M>::write_frame_info(hid_t group_id) {
+    frame_info MapVecRepI<M>::get_frame_info() {
     warn(true) ;
     frame_info fi ;
     return fi ;

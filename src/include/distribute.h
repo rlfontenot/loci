@@ -32,6 +32,7 @@
 #include <istream>
 #include <ostream>
 #include <fstream>
+#include <mpi.h>
 
 #include <Map.h>
 #include <DMap.h>
@@ -71,6 +72,7 @@ namespace Loci {
     return localset ;
   }
   
+  std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) ;
   std::vector<entitySet> all_collect_vectors(entitySet &e) ;
   int GLOBAL_OR(int b) ;
   int GLOBAL_AND(int b) ;

@@ -78,8 +78,7 @@ namespace Loci {
     virtual storeRepP freeze() ;
     block_hash<std::vector<int, malloc_alloc<int> > > *get_attrib_data() {return &attrib_data;}
   virtual DatatypeP getType() ;
-  virtual frame_info read_frame_info(hid_t group_id) ;
-  virtual frame_info write_frame_info(hid_t group_id) ;
+  virtual frame_info get_frame_info() ;
   } ;
   
   //***************************************************************************

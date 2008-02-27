@@ -69,8 +69,7 @@ namespace Loci {
     virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &en) ;
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     virtual DatatypeP getType() ;
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
     T *get_blackbox() { return attrib_data; }
   };
 
@@ -179,17 +178,9 @@ namespace Loci {
   }
   //**************************************************************************/
     
-  template<class T> 
-  frame_info blackboxRepI<T>::read_frame_info(hid_t group_id)
-  {
-    cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
-    frame_info fi ;
-    return fi ;
-  }
-  //**************************************************************************/
     
   template<class T> 
-  frame_info blackboxRepI<T>::write_frame_info(hid_t group_id)
+  frame_info blackboxRepI<T>::get_frame_info()
   {
     cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
     frame_info fi ;

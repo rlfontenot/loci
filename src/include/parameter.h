@@ -58,10 +58,8 @@ namespace Loci {
     void unpackdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int &size);
     DatatypeP getType(IDENTITY_CONVERTER g) ;
     DatatypeP getType(USER_DEFINED_CONVERTER g) ;
-    frame_info read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
-    frame_info read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
-    frame_info write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) ;
-    frame_info write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) ;
+    frame_info get_frame_info(IDENTITY_CONVERTER g) ;
+    frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
     paramRepI() { store_domain = interval(UNIVERSE_MIN,UNIVERSE_MAX) ; }
     paramRepI(const entitySet &p) { store_domain = p ;}
@@ -90,8 +88,7 @@ namespace Loci {
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     T *get_param() { return &attrib_data ; }
     virtual DatatypeP getType() ;
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
   } ;
 
   //**************************************************************************/
@@ -188,82 +185,22 @@ namespace Loci {
 
     return s ;
   }
+
   template<class T>
-  frame_info paramRepI<T>::read_frame_info(hid_t group_id) {
+  frame_info paramRepI<T>::get_frame_info() {
     typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    return read_frame_info(group_id, schema_converter()) ;
+    return get_frame_info(schema_converter()) ;
   }
 
   template<class T>
-  frame_info paramRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
-    int is_stat = 0 ;
-    int sz = 0 ;
-    hid_t datatype = H5T_NATIVE_INT ;
-    hid_t dataset = H5Dopen(group_id, "is_stat") ;
-    H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
-    H5Dclose(dataset) ;
-    dataset = H5Dopen(group_id, "vec_size") ;
-    H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
-    H5Dclose(dataset) ;
-    return frame_info(is_stat, sz);
-  }
-  template<class T>
-  frame_info paramRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
-    hsize_t dimension = 0 ;
-    hid_t dataspace ;
-    hid_t datatype = H5T_NATIVE_INT ;
-    hid_t dataset ;
-    int is_stat = 0 ;
-    int sz = 0 ;
-    frame_info fi ;
-    dataset = H5Dopen(group_id, "is_stat") ;
-    H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &is_stat) ;
-    H5Dclose(dataset) ;
-    dataset = H5Dopen(group_id, "vec_size") ;
-    H5Dread(dataset,datatype,H5S_ALL,H5S_ALL,H5P_DEFAULT, &sz) ;
-    H5Dclose(dataset) ;
-    dataset = H5Dopen(group_id, "second_level") ;
-    dataspace = H5Dget_space(dataset) ;
-    H5Sget_simple_extent_dims(dataspace, &dimension, NULL) ;
-    fi.is_stat = is_stat ;
-    fi.size = sz ;
-    std::vector<int> vint ;
-    int tmp ;
-    H5Dread(dataset,H5T_NATIVE_INT,H5S_ALL,H5S_ALL,H5P_DEFAULT, &tmp) ;
-    vint.push_back(tmp) ;
-    fi.second_level = vint ;
-    H5Dclose(dataset) ;
-    H5Sclose(dataspace) ;
-    return fi ;
-  }
-  template<class T>
-  frame_info paramRepI<T>::write_frame_info(hid_t group_id) {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    return write_frame_info(group_id, schema_converter()) ;
-  }
-
-  template<class T>
-  frame_info paramRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+  frame_info paramRepI<T>::get_frame_info(IDENTITY_CONVERTER g) {
     frame_info fi ;
     fi.is_stat = 0 ;
     fi.size = 1 ;
-    if(Loci::MPI_rank == 0 ) {
-      hsize_t dimension = 1 ;
-      int rank = 1 ;
-      hid_t dataspace = H5Screate_simple(rank, &dimension, NULL) ;
-      hid_t datatype = H5T_NATIVE_INT ;
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
-      H5Dclose(dataset) ;
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
-      H5Dclose(dataset) ;
-      H5Sclose(dataspace) ;
-    }
     return fi ;
   }
   template<class T>
-  frame_info paramRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+  frame_info paramRepI<T>::get_frame_info(USER_DEFINED_CONVERTER g) {
     frame_info fi ;
     fi.is_stat = 1 ;
     fi.size = 1 ;
@@ -273,32 +210,6 @@ namespace Loci {
     stateSize = cvtr.getSize();
     fi.second_level.push_back(stateSize) ;
 
-    hsize_t dimension = 0 ;
-    hid_t dataspace ;
-    hid_t datatype = H5T_NATIVE_INT ;
-    int rank = 1 ;
-    if(MPI_rank == 0) {
-      dimension = 1 ;
-      dataspace = H5Screate_simple(rank, &dimension, NULL) ;
-      hid_t dataset = H5Dcreate(group_id, "is_stat", datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.is_stat) ;
-      H5Dclose(dataset) ;
-      dataset = H5Dcreate(group_id, "vec_size", datatype, dataspace,H5P_DEFAULT) ;
-      H5Dwrite(dataset, datatype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &fi.size) ;
-      H5Dclose(dataset) ;
-      H5Sclose(dataspace) ;
-    }
-    rank = 1 ;
-    dimension = 1 ;
-    dataspace = H5Screate_simple(rank,&dimension,NULL) ;
-    hid_t dataset = H5Dcreate(group_id,"second_level",H5T_NATIVE_INT,
-                              dataspace,H5P_DEFAULT) ;
-    hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
-    H5Dwrite(dataset, datatype, memspace, dataspace, H5P_DEFAULT, &fi.second_level[0]) ;
-    H5Sclose(memspace) ;
-    H5Dclose(dataset) ;
-    H5Sclose(dataspace) ;
-    
     return fi ;
   }
 
