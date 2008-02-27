@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 #include <queue>
 #include <vector>
 #include <map>
@@ -323,7 +303,7 @@ std::vector<char> Face::make_faceplan(){
 //and edges are split according to edgePlan
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
-                          const const_MapVec<2>& edge2node,
+                          const const_multiMap& edge2node,
                           const const_store<vect3d>& pos,
                           const const_store<std::vector<char> >& edgePlan,
                           std::list<Node*>& bnode_list,
@@ -375,13 +355,13 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 //parallel version, build a face and index all the boundary nodes
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
-                          const const_MapVec<2>& edge2node,
+                          const const_multiMap& edge2node,
                           const const_store<vect3d>& pos,
                           const const_store<int>& node_offset,
                           const const_store<std::vector<char> >& edgePlan,
                           std::list<Node*>& bnode_list,
                           std::list<Edge*>& edge_list,
-                          const Map& node_l2f){
+                          const const_store<int>& node_l2f){
 
   Node** node = new Node*[num_edge];
   for(int nindex = 0; nindex < num_edge; nindex++){
@@ -439,7 +419,7 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 //this function is used in build_general_cell with quadface
 Face* build_tmp_general_face( const Entity* face2node, int num_edge,
                               const Entity* face2edge,
-                              const const_MapVec<2>& edge2node,
+                              const const_multiMap& edge2node,
                               const const_store<std::vector<char> >& edgePlan,
                               std::list<Node*>& bnode_list,
                               std::list<Edge*>& edge_list){
@@ -514,7 +494,7 @@ Face* build_tmp_general_face( const Entity* face2node, int num_edge,
 // //temperary version, build a face and index all the boundary nodes
 // Face* build_general_face( const Entity* face2node, int num_edge,
 //                           const Entity* face2edge,
-//                           const const_MapVec<2>& edge2node,
+//                           const const_multiMap& edge2node,
 //                           const const_store<vect3d>& pos,
 //                           const store<int>& node_offset,
 //                           const const_store<std::vector<char> >& edgePlan,

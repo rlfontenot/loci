@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 // This file build a Cell according to Loci data structures and refinementplans
 #include <vector>
 #include <list>
@@ -29,6 +9,7 @@ using std::cerr;
 using std::endl;
 using std::swap;
 using std::cout;
+using std::vector;
 // void checkNode(Node* nd){
 //   vect3d p = nd->p;
 //   if(abs(p.x)>0.2 && abs(p.x)<0.5){
@@ -43,13 +24,35 @@ std::vector<char> transfer_plan_q2g(const std::vector<char>& facePlan);
 
 
 
-std::vector<Entity> reorder_nodes(const Map& node_remap, const entitySet& localSet){
+std::vector<Entity> reorder_nodes(const const_store<int>& node_remap, const entitySet& localSet){
   
   //reverse the map 
-  std::vector<pair<Entity, Entity> > node_f2l(localSet.size());
+  std::vector<pair<int, Entity> > node_f2l(localSet.size());
   int index = 0;
   for(entitySet::const_iterator ei = localSet.begin(); ei != localSet.end(); ei++, index++){
-    node_f2l[index] = pair<Entity, Entity>(node_remap[*ei], *ei);
+    node_f2l[index] = pair<int, Entity>(node_remap[*ei], *ei);
+  }
+  sort(node_f2l.begin(), node_f2l.end());
+  std::vector<Entity> orderedSet(localSet.size());
+  for( int i= 0; i < localSet.size(); i++){
+    orderedSet[i] = node_f2l[i].second;
+    }
+  return orderedSet;
+}
+
+std::vector<Entity> reorder_edges(const const_store<int>& node_remap,const const_multiMap& edge2node, const entitySet& localSet){
+  
+  //reverse the map 
+  std::vector<pair<std::vector<int>, Entity> > node_f2l(localSet.size());
+  int index = 0;
+  for(entitySet::const_iterator ei = localSet.begin(); ei != localSet.end(); ei++, index++){
+    vector<int> e2n(2);
+   //  e2n[0] = min(node_remap[edge2node[*ei][0]],node_remap[edge2node[*ei][1]]) ;
+    //     e2n[1] = max(node_remap[edge2node[*ei][0]],node_remap[edge2node[*ei][1]]) ;
+
+    e2n[0] = node_remap[edge2node[*ei][0]] ;
+    e2n[1] = node_remap[edge2node[*ei][0]] ;
+    node_f2l[index] = pair<vector<int>, Entity>(e2n,*ei);
   }
   sort(node_f2l.begin(), node_f2l.end());
   std::vector<Entity> orderedSet(localSet.size());
@@ -60,13 +63,18 @@ std::vector<Entity> reorder_nodes(const Map& node_remap, const entitySet& localS
 }
 
 
-void reorder_faces(const Map& node_remap, std::vector<Entity>& localSet, char* orient){
+void reorder_faces(const const_store<int>& node_remap, const const_multiMap& face2node, std::vector<Entity>& localSet, char* orient){
   
   //reverse the map 
-  std::vector<pair<Entity, pair<Entity, char> > > node_f2l(localSet.size());
+  std::vector<pair<vector<int>, pair<Entity, char> > > node_f2l(localSet.size());
   for(unsigned int  index  = 0; index < localSet.size(); index++){
-    node_f2l[index] = pair<Entity, pair<Entity, char> >(node_remap[localSet[index]],
-                                                        pair<Entity, char>(localSet[index], orient[index]));
+    vector<int> f2n(face2node.num_elems(localSet[index]));
+    for(int i = 0; i< face2node.num_elems(localSet[index]); i++){
+      f2n[i] = node_remap[face2node[localSet[index]][i]];
+    }
+    
+    node_f2l[index] = pair<vector<int>, pair<Entity, char> >(f2n,
+                                                             pair<Entity, char>(localSet[index], orient[index]));
   }
   sort(node_f2l.begin(), node_f2l.end());
   
@@ -80,11 +88,6 @@ void reorder_faces(const Map& node_remap, std::vector<Entity>& localSet, char* o
 
 
 
-
-
-
-
-
 //parallel version in set_general_nums.cc
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
@@ -92,15 +95,15 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<std::vector<char> >& edgePlan,
                          const const_store<std::vector<char> >& facePlan,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap){
-  int numFaces = lower_size + upper_size + boundary_map_size;
+                         const const_store<int>& node_remap){
+ int numFaces = lower_size + upper_size + boundary_map_size;
   std::vector<Entity> faces(numFaces);
   
   //orient value: upper and boundary_map: 1
@@ -139,10 +142,9 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
 
   //reorder entities
   std::vector<Entity> orderedNodes = reorder_nodes(node_remap, nodes);
-  std::vector<Entity> orderedEdges = reorder_nodes(node_remap, edges);
-  reorder_faces(node_remap, faces, orient);
+  std::vector<Entity> orderedEdges = reorder_edges(node_remap, edge2node,edges);
+  reorder_faces(node_remap, face2node, faces, orient);
   
-    
   int numEdges = edges.size();
   int numNodes = nodes.size();
   
@@ -211,7 +213,8 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
 int  find_face_index(const Entity* lower, int lower_size,
                      const Entity* upper, int upper_size,
                      const Entity* boundary_map, int boundary_map_size,
-                     Entity f, const Map& node_remap){
+                     const const_multiMap& face2node,
+                     Entity f, const const_store<int>& node_remap){
   
   int numFaces = lower_size + upper_size + boundary_map_size;
   std::vector<Entity> faces(numFaces);
@@ -238,7 +241,7 @@ int  find_face_index(const Entity* lower, int lower_size,
   } 
   
   
-  reorder_faces(node_remap, faces, orient);
+  reorder_faces(node_remap, face2node, faces, orient);
 
   findex = -1;
   for( int i = 0; i < numFaces; i++){
@@ -264,11 +267,11 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* boundary_map, int boundary_map_size,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap){
+                         const const_store<int>& node_remap){
   int numFaces = lower_size + upper_size + boundary_map_size;
   std::vector<Entity> faces(numFaces);
   
@@ -308,8 +311,8 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
   //reorder entities
 
   std::vector<Entity> orderedNodes = reorder_nodes(node_remap, nodes);
-  std::vector<Entity> orderedEdges = reorder_nodes(node_remap, edges);
-  reorder_faces(node_remap, faces, orient);
+  std::vector<Entity> orderedEdges = reorder_edges(node_remap, edge2node, edges);
+  reorder_faces(node_remap, face2node, faces, orient);
   
   int numEdges = edges.size();
   int numNodes = nodes.size();
@@ -326,6 +329,11 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
   std::map<Entity, Edge*> e2e;
   for(entitySet::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
     Edge* anEdge = new Edge(n2n[edge2node[*ep][0]], n2n[edge2node[*ep][1]]);
+   //  //sanity check
+//     if(node_remap[edge2node[*ep][0]] > node_remap[edge2node[*ep][1]]) {
+//       cerr << "edge has wrong direction" << node_remap[edge2node[*ep][0]] << "  " << node_remap[edge2node[*ep][1]] << endl;
+//     }
+    
     edge_list.push_back(anEdge);
     e2e[*ep] = anEdge;
     }
@@ -370,7 +378,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<std::vector<char> >& edgePlan,
                          const const_store<std::vector<char> >& facePlan,
@@ -379,7 +387,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap){
+                         const const_store<int>& node_remap){
   int numFaces = lower_size + upper_size + boundary_map_size;
   std::vector<Entity> faces(numFaces);
   
@@ -418,8 +426,8 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     }
     //reorder entities
   std::vector<Entity> orderedNodes = reorder_nodes(node_remap, nodes);
-  std::vector<Entity> orderedEdges = reorder_nodes(node_remap, edges);
-  reorder_faces(node_remap, faces, orient);
+  std::vector<Entity> orderedEdges = reorder_edges(node_remap, edge2node, edges);
+  reorder_faces(node_remap, face2node, faces, orient);
   
     int numEdges = edges.size();
     int numNodes = nodes.size();
@@ -581,13 +589,13 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* boundary_map, int boundary_map_size,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<char>& posTag,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap){
+                         const const_store<int>& node_remap){
   int numFaces = lower_size + upper_size + boundary_map_size;
   std::vector<Entity> faces(numFaces);
   
@@ -626,8 +634,8 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     }
     //reorder entities
   std::vector<Entity> orderedNodes = reorder_nodes(node_remap, nodes);
-  std::vector<Entity> orderedEdges = reorder_nodes(node_remap, edges);
-  reorder_faces(node_remap, faces, orient);
+  std::vector<Entity> orderedEdges = reorder_edges(node_remap, edge2node, edges);
+  reorder_faces(node_remap, face2node, faces, orient);
   
     int numEdges = edges.size();
     int numNodes = nodes.size();
@@ -687,6 +695,116 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     
 }
 
+//parallel version in make_general_cellplan.cc
+Cell* build_general_cell(const Entity* lower, int lower_size,
+                         const Entity* upper, int upper_size,
+                         const Entity* boundary_map, int boundary_map_size,
+                         const const_multiMap& face2node,
+                         const const_multiMap& face2edge,
+                         const const_multiMap& edge2node,
+                         const const_store<vect3d>& pos,
+                         std::list<Node*>& bnode_list,
+                         std::list<Edge*>& edge_list,
+                         std::list<Face*>& face_list,
+                         const const_store<int>& node_remap){
+  int numFaces = lower_size + upper_size + boundary_map_size;
+  std::vector<Entity> faces(numFaces);
+  
+  //orient value: upper and boundary_map: 1
+  //              lower: -1
+  char* orient = new char[numFaces];
+  
+    int findex = 0;
+    for(int i=0; i<lower_size; i++){
+      faces[findex] = lower[i];
+      orient[findex++] = -1;
+    }
+    
+    for(int i=0; i<upper_size; i++){
+      faces[findex] = upper[i];
+      orient[findex++] = 1;
+      
+    }
+    for(int i=0; i<boundary_map_size; i++){
+      faces[findex] = boundary_map[i];
+      orient[findex++] = 1;
+      
+    } 
+    
+    
+    //collect all the nodes and edges of the cell
+    entitySet edges, nodes;
+    for(unsigned int i=0; i< faces.size(); i++){
+      for( int j= 0; j< face2node.num_elems(faces[i]); j++){
+        nodes += face2node[faces[i]][j];
+      }
+      
+      for( int j = 0; j < face2edge.num_elems(faces[i]); j++){
+        edges += face2edge[faces[i]][j];
+      }
+    }
+    //reorder entities
+    std::vector<Entity> orderedNodes = reorder_nodes(node_remap, nodes);
+    
+    std::vector<Entity> orderedEdges = reorder_edges(node_remap, edge2node, edges);
+    reorder_faces(node_remap, face2node, faces, orient);
+  
+    int numEdges = edges.size();
+    int numNodes = nodes.size();
+          
+    //define each node
+    std::map<Entity, Node*> n2n;
+    for(entitySet::const_iterator np = nodes.begin(); np != nodes.end(); np++){
+      Node* aNode = new Node(pos[*np]);
+      bnode_list.push_back(aNode);
+      n2n[*np] = aNode;
+    }
+          
+    //define each edge 
+    
+    std::map<Entity, Edge*> e2e;
+
+         
+          
+    for(entitySet::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
+      Edge* anEdge = new Edge(n2n[edge2node[*ep][0]], n2n[edge2node[*ep][1]]);
+      edge_list.push_back(anEdge);
+      e2e[*ep] = anEdge;
+    }
+
+    
+    
+    
+    //defines each face 
+    Face** face = new Face*[numFaces];
+    for(int i  = 0; i < numFaces; i++){
+      face[i] = new Face(face2edge.num_elems(faces[i]));
+      face_list.push_back(face[i]);
+      //find each edge
+      for(int j = 0; j < face[i]->numEdge; j++){
+        face[i]->edge[j] = e2e[face2edge[faces[i]][j]];
+        if(edge2node[face2edge[faces[i]][j]][0] == face2node[faces[i]][j] &&
+           edge2node[face2edge[faces[i]][j]][1] == face2node[faces[i]][j==face2node.num_elems(faces[i])-1? 0:j+1]) face[i]->needReverse[j] = false;
+        
+        else face[i]->needReverse[j] = true;
+      }
+    }
+    
+    Node** node = new Node*[numNodes];
+    for(unsigned int nindex = 0; nindex < orderedNodes.size(); nindex++){
+      node[nindex] = n2n[orderedNodes[nindex]];
+    }
+    
+    Edge** edge = new Edge*[numEdges];
+    
+    for(unsigned int eindex = 0; eindex < orderedEdges.size(); eindex++){
+      edge[eindex] = e2e[orderedEdges[eindex]];
+    }   
+    
+    return  new Cell(numNodes, numEdges, numFaces, node, edge, face,orient);
+    
+    
+}
 
 //parallel version, build  a cell and index all boundary nodes
 Cell* build_general_cell(const Entity* lower, int lower_size,
@@ -695,7 +813,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const_multiMap& face2node,
                          const_multiMap& face2edge,
-                         const_MapVec<2>& edge2node,
+                         const_multiMap& edge2node,
                          const_store<vect3d>& pos,
                          const_store<std::vector<char> >& edgePlan,
                          const_store<std::vector<char> >& facePlan,
@@ -703,7 +821,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap
+                         const const_store<int>& node_remap
                          ){
 
   int numFaces = lower_size + upper_size + boundary_map_size;
@@ -743,8 +861,8 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
   }
 //reorder entities
   std::vector<Entity> orderedNodes = reorder_nodes(node_remap, nodes);
-  std::vector<Entity> orderedEdges = reorder_nodes(node_remap, edges);
-  reorder_faces(node_remap, faces, orient);
+  std::vector<Entity> orderedEdges = reorder_edges(node_remap, edge2node, edges);
+  reorder_faces(node_remap, face2node, faces, orient);
   
   int numEdges = edges.size();
   int numNodes = nodes.size();
@@ -757,7 +875,8 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
   //define each node
   std::map<Entity, Node*> n2n;
   for(entitySet::const_iterator np = nodes.begin(); np != nodes.end(); np++){
-    Node* aNode = new Node(pos[*np], node_remap[*np]);
+    // if(node_remap[*np] < 1) cout << node_remap[*np] << endl;
+    Node* aNode = new Node(pos[*np], (node_remap[*np]));
     bnode_list.push_back(aNode);
     n2n[*np] = aNode;
   }
@@ -888,7 +1007,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
   }
   
   Node** node = new Node*[numNodes];
- 
+  
    for(unsigned int nindex = 0; nindex < orderedNodes.size(); nindex++){
           node[nindex] = n2n[orderedNodes[nindex]];
         }

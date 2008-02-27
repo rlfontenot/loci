@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 //******************************************************************************************
 // this file read in the refinement plan 
 //moified 03/12/07, read in cell tags before face tags
@@ -42,24 +22,193 @@ int currentMem(void);
 //functions from distribute_io
 namespace Loci{
   vector<entitySet> simplePartition(int mn, int mx, MPI_Comm comm );
+  vector<int> simplePartitionVec(int mn, int mx, int p) {
+    vector<int> nums(p+1) ;
+    int n = mx-mn+1 ;
+    int dn = n/p ; // divisor
+    int rn = n%p ; // remainder
+    int start = mn ;
+    nums[0] = start ;
+    for(int i=0;i<p;++i) {
+      start += dn+((i<rn)?1:0) ;
+      nums[i+1] = start ;
+    }
+    FATAL(start != mx+1) ;
+    return nums ;
+  }
+  vector<sequence> transposeSeq(const vector<sequence> sv) {
+     vector<int> send_sz(MPI_processes) ;
+    for(int i=0;i<MPI_processes;++i)
+      send_sz[i] = sv[i].num_intervals()*2 ;
+    vector<int> recv_sz(MPI_processes) ;
+    MPI_Alltoall(&send_sz[0],1,MPI_INT,
+                 &recv_sz[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int size_send = 0 ;
+    int size_recv = 0 ;
+    for(int i=0;i<MPI_processes;++i) {
+      size_send += send_sz[i] ;
+      size_recv += recv_sz[i] ;
+    }
+    //    outRep->allocate(new_alloc) ;
+    int *send_store = new int[size_send] ;
+    int *recv_store = new int[size_recv] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
 
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i <  MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_sz[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
+    }
+    for(int i = 0; i <  MPI_processes; ++i)
+      for(int j=0;j<sv[i].num_intervals();++j) {
+        send_store[send_displacement[i]+j*2] = sv[i][j].first ;
+        send_store[send_displacement[i]+j*2+1] = sv[i][j].second ;
+      }
+    
+    
+    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
+		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
 
+    vector<sequence> sv_t(MPI_processes) ;
+    for(int i = 0; i <  MPI_processes; ++i) 
+      for(int j=0;j<recv_sz[i]/2;++j) {
+        int i1 = recv_store[recv_displacement[i]+j*2]  ;
+        int i2 = recv_store[recv_displacement[i]+j*2+1] ;
+        sv_t[i] += interval(i1,i2) ;
+      }
+    delete[] recv_displacement ;
+    delete[] send_displacement ;
+    delete[] recv_store ;
+    delete[] send_store ;
+
+    return sv_t ;
+  }
+  
 // result allocated over local numbering 
 // input is in file numbering
 // Routine redistributes input to be arranged in the local numbering
 // and placed in result.
 // input is assumed to be partitioned by simplePartion
-//void distribute_reorder_store(Loci::storeRepP &result, entitySet resultSet,
-//                              Loci::storeRepP input, fact_db &facts );
+  void distribute_reorder_store(Loci::storeRepP &result, entitySet resultSet,
+                                Loci::storeRepP input, fact_db &facts ){
+    fact_db::distribute_infoP df = facts.get_distribute_info() ;
+    
+    dMap g2f ;
+    g2f = df->g2f.Rep() ;
+    Map l2g ;
+    l2g = df->l2g.Rep() ;
+    
+    Map newnum ;
+    newnum.allocate(resultSet) ;
+    
+    FORALL(resultSet,i) {
+      newnum[i] = g2f[l2g[i]] ;
+    } ENDFORALL ;
+
+    const int p = MPI_processes ;
+    // Get input (file) distribution
+    int imx = GLOBAL_MAX(input->domain().Max()) ;
+    int imn = GLOBAL_MIN(input->domain().Min()) ;
+    vector<int> fptn = simplePartitionVec(imn,imx,p) ;
+
+    // Get distribution plan
+    vector<vector<pair<int,int> > > dist_plan(p) ;
+    int np = (imx-imn+1)/p ; // number of elements per processor
+    FORALL(resultSet,i) {
+      int fn = newnum[i] ;
+      if(fn < imn || fn > imx) {
+        cerr << "Problem with distribute_reorder_store, index out of bounds"
+             << endl ;
+        cerr << "fn = " << fn << "imx = " << imx << "imn = " << imn << endl ;
+        Loci::Abort() ;
+      }
+      // processor that contains this value
+      int r = min((fn-imn)/np,p-1) ; // Guess which processor
+      for(;;) { // search from guess
+        if(fn >= fptn[r] && fn < fptn[r+1])
+          break ;
+        r+= (fn < fptn[r])?-1:1 ;
+        if(r < 0 || r >= p) {
+          debugout << "bad r in processor search " << r << endl ;
+        }
+        FATAL(r >= p) ;
+        FATAL(r < 0) ;
+      }
+      dist_plan[r].push_back(pair<int,int>(fn,i)) ;
+    } ENDFORALL ;
+    // Compute recv requests from distribution plan
+    vector<sequence> recv_seq(p),send_req(p) ;
+    for(int i=0;i<p;++i) {
+      sort(dist_plan[i].begin(),dist_plan[i].end()) ;
+      sequence s1,s2 ;
+      int psz = dist_plan[i].size() ;
+      for(int j=0;j<psz;++j) {
+        s1 +=dist_plan[i][j].first ;
+        s2 +=dist_plan[i][j].second ;
+      }
+      send_req[i] = s1 ;
+      recv_seq[i] = s2 ;
+    }
+
+    // Transpose the send requests to get the sending sequences
+    // from this processor
+    vector<sequence> send_seq = transposeSeq(send_req) ;
+    vector<entitySet> send_sets(p) ;
+    for(int i=0;i<p;++i)
+      send_sets[i] = entitySet(send_seq[i]) ;
+    
+    int *send_sizes = new int[p] ;
+    int *recv_sizes = new int[p] ;
+
+
+    for(int i=0;i<p;++i)
+      send_sizes[i] = input->pack_size(send_sets[i]) ;
+
+    MPI_Alltoall(&send_sizes[0],1,MPI_INT,
+                 &recv_sizes[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int *send_dspl = new int[p] ;
+    int *recv_dspl = new int[p] ;
+    send_dspl[0] = 0 ;
+    recv_dspl[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      send_dspl[i] = send_dspl[i-1] + send_sizes[i-1] ;
+      recv_dspl[i] = recv_dspl[i-1] + recv_sizes[i-1] ;
+    }
+    int send_sz = send_dspl[p-1] + send_sizes[p-1] ;
+    int recv_sz = recv_dspl[p-1] + recv_sizes[p-1] ;
+
+    unsigned char *send_store = new unsigned char[send_sz] ;
+    unsigned char *recv_store = new unsigned char[recv_sz] ;
+
+    for(int i=0;i<p;++i) {
+      int loc_pack = 0 ;
+      input->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
+               send_sets[i]) ;
+    }
+
+    MPI_Alltoallv(send_store, &send_sizes[0], send_dspl, MPI_PACKED,
+		  recv_store, &recv_sizes[0], recv_dspl, MPI_PACKED,
+		  MPI_COMM_WORLD) ;
+
+    for(int i=0;i<p;++i) {
+      int loc_pack = 0 ;
+      result->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
+                     recv_seq[i]) ;
+    }
+    delete[] recv_store ;
+    delete[] send_store ;
+    delete[] recv_dspl ;
+    delete[] send_dspl ;
+    delete[] recv_sizes ;
+    delete[] send_sizes ;
   
-
-  void File2LocalOrder(storeRepP &result, entitySet resultSet,
-                       storeRepP input, int offset,
-                       fact_db::distribute_infoP dist,
-                       MPI_Comm comm);
-
+  }
 }
-
 
 class get_postag : public pointwise_rule{
   const_param<std::string> tagfile_par;
@@ -189,11 +338,8 @@ public:
     //redistribute temp_posTag to local node dom
     
     Loci::storeRepP posTagRepP = posTag.getRep();
-    Loci::File2LocalOrder(posTagRepP, dom, temp_posTag.getRep(), 0,
-                          Loci::exec_current_fact_db->get_distribute_info(),
-                          MPI_COMM_WORLD) ;
-    //    Loci::distribute_reorder_store(posTagRepP, dom, temp_posTag.getRep(),
-    //                                   *(Loci::exec_current_fact_db));
+    Loci::distribute_reorder_store(posTagRepP, dom, temp_posTag.getRep(),
+                                   *(Loci::exec_current_fact_db));
             
     delete [] buf;
     //process 0 close file

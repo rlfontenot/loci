@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 
 //                               
@@ -43,10 +23,6 @@
 using std::cerr;
 using std::endl;
 
-std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
-                                const std::vector<char>& facePlan,
-                                char orientCode,
-                                int faceID);
 
 
 class Prism
@@ -184,7 +160,7 @@ public:
                std::vector<Prism*>& prism_cells);
 
   //used in make_prism_cellplan.cc
-  void resplit( int level,
+  void Prism::resplit( int level,
                        std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list,
                        std::list<QuadFace*>& quadface_list,
@@ -209,7 +185,7 @@ public:
   bool  isSiblingNeighbor(const Prism* aCell, int dd, int &nf)const;
 
   //get real sibling neib
-  Prism* getSiblingNeib(int dd, int& nf);
+  Prism* Prism::getSiblingNeib(int dd, int& nf);
 
   //only use it when dd >=2
   inline int parentFace(int dd){
@@ -263,7 +239,7 @@ public:
                     std::list<Edge*>& edge_list,
                     std::list<QuadFace*>& qface_list,
                     std::list<Face*>& gface_list);
-  
+  void sort_leaves(std::list<Prism*>& v1);  
   void rebalance_cells(int split_mode,
                        std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list,
@@ -374,14 +350,15 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,
-                        std::list<Face*>& gface_list);
+                        std::list<Face*>& gface_list,
+                        const const_store<int>& node_remap);
 Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
                         const Entity* boundary_map, int boundary_map_size,
@@ -390,7 +367,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
@@ -399,7 +376,8 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,
-                        std::list<Face*>& gface_list);
+                        std::list<Face*>& gface_list,
+                        const const_store<int>& node_remap);
 // for no restart
 Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
@@ -409,34 +387,30 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                          const const_store<char>& posTag,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,
-                        std::list<Face*>& gface_list);
+                        std::list<Face*>& gface_list,
+                        const const_store<int>& node_remap);
 
-
-//serial version
-// Prism* build_prism_cell(const Entity* lower, int lower_size,
-//                         const Entity* upper, int upper_size,
-//                         const Entity* boundary_map, int boundary_map_size,
-//                         const Array<char,5>& prism2face,
-//                         const Array<char,6>& prism2node,
-//                         const Array<char,5>& orientCode,
-//                         const const_multiMap& face2node,
-//                         const const_multiMap& face2edge,
-//                         const const_MapVec<2>& edge2node,
-//                         const const_store<vect3d>& pos,
-//                         const const_store<std::vector<char> >& edgePlan,
-//                         const const_store<std::vector<char> >& facePlan,
-//                         const store<int>& node_offset,
-//                         int offset_min,
-//                         std::list<Node*>& bnode_list,
-//                         std::list<Edge*>& edge_list,
-//                         std::list<QuadFace*>& qface_list,
-//                         std::list<Face*>& gface_list);
+Prism* build_prism_cell(const Entity* lower, int lower_size,
+                        const Entity* upper, int upper_size,
+                        const Entity* boundary_map, int boundary_map_size,
+                        const Array<char,5>& prism2face,
+                        const Array<char,6>& prism2node,
+                        const Array<char,5>& orientCode,
+                        const const_multiMap& face2node,
+                        const const_multiMap& face2edge,
+                        const const_multiMap& edge2node,
+                        const const_store<vect3d>& pos,
+                        std::list<Node*>& bnode_list,
+                        std::list<Edge*>& edge_list,
+                        std::list<QuadFace*>& qface_list,
+                        std::list<Face*>& gface_list,
+                        const const_store<int>& node_remap);
 
 //parallel version
 Prism* build_prism_cell(const Entity* lower, int lower_size,
@@ -447,12 +421,13 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
                         const const_store<int>& node_offset,
-                        const Map& node_l2f,
+                        const const_store<int>& face_l2f,
+                        const const_store<int>& node_l2f,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,

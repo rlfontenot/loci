@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 ////////////////////////////////////////////////////////////////////////////////////////
 //                                get_hex_fine_grid.cc                                    //
 //                                by: Qiuhan Xue                                      //
@@ -39,6 +19,7 @@
 using std::cerr;
 using std::endl;
 using std::vector;
+using Loci::storeRepP;
 //get inner_nodes  of hex cells
 class get_hex_cell_nodes : public pointwise_rule{
   const_store<std::vector<char> > cellPlan;
@@ -52,13 +33,14 @@ class get_hex_cell_nodes : public pointwise_rule{
   const_store<Array<char,8> > hex2node;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;
   
- const_blackbox<Loci::storeRepP> node_remap;
+
   store<Loci::FineNodes> inner_nodes;
  
 
+  const_store<int> node_l2f;
 
 public:
   get_hex_cell_nodes(){
@@ -79,25 +61,24 @@ public:
   
 
     name_store("inner_nodes", inner_nodes);
-    name_store("node_remap", node_remap);
+    name_store("fileNumber(face2node)", node_l2f);
 
     
     input("cellPlan");
     input("(hex2face, hex2node, hexOrientCode)");
-    input("(lower, upper, boundary_map)->(facePlan)");
+    input("(lower, upper, boundary_map)->(fileNumber(face2node),facePlan)");
     input("(lower, upper, boundary_map)->face2edge->(edgePlan)");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
- input("node_remap");
+    
     output("inner_nodes");
-       constraint("hexcells");
+    constraint("hexcells");
   }
   virtual void compute(const sequence &seq){
-   
-   
+    if(seq.size()!=0){
+     
       do_loop(seq, this);
-   
-   
+    }
   }
   void calculate(Entity cc){
     
@@ -130,7 +111,8 @@ public:
                                        facePlan,
                                        bnode_list,
                                        edge_list,
-                                       face_list);
+                                       face_list,
+                                       node_l2f);
           
       std::vector<HexCell*> cells;
       

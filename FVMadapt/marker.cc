@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                        test8.cc
 //
@@ -29,18 +9,17 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-//#include <fstream>
+
 #include <iostream>
 #include <string>
-//#include <utility>
-//#include <vector>
-//#include <list>
-//#include <algorithm>
+
 #include <Loci.h>
 #include <stdlib.h>
-//#include "prism.h"
-//#include "defines.h"
+
 #include "globals.h"
+#include <Loci>
+
+using std::cout ;
 
 
 using std::string;
@@ -48,9 +27,10 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ofstream;
-
+using Loci::MPI_processes;
 namespace Loci{
   void parallelClassifyCell(fact_db &facts) ;
+   void createEdgesParallel(fact_db &facts) ;
 }
 
   
@@ -70,6 +50,8 @@ int main(int argc, char ** argv) {
   string outFile  = "out.plan";
   //this is the name of the tag file
   string tagFile = "r1.tag";
+  //this is the name of xml file
+  string xmlFile = "region.xml";
   // Here's where we parse out the command line arguments that are
   // relevant to this program.
   int j=1;
@@ -79,8 +61,10 @@ int main(int argc, char ** argv) {
   //if the input refinement filename is provided in command line, restart is true,
   //otherwise, restart is false
   bool restart = false;
-  // bool split_specified = false;
-  // bool nosplit_specified = false;
+  //if xml_input is true, cell plan is defines by a region and tol value. otherwise,
+  //it's decided by tagfile
+  bool xml_input = false;
+  
   int split_mode = 0;//default mode, hexcells and prisms split according to edge length
   //print out help info
   if( (argc == 1)||(argc==2) ){
@@ -93,7 +77,11 @@ int main(int argc, char ** argv) {
       cout <<"-g <file> -- original grid file(required)," << endl;
       cout <<"             refinement plans are based on this grid" << endl;
       cout <<"-r <file> -- input refinement plan file(optional)" <<endl;
-      cout <<"-tag <file> -- input tag file(required), " << endl;
+      cout << "-xml <file> -- input xml file(optional), the file define a geometric region" << endl;
+      cout << "            --all cells inside the region will be refined to a tolerance value" << endl;
+      cout << "            --xml option and -tag option can not be selected at the same time" <<endl;
+      
+      cout <<"-tag <file> -- input tag file(optional), " << endl;
       cout <<"               if there is an input refinement plan file,"<<endl;
       cout <<"               the tag file is for the refined grid" << endl;
       cout <<"               otherwise, the tag file is for the original grid" << endl;
@@ -132,11 +120,18 @@ int main(int argc, char ** argv) {
     }
     
     else if(arg == "-tag" && (i+1) < argc){
-      //replace the input filename with the next argument
+      //replace the tag filename with the next argument
       tagFile =  argv[++i];
     }
-    else if(arg == "-tol" && (i+1) < argc){
-      //replace the tolarence(minimum grid spacing) with the next argument
+     else if(arg == "-xml" && (i+1) < argc){
+       //replace the xml filename with the next argument
+       xmlFile =  argv[++i];
+       xml_input = true;
+     }
+
+     
+     else if(arg == "-tol" && (i+1) < argc){
+       //replace the tolarence(minimum grid spacing) with the next argument
       char** endptr = 0;
       Globals::tolerance = strtod(argv[++i], endptr);
       
@@ -203,7 +198,7 @@ int main(int argc, char ** argv) {
   outFile = pathname + outFile;
   planFile = pathname + planFile;
   tagFile = pathname + tagFile;
-  
+  xmlFile = pathname + xmlFile;
   
   if(Loci::MPI_rank == 0){
     cout <<"Marker running" <<endl;
@@ -237,7 +232,7 @@ int main(int argc, char ** argv) {
   
   //Setup Loci datastructures
   createLowerUpper(facts) ;
-  createEdgesPar(facts) ;
+  Loci::createEdgesParallel(facts) ;
   Loci:: parallelClassifyCell(facts);
  
   
@@ -256,6 +251,8 @@ int main(int argc, char ** argv) {
   param<bool> restart_par;
   *restart_par = restart;
   facts.create_fact("restart_par", restart_par);
+
+
   
   if(restart){
     param<std::string> planfile_par ;
@@ -263,12 +260,45 @@ int main(int argc, char ** argv) {
     facts.create_fact("planfile_par",planfile_par) ;
   }
 
+  
+  if(xml_input){
+    param<std::string> xmlfile_par ;
+    *xmlfile_par = xmlFile;
+    facts.create_fact("xmlfile_par",xmlfile_par) ;
+  }
+
+  if(restart && xml_input){
+    param<int> restart_xml_par;
+    *restart_xml_par = 1;
+    facts.create_fact("restart_xml_par",restart_xml_par);
+  }
+  
+  if(restart && (!xml_input)){
+    param<int> restart_no_xml_par;
+    *restart_no_xml_par = 1;
+    facts.create_fact("restart_no_xml_par",restart_no_xml_par);
+  }
+
+  if((!restart) && xml_input){
+    param<int> no_restart_xml_par;
+    *no_restart_xml_par = 1;
+    facts.create_fact("no_restart_xml_par",no_restart_xml_par);
+  }
+  if((!restart) && (!xml_input)){
+    param<int> no_restart_no_xml_par;
+    *no_restart_no_xml_par = 1;
+    facts.create_fact("no_restart_no_xml_par",no_restart_no_xml_par);
+  }
+
+  
   param<int> split_mode_par;
   *split_mode_par = split_mode;
   facts.create_fact("split_mode_par", split_mode_par);
 
   
-  if(!Loci::makeQuery(rules, facts, "cellplan_output")) {
+  
+      if(!Loci::makeQuery(rules, facts, "cellplan_output")) {
+  //  if(!Loci::makeQuery(rules, facts, "balancedCellPlan")) {
     std::cerr << "query failed!" << std::endl;
     Loci::Abort();
   }
@@ -276,4 +306,4 @@ int main(int argc, char ** argv) {
   // Tell Loci to cleanup after itself and exit gracefully.
   Loci::Finalize();
 }
-
+  

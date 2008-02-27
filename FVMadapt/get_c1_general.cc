@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 #include <queue>
 #include <vector>
 #include <Loci.h>
@@ -40,19 +20,22 @@ struct Cell_Face{
   Cell_Face(DiamondCell* c1, int i, Face* f1):c(c1), fi(i), f(f1){};
 };
 
-
-
+//std::vector<Entity> reorder_nodes(const const_store<int>& node_remap, const entitySet& localSet);
+//std::vector<Entity> reorder_edges(const const_store<int>& node_remap,const const_multiMap& edge2node, const entitySet& localSet);
+//void reorder_faces(const const_store<int>& node_remap, const const_multiMap& face2node, std::vector<Entity>& localSet, char* orient);
 std::vector<int32> get_c1(const Entity* lower, int lower_size,
                           const Entity* upper, int upper_size,
                           const Entity* boundary_map, int boundary_map_size,
                           const const_multiMap& face2node, 
                           const const_multiMap& face2edge,
-                          const const_MapVec<2>& edge2node,
+                          const const_multiMap& edge2node,
                           const std::vector<char>& cellPlan,
                           const std::vector<char>& facePlan,
                           Entity ff,
-                          const Map& node_remap
+                          const const_store<int>& node_remap
                           ){
+
+    
   
   std::vector<int32> c1;
   
@@ -81,8 +64,10 @@ std::vector<int32> get_c1(const Entity* lower, int lower_size,
   int findex = find_face_index(lower, lower_size,
                                upper, upper_size,
                                boundary_map, boundary_map_size,
+                               face2node,
                                ff,
                                node_remap);
+ 
 
   char faceOrient = aCell->faceOrient[findex];
 
@@ -219,16 +204,15 @@ std::vector<int32> get_c1_general(const Entity* lower, int lower_size,
                                   bool is_quadface,
                                   const const_multiMap& face2node, 
                                   const const_multiMap& face2edge,
-                                  const const_MapVec<2>& edge2node,
+                                  const const_multiMap& edge2node,
                                   const std::vector<char>& cellPlan,
                                   const std::vector<char>& facePlan,
                                   Entity ff,
-                                  const Map& node_remap
+                                  const const_store<int>& node_remap
                                   ){
 
   std::vector<int32> c1;
   if(is_quadface){
-  
     std::vector<char> newPlan = transfer_plan_q2g(facePlan);
     std::vector<int32> tmp_c1 = get_c1(lower, lower_size,
                                        upper, upper_size,
@@ -421,6 +405,7 @@ std::vector<int32> get_c1_general(const Entity* lower, int lower_size,
 
   }
   else{
+  
     c1 =  get_c1(lower, lower_size,
                  upper, upper_size,
                  boundary_map, boundary_map_size,

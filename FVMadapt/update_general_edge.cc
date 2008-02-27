@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 #include <queue>
 #include <vector>
 #include <utility>
@@ -60,7 +40,7 @@ class general_tmpedge_points_apply : public apply_rule<store<SetLong>, SetLongUn
   const_store<std::vector<char> > facePlan;
   const_multiMap face2edge;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<bool> is_quadface;
   store<SetLong > pointSet;
   const_store<vect3d> pos;//dummy
@@ -81,7 +61,9 @@ public:
     constraint("faces");
   }
   virtual void compute(const sequence &seq){
+   
     do_loop(seq, this);
+   
   }
   void calculate(Entity f){
     if(is_quadface[f]){
@@ -300,7 +282,9 @@ public:
     
   }
   virtual void compute(const sequence &seq){
+   
     do_loop(seq, this);
+   
   }
   void calculate(Entity e){
      if(pointSet[e].aset.empty())return;

@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //                          quadface.h
 //
@@ -153,7 +133,7 @@ public:
   
   
   //the center of the face, defined as the mass center of 4 nodes
-  inline Node* centroid(){
+  inline Node* QuadFace::centroid(){
     vect3d nodes[4];
     //get nodes
     for(int i = 0; i <2; i++){
@@ -251,7 +231,7 @@ public:
 
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_MapVec<2>& edge2node,
+                           const const_multiMap& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            std::list<Node*>& bnode_list,
@@ -261,18 +241,18 @@ QuadFace* build_quad_face( const Entity* face2node,
 //parallel version
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_MapVec<2>& edge2node,
+                           const const_multiMap& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            const const_store<int>& node_offset,
-                           const Map& node_l2f,
+                           const const_store<int>& node_l2f,
                            std::list<Node*>& bnode_list,
                            std::list<Edge*>& edge_list);
 
 //this function is used in build_general_cell with quadface
 QuadFace* build_tmp_quad_face( const Entity* face2node, 
                                const Entity* face2edge,
-                               const const_MapVec<2>& edge2node,
+                               const const_multiMap& edge2node,
                                const const_store<std::vector<char> >& edgePlan,
                                std::list<Node*>& bnode_list,
                                std::list<Edge*>& edge_list);

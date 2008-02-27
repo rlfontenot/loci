@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 //                       set_offset.cc
 // 
@@ -71,8 +51,8 @@ public:
 
     if(num_procs ==  1){
       
-      int offset = *num_original_nodes + 1; //in cobalt, index of node start with 1
-      
+      // int offset = *num_original_nodes + 1; //in cobalt, index of node start with 1
+      int offset = *num_original_nodes ; //in vog, index of node start with 0
       FORALL(*edges, ei){
         node_offset[ei] = offset;
         offset += num_inner_nodes[ei];
@@ -127,7 +107,9 @@ public:
     local_nodes_sizes = Loci::all_collect_sizes(num_local_inner_nodes);
 
     //each process computes its node  offset
-    int noffset = *num_original_nodes +1;
+    // int noffset = *num_original_nodes +1;
+    int noffset = *num_original_nodes ;
+    
     for(int i = 0; i < my_id; i++){
       noffset += local_nodes_sizes[i];
     }

@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 //************************************************************************
 // this file extract the face refinement plan from the cell refinement
 //plan. A queue is used to simulate the tree-building process but no tree is
@@ -409,37 +389,37 @@ std::vector<char> merge_quad_face(std::vector<char>& facePlanL, char orientCodeL
   Point2d p1, p2, p3, p4, p5, pmin, pmax;
   bitset<2> binaryCode;
   
-    while(!Q.empty()){
-      //read in the range
-      pRange = Q.front();
-      
-      //define the positions
-      pmin = pRange.minP;
-      pmax = pRange.maxP;
-      p1.x = pmin.x;
-      p1.y = (pmin.y + pmax.y)/2;
-      p2.x = (pmin.x + pmax.x)/2;
-      p2.y = pmin.y;
-      p3.x = pmax.x;
-      p3.y = p1.y;
-      p4.x = p2.x;
-      p4.y = pmax.y;
-      p5.x = p2.x;
-      p5.y = p1.y;
-
-      //search the inner edges, if exist, delete the edge or the cut it off,
-      //if p1->p3 exists in xEdge, binaryCode.set(0)
-      //if p2->p4 exists in yEdge, binaryCode.set(1)
-      binaryCode.reset();
-      if(xEdge.size() != 0){
-        list<Edge2d>::iterator p = find(xEdge.begin(), xEdge.end(), Edge2d(p1.y, p1.x, p3.x));
-        if(p != xEdge.end()){
-          binaryCode.set(0);
-          xEdge.erase(p);
-        }
-        else{
-          for(p = xEdge.begin(); p != xEdge.end(); p++){
-            if(p->pos == p1.y && p->head <= p1.x && p->tail >= p3.x){
+  while(!Q.empty()){
+    //read in the range
+    pRange = Q.front();
+    
+    //define the positions
+    pmin = pRange.minP;
+    pmax = pRange.maxP;
+    p1.x = pmin.x;
+    p1.y = (pmin.y + pmax.y)/2;
+    p2.x = (pmin.x + pmax.x)/2;
+    p2.y = pmin.y;
+    p3.x = pmax.x;
+    p3.y = p1.y;
+    p4.x = p2.x;
+    p4.y = pmax.y;
+    p5.x = p2.x;
+    p5.y = p1.y;
+    
+    //search the inner edges, if exist, delete the edge or the cut it off,
+    //if p1->p3 exists in xEdge, binaryCode.set(0)
+    //if p2->p4 exists in yEdge, binaryCode.set(1)
+    binaryCode.reset();
+    if(xEdge.size() != 0){
+      list<Edge2d>::iterator p = find(xEdge.begin(), xEdge.end(), Edge2d(p1.y, p1.x, p3.x));
+      if(p != xEdge.end()){
+        binaryCode.set(0);
+        xEdge.erase(p);
+      }
+      else{
+        for(p = xEdge.begin(); p != xEdge.end(); p++){
+          if(p->pos == p1.y && p->head <= p1.x && p->tail >= p3.x){
               binaryCode.set(0);
               if((p->head < p1.x) && (p->tail > p3.x)){
                 int64 tempHead = p->head;
@@ -451,72 +431,72 @@ std::vector<char> merge_quad_face(std::vector<char>& facePlanL, char orientCodeL
               else{
                 p->head = p3.x;
               }
-            
+              
               break;
             }
-          }
-        }
-      }  
-      
-      
-      if(yEdge.size() != 0){
-        list<Edge2d>::iterator p = find(yEdge.begin(), yEdge.end(), Edge2d(p2.x, p2.y, p4.y));
-        if(p != yEdge.end()){
-          binaryCode.set(1);
-          yEdge.erase(p);
-        }
-        else{
-          for( p = yEdge.begin(); p != yEdge.end(); p++){
-            if(p->pos == p2.x && p->head <= p2.y && p->tail >= p4.y){
-              binaryCode.set(1);
-              if((p->head < p2.y) && (p->tail > p4.y)){
-                int64 tempHead = p->head;
-                p->head = p4.y;
-                yEdge.insert(p, Edge2d(p2.x, tempHead, p2.y));
-              }
-              else if((p->head < p2.y) && (p->tail == p4.y)){
-                p->tail = p2.y;}
-              else{
-                p->head = p4.y;
-              }
-              break;
-            }
-          }
-          
         }
       }
-      
-      //push the children range into Q
-      switch(binaryCode.to_ulong()){
-      case 3:
-        Q.push(Range2d(pmin, p5));
-        Q.push(Range2d(p1, p4));
-        Q.push(Range2d(p2, p3));
+    }  
+    
+    
+    if(yEdge.size() != 0){
+      list<Edge2d>::iterator p = find(yEdge.begin(), yEdge.end(), Edge2d(p2.x, p2.y, p4.y));
+      if(p != yEdge.end()){
+        binaryCode.set(1);
+        yEdge.erase(p);
+      }
+      else{
+        for( p = yEdge.begin(); p != yEdge.end(); p++){
+          if(p->pos == p2.x && p->head <= p2.y && p->tail >= p4.y){
+            binaryCode.set(1);
+            if((p->head < p2.y) && (p->tail > p4.y)){
+              int64 tempHead = p->head;
+              p->head = p4.y;
+              yEdge.insert(p, Edge2d(p2.x, tempHead, p2.y));
+            }
+              else if((p->head < p2.y) && (p->tail == p4.y)){
+                p->tail = p2.y;}
+            else{
+              p->head = p4.y;
+            }
+            break;
+          }
+        }
+        
+      }
+    }
+    
+    //push the children range into Q
+    switch(binaryCode.to_ulong()){
+    case 3:
+      Q.push(Range2d(pmin, p5));
+      Q.push(Range2d(p1, p4));
+      Q.push(Range2d(p2, p3));
         Q.push(Range2d(p5, pmax));
         plan.push_back(3);
         break;
         
-      case 2:
+    case 2:
         Q.push(Range2d(pmin, p4));
         Q.push(Range2d(p2, pmax));
         plan.push_back(2);
         break;
         
-      case 1:
-        Q.push(Range2d(pmin,p3));
-        Q.push(Range2d(p1, pmax));
-        plan.push_back(1);
-        break;
+    case 1:
+      Q.push(Range2d(pmin,p3));
+      Q.push(Range2d(p1, pmax));
+      plan.push_back(1);
+      break;
         
-      case 0:
-        plan.push_back(0);
-        break; 
-      }
-      Q.pop();
+    case 0:
+      plan.push_back(0);
+      break; 
     }
-    while(plan.size() != 0 && plan.back() == 0 )plan.pop_back();
-    return plan;    
- 
+    Q.pop();
+  }
+  while(plan.size() != 0 && plan.back() == 0 )plan.pop_back();
+  return plan;    
+  
 }
 
 

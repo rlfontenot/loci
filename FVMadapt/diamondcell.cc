@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                diamondcell.cc
@@ -630,6 +610,7 @@ void DiamondCell::get_edges(std::set<Edge*>& edges){
   }
   if(int(edges.size()) != 4*nfold){
     cerr<< "WARNING: incorrect num of edges" << endl;
+    cerr << "edges_size " <<edges.size() << " 4*nfold " << 4*nfold << endl;
     Loci::Abort();
   }
 }
@@ -936,19 +917,34 @@ bool Cell::balance_cell(std::list<Node*>& node_list,
 
   else{
     needBalance = false;
+    std::list<DiamondCell*> leaves;
     for(int i = 0; i < numNode; i++){
-      needBalance = needBalance || (child[i]->balance_cell(node_list, edge_list, face_list));
+      child[i]->sort_leaves(leaves);
+    }
+    for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+      bool tmp =  (*p)->balance_cell( node_list, edge_list, face_list);
+      needBalance = tmp||needBalance;
     }
     
   }
   return needBalance;
 }
-
+void DiamondCell::sort_leaves(std::list<DiamondCell*>& leaves){
+  if(childCell != 0){
+    for(int i = 0; i <(2*nfold+2); i++)childCell[i]->sort_leaves(leaves);
+  }
+  else{
+    leaves.push_back(this);
+  }
+}
 void Cell::rebalance_cells(std::list<Node*>& node_list,
                            std::list<Edge*>& edge_list,
                            std::list<Face*>& face_list){ 
   bool need_balance_more = true;
+
   while(need_balance_more){
+
+
     need_balance_more = balance_cell(node_list, edge_list, face_list); 
   }
 }

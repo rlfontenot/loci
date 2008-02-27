@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 #include <list>
 #include <queue>
 #include <iostream>
@@ -140,3 +120,12 @@ void Edge::resplit(const std::vector<char>& edgePlan,
   }
   
  
+
+int Edge::get_depth(){
+  std::list<Edge*> leaves;
+  int depth = 0;
+  for(std::list<Edge*>::const_iterator p = leaves.begin(); p!=leaves.end(); p++){
+    depth = max(depth, (*p)->level);
+  }
+  return depth;
+}

@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 
 
 
@@ -43,10 +23,10 @@ std::vector<char>   extract_general_face(const Entity* lower, int lower_size,
                                          const Entity* boundary_map, int boundary_map_size,
                                          const const_multiMap& face2node,
                                          const const_multiMap& face2edge,
-                                         const const_MapVec<2>& edge2node,
+                                         const const_multiMap& edge2node,
                                          const std::vector<char>& cellPlan,
                                          Entity ff,
-                                         const Map& node_remap
+                                         const const_store<int>& node_remap
                                          );
 std::vector<char>  extract_prism_face(const  std::vector<char>& cellPlan, int dd);
 std::vector<char>  merge_tri_face_p(const  std::vector<char>& cellPlan1, int dd1, char orientCode1);
@@ -78,13 +58,13 @@ class merge_tmpface_gh:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
-  const_blackbox<Loci::storeRepP> node_remap;
-  Map node_l2f;
+
+  const_store<int> node_l2f;
 public:
   merge_tmpface_gh(){
     name_store("cl", cl);
@@ -100,21 +80,23 @@ public:
     name_store("pos", pos);
     name_store("tmpCellPlan", cellPlan);
     name_store("tmpFacePlan", facePlan);
-    name_store("iface_remap", node_remap);
-    input("iface_remap");
+    name_store("fileNumber(pos)", node_l2f);
+
     input("(cl,cr)->tmpCellPlan");
     input("cr->hexOrientCode");
     input("fr");
-    input("cl->(lower, upper, boundary_map)->face2node->pos");
+    input("cl->(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("cl->(lower, upper, boundary_map)->face2edge->edge2node->pos");
     output("tmpFacePlan");
     constraint("cl->gnrlcells, cr->hexcells");
   }
   virtual void compute(const sequence &seq){
+  
     if(seq.size()!=0){
-    node_l2f = *node_remap;
+   
     do_loop(seq, this);
     }
+  
   }
   void calculate(Entity f){
    
@@ -155,13 +137,13 @@ class merge_tmpface_hg:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
-  const_blackbox<Loci::storeRepP> node_remap;
-  Map node_l2f;
+  
+  const_store<int> node_l2f;
 public:
   merge_tmpface_hg(){
     name_store("cl", cl);
@@ -177,21 +159,23 @@ public:
     name_store("pos", pos);
     name_store("tmpCellPlan", cellPlan);
     name_store("tmpFacePlan", facePlan);
-    name_store("iface_remap", node_remap);
-    input("iface_remap");
+    name_store("fileNumber(pos)", node_l2f);
+
     input("(cl,cr)->tmpCellPlan");
     input("cl->hexOrientCode");
     input("fl");
-    input(" cr->(lower, upper, boundary_map)->face2node->pos");
+    input(" cr->(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
     input(" cr->(lower, upper, boundary_map)->face2edge->edge2node->pos");
     output("tmpFacePlan");
     constraint("cr->gnrlcells, cl->hexcells");
   }
   virtual void compute(const sequence &seq){
+   
     if(seq.size()!=0){
-    node_l2f = *node_remap;
+   
     do_loop(seq, this);
     }
+   
   }
   void calculate(Entity f){
    
@@ -228,13 +212,13 @@ class merge_tmpface_gp:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+   const_store<int> node_l2f;
 public:
   merge_tmpface_gp(){
     name_store("cl", cl);
@@ -250,22 +234,23 @@ public:
     name_store("pos", pos);
     name_store("tmpCellPlan", cellPlan);
     name_store("tmpFacePlan", facePlan);
-    name_store("iface_remap", node_remap);
-    input("iface_remap");
+    name_store("fileNumber(pos)", node_l2f);
+
     input("(cl,cr)->tmpCellPlan");
      input("cr->prismOrientCode");
     input("fr");
-    input("cl->(lower, upper, boundary_map)->face2node->pos");
+    input("cl->(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("cl->(lower, upper, boundary_map)->face2edge->edge2node->pos");
     output("tmpFacePlan");
     constraint("cl->gnrlcells, cr->prisms");
   }
   virtual void compute(const sequence &seq){
+   
     if(seq.size()!=0){
-    node_l2f = *node_remap;
+   
     do_loop(seq, this);
     }
-    
+   
   }
   void calculate(Entity f){
    
@@ -311,13 +296,13 @@ class merge_tmpface_pg:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+   const_store<int> node_l2f;
 public:
   merge_tmpface_pg(){
     name_store("cl", cl);
@@ -333,22 +318,23 @@ public:
     name_store("pos", pos);
     name_store("tmpCellPlan", cellPlan);
     name_store("tmpFacePlan", facePlan);
-    name_store("iface_remap", node_remap);
-    input("iface_remap");
+    name_store("fileNumber(pos)", node_l2f);
+   
     input("(cl,cr)->tmpCellPlan");
      input("cl->prismOrientCode");
     input("fl");
-    input("cr->(lower, upper, boundary_map)->face2node->pos");
+    input("cr->(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("cr->(lower, upper, boundary_map)->face2edge->edge2node->pos");
     output("tmpFacePlan");
     constraint("cr->gnrlcells, cl->prisms");
   }
   virtual void compute(const sequence &seq){
+   
     if(seq.size()!=0){
-    node_l2f = *node_remap;
+  
     do_loop(seq, this);
     }
-    
+   
   }
   void calculate(Entity f){
    
@@ -413,7 +399,9 @@ public:
     constraint("cl->hexcells, cr->prisms");
   }
   virtual void compute(const sequence &seq){
+   
     do_loop(seq, this);
+   
   }
   void calculate(Entity f){
     std::vector<char> facePlanL = extract_hex_face(cellPlan[cl[f]], DIRECTION(fl[f]));

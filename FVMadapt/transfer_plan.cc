@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 #include <queue>
 #include <vector>
 #include <utility>
@@ -25,7 +5,7 @@
 #include "hex_defines.h"
 #include "defines.h"
 #include "face.h"
-
+#include "quadface.h"
 
 using std::vector;
 using std::queue;
@@ -57,7 +37,8 @@ std::vector<char> transfer_plan_g2q(std::vector<char>& facePlan){
       int childID ; 
       for(int i = 0; i< 4; i++){
         childID = (general_childID[i] - orientCode +4)%4;
-        Q.push(make_pair(current->child[childID], (orientCode + general_childID[i])%4));
+        // Q.push(make_pair(current->child[childID], (orientCode + general_childID[i])%4));
+       Q.push(make_pair(current->child[childID], (orientCode + childID)%4));  
       }
     }
     Q.pop();
@@ -67,53 +48,35 @@ std::vector<char> transfer_plan_g2q(std::vector<char>& facePlan){
   delete aFace;
   return newFacePlan;
 }
-//first assume all 1s, ans 2s in facePlan only appear in the leaves (or close to leaves)
-// part of the tree. and this part of the split tree will be trimmed when transfer to
-// general face plan.
-//then all 1s and 2s in facePlan will become 0s. then all 3s will become 1s
-//empty-resplit a Face, adjust the childID, rewrite the facePlan for general face
+
+
+
 std::vector<char> transfer_plan_q2g(const std::vector<char>& facePlan){
   
 
-  //get rid of 1s, and 2s in the facePlan. and change 3s into 1s
-  std::vector<char> tmpPlan(facePlan.size());
-  for(unsigned int i = 0; i < facePlan.size(); i++){
-    switch(facePlan[i]){
-    case 0:
-    case 1:
-    case 2:
-      tmpPlan[i] = 0;
-      break;
-    case 3:
-      tmpPlan[i] = 1;
-      break;
-    default:
-      cerr << " WARNING:: illegal code in transfer_plan_q2g " << endl;
-      exit(0);
-    }
-  }
+ 
 
   //built an empty tree
-  Face* aFace = new Face();
-  aFace->numEdge = 4;
-  aFace->empty_resplit(tmpPlan);
+  QuadFace* aFace = new QuadFace(4);
+  std::vector<QuadFace*> fine_faces;  
+  aFace->empty_resplit(facePlan, 0, fine_faces);
   //rewrite into quadPlan
 
 
  
  std::vector<char> newFacePlan;
   int quadID[4]= {0, 2, 3, 1};//from general childID to quad childID
-  std::queue<pair<Face*, int> > Q;
+  std::queue<pair<QuadFace*, int> > Q;
   Q.push(make_pair(aFace, 0));
 
-  Face* current;
+  QuadFace* current;
   int orientCode;
  
   
   while(!Q.empty()){
     current = Q.front().first;
     orientCode = Q.front().second;
-    if(current->child == 0) newFacePlan.push_back(0);
+    if(current->code != 3) newFacePlan.push_back(0);
     else{
       newFacePlan.push_back(1);
       int childID ; 
