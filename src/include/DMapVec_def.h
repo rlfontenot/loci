@@ -83,8 +83,7 @@ namespace Loci {
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     HASH_MAP(int,VEC) *get_attrib_data() { return &attrib_data; }
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
   } ;
 
   template<unsigned int M> class dMapVec : public store_instance 

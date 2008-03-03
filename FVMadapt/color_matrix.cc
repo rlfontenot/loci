@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 #include <hdf5.h>
 #include <iostream>
 #include <fstream>
@@ -28,7 +8,7 @@
 #include <rpc/rpc.h>
 #include "sciTypes.h"
 #include "defines.h"
-
+using std::vector;
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -43,10 +23,122 @@ using Loci::UNIVERSE_MAX;
 using Loci::UNIVERSE_MIN;
 
 namespace Loci{
-  storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
-                            fact_db::distribute_infoP dist, MPI_Comm comm) ;
+  vector<entitySet> simplePartition(int mn, int mx, MPI_Comm comm);
   std::vector<int> all_collect_sizes(int size);
- std::vector<int> simplePartitionVec(int mn, int mx, int p);
+  std::vector<int> simplePartitionVec(int mn, int mx, int p);
+  vector<sequence> transposeSeq(const vector<sequence> sv) ;
+  storeRepP collect_reorder_store(storeRepP &sp, fact_db &facts){
+    entitySet dom = sp->domain() ;
+    fact_db::distribute_infoP d = facts.get_distribute_info() ;
+    constraint my_entities ; 
+    my_entities = d->my_entities ;
+    dom = *my_entities & dom ;
+
+
+    Map l2g ;
+    l2g = d->l2g.Rep() ;
+    MapRepP l2gP = MapRepP(l2g.Rep()) ;
+
+    entitySet dom_global = l2gP->image(dom) ;
+
+    FATAL(dom.size() != dom_global.size()) ;
+
+    dMap g2f ;
+    g2f = d->g2f.Rep() ;
+    // Compute map from local numbering to file numbering
+    Map newnum ;
+    newnum.allocate(dom) ;
+    FORALL(dom,i) {
+      newnum[i] = g2f[l2g[i]] ;
+    } ENDFORALL ;
+
+    int imx = std::numeric_limits<int>::min() ;
+    int imn = std::numeric_limits<int>::max() ;
+
+    
+    FORALL(dom,i) {
+      imx = max(newnum[i],imx) ;
+      imn = min(newnum[i],imn) ;
+    } ENDFORALL ;
+
+    imx = GLOBAL_MAX(imx) ;
+    imn = GLOBAL_MIN(imn) ;
+    
+    int p = MPI_processes ;
+
+    
+    vector<entitySet> out_ptn = simplePartition(imn,imx,MPI_COMM_WORLD) ;
+
+    vector<entitySet> send_sets(p) ;
+    vector<sequence> send_seqs(p) ;
+    for(int i=0;i<p;++i) {
+      send_sets[i] = newnum.preimage(out_ptn[i]).first ;
+      sequence s ;
+      FORALL(send_sets[i],j) {
+        s+= newnum[j] ;
+      } ENDFORALL ;
+      send_seqs[i] = s ;
+    }
+    vector<sequence> recv_seqs = transposeSeq(send_seqs) ;
+
+    entitySet file_dom ;
+    for(int i=0;i<p;++i)
+      file_dom += entitySet(recv_seqs[i]) ;
+
+    storeRepP qcol_rep ;
+    qcol_rep = sp->new_store(file_dom) ;
+
+
+    int *send_sizes = new int[p] ;
+    int *recv_sizes = new int[p] ;
+
+    for(int i=0;i<p;++i)
+      send_sizes[i] = sp->pack_size(send_sets[i]) ;
+
+    MPI_Alltoall(&send_sizes[0],1,MPI_INT,
+                 &recv_sizes[0],1,MPI_INT,
+                 MPI_COMM_WORLD) ;
+    int *send_dspl = new int[p] ;
+    int *recv_dspl = new int[p] ;
+    send_dspl[0] = 0 ;
+    recv_dspl[0] = 0 ;
+    for(int i=1;i<p;++i) {
+      send_dspl[i] = send_dspl[i-1] + send_sizes[i-1] ;
+      recv_dspl[i] = recv_dspl[i-1] + recv_sizes[i-1] ;
+    }
+    int send_sz = send_dspl[p-1] + send_sizes[p-1] ;
+    int recv_sz = recv_dspl[p-1] + recv_sizes[p-1] ;
+
+    unsigned char *send_store = new unsigned char[send_sz] ;
+    unsigned char *recv_store = new unsigned char[recv_sz] ;
+
+
+    for(int i=0;i<p;++i) {
+      int loc_pack = 0 ;
+      sp->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
+               send_sets[i]) ;
+    }
+
+    MPI_Alltoallv(send_store, &send_sizes[0], send_dspl, MPI_PACKED,
+		  recv_store, &recv_sizes[0], recv_dspl, MPI_PACKED,
+		  MPI_COMM_WORLD) ;
+
+    for(int i=0;i<p;++i) {
+      int loc_pack = 0 ;
+      qcol_rep->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
+                       recv_seqs[i]) ;
+    }
+    delete[] recv_store ;
+    delete[] send_store ;
+    delete[] recv_dspl ;
+    delete[] send_dspl ;
+    delete[] recv_sizes ;
+    delete[] send_sizes ;
+
+    return qcol_rep ;
+  } 
+
+
 }
 
 
@@ -176,11 +268,7 @@ void writeVOGNode(hid_t file_id,
   //reorder store first, from local to io entities
   
   store<vect3d> pos_io;
-  //  pos_io =  collect_reorder_store(pos, *(Loci::exec_current_fact_db));
-  int offset = 0 ;
-  pos_io = Local2FileOrder(pos,pos->domain(),offset,
-                           Loci::exec_current_fact_db->get_distribute_info(),
-                           MPI_COMM_WORLD) ;
+  pos_io =  collect_reorder_store(pos, *(Loci::exec_current_fact_db));
   entitySet nodes = pos_io.domain();
 
   //compute the size of pos

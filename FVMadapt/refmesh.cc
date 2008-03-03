@@ -40,6 +40,7 @@ using std::ios;
 
 namespace Loci{
   void parallelClassifyCell(fact_db &facts) ;
+   void createEdgesParallel(fact_db &facts);
 }
 
 
@@ -158,7 +159,8 @@ int main(int argc, char ** argv) {
   }
   
   createLowerUpper(facts) ;
-  createEdgesPar(facts) ;
+   Loci::createEdgesParallel(facts) ;
+ 
   Loci:: parallelClassifyCell(facts);
   
 //   if(!Loci::makeQuery(rules, facts, "pos_output")) {

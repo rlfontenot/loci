@@ -79,8 +79,7 @@ namespace Loci {
     const int *end(int indx) const { return base_ptr[indx+1] ; }
     int vec_size(int indx) const { return end(indx)-begin(indx) ; }
     virtual DatatypeP getType() ;
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
   private:
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP freeze() ;

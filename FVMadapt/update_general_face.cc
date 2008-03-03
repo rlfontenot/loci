@@ -41,13 +41,13 @@ class merge_general_interior_tmpface:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
   const_store<vect3d> pos;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+   const_store<int> node_l2f;
 public:
   merge_general_interior_tmpface(){
     name_store("cl", cl);
@@ -61,20 +61,21 @@ public:
     name_store("tmpCellPlan", cellPlan);
     name_store("tmpFacePlan", facePlan);
     name_store("pos", pos);
-    name_store("iface_remap", node_remap);
-    input("iface_remap");
+    name_store("fileNumber(pos)", node_l2f);
+  
     input("(cl,cr)->tmpCellPlan");
-    input("(cl, cr)->(lower, upper, boundary_map)->face2node->pos");
-    input("(cl, cr)->(lower, upper, boundary_map)->face2edge->edge2node->pos");
+    input("(cl, cr)->(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
+     input("(cl, cr)->(lower, upper, boundary_map)->face2edge->edge2node->pos");
     output("tmpFacePlan");
      constraint("interior_faces, (cl, cr)->gnrlcells");
   }
   virtual void compute(const sequence &seq){
+   
     if(seq.size()!=0){
-    node_l2f = *node_remap;
+   
     do_loop(seq, this);
     }
- 
+   
   }
   void calculate(Entity f){
    
@@ -119,13 +120,13 @@ class merge_general_boundary_tmpface:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
   const_store<vect3d> pos;//dummy
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+   const_store<int> node_l2f;
 public:
   merge_general_boundary_tmpface(){
     name_store("cl", cl);
@@ -138,20 +139,22 @@ public:
     name_store("tmpCellPlan", cellPlan);
     name_store("tmpFacePlan", facePlan);
     name_store("pos", pos);
-    name_store("bface_remap", node_remap);
-    input("bface_remap");
+    name_store("fileNumber(pos)", node_l2f);
+  
     input("cl->tmpCellPlan");
-    input("cl->(lower, upper, boundary_map)->face2node->pos");
+    input("cl->(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("cl->(lower, upper, boundary_map)->face2edge->edge2node->pos");
+  
     output("tmpFacePlan");
     constraint("boundary_faces, cl->gnrlcells");
   }
   virtual void compute(const sequence &seq){
+  
     if(seq.size()!=0){
-      node_l2f = *node_remap;
+     
       do_loop(seq, this);
     }
-
+  
   }
   void calculate(Entity f){
    

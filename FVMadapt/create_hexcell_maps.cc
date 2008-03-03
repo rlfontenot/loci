@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -29,6 +9,43 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using Loci::storeRepP;
+using std::vector;
+
+void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lower){
+  
+  //reverse the map 
+  std::vector<pair<int, Entity> > node_f2l(lower.size());
+  for(unsigned int  index  = 0; index < lower.size(); index++){
+    node_f2l[index] = pair<int, Entity>(node_remap[lower[index]],lower[index]);
+  }
+  sort(node_f2l.begin(), node_f2l.end());
+  
+  for( unsigned int i= 0; i < lower.size(); i++){
+    lower[i] = node_f2l[i].second;
+  }
+  
+}
+
+
+void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lower,
+                   std::vector<Entity>& upper,
+                   std::vector<Entity>& boundary_map){
+  
+  reorder_faces(node_remap, lower);
+  reorder_faces(node_remap, upper);
+  reorder_faces(node_remap, boundary_map);
+}
+
+
+
+
+
+
+
+
+
+
+
 /* create_hexcellmaps
    * Create an ordering for the faces and nodes of a hex cell.
    *
@@ -72,6 +89,7 @@ using Loci::storeRepP;
     store<Array<char,6> > rot;
     store<Array<char,6> > hex2face;
     store<Array<char,8> > hex2node;
+    const_store<int>  node_l2f;
   public:
     create_hexcell_maps() {
       name_store("lower", lower);
@@ -81,9 +99,9 @@ using Loci::storeRepP;
       name_store("hexOrientCode", rot);
       name_store("hex2face", hex2face);
       name_store("hex2node", hex2node);
-     
-      input("(upper,lower,boundary_map)->face2node");
-     
+      name_store("fileNumber(face2node)", node_l2f);
+      input("(upper,lower,boundary_map)->(face2node, fileNumber(face2node))");
+   
       output("hexOrientCode");
       output("hex2face");
       output("hex2node");
@@ -91,8 +109,10 @@ using Loci::storeRepP;
       constraint("hexcells");
     }
     virtual void compute(const sequence & seq) {
-    
-      do_loop(seq, this);
+      if(seq.size()!=0){
+   
+        do_loop(seq, this);
+      }
     }
     void calculate(Entity cc) {
       // Collect the entity designations of all nodes in the nodes array
@@ -101,27 +121,38 @@ using Loci::storeRepP;
         Entity faces[6];
       // Determine the relative orientations of the faces
       char orient[6];
-
+      //first create vectors for reordering
+      vector<Entity> vlower(lower.num_elems(cc));
+      vector<Entity> vupper(upper.num_elems(cc));
+      vector<Entity> vboundary_map(boundary_map.num_elems(cc));
+      int nf =0;
+      for (int f=0; f<lower.num_elems(cc); f++) vlower[nf++] =lower[cc][f]; 
+      nf =0;
+      for (int f=0; f<upper.num_elems(cc); f++) vupper[nf++] =upper[cc][f]; 
+      nf =0;
+      for (int f=0; f<boundary_map.num_elems(cc); f++) vboundary_map[nf++] =boundary_map[cc][f]; 
+      reorder_faces(node_l2f, vlower, vupper, vboundary_map);
+      
       // Initialize topology deduction data structures
       //this piece of code should work for parallel sine entityset not used
-      int nf=0;
+      nf=0;
       for (int f=0; f<lower.num_elems(cc); f++) {
 	orient[nf] = 'r';
 	hex2face[cc][nf] = f;
 	rot[cc][nf] = 0;
-	faces[nf++] = lower[cc][f];
+	faces[nf++] = vlower[f];
       }
       for (int f=0; f<upper.num_elems(cc); f++) {
 	orient[nf] = 'l';
 	hex2face[cc][nf] = f + 6;
 	rot[cc][nf] = 0;
-	faces[nf++] = upper[cc][f];
+	faces[nf++] = vupper[f];
       }
       for (int f=0; f<boundary_map.num_elems(cc); f++) {
 	orient[nf] = 'l';
 	hex2face[cc][nf] = f + 12;
 	rot[cc][nf] = 0;
-	faces[nf++] = boundary_map[cc][f];
+	faces[nf++] = vboundary_map[f];
       }
 
 
@@ -501,8 +532,7 @@ register_rule<create_hexcell_maps> register_create_hexcell_maps;
     const_multiMap upper;
     const_multiMap boundary_map;
     const_store<Array<char,6> > hex2face;
-    const_blackbox<storeRepP>  node_remap;
-    Map node_l2f;
+    const_store<int> node_l2f;
     store<char> fr;
   public:
     determine_fr() {
@@ -512,23 +542,25 @@ register_rule<create_hexcell_maps> register_create_hexcell_maps;
       name_store("boundary_map", boundary_map);
       name_store("hex2face", hex2face);
       name_store("fr", fr);
-      name_store("iface_remap", node_remap);
+      name_store("fileNumber(face2node)", node_l2f);
       input("cr->hex2face");
+      input("cr->(lower,upper,boundary_map)->fileNumber(face2node)");
       input("cr->(lower,upper,boundary_map)");
-      input("iface_remap");
       output("fr");
       constraint("cr->hexcells");
     }
     virtual void compute(const sequence & seq) {
       if(seq.size()!=0){
-      node_l2f = *node_remap;
+     
       do_loop(seq, this);
       }
     }
     void calculate(Entity ff) {
       // Collect the entity designations of all faces in the faces array
-      Array<Entity, 6> faces = collect_hex_faces(lower[cr[ff]].begin(), upper[cr[ff]].begin(),
-                                             boundary_map[cr[ff]].begin(), hex2face[cr[ff]]);
+      Array<Entity, 6> faces = collect_hex_faces(lower[cr[ff]].begin(),lower.num_elems(cr[ff]),
+                                                 upper[cr[ff]].begin(),upper.num_elems(cr[ff]),
+                                                 boundary_map[cr[ff]].begin(), boundary_map.num_elems(cr[ff]),
+                                                 hex2face[cr[ff]], node_l2f);
     
       // Store the original location of each face entity in faces
       int f;
@@ -556,8 +588,8 @@ register_rule<create_hexcell_maps> register_create_hexcell_maps;
    const_multiMap lower;
    const_multiMap upper;
    const_multiMap boundary_map;
-   const_blackbox<storeRepP>  node_remap;
-   Map node_l2f;
+   
+   const_store<int> node_l2f;
    const_store<Array<char,6> > hex2face;
    store<char> fl;
   public:
@@ -568,25 +600,27 @@ register_rule<create_hexcell_maps> register_create_hexcell_maps;
       name_store("boundary_map", boundary_map);
       name_store("hex2face", hex2face);
       name_store("fl", fl);
-      name_store("face_remap", node_remap);
+      name_store("fileNumber(face2node)", node_l2f);
       
-      input("face_remap");
+    
       input("cl->hex2face");
       input("cl->(lower,upper,boundary_map)");
-
+      input("cl->(lower,upper,boundary_map)->fileNumber(face2node)");
       output("fl");
       constraint("cl->hexcells");
     }
    virtual void compute(const sequence & seq) {
      if(seq.size()!=0){
-     node_l2f = *node_remap;
+  
      do_loop(seq, this);
      }
    }
    void calculate(Entity ff) {
       // Collect the entity designations of all faces in the faces array
-      Array<Entity, 6> faces = collect_hex_faces(lower[cl[ff]].begin(), upper[cl[ff]].begin(),
-                                             boundary_map[cl[ff]].begin(), hex2face[cl[ff]]);
+     Array<Entity, 6> faces = collect_hex_faces(lower[cl[ff]].begin(), lower.num_elems(cl[ff]),
+                                                upper[cl[ff]].begin(), upper.num_elems(cl[ff]),
+                                                boundary_map[cl[ff]].begin(),boundary_map.num_elems(cl[ff]),
+                                                hex2face[cl[ff]],node_l2f);
       
       // Store the original location of each face entity in faces
       int f;

@@ -60,7 +60,7 @@ class general_tmpedge_points_apply : public apply_rule<store<SetLong>, SetLongUn
   const_store<std::vector<char> > facePlan;
   const_multiMap face2edge;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<bool> is_quadface;
   store<SetLong > pointSet;
   const_store<vect3d> pos;//dummy
@@ -81,7 +81,9 @@ public:
     constraint("faces");
   }
   virtual void compute(const sequence &seq){
+   
     do_loop(seq, this);
+   
   }
   void calculate(Entity f){
     if(is_quadface[f]){
@@ -300,7 +302,9 @@ public:
     
   }
   virtual void compute(const sequence &seq){
+   
     do_loop(seq, this);
+   
   }
   void calculate(Entity e){
      if(pointSet[e].aset.empty())return;

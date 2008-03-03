@@ -85,7 +85,9 @@ public:
      constraint("(cl, cr)->prisms");
   }
   virtual void compute(const sequence &seq){
+ 
     do_loop(seq, this);
+ 
     
  
   }
@@ -124,7 +126,9 @@ public:
     constraint("boundary_faces, cl->prisms");
   }
   virtual void compute(const sequence &seq){
+   
     do_loop(seq, this);
+   
   }
   void calculate(Entity f){
     if(fl[f]< 2) facePlan[f] = merge_tri_face_p(cellPlan[cl[f]], fl[f], orientCode[cl[f]][fl[f]]);

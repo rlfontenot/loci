@@ -18,11 +18,11 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-//////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 //
-// This file balance general cellPlan between cells  
+// This file balance prism cellPlan between cells  
 //
-//////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 
 #include <queue>
@@ -35,6 +35,7 @@ using std::queue;
 
 using std::cerr;
 using std::endl;
+using Loci::storeRepP;
 //using std::cout;
 
 
@@ -83,7 +84,7 @@ class advance_cell_updated_prism : public pointwise_rule{
   const_store<Array<char, 6> > prism2node;
   const_store<Array<char, 5> > orientCode;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos;
   const_store<bool> cellUnchangedn;
@@ -93,7 +94,9 @@ class advance_cell_updated_prism : public pointwise_rule{
   const_store<bool> isIndivisible;
   store<bool> cellUnchangedn1;
   store<std::vector<char> > tmpCellPlann1;
- 
+  //  const_blackbox<storeRepP>  node_remap;
+  //Map node_l2f;
+  const_store<int> node_l2f;
 public:
   advance_cell_updated_prism(){
     name_store("lower", lower);
@@ -115,19 +118,24 @@ public:
     name_store("tmpFacePlan{n}", facePlan);
     name_store("tmpEdgePlan{n}", edgePlan);
     name_store("isIndivisible", isIndivisible);
-  input("split_mode_par");
+    name_store("fileNumber(face2node)", node_l2f);
+    input("split_mode_par");
     input("cellUnchanged{n},tmpCellPlan{n}, prism2face, prism2node, prismOrientCode, isIndivisible");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge-> tmpEdgePlan{n}");
     input("(lower, upper, boundary_map)->face2edge-> edge2node->pos");
-    input("(lower, upper, boundary_map)->tmpFacePlan{n}" );
- 
+    input("(lower, upper, boundary_map)->(tmpFacePlan{n}, fileNumber(face2node))" );
+    // input("node_remap");
     output("cellUnchanged{n+1}, tmpCellPlan{n+1}");
-     constraint("prisms");
+    constraint("prisms");
   }
   virtual void compute(const sequence &seq){
- 
-    do_loop(seq, this);
+  if(seq.size()!=0){
+   
+        do_loop(seq, this);
+      }
+  
+   
        
   }
   void calculate(Entity cc){
@@ -157,7 +165,8 @@ public:
                                      bnode_list,
                                      edge_list,
                                      qface_list,
-                                     gface_list);
+                                     gface_list,
+                                     node_l2f);
     
      
     std::vector<Prism*> cells;
@@ -181,7 +190,7 @@ public:
     std::vector<char> newCellPlan (aCell->make_cellplan());
     cellUnchangedn1[cc] =  (newCellPlan == tmpCellPlann[cc]);
 
-    
+   
     tmpCellPlann1[cc] = newCellPlan;
     reduce_vector(tmpCellPlann1[cc]);
     

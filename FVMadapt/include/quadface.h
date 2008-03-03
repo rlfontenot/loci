@@ -153,7 +153,7 @@ public:
   
   
   //the center of the face, defined as the mass center of 4 nodes
-  inline Node* QuadFace::centroid(){
+  inline Node* centroid(){
     vect3d nodes[4];
     //get nodes
     for(int i = 0; i <2; i++){
@@ -251,7 +251,7 @@ public:
 
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_MapVec<2>& edge2node,
+                           const const_multiMap& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            std::list<Node*>& bnode_list,
@@ -261,18 +261,18 @@ QuadFace* build_quad_face( const Entity* face2node,
 //parallel version
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_MapVec<2>& edge2node,
+                           const const_multiMap& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            const const_store<int>& node_offset,
-                           const Map& node_l2f,
+                           const const_store<int>& node_l2f,
                            std::list<Node*>& bnode_list,
                            std::list<Edge*>& edge_list);
 
 //this function is used in build_general_cell with quadface
 QuadFace* build_tmp_quad_face( const Entity* face2node, 
                                const Entity* face2edge,
-                               const const_MapVec<2>& edge2node,
+                               const const_multiMap& edge2node,
                                const const_store<std::vector<char> >& edgePlan,
                                std::list<Node*>& bnode_list,
                                std::list<Edge*>& edge_list);

@@ -515,36 +515,19 @@ namespace Loci {
     }
 
   }
-  template<class T> 
-    frame_info dstoreVecRepI<T>::read_frame_info(hid_t group_id) {
-    typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-    return read_frame_info(group_id, schema_converter()) ;
-  }
-  template<class T> 
-    frame_info dstoreVecRepI<T>::read_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
-  template<class T> 
-    frame_info dstoreVecRepI<T>::read_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
    template<class T> 
-     frame_info dstoreVecRepI<T>::write_frame_info(hid_t group_id) {
+     frame_info dstoreVecRepI<T>::get_frame_info() {
      typedef typename data_schema_traits<T>::Schema_Converter schema_converter;
-     return write_frame_info(group_id, schema_converter()) ;
+     return get_frame_info(schema_converter()) ;
    }
   template<class T> 
-    frame_info dstoreVecRepI<T>::write_frame_info(hid_t group_id, IDENTITY_CONVERTER g) {
+    frame_info dstoreVecRepI<T>::get_frame_info(IDENTITY_CONVERTER g) {
     warn(true) ;
     frame_info fi ;
     return fi ;
   }
   template<class T> 
-    frame_info dstoreVecRepI<T>::write_frame_info(hid_t group_id, USER_DEFINED_CONVERTER g) {
+    frame_info dstoreVecRepI<T>::get_frame_info(USER_DEFINED_CONVERTER g) {
     warn(true) ;
     frame_info fi ;
     return fi ;

@@ -1,4 +1,4 @@
-###############################################################################
+##############################################################################
 #
 # Copyright 2008, Mississippi State University
 #
@@ -17,11 +17,10 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
-###############################################################################
+##############################################################################
 include $(LOCI_BASE)/Loci.conf
 
 #COPTLESS =	-O0 -g -ansi -pedantic
-#COPTLESS =	-O0 -g 
 #COPT =		$(COPTLESS)
 
 MARKOBJS =	classify_cell.o \
@@ -65,6 +64,7 @@ MARKOBJS =	classify_cell.o \
 		merge_mixed_face.o \
 		update_mixed_face.o \
 		transfer_plan.o \
+		parse_tree.o \
 		marker.o
 
 REFOBJS =	classify_cell.o \
@@ -113,17 +113,18 @@ REFOBJS =	classify_cell.o \
 
 
 
-MODULES =	
+#MODULES =	-lxml2	
 
-LOCAL_LIBS =	
+#LOCAL_LIBS =	
 
+LOCAL_LIBS      = -lxml2 #-L/usr/lib 
 JUNK =		*~ \
 		core \
 		ti_files \
 		ii_files \
 		rii_files
 
-INCLUDES=	-I./include
+INCLUDES=	-I./include  -I/usr/include/libxml2
 
 default: marker refmesh 
 

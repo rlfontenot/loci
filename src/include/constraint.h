@@ -64,8 +64,7 @@ namespace Loci {
     virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
     entitySet *get_constraint() { return &constraint_set ; }
     virtual DatatypeP getType() ;
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
   } ;
 
   class constraint : public store_instance {

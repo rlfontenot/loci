@@ -559,7 +559,7 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
       child[1] = childy[1]->childx[0];
       child[3] = childy[1]->childx[1];
 
-      //define childy
+      //define childx
       if(childx == 0){
         if(child[0]->edge[1]->parent == 0){
           tempEdge = new Edge(child[0]->edge[1]->head, child[1]->edge[1]->tail, edge[1]->level);
@@ -567,7 +567,7 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
           tempEdge->child  = new Edge*[2];
           tempEdge->child[0] = child[0]->edge[1];
           tempEdge->child[1] = child[1]->edge[1];
-           edge_list.remove(tempEdge->child[0]);
+          edge_list.remove(tempEdge->child[0]);
            edge_list.remove(tempEdge->child[1]);
           child[0]->edge[1]->parent = child[1]->edge[1]->parent = tempEdge;
         }
@@ -1069,7 +1069,7 @@ void QuadFace::set_f2n(std::list<int32>& f2n){
 }
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_MapVec<2>& edge2node,
+                           const const_multiMap& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            std::list<Node*>& bnode_list,
@@ -1132,7 +1132,7 @@ QuadFace* build_quad_face( const Entity* face2node,
 //serial version
 // QuadFace* build_quad_face( const Entity* face2node, 
 //                            const Entity* face2edge,
-//                            const const_MapVec<2>& edge2node,
+//                            const const_multiMap& edge2node,
 //                            const const_store<vect3d>& pos,
 //                            const const_store<std::vector<char> >& edgePlan,
 //                            const store<int>& node_offset,
@@ -1208,11 +1208,11 @@ QuadFace* build_quad_face( const Entity* face2node,
 //parallel version
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_MapVec<2>& edge2node,
+                           const const_multiMap& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            const const_store<int>& node_offset,
-                           const Map&  node_l2f,
+                           const const_store<int>&  node_l2f,
                            std::list<Node*>& bnode_list,
                            std::list<Edge*>& edge_list){
   
@@ -1279,7 +1279,7 @@ QuadFace* build_quad_face( const Entity* face2node,
 //parallel version, this function is used in build_general_cell with quadface
 QuadFace* build_tmp_quad_face( const Entity* face2node, 
                                const Entity* face2edge,
-                               const const_MapVec<2>& edge2node,
+                               const const_multiMap& edge2node,
                                const const_store<std::vector<char> >& edgePlan,
                                std::list<Node*>& bnode_list,
                                std::list<Edge*>& edge_list){
@@ -1342,7 +1342,7 @@ QuadFace* build_tmp_quad_face( const Entity* face2node,
 // //parallel version, this function is used in build_general_cell with quadface
 // QuadFace* build_tmp_quad_face( const Entity* face2node, 
 //                                const Entity* face2edge,
-//                                const const_MapVec<2>& edge2node,
+//                                const const_multiMap& edge2node,
 //                                const const_store<std::vector<char> >& edgePlan,
 //                                std::list<Node*>& bnode_list,
 //                                std::list<Edge*>& edge_list){

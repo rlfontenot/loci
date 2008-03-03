@@ -18,11 +18,11 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-//////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 //
-// This file balance general cellPlan between cells  
+// This file balance hex cellPlan between cells  
 //
-//////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 
 
 #include <queue>
@@ -35,8 +35,8 @@ using std::queue;
 
 using std::cerr;
 using std::endl;
-using std::cout;
 
+using Loci::storeRepP;
 
 
 class init_hex_cell_updated:public pointwise_rule{
@@ -82,7 +82,7 @@ class advance_hex_cell_updated : public pointwise_rule{
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos;
   const_store<bool> cellUnchangedn;
@@ -92,7 +92,9 @@ class advance_hex_cell_updated : public pointwise_rule{
   const_store<bool> isIndivisible;
   store<bool> cellUnchangedn1;
   store<std::vector<char> > tmpCellPlann1;
- 
+  // const_blackbox<storeRepP>  node_remap;
+  //Map node_l2f;
+  const_store<int> node_l2f;
 public:
   advance_hex_cell_updated(){
     name_store("lower", lower);
@@ -114,31 +116,38 @@ public:
     name_store("tmpFacePlan{n}", facePlan);
     name_store("tmpEdgePlan{n}", edgePlan);
     name_store("isIndivisible", isIndivisible);
-  input("split_mode_par");
+    // name_store("node_remap", node_remap);
+    name_store("fileNumber(face2node)", node_l2f);
+    input("split_mode_par");
     input("cellUnchanged{n},tmpCellPlan{n}, hex2face, hex2node, hexOrientCode, isIndivisible");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge-> tmpEdgePlan{n}");
     input("(lower, upper, boundary_map)->face2edge-> edge2node->pos");
     input("(lower, upper, boundary_map)->tmpFacePlan{n}" );
- 
+    // input("node_remap");
+    input("(lower, upper, boundary_map)->fileNumber(face2node)");
     output("cellUnchanged{n+1}, tmpCellPlan{n+1}");
-     constraint("hexcells");
+    constraint("hexcells");
   }
   virtual void compute(const sequence &seq){
- 
-    do_loop(seq, this);
+    if(seq.size()!=0){
+
+      do_loop(seq, this);
+
+    }
   }
   void calculate(Entity cc){
     //first assume the cell will not be updated
    
-   
+
     cellUnchangedn1[cc] = true;
 
     std::list<Node*> node_list;
     std::list<Edge*> edge_list;
     std::list<QuadFace*> face_list;
     std::list<Node*> bnode_list;
-   
+
+
      HexCell* aCell = build_hex_cell(lower[cc].begin(), lower.num_elems(cc),
                                  upper[cc].begin(), upper.num_elems(cc),
                                  boundary_map[cc].begin(), boundary_map.num_elems(cc),
@@ -152,8 +161,9 @@ public:
                                  edgePlan,
                                  facePlan,
                                  bnode_list,
-                                 edge_list,
-                                 face_list);
+                                     edge_list,
+                                     face_list,
+                                     node_l2f);
     
   
   
@@ -161,7 +171,7 @@ public:
  
  
     
-   
+
     std::vector<HexCell*> cells;
     
     aCell->resplit( tmpCellPlann[cc], 
@@ -172,15 +182,17 @@ public:
     
     
        
-    
+
     //balance cells
     if(!isIndivisible[cc]){
       aCell->rebalance_cells(*split_mode_par, node_list, edge_list, face_list);
     }
         
-    
+
     //write new cellPlan
     std::vector<char> newCellPlan (aCell->make_cellplan());
+
+    
     cellUnchangedn1[cc] =  (newCellPlan == tmpCellPlann[cc]);
 
     
@@ -201,81 +213,5 @@ public:
 };
 
 register_rule<advance_hex_cell_updated> register_advance_hex_cell_updated;
-
-
-//this unit-apply rule is used to check if the balancing iteration
-//is finished. unit_rule initialize parameter finishBalancing to true
-//apply_rule will apply each !cellUnchanged value to it using logical and
-// class init_finish_balance : public unit_rule{
-//   param<bool> finishBalancing;
-// public:
-//   init_finish_balance(){
-//     name_store("finishBalancing", finishBalancing);
-//     output("finishBalancing");
-//     constraint("geom_cells");
-    
-//   }
-//   //parameter, no loop
-//   virtual void compute(const sequence &seq){
-//     *finishBalancing = true;
-//   }
-// }; 
-// register_rule<init_finish_balance> register_init_finish_balance;
-
-
-
-// class apply_finish_balance : public apply_rule<param<bool>, logicalAnd>{
-//   param<bool> finishBalancing;
-//   const_store<bool> cellUnchanged;
-// public:
-//   apply_finish_balance(){
-//     name_store("finishBalancing", finishBalancing);
-//     name_store("cellUnchanged", cellUnchanged);
-//     input("(cellUnchanged, finishBalancing)");
-//     output("finishBalancing");
-//     constraint("geom_cells");
-    
-//   }
-//   virtual void compute(const sequence &seq){
-//     do_loop(seq, this);
-//   }
-//   void calculate(Entity cc){
-//     join(*finishBalancing, cellUnchanged[cc]);
-//   }
-// }; 
-// register_rule<apply_finish_balance> register_apply_finish_balance;
-
-
-
-// //when  balancing is finished, this rule will copy
-// //newCellPlan to balanceCellPlan
-// class finish_balancing: public pointwise_rule{
-//   const_param<bool> finishBalancing;
-//   const_store<std::vector<char> > tmpCellPlan;
-//   store<std::vector<char> > balancedCellPlan;
-// public:
-//   finish_balancing(){
-//     name_store("finishBalancing{n}", finishBalancing);
-//     name_store("tmpCellPlan{n}", tmpCellPlan);
-//     name_store("balancedCellPlan", balancedCellPlan);
-
-//     conditional("finishBalancing{n}");
-    
-//     input("tmpCellPlan{n}, finishBalancing{n}");
-//     output("balancedCellPlan");
-//     constraint("geom_cells");
-//   }
-//   virtual void compute(const sequence &seq){
-   
-//     do_loop(seq, this);
-//   }
-//   void calculate(Entity cc){
-//     balancedCellPlan[cc] = tmpCellPlan[cc];
-      
-//     reduce_vector(balancedCellPlan[cc]);
-//   }
-// }; 
-// register_rule<finish_balancing> register_finish_balancing;
-
 
 

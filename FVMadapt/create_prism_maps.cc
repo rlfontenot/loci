@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -28,14 +8,16 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using Loci::storeRepP;
+using std::vector;
 
-
-Array<Entity, 5> collect_prism_faces( const Entity* lower,
-                                      const Entity* upper,
-                                      const Entity* boundary_map,
-                                      const Array<char, 5>& prism2face);
+Array<Entity, 5> collect_prism_faces( const Entity* lower, int lower_size,
+                                      const Entity* upper,int upper_size,
+                                      const Entity* boundary_map,int boundary_map_size,
+                                      const Array<char, 5>& prism2face, const const_store<int>& node_remap);
                                      
-
+void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lower,
+                   std::vector<Entity>& upper,
+                   std::vector<Entity>& boundary_map);
 /* create_prismmaps
    * Create an ordering for the faces and nodes of a prism cell.
    *
@@ -60,6 +42,9 @@ Array<Entity, 5> collect_prism_faces( const Entity* lower,
     store<Array<char,5> > orientCode;
     store<Array<char,5> > prism2face;
     store<Array<char,6> > prism2node;
+
+    
+  const_store<int> node_l2f;
   public:
     create_prism_maps() { 
       name_store("lower", lower);
@@ -69,8 +54,8 @@ Array<Entity, 5> collect_prism_faces( const Entity* lower,
       name_store("prismOrientCode", orientCode);
       name_store("prism2face", prism2face);
       name_store("prism2node", prism2node);
-      
-      input("(upper,lower,boundary_map)->face2node");
+       name_store("fileNumber(face2node)", node_l2f);
+      input("(upper,lower,boundary_map)->(face2node, fileNumber(face2node))");
 
       output("prismOrientCode");
       output("prism2face");
@@ -79,10 +64,36 @@ Array<Entity, 5> collect_prism_faces( const Entity* lower,
       constraint("prisms");
     }
     virtual void compute(const sequence & seq) {
-     
-      do_loop(seq, this);
+      if(seq.size()!=0){
+       
+        do_loop(seq, this);
+      }
+      
     }
     void calculate(Entity cc) {
+
+ //first create vectors and reorder faces
+      vector<Entity> vlower(lower.num_elems(cc));
+      vector<Entity> vupper(upper.num_elems(cc));
+      vector<Entity> vboundary_map(boundary_map.num_elems(cc));
+      int nf =0;
+      for (int f=0; f<lower.num_elems(cc); f++) vlower[nf++] =lower[cc][f]; 
+      nf =0;
+      for (int f=0; f<upper.num_elems(cc); f++) vupper[nf++] =upper[cc][f]; 
+      nf =0;
+      for (int f=0; f<boundary_map.num_elems(cc); f++) vboundary_map[nf++] =boundary_map[cc][f]; 
+      reorder_faces(node_l2f, vlower, vupper, vboundary_map);
+
+
+
+
+
+
+
+
+
+
+
       // Collect the entity designations of all nodes in the nodes array
       Entity nodes[6];
       // Collect the entity designations of all faces in the faces array
@@ -101,17 +112,17 @@ Array<Entity, 5> collect_prism_faces( const Entity* lower,
       int nqf = 0;
       for (int f=0; f<lower.num_elems(cc); f++) {
 
-        if(face2node.num_elems(lower[cc][f]) == 3){
+        if(face2node.num_elems(vlower[f]) == 3){
           prism2triface[ntf] = f;
           orient_tri[ntf] = 'r';
           trirot[ntf] = 0;
-          trifaces[ntf++] = lower[cc][f];
+          trifaces[ntf++] = vlower[f];
         }
-        else if (face2node.num_elems(lower[cc][f]) == 4){
+        else if (face2node.num_elems(vlower[f]) == 4){
           prism2quadface[nqf] = f;
           orient_quad[nqf] = 'r';
           quadrot[nqf] = 0;
-          quadfaces[nqf++] = lower[cc][f];
+          quadfaces[nqf++] = vlower[f];
         }
         
           
@@ -123,17 +134,17 @@ Array<Entity, 5> collect_prism_faces( const Entity* lower,
      
       
       for (int f=0; f<upper.num_elems(cc); f++) {
-        if(face2node.num_elems(upper[cc][f]) == 3){
+        if(face2node.num_elems(vupper[f]) == 3){
           prism2triface[ntf] = f+6;
           orient_tri[ntf] = 'l';
           trirot[ntf] = 0;
-          trifaces[ntf++] = upper[cc][f];
+          trifaces[ntf++] = vupper[f];
         }
-        else if (face2node.num_elems(upper[cc][f]) == 4){
+        else if (face2node.num_elems(vupper[f]) == 4){
           prism2quadface[nqf] = f+6;
           orient_quad[nqf] = 'l';
           quadrot[nqf] = 0;
-          quadfaces[nqf++] = upper[cc][f];
+          quadfaces[nqf++] = vupper[f];
         }
         
         
@@ -144,17 +155,17 @@ Array<Entity, 5> collect_prism_faces( const Entity* lower,
       }
       for (int f=0; f<boundary_map.num_elems(cc); f++) {
 
-        if(face2node.num_elems(boundary_map[cc][f]) == 3){
+        if(face2node.num_elems(vboundary_map[f]) == 3){
           prism2triface[ntf] = f+12;
           orient_tri[ntf] = 'l';
           trirot[ntf] = 0;
-          trifaces[ntf++] = boundary_map[cc][f];
+          trifaces[ntf++] = vboundary_map[f];
         }
-        else if (face2node.num_elems(boundary_map[cc][f]) == 4){
+        else if (face2node.num_elems(vboundary_map[f]) == 4){
           prism2quadface[nqf] = f+12;
           orient_quad[nqf] = 'l';
           quadrot[nqf] = 0;
-          quadfaces[nqf++] = boundary_map[cc][f];
+          quadfaces[nqf++] = vboundary_map[f];
         }
         
         
@@ -451,8 +462,8 @@ class determine_prism_fr : public pointwise_rule {
   const_multiMap upper;
   const_multiMap boundary_map;
   const_store<Array<char,5> > prism2face;
-  const_blackbox<storeRepP>  node_remap;
-  Map node_l2f;
+
+  const_store<int> node_l2f;
   store<char> fr;
 public:
   determine_prism_fr() {
@@ -461,26 +472,28 @@ public:
       name_store("upper", upper);
       name_store("boundary_map", boundary_map);
       name_store("prism2face", prism2face);
-      name_store("iface_remap", node_remap);
+      name_store("fileNumber(face2node)", node_l2f);
       name_store("fr", fr);
       
     
       input("cr->prism2face");
       input("cr->(lower,upper,boundary_map)");
-      input("iface_remap");
+      input("cr->(lower,upper,boundary_map)->fileNumber(face2node)");
       output("fr");
-       constraint("cr->prisms");
+      constraint("cr->prisms");
     }
     virtual void compute(const sequence & seq) {
       if(seq.size()!=0){
-        node_l2f = *node_remap;
+       
         do_loop(seq, this);
       }
     }
   void calculate(Entity ff) {
     // Collect the entity designations of all faces in the faces array
-    Array<Entity, 5> faces = collect_prism_faces(lower[cr[ff]].begin(), upper[cr[ff]].begin(),
-                                                 boundary_map[cr[ff]].begin(), prism2face[cr[ff]]);
+    Array<Entity, 5> faces = collect_prism_faces(lower[cr[ff]].begin(), lower.num_elems(cr[ff]),
+                                                 upper[cr[ff]].begin(), upper.num_elems(cr[ff]),
+                                                 boundary_map[cr[ff]].begin(), boundary_map.num_elems(cr[ff]),
+                                                 prism2face[cr[ff]], node_l2f);
     
     // Store the original location of each face entity in faces
     int f;
@@ -509,8 +522,8 @@ class determine_prism_fl : public pointwise_rule {
   const_multiMap upper;
   const_multiMap boundary_map;
   const_store<Array<char,5> > prism2face;
-   const_blackbox<storeRepP>  node_remap;
-   Map node_l2f;
+  const_store<int> node_l2f;
+ 
   store<char> fl;
 public:
   determine_prism_fl() {
@@ -519,26 +532,28 @@ public:
       name_store("upper", upper);
       name_store("boundary_map", boundary_map);
       name_store("prism2face", prism2face);
-      name_store("face_remap", node_remap);
+      name_store("fileNumber(face2node)", node_l2f);
       name_store("fl", fl);
       
-      input("face_remap");
+    
       input("cl->prism2face");
       input("cl->(lower,upper,boundary_map)");
-      
+       input("cl->(lower,upper,boundary_map)->fileNumber(face2node)");
       output("fl");
       constraint("cl->prisms");
   }
   virtual void compute(const sequence & seq) {
     if(seq.size()!=0){
-      node_l2f = *node_remap;
+     
       do_loop(seq, this);
     }
   }
   void calculate(Entity ff) {
       // Collect the entity designations of all faces in the faces array
-    Array<Entity, 5> faces = collect_prism_faces(lower[cl[ff]].begin(), upper[cl[ff]].begin(),
-                                                 boundary_map[cl[ff]].begin(), prism2face[cl[ff]]);
+    Array<Entity, 5> faces = collect_prism_faces(lower[cl[ff]].begin(), lower.num_elems(cl[ff]),
+                                                 upper[cl[ff]].begin(), upper.num_elems(cl[ff]),
+                                                 boundary_map[cl[ff]].begin(), boundary_map.num_elems(cl[ff]),
+                                                 prism2face[cl[ff]], node_l2f);
     
     // Store the original location of each face entity in faces
     int f;

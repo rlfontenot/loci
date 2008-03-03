@@ -66,7 +66,7 @@ class general_edge_points_apply : public apply_rule<store<SetLong>, SetLongUnion
   const_param<std::string> planfile_par;
   const_multiMap face2edge;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;//dummy
   const_store<bool> is_quadface;
   store<SetLong> pointSet;

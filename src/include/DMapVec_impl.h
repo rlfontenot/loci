@@ -27,17 +27,12 @@
 namespace Loci {
   
   template<unsigned int M> 
-    frame_info dMapVecRepI<M>::read_frame_info(hid_t group_id) {
+    frame_info dMapVecRepI<M>::get_frame_info() {
     warn(true) ;
     frame_info fi ;
     return fi ;
   }
-  template<unsigned int M> 
-    frame_info dMapVecRepI<M>::write_frame_info(hid_t group_id) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
+
   template<unsigned int M> 
   void dMapVecRepI<M>::readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset)
   {

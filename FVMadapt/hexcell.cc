@@ -58,6 +58,9 @@ void HexCell::resplit( const std::vector<char>& cellPlan,
                        std::list<Edge*>& edge_list,
                        std::list<QuadFace*>& face_list,
                        std::vector<HexCell*>& cells){
+
+
+  
   if(cellPlan.size() == 0){
     this->cellIndex = 1;
     reduce_vector(cells);
@@ -95,7 +98,8 @@ void HexCell::resplit( const std::vector<char>& cellPlan,
     }
     
     Q.pop();
-  } 
+  }
+
 }
 
 void HexCell::resplit(int level,
@@ -1104,63 +1108,99 @@ double HexCell::get_min_edge_length(){
   //split the max_length edge
 void HexCell::setSplitCode(int split_mode){
   if(getTagged()){
+   
+   
+    //face2edge in build_hexcell
+    // int f2e[6][4]= {{6, 11, 7, 10}, {4, 9, 5, 8}, {2, 11, 3, 9}, {0, 10, 1, 8},
+    //              {1, 7, 3, 5}, {0, 6, 2, 4}};
+    
+    //find the edge_length of all edges
+    std::vector<double> edge_length(12);
+    edge_length[0] = face[3]->edge[0]->get_length();
+    edge_length[1] = face[3]->edge[2]->get_length();
+    edge_length[2] = face[2]->edge[0]->get_length();
+    edge_length[3] = face[2]->edge[2]->get_length();
+    edge_length[4] = face[1]->edge[0]->get_length();
+    edge_length[5] = face[1]->edge[2]->get_length();
+    edge_length[6] = face[0]->edge[0]->get_length();
+    edge_length[7] = face[0]->edge[2]->get_length();
+    edge_length[8] = face[1]->edge[3]->get_length();
+    edge_length[9] = face[1]->edge[1]->get_length();
+    edge_length[10] = face[0]->edge[3]->get_length();
+    edge_length[11] = face[0]->edge[1]->get_length();
+    
+
+    
+    
+    //find the min_edge_length in XX direction
+    std::vector<double> average_length(3);
+    std::vector<double> min_length(3);
+    
+    average_length[0]  = 0.0;
+    min_length[0] = 1e10;
+    for(int i = 0; i<=3; i++){
+      average_length[0] +=  edge_length[i];
+      min_length[0] = min(min_length[0], edge_length[i]);
+    }
+    average_length[0] /= 4.0;
+    
+    average_length[1] = 0.0;
+    min_length[1] = 1e10;
+    for(int i = 4; i <= 7; i++){
+      average_length[1] +=  edge_length[i];
+      min_length[1] = min(min_length[1], edge_length[i]);
+    }
+    average_length[1] /= 4.0;
+    
+    average_length[2] = 0.0;
+     min_length[2] = 1e10;
+     for(int i = 8; i <= 11; i++){
+       average_length[2] += edge_length[i];
+       min_length[2] = min(min_length[2], edge_length[i]);
+     }
+    average_length[2] /= 4.0;
+
+    bitset<3> tolerance_mask(7); //all 1s
+    if(min_length[0] < 2*Globals::tolerance)tolerance_mask.reset(2);
+    if(min_length[1] < 2*Globals::tolerance)tolerance_mask.reset(1);
+    if(min_length[2] < 2*Globals::tolerance) tolerance_mask.reset(0);
+    //    cout << "tolerance: " << tolerance_mask.to_ulong() << endl;
+    
+    double minimum_length = *min_element(min_length.begin(), min_length.end());
+    
     if(split_mode == 0){
       if(mySplitCode != 0){
-        cerr<<"WARNING:mySplitCode is not zero in setSplitCode" << endl;
+        cerr<<"WARNING:mySplitCode is not zero in setSplitCode of HexCell" << endl;
         exit(0);
       }
-      
-      //face2edge in build_hexcell
-      // int f2e[6][4]= {{6, 11, 7, 10}, {4, 9, 5, 8}, {2, 11, 3, 9}, {0, 10, 1, 8},
-    //              {1, 7, 3, 5}, {0, 6, 2, 4}};
-      
-    //find the edge_length of all edges
-      std::vector<double> edge_length(12);
-      edge_length[0] = face[3]->edge[0]->get_length();
-      edge_length[1] = face[3]->edge[2]->get_length();
-      edge_length[2] = face[2]->edge[0]->get_length();
-      edge_length[3] = face[2]->edge[2]->get_length();
-      edge_length[4] = face[1]->edge[0]->get_length();
-      edge_length[5] = face[1]->edge[2]->get_length();
-      edge_length[6] = face[0]->edge[0]->get_length();
-      edge_length[7] = face[0]->edge[2]->get_length();
-      edge_length[8] = face[1]->edge[3]->get_length();
-      edge_length[9] = face[1]->edge[1]->get_length();
-      edge_length[10] = face[0]->edge[3]->get_length();
-      edge_length[11] = face[0]->edge[1]->get_length();
-      
-      //find the min_edge_length in XX direction
-      std::vector<double> average_length(3);
-      average_length[0]  = 0.0;
-      for(int i = 0; i<=3; i++) average_length[0] +=  edge_length[i];
-      average_length[0] /= 4.0;
-      
-      average_length[1] = 0.0;
-      for(int i = 4; i <= 7; i++)average_length[1] +=  edge_length[i];
-      average_length[1] /= 4.0;
-      
-      average_length[2] = 0.0;
-      for(int i = 8; i <= 11; i++)average_length[2] += edge_length[i];
-      average_length[2] /= 4.0;
-      
-      double minimum_length = *min_element(average_length.begin(), average_length.end());
-      
-      
+    
       if((average_length[2]/average_length[0] > Globals::factor)
-         && (average_length[1]/average_length[0] >Globals::factor) ){
-        mySplitCode = 3;//yz direction get split
+         && (average_length[1]/average_length[0] >Globals::factor)){
+
+        bitset<3> oldCode(3);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        //yz direction get split
+        
         return;
       }
       
       else if((average_length[2]/average_length[1] > Globals::factor)
               && (average_length[0]/average_length[1] >Globals::factor) ){
-        mySplitCode = 5;//xz direction get split
+
+        bitset<3> oldCode(5);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        //mySplitCode = 5;//xz direction get split
         return;
       }
       
       else if((average_length[1]/average_length[2] > Globals::factor)
               && (average_length[0]/average_length[2] >Globals::factor) ){
-        mySplitCode = 6;//xy direction get split
+        bitset<3> oldCode(6);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        // mySplitCode = 6;//xy direction get split
         return;
       }
       
@@ -1168,7 +1208,10 @@ void HexCell::setSplitCode(int split_mode){
                 && (average_length[2] > average_length[1])) ||
                ((average_length[0]/average_length[2] > Globals::factor)
                 && (average_length[1] > average_length[2]))){
-        mySplitCode = 4;//x direction get split
+        bitset<3> oldCode(4);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        // mySplitCode = 4;//x direction get split
         return;
       }
       
@@ -1176,19 +1219,26 @@ void HexCell::setSplitCode(int split_mode){
                 && (average_length[0] > average_length[2])) ||
                ((average_length[1]/average_length[0] > Globals::factor)
                 && (average_length[2] > average_length[0]))){
-      mySplitCode = 2;//y direction get split
-      return;
+         bitset<3> oldCode(2);
+         oldCode = oldCode & tolerance_mask;
+         mySplitCode = char(oldCode.to_ulong());
+         // mySplitCode = 2;//y direction get split
+         return;
       }
       
       else  if(((average_length[2]/average_length[0] > Globals::factor)
                 && (average_length[1] > average_length[0])) ||
                ((average_length[2]/average_length[1] > Globals::factor)
                 && (average_length[0] > average_length[1]))){
-        mySplitCode = 1;//z direction get split
+        bitset<3> oldCode(1);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        // mySplitCode = 1;//z direction get split
         return;
       }
-      else if(minimum_length/Globals::tolerance  > Globals::factor){
-      mySplitCode = 7;
+      else if(minimum_length > 2.0*Globals::tolerance){
+        
+        mySplitCode = 7;
       return;
       }
       else{
@@ -1200,7 +1250,7 @@ void HexCell::setSplitCode(int split_mode){
     //when split_specified
     else if(split_mode == 1){
       if(mySplitCode != 0){
-        cerr<<"WARNING:mySplitCode is not zero in setSplitCode" << endl;
+        cerr<<"WARNING:mySplitCode is not zero in setSplitCode of hexcell" << endl;
         exit(0);
       }
       setSplitCode(0);
@@ -1250,15 +1300,21 @@ void HexCell::setSplitCode(int split_mode){
       }
      
      
-      oldCode = oldCode & mask;
+      oldCode = oldCode & mask & tolerance_mask;
       mySplitCode = char(oldCode.to_ulong());
      
       return;
     }//end if(split_mode == 1)
     
     else if(split_mode == 2){
-      mySplitCode = 7;
-      return;
+      if(minimum_length/Globals::tolerance  > 2.0){
+        mySplitCode = 7;
+        return;
+      }
+      else{
+        mySplitCode = 0;
+        return;
+      }
     }
     
   }//end if(getTagged())
@@ -1366,13 +1422,27 @@ bool HexCell::balance_cell(int split_mode,
   }
 
   else{
+
+      std::list<HexCell*> leaves;
+    sort_leaves(leaves);
     needBalance = false;
-    for(int i = 0; i < numChildren(); i++){
-      needBalance = needBalance || (childCell[i]->balance_cell(split_mode,node_list, edge_list, face_list));
+    for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+      bool tmp =  (*p)->balance_cell(split_mode, node_list, edge_list, face_list);
+      needBalance = tmp||needBalance;
     }
     
+       
   }
   return needBalance;
+}
+
+void HexCell::sort_leaves(std::list<HexCell*>& leaves){
+  if(childCell != 0){
+    for(int i = 0; i < numChildren(); i++)childCell[i]->sort_leaves(leaves);
+  }
+  else{
+    leaves.push_back(this);
+  }
 }
 
 void HexCell::rebalance_cells(int split_mode,
@@ -1380,10 +1450,8 @@ void HexCell::rebalance_cells(int split_mode,
                            std::list<Edge*>& edge_list,
                            std::list<QuadFace*>& face_list){ 
   bool need_balance_more = true;
-  int  count = 0;
+
   while(need_balance_more){
-    count++;
-    //if(count>30)    cerr << "count: " << count << endl;
     need_balance_more = balance_cell(split_mode, node_list, edge_list, face_list); 
   }
 }

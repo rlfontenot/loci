@@ -117,7 +117,7 @@ public:
 
   
   void sort_leaves(std::list<Edge*>& leaves);
-
+  int get_depth();
   //For QuadFace
   void resplit(const std::vector<char>& edgePlan, bool needReverse,
                std::list<Node*>& node_list);

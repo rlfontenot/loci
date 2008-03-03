@@ -506,12 +506,8 @@ namespace Loci {
   DatatypeP MapRepI::getType() {
     return DatatypeP(new AtomicType(INT)) ;
   }
-  frame_info MapRepI::read_frame_info(hid_t group_id) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
-  frame_info MapRepI::write_frame_info(hid_t group_id) {
+
+  frame_info MapRepI::get_frame_info() {
     warn(true) ;
     frame_info fi ;
     return fi ;
@@ -1071,12 +1067,7 @@ namespace Loci {
     DatatypeP dp ;
     return dp ;
   }
-  frame_info multiMapRepI::read_frame_info(hid_t group_id) {
-    warn(true) ;
-    frame_info fi ;
-    return fi ;
-  }
-  frame_info multiMapRepI::write_frame_info(hid_t group_id) {
+  frame_info multiMapRepI::get_frame_info() {
     warn(true) ;
     frame_info fi ;
     return fi ;

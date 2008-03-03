@@ -45,10 +45,10 @@ namespace Loci{
                         const Map &cl, const Map &cr, entitySet faces,
                         vector<unsigned char> &cluster_info,
                        vector<unsigned short> &cluster_sizes) ;
-   bool readBCfromVOG(string filename,
+  bool readBCfromVOG(string filename,
                     vector<pair<int,string> > &boundary_ids);
 
-
+  
   hid_t writeVOGOpen(string filename);
   void writeVOGSurf(hid_t file_id, std::vector<pair<int,string> > surface_ids);
   void writeVOGClose(hid_t file_id) ;
@@ -61,15 +61,15 @@ void writeVOGNode(hid_t file_id,
 
 void colorMatrix(Map &cl, Map &cr, multiMap &face2node);
 namespace Loci{
-hid_t writeVOGOpen(string filename) {
+  hid_t writeVOGOpen(string filename) {
     hid_t file_id = 0 ;
     if(MPI_rank==0) 
       file_id = H5Fcreate(filename.c_str(),H5F_ACC_TRUNC,H5P_DEFAULT,H5P_DEFAULT) ;
     return file_id ;
   }
    void writeVOGClose(hid_t file_id) {
-    if(MPI_rank == 0) H5Fclose(file_id) ;
-  }
+     if(MPI_rank == 0) H5Fclose(file_id) ;
+   }
   
        
   void writeVOGSurf(hid_t file_id, std::vector<pair<int,string> > surface_ids) {
@@ -96,7 +96,7 @@ hid_t writeVOGOpen(string filename) {
 
 
 }
-  void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
+void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
     // Compute cell set
     entitySet tmp_cells = cl.image(cl.domain())+cr.image(cr.domain()) ;
     entitySet loc_geom_cells = tmp_cells & interval(0,Loci::UNIVERSE_MAX) ;
@@ -348,7 +348,9 @@ public:
        for(unsigned int i = 0; i < fine_faces[*ei].size(); i++){
          for(int j = 0; j < count[*fid]; j++){
            //vog file node index start with 0
-           face2node[*fid][j] = fine_faces[*ei][i][j+2]-1;
+           // face2node[*fid][j] = fine_faces[*ei][i][j+2]-1;
+           // if(fine_faces[*ei][i][j+2] < 0) cerr <<"WARNING: negative node index" << endl;
+             face2node[*fid][j] = fine_faces[*ei][i][j+2]; 
          }
          fid++;
        }

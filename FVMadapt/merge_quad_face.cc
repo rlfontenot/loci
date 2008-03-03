@@ -23,7 +23,7 @@ std::vector<char>   extract_general_face(const Entity* lower, int lower_size,
                                          const Entity* boundary_map, int boundary_map_size,
                                          const const_multiMap& face2node,
                                          const const_multiMap& face2edge,
-                                         const const_MapVec<2>& edge2node,
+                                         const const_multiMap& edge2node,
                                          const std::vector<char>& cellPlan,
                                          Entity ff,
                                          const Map& node_remap

@@ -33,7 +33,7 @@ using std::cout;
 using std::endl;
 using std::set;
 using std::map;
-
+using Loci::storeRepP;
 class set_hexcell_num_nodes : public pointwise_rule{
   const_store<std::vector<char> > cellPlan;
   const_store<std::vector<char> > facePlan;
@@ -46,10 +46,11 @@ class set_hexcell_num_nodes : public pointwise_rule{
   const_store<Array<char,8> > hex2node;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;
   store<int> num_inner_nodes;
- 
+
+ const_store<int> node_l2f;
 public:
   set_hexcell_num_nodes(){
     name_store("cellPlan", cellPlan);
@@ -65,7 +66,7 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("pos", pos);
-   
+    name_store("fileNumber(face2node)", node_l2f);
     name_store("num_inner_nodes", num_inner_nodes);
  
 
@@ -75,14 +76,18 @@ public:
     input("(lower, upper, boundary_map)->face2edge->edgePlan");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge->edge2node");
-    input("(lower, upper, boundary_map)->face2edge");
+    input("(lower, upper, boundary_map)->(fileNumber(face2node),face2edge)");
     
     output("num_inner_nodes");
  
     constraint("hexcells");
   }
   virtual void compute(const sequence &seq){
-    do_loop(seq, this);
+ if(seq.size()!=0){
+       
+        do_loop(seq, this);
+      }
+  
   }
   void calculate(Entity cc){
        
@@ -111,7 +116,8 @@ public:
                                     facePlan,
                                     bnode_list,
                                     edge_list,
-                                    face_list);
+                                    face_list,
+                                    node_l2f);
     
     std::vector<HexCell*> cells;
     aCell->resplit( cellPlan[cc],
@@ -150,10 +156,12 @@ class set_hexcell_num_cells : public pointwise_rule{
   const_store<Array<char,8> > hex2node;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;
  
   store<int> num_fine_cells;
+
+  const_store<int> node_l2f;
 public:
   set_hexcell_num_cells(){
     name_store("cellPlan", cellPlan);
@@ -172,21 +180,24 @@ public:
    
    
     name_store("num_fine_cells", num_fine_cells);
-
+    name_store("fileNumber(face2node)", node_l2f);
     input("cellPlan");
     input("(hex2face, hex2node, hexOrientCode)");
     input("(lower, upper, boundary_map)->facePlan");
     input("(lower, upper, boundary_map)->face2edge->edgePlan");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge->edge2node");
-    input("(lower, upper, boundary_map)->face2edge");
+    input("(lower, upper, boundary_map)->(fileNumber(face2node), face2edge)");
     
  
     output("num_fine_cells");
     constraint("hexcells");
   }
   virtual void compute(const sequence &seq){
-    do_loop(seq, this);
+   if(seq.size()!=0){
+       
+        do_loop(seq, this);
+      }
   }
   void calculate(Entity cc){
        
@@ -215,7 +226,8 @@ public:
                                     facePlan,
                                     bnode_list,
                                     edge_list,
-                                    face_list);
+                                    face_list,
+                                    node_l2f);
     
     std::vector<HexCell*> cells;
     aCell->resplit( cellPlan[cc],
@@ -249,7 +261,7 @@ class set_quadface_nums : public pointwise_rule{
   const_store<std::vector<char> > edgePlan;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;
   store<int> num_inner_nodes;
   

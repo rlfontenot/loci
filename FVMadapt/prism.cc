@@ -969,7 +969,7 @@ void Prism::setSplitCode(int split_mode){
     
     if(mySplitCode != 0){
       
-      cerr<<"WARNING:mySplitCode is not zero in setSplitCode" << endl;
+      cerr<<"WARNING:mySplitCode is not zero in setSplitCode of prism: " << int(mySplitCode) <<endl;
       exit(0);
     }
     
@@ -979,6 +979,9 @@ void Prism::setSplitCode(int split_mode){
     std::vector<Edge*> edges = get_edges();
     std::vector<double> edge_length(3*nfold);
     for(int i = 0; i < 3*nfold; i++)edge_length[i] = edges[i]->get_length();
+
+
+    
     
     //find the min_edge_length in XY direction
     double average_length0, average_length1;
@@ -991,19 +994,28 @@ void Prism::setSplitCode(int split_mode){
     for(int i = 2*nfold; i < 3*nfold; i++)average_length1 +=  edge_length[i];
     average_length1 /= double(nfold);
     
-    
+    bitset<2> tolerance_mask(3); //all 1s
+    if(average_length0 < 2*Globals::tolerance)tolerance_mask.reset(1);
+    if(average_length1 < 2*Globals::tolerance)tolerance_mask.reset(0);
+   
     double minimum_length = min(average_length0, average_length1);
     if(split_mode == 0){
     
       if(average_length1/average_length0 > Globals::factor){
-        mySplitCode = 1; //split in z direction
+          bitset<2> oldCode(1);
+          oldCode = oldCode & tolerance_mask;
+          mySplitCode = char(oldCode.to_ulong());
+          //mySplitCode = 1; //split in z direction
         return;
       }
       else if(average_length0/average_length1 > Globals::factor){
-        mySplitCode = 2;//split in xy direction
+        bitset<2> oldCode(2);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        //mySplitCode = 2;//split in xy direction
         return;
       }
-      else if(minimum_length/Globals::tolerance > Globals::factor){
+      else if(minimum_length > 2.0*Globals::tolerance){
         mySplitCode = 3;
         return;
       }
@@ -1015,9 +1027,12 @@ void Prism::setSplitCode(int split_mode){
       cerr<< " WARNING: reach dummy code in setSplitCode()" << endl;
     }
     else if(split_mode == 1){
-      if(average_length0/average_length1 > Globals::factor ||
-         (minimum_length/Globals::tolerance > Globals::factor)){
-        mySplitCode = 2;//split in xy direction
+      if(average_length0/Globals::tolerance > 2.0){
+        bitset<2> oldCode(2);
+        oldCode = oldCode & tolerance_mask;
+        mySplitCode = char(oldCode.to_ulong());
+        
+        // mySplitCode = 2;//split in xy direction
         return;
       }
       else{
@@ -1026,13 +1041,20 @@ void Prism::setSplitCode(int split_mode){
       }  
     }
     else if(split_mode == 2){
-      mySplitCode = 3;
-      return;
+      if (minimum_length > 2.0*Globals::tolerance){
+        mySplitCode = 3;
+        return;
+      }
+      else{
+        mySplitCode = 0;
+        return;
+      }
     }
   }
   else{
     
     mySplitCode = 0;
+    return;
   }
 }
   //after a cell is split, compose the cell plan according to the tree structure      
@@ -1086,18 +1108,20 @@ std::vector<char> Prism::make_cellplan(int level){
   return cellPlan;
 }
 
+
 bool Prism::balance_cell(int split_mode,
                          std::list<Node*>& node_list,
                          std::list<Edge*>& edge_list,
                          std::list<QuadFace*>& qface_list,
                          std::list<Face*>& gface_list){ 
 
-  std::vector<Edge*> edge= get_edges();
+  
   
   bool  needBalance = false;
 
   if(childCell == 0){
-    
+    std::vector<Edge*> edge= get_edges();
+
     needBalance = false;
    
 
@@ -1111,16 +1135,18 @@ bool Prism::balance_cell(int split_mode,
       }
       
     }else{
-      bitset<2> code;
+      bitset<2> code(0);
       
       for(int i = 0; i < 2*nfold; i++){
         if( edge[i]->depth_greater_than_1()){
           code.set(1);
+          break;
         }
       }
       for(int i = 2*nfold; i < 3*nfold; i++){
         if( edge[i]->depth_greater_than_1()){
           code.set(0);
+          break;
         }
       }
     
@@ -1137,9 +1163,14 @@ bool Prism::balance_cell(int split_mode,
   }
   
   else{
+
+    std::list<Prism*> leaves;
+    sort_leaves(leaves);
+    
     needBalance = false;
-    for(int i = 0; i < numChildren(); i++){
-      needBalance = needBalance || (childCell[i]->balance_cell(split_mode, node_list, edge_list, qface_list, gface_list));
+    for(std::list<Prism*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+      bool tmp =  (*p)->balance_cell(split_mode, node_list, edge_list, qface_list, gface_list);
+      needBalance = tmp||needBalance;
     }
     
   }
@@ -1148,15 +1179,24 @@ bool Prism::balance_cell(int split_mode,
 
 
 
-
+void Prism::sort_leaves(std::list<Prism*>& leaves){
+  if(childCell != 0){
+    for(int i = 0; i < numChildren(); i++)childCell[i]->sort_leaves(leaves);
+  }
+  else{
+    leaves.push_back(this);
+  }
+}
 
 
 void Prism::rebalance_cells(int split_mode,
                             std::list<Node*>& node_list,
                             std::list<Edge*>& edge_list,
                             std::list<QuadFace*>& qface_list,
-                            std::list<Face*>& gface_list){ 
+                            std::list<Face*>& gface_list){
+
   bool need_balance_more = true;
+
   while(need_balance_more){
     need_balance_more = balance_cell(split_mode, node_list, edge_list, qface_list, gface_list); 
   }

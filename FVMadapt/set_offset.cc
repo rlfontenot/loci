@@ -71,8 +71,8 @@ public:
 
     if(num_procs ==  1){
       
-      int offset = *num_original_nodes + 1; //in cobalt, index of node start with 1
-      
+      // int offset = *num_original_nodes + 1; //in cobalt, index of node start with 1
+      int offset = *num_original_nodes ; //in vog, index of node start with 0
       FORALL(*edges, ei){
         node_offset[ei] = offset;
         offset += num_inner_nodes[ei];
@@ -127,7 +127,9 @@ public:
     local_nodes_sizes = Loci::all_collect_sizes(num_local_inner_nodes);
 
     //each process computes its node  offset
-    int noffset = *num_original_nodes +1;
+    // int noffset = *num_original_nodes +1;
+    int noffset = *num_original_nodes ;
+    
     for(int i = 0; i < my_id; i++){
       noffset += local_nodes_sizes[i];
     }

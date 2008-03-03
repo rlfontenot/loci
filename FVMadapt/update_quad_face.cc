@@ -77,8 +77,9 @@ public:
      constraint("interior_faces, (cl, cr)->hexcells");
   }
   virtual void compute(const sequence &seq){
+   
     do_loop(seq, this);
-    
+   
  
   }
   void calculate(Entity f){
@@ -117,7 +118,9 @@ public:
     constraint("boundary_faces, cl->hexcells");
   }
   virtual void compute(const sequence &seq){
+    
     do_loop(seq, this);
+    
   }
   void calculate(Entity f){
     std::vector<char> facePlanL = extract_hex_face( cellPlan[cl[f]], DIRECTION(fl[f]));

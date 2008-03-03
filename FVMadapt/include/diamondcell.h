@@ -161,7 +161,7 @@ public:
                     std::list<Edge*>& edge_list,
                     std::list<Face*>& face_list);
   
-  
+  void sort_leaves(std::list<DiamondCell*>& v1);  
   
   //this function split  a general cell isotropically according to cellPlan,
   //all leaves are stored in cells, each leaf is indexed
@@ -189,7 +189,18 @@ public:
   
  
 
-
+ //find the minimum edge length in a cell(before split)
+  inline double get_min_edge_length(){
+    std::set<Edge*> edge;
+    get_edges(edge);
+    std::set<Edge*>::const_iterator cur_edge = edge.begin();
+    
+    double min_length = norm((*cur_edge)->head->p - (*cur_edge)->tail->p);
+    for(cur_edge= edge.begin();cur_edge != edge.end(); cur_edge++){
+      min_length = min(min_length, norm((*cur_edge)->head->p - (*cur_edge)->tail->p));
+    }
+    return min_length;
+  }
 
 private:
   //a nfold diamondcell will have 2*nfold faces and 2*nfold+2 vertex, node 0 and node 1 have
@@ -402,8 +413,9 @@ public:
 int  find_face_index(const Entity* lower, int lower_size,
                      const Entity* upper, int upper_size,
                      const Entity* boundary_map, int boundary_map_size,
+                     const const_multiMap& face2node,
                      Entity f,
-                     const Map& node_remap);
+                     const const_store<int>& node_remap);
 
 
 
@@ -424,14 +436,14 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<std::vector<char> >& edgePlan,
                          const const_store<std::vector<char> >& facePlan,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap);
+                         const const_store<int>& node_remap);
 
 //build a Cell from Loci data structures, the locations of nodes are defined
 //edges and faces are split according to edgePlan and facePlan
@@ -442,7 +454,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<std::vector<char> >& edgePlan,
                          const const_store<std::vector<char> >& facePlan,
@@ -451,7 +463,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap);
+                         const const_store<int>& node_remap);
 //build a Cell from Loci data structures, the locations of nodes are defined
 //and all boundary nodes are tagged
 Cell* build_general_cell(const Entity* lower, int lower_size,
@@ -459,26 +471,38 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* boundary_map, int boundary_map_size,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          const const_store<vect3d>& pos,
                          const const_store<char>& posTag,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap);
+                         const const_store<int>& node_remap);
+//build a Cell from Loci data structures, the locations of nodes are defined
 
+Cell* build_general_cell(const Entity* lower, int lower_size,
+                         const Entity* upper, int upper_size,
+                         const Entity* boundary_map, int boundary_map_size,
+                         const const_multiMap& face2node,
+                         const const_multiMap& face2edge,
+                         const const_multiMap& edge2node,
+                         const const_store<vect3d>& pos,
+                         std::list<Node*>& bnode_list,
+                         std::list<Edge*>& edge_list,
+                         std::list<Face*>& face_list,
+                         const const_store<int>& node_remap);
 //build a Cell from Loci data structures, the locations of nodes are defined
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
                          const Entity* boundary_map, int boundary_map_size,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          const const_store<vect3d>& pos,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap);
+                         const const_store<int>& node_remap);
 
 //build a Cell from Loci data structures, the locations of nodes are not defined
 Cell* build_general_cell(const Entity* lower, int lower_size,
@@ -486,11 +510,11 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* boundary_map, int boundary_map_size,
                          const const_multiMap& face2node,
                          const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
+                         const const_multiMap& edge2node,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap);
+                         const const_store<int>& node_remap);
 
 
 
@@ -500,7 +524,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          const const_store<bool>& is_quadface,
                          const_multiMap& face2node,
                          const_multiMap& face2edge,
-                         const_MapVec<2>& edge2node,
+                         const_multiMap& edge2node,
                          const_store<vect3d>& pos,
                          const_store<std::vector<char> >& edgePlan,
                          const_store<std::vector<char> >& facePlan,
@@ -508,7 +532,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Node*>& bnode_list,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
-                         const Map& node_remap);
+                         const const_store<int>& node_remap);
 
 
 
@@ -526,11 +550,11 @@ std::vector<int32> get_c1(const Entity* lower, int lower_size,
                           const Entity* boundary_map, int boundary_map_size,
                           const const_multiMap& face2node, 
                           const const_multiMap& face2edge,
-                          const const_MapVec<2>& edge2node,
+                          const const_multiMap& edge2node,
                           const std::vector<char>& cellPlan,
                           const std::vector<char>& facePlan,
                           Entity f,
-                          const Map& node_remap);
+                          const const_store<int>& node_remap);
 
 std::vector<int32> get_c1_general(const Entity* lower, int lower_size,
                                   const Entity* upper, int upper_size,
@@ -538,11 +562,11 @@ std::vector<int32> get_c1_general(const Entity* lower, int lower_size,
                                   bool is_quadface,
                                   const const_multiMap& face2node, 
                                   const const_multiMap& face2edge,
-                                  const const_MapVec<2>& edge2node,
+                                  const const_multiMap& edge2node,
                                   const std::vector<char>& cellPlan,
                                   const std::vector<char>& facePlan,
                                   Entity f,
-                                  const Map& node_remap);
+                                  const const_store<int>& node_remap);
 
 
 //this function merge two isotropical facePlan
@@ -554,9 +578,9 @@ std::vector<char>   extract_general_face(const Entity* lower, int lower_size,
                                          const Entity* boundary_map, int boundary_map_size,
                                          const const_multiMap& face2node,
                                          const const_multiMap& face2edge,
-                                         const const_MapVec<2>& edge2node,
+                                         const const_multiMap& edge2node,
                                          const std::vector<char>& cellPlan,
-                                         Entity ff, const Map& node_remap);
+                                         Entity ff, const const_store<int>& node_remap);
 
 
 #endif

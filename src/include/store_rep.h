@@ -124,8 +124,7 @@ namespace Loci {
     virtual storeRepP getRep() ;
     virtual storeRepP getRep() const ;
     virtual  DatatypeP getType() = 0 ;
-    virtual frame_info read_frame_info(hid_t group_id) = 0 ;
-    virtual frame_info write_frame_info(hid_t group_id) = 0 ;
+    virtual frame_info get_frame_info() = 0 ;
   } ;
 
 
@@ -191,11 +190,8 @@ namespace Loci {
     virtual DatatypeP getType() {
      return  Rep()->getType() ;
     }
-    virtual frame_info read_frame_info(hid_t group_id) {
-      return Rep()->read_frame_info(group_id) ;
-    }
-    virtual frame_info write_frame_info(hid_t group_id) {
-      return Rep()->write_frame_info(group_id) ;
+    virtual frame_info get_frame_info() {
+      return Rep()->get_frame_info() ;
     }
   } ;
   typedef NPTR<store_ref> store_refP ;

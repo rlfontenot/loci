@@ -82,8 +82,7 @@ namespace Loci {
     Entity * get_base_ptr() const { return base_ptr ; }
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual DatatypeP getType() ;
-    virtual frame_info read_frame_info(hid_t group_id) ;
-    virtual frame_info write_frame_info(hid_t group_id) ;
+    virtual frame_info get_frame_info() ;
   } ;
   
   class Map : public store_instance {

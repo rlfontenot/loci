@@ -1,23 +1,3 @@
-//#############################################################################
-//#
-//# Copyright 2008, Mississippi State University
-//#
-//# This file is part of the Loci Framework.
-//#
-//# The Loci Framework is free software: you can redistribute it and/or modify
-//# it under the terms of the Lesser GNU General Public License as published by
-//# the Free Software Foundation, either version 3 of the License, or
-//# (at your option) any later version.
-//#
-//# The Loci Framework is distributed in the hope that it will be useful,
-//# but WITHOUT ANY WARRANTY; without even the implied warranty of
-//# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//# Lesser GNU General Public License for more details.
-//#
-//# You should have received a copy of the Lesser GNU General Public License
-//# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-//#
-//#############################################################################
 // This file contain funstions that build a prism according to Loci data structures
 // and refinement plans. When build a prism, edges are built as local edges in cell
 // and resplit with needReverse. both general faces and quadfaces faces are built as
@@ -39,25 +19,41 @@ using std::cerr;
 using std::endl;
 using std::swap;
 using std::cout;
-
+using Loci::storeRepP;
+using std::vector;
+void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lower,
+                   std::vector<Entity>& upper,
+                   std::vector<Entity>& boundary_map);
 //this function defines the 5 faces of prism from loci data structures
-Array<Entity, 5> collect_prism_faces( const Entity* lower,
-                                      const Entity* upper,
-                                      const Entity* boundary_map,
-                                      const Array<char, 5>& prism2face ){
+Array<Entity, 5> collect_prism_faces( const Entity* lower, int lower_size,
+                                      const Entity* upper, int upper_size,
+                                      const Entity* boundary_map,int boundary_map_size,
+                                      const Array<char, 5>& prism2face, const const_store<int>& node_remap ){
+ //first create vectors for reordering
+  vector<Entity> vlower(lower_size);
+  vector<Entity> vupper(upper_size);
+  vector<Entity> vboundary_map(boundary_map_size);
+  int nf =0;
+  for (int f=0; f<lower_size; f++) vlower[nf++] =lower[f]; 
+  nf =0;
+  for (int f=0; f<upper_size; f++) vupper[nf++] =upper[f]; 
+  nf =0;
+  for (int f=0; f<boundary_map_size; f++) vboundary_map[nf++] =boundary_map[f]; 
+  reorder_faces(node_remap, vlower, vupper, vboundary_map);
+
   
   // Collect the entity designation of all faces of the cell cc in the all_faces array
   Array<Entity, 5> faces;
   for (int f=0; f<5; f++) {
     switch (prism2face[f]/6) {
     case 0:
-      faces[f] = lower[prism2face[f]%6];
+      faces[f] = vlower[prism2face[f]%6];
       break;
     case 1:
-      faces[f] = upper[prism2face[f]%6];
+      faces[f] = vupper[prism2face[f]%6];
       break;
     case 2:
-      faces[f] = boundary_map[prism2face[f]%6];
+      faces[f] = vboundary_map[prism2face[f]%6];
       break;
     default:
       cerr << " WARNING: illegal prism2face value" << endl;
@@ -88,7 +84,7 @@ Array<Entity, 6> collect_prism_vertices(const const_multiMap& face2node,
 //collect the entity designation of all edges of the prism,
 //the directions of edges are stored in needReverse 
 Array<Entity, 9> collect_prism_edges(const Array<Entity, 5>& faces, const Array<Entity,6>& prism_vertices,
-                                     const const_multiMap& face2edge, const const_MapVec<2>& edge2node,
+                                     const const_multiMap& face2edge, const const_multiMap& edge2node,
                                      Array<bool, 9>& needReverse){
   entitySet all_edges;
   Array<Entity, 9> prism_edges;
@@ -148,19 +144,20 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,
-                        std::list<Face*>& gface_list){
+                        std::list<Face*>& gface_list,
+                        const const_store<int>& node_remap){
   
-  Array<Entity, 5> face_entity = collect_prism_faces(lower,
-                                                     upper,
-                                                     boundary_map,
-                                                     prism2face);
+  Array<Entity, 5> face_entity = collect_prism_faces(lower, lower_size,
+                                                     upper, upper_size,
+                                                     boundary_map,boundary_map_size,
+                                                     prism2face, node_remap);
   
   Array<Entity, 6> node_entity = collect_prism_vertices(face2node,
                                                         face_entity,
@@ -250,7 +247,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
@@ -259,12 +256,13 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,
-                        std::list<Face*>& gface_list){
+                        std::list<Face*>& gface_list,
+                        const const_store<int>& node_remap){
   
-  Array<Entity, 5> face_entity = collect_prism_faces(lower,
-                                                     upper,
-                                                     boundary_map,
-                                                     prism2face);
+  Array<Entity, 5> face_entity = collect_prism_faces(lower, lower_size,
+                                                     upper,upper_size,
+                                                     boundary_map,boundary_map_size,
+                                                     prism2face, node_remap);
   
   Array<Entity, 6> node_entity = collect_prism_vertices(face2node,
                                                         face_entity,
@@ -381,7 +379,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
 //                         const Array<char,5>& orientCode,
 //                         const const_multiMap& face2node,
 //                         const const_multiMap& face2edge,
-//                         const const_MapVec<2>& edge2node,
+//                         const const_multiMap& edge2node,
 //                         const const_store<vect3d>& pos,
 //                         std::list<Node*>& bnode_list,
 //                         std::list<Edge*>& edge_list,
@@ -476,18 +474,19 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                           const const_store<char>& posTag,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,
-                        std::list<Face*>& gface_list){
+                        std::list<Face*>& gface_list,
+                        const const_store<int>& node_remap){
   
-  Array<Entity, 5> face_entity = collect_prism_faces(lower,
-                                                     upper,
-                                                     boundary_map,
-                                                     prism2face);
+  Array<Entity, 5> face_entity = collect_prism_faces(lower,lower_size,
+                                                     upper,upper_size,
+                                                     boundary_map,boundary_map_size,
+                                                     prism2face, node_remap);
   
   Array<Entity, 6> node_entity = collect_prism_vertices(face2node,
                                                         face_entity,
@@ -563,148 +562,115 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//serial version
-// Prism* build_prism_cell(const Entity* lower, int lower_size,
-//                         const Entity* upper, int upper_size,
-//                         const Entity* boundary_map, int boundary_map_size,
-//                         const Array<char,5>& prism2face,
-//                         const Array<char,6>& prism2node,
-//                         const Array<char,5>& orientCode,
-//                         const const_multiMap& face2node,
-//                         const const_multiMap& face2edge,
-//                         const const_MapVec<2>& edge2node,
-//                         const const_store<vect3d>& pos,
-//                         const const_store<std::vector<char> >& edgePlan,
-//                         const const_store<std::vector<char> >& facePlan,
-//                         const store<int>& node_offset,
-//                         int offset_min,
-//                         std::list<Node*>& bnode_list,
-//                         std::list<Edge*>& edge_list,
-//                         std::list<QuadFace*>& qface_list,
-//                         std::list<Face*>& gface_list){
-
-//   Array<Entity, 5> face_entity = collect_prism_faces(lower,
-//                                                upper,
-//                                                boundary_map,
-//                                                prism2face);
+Prism* build_prism_cell(const Entity* lower, int lower_size,
+                        const Entity* upper, int upper_size,
+                        const Entity* boundary_map, int boundary_map_size,
+                        const Array<char,5>& prism2face,
+                        const Array<char,6>& prism2node,
+                        const Array<char,5>& orientCode,
+                        const const_multiMap& face2node,
+                        const const_multiMap& face2edge,
+                        const const_multiMap& edge2node,
+                        const const_store<vect3d>& pos,
+                        std::list<Node*>& bnode_list,
+                        std::list<Edge*>& edge_list,
+                        std::list<QuadFace*>& qface_list,
+                        std::list<Face*>& gface_list,
+                        const const_store<int>& node_remap){
   
-//   Array<Entity, 6> node_entity = collect_prism_vertices(face2node,
-//                                                   face_entity,
-//                                                   prism2node);
+  Array<Entity, 5> face_entity = collect_prism_faces(lower,lower_size,
+                                                     upper,upper_size,
+                                                     boundary_map,boundary_map_size,
+                                                     prism2face, node_remap);
+  
+  Array<Entity, 6> node_entity = collect_prism_vertices(face2node,
+                                                        face_entity,
+                                                        prism2node);
 
 
 
-//   Array<bool, 9> edge_reverse;
-//   Array<Entity, 9> edge_entity = collect_prism_edges( face_entity,
-//                                                  node_entity,
-//                                                  face2edge,
-//                                                  edge2node,
-//                                                  edge_reverse);
+  Array<bool, 9> edge_reverse;
+  Array<Entity, 9> edge_entity = collect_prism_edges( face_entity,
+                                                       node_entity,
+                                                       face2edge,
+                                                       edge2node,
+                                                       edge_reverse);
 
  
-//   //define each node and put it into node_list
-//   std::map<Entity, Node*> n2n;
-//   for(int i = 0; i < 6; i++){
-//     Node* aNode = new Node(pos[node_entity[i]], node_entity[i]-offset_min+1);
-//     bnode_list.push_back(aNode);
-//     n2n[node_entity[i]] = aNode;
-//   }
+  //define each node and put it into node_list
+  std::map<Entity, Node*> n2n;
+  for(int i = 0; i < 6; i++){
+    Node* aNode = new Node(pos[node_entity[i]]);
+    bnode_list.push_back(aNode);
+    n2n[node_entity[i]] = aNode;
+  }
   
-  
-//   std::map<Entity,Edge*> e2e;
-//   std::list<Node*>::const_iterator bnode_begin = --(bnode_list.end());
-//   for(int i = 0; i < 9; i++){
-//     Edge* anEdge = new Edge(n2n[edge2node[edge_entity[i]][edge_reverse[i]?1:0]],
-//                             n2n[edge2node[edge_entity[i]][edge_reverse[i]?0:1]]);
-//     edge_list.push_back(anEdge);
-//     e2e[edge_entity[i]] = anEdge;
-
-
-//     //resplit the edge
-//     anEdge->resplit(edgePlan[edge_entity[i]],edge_reverse[i], bnode_list);
-
-//      //index the node
-//     int nindex = node_offset[edge_entity[i]];
-//     for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
-//       (*np)->index =  nindex++;
-//     }
-//     bnode_begin = --(bnode_list.end());
-//   }
-  
-//   int f2e[3][4]= {{0, 7, 3, 6}, {1, 8, 4, 7}, {2, 6, 5, 8}};
-//   int gf2e[2][3] = {{0, 1, 2}, {3, 4, 5}};
-//   Face* gface;
-//   QuadFace* qface;
-//   //defines each face and put it into face_list
-//   Prism* aCell = new Prism(3);
-  
- 
-//   for(int i = 0; i < 2; i++){
-
-
-//     gface = new Face(3);
-//     gface_list.push_back(gface);
+  //edge is built according to the direction inside the prism
+  //and resplit with needReverse
+  std::map<Entity,Edge*> e2e;
+  for(int i = 0; i < 9; i++){
+    Edge* anEdge = new Edge(n2n[edge2node[edge_entity[i]][edge_reverse[i]?1:0]],
+                            n2n[edge2node[edge_entity[i]][edge_reverse[i]?0:1]]);
+    edge_list.push_back(anEdge);
+    e2e[edge_entity[i]] = anEdge;
     
-//     //define each edge
-//     for(int j = 0; j < 3; j++){
-     
-//       gface->edge[j] =  e2e[edge_entity[gf2e[i][j]]];
-//       gface->needReverse[j] = false; 
-//     }
-//     //resplit each face
-   
-//      gface->resplit(facePlan[face_entity[i]],orientCode[i], bnode_list, edge_list);//resplit without orientCode
+    
+  }
+  
+  int f2e[3][4]= {{0, 7, 3, 6}, {1, 8, 4, 7}, {2, 6, 5, 8}};
+  int gf2e[2][3] = {{0, 1, 2}, {3, 4, 5}};
+  
+  Face* gface;
+  QuadFace* qface;
+  //defines each face and put it into face_list
+  Prism* aCell = new Prism(3);
+  
+  //gnrlface[0]
+  for(int i = 0; i < 2; i++){
+    gface = new Face(3);
+    gface_list.push_back(gface);
 
-//      //index the node
-//     int nindex = node_offset[face_entity[i]];
-//     for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
-//       (*np)->index =  nindex++;
-//     }
-//     bnode_begin = --(bnode_list.end());
-//     aCell->setFace(i, gface);
-//   }
+    //define each edge
+    for(int j = 0; j < 3; j++){
+      gface->edge[j] = e2e[edge_entity[gf2e[i][j]]];
+      gface->needReverse[j] = false; 
+    }
+    
+    aCell->setFace(i, gface);
+  }
   
-//   //quadface
-//   for(int i = 0; i < 3; i++){
-//     qface = new QuadFace(4);
-//     qface_list.push_back(qface);
+  //quadface
+  for(int i = 0; i < 3; i++){
+    qface = new QuadFace(4);
+    qface_list.push_back(qface);
+      
+    //define each edge
+    for(int j = 0; j < 4; j++){
+      qface->edge[j] = e2e[edge_entity[f2e[i][j]]];
+    }
+  
+    aCell->setFace(i, qface);
+  }
+  
+  return aCell;
+}
 
-//     //define each edge
-//     for(int j = 0; j < 4; j++){
-//       qface->edge[j] = e2e[edge_entity[f2e[i][j]]];
-//     }
-//     //resplit each face
-//       qface->resplit(facePlan[face_entity[i+2]],orientCode[i+2], bnode_list, edge_list);
-//       //index the node
-//       int nindex = node_offset[face_entity[i+2]];
-//       for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
-//         (*np)->index =  nindex++;
-//       }
-//       bnode_begin = --(bnode_list.end());
-//       aCell->setFace(i, qface);
-//   }
-  
-  
- 
-//   return aCell;
-// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //parallel version
 Prism* build_prism_cell(const Entity* lower, int lower_size,
@@ -715,21 +681,22 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
                         const const_store<int>& node_offset,
-                        const Map&  node_l2f,
+                        const const_store<int>&  face_l2f,
+                        const const_store<int>&  node_l2f,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,
                         std::list<Face*>& gface_list){
 
-  Array<Entity, 5> face_entity = collect_prism_faces(lower,
-                                               upper,
-                                               boundary_map,
-                                               prism2face);
+  Array<Entity, 5> face_entity = collect_prism_faces(lower,lower_size,
+                                                     upper,upper_size,
+                                                     boundary_map,boundary_map_size,
+                                                     prism2face, face_l2f);
   
   Array<Entity, 6> node_entity = collect_prism_vertices(face2node,
                                                   face_entity,

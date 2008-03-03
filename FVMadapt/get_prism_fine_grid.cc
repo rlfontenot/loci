@@ -52,10 +52,11 @@ class get_prism_cell_nodes : public pointwise_rule{
   const_store<Array<char,6> > prism2node;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;
- const_blackbox<Loci::storeRepP> node_remap;
-    store<Loci::FineNodes> inner_nodes;
+
+  const_store<int> node_l2f;
+  store<Loci::FineNodes> inner_nodes;
   
  
 public:
@@ -77,8 +78,8 @@ public:
 
     
     name_store("inner_nodes", inner_nodes);
-     name_store("node_remap", node_remap);
-    name_store("node_remap", node_remap);
+     name_store("fileNumber(face2node)", node_l2f);
+  
     
     input("cellPlan");
     input("(prism2face, prism2node, prismOrientCode)");
@@ -86,14 +87,18 @@ public:
     input("(lower, upper, boundary_map)->face2edge->edgePlan");
     input("(lower, upper, boundary_map)->face2node->pos");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
-    input("node_remap");
+    input("(lower, upper, boundary_map)->fileNumber(face2node)");
     output("inner_nodes");
-       constraint("prisms");
+    constraint("prisms");
   }
   virtual void compute(const sequence &seq){
    
-   
-    do_loop(seq, this);
+     if(seq.size()!=0){
+      
+        do_loop(seq, this);
+      }
+  
+  
    
    
   }
@@ -130,7 +135,8 @@ public:
                                        bnode_list,
                                        edge_list,
                                        qface_list,
-                                       gface_list);
+                                       gface_list,
+                                       node_l2f);
           
       std::vector<Prism*> cells;
       
@@ -171,7 +177,7 @@ class get_face_nodes : public pointwise_rule{
   const_store<std::vector<char> > edgePlan;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos; 
  
   const_store<bool> is_quadface;

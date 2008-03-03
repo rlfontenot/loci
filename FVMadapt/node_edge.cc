@@ -140,3 +140,12 @@ void Edge::resplit(const std::vector<char>& edgePlan,
   }
   
  
+
+int Edge::get_depth(){
+  std::list<Edge*> leaves;
+  int depth = 0;
+  for(std::list<Edge*>::const_iterator p = leaves.begin(); p!=leaves.end(); p++){
+    depth = max(depth, (*p)->level);
+  }
+  return depth;
+}

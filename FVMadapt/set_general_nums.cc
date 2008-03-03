@@ -53,13 +53,14 @@ class set_general_cell_num_nodes : public pointwise_rule{
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;
-  const_blackbox<Loci::storeRepP> node_remap;
+  
 
   store<int> num_inner_nodes;
  
-  Map node_l2f;
+  const_store<int> node_l2f;
+ 
 public:
   set_general_cell_num_nodes(){
     name_store("cellPlan", cellPlan);
@@ -72,17 +73,17 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("pos", pos);
-    name_store("node_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
     name_store("num_inner_nodes", num_inner_nodes);
 
     name_store("is_quadface", is_quadface);
     input("cellPlan");
-    input("node_remap");
+
     input("(lower, upper, boundary_map)->(is_quadface,facePlan)");
     input("(lower, upper, boundary_map)->face2edge->edgePlan");
-    input("(lower, upper, boundary_map)->face2node->pos");
+    input("(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
-    
+
   
     output("num_inner_nodes");
 
@@ -90,7 +91,7 @@ public:
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-    node_l2f = *node_remap;
+  
     do_loop(seq, this);
     }
 
@@ -161,13 +162,13 @@ class set_general_cell_num_cells : public pointwise_rule{
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;
-  const_blackbox<Loci::storeRepP> node_remap;
+
 
   store<int> num_fine_cells;
  
-  Map node_l2f;
+  const_store<int> node_l2f;
 public:
   set_general_cell_num_cells(){
     name_store("cellPlan", cellPlan);
@@ -180,15 +181,15 @@ public:
     name_store("face2edge", face2edge);
     name_store("edge2node", edge2node);
     name_store("pos", pos);
-    name_store("node_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
    
     name_store("num_fine_cells", num_fine_cells);
     name_store("is_quadface", is_quadface);
     input("cellPlan");
-    input("node_remap");
-    input("(lower, upper, boundary_map)->(is_quadface,facePlan)");
+   
+    input("(lower, upper, boundary_map)->( is_quadface,facePlan)");
     input("(lower, upper, boundary_map)->face2edge->edgePlan");
-    input("(lower, upper, boundary_map)->face2node->pos");
+    input("(lower, upper, boundary_map)->face2node->(pos,fileNumber(pos))");
     input("(lower, upper, boundary_map)->face2edge->edge2node->pos");
     
   
@@ -198,7 +199,7 @@ public:
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-    node_l2f = *node_remap;
+  
     do_loop(seq, this);
     }
 
@@ -266,7 +267,7 @@ class set_general_face_num_nodes : public pointwise_rule{
   const_store<std::vector<char> > edgePlan;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos;
  
   store<int> num_inner_nodes;

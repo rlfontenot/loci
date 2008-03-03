@@ -42,6 +42,10 @@
 using std::cerr;
 using std::endl;
 
+std::vector<int32> get_c1_hex(const std::vector<char>& cellPlan,
+                              const std::vector<char>& facePlan,
+                              char orientCode,
+                              char findex);
 
 
 class HexCell
@@ -213,7 +217,7 @@ public:
                     std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
                     std::list<QuadFace*>& face_list);
-
+  void sort_leaves(std::list<HexCell*>& v1);
   void rebalance_cells(int split_mode,
                        std::list<Node*>& node_list,
                        std::list<Edge*>& edge_list,
@@ -312,7 +316,7 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Array<char,6>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
@@ -320,7 +324,8 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const const_store<std::vector<char> >& nodeTag,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
-                        std::list<QuadFace*>& face_list);
+                        std::list<QuadFace*>& face_list,
+                        const const_store<int>& node_remap);
 HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
                         const Entity* boundary_map, int boundary_map_size,
@@ -329,31 +334,15 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Array<char,6>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
-                        std::list<QuadFace*>& face_list);
-//serial version
-// HexCell* build_hex_cell(const Entity* lower, int lower_size,
-//                         const Entity* upper, int upper_size,
-//                         const Entity* boundary_map, int boundary_map_size,
-//                         const Array<char,6>& hex2face,
-//                         const Array<char,8>& hex2node,
-//                         const Array<char,6>& orientCode,
-//                         const const_multiMap& face2node,
-//                         const const_multiMap& face2edge,
-//                         const const_MapVec<2>& edge2node,
-//                         const const_store<vect3d>& pos,
-//                         const const_store<std::vector<char> >& edgePlan,
-//                         const const_store<std::vector<char> >& facePlan,
-//                         const store<int>& node_offset,
-//                         int offset_min,
-//                         std::list<Node*>& bnode_list,
-//                         std::list<Edge*>& edge_list,
-//                         std::list<QuadFace*>& face_list);
+                        std::list<QuadFace*>& face_list,
+                        const const_store<int>& node_remap);
+
 
 //parallel version
 HexCell* build_hex_cell(const Entity* lower, int lower_size,
@@ -364,12 +353,13 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Array<char,6>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
                         const const_store<int>& node_offset,
-                        const  Map& node_l2f,
+                        const const_store<int>&  face_l2f,
+                        const const_store<int>&  node_l2f, 
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& face_list);
@@ -385,12 +375,13 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Array<char,6>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                          const const_store<char>& posTag,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
-                        std::list<QuadFace*>& face_list);
+                        std::list<QuadFace*>& face_list,
+                        const const_store<int>& node_remap);
 
 HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
@@ -400,14 +391,17 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Array<char,6>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_MapVec<2>& edge2node,
+                        const const_multiMap& edge2node,
                         const const_store<vect3d>& pos,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
-                        std::list<QuadFace*>& face_list);
+                        std::list<QuadFace*>& face_list,
+                        const const_store<int>& node_remap);
 //this function collect 6 faces of a cell 
-Array<Entity, 6> collect_hex_faces( const Entity*  lower,  const Entity* upper,
-                                const Entity* boundary_map,  const Array<char, 6>& hex2face);
+Array<Entity, 6> collect_hex_faces( const Entity*  lower,int lower_size,
+                                    const Entity* upper,int upper_size,
+                                    const Entity* boundary_map,int boundary_map_size,
+                                    const Array<char, 6>& hex2face, const const_store<int>& node_remap);
 
 //this function collects 8 vertices of a cell
 Array<Entity, 8> collect_hex_vertices(const const_multiMap& face2node, const Array<Entity, 6>& faces,
@@ -416,7 +410,7 @@ Array<Entity, 8> collect_hex_vertices(const const_multiMap& face2node, const Arr
 
 //collect the entity designation of all edges of the cell in the all_edges entitySet
 Array<Entity, 12> collect_hex_edges(const Array<Entity, 6>& faces, const Array<Entity, 8>& hex_vertices,
-                                const const_multiMap& face2edge, const const_MapVec<2>& edge2node,
+                                const const_multiMap& face2edge, const const_multiMap& edge2node,
                                 Array<bool,12>& needReverse);
 
 

@@ -18,11 +18,11 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
-//////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 //
 // This file balance general cellPlan between cells  
 //
-//////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 
 #include <queue>
@@ -79,7 +79,7 @@ class advance_cell_updated : public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos;
   const_store<bool> cellUnchangedn;
@@ -90,8 +90,9 @@ class advance_cell_updated : public pointwise_rule{
   const_store<bool> is_quadface;
   store<bool> cellUnchangedn1;
   store<std::vector<char> > tmpCellPlann1;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+  //  const_blackbox<Loci::storeRepP> node_remap;
+  // Map node_l2f;
+  const_store<int> node_l2f;
 public:
   advance_cell_updated(){
     name_store("lower", lower);
@@ -109,19 +110,20 @@ public:
     name_store("tmpEdgePlan{n}", edgePlan);
     name_store("isIndivisible", isIndivisible);
     name_store("is_quadface", is_quadface);
-    name_store("node_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
     input("cellUnchanged{n},tmpCellPlan{n},isIndivisible");
-    input("(lower, upper, boundary_map)->face2node->pos");
+   
+    input("(lower, upper, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("(lower, upper, boundary_map)->face2edge-> tmpEdgePlan{n}");
     input("(lower, upper, boundary_map)->face2edge-> edge2node->pos");
     input("(lower, upper, boundary_map)->(is_quadface,tmpFacePlan{n})" );
-    input("node_remap");
+    // input("node_remap");
     output("cellUnchanged{n+1}, tmpCellPlan{n+1}");
      constraint("gnrlcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size() != 0){
-      node_l2f = *node_remap;
+     
       do_loop(seq, this);
     }
   }
@@ -174,7 +176,6 @@ public:
     //write new cellPlan
     std::vector<char> newCellPlan(aCell->make_cellplan());
     cellUnchangedn1[cc] =  (newCellPlan == tmpCellPlann[cc]);
-
    
     tmpCellPlann1[cc] = newCellPlan;
     reduce_vector(tmpCellPlann1[cc]);

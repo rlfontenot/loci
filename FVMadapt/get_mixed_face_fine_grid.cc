@@ -48,7 +48,7 @@ class get_interior_face_faces_gh:public pointwise_rule{
   const_store<char> fr;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -58,8 +58,8 @@ class get_interior_face_faces_gh:public pointwise_rule{
     
 
   store<Loci::FineFaces> fine_faces;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+  const_store<int> node_l2f;
   
  
 public:
@@ -83,7 +83,7 @@ public:
     name_store("cr", cr);
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
-    name_store("iface_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
 
     name_store("fine_faces", fine_faces);
     
@@ -92,16 +92,17 @@ public:
     input("(cl, cr)->(cellPlan, cell_offset)");
     input("cr->(hex2node, hex2face, hexOrientCode)");
     input("fr");
-    input("(cl, cr)->(upper, lower, boundary_map)->face2node->pos");
+    input("(cl, cr)->(upper, lower, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
-    input("face2node->pos");
-    input("iface_remap");
+
+    input("face2node->(pos, fileNumber(pos))");
+    
     output("fine_faces");
     constraint("cl->gnrlcells, cr->hexcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-      node_l2f = *node_remap;
+    
       do_loop(seq, this);
     }
   }
@@ -269,7 +270,7 @@ class get_interior_face_faces_hg:public pointwise_rule{
   const_store<char> fl;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -279,8 +280,8 @@ class get_interior_face_faces_hg:public pointwise_rule{
     
  
   store<Loci::FineFaces> fine_faces;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+   const_store<int> node_l2f;
 public:
   get_interior_face_faces_hg(){
     name_store("facePlan", facePlan);
@@ -302,7 +303,7 @@ public:
     name_store("cr", cr);
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
-    name_store("iface_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
  
     name_store("fine_faces", fine_faces);
     
@@ -311,16 +312,16 @@ public:
     input("(cl, cr)->(cellPlan, cell_offset)");
     input("cl->(hex2node, hex2face, hexOrientCode)");
     input("fl");
-    input("(cl, cr)->(upper, lower, boundary_map)->face2node->pos");
+    input("(cl, cr)->(upper, lower, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
-    input("face2node->pos");
-    input("iface_remap");
+
+    input("face2node->(pos, fileNumber(pos))");
+   
     output("fine_faces");
     constraint("cr->gnrlcells, cl->hexcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-      node_l2f = *node_remap;
       do_loop(seq, this);
     }
     
@@ -489,7 +490,7 @@ class get_interior_face_faces_gp:public pointwise_rule{
   const_store<char> fr;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -499,8 +500,8 @@ class get_interior_face_faces_gp:public pointwise_rule{
     
  
   store<Loci::FineFaces> fine_faces;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+   const_store<int> node_l2f;
 public:
   get_interior_face_faces_gp(){
      name_store("facePlan", facePlan);
@@ -522,7 +523,7 @@ public:
     name_store("cr", cr);
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
-    name_store("iface_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
  
     name_store("fine_faces", fine_faces);
     
@@ -531,16 +532,16 @@ public:
     input("(cl, cr)->(cellPlan, cell_offset)");
     input("cr->(prism2node, prism2face, prismOrientCode)");
     input("fr");
-    input("(cl, cr)->(upper, lower, boundary_map)->face2node->pos");
+    input("(cl, cr)->(upper, lower, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
-    input("face2node->pos");
-    input("iface_remap");
+    input("face2node->(pos, fileNumber(pos))");
+
     output("fine_faces");
     constraint("cl->gnrlcells, cr->prisms");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-      node_l2f = *node_remap;
+     
       do_loop(seq, this);
     }
   }
@@ -774,7 +775,7 @@ class get_interior_face_faces_pg:public pointwise_rule{
   const_store<char> fl;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -784,8 +785,8 @@ class get_interior_face_faces_pg:public pointwise_rule{
     
  
   store<Loci::FineFaces> fine_faces;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+  const_store<int> node_l2f;
 public:
   get_interior_face_faces_pg(){
       name_store("facePlan", facePlan);
@@ -807,7 +808,7 @@ public:
     name_store("cr", cr);
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
-    name_store("iface_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
  
     name_store("fine_faces", fine_faces);
     
@@ -816,16 +817,16 @@ public:
     input("(cl, cr)->(cellPlan, cell_offset)");
     input("cl->(prism2node, prism2face, prismOrientCode)");
     input("fl");
-    input("(cl, cr)->(upper, lower, boundary_map)->face2node->pos");
+    input("(cl, cr)->(upper, lower, boundary_map)->face2node->(pos, fileNumber(pos))");
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
-    input("face2node->pos");
-    input("iface_remap");
+    input("face2node->(pos, fileNumber(pos))");
+  
     output("fine_faces");
     constraint("cr->gnrlcells, cl->prisms");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-      node_l2f = *node_remap;
+     
       do_loop(seq, this);
     }
   }
@@ -1072,7 +1073,7 @@ class get_interior_face_faces_hp:public pointwise_rule{
   const_store<char> fr;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -1081,8 +1082,8 @@ class get_interior_face_faces_hp:public pointwise_rule{
  
     
     store<Loci::FineFaces> fine_faces;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+   const_store<int> node_l2f;
 public:
   get_interior_face_faces_hp(){
     name_store("facePlan", facePlan);
@@ -1107,7 +1108,7 @@ public:
     name_store("cr", cr);
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
-    name_store("iface_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
   
     name_store("fine_faces", fine_faces);
     
@@ -1119,14 +1120,14 @@ public:
     input("(fl, fr)");
     input("(cl, cr)->(upper, lower, boundary_map)->face2node->pos");
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
-    input("face2node->pos");
-    input("iface_remap");
+    input("face2node->(pos, fileNumber(pos))");
+   
     output("fine_faces");
     constraint("cl->hexcells, cr->prisms");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-      node_l2f = *node_remap;
+    
       do_loop(seq, this);
     }
   }
@@ -1290,7 +1291,7 @@ class get_interior_face_faces_ph:public pointwise_rule{
   const_store<char> fr;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -1300,8 +1301,8 @@ class get_interior_face_faces_ph:public pointwise_rule{
     
   
   store<Loci::FineFaces> fine_faces;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f; 
+
+   const_store<int> node_l2f; 
 public:
   get_interior_face_faces_ph(){
      name_store("facePlan", facePlan);
@@ -1326,7 +1327,7 @@ public:
     name_store("cr", cr);
     name_store("node_offset", node_offset);
     name_store("cell_offset", cell_offset);
-    name_store("iface_remap", node_remap);
+    name_store("fileNumber(pos)", node_l2f);
   
     name_store("fine_faces", fine_faces);
     
@@ -1338,15 +1339,15 @@ public:
     input("(fl, fr)");
     input("(cl, cr)->(upper, lower, boundary_map)->face2node->pos");
     input("(cl, cr)->(upper, lower, boundary_map)-> face2edge->edge2node->pos");
-    input("face2node->pos");
-    input("iface_remap");
+    input("face2node->(pos, fileNumber(pos))");
+   
     output("fine_faces");
    
     constraint("cr->hexcells, cl->prisms");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-      node_l2f = *node_remap;
+     
       do_loop(seq, this);
     }
   }

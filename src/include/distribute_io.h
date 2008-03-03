@@ -48,6 +48,15 @@ namespace Loci {
       return 0 ;
   }
 
+  inline hid_t hdf5CreateFile(const char *name, unsigned flags, hid_t create_id, hid_t access_id, MPI_Comm comm) {
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(rank==0)
+      return H5Fcreate(name,flags,create_id,access_id) ;
+    else
+      return 0 ;
+  }
+
   inline hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id) {
     if(Loci::MPI_rank==0)
       return H5Fopen(name,flags,access_id) ;
@@ -55,8 +64,27 @@ namespace Loci {
       return 0 ;
   }
 
+  inline hid_t hdf5OpenFile(const char *name, unsigned flags, hid_t access_id,
+                            MPI_Comm comm) {
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(rank==0)
+      return H5Fopen(name,flags,access_id) ;
+    else
+      return 0 ;
+  }
+
   inline herr_t hdf5CloseFile(hid_t file_id) {
     if(Loci::MPI_rank==0)
+      return H5Fclose(file_id) ;
+    else
+      return 0 ;
+  }
+
+  inline herr_t hdf5CloseFile(hid_t file_id, MPI_Comm comm) {
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    if(rank==0)
       return H5Fclose(file_id) ;
     else
       return 0 ;

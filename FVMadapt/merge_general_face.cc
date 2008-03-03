@@ -48,10 +48,10 @@ std::vector<char>   extract_general_face(const Entity* lower, int lower_size,
                                          const Entity* boundary_map, int boundary_map_size,
                                          const const_multiMap& face2node,
                                          const const_multiMap& face2edge,
-                                         const const_MapVec<2>& edge2node,
+                                         const const_multiMap& edge2node,
                                          const std::vector<char>& cellPlan,
                                          Entity ff,
-                                         const Map& node_remap
+                                         const const_store<int>& node_remap
                                          ){
  
   //if cellPlan empty, facePlan also empty
@@ -85,6 +85,7 @@ std::vector<char>   extract_general_face(const Entity* lower, int lower_size,
   int findex = find_face_index(lower, lower_size,
                                upper, upper_size,
                                boundary_map, boundary_map_size,
+                               face2node,
                                ff,
                                node_remap);
 
@@ -280,13 +281,13 @@ class merge_general_interior_face:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos; //dummy
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+  const_store<int> node_l2f;
 public:
   merge_general_interior_face(){
     name_store("cl", cl);
@@ -300,17 +301,18 @@ public:
     name_store("pos", pos);
     name_store("cellPlan", cellPlan);
     name_store("facePlan", facePlan);
-    name_store("iface_remap", node_remap);
-    input("iface_remap");
+    name_store("fileNumber(pos)", node_l2f);
+   
     input("(cl,cr)->cellPlan");
-    input("(cl, cr)->(lower, upper, boundary_map)->face2node->pos");
+    input("(cl, cr)->(lower, upper, boundary_map)->face2node->(pos,fileNumber(pos))");
+   
     input("(cl, cr)->(lower, upper, boundary_map)->face2edge->edge2node->pos");
     output("facePlan");
     constraint("(cl, cr)->gnrlcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-      node_l2f = *node_remap;
+      
       do_loop(seq, this);
     }
   }
@@ -355,13 +357,13 @@ class merge_general_boundary_face:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_MapVec<2> edge2node;
+  const_multiMap edge2node;
   const_multiMap face2edge;
   const_store<vect3d> pos;//dummy
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
-  const_blackbox<Loci::storeRepP> node_remap;
-   Map node_l2f;
+
+   const_store<int> node_l2f;
 public:
   merge_general_boundary_face(){
     name_store("cl", cl);
@@ -374,17 +376,18 @@ public:
     name_store("pos", pos);
     name_store("cellPlan", cellPlan);
     name_store("facePlan", facePlan);
-    name_store("bface_remap", node_remap);
-    input("bface_remap");
+    name_store("fileNumber(pos)", node_l2f);
+    
     input("cl->cellPlan");
-    input("cl->(lower, upper, boundary_map)->face2node->pos");
+    input("cl->(lower, upper, boundary_map)->face2node->(pos,fileNumber(pos))");
+   
     input("cl->(lower, upper, boundary_map)->face2edge->edge2node->pos");
     output("facePlan");
     constraint("boundary_faces, cl->gnrlcells");
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
-    node_l2f = *node_remap;
+  
     do_loop(seq, this);
     }
    
