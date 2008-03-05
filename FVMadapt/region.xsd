@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<schema >
+
+<simpleType name="stringtype">
+ <restriction base="string"/>
+</simpleType>
+
+<simpleType name="dectype">
+ <restriction base="decimal"/>
+</simpleType>
+
+<complexType name="paratype">
+ <all>
+  <element name="x0" type="dectype" minOccurs="0"/>
+  <element name="y0" type="dectype" minOccurs="0"/>
+  <element name="z0" type="dectype" minOccurs="0"/>
+  <element name="x1" type="dectype" minOccurs="0"/>
+  <element name="x2" type="dectype" minOccurs="0"/>
+  <element name="y1" type="dectype" minOccurs="0"/>
+  <element name="y2" type="dectype" minOccurs="0"/>
+  <element name="z1" type="dectype" minOccurs="0"/>
+  <element name="z2" type="dectype" minOccurs="0"/>
+  <element name="r" type="dectype" minOccurs="0"/>
+  </all>
+</complexType>
+
+<simpleType name="optype">
+ <restriction base="stringtype">
+ <enumeration value="union">
+ <enumeration value="intersection">
+ <enumeration value="difference">
+ <enumeration value="complement">
+  </restriction>
+</simpleType>
+
+<complexType name="shapetype">
+ <choice>
+  <element name="sphere" type="paratype"/>
+  <element name="cone" type="paratype"/>
+  <element name="cylinder" type="paratype"/>
+  <element name="box" type="paratype"/>
+  <element name="x+plane" type="paratype"/>
+  <element name="x-plane" type="paratype"/>
+  <element name="y+plane" type="paratype"/>
+  <element name="y-plane" type="paratype"/>
+  <element name="z+plane" type="paratype"/>
+  <element name="z-plane" type="paratype"/>
+  </choice>
+</complexType>
+
+
+<complexType name="transformtype">
+ <all>
+  <element name="translate" type="paratype" minOccurs="0"/>
+  <element name="scale" type="paratype" minOccurs="0"/>
+  <element name="rotateX" type="decitype" minOccurs="0"/>
+  <element name="rotateY" type="decitype" minOccurs="0"/>
+  <element name="rotateZ" type="decitype" minOccurs="0"/>
+  </all>
+</complexType>
+
+
+<complexType name="objtype">
+ <sequence>
+  <element name="transform" type="transformtype" minOccurs="0"/>
+  <element name="shape" type="shapetype"/>
+  </sequence>
+</complexType>
+
+<complexType name="regiontype">
+ <all>
+  <element name="region" type="regiontype" minOccurs="0"/>
+  <element name="op" type="optype" minOccurs="0" maxOccurs="unbounded"/>	
+  <element name="object" type="objtype"/>
+  </all>
+</complexType>
+
+ <element name="region" type="regiontype"/>
+
+</schema>
