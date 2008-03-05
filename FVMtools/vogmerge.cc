@@ -53,6 +53,16 @@ unsigned long readAttributeLong(hid_t group, char *name) {
 
 struct affineMapping {
   double M[4][4] ;
+  double determinant() { return
+      (M[0][0]*M[1][1]*M[2][2]+
+       M[1][0]*M[2][1]*M[0][2]+
+       M[2][0]*M[0][1]*M[1][2]) -
+      (M[0][0]*M[2][1]*M[1][2]+
+       M[1][0]*M[0][1]*M[2][2]+
+       M[2][0]*M[1][1]*M[0][2]) ;
+  }
+
+  bool leftHanded() {return (determinant() < 0) ; }
   affineMapping() {
     for(int i=0;i<4;++i) {
       for(int j=0;j<4;++j)
@@ -677,6 +687,16 @@ int main(int ac, char *av[]) {
         cl.allocate(fclust) ;
         cr.allocate(fclust) ;
         Loci::fillFaceInfo(&cluster[0],face2node,cl,cr,0) ;
+        if(gridXform[i].leftHanded()) {
+          // If coordinate system changes handedness, we need to flip face
+          // ordering to get correct normal orientation
+          for(int f=0;f<nfaces;++f) {
+            int fsz = face2node[f].size() ;
+            for(int n=0;n<fsz/2;++n) {
+              std::swap(face2node[f][n],face2node[f][fsz-1-n]) ;
+            }
+          }
+        }
         for(int f=0;f<nfaces;++f) {
           int fsz = face2node[f].size() ;
           for(int n=0;n<fsz;++n)
