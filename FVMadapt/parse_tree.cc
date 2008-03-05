@@ -64,7 +64,7 @@ struct affineMapping {
       for(int j=0;j<4;++j) {
         double mtmp = 0 ;
         for(int k=0;k<4;++k)
-          mtmp += a.M[i][k]*M[k][j] ;
+          mtmp += M[i][k]*a.M[k][j] ;
         Mtmp[i][j] = mtmp ;
       }
     for(int i=0;i<4;++i)
@@ -73,16 +73,16 @@ struct affineMapping {
   }
   void translate(vect3d tv) {
     affineMapping tmp ;
-    tmp.M[0][3] = tv.x ;
-    tmp.M[1][3] = tv.y ;
-    tmp.M[2][3] = tv.z ;
+    tmp.M[0][1] = -tv.x ;
+    tmp.M[0][2] = -tv.y ;
+    tmp.M[0][3] = -tv.z ;
     Combine(tmp) ;
   }
   void scale(vect3d tv) {
     affineMapping tmp ;
-    tmp.M[0][0] = tv.x ;
-    tmp.M[1][1] = tv.y ;
-    tmp.M[2][2] = tv.z ;
+    tmp.M[1][1] = 1.0/tv.x ;
+    tmp.M[2][2] = 1.0/tv.y ;
+    tmp.M[3][3] = 1.0/tv.z ;
     Combine(tmp) ;
   }
   void rotateX(double theta) {
@@ -91,10 +91,10 @@ struct affineMapping {
     double cth = cos(th) ;
     affineMapping tmp ;
 
-    tmp.M[1][1] =  cth ;
-    tmp.M[1][2] =  sth ;
-    tmp.M[2][1] = -sth ;
     tmp.M[2][2] =  cth ;
+    tmp.M[2][3] =  -sth ;
+    tmp.M[3][2] = sth ;
+    tmp.M[3][3] =  cth ;
     Combine(tmp) ;
   }
   void rotateY(double theta) {
@@ -103,10 +103,10 @@ struct affineMapping {
     double cth = cos(th) ;
     affineMapping tmp ;
 
-    tmp.M[0][0] =  cth ;
-    tmp.M[0][2] = -sth ;
-    tmp.M[2][0] =  sth ;
-    tmp.M[2][2] =  cth ;
+    tmp.M[1][1] =  cth ;
+    tmp.M[1][3] =  sth ;
+    tmp.M[3][1] =  -sth ;
+    tmp.M[3][3] =  cth ;
     Combine(tmp) ;
   }
   void rotateZ(double theta) {
@@ -115,25 +115,25 @@ struct affineMapping {
     double cth = cos(th) ;
     affineMapping tmp ;
 
-    tmp.M[0][0] =  cth ;
-    tmp.M[0][1] =  sth ;
-    tmp.M[1][0] = -sth ;
     tmp.M[1][1] =  cth ;
+    tmp.M[1][2] =  -sth ;
+    tmp.M[2][1] = sth ;
+    tmp.M[2][2] =  cth ;
     Combine(tmp) ;
   }
   vect3d Mapping(vect3d v) {
     double tmp[4] ;
-    tmp[0] = v.x ;
-    tmp[1] = v.y ;
-    tmp[2] = v.z ;
-    tmp[3] = 1. ;
+    tmp[0] = 1 ;
+    tmp[1] = v.x ;
+    tmp[2] = v.y ;
+    tmp[3] = v.z ;
     double res[4] ;
     for(int i=0;i<4;++i)
       res[i] = 0 ;
-    for(int i=0;i<4;++i)
-      for(int j=0;j<4;++j)
-        res[i] += M[i][j]*tmp[j] ;
-    vect3d r(res[0],res[1],res[2]) ;
+    for(int j=0;j<4;++j)
+      for(int i=0;i<4;++i)
+        res[j] += M[i][j]*tmp[i] ;
+    vect3d r(res[1],res[2],res[3]) ;
     return r ;
   }
    
@@ -143,64 +143,342 @@ struct affineMapping {
 
 
 
- std::vector<bool> process_shape(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+ std::vector<bool> process_sphere(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+   std::vector<bool> result(pointSet.size());
+
+   xmlNode* children = anode->children;
+   xmlNode* cur_node =NULL;
+  
+   double x0=0.0, y0=0.0, z0=0.0, r = 1.0;
+  
+   for(cur_node = children; cur_node; cur_node = cur_node->next){
+     if(cur_node->type == 1){
+       if(xmlStrEqual(cur_node->name, BAD_CAST("x0")) ){ 
+         x0 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("y0")) ){ 
+         y0 = xmlXPathCastNodeToNumber(cur_node->children);
+         
+       }
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("z0")) ){ 
+         z0 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("r")) ){ 
+         r = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       } 
+     }
+    
+   }
+   
+     
+   for(unsigned int i = 0; i < pointSet.size(); i++){
+     vect3d p = pointSet[i];
+     result[i] = (((p.x-x0)*(p.x-x0) + (p.y-y0)*(p.y-y0) + (p.z-z0)*(p.z-z0)) <= r*r);
+   }
+   return result;
+ }
+
+
+std::vector<bool> process_cone(xmlNode* anode,  const std::vector<vect3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   
-  xmlChar* the_shape = anode->children->content;
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
   
+  double x0=0.0, y0=0.0, z0=0.0, r = 1.0, z1 = 0.0, z2 = 1.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("x0")) ){ 
+        x0 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("y0")) ){ 
+         y0 = xmlXPathCastNodeToNumber(cur_node->children);
+         
+       }
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("z0")) ){ 
+         z0 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("r")) ){ 
+         r = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+      
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("z1")) ){ 
+         z1 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("z2")) ){ 
+         z2 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+     }
+    
+   }
+   
+     
+   for(unsigned int i = 0; i < pointSet.size(); i++){
+     vect3d p = pointSet[i];
+     result[i] = (((p.x-x0)*(p.x-x0) + (p.y-y0)*(p.y-y0)) <= (r*r*(p.z-z0)*(p.z-z0)))&& (p.z >= z1) && (p.z <= z2) ;
+     
+   }
+   return result;
+}
+
+std::vector<bool> process_cylinder(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+  std::vector<bool> result(pointSet.size());
+  
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  double x0=0.0, y0=0.0, r = 1.0, z1 = 0.0, z2 = 1.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("x0")) ){ 
+        x0 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y0")) ){ 
+         y0 = xmlXPathCastNodeToNumber(cur_node->children);
+         
+      }
+    
+
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("r")) ){ 
+        r = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("z1")) ){ 
+         z1 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("z2")) ){ 
+         z2 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+     }
+    
+   }
+   
+     
+   for(unsigned int i = 0; i < pointSet.size(); i++){
+     vect3d p = pointSet[i];
+     result[i] = (((p.x-x0)*(p.x-x0) + (p.y-y0)*(p.y-y0)) <= r*r)&& (p.z >= z1) && (p.z <= z2) ;
+     
+   }
+   return result;
+}
+
+std::vector<bool> process_box(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+  std::vector<bool> result(pointSet.size());
+  
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  double x1=0.0, x2=1.0, y1 = 0.0,y2 = 1.0, z1 = 0.0, z2 = 1.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("x1")) ){ 
+        x1 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("x2")) ){ 
+         x2 = xmlXPathCastNodeToNumber(cur_node->children);
+         
+      }
+    
+
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y1")) ){ 
+        y1 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y2")) ){ 
+        y2 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+      
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("z1")) ){ 
+         z1 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+
+       else  if(xmlStrEqual(cur_node->name, BAD_CAST("z2")) ){ 
+         z2 = xmlXPathCastNodeToNumber(cur_node->children);
+       
+       }
+     }
+    
+   }
+   
+     
   for(unsigned int i = 0; i < pointSet.size(); i++){
     vect3d p = pointSet[i];
-    if(xmlStrEqual(the_shape, BAD_CAST("sphere")) ){
-      result[i] = ((p.x*p.x + p.y*p.y + p.z*p.z) <= 1.0);
-    }
-    else if(xmlStrEqual(the_shape, BAD_CAST("cone")) ){
-      result[i] =  ((p.x*p.x + p.y*p.y ) <= p.z*p.z);
-    }
-    else if(xmlStrEqual(the_shape, BAD_CAST("cylinder")) ){
-      result[i] = ( (p.x*p.x + p.y*p.y ) <= 1.0);
-    }
-    else if(xmlStrEqual(the_shape, BAD_CAST("box")) ){
-      result[i] = (( p.x >= 0) && (p.x <= 1.0)
-                   &&(p.y >= 0) && (p.y <= 1.0)
-                   &&(p.z >=0) && (p.z <=1.0));
-    } 
-    
-    else if(xmlStrEqual(the_shape, BAD_CAST("x+plane"))){
-      result[i] = ( p.x >= 0) ;
-    }
-    
-    else if(xmlStrEqual(the_shape, BAD_CAST("x-plane"))){
-      result[i] = ( p.x < 0) ;
-    }
-    else if(xmlStrEqual(the_shape, BAD_CAST("y+plane"))){
-      result[i] =( p.y >= 0) ;
-   }
-    else if(xmlStrEqual(the_shape, BAD_CAST("y-plane"))){
-      result[i] =( p.y < 0) ;
-    }
-    else if(xmlStrEqual(the_shape, BAD_CAST("z+plane"))){
-      result[i] = ( p.z >= 0) ;
-    }
-    else if(xmlStrEqual(the_shape, BAD_CAST("z-plane"))){
-      result[i] =  (p.z < 0) ;
-    }
-
-  
-
-    else{
-      cerr << "WARNING: don't know the shape" << the_shape << endl;
-     
-    
-    }
+    result[i] = (p.x >= x1) && (p.x <= x2) && (p.y >= y1) && (p.y <= y2) && (p.z >= z1) && (p.z <=z2);
+      
   }
   return result;
 }
 
- vect3d  process_translate(xmlNode* anode){
+std::vector<bool> process_x_plus_plane(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+  std::vector<bool> result(pointSet.size());
+  
   xmlNode* children = anode->children;
   xmlNode* cur_node =NULL;
   
-  double x0, y0, z0;
+  double x1=0.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("x1")) ){ 
+        x1 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+    }
+  }
+  for(unsigned int i = 0; i < pointSet.size(); i++){
+    vect3d p = pointSet[i];
+    result[i] = (p.x >= x1);
+      
+  }
+  return result;
+}
+
+std::vector<bool> process_x_minus_plane(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+  std::vector<bool> result(pointSet.size());
+  
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  double x1=0.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("x1")) ){ 
+        x1 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+    }
+  }
+  for(unsigned int i = 0; i < pointSet.size(); i++){
+    vect3d p = pointSet[i];
+    result[i] = (p.x <= x1);
+      
+  }
+  return result;
+}
+
+std::vector<bool> process_y_plus_plane(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+  std::vector<bool> result(pointSet.size());
+  
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  double y1=0.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("y1")) ){ 
+        y1 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+    }
+  }
+  for(unsigned int i = 0; i < pointSet.size(); i++){
+    vect3d p = pointSet[i];
+    result[i] = (p.y >= y1);
+      
+  }
+  return result;
+}
+
+std::vector<bool> process_y_minus_plane(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+  std::vector<bool> result(pointSet.size());
+  
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  double y1=0.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("y1")) ){ 
+        y1 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+    }
+  }
+  for(unsigned int i = 0; i < pointSet.size(); i++){
+    vect3d p = pointSet[i];
+    result[i] = (p.y <= y1);
+      
+  }
+  return result;
+}
+
+
+std::vector<bool> process_z_plus_plane(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+  std::vector<bool> result(pointSet.size());
+  
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  double z1=0.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("z1")) ){ 
+        z1 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+    }
+  }
+  for(unsigned int i = 0; i < pointSet.size(); i++){
+    vect3d p = pointSet[i];
+    result[i] = (p.z >= z1);
+      
+  }
+  return result;
+}
+
+std::vector<bool> process_z_minus_plane(xmlNode* anode,  const std::vector<vect3d>& pointSet){
+  std::vector<bool> result(pointSet.size());
+  
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  double z1=0.0;
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("z1")) ){ 
+        z1 = xmlXPathCastNodeToNumber(cur_node->children);
+        
+      }
+    }
+  }
+  for(unsigned int i = 0; i < pointSet.size(); i++){
+    vect3d p = pointSet[i];
+    result[i] = (p.z <= z1);
+      
+  }
+  return result;
+}
+
+
+vect3d  process_translate(xmlNode* anode){
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  double x0=0, y0=0, z0=0;
   
   for(cur_node = children; cur_node; cur_node = cur_node->next){
     if(cur_node->type == 1){
@@ -229,7 +507,7 @@ struct affineMapping {
   xmlNode* children = anode->children;
   xmlNode* cur_node =NULL;
   
-  double x0, y0, z0;
+  double x0=1.0, y0=1.0, z0=1.0;
   
   for(cur_node = children; cur_node; cur_node = cur_node->next){
     if(cur_node->type == 1){
@@ -308,9 +586,60 @@ struct affineMapping {
     p[i] =   aMatrix.Mapping(p[i]);
   }
   
+ }
+
+std::vector<bool> process_shape(xmlNode* anode, const std::vector<vect3d>& p){
+  xmlNode* children = anode->children;
+  xmlNode* cur_node =NULL;
+  
+  
+  for(cur_node = children; cur_node; cur_node = cur_node->next){
+    if(cur_node->type == 1){
+      if(xmlStrEqual(cur_node->name, BAD_CAST("sphere")) ){ 
+        return process_sphere(cur_node, p);
+      }
+      else if(xmlStrEqual(cur_node->name, BAD_CAST("cone")) ){ 
+        return process_cone(cur_node, p);
+      }
+      
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("cylinder")) ){ 
+        return process_cylinder(cur_node, p);
+      }
+
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("box")) ){ 
+        return process_box(cur_node, p);
+      }
+
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("x+plane")) ){ 
+        return process_x_plus_plane(cur_node, p);
+      }
+      
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("x-plane")) ){ 
+        return process_x_minus_plane(cur_node, p);
+      }
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y+plane")) ){ 
+        return process_y_plus_plane(cur_node, p);
+      }
+      
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y-plane")) ){ 
+        return process_y_minus_plane(cur_node, p);
+      } 
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("z+plane")) ){ 
+        return process_z_plus_plane(cur_node, p);
+      }
+      
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("z-plane")) ){ 
+        return process_z_minus_plane(cur_node, p);
+      }
+      // cerr << "WARNING: don't know the shape" << cur_node->name << endl;
+    }
+  }
 }
 
-std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d> p){
+
+
+
+std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d>& p){
   
   xmlNode* children = anode->children;
   xmlNode* cur_node =NULL;
@@ -323,6 +652,7 @@ std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d> p){
       else if(xmlStrEqual(cur_node->name, BAD_CAST "shape") ){
         return process_shape(cur_node, p);
       }
+      //  cerr << "WARNING: illegal children in process object" << endl;
     }
   }
   return std::vector<bool>();
@@ -342,14 +672,14 @@ std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d> p){
   
   if(op_value.empty()) return object_value.top(); // only one object
 
-  
+ 
   char op  ;
   vector<bool> value1, value2 ;
   while(!op_value.empty()){
     op = op_value.top();
     op_value.pop();
 
-    if(op == '-'){
+    if(op == '!'){
       value1 = object_value.top();
       object_value.pop();
       for(unsigned int i = 0; i<value1.size(); i++)value1[i] = !value1[i]; 
@@ -374,6 +704,16 @@ std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d> p){
        for(unsigned int i = 0; i<value1.size(); i++)value1[i] = value1[i] || value2[i]; 
       object_value.push(value1);
     }
+
+    else if(op == '-'){
+      
+      value1 = object_value.top();
+      object_value.pop();
+      value2 = object_value.top();
+      object_value.pop();
+       for(unsigned int i = 0; i<value1.size(); i++)value1[i] = value1[i] &&(!value2[i]); 
+      object_value.push(value1);
+    } 
     else{
       cerr << "WARNING:illegal op in process_stack()" << endl;
 
@@ -410,13 +750,14 @@ std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d> p){
       else if(xmlStrEqual(cur_node->name, BAD_CAST "op") ){
        //don't use xmlNodeGetContent, otherwise have to free memory later   
         xmlChar* content = cur_node->children->content;
-        if(xmlStrEqual(content, BAD_CAST "and"))op_value.push('&');
-        else if(xmlStrEqual(content, BAD_CAST "or"))op_value.push('|');
-        else if(xmlStrEqual(content, BAD_CAST "minus"))op_value.push('-');
-        else
-          {
-            cerr << "WARNING: cann't recognize op" << content << endl;  
-          }
+        if(xmlStrEqual(content, BAD_CAST "intersection"))op_value.push('&');
+        else if(xmlStrEqual(content, BAD_CAST "union"))op_value.push('|');
+        else if(xmlStrEqual(content, BAD_CAST "difference"))op_value.push('-');
+        else if(xmlStrEqual(content, BAD_CAST "complement"))op_value.push('!');
+       //  else
+//           {
+//             cerr << "WARNING: cann't recognize op " << content << endl;  
+//           }
         
       }
       //recursive function allow multi-level tree
@@ -426,9 +767,9 @@ std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d> p){
       }
         
       
-      else{
-        cerr << "WARNING: cann't recognize the children of region" << cur_node->name <<endl;
-      }
+    //   else{
+//         cerr << "WARNING: cann't recognize the children of region " << cur_node->name <<endl;
+//       }
     }
   }
 
