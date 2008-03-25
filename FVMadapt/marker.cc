@@ -109,7 +109,6 @@ int main(int argc, char ** argv) {
       cout <<"-tol <double> -- tolerance, minimum grid spacing allowed(default)" << endl;
       cout <<"-fold <double> -- twist value, maximum face folding allowed(default)" << endl;
       cout <<"-levels <int> --  levels of refinement(default)" << endl;
-      cout <<"-restart --  restart from original grid " << endl;
       cout << "-mode <int: 0, 1, 2, 3> -- split mode 0: anisotropic split according to edge length" << endl;
       cout << "                        -- split mode 1: don't refine in z direction" << endl;
       cout << "                        -- split mode 2: fully isotropic split" << endl;
@@ -164,35 +163,7 @@ int main(int argc, char ** argv) {
       
     }
 
-    //  else if(arg == "-split" && (i+1) < argc){
-//       //replace the fold(maximum face fold value)with the next argument
-//        char** endptr = 0;
-//        split_specified = true;
-//        double x = strtod(argv[++i], endptr);
-//        endptr = 0;
-       
-//        double y = strtod(argv[++i], endptr);
-//        endptr = 0;
-//        double z = strtod(argv[++i], endptr);
-       
-//        Globals::split = vect3d(x,y,z);
-       
-//      }
-     
-//       else if(arg == "-nosplit" && (i+1) < argc){
-//         //replace the fold(maximum face fold value)with the next argument
-//         char** endptr = 0;
-//         nosplit_specified = true;
-//         double x = strtod(argv[++i], endptr);
-//         endptr = 0;
-        
-//         double y = strtod(argv[++i], endptr);
-//         endptr = 0;
-//         double z = strtod(argv[++i], endptr);
-//         Globals::nosplit = vect3d(x, y, z);
-        
-//       }
-      
+
      else if(arg == "-mode" && (i+1) < argc){
        //replace the fold(maximum face fold value)with the next argument
        split_mode = atoi(argv[++i]);
@@ -268,43 +239,41 @@ int main(int argc, char ** argv) {
   facts.create_fact("outfile_par",outfile_par) ;
   
   
-  param<bool> restart_par;
-  *restart_par = restart;
-  facts.create_fact("restart_par", restart_par);
+ 
 
-
-  
-  if(restart){
+  if(restart && xml_input){
     param<std::string> planfile_par ;
     *planfile_par = planFile;
     facts.create_fact("planfile_par",planfile_par) ;
-  }
-
-  
-  if(xml_input){
-    param<std::string> xmlfile_par ;
-    *xmlfile_par = xmlFile;
-    facts.create_fact("xmlfile_par",xmlfile_par) ;
-  }
-
-  if(restart && xml_input){
+    
     param<int> restart_xml_par;
     *restart_xml_par = 1;
     facts.create_fact("restart_xml_par",restart_xml_par);
   }
-  
-  if(restart && (!xml_input)){
+  else if(restart && (!xml_input)){
+    param<std::string> planfile_par ;
+    *planfile_par = planFile;
+    facts.create_fact("planfile_par",planfile_par) ;
+    
     param<int> restart_no_xml_par;
     *restart_no_xml_par = 1;
     facts.create_fact("restart_no_xml_par",restart_no_xml_par);
   }
 
-  if((!restart) && xml_input){
+  else if((!restart) && xml_input){
+    param<std::string> xmlfile_par ;
+    *xmlfile_par = xmlFile;
+    facts.create_fact("xmlfile_par",xmlfile_par) ;
+    
     param<int> no_restart_xml_par;
     *no_restart_xml_par = 1;
     facts.create_fact("no_restart_xml_par",no_restart_xml_par);
   }
-  if((!restart) && (!xml_input)){
+  else if((!restart) && (!xml_input)){
+    param<std::string> xmlfile_par ;
+    *xmlfile_par = xmlFile;
+    facts.create_fact("xmlfile_par",xmlfile_par) ;
+    
     param<int> no_restart_no_xml_par;
     *no_restart_no_xml_par = 1;
     facts.create_fact("no_restart_no_xml_par",no_restart_no_xml_par);
