@@ -72,7 +72,7 @@ int main(int ac, char *av[]) {
     *modelName = string(av[1]) ;
     facts.create_fact("modelName",modelName) ;
     Loci::setupFVMGrid(facts,filename) ;
-    createLowerUpper(facts) ;
+    Loci::createLowerUpper(facts) ;
     if(!Loci::makeQuery(rdb,facts,query)) {
       cerr << "query for '" << query << "' failed. " << endl ;
       Loci::Abort() ;

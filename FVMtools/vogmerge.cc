@@ -732,7 +732,7 @@ int main(int ac, char *av[]) {
         }
 
         vector<unsigned char> clusterout =
-          encode_face_cluster(face2node,cl,cr,fclust,nodeSet,cellSet) ;
+          Loci::encode_face_cluster(face2node,cl,cr,fclust,nodeSet,cellSet) ;
         // Write cluster to tmp file
         fwrite(&clusterout[0],clusterout.size(),1,scratch) ;
         unsigned short clsz = clusterout.size() ;

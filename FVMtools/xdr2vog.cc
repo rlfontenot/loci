@@ -480,7 +480,7 @@ namespace VOG {
       cl[fc] = maxc ;
       sortlist[i++] = pair<Entity,Entity>(minc,fc) ;
     } ENDFORALL ;
-    sort(sortlist.begin(),sortlist.end(),fieldSort) ;
+    std::sort(sortlist.begin(),sortlist.end(),fieldSort) ;
     i = 0 ;
     Map convert ;
     convert.allocate(faces) ;
@@ -568,7 +568,7 @@ namespace VOG {
     }
 
     entitySet loc_boundary_cells = getBoundaryCells(MapRepP(cr.Rep()));
-    loc_boundary_cells = all_collect_entitySet(loc_boundary_cells) ;
+    loc_boundary_cells = Loci::all_collect_entitySet(loc_boundary_cells) ;
 
     FORALL(loc_boundary_cells, li) {
       remap[li] = li;
@@ -581,10 +581,10 @@ namespace VOG {
     out_of_dom += cl.image(cl.domain())-orig_cells ;
     out_of_dom += f2n->image(f2n->domain())-old_nodes ;
     entitySet old_dom = orig_cells+old_nodes ;
-    vector<entitySet> old_ptn = all_collect_vectors(old_dom) ;
+    vector<entitySet> old_ptn = Loci::all_collect_vectors(old_dom) ;
     {
       storeRepP PRep = remap.Rep() ;
-      fill_clone(PRep,out_of_dom,old_ptn) ;
+      Loci::fill_clone(PRep,out_of_dom,old_ptn) ;
     }
 
     MapRepP(face2node.Rep())->compose(remap,faces) ;
@@ -641,14 +641,14 @@ namespace VOG {
       } ENDFORALL ;
       cells+= cell_ptn[i] ;
     }
-    vector<entitySet> ptn_cells = all_collect_vectors(cells) ;
+    vector<entitySet> ptn_cells = Loci::all_collect_vectors(cells) ;
     entitySet faces = cl.domain() & cr.domain() ;
     entitySet dom = cl.image(faces) | cr.image(faces) ;
     dom -= interval(UNIVERSE_MIN,-1) ;
     dom -= cells ;
     {
       storeRepP PRep = P.Rep() ;
-      fill_clone(PRep,dom,ptn_cells) ;
+      Loci::fill_clone(PRep,dom,ptn_cells) ;
     }
     vector<entitySet> face_ptn(MPI_processes) ;
     entitySet boundary_faces ; // Boundary between processors
@@ -712,7 +712,7 @@ namespace VOG {
         np[nn] = i ;
       } ENDFORALL ;
     }
-    vector<entitySet> node_ptn_old = all_collect_vectors(old_node_dom) ;
+    vector<entitySet> node_ptn_old = Loci::all_collect_vectors(old_node_dom) ;
     vector<int> send_sz(MPI_processes) ;
     vector<entitySet> sendSets(MPI_processes) ;
     for(int i=0;i<MPI_processes;++i) {
@@ -857,7 +857,7 @@ namespace VOG {
     // Identify boundary tags
     entitySet local_boundary_cells = getBoundaryCells(MapRepP(tmp_cr.Rep()));
       
-    entitySet global_boundary_cells = all_collect_entitySet(local_boundary_cells) ;
+    entitySet global_boundary_cells = Loci::all_collect_entitySet(local_boundary_cells) ;
     if(MPI_processes == 1) {
 
       int npnts = local_nodes[0].size();
@@ -1043,7 +1043,7 @@ namespace VOG {
     } ENDFORALL ;
 
     geom_cells = Loci::create_entitySet(vec.begin(),vec.end()) ;
-    entitySet global_geom = all_collect_entitySet(geom_cells,facts) ;
+    entitySet global_geom = Loci::all_collect_entitySet(geom_cells,facts) ;
     std::vector<entitySet> init_ptn = facts.get_init_ptn() ;
     geom_cells = global_geom&init_ptn[MPI_rank] ; 
   }

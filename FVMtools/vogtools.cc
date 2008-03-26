@@ -223,7 +223,7 @@ namespace VOG {
 
     // Get entity distributions
     nodes = pos.domain() ;
-    entitySet allNodes = all_collect_entitySet(nodes) ;
+    entitySet allNodes = Loci::all_collect_entitySet(nodes) ;
     vector<int> nodesizes(MPI_processes) ;
     int size = nodes.size() ;
     MPI_Allgather(&size,1,MPI_INT,&nodesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
@@ -234,7 +234,7 @@ namespace VOG {
     }
 
     faces = face2node.domain() ;
-    entitySet allFaces = all_collect_entitySet(faces) ;
+    entitySet allFaces = Loci::all_collect_entitySet(faces) ;
     vector<int> facesizes(MPI_processes) ;
     size = faces.size() ;
     MPI_Allgather(&size,1,MPI_INT,&facesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
@@ -287,7 +287,7 @@ namespace VOG {
     
     if(MPI_processes > 1) {
       Loci::storeRepP sp = tmp_pos.Rep() ;
-      fill_clone(sp, total_dom, init_ptn) ;
+      Loci::fill_clone(sp, total_dom, init_ptn) ;
     }
     
     entitySet face_dom = face2node.domain() ;
@@ -343,8 +343,8 @@ namespace VOG {
     Loci::storeRepP cp_sp = cpos.Rep() ;
     Loci::storeRepP cn_sp = cnum.Rep() ;
     entitySet clone_cells = tmp_cells - (cells&init_ptn[MPI_rank]) ;
-    std::vector<Loci::storeRepP> v_cpos = send_global_clone_non(cp_sp, clone_cells, init_ptn) ;
-    std::vector<Loci::storeRepP> v_cnum = send_global_clone_non(cn_sp, clone_cells, init_ptn) ;
+    std::vector<Loci::storeRepP> v_cpos = Loci::send_global_clone_non(cp_sp, clone_cells, init_ptn) ;
+    std::vector<Loci::storeRepP> v_cnum = Loci::send_global_clone_non(cn_sp, clone_cells, init_ptn) ;
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       entitySet dom = v_cpos[i]->domain() & cpos.domain() ;
       dstore<vector3d<double> > tmp_cpos(v_cpos[i]) ;
@@ -354,8 +354,8 @@ namespace VOG {
 	cnum[di] += tmp_cnum[di] ;
       } ENDFORALL ;
     }
-    fill_clone(cp_sp, clone_cells, init_ptn) ;
-    fill_clone(cn_sp, clone_cells, init_ptn) ;   
+    Loci::fill_clone(cp_sp, clone_cells, init_ptn) ;
+    Loci::fill_clone(cn_sp, clone_cells, init_ptn) ;   
     FORALL(tmp_cells,cc) {
       cpos[cc] = cpos[cc]/cnum[cc] ;
     } ENDFORALL ;
@@ -494,7 +494,7 @@ namespace VOG {
       + cr.image(interior_faces) ;
     clone_cells -= geom_cells ;
     Loci::storeRepP cp_sp = color.Rep() ;
-    fill_clone(cp_sp, clone_cells, ptn) ;
+    Loci::fill_clone(cp_sp, clone_cells, ptn) ;
 
     FORALL(interior_faces,fc) {
       int color_l = color[cl[fc]] ;
@@ -540,7 +540,7 @@ namespace VOG {
     
     if(MPI_processes > 1) {
       Loci::storeRepP sp = tmp_pos.Rep() ;
-      fill_clone(sp, total_dom, ptn) ;
+      Loci::fill_clone(sp, total_dom, ptn) ;
     }
     
     store<vector3d<double> > fpos, area ;
@@ -600,9 +600,9 @@ namespace VOG {
     Loci::storeRepP cp_sp = cpos.Rep() ;
     Loci::storeRepP cn_sp = cnum.Rep() ;
     std::vector<Loci::storeRepP> v_cpos =
-      send_global_clone_non(cp_sp, clone_cells, ptn) ;
+      Loci::send_global_clone_non(cp_sp, clone_cells, ptn) ;
     std::vector<Loci::storeRepP> v_cnum =
-      send_global_clone_non(cn_sp, clone_cells, ptn) ;
+      Loci::send_global_clone_non(cn_sp, clone_cells, ptn) ;
 
     for(int i = 0; i < Loci::MPI_processes; ++i) {
       entitySet dom = v_cpos[i]->domain() & cpos.domain() ;
@@ -613,8 +613,8 @@ namespace VOG {
 	cnum[di] += tmp_cnum[di] ;
       } ENDFORALL ;
     }
-    fill_clone(cp_sp, clone_cells, ptn) ;
-    fill_clone(cn_sp, clone_cells, ptn) ;   
+    Loci::fill_clone(cp_sp, clone_cells, ptn) ;
+    Loci::fill_clone(cn_sp, clone_cells, ptn) ;   
 
     tmp_cells = geom_cells & ptn[MPI_rank] ;
     cellcenter.allocate(tmp_cells) ;
@@ -789,7 +789,7 @@ namespace VOG {
 
     // Get entity distributions
     entitySet nodes = pos.domain() ;
-    entitySet allNodes = all_collect_entitySet(nodes) ;
+    entitySet allNodes = Loci::all_collect_entitySet(nodes) ;
     vector<int> nodesizes(MPI_processes) ;
     int size = nodes.size() ;
     MPI_Allgather(&size,1,MPI_INT,&nodesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
@@ -800,7 +800,7 @@ namespace VOG {
     }
       
     entitySet faces = face2node.domain() ;
-    entitySet allFaces = all_collect_entitySet(faces) ;
+    entitySet allFaces = Loci::all_collect_entitySet(faces) ;
     vector<int> facesizes(MPI_processes) ;
     size = faces.size() ;
     MPI_Allgather(&size,1,MPI_INT,&facesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
@@ -1000,7 +1000,7 @@ namespace VOG {
       sort_list[cnt].second = fc ;
       cnt++ ;
     } ENDFORALL ;
-    sort(sort_list.begin(),sort_list.end()) ;
+    std::sort(sort_list.begin(),sort_list.end()) ;
     Map scl,scr ;
     scl.allocate(newFaces) ;
     scr.allocate(newFaces) ;
@@ -1042,7 +1042,7 @@ namespace VOG {
     entitySet clone_nodes = node_access - pos.domain() ;
     Loci::storeRepP nk_sp = node_key.Rep() ;
     std::vector<Loci::storeRepP> v_nk =
-      send_global_clone_non(nk_sp,clone_nodes,ptn) ;
+      Loci::send_global_clone_non(nk_sp,clone_nodes,ptn) ;
     for(int i=0;i<MPI_processes;++i) {
       entitySet dom = v_nk[i]->domain() & pos.domain() ;
       dstore<int> tmp_nk(v_nk[i]) ;
