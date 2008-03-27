@@ -20,9 +20,9 @@
 //#############################################################################
 
 #include <iostream>
-#include <cstdlib>
 #include <vector>
 #include <Loci.h>
+#include <Tools/tools.h>
 #include "hexcell.h"
 #include "diamondcell.h"
 #include "prism.h"

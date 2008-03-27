@@ -28,12 +28,12 @@
 
 
 #include <iostream>
-#include <cstdlib>
 #include <queue>
 #include <vector>
 #include <map>
 #include <set>
 #include <Loci.h>
+#include <Tools/tools.h>
 #include "diamondcell.h"
 
 using std::queue;

@@ -62,6 +62,7 @@ int general_edgeID_orient_f2c(int i, char orientCode, int numEdge){
   }
   cerr << "WARNING:reach dummy code" << endl;
   exit(0);
+  return 0 ;
 }
       
 
@@ -286,9 +287,9 @@ bool is_overlapped( Face* f1,  Face* f2){
   f2->get_leaves(leaves2);
 
   std::vector<Face*> intersection;
-  sort(leaves1.begin(), leaves1.end());
-  sort(leaves2.begin(), leaves2.end());
-  set_intersection(leaves1.begin(), leaves1.end(), leaves2.begin(), leaves2.end(), inserter(intersection, intersection.begin()));
+  std::sort(leaves1.begin(), leaves1.end());
+  std::sort(leaves2.begin(), leaves2.end());
+  std::set_intersection(leaves1.begin(), leaves1.end(), leaves2.begin(), leaves2.end(), std::inserter(intersection, intersection.begin()));
   return !(intersection.empty());
 }
 

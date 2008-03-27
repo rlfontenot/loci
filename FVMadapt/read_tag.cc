@@ -24,10 +24,10 @@
 //******************************************************************************************
 #include <iostream>
 #include <fstream>
-#include <cstdlib>
 #include <string>
 #include <Loci.h>
 #include <vector>
+#include <Tools/tools.h>
 #include "sciTypes.h"
 #include "defines.h"
 using std::cerr;
@@ -163,7 +163,7 @@ namespace Loci{
     // Compute recv requests from distribution plan
     vector<sequence> recv_seq(p),send_req(p) ;
     for(int i=0;i<p;++i) {
-      sort(dist_plan[i].begin(),dist_plan[i].end()) ;
+      std::sort(dist_plan[i].begin(),dist_plan[i].end()) ;
       sequence s1,s2 ;
       int psz = dist_plan[i].size() ;
       for(int j=0;j<psz;++j) {

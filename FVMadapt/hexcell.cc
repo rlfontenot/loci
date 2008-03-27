@@ -1166,7 +1166,7 @@ void HexCell::setSplitCode(int split_mode){
     if(min_length[2] < 2*Globals::tolerance) tolerance_mask.reset(0);
     //    cout << "tolerance: " << tolerance_mask.to_ulong() << endl;
     
-    double minimum_length = *min_element(min_length.begin(), min_length.end());
+    double minimum_length = *std::min_element(min_length.begin(), min_length.end());
     
     if(split_mode == 0){
       if(mySplitCode != 0){

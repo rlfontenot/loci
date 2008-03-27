@@ -459,7 +459,7 @@ std::vector<char>  merge_quad_face_pp(const  std::vector<char>& cellPlan1, int d
       //if p2->p4 exists in yEdge, binaryCode.set(1)
       binaryCode.reset();
       if(xEdge.size() != 0){
-        list<Edge2d>::iterator p = find(xEdge.begin(), xEdge.end(), Edge2d(p1.y, p1.x, p3.x));
+        list<Edge2d>::iterator p = std::find(xEdge.begin(), xEdge.end(), Edge2d(p1.y, p1.x, p3.x));
         if(p != xEdge.end()){
           binaryCode.set(0);
           xEdge.erase(p);
@@ -487,7 +487,7 @@ std::vector<char>  merge_quad_face_pp(const  std::vector<char>& cellPlan1, int d
       
       
       if(yEdge.size() != 0){
-        list<Edge2d>::iterator p = find(yEdge.begin(), yEdge.end(), Edge2d(p2.x, p2.y, p4.y));
+        list<Edge2d>::iterator p = std::find(yEdge.begin(), yEdge.end(), Edge2d(p2.x, p2.y, p4.y));
         if(p != yEdge.end()){
           binaryCode.set(1);
           yEdge.erase(p);
@@ -842,7 +842,7 @@ Q.push(pRange);
       //if p2->p4 exists in yEdge, binaryCode.set(1)
       binaryCode.reset();
       if(xEdge.size() != 0){
-        list<Edge2d>::iterator p = find(xEdge.begin(), xEdge.end(), Edge2d(p1.y, p1.x, p3.x));
+        list<Edge2d>::iterator p = std::find(xEdge.begin(), xEdge.end(), Edge2d(p1.y, p1.x, p3.x));
         if(p != xEdge.end()){
           binaryCode.set(0);
           xEdge.erase(p);
@@ -870,7 +870,7 @@ Q.push(pRange);
       
       
       if(yEdge.size() != 0){
-        list<Edge2d>::iterator p = find(yEdge.begin(), yEdge.end(), Edge2d(p2.x, p2.y, p4.y));
+        list<Edge2d>::iterator p = std::find(yEdge.begin(), yEdge.end(), Edge2d(p2.x, p2.y, p4.y));
         if(p != yEdge.end()){
           binaryCode.set(1);
           yEdge.erase(p);

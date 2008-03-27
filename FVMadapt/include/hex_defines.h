@@ -105,6 +105,8 @@ struct Edge2d{
   int64 tail;
   Edge2d():pos(0),head(0),tail(0){}
   Edge2d(int64 p,int64 h, int64 t):pos(p), head(h),tail(t){}
+  bool operator==(const Edge2d & ref) { return pos==ref.pos && head==ref.head && tail == ref.tail ; }
+  bool operator!=(const Edge2d & ref) { return !operator==(ref) ; }
 };
 
 struct Range2d{

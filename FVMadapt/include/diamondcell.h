@@ -37,7 +37,7 @@
 #include <iostream>
 #include <fstream>
 #include <utility> 
-#include <cassert>
+//#include <cassert>
 #include "defines.h"
 #include "face.h"
 

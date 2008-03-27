@@ -222,7 +222,7 @@ int main(int argc, char ** argv) {
   }
   
   //Setup Loci datastructures
-  createLowerUpper(facts) ;
+  Loci::createLowerUpper(facts) ;
   Loci::createEdgesParallel(facts) ;
   Loci:: parallelClassifyCell(facts);
  

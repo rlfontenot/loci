@@ -25,9 +25,11 @@
 #include <Loci.h>
 #include <algorithm>
 #include "hexcell.h"
+#ifdef USE_LIBXML2
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#endif
 #include "globals.h"
 
 using std::list;
@@ -38,9 +40,12 @@ using std::endl;
 using std::cout;
 using Loci::storeRepP;
 //int currentMem(void);
+
+#ifdef USE_LIBXML2
 void mark_node( xmlNode* root_element,
                std::list<Node*>::iterator begin_pnt,
-               std::list<Node*>::iterator end_pnt);
+                std::list<Node*>::iterator end_pnt);
+#endif
 
 //this rule make  a newCellPlan according to cellPlan 
 //and nodeTag, posTag
@@ -335,8 +340,10 @@ class make_hex_cellplan_xml:public pointwise_rule{
   const_param<int> split_mode_par;
   const_param<int> restart_xml_par;
   store<std::vector<char> > newCellPlan;
+#ifdef USE_LIBXML2
   xmlDoc* doc ;
   xmlNode* root_element ;
+#endif
 
   const_store<int> node_l2f;
 public:
@@ -375,6 +382,7 @@ public:
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
+#ifdef USE_LIBXML2
       doc = xmlReadFile((*xmlfile_par).c_str(), NULL, 0);
       root_element = xmlDocGetRootElement(doc);
     
@@ -382,9 +390,13 @@ public:
       xmlFreeDoc(doc);
       xmlCleanupParser();
       xmlMemoryDump();
+#else
+      cerr << "XML capabilities not compiled into adaption code!  Check libxml availability when compiling" << endl ;
+#endif
     }
   }
   void calculate(Entity cc){
+#ifdef USE_LIBXML2
     if(!isIndivisible[cc]){
     
       std::list<Edge*> edge_list;
@@ -467,6 +479,7 @@ public:
 
     reduce_vector(newCellPlan[cc]);
     }
+#endif
   }
 };
 
@@ -489,8 +502,10 @@ class make_hex_cellplan_xml_norestart:public pointwise_rule{
   const_param<int> split_mode_par;
   const_param<int> no_restart_xml_par;
   store<std::vector<char> > newCellPlan;
+#ifdef USE_LIBXML2
   xmlDoc* doc ;
   xmlNode* root_element ;
+#endif
 
   const_store<int> node_l2f;
 public:
@@ -522,6 +537,7 @@ public:
   }
   virtual void compute(const sequence &seq){
     if(seq.size()!=0){
+#ifdef USE_LIBXML2
       doc = xmlReadFile((*xmlfile_par).c_str(), NULL, 0);
       root_element = xmlDocGetRootElement(doc);
   
@@ -529,11 +545,16 @@ public:
       xmlFreeDoc(doc);
       xmlCleanupParser();
       xmlMemoryDump();
+#else
+      cerr << "libxml2 not available when compiling adapt code.  XML features not available!" << endl ;
+      Loci::Abort() ;
+#endif
     }
    
 
   }
   void calculate(Entity cc){
+#ifdef USE_LIBXML2
     if(!isIndivisible[cc]){
       //std::list<Node*> node_list;
     std::list<Edge*> edge_list;
@@ -596,6 +617,7 @@ public:
    
     
     }
+#endif
   }
 };
 

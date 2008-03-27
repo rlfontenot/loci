@@ -71,7 +71,7 @@ inline bool int_equal(const vect3d& v1, const vect3d& v2) {
 //to reduce the memory allocation of a vector to its size
 template<class T> inline void reduce_vector(std::vector<T>& v1){
   std::vector<T> tmpVec = v1;
-  swap(v1, tmpVec);
+  std::swap(v1, tmpVec);
 }
 
 //calculate the unweighted mass center of a set of points
@@ -171,8 +171,8 @@ namespace Loci {
   struct SetLongUnion {
     void operator()(SetLong &f1, const SetLong &f2) {
       SetLong result;
-      set_union(f1.aset.begin(), f1.aset.end(), f2.aset.begin(), f2.aset.end(),
-                inserter(result.aset, result.aset.begin())); 
+      std::set_union(f1.aset.begin(), f1.aset.end(), f2.aset.begin(), f2.aset.end(),
+                std::inserter(result.aset, result.aset.begin())); 
       f1 = result;
     }
   };

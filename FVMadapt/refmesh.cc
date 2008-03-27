@@ -152,8 +152,8 @@ int main(int argc, char ** argv) {
     Loci::Abort() ;
   }
   
-  createLowerUpper(facts) ;
-   Loci::createEdgesParallel(facts) ;
+  Loci::createLowerUpper(facts) ;
+  Loci::createEdgesParallel(facts) ;
  
   Loci:: parallelClassifyCell(facts);
   

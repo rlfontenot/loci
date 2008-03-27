@@ -117,14 +117,19 @@ REFOBJS =	classify_cell.o \
 
 #LOCAL_LIBS =	
 
-LOCAL_LIBS      = -lxml2 #-L/usr/lib 
+LIBXML2_LIBS ?= -lxml2
+LIBXML2_DEFINE ?= -DUSE_LIBXML2
+LIBXML2_INCLUDE ?= -I/usr/include/libxml2
+
+LOCAL_LIBS      = $(LIBXML2_LIBS)
+
 JUNK =		*~ \
 		core \
 		ti_files \
 		ii_files \
 		rii_files
 
-INCLUDES=	-I./include  -I/usr/include/libxml2
+INCLUDES=	-I./include $(LIBXML2_INCLUDE) $(LIBXML2_DEFINE)
 
 default: marker refmesh 
 
