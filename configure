@@ -1,0 +1,232 @@
+#!/bin/bash
+###############################################################################
+#
+# Copyright 2008, Mississippi State University
+#
+# This file is part of the Loci Framework.
+#
+# The Loci Framework is free software: you can redistribute it and/or modify
+# it under the terms of the Lesser GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The Loci Framework is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Lesser GNU General Public License for more details.
+#
+# You should have received a copy of the Lesser GNU General Public License
+# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
+#
+###############################################################################
+
+PETSC_BASE=$PETSC_DIR
+if [ "$PETSC_BASE" == "" ]; then
+    PETSC_BASE=/notinstalled/petsc
+fi
+set -e
+set -u
+
+PREFIX=/usr/local
+while [ $# -ne 0 ]; do 
+    case "$1" in
+	--prefix)
+	    shift
+	    PREFIX=$1
+	    ;;
+	--prefix\=*)
+	    tmp=$1
+	    PREFIX=${tmp#--prefix\=}
+	    ;;
+	--petsc-dir)
+	    shift
+	    PETSC_BASE=$1
+	    ;;
+	--petsc-dir\=*)
+	    tmp=$1
+	    PETSC_BASE=${tmp#--petsc-dir\=}
+	    ;;
+	*)
+	    echo configure option \' $1 \' not understood!
+	    echo exiting configure in failure!
+	    exit -1 
+            break
+            ;;
+    esac
+    shift
+done
+
+#setup install directory
+echo INSTALL_DIR=$PREFIX > sys.conf
+echo >> sys.conf
+ARCH=`uname -s`
+
+#setup MPI
+echo \# MPI Libraries Setup >> sys.conf
+if [ "$ARCH" == "IRIX64" ]; then
+   echo MPI_BASE = /usr/ >> sys.conf
+   echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 -lmpi >> sys.conf
+   echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
+   echo MPI_RUN = mpirun >> sys.conf
+else
+   echo MPI_BASE =  >> sys.conf
+   echo MPI_LIBS =  >> sys.conf
+   echo MPI_INCLUDE =  >> sys.conf
+   echo MPI_RUN = mpirun >> sys.conf
+fi
+echo >> sys.conf
+
+#setup hdf5
+# find hdf5
+H5PATH=/
+if [ ! -e $H5PATH/bin/h5dump ]; then
+    for i in `echo $PATH | sed "s/:/ /g"`; do
+	if [ ! -e $H5PATH/bin/h5dump ]; then
+    	    if [ -e $i/h5dump ]; then 
+		H5PATH=`echo $i | sed "s:/bin.*:/:"`
+	    fi
+	fi
+    done
+fi
+
+if [ ! -d "$H5PATH" ]; then
+    for i in `echo $LD_LIBRARY_PATH | sed "s/:/ /g"`; do
+	if [ ! -d "$H5PATH" ]; then
+    	    if [ -e $i/libhdf5.so ]; then 
+		H5PATH=`echo $i | sed "s:/lib.*:/:"`
+		echo $i $H5PATH
+	    fi
+	fi
+    done
+fi	 
+if [ ! -d $H5PATH ]; then
+    echo Unable to find hdf5 libararies!
+    echo Make sure hdf5 executables are in your PATH and that the library
+    echo directories are in your LD_LIBRARY_PATH environment variables
+    echo exiting configure in failure!
+    exit -1
+fi
+
+
+echo \# HDF5 File I/O Libraries Setup >> sys.conf
+echo HDF5_BASE = $H5PATH >> sys.conf
+echo Using HDF5 libraries in directory \"$H5PATH\".
+if [ -e $H5PATH/lib64/libhdf5.so ]; then
+echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(HDF5_BASE\)/lib \$\(RPATH\)\$\(HDF5_BASE\)/lib -lhdf5 -lz >> sys.conf
+else
+echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib -lz >> sys.conf
+fi
+echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include >> sys.conf
+echo >> sys.conf
+
+echo "# libxml2 library setup" >> sys.conf
+XMLPATH=/usr
+if [ ! -d $XMLPATH/include/libxml2 ]; then
+    for i in `echo $LD_LIBRARY_PATH | sed "s/:/ /g"`; do
+	if [ ! -d $XMLPATH/include/libxml2 ]; then
+	    PATHTMP=`echo $i | sed "s:/lib.*:/:"`
+    	    if [ -d $PATHTMP/include/libxml2 ]; then 
+		XMLPATH=$PATHTMP
+	    fi
+	fi
+    done
+fi	 
+
+if [ -d $XMLPATH/include/libxml2 ]; then
+    echo LIBXML2_DEFINE = -DUSE_LIBXML2 >> sys.conf
+    if [ -e $XMLPATH/lib64/libxml2.so -o -e $XMLPATH/lib64/libxml2.a ] ; then
+	echo LIBXML2_LIBS = -L$XMLPATH/lib64 -L$XMLPATH/lib \$\(RPATH\)$XMLPATH/lib64 \$\(RPATH\)$XMLPATH/lib -lxml2 >> sys.conf
+    else
+	echo LIBXML2_LIBS = -L$XMLPATH/lib -lxml2 >> sys.conf
+    fi
+    echo LIBXML2_INCLUDE = -I$XMLPATH/include/libxml2 >> sys.conf
+    echo Using libxml2 found in \"$XMLPATH/include/libxml2\".
+else
+    echo libxml2 not found, disabling XML features!
+    echo LIBXML2_DEFINE = >> sys.conf
+    echo LIBXML2_LIBS = >> sys.conf
+    echo LIBXML2_INCLUDE = >> sys.conf
+fi
+echo >> sys.conf
+
+echo \# PETSc Library Setup >> sys.conf
+
+if [ -d $PETSC_BASE ]; then
+    if [ -e $PETSC_BASE/bmake/petscconf ]; then
+	PETSC_ARCH=`grep PETSC_ARCH $PETSC_BASE/bmake/petscconf | sed s/PETSC_ARCH=//`
+    else
+	PETSC_ARCH=no-petscconf-found
+    fi
+    if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then 
+	echo Problem with PETSc library setup, check PETSC_DIR
+	echo PETSC_BASE = $PETSC_BASE
+	echo PETSC_ARCH = $PETSC_ARCH
+	rm sys.conf
+	exit -1
+    fi
+    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_DIR/bmake/$PETSC_ARCH/petscconf`
+    echo Using PETSc libraries found in \"$PETSC_BASE\".
+    echo PETSC_BASE = $PETSC_BASE >> sys.conf
+    echo $BLASLAPACK_LIB >> sys.conf
+    echo PETSC_ARCH = $PETSC_ARCH >> sys.conf
+    echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetsc -L\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(BLASLAPACK_LIB\) >> sys.conf
+    echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
+    echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
+else
+    echo "# PETSc not found, Loci compiled without PETSc enabled" >> sys.conf
+    echo "Warning: PETSc not installed... "
+    echo "         Set PETSC_DIR if you want to compile Loci with"
+    echo "         the PETSc libraries enabled."
+fi
+
+
+echo >> sys.conf
+
+echo \# Dynamic Library Defines >> sys.conf
+
+if [ $ARCH == "Linux" -o $ARCH == "Darwin" ]; then
+    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
+    echo DYNAMIC_LOADING_LINK = -ldl >> sys.conf
+else
+    if [ $ARCH == "IRIX64" ]; then
+	echo DYNAMIC_LOADING_DEFINES = >> sys.conf
+	echo DYNAMIC_LOADING_LINK = -lc >> sys.conf
+    else
+	echo DYNAMIC_LOADING_DEFINES = >> sys.conf
+	echo DYNAMIC_LOADING_LINK =  >> sys.conf
+    fi
+fi
+echo >> sys.conf
+
+if [ $ARCH == "Linux" -o $ARCH == "Darwin" ]; then
+    USEMAKE=make
+    echo MAKE = $USEMAKE >> sys.conf
+else
+    USEMAKE=gmake
+    echo MAKE = $USEMAKE >> sys.conf
+fi
+echo >> sys.conf
+
+echo "##############################################" >> sys.conf
+echo "# No need to change things below this line" >> sys.conf
+
+echo >> sys.conf
+
+echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE)\\" >> sys.conf
+echo "                   \$(HDF5_INCLUDE)\\">> sys.conf
+echo "                   \$(MPI_INCLUDE)\\" >> sys.conf
+echo "                   \$(DYNAMIC_LOADING_DEFINES)" >> sys.conf
+echo >> sys.conf
+echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS) \$(MPI_LIBS) \\" >> sys.conf
+echo "            \$(DYNAMIC_LOADING_LINK)" >> sys.conf
+
+echo Making compile subdirectory OBJ...
+./tmpcopy --target OBJ > copy.out 
+mv sys.conf OBJ/sys.conf
+
+echo 
+echo
+echo "To compile Loci, enter:"
+echo "  cd OBJ; make"
+echo "To install Loci in the directory $PREFIX, enter:"
+echo "  make install"
