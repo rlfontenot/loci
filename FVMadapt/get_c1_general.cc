@@ -163,7 +163,7 @@ std::vector<int32> get_c1(const Entity* lower, int lower_size,
           Loci::Abort();
         }
         //push the selected four children in the Q
-        if(faceOrient == 1){
+        if(faceOrient == 0){
           
           Q.push(Cell_Face(current->getChildCell(1), currentFace, currentF->child[0]));
           Q.push(Cell_Face(current->getChildCell(currentFace == currentNfold? (2*currentNfold+1):(currentFace+1)),

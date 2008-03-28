@@ -214,6 +214,7 @@ private:
   DiamondCell **childCell;// an dynamic array of pointers to children cells
 
   Face** face;
+  // points inward, faceOrient[i] = 1; else faceOrient[i] = 0;
   char* faceOrient; //the face points inward or outward 
   
   bool* faceMarked;//if the face has been checked. size: 2*nfold
@@ -265,11 +266,11 @@ private:
     for(int i = 0; i <nfold; i++){
       Node* ecenter[4];//edgecenter of a face
       face[i]->getEdgeCenter(ecenter);
-      if(faceOrient[i]== -1){
+      if(faceOrient[i]== 1){//inward
         edgecenter[i] = ecenter[0];
         edgecenter[i+2*nfold] = ecenter[1];
       }
-      else{
+      else{//outward
         edgecenter[i] = ecenter[3];
         edgecenter[i+2*nfold] = ecenter[2];
       }
@@ -278,11 +279,11 @@ private:
     for(int i = nfold; i <2*nfold; i++){
       Node* ecenter[4];//edgecenter of a face
       face[i]->getEdgeCenter(ecenter);
-      if(faceOrient[i] == 1){
+      if(faceOrient[i] == 0){//outward
         edgecenter[i] = ecenter[3];
         edgecenter[i+2*nfold] = ecenter[1];
       }
-      else{
+      else{//inward
         edgecenter[i] = ecenter[0];
         edgecenter[i+2*nfold] = ecenter[2];
       }
@@ -406,7 +407,8 @@ public:
   Node** node; 
   Edge** edge;
   Face** face;
-  char* faceOrient; //the face points inward or outward
+  
+  char* faceOrient; //the face points inward or outward, points inward, faceOrient[i] = 1; else faceOrient[i] = 0;
   DiamondCell **child;// an dynamic array of pointers to children cells
 };
 

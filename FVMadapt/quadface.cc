@@ -668,7 +668,7 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
   }
     
   // cout << "after: code: " << char(code +'0') <<endl<<endl;
-  if(code < 0 || code > 3)cerr<<"illegal after code: "<<char(code + '0') << endl;
+  if( code > 3)cerr<<"illegal after code: "<<char(code + '0') << endl;
   
 }
 

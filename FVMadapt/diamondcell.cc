@@ -84,7 +84,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
     //cellcenter->facecenter[i]->edgecenter[i]->facecenter[i-1]    
     newFace[i]->edge[0] = newEdge[i];
     newFace[i]->needReverse[0] = false;
-    if(faceOrient[i] == -1){
+    if(faceOrient[i] == 1){
       newFace[i]->edge[1] = face[i]->child[0]->edge[1];
       newFace[i]->needReverse[1] = false; //from facecenter to edgecenter
     }
@@ -93,7 +93,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
       newFace[i]->needReverse[1] = false;
     }
     
-    if(faceOrient[i==0?(nfold-1):(i-1)]==-1){
+    if(faceOrient[i==0?(nfold-1):(i-1)]==1){
       newFace[i]->edge[2] = face[i==0?(nfold-1):(i-1)]->child[0]->edge[2];
       newFace[i]->needReverse[2] = true;
     }
@@ -110,7 +110,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
     //cellcenter->facecenter[i]->edgecenter[i+2*nfold]->facecenter[i+nfold]
     newFace[i+2*nfold]->edge[0] = newEdge[i];
     newFace[i+2*nfold]->needReverse[0] = false;
-    if(faceOrient[i] == -1){
+    if(faceOrient[i] == 1){
       newFace[i+2*nfold]->edge[1] = face[i]->child[2]->edge[2];
       newFace[i+2*nfold]->needReverse[1] = false; //from facecenter to edgecenter
     }
@@ -118,7 +118,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
       newFace[i+2*nfold]->edge[1] = face[i]->child[2]->edge[1];
       newFace[i+2*nfold]->needReverse[1] = false;
     }
-    if(faceOrient[i+nfold]==-1){
+    if(faceOrient[i+nfold]==1){
       newFace[i+2*nfold]->edge[2] = face[i+nfold]->child[2]->edge[2];
       newFace[i+2*nfold]->needReverse[2] = true;
     }
@@ -137,7 +137,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
      //cellcenter->facecenter[i]->edgecenter[i]->facecenter[i+1]    
     newFace[i]->edge[0] = newEdge[i];
     newFace[i]->needReverse[0] = false;
-    if(faceOrient[i] == -1){
+    if(faceOrient[i] == 1){
       newFace[i]->edge[1] = face[i]->child[0]->edge[1];
       newFace[i]->needReverse[1] = false; //from facecenter to edgecenter
     }
@@ -145,7 +145,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
       newFace[i]->edge[1] = face[i]->child[0]->edge[2];
       newFace[i]->needReverse[1] = false;
     }
-    if(faceOrient[i==(2*nfold-1)?nfold:(i+1)]==-1){
+    if(faceOrient[i==(2*nfold-1)?nfold:(i+1)]==1){
       newFace[i]->edge[2] = face[i==(2*nfold-1)?nfold:(i+1)]->child[0]->edge[2];
       newFace[i]->needReverse[2] = true;
     }
@@ -166,7 +166,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
     
     newFace[i+2*nfold]->edge[0] = newEdge[i];
     newFace[i+2*nfold]->needReverse[0] = false;
-    if(faceOrient[i] == -1){
+    if(faceOrient[i] == 1){
       newFace[i+2*nfold]->edge[1] = face[i]->child[2]->edge[1];
       newFace[i+2*nfold]->needReverse[1] = false; //from facecenter to edgecenter
     }
@@ -174,7 +174,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
       newFace[i+2*nfold]->edge[1] = face[i]->child[2]->edge[2];
       newFace[i+2*nfold]->needReverse[1] = false;
     }
-    if(faceOrient[i==nfold?(nfold-1):(i-nfold-1)]==-1){
+    if(faceOrient[i==nfold?(nfold-1):(i-nfold-1)]==1){
     newFace[i+2*nfold]->edge[2] = face[i==nfold?(nfold-1):(i-nfold-1)]->child[2]->edge[1];
     newFace[i+2*nfold]->needReverse[2] = true;
     }
@@ -209,7 +209,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
 
   for(int i = 0; i < nfold; i++){
     childCell[0]->face[i] = newFace[nfold-i-1];
-    childCell[0]->faceOrient[i] = -1;//inward
+    childCell[0]->faceOrient[i] = 1;//inward
   }
   for(int i = nfold; i< 2*nfold; i++){
     childCell[0]->face[i] = face[2*nfold-i-1]->child[0];
@@ -219,7 +219,7 @@ void DiamondCell::split(std::list<Node*>& node_list,
  
   for(int i = 0; i < nfold; i++){
     childCell[1]->face[i] = newFace[i+nfold];
-    childCell[1]->faceOrient[i] = -1; //inward
+    childCell[1]->faceOrient[i] = 1; //inward
   }
   for(int i = nfold; i < 2*nfold; i++){
     childCell[1]->face[i] = face[i]->child[0];
@@ -229,44 +229,44 @@ void DiamondCell::split(std::list<Node*>& node_list,
   for(int childID = 2; childID < 2+nfold; childID++){
    
     childCell[childID]->face[0] = newFace[2*nfold+childID-2];
-    childCell[childID]->faceOrient[0] = -1;
+    childCell[childID]->faceOrient[0] = 1;
     
     childCell[childID]->face[1] = newFace[3*nfold+childID-2];
-    childCell[childID]->faceOrient[1] = -1;
+    childCell[childID]->faceOrient[1] = 1;
     
     childCell[childID]->face[2] = newFace[childID-2];
-    childCell[childID]->faceOrient[2] = 1;
+    childCell[childID]->faceOrient[2] = 0;
     
-    childCell[childID]->face[3] = face[childID-2]->child[faceOrient[childID-2]==1?3:1];
+    childCell[childID]->face[3] = face[childID-2]->child[faceOrient[childID-2]==0?3:1];
     childCell[childID]->faceOrient[3] = faceOrient[childID-2];
     
     childCell[childID]->face[4] = face[nfold+childID-2]->child[2];
     childCell[childID]->faceOrient[4] = faceOrient[nfold+childID-2];
     
     childCell[childID]->face[5] = face[childID==2?(nfold-1):(childID-3)]->
-      child[faceOrient[childID==2?(nfold-1):(childID-3)]==1?1:3];
+      child[faceOrient[childID==2?(nfold-1):(childID-3)]==0?1:3];
     childCell[childID]->faceOrient[5] = faceOrient[childID==2?(nfold-1):(childID-3)];
   }//finish childCell [2, nfold+2)
 
   for(int childID = nfold+2; childID < 2*nfold +2; childID++){
    
     childCell[childID]->face[0] = newFace[childID==(2*nfold+1)?(3*nfold):(2*nfold+childID-1)];
-    childCell[childID]->faceOrient[0] = 1;
+    childCell[childID]->faceOrient[0] = 0;
     
     childCell[childID]->face[1] = newFace[childID-2];
-    childCell[childID]->faceOrient[1] = 1;
+    childCell[childID]->faceOrient[1] = 0;
     
     childCell[childID]->face[2] = newFace[nfold+childID-2];
-    childCell[childID]->faceOrient[2] = 1;
+    childCell[childID]->faceOrient[2] = 0;
     
     childCell[childID]->face[3] = face[childID-2-nfold]->child[2];
     childCell[childID]->faceOrient[3] = faceOrient[childID-2-nfold];
     
     childCell[childID]->face[4] = face[childID==(2*nfold+1)?nfold:(childID-1)]->
-      child[faceOrient[childID==(2*nfold+1)?nfold:(childID-1)]==1?1:3];
+      child[faceOrient[childID==(2*nfold+1)?nfold:(childID-1)]==0?1:3];
     childCell[childID]->faceOrient[4] = faceOrient[childID==(2*nfold+1)?nfold:(childID-1)];
     
-    childCell[childID]->face[5] = face[childID-2]->child[faceOrient[childID-2]==1?3:1];
+    childCell[childID]->face[5] = face[childID-2]->child[faceOrient[childID-2]==0?3:1];
     childCell[childID]->faceOrient[5] = faceOrient[childID-2]; 
   }//finish all faces
 
@@ -844,7 +844,7 @@ void set_general_faces(const Cell* aCell,
             if(isALeaf){
               tempNeib ->faceMarked[nf] = true;
               //if face ff point outward cells[i]
-              if(cells[i]->faceOrient[ff] == 1)faces.push_back(make_pair(cells[i]->face[ff], NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex)));
+              if(cells[i]->faceOrient[ff] == 0)faces.push_back(make_pair(cells[i]->face[ff], NeibIndex(cells[i]->cellIndex, tempNeib ->cellIndex)));
               else faces.push_back(make_pair(cells[i]->face[ff], NeibIndex( tempNeib ->cellIndex,cells[i]->cellIndex)));
             }
             //if myself > neighbor do nothing
@@ -1005,7 +1005,7 @@ void Cell::set_n2f_n2e(std::vector<Face*>& n2f, std::vector<Edge*>& n2e, std::ve
     int j = face[i]->containNode(node[nindex]);
     if(j>=0){
       n2f.push_back(face[i]);
-      if(faceOrient[i] == 1) rot.push_back(j);
+      if(faceOrient[i] == 0) rot.push_back(j);
       else rot.push_back(-(j+1));
     }
   }
@@ -1060,7 +1060,7 @@ std::vector<std::vector<Edge*> > Cell::set_n2e(){
       int j = face[i]->containNode(node[nindex]);
       if(j>=0){
         n2f.push_back(face[i]);
-        if(faceOrient[i] == 1) rot.push_back(j);
+        if(faceOrient[i] == 0) rot.push_back(j);
         else rot.push_back(-(j+1));
       }
     }
@@ -1203,15 +1203,15 @@ void Cell:: split(std::list<Node*>& node_list, std::list<Edge*>& edge_list, std:
         if(face[findex2] == n2f[i==(n2f.size()-1)?0:i+1])break;
       }
       
-      if(findex1 < findex2) child[nindex]->faceOrient[i] = -1;
-      else child[nindex]->faceOrient[i] = 1;
+      if(findex1 < findex2) child[nindex]->faceOrient[i] = 1;
+      else child[nindex]->faceOrient[i] = 0;
     }
     //define face [nfold, 2*nfold)
     for(unsigned int i = n2e.size(); i < 2*n2e.size(); i++){
       
       child[nindex]->face[i] = n2f[i-n2e.size()]->child[rot[i-n2e.size()]>=0?
                                                 rot[i-n2e.size()]:(-rot[i-n2e.size()]-1)];
-      child[nindex]->faceOrient[i] = rot[i-n2e.size()]>=0?1:-1;
+      child[nindex]->faceOrient[i] = rot[i-n2e.size()]>=0?0:1;
     }
   }
   delete [] newFaces;
