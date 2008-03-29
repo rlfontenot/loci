@@ -28,6 +28,19 @@ H5PATH=/
 set -e
 set -u
 
+OBJDIR=OBJ
+ARCH=`uname -s`
+
+COMPILER=gcc
+
+case "$ARCH" in
+    IRIX64)
+    COMPILER=CC_sgi
+    ;;
+    *)
+    ;;
+esac
+
 PREFIX=/usr/local
 while [ $# -ne 0 ]; do 
     case "$1" in
@@ -53,7 +66,23 @@ while [ $# -ne 0 ]; do
 	    ;;
 	--hdf5-dir\=*)
 	    tmp=$1
-	    H5PATH=${tmp#--petsc-dir\=}
+	    H5PATH=${tmp#--hdf5-dir\=}
+	    ;;
+	--compiler)
+	    shift
+	    COMPILER=$1
+	    ;;
+	--compiler\=*)
+	    tmp=$1
+	    COMPILER=${tmp#--compiler\=}
+	    ;;
+	--obj-dir)
+	    shift
+	    OBJDIR=$1
+	    ;;
+	--obj-dir\=*)
+	    tmp=$1
+	    OBJDIR=${tmp#--obj-dir\=}
 	    ;;
 	 --help)
 	    echo "configure usage:"
@@ -75,10 +104,10 @@ while [ $# -ne 0 ]; do
     shift
 done
 
+echo Setup for compiler \"$COMPILER\".
 #setup install directory
 echo INSTALL_DIR=$PREFIX > sys.conf
 echo >> sys.conf
-ARCH=`uname -s`
 
 #setup MPI
 echo \# MPI Libraries Setup >> sys.conf
@@ -102,7 +131,7 @@ if [ ! -e $H5PATH/bin/h5dump ]; then
     for i in ${PATH//:/ }; do
 	if [ ! -e $H5PATH/bin/h5dump ]; then
     	    if [ -e $i/h5dump ]; then 
-		H5PATH=${i%/bin.*/}
+		H5PATH=${i%/bin*}
 	    fi
 	fi
     done
@@ -112,7 +141,7 @@ if [ ! -d "$H5PATH" ]; then
     for i in ${LD_LIBRARY_PATH//:/ }; do
 	if [ ! -d "$H5PATH" ]; then
     	    if [ -e $i/libhdf5.so ]; then 
-		H5PATH=${i%/lib.*/}
+		H5PATH=${i%/lib*}
 		echo $i $H5PATH
 	    fi
 	fi
@@ -143,7 +172,7 @@ XMLPATH=/usr
 if [ ! -d $XMLPATH/include/libxml2 ]; then
     for i in ${LD_LIBRARY_PATH//:/ }; do
 	if [ ! -d $XMLPATH/include/libxml2 ]; then
-	    PATHTMP=${i%/lib.*/}
+	    PATHTMP=${i%/lib*}
     	    if [ -d $PATHTMP/include/libxml2 ]; then 
 		XMLPATH=$PATHTMP
 	    fi
@@ -201,7 +230,28 @@ fi
 
 echo >> sys.conf
 
-if [ $ARCH == "SunOS" ]; then
+# check for fortran includes
+FORTRAN_LIBS=
+
+case "$COMPILER" in
+    gcc)
+    for i in ${PATH//:/ }; do
+	if [ -e $i/gfortran ]; then 
+	    FORTRAN_LIBS=-lgfortran
+	fi
+    done
+    if [ "$FORTRAN_LIBS" == "" ] ; then
+	FORTRAN_LIBS=-lg2c
+    fi
+    ;;
+    *)
+    # Currently only gcc compiler supported in fortran library search
+    ;;
+esac
+
+case "$ARCH" in
+    SunOS)
+# SunOS architecture
     # find sunmath.h
     CCPATH=
     for i in `echo $PATH | sed "s/:/ /g"`; do
@@ -215,39 +265,59 @@ if [ $ARCH == "SunOS" ]; then
     CCINC=$CCBASE/prod/include/cc
     if [ -e $CCINC/sunmath.h ]; then
 	echo MISC=-I$CCINC >> sys.conf
-	echo MISC_LIBS=-L$CCBASE/lib -lsunmath -lmalloc >> sys.conf
+	echo MISC_LIBS=-L$CCBASE/lib -lsunmath -lmalloc -lm $FORTRAN_LIBS >> sys.conf
     else
 	echo MISC=-DNOSUNMATH >> sys.conf
-	echo MISC_LIBS=-lmalloc >> sys.conf
+	echo MISC_LIBS=-lmalloc -lm $FORTRAN_LIBS >> sys.conf
     fi
-else
+    ;;
+    *)
+#everything else
     echo MISC= >> sys.conf
-fi
+    echo MISC_LIBS=$FORTRAN_LIBS >> sys.conf
+    ;;
+esac
+
 echo >> sys.conf
 
 echo \# Dynamic Library Defines >> sys.conf
 
-if [ $ARCH == "Linux" -o $ARCH == "Darwin" ]; then
+case "$ARCH" in
+    Linux)
     echo DYNAMIC_LOADING_DEFINES = >> sys.conf
     echo DYNAMIC_LOADING_LINK = -ldl >> sys.conf
-else
-    if [ $ARCH == "IRIX64" ]; then
-	echo DYNAMIC_LOADING_DEFINES = >> sys.conf
-	echo DYNAMIC_LOADING_LINK = -lc >> sys.conf
-    else
-	echo DYNAMIC_LOADING_DEFINES = >> sys.conf
-	echo DYNAMIC_LOADING_LINK =  >> sys.conf
-    fi
-fi
+    ;;
+    Darwin)
+    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
+    echo DYNAMIC_LOADING_LINK = -ldl >> sys.conf
+    ;;
+    IRIX64)
+    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
+    echo DYNAMIC_LOADING_LINK = -lc >> sys.conf
+    ;;
+    *)
+    echo DYNAMIC_LOADING_DEFINES = >> sys.conf
+    echo DYNAMIC_LOADING_LINK =  >> sys.conf
+    ;;
+esac
+
 echo >> sys.conf
 
-if [ $ARCH == "Linux" -o $ARCH == "Darwin" ]; then
+case "$ARCH" in
+    Linux)
     USEMAKE=make
     echo MAKE = $USEMAKE >> sys.conf
-else
+    ;;
+    Darwin)
+    USEMAKE=make
+    echo MAKE = $USEMAKE >> sys.conf
+    ;;
+    *)
     USEMAKE=gmake
     echo MAKE = $USEMAKE >> sys.conf
-fi
+    ;;
+esac    
+
 echo >> sys.conf
 
 echo "##############################################" >> sys.conf
@@ -262,13 +332,14 @@ echo >> sys.conf
 echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS) \$(MPI_LIBS) \\" >> sys.conf
 echo "            \$(MISC_LIBS) \$(DYNAMIC_LOADING_LINK)" >> sys.conf
 
-echo Making compile subdirectory OBJ...
-./tmpcopy --target OBJ > copy.out 
-mv sys.conf OBJ/sys.conf
+
+echo Making compile subdirectory ${OBJDIR}...
+./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out 
+mv sys.conf ${OBJDIR}/sys.conf
 
 echo 
 echo
 echo "To compile Loci, enter:"
-echo "  cd OBJ; $USEMAKE"
+echo "  cd ${OBJDIR}; $USEMAKE"
 echo "To install Loci in the directory $PREFIX, enter:"
 echo "  $USEMAKE install"
