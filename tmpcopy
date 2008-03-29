@@ -48,6 +48,10 @@ while [ $# -ne 0 ]; do
 	    subdir=""
 	    target=$1
 	    ;;
+	--compiler)
+	    shift
+	    COMP=$1
+	    ;;
 	*)
             break
             ;;
