@@ -99,20 +99,20 @@ echo >> sys.conf
 # find hdf5
 
 if [ ! -e $H5PATH/bin/h5dump ]; then
-    for i in `echo $PATH | sed "s/:/ /g"`; do
+    for i in ${PATH//:/ }; do
 	if [ ! -e $H5PATH/bin/h5dump ]; then
     	    if [ -e $i/h5dump ]; then 
-		H5PATH=`echo $i | sed "s:/bin.*:/:"`
+		H5PATH=${i%/bin.*/}
 	    fi
 	fi
     done
 fi
 
 if [ ! -d "$H5PATH" ]; then
-    for i in `echo $LD_LIBRARY_PATH | sed "s/:/ /g"`; do
+    for i in ${LD_LIBRARY_PATH//:/ }; do
 	if [ ! -d "$H5PATH" ]; then
     	    if [ -e $i/libhdf5.so ]; then 
-		H5PATH=`echo $i | sed "s:/lib.*:/:"`
+		H5PATH=${i%/lib.*/}
 		echo $i $H5PATH
 	    fi
 	fi
@@ -141,9 +141,9 @@ echo >> sys.conf
 echo "# libxml2 library setup" >> sys.conf
 XMLPATH=/usr
 if [ ! -d $XMLPATH/include/libxml2 ]; then
-    for i in `echo $LD_LIBRARY_PATH | sed "s/:/ /g"`; do
+    for i in ${LD_LIBRARY_PATH//:/ }; do
 	if [ ! -d $XMLPATH/include/libxml2 ]; then
-	    PATHTMP=`echo $i | sed "s:/lib.*:/:"`
+	    PATHTMP=${i%/lib.*/}
     	    if [ -d $PATHTMP/include/libxml2 ]; then 
 		XMLPATH=$PATHTMP
 	    fi
