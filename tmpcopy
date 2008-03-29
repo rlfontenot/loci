@@ -183,8 +183,8 @@ for dir in $TARGET_DIRS; do
   echo "Linking" $dir "directory files..."
   cd $source/src/$dir
   for i in *.cc *.h *.hh *.hpp *.c *.loci *.lh Makefile Loci ; do
-    if [ -f  $i ] ; then
-      if [ ! -e $fulltarget/$dir/$i ] ; then
+    if [ -e  $i ] ; then
+      if [ ! -h $fulltarget/$dir/$i ] ; then
         echo ln -s $source/src/$dir/$i $fulltarget/$dir/$i
         ln -s $source/src/$dir/$i $fulltarget/$dir/$i
       fi
@@ -197,7 +197,7 @@ for dir in $TOOLS_DIRS; do
   cd $source/$dir
   for i in *.cc *.h *.hh *.hpp *.c *.loci *.lh Makefile Loci ; do
     if [ -f  $i ] ; then
-      if [ ! -e $fulltarget/$dir/$i ] ; then
+      if [ ! -h $fulltarget/$dir/$i ] ; then
         echo ln -s $source/$dir/$i $fulltarget/$dir/$i
         ln -s $source/$dir/$i $fulltarget/$dir/$i
       fi

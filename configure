@@ -19,11 +19,12 @@
 # along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 #
 ###############################################################################
-
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/:/usr:/usr/local:/opt:/opt/local
 PETSC_BASE=$PETSC_DIR
 if [ "$PETSC_BASE" == "" ]; then
     PETSC_BASE=/notinstalled/petsc
 fi
+H5PATH=/
 set -e
 set -u
 
@@ -46,9 +47,27 @@ while [ $# -ne 0 ]; do
 	    tmp=$1
 	    PETSC_BASE=${tmp#--petsc-dir\=}
 	    ;;
+	--hdf5-dir)
+	    shift
+	    H5PATH=$1
+	    ;;
+	--hdf5-dir\=*)
+	    tmp=$1
+	    H5PATH=${tmp#--petsc-dir\=}
+	    ;;
+	 --help)
+	    echo "configure usage:"
+	    echo "./configure <options>"
+	    echo "where <options> may include"
+	    echo "  --prefix <install directory>    : tell configure where to install Loci."
+	    echo "  --petsc-dir <PETSc directory>   : tell configure where to find PETSc package."
+	    echo "  --hdf5-dir <HDF5 directory>     : tell configure where to find HDF5 package."
+	    exit -1
+	    ;;
+	    
 	*)
-	    echo configure option \' $1 \' not understood!
-	    echo exiting configure in failure!
+	    echo configure option \'$1\' not understood!
+	    echo use ./configure --help to see correct usage!
 	    exit -1 
             break
             ;;
@@ -78,7 +97,7 @@ echo >> sys.conf
 
 #setup hdf5
 # find hdf5
-H5PATH=/
+
 if [ ! -e $H5PATH/bin/h5dump ]; then
     for i in `echo $PATH | sed "s/:/ /g"`; do
 	if [ ! -e $H5PATH/bin/h5dump ]; then
@@ -164,7 +183,7 @@ if [ -d $PETSC_BASE ]; then
 	rm sys.conf
 	exit -1
     fi
-    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_DIR/bmake/$PETSC_ARCH/petscconf`
+    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
     echo Using PETSc libraries found in \"$PETSC_BASE\".
     echo PETSC_BASE = $PETSC_BASE >> sys.conf
     echo $BLASLAPACK_LIB >> sys.conf
@@ -180,6 +199,30 @@ else
 fi
 
 
+echo >> sys.conf
+
+if [ $ARCH == "SunOS" ]; then
+    # find sunmath.h
+    CCPATH=
+    for i in `echo $PATH | sed "s/:/ /g"`; do
+	if [ -e $i/cc ]; then 
+	    CCPATH=$i/cc
+	    break 
+	fi
+    done
+
+    CCBASE=${CCPATH%/bin/cc}
+    CCINC=$CCBASE/prod/include/cc
+    if [ -e $CCINC/sunmath.h ]; then
+	echo MISC=-I$CCINC >> sys.conf
+	echo MISC_LIBS=-L$CCBASE/lib -lsunmath -lmalloc >> sys.conf
+    else
+	echo MISC=-DNOSUNMATH >> sys.conf
+	echo MISC_LIBS=-lmalloc >> sys.conf
+    fi
+else
+    echo MISC= >> sys.conf
+fi
 echo >> sys.conf
 
 echo \# Dynamic Library Defines >> sys.conf
@@ -212,13 +255,12 @@ echo "# No need to change things below this line" >> sys.conf
 
 echo >> sys.conf
 
-echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE)\\" >> sys.conf
-echo "                   \$(HDF5_INCLUDE)\\">> sys.conf
-echo "                   \$(MPI_INCLUDE)\\" >> sys.conf
+echo "MACHINE_SPECIFIC = \$(PETSC_DEFINE) \$(PETSC_INCLUDE) \$(HDF5_INCLUDE)\\">> sys.conf
+echo "                   \$(MPI_INCLUDE) \$(MISC)\\" >> sys.conf
 echo "                   \$(DYNAMIC_LOADING_DEFINES)" >> sys.conf
 echo >> sys.conf
 echo "BASE_LIBS = \$(HDF5_LIBS) \$(PETSC_LIBS) \$(MPI_LIBS) \\" >> sys.conf
-echo "            \$(DYNAMIC_LOADING_LINK)" >> sys.conf
+echo "            \$(MISC_LIBS) \$(DYNAMIC_LOADING_LINK)" >> sys.conf
 
 echo Making compile subdirectory OBJ...
 ./tmpcopy --target OBJ > copy.out 
@@ -227,6 +269,6 @@ mv sys.conf OBJ/sys.conf
 echo 
 echo
 echo "To compile Loci, enter:"
-echo "  cd OBJ; make"
+echo "  cd OBJ; $USEMAKE"
 echo "To install Loci in the directory $PREFIX, enter:"
-echo "  make install"
+echo "  $USEMAKE install"
