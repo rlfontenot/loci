@@ -119,7 +119,7 @@ if [ "$ARCH" == "IRIX64" ]; then
 else
    echo MPI_BASE =  >> sys.conf
    echo MPI_LIBS =  >> sys.conf
-   echo MPI_INCLUDE =  >> sys.conf
+   echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
    echo MPI_RUN = mpirun >> sys.conf
 fi
 echo >> sys.conf
@@ -306,17 +306,18 @@ echo >> sys.conf
 case "$ARCH" in
     Linux)
     USEMAKE=make
-    echo MAKE = $USEMAKE >> sys.conf
     ;;
     Darwin)
     USEMAKE=make
-    echo MAKE = $USEMAKE >> sys.conf
+    ;;
+    CYGWIN*)
+    USEMAKE=make
     ;;
     *)
     USEMAKE=gmake
-    echo MAKE = $USEMAKE >> sys.conf
     ;;
 esac    
+echo MAKE =$USEMAKE >> sys.conf 
 
 echo >> sys.conf
 
