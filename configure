@@ -110,6 +110,36 @@ echo INSTALL_DIR=$PREFIX > sys.conf
 echo >> sys.conf
 
 #setup MPI
+
+HAS_MPI=0
+MPI_PATH=/
+MPI_C_COMPILER=none
+MPI_CPP_COMPILER=none
+
+for i in ${PATH//:/ }; do
+    if [ $HAS_MPI -eq 0 ]; then
+	if [ -e $i/mpirun ]; then 
+	    MPI_PATH=${i%/bin*}
+	    HAS_MPI=1
+	fi
+    fi
+done
+
+if [ -e $MPI_PATH/bin/mpicc ]; then
+    MPI_C_COMPILER=mpicc
+fi
+if [ -e $MPI_PATH/bin/mpic++ ]; then
+    MPI_CPP_COMPILER=mpic++
+else
+    if [ -e $MPI_PATH/bin/mpicxx ]; then
+	MPI_CPP_COMPILER=mpicxx
+    else
+	if [ -e $MPI_PATH/bin/mpiCC ]; then
+	    MPI_CPP_COMPILER=mpiCC
+	fi
+    fi
+fi
+
 echo \# MPI Libraries Setup >> sys.conf
 if [ "$ARCH" == "IRIX64" ]; then
    echo MPI_BASE = /usr/ >> sys.conf
@@ -122,6 +152,8 @@ else
    echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
    echo MPI_RUN = mpirun >> sys.conf
 fi
+   echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
+   echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
 echo >> sys.conf
 
 #setup hdf5
