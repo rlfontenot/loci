@@ -24,7 +24,7 @@ PETSC_BASE=$PETSC_DIR
 if [ "$PETSC_BASE" == "" ]; then
     PETSC_BASE=/notinstalled/petsc
 fi
-H5PATH=/
+H5PATH=/notinstalled/hdf5
 set -e
 set -u
 

@@ -24,7 +24,8 @@ set -e
 set -u
 
 source=`pwd`
-target=${LOCI_TARGET-/usr/tmp/$LOGNAME/}
+logname=${LOGNAME-user}
+target=${LOCI_TARGET-/usr/tmp/$logname/}
 subdir=Loci
 
 
@@ -123,8 +124,10 @@ if [ ! -e comp.conf ]; then
   cp $source/src/conf/${COMP}.conf comp.conf
 fi
 if [ ! -e sys.conf ]; then
-  echo cp $source/src/conf/${ARCH}.conf sys.conf
-  cp $source/src/conf/${ARCH}.conf sys.conf
+    if [ -e $source/src/conf/${ARCH}.conf ]; then
+	echo cp $source/src/conf/${ARCH}.conf sys.conf
+	cp $source/src/conf/${ARCH}.conf sys.conf
+    fi
 fi
 
 cd lib
