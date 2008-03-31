@@ -28,6 +28,31 @@ H5PATH=/notinstalled/hdf5
 set -e
 set -u
 
+
+find_exec() {
+    RETURN_VALUE=0
+    for i in ${PATH//:/ }; do
+	if [ -e $i/$1 ]; then 
+	    RETURN_VALUE=$i
+	    break ;
+	fi
+    done
+}
+
+find_lib() {
+    RETURN_VALUE=0
+    for i in ${LD_LIBRARY_PATH//:/ }; do
+	if [ -e $i/lib$1.a ]; then
+	    RETURN_VALUE=$i
+	    break;
+	fi
+	if [ -e $i/lib$1.so ]; then
+	    RETURN_VALUE=$i
+	    break ;
+	fi
+    done
+}
+
 OBJDIR=OBJ
 ARCH=`uname -s`
 
@@ -111,30 +136,25 @@ echo >> sys.conf
 
 #setup MPI
 
-HAS_MPI=0
-MPI_PATH=/
+HAS_MPI=1
+find_exec mpirun
+MPI_PATH=$RETURN_VALUE
+if [ $MPI_PATH == 0 ]; then
+    HAS_MPI=0
+fi
 MPI_C_COMPILER=none
 MPI_CPP_COMPILER=none
 
-for i in ${PATH//:/ }; do
-    if [ $HAS_MPI -eq 0 ]; then
-	if [ -e $i/mpirun ]; then 
-	    MPI_PATH=${i%/bin*}
-	    HAS_MPI=1
-	fi
-    fi
-done
-
-if [ -e $MPI_PATH/bin/mpicc ]; then
+if [ -e $MPI_PATH/mpicc ]; then
     MPI_C_COMPILER=mpicc
 fi
-if [ -e $MPI_PATH/bin/mpic++ ]; then
+if [ -e $MPI_PATH/mpic++ ]; then
     MPI_CPP_COMPILER=mpic++
 else
-    if [ -e $MPI_PATH/bin/mpicxx ]; then
+    if [ -e $MPI_PATH/mpicxx ]; then
 	MPI_CPP_COMPILER=mpicxx
     else
-	if [ -e $MPI_PATH/bin/mpiCC ]; then
+	if [ -e $MPI_PATH/mpiCC ]; then
 	    MPI_CPP_COMPILER=mpiCC
 	fi
     fi
@@ -160,25 +180,19 @@ echo >> sys.conf
 # find hdf5
 
 if [ ! -e $H5PATH/bin/h5dump ]; then
-    for i in ${PATH//:/ }; do
-	if [ ! -e $H5PATH/bin/h5dump ]; then
-    	    if [ -e $i/h5dump ]; then 
-		H5PATH=${i%/bin*}
-	    fi
-	fi
-    done
+    find_exec h5dump
+    if [ $RETURN_VALUE != 0 ]; then
+	H5PATH=${RETURN_VALUE%/bin*}
+    fi
 fi
 
 if [ ! -d "$H5PATH" ]; then
-    for i in ${LD_LIBRARY_PATH//:/ }; do
-	if [ ! -d "$H5PATH" ]; then
-    	    if [ -e $i/libhdf5.so ]; then 
-		H5PATH=${i%/lib*}
-		echo $i $H5PATH
-	    fi
-	fi
-    done
-fi	 
+    find_lib hdf5
+    if [ $RETURN_VALUE != 0 ]; then
+	H5PATH=${RETURN_VALUE%/lib*}
+    fi
+fi
+
 if [ ! -d $H5PATH ]; then
     echo Unable to find hdf5 libararies!
     echo Make sure hdf5 executables are in your PATH and that the library
@@ -202,15 +216,11 @@ echo >> sys.conf
 echo "# libxml2 library setup" >> sys.conf
 XMLPATH=/usr
 if [ ! -d $XMLPATH/include/libxml2 ]; then
-    for i in ${LD_LIBRARY_PATH//:/ }; do
-	if [ ! -d $XMLPATH/include/libxml2 ]; then
-	    PATHTMP=${i%/lib*}
-    	    if [ -d $PATHTMP/include/libxml2 ]; then 
-		XMLPATH=$PATHTMP
-	    fi
-	fi
-    done
-fi	 
+    find_lib xml2
+    if [ $RETURN_VALUE != 0 ]; then
+	XMLPATH=${RETURN_VALUE%/lib*}
+    fi
+fi
 
 if [ -d $XMLPATH/include/libxml2 ]; then
     echo LIBXML2_DEFINE = -DUSE_LIBXML2 >> sys.conf
@@ -230,6 +240,13 @@ fi
 echo >> sys.conf
 
 echo \# PETSc Library Setup >> sys.conf
+
+if [ ! -d $PETSC_BASE ]; then
+    find_lib petsc
+    if [ $RETURN_VALUE != 0 ]; then
+	PETSC_BASE=${RETURN_VALUE%/lib*}
+    fi
+fi
 
 if [ -d $PETSC_BASE ]; then
     if [ -e $PETSC_BASE/bmake/petscconf ]; then
@@ -267,13 +284,14 @@ FORTRAN_LIBS=
 
 case "$COMPILER" in
     gcc)
-    for i in ${PATH//:/ }; do
-	if [ -e $i/gfortran ]; then 
-	    FORTRAN_LIBS=-lgfortran
+    find_exec gfortran
+    if [ $RETURN_VALUE != 0 ]; then
+	FORTRAN_LIBS=-lgfortran
+    else
+	find_exec g77
+	if [ $RETURN_VALUE != 0 ]; then
+	    FORTRAN_LIBS=-lg2c
 	fi
-    done
-    if [ "$FORTRAN_LIBS" == "" ] ; then
-	FORTRAN_LIBS=-lg2c
     fi
     ;;
     *)
@@ -285,14 +303,8 @@ case "$ARCH" in
     SunOS)
 # SunOS architecture
     # find sunmath.h
-    CCPATH=
-    for i in `echo $PATH | sed "s/:/ /g"`; do
-	if [ -e $i/cc ]; then 
-	    CCPATH=$i/cc
-	    break 
-	fi
-    done
-
+    find_exec cc
+    CCPATH=$RETURN_VALUE/cc
     CCBASE=${CCPATH%/bin/cc}
     CCINC=$CCBASE/prod/include/cc
     if [ -e $CCINC/sunmath.h ]; then
@@ -370,9 +382,20 @@ echo Making compile subdirectory ${OBJDIR}...
 ./tmpcopy --target $OBJDIR --compiler $COMPILER > copy.out 
 mv sys.conf ${OBJDIR}/sys.conf
 
+# Make makefile
+echo "default:" > Makefile
+echo "	cd ${OBJDIR}; $USEMAKE" >> Makefile
+echo "install:" >> Makefile
+echo "	cd ${OBJDIR}; $USEMAKE install" >> Makefile
+echo "clean:" >> Makefile
+echo "	cd ${OBJDIR}; $USEMAKE clean" >> Makefile
+echo "distclean:" >> Makefile
+echo "	rm -fr ${OBJDIR} copy.out Makefile" >> Makefile
+
+
 echo 
 echo
 echo "To compile Loci, enter:"
-echo "  cd ${OBJDIR}; $USEMAKE"
+echo "  make"
 echo "To install Loci in the directory $PREFIX, enter:"
-echo "  $USEMAKE install"
+echo "  make install"
