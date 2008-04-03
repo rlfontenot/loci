@@ -61,13 +61,16 @@ libLoci.so: $(LIB_OBJS)
 Loci_version.o: FORCE
 Loci_version_lo.o: FORCE
 
+.PHONY: FORCE
 FORCE:
 
 JUNK =  *~ core ii_files ti_files KCC_files so_locations rii_files
 
+.PHONY: clean
 clean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK)
 
+.PHONY: distclean
 distclean:
 	rm -fr $(OBJS) $(LIB_OBJS) $(TARGET) $(JUNK) $(DEPEND_FILES)
 
