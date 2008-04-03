@@ -210,7 +210,7 @@ echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib64 \$\(RPATH\)\$\(HDF5_BASE\)/lib64 -L\$\(
 else
 echo HDF5_LIBS = -L\$\(HDF5_BASE\)/lib -lhdf5 \$\(RPATH\)\$\(HDF5_BASE\)/lib -lz >> sys.conf
 fi
-echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include >> sys.conf
+echo HDF5_INCLUDE = -I\$\(HDF5_BASE\)/include -DH5_USE_16_API >> sys.conf
 echo >> sys.conf
 
 echo "# libxml2 library setup" >> sys.conf
