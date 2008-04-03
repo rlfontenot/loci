@@ -267,7 +267,12 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
 void fv_topo_handler::close() {
   if(first_boundary) {
     int ibuf[2] ;
-    ibuf[0] = FV_BNDRY_VARS ;
+
+    if(general_boundary)
+      ibuf[0] = FV_ARB_POLY_BNDRY_VARS ;
+    else
+      ibuf[0] = FV_BNDRY_VARS ;
+    
     fwrite(ibuf,sizeof(int),1,OFP) ;
     first_boundary=false ;
   }
@@ -470,6 +475,7 @@ void fv_topo_handler::write_general_face(int nside_sizes[],
   } else {
     ibuf[0] = FV_ARB_POLY_FACES ;
     fwrite(ibuf,sizeof(int),3,OFP) ;
+    general_boundary = true ;
     for(size_t i=0;i<ordinary_faces.size();++i) {
       if(ordinary_faces[i][3] == 0) {
         ibuf[0] = 3 ;
@@ -550,7 +556,11 @@ void fv_topo_handler::output_boundary_scalar(float val[], int node_set[],
   }
   if(first_boundary) {
     int ibuf[2] ;
-    ibuf[0] = FV_BNDRY_VARS ;
+    if(general_boundary)
+      ibuf[0] = FV_ARB_POLY_BNDRY_VARS ;
+    else
+      ibuf[0] = FV_BNDRY_VARS ;
+    
     fwrite(ibuf,sizeof(int),1,OFP) ;
     first_boundary=false ;
   }
@@ -577,7 +587,10 @@ void fv_topo_handler::output_boundary_vector(vector3d<float> val[],
   }
   if(first_boundary) {
     int ibuf[2] ;
-    ibuf[0] = FV_BNDRY_VARS ;
+    if(general_boundary)
+      ibuf[0] = FV_ARB_POLY_BNDRY_VARS ;
+    else
+      ibuf[0] = FV_BNDRY_VARS ;
     fwrite(ibuf,sizeof(int),1,OFP) ;
     first_boundary=false ;
   }
