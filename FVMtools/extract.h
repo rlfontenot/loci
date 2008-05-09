@@ -210,11 +210,12 @@ class fv_topo_handler : public grid_topo_handler {
   vector<Array<int,4> > ordinary_faces ;
   vector<vector<int> > part_nodes ;
   vector<int> elem_ids ;
+  bool general_boundary ;
   bool first_var ;
   bool first_boundary ;
   FILE *OFP ;
 public:
-  fv_topo_handler(){OFP=0;first_var = true ; first_boundary=true ;}
+  fv_topo_handler(){OFP=0;first_var = true ; first_boundary=true ; general_boundary = false ;}
   virtual ~fv_topo_handler() {}
   virtual void fileWritingSequence(Array<int,7> &sequence) {
     sequence[0] = GRID_POSITIONS ;
