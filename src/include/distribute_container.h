@@ -27,6 +27,8 @@
 #include <Config/conf.h>
 
 #include <vector>
+#include <algorithm>
+
 #include <DMap.h>
 #include <store_rep.h>
 #include <DMultiMap.h>
@@ -176,8 +178,8 @@ namespace Loci {
   }
 
   inline void equiJoinFF(protoMap &in1, protoMap &in2, protoMap &out) {
-    sort(in1.begin(),in1.end(),equiFF) ;
-    sort(in2.begin(),in2.end(),equiFF) ;
+    std::sort(in1.begin(),in1.end(),equiFF) ;
+    std::sort(in2.begin(),in2.end(),equiFF) ;
     
     int p = 0 ;
     MPI_Comm_size(MPI_COMM_WORLD,&p) ;
@@ -208,8 +210,8 @@ namespace Loci {
 
     // Remove duplicates from protomap
     parSampleSort(out,equiFF,MPI_COMM_WORLD) ;
-    sort(out.begin(),out.end()) ;
-    out.erase(unique(out.begin(),out.end()),out.end()) ;
+    std::sort(out.begin(),out.end()) ;
+    out.erase(std::unique(out.begin(),out.end()),out.end()) ;
   }
 
   inline void removeIdentity(protoMap &mp) {

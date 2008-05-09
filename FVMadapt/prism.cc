@@ -1028,11 +1028,11 @@ void Prism::setSplitCode(int split_mode){
     }
     else if(split_mode == 1){
       if(average_length0/Globals::tolerance > 2.0){
-        bitset<2> oldCode(2);
-        oldCode = oldCode & tolerance_mask;
-        mySplitCode = char(oldCode.to_ulong());
+        // bitset<2> oldCode(2);
+        // oldCode = oldCode & tolerance_mask;
+        // mySplitCode = char(oldCode.to_ulong());
         
-        // mySplitCode = 2;//split in xy direction
+        mySplitCode = 2;//split in xy direction
         return;
       }
       else{

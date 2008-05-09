@@ -32,7 +32,7 @@ std::vector<Entity> reorder_nodes(const const_store<int>& node_remap, const enti
   for(entitySet::const_iterator ei = localSet.begin(); ei != localSet.end(); ei++, index++){
     node_f2l[index] = pair<int, Entity>(node_remap[*ei], *ei);
   }
-  sort(node_f2l.begin(), node_f2l.end());
+  std::sort(node_f2l.begin(), node_f2l.end());
   std::vector<Entity> orderedSet(localSet.size());
   for( int i= 0; i < localSet.size(); i++){
     orderedSet[i] = node_f2l[i].second;
@@ -54,7 +54,7 @@ std::vector<Entity> reorder_edges(const const_store<int>& node_remap,const const
     e2n[1] = node_remap[edge2node[*ei][0]] ;
     node_f2l[index] = pair<vector<int>, Entity>(e2n,*ei);
   }
-  sort(node_f2l.begin(), node_f2l.end());
+  std::sort(node_f2l.begin(), node_f2l.end());
   std::vector<Entity> orderedSet(localSet.size());
   for( int i= 0; i < localSet.size(); i++){
     orderedSet[i] = node_f2l[i].second;
@@ -76,7 +76,7 @@ void reorder_faces(const const_store<int>& node_remap, const const_multiMap& fac
     node_f2l[index] = pair<vector<int>, pair<Entity, char> >(f2n,
                                                              pair<Entity, char>(localSet[index], orient[index]));
   }
-  sort(node_f2l.begin(), node_f2l.end());
+  std::sort(node_f2l.begin(), node_f2l.end());
   
   for( unsigned int i= 0; i < localSet.size(); i++){
     localSet[i] = (node_f2l[i].second).first;
@@ -113,17 +113,17 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
   int findex = 0;
   for(int i=0; i<lower_size; i++){
     faces[findex] = lower[i];
-    orient[findex++] = -1;
+    orient[findex++] = 1;
   }
   
   for(int i=0; i<upper_size; i++){
     faces[findex] = upper[i];
-    orient[findex++] = 1;
+    orient[findex++] = 0;
     
   }
   for(int i=0; i<boundary_map_size; i++){
     faces[findex] = boundary_map[i];
-    orient[findex++] = 1;
+    orient[findex++] = 0;
     
   } 
   
@@ -226,17 +226,17 @@ int  find_face_index(const Entity* lower, int lower_size,
   int findex = 0;
   for(int i=0; i<lower_size; i++){
     faces[findex] = lower[i];
-    orient[findex++] = -1;
+    orient[findex++] = 1;
   }
   
   for(int i=0; i<upper_size; i++){
     faces[findex] = upper[i];
-    orient[findex++] = 1;
+    orient[findex++] = 0;
     
   }
   for(int i=0; i<boundary_map_size; i++){
     faces[findex] = boundary_map[i];
-    orient[findex++] = 1;
+    orient[findex++] = 0;
     
   } 
   
@@ -282,17 +282,17 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
   int findex = 0;
   for(int i=0; i<lower_size; i++){
     faces[findex] = lower[i];
-    orient[findex++] = -1;
+    orient[findex++] = 1;
   }
   
   for(int i=0; i<upper_size; i++){
     faces[findex] = upper[i];
-    orient[findex++] = 1;
+    orient[findex++] = 0;
     
   }
   for(int i=0; i<boundary_map_size; i++){
     faces[findex] = boundary_map[i];
-    orient[findex++] = 1;
+    orient[findex++] = 0;
     
   } 
   
@@ -398,17 +398,17 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     int findex = 0;
     for(int i=0; i<lower_size; i++){
       faces[findex] = lower[i];
-      orient[findex++] = -1;
+      orient[findex++] = 1;
     }
     
     for(int i=0; i<upper_size; i++){
       faces[findex] = upper[i];
-      orient[findex++] = 1;
+      orient[findex++] = 0;
       
     }
     for(int i=0; i<boundary_map_size; i++){
       faces[findex] = boundary_map[i];
-      orient[findex++] = 1;
+      orient[findex++] = 0;
       
     } 
     
@@ -606,17 +606,17 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     int findex = 0;
     for(int i=0; i<lower_size; i++){
       faces[findex] = lower[i];
-      orient[findex++] = -1;
+      orient[findex++] = 1;
     }
     
     for(int i=0; i<upper_size; i++){
       faces[findex] = upper[i];
-      orient[findex++] = 1;
+      orient[findex++] = 0;
       
     }
     for(int i=0; i<boundary_map_size; i++){
       faces[findex] = boundary_map[i];
-      orient[findex++] = 1;
+      orient[findex++] = 0;
       
     } 
     
@@ -717,17 +717,17 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     int findex = 0;
     for(int i=0; i<lower_size; i++){
       faces[findex] = lower[i];
-      orient[findex++] = -1;
+      orient[findex++] = 1;
     }
     
     for(int i=0; i<upper_size; i++){
       faces[findex] = upper[i];
-      orient[findex++] = 1;
+      orient[findex++] = 0;
       
     }
     for(int i=0; i<boundary_map_size; i++){
       faces[findex] = boundary_map[i];
-      orient[findex++] = 1;
+      orient[findex++] = 0;
       
     } 
     
@@ -834,16 +834,16 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
   int findex = 0;
   for(int i=0; i<lower_size; i++){
     faces[findex] = lower[i];
-    orient[findex++] = -1;
+    orient[findex++] = 1;
   }
   
   for(int i=0; i<upper_size; i++){
     faces[findex] = upper[i];
-    orient[findex++] = 1;
+    orient[findex++] = 0;
   }
   for(int i=0; i<boundary_map_size; i++){
     faces[findex] = boundary_map[i];
-    orient[findex++] = 1;
+    orient[findex++] = 0;
     
   } 
   

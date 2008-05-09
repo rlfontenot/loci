@@ -152,7 +152,7 @@ std::vector<char>   extract_general_face(const Entity* lower, int lower_size,
     if(current->getChildCell() != 0){
       facePlan.push_back(1);
       //push the selected four children in the Q
-      if(faceOrient == 1){
+      if(faceOrient == 0){
         
         Q.push(make_pair(current->getChildCell(1), currentFace));
         Q.push(make_pair(current->getChildCell(currentFace == currentNfold? (2*currentNfold+1):(currentFace+1)),4));

@@ -20,6 +20,11 @@
 //#############################################################################
 #include <Config/conf.h>
 #ifdef SPARC
+#ifdef NOSUNMATH
+void SPARC_set_fpe_abort() {
+}
+#else
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <floatingpoint.h>
@@ -52,8 +57,9 @@ void SPARC_set_fpe_abort() {
   hdl = (sigfpe_handler_type) SPARC_ieee_abort ;
   ieee_handler("set","common",hdl) ;
 }
+#endif
 #else
-void SOARC_set_fpe_abort() {
+void SPARC_set_fpe_abort() {
 }
 #endif
 

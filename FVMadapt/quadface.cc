@@ -668,7 +668,7 @@ char orient_edgeID_f2c(char edgeID, char orientCode){
   }
     
   // cout << "after: code: " << char(code +'0') <<endl<<endl;
-  if(code < 0 || code > 3)cerr<<"illegal after code: "<<char(code + '0') << endl;
+  if( code > 3)cerr<<"illegal after code: "<<char(code + '0') << endl;
   
 }
 
@@ -992,9 +992,9 @@ bool is_overlapped( QuadFace* f1,  QuadFace* f2){
   f2->get_leaves(leaves2);
 
   std::vector<QuadFace*> intersection;
-  sort(leaves1.begin(), leaves1.end());
-  sort(leaves2.begin(), leaves2.end());
-  set_intersection(leaves1.begin(), leaves1.end(), leaves2.begin(), leaves2.end(), inserter(intersection, intersection.begin()));
+  std::sort(leaves1.begin(), leaves1.end());
+  std::sort(leaves2.begin(), leaves2.end());
+  std::set_intersection(leaves1.begin(), leaves1.end(), leaves2.begin(), leaves2.end(), std::inserter(intersection, intersection.begin()));
   return !(intersection.empty());
 }
 
@@ -1009,9 +1009,9 @@ std::vector<QuadFace*> overlap( QuadFace* f1,   QuadFace* f2){
  
   
   
-  sort(leaves1.begin(), leaves1.end());
-  sort(leaves2.begin(), leaves2.end());
-  set_intersection(leaves1.begin(), leaves1.end(), leaves2.begin(), leaves2.end(), inserter(intersection, intersection.begin()));
+  std::sort(leaves1.begin(), leaves1.end());
+  std::sort(leaves2.begin(), leaves2.end());
+  std::set_intersection(leaves1.begin(), leaves1.end(), leaves2.begin(), leaves2.end(), std::inserter(intersection, intersection.begin()));
  
   return intersection;
 }

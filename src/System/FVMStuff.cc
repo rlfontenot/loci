@@ -312,12 +312,16 @@ namespace Loci {
       int nfaces = upper[cc].size()+lower[cc].size()+boundary_map[cc].size() ;
       tmp_array<Entity> faces(nfaces) ;
       int cnt = 0 ;
-      for(int i=0;i<upper[cc].size();++i)
+      for(int i=0;i<upper[cc].size();++i) {
         faces[cnt++] = upper[cc][i] ;
-      for(int i=0;i<lower[cc].size();++i)
+      }
+      for(int i=0;i<lower[cc].size();++i) {
         faces[cnt++] = lower[cc][i] ;
-      for(int i=0;i<boundary_map[cc].size();++i)
+      }
+      for(int i=0;i<boundary_map[cc].size();++i) {
         faces[cnt++] = boundary_map[cc][i] ;
+      }
+      
       elem_type[cc] = classify_cell(faces,nfaces,face2node) ;
       switch(elem_type[cc]) {
       case 0:
@@ -355,6 +359,7 @@ namespace Loci {
     FORALL(localCells,cc) {
       int nfaces = upper[cc].size()+lower[cc].size()+boundary_map[cc].size() ;
       tmp_array<int> faces(nfaces) ;
+      tmp_array<int> swapface(nfaces) ;
       tmp_array<Array<int,3> > tri_faces(nfaces) ;
       tmp_array<Array<int,4> > quad_faces(nfaces) ;
       
@@ -363,6 +368,7 @@ namespace Loci {
       int nf = 0 ;
       for(int i=0;i<upper[cc].size();++i) {
         int fc = upper[cc][i] ;
+        swapface[nf] = 0 ;
         faces[nf] = fc ;
         nf++ ;
         int fsz = face2node[fc].size() ;
@@ -383,6 +389,7 @@ namespace Loci {
 
       for(int i=0;i<lower[cc].size();++i) {
         int fc = lower[cc][i] ;
+        swapface[nf] = 1 ;
         faces[nf] = fc ;
         nf++ ;
         int fsz = face2node[fc].size() ;
@@ -403,6 +410,7 @@ namespace Loci {
 
       for(int i=0;i<boundary_map[cc].size();++i) {
         int fc = boundary_map[cc][i] ;
+        swapface[nf] = 0 ;
         faces[nf] = fc ;
         nf++ ;
         int fsz = face2node[fc].size() ;
@@ -440,10 +448,14 @@ namespace Loci {
           int fc = faces[i] ;
           int fsz = face2node[fc].size() ;
           generalCellNsides.push_back(fsz) ;
-          for(int j=0;j<fsz;++j)
-            generalCellNodes.push_back(node_remap[face2node[fc][j]]) ;
+          if(swapface[i] == 1) {
+            for(int j=0;j<fsz;++j)
+              generalCellNodes.push_back(node_remap[face2node[fc][fsz-j-1]]) ;
+          } else { 
+            for(int j=0;j<fsz;++j)
+              generalCellNodes.push_back(node_remap[face2node[fc][j]]) ;
+          }
         }
-          
       }
     } ENDFORALL ;
 

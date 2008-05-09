@@ -31,9 +31,9 @@
 
 
 #include <iostream>
-#include <cstdlib>
 #include <vector>
 #include <Loci.h>
+#include <Tools/tools.h>
 #include "diamondcell.h"
 
 using std::cerr;

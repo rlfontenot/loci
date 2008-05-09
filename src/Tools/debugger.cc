@@ -99,32 +99,17 @@ namespace Loci {
     
     int pid = getpid() ;
     char buf[512] ;
-#ifdef SUN
-    const char *xtermpath = "/usr/openwin/bin/xterm" ;
-    const char *xtermlibpath = "/usr/openwin/lib:/usr/lib" ;
-#endif
-#ifdef LINUX
-    const char *xtermpath = "/usr/X11R6/bin/xterm" ;
-    const char *xtermlibpath = "/usr/X11R6/lib:/usr/lib:/lib/i686:/lib" ;
-#endif
-#ifdef __CYGWIN__
-    const char *xtermpath = "/usr/X11R6/bin/xterm" ;
-    const char *xtermlibpath = "/usr/X11R6/lib:/usr/lib:/lib/i686:/lib" ;
-#endif
-#ifdef SGI
-    const char *xtermpath = "/usr/bin/X11/xterm" ;
-    const char *xtermlibpath = "/usr/lib" ;
-#endif
+    const char *xtermpath = "xterm" ;
 #ifdef BSD
     exit(-1) ;
 #else
 #ifndef SGI
-    sprintf(buf,"export LD_LIBRARY_PATH;LD_LIBRARY_PATH=%s; %s  -display %s -e %s %s %d &",
-            xtermlibpath,xtermpath,
+    sprintf(buf,"%s  -display %s -e %s %s %d &",
+            xtermpath,
             debug_hostname,debug_program,debug_execname,pid) ;
 #else
-    sprintf(buf,"export LD_LIBRARY_PATH;LD_LIBRARY_PATH=%s; %s  -display %s -e %s -p %d %s &",
-            xtermlibpath,xtermpath,
+    sprintf(buf,"%s  -display %s -e %s -p %d %s &",
+            xtermpath,
             debug_hostname,debug_program,pid,debug_execname) ;
 #endif
     cerr << buf << endl ;

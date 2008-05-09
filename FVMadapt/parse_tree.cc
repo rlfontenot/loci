@@ -25,9 +25,11 @@
 #include <vector>
 #include <stack>
 #include <Loci.h>
+#ifdef USE_LIBXML2
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xpath.h>
+#endif
 #include "node_edge.h"
 
 using std::stack;
@@ -141,7 +143,7 @@ struct affineMapping {
 
 
 
-
+#ifdef USE_LIBXML2
 
  std::vector<bool> process_sphere(xmlNode* anode,  const std::vector<vect3d>& pointSet){
    std::vector<bool> result(pointSet.size());
@@ -819,4 +821,4 @@ void mark_node( xmlNode* root_element, std::list<Node*>::iterator begin_pnt, std
 //   xmlMemoryDump();
 //   return 0;
 // }
-  
+#endif  

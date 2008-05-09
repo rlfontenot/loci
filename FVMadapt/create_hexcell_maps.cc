@@ -1,7 +1,7 @@
 #include <algorithm>
-#include <cmath>
 #include <iostream>
 #include <Loci.h>
+#include <Tools/tools.h>
 #include "hexcell.h"
 #include "defines.h"
 
@@ -18,7 +18,7 @@ void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lowe
   for(unsigned int  index  = 0; index < lower.size(); index++){
     node_f2l[index] = pair<int, Entity>(node_remap[lower[index]],lower[index]);
   }
-  sort(node_f2l.begin(), node_f2l.end());
+  std::sort(node_f2l.begin(), node_f2l.end());
   
   for( unsigned int i= 0; i < lower.size(); i++){
     lower[i] = node_f2l[i].second;

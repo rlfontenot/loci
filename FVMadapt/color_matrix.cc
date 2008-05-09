@@ -4,8 +4,6 @@
 #include <string>
 #include <Loci.h>
 #include <vector>
-#include <rpc/xdr.h>
-#include <rpc/rpc.h>
 #include "sciTypes.h"
 #include "defines.h"
 using std::vector;
@@ -268,7 +266,7 @@ void writeVOGNode(hid_t file_id,
   //reorder store first, from local to io entities
   
   store<vect3d> pos_io;
-  pos_io =  collect_reorder_store(pos, *(Loci::exec_current_fact_db));
+  pos_io =  Loci::collect_reorder_store(pos, *(Loci::exec_current_fact_db));
   entitySet nodes = pos_io.domain();
 
   //compute the size of pos
@@ -513,7 +511,7 @@ std::vector<Loci::entitySet> ptn(Loci::MPI_processes) ; // entity Partition
   // Get entity distributions
   
     faces = face2node.domain() ;
-    entitySet allFaces = all_collect_entitySet(faces) ;
+    entitySet allFaces = Loci::all_collect_entitySet(faces) ;
     std::vector<int> facesizes(MPI_processes) ;
     int  size = faces.size() ;
     MPI_Allgather(&size,1,MPI_INT,&facesizes[0],1,MPI_INT,MPI_COMM_WORLD) ;
@@ -608,7 +606,7 @@ void colorMatrix(Map &cl, Map &cr, multiMap &face2node) {
       + cr.image(interior_faces) ;
     clone_cells -= geom_cells ;
     Loci::storeRepP cp_sp = color.Rep() ;
-    fill_clone(cp_sp, clone_cells, ptn) ;
+    Loci::fill_clone(cp_sp, clone_cells, ptn) ;
 
     FORALL(interior_faces,fc) {
       int color_l = color[cl[fc]] ;

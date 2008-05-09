@@ -1,7 +1,7 @@
 #include <algorithm>
-#include <cmath>
 #include <iostream>
 #include <Loci.h>
+#include <Tools/tools.h>
 #include "hex_defines.h"
 
 using std::cerr;

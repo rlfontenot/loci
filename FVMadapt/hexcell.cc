@@ -1166,7 +1166,7 @@ void HexCell::setSplitCode(int split_mode){
     if(min_length[2] < 2*Globals::tolerance) tolerance_mask.reset(0);
     //    cout << "tolerance: " << tolerance_mask.to_ulong() << endl;
     
-    double minimum_length = *min_element(min_length.begin(), min_length.end());
+    double minimum_length = *std::min_element(min_length.begin(), min_length.end());
     
     if(split_mode == 0){
       if(mySplitCode != 0){
@@ -1253,7 +1253,7 @@ void HexCell::setSplitCode(int split_mode){
         cerr<<"WARNING:mySplitCode is not zero in setSplitCode of hexcell" << endl;
         exit(0);
       }
-      setSplitCode(0);
+      //   setSplitCode(0);
 
       
       //face2edge in build_hexcell
@@ -1293,14 +1293,56 @@ void HexCell::setSplitCode(int split_mode){
       
       for(int i = 0; i < 3; i++)normalize(average_direction[i]);
       
-      bitset<3> oldCode(mySplitCode);
+      // bitset<3> oldCode(mySplitCode);
       bitset<3> mask(7); //all bits are 1s;
+      int z_direction =     -1;
       for(int i = 0; i < 3; i++){
-        if(abs(average_direction[i].x) < 0.01 && abs(average_direction[i].y) < 0.01) mask.reset(2-i);
+        if(abs(average_direction[i].x) < 0.01 && abs(average_direction[i].y) < 0.01) {
+          z_direction = i;
+          break;
+        }
       }
-     
-     
-      oldCode = oldCode & mask & tolerance_mask;
+      if(z_direction == -1) {
+        cerr<< "WARNING: can not find z direction in hexcell.cc" << endl;
+      exit(0);
+      }
+
+       bitset<3> oldCode(0);
+      switch(z_direction){
+      case 0:
+        if(average_length[1]/average_length[2] > Globals::factor) oldCode.set(1);
+        else if(average_length[2]/average_length[1] > Globals::factor) oldCode.set(0);
+        else{
+          oldCode.set(1);
+          oldCode.set(0);
+        }
+        break;
+      case 1:
+        if(average_length[0]/average_length[2] > Globals::factor) oldCode.set(2);
+        else if(average_length[2]/average_length[0] > Globals::factor) oldCode.set(0);
+        else{
+          oldCode.set(2);
+          oldCode.set(0);
+        }
+
+
+        
+        break;
+      case 2:
+
+         if(average_length[0]/average_length[1] > Globals::factor) oldCode.set(2);
+        else if(average_length[1]/average_length[0] > Globals::factor) oldCode.set(1);
+        else{
+          oldCode.set(2);
+          oldCode.set(1);
+        }
+
+        break;
+      default:
+        cerr<<"WARNING: invalid z_direction" << endl;
+        break;
+      }
+      oldCode = oldCode  & tolerance_mask;
       mySplitCode = char(oldCode.to_ulong());
      
       return;

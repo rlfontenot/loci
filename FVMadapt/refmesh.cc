@@ -65,8 +65,8 @@ int main(int argc, char ** argv) {
   //string pathname = "../gridgen/restore/mixedcell/";
   // string pathname = "/var/tmp/qxue/grid/";
    string pathname = "";
-  bool restart = false;
-  bool xdr = true;
+   //  bool restart = false;
+   // bool xdr = true;
 
 
   
@@ -80,39 +80,35 @@ int main(int argc, char ** argv) {
       cout <<"-g <file> -- original grid file, refinement plans are based on this grid" << endl;
       cout <<"-r <file> -- input refinement plan file" <<endl;
       cout <<"-o <file> -- output grid file" << endl;
-      cout << "-xdr -- output grid is in xdr format" << endl;
+     
     }
     return 0;
   }
   
   for (int i=1; i<argc; i++) {
-      // Let's look at the i'th argument
+    // Let's look at the i'th argument
     string arg(argv[i]);
-
-     if (arg == "-g" && (i+1) < argc) {
+    
+    if (arg == "-g" && (i+1) < argc) {
       // Replace the mesh filename with the next argument
       meshfile =  argv[++i];      
-      }
+    }
     else if(arg == "-o" && (i+1) < argc){
-      //replace the output filename with the next argument
+       //replace the output filename with the next argument
       outFile =  argv[++i];
-      }
+    }
     
     else if(arg == "-r" && (i+1) < argc){
       //replace the input refinement plan filename with the next argument
       planFile =  argv[++i];
-      restart = true;
+      
     }
-    else if(arg == "-xdr" ){
-      //output .xdr file
-      
-        xdr = true;
-      }
-      
-      else{
-        // Anything that we don't recognize gets recycled back into argv
-        argv[j++] = argv[i];
-      }
+     
+    
+    else{
+      // Anything that we don't recognize gets recycled back into argv
+      argv[j++] = argv[i];
+    }
   }
   // Set the new size of the argument list to however many arguments
   // we put back in argv.
@@ -127,9 +123,7 @@ int main(int argc, char ** argv) {
  // Setup the fact database.
   fact_db facts;
   
-  param<bool> restart_par;
-  *restart_par = restart;
-  facts.create_fact("restart_par", restart_par);
+
   
   
   param<std::string> planfile_par ;
@@ -158,15 +152,12 @@ int main(int argc, char ** argv) {
     Loci::Abort() ;
   }
   
-  createLowerUpper(facts) ;
-   Loci::createEdgesParallel(facts) ;
+  Loci::createLowerUpper(facts) ;
+  Loci::createEdgesParallel(facts) ;
  
   Loci:: parallelClassifyCell(facts);
   
-//   if(!Loci::makeQuery(rules, facts, "pos_output")) {
-//     std::cerr << "query failed!" << std::endl;
-//     Loci::Abort();
-//   }
+
   
    if(!Loci::makeQuery(rules, facts, "node_output")) {
     std::cerr << "query failed!" << std::endl;

@@ -9,7 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
-#include <cmath>
+#include <Tools/tools.h>
 #include "hexcell.h"
 
 

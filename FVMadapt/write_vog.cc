@@ -25,8 +25,6 @@
 #include <string>
 #include <Loci.h>
 #include <vector>
-#include <rpc/xdr.h>
-#include <rpc/rpc.h>
 #include "sciTypes.h"
 #include "defines.h"
 
@@ -149,7 +147,7 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
         f_ord[i].second = fc ;
         i++ ;
       } ENDFORALL ;
-      sort(f_ord.begin(),f_ord.end()) ;
+      std::sort(f_ord.begin(),f_ord.end()) ;
     } else {
       FORALL(faces,fc) {
         f_ord[i].first.first = cl[fc] ;
@@ -188,8 +186,8 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
     vector<unsigned char> cluster_info ;
     vector<unsigned short> cluster_sizes ;
     while(faces != EMPTY) {
-      entitySet fcluster = faceCluster(tmp_face2node,tmp_cl,tmp_cr,faces,
-                                       cluster_info,cluster_sizes) ;
+      entitySet fcluster = Loci::faceCluster(tmp_face2node,tmp_cl,tmp_cr,faces,
+                                             cluster_info,cluster_sizes) ;
       faces -= fcluster ;
     }
 
