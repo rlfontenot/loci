@@ -55,8 +55,6 @@ cuttingplane_topo_handler::cuttingplane_topo_handler(affineMapping &transformMat
   transMatrix.translate(transVec);
 
   transMatrix.Combine(transformMatrix);
-
-  //  transMatrix.translate(transVec);
 }
 
 void cuttingplane_topo_handler::open(string casename, string iteration ,int npnts,
@@ -140,7 +138,6 @@ void cuttingplane_topo_handler::close() {
   }
   intersects.resize(lastUnique);
 
-  // Seg fault in this block
   vector<float> coords[2];
   float t, x;
   int a, b;
@@ -348,11 +345,8 @@ void cuttingplane_topo_handler::checkLoop(int start, int end) {
       edges.erase(edges.begin());
     }
   }
-  if (firstNode[0] != nextNode[0] || firstNode[1] != nextNode[1]) {
-    cout << "** Problem cell: " << intersects[start][4] << " **" << endl;
-    for (int i = start; i < end; ++i)
-      cout << "    " << intersects[i] << endl;
-  }
+  if (firstNode[0] != nextNode[0] || firstNode[1] != nextNode[1])
+    cerr << "** Problem cell: " << intersects[start][4] << " ** (failed loop test)" << endl;
 }
 
 void cuttingplane_topo_handler::create_mesh_positions(vector3d<float> pos[], int npnts) {

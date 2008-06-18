@@ -95,10 +95,22 @@ void Usage(int ac, char *av[]) {
        << "  -xz : project boundary onto y=0 plane" << endl
        << "  -xr : project boundary onto x,radius plane (for axisymmetric grids)"
        << endl << endl ;
+  cout << "extra options for orienting cutting plane" << endl
+       << "  -xy : originate transformations from z=0 plane (default)" << endl
+       << "  -yz : originate transformations from x=0 plane" << endl
+       << "  -xz : originate transformations from y=0 plane" << endl
+       << "  -Rx <amount> : rotate cutting plane about x-axis" << endl
+       << "  -Ry <amount> : rotate cutting plane about y-axis" << endl
+       << "  -Rz <amount> : rotate cutting plane about z-axis" << endl
+       << "  -Sx <amount> : translate cutting plane along x-axis" << endl
+       << "  -Sy <amount> : translate cutting plane along y-axis" << endl
+       << "  -Sz <amount> : translate cutting plane along z-axis" << endl << endl;
   cout << "example:  to extract OH species from time step 50 of ssme simulation for visualization with 2dgv use:" << endl
        << av[0] << " -2d -bc 1 -xr ssme 50 fOH" << endl ;
   cout << "example: to extract an ascii table of boundary heat flux and x locations:"<<endl
        << av[0] << " -ascii -bc 4 nozzle 0 x qdot" << endl ;
+  cout << "example: to extract a cutting plane with various transformations:" << endl
+       << av[0] << " -cut -xz -Sy 1.5 -Rx 30 -Rz -15 nozzle 0 P t" << endl;
 
   exit(-1) ;
 }
