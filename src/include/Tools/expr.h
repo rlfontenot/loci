@@ -35,9 +35,10 @@
 
 #include <list>
 #include <string>
+#include <map>
 
 namespace Loci {
-enum OpType {
+  enum OpType {
     OP_SCOPE=0x000,
     OP_AT=0x080, // For using @ to separate namespaces
     // Traditional C operators
@@ -56,23 +57,24 @@ enum OpType {
     // terminals for variable name, function, array or name{args}
     OP_NAME, OP_FUNC, OP_ARRAY, OP_NAME_BRACE, OP_FUNC_BRACE,
     // terminal for string, integer, or unspecified error condition
-    OP_STRING, OP_INT, OP_ERROR,
+    OP_STRING, OP_INT, OP_DOUBLE, OP_ERROR,
     // Unary operations
     OP_UNARY_PLUS, OP_UNARY_MINUS, OP_NOT, OP_TILDE,
     OP_AMPERSAND, OP_DOLLAR, OP_STAR
-} ;
+  } ;
 
-class expression : public CPTR_type {
+  class expression : public CPTR_type {
   public:
     typedef CPTR<expression> exprP ;
     typedef std::list<exprP> exprList ;
- private:
+  private:
     OpType              op_priv ;
     exprList            expr_list_priv ;
     std::string         name_priv ;
     int                 int_val_priv ;
-
-    expression() : op(op_priv), expr_list(expr_list_priv), name(name_priv),int_val(int_val_priv) { op_priv = OP_ERROR ; }
+    double              real_val_priv ;
+      
+  expression() : op(op_priv), expr_list(expr_list_priv), name(name_priv),int_val(int_val_priv),real_val(real_val_priv) { op_priv = OP_ERROR ; }
 
     static exprP  create( std::istream &s, char closing ) ;
     static exprP  get_term( std::istream &s ) ;
@@ -83,37 +85,225 @@ class expression : public CPTR_type {
 
     void PrintOperation(std::ostream &s, std::string oper,
                         char poChar = '(', char pcChar = ')' ) const ;
+    exprP constant_grouping() const ;
   public:
     const OpType              &op ;
     const exprList            &expr_list ;
     const std::string         &name ;
     const int                 &int_val ;
-    expression(OpType opin, const std::string nm, 
-	       const exprList &elist, int ival = 0) :
-      op(op_priv), expr_list(expr_list_priv), name(name_priv),
-      int_val(int_val_priv) 
-      { op_priv = opin; expr_list_priv = elist ; name_priv = nm; 
-      int_val_priv = ival ;}
+    const double              &real_val ;
+  expression(OpType opin, const std::string nm, 
+	     const exprList &elist, int ival = 0, double fval = 0) :
+    op(op_priv), expr_list(expr_list_priv), name(name_priv),
+      int_val(int_val_priv), real_val(real_val_priv)
+    { op_priv = opin; expr_list_priv = elist ; name_priv = nm; 
+      int_val_priv = ival ; real_val_priv = fval ;}
     void Print(std::ostream &s) const ;
+    double evaluate(const std::map<std::string,double> &varmap) const ;
+    exprP simplify() const ; // Simplify the expression
+    exprP substitute(exprP s, exprP r) const ; // Substitute all s for r
+    exprP derivative(std::string var) const ; // symbolic differentation
     static exprP create(std::istream &s) ;
     static exprP create(const std::string &s) ;
 
-} ;
+  } ;
 
-typedef expression::exprP     exprP ;
-typedef expression::exprList  exprList ;
+  typedef expression::exprP     exprP ;
+  typedef expression::exprList  exprList ;
 
-inline std::ostream &operator<<(std::ostream &s, const exprP &exp) {
+  inline std::ostream &operator<<(std::ostream &s, const exprP &exp) {
     exp->Print(s) ;
     return s;
-}
+  }
 
-inline std::istream &operator>>(std::istream &s, exprP &exp) {
+  inline std::istream &operator>>(std::istream &s, exprP &exp) {
     exp = expression::create(s) ;
     return s ;
-}
+  }
 
-exprList collect_associative_op(const exprP &e, const OpType op) ;
+  exprList collect_associative_op(const exprP &e, const OpType op) ;
+
+  int compare_expressions(exprP e1, exprP e2) ;
+
+  inline exprP e_int(int val) {
+    return exprP(new expression(OP_INT,"",exprList(),val)) ;
+  }
+
+
+  inline bool operator<(exprP e1, exprP e2) {
+    return compare_expressions(e1,e2) < 0 ;
+  }
+  inline bool operator<=(exprP e1, exprP e2) {
+    return compare_expressions(e1,e2) <= 0 ; 
+  }
+  inline bool operator==(exprP e1, exprP e2) {
+    return compare_expressions(e1,e2) == 0 ; 
+  }
+  inline bool operator!=(exprP e1, exprP e2) {
+    return compare_expressions(e1,e2) != 0 ; 
+  }
+
+
+  namespace expr {
+    inline exprP operator+(exprP p1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_PLUS,"",lgroup,0) ;
+    }
+
+    inline exprP operator+(exprP p1, int i2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(e_int(i2)) ;
+      return new expression(OP_PLUS,"",lgroup,0) ;
+    }
+
+    inline exprP operator+(int i1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(e_int(i1)) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_PLUS,"",lgroup,0) ;
+    }
+
+    inline exprP operator-(exprP p1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_MINUS,"",lgroup,0) ;
+    }
+
+    inline exprP operator-(exprP p1, int i2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(e_int(i2)) ;
+      return new expression(OP_MINUS,"",lgroup,0) ;
+    }
+
+    inline exprP operator-(int i1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(e_int(i1)) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_MINUS,"",lgroup,0) ;
+    }
+
+    inline exprP operator*(exprP p1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_TIMES,"",lgroup,1) ;
+    }
+
+    inline exprP operator*(exprP p1, int i2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(e_int(i2)) ;
+      return new expression(OP_TIMES,"",lgroup,1) ;
+    }
+
+    inline exprP operator*(int i1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(e_int(i1)) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_TIMES,"",lgroup,1) ;
+    }
+
+    inline exprP operator/(exprP p1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_DIVIDE,"",lgroup,1) ;
+    }
+
+    inline exprP operator/(exprP p1, int i2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(e_int(i2)) ;
+      return new expression(OP_DIVIDE,"",lgroup,1) ;
+    }
+
+    inline exprP operator/(int i1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(e_int(i1)) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_DIVIDE,"",lgroup,1) ;
+    }
+
+    inline exprP pow(exprP p1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_FUNC,"pow",lgroup,0) ;
+    }
+    inline exprP pow(exprP p1, int i2) {
+      exprList lgroup ;
+      lgroup.push_back(p1) ;
+      lgroup.push_back(e_int(i2)) ;
+      return new expression(OP_FUNC,"pow",lgroup,0) ;
+    }
+    inline exprP pow(int i1, exprP p2) {
+      exprList lgroup ;
+      lgroup.push_back(e_int(i1)) ;
+      lgroup.push_back(p2) ;
+      return new expression(OP_FUNC,"pow",lgroup,0) ;
+    }
+  
+    inline exprP sin(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"sin",lgroup,0) ;
+    }
+    inline exprP cos(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"cos",lgroup,0) ;
+    }
+    inline exprP tan(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"tan",lgroup,0) ;
+    }
+    inline exprP sinh(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"sinh",lgroup,0) ;
+    }
+    inline exprP cosh(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"cosh",lgroup,0) ;
+    }
+    inline exprP tanh(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"tanh",lgroup,0) ;
+    }
+    inline exprP exp(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"exp",lgroup,0) ;
+    }
+    inline exprP ln(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"ln",lgroup,0) ;
+    }
+    inline exprP log(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"log",lgroup,0) ;
+    }
+    inline exprP log10(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"log10",lgroup,0) ;
+    }
+    inline exprP sqrt(exprP p) {
+      exprList lgroup ;
+      lgroup.push_back(p) ;
+      return new expression(OP_FUNC,"sqrt",lgroup,0) ;
+    }
+  }
 
 }
     
