@@ -58,6 +58,7 @@ void Usage(int ac, char *av[]) {
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-tec:  extract for the TecPlot post-procesing package" << endl
        << "-ascii: extract to an ascii file" << endl
+       << "-cut:  extract a cutting plane for the 2dgv plotting package" << endl
        << endl ;
   cout << "Variables are defined by the solver, but typically include: " << endl
        << "r     - nodal density" << endl 
@@ -845,7 +846,7 @@ void extract_grid(string casename, string iteration,
 int main(int ac, char *av[]) {
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT, NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,CUTTINGPLANE, NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -853,8 +854,11 @@ int main(int ac, char *av[]) {
   string iteration ;
   vector<string> variables ;
   vector<string> boundaries ;
+  float xRotate, yRotate, zRotate, xShift, yShift, zShift, temp;
 
+  xRotate = yRotate = zRotate = xShift = yShift = zShift = 0.0;
   int view = VIEWXY ;
+  affineMapping transformMatrix;
   
   for(int i=1;i<ac;++i) {
     if(av[i][0] == '-') {
@@ -868,12 +872,58 @@ int main(int ac, char *av[]) {
         plot_type = FIELDVIEW ;
       else if(!strcmp(av[i],"-tec"))
         plot_type = TECPLOT ;
+      else if(!strcmp(av[i],"-cut"))
+	plot_type = CUTTINGPLANE ;
+      else if(!strcmp(av[i],"-Sx")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> xShift).fail())
+	    Usage(ac, av) ;
+      }
+      else if(!strcmp(av[i],"-Sy")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> yShift).fail())
+	    Usage(ac, av) ;
+      }
+      else if(!strcmp(av[i],"-Sz")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> zShift).fail())
+	    Usage(ac, av) ;
+      }
+      else if(!strcmp(av[i],"-Rx")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> temp).fail())
+	    Usage(ac, av) ;
+        transformMatrix.rotateX(-temp) ;
+      }
+      else if(!strcmp(av[i],"-Ry")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> temp).fail())
+	    Usage(ac, av) ;
+	transformMatrix.rotateY(-temp) ;
+      }
+      else if(!strcmp(av[i],"-Rz")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> temp).fail())
+	    Usage(ac, av) ;
+	transformMatrix.rotateZ(-temp) ;
+      }
       else if(!strcmp(av[i],"-xy")) 
         view=VIEWXY ;
-      else if(!strcmp(av[i],"-yz")) 
+      else if(!strcmp(av[i],"-yz")) {
         view=VIEWYZ ;
-      else if(!strcmp(av[i],"-xz")) 
+	transformMatrix.rotateY(90.0) ;
+	transformMatrix.rotateZ(90.0) ;
+      }
+      else if(!strcmp(av[i],"-xz")) {
         view=VIEWXZ ;
+	transformMatrix.rotateX(90.0) ;
+      }
       else if(!strcmp(av[i],"-xr")) 
         view=VIEWXR ;
       else if(!strcmp(av[i],"-bc")) {
@@ -887,7 +937,7 @@ int main(int ac, char *av[]) {
         Usage(ac,av) ;
       }
       
-    } else
+    } else {
       if(found_iteration)
         variables.push_back(string(av[i])) ;
       else if(found_casename) {
@@ -897,6 +947,7 @@ int main(int ac, char *av[]) {
         casename = string(av[i]) ;
         found_casename = true ;
       }
+    }
   }
   if(plot_type == NONE) {
     Usage(ac,av) ;
@@ -1078,6 +1129,9 @@ int main(int ac, char *av[]) {
     break ;
   case TECPLOT:
     topo_out = new tecplot_topo_handler ;
+    break ;
+  case CUTTINGPLANE:
+    topo_out = new cuttingplane_topo_handler(transformMatrix, -xShift, -yShift, -zShift) ;
     break ;
   default:
     cerr << "Unknown export method!" << endl ;
