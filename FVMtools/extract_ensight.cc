@@ -649,8 +649,18 @@ void ensight_topo_handler::output_boundary_vector(vector3d<float> val[],
 
 void
 ensight_topo_handler::create_particle_positions
-(vector3d<float> pos[], int pts) {
+(vector3d<float> pos[], int pts, int maxp) {
 
+  int m = pts ;
+  if(maxp >= 0 && maxp < pts)
+    m = maxp ;
+
+  int jump ;
+  if(m>0)
+    jump = pts / m ;
+  else
+    jump = 1 ;
+  
   FILE *FP = 0 ;
   FP = fopen(particle_geo_filename.c_str(), "wb") ;
   if(FP==0) {
@@ -658,7 +668,7 @@ ensight_topo_handler::create_particle_positions
          << "' for writing particle geometry info!" << endl ;
     return ;
   }
-  
+
   char tmp_buf[80] ;
 
   memset(tmp_buf, '\0', 80) ;
@@ -674,15 +684,16 @@ ensight_topo_handler::create_particle_positions
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
   // number of points
-  fwrite(&pts, sizeof(int), 1, FP) ;
+  fwrite(&m, sizeof(int), 1, FP) ;
   // point ids
-  for(int i=1;i<pts+1;++i)
+  for(int i=1;i<m+1;++i)
     fwrite(&i, sizeof(int), 1, FP) ;
   // point coordinates
-  for(int i=0;i<pts;++i) {
-    float x = pos[i].x ;
-    float y = pos[i].y ;
-    float z = pos[i].z ;
+  int k = 0 ;
+  for(int i=0;i<m;++i,k+=jump) {
+    float x = pos[k].x ;
+    float y = pos[k].y ;
+    float z = pos[k].z ;
     fwrite(&x, sizeof(float), 1, FP) ;
     fwrite(&y, sizeof(float), 1, FP) ;
     fwrite(&z, sizeof(float), 1, FP) ;
@@ -692,8 +703,18 @@ ensight_topo_handler::create_particle_positions
 }
 
 void
-ensight_topo_handler::output_particle_scalar(float val[],
-                                             int np, string valname) {
+ensight_topo_handler::output_particle_scalar(float val[], int np,
+                                             int maxp, string valname) {
+  int m = np ;
+  if(maxp >= 0 && maxp < np)
+    m = maxp ;
+
+  int jump ;
+  if(m>0)
+    jump = np / m ;
+  else
+    jump = 1 ;
+
   string filename = dirname + '/' + valname ;
   FILE *FP = 0 ;
   FP = fopen(filename.c_str(), "wb") ;
@@ -709,15 +730,26 @@ ensight_topo_handler::output_particle_scalar(float val[],
   sprintf(tmp_buf, "Per particle scalar: %s", valname.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
-  for(int i=0;i<np;++i)
-    fwrite(&val[i], sizeof(float), 1, FP) ;
+  int k = 0 ;
+  for(int i=0;i<m;++i,k+=jump)
+    fwrite(&val[k], sizeof(float), 1, FP) ;
 
   fclose(FP) ;
 }
 
 void
-ensight_topo_handler::output_particle_vector(vector3d<float> val[],
-                                             int np, string valname) {
+ensight_topo_handler::output_particle_vector(vector3d<float> val[], int np,
+                                             int maxp, string valname) {
+  int m = np ;
+  if(maxp >= 0 && maxp < np)
+    m = maxp ;
+
+  int jump ;
+  if(m>0)
+    jump = np / m ;
+  else
+    jump = 1 ;
+
   string filename = dirname + '/' + valname ;
   FILE *FP = 0 ;
   FP = fopen(filename.c_str(), "wb") ;
@@ -733,10 +765,11 @@ ensight_topo_handler::output_particle_vector(vector3d<float> val[],
   sprintf(tmp_buf, "Per particle vector: %s", valname.c_str()) ;
   fwrite(tmp_buf, sizeof(char), 80, FP) ;
 
-  for(int i=0;i<np;++i) {
-    float x = val[i].x ;
-    float y = val[i].y ;
-    float z = val[i].z ;
+  int k = 0 ;
+  for(int i=0;i<m;++i,k+=jump) {
+    float x = val[k].x ;
+    float y = val[k].y ;
+    float z = val[k].z ;
     
     fwrite(&x, sizeof(float), 1, FP) ;
     fwrite(&y, sizeof(float), 1, FP) ;

@@ -86,6 +86,11 @@ void Usage(int ac, char *av[]) {
        << "area  - boundary area   (-ascii only)" << endl
        << endl ;
 
+  cout << "extra options for particle extraction" << endl ;
+  cout << "  -mp <n> : maximum particles to extract" << endl ;
+  cout << "          : default (if not specified) is all particles available"
+       << endl ;
+
   cout << "extra options for the 2dgv postprocessing package" << endl 
        << "  -bc <boundary_tag>  : specify which boundary to extract for (multiple -bc's"
        << endl 
@@ -111,6 +116,9 @@ void Usage(int ac, char *av[]) {
        << av[0] << " -ascii -bc 4 nozzle 0 x qdot" << endl ;
   cout << "example: to extract a cutting plane with various transformations:" << endl
        << av[0] << " -cut -xz -Sy 1.5 -Rx 30 -Rz -15 nozzle 0 P t" << endl;
+  cout << "example: to extract 5000 particles with associated temperature"
+       << " from time step 100 for visualization with Ensight:" << endl
+       << av[0] << " -en combustor 100 particle_temp -mp 5000" << endl ;
 
   exit(-1) ;
 }
@@ -352,7 +360,8 @@ void extract_grid(string casename, string iteration,
                   grid_topo_handler *topo,
                   vector<string> variables,
                   vector<int> variable_types,
-                  vector<string> variable_filenames) {
+                  vector<string> variable_filenames,
+                  int max_particles) {
   
   vector<string> bnd_scalar_vars,bnd_scalar_filenames ;
   vector<string> bnd_vector_vars,bnd_vector_filenames ;
@@ -807,7 +816,7 @@ void extract_grid(string casename, string iteration,
         vector<vector3d<float> > ppos(np) ;
         readElementType(file_id, "particle position", ppos) ;
         
-        topo->create_particle_positions(&ppos[0], np) ;
+        topo->create_particle_positions(&ppos[0], np, max_particles) ;
       }
       break ;
     case PARTICLE_VARIABLES:
@@ -824,7 +833,7 @@ void extract_grid(string casename, string iteration,
         vector<float> scalar(np) ;
         readElementType(file_id, varname.c_str(), scalar) ;
 
-        topo->output_particle_scalar(&scalar[0], np, varname) ;
+        topo->output_particle_scalar(&scalar[0], np, max_particles, varname) ;
         
       }
 
@@ -842,7 +851,7 @@ void extract_grid(string casename, string iteration,
         vector<vector3d<float> > vec(np) ;
         readElementType(file_id, varname.c_str(), vec) ;
 
-        topo->output_particle_vector(&vec[0], np, varname) ;
+        topo->output_particle_vector(&vec[0], np, max_particles, varname) ;
       }
       
       break ;
@@ -871,6 +880,16 @@ int main(int ac, char *av[]) {
   xRotate = yRotate = zRotate = xShift = yShift = zShift = 0.0;
   int view = VIEWXY ;
   affineMapping transformMatrix;
+
+  // record the maximum particle number to extract
+  // a value < 0 means that there is no maximum particle
+  // number limit, i.e., all particles are to be extracted
+  // default is to extract all particles.  users can use
+  // command line switch "-mp <n>" to set the maximum number
+  // of particles to be extracted. if the requested particle
+  // number is larger than the available particle number, then
+  // all particles will be extracted.
+  int max_particles = -1 ;
   
   for(int i=1;i<ac;++i) {
     if(av[i][0] == '-') {
@@ -944,6 +963,17 @@ int main(int ac, char *av[]) {
         if(av[i][0] >='0' && av[i][0] <= '9')
           v = "BC_"+v ;
         boundaries.push_back(v) ;
+      } else if(!strcmp(av[i],"-mp")) {
+        // get the number of particles
+        ++i ;
+        string n(av[i]) ;
+        if(!valid_int(n)) {
+          cerr << "argument followed option '-mp' is not an integer,"
+               << " used default value" << endl ;
+        } else {
+          max_particles = str2int(n) ;
+        }
+        
       } else {
         cerr << "unknown option " << av[i] << endl ;
         Usage(ac,av) ;
@@ -1151,7 +1181,9 @@ int main(int ac, char *av[]) {
   }
 
   if(topo_out != 0) {
-    extract_grid(casename,iteration,topo_out,variables,variable_type,variable_file) ;
+    extract_grid(casename,iteration,
+                 topo_out,variables,
+                 variable_type,variable_file,max_particles) ;
   }
   Loci::Finalize() ;
 }

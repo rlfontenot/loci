@@ -20,6 +20,9 @@
 //#############################################################################
 #ifndef EXTRACT_H
 #define EXTRACT_H
+#include <sstream>
+#include <string>
+#include <stdlib.h>
 
 using std::list;
 
@@ -28,6 +31,39 @@ enum view_type {VIEWXY=0,VIEWYZ=1,VIEWXZ=2,VIEWXR=3}  ;
 
 
 enum gridWritingPhases { GRID_POSITIONS, GRID_VOLUME_ELEMENTS, GRID_BOUNDARY_ELEMENTS, NODAL_VARIABLES,BOUNDARY_VARIABLES, PARTICLE_POSITIONS, PARTICLE_VARIABLES} ;
+
+// convert a string to an integer
+inline int str2int(string s) {
+  std::stringstream ss ;
+  ss << s ;
+  int ret ;
+  ss >> ret ;
+  return ret ;
+}
+
+// determine whether range [b,e) contains only digits
+// [b,e) must be a valid range and contains characters
+template <class ForwardIter> inline bool
+alldigits(ForwardIter b, ForwardIter e) {
+  for(;b!=e;++b)
+    if(!isdigit(*b))
+      return false ;
+                                                                                
+  return true ;
+}
+// determine whether s contains a valid integer (including the sign)
+inline bool
+valid_int(const std::string& s) {
+  if(s.empty())
+    return false ;
+  if( (s[0] == '-') || (s[0] == '+')) {
+    if(s.size() > 1)
+      return alldigits(s.begin()+1,s.end()) ;
+    else
+      return false ;
+  }else
+    return alldigits(s.begin(),s.end()) ;
+}
 
 class grid_topo_handler {
 public:
@@ -76,11 +112,13 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) = 0 ;
 
-  virtual void create_particle_positions(vector3d<float> pos[], int np) = 0 ;
-  virtual void output_particle_scalar(float val[],
-                                      int np, string valname) = 0 ;
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) = 0 ;
+  // maxp is the maximum particles to be extracted
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) = 0 ;
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) = 0 ;
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) = 0 ;
 } ;
 
 class ensight_topo_handler : public grid_topo_handler {
@@ -135,10 +173,12 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
   
-  virtual void create_particle_positions(vector3d<float> pos[], int np) ;
-  virtual void output_particle_scalar(float val[], int np, string valname) ;
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) ;
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) ;
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) ;
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) ;
 } ;
 
 class tecplot_topo_handler : public grid_topo_handler {
@@ -197,14 +237,16 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
     
-  virtual void create_particle_positions(vector3d<float> pos[], int np) {}
-  virtual void output_particle_scalar(float val[],
-                                      int np, string valname) {}
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) {}
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) {}
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) {}
 } ;
 
 class fv_topo_handler : public grid_topo_handler {
+  string dirname ;
   string filename ;
   int npnts ;
   int ntets, nprsm, npyrm, nhexs, ngen ;
@@ -216,6 +258,13 @@ class fv_topo_handler : public grid_topo_handler {
   bool first_var ;
   bool first_boundary ;
   FILE *OFP ;
+
+  // particle variable buffer
+  vector<string> particle_scalars_names ;
+  vector<vector<float> > particle_scalars ;
+
+  vector<string> particle_vectors_names ;
+  vector<vector<vector3d<float> > > particle_vectors ;
 public:
   fv_topo_handler(){OFP=0;first_var = true ; first_boundary=true ; general_boundary = false ;}
   virtual ~fv_topo_handler() {}
@@ -225,8 +274,16 @@ public:
     sequence[2] = GRID_VOLUME_ELEMENTS ;
     sequence[3] = NODAL_VARIABLES ;
     sequence[4] = BOUNDARY_VARIABLES ;
-    sequence[5] = PARTICLE_POSITIONS ;
-    sequence[6] = PARTICLE_VARIABLES ;
+    // NOTE: in fieldview, we have to read/write the particle
+    // variables first because we need to combine the scalar and
+    // vector variables with the particle position into a single
+    // file. we first read all the variables into a memory buffer
+    // and then when we write the particle positions, we combine
+    // them into a single file. therefore the order here is important.
+    // we cannot start the particle position phase before the
+    // particle variable phase.
+    sequence[5] = PARTICLE_VARIABLES ;
+    sequence[6] = PARTICLE_POSITIONS ;
   }
   virtual void open(string casename, string iteration ,int npnts,
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
@@ -262,11 +319,12 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
     
-  virtual void create_particle_positions(vector3d<float> pos[], int np) {}
-  virtual void output_particle_scalar(float val[],
-                                      int np, string valname) {}
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) {}
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) ;
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) ;
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) ;
 } ;
 
 struct affineMapping {
@@ -347,11 +405,12 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
 
-  virtual void create_particle_positions(vector3d<float> pos[], int np) ;
-  virtual void output_particle_scalar(float val[],
-                                      int np, string valname) ;
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) ;
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) {}
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) {}
 } ;
 
 void get_2dgv(string casename, string iteration,

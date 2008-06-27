@@ -594,18 +594,6 @@ void cuttingplane_topo_handler::output_boundary_vector(vector3d<float> val[], in
 						       int nvals, string valname) {
 }
 
-void cuttingplane_topo_handler::create_particle_positions(vector3d<float> pos[], int np) {
-}
-
-void cuttingplane_topo_handler::output_particle_scalar(float val[],
-						       int np, string valname) {
-}
-
-void cuttingplane_topo_handler::output_particle_vector(vector3d<float> val[],
-						       int np, string valname) {
-}
-
-
 affineMapping::affineMapping() {
   for(int i=0;i<4;++i) {
     for(int j=0;j<4;++j)
