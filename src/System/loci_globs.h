@@ -24,9 +24,10 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "performance_analysis.h"
 
 namespace Loci {
-  extern int num_threads ;
+  extern int num_threads;
   /////////////////////////////
   // flags to turn on/off the visualization feature
   extern bool verbose ;
@@ -54,9 +55,17 @@ namespace Loci {
   extern char * model_file;
   /////////////////////////////
   extern bool random_partition;
-
+  
+  /////////////////////////////
+  extern bool minimum_performance_analysis;
+  extern bool full_performance_analysis;
+  extern bool detailed_performance_analysis;
+  extern bool collect_perf_data;
+  extern performance_analysis *perfAnalysis;
   extern bool measure_rule_timings;
-  extern std::ofstream ruleTimeOut;
+  extern std::ofstream perfReportOut;
+  //extern std::ofstream ruleTimeOut;
+
   extern int printLevel ;
   inline std::ostream &printIndent(std::ostream &s) {
     for(int i=0;i<printLevel;++i)
