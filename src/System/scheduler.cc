@@ -609,7 +609,6 @@ namespace Loci {
       ruleSet common = ruleSet(rules1 & rules2) ;
       ruleSet only1 = ruleSet(rules1 - common) ;
       ruleSet only2 = ruleSet(rules2 - common) ;
-
       ruleSet only1d, only2d ;
       map<rule,rule> set1, set2 ;
       ruleSet::const_iterator ri ;
@@ -740,7 +739,12 @@ namespace Loci {
     variableSet given = facts.get_typed_variables() ;
     if(Loci::MPI_rank==0)
       cout << "generating dependency graph..." << endl ;
-    double start_time = MPI_Wtime() ;
+
+	timer_token depend_graph_timer = new timer_token;
+	double start_time = MPI_Wtime() ;
+	if(collect_perf_data)
+		depend_graph_timer = perfAnalysis->start_timer("Graph Processing");
+	
     digraph gr ;
 
     given -= variable("EMPTY") ;
@@ -768,6 +772,7 @@ namespace Loci {
       cout << "dynamic scheduling..." << endl ;
     dynamic_scheduling(gr,facts,given,target) ;
 #endif
+
     ////////////////////
     //prune_graph(gr,given,target,facts) ;
     ////////////////////
@@ -843,43 +848,47 @@ namespace Loci {
 	  cerr << "Using default duplication policies." << endl;
 	  use_duplicate_model = false;
 	}
+	
+	if(use_duplicate_model) {
+	      double comm_ts, comm_tw;
+	      double comm_ts1, comm_ts2;
+	      fin >> comm_ts1 >> comm_ts2 >> comm_tw;
+	      comm_ts = comm_ts2;
+	      
+	      if(comm_tw < 0)
+		    comm_tw = 0;
 
-	double comm_ts, comm_tw;
-	double comm_ts1, comm_ts2;
-	fin >> comm_ts1 >> comm_ts2 >> comm_tw;
-	comm_ts = comm_ts2;
+	      unsigned int count;
+	      fin >> count;
 
-	if(comm_tw < 0)
-	  comm_tw = 0;
-
-	unsigned int count;
-	fin >> count;
-
-	map<rule, pair<double, double> > comp_info;
-	string rule_name;
-	double ts, tw;
-	double ts1, ts2;
-	for(unsigned int i = 0; i < count; i++) {
-	  fin >> rule_name >> ts1 >> ts2 >> tw;
-	  ts = ts2;
-	  if(tw < 0)
-	    tw = 0;
-
-	  pair<double, double> tmpModel(ts, tw);
-	  rule myRule = rule::get_rule_by_name(rule_name);
-	  if(myRule.get_info().name() == "NO_RULE") {
-	    cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
-	  }
-	  else
-	    comp_info[myRule] = tmpModel;
+	      map<rule, pair<double, double> > comp_info;
+	      string  rule_name;
+	      double ts, tw;
+	      double ts1, ts2;
+	      for(unsigned int i = 0; i < count; i++) {
+		    fin >> rule_name >> ts1 >> ts2 >> tw;
+		    ts = ts2;
+		    if(tw < 0)
+			  tw = 0;
+		    
+		    pair<double, double> tmpModel(ts, tw);
+		    rule myRule = rule::get_rule_by_name(rule_name);
+		    if(myRule.get_info().name() == "NO_RULE") {
+			  cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
+		    }
+		    else
+			  comp_info[myRule] = tmpModel;
+	      }
+	      scheds.add_model_info(comm_ts, comm_tw, comp_info);	
 	}
-	scheds.add_model_info(comm_ts, comm_tw, comp_info);
       }
     }
 
     graph_compiler compile_graph(decomp, initial_vars) ;
     compile_graph.compile(facts,scheds,given,target) ;
-
+	
+	if(collect_perf_data)
+		perfAnalysis->stop_timer(depend_graph_timer);
     double end_time = MPI_Wtime() ;
     Loci::debugout << "Time taken for graph processing  = "
                    << end_time  - start_time << "  seconds " << endl ;
@@ -891,8 +900,16 @@ namespace Loci {
     if(Loci::MPI_rank==0)
       cout << "existential analysis..." << endl ;
     start_time = MPI_Wtime() ;
-    compile_graph.existential_analysis(facts, scheds) ;
-    end_time = MPI_Wtime() ;
+	timer_token existential_analysis_timer = new timer_token;
+	if(collect_perf_data)
+		existential_analysis_timer = perfAnalysis->start_timer("Existential Analysis");
+    
+	compile_graph.existential_analysis(facts, scheds) ;
+    
+	if(collect_perf_data)
+		perfAnalysis->stop_timer(existential_analysis_timer);
+	end_time = MPI_Wtime() ;
+
     Loci::debugout << "Time taken for existential_analysis  = "
                    << end_time  - start_time << "  seconds " << endl ;
     ///////////////////////////////////
@@ -1134,7 +1151,6 @@ namespace Loci {
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
 
-
 #ifdef USE_PAPI
     int perr,ev_set=PAPI_NULL;
     int i,ncnt,k;
@@ -1147,10 +1163,11 @@ namespace Loci {
     int retval;
 #endif
 
-
-
     facts.setupDefaults(rdb) ;
     double t1 = MPI_Wtime() ;
+	timer_token execute_query_timer = new timer_token;
+	if(collect_perf_data)
+		execute_query_timer = perfAnalysis->start_timer("Execute Query");
 
     try {
       if(MPI_rank == 0) {
@@ -1271,9 +1288,14 @@ namespace Loci {
 
       // execute schedule
       double st = MPI_Wtime() ;
+	  timer_token execute_schedule_timer = new timer_token;
+	  if(collect_perf_data)
+		execute_schedule_timer = perfAnalysis->start_timer("Schedule Execution");
       // setting this external pointer
       exec_current_fact_db = &local_facts ;
       schedule->execute(local_facts) ;
+	  if(collect_perf_data)
+		perfAnalysis->stop_timer(execute_schedule_timer);
       double et = MPI_Wtime() ;
 
 
@@ -1282,12 +1304,9 @@ namespace Loci {
       if((perr=PAPI_read(ev_set,counts)))
         cout<<"PAPI_read failed."<<PAPI_strerror(perr)<<"\n";
 
-
       cout<<"Counts registered\n";
       for(i=0;i<ncnt;i++)
         cout<<evname[i]<<"="<<counts[i]<<"\n";
-
-
 #endif
 
 
@@ -1322,7 +1341,8 @@ namespace Loci {
           facts.create_intensional_fact(*vi,srp) ;
         }
       }
-
+	  
+		
       if(profile_memory_usage) {
         Loci::debugout << "++++++++Memory Profiling Report++++++++"
                        << endl ;
@@ -1408,10 +1428,17 @@ namespace Loci {
       cerr << "Unknown Exception Caught" << endl ;
       Loci::Abort() ;
     }
-
+	if(collect_perf_data)
+		perfAnalysis->stop_timer(execute_query_timer);
     double t2 = MPI_Wtime() ;
     debugout << "Time to execute query for '" << query << "' is " << t2-t1
              << endl ;
+	
+	if(collect_perf_data) {
+		if(MPI_rank == 0)
+			cout << "printing performance analysis data to perfAnalysis-*" << endl;
+		perfAnalysis->create_report();
+	 }
     return true ;
 
   }
