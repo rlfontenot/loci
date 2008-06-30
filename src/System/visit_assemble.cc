@@ -162,6 +162,7 @@ namespace Loci {
       execute_dump_var(variableSet vars) : dump_vars(vars) {}
       virtual void execute(fact_db &facts) ;
       virtual void Print(std::ostream &s) const ;
+	  virtual string getName() { return "execute_dump_var";};
     } ;
     
     map<variable, int> dump_var_lookup ;
