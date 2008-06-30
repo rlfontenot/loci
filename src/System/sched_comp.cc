@@ -24,6 +24,7 @@
 #include "comp_tools.h"
 #include "dist_tools.h"
 #include "visitor.h"
+#include "loci_globs.h"
 
 #include <vector>
 using std::vector ;
@@ -274,6 +275,9 @@ namespace Loci {
     // timing variables
     double dst1=0,det1=0,dst2=0,det2=0,cst=0,cet=0,schedst=0,schedet=0 ;
     dst1 = MPI_Wtime() ;
+	timer_token dmm_graph_decoration_timer = new timer_token;
+	if(collect_perf_data)
+		dmm_graph_decoration_timer = perfAnalysis->start_timer("DMM Graph Decoration");
     // get all the recurrence information
     // i.e. the generalize, promote, priority and rename info
     recurInfoVisitor recv ;
@@ -320,7 +324,8 @@ namespace Loci {
     if(Loci::MPI_rank==0)
       cerr << "[Graph Compile Phase] Passed Information Collection!" << endl ;
 #endif
-
+	if(collect_perf_data)
+		perfAnalysis->stop_timer(dmm_graph_decoration_timer);
     det1 = MPI_Wtime() ;
 
     if(use_dynamic_memory) {
@@ -338,7 +343,10 @@ namespace Loci {
                << chomping_size << "KB)"
                << endl ;
       
+	  timer_token chomping_subgraph_searching_timer = new timer_token;
       cst = MPI_Wtime() ;
+	  if(collect_perf_data)
+		chomping_subgraph_searching_timer = perfAnalysis->start_timer("Chomping Subgraph Searching");
       chompPPVisitor cppv(facts,
                           rotlv.get_rotate_vars_table(),
                           rotlv.get_loop_shared_table(),
@@ -352,7 +360,9 @@ namespace Loci {
                            reduceV.get_apply2unit()) ;
       top_down_visit(crv) ;
       cet = MPI_Wtime() ;
-      
+      if(collect_perf_data)
+		perfAnalysis->stop_timer(chomping_subgraph_searching_timer);
+		
       if(show_chomp)
         crv.visualize(cout) ;
       if(chomp_verbose)
@@ -368,6 +378,8 @@ namespace Loci {
     // dynamic memory management graph decoration
     if(use_dynamic_memory) {
       dst2 = MPI_Wtime() ;
+	  if(collect_perf_data)
+		dmm_graph_decoration_timer = perfAnalysis->start_timer("DMM Graph Decoration");
       // get inter/intra supernode information
       snInfoVisitor snv ;
       top_down_visit(snv) ;
@@ -476,8 +488,10 @@ namespace Loci {
                              div.get_recur_source_other_rules()) ;
       if(!dmm_no_deallocation)
         top_down_visit(dgv) ;
+	  if(collect_perf_data)
+		perfAnalysis->stop_timer(dmm_graph_decoration_timer);
       det2 = MPI_Wtime() ;
-
+	  
 #ifdef COMPILE_PROGRESS
     if(Loci::MPI_rank==0)
       cerr << "[Graph Compile Phase] Passed Memory "
@@ -603,8 +617,12 @@ namespace Loci {
 
     //orderVisitor ov ;    
     //bottom_up_visit(ov) ;
+	
     schedst = MPI_Wtime() ;
-    if(!memory_greedy_schedule) {
+    timer_token graph_scheduling_timer = new timer_token;
+	if(collect_perf_data)
+		graph_scheduling_timer = perfAnalysis->start_timer("Graph Scheduling");
+	if(!memory_greedy_schedule) {
       if(Loci::MPI_rank == 0)
         if(!in_internal_query)
           cout << "graph scheduling... (computation greedy)" << endl ;
@@ -630,9 +648,11 @@ namespace Loci {
       cerr << "[Graph Compile Phase] Passed Graph Scheduling!" << endl ;
 #endif
 
+    if(collect_perf_data)
+		perfAnalysis->stop_timer(graph_scheduling_timer);
     schedet = MPI_Wtime() ;
-    
-    assembleVisitor av(reduceV.get_all_reduce_vars(),
+
+	assembleVisitor av(reduceV.get_all_reduce_vars(),
                        reduceV.get_reduceInfo());
     bottom_up_visit(av) ;
 
@@ -687,6 +707,7 @@ namespace Loci {
     void fill_in_requests(fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+	virtual string getName() {return "allocate_all_vars";};
   } ;
   
   
@@ -699,6 +720,7 @@ namespace Loci {
     control_thread = true ;
     fill_in_requests(facts, scheds) ;
   }
+
   void allocate_all_vars::fill_in_requests(fact_db &facts, sched_db &scheds) {
     //    variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi,vii ;
@@ -1713,6 +1735,5 @@ namespace Loci {
     }
     return new_rdb ;    
   }
-
 
 }
