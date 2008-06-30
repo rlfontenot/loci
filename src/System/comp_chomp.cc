@@ -153,6 +153,7 @@ namespace Loci {
     
     virtual void execute(fact_db& facts) ;
     virtual void Print(std::ostream& s) const ;
+	virtual string getName() {return "execute_chomp";};
   } ;
 
   void execute_chomp::execute(fact_db& facts) {
@@ -239,6 +240,9 @@ namespace Loci {
     printIndent(s) ;
     s << "--End chomping" << endl ;
   }
+  
+  // decoratorFactory is used to collect performace information about execute()
+  execute_modules_decorator_factory* chomp_compiler::decoratorFactory = NULL;
   
   chomp_compiler::chomp_compiler(const digraph& cgraph,
                                  const variableSet& cvars,
@@ -407,7 +411,10 @@ namespace Loci {
     for(i=0;i<rule_seq.size();++i)
       total += rule_seq[i] ;
     
-    return new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts) ;
+	executeP execute = new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
+    if(decoratorFactory != NULL)
+            execute = decoratorFactory->decorate(execute);
+    return  execute;
   }
   
 } // end of namespace Loci
