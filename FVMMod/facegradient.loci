@@ -387,7 +387,7 @@ namespace Loci {
     const vector3d<real_t> center_l = $facecenter - len*n ;
 
     double X_l = $ci->$X +
-      $ci->$limiters(X)*dot($grads(X),center_l-$ci->$cellcenter) ;
+      $ci->$limiters(X)*dot($ci->$grads(X),center_l-$ci->$cellcenter) ;
     const real rdist = 1./len ;
     const vect3d gradAvg = $ci->$grads(X) ;
     const vect3d gradTan = gradAvg-dot(gradAvg,n)*n ;
@@ -466,7 +466,7 @@ namespace Loci {
     int vs = $*X.vecSize() ;
     for(int b=0;b<vs;++b) {
       double X_l = $ci->$X[b] +
-        $ci->$limiterv(X)[b]*dot($gradv(X)[b],center_l-$ci->$cellcenter) ;
+        $ci->$limiterv(X)[b]*dot($ci->$gradv(X)[b],center_l-$ci->$cellcenter) ;
       const real rdist = 1./len ;
       const vect3d gradAvg = $ci->$gradv(X)[b] ;
       const vect3d gradTan = gradAvg-dot(gradAvg,n)*n ;
@@ -613,7 +613,7 @@ namespace Loci {
 
     // for x
     double X_l = $ci->$X.x +
-      $ci->$limiterv3d(X).x*dot($gradv3d(X).x,center_l-$ci->$cellcenter) ;
+      $ci->$limiterv3d(X).x*dot($ci->$gradv3d(X).x,center_l-$ci->$cellcenter) ;
     vect3d gradAvg = $ci->$gradv3d(X).x ;
     vect3d gradTan = gradAvg-dot(gradAvg,n)*n ;
     vect3d gradNorm = n*($X_f.x-X_l)*rdist ;
@@ -622,7 +622,7 @@ namespace Loci {
 
     // for y
     X_l = $ci->$X.y +
-      $ci->$limiterv3d(X).y*dot($gradv3d(X).y,center_l-$ci->$cellcenter) ;
+      $ci->$limiterv3d(X).y*dot($ci->$gradv3d(X).y,center_l-$ci->$cellcenter) ;
 
     gradAvg = $ci->$gradv3d(X).y ;
     gradTan = gradAvg-dot(gradAvg,n)*n ;
@@ -632,7 +632,7 @@ namespace Loci {
 
     // for z
     X_l = $ci->$X.z +
-      $ci->$limiterv3d(X).z*dot($gradv3d(X).z,center_l-$ci->$cellcenter) ;
+      $ci->$limiterv3d(X).z*dot($ci->$gradv3d(X).z,center_l-$ci->$cellcenter) ;
 
     gradAvg = $ci->$gradv3d(X).z ;
     gradTan = gradAvg-dot(gradAvg,n)*n ;
