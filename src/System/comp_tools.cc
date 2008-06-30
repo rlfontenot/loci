@@ -961,6 +961,7 @@ namespace Loci {
     return true;
     
   }
+
   bool is_intensive_rule_output_mapping(rule my_rule, const fact_db &facts) {
     if(!rule_has_mapping_in_output(my_rule))
       return false;
@@ -1734,6 +1735,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     return clist ;
   }
   
+  execute_modules_decorator_factory* barrier_compiler::decoratorFactory = NULL;
+  
   void barrier_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()){
       send_entities = barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
@@ -1780,14 +1783,26 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_sequence> el = new execute_sequence ;
-      el->append_list(new execute_thread_sync) ;
-      el->append_list(new execute_comm(plist, facts) ) ; 
-      el->append_list(new execute_comm(clist, facts)) ;
+	  executeP exec_thread_sync = new execute_thread_sync;
+	  if (decoratorFactory != NULL)
+		exec_thread_sync = decoratorFactory->decorate(exec_thread_sync);
+      el->append_list(exec_thread_sync) ;
+	  executeP exec_comm_p = new execute_comm(plist, facts);
+	  if (decoratorFactory != NULL)
+		exec_comm_p = decoratorFactory->decorate(exec_comm_p);
+      el->append_list(exec_comm_p) ;
+	  executeP exec_comm_c = new execute_comm(clist, facts);
+	  if (decoratorFactory != NULL)
+		exec_comm_c = decoratorFactory->decorate(exec_comm_c);
+      el->append_list(exec_comm_c) ;
       return executeP(el) ;
     }
     ostringstream oss ;
     oss << barrier_vars << endl ;
-    return new execute_thread_sync(oss.str()) ;
+	executeP exec_thrd_sync = new execute_thread_sync(oss.str()) ;
+	if (decoratorFactory != NULL)
+	  exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
+    return exec_thrd_sync;
   }
   
   void execute_msg::execute(fact_db &facts) {  }
@@ -1813,6 +1828,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
   
+  execute_modules_decorator_factory* singleton_var_compiler::decoratorFactory = NULL;
+  
   executeP singleton_var_compiler::create_execution_schedule(fact_db &facts,
                                                              sched_db &scheds){
     if(verbose) {
@@ -1820,7 +1837,10 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       vars = barrier_vars ;
       ostringstream oss ;
       oss << "singleton param " << vars ;
-      return executeP(new execute_msg(oss.str())) ;
+	  executeP execute = executeP(new execute_msg(oss.str())) ;
+	  if (decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+      return execute;
     }
     return executeP(0) ;
   }
@@ -1836,6 +1856,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       : allocate_vars(vars), v_requests(vr) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+	virtual string getName() { return "execute_allocate_var";};
   } ;
   
   void execute_allocate_var::execute(fact_db &facts) {
@@ -1884,6 +1905,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     execute_free_var(const variableSet& vars) : free_vars(vars) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+	virtual string getName() { return "execute_free_var";};
   } ;
   
   void execute_free_var::execute(fact_db &facts) {
@@ -1906,6 +1928,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
   void allocate_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
   }
+
+  execute_modules_decorator_factory* allocate_var_compiler::decoratorFactory = NULL;
 
   executeP allocate_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi,vii ;
@@ -1955,22 +1979,28 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       v_requests[*vi] = requests ;
     }
-
-    return executeP(new execute_allocate_var(allocate_vars,v_requests)) ;
+    executeP execute = executeP(new execute_allocate_var(allocate_vars,v_requests)) ;
+	if (decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+    return execute;
   }
 
-  void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)
-  {
+  void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
+
+  execute_modules_decorator_factory* free_var_compiler::decoratorFactory = NULL;
 
   void free_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) { }
 
   executeP free_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-    return executeP(new execute_free_var(free_vars)) ;
+	executeP execute = executeP(new execute_free_var(free_vars)) ;
+	if(decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+    return execute;
   }
 
   /////////////////////////////////////////////////////////////////////////
-  //////////////////  memory profiling compiler code //////////////////////
+  //////////////////    memory profiling compiler code       //////////////////////
   /////////////////////////////////////////////////////////////////////////
   void execute_memProfileAlloc::Print(std::ostream &s) const {
     if(vars != EMPTY) {
@@ -2037,16 +2067,22 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
 
-  executeP
-  memProfileAlloc_compiler::create_execution_schedule
-  (fact_db &facts, sched_db &scheds) {
-    return executeP(new execute_memProfileAlloc(vars)) ;
+  execute_modules_decorator_factory* memProfileAlloc_compiler::decoratorFactory = NULL;
+  
+  executeP memProfileAlloc_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+    executeP execute = executeP(new execute_memProfileAlloc(vars)) ;
+	if(decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+	return execute;
   }
 
-  executeP
-  memProfileFree_compiler::create_execution_schedule
-  (fact_db &facts, sched_db &scheds) {
-    return executeP(new execute_memProfileFree(vars)) ;
+  execute_modules_decorator_factory* memProfileFree_compiler::decoratorFactory = NULL;
+
+  executeP memProfileFree_compiler::create_execution_schedule (fact_db &facts, sched_db &scheds) {
+	executeP execute = executeP(new execute_memProfileFree(vars));
+	if (decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+    return execute;
   }
 
   //Finds the plist that contains information of entities need to be sent on the 

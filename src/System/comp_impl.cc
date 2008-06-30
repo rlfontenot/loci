@@ -61,6 +61,8 @@ namespace Loci {
     }
   }
   
+  execute_modules_decorator_factory* impl_compiler::decoratorFactory = NULL;
+  
   void impl_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     existential_rule_analysis(impl,facts, scheds) ;
   }
@@ -82,21 +84,28 @@ namespace Loci {
         impl.get_info().rule_impl->get_rule_class()==rule_impl::UNIT)&&
        impl.get_info().rule_impl->thread_rule() &&
        (targets.begin()->get_info()).name != "OUTPUT") {
-      execute_par *ep = new execute_par ;
-      parallel_schedule(ep,exec_seq,impl,facts, scheds) ;
-      return ep ;
+		execute_par *ep = new execute_par ;
+		parallel_schedule(ep,exec_seq,impl,facts, scheds) ;
+		return ep ;
     }
     if((targets.begin()->get_info()).name == "OUTPUT") {
       CPTR<execute_list> el = new execute_list ;
       execution_factory ef(impl,sequence(exec_seq), facts, scheds);
       el->append_list(ef.create_product());
-      if(num_threads > 1)
-        el->append_list(new execute_thread_sync) ;
+      if(num_threads > 1) {
+		executeP exec_thrd_sync = new execute_thread_sync;
+		if(decoratorFactory != NULL)
+			exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
+        el->append_list(exec_thrd_sync) ;
+	  }
       return executeP(el) ;
     }
-    if(impl.get_info().rule_impl->dynamic_schedule_rule() && use_dynamic_scheduling) 
-      return new dynamic_schedule_rule(impl,exec_seq,facts, scheds) ;
-    else {
+    if (impl.get_info().rule_impl->dynamic_schedule_rule() && use_dynamic_scheduling) {
+	  executeP execute_dynamic = new dynamic_schedule_rule(impl,exec_seq,facts, scheds) ;
+	  if(decoratorFactory != NULL)
+            execute_dynamic = decoratorFactory->decorate(execute_dynamic);
+      return execute_dynamic;
+	} else {
       execution_factory ef(impl,sequence(exec_seq),facts, scheds);
       return ef.create_product();
     }
@@ -126,10 +135,15 @@ namespace Loci {
       scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
   }
 
+  execute_modules_decorator_factory* blackbox_compiler::decoratorFactory = NULL;
+
   executeP
   blackbox_compiler::create_execution_schedule(fact_db& facts,
                                                sched_db& scheds) {
-    return new execute_rule(impl, ~EMPTY, facts, scheds);
+	executeP execute = new execute_rule(impl, ~EMPTY, facts, scheds);
+	if (decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+    return execute;
   }
 
 }

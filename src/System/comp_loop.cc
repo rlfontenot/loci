@@ -51,9 +51,8 @@ namespace Loci {
       control_thread = true ;}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
-  } ;
-
-
+	virtual string getName() { return "execute_loop";};
+	} ;
   
   void execute_loop::execute(fact_db &facts) {
     param<bool> test ;
@@ -127,8 +126,9 @@ namespace Loci {
   inline bool offset_sort(const variable &v1, const variable &v2)
   { return v1.get_info().offset > v2.get_info().offset ; }
   
-  loop_compiler::loop_compiler(rulecomp_map &rule_process, digraph dag, int id):cid(id)
-  {
+  execute_modules_decorator_factory* loop_compiler::decoratorFactory = NULL;
+  
+  loop_compiler::loop_compiler(rulecomp_map &rule_process, digraph dag, int id):cid(id) {
     ////////////////////
     // store the graph structure and the relevant rulecompiler map
     loop_gr = dag ;
@@ -415,11 +415,17 @@ namespace Loci {
       adv->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
 
-    if(facts.isDistributed())
-      adv->append_list(new execute_comm(advance_variables_barrier, facts));
-    
-    return new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists) ;
+    if(facts.isDistributed()) {
+	  executeP exec_comm = new execute_comm(advance_variables_barrier, facts);
+	  if(decoratorFactory != NULL)
+            exec_comm = decoratorFactory->decorate(exec_comm);
+      adv->append_list(exec_comm);
+    }
+	
+	executeP execute = new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists) ;
+	if(decoratorFactory != NULL)
+            execute = decoratorFactory->decorate(execute);
+    return execute;
   }
-
 
 }

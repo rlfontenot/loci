@@ -18,46 +18,69 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+
 #include "sched_tools.h"
 #include "loci_globs.h"
 #include <distribute.h>
 
 namespace Loci {
-  execution_factory::execution_factory(rule fi, sequence seq, fact_db &ft, 
+   execution_factory::execution_factory(rule fi, sequence seq, fact_db &ft, 
 				       const sched_db &sd)
     :scheds(sd), facts(ft){
     rule_tag = fi ;
     exec_seq = seq ; 
   } 
   
-  execute_modules* execution_factory::create_product() {
+  execute_modules_decorator_factory* execution_factory::decoratorFactory = NULL;
+  
+  //execute_modules* execution_factory::create_product() {
+  executeP execution_factory::create_product() {
     if((rule_tag.get_info().output_is_parameter ||
         !rule_tag.get_info().rule_impl->thread_rule())) {
       if(GLOBAL_AND(exec_seq.size() == 0)) {
-        return new execute_rule_null(rule_tag) ;
+		executeP exec_rule_null = new execute_rule_null(rule_tag) ;
+		if(decoratorFactory != NULL)
+			exec_rule_null = decoratorFactory->decorate(exec_rule_null);
+        return exec_rule_null;
+		//return new execute_rule_null(rule_tag) ;
       }
     }
     
-    if(Loci::collect_timings && rule_tag.targets().begin()->get_info().name != "OUTPUT" && rule_tag.get_info().rule_impl->thread_rule())
+    if(Loci::collect_timings && rule_tag.targets().begin()->get_info().name != "OUTPUT" && rule_tag.get_info().rule_impl->thread_rule()) {
       return new timed_execute_rule(rule_tag, exec_seq, facts, scheds,
 				    Loci::time_duration_to_collect_data);
-    else if(Loci::measure_rule_timings)
-      return new measure_timings_execute_rule(rule_tag, exec_seq, facts, scheds);
-    else
-      return new execute_rule(rule_tag, exec_seq, facts, scheds);
+    } else if(Loci::measure_rule_timings) {
+	  executeP exec_measure_rule = new measure_timings_execute_rule(rule_tag, exec_seq, facts, scheds);
+	  if (decoratorFactory != NULL)
+		exec_measure_rule = decoratorFactory->decorate(exec_measure_rule);
+      return exec_measure_rule;
+    } else {
+	  executeP exec_rule = new execute_rule(rule_tag, exec_seq, facts, scheds);
+	  if (decoratorFactory != NULL)
+		exec_rule = decoratorFactory->decorate(exec_rule);
+      return exec_rule;
+	}
   }
 
-  execute_modules* execution_factory::create_product(variable v, const storeRepP &p) {
+  //execute_modules* execution_factory::create_product(variable v, const storeRepP &p) {
+  executeP execution_factory::create_product(variable v, const storeRepP &p) {
     //    if(GLOBAL_AND(exec_seq.size() ==0)) {
     //      return new execute_rule_null(rule_tag) ;
     //    }
     if(Loci::collect_timings && rule_tag.targets().begin()->get_info().name != "OUTPUT" && rule_tag.get_info().rule_impl->thread_rule())
       return new timed_execute_rule(rule_tag, exec_seq, facts, v, p, scheds,
 				    Loci::time_duration_to_collect_data);
-    else if(Loci::measure_rule_timings)
-      return new measure_timings_execute_rule(rule_tag, exec_seq, facts, v, p, scheds);
-    else
-      return new execute_rule(rule_tag, exec_seq, facts, v, p, scheds);
+    else if(Loci::measure_rule_timings) {
+      executeP exec_measure_rule = new measure_timings_execute_rule(rule_tag, exec_seq, facts, v, p, scheds);
+	  if (decoratorFactory != NULL)
+		exec_measure_rule = decoratorFactory->decorate(exec_measure_rule);
+	  return exec_measure_rule;
+    } else {
+      executeP exec_rule = new execute_rule(rule_tag, exec_seq, facts, v, p, scheds);
+	  if (decoratorFactory != NULL)
+		exec_rule = decoratorFactory->decorate(exec_rule);
+      return exec_rule;
+	 }
   }
  
   timed_execute_rule::timed_execute_rule(rule fi, sequence seq, fact_db &facts,
@@ -214,6 +237,15 @@ namespace Loci {
     double st = MPI_Wtime();
     rp->compute(exec_seq);
     double et = MPI_Wtime();
-    ruleTimeOut << rule_tag.get_info().name() << "\n" <<  exec_seq.size() << "\t" << et - st << "\t" << (et-st)/exec_seq.size() << endl;
+
+    perfAnalysis->add2RuleTimingsTable(rule_tag.get_info().name(), exec_seq.size()+1, (et - st));
+/*
+    if (exec_seq.size() == 0) {
+	  ruleTimeOut << rule_tag.get_info().name() << "\n" <<  exec_seq.size() << "\t" << et - st << "\t" << endl;
+    } else {
+	  ruleTimeOut << rule_tag.get_info().name() << "\n" <<  exec_seq.size() << "\t" << et - st << "\t" << (et-st) / exec_seq.size() << endl;
+    }
+	*/
   }
-}
+
+} // end namespace Loci

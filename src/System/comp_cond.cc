@@ -39,6 +39,7 @@ namespace Loci {
     { warn(cond==0) ; control_thread = true; }
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+	virtual string getName() { return "execute_conditional";};
   } ;
   
   void execute_conditional::execute(fact_db &facts) {
@@ -60,6 +61,8 @@ namespace Loci {
     s << "} // if("<< cvar <<")" << endl ;
   }
 
+  execute_modules_decorator_factory* conditional_compiler::decoratorFactory = NULL;
+  
   conditional_compiler::conditional_compiler(rulecomp_map &rule_process,
 					     digraph dag,
                                              variable conditional,
@@ -117,11 +120,10 @@ namespace Loci {
     for(i=dag_comp.begin();i!=dag_comp.end();++i) {
       elp->append_list((*i)->create_execution_schedule(facts, scheds)) ;
     }
-    
-    return new execute_conditional(executeP(elp),cond_var) ;
+	
+    executeP execute = new execute_conditional(executeP(elp),cond_var);
+	if(decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+    return  execute;
   }
-
-
-
-
 }

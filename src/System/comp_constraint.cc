@@ -36,6 +36,7 @@ namespace Loci {
                             fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+	virtual string getName() { return "execute_constraint_rule";};
   } ;
 
   execute_constraint_rule::
@@ -57,6 +58,8 @@ namespace Loci {
     s << rule_tag << "  over sequence " << exec_seq << endl ;
   }
   
+execute_modules_decorator_factory* constraint_compiler::decoratorFactory = NULL;
+
   void constraint_compiler::set_var_existence(fact_db& facts,
                                               sched_db& scheds)
   {
@@ -77,8 +80,11 @@ namespace Loci {
   
   executeP constraint_compiler::create_execution_schedule(fact_db& facts,
                                                           sched_db& scheds) {
-    return new execute_constraint_rule(constraint_rule,
+    executeP execute = new execute_constraint_rule(constraint_rule,
                                        exec_seq, facts,scheds) ;
+	if(decoratorFactory != NULL)
+            execute = decoratorFactory->decorate(execute);
+	return execute;
   }
 
 }

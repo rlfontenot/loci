@@ -38,27 +38,34 @@
 #ifdef PROFILE_CODE
 #include <time.h>
 #endif
-
+#include "performance_analysis.h"
 #include "sched_mlg.h"
 using std::vector;
+
 namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
   void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) ;
   rule make_rename_rule(variable new_name, variable old_name) ;
 
+
+	
   class execution_factory {
     rule rule_tag;
     sequence exec_seq;
     const sched_db& scheds;
     fact_db& facts;
+   public:
+	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
+	static execute_modules_decorator_factory* decoratorFactory;
   public:
     execution_factory(rule fi, sequence seq, fact_db &facts, const sched_db &sd);
-    execute_modules* create_product();
-    execute_modules* create_product(variable v, const storeRepP &p);
+    //execute_modules* create_product();
+	executeP create_product();
+    //execute_modules* create_product(variable v, const storeRepP &p);
+	executeP create_product(variable v, const storeRepP &p);
   };
 
-    
 
   class execute_rule : public execute_modules {
   protected:
@@ -70,6 +77,7 @@ namespace Loci {
     execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, const sched_db &scheds);
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+	virtual string getName() {return "execute_rule";};
   } ;
 
   class execute_rule_null : public execute_modules {
@@ -79,6 +87,7 @@ namespace Loci {
     execute_rule_null(rule fi) : rule_tag(fi) {}
     virtual void execute(fact_db &facts) {}
     virtual void Print(std::ostream &s) const {s << rule_tag << " over empty sequence."<< endl ;}
+	virtual string getName() {return "execute_rule_null";};
   } ;
 
   class timed_execute_rule: public execute_rule {
@@ -116,9 +125,9 @@ namespace Loci {
   
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+	virtual string getName() {return "dynamic_schedule_rule";};
   } ;
   
-
   class visitor ;
   
   class rule_compiler : public CPTR_type {
@@ -179,7 +188,8 @@ namespace Loci {
      ~execute_param_red() ;
      virtual void execute(fact_db &facts) ;
      virtual void Print(std::ostream &s) const ;
-   } ;
+ 	virtual string getName() {return "execute_param_red";};
+  } ;
 
   // experimental dynamic scheduling function
   void dynamic_scheduling(digraph& gr, fact_db& facts,

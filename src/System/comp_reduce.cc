@@ -57,6 +57,7 @@ namespace Loci {
     }
     virtual void execute(fact_db &facts) ;
     virtual void Print(ostream &s) const ;
+	virtual string getName() { return "joiner_oper";};
   } ;
 
   void joiner_oper::execute(fact_db &facts) {
@@ -98,6 +99,8 @@ namespace Loci {
   void apply_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     exec_seq = process_applyrule_requests(apply, unit_tag, output_mapping, facts, scheds);
   }
+  
+  execute_modules_decorator_factory* apply_compiler::decoratorFactory = NULL;
   
   executeP apply_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     CPTR<execute_list> el = new execute_list ;
@@ -536,6 +539,7 @@ namespace Loci {
     join_ops = j_op ;
     MPI_Op_create(&create_user_function, 0, &create_join_op) ;
   }
+
   execute_param_red::~execute_param_red() {
     MPI_Op_free(&create_join_op) ;
   }
@@ -575,6 +579,7 @@ namespace Loci {
     delete [] send_ptr ;
     delete [] result_ptr ;
   }
+
   void execute_param_red::Print(ostream &s) const {
     if(verbose || MPI_processes > 1)
       for(size_t i = 0 ; i < reduce_vars.size(); i++) {
@@ -582,6 +587,7 @@ namespace Loci {
         s << "param reduction on " << reduce_vars[i] << endl ;
       }
   }
+
   void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed()) {
       	fact_db::distribute_infoP d = facts.get_distribute_info() ;
@@ -606,8 +612,9 @@ namespace Loci {
     }
   } 
   
-  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-   
+  execute_modules_decorator_factory* reduce_param_compiler::decoratorFactory = NULL;
+    
+  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) { 
     if(facts.isDistributed()) {
       vector<variable> red ;
       vector<rule> ulist ;
@@ -620,9 +627,12 @@ namespace Loci {
           jop.push_back(join_ops[i]) ;
         }
       }
-      if(red.size() > 0) 
-        return new execute_param_red(red,ulist,jop) ;
-      else
+      if(red.size() > 0) {
+		executeP execute = new execute_param_red(red,ulist,jop);
+		if (decoratorFactory != NULL)
+			execute = decoratorFactory->decorate(execute);
+        return execute;
+	 } else
         return 0 ;
 
       //        CPTR<execute_sequence> el = new execute_sequence ; 
@@ -635,7 +645,10 @@ namespace Loci {
       ostringstream oss ;
       for(size_t i = 0; i < reduce_vars.size(); i++) 
         oss << "reduce param " << reduce_vars[i] << std::endl;
-      return executeP(new execute_msg(oss.str())) ;
+	  executeP exec_msg = executeP(new execute_msg(oss.str())) ;
+	  if(decoratorFactory != NULL)
+		exec_msg = decoratorFactory->decorate(exec_msg);
+      return exec_msg;
     } else
       return 0 ;
     
@@ -776,6 +789,7 @@ public:
   ~execute_comm_reduce() ;
   virtual void execute(fact_db &facts) ;
   virtual void Print(std::ostream &s) const ;
+  virtual string getName() { return "execute_comm_reduce";};
 } ; 
 
 execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
@@ -841,6 +855,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     request =  new MPI_Request[nrecv] ;
     status =  new MPI_Status[nrecv] ;
 }
+
   execute_comm_reduce::~execute_comm_reduce() {
     delete [] maxr_size ;
     delete [] maxs_size ;
@@ -852,12 +867,12 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     delete [] request ;
     delete [] status ;
   }
+
   static unsigned char *recv_ptr_buf = 0; 
   static int recv_ptr_buf_size = 0; 
   static unsigned char *send_ptr_buf = 0 ; 
   static int send_ptr_buf_size = 0 ; 
-  
-  
+    
   void execute_comm_reduce::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
@@ -1063,16 +1078,27 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     }
   }
   
+  execute_modules_decorator_factory* reduce_store_compiler::decoratorFactory = NULL;
+  
   executeP reduce_store_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_sequence> el = new execute_sequence ;
-      
-      el->append_list(new execute_comm_reduce(rlist, facts, join_op)) ;
-      el->append_list(new execute_comm(clist, facts)) ;
+      executeP exec_comm_reduce = new execute_comm_reduce(rlist, facts, join_op);
+	  if (decoratorFactory != NULL)
+		exec_comm_reduce = decoratorFactory->decorate(exec_comm_reduce);
+      el->append_list(exec_comm_reduce);
+	  executeP exec_comm = new execute_comm(clist, facts);
+	  if(decoratorFactory != NULL)
+		exec_comm = decoratorFactory->decorate(exec_comm);
+      el->append_list(exec_comm) ;
       if(verbose || MPI_processes > 1) {
         ostringstream oss ;
         oss << "reduce store " << reduce_var ;
-        el->append_list(new execute_msg(oss.str())) ;
+		executeP exec_msg = new execute_msg(oss.str());
+		if(decoratorFactory != NULL)
+			exec_msg = decoratorFactory->decorate(exec_msg);
+        el->append_list(exec_msg) ;
+		
       }
       return executeP(el) ;
     }
@@ -1080,7 +1106,10 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     if(verbose || MPI_processes > 1) {
       ostringstream oss ;
       oss << "reduce store " << reduce_var ;
-      return executeP(new execute_msg(oss.str())) ;
+	  executeP exec_msg2 = new execute_msg(oss.str());
+	  if(decoratorFactory != NULL)
+		exec_msg2 = decoratorFactory->decorate(exec_msg2);
+      return executeP(exec_msg2) ;
     }
     return executeP(0) ; 
   }

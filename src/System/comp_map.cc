@@ -41,6 +41,7 @@ namespace Loci {
                      fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+	virtual string getName() { return "execute_map_rule";};
   } ;
   
   execute_map_rule::
@@ -109,8 +110,7 @@ namespace Loci {
     existential_rule_analysis(map_impl, facts, scheds) ;
   }
   
-  void map_compiler::process_var_requests(fact_db& facts,
-                                          sched_db& scheds) {
+  void map_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
     //variableSet sources = map_impl.sources() ;
     //variableSet::const_iterator vi ;
     //for(vi=sources.begin();vi!=sources.end();++vi) {
@@ -119,13 +119,15 @@ namespace Loci {
     exec_seq = process_rule_requests(map_impl, facts, scheds) ;
   }
   
-  executeP map_compiler::create_execution_schedule(fact_db& facts,
-                                                   sched_db& scheds) {
+  execute_modules_decorator_factory* map_compiler::decoratorFactory = NULL;
+  
+  executeP map_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
     //return new execute_map_rule(map_impl, ~EMPTY, facts,scheds) ;
-    return new execute_map_rule(map_impl, exec_seq,
-                                map_impl.sources(),
-                                map_impl.targets(),
-                                facts,scheds) ;
+    executeP execute = new execute_map_rule(map_impl, exec_seq, map_impl.sources(),
+												map_impl.targets(), facts,scheds);
+	if(decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+	return execute;
   }
   
 }
