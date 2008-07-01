@@ -103,6 +103,7 @@ namespace Loci {
     exprP simplify() const ; // Simplify the expression
     exprP substitute(exprP s, exprP r) const ; // Substitute all s for r
     exprP derivative(std::string var) const ; // symbolic differentation
+    exprP symbolic_eval() const ; // Return evaluation of symbolic opers
     static exprP create(std::istream &s) ;
     static exprP create(const std::string &s) ;
 
@@ -120,6 +121,7 @@ namespace Loci {
     exp = expression::create(s) ;
     return s ;
   }
+
 
   exprList collect_associative_op(const exprP &e, const OpType op) ;
 

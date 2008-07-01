@@ -1071,6 +1071,15 @@ namespace Loci {
 	return e_int(1) ;
       else
 	return e_int(0) ;
+    case OP_COMMA:
+      { exprList nlist ;
+	exprList::const_iterator li ;
+	for(li=e->expr_list.begin();li!=e->expr_list.end();++li) {
+	  exprP tmp = derivative(*li,var) ;
+	  nlist.push_back(tmp) ;
+	}
+	return exprP(new expression(OP_COMMA,e->name,nlist,e->int_val)) ;
+      }
     case OP_PLUS:
       { exprList nlist ;
 	exprList::const_iterator li ;
@@ -1468,12 +1477,50 @@ namespace Loci {
     }
     return exprP(new expression(e->op,e->name,l,e->int_val,e->real_val)) ;
   }
+
+
+  exprP symbolic_evaluate(exprP e) {
+
+    switch(e->op) {
+    case OP_INT:
+    case OP_DOUBLE:
+    case OP_STRING:
+    case OP_ERROR:
+    case OP_NAME:
+      return e ;
+    default:
+      break ;
+    }
+
+    exprList l ;
+    exprList::const_iterator li ;
+    for(li=e->expr_list.begin();li!=e->expr_list.end();++li)
+      l.push_back(symbolic_evaluate(*li)) ;
+
+    if(e->op == OP_FUNC && e->name == "del") {
+      if(l.size() != 2) {
+	cerr << "del needs two arguments" << endl ;
+      }
+      if(l.back()->op != OP_NAME) {
+	cerr << "del needs a variable as the second argument" << endl ;
+      }
+      exprP p = Loci::derivative(l.front(),l.back()->name) ;
+      return p ;
+    }
     
+    return exprP(new expression(e->op,e->name,l,e->int_val,e->real_val)) ;
+  }
+
+    
+  exprP expression::symbolic_eval() const {
+    return symbolic_evaluate(exprP(new expression(op,name,expr_list,int_val,real_val))) ;
+  }
+
   exprP expression::simplify() const {
     exprP p = remove_minus(exprP(new expression(op,name,expr_list,int_val,real_val))) ;
     p = remove_divide(p) ;
     p = const_group(p) ;
-    
+
     exprP ps = p ;
     do {
       p = ps ;
