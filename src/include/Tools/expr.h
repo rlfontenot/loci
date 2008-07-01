@@ -36,6 +36,7 @@
 #include <list>
 #include <string>
 #include <map>
+#include <set>
 
 namespace Loci {
   enum OpType {
@@ -145,6 +146,9 @@ namespace Loci {
     return compare_expressions(e1,e2) != 0 ; 
   }
 
+
+  void getVarNames(exprP e, std::set<std::string> &namelist) ;
+  exprP substitutionEngine(exprP target, exprP list) ;
 
   namespace expr {
     inline exprP operator+(exprP p1, exprP p2) {

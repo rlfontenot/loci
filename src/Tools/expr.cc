@@ -27,6 +27,11 @@
 using std::map ;
 #include <vector>
 using std::vector ;
+#include <set>
+using std::set ;
+#include <string>
+using std::string ;
+
 // Todo list:
 
 // 0) add double constants (done (except number starting with a '.')
@@ -1317,6 +1322,60 @@ namespace Loci {
 			   s,e) ;
   }
 
+  void getVarNames(exprP e, set<string> &namelist) {
+    if(e->op == OP_NAME)
+      namelist.insert(e->name) ;
+    exprList::const_iterator li ;
+    for(li=e->expr_list.begin();li!=e->expr_list.end();++li)
+      getVarNames(*li,namelist) ;
+  }
+
+  exprP substitutionEngine(exprP target, exprP list) {
+    map<string,exprP> sub_map ;
+    exprList l ;
+    if(list->op == OP_COMMA) 
+      l = list->expr_list ;
+    else
+      l.push_back(list) ;
+    exprList::const_iterator li ;
+
+    for(li=l.begin();li!=l.end();++li) {
+      if((*li)->op == OP_ASSIGN) {
+	if((*li)->expr_list.size() != 2)
+	  cerr << "unable to interpret substitution " << *li << endl ;
+	if((*li)->expr_list.front()->op != OP_NAME) 
+	  cerr << "rhs of assignment should be a name" << endl ;
+	   sub_map[(*li)->expr_list.front()->name] = (*li)->expr_list.back() ;
+      }
+    }
+
+    exprP work = target ;
+
+    const int max_depth = 200 ;
+    
+    for(int i=0;i<max_depth;++i) {
+      set<string> namelist ;
+      getVarNames(work,namelist) ;
+      set<string>::const_iterator  si ;
+      bool sub_found = false ;
+      for(si=namelist.begin();si!=namelist.end();++si) {
+	string name = *si ;
+	map<string,exprP>::const_iterator mi ;
+	if((mi = sub_map.find(name)) != sub_map.end()) {
+	  exprP namep = new expression(OP_NAME,name,exprList(),0,0.0) ;
+	  work = substitute_expr(work,namep,mi->second) ;
+	  sub_found = true ;
+	}
+      }
+      if(!sub_found)
+	return work ;
+    }
+
+    cerr << "recusrive depth exceeded in substitution" << endl ;
+    return target ;
+  }
+
+  
   exprP expression::derivative(std::string var) const {
     exprP p = remove_minus(new expression(op,name,expr_list,int_val,real_val)) ;
     p = const_group(p) ;
