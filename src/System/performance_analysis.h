@@ -38,7 +38,17 @@ using namespace std;
 #include <sched_db.h>
 #include <execute.h>
 
+#ifdef USE_PAPI
+#include <papi.h>
+#include <papiStdEventDefs.h>
+#endif
+
 namespace Loci {
+#ifdef USE_PAPI
+	typedef long_long timeType;
+#else
+	typedef double timeType;
+#endif
 
 	typedef void * timer_token;
 	
@@ -48,7 +58,7 @@ namespace Loci {
 		performance_data *data; // internal data objects
 		public:
 			performance_analysis(void);
-			void add2RuleTimingsTable(string rule_name, int size, double time);
+			void add2RuleTimingsTable(string rule_name, int size, timeType time);
 			void * start_timer(string key);
 			void stop_timer(void * token);
 			void create_report(void);
