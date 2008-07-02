@@ -949,12 +949,33 @@ namespace Loci {
       break ;
     case OP_PLUS:
       {
-	exprList l ;
+	// Condense ints and doubles
 	exprList::const_iterator li ;
-	map<exprP,int> exp_map ;
-	map<exprP,int>::iterator mi ;
+	exprList lstart ;
+	int ival = 0;
+	double dval = 0 ;
 	for(li=e->expr_list.begin();li!=e->expr_list.end();++li) {
 	  exprP p = simplify_expr(*li) ;
+	  if(p->op == OP_INT)
+	    ival += p->int_val ;
+	  else if (p->op == OP_DOUBLE)
+	    dval += p->real_val ;
+	  else
+	    lstart.push_back(p) ;
+	}
+	if(dval == 0 && ival != 0) {
+	  lstart.push_front(e_int(ival)) ;
+	} else if(dval != 0) {
+	  lstart.push_front(new expression(OP_DOUBLE,"",exprList(),ival,
+					   double(ival)+dval)) ;
+	}
+	
+
+	exprList l ;
+	map<exprP,int> exp_map ;
+	map<exprP,int>::iterator mi ;
+	for(li=lstart.begin();li!=lstart.end();++li) {
+	  exprP p = (*li) ;
 	  if(p->op == OP_TIMES && p->expr_list.back()->op==OP_INT) {
 	    exprList l = p->expr_list ;
 	    int val = l.back()->int_val ;
@@ -994,13 +1015,36 @@ namespace Loci {
 
     case OP_TIMES:
       {
-	// Combine pow() functions
-	exprList l ;
+	// Condense ints and doubles
 	exprList::const_iterator li ;
-	map<exprP,int> exp_map ;
-	map<exprP,int>::iterator mi ;
+	exprList lstart ;
+	int ival = 1;
+	double dval = 1 ;
 	for(li=e->expr_list.begin();li!=e->expr_list.end();++li) {
 	  exprP p = simplify_expr(*li) ;
+	  if(p->op == OP_INT)
+	    ival *= p->int_val ;
+	  else if (p->op == OP_DOUBLE)
+	    dval *= p->real_val ;
+	  else
+	    lstart.push_back(p) ;
+	}
+	if(dval == 1 && ival != 1) {
+	  lstart.push_front(e_int(ival)) ;
+	} else if(dval != 1) {
+	  if(dval == 0)
+	    lstart.push_front(e_int(0)) ;
+	  else 
+	    lstart.push_front(new expression(OP_DOUBLE,"",exprList(),ival,
+					     double(ival)*dval)) ;
+	}
+	
+	// Combine pow() functions
+	exprList l ;
+	map<exprP,int> exp_map ;
+	map<exprP,int>::iterator mi ;
+	for(li=lstart.begin();li!=lstart.end();++li) {
+	  exprP p = (*li) ;
 	  if(p->op == OP_FUNC && p->name == "pow" && p->expr_list.back()->op==OP_INT) {
 	    int val = p->expr_list.back()->int_val ;
 	    p = p->expr_list.front() ;
@@ -1042,6 +1086,37 @@ namespace Loci {
 	} else {
 	  exprP arg1 = simplify_expr(e->expr_list.front()) ;
 	  exprP arg2 = simplify_expr(e->expr_list.back()) ;
+	  if(arg1->op == OP_INT) {
+	    if(arg1->int_val == 0) 
+	      return e_int(0) ;
+	    if(arg1->int_val == 1)
+	      return e_int(1) ;
+	    if(arg2->op == OP_INT) {
+	      int exp = arg2->int_val ;
+	      int p = 1 ;
+	      for(int i=0;i<exp;++i)
+		p *= arg1->int_val ;
+	      return e_int(p) ;
+	    }
+	    if(arg2->op == OP_DOUBLE) {
+	      double m = arg1->int_val ;
+	      double e = arg2->real_val ;
+	      double v = ::pow(m,e) ;
+	      return new expression(OP_DOUBLE,"",exprList(),0,v) ;
+	    }
+	  }
+	  if(arg1->op == OP_DOUBLE && arg2->op == OP_DOUBLE) {
+	    double m = arg1->real_val ;
+	    double e = arg2->real_val ;
+	    double v = ::pow(m,e) ;
+	    return new expression(OP_DOUBLE,"",exprList(),0,v) ;
+	  }
+	  if(arg1->op == OP_DOUBLE && arg2->op == OP_INT) {
+	    double m = arg1->real_val ;
+	    double e = arg2->int_val ;
+	    double v = ::pow(m,e) ;
+	    return new expression(OP_DOUBLE,"",exprList(),0,v) ;
+	  }
 	  return pow(arg1,const_group(arg2)) ;
 	}
       } else {
