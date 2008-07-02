@@ -234,18 +234,20 @@ namespace Loci {
   }
 
   void measure_timings_execute_rule::execute(fact_db &facts) {  
+#ifdef USE_PAPI
+	long_long st = PAPI_get_real_usec();
+#else
     double st = MPI_Wtime();
+#endif
     rp->compute(exec_seq);
+#ifdef USE_PAPI
+    long_long et = PAPI_get_real_usec();
+#else
     double et = MPI_Wtime();
+#endif
 
     perfAnalysis->add2RuleTimingsTable(rule_tag.get_info().name(), exec_seq.size()+1, (et - st));
-/*
-    if (exec_seq.size() == 0) {
-	  ruleTimeOut << rule_tag.get_info().name() << "\n" <<  exec_seq.size() << "\t" << et - st << "\t" << endl;
-    } else {
-	  ruleTimeOut << rule_tag.get_info().name() << "\n" <<  exec_seq.size() << "\t" << et - st << "\t" << (et-st) / exec_seq.size() << endl;
-    }
-	*/
+
   }
 
 } // end namespace Loci
