@@ -22,22 +22,11 @@
 #include "performance_analysis.h"
 #include "loci_globs.h"
 
-#ifdef USE_PAPI
-#include <papi.h>
-#endif
-
-
 namespace Loci {
-
-#ifdef USE_PAPI
-	typedef long_long timeType;
-#else
-	typedef double timeType;
-#endif
 	
 	struct rule_timing_info {
 		int context_size;
-		double total_time;
+		timeType total_time;
 	};
 	
 	struct timer_data {
