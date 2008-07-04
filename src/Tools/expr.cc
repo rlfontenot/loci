@@ -95,7 +95,10 @@ namespace Loci {
 				  char poChar, char pcChar) const
   {
     s << poChar ;
-    if(expr_list.size() != 0) {
+    //    if(expr_list.size() == 1) 
+    //      s << "??" <<oper<<"??" ;
+    
+    if(!expr_list.empty()) {
       exprList::const_iterator i = expr_list.begin() ;
       (*i)->Print(s) ;
       ++i ;
@@ -812,17 +815,6 @@ namespace Loci {
 
   exprP remove_minus(exprP p) {
     switch(p->op) {
-    case OP_PLUS:
-    case OP_TIMES:
-    case OP_DIVIDE:
-    case OP_FUNC:
-      { 
-	exprList l ;
-	exprList::const_iterator li ;
-	for(li=p->expr_list.begin();li!=p->expr_list.end();++li)
-	  l.push_back(remove_minus(*li)) ;
-	return new expression(p->op,p->name,l,p->int_val,p->real_val) ;
-      }
     case OP_MINUS:
       { 
 	exprList l ;
@@ -841,7 +833,7 @@ namespace Loci {
 	      }
 	      l.push_back(new expression(OP_TIMES,"",lp,1)) ;
 	    } else {
-	      l.push_back(-1*(*li)) ;
+	      l.push_back(-1*(remove_minus(*li))) ;
 	    }
 	  }
 	return new expression(OP_PLUS,"",l,0) ;
@@ -858,10 +850,18 @@ namespace Loci {
 	    l.push_back(remove_minus(*li)) ;
 	  return new expression(p->op,p->name,l,p->int_val,p->real_val) ;
 	} else {
-	  return -1*p ;
+	  return -1*remove_minus(p) ;
 	}
     default:
-      return p ;
+      if(p->expr_list.empty())
+        return p ;
+      else { 
+	exprList l ;
+	exprList::const_iterator li ;
+	for(li=p->expr_list.begin();li!=p->expr_list.end();++li)
+	  l.push_back(remove_minus(*li)) ;
+	return new expression(p->op,p->name,l,p->int_val,p->real_val) ;
+      }
     }      
 
   }
@@ -969,7 +969,11 @@ namespace Loci {
 	  lstart.push_front(new expression(OP_DOUBLE,"",exprList(),ival,
 					   double(ival)+dval)) ;
 	}
-	
+
+        if(lstart.empty())
+          return e_int(0) ;
+        if(lstart.size() == 1)
+          return lstart.front() ;
 
 	exprList l ;
 	map<exprP,int> exp_map ;
@@ -1029,6 +1033,7 @@ namespace Loci {
 	  else
 	    lstart.push_back(p) ;
 	}
+
 	if(dval == 1 && ival != 1) {
 	  lstart.push_front(e_int(ival)) ;
 	} else if(dval != 1) {
@@ -1037,7 +1042,12 @@ namespace Loci {
 	  else 
 	    lstart.push_front(new expression(OP_DOUBLE,"",exprList(),ival,
 					     double(ival)*dval)) ;
-	}
+        }
+
+        if(lstart.empty())
+          return e_int(1) ;
+        if(lstart.size() == 1)
+          return lstart.front() ;
 	
 	// Combine pow() functions
 	exprList l ;
@@ -1094,9 +1104,15 @@ namespace Loci {
 	    if(arg2->op == OP_INT) {
 	      int exp = arg2->int_val ;
 	      int p = 1 ;
-	      for(int i=0;i<exp;++i)
-		p *= arg1->int_val ;
-	      return e_int(p) ;
+              if(exp>=0) {
+                for(int i=0;i<exp;++i)
+                  p *= arg1->int_val ;
+                return e_int(p) ;
+              }
+              exp*=-1 ;
+              for(int i=0;i<exp;++i)
+                p *= arg1->int_val ;
+              return pow(e_int(p),e_int(-1)) ;
 	    }
 	    if(arg2->op == OP_DOUBLE) {
 	      double m = arg1->int_val ;
@@ -1637,6 +1653,7 @@ namespace Loci {
       }
       if(l.back()->op != OP_NAME) {
 	cerr << "del needs a variable as the second argument" << endl ;
+        cerr << "arg = " << l.back() << endl ;
       }
       exprP p = Loci::derivative(l.front(),l.back()->name) ;
       return p ;
