@@ -514,22 +514,28 @@ namespace Loci {
       while(isspace(s.peek()))
 	s.get() ;
       char ch2 = s.peek() ;
+      if(ch2 == '.') {
+	s.putback('0') ;
+	ch2 = '0' ;
+      }
       s.putback(ch) ;
       if(isdigit(ch2)) {
 	exprP ival = new expression ;
 	ival->int_val_priv = parse::get_int(s) ;
 	ival->op_priv = OP_INT ;
-	if(s.peek() == '.') {
+	if(s.peek() == '.' || s.peek() == 'e' || s.peek() =='E') {
 	  double val1 = ival->int_val_priv ;
-	  s.get() ;
 	  double val2=0 ;
-	  double digit = 0.1 ;
-	  double exp = 1;
-	  while(isdigit(s.peek())) {
-	    char d = s.get() ;
-	    val2 += double(d-'0')*digit ;
-	    digit*=0.1 ;
+	  if(s.peek() == '.') {
+	    s.get() ;
+	    double digit = 0.1 ;
+	    while(isdigit(s.peek())) {
+	      char d = s.get() ;
+	      val2 += double(d-'0')*digit ;
+	      digit*=0.1 ;
+	    }
 	  }
+	  double exp = 1;
 	  if(s.peek() == 'e' || s.peek() == 'E') {
 	    s.get() ;
 	    int e = parse::get_int(s) ;
@@ -555,21 +561,25 @@ namespace Loci {
       exprP temp  = (expression::get_name(s)) ;
       return temp ;
     }
-    if (parse::is_int(s)) {
+    if (parse::is_int(s) || s.peek() == '.') {
+      if(s.peek() == '.') 
+	s.putback('0') ;
       exprP ival = new expression ;
       ival->int_val_priv = parse::get_int(s) ;
       ival->op_priv = OP_INT ;
-      if(s.peek() == '.') {
+      if(s.peek() == '.' || s.peek() == 'e' || s.peek() == 'E') {
 	double val1 = ival->int_val_priv ;
-	s.get() ;
 	double val2=0 ;
-	double digit = 0.1 ;
-	double exp = 1;
-	while(isdigit(s.peek())) {
-	  char d = s.get() ;
-	  val2 += double(d-'0')*digit ;
-	  digit*=0.1 ;
+	if(s.peek() == '.') {
+	  s.get() ;
+	  double digit = 0.1 ;
+	  while(isdigit(s.peek())) {
+	    char d = s.get() ;
+	    val2 += double(d-'0')*digit ;
+	    digit*=0.1 ;
+	  }
 	}
+	double exp = 1;
 	if(s.peek() == 'e' || s.peek() == 'E') {
 	  s.get() ;
 	  int e = parse::get_int(s) ;
