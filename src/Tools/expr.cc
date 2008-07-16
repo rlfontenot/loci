@@ -1112,10 +1112,14 @@ namespace Loci {
       if(e->name == "pow" ) { // Check for power of power
 	if(e->expr_list.front()->op == OP_FUNC &&
 	   e->expr_list.front()->name == "pow") {
+	  exprP p1 = const_group(simplify_expr(e->expr_list.back())) ;
+	  exprP p2 = const_group(simplify_expr(e->expr_list.front()->expr_list.back())) ;
+	  
 	  exprP arg1 = simplify_expr(e->expr_list.front()->expr_list.front()) ;
-	  exprP arg2 = (simplify_expr(e->expr_list.back())*
-			simplify_expr(e->expr_list.front()->expr_list.back())) ;
-	  return simplify_expr(pow(arg1,const_group(arg2))) ;
+	  if(p1->op == OP_INT && p2->op == OP_INT) 
+	    return simplify_expr(pow(arg1,e_int(p1->int_val*p2->int_val))) ;
+	  return pow(pow(arg1,p2),p1) ;
+	    
 	} else {
 	  exprP arg1 = simplify_expr(e->expr_list.front()) ;
 	  exprP arg2 = simplify_expr(e->expr_list.back()) ;
@@ -1156,6 +1160,9 @@ namespace Loci {
 	    double v = ::pow(m,e) ;
 	    return new expression(OP_DOUBLE,"",exprList(),0,v) ;
 	  }
+	  // pow(x,1) == x
+	  if(arg2->op == OP_INT && arg2->int_val == 1)
+	    return arg1 ;
 	  return pow(arg1,const_group(arg2)) ;
 	}
       } else {
