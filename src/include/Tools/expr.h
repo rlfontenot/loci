@@ -32,6 +32,7 @@
 #include <string>
 
 #include <Tools/cptr.h>
+#include <Tools/except.h>
 
 #include <list>
 #include <string>
@@ -39,6 +40,26 @@
 #include <set>
 
 namespace Loci {
+
+  enum exprErrorType {
+    ERR_SYNTAX=1,
+    ERR_UNDEF=2,
+    ERR_BADFORM=3,
+    ERR_LIMIT=4
+  } ;
+    
+  struct exprError : public BasicException {
+  public:
+    std::string err,msg ;
+    exprError() {}
+    exprError(std::string e, std::string m, exprErrorType c) :err(e),msg(m) {code = c;}
+    virtual ~exprError() {}
+    virtual std::ostream &Print(std::ostream &s) const {
+      s << err << ": " << msg << std::endl ;
+      return s ;
+    }
+  } ;
+  
   enum OpType {
     OP_SCOPE=0x000,
     OP_AT=0x080, // For using @ to separate namespaces

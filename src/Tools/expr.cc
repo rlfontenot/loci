@@ -271,7 +271,7 @@ namespace Loci {
       s <<"" ;
       break ;
     default:
-      throw StringError("unexpected operation in void expression::Print(ostream &s)") ;
+      throw exprError("Undefined","unexpected operation in Print()",ERR_UNDEF) ;
       break ;
     }
   }
@@ -444,8 +444,14 @@ namespace Loci {
     exprP p1 = p ;
     p = new expression ;
     p->op_priv = expression::get_oper(s) ;
-    if(p->op == OP_ERROR) 
+    if(p->op == OP_ERROR) {
+      ostringstream oss ;
+      string near ;
+      s >> near ;
+      oss << "Unable to determine operator, near text '" << near << "'" ;
+      throw exprError("Syntax Error",oss.str(),ERR_SYNTAX) ;
       return p ;
+    }
     p->expr_list_priv.push_back(p1) ;
     p->expr_list_priv.push_back(expression::get_term(s)) ;
     p = expression::expand_oper(s,p) ;
@@ -627,7 +633,7 @@ namespace Loci {
     }
   }
 
-  
+
   double expression::evaluate(const std::map<std::string, double> &varmap) const {
     double tmp ;
     exprList::const_iterator li ;
@@ -673,22 +679,18 @@ namespace Loci {
       if(li!=expr_list.end()) 
 	tmp = (*li)->evaluate(varmap) ;
       ++li ;
+      if(name == "pow") {
+	double tmp2 = 1 ;
+	if(li!=expr_list.end()) 
+	  tmp2 = (*li)->evaluate(varmap) ;
+	return std::pow(tmp,tmp2) ;
+      }
       if(name == "sin") 
 	return std::sin(tmp) ;
       if(name == "cos")
 	return std::cos(tmp) ;
       if(name == "tan") 
 	return std::tan(tmp) ;
-      if(name == "ln") 
-	return std::log(tmp) ;
-      if(name == "log") 
-	return std::log(tmp) ;
-      if(name == "log10")
-	return std::log10(tmp) ;
-      if(name == "exp")
-	return std::exp(tmp) ;
-      if(name == "sqrt")
-	return std::sqrt(tmp) ;
       if(name == "asin") 
 	return std::asin(tmp) ;
       if(name == "acos")
@@ -701,26 +703,37 @@ namespace Loci {
 	return std::cosh(tmp) ;
       if(name == "tanh")
 	return std::tanh(tmp) ;
-      
-      if(name == "pow") {
-	double tmp2 = 1 ;
-	if(li!=expr_list.end()) 
-	  tmp2 = (*li)->evaluate(varmap) ;
-	return std::pow(tmp,tmp2) ;
+      if(name == "exp")
+	return std::exp(tmp) ;
+      if(name == "sqrt")
+	return std::sqrt(tmp) ;
+      if(name == "ln") 
+	return std::log(tmp) ;
+      if(name == "log") 
+	return std::log(tmp) ;
+      if(name == "log10")
+	return std::log10(tmp) ;
+
+      {
+        string msg = "in expression evaluation, function " + name
+          + " has no definition";
+        throw exprError("Undefined",msg,ERR_UNDEF) ;
       }
-      
-      throw StringError("unimplemented function in expression::evaluate()") ;
     case OP_NAME:
       mi = varmap.find(name) ;
       if(mi != varmap.end()) 
 	return mi->second ;
       if(name == "pi")
 	return M_PI ;
-      
-      throw StringError("evaluate name failed in expression::evaluate()") ;
+
+      {
+        string msg = "in expression evaluation, variable " + name
+          + " has no definition";
+        throw exprError("Undefined",msg,ERR_UNDEF) ;
+      }
 	
     default:
-      throw StringError("unexpected operation in expression::evaluate()") ;
+      throw exprError("Undefined","operation not defined in evaluate()",ERR_UNDEF) ;
       return 0 ;
     }
     return 0 ;
@@ -1401,7 +1414,12 @@ namespace Loci {
 	return darg*df ;
       }
     default:
-      cerr << "derivative of " << e << " not supported" << endl ;
+      {
+        ostringstream oss ;
+        oss << "derivative of " << e << endl ;
+        
+        throw exprError("Not Supported",oss.str(),ERR_UNDEF) ;
+      }
       return exprP(e_int(0)) ;
     }
     
@@ -1443,10 +1461,10 @@ namespace Loci {
     for(li=l.begin();li!=l.end();++li) {
       if((*li)->op == OP_ASSIGN) {
 	if((*li)->expr_list.size() != 2)
-	  cerr << "unable to interpret substitution " << *li << endl ;
-	if((*li)->expr_list.front()->op != OP_NAME) 
-	  cerr << "rhs of assignment should be a name" << endl ;
-	   sub_map[(*li)->expr_list.front()->name] = (*li)->expr_list.back() ;
+          throw exprError("Syntax Error","unable to interpret substitution",ERR_BADFORM) ;
+	if((*li)->expr_list.front()->op != OP_NAME)
+          throw exprError("Syntax Error","substitution rhs should be name",ERR_BADFORM) ;
+        sub_map[(*li)->expr_list.front()->name] = (*li)->expr_list.back() ;
       }
     }
 
@@ -1472,7 +1490,7 @@ namespace Loci {
 	return work ;
     }
 
-    cerr << "recusrive depth exceeded in substitution" << endl ;
+    throw exprError("Limit Exceeded","Recursive Depth Exceeded in Substitution",ERR_LIMIT) ;
     return target ;
   }
 
@@ -1659,11 +1677,14 @@ namespace Loci {
 
     if(e->op == OP_FUNC && e->name == "del") {
       if(l.size() != 2) {
-	cerr << "del needs two arguments" << endl ;
+        ostringstream oss ;
+        oss << "del operator malformed, needs two arguments e= " << e << endl ;
+        throw exprError("Syntax Error",oss.str(),ERR_BADFORM) ;
       }
       if(l.back()->op != OP_NAME) {
-	cerr << "del needs a variable as the second argument" << endl ;
-        cerr << "arg = " << l.back() << endl ;
+        ostringstream oss ;
+        oss << "malformed del operator = " << e << endl ;
+        throw exprError("Syntax Error",oss.str(),ERR_BADFORM) ;
       }
       exprP p = Loci::derivative(l.front(),l.back()->name) ;
       return p ;
