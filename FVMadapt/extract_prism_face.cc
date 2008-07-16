@@ -159,7 +159,7 @@ std::vector<char>  merge_quad_face_pp(const  std::vector<char>& cellPlan1, int d
   
   Range2d rg = Range2d(Point2d(0, 0), Point2d(maxX, maxY));
   
-  char orientCode;
+  char orientCode = orientCode1;
   
   for(int i = 1; i <= 2; i++){
     //first process flPlan, then process frPlan
