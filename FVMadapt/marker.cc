@@ -198,9 +198,19 @@ int main(int argc, char ** argv) {
     cout << "levels: " <<Globals::levels << endl;
     cout << "restart: " << restart << endl;
     cout << "split_mode: " << split_mode << endl;
-    
+        
   }
 
+  if(split_mode == 0 && Globals::levels > 1){
+    cerr << "WARNING: multi-level refinement is not allowed in anisotropic refinement"<< endl;
+    Loci::Abort();
+  }
+
+  if(xml_input && Globals::tolerance == 0.0){
+    cerr <<"WARNING: zero tolerance will cause infinite loop at -xml option"<< endl;
+    Loci::Abort();
+  }
+  
 
   
 
