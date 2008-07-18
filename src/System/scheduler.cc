@@ -52,11 +52,9 @@ using std::ofstream ;
 
 
 #ifdef USE_PAPI
-
 #include "papi.h"
 #define N 64*64
 #define NCOUNTS 6
-
 #endif
 
 
@@ -1150,19 +1148,19 @@ namespace Loci {
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
-
-#ifdef USE_PAPI
-    int perr,ev_set=PAPI_NULL;
-    int i,ncnt,k;
-    if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
-      cerr<<"\nerror during initialization\n";
-    unsigned char v[N];
-    long_long counts[NCOUNTS];
-    int evlist[NCOUNTS];
-    char evname[NCOUNTS][PAPI_MAX_STR_LEN];
-    int retval;
-#endif
-
+	/*	
+	  #ifdef USE_PAPI
+	  int perr,ev_set=PAPI_NULL;
+	  int i,ncnt,k;
+	  if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
+	  cerr<<"\nerror during initialization\n";
+	  unsigned char v[N];
+	  long_long counts[NCOUNTS];
+	  int evlist[NCOUNTS];
+	  char evname[NCOUNTS][PAPI_MAX_STR_LEN];
+	  int retval;
+	  #endif
+	*/
     facts.setupDefaults(rdb) ;
     double t1 = MPI_Wtime() ;
 	timer_token execute_query_timer = new timer_token;
@@ -1204,7 +1202,7 @@ namespace Loci {
       fact_db local_facts(facts) ;
 
 
-
+      /*
 #ifdef USE_PAPI
 
       if((perr=PAPI_create_eventset(&ev_set)))
@@ -1252,8 +1250,8 @@ namespace Loci {
       if((perr=PAPI_start(ev_set)))
         cout<<"\nPAPI_start_event failed."<<PAPI_strerror(perr)<<"\n";
 #endif
-
-
+      
+      */
 
       double ces1 = MPI_Wtime() ;
       executeP schedule = create_execution_schedule(rdb,local_facts,target) ;
@@ -1299,7 +1297,7 @@ namespace Loci {
       double et = MPI_Wtime() ;
 
 
-
+      /*
 #ifdef USE_PAPI
       if((perr=PAPI_read(ev_set,counts)))
         cout<<"PAPI_read failed."<<PAPI_strerror(perr)<<"\n";
@@ -1308,7 +1306,7 @@ namespace Loci {
       for(i=0;i<ncnt;i++)
         cout<<evname[i]<<"="<<counts[i]<<"\n";
 #endif
-
+      */
 
       Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
       //Loci::debugout << " Time taken for exectution of the schedule = "
