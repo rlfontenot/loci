@@ -48,25 +48,6 @@ namespace Loci {
   void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) ;
   rule make_rename_rule(variable new_name, variable old_name) ;
 
-
-	
-  class execution_factory {
-    rule rule_tag;
-    sequence exec_seq;
-    const sched_db& scheds;
-    fact_db& facts;
-   public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
-  public:
-    execution_factory(rule fi, sequence seq, fact_db &facts, const sched_db &sd);
-    //execute_modules* create_product();
-	executeP create_product();
-    //execute_modules* create_product(variable v, const storeRepP &p);
-	executeP create_product(variable v, const storeRepP &p);
-  };
-
-
   class execute_rule : public execute_modules {
   protected:
     rule_implP rp ;
@@ -89,26 +70,6 @@ namespace Loci {
     virtual void Print(std::ostream &s) const {s << rule_tag << " over empty sequence."<< endl ;}
 	virtual string getName() {return "execute_rule_null";};
   } ;
-
-  class timed_execute_rule: public execute_rule {
-  protected:
-    double min_time_duration;
-  public:
-    timed_execute_rule(rule fi, sequence seq, fact_db &facts,
-		       const sched_db &scheds, double td);
-    timed_execute_rule(rule fi, sequence seq, fact_db &facts, variable v,
-		       const storeRepP &p, const sched_db &scheds, double td);
-    virtual void execute(fact_db &facts);
-  };
-
-  class measure_timings_execute_rule: public execute_rule {
-  public:
-    measure_timings_execute_rule(rule fi, sequence seq, fact_db &facts,
-		       const sched_db &scheds);
-    measure_timings_execute_rule(rule fi, sequence seq, fact_db &facts, variable v,
-		       const storeRepP &p, const sched_db &scheds);
-    virtual void execute(fact_db &facts);
-  };
 
   class dynamic_schedule_rule: public execute_modules {
     rule_implP rp ;
