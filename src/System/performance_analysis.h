@@ -58,7 +58,7 @@ namespace Loci {
 		performance_data *data; // internal data objects
 		public:
 			performance_analysis(void);
-			void add2RuleTimingsTable(string rule_name, int size, timeType time);
+			void add2RuleTimingsTable(string id, string rule_name, int size, timeType time);
 			void * start_timer(string key);
 			void stop_timer(void * token);
 			void create_report(void);
