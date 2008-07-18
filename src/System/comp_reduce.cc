@@ -106,11 +106,13 @@ namespace Loci {
     CPTR<execute_list> el = new execute_list ;
     if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
        exec_seq.size() < num_threads*30 ) {
-      execution_factory ef(apply,sequence(exec_seq),facts, scheds) ;
-      el->append_list(ef.create_product());
+	   executeP exec_rule = new execute_rule(apply, sequence(exec_seq), facts, scheds);
+	   if(decoratorFactory != NULL)
+		exec_rule = decoratorFactory->decorate(exec_rule);
+	  el->append_list(exec_rule);
     } else if(!apply.get_info().output_is_parameter &&!output_mapping) {
       execute_par *ep = new execute_par ;
-      parallel_schedule(ep,exec_seq,apply,facts, scheds) ;
+      parallel_schedule(ep,exec_seq,apply,facts, scheds, decoratorFactory) ;
       el->append_list(ep)  ;
     } else if(apply.get_info().output_is_parameter) {
       variableSet target = apply.targets() ;
@@ -125,23 +127,34 @@ namespace Loci {
         storeRepP rp = sp->new_store(EMPTY) ;
         rp->allocate(partition[i]) ;
         var_vec.push_back(rp) ;
-        execute_sequence *es = new execute_sequence ;
+		execute_sequence *es = new execute_sequence ;
 
-	execution_factory ef_unit(unit_tag,sequence(partition[i]), facts, scheds);
-        es->append_list(ef_unit.create_product(v, rp));
-
-	execution_factory ef_apply(apply,sequence(partition[i]), facts, scheds);
-        es->append_list(ef_apply.create_product(v, rp));
-
+		executeP exec_rule = new execute_rule(unit_tag,sequence(partition[i]), facts, scheds);
+		if(decoratorFactory != NULL)
+			exec_rule = decoratorFactory->decorate(exec_rule);
+		es->append_list(exec_rule);
+		
+		executeP exe_rule = new execute_rule(apply,sequence(partition[i]), facts, scheds);
+		if(decoratorFactory != NULL)
+			exe_rule = decoratorFactory->decorate(exe_rule);
+		es->append_list(exe_rule);
+		
         ep->append_list(es) ;
       }
       el->append_list(ep) ;
-      el->append_list(new execute_thread_sync) ;
+	  executeP exec_thrd_sync = new execute_thread_sync;
+	  if(decoratorFactory != NULL)
+		exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
+      el->append_list(exec_thrd_sync) ;
+	  
       rule_implP arule = (apply.get_info().rule_impl);
       fatal(arule == 0) ;
       CPTR<joiner> j_op = (arule)->get_joiner() ;
       fatal(j_op == 0) ;
-      el->append_list(new joiner_oper(v,sp,partition,var_vec,j_op)) ;
+      executeP exec_joiner_oper = new joiner_oper(v,sp,partition,var_vec,j_op);
+	  if(decoratorFactory != NULL)
+		exec_joiner_oper = decoratorFactory->decorate(exec_joiner_oper);
+	  el->append_list(exec_joiner_oper) ;
     } else {
       variableSet target = apply.targets() ;
       fatal(target.size() != 1) ;
@@ -179,14 +192,22 @@ namespace Loci {
         }
         apply_domain |= pdom ;
         all_contexts |= partition[i] ;
-	execution_factory ef(apply,sequence(context),facts, scheds);
-	ep->append_list(ef.create_product());
+		executeP exec_rule = new execute_rule(apply,sequence(context),facts, scheds);
+		if(decoratorFactory != NULL)
+			exec_rule = decoratorFactory->decorate(exec_rule);
+		ep->append_list(exec_rule);
       }
       if(shards.size() == 0) {
         el->append_list(ep) ;
-        el->append_list(new execute_thread_sync) ;
+		executeP exec_thrd_sync = new execute_thread_sync;
+		if(decoratorFactory != NULL)
+			exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
+        el->append_list(exec_thrd_sync) ;
       } else {
-        ep->append_list(new execute_sequence) ;
+		executeP exec_seq = new execute_sequence;
+		if(decoratorFactory != NULL)
+			exec_seq = decoratorFactory->decorate(exec_seq);
+        ep->append_list(exec_seq) ;
         bool disjoint = true ;
         entitySet dom_tot ;
         for(size_t i=0;i<shards.size();++i) {
@@ -208,13 +229,15 @@ namespace Loci {
 
           var_vec.push_back(rp) ;
           execute_sequence *es = new execute_sequence ;
-	  execution_factory ef_unit(unit_tag,sequence(shard_domains[i]),
-				    facts,scheds);
-          es->append_list(ef_unit.create_product(v, rp));
-
-	  execution_factory ef_apply(apply,sequence(shards[i]),
-				    facts, scheds);
-          es->append_list(ef_apply.create_product(v, rp));
+		  executeP exec_rule = new execute_rule(unit_tag, sequence(shard_domains[i]), facts, scheds);
+		  if(decoratorFactory != NULL)
+			exec_rule = decoratorFactory->decorate(exec_rule);
+		  es->append_list(exec_rule);
+			
+		  executeP exe_rule = new execute_rule(apply, sequence(shards[i]), facts, scheds);
+		  if(decoratorFactory != NULL)
+			exe_rule = decoratorFactory->decorate(exe_rule);
+		  es->append_list(exec_rule);
           ep->append_list(es) ;
         }
       
