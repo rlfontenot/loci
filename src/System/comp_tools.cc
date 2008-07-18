@@ -915,14 +915,16 @@ namespace Loci {
   }
 
   void parallel_schedule(execute_par *ep,const entitySet &exec_set,
-                         const rule &impl, fact_db &facts, sched_db &scheds) {
+                         const rule &impl, fact_db &facts, sched_db &scheds,
+						 execute_modules_decorator_factory* decoratorFactory) {
     vector<entitySet> par_set = partition_set(exec_set,num_threads) ;
     
     for(vector<entitySet>::const_iterator
           i=par_set.begin();i!=par_set.end();++i) {
-      execution_factory ef(impl,sequence(*i),facts, scheds);
-      executeP execrule = ef.create_product();
-      ep->append_list(execrule) ;
+	  executeP exec_rule = new execute_rule(impl,sequence(*i),facts, scheds);
+	  if(decoratorFactory != NULL)
+		exec_rule = decoratorFactory->decorate(exec_rule);
+	  ep->append_list(exec_rule);
     }
   }
 
