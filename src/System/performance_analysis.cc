@@ -27,6 +27,7 @@ namespace Loci {
 	struct rule_timing_info {
 		int context_size;
 		timeType total_time;
+	      string key;
 	};
 	
 	struct timer_data {
@@ -72,11 +73,12 @@ namespace Loci {
 	    data->execute_timings.insert(pair<string, timeType> (d->key, abs(time_elapsed)));
       }
 	
-	void performance_analysis::add2RuleTimingsTable(string rule_name, int size, timeType time) {
+      void performance_analysis::add2RuleTimingsTable(string id, string rule_name, int size, timeType time) {
 	      rule_timing_info *rule_info = new rule_timing_info;
 	      rule_info->context_size = size;
 	      rule_info->total_time = time;
-	      data->rule_timings_table[rule_name] = rule_info;
+	      rule_info->key = rule_name;
+	      data->rule_timings_table[id] = rule_info;
 	}
 
 	void performance_analysis::create_report() {
@@ -366,6 +368,7 @@ namespace Loci {
 	void performance_analysis::printRuleTimingsDetails() {
 		map<string, rule_timing_info*>::iterator it;
 		string rule_name;
+		multimap<timeType, rule_timing_info> rule_data_by_time;
 		rule_timing_info rule_info;
 
 		perfReportOut << endl;
@@ -378,13 +381,22 @@ namespace Loci {
 		perfReportOut << endl;
 		perfReportOut << "+++++++++++++++++++++++++++++++++++++++++++++++" << endl;
 		perfReportOut << endl;
-		
-	    for(it = data->rule_timings_table.begin(); it != data->rule_timings_table.end(); it++) { 
-			rule_name = (*it).first;
-		    rule_info.context_size = (*it).second->context_size;
-		    rule_info.total_time = (*it).second->total_time;
 
-		    perfReportOut << rule_name << "\n";
+		for(it = data->rule_timings_table.begin(); it != data->rule_timings_table.end(); it++) { 
+		      rule_info.context_size = (*it).second->context_size;
+		      rule_info.total_time = (*it).second->total_time;
+		      rule_info.key = (*it).second->key;
+		      //rule_data_by_time.insert(pair<timeType, rule_timing_info*> (rule_info.total_time, rule_info));
+		}
+
+
+		for(it = data->rule_timings_table.begin(); it != data->rule_timings_table.end(); it++) { 
+		      rule_name = (*it).first;
+		      rule_info.context_size = (*it).second->context_size;
+		      rule_info.total_time = (*it).second->total_time;
+		      rule_info.key = (*it).second->key;
+
+		      perfReportOut << rule_info.key << "\n";
 			if( rule_info.context_size != 0) 
 			      perfReportOut << rule_info.context_size  << "\t" << rule_info.total_time << "\t" << rule_info.total_time / rule_info.context_size << endl;
 			else 
