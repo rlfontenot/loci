@@ -39,7 +39,8 @@ void dummyFunctionDependencies(int i) {
 #endif
 
 #ifdef USE_PAPI
-#include "papi.h"
+#include <papi.h>
+#include <papiStdEventDefs.h>
 #endif
 
 #include <rule.h>
@@ -451,7 +452,6 @@ namespace Loci {
 	  impl_recurse_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "impl_recurse");
 	  recurse_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "recurse");
 	  blackbox_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "blackbox");
-	  execution_factory::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "execution_factory");
     }
 
     if(collect_timings) {

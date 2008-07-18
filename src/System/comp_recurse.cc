@@ -448,29 +448,49 @@ namespace Loci {
           seq += sequence(par_schedule[i]) ;
         } else {
           if(seq.size() > 1) {
-	    execution_factory ef(impl,seq,facts, scheds);
-	    el->append_list(ef.create_product());
-            el->append_list(new execute_thread_sync) ;
+			executeP exec_rule = new execute_rule(impl,seq,facts, scheds);
+			if(decoratorFactory != NULL)
+				exec_rule = decoratorFactory->decorate(exec_rule);
+			el->append_list(exec_rule);
+			executeP exec_thrd_sync = new execute_thread_sync;
+			if(decoratorFactory != NULL)
+				exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
+            el->append_list(exec_thrd_sync) ;
             seq = sequence() ;
           }
           execute_par *ep = new execute_par ;
-          parallel_schedule(ep,par_schedule[i],impl,facts, scheds) ;
-          el->append_list(ep) ;
-          el->append_list(new execute_thread_sync) ;
+          parallel_schedule(ep, par_schedule[i], impl, facts, scheds, decoratorFactory) ;
+		  el->append_list(ep) ;
+		  executeP exec_thrd_sync = new execute_thread_sync;
+		  if(decoratorFactory != NULL)
+				exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
+          el->append_list(exec_thrd_sync) ;
+          //el->append_list(new execute_thread_sync) ;
         }
       }
       if(seq.size() > 1) {
-	execution_factory ef(impl,seq,facts, scheds);
-	el->append_list(ef.create_product());
+		executeP exec_rule = new execute_rule(impl, seq, facts, scheds);
+		if(decoratorFactory != NULL)
+			exec_rule = decoratorFactory->decorate(exec_rule);
+		el->append_list(exec_rule);		
       }
       if(facts.isDistributed()) {
-        el->append_list(new execute_thread_sync) ;
-        el->append_list(new execute_comm(clist, facts)) ;
+		executeP exec_thrd_sync = new execute_thread_sync;
+		if(decoratorFactory != NULL)
+			exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
+        el->append_list(exec_thrd_sync);
+		
+		executeP exec_comm = new execute_comm(clist, facts);
+		if(decoratorFactory != NULL)
+			exec_comm = decoratorFactory->decorate(exec_comm);
+        el->append_list(exec_comm);
       }
       return executeP(el) ;
     }
-    execution_factory ef(impl,fastseq,facts, scheds);
-    return (ef.create_product());
+	executeP exe_rule = new execute_rule(impl, fastseq, facts, scheds);
+	if(decoratorFactory != NULL)
+		exe_rule = decoratorFactory->decorate(exe_rule);
+	return exe_rule;
   }
 
   void recurse_compiler::accept(visitor& v) {
@@ -954,11 +974,13 @@ namespace Loci {
             if(num_threads > 1 && exec_seq.size() > 1 &&
                (*ri).get_info().rule_impl->thread_rule()) {
               execute_par *ep = new execute_par ;
-              parallel_schedule(ep,*li,*ri,facts, scheds) ;
+              parallel_schedule(ep,*li,*ri,facts, scheds, decoratorFactory) ;
               el->append_list(ep) ;
             } else {
-	      execution_factory ef(*ri,sequence(*li),facts, scheds) ;
-              el->append_list(ef.create_product());
+				executeP exec_rule = new execute_rule(*ri,sequence(*li),facts, scheds) ;
+				if(decoratorFactory != NULL)
+					exec_rule = decoratorFactory->decorate(exec_rule);
+				el->append_list(exec_rule);
             }
           }
           li++ ;
