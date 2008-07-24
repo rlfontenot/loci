@@ -73,47 +73,5 @@ namespace Loci {
 	virtual string getName() { return "execute_sequence";};
   };
 
-  class execute_par : public execute_modules {
-    std::vector<executeP> elist ;
-  public:
-    execute_par() {control_thread = true ;}
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-    void append_list(const executeP &emodule) 
-    { if(emodule != 0) elist.push_back(emodule) ; }
-    int size() const { return elist.size() ; }
-	virtual string getName() { return "execute_par";};
-  };
-
-  class execute_create_threads : public execute_modules {
-    int num_threads ;
-  public:
-    execute_create_threads() {control_thread = true ; }
-    execute_create_threads(int nth) : num_threads(nth) {} 
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-	virtual string getName() { return "execute_create_threads";};
-  } ;
-
-  class execute_destroy_threads : public execute_modules {
-  public:
-    execute_destroy_threads() {control_thread = true ; }
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-	virtual string getName() { return "execute_destroy_thread";};
-  } ;
-  
-  class execute_thread_sync : public execute_modules {
-    std::string note ;
-  public:
-    execute_thread_sync() {control_thread = true ; }
-    execute_thread_sync(std::string s) { note = s ; control_thread = true ; }
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-	virtual string getName() { return "execute_thread_sync";};
-  } ;
-
-  const int max_threads = 32 ;
-
 }
 #endif

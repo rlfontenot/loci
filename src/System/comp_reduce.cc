@@ -32,47 +32,12 @@ using std::ostringstream ;
 
 #include <Tools/hash_map.h>
 #include "loci_globs.h"
-using std::list ; 
+using std::list ;
 
 //#define VERBOSE
 
 namespace Loci {
 
-  class joiner_oper : public execute_modules {
-    variable joiner_var ;
-    storeRepP joiner_store ;
-    vector<entitySet> partition ;
-    vector<storeRepP> var_vec ;
-    vector<CPTR<joiner> > join_ops ;
-    CPTR<joiner> joiner_op ;
-  public:
-    joiner_oper(variable jv, storeRepP &js, vector<entitySet> &ptn,
-                vector<storeRepP> &vv, CPTR<joiner> &jo) :
-      joiner_var(jv), joiner_store(js), partition(ptn),var_vec(vv),
-      joiner_op(jo) {
-      for(size_t i=0;i<var_vec.size();++i) {
-        join_ops.push_back(jo->clone()) ;
-        join_ops[i]->SetArgs(joiner_store,var_vec[i]) ;
-      }
-    }
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(ostream &s) const ;
-	virtual string getName() { return "joiner_oper";};
-  } ;
-
-  void joiner_oper::execute(fact_db &facts) {
-    for(size_t i=0;i<var_vec.size();++i) 
-      join_ops[i]->Join(sequence(partition[i])) ;
-    //joiner_op->Join(joiner_store,var_vec[i],sequence(partition[i])) ;
-  }
-
-  void joiner_oper::Print(ostream &s) const {
-    s << "reducing thread results for variable " << joiner_var << endl ;
-    s << "reducing partitions = " << endl ;
-    for(size_t i=0;i<var_vec.size();++i)
-      s << "p["<<i<< "]="<<partition[i]<<endl ;
-  }
-  
   entitySet vmap_source_exist_apply(const vmap_info &vmi, fact_db &facts,
                                     variable reduce_var, sched_db &scheds) {
     variableSet::const_iterator vi ;
@@ -91,7 +56,7 @@ namespace Loci {
     }
     return sources ;
   }
-  
+
   void apply_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     existential_applyrule_analysis(apply, facts, scheds);
   }
@@ -99,200 +64,24 @@ namespace Loci {
   void apply_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     exec_seq = process_applyrule_requests(apply, unit_tag, output_mapping, facts, scheds);
   }
-  
+
   execute_modules_decorator_factory* apply_compiler::decoratorFactory = NULL;
-  
+
   executeP apply_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-    CPTR<execute_list> el = new execute_list ;
-    if(num_threads == 1 || !apply.get_info().rule_impl->thread_rule() ||
-       exec_seq.size() < num_threads*30 ) {
-	   executeP exec_rule = new execute_rule(apply, sequence(exec_seq), facts, scheds);
-	   if(decoratorFactory != NULL)
-		exec_rule = decoratorFactory->decorate(exec_rule);
-	  el->append_list(exec_rule);
-    } else if(!apply.get_info().output_is_parameter &&!output_mapping) {
-      execute_par *ep = new execute_par ;
-      parallel_schedule(ep,exec_seq,apply,facts, scheds, decoratorFactory) ;
-      el->append_list(ep)  ;
-    } else if(apply.get_info().output_is_parameter) {
-      variableSet target = apply.targets() ;
-      fatal(target.size() != 1) ;
-      variable v = *(target.begin()) ;
-      storeRepP sp = facts.get_variable(v) ;
-      vector<entitySet> partition = partition_set(exec_seq,num_threads) ;
-      vector<storeRepP> var_vec ;
-
-      execute_par *ep = new execute_par ;
-      for(size_t i=0;i<partition.size();++i) {
-        storeRepP rp = sp->new_store(EMPTY) ;
-        rp->allocate(partition[i]) ;
-        var_vec.push_back(rp) ;
-		execute_sequence *es = new execute_sequence ;
-
-		executeP exec_rule = new execute_rule(unit_tag,sequence(partition[i]), facts, scheds);
-		if(decoratorFactory != NULL)
-			exec_rule = decoratorFactory->decorate(exec_rule);
-		es->append_list(exec_rule);
-		
-		executeP exe_rule = new execute_rule(apply,sequence(partition[i]), facts, scheds);
-		if(decoratorFactory != NULL)
-			exe_rule = decoratorFactory->decorate(exe_rule);
-		es->append_list(exe_rule);
-		
-        ep->append_list(es) ;
-      }
-      el->append_list(ep) ;
-	  executeP exec_thrd_sync = new execute_thread_sync;
-	  if(decoratorFactory != NULL)
-		exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
-      el->append_list(exec_thrd_sync) ;
-	  
-      rule_implP arule = (apply.get_info().rule_impl);
-      fatal(arule == 0) ;
-      CPTR<joiner> j_op = (arule)->get_joiner() ;
-      fatal(j_op == 0) ;
-      executeP exec_joiner_oper = new joiner_oper(v,sp,partition,var_vec,j_op);
-	  if(decoratorFactory != NULL)
-		exec_joiner_oper = decoratorFactory->decorate(exec_joiner_oper);
-	  el->append_list(exec_joiner_oper) ;
-    } else {
-      variableSet target = apply.targets() ;
-      fatal(target.size() != 1) ;
-      variable v = *(target.begin()) ;
-      storeRepP sp = facts.get_variable(v) ;
-      vector<entitySet> partition = partition_set(exec_seq,num_threads) ;
-
-      const rule_impl::info &rinfo = apply.get_info().desc ;
-      execute_par *ep = new execute_par ;
-      entitySet apply_domain,all_contexts ;
-      vector<entitySet> shards, shard_domains ;
-      for(size_t i=0;i<partition.size();++i) {
-        fatal(rinfo.targets.size() != 1) ;
-        entitySet context = partition[i] ;
-        entitySet pdom = vmap_target_exist(*rinfo.targets.begin(),facts,context, scheds) ;
-        entitySet rem = pdom & apply_domain ;
-        if(rem != EMPTY) {
-          entitySet compute = rem ;
-          const vmap_info &vmi = *rinfo.targets.begin() ;
-          vector<variableSet>::const_reverse_iterator mi ;
-          for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
-            entitySet working = EMPTY ;
-            variableSet::const_iterator vi;
-            for(vi=mi->begin();vi!=mi->end();++vi) {
-              FATAL(!scheds.is_a_Map(*vi)) ;
-              working |= scheds.preimage(*vi,compute).second ;
-            }
-            compute = working ;
-          }
-          compute &= partition[i] ;
-          shards.push_back(compute) ;
-          entitySet sdom = vmap_target_exist(vmi,facts,compute, scheds) ;
-          shard_domains.push_back(sdom) ;
-          context &= ~compute ;
-        }
-        apply_domain |= pdom ;
-        all_contexts |= partition[i] ;
-		executeP exec_rule = new execute_rule(apply,sequence(context),facts, scheds);
-		if(decoratorFactory != NULL)
-			exec_rule = decoratorFactory->decorate(exec_rule);
-		ep->append_list(exec_rule);
-      }
-      if(shards.size() == 0) {
-        el->append_list(ep) ;
-		executeP exec_thrd_sync = new execute_thread_sync;
-		if(decoratorFactory != NULL)
-			exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
-        el->append_list(exec_thrd_sync) ;
-      } else {
-		executeP exec_seq = new execute_sequence;
-		if(decoratorFactory != NULL)
-			exec_seq = decoratorFactory->decorate(exec_seq);
-        ep->append_list(exec_seq) ;
-        bool disjoint = true ;
-        entitySet dom_tot ;
-        for(size_t i=0;i<shards.size();++i) {
-          if((shard_domains[i] & dom_tot) != EMPTY)
-            disjoint = false ;
-          dom_tot += shard_domains[i] ;
-        }
-        variableSet target = apply.targets() ;
-        fatal(target.size() != 1) ;
-        variable v = *(target.begin()) ;
-        storeRepP sp = facts.get_variable(v) ;
-        fatal(sp == 0) ;
-      
-        vector<storeRepP> var_vec ;
-      
-        for(size_t i=0;i<shards.size();++i) {
-          storeRepP rp = sp->new_store(EMPTY) ;
-          rp->allocate(shard_domains[i]) ;
-
-          var_vec.push_back(rp) ;
-          execute_sequence *es = new execute_sequence ;
-		  executeP exec_rule = new execute_rule(unit_tag, sequence(shard_domains[i]), facts, scheds);
-		  if(decoratorFactory != NULL)
-			exec_rule = decoratorFactory->decorate(exec_rule);
-		  es->append_list(exec_rule);
-			
-		  executeP exe_rule = new execute_rule(apply, sequence(shards[i]), facts, scheds);
-		  if(decoratorFactory != NULL)
-			exe_rule = decoratorFactory->decorate(exe_rule);
-		  es->append_list(exec_rule);
-          ep->append_list(es) ;
-        }
-      
-        el->append_list(ep) ;
-        el->append_list(new execute_thread_sync) ;
-        //-----Now join the partial results
-
-        rule_implP arule = (apply.get_info().rule_impl);
-        fatal(arule == 0) ;
-
-        if(disjoint) {
-          execute_par *epj = new execute_par ;
-          epj->append_list(new execute_sequence) ;
-          for(size_t i=0;i<shard_domains.size();++i) {
-            vector<entitySet> ve ;
-            vector<storeRepP> vv ;
-            ve.push_back(shard_domains[i]) ;
-            vv.push_back(var_vec[i]) ;
-            CPTR<joiner> j_op = (arule)->get_joiner() ;
-            fatal(j_op == 0) ;
-            epj->append_list(new joiner_oper(v,sp,ve,vv,j_op)) ;
-          }
-          el->append_list(epj) ;
-          el->append_list(new execute_thread_sync) ;
-        } else {
-          for(size_t i=0;i<shard_domains.size();++i) {
-            execute_par *epj = new execute_par ;
-            vector<entitySet> decompose = partition_set(shard_domains[i],num_threads) ;
-            vector<storeRepP> vv ;
-            vv.push_back(var_vec[i]) ;
-            for(size_t j=0;j<decompose.size();++j) {
-              vector<entitySet> ve ;
-              ve.push_back(decompose[j]) ;
-              CPTR<joiner> j_op = (arule)->get_joiner() ;
-              fatal(j_op == 0) ;
-              epj->append_list(new joiner_oper(v,sp,ve,vv,j_op)) ;
-            }
-            el->append_list(epj) ;
-            el->append_list(new execute_thread_sync) ;
-          }
-        }
-      }
-    }
-    el->append_list(new execute_thread_sync) ;
-    return executeP(el) ;
+    executeP exec_rule = new execute_rule(apply, sequence(exec_seq), facts, scheds);
+    if(decoratorFactory != NULL)
+      exec_rule = decoratorFactory->decorate(exec_rule);
+    return exec_rule ;
   }
 
   //targetsize >= tcount, is real size(bytes) of target buffer while tcount is valid bytes in target buffer
-  void myJoin(void * source, int scount, unsigned char *&target, int &tcount,  int &targetSize, vector<CPTR<joiner> > join_op) { 
+  void myJoin(void * source, int scount, unsigned char *&target, int &tcount,  int &targetSize, vector<CPTR<joiner> > join_op) {
     int targetUnpackPosition = 0; //position pointer for unpacking target to tp
     int sourceUnpackPosition = 0; //position pointer for unpacking source to sp
     int targetPackPosition = 0; //position pointer for packing target from tp
     int totalCountLeft = tcount; //total number of bytes still to be processesed in next loops
     entitySet e;
-    sequence seq;  
+    sequence seq;
     tcount = 0;
     int num_reduce = join_op.size();
     for(int i = 0; i < num_reduce; i++) {
@@ -335,12 +124,12 @@ namespace Loci {
 	}
 	tp->pack(target, targetPackPosition, targetSize, e);
       }
-    
+
       tcount += sizeAfterJoin;
     }
   }
 
-  unsigned char * groupAllReduce(void *sbuf, int scount, int &rcount, 
+  unsigned char * groupAllReduce(void *sbuf, int scount, int &rcount,
 				 vector<CPTR<joiner> > join_op, MPI_Comm comm) {
     //get number of processors and my rank
     int myid, numprocs;
@@ -350,7 +139,7 @@ namespace Loci {
     int validCount = scount;
     unsigned char * rbuf = new unsigned char[rcount];
     memcpy(rbuf, sbuf, rcount);
-    if(numprocs == 1) 
+    if(numprocs == 1)
       return rbuf;
 
     MPI_Status status;
@@ -371,31 +160,31 @@ namespace Loci {
     }
 
     int countTag = 0; //tag to send send and recvcount between processors
-    int tag1 = 1; //tag for sendrecv call    
+    int tag1 = 1; //tag for sendrecv call
     int tag2 = 2; //tag for send and recv calls
     unsigned char *tempRecvBuf; //temperory receive buffer
     int tempCount;
     int partner; //communication partner's id
-  
+
     //for keeping data about virtual processor's buffer has been initialized or not
     //assigned[i] keeps the data of the virtual processor whose id is i+numprocs
     bool *assigned = 0;
-    if(extraProcessors > 0) 
-      assigned = new bool[extraProcessors]; 
-  
-  //assign false value for all virtual processors since their buffer is not initalized
+    if(extraProcessors > 0)
+      assigned = new bool[extraProcessors];
+
+    //assign false value for all virtual processors since their buffer is not initalized
     for(int i = 0; i < extraProcessors; i++)
       assigned[i] = false;
     storeRepP tp, sp;
-  
+
     for(int i = 0; i < dimension ; i++) {
       partner = (myid ^ (1<<i));
-    
+
       if(partner >= numprocs) { //if partner is virtual
 	if(assigned[partner-numprocs]) { //if virtual partner's buffer has been initialized
 	  partner = partner ^ (1<<(dimension-1)); //find the real processor who own the virtual id
 	  if(partner == myid) { //if I own the virtual id
-	  
+
 	    myJoin(rVirtualBuf, virtualValidCount, rbuf, validCount, rcount, join_op);
 	    if(virtualRCount < validCount) {
 	      while(virtualRCount < validCount)
@@ -407,10 +196,10 @@ namespace Loci {
 	    memcpy(rVirtualBuf, rbuf, validCount);
 	  }
 	  else {
-	    MPI_Sendrecv(&validCount, 1, MPI_INT, partner, countTag, 
+	    MPI_Sendrecv(&validCount, 1, MPI_INT, partner, countTag,
 			 &tempCount, 1, MPI_INT, partner, countTag, comm, &status);
 	    tempRecvBuf = new unsigned char[tempCount];
-	    MPI_Sendrecv(rbuf, validCount, MPI_PACKED, partner, tag1, 
+	    MPI_Sendrecv(rbuf, validCount, MPI_PACKED, partner, tag1,
 			 tempRecvBuf, tempCount, MPI_PACKED, partner, tag1, comm, &status);
 	    myJoin(tempRecvBuf, tempCount, rbuf, validCount, rcount, join_op);
 	    delete [] tempRecvBuf;
@@ -430,34 +219,34 @@ namespace Loci {
 	  }
 	  else {
 	    MPI_Send(&validCount, 1, MPI_INT, partner, countTag, comm);
-	 
+
 	    MPI_Send(rbuf, validCount, MPI_PACKED, partner, tag2, comm);
 	  }
 	}
       }
-   
+
       else { //if partner is not virtual
-	MPI_Sendrecv(&validCount, 1, MPI_INT, partner, countTag, 
+	MPI_Sendrecv(&validCount, 1, MPI_INT, partner, countTag,
 		     &tempCount, 1, MPI_INT, partner, countTag, comm, &status);
-      
+
 	tempRecvBuf = new unsigned char[tempCount];
-      
-	MPI_Sendrecv(rbuf, validCount, MPI_PACKED, partner, tag1, 
+
+	MPI_Sendrecv(rbuf, validCount, MPI_PACKED, partner, tag1,
 		     tempRecvBuf, tempCount, MPI_PACKED, partner, tag1, comm, &status);
 	myJoin(tempRecvBuf, tempCount, rbuf, validCount, rcount, join_op);
 	delete [] tempRecvBuf;
       }
-    
+
       if(meVirtual) { //if i act also as a virtual processor
 	partner = (myVirtualId ^ (1<<i));
 	if(assigned[myVirtualId-numprocs]) { //if my virtual buffer has been initialized
 	  if(partner >= numprocs) { //if partner is virtual
 	    if(assigned[partner-numprocs]) { //if virtual partner's buffer has been initialized
 	      partner = partner ^ (1<<(dimension-1)); //find the real processor who own the virtual id
-	      MPI_Sendrecv(&virtualValidCount, 1, MPI_INT, partner, countTag, 
+	      MPI_Sendrecv(&virtualValidCount, 1, MPI_INT, partner, countTag,
 			   &tempCount, 1, MPI_INT, partner, countTag, comm, &status);
 	      tempRecvBuf = new unsigned char[tempCount];
-	      MPI_Sendrecv(rVirtualBuf, virtualValidCount, MPI_PACKED, partner, tag1, 
+	      MPI_Sendrecv(rVirtualBuf, virtualValidCount, MPI_PACKED, partner, tag1,
 			   tempRecvBuf, tempCount, MPI_PACKED, partner, tag1, comm, &status);
 
 	      myJoin(tempRecvBuf, tempCount, rVirtualBuf, virtualValidCount, virtualRCount, join_op);
@@ -470,10 +259,10 @@ namespace Loci {
 	    }
 	  }
 	  else { //if partner is not virtual
-	    //if virtual partner is myid then don't do anything because it has been taken care of 
+	    //if virtual partner is myid then don't do anything because it has been taken care of
 	    //in the loops before this loop. if virtual partner is not myid then
-	    if(myid != partner) { 
-	      MPI_Sendrecv(&virtualValidCount, 1, MPI_INT, partner, countTag, 
+	    if(myid != partner) {
+	      MPI_Sendrecv(&virtualValidCount, 1, MPI_INT, partner, countTag,
 			   &tempCount, 1, MPI_INT, partner, countTag, comm, &status);
 	      tempRecvBuf = new unsigned char[tempCount];
 	      MPI_Sendrecv(rVirtualBuf, virtualValidCount, MPI_PACKED, partner, tag1,
@@ -498,11 +287,11 @@ namespace Loci {
 	      virtualValidCount = tempCount;
 	    }
 	  }
-	  else { 
+	  else {
 	    //if partner is not virtual
-	    //if virtual partner is myid then don't do anything because it has been taken care of 
+	    //if virtual partner is myid then don't do anything because it has been taken care of
 	    //in the loops before this loop. if virtual partner is not myid then
-	    if(partner != myid) { 
+	    if(partner != myid) {
 	      MPI_Recv(&tempCount, 1, MPI_INT, partner, countTag, comm, &status);
 	      if(virtualRCount < tempCount) {
 		while(virtualRCount < tempCount)
@@ -554,8 +343,8 @@ namespace Loci {
       global_join_ops[i]->Join(seq) ;
       tp->pack(result_ptr, pack_result_position, *size, e) ;
     }
-  } 
-  
+  }
+
   execute_param_red::execute_param_red(vector<variable> red, vector<rule> unit, vector<CPTR<joiner> > j_op) {
     reduce_vars = red ;
     unit_rules = unit ;
@@ -566,7 +355,7 @@ namespace Loci {
   execute_param_red::~execute_param_red() {
     MPI_Op_free(&create_join_op) ;
   }
-  
+
   void execute_param_red::execute(fact_db &facts) {
     unsigned char *send_ptr, *result_ptr;
     int size = 0;
@@ -584,7 +373,7 @@ namespace Loci {
     }
 #ifndef GROUP_ALLREDUCE
     result_ptr = new unsigned char[size] ;
-   
+
     global_join_ops = join_ops;
     MPI_Allreduce(send_ptr, result_ptr, size, MPI_PACKED, create_join_op, MPI_COMM_WORLD) ;
     position = 0;
@@ -613,7 +402,7 @@ namespace Loci {
 
   void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed()) {
-      	fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
       for(size_t i = 0; i < unit_rules.size(); i++) {
 	entitySet targets ;
 	targets = scheds.get_existential_info(reduce_vars[i], unit_rules[i]) ;
@@ -624,7 +413,7 @@ namespace Loci {
       }
     }
   }
-  
+
   void reduce_param_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       for(size_t i = 0; i < unit_rules.size(); i++) {
@@ -633,11 +422,11 @@ namespace Loci {
 	scheds.variable_request(reduce_vars[i],requests) ;
       }
     }
-  } 
-  
+  }
+
   execute_modules_decorator_factory* reduce_param_compiler::decoratorFactory = NULL;
-    
-  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) { 
+
+  executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       vector<variable> red ;
       vector<rule> ulist ;
@@ -651,35 +440,30 @@ namespace Loci {
         }
       }
       if(red.size() > 0) {
-		executeP execute = new execute_param_red(red,ulist,jop);
-		if (decoratorFactory != NULL)
-			execute = decoratorFactory->decorate(execute);
+        executeP execute = new execute_param_red(red,ulist,jop);
+        if (decoratorFactory != NULL)
+          execute = decoratorFactory->decorate(execute);
         return execute;
-	 } else
+      } else
         return 0 ;
 
-      //        CPTR<execute_sequence> el = new execute_sequence ; 
-      //el->append_list(new execute_thread_sync) ;
- 
-      //      el->append_list(new execute_param_red(reduce_vars, unit_rules, join_ops)) ;
-      //      return executeP(el) ;
     }
     if(verbose || MPI_processes > 1) {
       ostringstream oss ;
-      for(size_t i = 0; i < reduce_vars.size(); i++) 
+      for(size_t i = 0; i < reduce_vars.size(); i++)
         oss << "reduce param " << reduce_vars[i] << std::endl;
-	  executeP exec_msg = executeP(new execute_msg(oss.str())) ;
-	  if(decoratorFactory != NULL)
-		exec_msg = decoratorFactory->decorate(exec_msg);
+      executeP exec_msg = executeP(new execute_msg(oss.str())) ;
+      if(decoratorFactory != NULL)
+        exec_msg = decoratorFactory->decorate(exec_msg);
       return exec_msg;
     } else
       return 0 ;
-    
+
   }
-  
+
   void reduce_store_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
   }
-  
+
   void swap_send_recv(list<comm_info> &cl) {
     list<comm_info>::iterator li ;
     for(li=cl.begin();li!=cl.end();++li) {
@@ -692,26 +476,26 @@ namespace Loci {
   //For duplication of work only.
   //It adds information of reduce_proc_able_entities and reduction_output_map to sched_db.
   void set_reduction_info(variableSet vars, sched_db &scheds, fact_db &facts) {
-    entitySet reduce_filter = ~EMPTY ; 
+    entitySet reduce_filter = ~EMPTY ;
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     if(multilevel_duplication)
-      //Because we are calling context_for_map_output multiple times, 
+      //Because we are calling context_for_map_output multiple times,
       //we have made sure that we have full preimage of any output map
       //for comp_entities.
-      //That means comp entities can be successfully computed for 
+      //That means comp entities can be successfully computed for
       //any reduction rule
       reduce_filter = d->comp_entities ;
     else
-      //Otherwise we can gurantee successful computation of only my_entities 
-      //for reduction rules 
+      //Otherwise we can gurantee successful computation of only my_entities
+      //for reduction rules
       reduce_filter = d->my_entities ;
-    
+
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
       variable v = *vi ;
       //Find information for reduction variables
       ruleSet r = scheds.get_existential_rules(v);
       bool outputmap = false;
-      
+
       entitySet reduce_proc_able_entities = ~EMPTY;
       for(ruleSet::const_iterator ri = r.begin();
 	  ri != r.end(); ri++) {
@@ -726,9 +510,9 @@ namespace Loci {
 	tmpSet = ~EMPTY;
       else
 	tmpSet = EMPTY;
-      
+
       //if mapping in output, reduce_proc_able_entities are based on minimal approach
-      //which finds intersection entities that can be computed by 
+      //which finds intersection entities that can be computed by
       //all apply and unit rules
       //if no mapping in output then, then it is union of entities produced by rules
       for(ruleSet::const_iterator ri = r.begin();
@@ -740,13 +524,13 @@ namespace Loci {
 	    tmpSet &= scheds.get_proc_able_entities(v, *ri);
 	}
       }
-      
+
       reduce_proc_able_entities &= tmpSet;
-      //If mapping in output, we may not be able compute entities 
-      //outside reduce_filter successfully 
+      //If mapping in output, we may not be able compute entities
+      //outside reduce_filter successfully
       if(outputmap)
 	reduce_proc_able_entities &= reduce_filter;
-      
+
       //Information needed for later use
       scheds.set_reduce_proc_able_entities(v, reduce_proc_able_entities);
       scheds.set_reduction_outputmap(v, outputmap);
@@ -769,14 +553,14 @@ namespace Loci {
       entitySet requests = scheds.get_variable_requests(reduce_var) ;
       entitySet shadow;
       //Shadow should be empty for the variable which is going to be duplicated
-      //Shadow is going to be entities need to be sent to the owner processor 
+      //Shadow is going to be entities need to be sent to the owner processor
       if(!duplicate_work || !scheds.is_duplicate_variable(reduce_var)) {
 	shadow = scheds.get_variable_shadow(reduce_var) ;
 	shadow &= requests ;
       }
 
       list<comm_info> slist ;
-      //If variable is duplicate variable, we don't need to send request to the 
+      //If variable is duplicate variable, we don't need to send request to the
       //other procesors because owner processor can ablways compute requests
       if(!duplicate_work || !scheds.is_duplicate_variable(reduce_var)) {
 	entitySet response = send_requests(shadow, reduce_var,facts,slist) ;
@@ -785,7 +569,7 @@ namespace Loci {
       }
 
       clist = sort_comm(request_comm,facts) ;
-      
+
 #ifdef VERBOSE
       if(shadow != EMPTY) {
 	debugout << "shadow = " << shadow << endl ;
@@ -796,72 +580,72 @@ namespace Loci {
     }
   }
 
-class execute_comm_reduce : public execute_modules {
-  vector<pair<int,vector<send_var_info> > > send_info ;
-  vector<pair<int,vector<recv_var_info> > > recv_info ;
-  std::vector<std::vector<storeRepP> > send_vars ; 
-  std::vector<std::vector<storeRepP> > recv_vars ; 
-  CPTR<joiner> join_op ;
-  int *maxr_size, *maxs_size, *r_size, *s_size, *recv_sizes ;
-  unsigned char **recv_ptr , **send_ptr ;
-  MPI_Request *request;
-  MPI_Status *status ;
-public:
-  execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
-		      CPTR<joiner> jop) ;
-  ~execute_comm_reduce() ;
-  virtual void execute(fact_db &facts) ;
-  virtual void Print(std::ostream &s) const ;
-  virtual string getName() { return "execute_comm_reduce";};
-} ; 
+  class execute_comm_reduce : public execute_modules {
+    vector<pair<int,vector<send_var_info> > > send_info ;
+    vector<pair<int,vector<recv_var_info> > > recv_info ;
+    std::vector<std::vector<storeRepP> > send_vars ;
+    std::vector<std::vector<storeRepP> > recv_vars ;
+    CPTR<joiner> join_op ;
+    int *maxr_size, *maxs_size, *r_size, *s_size, *recv_sizes ;
+    unsigned char **recv_ptr , **send_ptr ;
+    MPI_Request *request;
+    MPI_Status *status ;
+  public:
+    execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
+                        CPTR<joiner> jop) ;
+    ~execute_comm_reduce() ;
+    virtual void execute(fact_db &facts) ;
+    virtual void Print(std::ostream &s) const ;
+    virtual string getName() { return "execute_comm_reduce";};
+  } ;
 
-execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
-					 fact_db &facts,
-					 CPTR<joiner> jop) {
-  join_op = jop ;
-  HASH_MAP(int,vector<send_var_info> ) send_data ;
-  HASH_MAP(int,vector<recv_var_info> ) recv_data ;
-  list<comm_info>::const_iterator cli ;
-  intervalSet send_procs, recv_procs ;
-  for(cli=plist.begin();cli!=plist.end();++cli) {
-    variable v = cli->v ;
-    if(cli->send_set.size() > 0) {
-      int send_proc = cli->processor ;
-      send_procs += send_proc ;
-      entitySet send_set = cli->send_set ;
-      send_data[send_proc].push_back(send_var_info(v,send_set)) ;
+  execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
+                                           fact_db &facts,
+                                           CPTR<joiner> jop) {
+    join_op = jop ;
+    HASH_MAP(int,vector<send_var_info> ) send_data ;
+    HASH_MAP(int,vector<recv_var_info> ) recv_data ;
+    list<comm_info>::const_iterator cli ;
+    intervalSet send_procs, recv_procs ;
+    for(cli=plist.begin();cli!=plist.end();++cli) {
+      variable v = cli->v ;
+      if(cli->send_set.size() > 0) {
+        int send_proc = cli->processor ;
+        send_procs += send_proc ;
+        entitySet send_set = cli->send_set ;
+        send_data[send_proc].push_back(send_var_info(v,send_set)) ;
+      }
+      if(cli->recv_set.size() > 0) {
+        int recv_proc = cli->processor ;
+        sequence recv_seq = cli->recv_set ;
+        recv_procs += recv_proc ;
+        recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
+      }
     }
-    if(cli->recv_set.size() > 0) {
-      int recv_proc = cli->processor ;
-      sequence recv_seq = cli->recv_set ;
-      recv_procs += recv_proc ;
-      recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
-    }
-  }
-    
+
     for(intervalSet::const_iterator ii=send_procs.begin();
         ii!=send_procs.end();
         ++ii) {
       send_info.push_back(make_pair(*ii,send_data[*ii])) ;
-      send_vars.push_back(std::vector<storeRepP>()) ; 
-      for(size_t i=0;i<send_data[*ii].size();++i) 
-        send_vars.back().push_back(facts.get_variable(send_data[*ii][i].v)) ; 
+      send_vars.push_back(std::vector<storeRepP>()) ;
+      for(size_t i=0;i<send_data[*ii].size();++i)
+        send_vars.back().push_back(facts.get_variable(send_data[*ii][i].v)) ;
     }
-    
+
     for(intervalSet::const_iterator ii=recv_procs.begin();
         ii!=recv_procs.end();
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
-      recv_vars.push_back(std::vector<storeRepP>()) ; 
-      for(size_t i=0;i<recv_data[*ii].size();++i) 
-        recv_vars.back().push_back(facts.get_variable(recv_data[*ii][i].v)) ; 
+      recv_vars.push_back(std::vector<storeRepP>()) ;
+      for(size_t i=0;i<recv_data[*ii].size();++i)
+        recv_vars.back().push_back(facts.get_variable(recv_data[*ii][i].v)) ;
     }
-    
+
     int nsend = send_info.size() ;
     int nrecv = recv_info.size() ;
     r_size = new int[nrecv] ;
-    recv_sizes = new int[nrecv] ; 
-    maxr_size = new int[nrecv] ; 
+    recv_sizes = new int[nrecv] ;
+    maxr_size = new int[nrecv] ;
     maxs_size = new int[nsend] ;
     s_size = new int[nsend] ;
     for(int i = 0; i < nrecv; ++i) {
@@ -872,17 +656,17 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       maxs_size[i] = sizeof(int) ;
       s_size[i] = 0 ;
     }
-    
+
     recv_ptr = new unsigned char*[max(nrecv,1)] ;
     send_ptr = new unsigned char*[max(nsend,1)] ;
     request =  new MPI_Request[nrecv] ;
     status =  new MPI_Status[nrecv] ;
-}
+  }
 
   execute_comm_reduce::~execute_comm_reduce() {
     delete [] maxr_size ;
     delete [] maxs_size ;
-    delete [] recv_sizes ; 
+    delete [] recv_sizes ;
     delete [] r_size ;
     delete [] s_size ;
     delete [] recv_ptr ;
@@ -891,16 +675,16 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     delete [] status ;
   }
 
-  static unsigned char *recv_ptr_buf = 0; 
-  static int recv_ptr_buf_size = 0; 
-  static unsigned char *send_ptr_buf = 0 ; 
-  static int send_ptr_buf_size = 0 ; 
-    
+  static unsigned char *recv_ptr_buf = 0;
+  static int recv_ptr_buf_size = 0;
+  static unsigned char *send_ptr_buf = 0 ;
+  static int send_ptr_buf_size = 0 ;
+
   void execute_comm_reduce::execute(fact_db  &facts) {
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
     std::vector<int> send_index ;
-    std::vector<int> recv_index ; 
+    std::vector<int> recv_index ;
     int total_size = 0 ;
     MPI_Request *re_request = 0;
     MPI_Status *re_status = 0 ;
@@ -909,16 +693,16 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       total_size += maxr_size[i] ;
     }
 
-    if(recv_ptr_buf_size < total_size) { 
-      if(recv_ptr_buf) 
-        delete[] recv_ptr_buf ; 
-      recv_ptr_buf = new unsigned char[total_size] ; 
-      recv_ptr_buf_size = total_size ; 
-    } 
-    recv_ptr[0] = recv_ptr_buf ; 
+    if(recv_ptr_buf_size < total_size) {
+      if(recv_ptr_buf)
+        delete[] recv_ptr_buf ;
+      recv_ptr_buf = new unsigned char[total_size] ;
+      recv_ptr_buf_size = total_size ;
+    }
+    recv_ptr[0] = recv_ptr_buf ;
     for(int i=1;i<nrecv;++i)
       recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
-    
+
     for(int i=0;i<nrecv;++i) {
       int proc = recv_info[i].first ;
       MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
@@ -945,16 +729,16 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       }
       total_size += maxs_size[i] ;
     }
-    if(send_ptr_buf_size < total_size) { 
-      if(send_ptr_buf) 
-        delete[] send_ptr_buf ; 
-      send_ptr_buf = new unsigned char[total_size] ; 
-      send_ptr_buf_size = total_size ; 
-    } 
-    send_ptr[0] = send_ptr_buf ; 
+    if(send_ptr_buf_size < total_size) {
+      if(send_ptr_buf)
+        delete[] send_ptr_buf ;
+      send_ptr_buf = new unsigned char[total_size] ;
+      send_ptr_buf_size = total_size ;
+    }
+    send_ptr[0] = send_ptr_buf ;
     for(int i = 1; i < nsend; i++)
       send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
-    // Pack the buffer for sending 
+    // Pack the buffer for sending
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
       if(!resend_procs.inSet(send_info[i].first)) {
@@ -964,8 +748,8 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	}
       }
       else
-	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
-      
+	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ;
+
     }
     // Send Buffer
     for(int i=0;i<nsend;++i) {
@@ -980,7 +764,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       FATAL(err != MPI_SUCCESS) ;
       for(int i = 0 ; i < nrecv; i++) {
         int rcv_sizes ;
-	MPI_Get_count(&status[i], MPI_BYTE, &rcv_sizes) ;  
+	MPI_Get_count(&status[i], MPI_BYTE, &rcv_sizes) ;
 	if(rcv_sizes == sizeof(int)) {
 	  rerecv_procs += recv_info[i].first ;
 	  recv_index.push_back(i) ;
@@ -1009,7 +793,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     }
     rerecv_size = rerecv_procs.size() ;
     resend_size = resend_procs.size() ;
-    
+
     if(rerecv_size > 0) {
       re_request =  new MPI_Request[rerecv_size] ;
       re_status =  new MPI_Status[rerecv_size] ;
@@ -1019,7 +803,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       recv_ptr[recv_index[i]] = new unsigned char[maxr_size[recv_index[i]]] ;
       MPI_Irecv(recv_ptr[recv_index[i]], maxr_size[recv_index[i]], MPI_PACKED, proc, 2, MPI_COMM_WORLD, &re_request[i]) ;
     }
-    
+
     for(int i=0;i<resend_size;++i) {
       int loc_pack = 0 ;
       send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
@@ -1028,7 +812,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	sp->pack(send_ptr[send_index[i]], loc_pack,maxs_size[send_index[i]],send_info[send_index[i]].second[j].set);
       }
     }
-    
+
     // Send Buffer
     for(int i=0;i<resend_size;++i) {
       int proc = send_info[send_index[i]].first ;
@@ -1050,7 +834,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	sr->allocate(entitySet(recv_info[recv_index[i]].second[j].seq)) ;
 	sr->unpack(recv_ptr[recv_index[i]], loc_unpack, maxr_size[recv_index[i]],
 		   recv_info[recv_index[i]].second[j].seq) ;
-	
+
 	CPTR<joiner> op = join_op->clone() ;
 	op->SetArgs(sp,sr) ;
 	op->Join(recv_info[recv_index[i]].second[j].seq) ;
@@ -1062,7 +846,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
       delete [] re_request ;
     }
   }
-  
+
   void execute_comm_reduce::Print(ostream &s) const {
     int sz = 0 ;
     if(send_info.size()+recv_info.size() > 0) {
@@ -1080,7 +864,7 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
 	  s << " to " << send_info[i].first << endl ;
           printIndent(s) ;
         }
-	s << " Total entities sent = " << sz << endl ;	
+	s << " Total entities sent = " << sz << endl ;
       }
       sz = 0 ;
       if(recv_info.size() > 0) {
@@ -1095,33 +879,32 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
           printIndent(s) ;
         }
         printIndent(s) ;
-	s << " Total entities recieved = " << sz << endl ;	
+	s << " Total entities recieved = " << sz << endl ;
       }
       s << "}" << endl ;
     }
   }
-  
+
   execute_modules_decorator_factory* reduce_store_compiler::decoratorFactory = NULL;
-  
+
   executeP reduce_store_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_sequence> el = new execute_sequence ;
       executeP exec_comm_reduce = new execute_comm_reduce(rlist, facts, join_op);
-	  if (decoratorFactory != NULL)
-		exec_comm_reduce = decoratorFactory->decorate(exec_comm_reduce);
+      if (decoratorFactory != NULL)
+        exec_comm_reduce = decoratorFactory->decorate(exec_comm_reduce);
       el->append_list(exec_comm_reduce);
-	  executeP exec_comm = new execute_comm(clist, facts);
-	  if(decoratorFactory != NULL)
-		exec_comm = decoratorFactory->decorate(exec_comm);
+      executeP exec_comm = new execute_comm(clist, facts);
+      if(decoratorFactory != NULL)
+        exec_comm = decoratorFactory->decorate(exec_comm);
       el->append_list(exec_comm) ;
       if(verbose || MPI_processes > 1) {
         ostringstream oss ;
         oss << "reduce store " << reduce_var ;
-		executeP exec_msg = new execute_msg(oss.str());
-		if(decoratorFactory != NULL)
-			exec_msg = decoratorFactory->decorate(exec_msg);
+        executeP exec_msg = new execute_msg(oss.str());
+        if(decoratorFactory != NULL)
+          exec_msg = decoratorFactory->decorate(exec_msg);
         el->append_list(exec_msg) ;
-		
       }
       return executeP(el) ;
     }
@@ -1129,11 +912,11 @@ execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
     if(verbose || MPI_processes > 1) {
       ostringstream oss ;
       oss << "reduce store " << reduce_var ;
-	  executeP exec_msg2 = new execute_msg(oss.str());
-	  if(decoratorFactory != NULL)
-		exec_msg2 = decoratorFactory->decorate(exec_msg2);
+      executeP exec_msg2 = new execute_msg(oss.str());
+      if(decoratorFactory != NULL)
+        exec_msg2 = decoratorFactory->decorate(exec_msg2);
       return executeP(exec_msg2) ;
     }
-    return executeP(0) ; 
+    return executeP(0) ;
   }
 }

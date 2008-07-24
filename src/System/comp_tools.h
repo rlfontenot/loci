@@ -93,11 +93,6 @@ namespace Loci {
   
   std::list<comm_info> sort_comm(std::list<comm_info> slist, fact_db &facts) ;
   
-  void parallel_schedule(execute_par *ep,const entitySet &exec_set,
-                         const rule &impl, fact_db &facts, sched_db &scheds,
-						 execute_modules_decorator_factory* decoratorFactory) ;
-  std::vector<entitySet> partition_set(const entitySet &s,int nthreads) ;
-  
   void create_user_function(unsigned char* , unsigned char* , int*,
                             MPI_Datatype* ) ;
   

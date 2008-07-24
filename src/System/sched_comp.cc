@@ -868,7 +868,7 @@ namespace Loci {
 
   executeP graph_compiler::
   execution_schedule(fact_db &facts, sched_db &scheds,
-                     const variableSet& alloc, int nth) {
+                     const variableSet& alloc) {
 
     CPTR<execute_list> schedule = new execute_list ;
 
@@ -886,14 +886,12 @@ namespace Loci {
         if((MPI_processes > 1))
           schedule->append_list(new allocate_all_vars(facts,scheds,alloc,false)) ;
 
-    schedule->append_list(new execute_create_threads(nth)) ;
     schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));
     executeP top_level_schedule = (rule_process[baserule])->
       create_execution_schedule(facts, scheds) ;
     if(top_level_schedule == 0) 
       return executeP(0) ;
     schedule->append_list(top_level_schedule) ;
-    schedule->append_list(new execute_destroy_threads) ;
     if(!use_dynamic_memory)
       if(profile_memory_usage) {
         variableSet profile_vars = facts.get_typed_variables() ;

@@ -82,7 +82,6 @@ using std::vector ;
 namespace Loci {
   int MPI_processes = 1;
   int MPI_rank = 0 ;
-  int num_threads = 1 ;
   int method = 3 ;
   bool verbose = false ;
   /////////////////////////////
@@ -288,10 +287,6 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--verbose")) {
         verbose = true ;
         i++ ;
-      } else if(!strcmp((*argv)[i],"--threads")) {
-        cerr << "warning --threads not yet implemented" << endl ;
-        num_threads = atoi((*argv)[i+1]) ;
-        i+=2 ;
       } else if(!strcmp((*argv)[i],"--scheduleoutput")) {
         schedule_output = true ;
         i++ ;

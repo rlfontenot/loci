@@ -87,7 +87,8 @@ namespace Loci {
 	
 	class execute_modules_decorator_factory {
 		public:
-			virtual executeP decorate(executeP module) = 0;
+          virtual executeP decorate(executeP module) = 0;
+          virtual ~execute_modules_decorator_factory() {}
 	};
 	
 	class execute_modules_timer_factory : public execute_modules_decorator_factory {

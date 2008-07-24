@@ -699,8 +699,6 @@ namespace Loci {
                                      fact_db &facts,
                                      const variableSet& target,
                                      int nth) {
-    num_threads = min(nth,max_threads) ;
-
     variableSet parVars = target ;
     parVars += facts.get_extensional_facts() ;
     rule_db par_rdb ;
@@ -922,7 +920,7 @@ namespace Loci {
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
     executeP sched =  compile_graph.execution_schedule
-      (facts,scheds,initial_vars,num_threads) ;
+      (facts,scheds,initial_vars) ;
 
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {
@@ -970,7 +968,6 @@ namespace Loci {
                                               fact_db &facts,
                                               const variableSet& target,
                                               int nth) {
-    num_threads = min(nth,max_threads) ;
     // since this function is always executed inside
     // the create_execution_schedule function so the
     // fact database is always in the local number state
@@ -1083,7 +1080,7 @@ namespace Loci {
       cout << "[Internal] creating execution schedule..." << endl;
 #endif
     executeP sched =  compile_graph.execution_schedule
-      (facts,scheds,initial_vars,num_threads) ;
+      (facts,scheds,initial_vars) ;
 
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {

@@ -38,20 +38,20 @@ namespace Loci {
   void impl_recurse_compiler::accept(visitor& v) {
     v.visit(*this) ;
   }
-  
+
   void impl_recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
 
 #ifdef VERBOSE
     debugout << "set var existence for recursive impl rule " << impl << endl ;
 #endif
-      
+
     variableSet::const_iterator vi ;
     variableSet tvars ;
     tvars = impl.targets() ;
     fcontrol &fctrl = control_set ;
     const rule_impl::info &finfo = impl.get_info().desc ;
     warn(impl.type() == rule::INTERNAL) ;
-    
+
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
@@ -61,7 +61,7 @@ namespace Loci {
     }
     entitySet sources = ~EMPTY ;
     entitySet constraints = ~EMPTY ;
-    
+
     set<vmap_info>::const_iterator si ;
     for(si=finfo.sources.begin();si!=finfo.sources.end();++si) {
       if((si->var & tvars) == EMPTY)
@@ -72,25 +72,25 @@ namespace Loci {
           for(vi=si->mapping[0].begin();vi!=si->mapping[0].end();++vi) {
             sources &= scheds.variable_existence(*vi) ;
           }
-        } 
-        
+        }
+
         tvars += si->var ;
         vector<variableSet::const_iterator> miv(num_maps) ;
         for(int i=0;i<num_maps;++i)
           miv[i] = si->mapping[i].begin() ;
-        
+
         for(vi=si->var.begin();vi!=si->var.end();++vi) {
           int i = 0 ;
           do {
             fcontrol::mapping_info minfo ;
             for(int j=0;j!=num_maps;++j) {
               FATAL(!scheds.is_a_Map(*(miv[j]))) ;
-              MapRepP m = MapRepP(facts.get_variable(*(miv[j]))->getRep()) ;  
+              MapRepP m = MapRepP(facts.get_variable(*(miv[j]))->getRep()) ;
               minfo.mapvec.push_back(m) ;
               minfo.mapvar.push_back(*(miv[j])) ;
             }
             minfo.v = *vi ;
-            
+
             for(i=0;(i!=num_maps) &&(++(miv[i]) == si->mapping[i].end());++i) {
               miv[i] = si->mapping[i].begin() ;
             }
@@ -98,13 +98,13 @@ namespace Loci {
           } while(i!=num_maps) ;
         }
       }
-    } 
+    }
     for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
       int num_maps = si->mapping.size() ;
       vector<variableSet::const_iterator> miv(num_maps) ;
       for(int i=0;i<num_maps;++i)
         miv[i] = si->mapping[i].begin() ;
-      
+
       for(vi=si->var.begin();vi!=si->var.end();++vi) {
         int i = 0 ;
         do {
@@ -116,7 +116,7 @@ namespace Loci {
             minfo.mapvar.push_back(*(miv[j])) ;
           }
           minfo.v = *vi ;
-          
+
           for(i=0;(i!=num_maps) &&(++(miv[i]) == si->mapping[i].end());++i) {
             miv[i] = si->mapping[i].begin() ;
           }
@@ -137,7 +137,7 @@ namespace Loci {
     sources += fill_entitySet(sources,facts) ;
     if(fctrl.use_constraints)
       constraints += fill_entitySet(constraints,facts) ;
-    
+
     fctrl.nr_sources = sources ;
 
     fctrl.constraints = constraints ;
@@ -147,7 +147,7 @@ namespace Loci {
           control_set.recursion_maps.size() != 1 ||
           control_set.target_maps.size() != 1 ||
           fctrl.use_constraints) ;
-    
+
     fcontrol::mapping_info &rmap = fctrl.recursion_maps[0] ;
     fcontrol::mapping_info &tmap = fctrl.target_maps[0] ;
     vector<multiMap> read_maps,read_map_inv ;
@@ -160,7 +160,7 @@ namespace Loci {
     }
     variable rvar = *(tvars.begin()) ;
 
-    
+
     entitySet sdelta = scheds.variable_existence(rvar) ;
 
     entitySet initial = sdelta ;
@@ -181,10 +181,10 @@ namespace Loci {
       entitySet newdomain = scheds.preimage(rmap.mapvar[j],domain).first ;
 #ifdef VERBOSE
       debugout << "j = " << j << ", domain = " << domain
-                         << ", newdomain = " << newdomain << endl ;
+               << ", newdomain = " << newdomain << endl ;
 #endif
       if(domain == ~EMPTY) {
-        if(MPI_processes == 1) 
+        if(MPI_processes == 1)
           cerr << "problem in recurse compiler for rule = "<< impl << endl ;
         else
           debugout << "problem in recurse compiler for rule = "<< impl << endl ;
@@ -194,7 +194,7 @@ namespace Loci {
       inverseMap(read_map_inv[j],read_maps[j],domain,newdomain) ;
       domain = newdomain ;
     }
-  
+
     for(int j=rmap.mapvec.size()-1;j>=0;--j)
       sdelta = rmap.mapvec[j]->preimage(sdelta).first ;
 
@@ -210,7 +210,7 @@ namespace Loci {
     }
     sdelta &= fctrl.nr_sources ;
     sdelta &= my_entities ;
-    
+
     entitySet tdelta = sdelta ;
     for(size_t j=0;j<tmap.mapvec.size();++j)
       tdelta = tmap.mapvec[j]->image(tdelta) ;
@@ -219,10 +219,7 @@ namespace Loci {
     debugout << "sdelta_init = " << sdelta << ", tdelta = " << tdelta << endl ;
 #endif
 
-    if(num_threads > 1)
-      par_schedule.push_back(sdelta) ;
-    else
-      fastseq += sequence(sdelta) ;
+    fastseq += sequence(sdelta) ;
 
     entitySet generated = tdelta ;
     const entitySet nr_sources = fctrl.nr_sources ;
@@ -246,7 +243,7 @@ namespace Loci {
     exists.allocate(exists_alloc) ;
 #ifdef VERBOSE
     debugout << "exists_alloc = " << exists_alloc
-                       << "nr_sources = " << nr_sources << endl ;
+             << "nr_sources = " << nr_sources << endl ;
 #endif
     for(entitySet::const_iterator
           ei=exists_alloc.begin();ei!=exists_alloc.end();++ei)
@@ -255,7 +252,7 @@ namespace Loci {
     for(entitySet::const_iterator
           ei=initial.begin();ei!=initial.end();++ei)
       exists[*ei] = true ;
-    
+
     exists_alloc -= my_entities ;
 #ifdef VERBOSE
     debugout << "exists_alloc-my_entities = " << exists_alloc << endl ;
@@ -264,7 +261,7 @@ namespace Loci {
     for(entitySet::const_iterator
           ei=exists_alloc.begin();ei!=exists_alloc.end();++ei)
       exists[*ei] = true ;
-    
+
     for(entitySet::const_iterator
           ei=tdelta.begin();ei!=tdelta.end();++ei)
       exists[*ei] = true ;
@@ -279,7 +276,7 @@ namespace Loci {
           Loci::Abort() ;
           break ;
         }
-            
+
         for(entitySet::const_iterator di=sdelta.begin();di!=sdelta.end();++di) {
 #ifdef DEBUG
           if(!read_map_inv[j].domain().inSet(*di)) {
@@ -287,7 +284,7 @@ namespace Loci {
           } else
 #endif
             //        fatal(!read_map_inv[j].domain().inSet(*di)) ;
-            for(mi=read_map_inv[j].begin(*di); mi!=read_map_inv[j].end(*di);++mi) 
+            for(mi=read_map_inv[j].begin(*di); mi!=read_map_inv[j].end(*di);++mi)
               candidates += *mi ;
         }
         sdelta = candidates ;
@@ -321,7 +318,7 @@ namespace Loci {
             mi[j] = read_maps[j].begin(c) ;
             me[j] = read_maps[j].end(c) ;
           }
-        
+
         }
         if(chk)
           satisfied += *di ;
@@ -356,36 +353,33 @@ namespace Loci {
 #ifdef VERBOSE
       debugout << "sdelta = " << sdelta << ", tdelta = " << tdelta << endl ;
 #endif
-      if(num_threads>1)
-        par_schedule.push_back(sdelta) ;
-      else
-        fastseq += sequence(sdelta) ;
+      fastseq += sequence(sdelta) ;
 
       for(entitySet::const_iterator
-            ei=tdelta.begin();ei!=tdelta.end();++ei) 
+            ei=tdelta.begin();ei!=tdelta.end();++ei)
         exists[*ei] = true ;
-    
+
     } while(sdelta != EMPTY) ;
 
     for(entitySet::const_iterator
           ei=nr_sources.begin();ei!=nr_sources.end();++ei)
-      if(exists[*ei]) 
+      if(exists[*ei])
         generated += *ei ;
-  
+
     if(duplicate_work) {
       comp_sources &= my_entities;
       for(entitySet::const_iterator
 	    ei=comp_sources.begin();ei!=comp_sources.end();++ei) {
-	if(exists[*ei]) 
+	if(exists[*ei])
 	  comp_generated += *ei ;
       }
     }
-  
+
     fctrl.generated[rvar] = generated ;
 #ifdef VERBOSE
     debugout << "recursive rule " << impl << " generating " << generated << endl ;
 #endif
-    
+
     for(map<variable,entitySet>::const_iterator mi=fctrl.generated.begin();
         mi!=fctrl.generated.end();++mi) {
       scheds.set_existential_info(mi->first,impl,mi->second) ;
@@ -400,9 +394,9 @@ namespace Loci {
     create += send_entitySet(create,facts) ;
     create += fill_entitySet(create,facts) ;
     scheds.set_existential_info(rvar,impl,create) ;
-    
+
   }
-  
+
   void impl_recurse_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
@@ -411,7 +405,7 @@ namespace Loci {
     }
     process_rule_requests(impl,facts, scheds) ;
     if(facts.isDistributed()) {
-      
+
       // For the relaxed recursion we need to adjust our variable request
       variableSet tvars = impl.targets() ;
       variable rvar = *(tvars.begin()) ;
@@ -424,7 +418,7 @@ namespace Loci {
       request -= my_entities ;
       scheds.variable_request(rename_var,request) ;
 
-      //Find duplication of variables that are associtated with 
+      //Find duplication of variables that are associtated with
       //rules that compute tvars
       if(duplicate_work)
 	set_duplication_of_variables(tvars, scheds, facts);
@@ -437,66 +431,19 @@ namespace Loci {
   }
 
   execute_modules_decorator_factory* impl_recurse_compiler::decoratorFactory = NULL;
-  
+
   executeP impl_recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
 
-    if(num_threads > 1) {
-      CPTR<execute_list> el = new execute_list ;
-      sequence seq ;
-      for(size_t i=0;i<par_schedule.size();++i) {
-        if(par_schedule[i].size() < num_threads*4) {
-          seq += sequence(par_schedule[i]) ;
-        } else {
-          if(seq.size() > 1) {
-			executeP exec_rule = new execute_rule(impl,seq,facts, scheds);
-			if(decoratorFactory != NULL)
-				exec_rule = decoratorFactory->decorate(exec_rule);
-			el->append_list(exec_rule);
-			executeP exec_thrd_sync = new execute_thread_sync;
-			if(decoratorFactory != NULL)
-				exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
-            el->append_list(exec_thrd_sync) ;
-            seq = sequence() ;
-          }
-          execute_par *ep = new execute_par ;
-          parallel_schedule(ep, par_schedule[i], impl, facts, scheds, decoratorFactory) ;
-		  el->append_list(ep) ;
-		  executeP exec_thrd_sync = new execute_thread_sync;
-		  if(decoratorFactory != NULL)
-				exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
-          el->append_list(exec_thrd_sync) ;
-          //el->append_list(new execute_thread_sync) ;
-        }
-      }
-      if(seq.size() > 1) {
-		executeP exec_rule = new execute_rule(impl, seq, facts, scheds);
-		if(decoratorFactory != NULL)
-			exec_rule = decoratorFactory->decorate(exec_rule);
-		el->append_list(exec_rule);		
-      }
-      if(facts.isDistributed()) {
-		executeP exec_thrd_sync = new execute_thread_sync;
-		if(decoratorFactory != NULL)
-			exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
-        el->append_list(exec_thrd_sync);
-		
-		executeP exec_comm = new execute_comm(clist, facts);
-		if(decoratorFactory != NULL)
-			exec_comm = decoratorFactory->decorate(exec_comm);
-        el->append_list(exec_comm);
-      }
-      return executeP(el) ;
-    }
-	executeP exe_rule = new execute_rule(impl, fastseq, facts, scheds);
-	if(decoratorFactory != NULL)
-		exe_rule = decoratorFactory->decorate(exe_rule);
-	return exe_rule;
+    executeP exe_rule = new execute_rule(impl, fastseq, facts, scheds);
+    if(decoratorFactory != NULL)
+      exe_rule = decoratorFactory->decorate(exe_rule);
+    return exe_rule;
   }
 
   void recurse_compiler::accept(visitor& v) {
     v.visit(*this) ;
   }
-  
+
   void recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
 
     entitySet my_entities = ~EMPTY ;
@@ -512,7 +459,7 @@ namespace Loci {
     variableSet::const_iterator vi ;
     variableSet tvars ;
     const ruleSet &fset = recurse_rules ;
-    for(fi=fset.begin();fi!=fset.end();++fi) 
+    for(fi=fset.begin();fi!=fset.end();++fi)
       tvars += fi->targets() ;
     for(fi=fset.begin();fi!=fset.end();++fi) {
       fcontrol &fctrl = control_set[*fi] ;
@@ -530,7 +477,7 @@ namespace Loci {
           vector<variableSet::const_iterator> miv(num_maps) ;
           for(int i=0;i<num_maps;++i)
             miv[i] = si->mapping[i].begin() ;
-        
+
           for(vi=si->var.begin();vi!=si->var.end();++vi) {
             int i = 0 ;
             do {
@@ -541,21 +488,21 @@ namespace Loci {
                 minfo.mapvec.push_back(mp) ;
               }
               minfo.v = *vi ;
-              
+
               for(i=0;(i!=num_maps)&&(++(miv[i]) == si->mapping[i].end());++i)
                 miv[i] = si->mapping[i].begin() ;
-	      
+
               fctrl.recursion_maps.push_back(minfo) ;
             } while(i!=num_maps) ;
           }
         }
-      } 
+      }
       for(si=finfo.targets.begin();si!=finfo.targets.end();++si) {
         int num_maps = si->mapping.size() ;
         vector<variableSet::const_iterator> miv(num_maps) ;
         for(int i=0;i<num_maps;++i)
           miv[i] = si->mapping[i].begin() ;
-	
+
         for(vi=si->var.begin();vi!=si->var.end();++vi) {
           int i = 0 ;
           do {
@@ -566,7 +513,7 @@ namespace Loci {
               minfo.mapvec.push_back(mp) ;
             }
             minfo.v = *vi ;
-          
+
             for(i=0;(i!=num_maps) &&(++(miv[i]) == si->mapping[i].end());++i) {
               miv[i] = si->mapping[i].begin() ;
             }
@@ -584,7 +531,7 @@ namespace Loci {
       fctrl.constraints = constraints ;
       warn(fctrl.recursion_maps.size() == 0) ;
     }
-  
+
 
     map<variable,entitySet> tvar_computed,tvar_update ;
     for(vi=tvars.begin();vi!=tvars.end();++vi) {
@@ -617,7 +564,7 @@ namespace Loci {
               cerr << "constraints = " << fctrl.constraints << endl ;
               entitySet sac = srcs & fctrl.constraints ;
               cerr << "srcs & constraints = " << sac << endl ;
-            } else { 
+            } else {
               debugout << "recursive rule: " << *fi
                        << " cannot supply all entitites in constraint" << endl ;
               debugout << "constraints = " << fctrl.constraints << endl ;
@@ -650,10 +597,10 @@ namespace Loci {
                        << sources  << " -- " << *si << endl ;
                 } else {
                   debugout << "sources & constraints != constraints for input"
-                       << endl
+                           << endl
                            << sources  << " -- " << *si << endl ;
                 }
-                
+
                 if(si->mapping.size() > 0) {
                   entitySet working = constraints ;
                   for(size_t i=0;i<si->mapping.size();++i) {
@@ -669,13 +616,13 @@ namespace Loci {
                     entitySet fails = working & ~exist ;
                     if(fails != EMPTY) {
                       if(MPI_processes == 1) {
-                      cerr << "expecting to find variable " << *vi
-                           << " at entities " << fails << endl
-                           << *vi << " exists at entities " << exist << endl ;
+                        cerr << "expecting to find variable " << *vi
+                             << " at entities " << fails << endl
+                             << *vi << " exists at entities " << exist << endl ;
                       } else {
-                      debugout << "expecting to find variable " << *vi
-                           << " at entities " << fails << endl
-                           << *vi << " exists at entities " << exist << endl ;
+                        debugout << "expecting to find variable " << *vi
+                                 << " at entities " << fails << endl
+                                 << *vi << " exists at entities " << exist << endl ;
                       }
                     }
                   }
@@ -687,7 +634,7 @@ namespace Loci {
         }
 
         fctrl.control_list.push_back(srcs) ;
-        
+
         for(size_t i=0;i<fctrl.target_maps.size();++i) {
           entitySet trgts = srcs ;
           for(size_t j=0;j<fctrl.target_maps[i].mapvec.size();++j)
@@ -697,10 +644,10 @@ namespace Loci {
         }
 #ifdef VERBOSE
         debugout << "recursive rule " << *fi << " generating "
-                           << srcs << endl ;
+                 << srcs << endl ;
 #endif
       }
- 
+
       recurse_send_entities.push_back(vector<pair<variable,entitySet> >()) ;
 
       int deltas = 0 ;
@@ -740,7 +687,7 @@ namespace Loci {
 	}
         create += send_entitySet(create,facts) ;
         create += fill_entitySet(create,facts) ;
-        
+
         scheds.set_existential_info(mi->first,*fi,create) ;
       }
     }
@@ -763,7 +710,7 @@ namespace Loci {
         orig_requests[*vi] = scheds.get_variable_requests(*vi) ;
       }
       request_comm = barrier_process_rule_requests(recurse_vars, facts,  scheds) ;
-      
+
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
 
@@ -777,7 +724,7 @@ namespace Loci {
           recurse_entities[*vi] += scheds.get_existential_info(*vi,*ri) ;
         }
       }
-      
+
       for(vi=pre_send_entities.begin();vi!=pre_send_entities.end();++vi) {
         variable v = vi->first ;
         entitySet send_set = vi->second - recurse_entities[v] ;
@@ -785,7 +732,7 @@ namespace Loci {
                                            scheds.get_variable_requests(v))) ;
       }
       pre_plist = put_precomm_info(send_requested, facts) ;
-      
+
       for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
         fcontrol &fctrl = control_set[*fi] ;
         entitySet control = process_rule_requests(*fi,facts, scheds) ;
@@ -798,7 +745,7 @@ namespace Loci {
       }
       map<rule, list<entitySet>::reverse_iterator> rpos ;
 
-                       
+
       ruleSet::const_iterator ri ;
       for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri)
         rpos[*ri] = control_set[*ri].control_list.rbegin() ;
@@ -823,9 +770,9 @@ namespace Loci {
             for(size_t j=0;j<fctrl.recursion_maps[i].mapvec.size();j++)
               rq = fctrl.recursion_maps[i].mapvec[j]->image(rq) ;
             vreq_map[fctrl.recursion_maps[i].v] += rq  ;
-           }
-          
-          
+          }
+
+
           rpos[*ri]++ ;
           if(rpos[*ri] == control_set[*ri].control_list.rend())
             finished = true ;
@@ -835,11 +782,11 @@ namespace Loci {
               ++vi) {
             all_requests[*vi] += vreq_map[*vi] ;
             entitySet remain = vreq_map[*vi] & recurse_entities[*vi] ;
-            
+
             remain -= my_entities ;
             recurse_send_req[*vi].push_back(remain) ;
           }
-       }
+        }
       } while(!finished) ;
 
       for(variableSet::const_iterator vi = recurse_vars.begin();
@@ -858,7 +805,7 @@ namespace Loci {
         }
         recurse_comm[*vi] = req_loc ;
       }
-      
+
       list<comm_info> pre_req_comm ;
       list<comm_info>::const_iterator li ;
       for(li=request_comm.begin();li!=request_comm.end();++li) {
@@ -881,7 +828,7 @@ namespace Loci {
         send_requests(pre_req,v,facts,pre_req_comm) ;
       }
 
-      
+
       list<comm_info> post_req_comm ;
       for(variableSet::const_iterator vi = recurse_vars.begin();
           vi!= recurse_vars.end();
@@ -890,7 +837,7 @@ namespace Loci {
         entitySet requests = orig_requests[v] ;
         requests &= recurse_entities[v] ;
         requests -= recurse_comm[*vi] ;
-        
+
         send_requests(requests,v,facts,post_req_comm) ;
       }
       pre_clist = sort_comm(pre_req_comm,facts) ;
@@ -914,30 +861,25 @@ namespace Loci {
         } while(!fctrl.control_list.empty() && fctrl.control_list.back() == EMPTY) ;
       }
     }
-    
+
   }
 
   execute_modules_decorator_factory* recurse_compiler::decoratorFactory = NULL;
-  
+
   executeP recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds ) {
     CPTR<execute_sequence> el = new execute_sequence ;
     if(facts.isDistributed()) {
-	  executeP exec_thrd_sync = new execute_thread_sync;
-	  if(decoratorFactory != NULL)
-		exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
-      el->append_list(exec_thrd_sync) ;
-	  
-	  executeP exec_commp = new execute_comm(pre_plist, facts);
-	  if(decoratorFactory != NULL)
-		exec_commp = decoratorFactory->decorate(exec_commp);
-      el->append_list(exec_commp) ; 
-	  
-	  executeP exec_commc = new execute_comm(pre_clist, facts);
-	  if(decoratorFactory != NULL)
-		exec_commc = decoratorFactory->decorate(exec_commc);
+      executeP exec_commp = new execute_comm(pre_plist, facts);
+      if(decoratorFactory != NULL)
+        exec_commp = decoratorFactory->decorate(exec_commp);
+      el->append_list(exec_commp) ;
+
+      executeP exec_commc = new execute_comm(pre_clist, facts);
+      if(decoratorFactory != NULL)
+        exec_commc = decoratorFactory->decorate(exec_commc);
       el->append_list(exec_commc) ;
     }
-    
+
     map<rule, list<entitySet>::const_iterator> rpos ;
     list<vector<pair<variable,entitySet> > >::const_iterator
       sei = recurse_send_entities.begin() ;
@@ -955,49 +897,35 @@ namespace Loci {
         vector<list<comm_info> > &commv = send_req_var[*vi] ;
         if(idx<commv.size() && commv[idx].size() != 0) {
           executeP exec_commv = new execute_comm(commv[idx],facts);
-		  if(decoratorFactory != NULL)
-			exec_commv = decoratorFactory->decorate(exec_commv);
-		  el->append_list(exec_commv) ;
-		}
+          if(decoratorFactory != NULL)
+            exec_commv = decoratorFactory->decorate(exec_commv);
+          el->append_list(exec_commv) ;
+        }
       }
       idx++ ;
       for(ri=recurse_rules.begin();ri!=recurse_rules.end();++ri) {
         const fcontrol &fctrl = control_set[*ri] ;
         list<entitySet>::const_iterator &li = rpos[*ri] ;
-        
-        if(li==fctrl.control_list.end()) 
+
+        if(li==fctrl.control_list.end())
           finished = true ;
         else {
           if(li->size() != 0) {
-            const entitySet &exec_seq = *li ;
-            
-            if(num_threads > 1 && exec_seq.size() > 1 &&
-               (*ri).get_info().rule_impl->thread_rule()) {
-              execute_par *ep = new execute_par ;
-              parallel_schedule(ep,*li,*ri,facts, scheds, decoratorFactory) ;
-              el->append_list(ep) ;
-            } else {
-				executeP exec_rule = new execute_rule(*ri,sequence(*li),facts, scheds) ;
-				if(decoratorFactory != NULL)
-					exec_rule = decoratorFactory->decorate(exec_rule);
-				el->append_list(exec_rule);
-            }
+
+            executeP exec_rule = new execute_rule(*ri,sequence(*li),facts, scheds) ;
+            if(decoratorFactory != NULL)
+              exec_rule = decoratorFactory->decorate(exec_rule);
+            el->append_list(exec_rule);
           }
           li++ ;
         }
       }
       if(!finished) {
-        if(num_threads > 1) {
-          executeP exec_thrd_sync = new execute_thread_sync;
-		  if(decoratorFactory != NULL)
-			exec_thrd_sync = decoratorFactory->decorate(exec_thrd_sync);
-		  el->append_list(exec_thrd_sync);
-		}
         if(facts.isDistributed()) {
           list<comm_info> plist = put_precomm_info(*sei, facts) ;
-		  executeP exec_comm = new execute_comm(plist,facts);
-		  if(decoratorFactory != NULL)
-			exec_comm = decoratorFactory->decorate(exec_comm);
+          executeP exec_comm = new execute_comm(plist,facts);
+          if(decoratorFactory != NULL)
+            exec_comm = decoratorFactory->decorate(exec_comm);
           el->append_list(exec_comm) ;
 
           // Make sure to request any variables communicated so that
@@ -1008,7 +936,7 @@ namespace Loci {
               ++li) {
             entitySet all = li->send_set ;
             all += entitySet(li->recv_set) ;
-        
+
             scheds.variable_request(li->v,all) ;
           }
         }
@@ -1017,9 +945,9 @@ namespace Loci {
     } while(!finished) ;
 
     if(facts.isDistributed()) {
-		executeP exec_comm = new execute_comm(post_clist, facts);
-		if(decoratorFactory != NULL)
-			exec_comm = decoratorFactory->decorate(exec_comm);
+      executeP exec_comm = new execute_comm(post_clist, facts);
+      if(decoratorFactory != NULL)
+        exec_comm = decoratorFactory->decorate(exec_comm);
       el->append_list(exec_comm) ;
       // Make sure to request any variables communicated so that
       // the space is allocated.  This is a hack that should be
@@ -1029,7 +957,7 @@ namespace Loci {
           ++li) {
         entitySet all = li->send_set ;
         all += entitySet(li->recv_set) ;
-        
+
         scheds.variable_request(li->v,all) ;
       }
     }

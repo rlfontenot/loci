@@ -128,7 +128,7 @@ namespace Loci {
     ///////////////////
     void existential_analysis(fact_db &facts, sched_db &scheds) ;
     executeP execution_schedule(fact_db &facts, sched_db &scheds,
-                                const variableSet& alloc, int nth) ;
+                                const variableSet& alloc) ;
   } ;
   
   struct comm_info {

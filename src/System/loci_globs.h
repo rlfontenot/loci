@@ -27,7 +27,6 @@
 #include "performance_analysis.h"
 
 namespace Loci {
-  extern int num_threads;
   /////////////////////////////
   // flags to turn on/off the visualization feature
   extern bool verbose ;
