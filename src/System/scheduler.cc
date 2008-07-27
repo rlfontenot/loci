@@ -83,7 +83,6 @@ namespace Loci {
   ////////////////////////////
 
 
-
   namespace {
     // pretty printing of a rule's signature
     // i.e. remove namespace info, if any
@@ -1000,7 +999,8 @@ namespace Loci {
 
     std::list<timingData>::const_reverse_iterator rti = timing_data.rbegin() ;
     s << "Top Ten Most Expensive Steps:" << endl ;
-    for(int i =0;i<10&&rti!=timing_data.rend();++i,++rti) {
+    int lcnt = min(int(timing_data.size()),10) ;
+    for(int i =0;i<lcnt;++i,++rti) {
       s << i << "- " << rti->eventName << endl ;
       if(rti->groupName != "")
         s << " --- Group " << rti->groupName << endl ;
