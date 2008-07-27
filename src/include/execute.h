@@ -137,7 +137,7 @@ namespace Loci {
     }
     // every group needs to be closed
     void closeGroup(int id) {
-      warn(groups.size() != id) ;
+      warn(int(groups.size()) != id) ;
       if(int(groups.size()) != id) { // If open and close don't align, try to
         // make things right by poping off groups until this one
         while(id > int(groups.size()))
