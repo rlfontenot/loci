@@ -79,6 +79,8 @@ namespace Loci {
     vector<storeRepP> chomp_vars_rep ;
     int_type D_cache_size ;
     double total_chomp_vars_size ;
+    timeAccumulator timer ;
+    vector<timeAccumulator> comp_timers ;
   public:
     execute_chomp(const entitySet& td,
                   const vector<pair<rule,rule_compilerP> >& comp,
@@ -89,6 +91,7 @@ namespace Loci {
       chomp_vars(cv),chomp_size(0),chomp_iter(0),
       D_cache_size(0),total_chomp_vars_size(0) {
 
+      comp_timers = vector<timeAccumulator>(comp.size()) ;
       for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
           vi!=comp.end();++vi)
         chomp_compP.push_back(pair<int,rule_implP>
@@ -153,16 +156,20 @@ namespace Loci {
     
     virtual void execute(fact_db& facts) ;
     virtual void Print(std::ostream& s) const ;
-	virtual string getName() {return "execute_chomp";};
+    virtual string getName() {return "execute_chomp";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   void execute_chomp::execute(fact_db& facts) {
+    stopWatch stot ;
+    stot.start() ;
     if(total_domain == EMPTY) {
       // call the compute() method at least once
       vector<pair<int,rule_implP> >::iterator vri ;
       for(vri=chomp_compP.begin();vri!=chomp_compP.end();++vri) {
         vri->second->compute(sequence(EMPTY)) ;
       }
+      timer.addTime(stot.stop(),1) ;
       return ;
     }
 
@@ -192,12 +199,12 @@ namespace Loci {
     vector<vector<entitySet> >::const_iterator vvi ;
     int count = 0 ;
     for(vvi=seq_table.begin();vvi!=seq_table.end();++vvi,++count) {
-      vector<entitySet>::const_iterator vei ;
-      vector<pair<int, rule_implP> >::iterator vri ;
-      for(vri=chomp_compP.begin(),vei=vvi->begin();
-          vri!=chomp_compP.end();++vri,++vei) {
-        current_rule_id = vri->first ;
-        vri->second->compute(sequence(*vei)) ;
+      for(size_t i=0;i<chomp_compP.size();++i) {
+        stopWatch s ;
+        s.start() ;
+        current_rule_id = chomp_compP[i].first ;
+        chomp_compP[i].second->compute(sequence((*vvi)[i])) ;;
+        comp_timers[i].addTime(s.stop(),((*vvi)[i]).size()) ;
       }
       // we shift the alloc domain for each chomp_vars_repS
       // first get the offset
@@ -222,6 +229,7 @@ namespace Loci {
         std::cout << "MEMORY PROFILING WARNING: negative memory size"
                   << endl ;
     }
+    timer.addTime(stot.stop(),1) ;
   }
 
   void execute_chomp::Print(std::ostream& s) const {
@@ -240,7 +248,31 @@ namespace Loci {
     printIndent(s) ;
     s << "--End chomping" << endl ;
   }
-  
+
+  void execute_chomp::dataCollate(collectData &data_collector) const {
+    int group = data_collector.openGroup("chomp") ;
+
+    double tot = 0 ;
+    for(size_t i=0;i<chomp_comp.size();++i) {
+      ostringstream oss ;
+      oss << "rule: " << chomp_comp[i].first ;
+
+      data_collector.accumulateTime(comp_timers[i],EXEC_COMPUTATION,oss.str()) ;
+      tot += comp_timers[i].getTime() ;
+    }
+    data_collector.closeGroup(group) ;
+    group = data_collector.openGroup("chomp-overhead") ;
+    timeAccumulator ov ;
+    ov.addTime(timer.getTime()-tot,timer.getEvents()) ;
+
+    ostringstream oss ;
+    oss <<"chomp:" ;
+    for(size_t i=0;i<chomp_comp.size();++i) 
+      oss << "[" << chomp_comp[i].first  << "]";
+    data_collector.accumulateTime(ov,EXEC_CONTROL,oss.str()) ;
+    data_collector.closeGroup(group) ;
+  }
+
   // decoratorFactory is used to collect performace information about execute()
   execute_modules_decorator_factory* chomp_compiler::decoratorFactory = NULL;
   

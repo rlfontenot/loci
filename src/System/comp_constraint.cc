@@ -31,12 +31,14 @@ namespace Loci {
     rule_implP rp ;
     rule rule_tag ;
     sequence exec_seq ;
+    timeAccumulator timer ;
   public:
     execute_constraint_rule(rule fi, sequence seq,
                             fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
-	virtual string getName() { return "execute_constraint_rule";};
+    virtual string getName() { return "execute_constraint_rule";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   execute_constraint_rule::
@@ -46,19 +48,28 @@ namespace Loci {
     rule_tag = fi ;
     rp->initialize(facts) ;
     exec_seq = seq ;
-    control_thread = false ;
   }
   
   void execute_constraint_rule::execute(fact_db &facts) {
+    stopWatch s ;
+    s.start() ;
     current_rule_id = rule_tag.ident() ;
     rp->compute(exec_seq) ;
+    timer.addTime(s.stop(),1) ;
   }
   
   void execute_constraint_rule::Print(ostream &s) const {
     s << rule_tag << "  over sequence " << exec_seq << endl ;
   }
   
-execute_modules_decorator_factory* constraint_compiler::decoratorFactory = NULL;
+  void execute_constraint_rule::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "constraint rule: " << rule_tag;
+
+    data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
+  }
+
+  execute_modules_decorator_factory* constraint_compiler::decoratorFactory = NULL;
 
   void constraint_compiler::set_var_existence(fact_db& facts,
                                               sched_db& scheds)

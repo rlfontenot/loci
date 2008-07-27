@@ -33,6 +33,7 @@ namespace Loci {
     sequence exec_seq ;
     variableSet sources ; // source vars of the map rule
     variableSet targets ; // target vars of the map rule
+    timeAccumulator timer ;
   public:
     // tsv is the target and source variables of this map rule
     execute_map_rule(rule fi, sequence seq,
@@ -41,7 +42,8 @@ namespace Loci {
                      fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
-	virtual string getName() { return "execute_map_rule";};
+    virtual string getName() { return "execute_map_rule";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
   
   execute_map_rule::
@@ -55,10 +57,12 @@ namespace Loci {
     rule_tag = fi ;
     rp->initialize(facts) ;
     exec_seq = seq ;
-    control_thread = false ;
   }
   
   void execute_map_rule::execute(fact_db &facts) {
+    stopWatch s ;
+    s.start() ;
+    
     current_rule_id = rule_tag.ident() ;
     // before the execute begins, we need to restore
     // all the facts associated with this map rule
@@ -100,12 +104,19 @@ namespace Loci {
         facts.update_fact(*vi,srp->remap(g2l)) ;
       }
     }
+    timer.addTime(s.stop(),1) ;
   }
   
   void execute_map_rule::Print(ostream &s) const {
     s << rule_tag << "  over sequence " << exec_seq << endl ;
   }
   
+  void execute_map_rule::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "map rule: " << rule_tag ;
+    data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
+  }
+
   void map_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
     existential_rule_analysis(map_impl, facts, scheds) ;
   }

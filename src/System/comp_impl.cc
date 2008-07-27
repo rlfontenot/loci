@@ -34,7 +34,7 @@ namespace Loci {
     rule_tag = fi ;
     rp->initialize(facts) ;
     exec_seq = seq ;
-    control_thread = false ;
+    exec_size = seq.size() ;
   }
 
   execute_rule::execute_rule(rule fi, sequence seq, fact_db &facts,
@@ -44,23 +44,14 @@ namespace Loci {
     rp->initialize(facts) ;
     rp->set_store(v,p) ;
     exec_seq = seq ;
-    control_thread = false ;
+    exec_size = seq.size() ;
   }
 
   void execute_rule::execute(fact_db &facts) {
-    //std::cout << rule_count++ << "  rule: " << rule_tag.get_info().name()<< endl;
-    current_rule_id = rule_tag.ident() ;
-    std::ostringstream ruleID;
-    ruleID << rule_count++ << " " << rule_tag.get_info().name();
-    if (collect_perf_data) {
-      double st = MPI_Wtime();
-      rp->compute(exec_seq);
-      double et = MPI_Wtime();
-      perfAnalysis->add2RuleTimingsTable(ruleID.str(), rule_tag.get_info().name(), exec_seq.size()+1, (et - st));
-      //perfAnalysis->add2RuleTimingsTable(ruleName.str(), exec_seq.size()+1, (et - st));
-    } else {
-      rp->compute(exec_seq);
-    }
+    stopWatch s ;
+    s.start() ;
+    rp->compute(exec_seq);
+    timer.addTime(s.stop(),exec_size) ;
   }
 
   void execute_rule::Print(ostream &s) const {
@@ -73,6 +64,14 @@ namespace Loci {
     }
   }
 
+  
+  void execute_rule::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "rule: "<<rule_tag ;
+
+    data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
+  }
+  
   execute_modules_decorator_factory* impl_compiler::decoratorFactory = NULL;
 
   void impl_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {

@@ -32,6 +32,14 @@ namespace Loci {
       (*eli)->Print(s) ;
   }
 
+  void execute_list::dataCollate(collectData &data_collector) const {
+    std::vector<executeP>::const_iterator eli ;
+
+    for(eli=elist.begin();eli!=elist.end();++eli)
+      (*eli)->dataCollate(data_collector) ;
+  }
+
+
   void execute_sequence::execute(fact_db &facts) {
     std::vector<executeP>::iterator eli ;
 
@@ -43,6 +51,13 @@ namespace Loci {
     std::vector<executeP>::const_iterator eli ;
     for(eli=elist.begin();eli!=elist.end();++eli)
       (*eli)->Print(s) ;
+  }
+
+  void execute_sequence::dataCollate(collectData &data_collector) const {
+    std::vector<executeP>::const_iterator eli ;
+
+    for(eli=elist.begin();eli!=elist.end();++eli)
+      (*eli)->dataCollate(data_collector) ;
   }
 
 }

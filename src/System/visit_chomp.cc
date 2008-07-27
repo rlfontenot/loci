@@ -121,7 +121,8 @@ namespace Loci {
     }
     
     inline bool thread_rule(const rule& r) {
-      return r.get_rule_implP()->thread_rule() ;
+      return (r.get_rule_implP()->thread_rule()&&
+              !r.get_rule_implP()->dynamic_schedule_rule()) ;
     }
 
     // given a rule, return if there are any OUTPUT

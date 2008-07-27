@@ -357,6 +357,8 @@ namespace Loci {
   }
 
   void execute_param_red::execute(fact_db &facts) {
+    stopWatch s ;
+    s.start() ;
     unsigned char *send_ptr, *result_ptr;
     int size = 0;
     entitySet e ;
@@ -390,6 +392,7 @@ namespace Loci {
 #endif
     delete [] send_ptr ;
     delete [] result_ptr ;
+    timer.addTime(s.stop(),1) ;
   }
 
   void execute_param_red::Print(ostream &s) const {
@@ -398,6 +401,18 @@ namespace Loci {
         printIndent(s) ;
         s << "param reduction on " << reduce_vars[i] << endl ;
       }
+  }
+
+  void execute_param_red::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "param reduce: " ;
+
+    variableSet vars  ;
+    for(size_t i = 0 ; i < reduce_vars.size(); i++) 
+      vars += reduce_vars[i] ;
+    oss << vars ;
+
+    data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
   }
 
   void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
@@ -590,6 +605,7 @@ namespace Loci {
     unsigned char **recv_ptr , **send_ptr ;
     MPI_Request *request;
     MPI_Status *status ;
+    timeAccumulator timer ;
   public:
     execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
                         CPTR<joiner> jop) ;
@@ -597,11 +613,13 @@ namespace Loci {
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_comm_reduce";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   execute_comm_reduce::execute_comm_reduce(list<comm_info> &plist,
                                            fact_db &facts,
                                            CPTR<joiner> jop) {
+
     join_op = jop ;
     HASH_MAP(int,vector<send_var_info> ) send_data ;
     HASH_MAP(int,vector<recv_var_info> ) recv_data ;
@@ -681,6 +699,8 @@ namespace Loci {
   static int send_ptr_buf_size = 0 ;
 
   void execute_comm_reduce::execute(fact_db  &facts) {
+    stopWatch s ;
+    s.start() ;
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
     std::vector<int> send_index ;
@@ -845,6 +865,7 @@ namespace Loci {
       delete [] re_status ;
       delete [] re_request ;
     }
+    timer.addTime(s.stop(),1) ;
   }
 
   void execute_comm_reduce::Print(ostream &s) const {
@@ -885,6 +906,24 @@ namespace Loci {
     }
   }
 
+  void execute_comm_reduce::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "comm reduce: " ;
+
+    variableSet vars  ;
+    for(size_t i=0;i<send_info.size();++i)
+      for(size_t j=0;j<send_info[i].second.size();++j) 
+        vars += send_info[i].second[j].v ;
+
+    for(size_t i=0;i<recv_info.size();++i) 
+      for(size_t j=0;j<recv_info[i].second.size();++j)
+        vars += recv_info[i].second[j].v ;
+
+    oss << vars ;
+
+    data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
+  }
+  
   execute_modules_decorator_factory* reduce_store_compiler::decoratorFactory = NULL;
 
   executeP reduce_store_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {

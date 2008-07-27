@@ -35,11 +35,11 @@ namespace Loci {
     variable cvar ;
   public:
     execute_conditional(const executeP &cond, const variable &cv) :
-      conditional(cond),cvar(cv)
-    { warn(cond==0) ; control_thread = true; }
+      conditional(cond),cvar(cv) { warn(cond==0) ; }
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
 	virtual string getName() { return "execute_conditional";};
+    virtual void dataCollate(collectData &data_collector) const  ;
   } ;
   
   void execute_conditional::execute(fact_db &facts) {
@@ -59,6 +59,14 @@ namespace Loci {
     printLevel-- ;
     printIndent(s) ;
     s << "} // if("<< cvar <<")" << endl ;
+  }
+
+  void execute_conditional::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "conditional("<<cvar<<")" ;
+    int group = data_collector.openGroup(oss.str()) ;
+    conditional->dataCollate(data_collector) ;
+    data_collector.closeGroup(group) ;
   }
 
   execute_modules_decorator_factory* conditional_compiler::decoratorFactory = NULL;

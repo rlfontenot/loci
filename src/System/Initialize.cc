@@ -82,7 +82,7 @@ using std::vector ;
 namespace Loci {
   int MPI_processes = 1;
   int MPI_rank = 0 ;
-  int method = 3 ;
+  int method = 3 ; // Factoring
   bool verbose = false ;
   /////////////////////////////
   // flags to turn on/off the visualization feature
@@ -102,7 +102,7 @@ namespace Loci {
   // flag to enable outputing schedule to file
   bool schedule_output = false ;
   // flag to enable dynamic scheduling feature
-  bool use_dynamic_scheduling = false ;
+  bool use_dynamic_scheduling = true ;
   // chomping size(unit is KB), default is 128KB
   int chomping_size = 128 ;
   // flag to enable memory profiling
@@ -346,10 +346,24 @@ namespace Loci {
         memory_greedy_schedule = false ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--method")) {
-        method = atoi((*argv)[i+1]);
+        if(!strcmp((*argv)[i+1],"none")) {
+          method = 0 ;
+        } else  if(!strcmp((*argv)[i+1],"IWS")) {
+          method = 1 ;
+        } else  if(!strcmp((*argv)[i+1],"FSC")) {
+          method = 2 ;
+        } else  if(!strcmp((*argv)[i+1],"FAC")) {
+          method = 3 ;
+        } else  if(!strcmp((*argv)[i+1],"GSS")) {
+          method = 4 ;
+        } else
+          method = atoi((*argv)[i+1]);
         i+=2;
       } else if(!strcmp((*argv)[i],"--balance")) {
         use_dynamic_scheduling = true ;
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--nobalance")) {
+        use_dynamic_scheduling = false ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--duplicate_work")){
 	duplicate_work = true;

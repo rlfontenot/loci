@@ -1324,6 +1324,8 @@ namespace Loci {
   static int send_ptr_buf_size = 0 ;
 
   void execute_comm::execute(fact_db  &facts) {
+    stopWatch s ;
+    s.start() ;
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
     std::vector<int> send_index ;
@@ -1509,6 +1511,7 @@ namespace Loci {
       delete [] re_status ;
       delete [] re_request ;
     }
+    timer.addTime(s.stop(),1) ;
   }
 
   void execute_comm::Print(ostream &s) const {
@@ -1543,6 +1546,24 @@ namespace Loci {
       }
       s << "}" << endl ;
     }
+  }
+
+  void execute_comm::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "comm: " ;
+
+    variableSet vars  ;
+    for(size_t i=0;i<send_info.size();++i)
+      for(size_t j=0;j<send_info[i].second.size();++j) 
+        vars += send_info[i].second[j].v ;
+
+    for(size_t i=0;i<recv_info.size();++i) 
+      for(size_t j=0;j<recv_info[i].second.size();++j)
+        vars += recv_info[i].second[j].v ;
+
+    oss << vars ;
+
+    data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
   }
 
 
@@ -1806,16 +1827,20 @@ namespace Loci {
   class execute_allocate_var : public execute_modules {
     variableSet allocate_vars ;
     map<variable,entitySet> v_requests ;
+    timeAccumulator timer ;
   public:
     execute_allocate_var(const variableSet& vars, map<variable,entitySet> vr)
       : allocate_vars(vars), v_requests(vr) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_allocate_var";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   void execute_allocate_var::execute(fact_db &facts) {
 
+    stopWatch s ;
+    s.start() ;
     for(variableSet::const_iterator vi=allocate_vars.begin();
         vi!=allocate_vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
@@ -1845,6 +1870,7 @@ namespace Loci {
 	}
       }
     }
+    timer.addTime(s.stop(),1) ;
   }
 
   void execute_allocate_var::Print(std::ostream &s) const {
@@ -1854,21 +1880,33 @@ namespace Loci {
     }
   }
 
+  void execute_allocate_var::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "allocate: "<<allocate_vars ;
+
+    data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
+  }
+
   class execute_free_var : public execute_modules {
     variableSet free_vars ;
+    timeAccumulator timer ;
   public:
     execute_free_var(const variableSet& vars) : free_vars(vars) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_free_var";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   void execute_free_var::execute(fact_db &facts) {
+    stopWatch s ;
+    s.start() ;
     for(variableSet::const_iterator vi=free_vars.begin();
         vi!=free_vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       srp->allocate(EMPTY) ;
     }
+    timer.addTime(s.stop(),1) ;
   }
 
   void execute_free_var::Print(std::ostream &s) const {
@@ -1876,6 +1914,13 @@ namespace Loci {
       printIndent(s) ;
       s << "deallocating variables " << free_vars << endl ;
     }
+  }
+
+  void execute_free_var::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "freevar: "<<free_vars ;
+
+    data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
   }
 
   void allocate_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
@@ -1965,6 +2010,9 @@ namespace Loci {
     }
   }
 
+  void execute_memProfileAlloc::dataCollate(collectData &data_collector) const {
+  }
+
   void execute_memProfileAlloc::execute(fact_db& facts) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
@@ -1996,6 +2044,9 @@ namespace Loci {
       s << "memory profiling check point (free: " << vars
         << ")" << endl ;
     }
+  }
+
+  void execute_memProfileFree::dataCollate(collectData &data_collector) const {
   }
 
   void execute_memProfileFree::execute(fact_db& facts) {

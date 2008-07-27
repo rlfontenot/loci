@@ -48,11 +48,12 @@ namespace Loci {
       cvar(cv),
       tlevel(tl),rotate_lists(rl) {
       warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
-      control_thread = true ;}
+    }
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
-	virtual string getName() { return "execute_loop";};
-	} ;
+    virtual string getName() { return "execute_loop";};
+    virtual void dataCollate(collectData &data_collector) const ;
+  } ;
   
   void execute_loop::execute(fact_db &facts) {
     param<bool> test ;
@@ -121,6 +122,15 @@ namespace Loci {
     printLevel-=2;
     printIndent(s) ;
     s << "} // {" << tlevel  << "}" << endl ;
+  }
+
+  void execute_loop::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "iteration("<<tlevel<<")"  ;
+    int group = data_collector.openGroup(oss.str()) ;
+    collapse->dataCollate(data_collector) ;
+    advance->dataCollate(data_collector) ;
+    data_collector.closeGroup(group) ;
   }
   
   inline bool offset_sort(const variable &v1, const variable &v2)

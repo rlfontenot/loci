@@ -428,7 +428,8 @@ namespace Loci {
     execute_msg(std::string m) : msg(m) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
-	virtual string getName() {return "execute_msg";};
+    virtual string getName() {return "execute_msg";};
+    virtual void dataCollate(collectData &data_collector) const {}
   } ;
 
   struct send_var_info {
@@ -452,12 +453,14 @@ namespace Loci {
     unsigned char **recv_ptr , **send_ptr ;
     MPI_Request *request;
     MPI_Status *status ;
+    timeAccumulator timer ;
   public:
     execute_comm(std::list<comm_info> &plist, fact_db &facts) ;
     ~execute_comm() ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
-	virtual string getName() {return "execute_comm";};
+    virtual string getName() {return "execute_comm";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ; 
   
   class allocate_var_compiler : public rule_compiler {
@@ -509,6 +512,7 @@ namespace Loci {
       return 0 ;
 #endif
     }    
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   class execute_memProfileFree : public execute_modules {
@@ -528,6 +532,7 @@ namespace Loci {
       return 0 ;
 #endif
     }    
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   class memProfileAlloc_compiler : public rule_compiler {
