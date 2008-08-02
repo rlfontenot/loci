@@ -171,7 +171,8 @@ public:
             cell_split = true;
           }
           else{
-            int split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0) - cells[i]->getLevel());
+            int split_level = Globals::levels;
+            if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0) - cells[i]->getLevel());
             if(split_level >= 1){
               cells[i]->resplit(split_level,node_list, edge_list, face_list);
               cell_split = true;
@@ -186,7 +187,8 @@ public:
         if(aCell->get_tagged()){
           
           
-          int split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+          int split_level = Globals::levels;
+          if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
           if(split_level >= 1){
           aCell->split(node_list, edge_list, face_list);
           for(int i = 0; i < aCell->numNode; i++){
@@ -288,7 +290,8 @@ public:
    
    
     if(aCell->get_tagged()){
-      int split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
+      int split_level = Globals::levels;
+      if(Globals::tolerance > 0.0) split_level = int(log(min_edge_length/Globals::tolerance)/log(2.0));
       
       if(split_level >= 1){
         aCell->split(node_list, edge_list, face_list);

@@ -135,7 +135,7 @@ std::vector<char> merge_quad_face(std::vector<char>& facePlanL, char orientCodeL
     
   Range2d rg = Range2d(Point2d(0, 0), Point2d(maxX, maxY));
   
-  char orientCode;
+  char orientCode = orientCodeL;
     
   for(int i = 1; i <= 2; i++){
     //first process flPlan, then process frPlan
