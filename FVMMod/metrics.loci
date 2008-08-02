@@ -30,7 +30,7 @@ namespace Loci {
   
   $rule default(centroid),
     comments("Determines how centroids are computed.  'wireframe' assumes the mass is located at the surface of the cell.  'exact' uses an exact centroid computation assuming mass is distributed through the cell volume.") {
-      $centroid = "wireframe" ;
+    $centroid = "wireframe" ;
   }
 
   $rule constraint(exactCentroid<-centroid) {
@@ -289,18 +289,32 @@ namespace Loci {
       nodesum += id->$area.sada*id->$facecenter ;
       areasum += id->$area.sada ;
     }
-    const vector3d<real_t> p4(nodesum/areasum) ; // approximate center
+    const vector3d<real_t> p4(nodesum/areasum) ; // approximate center used to
+    // perform exact integration
 
     vector3d<real_t> csum(0.,0.,0.) ;
     real_t vol = 0 ;
     for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
       int sz = id->$face2node.size() ;
+      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+      real_t lensum = 0 ;
+      for(int i=0;i<sz;++i) {
+        int nd1 = i ; 
+        int nd2 = (i+1)%sz ;
+        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
+        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
+        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
+        real_t len = norm(e1-e2) ;
+        nodesum += len*edge_loc ;
+        lensum += len ;
+      }
+      vector3d<real_t> fcenter = nodesum/lensum ;
       for(int i=0;i<sz;++i){
         int nd1 = i ;
         int nd2 = (i+1)%sz ;
         const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
         const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
-        const vector3d<real_t> p3 = id->$facecenter ;
+        const vector3d<real_t> p3 = fcenter;
         const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
         const real_t v = -dot(p4-p3,cross(p1-p3,p2-p3)) ;
         csum += v*centroid ;
@@ -309,12 +323,25 @@ namespace Loci {
     }
     for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
       int sz = id->$face2node.size() ;
+      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+      real_t lensum = 0 ;
+      for(int i=0;i<sz;++i) {
+        int nd1 = i ; 
+        int nd2 = (i+1)%sz ;
+        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
+        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
+        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
+        real_t len = norm(e1-e2) ;
+        nodesum += len*edge_loc ;
+        lensum += len ;
+      }
+      vector3d<real_t> fcenter = nodesum/lensum ;
       for(int i=0;i<sz;++i){
         int nd1 = i ;
         int nd2 = (i+1)%sz ;
         const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
         const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
-        const vector3d<real_t> p3 = id->$facecenter ;
+        const vector3d<real_t> p3 = fcenter ;
         const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
         const real_t v = dot(p4-p3,cross(p1-p3,p2-p3)) ;
         csum += v*centroid ;
@@ -323,12 +350,25 @@ namespace Loci {
     }
     for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
       int sz = id->$face2node.size() ;
+      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+      real_t lensum = 0 ;
+      for(int i=0;i<sz;++i) {
+        int nd1 = i ; 
+        int nd2 = (i+1)%sz ;
+        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
+        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
+        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
+        real_t len = norm(e1-e2) ;
+        nodesum += len*edge_loc ;
+        lensum += len ;
+      }
+      vector3d<real_t> fcenter = nodesum/lensum ;
       for(int i=0;i<sz;++i){
         int nd1 = i ;
         int nd2 = (i+1)%sz ;
         const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
         const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
-        const vector3d<real_t> p3 = id->$facecenter ;
+        const vector3d<real_t> p3 = fcenter ;
         const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
         const real_t v = -dot(p4-p3,cross(p1-p3,p2-p3)) ;
         csum += v*centroid ;
