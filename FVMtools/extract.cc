@@ -58,6 +58,7 @@ void Usage(int ac, char *av[]) {
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-tec:  extract for the TecPlot post-procesing package" << endl
        << "-ascii: extract to an ascii file" << endl
+       << "-cut:  extract a cutting plane for the 2dgv plotting package" << endl
        << endl ;
   cout << "Variables are defined by the solver, but typically include: " << endl
        << "r     - nodal density" << endl 
@@ -85,6 +86,11 @@ void Usage(int ac, char *av[]) {
        << "area  - boundary area   (-ascii only)" << endl
        << endl ;
 
+  cout << "extra options for particle extraction" << endl ;
+  cout << "  -mp <n> : maximum particles to extract" << endl ;
+  cout << "          : default (if not specified) is all particles available"
+       << endl ;
+
   cout << "extra options for the 2dgv postprocessing package" << endl 
        << "  -bc <boundary_tag>  : specify which boundary to extract for (multiple -bc's"
        << endl 
@@ -94,10 +100,25 @@ void Usage(int ac, char *av[]) {
        << "  -xz : project boundary onto y=0 plane" << endl
        << "  -xr : project boundary onto x,radius plane (for axisymmetric grids)"
        << endl << endl ;
+  cout << "extra options for orienting cutting plane" << endl
+       << "  -xy : originate transformations from z=0 plane (default)" << endl
+       << "  -yz : originate transformations from x=0 plane" << endl
+       << "  -xz : originate transformations from y=0 plane" << endl
+       << "  -Rx <amount> : rotate cutting plane about x-axis" << endl
+       << "  -Ry <amount> : rotate cutting plane about y-axis" << endl
+       << "  -Rz <amount> : rotate cutting plane about z-axis" << endl
+       << "  -Sx <amount> : translate cutting plane along x-axis" << endl
+       << "  -Sy <amount> : translate cutting plane along y-axis" << endl
+       << "  -Sz <amount> : translate cutting plane along z-axis" << endl << endl;
   cout << "example:  to extract OH species from time step 50 of ssme simulation for visualization with 2dgv use:" << endl
        << av[0] << " -2d -bc 1 -xr ssme 50 fOH" << endl ;
   cout << "example: to extract an ascii table of boundary heat flux and x locations:"<<endl
        << av[0] << " -ascii -bc 4 nozzle 0 x qdot" << endl ;
+  cout << "example: to extract a cutting plane with various transformations:" << endl
+       << av[0] << " -cut -xz -Sy 1.5 -Rx 30 -Rz -15 nozzle 0 P t" << endl;
+  cout << "example: to extract 5000 particles with associated temperature"
+       << " from time step 100 for visualization with Ensight:" << endl
+       << av[0] << " -en combustor 100 particle_temp -mp 5000" << endl ;
 
   exit(-1) ;
 }
@@ -339,7 +360,8 @@ void extract_grid(string casename, string iteration,
                   grid_topo_handler *topo,
                   vector<string> variables,
                   vector<int> variable_types,
-                  vector<string> variable_filenames) {
+                  vector<string> variable_filenames,
+                  int max_particles) {
   
   vector<string> bnd_scalar_vars,bnd_scalar_filenames ;
   vector<string> bnd_vector_vars,bnd_vector_filenames ;
@@ -794,7 +816,7 @@ void extract_grid(string casename, string iteration,
         vector<vector3d<float> > ppos(np) ;
         readElementType(file_id, "particle position", ppos) ;
         
-        topo->create_particle_positions(&ppos[0], np) ;
+        topo->create_particle_positions(&ppos[0], np, max_particles) ;
       }
       break ;
     case PARTICLE_VARIABLES:
@@ -811,7 +833,7 @@ void extract_grid(string casename, string iteration,
         vector<float> scalar(np) ;
         readElementType(file_id, varname.c_str(), scalar) ;
 
-        topo->output_particle_scalar(&scalar[0], np, varname) ;
+        topo->output_particle_scalar(&scalar[0], np, max_particles, varname) ;
         
       }
 
@@ -829,7 +851,7 @@ void extract_grid(string casename, string iteration,
         vector<vector3d<float> > vec(np) ;
         readElementType(file_id, varname.c_str(), vec) ;
 
-        topo->output_particle_vector(&vec[0], np, varname) ;
+        topo->output_particle_vector(&vec[0], np, max_particles, varname) ;
       }
       
       break ;
@@ -845,7 +867,7 @@ void extract_grid(string casename, string iteration,
 int main(int ac, char *av[]) {
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT, NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,CUTTINGPLANE, NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -853,8 +875,21 @@ int main(int ac, char *av[]) {
   string iteration ;
   vector<string> variables ;
   vector<string> boundaries ;
+  float xRotate, yRotate, zRotate, xShift, yShift, zShift, temp;
 
+  xRotate = yRotate = zRotate = xShift = yShift = zShift = 0.0;
   int view = VIEWXY ;
+  affineMapping transformMatrix;
+
+  // record the maximum particle number to extract
+  // a value < 0 means that there is no maximum particle
+  // number limit, i.e., all particles are to be extracted
+  // default is to extract all particles.  users can use
+  // command line switch "-mp <n>" to set the maximum number
+  // of particles to be extracted. if the requested particle
+  // number is larger than the available particle number, then
+  // all particles will be extracted.
+  int max_particles = -1 ;
   
   for(int i=1;i<ac;++i) {
     if(av[i][0] == '-') {
@@ -868,12 +903,58 @@ int main(int ac, char *av[]) {
         plot_type = FIELDVIEW ;
       else if(!strcmp(av[i],"-tec"))
         plot_type = TECPLOT ;
+      else if(!strcmp(av[i],"-cut"))
+	plot_type = CUTTINGPLANE ;
+      else if(!strcmp(av[i],"-Sx")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> xShift).fail())
+	    Usage(ac, av) ;
+      }
+      else if(!strcmp(av[i],"-Sy")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> yShift).fail())
+	    Usage(ac, av) ;
+      }
+      else if(!strcmp(av[i],"-Sz")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> zShift).fail())
+	    Usage(ac, av) ;
+      }
+      else if(!strcmp(av[i],"-Rx")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> temp).fail())
+	    Usage(ac, av) ;
+        transformMatrix.rotateX(-temp) ;
+      }
+      else if(!strcmp(av[i],"-Ry")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> temp).fail())
+	    Usage(ac, av) ;
+	transformMatrix.rotateY(-temp) ;
+      }
+      else if(!strcmp(av[i],"-Rz")) {
+	i++ ;
+	std::istringstream iss(av[i]) ;
+	if ((iss >> std::dec >> temp).fail())
+	    Usage(ac, av) ;
+	transformMatrix.rotateZ(-temp) ;
+      }
       else if(!strcmp(av[i],"-xy")) 
         view=VIEWXY ;
-      else if(!strcmp(av[i],"-yz")) 
+      else if(!strcmp(av[i],"-yz")) {
         view=VIEWYZ ;
-      else if(!strcmp(av[i],"-xz")) 
+	transformMatrix.rotateY(90.0) ;
+	transformMatrix.rotateZ(90.0) ;
+      }
+      else if(!strcmp(av[i],"-xz")) {
         view=VIEWXZ ;
+	transformMatrix.rotateX(90.0) ;
+      }
       else if(!strcmp(av[i],"-xr")) 
         view=VIEWXR ;
       else if(!strcmp(av[i],"-bc")) {
@@ -882,12 +963,23 @@ int main(int ac, char *av[]) {
         if(av[i][0] >='0' && av[i][0] <= '9')
           v = "BC_"+v ;
         boundaries.push_back(v) ;
+      } else if(!strcmp(av[i],"-mp")) {
+        // get the number of particles
+        ++i ;
+        string n(av[i]) ;
+        if(!valid_int(n)) {
+          cerr << "argument followed option '-mp' is not an integer,"
+               << " used default value" << endl ;
+        } else {
+          max_particles = str2int(n) ;
+        }
+        
       } else {
         cerr << "unknown option " << av[i] << endl ;
         Usage(ac,av) ;
       }
       
-    } else
+    } else {
       if(found_iteration)
         variables.push_back(string(av[i])) ;
       else if(found_casename) {
@@ -897,6 +989,7 @@ int main(int ac, char *av[]) {
         casename = string(av[i]) ;
         found_casename = true ;
       }
+    }
   }
   if(plot_type == NONE) {
     Usage(ac,av) ;
@@ -1079,13 +1172,18 @@ int main(int ac, char *av[]) {
   case TECPLOT:
     topo_out = new tecplot_topo_handler ;
     break ;
+  case CUTTINGPLANE:
+    topo_out = new cuttingplane_topo_handler(transformMatrix, -xShift, -yShift, -zShift) ;
+    break ;
   default:
     cerr << "Unknown export method!" << endl ;
     break ;
   }
 
   if(topo_out != 0) {
-    extract_grid(casename,iteration,topo_out,variables,variable_type,variable_file) ;
+    extract_grid(casename,iteration,
+                 topo_out,variables,
+                 variable_type,variable_file,max_particles) ;
   }
   Loci::Finalize() ;
 }

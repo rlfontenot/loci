@@ -21,7 +21,7 @@
 #include "comp_tools.h"
 #include "loci_globs.h"
 
-#include <mpi.h>  
+#include <mpi.h>
 
 #include <vector>
 using std::vector ;
@@ -47,7 +47,7 @@ using std::ostringstream ;
 
 namespace Loci {
   extern bool profile_memory_usage ;
-  
+
   extern double LociAppPeakMemory ;
   extern double LociAppAllocRequestBeanCounting ;
   extern double LociAppFreeRequestBeanCounting ;
@@ -65,18 +65,18 @@ namespace Loci {
   vector<digraph::vertexSet> schedule_dag(const digraph &g,
                                           digraph::vertexSet start_vertices,
                                           digraph::vertexSet only_vertices) {
-    
+
     digraph gt = g.transpose() ;
-    
-    vector<digraph::vertexSet> schedule ; 
+
+    vector<digraph::vertexSet> schedule ;
     // First schedule any vertices that have no edges leading into them and have
     // not been scheduled previously (in start vertices)
 
     digraph::vertexSet working = g.get_source_vertices() -
       (g.get_target_vertices()+start_vertices) ;
-    if(working != EMPTY) 
+    if(working != EMPTY)
       schedule.push_back(working) ;
-    
+
     // visited vertices are all vertices that have already been scheduled
     digraph::vertexSet visited_vertices = start_vertices + working ;
     // In the beginning our working set are all scheduled vertices
@@ -87,9 +87,9 @@ namespace Loci {
       digraph::vertexSet new_vertices ;
       digraph::vertexSet::const_iterator ni ;
       // loop over working set and create a list of candidate vertices
-      for(ni=working.begin();ni != working.end(); ++ni) 
+      for(ni=working.begin();ni != working.end(); ++ni)
         new_vertices += g[*ni] ;
-      
+
       // If a vertex has already been scheduled it can't be scheduled again,
       // so remove visited vertices
       new_vertices = new_vertices - visited_vertices    ;
@@ -98,7 +98,7 @@ namespace Loci {
       new_vertices = EMPTY ;
       // Find any vertex from this working set that has had all vertices leading
       // to it scheduled
-      for(ni=working.begin();ni != working.end(); ++ni) 
+      for(ni=working.begin();ni != working.end(); ++ni)
         if((gt[*ni] & visited_vertices) == gt[*ni])
           new_vertices += *ni ;
       working = new_vertices ;
@@ -121,15 +121,15 @@ namespace Loci {
     entitySet my_entities = ~EMPTY ;
     const rule_impl::info &rinfo = r.get_info().desc ;
     set<vmap_info>::const_iterator si ;
-    /*The function vmap_source_exist takes into consideration the maps 
-      in the body of the rule . By looping over each of the sources in 
+    /*The function vmap_source_exist takes into consideration the maps
+      in the body of the rule . By looping over each of the sources in
       the rule and also the constraints we make sure that the
-      attribute specified by the target is implied by the satisfaction 
+      attribute specified by the target is implied by the satisfaction
       of the attributes in the body of the rule. */
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       sources &= vmap_source_exist(*si,facts, scheds) ;
-    
-    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si) 
+
+    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
       constraints &= vmap_source_exist(*si,facts, scheds) ;
 
     entitySet comp_sources, comp_constraints;
@@ -138,8 +138,8 @@ namespace Loci {
       comp_constraints = constraints;
     }
     if(facts.isDistributed()) {
-      // For the distributed memory case we restrict the sources and 
-      // constraints to be within my_entities.  
+      // For the distributed memory case we restrict the sources and
+      // constraints to be within my_entities.
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       sources &= d->my_entities ;
       constraints &= d->my_entities ;
@@ -159,20 +159,20 @@ namespace Loci {
           debugout << "sources & constraints = " << (sources & constraints) << endl ;
         }
 	scheds.set_error() ;
-        
+
         for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
           entitySet sources = vmap_source_exist(*si,facts, scheds) ;
           sources &= my_entities ;
           if((sources & constraints) != constraints) {
-            if(MPI_processes == 1) 
+            if(MPI_processes == 1)
               cerr << "sources & constraints != constraints for input"
-		 << endl
+                   << endl
                    << sources  << " -- " << *si << endl ;
             else
               debugout << "sources & constraints != constraints for input"
-		 << endl
-			   << sources  << " -- " << *si << endl ;
-            
+                       << endl
+                       << sources  << " -- " << *si << endl ;
+
             if(si->mapping.size() > 0) {
               entitySet working = constraints ;
               for(size_t i=0;i<si->mapping.size();++i) {
@@ -199,11 +199,11 @@ namespace Loci {
       }
     sources &= constraints ;
     //The context over which the rule is applied is given by the intersection
-    // of the existential information of the sources with that of the 
-    //  constraints. 
+    // of the existential information of the sources with that of the
+    //  constraints.
     entitySet context = sources & constraints ;
     entitySet comp_context;
-    if(duplicate_work) {    
+    if(duplicate_work) {
       comp_sources &= comp_constraints;
       comp_context= comp_sources;
     }
@@ -222,9 +222,9 @@ namespace Loci {
 	  scheds.set_my_proc_able_entities(*vi, r, targets);
 	  scheds.set_proc_able_entities(*vi, r, comp_targets);
 
-	  if(r.get_info().rule_impl->thread_rule()  
+	  if(r.get_info().rule_impl->thread_rule()
 	     && r.targets().begin()->get_info().name != "OUTPUT") {
-	    if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE) { 
+	    if(r.get_info().rule_impl->get_rule_class() == rule_impl::POINTWISE) {
 	      if(pointwise_duplication) {
 		if(!use_duplicate_model)
 		  scheds.add_policy(*vi, sched_db::ALWAYS);
@@ -236,7 +236,7 @@ namespace Loci {
 	    }
 	    else if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
 	      if(reduction_duplication && facts.get_variable(*vi)->RepType() != Loci::PARAMETER){
-		if(!use_duplicate_model) 
+		if(!use_duplicate_model)
 		  scheds.add_policy(*vi, sched_db::ALWAYS);
 		else
 		  scheds.add_policy(*vi, sched_db::MODEL_BASED);
@@ -244,7 +244,7 @@ namespace Loci {
 	      else
 		scheds.add_policy(*vi, sched_db::NEVER);
 	    }
-	    else 
+	    else
 	      scheds.add_policy(*vi, sched_db::NEVER);
 	  }
 	  else
@@ -274,7 +274,7 @@ namespace Loci {
       }
     }
   }
-  
+
   //is_request_modification_allowed flag defines if the function is allowed
   //to add more requests for a variable.
   //Flag should be false if we are just interested in finding context for a rule
@@ -282,7 +282,7 @@ namespace Loci {
   //Mainly, this flag is useful with work duplication with a model
   //to precalculate the execution time to make decision of variable duplication.
   entitySet vmap_target_requests(const vmap_info &vmi, const vdefmap &tvarmap,
-                                 fact_db &facts, sched_db &scheds, 
+                                 fact_db &facts, sched_db &scheds,
 				 bool is_request_modification_allowed) {
     // Here we will compute the context implied by a particular target
     // mapping
@@ -306,12 +306,12 @@ namespace Loci {
 	scheds.variable_request(*vi,targets) ;
       }
     }
-    
+
     // Now we are applying the mapping that is applied to the target
     // variables. We do this by finding the preimage of each map.
     // We use the union preimage since any value that is touched
     // will need to be computed.  The union preimage is in the second
-    // element of the pair that preimage returns. 
+    // element of the pair that preimage returns.
     vector<variableSet>::const_reverse_iterator mi ;
     for(mi=vmi.mapping.rbegin();mi!=vmi.mapping.rend();++mi) {
       // working is the entityset that becomes the union of all preimages
@@ -329,7 +329,7 @@ namespace Loci {
     // of the rule that will be used to satisfy this set of requests.
     return targets ;
   }
-  
+
   entitySet vmap_source_requests(const vmap_info &vmi, fact_db &facts,
 				 entitySet context, sched_db &scheds) {
     // this routine computes the set of entities that a source mapping will
@@ -349,55 +349,55 @@ namespace Loci {
     }
     return compute ;
   }
-  
+
   entitySet process_rule_requests(rule r, fact_db &facts, sched_db &scheds) {
     // Internal rules should be handling the appropriate rule requests via
     // their associated compiler.
     FATAL(r.type() == rule::INTERNAL) ;
-    
-    // First we get the target variables of this rule ; 
+
+    // First we get the target variables of this rule ;
     variableSet targets = r.targets() ;
     // We will be iterating over the target variables so we need an iterator
-    variableSet::const_iterator vi ;  
+    variableSet::const_iterator vi ;
     // The vdefmap data structure is a map from variables to entitySets.
     // We use the tvarmap to record the requests for target variables
     // Here we are filling in the requests.
     vdefmap tvarmap ;
-    
+
     // Loop over target variables and get requests from fact database
     // Here we compute the context of the rule.  This is the union of all of
     // the requests for the variables that this rule produces
     set<vmap_info>::const_iterator si ;
     entitySet context,isect = ~EMPTY ;
-    
+
     entitySet filter = ~EMPTY ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       filter = d->my_entities ;
       isect = d->my_entities ;
     }
-    
+
     for(vi=targets.begin();vi!=targets.end();++vi) {
       // This is a hack for the special case of a rule with OUTPUT
       // as a target.  In that case we will request OUTPUT for
       // all entities that exist.  So we add a request for OUTPUT
       // to the fact database
-      
-      if(vi->get_info().name == string("OUTPUT")) 
+
+      if(vi->get_info().name == string("OUTPUT"))
 	scheds.variable_request(*vi,scheds.variable_existence(*vi)) ;
-      
+
       // Now fill tvarmap with the requested values for variable *vi
       tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
       if(r.get_info().rule_impl->get_rule_class() == rule_impl::UNIT)
 	tvarmap[*vi] += scheds.get_extra_unit_request(*vi);
       if(duplicate_work) {
-	if(scheds.is_duplicate_variable(*vi)) 	
+	if(scheds.is_duplicate_variable(*vi))
 	  tvarmap[*vi] = scheds.get_proc_able_entities(*vi, r) & tvarmap[*vi];
 	else
 	  tvarmap[*vi] = scheds.get_my_proc_able_entities(*vi, r) & tvarmap[*vi];
       }
     }
-    
+
     const rule_impl::info &rinfo = r.get_info().desc ;
     bool mapping_in_output = false ;
     for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
@@ -411,28 +411,28 @@ namespace Loci {
       context |= tmp ;
       isect &= tmp ;
     }
-    
+
     if(mapping_in_output) {
       entitySet sources = ~EMPTY ;
       entitySet constraints = ~EMPTY ;
       const rule_impl::info &rinfo = r.get_info().desc ;
       set<vmap_info>::const_iterator si ;
-      /*The function vmap_source_exist takes into consideration the maps 
-        in the body of the rule . By looping over each of the sources in 
+      /*The function vmap_source_exist takes into consideration the maps
+        in the body of the rule . By looping over each of the sources in
         the rule and also the constraints we make sure that the
-        attribute specified by the target is implied by the satisfaction 
+        attribute specified by the target is implied by the satisfaction
         of the attributes in the body of the rule. */
       for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
         sources &= vmap_source_exist(*si,facts, scheds) ;
       }
       for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
         constraints &= vmap_source_exist(*si,facts, scheds) ;
-      
+
       sources &= constraints ;
       context &= sources ;
       isect &= sources ;
     }
-    
+
     // Unit rules need to apply in the clone region as well, so
     // here we make an exception for unit rules.  (this is because
     // we will be reducing to the clone region and then communicating
@@ -442,7 +442,7 @@ namespace Loci {
 	context &= filter ;
       }
     }
-    
+
     // If the interstection and the union are not equal, then we are in
     // danger of not properly allocating variables for computations.  It is
     // an optimization to check this. For the distributed memory version it
@@ -458,18 +458,18 @@ namespace Loci {
 	    tmp |= scheds.image(*vi,working) ;
 	  working = tmp ;
 	}
-	for(vi=si->var.begin();vi!=si->var.end();++vi) 
+	for(vi=si->var.begin();vi!=si->var.end();++vi)
 	  scheds.variable_request(*vi,working) ;
       }
     }
-    
+
     // Loop over all sources for this rule and pass on the requests.
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       // First map the context through source mappings
       entitySet requests;
       requests = vmap_source_requests(*si,facts,context, scheds) ;
       entitySet var ;
-      
+
       // Now we have the actual requests we are making of other rules
       // so we can tell the fact database that we are now requesting
       // these values.
@@ -479,10 +479,10 @@ namespace Loci {
 #endif
       for(vi=si->var.begin();vi!=si->var.end();++vi)
 	scheds.variable_request(*vi,requests) ;
-      
+
       // We also need to pass the requests on to any conditional variables
       // this rule may have.
-      for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi) 
+      for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi)
 	scheds.variable_request(*vi,context) ;
     }
 #ifdef VERBOSE
@@ -490,7 +490,7 @@ namespace Loci {
 #endif
     return context ;
   }
-  
+
   ////////////////////////////////////////////////////////////////////
   // function version of apply_compiler::set_var_existence
   // used inside the chomp compiler
@@ -503,10 +503,10 @@ namespace Loci {
       // the partial results with other processors.
       WARN(apply.targets().size() != 1) ;
       variable reduce_var = *apply.targets().begin() ;
-      
-      
+
+
       const rule_impl::info &rinfo = apply.get_info().desc ;
-      
+
       bool outputmap = false ;
       set<vmap_info>::const_iterator si ;
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
@@ -524,10 +524,10 @@ namespace Loci {
 
       entitySet sources = ~EMPTY;
       entitySet constraints = ~EMPTY;
-      
+
       for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
         sources &= vmap_source_exist_apply(*si,facts,reduce_var, scheds) ;
-      } 
+      }
       for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
         constraints &= vmap_source_exist(*si,facts, scheds) ;
 
@@ -536,28 +536,28 @@ namespace Loci {
 	comp_sources = sources;
 	comp_constraints = constraints;
       }
-      
+
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       sources &= d->my_entities;
       constraints &= d->my_entities;
 
       sources &= constraints ;
-      
+
       if(duplicate_work)
 	comp_sources &= comp_constraints;
-      
+
       entitySet context = sources & constraints ;
 
       entitySet comp_context;
       if(duplicate_work)
 	comp_context = comp_sources & comp_constraints;
-      
+
       for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
         entitySet targets = vmap_target_exist(*si,facts,context, scheds) ;
 	entitySet comp_targets;
 	if(duplicate_work)
 	  comp_targets = vmap_target_exist(*si, facts, comp_context, scheds);
-	
+
         const variableSet &tvars = si->var ;
         variableSet::const_iterator vi ;
 	for(vi=tvars.begin();vi!=tvars.end();++vi) {
@@ -569,8 +569,8 @@ namespace Loci {
 #endif
 	  if(outputmap)
 	    scheds.variable_shadow(*vi,targets) ;
-	  
-	  //Collect information regarding duplication of rule computation 
+
+	  //Collect information regarding duplication of rule computation
 	  if(duplicate_work) {
 	    scheds.set_my_proc_able_entities(*vi, apply, targets);
 	    scheds.set_proc_able_entities(*vi, apply, comp_targets);
@@ -585,7 +585,7 @@ namespace Loci {
     }
   }
 
-  
+
   ////////////////////////////////////////////////////////////////////
   // function version of apply_compiler::process_var_requests
   // used inside the chomp compiler
@@ -594,19 +594,19 @@ namespace Loci {
 
 #ifdef VERBOSE
     debugout << "in process_applyrule_requests" << endl ;
-#endif 
+#endif
     vdefmap tvarmap ;
-    
+
     variableSet targets = apply.targets() ;
     variableSet sources = apply.sources() ;
     FATAL(targets.size() != 1) ;
     variable tvar = *(targets.begin()) ;
-    
+
     if(facts.get_variable(tvar)->RepType() == Loci::PARAMETER)
       tvarmap[tvar] = scheds.variable_existence(tvar) ;
     else
       tvarmap[tvar] = scheds.get_variable_request(unit_tag,tvar) ;
-    
+
     entitySet filter = ~EMPTY;
     entitySet reduce_filter = ~EMPTY;
     if(facts.isDistributed()) {
@@ -621,7 +621,7 @@ namespace Loci {
     if(duplicate_work && scheds.is_duplicate_variable(tvar)) {
       //If mapping in output, we will only compute entities which can be
       //definitely computed successfully on a processor
-      if(scheds.is_reduction_outputmap(tvar)) 
+      if(scheds.is_reduction_outputmap(tvar))
 	tvarmap[tvar] &= reduce_filter;
       //If we have no mapping in output we will be able to compute more entities
       else
@@ -676,15 +676,15 @@ namespace Loci {
         scheds.add_extra_unit_request(*vi,comp) ;
       }
     }
-    
+
     entitySet srcs = ~EMPTY ;
-    
+
     for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
       srcs &= vmap_source_exist(*si,facts, scheds) ;
 
     if(!duplicate_work || !scheds.is_duplicate_variable(tvar))
       srcs &= filter;
-    
+
     if(rinfo.constraints.begin() != rinfo.constraints.end())
       if((srcs & cnstrnts & filter) != (cnstrnts & filter)) {
         if(MPI_processes == 1) {
@@ -706,17 +706,17 @@ namespace Loci {
           entitySet sources = vmap_source_exist(*si,facts, scheds) ;
           sources &= filter;
           if((sources & cnstrnts & filter) != (cnstrnts&filter)) {
-            if(MPI_processes == 1) 
+            if(MPI_processes == 1)
               cerr << "sources & constraints != constraints for input"
                    << endl
                    << (sources & filter) << " -- " << *si << endl ;
-            else 
+            else
               debugout << "sources & constraints != constraints for input"
-                   << endl
-                   << (sources & filter) << " -- " << *si << endl ;
+                       << endl
+                       << (sources & filter) << " -- " << *si << endl ;
 
             scheds.set_error() ;
-            
+
             if(si->mapping.size() > 0) {
               entitySet working = cnstrnts & filter;
               for(size_t i=0;i<si->mapping.size();++i) {
@@ -724,14 +724,14 @@ namespace Loci {
                 variableSet::const_iterator vi ;
                 for(vi=si->mapping[i].begin();vi!=si->mapping[i].end();++vi)
                   images |= scheds.image(*vi,working) ;
-                working = images ; 
+                working = images ;
               }
               variableSet::const_iterator vi ;
               for(vi=si->var.begin();vi!=si->var.end();++vi) {
                 entitySet exist = scheds.variable_existence(*vi) ;
                 entitySet fails = working & ~exist ;
                 if(fails != EMPTY) {
-                  if(MPI_processes == 1) 
+                  if(MPI_processes == 1)
                     cerr << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
                   else
                     debugout << "expecting to find variable " << *vi << " at entities " << fails << endl << *vi << " exists at entities " << exist << endl ;
@@ -757,7 +757,7 @@ namespace Loci {
 	  scheds.variable_request(v,requests) ;
 	else
 	  scheds.add_extra_unit_request(v, requests);
-	
+
 #ifdef VERBOSE
 	debugout << "rule " << apply << " requesting variable "
 		 << v << " for entities " << requests << endl ;
@@ -772,16 +772,16 @@ namespace Loci {
      performing this communication during the execution of the
      schedule . We know the entities that a particular processor is
      supposed to send (send_entities)  . But we need to inform its neighbours
-     that they are supposed to receive those entities. */ 
+     that they are supposed to receive those entities. */
   std::list<comm_info>
   put_precomm_info(vector<pair<variable,entitySet> > send_entities,
                    fact_db &facts) {
-    
-    
+
+
     std::list<comm_info> plist ;
     if(send_entities.size() == 0)
       return plist ;
-    
+
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       const int sesz = send_entities.size() ;
@@ -791,42 +791,42 @@ namespace Loci {
       if(d->xmit.size() > 0) {
         recv_buffer = new int*[d->xmit.size()] ;
         recv_size = new int[d->xmit.size()] ;
-	
+
         recv_buffer[0] = new int[d->xmit_total_size*sesz+sesz*d->xmit.size()] ;
         recv_size[0] = d->xmit[0].size*sesz + sesz ;
-	
+
         for(size_t i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+recv_size[i-1] ;
           recv_size[i] = d->xmit[i].size*sesz+sesz ;
         }
       }
-      
+
       if(d->copy.size() > 0 ) {
         send_buffer = new int*[d->copy.size()] ;
         send_buffer[0] = new int[d->copy_total_size*sesz+sesz*d->copy.size()] ;
         for(size_t i=1;i<d->copy.size();++i)
           send_buffer[i] = send_buffer[i-1]+d->copy[i-1].size*sesz+sesz ;
       }
-      
+
       Map l2g ;
       l2g = d->l2g.Rep() ;
-      
+
       MPI_Request *recv_request = new MPI_Request[d->xmit.size()] ;
       MPI_Status *status = new MPI_Status[d->xmit.size()] ;
-      
+
       for(size_t i=0;i<d->xmit.size();++i) {
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 2,
-                  MPI_COMM_WORLD, &recv_request[i] ) ;  
+                  MPI_COMM_WORLD, &recv_request[i] ) ;
       }
       for(size_t i=0;i<d->copy.size();++i) {
         int j=sesz ;
         for(int k=0;k<sesz;++k) {
           entitySet temp = send_entities[k].second & d->copy[i].entities ;
           send_buffer[i][k] = temp.size() ;
-	  
+
           for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
             send_buffer[i][j++] = l2g[*ei] ;
-	  
+
           if(temp != EMPTY) {
             comm_info ci ;
             ci.v = send_entities[k].first ;
@@ -839,7 +839,7 @@ namespace Loci {
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
                  2,MPI_COMM_WORLD) ;
       }
-      
+
       if(d->xmit.size() > 0) {
 #ifdef DEBUG
 	int err =
@@ -847,8 +847,8 @@ namespace Loci {
           MPI_Waitall(d->xmit.size(), recv_request, status) ;
         FATAL(err != MPI_SUCCESS) ;
       }
-      
-      
+
+
       for(size_t i=0;i<d->xmit.size();++i) {
 #ifdef DEBUG
         int recieved ;
@@ -882,48 +882,9 @@ namespace Loci {
       }
       delete [] recv_request ;
       delete [] status ;
-      
+
     }
     return plist ;
-  }
-  
-  vector<entitySet> partition_set(const entitySet &s,int nthreads) {
-    const int min = s.Min() ;
-    const int max = s.Max() ;
-    const int psize = s.size() ;
-
-    const int div = psize/nthreads ;
-    int rem = psize%nthreads ;
-    vector<entitySet> partition ;
-    
-    for(int i=min;i<=max;) {
-      int inval = div + ((rem>0)?1:0) ;
-      rem-- ;
-      entitySet sp = s & interval(i,i+inval-1) ;
-      i+=inval ;
-      while(sp.size() < inval && i<=max) {
-        entitySet remain = s & interval(i,max) ;
-        i=remain.Min() ;
-        int remain_ival = inval - sp.size() ;
-        sp += s & interval(i,i+remain_ival-1) ;
-        i+=remain_ival ;
-      }
-      WARN(sp.size() > inval) ;
-      partition.push_back(sp) ;
-    }
-    return partition ;
-  }
-
-  void parallel_schedule(execute_par *ep,const entitySet &exec_set,
-                         const rule &impl, fact_db &facts, sched_db &scheds) {
-    vector<entitySet> par_set = partition_set(exec_set,num_threads) ;
-    
-    for(vector<entitySet>::const_iterator
-          i=par_set.begin();i!=par_set.end();++i) {
-      execution_factory ef(impl,sequence(*i),facts, scheds);
-      executeP execrule = ef.create_product();
-      ep->append_list(execrule) ;
-    }
   }
 
   set<vector<variableSet> >
@@ -959,8 +920,9 @@ namespace Loci {
     }
 
     return true;
-    
+
   }
+
   bool is_intensive_rule_output_mapping(rule my_rule, const fact_db &facts) {
     if(!rule_has_mapping_in_output(my_rule))
       return false;
@@ -976,7 +938,7 @@ namespace Loci {
 
     return false;
   }
-  
+
   bool rule_has_mapping_in_output(rule r) {
     std::set<vmap_info>::const_iterator si;
     const rule_impl::info &rinfo = r.get_info().desc ;
@@ -1001,7 +963,7 @@ namespace Loci {
     }
     return vars;
   }
-  
+
   variableSet input_variables(rule r) {
     variableSet vars;
     std::set<vmap_info>::const_iterator si;
@@ -1015,8 +977,8 @@ namespace Loci {
     return vars;
   }
 
-   /* In the case with mapping in the output we might end up computing
-     values for some of the entities in the clone region. In that case 
+  /* In the case with mapping in the output we might end up computing
+     values for some of the entities in the clone region. In that case
      we need to send these values to the processor that actually owns
      them. The information as to what entities are to be send for a
      particular variable is returned by the barrier_existential_rule_analysis routine. */
@@ -1038,11 +1000,11 @@ namespace Loci {
     for(variableSet::const_iterator vi=vlst.begin();vi!=vlst.end();++vi) {
       variable v = *vi ;
       ruleSet r = scheds.get_existential_rules(v) ;
-      
+
       vars.push_back(v) ;
       rules.push_back(r) ;
     }
-    
+
     for(size_t i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
@@ -1056,10 +1018,10 @@ namespace Loci {
         ent++ ;
       }
     }
-    
-    
+
+
     vector<entitySet> seinfo ;
-    
+
     map<variable,entitySet> vmap ;
     for(size_t i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
@@ -1067,10 +1029,10 @@ namespace Loci {
       seinfo.push_back(send_ents) ;
       vmap[v] += send_ents ;
     }
-    
-    for(map<variable,entitySet>::const_iterator mi = vmap.begin(); mi != vmap.end(); mi++) 
+
+    for(map<variable,entitySet>::const_iterator mi = vmap.begin(); mi != vmap.end(); mi++)
       send_entities.push_back(make_pair(mi->first,mi->second));
-    
+
     if(seinfo.size() != 0) {
       vector<entitySet> send_sets = send_entitySet(seinfo,facts) ;
       for(size_t i=0;i<seinfo.size();++i) {
@@ -1094,7 +1056,7 @@ namespace Loci {
     for(size_t i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
-      
+
       for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
 	exinfo[j] += fill_sets[j] ;
         variableSet tvars = rsi->targets() ;
@@ -1113,38 +1075,38 @@ namespace Loci {
   }
 
 
-  /*In this routine we fill in the communication data structure needed 
+  /*In this routine we fill in the communication data structure needed
     for filling in the clone region . From the "copy" data structure we know
     what all we have to receive from the neighbouring processors(clone
-    region information) . But we need to inform the neighbouring 
+    region information) . But we need to inform the neighbouring
     processors to send us those information also. The
     clist data structure is set up so that it stores what information
     need to be send or received from a particular processor so that
     the clone region is filled up . */
-  
-entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
+
+  entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
                           list<comm_info> &clist) {
     entitySet re ;
-    if(facts.isDistributed()) {  
+    if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      
+
       int **send_buffer = 0 ;
       int **recv_buffer = 0;
       int *recv_size = 0 ;
-      
+
       if(d->xmit.size() > 0) {
         recv_buffer = new int*[d->xmit.size()] ;
         recv_size = new int[d->xmit.size()] ;
-	
+
         recv_buffer[0] = new int[d->xmit_total_size] ;
         recv_size[0] = d->xmit[0].size ;
-	
+
         for(size_t i=1;i<d->xmit.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+d->xmit[i-1].size ;
           recv_size[i] = d->xmit[i].size ;
         }
       }
-      
+
       if(d->copy.size() > 0 ) {
         send_buffer = new int*[d->copy.size()] ;
         send_buffer[0] = new int[d->copy_total_size] ;
@@ -1159,27 +1121,27 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
       for(size_t i=0;i<d->xmit.size();++i) {
 	MPI_Irecv(recv_buffer[i], recv_size[i], MPI_INT, d->xmit[i].proc, 3,
-                  MPI_COMM_WORLD, &recv_request[i] ) ;  
+                  MPI_COMM_WORLD, &recv_request[i] ) ;
       }
-      
+
       for(size_t i=0;i<d->copy.size();++i) {
         entitySet temp = e & d->copy[i].entities ;
-	
+
         comm_info ci ;
         ci.v = v ;
         ci.processor = d->copy[i].proc ;
         ci.recv_set = temp ;
         clist.push_back(ci) ;
-        
+
         int j=0 ;
         for(entitySet::const_iterator ei=temp.begin();ei!=temp.end();++ei)
           send_buffer[i][j++] = l2g[*ei] ;
-	
+
         int send_size = temp.size() ;
         MPI_Send(send_buffer[i],send_size, MPI_INT, d->copy[i].proc,
                  3,MPI_COMM_WORLD) ;
       }
-      
+
       if(d->xmit.size() > 0) {
 #ifdef DEBUG
 	int err =
@@ -1187,7 +1149,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
           MPI_Waitall(d->xmit.size(), recv_request, status) ;
         FATAL(err != MPI_SUCCESS) ;
       }
-      
+
       for(size_t i=0;i<d->xmit.size();++i) {
         int recieved ;
         MPI_Get_count(&status[i], MPI_INT, &recieved) ;
@@ -1213,16 +1175,16 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       delete [] recv_request ;
       delete [] status ;
-      
+
     }
     return re ;
   }
-  
- 
+
+
   list<comm_info>
   barrier_process_rule_requests(variableSet vars, fact_db &facts, sched_db &scheds) {
     list<comm_info> clist ;
-    entitySet reduce_filter = ~EMPTY ; 
+    entitySet reduce_filter = ~EMPTY ;
     fact_db::distribute_infoP d;
     if(facts.isDistributed())
       d = facts.get_distribute_info() ;
@@ -1234,14 +1196,14 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	//Find information for reduction variables
 	ruleSet r = scheds.get_existential_rules(v);
 	bool reduction = false;
-	
+
 	for(ruleSet::const_iterator ri = r.begin();
 	    ri != r.end(); ri++)
 	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT)
 	    reduction = true;
-	
+
 	//Minimize apropriate requests
-	if(scheds.is_duplicate_variable(v)) { 
+	if(scheds.is_duplicate_variable(v)) {
 	  if(!reduction) {
 	    for(ruleSet::const_iterator ri = r.begin();
 		ri != r.end(); ri++) {
@@ -1250,15 +1212,15 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  }
 	  else {
 	    //We do not need to request entities to the owner if
-	    //those entities can be definitely computed on this processor 
+	    //those entities can be definitely computed on this processor
 	    requests -= scheds.get_reduce_proc_able_entities(v);
 	  }
-	}	
+	}
       }
 
       entitySet recv_requests = send_requests(requests, v, facts, clist ) ;
       requests += recv_requests;
-      
+
       //Since entities are guranteed to being computed on owner processor,
       //no need to request them on the other processors
       if(duplicate_work) {
@@ -1272,7 +1234,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     return clist ;
   }
 
-  
+
   execute_comm::execute_comm(list<comm_info> &plist, fact_db &facts) {
     HASH_MAP(int,vector<send_var_info>) send_data ;
     HASH_MAP(int,vector<recv_var_info>) recv_data ;
@@ -1293,39 +1255,39 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
       }
     }
-    
+
     for(intervalSet::const_iterator ii=send_procs.begin();
         ii!=send_procs.end();
         ++ii) {
       send_info.push_back(make_pair(*ii,send_data[*ii])) ;
-      send_vars.push_back(std::vector<storeRepP>()) ; 
-      for(size_t i=0;i<send_data[*ii].size();++i) 
-        send_vars.back().push_back(facts.get_variable(send_data[*ii][i].v)) ; 
+      send_vars.push_back(std::vector<storeRepP>()) ;
+      for(size_t i=0;i<send_data[*ii].size();++i)
+        send_vars.back().push_back(facts.get_variable(send_data[*ii][i].v)) ;
     }
     for(intervalSet::const_iterator ii=recv_procs.begin();
         ii!=recv_procs.end();
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
-      recv_vars.push_back(std::vector<storeRepP>()) ; 
-      for(size_t i=0;i<recv_data[*ii].size();++i) 
-        recv_vars.back().push_back(facts.get_variable(recv_data[*ii][i].v)) ; 
+      recv_vars.push_back(std::vector<storeRepP>()) ;
+      for(size_t i=0;i<recv_data[*ii].size();++i)
+        recv_vars.back().push_back(facts.get_variable(recv_data[*ii][i].v)) ;
     }
 
-    /* This part sets up the memory allocation needed for the execute routine. 
+    /* This part sets up the memory allocation needed for the execute routine.
        Instead of allocating and deallocating memory each time for
        receiving a message from a processor we allocate a fixed
        message size for the receive buffer. Initially the maximum
        receive size and the maximum send size is set to be the size of
        an integer. This approach also reduces the cost incurred in
        sending the sizes in advance before the actual message is
-       sent. 
-    */ 
+       sent.
+    */
 
     int nsend = send_info.size() ;
     int nrecv = recv_info.size() ;
     r_size = new int[nrecv] ;
-    recv_sizes = new int[nrecv] ; 
-    maxr_size = new int[nrecv] ; 
+    recv_sizes = new int[nrecv] ;
+    maxr_size = new int[nrecv] ;
     maxs_size = new int[nsend] ;
     s_size = new int[nsend] ;
     for(int i = 0; i < nrecv; ++i) {
@@ -1336,32 +1298,34 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       maxs_size[i] = sizeof(int) ;
       s_size[i] = 0 ;
     }
-    
+
     recv_ptr = new unsigned char*[max(nrecv,1)] ;
     send_ptr = new unsigned char*[max(nsend,1)] ;
     request =  new MPI_Request[nrecv] ;
     status =  new MPI_Status[nrecv] ;
   }
-  
+
   execute_comm::~execute_comm() {
     delete [] maxr_size ;
     delete [] maxs_size ;
     delete [] r_size ;
-    delete [] recv_sizes ; 
+    delete [] recv_sizes ;
     delete [] s_size ;
     delete [] recv_ptr ;
     delete [] send_ptr ;
     delete [] request ;
     delete [] status ;
-    
+
   }
-  
-  static unsigned char *recv_ptr_buf = 0; 
-  static int recv_ptr_buf_size = 0; 
-  static unsigned char *send_ptr_buf = 0 ; 
-  static int send_ptr_buf_size = 0 ; 
-  
+
+  static unsigned char *recv_ptr_buf = 0;
+  static int recv_ptr_buf_size = 0;
+  static unsigned char *send_ptr_buf = 0 ;
+  static int send_ptr_buf_size = 0 ;
+
   void execute_comm::execute(fact_db  &facts) {
+    stopWatch s ;
+    s.start() ;
     const int nrecv = recv_info.size() ;
     int resend_size = 0, rerecv_size = 0 ;
     std::vector<int> send_index ;
@@ -1380,22 +1344,22 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       debugout << "variable " << recv_info[i].second[j].v << " not allocated, but recving entities " << rem << endl ;
       #endif
     */
-    if(recv_ptr_buf_size < total_size) { 
-      if(recv_ptr_buf) 
-        delete[] recv_ptr_buf ; 
-      recv_ptr_buf = new unsigned char[total_size] ; 
-      recv_ptr_buf_size = total_size ; 
-    } 
-    recv_ptr[0] = recv_ptr_buf ; 
+    if(recv_ptr_buf_size < total_size) {
+      if(recv_ptr_buf)
+        delete[] recv_ptr_buf ;
+      recv_ptr_buf = new unsigned char[total_size] ;
+      recv_ptr_buf_size = total_size ;
+    }
+    recv_ptr[0] = recv_ptr_buf ;
     for(int i=1;i<nrecv;++i)
       recv_ptr[i] = recv_ptr[i-1] + r_size[i-1] ;
-    
+
     for(int i=0;i<nrecv;++i) {
       int proc = recv_info[i].first ;
       MPI_Irecv(recv_ptr[i], r_size[i], MPI_PACKED, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
     }
-    
+
     /*First we find out the size of the message we are trying to
       receive using the pack_size method associated with that
       container. For static containers pack_size returns the correct
@@ -1406,8 +1370,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       pack_size is the size of an integer or if it is greater than the
       maximum send_size(to that particular processor) . In this
       approach - in the worst case we might end up sending two messages
-      always . 
-      
+      always .
+
     */
     total_size = 0 ;
     const int nsend = send_info.size() ;
@@ -1435,16 +1399,16 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       total_size += maxs_size[i] ;
     }
-    if(send_ptr_buf_size < total_size) { 
-      if(send_ptr_buf) 
-        delete[] send_ptr_buf ; 
-      send_ptr_buf = new unsigned char[total_size] ; 
-      send_ptr_buf_size = total_size ; 
-    } 
-    send_ptr[0] = send_ptr_buf ; 
+    if(send_ptr_buf_size < total_size) {
+      if(send_ptr_buf)
+        delete[] send_ptr_buf ;
+      send_ptr_buf = new unsigned char[total_size] ;
+      send_ptr_buf_size = total_size ;
+    }
+    send_ptr[0] = send_ptr_buf ;
     for(int i = 1; i < nsend; i++)
       send_ptr[i] = send_ptr[i-1] + s_size[i-1] ;
-    // Pack the buffer for sending 
+    // Pack the buffer for sending
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
       if(!resend_procs.inSet(send_info[i].first)) {
@@ -1454,7 +1418,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	}
       }
       else
-	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ; 
+	MPI_Pack(&maxs_size[i], sizeof(int), MPI_BYTE, send_ptr[i], s_size[i], &loc_pack, MPI_COMM_WORLD) ;
     }
     // Send Buffer
     for(int i=0;i<nsend;++i) {
@@ -1466,7 +1430,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
        time is determined from the size of the message received. If the
        size of the message is equal to the size of an integer it is added
        to the list to be received a second time(even if the sent value is
-       a store value or the size of the message to be received. */ 
+       a store value or the size of the message to be received. */
     if(nrecv > 0) {
 #ifdef DEBUG
       int err =
@@ -1474,7 +1438,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
       for(int i = 0 ; i < nrecv; i++) {
-	MPI_Get_count(&status[i], MPI_BYTE, &recv_sizes[i]) ;  
+	MPI_Get_count(&status[i], MPI_BYTE, &recv_sizes[i]) ;
 	if(recv_sizes[i] == sizeof(int)) {
 	  rerecv_procs += recv_info[i].first ;
 	  recv_index.push_back(i) ;
@@ -1511,7 +1475,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       recv_ptr[recv_index[i]] = new unsigned char[maxr_size[recv_index[i]]] ;
       MPI_Irecv(recv_ptr[recv_index[i]], maxr_size[recv_index[i]], MPI_PACKED, proc, 2, MPI_COMM_WORLD, &re_request[i]) ;
     }
-    
+
     for(int i=0;i<resend_size;++i) {
       int loc_pack = 0 ;
       send_ptr[send_index[i]] = new unsigned char[maxs_size[send_index[i]]] ;
@@ -1547,8 +1511,9 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       delete [] re_status ;
       delete [] re_request ;
     }
+    timer.addTime(s.stop(),1) ;
   }
-  
+
   void execute_comm::Print(ostream &s) const {
     int sz = 0 ;
     if(send_info.size()+recv_info.size() > 0) {
@@ -1559,7 +1524,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         s << "Send:" << endl ;
         printIndent(s) ;
         for(size_t i=0;i<send_info.size();++i) {
-          for(size_t j=0;j<send_info[i].second.size();++j) { 
+          for(size_t j=0;j<send_info[i].second.size();++j) {
             s << send_info[i].second[j].v << ' ' ;
 	    sz += (send_info[i].second[j].set).size() ;
 	  }
@@ -1582,15 +1547,33 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       s << "}" << endl ;
     }
   }
-  
-  
+
+  void execute_comm::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "comm: " ;
+
+    variableSet vars  ;
+    for(size_t i=0;i<send_info.size();++i)
+      for(size_t j=0;j<send_info[i].second.size();++j) 
+        vars += send_info[i].second[j].v ;
+
+    for(size_t i=0;i<recv_info.size();++i) 
+      for(size_t j=0;j<recv_info[i].second.size();++j)
+        vars += recv_info[i].second[j].v ;
+
+    oss << vars ;
+
+    data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
+  }
+
+
   // Sort the communication list so that the receive sequence is in the
   // order corresponding to the sending entitySet
   list<comm_info> sort_comm(list<comm_info> slist, fact_db &facts) {
     vector<pair<int,vector<send_var_info> > > send_info ;
     vector<pair<int,vector<recv_var_info> > > recv_info ;
-    
-    
+
+
     // First collect information from slist
 
     HASH_MAP(int,vector<send_var_info>) send_data ;
@@ -1612,7 +1595,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
       }
     }
-    
+
     for(intervalSet::const_iterator ii=send_procs.begin();
         ii!=send_procs.end();
         ++ii) {
@@ -1623,16 +1606,16 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         ++ii) {
       recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
     }
-    
-    
+
+
     // Now build sorted comm list
-    
+
     list<comm_info> clist ;
-    
+
     fact_db::distribute_infoP d = facts.get_distribute_info() ;
     Map l2g ;
     l2g = d->l2g.Rep() ;
-    
+
     const int nrecv = recv_info.size() ;
     int *r_size = new int[nrecv] ;
     int total_size = 0 ;
@@ -1647,7 +1630,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     recv_ptr[0] = new int[total_size] ;
     for(int i=1;i<nrecv;++i)
       recv_ptr[i] = recv_ptr[i-1]+r_size[i-1] ;
-    
+
     const int nsend = send_info.size() ;
     int *s_size = new int[nsend] ;
     total_size = 0 ;
@@ -1662,18 +1645,18 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     send_ptr[0] = new int[total_size] ;
     for(int i=1;i<nsend;++i)
       send_ptr[i] = send_ptr[i-1]+s_size[i-1] ;
-    
+
     MPI_Request *request =  new MPI_Request[nrecv] ;
     MPI_Status *status =  new MPI_Status[nrecv] ;
-    
+
     for(int i=0;i<nrecv;++i) {
       int proc = recv_info[i].first ;
       MPI_Irecv(recv_ptr[i], r_size[i], MPI_INT, proc, 1,
                 MPI_COMM_WORLD, &request[i]) ;
-     
+
     }
-    
-    // Pack the buffer for sending 
+
+    // Pack the buffer for sending
     for(int i=0;i<nsend;++i) {
       int loc_pack = 0 ;
       for(size_t j=0;j<send_info[i].second.size();++j) {
@@ -1689,14 +1672,14 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	}
       }
       WARN(loc_pack != s_size[i]) ;
-    } 
+    }
 
     // Send Buffer
     for(int i=0;i<nsend;++i) {
       int proc = send_info[i].first ;
       MPI_Send(send_ptr[i],s_size[i],MPI_INT,proc,1,MPI_COMM_WORLD) ;
     }
-    
+
     if(nrecv > 0) {
 #ifdef DEBUG
       int err =
@@ -1704,7 +1687,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
         MPI_Waitall(nrecv, request, status) ;
       FATAL(err != MPI_SUCCESS) ;
     }
-    
+
 
     for(int i=0;i<nrecv;++i) {
       int loc_unpack = 0;
@@ -1721,7 +1704,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       WARN(loc_unpack != r_size[i]) ;
     }
-    
+
     delete [] status ;
     delete [] request ;
     delete [] send_ptr[0] ;
@@ -1730,10 +1713,12 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     delete [] recv_ptr[0] ;
     delete [] recv_ptr ;
     delete [] r_size ;
-    
+
     return clist ;
   }
-  
+
+  execute_modules_decorator_factory* barrier_compiler::decoratorFactory = NULL;
+
   void barrier_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()){
       send_entities = barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
@@ -1756,7 +1741,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       request_comm = barrier_process_rule_requests(barrier_vars, facts, scheds) ;
       clist = request_comm ;
       clist = sort_comm(request_comm,facts) ;
-      
+
       //Find out which entities are to be sent on owner processor
       //based on duplication policies
       if(!duplicate_work) {
@@ -1770,8 +1755,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       else {
 	send_requested = send_ent_for_plist(barrier_vars, facts, scheds);
       }
-      
-      /*The put_precomm_info is used in case there is a mapping in the 
+
+      /*The put_precomm_info is used in case there is a mapping in the
 	output for any of the rules. */
       plist = put_precomm_info(send_requested, facts) ;
     }
@@ -1779,24 +1764,30 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
   executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
-      CPTR<execute_sequence> el = new execute_sequence ;
-      el->append_list(new execute_thread_sync) ;
-      el->append_list(new execute_comm(plist, facts) ) ; 
-      el->append_list(new execute_comm(clist, facts)) ;
+      CPTR<execute_list> el = new execute_list ;
+      executeP exec_comm_p = new execute_comm(plist, facts);
+      if (decoratorFactory != NULL)
+        exec_comm_p = decoratorFactory->decorate(exec_comm_p);
+      el->append_list(exec_comm_p) ;
+      executeP exec_comm_c = new execute_comm(clist, facts);
+      if (decoratorFactory != NULL)
+        exec_comm_c = decoratorFactory->decorate(exec_comm_c);
+      el->append_list(exec_comm_c) ;
       return executeP(el) ;
     }
     ostringstream oss ;
-    oss << barrier_vars << endl ;
-    return new execute_thread_sync(oss.str()) ;
+    oss << "Sync: " << barrier_vars << endl ;
+    executeP exec_thrd_sync = new execute_msg(oss.str()) ;
+    return exec_thrd_sync;
   }
-  
+
   void execute_msg::execute(fact_db &facts) {  }
-  
+
   void execute_msg::Print(std::ostream &s) const {
     printIndent(s) ;
     s << msg << endl ;
   }
-  
+
   void singleton_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed())
       barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
@@ -1806,13 +1797,15 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	scheds.add_policy(*vi, sched_db::NEVER);
     }
   }
-  
+
   void singleton_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       barrier_process_rule_requests(barrier_vars, facts, scheds) ;
     }
   }
-  
+
+  execute_modules_decorator_factory* singleton_var_compiler::decoratorFactory = NULL;
+
   executeP singleton_var_compiler::create_execution_schedule(fact_db &facts,
                                                              sched_db &scheds){
     if(verbose) {
@@ -1820,26 +1813,34 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       vars = barrier_vars ;
       ostringstream oss ;
       oss << "singleton param " << vars ;
-      return executeP(new execute_msg(oss.str())) ;
+      executeP execute = executeP(new execute_msg(oss.str())) ;
+      if (decoratorFactory != NULL)
+        execute = decoratorFactory->decorate(execute);
+      return execute;
     }
     return executeP(0) ;
   }
-  
+
   /////////////////////////////////////////////////////////////////////////
   //////// allocate and deallocate compiler code //////////////////////////
   /////////////////////////////////////////////////////////////////////////
   class execute_allocate_var : public execute_modules {
     variableSet allocate_vars ;
     map<variable,entitySet> v_requests ;
+    timeAccumulator timer ;
   public:
     execute_allocate_var(const variableSet& vars, map<variable,entitySet> vr)
       : allocate_vars(vars), v_requests(vr) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+    virtual string getName() { return "execute_allocate_var";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
-  
+
   void execute_allocate_var::execute(fact_db &facts) {
 
+    stopWatch s ;
+    s.start() ;
     for(variableSet::const_iterator vi=allocate_vars.begin();
         vi!=allocate_vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
@@ -1869,6 +1870,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	}
       }
     }
+    timer.addTime(s.stop(),1) ;
   }
 
   void execute_allocate_var::Print(std::ostream &s) const {
@@ -1878,20 +1880,33 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
 
+  void execute_allocate_var::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "allocate: "<<allocate_vars ;
+
+    data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
+  }
+
   class execute_free_var : public execute_modules {
     variableSet free_vars ;
-   public:
+    timeAccumulator timer ;
+  public:
     execute_free_var(const variableSet& vars) : free_vars(vars) {}
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+    virtual string getName() { return "execute_free_var";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
-  
+
   void execute_free_var::execute(fact_db &facts) {
+    stopWatch s ;
+    s.start() ;
     for(variableSet::const_iterator vi=free_vars.begin();
         vi!=free_vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
       srp->allocate(EMPTY) ;
     }
+    timer.addTime(s.stop(),1) ;
   }
 
   void execute_free_var::Print(std::ostream &s) const {
@@ -1901,21 +1916,30 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
 
+  void execute_free_var::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "freevar: "<<free_vars ;
+
+    data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
+  }
+
   void allocate_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
 
   void allocate_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
   }
 
+  execute_modules_decorator_factory* allocate_var_compiler::decoratorFactory = NULL;
+
   executeP allocate_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi,vii ;
 
     map<variable,entitySet> v_requests ;
     for(vi=allocate_vars.begin();vi!=allocate_vars.end();++vi) {
-        variableSet aliases = variableSet(scheds.get_aliases(*vi)+
-                                          scheds.get_antialiases(*vi)+
-                                          scheds.get_synonyms(*vi)+
-                                          scheds.get_rotations(*vi)) ;
+      variableSet aliases = variableSet(scheds.get_aliases(*vi)+
+                                        scheds.get_antialiases(*vi)+
+                                        scheds.get_synonyms(*vi)+
+                                        scheds.get_rotations(*vi)) ;
       if(aliases.size() > 1) {
         // If it looks like there are aliases, then collect all of the
         // information about name aliasing
@@ -1933,7 +1957,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
         while(work != EMPTY) {
           variableSet new_vars ;
-      
+
           for(vii=work.begin();vii!=work.end();++vii) {
             new_vars += scheds.get_aliases(*vii) ;
             new_vars += scheds.get_antialiases(*vii) ;
@@ -1955,22 +1979,28 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       }
       v_requests[*vi] = requests ;
     }
-
-    return executeP(new execute_allocate_var(allocate_vars,v_requests)) ;
+    executeP execute = executeP(new execute_allocate_var(allocate_vars,v_requests)) ;
+    if (decoratorFactory != NULL)
+      execute = decoratorFactory->decorate(execute);
+    return execute;
   }
 
-  void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds)
-  {
+  void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
+
+  execute_modules_decorator_factory* free_var_compiler::decoratorFactory = NULL;
 
   void free_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) { }
 
   executeP free_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-    return executeP(new execute_free_var(free_vars)) ;
+    executeP execute = executeP(new execute_free_var(free_vars)) ;
+    if(decoratorFactory != NULL)
+      execute = decoratorFactory->decorate(execute);
+    return execute;
   }
 
   /////////////////////////////////////////////////////////////////////////
-  //////////////////  memory profiling compiler code //////////////////////
+  //////////////////    memory profiling compiler code       //////////////////////
   /////////////////////////////////////////////////////////////////////////
   void execute_memProfileAlloc::Print(std::ostream &s) const {
     if(vars != EMPTY) {
@@ -1980,17 +2010,20 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
 
+  void execute_memProfileAlloc::dataCollate(collectData &data_collector) const {
+  }
+
   void execute_memProfileAlloc::execute(fact_db& facts) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
-      //cerr<<"memory profiling (allocation) on: "<<*vi<<endl; 
+      //cerr<<"memory profiling (allocation) on: "<<*vi<<endl;
       storeRepP srp = facts.get_variable(*vi) ;
       entitySet alloc_dom = srp->domain() ;
-      
+
       double currmen = currentMem() ;
       if(currmen > LociAppPeakMemory)
         LociAppPeakMemory = currmen ;
-          
+
       int packsize = srp->pack_size(alloc_dom) ;
       LociAppAllocRequestBeanCounting += packsize ;
       LociAppPMTemp += packsize ;
@@ -2013,13 +2046,16 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
 
+  void execute_memProfileFree::dataCollate(collectData &data_collector) const {
+  }
+
   void execute_memProfileFree::execute(fact_db& facts) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
-      //cerr<<"memory profiling (free) on: "<<*vi<<endl; 
+      //cerr<<"memory profiling (free) on: "<<*vi<<endl;
       storeRepP srp = facts.get_variable(*vi) ;
       entitySet alloc_dom = srp->domain() ;
-      
+
       //double currmen = currentMem() ;
       //if(currmen > LociAppPeakMemory)
       //LociAppPeakMemory = currmen ;
@@ -2037,19 +2073,25 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     }
   }
 
-  executeP
-  memProfileAlloc_compiler::create_execution_schedule
-  (fact_db &facts, sched_db &scheds) {
-    return executeP(new execute_memProfileAlloc(vars)) ;
+  execute_modules_decorator_factory* memProfileAlloc_compiler::decoratorFactory = NULL;
+
+  executeP memProfileAlloc_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+    executeP execute = executeP(new execute_memProfileAlloc(vars)) ;
+    if(decoratorFactory != NULL)
+      execute = decoratorFactory->decorate(execute);
+    return execute;
   }
 
-  executeP
-  memProfileFree_compiler::create_execution_schedule
-  (fact_db &facts, sched_db &scheds) {
-    return executeP(new execute_memProfileFree(vars)) ;
+  execute_modules_decorator_factory* memProfileFree_compiler::decoratorFactory = NULL;
+
+  executeP memProfileFree_compiler::create_execution_schedule (fact_db &facts, sched_db &scheds) {
+    executeP execute = executeP(new execute_memProfileFree(vars));
+    if (decoratorFactory != NULL)
+      execute = decoratorFactory->decorate(execute);
+    return execute;
   }
 
-  //Finds the plist that contains information of entities need to be sent on the 
+  //Finds the plist that contains information of entities need to be sent on the
   //owner processor based on the duplication policies.
   //Also defines which variables are duplicate variables.
   std::vector<std::pair<variable,entitySet> >
@@ -2060,13 +2102,13 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     vector<variable> vars ;
     vector<ruleSet> rules;
     vector<variable> send_vars ;
-    
+
     for(variableSet::const_iterator vi=vlst.begin();vi!=vlst.end();++vi) {
-      ruleSet r = scheds.get_existential_rules(*vi) ; 
+      ruleSet r = scheds.get_existential_rules(*vi) ;
       vars.push_back(*vi);
       rules.push_back(r);
     }
-    
+
     for(size_t i=0;i<vars.size();++i) {
       variable v = vars[i] ;
       ruleSet &rs = rules[i] ;
@@ -2077,7 +2119,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	}
       }
     }
-    
+
     map<variable,entitySet> vmap ;
     for(size_t i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
@@ -2088,8 +2130,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       vmap[v] += send_ents ;
     }
 
-    for(map<variable,entitySet>::const_iterator mi = vmap.begin(); 
-	mi != vmap.end(); mi++) 
+    for(map<variable,entitySet>::const_iterator mi = vmap.begin();
+	mi != vmap.end(); mi++)
       send_entities.push_back(make_pair(mi->first,mi->second & scheds.get_variable_requests(mi->first)));
     return send_entities;
   }
@@ -2097,7 +2139,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
   entitySet sending_comm_processors(entitySet sendSet, fact_db &facts) {
     entitySet send_procs;
     if(facts.isDistributed()) {
-      fact_db::distribute_infoP d = facts.get_distribute_info(); 
+      fact_db::distribute_infoP d = facts.get_distribute_info();
       for(unsigned int i = 0; i < d->copy.size(); i++) {
 	if((d->copy[i].entities & sendSet) != EMPTY)
 	  send_procs += d->copy[i].proc;
@@ -2106,8 +2148,8 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     return send_procs;
   }
 
-  //Based on the policy selected for a variable, 
-  //it sets the duplication 
+  //Based on the policy selected for a variable,
+  //it sets the duplication
   bool process_policy_duplication(variable v, sched_db &scheds, fact_db &facts) {
     if(!scheds.is_policy(v, sched_db::NEVER)) {
       if(scheds.is_policy(v, sched_db::ALWAYS)) {
@@ -2117,15 +2159,15 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
       else if(scheds.is_policy(v, sched_db::MODEL_BASED)){
 	double original_comm_time = 0, duplication_comm_time = 0;
 	double original_comp_time = 0, duplication_comp_time = 0;
-	
+
 	fact_db::distribute_infoP d = facts.get_distribute_info();
 	ruleSet r = scheds.get_existential_rules(v);
 	bool reduction = false;
 	for(ruleSet::const_iterator ri = r.begin();
 	    ri != r.end(); ri++)
-	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) 
+	  if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT)
 	    reduction = true;
-	
+
 	entitySet initial_requests = scheds.get_variable_requests(v);
 	entitySet proc_able;
 	entitySet my_proc_able;
@@ -2141,11 +2183,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  proc_able += scheds.get_reduce_proc_able_entities(v);
 	  shadow += scheds.get_variable_shadow(v);
 	}
- 
+
 	entitySet original_clist_entities = initial_requests - d->my_entities;
 	entitySet duplication_clist_entities = (initial_requests - d->my_entities) - proc_able;
 	entitySet original_clist_procs = sending_comm_processors(original_clist_entities, facts);
-		
+
 	entitySet duplication_clist_procs = sending_comm_processors(duplication_clist_entities, facts);
 	vector<entitySet> temp = send_entitySetv(original_clist_entities, facts);
 	for(int i = 0; i < Loci::MPI_processes; i++) {
@@ -2162,7 +2204,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	    duplication_clist_entities += temp[i];
 	  }
 	}
-	
+
 	storeRepP vRep = facts.get_variable(v);
 	double original_clist_comm = 0, duplication_clist_comm = 0;
 	if(original_clist_entities != EMPTY) {
@@ -2189,7 +2231,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  original_plist_entities = (requests - d->my_entities) & shadow;
 
 	entitySet original_plist_procs = sending_comm_processors(original_plist_entities, facts);
-	
+
 	temp = send_entitySetv(original_plist_entities, facts);
 	for(int i = 0; i < Loci::MPI_processes; i++) {
 	  if(temp[i].size() > 0) {
@@ -2210,18 +2252,18 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	  duplication_comm_time += duplication_clist_comm;
 	if(original_plist_comm > 0)
 	  original_comm_time += original_plist_comm;
-	    
+
  	for(ruleSet::const_iterator ri = r.begin();
  	    ri != r.end(); ri++) {
 	  entitySet original_context;
 	  entitySet comp_context;
 	  vdefmap original_tvarmap;
 	  vdefmap comp_tvarmap;
-	  
+
 	  if(reduction){
 	    FATAL(ri->targets().size() > 1);
 	    if(ri->get_info().rule_impl->get_rule_class() == rule_impl::UNIT) {
-	      original_tvarmap[v] = (requests & 
+	      original_tvarmap[v] = (requests &
 				     scheds.get_my_proc_able_entities(v, *ri));
 	      comp_tvarmap[v] = (initial_requests + duplication_clist_entities)
 		& scheds.get_proc_able_entities(v, *ri);
@@ -2244,9 +2286,9 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	    original_tvarmap[v] = requests & scheds.get_my_proc_able_entities(v, *ri);
 	    comp_tvarmap[v] = (initial_requests + duplication_clist_entities)
 	      & scheds.get_proc_able_entities(v, *ri);
-	    
+
 	  }
-	  
+
 	  const rule_impl::info &rinfo = ri->get_info().desc ;
 	  bool mapping_in_output = false ;
 	  set<vmap_info>::const_iterator si ;
@@ -2258,9 +2300,9 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	      // Check to see if there is mapping in the output
 	      if(si->mapping.size() != 0)
 		mapping_in_output = true ;
-	      
+
 	      if(si->var.size() > 1) {
-		variableSet::const_iterator vi ;  
+		variableSet::const_iterator vi ;
 		for(vi = si->var.begin(); vi != si->var.end(); vi++) {
 		  if(*vi != v) {
 		    comp_tvarmap[*vi] = comp_tvarmap[v];
@@ -2272,36 +2314,36 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	      comp_context |= vmap_target_requests(*si,comp_tvarmap,facts, scheds, false) ;
 	    }
 	  }
-	  
+
 	  if(reduction)
 	    if(ri->get_info().rule_impl->get_rule_class() != rule_impl::UNIT)
 	      original_context &= d->my_entities;
-	  
+
 	  if(mapping_in_output || (reduction && ri->get_info().rule_impl->get_rule_class() != rule_impl::UNIT)) {
 	    entitySet sources = ~EMPTY ;
 	    entitySet constraints = ~EMPTY ;
 	    set<vmap_info>::const_iterator si ;
-	    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) 
+	    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
 	      sources &= vmap_source_exist(*si,facts, scheds) ;
-	    
+
 	    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
 	      constraints &= vmap_source_exist(*si,facts, scheds) ;
-	    
+
 	    sources &= constraints ;
 	    original_context &= sources ;
 	    comp_context &= sources;
 	  }
-	  
+
 	  double ts, tw;
 	  scheds.get_comp_model(*ri).get_parameters(ts, tw);
 	  if(scheds.get_comp_model(*ri).is_valid_val(ts)) {
 	    original_comp_time += ts;
 	    duplication_comp_time += ts;
 	    if(scheds.get_comp_model(*ri).is_valid_val(tw)) {
-	      if(original_context.size() > 0) 
-		original_comp_time += tw*original_context.size(); 
-	      
-	      if(comp_context.size() > 0) 
+	      if(original_context.size() > 0)
+		original_comp_time += tw*original_context.size();
+
+	      if(comp_context.size() > 0)
 		duplication_comp_time += tw*comp_context.size();
 	    }
 	    else if(comp_context.size() > 0 || original_context.size() > 0) {
@@ -2320,7 +2362,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
 	if(duplication_comp_time < 0)
 	  original_comp_time = 0;
-		
+
 	scheds.add_original_communication_time(v, original_comm_time);
 	scheds.add_original_computation_time(v, original_comp_time);
 	scheds.add_duplication_communication_time(v, duplication_comm_time);
@@ -2332,23 +2374,23 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 	time[1] = original_comp_time;
 	time[2] = duplication_comm_time;
 	time[3] = duplication_comp_time;
-	
+
 	MPI_Allreduce(time, max_time, 4, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-	if((max_time[0] + max_time[1]) - (max_time[2] + max_time[3]) 
+	if((max_time[0] + max_time[1]) - (max_time[2] + max_time[3])
 	   > -0.000000000000000001)
 	  //scheds.set_duplicate_variable(v, true);
 	  return true;
 	else
 	  return false;
       }
-      else 
+      else
 	return false;
     }
     else
       return false;
   }
-  
-  //It considers all variables which are associated with rules that 
+
+  //It considers all variables which are associated with rules that
   //compute tvars, and figures out if they are duplicate variables
   void set_duplication_of_variables(variableSet tvars, sched_db &scheds,
 				    fact_db &facts) {
@@ -2356,11 +2398,11 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     vector<ruleSet> rules;
     for(variableSet::const_iterator vi=tvars.begin();vi!=tvars.end();++vi) {
       variable v = *vi ;
-      ruleSet r = scheds.get_existential_rules(v) ; 
+      ruleSet r = scheds.get_existential_rules(v) ;
       vars.push_back(v) ;
       rules.push_back(r);
     }
-    
+
     variableSet current_possible_duplicate_vars, future_possible_duplicate_vars;
     current_possible_duplicate_vars += tvars & scheds.get_possible_duplicate_vars();
     //First add variables that have mapping in input or output
@@ -2379,7 +2421,7 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
     //Figure out duplication of variables which are subset of tvars
     for(variableSet::const_iterator vi = current_possible_duplicate_vars.begin();
 	vi != current_possible_duplicate_vars.end(); vi++)
-      scheds.set_duplicate_variable(*vi, process_policy_duplication(*vi, scheds, facts));     
+      scheds.set_duplicate_variable(*vi, process_policy_duplication(*vi, scheds, facts));
 
     //Now if target variable is duplicate variable, add the variables
     //those are in input of the rule which compute that variable
@@ -2393,5 +2435,5 @@ entitySet send_requests(const entitySet& e, variable v, fact_db &facts,
 
     scheds.add_possible_duplicate_vars(future_possible_duplicate_vars);
   }
-  
+
 } // end of namespace Loci

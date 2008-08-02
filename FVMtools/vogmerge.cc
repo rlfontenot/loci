@@ -43,7 +43,7 @@ struct file_info {
   vector<short> cluster_sizes ;
 } ;
 
-unsigned long readAttributeLong(hid_t group, char *name) {
+unsigned long readAttributeLong(hid_t group, const char *name) {
   hid_t id_a = H5Aopen_name(group,name) ;
   unsigned long val = 0;
   H5Aread(id_a,H5T_NATIVE_ULONG,&val) ;

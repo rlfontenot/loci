@@ -33,6 +33,7 @@ namespace Loci {
     sequence exec_seq ;
     variableSet sources ; // source vars of the map rule
     variableSet targets ; // target vars of the map rule
+    timeAccumulator timer ;
   public:
     // tsv is the target and source variables of this map rule
     execute_map_rule(rule fi, sequence seq,
@@ -41,6 +42,8 @@ namespace Loci {
                      fact_db &facts, sched_db &scheds) ;
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+    virtual string getName() { return "execute_map_rule";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
   
   execute_map_rule::
@@ -54,10 +57,12 @@ namespace Loci {
     rule_tag = fi ;
     rp->initialize(facts) ;
     exec_seq = seq ;
-    control_thread = false ;
   }
   
   void execute_map_rule::execute(fact_db &facts) {
+    stopWatch s ;
+    s.start() ;
+    
     current_rule_id = rule_tag.ident() ;
     // before the execute begins, we need to restore
     // all the facts associated with this map rule
@@ -99,18 +104,24 @@ namespace Loci {
         facts.update_fact(*vi,srp->remap(g2l)) ;
       }
     }
+    timer.addTime(s.stop(),1) ;
   }
   
   void execute_map_rule::Print(ostream &s) const {
     s << rule_tag << "  over sequence " << exec_seq << endl ;
   }
   
+  void execute_map_rule::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "map rule: " << rule_tag ;
+    data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
+  }
+
   void map_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
     existential_rule_analysis(map_impl, facts, scheds) ;
   }
   
-  void map_compiler::process_var_requests(fact_db& facts,
-                                          sched_db& scheds) {
+  void map_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
     //variableSet sources = map_impl.sources() ;
     //variableSet::const_iterator vi ;
     //for(vi=sources.begin();vi!=sources.end();++vi) {
@@ -119,13 +130,15 @@ namespace Loci {
     exec_seq = process_rule_requests(map_impl, facts, scheds) ;
   }
   
-  executeP map_compiler::create_execution_schedule(fact_db& facts,
-                                                   sched_db& scheds) {
+  execute_modules_decorator_factory* map_compiler::decoratorFactory = NULL;
+  
+  executeP map_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
     //return new execute_map_rule(map_impl, ~EMPTY, facts,scheds) ;
-    return new execute_map_rule(map_impl, exec_seq,
-                                map_impl.sources(),
-                                map_impl.targets(),
-                                facts,scheds) ;
+    executeP execute = new execute_map_rule(map_impl, exec_seq, map_impl.sources(),
+												map_impl.targets(), facts,scheds);
+	if(decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+	return execute;
   }
   
 }

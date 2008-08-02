@@ -45,7 +45,6 @@
 namespace Loci {
   extern int MPI_processes;
   extern int MPI_rank ;
-  extern int num_threads ;
 
   template<class T> class storeRepI : public storeRep {
     T *alloc_pointer ;

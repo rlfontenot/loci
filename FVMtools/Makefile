@@ -1,23 +1,3 @@
-###############################################################################
-#
-# Copyright 2008, Mississippi State University
-#
-# This file is part of the Loci Framework.
-#
-# The Loci Framework is free software: you can redistribute it and/or modify
-# it under the terms of the Lesser GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# The Loci Framework is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# Lesser GNU General Public License for more details.
-#
-# You should have received a copy of the Lesser GNU General Public License
-# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
-#
-###############################################################################
 include $(LOCI_BASE)/Loci.conf
 
 COPT = $(COPTLESS)
@@ -26,10 +6,10 @@ COPT = $(COPTLESS)
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog vogmerge vogcheck
+OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog vogmerge vogcheck 
 
 # List your object files here
-OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o
+OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o extract_cut.o
 
 
 

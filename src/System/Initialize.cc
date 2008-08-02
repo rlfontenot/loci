@@ -23,6 +23,8 @@
 #include <petscerror.h>
 #include <petscvec.h>
 #include <petscksp.h>
+
+
 // Force key petsc functions to load. (Helps when using static libraries)
 void dummyFunctionDependencies(int i) {
   int localSize=0,globalSize=0 ;
@@ -34,26 +36,18 @@ void dummyFunctionDependencies(int i) {
   ierr = KSPSetFromOptions(ksp) ;
   dummyFunctionDependencies(ierr) ;
 }
-
 #endif
-
-/*
 
 #ifdef USE_PAPI
-#include "papi.h"
-  int perr;
- if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
-         cerr<<"\nerror during initialization\n";
-
+#include <papi.h>
+#include <papiStdEventDefs.h>
 #endif
-
-*/
-
 
 #include <rule.h>
 #include <mod_db.h>
 #include "dist_tools.h"
 #include "loci_globs.h"
+#include "comp_tools.h"
 #include <Tools/debug.h>
 #include <Tools/except.h>
 #include <new>
@@ -88,8 +82,7 @@ using std::vector ;
 namespace Loci {
   int MPI_processes = 1;
   int MPI_rank = 0 ;
-  int num_threads = 1 ;
-  int method = 3 ;
+  int method = 3 ; // Factoring
   bool verbose = false ;
   /////////////////////////////
   // flags to turn on/off the visualization feature
@@ -109,7 +102,7 @@ namespace Loci {
   // flag to enable outputing schedule to file
   bool schedule_output = false ;
   // flag to enable dynamic scheduling feature
-  bool use_dynamic_scheduling = false ;
+  bool use_dynamic_scheduling = true ;
   // chomping size(unit is KB), default is 128KB
   int chomping_size = 128 ;
   // flag to enable memory profiling
@@ -124,6 +117,7 @@ namespace Loci {
   // memory allocation and no memory deallocation
   bool dmm_no_deallocation = false ;
 
+  // flag to enable work duplication techniques
   bool duplicate_work = false;
   bool multilevel_duplication = false;
   bool reduction_duplication = false;
@@ -141,18 +135,24 @@ namespace Loci {
   // partitioning routine
   bool load_cell_weights = false ;
   string cell_weight_file ;
-  /////////////////////////////
 
+  // flags for performace analysis
+  bool detailed_performance_analysis = false;
+  bool full_performance_analysis = false;
+  bool minimum_performance_analysis = false;
+  bool collect_perf_data = false;
   bool measure_rule_timings = false;
+  performance_analysis *perfAnalysis;
+  /////////////////////////////
   
   ofstream debugout ;
   ofstream timeout;
   ofstream ruleTimeOut;
+  ofstream perfReportOut; // output of performance analysis
 
   double total_memory_usage = 0 ;
 
   extern int current_rule_id ;
-
 
   void debug_print_rule() {
     if(current_rule_id != 0) {
@@ -287,10 +287,6 @@ namespace Loci {
       } else if(!strcmp((*argv)[i],"--verbose")) {
         verbose = true ;
         i++ ;
-      } else if(!strcmp((*argv)[i],"--threads")) {
-        cerr << "warning --threads not yet implemented" << endl ;
-        num_threads = atoi((*argv)[i+1]) ;
-        i+=2 ;
       } else if(!strcmp((*argv)[i],"--scheduleoutput")) {
         schedule_output = true ;
         i++ ;
@@ -350,10 +346,24 @@ namespace Loci {
         memory_greedy_schedule = false ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--method")) {
-        method = atoi((*argv)[i+1]);
+        if(!strcmp((*argv)[i+1],"none")) {
+          method = 0 ;
+        } else  if(!strcmp((*argv)[i+1],"IWS")) {
+          method = 1 ;
+        } else  if(!strcmp((*argv)[i+1],"FSC")) {
+          method = 2 ;
+        } else  if(!strcmp((*argv)[i+1],"FAC")) {
+          method = 3 ;
+        } else  if(!strcmp((*argv)[i+1],"GSS")) {
+          method = 4 ;
+        } else
+          method = atoi((*argv)[i+1]);
         i+=2;
       } else if(!strcmp((*argv)[i],"--balance")) {
         use_dynamic_scheduling = true ;
+        i++ ;
+      } else if(!strcmp((*argv)[i],"--nobalance")) {
+        use_dynamic_scheduling = false ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--duplicate_work")){
 	duplicate_work = true;
@@ -389,12 +399,27 @@ namespace Loci {
 	i += 2;
       } else if(!strcmp((*argv)[i],"--measure_rule_timings")){
 	measure_rule_timings = true;
+	collect_perf_data = true;
 	i++;
       } else if(!strcmp((*argv)[i],"--load_cell_weights")){
         load_cell_weights = true ;
         cell_weight_file = (*argv)[i+1] ;
 	i+=2 ;
-      }
+      } else if(!strcmp((*argv)[i], "--basic_performance_analysis")){
+	    minimum_performance_analysis = true;
+		collect_perf_data = true;
+	    i++;
+      } else if(!strcmp((*argv)[i], "--full_performance_analysis")){
+	    full_performance_analysis = true;
+		measure_rule_timings = true;
+		collect_perf_data = true;
+	    i++;
+      } else if(!strcmp((*argv)[i], "--detailed_performance_analysis")){
+	    detailed_performance_analysis = true;
+	    measure_rule_timings = true;
+		collect_perf_data = true;
+	    i++;
+      } 
       else
         break ;
     }
@@ -403,6 +428,39 @@ namespace Loci {
       *argc -= (i-1) ;
       for(int k=1;k<*argc;++k)
         (*argv)[k] = (*argv)[k+i-1] ;
+    }
+
+    if( collect_perf_data){
+	  oss.str("");
+	  if(MPI_processes == 1)
+		oss << "perfAnalysis";
+	  else
+		oss << "perfAnalysis-" << MPI_rank;
+	  filename = oss.str();
+	  perfReportOut.open(filename.c_str(), ios::out);
+	  perfReportOut << "Perfornamce Analysis for Processor "<< MPI_rank << endl;
+	  perfAnalysis = new performance_analysis();
+	  conditional_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "conditional");
+	  chomp_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "chomp");
+	  constraint_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "constraint");
+	  promote_compiler::decoratorFactory =  new execute_modules_timer_factory(perfAnalysis, "promote");
+	  generalize_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "generalized");
+	  priority_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "priority");
+	  impl_compiler::decoratorFactory =  new execute_modules_timer_factory(perfAnalysis, "impl");
+	  loop_compiler::decoratorFactory =  new execute_modules_timer_factory(perfAnalysis, "loop");
+	  barrier_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "barrier");
+	  singleton_var_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "singleton_var");
+	  allocate_var_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "allocate_var");
+	  free_var_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "free_var");
+	  memProfileAlloc_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "memProfileAlloc");
+	  memProfileFree_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "memProfileFree");
+	  apply_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "apply");
+	  reduce_param_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "reduce_param");
+	  reduce_store_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "reduce_store");
+	  map_compiler::decoratorFactory =  new execute_modules_timer_factory(perfAnalysis, "map");
+	  impl_recurse_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "impl_recurse");
+	  recurse_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "recurse");
+	  blackbox_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "blackbox");
     }
 
     if(collect_timings) {
@@ -415,6 +473,7 @@ namespace Loci {
       timeout.open(filename.c_str(), ios::out);
     }
 
+	/*
     if(measure_rule_timings) {
       oss.str("");
       if(MPI_processes == 1)
@@ -432,7 +491,7 @@ namespace Loci {
       ruleTimeOut << "+++++++++++++++++++++++++++++++++++++++++++++++" << endl;
       ruleTimeOut << endl;
     }
-
+*/
     set_debug_callback(debug_print_rule) ;
     if(debug_setup) {
       setup_debugger(execname,debug,hostname) ;

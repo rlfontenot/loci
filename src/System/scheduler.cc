@@ -52,16 +52,16 @@ using std::ofstream ;
 
 
 #ifdef USE_PAPI
-
 #include "papi.h"
 #define N 64*64
 #define NCOUNTS 6
-
 #endif
 
 
 
 namespace Loci {
+
+
   double LociAppPeakMemory = 0 ;
   double LociAppAllocRequestBeanCounting = 0 ;
   double LociAppFreeRequestBeanCounting = 0 ;
@@ -79,30 +79,9 @@ namespace Loci {
   extern bool profile_memory_usage ;
   extern bool show_graphs ;
   extern void deco_depend_gr(digraph& gr,const variableSet& given) ;
-
+  // 
   ////////////////////////////
-  namespace {
-    double difftime(timeval t1, timeval t2) {
-      double dt1 = t1.tv_sec + t1.tv_usec*1e-6 ;
-      double dt2 = t2.tv_sec + t2.tv_usec*1e-6 ;
-      return dt2-dt1 ;
-    }
-  }
 
-  double get_timer() {
-#ifdef PROFILE_CODE
-    clock_t tc ;
-    static double to = 0;
-    double tn,t ;
-    tc = clock() ;
-    tn = tc/1000000.0 ;
-    t = tn - to ;
-    to = tn ;
-    return t ;
-#else
-    return -1.0 ;
-#endif
-  }
 
   namespace {
     // pretty printing of a rule's signature
@@ -609,7 +588,6 @@ namespace Loci {
       ruleSet common = ruleSet(rules1 & rules2) ;
       ruleSet only1 = ruleSet(rules1 - common) ;
       ruleSet only2 = ruleSet(rules2 - common) ;
-
       ruleSet only1d, only2d ;
       map<rule,rule> set1, set2 ;
       ruleSet::const_iterator ri ;
@@ -702,8 +680,6 @@ namespace Loci {
                                      fact_db &facts,
                                      const variableSet& target,
                                      int nth) {
-    num_threads = min(nth,max_threads) ;
-
     variableSet parVars = target ;
     parVars += facts.get_extensional_facts() ;
     rule_db par_rdb ;
@@ -740,7 +716,17 @@ namespace Loci {
     variableSet given = facts.get_typed_variables() ;
     if(Loci::MPI_rank==0)
       cout << "generating dependency graph..." << endl ;
-    double start_time = MPI_Wtime() ;
+
+    // What is this supposed to be doing, translation
+    // void *timer_token = new (void *)  ;  why?
+    //    timer_token depend_graph_timer = new timer_token;
+    
+    stopWatch sw ;
+    sw.start() ;
+    // Memory leak happens here
+    //    if(collect_perf_data)
+      //      depend_graph_timer = perfAnalysis->start_timer("Graph Processing");
+	
     digraph gr ;
 
     given -= variable("EMPTY") ;
@@ -768,6 +754,7 @@ namespace Loci {
       cout << "dynamic scheduling..." << endl ;
     dynamic_scheduling(gr,facts,given,target) ;
 #endif
+
     ////////////////////
     //prune_graph(gr,given,target,facts) ;
     ////////////////////
@@ -843,58 +830,64 @@ namespace Loci {
 	  cerr << "Using default duplication policies." << endl;
 	  use_duplicate_model = false;
 	}
+	
+	if(use_duplicate_model) {
+	      double comm_ts, comm_tw;
+	      double comm_ts1, comm_ts2;
+	      fin >> comm_ts1 >> comm_ts2 >> comm_tw;
+	      comm_ts = comm_ts2;
+	      
+	      if(comm_tw < 0)
+		    comm_tw = 0;
 
-	double comm_ts, comm_tw;
-	double comm_ts1, comm_ts2;
-	fin >> comm_ts1 >> comm_ts2 >> comm_tw;
-	comm_ts = comm_ts2;
+	      unsigned int count;
+	      fin >> count;
 
-	if(comm_tw < 0)
-	  comm_tw = 0;
-
-	unsigned int count;
-	fin >> count;
-
-	map<rule, pair<double, double> > comp_info;
-	string rule_name;
-	double ts, tw;
-	double ts1, ts2;
-	for(unsigned int i = 0; i < count; i++) {
-	  fin >> rule_name >> ts1 >> ts2 >> tw;
-	  ts = ts2;
-	  if(tw < 0)
-	    tw = 0;
-
-	  pair<double, double> tmpModel(ts, tw);
-	  rule myRule = rule::get_rule_by_name(rule_name);
-	  if(myRule.get_info().name() == "NO_RULE") {
-	    cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
-	  }
-	  else
-	    comp_info[myRule] = tmpModel;
+	      map<rule, pair<double, double> > comp_info;
+	      string  rule_name;
+	      double ts, tw;
+	      double ts1, ts2;
+	      for(unsigned int i = 0; i < count; i++) {
+		    fin >> rule_name >> ts1 >> ts2 >> tw;
+		    ts = ts2;
+		    if(tw < 0)
+			  tw = 0;
+		    
+		    pair<double, double> tmpModel(ts, tw);
+		    rule myRule = rule::get_rule_by_name(rule_name);
+		    if(myRule.get_info().name() == "NO_RULE") {
+			  cerr << "Warning (Rule Ignored): " << rule_name << " read from model file is not in rule database" << endl;
+		    }
+		    else
+			  comp_info[myRule] = tmpModel;
+	      }
+	      scheds.add_model_info(comm_ts, comm_tw, comp_info);	
 	}
-	scheds.add_model_info(comm_ts, comm_tw, comp_info);
       }
     }
 
     graph_compiler compile_graph(decomp, initial_vars) ;
     compile_graph.compile(facts,scheds,given,target) ;
-
-    double end_time = MPI_Wtime() ;
+	
+    //    if(collect_perf_data)
+    //      perfAnalysis->stop_timer(depend_graph_timer);
     Loci::debugout << "Time taken for graph processing  = "
-                   << end_time  - start_time << "  seconds " << endl ;
-#ifdef PROFILE_CODE
-    //timer = get_timer() ;
-    //cout << "Graph Processing Time: "<<timer << " seconds" << endl ;
-#endif
+                   << sw.stop() << "  seconds " << endl ;
 
     if(Loci::MPI_rank==0)
       cout << "existential analysis..." << endl ;
-    start_time = MPI_Wtime() ;
+    sw.start() ;
+    //timer_token existential_analysis_timer = new timer_token;
+    //    if(collect_perf_data)
+    //      existential_analysis_timer = perfAnalysis->start_timer("Existential Analysis");
+    
     compile_graph.existential_analysis(facts, scheds) ;
-    end_time = MPI_Wtime() ;
+    
+    //    if(collect_perf_data)
+    //      perfAnalysis->stop_timer(existential_analysis_timer);
+
     Loci::debugout << "Time taken for existential_analysis  = "
-                   << end_time  - start_time << "  seconds " << endl ;
+                   << sw.stop() << "  seconds " << endl ;
     ///////////////////////////////////
     /*
       if(Loci::MPI_rank==0) {
@@ -907,7 +900,7 @@ namespace Loci {
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
     executeP sched =  compile_graph.execution_schedule
-      (facts,scheds,initial_vars,num_threads) ;
+      (facts,scheds,initial_vars) ;
 
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {
@@ -932,16 +925,142 @@ namespace Loci {
       Loci::Abort() ;
     }
     //scheds.print_summary(facts,Loci::debugout) ;
-#ifdef PROFILE_CODE
-    //timer = get_timer() ;
-    //cout << "Schedule Generation Time: " << timer << " seconds" << endl ;
-#endif
+
     // setting this external pointer
     exec_current_fact_db = &facts ;
     return sched ;
   }
 
 
+  // get profiling information from schedule
+  class collectTiming : public collectData {
+    struct timingData {
+      executeEventType eventType ;
+      std::string groupName ;
+      std::string eventName ;
+      timeAccumulator accumTime ;
+      bool operator <(const timingData &d) const {
+        return accumTime.getTime() < d.accumTime.getTime() ;
+      }
+    } ;
+    std::list<timingData>  timing_data ;
+  public:
+
+    void accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) ;
+    double getComputeTime() ;
+    double getTotalTime() ;
+    ostream &PrintSummary(ostream &s) ;
+    
+  } ;
+  
+  void collectTiming::accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) {
+    timingData td ;
+    td.eventType = t ;
+    td.eventName = eventName ;
+    td.accumTime = ta ;
+    if(!groups.empty())
+      td.groupName = groups[0] ;
+    
+    for(size_t i=1;i<groups.size();++i) {
+      td.groupName += ':' ;
+      td.groupName += groups[i] ;
+    }
+    timing_data.push_back(td) ;
+  }
+
+  ostream &collectTiming::PrintSummary(ostream &s) {
+    timing_data.sort() ;
+    double totComp = 0 ;
+    double totComm = 0 ;
+    double totCtrl = 0 ;
+    std::list<timingData>::const_iterator  ti = timing_data.begin() ;
+    for(ti=timing_data.begin();ti!=timing_data.end();++ti)
+      switch(ti->eventType) {
+      case EXEC_COMMUNICATION:
+        totComm += ti->accumTime.getTime() ;
+        break ;
+      case EXEC_COMPUTATION:
+        totComp += ti->accumTime.getTime() ;
+        break ;
+      case EXEC_CONTROL:
+        totCtrl += ti->accumTime.getTime() ;
+        break ;
+      }
+
+    s << "------------------------------------------------------------------------------" << endl ;
+    s << "Timing Categories:" << endl ;
+    s << " -- Computation:   " << totComp << endl ;
+    s << " -- Communication: " << totComm << endl ;
+    s << " -- Control:       " << totCtrl << endl ;
+    double totTime = totComp+totComm+totCtrl ;
+    s << " -- totalTime:     " << totTime << endl ;
+    s << endl ;
+    s << "------------------------------------------------------------------------------" << endl ;
+
+    std::list<timingData>::const_reverse_iterator rti = timing_data.rbegin() ;
+    s << "Top Ten Most Expensive Steps:" << endl ;
+    int lcnt = min(int(timing_data.size()),10) ;
+    for(int i =0;i<lcnt;++i,++rti) {
+      s << i << "- " << rti->eventName << endl ;
+      if(rti->groupName != "")
+        s << " --- Group " << rti->groupName << endl ;
+
+      double t = rti->accumTime.getTime() ;
+      double e = double(rti->accumTime.getEvents()) ;
+      s << " --- Time: " << t << " "
+        << ceil(1000.0*t/totTime)/10.0 << "% of total," 
+        <<  " time per entity: " << t/max(e,1.0)
+        << endl ;
+      s << "------------------------------------------------------------------------------" << endl ;
+    }
+
+    map<string,double> group_times ;
+    map<string,double>::const_iterator gi ;
+    for(ti=timing_data.begin();ti!=timing_data.end();++ti) {
+      string group = ti->groupName ;
+      vector<string> groups ;
+      string working ;
+      for(size_t i=0;i<group.size();++i)
+        if(group[i] == ':') {
+          if(working != "")
+            groups.push_back(working) ;
+          working = "" ;
+        } else {
+          working += group[i] ;
+        }
+      if(working != "")
+        groups.push_back(working) ;
+      for(size_t i=0;i<groups.size();++i) 
+        group_times[groups[i]] += ti->accumTime.getTime() ;
+    }
+
+    s << "----- Time per category:" << endl ;
+    for(gi=group_times.begin();gi!=group_times.end();++gi) {
+      double t = gi->second ;
+      s << "Group " << gi->first << " time = " << gi->second << ", " 
+        << ceil(1000.0*t/totTime)/10.0 << "% of total" << endl ;
+    }    
+    s << "------------------------------------------------------------------------------" << endl ;
+    return s ;
+  }
+  
+  double collectTiming::getComputeTime() {
+    double totComp = 0 ;
+    std::list<timingData>::const_iterator  ti = timing_data.begin() ;
+    for(ti=timing_data.begin();ti!=timing_data.end();++ti)
+      if(ti->eventType==EXEC_COMPUTATION || ti->eventType == EXEC_CONTROL) 
+        totComp += ti->accumTime.getTime() ;
+    return totComp ;
+  }  
+
+  double collectTiming::getTotalTime() {
+    double totComp = 0 ;
+    std::list<timingData>::const_iterator  ti = timing_data.begin() ;
+    for(ti=timing_data.begin();ti!=timing_data.end();++ti)
+      totComp += ti->accumTime.getTime() ;
+    return totComp ;
+  }  
+  
   // this function is used to create an execution schedule
   // for internalQuery below. This function and the internalQuery
   // function are mainly intended to be used by the Loci scheduler
@@ -955,7 +1074,6 @@ namespace Loci {
                                               fact_db &facts,
                                               const variableSet& target,
                                               int nth) {
-    num_threads = min(nth,max_threads) ;
     // since this function is always executed inside
     // the create_execution_schedule function so the
     // fact database is always in the local number state
@@ -1068,7 +1186,7 @@ namespace Loci {
       cout << "[Internal] creating execution schedule..." << endl;
 #endif
     executeP sched =  compile_graph.execution_schedule
-      (facts,scheds,initial_vars,num_threads) ;
+      (facts,scheds,initial_vars) ;
 
     if(GLOBAL_OR(scheds.errors_found())) {
       if(MPI_rank == 0) {
@@ -1092,7 +1210,8 @@ namespace Loci {
   // and this expansion process only needs to be performed once.
   bool internalQuery(rule_db& par_rdb, fact_db& facts,
                      const variableSet& query) {
-    double t1 = MPI_Wtime() ;
+    stopWatch sw ;
+    sw.start() ;
     
     if(MPI_rank == 0) {
       cout << "[Internal] Quering facts: " << query << endl ;
@@ -1123,8 +1242,7 @@ namespace Loci {
       storeRepP srp = local_facts.get_variable(*vi) ;
       facts.create_intensional_fact(*vi,srp) ;
     }
-    double t2 = MPI_Wtime() ;
-    double tlocal = t2-t1 ;
+    double tlocal = sw.stop() ;
     double tglobal = 0 ;
     MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
     debugout << "time to execute internal query " << tglobal ;
@@ -1133,24 +1251,25 @@ namespace Loci {
 
   bool makeQuery(const rule_db &rdb, fact_db &facts,
                  const std::string& query) {
-
-
-#ifdef USE_PAPI
-    int perr,ev_set=PAPI_NULL;
-    int i,ncnt,k;
-    if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
-      cerr<<"\nerror during initialization\n";
-    unsigned char v[N];
-    long_long counts[NCOUNTS];
-    int evlist[NCOUNTS];
-    char evname[NCOUNTS][PAPI_MAX_STR_LEN];
-    int retval;
-#endif
-
-
-
+	/*	
+	  #ifdef USE_PAPI
+	  int perr,ev_set=PAPI_NULL;
+	  int i,ncnt,k;
+	  if(PAPI_VER_CURRENT!=(perr=PAPI_library_init(PAPI_VER_CURRENT)))
+	  cerr<<"\nerror during initialization\n";
+	  unsigned char v[N];
+	  long_long counts[NCOUNTS];
+	  int evlist[NCOUNTS];
+	  char evname[NCOUNTS][PAPI_MAX_STR_LEN];
+	  int retval;
+	  #endif
+	*/
     facts.setupDefaults(rdb) ;
-    double t1 = MPI_Wtime() ;
+    stopWatch sw ;
+    sw.start() ;
+    //    timer_token execute_query_timer = new timer_token;
+    //    if(collect_perf_data)
+    //      execute_query_timer = perfAnalysis->start_timer("Execute Query");
 
     try {
       if(MPI_rank == 0) {
@@ -1187,7 +1306,7 @@ namespace Loci {
       fact_db local_facts(facts) ;
 
 
-
+      /*
 #ifdef USE_PAPI
 
       if((perr=PAPI_create_eventset(&ev_set)))
@@ -1235,20 +1354,19 @@ namespace Loci {
       if((perr=PAPI_start(ev_set)))
         cout<<"\nPAPI_start_event failed."<<PAPI_strerror(perr)<<"\n";
 #endif
+      
+      */
 
-
-
-      double ces1 = MPI_Wtime() ;
+      sw.start() ;
       executeP schedule = create_execution_schedule(rdb,local_facts,target) ;
       if(schedule == 0)
         throw StringError("makeQuery: query failed!") ;
 
 
-      double ces2 = MPI_Wtime() ;
-      double tlocal = ces2-ces1 ;
+      double tlocal = sw.stop() ;
       double tglobal = 0 ;
       MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
-      debugout << "time to create schedule " << tglobal ;
+      debugout << "time to create schedule " << tglobal  << endl ;
       
       // If a schedule was generated, execute it
       if(MPI_rank == 0)
@@ -1270,30 +1388,43 @@ namespace Loci {
       }
 
       // execute schedule
-      double st = MPI_Wtime() ;
+      stopWatch sw ;
+      sw.start() ;
+      //      timer_token execute_schedule_timer = new timer_token;
+      //      if(collect_perf_data)
+      //        execute_schedule_timer = perfAnalysis->start_timer("Schedule Execution");
       // setting this external pointer
       exec_current_fact_db = &local_facts ;
       schedule->execute(local_facts) ;
-      double et = MPI_Wtime() ;
+
+      double exec_time = sw.stop() ;
+      collectTiming timeProf ;
+      schedule->dataCollate(timeProf) ;
+
+      double compute_time_local = timeProf.getComputeTime() ;
+      double prof_exec_time = timeProf.getTotalTime() ;
+      double compute_time_total = 0 ;
+      MPI_Allreduce(&compute_time_local,&compute_time_total, 1, MPI_DOUBLE,
+                    MPI_SUM,MPI_COMM_WORLD) ;
 
 
+      timeProf.PrintSummary(debugout) ;
 
+      //      if(collect_perf_data)
+      //        perfAnalysis->stop_timer(execute_schedule_timer);
+
+      /*
 #ifdef USE_PAPI
       if((perr=PAPI_read(ev_set,counts)))
         cout<<"PAPI_read failed."<<PAPI_strerror(perr)<<"\n";
 
-
       cout<<"Counts registered\n";
       for(i=0;i<ncnt;i++)
         cout<<evname[i]<<"="<<counts[i]<<"\n";
-
-
 #endif
+      */
 
-
-      Loci::debugout << " Time taken for exectution of the schedule = " << et-st << " seconds " << endl ;
-      //Loci::debugout << " Time taken for exectution of the schedule = "
-      //             << difftime(t1,t2) << " seconds " << endl ;
+      Loci::debugout << "Time taken for execution of the schedule = " << exec_time << " seconds " << endl ;
 
       // put the computed results back to the global facts
       // but we want to restore the facts back to its global
@@ -1322,7 +1453,8 @@ namespace Loci {
           facts.create_intensional_fact(*vi,srp) ;
         }
       }
-
+	  
+		
       if(profile_memory_usage) {
         Loci::debugout << "++++++++Memory Profiling Report++++++++"
                        << endl ;
@@ -1389,13 +1521,21 @@ namespace Loci {
 
       // communicate the execution time
       if(MPI_processes > 1) {
-        double mytime = et-st ;
+        double mytime = exec_time ;
         double maxtime = 0 ;
         MPI_Allreduce(&mytime,&maxtime,1,
                       MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD) ;
-        Loci::debugout << "Global max time taken for exectution"
+        Loci::debugout << "Global max time taken for execution"
                        << " of the schedule = "
                        << maxtime << " seconds " << endl ;
+        mytime = prof_exec_time ;
+        MPI_Allreduce(&mytime,&maxtime,1,
+                      MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD) ;
+        if(MPI_rank == 0 ) {
+          double eff = compute_time_total/(double(MPI_processes)*maxtime) ;
+          cout << "Schedule execution complete, estimated parallel efficiency = "
+               << ceil(1000.0*eff)/10.0 << "%." << endl ;
+        }
       }
     } catch(const BasicException &err) {
       cerr << "Loci found an error during MakeQuery" << endl ;
@@ -1408,10 +1548,17 @@ namespace Loci {
       cerr << "Unknown Exception Caught" << endl ;
       Loci::Abort() ;
     }
+    //	if(collect_perf_data)
+    //		perfAnalysis->stop_timer(execute_query_timer);
 
-    double t2 = MPI_Wtime() ;
-    debugout << "Time to execute query for '" << query << "' is " << t2-t1
+    debugout << "Time to execute query for '" << query << "' is " << sw.stop()
              << endl ;
+	
+    //	if(collect_perf_data) {
+    //		if(MPI_rank == 0)
+    //			cout << "printing performance analysis data to perfAnalysis-*" << endl;
+    //		perfAnalysis->create_report();
+    //	 }
     return true ;
 
   }

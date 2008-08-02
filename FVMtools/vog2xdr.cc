@@ -241,7 +241,7 @@ int main(int ac, char *av[]) {
   vector<unsigned char> cluster_info ;
   readVector(face_g,"cluster_sizes",cluster_sizes) ;
   readVector(face_g,"cluster_info",cluster_info) ;
-  vector<int> cluster_offset(cluster_sizes.size()+1) ;
+  vector<size_t> cluster_offset(cluster_sizes.size()+1) ;
   cluster_offset[0] = 0 ;
   for(size_t i=0;i<cluster_sizes.size();++i)
     cluster_offset[i+1] = cluster_offset[i] + cluster_sizes[i] ;

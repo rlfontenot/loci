@@ -158,16 +158,20 @@ namespace Loci {
     
     class execute_dump_var : public execute_modules {
       variableSet dump_vars ;
+      timeAccumulator timer ;
     public:
       execute_dump_var(variableSet vars) : dump_vars(vars) {}
       virtual void execute(fact_db &facts) ;
       virtual void Print(std::ostream &s) const ;
+      virtual string getName() { return "execute_dump_var";};
+      virtual void dataCollate(collectData &data_collector) const ;
     } ;
     
     map<variable, int> dump_var_lookup ;
     
     void execute_dump_var::execute(fact_db &facts) {
-      
+      stopWatch s ;
+      s.start() ;
       for(variableSet::const_iterator vi=dump_vars.begin();
           vi!=dump_vars.end();++vi) {
         variable v = *vi ;
@@ -206,12 +210,18 @@ namespace Loci {
           }
         }
       }
+      timer.addTime(s.stop(),1) ;
     }
     
     void execute_dump_var::Print(std::ostream &s) const {
       s << "dumping variables " << dump_vars << endl ;
     }
     
+    void execute_dump_var::dataCollate(collectData &data_collector) const {
+      string name ;
+      name = "dump vars" ;
+      data_collector.accumulateTime(timer,EXEC_CONTROL,name) ;
+    }
     
     class dump_vars_compiler : public rule_compiler {
       variableSet dump_vars ;

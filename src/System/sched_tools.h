@@ -38,38 +38,30 @@
 #ifdef PROFILE_CODE
 #include <time.h>
 #endif
-
+#include "performance_analysis.h"
 #include "sched_mlg.h"
 using std::vector;
+
 namespace Loci {
   void extract_rule_sequence(std::vector<rule> &rule_seq,
                              const std::vector<digraph::vertexSet> &v) ;
   void set_var_types(fact_db &facts, const digraph &dg, sched_db &scheds) ;
   rule make_rename_rule(variable new_name, variable old_name) ;
 
-  class execution_factory {
-    rule rule_tag;
-    sequence exec_seq;
-    const sched_db& scheds;
-    fact_db& facts;
-  public:
-    execution_factory(rule fi, sequence seq, fact_db &facts, const sched_db &sd);
-    execute_modules* create_product();
-    execute_modules* create_product(variable v, const storeRepP &p);
-  };
-
-    
-
   class execute_rule : public execute_modules {
   protected:
     rule_implP rp ;
     rule rule_tag ; 
     sequence exec_seq ;
+    size_t exec_size ;
+    timeAccumulator timer ;
   public:
     execute_rule(rule fi, sequence seq, fact_db &facts, const sched_db &scheds);
     execute_rule(rule fi, sequence seq, fact_db &facts, variable v, const storeRepP &p, const sched_db &scheds);
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+    virtual string getName() {return "execute_rule";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
   class execute_rule_null : public execute_modules {
@@ -79,27 +71,9 @@ namespace Loci {
     execute_rule_null(rule fi) : rule_tag(fi) {}
     virtual void execute(fact_db &facts) {}
     virtual void Print(std::ostream &s) const {s << rule_tag << " over empty sequence."<< endl ;}
+    virtual string getName() {return "execute_rule_null";};
+    virtual void dataCollate(collectData &data_collector) const {}
   } ;
-
-  class timed_execute_rule: public execute_rule {
-  protected:
-    double min_time_duration;
-  public:
-    timed_execute_rule(rule fi, sequence seq, fact_db &facts,
-		       const sched_db &scheds, double td);
-    timed_execute_rule(rule fi, sequence seq, fact_db &facts, variable v,
-		       const storeRepP &p, const sched_db &scheds, double td);
-    virtual void execute(fact_db &facts);
-  };
-
-  class measure_timings_execute_rule: public execute_rule {
-  public:
-    measure_timings_execute_rule(rule fi, sequence seq, fact_db &facts,
-		       const sched_db &scheds);
-    measure_timings_execute_rule(rule fi, sequence seq, fact_db &facts, variable v,
-		       const storeRepP &p, const sched_db &scheds);
-    virtual void execute(fact_db &facts);
-  };
 
   class dynamic_schedule_rule: public execute_modules {
     rule_implP rp ;
@@ -109,16 +83,18 @@ namespace Loci {
     rule rule_tag ;
     entitySet pre_exec_set ;
     entitySet exec_set ;
-    
+    timeAccumulator timer ;
+    timeAccumulator comp_timer ;
   public:
     dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
     virtual ~dynamic_schedule_rule() ;
   
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
+    virtual string getName() {return "dynamic_schedule_rule";};
+    virtual void dataCollate(collectData &data_collector) const ;
   } ;
   
-
   class visitor ;
   
   class rule_compiler : public CPTR_type {
@@ -158,7 +134,7 @@ namespace Loci {
     ///////////////////
     void existential_analysis(fact_db &facts, sched_db &scheds) ;
     executeP execution_schedule(fact_db &facts, sched_db &scheds,
-                                const variableSet& alloc, int nth) ;
+                                const variableSet& alloc) ;
   } ;
   
   struct comm_info {
@@ -172,14 +148,17 @@ namespace Loci {
      vector<variable> reduce_vars ;
      vector<rule> unit_rules ;
      MPI_Op create_join_op ;
-     vector<CPTR<joiner> >join_ops ; 
+     vector<CPTR<joiner> >join_ops ;
+     timeAccumulator timer ;
    public:
      execute_param_red(vector<variable> reduce_vars, vector<rule> unit_rules,
                        vector<CPTR<joiner> > join_ops) ; 
      ~execute_param_red() ;
      virtual void execute(fact_db &facts) ;
      virtual void Print(std::ostream &s) const ;
-   } ;
+     virtual string getName() {return "execute_param_red";};
+     virtual void dataCollate(collectData &data_collector) const ;
+  } ;
 
   // experimental dynamic scheduling function
   void dynamic_scheduling(digraph& gr, fact_db& facts,

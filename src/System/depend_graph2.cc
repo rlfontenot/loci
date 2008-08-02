@@ -21,6 +21,7 @@
 #include <depend_graph.h>
 #include "dist_tools.h"
 #include "loci_globs.h"
+#include <unistd.h>
 #include <map>
 using std::map ;
 #include <vector>
@@ -31,6 +32,7 @@ using std::set ;
 using std::string ;
 #include <sstream>
 using std::ostringstream ;
+#include <ostream>
 
 #include <iostream>
 using std::endl ;
@@ -1128,13 +1130,143 @@ namespace Loci {
     }
     return outrules ;
   }
+
+  std::ostream &output_graph(const digraph &dg,std::ostream &s) {
+    s << "graph = {" << endl ;
+    s << "nodes = {" << endl ;
+    variableSet vars = extract_vars(dg.get_all_vertices()) ;
+    ruleSet rules = extract_rules(dg.get_all_vertices()) ;
+    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
+      s << ri->ident() << ": " << '"' ;
+      if(ri->type() != rule::INTERNAL) {
+        rule_implP rp = ri->get_rule_implP() ;
+        s<< '[' << rp->get_name() << ']';
+      }
+      s << *ri <<'"' << endl ;
+    }
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      s << vi->ident() << ": " << '"' << *vi << '"' << endl ;
+    }
+    s << "}" << endl ;
+    s << "connectivity = {"  << endl ;
+    for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
+      int id = ri->ident() ;
+      digraph::vertexSet conn = dg[id] ;
+      digraph::vertexSet::const_iterator ii ;
+      s << id <<':' ;
+      for(ii=conn.begin();ii!=conn.end();++ii)
+        s << ' ' << *ii ;
+      s << " ;" << endl ;
+    }
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      int id = vi->ident() ;
+      digraph::vertexSet conn = dg[id] ;
+      digraph::vertexSet::const_iterator ii ;
+      s << id <<':' ;
+      for(ii=conn.begin();ii!=conn.end();++ii)
+        s << ' ' << *ii ;
+      s << " ;" << endl ;
+    }
+    s << "}" << endl ;
+    s << "}" << endl ;
+    return s ;
+  }
   
+
+  variable flattenVariable(variable v) {
+    variable::info vinfo = v.get_info() ;
+    vinfo.assign = false ;
+    vinfo.time_id = time_ident() ;
+    vinfo.offset = 0 ;
+    vinfo.priority = vector<std::string>() ;
+    variable vn(vinfo) ;
+    return vn ;
+  }
+  
+  void makeFlatGraph(digraph &gr,const rule_db &rdb) {
+    ruleSet all_rules = rdb.all_rules() ;
+
+    ruleSet::const_iterator ri ;
+    variableSet all_vars ;
+    for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
+      int rid = ri->ident() ;
+      
+      variableSet vin = ri->sources() ;
+
+      variableSet::const_iterator vi ;
+      for(vi=vin.begin();vi!=vin.end();++vi) {
+        variable v = flattenVariable(*vi) ;
+        gr.add_edge(v.ident(),rid) ;
+      }
+      variableSet vout = ri->targets() ;
+
+      for(vi=vout.begin();vi!=vout.end();++vi) {
+        variable v = flattenVariable(*vi) ;
+        gr.add_edge(rid,v.ident()) ;
+      }
+    }
+    
+  }
+
+  //#define CLEANREPORT
+  //#define REPORT
   dependency_graph2::dependency_graph2(const rule_db& rdb,
                                        const variableSet& given,
                                        const variableSet& target) {
     // at first, we get all the rules in the rule database
     //ruleSet all_rules = rdb.all_rules() ;
     ruleSet all_rules = active_rules(rdb.all_rules(),given) ;
+
+#ifdef REPORT
+    char *p ;
+    char buf[2048] ;
+    
+    if(getcwd(buf,sizeof(buf))==0) 
+      p = "PWD" ;
+    else
+      p=buf ;
+    string prefix = "/usr/tmp/";
+    char *t ;
+    if((t = rindex(p,'/')) == 0)
+      t = p ;
+    else {
+      *t = '_' ;
+      char *t2 ;
+      if((t2 = rindex(p,'/')) !=0) {
+        t = t2 ;
+        *t = '_' ;
+      }
+      if((t2 = rindex(p, '/')) !=0)
+        t = t2 ;
+      t++ ;
+    }
+    prefix += string(t) ;
+    {
+      string filename = prefix+string("rules.dat") ;
+      
+      std::ofstream file(filename.c_str(),std::ios::out) ;
+      file << "rules = {" << endl ;
+      for(ruleSet::const_iterator ri=all_rules.begin();
+          ri!=all_rules.end();
+          ++ri) {
+        file << '"' ;
+        if(ri->type() != rule::INTERNAL) {
+          rule_implP rp = ri->get_rule_implP() ;
+          file << '[' << rp->get_name() << ']';
+        }
+        file << *ri <<'"' << endl ;
+      }
+      file << "}" << endl ;
+    }
+    {
+      string filename = prefix+string("globalgraph.dat") ;
+      std::ofstream file(filename.c_str(),std::ios::out) ;
+      digraph grg ;
+      makeFlatGraph(grg,rdb) ;
+      output_graph(grg,file) ;
+    }
+#endif
+
     // then we classify all the iterations in the rule database,
     // while also pick out non iteration rules
     // all the iteration information is stored in an
@@ -1218,6 +1350,18 @@ namespace Loci {
         gr.add_graph(ip->second.iteration_graph) ;
       }
 
+#ifndef CLEANREPORT
+#ifdef REPORT
+    {
+      string filename = prefix+string("graph.dat") ;
+      std::ofstream file(filename.c_str(),std::ios::out) ;
+
+      file << "input = {" << given << "}"<<endl ;
+       
+      output_graph(gr,file) ;
+    }
+#endif
+#endif
     //cerr<<"vertices size before cleaning: "
     //  <<gr.get_all_vertices().size()<<endl ;
     clean_graph(gr,given,target) ;
@@ -1229,7 +1373,20 @@ namespace Loci {
     // Partition any iterations that remain that have multiple collapse
     // conditionals into independent iterations
     gr = partition_iteration(gr) ;
-    
+
+#ifdef CLEANREPORT
+#ifdef REPORT
+    {
+      string filename = prefix+string("graph.dat") ;
+      std::ofstream file(filename.c_str(),std::ios::out) ;
+      gr.remove_dangling_vertices() ;
+
+      file << "input = {" << given << "}"<<endl ;
+       
+      output_graph(gr,file) ;
+    }
+#endif
+#endif
     // Add dependencies created by update-in-place rules
     add_rename_dependencies(gr) ;
 

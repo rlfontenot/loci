@@ -26,11 +26,12 @@
 //#define DONT_WRITE_OUT
 
 namespace Loci {
+  execute_modules_decorator_factory* promote_compiler::decoratorFactory = NULL;
+
   void promote_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
 
-  void promote_compiler::process_var_requests(fact_db &facts, sched_db &scheds)
-  {
+  void promote_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
   }
 
   executeP promote_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
@@ -40,12 +41,16 @@ namespace Loci {
 #ifdef WRITE_OUT
     std::ostringstream oss ;
     oss << r ;
-    return executeP(new execute_msg(oss.str())) ;
+    executeP execute = executeP(new execute_msg(oss.str())) ;
+	if(decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+	return execute;	
 #endif
   }
 
-  void generalize_compiler::set_var_existence(fact_db &facts, sched_db &scheds)
-  {
+  execute_modules_decorator_factory* generalize_compiler::decoratorFactory = NULL;
+
+  void generalize_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
 
   void generalize_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
@@ -58,10 +63,15 @@ namespace Loci {
 #ifdef WRITE_OUT
     std::ostringstream oss ;
     oss << r ;
-    return executeP(new execute_msg(oss.str())) ;
+    executeP execute = executeP(new execute_msg(oss.str())) ;
+	if(decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+	return execute;
 #endif
   }
 
+  execute_modules_decorator_factory* priority_compiler::decoratorFactory = NULL;
+  
   void priority_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
 
@@ -75,7 +85,10 @@ namespace Loci {
 #ifdef WRITE_OUT
     std::ostringstream oss ;
     oss << r ;
-    return executeP(new execute_msg(oss.str())) ;
+	executeP execute = executeP(new execute_msg(oss.str())) ;
+	if(decoratorFactory != NULL)
+		execute = decoratorFactory->decorate(execute);
+	return execute;
 #endif
   }
 }

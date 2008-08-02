@@ -37,6 +37,7 @@
 #include <entitySet.h>
 
 #include <Loci_Datatypes.h>
+#include <Tools/expr.h>
 
 namespace Loci {
 
@@ -360,6 +361,13 @@ namespace Loci {
 
     typedef char Converter_Base_Type ;
     typedef std_string_schema_converter Converter_Type ;
+  } ;
+
+  template<> struct data_schema_traits<exprP> {
+    typedef USER_DEFINED_CONVERTER Schema_Converter ;
+
+    typedef char Converter_Base_Type ;
+    typedef StringStreamConverter<exprP> Converter_Type ;
   } ;
 
 #ifdef NO_OFFSETOF

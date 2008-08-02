@@ -335,6 +335,7 @@ namespace Loci
 
   rule_implP rp1;		// copies, to facilitate shared code
   rule_implP local_comp1;	//  between IWS & loop scheduling methods
+  timeAccumulator *addupTime = 0 ;
   fact_db *facts1;
   fact_db *local_facts1;
   variableSet inputs1;
@@ -938,9 +939,12 @@ namespace Loci
 		for (chunkIdx = 0; chunkIdx < nChunks; chunkIdx++)
 		  {
 		    tStart = info[src][LOCAL_START] + chunkIdx * iwsSize;
+                    stopWatch sc ;
+                    sc.start() ;
 		    local_comp1->
 		      compute (sequence
 			       (interval (tStart, tStart + iwsSize - 1)));
+                    
 		    timerEnd = MPI_Wtime ();
 		    chunkTime[src][chunkIdx] = (timerEnd - timerStart);
 #if DEBUGOUT+SHOWCHUNKS
@@ -974,7 +978,10 @@ namespace Loci
 	  {
 	    tStart = myFirstItem + chunkIdx * iwsSize;
 	    tSize = min (iwsSize, myFirstItem + myItemCount - tStart);
+            stopWatch sc ;
+            sc.start() ;
 	    rp1->compute (sequence (interval (tStart, tStart + tSize - 1)));
+            addupTime->addTime(sc.stop(),1) ;
 	    timerEnd = MPI_Wtime ();
 	    chunkTime[myRank][chunkIdx] = (timerEnd - timerStart);
 	    timerStart = timerEnd;
@@ -1174,7 +1181,12 @@ namespace Loci
 	      continue;		// sent to another proc
 	    tStart = myFirstItem + chunkIdx * iwsSize;
 	    tSize = min (iwsSize, myFirstItem + myItemCount - tStart);
+
+            stopWatch sc ;
+            sc.start() ;
 	    rp1->compute (sequence (interval (tStart, tStart + tSize - 1)));
+            addupTime->addTime(sc.stop(),1) ;
+            
 	    timerEnd = MPI_Wtime ();
 	    chunkTime[myRank][chunkIdx] = (timerEnd - timerStart);
 	    timerStart = timerEnd;
@@ -1279,7 +1291,12 @@ namespace Loci
 	  {
 	    tStart = myFirstItem + chunkIdx * iwsSize;
 	    tSize = min (iwsSize, myFirstItem + myItemCount - tStart);
+
+            stopWatch sc ;
+            sc.start() ;
 	    rp1->compute (sequence (interval (tStart, tStart + tSize - 1)));
+            addupTime->addTime(sc.stop(),1) ;
+
 	    timerEnd = MPI_Wtime ();
 	    chunkTime[myRank][chunkIdx] = (timerEnd - timerStart);
 	    timerStart = timerEnd;
@@ -1656,7 +1673,7 @@ namespace Loci
     int sendRequest, probeFreq;
 
     double tTime, currentChunkTime, latestFinish, execTime;
-    double timerStart, timerDiff;
+    double  timerDiff;
     //double idleTime;          // time in MPI_Probe
 
     int i;
@@ -1741,6 +1758,7 @@ namespace Loci
 // =======================================================
 // Main loop
 // =======================================================
+    stopWatch sc ;
 
     while (gotWork + localSize + remoteSize + incoming + returns)
       {
@@ -1920,11 +1938,12 @@ namespace Loci
 		SendInfo (foreMan, FILL_REQUEST, 0, 0, myRank, currentChunkTime);
 	      }
 
-	    timerStart = MPI_Wtime ();
+            sc.start() ;
 	    rp1->
 	      compute (sequence
 		       (interval (localStart, localStart + tSize - 1)));
-	    timerDiff = MPI_Wtime () - timerStart;
+	    timerDiff = sc.stop() ;
+            addupTime->addTime(timerDiff,1) ;
 	    workTime[myRank] += timerDiff;
 
 	    localStart += tSize;
@@ -1963,11 +1982,12 @@ namespace Loci
 	  case EXEC_REMOTE_PART:	// foreman executes remote subchunk 
 	    tSize = min (remoteSize, MIN_PROBE_FREQ);
 
-	    timerStart = MPI_Wtime ();
+            sc.start() ;
 	    local_comp1->
 	      compute (sequence
 		       (interval (remoteStart, remoteStart + tSize - 1)));
-	    timerDiff = MPI_Wtime () - timerStart;
+	    timerDiff = sc.stop() ;
+            addupTime->addTime(timerDiff,1) ;
 	    currentChunkTime += timerDiff;
 
 	    remoteStart += tSize;
@@ -2004,9 +2024,10 @@ namespace Loci
 // =======================================================
 
 	  case EXEC_REMOTE_WHOLE:	// execute remote chunk, send output, request
-	    timerStart = MPI_Wtime ();
+            sc.start() ;
 	    local_comp1->compute (sequence (interval (0, remoteSize - 1)));
-	    currentChunkTime = MPI_Wtime () - timerStart;
+	    currentChunkTime = sc.stop() ;
+            addupTime->addTime(currentChunkTime,1) ;
 	    workTime[saveSrc] += currentChunkTime;
 	    remote1 += currentChunkTime;
 
@@ -2177,17 +2198,27 @@ namespace Loci
   void dynamic_schedule_rule::execute (fact_db & facts)
   {
 
+    stopWatch s ;
+    s.start() ;
+    
     extern int method;
 
     // Hack to handle non-contiguos sets.
-    if(pre_exec_set != EMPTY)
+    if(pre_exec_set != EMPTY) {
+      stopWatch sc ;
+      sc.start() ;
       rp->compute(sequence(pre_exec_set)) ;
+      comp_timer.addTime(sc.stop(),1) ;
+    }
 #if SHOWTIMES
     wall1 = MPI_Wtime ();
     wall2 = wall1;
     if (method == NLB)
       {
+        stopWatch sc ;
+        sc.start() ;
 	rp->compute (sequence (exec_set));
+        comp_timer.addTime(sc.stop(),1) ;
 	wall1 = MPI_Wtime () - wall1;
 	local1 = wall1;
 	ideal1 = wall1;
@@ -2197,6 +2228,7 @@ namespace Loci
       {
 	// globals
 	rp1 = rp;
+        addupTime = &comp_timer ;
 	local_comp1 = local_compute1;
 	facts1 = &facts;
 	local_facts1 = &local_facts;
@@ -2228,11 +2260,14 @@ namespace Loci
 
 #else
 
-    if (method == NLB)
+    if (method == NLB) {
+      stopWatch sc ;
+      sc.start() ;
       rp->compute (sequence (exec_set));
-    else
-      {
+      comp_timer.addTime(sc.stop(),1) ;
+    } else {
 	rp1 = rp;
+        addupTime = &comp_timer ;
 	local_comp1 = local_compute1;
 	facts1 = &facts;
 	local_facts1 = &local_facts;
@@ -2247,6 +2282,8 @@ namespace Loci
       }
 #endif
     nCalls++;
+    timer.addTime(s.stop(),1) ;
+    addupTime = 0 ;
   }
 
 
@@ -2255,5 +2292,19 @@ namespace Loci
     s << "dynamic schedule " << rule_tag << "  over set " << exec_set << endl;
   }
 
+  void dynamic_schedule_rule::dataCollate(collectData &data_collector) const {
+    ostringstream oss ;
+    oss << "dynamic_schedule: " << rule_tag;
+    int group = data_collector.openGroup("dynamic-schedule") ;
+    data_collector.accumulateTime(comp_timer,EXEC_COMPUTATION,oss.str()) ;
+    data_collector.closeGroup(group) ;
+
+    group = data_collector.openGroup("dynamic-schedule-overhead") ;
+    timeAccumulator ov ;
+    ov.addTime(timer.getTime()-comp_timer.getTime(),timer.getEvents()) ;
+    
+    data_collector.accumulateTime(ov,EXEC_COMMUNICATION,oss.str())  ;
+    data_collector.closeGroup(group) ;
+  }
 
 }

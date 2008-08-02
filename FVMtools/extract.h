@@ -20,12 +20,50 @@
 //#############################################################################
 #ifndef EXTRACT_H
 #define EXTRACT_H
+#include <sstream>
+#include <string>
+#include <stdlib.h>
+
+using std::list;
 
 enum var_type {NODAL_SCALAR,NODAL_VECTOR,NODAL_DERIVED,NODAL_MASSFRACTION, BOUNDARY_SCALAR,BOUNDARY_VECTOR, BOUNDARY_DERIVED_SCALAR, BOUNDARY_DERIVED_VECTOR, PARTICLE_SCALAR, PARTICLE_VECTOR, UNDEFINED} ;
 enum view_type {VIEWXY=0,VIEWYZ=1,VIEWXZ=2,VIEWXR=3}  ;
 
 
 enum gridWritingPhases { GRID_POSITIONS, GRID_VOLUME_ELEMENTS, GRID_BOUNDARY_ELEMENTS, NODAL_VARIABLES,BOUNDARY_VARIABLES, PARTICLE_POSITIONS, PARTICLE_VARIABLES} ;
+
+// convert a string to an integer
+inline int str2int(string s) {
+  std::stringstream ss ;
+  ss << s ;
+  int ret ;
+  ss >> ret ;
+  return ret ;
+}
+
+// determine whether range [b,e) contains only digits
+// [b,e) must be a valid range and contains characters
+template <class ForwardIter> inline bool
+alldigits(ForwardIter b, ForwardIter e) {
+  for(;b!=e;++b)
+    if(!isdigit(*b))
+      return false ;
+                                                                                
+  return true ;
+}
+// determine whether s contains a valid integer (including the sign)
+inline bool
+valid_int(const std::string& s) {
+  if(s.empty())
+    return false ;
+  if( (s[0] == '-') || (s[0] == '+')) {
+    if(s.size() > 1)
+      return alldigits(s.begin()+1,s.end()) ;
+    else
+      return false ;
+  }else
+    return alldigits(s.begin(),s.end()) ;
+}
 
 class grid_topo_handler {
 public:
@@ -74,11 +112,13 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) = 0 ;
 
-  virtual void create_particle_positions(vector3d<float> pos[], int np) = 0 ;
-  virtual void output_particle_scalar(float val[],
-                                      int np, string valname) = 0 ;
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) = 0 ;
+  // maxp is the maximum particles to be extracted
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) = 0 ;
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) = 0 ;
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) = 0 ;
 } ;
 
 class ensight_topo_handler : public grid_topo_handler {
@@ -133,10 +173,12 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
   
-  virtual void create_particle_positions(vector3d<float> pos[], int np) ;
-  virtual void output_particle_scalar(float val[], int np, string valname) ;
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) ;
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) ;
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) ;
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) ;
 } ;
 
 class tecplot_topo_handler : public grid_topo_handler {
@@ -195,14 +237,16 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
     
-  virtual void create_particle_positions(vector3d<float> pos[], int np) {}
-  virtual void output_particle_scalar(float val[],
-                                      int np, string valname) {}
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) {}
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) {}
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) {}
 } ;
 
 class fv_topo_handler : public grid_topo_handler {
+  string dirname ;
   string filename ;
   int npnts ;
   int ntets, nprsm, npyrm, nhexs, ngen ;
@@ -214,6 +258,13 @@ class fv_topo_handler : public grid_topo_handler {
   bool first_var ;
   bool first_boundary ;
   FILE *OFP ;
+
+  // particle variable buffer
+  vector<string> particle_scalars_names ;
+  vector<vector<float> > particle_scalars ;
+
+  vector<string> particle_vectors_names ;
+  vector<vector<vector3d<float> > > particle_vectors ;
 public:
   fv_topo_handler(){OFP=0;first_var = true ; first_boundary=true ; general_boundary = false ;}
   virtual ~fv_topo_handler() {}
@@ -223,8 +274,16 @@ public:
     sequence[2] = GRID_VOLUME_ELEMENTS ;
     sequence[3] = NODAL_VARIABLES ;
     sequence[4] = BOUNDARY_VARIABLES ;
-    sequence[5] = PARTICLE_POSITIONS ;
-    sequence[6] = PARTICLE_VARIABLES ;
+    // NOTE: in fieldview, we have to read/write the particle
+    // variables first because we need to combine the scalar and
+    // vector variables with the particle position into a single
+    // file. we first read all the variables into a memory buffer
+    // and then when we write the particle positions, we combine
+    // them into a single file. therefore the order here is important.
+    // we cannot start the particle position phase before the
+    // particle variable phase.
+    sequence[5] = PARTICLE_VARIABLES ;
+    sequence[6] = PARTICLE_POSITIONS ;
   }
   virtual void open(string casename, string iteration ,int npnts,
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
@@ -260,11 +319,98 @@ public:
   virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
                                       int nvals, string valname) ;
     
-  virtual void create_particle_positions(vector3d<float> pos[], int np) {}
-  virtual void output_particle_scalar(float val[],
-                                      int np, string valname) {}
-  virtual void output_particle_vector(vector3d<float> val[],
-                                      int np, string valname) {}
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) ;
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) ;
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) ;
+} ;
+
+struct affineMapping {
+  float M[4][4] ;
+  affineMapping() ;
+  void Combine(affineMapping a) ;
+  void translate(vector3d<float> tv) ;
+  void rotateX(float theta) ;
+  void rotateY(float theta) ;
+  void rotateZ(float theta) ;
+  vector3d<float> MapNode(vector3d<float> v) ;
+};
+
+class cuttingplane_topo_handler : public grid_topo_handler {
+  template <int T>
+    static bool arrLessThan(Array<int,T> arr1, Array<int,T> arr2) ;   // Used for sorting and searching through the Array datatype
+  bool registerFace(int faceNode[], int nNodes, int cellNum) ;        // Finds cuts in the face and registers them into the vector of intersections
+  void disambiguateFace(int faceNode[], int nNodes, int cellNum) ;     // Cuts a nonplanar face into planar triangles and sends each to registerFace()
+  void checkLoop(int start, int end) ;     // Walks around the loop made by a cut cell and handles any double loops or errors
+  int cellCount ;                          // Used to offset cell numbers to ensure unique numbering
+  int numDisFaces ;                        // Total number of faces disambiguated
+  int searchNodeMap(Array<int,2> arr1) ;   // Finds node arr1 in nodeMap and returns index
+  vector<vector3d<float> > nodes ;         // Copy of all nodes and 3d coordinates
+  vector<vector<float> > nodeVal ;         // Stores scalar property values for each node
+  vector<string> variables;                // Stores property names in strings
+  string strIter;                          // Stores iteration number
+  vector<Array<int,5> > intersects ;       // List of all edges formed from plane intersection
+  map<int, int> cellMap ;                  // Maps old 3d cell numbers to the new smaller set of 2d cells
+  vector<Array<int,2> > nodeMap ;          // Maps old 3d node numbers to the new smaller set of 2d nodes
+  list<vector<int> > disambiguatedFaces ;  // Stores all unmatched previously disambiguated faces and corresponding fabricated nodes
+  list<vector<int> > resolvedFace;         // Stores all matched disambiguated faces
+  affineMapping transMatrix ;              // Transformation matrix that transforms the grid topology to the desired position
+public:
+  cuttingplane_topo_handler(affineMapping &transformMatrix,
+			    float xShift, float yShift, float zShift);
+  virtual ~cuttingplane_topo_handler() {}
+  virtual void fileWritingSequence(Array<int,7> &sequence) {
+    sequence[0] = NODAL_VARIABLES ;
+    sequence[1] = GRID_POSITIONS ;
+    sequence[2] = GRID_VOLUME_ELEMENTS ;
+    sequence[3] = GRID_BOUNDARY_ELEMENTS ;
+    sequence[4] = BOUNDARY_VARIABLES ;
+    sequence[5] = PARTICLE_POSITIONS ;
+    sequence[6] = PARTICLE_VARIABLES ;
+  }
+  virtual void open(string casename, string iteration ,int npnts,
+                    int ntets, int nprsm, int npyrm, int nhexs, int ngen,
+                    const vector<string> &bc_names,
+                    const vector<string> &variables,
+                    const vector<int> &variable_types) ;
+  virtual void close() ;
+  virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
+  virtual void create_mesh_elements() ;
+  virtual void write_tets(Array<int,4> tets[], int ntets) ;
+  virtual void write_pyrm(Array<int,5> pyrm[], int npyrm) ;
+  virtual void write_prsm(Array<int,6> prsm[], int nprsm) ;
+  virtual void write_hexs(Array<int,8> hexs[], int nhexs) ;
+  virtual void write_general_cell(int nfaces[], int nnfaces,
+                                  int nsides[], int nnsides,
+                                  int nodes[], int nnodes) ;
+  virtual void close_mesh_elements() ;
+
+  virtual void create_boundary_part(string name,int node_set[],int npnts) ;
+  virtual void write_quads(Array<int,4> quads[], int quad_ids[],
+                           int nquads) ;
+  virtual void write_trias(Array<int,3> trias[], int tria_ids[],
+                           int ntrias) ;
+  virtual void write_general_face(int nside_sizes[], int nside_ids[], int ngeneral,
+                             int nside_nodes[], int nside_nodes_size) ;
+  virtual void close_boundary_part() ;
+  virtual void create_nodal_output() ;
+  virtual void output_nodal_scalar(float val[], int npnts, string valname) ;
+  virtual void output_nodal_vector(vector3d<float> val[],
+                                   int npnts, string valname) ;
+  virtual void close_nodal_output() ;
+  virtual void output_boundary_scalar(float val[], int node_set[],
+                                      int nvals, string valname) ;
+  virtual void output_boundary_vector(vector3d<float> val[], int node_set[],
+                                      int nvals, string valname) ;
+
+  virtual void create_particle_positions(vector3d<float> pos[],
+                                         int np, int maxp) {}
+  virtual void output_particle_scalar(float val[], int np,
+                                      int maxp, string valname) {}
+  virtual void output_particle_vector(vector3d<float> val[], int np,
+                                      int maxp, string valname) {}
 } ;
 
 void get_2dgv(string casename, string iteration,

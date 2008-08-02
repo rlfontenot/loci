@@ -29,20 +29,140 @@
 #include <ostream>
 #include <vector>
 #include <string>
+#include <list>
+using std::string;
 
 #include <Config/conf.h>
 #include <Tools/cptr.h>
 
+#include <mpi.h>
+
+#define PROFILER
+#ifdef USE_PAPI
+#include <papi.h>
+#include <papiStdEventDefs.h>
+#endif
+
 namespace Loci {
+
+  class stopWatch {
+#ifdef PROFILER
+#ifdef USE_PAPI
+    long_long start_time ;
+#else
+    double start_time ;
+#endif
+#endif
+  public:
+    void start() { // This method resets the clock
+#ifdef PROFILER
+#ifdef USE_PAPI
+      start_time = PAPI_get_real_usec();
+#else
+      start_time = MPI_Wtime() ;
+#endif
+#endif
+    }
+    double stop() { // This method returns time since last start call
+#ifdef PROFILER
+#ifdef USE_PAPI
+      return 1e-6*double(PAPI_get_real_usec()-start_time) ;
+#else
+      return MPI_Wtime()-start_time ;
+#endif
+#else
+      return 0 ;
+#endif
+    }
+  } ;
+  
+
+  // This object is responsible for counting time and events that occur for
+  // some entity over time.
+  class timeAccumulator {
+#ifdef PROFILER
+    double elapsed_time ;
+    size_t elapsed_events ;
+#endif
+  public:
+    timeAccumulator() {
+#ifdef PROFILER
+      elapsed_time = 0 ;
+      elapsed_events = 0 ;
+#endif
+    }
+    void addTime(double time, size_t num_events) {
+#ifdef PROFILER
+      elapsed_time += time ;
+      elapsed_events += num_events ;
+#endif
+    }
+    double getTime() const {
+#ifdef PROFILER
+      return elapsed_time ;
+#else
+      return 0 ;
+#endif
+    }
+    size_t getEvents() const {
+#ifdef PROFILER
+      return elapsed_events ;
+#else
+      return 0 ;
+#endif
+    }
+  } ;
+
+  enum executeEventType { EXEC_COMMUNICATION, EXEC_COMPUTATION, EXEC_CONTROL } ;
+
+  // This object is the abstract base class for a data collator.  Currently
+  // we are only collecting timing information via the accumulateTime method.
+  // However, collecting other data (such as floating point operations or
+  // cache misses) can be accomplished by adding additional pure virtual
+  // methods to this base class (and all data collator objects.)
+  // For an example of a data collator object, inspect the collectTiming
+  // object defined in System/scheduler.cc
+  class collectData {
+  protected:
+    std::vector<std::string> groups ;
+  public:
+    collectData() {}
+    virtual ~collectData() {}
+    // Create a group for categorizing objects.  Note, groups can form
+    // a hierarchy, so we can open multiple levels of groups for hierarchical
+    // classification of data
+    int openGroup(std::string groupName) {
+      groups.push_back(groupName) ;
+      return groups.size() ;
+    }
+    // every group needs to be closed
+    void closeGroup(int id) {
+      warn(int(groups.size()) != id) ;
+      if(int(groups.size()) != id) { // If open and close don't align, try to
+        // make things right by poping off groups until this one
+        while(id > int(groups.size()))
+          groups.pop_back() ;
+      }
+      // Check for empty which may occur if openGroup does not match closeGroup
+      if(!groups.empty()) 
+        groups.pop_back() ; // remove group from list
+    }
+    // Pure virtual method which will be called by every entity that has
+    // timing information.  Events are classified as either computation
+    // communication, or control
+    virtual void accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) = 0 ;
+  } ;
+    
+    
   class fact_db ;
   class execute_modules : public CPTR_type {
-  protected:
-    bool control_thread ;
   public:
-    execute_modules() {control_thread = false ; }
+    execute_modules() { }
+    virtual ~execute_modules() {}
     virtual void execute(fact_db &facts) = 0 ;
     virtual void Print(std::ostream &s) const = 0 ;
-    bool is_control_thread() { return control_thread; }
+    virtual string getName() = 0;
+    virtual void dataCollate(collectData &data_collector) const = 0 ;
   } ;
 
   typedef CPTR<execute_modules> executeP ;
@@ -50,9 +170,17 @@ namespace Loci {
   class execute_list : public execute_modules {
     std::vector<executeP> elist ;
   public:
-    execute_list() {control_thread = true ; }
+    execute_list() { }
+    virtual ~execute_list() {}
+    // Execute object code
     virtual void execute(fact_db &facts) ;
+    // Print schedule to stream s
     virtual void Print(std::ostream &s) const ;
+    // Collect accumulated data
+    virtual void dataCollate(collectData &data_collector) const ;
+    // get module name
+    virtual string getName() { return "execute_list";};
+    // execute_list methods
     void append_list(const executeP &emodule) 
     { if(emodule != 0) elist.push_back(emodule) ; }
     int size() const { return elist.size() ; }
@@ -61,53 +189,21 @@ namespace Loci {
   class execute_sequence : public execute_modules {
     std::vector<executeP> elist ;
   public:
-    execute_sequence() {control_thread = true ; }
+    execute_sequence() { }
+    virtual ~execute_sequence() {}
+    // Execute object code
     virtual void execute(fact_db &facts) ;
+    // Print schedule to stream s
     virtual void Print(std::ostream &s) const ;
+    // collect accumulated data
+    virtual void dataCollate(collectData &data_collector) const ;
+    // get name of module
+    virtual string getName() { return "execute_sequence";};
+    // execute_sequence methods:
     void append_list(const executeP &emodule) 
     { if(emodule != 0) elist.push_back(emodule) ; }
     int size() const { return elist.size() ; }
   };
-
-  class execute_par : public execute_modules {
-    std::vector<executeP> elist ;
-  public:
-    execute_par() {control_thread = true ;}
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-    void append_list(const executeP &emodule) 
-    { if(emodule != 0) elist.push_back(emodule) ; }
-    int size() const { return elist.size() ; }
-  };
-
-  class execute_create_threads : public execute_modules {
-    int num_threads ;
-  public:
-    execute_create_threads() {control_thread = true ; }
-    execute_create_threads(int nth) : num_threads(nth) {} 
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-  } ;
-
-  class execute_destroy_threads : public execute_modules {
-  public:
-    execute_destroy_threads() {control_thread = true ; }
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-  } ;
-  
-  class execute_thread_sync : public execute_modules {
-    std::string note ;
-  public:
-    execute_thread_sync() {control_thread = true ; }
-    execute_thread_sync(std::string s) { note = s ; control_thread = true ; }
-    virtual void execute(fact_db &facts) ;
-    virtual void Print(std::ostream &s) const ;
-  } ;
-
-  
-  const int max_threads = 32 ;
 
 }
-
 #endif

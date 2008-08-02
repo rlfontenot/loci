@@ -172,7 +172,22 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   nhexs = inhexs ;
   ngen = ingen ;
   part_id = 1 ;
+
+  dirname = casename + "_fv."+iteration ;
+  struct stat statbuf ;
+  if(stat(dirname.c_str(),&statbuf))
+    mkdir(dirname.c_str(),0755) ;
+  else
+    if(!S_ISDIR(statbuf.st_mode)) {
+      cerr << "file " << dirname
+           << " should be a directory!, rename it and start again."
+           << endl ;
+      exit(-1) ;
+    }
+
   filename = casename + "_fv_"+iteration + ".bin";
+  filename = dirname + "/" + filename ;
+  
   OFP = fopen(filename.c_str(), "wb") ;
   if(OFP == NULL) {
     cerr << "can't open file " << filename << endl ;
@@ -267,7 +282,12 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
 void fv_topo_handler::close() {
   if(first_boundary) {
     int ibuf[2] ;
-    ibuf[0] = FV_BNDRY_VARS ;
+
+    if(general_boundary)
+      ibuf[0] = FV_ARB_POLY_BNDRY_VARS ;
+    else
+      ibuf[0] = FV_BNDRY_VARS ;
+    
     fwrite(ibuf,sizeof(int),1,OFP) ;
     first_boundary=false ;
   }
@@ -470,6 +490,7 @@ void fv_topo_handler::write_general_face(int nside_sizes[],
   } else {
     ibuf[0] = FV_ARB_POLY_FACES ;
     fwrite(ibuf,sizeof(int),3,OFP) ;
+    general_boundary = true ;
     for(size_t i=0;i<ordinary_faces.size();++i) {
       if(ordinary_faces[i][3] == 0) {
         ibuf[0] = 3 ;
@@ -550,7 +571,11 @@ void fv_topo_handler::output_boundary_scalar(float val[], int node_set[],
   }
   if(first_boundary) {
     int ibuf[2] ;
-    ibuf[0] = FV_BNDRY_VARS ;
+    if(general_boundary)
+      ibuf[0] = FV_ARB_POLY_BNDRY_VARS ;
+    else
+      ibuf[0] = FV_BNDRY_VARS ;
+    
     fwrite(ibuf,sizeof(int),1,OFP) ;
     first_boundary=false ;
   }
@@ -577,7 +602,10 @@ void fv_topo_handler::output_boundary_vector(vector3d<float> val[],
   }
   if(first_boundary) {
     int ibuf[2] ;
-    ibuf[0] = FV_BNDRY_VARS ;
+    if(general_boundary)
+      ibuf[0] = FV_ARB_POLY_BNDRY_VARS ;
+    else
+      ibuf[0] = FV_BNDRY_VARS ;
     fwrite(ibuf,sizeof(int),1,OFP) ;
     first_boundary=false ;
   }
@@ -603,3 +631,129 @@ void fv_topo_handler::output_boundary_vector(vector3d<float> val[],
     valout[einv[node_set[i]]] = val[i].z ;
   fwrite(&valout[0],sizeof(float),valout.size(),OFP) ;
 }  
+
+void
+fv_topo_handler::create_particle_positions
+(vector3d<float> pos[], int pts, int maxp) {
+
+  int m = pts ;
+  if(maxp >= 0 && maxp < pts)
+    m = maxp ;
+
+  int jump ;
+  if(m>0)
+    jump = pts / m ;
+  else
+    jump = 1 ;
+
+  string particle_filename = dirname + "/" + "particles.fvp" ;
+
+  // create an ASCII file handler
+  ofstream of(particle_filename.c_str(), std::ios::out) ;
+  if(!of.good()) {
+    cerr << "can't open file '" << particle_filename
+         << "' for writing particle info!" << endl ;
+    return ;
+  }
+
+  // header information
+  of << "FVPARTICLES 2 1" << endl ;
+  of << "Tag Names" << endl ;
+  of << "0" << endl ;
+  of << "Variable Names" << endl ;
+
+  int vsize = particle_scalars_names.size() +
+    particle_vectors_names.size() ;
+
+  of << vsize << endl ;
+
+  for(size_t i=0;i<particle_scalars_names.size();++i)
+    of << particle_scalars_names[i] << endl ;
+  for(size_t i=0;i<particle_vectors_names.size();++i)
+    of << particle_vectors_names[i] << endl ;
+
+  // particle data
+
+  // we will have to create "m" pathes with 1 particle per path
+  int k=0;
+  for(int p=0;p<m;++p,k+=jump) {
+    of << "1" << endl ;
+    // first output position data
+    of << pos[k].x << " " << pos[k].y << " " << pos[k].z << " " ;
+    // then output variables data
+    // NOTE: variable data are already sampled, so we use "p" as index
+    for(size_t i=0;i<particle_scalars.size();++i) {
+      of << particle_scalars[i][p] << " " ;
+    }
+    // Note, it seems that fieldview particle format
+    // only allows scalars, for vector variables, we
+    // compute its magnitude instead
+    for(size_t i=0;i<particle_vectors.size();++i) {
+      float x = particle_vectors[i][p].x ;
+      float y = particle_vectors[i][p].y ;
+      float z = particle_vectors[i][p].z ;
+      float vm = x*x + y*y + z*z ;
+      vm = sqrt(vm) ;
+
+      of << vm << " " ;
+    }
+    of << endl ;
+  }
+
+  // release the internal buffer
+  vector<vector<float> >().swap(particle_scalars) ;
+  vector<vector<vector3d<float> > >().swap(particle_vectors) ;
+  
+  of.close() ;
+}
+
+void
+fv_topo_handler::output_particle_scalar(float val[], int np,
+                                        int maxp, string valname) {
+  int m = np ;
+  if(maxp >= 0 && maxp < np)
+    m = maxp ;
+
+  int jump ;
+  if(m>0)
+    jump = np / m ;
+  else
+    jump = 1 ;
+
+  // record the scalars in the buffer
+  vector<float> tmp ;
+
+  int k = 0 ;
+  for(int i=0;i<m;++i,k+=jump)
+    tmp.push_back(val[k]) ;
+
+  particle_scalars_names.push_back(valname) ;
+  particle_scalars.push_back(tmp) ;
+
+}
+
+void
+fv_topo_handler::output_particle_vector(vector3d<float> val[], int np,
+                                        int maxp, string valname) {
+  int m = np ;
+  if(maxp >= 0 && maxp < np)
+    m = maxp ;
+
+  int jump ;
+  if(m>0)
+    jump = np / m ;
+  else
+    jump = 1 ;
+
+  vector<vector3d<float> > tmp ;
+  int k = 0 ;
+  for(int i=0;i<m;++i,k+=jump) {
+    tmp.push_back(val[k]) ;
+  }
+
+  particle_vectors_names.push_back(valname) ;
+  particle_vectors.push_back(tmp) ;
+}
+
+// ... the end ...
+
