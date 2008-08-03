@@ -451,97 +451,6 @@ $rule apply(topo<-volumeTag(X),volumeComponent_X)[Loci::Maximum],
 } ;
 
 
-<<<<<<< vogCheck.loci
-
-$type convexCell param<int> ;
-$rule unit(convexCell),constraint(UNIVERSE) {
-  $convexCell = 0 ;
-}
-
-$rule apply(convexCell<-cellcenter,(upper,lower,boundary_map)->(area,facecenter))[Loci::Summation] {
-  bool convex = false ;
-  vector3d<double> dv ;
-  for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
-    dv = nf->$facecenter - $cellcenter ;
-    if(dot(dv,nf->$area.n) < 0)
-      convex = true ;
-  }
-  for(const Entity* nf=$lower.begin();nf!=$lower.end();++nf) {
-    dv = nf->$facecenter - $cellcenter ;
-    if(dot(dv,nf->$area.n) > 0)
-      convex = true ;
-  }
-  for(const Entity* nf=$boundary_map.begin();nf!=$boundary_map.end();++nf) {
-    dv = nf->$facecenter - $cellcenter ;
-    if(dot(dv,nf->$area.n) < 0)
-      convex = true ;
-  }
-  if(convex)
-    $convexCell++ ;
-}
-
-$rule apply(topo<-convexCell)[Loci::Maximum],
-  option(disable_threading), prelude {
-
-  if(Loci::MPI_rank == 0)
-    if(*$convexCell > 0) {
-      cerr << "WARNING: there are " << *$convexCell << " non-convex cells in the mesh." << endl ;
-    }
-} ;
-
-$type nonconvex store<double>  ;
-
-$rule pointwise(nonconvex<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)) {
-  bool convex = true ;
-  vector3d<double> dv ;
-  for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
-    dv = nf->$facecenter - $cellcenter ;
-    if(dot(dv,nf->$area.n) < 0)
-      convex = false ;
-  }
-  for(const Entity* nf=$lower.begin();nf!=$lower.end();++nf) {
-    dv = nf->$facecenter - $cellcenter ;
-    if(dot(dv,nf->$area.n) > 0)
-      convex = false;
-  }
-  for(const Entity* nf=$boundary_map.begin();nf!=$boundary_map.end();++nf) {
-    dv = nf->$facecenter - $cellcenter ;
-    if(dot(dv,nf->$area.n) < 0)
-      convex = false ;
-  }
-  $nonconvex = 0 ;
-  if(!convex)
-    $nonconvex = 1 ;
-}
-
-OUTPUT_SCALAR("cell2nodeMax(nonconvex)",nonconvex) ;
-
-$type faceGeometryInconsistent param<int> ;
-
-$rule unit(faceGeometryInconsistent),constraint(UNIVERSE) {
-  $faceGeometryInconsistent = 0 ;
-}
-
-$rule apply(faceGeometryInconsistent<-(cl,cr)->cellcenter,area)[Loci::Summation]{
-  if(dot($cr->$cellcenter-$cl->$cellcenter,$area.n)<0)
-    $faceGeometryInconsistent++ ;
-}
-
-$rule apply(faceGeometryInconsistent<-ci->cellcenter,facecenter,area)[Loci::Summation] {
-  if(dot($facecenter-$ci->$cellcenter,$area.n) < 0)
-    $faceGeometryInconsistent++ ;
-}
-
-$rule apply(topo<-faceGeometryInconsistent)[Loci::Maximum],
-  option(disable_threading), prelude {
-
-  if(Loci::MPI_rank == 0)
-    if(*$faceGeometryInconsistent > 0) {
-      cerr << "WARNING: there are " << *$faceGeometryInconsistent << " faces with inconsistent geometry!" << endl ;
-    }
-} ;
-
-=======
 
 $type convexCell param<int> ;
 $rule unit(convexCell),constraint(UNIVERSE) {
@@ -633,4 +542,3 @@ $rule apply(topo<-faceGeometryInconsistent)[Loci::Maximum],
     }
 } ;
 
->>>>>>> 1.8
