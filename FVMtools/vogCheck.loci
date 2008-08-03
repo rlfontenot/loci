@@ -118,7 +118,7 @@ public:
 
 void output_grid_topology::compute(const sequence &seq) {
   if(Loci::MPI_rank == 0)
-    cout << "calling write grid topology" << endl ;
+    Loci::debugout<< "calling write grid topology" << endl ;
   string filename = "output/"+*modelName+".topo" ;
   Loci::parallelWriteGridTopology(filename.c_str(),
                                   upper.Rep(),lower.Rep(),boundary_map.Rep(),
@@ -141,7 +141,7 @@ void dump_pos(const sequence &seq,const_store<vector3d<double> > &pos,
   string filename = oss.str() ;
 
   if(Loci::MPI_rank == 0)
-    cout << "writing file " << filename << endl ;
+    Loci::debugout << "writing file " << filename << endl ;
 
 
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
@@ -173,16 +173,39 @@ public:
 } ;
 register_rule<output_grid_positions> register_output_grid_positions ;
 
+$type volume store<double> ;
+
+$rule pointwise(volume<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)) {
+  double sum = 0.0 ;
+  vector3d<double> dv ;
+  for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    sum = sum + nf->$area.sada*(dot(dv,nf->$area.n)) ;
+  }
+  for(const Entity* nf=$lower.begin();nf!=$lower.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    sum = sum - nf->$area.sada*(dot(dv,nf->$area.n)) ;
+  }
+  for(const Entity* nf=$boundary_map.begin();nf!=$boundary_map.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    sum = sum + nf->$area.sada*(dot(dv,nf->$area.n)) ;
+  }
+  $volume = sum/3.0 ;
+}
+
 $type cellVolRatio store<double> ;
 
-$rule unit(cellVolRatio),constraint(vol) {
+$rule unit(cellVolRatio),constraint(volume) {
   $cellVolRatio = 1 ;
 }
 
 $type ratio store<double> ;
-$rule pointwise(ratio<-(cl,cr)->vol) {
-  $ratio = max($cl->$vol,$cr->$vol)/min($cl->$vol,$cr->$vol) ;
+$rule pointwise(ratio<-(cl,cr)->volume) {
+  const double mxvol = max($cl->$volume,$cr->$volume) ;
+  const double mnvol = max(min($cl->$volume,$cr->$volume),1e-30) ;
+  $ratio = mxvol/mnvol ;
 }
+
 $rule apply(cl->cellVolRatio<-ratio)[Loci::Maximum] {
   join($cl->$cellVolRatio,$ratio) ;
 }
@@ -193,7 +216,7 @@ $rule apply(cr->cellVolRatio<-ratio) [Loci::Maximum] {
 
 $type volRatio param<double> ;
 
-$rule unit(volRatio),constraint(vol) {
+$rule unit(volRatio),constraint(volume) {
   $volRatio = 0 ;
 }
 
@@ -226,7 +249,7 @@ $rule pointwise(faceAngle<-ci->cellcenter,facecenter,area) {
 
 $type cellFaceAngle store<double> ;
 
-$rule unit(cellFaceAngle),constraint(vol) {
+$rule unit(cellFaceAngle),constraint(volume) {
   $cellFaceAngle = 0 ;
 }
 $rule apply(cl->cellFaceAngle<-faceAngle)[Loci::Maximum] {
@@ -237,7 +260,7 @@ $rule apply(cr->cellFaceAngle<-faceAngle)[Loci::Maximum] {
 }
 
 $type maxCellAngle param<double> ;
-$rule unit(maxCellAngle), constraint(vol) {
+$rule unit(maxCellAngle), constraint(volume) {
   $maxCellAngle = 0 ;
 }
 $rule apply(maxCellAngle<-cellFaceAngle)[Loci::Maximum] {
@@ -249,16 +272,15 @@ $type faceTwisted store<double> ;
 $rule pointwise(faceTwisted<-cl->cellcenter,cr->cellcenter,facecenter,face2node->pos,area) {
   int sz = $face2node.size() ;
   double maxlen = 0 ;
+  double maxdel = 0 ;
+  const vector3d<double> n = $area.n ;
   for(int i=0;i<sz;++i) {
     const vector3d<double> dv = $facecenter-$face2node[i]->$pos ;
     maxlen = max(dot(dv,dv),maxlen) ;
+    maxdel = max(dot(dv,n),maxdel) ;
+    
   }
-  const vector3d<double> n = $area.n ;
-  double t = dot($facecenter-$cl->$cellcenter,n)/
-    (dot($cr->$cellcenter-$cl->$cellcenter,n)) ;
-  vector3d<double> xf = $cr->$cellcenter*t+$cl->$cellcenter*(1-t) ;
-  const vector3d<double> dv = xf-$facecenter ;
-  $faceTwisted = dot(dv,dv)/maxlen ;
+  $faceTwisted = maxdel/sqrt(maxlen) ;
 }
 
 $rule pointwise(faceTwisted<-ci->cellcenter,facecenter,face2node->pos,area) {
@@ -275,7 +297,7 @@ $rule pointwise(faceTwisted<-ci->cellcenter,facecenter,face2node->pos,area) {
 
 $type cellTwist store<double> ;
 
-$rule unit(cellTwist),constraint(vol) {
+$rule unit(cellTwist),constraint(volume) {
   $cellTwist = 0 ;
 }
 $rule apply(cl->cellTwist<-faceTwisted)[Loci::Maximum] {
@@ -289,11 +311,37 @@ $rule apply(cr->cellTwist<-faceTwisted)[Loci::Maximum] {
 
 $type report param<bool> ;
 $type minVol param<double> ;
-$rule singleton(report<-volRatio,maxCellAngle,minVol,topo) {
+$type maxTwist param<double> ;
+$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,topo) {
   if(Loci::MPI_rank == 0) {
-    cout << "max volume ratio = " << $volRatio << endl ;
-    cout << "max cell to face angle = " << $maxCellAngle << endl ;
-    cout << "minimum cell volume " << $minVol << endl ;
+    if($minVol <= 0) {
+      cerr << "Negative or zero volume cell!  The grid quality is too poor to use." << endl ;
+    }
+    cout << "A volume ratio less than 10 is ideal:" << endl;
+    cout << "======Maximum cell volume ratio = " << $volRatio << endl ;
+    cout << "======Minimum cell volume " << $minVol << endl ;
+    cout << endl ;
+    cout << "The angle between the face normal and cell centroids provides an indication "
+         << endl
+         << "of mesh isotropy.  The lower this number the better the mesh quality.  Values"
+         << endl
+         << "below 100 are desirable.  Values above 150 indicate very poor mesh quality."
+         << endl ;
+
+    cout << "======Maximum cell to face angle = " << $maxCellAngle << endl ;
+    cout << endl ;
+
+    cout << "For non-triangular faces it is possible for the face to be non-planar, "
+         << endl
+         << "i.e. twisted.  The twist metric measure the  non-planar component of the face"
+         << endl 
+         << "geometry.  In other words a value of 0.1 indicates that the face geometry"
+         << endl
+         << "deviates from the planar description by 10 percent.  "
+         << endl
+         << "A value below 0.1 is desirable:" << endl ;
+    cout << "======Maximum Twist = " << $maxTwist << endl ;
+    cout << endl ;
   }
   $report = true ;
 }
@@ -323,7 +371,7 @@ void dump_scalar(const sequence &seq,const_store<float> &c2n,
   string filename = oss.str() ;
 
   if(Loci::MPI_rank == 0)
-    cout << "writing file " << filename << endl ;
+    Loci::debugout << "writing file " << filename << endl ;
 
 
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
@@ -362,14 +410,21 @@ void scalar_node_output::compute(const sequence &seq) {
 OUTPUT_SCALAR("cell2nodeMax(cellVolRatio)",volumeRatio) ;
 OUTPUT_SCALAR("cell2nodeMax(cellFaceAngle)",cellFaceAngle) ;
 OUTPUT_SCALAR("cell2nodeMax(cellTwist)",cellTwist) ;
-OUTPUT_SCALAR("cell2nodeMin(vol)",cellVol) ;
+OUTPUT_SCALAR("cell2nodeMin(volume)",cellVol) ;
 
 
 $rule unit(minVol),constraint(geom_cells) {
   $minVol = 1e33 ;
 }
-$rule apply(minVol<-vol)[Loci::Minimum] {
-  join($minVol,$vol) ;
+$rule apply(minVol<-volume)[Loci::Minimum] {
+  join($minVol,$volume) ;
+}
+
+$rule unit(maxTwist),constraint(geom_cells) {
+  $maxTwist = 0 ;
+}
+$rule apply(maxTwist<-cellTwist)[Loci::Maximum] {
+  join($maxTwist,$cellTwist) ;
 }
 
 // Test of new type of parametric rules
@@ -381,9 +436,9 @@ $rule unit(volumeComponent_X),constraint(volumeTag(X)),
   parametric(volumeTag(X)) {
   $volumeComponent_X = 0 ;
 }
-$rule apply(volumeComponent_X<-vol)[Loci::Summation],constraint(volumeTag(X)),
+$rule apply(volumeComponent_X<-volume)[Loci::Summation],constraint(volumeTag(X)),
   parametric(volumeTag(X)) {
-  join($volumeComponent_X,$vol) ;
+  join($volumeComponent_X,$volume) ;
 }
 
 $type topo param<int> ;
@@ -396,6 +451,7 @@ $rule apply(topo<-volumeTag(X),volumeComponent_X)[Loci::Maximum],
 } ;
 
 
+<<<<<<< vogCheck.loci
 
 $type convexCell param<int> ;
 $rule unit(convexCell),constraint(UNIVERSE) {
@@ -485,3 +541,96 @@ $rule apply(topo<-faceGeometryInconsistent)[Loci::Maximum],
     }
 } ;
 
+=======
+
+$type convexCell param<int> ;
+$rule unit(convexCell),constraint(UNIVERSE) {
+  $convexCell = 0 ;
+}
+
+$rule apply(convexCell<-cellcenter,(upper,lower,boundary_map)->(area,facecenter))[Loci::Summation] {
+  bool convex = false ;
+  vector3d<double> dv ;
+  for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    if(dot(dv,nf->$area.n) < 0)
+      convex = true ;
+  }
+  for(const Entity* nf=$lower.begin();nf!=$lower.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    if(dot(dv,nf->$area.n) > 0)
+      convex = true ;
+  }
+  for(const Entity* nf=$boundary_map.begin();nf!=$boundary_map.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    if(dot(dv,nf->$area.n) < 0)
+      convex = true ;
+  }
+  if(convex)
+    $convexCell++ ;
+}
+
+$rule apply(topo<-convexCell)[Loci::Maximum],
+  option(disable_threading), prelude {
+
+  if(Loci::MPI_rank == 0)
+    if(*$convexCell > 0) {
+      cerr << "WARNING: there are " << *$convexCell << " non-convex cells in the mesh." << endl ;
+    } else {
+      cout << "All cells in this mesh pass the convexity check!" << endl ;
+    }
+} ;
+
+$type nonconvex store<double>  ;
+
+$rule pointwise(nonconvex<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)) {
+  bool convex = true ;
+  vector3d<double> dv ;
+  for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    if(dot(dv,nf->$area.n) < 0)
+      convex = false ;
+  }
+  for(const Entity* nf=$lower.begin();nf!=$lower.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    if(dot(dv,nf->$area.n) > 0)
+      convex = false;
+  }
+  for(const Entity* nf=$boundary_map.begin();nf!=$boundary_map.end();++nf) {
+    dv = nf->$facecenter - $cellcenter ;
+    if(dot(dv,nf->$area.n) < 0)
+      convex = false ;
+  }
+  $nonconvex = 0 ;
+  if(!convex)
+    $nonconvex = 1 ;
+}
+
+OUTPUT_SCALAR("cell2nodeMax(nonconvex)",nonconvex) ;
+
+$type faceGeometryInconsistent param<int> ;
+
+$rule unit(faceGeometryInconsistent),constraint(UNIVERSE) {
+  $faceGeometryInconsistent = 0 ;
+}
+
+$rule apply(faceGeometryInconsistent<-(cl,cr)->cellcenter,area)[Loci::Summation]{
+  if(dot($cr->$cellcenter-$cl->$cellcenter,$area.n)<0)
+    $faceGeometryInconsistent++ ;
+}
+
+$rule apply(faceGeometryInconsistent<-ci->cellcenter,facecenter,area)[Loci::Summation] {
+  if(dot($facecenter-$ci->$cellcenter,$area.n) < 0)
+    $faceGeometryInconsistent++ ;
+}
+
+$rule apply(topo<-faceGeometryInconsistent)[Loci::Maximum],
+  option(disable_threading), prelude {
+
+  if(Loci::MPI_rank == 0)
+    if(*$faceGeometryInconsistent > 0) {
+      cerr << "WARNING: there are " << *$faceGeometryInconsistent << " faces with inconsistent geometry!" << endl ;
+    }
+} ;
+
+>>>>>>> 1.8
