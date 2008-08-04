@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-using std::signbit ;
 #include <string>
 using std::string ;
 #include <iostream> 
@@ -41,9 +40,23 @@ using std::map ;
 using std::ofstream ;
 using std::ios ;
 using std::list ;
+using std::sort ;
 
 #include "extract.h"
 
+#ifdef SUN
+int signbit(double x) {
+  return x<0?1:0 ;
+}
+#else
+#ifdef NO_CMATH
+int signbit(double x) {
+  return x<0?1:0 ;
+}
+#else
+using std::signbit ;
+#endif
+#endif
 
 cuttingplane_topo_handler::cuttingplane_topo_handler(affineMapping &transformMatrix,
 						     float xShift, float yShift, float zShift) {
@@ -65,6 +78,21 @@ void cuttingplane_topo_handler::open(string casename, string iteration ,int npnt
   strIter = iteration;
   numDisFaces = 0;
 }
+
+template <int T>  class ArrayLessThan {
+public:
+  bool operator()(const Array<int,T> &arr1, const Array<int,T> &arr2) {
+    for (int i = 0; i < T; ++i) {
+      if (arr1[i] == arr2[i]) continue;
+      if (arr1[i] < arr2[i]) return true;
+      break;
+    }
+    return false;
+  }
+} ;
+
+
+
 
 void cuttingplane_topo_handler::close() {
   int temp1, temp2 ;
@@ -97,8 +125,8 @@ void cuttingplane_topo_handler::close() {
     }
   }
 
-  sort(intersects.begin(), intersects.end(), &cuttingplane_topo_handler::arrLessThan<5>);
-  sort(nodeMap.begin(), nodeMap.end(), &cuttingplane_topo_handler::arrLessThan<2>);
+  sort(intersects.begin(), intersects.end(), ArrayLessThan<5>());
+  sort(nodeMap.begin(), nodeMap.end(), ArrayLessThan<2>());
 
   int lastUnique = 0;
   for (unsigned int scan = 0; scan < nodeMap.size(); ++scan) {
