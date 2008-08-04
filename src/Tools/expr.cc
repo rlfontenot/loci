@@ -545,7 +545,11 @@ namespace Loci {
 	  if(s.peek() == 'e' || s.peek() == 'E') {
 	    s.get() ;
 	    int e = parse::get_int(s) ;
+#ifdef NO_CMATH
+	    exp = ::pow(10.0,double(e)) ;
+#else
 	    exp = std::pow(10.0,double(e)) ;
+#endif
 	  }
 	  double val = (val1+val2)*exp ;
 	  ival->real_val_priv = val ;
@@ -589,7 +593,11 @@ namespace Loci {
 	if(s.peek() == 'e' || s.peek() == 'E') {
 	  s.get() ;
 	  int e = parse::get_int(s) ;
+#ifdef NO_CMATH
+	  exp = ::pow(10.0,double(e)) ;
+#else
 	  exp = std::pow(10.0,double(e)) ;
+#endif
 	}
 	double val = (val1+val2)*exp ;
 	ival->real_val_priv = val ;
@@ -683,13 +691,47 @@ namespace Loci {
 	double tmp2 = 1 ;
 	if(li!=expr_list.end()) 
 	  tmp2 = (*li)->evaluate(varmap) ;
+#ifdef NO_CMATH
+        return ::pow(tmp,tmp2) ;
+#else
 	return std::pow(tmp,tmp2) ;
+#endif
       }
-      if(name == "sin") 
-	return std::sin(tmp) ;
+#ifdef NO_CMATH
+      if(name == "sin")
+        return ::sin(tmp) ;
       if(name == "cos")
-	return std::cos(tmp) ;
-      if(name == "tan") 
+        return ::cos(tmp) ;
+      if(name == "tan")
+	return ::tan(tmp) ;
+      if(name == "asin") 
+	return ::asin(tmp) ;
+      if(name == "acos")
+	return ::acos(tmp) ;
+      if(name == "atan") 
+	return ::atan(tmp) ;
+      if(name == "sinh") 
+	return ::sinh(tmp) ;
+      if(name == "cosh")
+	return ::cosh(tmp) ;
+      if(name == "tanh")
+	return ::tanh(tmp) ;
+      if(name == "exp")
+	return ::exp(tmp) ;
+      if(name == "sqrt")
+	return ::sqrt(tmp) ;
+      if(name == "ln") 
+	return ::log(tmp) ;
+      if(name == "log") 
+	return ::log(tmp) ;
+      if(name == "log10")
+	return ::log10(tmp) ;
+#else
+      if(name == "sin")
+        return std::sin(tmp) ;
+      if(name == "cos")
+        return std::cos(tmp) ;
+      if(name == "tan")
 	return std::tan(tmp) ;
       if(name == "asin") 
 	return std::asin(tmp) ;
@@ -713,7 +755,7 @@ namespace Loci {
 	return std::log(tmp) ;
       if(name == "log10")
 	return std::log10(tmp) ;
-
+#endif
       {
         string msg = "in expression evaluation, function " + name
           + " has no definition";
