@@ -44,7 +44,7 @@ namespace Loci {
 
     lmutex                    mutex ;
     entitySet                 store_domain ;
-    int                       size;
+    size_t                       size;
     HASH_MAP(int,std::vector<T>)  attrib_data;
     
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &en) ;

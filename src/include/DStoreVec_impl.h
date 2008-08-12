@@ -71,7 +71,7 @@ namespace Loci {
     allocate(e) ;
 
     FORALL(e,ii) {
-      for( int i = 0; i < size; i++) {
+      for( size_t i = 0; i < size; i++) {
         newVec[i] = T() ;
         Loci::streaminput(&newVec[i],1,s) ;
       }
@@ -257,7 +257,7 @@ namespace Loci {
     static_storeVec.allocate(tmp_dom) ;
     static_storeVec.setVecSize(size) ;
     FORALL(tmp_dom, ei) {
-      for(int i = 0; i < size; ++i)
+      for(size_t i = 0; i < size; ++i)
 	static_storeVec[ei][i] = attrib_data[ei][i] ;
     }ENDFORALL ;
     return static_storeVec.Rep() ;
@@ -448,7 +448,7 @@ namespace Loci {
 
     int M ;
     MPI_Unpack(inbuf, insize, &position, &M, 1, MPI_INT, MPI_COMM_WORLD) ;
-    if( M > size) {
+    if( size_t(M) > size) {
       set_elem_size(M) ;
     }
     unpackdata( traits_type, inbuf, position, insize, seq);
@@ -470,7 +470,7 @@ namespace Loci {
       outcount = size*sizeof(T);
       MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, 
                   MPI_BYTE, MPI_COMM_WORLD) ;
-      for( int i = 0; i < size; i++) 
+      for( size_t i = 0; i < size; i++) 
         attrib_data[*ci][i] = outbuf[i];
     }
 
