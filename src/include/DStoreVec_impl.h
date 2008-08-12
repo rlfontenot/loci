@@ -357,7 +357,7 @@ namespace Loci {
       iter = attrib_data.find(*ci);
       if( iter != attrib_data.end() ) {
         newVec = iter->second;
-        for( int ivec = 0; ivec < size; ivec++){
+        for( size_t ivec = 0; ivec < size; ivec++){
           typename schema_traits::Converter_Type cvtr( newVec[ivec] );
           arraySize += cvtr.getSize();
         }
@@ -499,11 +499,11 @@ namespace Loci {
       if( attrib_data[*ci].size() < size) {
         attrib_data[*ci].resize(size);
       }
-      for( int ivec = 0; ivec < size; ivec++) {
+      for( size_t ivec = 0; ivec < size; ivec++) {
         outcount = sizeof(int);
         MPI_Unpack(inbuf, insize, &position, &stateSize, 1, MPI_INT, 
                    MPI_COMM_WORLD) ;
-        if( stateSize > outbuf.size() ) outbuf.resize(stateSize);
+        if( size_t(stateSize) > outbuf.size() ) outbuf.resize(stateSize);
 
         outcount = stateSize*typesize;
         MPI_Unpack(inbuf, insize, &position, &outbuf[0], outcount, MPI_BYTE, 
