@@ -420,11 +420,11 @@ namespace Loci {
       iter = attrib_data.find(*ci);
       if( iter == attrib_data.end() ) continue;
       newVec = iter->second;
-      for( int ivec = 0; ivec < size; ivec++){
+      for( size_t ivec = 0; ivec < size; ivec++){
           typename schema_traits::Converter_Type cvtr( newVec[ivec] );
 
           stateSize  = cvtr.getSize();
-          if( stateSize > inbuf.size() ) inbuf.resize(stateSize);
+          if( size_t(stateSize) > inbuf.size() ) inbuf.resize(stateSize);
 
           cvtr.getState( &inbuf[0], stateSize);
           MPI_Pack(&stateSize, 1, MPI_INT, outbuf, outcount,&position,
