@@ -1118,8 +1118,18 @@ bool Prism::balance_cell(int split_mode,
   
   
   bool  needBalance = false;
-
-  if(childCell == 0){
+  if(childCell!=0){
+    std::list<Prism*> leaves;
+    sort_leaves(leaves);
+    needBalance = false;
+    for(std::list<Prism*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+      bool tmp =  (*p)->balance_cell(split_mode, node_list, edge_list, qface_list, gface_list);
+      needBalance = tmp||needBalance;
+    }
+    return needBalance;
+  }
+  
+  else if(childCell == 0){
     std::vector<Edge*> edge= get_edges();
 
     needBalance = false;
@@ -1132,6 +1142,30 @@ bool Prism::balance_cell(int split_mode,
           mySplitCode = 3;
           break;
         }
+      }
+
+      if(Globals::balance_option >= 1 && mySplitCode == 0){
+        if((gnrlface[0]->child != 0) && (gnrlface[1]->child != 0)){
+          mySplitCode = 3;
+        }else{
+          int num_faces_split = 0;
+          for(int i = 0; i < nfold; i++){
+            if(quadface[i]-> code != 0 ) num_faces_split++;
+          }
+          if(num_faces_split > (nfold/2)){
+            
+            mySplitCode = 3;
+          }
+        }
+      }
+
+      if(Globals::balance_option >= 2 && mySplitCode == 0){
+        if( nfold ==4){
+          if(((quadface[0]-> code != 0) && (quadface[2]->code != 0))||
+             ((quadface[1]-> code != 0) && (quadface[3]->code != 0))
+             )mySplitCode = 3;
+        }
+        
       }
       
     }else{
@@ -1151,7 +1185,45 @@ bool Prism::balance_cell(int split_mode,
       }
     
       mySplitCode = char(code.to_ulong());
-    }    
+
+      
+      if(Globals::balance_option >= 1 && mySplitCode == 0){
+        int num_faces_split = 0;
+        bitset<2> face_code;
+        if(gnrlface[0]->child != 0 && gnrlface[1]->child!=0)face_code.set(1);
+         
+         for(int i = 0; i < nfold; i++){
+           if(quadface[i]-> code != 0 ) num_faces_split++;
+         }
+         
+         if(num_faces_split > (nfold/2)){
+           for(int i = 0; i< nfold; i++) face_code |= bitset<2>(quadface[i]->code);
+          
+         }
+         mySplitCode = char(face_code.to_ulong());
+      }
+
+      
+      if(Globals::balance_option >= 2 && mySplitCode == 0){
+        bitset<2> the_code;
+        the_code.reset();
+        if((gnrlface[0]->child != 0) && (gnrlface[1]->child != 0)){
+          the_code.set(1);
+        }
+        if( nfold ==4){
+          if(((quadface[0]-> code != 0) && (quadface[2]->code != 0))||
+             ((quadface[1]-> code != 0) && (quadface[3]->code != 0))
+             ){
+            
+            for(int i = 0; i< nfold; i++) the_code |= bitset<2>(quadface[i]->code);
+            
+          }
+        }
+          
+        mySplitCode = char(the_code.to_ulong());  
+      }
+      
+    }
     needBalance = (mySplitCode != 0);
     if(needBalance) {
       split(node_list, edge_list, qface_list, gface_list);
@@ -1162,18 +1234,7 @@ bool Prism::balance_cell(int split_mode,
     }
   }
   
-  else{
-
-    std::list<Prism*> leaves;
-    sort_leaves(leaves);
-    
-    needBalance = false;
-    for(std::list<Prism*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
-      bool tmp =  (*p)->balance_cell(split_mode, node_list, edge_list, qface_list, gface_list);
-      needBalance = tmp||needBalance;
-    }
-    
-  }
+ 
   return needBalance;
 }
 

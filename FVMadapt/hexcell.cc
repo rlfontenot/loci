@@ -1421,7 +1421,17 @@ bool HexCell::balance_cell(int split_mode,
 
  
   bool  needBalance = false;
+ if(childCell != 0){
 
+   std::list<HexCell*> leaves;
+   sort_leaves(leaves);
+   needBalance = false;
+   for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+     bool tmp =  (*p)->balance_cell(split_mode, node_list, edge_list, face_list);
+     needBalance = tmp||needBalance;
+   }
+   return needBalance;
+  }
   if(childCell == 0){
     std::vector<Edge*> edge = get_edges();
     needBalance = false;
@@ -1432,6 +1442,25 @@ bool HexCell::balance_cell(int split_mode,
           break;
         }
       }
+      if(Globals::balance_option >= 1 && mySplitCode == 0){
+        int num_faces_split = 0;
+        for(int i = 0; i < 6; i++){
+          if(face[i]-> code != 0 ) num_faces_split++;
+        }
+        if(num_faces_split > 3){
+          
+         mySplitCode = 7;
+        }
+      }
+
+      if(Globals::balance_option >= 2 && mySplitCode == 0){
+        if((face[0]->code != 0 && face[1]->code != 0)||
+           (face[2]->code != 0 && face[3]->code != 0)||
+           (face[4]->code != 0 && face[5]->code != 0))                                               
+          
+          mySplitCode = 7;
+      }
+      
     }
     else{
       bitset<3> code;
@@ -1451,6 +1480,51 @@ bool HexCell::balance_cell(int split_mode,
         }
       }
       mySplitCode = char(code.to_ulong());
+
+      if(Globals::balance_option >= 1 && mySplitCode == 0){
+        int num_faces_split = 0;
+        for(int i = 0; i < 6; i++){
+          if(face[i]-> child != 0 ) num_faces_split++;
+        }
+        if(num_faces_split > 3){
+          bitset<3> the_code;
+          bitset<2> facexy = bitset<2>(face[4]->code) | bitset<2>(face[5]->code);
+          bitset<2> faceyz = bitset<2>(face[0]->code) | bitset<2>(face[1]->code);
+          bitset<2> facexz = bitset<2>(face[2]->code) | bitset<2>(face[3]->code);
+          the_code.reset();
+          the_code[0] = faceyz[0] | facexz[0];//x bit
+          the_code[1] = facexy[0] | faceyz[1];//y bit
+          the_code[2] = facexy[1] | facexz[1];//z bit
+          
+          mySplitCode = char(the_code.to_ulong());
+          
+        }
+      }
+      
+      if(Globals::balance_option >= 2 && mySplitCode == 0){
+
+        bitset<3> the_code;
+        bitset<2> facexy = bitset<2>(face[4]->code) | bitset<2>(face[5]->code);
+        bitset<2> faceyz = bitset<2>(face[0]->code) | bitset<2>(face[1]->code);
+        bitset<2> facexz = bitset<2>(face[2]->code) | bitset<2>(face[3]->code);
+        the_code.reset();
+        if(face[0]->child != 0 && face[1]->child != 0){//faceyz
+          the_code[1] = the_code[1] | faceyz[1];
+          the_code[0] = the_code[0] | faceyz[0];
+        }
+        if (face[2]->child != 0 && face[3]->child != 0){//facexz
+          the_code[2] = the_code[2] | facexz[1];
+          the_code[0] = the_code[0] | facexz[0];
+        }
+        if(face[4]->child != 0 && face[5]->child != 0){//facexy
+
+          the_code[2] = the_code[2] | facexy[1];
+          the_code[1] = the_code[1] | facexy[0];
+        }
+          
+        mySplitCode = char(the_code.to_ulong());  
+      }
+      
     }
     if(mySplitCode !=0){
       needBalance = true;
@@ -1463,18 +1537,7 @@ bool HexCell::balance_cell(int split_mode,
     }
   }
 
-  else{
-
-      std::list<HexCell*> leaves;
-    sort_leaves(leaves);
-    needBalance = false;
-    for(std::list<HexCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
-      bool tmp =  (*p)->balance_cell(split_mode, node_list, edge_list, face_list);
-      needBalance = tmp||needBalance;
-    }
-    
-       
-  }
+ 
   return needBalance;
 }
 
