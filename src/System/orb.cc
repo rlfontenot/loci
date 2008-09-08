@@ -119,7 +119,7 @@ namespace Loci {
     if(p == 1) {
       vector<int> pid(sz) ;
       for(int i=0;i<sz;++i)
-        pid[i] = 1 ;
+        pid[i] = 0 ;
       procid.swap(pid) ;
       return ;
     }

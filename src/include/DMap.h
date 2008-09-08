@@ -47,6 +47,7 @@ namespace Loci {
     dMapRepI() { }
     dMapRepI(const entitySet &p) { allocate(p) ; }
     virtual void allocate(const entitySet &ptn) ;
+    virtual void erase(const entitySet& rm) ;
     virtual ~dMapRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
@@ -102,6 +103,10 @@ namespace Loci {
     dMap & operator=(storeRepP p) { setRep(p) ; return *this ;}
     
     void allocate(const entitySet &ptn) { Rep()->allocate(ptn) ; }
+
+    // this method does erases the domain of the Map that are
+    // inside the passed in parameter
+    void erase(const entitySet& rm) { Rep()->erase(rm) ; }
 
     entitySet domain() const { return Rep()->domain() ; }
 

@@ -91,6 +91,9 @@ namespace Loci {
   public:
     virtual ~storeRep() ;
     virtual void allocate(const entitySet &p) = 0 ;
+    // erase part of the domain, useful for dynamic containers,
+    // default behavior is doing nothing.
+    virtual void erase(const entitySet& rm) {}
     virtual void shift(int_type offset) = 0 ;
     virtual void set_elem_size(int sz) ;
     virtual storeRep *new_store(const entitySet &p) const = 0 ;

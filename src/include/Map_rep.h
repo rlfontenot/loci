@@ -45,7 +45,10 @@ namespace Loci {
     virtual store_type RepType() const ;
     virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) = 0 ;
     virtual void shift(int_type)
-      {std::cerr<<"shift for Map has not been implemented!"<<std::endl ;}
+    {std::cerr<<"shift for Map has not been implemented!"<<std::endl ;}
+    // erase part of the domain, useful for dynamic containers.
+    // the default is doing nothing
+    virtual void erase(const entitySet& rm) {}
   } ;
 
   typedef NPTR<MapRep> MapRepP ;
