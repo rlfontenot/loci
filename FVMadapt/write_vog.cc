@@ -118,8 +118,8 @@ void writeVOGFace(hid_t file_id, Map &cl, Map &cr, multiMap &face2node) {
     if(MPI_rank == 0) {
       group_id = H5Gopen(file_id,"file_info") ;
 
-      cerr << "num_cells = " << num_cells << endl
-           << "num_faces = " << num_faces << endl ;
+      std::cout<< "num_cells = " << num_cells << endl
+               << "num_faces = " << num_faces << endl ;
 
       hsize_t dims = 1 ;
       hid_t dataspace_id = H5Screate_simple(1,&dims,NULL) ;

@@ -41,194 +41,26 @@ int currentMem(void);
 
 //functions from distribute_io
 namespace Loci{
-  vector<entitySet> simplePartition(int mn, int mx, MPI_Comm comm );
-  vector<int> simplePartitionVec(int mn, int mx, int p) {
-    vector<int> nums(p+1) ;
-    int n = mx-mn+1 ;
-    int dn = n/p ; // divisor
-    int rn = n%p ; // remainder
-    int start = mn ;
-    nums[0] = start ;
-    for(int i=0;i<p;++i) {
-      start += dn+((i<rn)?1:0) ;
-      nums[i+1] = start ;
-    }
-    FATAL(start != mx+1) ;
-    return nums ;
-  }
-  vector<sequence> transposeSeq(const vector<sequence> sv) {
-     vector<int> send_sz(MPI_processes) ;
-    for(int i=0;i<MPI_processes;++i)
-      send_sz[i] = sv[i].num_intervals()*2 ;
-    vector<int> recv_sz(MPI_processes) ;
-    MPI_Alltoall(&send_sz[0],1,MPI_INT,
-                 &recv_sz[0],1,MPI_INT,
-                 MPI_COMM_WORLD) ;
-    int size_send = 0 ;
-    int size_recv = 0 ;
-    for(int i=0;i<MPI_processes;++i) {
-      size_send += send_sz[i] ;
-      size_recv += recv_sz[i] ;
-    }
-    //    outRep->allocate(new_alloc) ;
-    int *send_store = new int[size_send] ;
-    int *recv_store = new int[size_recv] ;
-    int *send_displacement = new int[MPI_processes] ;
-    int *recv_displacement = new int[MPI_processes] ;
 
-    send_displacement[0] = 0 ;
-    recv_displacement[0] = 0 ;
-    for(int i = 1; i <  MPI_processes; ++i) {
-      send_displacement[i] = send_displacement[i-1] + send_sz[i-1] ;
-      recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
-    }
-    for(int i = 0; i <  MPI_processes; ++i)
-      for(int j=0;j<sv[i].num_intervals();++j) {
-        send_store[send_displacement[i]+j*2] = sv[i][j].first ;
-        send_store[send_displacement[i]+j*2+1] = sv[i][j].second ;
-      }
-    
-    
-    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
-		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
 
-    vector<sequence> sv_t(MPI_processes) ;
-    for(int i = 0; i <  MPI_processes; ++i) 
-      for(int j=0;j<recv_sz[i]/2;++j) {
-        int i1 = recv_store[recv_displacement[i]+j*2]  ;
-        int i2 = recv_store[recv_displacement[i]+j*2+1] ;
-        sv_t[i] += interval(i1,i2) ;
-      }
-    delete[] recv_displacement ;
-    delete[] send_displacement ;
-    delete[] recv_store ;
-    delete[] send_store ;
-
-    return sv_t ;
-  }
+  std::vector<int> all_collect_sizes(int size);
+// Convert container from local numbering to file numbering
+  // pass in store rep pointer: sp
+  // entitySet to write: dom
+  // return offset in file numbering (each processor will allocate from zero,
+  // add offset to domain to get actual file numbering)
+  // distribution info pointer (dist)
+  // MPI Communicator
+  storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
+                            fact_db::distribute_infoP dist, MPI_Comm comm);
   
-// result allocated over local numbering 
-// input is in file numbering
-// Routine redistributes input to be arranged in the local numbering
-// and placed in result.
-// input is assumed to be partitioned by simplePartion
-  void distribute_reorder_store(Loci::storeRepP &result, entitySet resultSet,
-                                Loci::storeRepP input, fact_db &facts ){
-    fact_db::distribute_infoP df = facts.get_distribute_info() ;
-    
-    dMap g2f ;
-    g2f = df->g2f.Rep() ;
-    Map l2g ;
-    l2g = df->l2g.Rep() ;
-    
-    Map newnum ;
-    newnum.allocate(resultSet) ;
-    
-    FORALL(resultSet,i) {
-      newnum[i] = g2f[l2g[i]] ;
-    } ENDFORALL ;
-
-    const int p = MPI_processes ;
-    // Get input (file) distribution
-    int imx = GLOBAL_MAX(input->domain().Max()) ;
-    int imn = GLOBAL_MIN(input->domain().Min()) ;
-    vector<int> fptn = simplePartitionVec(imn,imx,p) ;
-
-    // Get distribution plan
-    vector<vector<pair<int,int> > > dist_plan(p) ;
-    int np = (imx-imn+1)/p ; // number of elements per processor
-    FORALL(resultSet,i) {
-      int fn = newnum[i] ;
-      if(fn < imn || fn > imx) {
-        cerr << "Problem with distribute_reorder_store, index out of bounds"
-             << endl ;
-        cerr << "fn = " << fn << "imx = " << imx << "imn = " << imn << endl ;
-        Loci::Abort() ;
-      }
-      // processor that contains this value
-      int r = min((fn-imn)/np,p-1) ; // Guess which processor
-      for(;;) { // search from guess
-        if(fn >= fptn[r] && fn < fptn[r+1])
-          break ;
-        r+= (fn < fptn[r])?-1:1 ;
-        if(r < 0 || r >= p) {
-          debugout << "bad r in processor search " << r << endl ;
-        }
-        FATAL(r >= p) ;
-        FATAL(r < 0) ;
-      }
-      dist_plan[r].push_back(pair<int,int>(fn,i)) ;
-    } ENDFORALL ;
-    // Compute recv requests from distribution plan
-    vector<sequence> recv_seq(p),send_req(p) ;
-    for(int i=0;i<p;++i) {
-      std::sort(dist_plan[i].begin(),dist_plan[i].end()) ;
-      sequence s1,s2 ;
-      int psz = dist_plan[i].size() ;
-      for(int j=0;j<psz;++j) {
-        s1 +=dist_plan[i][j].first ;
-        s2 +=dist_plan[i][j].second ;
-      }
-      send_req[i] = s1 ;
-      recv_seq[i] = s2 ;
-    }
-
-    // Transpose the send requests to get the sending sequences
-    // from this processor
-    vector<sequence> send_seq = transposeSeq(send_req) ;
-    vector<entitySet> send_sets(p) ;
-    for(int i=0;i<p;++i)
-      send_sets[i] = entitySet(send_seq[i]) ;
-    
-    int *send_sizes = new int[p] ;
-    int *recv_sizes = new int[p] ;
-
-
-    for(int i=0;i<p;++i)
-      send_sizes[i] = input->pack_size(send_sets[i]) ;
-
-    MPI_Alltoall(&send_sizes[0],1,MPI_INT,
-                 &recv_sizes[0],1,MPI_INT,
-                 MPI_COMM_WORLD) ;
-    int *send_dspl = new int[p] ;
-    int *recv_dspl = new int[p] ;
-    send_dspl[0] = 0 ;
-    recv_dspl[0] = 0 ;
-    for(int i=1;i<p;++i) {
-      send_dspl[i] = send_dspl[i-1] + send_sizes[i-1] ;
-      recv_dspl[i] = recv_dspl[i-1] + recv_sizes[i-1] ;
-    }
-    int send_sz = send_dspl[p-1] + send_sizes[p-1] ;
-    int recv_sz = recv_dspl[p-1] + recv_sizes[p-1] ;
-
-    unsigned char *send_store = new unsigned char[send_sz] ;
-    unsigned char *recv_store = new unsigned char[recv_sz] ;
-
-    for(int i=0;i<p;++i) {
-      int loc_pack = 0 ;
-      input->pack(&send_store[send_dspl[i]],loc_pack, send_sizes[i],
-               send_sets[i]) ;
-    }
-
-    MPI_Alltoallv(send_store, &send_sizes[0], send_dspl, MPI_PACKED,
-		  recv_store, &recv_sizes[0], recv_dspl, MPI_PACKED,
-		  MPI_COMM_WORLD) ;
-
-    for(int i=0;i<p;++i) {
-      int loc_pack = 0 ;
-      result->unpack(&recv_store[recv_dspl[i]],loc_pack,recv_sizes[i],
-                     recv_seq[i]) ;
-    }
-    delete[] recv_store ;
-    delete[] send_store ;
-    delete[] recv_dspl ;
-    delete[] send_dspl ;
-    delete[] recv_sizes ;
-    delete[] send_sizes ;
+  void File2LocalOrder(storeRepP &result, entitySet resultSet,
+                       storeRepP input, int offset,
+                       fact_db::distribute_infoP dist,
+                       MPI_Comm comm);
   
-  }
 }
+
 
 class get_postag : public pointwise_rule{
   const_param<std::string> tagfile_par;
@@ -254,11 +86,10 @@ public:
         cerr <<"can not open " << *tagfile_par << " for input" << endl;
         Loci::Abort();
       }
-      //  cout << "Reading tagfile " << *tagfile_par << " for posTag" << endl;
     }
-
+    
     entitySet dom = entitySet(seq);
-  
+    
     //serial version
     if(nprocs == 1){
       char tag; 
@@ -269,72 +100,40 @@ public:
       }ENDFORALL;
       //close tagfile
       inFile.close();
-      //      cout << "Finish reading posTag" << endl;
       return;
     }
     //parallel version
     
-    fact_db::distribute_infoP d = (Loci::exec_current_fact_db)->get_distribute_info() ;
-        
-    //map local node dom to global node dom,
-    // and check if the size of  two dom is the same 
-    Map l2g ;
-    l2g = d->l2g.Rep() ;
-    MapRepP l2gP = MapRepP(l2g.Rep()) ;
-    entitySet dom_global = l2gP->image(dom) ;
-    FATAL(dom.size() != dom_global.size()) ;
-    
-    //get map from global to file
-    dMap g2f ;
-    g2f = d->g2f.Rep() ;
-    
-    // Compute map from local numbering to file numbering
-    Map newnum ;
-    newnum.allocate(dom) ;
-    FORALL(dom,i) {
-      newnum[i] = g2f[l2g[i]] ;
-    } ENDFORALL ;
-    
-    //local min and max of file numbering of node dom
-    int imx = std::numeric_limits<int>::min() ;
-    int imn = std::numeric_limits<int>::max() ;
-    
-    FORALL(dom,i) {
-      imx = max(newnum[i],imx) ;
-      imn = min(newnum[i],imn) ;
-    } ENDFORALL ;
-    
-    //find the min and max value over all processes
-    imx = GLOBAL_MAX(imx) ;
-    imn = GLOBAL_MIN(imn) ;
-  
-    // simple patition the whole file numbering node domain 
-    vector<entitySet> out_ptn = Loci::simplePartition(imn,imx,MPI_COMM_WORLD) ;
-    //end of code from collect_reorder_store()  
-    
-    //temp_posTag is allocated on the simple partition of file numbering of nodes
+    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    //first create store in the order of file numbering      
+    int offset = 0;
     store<char> temp_posTag;
-    temp_posTag.allocate(out_ptn[Loci::MPI_rank]);
+    temp_posTag = Local2FileOrder(posTag.Rep(),dom,offset,dist,MPI_COMM_WORLD) ;;
+    int num_nodes = temp_posTag.domain().size();
     
-    //buf size, i.e., maximum  num of local nodes of simple partition
-    int buf_size = 0;
-    for(int i = 0; i < nprocs; i++){
-      buf_size = max(buf_size, out_ptn[i].size());
-    }
+    int* size_buf = new int[nprocs];
     
-    char* buf = new char[buf_size] ;
-        
+    //compute buf_size on each process
+    unsigned int  buf_size = 0;
+    MPI_Allreduce(&num_nodes, &buf_size, 1, MPI_INT,
+                  MPI_MAX, MPI_COMM_WORLD);
+    //process 0 find out size of buffer for each process
+     
+    MPI_Gather(&num_nodes, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      
+    char *buf = new char[buf_size]; //posTag buf
+    
     if(Loci::MPI_rank == 0){
       char tag;
       //process 0 read in its local tag 
-      FORALL(out_ptn[0], cc){
+      FORALL(temp_posTag.domain(), cc){
         if(inFile >> tag) temp_posTag[cc] = char(tag - '0');
         else temp_posTag[cc] = 0; 
       }ENDFORALL;
       
       //process 0 read the tags of other processes into a buf and then send the buf
       for(int i = 1; i < nprocs; i++){
-        int send_size = out_ptn[i].size();
+        int send_size = size_buf[i];
         for(int j = 0; j < send_size; j++)  
           {
             if(inFile >> tag) buf[j] = char(tag - '0');
@@ -348,31 +147,35 @@ public:
       MPI_Status status;
       MPI_Recv(buf, buf_size, MPI_CHAR, 0, 20, MPI_COMM_WORLD, &status);
       int ptr = 0;
-      FORALL(out_ptn[Loci::MPI_rank], cc){
+      FORALL(temp_posTag.domain(), cc){
         temp_posTag[cc] = buf[ptr++];
       }ENDFORALL;
     }
+    
     //finish read in temp_posTag;
 
         
     //redistribute temp_posTag to local node dom
-    
-    Loci::storeRepP posTagRepP = posTag.getRep();
-    Loci::distribute_reorder_store(posTagRepP, dom, temp_posTag.getRep(),
-                                   *(Loci::exec_current_fact_db));
-            
+    storeRepP localVar=posTag.Rep();
+    File2LocalOrder(localVar, dom,
+                    temp_posTag.Rep(), offset,
+                    dist,
+                    MPI_COMM_WORLD);
+  
+               
     delete [] buf;
+    delete [] size_buf;
     //process 0 close file
     if(Loci::MPI_rank == 0){
       inFile.close();
       //  cout << "Finish reading  posTag " << endl;
     }
     
-    //   cerr << currentMem() << " after reading posTag " << Loci::MPI_rank << endl; 
+    
   }
 };
-register_rule<get_postag> register_get_postag;
-
+  register_rule<get_postag> register_get_postag;
+  
 class get_nodetag : public pointwise_rule{
   const_param<std::string> tagfile_par;
   const_param<int> num_original_nodes;
@@ -427,7 +230,7 @@ public:
             else nodeTag[cc][i] = 0;
           }
         }else{
-          std::vector<char>(1).swap(nodeTag[cc]);
+          std::vector<char>(1).swap(nodeTag[cc]);//to avoid default allocated size for vector
           nodeTag[cc].clear();
         }
         
@@ -470,9 +273,9 @@ public:
     //parallel version
     
     
-    fact_db::distribute_infoP d = (Loci::exec_current_fact_db)->get_distribute_info() ;
+    fact_db::distribute_infoP dist = (Loci::exec_current_fact_db)->get_distribute_info() ;
     Loci::constraint my_entities ; 
-    my_entities = d->my_entities ;
+    my_entities = dist->my_entities ;
     
     
     //start working on nodeTag
@@ -488,176 +291,309 @@ public:
     local_edges = (*my_entities) & (*edges) ;
     local_faces = (*my_entities) & (*faces);
     local_geom_cells = (*my_entities)&(*geom_cells);
-    
-    
 
-    
-    
-    //compute num of local inner nodes on each process
-    int num_local_inner_nodes = 0;
-    
-    FORALL(local_edges, ei){
-      num_local_inner_nodes += num_inner_nodes[ei];
-    }ENDFORALL;
-    //write out cell_nodes first, then write face_nodes
-    FORALL(local_geom_cells, ei){
-      num_local_inner_nodes += num_inner_nodes[ei];
-    }ENDFORALL;
-    
-    FORALL(local_faces, ei){
-      num_local_inner_nodes += num_inner_nodes[ei];
-    }ENDFORALL;
-    
-    
-    //compute buf_size on each process
-    unsigned int  buf_size = 0;
-    MPI_Allreduce(&num_local_inner_nodes, &buf_size, 1, MPI_INT,
-                  MPI_MAX, MPI_COMM_WORLD);
-    
-    if(buf_size == 0){
 
-      FORALL(local_edges, cc){
-        nodeTag[cc].clear();
+    int offset = 0;
+    unsigned int buf_size = 0;
+    int* size_buf = new int[MPI_processes];
+    //put in a block to release memory when out of block
+    {
+      // file numbering, the domain of this container shifted by offset
+      // is the actual file numbering.
+      store<int> edge_num_inner_nodes;
+      edge_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
+      //for each processor, 
+      int num_edge_inner_nodes = 0;
+      FORALL(edge_num_inner_nodes.domain(), ei){
+        num_edge_inner_nodes += edge_num_inner_nodes[ei];
       }ENDFORALL;
-      FORALL(local_geom_cells, cc){
-        nodeTag[cc].clear();
-      }ENDFORALL;
+   
+      buf_size = 0;
+      MPI_Allreduce(&num_edge_inner_nodes, &buf_size, 1, MPI_INT,
+                    MPI_MAX, MPI_COMM_WORLD);
       
-      FORALL(local_faces, cc){
-        nodeTag[cc].clear();
-      }ENDFORALL;
+      if(buf_size == 0){
+        FORALL(local_edges, cc){
+          std::vector<char>(1).swap(nodeTag[cc]);
+          nodeTag[cc].clear();  
+        }ENDFORALL;
+        
+      }else{
+        //process 0 find out size of buffer for each process
+        
+        
+        MPI_Gather(&num_edge_inner_nodes, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        
+        char *nbuf = new char[buf_size]; //nodeTag buf
+        
+        //nodeTag in the order of file numbering
+        store<std::vector<char> > edge_nodeTag;
+        edge_nodeTag.allocate(edge_num_inner_nodes.domain());
+        
+        if(Loci::MPI_rank == 0){
+          char tag;
+          
+          //process 0 read in its local nodeTag
+          FORALL(edge_num_inner_nodes.domain(), cc){
+            if(edge_num_inner_nodes[cc] != 0){
+              std::vector<char>(int(edge_num_inner_nodes[cc])).swap(edge_nodeTag[cc]);
+              for(int i = 0; i < edge_num_inner_nodes[cc]; i++){
+                if(inFile >> tag) edge_nodeTag[cc][i] = char(tag - '0');
+                else edge_nodeTag[cc][i] = 0;
+              }
+            }else{
+              std::vector<char>(1).swap(edge_nodeTag[cc]);
+              edge_nodeTag[cc].clear();
+            }
+            
+          }ENDFORALL; 
+          
+          //process 0 read in nodeTags into nbuf and send nbuf to other processes
+          for(int i = 1; i < nprocs; i++){
+            
+            for(int j = 0; j < size_buf[i]; j++)  
+              {
+                if(inFile >> tag) nbuf[j] = char(tag - '0');
+                else nbuf[j] = 0; 
+              }
+            if(size_buf[i] != 0) MPI_Send(&nbuf[0], size_buf[i], MPI_CHAR, i, 11, MPI_COMM_WORLD);
+          }
+        }else{ // all other process recv nbuf from process 0 and unpack nodeTag
+          int recv_size = num_edge_inner_nodes;
+          if(recv_size != 0){
+            MPI_Status status;
+            MPI_Recv(&nbuf[0], buf_size, MPI_CHAR, 0, 11, MPI_COMM_WORLD, &status);
+          }  
+          int ptr = 0;
+          FORALL(edge_num_inner_nodes.domain(), cc){
+            if(edge_num_inner_nodes[cc] != 0){
+              
+              std::vector<char>(int(edge_num_inner_nodes[cc])).swap(edge_nodeTag[cc]);
+              for(int i = 0; i < edge_num_inner_nodes[cc]; i++){
+                edge_nodeTag[cc][i] = nbuf[ptr++];
+              }
+            }else{
+              std::vector<char>(1).swap(edge_nodeTag[cc]);
+              edge_nodeTag[cc].clear();
+            }
+          }ENDFORALL; 
+        }
+        
+      storeRepP localVar=nodeTag.Rep();
+      File2LocalOrder(localVar, local_edges,
+                      edge_nodeTag.Rep(), offset,
+                      dist,
+                      MPI_COMM_WORLD);
       
-      return;
-    }
+      delete [] nbuf;
+      }
+    }//finish edge nodeTag
+    //start with cell nodeTag
+     offset = 0;
+     {
+       // file numbering, the domain of this container shifted by offset
+       // is the actual file numbering.
+       store<int> cell_num_inner_nodes;
+       cell_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_geom_cells,offset,dist,MPI_COMM_WORLD) ;
+       //for each processor, 
+       int num_cell_inner_nodes = 0;
+       FORALL(cell_num_inner_nodes.domain(), ei){
+         num_cell_inner_nodes += cell_num_inner_nodes[ei];
+       }ENDFORALL;
+       
+       buf_size = 0;
+       MPI_Allreduce(&num_cell_inner_nodes, &buf_size, 1, MPI_INT,
+                     MPI_MAX, MPI_COMM_WORLD);
+       
+       if(buf_size == 0){
+         FORALL(local_geom_cells, cc){
+           std::vector<char>(1).swap(nodeTag[cc]);
+        nodeTag[cc].clear();  
+         }ENDFORALL;
+         
+       }else{
+         //process 0 find out size of buffer for each process
 
-      
-      //process 0 find out size of buffer for each process
-      int* size_buf = new int[nprocs];
-      MPI_Gather(&num_local_inner_nodes, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
-      
-      char *nbuf = new char[buf_size]; //nodeTag buf
-      
+         
+         MPI_Gather(&num_cell_inner_nodes, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+         
+         char *nbuf = new char[buf_size]; //nodeTag buf
+        
+         //nodeTag in the order of file numbering
+         store<std::vector<char> > cell_nodeTag;
+         cell_nodeTag.allocate(cell_num_inner_nodes.domain());
+         
       if(Loci::MPI_rank == 0){
         char tag;
         
-        for(int i = 0; i < *num_original_nodes; i++) inFile>>tag;
-        //process 0 read in its local nodeTag
-        FORALL(local_edges, cc){
-          if(num_inner_nodes[cc] != 0){
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
-              else nodeTag[cc][i] = 0;
+       //process 0 read in its local nodeTag
+        FORALL(cell_num_inner_nodes.domain(), cc){
+          if(cell_num_inner_nodes[cc] != 0){
+            std::vector<char>(int(cell_num_inner_nodes[cc])).swap(cell_nodeTag[cc]);
+            for(int i = 0; i < cell_num_inner_nodes[cc]; i++){
+              if(inFile >> tag) cell_nodeTag[cc][i] = char(tag - '0');
+              else cell_nodeTag[cc][i] = 0;
             }
           }else{
-             std::vector<char>(1).swap(nodeTag[cc]);
-            nodeTag[cc].clear();
+            std::vector<char>(1).swap(cell_nodeTag[cc]);
+            cell_nodeTag[cc].clear();
           }
           
         }ENDFORALL; 
         
-    
-        
-        FORALL(local_geom_cells, cc){
-          if(num_inner_nodes[cc] != 0){
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
-              else nodeTag[cc][i] = 0;
-            }
-          }else{
-             std::vector<char>(1).swap(nodeTag[cc]);
-            nodeTag[cc].clear();
-          }
-        }ENDFORALL;
-        
-        FORALL(local_faces, cc){
-          if(num_inner_nodes[cc] != 0){
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              if(inFile >> tag) nodeTag[cc][i] = char(tag - '0');
-              else nodeTag[cc][i] = 0;
-            }
-          }else{
-             std::vector<char>(1).swap(nodeTag[cc]);
-            nodeTag[cc].clear();
-          }
-        }ENDFORALL;
-        
-        //process 0 read in nodeTags into nbuf and send nbuf to other processes
+       //process 0 read in nodeTags into nbuf and send nbuf to other processes
         for(int i = 1; i < nprocs; i++){
           
           for(int j = 0; j < size_buf[i]; j++)  
-            {
+           {
+             if(inFile >> tag) nbuf[j] = char(tag - '0');
+             else nbuf[j] = 0; 
+           }
+         if(size_buf[i] != 0) MPI_Send(&nbuf[0], size_buf[i], MPI_CHAR, i, 12, MPI_COMM_WORLD);
+        }
+      }else{ // all other process recv nbuf from process 0 and unpack nodeTag
+        int recv_size = num_cell_inner_nodes;
+        if(recv_size != 0){
+            MPI_Status status;
+            MPI_Recv(&nbuf[0], buf_size, MPI_CHAR, 0, 12, MPI_COMM_WORLD, &status);
+        }  
+          int ptr = 0;
+          FORALL(cell_num_inner_nodes.domain(), cc){
+            if(cell_num_inner_nodes[cc] != 0){
+              
+              std::vector<char>(int(cell_num_inner_nodes[cc])).swap(cell_nodeTag[cc]);
+              for(int i = 0; i < cell_num_inner_nodes[cc]; i++){
+                cell_nodeTag[cc][i] = nbuf[ptr++];
+              }
+            }else{
+              std::vector<char>(1).swap(cell_nodeTag[cc]);
+              cell_nodeTag[cc].clear();
+            }
+          }ENDFORALL; 
+      }
+      
+      storeRepP localVar=nodeTag.Rep();
+      File2LocalOrder(localVar, local_geom_cells,
+                      cell_nodeTag.Rep(), offset,
+                      dist,
+                      MPI_COMM_WORLD);
+     
+      delete [] nbuf;
+       }
+     }//finsh cell nodeTag
+     
+       //start for faces
+     offset= 0;
+     {
+       // Create container vardist that is ordered across processors in the
+       // file numbering, the domain of this container shifted by offset
+       // is the actual file numbering.
+       store<int> face_num_inner_nodes;
+       face_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_faces,offset,dist,MPI_COMM_WORLD) ;
+       
+       
+       int num_face_inner_nodes = 0;
+       FORALL(face_num_inner_nodes.domain(), ei){
+         num_face_inner_nodes += face_num_inner_nodes[ei];
+       }ENDFORALL;
+       
+       buf_size = 0;
+       MPI_Allreduce(&num_face_inner_nodes, &buf_size, 1, MPI_INT,
+                     MPI_MAX, MPI_COMM_WORLD);
+       
+       if(buf_size == 0){
+         FORALL(local_faces, cc){
+           std::vector<char>(1).swap(nodeTag[cc]);
+           nodeTag[cc].clear();  
+         }ENDFORALL;
+         
+       }else{
+         
+         
+         //process 0 find out size of buffer for each process
+      
+         MPI_Gather(&num_face_inner_nodes, 1, MPI_INT, size_buf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+         
+         char* nbuf = new char[buf_size]; //nodeTag buf
+         
+         store<std::vector<char> > face_nodeTag;
+         face_nodeTag.allocate(face_num_inner_nodes.domain());
+         
+         if(Loci::MPI_rank == 0){
+           char tag;
+           
+           //process 0 read in its local nodeTag
+           FORALL(face_num_inner_nodes.domain(), cc){
+             if(face_num_inner_nodes[cc] != 0){
+            std::vector<char>(int(face_num_inner_nodes[cc])).swap(face_nodeTag[cc]);
+            for(int i = 0; i < face_num_inner_nodes[cc]; i++){
+              if(inFile >> tag) face_nodeTag[cc][i] = char(tag - '0');
+              else face_nodeTag[cc][i] = 0;
+            }
+             }else{
+               std::vector<char>(1).swap(face_nodeTag[cc]);
+               face_nodeTag[cc].clear();
+             }
+             
+           }ENDFORALL; 
+           
+           //process 0 read in nodeTags into nbuf and send nbuf to other processes
+           for(int i = 1; i < nprocs; i++){
+             
+             for(int j = 0; j < size_buf[i]; j++)  
+               {
               if(inFile >> tag) nbuf[j] = char(tag - '0');
               else nbuf[j] = 0; 
             }
-          if(size_buf[i] != 0) MPI_Send(&nbuf[0], size_buf[i], MPI_CHAR, i, 11, MPI_COMM_WORLD);
-        }
-      }else{ // all other process recv nbuf from process 0 and unpack nodeTag
-        int recv_size = num_local_inner_nodes;
-        if(recv_size != 0){
+             if(size_buf[i] != 0) MPI_Send(&nbuf[0], size_buf[i], MPI_CHAR, i, 13, MPI_COMM_WORLD);
+           }
+         }else{ // all other process recv nbuf from process 0 and unpack nodeTag
+           int recv_size = num_face_inner_nodes;
+           if(recv_size != 0){
           MPI_Status status;
-          MPI_Recv(&nbuf[0], buf_size, MPI_CHAR, 0, 11, MPI_COMM_WORLD, &status);
-        }  
-        int ptr = 0;
-        FORALL(local_edges, cc){
-          if(num_inner_nodes[cc] != 0){
+          MPI_Recv(&nbuf[0], buf_size, MPI_CHAR, 0, 13, MPI_COMM_WORLD, &status);
+           }  
+           int ptr = 0;
+           FORALL(face_num_inner_nodes.domain(), cc){
+          if(face_num_inner_nodes[cc] != 0){
             
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              nodeTag[cc][i] = nbuf[ptr++];
+            std::vector<char>(int(face_num_inner_nodes[cc])).swap(face_nodeTag[cc]);
+            for(int i = 0; i < face_num_inner_nodes[cc]; i++){
+              face_nodeTag[cc][i] = nbuf[ptr++];
             }
           }else{
-             std::vector<char>(1).swap(nodeTag[cc]);
-            nodeTag[cc].clear();
+            std::vector<char>(1).swap(face_nodeTag[cc]);
+            face_nodeTag[cc].clear();
           }
-        }ENDFORALL; 
-        
-        FORALL(local_geom_cells, cc){
-          if(num_inner_nodes[cc]!= 0){
-            
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              nodeTag[cc][i] = nbuf[ptr++];
-            }
-          }else{
-             std::vector<char>(1).swap(nodeTag[cc]);
-            nodeTag[cc].clear();
-          }
-        }ENDFORALL;
-        
-        FORALL(local_faces, cc){
-          if(num_inner_nodes[cc] != 0){
-            std::vector<char>(int(num_inner_nodes[cc])).swap(nodeTag[cc]);
-            for(int i = 0; i < num_inner_nodes[cc]; i++){
-              nodeTag[cc][i] = nbuf[ptr++];
-            }
-          }else{
-             std::vector<char>(1).swap(nodeTag[cc]);
-            nodeTag[cc].clear();
-          }
-        }ENDFORALL;
-        
-      }
-        
-  
+           }ENDFORALL; 
+         }
          
-   
-      //clean up
-       
-      delete [] nbuf;
-      delete [] size_buf;
-    
-
+         storeRepP localVar=nodeTag.Rep();
+         File2LocalOrder(localVar, local_faces,
+                         face_nodeTag.Rep(), offset,
+                         dist,
+                         MPI_COMM_WORLD);
+         
+         
+         
+         
+         //clean up
+         
+         delete [] nbuf;
+       }
+     }
+  
+     delete [] size_buf;
+     
      //process 0 close file
-      if(Loci::MPI_rank == 0){
-        inFile.close();
-        // cout << "Finish reading  nodeTag " << endl;
-      }
-      //   cerr << currentMem() << " After reading in nodeTag " << Loci::MPI_rank << endl; 
+     if(Loci::MPI_rank == 0){
+       inFile.close();
+       
+     }
+     
   }
   
 };
 
-register_rule<get_nodetag> register_get_nodetag;
+  register_rule<get_nodetag> register_get_nodetag;
+  

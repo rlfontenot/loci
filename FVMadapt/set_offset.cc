@@ -29,9 +29,26 @@
 #include <stdio.h>
 #include "mpi.h"
 #include "defines.h"
+using Loci::storeRepP;
+
 typedef Loci::vector3d<double> vect3d;
 namespace Loci{
-std::vector<int> all_collect_sizes(int size);
+  std::vector<int> all_collect_sizes(int size);
+// Convert container from local numbering to file numbering
+  // pass in store rep pointer: sp
+  // entitySet to write: dom
+  // return offset in file numbering (each processor will allocate from zero,
+  // add offset to domain to get actual file numbering)
+  // distribution info pointer (dist)
+  // MPI Communicator
+  storeRepP Local2FileOrder(storeRepP sp, entitySet dom, int &offset,
+                            fact_db::distribute_infoP dist, MPI_Comm comm);
+
+   void File2LocalOrder(storeRepP &result, entitySet resultSet,
+                       storeRepP input, int offset,
+                       fact_db::distribute_infoP dist,
+                        MPI_Comm comm);
+  
 }
 
 
@@ -54,9 +71,11 @@ public:
     disable_threading();
   }
   virtual void compute(const sequence &seq) {
+
     int num_procs = Loci::MPI_processes;
     int my_id = Loci::MPI_rank;
-
+    fact_db::distribute_infoP dist = Loci::exec_current_fact_db->get_distribute_info() ;
+   
   
     Loci::constraint edges, geom_cells, faces;
     Loci::storeRepP e2n = Loci::exec_current_fact_db->get_variable("edge2node");
@@ -65,11 +84,9 @@ public:
     geom_cells = Loci::exec_current_fact_db->get_variable("geom_cells");
 
 
-    // store<vect3d> pos ;
-//     pos = Loci::exec_current_fact_db->get_variable("pos") ;
-//     entitySet nodes = pos.domain() ;
+ 
 
-    if(num_procs ==  1){
+    if(num_procs ==  1 || dist == 0){
       
       // int offset = *num_original_nodes + 1; //in cobalt, index of node start with 1
       int offset = *num_original_nodes ; //in vog, index of node start with 0
@@ -89,9 +106,9 @@ public:
       }ENDFORALL;
       return;
     }
-    fact_db::distribute_infoP d = Loci::exec_current_fact_db->get_distribute_info() ;
+    
     Loci::constraint my_entities ; 
-    my_entities = d->my_entities ;
+    my_entities = dist->my_entities ;
 
     entitySet local_nodes, local_edges, local_faces, local_geom_cells;
     //  local_nodes = *my_entities & nodes ;
@@ -99,56 +116,132 @@ public:
     local_edges = (*my_entities) & (*edges) ;
     local_faces = (*my_entities) & (*faces);
     local_geom_cells = (*my_entities)&(*geom_cells);
-    
-    
-    // std::vector<int> local_original_nodes_sizes;
-    // local_original_nodes_sizes = Loci::all_collect_sizes(local_nodes.size());
-    //int num_original_nodes = 0;
-    // for(unsigned int i = 0; i < local_original_nodes_sizes.size(); i++) num_original_nodes += local_original_nodes_sizes[i];
-    
-    
-    //compute num_local_inner_nodes/num_local_fine_cells on each process
-    int num_local_inner_nodes = 0;
-    
-    FORALL(local_edges, ei){
-      num_local_inner_nodes += num_inner_nodes[ei];
-    }ENDFORALL;
-    //write out cell_nodes first, then write face_nodes
-    FORALL(local_geom_cells, ei){
-      num_local_inner_nodes += num_inner_nodes[ei];
-    }ENDFORALL;
-    
-    FORALL(local_faces, ei){
-      num_local_inner_nodes += num_inner_nodes[ei];
-    }ENDFORALL;
-    
-   
-    std::vector<int> local_nodes_sizes;
-    local_nodes_sizes = Loci::all_collect_sizes(num_local_inner_nodes);
 
-    //each process computes its node  offset
-    // int noffset = *num_original_nodes +1;
+     //each process computes its node  offset
+
     int noffset = *num_original_nodes ;
+
+    int offset = 0;
+    int num_local_nodes = 0;
+    std::vector<int> local_nodes_sizes;
+    storeRepP localVar=node_offset.Rep();
+    //put into block to make the memory for store<int> freeed after it's used 
+    {
+      store<int> edge_num_inner_nodes;
+      edge_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
+      FORALL(edge_num_inner_nodes.domain(), ee){
+        num_local_nodes += edge_num_inner_nodes[ee];
+      }ENDFORALL;
+      local_nodes_sizes = Loci::all_collect_sizes(num_local_nodes);
+      
     
-    for(int i = 0; i < my_id; i++){
-      noffset += local_nodes_sizes[i];
+      for(int i = 0; i < my_id; i++){
+        noffset += local_nodes_sizes[i];
+      }
+      
+      //compute the store values
+      store<int> edge_file_offset;
+      edge_file_offset.allocate(edge_num_inner_nodes.domain());
+      FORALL(edge_num_inner_nodes.domain(), ei){
+        edge_file_offset[ei] = noffset;
+        noffset += edge_num_inner_nodes[ei];
+      }ENDFORALL;
+      File2LocalOrder(localVar, local_edges,
+                      edge_file_offset.Rep(), offset,
+                      dist,
+                      MPI_COMM_WORLD);
+      
     }
-    //compute the store values
-    FORALL(local_edges, ei){
-      node_offset[ei] = noffset;
-      noffset += num_inner_nodes[ei];
-    }ENDFORALL;
-    //write out cell_nodes first, then write face_nodes
-    FORALL(local_geom_cells, ei){
-      node_offset[ei] = noffset;
-      noffset += num_inner_nodes[ei];
-    }ENDFORALL;
+    //finish with edge nodes
+    int total_num_edge_nodes = 0;
+    for(int i = 0; i < num_procs; i++){
+      total_num_edge_nodes += local_nodes_sizes[i];
+    } 
+
+    noffset = *num_original_nodes + total_num_edge_nodes;
+
     
-    FORALL(local_faces, ei){
-      node_offset[ei] = noffset;
-      noffset += num_inner_nodes[ei];
-    }ENDFORALL;
    
+    
+    //repeat for geom_cells
+
+ 
+    
+    
+    offset= 0;
+    // Create container vardist that is ordered across processors in the
+    // file numbering, the domain of this container shifted by offset
+    // is the actual file numbering.
+    {
+      store<int> cell_num_inner_nodes;
+      cell_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_geom_cells,offset,dist,MPI_COMM_WORLD) ;
+   
+      num_local_nodes = 0;
+      FORALL(cell_num_inner_nodes.domain(), ei){
+        num_local_nodes += cell_num_inner_nodes[ei];
+      }ENDFORALL;
+      local_nodes_sizes = Loci::all_collect_sizes(num_local_nodes);
+      for(int i = 0; i < my_id; i++){
+        noffset += local_nodes_sizes[i];
+      }
+      
+      //compute the store values
+      store<int> cell_file_offset;
+      cell_file_offset.allocate(cell_num_inner_nodes.domain());
+      FORALL(cell_num_inner_nodes.domain(), ei){
+        cell_file_offset[ei] = noffset;
+        noffset += cell_num_inner_nodes[ei];
+      }ENDFORALL;
+      //File2Local use the offset value set by Local2File    
+      File2LocalOrder(localVar, local_geom_cells,
+                      cell_file_offset.Rep(), offset,
+                      dist,
+                      MPI_COMM_WORLD);
+      //finish with cell nodes
+    }
+    //update noffset
+    int total_num_cell_nodes = 0;
+    for(int i = 0; i < num_procs; i++){
+      total_num_cell_nodes += local_nodes_sizes[i];
+    } 
+    noffset = *num_original_nodes + total_num_edge_nodes + total_num_cell_nodes;
+
+    
+    
+     
+    //repeat for faces
+    offset = 0; 
+    // Create container vardist that is ordered across processors in the
+    // file numbering, the domain of this container shifted by offset
+    // is the actual file numbering.
+    {
+      store<int> face_num_inner_nodes;
+      face_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_faces, offset,dist,MPI_COMM_WORLD) ;
+          
+      num_local_nodes = 0;
+      FORALL(face_num_inner_nodes.domain(), ei){
+        num_local_nodes += face_num_inner_nodes[ei];
+      }ENDFORALL;
+      
+      local_nodes_sizes = Loci::all_collect_sizes(num_local_nodes);
+      for(int i = 0; i < my_id; i++){
+        noffset += local_nodes_sizes[i];
+      }
+      
+      //compute the store values
+      store<int> face_file_offset;
+      face_file_offset.allocate(face_num_inner_nodes.domain());
+      FORALL(face_num_inner_nodes.domain(), ei){
+        face_file_offset[ei] = noffset;
+        noffset += face_num_inner_nodes[ei];
+      }ENDFORALL;
+      
+      File2LocalOrder(localVar, local_faces,
+                    face_file_offset.Rep(), offset,
+                      dist,
+                      MPI_COMM_WORLD);
+      
+    } 
   }
 } ;
 register_rule<get_node_offset> register_get_node_offset;
