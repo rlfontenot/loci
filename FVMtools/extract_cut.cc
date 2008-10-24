@@ -21,9 +21,9 @@
 //#
 //#############################################################################
 #include <Loci.h> 
+#include <Tools/tools.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string>
 using std::string ;
 #include <iostream> 
@@ -43,20 +43,6 @@ using std::list ;
 using std::sort ;
 
 #include "extract.h"
-
-#ifdef SUN
-int signbit(double x) {
-  return x<0?1:0 ;
-}
-#else
-#ifdef NO_CMATH
-int signbit(double x) {
-  return x<0?1:0 ;
-}
-#else
-using std::signbit ;
-#endif
-#endif
 
 cuttingplane_topo_handler::cuttingplane_topo_handler(affineMapping &transformMatrix,
 						     float xShift, float yShift, float zShift) {

@@ -73,6 +73,10 @@ int main(int ac, char *av[]) {
     facts.create_fact("modelName",modelName) ;
     Loci::setupFVMGrid(facts,filename) ;
     Loci::createLowerUpper(facts) ;
+    param<std::string> centroid ;
+    *centroid = "exact" ;
+    facts.create_fact("centroid",centroid) ;
+
     if(!Loci::makeQuery(rdb,facts,query)) {
       cerr << "query for '" << query << "' failed. " << endl ;
       Loci::Abort() ;
@@ -269,7 +273,7 @@ $rule apply(maxCellAngle<-cellFaceAngle)[Loci::Maximum] {
 
 
 $type faceTwisted store<double> ;
-$rule pointwise(faceTwisted<-cl->cellcenter,cr->cellcenter,facecenter,face2node->pos,area) {
+$rule pointwise(faceTwisted<-facecenter,face2node->pos,area) {
   int sz = $face2node.size() ;
   double maxlen = 0 ;
   double maxdel = 0 ;
@@ -281,18 +285,6 @@ $rule pointwise(faceTwisted<-cl->cellcenter,cr->cellcenter,facecenter,face2node-
     
   }
   $faceTwisted = maxdel/sqrt(maxlen) ;
-}
-
-$rule pointwise(faceTwisted<-ci->cellcenter,facecenter,face2node->pos,area) {
-  int sz = $face2node.size() ;
-  double maxlen = 0 ;
-  for(int i=0;i<sz;++i) {
-    const vector3d<double> dv = $facecenter-$face2node[i]->$pos ;
-    maxlen = max(dot(dv,dv),maxlen) ;
-  }
-  vector3d<double> dv = $facecenter-$ci->$cellcenter ;
-  dv -= $area.n*dot(dv,$area.n) ;
-  $faceTwisted = dot(dv,dv)/maxlen ;
 }
 
 $type cellTwist store<double> ;
@@ -307,12 +299,55 @@ $rule apply(cr->cellTwist<-faceTwisted)[Loci::Maximum] {
   join($cr->$cellTwist,$faceTwisted) ;
 }
 
+$type faceShearTwist store<double> ;
+$rule pointwise(faceShearTwist<-cl->(cellcenter,volume),cr->(cellcenter,volume),facecenter,face2node->pos,area) {
+  int sz = $face2node.size() ;
+  double maxdel = 0 ;
+  const vector3d<double> n = $area.n ;
+  for(int i=0;i<sz;++i) {
+    const vector3d<double> dv = $facecenter-$face2node[i]->$pos ;
+    maxdel = max(dot(dv,n),maxdel) ;
+  }
+  vector3d<double> vl = $facecenter-$cl->$cellcenter ;
+  vector3d<double> vr = $cr->$cellcenter-$facecenter ;
+  double dl = dot(vl,n) ;
+  double dr = dot(vr,n) ;
+  double tl = norm(vl-dl*n) ;
+  double tr = norm(vr-dr*n) ;
+
+  // Twist factor ratio of out of plane delta to cell thickness
+  double thickness = ($cl->$volume+$cr->$volume)/$area.sada ;
+  double twist_factor = maxdel/thickness ;
+  // shear factor measures how much displacement from a normal projection
+  // of the surface to the surface charactersitic distance
+  double shear_factor = sqrt((dot(vl-dl*n,vl-dl*n)+dot(vr-dr*n,vr-dr*n))/
+                             $area.sada) ;
+  // anisotropy factor, ratio of thickness to unit sphere radius
+  double aniso_factor = thickness/pow($cl->$volume+$cr->$volume,1./3.);
+  $faceShearTwist = twist_factor*shear_factor*aniso_factor ;
+    
+}
+
+
+$type cellShearTwist store<double> ;
+
+$rule unit(cellShearTwist),constraint(volume) {
+  $cellShearTwist = 0 ;
+}
+$rule apply(cl->cellShearTwist<-faceShearTwist)[Loci::Maximum] {
+  join($cl->$cellShearTwist,$faceShearTwist) ;
+}
+$rule apply(cr->cellShearTwist<-faceShearTwist)[Loci::Maximum] {
+  join($cr->$cellShearTwist,$faceShearTwist) ;
+}
+
   
 
 $type report param<bool> ;
 $type minVol param<double> ;
 $type maxTwist param<double> ;
-$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,topo) {
+$type maxShearTwist param<double> ;
+$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo) {
   if(Loci::MPI_rank == 0) {
     if($minVol <= 0) {
       cerr << "Negative or zero volume cell!  The grid quality is too poor to use." << endl ;
@@ -341,6 +376,7 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,topo) {
          << endl
          << "A value below 0.1 is desirable:" << endl ;
     cout << "======Maximum Twist = " << $maxTwist << endl ;
+    cout << "======Maximum ShearTwist = " << $maxShearTwist << endl ;
     cout << endl ;
   }
   $report = true ;
@@ -410,6 +446,7 @@ void scalar_node_output::compute(const sequence &seq) {
 OUTPUT_SCALAR("cell2nodeMax(cellVolRatio)",volumeRatio) ;
 OUTPUT_SCALAR("cell2nodeMax(cellFaceAngle)",cellFaceAngle) ;
 OUTPUT_SCALAR("cell2nodeMax(cellTwist)",cellTwist) ;
+OUTPUT_SCALAR("cell2nodeMax(cellShearTwist)",cellShearTwist) ;
 OUTPUT_SCALAR("cell2nodeMin(volume)",cellVol) ;
 
 
@@ -425,6 +462,13 @@ $rule unit(maxTwist),constraint(geom_cells) {
 }
 $rule apply(maxTwist<-cellTwist)[Loci::Maximum] {
   join($maxTwist,$cellTwist) ;
+}
+
+$rule unit(maxShearTwist),constraint(geom_cells) {
+  $maxShearTwist = 0 ;
+}
+$rule apply(maxShearTwist<-cellShearTwist)[Loci::Maximum] {
+  join($maxShearTwist,$cellShearTwist) ;
 }
 
 // Test of new type of parametric rules

@@ -1121,12 +1121,13 @@ int main(int ac, char *av[]) {
 
   string filename = "output/" +  casename + ".topo" ;
   struct stat tmpstat ;
-  if(stat(filename.c_str(),&tmpstat)!= 0) {
-    cerr << "Warning, no grid topology file.  Will attempt to generate!"
+  string posfile = "output/grid_pos." + iteration + "_" + casename ;
+  if(stat(filename.c_str(),&tmpstat)!= 0 ||
+     stat(posfile.c_str(),&tmpstat) != 0) {
+    cerr << "Warning, no grid topology information.  Will attempt to generate!"
          << endl ;
     setup_grid_topology(casename,iteration) ;
   }
-      
 
   
   if(plot_type == ASCII) {
