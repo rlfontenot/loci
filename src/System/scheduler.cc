@@ -1533,7 +1533,7 @@ namespace Loci {
                       MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD) ;
         if(MPI_rank == 0 ) {
           double eff = compute_time_total/(double(MPI_processes)*maxtime) ;
-          debugout << "Schedule execution complete, estimated parallel efficiency = "
+          cout << "Schedule execution complete, estimated parallel efficiency = "
                << ceil(1000.0*eff)/10.0 << "%." << endl ;
         }
       }

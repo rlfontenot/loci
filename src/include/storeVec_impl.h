@@ -567,7 +567,7 @@ namespace Loci {
       for( int ivec = 0; ivec < size; ivec++) {
         MPI_Unpack( inbuf, insize, &position, &stateSize, 1, 
                     MPI_INT, MPI_COMM_WORLD) ;
-        if( stateSize > outbuf.size() ) outbuf.resize(stateSize);
+        if( size_t(stateSize) > outbuf.size() ) outbuf.resize(stateSize);
 
         outcount = stateSize*typesize;
         MPI_Unpack( inbuf, insize, &position, &outbuf[0], outcount, 

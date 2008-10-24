@@ -61,6 +61,7 @@
 // SGI Compiler
 #define NO_CSTDLIB
 #define NO_CMATH
+#define NO_SIGNBIT
 //#define MPI_NO_CPPBIND
 #define restrict __restrict
 #else
@@ -107,6 +108,7 @@
 #if defined(LOCI_SYS_SunOS)
 #undef SPARC
 #define SUN
+#define NO_SIGNBIT
 #define SPARC
 #endif
 

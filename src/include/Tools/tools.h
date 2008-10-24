@@ -74,9 +74,38 @@ using std::min ;
 #include <utility>
 #include <iosfwd>
 
+// Hack to define signbit if one is not provided by the compiler
+#ifdef NO_SIGNBIT
+#undef signbit
+union double_long_helper {
+  double d ;
+  long long ll;
+};
+
+union float_long_helper {
+  float f ;
+  long l ;
+} ;
+
+inline int signbit(double x) {
+  double_long_helper ul ;
+  ul.d = x ;
+  return (ul.ll < 0)?1:0 ;
+}
+
+inline int signbit(float x) {
+  float_long_helper ul ;
+  ul.f = x ;
+  return ((ul.l & 0x80000000) != 0)?1:0 ;
+}
+#else
+using std::signbit ;
+#endif
+
 template <class T> inline T square(const T &a)   { return a*a ; }
 
 template <class T> inline T sign(T a, T b) { return (b>=0)?abs(a):-abs(a) ; }
+
 
 
 #endif
