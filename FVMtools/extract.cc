@@ -320,31 +320,36 @@ void setup_grid_topology(string casename, string iteration) {
   if(!Loci::setupFVMGrid(facts,file)) {
     cerr << "unable to read grid " << file << endl ;
   }
-  Loci::createLowerUpper(facts) ;
   string filename = "output/"+casename+".topo" ;
-  multiMap upper,lower,boundary_map,face2node ;
-  Map ref ;
-  store<string> boundary_names ;
-  constraint geom_cells ;
-  upper = facts.get_variable("upper") ;
-  lower = facts.get_variable("lower") ;
-  boundary_map = facts.get_variable("boundary_map") ;
-  face2node = facts.get_variable("face2node") ;
-  ref = facts.get_variable("ref") ;
-  boundary_names = facts.get_variable("boundary_names") ;
-  geom_cells = facts.get_variable("geom_cells") ;
+  if(stat(filename.c_str(),&tmpstat)!= 0) {
+    Loci::createLowerUpper(facts) ;
+    multiMap upper,lower,boundary_map,face2node ;
+    Map ref ;
+    store<string> boundary_names ;
+    constraint geom_cells ;
+    upper = facts.get_variable("upper") ;
+    lower = facts.get_variable("lower") ;
+    boundary_map = facts.get_variable("boundary_map") ;
+    face2node = facts.get_variable("face2node") ;
+    ref = facts.get_variable("ref") ;
+    boundary_names = facts.get_variable("boundary_names") ;
+    geom_cells = facts.get_variable("geom_cells") ;
+    store<vector3d<double> > pos ;
+    pos = facts.get_variable("pos") ;
+
+    // If topology file does not exist, create it.
+    Loci::parallelWriteGridTopology(filename.c_str(),
+                                    upper.Rep(),lower.Rep(),boundary_map.Rep(),
+                                    face2node.Rep(),
+                                    ref.Rep(),
+                                    boundary_names.Rep(),
+                                    pos.Rep(),
+                                    *geom_cells,
+                                    facts) ;
+  }
+
   store<vector3d<double> > pos ;
   pos = facts.get_variable("pos") ;
-  
-  Loci::parallelWriteGridTopology(filename.c_str(),
-                                  upper.Rep(),lower.Rep(),boundary_map.Rep(),
-                                  face2node.Rep(),
-                                  ref.Rep(),
-                                  boundary_names.Rep(),
-                                  pos.Rep(),
-                                  *geom_cells,
-                                  facts) ;
-
   filename = "output/grid_pos." + iteration + "_" + casename ;
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
