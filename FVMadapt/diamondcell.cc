@@ -35,7 +35,7 @@
 #include <stack>
 #include "diamondcell.h"
 #include "defines.h"
-
+#include "globals.h"
 
 using std::queue;
 using std::cerr;
@@ -883,70 +883,125 @@ bool DiamondCell::balance_cell(std::list<Node*>& node_list,
                                std::list<Face*>& face_list){ 
   bool  needBalance = false;
   
+ if(childCell!=0){
+   for(int i = 0; i < 2*nfold+2; i++){
+     bool tmp = childCell[i]->balance_cell(node_list, edge_list, face_list);
+     needBalance = needBalance ||tmp; 
+   }
+   return needBalance;
+ }
+ else{
+ 
 
-  if(childCell ==0){  
-  //gather all the edges of this
-    std::set<Edge*> edges;
-    get_edges(edges);
-    needBalance = false;
-    for(std::set<Edge*>::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
-      if( (*ep)->depth_greater_than_1()){
-        needBalance = true;
-        split(node_list, edge_list, face_list);
+   if(childCell ==0){  
+     //gather all the edges of this
+     std::set<Edge*> edges;
+     get_edges(edges);
+     needBalance = false;
+     for(std::set<Edge*>::const_iterator ep = edges.begin(); ep != edges.end(); ep++){
+       
+       if( (*ep)->depth_greater_than_1()){
+         needBalance = true;
+         split(node_list, edge_list, face_list);
+         
+         for(int i = 0; i < (2*nfold+2); i++){
+           childCell[i]->balance_cell(node_list, edge_list, face_list);
+         }
+         break;
+       }
+       
+     }
+   }
+   //if all the edges are balanced, check the faces
+   if(Globals::balance_option >=1 && childCell == 0){
+     int num_faces_split = 0;
+     for(int i = 0; i < 2*nfold; i++){
+       if(face[i]-> child != 0) num_faces_split++;
+     }
+     if(num_faces_split > nfold){
+       needBalance = true;
+       split(node_list, edge_list, face_list);
+       for(int i = 0; i < (2*nfold+2); i++){
+         childCell[i]->balance_cell(node_list, edge_list, face_list);
+       } 
+     }
+   }
 
-        for(int i = 0; i < (2*nfold+2); i++){
-          childCell[i]->balance_cell(node_list, edge_list, face_list);
+   if(Globals::balance_option >=2 && childCell == 0){
+     for(int i = 0; i < nfold; i++){
+       if(face[i]-> child != 0 && face[(i+2)%nfold+nfold]->child != 0){
+         needBalance = true;
+         split(node_list, edge_list, face_list);
+         for(int i = 0; i < (2*nfold+2); i++){
+           childCell[i]->balance_cell(node_list, edge_list, face_list);
+         }
+         break;
         }
-        break;
-      }
-    }
-  }
-  else{
-    needBalance = false;
-    for(int i = 0; i < 2*nfold+2; i++){
-      needBalance = needBalance || (childCell[i]->balance_cell(node_list, edge_list, face_list));
-    }
-    
-    
-  }
-  return needBalance;
-}
+     }
+   }
+   
+   return needBalance;
+  
+ }
+ }
 
 bool Cell::balance_cell(std::list<Node*>& node_list,
                         std::list<Edge*>& edge_list,
                         std::list<Face*>& face_list){ 
   bool  needBalance = false;
+ if(child != 0){
+   needBalance = false;
+   std::list<DiamondCell*> leaves;
+   for(int i = 0; i < numNode; i++){
+     child[i]->sort_leaves(leaves);
+    }
+   for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
+     bool tmp =  (*p)->balance_cell( node_list, edge_list, face_list);
+     needBalance = tmp||needBalance;
+   }
+   return needBalance;  
+ }
  
-  if(child == 0){
-    
-    needBalance = false;
-    for(int i = 0; i < numEdge; i++){
-      if( edge[i]->depth_greater_than_1()){
-        needBalance = true;
-        split(node_list, edge_list, face_list);
-        
-        for(int i = 0; i < numNode; i++){
-          child[i]->balance_cell(node_list, edge_list, face_list);
-        }
-        break;
-      }
-    }
+ if(child == 0){
    
-  }
+   needBalance = false;
+   for(int i = 0; i < numEdge; i++){
+     if( edge[i]->depth_greater_than_1()){
+       needBalance = true;
+       split(node_list, edge_list, face_list);
+        
+       for(int i = 0; i < numNode; i++){
+         child[i]->balance_cell(node_list, edge_list, face_list);
+       }
+       break;
+     }
+   }
+   
+ }
 
-  else{
-    needBalance = false;
-    std::list<DiamondCell*> leaves;
-    for(int i = 0; i < numNode; i++){
-      child[i]->sort_leaves(leaves);
-    }
-    for(std::list<DiamondCell*>::const_iterator p = leaves.begin(); p != leaves.end(); p++){
-      bool tmp =  (*p)->balance_cell( node_list, edge_list, face_list);
-      needBalance = tmp||needBalance;
-    }
-    
-  }
-  return needBalance;
+ //if all the edges are balanced, check the faces
+ if(Globals::balance_option >=1){
+   if(child ==0){
+     int num_faces_split = 0;
+     for(int i = 0; i < numFace; i++){
+       if(face[i]-> child != 0) num_faces_split++;
+     }
+     if(num_faces_split > numFace/2){
+       needBalance = true;
+       split(node_list, edge_list, face_list);
+       
+       for(int i = 0; i < numNode; i++){
+         child[i]->balance_cell(node_list, edge_list, face_list);
+       } 
+     }
+
+   }
+ }
+
+  
+
+ 
+ return needBalance;
 }
 void DiamondCell::sort_leaves(std::list<DiamondCell*>& leaves){
   if(childCell != 0){

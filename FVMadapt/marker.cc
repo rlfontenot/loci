@@ -112,6 +112,10 @@ int main(int argc, char ** argv) {
       cout << "-mode <int: 0, 1, 2, 3> -- split mode 0: anisotropic split according to edge length" << endl;
       cout << "                        -- split mode 1: don't refine in z direction" << endl;
       cout << "                        -- split mode 2: fully isotropic split" << endl;
+      cout <<"-balance<int:0, 1, 2> -- balance option 0: no edge's depth is greater than 1" << endl;
+      cout <<"                      -- balance option 1: 0 and no cell has more than half of its face split" << endl;
+      cout <<"                      -- balance option 2: 0, 1 and no cell has two opposite faces split" << endl; 
+      
     
     }
     return 0;
@@ -155,7 +159,12 @@ int main(int argc, char ** argv) {
       Globals::tolerance = strtod(argv[++i], endptr);
       
     }
-    
+     else if(arg == "-balance" && (i+1) < argc){
+       //replace the balance option with the next argument
+      
+      Globals::balance_option = atoi(argv[++i]);
+      
+    }
     else if(arg == "-fold" && (i+1) < argc){
       //replace the fold(maximum face fold value)with the next argument
       char** endptr = 0;
@@ -165,7 +174,7 @@ int main(int argc, char ** argv) {
 
 
      else if(arg == "-mode" && (i+1) < argc){
-       //replace the fold(maximum face fold value)with the next argument
+       //replace the split mode with the next argument
        split_mode = atoi(argv[++i]);
       
      }
@@ -198,6 +207,7 @@ int main(int argc, char ** argv) {
     cout << "levels: " <<Globals::levels << endl;
     cout << "restart: " << restart << endl;
     cout << "split_mode: " << split_mode << endl;
+    cout << "balance_option: " <<Globals::balance_option << endl;
         
   }
 
