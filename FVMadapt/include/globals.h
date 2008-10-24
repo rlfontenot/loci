@@ -27,6 +27,11 @@ public:
   static double tolerance;
   static int levels;
   static int factor;
+  //balance options:
+  //0: no edge's depth is greater than 1
+  //1: 0 and no cell has more than half of its face split
+  //2: 0 and 1 and no cell has two opposite faces split
+  static int balance_option;
   static vect3d split;
   static vect3d nosplit;
 };
