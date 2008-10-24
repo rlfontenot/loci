@@ -126,18 +126,18 @@ debugging options.  A typical install for Loci might use the following
 configuration lines
 
 PETSC_DIR=`pwd`
-config/configure.py --prefix=/opt/petsc-2.3.3-p11 --with-clanguage=C --with-precision=double --with-sclar-type=real --with-dynamic --with-debugging=no --with-x=0 --with-x11=0 --download-f-blas-lapack=ifneeded
+./config/configure.py --prefix=/opt/petsc-2.3.3-p13 --with-clanguage=C --with-precision=double --with-scalar-type=real --with-dynamic --with-debugging=no --with-x=no --with-x11=no --download-f-blas-lapack=ifneeded --with-log=no --COPTFLAGS="-O3"
 
-With PETSc it is usually to untar the software directly where you
-intend to install the software and compile it there.  Then the prefix
-option to configure is not necessary and you only need to 'make' the
-software, you do not need to 'make install'.  However, to save memory
-space you may prefer to make the software in a temporary directory and
-use 'make install' to install the main parts of the software that you
-will use.  If you do this, you will need to remember to copy the
-externalpackages directory from where petsc was compiled to its
-installation directory.  The PETSc 'make install' command does not do
-this step.
+With PETSc, the usual approach to installation is to untar the
+source code directly where you intend to install PETSc and compile
+it there.  Then the prefix option to configure is not necessary and
+you only need to 'make' the software, you do not need to 'make
+install'.  However, to save memory space you may prefer to make the
+software in a temporary directory and use 'make install' to install
+the main parts of the software that you will use.  If you do this, you
+will need to remember to copy the externalpackages directory from
+where petsc was compiled to its installation directory.  The PETSc
+'make install' command does not do this step.
 
 
 Thus for the above command, to compile and make, one might issue the commands
