@@ -21,6 +21,9 @@
 #include <Loci.h> 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include <math.h>
 #include <string>
 using std::string ;
@@ -64,10 +67,40 @@ void get_2dgv(string casename, string iteration,
   fact_db facts ;
   Loci::readContainer(file_id,"pos",pos.Rep(),EMPTY,facts) ;
   Loci::hdf5CloseFile(file_id) ;
+
   int npnts = pos.domain().size() ;
 
+  
+  string iblankname = "output/grid_iblank." + iteration + "_" + casename ;
+  store<unsigned char> iblank ;
+  entitySet pdom = interval(1,npnts) ;
+  iblank.allocate(pdom) ;
+  struct stat tmpstat ;
+  if(stat(iblankname.c_str(),&tmpstat)== 0) {
+    hid_t file_id = Loci::hdf5OpenFile(iblankname.c_str(),
+                                       H5F_ACC_RDONLY,
+                                       H5P_DEFAULT) ;
+    if(file_id < 0) {
+      cerr << "unable to get iblank info for iteration " << iteration
+           << endl ;
+      cerr << "is file '" << iblankname << "' corrupted?" << endl ;
+      Loci::Abort() ;
+      exit(-1) ;
+    }
 
-  Loci::hdf5CloseFile(file_id) ;
+    store<unsigned char> iblank_tmp ;
+    Loci::readContainer(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
+    Loci::hdf5CloseFile(file_id) ;
+    entitySet dom = iblank_tmp.domain() ;
+    int cnt = 1 ;
+    FORALL(dom,nd) {
+      iblank[cnt++] = iblank_tmp[nd] ;
+    } ENDFORALL ;
+  } else {
+    for(int i=1;i<=npnts;++i)
+      iblank[i] = 0 ;
+  }
+
 
   vector<Array<int,3> > edges ;
 
@@ -113,56 +146,68 @@ void get_2dgv(string casename, string iteration,
     readElementType(bcg,"nside_nodes",nside_nodes) ;
 
     for(int i=0;i<ntrias;++i) {
-      Array<int,3> e ;
-      e[0] = min(trias[i][0],trias[i][1]) ;
-      e[1] = max(trias[i][0],trias[i][1]) ;
-      e[2] = nelem ;
-      edges.push_back(e) ;
-      e[0] = min(trias[i][2],trias[i][1]) ;
-      e[1] = max(trias[i][2],trias[i][1]) ;
-      edges.push_back(e) ;
-      e[0] = min(trias[i][2],trias[i][0]) ;
-      e[1] = max(trias[i][2],trias[i][0]) ;
-      edges.push_back(e) ;
-      nelem++ ;
+      if(iblank[trias[i][0]] < 2 || iblank[trias[i][1]] < 2 ||
+         iblank[trias[i][2]] < 2) {
+        Array<int,3> e ;
+        e[0] = min(trias[i][0],trias[i][1]) ;
+        e[1] = max(trias[i][0],trias[i][1]) ;
+        e[2] = nelem ;
+        edges.push_back(e) ;
+        e[0] = min(trias[i][2],trias[i][1]) ;
+        e[1] = max(trias[i][2],trias[i][1]) ;
+        edges.push_back(e) ;
+        e[0] = min(trias[i][2],trias[i][0]) ;
+        e[1] = max(trias[i][2],trias[i][0]) ;
+        edges.push_back(e) ;
+        nelem++ ;
+      }
     }
     for(int i=0;i<nquads;++i) {
-      Array<int,3> e ;
-      e[0] = min(quads[i][0],quads[i][1]) ;
-      e[1] = max(quads[i][0],quads[i][1]) ;
-      e[2] = nelem ;
-      edges.push_back(e) ;
-      e[0] = min(quads[i][2],quads[i][1]) ;
-      e[1] = max(quads[i][2],quads[i][1]) ;
-      edges.push_back(e) ;
-      e[0] = min(quads[i][2],quads[i][3]) ;
-      e[1] = max(quads[i][2],quads[i][3]) ;
-      edges.push_back(e) ;
-      e[0] = min(quads[i][0],quads[i][3]) ;
-      e[1] = max(quads[i][0],quads[i][3]) ;
-      edges.push_back(e) ;
-      nelem++ ;
+      if(iblank[quads[i][0]] < 2 || iblank[quads[i][1]] < 2 ||
+         iblank[quads[i][2]] < 2 || iblank[quads[i][3]] < 2) {
+        Array<int,3> e ;
+        e[0] = min(quads[i][0],quads[i][1]) ;
+        e[1] = max(quads[i][0],quads[i][1]) ;
+        e[2] = nelem ;
+        edges.push_back(e) ;
+        e[0] = min(quads[i][2],quads[i][1]) ;
+        e[1] = max(quads[i][2],quads[i][1]) ;
+        edges.push_back(e) ;
+        e[0] = min(quads[i][2],quads[i][3]) ;
+        e[1] = max(quads[i][2],quads[i][3]) ;
+        edges.push_back(e) ;
+        e[0] = min(quads[i][0],quads[i][3]) ;
+        e[1] = max(quads[i][0],quads[i][3]) ;
+        edges.push_back(e) ;
+        nelem++ ;
+      }
     }
     int off = 0 ;
     for(int i=0;i<ngeneral;++i) {
       int sz = nside_sizes[i] ;
       int n1 = nside_nodes[off] ;
       int n2 = nside_nodes[off+sz-1] ;
-      Array<int,3> e ;
-      e[0] = min(n1,n2) ;
-      e[1] = max(n1,n2) ;
-      e[2] = nelem ;
-      edges.push_back(e) ;
-      for(int j=1;j<sz;++j) {
-        int n1 = nside_nodes[off+j-1] ;
-        int n2 = nside_nodes[off+j] ;
+      bool blanked = true ;
+      for(int j=0;j<sz;++j) 
+        if(iblank[nside_nodes[off+j]] < 2)
+          blanked = false ;
+      if(!blanked) {
+        Array<int,3> e ;
         e[0] = min(n1,n2) ;
         e[1] = max(n1,n2) ;
         e[2] = nelem ;
         edges.push_back(e) ;
+        for(int j=1;j<sz;++j) {
+          int n1 = nside_nodes[off+j-1] ;
+          int n2 = nside_nodes[off+j] ;
+          e[0] = min(n1,n2) ;
+          e[1] = max(n1,n2) ;
+          e[2] = nelem ;
+          edges.push_back(e) ;
+        }
+        nelem++ ;
       }
       off += sz ;
-      nelem++ ;
     }
   }
   sort(edges.begin(),edges.end()) ;

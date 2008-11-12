@@ -470,8 +470,35 @@ void extract_grid(string casename, string iteration,
   Loci::hdf5CloseFile(file_id) ;
   int npnts = pos.domain().size() ;
 
+  string iblankname = "output/grid_iblank." + iteration + "_" + casename ;
+  store<unsigned char> iblank ;
+  entitySet pdom = interval(1,npnts) ;
+  iblank.allocate(pdom) ;
+  struct stat tmpstat ;
+  if(stat(iblankname.c_str(),&tmpstat)== 0) {
+    hid_t file_id = Loci::hdf5OpenFile(iblankname.c_str(),
+                                       H5F_ACC_RDONLY,
+                                       H5P_DEFAULT) ;
+    if(file_id < 0) {
+      cerr << "unable to get iblank info for iteration " << iteration
+           << endl ;
+      cerr << "is file '" << iblankname << "' corrupted?" << endl ;
+      Loci::Abort() ;
+      exit(-1) ;
+    }
 
-  Loci::hdf5CloseFile(file_id) ;
+    store<unsigned char> iblank_tmp ;
+    Loci::readContainer(file_id,"iblank",iblank_tmp.Rep(),EMPTY,facts) ;
+    Loci::hdf5CloseFile(file_id) ;
+    entitySet dom = iblank_tmp.domain() ;
+    int cnt = 1 ;
+    FORALL(dom,nd) {
+      iblank[cnt++] = iblank_tmp[nd] ;
+    } ENDFORALL ;
+  } else {
+    for(int i=1;i<=npnts;++i)
+      iblank[i] = 0 ;
+  }
   
   string gridtopo = "output/" + casename +".topo" ;
 
@@ -528,24 +555,75 @@ void extract_grid(string casename, string iteration,
       if(ntets > 0) {
         vector<Array<int,4> > tets(ntets) ;
         readElementType(elg,"tetrahedra",tets) ;
-        topo->write_tets(&tets[0],ntets) ;
+        int cnt = 0 ;
+        for(int i=0;i<ntets;++i) {
+          bool blank = true ;
+          for(int j=0;j<4;++j)
+            if(iblank[tets[i][j]] < 2)
+              blank = false ;
+          if(blank)
+            cnt++ ;
+          else 
+            if(cnt != 0) // If there are some blanked copy into place
+              tets[i-cnt]=tets[i] ;
+        }
+        topo->write_tets(&tets[0],ntets-cnt) ;
       }
       if(npyrm > 0) {
         vector<Array<int,5> > pyrm(npyrm) ;
         readElementType(elg,"pyramid",pyrm) ;
-        topo->write_pyrm(&pyrm[0],npyrm) ;
+        int cnt = 0 ;
+        for(int i=0;i<npyrm;++i) {
+          bool blank = true ;
+          for(int j=0;j<5;++j)
+            if(iblank[pyrm[i][j]] < 2)
+              blank = false ;
+          if(blank)
+            cnt++ ;
+          else 
+            if(cnt != 0) // If there are some blanked copy into place
+              pyrm[i-cnt]=pyrm[i] ;
+        }
+        topo->write_pyrm(&pyrm[0],npyrm-cnt) ;
       }
       if(nprsm > 0) {
         vector<Array<int,6> > prsm(nprsm) ;
         readElementType(elg,"prism",prsm) ;
-        topo->write_prsm(&prsm[0],nprsm) ;
+        int cnt = 0 ;
+        for(int i=0;i<nprsm;++i) {
+          bool blank = true ;
+          for(int j=0;j<6;++j)
+            if(iblank[prsm[i][j]] < 2)
+              blank = false ;
+          if(blank)
+            cnt++ ;
+          else 
+            if(cnt != 0) // If there are some blanked copy into place
+              prsm[i-cnt]=prsm[i] ;
+        }
+        topo->write_prsm(&prsm[0],nprsm-cnt) ;
       }
       if(nhexs > 0) {
         vector<Array<int,8> > hexs(nhexs) ;
         readElementType(elg,"hexahedra",hexs) ;
-        topo->write_hexs(&hexs[0],nhexs) ;
+        int cnt = 0 ;
+        for(int i=0;i<nhexs;++i) {
+          bool blank = true ;
+          for(int j=0;j<8;++j)
+            if(iblank[hexs[i][j]] < 2)
+              blank = false ;
+          if(blank)
+            cnt++ ;
+          else 
+            if(cnt != 0) // If there are some blanked copy into place
+              hexs[i-cnt]=hexs[i] ;
+        }
+          
+        topo->write_hexs(&hexs[0],nhexs-cnt) ;
       }
       if(ngenc > 0) {
+
+        // still need to do general cell iblanking
         vector<int> GeneralCellNfaces(ngenc) ;
         readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
         int nside = sizeElementType(elg,"GeneralCellNsides") ;
@@ -573,6 +651,7 @@ void extract_grid(string casename, string iteration,
         readElementType(bcg,"triangles",trias) ;
         vector<Array<int,4> > quads(nquads) ;
         readElementType(bcg,"quads",quads) ;
+
         vector<int> nside_sizes(ngeneral) ;
         readElementType(bcg,"nside_sizes",nside_sizes) ;
         int nside_nodes_size = sizeElementType(bcg,"nside_nodes") ;
@@ -621,7 +700,43 @@ void extract_grid(string casename, string iteration,
         vector<int > nside_id(ngeneral) ;
         readElementType(bcg,"nside_id",nside_id) ;
         
+        int cnt = 0 ;
+        for(int i=0;i<ntrias;++i) {
+          bool blank = true ;
+          for(int j=0;j<3;++j)
+            if(iblank[node_set[trias[i][j]-1]] < 2)
+              blank = false ;
+          if(blank)
+            cnt++ ;
+          else 
+            if(cnt != 0) { // If there are some blanked copy into place
+              trias[i-cnt]=trias[i] ;
+              trias_id[i-cnt] = trias_id[i] ;
+            }
+        }
+        ntrias -=cnt ;
+        
+
         topo->write_trias(&trias[0],&trias_id[0],ntrias) ;
+
+        cnt = 0 ;
+        for(int i=0;i<nquads;++i) {
+          bool blank = true ;
+          for(int j=0;j<4;++j)
+            if(iblank[node_set[quads[i][j]-1]] < 2)
+              blank = false ;
+          if(blank)
+            cnt++ ;
+          else 
+            if(cnt != 0) { // If there are some blanked copy into place
+              quads[i-cnt]=quads[i] ;
+              quads_id[i-cnt] = quads_id[i] ;
+            }
+        }
+        nquads -=cnt ;
+        
+
+
         topo->write_quads(&quads[0],&quads_id[0],nquads) ;
         topo->write_general_face(&nside_sizes[0], &nside_id[0], ngeneral,
                                  &nside_nodes[0], nside_nodes_size) ;
