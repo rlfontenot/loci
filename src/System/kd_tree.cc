@@ -41,7 +41,7 @@ namespace Loci {
 
       for(int d=0;d<3;++d) {
         bbox.minc[d] =  std::numeric_limits<float>::max() ;
-        bbox.minc[0] = -std::numeric_limits<float>::max() ;
+        bbox.maxc[d] = -std::numeric_limits<float>::max() ;
       }
 
       for(size_t i=0;i<inpnts.size();++i) {
@@ -69,7 +69,7 @@ namespace Loci {
       // Compute bounding box
       for(int d=0;d<3;++d) {
         bbox.minc[d] =  std::numeric_limits<float>::max() ;
-        bbox.minc[0] = -std::numeric_limits<float>::max() ;
+        bbox.maxc[d] = -std::numeric_limits<float>::max() ;
       }
       for(size_t i=0;i<pnts.size();++i) {
         for(int d=0;d<3;++d) {
