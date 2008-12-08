@@ -54,15 +54,16 @@ namespace VOG {
     if(file.fail()) {
       return bcs ;
     }
-    char buf[128] ;
-    file.getline(buf,128) ;
+    char buf[1024] ;
+    buf[1023] = '\0' ;
+    file.getline(buf,1023) ;
     if(strncmp(buf,"# Generated",11) == 0) {
       cout << "Tagfile: " << buf << endl ;
       // New tag file, dump first two lines
-      file.getline(buf,128) ;
-      file.getline(buf,128) ;
+      file.getline(buf,1023) ;
+      file.getline(buf,1023) ;
       int nsp = 0 ;
-      for(int i=0;i<120;++i) {
+      for(int i=0;i<1023;++i) {
         if(buf[i] == '\0')
           break ;
         if(isspace(buf[i])) {
@@ -104,10 +105,16 @@ namespace VOG {
         BC.id = id ;
         BC.name = name ;
         BC.Trans = trans ;
-        file.getline(buf,128) ;
+        file.getline(buf,1023) ;
         bcs.push_back(BC) ;
         while(file.peek() != EOF && (isspace(file.peek())))
           file.get() ;
+        if(file.peek() == '#') { // eat comments
+          file.getline(buf,1023) ;
+          while(file.peek() != EOF && (isspace(file.peek())))
+            file.get() ;
+        }
+          
       }
     } else {
       if(strncmp(buf,"#ID:",4) != 0) {
@@ -171,7 +178,7 @@ namespace VOG {
         BC.id = id ;
         BC.name = name ;
         BC.Trans = trans ;
-        file.getline(buf,128) ;
+        file.getline(buf,1024) ;
         bcs.push_back(BC) ;
         while(file.peek() != EOF && (isspace(file.peek())))
           file.get() ;
