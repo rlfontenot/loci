@@ -475,6 +475,7 @@ void extract_grid(string casename, string iteration,
   entitySet pdom = interval(1,npnts) ;
   iblank.allocate(pdom) ;
   struct stat tmpstat ;
+  bool has_iblank = false ;
   if(stat(iblankname.c_str(),&tmpstat)== 0) {
     hid_t file_id = Loci::hdf5OpenFile(iblankname.c_str(),
                                        H5F_ACC_RDONLY,
@@ -495,6 +496,7 @@ void extract_grid(string casename, string iteration,
     FORALL(dom,nd) {
       iblank[cnt++] = iblank_tmp[nd] ;
     } ENDFORALL ;
+    has_iblank = true ;
   } else {
     for(int i=1;i<=npnts;++i)
       iblank[i] = 0 ;
@@ -513,6 +515,80 @@ void extract_grid(string casename, string iteration,
   int npyrm = sizeElementType(elg,"pyramid") ;
   int ngenc = sizeElementType(elg,"GeneralCellNfaces") ;
 
+  int ntets_b = ntets ;
+  int nhexs_b = nhexs ;
+  int nprsm_b = nprsm ;
+  int npyrm_b = npyrm ;
+  int ngenc_b = ngenc ;
+  if(has_iblank) {
+    // need to adjust the number of elements based on iblanking.
+    if(ntets > 0) {
+        vector<Array<int,4> > tets(ntets) ;
+        readElementType(elg,"tetrahedra",tets) ;
+        int cnt = 0 ;
+        for(int i=0;i<ntets;++i) {
+          bool blank = true ;
+          for(int j=0;j<4;++j)
+            if(iblank[tets[i][j]] < 2)
+              blank = false ;
+          if(!blank)
+            cnt++ ;
+        }
+        ntets_b = cnt ;
+        if(ntets-ntets_b > 0)
+          cout << ntets-ntets_b << " tetrahedra iblanked" << endl ;
+    }
+    if(nhexs > 0) {
+        vector<Array<int,8> > hexs(nhexs) ;
+        readElementType(elg,"hexahedra",hexs) ;
+        int cnt = 0 ;
+        for(int i=0;i<nhexs;++i) {
+          bool blank = true ;
+          for(int j=0;j<8;++j)
+            if(iblank[hexs[i][j]] < 2)
+              blank = false ;
+          if(!blank)
+            cnt++ ;
+        }
+        nhexs_b = cnt ;
+        if(nhexs-nhexs_b > 0)
+          cout << nhexs-nhexs_b << " hexahedra iblanked" << endl ;
+    }
+    if(nprsm > 0) {
+        vector<Array<int,6> > prsm(nprsm) ;
+        readElementType(elg,"prism",prsm) ;
+        int cnt = 0 ;
+        for(int i=0;i<nprsm;++i) {
+          bool blank = true ;
+          for(int j=0;j<6;++j)
+            if(iblank[prsm[i][j]] < 2)
+              blank = false ;
+          if(!blank)
+            cnt++ ;
+        }
+        nprsm_b = cnt ;
+        if(nprsm-nprsm_b > 0)
+          cout << nprsm-nprsm_b << " prisms iblanked" << endl ;
+    }
+    if(npyrm > 0) {
+        vector<Array<int,5> > pyrm(npyrm) ;
+        readElementType(elg,"pyramid",pyrm) ;
+        int cnt = 0 ;
+        for(int i=0;i<npyrm;++i) {
+          bool blank = true ;
+          for(int j=0;j<5;++j)
+            if(iblank[pyrm[i][j]] < 2)
+              blank = false ;
+          if(!blank)
+            cnt++ ;
+        }
+        npyrm_b = cnt ;
+        if(npyrm-npyrm_b > 0)
+          cout << npyrm-npyrm_b << " pyramids iblanked" << endl ;
+    }
+    if(ngenc > 0) {
+    }
+  }
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
   hsize_t num_bcs = 0 ;
   H5Gget_num_objs(bndg,&num_bcs) ;
@@ -526,18 +602,18 @@ void extract_grid(string casename, string iteration,
   }
   
   cout << "npnts = " << npnts << ' '
-       << "ntets = " << ntets << ' '
-       << "npyrm = " << npyrm << ' '
-       << "nprsm = " << nprsm << ' '
-       << "nhexs = " << nhexs << ' '
-       << "ngenc = " << ngenc << endl ;
+       << "ntets = " << ntets_b << ' '
+       << "npyrm = " << npyrm_b << ' '
+       << "nprsm = " << nprsm_b << ' '
+       << "nhexs = " << nhexs_b << ' '
+       << "ngenc = " << ngenc_b << endl ;
 
   cout << "bcs = " ;
   for(size_t i=0;i<bc_names.size();++i)
     cout << bc_names[i] << ' ' ;
   cout << endl ;
   
-  topo->open(casename,iteration,npnts,ntets,nprsm,npyrm,nhexs,ngenc,
+  topo->open(casename,iteration,npnts,ntets_b,nprsm_b,npyrm_b,nhexs_b,ngenc_b,
              bc_names, variables,variable_types) ;
 
 
