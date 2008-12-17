@@ -967,7 +967,7 @@ namespace Loci {
     }
     MPI_Bcast(&nclusters,1,MPI_LONG,0,MPI_COMM_WORLD) ;
 
-    vector<long> cluster_dist(MPI_processes) ;
+    vector<long> cluster_dist(MPI_processes,0) ;
     long sum = 0 ;
     for(int i=0;i<MPI_processes;++i) {
       cluster_dist[i] = nclusters/MPI_processes +
@@ -981,8 +981,13 @@ namespace Loci {
     for(size_t i=0;i<cluster_sizes.size();++i)
       cluster_info_size += cluster_sizes[i] ;
 
-    MPI_Allgather(&cluster_info_size,1,MPI_LONG,&cluster_dist[0],1,MPI_LONG,
+
+    MPI_Allgather(&cluster_info_size,sizeof(long),MPI_BYTE,
+                  &cluster_dist[0],sizeof(long),MPI_BYTE,
                   MPI_COMM_WORLD) ;
+
+    //    MPI_Allgather(&cluster_info_size,1,MPI_LONG,&cluster_dist[0],1,MPI_LONG,
+    //                  MPI_COMM_WORLD) ;
     readVectorDist(face_g,"cluster_info",cluster_dist,cluster_info) ;
 
 
@@ -1044,7 +1049,7 @@ namespace Loci {
     }
 
     // Now get a face allocation for each processor
-    vector<int> faces_pp(MPI_processes) ;
+    vector<int> faces_pp(MPI_processes,0) ;
     MPI_Allgather(&tot_faces,1,MPI_INT,&faces_pp[0],1,MPI_INT,
                   MPI_COMM_WORLD) ;
 
