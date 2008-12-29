@@ -1,0 +1,7 @@
+This directory contains the scalable pseudo random number generator
+library (SPRNG) version 2.0.  It is distributed freely from
+http://sprng.cs.fsu.edu/.  We include a version here that has been
+modified to be compatible with the Loci configuration system.
+Otherwise the files are the same as the 2.0b version of SPRNG.  To use
+the parallel random numbers call Loci::random() or Loci::irandom().
+
