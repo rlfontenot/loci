@@ -67,6 +67,8 @@
 #define HAS_MODULE_SEARCH_DIR
 namespace Loci {
   extern void AddModuleSearchDir(std::string dirname);
+  extern double random() ;
+  extern int irandom() ;
 }
 
 #endif
