@@ -1904,7 +1904,8 @@ namespace Loci {
     for(variableSet::const_iterator vi=free_vars.begin();
         vi!=free_vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
-      srp->allocate(EMPTY) ;
+      if(srp != 0)
+	srp->allocate(EMPTY) ;
     }
     timer.addTime(s.stop(),1) ;
   }

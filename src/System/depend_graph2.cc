@@ -800,6 +800,27 @@ namespace Loci {
 
     bool debugging = MPI_processes == 1 || verbose ;
     
+    if(verbose) {
+      debugout << "given = " << given << endl ;
+      debugout << "targets = " << target << endl ;
+    }
+
+    // Adjustments for super rule
+    ruleSet super_rules ;
+    { 
+      variable UNIVERSE("UNIVERSE") ;
+      ruleSet cmp = extract_rules(gr.get_all_vertices()) ;
+      for(ruleSet::const_iterator ri=cmp.begin();ri!=cmp.end();++ri) {
+	if(ri->type() != rule::INTERNAL 
+	   && ri->get_rule_implP()->get_rule_class() == rule_impl::SUPER_RULE) {
+	  debugout << "super_rule " << *ri << endl ;
+	  super_rules += *ri ;
+	  gr.add_edge(UNIVERSE.ident(),ri->ident()) ;
+	}
+      }
+    }
+
+
     // testing...
     //given -= variable("EMPTY") ;
     bool cleaned_rules = false ;
@@ -913,7 +934,9 @@ namespace Loci {
       // in the subset.
       digraph grt = gr.transpose() ;
       digraph::vertexSet  cleanout ;
-      for(fi=rules.begin();fi!=rules.end();++fi) {
+      ruleSet tmp = rules ;
+      tmp -= super_rules ;
+      for(fi=tmp.begin();fi!=tmp.end();++fi) {
         if(fi->get_info().qualifier() != "looping")
           if((subset & fi->sources()) != fi->sources()) {
             if(debugging) {
@@ -936,13 +959,14 @@ namespace Loci {
           ++ri) {
         touched_variables += ri->targets() ;
       }
-        
+      
       ruleSet looping_rules ;
         
       digraph::vertexSet cleanout2 ;
-      for(ruleSet::const_iterator ri = working_rules.begin();
-          ri!=working_rules.end();
-          ++ri) {
+      // don't clean out super rules
+      tmp = working_rules ;
+      tmp -= super_rules ;
+      for(ruleSet::const_iterator ri = tmp.begin(); ri!=tmp.end();++ri) {
         if(ri->get_info().qualifier() != "looping") {
           if((ri->sources() - touched_variables)!=EMPTY) {
             cleanout2 += ri->ident() ;
@@ -1084,7 +1108,19 @@ namespace Loci {
     }
     variableSet working = given ;
     variableSet visited_vars = working ;
-    variableSet visited_rules ;
+    ruleSet visited_rules ;
+
+    ruleSet cmp = extract_rules(gr.get_all_vertices()) ;
+    for(ruleSet::const_iterator ri=cmp.begin();ri!=cmp.end();++ri) {
+        int id = ri->ident() ;
+	
+	if(ri->type() != rule::INTERNAL 
+	   && ri->get_rule_implP()->get_rule_class() == rule_impl::SUPER_RULE) {
+	  debugout << "super_rule " << *ri << endl ;
+	  visited_rules += *ri ;
+          visited_vars += extract_vars(gr[id]) ;
+	}
+    }
     digraph gt = gr.transpose() ;
     while(working != EMPTY) {
       // While we have vertices to work on, compute additional vertices that
@@ -1101,7 +1137,12 @@ namespace Loci {
       variableSet new_vars ;
       for(ri=rule_consider.begin();ri!=rule_consider.end();++ri) {
         int id = ri->ident() ;
-        if((entitySet(extract_vars(gt[id])) & entitySet(visited_vars))
+	
+	if(ri->type() != rule::INTERNAL 
+	   && ri->get_rule_implP()->get_rule_class() == rule_impl::SUPER_RULE) {
+	  new_rules += *ri ;
+          new_vars += extract_vars(gr[id]) ;
+	} else if((entitySet(extract_vars(gt[id])) & entitySet(visited_vars))
            == entitySet(gt[id])) {
           new_rules += *ri ;
           new_vars += extract_vars(gr[id]) ;
@@ -1300,6 +1341,7 @@ namespace Loci {
       working_rules -= rules_to_remove ;
     }
 
+
     // then we build a digraph that has all the working
     // rules (stationary rules + time specific rules +
     // iterating rules) inside
@@ -1309,6 +1351,7 @@ namespace Loci {
         ++ri) {
       invoke_rule_wp(*ri,rule_graph) ;
     }
+
     //cerr<<"rule_graph size: "<<rule_graph.get_all_vertices().size()<<endl ;
     // Some checkings to the graph
     {
@@ -1323,7 +1366,7 @@ namespace Loci {
              << endl ;
         // gr is still empty, we return an empty graph
         // which means the query is not satisfied
-        return ;
+	return ;
       }
     }
     // we are now ready to build the graph

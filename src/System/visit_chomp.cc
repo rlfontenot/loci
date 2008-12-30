@@ -683,7 +683,8 @@ namespace Loci {
       }
       
       storeRepP srp = facts.get_variable(*vi) ;
-      if(srp->RepType() != Loci::STORE) {
+
+      if(srp == 0 || srp->RepType() != Loci::STORE) {
         bad_vars += *vi ;
         continue ;
       }
