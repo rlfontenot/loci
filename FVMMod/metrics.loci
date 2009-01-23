@@ -24,22 +24,100 @@
 $include "FVM.lh"
 
 namespace Loci {
+
+  $type gridCoordinates param<std::string> ;
   const real_t EPSILON=1e-33 ;
   $type centroid param<std::string> ;
   $type exactCentroid Constraint ;
+
+
+  $rule default(gridCoordinates),
+    comments("This sets the coordinate system for the grid metric computations. May be set to either cartesian or axisymmetric.  Use axisymmetric for two dimensional axisymmetric computations") {
+    $gridCoordinates = "cartesian" ;
+  }
+
   
   $rule default(centroid),
     comments("Determines how centroids are computed.  'wireframe' assumes the mass is located at the surface of the cell.  'exact' uses an exact centroid computation assuming mass is distributed through the cell volume.") {
     $centroid = "wireframe" ;
   }
 
+  $type cartesianCoordinateModel Constraint ;
+  $type axisymmetricCoordinateModel Constraint ;
+
+  $rule constraint(cartesianCoordinateModel,axisymmetricCoordinateModel<-gridCoordinates) {
+    $cartesianCoordinateModel = EMPTY ;
+    $axisymmetricCoordinateModel = EMPTY ;
+    if($gridCoordinates == "axisymmetric") {
+      $axisymmetricCoordinateModel = $*gridCoordinates.domain() ;
+    } else if($gridCoordinates == "cartesian") {
+      $cartesianCoordinateModel = $*gridCoordinates.domain() ;
+    } else {
+      cerr << "gridCoordinates = " << $gridCoordinates << " not understood, defaulting to cartesian" << endl;
+      $cartesianCoordinateModel = $*gridCoordinates.domain() ;
+    }      
+  }
+
+  
   $rule constraint(exactCentroid<-centroid) {
     $exactCentroid = EMPTY ;
     if($centroid == "exact") 
       $exactCentroid = $*centroid.domain() ;
   } 
 
-  $rule pointwise(area<-face2node->pos,facecenter) {
+  // Compute thickness of extrusion (for axisymmetric case)
+  $type cell_thickness store<real_t> ;
+  $rule unit(cell_thickness),constraint(geom_cells) {
+    $cell_thickness = 0 ;
+  }
+  $rule apply(ci->cell_thickness<-face2node->pos)[Loci::Summation] {
+    int fsz = $face2node.size() ;
+    vector3d<real_t> pt = $face2node[0]->$pos ;
+    vector3d<real_t> sum = vector3d<real_t>(0,0,0) ;
+    
+    for(int i=1;i<fsz-1;++i) {
+      sum += cross($face2node[i]->$pos-pt,$face2node[i+1]->$pos-pt) ;
+    }
+    sum *= 1./norm(sum) ;
+    if(fabs(sum.z) > .99) {// in the z direction
+      real_t val = pt.z*(sum.z>0?1.:-1.) ;
+      join($ci->$cell_thickness,val) ;
+    }
+  }
+
+  $type gridThickMax param<real_t> ;
+  $type gridThickMin param<real_t> ;
+
+  $rule unit(gridThickMax),constraint(UNIVERSE) {
+    $gridThickMax = 0 ;
+  }
+  $rule apply(gridThickMax<-cell_thickness)[Loci::Maximum],constraint(geom_cells) {
+    join($gridThickMax,($cell_thickness)) ;
+  }
+
+  $rule unit(gridThickMin),constraint(UNIVERSE) {
+    $gridThickMin = 1e100 ;
+  }
+
+  $rule apply(gridThickMin<-cell_thickness)[Loci::Minimum],constraint(geom_cells) {
+    join($gridThickMin,($cell_thickness)) ;
+  }
+    
+  $type gridThickness param<real_t> ;
+  $rule singleton(gridThickness<-gridThickMax,gridThickMin),constraint(axisymmetricCoordinateModel) {
+    $gridThickness = .5*($gridThickMax+$gridThickMin) ;
+    if($gridThickMin == 0 ||
+       ($gridThickMax-$gridThickMin) > 1e-8) {
+      cerr << "Grid not extruded as needed by axisymmetric computations" << endl ;
+      cerr << "gridThickMin = " << $gridThickMin << " Max = " << $gridThickMax
+           << endl ;
+      Loci::Abort() ;
+    }
+  }
+  
+    
+  $rule pointwise(area<-face2node->pos,facecenter),
+              constraint(cartesianCoordinateModel,facecenter) {
      const vector3d<real_t> center = $facecenter ;
      const Entity *first = $face2node.begin() ;
      const Entity *last = ($face2node.end()-1) ;
@@ -54,9 +132,51 @@ namespace Loci {
      $area.sada = 0.5*sada ;  //area of the face
   }
 
+  $rule pointwise(area<-face2node->pos,facecenter,gridThickness),
+              constraint(axisymmetricCoordinateModel,facecenter) {
+     const vector3d<real_t> center = $facecenter ;
+     const Entity *first = $face2node.begin() ;
+     const Entity *last = ($face2node.end()-1) ;
+     vector3d<real_t> sum(cross(last->$pos-center,first->$pos-center)) ;
+     for(const Entity * ni=$face2node.begin()+1;ni!=($face2node.end());ni++) {
+       const Entity *np = ni-1 ;
+       sum = sum + cross(np->$pos-center,ni->$pos-center) ;
+     }
+     $area.n = sum ;
+     real_t sada = sqrt(dot(sum,sum)) ;
+     $area.n *= 1./(sada+EPSILON) ;  //normalized normal vector of the face
+     if(fabs($area.n.z) > 0.99) {
+       sada = 0 ;
+       $area.n.x = 0 ;
+       $area.n.y = 0 ;
+       $area.n.z = 1 ; 
+       $area.sada = 0 ; // For symmetry planes, set area to zero
+     } else {
+       $area.n.z = 0 ;
+       // Compute the exact area of the conical frustrum analytically
+       // First find the edge in the xy plane
+       int fsz = $face2node.size() ;
+       real_t r1=0,r2=0,h2=0 ;
+       for(int i=1;i<fsz;++i) {
+         vector3d<real_t> p1 = $face2node[i-1]->$pos ;
+         vector3d<real_t> p2 = $face2node[i]->$pos ;
+         if(fabs(p1.z-p2.z) < 1e-9) { // in xy plane
+           r1 = p1.y ;
+           r2 = p2.y ;
+           h2 = (p1.x-p2.x)*(p1.x-p2.x) ;
+           break ;
+         }
+       }
+       $area.sada = M_PI*(r1+r2)*sqrt((r1-r2)*(r1-r2)+h2) ;
+     }
+
+  }
+
+
+
 #define STRONG_CHECK
 
-  $rule pointwise(vol<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)) {
+  $rule pointwise(vol<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)),constraint(cartesianCoordinateModel,geom_cells) {
     real_t sum = 0.0 ;
     vector3d<real_t> dv ;
     for(const Entity* nf=$upper.begin();nf!=$upper.end();++nf) {
@@ -111,6 +231,80 @@ namespace Loci {
       
       exit(-1) ;
     }
+  }
+
+  $rule pointwise(vol<-
+                  (upper,lower,boundary_map)->area,
+                  (upper,lower,boundary_map)->face2node->pos,gridThickness
+                  ),constraint(geom_cells,axisymmetricCoordinateModel) {
+    // Compute volume using analytical solid revolution    
+    real_t vol_sum = 0 ;
+    for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
+       int fsz = id->$face2node.size() ;
+       real_t r1=0,r2=0,x1=0,x2=0 ;
+       for(int i=1;i<fsz;++i) {
+         vector3d<real_t> p1 = id->$face2node[i-1]->$pos ;
+         vector3d<real_t> p2 = id->$face2node[i]->$pos ;
+         if(fabs(p1.z-p2.z) < 1e-9) { // in xy plane
+           r1 = p1.y ;
+           r2 = p2.y ;
+           x1 = p1.x ;
+           x2 = p2.x ;
+           break ;
+         }
+       }
+       real_t sgn = (id->$area.n.y)>=0?1.:-1. ; // is volume inside or out?
+       real_t dx = x2-x1 ;
+       real_t dr = r2-r1 ;
+       real_t vpart = fabs((M_PI/3.0)*dx*(3.*r1*r1+3.*r1*dr + dr*dr))*sgn ;
+       vol_sum += vpart ;
+    }
+    for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
+       int fsz = id->$face2node.size() ;
+       real_t r1=0,r2=0,x1=0,x2=0 ;
+       for(int i=1;i<fsz;++i) {
+         vector3d<real_t> p1 = id->$face2node[i-1]->$pos ;
+         vector3d<real_t> p2 = id->$face2node[i]->$pos ;
+         if(fabs(p1.z-p2.z) < 1e-9) { // in xy plane
+           r1 = p1.y ;
+           r2 = p2.y ;
+           x1 = p1.x ;
+           x2 = p2.x ;
+           break ;
+         }
+       }
+       real_t sgn = (id->$area.n.y)>=0?1.:-1. ;
+       real_t dx = x2-x1 ;
+       real_t dr = r2-r1 ;
+       real_t vpart = fabs((M_PI/3.0)*dx*(3.*r1*r1+3.*r1*dr + dr*dr))*sgn ;
+       vol_sum -= vpart ;
+    }
+    for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
+       int fsz = id->$face2node.size() ;
+       real_t r1=0,r2=0,x1=0,x2=0 ;
+       for(int i=1;i<fsz;++i) {
+         vector3d<real_t> p1 = id->$face2node[i-1]->$pos ;
+         vector3d<real_t> p2 = id->$face2node[i]->$pos ;
+         if(fabs(p1.z-p2.z) < 1e-9) { // in xy plane
+           r1 = p1.y ;
+           r2 = p2.y ;
+           x1 = p1.x ;
+           x2 = p2.x ;
+           break ;
+         }
+       }
+       real_t sgn = (id->$area.n.y)>=0?1.:-1. ;
+       real_t dx = x2-x1 ;
+       real_t dr = r2-r1 ;
+       real_t vpart = fabs((M_PI/3.0)*dx*(3.*r1*r1+3.*r1*dr + dr*dr))*sgn ;
+       vol_sum += vpart ;
+    }
+
+    if(vol_sum <=0) {
+      cerr << "negative volume in grid" << endl ;
+      Loci::Abort() ;
+    }
+    $vol = vol_sum ;
   }
   
 
@@ -198,7 +392,8 @@ namespace Loci {
     $facecenter = nodesum/lensum ;
   }
 
-  $rule pointwise(cellcenter<-(upper,lower,boundary_map)->(facecenter,area)) {
+  $rule pointwise(cellcenter<-(upper,lower,boundary_map)->(facecenter,area)
+                  ), constraint(geom_cells,cartesianCoordinateModel) {
     vector3d<real_t> nodesum(0.0,0.0,0.0) ;
     real_t areasum = 0 ;
     for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
@@ -227,8 +422,8 @@ namespace Loci {
    *		- performing the edge-length-weighted average of the
    *		  edge centers.
    */
-  $rule pointwise(truecentroid::facecenter<-face2node->pos)
-    ,constraint(exactCentroid,face2node->pos) {
+  $rule pointwise(truecentroid::facecenter<-face2node->pos
+                  ),constraint(exactCentroid,face2node->pos) {
     // Compute wireframe centroid for face
     vector3d<real_t> nodesum(0.0,0.0,0.0) ;
     real_t lensum = 0 ;
@@ -274,7 +469,8 @@ namespace Loci {
   $rule pointwise(truecentroid::cellcenter<-
                   (upper,lower,boundary_map)->(facecenter,area),
                   (upper,lower,boundary_map)->face2node->pos
-                  ),constraint(geom_cells,exactCentroid) {
+                  ),constraint(geom_cells,exactCentroid,
+                               cartesianCoordinateModel) {
     vector3d<real_t> nodesum(0.0,0.0,0.0) ;
     real_t areasum = 0 ;
     for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
@@ -378,6 +574,112 @@ namespace Loci {
     $cellcenter = .25*csum/vol ;
   }
 
+  $rule pointwise(cellcenter<-
+                  (upper,lower,boundary_map)->(facecenter,area),
+                  (upper,lower,boundary_map)->face2node->pos
+                  ),constraint(geom_cells,axisymmetricCoordinateModel) {
+    vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+    real_t areasum = 0 ;
+    for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
+      nodesum += id->$area.sada*id->$facecenter ;
+      areasum += id->$area.sada ;
+    }
+    for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
+      nodesum += id->$area.sada*id->$facecenter ;
+      areasum += id->$area.sada ;
+    }
+    for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
+      nodesum += id->$area.sada*id->$facecenter ;
+      areasum += id->$area.sada ;
+    }
+    const vector3d<real_t> p4(nodesum/areasum) ; // approximate center used to
+    // perform exact integration
+
+    vector3d<real_t> csum(0.,0.,0.) ;
+    real_t vol = 0 ;
+    for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
+      int sz = id->$face2node.size() ;
+      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+      real_t lensum = 0 ;
+      for(int i=0;i<sz;++i) {
+        int nd1 = i ; 
+        int nd2 = (i+1)%sz ;
+        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
+        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
+        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
+        real_t len = norm(e1-e2) ;
+        nodesum += len*edge_loc ;
+        lensum += len ;
+      }
+      vector3d<real_t> fcenter = nodesum/lensum ;
+      for(int i=0;i<sz;++i){
+        int nd1 = i ;
+        int nd2 = (i+1)%sz ;
+        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
+        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
+        const vector3d<real_t> p3 = fcenter;
+        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
+        const real_t v = -dot(p4-p3,cross(p1-p3,p2-p3)) ;
+        csum += v*centroid ;
+        vol += v ;
+      }
+    }
+    for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
+      int sz = id->$face2node.size() ;
+      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+      real_t lensum = 0 ;
+      for(int i=0;i<sz;++i) {
+        int nd1 = i ; 
+        int nd2 = (i+1)%sz ;
+        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
+        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
+        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
+        real_t len = norm(e1-e2) ;
+        nodesum += len*edge_loc ;
+        lensum += len ;
+      }
+      vector3d<real_t> fcenter = nodesum/lensum ;
+      for(int i=0;i<sz;++i){
+        int nd1 = i ;
+        int nd2 = (i+1)%sz ;
+        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
+        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
+        const vector3d<real_t> p3 = fcenter ;
+        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
+        const real_t v = dot(p4-p3,cross(p1-p3,p2-p3)) ;
+        csum += v*centroid ;
+        vol += v ;
+      }
+    }
+    for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
+      int sz = id->$face2node.size() ;
+      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
+      real_t lensum = 0 ;
+      for(int i=0;i<sz;++i) {
+        int nd1 = i ; 
+        int nd2 = (i+1)%sz ;
+        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
+        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
+        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
+        real_t len = norm(e1-e2) ;
+        nodesum += len*edge_loc ;
+        lensum += len ;
+      }
+      vector3d<real_t> fcenter = nodesum/lensum ;
+      for(int i=0;i<sz;++i){
+        int nd1 = i ;
+        int nd2 = (i+1)%sz ;
+        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
+        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
+        const vector3d<real_t> p3 = fcenter ;
+        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
+        const real_t v = -dot(p4-p3,cross(p1-p3,p2-p3)) ;
+        csum += v*centroid ;
+        vol += v ;
+      }
+    }
+    $cellcenter = .25*csum/vol ;
+  }
   
   $type max_fpc param<int> ;
 

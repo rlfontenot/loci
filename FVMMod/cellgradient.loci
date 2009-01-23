@@ -660,7 +660,7 @@ namespace Loci {
       output("upper->Wf_l") ;
       output("boundary_map->Wf_l") ;
       //      constraint("geom_cells,stencilStandard") ;
-      constraint("geom_cells") ;
+      constraint("geom_cells,cartesianCoordinateModel") ;
     }
 
     void calculate(Entity c) {
@@ -708,6 +708,93 @@ namespace Loci {
       do_loop(seq,this) ;
     }
   } ;
+
+  register_rule<gridQRfactor> register_gridQRfactor ;
+
+  class gridQRfactor_axi : public pointwise_rule {
+    const_multiMap lower, upper,boundary_map ;
+    const_Map cl,cr ;
+    const_store<vector3d<real_t> > cellcenter,facecenter ;
+    const_store<Area> area ;
+    store<vector3d<real_t> > Wf_l, Wf_r ;
+  public:
+    gridQRfactor_axi() {
+      name_store("lower",lower) ;
+      name_store("upper",upper) ;
+      name_store("boundary_map",boundary_map) ;
+      name_store("cl",cl) ;
+      name_store("cr",cr) ;
+      name_store("facecenter",facecenter) ;
+      name_store("cellcenter",cellcenter) ;
+      name_store("area",area) ;
+      name_store("Wf_l",Wf_l) ;
+      name_store("Wf_r",Wf_r) ;
+      input("lower->cl->cellcenter") ;
+      input("upper->cr->cellcenter") ;
+      input("boundary_map->facecenter") ;
+      input("(lower,upper,boundary_map)->area") ;
+      input("cellcenter") ;
+      output("lower->Wf_r") ;
+      output("upper->Wf_l") ;
+      output("boundary_map->Wf_l") ;
+      //      constraint("geom_cells,stencilStandard") ;
+      constraint("geom_cells,axisymmetricCoordinateModel") ;
+    }
+
+    void calculate(Entity c) {
+      int ndeltas =
+        (lower.end(c)-lower.begin(c)) +
+        (upper.end(c)-upper.begin(c)) +
+        (boundary_map.end(c)-boundary_map.begin(c)) ;
+
+      tmp_array<vector3d<real_t> > deltas(ndeltas) ;
+      tmp_array<vector3d<real_t> > weights(ndeltas) ;
+      tmp_array<real_t> areas(ndeltas) ;
+      const vector3d<real_t> center = cellcenter[c] ;
+      int ncount = 0 ;
+      for(const Entity *lp=lower.begin(c);lp!=lower.end(c);++lp) {
+        double we = 1./norm(cellcenter[cl[*lp]]-center) ;
+        areas[ncount] = we ;
+        deltas[ncount++] = we*(cellcenter[cl[*lp]] - center) ;
+      }
+      for(const Entity *up=upper.begin(c);up!=upper.end(c);++up) {
+        double we = 1./norm(cellcenter[cr[*up]]-center) ;
+        areas[ncount] = we ;
+        deltas[ncount++] = we*(cellcenter[cr[*up]] - center) ;
+      }
+      for(const Entity *bi=boundary_map.begin(c);bi!=boundary_map.end(c);++bi) {
+        double we = 1./norm(facecenter[*bi]-center) ;
+        
+        areas[ncount] = we ;
+        deltas[ncount++] = we*(facecenter[*bi] - center) ;
+      }
+
+      tmp_array<vector3d<real_t> > wvec(ndeltas) ;
+
+      computeWeights(wvec,deltas,areas,ndeltas) ;
+
+      for(int i=0;i<ndeltas;++i)
+        wvec[i].z = 0 ;
+      
+      ncount = 0 ;
+
+      for(const int *li = lower.begin(c);li!=lower.end(c);++li) {
+	Wf_r[*li] = wvec[ncount++] ;
+      }
+      for(const int *ui = upper.begin(c);ui!=upper.end(c);++ui) {
+        Wf_l[*ui] = wvec[ncount++] ;
+      }
+      for(const int *bi = boundary_map.begin(c);bi!=boundary_map.end(c);++bi) {
+	Wf_l[*bi] = wvec[ncount++] ;
+      }
+
+    }
+    virtual void compute(const sequence &seq) {
+      do_loop(seq,this) ;
+    }
+  } ;
+
+  register_rule<gridQRfactor_axi> register_gridQRfactor_axi ;
 
   class gradvec : public pointwise_rule {
     const_multiMap lower, upper,boundary_map ;
@@ -886,7 +973,6 @@ namespace Loci {
   } ;
 
   
-  register_rule<gridQRfactor> register_gridQRfactor ;
 
   register_rule<gradvec> register_grad_vec ;
   register_rule<gradscalar> register_grad_scalar ;
