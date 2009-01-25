@@ -237,11 +237,15 @@ namespace Loci {
                   (upper,lower,boundary_map)->area,
                   (upper,lower,boundary_map)->face2node->pos,gridThickness
                   ),constraint(geom_cells,axisymmetricCoordinateModel) {
-    // Compute volume using analytical solid revolution    
-    real_t vol_sum = 0 ;
+    // Compute volume using analytical solid revolution
+    // Use long double since viscous grids could cause catastrophic cancelation
+    // in this routine.
+    // Also using kahan summation to reduce errors
+    long double vol_sum = 0 ;
+    long double vol_c = 0 ;
     for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
       int fsz = id->$face2node.size() ;
-      real_t r1=0,r2=0,x1=0,x2=0 ;
+      long double r1=0,r2=0,x1=0,x2=0 ;
       for(int i=1;i<fsz;++i) {
         vector3d<real_t> p1 = id->$face2node[i-1]->$pos ;
         vector3d<real_t> p2 = id->$face2node[i]->$pos ;
@@ -253,15 +257,18 @@ namespace Loci {
           break ;
         }
       }
-      real_t sgn = (id->$area.n.y)>=0?1.:-1. ; // is volume inside or out?
-      real_t dx = x2-x1 ;
-      real_t dr = r2-r1 ;
-      real_t vpart = fabs((M_PI/3.0)*dx*(3.*r1*r1+3.*r1*dr + dr*dr))*sgn ;
-      vol_sum += vpart ;
+      long double sgn = (id->$area.n.y)>=0?1.:-1. ; // is volume inside or out?
+      long double dx = x2-x1 ;
+      long double dr = r2-r1 ;
+      long double vpart = fabs(dx*(3.*r1*r1+3.*r1*dr+dr*dr))*sgn ;
+      long double y = vpart - vol_c ;
+      long double t = vol_sum + y ;
+      vol_c = (t - vol_sum) - y ;
+      vol_sum = t ;
     }
     for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
       int fsz = id->$face2node.size() ;
-      real_t r1=0,r2=0,x1=0,x2=0 ;
+      long double r1=0,r2=0,x1=0,x2=0 ;
       for(int i=1;i<fsz;++i) {
         vector3d<real_t> p1 = id->$face2node[i-1]->$pos ;
         vector3d<real_t> p2 = id->$face2node[i]->$pos ;
@@ -273,16 +280,19 @@ namespace Loci {
           break ;
         }
       }
-      real_t sgn = (id->$area.n.y)>=0?1.:-1. ;
-      real_t dx = x2-x1 ;
-      real_t dr = r2-r1 ;
-      real_t vpart = fabs((M_PI/3.0)*dx*(3.*r1*r1+3.*r1*dr + dr*dr))*sgn ;
-      vol_sum -= vpart ;
+      long double sgn = (id->$area.n.y)>=0?1.:-1. ;
+      long double dx = x2-x1 ;
+      long double dr = r2-r1 ;
+      long double vpart = -fabs(dx*(3.*r1*r1+3.*r1*dr+dr*dr))*sgn ;
+      long double y = vpart - vol_c ;
+      long double t = vol_sum + y ;
+      vol_c = (t - vol_sum) - y ;
+      vol_sum = t ;
     }
     for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
       if(id->$area.sada != 0) {
         int fsz = id->$face2node.size() ;
-        real_t r1=0,r2=0,x1=0,x2=0 ;
+        long double r1=0,r2=0,x1=0,x2=0 ;
         for(int i=1;i<fsz;++i) {
           vector3d<real_t> p1 = id->$face2node[i-1]->$pos ;
           vector3d<real_t> p2 = id->$face2node[i]->$pos ;
@@ -294,11 +304,14 @@ namespace Loci {
             break ;
           }
         }
-        real_t sgn = (id->$area.n.y)>=0?1.:-1. ;
-        real_t dx = x2-x1 ;
-        real_t dr = r2-r1 ;
-        real_t vpart = fabs((M_PI/3.0)*dx*(3.*r1*r1+3.*r1*dr + dr*dr))*sgn ;
-        vol_sum += vpart ;
+        long double sgn = (id->$area.n.y)>=0?1.:-1. ;
+        long double dx = x2-x1 ;
+        long double dr = r2-r1 ;
+        long double vpart = fabs(dx*(3.*r1*r1+3.*r1*dr+dr*dr))*sgn ;
+        long double y = vpart - vol_c ;
+        long double t = vol_sum + y ;
+        vol_c = (t - vol_sum) - y ;
+        vol_sum = t ;
       }
     }
 
@@ -306,7 +319,7 @@ namespace Loci {
       cerr << "negative volume in grid" << endl ;
       Loci::Abort() ;
     }
-    $vol = vol_sum ;
+    $vol = (M_PI/3.)*vol_sum ;
   }
   
 
