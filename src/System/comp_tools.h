@@ -658,6 +658,20 @@ namespace Loci {
     create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
 
+  // rule compiler for blackbox rule
+  class superRule_compiler : public rule_compiler {
+    rule impl ;  // rule to implement
+	public:
+	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
+	static execute_modules_decorator_factory* decoratorFactory;
+  public:
+    superRule_compiler(rule r)  { impl=r;}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP
+    create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
 }
 
 #endif
