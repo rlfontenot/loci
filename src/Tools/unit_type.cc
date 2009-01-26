@@ -91,6 +91,14 @@ namespace Loci {
     {"year","second",31536000},
     {"y","second",31536000},
     {"shake","second",1e-8},
+    {"millisecond","second",1e-3},
+    {"ms","second",1e-3},
+    {"microsecond","second",1e-6},
+    {"us","second",1e-6},
+    {"usec","second",1e-6},
+    {"nanosecond","second",1e-9},
+    {"ns","second",1e-9},
+    {"picosecond","second",1e-12},
 
     {"Fahrenheit","kelvin",0.5555556},//temperature interval
     {"F","kelvin",0.5555556},
