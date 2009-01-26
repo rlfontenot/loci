@@ -260,7 +260,7 @@ namespace Loci {
       long double sgn = (id->$area.n.y)>=0?1.:-1. ; // is volume inside or out?
       long double dx = x2-x1 ;
       long double dr = r2-r1 ;
-      long double vpart = fabs(dx*(3.*r1*r1+3.*r1*dr+dr*dr))*sgn ;
+      long double vpart = fabs(dx*(3.L*r1*r1+3.L*r1*dr+dr*dr))*sgn ;
       long double y = vpart - vol_c ;
       long double t = vol_sum + y ;
       vol_c = (t - vol_sum) - y ;
@@ -283,7 +283,7 @@ namespace Loci {
       long double sgn = (id->$area.n.y)>=0?1.:-1. ;
       long double dx = x2-x1 ;
       long double dr = r2-r1 ;
-      long double vpart = -fabs(dx*(3.*r1*r1+3.*r1*dr+dr*dr))*sgn ;
+      long double vpart = -fabs(dx*(3.L*r1*r1+3.L*r1*dr+dr*dr))*sgn ;
       long double y = vpart - vol_c ;
       long double t = vol_sum + y ;
       vol_c = (t - vol_sum) - y ;
@@ -307,7 +307,7 @@ namespace Loci {
         long double sgn = (id->$area.n.y)>=0?1.:-1. ;
         long double dx = x2-x1 ;
         long double dr = r2-r1 ;
-        long double vpart = fabs(dx*(3.*r1*r1+3.*r1*dr+dr*dr))*sgn ;
+        long double vpart = fabs(dx*(3.L*r1*r1+3.L*r1*dr+dr*dr))*sgn ;
         long double y = vpart - vol_c ;
         long double t = vol_sum + y ;
         vol_c = (t - vol_sum) - y ;
