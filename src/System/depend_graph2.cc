@@ -239,29 +239,38 @@ namespace Loci {
     // return true if passed, false if failed
     bool check_iteration(const iteration_info& iter) {
       map<time_ident,iteration>::const_iterator mi ;
+      bool total_check = true ;
       for(mi=iter.iteration_rules.begin();mi!=iter.iteration_rules.end();
           ++mi) {
         ruleSet build = mi->second.build ;
         ruleSet collapse = mi->second.collapse ;
         ruleSet advance = mi->second.advance ;
+        bool check = true ;
         if(build == EMPTY) {
           cerr << "Malformed iteration: " << mi->first
                << ", no build rules exist." << endl ;
-          return false ;
+          check = false ;
         }
         if(advance == EMPTY) {
           cerr << "Malformed iteration: " << mi->first
                << ", no advance rules exist." << endl ;
-          return false ;
+          check = false ;
         }
         if(collapse == EMPTY) {
           cerr << "Malformed iteration: " << mi->first
                << ", no collapse rules exist." << endl ;
-          return false ;
+          check = false ;
+        }
+        if(check == false) {
+          cerr << "iteration rules remaining" << endl
+               << "build: " << build  << endl
+               << "advance: " << advance << endl
+               << "collapse:"<< collapse << endl ;
+          total_check = false ;
         }
       }
-      // check passed
-      return true ;
+      // return status
+      return total_check ;
     }
 
     // function prototype for mutual recursion
