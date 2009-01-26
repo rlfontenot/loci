@@ -446,7 +446,8 @@ int main(int ac, char* av[]) {
   typedef entitySet BCS[6] ;
   BCS *bcs ;
   bcs = new BCS[num_blocks] ;
-  
+
+  vector<entitySet> bset_faces(num_blocks) ;
   for(int b=0;b<num_blocks;++b) {
     const int ni = blk[b].ni ;
     const int nj = blk[b].nj ;
@@ -497,6 +498,9 @@ int main(int ac, char* av[]) {
 	  fri += wside ;
 	  cl[eside] = cc ;
 	  cr[wside] = cc ;
+          bset_faces[b] += eside ;
+          bset_faces[b] += wside ;
+          
 	}
     
     /* North-South Face Cursors */
@@ -512,6 +516,9 @@ int main(int ac, char* av[]) {
 	  fri += sside ;
 	  cl[nside] = cc ;
 	  cr[sside] = cc ;
+          bset_faces[b] += nside ;
+          bset_faces[b] += sside ;
+          
 	}
     
     /* Top-Bottom Face Cursors */
@@ -527,6 +534,8 @@ int main(int ac, char* av[]) {
 	  fri += bside ;
 	  cl[tside] = cc ;
 	  cr[bside] = cc ;
+          bset_faces[b] += tside ;
+          bset_faces[b] += bside ;
 	}
     
     // Set up boundary faces information
@@ -844,8 +853,16 @@ int main(int ac, char* av[]) {
 
   if(boundaries != (left_boundary + right_boundary) ) {
     cerr << "not all boundaries were identified!" << endl ;
-    cerr << "missing boundaries = " << (left_boundary+right_boundary)-boundaries << endl ;
+
+    entitySet tmpset = (left_boundary+right_boundary)-boundaries ;
+    for(int b=0;b<num_blocks;++b) {
+      entitySet overlap = bset_faces[b] & tmpset ;
+      if(overlap.size() > 0) {
+        cerr << "block number " << b+1 << " has " << overlap.size() << " missing boundary faces " << endl ;
+      }
     }
+    cerr << "missing boundaries = " << (left_boundary+right_boundary)-boundaries << endl ;
+  }
   
   // Remove redundant faces from data-stucture
   entitySet real_faces = faces - faces_removed ;
