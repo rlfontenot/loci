@@ -189,6 +189,9 @@ namespace Loci {
                   == rule_impl::BLACKBOX_RULE) // a blackbox rule
             rule_process[*ri] = new blackbox_compiler(*ri) ;
           else if(ri->get_info().rule_impl->get_rule_class()
+                  == rule_impl::SUPER_RULE) // a blackbox rule
+            rule_process[*ri] = new superRule_compiler(*ri) ;
+          else if(ri->get_info().rule_impl->get_rule_class()
                   == rule_impl::APPLY) // an apply rule
             rule_process[*ri] = new apply_compiler(*ri,apply_to_unit[*ri]) ;
           else                  // a normal concrete rule
@@ -1261,6 +1264,7 @@ namespace Loci {
     given -= variable("EMPTY") ;
     gr = dependency_graph2(par_rdb,given,user_query).get_graph() ;
 
+
     //create_digraph_dot_file(gr,"dependgr.dot") ;
     //std::string cmd = "dotty dependgr.dot" ;
     //system(cmd.c_str()) ;
@@ -1513,11 +1517,23 @@ namespace Loci {
     } // end of if(!has_map)
     // finally we remove all the rules that derived from
     // any empty constraints
-    //cout << "empty constraints: " << empty_constraints << endl ;
+    //    debugout << "empty constraints: " << empty_constraints << endl ;
+
+    // Delete rules dependent on empty constraints if they are not super rules
+    // that don't have the AND semantic
     ruleSet del_rules ;
     for(variableSet::const_iterator vi=empty_constraints.begin();
-        vi!=empty_constraints.end();++vi)
-      del_rules += extract_rules(gr[vi->ident()]) ;
+        vi!=empty_constraints.end();++vi) {
+      ruleSet empty_rules = extract_rules(gr[vi->ident()]) ;
+      for(ruleSet::const_iterator ri=empty_rules.begin();
+	  ri != empty_rules.end();++ri) {
+	if(!(ri->type() != rule::INTERNAL 
+	     &&ri->get_rule_implP()->get_rule_class()==rule_impl::SUPER_RULE)) {
+	  del_rules += *ri ;
+	}
+      }
+      //      del_rules += extract_rules(gr[vi->ident()]) ;
+    }
     
     par_rdb.remove_rules(del_rules) ;
 

@@ -63,6 +63,12 @@ using std::bad_alloc ;
 
 #include <mpi.h>
 
+#define SIMPLE_SPRNG
+#define USE_MPI
+extern "C" {
+#include <sprng.h>
+}
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -200,6 +206,14 @@ namespace Loci {
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
 
+    int sprng_seed = 985456376 ;
+    int sprng_gtype = SPRNG_LFG ; // sprng generator type
+    // LFG   - 0 - Additive Lagged Fibonaci Generator
+    // LCG   - 1 - Linear Congruential Generator
+    // LCG64 - 2 - Linear Congruential Generator (64 bit)
+    // CMRG  - 3 - Combined Multiple Recursive Generator
+    // MLFG  - 4 - Multiplicative Lagged Fibonacci Generator
+
     try {
 
     //Create a debug file for each process
@@ -284,6 +298,25 @@ namespace Loci {
         debug = (*argv)[i+1] ;
         schedule_output = true ;
         i+=2 ;
+      } else if(!strcmp((*argv)[i],"--sprng_gen")) {
+	// set type of random number generator for sprng
+	if(!strcmp((*argv)[i+1],"LFG")) {
+	  sprng_gtype = SPRNG_LFG ;
+	} else if(!strcmp((*argv)[i+1],"LCG")) {
+	  sprng_gtype = SPRNG_LCG ;
+	} else if(!strcmp((*argv)[i+1],"LCG64")) {
+	  sprng_gtype = SPRNG_LCG64 ;
+	} else if(!strcmp((*argv)[i+1],"CMRG")) {
+	  sprng_gtype = SPRNG_CMRG ;
+	} else if(!strcmp((*argv)[i+1],"MLFG")) {
+	  sprng_gtype = SPRNG_MLFG ;
+	} else {
+	  cerr << "unknown generator type " << (*argv[i+1]) << endl ;
+	}
+        i+=2 ;
+      } else if(!strcmp((*argv)[i],"--sprng_gen_seed")) {
+	sprng_seed = make_sprng_seed() ;
+        i++ ;      
       } else if(!strcmp((*argv)[i],"--verbose")) {
         verbose = true ;
         i++ ;
@@ -430,6 +463,8 @@ namespace Loci {
         (*argv)[k] = (*argv)[k+i-1] ;
     }
 
+    init_sprng(sprng_gtype,sprng_seed,SPRNG_DEFAULT) ;
+
     if( collect_perf_data){
 	  oss.str("");
 	  if(MPI_processes == 1)
@@ -504,6 +539,7 @@ namespace Loci {
       cerr << "Out of memory: " << x.what() <<endl ;
       Loci::Abort() ;
   }
+    
   }
   //All Loci programs must end with this call. 
   void Finalize() {
@@ -517,6 +553,14 @@ namespace Loci {
   void Abort() {
     debugger_() ;
     MPI_Abort(MPI_COMM_WORLD,-1) ;
+  }
+
+  double random() {
+    return sprng() ;
+  }
+
+  int irandom() {
+    return isprng() ;
   }
 
 }

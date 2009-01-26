@@ -130,4 +130,241 @@ namespace Loci {
     return execute;
   }
 
+  // superRule_compiler code
+  void
+  superRule_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
+    CPTR<super_rule> rp(impl.get_rule_implP()) ;
+    rp->process_existential(impl,facts,scheds) ;
+  }
+
+  void superRule_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
+    CPTR<super_rule> rp(impl.get_rule_implP()) ;
+    rp->process_requests(impl,facts,scheds) ;
+  }
+
+  execute_modules_decorator_factory* superRule_compiler::decoratorFactory = NULL;
+
+  executeP superRule_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
+    executeP execute = new execute_rule(impl, ~EMPTY, facts, scheds);
+    if (decoratorFactory != NULL)
+      execute = decoratorFactory->decorate(execute);
+    return execute;
+  }
+
+
+  // Lets set up some common super rule functions
+
+  class NOT_rule : public super_rule {
+    param<bool> NOT ;
+  public:
+    NOT_rule() {
+      name_store("NOT(X)",NOT) ;
+      constraint("X") ;
+      output("NOT(X)") ;
+    }
+    void compute(const sequence &seq) {
+      *NOT = true ;
+    }
+    void process_existential(rule r, fact_db &facts, sched_db &scheds) {
+      const rule_impl::info &rinfo = r.get_info().desc ;
+      set<vmap_info>::const_iterator si ;
+
+      entitySet constraints = ~EMPTY ;
+      for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+        constraints &= vmap_source_exist(*si,facts, scheds) ;
+
+      entitySet my_entities = ~EMPTY ;
+
+      if(facts.isDistributed()) {
+      // For the distributed memory case we restrict the sources and
+      // constraints to be within my_entities.
+        fact_db::distribute_infoP d = facts.get_distribute_info() ;
+        my_entities = d->my_entities ;
+      }
+      
+      debugout << "constraints = " << constraints << endl ;
+      // Now complement (entities we own)
+      constraints = (~constraints) & my_entities ;
+      debugout << "constraints & my_entities =" << constraints << endl ;
+
+      variableSet output = r.targets() ;
+      debugout << "setting " << output << endl ;
+      for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
+        scheds.set_existential_info(*vi, r, constraints) ;
+    }
+    void process_requests(rule r, fact_db &facts, sched_db &scheds) {
+    }
+  } ;
+
+  register_rule<NOT_rule> register_NOT_rule ;
+
+  class OR_rule : public super_rule {
+    param<bool> OR ;
+  public:
+    OR_rule() {
+      name_store("OR(X,Y)",OR) ;
+      constraint("X,Y") ;
+      output("OR(X,Y)") ;
+    }
+    void compute(const sequence &seq) {
+      *OR = true ;
+    }
+    void process_existential(rule r, fact_db &facts, sched_db &scheds) {
+      const rule_impl::info &rinfo = r.get_info().desc ;
+      set<vmap_info>::const_iterator si ;
+
+      entitySet constraints = EMPTY ;
+      for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+        constraints |= vmap_source_exist(*si,facts, scheds) ;
+
+      entitySet my_entities = ~EMPTY ;
+
+      if(facts.isDistributed()) {
+      // For the distributed memory case we restrict the sources and
+      // constraints to be within my_entities.
+        fact_db::distribute_infoP d = facts.get_distribute_info() ;
+        my_entities = d->my_entities ;
+      }
+      
+      // Now complement (entities we own)
+      constraints = constraints & my_entities ;
+
+      variableSet output = r.targets() ;
+      for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
+        scheds.set_existential_info(*vi, r, constraints) ;
+    }
+    void process_requests(rule r, fact_db &facts, sched_db &scheds) {
+    }
+  } ;
+
+  register_rule<OR_rule> register_OR_rule ;
+
+  class OR3_rule : public super_rule {
+    param<bool> OR ;
+  public:
+    OR3_rule() {
+      name_store("OR(X,Y,Z)",OR) ;
+      constraint("X,Y,Z") ;
+      output("OR(X,Y,Z)") ;
+    }
+    void compute(const sequence &seq) {
+      *OR = true ;
+    }
+    void process_existential(rule r, fact_db &facts, sched_db &scheds) {
+      const rule_impl::info &rinfo = r.get_info().desc ;
+      set<vmap_info>::const_iterator si ;
+
+      entitySet constraints = EMPTY ;
+      for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+        constraints |= vmap_source_exist(*si,facts, scheds) ;
+
+      entitySet my_entities = ~EMPTY ;
+
+      if(facts.isDistributed()) {
+      // For the distributed memory case we restrict the sources and
+      // constraints to be within my_entities.
+        fact_db::distribute_infoP d = facts.get_distribute_info() ;
+        my_entities = d->my_entities ;
+      }
+      
+      // Now complement (entities we own)
+      constraints = constraints & my_entities ;
+
+      variableSet output = r.targets() ;
+      for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
+        scheds.set_existential_info(*vi, r, constraints) ;
+    }
+    void process_requests(rule r, fact_db &facts, sched_db &scheds) {
+    }
+  } ;
+
+  register_rule<OR3_rule> register_OR3_rule ;
+
+  class OR4_rule : public super_rule {
+    param<bool> OR ;
+  public:
+    OR4_rule() {
+      name_store("OR(W,X,Y,Z)",OR) ;
+      constraint("W,X,Y,Z") ;
+      output("OR(W,X,Y,Z)") ;
+    }
+    void compute(const sequence &seq) {
+      *OR = true ;
+    }
+    void process_existential(rule r, fact_db &facts, sched_db &scheds) {
+      const rule_impl::info &rinfo = r.get_info().desc ;
+      set<vmap_info>::const_iterator si ;
+
+      entitySet constraints = EMPTY ;
+      for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+        constraints |= vmap_source_exist(*si,facts, scheds) ;
+
+      entitySet my_entities = ~EMPTY ;
+
+      if(facts.isDistributed()) {
+      // For the distributed memory case we restrict the sources and
+      // constraints to be within my_entities.
+        fact_db::distribute_infoP d = facts.get_distribute_info() ;
+        my_entities = d->my_entities ;
+      }
+      
+      // Now complement (entities we own)
+      constraints = constraints & my_entities ;
+
+      variableSet output = r.targets() ;
+      for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
+        scheds.set_existential_info(*vi, r, constraints) ;
+    }
+    void process_requests(rule r, fact_db &facts, sched_db &scheds) {
+    }
+  } ;
+
+  register_rule<OR4_rule> register_OR4_rule ;
+
+  class AND2_rule : public singleton_rule {
+    param<bool> AND ;
+  public:
+    AND2_rule() {
+      name_store("AND(X,Y)",AND) ;
+      constraint("X,Y") ;
+      output("AND(X,Y)") ;
+    }
+    void compute(const sequence &seq) {
+      *AND = true ;
+    }
+  } ;
+
+  register_rule<AND2_rule> register_AND2_rule ;
+
+  class AND3_rule : public singleton_rule {
+    param<bool> AND ;
+  public:
+    AND3_rule() {
+      name_store("AND(X,Y,Z)",AND) ;
+      constraint("X,Y,Z") ;
+      output("AND(X,Y,Z)") ;
+    }
+    void compute(const sequence &seq) {
+      *AND = true ;
+    }
+  } ;
+
+  register_rule<AND3_rule> register_AND3_rule ;
+
+  class AND4_rule : public singleton_rule {
+    param<bool> AND ;
+  public:
+    AND4_rule() {
+      name_store("AND(W,X,Y,Z)",AND) ;
+      constraint("W,X,Y,Z") ;
+      output("AND(W,X,Y,Z)") ;
+    }
+    void compute(const sequence &seq) {
+      *AND = true ;
+    }
+  } ;
+
+  register_rule<AND4_rule> register_AND4_rule ;
+    
+  
 }

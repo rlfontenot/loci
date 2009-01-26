@@ -730,6 +730,7 @@ namespace Loci {
     digraph gr ;
 
     given -= variable("EMPTY") ;
+
     gr = dependency_graph2(par_rdb,given,target).get_graph() ;
 
     // If graph is empty, return a null schedule
@@ -1245,7 +1246,8 @@ namespace Loci {
     double tlocal = sw.stop() ;
     double tglobal = 0 ;
     MPI_Allreduce(&tlocal,&tglobal, 1, MPI_DOUBLE, MPI_MAX,MPI_COMM_WORLD) ;
-    debugout << "time to execute internal query " << tglobal ;
+    debugout << "time to execute internal query " << tglobal <<endl;
+
     return true ;
   }
 

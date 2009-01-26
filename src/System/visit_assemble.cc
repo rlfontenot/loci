@@ -697,7 +697,7 @@ namespace Loci {
                 for(variableSet::const_iterator vi2=targets.begin();
                     vi2!=targets.end();++vi2) {
                   storeRepP srp = facts.get_variable(*vi2) ;
-                  if(srp->RepType() == Loci::STORE) {
+                  if(srp != 0 && srp->RepType() == Loci::STORE) {
                     has_alloc = true ;
                     break ;
                   }
@@ -751,7 +751,7 @@ namespace Loci {
               for(variableSet::const_iterator vi2=targets.begin();
                   vi2!=targets.end();++vi2) {
                 storeRepP srp = facts.get_variable(*vi2) ;
-                if(srp->RepType() == Loci::STORE) {
+                if(srp != 0 && srp->RepType() == Loci::STORE) {
                   ++local_num_del ;
                   break ; // !!!!!!!!!!!!!!modified!!!!!!!!!!!!!!!
                 }
@@ -767,7 +767,7 @@ namespace Loci {
               for(variableSet::const_iterator vi2=targets.begin();
                   vi2!=targets.end();++vi2) {
                 storeRepP srp = facts.get_variable(*vi2) ;
-                if(srp->RepType() == Loci::STORE) {
+                if(srp != 0 && srp->RepType() == Loci::STORE) {
                   ++local_num_alloc ;
                   break ; // !!!!!!!!!!!!!!modified!!!!!!!!!!!!!!!
                 }
@@ -816,7 +816,7 @@ namespace Loci {
           for(variableSet::const_iterator vi2=targets.begin();
               vi2!=targets.end();++vi2) {
             storeRepP srp = facts.get_variable(*vi2) ;
-            if(srp->RepType() == Loci::STORE) {
+            if(srp != 0 && srp->RepType() == Loci::STORE) {
               digraph::vertexSet nextv = gr[vi2->ident()] ;
               local_out_edges += nextv.size() ;
             }
@@ -1102,7 +1102,7 @@ namespace Loci {
             for(variableSet::const_iterator invi=tvars.begin();
                 invi!=tvars.end();++invi) {
               storeRepP srp = facts.get_variable(*invi) ;
-              if(srp->RepType() == Loci::STORE) {
+              if(srp != 0 && srp->RepType() == Loci::STORE) {
                 ++a ;
                 break ;
               }
@@ -1116,7 +1116,7 @@ namespace Loci {
             for(variableSet::const_iterator invi=tvars.begin();
                 invi!=tvars.end();++invi) {
               storeRepP srp = facts.get_variable(*invi) ;
-              if(srp->RepType() == Loci::STORE) {
+              if(srp != 0 && srp->RepType() == Loci::STORE) {
                 ++d ;
                 break ;
               }
@@ -1126,7 +1126,7 @@ namespace Loci {
         for(variableSet::const_iterator vari=targets.begin() ;
             vari!=targets.end();++vari) {
           storeRepP srp = facts.get_variable(*vari) ;
-          if(srp->RepType() == Loci::STORE) {
+          if(srp != 0 && srp->RepType() == Loci::STORE) {
             digraph::vertexSet nxv = gr[vari->ident()] ;
             o += nxv.size() ;
           }
