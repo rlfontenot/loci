@@ -49,6 +49,7 @@
 namespace Loci {
   
   class fact_db ;
+  class sched_db ;
   
   class joiner : public CPTR_type {
   public:
@@ -71,7 +72,7 @@ namespace Loci {
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,MAP_RULE,BLACKBOX_RULE,UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,MAP_RULE,BLACKBOX_RULE,SUPER_RULE,UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
@@ -278,7 +279,7 @@ namespace Loci {
   
   class blackbox_rule : public rule_impl {
   protected:
-    blackbox_rule() { rule_class(BLACKBOX_RULE) ; }
+    blackbox_rule() { rule_class(BLACKBOX_RULE) ; disable_threading(); }
     void name_store(const std::string &nm, store_instance &si)
     { rule_impl::name_store(nm,si) ; }
     void input(const std::string &invar)
@@ -290,6 +291,26 @@ namespace Loci {
     void conditional(const std::string &cond)
     { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+  } ;
+
+  // This rule is 
+  class super_rule : public rule_impl {
+  protected:
+    super_rule() { rule_class(SUPER_RULE) ; disable_threading(); }
+    void name_store(const std::string &nm, store_instance &si)
+    { rule_impl::name_store(nm,si) ; }
+    void input(const std::string &invar)
+    { rule_impl::input(invar) ; }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+    { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+  public:
+    virtual void process_existential(rule r, fact_db &facts, sched_db &scheds) = 0 ;
+    virtual void process_requests(rule r, fact_db &facts, sched_db &scheds) = 0 ;
   } ;
 
   class pointwise_rule : public rule_impl {
