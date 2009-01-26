@@ -419,6 +419,13 @@ void get_2dgv(string casename, string iteration,
               vector<string> variable_filenames,
               vector<string> boundaries,
               int view) ;
+
+void get_surf(string casename, string iteration,
+              vector<string> variables,
+              vector<int> variable_types,
+              vector<string> variable_filenames,
+              vector<string> boundaries) ;
+
 void process_ascii_nodal(string casename, string iteration,
                          vector<string> variables,
                          vector<int> variable_types,

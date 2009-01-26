@@ -58,6 +58,7 @@ void Usage(int ac, char *av[]) {
        << "-en :  extract for the Ensight post-processing package" << endl
        << "-tec:  extract for the TecPlot post-procesing package" << endl
        << "-ascii: extract to an ascii file" << endl
+       << "-surf: extract boundary surface mesh" << endl
        << "-cut:  extract a cutting plane for the 2dgv plotting package" << endl
        << endl ;
   cout << "Variables are defined by the solver, but typically include: " << endl
@@ -1063,7 +1064,7 @@ void extract_grid(string casename, string iteration,
 int main(int ac, char *av[]) {
   Loci::Init(&ac,&av) ;
 
-  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,CUTTINGPLANE, NONE} plot_type = NONE ;
+  enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,CUTTINGPLANE, SURFACE, NONE} plot_type = NONE ;
 
   string casename ;
   bool found_casename = false ;
@@ -1091,6 +1092,8 @@ int main(int ac, char *av[]) {
     if(av[i][0] == '-') {
       if(!strcmp(av[i],"-ascii"))
         plot_type = ASCII ;
+      else if(!strcmp(av[i],"-surf"))
+        plot_type = SURFACE ;
       else if(!strcmp(av[i],"-2d"))
         plot_type = TWODGV ;
       else if(!strcmp(av[i],"-en"))
@@ -1356,6 +1359,17 @@ int main(int ac, char *av[]) {
     Loci::Finalize() ;
     exit(0) ;
   }
+  if(plot_type == SURFACE) {
+    if(boundaries.size() != 1) {
+      cerr << "'extract -surf' must have one boundary surface identified using the '-bc' flag" << endl ;
+      Usage(ac,av) ;
+    }
+    get_surf(casename,iteration,variables,variable_type,variable_file,
+             boundaries) ;
+    Loci::Finalize() ;
+    exit(0) ;
+  }
+    
   
   // process grid topology
   grid_topo_handler *topo_out = 0 ;
