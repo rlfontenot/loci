@@ -33,7 +33,7 @@ default: library lpp FVMtools FVMMod FVMadapt
 library: shared
 
 static: Tools System
-shared: Tools/libTools.so System/libLoci.so METIS
+shared: Tools/libTools.so System/libLoci.so METIS SPRNG
 
 docs:
 	cd Tutorial/docs; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
@@ -50,6 +50,9 @@ System : FRC
 
 METIS : FRC
 	cd ParMetis-3.1; $(MAKE) LOCI_BASE="$(LOCI_BASE)" 
+
+SPRNG : FRC
+	cd sprng; $(MAKE) LOCI_BASE="$(LOCI_BASE)"
 
 Tools/libTools.so: FRC
 	cd Tools; $(MAKE) LOCI_BASE="$(LOCI_BASE)" libTools.so
@@ -77,6 +80,7 @@ clean:
 	cd Tools ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd System ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd ParMetis-3.1 ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
+	cd sprng ; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)" 
 	cd FVMtools; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMMod; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMadapt; $(MAKE) clean LOCI_BASE="$(LOCI_BASE)"
@@ -87,6 +91,7 @@ distclean:
 	cd Tools ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd System ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd ParMetis-3.1 ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
+	cd sprng ; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)" 
 	cd FVMtools; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMMod; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
 	cd FVMadapt; $(MAKE) distclean LOCI_BASE="$(LOCI_BASE)"
