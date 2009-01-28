@@ -149,7 +149,10 @@ namespace Loci {
        sada = 0 ;
        $area.n.x = 0 ;
        $area.n.y = 0 ;
-       $area.n.z = 1 ; 
+       if($area.n.z > 0)
+         $area.n.z = 1 ;
+       else
+         $area.n.z = -1;
        $area.sada = 0 ; // For symmetry planes, set area to zero
      } else {
        $area.n.z = 0 ;
@@ -237,6 +240,7 @@ namespace Loci {
                   (upper,lower,boundary_map)->area,
                   (upper,lower,boundary_map)->face2node->pos,gridThickness
                   ),constraint(geom_cells,axisymmetricCoordinateModel) {
+#ifdef EXACT
     // Compute volume using analytical solid revolution
     // Use long double since viscous grids could cause catastrophic cancelation
     // in this routine.
@@ -320,6 +324,52 @@ namespace Loci {
       Loci::Abort() ;
     }
     $vol = (M_PI/3.)*vol_sum ;
+#else
+    if($boundary_map.size() == 0)  {
+      cerr << "Grid not extruded one cell!  Not a valid grid for axisymmetric computations" << endl ;
+      Loci::Abort() ;
+    }
+
+    double volume = 0 ;
+    for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
+      if(id->$area.sada == 0) {
+        int fsz = id->$face2node.size() ;
+        double len  = norm(id->$face2node[0]->$pos-id->$face2node[fsz-1]->$pos) ;
+        double len_sum = len ;
+        vector3d<real_t> center = len*(id->$face2node[0]->$pos +
+                                       id->$face2node[fsz-1]->$pos) ;
+        for(int i=1;i<fsz;++i) {
+          double len  = norm(id->$face2node[i-1]->$pos-
+                             id->$face2node[i]->$pos) ;
+          len_sum += len ;
+          center +=  len*(id->$face2node[i-1]->$pos +
+                          id->$face2node[i]->$pos) ;
+        }
+        center *= 1./(len_sum*2.) ;
+
+
+        volume = 0 ;
+        vector3d<real_t> d1 = (id->$face2node[fsz-1]->$pos - center) ;
+        vector3d<real_t> d2 = (id->$face2node[0]->$pos - center) ;
+        volume += cross(d1,d2).z*(id->$area.n.z)*
+          (center.y+ id->$face2node[fsz-1]->$pos.y+ id->$face2node[0]->$pos.y) ;
+        for(int i=1;i<fsz;++i) {
+        
+          vector3d<real_t> d1 = (id->$face2node[i-1]->$pos - center) ;
+          vector3d<real_t> d2 = (id->$face2node[i]->$pos - center) ;
+          volume += cross(d1,d2).z*(id->$area.n.z)*
+            (center.y+id->$face2node[i-1]->$pos.y+ id->$face2node[i]->$pos.y) ;
+        }
+        volume *= M_PI/3.0 ;
+        break ;
+      }
+    }
+    if(volume <= 0.0) {
+      cerr << "negative or zero volume in axisymmetric mesh!" << endl ;
+      Loci::Abort() ;
+    }
+    $vol = volume ;
+#endif
   }
   
 
