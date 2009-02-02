@@ -58,6 +58,34 @@ int main(int ac, char *av[]) {
   fact_db facts ;
   Loci::load_module("fvm",rdb) ;
 
+  bool use_exact = false ;
+
+  while(ac>=2 && av[1][0] == '-') {
+    // If user specifies an alternate query, extract it from the
+    // command line.
+    if(ac >= 3 && !strcmp(av[1],"-q")) {
+      query = av[2] ;
+      ac -= 2 ;
+      av += 2 ;
+    } else if(ac >= 2 && !strcmp(av[1],"-exact")) {
+      use_exact = true ;
+      ac -= 1 ;
+      av += 1 ;
+    } else if(ac >= 2 && !strcmp(av[1],"-v")) {
+      cout << "Loci version: " << Loci::version() << endl ;
+      if(ac == 2) {
+        Loci::Finalize() ;
+        exit(0) ;
+      }
+      ac-- ;
+      av++ ;
+    } else {
+      cerr << "argument " << av[1] << " is not understood." << endl ;
+      ac-- ;
+      av++ ;
+    }
+  }
+
   
   if(ac > 1) {
     string filename = string(av[1]) +".vog" ;
@@ -73,9 +101,12 @@ int main(int ac, char *av[]) {
     facts.create_fact("modelName",modelName) ;
     Loci::setupFVMGrid(facts,filename) ;
     Loci::createLowerUpper(facts) ;
-    param<std::string> centroid ;
-    *centroid = "exact" ;
-    facts.create_fact("centroid",centroid) ;
+
+    if(use_exact)  {
+      param<std::string> centroid ;
+      *centroid = "exact" ;
+      facts.create_fact("centroid",centroid) ;
+    }
 
     if(!Loci::makeQuery(rdb,facts,query)) {
       cerr << "query for '" << query << "' failed. " << endl ;
