@@ -104,6 +104,7 @@ namespace Loci {
         facts.update_fact(*vi,srp->remap(g2l)) ;
       }
     }
+    current_rule_id = 0 ;
     timer.addTime(s.stop(),1) ;
   }
   

@@ -50,7 +50,9 @@ namespace Loci {
   void execute_rule::execute(fact_db &facts) {
     stopWatch s ;
     s.start() ;
+    current_rule_id = rule_tag.ident() ;
     rp->compute(exec_seq);
+    current_rule_id = 0 ;
     timer.addTime(s.stop(),exec_size) ;
   }
 

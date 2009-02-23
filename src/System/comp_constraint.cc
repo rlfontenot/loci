@@ -55,6 +55,7 @@ namespace Loci {
     s.start() ;
     current_rule_id = rule_tag.ident() ;
     rp->compute(exec_seq) ;
+    current_rule_id = 0 ;
     timer.addTime(s.stop(),1) ;
   }
   

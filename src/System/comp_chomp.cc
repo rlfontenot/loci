@@ -204,6 +204,7 @@ namespace Loci {
         s.start() ;
         current_rule_id = chomp_compP[i].first ;
         chomp_compP[i].second->compute(sequence((*vvi)[i])) ;;
+        current_rule_id = 0 ;
         comp_timers[i].addTime(s.stop(),((*vvi)[i]).size()) ;
       }
       // we shift the alloc domain for each chomp_vars_repS
