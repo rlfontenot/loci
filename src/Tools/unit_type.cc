@@ -199,6 +199,8 @@ namespace Loci {
 
     {"atmosphere","Pa",1.01325e5},//pressure or stress
     {"bar","Pa",1e5},
+    {"MPa","Pa",1e6}, // MegaPascals
+    {"GPa","Pa",1e9}, // GigaPascals
     {"cmHg","Pa",1.333224e3},
     {"cmH2O","Pa",9.80665e1},
     {"ftHg","Pa",4.063666e4},
@@ -207,7 +209,6 @@ namespace Loci {
     {"inH2O","Pa",2.490889e2},
     {"ksi","Pa",6.894757e6},
     {"millibar","Pa",1e2},
-    {"mbar","Pa",1e2},
     {"psi","Pa",6.894757e3},
     {"psia","Pa",6.894757e3},
     {"torr","Pa",1.333224e2},
@@ -242,6 +243,7 @@ namespace Loci {
     {"st","m^3",1},
     {"tablespoon","m^3",1.478676e-5},
     {"teaspoon","m^3",4.928922e-6},
+    {"cc","m^3",1e-6}, // cubic centimeter
 
     {"clo","(m^2)*K/W",1.55e-1},//thermal insulance
 
