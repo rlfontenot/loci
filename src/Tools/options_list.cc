@@ -473,6 +473,7 @@ namespace Loci {
 
   istream &options_list::Input(istream &s) {
     try {
+      std::set<string> option_parsed ;
       parse::kill_white_space(s) ;
       if(s.peek() != '<') {
           ostringstream oss ;
@@ -495,16 +496,26 @@ namespace Loci {
           return s ;
         }
         string option = parse::get_name(s) ;
+
+        if(option_parsed.find(option) == option_parsed.end()) {
+          option_parsed.insert(option) ;
+        } else {
+          ostringstream oss ;
+          oss << "input option '" << option << "' is reassigned value in option list" << endl ;
+          throw StringError(oss.str()) ;
+        }          
+          
         if(set_of_options.find(option) == set_of_options.end()) {
-            if(restrict_set) {
-                ostringstream oss ;
-                oss << "Invalid option name " << option << " in read options"
-                    << endl ;
-                throw StringError(oss.str()) ;
+          if(restrict_set) {
+            ostringstream oss ;
+            oss << "Invalid option name " << option << " in read options"
+                << endl ;
+            throw StringError(oss.str()) ;
           } else {
             set_of_options.insert(option) ;
           }
-        }
+        } 
+
         try {
             parse::kill_white_space(s) ;
             option_values v ;
@@ -518,12 +529,13 @@ namespace Loci {
                 v.value_type = BOOLEAN ;
                 v.boolean_value = true ;
             }
-            
+
             option_map::iterator tmp ; 
             if((tmp = options_db.find(option)) == options_db.end()) {
                 tmp = options_db.insert(make_pair(option,v)).first ;
-            } else
+            } else {
               (*tmp).second = v ;
+            }
             parse::kill_white_space(s) ;
             if(s.peek()=='>') {
                 s.get() ;
@@ -555,6 +567,7 @@ namespace Loci {
   void options_list::Input(const arg_list &l) {
     options_db.clear() ;
 
+    std::set<string> option_parsed ;
     for(arg_list::const_iterator li=l.begin();li!=l.end();++li) {
       option_values v  ;
       if(li->type_of() == NAME_ASSIGN) {
@@ -573,19 +586,29 @@ namespace Loci {
       }
       string option  ;
       li->get_value(option) ;
+
+      if(option_parsed.find(option) == option_parsed.end()) {
+        option_parsed.insert(option) ;
+      } else {
+        ostringstream oss ;
+        oss << "option '" << option << "' is reassigned value in option list" << endl ;
+        throw StringError(oss.str()) ;
+      }
+
       if(set_of_options.find(option) == set_of_options.end()) {
         if(restrict_set) {
           continue ;
         } else {
           set_of_options.insert(option) ;
         }
-      }
+      } 
 
       option_map::iterator tmp ; 
       if((tmp = options_db.find(option)) == options_db.end()) {
         tmp = options_db.insert(make_pair(option,v)).first ;
-      } else
+      } else {
         (*tmp).second = v ;
+      }
     }
   }
 }
