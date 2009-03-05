@@ -125,4 +125,16 @@
 #define MPI_NO_CPPBIND
 #endif
 
+#ifdef LINUX
+#define HAS_MALLINFO
+#endif
+
+#ifdef SPARC
+#define HAS_MALLINFO
+#endif
+
+#ifdef SGI
+#define HAS_MALLINFO
+#endif
+
 #endif
