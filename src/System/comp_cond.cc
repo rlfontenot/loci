@@ -20,10 +20,12 @@
 //#############################################################################
 #include "comp_tools.h"
 #include <vector>
+#include <sstream>
 using std::vector ;
 
 using std::ostream ;
 using std::endl ;
+using std::ostringstream ;
 
 #include "visitorabs.h"
 #include "loci_globs.h"
@@ -69,8 +71,6 @@ namespace Loci {
     data_collector.closeGroup(group) ;
   }
 
-  execute_modules_decorator_factory* conditional_compiler::decoratorFactory = NULL;
-  
   conditional_compiler::conditional_compiler(rulecomp_map &rule_process,
 					     digraph dag,
                                              variable conditional,
@@ -130,8 +130,6 @@ namespace Loci {
     }
 	
     executeP execute = new execute_conditional(executeP(elp),cond_var);
-	if(decoratorFactory != NULL)
-		execute = decoratorFactory->decorate(execute);
     return  execute;
   }
 }

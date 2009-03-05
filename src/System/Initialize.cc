@@ -18,6 +18,8 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include <signal.h>
+
 #ifdef USE_PETSC
 #include "petsc.h"
 #include <petscerror.h>
@@ -134,6 +136,8 @@ namespace Loci {
   bool use_duplicate_model = false;
   bool use_simple_partition = false ;
   bool use_orb_partition = false ;
+
+  
   char * model_file;
   // these flags are used to indicate additional weights
   // for mesh cells during the initial partitioning stage
@@ -142,19 +146,9 @@ namespace Loci {
   bool load_cell_weights = false ;
   string cell_weight_file ;
 
-  // flags for performace analysis
-  bool detailed_performance_analysis = false;
-  bool full_performance_analysis = false;
-  bool minimum_performance_analysis = false;
-  bool collect_perf_data = false;
-  bool measure_rule_timings = false;
-  performance_analysis *perfAnalysis;
-  /////////////////////////////
   
   ofstream debugout ;
   ofstream timeout;
-  ofstream ruleTimeOut;
-  ofstream perfReportOut; // output of performance analysis
 
   double total_memory_usage = 0 ;
 
@@ -166,6 +160,8 @@ namespace Loci {
       current_rule_id = 0 ;
       cerr << "crash occured in rule " << r << endl ;
 
+      Loci::debugout << "crash occured in rule " << r << endl ;
+      
       if(verbose && exec_current_fact_db != 0) {
         char buf[512] ;
         sprintf(buf,"crash_dump.%d",MPI_rank) ;
@@ -184,8 +180,36 @@ namespace Loci {
       }
     }
   }
+}
 
-  
+extern "C" {
+  void MPI_errors_reporter(MPI_Comm *comm, int *err,...) {
+    int len = 1024 ;
+    char error_string[1024] ;
+    int rank ;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank) ;
+    MPI_Error_string(*err,error_string ,&len) ;
+    cerr << "MPI Error: Rank=" << rank
+         << ", Error='"<< error_string << "'" << endl ;
+    Loci::Abort() ;
+  }
+
+  void TerminateSignal(int sig) {
+    int rank ;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank) ;
+    if(rank == 0) {
+      cerr << "Processor 0 recieved a terminate signal" << endl ;
+    }
+    if(Loci::current_rule_id != 0) {
+      Loci::rule r(Loci::current_rule_id) ;
+      Loci::current_rule_id = 0 ;
+      Loci::debugout << "Terminate occured in rule " << r << endl ;
+    }
+    MPI_Abort(MPI_COMM_WORLD,-1) ;
+  }
+}
+
+namespace Loci {
   //This is the first call to be made for any Loci program be it
   //sequential or parallel. 
   void Init(int* argc, char*** argv)  {
@@ -197,12 +221,19 @@ namespace Loci {
 #ifdef USE_PETSC
     PetscInitialize(argc,argv,(char*)0,(char*)0) ;
     PetscOptionsSetValue("-options_left","false") ;
+    PetscPopErrorHandler() ;
+    PetscPushErrorHandler(PetscIgnoreErrorHandler,PETSC_NULL) ;
 #else    
     MPI_Init(argc, argv) ;
 #endif
+    signal(SIGTERM,TerminateSignal) ;
 
     //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN) ;
     //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL) ;
+
+    MPI_Errhandler err_handler ;
+    MPI_Comm_create_errhandler(&MPI_errors_reporter,&err_handler) ;
+    MPI_Errhandler_set(MPI_COMM_WORLD,err_handler) ;
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
 
@@ -319,6 +350,7 @@ namespace Loci {
         i++ ;      
       } else if(!strcmp((*argv)[i],"--verbose")) {
         verbose = true ;
+        schedule_output = true ;
         i++ ;
       } else if(!strcmp((*argv)[i],"--scheduleoutput")) {
         schedule_output = true ;
@@ -430,28 +462,13 @@ namespace Loci {
 	use_duplicate_model = true;
 	model_file = (*argv)[i+1];
 	i += 2;
-      } else if(!strcmp((*argv)[i],"--measure_rule_timings")){
-	measure_rule_timings = true;
-	collect_perf_data = true;
-	i++;
+        //      } else if(!strcmp((*argv)[i],"--measure_rule_timings")){
+        //	measure_rule_timings = true;
+        //	i++;
       } else if(!strcmp((*argv)[i],"--load_cell_weights")){
         load_cell_weights = true ;
         cell_weight_file = (*argv)[i+1] ;
 	i+=2 ;
-      } else if(!strcmp((*argv)[i], "--basic_performance_analysis")){
-	    minimum_performance_analysis = true;
-		collect_perf_data = true;
-	    i++;
-      } else if(!strcmp((*argv)[i], "--full_performance_analysis")){
-	    full_performance_analysis = true;
-		measure_rule_timings = true;
-		collect_perf_data = true;
-	    i++;
-      } else if(!strcmp((*argv)[i], "--detailed_performance_analysis")){
-	    detailed_performance_analysis = true;
-	    measure_rule_timings = true;
-		collect_perf_data = true;
-	    i++;
       } 
       else
         break ;
@@ -465,38 +482,6 @@ namespace Loci {
 
     init_sprng(sprng_gtype,sprng_seed,SPRNG_DEFAULT) ;
 
-    if( collect_perf_data){
-	  oss.str("");
-	  if(MPI_processes == 1)
-		oss << "perfAnalysis";
-	  else
-		oss << "perfAnalysis-" << MPI_rank;
-	  filename = oss.str();
-	  perfReportOut.open(filename.c_str(), ios::out);
-	  perfReportOut << "Perfornamce Analysis for Processor "<< MPI_rank << endl;
-	  perfAnalysis = new performance_analysis();
-	  conditional_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "conditional");
-	  chomp_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "chomp");
-	  constraint_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "constraint");
-	  promote_compiler::decoratorFactory =  new execute_modules_timer_factory(perfAnalysis, "promote");
-	  generalize_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "generalized");
-	  priority_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "priority");
-	  impl_compiler::decoratorFactory =  new execute_modules_timer_factory(perfAnalysis, "impl");
-	  loop_compiler::decoratorFactory =  new execute_modules_timer_factory(perfAnalysis, "loop");
-	  barrier_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "barrier");
-	  singleton_var_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "singleton_var");
-	  allocate_var_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "allocate_var");
-	  free_var_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "free_var");
-	  memProfileAlloc_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "memProfileAlloc");
-	  memProfileFree_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "memProfileFree");
-	  apply_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "apply");
-	  reduce_param_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "reduce_param");
-	  reduce_store_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "reduce_store");
-	  map_compiler::decoratorFactory =  new execute_modules_timer_factory(perfAnalysis, "map");
-	  impl_recurse_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "impl_recurse");
-	  recurse_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "recurse");
-	  blackbox_compiler::decoratorFactory = new execute_modules_timer_factory(perfAnalysis, "blackbox");
-    }
 
     if(collect_timings) {
       oss.str("");

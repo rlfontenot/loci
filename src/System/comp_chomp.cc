@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include "Config/conf.h"
 #include "dist_tools.h" // for use of Loci::debugout
 #include "comp_tools.h"
 #include "visitorabs.h"
@@ -29,18 +30,12 @@ using std::deque ;
 #include <map>
 using std::map ;
 using std::set;
+#include <sstream>
+using std::ostringstream ;
+
+#ifdef HAS_MALLINFO
+// for the mallinfo function
 #include <malloc.h>
-
-#ifdef LINUX
-#define HAS_MALLINFO
-#endif
-
-#ifdef SPARC
-#define HAS_MALLINFO
-#endif
-
-#ifdef SGI
-#define HAS_MALLINFO
 #endif
 
 namespace Loci {
@@ -274,9 +269,6 @@ namespace Loci {
     data_collector.closeGroup(group) ;
   }
 
-  // decoratorFactory is used to collect performace information about execute()
-  execute_modules_decorator_factory* chomp_compiler::decoratorFactory = NULL;
-  
   chomp_compiler::chomp_compiler(const digraph& cgraph,
                                  const variableSet& cvars,
                                  const map<rule,rule>& a2u)
@@ -418,10 +410,10 @@ namespace Loci {
       }
       // if the exec_seq is empty, we need to take off
       // the corresponding rule from the list
-      if(exec_seq.size() == 0) {
-        continue ;
-      }
-      //      if(GLOBAL_AND(exec_seq.size()==0)) {
+      //if(exec_seq.size() == 0) {
+      //                continue ;
+      //}
+      //if(GLOBAL_AND(exec_seq.size()==0)) {
       //        continue ;
       //      }
       new_chomp_comp.push_front(*ri) ;
@@ -444,9 +436,7 @@ namespace Loci {
     for(i=0;i<rule_seq.size();++i)
       total += rule_seq[i] ;
     
-	executeP execute = new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
-    if(decoratorFactory != NULL)
-            execute = decoratorFactory->decorate(execute);
+    executeP execute = new execute_chomp(total,chomp_comp,rule_seq,chomp_vars,facts);
     return  execute;
   }
   

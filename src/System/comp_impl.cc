@@ -21,8 +21,13 @@
 #include "comp_tools.h"
 #include "dist_tools.h"
 #include "loci_globs.h"
+#include <sstream>
+#include <set>
+
 using std::ostream ;
 using std::endl ;
+using std::set ;
+using std::ostringstream ;
 
 namespace Loci {
 
@@ -51,6 +56,7 @@ namespace Loci {
     stopWatch s ;
     s.start() ;
     current_rule_id = rule_tag.ident() ;
+    //    Loci::debugout << "executing " << rule_tag << endl ;
     rp->compute(exec_seq);
     current_rule_id = 0 ;
     timer.addTime(s.stop(),exec_size) ;
@@ -74,8 +80,6 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_COMPUTATION,oss.str()) ;
   }
   
-  execute_modules_decorator_factory* impl_compiler::decoratorFactory = NULL;
-
   void impl_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     existential_rule_analysis(impl,facts, scheds) ;
   }
@@ -93,13 +97,9 @@ namespace Loci {
 
     if (impl.get_info().rule_impl->dynamic_schedule_rule() && use_dynamic_scheduling) {
       executeP execute_dynamic = new dynamic_schedule_rule(impl,exec_seq,facts, scheds) ;
-      if(decoratorFactory != NULL)
-        execute_dynamic = decoratorFactory->decorate(execute_dynamic);
       return execute_dynamic;
     }
     executeP exec_rule = new execute_rule(impl,sequence(exec_seq),facts, scheds);
-    if(decoratorFactory != NULL)
-      exec_rule = decoratorFactory->decorate(exec_rule);
     return exec_rule;
   }
 
@@ -123,12 +123,8 @@ namespace Loci {
       scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
   }
 
-  execute_modules_decorator_factory* blackbox_compiler::decoratorFactory = NULL;
-
   executeP blackbox_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
     executeP execute = new execute_rule(impl, ~EMPTY, facts, scheds);
-    if (decoratorFactory != NULL)
-      execute = decoratorFactory->decorate(execute);
     return execute;
   }
 
@@ -144,12 +140,8 @@ namespace Loci {
     rp->process_requests(impl,facts,scheds) ;
   }
 
-  execute_modules_decorator_factory* superRule_compiler::decoratorFactory = NULL;
-
   executeP superRule_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
     executeP execute = new execute_rule(impl, ~EMPTY, facts, scheds);
-    if (decoratorFactory != NULL)
-      execute = decoratorFactory->decorate(execute);
     return execute;
   }
 
@@ -184,13 +176,13 @@ namespace Loci {
         my_entities = d->my_entities ;
       }
       
-      debugout << "constraints = " << constraints << endl ;
+      //      debugout << "constraints = " << constraints << endl ;
       // Now complement (entities we own)
       constraints = (~constraints) & my_entities ;
-      debugout << "constraints & my_entities =" << constraints << endl ;
+      //      debugout << "constraints & my_entities =" << constraints << endl ;
 
       variableSet output = r.targets() ;
-      debugout << "setting " << output << endl ;
+      //      debugout << "setting " << output << endl ;
       for(variableSet::const_iterator vi=output.begin();vi!=output.end();++vi)
         scheds.set_existential_info(*vi, r, constraints) ;
     }

@@ -22,6 +22,8 @@
 #include "dist_tools.h"
 using std::ostream ;
 using std::endl ;
+#include <sstream>
+using std::ostringstream ;
 
 namespace Loci {
 
@@ -70,8 +72,6 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
   }
 
-  execute_modules_decorator_factory* constraint_compiler::decoratorFactory = NULL;
-
   void constraint_compiler::set_var_existence(fact_db& facts,
                                               sched_db& scheds)
   {
@@ -93,10 +93,8 @@ namespace Loci {
   executeP constraint_compiler::create_execution_schedule(fact_db& facts,
                                                           sched_db& scheds) {
     executeP execute = new execute_constraint_rule(constraint_rule,
-                                       exec_seq, facts,scheds) ;
-	if(decoratorFactory != NULL)
-            execute = decoratorFactory->decorate(execute);
-	return execute;
+                                                   exec_seq, facts,scheds) ;
+    return execute;
   }
 
 }

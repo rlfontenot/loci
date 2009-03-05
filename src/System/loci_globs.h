@@ -24,7 +24,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include "performance_analysis.h"
 
 namespace Loci {
   /////////////////////////////
@@ -51,19 +50,12 @@ namespace Loci {
   extern std::ofstream timeout;
   extern double time_duration_to_collect_data;
   extern bool use_duplicate_model;
+  extern bool profile_memory_usage ;
   extern char * model_file;
   /////////////////////////////
   extern bool random_partition;
   
-  /////////////////////////////
-  extern bool minimum_performance_analysis;
-  extern bool full_performance_analysis;
-  extern bool detailed_performance_analysis;
-  extern bool collect_perf_data;
-  extern performance_analysis *perfAnalysis;
   extern bool measure_rule_timings;
-  extern std::ofstream perfReportOut;
-  //extern std::ofstream ruleTimeOut;
 
   extern int printLevel ;
   inline std::ostream &printIndent(std::ostream &s) {

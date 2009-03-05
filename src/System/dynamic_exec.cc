@@ -44,6 +44,9 @@
 #include "sched_tools.h"
 #include "distribute.h"
 
+#include <sstream>
+using std::ostringstream ;
+
 namespace Loci
 {
 

@@ -113,6 +113,7 @@ namespace Loci {
     }
   } ;
 
+  enum allocEventType { ALLOC_CREATE, ALLOC_DELETE } ;
   enum executeEventType { EXEC_COMMUNICATION, EXEC_COMPUTATION, EXEC_CONTROL } ;
 
   // This object is the abstract base class for a data collator.  Currently
@@ -151,7 +152,12 @@ namespace Loci {
     // timing information.  Events are classified as either computation
     // communication, or control
     virtual void accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) = 0 ;
+    virtual void accumulateMemory(const std::string &var,
+                                  allocEventType t,
+                                  double maxMallocMemory,
+                                  double maxBeanMemory) = 0 ;
   } ;
+  
     
     
   class fact_db ;
