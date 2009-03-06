@@ -129,8 +129,8 @@ namespace Loci {
     ostringstream oss ;
     oss << "iteration("<<tlevel<<")"  ;
     int group = data_collector.openGroup(oss.str()) ;
-    collapse->dataCollate(data_collector) ;
     advance->dataCollate(data_collector) ;
+    collapse->dataCollate(data_collector) ;
     data_collector.closeGroup(group) ;
   }
   
