@@ -90,7 +90,7 @@ using std::vector ;
 namespace Loci {
   int MPI_processes = 1;
   int MPI_rank = 0 ;
-  int method = 3 ; // Factoring
+  int method = 1 ; // Iterative Weighted Static
   bool verbose = false ;
   /////////////////////////////
   // flags to turn on/off the visualization feature

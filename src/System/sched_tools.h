@@ -39,6 +39,7 @@
 #include <time.h>
 #endif
 #include "sched_mlg.h"
+#include "Loci_types.h"
 using std::vector;
 
 namespace Loci {
@@ -74,8 +75,13 @@ namespace Loci {
     virtual void dataCollate(collectData &data_collector) const {}
   } ;
 
+  // average no. of chunks per proc
+  // Used by IWS load balancing method
+#define AVECHUNKS 50
+#define MAXCHUNKS 2*AVECHUNKS
+
   class dynamic_schedule_rule: public execute_modules {
-    rule_implP rp ;
+    rule_implP rp,local_comp1 ;
     variableSet inputs, outputs ;
     fact_db local_facts;
     rule_implP local_compute1;
@@ -84,6 +90,71 @@ namespace Loci {
     entitySet exec_set ;
     timeAccumulator timer ;
     timeAccumulator comp_timer ;
+
+    fact_db *facts1;
+    fact_db *local_facts1;
+    
+    variableSet inputs1;
+    variableSet outputs1;
+
+    std::vector<double> workTime ;	// execution time of items belonging
+                                  	// to proc i
+    std::vector<double> aveWorkTime;	// average work time in proc i
+    std::vector<double> ewt;		// expected work time (EWT) of proc i
+
+    int foreMan;			// rank of loop scheduler
+    std::vector<int> yMapSave;	// copy of item count, first item
+
+    //=======================================================
+    // used by IWS
+    //=======================================================
+    int iwsSize;			// IWS chunk size
+    int myChunks;			// local chunk count
+    int doneBy[MAXCHUNKS];	// proc which will execute chunk
+    double aveChunkTime[MAXCHUNKS];	// average chunk execution time
+
+    std::vector<Array<double,MAXCHUNKS> > chunkTime ;
+    int nCalls;			// no. of calls to execute()
+    int allItems;			// total  no. of items
+    int nProcs;			// no. of procs
+    int myRank;			// process rank
+    int myItemCount;		// local item count
+    int myFirstItem;		// first local item
+
+    double ideal1;		// perfect balance time
+    double local1;		// time spent by this proc on own items
+    double remote1;		// execution time of migrated items
+    double wall1;		// local1 + remote1 + load balancing overheads
+    double wall2;		// wall1 + any post-processing (i.e., MPI_Allreduce() )
+
+    
+    void ReceiveOutput (int src, int msgSize, int *iters, double *tTime) ;
+    void SendOutput (int dest, int tStart, int tSize, double *tTime) ;
+
+    void ReceiveInput (int src, int msgSize, int *tStart, int *tSize) ;
+
+    void SendInput (int dest, int tStart, int tSize) ;
+    void
+    RecvInfo (int src, int action, int *chunkStart, int *chunkSize,
+              int *chunkDest, double *mu) ;
+    void
+    SendInfo (int dest, int action, int chunkStart, int chunkSize,
+              int chunkDest, double mu) ;
+
+    void
+    GetChunkSize (int method, int minChunkSize, int source,
+                  int *yMap, int *chunkSize, int *batchSize, int *batchRem) ;
+    
+    void GetBuffer (int size) ;
+    void AllocateLBspace (int nItems) ;
+    void FreeLBspace () ;
+    int inputPackSize (int tStart, int tSize) ;
+    int outputPackSize (int tStart, int tSize) ;
+
+    
+    void iterative_weighted_static () ;
+    void loop_scheduling (int method) ;
+    
   public:
     dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
     virtual ~dynamic_schedule_rule() ;
