@@ -1784,10 +1784,22 @@ namespace Loci {
   executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_list> el = new execute_list ;
-      executeP exec_comm_p = new execute_comm(plist, facts);
-      el->append_list(exec_comm_p) ;
-      executeP exec_comm_c = new execute_comm(clist, facts);
-      el->append_list(exec_comm_c) ;
+      executeP tmp ;
+      int cnt = 0 ;
+      if(!plist.empty()) {
+        tmp = new execute_comm(plist, facts);
+        el->append_list(tmp) ;
+        cnt++ ;
+      }
+      if(!clist.empty()) {
+        tmp = new execute_comm(clist, facts);
+        el->append_list(tmp) ;
+        cnt++ ;
+      }
+      if(cnt == 0)
+        return executeP(0) ;
+      if(cnt == 1)
+        return tmp ;
       return executeP(el) ;
     }
     ostringstream oss ;

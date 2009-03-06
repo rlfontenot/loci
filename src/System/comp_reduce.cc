@@ -926,10 +926,14 @@ namespace Loci {
   executeP reduce_store_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_sequence> el = new execute_sequence ;
-      executeP exec_comm_reduce = new execute_comm_reduce(rlist, facts, join_op);
-      el->append_list(exec_comm_reduce);
-      executeP exec_comm = new execute_comm(clist, facts);
-      el->append_list(exec_comm) ;
+      if(!rlist.empty()) {
+        executeP exec_comm_reduce = new execute_comm_reduce(rlist, facts, join_op);
+        el->append_list(exec_comm_reduce);
+      }
+      if(!clist.empty()) {
+        executeP exec_comm = new execute_comm(clist, facts);
+        el->append_list(exec_comm) ;
+      }
       if(verbose || MPI_processes > 1) {
         ostringstream oss ;
         oss << "reduce store " << reduce_var ;

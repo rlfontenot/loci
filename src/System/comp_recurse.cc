@@ -863,11 +863,16 @@ namespace Loci {
   executeP recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds ) {
     CPTR<execute_sequence> el = new execute_sequence ;
     if(facts.isDistributed()) {
-      executeP exec_commp = new execute_comm(pre_plist, facts);
-      el->append_list(exec_commp) ;
 
-      executeP exec_commc = new execute_comm(pre_clist, facts);
-      el->append_list(exec_commc) ;
+      if(!pre_plist.empty()) {
+        executeP exec_commp = new execute_comm(pre_plist, facts);
+        el->append_list(exec_commp) ;
+      }
+
+      if(!pre_clist.empty()) {
+        executeP exec_commc = new execute_comm(pre_clist, facts);
+        el->append_list(exec_commc) ;
+      }
     }
 
     map<rule, list<entitySet>::const_iterator> rpos ;
@@ -909,8 +914,10 @@ namespace Loci {
       if(!finished) {
         if(facts.isDistributed()) {
           list<comm_info> plist = put_precomm_info(*sei, facts) ;
-          executeP exec_comm = new execute_comm(plist,facts);
-          el->append_list(exec_comm) ;
+          if(!plist.empty()) {
+            executeP exec_comm = new execute_comm(plist,facts);
+            el->append_list(exec_comm) ;
+          }
 
           // Make sure to request any variables communicated so that
           // the space is allocated.  This is a hack that should be
@@ -929,8 +936,12 @@ namespace Loci {
     } while(!finished) ;
 
     if(facts.isDistributed()) {
-      executeP exec_comm = new execute_comm(post_clist, facts);
-      el->append_list(exec_comm) ;
+
+
+      if(!post_clist.empty()) {
+        executeP exec_comm = new execute_comm(post_clist, facts);
+        el->append_list(exec_comm) ;
+      }
       // Make sure to request any variables communicated so that
       // the space is allocated.  This is a hack that should be
       // reworked later.
