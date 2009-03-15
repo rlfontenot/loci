@@ -149,7 +149,10 @@ namespace Loci {
        sada = 0 ;
        $area.n.x = 0 ;
        $area.n.y = 0 ;
-       $area.n.z = 1 ; 
+       if($area.n.z > 0)
+         $area.n.z = 1 ;
+       else
+         $area.n.z = -1;
        $area.sada = 0 ; // For symmetry planes, set area to zero
      } else {
        $area.n.z = 0 ;
@@ -237,6 +240,7 @@ namespace Loci {
                   (upper,lower,boundary_map)->area,
                   (upper,lower,boundary_map)->face2node->pos,gridThickness
                   ),constraint(geom_cells,axisymmetricCoordinateModel) {
+#ifdef EXACT
     // Compute volume using analytical solid revolution
     // Use long double since viscous grids could cause catastrophic cancelation
     // in this routine.
@@ -320,6 +324,50 @@ namespace Loci {
       Loci::Abort() ;
     }
     $vol = (M_PI/3.)*vol_sum ;
+#else
+    if($boundary_map.size() == 0)  {
+      cerr << "Grid not extruded one cell!  Not a valid grid for axisymmetric computations" << endl ;
+      Loci::Abort() ;
+    }
+
+    double volume = 0 ;
+    for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
+      if(id->$area.n.z > .99) {
+        int fsz = id->$face2node.size() ;
+        double len  = norm(id->$face2node[0]->$pos-id->$face2node[fsz-1]->$pos) ;
+        double len_sum = len ;
+        vector3d<real_t> center = len*(id->$face2node[0]->$pos +
+                                       id->$face2node[fsz-1]->$pos) ;
+        for(int i=1;i<fsz;++i) {
+          double len  = norm(id->$face2node[i-1]->$pos-
+                             id->$face2node[i]->$pos) ;
+          len_sum += len ;
+          center +=  len*(id->$face2node[i-1]->$pos +
+                          id->$face2node[i]->$pos) ;
+        }
+        center *= 1./(len_sum*2.) ;
+
+        vector3d<real_t> d1 = (id->$face2node[fsz-1]->$pos - center) ;
+        vector3d<real_t> d2 = (id->$face2node[0]->$pos - center) ;
+        volume += cross(d1,d2).z*(id->$area.n.z)*
+          (center.y+ id->$face2node[fsz-1]->$pos.y+ id->$face2node[0]->$pos.y) ;
+        for(int i=1;i<fsz;++i) {
+        
+          vector3d<real_t> d1 = (id->$face2node[i-1]->$pos - center) ;
+          vector3d<real_t> d2 = (id->$face2node[i]->$pos - center) ;
+          volume += cross(d1,d2).z*(id->$area.n.z)*
+            (center.y+id->$face2node[i-1]->$pos.y+ id->$face2node[i]->$pos.y) ;
+        }
+        volume *= M_PI/3.0 ;
+      }
+    }
+    if(volume <= 0.0) {
+      cerr << "negative or zero volume in axisymmetric mesh!" << endl ;
+      cerr << "volume = " << volume << endl ;
+      Loci::Abort() ;
+    }
+    $vol = volume ;
+#endif
   }
   
 
@@ -594,106 +642,13 @@ namespace Loci {
                   (upper,lower,boundary_map)->face2node->pos
                   ),constraint(geom_cells,axisymmetricCoordinateModel) {
     vector3d<real_t> nodesum(0.0,0.0,0.0) ;
-    real_t areasum = 0 ;
-    for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
-      nodesum += id->$area.sada*id->$facecenter ;
-      areasum += id->$area.sada ;
-    }
-    for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
-      nodesum += id->$area.sada*id->$facecenter ;
-      areasum += id->$area.sada ;
-    }
-    for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
-      nodesum += id->$area.sada*id->$facecenter ;
-      areasum += id->$area.sada ;
-    }
-    const vector3d<real_t> p4(nodesum/areasum) ; // approximate center used to
-    // perform exact integration
 
-    vector3d<real_t> csum(0.,0.,0.) ;
-    real_t vol = 0 ;
-    for(const Entity *id=$upper.begin();id!=$upper.end();++id) {
-      int sz = id->$face2node.size() ;
-      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
-      real_t lensum = 0 ;
-      for(int i=0;i<sz;++i) {
-        int nd1 = i ; 
-        int nd2 = (i+1)%sz ;
-        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
-        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
-        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
-        real_t len = norm(e1-e2) ;
-        nodesum += len*edge_loc ;
-        lensum += len ;
-      }
-      vector3d<real_t> fcenter = nodesum/lensum ;
-      for(int i=0;i<sz;++i){
-        int nd1 = i ;
-        int nd2 = (i+1)%sz ;
-        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
-        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
-        const vector3d<real_t> p3 = fcenter;
-        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
-        const real_t v = -dot(p4-p3,cross(p1-p3,p2-p3)) ;
-        csum += v*centroid ;
-        vol += v ;
-      }
-    }
-    for(const Entity *id=$lower.begin();id!=$lower.end();++id) {
-      int sz = id->$face2node.size() ;
-      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
-      real_t lensum = 0 ;
-      for(int i=0;i<sz;++i) {
-        int nd1 = i ; 
-        int nd2 = (i+1)%sz ;
-        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
-        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
-        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
-        real_t len = norm(e1-e2) ;
-        nodesum += len*edge_loc ;
-        lensum += len ;
-      }
-      vector3d<real_t> fcenter = nodesum/lensum ;
-      for(int i=0;i<sz;++i){
-        int nd1 = i ;
-        int nd2 = (i+1)%sz ;
-        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
-        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
-        const vector3d<real_t> p3 = fcenter ;
-        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
-        const real_t v = dot(p4-p3,cross(p1-p3,p2-p3)) ;
-        csum += v*centroid ;
-        vol += v ;
-      }
-    }
+    // cellcenter is just average of two symmetry plane face centers
     for(const Entity *id=$boundary_map.begin();id!=$boundary_map.end();++id) {
-      int sz = id->$face2node.size() ;
-      vector3d<real_t> nodesum(0.0,0.0,0.0) ;
-      real_t lensum = 0 ;
-      for(int i=0;i<sz;++i) {
-        int nd1 = i ; 
-        int nd2 = (i+1)%sz ;
-        vector3d<real_t> e1 = id->$face2node[nd1]->$pos ;
-        vector3d<real_t> e2 = id->$face2node[nd2]->$pos ;
-        vector3d<real_t> edge_loc = .5*(e1 + e2) ;
-        real_t len = norm(e1-e2) ;
-        nodesum += len*edge_loc ;
-        lensum += len ;
-      }
-      vector3d<real_t> fcenter = nodesum/lensum ;
-      for(int i=0;i<sz;++i){
-        int nd1 = i ;
-        int nd2 = (i+1)%sz ;
-        const vector3d<real_t> p1 = id->$face2node[nd1]->$pos ;
-        const vector3d<real_t> p2 = id->$face2node[nd2]->$pos ;
-        const vector3d<real_t> p3 = fcenter ;
-        const vector3d<real_t> centroid = (p1+p2+p3+p4) ;
-        const real_t v = -dot(p4-p3,cross(p1-p3,p2-p3)) ;
-        csum += v*centroid ;
-        vol += v ;
-      }
+      if(fabs(id->$area.n.z) > 0.99)
+        nodesum += 0.5*id->$facecenter ;
     }
-    $cellcenter = .25*csum/vol ;
+    $cellcenter = nodesum ;
   }
   
   $type max_fpc param<int> ;
