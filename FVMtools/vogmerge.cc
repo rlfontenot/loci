@@ -258,6 +258,10 @@ int main(int ac, char *av[]) {
   using Loci::entitySet ;
   using Loci::vector3d ;
   Loci::Init(&ac, &av) ;
+  if(Loci::MPI_processes > 1) {
+    cerr << "vogmerge is not parallel! Run on only one processor!" << endl ;
+    Loci::Abort() ;
+  }
   string output_file = "merged.vog" ;
   vector<string> input_files ;
   vector<map<string,string> > bc_rename ;
