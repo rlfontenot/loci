@@ -895,7 +895,7 @@ void convert2face(store<vector3d<double> > &pos,
     int c1 = tria[i*2].cell ;
     int c2 = tria[i*2+1].cell ;
     if(c1 < 0 && c2 < 0) {
-      cerr << "two boundary faces glued together, probably a tranparent surface is causing the problem!"<< endl ;
+      cerr << "two boundary faces glued together, probably a transparent surface is causing the problem!"<< endl ;
       Loci::Abort() ;
     }
     if(c1 < 0) {
