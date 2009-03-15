@@ -58,24 +58,75 @@ int main(int ac, char *av[]) {
   fact_db facts ;
   Loci::load_module("fvm",rdb) ;
 
-  
+  bool use_exact = false ;
+
+  while(ac>=2 && av[1][0] == '-') {
+    // If user specifies an alternate query, extract it from the
+    // command line.
+    if(ac >= 3 && !strcmp(av[1],"-q")) {
+      query = av[2] ;
+      ac -= 2 ;
+      av += 2 ;
+    } else if(ac >= 2 && !strcmp(av[1],"-exact")) {
+      use_exact = true ;
+      ac -= 1 ;
+      av += 1 ;
+    } else if(ac >= 2 && !strcmp(av[1],"-v")) {
+      cout << "Loci version: " << Loci::version() << endl ;
+      if(ac == 2) {
+        Loci::Finalize() ;
+        exit(0) ;
+      }
+      ac-- ;
+      av++ ;
+    } else {
+      cerr << "argument " << av[1] << " is not understood." << endl ;
+      ac-- ;
+      av++ ;
+    }
+  }
+
+
   if(ac > 1) {
-    string filename = string(av[1]) +".vog" ;
-    //    if(stat(filename.c_str(),&statbuf)) {
-    //      filename = string(av[1]) +".xdr" ;
-    //      if(stat(filename.c_str(),&statbuf)) {
-    //        cerr << "unable to open grid file for case '" << string(av[1]) << "'" << endl ;
-    //        exit(-1) ;
-    //      }
-    //    }
+    string tmp = av[1] ;
+    
+    string basename;
+    bool has_dot = false ;
+    for(size_t i=0;i<tmp.size();++i) 
+      if(tmp[i] == '.') {
+        has_dot = true ;
+        break ;
+      } else
+        basename += tmp[i] ;
+
+    string filename = string(av[1]) ;
+    if(!has_dot)
+      filename += ".vog" ;
     param<std::string> modelName ;
-    *modelName = string(av[1]) ;
+    
+    *modelName = basename ;
     facts.create_fact("modelName",modelName) ;
-    Loci::setupFVMGrid(facts,filename) ;
+    if(Loci::MPI_rank == 0)
+      cout << "Reading: '" << filename <<"' ..." <<  endl  ;
+    if(!Loci::setupFVMGrid(facts,filename)) {
+      if(Loci::MPI_rank == 0) {
+        cerr << "Reading grid file '" << filename <<"' failed in grid reader!"
+             << endl ;
+      }
+      Loci::Abort() ;
+    }
+
+    if(Loci::MPI_rank == 0) {
+      cout << "finished reading grid." << endl ;
+    }
+
     Loci::createLowerUpper(facts) ;
-    param<std::string> centroid ;
-    *centroid = "exact" ;
-    facts.create_fact("centroid",centroid) ;
+
+    if(use_exact)  {
+      param<std::string> centroid ;
+      *centroid = "exact" ;
+      facts.create_fact("centroid",centroid) ;
+    }
 
     if(!Loci::makeQuery(rdb,facts,query)) {
       cerr << "query for '" << query << "' failed. " << endl ;
@@ -312,8 +363,8 @@ $rule pointwise(faceShearTwist<-cl->(cellcenter,volume),cr->(cellcenter,volume),
   vector3d<double> vr = $cr->$cellcenter-$facecenter ;
   double dl = dot(vl,n) ;
   double dr = dot(vr,n) ;
-  double tl = norm(vl-dl*n) ;
-  double tr = norm(vr-dr*n) ;
+  //  double tl = norm(vl-dl*n) ;
+  //  double tr = norm(vr-dr*n) ;
 
   // Twist factor ratio of out of plane delta to cell thickness
   double thickness = ($cl->$volume+$cr->$volume)/$area.sada ;
@@ -347,7 +398,10 @@ $type report param<bool> ;
 $type minVol param<double> ;
 $type maxTwist param<double> ;
 $type maxShearTwist param<double> ;
-$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo) {
+$type modelName param<string> ;
+$type convexCell param<int> ;
+
+$rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo,modelName,convexCell) {
   if(Loci::MPI_rank == 0) {
     if($minVol <= 0) {
       cerr << "Negative or zero volume cell!  The grid quality is too poor to use." << endl ;
@@ -378,6 +432,50 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
     cout << "======Maximum Twist = " << $maxTwist << endl ;
     cout << "======Maximum ShearTwist = " << $maxShearTwist << endl ;
     cout << endl ;
+
+    int quality = 3 ;
+    if($volRatio > 10 || $maxCellAngle > 90 ||
+       $maxTwist > 0.1 || $maxShearTwist > 0.1) 
+      quality = 2 ;
+    if($volRatio > 50 || $maxCellAngle > 150 ||
+       $maxTwist > 0.2 || $maxShearTwist > 0.2)
+      quality = 1 ;
+    if($volRatio > 100 || $maxCellAngle > 170 ||
+       $maxTwist > 0.45 || $maxShearTwist > 0.45)
+      quality = 0 ;
+    if($volRatio > 1000 || $maxCellAngle > 179 ||
+       $maxTwist > 0.8 || $maxShearTwist > 0.8 || $minVol < 0 || $convexCell > 0 )
+      quality = -1 ;
+    
+    string quality_report = "undetermined" ;
+    switch(quality) {
+    case 3:
+      quality_report = "excellent" ;
+      break ;
+    case 2:
+      quality_report = "good" ;
+      break ;
+    case 1:
+      quality_report = "poor" ;
+      break ;
+    case 0:
+      quality_report = "marginal" ;
+      break ;
+    case -1:
+      quality_report = "UNUSABLE" ;
+    }
+    
+    cout << "Overall Grid Quality Assesment: " << quality_report << endl ;
+      
+    string report_file = $modelName + ".quality" ;
+    std::ofstream file(report_file.c_str(),std::ios::out) ;
+    file << "minVol: "  << $minVol << endl ;
+    file << "volRatio: " << $volRatio << endl ;
+    file << "maxCellAngle: " << $maxCellAngle << endl ;
+    file << "maxTwist: " << $maxTwist << endl ;
+    file << "maxShearTwist: " << $maxShearTwist << endl ;
+    file << "quality: " << quality << endl ;
+    file << "quality_report: " << quality_report << endl ;
   }
   $report = true ;
 }
@@ -496,7 +594,6 @@ $rule apply(topo<-volumeTag(X),volumeComponent_X)[Loci::Maximum],
 
 
 
-$type convexCell param<int> ;
 $rule unit(convexCell),constraint(UNIVERSE) {
   $convexCell = 0 ;
 }
