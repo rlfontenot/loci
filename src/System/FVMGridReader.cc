@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include "Config/conf.h"
 #include <store.h>
 #include <DStore.h>
 #include <Map.h>
@@ -51,7 +52,10 @@ using std::pair ;
 using std::ostringstream ;
 using std::istringstream ;
 
+#ifdef HAS_MALLINFO
 #include <malloc.h>
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>

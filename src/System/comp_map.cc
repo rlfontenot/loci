@@ -22,6 +22,8 @@
 #include "dist_tools.h"
 using std::ostream ;
 using std::endl ;
+#include <sstream>
+using std::ostringstream ;
 
 namespace Loci {
 
@@ -104,6 +106,7 @@ namespace Loci {
         facts.update_fact(*vi,srp->remap(g2l)) ;
       }
     }
+    current_rule_id = 0 ;
     timer.addTime(s.stop(),1) ;
   }
   
@@ -130,15 +133,11 @@ namespace Loci {
     exec_seq = process_rule_requests(map_impl, facts, scheds) ;
   }
   
-  execute_modules_decorator_factory* map_compiler::decoratorFactory = NULL;
-  
   executeP map_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
     //return new execute_map_rule(map_impl, ~EMPTY, facts,scheds) ;
     executeP execute = new execute_map_rule(map_impl, exec_seq, map_impl.sources(),
-												map_impl.targets(), facts,scheds);
-	if(decoratorFactory != NULL)
-		execute = decoratorFactory->decorate(execute);
-	return execute;
+                                            map_impl.targets(), facts,scheds);
+    return execute;
   }
   
 }

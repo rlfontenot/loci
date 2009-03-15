@@ -65,12 +65,8 @@ namespace Loci {
     exec_seq = process_applyrule_requests(apply, unit_tag, output_mapping, facts, scheds);
   }
 
-  execute_modules_decorator_factory* apply_compiler::decoratorFactory = NULL;
-
   executeP apply_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     executeP exec_rule = new execute_rule(apply, sequence(exec_seq), facts, scheds);
-    if(decoratorFactory != NULL)
-      exec_rule = decoratorFactory->decorate(exec_rule);
     return exec_rule ;
   }
 
@@ -356,7 +352,14 @@ namespace Loci {
     MPI_Op_free(&create_join_op) ;
   }
 
+#define GROUP_ALLREDUCE
   void execute_param_red::execute(fact_db &facts) {
+    //    debugout << "reduce vars=" ;
+    //    for(size_t i = 0; i < reduce_vars.size(); i++) {
+    //      debugout << ' ' << reduce_vars[i];
+    //    }
+    //    debugout << endl ;
+
     stopWatch s ;
     s.start() ;
     unsigned char *send_ptr, *result_ptr;
@@ -439,8 +442,6 @@ namespace Loci {
     }
   }
 
-  execute_modules_decorator_factory* reduce_param_compiler::decoratorFactory = NULL;
-
   executeP reduce_param_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       vector<variable> red ;
@@ -456,8 +457,6 @@ namespace Loci {
       }
       if(red.size() > 0) {
         executeP execute = new execute_param_red(red,ulist,jop);
-        if (decoratorFactory != NULL)
-          execute = decoratorFactory->decorate(execute);
         return execute;
       } else
         return 0 ;
@@ -468,8 +467,6 @@ namespace Loci {
       for(size_t i = 0; i < reduce_vars.size(); i++)
         oss << "reduce param " << reduce_vars[i] << std::endl;
       executeP exec_msg = executeP(new execute_msg(oss.str())) ;
-      if(decoratorFactory != NULL)
-        exec_msg = decoratorFactory->decorate(exec_msg);
       return exec_msg;
     } else
       return 0 ;
@@ -699,6 +696,8 @@ namespace Loci {
   static int send_ptr_buf_size = 0 ;
 
   void execute_comm_reduce::execute(fact_db  &facts) {
+    //    debugout << "reduce local vars" << endl ;
+    
     stopWatch s ;
     s.start() ;
     const int nrecv = recv_info.size() ;
@@ -924,25 +923,21 @@ namespace Loci {
     data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
   }
   
-  execute_modules_decorator_factory* reduce_store_compiler::decoratorFactory = NULL;
-
   executeP reduce_store_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_sequence> el = new execute_sequence ;
-      executeP exec_comm_reduce = new execute_comm_reduce(rlist, facts, join_op);
-      if (decoratorFactory != NULL)
-        exec_comm_reduce = decoratorFactory->decorate(exec_comm_reduce);
-      el->append_list(exec_comm_reduce);
-      executeP exec_comm = new execute_comm(clist, facts);
-      if(decoratorFactory != NULL)
-        exec_comm = decoratorFactory->decorate(exec_comm);
-      el->append_list(exec_comm) ;
+      if(!rlist.empty()) {
+        executeP exec_comm_reduce = new execute_comm_reduce(rlist, facts, join_op);
+        el->append_list(exec_comm_reduce);
+      }
+      if(!clist.empty()) {
+        executeP exec_comm = new execute_comm(clist, facts);
+        el->append_list(exec_comm) ;
+      }
       if(verbose || MPI_processes > 1) {
         ostringstream oss ;
         oss << "reduce store " << reduce_var ;
         executeP exec_msg = new execute_msg(oss.str());
-        if(decoratorFactory != NULL)
-          exec_msg = decoratorFactory->decorate(exec_msg);
         el->append_list(exec_msg) ;
       }
       return executeP(el) ;
@@ -952,8 +947,6 @@ namespace Loci {
       ostringstream oss ;
       oss << "reduce store " << reduce_var ;
       executeP exec_msg2 = new execute_msg(oss.str());
-      if(decoratorFactory != NULL)
-        exec_msg2 = decoratorFactory->decorate(exec_msg2);
       return executeP(exec_msg2) ;
     }
     return executeP(0) ;

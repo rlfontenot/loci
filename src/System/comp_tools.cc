@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+#include "Config/conf.h"
 #include "comp_tools.h"
 #include "loci_globs.h"
 
@@ -43,6 +44,25 @@ using std::ostringstream ;
 
 #include "dist_tools.h"
 #include "loci_globs.h"
+
+#ifdef HAS_MALLINFO
+// for the mallinfo function
+#include <malloc.h>
+#endif
+
+
+namespace {
+    // memory profile function
+  double currentMem(void) {
+#ifdef HAS_MALLINFO
+    struct mallinfo info = mallinfo() ;
+    return double(info.arena)+double(info.hblkhd) ;
+#else
+    return 0 ;
+#endif
+  }
+}
+
 //#define VERBOSE
 
 namespace Loci {
@@ -1717,7 +1737,6 @@ namespace Loci {
     return clist ;
   }
 
-  execute_modules_decorator_factory* barrier_compiler::decoratorFactory = NULL;
 
   void barrier_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()){
@@ -1765,14 +1784,22 @@ namespace Loci {
   executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_list> el = new execute_list ;
-      executeP exec_comm_p = new execute_comm(plist, facts);
-      if (decoratorFactory != NULL)
-        exec_comm_p = decoratorFactory->decorate(exec_comm_p);
-      el->append_list(exec_comm_p) ;
-      executeP exec_comm_c = new execute_comm(clist, facts);
-      if (decoratorFactory != NULL)
-        exec_comm_c = decoratorFactory->decorate(exec_comm_c);
-      el->append_list(exec_comm_c) ;
+      executeP tmp ;
+      int cnt = 0 ;
+      if(!plist.empty()) {
+        tmp = new execute_comm(plist, facts);
+        el->append_list(tmp) ;
+        cnt++ ;
+      }
+      if(!clist.empty()) {
+        tmp = new execute_comm(clist, facts);
+        el->append_list(tmp) ;
+        cnt++ ;
+      }
+      if(cnt == 0)
+        return executeP(0) ;
+      if(cnt == 1)
+        return tmp ;
       return executeP(el) ;
     }
     ostringstream oss ;
@@ -1804,8 +1831,6 @@ namespace Loci {
     }
   }
 
-  execute_modules_decorator_factory* singleton_var_compiler::decoratorFactory = NULL;
-
   executeP singleton_var_compiler::create_execution_schedule(fact_db &facts,
                                                              sched_db &scheds){
     if(verbose) {
@@ -1814,8 +1839,6 @@ namespace Loci {
       ostringstream oss ;
       oss << "singleton param " << vars ;
       executeP execute = executeP(new execute_msg(oss.str())) ;
-      if (decoratorFactory != NULL)
-        execute = decoratorFactory->decorate(execute);
       return execute;
     }
     return executeP(0) ;
@@ -1827,10 +1850,18 @@ namespace Loci {
   class execute_allocate_var : public execute_modules {
     variableSet allocate_vars ;
     map<variable,entitySet> v_requests ;
+    map<variable,variable> v2alias ;
+    map<variable,double> v_max_sizes ;
     timeAccumulator timer ;
   public:
-    execute_allocate_var(const variableSet& vars, map<variable,entitySet> vr)
-      : allocate_vars(vars), v_requests(vr) {}
+    execute_allocate_var(const variableSet& vars,
+                         const map<variable,entitySet> &vr,
+                         const map<variable,variable> &va)
+      : allocate_vars(vars), v_requests(vr),v2alias(va) {
+      for(variableSet::const_iterator vi=allocate_vars.begin();
+          vi!=allocate_vars.end();++vi)
+        v_max_sizes[*vi] = 0 ;
+    }
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_allocate_var";};
@@ -1854,6 +1885,7 @@ namespace Loci {
           // the space off from the counter, since
           // it will be recounted in profiling
           int packsize = srp->pack_size(srp->domain()) ;
+          v_max_sizes[*vi] = max(v_max_sizes[*vi],double(packsize)) ;
           LociAppPMTemp -= packsize ;
           LociAppAllocRequestBeanCounting -= packsize ;
           LociAppFreeRequestBeanCounting -= packsize ;
@@ -1885,13 +1917,36 @@ namespace Loci {
     oss << "allocate: "<<allocate_vars ;
 
     data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
+    for(variableSet::const_iterator vi=allocate_vars.begin();
+        vi!=allocate_vars.end();++vi) {
+      ostringstream vname ;
+      map<variable,variable>::const_iterator mi=v2alias.find(*vi) ;
+      if(mi != v2alias.end())
+        vname << mi->second ;
+      else
+        vname << *vi ;
+      string vn = vname.str() ;
+      map<variable,double>::const_iterator mi2 = v_max_sizes.find(*vi) ;
+      data_collector.accumulateMemory(vn,ALLOC_CREATE,0,mi2->second) ;
+    }
   }
 
   class execute_free_var : public execute_modules {
     variableSet free_vars ;
+    map<variable,variable> v2alias ;
     timeAccumulator timer ;
+    map<variable,double> v_max_sizes ;
+
+    double max_memory ;
   public:
-    execute_free_var(const variableSet& vars) : free_vars(vars) {}
+    execute_free_var(const variableSet& vars,
+                     const map<variable,variable> &va) : free_vars(vars),v2alias(va) {
+      max_memory=0;
+      for(variableSet::const_iterator vi=free_vars.begin();
+          vi!=free_vars.end();++vi) {
+        v_max_sizes[*vi] = 0 ;
+      }
+    }
     virtual void execute(fact_db &facts) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_free_var";};
@@ -1901,6 +1956,19 @@ namespace Loci {
   void execute_free_var::execute(fact_db &facts) {
     stopWatch s ;
     s.start() ;
+
+    if(profile_memory_usage) {
+      for(variableSet::const_iterator vi=free_vars.begin();
+          vi!=free_vars.end();++vi) {
+        storeRepP srp = facts.get_variable(*vi) ;
+        if(srp != 0) {
+          int packsize = srp->pack_size(srp->domain()) ;
+          v_max_sizes[*vi] = max(v_max_sizes[*vi],double(packsize)) ;
+        }
+      }
+      max_memory=max(max_memory,currentMem()) ;
+    }
+    
     for(variableSet::const_iterator vi=free_vars.begin();
         vi!=free_vars.end();++vi) {
       storeRepP srp = facts.get_variable(*vi) ;
@@ -1919,9 +1987,23 @@ namespace Loci {
 
   void execute_free_var::dataCollate(collectData &data_collector) const {
     ostringstream oss ;
-    oss << "freevar: "<<free_vars ;
+    oss <<"freevar: "<<free_vars ;
 
-    data_collector.accumulateTime(timer,EXEC_CONTROL,oss.str()) ;
+    string s = oss.str() ;
+    data_collector.accumulateTime(timer,EXEC_CONTROL,s) ;
+    for(variableSet::const_iterator vi=free_vars.begin();
+        vi!=free_vars.end();++vi) {
+      ostringstream vname ;
+      map<variable,variable>::const_iterator mi=v2alias.find(*vi) ;
+      if(mi != v2alias.end())
+        vname << mi->second ;
+      else
+        vname << *vi ;
+      string vn = vname.str() ;
+      map<variable,double>:: const_iterator mi2 = v_max_sizes.find(*vi) ;
+      data_collector.accumulateMemory(vn,ALLOC_DELETE,max_memory,
+                                      mi2->second) ;
+    }
   }
 
   void allocate_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
@@ -1930,12 +2012,11 @@ namespace Loci {
   void allocate_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
   }
 
-  execute_modules_decorator_factory* allocate_var_compiler::decoratorFactory = NULL;
-
   executeP allocate_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     variableSet::const_iterator vi,vii ;
 
     map<variable,entitySet> v_requests ;
+    map<variable,variable> v2alias ;
     for(vi=allocate_vars.begin();vi!=allocate_vars.end();++vi) {
       variableSet aliases = variableSet(scheds.get_aliases(*vi)+
                                         scheds.get_antialiases(*vi)+
@@ -1974,34 +2055,78 @@ namespace Loci {
 #ifdef VERBOSE
       debugout << "allocating v=" << *vi << ", aliases = " << aliases << endl ;
 #endif
+      if(aliases.size() <=1)
+        v2alias[*vi] = *vi ;
+      else
+        v2alias[*vi] = *aliases.begin() ;
       entitySet requests ;
       for(vii=aliases.begin();vii!=aliases.end();++vii) {
 	requests += scheds.get_variable_requests(*vii) ;
       }
       v_requests[*vi] = requests ;
     }
-    executeP execute = executeP(new execute_allocate_var(allocate_vars,v_requests)) ;
-    if (decoratorFactory != NULL)
-      execute = decoratorFactory->decorate(execute);
+    executeP execute = executeP(new execute_allocate_var(allocate_vars,
+                                                         v_requests,
+                                                         v2alias)) ;
     return execute;
   }
 
   void free_var_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
   }
 
-  execute_modules_decorator_factory* free_var_compiler::decoratorFactory = NULL;
 
   void free_var_compiler::process_var_requests(fact_db &facts, sched_db &scheds) { }
 
   executeP free_var_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
-    executeP execute = executeP(new execute_free_var(free_vars)) ;
-    if(decoratorFactory != NULL)
-      execute = decoratorFactory->decorate(execute);
+    variableSet::const_iterator vi,vii ;
+    map<variable,variable> v2alias ;
+    for(vi=free_vars.begin();vi!=free_vars.end();++vi) {
+      variableSet aliases = variableSet(scheds.get_aliases(*vi)+
+                                        scheds.get_antialiases(*vi)+
+                                        scheds.get_synonyms(*vi)+
+                                        scheds.get_rotations(*vi)) ;
+      if(aliases.size() > 1) {
+        // If it looks like there are aliases, then collect all of the
+        // information about name aliasing
+        // Note: Not sure if there is still a problem due to the one-way
+        // nature of aliasing....
+        variableSet work ;
+        for(vii=aliases.begin();vii!=aliases.end();++vii) {
+          work += scheds.get_aliases(*vii) ;
+          work += scheds.get_antialiases(*vii) ;
+          work += scheds.get_synonyms(*vii) ;
+          work += scheds.get_rotations(*vii) ;
+        }
+        work -= aliases ;
+        aliases += work ;
+
+        while(work != EMPTY) {
+          variableSet new_vars ;
+
+          for(vii=work.begin();vii!=work.end();++vii) {
+            new_vars += scheds.get_aliases(*vii) ;
+            new_vars += scheds.get_antialiases(*vii) ;
+            new_vars += scheds.get_synonyms(*vii) ;
+            new_vars += scheds.get_rotations(*vii) ;
+          }
+          work=new_vars ;
+          work-=aliases ;
+          aliases += work ; ;
+
+        }
+      }
+      if(aliases.size() <=1)
+        v2alias[*vi] = *vi ;
+      else
+        v2alias[*vi] = *aliases.begin() ;
+    }
+
+    executeP execute = executeP(new execute_free_var(free_vars,v2alias)) ;
     return execute;
   }
 
   /////////////////////////////////////////////////////////////////////////
-  //////////////////    memory profiling compiler code       //////////////////////
+  //////////////////    memory profiling compiler code       //////////////
   /////////////////////////////////////////////////////////////////////////
   void execute_memProfileAlloc::Print(std::ostream &s) const {
     if(vars != EMPTY) {
@@ -2074,21 +2199,13 @@ namespace Loci {
     }
   }
 
-  execute_modules_decorator_factory* memProfileAlloc_compiler::decoratorFactory = NULL;
-
   executeP memProfileAlloc_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     executeP execute = executeP(new execute_memProfileAlloc(vars)) ;
-    if(decoratorFactory != NULL)
-      execute = decoratorFactory->decorate(execute);
     return execute;
   }
 
-  execute_modules_decorator_factory* memProfileFree_compiler::decoratorFactory = NULL;
-
   executeP memProfileFree_compiler::create_execution_schedule (fact_db &facts, sched_db &scheds) {
     executeP execute = executeP(new execute_memProfileFree(vars));
-    if (decoratorFactory != NULL)
-      execute = decoratorFactory->decorate(execute);
     return execute;
   }
 

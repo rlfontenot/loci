@@ -95,6 +95,7 @@ namespace Loci {
     void rule_class(rule_impl_type ft) { rule_impl_class = ft ; }
     void disable_threading() { rule_threading = false ; }
     void enable_dynamic_scheduling() { use_dynamic_schedule = true ; }
+    void load_balance() { use_dynamic_schedule = true ; }
     void set_relaxed_recursion() { relaxed_recursion = true ; }
     void set_specialized() { specialized_parametric = true ; }
     void set_parametric_variable(const std::string name) {

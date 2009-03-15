@@ -1122,10 +1122,14 @@ namespace Loci {
       Map l2g ;
       fact_db::distribute_infoP df = facts.get_distribute_info() ;
       l2g = df->l2g.Rep() ;
+      dMap g2f ;
+      g2f = df->g2f.Rep() ;
       FORALL(local_set,ii) {
-        ids[c++] = l2g[ii] ;
+        ids[c++] = g2f[l2g[ii]] ;
       } ENDFORALL ;
     } else {
+      // Note, this means that a single processor run will not be compatible
+      // with a parallel processor run
       FORALL(local_set,ii) {
         ids[c++] = ii ;
       } ENDFORALL ;

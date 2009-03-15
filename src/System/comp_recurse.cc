@@ -430,13 +430,9 @@ namespace Loci {
     }
   }
 
-  execute_modules_decorator_factory* impl_recurse_compiler::decoratorFactory = NULL;
-
   executeP impl_recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
 
     executeP exe_rule = new execute_rule(impl, fastseq, facts, scheds);
-    if(decoratorFactory != NULL)
-      exe_rule = decoratorFactory->decorate(exe_rule);
     return exe_rule;
   }
 
@@ -864,20 +860,19 @@ namespace Loci {
 
   }
 
-  execute_modules_decorator_factory* recurse_compiler::decoratorFactory = NULL;
-
   executeP recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds ) {
     CPTR<execute_sequence> el = new execute_sequence ;
     if(facts.isDistributed()) {
-      executeP exec_commp = new execute_comm(pre_plist, facts);
-      if(decoratorFactory != NULL)
-        exec_commp = decoratorFactory->decorate(exec_commp);
-      el->append_list(exec_commp) ;
 
-      executeP exec_commc = new execute_comm(pre_clist, facts);
-      if(decoratorFactory != NULL)
-        exec_commc = decoratorFactory->decorate(exec_commc);
-      el->append_list(exec_commc) ;
+      if(!pre_plist.empty()) {
+        executeP exec_commp = new execute_comm(pre_plist, facts);
+        el->append_list(exec_commp) ;
+      }
+
+      if(!pre_clist.empty()) {
+        executeP exec_commc = new execute_comm(pre_clist, facts);
+        el->append_list(exec_commc) ;
+      }
     }
 
     map<rule, list<entitySet>::const_iterator> rpos ;
@@ -897,8 +892,6 @@ namespace Loci {
         vector<list<comm_info> > &commv = send_req_var[*vi] ;
         if(idx<commv.size() && commv[idx].size() != 0) {
           executeP exec_commv = new execute_comm(commv[idx],facts);
-          if(decoratorFactory != NULL)
-            exec_commv = decoratorFactory->decorate(exec_commv);
           el->append_list(exec_commv) ;
         }
       }
@@ -913,8 +906,6 @@ namespace Loci {
           if(li->size() != 0) {
 
             executeP exec_rule = new execute_rule(*ri,sequence(*li),facts, scheds) ;
-            if(decoratorFactory != NULL)
-              exec_rule = decoratorFactory->decorate(exec_rule);
             el->append_list(exec_rule);
           }
           li++ ;
@@ -923,10 +914,10 @@ namespace Loci {
       if(!finished) {
         if(facts.isDistributed()) {
           list<comm_info> plist = put_precomm_info(*sei, facts) ;
-          executeP exec_comm = new execute_comm(plist,facts);
-          if(decoratorFactory != NULL)
-            exec_comm = decoratorFactory->decorate(exec_comm);
-          el->append_list(exec_comm) ;
+          if(!plist.empty()) {
+            executeP exec_comm = new execute_comm(plist,facts);
+            el->append_list(exec_comm) ;
+          }
 
           // Make sure to request any variables communicated so that
           // the space is allocated.  This is a hack that should be
@@ -945,10 +936,12 @@ namespace Loci {
     } while(!finished) ;
 
     if(facts.isDistributed()) {
-      executeP exec_comm = new execute_comm(post_clist, facts);
-      if(decoratorFactory != NULL)
-        exec_comm = decoratorFactory->decorate(exec_comm);
-      el->append_list(exec_comm) ;
+
+
+      if(!post_clist.empty()) {
+        executeP exec_comm = new execute_comm(post_clist, facts);
+        el->append_list(exec_comm) ;
+      }
       // Make sure to request any variables communicated so that
       // the space is allocated.  This is a hack that should be
       // reworked later.

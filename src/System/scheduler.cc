@@ -40,6 +40,8 @@ using std::endl ;
 using std::cout ;
 using std::ios ;
 using std::ofstream ;
+using std::istream ;
+using std::ostream ;
 
 ///////////////////////////////////
 #include <sstream>
@@ -717,15 +719,9 @@ namespace Loci {
     if(Loci::MPI_rank==0)
       cout << "generating dependency graph..." << endl ;
 
-    // What is this supposed to be doing, translation
-    // void *timer_token = new (void *)  ;  why?
-    //    timer_token depend_graph_timer = new timer_token;
     
     stopWatch sw ;
     sw.start() ;
-    // Memory leak happens here
-    //    if(collect_perf_data)
-      //      depend_graph_timer = perfAnalysis->start_timer("Graph Processing");
 	
     digraph gr ;
 
@@ -870,23 +866,15 @@ namespace Loci {
     graph_compiler compile_graph(decomp, initial_vars) ;
     compile_graph.compile(facts,scheds,given,target) ;
 	
-    //    if(collect_perf_data)
-    //      perfAnalysis->stop_timer(depend_graph_timer);
     Loci::debugout << "Time taken for graph processing  = "
                    << sw.stop() << "  seconds " << endl ;
 
     if(Loci::MPI_rank==0)
       cout << "existential analysis..." << endl ;
     sw.start() ;
-    //timer_token existential_analysis_timer = new timer_token;
-    //    if(collect_perf_data)
-    //      existential_analysis_timer = perfAnalysis->start_timer("Existential Analysis");
     
     compile_graph.existential_analysis(facts, scheds) ;
     
-    //    if(collect_perf_data)
-    //      perfAnalysis->stop_timer(existential_analysis_timer);
-
     Loci::debugout << "Time taken for existential_analysis  = "
                    << sw.stop() << "  seconds " << endl ;
     ///////////////////////////////////
@@ -947,7 +935,13 @@ namespace Loci {
     std::list<timingData>  timing_data ;
   public:
 
-    void accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) ;
+    void accumulateTime(const timeAccumulator &ta, executeEventType t,
+                        string eventName) ;
+    void accumulateMemory(const std::string &var,
+                          allocEventType t,
+                          double maxMallocMemory,
+                          double maxBeanMemory) ;
+      
     double getComputeTime() ;
     double getTotalTime() ;
     ostream &PrintSummary(ostream &s) ;
@@ -956,7 +950,8 @@ namespace Loci {
   
   void collectTiming::accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) {
     timingData td ;
-    td.eventType = t ;
+    td.eventType =
+      t ;
     td.eventName = eventName ;
     td.accumTime = ta ;
     if(!groups.empty())
@@ -969,6 +964,12 @@ namespace Loci {
     timing_data.push_back(td) ;
   }
 
+  void collectTiming::accumulateMemory(const std::string &var,
+                                       allocEventType t,
+                                       double maxMallocMemory,
+                                       double beanMemory) {
+  }
+  
   ostream &collectTiming::PrintSummary(ostream &s) {
     timing_data.sort() ;
     double totComp = 0 ;
@@ -999,8 +1000,11 @@ namespace Loci {
     s << "------------------------------------------------------------------------------" << endl ;
 
     std::list<timingData>::const_reverse_iterator rti = timing_data.rbegin() ;
-    s << "Top Ten Most Expensive Steps:" << endl ;
-    int lcnt = min(int(timing_data.size()),10) ;
+    int lcnt = 10 ;
+    if(verbose)
+      lcnt = timing_data.size() ;
+    s << "Top " << lcnt << " Most Expensive Steps:" << endl ;
+    lcnt = min(int(timing_data.size()),lcnt) ;
     for(int i =0;i<lcnt;++i,++rti) {
       s << i << "- " << rti->eventName << endl ;
       if(rti->groupName != "")
@@ -1062,6 +1066,130 @@ namespace Loci {
     return totComp ;
   }  
   
+  // get profiling information from schedule
+  class collectMemory : public collectData {
+    struct spaceData {
+      double max_memory ;
+      string event_name ;
+      allocEventType type ;
+      bool operator <(const spaceData &d) const {
+        return max_memory < d.max_memory ;
+      }
+    } ;
+    struct var_size_info {
+      double mem_size ;
+      double event_tick ;
+      var_size_info(){mem_size=0;event_tick=0;}
+      var_size_info(double x, double y) : mem_size(x),event_tick(y) {}
+    } ;
+    struct alloc_event {
+      variable alloc_var ;
+      variableSet live_set ;
+      double live_mem ;
+      bool operator <(const alloc_event &d) const {
+        return live_mem < d.live_mem ;
+      }
+      alloc_event() { }
+      alloc_event(const variableSet &ls, double mem) : live_set(ls),live_mem(mem)
+      {}
+    } ;
+    std::list<spaceData>  space_data ;
+    std::map<variable,var_size_info> variable_size ;
+    double event_count ;
+  public:
+    collectMemory() { event_count = 0 ; }
+      
+    void accumulateTime(const timeAccumulator &ta, executeEventType t,
+                        string eventName) ;
+    void accumulateMemory(const std::string &var,
+                          allocEventType t,
+                          double maxMallocMemory,
+                          double maxBeanMemory) ;
+      
+    double getComputeTime() ;
+    double getTotalTime() ;
+    ostream &PrintSummary(ostream &s) ;
+    
+  } ;
+  
+  void collectMemory::accumulateTime(const timeAccumulator &ta, executeEventType t, string eventName) {
+  }
+  
+  void collectMemory::accumulateMemory(const std::string &var,
+                                       allocEventType t,
+                                       double maxMallocMemory,
+                                       double beanMemory) {
+    event_count += 1.0 ;
+    spaceData sd ;
+    sd.event_name = var ;
+    sd.max_memory = maxMallocMemory ;
+    sd.type = t ;
+    space_data.push_back(sd) ;
+    variable v(var) ;
+    if(t == ALLOC_CREATE) {
+      variable_size[v] = var_size_info(beanMemory,-event_count) ;
+    }
+    if(t == ALLOC_DELETE) {
+      // Update lifetime and memory space
+      double create_count = variable_size[v].event_tick ;
+      variable_size[v] = var_size_info(beanMemory,event_count+create_count) ;
+    }
+  }
+  
+  ostream &collectMemory::PrintSummary(ostream &s) {
+    // Now scan through the data to get memory totals
+    double tot_memory = 0 ;
+    list<spaceData>::const_iterator li ;
+    list<alloc_event> l2 ;
+    variableSet active_vars ;
+
+    for(li=space_data.begin();li!=space_data.end();++li) {
+      variable v(li->event_name) ;
+      if(li->type == ALLOC_CREATE) {
+        tot_memory += variable_size[v].mem_size ;
+        active_vars += v ;
+      }
+      if(li->type == ALLOC_DELETE) {
+        alloc_event ae ;
+        ae.live_set = active_vars ;
+        ae.live_mem = tot_memory ;
+        ae.alloc_var = v ;
+        l2.push_back(ae) ;
+        tot_memory -= variable_size[v].mem_size ;
+      }
+    }
+    l2.sort();
+
+    std::list<alloc_event>::const_reverse_iterator rti = l2.rbegin() ;
+    int lcnt = 10 ;
+    if(verbose)
+      lcnt = l2.size() ;
+    s << "Top " << lcnt << " Most Memory Memory Expensive Steps:" << endl ;
+    lcnt = min(int(l2.size()),lcnt) ;
+    for(int i =0;i<lcnt;++i,++rti) {
+      // Output variable that was allocated during max allocation
+      s << i << "- allocate var " << rti->alloc_var << " tot mem = " 
+        << rti->live_mem/(1024.0*1024.0) << "Mb" << endl ;
+      // Now sort liveset according to procesor-time product
+      vector<pair<double,variable> > live_list ;
+      variableSet live_set = rti->live_set ;
+      variableSet::const_iterator vi ;
+      for(vi=live_set.begin();vi!=live_set.end();++vi) {
+        double mt = variable_size[*vi].mem_size * variable_size[*vi].event_tick ;
+        live_list.push_back(pair<double,variable>(mt,*vi)) ;
+      }
+      sort(live_list.begin(),live_list.end()) ;
+      int sz = live_list.size() ;
+      for(int i=sz-1; i>=0;--i) {
+        variable v = live_list[i].second ;
+        if(verbose || variable_size[v].mem_size > 2048)
+          s << "    " << v << ":" << variable_size[v].mem_size/1024.0 << "k,"
+            << " lifetime=" << variable_size[v].event_tick << endl ;
+      }
+    }
+    return s ;
+  }
+
   // this function is used to create an execution schedule
   // for internalQuery below. This function and the internalQuery
   // function are mainly intended to be used by the Loci scheduler
@@ -1392,14 +1520,19 @@ namespace Loci {
       // execute schedule
       stopWatch sw ;
       sw.start() ;
-      //      timer_token execute_schedule_timer = new timer_token;
-      //      if(collect_perf_data)
-      //        execute_schedule_timer = perfAnalysis->start_timer("Schedule Execution");
       // setting this external pointer
       exec_current_fact_db = &local_facts ;
       schedule->execute(local_facts) ;
 
       double exec_time = sw.stop() ;
+
+      if(profile_memory_usage) {
+        debugout << "collect memory info:" << endl ;
+        collectMemory memProf ;
+        schedule->dataCollate(memProf) ;
+        memProf.PrintSummary(debugout) ;
+      }
+      
       collectTiming timeProf ;
       schedule->dataCollate(timeProf) ;
 

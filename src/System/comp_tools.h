@@ -38,22 +38,11 @@
 #include <mpi.h>
 using std::vector;
 
-#include "performance_analysis.h"
-
+#ifdef HAS_MALLINFO
 // for the mallinfo function
 #include <malloc.h>
-
-#ifdef LINUX
-#define HAS_MALLINFO
 #endif
 
-#ifdef SPARC
-#define HAS_MALLINFO
-#endif
-
-#ifdef SGI
-#define HAS_MALLINFO
-#endif
 
 namespace Loci {
 
@@ -135,8 +124,6 @@ namespace Loci {
 
     //To add communication manually for advance variable at the end of advance_comp
     std::list<comm_info> advance_variables_barrier; 
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
 	
   public:
     loop_compiler(rulecomp_map &rp, digraph gin, int id) ;
@@ -151,9 +138,6 @@ namespace Loci {
     rule impl ;  // rule to implement
     // existential analysis info
     entitySet exec_seq ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     impl_compiler(rule r)  { impl=r;}
     virtual void accept(visitor& v) {}
@@ -184,9 +168,6 @@ namespace Loci {
 
     std::vector<std::pair<variable,entitySet> > pre_send_entities ;
     std::list<comm_info> clist ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     int cid ; // id number of this compiler
     impl_recurse_compiler(rule r, int id):cid(id)
@@ -231,9 +212,6 @@ namespace Loci {
     std::list<comm_info> post_clist ;
     std::list<comm_info> pre_plist ;
   public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
-  public:
     int cid ; //id number of this compiler
     recurse_compiler(rulecomp_map &rp, ruleSet rs, int id) : rule_process(rp),cid(id)
     {
@@ -258,8 +236,6 @@ namespace Loci {
     digraph dag_gr ;
     rulecomp_map rule_compiler_map ;
     /////////////////
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     dag_compiler(rulecomp_map &rp, digraph dag, int id) ;
     /////////////////
@@ -275,9 +251,6 @@ namespace Loci {
     std::vector<std::pair<variable,entitySet> > send_entities ;
     std::list<comm_info> clist ;
     std::list<comm_info> plist ;
-  public:	
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     barrier_compiler(variableSet &vars)
       : barrier_vars(vars) {}
@@ -292,9 +265,6 @@ namespace Loci {
   class singleton_var_compiler : public rule_compiler {
     variableSet barrier_vars ;
   public:	
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
-  public:
     singleton_var_compiler(variableSet &vars)
       :  barrier_vars(vars) {}
     virtual void accept(visitor& v) {}
@@ -307,9 +277,6 @@ namespace Loci {
     vector<variable> reduce_vars ;
     vector<rule> unit_rules ;
     vector<CPTR<joiner> > join_ops ;
-  public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     reduce_param_compiler(const vector<variable> &v, const vector<rule> &ur,
                           vector<CPTR<joiner> >&jop) :
@@ -327,9 +294,6 @@ namespace Loci {
 
     std::list<comm_info> rlist ;  // reduction communication
     std::list<comm_info> clist ;  // comm from owner to requester
-  public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     reduce_store_compiler(const variable &v, const rule &ur,
                           CPTR<joiner> &jop) :
@@ -350,8 +314,6 @@ namespace Loci {
     ///////////
     digraph cond_gr ;
     rulecomp_map rule_compiler_map ;
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     conditional_compiler(rulecomp_map &rp, digraph gin,
                          variable conditional, int id) ;
@@ -368,9 +330,6 @@ namespace Loci {
     // existential analysis info
     entitySet exec_seq ;
     bool output_mapping ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     apply_compiler(rule r, rule ut)
     { apply=r; unit_tag = ut ; }
@@ -382,9 +341,6 @@ namespace Loci {
   
   class promote_compiler : public rule_compiler {
     rule r ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     promote_compiler(rule rin)
     { r = rin; }
@@ -396,9 +352,6 @@ namespace Loci {
   
   class generalize_compiler : public rule_compiler {
     rule r ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     generalize_compiler(rule rin)
     { r = rin; }
@@ -410,9 +363,6 @@ namespace Loci {
   
   class priority_compiler : public rule_compiler {
     rule r ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     priority_compiler(rule rin)
     { r = rin; }
@@ -465,9 +415,6 @@ namespace Loci {
   
   class allocate_var_compiler : public rule_compiler {
     variableSet allocate_vars ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     allocate_var_compiler(const variableSet& vars)
       : allocate_vars(vars) {}
@@ -481,9 +428,6 @@ namespace Loci {
 
   class free_var_compiler : public rule_compiler {
     variableSet free_vars ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     free_var_compiler(const variableSet& vars)
       : free_vars(vars) {}
@@ -537,9 +481,6 @@ namespace Loci {
 
   class memProfileAlloc_compiler : public rule_compiler {
     variableSet vars ;
-	public:
- 	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
  public:
     memProfileAlloc_compiler(const variableSet& vars): vars(vars) {}
     memProfileAlloc_compiler(const variable& var)
@@ -552,9 +493,6 @@ namespace Loci {
 
   class memProfileFree_compiler : public rule_compiler {
     variableSet vars ;
-	public:
- 	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
  public:
     memProfileFree_compiler(const variableSet& vars): vars(vars) {}
     memProfileFree_compiler(const variable& var)
@@ -566,9 +504,6 @@ namespace Loci {
   } ;
 
   class chomp_compiler: public rule_compiler {
-  public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     digraph chomp_graph ;
     variableSet chomp_vars ;
@@ -596,8 +531,6 @@ namespace Loci {
     rulecomp_map rule_compiler_map ;
     variableSet all_reduce_vars ;
     std::map<variable,std::pair<rule,CPTR<joiner> > > reduce_info ;
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     dynamic_compiler(rulecomp_map& rp, const digraph& g, int id) ;
     virtual void accept(visitor& v) {}
@@ -614,9 +547,6 @@ namespace Loci {
   class constraint_compiler : public rule_compiler {
     rule constraint_rule ;  // the constraint rule
     entitySet exec_seq ;
-  public:
- 	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
  public:
     constraint_compiler(rule r)  { constraint_rule=r;}
     virtual void accept(visitor& v) {}
@@ -631,9 +561,6 @@ namespace Loci {
     rule map_impl ;  // rule that computes a map
     // existential analysis info
     entitySet exec_seq ;
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     map_compiler(rule r)  { map_impl=r;}
     virtual void accept(visitor& v) {}
@@ -646,9 +573,6 @@ namespace Loci {
   // rule compiler for blackbox rule
   class blackbox_compiler : public rule_compiler {
     rule impl ;  // rule to implement
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     blackbox_compiler(rule r)  { impl=r;}
     virtual void accept(visitor& v) {}
@@ -661,9 +585,6 @@ namespace Loci {
   // rule compiler for blackbox rule
   class superRule_compiler : public rule_compiler {
     rule impl ;  // rule to implement
-	public:
-	// decoratorFactory is used to collect performance metrics from the compilers and execute_modules
-	static execute_modules_decorator_factory* decoratorFactory;
   public:
     superRule_compiler(rule r)  { impl=r;}
     virtual void accept(visitor& v) {}
