@@ -758,10 +758,8 @@ int main(int ac, char *av[]) {
     hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
 #ifdef H5_INTERFACE_1_6_4
     hsize_t start = 0 ;
-    hsize_t lstart = 0 ;
 #else
     hssize_t start = 0 ;
-    hssize_t lstart = 0 ;
 #endif
 
     hsize_t stride = 1;
@@ -789,7 +787,6 @@ int main(int ac, char *av[]) {
     dimension = cluster_info_size ;
     dataspace = H5Screate_simple(rank,&dimension,NULL) ;
     start = 0 ;
-    lstart = 0 ;
     stride = 1 ;
     dataset = H5Dcreate(face_id,"cluster_info",H5T_NATIVE_UCHAR,dataspace,
                         H5P_DEFAULT) ;
