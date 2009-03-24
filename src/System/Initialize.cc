@@ -232,8 +232,9 @@ namespace Loci {
     //    MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL) ;
 
     MPI_Errhandler err_handler ;
-    MPI_Comm_create_errhandler(&MPI_errors_reporter,&err_handler) ;
+    MPI_Errhandler_create(&MPI_errors_reporter,&err_handler) ;
     MPI_Errhandler_set(MPI_COMM_WORLD,err_handler) ;
+
     MPI_Comm_size(MPI_COMM_WORLD, &MPI_processes) ;
     MPI_Comm_rank(MPI_COMM_WORLD, &MPI_rank) ;
 
