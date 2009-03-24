@@ -185,24 +185,24 @@ namespace Loci{
  
   int offset = 0;
   store<vect3d> pos_io;
-  pos_io = Local2FileOrder(pos, local_nodes, offset, dist, MPI_COMM_WORLD) ;
+  pos_io = Loci::Local2FileOrder(pos, local_nodes, offset, dist, MPI_COMM_WORLD) ;
   entitySet file_nodes = pos_io.domain();
   
   offset = 0;
   store<Loci::FineNodes> edge_inner_nodes;
-  edge_inner_nodes = Local2FileOrder(inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
+  edge_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
   entitySet file_edges = edge_inner_nodes.domain();
   
   offset= 0;
   // Create container vardist that
   store<Loci::FineNodes> cell_inner_nodes;
-  cell_inner_nodes = Local2FileOrder(inner_nodes.Rep(),local_cells,offset,dist,MPI_COMM_WORLD) ;
+  cell_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_cells,offset,dist,MPI_COMM_WORLD) ;
   entitySet file_cells = cell_inner_nodes.domain();
   
   offset= 0;
   // Create container vardist that
   store<Loci::FineNodes> face_inner_nodes;
-  face_inner_nodes = Local2FileOrder(inner_nodes.Rep(),local_faces,offset,dist,MPI_COMM_WORLD) ;
+  face_inner_nodes = Loci::Local2FileOrder(inner_nodes.Rep(),local_faces,offset,dist,MPI_COMM_WORLD) ;
   entitySet file_faces = face_inner_nodes.domain();
   
   

@@ -128,7 +128,7 @@ public:
     //put into block to make the memory for store<int> freeed after it's used 
     {
       store<int> edge_num_inner_nodes;
-      edge_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
+      edge_num_inner_nodes = Loci::Local2FileOrder(num_inner_nodes.Rep(),local_edges,offset,dist,MPI_COMM_WORLD) ;
       FORALL(edge_num_inner_nodes.domain(), ee){
         num_local_nodes += edge_num_inner_nodes[ee];
       }ENDFORALL;
@@ -146,7 +146,7 @@ public:
         edge_file_offset[ei] = noffset;
         noffset += edge_num_inner_nodes[ei];
       }ENDFORALL;
-      File2LocalOrder(localVar, local_edges,
+      Loci::File2LocalOrder(localVar, local_edges,
                       edge_file_offset.Rep(), offset,
                       dist,
                       MPI_COMM_WORLD);
@@ -174,7 +174,7 @@ public:
     // is the actual file numbering.
     {
       store<int> cell_num_inner_nodes;
-      cell_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_geom_cells,offset,dist,MPI_COMM_WORLD) ;
+      cell_num_inner_nodes = Loci::Local2FileOrder(num_inner_nodes.Rep(),local_geom_cells,offset,dist,MPI_COMM_WORLD) ;
    
       num_local_nodes = 0;
       FORALL(cell_num_inner_nodes.domain(), ei){
@@ -193,7 +193,7 @@ public:
         noffset += cell_num_inner_nodes[ei];
       }ENDFORALL;
       //File2Local use the offset value set by Local2File    
-      File2LocalOrder(localVar, local_geom_cells,
+      Loci::File2LocalOrder(localVar, local_geom_cells,
                       cell_file_offset.Rep(), offset,
                       dist,
                       MPI_COMM_WORLD);
@@ -216,7 +216,7 @@ public:
     // is the actual file numbering.
     {
       store<int> face_num_inner_nodes;
-      face_num_inner_nodes = Local2FileOrder(num_inner_nodes.Rep(),local_faces, offset,dist,MPI_COMM_WORLD) ;
+      face_num_inner_nodes = Loci::Local2FileOrder(num_inner_nodes.Rep(),local_faces, offset,dist,MPI_COMM_WORLD) ;
           
       num_local_nodes = 0;
       FORALL(face_num_inner_nodes.domain(), ei){
@@ -236,7 +236,7 @@ public:
         noffset += face_num_inner_nodes[ei];
       }ENDFORALL;
       
-      File2LocalOrder(localVar, local_faces,
+      Loci::File2LocalOrder(localVar, local_faces,
                     face_file_offset.Rep(), offset,
                       dist,
                       MPI_COMM_WORLD);
