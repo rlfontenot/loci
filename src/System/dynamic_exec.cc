@@ -533,7 +533,7 @@ namespace Loci
 
     double optTime = 0.0;	// "ideal" work time (perfect load balance)
     double local0 = 0.0;	// predicted work time for (remaining) local items
-    double remote0 = 0.0;	// predicted work time for (sent or received) items
+
     vector<double> toGive(nProcs);	// work to transfer to proc i
     vector<vector<double> > x(nProcs) ;// total chunk time to move from proc i to proc j
     for(int i=0;i<nProcs;++i) {
@@ -607,7 +607,9 @@ namespace Loci
       }
       optTime /= nProcs;
       local0 = aveWorkTime[myRank];	// predicted work time from local items
-      remote0 = 0.0;		// predicted work time for/from remote items
+#if SHOWLB2
+      double remote0 = 0.0;		// predicted work time for/from remote items
+#endif
 
       // =====================================================================
       // Step 4. Determine amounts of work transfers from work times & optTime

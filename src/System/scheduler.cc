@@ -1178,7 +1178,7 @@ namespace Loci {
         double mt = variable_size[*vi].mem_size * variable_size[*vi].event_tick ;
         live_list.push_back(pair<double,variable>(mt,*vi)) ;
       }
-      sort(live_list.begin(),live_list.end()) ;
+      std::sort(live_list.begin(),live_list.end()) ;
       int sz = live_list.size() ;
       for(int i=sz-1; i>=0;--i) {
         variable v = live_list[i].second ;
