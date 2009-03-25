@@ -117,6 +117,9 @@ void reorder_faces(const const_store<int>& node_remap, std::vector<Entity>& lowe
     void calculate(Entity cc) {
       // Collect the entity designations of all nodes in the nodes array
       Entity nodes[8];
+      for(size_t i=0;i<8;++i)
+        nodes[i] = 0 ;
+      
       // Collect the entity designations of all faces in the faces array
         Entity faces[6];
       // Determine the relative orientations of the faces

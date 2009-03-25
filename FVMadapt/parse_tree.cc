@@ -594,7 +594,6 @@ std::vector<bool> process_shape(xmlNode* anode, const std::vector<vect3d>& p){
   xmlNode* children = anode->children;
   xmlNode* cur_node =NULL;
   
-  
   for(cur_node = children; cur_node; cur_node = cur_node->next){
     if(cur_node->type == 1){
       if(xmlStrEqual(cur_node->name, BAD_CAST("sphere")) ){ 
@@ -636,6 +635,7 @@ std::vector<bool> process_shape(xmlNode* anode, const std::vector<vect3d>& p){
       // cerr << "WARNING: don't know the shape" << cur_node->name << endl;
     }
   }
+  return vector<bool>() ;
 }
 
 
