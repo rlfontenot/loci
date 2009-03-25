@@ -1072,9 +1072,9 @@ int main(int ac, char *av[]) {
   string iteration ;
   vector<string> variables ;
   vector<string> boundaries ;
-  float xRotate, yRotate, zRotate, xShift, yShift, zShift, temp;
+  float xShift, yShift, zShift, temp;
 
-  xRotate = yRotate = zRotate = xShift = yShift = zShift = 0.0;
+  xShift = yShift = zShift = 0.0;
   int view = VIEWXY ;
   affineMapping transformMatrix;
 
