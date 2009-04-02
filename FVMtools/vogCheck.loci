@@ -469,13 +469,15 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
       
     string report_file = $modelName + ".quality" ;
     std::ofstream file(report_file.c_str(),std::ios::out) ;
-    file << "minVol: "  << $minVol << endl ;
-    file << "volRatio: " << $volRatio << endl ;
-    file << "maxCellAngle: " << $maxCellAngle << endl ;
-    file << "maxTwist: " << $maxTwist << endl ;
-    file << "maxShearTwist: " << $maxShearTwist << endl ;
-    file << "quality: " << quality << endl ;
-    file << "quality_report: " << quality_report << endl ;
+    file << "<minVol> "  << $minVol << " </minVol>" << endl ;
+    file << "<volRatio> " << $volRatio << " </volRatio>" <<  endl ;
+    file << "<maxCellAngle> " << $maxCellAngle << " </maxCellAngle>" << endl ;
+    file << "<maxTwist> " << $maxTwist << " </maxTwist>" <<endl ;
+    file << "<maxShearTwist> " << $maxShearTwist << "</maxShearTwist> "
+         <<endl ;
+    file << "<quality> " << quality << "</quality> " << endl ;
+    file << "<qualityReport> " << quality_report << "</qualityReport> "
+         <<endl ;
   }
   $report = true ;
 }
