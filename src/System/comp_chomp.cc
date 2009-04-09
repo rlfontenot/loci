@@ -149,13 +149,13 @@ namespace Loci {
       chomp_iter = seq_table.size() ;
     }
     
-    virtual void execute(fact_db& facts) ;
+    virtual void execute(fact_db& facts, sched_db &scheds) ;
     virtual void Print(std::ostream& s) const ;
     virtual string getName() {return "execute_chomp";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
-  void execute_chomp::execute(fact_db& facts) {
+  void execute_chomp::execute(fact_db& facts, sched_db &scheds) {
     stopWatch stot ;
     stot.start() ;
     if(total_domain == EMPTY) {

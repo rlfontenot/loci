@@ -71,11 +71,23 @@ namespace Loci {
     dstoreRepI(){}
     dstoreRepI(const entitySet &p) { allocate(p) ; }
     virtual void allocate(const entitySet &ptn) ;
+    virtual void erase(const entitySet& rm) ;
+    virtual void invalidate(const entitySet& valid) ;
+    virtual void guarantee_domain(const entitySet& include) ;
     virtual void shift(int_type offset) ;
     virtual ~dstoreRepI() {}
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP
+    redistribute(const std::vector<entitySet>& dom_ptn,
+                 MPI_Comm comm=MPI_COMM_WORLD) ;
+    virtual storeRepP
+    redistribute(const std::vector<entitySet>& dom_ptn,
+                 const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
+    virtual storeRepP
+    redistribute_omd(const std::vector<entitySet>& dom_ptn,
+                     const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
@@ -84,6 +96,7 @@ namespace Loci {
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
+    virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
@@ -126,8 +139,8 @@ namespace Loci {
 
     const T &elem(int indx) const { return attrib_data->elem(indx) ; }
   
-    T &operator[](int indx) { return elem(indx); }
-    const T&operator[](int indx) const { return elem(indx); }
+    T &operator[](int indx) { return elem(indx);}
+    const T&operator[](int indx) const { return elem(indx);}
     const T&operator()(int indx) const { return elem(indx) ; }
   } ;
 
@@ -158,7 +171,7 @@ namespace Loci {
     const T &elem(int indx) const {
       return attrib_data->elem(indx) ;
     } 
-    const T&operator[](int indx) const { return elem(indx); }
+    const T&operator[](int indx) const { return elem(indx);}
     const T&operator()(int indx) const { return elem(indx) ; }
   } ;
 

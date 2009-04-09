@@ -44,41 +44,45 @@ namespace Loci {
   class dmultiMapRepI : public MapRep {
     block_hash<std::vector<int,malloc_alloc<int> > >  attrib_data;
   public:
-  dmultiMapRepI() { }
+    dmultiMapRepI() { }
     dmultiMapRepI(const store<int> &sizes) { allocate(sizes) ; }
-  void allocate(const store<int> &sizes) ;
-  virtual void allocate(const entitySet &ptn) ;
-  virtual ~dmultiMapRepI() ;
-  virtual storeRep *new_store(const entitySet &p) const ;
-  virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
-  virtual storeRepP remap(const dMap &m) const ;
-  virtual void compose(const dMap &m, const entitySet &context) ;
-  virtual void copy(storeRepP &st, const entitySet &context)  ;
-  virtual void gather(const dMap &m, storeRepP &st,
-                      const entitySet &context)  ;
-  virtual void scatter(const dMap &m, storeRepP &st,
-                       const entitySet &context) ;
-  
-  virtual int pack_size(const entitySet &e) ;
-  virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
-  virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
-  
-  virtual entitySet domain() const ;
-  
-  virtual entitySet image(const entitySet &domain) const ;
-  virtual std::pair<entitySet,entitySet>
-  preimage(const entitySet &codomain) const ;
-  virtual storeRepP get_map() ;
-  virtual std::ostream &Print(std::ostream &s) const ;
-  virtual std::istream &Input(std::istream &s) ;
-  virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
-  virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
-  virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
+    void allocate(const store<int> &sizes) ;
+    virtual void allocate(const entitySet &ptn) ;
+    virtual void erase(const entitySet& rm) ;
+    virtual void invalidate(const entitySet& valid) ;
+    virtual void guarantee_domain(const entitySet& include) ;
+    virtual ~dmultiMapRepI() ;
+    virtual storeRep *new_store(const entitySet &p) const ;
+    virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
+    virtual storeRepP remap(const dMap &m) const ;
+    virtual void compose(const dMap &m, const entitySet &context) ;
+    virtual void copy(storeRepP &st, const entitySet &context)  ;
+    virtual void gather(const dMap &m, storeRepP &st,
+                        const entitySet &context)  ;
+    virtual void scatter(const dMap &m, storeRepP &st,
+                         const entitySet &context) ;
+    
+    virtual int pack_size(const entitySet& e, entitySet& packed) ;
+    virtual int pack_size(const entitySet &e) ;
+    virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
+    virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
+    
+    virtual entitySet domain() const ;
+    
+    virtual entitySet image(const entitySet &domain) const ;
+    virtual std::pair<entitySet,entitySet>
+    preimage(const entitySet &codomain) const ;
+    virtual storeRepP get_map() ;
+    virtual std::ostream &Print(std::ostream &s) const ;
+    virtual std::istream &Input(std::istream &s) ;
+    virtual void readhdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, frame_info &fi, entitySet &user_eset) ;
+    virtual void writehdf5(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, entitySet& en) const ;
+    virtual storeRepP expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) ;
     virtual storeRepP thaw() ;
     virtual storeRepP freeze() ;
     block_hash<std::vector<int, malloc_alloc<int> > > *get_attrib_data() {return &attrib_data;}
-  virtual DatatypeP getType() ;
-  virtual frame_info get_frame_info() ;
+    virtual DatatypeP getType() ;
+    virtual frame_info get_frame_info() ;
   } ;
   
   //***************************************************************************

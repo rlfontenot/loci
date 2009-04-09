@@ -146,8 +146,9 @@ namespace Loci {
       the rule and also the constraints we make sure that the
       attribute specified by the target is implied by the satisfaction
       of the attributes in the body of the rule. */
-    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si)
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
       sources &= vmap_source_exist(*si,facts, scheds) ;
+    }
 
     for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
       constraints &= vmap_source_exist(*si,facts, scheds) ;
@@ -787,6 +788,137 @@ namespace Loci {
     return compute ;
   }
 
+  // special existential analysis functions designed for
+  // the blackbox rules
+  void existential_blackboxrule_analysis
+  (rule r, fact_db &facts, sched_db &scheds) {
+    FATAL(r.type() == rule::INTERNAL) ;
+    entitySet sources = ~EMPTY ;
+    entitySet constraints = ~EMPTY ;
+    entitySet my_entities = ~EMPTY ;
+    const rule_impl::info &rinfo = r.get_info().desc ;
+    set<vmap_info>::const_iterator si ;
+    // get the sources
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+      sources &= vmap_source_exist(*si,facts, scheds) ;
+    }
+    // and then constraints
+    for(si=rinfo.constraints.begin();si!=rinfo.constraints.end();++si)
+      constraints &= vmap_source_exist(*si,facts, scheds) ;
+
+    entitySet all_entities = ~EMPTY ;
+    if(facts.isDistributed()) {
+      // For the distributed memory case we restrict the sources and
+      // constraints to be within my_entities.
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      sources &= d->my_entities ;
+      constraints &= d->my_entities ;
+      my_entities = d->my_entities ;
+      all_entities = d->my_entities ;
+    }
+    // we only check constraints requirement if and only
+    // if the constraints is not "~EMPTY"
+    if(!rinfo.constraints.empty() && constraints != all_entities) {
+      if((sources & constraints) != constraints) {
+        if(MPI_processes == 1) {
+          cerr << "Warning, rule " << r <<
+            " cannot supply all entities of constraint" << endl ;
+          cerr << "constraints = " << constraints << endl ;
+          cerr << "sources & constraints = " << (sources & constraints) << endl ;
+        } else {
+          debugout << "Warning, rule " << r <<
+            " cannot supply all entities of constraint" << endl ;
+          debugout << "constraints = " << constraints << endl ;
+          debugout << "sources & constraints = " << (sources & constraints) << endl ;
+        }
+	scheds.set_error() ;
+      } 
+      sources &= constraints ;
+    }
+    //The context over which the rule is applied is given by the intersection
+    // of the existential information of the sources with that of the
+    //  constraints.
+    entitySet context = sources ;
+
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+      entitySet targets = vmap_target_exist(*si,facts,context, scheds) ;
+      const variableSet &tvars = si->var ;
+      variableSet::const_iterator vi ;
+      for(vi=tvars.begin();vi!=tvars.end();++vi) {
+	scheds.set_existential_info(*vi,r,targets) ;
+#ifdef VERBOSE
+	debugout << "rule " << r << " generating variable " << *vi
+		 << " for entities " << targets << endl << endl << endl ;
+#endif
+      }
+    }
+    // there is no possible for a blackbox rule to be a unit rule
+  }
+
+  entitySet process_blackboxrule_requests
+  (rule r, fact_db &facts, sched_db &scheds) {
+    // Internal rules should be handling the appropriate rule requests via
+    // their associated compiler.
+    FATAL(r.type() == rule::INTERNAL) ;
+
+    // First we get the target variables of this rule ;
+    variableSet targets = r.targets() ;
+    // We will be iterating over the target variables so we need an iterator
+    variableSet::const_iterator vi ;
+    // The vdefmap data structure is a map from variables to entitySets.
+    // We use the tvarmap to record the requests for target variables
+    // Here we are filling in the requests.
+    vdefmap tvarmap ;
+
+    // Loop over target variables and get requests from fact database
+    // Here we compute the context of the rule.  This is the union of all of
+    // the requests for the variables that this rule produces
+    set<vmap_info>::const_iterator si ;
+    entitySet context,isect = ~EMPTY ;
+
+    entitySet filter = ~EMPTY ;
+    if(facts.isDistributed()) {
+      fact_db::distribute_infoP d = facts.get_distribute_info() ;
+      filter = d->my_entities ;
+      isect = d->my_entities ;
+    }
+
+    for(vi=targets.begin();vi!=targets.end();++vi) {
+      // we will request all entities exist for all
+      // blackbox rule targets
+      scheds.variable_request(*vi,scheds.variable_existence(*vi)) ;
+
+      tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
+    }
+
+    const rule_impl::info &rinfo = r.get_info().desc ;
+    for(si=rinfo.targets.begin();si!=rinfo.targets.end();++si) {
+      // Transform the variable requests using the mapping constructs
+      // in *si
+      entitySet tmp = vmap_target_requests(*si, tvarmap, facts, scheds) ;
+      //The context is the union
+      context |= tmp ;
+      isect &= tmp ;
+    }
+
+    // Loop over all sources for this rule and pass on the requests.
+    for(si=rinfo.sources.begin();si!=rinfo.sources.end();++si) {
+      // First map the context through source mappings
+      entitySet requests =
+        vmap_source_requests(*si,facts,context, scheds) ;
+
+      for(vi=si->var.begin();vi!=si->var.end();++vi)
+	scheds.variable_request(*vi,requests) ;
+
+      // We also need to pass the requests on to any conditional variables
+      // this rule may have.
+      for(vi=rinfo.conditionals.begin();vi!=rinfo.conditionals.end();++vi)
+	scheds.variable_request(*vi,context) ;
+    }
+
+    return context ;
+  }
+
   /* This routine, in addition to sending the entities that are not
      owned by a particular processor,  information is stored for
      performing this communication during the execution of the
@@ -1343,7 +1475,7 @@ namespace Loci {
   static unsigned char *send_ptr_buf = 0 ;
   static int send_ptr_buf_size = 0 ;
 
-  void execute_comm::execute(fact_db  &facts) {
+  void execute_comm::execute(fact_db  &facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
     const int nrecv = recv_info.size() ;
@@ -1808,7 +1940,7 @@ namespace Loci {
     return exec_thrd_sync;
   }
 
-  void execute_msg::execute(fact_db &facts) {  }
+  void execute_msg::execute(fact_db &facts, sched_db& scheds) {  }
 
   void execute_msg::Print(std::ostream &s) const {
     printIndent(s) ;
@@ -1862,13 +1994,13 @@ namespace Loci {
           vi!=allocate_vars.end();++vi)
         v_max_sizes[*vi] = 0 ;
     }
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_allocate_var";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
-  void execute_allocate_var::execute(fact_db &facts) {
+  void execute_allocate_var::execute(fact_db &facts, sched_db &scheds) {
 
     stopWatch s ;
     s.start() ;
@@ -1940,20 +2072,21 @@ namespace Loci {
     double max_memory ;
   public:
     execute_free_var(const variableSet& vars,
-                     const map<variable,variable> &va) : free_vars(vars),v2alias(va) {
+                     const map<variable,variable> &va)
+      :free_vars(vars),v2alias(va) {
       max_memory=0;
       for(variableSet::const_iterator vi=free_vars.begin();
           vi!=free_vars.end();++vi) {
         v_max_sizes[*vi] = 0 ;
       }
     }
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_free_var";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
 
-  void execute_free_var::execute(fact_db &facts) {
+  void execute_free_var::execute(fact_db &facts, sched_db &scheds) {
     stopWatch s ;
     s.start() ;
 
@@ -2139,7 +2272,7 @@ namespace Loci {
   void execute_memProfileAlloc::dataCollate(collectData &data_collector) const {
   }
 
-  void execute_memProfileAlloc::execute(fact_db& facts) {
+  void execute_memProfileAlloc::execute(fact_db& facts, sched_db &scheds) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
       //cerr<<"memory profiling (allocation) on: "<<*vi<<endl;
@@ -2175,7 +2308,7 @@ namespace Loci {
   void execute_memProfileFree::dataCollate(collectData &data_collector) const {
   }
 
-  void execute_memProfileFree::execute(fact_db& facts) {
+  void execute_memProfileFree::execute(fact_db& facts, sched_db &scheds) {
     for(variableSet::const_iterator vi=vars.begin();
         vi!=vars.end();++vi) {
       //cerr<<"memory profiling (free) on: "<<*vi<<endl;

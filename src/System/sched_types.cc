@@ -361,6 +361,21 @@ namespace Loci {
     for(ri=rs.begin();ri!=rs.end();++ri) {
       variableSet varcheck ;
       const rule_impl::info &finfo = ri->get_info().desc ;
+      // get the keyspace tag the rule has
+      bool skip_type_check = false ;
+      string ks_tag = ri->get_info().rule_impl->get_keyspace_tag() ;
+      if(ks_tag != "main") {
+        map<string,KeySpaceP>::const_iterator mi ;
+        mi = facts.keyspace.find(ks_tag) ;
+        if(mi == facts.keyspace.end()) {
+          cerr << "Error: rule: " << *ri << " in Non-exist keyspace: "
+               << ks_tag << endl ;
+          type_error = true ;
+          continue ;
+        }
+        if(mi->second->get_dynamism() == DYNAMIC)
+          skip_type_check = true ;
+      }
       
       // Collect all variables for which are actually read or written in the class
       set<vmap_info>::const_iterator i ;
@@ -392,16 +407,18 @@ namespace Loci {
           type_error = true ;
           continue ;
         }
-          
+
         storeRepP rule_type = ri->get_rule_implP()->get_store(*vi)->getRep() ;
         if(typed_vars.inSet(*vi)) {
-          storeRepP fact_type = facts.get_variable(*vi)->getRep() ;
-          if(typeid(*rule_type) != typeid(*fact_type)) {
-            cerr << "variable type mismatch for variable " << *vi << " in rule "
-                 << *ri << endl ;
-            cerr << "fact database has type " << typeid(*fact_type).name() << endl ;
-            cerr << "rule has type " << typeid(*rule_type).name() << endl ;
-            type_error = true ;
+          if(!skip_type_check) {
+            storeRepP fact_type = facts.get_variable(*vi)->getRep() ;
+            if(typeid(*rule_type) != typeid(*fact_type)) {
+              cerr << "variable type mismatch for variable " << *vi << " in rule "
+                   << *ri << endl ;
+              cerr << "fact database has type " << typeid(*fact_type).name() << endl ;
+              cerr << "rule has type " << typeid(*rule_type).name() << endl ;
+              type_error = true ;
+            }
           }
         } else {
           cerr << "Untyped Variable " << *vi << endl ;

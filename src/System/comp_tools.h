@@ -66,6 +66,12 @@ namespace Loci {
   void existential_applyrule_analysis(rule apply, fact_db &facts, sched_db &scheds) ;
   entitySet process_applyrule_requests(rule apply, rule unit_tag, bool &output_mapping,fact_db &facts, sched_db &scheds) ;
   
+  void existential_blackboxrule_analysis
+  (rule f, fact_db &facts, sched_db &scheds) ;
+
+  entitySet process_blackboxrule_requests
+  (rule f, fact_db &facts, sched_db &scheds) ;
+
   std::vector<std::pair<variable,entitySet> >
     barrier_existential_rule_analysis(variableSet vlst, fact_db &facts, sched_db &scheds) ;
   std::vector<std::pair<variable,entitySet> >
@@ -146,6 +152,32 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
+  // rule compiler for rule intended to be evaluated at runtime.
+  // example rules are those that may reside in a totally dynamic
+  // keyspace
+  class dynamic_impl_compiler : public rule_compiler {
+    rule impl ;  // rule to implement
+    // keyspace that it exists
+    KeySpaceP space ;
+    // all the rule's sources that are changing
+    variableSet volatile_sources ;
+    // and the sources that are static
+    variableSet static_sources ;
+  public:
+    dynamic_impl_compiler(rule r, KeySpaceP kp,
+                          const variableSet& vs,
+                          const variableSet& ss)  {
+      impl=r ;
+      space = kp ;
+      volatile_sources = vs ;
+      static_sources = ss ;
+    }
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
   // rule compiler for single rule recursion
   class impl_recurse_compiler : public rule_compiler {
     rule impl ;  // rule to implement
@@ -339,6 +371,106 @@ namespace Loci {
     virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
   } ;
   
+  // dynamic apply rule compiler 
+  class dynamic_apply_compiler : public rule_compiler {
+    rule apply, unit_tag ;  // rule to apply
+    // keyspace that it exist
+    KeySpaceP space ;
+    bool output_mapping ;
+  public:
+    dynamic_apply_compiler(rule a, rule u, KeySpaceP kp) {
+      apply = a ;
+      unit_tag = u ;
+      space = kp ;
+    }
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) ;
+  } ;
+
+  // compiler that invalidates the dynamic clones
+  class dclone_invalidate_compiler: public rule_compiler {
+    // the variable name, "var_unique" is the name removed synonym
+    variable var, var_unique ;
+    KeySpaceP self_clone ;
+    std::vector<KeySpaceP> shadow_clone ;
+  public:
+    dclone_invalidate_compiler(const variable& v,
+                               const variable& vu,
+                               KeySpaceP sc,
+                               const std::vector<KeySpaceP>& sac)
+      :var(v),var_unique(vu),self_clone(sc),shadow_clone(sac) {}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts,
+                                               sched_db &scheds) ;
+  } ;
+
+  // compiler responsible for keyspace redistribution
+  class keyspace_dist_compiler: public rule_compiler {
+    // keyspaces that needs distribution
+    std::vector<std::string> space_names ;
+  public:
+    keyspace_dist_compiler(const std::vector<std::string>& sn)
+      :space_names(sn) {}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db& facts, sched_db& scheds) ;
+    virtual void process_var_requests(fact_db& facts, sched_db& scheds) ;
+    virtual executeP create_execution_schedule(fact_db& facts,
+                                               sched_db& scheds) ;
+  } ;
+
+  class insertion_rule_compiler: public rule_compiler {
+    rule rule_tag ;
+  public:
+    insertion_rule_compiler(const rule& r):rule_tag(r) {}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db& facts, sched_db& scheds) {}
+    virtual void process_var_requests(fact_db& facts, sched_db& scheds) {}
+    virtual executeP create_execution_schedule(fact_db& facts,
+                                               sched_db& scheds) ;
+  } ;
+  
+  class deletion_rule_compiler: public rule_compiler {
+    rule rule_tag ;
+  public:
+    deletion_rule_compiler(const rule& r):rule_tag(r) {}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db& facts, sched_db& scheds) {}
+    virtual void process_var_requests(fact_db& facts, sched_db& scheds) {}
+    virtual executeP create_execution_schedule(fact_db& facts,
+                                               sched_db& scheds) ;
+  } ;
+  
+  class erase_rule_compiler: public rule_compiler {
+    rule rule_tag ;
+  public:
+    erase_rule_compiler(const rule& r):rule_tag(r) {}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db& facts, sched_db& scheds) {}
+    virtual void process_var_requests(fact_db& facts, sched_db& scheds) {}
+    virtual executeP create_execution_schedule(fact_db& facts,
+                                               sched_db& scheds) ;
+  } ;
+  
+  // compiler that resets the dynamic rule control
+  class dcontrol_reset_compiler: public rule_compiler {
+    // the variable name, "var_unique" is the name removed synonym
+    variable var, var_unique ;
+    std::set<std::string> register_keyspaces ;
+  public:
+    dcontrol_reset_compiler(const variable& v,const variable& vu,
+                            const std::set<std::string>& rk)
+      :var(v),var_unique(vu),register_keyspaces(rk) {}
+    virtual void accept(visitor& v) {}
+    virtual void set_var_existence(fact_db &facts, sched_db &scheds) ;
+    virtual void process_var_requests(fact_db &facts, sched_db &scheds) ;
+    virtual executeP create_execution_schedule(fact_db &facts,
+                                               sched_db &scheds) ;
+  } ;
+
   class promote_compiler : public rule_compiler {
     rule r ;
   public:
@@ -376,7 +508,7 @@ namespace Loci {
     std::string msg ;
   public:
     execute_msg(std::string m) : msg(m) {}
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "execute_msg";};
     virtual void dataCollate(collectData &data_collector) const {}
@@ -407,7 +539,7 @@ namespace Loci {
   public:
     execute_comm(std::list<comm_info> &plist, fact_db &facts) ;
     ~execute_comm() ;
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "execute_comm";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -443,7 +575,7 @@ namespace Loci {
     variableSet vars ;
   public:
     execute_memProfileAlloc(const variableSet& vars): vars(vars) {}
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
 	virtual string getName() {return "execute_memProfileAlloc";};	
     // memory profile function
@@ -463,7 +595,7 @@ namespace Loci {
     variableSet vars ;
   public:
     execute_memProfileFree(const variableSet& vars) : vars(vars) {}
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db& scheds) ;
     virtual void Print(std::ostream &s) const ;
 	virtual string getName() {return "execute_memProfileFree";};
     // memory profile function
@@ -573,6 +705,7 @@ namespace Loci {
   // rule compiler for blackbox rule
   class blackbox_compiler : public rule_compiler {
     rule impl ;  // rule to implement
+    entitySet exec_seq ;
   public:
     blackbox_compiler(rule r)  { impl=r;}
     virtual void accept(visitor& v) {}

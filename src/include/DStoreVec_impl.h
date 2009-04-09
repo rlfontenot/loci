@@ -194,8 +194,10 @@ namespace Loci {
   void dstoreVec<T>::notification() 
   {
     NPTR<storeType> p(Rep()) ;
-    if(p!=0) 
+    if(p!=0) {
       attrib_data = p->get_attrib_data() ;
+      vsize = p->get_size() ;
+    }
 
     warn(p == 0) ;
   }
@@ -333,7 +335,16 @@ namespace Loci {
     return get_mpi_size( traits_type, eset );
   }
 
+  template<class T> int dstoreVecRepI<T>::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
 
+    typedef typename data_schema_traits<T>::Schema_Converter
+      schema_converter;
+    schema_converter traits_type;
+
+    return get_mpi_size(traits_type, packed);    
+  }
   //*************************************************************************/
 
   template <class T> 

@@ -130,6 +130,9 @@ namespace Loci {
     get_mappings(rdb,facts,dist_maps) ;
 
     entitySet tmp_copy, image ;
+
+    double clone_time_start = MPI_Wtime() ;
+
     image = dist_expand_map(tmp_set, facts, dist_maps) ;
     tmp_copy =  image - ptn[MPI_rank] ; 
     std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
@@ -179,6 +182,10 @@ namespace Loci {
     delete [] recv_displacement ;
     delete [] send_buf ;
     delete [] recv_buf ;
+
+    double clone_time_end = MPI_Wtime() ;
+    debugout << "  Time taken for creating clone info =  "
+             << clone_time_end - clone_time_start << endl ;
   
     variableSet vars = facts.get_typed_variables() ;
     double start = MPI_Wtime() ;
@@ -192,10 +199,9 @@ namespace Loci {
     int isDistributed ;
     std::vector<entitySet> iv ; 
     categories(facts,iv) ;
-    for(size_t i=0;i < iv.size(); ++i) 
+    for(size_t i=0;i < iv.size(); ++i)
       //      iv[i] = all_collect_entitySet(iv[i]) ;
       iv[i] = dist_expand_entitySet(iv[i],tmp_copy,ptn) ;
-    
 
     entitySet::const_iterator ti ;
     vector<entitySet> proc_entities ;
@@ -345,7 +351,7 @@ namespace Loci {
   //          = 2: Only Input
   void get_mappings(const rule_db &rdb, fact_db &facts,
                     set<vector<variableSet> > &maps_ret, unsigned int rule_part) {
-    ruleSet rules = rdb.all_rules() ;
+    ruleSet rules = rdb.all_rules("main") ;
     set<vector<variableSet> > maps ;
     
     for(ruleSet::const_iterator ri = rules.begin(); ri != rules.end(); ++ri) {

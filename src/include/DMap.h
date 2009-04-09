@@ -48,10 +48,21 @@ namespace Loci {
     dMapRepI(const entitySet &p) { allocate(p) ; }
     virtual void allocate(const entitySet &ptn) ;
     virtual void erase(const entitySet& rm) ;
+    virtual void invalidate(const entitySet& valid) ;
+    virtual void guarantee_domain(const entitySet& include) ;
     virtual ~dMapRepI() ;
     virtual storeRep *new_store(const entitySet &p) const ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const ;
     virtual storeRepP remap(const dMap &m) const ;
+    virtual storeRepP
+    redistribute(const std::vector<entitySet>& dom_ptn,
+                 MPI_Comm comm=MPI_COMM_WORLD) ;
+    virtual storeRepP
+    redistribute(const std::vector<entitySet>& dom_ptn,
+                 const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
+    virtual storeRepP
+    redistribute_omd(const std::vector<entitySet>& dom_ptn,
+                     const dMap& remap, MPI_Comm comm=MPI_COMM_WORLD) ;
     virtual void compose(const dMap &m, const entitySet &context) ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
@@ -59,9 +70,14 @@ namespace Loci {
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
     
+    virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
+    virtual void pack(void *ptr, int &loc,
+                      int &size, const entitySet &e, const Map& remap) ;
+    virtual void unpack(void *ptr, int &loc,
+                        int &size, const sequence &seq, const dMap& remap) ;
     
     virtual entitySet domain() const ;
 

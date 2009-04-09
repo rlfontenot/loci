@@ -81,12 +81,14 @@ namespace Loci {
     virtual storeRepP remap(const dMap &m) const ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
+    virtual storeRepP thaw(const entitySet& es) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context) ;
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
 
+    virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
@@ -133,8 +135,8 @@ namespace Loci {
       fatal(!Rep()->domain().inSet(indx)) ;
 #endif
       return base_ptr[indx]; }
-    T &operator[](int indx) { return elem(indx); }
-    const T&operator[](int indx) const { return elem(indx); }
+    T &operator[](int indx) { return elem(indx);}
+    const T&operator[](int indx) const { return elem(indx);}
   } ;
 
   template<class T> class const_store : public store_instance {

@@ -37,9 +37,14 @@ namespace Loci {
     };
     
     block_info **data[4096] ;
+
+    intervalSet allocated_set ;
+    intervalSet cached_erase_set ;
+    int erase_threshold ;
   
   public:
-    block_hash() {
+    block_hash():allocated_set(EMPTY),
+                 cached_erase_set(EMPTY), erase_threshold(4096) {
       for(int i=0;i<4096;++i)
         data[i] = 0 ;
     }
@@ -51,9 +56,10 @@ namespace Loci {
 
     void erase_set(intervalSet set) ;
     
-    intervalSet domain() const ;
+    intervalSet domain() const {return allocated_set ;}
 
     T & access(int n) {
+      allocated_set += n ;
       const int a1 = (n) & 0x1ff ;
       const int a2 = (n>>9) &0x7ff ;
       const int a3 = (n>>20) &0xfff ;
@@ -117,10 +123,15 @@ namespace Loci {
       }
       data[i] = 0 ;
     }
+    allocated_set = EMPTY ;
+    cached_erase_set = EMPTY ;
   }
 
   template <class T> void block_hash<T>::copy_hash(const block_hash<T> &cp) {
     clear_hash() ;
+    allocated_set = cp.allocated_set ;
+    cached_erase_set = cp.cached_erase_set ;
+    erase_threshold = cp.erase_threshold ;
     for(int i=0;i<4096;++i) {
       if(cp->data[i] != 0) {
         data[i] = new block_info *[2048] ;
@@ -140,6 +151,10 @@ namespace Loci {
       const int a3 = (*ei>>20) &0xfff ;
       data[a3][a2]->bits[(a1>>5)&0xf] &= ~(1<<(a1&0x1f)) ;
     }
+    allocated_set -= set ;
+    cached_erase_set += set ;
+    if(cached_erase_set.size() < erase_threshold)
+      return ;
     // Clean up any fully erased blocks
     for(int i=0;i<4096;++i) {
       if(data[i]!=0) {
@@ -157,39 +172,40 @@ namespace Loci {
         }
       }
     }
-      
+    // after cleaning, reset the cached erase set
+    cached_erase_set = EMPTY ;
   }    
   
-  template <class T> intervalSet block_hash<T>::domain() const  {
-    intervalSet val ;
+  // template <class T> intervalSet block_hash<T>::domain() const  {
+  //   intervalSet val ;
 
-    for(int i=0;i<4096;++i) {
-      if(data[i]!=0) {
-        int a3 = i << 20 ;
-        for(int j=0;j<2048;++j) {
-          if(data[i][j]!=0) {
-            int a2 = j << 9 ;
-            for(int k=0;k<16;++k) {
-              const unsigned long bit = data[i][j]->bits[k] ;
-              if(bit == 0) 
-                continue ;
-              int a1 = k<<5 ;
-              if(bit == 0xffffffff) {
-                int low = a1|a2|a3 ;
-                val += interval(low,low+32-1) ;
-              } else {
-                for(int l=0;l<32;++l) {
-                  if((bit & (1<<l)) != 0)
-                    val += (a1|a2|a3|l) ;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    return val ;
-  }
+  //   for(int i=0;i<4096;++i) {
+  //     if(data[i]!=0) {
+  //       int a3 = i << 20 ;
+  //       for(int j=0;j<2048;++j) {
+  //         if(data[i][j]!=0) {
+  //           int a2 = j << 9 ;
+  //           for(int k=0;k<16;++k) {
+  //             const unsigned long bit = data[i][j]->bits[k] ;
+  //             if(bit == 0) 
+  //               continue ;
+  //             int a1 = k<<5 ;
+  //             if(bit == 0xffffffff) {
+  //               int low = a1|a2|a3 ;
+  //               val += interval(low,low+32-1) ;
+  //             } else {
+  //               for(int l=0;l<32;++l) {
+  //                 if((bit & (1<<l)) != 0)
+  //                   val += (a1|a2|a3|l) ;
+  //               }
+  //             }
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  //   return val ;
+  // }
                  
                 
 

@@ -530,6 +530,12 @@ namespace Loci {
       }
       if(!overlap) {
         lc.rotate_lists.push_back(ii->second) ;
+        // set the scheds rotation information
+        variableSet drots ;
+        std::list<variable>::const_iterator rotii ;
+        for(rotii=ii->second.begin();rotii!=ii->second.end();++rotii)
+          drots += *rotii ;
+        scheds.set_variable_rotations(drots) ;
       } else {
         if(ii->second.size() !=2) {
           if(MPI_rank == 0) 
@@ -546,6 +552,13 @@ namespace Loci {
                    << endl ;
           Loci::Abort() ;
         }
+        variableSet orv ;
+        for(list<variable>::const_iterator iii=ii->second.begin();
+            iii!=ii->second.end();++iii)
+          orv += *iii ;
+        for(variableSet::const_iterator iii=orv.begin();
+            iii!=orv.end();++iii)
+          overlap_rotvars[*iii] = orv ;
       }
     }
 
@@ -1365,7 +1378,7 @@ namespace Loci {
   }
 
   /////////////////////////////////////////////////////////////////
-  // unitApplyMapVisitor
+  // allocDelNumReportVisitor
   /////////////////////////////////////////////////////////////////
   void allocDelNumReportVisitor::adNum(const digraph& gr,
                                       int& alloc_num,
@@ -1469,6 +1482,631 @@ namespace Loci {
     }
 
     return islands ;
+  }
+
+  /////////////////////////////////////////////////////////////////
+  // DynamicKeyspaceVisitor
+  /////////////////////////////////////////////////////////////////
+  namespace {
+    variableSet
+    remove_synonym(const variableSet& vs, fact_db& facts) {
+      variableSet ret ;
+      for(variableSet::const_iterator vi=vs.begin();vi!=vs.end();++vi)
+        ret += facts.remove_synonym(*vi) ;
+
+      return ret ;
+    }
+  }
+  void
+  DynamicKeyspaceVisitor::replace_compiler(digraph& gr,
+                                           rulecomp_map& rcm, int id) {
+    // get all the rules inside a graph
+    digraph::vertexSet all_vertices = gr.get_all_vertices() ;
+    ruleSet all_rules = extract_rules(all_vertices) ;
+    // then we'll obtain the input variables to this graph
+    // (those variables that are not computed in the graph)
+    // and the intra variables to this graph (those variables
+    // that are computed in the graph).
+    variableSet input_vars = extract_vars(gr.get_source_vertices() -
+                                          gr.get_target_vertices()) ;
+    variableSet intra_vars = extract_vars(gr.get_source_vertices() &
+                                          gr.get_target_vertices()) ;
+    // we need to obtain the actual concrete rule impls
+    for(ruleSet::const_iterator ri=all_rules.begin();
+        ri!=all_rules.end();++ri) {
+      if(is_internal_rule(ri))
+        continue ;
+      // "main" keyspace is currently always setup to
+      // be STATIC
+      string ks_tag = ri->get_info().rule_impl->get_keyspace_tag() ;
+      if(ks_tag == "main")
+        continue ;
+      // get the corresponding keyspace impl from fact_db
+      map<string,KeySpaceP>::const_iterator mi ;
+      mi = facts.keyspace.find(ks_tag) ;
+      if(mi == facts.keyspace.end()) {
+        cerr << "Error: rule: " << *ri << " in Non-exist keyspace: "
+             << ks_tag << endl ;
+        Loci::Abort() ;
+      }
+      KeySpaceP kp = mi->second ;
+      if(kp->get_dynamism() != DYNAMIC)
+        continue ;
+      // finally we have a rule in a dynamic keyspace
+      // we need to replace the rule compiler with a
+      // corresponding dynamic_impl_compiler
+
+      // insertion rule does not need dynamic control reset
+      // so we skip it first
+      if(ri->get_info().rule_impl->get_rule_class()
+         == rule_impl::INSERTION) {
+        dynamic_targets += ri->targets() ;
+        kp->add_control_vars(ri->targets()) ;
+        continue ;
+      }
+
+      variableSet rule_sources = ri->sources() ;
+      // collect the dynamic rule control map
+      for(variableSet::const_iterator vi=rule_sources.begin();
+          vi!=rule_sources.end();++vi) {
+        drule_ctrl[*vi].insert(ks_tag) ;
+        // register the map in the keyspace
+        kp->set_dcontrol_map(*vi, *ri) ;
+        // get all the rotation variables
+        variableSet rot = scheds.try_get_rotations(*vi) ;
+        map<variable,variableSet>::const_iterator orvi ;
+        orvi = overlap_rotvars.find(*vi) ;
+        if(orvi != overlap_rotvars.end())
+          rot += orvi->second ;
+        // we also need to set rotation variables
+        for(variableSet::const_iterator vii=rot.begin();
+            vii!=rot.end();++vii) {
+          drule_ctrl[*vii].insert(ks_tag) ;
+          kp->set_dcontrol_map(*vii, *ri) ;
+        }
+      }
+
+      
+      // deletion and erase rule need to have dynamic
+      // control information recorded, but other than
+      // this, we don't need to anything to them except
+      // for adding their targets to the keyspace
+      if(ri->get_info().rule_impl->get_rule_class()
+         == rule_impl::DELETION ||
+         ri->get_info().rule_impl->get_rule_class()
+         == rule_impl::ERASE) {
+        dynamic_targets += ri->targets() ;
+        // also add targets to the keyspace
+        kp->add_control_vars(ri->targets()) ;
+        continue ;
+      }
+
+      // determine rule's volatile and static sources
+      // with regard to this graph
+      variableSet static_sources =
+        variableSet(rule_sources & input_vars) ;
+      variableSet volatile_sources =
+        variableSet(rule_sources & intra_vars) ;
+
+      FATAL(rule_sources !=
+            variableSet(static_sources + volatile_sources)) ;
+
+      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
+        // get the unit rule associated
+        std::map<rule,rule>::const_iterator mi = apply2unit.find(*ri) ;
+        if(mi == apply2unit.end()) {
+          cerr << "Error: cannot find associated unit rule for "
+               << "apply rule: " << *ri << endl ;
+          Loci::Abort() ;
+        }
+        dynamic_apply_compiler* d =
+          new dynamic_apply_compiler(*ri, mi->second, kp) ;
+        rcm[*ri] = d ;
+      } else {
+        dynamic_impl_compiler* d =
+          new dynamic_impl_compiler(*ri, kp,
+                                    volatile_sources, static_sources) ;
+        rcm[*ri] = d ;
+      }
+      // we now collect target variables
+      variableSet tunnels = kp->get_tunnels() ;
+      tunnels = remove_synonym(tunnels,facts) ;
+      
+      set<vmap_info>::const_iterator vmsi ;
+      if(ri->get_info().rule_impl->get_rule_class() == rule_impl::APPLY) {
+        bool cross_space = false ;
+
+        FATAL(ri->targets().size() != 1) ;
+        
+        vmsi = ri->get_info().desc.targets.begin() ;
+
+        for(size_t i=0;i<vmsi->mapping.size();++i) {
+          variableSet m = vmsi->mapping[i] ;
+          m = remove_synonym(m,facts) ;
+
+          variableSet k = variableSet(m & tunnels) ;
+          if(k != EMPTY) {
+            FATAL(k != m) ;
+            cross_space = true ;
+            break ;
+          } 
+        }
+
+        if(!cross_space) {
+          dynamic_targets += ri->targets() ;
+          // also add targets to the keyspace
+          kp->add_control_vars(ri->targets()) ;
+        }
+      } else {
+        // we'll need to check to make sure that
+        // no target is crossing the keyspace boundary
+        for(vmsi=ri->get_info().desc.targets.begin();
+            vmsi!=ri->get_info().desc.targets.end();++vmsi) {
+          for(size_t i=0;i<vmsi->mapping.size();++i) {
+            variableSet m = vmsi->mapping[i] ;
+            m = remove_synonym(m,facts) ;
+            
+            variableSet k = variableSet(m & tunnels) ;
+            if(k != EMPTY) {
+              FATAL(k != m) ;
+              if(Loci::MPI_rank == 0) {
+                cerr << "Error: only apply rule is allowed to "
+                     << "produce targets in other keyspace!!" << endl ;
+                cerr << "Offending rule: " << *ri << endl ;
+              }
+              Loci::Abort() ;
+            } 
+          }
+          // add the targets
+          // however we remove "OUTPUT" from dynamic targets
+          variableSet output_vars ;
+          for(variableSet::const_iterator vi=vmsi->var.begin();
+              vi!=vmsi->var.end();++vi) {
+            variable sv(*vi, time_ident()) ;
+            if(sv == variable("OUTPUT"))
+              output_vars += *vi ;
+          }
+
+          variableSet vars = vmsi->var ;
+          vars -= output_vars ;
+          
+          dynamic_targets += vars ;
+          kp->add_control_vars(vars) ;
+        }
+      }
+      
+      // now we need to collect all the input clone information
+      for(vmsi=ri->get_info().desc.sources.begin();
+          vmsi!=ri->get_info().desc.sources.end();++vmsi) {
+        // no mapping, no clone needed
+        if(vmsi->mapping.empty())
+          continue ;
+        
+        bool cross_space = false ;
+        // evaluate the first mapping block
+        variableSet mappings = vmsi->mapping[0] ;
+        variableSet mappings_unique = remove_synonym(mappings,facts) ;
+        variableSet cross = variableSet(mappings_unique & tunnels) ;
+        if(cross != EMPTY) {
+          FATAL(cross != mappings_unique) ;
+          cross_space = true ;
+        }
+        // evaluate the rest of the blocks
+        for(size_t i=1;i<vmsi->mapping.size();++i) {
+          mappings = vmsi->mapping[i] ;
+          mappings_unique = remove_synonym(mappings,facts) ;
+          if(cross_space) {
+            // shadow clone
+            for(variableSet::const_iterator
+                  vi=mappings_unique.begin();
+                vi!=mappings_unique.end();++vi) {
+              // create the shadow first
+              storeRepP srp = facts.get_variable(*vi) ;
+              srp = srp->new_store(EMPTY)->thaw() ;
+              kp->create_shadow(*vi, srp) ;
+              shadow_clone[*vi].insert(ks_tag) ;
+            }
+          } else {
+            // self clone
+            for(variableSet::const_iterator vi=mappings_unique.begin();
+                vi!=mappings_unique.end();++vi) {
+              map<variable,string>::const_iterator
+                mi = self_clone.find(*vi) ;
+              if(mi == self_clone.end()) {
+                self_clone[*vi] = ks_tag ;
+              } else {
+                // see if conflict exist
+                if(mi->second != ks_tag) {
+                  cerr << "Error: self_clone data error! variable "
+                       << *vi << " has self clone in keyspace: "
+                       << mi->second << " and keyspace: " << ks_tag
+                       << endl ;
+                  Loci::Abort() ;
+                }
+              }
+            }
+          }
+          // evaluate if cross space
+          if(!cross_space) {
+            cross = variableSet(mappings_unique & tunnels) ;
+            if(cross != EMPTY) {
+              FATAL(cross != mappings_unique) ;
+              cross_space = true ;
+            }
+          }
+        } // end of mapping
+        // now evaluate the var
+        mappings = vmsi->var ;
+        mappings_unique = remove_synonym(mappings,facts) ;
+        if(cross_space) {
+          // shadow clone
+          for(variableSet::const_iterator
+                vi=mappings_unique.begin();
+              vi!=mappings_unique.end();++vi) {
+            // create the shadow first
+            storeRepP srp = facts.get_variable(*vi) ;
+            srp = srp->new_store(EMPTY)->thaw() ;
+            kp->create_shadow(*vi, srp) ;
+            shadow_clone[*vi].insert(ks_tag) ;
+          }
+        } else {
+          // self clone
+          for(variableSet::const_iterator vi=mappings_unique.begin();
+              vi!=mappings_unique.end();++vi) {
+            map<variable,string>::const_iterator
+              mi = self_clone.find(*vi) ;
+            if(mi == self_clone.end()) {
+              self_clone[*vi] = ks_tag ;
+            } else {
+              // see if conflict exist
+              if(mi->second != ks_tag) {
+                cerr << "Error: self_clone data error! variable "
+                     << *vi << " has self clone in keyspace: "
+                     << mi->second << " and keyspace: " << ks_tag
+                     << endl ;
+                Loci::Abort() ;
+              }
+            }
+          }
+        }
+      } // end of source
+
+      for(vmsi=ri->get_info().desc.constraints.begin();
+          vmsi!=ri->get_info().desc.constraints.end();++vmsi) {
+        // no mapping, no clone needed
+        if(vmsi->mapping.empty())
+          continue ;
+        
+        bool cross_space = false ;
+        // evaluate the first mapping block
+        variableSet mappings = vmsi->mapping[0] ;
+        variableSet mappings_unique = remove_synonym(mappings,facts) ;
+        variableSet cross = variableSet(mappings_unique & tunnels) ;
+        if(cross != EMPTY) {
+          FATAL(cross != mappings_unique) ;
+          cross_space = true ;
+        }
+        // evaluate the rest of the blocks
+        for(size_t i=1;i<vmsi->mapping.size();++i) {
+          mappings = vmsi->mapping[i] ;
+          mappings_unique = remove_synonym(mappings,facts) ;
+          if(cross_space) {
+            // shadow clone
+            for(variableSet::const_iterator
+                  vi=mappings_unique.begin();
+                vi!=mappings_unique.end();++vi) {
+              // create the shadow first
+              storeRepP srp = facts.get_variable(*vi) ;
+              srp = srp->new_store(EMPTY)->thaw() ;
+              kp->create_shadow(*vi, srp) ;
+              shadow_clone[*vi].insert(ks_tag) ;
+            }
+          } else {
+            // self clone
+            for(variableSet::const_iterator vi=mappings_unique.begin();
+                vi!=mappings_unique.end();++vi) {
+              map<variable,string>::const_iterator
+                mi = self_clone.find(*vi) ;
+              if(mi == self_clone.end()) {
+                self_clone[*vi] = ks_tag ;
+              } else {
+                // see if conflict exist
+                if(mi->second != ks_tag) {
+                  cerr << "Error: self_clone data error! variable "
+                       << *vi << " has self clone in keyspace: "
+                       << mi->second << " and keyspace: " << ks_tag
+                       << endl ;
+                  Loci::Abort() ;
+                }
+              }
+            }
+          }
+          // evaluate if cross space
+          if(!cross_space) {
+            cross = variableSet(mappings_unique & tunnels) ;
+            if(cross != EMPTY) {
+              FATAL(cross != mappings_unique) ;
+              cross_space = true ;
+            }
+          }
+        } // end of mapping
+        // now evaluate the var
+        mappings = vmsi->var ;
+        mappings_unique = remove_synonym(mappings,facts) ;
+        if(cross_space) {
+          // shadow clone
+          for(variableSet::const_iterator
+                vi=mappings_unique.begin();
+              vi!=mappings_unique.end();++vi) {
+            // create the shadow first
+            storeRepP srp = facts.get_variable(*vi) ;
+            srp = srp->new_store(EMPTY)->thaw() ;
+            kp->create_shadow(*vi, srp) ;
+            shadow_clone[*vi].insert(ks_tag) ;
+          }
+        } else {
+          // self clone
+          for(variableSet::const_iterator vi=mappings_unique.begin();
+              vi!=mappings_unique.end();++vi) {
+            map<variable,string>::const_iterator
+              mi = self_clone.find(*vi) ;
+            if(mi == self_clone.end()) {
+              self_clone[*vi] = ks_tag ;
+            } else {
+              // see if conflict exist
+              if(mi->second != ks_tag) {
+                cerr << "Error: self_clone data error! variable "
+                     << *vi << " has self clone in keyspace: "
+                     << mi->second << " and keyspace: " << ks_tag
+                     << endl ;
+                Loci::Abort() ;
+              }
+            }
+          }
+        }
+      } // end of constraints
+
+      for(vmsi=ri->get_info().desc.targets.begin();
+          vmsi!=ri->get_info().desc.targets.end();++vmsi) {
+        // no mapping, no clone needed
+        if(vmsi->mapping.empty())
+          continue ;
+        
+        bool cross_space = false ;
+        // evaluate the first mapping block
+        variableSet mappings = vmsi->mapping[0] ;
+        variableSet mappings_unique = remove_synonym(mappings,facts) ;
+        variableSet cross = variableSet(mappings_unique & tunnels) ;
+        if(cross != EMPTY) {
+          FATAL(cross != mappings_unique) ;
+          cross_space = true ;
+        }
+        // evaluate the rest of the blocks
+        for(size_t i=1;i<vmsi->mapping.size();++i) {
+          mappings = vmsi->mapping[i] ;
+          mappings_unique = remove_synonym(mappings,facts) ;
+          if(cross_space) {
+            // shadow clone
+            for(variableSet::const_iterator
+                  vi=mappings_unique.begin();
+                vi!=mappings_unique.end();++vi) {
+              // create the shadow first
+              storeRepP srp = facts.get_variable(*vi) ;
+              srp = srp->new_store(EMPTY)->thaw() ;
+              kp->create_shadow(*vi, srp) ;
+              shadow_clone[*vi].insert(ks_tag) ;
+            }
+          } else {
+            // self clone
+            for(variableSet::const_iterator vi=mappings_unique.begin();
+                vi!=mappings_unique.end();++vi) {
+              map<variable,string>::const_iterator
+                mi = self_clone.find(*vi) ;
+              if(mi == self_clone.end()) {
+                self_clone[*vi] = ks_tag ;
+              } else {
+                // see if conflict exist
+                if(mi->second != ks_tag) {
+                  cerr << "Error: self_clone data error! variable "
+                       << *vi << " has self clone in keyspace: "
+                       << mi->second << " and keyspace: " << ks_tag
+                       << endl ;
+                  Loci::Abort() ;
+                }
+              }
+            }
+          }
+          // evaluate if cross space
+          if(!cross_space) {
+            cross = variableSet(mappings_unique & tunnels) ;
+            if(cross != EMPTY) {
+              FATAL(cross != mappings_unique) ;
+              cross_space = true ;
+            }
+          }
+        } // end of mapping
+        // now evaluate the var
+        mappings = vmsi->var ;
+        mappings_unique = remove_synonym(mappings,facts) ;
+        if(cross_space) {
+          // shadow clone
+          for(variableSet::const_iterator
+                vi=mappings_unique.begin();
+              vi!=mappings_unique.end();++vi) {
+            // create the shadow first
+            storeRepP srp = facts.get_variable(*vi) ;
+            srp = srp->new_store(EMPTY)->thaw() ;
+            kp->create_shadow(*vi, srp) ;
+            // since we are in the target chain
+            // it is therefore NOT necessary to declare
+            // this variable as a shadow clone because
+            // this variable is the one to be generated
+            // so it is not really a clone or so because
+            // we are not pulling data remotely to fill
+            // this variable, instead we will be pushing
+            // data to remote processes for this variable
+            // in an apply rule
+          }
+        } else {
+          // no need to do the self clone part
+          // because this is not a clone variable in the target chain
+        }
+        // end of var processing
+      } // end of targets
+    }
+  }
+
+  void
+  DynamicKeyspaceVisitor::replace_compiler(const ruleSet& rs) {
+    for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri) {
+      if(is_internal_rule(ri)) {
+        cerr << "Error: internal rule: " << *ri
+             << " in recursive supernode" << endl ;
+        Loci::Abort() ;
+      }
+      string ks_tag = ri->get_info().rule_impl->get_keyspace_tag() ;
+      if(ks_tag != "main") {
+        cerr << "Error: recursive rule: " << *ri
+             << " in keyspace other than \"main\" is currently NOT"
+             << " supported!" << endl ;
+        Loci::Abort() ;
+      }
+    }
+  }
+  
+  void
+  DynamicKeyspaceVisitor::visit(loop_compiler& lc) {
+    replace_compiler(lc.loop_gr, lc.rule_compiler_map, lc.cid) ;
+  }
+
+  void
+  DynamicKeyspaceVisitor::visit(dag_compiler& dc) {
+    replace_compiler(dc.dag_gr, dc.rule_compiler_map, dc.cid) ;
+  }
+
+  void
+  DynamicKeyspaceVisitor::visit(conditional_compiler& cc) {
+    replace_compiler(cc.cond_gr, cc.rule_compiler_map, cc.cid) ;
+  }
+
+  void
+  DynamicKeyspaceVisitor::visit(impl_recurse_compiler& irc) {
+    replace_compiler(irc.get_rules()) ;
+  }
+
+  void
+  DynamicKeyspaceVisitor::visit(recurse_compiler& rc) {
+    replace_compiler(rc.get_rules()) ;
+  }
+
+  /////////////////////////////////////////////////////////////////
+  // DynamicCloneInvalidatorVisitor
+  /////////////////////////////////////////////////////////////////
+  void DynamicCloneInvalidatorVisitor::
+  edit_graph(digraph& gr, rulecomp_map& rcm) {
+    // we'll get all the variables generated in this graph
+    digraph::vertexSet all_vertices = gr.get_all_vertices() ;
+    ruleSet all_rules = extract_rules(all_vertices) ;
+
+    variableSet targets ;
+    // gather targets first
+    for(ruleSet::const_iterator ri=all_rules.begin();
+        ri!=all_rules.end();++ri) {
+      // skip internal rules
+      if(is_internal_rule(ri))
+        continue ;
+      targets += ri->targets() ;
+    }
+
+    for(variableSet::const_iterator vi=targets.begin();
+        vi!=targets.end();++vi) {
+      variable t = facts.remove_synonym(*vi) ;
+      if(clone_vars.inSet(t)) {
+        // create a new rule and modify the graph
+        variable sv("dCloneInvalidate") ;
+        rule clone_irule = create_rule(sv,*vi,"DCLONE_INVALIDATE") ;
+        digraph::vertexSet reach = gr[vi->ident()] ;
+        for(digraph::vertexSet::const_iterator ii=reach.begin();
+            ii!=reach.end();++ii)
+          gr.remove_edge(vi->ident(), *ii) ;
+        gr.add_edge(vi->ident(), clone_irule.ident()) ;
+        gr.add_edges(clone_irule.ident(), reach) ;
+        // create a compiler for the new rule
+        KeySpaceP self_clone_kp = 0 ;
+        vector<KeySpaceP> shadow_clone_kp ;
+
+        map<variable, string>::const_iterator mi ;
+        mi = self_clone.find(t) ;
+        if(mi != self_clone.end()) {
+          // get the keyspace rep
+          map<string,KeySpaceP>::const_iterator ki ;
+          ki = facts.keyspace.find(mi->second) ;
+          if(ki == facts.keyspace.end()) {
+            cerr << "Error: keyspace: " << mi->second
+                 << " does not exist, error from "
+                 << "DynamicCloneInvalidatorVisitor" << endl ;
+            Loci::Abort() ;
+          }
+          self_clone_kp = ki->second ;
+        }
+          
+        map<variable, set<string> >::const_iterator mi2 ;
+        mi2 = shadow_clone.find(t) ;
+        if(mi2 != shadow_clone.end()) {
+          // get the all keyspace pointer
+          const set<string>& space_names = mi2->second ;
+          for(set<string>::const_iterator si=space_names.begin();
+              si!=space_names.end();++si) {
+            map<string,KeySpaceP>::const_iterator ki ;
+            ki = facts.keyspace.find(*si) ;
+            if(ki == facts.keyspace.end()) {
+              cerr << "Error: keyspace: " << *si
+                   << " does not exist, error from "
+                   << "DynamicCloneInvalidatorVisitor" << endl ;
+              Loci::Abort() ;
+            }
+            shadow_clone_kp.push_back(ki->second) ;
+          }
+        }
+
+        rcm[clone_irule] =
+          new dclone_invalidate_compiler(*vi, t,
+                                         self_clone_kp, shadow_clone_kp) ;
+      }
+    }
+  }
+  
+  DynamicCloneInvalidatorVisitor::
+  DynamicCloneInvalidatorVisitor
+  (fact_db& fd,
+   const std::map<variable,std::string>& sc,
+   const std::map<variable,std::set<std::string> >& sac)
+    :facts(fd),self_clone(sc),shadow_clone(sac) {
+
+    std::map<variable,std::string>::const_iterator mi ;
+    for(mi=self_clone.begin();mi!=self_clone.end();++mi)
+      self_clone_vars += mi->first ;
+    
+    std::map<variable,std::set<std::string> >::const_iterator mi2 ;
+    for(mi2=shadow_clone.begin();mi2!=shadow_clone.end();++mi2)
+      shadow_clone_vars += mi2->first ;
+
+    clone_vars = self_clone_vars + shadow_clone_vars ;
+  }
+  
+  void
+  DynamicCloneInvalidatorVisitor::visit(loop_compiler& lc) {
+    edit_graph(lc.loop_gr, lc.rule_compiler_map) ;
+  }
+
+  void
+  DynamicCloneInvalidatorVisitor::visit(dag_compiler& dc) {
+    edit_graph(dc.dag_gr, dc.rule_compiler_map) ;
+  }
+
+  void
+  DynamicCloneInvalidatorVisitor::visit(conditional_compiler& cc) {
+    edit_graph(cc.cond_gr, cc.rule_compiler_map) ;
   }
 
   ////////////////////////////////////////////////////////////

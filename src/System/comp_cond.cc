@@ -38,18 +38,18 @@ namespace Loci {
   public:
     execute_conditional(const executeP &cond, const variable &cv) :
       conditional(cond),cvar(cv) { warn(cond==0) ; }
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
 	virtual string getName() { return "execute_conditional";};
     virtual void dataCollate(collectData &data_collector) const  ;
   } ;
   
-  void execute_conditional::execute(fact_db &facts) {
+  void execute_conditional::execute(fact_db &facts, sched_db& scheds) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
 
     if(*test) {
-      conditional->execute(facts) ;
+      conditional->execute(facts, scheds) ;
     }
   }
 

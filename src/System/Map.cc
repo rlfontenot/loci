@@ -119,6 +119,13 @@ namespace Loci {
     return(size) ;
   }
   
+  int MapRepI::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
+    int size = sizeof(int) * packed.size() ;
+    return size ;
+  }
+  
   void MapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) 
   {
     for( int i = 0; i < eset.num_intervals(); i++) {
@@ -126,6 +133,20 @@ namespace Loci {
       int t = eset[i].second - eset[i].first + 1 ;
       MPI_Pack( &base_ptr[begin], t, MPI_INT, outbuf, outcount, 
                 &position, MPI_COMM_WORLD) ;
+    }
+  }
+  
+  void MapRepI::pack(void *outbuf, int &position,
+                     int &outcount, const entitySet &eset, const Map& remap) 
+  {
+    for( int i = 0; i < eset.num_intervals(); i++) {
+      const Loci::int_type begin = eset[i].first ;
+      int t = eset[i].second - eset[i].first + 1 ;
+      int* img = new int[t] ;
+      for(int k=0;k<t;++k)
+        img[k] = remap[base_ptr[begin+k]] ;
+      MPI_Pack(img, t, MPI_INT, outbuf, outcount, &position, MPI_COMM_WORLD) ;
+      delete[] img ;
     }
   }
   
@@ -142,6 +163,30 @@ namespace Loci {
         int t = seq[i].second - seq[i].first + 1 ;
         MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
                     t, MPI_INT, MPI_COMM_WORLD) ;
+      }
+    }
+  }
+
+  void MapRepI::unpack(void *inbuf, int &position,
+                       int &insize, const sequence &seq, const dMap& remap) {
+
+    for(int i = 0; i < seq.num_intervals(); ++i) {
+      if(seq[i].first > seq[i].second) {
+        const Loci::int_type stop = seq[i].second ;
+        for(Loci::int_type indx = seq[i].first; indx != stop-1; --indx)
+          MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
+                      1 , MPI_INT, MPI_COMM_WORLD) ;
+        // remap
+        for(Loci::int_type indx=seq[i].first;indx!=stop-1;--indx)
+          base_ptr[indx] = remap[base_ptr[indx]] ;
+      } else {
+        Loci::int_type indx = seq[i].first ;
+        int t = seq[i].second - seq[i].first + 1 ;
+        MPI_Unpack( inbuf, insize, &position, &base_ptr[indx],
+                    t, MPI_INT, MPI_COMM_WORLD) ;
+        // remap
+        for(int k=0;k<t;++k)
+          base_ptr[indx+k] = remap[base_ptr[indx+k]] ;
       }
     }
   }
@@ -930,6 +975,17 @@ namespace Loci {
     return( (size+eset.size())*sizeof(int) ) ;
   }
 
+  int multiMapRepI::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
+    int size = 0 ;
+    FORALL(packed, i) {
+      size += end(i) - begin(i) ;
+    } ENDFORALL ;
+
+    return ( (size+packed.size()) * sizeof(int)) ;
+  }
+
   void multiMapRepI::pack(void *outbuf, int &position, int &outcount, const entitySet &eset) {
 
     int vsize;
@@ -942,6 +998,25 @@ namespace Loci {
                 &position, MPI_COMM_WORLD) ;
     }
 
+  }
+  
+  void multiMapRepI::pack(void *outbuf, int &position,
+                          int &outcount, const entitySet &eset,
+                          const Map& remap) {
+    int vsize;
+    entitySet :: const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      vsize    = end(*ci) - begin(*ci);
+      MPI_Pack( &vsize, 1, MPI_INT, outbuf,outcount,
+                &position, MPI_COMM_WORLD) ;
+      // remap first
+      int* img = new int[vsize] ;
+      for(int k=0;k<vsize;++k)
+        img[k] = remap[base_ptr[*ci][k]] ;
+      MPI_Pack(img, vsize, MPI_INT,
+               outbuf, outcount, &position, MPI_COMM_WORLD) ;
+      delete[] img ;
+    }
   }
   
   void multiMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) {
@@ -959,6 +1034,28 @@ namespace Loci {
       fatal(vsize != end(*ci)-begin(*ci)) ;
       MPI_Unpack( inbuf, insize, &position, base_ptr[*ci],
                   vsize, MPI_INT, MPI_COMM_WORLD) ;
+    }
+  }   
+    
+  void multiMapRepI::unpack(void *inbuf, int &position,
+                            int &insize, const sequence &seq,
+                            const dMap& remap) {
+    int vsize;
+    sequence:: const_iterator ci;
+    for( ci = seq.begin(); ci != seq.end(); ++ci) {
+      MPI_Unpack( inbuf, insize, &position, &vsize,
+                  1, MPI_INT, MPI_COMM_WORLD) ;
+#ifdef DEBUG
+      if(vsize != end(*ci)-begin(*ci))
+        cerr << "vsize = " << vsize << ",actual = " << end(*ci)-begin(*ci)
+             << ",ci = " << *ci << endl ;
+#endif
+      fatal(vsize != end(*ci)-begin(*ci)) ;
+      MPI_Unpack( inbuf, insize, &position, base_ptr[*ci],
+                  vsize, MPI_INT, MPI_COMM_WORLD) ;
+      // remap
+      for(int k=0;k<vsize;++k)
+        base_ptr[*ci][k] = remap[base_ptr[*ci][k]] ;
     }
   }   
     

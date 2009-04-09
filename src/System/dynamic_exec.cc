@@ -2049,7 +2049,7 @@ namespace Loci
   // The execute() routine
   //=======================================================
 
-  void dynamic_schedule_rule::execute (fact_db & facts)
+  void dynamic_schedule_rule::execute (fact_db & facts, sched_db &scheds)
   {
 
     stopWatch s ;

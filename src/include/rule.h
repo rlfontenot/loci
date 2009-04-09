@@ -29,12 +29,15 @@
 #include <Tools/debug.h>
 #include <entitySet.h>
 #include <store_rep.h>
+#include <key_manager.h>
 
 #include <iostream>
 #include <string>
 #include <map>
 #include <vector>
 #include <set>
+#include <iterator>
+
 #include <Tools/cptr.h>
 #include <Tools/expr.h>
 #include <variable.h>
@@ -72,7 +75,7 @@ namespace Loci {
       variableSet output_vars() const ;
     } ;
     typedef CPTR<rule_impl> rule_implP ;
-    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,MAP_RULE,BLACKBOX_RULE,SUPER_RULE,UNKNOWN} ;
+    enum rule_impl_type {POINTWISE,SINGLETON,UNIT,APPLY,DEFAULT,OPTIONAL,CONSTRAINT_RULE,MAP_RULE,BLACKBOX_RULE,INSERTION,DELETION,ERASE,SUPER_RULE,UNKNOWN} ;
   private:
     rule_impl_type rule_impl_class ;
     bool rule_threading ;
@@ -89,7 +92,14 @@ namespace Loci {
     void source(const std::string &invar) ;
     void target(const std::string &outvar) ;
     std::string rule_comments ; // the comments for a rule_impl
-    
+    // keyspace tag that dictates which keyspace the rule
+    // is currently assigned to, defaults to empty string,
+    // which currently means that the rule should be scheduled
+    // under the default "metis" key space.
+    std::string space_tag ;
+    // bit indicates whether keyspace (the one this rule is in)
+    // distribution should be considered after this rule's execution
+    bool space_dist ;
   protected:
     rule_impl(rule_impl &f) { fatal(true) ; }
     void rule_class(rule_impl_type ft) { rule_impl_class = ft ; }
@@ -109,6 +119,10 @@ namespace Loci {
     void constraint(const std::string &constrain) ;
     void conditional(const std::string &cond) ;
     void comments(const char* c) {rule_comments += c ;}
+    // set the keyspace tag
+    void keyspace_tag(const std::string& t) {space_tag = t ;}
+    // set the space_dist bit
+    void keyspace_dist_hint() {space_dist = true ;}
   public:
     rule_impl() ;
     bool check_perm_bits() const ;
@@ -119,6 +133,18 @@ namespace Loci {
     bool is_parametric_provided() { return use_parametric_variable ; }
     variable get_parametric_variable() { return ParametricVariable ; }
     void initialize(fact_db &facts) ;
+    // this method returns all the keyspaces involved in a rule
+    // that need to be considered for distribution
+    std::vector<std::string>
+    gather_keyspace_dist() const ;
+    // this method returns whether this rule affects keyspace
+    // distribution
+    bool
+    affect_keyspace_dist() const {return space_dist ;}
+
+    std::string
+    get_keyspace_tag() const {return space_tag ;}
+    
     std::string get_name() const ;
     rule_impl_type get_rule_class() const { return rule_impl_class ; }
     const info &get_info() const { return rule_info ; }
@@ -293,6 +319,169 @@ namespace Loci {
     { rule_impl::conditional(cond) ; }
     virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
   } ;
+
+  // this one is purely for interface purpose
+  class insertion_rule_interface: public rule_impl {
+  public:
+    virtual void set_key_manager(KeyManagerP kp) = 0 ;
+    virtual KeyManagerP get_key_manager() const = 0 ;
+    virtual const KeySet& get_keys_inserted() const = 0 ;
+  } ;
+  typedef CPTR<insertion_rule_interface> insertion_rule_interfaceP ;
+
+  // we require that "SequentialContainer" provides an iterator
+  // interface, and a "value_type" definition. Good examples of
+  // "SequentialContainer" are "std::vector", "std::list" etc.
+  template<class SequentialContainer>
+  class insertion_rule: public insertion_rule_interface {
+    KeyManagerP key_manager ;
+    KeySet keys_inserted ;
+
+    int input_num ;
+  protected:
+    insertion_rule():key_manager(0),keys_inserted(EMPTY),input_num(0)
+    {rule_class(INSERTION) ;}
+
+    void name_store(const std::string &nm, store_instance &si)
+    { rule_impl::name_store(nm,si) ; }
+    void input(const std::string &invar) {
+      ++input_num ;
+      if(input_num >= 2) {
+        std::cerr << "Warning: an INSERTION rule should only have ONE input!"
+                  << endl ;
+      } else
+        rule_impl::input(invar) ;
+    }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain) {
+      std::cerr << "Warning: an INSERTION rule should not have "
+                << "any constraints!" << endl ;
+    }
+    void conditional(const std::string &cond)
+    { rule_impl::conditional(cond) ; }
+
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+
+    // method to be defined by users
+    // supplied by two arguments: the Entity e is the newly
+    // created entity for the value passed in, users would
+    // just need to decide how to fill the value to their
+    // target facts
+    virtual void
+    insert(const typename SequentialContainer::value_type& value,
+           Entity e) = 0 ;
+  public:
+    virtual void set_key_manager(KeyManagerP kp) {
+      key_manager = kp ;
+    }
+    virtual KeyManagerP get_key_manager() const {
+      return key_manager ;
+    }
+    virtual const KeySet& get_keys_inserted() const {
+      return keys_inserted ;
+    }
+    
+    virtual void compute(const sequence& seq) {
+      // at the beginning, we'll need to clear the keys inserted
+      keys_inserted = EMPTY ;
+      // we assume that there are only
+      // one input to this rule and its type
+      // is blackbox<SequentialContainer>
+      
+      // lets get the input's rep first
+      variable rule_input = *( (get_info().sources.begin())->var.begin()) ;
+      storeRepP rule_input_rep = get_store(rule_input) ;
+      const_blackbox<SequentialContainer> input(rule_input_rep) ;
+      const SequentialContainer& input_sequence = *input ;
+      // now we can know how many keys to be created
+      size_t num_of_keys = std::distance(input_sequence.begin(),
+                                         input_sequence.end()) ;
+      keys_inserted = key_manager->generate_key(num_of_keys) ;
+      KeySet::const_iterator ki = keys_inserted.begin() ;
+      typename SequentialContainer::const_iterator b, e ;
+      for(b=input_sequence.begin(),e=input_sequence.end();b!=e;++b,++ki)
+        insert(*b, *ki) ;
+    }
+  } ;
+
+  class deletion_rule: public rule_impl {
+    KeyManagerP key_manager ;
+    KeySet keys_deleted ;
+    bool if_destroy_keys ;
+  protected:
+    deletion_rule():key_manager(0),
+                    keys_deleted(EMPTY),if_destroy_keys(false) {
+      rule_class(DELETION) ;
+    }
+
+    void name_store(const std::string &nm, store_instance &si)
+    { rule_impl::name_store(nm,si) ; }
+    void input(const std::string &invar)
+    { rule_impl::input(invar) ; }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+    { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+
+    // this one tells if the deleted keys will also be destroyed
+    void destroy_keys() {if_destroy_keys = true ;}
+
+    void delete_key(Key k) {keys_deleted += k ;}
+
+    // defined by the users
+    virtual void evaluate_key(Key k) = 0 ;
+  public:
+    virtual void set_key_manager(KeyManagerP kp) {
+      key_manager = kp ;
+    }
+    virtual KeyManagerP get_key_manager() const {
+      return key_manager ;
+    }
+    const KeySet& get_keys_deleted() const {return keys_deleted ;}
+    bool destroy_deleted_keys() const {return if_destroy_keys ;}
+
+    void compute(const sequence& seq) {
+      // first clear the keys to be destroyed
+      keys_deleted = EMPTY ;
+      do_loop(seq,this,&deletion_rule::evaluate_key) ;
+    }
+  } ;
+  typedef CPTR<deletion_rule> deletion_ruleP ;
+
+  class erase_rule: public rule_impl {
+    KeySet record_erased ;
+  protected:
+    erase_rule():record_erased(EMPTY) {
+      rule_class(ERASE) ;
+    }
+
+    void name_store(const std::string &nm, store_instance &si)
+    { rule_impl::name_store(nm,si) ; }
+    void input(const std::string &invar)
+    { rule_impl::input(invar) ; }
+    void output(const std::string &outvar)
+    { rule_impl::output(outvar) ; }
+    void constraint(const std::string &constrain)
+    { rule_impl::constraint(constrain) ; }
+    void conditional(const std::string &cond)
+    { rule_impl::conditional(cond) ; }
+    virtual CPTR<joiner> get_joiner() { return CPTR<joiner>(0) ; }
+    void erase_record(Key k) {record_erased += k ;}
+    // defined by the users
+    virtual void evaluate_record(Key k) = 0 ;
+  public:
+    const KeySet& get_erased_record() const {return record_erased ;}
+    void compute(const sequence& seq) {
+      // first clear the keys to be destroyed
+      record_erased = EMPTY ;
+      do_loop(seq,this,&erase_rule::evaluate_record) ;
+    }
+  } ;
+  typedef CPTR<erase_rule> erase_ruleP ;
 
   // This rule is 
   class super_rule : public rule_impl {
@@ -916,6 +1105,8 @@ namespace Loci {
 
     varmap srcs2rule,trgt2rule ;
     rule_map_type name2rule ;
+    // partition rules according their keyspace
+    std::map<std::string,ruleSet> keyspace2rule ;
 
   public:
     void add_rule(const rule_implP &fp) ;
@@ -929,6 +1120,15 @@ namespace Loci {
     }
     
     const ruleSet &all_rules() const { return known_rules ; }
+    // return all the rules in "keyspace_tag"
+    const ruleSet& all_rules(const std::string& keyspace_tag) const {
+      std::map<std::string,ruleSet>::const_iterator
+        mi = keyspace2rule.find(keyspace_tag) ;
+      if(mi == keyspace2rule.end())
+        return EMPTY_RULE ;
+      else
+        return mi->second ;
+    }
     const ruleSet& get_default_rules() const {return default_rules ;}
     const ruleSet& get_optional_rules() const {return optional_rules ;}
     const ruleSet &rules_by_source(variable v) const {

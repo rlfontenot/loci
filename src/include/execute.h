@@ -161,11 +161,12 @@ namespace Loci {
     
     
   class fact_db ;
+  class sched_db ;
   class execute_modules : public CPTR_type {
   public:
-    execute_modules() { }
+    execute_modules() {}
     virtual ~execute_modules() {}
-    virtual void execute(fact_db &facts) = 0 ;
+    virtual void execute(fact_db &facts, sched_db &scheds) = 0 ;
     virtual void Print(std::ostream &s) const = 0 ;
     virtual string getName() = 0;
     virtual void dataCollate(collectData &data_collector) const = 0 ;
@@ -179,7 +180,7 @@ namespace Loci {
     execute_list() { }
     virtual ~execute_list() {}
     // Execute object code
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     // Print schedule to stream s
     virtual void Print(std::ostream &s) const ;
     // Collect accumulated data
@@ -198,7 +199,7 @@ namespace Loci {
     execute_sequence() { }
     virtual ~execute_sequence() {}
     // Execute object code
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db& scheds) ;
     // Print schedule to stream s
     virtual void Print(std::ostream &s) const ;
     // collect accumulated data

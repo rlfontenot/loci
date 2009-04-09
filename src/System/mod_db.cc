@@ -114,10 +114,14 @@ namespace Loci {
       }
       //Copy the loaded rule_list to the mod_info rule_list. 
       md.loaded_rule_list.copy_rule_list(register_rule_list) ;
-      md.mod_name = tmp_str ;
+      // copy the loaded keyspace list to the mod_info keyspace list
+      md.loaded_keyspace_list.copy_space_list(register_key_space_list) ;
       // We  have to clear the static register_rule_list as it is
       // going to be used to push in the next loaded rule list. 
       register_rule_list.clear() ;
+      register_key_space_list.clear() ;
+      md.mod_name = tmp_str ;
+
       put_info(md) ;
       return mod_map[tmp_str] ;
     }
@@ -157,8 +161,11 @@ namespace Loci {
       md.m_init_model = (void (*)(fact_db &, rule_db &, const char *))
 	dlsym(md.m_library,"init_model") ;
       md.loaded_rule_list.copy_rule_list(register_rule_list) ;
-      md.mod_name = tmp_str ;
+      md.loaded_keyspace_list.copy_space_list(register_key_space_list) ;
       register_rule_list.clear() ;
+      register_key_space_list.clear() ;
+      md.mod_name = tmp_str ;
+
       put_info(md) ;
       return mod_map[tmp_str] ; 
     }
@@ -219,7 +226,9 @@ namespace Loci {
 	    load_module(str_vec[i], to_str, rdb, str_set) ;
 	  }
       }
-    }	 
+    }
+    // finally add the keyspace list to the global one
+    global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
   }
   
   void load_module(const std::string from_str, const std::string to_str, const char* problem_name, fact_db &facts, rule_db& rdb, std::set<std::string> &str_set) {
@@ -303,6 +312,7 @@ namespace Loci {
       m.m_init_model(facts,rdb,problem_name) ;
       facts.unset_namespace() ;
     }
-
+    // finally add the keyspace list to the global one
+    global_key_space_list.copy_space_list(m.loaded_keyspace_list) ;
   }	 
 }

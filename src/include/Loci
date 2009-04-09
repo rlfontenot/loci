@@ -45,7 +45,7 @@
 #include <distribute_container.h>
 #include <multiStore.h>
 #include <storeMat.h>
-#include <mod_db.h> 
+#include <mod_db.h>
 
 #include <DStore.h>
 #include <DStoreVec.h>

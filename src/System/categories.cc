@@ -140,6 +140,7 @@ namespace Loci {
       if((entitySet(iv)&totSet) != EMPTY)
         pvec.push_back(iv) ;
     }
+
   }
 
   // Identify categories by the association of attributes (variables)
@@ -330,5 +331,6 @@ namespace Loci {
 #endif
 
     }
+
   }
 }

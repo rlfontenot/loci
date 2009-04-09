@@ -353,7 +353,8 @@ namespace Loci {
   }
 
 #define GROUP_ALLREDUCE
-  void execute_param_red::execute(fact_db &facts) {
+
+  void execute_param_red::execute(fact_db &facts, sched_db &scheds) {
     //    debugout << "reduce vars=" ;
     //    for(size_t i = 0; i < reduce_vars.size(); i++) {
     //      debugout << ' ' << reduce_vars[i];
@@ -607,7 +608,7 @@ namespace Loci {
     execute_comm_reduce(list<comm_info> &plist, fact_db &facts,
                         CPTR<joiner> jop) ;
     ~execute_comm_reduce() ;
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_comm_reduce";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -695,9 +696,8 @@ namespace Loci {
   static unsigned char *send_ptr_buf = 0 ;
   static int send_ptr_buf_size = 0 ;
 
-  void execute_comm_reduce::execute(fact_db  &facts) {
+  void execute_comm_reduce::execute(fact_db  &facts, sched_db &scheds) {
     //    debugout << "reduce local vars" << endl ;
-    
     stopWatch s ;
     s.start() ;
     const int nrecv = recv_info.size() ;

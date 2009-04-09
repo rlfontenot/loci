@@ -125,6 +125,12 @@ namespace Loci {
     warn(true) ;
     return 0 ;
   }
+
+  int constraintRep::
+  pack_size(const entitySet& e, entitySet& packed) {
+    warn(true) ;
+    return 0 ;
+  }
   
   void constraintRep::pack(void *ptr, int &loc, int &size, const entitySet&e) {
     warn(true) ;

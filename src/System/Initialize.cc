@@ -46,6 +46,7 @@ void dummyFunctionDependencies(int i) {
 #endif
 
 #include <rule.h>
+#include <keyspace.h>
 #include <mod_db.h>
 #include "dist_tools.h"
 #include "loci_globs.h"
@@ -318,6 +319,11 @@ namespace Loci {
     if(!register_rule_list.empty()) {
       global_rule_list.copy_rule_list(register_rule_list) ;
       register_rule_list.clear() ;
+    }
+    // do the same to get all the defined keyspace
+    if(!register_key_space_list.empty()) {
+      global_key_space_list.copy_space_list(register_key_space_list) ;
+      register_key_space_list.clear() ;
     }
     bool debug_setup = false ;
     int i = 1 ;

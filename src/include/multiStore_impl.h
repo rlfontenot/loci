@@ -601,6 +601,16 @@ namespace Loci {
     return get_mpi_size( traits_type, eset );
   }
 
+  template<class T> int multiStoreRepI<T>::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
+
+    typedef typename data_schema_traits<T>::Schema_Converter
+      schema_converter;
+    schema_converter traits_type;
+
+    return get_mpi_size(traits_type, packed);    
+  }
   //**************************************************************************/
   template <class T> 
   void multiStoreRepI<T>::packdata( IDENTITY_CONVERTER c, void *outbuf,

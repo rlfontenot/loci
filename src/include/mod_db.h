@@ -27,6 +27,7 @@
 #include <dlfcn.h>
 
 #include <rule.h>
+#include <keyspace.h>
 #include <fact_db.h>
 #include <string>
 namespace Loci {
@@ -35,7 +36,9 @@ namespace Loci {
   class mod {
   public: 
     struct mod_info {
-     rule_impl_list loaded_rule_list ;
+      rule_impl_list loaded_rule_list ;
+      KeySpaceList loaded_keyspace_list ;
+      
       std::string mod_name ;
       void *m_library ;
       void (*m_init_model)(fact_db &facts, rule_db &rdb, const char *problem_name) ;
@@ -55,6 +58,7 @@ namespace Loci {
       }
       mod_info(const mod_info& mi) {
 	loaded_rule_list.copy_rule_list(mi.loaded_rule_list) ;
+        loaded_keyspace_list.copy_space_list(mi.loaded_keyspace_list) ;
 	mod_name = mi.mod_name ;
         m_library = mi.m_library ;
         m_init_model = mi.m_init_model ;

@@ -197,6 +197,15 @@ namespace Loci {
     relaxed_recursion = false ;
     specialized_parametric = false ;
     use_parametric_variable = false ;
+    // setting the keyspace tag to "main"
+    // this is a temporary solution. in the
+    // future, we would need a more systematic
+    // way to categorize rule in keyspaces.
+    // a more consistent and systematic implementation
+    // also requires that the fact database to be
+    // reorganized to support "true" keyspace partition
+    space_tag = "main" ;
+    space_dist = false ;
   }
 
   void rule_impl::rule_name(const string &fname) {
@@ -450,6 +459,16 @@ namespace Loci {
 	    cerr << "pointwise_rule, or apply_rule."<< endl ;
             cerr << "Error occured for rule " << get_name()
 		 << " and variable " << *si << endl ;
+            cerr << "-------------------------------------------------"<<endl;
+            retval = false ;
+          }
+          break ;
+        case DELETION:
+          if(mi->second->Rep()->RepType() != PARAMETER) {
+            cerr << "-------------------------------------------------"<<endl ;
+            cerr << "Deletion rule should have only one target of " << endl ;
+            cerr << "parameter. Error occured for rule "<<get_name()<<endl ;
+            cerr << " and variable " << *si << endl ;
             cerr << "-------------------------------------------------"<<endl;
             retval = false ;
           }
@@ -789,6 +808,18 @@ namespace Loci {
     case OPTIONAL:
       s << "OPTIONAL" ;
       break ;
+    case CONSTRAINT_RULE:
+      s << "CONSTRAINT_RULE" ;
+      break ;
+    case BLACKBOX_RULE:
+      s << "BLACKBOX_RULE" ;
+      break ;
+    case INSERTION:
+      s << "INSERTION" ;
+      break ;
+    case DELETION:
+      s << "DELETION" ;
+      break ;
     default:
       s << "ERROR" ;
       break ;
@@ -813,8 +844,15 @@ namespace Loci {
     
     s << "------------------------------------------------" << endl;
     
-  }        
+  }
 
+  vector<string>
+  rule_impl::gather_keyspace_dist() const {
+    vector<string> ks ;
+    // right now, it is now the space the rule is in
+    ks.push_back(space_tag) ;
+    return ks ;
+  }
 
   rule::rule_db *rule::rdb = 0 ;
  
@@ -871,7 +909,6 @@ namespace Loci {
     }
 
     time_ident source_time,target_time ;
-
     //Changes svars to source_vars here.
     for(variableSet::const_iterator i=source_vars.begin();
         i!=source_vars.end();
@@ -924,7 +961,7 @@ namespace Loci {
     
     source_level = source_time ;
     target_level = target_time ;
-    
+
     rule_class = TIME_SPECIFIC ;
     
     if(source_time == target_time) {
@@ -1624,8 +1661,8 @@ namespace Loci {
     global_list = flp ;
   }
   
-  const ruleSet rule_db::EMPTY_RULE ; 
-  
+  const ruleSet rule_db::EMPTY_RULE ;
+
   void rule_db::add_rule(const rule_implP &fp) {
     // Check for rule consistency
     fp->check_perm_bits() ;
@@ -1681,6 +1718,9 @@ namespace Loci {
         cerr << "WARNING, rule " << f << " has no sources" << endl ;
       if(tvars == EMPTY)
         cerr << "WARNING, rule " << f << " has no targets" << endl ;
+      // now add rules to corresponding keyspace partition
+      keyspace2rule[f.get_info().rule_impl->get_keyspace_tag()] += f ;
+      // finally add it to the known_rules set
       known_rules += f ;
     }
   }
@@ -1726,6 +1766,7 @@ namespace Loci {
       }
       trgt2rule[v] -= f ;
     }
+    keyspace2rule[f.get_info().rule_impl->get_keyspace_tag()] -= f ;
   }
   
   void rule_db::remove_rules(const ruleSet& rs) {
