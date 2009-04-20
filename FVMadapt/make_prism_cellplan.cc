@@ -42,7 +42,7 @@ using std::cout;
 using Loci::storeRepP;
 //int currentMem(void);
 #ifdef USE_LIBXML2
-void mark_node( xmlNode* root_element,
+bool mark_node( xmlNode* root_element,
                std::list<Node*>::iterator begin_pnt,
                 std::list<Node*>::iterator end_pnt);
 #endif
@@ -406,8 +406,15 @@ public:
     if(seq.size()!=0){
 #ifdef USE_LIBXML2
       doc = xmlReadFile((*xmlfile_par).c_str(), NULL, 0);
+      if(doc==NULL){
+        cerr << "WARNING: fail tp parse xml file" << endl;
+        Loci::Abort();
+      }
       root_element = xmlDocGetRootElement(doc);
-      
+      if(root_element == NULL) {
+        cerr <<"WARNING: fail to parse xml file" << endl;
+        Loci::Abort();
+      }
       do_loop(seq, this);
       xmlFreeDoc(doc);
       xmlCleanupParser();
@@ -454,7 +461,10 @@ public:
     
   
   
-  mark_node(root_element, bnode_list.begin(), bnode_list.end());
+    if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+      cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+      Loci::Abort();
+    }
  
  
  
@@ -469,7 +479,10 @@ public:
                     gface_list,
                     cells);
     former_pnt--;
-    mark_node(root_element, bnode_list.begin(), bnode_list.end());
+    if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+      cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+      Loci::Abort();
+    }
     
     
     Prism* current;
@@ -496,7 +509,10 @@ public:
         
 
         former_pnt--;
-        mark_node(root_element, bnode_list.begin(), bnode_list.end());
+        if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+           cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+           Loci::Abort();
+        }
         for(int i = 0; i < current->numChildren(); i++){
           Q.push(current->getChildCell(i));
         }
@@ -580,8 +596,15 @@ public:
     if(seq.size()!=0){
 #ifdef USE_LIBXML2
       doc = xmlReadFile((*xmlfile_par).c_str(), NULL, 0);
+      if(doc==NULL){
+        cerr<< "WARNING: fail to parse xml file"<< endl;
+        Loci::Abort();
+      }
       root_element = xmlDocGetRootElement(doc);
-  
+      if(root_element==NULL) {
+        cerr <<"WARNING: fail to  parse xml file" << endl;
+        Loci::Abort();
+      }
       do_loop(seq, this);
       xmlFreeDoc(doc);
       xmlCleanupParser();
@@ -618,7 +641,10 @@ public:
                                     qface_list,
                                     gface_list,
                                     node_l2f);
-    mark_node(root_element, bnode_list.begin(), bnode_list.end());
+    if( !mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+      cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+      Loci::Abort();
+    }
     Q.push(aCell);
   
    Prism* current;
@@ -632,7 +658,10 @@ public:
        former_pnt--;
        current->split(bnode_list, edge_list, qface_list, gface_list);
       
-       mark_node(root_element, bnode_list.begin(), bnode_list.end());
+       if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+          cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+          Loci::Abort();
+       }
        for(int i = 0; i < current->numChildren(); i++){
          Q.push(current->getChildCell(i));
        }

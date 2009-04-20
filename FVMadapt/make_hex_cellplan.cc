@@ -42,7 +42,7 @@ using Loci::storeRepP;
 //int currentMem(void);
 
 #ifdef USE_LIBXML2
-void mark_node( xmlNode* root_element,
+bool mark_node( xmlNode* root_element,
                std::list<Node*>::iterator begin_pnt,
                 std::list<Node*>::iterator end_pnt);
 #endif
@@ -387,14 +387,21 @@ public:
     if(seq.size()!=0){
 #ifdef USE_LIBXML2
       doc = xmlReadFile((*xmlfile_par).c_str(), NULL, 0);
+      if(doc == NULL){
+        cerr << " WARNING: fail to parse xml file"<< endl;
+        Loci::Abort();
+      }
       root_element = xmlDocGetRootElement(doc);
-    
-      do_loop(seq, this);
-      xmlFreeDoc(doc);
-      xmlCleanupParser();
-      xmlMemoryDump();
+       if(root_element == NULL) {
+         cerr <<"fail to parse xml file" << endl;
+         Loci::Abort();
+       }
+       do_loop(seq, this);
+       xmlFreeDoc(doc);
+       xmlCleanupParser();
+       xmlMemoryDump();
 #else
-      cerr << "XML capabilities not compiled into adaption code!  Check libxml availability when compiling" << endl ;
+       cerr << "XML capabilities not compiled into adaption code!  Check libxml availability when compiling" << endl ;
 #endif
     }
   }
@@ -426,11 +433,11 @@ public:
                                       node_l2f);
     
     
-    mark_node(root_element, bnode_list.begin(), bnode_list.end());
-    
- 
- 
-    
+      if(! mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+        cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+        Loci::Abort();
+      }
+        
    
     std::vector<HexCell*> cells;
     std::list<Node*>::iterator former_pnt = bnode_list.end();
@@ -440,7 +447,10 @@ public:
                     face_list,
                     cells);
     former_pnt--;
-    mark_node(root_element, bnode_list.begin(), bnode_list.end());
+    if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+      cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+      Loci::Abort();
+    }
     
     HexCell* current;
     int numCells = cells.size();
@@ -460,7 +470,11 @@ public:
         current->split(bnode_list, edge_list, face_list);
          
         former_pnt--;
-        mark_node(root_element, bnode_list.begin(), bnode_list.end());
+        if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+          cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+          Loci::Abort();
+        }
+        
         for(int i = 0; i < current->numChildren(); i++){
           Q.push(current->getChildCell(i));
         }
@@ -542,12 +556,21 @@ public:
     if(seq.size()!=0){
 #ifdef USE_LIBXML2
       doc = xmlReadFile((*xmlfile_par).c_str(), NULL, 0);
+      if(doc == NULL){
+        cerr <<"fail to parse xml file" << endl;
+        Loci::Abort();
+      }
       root_element = xmlDocGetRootElement(doc);
-  
+      if(root_element==NULL) {
+        cerr <<"fail to parse xml file" << endl;
+        Loci::Abort();
+      }
+       
       do_loop(seq, this);
       xmlFreeDoc(doc);
       xmlCleanupParser();
       xmlMemoryDump();
+      
 #else
       cerr << "libxml2 not available when compiling adapt code.  XML features not available!" << endl ;
       Loci::Abort() ;
@@ -581,7 +604,11 @@ public:
                                     face_list,
                                     node_l2f);
     
-    mark_node(root_element, bnode_list.begin(), bnode_list.end());
+    if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+      cerr<< "WARNING: fail to mark nodes, please check xml file" << endl;
+      Loci::Abort();
+    }
+    
     Q.push(aCell);
     
     HexCell* current;
@@ -595,7 +622,10 @@ public:
         
     
         former_pnt--;
-        mark_node(root_element, bnode_list.begin(), bnode_list.end());
+        if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+          cerr<< "WARNING: fail to mark nodes, please check xml file" << endl;
+          Loci::Abort();
+        } 
 
         for(int i = 0; i < current->numChildren(); i++){
           Q.push(current->getChildCell(i));

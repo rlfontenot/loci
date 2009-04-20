@@ -42,7 +42,7 @@ using Loci::storeRepP;
 //int currentMem(void);
 
 #ifdef USE_LIBXML2
-void mark_node( xmlNode* root_element,
+bool mark_node( xmlNode* root_element,
                std::list<Node*>::iterator begin_pnt,
                std::list<Node*>::iterator end_pnt);
 #endif
@@ -375,8 +375,15 @@ public:
     if(seq.size()!=0){
 #ifdef USE_LIBXML2
       doc = xmlReadFile((*xmlfile_par).c_str(), NULL, 0);
+      if(doc==NULL){
+        cerr << "WARNING: fail to parse xml file" << endl;
+        Loci::Abort();
+      }
       root_element = xmlDocGetRootElement(doc);
-     
+      if(root_element == NULL) {
+        cerr <<"WARNING: fail to parse xml file" << endl;
+        Loci::Abort();
+      }
       do_loop(seq, this);
       xmlFreeDoc(doc);
       xmlCleanupParser();
@@ -425,7 +432,10 @@ public:
       
       
       
-      mark_node(root_element, bnode_list.begin(), bnode_list.end());
+      if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+        cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+        Loci::Abort();
+      }
      
       
       std::vector<DiamondCell*> cells;
@@ -438,7 +448,10 @@ public:
                       cells);
      
       former_pnt--;
-      mark_node(root_element, bnode_list.begin(), bnode_list.end());
+      if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+        cerr <<"WARNING: fail to mark nodes, please check xml file" << endl;
+        Loci::Abort();
+      }
 
       
      
@@ -458,7 +471,10 @@ public:
           former_pnt = bnode_list.end();
           aCell->split(bnode_list, edge_list, face_list);
           former_pnt--;
-          mark_node(root_element, bnode_list.begin(), bnode_list.end());
+          if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+            cerr<<"WARNING: fail to mark nodes, please check xml file"<< endl;
+            Loci::Abort();
+          }
          
           
           for(int i = 0; i < aCell->numNode; i++){
@@ -477,7 +493,10 @@ public:
           current->split(bnode_list, edge_list, face_list);
           
           former_pnt--;
-          mark_node(root_element, bnode_list.begin(), bnode_list.end());
+          if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+            cerr << "WARNING: fail to mark nodes, please check xml file"<< endl;
+            Loci::Abort();
+          }
 
           for(int i = 0; i < 2*current->getNfold()+2; i++){
             Q.push(current->getChildCell(i));
@@ -551,8 +570,15 @@ public:
     if(seq.size()!=0){
 #ifdef USE_LIBXML2
       doc = xmlReadFile((*xmlfile_par).c_str(), NULL, 0);
+      if(doc==NULL){
+        cerr << "WARNING: fail to parse xml file" << endl;
+        Loci::Abort();
+      }
       root_element = xmlDocGetRootElement(doc);
-      
+      if(root_element == NULL) {
+        cerr <<"WARNING: fail to  parse xml file" << endl;
+        Loci::Abort();
+      }
       do_loop(seq, this);
       xmlFreeDoc(doc);
       xmlCleanupParser();
@@ -591,7 +617,10 @@ public:
     
     DiamondCell* current;
     
-    mark_node(root_element,bnode_list.begin(), bnode_list.end());
+    if(!mark_node(root_element,bnode_list.begin(), bnode_list.end())){
+      cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+      Loci::Abort();
+    }
     double min_edge_length =aCell->get_min_edge_length();
 
 
@@ -599,7 +628,10 @@ public:
        std::list<Node*>::iterator former_pnt = bnode_list.end();
        aCell->split(bnode_list, edge_list, face_list);
        former_pnt--;
-       mark_node(root_element, bnode_list.begin(), bnode_list.end());
+       if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+         cerr << "WARNING: fail to mark nodes, plase check xml file"<< endl;
+         Loci::Abort();
+       }
        for(int i = 0; i < aCell->numNode; i++){
          Q.push(aCell->child[i]);
        }
@@ -614,7 +646,10 @@ public:
           current->split(bnode_list, edge_list, face_list);
           
           former_pnt--;
-          mark_node(root_element, bnode_list.begin(), bnode_list.end());
+          if(!mark_node(root_element, bnode_list.begin(), bnode_list.end())){
+            cerr << "WARNING: fail to mark nodes, please check xml file" << endl;
+            Loci::Abort();
+          }
           for(int i = 0; i <2*current->getNfold()+2; i++){
             Q.push(current->getChildCell(i));
           }
