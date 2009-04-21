@@ -229,8 +229,7 @@ std::vector<bool> process_cone(xmlNode* anode,  const std::vector<vect3d>& point
        else  if(xmlStrEqual(cur_node->name, BAD_CAST("z2")) ){ 
          z2 = xmlXPathCastNodeToNumber(cur_node->children);
        
-       }
-      else{
+       }else{
         cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'cone'"<<endl;
         cerr<<"          Please specify 'x0', 'y0', 'z0', 'r', 'z1' and 'z2' as in: " << endl;
         cerr <<"         (x-x0)*(x-x0) + (y-y0)*(y-y0)) <= r*r*(z-z0)*(z-z0)  && z >= z1 && z <= z2 "<< endl;
@@ -289,8 +288,7 @@ std::vector<bool> process_cylinder(xmlNode* anode,  const std::vector<vect3d>& p
        else  if(xmlStrEqual(cur_node->name, BAD_CAST("z2")) ){ 
          z2 = xmlXPathCastNodeToNumber(cur_node->children);
          
-       }
-      else{
+       }else{
         cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'cylinder'"<<endl;
         cerr<<"          Please specify 'x0', 'y0', 'r', 'z1' and 'z2' as in: " << endl;
         cerr <<"         (x-x0)*(x-x0) + (y-y0)*(y-y0)) <= r*r  && z >= z1 && z <= z2 "<< endl;
@@ -665,16 +663,15 @@ vect3d  process_translate(xmlNode* anode){
       if(xmlStrEqual(cur_node->name, BAD_CAST("theta")) ){ 
         theta = xmlXPathCastNodeToNumber(cur_node->children);
        
-      }
-     
-    }else{
-      cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'rotate'"<<endl;
+      }else{
+        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'rotate'"<<endl;
         cerr<<"          Please specify 'theta'(unit: degree) " << endl;
         cerr <<"         an example:         <rotateX> " << endl;
         cerr <<"                               <theta>30.0</theta>" << endl;
         cerr <<"                             </rotateX> " << endl;
         Loci::Abort();
-    } 
+      } 
+    }
   }
   return theta; 
  }
@@ -762,8 +759,7 @@ std::vector<bool> process_shape(xmlNode* anode, const std::vector<vect3d>& p){
       
       else  if(xmlStrEqual(cur_node->name, BAD_CAST("z-plane")) ){ 
         return process_z_minus_plane(cur_node, p);
-      }
-      else{
+      } else{
         cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'shape'"<<endl;
         cerr <<"         the children elements can be: 'sphere', 'cone', 'cylinder', 'box',"<<endl;
         cerr <<"                                      'x+plane', 'x-plane', 'y+plane', 'y-plane', 'z+plane' or 'z-plane'" << endl;

@@ -136,8 +136,10 @@ default: marker refmesh
 marker: $(MARKOBJS) $(MODULES) 
 	$(LD) -o  marker  $(MARKOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
-refmesh:$(REFOBJS) $(MODULES) marker
+
+refmesh:$(REFOBJS) $(MODULES) 
 	$(LD) -o  refmesh  $(REFOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
 
 
 FRC :
