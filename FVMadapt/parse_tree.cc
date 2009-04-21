@@ -395,12 +395,12 @@ std::vector<bool> process_x_plus_plane(xmlNode* anode,  const std::vector<vect3d
         x1 = xmlXPathCastNodeToNumber(cur_node->children);
         
       }else{
-        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'x+plane'"<<endl;
+        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'x_plus_plane'"<<endl;
          cerr<<"          Please specify 'x1' as in: " << endl;
          cerr <<"         x >= x1  "<< endl;
-         cerr <<"         an example:         <x+plane> " << endl;
+         cerr <<"         an example:         <x_plus_plane> " << endl;
          cerr <<"                               <x1>3.8</x1> " << endl;
-         cerr <<"                             </x+plane> " << endl;
+         cerr <<"                             </x_plus_plane> " << endl;
          Loci::Abort();
       }
     }
@@ -428,12 +428,12 @@ std::vector<bool> process_x_minus_plane(xmlNode* anode,  const std::vector<vect3
         
       }else{
 
-        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'x-plane'"<<endl;
+        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'x_minus_plane'"<<endl;
         cerr<<"          Please specify 'x1' as in: " << endl;
         cerr <<"         x <= x1  "<< endl;
-        cerr <<"         an example:         <x-plane> " << endl;
+        cerr <<"         an example:         <x_minus_plane> " << endl;
         cerr <<"                               <x1>3.8</x1> " << endl;
-        cerr <<"                             </x-plane> " << endl;
+        cerr <<"                             </x_minus_plane> " << endl;
         Loci::Abort();
         
       }
@@ -461,12 +461,12 @@ std::vector<bool> process_y_plus_plane(xmlNode* anode,  const std::vector<vect3d
         y1 = xmlXPathCastNodeToNumber(cur_node->children);
         
       }else{
-        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'y+plane'"<<endl;
+        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'y_plus_plane'"<<endl;
         cerr<<"          Please specify 'y1' as in: " << endl;
         cerr <<"         y >= y1  "<< endl;
-        cerr <<"         an example:         <y+plane> " << endl;
+        cerr <<"         an example:         <y_plus_plane> " << endl;
         cerr <<"                               <y1>3.8</y1> " << endl;
-        cerr <<"                             </y+plane> " << endl;
+        cerr <<"                             </y_plus_plane> " << endl;
         Loci::Abort();
       }
     }
@@ -493,12 +493,12 @@ std::vector<bool> process_y_minus_plane(xmlNode* anode,  const std::vector<vect3
         y1 = xmlXPathCastNodeToNumber(cur_node->children);
         
       }else{
-        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'y-plane'"<<endl;
+        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'y_minus_plane'"<<endl;
         cerr<<"          Please specify 'y1' as in: " << endl;
         cerr <<"         y <= y1  "<< endl;
-        cerr <<"         an example:         <y-plane> " << endl;
+        cerr <<"         an example:         <y_minus_plane> " << endl;
         cerr <<"                               <y1>3.8</y1> " << endl;
-        cerr <<"                             </y-plane> " << endl;
+        cerr <<"                             </y_minus_plane> " << endl;
         Loci::Abort();
       }
     }
@@ -526,12 +526,12 @@ std::vector<bool> process_z_plus_plane(xmlNode* anode,  const std::vector<vect3d
         z1 = xmlXPathCastNodeToNumber(cur_node->children);
         
       }else{
-        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'z+plane'"<<endl;
+        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'z_plus_plane'"<<endl;
         cerr<<"          Please specify 'z1' as in: " << endl;
         cerr <<"         z >= z1  "<< endl;
-        cerr <<"         an example:         <z+plane> " << endl;
+        cerr <<"         an example:         <z_plus_plane> " << endl;
         cerr <<"                               <z1>3.8</z1> " << endl;
-        cerr <<"                             </z+plane> " << endl;
+        cerr <<"                             </z_plus_plane> " << endl;
         Loci::Abort();
       }
     }
@@ -558,12 +558,12 @@ std::vector<bool> process_z_minus_plane(xmlNode* anode,  const std::vector<vect3
         z1 = xmlXPathCastNodeToNumber(cur_node->children);
         
       }else{
-        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'z-plane'"<<endl;
+        cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'z_minus_plane'"<<endl;
         cerr<<"          Please specify 'z1' as in: " << endl;
         cerr <<"         z <= z1  "<< endl;
-        cerr <<"         an example:         <z-plane> " << endl;
+        cerr <<"         an example:         <z_minus_plane> " << endl;
         cerr <<"                               <z1>3.8</z1> " << endl;
-        cerr <<"                             </z-plane> " << endl;
+        cerr <<"                             </z_minus_plane> " << endl;
         Loci::Abort();
       }
     }
@@ -739,30 +739,31 @@ std::vector<bool> process_shape(xmlNode* anode, const std::vector<vect3d>& p){
         return process_box(cur_node, p);
       }
 
-      else  if(xmlStrEqual(cur_node->name, BAD_CAST("x+plane")) ){ 
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("x_plus_plane")) ){ 
         return process_x_plus_plane(cur_node, p);
       }
       
-      else  if(xmlStrEqual(cur_node->name, BAD_CAST("x-plane")) ){ 
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("x_minus_plane")) ){ 
         return process_x_minus_plane(cur_node, p);
       }
-      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y+plane")) ){ 
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y_plus_plane")) ){ 
         return process_y_plus_plane(cur_node, p);
       }
       
-      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y-plane")) ){ 
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("y_minus_plane")) ){ 
         return process_y_minus_plane(cur_node, p);
       } 
-      else  if(xmlStrEqual(cur_node->name, BAD_CAST("z+plane")) ){ 
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("z_plus_plane")) ){ 
         return process_z_plus_plane(cur_node, p);
       }
       
-      else  if(xmlStrEqual(cur_node->name, BAD_CAST("z-plane")) ){ 
+      else  if(xmlStrEqual(cur_node->name, BAD_CAST("z_minus_plane")) ){ 
         return process_z_minus_plane(cur_node, p);
       } else{
         cerr <<"WARNING: unknown element name: "<<cur_node->name<< " in the children elements of 'shape'"<<endl;
         cerr <<"         the children elements can be: 'sphere', 'cone', 'cylinder', 'box',"<<endl;
-        cerr <<"                                      'x+plane', 'x-plane', 'y+plane', 'y-plane', 'z+plane' or 'z-plane'" << endl;
+        cerr <<"                                      'x_plus_plane', 'x_minus_plane', 'y_plus_plane'"<<endl;
+        cerr <<"                                      'y_minus_plane', 'z_plus_plane' or 'z_minus_plane'" << endl;
         Loci::Abort();
       }
     }
