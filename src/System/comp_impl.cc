@@ -1988,24 +1988,25 @@ namespace Loci {
   // blackbox_compiler code
   void
   blackbox_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
-    existential_blackboxrule_analysis(impl, facts, scheds) ;
-    // // set UNIVERSE existence for all targets
-    // variableSet targets = impl.targets() ;
-    // for(variableSet::const_iterator vi=targets.begin();vi!=targets.end();++vi)
-    //   scheds.set_existential_info(*vi, impl, ~EMPTY) ;
+    //    existential_blackboxrule_analysis(impl, facts, scheds) ;
+    // set UNIVERSE existence for all targets
+     variableSet targets = impl.targets() ;
+     for(variableSet::const_iterator vi=targets.begin();vi!=targets.end();++vi)
+       scheds.set_existential_info(*vi, impl, ~EMPTY) ;
   }
 
   void blackbox_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
-    exec_seq = process_blackboxrule_requests(impl, facts, scheds) ;
-    // //everyone will need to request for their existence
-    // variableSet targets = impl.targets() ;
-    // for(variableSet::const_iterator vi = targets.begin(); vi != targets.end(); ++vi)
-    //   scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
+    //    exec_seq = process_blackboxrule_requests(impl, facts, scheds) ;
 
-    // variableSet sources = impl.sources() ;
-    // for(variableSet::const_iterator vi=sources.begin(); vi != sources.end(); ++vi)
-    //   scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
-    // exec_seq = ~EMPTY ;
+    //everyone will need to request for their existence
+    variableSet targets = impl.targets() ;
+    for(variableSet::const_iterator vi = targets.begin(); vi != targets.end(); ++vi)
+      scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
+
+    variableSet sources = impl.sources() ;
+    for(variableSet::const_iterator vi=sources.begin(); vi != sources.end(); ++vi)
+      scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
+    exec_seq = ~EMPTY ;
   }
 
   executeP blackbox_compiler::
