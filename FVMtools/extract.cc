@@ -42,8 +42,10 @@ using std::unique ;
 
 #include <sys/types.h>
 #include <sys/stat.h>
-
+#include <dirent.h>
 #include "extract.h"
+
+string output_dir ;
 
     
 
@@ -145,7 +147,7 @@ int  sizeElementType(hid_t group_id, const char *element_name) {
 void getDerivedVar(vector<float> &dval, string var_name,
                    string casename, string iteration) {
   if(var_name == "m") {
-    string filename = "output/a_sca."+iteration + "_" + casename ;
+    string filename = output_dir+"/a_sca."+iteration + "_" + casename ;
     
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
@@ -160,7 +162,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     Loci::readContainer(file_id,"a",soundSpeed.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
-    filename = "output/v_vec." + iteration +"_" + casename ;
+    filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -180,7 +182,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       dval[c++] = m ;
     } ENDFORALL ;
   } else if(var_name == "p" || var_name == "P") {
-    string filename = "output/pg_sca."+iteration + "_" + casename ;
+    string filename = output_dir+"/pg_sca."+iteration + "_" + casename ;
     
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
@@ -195,7 +197,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     Loci::readContainer(file_id,"pg",pg.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
-    filename = "output/Pambient_par." + iteration +"_" + casename ;
+    filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
     file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -220,7 +222,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     } ENDFORALL ;
   } else if (var_name == "u") {
     fact_db facts ;
-    string filename = "output/v_vec." + iteration +"_" + casename ;
+    string filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -241,7 +243,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     } ENDFORALL ;
   } else if(var_name == "x" || var_name =="y" || var_name == "z") {
     store<vector3d<float> > pos ;
-    string posname = "output/grid_pos." + iteration + "_" + casename ;
+    string posname = output_dir+"/grid_pos." + iteration + "_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -275,7 +277,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
   } else if(var_name == "0" || var_name =="1" || var_name == "2") {
     fact_db facts ;
-    string filename = "output/v_vec." + iteration +"_" + casename ;
+    string filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -321,7 +323,7 @@ void setup_grid_topology(string casename, string iteration) {
   if(!Loci::setupFVMGrid(facts,file)) {
     cerr << "unable to read grid " << file << endl ;
   }
-  string filename = "output/"+casename+".topo" ;
+  string filename = output_dir+"/"+casename+".topo" ;
   if(stat(filename.c_str(),&tmpstat)!= 0) {
     Loci::createLowerUpper(facts) ;
     multiMap upper,lower,boundary_map,face2node ;
@@ -351,7 +353,7 @@ void setup_grid_topology(string casename, string iteration) {
 
   store<vector3d<double> > pos ;
   pos = facts.get_variable("pos") ;
-  filename = "output/grid_pos." + iteration + "_" + casename ;
+  filename = output_dir+"/grid_pos." + iteration + "_" + casename ;
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
   
@@ -454,7 +456,7 @@ void extract_grid(string casename, string iteration,
   topo->fileWritingSequence(events) ;
   FATAL(Loci::MPI_processes != 1) ;
   store<vector3d<float> > pos ;
-  string posname = "output/grid_pos." + iteration + "_" + casename ;
+  string posname = output_dir+"/grid_pos." + iteration + "_" + casename ;
   hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                      H5F_ACC_RDONLY,
                                      H5P_DEFAULT) ;
@@ -471,7 +473,7 @@ void extract_grid(string casename, string iteration,
   Loci::hdf5CloseFile(file_id) ;
   int npnts = pos.domain().size() ;
 
-  string iblankname = "output/grid_iblank." + iteration + "_" + casename ;
+  string iblankname = output_dir+"/grid_iblank." + iteration + "_" + casename ;
   store<unsigned char> iblank ;
   entitySet pdom = interval(1,npnts) ;
   iblank.allocate(pdom) ;
@@ -503,7 +505,7 @@ void extract_grid(string casename, string iteration,
       iblank[i] = 0 ;
   }
   
-  string gridtopo = "output/" + casename +".topo" ;
+  string gridtopo = output_dir+"/" + casename +".topo" ;
 
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
@@ -968,7 +970,7 @@ void extract_grid(string casename, string iteration,
         }
 
         if(mfvars.size() > 0) {
-          string filename = "output/mix." + iteration + "_" + casename ;
+          string filename = output_dir+"/mix." + iteration + "_" + casename ;
           
           hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                              H5F_ACC_RDONLY,
@@ -1073,7 +1075,7 @@ void extract_grid(string casename, string iteration,
       break;
     case PARTICLE_POSITIONS:
       if(particle_extract) {
-        string posname = "output/particle_pos." + iteration + "_" + casename ;
+        string posname = output_dir+"/particle_pos." + iteration + "_" + casename ;
         hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                            H5F_ACC_RDONLY,
                                            H5P_DEFAULT) ;
@@ -1137,6 +1139,7 @@ void extract_grid(string casename, string iteration,
 }
 
 int main(int ac, char *av[]) {
+  output_dir = "output" ;
   Loci::Init(&ac,&av) ;
 
   enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,CUTTINGPLANE, SURFACE, NONE} plot_type = NONE ;
@@ -1270,9 +1273,92 @@ int main(int ac, char *av[]) {
   }
 
   if(variables.size() == 0) {
-    variables.push_back("x") ;
-    variables.push_back("y") ;
-    variables.push_back("z") ;
+    // Look in output directory and find all variables
+    DIR *dp = opendir(output_dir.c_str()) ;
+    if(dp == 0) {
+      cerr << "unable to open directory '" << output_dir << "'" << endl ;
+      exit(-1) ;
+    }
+    dirent *entry = readdir(dp) ;
+    string tail = iteration + "_" + casename ;
+    while(entry != 0) {
+      string filename = entry->d_name ;
+      string postfix ;
+      string vname ;
+      string vtype ;
+      bool found_name = false ;
+      bool found_type = false ;
+      for(size_t i=0;i<filename.size();++i) {
+        if(!found_type && filename[i] == '_')
+          found_name = true ;
+        else if(filename[i] == '.') {
+          found_name = true ;
+          found_type = true ;
+        } else {
+          if(!found_name)
+            vname += filename[i] ;
+          else if(!found_type)
+            vtype += filename[i] ;
+          else 
+            postfix += filename[i] ;
+        }
+      }
+      if(postfix == tail) {
+        if(vtype == "sca" || vtype == "vec" || vtype == "bnd" ||
+           vtype == "bndvec" || vtype == "ptsca" || vtype == "ptvec") {
+          variables.push_back(vname) ;
+        }
+        if(vtype == "sca" && vname == "pg") {
+          variables.push_back("P") ;
+        }
+        if(vtype == "sca" && vname == "a") {
+          variables.push_back("m") ;
+        }
+        if(vname == "mix" && vtype == "") {
+          string mfile = output_dir+"/mix." + iteration + "_" + casename ;
+          
+          hid_t file_id = Loci::hdf5OpenFile(mfile.c_str(),
+                                             H5F_ACC_RDONLY,
+                                             H5P_DEFAULT) ;
+          if(file_id < 0) {
+            cerr << "unable to open file '" << mfile << "'!" << endl ;
+            Loci::Abort() ;
+            exit(-1) ;
+          }
+          fact_db facts ;
+          
+          param<string> species_names ;
+          Loci::readContainer(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
+          Loci::hdf5CloseFile(file_id) ;
+          std::istringstream iss(*species_names) ;
+          string s ;
+          do {
+            s = "" ;
+            iss >> s ;
+            if(s != "") {
+              string v = "f"+s ;
+              variables.push_back(v) ;
+            }
+          } while(!iss.eof() && s!= "") ;
+            
+        }
+      }
+      
+       
+      entry = readdir(dp) ;
+    }
+    closedir(dp) ;
+    if(variables.size() == 0) {
+      variables.push_back("x") ;
+      variables.push_back("y") ;
+      variables.push_back("z") ;
+    }
+    cout << "extracting variables:" ;
+    for(size_t i=0;i<variables.size();++i) {
+      cout << ' ' << variables[i] ;
+    }
+    cout << endl ;
+      
   }
   vector<int> variable_type(variables.size()) ;
   vector<string> variable_file(variables.size()) ;
@@ -1281,7 +1367,7 @@ int main(int ac, char *av[]) {
   
   for(size_t i=0;i<variables.size();++i) {
     const string var(variables[i]) ;
-    string filename = "output/" + var + "_hdf5." + iteration ;
+    string filename = output_dir+'/' + var + "_hdf5." + iteration ;
     struct stat tmpstat ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = NODAL_SCALAR ;
@@ -1289,33 +1375,33 @@ int main(int ac, char *av[]) {
       continue ;
     }
       
-    filename = "output/" + var + "_sca." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_sca." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = NODAL_SCALAR ;
       variable_file[i] = filename ;
       continue ;
     }
 
-    filename = "output/" + var + "_vec." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_vec." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = NODAL_VECTOR ;
       variable_file[i] = filename ;
       continue ;
     }
-    filename = "output/" + var + "_bnd." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_bnd." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = BOUNDARY_SCALAR ;
       variable_file[i] = filename ;
       continue ;
     }
-    filename = "output/" + var + "_bndvec." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_bndvec." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = BOUNDARY_VECTOR ;
       variable_file[i] = filename ;
       continue ;
     }
 
-    filename = "output/" + var + "_ptsca." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_ptsca." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)==0) {
       variable_type[i] = PARTICLE_SCALAR ;
       variable_file[i] = filename ;
@@ -1323,7 +1409,7 @@ int main(int ac, char *av[]) {
       continue ;
     }
 
-    filename = "output/" + var + "_ptvec." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_ptvec." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)==0) {
       variable_type[i] = PARTICLE_VECTOR ;
       variable_file[i] = filename ;
@@ -1382,7 +1468,7 @@ int main(int ac, char *av[]) {
   // we will first check to see if particle position is present
   // in case of any particle information extraction
   if(particle_info_requested) {
-    string filename = "output/particle_pos." + iteration + "_" + casename ;
+    string filename = output_dir +"/particle_pos." + iteration + "_" + casename ;
     struct stat tmpstat ;
     if(stat(filename.c_str(),&tmpstat)!=0) {
       cerr << "Warning: particle geometry '" << filename << "' must"
@@ -1393,9 +1479,9 @@ int main(int ac, char *av[]) {
     }
   }
 
-  string filename = "output/" +  casename + ".topo" ;
+  string filename = output_dir+'/' +  casename + ".topo" ;
   struct stat tmpstat ;
-  string posfile = "output/grid_pos." + iteration + "_" + casename ;
+  string posfile = output_dir+"/grid_pos." + iteration + "_" + casename ;
   if(stat(filename.c_str(),&tmpstat)!= 0 ||
      stat(posfile.c_str(),&tmpstat) != 0) {
     cerr << "Warning, no grid topology information.  Will attempt to generate!"
