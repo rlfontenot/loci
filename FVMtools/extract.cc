@@ -588,6 +588,34 @@ void extract_grid(string casename, string iteration,
           cout << npyrm-npyrm_b << " pyramids iblanked" << endl ;
     }
     if(ngenc > 0) {
+        vector<int> GeneralCellNfaces(ngenc) ;
+        readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
+        int nside = sizeElementType(elg,"GeneralCellNsides") ;
+        vector<int> GeneralCellNsides(nside) ;
+        readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
+        int nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+        vector<int> GeneralCellNodes(nnodes) ;
+        readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
+        int cnt1 = 0 ;
+        int cnt2 = 0 ;
+        int cnt = 0 ;
+        for(int i=0;i<ngenc;++i) {
+          bool blank = true ;
+          int nf = GeneralCellNfaces[i] ;
+          for(int f=0;f<nf;++f) {
+            int fs = GeneralCellNsides[cnt1++] ;
+            for(int n=0;n<fs;++n) {
+              int nd = GeneralCellNodes[cnt2++] ;
+              if(iblank[nd] < 2)
+                blank = false ;
+            }
+          }
+          if(!blank)
+            cnt++ ;
+        }
+        ngenc_b = cnt ;
+        if(ngenc-ngenc_b > 0)
+          cout << ngenc-ngenc_b << " general cells iblanked" << endl ;
     }
   }
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
@@ -633,16 +661,18 @@ void extract_grid(string casename, string iteration,
         vector<Array<int,4> > tets(ntets) ;
         readElementType(elg,"tetrahedra",tets) ;
         int cnt = 0 ;
-        for(int i=0;i<ntets;++i) {
-          bool blank = true ;
-          for(int j=0;j<4;++j)
-            if(iblank[tets[i][j]] < 2)
-              blank = false ;
-          if(blank)
-            cnt++ ;
-          else 
-            if(cnt != 0) // If there are some blanked copy into place
-              tets[i-cnt]=tets[i] ;
+        if(has_iblank) {
+          for(int i=0;i<ntets;++i) {
+            bool blank = true ;
+            for(int j=0;j<4;++j)
+              if(iblank[tets[i][j]] < 2)
+                blank = false ;
+            if(blank)
+              cnt++ ;
+            else 
+              if(cnt != 0) // If there are some blanked copy into place
+                tets[i-cnt]=tets[i] ;
+          }
         }
         topo->write_tets(&tets[0],ntets-cnt) ;
       }
@@ -650,16 +680,18 @@ void extract_grid(string casename, string iteration,
         vector<Array<int,5> > pyrm(npyrm) ;
         readElementType(elg,"pyramid",pyrm) ;
         int cnt = 0 ;
-        for(int i=0;i<npyrm;++i) {
-          bool blank = true ;
-          for(int j=0;j<5;++j)
-            if(iblank[pyrm[i][j]] < 2)
-              blank = false ;
-          if(blank)
-            cnt++ ;
-          else 
-            if(cnt != 0) // If there are some blanked copy into place
-              pyrm[i-cnt]=pyrm[i] ;
+        if(has_iblank) {
+          for(int i=0;i<npyrm;++i) {
+            bool blank = true ;
+            for(int j=0;j<5;++j)
+              if(iblank[pyrm[i][j]] < 2)
+                blank = false ;
+            if(blank)
+              cnt++ ;
+            else 
+              if(cnt != 0) // If there are some blanked copy into place
+                pyrm[i-cnt]=pyrm[i] ;
+          }
         }
         topo->write_pyrm(&pyrm[0],npyrm-cnt) ;
       }
@@ -667,16 +699,18 @@ void extract_grid(string casename, string iteration,
         vector<Array<int,6> > prsm(nprsm) ;
         readElementType(elg,"prism",prsm) ;
         int cnt = 0 ;
-        for(int i=0;i<nprsm;++i) {
-          bool blank = true ;
-          for(int j=0;j<6;++j)
-            if(iblank[prsm[i][j]] < 2)
-              blank = false ;
-          if(blank)
-            cnt++ ;
-          else 
-            if(cnt != 0) // If there are some blanked copy into place
-              prsm[i-cnt]=prsm[i] ;
+        if(has_iblank) {
+          for(int i=0;i<nprsm;++i) {
+            bool blank = true ;
+            for(int j=0;j<6;++j)
+              if(iblank[prsm[i][j]] < 2)
+                blank = false ;
+            if(blank)
+              cnt++ ;
+            else 
+              if(cnt != 0) // If there are some blanked copy into place
+                prsm[i-cnt]=prsm[i] ;
+          }
         }
         topo->write_prsm(&prsm[0],nprsm-cnt) ;
       }
@@ -684,18 +718,19 @@ void extract_grid(string casename, string iteration,
         vector<Array<int,8> > hexs(nhexs) ;
         readElementType(elg,"hexahedra",hexs) ;
         int cnt = 0 ;
-        for(int i=0;i<nhexs;++i) {
-          bool blank = true ;
-          for(int j=0;j<8;++j)
-            if(iblank[hexs[i][j]] < 2)
-              blank = false ;
-          if(blank)
-            cnt++ ;
-          else 
-            if(cnt != 0) // If there are some blanked copy into place
-              hexs[i-cnt]=hexs[i] ;
+        if(has_iblank) {
+          for(int i=0;i<nhexs;++i) {
+            bool blank = true ;
+            for(int j=0;j<8;++j)
+              if(iblank[hexs[i][j]] < 2)
+                blank = false ;
+            if(blank)
+              cnt++ ;
+            else 
+              if(cnt != 0) // If there are some blanked copy into place
+                hexs[i-cnt]=hexs[i] ;
+          }
         }
-          
         topo->write_hexs(&hexs[0],nhexs-cnt) ;
       }
       if(ngenc > 0) {
@@ -709,6 +744,46 @@ void extract_grid(string casename, string iteration,
         int nnodes = sizeElementType(elg,"GeneralCellNodes") ;
         vector<int> GeneralCellNodes(nnodes) ;
         readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
+        if(has_iblank) {
+          int cnt1 = 0 ;
+          int cnt2 = 0 ;
+          int skip_cells = 0;
+          int skip_faces = 0 ;
+          int skip_nodes = 0 ;
+          for(int i=0;i<ngenc;++i) {
+            bool blank = true ;
+            int nf = GeneralCellNfaces[i] ;
+            int cnt1s = cnt1 ;
+            int cnt2s = cnt2 ;
+            for(int f=0;f<nf;++f) {
+              int fs = GeneralCellNsides[cnt1++] ;
+              for(int n=0;n<fs;++n) {
+                int nd = GeneralCellNodes[cnt2++] ;
+                if(iblank[nd] < 2)
+                  blank = false ;
+              }
+            }
+            if(blank) {
+              skip_cells += 1 ;
+              skip_faces += cnt1-cnt1s ;
+              skip_nodes += cnt2-cnt2s ;
+            } else {
+              if(skip_cells > 0) {
+                GeneralCellNfaces[i-skip_cells] = GeneralCellNfaces[i] ;
+                for(int j=0;j<cnt1-cnt1s;++j)
+                  GeneralCellNsides[cnt1s+j-skip_faces] =
+                    GeneralCellNsides[cnt1s+j] ;
+                for(int j=0;j<cnt2-cnt2s;++j)
+                  GeneralCellNodes[cnt2s+j-skip_nodes] =
+                    GeneralCellNodes[cnt2s+j] ;
+              }
+            }
+            
+          }
+          ngenc -= skip_cells ;
+          nside -= skip_faces ;
+          nnodes -= skip_nodes ;
+        }
         topo->write_general_cell(&GeneralCellNfaces[0],ngenc,
                                  &GeneralCellNsides[0],nside,
                                  &GeneralCellNodes[0],nnodes) ;
