@@ -113,6 +113,10 @@ void Usage(int ac, char *av[]) {
        << "  -Sx <amount> : translate cutting plane along x-axis" << endl
        << "  -Sy <amount> : translate cutting plane along y-axis" << endl
        << "  -Sz <amount> : translate cutting plane along z-axis" << endl << endl;
+  cout << "extra options for controlling extract" << endl
+       << "   -dir <directory> : change extract directory from default 'output'"
+
+       << endl << endl ;
   cout << "example:  to extract OH species from time step 50 of ssme simulation for visualization with 2dgv use:" << endl
        << av[0] << " -2d -bc 1 -xr ssme 50 fOH" << endl ;
   cout << "example: to extract an ascii table of boundary heat flux and x locations:"<<endl
@@ -1137,9 +1141,12 @@ void extract_grid(string casename, string iteration,
   H5Gclose(bndg) ;
   H5Fclose(file_id) ;
 }
-
+namespace Loci {
+  void disableDebugDir() ;
+}
 int main(int ac, char *av[]) {
   output_dir = "output" ;
+  Loci::disableDebugDir() ;
   Loci::Init(&ac,&av) ;
 
   enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,CUTTINGPLANE, SURFACE, NONE} plot_type = NONE ;
@@ -1251,6 +1258,9 @@ int main(int ac, char *av[]) {
           max_particles = str2int(n) ;
         }
         
+      } else if(!strcmp(av[i],"-dir")) {
+        ++i ;
+        output_dir = string(av[i]) ;
       } else {
         cerr << "unknown option " << av[i] << endl ;
         Usage(ac,av) ;
@@ -1272,14 +1282,27 @@ int main(int ac, char *av[]) {
     Usage(ac,av) ;
   }
 
+  struct stat dirstat ;
+  if(stat(output_dir.c_str(),&dirstat)) {
+    cerr << "unable to open directory '" << output_dir << "'" << endl ;
+    exit(-1) ;
+  } else {
+    if(!S_ISDIR(dirstat.st_mode)) {
+      cerr << "unable to open directory '" << output_dir << "'" << endl ;
+      exit(-1) ;
+    }
+  }
+      
+
   if(variables.size() == 0) {
-    // Look in output directory and find all variables
     DIR *dp = opendir(output_dir.c_str()) ;
+    // Look in output directory and find all variables
     if(dp == 0) {
       cerr << "unable to open directory '" << output_dir << "'" << endl ;
       exit(-1) ;
     }
     dirent *entry = readdir(dp) ;
+  
     string tail = iteration + "_" + casename ;
     while(entry != 0) {
       string filename = entry->d_name ;
@@ -1347,7 +1370,6 @@ int main(int ac, char *av[]) {
        
       entry = readdir(dp) ;
     }
-    closedir(dp) ;
     if(variables.size() == 0) {
       variables.push_back("x") ;
       variables.push_back("y") ;
@@ -1358,8 +1380,10 @@ int main(int ac, char *av[]) {
       cout << ' ' << variables[i] ;
     }
     cout << endl ;
+    closedir(dp) ;
       
   }
+  
   vector<int> variable_type(variables.size()) ;
   vector<string> variable_file(variables.size()) ;
 
