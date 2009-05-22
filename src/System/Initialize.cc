@@ -306,10 +306,10 @@ namespace Loci {
     { string rpath = LOCI_RPATH ; AddModuleSearchDir(rpath) ; }
 #endif
 
-    if(GLOBAL_OR(stat("output",&statbuf)!=0)) {
-      if(MPI_rank == 0)
-        mkdir("output",0755) ;
-    } 
+    //    if(GLOBAL_OR(stat("output",&statbuf)!=0)) {
+    //      if(MPI_rank == 0)
+    //        mkdir("output",0755) ;
+    //    } 
 
     // All the rules in an unnamed namespace are first copied into the 
     // global rule list. To add rules to the rule database we just
