@@ -34,6 +34,27 @@ struct bc_info {
 } ;
 
 int main(int ac, char *av[]) {
+  enum {XY_CUT,YZ_CUT,XZ_CUT,XR_CUT} cut_type =XR_CUT;
+  while(ac > 2 ) {
+    if(!strcmp(av[1],"-xy")) {
+      cut_type = XY_CUT ;
+      ac-- ;
+      av++ ;
+    } else if(!strcmp(av[1],"-yz")) {
+      cut_type = YZ_CUT ;
+      ac-- ;
+      av++ ;
+    } else if(!strcmp(av[1],"-xz")) {
+      cut_type = XZ_CUT ;
+      ac-- ;
+      av++ ;
+    } else if(!strcmp(av[1],"-xr")) {
+      cut_type = XR_CUT ;
+      ac-- ;
+      av++ ;
+    } else
+      break ;
+  } 
   if(ac != 2) {
     cerr << "takes surface file as input" << endl ;
     return -1 ;
@@ -80,7 +101,7 @@ int main(int ac, char *av[]) {
   for(int i=0;i<nbcs;++i) {
     kill_comment(isurf) ;
     isurf >> bcs[i].name ;
-    cout << "BC: " << bcs[i].name << endl ;
+    cout << "BC: " << bcs[i].name << " - " << (i+1) << endl ;
     kill_comment(isurf) ;
     int nedges =0 ;
     isurf >> nedges ;
@@ -130,6 +151,17 @@ int main(int ac, char *av[]) {
        edge_map[i][1] != edge_map[i+1][1]) {
       cerr << "unmatched edge in surface?  Are all boundaries set?" << endl ;
     }
+    if(edge_map[i][2] == edge_map[i+1][2]) {
+      cerr << "same cell on both sides of face?" << endl ;
+    }
+    if(edge_map[i][2] < 0 && edge_map[i+1][2] < 0) {
+      cerr << "bc setting on both sides of face?" << endl ;
+    }
+    if(edge_map[i][0] == 0 || edge_map[i+1][0] == 0 ||
+       edge_map[i][1] == 0 || edge_map[i+1][1] == 0 ||
+       edge_map[i][2] == 0 || edge_map[i+1][2] == 0) {
+      cerr << "zero node or cell number" << endl ;
+    }
   }
 
   ofstream ofile("grid.cog",ios::out) ;
@@ -150,9 +182,32 @@ int main(int ac, char *av[]) {
 
   // output positions
   for(int i=0;i<npnts;++i) {
-    double r = sqrt(y[i]*y[i]+z[i]*z[i]) ;
-    y[i] = r ;
+    double X,Y ;
+    switch(cut_type) {
+    case XY_CUT:
+      X = x[i] ;
+      Y = y[i] ;
+      break ;
+    case YZ_CUT:
+      X = y[i] ;
+      Y = z[i] ;
+      break ;
+    case XZ_CUT:
+      X = x[i] ;
+      Y = z[i] ;
+      break ;
+    case XR_CUT:
+      X = x[i] ;
+      Y = sqrt(y[i]*y[i]+z[i]*z[i]) ;
+      break ;
+    default:
+      X = x[i] ;
+      Y = sqrt(y[i]*y[i]+z[i]*z[i]) ;
+      break ;      
+    }
     z[i] = -0.05 ;
+    x[i] = X ;
+    y[i] = Y ;
     ofile << x[i] << ' ' << y[i] << ' ' << z[i] << endl ;
   }
   for(int i=0;i<npnts;++i) {
@@ -167,17 +222,25 @@ int main(int ac, char *av[]) {
     ofile << 4 << ' ' ;
     ofile << edge_map[i][0] << ' ' << edge_map[i][1] << ' '
           << edge_map[i][1]+npnts << ' ' << edge_map[i][0] + npnts << ' '
-          << edge_map[i][2] << ' ' << edge_map[i+1][2] << endl ;
+          << edge_map[i+1][2] << ' ' << edge_map[i][2] << endl ;
   }
+
+  entitySet nodes1 ;
   // Now build symmetry planes
+  int mnfsz = 100000000 ;
+  int mxfsz = 0 ;
   int bc = -nbcs-1 ;
   off = 0 ;
   for(int i=0;i<nfaces;++i) {
     int fsz = f2size[i] ;
+    mxfsz = max(mxfsz,fsz) ;
+    mnfsz = min(mnfsz,fsz) ;
     ofile << fsz  ;
     for(int j=0;j<fsz;++j)
       ofile << ' ' << f2node[off+j] ;
     ofile << ' ' << i+1 << ' ' << bc << endl ;
+    for(int j=0;j<fsz;++j)
+      nodes1 += f2node[off+j] ;
     off += fsz ;
   }
   bc -= 1 ;
@@ -188,7 +251,11 @@ int main(int ac, char *av[]) {
     for(int j=0;j<fsz;++j)
       ofile << ' ' << f2node[off+j]+npnts ;
     ofile << ' ' << i+1 << ' ' << bc << endl ;
+    for(int j=0;j<fsz;++j)
+      nodes1 += f2node[off+j]+npnts ;
     off += fsz ;
   }
+  cout << "nodes1= " << nodes1 << endl ;
+  cout << "mxfsz = " << mxfsz << ", mnfsz = " << mnfsz << endl ;
   return 0;
 }
