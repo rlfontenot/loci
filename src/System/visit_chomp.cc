@@ -914,6 +914,7 @@ namespace Loci {
         if(diff_rules != EMPTY)
           cerr << "These rules should be taken out: " << diff_rules << endl ;
         cerr << "The chomped vars in this chain are: " << chomp_vars << endl ;
+
         Loci::Abort() ;
       }
       

@@ -20,10 +20,10 @@ namespace Loci {
 
   Loci::fact_db *current_fact_db ;
 
-  void execute_list::execute(fact_db &facts) {
+  void execute_list::execute(fact_db &facts, sched_db& scheds) {
     std::vector<executeP>::iterator eli ;
     for(eli=elist.begin();eli!=elist.end();++eli)
-      (*eli)->execute(facts) ;
+      (*eli)->execute(facts, scheds) ;
   }
 
   void execute_list::Print(std::ostream &s) const {
@@ -40,11 +40,11 @@ namespace Loci {
   }
 
 
-  void execute_sequence::execute(fact_db &facts) {
+  void execute_sequence::execute(fact_db &facts, sched_db& scheds) {
     std::vector<executeP>::iterator eli ;
 
     for(eli=elist.begin();eli!=elist.end();++eli)
-      (*eli)->execute(facts) ;
+      (*eli)->execute(facts, scheds) ;
   }
 
   void execute_sequence::Print(std::ostream &s) const {

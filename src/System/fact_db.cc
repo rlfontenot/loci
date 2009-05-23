@@ -71,6 +71,88 @@ namespace Loci {
   }
 
   fact_db::~fact_db() {}
+
+  void
+  fact_db::copy_all_from(const fact_db& f) {
+    init_ptn = f.init_ptn ;
+    global_comp_entities = f.global_comp_entities ;
+    synonyms = f.synonyms ;
+    maximum_allocated = f.maximum_allocated ;
+    minimum_allocated = f.minimum_allocated ;
+    dist_from_start = f.dist_from_start ;
+    fmap = f.fmap ;
+    tmap = f.tmap ;
+    nspace_vec = f.nspace_vec ;
+    extensional_facts = f.extensional_facts ;
+    
+    // create new keyspaces
+    keyspace.clear() ;
+    const std::map<std::string,KeySpaceP>& fks = f.keyspace ;
+    for(std::map<std::string,KeySpaceP>::const_iterator
+          mi=fks.begin();mi!=fks.end();++mi) {
+      keyspace[mi->first] = mi->second->new_keyspace() ;
+    }      
+    
+    // we cannot clone keyspace because copying
+    // keyspace is an ill operation as some critical
+    // structures will be lost
+    
+    // std::map<std::string,KeySpaceP>& ks = keyspace ;
+    // ks.clear() ;
+    // const std::map<std::string,KeySpaceP>& fks = f.keyspace ;
+    // for(std::map<std::string,KeySpaceP>::const_iterator
+    //       mi=fks.begin();mi!=fks.end();++mi) {
+    //   ks[mi->first] = mi->second->clone_keyspace() ;
+    // }
+    
+    // here is something very important, we'll need to
+    // assign the current fact_db's synonym record to
+    // all the keyspaces here
+    for(std::map<std::string,KeySpaceP>::iterator
+          mi=keyspace.begin();mi!=keyspace.end();++mi) {
+      (mi->second)->set_synonyms(&synonyms) ;
+    }
+    // deep copy the key manager
+    if(f.key_manager != 0) {
+      key_manager = f.key_manager->clone() ;
+    }
+    /* we cannot use the following direct assignment
+       to copy the distributed_info from f since
+       distributed_info is a NPTR pointer and is
+       reference counted this would not be a true copy
+    */
+    // distributed_info = f.distributed_info ;
+    distribute_infoP& df = distributed_info ;
+    const distribute_infoP& fdf = f.distributed_info ;
+    if(fdf == 0) {
+      df = 0 ;
+      return ;
+    }
+    df = new distribute_info ;
+    df->myid = fdf->myid ;
+    df->isDistributed = fdf->isDistributed ;
+    // we make a deep copy of the maps
+    entitySet l2g_alloc = fdf->l2g.domain() ;
+    entitySet g2l_alloc = fdf->g2l.domain() ;
+    df->l2g.allocate(l2g_alloc) ;
+    df->g2l.allocate(g2l_alloc) ;
+    for(entitySet::const_iterator ei=l2g_alloc.begin();
+        ei!=l2g_alloc.end();++ei) {
+      df->l2g[*ei] = fdf->l2g[*ei] ;
+    }
+    for(entitySet::const_iterator ei=g2l_alloc.begin();
+        ei!=g2l_alloc.end();++ei)
+      df->g2l[*ei] = fdf->g2l[*ei] ;
+    df->my_entities = fdf->my_entities ;
+    df->comp_entities = fdf->comp_entities ;
+    df->copy = fdf->copy ;
+    df->xmit = fdf->xmit ;
+    df->copy_total_size = fdf->copy_total_size ;
+    df->xmit_total_size = fdf->xmit_total_size ;
+    //      df->remap = fdf->remap ;
+    df->g2f = fdf->g2f ;
+  }
+  
   void fact_db::set_maximum_allocated(int i) {
     maximum_allocated = i ;
   }
@@ -79,7 +161,6 @@ namespace Loci {
   }
   
   void fact_db::synonym_variable(variable v, variable synonym) {
-
     // Find all variables that should be synonymous with v
     variableSet synonym_set ;
     std::map<variable,variable>::const_iterator mi ;
@@ -93,7 +174,7 @@ namespace Loci {
       s = mi->second ;
     }
     synonym_set += s ;
-
+ 
     // If the two are already synonymous, we are done
     if(s == v)
       return ;
@@ -400,6 +481,32 @@ namespace Loci {
       }
     }
     fmap[remove_synonym(lvars.front())].data_rep->setRep(cp) ;
+  }
+
+  void fact_db::adjust_rotation_vars(const std::list<variable>& lvars) {
+    list<variable>::const_iterator jj ;
+    jj = lvars.begin() ;
+    storeRepP cur = fmap[remove_synonym(*jj)].data_rep->getRep() ;
+    entitySet cur_dom = cur->domain() ;
+
+    ++jj ;
+    if(jj != lvars.end()) {
+      for(;jj!=lvars.end();++jj) {
+        fact_info& fd = fmap[remove_synonym(*jj)] ;
+        storeRepP his = fd.data_rep->getRep() ;
+        // first we will erase the domains outside of cur_dom
+        entitySet his_dom = his->domain() ;
+        entitySet out = his_dom - cur_dom ;
+        if(out != EMPTY) {
+          his->erase(out) ;
+        }
+        // then copy those missing
+        entitySet missing = cur_dom - his_dom ;
+        if(missing != EMPTY) {
+          his->copy(cur, missing) ;
+        }
+      }
+    }
   }
 
   ostream &fact_db::write(ostream &s) const {
@@ -806,6 +913,55 @@ namespace Loci {
       H5Fclose(file_id) ;
     
   }
+
+  // experimental code to create keyspace from the
+  // global registered keyspace list
+  // returns "true" to indicate the methods succeeded,
+  // "false" to indicate an error.
+  bool
+  fact_db::create_keyspace(KeySpaceList& global_list) {
+    for(KeySpaceList::Iterator ki=global_list.begin();
+        ki!=global_list.end();++ki) {
+      KeySpaceP kp = ki.get_p()->rr->get_space() ;
+      // first get the space name
+      if(!kp->named_space()) {
+        if(Loci::MPI_rank == 0)
+          cerr << "fact_db Error: Initializing Unnamed Keyspace!"
+               << " typeid = " << typeid(*kp).name() << endl ;
+        return false ;
+      }
+      string name = kp->get_name() ;
+      map<string,KeySpaceP>::const_iterator mi = keyspace.find(name) ;
+      if(mi!=keyspace.end()) {
+        if(Loci::MPI_rank == 0)
+          cerr << "fact_db Error: Duplicated Keyspace: "
+               << name << endl ;
+        return false ;
+      }
+      kp->set_synonyms(&synonyms) ;
+      keyspace[name] = kp ;
+    }
+    return true ;
+  }
+
+  KeySpaceP
+  fact_db::get_keyspace(const string& kname) {
+    map<string,KeySpaceP>::const_iterator mi = keyspace.find(kname) ;
+    if(mi == keyspace.end())
+      return KeySpaceP(0) ;
+    else
+      return mi->second ;
+  }
+  
+  void
+  fact_db::init_key_manager() {
+    int max_alloc = get_max_alloc() ;
+    int global_max = 0 ;
+    MPI_Allreduce(&max_alloc, &global_max, 1,
+                  MPI_INT, MPI_MAX, MPI_COMM_WORLD) ;
+    key_manager = new KeyManager(global_max+1) ;
+  }
+  
 }
 
   

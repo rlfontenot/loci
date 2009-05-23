@@ -42,7 +42,7 @@ namespace Loci {
                      const variableSet& svars,
                      const variableSet& tvars,
                      fact_db &facts, sched_db &scheds) ;
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_map_rule";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -61,7 +61,7 @@ namespace Loci {
     exec_seq = seq ;
   }
   
-  void execute_map_rule::execute(fact_db &facts) {
+  void execute_map_rule::execute(fact_db &facts, sched_db &scheds) {
     stopWatch s ;
     s.start() ;
     

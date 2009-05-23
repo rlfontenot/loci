@@ -180,7 +180,16 @@ namespace Loci {
             rule_process[*ri] = new error_compiler ;
         } else {
           if(ri->get_info().rule_impl->get_rule_class()
-             == rule_impl::CONSTRAINT_RULE) // a constraint rule
+             == rule_impl::INSERTION) // an insertion rule
+            rule_process[*ri] = new insertion_rule_compiler(*ri) ;
+          else if(ri->get_info().rule_impl->get_rule_class()
+                  == rule_impl::DELETION) // a deletion rule
+            rule_process[*ri] = new deletion_rule_compiler(*ri) ;
+          else if(ri->get_info().rule_impl->get_rule_class()
+                  == rule_impl::ERASE) // a erase rule
+            rule_process[*ri] = new erase_rule_compiler(*ri) ;
+          else if(ri->get_info().rule_impl->get_rule_class()
+                  == rule_impl::CONSTRAINT_RULE) // a constraint rule
             rule_process[*ri] = new constraint_compiler(*ri) ;
           else if(ri->get_info().rule_impl->get_rule_class()
                   == rule_impl::MAP_RULE) // a map rule (to be revised)
@@ -323,6 +332,21 @@ namespace Loci {
     unitApplyMapVisitor reduceV ;
     top_down_visit(reduceV) ;
 
+    // replace all the dynamic rules with corresponding compilers
+    DynamicKeyspaceVisitor dkv(facts,scheds,
+                               reduceV.get_apply2unit(),
+                               rotlv.get_overlap_rotvars()) ;
+    top_down_visit(dkv) ;
+
+    // Obsoleted, no longer needed any more, to be deleted
+//     // insert rule that invalidates the dynamic clones
+//     DynamicCloneInvalidatorVisitor dciv(facts,
+//                                         dkv.get_self_clone(),
+//                                         dkv.get_shadow_clone()) ;
+//     top_down_visit(dciv) ;
+
+    // insert rule that redistribute dynamic keyspaces
+
 #ifdef COMPILE_PROGRESS
     if(Loci::MPI_rank==0)
       cerr << "[Graph Compile Phase] Passed Information Collection!" << endl ;
@@ -400,8 +424,7 @@ namespace Loci {
       variableSet cluster_remaining ;
       cluster_remaining = pick_rename_target(recv.get_rename_s2t(),
                                              recv.get_rename_t2s(),
-                                             only_targets
-                                             ) ;
+                                             only_targets) ;
 
       // get representitive for each promoted variable cluster
       promotePPVisitor pppV(recv.get_promote_t2s(),
@@ -409,8 +432,7 @@ namespace Loci {
                             recv.get_promote_source_vars(),
                             recv.get_promote_target_vars(),
                             snv.get_graph_sn(),
-                            snv.get_cond_sn(),input
-                            ) ;
+                            snv.get_cond_sn(),input) ;
       top_down_visit(pppV) ;
 
       // reserved variableSet for the deleteInfoVisitor
@@ -443,8 +465,11 @@ namespace Loci {
                            snv.get_loop_sn(),
                            rotlv.get_rotate_vars_table(),
                            rotlv.get_loop_shared_table(),
-                           untypevarV.get_untyped_vars()
-                           ) ;
+                           // we also don't want to allocate
+                           // all the dynamic rule targets because
+                           // they are handled dynamically
+                           variableSet(untypevarV.get_untyped_vars() +
+                                       dkv.get_dynamic_targets())) ;
       top_down_visit(aiv) ;
 
       // compute how to do deletion
@@ -655,8 +680,14 @@ namespace Loci {
     //      perfAnalysis->stop_timer(graph_scheduling_timer);
     schedet = MPI_Wtime() ;
 
-	assembleVisitor av(reduceV.get_all_reduce_vars(),
-                       reduceV.get_reduceInfo());
+    assembleVisitor av(facts, scheds,
+                       reduceV.get_all_reduce_vars(),
+                       reduceV.get_reduceInfo(),
+                       dkv.get_dynamic_targets(),
+                       dkv.get_self_clone(),
+                       dkv.get_shadow_clone(),
+                       dkv.get_drule_ctrl()) ;
+
     bottom_up_visit(av) ;
 
 #ifdef COMPILE_PROGRESS
@@ -708,7 +739,7 @@ namespace Loci {
                       const variableSet& alloc,
                       bool is_alloc_all) ;
     void fill_in_requests(fact_db &facts, sched_db &scheds) ;
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "allocate_all_vars";};
     virtual void dataCollate(collectData &data_collector) const {} ;
@@ -739,7 +770,7 @@ namespace Loci {
     }
   }
   
-  void allocate_all_vars::execute(fact_db &facts) {
+  void allocate_all_vars::execute(fact_db &facts, sched_db& scheds) {
     //exec_current_fact_db = &facts ;
     //variableSet vars = facts.get_typed_variables() ;
     variableSet::const_iterator vi ;  
@@ -887,6 +918,9 @@ namespace Loci {
         if((MPI_processes > 1))
           schedule->append_list(new allocate_all_vars(facts,scheds,alloc,false)) ;
 
+    // we first create a execution module to initialize all keyspaces
+    if(!in_internal_query)
+      schedule->append_list(new execute_init_keyspace(facts,scheds)) ;
     schedule->append_list(fact_db_comm->create_execution_schedule(facts, scheds));
     executeP top_level_schedule = (rule_process[baserule])->
       create_execution_schedule(facts, scheds) ;
@@ -931,6 +965,7 @@ namespace Loci {
     //digraph grt = gr.transpose() ;
   }
   
+#ifdef TO_BE_REMOVED
   void dynamic_scheduling(digraph& gr, fact_db& facts,
                           // we intend to change given
                           // to include new generated facts
@@ -1244,7 +1279,7 @@ namespace Loci {
       facts.create_intensional_fact(*vi,srp) ;
     }
   }
-  
+#endif
   
   // this is the function to compute all maps
   // in the stationary time level
@@ -1263,7 +1298,6 @@ namespace Loci {
     digraph gr ;
     given -= variable("EMPTY") ;
     gr = dependency_graph2(par_rdb,given,user_query).get_graph() ;
-
 
     //create_digraph_dot_file(gr,"dependgr.dot") ;
     //std::string cmd = "dotty dependgr.dot" ;
@@ -1540,6 +1574,7 @@ namespace Loci {
     in_internal_query = false ;
   }//end of stationary_map_gen
 
+#ifdef TO_BE_REMOVED
   // experimental code to process static & dynamic constraints in
   // a unified way, this is the stage 1 --- mainly to compute the
   // static constraints and also to do some pre-process to those
@@ -1747,5 +1782,6 @@ namespace Loci {
     }
     return new_rdb ;    
   }
+#endif //TO_BE_REMOVED
 
 }

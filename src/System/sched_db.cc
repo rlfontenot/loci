@@ -38,7 +38,6 @@ using std::cerr ;
 using std::endl ;
 using std::ofstream ;
 
-
 namespace Loci {
   extern int MPI_processes ;
   extern int MPI_rank ;
@@ -47,6 +46,14 @@ namespace Loci {
   
   sched_db::sched_db(fact_db &facts) {
     detected_errors = false ;
+    init(facts) ;
+  }
+  
+  sched_db::sched_db() {detected_errors = false ;}
+  sched_db::~sched_db() {}
+
+  void
+  sched_db::init(fact_db &facts) {
     variableSet tmp_all_vars = facts.get_typed_variables() ;
     for(int i = 0; i < tmp_all_vars.size(); i++)
       sched_infov.push_back(sched_data()) ;
@@ -71,9 +78,6 @@ namespace Loci {
 
     all_vars = tmp_all_vars ;
   }
-  
-  sched_db::sched_db() {detected_errors = false ;}
-  sched_db::~sched_db() {}
   
   void sched_db::install_sched_info(variable v, sched_info info) {
     vmap_type::iterator mi = vmap.find(v) ;
@@ -369,5 +373,5 @@ namespace Loci {
     }
     return s ;
   }
-  
+
 }

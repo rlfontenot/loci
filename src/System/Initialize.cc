@@ -46,6 +46,7 @@ void dummyFunctionDependencies(int i) {
 #endif
 
 #include <rule.h>
+#include <keyspace.h>
 #include <mod_db.h>
 #include "dist_tools.h"
 #include "loci_globs.h"
@@ -76,7 +77,7 @@ extern "C" {
 #include <vector>
 
 using std::cout ;
-using std::cerr ; 
+using std::cerr ;
 using std::endl ;
 using std::ios ;
 using std::ifstream ;
@@ -90,6 +91,8 @@ using std::vector ;
 namespace Loci {
   int MPI_processes = 1;
   int MPI_rank = 0 ;
+  bool useDebugDir = true ;
+
   int method = 1 ; // Iterative Weighted Static
   bool verbose = false ;
   /////////////////////////////
@@ -137,7 +140,7 @@ namespace Loci {
   bool use_simple_partition = false ;
   bool use_orb_partition = false ;
 
-  
+
   char * model_file;
   // these flags are used to indicate additional weights
   // for mesh cells during the initial partitioning stage
@@ -146,13 +149,15 @@ namespace Loci {
   bool load_cell_weights = false ;
   string cell_weight_file ;
 
-  
+
   ofstream debugout ;
   ofstream timeout;
 
   double total_memory_usage = 0 ;
 
   extern int current_rule_id ;
+
+  void disableDebugDir() {useDebugDir = false ;}
 
   void debug_print_rule() {
     if(current_rule_id != 0) {
@@ -161,13 +166,13 @@ namespace Loci {
       cerr << "crash occured in rule " << r << endl ;
 
       Loci::debugout << "crash occured in rule " << r << endl ;
-      
+
       if(verbose && exec_current_fact_db != 0) {
         char buf[512] ;
         sprintf(buf,"crash_dump.%d",MPI_rank) ;
         ofstream cfile(buf,ios::out) ;
         cfile << "rule: " << r << endl ;
-        
+
         variableSet v = r.sources() ;
 
         cfile << "facts = {" << endl ;
@@ -211,7 +216,7 @@ extern "C" {
 
 namespace Loci {
   //This is the first call to be made for any Loci program be it
-  //sequential or parallel. 
+  //sequential or parallel.
   void Init(int* argc, char*** argv)  {
     char *execname = (*argv)[0] ;
     const char *hostname = "localhost" ;
@@ -223,7 +228,7 @@ namespace Loci {
     PetscOptionsSetValue("-options_left","false") ;
     PetscPopErrorHandler() ;
     PetscPushErrorHandler(PetscIgnoreErrorHandler,PETSC_NULL) ;
-#else    
+#else
     MPI_Init(argc, argv) ;
 #endif
     signal(SIGTERM,TerminateSignal) ;
@@ -248,286 +253,296 @@ namespace Loci {
 
     try {
 
-    //Create a debug file for each process
-    ostringstream oss ;
-    // if output directory doesn't exist, create one
-    bool debug_is_directory = true ;
-    struct stat statbuf ;
-    if(GLOBAL_OR(stat("debug",&statbuf)!=0)) {
-      if(MPI_rank == 0)
-        mkdir("debug",0755) ;
-      for(int i=0;i<1000;++i) {
-        if(GLOBAL_AND(stat("debug",&statbuf)==0))
-          break ;
-      }
-    } else {
-      if(!S_ISDIR(statbuf.st_mode)) {
-        cerr << "file 'debug' should be a directory!, rename 'output' and start again."
-             << endl ;
-        debug_is_directory = false ;
+      ostringstream oss ;
 
-      }
-    }
+      if(useDebugDir) {
+        //Create a debug file for each process
+        // if output directory doesn't exist, create one
+        bool debug_is_directory = true ;
+        struct stat statbuf ;
+        if(GLOBAL_OR(stat("debug",&statbuf)!=0)) {
+          if(MPI_rank == 0)
+            mkdir("debug",0755) ;
+          for(int i=0;i<1000;++i) {
+            if(GLOBAL_AND(stat("debug",&statbuf)==0))
+              break ;
+          }
+        } else {
+          if(!S_ISDIR(statbuf.st_mode)) {
+            cerr << "file 'debug' should be a directory!, rename 'output' and start again."
+                 << endl ;
+            debug_is_directory = false ;
 
-    if(debug_is_directory) {
-      if(MPI_processes == 1)
-        oss << "debug/debug" ;
-      else
-        oss << "debug/debug."<<MPI_rank ;
-    } else
-      oss << "debug."<< MPI_rank ;
-    
-    string filename  = oss.str() ;
-    debugout.open(filename.c_str(),ios::out) ;
-
-    char *p = 0 ;
-    if((p = getenv("LOCI_MODULE_PATH")) == 0) 
-      p = getenv("LD_LIBRARY_PATH") ;
-    if(p != 0) {
-      string pathlist = string(p) ;
-      string path ;
-      for(string::const_iterator si = pathlist.begin();
-          si!= pathlist.end();
-          ++si) {
-        if(*si != ':')
-          path += *si ;
-        else {
-          if(path != "") 
-            AddModuleSearchDir(path) ;
-          path = "" ;
+          }
         }
+
+        if(debug_is_directory) {
+          if(MPI_processes == 1)
+            oss << "debug/debug" ;
+          else
+            oss << "debug/debug."<<MPI_rank ;
+        } else
+          oss << "debug."<< MPI_rank ;
+
+        string filename  = oss.str() ;
+        debugout.open(filename.c_str(),ios::out) ;
+      } else {
+        debugout.open("/dev/null",ios::out) ;
       }
-      if(path != "") 
-        AddModuleSearchDir(path) ;
-    }
+
+      char *p = 0 ;
+      if((p = getenv("LOCI_MODULE_PATH")) == 0)
+        p = getenv("LD_LIBRARY_PATH") ;
+      if(p != 0) {
+        string pathlist = string(p) ;
+        string path ;
+        for(string::const_iterator si = pathlist.begin();
+            si!= pathlist.end();
+            ++si) {
+          if(*si != ':')
+            path += *si ;
+          else {
+            if(path != "")
+              AddModuleSearchDir(path) ;
+            path = "" ;
+          }
+        }
+        if(path != "")
+          AddModuleSearchDir(path) ;
+      }
 
 #ifdef LOCI_RPATH
-    { string rpath = LOCI_RPATH ; AddModuleSearchDir(rpath) ; }
+      { string rpath = LOCI_RPATH ; AddModuleSearchDir(rpath) ; }
 #endif
 
-    if(GLOBAL_OR(stat("output",&statbuf)!=0)) {
-      if(MPI_rank == 0)
-        mkdir("output",0755) ;
-    } 
+      //    if(GLOBAL_OR(stat("output",&statbuf)!=0)) {
+      //      if(MPI_rank == 0)
+      //        mkdir("output",0755) ;
+      //    }
 
-    // All the rules in an unnamed namespace are first copied into the 
-    // global rule list. To add rules to the rule database we just
-    // neeed to use the global_rule_list. Inititally when the rules
-    // are registered using the register rule it gets pushed into the
-    // register_rule_list which is a static rule list. 
-    if(!register_rule_list.empty()) {
-      global_rule_list.copy_rule_list(register_rule_list) ;
-      register_rule_list.clear() ;
-    }
-    bool debug_setup = false ;
-    int i = 1 ;
-    while(i<*argc) {
-      if(!strcmp((*argv)[i],"--display")) {
-        debug_setup = true ;
-        hostname = (*argv)[i+1] ;
-        i+=2 ;
-      } else if(!strcmp((*argv)[i],"--debug")) {
-        debug = (*argv)[i+1] ;
-        schedule_output = true ;
-        i+=2 ;
-      } else if(!strcmp((*argv)[i],"--sprng_gen")) {
-	// set type of random number generator for sprng
-	if(!strcmp((*argv)[i+1],"LFG")) {
-	  sprng_gtype = SPRNG_LFG ;
-	} else if(!strcmp((*argv)[i+1],"LCG")) {
-	  sprng_gtype = SPRNG_LCG ;
-	} else if(!strcmp((*argv)[i+1],"LCG64")) {
-	  sprng_gtype = SPRNG_LCG64 ;
-	} else if(!strcmp((*argv)[i+1],"CMRG")) {
-	  sprng_gtype = SPRNG_CMRG ;
-	} else if(!strcmp((*argv)[i+1],"MLFG")) {
-	  sprng_gtype = SPRNG_MLFG ;
-	} else {
-	  cerr << "unknown generator type " << (*argv[i+1]) << endl ;
-	}
-        i+=2 ;
-      } else if(!strcmp((*argv)[i],"--sprng_gen_seed")) {
-	sprng_seed = make_sprng_seed() ;
-        i++ ;      
-      } else if(!strcmp((*argv)[i],"--verbose")) {
-        verbose = true ;
-        schedule_output = true ;
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--scheduleoutput")) {
-        schedule_output = true ;
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--graphs")) {
-        show_graphs = true ; // visualize the dependency graph &
-                             // the decomposed graph & every supernode
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--decoration")) {
-        show_decoration = true ; // visualize the decorated multilevel graph
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--simple_partition")) {
-        use_simple_partition = true ; //  partition domain using n/p cuts
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--orb_partition")) {
-        use_orb_partition = true ; // partition mesh using ORB method
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--dmm")) {
-        use_dynamic_memory = true ; // use dynamic memory management
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--dmmnofree")) {
-        dmm_no_deallocation = true ; // do not do deallocation
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--nodmm")) {
-        use_dynamic_memory = false ; // use static preallocation 
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--dmmverbose")) {
-        show_dmm_verbose = true ; // output some info about dmm
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--chomp")) {
-        use_chomp = true ; // use the chomping scheme
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--nochomp")) {
-        use_chomp = false ; // don't use the chomping scheme
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--showchomp")) {
-        show_chomp = true ; // visualize the chomp graph
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--chompverbose")) {
-        chomp_verbose = true ; // enable chomping summary report
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--chompingsize")) {
-        std::stringstream ss ;
-        ss << (*argv)[i+1] ;
-        ss >> chomping_size ;
-        if(chomping_size > 500*1024*1024/*500MB*/)
-          cerr << "WARNING: setting chompingsize too large"
-               << " may crash the program" << endl ;
-        i+=2 ;
-      } else if(!strcmp((*argv)[i],"--memprofile")) {
-        // profiling memory usage at run time
-        profile_memory_usage = true ;
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--memgreedy")) {
-        memory_greedy_schedule = true ;
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--nomemgreedy")) {
-        memory_greedy_schedule = false ;
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--method")) {
-        if(!strcmp((*argv)[i+1],"none")) {
-          method = 0 ;
-        } else  if(!strcmp((*argv)[i+1],"IWS")) {
-          method = 1 ;
-        } else  if(!strcmp((*argv)[i+1],"FSC")) {
-          method = 2 ;
-        } else  if(!strcmp((*argv)[i+1],"FAC")) {
-          method = 3 ;
-        } else  if(!strcmp((*argv)[i+1],"GSS")) {
-          method = 4 ;
-        } else
-          method = atoi((*argv)[i+1]);
-        i+=2;
-      } else if(!strcmp((*argv)[i],"--balance")) {
-        use_dynamic_scheduling = true ;
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--nobalance")) {
-        use_dynamic_scheduling = false ;
-        i++ ;
-      } else if(!strcmp((*argv)[i],"--duplicate_work")){
-	duplicate_work = true;
-	reduction_duplication = true;
-	pointwise_duplication = true;
-	extended_duplication = true;
-	i++;
-      } else if(!strcmp((*argv)[i],"--no_reduction_duplication")){
-	reduction_duplication = false;
-	i++;
-      } else if(!strcmp((*argv)[i],"--no_pointwise_duplication")){
-	pointwise_duplication = false;
-	i++;
-      } else if(!strcmp((*argv)[i],"--no_extended_duplication")){
-	extended_duplication = false;
-	i++;
-      } else if(!strcmp((*argv)[i],"--multilevel_duplication")){
-	multilevel_duplication = true;
-	i++;
-      } else if(!strcmp((*argv)[i],"--extreme_duplication")){
-	duplicate_work = true;
-	multilevel_duplication = true;
-	reduction_duplication = true;
-	pointwise_duplication = true;
-	extended_duplication = true;
-	i++;
-      } else if(!strcmp((*argv)[i],"--collect_timings")){
-	collect_timings = true;
-	i++;
-      } else if(!strcmp((*argv)[i],"--use_duplicate_model")){
-	use_duplicate_model = true;
-	model_file = (*argv)[i+1];
-	i += 2;
-        //      } else if(!strcmp((*argv)[i],"--measure_rule_timings")){
-        //	measure_rule_timings = true;
-        //	i++;
-      } else if(!strcmp((*argv)[i],"--load_cell_weights")){
-        load_cell_weights = true ;
-        cell_weight_file = (*argv)[i+1] ;
-	i+=2 ;
-      } 
-      else
-        break ;
-    }
+      // All the rules in an unnamed namespace are first copied into the
+      // global rule list. To add rules to the rule database we just
+      // neeed to use the global_rule_list. Inititally when the rules
+      // are registered using the register rule it gets pushed into the
+      // register_rule_list which is a static rule list.
+      if(!register_rule_list.empty()) {
+        global_rule_list.copy_rule_list(register_rule_list) ;
+        register_rule_list.clear() ;
+      }
+      // do the same to get all the defined keyspace
+      if(!register_key_space_list.empty()) {
+        global_key_space_list.copy_space_list(register_key_space_list) ;
+        register_key_space_list.clear() ;
+      }
+      bool debug_setup = false ;
+      int i = 1 ;
+      while(i<*argc) {
+        if(!strcmp((*argv)[i],"--display")) {
+          debug_setup = true ;
+          hostname = (*argv)[i+1] ;
+          i+=2 ;
+        } else if(!strcmp((*argv)[i],"--debug")) {
+          debug = (*argv)[i+1] ;
+          schedule_output = true ;
+          i+=2 ;
+        } else if(!strcmp((*argv)[i],"--sprng_gen")) {
+          // set type of random number generator for sprng
+          if(!strcmp((*argv)[i+1],"LFG")) {
+            sprng_gtype = SPRNG_LFG ;
+          } else if(!strcmp((*argv)[i+1],"LCG")) {
+            sprng_gtype = SPRNG_LCG ;
+          } else if(!strcmp((*argv)[i+1],"LCG64")) {
+            sprng_gtype = SPRNG_LCG64 ;
+          } else if(!strcmp((*argv)[i+1],"CMRG")) {
+            sprng_gtype = SPRNG_CMRG ;
+          } else if(!strcmp((*argv)[i+1],"MLFG")) {
+            sprng_gtype = SPRNG_MLFG ;
+          } else {
+            cerr << "unknown generator type " << (*argv[i+1]) << endl ;
+          }
+          i+=2 ;
+        } else if(!strcmp((*argv)[i],"--sprng_gen_seed")) {
+          sprng_seed = make_sprng_seed() ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--verbose")) {
+          verbose = true ;
+          schedule_output = true ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--scheduleoutput")) {
+          schedule_output = true ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--graphs")) {
+          show_graphs = true ; // visualize the dependency graph &
+          // the decomposed graph & every supernode
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--decoration")) {
+          show_decoration = true ; // visualize the decorated multilevel graph
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--simple_partition")) {
+          use_simple_partition = true ; //  partition domain using n/p cuts
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--orb_partition")) {
+          use_orb_partition = true ; // partition mesh using ORB method
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--dmm")) {
+          use_dynamic_memory = true ; // use dynamic memory management
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--dmmnofree")) {
+          dmm_no_deallocation = true ; // do not do deallocation
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--nodmm")) {
+          use_dynamic_memory = false ; // use static preallocation
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--dmmverbose")) {
+          show_dmm_verbose = true ; // output some info about dmm
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--chomp")) {
+          use_chomp = true ; // use the chomping scheme
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--nochomp")) {
+          use_chomp = false ; // don't use the chomping scheme
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--showchomp")) {
+          show_chomp = true ; // visualize the chomp graph
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--chompverbose")) {
+          chomp_verbose = true ; // enable chomping summary report
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--chompingsize")) {
+          std::stringstream ss ;
+          ss << (*argv)[i+1] ;
+          ss >> chomping_size ;
+          if(chomping_size > 500*1024*1024/*500MB*/)
+            cerr << "WARNING: setting chompingsize too large"
+                 << " may crash the program" << endl ;
+          i+=2 ;
+        } else if(!strcmp((*argv)[i],"--memprofile")) {
+          // profiling memory usage at run time
+          profile_memory_usage = true ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--memgreedy")) {
+          memory_greedy_schedule = true ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--nomemgreedy")) {
+          memory_greedy_schedule = false ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--method")) {
+          if(!strcmp((*argv)[i+1],"none")) {
+            method = 0 ;
+          } else  if(!strcmp((*argv)[i+1],"IWS")) {
+            method = 1 ;
+          } else  if(!strcmp((*argv)[i+1],"FSC")) {
+            method = 2 ;
+          } else  if(!strcmp((*argv)[i+1],"FAC")) {
+            method = 3 ;
+          } else  if(!strcmp((*argv)[i+1],"GSS")) {
+            method = 4 ;
+          } else
+            method = atoi((*argv)[i+1]);
+          i+=2;
+        } else if(!strcmp((*argv)[i],"--balance")) {
+          use_dynamic_scheduling = true ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--nobalance")) {
+          use_dynamic_scheduling = false ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--duplicate_work")){
+          duplicate_work = true;
+          reduction_duplication = true;
+          pointwise_duplication = true;
+          extended_duplication = true;
+          i++;
+        } else if(!strcmp((*argv)[i],"--no_reduction_duplication")){
+          reduction_duplication = false;
+          i++;
+        } else if(!strcmp((*argv)[i],"--no_pointwise_duplication")){
+          pointwise_duplication = false;
+          i++;
+        } else if(!strcmp((*argv)[i],"--no_extended_duplication")){
+          extended_duplication = false;
+          i++;
+        } else if(!strcmp((*argv)[i],"--multilevel_duplication")){
+          multilevel_duplication = true;
+          i++;
+        } else if(!strcmp((*argv)[i],"--extreme_duplication")){
+          duplicate_work = true;
+          multilevel_duplication = true;
+          reduction_duplication = true;
+          pointwise_duplication = true;
+          extended_duplication = true;
+          i++;
+        } else if(!strcmp((*argv)[i],"--collect_timings")){
+          collect_timings = true;
+          i++;
+        } else if(!strcmp((*argv)[i],"--use_duplicate_model")){
+          use_duplicate_model = true;
+          model_file = (*argv)[i+1];
+          i += 2;
+          //      } else if(!strcmp((*argv)[i],"--measure_rule_timings")){
+          //	measure_rule_timings = true;
+          //	i++;
+        } else if(!strcmp((*argv)[i],"--load_cell_weights")){
+          load_cell_weights = true ;
+          cell_weight_file = (*argv)[i+1] ;
+          i+=2 ;
+        }
+        else
+          break ;
+      }
 
-    if(i!=1) {
-      *argc -= (i-1) ;
-      for(int k=1;k<*argc;++k)
-        (*argv)[k] = (*argv)[k+i-1] ;
-    }
+      if(i!=1) {
+        *argc -= (i-1) ;
+        for(int k=1;k<*argc;++k)
+          (*argv)[k] = (*argv)[k+i-1] ;
+      }
 
-    init_sprng(sprng_gtype,sprng_seed,SPRNG_DEFAULT) ;
+      init_sprng(sprng_gtype,sprng_seed,SPRNG_DEFAULT) ;
 
 
-    if(collect_timings) {
-      oss.str("");
-      if(MPI_processes == 1)
-	oss << "comp_timings";
-      else
-	oss << "comp_timings-"  << MPI_rank ;
-      filename = oss.str();
-      timeout.open(filename.c_str(), ios::out);
-    }
+      if(collect_timings) {
+        oss.str("");
+        if(MPI_processes == 1)
+          oss << "comp_timings";
+        else
+          oss << "comp_timings-"  << MPI_rank ;
+        string filename = oss.str();
+        timeout.open(filename.c_str(), ios::out);
+      }
 
-	/*
-    if(measure_rule_timings) {
-      oss.str("");
-      if(MPI_processes == 1)
+      /*
+        if(measure_rule_timings) {
+        oss.str("");
+        if(MPI_processes == 1)
 	oss << "rule_timings";
-      else
+        else
 	oss << "rule_timings-"  << MPI_rank ;
-      filename = oss.str();
-      ruleTimeOut.open(filename.c_str(), ios::out);
-      ruleTimeOut << "Output Format:" << endl;
-      ruleTimeOut << "===============================================" << endl;
-      ruleTimeOut << endl;
-      ruleTimeOut << "Rule Name " << endl;
-      ruleTimeOut << "Context Size\tTime Taken\tAverage Time" << endl;
-      ruleTimeOut << endl;
-      ruleTimeOut << "+++++++++++++++++++++++++++++++++++++++++++++++" << endl;
-      ruleTimeOut << endl;
-    }
-*/
-    set_debug_callback(debug_print_rule) ;
-    if(debug_setup) {
-      setup_debugger(execname,debug,hostname) ;
-    }
-    chopsigs_() ;
-  } catch(const BasicException &err) {
+        filename = oss.str();
+        ruleTimeOut.open(filename.c_str(), ios::out);
+        ruleTimeOut << "Output Format:" << endl;
+        ruleTimeOut << "===============================================" << endl;
+        ruleTimeOut << endl;
+        ruleTimeOut << "Rule Name " << endl;
+        ruleTimeOut << "Context Size\tTime Taken\tAverage Time" << endl;
+        ruleTimeOut << endl;
+        ruleTimeOut << "+++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+        ruleTimeOut << endl;
+        }
+      */
+      set_debug_callback(debug_print_rule) ;
+      if(debug_setup) {
+        setup_debugger(execname,debug,hostname) ;
+      }
+      chopsigs_() ;
+    } catch(const BasicException &err) {
       cerr << "Caught exception in Loci::Initialize()"<<endl ;
       err.Print(cerr) ;
-  } catch(const bad_alloc &x) {
+    } catch(const bad_alloc &x) {
       cerr << "Out of memory: " << x.what() <<endl ;
       Loci::Abort() ;
+    }
+
   }
-    
-  }
-  //All Loci programs must end with this call. 
+  //All Loci programs must end with this call.
   void Finalize() {
 #ifdef USE_PETSC
     PetscFinalize() ;

@@ -58,9 +58,14 @@ namespace Loci {
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
 
+    virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
+    virtual void pack(void *ptr, int &loc,
+                      int &size, const entitySet &e, const Map& remap) ;
+    virtual void unpack(void *ptr, int &loc,
+                        int &size, const sequence &seq, const dMap& remap) ;
     
     virtual entitySet domain() const ;
 

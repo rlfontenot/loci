@@ -699,6 +699,12 @@ namespace Loci {
     return size ;
   }
 
+  template<unsigned int M> int dMapVecRepI<M>::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
+    int size = sizeof(int) * packed.size() * M ;
+    return size ;
+  }
   //------------------------------------------------------------------------
   template <unsigned int M> 
   void dMapVecRepI<M>::pack(void *outbuf, int &position, int &outcount, const entitySet &eset)

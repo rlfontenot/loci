@@ -249,11 +249,13 @@ namespace Loci {
     virtual storeRepP remap(const dMap &m) const ;
     virtual storeRepP freeze() ;
     virtual storeRepP thaw() ;
+    virtual storeRepP thaw(const entitySet& es) const ;
     virtual void copy(storeRepP &st, const entitySet &context) ;
     virtual void gather(const dMap &m, storeRepP &st,
                         const entitySet &context)  ;
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) ;
+    virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e ) ;
     virtual void pack(void * ptr, int &loc, int &size, const entitySet &e ) ;
     virtual void unpack(void * ptr, int &loc, int &size, const sequence &seq) ;

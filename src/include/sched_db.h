@@ -29,6 +29,7 @@
 
 #include <fact_db.h>
 #include <rule.h>
+#include <execute.h>
 
 namespace Loci {
   class sched_db {
@@ -131,18 +132,24 @@ namespace Loci {
     intervalSet free_set ;
 
     bool detected_errors ;
-    
+
+  public:
     variable remove_synonym(variable v) const {
       std::map<variable,variable>::const_iterator mi ;
       if((mi=synonyms.find(v)) != synonyms.end()) 
 	return mi->second ;
       return v ;
     }
+
   public:
     enum  duplicate_policy{NEVER, ALWAYS, MODEL_BASED};
     sched_db() ;
     ~sched_db() ;
     sched_db(fact_db &facts) ;
+    // this method is used to initialize a sched_db
+    // from a fact_db (it is needed in case of when
+    // the sched_db is not directly created from a fact_db)
+    void init(fact_db &facts) ;
 
     bool errors_found() {return detected_errors ;}
     void clear_errors() {detected_errors = false ;}
@@ -152,16 +159,50 @@ namespace Loci {
     void install_sched_info(variable v, sched_info info) ;
     
     variableSet get_synonyms(variable v) const 
-      { return get_sched_info(v).synonyms ; }
+    { return get_sched_info(v).synonyms ; }
+
+    // this version tries to get the synonyms for
+    // the passed in variable, if no info, then returns EMPTY
+    variableSet try_get_synonyms(variable v) const {
+      vmap_type::const_iterator mi = vmap.find(remove_synonym(v)) ;
+      if(mi == vmap.end())
+        return variableSet(EMPTY) ;
+      else
+        return (mi->second).synonyms ;
+    }
 
     variableSet get_aliases(variable v) const
     { return get_sched_data(v).aliases ; }
 
-      variableSet get_antialiases(variable v) const
+    variableSet try_get_aliases(variable v) const {      
+      vmap_type::const_iterator mi = vmap.find(remove_synonym(v)) ;
+      if(mi == vmap.end())
+        return variableSet(EMPTY) ;
+      else
+        return sched_infov[(mi->second).sched_info_ref].aliases ;
+    }
+
+    variableSet get_antialiases(variable v) const
     { return get_sched_data(v).antialiases ; }
+
+    variableSet try_get_antialiases(variable v) const {
+      vmap_type::const_iterator mi = vmap.find(remove_synonym(v)) ;
+      if(mi == vmap.end())
+        return variableSet(EMPTY) ;
+      else
+        return sched_infov[(mi->second).sched_info_ref].antialiases ;
+    }
 
     variableSet get_rotations(variable v) const
     { return get_sched_data(v).rotations ; }
+
+    variableSet try_get_rotations(variable v) const {
+      vmap_type::const_iterator mi = vmap.find(remove_synonym(v)) ;
+      if(mi == vmap.end())
+        return variableSet(EMPTY) ;
+      else
+        return sched_infov[(mi->second).sched_info_ref].rotations ;
+    }
     
     void set_variable_type(variable v, storeRepP st, fact_db &facts) ;
     void set_variable_type(std::string vname,const storeRepP st, fact_db &facts)
@@ -218,7 +259,7 @@ namespace Loci {
       return mi->second ;
     }
     const sched_data & get_sched_data(variable v) const 
-  { return sched_infov[get_sched_info(v).sched_info_ref] ; }
+    { return sched_infov[get_sched_info(v).sched_info_ref] ; }
     
     sched_info & get_sched_info(variable v) ;
     sched_data & get_sched_data(variable v) 
@@ -396,6 +437,7 @@ namespace Loci {
     }
     
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
+
   } ;
 }
 

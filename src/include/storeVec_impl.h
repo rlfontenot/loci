@@ -330,6 +330,30 @@ namespace Loci {
     return ds.Rep() ;
   }
   
+  template<class T>
+  storeRepP storeVecRepI<T>::thaw(const entitySet& es) const {
+    entitySet shared = domain() & es ;
+    entitySet out = es - domain() ;
+    
+    dstoreVec<T> ds ;
+    ds.setVecSize(size) ;
+    for(entitySet::const_iterator ei=shared.begin();
+        ei!=shared.end();++ei) {
+      T* b = base_ptr+( (*ei)*size) ;
+      T* e = b + size ; 
+      ds[*ei] = std::vector<T>(b,e) ;
+    }
+    
+    Entity c = *domain().begin() ;
+    T* b = base_ptr + (c*size) ;
+    T* e = b + size ;
+    for(entitySet::const_iterator ei=out.begin();
+        ei!=out.end();++ei)
+      ds[*ei] = std::vector<T>(b,e) ;
+    
+    return ds.Rep() ;
+  }
+  
   //*************************************************************************/
   template <class T> 
   void storeVecRepI<T>::copy(storeRepP &st, const entitySet &context) {
@@ -434,6 +458,16 @@ namespace Loci {
     return get_mpi_size( traits_type, eset );
   }
 
+  template<class T> int storeVecRepI<T>::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
+
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    return get_mpi_size(traits_type, packed);    
+  }
   //*************************************************************************/
 
   template <class T>

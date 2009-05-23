@@ -23,6 +23,7 @@
 #include <set>
 #include <iostream>
 #include <sstream>
+#include <sys/timeb.h>
 
 using std::istringstream ;
 using std::ostringstream ;
@@ -1285,7 +1286,15 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
   class_name += '0' + (cnt/100)%10 ;
   class_name += '0' + (cnt/10)%10 ;
   class_name += '0' + (cnt)%10 ;
+  timeb tdata ;
+  ftime(&tdata) ;
+  
+  ostringstream tss ;
+  tss <<  '_' << tdata.time << 'm'<< tdata.millitm;
+  
+  class_name += tss.str() ;
   cnt++ ;
+#ifdef OLD
   class_name += "_rule_" ;
   if(conditional != "")
     sig += "_" + conditional ;
@@ -1299,7 +1308,8 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
        sig[i] == '+' || sig[i] == '_')
       class_name += '_' ;
   }
-
+#endif
+  
   set<vmap_info> sources ;
   set<vmap_info> targets ;
   if(body != 0)

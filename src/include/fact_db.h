@@ -41,6 +41,8 @@
 #include <Map_rep.h>
 #include <Map.h>
 #include <DMap.h>
+#include <key_manager.h>
+#include <keyspace.h>
 
 namespace Loci {
   class rule_db ;
@@ -85,68 +87,27 @@ namespace Loci {
     distribute_infoP distributed_info ;
 
     std::set<std::vector<variableSet> > intensive_output_maps;
-  private:
-    struct fact_info {
-      store_refP data_rep ;
-    } ;
-    
-    std::map<variable,variable> synonyms ;
+
+    // experimental inclusion of keyspace partitions
+    std::map<std::string,KeySpaceP> keyspace ;
+    // experimental inclusion of a key manager
+    KeyManagerP key_manager ;
+
     variable remove_synonym(variable v) const {
       std::map<variable,variable>::const_iterator mi ;
       while((mi=synonyms.find(v)) != synonyms.end())
         v = mi->second ;
       return v ;
     }
-
-    // a copy function
-    void copy_all_from(const fact_db& f) {
-      init_ptn = f.init_ptn ;
-      global_comp_entities = f.global_comp_entities ;
-      synonyms = f.synonyms ;
-      maximum_allocated = f.maximum_allocated ;
-      minimum_allocated = f.minimum_allocated ;
-      dist_from_start = f.dist_from_start ;
-      fmap = f.fmap ;
-      tmap = f.tmap ;
-      nspace_vec = f.nspace_vec ;
-      extensional_facts = f.extensional_facts ;
-      /* we cannot use the following direct assignment
-         to copy the distributed_info from f since
-         distributed_info is a NPTR pointer and is
-         reference counted this would not be a true copy
-      */
-      // distributed_info = f.distributed_info ;
-      distribute_infoP& df = distributed_info ;
-      const distribute_infoP& fdf = f.distributed_info ;
-      if(fdf == 0) {
-        df = 0 ;
-        return ;
-      }
-      df = new distribute_info ;
-      df->myid = fdf->myid ;
-      df->isDistributed = fdf->isDistributed ;
-      // we make a deep copy of the maps
-      entitySet l2g_alloc = fdf->l2g.domain() ;
-      entitySet g2l_alloc = fdf->g2l.domain() ;
-      df->l2g.allocate(l2g_alloc) ;
-      df->g2l.allocate(g2l_alloc) ;
-      for(entitySet::const_iterator ei=l2g_alloc.begin();
-          ei!=l2g_alloc.end();++ei) {
-        df->l2g[*ei] = fdf->l2g[*ei] ;
-      }
-      for(entitySet::const_iterator ei=g2l_alloc.begin();
-          ei!=g2l_alloc.end();++ei)
-        df->g2l[*ei] = fdf->g2l[*ei] ;
-      df->my_entities = fdf->my_entities ;
-      df->comp_entities = fdf->comp_entities ;
-      df->copy = fdf->copy ;
-      df->xmit = fdf->xmit ;
-      df->copy_total_size = fdf->copy_total_size ;
-      df->xmit_total_size = fdf->xmit_total_size ;
-      //      df->remap = fdf->remap ;
-      df->g2f = fdf->g2f ;
-    }
+  private:
+    struct fact_info {
+      store_refP data_rep ;
+    } ;
     
+    std::map<variable,variable> synonyms ;
+    // a copy function
+    void copy_all_from(const fact_db& f) ;
+
     std::pair<entitySet, entitySet> get_dist_alloc(int size) ;
     
     int maximum_allocated ;
@@ -256,6 +217,21 @@ namespace Loci {
     void synonym_variable(variable v, variable synonym) ;
 
     void rotate_vars(const std::list<variable> &lvars) ;
+    // this method will adjust the rotation vars
+    // so that the all the history part will be
+    // having the same domain as the current part
+    // for example, we have A{n+1}, A{n}, A{n-1}
+    // that is rotating. this method will make
+    // A{n} and A{n-1} have the same domain as
+    // A{n+1}, for those out of A{n+1}'s domain,
+    // they are erased, for those missing, they
+    // are copied from A{n+1}. this method is
+    // mainly for those dynamic rule's rotation
+    // list because during the execution, there
+    // might have been erase and insertion occurred
+    // and we therefore must adjust the history
+    // variables accordingly.
+    void adjust_rotation_vars(const std::list<variable>& lvars) ;
     
     void set_namespace(std::string name_space){
       nspace_vec.insert(nspace_vec.begin(), 1, name_space) ; 
@@ -383,6 +359,15 @@ namespace Loci {
     void write_hdf5(const char *filename, variableSet &vars) ;
     void read_hdf5(const char *filename, variableSet &vars) ;
     void Print_diagnostics() ;
+
+    // experimental code to create keyspace from the
+    // global registered keyspace list
+    // returns "true" to indicate the methods succeeded,
+    // "false" to indicate an error.
+    bool create_keyspace(KeySpaceList& global_list) ;
+    KeySpaceP get_keyspace(const std::string& kname) ;
+    KeyManagerP get_key_manager() const {return key_manager ;}
+    void init_key_manager() ;
   } ;
   
   void reorder_facts(fact_db &facts, dMap &remap) ;

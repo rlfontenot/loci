@@ -27,13 +27,13 @@
 #include <multiMap.h>
 #include <hdf5_readwrite.h>
 #include <Tools/hash_map.h>
+#include <distribute.h>
 
 using std::cerr ;
 using std::endl ;
 using std::ostream ;
 using std::istream ;
 using std::ofstream ;
-
 
 namespace Loci {
 
@@ -175,7 +175,22 @@ namespace Loci {
   
   //*************************************************************************/
   void dMapRepI::erase(const entitySet &rm) {
-    attrib_data.erase_set(rm) ;
+    // we need to make sure the erased sets are
+    // indeed valid (within the domain)
+    entitySet valid = domain() & rm ;
+    attrib_data.erase_set(valid) ;
+    dispatch_notify() ;
+  }
+
+  void dMapRepI::invalidate(const entitySet& valid) {
+    entitySet redundant = domain() - valid ;
+    erase(redundant) ;
+  }
+  void dMapRepI::guarantee_domain(const entitySet& include) {
+    entitySet new_set = include - domain() ;
+    for(entitySet::const_iterator ei=new_set.begin();
+        ei!=new_set.end();++ei)
+      attrib_data.access(*ei) ;
     dispatch_notify() ;
   }
   
@@ -213,6 +228,126 @@ namespace Loci {
     return s.Rep() ;
   }
   
+  storeRepP
+  dMapRepI::redistribute(const std::vector<entitySet>& dom_ptn,
+                         MPI_Comm comm) {
+    entitySet dom = domain() ;
+    // figure out how the domain is split to send to others
+    int np ;
+    MPI_Comm_size(comm, &np) ;
+    fatal(np != dom_ptn.size()) ;
+
+    entitySet total_dom ;
+    std::vector<entitySet> dom_split(np) ;
+    for(int i=0;i<np;++i) {
+      dom_split[i] = dom & dom_ptn[i] ;
+      total_dom += dom_ptn[i] ;
+    }
+
+    ////////////////////////////////////////////////////////////
+    // first compute the unpack sequence
+    std::vector<sequence> pack_seq(np) ;
+    for(int i=0;i<np;++i)
+      pack_seq[i] = sequence(dom_split[i]) ;
+
+    std::vector<sequence> unpack_seq =
+      transpose_sequence(pack_seq, comm) ;
+
+    std::vector<sequence>().swap(pack_seq) ;
+    ////////////////////////////////////////////////////////////
+
+    std::vector<int> send_counts(np,0) ;
+    std::vector<int> recv_counts(np,0) ;
+    std::vector<int> send_displs(np,0) ;
+    std::vector<int> recv_displs(np,0) ;
+    int tot_send_size = 0 ;
+    int tot_recv_size = 0 ;
+
+    // continue to pack and send the Map
+    for(int i=0;i<np;++i)
+      send_counts[i] = pack_size(dom_split[i]) ;
+    MPI_Alltoall(&send_counts[0], 1, MPI_INT,
+                 &recv_counts[0], 1, MPI_INT, comm) ;
+
+    for(int i=1;i<np;++i) {
+      send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+      recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+    }
+    tot_send_size = send_displs[np-1] + send_counts[np-1] ;
+    tot_recv_size = recv_displs[np-1] + recv_counts[np-1] ;
+
+    // pack the buffer
+    unsigned char* send_buffer = new unsigned char[tot_send_size] ;
+    unsigned char** send_ptr = new unsigned char*[np] ;
+    send_ptr[0] = send_buffer ;
+    for(int i=1;i<np;++i)
+      send_ptr[i] = send_ptr[i-1] + send_counts[i-1] ;
+    for(int i=0;i<np;++i) {
+      int position = 0 ;
+      pack(send_ptr[i], position, send_counts[i], dom_split[i]) ;
+    }
+    delete[] send_ptr ;
+
+    unsigned char* recv_buffer = new unsigned char[tot_recv_size] ;
+    MPI_Alltoallv(&send_buffer[0], &send_counts[0],
+                  &send_displs[0], MPI_PACKED,
+                  &recv_buffer[0], &recv_counts[0],
+                  &recv_displs[0], MPI_PACKED, comm) ;
+    delete[] send_buffer ;
+
+    dMap nm ;
+    entitySet new_domain ;
+    for(int i=0;i<np;++i)
+      new_domain += entitySet(unpack_seq[i]) ;
+    // if there's any old domain not being redistributed,
+    // we will add it also
+    entitySet old_dom = dom - total_dom ;
+    nm.allocate(new_domain+old_dom) ;
+    storeRepP srp = nm.Rep() ;
+
+    unsigned char** recv_ptr = new unsigned char*[np] ;
+    recv_ptr[0] = recv_buffer ;
+    for(int i=1;i<np;++i)
+      recv_ptr[i] = recv_ptr[i-1] + recv_counts[i-1] ;
+    // unpack
+    for(int i=0;i<np;++i) {
+      int position = 0 ;
+      srp->unpack(recv_ptr[i], position, recv_counts[i], unpack_seq[i]) ;
+    }
+    delete[] recv_ptr ;
+    delete[] recv_buffer ;
+
+    // copy old_dom contents if any
+    for(entitySet::const_iterator ei=old_dom.begin();
+        ei!=old_dom.end();++ei)
+      nm[*ei] = attrib_data[*ei] ;
+
+    return srp ;
+  }
+  
+  storeRepP dMapRepI::
+  redistribute(const std::vector<entitySet>& dom_ptn,
+               const dMap& remap, MPI_Comm comm) {
+    // this is a push operation, thus the send recv are reversed
+    std::vector<P2pCommInfo> send, recv ;
+    get_p2p_comm(dom_ptn, domain(), 0, 0, comm, recv, send) ;
+    dMap new_map ;
+    fill_store2(getRep(), 0, new_map.Rep(), &remap, send, recv, comm) ;
+    return new_map.Rep() ;
+  }
+
+  storeRepP dMapRepI::
+  redistribute_omd(const std::vector<entitySet>& dom_ptn,
+                   const dMap& remap, MPI_Comm comm) {
+    // this is a push operation, thus the send recv are reversed
+    std::vector<P2pCommInfo> send, recv ;
+    get_p2p_comm(dom_ptn, domain(), 0, 0, comm, recv, send) ;
+    dMap new_map ;
+    fill_store_omd(getRep(), 0, new_map.Rep(), &remap, send, recv, comm) ;
+    return new_map.Rep() ;
+  }
+
+  // ******************************************************************/
   storeRepP dMapRepI::freeze() {
     Map m ;
     m.allocate(domain()) ;
@@ -246,7 +381,7 @@ namespace Loci {
   void dMapRepI::copy(storeRepP &st, const entitySet &context) 
   {
     const_dMap s(st) ;
-    
+
     fatal((context-s.domain()) != EMPTY) ;
     
     FORALL(context,i) {
@@ -290,6 +425,13 @@ namespace Loci {
     size = sizeof(int) * e.size() ;
     return(size) ;
   }
+
+  int dMapRepI::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
+    int size = sizeof(int) * packed.size() ;
+    return size ;
+  }
   
   //**************************************************************************/
   
@@ -301,6 +443,16 @@ namespace Loci {
                 &position, MPI_COMM_WORLD) ;
   }
   
+  void dMapRepI::pack(void *outbuf, int &position,
+                      int &outcount, const entitySet &eset, const Map& remap) 
+  {
+    entitySet :: const_iterator ci;
+    for( ci = eset.begin(); ci != eset.end(); ++ci) {
+      int img = remap[attrib_data[*ci]] ;
+      MPI_Pack(&img,1,MPI_INT,outbuf,outcount,&position,MPI_COMM_WORLD) ;
+    }
+  }
+  
   //**************************************************************************/
 
   void dMapRepI::unpack(void *inbuf, int &position, int &insize, const sequence &seq) 
@@ -309,6 +461,19 @@ namespace Loci {
     for( ci = seq.begin(); ci != seq.end(); ++ci)
       MPI_Unpack( inbuf, insize, &position, &attrib_data[*ci],
 		  1, MPI_INT, MPI_COMM_WORLD) ;
+  }
+  
+  void dMapRepI::unpack(void *inbuf, int &position,
+                        int &insize, const sequence &seq, const dMap& remap) 
+  {
+    sequence:: const_iterator ci;
+    for( ci = seq.begin(); ci != seq.end(); ++ci) {
+      MPI_Unpack(inbuf,insize,&position,&attrib_data[*ci],
+                 1, MPI_INT, MPI_COMM_WORLD) ;
+    }
+    // then remap
+    for(ci=seq.begin();ci!=seq.end();++ci)
+      attrib_data[*ci] = remap[attrib_data[*ci]] ;
   }
   
   //**************************************************************************/

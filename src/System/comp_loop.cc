@@ -50,13 +50,13 @@ namespace Loci {
       tlevel(tl),rotate_lists(rl) {
       warn(col==0 || advance==0) ; tvar = variable(tlevel) ;
     }
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_loop";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
   
-  void execute_loop::execute(fact_db &facts) {
+  void execute_loop::execute(fact_db &facts, sched_db &scheds) {
     param<bool> test ;
     test = facts.get_variable(cvar) ;
     // initialize conditional variables to true
@@ -71,7 +71,7 @@ namespace Loci {
 
     for(;;) { // Begin looping
       //First evaluate the collapse condition
-      collapse->execute(facts) ;
+      collapse->execute(facts, scheds) ;
 
 #ifdef VERBOSE
       cerr << cvar << " = " << *test << endl ;
@@ -82,7 +82,7 @@ namespace Loci {
         return ;
       }
       // Advance to the next iterate
-      advance->execute(facts) ;
+      advance->execute(facts, scheds) ;
 
       // We are finished with this iteration, so rotate variables and
       // add one to the iterate
@@ -96,6 +96,10 @@ namespace Loci {
         }
         cerr << "]" << endl ;
 #endif
+        // before rotation, we need to adjust the
+        // history variables (if necessary)
+        facts.adjust_rotation_vars(*rli) ;
+        // then rotate them
         facts.rotate_vars(*rli) ;
       }
       *time_var += 1 ;

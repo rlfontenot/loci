@@ -183,6 +183,24 @@ namespace Loci {
       ds[*ei] = base_ptr[*ei] ;
     return ds.Rep() ;
   }
+
+  template<class T> storeRepP
+  storeRepI<T>::thaw(const entitySet& es) const {
+    entitySet shared = domain() & es ;
+    entitySet out = es - domain() ;
+
+    dstore<T> ds ;
+    for(entitySet::const_iterator ei=shared.begin();
+        ei!=shared.end();++ei)
+      ds[*ei] = base_ptr[*ei] ;
+
+    Entity c = *domain().begin() ;
+    for(entitySet::const_iterator ei=out.begin();
+        ei!=out.end();++ei)
+      ds[*ei] = base_ptr[c] ;
+    
+    return ds.Rep() ;
+  }
   
   template<class T> void storeRepI<T>::copy(storeRepP &st, const entitySet &context)  {
     const_store<T> s(st) ;
@@ -256,6 +274,14 @@ namespace Loci {
     return get_mpi_size( schema_converter(), eset );
   }
 
+  template<class T> int storeRepI<T>::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
+    typedef typename data_schema_traits<T>::Schema_Converter
+      schema_converter ;
+
+    return get_mpi_size(schema_converter(), packed) ;
+  }
 
   //*******************************************************************/
   template <class T>

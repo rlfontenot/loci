@@ -37,7 +37,7 @@ namespace Loci {
   public:
     execute_constraint_rule(rule fi, sequence seq,
                             fact_db &facts, sched_db &scheds) ;
-    virtual void execute(fact_db &facts) ;
+    virtual void execute(fact_db &facts, sched_db &scheds) ;
     virtual void Print(std::ostream &s) const ;
     virtual string getName() { return "execute_constraint_rule";};
     virtual void dataCollate(collectData &data_collector) const ;
@@ -52,7 +52,7 @@ namespace Loci {
     exec_seq = seq ;
   }
   
-  void execute_constraint_rule::execute(fact_db &facts) {
+  void execute_constraint_rule::execute(fact_db &facts, sched_db &scheds) {
     stopWatch s ;
     s.start() ;
     current_rule_id = rule_tag.ident() ;

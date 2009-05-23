@@ -125,11 +125,12 @@ namespace Loci {
 
   template<class T> void writeUnorderedVector(hid_t group_id,
                                               const char *element_name,
-                                              std::vector<T> &v) {
+                                              std::vector<T> &v,
+                                              MPI_Comm comm) {
     long local_size = v.size() ;
     std::vector<long> recv_sizes(MPI_processes) ;
     MPI_Gather(&local_size,1,MPI_LONG,
-               &recv_sizes[0],1,MPI_LONG,0,MPI_COMM_WORLD) ;
+               &recv_sizes[0],1,MPI_LONG,0,comm) ;
 
     if(MPI_rank == 0) {
       hsize_t array_size = 0 ;
@@ -168,10 +169,10 @@ namespace Loci {
         if(recv_sizes[i] == 0)
           continue ;
         int flag = 0 ;
-        MPI_Send(&flag,1,MPI_INT,i,0,MPI_COMM_WORLD) ;
+        MPI_Send(&flag,1,MPI_INT,i,0,comm) ;
         std::vector<T> rv(recv_sizes[i]) ;
         MPI_Status mstat ;
-        MPI_Recv(&rv[0],sizeof(T)*recv_sizes[i],MPI_BYTE,i,0,MPI_COMM_WORLD,
+        MPI_Recv(&rv[0],sizeof(T)*recv_sizes[i],MPI_BYTE,i,0,comm,
                  &mstat) ;
         count = recv_sizes[i] ;
         H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
@@ -190,9 +191,15 @@ namespace Loci {
 
       int flag = 0;
       MPI_Status mstat ;
-      MPI_Recv(&flag,1,MPI_INT,0,0,MPI_COMM_WORLD,&mstat) ;
-      MPI_Send(&v[0],sizeof(T)*local_size,MPI_BYTE,0,0,MPI_COMM_WORLD) ;
+      MPI_Recv(&flag,1,MPI_INT,0,0,comm,&mstat) ;
+      MPI_Send(&v[0],sizeof(T)*local_size,MPI_BYTE,0,0,comm) ;
     }
+  }
+  
+  template<class T> void writeUnorderedVector(hid_t group_id,
+                                              const char *element_name,
+                                              std::vector<T> &v) {
+    writeUnorderedVector(group_id,element_name,v,MPI_COMM_WORLD) ;
   }
 
   void writeSetIds(hid_t file_id, entitySet local_set, fact_db &facts) ;

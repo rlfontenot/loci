@@ -83,6 +83,9 @@ namespace Loci {
   int store_ref::pack_size(const entitySet &e )  {
     return(Rep()->pack_size(e)) ;
   }
+  int store_ref::pack_size(const entitySet& e, entitySet& packed) {
+    return Rep()->pack_size(e,packed) ;
+  }
   void store_ref::pack(void * ptr, int &loc, int &size, const entitySet &e )  {
     Rep()->pack(ptr, loc, size, e) ;
   }
@@ -113,4 +116,45 @@ namespace Loci {
   void store_ref::notification() {
     dispatch_notify() ;
   }
+
+  void store_ref::
+  erase(const entitySet& rm) { Rep()->erase(rm) ;}
+  
+  void store_ref::
+  invalidate(const entitySet& valid) { Rep()->invalidate(valid) ;}
+  
+  void store_ref::
+  guarantee_domain(const entitySet& include)
+  { Rep()->guarantee_domain(include) ;}
+  
+  storeRepP store_ref::
+  redistribute(const std::vector<entitySet>& dom_ptn,MPI_Comm comm)
+  { return Rep()->redistribute(dom_ptn,comm) ;}
+  
+  storeRepP store_ref::
+  redistribute(const std::vector<entitySet>& dom_ptn,
+               const dMap& remap, MPI_Comm comm)
+  { return Rep()->redistribute(dom_ptn,remap,comm) ;}
+  
+  storeRepP store_ref::
+  redistribute_omd(const std::vector<entitySet>& dom_ptn,
+                   const dMap& remap, MPI_Comm comm)
+  { return Rep()->redistribute_omd(dom_ptn,remap,comm) ;}
+  
+  storeRepP store_ref::
+  freeze(const entitySet& es) const { return Rep()->freeze(es) ;}
+
+  storeRepP store_ref::
+  thaw(const entitySet& es) const { return Rep()->thaw(es) ;}
+  
+  void store_ref::
+  pack(void* ptr, int& loc,
+       int& size, const entitySet& e, const Map& remap)
+  { Rep()->pack(ptr,loc,size,e,remap) ;}
+  
+  void store_ref::
+  unpack(void* ptr, int& loc,
+         int& size, const sequence& seq, const dMap& remap)
+  { Rep()->unpack(ptr,loc,size,seq,remap) ;}
+  
 }

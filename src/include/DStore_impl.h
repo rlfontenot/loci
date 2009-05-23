@@ -23,6 +23,7 @@
 
 #include <DStore_def.h>
 #include <store_def.h>
+#include <distribute.h>
 
 namespace Loci {
   template<class T> 
@@ -48,6 +49,28 @@ namespace Loci {
     new_domain >>= offset ;
     allocate(new_domain) ;
   }
+
+  template<class T>
+  void dstoreRepI<T>::erase(const entitySet& rm) {
+    entitySet valid = domain() & rm ;
+    attrib_data.erase_set(valid) ;
+    dispatch_notify() ;
+  }
+
+  template<class T>
+  void dstoreRepI<T>::invalidate(const entitySet& valid) {
+    entitySet redundant = domain() - valid ;
+    erase(redundant) ;
+  }
+  template<class T>
+  void dstoreRepI<T>::guarantee_domain(const entitySet& include) {
+    entitySet new_set = include - domain() ;
+    for(entitySet::const_iterator ei=new_set.begin();
+        ei!=new_set.end();++ei)
+      attrib_data.access(*ei) ;
+    dispatch_notify() ;
+  }
+
   //*********************************************************************/
 
   template<class T> 
@@ -182,6 +205,137 @@ namespace Loci {
     return s.Rep() ;
   }
 
+  template<class T> storeRepP
+  dstoreRepI<T>::redistribute(const std::vector<entitySet>& dom_ptn,
+                              MPI_Comm comm) {
+    entitySet dom = domain() ;
+    // figure out how the domain is split to send to others
+    int np ;
+    MPI_Comm_size(comm, &np) ;
+    fatal(np != dom_ptn.size()) ;
+    entitySet total_dom ;
+    std::vector<entitySet> dom_split(np) ;
+    for(int i=0;i<np;++i) {
+      dom_split[i] = dom & dom_ptn[i] ;
+      total_dom += dom_ptn[i] ;
+    }
+
+    // compute the send_counts
+    std::vector<int> send_counts(np,0) ;
+    for(int i=0;i<np;++i)
+      send_counts[i] = pack_size(dom_split[i]) ;
+
+    std::vector<int> send_displs(np,0) ;
+    for(int i=1;i<np;++i)
+      send_displs[i] = send_displs[i-1] + send_counts[i-1] ;
+
+    // communicate to get the receive counts
+    std::vector<int> recv_counts(np,0) ;
+    MPI_Alltoall(&send_counts[0], 1, MPI_INT,
+                 &recv_counts[0], 1, MPI_INT, comm) ;
+
+    std::vector<int> recv_displs(np,0) ;
+    for(int i=1;i<np;++i)
+      recv_displs[i] = recv_displs[i-1] + recv_counts[i-1] ;
+
+    // then pack the buffer
+    int tot_send_size = 0 ;
+    for(int i=0;i<np;++i)
+      tot_send_size += send_counts[i] ;
+
+    unsigned char* send_buffer = new unsigned char[tot_send_size] ;
+    unsigned char** send_ptr = new unsigned char*[np] ;
+    send_ptr[0] = send_buffer ;
+    for(int i=1;i<np;++i)
+      send_ptr[i] = send_ptr[i-1] + send_counts[i-1] ;
+
+    for(int i=0;i<np;++i) {
+      int position = 0 ;
+      pack(send_ptr[i], position, send_counts[i], dom_split[i]) ;
+    }
+    delete[] send_ptr ;
+
+    ///////////////////////////////////////////////////////////////
+    // compute the receive sequence for proper unpacking
+    // this involves another MPI_Alltoallv
+    std::vector<sequence> pack_seq(np) ;
+    for(int i=0;i<np;++i)
+      pack_seq[i] = sequence(dom_split[i]) ;
+
+    std::vector<sequence> unpack_seq
+      = transpose_sequence(pack_seq, comm) ;
+    // done, release useless buffers
+    std::vector<sequence>().swap(pack_seq) ;
+    ///////////////////////////////////////////////////////////////
+
+    // we now proceed to communicate the store contents
+    int tot_recv_size = 0 ;
+    for(int i=0;i<np;++i)
+      tot_recv_size += recv_counts[i] ;
+
+    unsigned char* recv_buffer = new unsigned char[tot_recv_size] ;
+    MPI_Alltoallv(&send_buffer[0], &send_counts[0],
+                  &send_displs[0], MPI_PACKED,
+                  &recv_buffer[0], &recv_counts[0],
+                  &recv_displs[0], MPI_PACKED, comm) ;
+
+    delete[] send_buffer ;
+
+    dstore<T> ns ;
+    entitySet new_domain ;
+    for(int i=0;i<np;++i)
+      new_domain += entitySet(unpack_seq[i]) ;
+    // if there's any old domain not being redistributed,
+    // we will add it also
+    entitySet old_dom = dom - total_dom ;
+    ns.allocate(new_domain+old_dom) ;
+    storeRepP srp = ns.Rep() ;
+
+    unsigned char** recv_ptr = new unsigned char*[np] ;
+    recv_ptr[0] = recv_buffer ;
+    for(int i=1;i<np;++i)
+      recv_ptr[i] = recv_ptr[i-1] + recv_counts[i-1] ;
+
+    // unpack
+    for(int i=0;i<np;++i) {
+      int position = 0 ;
+      srp->unpack(recv_ptr[i], position, recv_counts[i], unpack_seq[i]) ;
+    }
+    delete[] recv_ptr ;
+    delete[] recv_buffer ;
+
+    // copy old_dom if any
+    for(entitySet::const_iterator ei=old_dom.begin();
+        ei!=old_dom.end();++ei)
+      ns[*ei] = attrib_data[*ei] ;
+    
+    return srp ;
+  }
+  
+  template<class T> storeRepP
+  dstoreRepI<T>::redistribute(const std::vector<entitySet>& dom_ptn,
+                              const dMap& remap, MPI_Comm comm) {
+    // this is a push operation, thus the send, recv are reversed
+    std::vector<P2pCommInfo> send, recv ;
+    get_p2p_comm(dom_ptn, domain(), 0, 0, comm, recv, send) ;
+    dstore<T> new_store ;
+    fill_store2(getRep(), 0, new_store.Rep(), &remap, send, recv, comm) ;
+    return new_store.Rep() ;
+  }
+
+  template<class T> storeRepP
+  dstoreRepI<T>::redistribute_omd(const std::vector<entitySet>& dom_ptn,
+                                  const dMap& remap, MPI_Comm comm) {
+    // this is a push operation, thus the send, recv are reversed
+    std::vector<P2pCommInfo> send, recv ;
+    get_p2p_comm(dom_ptn, domain(), 0, 0, comm, recv, send) ;
+    dstore<T> new_store ;
+    fill_store_omd(getRep(), 0, new_store.Rep(), &remap, send, recv, comm) ;
+    return new_store.Rep() ;
+  }
+
+  // ********************************************************************/
+
   template<class T>
   storeRepP dstoreRepI<T>::freeze() {
     store<T> static_store ;
@@ -251,6 +405,17 @@ namespace Loci {
     schema_converter traits_type;
 
     return get_mpi_size( traits_type, eset );
+  }
+
+  template<class T> int dstoreRepI<T>::
+  pack_size(const entitySet& e, entitySet& packed) {
+    packed = domain() & e ;
+
+    typedef typename data_schema_traits<T>::Schema_Converter
+      schema_converter;
+    schema_converter traits_type;
+
+    return get_mpi_size(traits_type, packed);
   }
 
   //*******************************************************************/
