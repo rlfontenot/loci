@@ -42,8 +42,10 @@ using std::unique ;
 
 #include <sys/types.h>
 #include <sys/stat.h>
-
+#include <dirent.h>
 #include "extract.h"
+
+string output_dir ;
 
     
 
@@ -111,6 +113,10 @@ void Usage(int ac, char *av[]) {
        << "  -Sx <amount> : translate cutting plane along x-axis" << endl
        << "  -Sy <amount> : translate cutting plane along y-axis" << endl
        << "  -Sz <amount> : translate cutting plane along z-axis" << endl << endl;
+  cout << "extra options for controlling extract" << endl
+       << "   -dir <directory> : change extract directory from default 'output'"
+
+       << endl << endl ;
   cout << "example:  to extract OH species from time step 50 of ssme simulation for visualization with 2dgv use:" << endl
        << av[0] << " -2d -bc 1 -xr ssme 50 fOH" << endl ;
   cout << "example: to extract an ascii table of boundary heat flux and x locations:"<<endl
@@ -145,7 +151,7 @@ int  sizeElementType(hid_t group_id, const char *element_name) {
 void getDerivedVar(vector<float> &dval, string var_name,
                    string casename, string iteration) {
   if(var_name == "m") {
-    string filename = "output/a_sca."+iteration + "_" + casename ;
+    string filename = output_dir+"/a_sca."+iteration + "_" + casename ;
     
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
@@ -160,7 +166,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     Loci::readContainer(file_id,"a",soundSpeed.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
-    filename = "output/v_vec." + iteration +"_" + casename ;
+    filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -180,7 +186,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
       dval[c++] = m ;
     } ENDFORALL ;
   } else if(var_name == "p" || var_name == "P") {
-    string filename = "output/pg_sca."+iteration + "_" + casename ;
+    string filename = output_dir+"/pg_sca."+iteration + "_" + casename ;
     
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
@@ -195,7 +201,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     Loci::readContainer(file_id,"pg",pg.Rep(),EMPTY,facts) ;
     Loci::hdf5CloseFile(file_id) ;
 
-    filename = "output/Pambient_par." + iteration +"_" + casename ;
+    filename = output_dir+"/Pambient_par." + iteration +"_" + casename ;
     file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -220,7 +226,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     } ENDFORALL ;
   } else if (var_name == "u") {
     fact_db facts ;
-    string filename = "output/v_vec." + iteration +"_" + casename ;
+    string filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -241,7 +247,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     } ENDFORALL ;
   } else if(var_name == "x" || var_name =="y" || var_name == "z") {
     store<vector3d<float> > pos ;
-    string posname = "output/grid_pos." + iteration + "_" + casename ;
+    string posname = output_dir+"/grid_pos." + iteration + "_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -275,7 +281,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     }
   } else if(var_name == "0" || var_name =="1" || var_name == "2") {
     fact_db facts ;
-    string filename = "output/v_vec." + iteration +"_" + casename ;
+    string filename = output_dir+"/v_vec." + iteration +"_" + casename ;
     hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -321,7 +327,7 @@ void setup_grid_topology(string casename, string iteration) {
   if(!Loci::setupFVMGrid(facts,file)) {
     cerr << "unable to read grid " << file << endl ;
   }
-  string filename = "output/"+casename+".topo" ;
+  string filename = output_dir+"/"+casename+".topo" ;
   if(stat(filename.c_str(),&tmpstat)!= 0) {
     Loci::createLowerUpper(facts) ;
     multiMap upper,lower,boundary_map,face2node ;
@@ -351,7 +357,7 @@ void setup_grid_topology(string casename, string iteration) {
 
   store<vector3d<double> > pos ;
   pos = facts.get_variable("pos") ;
-  filename = "output/grid_pos." + iteration + "_" + casename ;
+  filename = output_dir+"/grid_pos." + iteration + "_" + casename ;
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
   
@@ -454,7 +460,7 @@ void extract_grid(string casename, string iteration,
   topo->fileWritingSequence(events) ;
   FATAL(Loci::MPI_processes != 1) ;
   store<vector3d<float> > pos ;
-  string posname = "output/grid_pos." + iteration + "_" + casename ;
+  string posname = output_dir+"/grid_pos." + iteration + "_" + casename ;
   hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                      H5F_ACC_RDONLY,
                                      H5P_DEFAULT) ;
@@ -471,7 +477,7 @@ void extract_grid(string casename, string iteration,
   Loci::hdf5CloseFile(file_id) ;
   int npnts = pos.domain().size() ;
 
-  string iblankname = "output/grid_iblank." + iteration + "_" + casename ;
+  string iblankname = output_dir+"/grid_iblank." + iteration + "_" + casename ;
   store<unsigned char> iblank ;
   entitySet pdom = interval(1,npnts) ;
   iblank.allocate(pdom) ;
@@ -503,7 +509,7 @@ void extract_grid(string casename, string iteration,
       iblank[i] = 0 ;
   }
   
-  string gridtopo = "output/" + casename +".topo" ;
+  string gridtopo = output_dir+"/" + casename +".topo" ;
 
 
   file_id = H5Fopen(gridtopo.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT) ;
@@ -588,6 +594,34 @@ void extract_grid(string casename, string iteration,
           cout << npyrm-npyrm_b << " pyramids iblanked" << endl ;
     }
     if(ngenc > 0) {
+        vector<int> GeneralCellNfaces(ngenc) ;
+        readElementType(elg,"GeneralCellNfaces",GeneralCellNfaces) ;
+        int nside = sizeElementType(elg,"GeneralCellNsides") ;
+        vector<int> GeneralCellNsides(nside) ;
+        readElementType(elg,"GeneralCellNsides",GeneralCellNsides) ;
+        int nnodes = sizeElementType(elg,"GeneralCellNodes") ;
+        vector<int> GeneralCellNodes(nnodes) ;
+        readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
+        int cnt1 = 0 ;
+        int cnt2 = 0 ;
+        int cnt = 0 ;
+        for(int i=0;i<ngenc;++i) {
+          bool blank = true ;
+          int nf = GeneralCellNfaces[i] ;
+          for(int f=0;f<nf;++f) {
+            int fs = GeneralCellNsides[cnt1++] ;
+            for(int n=0;n<fs;++n) {
+              int nd = GeneralCellNodes[cnt2++] ;
+              if(iblank[nd] < 2)
+                blank = false ;
+            }
+          }
+          if(!blank)
+            cnt++ ;
+        }
+        ngenc_b = cnt ;
+        if(ngenc-ngenc_b > 0)
+          cout << ngenc-ngenc_b << " general cells iblanked" << endl ;
     }
   }
   hid_t bndg = H5Gopen(file_id,"boundaries") ;
@@ -633,16 +667,18 @@ void extract_grid(string casename, string iteration,
         vector<Array<int,4> > tets(ntets) ;
         readElementType(elg,"tetrahedra",tets) ;
         int cnt = 0 ;
-        for(int i=0;i<ntets;++i) {
-          bool blank = true ;
-          for(int j=0;j<4;++j)
-            if(iblank[tets[i][j]] < 2)
-              blank = false ;
-          if(blank)
-            cnt++ ;
-          else 
-            if(cnt != 0) // If there are some blanked copy into place
-              tets[i-cnt]=tets[i] ;
+        if(has_iblank) {
+          for(int i=0;i<ntets;++i) {
+            bool blank = true ;
+            for(int j=0;j<4;++j)
+              if(iblank[tets[i][j]] < 2)
+                blank = false ;
+            if(blank)
+              cnt++ ;
+            else 
+              if(cnt != 0) // If there are some blanked copy into place
+                tets[i-cnt]=tets[i] ;
+          }
         }
         topo->write_tets(&tets[0],ntets-cnt) ;
       }
@@ -650,16 +686,18 @@ void extract_grid(string casename, string iteration,
         vector<Array<int,5> > pyrm(npyrm) ;
         readElementType(elg,"pyramid",pyrm) ;
         int cnt = 0 ;
-        for(int i=0;i<npyrm;++i) {
-          bool blank = true ;
-          for(int j=0;j<5;++j)
-            if(iblank[pyrm[i][j]] < 2)
-              blank = false ;
-          if(blank)
-            cnt++ ;
-          else 
-            if(cnt != 0) // If there are some blanked copy into place
-              pyrm[i-cnt]=pyrm[i] ;
+        if(has_iblank) {
+          for(int i=0;i<npyrm;++i) {
+            bool blank = true ;
+            for(int j=0;j<5;++j)
+              if(iblank[pyrm[i][j]] < 2)
+                blank = false ;
+            if(blank)
+              cnt++ ;
+            else 
+              if(cnt != 0) // If there are some blanked copy into place
+                pyrm[i-cnt]=pyrm[i] ;
+          }
         }
         topo->write_pyrm(&pyrm[0],npyrm-cnt) ;
       }
@@ -667,16 +705,18 @@ void extract_grid(string casename, string iteration,
         vector<Array<int,6> > prsm(nprsm) ;
         readElementType(elg,"prism",prsm) ;
         int cnt = 0 ;
-        for(int i=0;i<nprsm;++i) {
-          bool blank = true ;
-          for(int j=0;j<6;++j)
-            if(iblank[prsm[i][j]] < 2)
-              blank = false ;
-          if(blank)
-            cnt++ ;
-          else 
-            if(cnt != 0) // If there are some blanked copy into place
-              prsm[i-cnt]=prsm[i] ;
+        if(has_iblank) {
+          for(int i=0;i<nprsm;++i) {
+            bool blank = true ;
+            for(int j=0;j<6;++j)
+              if(iblank[prsm[i][j]] < 2)
+                blank = false ;
+            if(blank)
+              cnt++ ;
+            else 
+              if(cnt != 0) // If there are some blanked copy into place
+                prsm[i-cnt]=prsm[i] ;
+          }
         }
         topo->write_prsm(&prsm[0],nprsm-cnt) ;
       }
@@ -684,18 +724,19 @@ void extract_grid(string casename, string iteration,
         vector<Array<int,8> > hexs(nhexs) ;
         readElementType(elg,"hexahedra",hexs) ;
         int cnt = 0 ;
-        for(int i=0;i<nhexs;++i) {
-          bool blank = true ;
-          for(int j=0;j<8;++j)
-            if(iblank[hexs[i][j]] < 2)
-              blank = false ;
-          if(blank)
-            cnt++ ;
-          else 
-            if(cnt != 0) // If there are some blanked copy into place
-              hexs[i-cnt]=hexs[i] ;
+        if(has_iblank) {
+          for(int i=0;i<nhexs;++i) {
+            bool blank = true ;
+            for(int j=0;j<8;++j)
+              if(iblank[hexs[i][j]] < 2)
+                blank = false ;
+            if(blank)
+              cnt++ ;
+            else 
+              if(cnt != 0) // If there are some blanked copy into place
+                hexs[i-cnt]=hexs[i] ;
+          }
         }
-          
         topo->write_hexs(&hexs[0],nhexs-cnt) ;
       }
       if(ngenc > 0) {
@@ -709,6 +750,46 @@ void extract_grid(string casename, string iteration,
         int nnodes = sizeElementType(elg,"GeneralCellNodes") ;
         vector<int> GeneralCellNodes(nnodes) ;
         readElementType(elg,"GeneralCellNodes",GeneralCellNodes) ;
+        if(has_iblank) {
+          int cnt1 = 0 ;
+          int cnt2 = 0 ;
+          int skip_cells = 0;
+          int skip_faces = 0 ;
+          int skip_nodes = 0 ;
+          for(int i=0;i<ngenc;++i) {
+            bool blank = true ;
+            int nf = GeneralCellNfaces[i] ;
+            int cnt1s = cnt1 ;
+            int cnt2s = cnt2 ;
+            for(int f=0;f<nf;++f) {
+              int fs = GeneralCellNsides[cnt1++] ;
+              for(int n=0;n<fs;++n) {
+                int nd = GeneralCellNodes[cnt2++] ;
+                if(iblank[nd] < 2)
+                  blank = false ;
+              }
+            }
+            if(blank) {
+              skip_cells += 1 ;
+              skip_faces += cnt1-cnt1s ;
+              skip_nodes += cnt2-cnt2s ;
+            } else {
+              if(skip_cells > 0) {
+                GeneralCellNfaces[i-skip_cells] = GeneralCellNfaces[i] ;
+                for(int j=0;j<cnt1-cnt1s;++j)
+                  GeneralCellNsides[cnt1s+j-skip_faces] =
+                    GeneralCellNsides[cnt1s+j] ;
+                for(int j=0;j<cnt2-cnt2s;++j)
+                  GeneralCellNodes[cnt2s+j-skip_nodes] =
+                    GeneralCellNodes[cnt2s+j] ;
+              }
+            }
+            
+          }
+          ngenc -= skip_cells ;
+          nside -= skip_faces ;
+          nnodes -= skip_nodes ;
+        }
         topo->write_general_cell(&GeneralCellNfaces[0],ngenc,
                                  &GeneralCellNsides[0],nside,
                                  &GeneralCellNodes[0],nnodes) ;
@@ -893,7 +974,7 @@ void extract_grid(string casename, string iteration,
         }
 
         if(mfvars.size() > 0) {
-          string filename = "output/mix." + iteration + "_" + casename ;
+          string filename = output_dir+"/mix." + iteration + "_" + casename ;
           
           hid_t file_id = Loci::hdf5OpenFile(filename.c_str(),
                                              H5F_ACC_RDONLY,
@@ -998,7 +1079,7 @@ void extract_grid(string casename, string iteration,
       break;
     case PARTICLE_POSITIONS:
       if(particle_extract) {
-        string posname = "output/particle_pos." + iteration + "_" + casename ;
+        string posname = output_dir+"/particle_pos." + iteration + "_" + casename ;
         hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                            H5F_ACC_RDONLY,
                                            H5P_DEFAULT) ;
@@ -1060,8 +1141,12 @@ void extract_grid(string casename, string iteration,
   H5Gclose(bndg) ;
   H5Fclose(file_id) ;
 }
-
+namespace Loci {
+  void disableDebugDir() ;
+}
 int main(int ac, char *av[]) {
+  output_dir = "output" ;
+  Loci::disableDebugDir() ;
   Loci::Init(&ac,&av) ;
 
   enum {ASCII,TWODGV,ENSIGHT,FIELDVIEW,TECPLOT,CUTTINGPLANE, SURFACE, NONE} plot_type = NONE ;
@@ -1173,6 +1258,9 @@ int main(int ac, char *av[]) {
           max_particles = str2int(n) ;
         }
         
+      } else if(!strcmp(av[i],"-dir")) {
+        ++i ;
+        output_dir = string(av[i]) ;
       } else {
         cerr << "unknown option " << av[i] << endl ;
         Usage(ac,av) ;
@@ -1194,11 +1282,108 @@ int main(int ac, char *av[]) {
     Usage(ac,av) ;
   }
 
-  if(variables.size() == 0) {
-    variables.push_back("x") ;
-    variables.push_back("y") ;
-    variables.push_back("z") ;
+  struct stat dirstat ;
+  if(stat(output_dir.c_str(),&dirstat)) {
+    cerr << "unable to open directory '" << output_dir << "'" << endl ;
+    exit(-1) ;
+  } else {
+    if(!S_ISDIR(dirstat.st_mode)) {
+      cerr << "unable to open directory '" << output_dir << "'" << endl ;
+      exit(-1) ;
+    }
   }
+      
+
+  if(variables.size() == 0) {
+    DIR *dp = opendir(output_dir.c_str()) ;
+    // Look in output directory and find all variables
+    if(dp == 0) {
+      cerr << "unable to open directory '" << output_dir << "'" << endl ;
+      exit(-1) ;
+    }
+    dirent *entry = readdir(dp) ;
+  
+    string tail = iteration + "_" + casename ;
+    while(entry != 0) {
+      string filename = entry->d_name ;
+      string postfix ;
+      string vname ;
+      string vtype ;
+      bool found_name = false ;
+      bool found_type = false ;
+      for(size_t i=0;i<filename.size();++i) {
+        if(!found_type && filename[i] == '_')
+          found_name = true ;
+        else if(filename[i] == '.') {
+          found_name = true ;
+          found_type = true ;
+        } else {
+          if(!found_name)
+            vname += filename[i] ;
+          else if(!found_type)
+            vtype += filename[i] ;
+          else 
+            postfix += filename[i] ;
+        }
+      }
+      if(postfix == tail) {
+        if(vtype == "sca" || vtype == "vec" || vtype == "bnd" ||
+           vtype == "bndvec" || vtype == "ptsca" || vtype == "ptvec") {
+          variables.push_back(vname) ;
+        }
+        if(vtype == "sca" && vname == "pg") {
+          variables.push_back("P") ;
+        }
+        if(vtype == "sca" && vname == "a") {
+          variables.push_back("m") ;
+        }
+        if(vname == "mix" && vtype == "") {
+          string mfile = output_dir+"/mix." + iteration + "_" + casename ;
+          
+          hid_t file_id = Loci::hdf5OpenFile(mfile.c_str(),
+                                             H5F_ACC_RDONLY,
+                                             H5P_DEFAULT) ;
+          if(file_id < 0) {
+            cerr << "unable to open file '" << mfile << "'!" << endl ;
+            Loci::Abort() ;
+            exit(-1) ;
+          }
+          fact_db facts ;
+          
+          param<string> species_names ;
+          Loci::readContainer(file_id,"species_names",species_names.Rep(),EMPTY,facts) ;
+          Loci::hdf5CloseFile(file_id) ;
+          std::istringstream iss(*species_names) ;
+          string s ;
+          do {
+            s = "" ;
+            iss >> s ;
+            if(s != "") {
+              string v = "f"+s ;
+              variables.push_back(v) ;
+            }
+          } while(!iss.eof() && s!= "") ;
+            
+        }
+      }
+      
+       
+      entry = readdir(dp) ;
+    }
+    if(variables.size() == 0) {
+      variables.push_back("x") ;
+      variables.push_back("y") ;
+      variables.push_back("z") ;
+    }
+    cout << "extracting variables:" ;
+    for(size_t i=0;i<variables.size();++i) {
+      cout << ' ' << variables[i] ;
+    }
+    cout << endl ;
+    closedir(dp) ;
+      
+  }
+  
   vector<int> variable_type(variables.size()) ;
   vector<string> variable_file(variables.size()) ;
 
@@ -1206,7 +1391,7 @@ int main(int ac, char *av[]) {
   
   for(size_t i=0;i<variables.size();++i) {
     const string var(variables[i]) ;
-    string filename = "output/" + var + "_hdf5." + iteration ;
+    string filename = output_dir+'/' + var + "_hdf5." + iteration ;
     struct stat tmpstat ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = NODAL_SCALAR ;
@@ -1214,33 +1399,33 @@ int main(int ac, char *av[]) {
       continue ;
     }
       
-    filename = "output/" + var + "_sca." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_sca." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = NODAL_SCALAR ;
       variable_file[i] = filename ;
       continue ;
     }
 
-    filename = "output/" + var + "_vec." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_vec." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = NODAL_VECTOR ;
       variable_file[i] = filename ;
       continue ;
     }
-    filename = "output/" + var + "_bnd." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_bnd." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = BOUNDARY_SCALAR ;
       variable_file[i] = filename ;
       continue ;
     }
-    filename = "output/" + var + "_bndvec." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_bndvec." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)== 0) {
       variable_type[i] = BOUNDARY_VECTOR ;
       variable_file[i] = filename ;
       continue ;
     }
 
-    filename = "output/" + var + "_ptsca." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_ptsca." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)==0) {
       variable_type[i] = PARTICLE_SCALAR ;
       variable_file[i] = filename ;
@@ -1248,7 +1433,7 @@ int main(int ac, char *av[]) {
       continue ;
     }
 
-    filename = "output/" + var + "_ptvec." + iteration + "_" + casename ;
+    filename = output_dir+'/' + var + "_ptvec." + iteration + "_" + casename ;
     if(stat(filename.c_str(),&tmpstat)==0) {
       variable_type[i] = PARTICLE_VECTOR ;
       variable_file[i] = filename ;
@@ -1307,7 +1492,7 @@ int main(int ac, char *av[]) {
   // we will first check to see if particle position is present
   // in case of any particle information extraction
   if(particle_info_requested) {
-    string filename = "output/particle_pos." + iteration + "_" + casename ;
+    string filename = output_dir +"/particle_pos." + iteration + "_" + casename ;
     struct stat tmpstat ;
     if(stat(filename.c_str(),&tmpstat)!=0) {
       cerr << "Warning: particle geometry '" << filename << "' must"
@@ -1318,9 +1503,9 @@ int main(int ac, char *av[]) {
     }
   }
 
-  string filename = "output/" +  casename + ".topo" ;
+  string filename = output_dir+'/' +  casename + ".topo" ;
   struct stat tmpstat ;
-  string posfile = "output/grid_pos." + iteration + "_" + casename ;
+  string posfile = output_dir+"/grid_pos." + iteration + "_" + casename ;
   if(stat(filename.c_str(),&tmpstat)!= 0 ||
      stat(posfile.c_str(),&tmpstat) != 0) {
     cerr << "Warning, no grid topology information.  Will attempt to generate!"
