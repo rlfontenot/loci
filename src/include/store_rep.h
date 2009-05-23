@@ -136,6 +136,7 @@ namespace Loci {
       std::cerr << "storeRep.redistribute() is not implemented yet"
                 << std::endl ;
       abort() ;
+      return storeRepP(0) ;
     }
     // this redistribute version takes an additional remap
     // argument, upon redistribution, the new store is remapped
@@ -145,6 +146,7 @@ namespace Loci {
       std::cerr << "storeRep.redistribute() is not implemented yet"
                 << std::endl ;
       abort() ;
+      return storeRepP(0);
     }
     // this redistribute version only remaps the new store domain
     // in the process (in case of maps, the image is not remapped)
@@ -154,6 +156,7 @@ namespace Loci {
       std::cerr << "storeRep.redistribute_omd() is not implemented yet"
                 << std::endl ;
       abort() ;
+      return storeRepP(0) ;
     }
     // the freeze method converts a dynamic container to
     // a static one. For already static container,
@@ -175,11 +178,13 @@ namespace Loci {
       std::cerr << "storeRep.freeze(e) is not implemented yet"
                 << std::endl ;
       abort() ;
+      return storeRepP(0) ;
     }
     virtual storeRepP thaw(const entitySet& es) const {
       std::cerr << "storeRep.thaw(e) is not implemented yet"
                 << std::endl ;
       abort() ;
+      return storeRepP(0) ;
     }
     virtual void copy(storeRepP &st, const entitySet &context) = 0 ;
     virtual void gather(const dMap &m, storeRepP &st,
