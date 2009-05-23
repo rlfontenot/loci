@@ -111,7 +111,7 @@ Example 1 for rotateX:
 </rotateX>
 
 
-Element shape is a complex type, its children can only  be one of the following: sphere, cone, cylinder, box, x+plane, x-plane, y+plane, y-plane, z+plane,and  z-plane.
+Element shape is a complex type, its children can only  be one of the following: sphere, cone, cylinder, box, x_plus_plane, x_minus_plane, y_plus_plane, y_minus_plane, z_plus_plane,and  z_minus_plane.
 Example 1 of shape:
 <shape>
 <sphere>
@@ -192,27 +192,27 @@ Example 2 for box:
 </box>
 
 
-The definition for x+plane is: x >=x1, default value for x1 is 0
+The definition for x_plus_plane is: x >=x1, default value for x1 is 0
 Example 1 for x+plane:
-<x+plane>
+<x_plus_plane>
 <x1>1.0</x1>
-</x+plane>
+</x_plus_plane>
 
-Example 2 for x+plane:
-<x+plane>
-</x+plane>
+Example 2 for x_plus_plane:
+<x_plus_plane>
+</x_plus_plane>
 
-The definition for x-plane is: x <=x1, default value for x1 is 0
-Example 1 for x-plane:
-<x-plane>
+The definition for x_minus_plane is: x <=x1, default value for x1 is 0
+Example 1 for x_minus_plane:
+<x_minus_plane>
 <x1>1.0</x1>
-</x-plane>
+</x_minus_plane>
 
-Example 2 for x-plane:
-<x-plane>
-</x-plane>
+Example 2 for x_minus_plane:
+<x_minus_plane>
+</x_minus_plane>
 
-y+plane, y-plane, z+plane, z-plane are defined in the same way.
+y_plus_plane, y_minus_plane, z_plus_plane, z_minus_plane are defined in the same way.
 
 
 
