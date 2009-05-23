@@ -380,10 +380,13 @@ int *igenptr;
     struct rngen *genptr = (struct rngen *) igenptr;
 
 #ifdef LONG64
+#if defined(CONVEX) || defined(GENERIC)
     double temp[1];
     unsigned LONG64 *ltemp;
     
     temp[0] = 0.0;
+#endif
+    
     multiply(genptr);
     /* Add defined(O2K) || defined(SGI) if optimization level is -O2 
        or lower */
