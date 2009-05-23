@@ -35,7 +35,7 @@
 
 #include <Loci.h>
 #include <stdlib.h>
-
+#include <limits>
 #include "globals.h"
 #include <Loci>
 
@@ -75,8 +75,6 @@ int main(int argc, char ** argv) {
   // Here's where we parse out the command line arguments that are
   // relevant to this program.
   int j=1;
-  //  string pathname = "/scratch/qxue/output/";
-  // string pathname = "/var/tmp/qxue/grid/";
   string pathname = "";
   //if the input refinement filename is provided in command line, restart is true,
   //otherwise, restart is false
@@ -84,7 +82,9 @@ int main(int argc, char ** argv) {
   //if xml_input is true, cell plan is defines by a region and tol value. otherwise,
   //it's decided by tagfile
   bool xml_input = false;
-  
+  bool tol_input = false;
+  bool tag_input = false;
+  bool levels_input = false;
   int split_mode = 0;//default mode, hexcells and prisms split according to edge length
   //print out help info
   if( (argc == 1)||(argc==2) ){
@@ -100,21 +100,22 @@ int main(int argc, char ** argv) {
       cout << "-xml <file> -- input xml file(optional), the file define a geometric region" << endl;
       cout << "            --all cells inside the region will be refined to a tolerance value" << endl;
       cout << "            --xml option and -tag option can not be selected at the same time" <<endl;
+      cout << "            --and one of them has to be selected" << endl;
       
       cout <<"-tag <file> -- input tag file(optional), " << endl;
       cout <<"               if there is an input refinement plan file,"<<endl;
       cout <<"               the tag file is for the refined grid" << endl;
       cout <<"               otherwise, the tag file is for the original grid" << endl;
-      cout <<"-o <file> -- output refinement plan file(default)" << endl;
-      cout <<"-tol <double> -- tolerance, minimum grid spacing allowed(default)" << endl;
-      cout <<"-fold <double> -- twist value, maximum face folding allowed(default)" << endl;
-      cout <<"-levels <int> --  levels of refinement(default)" << endl;
-      cout << "-mode <int: 0, 1, 2, 3> -- split mode 0: anisotropic split according to edge length" << endl;
+      cout <<"-o <file> -- output refinement plan file" << endl;
+      cout <<"-tol <double> -- tolerance, minimum grid spacing allowed(default value: 1e-10), need to be specified for -xml option" << endl;
+      cout <<"-fold <double> -- twist value, maximum face folding allowed(default value: 1.5708)" << endl;
+      cout <<"-levels <int> --  levels of refinement(default value: 1), for anisotropic refinement, levels can only be 1" << endl;
+      cout << "-mode <int: 0, 1, 2, 3> -- split mode 0: anisotropic split according to edge length, this is the default value " << endl;
       cout << "                        -- split mode 1: don't refine in z direction" << endl;
       cout << "                        -- split mode 2: fully isotropic split" << endl;
-      cout <<"-balance<int:0, 1, 2> -- balance option 0: no edge's depth is greater than 1" << endl;
-      cout <<"                      -- balance option 1: 0 and no cell has more than half of its face split" << endl;
-      cout <<"                      -- balance option 2: 0, 1 and no cell has two opposite faces split" << endl; 
+      cout <<"-balance<int:0, 1, 2> -- balance option 0: no edge's depth is greater than 1, this is the default value" << endl;
+      cout <<"                      -- balance option 1: option 0 plus no cell has more than half of its faces split" << endl;
+      cout <<"                      -- balance option 2:  option 0, option 1 plus no cell has two opposite faces split" << endl; 
       
     
     }
@@ -145,6 +146,7 @@ int main(int argc, char ** argv) {
     else if(arg == "-tag" && (i+1) < argc){
       //replace the tag filename with the next argument
       tagFile =  argv[++i];
+      tag_input = true;
     }
      else if(arg == "-xml" && (i+1) < argc){
        //replace the xml filename with the next argument
@@ -157,7 +159,7 @@ int main(int argc, char ** argv) {
        //replace the tolarence(minimum grid spacing) with the next argument
       char** endptr = 0;
       Globals::tolerance = strtod(argv[++i], endptr);
-      
+      tol_input = true;
     }
      else if(arg == "-balance" && (i+1) < argc){
        //replace the balance option with the next argument
@@ -182,6 +184,7 @@ int main(int argc, char ** argv) {
      else if(arg == "-levels" && (i+1) < argc){
        //replace the fold(maximum face fold value)with the next argument
        Globals::levels = atoi(argv[++i]);
+       levels_input = true;
        
      }
      
@@ -212,17 +215,37 @@ int main(int argc, char ** argv) {
   }
 
   if(split_mode == 0 && Globals::levels > 1){
-    cerr << "WARNING: multi-level refinement is not allowed in anisotropic refinement"<< endl;
-    Loci::Abort();
-  }
-
-  if(xml_input && Globals::tolerance == 0.0){
-    cerr <<"WARNING: zero tolerance will cause infinite loop at -xml option"<< endl;
+    if(Loci::MPI_rank == 0) cerr << "WARNING: multi-level refinement is not allowed in anisotropic refinement"<< endl;
     Loci::Abort();
   }
   
-
+  if(xml_input && !tol_input){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: The user need specify tolerance value at -xml option"<< endl;
+    Loci::Abort();
+  }
   
+  if(xml_input &&  Globals::tolerance < 1e-37){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: small tolerance value can cause infinite loop at -xml option"<< endl;
+    Loci::Abort();
+  }
+  
+  if(xml_input &&  Globals::tolerance < 1e-20){
+  if(Loci::MPI_rank == 0)   cerr <<"WARNING: small tolerance value can cause infinite loop at -xml option"<< endl;
+  }
+
+  if(xml_input &&  levels_input){
+    if(Loci::MPI_rank == 0)  { cerr <<"WARNING: -xml options will split a cell until the tolerance value is met," <<endl;
+    cerr<<"          the value of levels is not used"<< endl;
+    }
+  }
+  if((!xml_input) && (!tag_input)){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: one option has to be specified, either  -tag option or -xml option"<< endl;
+    Loci::Abort();
+  }
+  if(xml_input && tag_input){
+    if(Loci::MPI_rank == 0)  cerr <<"WARNING: only one option need to be specified, either  -tag option or -xml option"<< endl;
+    Loci::Abort();
+  }
 
 
   // Setup the rule database.
