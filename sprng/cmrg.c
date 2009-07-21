@@ -147,7 +147,7 @@ int rng_type,gennum,param,seed,total_gen;
 /*      of gennum in [0,total_gen) each call                              */
   struct rngen *genptr;
   int i;
-  double tempdbl;
+  volatile double tempdbl;
   
   if (total_gen <= 0) /* Is total_gen valid ? */
   {
@@ -516,8 +516,12 @@ char **buffer;
 #endif
 {
   unsigned char *p, *initp;
-  int size, i;
-  unsigned int temp, m[2];
+  int size ;
+  
+#ifndef LONG64			/* 64 bit integer types */
+  unsigned int temp,m[2];
+#endif
+  
   struct rngen *q;
 
   q = (struct rngen *) genptr;
@@ -581,7 +585,9 @@ char *packed;
 #endif
 {
   struct rngen *q;
-  unsigned int i, m[2];
+#ifndef LONG64			/* 64 bit integer types */
+  unsigned int m[2];
+#endif
   unsigned char *p;
 
   p = (unsigned char *) packed;
