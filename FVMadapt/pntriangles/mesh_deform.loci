@@ -1,0 +1,105 @@
+#include <iostream>
+#include <Loci.h>
+$include "FVM.lh"
+using std::cout;
+using std::endl;
+$type surfaceDeltas store<vector3d<double> > ;
+$type maxDeltaX param<double> ;
+$type node2surface Map ;
+$type dwall store<double> ;
+$type blendFunc store<double> ;
+$type newPos store<vector3d<double> > ;
+
+
+$type stiffness param<double> ;
+
+$rule default(stiffness) {
+  $stiffness = 0.4 ;
+}
+
+$rule pointwise(dwall<-pos,node2surface->pos) {
+  $dwall = norm($pos-$node2surface->$pos) ;
+}
+
+$type maxWallDist store<double> ;
+
+$rule unit(maxWallDist),constraint(boundary_nodes) {
+  $maxWallDist = 0 ;
+}
+$rule apply(node2surface->maxWallDist<-dwall)[Loci::Maximum] {
+  join($node2surface->$maxWallDist,$dwall) ;
+}
+$type wallDefMax param<double> ;
+$rule unit(wallDefMax),constraint(UNIVERSE) {
+  $wallDefMax = 1e30 ;
+}
+$rule apply(wallDefMax<-maxWallDist)[Loci::Minimum],constraint(boundary_nodes) {
+  if($maxWallDist>0)
+    join($wallDefMax,$maxWallDist) ;
+}
+
+
+$rule unit(maxDeltaX<-wallDefMax),constraint(UNIVERSE) {
+  //  $maxDeltaX = $wallDefMax ;
+  $maxDeltaX = 0 ;
+}
+
+$rule apply(maxDeltaX<-surfaceDeltas)[Loci::Maximum], prelude {
+  } compute {
+  // maximum surface deformation constrained by maximum allowable deformation
+  join($maxDeltaX,norm($surfaceDeltas)) ;
+}
+
+
+
+  
+$rule pointwise(blendFunc<-dwall,maxDeltaX,node2surface->surfaceDeltas,stiffness) {
+  //double dx = norm($node2surface->$surfaceDeltas)+1e-33 ;
+  //  $blendFunc = tanh(((1.-$stiffness)/dx)*$dwall) ;
+  $blendFunc = tanh(((1.-$stiffness)/($maxDeltaX))*$dwall) ;
+}
+
+$type surfaceDeltasAdjust store<vector3d<double> > ;
+
+$rule pointwise(surfaceDeltasAdjust<-surfaceDeltas,maxWallDist) {
+  $surfaceDeltasAdjust = $surfaceDeltas ;
+  // reduce surface delta adjustment if there is not enough space in the grid
+  // to accomodate.
+  double delta2 = dot($surfaceDeltas,$surfaceDeltas) ;
+  if(delta2 > 1e-10) {
+    double FAC = 0.05 ;
+    double factor = FAC*$maxWallDist/sqrt(delta2) ;
+    //    if(factor < 1.0) {
+      //      cout << "adjust factor = " << factor << endl ;
+    //      $surfaceDeltasAdjust *= factor ;
+    //    }
+  }
+}
+
+$type nPos store<vector3d<double> > ;
+$rule pointwise(nPos<-pos,blendFunc,node2surface->surfaceDeltasAdjust) {
+  $nPos = $pos + (1.-$blendFunc)*$node2surface->$surfaceDeltasAdjust ;
+  // cout <<norm($nPos - $pos) << "    "<<  abs(norm($nPos)-50.0) << "         " << abs(norm($pos)-50.0) << endl;
+}
+
+$rule pointwise(newPos<-nPos), option(disable_threading), prelude {
+  hid_t file_id = Loci::hdf5CreateFile("newpos.dat",H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+  Loci::writeContainer(file_id,"pos",$nPos.Rep()) ;
+  Loci::hdf5CloseFile(file_id) ;
+}
+compute
+{
+  $newPos = $nPos ;
+}
+  
+
+$type outFile store<bool> ;
+
+$rule pointwise(outFile<-newPos),option(disable_threading),prelude {
+  hid_t file_id = 0 ;
+  file_id = Loci::hdf5CreateFile("posOut",H5F_ACC_TRUNC,H5P_DEFAULT,
+                                 H5P_DEFAULT) ;
+  Loci::writeContainer(file_id,"pos",$newPos.Rep()) ;
+  Loci::hdf5CloseFile(file_id) ;
+} ;
