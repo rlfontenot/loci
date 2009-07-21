@@ -100,9 +100,9 @@ namespace Loci {
       if(sz < 3) return ;
     
 
-      // Choose a pivot by sampling 10000 points.  If size is less than 10000,
+      // Choose a pivot by sampling 1000 points.  If size is less than 1000,
       // sample half
-      int factor = std::max(sz/10000,2) ;
+      int factor = std::max(sz/1024,2) ;
       int npnts = sz/factor ;
       int remain = sz%factor ;
 
@@ -378,18 +378,17 @@ namespace Loci {
       // Check if the entire box is in bounds then add all of the current
       // points...
 
-      if(box.minc[0] >= bnds.minc[0] &&
-         box.maxc[0] <= bnds.maxc[0] &&
-         box.minc[1] >= bnds.minc[1] &&
-         box.maxc[1] <= bnds.maxc[1] &&
-         box.minc[2] >= bnds.minc[2] &&
-         box.maxc[2] <= bnds.maxc[2]) {
+      if(box.minc[0] < bnds.minc[0] &&
+         box.maxc[0] > bnds.maxc[0] &&
+         box.minc[1] < bnds.minc[1] &&
+         box.maxc[1] > bnds.maxc[1] &&
+         box.minc[2] < bnds.minc[2] &&
+         box.maxc[2] > bnds.maxc[2]) {
         for(int i=start;i<end;++i) 
           found_pts.push_back(pnts[i]);
 
         return ;
       }
-         
 
       // In base case perform linear search to find closest point
       if(sz <= kd_bin_size)  {
