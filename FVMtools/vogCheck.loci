@@ -531,6 +531,7 @@ scalar_node_output::scalar_node_output(const char *vname,
   input("modelName") ;
   input(var_name_time);
   output("topo") ;
+  disable_threading() ;
 }
 void scalar_node_output::compute(const sequence &seq) {
   dump_scalar(seq,c2n, modelName,"sca",value_name) ;
@@ -659,6 +660,19 @@ $rule pointwise(nonconvex<-cellcenter,(upper,lower,boundary_map)->(area,facecent
 }
 
 OUTPUT_SCALAR("cell2nodeMax(nonconvex)",nonconvex) ;
+
+//#define TEST
+#ifdef TEST
+$type nodeError store<float> ;
+$rule pointwise(nodeError<-pos) {
+  double E1 = fabs(norm($pos)-1.) ;
+  double E2 = fabs(norm($pos-vector3d<double>(1.0,0,0))-1.) ;
+  double E3 = fabs(norm($pos-vector3d<double>(-1.5,0,0))-1.) ;
+  $nodeError = min(min(E1,E2),E3) ;
+}
+
+OUTPUT_SCALAR("nodeError",nodeError) ;
+#endif
 
 $type faceGeometryInconsistent param<int> ;
 
