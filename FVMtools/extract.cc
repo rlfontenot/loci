@@ -1309,24 +1309,31 @@ int main(int ac, char *av[]) {
       string postfix ;
       string vname ;
       string vtype ;
-      bool found_name = false ;
-      bool found_type = false ;
-      for(size_t i=0;i<filename.size();++i) {
-        if(!found_type && filename[i] == '_')
-          found_name = true ;
-        else if(filename[i] == '.') {
-          found_name = true ;
-          found_type = true ;
-        } else {
-          if(!found_name)
-            vname += filename[i] ;
-          else if(!found_type)
+      int nsz = filename.size() ;
+      int dot = -1 ;
+      for(int i=nsz-1;i>=0;--i)
+        if(filename[i] == '.') {
+          dot = i ;
+          break ;
+        }
+      for(int i=dot+1;i<nsz;++i)
+        postfix += filename[i] ;
+      int und = -1 ;
+      if(dot > 0) {
+        for(int i=dot-1;i>=0;--i)
+          if(filename[i] == '_') {
+            und = i ;
+            break ;
+          }
+        if(und > 0) {
+          for(int i=und+1;i<dot;++i)
             vtype += filename[i] ;
-          else 
-            postfix += filename[i] ;
+          for(int i=0;i<und;++i)
+            vname += filename[i] ;
         }
       }
-      if(postfix == tail) {
+        
+      if(dot>0 && und>0 && postfix == tail) {
         if(vtype == "sca" || vtype == "vec" || vtype == "bnd" ||
            vtype == "bndvec" || vtype == "ptsca" || vtype == "ptvec") {
           variables.push_back(vname) ;
