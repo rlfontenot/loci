@@ -204,9 +204,9 @@ namespace Loci {
         real qdif = Xf-Xcc ;
         real lim = 1.0 ;
         if(qdif > 0)
-          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmax-Xcc)/(qdif+1e-100)) ;
         if(qdif < 0)
-          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmin-Xcc)/(qdif-1e-100)) ;
         limi = min (limi,lim) ;
       }
      
@@ -217,9 +217,9 @@ namespace Loci {
         real qdif = Xf-Xcc ;
         real lim = 1.0 ;
         if(qdif > 0)
-          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmax-Xcc)/(qdif+1e-100)) ;
         if(qdif < 0)
-          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmin-Xcc)/(qdif-1e-100)) ;
         limi = min (limi,lim) ;
       }
 
@@ -230,9 +230,9 @@ namespace Loci {
         real qdif = Xf-Xcc ;
         real lim = 1.0 ;
         if(qdif > 0)
-          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmax-Xcc)/(qdif+1e-100)) ;
         if(qdif < 0)
-          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmin-Xcc)/(qdif-1e-100)) ;
         limi = min (limi,lim) ;
       }
       
@@ -479,9 +479,9 @@ namespace Loci {
       real qdif = Xf-Xcc ;
       real lim = 1.0 ;
       if(qdif > 0)
-        lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+        lim = min(real(1.0),(qmax-Xcc)/(qdif+1e-100)) ;
       if(qdif < 0)
-        lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+        lim = min(real(1.0),(qmin-Xcc)/(qdif-1e-100)) ;
       limi = min (limi,lim) ;
     }
     
@@ -492,9 +492,9 @@ namespace Loci {
       real qdif = Xf-Xcc ;
       real lim = 1.0 ;
       if(qdif > 0)
-        lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+        lim = min(real(1.0),(qmax-Xcc)/(qdif+1e-100)) ;
       if(qdif < 0)
-        lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+        lim = min(real(1.0),(qmin-Xcc)/(qdif-1e-100)) ;
       limi = min (limi,lim) ;
     }
     
@@ -753,17 +753,17 @@ namespace Loci {
       vect3d qdif = Xf-Xcc ;
       vect3d lim = vect3d(1.0,1.0,1.0) ;
       if(qdif.x > 0)
-        lim.x = min(real(1.0),(qmax.x-Xcc.x)/qdif.x) ;
+        lim.x = min(real(1.0),(qmax.x-Xcc.x)/(qdif.x+1e-100)) ;
       if(qdif.x < 0)
-        lim.x = min(real(1.0),(qmin.x-Xcc.x)/qdif.x) ;
+        lim.x = min(real(1.0),(qmin.x-Xcc.x)/(qdif.x-1e-100)) ;
       if(qdif.y > 0)
-        lim.y = min(real(1.0),(qmax.y-Xcc.y)/qdif.y) ;
+        lim.y = min(real(1.0),(qmax.y-Xcc.y)/(qdif.y+1e-100)) ;
       if(qdif.y < 0)
-        lim.y = min(real(1.0),(qmin.y-Xcc.y)/qdif.y) ;
+        lim.y = min(real(1.0),(qmin.y-Xcc.y)/(qdif.y-1e-100)) ;
       if(qdif.z > 0)
-        lim.z = min(real(1.0),(qmax.z-Xcc.z)/qdif.z) ;
+        lim.z = min(real(1.0),(qmax.z-Xcc.z)/(qdif.z+1e-100)) ;
       if(qdif.z < 0)
-        lim.z = min(real(1.0),(qmin.z-Xcc.z)/qdif.z) ;
+        lim.z = min(real(1.0),(qmin.z-Xcc.z)/(qdif.z-1e-100)) ;
       limi.x = min (limi.x,lim.x) ;
       limi.y = min (limi.y,lim.y) ;
       limi.z = min (limi.z,lim.z) ;
@@ -776,17 +776,17 @@ namespace Loci {
       vect3d qdif = Xf-Xcc ;
       vect3d lim = vect3d(1.0,1.0,1.0) ;
       if(qdif.x > 0)
-        lim.x = min(real(1.0),(qmax.x-Xcc.x)/qdif.x) ;
+        lim.x = min(real(1.0),(qmax.x-Xcc.x)/(qdif.x+1e-100)) ;
       if(qdif.x < 0)
-        lim.x = min(real(1.0),(qmin.x-Xcc.x)/qdif.x) ;
+        lim.x = min(real(1.0),(qmin.x-Xcc.x)/(qdif.x-1e-100)) ;
       if(qdif.y > 0)
-        lim.y = min(real(1.0),(qmax.y-Xcc.y)/qdif.y) ;
+        lim.y = min(real(1.0),(qmax.y-Xcc.y)/(qdif.y+1e-100)) ;
       if(qdif.y < 0)
-        lim.y = min(real(1.0),(qmin.y-Xcc.y)/qdif.y) ;
+        lim.y = min(real(1.0),(qmin.y-Xcc.y)/(qdif.y-1e-100)) ;
       if(qdif.z > 0)
-        lim.z = min(real(1.0),(qmax.z-Xcc.z)/qdif.z) ;
+        lim.z = min(real(1.0),(qmax.z-Xcc.z)/(qdif.z+1e-100)) ;
       if(qdif.z < 0)
-        lim.z = min(real(1.0),(qmin.z-Xcc.z)/qdif.z) ;
+        lim.z = min(real(1.0),(qmin.z-Xcc.z)/(qdif.z-1e-100)) ;
       limi.x = min (limi.x,lim.x) ;
       limi.y = min (limi.y,lim.y) ;
       limi.z = min (limi.z,lim.z) ;
@@ -1094,9 +1094,9 @@ namespace Loci {
         real Xf = Xcc + dot(Xgr,drl) ;
         real qdif = Xf-Xcc ;
         if(qdif > 0)
-          lim = min(lim,(nodMax[nd]-Xcc)/qdif) ;
+          lim = min(lim,(nodMax[nd]-Xcc)/(qdif+1e-100)) ;
         if(qdif < 0)
-          lim = min(lim,(nodMin[nd]-Xcc)/qdif) ;
+          lim = min(lim,(nodMin[nd]-Xcc)/(qdif-1e-100)) ;
       }
     }
     
@@ -1109,9 +1109,9 @@ namespace Loci {
         real Xf = Xcc + dot(Xgr,drl) ;
         real qdif = Xf-Xcc ;
         if(qdif > 0)
-          lim = min(lim,(nodMax[nd]-Xcc)/qdif) ;
+          lim = min(lim,(nodMax[nd]-Xcc)/(qdif+1e-100)) ;
         if(qdif < 0)
-          lim = min(lim,(nodMin[nd]-Xcc)/qdif) ;
+          lim = min(lim,(nodMin[nd]-Xcc)/(qdif-1e-100)) ;
       }
     }    
     limiter[cc] = lim ;
@@ -1178,17 +1178,17 @@ namespace Loci {
         vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
         vect3d qdif = Xf-Xcc ;
         if(qdif.x > 0)
-          lim.x = min(lim.x,(nodMax[nd].x-Xcc.x)/qdif.x) ;
+          lim.x = min(lim.x,(nodMax[nd].x-Xcc.x)/(qdif.x+1e-100)) ;
         if(qdif.x < 0)
-          lim.x = min(lim.x,(nodMin[nd].x-Xcc.x)/qdif.x) ;
+          lim.x = min(lim.x,(nodMin[nd].x-Xcc.x)/(qdif.x-1e-100)) ;
         if(qdif.y > 0)
-          lim.y = min(lim.y,(nodMax[nd].y-Xcc.y)/qdif.y) ;
+          lim.y = min(lim.y,(nodMax[nd].y-Xcc.y)/(qdif.y+1e-100)) ;
         if(qdif.y < 0)
-          lim.y = min(lim.y,(nodMin[nd].y-Xcc.y)/qdif.y) ;
+          lim.y = min(lim.y,(nodMin[nd].y-Xcc.y)/(qdif.y-1e-100)) ;
         if(qdif.z > 0)
-          lim.z = min(lim.z,(nodMax[nd].z-Xcc.z)/qdif.z) ;
+          lim.z = min(lim.z,(nodMax[nd].z-Xcc.z)/(qdif.z+1e-100)) ;
         if(qdif.z < 0)
-          lim.z = min(lim.z,(nodMin[nd].z-Xcc.z)/qdif.z) ;
+          lim.z = min(lim.z,(nodMin[nd].z-Xcc.z)/(qdif.z-1e-100)) ;
       }
     }
     
@@ -1201,17 +1201,17 @@ namespace Loci {
         vect3d Xf = Xcc + vect3d(dot(Xgr.x,drl),dot(Xgr.y,drl),dot(Xgr.z,drl)) ;
         vect3d qdif = Xf-Xcc ;
         if(qdif.x > 0)
-          lim.x = min(lim.x,(nodMax[nd].x-Xcc.x)/qdif.x) ;
+          lim.x = min(lim.x,(nodMax[nd].x-Xcc.x)/(qdif.x+1e-100)) ;
         if(qdif.x < 0)
-          lim.x = min(lim.x,(nodMin[nd].x-Xcc.x)/qdif.x) ;
+          lim.x = min(lim.x,(nodMin[nd].x-Xcc.x)/(qdif.x-1e-100)) ;
         if(qdif.y > 0)
-          lim.y = min(lim.y,(nodMax[nd].y-Xcc.y)/qdif.y) ;
+          lim.y = min(lim.y,(nodMax[nd].y-Xcc.y)/(qdif.y+1e-100)) ;
         if(qdif.y < 0)
-          lim.y = min(lim.y,(nodMin[nd].y-Xcc.y)/qdif.y) ;
+          lim.y = min(lim.y,(nodMin[nd].y-Xcc.y)/(qdif.y-1e-100)) ;
         if(qdif.z > 0)
-          lim.z = min(lim.z,(nodMax[nd].z-Xcc.z)/qdif.z) ;
+          lim.z = min(lim.z,(nodMax[nd].z-Xcc.z)/(qdif.z+1e-100)) ;
         if(qdif.z < 0)
-          lim.z = min(lim.z,(nodMin[nd].z-Xcc.z)/qdif.z) ;
+          lim.z = min(lim.z,(nodMin[nd].z-Xcc.z)/(qdif.z-1e-100)) ;
       }
     }
     
@@ -1296,9 +1296,9 @@ namespace Loci {
         real qdif = Xf-Xcc ;
         real lim = 1.0 ;
         if(qdif > 0)
-          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmax-Xcc)/(qdif+1e-100)) ;
         if(qdif < 0)
-          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmin-Xcc)/(qdif-1e-100)) ;
         limi = min (limi,lim) ;
       }
      
@@ -1309,9 +1309,9 @@ namespace Loci {
         real qdif = Xf-Xcc ;
         real lim = 1.0 ;
         if(qdif > 0)
-          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmax-Xcc)/(qdif+1e-100)) ;
         if(qdif < 0)
-          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmin-Xcc)/(qdif-1e-100)) ;
         limi = min (limi,lim) ;
       }
 
@@ -1322,9 +1322,9 @@ namespace Loci {
         real qdif = Xf-Xcc ;
         real lim = 1.0 ;
         if(qdif > 0)
-          lim = min(real(1.0),(qmax-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmax-Xcc)/(qdif+1e-100)) ;
         if(qdif < 0)
-          lim = min(real(1.0),(qmin-Xcc)/qdif) ;
+          lim = min(real(1.0),(qmin-Xcc)/(qdif-1e-100)) ;
         limi = min (limi,lim) ;
       }
       
