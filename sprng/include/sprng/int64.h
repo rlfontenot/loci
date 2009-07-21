@@ -102,7 +102,6 @@ static void rshift(uint64 a,int b,uint64 c)
 
 static int store_uint64(uint64 l, unsigned char *c)
 {
-  int i;
   unsigned int m[2];
   
   m[0] = highword(l);
@@ -127,7 +126,6 @@ static int store_uint64array(uint64 *l, int n, unsigned char *c)
 
 int load_uint64(unsigned char *c, uint64 *l)
 {
-  int i;
   unsigned int m[2];
   
   c += load_intarray(c,2,4,m);
