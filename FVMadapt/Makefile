@@ -137,7 +137,7 @@ marker: $(MARKOBJS) $(MODULES)
 	$(LD) -o  marker  $(MARKOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 
-refmesh:$(REFOBJS) $(MODULES) 
+refmesh:$(REFOBJS) $(MODULES) marker
 	$(LD) -o  refmesh  $(REFOBJS) $(MODULES) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 
