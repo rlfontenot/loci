@@ -42,6 +42,8 @@ using std::endl ;
 #include <algorithm>
 using std::sort ;
 
+#include "execute.h"
+
 namespace Loci {
   
   entitySet collect_entitySet(entitySet e, fact_db &facts) {
@@ -1048,65 +1050,191 @@ namespace Loci {
     return inSet ;
   }
     
-    
-  entitySet all_collect_entitySet(const entitySet &e) {
-    entitySet collect ;
-    if(MPI_processes > 1) {
-      int *recv_count = new int[MPI_processes] ;
-      int *send_count = new int[MPI_processes] ;
-      int *send_displacement = new int[MPI_processes];
-      int *recv_displacement = new int[MPI_processes];
-      int size_send = 0 ;
-      for(int i = 0; i < MPI_processes; ++i) {
-	send_count[i] = 2 * e.num_intervals() ;
-	size_send += send_count[i] ; 
-      }
-      int *send_buf = new int[size_send] ;
-      MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
-		   MPI_COMM_WORLD) ; 
-      int size_recv = 0 ;
-      for(int i = 0; i < MPI_processes; ++i)
-	size_recv += recv_count[i] ;
-      int *recv_buf = new int[size_recv] ;
-      size_send = 0 ;
-      for(int i = 0; i < MPI_processes; ++i)
-	for(int j = 0; j < e.num_intervals(); ++j) {
-	  send_buf[size_send] = e[j].first ;
-	  ++size_send ;
-	  send_buf[size_send] = e[j].second ;
-	  ++size_send ;
-	}
-      send_displacement[0] = 0 ;
-      recv_displacement[0] = 0 ;
-      for(int i = 1; i < MPI_processes; ++i) {
-	send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
-	recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
-      }
-      MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
-		    recv_buf, recv_count, recv_displacement, MPI_INT,
-		    MPI_COMM_WORLD) ;
-
-      // Sort intervals to make union operation fast
-      vector<interval> ivl_list ;
-      for(int i=0;i<size_recv;i+=2) 
-        ivl_list.push_back(interval(recv_buf[i],recv_buf[i+1])) ;
-      std::sort(ivl_list.begin(),ivl_list.end()) ;
-      // Union all of the intervals into the final entitySet
-      for(size_t i=0;i<ivl_list.size();++i)
-        collect += ivl_list[i] ;
-
-      delete [] send_count ;
-      delete [] recv_count ;
-      delete [] recv_displacement ;
-      delete [] send_displacement ;
-      delete [] send_buf ;
-      delete [] recv_buf ;
-    }
-    else
+  inline bool spec_ival_compare(const interval &i1,
+                            const interval &i2) {
+    if(i1.first < i2.first)
+      return true ;
+    if(i1.first == i2.first && i1.second > i2.second)
+      return true ;
+    return false ;
+  }
+      
+  // Return union of all entitySets from all processors
+  entitySet all_gather_entitySet(const entitySet &e) {
+    const int p = MPI_processes ;
+    if(p == 1)
       return e ;
-    return collect ;
+    
+    int send_count = 2*e.num_intervals() ;
+    vector<int> recv_count(p) ;
+    MPI_Allgather(&send_count,1,MPI_INT,&recv_count[0],1,MPI_INT,
+                  MPI_COMM_WORLD) ;
+    vector<int> recv_disp(p) ;
+    recv_disp[0] = 0 ;
+    for(int i=1;i<p;++i)
+      recv_disp[i] = recv_disp[i-1]+recv_count[i-1] ;
+    int tot = recv_disp[p-1]+recv_count[p-1] ;
+    if(tot == 0)
+      return EMPTY ;
+    vector<interval> ivl_list(tot/2) ;
+    vector<interval> snd_list(send_count/2) ;
+    for(int i=0;i<send_count/2;++i)
+      snd_list[i] = e[i] ;
+    MPI_Allgatherv(&(snd_list[0]),send_count,MPI_INT,
+                   &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
+                   MPI_COMM_WORLD) ;
+    sort(ivl_list.begin(),ivl_list.end(),spec_ival_compare) ;
+    entitySet tmp = ivl_list[0] ;
+    for(size_t i=1;i<ivl_list.size();++i)
+      tmp += ivl_list[i] ;
+    return tmp ;
+  }
+  
+
+  // This code not presently used
+  entitySet distribute_entitySet(entitySet e,const vector<entitySet> &ptn) {
+    const int p = MPI_processes ;
+    WARN(ptn.size() != p) ;
+    vector<entitySet> parts(p) ;
+    vector<int> send_count(p) ;
+    for(int i=0;i<p;++i) {
+      parts[i] = e & ptn[i] ;
+      send_count[i] = parts[i].num_intervals() ;
+    }
+    vector<int> recv_count(p) ;
+    MPI_Alltoall(&send_count[0], 1, MPI_INT, &recv_count[0], 1, MPI_INT,
+                 MPI_COMM_WORLD) ;
+
+
+    int tot = 0 ;
+    int req = 0 ;
+    for(int i=0;i<p;++i) {
+      tot += recv_count[i] ;
+      if(recv_count[i] > 0)
+        req++ ;
+    }
+    // Post recvs
+    vector<interval> ivl_list(tot) ;
+    vector<MPI_Request> recv_Requests(req) ;
+    req = 0 ;
+    int off = 0 ;
+    for(int i=0;i<p;++i) {
+      if(recv_count[i] > 0) {
+        MPI_Irecv(&ivl_list[off],2*recv_count[i],MPI_INT, i,0,
+                  MPI_COMM_WORLD,&recv_Requests[req]) ;
+        req++ ;
+        off += recv_count[i] ;
+      }
+    }
+    
+    // Send parts
+    const int p1 = 3917 ; // two primes to help randomize order of
+    const int p2 = 4093 ; // sending to reduce bottlenecks
+    int r = MPI_rank ;
+    for(int i=0;i<p;++i) {
+      int cp = (i*p1+r*p2)%p ; // processor to send data this iteration
+      if(send_count[cp] > 0) {
+        vector<interval> tmp(parts[cp].num_intervals()) ;
+        for(int k=0;k<parts[cp].num_intervals();++k)
+          tmp[k] = parts[cp][k] ;
+        
+        MPI_Send(&(tmp[0]),2*send_count[cp],MPI_INT,cp,0,MPI_COMM_WORLD) ;
+      }
+    }
+    vector<MPI_Status> stat_queue(recv_Requests.size()) ;
+    MPI_Waitall(recv_Requests.size(),&recv_Requests[0],&stat_queue[0]) ;
+
+    if(ivl_list.size() == 0)
+      return EMPTY ;
+
+    sort(ivl_list.begin(),ivl_list.end(),spec_ival_compare) ;
+    entitySet tmp = ivl_list[0] ;
+    for(size_t i=1;i<ivl_list.size();++i)
+      tmp += ivl_list[i] ;
+    return tmp ;
   }
 
+  // Collect largest interval of entitySet from all processors
+  entitySet collectLargest(const entitySet &e) {
+    const int p = MPI_processes ;
+    // Else we compute set
+    //First get largest interval
+    interval ivl_large(1,-1) ;
+
+    const int esz = e.num_intervals() ;
+    for(int i=0;i<esz;++i)
+      if((ivl_large.second-ivl_large.first) < (e[i].second-e[i].first))
+        ivl_large = e[i] ;
+
+    vector<interval> ivl_large_p(p) ;
+
+    MPI_Allgather(&ivl_large,2,MPI_INT,&(ivl_large_p[0]),2,MPI_INT,
+                  MPI_COMM_WORLD) ;
+
+    entitySet lset ;
+    for(int i=0;i<p;++i)
+      if(ivl_large_p[i].first <= ivl_large_p[i].second)
+        lset += ivl_large_p[i] ;
+
+    return lset ;
+  }
+  
+  entitySet all_collect_entitySet(const entitySet &e) {
+    const int p = MPI_processes ;
+    // no operation for single processor
+    if(p == 1)
+      return e ;
+    
+
+    // Check to see if the result should be EMPTY or UNIVERSE
+    int code = 0 ;
+    if(e != EMPTY)
+      code = 1 ;
+    if(e == ~EMPTY)
+      code = 2 ;
+    code = GLOBAL_MAX(code,MPI_COMM_WORLD) ;
+    
+    if(code == 0) // All empty, so return empty
+      return EMPTY ;
+    if(code == 2) // at least one UNIVERSE, so return UNIVERSE
+      return ~EMPTY ;
+
+    // First collect largest intervals, most of the time this will get
+    // us the final set.  Compute remainder to determine if we have
+    // more work to do.  Repeat collecting the largest interval for a
+    // fixed number of tries, then finally just gather the remainder
+#ifdef VERBOSE
+    stopWatch s ;
+    s.start() ;
+#endif
+    entitySet lset = collectLargest(e) ;
+    entitySet rem = e-lset ;
+    for(int i=0;i<4;++i) {
+      int remsz = rem.num_intervals() ;
+      int szmx = GLOBAL_MAX(remsz,MPI_COMM_WORLD) ;
+      if(szmx == 0) {
+#ifdef VERBOSE
+        debugout << "time to get lset = " << s.stop() << endl ;
+#endif
+        return lset ;
+      }
+      lset += collectLargest(rem) ;
+      rem -= lset ;
+    }
+#ifdef VERBOSE
+    debugout << "time to get lset = " << s.stop() << endl ;
+    s.start() ;
+    
+    debugout << "e="<< e.num_intervals() << ",rem=" << rem.num_intervals()
+             << ",lset=" << lset.num_intervals() << endl ;
+#endif
+    entitySet remtot = all_gather_entitySet(rem) ;
+#ifdef VERBOSE
+    debugout << "time to gather rem = " << s.stop() << endl ;
+#endif
+    return lset + remtot ;
+  }
+  
 
   std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) {
     int np = 1 ;
