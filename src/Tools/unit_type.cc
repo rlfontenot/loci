@@ -90,6 +90,7 @@ namespace Loci {
     {"d","second",86400},
     {"year","second",31536000},
     {"y","second",31536000},
+    {"fortnight","second", 1209600}, // 14 days
     {"shake","second",1e-8},
     {"millisecond","second",1e-3},
     {"ms","second",1e-3},
@@ -186,7 +187,7 @@ namespace Loci {
     {"lb","kg",0.4535924},
     {"lbm","kg",0.4535924},
     {"slug","kg",1.459390e1},
-    {"ton","kg",1e3},
+    {"tonne","kg",1e3},
 
     {"denier","kg/m",1.111111e-7},//mass divided by length
     {"tex","kg/m",1e-6},
