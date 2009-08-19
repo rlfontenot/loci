@@ -34,7 +34,6 @@
 #include <sstream>
 #include <stddef.h>
 
-extern "C" {
 #ifdef RCSID
 #undef RCSID
 #endif
@@ -55,7 +54,6 @@ extern "C" {
 #if(H5_VERS_MAJOR==1 && H5_VERS_MINOR > 7)
 #define H5_INTERFACE_1_8
 #endif
-}
 
 namespace Loci {
   
