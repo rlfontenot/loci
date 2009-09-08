@@ -311,6 +311,8 @@ namespace Loci {
     case FUNCTION:
       s << name << "(" ;
       for(value_list_type::const_iterator i=value_list.begin();;) {
+        if(i==value_list.end())
+          break ;
         s << *i ;
         ++i ;
         if(i==value_list.end())
@@ -322,6 +324,8 @@ namespace Loci {
     case LIST:
       s << "[" ;
       for(value_list_type::const_iterator i=value_list.begin();;) {
+        if(i==value_list.end())
+          break ;
         i->Print(s) ;
         ++i ;
         if(i==value_list.end())
