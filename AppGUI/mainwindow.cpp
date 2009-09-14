@@ -623,7 +623,7 @@ void MainWindow::setGrid(QDomElement& theelem)
 {
 
   
-
+  //set up the default filename
   QStringList boundary_names;
   QString format = "volume grid file(*.vog)";
   if(theelem.hasAttribute("format")) format = theelem.attribute("format");
@@ -632,7 +632,7 @@ void MainWindow::setGrid(QDomElement& theelem)
   QString fileName  = initialPath;
   if(theelem.hasAttribute("casename")) fileName =  theelem.attribute("directory")+"/"+theelem.attribute("casename")+".vog";
 
- 
+  //select a file
   fileName = QFileDialog::getOpenFileName(this, tr("Load Grid"),
                                           fileName,
                                           format);
@@ -650,7 +650,7 @@ void MainWindow::setGrid(QDomElement& theelem)
                          fileName + tr(" has no postfix"));
     return;
   }
-  
+  //load in grid
   bool loaded = false;
   if(formatList[1]=="vog"){
     
@@ -750,7 +750,9 @@ void MainWindow::setGrid(QDomElement& theelem)
     viewer->show(); 
   }
   viewer->reset();
+
   if(loaded){
+    //if different case, remind the user to save the case
     if(theelem.hasAttribute("casename") && theelem.attribute("casename")!=caseName) {
       int button = QMessageBox::question(this, tr("a new grid is loaded"),
                                          tr("Do you want to save the old case ?"),
@@ -762,6 +764,7 @@ void MainWindow::setGrid(QDomElement& theelem)
                                      QMessageBox::Ok|QMessageBox::No, QMessageBox::Ok); 
       if(button == QMessageBox::Ok) saveVar();
 
+      //re-create the boundary_condition node
       QDomElement root= doc.documentElement();
       QDomNode cndNode = root.firstChildElement("boundary_conditions");
       if(cndNode.isNull()){
@@ -791,7 +794,7 @@ void MainWindow::setGrid(QDomElement& theelem)
       
     }
 
-
+    //set up the new case
     
     int first= fileName.lastIndexOf('/');
     int last = fileName.lastIndexOf('.');
@@ -803,7 +806,8 @@ void MainWindow::setGrid(QDomElement& theelem)
       
     updateStatus(fileName + tr(" loaded"));
     theelem.setAttribute("status", "done");
-   
+
+    //clean up the data
        if(modBoundaries){
       delete modBoundaries;
       modBoundaries = 0;
@@ -1192,7 +1196,7 @@ void MainWindow::openCase(){
   createFlowBar();
 }
 void MainWindow::newCase(){
-
+  //if a case already exists, remind user to save the case
   QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
   elem = elem.firstChildElement("gridSetup");
   if(!elem.attribute("casename").isEmpty()){
@@ -1214,7 +1218,7 @@ void MainWindow::newCase(){
   }
   
 
-
+  //read in main.xml
   char* resourcepath = getenv("CHEMDEMOPATH");
     xmlpath = "./xml/";
    
@@ -1260,6 +1264,7 @@ void MainWindow::newCase(){
    
     isNewCase= true;
 
+    //clean up everything and recreate flowBar
  if(viewer){
     delete viewer;
     viewer = new GLViewer(this);
