@@ -1,0 +1,95 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<!-- attribute "element" specify classes: float->FloatEdit-->
+<!-- int->IntEdit, all->AllVBGroup, choice->ChoiceGroup-->
+<!-- stack->StackGroup2, models->go to models to find the node,then -->
+<!-- continue from there, editable->go to editable to find the node, -->
+<!-- then continue from there,  CpWindow->CpWindow, everything else or not -->
+<!-- specified->QLineEdit-->
+<!-- attribute "current" specify currentIndex or currentValue, -->
+<!-- currentText, depend on the calss used-->
+<solver>
+  <solverPage  >
+    <numerical  >
+      <interpolateMinStencilSize unit="m"  checked="0" element="float" />
+      <gauss_seidel_iter element="int"  checked="0" bottom="0" />
+      <compressibilityCorrection  checked="0" element="choice" >
+        <wilcox/>
+        <sarkar/>
+        <none/>
+      </compressibilityCorrection>
+      <inviscidFlux element="choice"  checked="0" >
+        <adaptive/>
+        <roe/>
+        <roeBTW/>
+        <hlleBTW/>
+        <llfBTW/>
+      </inviscidFlux>
+      <Tf unit="K" element="float"  checked="0" />
+      <newton_iter element="int" min="1" defaultCondition="Material==multi"
+       yes="setDefault" default="1" no="disabled"   checked="0" />
+      <kprod_func element="choice"  checked="0" >
+        <S0mega/>
+        <total/>
+        <vorticity/>
+      </kprod_func>
+      <time_integration element="choice"  checked="0" >
+        <euler/>
+        <second_order/>
+      </time_integration>
+      <limiter element="choice"  checked="0" toolTip="I'm limiter" >
+        <venkatakrishnan editable="Kl" toolTip="I'm ven" />
+        <barth toolTip="I'm barth"/>
+        <none/>
+        <zero/>
+      </limiter>
+      <dtmax unit="s" element="float"  checked="0"  />
+      <cflmax unit="s" element="float"   checked="0"/>
+      <urelax unit="s" element="float"  checked="0" />
+    </numerical>
+    <output >
+      <print_freq element="int" bottom="1"  checked="0"/>
+      <restart_freq element="int" bottom="1"  checked="0"/>
+      <restart_modulo element="int" bottom="1"  checked="0"/>
+      <plot_freq element="int" bottom="1"  checked="0" />
+      <plot_modulo element="int" bottom="1"  checked="0" />
+      <stop_iter element="int" bottom="1"  checked="0"/>
+      <maximumRunTime unit="s,m,h" element="float"  checked="0" />
+    </output>
+    <miscellaneous >
+      <scalablePrescribedFile current="BC_input.bin" action="find file" element="string" required="0" />
+    </miscellaneous>
+    <advanced >
+      <helle_alpha unit="s" element="float"  checked="0" />
+      <Minf element="float"  checked="0"/>
+      <gravity element="all"  checked="0" >
+        <g unit="m/sec/sec" element="vector" />
+        <rhoref unit="kg/m/m/m" element="float" />
+      </gravity>
+      <rigidRotation element="all"  checked="0" >
+        <axis element="vector" />
+        <center element="vector" />
+        <speed element="float" />
+      </rigidRotation>
+      <coriolis element="all"  checked="0" toolTip="I'm coriolis" >
+        <axis element="vector" />
+        <center element="vector" />
+        <speed element="float" />
+      </coriolis>
+      <sixdof_in element="float"  checked="0" />
+      <componentMotion element="choice"  checked="0" >
+        <rotation editable="rotation" />
+        <prescribed/>
+        <stationary/>
+      </componentMotion>
+    </advanced>
+  </solverPage>
+
+  <editable>
+    <Kl current="1" element="int" bottom="0" top="100"  />
+    <rotation element="all" >
+      <axis element="vector"/>
+      <center element="vector" />
+      <speed element="float" />
+    </rotation>
+  </editable>
+</solver>

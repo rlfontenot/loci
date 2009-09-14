@@ -1,0 +1,97 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+
+ <import whatsThis="whatsThis" status="started" >
+    
+
+    <!-- attribute "dir" gives a list of directory to search for files, separated by -->
+    <!-- ','.  The default value is the first.-->
+    <directory dir="/simcenter/data1/qxue/grids/" />
+    <!-- element "gridtypes" describle different kinds of file format,-->
+    <!-- which is listed in its children elements. The attribute "element -->
+    <!-- = stack" means when the user clicks on a file format, the -->
+    <!-- corresponding page will be displayed-->
+    <gridtypes element="stack" current="">
+      <!-- for each file format, such as vog, xdr, cobalt, cfd, plot3d and-->
+      <!--solidmesh, the attribute "nameFilter" is the name filter of the-->
+      <!--files. And the attribute "label" is the description of the file that-->
+      <!--will be displayed on the interface. The attribute "toXdr" and-->
+      <!--"toVog" is the commands to be used for converting this type of grid.-->
+      <vog nameFilter="*.vog" label="volume grid format" />
+      <xdr toXdr="" nameFilter="*.xdr" label="xdr file" toVog="xdr2vog" />
+      <cobalt toXdr="cobalt2xdr" nameFilter="*.cog" label="cobalt format" toVog="xdr2vog" >cobalt format</cobalt>
+      <cfd toXdr="cfd++2xdr" nameFilter="nodesin.bin, cellsin.bin, exbcsin.bin" label="cfd++&#xa;  format" toVog="xdr2vog" />
+      <plot3d toXdr="plot3d2xdr" nameFilter="*.grd" label="plot3d format" toVog="xdr2vog" >
+        <!-- the children elements of a grid type describe the "toXdr"-->
+        <!-- command options. The tagName will appear in the command -->
+        <!-- such as "plot3d2xdr -c str1 -bc str2 filename", -->
+        <!-- the text node of the elements will be displayed with the -->
+        <!-- checkbox. The attribute "value" describes the data type of the -->
+        <!-- options that the user need input, it can be float, int,-->
+        <!-- string, vector, bool -->
+        <c element="string" >Do you want to specify the boundary names to combine?</c>
+        <bc element="string" >Do you want to provide a supplemental boundary
+    specification file?</bc>
+      </plot3d>
+      <solidmesh toXdr="" nameFilter="*.ugrid" label="solid mesh" toVog="ugrid2vog" />
+    </gridtypes>
+    <!-- the element vogOptions specify the xdr2vog command options. It -->
+    <!-- can specify a series of options such as "-o", "-v" and an unit(which -->
+    <!-- is required). If the user selects "-Lref" as unit option, then the -->
+    <!-- user need specify a float value and a unit.   -->
+    <!-- For example,  "xdr2vog -o -v -in filename", "xdr2vog -Lref -->
+    <!-- 5.4ft filename" -->
+    <vogOptions>
+      <!-- For each child element with the attribute value="bool", -->
+      <!-- tagName of the element will appear in the command such as -->
+      <!-- "-o", and the text node will be displayed with the -->
+      <!-- checkbox. The user doesn't has to input any value. "bool" is -->
+      <!-- the only value acceptable for the attribute "value" unless the tag -->
+      <!-- name is unit, in that case, the attribute "value" should be "choice"-->
+      <o element="bool" >disable optimization that reorders nodes and faces?</o>
+      <v element="bool" >display loci version?</v>
+      <!-- For the element "unit", tagName will not appear in the command, the -->
+      <!-- text node if "unit" describes all possible units, separate by -->
+      <!-- ',' . The unit the user selected will appear in the command -->
+      <!-- line such as "-in".  -->
+      <unit element="choice" >in,ft,cm,m,Lref</unit>
+      <options>
+        <Lref unit="in,ft,cm,m" element="float" />
+      </options>
+    </vogOptions>
+    <usuage>
+      <ugrid/>
+      <xdr/>
+      <cobalt/>
+      <cfd/>
+      <plot3d> Plot3d to XDR file converter usage
+            This converter assumes that the grid file has a .grd postfix
+            If only a single argument is given, then this will be 
+            grid file sans the .grd postfix, this will convert the
+            grid to an unstructured XDR format grid file.  If the
+            input file has more than one block, then the point matching
+            faces will be glued, and the remaining faces will be tagged
+            with a unique tag for each block and face. 
+
+            If you want to control how tags are assigned to boundary
+            faces, then you can do so by providing a supplemental
+            boundary specification file with the flag -bc
+            Example:  plot3d2xdr -bc grid.bc grid
+
+            The boundary condition specification file is contains the
+            following information: 
+            [Number of boundary groups] 
+            For each group: 
+            [boundary tag] [number of segments] [boundary name]
+            For each segment:
+            [block number] [faceid] [index1 start] [index1 end] [index2 start] [index2 end]
+            Where:
+            [faceid] is one of six strings: [IJ1,IJN,JK1,JKN,IK1,IKN]
+            indices are given in the order indicated by the faceid string</plot3d>
+      <solidmesh/>
+    </usuage>
+    <buttons>
+      <convert status="new" cmd="" dir="" filename=""/>
+      <check  status="new"  dir="" filename=""/>
+      <extract  status="new"  dir="" filename=""/>
+    </buttons>
+ </import>
