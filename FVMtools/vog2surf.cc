@@ -321,81 +321,31 @@ void readSurfaces(string filename,
     cout << "ntrias=" << surf_list[i].trias.size() 
     << ",nquads=" << surf_list[i].quads.size()
     << ",ngenfs=" << surf_list[i].gen_faces.size()
-    << endl;
+         << endl;
   }
 #endif
 
 }
 
-int main(int ac, char *av[]) {
-  using Loci::entitySet ;
-  using Loci::vector3d ;
-  Loci::Init(&ac, &av) ;
-  if(Loci::MPI_processes > 1) {
-    cerr << "vog2surf is not parallel! Run on only one processor!" << endl ;
-    Loci::Abort() ;
-  }
-  string output_file = "" ;
-  string input_file = "" ;
-  for(int i=1;i<ac;++i) {
-    string opt = av[i] ;
-    bool parsed = false ;
-    if(opt == "-o") {
-      i++ ;
-      if(i<ac) {
-        output_file = string(av[i]) ;
-        parsed = true ;
-      }
-    } else
-      if(input_file == "") {
-	input_file = string(av[i]) ;
-	parsed = true ;
-      } else
-	parsed = false ;
-    
-    if(!parsed) {
-      cerr << "unable to parse command line argument '" << av[i] << "'" << endl ;
-      Usage() ;
-    }
-  }
 
-  string surf_file ;
-  if(output_file == "") {
-    surf_file = input_file + ".surf" ;
-  } else
-    surf_file = output_file ;
 
-  string name_file = input_file + ".names" ;
-
+void writeSurf(string filename_surf, string filename_name,
+               vector<surface_info> &tmp_surf,
+               vector<vector3d<double> > &tmp_p) {
   
-  input_file += ".vog" ;
-
-  std::ofstream ofile(surf_file.c_str(),std::ios::out) ;
-
+  std::ofstream ofile(filename_surf.c_str(),std::ios::out) ;
+  
   if(ofile.fail()) {
-    cerr << "unable to open output file '" << surf_file << "'" << endl ;
+    cerr << "unable to open output file '" << filename_surf << "'" << endl ;
     Usage() ;
   }
-  std::ofstream nfile(name_file.c_str(),std::ios::out) ;
+  std::ofstream nfile(filename_name.c_str(),std::ios::out) ;
   if(nfile.fail()) {
-    cerr << "unable to open output file '" << name_file << "'" << endl ;
+    cerr << "unable to open output file '" << filename_name << "'" << endl ;
     Usage() ;
   }
 
-#define DEBUG
-#ifndef DEBUG
-  /* Save old error handler */
-  herr_t (*old_func)(void*) = 0;
-  void *old_client_data = 0 ;
-  H5Eget_auto(&old_func, &old_client_data);
-  
-  /* Turn off error handling */
-  H5Eset_auto(NULL, NULL);
-#endif
-  
-  vector<surface_info> tmp_surf ;
-  vector<vector3d<double> > tmp_p ;
-  readSurfaces(input_file,tmp_surf,tmp_p) ;
+
   int ntri=0,nqua=0,ngen=0 ;
   for(size_t i=0;i<tmp_surf.size();++i) {
     ntri += tmp_surf[i].trias.size() ;
@@ -439,7 +389,7 @@ int main(int ac, char *av[]) {
       for(size_t j=0;j<tmp_surf[i].gen_faces.size();++j) {
         size_t nf = tmp_surf[i].gen_faces[j].size() ;
         ofile << nf ;
-        for(size_t k=0;k<nf;++i)
+        for(size_t k=0;k<nf;++k)
           ofile << ' ' << tmp_surf[i].gen_faces[j][k] ;
         ofile << endl ;
       }
@@ -450,5 +400,136 @@ int main(int ac, char *av[]) {
     nfile << tmp_surf[i].id << ' ' << tmp_surf[i].name << endl ;
   }
   nfile.close() ;
+  ofile.close();
+}
 
+void writeSurfaces(string filename,
+                   vector<surface_info> &surf_list,
+                   vector<vector3d<double> > &pos) {
+  std::ofstream ofile(filename.c_str(),std::ios::out) ;
+  
+  if(ofile.fail()) {
+    cerr << "unable to open output file '" << filename << "'" << endl ;
+    Usage() ;
+  }
+  
+  size_t  npos = pos.size();
+  
+  ofile << npos << endl ;
+  ofile.precision(14) ;
+
+  //output pos
+  for(size_t i=0;i<npos;++i) {
+    ofile << pos[i].x << ' ' << pos[i].y << ' ' << pos[i].z<< endl ;
+  }
+  //output surf_list
+  size_t nsurf = surf_list.size();
+  ofile << nsurf << endl;
+
+  for(size_t i = 0; i < nsurf; i++){
+    ofile<<surf_list[i].name<<endl;
+  }
+  for(size_t i = 0; i < nsurf; i++){ 
+    size_t ntris=surf_list[i].trias.size();
+    size_t nquads = surf_list[i].quads.size();
+    size_t ngens = surf_list[i].gen_faces.size();
+    size_t id = surf_list[i].id;
+    ofile << id<<' ' <<ntris<<' '<<nquads<<' ' <<ngens << endl;
+    for(size_t j =0; j < ntris; j++){
+      ofile << surf_list[i].trias[j][0] << ' '
+	    << surf_list[i].trias[j][1] << ' '
+            << surf_list[i].trias[j][2] << endl;
+    }
+    
+    for(size_t j=0;j<nquads;++j){
+      
+     ofile << surf_list[i].quads[j][0] << ' '
+           << surf_list[i].quads[j][1] << ' '
+           << surf_list[i].quads[j][2] << ' '
+           << surf_list[i].quads[j][3] << endl;
+    }
+
+    for(size_t j=0;j<ngens;++j){
+      size_t nf = surf_list[i].gen_faces[j].size() ;
+      ofile << nf ;
+      for(size_t k=0;k<nf;++k)
+        ofile << ' ' << surf_list[i].gen_faces[j][k] ;
+      ofile << endl ;
+    }
+  }
+  ofile.close();  
+  
+}
+
+int main(int ac, char *av[]) {
+  using Loci::entitySet ;
+  using Loci::vector3d ;
+  Loci::Init(&ac, &av) ;
+  if(Loci::MPI_processes > 1) {
+    cerr << "vog2surf is not parallel! Run on only one processor!" << endl ;
+    Loci::Abort() ;
+  }
+  string surface_file = "";
+  string surf_file = "";
+  string input_file = "";
+  
+  for(int i=1;i<ac;++i) {
+    string opt = av[i] ;
+    bool parsed = false ;
+   if(opt == "-o") {
+      i++ ;
+      if(i<ac) {
+        surf_file = string(av[i]) ;
+        parsed = true ;
+      }
+    } else if(opt == "-surface") {
+      i++ ;
+      if(i<ac) {
+        surface_file = string(av[i]) ;
+        parsed = true ;
+      }
+    } else
+      if(input_file == "") {
+	input_file = string(av[i]) ;
+	parsed = true ;
+      } else
+	parsed = false ;
+    
+    if(!parsed) {
+      cerr << "unable to parse command line argument '" << av[i] << "'" << endl ;
+      Usage() ;
+    }
+  }
+
+ 
+
+  string name_file = input_file + ".names" ;
+  string file_input = input_file + ".vog";
+  if(surface_file=="" && surf_file=="")surf_file=input_file+".surf";
+  
+  
+  
+#define DEBUG
+#ifndef DEBUG
+  /* Save old error handler */
+  herr_t (*old_func)(void*) = 0;
+  void *old_client_data = 0 ;
+  H5Eget_auto(&old_func, &old_client_data);
+  
+  /* Turn off error handling */
+  H5Eset_auto(NULL, NULL);
+#endif
+  
+  vector<surface_info> tmp_surf ;
+  vector<vector3d<double> > tmp_p ;
+  readSurfaces(file_input,tmp_surf,tmp_p) ;
+
+
+  
+  if(surface_file!="")writeSurfaces(surface_file, tmp_surf, tmp_p);
+  if(surf_file!="")writeSurf(surf_file,name_file, tmp_surf, tmp_p);
+
+  
+
+  Loci::Finalize();
 }
