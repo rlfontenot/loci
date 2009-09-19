@@ -62,6 +62,7 @@ void Usage(int ac, char *av[]) {
        << "-ascii: extract to an ascii file" << endl
        << "-surf: extract boundary surface mesh" << endl
        << "-cut:  extract a cutting plane for the 2dgv plotting package" << endl
+       << "-mean: generate mean and variance from a family of ouput variables" << endl 
        << endl ;
   cout << "Variables are defined by the solver, but typically include: " << endl
        << "r     - nodal density" << endl 
@@ -113,6 +114,10 @@ void Usage(int ac, char *av[]) {
        << "  -Sx <amount> : translate cutting plane along x-axis" << endl
        << "  -Sy <amount> : translate cutting plane along y-axis" << endl
        << "  -Sz <amount> : translate cutting plane along z-axis" << endl << endl;
+  cout << "extra options for averaging feature '-mean'" << endl 
+       << "  -end <value> : ending iteration number for averaging" << endl
+       << "  -inc <value> : value to increment between iterations for averaging" << endl 
+       << endl ;
   cout << "extra options for controlling extract" << endl
        << "   -dir <directory> : change extract directory from default 'output'"
 
@@ -127,6 +132,12 @@ void Usage(int ac, char *av[]) {
        << " from time step 100 for visualization with Ensight:" << endl
        << av[0] << " -en combustor 100 particle_temp -mp 5000" << endl ;
 
+  cout << "example: to compute mean and variance values for velocity and temperature" 
+       << " for iterations 1000-3000 output every 100 iterations run:"
+       << endl
+       << av[0] << " -mean -end 3000 -inc 100 nozzle 1000 t v" << endl
+       << "NOTE: outputs variabes tMean, tVar, vMean, vVar, vCuv, vCuw, vCvw"
+       << "      at iteration 1000." << endl ;
   exit(-1) ;
 }
 
@@ -1173,8 +1184,8 @@ int main(int ac, char *av[]) {
   // all particles will be extracted.
   int max_particles = -1 ;
 
-  int end_iter = 0 ;
-  int inc_iter = 1 ;
+  int end_iter = -1 ;
+  int inc_iter = -1 ;
   
   for(int i=1;i<ac;++i) {
     if(av[i][0] == '-') {
@@ -1548,6 +1559,14 @@ int main(int ac, char *av[]) {
   }
 
   if(plot_type == MEAN) {
+    if(end_iter<0 ||inc_iter< 0) {
+      cerr << "ERROR: Must use option -end to specify ending iteration for average" << endl
+	   << "       and option -inc to specify iteration increment value for iterations" << endl
+	   << "       to specify which files to average!" << endl ;
+      Loci::Finalize() ;
+      exit(-1) ;
+    }
+	
     process_mean(casename,iteration,variables,variable_type,
                  variable_file,end_iter,inc_iter) ;
     Loci::Finalize() ;

@@ -62,6 +62,7 @@ void process_mean(string casename, string iteration,
   
   for(size_t i=0;i<variables.size();++i) {
     string var_name = variables[i] ;
+    cout << "processing variable: " << var_name << endl ;
     string var = var_name ;
     string filename = variable_filenames[i] ;
     switch(variable_types[i]) {
@@ -73,7 +74,8 @@ void process_mean(string casename, string iteration,
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
           char buf[512] ;
           sprintf(buf,"%d",it) ;
-          
+          cout << "iteration: " << buf << postfix << '\r' ;
+	  cout.flush() ;
           n = n + 1.0 ;
           string filename = output_dir+'/' + var + "_sca." +
             string(buf) + postfix + "_" + casename ;
@@ -113,13 +115,14 @@ void process_mean(string casename, string iteration,
         v.allocate(dom) ;
         FORALL(dom,ii) {
           m[ii] = mean[ii] ;
-          v[ii] = M2[ii]/(n-1.) ;
+          v[ii] = M2[ii]/(n) ;
         } ENDFORALL ;
         string filename = output_dir+'/' + var + "Mean_sca."
           + iteration + "_" + casename ;
         hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
+	cout << "Writing Variables: " << sname ;
         fact_db facts ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
@@ -130,8 +133,10 @@ void process_mean(string casename, string iteration,
         file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         sname = var+"Var" ;
+	cout << ", " << sname ;
         Loci::writeContainer(file_id,sname,v.Rep(),facts) ;
         Loci::hdf5CloseFile(file_id) ;
+	cout << endl ;
       }
       break;
     case NODAL_DERIVED:
@@ -163,6 +168,8 @@ void process_mean(string casename, string iteration,
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
           char buf[512] ;
           sprintf(buf,"%d",it) ;
+          cout << "iteration: " << buf << postfix << '\r' ;
+	  cout.flush() ;
           
           n = n + 1.0 ;
           string filename = output_dir+'/' + var + "_sca." +
@@ -195,13 +202,14 @@ void process_mean(string casename, string iteration,
         v.allocate(dom) ;
         FORALL(dom,ii) {
           m[ii] = mean[ii] ;
-          v[ii] = M2[ii]/(n-1.) ;
+          v[ii] = M2[ii]/(n) ;
         } ENDFORALL ;
         string filename = output_dir+'/' + var + "Mean_sca."
           + iteration + "_" + casename ;
         file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
+	cout << "Writing Variables: " << sname ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
         Loci::hdf5CloseFile(file_id) ;
@@ -211,18 +219,24 @@ void process_mean(string casename, string iteration,
         file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         sname = var+"Var" ;
+	cout << ", " << sname ;
         Loci::writeContainer(file_id,sname,v.Rep(),facts) ;
         Loci::hdf5CloseFile(file_id) ;
+	cout << endl ;
       }
       break;
     case NODAL_VECTOR:
       {
         store<vector3d<double> > mean ;
         store<vector3d<double> > M2 ;
+	store<double> Muv,Muw,Mvw ;
+
         double n = 0;
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
           char buf[512] ;
           sprintf(buf,"%d",it) ;
+          cout << "iteration: " << buf << postfix << '\r' ;
+	  cout.flush() ;
           
           n = n + 1.0 ;
           string filename = output_dir+'/' + var + "_vec." +
@@ -244,9 +258,15 @@ void process_mean(string casename, string iteration,
           if(it == start_iter) {
             mean.allocate(dom) ;
             M2.allocate(dom) ;
+	    Muv.allocate(dom) ;
+	    Muw.allocate(dom) ;
+	    Mvw.allocate(dom) ;
             FORALL(dom,ii) {
               mean[ii] = vector3d<double>(0.,0.,0.) ;
               M2[ii] = vector3d<double>(0.,0.,0.) ;
+	      Muv[ii] = 0 ;
+	      Muw[ii] = 0 ;
+	      Mvw[ii] = 0 ;
             } ENDFORALL ;
           }
 
@@ -254,6 +274,12 @@ void process_mean(string casename, string iteration,
             vector3d<double> delta = vector3d<double>(vect[nd].x - mean[nd].x,
                                                       vect[nd].y - mean[nd].y,
                                                       vect[nd].z - mean[nd].z);
+	    Muv[nd] += (n-1)*(vect[nd].x-mean[nd].x)*
+	      (vect[nd].y-mean[nd].y)/n ;
+	    Muw[nd] += (n-1)*(vect[nd].x-mean[nd].x)*
+	      (vect[nd].z-mean[nd].z)/n ;
+	    Mvw[nd] += (n-1)*(vect[nd].y-mean[nd].y)*
+	      (vect[nd].z-mean[nd].z)/n ;
             mean[nd] += (1/n)*delta ;
             M2[nd].x += delta.x*(vect[nd].x-mean[nd].x) ;
             M2[nd].y += delta.y*(vect[nd].y-mean[nd].y) ;
@@ -262,22 +288,40 @@ void process_mean(string casename, string iteration,
         }
         store<vector3d<float> > m ;
         store<vector3d<float> > v ;
+	store<float> cuv,cuw,cvw ;
         entitySet dom = mean.domain() ;
         m.allocate(dom) ;
-        v.allocate(dom) ;
         FORALL(dom,ii) {
           m[ii].x = mean[ii].x ;
           m[ii].y = mean[ii].y ;
           m[ii].z = mean[ii].z ;
-          v[ii].x = M2[ii].x/(n-1.) ;
-          v[ii].y = M2[ii].y/(n-1.) ;
-          v[ii].z = M2[ii].z/(n-1.) ;
+	} ENDFORALL ;
+	mean.allocate(EMPTY) ;
+        v.allocate(dom) ;
+        FORALL(dom,ii) {
+          v[ii].x = M2[ii].x/(n) ;
+          v[ii].y = M2[ii].y/(n) ;
+          v[ii].z = M2[ii].z/(n) ;
+	} ENDFORALL ;
+	M2.allocate(EMPTY) ;
+	cuv.allocate(dom) ;
+	cuw.allocate(dom) ;
+	cvw.allocate(dom) ;
+        FORALL(dom,ii) {
+	  cuv[ii] = Muv[ii]/n ;
+	  cuw[ii] = Muw[ii]/n ;
+	  cvw[ii] = Mvw[ii]/n ;
         } ENDFORALL ;
+	Muv.allocate(EMPTY);
+	Muw.allocate(EMPTY);
+	Mvw.allocate(EMPTY);
+
         string filename = output_dir+'/' + var + "Mean_vec."
           + iteration + "_" + casename ;
         hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
+	cout << "Writing Variables: " << sname ;
         fact_db facts ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
@@ -288,8 +332,39 @@ void process_mean(string casename, string iteration,
         file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         sname = var+"Var" ;
+	cout << ", " << sname ;
         Loci::writeContainer(file_id,sname,v.Rep(),facts) ;
         Loci::hdf5CloseFile(file_id) ;
+
+        filename = output_dir+'/' + var + "Cuv_sca."
+          + iteration + "_" + casename ;
+        file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+        sname = var+"Cuv" ;
+	cout << ", " << sname ;
+
+        Loci::writeContainer(file_id,sname,cuv.Rep(),facts) ;
+        Loci::hdf5CloseFile(file_id) ;
+        filename = output_dir+'/' + var + "Cuw_sca."
+          + iteration + "_" + casename ;
+        file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+        sname = var+"Cuw" ;
+	cout << ", " << sname ;
+        Loci::writeContainer(file_id,sname,cuw.Rep(),facts) ;
+        Loci::hdf5CloseFile(file_id) ;
+        Loci::writeContainer(file_id,sname,cuv.Rep(),facts) ;
+        Loci::hdf5CloseFile(file_id) ;
+
+        filename = output_dir+'/' + var + "Cvw_sca."
+          + iteration + "_" + casename ;
+        file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
+                                       H5P_DEFAULT, H5P_DEFAULT) ;
+        sname = var+"Cvw" ;
+	cout << ", " << sname ;
+        Loci::writeContainer(file_id,sname,cvw.Rep(),facts) ;
+        Loci::hdf5CloseFile(file_id) ;
+	cout << endl ;
       }
       break;
     case NODAL_MASSFRACTION:
@@ -300,6 +375,8 @@ void process_mean(string casename, string iteration,
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
           char buf[512] ;
           sprintf(buf,"%d",it) ;
+          cout << "iteration: " << buf << postfix << '\r' ;
+	  cout.flush() ;
           
           n = n + 1.0 ;
           string int_str = string(buf) + postfix ;
@@ -368,13 +445,14 @@ void process_mean(string casename, string iteration,
         v.allocate(dom) ;
         FORALL(dom,ii) {
           m[ii] = mean[ii] ;
-          v[ii] = M2[ii]/(n-1.) ;
+          v[ii] = M2[ii]/(n) ;
         } ENDFORALL ;
         string filename = output_dir+'/' + var + "Mean_sca."
           + iteration + "_" + casename ;
         hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
+	cout << "Writing Variables: " << sname ;
         fact_db facts ;
         Loci::writeContainer(file_id,sname,m.Rep(),facts) ;
 
@@ -385,8 +463,10 @@ void process_mean(string casename, string iteration,
         file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         sname = var+"Var" ;
+	cout << ", " << sname ;
         Loci::writeContainer(file_id,sname,v.Rep(),facts) ;
         Loci::hdf5CloseFile(file_id) ;
+	cout << endl ;
       }
       break ;
     case BOUNDARY_SCALAR:
@@ -398,6 +478,8 @@ void process_mean(string casename, string iteration,
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
           char buf[512] ;
           sprintf(buf,"%d",it) ;
+          cout << "iteration: " << buf << postfix << '\r' ;
+	  cout.flush() ;
           
           n = n + 1.0 ;
           string filename = output_dir+'/' + var + "_bnd." +
@@ -438,13 +520,14 @@ void process_mean(string casename, string iteration,
         vector<float> v(mean.size()) ;
         for(size_t i=0;i<mean.size();++i) {
           m[i] = mean[i] ;
-          v[i] = M2[i]/(n-1.) ;
+          v[i] = M2[i]/(n) ;
         }
         string filename = output_dir+'/' + var + "Mean_bnd."
           + iteration + "_" + casename ;
         hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
+	cout << "Writing Variables: " << sname ;
         hid_t group_id = H5Gcreate(file_id,"dataInfo",0) ;
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
@@ -456,11 +539,13 @@ void process_mean(string casename, string iteration,
         file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         sname = var+"Var" ;
+	cout << ", " << sname ;
         group_id = H5Gcreate(file_id,"dataInfo",0) ;
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),v) ;
         H5Fclose(file_id) ;
+	cout << endl ;
       }
       break;
     case BOUNDARY_VECTOR:
@@ -472,6 +557,8 @@ void process_mean(string casename, string iteration,
         for(int it = start_iter;it<=end_iter;it+=inc_iter) {
           char buf[512] ;
           sprintf(buf,"%d",it) ;
+          cout << "iteration: " << buf << postfix << '\r' ;
+	  cout.flush() ;
           
           n = n + 1.0 ;
           string filename = output_dir+'/' + var + "_bndvec." +
@@ -516,13 +603,14 @@ void process_mean(string casename, string iteration,
         vector<vector3d<float> > v(mean.size()) ;
         for(size_t i=0;i<mean.size();++i) {
           m[i] = vector3d<float>(mean[i].x, mean[i].y, mean[i].z) ;
-          v[i] = vector3d<float>(M2[i].x,M2[i].y,M2[i].z)/(n-1.) ;
+          v[i] = vector3d<float>(M2[i].x,M2[i].y,M2[i].z)/(n) ;
         }
         string filename = output_dir+'/' + var + "Mean_bndvec."
           + iteration + "_" + casename ;
         hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         string sname = var+"Mean" ;
+	cout << "Writing Variables: " << sname ;
         hid_t group_id = H5Gcreate(file_id,"dataInfo",0) ;
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
@@ -534,11 +622,14 @@ void process_mean(string casename, string iteration,
         file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
         sname = var+"Var" ;
+	cout << ", " << sname ;
+
         group_id = H5Gcreate(file_id,"dataInfo",0) ;
         writeElementType(group_id,"entityIds",ids) ;
         H5Gclose(group_id) ;
         writeElementType(file_id,sname.c_str(),v) ;
         H5Fclose(file_id) ;
+	cout << endl ;
       }
       break ;
     case BOUNDARY_DERIVED_SCALAR:
