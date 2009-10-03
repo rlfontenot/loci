@@ -421,6 +421,59 @@ namespace Loci {
         find_box(splits[start],end, depth+1, found_pts, box, bnds_right) ;
     }
 
+    // recursively search for points in a bounding box and count them
+
+    int kd_tree::count_box(int start, int end, int depth,
+                           const bounds &box, bounds bnds) const {
+      const int sz = end-start ;
+
+      // Check if the entire box is in bounds then add all of the current
+      // points...
+
+      if(box.minc[0] < bnds.minc[0] &&
+         box.maxc[0] > bnds.maxc[0] &&
+         box.minc[1] < bnds.minc[1] &&
+         box.maxc[1] > bnds.maxc[1] &&
+         box.minc[2] < bnds.minc[2] &&
+         box.maxc[2] > bnds.maxc[2]) {
+        return end-start ;
+      }
+
+      // In base case perform linear search to find closest point
+      if(sz <= kd_bin_size)  {
+        if(sz == 0) // If size is zero, just return the root pivot
+          return 0 ;
+        int count = 0 ;
+        // search points and add them if they are in the box
+        for(int i=start;i<end;++i)
+          if(pt_in_box(pnts[i].coords,box))
+            count++ ;
+        return count ;
+      }
+
+      const int coord = depth%3 ;
+
+      // otherwise search for which leaf contains our point
+      int id = start ;
+
+      int count = 0 ;
+      if(pt_in_box(pnts[id].coords,box))
+        count++ ;
+
+         
+      // Compute the bounding box for the left and right kd-tree partitions
+      bounds bnds_left = bnds ;
+      bounds bnds_right = bnds ;
+      bnds_left.maxc[coord] = pnts[start].coords[coord] ;
+      bnds_right.minc[coord] = pnts[start].coords[coord] ;
+
+      if(box.minc[coord] <= bnds_left.maxc[coord])
+        count += count_box(start+1,splits[start], depth+1, box, bnds_left) ;
+      if(box.maxc[coord] >= bnds_right.minc[coord])
+        count += count_box(splits[start],end, depth+1, box, bnds_right) ;
+      return count ;
+    }
+
     // Search for the closest corresponding point to the vector defined by v
     // rmin is the current best known estimate for the distance to the closest
     // point.  bnds is the current bounding box.
