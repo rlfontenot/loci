@@ -127,14 +127,18 @@ namespace Loci {
                                               const char *element_name,
                                               std::vector<T> &v,
                                               MPI_Comm comm) {
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
+    int procs = 1 ;
+    MPI_Comm_size(comm,&procs) ;
     long local_size = v.size() ;
-    std::vector<long> recv_sizes(MPI_processes) ;
+    std::vector<long> recv_sizes(procs) ;
     MPI_Gather(&local_size,1,MPI_LONG,
                &recv_sizes[0],1,MPI_LONG,0,comm) ;
 
-    if(MPI_rank == 0) {
+    if(rank == 0) {
       hsize_t array_size = 0 ;
-      for(int i=0;i<MPI_processes;++i)
+      for(int i=0;i<procs;++i)
         array_size += recv_sizes[i] ;
       if(array_size == 0)
         return ;
@@ -164,7 +168,7 @@ namespace Loci {
                  H5P_DEFAULT, &v[0]) ;
         H5Sclose(memspace) ;
       }
-      for(int i=1;i<MPI_processes;++i) {
+      for(int i=1;i<procs;++i) {
         start += recv_sizes[i-1] ;
         if(recv_sizes[i] == 0)
           continue ;
