@@ -572,7 +572,7 @@ unsigned *nstart, seed, initseed;
 #ifdef __STDC__
 int *init_rng(int rng_type, int gennum,  int total_gen,  int seed, int param)
 #else
-int *init_rng(int rng_type,gennum,total_gen,seed,param)
+int *init_rng(rng_type,gennum,total_gen,seed,param)
 int rng_type,gennum,param,seed,total_gen;
 #endif
 {
