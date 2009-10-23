@@ -47,12 +47,13 @@
 #include <sstream>
 using std::ostringstream ;
 
+
 namespace Loci
 {
 
   // set to 1 to activate debugging statements for:
 #define DEBUGOUT 0		// load balancing messages
-#define SHOWTIMES 0		// summary timings
+#define SHOWTIMES 1		// summary timings
 
   // static methods
 #define NLB		0	// no load balancing
@@ -331,8 +332,7 @@ namespace Loci
 
   unsigned char *buf = 0;	// message buffer
   int buf_size = 0;		// size of message buffer
-
-
+  
   //=======================================================
   // common routines
   //=======================================================
@@ -1598,6 +1598,7 @@ namespace Loci
     saveSize = 0;
     saveStart = 0;
 
+
     // =======================================================
     // Initial loads
     // =======================================================
@@ -1646,6 +1647,7 @@ namespace Loci
     // =======================================================
     stopWatch sc ;
 
+   
     while (gotWork + localSize + remoteSize + incoming + returns) {
 
       switch (action) {
@@ -2010,6 +2012,8 @@ namespace Loci
     // MPI_Barrier (MPI_COMM_WORLD)
     //
 
+
+
 #if DEBUGOUT
     Loci::debugout << "Exits: " << myRank << endl;
 #endif
@@ -2022,8 +2026,11 @@ namespace Loci
     // BARRIER: gather work times on all procs
     for (i = 0; i < nProcs; i++)
       ewt[i] = 0.0;
-    MPI_Allreduce (workTime, ewt, nProcs, MPI_DOUBLE, MPI_SUM,
+
+  
+   MPI_Allreduce (&workTime[0], &ewt[0], nProcs, MPI_DOUBLE, MPI_SUM,
 		   MPI_COMM_WORLD);
+  
 
     // running average of work times
     if (nCalls)
