@@ -1598,6 +1598,10 @@ namespace Loci {
 
   }
 
+  void assignOwner(vector<pair<int,pair<int,int> > > &scratchPad,
+                   vector<entitySet> ptn,
+                   vector<entitySet> &out_ptn) ;
+
   vector<entitySet> partitionFaces(vector<entitySet> cell_ptn, const Map &cl,
                                    const Map &cr) {
     dstore<short> P ;
@@ -1629,27 +1633,20 @@ namespace Loci {
       else
         boundary_faces += fc ;
     } ENDFORALL ;
+    vector<int> curr_sizes(MPI_processes),tot_sizes(MPI_processes) ;
 
 
     // Number of balancing steps.  In the balancing step, the faces that
     // share proceessors are allocated by selected processors, then all
     // processors share current face counts.
-    int STEPS = min(MPI_processes,7) ;
+    int STEPS = min(MPI_processes,13);
     for(int s=0;s<STEPS;++s) {
 
-      vector<int> curr_sizes(MPI_processes),tot_sizes(MPI_processes) ;
       for(int i=0;i<MPI_processes;++i)
         curr_sizes[i] = face_ptn[i].size() ;
 
       MPI_Allreduce(&curr_sizes[0],&tot_sizes[0],MPI_processes,MPI_INT,MPI_SUM,
                     MPI_COMM_WORLD) ;
-
-      if(s == 0 && MPI_rank ==0) {
-        debugout << "fixed face sizes:" ;
-        for(int i=0;i<MPI_processes;++i)
-          debugout << ' ' << tot_sizes[i] ;
-        debugout << endl ;
-      }
 
       if(MPI_rank%STEPS == s) { // My processors turn to assign faces
         FORALL(boundary_faces,fc) {
@@ -1666,83 +1663,52 @@ namespace Loci {
       }
     }
 
+    for(int i=0;i<MPI_processes;++i)
+      curr_sizes[i] = face_ptn[i].size() ;
+
+    MPI_Allreduce(&curr_sizes[0],&tot_sizes[0],MPI_processes,MPI_INT,MPI_SUM,
+                  MPI_COMM_WORLD) ;
+
+    if(MPI_rank ==0) {
+      debugout << "balanced face sizes:" ;
+      for(int i=0;i<MPI_processes;++i)
+        debugout << ' ' << tot_sizes[i] ;
+      debugout << endl ;
+    }
     return face_ptn ;
   }
 
+
   vector<entitySet> partitionNodes(vector<entitySet> face_ptn, MapRepP face2node,entitySet old_node_dom) {
-    dstore<int> np ;
-    entitySet nall ;
+
+    // find node_ptn that best matches the face partition.  Loop over faces
+    entitySet fdom ;
+    for(int i=0;i<MPI_processes;++i)
+      fdom += face_ptn[i] ;
+    store<int> procmap ;
+    procmap.allocate(fdom) ;
     for(int i=0;i<MPI_processes;++i) {
-      entitySet ntouch = face2node->image(face_ptn[i]) ;
-      nall += ntouch ;
-      FORALL(ntouch,nn) {
-        np[nn] = i ;
+      FORALL(face_ptn[i],fc) {
+        procmap[fc] = i ;
       } ENDFORALL ;
     }
-    vector<entitySet> node_ptn_old = all_collect_vectors(old_node_dom) ;
-    vector<int> send_sz(MPI_processes) ;
-    vector<entitySet> sendSets(MPI_processes) ;
-    for(int i=0;i<MPI_processes;++i) {
-      if(i != MPI_rank)
-        sendSets[i] = nall & node_ptn_old[i] ;
-      send_sz[i] = sendSets[i].size()*2 ;
-    }
-    vector<int> recv_sz(MPI_processes) ;
-    MPI_Alltoall(&send_sz[0],1,MPI_INT,
-                 &recv_sz[0],1,MPI_INT,
-                 MPI_COMM_WORLD) ;
-    int size_send = 0 ;
-    int size_recv = 0 ;
-    for(int i=0;i<MPI_processes;++i) {
-      size_send += send_sz[i] ;
-      size_recv += recv_sz[i] ;
-    }
-    //    outRep->allocate(new_alloc) ;
-    int *send_store = new int[size_send] ;
-    int *recv_store = new int[size_recv] ;
-    int *send_displacement = new int[MPI_processes] ;
-    int *recv_displacement = new int[MPI_processes] ;
+    
+    multiMap f2n ;
+    f2n = storeRepP(face2node) ;
 
-    send_displacement[0] = 0 ;
-    recv_displacement[0] = 0 ;
-    for(int i = 1; i <  MPI_processes; ++i) {
-      send_displacement[i] = send_displacement[i-1] + send_sz[i-1] ;
-      recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
-    }
-    for(int i = 0; i <  MPI_processes; ++i) {
-      int j = 0 ;
-      FORALL(sendSets[i],ss) {
-        send_store[send_displacement[i]+j*2] = ss ;
-        send_store[send_displacement[i]+j*2+1] = np[ss] ;
-        j++ ;
-      } ENDFORALL ;
-    }
-    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
-		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;
+    vector<pair<int,pair<int,int> > > scratchPad ;
 
-    for(int i = 0; i <  MPI_processes; ++i)
-      for(int j=0;j<recv_sz[i]/2;++j) {
-        int i1 = recv_store[recv_displacement[i]+j*2]  ;
-        int i2 = recv_store[recv_displacement[i]+j*2+1] ;
-        nall += i1 ;
-        np[i1] = i2 ;
+    FORALL(fdom,fc) {
+      pair<int,int> p2i(procmap[fc],1) ;
+      int sz = f2n[fc].size() ;
+      for(int ii=0;ii<sz;++ii) {
+        scratchPad.push_back(pair<int,pair<int,int> >(f2n[fc][ii],p2i)) ;
       }
-    delete[] recv_displacement ;
-    delete[] send_displacement ;
-    delete[] recv_store ;
-    delete[] send_store ;
-
-
-    vector<entitySet> node_ptn(MPI_processes) ;
-
-    FATAL(((nall&old_node_dom)-old_node_dom) != EMPTY) ;
-
-    FORALL(old_node_dom,nn) {
-
-      node_ptn[np[nn]] += nn ;
     } ENDFORALL ;
-
+    
+    vector<entitySet> node_ptn_old = all_collect_vectors(old_node_dom) ;
+    vector<entitySet> node_ptn(MPI_processes) ;
+    assignOwner(scratchPad,node_ptn_old,node_ptn) ;
     return node_ptn ;
   }
 

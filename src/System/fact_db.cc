@@ -28,10 +28,7 @@
 #include <DStore.h>
 #include "dist_tools.h"
 
-
-extern "C" {
-#include <hdf5.h>
-}
+#include <Loci_Datatypes.h>
 
 using std::string ; 
 using std::map ;

@@ -42,11 +42,13 @@ namespace Loci {
 
   entitySet BcastEntitySet(entitySet set, int root, MPI_Comm comm) {
     
+    int rank = 0 ;
+    MPI_Comm_rank(comm,&rank) ;
       // Now lets share the domain with all other processors ;
     int sz = set.num_intervals() ;
     MPI_Bcast(&sz,1,MPI_INT,root,comm) ;
     vector<interval> vlist(sz) ;
-    if(MPI_rank == 0) {
+    if(rank == 0) {
       for(int i=0;i<sz;++i)
         vlist[i] = set[i] ;
     }

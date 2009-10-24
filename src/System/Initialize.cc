@@ -68,9 +68,8 @@ using std::bad_alloc ;
 
 #define SIMPLE_SPRNG
 #define USE_MPI
-extern "C" {
+
 #include <sprng.h>
-}
 
 #include <iostream>
 #include <fstream>
