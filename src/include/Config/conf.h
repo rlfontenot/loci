@@ -57,6 +57,12 @@
 
 #endif
 #else
+#if defined(__IBMCPP__)
+/* IBM C++ Compiler */
+#define USE_MAP_FOR_HASH_MAP
+#define NO_OFFSETOF
+#define restrict __restrict
+#else
 #if defined(__sgi)
 // SGI Compiler
 #define NO_CSTDLIB
@@ -88,6 +94,7 @@
 
 #endif
 
+#endif
 
 #if defined(LOCI_SYS_IRIX64)
 #undef SGI

@@ -124,7 +124,11 @@ namespace Loci {
       void find_box(int start, int end, int depth,
                     std::vector<coord_info> &found_pts,
                     const bounds &box, bounds bnds) const ;
-
+      // recursively search for points in a bounding box and count them.
+      // return count.
+      int count_box(int start, int end, int depth,
+                    const bounds &box, bounds bnds) const ;
+      
       int find_closest_box(int start, int end, int depth,
                             const coord3d &v, double &rmin,
                             const bounds &box,
@@ -172,7 +176,19 @@ namespace Loci {
         // otherwise find points contained in box
         find_box(0,pnts.size(),0,found_pts,box,bbox) ;
       }
-
+      // Count all of the points within a given bounding box
+      int count_box(bounds box) const {
+        if(box.maxc[0] < bbox.minc[0] ||
+           box.minc[0] > bbox.maxc[0] ||
+           box.maxc[1] < bbox.minc[1] ||
+           box.minc[1] > bbox.maxc[1] ||
+           box.maxc[2] < bbox.minc[2] ||
+           box.minc[2] > bbox.maxc[2]) // Check for intersection
+          return 0 ;// if boxes don't intersect, we don't search
+        // otherwise find points contained in box
+        return count_box(0,pnts.size(),0,box,bbox) ;
+      }
+      
       // Find the closest point that is within a given bounding box
       // rmin argument works like find_closest
       int find_closest_box(coord3d v, bounds box, double &rmin) const {

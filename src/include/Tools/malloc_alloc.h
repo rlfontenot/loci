@@ -21,6 +21,20 @@
 #ifndef MALLOC_ALLOC_H
 #define MALLOC_ALLOC_H
 namespace Loci {
+  template <class T> class malloc_alloc ;
+
+  template<> class malloc_alloc<void>
+  {
+  public:
+    typedef void        value_type;
+    typedef void*       pointer;
+    typedef const void* const_pointer;
+    
+    template <class U> 
+    struct rebind { typedef malloc_alloc<U> other; };
+  };
+  
+
   template <class T> class malloc_alloc
   {
   public:
@@ -50,8 +64,23 @@ namespace Loci {
     const_pointer address(const_reference x) const { 
       return x;
     }
-    
-    pointer allocate(size_type n, const_pointer = 0) {
+
+    pointer allocate(size_type n) 
+    {
+#if defined(__sgi)
+      void* p = malloc(n * sizeof(T));
+      if (!p)
+        throw std::bad_alloc();
+#else
+      void* p = std::malloc(n * sizeof(T));
+      if (!p)
+        throw std::bad_alloc();
+#endif
+      return static_cast<pointer>(p);
+    }
+
+    pointer allocate(size_type n, typename Loci::malloc_alloc<void>::const_pointer  hint)  
+    {
 #if defined(__sgi)
       void* p = malloc(n * sizeof(T));
       if (!p)
@@ -83,16 +112,6 @@ namespace Loci {
     void operator=(const malloc_alloc&);
   };
   
-  template<> class malloc_alloc<void>
-  {
-    typedef void        value_type;
-    typedef void*       pointer;
-    typedef const void* const_pointer;
-    
-    template <class U> 
-    struct rebind { typedef malloc_alloc<U> other; };
-  };
-  
   
   template <class T>
   inline bool operator==(const malloc_alloc<T>&, 
@@ -106,5 +125,7 @@ namespace Loci {
     return false;
   }
 
+    
+  
 }
 #endif
