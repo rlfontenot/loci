@@ -94,7 +94,14 @@
 
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void get_proc_info_mpi(int *myid, int *nprocs) ;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
