@@ -29,7 +29,7 @@ TARGET = extract
 OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog vogmerge vogcheck extruder vog2surf
 
 # List your object files here
-OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o extract_cut.o extract_surf.o
+OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o
 
 
 

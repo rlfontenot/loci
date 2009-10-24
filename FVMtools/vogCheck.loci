@@ -459,14 +459,43 @@ $rule singleton(report<-volRatio,maxCellAngle,minVol,maxTwist,maxShearTwist,topo
       quality_report = "poor" ;
       break ;
     case 0:
-      quality_report = "marginal" ;
+      quality_report = "marginal utility" ;
       break ;
     case -1:
       quality_report = "UNUSABLE" ;
     }
     
     cout << "Overall Grid Quality Assesment: " << quality_report << endl ;
-      
+    cout << endl ;
+    switch(quality) {
+    case 3:
+      cout << "-- This grid has optimal quality." << endl ;
+      break ;
+    case 2:
+      cout << "-- This grid has satisfactory quality and will provide useful results." << endl ;
+      break ;
+    case 1:
+      cout << "-- This grid is usable.  A better result will probably be obtained with a grid" << endl
+           << "   that has better quality." << endl ;
+      break ;
+    case 0:
+      cout<< "-- The solver may have difficulty obtaining solutions on this grid.  It is"<< endl
+          << "   recommended that you identify the cause of poor mesh quality and regenerate" << endl
+          << "   the mesh to improve quality.  The marginal classification is due to:" << endl ;
+        if($volRatio > 100)
+          cout << "     * a volRatio that exceeds 100" << endl ;
+        if($maxCellAngle > 170)
+          cout << "     * a maxCellAngle that exceeds 170 degrees" << endl ;
+        if($maxTwist > 0.45)
+          cout << "     * a maxTwist that exceeds 45 percent" << endl ;
+        if($maxShearTwist > 0.45)
+          cout << "     * a maxShearTwist that exceeds 45 percent" << endl ;
+      break ;
+    case -1:
+      cout<< "-- This grid cannot be used as the solver will most likely fail to converge. "<< endl ;
+      break ;
+    }
+    
     string report_file = $modelName + ".quality" ;
     std::ofstream file(report_file.c_str(),std::ios::out) ;
     file << "<minVol> "  << $minVol << " </minVol>" << endl ;

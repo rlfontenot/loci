@@ -436,6 +436,13 @@ void process_ascii_bndry(string casename, string iteration,
                          vector<int> variable_types,
                          vector<string> variable_filenames,
                          vector<string> boundaries) ;
+
+void process_mean(string casename, string iteration,
+                  vector<string> variables,
+                  vector<int> variable_types,
+                  vector<string> variable_filenames,
+                  int end_iter, int inc_iter) ;
+
 int  sizeElementType(hid_t group_id, const char *element_name) ;
 
 template<class T> void readElementType(hid_t group_id, const char *element_name,
@@ -451,6 +458,44 @@ template<class T> void readElementType(hid_t group_id, const char *element_name,
   }
 }
 
+template<class T> void writeElementType(hid_t group_id,
+                                        const char *element_name,
+                                        std::vector<T> &v) {
+  hsize_t array_size = v.size() ;
+  if(array_size == 0)
+    return ;
+  int rank = 1 ;
+  hsize_t dimension = array_size ;
+
+  hid_t dataspace = H5Screate_simple(rank,&dimension,NULL) ;
+
+  typedef data_schema_traits<T> traits_type ;
+  Loci::DatatypeP dp = traits_type::get_type() ;
+  
+#ifdef H5_INTERFACE_1_6_4
+  hsize_t start = 0 ;
+#else
+  hssize_t start = 0 ;
+#endif
+  hsize_t stride = 1 ;
+  hsize_t count = v.size() ;
+  hid_t datatype = dp->get_hdf5_type() ;
+  hid_t dataset = H5Dcreate(group_id,element_name,datatype,
+                            dataspace, H5P_DEFAULT) ;
+  if(count != 0) {
+    H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                        &start, &stride, &count, NULL) ;
+    hid_t memspace = H5Screate_simple(rank, &count, NULL) ;
+    H5Dwrite(dataset,datatype,memspace,dataspace,
+             H5P_DEFAULT, &v[0]) ;
+    H5Sclose(memspace) ;
+  }
+  H5Dclose(dataset) ;
+  H5Sclose(dataspace) ;
+  H5Tclose(datatype) ;
+}
+  
+  
 void getDerivedVar(vector<float> &dval, string var_name,
                    string casename, string iteration) ;
 
@@ -462,5 +507,6 @@ namespace Loci {
   }
 }
 
+extern string output_dir ;
 
 #endif
