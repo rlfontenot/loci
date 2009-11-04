@@ -405,7 +405,7 @@ namespace Loci {
       // to the fact database
 
       if(vi->get_info().name == string("OUTPUT"))
-	scheds.variable_request(*vi,scheds.variable_existence(*vi)) ;
+	scheds.variable_request(*vi,scheds.variable_existence(*vi)&filter) ;
 
       // Now fill tvarmap with the requested values for variable *vi
       tvarmap[*vi] = scheds.get_variable_request(r,*vi) ;
@@ -1379,8 +1379,14 @@ namespace Loci {
 	if(!scheds.is_duplicate_variable(v))
 	  requests += fill_entitySet(requests, facts) ;
       }
-      else
-	requests += fill_entitySet(requests, facts);
+      else {
+        entitySet filter = ~EMPTY ;
+        // Question?, why is this code needed at all for non-replication code?
+        if(v.get_info().offset ==1) // This is a HACK for advance variables
+          if(facts.isDistributed())
+            filter = d->my_entities ;
+        requests += fill_entitySet(requests, facts) & filter ;
+      }
       scheds.variable_request(v,requests) ;
     }
     return clist ;
@@ -1877,6 +1883,10 @@ namespace Loci {
   }
 
   void barrier_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+#ifdef VERBOSE
+    Loci::debugout << "entering barrier process requests, " << barrier_vars
+                   << endl ;
+#endif
     if(facts.isDistributed()) {
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
@@ -1911,6 +1921,10 @@ namespace Loci {
 	output for any of the rules. */
       plist = put_precomm_info(send_requested, facts) ;
     }
+#ifdef VERBOSE
+    Loci::debugout << "exiting barrier process requests, " << barrier_vars
+                   << endl ;
+#endif
   }
 
   executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
@@ -2688,3 +2702,4 @@ namespace Loci {
   }
 
 } // end of namespace Loci
+
