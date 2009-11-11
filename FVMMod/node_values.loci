@@ -509,7 +509,7 @@ namespace Loci {
       name_store("facecenter",facecenter) ;
       name_store("face2node",face2node) ;
       input("face2node->(pos,boundary_scalar_sum(X)),X_f,facecenter") ;
-      constraint("ci,no_symmetry_BC") ;
+      constraint("ci->X,no_symmetry_BC") ;
       output("face2node->boundary_scalar_sum(X)") ;
     }
     void calculate(Entity fc) {
