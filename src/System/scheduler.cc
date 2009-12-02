@@ -137,7 +137,6 @@ namespace Loci {
   // 
   ////////////////////////////
 
-
   namespace {
     // pretty printing of a rule's signature
     // i.e. remove namespace info, if any
@@ -2006,7 +2005,7 @@ namespace Loci {
 
     debugout << "Time to execute query for '" << query << "' is " << sw.stop()
              << endl ;
-	
+
     //	if(collect_perf_data) {
     //		if(MPI_rank == 0)
     //			cout << "printing performance analysis data to perfAnalysis-*" << endl;

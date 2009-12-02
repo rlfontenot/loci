@@ -1392,6 +1392,326 @@ namespace Loci {
     return clist ;
   }
 
+  int execute_comm2::tag_base = 1500 ;
+  
+  execute_comm2::execute_comm2(list<comm_info>& plist, fact_db &facts) {
+    HASH_MAP(int,vector<send_unit>) send_data ;
+    HASH_MAP(int,vector<recv_unit>) recv_data ;
+
+    list<comm_info>::const_iterator cli ;
+    intervalSet send_processes, recv_processes ;
+
+    for(cli=plist.begin();cli!=plist.end();++cli) {
+      int proc = cli->processor ;
+      variable v = cli->v ;
+      if(cli->send_set.size() > 0) {
+        send_unit su ;
+        su.v = v ;
+        su.rep = facts.get_variable(v) ;
+        su.send = cli->send_set ;
+
+        send_data[proc].push_back(su) ;
+        send_processes += proc ;
+      }
+      if(cli->recv_set.size() > 0) {
+        recv_unit ru ;
+        ru.v = v ;
+        ru.rep = facts.get_variable(v) ;
+        ru.recv = cli->recv_set ;
+        
+        recv_data[proc].push_back(ru) ;
+        recv_processes += proc ;
+      }
+    }
+
+    for(intervalSet::const_iterator ii=send_processes.begin();
+        ii!=send_processes.end();++ii) {
+      send_proc sp ;
+
+      sp.proc = *ii ;
+      sp.send_size = 0 ;
+      sp.max_send_size = 0 ;
+      sp.buf = 0 ;
+      sp.units = send_data[*ii] ;
+
+      send_info.push_back(sp) ;
+    }
+    for(intervalSet::const_iterator ii=recv_processes.begin();
+        ii!=recv_processes.end();++ii) {
+      recv_proc rp ;
+
+      rp.proc = *ii ;
+      // initial recv size is set to sizeof(int) because we
+      // at least need to recv the size of the messeage.
+      rp.recv_size = sizeof(int) ;
+      rp.buf = 0 ;
+      rp.units = recv_data[*ii] ;
+
+      recv_info.push_back(rp) ;
+    }
+    tag1 = tag_base ;
+    tag2 = tag_base+1 ;
+    tag_base += 2 ;
+  }
+
+  namespace {
+    // these are the shared global buffer for
+    // send/recv in all execute_comm2 objects
+    unsigned char* execute_comm2_send_buf = 0 ;
+    int execute_comm2_send_buf_size = 0 ;
+    unsigned char* execute_comm2_recv_buf = 0 ;
+    int execute_comm2_recv_buf_size = 0 ;
+    // small object used in execute_comm2 communication protocol
+    struct recomm {
+      Entity proc ;
+      int idx ;
+      recomm(Entity p,int i):proc(p),idx(i) {}
+    } ;
+  }
+
+  void execute_comm2::
+  execute(fact_db& facts, sched_db& scheds) {
+    stopWatch s ; s.start() ;
+
+    vector<MPI_Request> send_req(send_info.size()) ;
+    vector<MPI_Request> recv_req(recv_info.size()) ;
+    vector<MPI_Status> recv_status(recv_info.size()) ;
+    // first we'll set up the recv size/buffer and post the request
+    if(!recv_info.empty()) {
+      int total_recv_size = 0 ;
+      for(size_t i=0;i<recv_info.size();++i)
+        total_recv_size += recv_info[i].recv_size ;
+
+      // reallocate global buffer if its size is smaller
+      if(execute_comm2_recv_buf_size < total_recv_size) {
+        if(execute_comm2_recv_buf)
+          delete[] execute_comm2_recv_buf ;
+        execute_comm2_recv_buf = new unsigned char[total_recv_size] ;
+        execute_comm2_recv_buf_size = total_recv_size ;
+      }
+      recv_info[0].buf = execute_comm2_recv_buf ;
+      for(size_t i=1;i<recv_info.size();++i)
+        recv_info[i].buf = recv_info[i-1].buf + recv_info[i-1].recv_size ;
+
+      // post the actual recv requests
+      for(size_t i=0;i<recv_info.size();++i)
+        MPI_Irecv(recv_info[i].buf, recv_info[i].recv_size, MPI_PACKED,
+                  recv_info[i].proc, tag1, MPI_COMM_WORLD, &recv_req[i]) ;
+    }
+
+    // now we need to setup the send size
+    // we use a protocol to avoid sending two messages in most
+    // cases. we will first compute the send size, if it is greater
+    // than any previous size, we will send the size to the dest
+    // process followed by the real message.
+    vector<recomm> resend, rerecv ;
+    vector<bool> resend_flag(send_info.size(),false) ;
+    vector<bool> rerecv_flag(recv_info.size(),false) ;
+    
+    if(!send_info.empty()) {
+      int total_send_size = 0 ;
+      // compute the send size for each dest process
+      for(size_t i=0;i<send_info.size();++i) {
+        int& send_size = send_info[i].send_size ;
+        send_size = 0 ;
+        vector<send_unit>& units = send_info[i].units ;
+        for(size_t k=0;k<units.size();++k) {
+          send_unit& su = units[k] ;
+          send_size += su.rep->pack_size(su.send) ;
+        }
+        // current size is larger than all previous ones
+        // we need to inform the receiving process the size
+        // we first send a message whose size is an integer
+        // to that particular process
+        if(send_size > send_info[i].max_send_size ||
+        // this condition is needed because if the real msg size
+        // is equal to the integer size, the receiving process will
+        // think that it needs to re-receive the msg.
+           send_size == sizeof(int)) {
+          if(send_size > send_info[i].max_send_size)
+            send_info[i].max_send_size = send_size ;
+          send_size = sizeof(int) ;
+          resend.push_back(recomm(send_info[i].proc,i)) ;
+          resend_flag[i] = true ;
+        }
+        total_send_size += send_size ;
+      }
+      // check to see if the global send buffer needs to be reallocated
+      if(execute_comm2_send_buf_size < total_send_size) {
+        if(execute_comm2_send_buf)
+          delete[] execute_comm2_send_buf ;
+        execute_comm2_send_buf = new unsigned char[total_send_size] ;
+        execute_comm2_send_buf_size = total_send_size ;
+      }
+      // do the actual pack/send
+      send_info[0].buf = execute_comm2_send_buf ;
+      for(size_t i=1;i<send_info.size();++i)
+        send_info[i].buf = send_info[i-1].buf + send_info[i-1].send_size ;
+
+      for(size_t i=0;i<send_info.size();++i) {
+        int pack_offset = 0 ;
+        vector<send_unit>& units = send_info[i].units ;
+        if(resend_flag[i])
+          // pack the message size
+          MPI_Pack(&send_info[i].max_send_size,1,MPI_INT,send_info[i].buf,
+                   send_info[i].send_size,&pack_offset,MPI_COMM_WORLD) ;
+        else
+          for(size_t k=0;k<units.size();++k) { // pack the actual message
+            send_unit& su = units[k] ;
+            su.rep->pack(send_info[i].buf,pack_offset,
+                         send_info[i].send_size,su.send) ;
+          }
+      }
+      for(size_t i=0;i<send_info.size();++i)
+        MPI_Isend(send_info[i].buf,send_info[i].send_size,MPI_PACKED,
+                  send_info[i].proc,tag1,MPI_COMM_WORLD,&send_req[i]) ;
+    }
+    // wait for all messages to complete
+    if(!send_info.empty())
+      MPI_Waitall(send_info.size(), &send_req[0], MPI_STATUSES_IGNORE) ;
+    if(!recv_info.empty())
+      MPI_Waitall(recv_info.size(), &recv_req[0], &recv_status[0]) ;
+
+    // extract the received message
+    if(!recv_info.empty()) {
+      for(size_t i=0;i<recv_info.size();++i) {
+        int rs ;
+        MPI_Get_count(&recv_status[i], MPI_BYTE, &rs) ;
+        if(rs == sizeof(int)) {
+          rerecv_flag[i] = true ;
+          rerecv.push_back(recomm(recv_info[i].proc,i)) ;
+        }
+      }
+      for(size_t i=0;i<recv_info.size();++i) {
+        int unpack_offset = 0 ;
+        vector<recv_unit>& units = recv_info[i].units ;
+        if(rerecv_flag[i]) {
+          // update the recv size if necessary
+          int rs ;
+          MPI_Unpack(recv_info[i].buf,recv_info[i].recv_size,
+                     &unpack_offset,&rs,1,MPI_INT,MPI_COMM_WORLD) ;
+          if(rs > recv_info[i].recv_size)
+            recv_info[i].recv_size = rs ;
+        } else
+          for(size_t k=0;k<units.size();++k) {
+            recv_unit& ru = units[k] ;
+            ru.rep->unpack(recv_info[i].buf,unpack_offset,
+                           recv_info[i].recv_size,ru.recv) ;
+          }
+      }
+    }
+
+    // post all the rerecv request
+    send_req.resize(resend.size()) ;
+    recv_req.resize(rerecv.size()) ;
+    recv_status.resize(rerecv.size()) ;
+
+    for(size_t i=0;i<rerecv.size();++i) {
+      int proc = rerecv[i].proc ;
+      int idx = rerecv[i].idx ;
+      recv_info[idx].buf = new unsigned char[recv_info[idx].recv_size] ;
+      MPI_Irecv(recv_info[idx].buf,recv_info[idx].recv_size,
+                MPI_PACKED,proc,tag2,MPI_COMM_WORLD,&recv_req[i]) ;
+    }
+
+    // do the repack/resend
+    for(size_t i=0;i<resend.size();++i) {
+      int pack_offset = 0 ;
+      int idx = resend[i].idx ;
+      send_info[idx].send_size = send_info[idx].max_send_size ;
+      send_info[idx].buf = new unsigned char[send_info[idx].send_size] ;
+      for(size_t k=0;k<send_info[idx].units.size();++k) {
+        send_unit& su = send_info[idx].units[k] ;
+        su.rep->pack(send_info[idx].buf,pack_offset,
+                     send_info[idx].send_size,su.send) ;
+      } 
+    }
+    for(size_t i=0;i<resend.size();++i) {
+      int proc = resend[i].proc ;
+      int idx = resend[i].idx ;
+      MPI_Isend(send_info[idx].buf,send_info[idx].send_size,
+                MPI_PACKED,proc,tag2,MPI_COMM_WORLD,&send_req[i]) ;
+    }
+
+    // wait for all send/recv to complete
+    if(!resend.empty())
+      MPI_Waitall(resend.size(), &send_req[0], MPI_STATUSES_IGNORE) ;
+    if(!rerecv.empty())
+      MPI_Waitall(rerecv.size(), &recv_req[0], &recv_status[0]) ;
+    // delete all resend buffer
+    for(size_t i=0;i<resend.size();++i)
+      delete[] send_info[resend[i].idx].buf ;
+
+    // extract the real message
+    for(size_t i=0;i<rerecv.size();++i) {
+      int idx = rerecv[i].idx ;
+      vector<recv_unit>& units = recv_info[idx].units ;
+      int unpack_offset = 0 ;
+      for(size_t k=0;k<units.size();++k) {
+        recv_unit& ru = units[k] ;
+        ru.rep->unpack(recv_info[idx].buf,unpack_offset,
+                       recv_info[idx].recv_size,ru.recv) ;
+      }
+      delete[] recv_info[idx].buf ;
+    }
+
+    double tt = s.stop() ;
+    timer.addTime(tt,1) ;
+  }
+
+  void
+  execute_comm2::Print(ostream& s) const {
+    int sz = 0 ;
+    if(send_info.size()+recv_info.size() > 0) {
+      printIndent(s) ;
+      s << "communication block {" << endl ;
+      if(send_info.size() > 0) {
+        printIndent(s) ;
+        s << "Send:" << endl ;
+        printIndent(s) ;
+        for(size_t i=0;i<send_info.size();++i) {
+          for(size_t j=0;j<send_info[i].units.size();++j) {
+            s << send_info[i].units[j].v << ' ' ;
+	    sz += (send_info[i].units[j].send).size() ;
+	  }
+	  s << " to " << send_info[i].proc << endl ;
+          printIndent(s) ;
+        }
+	s << " Total entities sent = " << sz << endl ;
+      }
+      if(recv_info.size() > 0) {
+        printIndent(s) ;
+        s << "Recv:" << endl ;
+        printIndent(s) ;
+        for(size_t i=0;i<recv_info.size();++i) {
+          for(size_t j=0;j<recv_info[i].units.size();++j)
+            s << recv_info[i].units[j].v << ' '  ;
+          s << " from " << recv_info[i].proc << endl ;
+          printIndent(s) ;
+        }
+      }
+      s << "}" << endl ;
+    }
+  }
+
+  void
+  execute_comm2::dataCollate(collectData& data_collector) const {
+    ostringstream oss ;
+    oss << "comm: " ;
+
+    variableSet vars  ;
+    for(size_t i=0;i<send_info.size();++i)
+      for(size_t j=0;j<send_info[i].units.size();++j) 
+        vars += send_info[i].units[j].v ;
+
+    for(size_t i=0;i<recv_info.size();++i) 
+      for(size_t j=0;j<recv_info[i].units.size();++j)
+        vars += recv_info[i].units[j].v ;
+
+    oss << vars ;
+
+    data_collector.accumulateTime(timer,EXEC_COMMUNICATION,oss.str()) ;
+  }
 
   execute_comm::execute_comm(list<comm_info> &plist, fact_db &facts) {
     HASH_MAP(int,vector<send_var_info>) send_data ;
@@ -1480,7 +1800,6 @@ namespace Loci {
   static int recv_ptr_buf_size = 0;
   static unsigned char *send_ptr_buf = 0 ;
   static int send_ptr_buf_size = 0 ;
-
   void execute_comm::execute(fact_db  &facts, sched_db& scheds) {
     stopWatch s ;
     s.start() ;
@@ -1669,7 +1988,9 @@ namespace Loci {
       delete [] re_status ;
       delete [] re_request ;
     }
-    timer.addTime(s.stop(),1) ;
+
+    double tt = s.stop() ;
+    timer.addTime(tt,1) ;
   }
 
   void execute_comm::Print(ostream &s) const {
@@ -1930,22 +2251,29 @@ namespace Loci {
   executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
       CPTR<execute_list> el = new execute_list ;
-      executeP tmp ;
-      int cnt = 0 ;
+//       executeP tmp ;
+//       int cnt = 0 ;
+      execute_comm2::inc_comm_step() ;
       if(!plist.empty()) {
-        tmp = new execute_comm(plist, facts);
-        el->append_list(tmp) ;
-        cnt++ ;
+        //tmp = new execute_comm(plist, facts);
+        //cnt++ ;
+        executeP tmp2 = new execute_comm2(plist, facts) ;
+        el->append_list(tmp2) ;
+        //el->append_list(tmp) ;
       }
+      execute_comm2::inc_comm_step() ;
       if(!clist.empty()) {
-        tmp = new execute_comm(clist, facts);
-        el->append_list(tmp) ;
-        cnt++ ;
+        //tmp = new execute_comm(clist, facts);
+        //cnt++ ;
+        executeP tmp2 = new execute_comm2(clist, facts) ;
+        el->append_list(tmp2) ;
+        //el->append_list(tmp) ;
       }
-      if(cnt == 0)
-        return executeP(0) ;
-      if(cnt == 1)
-        return tmp ;
+      // if(cnt == 0)
+      //   return executeP(0) ;
+      // if(cnt == 1)
+      //   return tmp ;
+      // return executeP(el) ;
       return executeP(el) ;
     }
     ostringstream oss ;

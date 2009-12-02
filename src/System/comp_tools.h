@@ -543,7 +543,63 @@ namespace Loci {
     virtual void Print(std::ostream &s) const ;
     virtual string getName() {return "execute_comm";};
     virtual void dataCollate(collectData &data_collector) const ;
-  } ; 
+  } ;
+
+  class execute_comm2: public execute_modules {
+    struct send_unit {
+      variable v ;
+      storeRepP rep ;
+      entitySet send ;
+    } ;
+    struct recv_unit {
+      variable v ;
+      storeRepP rep ;
+      sequence recv ;
+    } ;
+    struct send_proc {
+      int proc ;
+      int send_size ;           // size of data to be sent to proc
+      int max_send_size ;       // maximum recorded buffer size so far
+      unsigned char* buf ;      // pointer to send buffer
+      std::vector<send_unit> units ;
+    } ;
+    struct recv_proc {
+      int proc ;
+      // note, this records the maximum buffer size received
+      // so far. the actual message size is extracted from
+      // the status objects
+      int recv_size ;
+      unsigned char* buf ;      // pointer to recv buffer
+      std::vector<recv_unit> units ;
+    } ;
+
+    std::vector<send_proc> send_info ;
+    std::vector<recv_proc> recv_info ;
+
+    // this is the base MPI tag number for all execute_comm2 objects
+    static int tag_base ;
+    // MPI tags that will be used in a particular comm object
+    int tag1, tag2 ;
+    
+    timeAccumulator timer ;
+  public:
+    execute_comm2(std::list<comm_info>& plist, fact_db& facts) ;
+    ~execute_comm2(){}
+    virtual void execute(fact_db& facts, sched_db& scheds) ;
+    virtual void Print(std::ostream& s) const ;
+    virtual string getName() {return "execute_comm2";};
+    virtual void dataCollate(collectData& data_collector) const ;
+    static void inc_comm_step() {
+      int lt=tag_base, gt=0 ;
+      MPI_Allreduce(&lt, &gt, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD) ;
+      tag_base = gt ;
+      if(tag_base > 32767) {
+        if(MPI_rank == 0)
+          std::cerr << "WARNING: execute_comm2 MPI tags may become exhausted!"
+                    << std::endl ;
+      }
+    }
+  } ;
   
   class allocate_var_compiler : public rule_compiler {
     variableSet allocate_vars ;
