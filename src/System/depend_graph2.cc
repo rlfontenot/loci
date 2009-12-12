@@ -43,6 +43,7 @@ using std::set_intersection ;
 #include <iterator>
 using std::back_inserter ;
 
+//#define VERBOSE
 
 namespace Loci {
 
@@ -151,7 +152,7 @@ namespace Loci {
       digraph iteration_graph ;
       time_ident iteration_time ;
       rule iteration_rule ;
-      ruleSet build, advance, collapse ;
+      ruleSet build, advance, collapse, time_specific ;
       variableSet changing_vars ; // variables that changing in this level
       variableSet dont_promote ; // variables don't need to be promoted
       variableSet requests ; // pass to the parent level
@@ -173,6 +174,7 @@ namespace Loci {
                          iteration_info& iter,
                          ruleSet& working_rules) {
       ruleSet::const_iterator ri ;
+      ruleSet time_specific ;
       for(ri=all_rules.begin();ri!=all_rules.end();++ri) {
         const rule::rule_type rtype = ri->type() ;
         if(rtype == rule::BUILD) {
@@ -199,11 +201,28 @@ namespace Loci {
           if(rtype != rule::COLLAPSE)
             iter.iteration_rules[ri->target_time()].advance += *ri ;
         }
+        if(ri->target_time() != time_ident()) {
+          if(rtype != rule::BUILD && rtype != rule::COLLAPSE &&
+             !ri->time_advance) {
+            time_specific += *ri ;
+          }
+        }
+      }
+
+      for(ri=time_specific.begin();ri!=time_specific.end();++ri) {
+        map<time_ident,iteration>::iterator ii ;
+        ii = iter.iteration_rules.find(ri->target_time()) ;
+        if(ii != iter.iteration_rules.end()) {
+          ii->second.time_specific += *ri ;
+#ifdef VERBOSE
+          debugout << "adding time specific rule " << *ri << endl ;
+#endif
+        }
       }
     }
 
-    // function that creates a representitive rule for
-    // each iteration, these representitives are also
+    // function that creates a representative rule for
+    // each iteration, these representatives are also
     // put into the working_rules set
     void create_iteration_rep(iteration_info& iter,ruleSet& working_rules) {
       map<time_ident,iteration>::iterator mi ;
@@ -293,10 +312,14 @@ namespace Loci {
         return  pi.iteration_rule ;
       // then promote all the rules
       pi.iteration_rule = prepend_rule(i.iteration_rule,tl) ;
-      ruleSet new_build, new_advance, new_collapse ;
+      ruleSet new_build, new_advance, new_collapse, new_time_specific ;
       for(ruleSet::const_iterator ri=i.build.begin();
           ri!=i.build.end();++ri) {
         new_build += prepend_rule(*ri,tl) ;
+      }
+      for(ruleSet::const_iterator ri=i.time_specific.begin();
+          ri!=i.time_specific.end();++ri) {
+        new_time_specific += prepend_rule(*ri,tl) ;
       }
 
       // in advance rule we'll need to check if there
@@ -320,6 +343,7 @@ namespace Loci {
       pi.build = new_build ;
       pi.advance = new_advance ;
       pi.collapse = new_collapse ;
+      pi.time_specific = new_time_specific ;
 
       // then create a new record in the iteration info object
       iter.iteration_rules[pi.iteration_time] = pi ;
@@ -364,7 +388,7 @@ namespace Loci {
       return tp->second ;
     }
 
-    // return true if t1 contains t2 as a sublevel, false otherwise
+    // return true if t1 contains t2 as a sub-level, false otherwise
     // e.g., t1={n,it}, t2={n} return true;
     //       t1={n,it}, t2={igs} return false ;
     inline bool time_contain(const time_ident& t1,
@@ -447,6 +471,27 @@ namespace Loci {
         iteration_input += newv ;
         changing_vars += drop_all_priorities(newv) ;
       }
+      for(ruleSet::const_iterator ri=build.begin();
+          ri!=build.end();++ri) {
+        variableSet build_target = ri->targets() ;
+        for(variableSet::const_iterator vi=build_target.begin();
+            vi!=build_target.end();++vi) {
+          changing_vars += drop_all_priorities(*vi) ;
+        }
+      }
+
+      for(ruleSet::const_iterator ri=time_specific.begin();
+          ri!=time_specific.end();++ri) {
+        variableSet computed_vars = ri->targets() ;
+#ifdef VERBOSE
+        debugout << "time specific rule " << *ri << endl ;
+#endif
+        for(variableSet::const_iterator vi=computed_vars.begin();
+            vi!=computed_vars.end();++vi) {
+          changing_vars += drop_all_priorities(*vi) ;
+        }
+      }
+
       
       // add an output variable
       variable ov("OUTPUT") ;
@@ -471,6 +516,7 @@ namespace Loci {
           ri!=build.end();++ri) {
         invoke_rule_wp(*ri,iteration_graph) ;
       }
+
       // then the collapse rules
       variableSet collapse_inputs ;
       for(ruleSet::const_iterator ri=collapse.begin();
@@ -565,8 +611,17 @@ namespace Loci {
 
       requests += iteration_rule.sources() ;
       // end of the function
-
+#ifdef VERBOSE
+      debugout << "Iteration: " << iteration_time << endl ;
+      debugout << "changing_vars = " << changing_vars << endl ;
+      debugout << "dont_promote = " << dont_promote << endl;
+      debugout << "requests = " << requests << endl ;
+      debugout << "search_requests = " << search_requests << endl ;
+      debugout << "iteration_rule = " << iteration_rule << endl ;
+#endif
+               
     }
+
     
     // function that instantiates an iteration,
     // it actually builds the iteration graph.
@@ -627,6 +682,7 @@ namespace Loci {
       variableSet visited_vars ;
       ruleSet visited_rules ;
       variableSet working_vars = search_requests ;
+      variableSet computed_vars ;
       while(working_vars != EMPTY) {
         visited_vars += working_vars ;
         variableSet next ;
@@ -671,8 +727,12 @@ namespace Loci {
                                       rule_graph_transpose) ;
               next += iteration_requests ;
             } else {
+#ifdef VERBOSE
+              debugout << "invoking rule " << *ri << endl ;
+#endif
               invoke_rule_wp(*ri,gr) ;
               next += extract_vars(rule_graph_transpose[ri->ident()]) ;
+              computed_vars += ri->targets() ;
             }
           }
           // if pre_rules are empty and we are in the stationary time
@@ -735,11 +795,17 @@ namespace Loci {
                 } // end of for(promote)
                 
               } else {
-                // we only do variable promotions
-                time_ident parent = tlevel.parent() ;
-                variable pv(*vi,parent) ;
-                invoke_rule(create_rule(pv,*vi,"promote"),gr) ;
-                requests += pv ;
+                if(!computed_vars.inSet(*vi)) {
+                  // we only do variable promotions
+                  time_ident parent = tlevel.parent() ;
+                  variable pv(*vi,parent) ;
+                  invoke_rule(create_rule(pv,*vi,"promote"),gr) ;
+#ifdef VERBOSE
+                  debugout << "promote variable: " <<  *vi << endl ;
+                  debugout << "computed_vars = " << computed_vars << endl ;
+#endif
+                  requests += pv ;
+                }
               }
             } // end of if(!dont_promote.inSet)
           } // end of if(tlevel != time_ident())
@@ -901,7 +967,7 @@ namespace Loci {
     
     do { // Keep cleaning until nothing left to clean!
         
-      // Remove unnecessary vertices from graph.
+      // Remove unnecessary vertexes from graph.
       int virtual_vertex = gr.max_vertex() + 1 ;
       digraph::vertexSet allvertices = gr.get_all_vertices() ;
       variableSet allvars = extract_vars(allvertices) ;
@@ -1027,7 +1093,7 @@ namespace Loci {
             variable tvar = *vi ;
             if(tvar.get_info().name != "OUTPUT" && !tvar.get_info().tvar) {
               // If a variable isn't being advanced in time, then
-              // it has no buisness in the time loop 
+              // it has no business in the time loop 
               while(newtargets.inSet(tvar)) {
                 tvar = tvar.new_offset(tvar.get_info().offset + 1) ;
               }
@@ -1132,11 +1198,11 @@ namespace Loci {
     }
     digraph gt = gr.transpose() ;
     while(working != EMPTY) {
-      // While we have vertices to work on, compute additional vertices that
+      // While we have vertexes to work on, compute additional vertexes that
       // can be scheduled
       ruleSet rule_consider ;
       variableSet::const_iterator ni ;
-      // loop over working set and create a list of candidate vertices
+      // loop over working set and create a list of candidate vertexes
       for(ni=working.begin();ni != working.end(); ++ni) 
         rule_consider += extract_rules(gr[ni->ident()]) ;
         
@@ -1325,7 +1391,7 @@ namespace Loci {
     ruleSet working_rules ;
     // then we call the function to classify rules
     classify_ruledb(all_rules,iter,working_rules) ;
-    // next, we create a representitive rule for
+    // next, we create a representative rule for
     // each iteration
     create_iteration_rep(iter,working_rules) ;
     // followed, we will need to check the iteration rules 
@@ -1362,7 +1428,7 @@ namespace Loci {
     }
 
     //cerr<<"rule_graph size: "<<rule_graph.get_all_vertices().size()<<endl ;
-    // Some checkings to the graph
+    // Some checking to the graph
     {
       variableSet rg_allvars = extract_vars(rule_graph.get_all_vertices()) ;
       variableSet target_diff = variableSet(target-rg_allvars) ;
@@ -1446,8 +1512,8 @@ namespace Loci {
     gr.remove_dangling_vertices() ;
   }
 
-  //Search through a graph from a given set of vertices to all connected
-  // vertices. Return the set of all vertices related through edges in
+  //Search through a graph from a given set of vertexes to all connected
+  // vertexes. Return the set of all vertexes related through edges in
   // the graph to the start set provided.
   digraph::vertexSet search_digraph(const digraph &gr,
                                     digraph::vertexSet start) {
@@ -1594,7 +1660,7 @@ namespace Loci {
             cerr << "Warning:" << endl 
                  << "  iteration will yield duplicate computations when collapse"
                  << endl
-                 << "  are split to accomodate different collapse conditionals"
+                 << "  are split to accommodate different collapse conditionals"
                  << endl
                  << " Duplicated Variables are " << check << endl
                  << " Collapse rules are " << col << endl ;

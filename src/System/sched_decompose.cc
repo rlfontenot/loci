@@ -18,10 +18,10 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+//#define VERBOSE
 #include "sched_tools.h"
 #include "distribute.h"
 
-//#define VERBOSE
 
 using std::map ;
 using std::vector ;
@@ -193,6 +193,11 @@ namespace Loci {
       if(time_sort_vertices[*ti] != EMPTY) {
         if(*ti != time_ident()) {
           int new_node = mlg.mksnode(toplevel,time_sort_vertices[*ti]) ;
+      multiLevelGraph::subGraph *g = mlg.find(new_node) ;
+      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+        cerr << __LINE__ << "recursive supernode found for variables " <<
+          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+      }
           new_vertices += new_node;
           // The new node that we create will be in the level
           // above our time iteration, so insert it in that
@@ -262,6 +267,7 @@ namespace Loci {
         if((sn & unit) == EMPTY && (sn & apply) == EMPTY) {
           // Found a recursive rule, so make a supernode for it.
           int newnode = mlg.mksnode(supernode,sn) ;
+
           new_nodes += newnode ;
           recursive += newnode ;
           // Edit graph so that the resulting supernode is no longer recursive
@@ -292,6 +298,9 @@ namespace Loci {
     if(looping == EMPTY)
       return EMPTY ;
 
+#ifdef VERBOSE
+    debugout << "looping = " << extract_rules(looping) << endl ;
+#endif
     // Add these edges so that the collapse rules will be
     // included in the loop component.
     sg.gr.add_edges(collapse,*(looping.begin())) ;
@@ -369,6 +378,10 @@ namespace Loci {
       // and remove them from the list of candidates
       cs -= comp[i] ;
       candidates -= cs ;
+#ifdef VERBOSE
+      debugout << "adding variables to loop " << extract_vars(cs) << endl ;
+      debugout << "adding rules to loop:" << endl << extract_rules(cs) << endl ;
+#endif
       comp[i] += cs ;
     }
 
@@ -378,6 +391,22 @@ namespace Loci {
         digraph::vertexSet component_parts = *ci ;
         //          cleanup_component(sg.gr,component_parts) ;
         int newnode = mlg.mksnode(supernode,component_parts) ; 
+      multiLevelGraph::subGraph *g = mlg.find(newnode) ;
+      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+        cerr << __LINE__ << "recursive supernode found for variables " <<
+          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+        variableSet s = extract_vars((g->incoming_v & g->outgoing_v)) ;
+        multiLevelGraph::subGraph *t = mlg.find(supernode) ;
+        variableSet::const_iterator ii ;
+        for(ii=s.begin();ii!=s.end();++ii) {
+          ruleSet r = extract_rules(t->gr[ii->ident()]) ;
+          digraph grt = t->gr.transpose() ;
+          cerr << *ii << " --> rules " << r << endl ;
+          ruleSet rt = extract_rules(grt[ii->ident()]) ;
+          cerr << *ii << " <-- rules " << rt << endl ;
+        }
+        
+      }
         new_nodes += newnode ;
         loops += newnode ;
         break ;
@@ -724,8 +753,12 @@ namespace Loci {
             // the component
             cleanup_component(sg.gr,sub_comp[i]) ;
 
-            // Make supernode for this subcomponent
             int new_node =  mlg.mksnode(supernode,sub_comp[i],mi->first) ;
+            multiLevelGraph::subGraph *g = mlg.find(new_node) ;
+      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+        cerr << __LINE__ << "recursive supernode found for variables " <<
+          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+      }
             new_rules += new_node ;
         } else
           remain += sub_comp[i] ;
@@ -739,8 +772,12 @@ namespace Loci {
           // the component
           cleanup_component(sg.gr,remain) ;
 
-          
           int new_node =  mlg.mksnode(supernode,remain,mi->first) ;
+      multiLevelGraph::subGraph *g = mlg.find(new_node) ;
+      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+        cerr << __LINE__ << "recursive supernode found for variables " <<
+          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+      }
           new_rules += new_node ;
       }
 
@@ -764,7 +801,11 @@ namespace Loci {
 
       int new_node =  mlg.mksnode(supernode,component,mi->first) ;
 
-      
+      multiLevelGraph::subgraph *g = mlg.find(new_node) ;
+      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+        cerr << __LINE__ << "recursive supernode found for variables " <<
+          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+      }
       new_rules += new_node ;
 #endif
       
