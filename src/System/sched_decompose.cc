@@ -193,11 +193,11 @@ namespace Loci {
       if(time_sort_vertices[*ti] != EMPTY) {
         if(*ti != time_ident()) {
           int new_node = mlg.mksnode(toplevel,time_sort_vertices[*ti]) ;
-      multiLevelGraph::subGraph *g = mlg.find(new_node) ;
-      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
-        cerr << __LINE__ << "recursive supernode found for variables " <<
-          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
-      }
+          multiLevelGraph::subGraph *g = mlg.find(new_node) ;
+          if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+            cerr << __LINE__ << "recursive supernode found for variables " <<
+              extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+          }
           new_vertices += new_node;
           // The new node that we create will be in the level
           // above our time iteration, so insert it in that
@@ -385,28 +385,58 @@ namespace Loci {
       comp[i] += cs ;
     }
 
+    // Make sure any iterating variable that is computed will be included in
+    // the component, Otherwise things can get confused as iteration variables
+    // rotate
+    digraph::vertexSet add_to_looping ;
+    for(size_t i=0;i<comp.size();++i) {
+      if((comp[i] & looping) != EMPTY) {
+        ruleSet loopr = extract_rules(looping) ;
+        variableSet loopvars = loopr.begin()->targets() ;
+        variableSet::const_iterator vi ;
+        for(vi = loopvars.begin();vi!=loopvars.end();++vi) {
+          ruleSet rs = extract_rules(grt[vi->ident()]-comp[i]) ;
+          ruleSet::const_iterator ri ;
+          for(ri = rs.begin();ri != rs.end();++ri) {
+            if(ri->type() != rule::INTERNAL) {
+              add_to_looping += ri->ident() ;
+              
+            }
+          }
+        }
+      }
+    }
+    for(size_t i=0;i<comp.size();++i) {
+      if((comp[i] & looping) != EMPTY) {
+        comp[i] += add_to_looping ;
+      } else {
+        comp[i] -= add_to_looping ;
+      }
+    }
+      
+    
     // Now make subgraphs for these looping components
     for(ci=comp.begin();ci!=comp.end();++ci)
       if((*ci & looping) != EMPTY) {
         digraph::vertexSet component_parts = *ci ;
         //          cleanup_component(sg.gr,component_parts) ;
         int newnode = mlg.mksnode(supernode,component_parts) ; 
-      multiLevelGraph::subGraph *g = mlg.find(newnode) ;
-      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
-        cerr << __LINE__ << "recursive supernode found for variables " <<
-          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
-        variableSet s = extract_vars((g->incoming_v & g->outgoing_v)) ;
-        multiLevelGraph::subGraph *t = mlg.find(supernode) ;
-        variableSet::const_iterator ii ;
-        for(ii=s.begin();ii!=s.end();++ii) {
-          ruleSet r = extract_rules(t->gr[ii->ident()]) ;
-          digraph grt = t->gr.transpose() ;
-          cerr << *ii << " --> rules " << r << endl ;
-          ruleSet rt = extract_rules(grt[ii->ident()]) ;
-          cerr << *ii << " <-- rules " << rt << endl ;
-        }
+        multiLevelGraph::subGraph *g = mlg.find(newnode) ;
+        if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+          cerr << __LINE__ << "recursive supernode found for variables " <<
+            extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+          variableSet s = extract_vars((g->incoming_v & g->outgoing_v)) ;
+          multiLevelGraph::subGraph *t = mlg.find(supernode) ;
+          variableSet::const_iterator ii ;
+          for(ii=s.begin();ii!=s.end();++ii) {
+            ruleSet r = extract_rules(t->gr[ii->ident()]) ;
+            digraph grt = t->gr.transpose() ;
+            cerr << *ii << " --> rules " << r << endl ;
+            ruleSet rt = extract_rules(grt[ii->ident()]) ;
+            cerr << *ii << " <-- rules " << rt << endl ;
+          }
         
-      }
+        }
         new_nodes += newnode ;
         loops += newnode ;
         break ;
@@ -417,7 +447,7 @@ namespace Loci {
 
 
   digraph::vertexSet decompose_conditional_rules(multiLevelGraph &mlg,
-                                                int supernode)
+                                                 int supernode)
   {
     multiLevelGraph::subGraph &sg = *mlg.find(supernode) ;
 
@@ -675,32 +705,32 @@ namespace Loci {
 
         
       if(collapse) { // If this is part of the collapse, keep grouped
-          digraph::vertexSet compcm = component & incm ;
-          component -= incm ;
-          for(vi=compcm.begin();vi!=compcm.end();++vi)
-            component += cm[*vi] ;
+        digraph::vertexSet compcm = component & incm ;
+        component -= incm ;
+        for(vi=compcm.begin();vi!=compcm.end();++vi)
+          component += cm[*vi] ;
 
-          sub_comp.push_back(component) ;
+        sub_comp.push_back(component) ;
       } else {
-          // Find out if there are multiple independent sub components of the
-          // conditional.  If we break them into separate supernodes, then
-          // memory allocation should be more efficient.  First identify what
-          // part of the component is associated with each conditonal rule:
-          digraph sgr = tmpgr.subgraph(component) ;
-          digraph sgrt = sgr.transpose() ;
-          for(digraph::vertexSet::const_iterator vi=shared_cond_rules.begin();
-              vi!=shared_cond_rules.end();++vi) {
-              digraph::vertexSet vtmp ;
-              vtmp += *vi ;
-              digraph::vertexSet vtmp2 = visit_vertices(sgrt,vtmp) + vtmp ;
-              digraph::vertexSet compcm = vtmp2 & incm ;
-              vtmp2 -= incm ;
-              for(digraph::vertexSet::const_iterator vi2=compcm.begin();
-                  vi2!=compcm.end();++vi2)
-                vtmp2 += cm[*vi2] ;
+        // Find out if there are multiple independent sub components of the
+        // conditional.  If we break them into separate supernodes, then
+        // memory allocation should be more efficient.  First identify what
+        // part of the component is associated with each conditonal rule:
+        digraph sgr = tmpgr.subgraph(component) ;
+        digraph sgrt = sgr.transpose() ;
+        for(digraph::vertexSet::const_iterator vi=shared_cond_rules.begin();
+            vi!=shared_cond_rules.end();++vi) {
+          digraph::vertexSet vtmp ;
+          vtmp += *vi ;
+          digraph::vertexSet vtmp2 = visit_vertices(sgrt,vtmp) + vtmp ;
+          digraph::vertexSet compcm = vtmp2 & incm ;
+          vtmp2 -= incm ;
+          for(digraph::vertexSet::const_iterator vi2=compcm.begin();
+              vi2!=compcm.end();++vi2)
+            vtmp2 += cm[*vi2] ;
               
-              sub_comp.push_back(vtmp2) ;
-          }
+          sub_comp.push_back(vtmp2) ;
+        }
       } 
 
       //Find input variables that are computed in this level that are not
@@ -711,27 +741,27 @@ namespace Loci {
       
       digraph grt = sg.gr.transpose() ;
       for(size_t i=0;i<sub_comp.size();++i) {
-          variableSet comp_vars ;
-          ruleSet rs = extract_rules(sub_comp[i]) ;
-          for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri)
-            comp_vars += ri->sources() ;
-          comp_vars -= mi->first ;
+        variableSet comp_vars ;
+        ruleSet rs = extract_rules(sub_comp[i]) ;
+        for(ruleSet::const_iterator ri=rs.begin();ri!=rs.end();++ri)
+          comp_vars += ri->sources() ;
+        comp_vars -= mi->first ;
 
-          variableSet cv ;
-          // find computed variables
-          for(variableSet::const_iterator ii=comp_vars.begin();
-              ii!=comp_vars.end();++ii) {
-              ruleSet rs2 = extract_rules(grt[ii->ident()]) ;
+        variableSet cv ;
+        // find computed variables
+        for(variableSet::const_iterator ii=comp_vars.begin();
+            ii!=comp_vars.end();++ii) {
+          ruleSet rs2 = extract_rules(grt[ii->ident()]) ;
 
-              if((rs2&sub_comp[i])==EMPTY) {
-                  for(ruleSet::const_iterator ri=rs2.begin();
-                      ri != rs2.end();++ri) {
-                      if(ri->type() != rule::INTERNAL)
-                        cv += *ii ;
-                  }
-              }
+          if((rs2&sub_comp[i])==EMPTY) {
+            for(ruleSet::const_iterator ri=rs2.begin();
+                ri != rs2.end();++ri) {
+              if(ri->type() != rule::INTERNAL)
+                cv += *ii ;
+            }
           }
-          sub_comp[i] += cv ;
+        }
+        sub_comp[i] += cv ;
       }
 
       // Now determine if there is any overlap between subcomponents:
@@ -747,38 +777,38 @@ namespace Loci {
 
       for(size_t i=0;i<sub_comp.size();++i)
         if((sub_comp[i]&overlap) == EMPTY) {
-            // Make sure that we don't go outside of the current subgraph
-            sub_comp[i] &=sg.graph_v ;
-            // Remove variables from component if they have references outside
-            // the component
-            cleanup_component(sg.gr,sub_comp[i]) ;
+          // Make sure that we don't go outside of the current subgraph
+          sub_comp[i] &=sg.graph_v ;
+          // Remove variables from component if they have references outside
+          // the component
+          cleanup_component(sg.gr,sub_comp[i]) ;
 
-            int new_node =  mlg.mksnode(supernode,sub_comp[i],mi->first) ;
-            multiLevelGraph::subGraph *g = mlg.find(new_node) ;
-      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
-        cerr << __LINE__ << "recursive supernode found for variables " <<
-          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
-      }
-            new_rules += new_node ;
+          int new_node =  mlg.mksnode(supernode,sub_comp[i],mi->first) ;
+          multiLevelGraph::subGraph *g = mlg.find(new_node) ;
+          if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+            cerr << __LINE__ << "recursive supernode found for variables " <<
+              extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+          }
+          new_rules += new_node ;
         } else
           remain += sub_comp[i] ;
 
 
       if(remain != EMPTY) {
-          // Make sure that we don't go outside of the current subgraph
-          remain &= sg.graph_v ;
+        // Make sure that we don't go outside of the current subgraph
+        remain &= sg.graph_v ;
 
-          // Remove variables from component if they have references outside
-          // the component
-          cleanup_component(sg.gr,remain) ;
+        // Remove variables from component if they have references outside
+        // the component
+        cleanup_component(sg.gr,remain) ;
 
-          int new_node =  mlg.mksnode(supernode,remain,mi->first) ;
-      multiLevelGraph::subGraph *g = mlg.find(new_node) ;
-      if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
-        cerr << __LINE__ << "recursive supernode found for variables " <<
-          extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
-      }
-          new_rules += new_node ;
+        int new_node =  mlg.mksnode(supernode,remain,mi->first) ;
+        multiLevelGraph::subGraph *g = mlg.find(new_node) ;
+        if(extract_vars((g->incoming_v & g->outgoing_v)) != EMPTY) {
+          cerr << __LINE__ << "recursive supernode found for variables " <<
+            extract_vars((g->incoming_v & g->outgoing_v)) << endl ;
+        }
+        new_rules += new_node ;
       }
 
 #else
