@@ -9,17 +9,15 @@ SOURCE_FILES =  entities_cc.tex \
 		helpers_cc.tex \
 		Makefile_ex.tex
 
-tutorial.pdf: main.dvi
+tutorial.pdf: ${TEX_FILES} ${SOURCE_FILES}
+	latex main; latex main
 	dvips -t letter -Ppdf -o tutorial.ps main
 	ps2pdf tutorial.ps
-	rm tutorial.ps
+	rm tutorial.ps main.dvi
 clean: FRC
 	./clean
 
 FRC:
-
-main.dvi: ${TEX_FILES} ${SOURCE_FILES}
-	latex main; latex main
 
 Makefile_ex.tex: ../heat/Makefile
 	cat begin.tex > Makefile_ex.tex

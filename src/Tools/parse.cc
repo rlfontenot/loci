@@ -21,6 +21,11 @@
 #include <Tools/parse.h>
 #include <Tools/debug.h>
 #include <locale>
+#ifdef NO_CSTDLIB
+#include <stdio.h>
+#else
+#include <cstdio>
+#endif
 
 namespace Loci {
   namespace parse {
