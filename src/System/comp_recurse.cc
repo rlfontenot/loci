@@ -864,14 +864,20 @@ namespace Loci {
     CPTR<execute_sequence> el = new execute_sequence ;
     if(facts.isDistributed()) {
 
+      execute_comm2::inc_comm_step() ;
       if(!pre_plist.empty()) {
-        executeP exec_commp = new execute_comm(pre_plist, facts);
-        el->append_list(exec_commp) ;
+        //executeP exec_commp = new execute_comm(pre_plist, facts);
+        executeP exec_commp2 = new execute_comm2(pre_plist, facts);
+        el->append_list(exec_commp2) ;
+        //el->append_list(exec_commp) ;
       }
 
+      execute_comm2::inc_comm_step() ;
       if(!pre_clist.empty()) {
-        executeP exec_commc = new execute_comm(pre_clist, facts);
-        el->append_list(exec_commc) ;
+        //executeP exec_commc = new execute_comm(pre_clist, facts);
+        executeP exec_commc2 = new execute_comm2(pre_clist, facts);
+        el->append_list(exec_commc2) ;
+        //el->append_list(exec_commc) ;
       }
     }
 
@@ -890,9 +896,12 @@ namespace Loci {
           vi!=recurse_vars.end();
           ++vi) {
         vector<list<comm_info> > &commv = send_req_var[*vi] ;
+        execute_comm2::inc_comm_step() ;
         if(idx<commv.size() && commv[idx].size() != 0) {
-          executeP exec_commv = new execute_comm(commv[idx],facts);
-          el->append_list(exec_commv) ;
+          //executeP exec_commv = new execute_comm(commv[idx],facts);
+          executeP exec_commv2 = new execute_comm2(commv[idx],facts);
+          el->append_list(exec_commv2) ;
+          //el->append_list(exec_commv) ;
         }
       }
       idx++ ;
@@ -914,9 +923,12 @@ namespace Loci {
       if(!finished) {
         if(facts.isDistributed()) {
           list<comm_info> plist = put_precomm_info(*sei, facts) ;
+          execute_comm2::inc_comm_step() ;
           if(!plist.empty()) {
-            executeP exec_comm = new execute_comm(plist,facts);
-            el->append_list(exec_comm) ;
+            //executeP exec_comm = new execute_comm(plist,facts);
+            executeP exec_comm2 = new execute_comm2(plist,facts);
+            el->append_list(exec_comm2) ;
+            //el->append_list(exec_comm) ;
           }
 
           // Make sure to request any variables communicated so that
@@ -936,11 +948,12 @@ namespace Loci {
     } while(!finished) ;
 
     if(facts.isDistributed()) {
-
-
+      execute_comm2::inc_comm_step() ;
       if(!post_clist.empty()) {
-        executeP exec_comm = new execute_comm(post_clist, facts);
-        el->append_list(exec_comm) ;
+        //executeP exec_comm = new execute_comm(post_clist, facts);
+        executeP exec_comm2 = new execute_comm2(post_clist, facts);
+        el->append_list(exec_comm2) ;
+        //el->append_list(exec_comm) ;
       }
       // Make sure to request any variables communicated so that
       // the space is allocated.  This is a hack that should be

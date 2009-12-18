@@ -429,8 +429,13 @@ namespace Loci {
     }
 
     if(facts.isDistributed()) {
-      executeP exec_comm = new execute_comm(advance_variables_barrier, facts);
-      adv->append_list(exec_comm);
+      execute_comm2::inc_comm_step() ;
+      //executeP exec_comm =
+      //new execute_comm(advance_variables_barrier, facts);
+      executeP exec_comm2 =
+        new execute_comm2(advance_variables_barrier, facts);
+      adv->append_list(exec_comm2);
+      //adv->append_list(exec_comm);
     }
     
     executeP execute = new execute_loop(cond_var,executeP(col),executeP(adv),tlevel,rotate_lists) ;
