@@ -45,6 +45,9 @@ const int MAXLEVEL = sizeof(int64)*8 - 2;
 //const int MAXLEVEL = 30;
 //normalize a vector
 const double NORMALIZE_ZERO_THRESHOLD = 1e-10 ;
+//0: simple(node average), 1: wireframe for face, area_weighted for cell,
+//2: extract
+const int CENTROID = 1;
 
 inline void normalize(vect3d& v) {
   if( (fabs(v.x) <= NORMALIZE_ZERO_THRESHOLD) &&
@@ -82,7 +85,21 @@ template<class T> inline void reduce_vector(std::vector<T>& v1){
   }
   center = center/double(numNodes);
   return center;
+ }
+
+
+inline vect3d weighted_center(const vect3d* fnodes, const double* weights, int numNodes){
+  vect3d nodesum = vect3d(0.0, 0.0, 0.0);
+  double lensum = 0.0;
+  
+  for(int i = 0; i<numNodes; i++){
+    nodesum += weights[i]*fnodes[i];
+    lensum += weights[i];
+  }
+
+  return nodesum/lensum;
 }
+    
 //the indexes of two neighbors of each face
 struct NeibIndex{
   int c1;

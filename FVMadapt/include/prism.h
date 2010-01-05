@@ -325,13 +325,13 @@ private:
   }
   
   //get all the 4*3 edges
-  inline void get_edges(Edge** edge){}
+  // inline void get_edges(Edge** edge){}
   
   
   //calculate the centroid of the Prism, it's defined as
   //the mean value of nodes
   
-  inline Node* centroid(){
+  inline Node* simple_center(){
    
     Node* cellcenter = new Node();
     Node** vertices = new Node*[2*nfold];
@@ -345,6 +345,46 @@ private:
     delete[] nodes;
     return cellcenter;
   }
+
+   //the center of the face, defined as the mass center of edge centers
+  //precondition:: all its edges have been split
+  inline Node* centroid(){
+    switch(CENTROID){
+    case 0:
+      return simple_center();
+    case 1:
+      return wireframe();
+    default:
+      return wireframe();
+    }
+   
+  }
+
+ inline Node* wireframe(){
+    
+     //allocate edgecenter
+   vect3d* facecenter = new vect3d[nfold+2];
+   double* areas = new double[nfold+2];
+    
+    //get edge centers
+   for(int i = 0; i < nfold+2; i++){
+     facecenter[i]= getFaceCenter(i)->p;
+     if(i<2)areas[i] = gnrlface[i]->area();
+     else areas[i] = quadface[i-2]->area();
+     
+   }
+   
+    //calculate the mass center of the edge centers
+    vect3d p = weighted_center(facecenter, areas, nfold+2);
+
+    //deallocate edgecenter
+    delete [] facecenter;
+    delete [] areas;
+    
+    return new Node(p);
+ }
+
+  
   
   //get the facecenter
   //condition: facecenter will be allocated and deallocated by the caller

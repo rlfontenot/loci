@@ -282,7 +282,7 @@ private:
   
   //calculate the centroid of the HexCell, it's defined as
   //the mean value of nodes
-    inline Node* centroid(){
+  inline Node* simple_center(){
     Node* cellcenter = new Node();
     Node* vertices[8];
     get_nodes(vertices);
@@ -292,7 +292,43 @@ private:
     }
     cellcenter->p = point_center(nodes, 8);
     return cellcenter;
+    }
+
+  inline Node* wireframe(){
+    
+     //allocate edgecenter
+    vect3d* facecenter = new vect3d[6];
+    double* areas = new double[6];
+    
+    //get edge centers
+   for(int i = 0; i < 6; i++){
+     facecenter[i]= getFaceCenter(i)->p;
+     areas[i] = face[i]->area();
+   }
+   
+    //calculate the mass center of the edge centers
+    vect3d p = weighted_center(facecenter, areas, 6);
+
+    //deallocate edgecenter
+    delete [] facecenter;
+    delete [] areas;
+    
+    return new Node(p);
+ }
+  //the center of the face, defined as the mass center of edge centers
+  //precondition:: all its edges have been split
+  inline Node* centroid(){
+    switch(CENTROID){
+    case 0:
+      return simple_center();
+    case 1:
+      return wireframe();
+    default:
+      return wireframe();
+    }
+   
   }
+
   
   //get the facecenter
   //condition: facecenter will be allocated and deallocated by the caller
