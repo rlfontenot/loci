@@ -18,21 +18,22 @@ class BdCndWindow : public GeneralWindow
   Q_OBJECT
   
 public:
-  BdCndWindow(QDomElement& theelem,  QDomElement& root, QStringList,  QTableView*, QWidget* parent=0);
+  BdCndWindow(QDomElement& theelem,  QDomElement& root, QStringList,  QWidget* parent=0);
   
 public slots:
 
-  void setCurrent(QModelIndex);
+void setCurrent(QModelIndex);
+ 
  
  private slots:
- void updateConditionView(const QString&);
-  void updateConditionView();
+
+ void setCurrent(int);
   void changePage(int);
   void checkStatus();
+  void copyBdCnd(int previous, int current);
   signals:
   void closed();
-
-   
+  void updateConditionView();
  
 private:
   
@@ -42,12 +43,12 @@ private:
   QStringList whatsThisList;
   QStringList toolTipList;
  
-  //QDomElement myroot;
-   QDomElement cndNode;
+
+  QDomElement cndNode;
   QStackedWidget *pagesWidget;
   QTextEdit* textEdit;
   QTextDocument text;
-  QTableView* myTableView;  
+  QLabel* currentBdry;
 };
 
 #endif
