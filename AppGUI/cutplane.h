@@ -7,7 +7,7 @@
 class CutPlane
 {
 public:
-  void cut(cutplane_info &info, const LoadInfo& load_info,const positions3d& center, grid *figure);
+   void cut(cutplane_info &info, const LoadInfo& load_info,const positions3d& center, grid *figure);
 
 private:
   bool registerFace(size_t faceNode[], int nNodes, int cellNum);

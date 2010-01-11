@@ -67,12 +67,13 @@ GLViewer::GLViewer(QWidget *parent)
   currentColor = default_color[0];
   tox= toy=toz = rox = roy = 0;
   show_contours = true;
-  show_preview =  show_shading = show_grid = false;
+  show_preview =  show_shading = show_grid = show_border = false;
   scale = 1.0;
   shadeType = 1;
   min_val = max_val = 0.0;
   isFit = false;
   mode=BOUND_SELECT_MODE;
+  rgb =0;
 }
 
 //////////////////////////////////////////////////////
@@ -182,7 +183,7 @@ void GLViewer::paintGL()
   glTranslated(-centerx, -centery, -centerz);
   glGetDoublev(GL_MODELVIEW_MATRIX, modelviewMatr);
  
-
+ 
   switch (mode) {
     
   case BOUND_SELECT_MODE: //after the grid is load, only draw boundaries
@@ -200,18 +201,15 @@ void GLViewer::paintGL()
 
   case PLANE_AND_BOUND_MODE:
     
-     for (size_t i = 0; i < boundObjects.size(); ++i)
+    for (size_t i = 0; i < boundObjects.size(); ++i)
       if (objVisible[i])glCallList(boundObjects[i]);
-
-   
-    
-     if (show_shading)glCallList(shadingObject);
-     if (show_grid)glCallList(gridObject);
-     glEnable(GL_LINE_SMOOTH);
-     glCallList(borderObject);
-     glDisable(GL_LINE_SMOOTH);
-     if (show_contours)glCallList(contourObject);
-     break;
+    if (show_shading)glCallList(shadingObject);
+    if (show_grid)glCallList(gridObject);
+    glEnable(GL_LINE_SMOOTH);
+    if(show_border)glCallList(borderObject);
+    glDisable(GL_LINE_SMOOTH);
+    if (show_contours)glCallList(contourObject);
+    break;
      
   case PLANE_ONLY_MODE:
     if (show_shading)
@@ -274,579 +272,34 @@ void GLViewer::fit(){
 }
 
 
-//////////////////////////////////////////////////////////////////////////////
-//  public:
-//    void load_boundary((const LoadInfo* info,  QStringList* boundary_names);
-//
-//  load  boundaries according to the input argument info, return  the
-//  boundaries names to output argument boundary_names,  set up the following
-// data structures:
-// meshNodes: the positions of all boundary nodes
-// meshValue: the scalar values of all boundary nodes
-// meshMap: the map from local index in meshNodes to global index
-// mesh: the triangles of each boundary 
-//////////////////////////////////////////////////////////////////////////////
 
-
-// void GLViewer::load_boundary(const LoadInfo& info,  QStringList& boundary_names) {
-//   loadInfo = info;
-//   boundary_names.clear();
-
-//   // Turn off warnings from HDF5
-//   H5Eset_auto(NULL, NULL);
- 
-//   //read in pos
-//   hsize_t npnts, num;
-//   QString posname = info.directory + "/grid_pos." + info.iteration + 
-//     "_" + info.casename;
-//   hid_t file_id = H5Fopen(posname.toLocal8Bit(),
-//                           H5F_ACC_RDONLY, H5P_DEFAULT);
-  
-//   hid_t dataset_id = H5Dopen(file_id, "/pos/data");
-//   hid_t dataspace_id = H5Dget_space(dataset_id);
-//   H5Sget_simple_extent_dims(dataspace_id, &npnts, NULL);
-  
-//   positions3d null3d;
-//   null3d.x = null3d.y = null3d.z = 0.0;
-//   //temperary storage of pos
-
-//   vector<positions3d> pos(npnts, null3d);
-
-
-//   hid_t pos_tid = H5Tcreate(H5T_COMPOUND, sizeof(positions3d));
-//   H5Tinsert(pos_tid, "x", HOFFSET(positions3d, x), H5T_IEEE_F64LE);
-//   H5Tinsert(pos_tid, "y", HOFFSET(positions3d, y), H5T_IEEE_F64LE);
-//   H5Tinsert(pos_tid, "z", HOFFSET(positions3d, z), H5T_IEEE_F64LE);
-//   H5Dread(dataset_id, pos_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, &pos[0]);
-//   H5Tclose(pos_tid);
-//   H5Dclose(dataset_id);
-//   H5Fclose(file_id);
-//   //finish read in pos
- 
-//   //read in scalar values
-//   vector<float> values(npnts, 0.0);
- 
-  
-//   posname = info.directory + "/" + info.variable + "_sca." + info.iteration + 
-//     "_" + info.casename;
-//   file_id = H5Fopen(posname.toLocal8Bit(),
-//                     H5F_ACC_RDONLY, H5P_DEFAULT);
-  
-//   posname = "/" + info.variable + "/data";
-//   dataset_id = H5Dopen(file_id, posname.toLocal8Bit());
-//   H5Dread(dataset_id, H5T_IEEE_F32LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &values[0]);
-//   H5Dclose(dataset_id);
-//   H5Fclose(file_id);
-//   //finish read in scalar value
-//   min_val = max_val = values[0];
-//   for(int i= 0; i < npnts; i++){
-//     min_val = qMin(min_val, values[i]);
-//     max_val = qMax(max_val, values[i]);
-//   }
-        
-  
-  
-
-//   // open topo file, read in boundaries
-//   QString toponame = info.directory + "/" + info.casename + ".topo";
-//   file_id = H5Fopen(toponame.toLocal8Bit(),
-//                     H5F_ACC_RDONLY,
-//                     H5P_DEFAULT);
-//   hid_t bndg = H5Gopen(file_id,"boundaries") ;
-//   hsize_t num_bcs = 0 ;
-//   H5Gget_num_objs(bndg,&num_bcs) ;
-//   for(hsize_t bc=0;bc<num_bcs;++bc) {  // (Surely there is a better way of
-//     char buf[1024];                    //  doing this.)
-//     memset(buf, '\0', 1024);
-//     H5Gget_objname_by_idx(bndg,bc,buf,sizeof(buf)) ;
-//     buf[1023]='\0' ;
-//     boundary_names << QString(buf);
-//   }
-//   H5Gclose(bndg);
-  
-
-  
-  
-  
-
-  
-//   mesh.clear();
-
-//   // set up GLUtesselator
-//   GLUtesselator* myTess = gluNewTess();
-//   gluTessCallback(myTess, GLU_TESS_VERTEX_DATA,
-//                   (GLvoid (*) ()) &cbVertex2);
-//   gluTessCallback(myTess, GLU_TESS_EDGE_FLAG,
-//                   (GLvoid (*) ()) &cbEdgeFlag);
-//   // load node index vector
-//   vector<int>* pntIndex = new vector<int>;
-//   pntIndex->reserve(pos.size()+1);
-//   for (unsigned int i = 0; i <= pos.size(); ++i)
-//     (*pntIndex)[i] = i;
-  
-//   for(unsigned int bid = 0; bid < num_bcs; bid++){
-//     vector<int> vTri;
-    
-//     // triangles
-//     QString part = boundary_names[bid];
-//     QString place = "/boundaries/" + part + "/triangles";
-//     dataset_id = H5Dopen(file_id, place.toLocal8Bit());
- 
-//     if (!(dataset_id < 0)) {
-//       dataspace_id = H5Dget_space(dataset_id);
-//       H5Sget_simple_extent_dims(dataspace_id,
-//                                 &num,
-//                                 NULL);
-      
-//       int *tri = new int[3*num];
-      
-      
-//        hsize_t three[1] = {3};
-//       hid_t tri_tid = H5Tarray_create(H5T_NATIVE_INT, 1, three, NULL);
-      
-//       H5Dread(dataset_id, tri_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, tri);
-      
-//       vTri.insert(vTri.end(), tri, tri + num*3);
-      
-//       delete [] tri;
-//       H5Tclose(tri_tid);
-//             H5Dclose(dataset_id);
-//     }
-
-   
-//     // quads
-//     place = "/boundaries/" + part + "/quads";
-//     dataset_id = H5Dopen(file_id, place.toLocal8Bit());
-    
-//     if (!(dataset_id < 0)) {
-//       dataspace_id = H5Dget_space(dataset_id);
-//       H5Sget_simple_extent_dims(dataspace_id,
-//                                 &num,
-//                                 NULL);
-
-     
-//       int* quad = new int[num * 4];
-     
-      
-//        hsize_t four[1] = {4};
-//       hid_t quad_tid = H5Tarray_create(H5T_NATIVE_INT, 1, four, NULL);
-//       H5Dread(dataset_id, quad_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, quad);
-//       for (size_t j = 0; j < num; ++j) {
-//         gluTessBeginPolygon(myTess, &vTri);
-//         gluTessBeginContour(myTess);
-//         for (int k = 0; k < 4; ++k) {
-//           GLdouble point[3];
-//           point[0] = pos[quad[j*4 + k]-1].x;
-//           point[1] = pos[quad[j*4 + k]-1].y;
-//           point[2] = pos[quad[j*4 + k]-1].z;
-//           gluTessVertex(myTess, point, &(*pntIndex)[quad[j*4 + k]]);
-//         }
-//         gluTessEndContour(myTess);
-//         gluTessEndPolygon(myTess);
-//       }
-      
-//        delete [] quad;
-      
-//       H5Tclose(quad_tid);
-//       H5Dclose(dataset_id);
-//     }
-   
-//     // gen cells
-//     place = "/boundaries/" + part + "/nside_sizes";
-//     dataset_id = H5Dopen(file_id, place.toLocal8Bit());
-    
-//     place = "/boundaries/" + part + "/nside_nodes";
-//     hid_t dataset2_id = H5Dopen(file_id, place.toLocal8Bit());
-    
-//     hsize_t ngenc, nsides;
-    
-//     if (!(dataset_id < 0) && !(dataset2_id < 0)) {
-//       dataspace_id = H5Dget_space(dataset_id);
-//       H5Sget_simple_extent_dims(dataspace_id,
-//                                 &ngenc,
-//                                 NULL);
-      
-//       dataspace_id = H5Dget_space(dataset2_id);
-//       H5Sget_simple_extent_dims(dataspace_id,
-//                                 &nsides,
-//                                 NULL);
-
-     
-//       int* nnodes = new int[ngenc];
-//       int* nodes = new int[nsides];
-      
-//       H5Dread(dataset_id, H5T_STD_I32LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, nnodes);
-//       H5Dread(dataset2_id, H5T_STD_I32LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, nodes);
-      
-//       int offset = 0;
-//       for (unsigned int j = 0; j < ngenc; ++j) {
-//         gluTessBeginPolygon(myTess, &vTri);
-//         gluTessBeginContour(myTess);
-//         for (int k = 0; k < nnodes[j]; ++k) {
-//           GLdouble point[3];
-//           point[0] = pos[nodes[offset + k]-1].x;
-//           point[1] = pos[nodes[offset + k]-1].y;
-//           point[2] = pos[nodes[offset + k]-1].z;
-//           gluTessVertex(myTess, point, &(*pntIndex)[nodes[offset + k]]);
-//         }
-//         gluTessEndContour(myTess);
-//         gluTessEndPolygon(myTess);
-//         offset += nnodes[j];
-//       }
-    
-    
-//     delete [] nodes;
-//     delete [] nnodes;
-    
-//     if (!(dataset_id < 0))
-//       H5Dclose(dataset_id);
-//     if (!(dataset2_id < 0))
-//       H5Dclose(dataset2_id);
-//     }
-//     mesh.push_back(vTri);
-   
-//   }//for(bid..)
-  
-
-
-//   delete  pntIndex;
-//   H5Fclose(file_id);
-
-//  // Find min_val and max_val
-//   set<int> meshSet;
- 
-//   for (size_t i = 0; i < mesh.size(); ++i) {
-//     for(size_t j = 0 ; j < mesh[i].size(); ++j){
-//       meshSet.insert(mesh[i][j]);
-//     }
-//   }
-
-//   // Remap nodes for speed and size
-//   meshNodes.resize(meshSet.size());
-//   meshValues.resize(meshSet.size());
-//   meshMap.clear();
-//   int count = 0;
-//   for (set<int>::iterator it = meshSet.begin(); it != meshSet.end(); ++it) {
-//     meshNodes[count] = pos[*it - 1];
-//     meshValues[count] = values[*it - 1];
-//     meshMap.insert( std::pair<int, int>(*it, count) );
-//     count++;
-//   }
-
-//   // Remap mesh to match nodes
-//   objMinMax.clear();
-//   objVisible.clear();
-  
-//   for (size_t i = 0; i < mesh.size(); ++i) {
-    
-//     positions3d minpos = meshNodes[meshMap[mesh[i][0]]];
-//     positions3d maxpos = minpos;
-//     for(size_t j = 0 ; j < mesh[i].size(); ++j){ 
-//       mesh[i][j] = meshMap[mesh[i][j]];
-//       positions3d t0 = meshNodes[mesh[i][j]];
-//       // Find extrema
-//       minpos.x = qMin(minpos.x, t0.x);
-      
-//       minpos.y = qMin(minpos.y, t0.y);
-      
-//       minpos.z = qMin(minpos.z, t0.z);
-      
-//       maxpos.x = qMax(maxpos.x, t0.x);
-      
-//       maxpos.y = qMax(maxpos.y, t0.y);
-     
-//       maxpos.z = qMax(maxpos.z, t0.z);
-      
-//     }
-   
-//     objMinMax.push_back(minpos);
-//     objMinMax.push_back(maxpos);
-//     objVisible.push_back(true);
-//   }
-
- 
-//   //finish reading in all information
-  
-//   updateView(); 
-//   mode = BOUND_SELECT_MODE;
-//   makeObjects();
-//   //  updateGL();
- 
-//   resizeGL(currentWidth, currentHeight);
-
-//  }
 
 struct surface_info {
   vector<int> trias ;
   vector<int> quads ;
   vector<vector<int> > gen_faces ;
 } ;
-// unsigned long readAttributeLong(hid_t group, const char *name) {
-//   hid_t id_a = H5Aopen_name(group,name) ;
-//   unsigned long val = 0;
-//   H5Aread(id_a,H5T_NATIVE_ULONG,&val) ;
-//   H5Aclose(id_a) ;
-//   return val ;
-// }
-
-// namespace Loci {
-//   extern int getClusterNumFaces(unsigned char *cluster) ;
-//   extern int fillClusterFaceSizes(unsigned char *cluster, int *sizes) ;
-//   int fillFaceInfo(unsigned char *cluster, multiMap &face2node,
-//                    Map &cl, Map &cr, int face_base) ;
-//   vector<unsigned char>
-//   encode_face_cluster(const multiMap &face2node,
-//                       const Map &cl, const Map &cr,
-//                       entitySet fcluster,
-//                       entitySet nodeSet,
-//                       entitySet cellSet) ;
-// }
 
 
-// void readSurfaces(string filename,
-// 		  vector<surface_info> &surf_list,
-// 		  vector<vector3d<double> > &pos) {
 
-//   surf_list.clear() ;
-//   pos.clear() ;
 
-//   map<int,int> surf_lookup ;
-
-//   // read in boundary names.
-//   vector<pair<int,string> > boundary_ids ;
-//   Loci::readBCfromVOG(filename,boundary_ids) ;
-//   map<int,string> surf_id ;
-//   for(size_t i=0;i<boundary_ids.size();++i)
-//     surf_id[boundary_ids[i].first] = boundary_ids[i].second ;
-
-//   hid_t input_fid ; 
-//   input_fid = H5Fopen(filename.c_str(),H5F_ACC_RDONLY,H5P_DEFAULT);
-//   if(input_fid <= 0) {
-//     std::cerr << "unable to open file '" << filename << "'"<< std::endl ;
-    
-//   }
+void GLViewer::setLoadInfo(const LoadInfo& ld_info){
   
-//   hid_t face_g = H5Gopen(input_fid,"face_info") ;
-  
-//   // Read cluster sizes
-//   hid_t dataset = H5Dopen(face_g,"cluster_sizes") ;
-//   hid_t dspace = H5Dget_space(dataset) ;
-//   hsize_t size = 0 ;
-//   H5Sget_simple_extent_dims(dspace,&size,NULL) ;
-//   vector<unsigned short> csizes(size) ;
-//   hsize_t dimension = size ;
-//   hsize_t stride = 1 ;
-// #ifdef H5_INTERFACE_1_6_4
-//   hsize_t start = 0 ;
-// #else
-//   hssize_t start = 0 ;
-// #endif
-//   hsize_t count = size ;
-//   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
-//   int rank = 1 ;
-//   hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
-//   hid_t err = H5Dread(dataset,H5T_NATIVE_USHORT,memspace,dspace,H5P_DEFAULT,&csizes[0]) ;
-//   if(err < 0) {
-//    std::cerr << "unable to read cluster sizes from file '" <<
-//       filename << "'" << endl ;
-//     exit(-1) ;
-//   }
-//   H5Dclose(dataset) ;
-//   H5Sclose(memspace) ;
-
-//   // Read in clusters and transform
-//   dataset = H5Dopen(face_g,"cluster_info") ;
-//   dspace = H5Dget_space(dataset) ;
-//   start = 0 ;
-//   for(size_t c=0;c<size;++c) { // Loop over clusters
-//     count = csizes[c] ;
-//     vector<unsigned char> cluster(count) ;
-//     H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&start,&stride,&count,NULL) ;
-//     dimension = count ;
-//     memspace = H5Screate_simple(rank,&dimension,NULL) ;
-//     err = H5Dread(dataset,H5T_NATIVE_UCHAR,memspace,dspace,H5P_DEFAULT,&cluster[0]) ;
-//     if(err < 0) {
-//      std::cerr << "unable to read cluster from file '" << filename << "'" << endl ;
-//     }
-//     start += count ;
-//     // Now scan cluster into local buffers
-
-//     int nfaces = Loci::getClusterNumFaces(&cluster[0]) ;
-//     Loci::entitySet fclust = Loci::interval(0,nfaces-1) ;
-//     Loci::store<int> fcnts ;
-//     fcnts.allocate(fclust) ;
-//     Loci::fillClusterFaceSizes(&cluster[0],&fcnts[0]) ;
-//     Loci::multiMap face2node ;
-//     Loci::Map cl,cr ;
-//     face2node.allocate(fcnts) ;
-//     cl.allocate(fclust) ;
-//     cr.allocate(fclust) ;
-//     Loci::fillFaceInfo(&cluster[0],face2node,cl,cr,0) ;
-//     // Now loop over faces in cluster to determine if any are boundary 
-//     // faces
-//     for(int f=0;f<nfaces;++f) {
-//       if(cr[f] < 0) { // boundary face 
-// 	// Now check to see if we have encountered it before
-// 	map<int,int>::const_iterator mi = surf_lookup.find(-cr[f]) ;
-// 	int bc ;
-// 	if(mi == surf_lookup.end() ) { // First time to see this boundary tag
-// 	  // Get name of boundary
-// 	  string bc_name ;
-// 	  map<int,string>::const_iterator si = surf_id.find(-cr[f]) ;
-// 	  if(si == surf_id.end()) {
-// 	    char buf[1024] ;
-// 	    sprintf(buf,"BC_%d",-cr[f]) ;
-// 	    bc_name = buf ;
-// 	  } else {
-// 	    bc_name = si->second ;
-// 	  }
-// 	  int bc_id = surf_list.size() ;
-// 	  surf_list.push_back(surface_info()) ;
-// 	  surf_list[bc_id].name = bc_name ;
-//           surf_list[bc_id].id = -cr[f] ;
-// 	  surf_lookup[-cr[f]] = bc_id ;
-// 	  bc = bc_id ;
-// 	} else {
-// 	  bc = mi->second ;
-// 	}
-// 	int fsz = face2node[f].size() ;
-// 	if(fsz == 3) {
-// 	  Loci::Array<int,3> tri ;
-// 	  tri[0] = face2node[f][0] ;
-// 	  tri[1] = face2node[f][1] ;
-// 	  tri[2] = face2node[f][2] ;
-// 	  surf_list[bc].trias.push_back(tri) ;
-// 	} else if(fsz == 4) {
-// 	  Loci::Array<int,4> qua ;
-// 	  qua[0] = face2node[f][0] ;
-// 	  qua[1] = face2node[f][1] ;
-// 	  qua[2] = face2node[f][2] ;
-// 	  qua[3] = face2node[f][3] ;
-// 	  surf_list[bc].quads.push_back(qua) ;
-// 	} else {
-// 	  vector<int> tmp(fsz) ;
-// 	  for(int i=0;i<fsz;++i)
-// 	    tmp[i] = face2node[f][i] ;
-// 	  surf_list[bc].gen_faces.push_back(tmp) ;
-// 	}
-//       }
-//     }
-//   }
-
-//   // read in positions
-//   hid_t fi = H5Gopen(input_fid,"file_info") ;
-//   unsigned long numNodes = readAttributeLong(fi,"numNodes") ;
-    
-//   H5Gclose(fi) ;
-
-//   count = numNodes ;
-
-// #ifdef H5_INTERFACE_1_6_4
-//     hsize_t lstart = 0 ;
-// #else
-//     hssize_t lstart = 0 ;
-// #endif
-      
-//   // Read in pos data from file i
-//   vector<Loci::vector3d<double> > pos_dat(numNodes) ;
-//   hid_t node_g = H5Gopen(input_fid,"node_info") ;
-//   dataset = H5Dopen(node_g,"positions") ;
-//   dspace = H5Dget_space(dataset) ;
-      
-//   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count,NULL) ;
-//   rank = 1 ;
-//   dimension = count ;
-//   memspace = H5Screate_simple(rank,&dimension,NULL) ;
-//   typedef Loci::data_schema_traits<Loci::vector3d<double> > traits_type ;
-//   Loci::DatatypeP dp = traits_type::get_type() ;
-//   hid_t datatype = dp->get_hdf5_type() ;
-//   err = H5Dread(dataset,datatype,memspace,dspace,H5P_DEFAULT,
-// 		      &pos_dat[0]) ;
-//   if(err < 0) {
-//     cerr << "unable to read positions from '" << filename << "'" << endl ;
-//     exit(-1) ;
-//   }
-//   H5Sclose(dspace) ;
-//   H5Dclose(dataset) ;
-//   H5Gclose(node_g) ;
-
-//   // Now mark all nodes that the faces access
-
-//   vector<int> used(numNodes) ;
-//   for(size_t i=0;i<numNodes;++i)
-//     used[i] = 0 ;
-  
-//   int ssz = surf_list.size() ;
-
-  
-//   for(int i=0;i<ssz;++i) {
-//     for(size_t j=0;j<surf_list[i].trias.size();++j) {
-//       used[surf_list[i].trias[j][0]] = 1 ;
-//       used[surf_list[i].trias[j][1]] = 1 ;
-//       used[surf_list[i].trias[j][2]] = 1 ;
-//     }
-//     for(size_t j=0;j<surf_list[i].quads.size();++j) {
-//       used[surf_list[i].quads[j][0]] = 1 ;
-//       used[surf_list[i].quads[j][1]] = 1 ;
-//       used[surf_list[i].quads[j][2]] = 1 ;
-//       used[surf_list[i].quads[j][3]] = 1 ;
-//     }
-//     for(size_t j=0;j<surf_list[i].gen_faces.size();++j) {
-//       for(size_t k=0;k<surf_list[i].gen_faces[j].size();++k)
-// 	used[surf_list[i].gen_faces[j][k]] = 1 ;
-//     }
-//   }
-
-//   // Count nodes in the surface mesh
-//   int nnodes = 0 ;
-//   for(size_t i=0;i<numNodes;++i)
-//     if(used[i] != 0) {
-//       used[i] += nnodes++ ;
-//     }
-
-
-//   vector<Loci::vector3d<double> > ptmp(nnodes) ;
-//   for(size_t i=0;i<numNodes;++i)
-//     if(used[i] != 0)
-//       ptmp[used[i]-1] = pos_dat[i] ;
-  
-//   pos.swap(ptmp) ;
-
-//   for(int i=0;i<ssz;++i) {
-//     for(size_t j=0;j<surf_list[i].trias.size();++j) {
-//       surf_list[i].trias[j][0] = used[surf_list[i].trias[j][0]] ;
-//       surf_list[i].trias[j][1] = used[surf_list[i].trias[j][1]] ;
-//       surf_list[i].trias[j][2] = used[surf_list[i].trias[j][2]] ;
-//     }
-//     for(size_t j=0;j<surf_list[i].quads.size();++j) {
-//       surf_list[i].quads[j][0] = used[surf_list[i].quads[j][0]] ;
-//       surf_list[i].quads[j][1] = used[surf_list[i].quads[j][1]] ;
-//       surf_list[i].quads[j][2] = used[surf_list[i].quads[j][2]] ;
-//       surf_list[i].quads[j][3] = used[surf_list[i].quads[j][3]] ;
-//     }
-//     for(size_t j=0;j<surf_list[i].gen_faces.size();++j) {
-//       for(size_t k=0;k<surf_list[i].gen_faces[j].size();++k)
-// 	surf_list[i].gen_faces[j][k] = used[surf_list[i].gen_faces[j][k]] ;
-//     }
-//   }
-
-// #  ifdef DEBUG
-//   cout << "nnodes = "<< nnodes << endl ;
-//   for(int i=0;i<ssz;++i) {
-//     cout << "surf = " << surf_list[i].name << endl ;
-//     cout << "ntrias=" << surf_list[i].trias.size() 
-//     << ",nquads=" << surf_list[i].quads.size()
-//     << ",ngenfs=" << surf_list[i].gen_faces.size()
-//     << endl;
-//   }
-// #endif
-// }
-
-
-
+   loadInfo.casename = ld_info.casename;
+   loadInfo.directory = ld_info.directory;
+   loadInfo.iteration = ld_info.iteration;
+   loadInfo.variable = ld_info.variable;
+}
 
 bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
+  int first= fileName.lastIndexOf('/');
+  int last = fileName.lastIndexOf('.');
+  QString casename = fileName.mid(first+1, last-first-1);
+  QString directory = fileName.left(first);
+  loadInfo.casename = casename;
+  loadInfo.directory = directory;
  
+  
 
   QStringList format = fileName.split('.');
   if(format.size()!=2){
@@ -1061,17 +514,6 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
     //if .name file exists, read in and read mesh   
     QString name_file = format[0]+".names";
     QFile infile(name_file);
@@ -1269,6 +711,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   
   updateView(); 
   mode = BOUND_SELECT_MODE;
+  
   makeObjects();
   //  updateGL();
  
@@ -1317,12 +760,13 @@ void GLViewer::setVisibility(int i, bool show)
 // 
 //
 //////////////////////////////////////////////////////////////////////////
-void GLViewer::uncut(){
-  showBoundaries(true);
-  mode = BOUND_SELECT_MODE;
-  show_preview = false;
-  updateGL();
-}
+// void GLViewer::uncut(){
+//   showBoundaries(true);
+//   mode = BOUND_SELECT_MODE;
+//   show_preview = false;
+ 
+//   updateGL();
+// }
 //////////////////////////////////////////////////////////////////////////////
 //  protected:
 //    void mousePressEvent(QMouseEvent *event);
@@ -1706,6 +1150,15 @@ void GLViewer::toggleContours()
   updateGL();
 }
 
+void GLViewer::toggleBorder()
+{
+  show_border = (show_border)?false:true;
+  updateGL();
+}
+
+
+
+
 //////////////////////////////////////////////////////////////////////////////
 //  public slots:
 //    void toggleGrid();
@@ -1758,13 +1211,13 @@ void GLViewer::setShadeType3()
 
 void GLViewer::setShadeType(int type)
 {
+  this->show_shading = true;
   if (shadeType != type) {
     shadeType = type;
-
     makeObjects();
   }
 
-  this->show_shading = true;
+ 
   updateGL();
 }
 
@@ -1805,10 +1258,16 @@ void GLViewer::loadGrid(const char* /*fileName*/)
   updateGL();
 }
 
-void GLViewer::showBoundaries(bool checked){
+void GLViewer::showBoundaries(){
+  bool checked = true;
   for(unsigned int i=0; i < objVisible.size(); i++){
-    objVisible[i] = checked;
+    checked = objVisible[i] && checked;
   }
+
+  for(unsigned int i=0; i < objVisible.size(); i++){
+    objVisible[i] = !checked;
+  }
+
   updateGL();
 }
     

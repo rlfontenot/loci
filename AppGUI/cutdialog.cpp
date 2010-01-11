@@ -28,14 +28,14 @@
 //  Assembles the dialog shown by the "load grid " in 'file' menu.
 //////////////////////////////////////////////////////////
 
-CutDialog::CutDialog( float size, QWidget *parent)
-  : QWidget(parent)
+CutDialog::CutDialog( LoadInfo ldInfo, float size, QWidget *parent)
+  :  QWidget(parent),ld_info(ldInfo)
 {
  
   QButtonGroup* buttonGroup = new QButtonGroup(this);
   buttonGroup->setExclusive(true);
-  QPushButton* xy_button = new QPushButton(tr("yz_plane"));
-  QPushButton* yz_button = new QPushButton(tr("xy_plane"));
+  QPushButton* xy_button = new QPushButton(tr("xy_plane"));
+  QPushButton* yz_button = new QPushButton(tr("yz_plane"));
   QPushButton* xz_button = new QPushButton(tr("xz_plane"));
   buttonGroup->addButton(xy_button);
   buttonGroup->addButton(yz_button);
@@ -144,6 +144,63 @@ CutDialog::CutDialog( float size, QWidget *parent)
   connect(xEditor2, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
   connect(yEditor2, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
   connect(zEditor2, SIGNAL(valueChanged(double)), this, SLOT(setInfo())); 
+
+   // Casename group
+  QGroupBox *caseGroup = new QGroupBox(tr("Casename"));
+  QHBoxLayout *caseLayout = new QHBoxLayout;
+  caseLabel = new QLabel(ld_info.casename);
+  caseLayout->addWidget(caseLabel);
+  caseGroup->setLayout(caseLayout);
+
+  
+  // Iteration and variable group
+  QGroupBox *iterVarGroup = new QGroupBox(tr("Iteration and variables"));
+  QFormLayout *iterVarLayout = new QFormLayout;
+  comboIter = new QComboBox;
+  comboVar = new QComboBox;
+  iterVarLayout->addRow(new QLabel(tr("Iteration:")), comboIter);
+  iterVarLayout->addRow(new QLabel(tr("Variable:")), comboVar);
+  iterVarGroup->setLayout(iterVarLayout);
+
+
+  connect(comboIter, SIGNAL(currentIndexChanged(QString)),
+	  this, SLOT(updateVars(QString)));
+
+
+  // If a case name has previously been selected, make default
+  if (!ld_info.casename.isEmpty() && !ld_info.directory.isEmpty()) {
+    caseLabel->setText("    " + ld_info.casename);
+
+    QDir dir(ld_info.directory+"/output/");
+    QStringList filters;
+    filters << "grid_pos.*_" + ld_info.casename;
+    QStringList gridposFiles = dir.entryList(filters);
+
+    // Load in valid iteration numbers (variables loaded automatically)
+    for (int i = 0; i < gridposFiles.size(); ++i) {
+      QString gridpos = gridposFiles.at(i);
+      gridpos.remove(0, 9);
+      gridpos.remove(gridpos.size() - ld_info.casename.size() - 1, 
+		     ld_info.casename.size() + 1);
+      comboIter->addItem(gridpos);
+    }
+
+    // If iteration previously selected, make default
+    if (!ld_info.iteration.isEmpty()) {
+      comboIter->setCurrentIndex(comboIter->findText(ld_info.iteration));
+
+      // If variable previously selected, make default
+      if (!ld_info.variable.isEmpty())
+	comboVar->setCurrentIndex(comboVar->findText(ld_info.variable));
+    }
+  }
+
+
+
+
+
+
+
   // 'Cancel' & 'Okay' buttons
   QHBoxLayout *buttons = new QHBoxLayout;
   QPushButton *cancel = new QPushButton(tr("Cancel"));
@@ -167,6 +224,8 @@ CutDialog::CutDialog( float size, QWidget *parent)
   mainLayout->addLayout(hlayout);
   mainLayout->addWidget(translateBox);
   mainLayout->addWidget(rotateBox);
+  mainLayout->addWidget(caseGroup);
+  mainLayout->addWidget(iterVarGroup);
   mainLayout->addLayout(buttons);
 
   setLayout(mainLayout);
@@ -191,7 +250,11 @@ void CutDialog::setInfo()
   positions3d rotate = positions3d(-xEditor2->value(), -yEditor2->value(), -zEditor2->value());
   info.rotate = rotate;
   info.translate = translate;
-  emit cutInfoChanged(info); 
+
+
+  ld_info.variable = comboVar->currentText();
+  emit cutInfoChanged(info);
+  emit loadInfoChanged(ld_info);
 }
 
 void CutDialog::cut(){
@@ -250,3 +313,30 @@ void CutDialog::planeSelected(int id){
     
 
 
+/////////////////////////////////////////////////////////////////////////////
+//  private slots:
+//    void updateVars(QString iter);
+//
+//  Called when the iteration number is changed. Finds all possible variable
+//  names under chosen iteration.
+/////////////////////////////////////////////////////////////////////////////
+
+void CutDialog::updateVars(QString iter)
+{
+  comboVar->clear();
+
+  // Find all possible variable names under iteration
+  ld_info.iteration = iter;
+  QDir dir(ld_info.directory+"/output/");
+  QStringList filters;
+  filters << "*_sca." + iter + "_" + ld_info.casename;
+  QStringList varFiles = dir.entryList(filters);
+
+  // Load possible variable names into comboVar
+  int end = 6 + iter.size() + ld_info.casename.size();
+  for (int i = 0; i < varFiles.size(); ++i) {
+    QString var = varFiles.at(i);
+    var.remove(var.size() - end, end);
+    comboVar->addItem(var);
+  }
+}

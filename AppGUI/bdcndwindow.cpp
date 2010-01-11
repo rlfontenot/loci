@@ -7,7 +7,7 @@
 #include "pages.h"
 
 BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
-                         QStringList names, QTableView* boundaryView,
+                         QStringList names, 
                          QWidget* parent):GeneralWindow(theelem, newroot, parent){
  
   
@@ -15,9 +15,6 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
   typesWidget = new QComboBox;
   pagesWidget = new QStackedWidget;
   bdTypes.clear();
-  myTableView =boundaryView;
-  
-
   cndNode = myroot.firstChildElement("boundary_conditions");
   if(cndNode.isNull()){
     QMessageBox::warning(window(), ".xml",
@@ -25,6 +22,9 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
                          );
     return;
   }
+
+  
+  
   QDomElement elt_name = cndNode.firstChildElement();
   //if the node boundary_conditions has no child, create the children
   if(elt_name.isNull()){
@@ -32,6 +32,7 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
       QDomElement  aNode = cndNode.ownerDocument().createElement(bdNames[i]);
       cndNode.appendChild(aNode);
     }
+    cndNode.setAttribute("currentIndex", "0");
   }
 
        
@@ -54,19 +55,6 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
     bdTypes << elt.tagName();
     whatsThisList << elt.attribute("whatsThis");
     toolTipList <<elt.attribute("toolTip");
-    QWidget* bdCndPage = 0;
-    if(elt.attribute("element")=="panel") bdCndPage = new OptionPage( elt, myroot);
-    else{
-      QMessageBox::warning(window(), ".xml",
-                           tr("Don't know how to handle it yet ")+ elt.tagName() + " " +elt.attribute("element")
-                           );
-      return;
-    }
-      
-    pagesWidget->addWidget(bdCndPage);
-    connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(updateConditionView(const QString&)));
-    connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
-    connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged())); 
   }
   
   typesWidget->addItems(bdTypes);
@@ -74,14 +62,15 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
   connect(typesWidget,
           SIGNAL(currentIndexChanged(int)),
           this, SLOT(changePage(int)));
-
+  
 
   if(!(whatsThisList[typesWidget->currentIndex()].isNull()))typesWidget->setWhatsThis(whatsThisList[typesWidget->currentIndex()]);
   if(!(toolTipList[typesWidget->currentIndex()].isNull()))typesWidget->setToolTip(toolTipList[typesWidget->currentIndex()]);
-     
-  QGroupBox *tableBox = new QGroupBox("please select one boundary:");
+  
+  QGroupBox *tableBox = new QGroupBox("current boundary:");
   QHBoxLayout *tableLayout  = new QHBoxLayout;
-  tableLayout->addWidget(myTableView);
+  currentBdry = new QLabel("");
+  tableLayout->addWidget(currentBdry);
   tableBox->setLayout(tableLayout);
   tableBox->setFlat(true);
   
@@ -93,69 +82,22 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
   label->setFont(font);
   typesLayout->addWidget(label);
   typesLayout->addWidget(typesWidget);
- 
-  updateConditionView();  
+
+  int current = cndNode.attribute("currentIndex").toInt();
+  setCurrent(current);
+  
+  
+  emit updateConditionView();  
     
   QVBoxLayout *mainLayout = new QVBoxLayout;
 
   mainLayout->addWidget(tableBox);
-  mainLayout->addSpacing(10);
   mainLayout->addLayout(typesLayout);
- 
-  mainLayout->addSpacing(10);
   mainLayout->addWidget(pagesWidget);
-  
+ 
   setLayout(mainLayout);
   setWindowTitle(myelem.attribute("title"));
-
-
   
-  
-}
-void BdCndWindow::updateConditionView(const QString& text){
-  QModelIndex index = myTableView->currentIndex();
-  QAbstractItemModel* model = const_cast<QAbstractItemModel*>(index.model());
-  if(index.row() >=0){
-    QModelIndex index2 = model->index(index.row(), 4);
-    model->setData(index2, text);
-    myTableView->resizeRowsToContents();
-    myTableView->resizeColumnsToContents();
-  }else{
-    QMessageBox::warning(window(), "boundary condition setup",
-                         tr("Please select a boundary first")
-                         );
-    return;
-  }
-
-  QDomElement  elem = cndNode.firstChildElement();
-  for(int i =0; i < index.row(); i++)elem = elem.nextSiblingElement();
-  QModelIndex index3 = model->index(index.row(), 3);
-  QString tmp = elem.firstChildElement().attribute("status");
-  model->setData(index3, tmp);
-  myTableView->resizeRowsToContents();
-  myTableView->resizeColumnsToContents();
-  checkStatus();
-  
-}
-
-void BdCndWindow::updateConditionView(){
-  QModelIndex index = myTableView->currentIndex();
-  QAbstractItemModel* model = const_cast<QAbstractItemModel*>(index.model());
-  
-  QDomElement  elem = cndNode.firstChildElement();
-  int i =0;
-  for(; !elem.isNull(); elem = elem.nextSiblingElement(), i++){
-    
-    if(!elem.firstChildElement().isNull()){ 
-  
-      QModelIndex index2 = model->index(i, 4);
-      model->setData(index2, elem.firstChildElement().attribute("currentText"));
-       QModelIndex index3 = model->index(i, 3);
-      model->setData(index3, elem.firstChildElement().attribute("status"));
-      myTableView->resizeRowsToContents();
-      myTableView->resizeColumnsToContents();
-    }
-  }
 }
 
  void BdCndWindow::checkStatus(){
@@ -181,37 +123,33 @@ void BdCndWindow::updateConditionView(){
   emit updateStatusTip(myelem.attribute("buttonIndex").toInt());
 }
  
-
+//change boundary type
 void BdCndWindow::changePage(int index)
 {
-  pagesWidget->setCurrentIndex(index);
-  //replace the child node of current boundary
-
-  //get current boundary node
-  int bdCurrent = cndNode.attribute("currentIndex").toInt();
-  QDomElement elt = cndNode.firstChildElement();
-   //
-   for(int i = 0; i< bdCurrent; i++){
-     elt = elt.nextSiblingElement();
+     //get current boundary node
+    int bdCurrent = cndNode.attribute("currentIndex").toInt();
+    QDomElement elt = cndNode.firstChildElement();
+    for(int i = 0; i< bdCurrent; i++){
+      elt = elt.nextSiblingElement();
+    }
+    if(elt.isNull()){
+      QMessageBox::warning(window(), "bounary condition",
+                           tr("index %d out of range").arg(bdCurrent)
+                           );
+      return;
+    }
+    
+    //get current boundary types node
+    QDomElement pageNode = myelem.firstChildElement();
+    for(int i=0; i < index; i++)pageNode = pageNode.nextSiblingElement();
+    if(pageNode.isNull()){
+      QMessageBox::warning(window(), "bounary condition",
+                           tr("index %d out of range").arg(index)
+                           );
+      return;
    }
-   if(elt.isNull()){
-     QMessageBox::warning(window(), "bounary condition",
-                          tr("index %d out of range").arg(bdCurrent)
-                          );
-     return;
-   }
-
-   //get current boundary types node
-   QDomElement pageNode = myelem.firstChildElement();
-   for(int i=0; i < index; i++)pageNode = pageNode.nextSiblingElement();
-   if(pageNode.isNull()){
-     QMessageBox::warning(window(), "bounary condition",
-                          tr("index %d out of range").arg(index)
-                          );
-     return;
-   }
-
-   //copy the current type Node to the child of current boundary node
+    
+    //copy the current type Node to the child of current boundary node
    QDomNode newNode = pageNode.cloneNode(true);
    if(newNode.isNull()){
      QMessageBox::warning(window(), "bounary condition",
@@ -219,17 +157,17 @@ void BdCndWindow::changePage(int index)
                           );
      return;
    }
-
+   
    QDomNode tmpNode;
    if(elt.firstChildElement().isNull()){
      tmpNode = elt.appendChild(newNode);
      if(tmpNode.isNull()){
-     QMessageBox::warning(window(), "main xml file",
+       QMessageBox::warning(window(), "main xml file",
                           tr("replace ")+elt.tagName()+tr(" node failed")
-                          );
-     return ;
-   }  
-   } else{
+                            );
+       return ;
+     }  
+   }else{
      QDomElement aNode = elt.firstChildElement();
      if(aNode.tagName() != newNode.toElement().tagName()){
        tmpNode = elt.replaceChild( newNode, aNode);
@@ -241,88 +179,216 @@ void BdCndWindow::changePage(int index)
        } 
      }
    }
-  
+   
    
    QDomElement typeNode = elt.firstChildElement();
-   //   //replace the stackedWidget to current set
-   OptionPage* bdCndPage=0;
-   if(typeNode.attribute("element")=="panel") bdCndPage = new OptionPage( typeNode, myroot);
-   else{
+   //replace the stackedWidget to current set
+
+   while(pagesWidget->count() != 0){
+     QWidget* oldPage = pagesWidget->currentWidget();
+     pagesWidget->removeWidget(oldPage);
+     if(oldPage){
+       delete oldPage;
+       oldPage = 0;
+     }
+   }
+   
+   if(typeNode.attribute("element")=="panel"){
+     OptionPage* newPage = new OptionPage( typeNode, myroot);
+     pagesWidget->insertWidget(0, newPage);
+     pagesWidget->setCurrentWidget(newPage);
+     connect(newPage, SIGNAL(textChanged(const QString&)), this, SIGNAL(updateConditionView()));
+     connect(this, SIGNAL(updateConditionView()), this, SLOT(checkStatus())); 
+     connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
+     connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
+     connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
+   }else{
      QMessageBox::warning(window(), "main xml file",
                           tr("Don't know how to handle it yet: ")+typeNode.tagName() + " " + typeNode.attribute("element")
                           );
      return ;
    }
-   pagesWidget->removeWidget(pagesWidget->currentWidget());
-   pagesWidget->insertWidget(index, bdCndPage);
-   pagesWidget->setCurrentIndex(index);
-   connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(updateConditionView(const QString&)));
-   connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
-   connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
-   
-   QString tmp =  bdCndPage->currentText();
-   updateConditionView(tmp);
 
   
+   
+   
+     
+   //QString tmp =  bdCndPage->currentText();
+   //updateConditionView(tmp);
+   emit updateConditionView();
+  
     if(!(whatsThisList[index].isNull()))typesWidget->setWhatsThis(whatsThisList[index]);
-   else typesWidget->setWhatsThis("");
+    else typesWidget->setWhatsThis("");
     if(!(toolTipList[index].isNull()))typesWidget->setToolTip(toolTipList[index]);
     else typesWidget->setToolTip("");
+
+}
+//change boundary 
+
+
+void  BdCndWindow::setCurrent(int bdCurrent){
+ 
+  int previous  =  cndNode.attribute("currentIndex").toInt();
+  cndNode.setAttribute("currentIndex", bdCurrent);
+  if(bdCurrent >=0 )currentBdry->setText(bdNames[bdCurrent]);
+  if(previous != bdCurrent){
+  
+   
+  
+  //go to current boundary
+    QDomElement elt = cndNode.firstChildElement();
+    for(int i = 0; i< bdCurrent; i++){
+      elt = elt.nextSiblingElement();
+    }
+    if(elt.isNull()){
+      QMessageBox::warning(window(), "bounary condition",
+                           tr("index %d out of range").arg(bdCurrent)
+                           );
+      return;
+    }
+ 
+    //if currrent boudnary condition is not set, assign value 'notset'
+    if(elt.firstChildElement().isNull() || elt.firstChildElement().tagName()=="notset"){
+      copyBdCnd(previous, bdCurrent);
+      
+    }else{//otherwise
+      //find the index of boudary type
+      QDomElement pageNode = elt.firstChildElement();
+      int ind = typesWidget->findText(pageNode.tagName());
+      if(ind ==-1){
+        QMessageBox::warning(window(), "boundary condition setup",
+                             tr("invalid boundary type ")+pageNode.tagName()
+                             );
+        return;
+      }
+      typesWidget->setCurrentIndex(ind);
+    }
+  }
+  emit updateConditionView();
 }
 
+
+void BdCndWindow::copyBdCnd(int previous, int current){
+  QDomElement pn = cndNode.firstChildElement();
+  for(int i = 0; i< previous; i++){
+      pn = pn.nextSiblingElement();
+  }
+  if(pn.isNull()){
+    QMessageBox::warning(window(), "bounary condition",
+                           tr("index %d out of range").arg(previous)
+                         );
+    return;
+    } 
+  
+  QDomElement cn = cndNode.firstChildElement();
+  for(int i = 0; i< current; i++){
+    cn = cn.nextSiblingElement();
+  }
+  if(cn.isNull()){
+    QMessageBox::warning(window(), "bounary condition",
+                           tr("index %d out of range").arg(current)
+                         );
+      return;
+    } 
+
+  //copy the current type Node to the child of current boundary node
+   QDomNode newNode = pn.firstChildElement().cloneNode(true);
+   if(newNode.isNull()){
+     QMessageBox::warning(window(), "bounary condition",
+                          tr("cloneNode failed")
+                          );
+     return;
+   }
+   
+   QDomNode tmpNode;
+   if(cn.firstChildElement().isNull()){
+     tmpNode = cn.appendChild(newNode);
+     if(tmpNode.isNull()){
+       QMessageBox::warning(window(), "main xml file",
+                          tr("replace ")+cn.tagName()+tr(" node failed")
+                            );
+       return ;
+     }  
+   }else{
+     QDomElement aNode = cn.firstChildElement();
+     if(aNode.tagName() =="notset"){
+       tmpNode = cn.replaceChild( newNode, aNode);
+       if(tmpNode.isNull()){
+         QMessageBox::warning(window(), "main xml file",
+                              tr("replace ")+cn.tagName()+tr(" node failed")
+                              );
+         return ;
+       } 
+     }
+   }
+   
+   while(pagesWidget->count() != 0){
+     QWidget* oldPage = pagesWidget->currentWidget();
+     pagesWidget->removeWidget(oldPage);
+     if(oldPage){
+       delete oldPage;
+       oldPage = 0;
+     }
+   }
+   
+   if(cn.firstChildElement().attribute("element")=="panel"){
+     QDomElement elm = cn.firstChildElement();
+     OptionPage* newPage = new OptionPage(elm, myroot);
+     pagesWidget->insertWidget(0, newPage);
+     pagesWidget->setCurrentWidget(newPage);
+     connect(newPage, SIGNAL(textChanged(const QString&)), this, SIGNAL(updateConditionView()));
+     connect(this, SIGNAL(updateConditionView()), this, SLOT(checkStatus())); 
+     connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
+     connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
+     connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
+   }else{
+     QMessageBox::warning(window(), "main xml file",
+                          tr("Don't know how to handle it yet: ")+cn.firstChildElement().tagName() + " " + cn.firstChildElement().attribute("element")
+                          );
+
+   }
+}
+
+                            
 void  BdCndWindow::setCurrent(QModelIndex index){
 
   int bdCurrent=index.row();//current boundary index
-  cndNode.setAttribute("currentIndex", bdCurrent);
- 
+  // cndNode.setAttribute("currentIndex", bdCurrent);
+//   if(bdCurrent >=0 )currentBdry->setText(bdNames[bdCurrent]);
   
-  //go to current boundary
-  QDomElement elt = cndNode.firstChildElement();
-  for(int i = 0; i< bdCurrent; i++){
-    elt = elt.nextSiblingElement();
-  }
-  if(elt.isNull()){
-    QMessageBox::warning(window(), "bounary condition",
-                         tr("index %d out of range").arg(bdCurrent)
-                         );
-    return;
-  }
+//   //go to current boundary
+//   QDomElement elt = cndNode.firstChildElement();
+//   for(int i = 0; i< bdCurrent; i++){
+//     elt = elt.nextSiblingElement();
+//   }
+//   if(elt.isNull()){
+//     QMessageBox::warning(window(), "bounary condition",
+//                          tr("index %d out of range").arg(bdCurrent)
+//                          );
+//     return;
+//   }
  
-  //if currrent boudnary condition is not set, assign value 'notset'
-  if(elt.firstChildElement().isNull()){
-    
-    typesWidget->setCurrentIndex(0);
-
-  }else{//otherwise
-    //find the index of boudary type
-    QDomElement pageNode = elt.firstChildElement();
-    int ind = typesWidget->findText(pageNode.tagName());
-    if(ind ==-1){
-      QMessageBox::warning(window(), "boundary condition setup",
-                           tr("invalid boundary type ")+pageNode.tagName()
-                           );
-      return;
-    }
-    typesWidget->setCurrentIndex(ind);
+//   //if currrent boudnary condition is not set, assign value 'notset'
+//   if(elt.firstChildElement().isNull()){
+//     typesWidget->setCurrentIndex(0);
+//   }else{//otherwise
+//     //find the index of boudary type
+//     QDomElement pageNode = elt.firstChildElement();
+//     int ind = typesWidget->findText(pageNode.tagName());
+//     if(ind ==-1){
+//       QMessageBox::warning(window(), "boundary condition setup",
+//                            tr("invalid boundary type ")+pageNode.tagName()
+//                            );
+//       return;
+//     }
+//     typesWidget->setCurrentIndex(ind);
         
   
-    //replace the stackedWidget to current set
-    QWidget* newPage=0;
-    if(pageNode.attribute("element")=="panel") newPage = new OptionPage(pageNode, myroot);
-    else{
-      QMessageBox::warning(window(), "xml",
-                           tr("Don't know how to handle it yet: ")+pageNode.tagName()+" "+ pageNode.attribute("element")
-                           );
-      return;
-    }
-    QWidget* oldPage = pagesWidget->currentWidget();
-    pagesWidget->removeWidget(oldPage);
-    pagesWidget->insertWidget(ind, newPage);
-    pagesWidget->setCurrentWidget(newPage);
-    
-    connect(newPage, SIGNAL(textChanged(const QString&)), this, SLOT(updateConditionView(const QString&)));
-     connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
-    connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
-  }
+     
+//   }
+  setCurrent(bdCurrent);
+  
   
 }
+
+

@@ -62,7 +62,7 @@ public:
   // void openCase(QString);
   void setGrid(QDomElement& theelem);
   void setBoundary(QDomElement& elem);
-    bool selectBoundary();
+  bool selectBoundary();
   
 
   void cut();
@@ -81,6 +81,8 @@ public:
   void hideVisBar();
   void showBoundary(QModelIndex, QModelIndex);
   void toggleViewer();
+  void selectBoundaryPressed();
+  void updateConditionView();
   
   void setCurrentObj(QModelIndex);
   void selectCurrent(int);
@@ -92,15 +94,16 @@ public:
   void clearAllStatus();
   void clearLastStatus();
   void changePage(int);
+  void toggleShowStatus();
   signals:
   void setCurrent(QModelIndex);
   void stateChanged();
   void componentsChanged();
-  
+  void showStatus(const bool&);
 private:
-   QString xmlpath;
+  QString xmlpath;
   QString pngpath;
-
+  
 
   void createActions();
   void createMenu();
@@ -121,22 +124,25 @@ private:
 
   GLViewer *viewer;  // Handle for central OpenGL widget
   QTableView* boundaryView;  // Use for boundary Select
+  // QTableView* simpleBoundaryView;  // Use for boundary Select
+  
   CutDialog* cutdialog;
   QStandardItemModel* modBoundaries;  // Boundary condition model
  
  
  
   QDockWidget *dock;
+   QDockWidget *bdock;
   QSlider* slider; // change number of contour
 
- 
+  
   QButtonGroup* flowbarButtons;
   QStackedWidget* central;
   
   
   
   BdCndWindow* bdWindow;
-
+  
 
   
   QAction *cutAct;
@@ -146,11 +152,12 @@ private:
   
   
   bool bdButtonDown; // for boundary select window reuse
+
   
   //the xml tree to store the  case information
   QDomDocument doc;
   bool isNewCase;
- 
+  bool displayStatus;
   
  };
 

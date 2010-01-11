@@ -42,12 +42,14 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QDomElement& theroot, QWidget
       connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
+       connect(this, SIGNAL(showStatus(const bool&)), bdCndPage, SLOT(updateShowStatus(const bool&)));
       pagesWidget->addWidget(bdCndPage);
     }else if(elem.hasAttribute("element")&&elem.attribute("element")=="page"){
       Page* bdCndPage = new Page(elem, myroot);
       connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
+      connect(this, SIGNAL(showStatus(const bool&)), bdCndPage, SLOT(updateShowStatus(const bool&)));
       pagesWidget->addWidget(bdCndPage);
     }else{
       QMessageBox::warning(window(), elem.tagName(),

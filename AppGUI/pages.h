@@ -36,17 +36,18 @@ public:
  
  public slots:
  void changeState();
+  void updateShowStatus(const bool &);
   signals:
  void updateStatus(const QString&);
   void updateStatusTip(int);
   void stateChanged();
   void componentsChanged();
-  
-protected:
+   void showStatus(const bool &);
   
 protected:
   QDomElement myelem;
   QDomElement myroot;
+  
   
 };
 
@@ -110,13 +111,16 @@ public:
 public slots:
 void changeState();
   void updateChecked();
+  void updateShowStatus(const bool&);
   signals:
  void stateChanged();
   void componentsChanged();
   void textChanged(const QString &);
+  void showStatus(const bool &);
 protected:
   QDomElement myelem;
   QDomElement myroot;
+
   
 };
 
@@ -134,16 +138,17 @@ public slots:
 void updateComponents(); //for dvector
   void changeState();
   private slots:
-void updateCurrentX(const QString&);
+  void updateCurrentX(const QString&);
   void updateCurrentY(const QString&);
   void updateCurrentZ(const QString&);
   void updateCurrentUnit(const QString&);
   void updateUnitList(const QString&);
   void updateLabels(int );
   void updateCurrent(const QString&);
+   void updateShowStatus(const bool&);
   //void updateChecked();
   void updateSelection(int); //for flags
- 
+
  
  void setDefault(bool satisfied);//for default condition, when the condition is satisfied
 
@@ -205,7 +210,7 @@ void updateCurrentText();
 
 
 
-
+//class for a panel
 class OptionPage : public GeneralGroup{
    Q_OBJECT
 public:
@@ -219,7 +224,7 @@ public:
  public slots:
   void advancedButtonClicked(int);
   void updateCurrentText();
- 
+  void updateShowStatus(const bool&);
   signals:
 
   void updateStatusTip(int);
@@ -227,8 +232,9 @@ public:
 
 protected:
   QList<QWidget*> myAdvancedGroup;
-   QButtonGroup* buttonGroup;
+  QButtonGroup* buttonGroup;
   QLabel* currentLabel;
+  bool showStatus;
 };
 
 
@@ -258,10 +264,10 @@ public:
   ~ChoiceGroup();
   QString currentText();
  public slots:
- 
-  void editButtonPressed();
+ void editButtonPressed();
   void update(int);
   void updateCurrentText();
+   void updateShowStatus(const bool&);
   signals:
 private:
   
@@ -271,7 +277,8 @@ private:
   QStringList editItems;
   QStringList whatsThisList;
   QStringList toolTipList;
-  
+  bool showStatus;
+ 
 };
 
 

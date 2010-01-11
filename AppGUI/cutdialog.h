@@ -18,9 +18,10 @@ class CutDialog: public QWidget
   Q_OBJECT
 
 public:
-  CutDialog(float size, QWidget *parent = 0);
+  CutDialog(LoadInfo ldInfo, float size, QWidget *parent = 0);
   signals:
   void cutInfoChanged(cutplane_info&);
+   void loadInfoChanged(const LoadInfo&);
   void cutPressed();
   
 private slots:
@@ -28,7 +29,7 @@ void setInfo();
   void planeSelected(int);
   void reset();
   void cut();
-  
+  void updateVars(QString iter);
   
   
 private:
@@ -45,8 +46,19 @@ private:
   FloatEdit* yEditor2;
   FloatEdit* zEditor2;
   QGroupBox* rotateBox;
-  cutplane_info info;  // Data structure passed from main window
+
+  QLabel *caseLabel;
+  QComboBox *comboIter;
+  QComboBox *comboVar;
+
+
+
+
+
   
+  cutplane_info info;  // Data structure passed from main window
+  LoadInfo ld_info;
+ 
 };
 
 #endif

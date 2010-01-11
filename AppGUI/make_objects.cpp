@@ -63,13 +63,13 @@ GLuint GLViewer::makeGridObject()
   int nedges = fig->interior;
   affineMapping transMatrix2;
   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
-transMatrix2.translate(info.translate);
+  transMatrix2.translate(info.translate);
   transMatrix2.rotateZ(info.rotate.z);
   transMatrix2.rotateY(info.rotate.y);
   transMatrix2.rotateX(info.rotate.x);
   transMatrix2.translate(negCenter);
   
-   vector<positions3d> tmpPos;
+  vector<positions3d> tmpPos;
   for(size_t i =0; i <fig->pos.size();i++){
     positions3d aNode = positions3d(fig->pos[i].x, fig->pos[i].y, 0);
     tmpPos.push_back(transMatrix2.MapNode(aNode));
@@ -79,11 +79,9 @@ transMatrix2.translate(info.translate);
   glColor3f(0.75, 0.75, 0.75);
   for (int e = 0; e < nedges; ++e) {
     const edges &ed = fig->edge_list[e];
-        glVertex3d(tmpPos[ed.l].x, tmpPos[ed.l].y, tmpPos[ed.l].z);
+    glVertex3d(tmpPos[ed.l].x, tmpPos[ed.l].y, tmpPos[ed.l].z);
     glVertex3d(tmpPos[ed.r].x, tmpPos[ed.r].y, tmpPos[ed.r].z);
-    //glVertex3d(fig->pos[ed.l].x,fig->pos[ed.l].y, 0.0);
-    // glVertex3d(fig->pos[ed.r].x,fig->pos[ed.r].y, 0.0);
-    
+        
   }
   glEnd();
   glEndList();
@@ -213,8 +211,9 @@ GLuint GLViewer::makeShadingObject()
     positions3d aNode = positions3d(fig->pos[i].x, fig->pos[i].y, 0);
     tmpPos.push_back(transMatrix2.MapNode(aNode));
   }
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);   
+    
   glNewList(newList, GL_COMPILE);
+   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   glBegin(GL_TRIANGLES);
   for (int t = 0; t < ntris; ++t) {
     const triangles &tri = fig->triangle_list[t];
@@ -228,7 +227,7 @@ GLuint GLViewer::makeShadingObject()
   }
   glEnd();
   glEndList();
-
+ 
   return newList;
 }
 
@@ -387,7 +386,7 @@ GLuint GLViewer::makeCPContour()
   vector<positions3d> contourLoop;
 
   // Make temporary node list
-  vector<positions3d> tempNodes;
+  vector<positions3d> tempNodes(meshNodes.size());
 
   // Set up transformation matrix
   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
@@ -406,62 +405,95 @@ GLuint GLViewer::makeCPContour()
   transMatrix.translate(negTranslate);  
 
   // Transform tempNodes
-  tempNodes.reserve(meshNodes.size());
-  for (int i = 0; i < (int)meshNodes.size(); ++i)
-    tempNodes.push_back( transMatrix.MapNode(meshNodes[i]) );
-  
+ 
+  for (int i = 0; i < (int)meshNodes.size(); ++i){
+    tempNodes[i]= transMatrix.MapNode(meshNodes[i]);
+  }
+   
+  double tol = 1e-34;
   // For each triangle in mesh
   for (size_t bid = 0; bid < mesh.size(); ++bid) {
     for(size_t i = 0; i < mesh[bid].size()/3; i++){
       positions3d tri[3];
       for (int j = 0; j < 3; ++j)
-        tri[j] = tempNodes[ mesh[bid][i*3 + j]-1 ];
+        tri[j] = tempNodes[ mesh[bid][i*3 + j] ];
+      
+      int cutsFound = 0;
+      
 
-    int cutsFound = 0;
-    // Try to cut each edge
-    if(signbit(tri[0].z * tri[1].z)) {
-      double t;
-      t = tri[0].z/(tri[0].z-tri[1].z);
+      //if one node is on the z = 0 plane
+      if(fabs(tri[0].z) < tol){
+        if(fabs(tri[1].z) < tol){
+          contourLoop.push_back(tri[0]);
+          cutsFound++;
+          contourLoop.push_back(tri[1]);
+          cutsFound++;
+          
+        }
+        if(fabs(tri[2].z) < tol){
+          contourLoop.push_back(tri[2]);
+          cutsFound++;
+          contourLoop.push_back(tri[0]);
+          cutsFound++;
+        }
+      }else if(fabs(tri[1].z) < tol){
+        if(fabs(tri[2].z) < tol){
+          contourLoop.push_back(tri[1]);
+          cutsFound++;
+          contourLoop.push_back(tri[2]);
+          cutsFound++;
+        }
+      }
 
-      positions3d newPnt;
-      newPnt.x = (1-t)*tri[0].x + t*tri[1].x;
-      newPnt.y = (1-t)*tri[0].y + t*tri[1].y;
-      newPnt.z = 0.0;
+      //no node on z=0 plane
+      if(fabs(tri[0].z) >= tol && fabs(tri[1].z) >= tol && fabs(tri[2].z) >=tol){ 
+        // Try to cut each edge
+        if((tri[0].z * tri[1].z)< 0) {
+          double t;
+          t = tri[0].z/(tri[0].z-tri[1].z);
+                  
+          positions3d newPnt;
+          newPnt.x = (1-t)*tri[0].x + t*tri[1].x;
+          newPnt.y = (1-t)*tri[0].y + t*tri[1].y;
+          newPnt.z = 0.0;
 
-      contourLoop.push_back(newPnt);
-      cutsFound++;
-    }
-    if(signbit(tri[1].z * tri[2].z)) {
-      double t;
-      t = tri[1].z/(tri[1].z-tri[2].z);
+         
+          contourLoop.push_back(newPnt);
+          cutsFound++;
+        }      
+        
+        if((tri[1].z * tri[2].z)<0) {
+        double t;
+        t = tri[1].z/(tri[1].z-tri[2].z);
+        positions3d newPnt;
+        newPnt.x = (1-t)*tri[1].x + t*tri[2].x;
+        newPnt.y = (1-t)*tri[1].y + t*tri[2].y;
+        newPnt.z = 0.0;
+       
+        contourLoop.push_back(newPnt);
+        cutsFound++;
+        }
+        
+        if((tri[2].z * tri[0].z)<0) {
+          double t;
+          t = tri[2].z/(tri[2].z-tri[0].z);
+          positions3d newPnt;
+          newPnt.x = (1-t)*tri[2].x + t*tri[0].x;
+          newPnt.y = (1-t)*tri[2].y + t*tri[0].y;
+          newPnt.z = 0.0;
+          
+          contourLoop.push_back(newPnt);
+          cutsFound++;
+        }
 
-      positions3d newPnt;
-      newPnt.x = (1-t)*tri[1].x + t*tri[2].x;
-      newPnt.y = (1-t)*tri[1].y + t*tri[2].y;
-      newPnt.z = 0.0;
+      }
 
-      contourLoop.push_back(newPnt);
-      cutsFound++;
-    }
-    if(signbit(tri[2].z * tri[0].z)) {
-      double t;
-      t = tri[2].z/(tri[2].z-tri[0].z);
-
-      positions3d newPnt;
-      newPnt.x = (1-t)*tri[2].x + t*tri[0].x;
-      newPnt.y = (1-t)*tri[2].y + t*tri[0].y;
-      newPnt.z = 0.0;
-
-      contourLoop.push_back(newPnt);
-      cutsFound++;
-    }
-
-    if (cutsFound != 0 && cutsFound != 2) {
-      qDebug() << "Major malfunction at tri #" << i;
-      qDebug() << "Cuts: " << cutsFound;
-      qDebug() << tri[0].z << tri[1].z << tri[2].z;
-      exit(0);
-    }
+      if (cutsFound != 0 && cutsFound != 2) {
+        qDebug() << "Major malfunction at tri #" << i;
+        qDebug() << "Cuts: " << cutsFound;
+        qDebug() << tri[0].z<< " "<< tri[1].z<<" " << tri[2].z;
+        exit(0);
+      }
     }
   }
 
@@ -478,20 +510,18 @@ GLuint GLViewer::makeCPContour()
   
   for (size_t i = 0; i < contourLoop.size(); ++i)
     contourLoop[i] = transMatrix2.MapNode(contourLoop[i]);
-
+  
   
   // Compile display list
   GLuint newList = glGenLists(1);
   glNewList(newList, GL_COMPILE);
+  glColor3f(0.0, 0.0, 0.0);
   glBegin(GL_LINES);
-
+  for(size_t i = 0; i < contourLoop.size(); i++) 
+    glVertex3d(contourLoop[i].x, contourLoop[i].y, contourLoop[i].z);
+  glEnd();
 
   
-  glColor3f(0.0, 0.0, 0.0);
-  for (size_t i = 0; i < contourLoop.size(); ++i)
-    glVertex3d(contourLoop[i].x, contourLoop[i].y, contourLoop[i].z);
-
-  glEnd();
   // glBegin(GL_LINE_LOOP);
   /*
   double len = size / 1.5;
@@ -500,8 +530,8 @@ GLuint GLViewer::makeCPContour()
   glVertex3d(-len + center.x, -len + center.y, 0.0);
   glVertex3d(-len + center.x, len + center.y, 0.0);
   */
-  //  double len = size / 1.5;
-  // glVertex3d(len, len, 0.0);
+   //double len = size / 1.5;
+    // glVertex3d(len, len, 0.0);
   // glVertex3d(len, -len, 0.0);
   // glVertex3d(-len, -len, 0.0);
   // glVertex3d(-len, len, 0.0);
@@ -629,9 +659,10 @@ void GLViewer::drawCoordGrid()
 
 double* GLViewer::shade(double value, double weight)
 {
-
-double*  rgb = new double[3];
-
+  if (rgb)
+    delete [] rgb;
+  rgb = new double[3];
+  
   value = (value - min_val)/(max_val - min_val);
   // 0.0 <= value <= 1.0
 

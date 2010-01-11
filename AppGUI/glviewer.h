@@ -48,29 +48,30 @@ class GLViewer : public QGLWidget
 public:
   GLViewer(QWidget *parent = 0);
   ~GLViewer();
-   void loadGrid(const char *fileName);
-  float boundaryBoxSize();
-  // void load_boundary(const LoadInfo& info,  QStringList& boundary_names);
-  bool load_boundary(QString filename,  QStringList& boundary_names); 
-public slots:
+  void loadGrid(const char *fileName); //read in 2dgv file and view it
+  float boundaryBoxSize(); // return the size of boudnary box, used in cutdialog
+  bool load_boundary(QString filename,  QStringList& boundary_names); //read in .surf and .names file, or .surface file 
+ public slots:
+ //slots for cutplane display menu
   void toggleContours();
   void toggleGrid();
   void toggleShading();
+  void toggleBorder();
   void setShadeType1();
   void setShadeType2();
   void setShadeType3();
   void changeContours(int number);
-  // void makeCut();
-  void cut();
-  void uncut();
-  void setCurrentObj(int i, QColor c);
+ 
+  void cut(); //read in volume grid and sca value, generate a cutplane
+  // void uncut();
+  void setCurrentObj(int i, QColor c); 
   void setVisibility(int , bool );
-  void showBoundaries(bool);
+  void showBoundaries(); // slot for vis menu
   void clearCurrent();
   void previewCut(cutplane_info& Nfo);
   void reset();
   void fit();
-  
+  void setLoadInfo(const LoadInfo&);
 signals:
   void pickCurrent(int);
 protected:
@@ -129,13 +130,14 @@ private:
   int currentObj;//current object
   QColor currentColor;// the color of current object
 
-  // double* rgb;  // Temporary used for display list creation
+   double* rgb;  // Temporary used for display list creation
   double* shade(double value, double weight = 1.0);
   int shadeType;  // Stores which type of shading to use
 
   opMode mode;  // Which state the program is in
  
   grid *fig;  // Data structure that holds the cutting plane's topology
+
   positions lastPos;  // Last position visited by the mouse
   
   GLdouble size; //diagonal size of objects
@@ -148,7 +150,7 @@ private:
   
   int currentWidth, currentHeight;//viewport
   
-  bool show_preview, show_contours, show_grid, show_shading;  // Visibility flags
+  bool show_preview, show_contours, show_grid, show_shading, show_border;  // Visibility flags
   float min_val, max_val;  // Scalar value extrema over the whole grid
   
   cutplane_info info;  // The information for the current cutting plane

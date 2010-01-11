@@ -23,6 +23,7 @@ private slots:
 void changePage(int id);
   void checkStatus();
   void updateState();// update buttons using pages's signal
+  void updateShowStatus(const bool&);
   signals:
   
 private:

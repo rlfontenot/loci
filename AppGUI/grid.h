@@ -25,15 +25,15 @@ static const QColor default_color[] = {Qt::red, Qt::green, Qt::blue, Qt::cyan, Q
 // Data structure passed to load dialog
 struct LoadInfo
 {
-  bool load_boundary;
-  bool load_grid;
-  bool load_scalar;
+  //  bool load_boundary;
+  //bool load_grid;
+  //bool load_scalar;
 
   QString casename;
   QString iteration;
   QString variable;
   QString directory;
-  LoadInfo():load_boundary(true), load_grid(false), load_scalar(false){};
+  LoadInfo():casename(""),iteration(""),variable(""),directory(""){};
 };
 
 struct edges {

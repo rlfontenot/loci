@@ -12,6 +12,9 @@
 #include <QListWidgetItem>
 #include <QString>
 #include "pages.h"
+#include <vector>
+using std::vector;
+
 bool conditionIsSatisfied(const QDomElement& theroot, const QString& condition){
   
   QDomElement elem= theroot.firstChildElement("mainWindow");
@@ -28,7 +31,7 @@ bool conditionIsSatisfied(const QDomElement& theroot, const QString& condition){
 }
 
 FloatEdit::FloatEdit(QWidget *parent) : QLineEdit(parent){
-  
+
    validator = new QDoubleValidator(this);
    setValidator(validator);
    connect(this, SIGNAL(textChanged(const QString&)), this, SLOT(changeValue(const QString&)));
@@ -36,6 +39,7 @@ FloatEdit::FloatEdit(QWidget *parent) : QLineEdit(parent){
  }
 
 FloatEdit::FloatEdit(double d, QWidget*parent):QLineEdit(parent){
+
   validator = new QDoubleValidator(this);
   setValidator(validator);
   QString str;
@@ -164,6 +168,26 @@ void GeneralGroup::updateChecked(){
   if(isChecked())myelem.setAttribute("checked", 1);
   else myelem.setAttribute("checked", 0);
   emit textChanged(currentText());
+  
+}
+
+void GeneralGroup::updateShowStatus(const bool& show){
+
+  if(show){//parent says show
+    if(((!myelem.hasAttribute("checked")) || myelem.attribute("checked").toInt()==1) &&
+       myelem.attribute("status")!="done" )emit showStatus(show); //tell my children to show
+    else  emit showStatus(!show); //tell my children don't show
+  }else  emit showStatus(show); //parent no show, my children won't show
+  
+}
+
+void GeneralWindow::updateShowStatus(const bool& show){
+
+  if(show){//parent says show
+    if(((!myelem.hasAttribute("checked")) || myelem.attribute("checked").toInt()==1) &&
+       myelem.attribute("status")!="done" )emit showStatus(show); //tell my children to show
+    else  emit showStatus(!show); //tell my children don't show
+  }else  emit showStatus(show); //parent no show, my children won't show
   
 }
 
@@ -443,6 +467,7 @@ OpGroup::OpGroup(  QDomElement& my_elem, QDomElement& theroot, QWidget *parent )
 
   }//else not vectors
   emit textChanged(currentText());
+  connect(this, SIGNAL(showStatus(const bool &)), this, SLOT(updateShowStatus(const bool &)));
 }
 
 void OpGroup::updateSelection(int id){
@@ -464,12 +489,119 @@ void OpGroup::updateCurrent(const QString& c){
     }
     myelem.setAttribute("current", tmp);
   }
-
-    
+ 
   emit textChanged(currentText());
 }
 
+void OpGroup::updateShowStatus(const bool& show){
+    if(show) myelem.setAttribute("showStatus", "1");
+    else myelem.setAttribute("showStatus", "0");
 
+    
+    if(myelem.attribute("element")=="string"
+       ||myelem.attribute("element")=="float"
+       ||myelem.attribute("element")=="vector"
+       ||myelem.attribute("element")=="dvector"
+       ||myelem.attribute("element")=="int"
+       ){
+
+      if(!show){//not show
+        for(int i = 0; i < mfs.size(); i++){
+          QPalette palette;
+          palette.setColor(mfs[i]->backgroundRole(), QColor(255, 255, 255));
+          mfs[i]->setPalette(palette);
+         }
+      }else{//show
+
+
+        
+      
+      
+      if(myelem.attribute("status")=="done"){
+        for(int i = 0; i < mfs.size(); i++){
+          QPalette palette;
+          palette.setColor(mfs[i]->backgroundRole(), QColor(255, 255, 255));
+          mfs[i]->setPalette(palette);
+        }
+      }else  if(!myelem.hasAttribute("checked")||myelem.attribute("checked").toInt()== 1){
+        if(myelem.attribute("element")=="string"
+           ||myelem.attribute("element")=="float"
+           ||myelem.attribute("element")=="vector"
+           ||myelem.attribute("element")=="dvector"){
+          
+          for(int i = 0; i < mfs.size(); i++){
+            if(qobject_cast<QLineEdit*>(mfs[i])->text()==""){
+              QPalette palette;
+              palette.setColor(mfs[i]->backgroundRole(), QColor(255, 0, 0));
+              mfs[i]->setPalette(palette);
+             
+            }
+          }
+        }else if(myelem.attribute("element")=="int"){
+          for(int i = 0; i < mfs.size(); i++){
+            if(qobject_cast<QSpinBox*>(mfs[i])->cleanText()==""){
+              QPalette palette;
+              palette.setColor(mfs[i]->backgroundRole(), QColor(255, 0, 0));
+              mfs[i]->setPalette(palette);
+            }
+          }
+        }
+      }else if(myelem.parentNode().toElement().attribute("element")=="2of3" && myelem.parentNode().toElement().attribute("status")!="done"){
+        for(int i = 0; i < mfs.size(); i++){
+          if(qobject_cast<QLineEdit*>(mfs[i])->text()==""){
+            QPalette palette;
+            palette.setColor(mfs[i]->backgroundRole(), QColor(255, 0, 0));
+            mfs[i]->setPalette(palette);
+             
+          }
+        } 
+      }
+      }
+    }
+
+}
+
+
+void OptionPage::updateShowStatus(const bool& show){
+  showStatus = show;
+  if(buttonGroup){
+    for(unsigned int i = 0; i <  buttonGroup->buttons().size(); i++){
+      buttonGroup->button(i)->setPalette(this->palette());
+    }
+    
+  if(show){//parent says show
+    
+    if(((!myelem.hasAttribute("checked")) || myelem.attribute("checked").toInt()==1) &&
+       myelem.attribute("status")!="done" ){
+      //emit showStatus(show); //tell my children to show
+      
+      //if advanced not done, bring up the page
+     
+      int count = 0;
+      for(QDomElement elt = myelem.firstChildElement(); !elt.isNull(); elt = elt.nextSiblingElement()){
+        if(elt.hasAttribute("buttonTitle")){
+          if(elt.attribute("status")!= "done"){
+            if(count < buttonGroup->buttons().size()){
+              QPalette palette;
+              palette.setColor(buttonGroup->button(count)->backgroundRole(), QColor(255, 0, 0));
+              buttonGroup->button(count)->setPalette(palette);
+            }
+          }
+        
+          count++;
+          
+        }
+      
+        
+      }
+    }
+  }
+  }
+  GeneralGroup::updateShowStatus(show);   
+     
+        
+}
+  
 void OpGroup::updateCurrentX(const QString& c){
   myelem.setAttribute("currentX", c);
   emit textChanged(currentText());
@@ -563,7 +695,8 @@ QString  OpGroup::currentText(){
   }
   
  
-  
+   if(myelem.attribute("showStatus").toInt()==1)updateShowStatus(true);
+    
   myelem.setAttribute("currentText", text);
   return text;
 }
@@ -762,7 +895,7 @@ AllVBGroup::AllVBGroup(  QDomElement& elem, QDomElement& theroot, bool isVertica
   
  
 
-    signalMapper = new QSignalMapper(this);
+  signalMapper = new QSignalMapper(this);
   QBoxLayout *mainLayout;
   if(isVertical)mainLayout = new QVBoxLayout;
   else mainLayout = new QHBoxLayout;
@@ -869,6 +1002,7 @@ AllVBGroup::AllVBGroup(  QDomElement& elem, QDomElement& theroot, bool isVertica
     connect(myGroup, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrentText()));
     connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
     connect(this, SIGNAL(componentsChanged()), myGroup, SLOT(updateComponents()));
+    connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
     myGroup->setFlat(true);
     mainLayout->addWidget(myGroup);
     count++;
@@ -926,7 +1060,7 @@ QString AllVBGroup::currentText(){
   if(myelem.hasAttribute("infix")) infix = myelem.attribute("infix");
   
   QString text ;
-if(myelem.hasAttribute("comments")) text += myelem.attribute("comments")+"\n";
+  if(myelem.hasAttribute("comments")) text += myelem.attribute("comments")+"\n";
   
   for(QDomElement opt = myelem.firstChildElement(); !opt.isNull(); opt=opt.nextSiblingElement()){ 
     if(!opt.hasAttribute("checked")||opt.attribute("checked").toInt()== 1){
@@ -1037,6 +1171,7 @@ StackGroup::StackGroup( QDomElement& elem, QDomElement& root, QWidget *parent )
      if(elem_opt.attribute("element")=="all"||elem_opt.attribute("element")=="selection"||elem_opt.attribute("element")=="2of3"){
        myGroup = new AllVBGroup(elem_opt, myroot, false,this);
        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
+         connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
      }else{
        qDebug()<<"don't know how to handle it yet";
      }
@@ -1079,6 +1214,7 @@ StackGroup::StackGroup( QDomElement& elem, QDomElement& root, QWidget *parent )
        myGroup->setFlat(true);
      }
      connect(this, SIGNAL(componentsChanged()), myGroup, SLOT(updateComponents()));
+       connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
    }
    
    typesWidget->addItem(elem_opt.attribute("title"));
@@ -1160,7 +1296,7 @@ OptionPage::OptionPage(   QDomElement& my_elem, QDomElement &my_root, QWidget *p
   if(!toolTip().isEmpty())setToolTip("");
   if(!statusTip().isEmpty())setStatusTip("");
   if(!whatsThis().isEmpty())setWhatsThis("");
- 
+  showStatus = false;
 
   buttonGroup = 0;  
   QDomElement elt = myelem.firstChildElement();
@@ -1229,14 +1365,17 @@ OptionPage::OptionPage(   QDomElement& my_elem, QDomElement &my_root, QWidget *p
       if(elt.attribute("element")=="all" ||elt.attribute("element")=="2of3"  ){
         myGroup = new AllVBGroup(elt, myroot, false, this);
         connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
+          connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
         connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
       }else if(elt.attribute("element")=="stack"){
         myGroup = new StackGroup(elt, myroot, this);
         connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
+          connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
         connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
       }else if(elt.attribute("element")=="choice"){
         myGroup = new ChoiceGroup(elt, myroot, this);
         connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
+          connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
         connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
 
       }else {
@@ -1296,22 +1435,28 @@ OptionPage::OptionPage(   QDomElement& my_elem, QDomElement &my_root, QWidget *p
       if(elt.attribute("element")=="choice"){
         myGroup = new ChoiceGroup(elt, myroot);
         connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
+          connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
         connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
       }else if(elt.attribute("element")=="all"){
         myGroup = new AllVBGroup(elt, myroot);
         connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
+          connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
          connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
       }else if(elt.attribute("element")=="stack"){
         myGroup = new StackGroup(elt, myroot);
         connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
+          connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
          connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
       }else if(elt.attribute("element")=="panel"){
+       
         myGroup = new OptionPage(elt, myroot);
         connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-         connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
+        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
+        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
       }else{
         myGroup = new OpGroup(elt, myroot);
         connect(this, SIGNAL(componentsChanged()), myGroup, SLOT(updateComponents()));
+        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
         connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
       }
      
@@ -1324,6 +1469,7 @@ OptionPage::OptionPage(   QDomElement& my_elem, QDomElement &my_root, QWidget *p
         elt_count--;
         advancedLayout->addWidget(myButton);
         myAdvancedGroup<<myGroup;
+       
         myGroup->hide();
       }
      
@@ -1355,6 +1501,7 @@ OptionPage::OptionPage(   QDomElement& my_elem, QDomElement &my_root, QWidget *p
   
 
 
+
 void OptionPage::clearText(){
 }
 
@@ -1363,6 +1510,7 @@ void OptionPage::updateCurrentText(){
   QString tmp = currentText();
   myelem.setAttribute("currentText", tmp);
   emit textChanged(tmp);
+ if(showStatus) updateShowStatus(showStatus);
 }
 
   
@@ -1446,7 +1594,8 @@ QString OptionPage::currentText(){
   if(count==count_done)myelem.setAttribute("status", "done");
   else myelem.setAttribute("status",tmp); 
   if(myelem.hasAttribute("buttonIndex"))emit(updateStatusTip(myelem.attribute("buttonIndex").toInt()));
-  
+
+
   return text;
 
 
@@ -1454,18 +1603,25 @@ QString OptionPage::currentText(){
 }
   
 void OptionPage::advancedButtonClicked(int index){
-  if(index<myAdvancedGroup.size())  myAdvancedGroup[index]->show();
+  if(index<myAdvancedGroup.size())  {
+    myAdvancedGroup[index]->show();
+  }
 }
 
 OptionPage::~OptionPage(){
   for(int i= 0; i < myAdvancedGroup.size(); i++){
-    if(myAdvancedGroup[i])delete myAdvancedGroup[i];
-    myAdvancedGroup[i] = 0;
+     myAdvancedGroup[i]->close();
+     if(myAdvancedGroup[i]){
+       delete myAdvancedGroup[i];
+       myAdvancedGroup[i] = 0;
+       
+     }
   }
   if(buttonGroup){
     delete buttonGroup;
     buttonGroup = 0;
   }
+  destroy();
 }
 
 
@@ -1479,7 +1635,7 @@ OptionPage::~OptionPage(){
 ChoiceGroup::ChoiceGroup(   QDomElement& my_elem,  QDomElement& theroot, QWidget *parent )
   : GeneralGroup(my_elem, theroot, parent)
 {
-
+  showStatus = false;
   editGroup = 0;
    int currentChoice = 0;
   if(myelem.hasAttribute("current")) currentChoice=myelem.attribute("current").toInt();
@@ -1537,6 +1693,7 @@ ChoiceGroup::ChoiceGroup(   QDomElement& my_elem,  QDomElement& theroot, QWidget
   connect(editButton, SIGNAL(clicked()),
           this, SLOT(editButtonPressed()));  
   updateCurrentText();
+  // connect(this, SIGNAL(showStatus(const bool &)), this, SLOT(updateShowStatus(const bool &)));
 }
 ChoiceGroup::~ChoiceGroup(){
   if(editGroup){
@@ -1544,7 +1701,36 @@ ChoiceGroup::~ChoiceGroup(){
     editGroup = 0;
   }
 }
-
+void ChoiceGroup::updateShowStatus(const bool& show){
+  showStatus = show;
+  if(editButton){
+  if(show){//parent says show
+   
+    if(((!myelem.hasAttribute("checked")) || myelem.attribute("checked").toInt()==1) &&
+       myelem.attribute("status")!="done" ){
+      
+      QPalette palette;
+      palette.setColor(editButton->backgroundRole(), QColor(255, 0, 0));
+      editButton->setPalette(palette);
+   
+      // editButton->click();       
+    }else{
+      // emit showStatus(!show); //tell my children don't show
+      
+     
+      editButton->setPalette(this->palette());
+    
+    }
+  }else{
+    //emit showStatus(show); //parent no show, my children won't show
+   
+    editButton->setPalette(this->palette());
+    
+  }
+  }
+  GeneralGroup::updateShowStatus(show);
+  
+}
 
 QString ChoiceGroup::currentText(){
   int i = comboBox->currentIndex();
@@ -1629,6 +1815,7 @@ void ChoiceGroup::updateCurrentText(){
       
   myelem.setAttribute("currentText", tmp);
   emit textChanged(tmp);
+ if(showStatus)updateShowStatus(showStatus);
 }
 
 
@@ -1682,10 +1869,12 @@ void ChoiceGroup::editButtonPressed(){
   if(elt.attribute("element")=="panel"){
     editGroup = new  OptionPage(elt, myroot);
     connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
+      connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
     connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
   }else{
     editGroup = new OpGroup(elt, myroot);
     connect(this, SIGNAL(componentsChanged()), editGroup, SLOT(updateComponents()));
+      connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
     connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
   }
   connect(editGroup, SIGNAL(textChanged(QString)), this, SLOT(updateCurrentText()));
@@ -1703,6 +1892,7 @@ AllVBWindow::AllVBWindow(  QDomElement& elem,  QDomElement& root,  QWidget *pare
   
   AllVBGroup* thegroup = new AllVBGroup(elem, root, this);
   connect(this, SIGNAL(componentsChanged()), thegroup, SIGNAL(componentsChanged()));
+   connect(this, SIGNAL(showStatus(const bool &)), thegroup, SLOT(updateShowStatus(const bool &))); 
   connect(this, SIGNAL(stateChanged()), thegroup, SLOT(changeState()));
   
   QPushButton* saveButton = new QPushButton(tr("          save the module        "));
@@ -1822,6 +2012,7 @@ StackGroup2::StackGroup2(  QDomElement& elem, QDomElement& theroot, const QStrin
      stacks<<stackGroup;
      connect(stackGroup, SIGNAL(stateChanged(QString)), this, SLOT(updateState(QString)));
      connect(stackGroup, SIGNAL(componentsChanged()), this, SLOT(updateComponents()));
+     connect(this, SIGNAL(showStatus(const bool &)), stackGroup, SLOT(updateShowStatus(const bool &)));
      pageLayout->addWidget(stackGroup);
    }else if(elem_opt.attribute("element")=="models"){
        QDomElement elem_mod= elem_opt.firstChildElement();
@@ -1854,6 +2045,8 @@ StackGroup2::StackGroup2(  QDomElement& elem, QDomElement& theroot, const QStrin
          
          modelsLayout->addWidget(modelChoice);
          connect(modelChoice, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrentText()));
+         connect(this, SIGNAL(showStatus(const bool &)), modelChoice, SLOT(updateShowStatus(const bool &)));
+         
        }
        }
       
@@ -2069,6 +2262,7 @@ Page::Page(QDomElement& theelem, QDomElement& theroot, QWidget* parent): General
       connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrentText()));
       connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
+      connect(this, SIGNAL(showStatus(const bool &)), bdCndPage, SLOT(updateShowStatus(const bool &)));
     }else{
       QMessageBox::warning(window(), elem.tagName(),
                            tr(" don't know how to handle it yet: ")

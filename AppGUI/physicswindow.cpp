@@ -240,6 +240,7 @@ PhysicsWindow::PhysicsWindow(QDomElement& theelem, QDomElement& theroot, QWidget
       connect(stackGroup, SIGNAL(stateChanged(QString)), this, SLOT(updateState(QString)));
       connect(this, SIGNAL(parentStateChanged(QString)), stackGroup, SLOT(parentStateChanged(QString)));
       connect(this, SIGNAL(stateUpdated(const QStringList&)), stackGroup, SLOT(setParentState(const QStringList&)));
+       connect(this, SIGNAL(showStatus(const bool &)), stackGroup, SLOT(updateShowStatus(const bool &)));
       connect(stackGroup, SIGNAL(stateChanged(QString)), this, SLOT(checkStatus()));
       connect(stackGroup, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(stackGroup, SIGNAL(componentsChanged()), this, SIGNAL(componentsChanged()));

@@ -74,6 +74,7 @@ void cbEdgeFlag(GLboolean) {}
 
 void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const positions3d& center, grid *figure)
 {
+ 
   // Turn off hdf5 error reports
   H5Eset_auto(NULL, NULL);
 
@@ -84,7 +85,7 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
   hsize_t npnts;
 
  
-  QString posname = load_info.directory + "/grid_pos." + load_info.iteration + 
+  QString posname = load_info.directory + "/output/grid_pos." + load_info.iteration + 
     '_' + load_info.casename ;
  
   hid_t file_id = H5Fopen(posname.toLocal8Bit(),
@@ -95,9 +96,14 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
   H5Sget_simple_extent_dims(dataspace_id, &npnts, NULL);
 
   hid_t pos_tid = H5Tcreate(H5T_COMPOUND, sizeof(positions3d));
-  H5Tinsert(pos_tid, "x", HOFFSET(positions3d, x), H5T_IEEE_F64LE);
-  H5Tinsert(pos_tid, "y", HOFFSET(positions3d, y), H5T_IEEE_F64LE);
-  H5Tinsert(pos_tid, "z", HOFFSET(positions3d, z), H5T_IEEE_F64LE);
+  
+  // H5Tinsert(pos_tid, "x", HOFFSET(positions3d, x), H5T_IEEE_F64LE);
+//   H5Tinsert(pos_tid, "y", HOFFSET(positions3d, y), H5T_IEEE_F64LE);
+//   H5Tinsert(pos_tid, "z", HOFFSET(positions3d, z), H5T_IEEE_F64LE);
+
+  H5Tinsert(pos_tid, "x", 0, H5T_IEEE_F64LE);
+  H5Tinsert(pos_tid, "y", sizeof(double), H5T_IEEE_F64LE);
+  H5Tinsert(pos_tid, "z", 2*sizeof(double), H5T_IEEE_F64LE);
 
   positions3d null3d;
   null3d.x = null3d.y = null3d.z = 0.0;
@@ -125,7 +131,7 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
     nodes[i] = transMatrix.MapNode(nodes[i]);
 
   // Get connectivity infomation
-  QString gridtopo = load_info.directory + '/' + load_info.casename +".topo" ;
+  QString gridtopo = load_info.directory + "/output/" + load_info.casename +".topo" ;
   hid_t topo_id = H5Fopen(gridtopo.toLocal8Bit(),
 			  H5F_ACC_RDONLY, H5P_DEFAULT) ;
 
@@ -137,11 +143,10 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
   int npyrm = sizeElementType(elg,"pyramid") ;
   int ngenc = sizeElementType(elg,"GeneralCellNfaces") ;
 
-  qDebug("npnts: %d  ntets: %d  npyrm: %d  nprsm: %d  nhexs: %d  ngenc: %d", 
-	int(npnts), ntets, npyrm, nprsm, nhexs, ngenc);
+ 
 
   // Get variable information
-  QString filename = load_info.directory + "/" + load_info.variable + "_sca." + 
+  QString filename = load_info.directory + "/output/" + load_info.variable + "_sca." + 
                      load_info.iteration + "_" + load_info.casename;
   hid_t scalar_id = H5Fopen(filename.toLocal8Bit(), 
 			    H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -347,7 +352,7 @@ void CutPlane::close() {
     
     // Make list of indeces for all edges forming the cell border
     list<int> edgeList;
-    for (int i = start+1; i <= end; ++i)
+    for (unsigned int i = start+1; i <= end; ++i)
       edgeList.push_back(i);
     
     edges firstNode(intersects[start][0], intersects[start][1]);
@@ -792,7 +797,7 @@ void CutPlane::write_tets(int tets[], int ntets) {
   }
 
   cellCount += ntets;
-  qDebug("Number of tets cut: %d", tetsCut);
+ 
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -836,7 +841,7 @@ void CutPlane::write_pyrm(int pyrm[], int npyrm) {
   }
   
   cellCount += npyrm;
-  qDebug("Number of pyrm cut: %d", pyrmCut);
+  
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -885,7 +890,7 @@ void CutPlane::write_prsm(int prsm[], int nprsm) {
   }
 
   cellCount += nprsm;
-  qDebug("Number of prsm cut: %d", prsmCut);
+  
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -933,7 +938,7 @@ void CutPlane::write_hexs(int hexs[], int nhexs) {
   }
 
   cellCount += nhexs;
-  qDebug("Number of hexs cut: %d", hexsCut);
+ 
 }
 
 
@@ -975,6 +980,6 @@ void CutPlane::write_general_cell(int nfaces[], int nnfaces,
     }
   }
   
-  qDebug("Number of genc cut: %d", genCut);
+ 
 }
 

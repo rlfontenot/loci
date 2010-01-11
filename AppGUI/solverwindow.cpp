@@ -46,8 +46,11 @@ SolverWindow::SolverWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
     //with "index", the panel/page does hide/show
     elem.setAttribute("index", count);
     
-    if(count==current)bdCndiButton->setChecked(true);
-    
+    if(count==current){
+      bdCndiButton->click();
+      //bdCndiButton->setChecked(true);
+      // bdCndiButton->setDown(true);
+    }
     
     bdCndiButton->setToolTip(elem.attribute("toolTip"));
     bdCndiButton->setWhatsThis(elem.attribute("whatsThis"));
@@ -57,6 +60,7 @@ SolverWindow::SolverWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
       connect(newPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
+       connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
       connect(newPage, SIGNAL(stateChanged()), this, SLOT(updateState()));
     }else if (elem.attribute("element")=="page"){
       newPage = new Page(elem, myroot);
@@ -64,7 +68,7 @@ SolverWindow::SolverWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
       connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
       connect(newPage, SIGNAL(stateChanged()), this, SLOT(updateState()));
-      
+       connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
     }else{
       QMessageBox::warning(window(), ".xml",
                            elem.tagName()+ tr(": don't know how to handle it: ")
@@ -95,6 +99,31 @@ SolverWindow::SolverWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
   updateState();
   checkStatus();
 }
+
+void SolverWindow::updateShowStatus(const bool& show){
+
+  if(show){
+    QDomElement elem = myelem.firstChildElement();
+    
+    if(elem.isNull()){
+      QMessageBox::warning(window(), ".xml",
+                        myelem.tagName()+ tr(" has no child")
+                           );
+      return;
+    }
+    
+    int count=0;   
+    for (; !elem.isNull(); elem = elem.nextSiblingElement()) {   
+      if(elem.attribute("status")!="done")break;
+      count++;
+    }
+    if(count<(typesWidget->buttons()).size())typesWidget->button(count)->click();
+    //  typesWidget->button(count)->setDown(true);
+  }
+  GeneralWindow::updateShowStatus(show);
+}
+  
+     
 
 void SolverWindow::changePage(int id)
 {
