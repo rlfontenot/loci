@@ -39,20 +39,21 @@ FloatEdit::FloatEdit(QWidget *parent) : QLineEdit(parent){
  }
 
 FloatEdit::FloatEdit(double d, QWidget*parent):QLineEdit(parent){
-
+  double d0 = d;
   validator = new QDoubleValidator(this);
   setValidator(validator);
   QString str;
-  str.setNum(d);
+  str.setNum(d0);
   setText(str);
   connect(this, SIGNAL(textChanged(const QString&)), this, SLOT(changeValue(const QString&)));
-  emit valueChanged(d);
+  emit valueChanged(d0);
 }
 void FloatEdit::setValue(double d){
+  double d0 = d;
   QString str;
-  str.setNum(d);
+  str.setNum(d0);
   setText(str);
-  emit valueChanged(d);
+  emit valueChanged(d0);
 }
 void FloatEdit::setValue(int value){
   double d = validator->bottom() +(value+1000)/2000.0*(validator->top()-validator->bottom());
@@ -73,15 +74,19 @@ double FloatEdit::value(){
 }
 
 void FloatEdit::setBottom(double d){
-  validator->setBottom(d);
+  double d0 = d;
+  validator->setBottom(d0);
 }
 
 void FloatEdit::setTop(double d){
-  validator->setTop(d);
+  double d0 = d;
+  validator->setTop(d0);
 }
 
 void FloatEdit::setRange(double d1, double d2){
-  validator->setRange(d1, d2);
+  double dd1 = d1;
+  double dd2 = d2;
+  validator->setRange(dd1, dd2);
 }
 
 
@@ -108,19 +113,21 @@ IntEdit::IntEdit(QWidget *parent) : QLineEdit(parent){
  }
 
 IntEdit::IntEdit(int d, QWidget*parent):QLineEdit(parent){
+  int d0 = d;
   validator = new QIntValidator(this);
   setValidator(validator);
   QString str;
-  str.setNum(d);
+  str.setNum(d0);
   setText(str);
   connect(this, SIGNAL(textChanged(const QString&)), this, SLOT(changeValue(const QString&)));
-  emit valueChanged(d);
+  emit valueChanged(d0);
 }
 void IntEdit::setValue(int d){
+  int d0 = d;
   QString str;
-  str.setNum(d);
+  str.setNum(d0);
   setText(str);
-  emit valueChanged(d);
+  emit valueChanged(d0);
 }
 
 void IntEdit::changeValue(const QString& str){
@@ -135,15 +142,19 @@ int IntEdit::value(){
 }
 
 void IntEdit::setBottom(int d){
-  validator->setBottom(d);
+  int d0 = d;
+  validator->setBottom(d0);
 }
 
 void IntEdit::setTop(int d){
-  validator->setTop(d);
+  int d0 = d;
+  validator->setTop(d0);
 }
 
 void IntEdit::setRange(int d1, int d2){
-  validator->setRange(d1, d2);
+  int dd1 = d1;
+  int dd2 = d2;
+  validator->setRange(dd1, dd2);
 }
 
 GeneralGroup::GeneralGroup( QDomElement& my_elem, QDomElement& theroot, QWidget *parent ) : QGroupBox(my_elem.hasAttribute("title")?my_elem.attribute("title"):my_elem.tagName(), parent),myelem(my_elem),myroot(theroot){
@@ -2327,4 +2338,59 @@ void Page::updateCurrentText(){
   else myelem.setAttribute("status", QString("%1  out of ").arg(count_done)+QString(" %1 finished").arg(count));
   if(myelem.hasAttribute("buttonIndex")) emit updateStatusTip(myelem.attribute("buttonIndex").toInt());
 }
+
+///////////////////////////////////////////////////////////////////////////
+//  public:
+//    QWidget* createEditor(QWidget* parent,
+//                          const QStyleOptionViewItem &option,
+//                          const QModelIndex &index) const;
+//
+//  Simply inverts the visibility state of the boundary double-clicked on
+//  in the boundary visibility model.
+///////////////////////////////////////////////////////////////////////////
+
+
+QWidget* showDelegate::createEditor(QWidget*, const QStyleOptionViewItem&,
+				    const QModelIndex &index) const
+{
+  QString value = index.data(Qt::EditRole).toString();
+  QAbstractItemModel* model = const_cast<QAbstractItemModel*>(index.model());
+  if (value == "hide") {
+    model->setData(index, "show");
+    
+  } else {
+    model->setData(index, "hide");
+  }
+
+  return NULL;
+}
+
+
+
+
+
+
+  
+                                                              
+
+
+
+bool colorDelegate::editorEvent(QEvent *event, QAbstractItemModel *model,
+                                const QStyleOptionViewItem &,
+                                    const QModelIndex &index){
+  
+                                                              
+ 
+  if (event->type() == QEvent::MouseButtonPress) {
+    QColor oldColor =   qobject_cast<const QStandardItemModel*>(model)->item(index.row(), index.column())->background().color();
+    QColor color = QColorDialog::getColor(oldColor);
+    
+    if(color.isValid())qobject_cast<const QStandardItemModel*>(model)->item(index.row(), index.column())->setBackground( QBrush(color));
+    else qobject_cast<const QStandardItemModel*>(model)->item(index.row(), index.column())->setBackground( QBrush(oldColor));
+    return false; //so that the selection can change
+  }
+  
+  return true;
+}
+
 

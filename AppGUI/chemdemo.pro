@@ -20,6 +20,8 @@ HEADERS += bdcndwindow.h \
            defines.h \
            getfile.h \
            glviewer.h \
+           mgviewer.h \
+           vmergewindow.h \
            grid.h \
            initcndwindow.h \
            qualitydialog.h \
@@ -33,6 +35,8 @@ SOURCES += bdcndwindow.cpp \
            cutplane.cpp \
            getfile.cpp \
            glviewer.cpp \
+           mgviewer.cpp \
+           vmergewindow.cpp \
            initcndwindow.cpp \
            qualitydialog.cpp \
            main.cpp \

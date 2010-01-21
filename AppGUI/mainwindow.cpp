@@ -21,6 +21,7 @@
 #include "initcndwindow.h"
 #include "importwindow.h"
 #include "physicswindow.h"
+#include "mgviewer.h"
 
 #include <cstdlib>
 #include <QString>
@@ -32,61 +33,6 @@ using std::string;
 using std::vector;
 using std::sort;
 using std::pair;
-
-
-///////////////////////////////////////////////////////////////////////////
-//  public:
-//    QWidget* createEditor(QWidget* parent,
-//                          const QStyleOptionViewItem &option,
-//                          const QModelIndex &index) const;
-//
-//  Simply inverts the visibility state of the boundary double-clicked on
-//  in the boundary visibility model.
-///////////////////////////////////////////////////////////////////////////
-
-
-QWidget* showDelegate::createEditor(QWidget*, const QStyleOptionViewItem&,
-				    const QModelIndex &index) const
-{
-  QString value = index.data(Qt::EditRole).toString();
-  QAbstractItemModel* model = const_cast<QAbstractItemModel*>(index.model());
-  if (value == "hide") {
-    model->setData(index, "show");
-    
-  } else {
-    model->setData(index, "hide");
-  }
-
-  return NULL;
-}
-
-
-
-
-
-
-  
-                                                              
-
-
-
-bool colorDelegate::editorEvent(QEvent *event, QAbstractItemModel *model,
-                                const QStyleOptionViewItem &,
-                                    const QModelIndex &index){
-  
-                                                              
- 
-  if (event->type() == QEvent::MouseButtonPress) {
-    QColor oldColor =   qobject_cast<const QStandardItemModel*>(model)->item(index.row(), index.column())->background().color();
-    QColor color = QColorDialog::getColor(oldColor);
-    
-    if(color.isValid())qobject_cast<const QStandardItemModel*>(model)->item(index.row(), index.column())->setBackground( QBrush(color));
-    else qobject_cast<const QStandardItemModel*>(model)->item(index.row(), index.column())->setBackground( QBrush(oldColor));
-    return false; //so that the selection can change
-  }
-  
-  return true;
-}
 
 
 
@@ -396,6 +342,13 @@ void MainWindow::createFlowBar(){
                          );
     return;
   }
+
+  //add hard-coded buttons
+  flowbar->addSeparator();
+  QPushButton* vmButton = new QPushButton(tr("Vogmerge"), this);
+  flowbar->addWidget(vmButton);
+  connect(vmButton, SIGNAL(clicked()), this, SLOT(vmClicked()));
+  
   
   int count=0;
   for (; !elem.isNull(); elem = elem.nextSiblingElement(), count++) { 
@@ -463,7 +416,22 @@ void MainWindow::createFlowBar(){
 
 }
 void MainWindow::changePage(int index){
+
+  
+  // dock->setWidget(statusEdit);
  
+  if(mgviewer){
+    central->removeWidget(mgviewer);
+    delete mgviewer;
+    mgviewer = 0;
+  }
+  
+  if(vmwindow){
+    delete vmwindow;
+    vmwindow = 0;
+  }
+
+  
   QDomElement theroot = doc.documentElement();
   QDomElement elem = theroot.firstChildElement("mainWindow");
   elem=elem.firstChildElement();
@@ -664,6 +632,8 @@ MainWindow::MainWindow()
   previousWidget = 0;
   statusWindow = 0;
   displayStatus = false;
+  mgviewer = 0;
+  vmwindow = 0;
   createMenu();
   createVisBar();
   createDisplayBar();
@@ -853,12 +823,12 @@ void MainWindow::setGrid(QDomElement& theelem)
    
     // must setCurrentWidget(viewer)first, then load_boundary
     // must leave these two lines at the end of function
-    //  central->setCurrentWidget(viewer);   
+      central->setCurrentWidget(viewer);   
     loaded =   viewer->load_boundary(surfFileName, boundary_names); // and setup the GLWidget.
     viewer->show();
   }else{
     
-    // central->setCurrentWidget(viewer);   
+     central->setCurrentWidget(viewer);   
     loaded =  viewer->load_boundary(fileName, boundary_names); // and setup the GLWidget.
     viewer->show(); 
   }
@@ -1772,3 +1742,51 @@ void MainWindow::aboutPostprocess()
 
 
 
+void MainWindow::vmClicked()
+{
+  
+  if(mgviewer){
+    central->removeWidget(mgviewer);
+    delete mgviewer;
+    mgviewer = 0;
+  }
+  if(vmwindow){
+    delete vmwindow;
+   vmwindow = 0;
+  }
+ 
+  
+  mgviewer = new MGViewer(this);
+  central->addWidget(mgviewer);
+  central->setCurrentWidget(mgviewer);
+  vmwindow = new VMergeWindow(this);
+ 
+  
+ connect(vmwindow, SIGNAL(loadGrid(QString)), mgviewer, SLOT(load_boundary(QString)));
+ connect(vmwindow, SIGNAL(getGrid(QString)), mgviewer, SLOT(get_boundary(QString)));
+ 
+ connect(mgviewer, SIGNAL(gridLoaded(const QStringList&)), vmwindow, SLOT(gridLoaded(const QStringList&)));
+ connect(vmwindow, SIGNAL(tcChanged(const IDMatrix&)), mgviewer, SLOT(transGrid(const IDMatrix&)));
+
+  connect(vmwindow, SIGNAL(setCurrentColor(const IDColor&)), mgviewer, SLOT(setCurrentColor(const IDColor&)));
+  connect(vmwindow, SIGNAL(setCurrentVisibility(const IDVisibility&)),
+          mgviewer, SLOT(setCurrentVisibility(const IDVisibility&)));
+  connect(vmwindow, SIGNAL(done()), this, SLOT(vmdone()));
+
+  dock->show();
+  dock->setWidget(vmwindow); 
+}
+void MainWindow::vmdone(){
+  setCentralWidget(central);
+  //dock->setWidget(statusEdit);
+  //dock->hide();
+  if(mgviewer){
+    delete mgviewer;
+    mgviewer = 0;
+  }
+  dock->hide();
+  // if(vmwindow){
+//     delete vmwindow;
+//     vmwindow = 0;
+//   }
+}

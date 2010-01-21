@@ -98,7 +98,7 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, QWidget *parent)
   translateBox->setLayout(translate);
   
   
-  rotateBox = new QGroupBox(tr("ratation")); 
+  rotateBox = new QGroupBox(tr("rotation")); 
   QGridLayout* rotate = new QGridLayout;
   rotateBox->setCheckable(true);
   rotateBox->setChecked(true);

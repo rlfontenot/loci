@@ -15,6 +15,7 @@
 #include <QPointer>
 #include <iostream>
 #include <QString>
+#include <QItemDelegate>
 class QPushButton;
 class QButtonGroup;
 class QLabel;
@@ -24,7 +25,9 @@ class QListWidgetItem;
 class QCheckBox;
 
 
-  bool conditionIsSatisfied(const QDomElement& theroot, const QString& condition);
+
+
+bool conditionIsSatisfied(const QDomElement& theroot, const QString& condition);
 
 
 class GeneralWindow : public QWidget
@@ -62,10 +65,9 @@ public:
   FloatEdit(double d, QWidget *parent = 0);
   void setBottom(double);
   void setTop(double);
-  void setDecimals(int);
+  //   void setDecimals(int);
   void setRange(double minn, double maxx);
-  //void setValue(double d);
-  double value();
+   double value();
 public slots:
 void setValue(int);
   void setValue(double);
@@ -86,8 +88,7 @@ public:
   IntEdit(int d, QWidget *parent = 0);
   void setBottom(int);
   void setTop(int);
-  void setDecimals(int);
-  void setRange(int minn, int maxx);
+   void setRange(int minn, int maxx);
  
   int value();
 public slots:
@@ -342,6 +343,31 @@ void textChanged(const QString &);
 protected:
   
 };
+
+// Class that delegates for the boundary visibility model
+class showDelegate: public QItemDelegate
+{
+   Q_OBJECT
+public:
+  QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem &option,
+			const QModelIndex &index) const;
+  showDelegate(QObject* parent=0):QItemDelegate(parent){};
+  
+};
+
+class colorDelegate: public QItemDelegate
+{
+  
+  Q_OBJECT
+public:
+  bool  editorEvent(QEvent *event, QAbstractItemModel *model,
+                    const QStyleOptionViewItem &option,
+                    const QModelIndex &index);
+  colorDelegate(QObject* parent=0):QItemDelegate(parent){};
+  
+};
+
+
 
 
 

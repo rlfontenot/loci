@@ -1,12 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-
 #include <QMainWindow>
 #include <vector>
-#include "grid.h"
-#include "cutdialog.h"
 #include <QDomDocument>
-
 #include <QItemDelegate>
 #include <QItemSelection>
 #include <QTextEdit>
@@ -19,32 +15,12 @@ class QTableView;
 class QStandardItemModel;
  class BdCndWindow;
 class QPushButton;
-// Class that delegates for the boundary visibility model
-class showDelegate: public QItemDelegate
-{
-   Q_OBJECT
-public:
-  QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem &option,
-			const QModelIndex &index) const;
-  showDelegate(QObject* parent=0):QItemDelegate(parent){};
-  
-};
+class MGViewer;
+class VMergeWindow;
 
-class colorDelegate: public QItemDelegate
-{
-  
-  Q_OBJECT
-public:
-  bool  editorEvent(QEvent *event, QAbstractItemModel *model,
-                    const QStyleOptionViewItem &option,
-                    const QModelIndex &index);
-  colorDelegate(QObject* parent=0):QItemDelegate(parent){};
-  
-};
-
-
-
-
+#include "grid.h"
+#include "cutdialog.h"
+#include "vmergewindow.h"
 
 class MainWindow : public QMainWindow
 {
@@ -61,6 +37,7 @@ public:
   void openCase();
   // void openCase(QString);
   void setGrid(QDomElement& theelem);
+ 
   void setBoundary(QDomElement& elem);
   bool selectBoundary();
   
@@ -95,11 +72,18 @@ public:
   void clearLastStatus();
   void changePage(int);
   void toggleShowStatus();
+   void vmClicked(); //vogmerge button clicked
+  void vmdone();//vogmerge is finished  
   signals:
   void setCurrent(QModelIndex);
   void stateChanged();
   void componentsChanged();
   void showStatus(const bool&);
+
+
+
+  // void addGrid(); // read in another grid in mergeVog
+ 
 private:
   QString xmlpath;
   QString pngpath;
@@ -122,18 +106,24 @@ private:
   QTextEdit* statusEdit;
   QGroupBox* statusWindow;
 
-  GLViewer *viewer;  // Handle for central OpenGL widget
+ 
+  
+  QStandardItemModel* modBoundaries;  // Boundary condition model
   QTableView* boundaryView;  // Use for boundary Select
-  // QTableView* simpleBoundaryView;  // Use for boundary Select
+  
+  GLViewer *viewer;  // Handle for central OpenGL widget
+  MGViewer* mgviewer;
+  VMergeWindow* vmwindow;
   
   CutDialog* cutdialog;
-  QStandardItemModel* modBoundaries;  // Boundary condition model
+ 
  
  
  
   QDockWidget *dock;
-   QDockWidget *bdock;
+  QDockWidget *bdock;
   QSlider* slider; // change number of contour
+  
 
   
   QButtonGroup* flowbarButtons;
