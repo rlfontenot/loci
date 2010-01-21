@@ -1771,22 +1771,7 @@ void MainWindow::vmClicked()
   connect(vmwindow, SIGNAL(setCurrentColor(const IDColor&)), mgviewer, SLOT(setCurrentColor(const IDColor&)));
   connect(vmwindow, SIGNAL(setCurrentVisibility(const IDVisibility&)),
           mgviewer, SLOT(setCurrentVisibility(const IDVisibility&)));
-  connect(vmwindow, SIGNAL(done()), this, SLOT(vmdone()));
 
   dock->show();
   dock->setWidget(vmwindow); 
-}
-void MainWindow::vmdone(){
-  setCentralWidget(central);
-  //dock->setWidget(statusEdit);
-  //dock->hide();
-  if(mgviewer){
-    delete mgviewer;
-    mgviewer = 0;
-  }
-  dock->hide();
-  // if(vmwindow){
-//     delete vmwindow;
-//     vmwindow = 0;
-//   }
 }

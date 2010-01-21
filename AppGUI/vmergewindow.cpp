@@ -309,7 +309,7 @@ void VMOption::previous(){
 
 
 void VMOption::next(){
- if(currentCoef >= (tc.size()-1))return;
+ if(currentCoef >=(int)(tc.size()-1))return;
  currentCoef++;
   
  vector3d<double> translate = tc[currentCoef].translate;
@@ -404,7 +404,7 @@ void VMOption::setInfo(){
 affineMapping2 VMOption::currentM(){
   affineMapping2 gridXform;
  
-  for(int i = 0; i < tc.size(); i++){
+  for(unsigned int i = 0; i < tc.size(); i++){
     if(norm(tc[i].translate)!=0) gridXform.translate(tc[i].translate) ;
     if(norm(tc[i].rotateAngle)!=0){
       if(norm(tc[i].rotateCenter)!=0) gridXform.translate(tc[i].rotateCenter) ;
@@ -427,7 +427,7 @@ QString VMOption::currentText(){
   if(bdnames.size() == 0)return "";
   QString text;
   text += " -g " + gridName;
-  for(int i = 0; i < tc.size(); i++){
+  for(unsigned int i = 0; i < tc.size(); i++){
     if(tc[i].translate.x != 0) text += QString(" -xshift %1").arg(tc[i].translate.x);
     if(tc[i].translate.y != 0) text += QString(" -yshift %1").arg(tc[i].translate.y);
     if(tc[i].translate.z != 0) text += QString(" -zshift %1").arg(tc[i].translate.z);
@@ -473,19 +473,19 @@ VMergeWindow::VMergeWindow( QWidget* parent)
   QPushButton *loadButton = new QPushButton(tr("&load grid"));
   QPushButton *mergeButton = new QPushButton(tr("&vogmerge"));
   QPushButton *clearButton = new QPushButton(tr("clear all" ));
-   QPushButton *doneButton = new QPushButton(tr("done"));
+  
   
   connect(loadButton, SIGNAL(clicked()), this, SLOT(loadGridClicked()));
   connect(mergeButton, SIGNAL(clicked()), this, SLOT(vmClicked()));
   connect(clearButton, SIGNAL(clicked()), this, SLOT(clearAll()));
-  connect(doneButton, SIGNAL(clicked()), this, SIGNAL(done()));
+  
   
   QHBoxLayout *buttonsLayout = new QHBoxLayout;
   buttonsLayout->addStretch(1);
   buttonsLayout->addWidget(loadButton);
   buttonsLayout->addWidget(mergeButton);
   buttonsLayout->addWidget(clearButton);
-  buttonsLayout->addWidget(doneButton);
+  
   
   connect(typesWidget,
           SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
@@ -603,7 +603,6 @@ void VMergeWindow::clear(){
   typesWidget->clear();
   QWidget* tmpWidget = pagesWidget->widget(0);
   while(tmpWidget){
-    qDebug() << "here Im ";
     pagesWidget->removeWidget(tmpWidget);
     delete tmpWidget;
     tmpWidget = pagesWidget->widget(0);

@@ -188,13 +188,10 @@ void MGViewer::paintGL()
 void MGViewer::setCurrentColor(const IDColor& idColor){
   int gid = idColor.gridId;
   int bid = idColor.boundId;
-  if(gid >= boundObjects.size() || bid >= boundObjects[gid].size())return;
+  if(gid >= (int)boundObjects.size() || bid >= (int)boundObjects[gid].size())return;
   
   
     makeBoundWireframeObject(gid, bid, idColor.color);
-    //makeBoundFillObject(i, c);
-    //currentObj =i;
-    //currentColor = c;
     updateGL();
     
 }
@@ -257,7 +254,7 @@ bool MGViewer::get_boundary(QString fileName) {
   objMinMax.clear();
   gridXform.clear();
   if(fileName.isEmpty()){
-    resizeGL(currentWidth, currentHeight);
+    updateGL();
     
     return false;
   }
@@ -296,10 +293,7 @@ bool MGViewer::load_boundary(QString fileName) {
   int last = fileName.lastIndexOf('.');
     QString casename = fileName.mid(first+1, last-first-1);
     QString directory = fileName.left(first);
-    //    LoadInfo tmpInfo; 
-    //tmpInfo.casename = casename;
-    //tmpInfo.directory = directory;
-    //loadInfo.push_back(tmpInfo);
+    
     
     QFileInfo surfInfo2(surfFileName);
     
@@ -523,7 +517,7 @@ bool MGViewer::load_boundary(QString fileName) {
 {
   int gid = idVis.gridId;
   int bid = idVis.boundId;
-  if(gid >= objVisible.size() || bid >= objVisible[gid].size())return;
+  if(gid >= (int)objVisible.size() || bid >= (int)objVisible[gid].size())return;
     
  
   
@@ -650,7 +644,7 @@ void MGViewer::mouseMoveEvent(QMouseEvent *event)
 //  clicked.
 //////////////////////////////////////////////////////////////////////////////
 
-void MGViewer::mouseDoubleClickEvent(QMouseEvent *event)
+void MGViewer::mouseDoubleClickEvent(QMouseEvent *)
 {
 
  //  if (event->buttons() & Qt::LeftButton) {
@@ -852,7 +846,7 @@ void MGViewer::addBoundObjects()
   if(boundObjects.size() < mesh.size()){
     int first = boundObjects.size();
     int last = mesh.size() -1;
-    for(size_t gid = first; gid <= last; ++gid){
+    for(int gid = first; gid <= last; ++gid){
       vector<GLuint> tmpList;
       for (size_t bid = 0; bid < mesh[gid].size(); ++bid) {
        

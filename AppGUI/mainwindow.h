@@ -35,8 +35,7 @@ public:
  public slots:
  void newCase();
   void openCase();
-  // void openCase(QString);
-  void setGrid(QDomElement& theelem);
+   void setGrid(QDomElement& theelem);
  
   void setBoundary(QDomElement& elem);
   bool selectBoundary();
@@ -73,7 +72,7 @@ public:
   void changePage(int);
   void toggleShowStatus();
    void vmClicked(); //vogmerge button clicked
-  void vmdone();//vogmerge is finished  
+ 
   signals:
   void setCurrent(QModelIndex);
   void stateChanged();
@@ -81,8 +80,6 @@ public:
   void showStatus(const bool&);
 
 
-
-  // void addGrid(); // read in another grid in mergeVog
  
 private:
   QString xmlpath;

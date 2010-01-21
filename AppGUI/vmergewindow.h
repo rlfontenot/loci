@@ -254,13 +254,12 @@ public:
   void tcChanged(const IDMatrix&);
   void  setCurrentColor(const IDColor&);
   void setCurrentVisibility(const IDVisibility&);
-    void done();
+ 
 private:
   void clear();
 private:
   int currentRow;
-  // VMOption* vmOptions;
-  vector<vector<TranCoef> > transcoef;
+   vector<vector<TranCoef> > transcoef;
 
   
   QListWidget *typesWidget;
