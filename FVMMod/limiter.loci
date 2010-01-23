@@ -29,6 +29,46 @@ namespace Loci {
   typedef tensor3d<real_t> tens3d ;
   typedef real_t real ;
 
+  $type firstOrderCells store<char> ;
+
+  $rule unit(firstOrderCells),constraint(geom_cells) {
+    $firstOrderCells = 0 ;
+  }
+
+  $rule apply((cl,cr)->firstOrderCells<-(cl,cr)->vol)[Loci::Maximum],
+  constraint((cl,cr)->geom_cells) {
+    if(max($cl->$vol,$cr->$vol) > 50.*min($cl->$vol,$cr->$vol)) {
+      char tmp = 1 ;
+      join($cl->$firstOrderCells,tmp) ;
+      join($cr->$firstOrderCells,tmp) ;
+    }
+  }
+
+  $rule apply(ci->firstOrderCells<-ci->vol)[Loci::Maximum], constraint(ref->firstOrder_BCoption,ci->vol) {
+    char tmp = 1 ;
+    join($ci->$firstOrderCells,tmp) ;
+  }
+
+  $rule apply((cl,cr)->firstOrderCells<-(cl,cr)->cellcenter,facecenter)[Loci::Maximum],constraint((cl,cr)->geom_cells) {
+    // maximum angle between line segment connecting cellcenters and line
+    // segments that connect cell centers to face centers.
+    vector3d<double> v1 = $cr->$cellcenter-$cl->$cellcenter ;
+    vector3d<double> v2 = $facecenter-$cl->$cellcenter ;
+    vector3d<double> v3 = $cr->$cellcenter-$facecenter ;
+    double nv1 = norm(v1) ;
+    double nv2 = norm(v2) ;
+    double nv3 = norm(v3) ;
+    double mincosa = min(dot(v1,v2)/(nv1*nv2),dot(v1,v3)/(nv1*nv3)) ;
+    if(mincosa < -.866) { // Greater than 150 degrees
+      char tmp = 1 ;
+      join($cl->$firstOrderCells,tmp) ;
+      join($cr->$firstOrderCells,tmp) ;
+    }
+  }
+    
+  
+  
+
   $type Kl param<real> ;
   $rule default(Kl),comments("This parameter is a smoothness parameter for the venkatakrishnan limiter.  A value of zero will not allow overshoots, while a larger value may allow some overshoots to ensure accuracy in locally smooth regions.  The typical values for this parameter range from .1 to 100") {
     $Kl = 1.0 ;
@@ -141,6 +181,7 @@ namespace Loci {
     const_store<vect3d> facecenter ;
     const_storeVec<real> X, X_f ;
     const_storeVec<vect3d> Xgrad ;
+    const_store<char> firstOrderCells ;
   public:
     get_limiterv() ;
     void calculate(Entity cc) ;
@@ -159,7 +200,8 @@ namespace Loci {
     name_store("X",X) ;
     name_store("X_f",X_f) ;
     name_store("gradv(X)",Xgrad) ;
-
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
     constraint("geom_cells,B_limiter") ;
     input("cellcenter,X,gradv(X)") ;
     input("upper->cr->X") ;
@@ -196,7 +238,9 @@ namespace Loci {
         qmax = max(qmax,X_f[fc][i]) ;
       }
 
-      real limi = 1.0 ; 
+      real limi = 1.0 ;
+      if(firstOrderCells[cc] != 0)
+        limi = 0.0 ;
       for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
         const int fc = *fi ;
         const vect3d drl = facecenter[fc] - cellcenter[cc] ;
@@ -258,6 +302,7 @@ namespace Loci {
     const_storeVec<vect3d> Xgrad ;
     const_param<real> Kl ;
     const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
     real Kl3 ;
   public:
     get_grad_vlimiter() ;
@@ -280,6 +325,8 @@ namespace Loci {
     name_store("X_f",X_f) ;
     name_store("gradv(X)",Xgrad) ;
     name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
     
     constraint("geom_cells,V_limiter") ;
     input("Kl,grid_vol") ;
@@ -326,7 +373,10 @@ namespace Loci {
         qmin = min(qmin,X_f[fc][i]) ;
         qmax = max(qmax,X_f[fc][i]) ;
       }
-      real limi = 1.0 ; 
+      real limi = 1.0 ;
+      if(firstOrderCells[cc] != 0)
+        limi = 0.0 ;
+      
       for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
         const int fc = *fi ;
         real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
@@ -418,6 +468,7 @@ namespace Loci {
     const_store<vect3d> facecenter ;
     const_store<real> X, X_f ;
     const_store<vect3d> Xgrad ;
+    const_store<char> firstOrderCells ;
     int vs ;
   public:
     get_limiter_scalar() ;
@@ -437,6 +488,8 @@ namespace Loci {
     name_store("X",X) ;
     name_store("X_f",X_f) ;
     name_store("grads(X)",Xgrad) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
 
     constraint("geom_cells,B_limiter") ;
     input("cellcenter,X,grads(X)") ;
@@ -471,7 +524,10 @@ namespace Loci {
       qmax = max(qmax,X_f[fc]) ;
     }
 
-    real limi = 1.0 ; 
+    real limi = 1.0 ;
+    if(firstOrderCells[cc] != 0)
+      limi = 0.0 ;
+    
     for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
       const int fc = *fi ;
       const vect3d drl = facecenter[fc] - cellcenter[cc] ;
@@ -520,6 +576,7 @@ namespace Loci {
     const_store<vect3d> Xgrad ;
     const_param<real> Kl ;
     const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
     real Kl3 ;
   public:
     get_vlimiter_scalar() ;
@@ -542,6 +599,8 @@ namespace Loci {
     name_store("X_f",X_f) ;
     name_store("grads(X)",Xgrad) ;
     name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
     
     constraint("geom_cells,V_limiter") ;
     input("Kl,grid_vol") ;
@@ -594,7 +653,10 @@ namespace Loci {
     const real ref = 1e-20+sqrt(refsq)/numrefs ;
      
     const real epsilon2 = Kl3*vol[cc]*ref*ref ;
-    real limi = 1.0 ; 
+    real limi = 1.0 ;
+    if(firstOrderCells[cc] != 0)
+      limi=0.0 ;
+    
     for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
       const int fc = *fi ;
       real Xf = Xcc + dot(Xgr,(facecenter[fc]-cctr)) ;
@@ -680,6 +742,7 @@ namespace Loci {
     const_store<vect3d> facecenter ;
     const_store<vect3d> X, X_f ;
     const_store<tens3d> Xgrad ;
+    const_store<char> firstOrderCells ;
     int vs ;
   public:
     get_limiter3d() ;
@@ -699,6 +762,8 @@ namespace Loci {
     name_store("X",X) ;
     name_store("X_f",X_f) ;
     name_store("gradv3d(X)",Xgrad) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
 
     constraint("geom_cells,B_limiter") ;
     input("cellcenter,X,gradv3d(X)") ;
@@ -745,7 +810,10 @@ namespace Loci {
       qmax.z = max(qmax.z,X_f[fc].z) ;
     }
 
-    vect3d limi = vect3d(1.0,1.0,1.0) ; 
+    vect3d limi = vect3d(1.0,1.0,1.0) ;
+    if(firstOrderCells[cc] != 0)
+      limi = vect3d(0.0,0.0,0.0) ;
+    
     for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
       const int fc = *fi ;
       const vect3d drl = facecenter[fc] - cellcenter[cc] ;
@@ -814,6 +882,7 @@ namespace Loci {
     const_store<tens3d> Xgrad ;
     const_param<real> Kl ;
     const_param<real> grid_vol ;
+    const_store<char> firstOrderCells ;
     real Kl3 ;
   public:
     get_vlimiter3d() ;
@@ -836,6 +905,8 @@ namespace Loci {
     name_store("X_f",X_f) ;
     name_store("gradv3d(X)",Xgrad) ;
     name_store("grid_vol",grid_vol) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
     
     constraint("geom_cells,V_limiter") ;
     input("Kl,grid_vol") ;
@@ -898,7 +969,10 @@ namespace Loci {
     const real ref = 1e-20+sqrt(refsq)/numrefs ;
      
     const real epsilon2 = Kl3*vol[cc]*ref*ref ;
-    vect3d limi = vect3d(1.0,1.0,1.0) ; 
+    vect3d limi = vect3d(1.0,1.0,1.0) ;
+    if(firstOrderCells[cc] != 0)
+      limi = vect3d(0.0,0.0,0.0) ;
+    
     for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
       const int fc = *fi ;
       const vect3d drl = facecenter[fc] - cellcenter[cc] ;
@@ -1051,6 +1125,7 @@ namespace Loci {
     const_store<vect3d> pos,cellcenter ;
     const_store<real> nodMax,nodMin ;
     const_store<vect3d> Xgrad ;
+    const_store<char> firstOrderCells ;
     int vs ;
   public:
     nodal_barth_scalar() ;
@@ -1070,6 +1145,8 @@ namespace Loci {
     name_store("NGTNodalMax(X)",nodMax) ;
     name_store("NGTNodalMin(X)",nodMin) ;
     name_store("grads(X)",Xgrad) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
 
     constraint("geom_cells,NB_limiter") ;
     input("cellcenter,X,grads(X)") ;
@@ -1084,7 +1161,10 @@ namespace Loci {
     const real Xcc = X[cc] ;
     const vect3d Xgr = Xgrad[cc] ;
     const vect3d cent = cellcenter[cc] ;
-    real lim = 1.0 ; 
+    real lim = 1.0 ;
+    if(firstOrderCells[cc] != 0)
+      lim = 0 ;
+    
     for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
       const int fc = *fi ;
       int fsz = face2node[fc].size() ;
@@ -1133,6 +1213,7 @@ namespace Loci {
     const_store<vect3d> nodMax,nodMin ;
     const_store<vect3d> X ;
     const_store<tens3d> Xgrad ;
+    const_store<char> firstOrderCells ;
     int vs ;
   public:
     nodal_barth_3d() ;
@@ -1152,6 +1233,8 @@ namespace Loci {
     name_store("NGTNodalv3dMin(X)",nodMin) ;
     name_store("X",X) ;
     name_store("gradv3d(X)",Xgrad) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
 
     constraint("geom_cells,NB_limiter") ;
     input("cellcenter,X,gradv3d(X)") ;
@@ -1168,7 +1251,9 @@ namespace Loci {
     const tens3d Xgr = Xgrad[cc] ;
     const vect3d cent = cellcenter[cc] ;
 
-    vect3d lim = vect3d(1.0,1.0,1.0) ; 
+    vect3d lim = vect3d(1.0,1.0,1.0) ;
+    if(firstOrderCells[cc] != 0)
+      lim = vect3d(0.0,0.0,0.0) ;
     for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
       const int fc = *fi ;
       int fsz = face2node[fc].size() ;
@@ -1233,6 +1318,7 @@ namespace Loci {
     const_store<vect3d> facecenter ;
     const_storeVec<real> X, X_f ;
     const_storeVec<vect3d> Xgrad ;
+    const_store<char> firstOrderCells ;
   public:
     nodal_barth_vec() ;
     void calculate(Entity cc) ;
@@ -1251,6 +1337,8 @@ namespace Loci {
     name_store("X",X) ;
     name_store("X_f",X_f) ;
     name_store("gradv(X)",Xgrad) ;
+    name_store("firstOrderCells",firstOrderCells) ;
+    input("firstOrderCells") ;
 
     constraint("geom_cells,NB_limiter") ;
     input("cellcenter,X,gradv(X)") ;
@@ -1288,7 +1376,9 @@ namespace Loci {
         qmax = max(qmax,X_f[fc][i]) ;
       }
 
-      real limi = 1.0 ; 
+      real limi = 1.0 ;
+      if(firstOrderCells[cc] != 0)
+        limi = 0.0 ;
       for(const int *fi=upper.begin(cc);fi!=upper.end(cc);++fi) {
         const int fc = *fi ;
         const vect3d drl = facecenter[fc] - cellcenter[cc] ;
