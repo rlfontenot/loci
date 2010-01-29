@@ -576,7 +576,7 @@ void OpGroup::updateShowStatus(const bool& show){
 void OptionPage::updateShowStatus(const bool& show){
   showStatus = show;
   if(buttonGroup){
-    for(unsigned int i = 0; i <  buttonGroup->buttons().size(); i++){
+    for( int i = 0; i <  buttonGroup->buttons().size(); i++){
       buttonGroup->button(i)->setPalette(this->palette());
     }
     
@@ -1919,8 +1919,9 @@ AllVBWindow::AllVBWindow(  QDomElement& elem,  QDomElement& root,  QWidget *pare
 
 
 bool AllVBWindow::save(){
+   QString initialPath = QDir::currentPath()+"/untitled.mdl";
   QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"),
-                            "/home/qxue/chemdemo/untitled.mdl",
+                            initialPath,
                             tr("module file (*.mdl)"));
   if (fileName.isEmpty())
     {

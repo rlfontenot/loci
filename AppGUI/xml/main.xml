@@ -186,14 +186,6 @@
     element="all"  state="Material=single,gamma" >
       <m title="molecular mass" current="0" element="float" />
       <gamma title="gamma" current="0" element="float" />
-      <!--
-     <theta_v title="Vibrational Temperature(s)">theta_v</theta_v>
-     <href title="Reference enthalpy used for Kc"  element="float" current="0"></href>
-     <sref title="Reference entropy used for Kc"  element="float" current="0"></sref>
-     <Tref title="Reference temperature used for Kc"  element="float" current="0"></Tref>
-     <Pref title="Reference pressure used for Kc"  element="float" current="0"></Pref>
-     <mf title="mass fraction used to specify default mixture"  element="float" current="0"></mf>
--->
     </gamma_model>
     <cp_model title="please specify the parameters" 
     element="CpWindow" condition="Material==single,polynomial" />
@@ -203,7 +195,14 @@
       <cl2air_3s0r components="H2,O2"/>
       <cl2n2_2s0r components="H2,N2,CO2"/>
     </mixture_model>
-    <specified_mixture_model/>
+    <specified_mixture_model>
+	<theta_v title="Vibrational Temperature(s)" element="list"/>
+	<href title="Reference enthalpy used for Kc"  element="float" current="0"/>
+	<sref title="Reference entropy used for Kc"  element="float" current="0"/>
+	<Tref title="Reference temperature used for Kc"  element="float" current="0"/>
+	<Pref title="Reference pressure used for Kc"  element="float" current="0"/>
+	<mf title="mass fraction used to specify default mixture" element="float" current="0"/>
+    </specified_mixture_model>
     <chemistry_model  
      element="choice" toolTips="describe the chemistry model to use" >
       <air_5s17r/>

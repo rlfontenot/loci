@@ -30,7 +30,8 @@ HEADERS += bdcndwindow.h \
            solverwindow.h \
            cutdialog.h \
            importwindow.h \
-           physicswindow.h
+           physicswindow.h \
+           mdlwindow.h 
 SOURCES += bdcndwindow.cpp \
            cutplane.cpp \
            getfile.cpp \
@@ -47,7 +48,8 @@ SOURCES += bdcndwindow.cpp \
            solverwindow.cpp \
            cutdialog.cpp \
            importwindow.cpp \
-           physicswindow.cpp
+           physicswindow.cpp \
+           mdlwindow.cpp
 
 RESOURCES     = chemdemo.qrc
 #install
