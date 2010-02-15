@@ -227,6 +227,7 @@ int scanFluentFile(string filename,
               } else if(cl[i] == 0) {
                 cl[i] = -zone ;
                 zone_map[zone] = 1 ;
+                std::swap(cl[i],cr[i]) ;
                 for(int j=0;j<nfaces/2;++j)
                   std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
               }
@@ -245,6 +246,7 @@ int scanFluentFile(string filename,
               } else if(cl[i] == 0) {
                 cl[i] = -zone ;
                 zone_map[zone] = 1 ;
+                std::swap(cl[i],cr[i]) ;
                 for(int j=0;j<nfaces/2;++j)
                   std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
               }
@@ -263,6 +265,7 @@ int scanFluentFile(string filename,
               } else if(cl[i] == 0) {
                 cl[i] = -zone ;
                 zone_map[zone] = 1 ;
+                std::swap(cl[i],cr[i]) ;
                 for(int j=0;j<nfaces/2;++j)
                   std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
               }
