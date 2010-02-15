@@ -224,10 +224,11 @@ int scanFluentFile(string filename,
               if(cr[i] == 0) {
                 cr[i] = -zone ;
                 zone_map[zone] = 1 ;
-              }
-              if(cl[i] == 0) {
-                cerr << "boundary face should point out!" << endl ;
-                return -1 ;
+              } else if(cl[i] == 0) {
+                cl[i] = -zone ;
+                zone_map[zone] = 1 ;
+                for(int j=0;j<nfaces/2;++j)
+                  std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
               }
               count[i] = nfaces ;
             }
@@ -241,10 +242,11 @@ int scanFluentFile(string filename,
               if(cr[i] == 0) {
                 cr[i] = -zone ;
                 zone_map[i] = 1 ;
-              }
-              if(cl[i] == 0) {
-                cerr << "boundary face should point out!" << endl ;
-                return -1 ;
+              } else if(cl[i] == 0) {
+                cl[i] = -zone ;
+                zone_map[zone] = 1 ;
+                for(int j=0;j<nfaces/2;++j)
+                  std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
               }
               count[i] = nfaces ;
             }
@@ -258,10 +260,11 @@ int scanFluentFile(string filename,
               if(cr[i] == 0) {
                 cr[i] = -zone ;
                 zone_map[i] = 1 ;
-              }
-              if(cl[i] == 0) {
-                cerr << "boundary face should point out!" << endl ;
-                return -1 ;
+              } else if(cl[i] == 0) {
+                cl[i] = -zone ;
+                zone_map[zone] = 1 ;
+                for(int j=0;j<nfaces/2;++j)
+                  std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
               }
               count[i] = nfaces ;
             }
