@@ -1,0 +1,183 @@
+#!/bin/bash
+
+set -e
+set -u
+
+#####
+# Set up parallel extract
+#
+NUM_PAR_TASKS=1
+
+START_TIME=0
+END_TIME=1000
+INC_TIME=50
+POSTFIX=""
+DIROUT=movie
+
+CASENAME=case
+VARNAMES="m"
+
+############################################################################
+# Parse Command Line Arguments
+############################################################################
+CHEM_FLAGS=
+while [ $# -ne 0 ]; do
+   case "$1" in
+    -start)
+       shift
+       START_TIME=$1
+       ;;
+    -end)
+       shift
+       END_TIME=$1
+       ;;
+    -stop)
+       shift
+       END_TIME=$1
+       ;;
+    -inc)
+       shift
+       INC_TIME=$1
+       ;;
+    -postfix)
+       shift
+       POSTFIX=$1
+       ;;
+    -np)
+       shift
+       NUM_PAR_TASKS=$1
+       ;;
+    -dir)
+       shift
+       DIROUT=$1
+       ;;
+    
+    -*)
+      echo Unknown argument \'$1\'
+      exit -1 
+      ;;
+    *)
+        break
+        ;;
+    esac
+    shift
+done
+
+if [ $# -lt 2 ] ; then
+    echo USAGE:
+    echo "" 
+    echo "extract_movie -start <start iter> -stop <stop iter> -inc <iter increment> <casename> <variablelist>"
+    echo ""
+    echo ""
+    echo OTHER options:
+    echo ""
+    echo "     -np <number of processors>"
+    echo "        Extract several iterations in parallel"
+    echo ""
+    echo "     -postfix <inter postfix>"
+    echo "        Add postfix provided to iteration variables"
+    echo ""
+    echo "     -dir <extract directory>"
+    echo "        Specify directory to place extract files, default = movie"
+    echo ""
+    exit -1 ;
+fi
+
+CASENAME=$1
+
+shift
+
+###########################################################################
+# extract variable names from argument list
+VARNAMES=""
+while [ $# -gt 0 ]; do 
+#    echo ARG= $1
+    VARNAMES=${VARNAMES}\ $1
+#    echo VAR=${VARNAMES}
+    shift
+done
+echo extracting variables \`${VARNAMES}\'
+
+#############################################################################
+COUNTER=$START_TIME
+CASENUM=1000
+if [ -d ${DIROUT} ] ; then
+    echo extracting to directory ${DIROUT}
+else
+    if [ -e ${DIROUT} ] ; then
+	echo FILE \'${DIROUT}\' needs to be a directory for extraction.
+	exit -1
+    else
+	mkdir ${DIROUT}
+    fi
+fi
+
+PROC_COUNTER=1
+echo extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
+(extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
+echo cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.case ${DIROUT}/${CASENAME}.case.bak
+cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.case ${DIROUT}
+echo cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.geo ${DIROUT}/${CASENAME}_${CASENUM}.geo
+cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.geo ${DIROUT}/${CASENAME}_${CASENUM}.geo
+for i in $VARNAMES ; do
+  cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/$i ${DIROUT}/$i${CASENUM}
+done) &
+if [ $PROC_COUNTER -ge $NUM_PAR_TASKS ]; then
+    wait
+    PROC_COUNTER=0
+fi
+
+let COUNTER=COUNTER+INC_TIME
+let CASENUM=CASENUM+1
+NUMBER_STEPS=1
+while [ $COUNTER -le $END_TIME ]; do
+    if [ -e output/timestep_txt.${COUNTER}${POSTFIX}_${CASENAME} ] ; then
+	echo extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
+	(extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
+	mv ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.geo ${DIROUT}/${CASENAME}_${CASENUM}.geo
+	for i in $VARNAMES ; do
+	    mv ${CASENAME}_ensight.${COUNTER}${POSTFIX}/$i ${DIROUT}/$i${CASENUM};
+	done 
+	rm -fr ${CASENAME}_ensight.${COUNTER}${POSTFIX}) &
+
+	let PROC_COUNTER=PROC_COUNTER+1
+
+	if [ $PROC_COUNTER -ge $NUM_PAR_TASKS ]; then
+	    wait
+	    PROC_COUNTER=0
+	fi
+
+	let CASENUM=CASENUM+1
+	let NUMBER_STEPS=NUMBER_STEPS+1
+    fi
+    let COUNTER=COUNTER+INC_TIME
+done
+wait
+echo FORMAT > ${DIROUT}/${CASENAME}.case
+echo type: ensight gold >> ${DIROUT}/${CASENAME}.case
+echo GEOMETRY >> ${DIROUT}/${CASENAME}.case
+echo model: ${CASENAME}_\*\*\*\*.geo >> ${DIROUT}/${CASENAME}.case
+echo VARIABLE >> ${DIROUT}/${CASENAME}.case
+for i in $VARNAMES ; do
+    if [ $i == "v" ]; then
+       echo vector per node:        1 $i    $i\*\*\*\* >> ${DIROUT}/${CASENAME}.case
+    else
+	echo scalar per node:        1 $i    $i\*\*\*\* >> ${DIROUT}/${CASENAME}.case
+    fi
+done
+echo TIME >> ${DIROUT}/${CASENAME}.case
+echo time set: 1 >> ${DIROUT}/${CASENAME}.case
+echo number of steps: ${NUMBER_STEPS} >> ${DIROUT}/${CASENAME}.case
+echo filename start number: 1000 >> ${DIROUT}/${CASENAME}.case
+echo filename increment: 1 >> ${DIROUT}/${CASENAME}.case
+echo time values: >> ${DIROUT}/${CASENAME}.case
+COUNTER=$START_TIME
+while [ $COUNTER -le $END_TIME ]; do
+    if [ -e output/timestep_txt.${COUNTER}${POSTFIX}_${CASENAME} ] ; then
+	cat output/timestep_txt.${COUNTER}${POSTFIX}_${CASENAME} | sed "s/^[0-9]* //" >> ${DIROUT}/${CASENAME}.case
+    fi
+    let COUNTER=COUNTER+INC_TIME
+
+done
+
+
