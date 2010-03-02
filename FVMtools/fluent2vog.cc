@@ -18,11 +18,46 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+
+/**
+
+fluent2vog converter program:
+
+This program converts fluent mesh files (with a '.msh') extension into
+a VOG format file that is suitable for use with Loci programs.  To use this
+program enter:
+
+fluent2vog <units option> <-o> <casename>
+
+where units option can be:
+
+-m : meters
+-cm : centemeters
+-mm : millimeters
+-in : inches
+-ft : feet
+-Lref "reference length" : user specified scaling factor
+
+The "-o" option, if provided, will disable node reordering optimizations.
+
+The <casename> is the base name without extension of the fluent mesh file.
+
+This converter is able to convert both 2-D and 3-D meshes.  For 2-D
+meshes, the converter automatically extrudes the mesh once cell in the
+Z coordinate direction.  Symbolic boundary names are extracted from the
+Fluent mesh file and used as symbolic boundary face names in the VOG file.
+Volume tagged cells are ignored.  Periodic boundary maps, hanging nodes, and
+other features are ignored by the converter.
+
+ **/
+
 #include <Loci.h>
 #include "vogtools.h"
 #include <iostream>
 #include <cstdlib>
 #include <string>
+
+double extrude_dist = 0.01 ; // In 2-D grids, extrude 1 cm
 
 using namespace std ;
 
@@ -37,11 +72,20 @@ istream &getOpenParen(istream &s) {
 istream &getCloseParen(istream &s) {
   int count = 0 ;
   while(s.peek() != ')' && !s.eof()) {
-    char c = s.get() ;
+    int c = s.get() ;
+    if(c<0){
+      cerr << "failed to find closing parenthesis" << endl ;
+      exit(-1)  ;
+    }
     if(c == '(') {
       count++ ;
       while(count > 0) {
 	c = s.get() ;
+        if(c<0) {
+          cerr << "failed to find closing parenthesis" << endl;
+          exit(-1) ;
+        }
+
 	if(c == '(')
 	  count++ ;
 	if(c == ')') 
@@ -133,7 +177,8 @@ int scanFluentFile(string filename,
                    store<vector3d<double> > &pos,
                    Map &cl, Map &cr, multiMap &face2node,
                    vector<VOG::BC_descriptor> &bcs) {
-
+  int maxzoneid = 0 ;
+  
   map<int,int> zone_map ;
   store<int> count ;
   store<Loci::Array<int,4> > face_info ;
@@ -141,6 +186,9 @@ int scanFluentFile(string filename,
   if(s.fail()) {
     return -1 ;
   }
+  vector<pair<pair<int,int>,pair<int,int> > > edge_list ;
+
+  int n2dpos = 0;
   int dimension = 0 ;
   while(!s.eof()) {
     getOpenParen(s) ;
@@ -156,10 +204,14 @@ int scanFluentFile(string filename,
       break ;
     case 2: // Dimension
       dimension = getDecimal(s) ;
-      if(dimension != 3) {
-	cerr << "only three dimensional mesh supported." << endl ;
-	return -1;
-      }
+      if(dimension == 2) {
+        cout << "Converting 2-D mesh, extruding creating two symmetry planes."
+             << endl ;
+      } else if(dimension != 3) {
+        cerr << "Don't know how to process a "
+             << dimension << " dimensional mesh." << endl ;
+        exit(-1) ;
+      } 
       break ;
     case 10:
       {
@@ -170,17 +222,35 @@ int scanFluentFile(string filename,
 	  exit(-2) ;
 	}
         if(zone == 0) { // allocate pos ;
-          entitySet dom = interval(start-1,end-1) ;
-          pos.allocate(dom) ;
-          cout << "reading " << end << " nodes." << endl ;
+          if(dimension == 2) {
+            n2dpos = end-start+1 ;
+            entitySet dom = interval(start-1,end-1+n2dpos) ;
+            pos.allocate(dom) ;
+            cout << "reading " << end << " nodes." << endl ;
+          } else {
+            entitySet dom = interval(start-1,end-1) ;
+            pos.allocate(dom) ;
+            cout << "reading " << end << " nodes." << endl ;
+          }
         } else {
           if(pos.domain() == EMPTY) {
             cerr << "No zone 0 to set node size!" << endl ;
             return -1 ;
           }
           getOpenParen(s) ;
-          for(int i=start-1;i<end;++i) {
-            s >> pos[i].x >> pos[i].y >> pos[i].z ;
+          if(dimension == 2) {
+            for(int i=start-1;i<end;++i) {
+              s >> pos[i].x >> pos[i].y ;
+              pos[i].z = -0.5*extrude_dist ;
+            }
+            for(int i=start-1;i<end;++i) {
+              pos[i+n2dpos]= pos[i] ;
+              pos[i+n2dpos].z = 0.5*extrude_dist;
+            }
+          } else {
+            for(int i=start-1;i<end;++i) {
+              s >> pos[i].x >> pos[i].y >> pos[i].z ;
+            }
           }
           getCloseParen(s) ;
         }
@@ -198,84 +268,142 @@ int scanFluentFile(string filename,
 	int zone = getZoneInfo(s,start,end,type,dim) ;
 	getCloseParen(s) ;
         if(zone == 0)
-          cout << "reading " << end-start << " cells." << endl ;
+          cout << "reading " << end-start+1 << " cells." << endl ;
       }
       break ;
     case 13: // Faces
       {
 	int start, end, type, dim ;
 	int zone = getZoneInfo(s,start,end,type,dim) ;
+        maxzoneid = max(maxzoneid,zone) ;
         if(zone == 0) {
-          entitySet dom = interval(start-1,end-1) ;
-          cl.allocate(dom) ;
-          cr.allocate(dom) ;
-          count.allocate(dom) ;
-          face_info.allocate(dom) ;
-          cout << "reading " << end-start << " faces." << endl ;
-        } else {
-          getOpenParen(s) ;
-          if(dim == 0) { // mixed element type
-            for(int i=start-1;i<end;++i) {
-              int nfaces = getHex(s) ;
-              for(int j=0;j<nfaces;++j)
-                face_info[i][j] = getHex(s) ;
-              cl[i] = getHex(s) ;
-              cr[i] = getHex(s) ;
-              if(cr[i] == 0) {
-                cr[i] = -zone ;
-                zone_map[zone] = 1 ;
-              } else if(cl[i] == 0) {
-                cl[i] = -zone ;
-                zone_map[zone] = 1 ;
-                std::swap(cl[i],cr[i]) ;
-                for(int j=0;j<nfaces/2;++j)
-                  std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-              }
-              count[i] = nfaces ;
-            }
-          } else if(dim == 3) { // triangles
-            for(int i=start-1;i<end;++i) {
-              int nfaces = 3 ;
-              for(int j=0;j<nfaces;++j)
-                face_info[i][j] = getHex(s) ;
-              cl[i] = getHex(s) ;
-              cr[i] = getHex(s) ;
-              if(cr[i] == 0) {
-                cr[i] = -zone ;
-                zone_map[i] = 1 ;
-              } else if(cl[i] == 0) {
-                cl[i] = -zone ;
-                zone_map[zone] = 1 ;
-                std::swap(cl[i],cr[i]) ;
-                for(int j=0;j<nfaces/2;++j)
-                  std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-              }
-              count[i] = nfaces ;
-            }
-          } else if(dim == 4) { // quads
-            for(int i=start-1;i<end;++i) {
-              int nfaces = 4 ;
-              for(int j=0;j<nfaces;++j)
-                face_info[i][j] = getHex(s) ;
-              cl[i] = getHex(s) ;
-              cr[i] = getHex(s) ;
-              if(cr[i] == 0) {
-                cr[i] = -zone ;
-                zone_map[i] = 1 ;
-              } else if(cl[i] == 0) {
-                cl[i] = -zone ;
-                zone_map[zone] = 1 ;
-                std::swap(cl[i],cr[i]) ;
-                for(int j=0;j<nfaces/2;++j)
-                  std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
-              }
-              count[i] = nfaces ;
-            }
+          if(dimension == 2) {
+            cout << "reading " << end-start+1 << " edges." << endl ;
           } else {
-            cerr << "unsupported face type " << endl ;
-            return -1 ;
+            entitySet dom = interval(start-1,end-1) ;
+            cl.allocate(dom) ;
+            cr.allocate(dom) ;
+            count.allocate(dom) ;
+            face_info.allocate(dom) ;
           }
-          getCloseParen(s) ;
+        } else {
+          if(dimension == 2) {
+            getOpenParen(s) ;
+            if(dim == 0) { // mixed element type (better be edges)
+              for(int i=start-1;i<end;++i) {
+                int nfaces = getHex(s) ;
+                if(nfaces != 2) {
+                  cerr << "faces should be edges in 2-D mesh." << endl ;
+                  exit(-1) ;
+                }
+                int n1 = getHex(s)-1 ;
+                int n2 = getHex(s)-1 ;
+
+                int c1 = getHex(s) ; // cell left side
+                int c2 = getHex(s) ; // cell right side
+                if(c2 == 0) {
+                  c2 = -zone ;
+                  zone_map[zone] = 1 ;
+                } else if(c1 == 0) {
+                  c1 = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(c1,c2) ;
+                  std::swap(n1,n2) ;
+                }
+                pair<int,int> nc = pair<int,int>(n1,n2) ;
+                pair<int,int> cc = pair<int,int>(c1,c2) ;
+                edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
+              }
+            } else if(dim == 2) { // edges
+              for(int i=start-1;i<end;++i) {
+                int n1 = getHex(s)-1 ;
+                int n2 = getHex(s)-1 ;
+
+                int c1 = getHex(s) ; // cell left side
+                int c2 = getHex(s) ; // cell right side
+                if(c2 == 0) {
+                  c2 = -zone ;
+                  zone_map[zone] = 1 ;
+                } else if(c1 == 0) {
+                  c1 = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(c1,c2) ;
+                  std::swap(n1,n2) ;
+                }
+                pair<int,int> nc = pair<int,int>(n1,n2) ;
+                pair<int,int> cc = pair<int,int>(c1,c2) ;
+                edge_list.push_back(pair<pair<int,int>,pair<int,int> >(nc,cc)) ;
+              }
+            } else {
+              cerr << "unsupported face type " << endl ;
+              return -1 ;
+            }
+            getCloseParen(s) ;
+          } else {
+            getOpenParen(s) ;
+            if(dim == 0) { // mixed element type
+              for(int i=start-1;i<end;++i) {
+                int nfaces = getHex(s) ;
+                for(int j=0;j<nfaces;++j)
+                  face_info[i][j] = getHex(s) ;
+                cl[i] = getHex(s) ;
+                cr[i] = getHex(s) ;
+                if(cr[i] == 0) {
+                  cr[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                } else if(cl[i] == 0) {
+                  cl[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(cl[i],cr[i]) ;
+                  for(int j=0;j<nfaces/2;++j)
+                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
+                }
+                count[i] = nfaces ;
+              }
+            } else if(dim == 3) { // triangles
+              for(int i=start-1;i<end;++i) {
+                int nfaces = 3 ;
+                for(int j=0;j<nfaces;++j)
+                  face_info[i][j] = getHex(s) ;
+                cl[i] = getHex(s) ;
+                cr[i] = getHex(s) ;
+                if(cr[i] == 0) {
+                  cr[i] = -zone ;
+                  zone_map[i] = 1 ;
+                } else if(cl[i] == 0) {
+                  cl[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(cl[i],cr[i]) ;
+                  for(int j=0;j<nfaces/2;++j)
+                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
+                }
+                count[i] = nfaces ;
+              }
+            } else if(dim == 4) { // quads
+              for(int i=start-1;i<end;++i) {
+                int nfaces = 4 ;
+                for(int j=0;j<nfaces;++j)
+                  face_info[i][j] = getHex(s) ;
+                cl[i] = getHex(s) ;
+                cr[i] = getHex(s) ;
+                if(cr[i] == 0) {
+                  cr[i] = -zone ;
+                  zone_map[i] = 1 ;
+                } else if(cl[i] == 0) {
+                  cl[i] = -zone ;
+                  zone_map[zone] = 1 ;
+                  std::swap(cl[i],cr[i]) ;
+                  for(int j=0;j<nfaces/2;++j)
+                    std::swap(face_info[i][j],face_info[i][nfaces-j-1]) ;
+                }
+                count[i] = nfaces ;
+              }
+            } else {
+              cerr << "unsupported face type " << endl ;
+              return -1 ;
+            }
+            getCloseParen(s) ;
+          }
         }
 	getCloseParen(s) ;
       }
@@ -284,6 +412,7 @@ int scanFluentFile(string filename,
       {
 	getOpenParen(s) ;
 	int zoneId = getDecimal(s) ;
+        maxzoneid = max(maxzoneid,zoneId) ;
 	string type = getName(s) ;
 	string name = getName(s) ;
         if(zone_map.find(zoneId) != zone_map.end()) {
@@ -306,14 +435,135 @@ int scanFluentFile(string filename,
     }
   }
 
-  face2node.allocate(count) ;
-  entitySet dom = face2node.domain() ;
-  FORALL(dom,ii) {
-    int fsz = face2node[ii].size() ;
-    for(int j=0;j<fsz;++j)
-      face2node[ii][j] = face_info[ii][fsz-j-1]-1 ;
-  } ENDFORALL ;
-  return 0 ;
+  if(dimension == 2) { // Need to extrude mesh
+    // Create names for two symmetry planes ;
+    int s1 = maxzoneid+1 ;
+    int s2 = maxzoneid+2 ;
+    VOG::BC_descriptor tmp ;
+    tmp.name = "SymmetryZ1" ;
+    tmp.id = s1 ;
+    tmp.Trans = false ;
+    bcs.push_back(tmp) ;
+    cout << "Boundary Face: " <<tmp.id << " " << tmp.name << endl ;
+    tmp.name = "SymmetryZ2" ;
+    tmp.id = s2 ;
+    bcs.push_back(tmp) ;
+    cout << "Boundary Face: " <<tmp.id << " " << tmp.name << endl ;
+    
+    vector<pair<int,pair<int,int> > > etmp ;
+    for(size_t i=0;i<edge_list.size();++i) {
+      if(edge_list[i].second.first >=0) {
+        int cell = edge_list[i].second.first ;
+        pair<int,int> nl = pair<int,int>(edge_list[i].first.second,
+                                         edge_list[i].first.first) ;
+        etmp.push_back(pair<int,pair<int,int> > ( cell,nl) );
+      }
+      if(edge_list[i].second.second >=0) {
+        int cell = edge_list[i].second.second ;
+        pair<int,int> nl = pair<int,int>(edge_list[i].first.first,
+                                         edge_list[i].first.second) ;
+        etmp.push_back(pair<int,pair<int,int> > ( cell,nl) );
+      }
+    }
+    sort(etmp.begin(),etmp.end()) ;
+
+    // number of cells
+    int cnt = 1 ;
+    int c = etmp[0].first ;
+    for(size_t i=1;i<etmp.size();++i) {
+      if(c != etmp[i].first) {
+        cnt++ ;
+        c = etmp[i].first ;
+      }
+    }
+    int cellcnt = cnt ;
+    int nfaces = edge_list.size() + cellcnt*2 ;
+
+    entitySet fdom = interval(0,nfaces-1) ;
+    cl.allocate(fdom) ;
+    cr.allocate(fdom) ;
+    store<int> count ;
+    count.allocate(fdom) ;
+
+    cnt = 0 ;
+
+    c = -1 ;
+    for(size_t i=0;i<etmp.size();++i) {
+      if(c != etmp[i].first) { // found new face
+        c = etmp[i].first ;
+        int xc = 1 ;
+        for(size_t j=i+1;j<etmp.size();++j)
+          if(etmp[j].first == c)
+            xc++ ;
+          else
+            break ;
+        i += xc-1 ;
+        count[cnt] = xc ;
+        cl[cnt] = c ;
+        cr[cnt] = -s1 ;
+        count[cnt+cellcnt] = xc ;
+        cl[cnt+cellcnt] = c ;
+        cr[cnt+cellcnt] = -s2 ;
+        cnt++ ;
+      }
+    }
+    if(cnt != cellcnt) {
+      cerr << "counts don't match!" << endl;
+    }
+    cnt += cellcnt ;
+    
+    for(size_t i=0;i<edge_list.size();++i) {
+      cl[cnt] = edge_list[i].second.first ;
+      cr[cnt] = edge_list[i].second.second ;
+      count[cnt] = 4 ;
+      cnt++ ;
+    }
+
+    face2node.allocate(count) ;
+    cnt = 0 ;
+    
+    for(size_t i=0;i<etmp.size();i+=count[cnt++]) {
+      face2node[cnt][0] = etmp[i].second.first ;
+      face2node[cnt][1] = etmp[i].second.second ;
+      int sv = face2node[cnt][1] ;
+      for(int k=2;k<count[cnt];++k) {
+        int nsv = -1 ;
+        for(int l=1;l<count[cnt];++l)
+          if(etmp[i+l].second.first == sv)
+            nsv = etmp[i+l].second.second ;
+        if(nsv == -1) {
+          cerr << "unable to follow edges around face!" << endl ;
+          exit(-1) ;
+        }
+        face2node[cnt][k] = nsv ;
+        sv = nsv ;
+      }
+      // Build face on opposite side
+      for(int k=0;k<count[cnt];++k) {
+        face2node[cnt+cellcnt][count[cnt]-k-1] = face2node[cnt][k]+n2dpos ;
+      }
+    }
+    cnt = cellcnt*2 ;
+    
+    for(size_t i=0;i<edge_list.size();++i) {
+      face2node[cnt][0] = edge_list[i].first.first ;
+      face2node[cnt][1] = edge_list[i].first.second ;
+      face2node[cnt][2] = edge_list[i].first.second + n2dpos ;
+      face2node[cnt][3] = edge_list[i].first.first + n2dpos ;
+      cnt++ ;
+    }
+                                          
+    return 0 ;
+  } else {
+    face2node.allocate(count) ;
+    entitySet dom = face2node.domain() ;
+    FORALL(dom,ii) {
+      int fsz = face2node[ii].size() ;
+      for(int j=0;j<fsz;++j)
+        face2node[ii][j] = face_info[ii][fsz-j-1]-1 ;
+    } ENDFORALL ;
+    return 0 ;
+  }
 }
 
 
@@ -363,6 +613,10 @@ int main(int ac, char *av[]) {
       av++ ;
     } else if(ac >= 2 && !strcmp(av[1],"-m")) {
       Lref = "1 meter" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-mm")) {
+      Lref = "1 mm" ;
       ac-- ;
       av++ ;
     } else {
