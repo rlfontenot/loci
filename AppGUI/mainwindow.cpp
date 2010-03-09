@@ -22,6 +22,7 @@
 #include "importwindow.h"
 #include "physicswindow.h"
 #include "mgviewer.h"
+#include "refdialog.h"
 
 #include <cstdlib>
 #include <QString>
@@ -139,9 +140,11 @@ void MainWindow::createDisplayBar(){
   QAction *showBorderAct = new QAction(tr("Show Outline"), this);
   //QAction *deletePlaneAct = new Action(tr("Delete Cutplane"));
   
-
+  QAction *showShapesAct = new QAction(tr("Show Geometry Shapes"), this);
+QAction *showNodesAct = new QAction(tr("Show Marked Nodes"), this);
   
-  toolbar = addToolBar(tr("Cutplane Display"));
+  
+  toolbar = addToolBar(tr("Display"));
   insertToolBarBreak(toolbar);
  
  
@@ -162,6 +165,17 @@ void MainWindow::createDisplayBar(){
   toolbar->addAction(showBorderAct);
   //toolbar->addAction(deletePlaneAct);
   toolbar->addSeparator();
+  
+  
+  toolbar->addSeparator();
+  toolbar->addAction(showShapesAct);
+  toolbar->addSeparator();
+  toolbar->addAction(showNodesAct);
+
+  connect(showShapesAct, SIGNAL(triggered()),
+          viewer, SLOT(toggleShowShapes()));
+  connect(showNodesAct, SIGNAL(triggered()),
+          viewer, SLOT(toggleShowNodes()));
   
   
   //  slider = new QSlider(Qt::Horizontal, toolbar);
@@ -348,7 +362,11 @@ void MainWindow::createFlowBar(){
   QPushButton* vmButton = new QPushButton(tr("Vogmerge"), this);
   flowbar->addWidget(vmButton);
   connect(vmButton, SIGNAL(clicked()), this, SLOT(vmClicked()));
-  
+
+  flowbar->addSeparator();
+  QPushButton* adaptButton = new QPushButton(tr("FVMAdapt"), this);
+  flowbar->addWidget(adaptButton);
+  connect(adaptButton, SIGNAL(clicked()), this, SLOT(adaptClicked()));
   
   int count=0;
   for (; !elem.isNull(); elem = elem.nextSiblingElement(), count++) { 
@@ -620,7 +638,8 @@ MainWindow::MainWindow()
   cutdialog = 0;
   slider = 0;
   dock = 0;
-  
+  adaptwindow = 0;
+  refdialog = 0;
   cutAct = 0;
   toolbar=0;
   flowbar =0;
@@ -1192,6 +1211,38 @@ void MainWindow::cut(){
   connect(cutdialog, SIGNAL(loadInfoChanged(const LoadInfo&)), viewer, SLOT(setLoadInfo(const LoadInfo&)));
   connect(cutdialog, SIGNAL(cutPressed()), viewer, SLOT(cut()));
 }
+void MainWindow::markVolumeNodes(){
+
+  QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
+  elem = elem.firstChildElement("gridSetup");
+  if(elem.attribute("directory")=="" || elem.attribute("casename")==""){
+    QMessageBox::information(window(), "mainwindow",
+                                tr("Please use 'GridSetup' reading in grid first"));
+    return;
+  }
+  QString fileName = elem.attribute("directory")+"/"+elem.attribute("casename")+".vog";
+  viewer->markVolumeNodes(fileName);
+}
+
+void MainWindow::refineGrids(){
+  if(refdialog){
+    delete refdialog;
+    refdialog = 0;
+  }
+  
+  QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
+  elem = elem.firstChildElement("gridSetup");
+  if(elem.attribute("directory")=="" || elem.attribute("casename")==""){
+    QMessageBox::information(window(), "mainwindow",
+                             tr("Please use 'GridSetup' reading in grid first"));
+    return;
+  }
+  QString fileName = elem.attribute("directory")+"/"+elem.attribute("casename")+".vog";
+ 
+  refdialog = new RefDialog(fileName);
+  refdialog->show();
+}
+
 
 void MainWindow::resetSlider(){
 }
@@ -1646,7 +1697,7 @@ bool MainWindow::saveVar()
   out<<"}"<<endl;
   updateStatus(fileName + tr(" saved"));
 
-  
+  file.close();
   return true;
   }
   return true;
@@ -1708,7 +1759,7 @@ bool MainWindow::saveVar()
    doc.save(out, 2, QDomNode::EncodingFromDocument);
    QApplication::restoreOverrideCursor();
    updateStatus(fileName + tr(" saved"));
-  
+   file.close();
    return true;
  }
 
@@ -1742,6 +1793,35 @@ void MainWindow::aboutPostprocess()
 
 
 
+void MainWindow::adaptClicked()
+{
+  if(adaptwindow){
+    delete adaptwindow;
+    adaptwindow = 0;
+  }
+  adaptwindow = new FVMAdapt(this);
+  
+  viewer->setAdaptWindow(adaptwindow);
+  dock->show();
+  dock->setFloating(true);
+  dock->setWidget(adaptwindow); 
+  connect(adaptwindow, SIGNAL(destroyed(QObject*)), viewer, SLOT(adaptwindowClosed()));
+  connect(adaptwindow, SIGNAL(refineGrids()), this, SLOT(refineGrids()));
+  connect(adaptwindow, SIGNAL(markVolumeNodes()), this, SLOT(markVolumeNodes()));
+   
+  connect(adaptwindow, SIGNAL(valueChanged()), viewer, SLOT(updateGL()));
+ 
+  connect(adaptwindow, SIGNAL(markNodes()), viewer, SLOT(markNodes()));
+  
+}
+
+void MainWindow::adaptwindowClosed(){
+  dock->setWidget(statusWindow);
+  dock->setFloating(false);
+  dock->setAllowedAreas(Qt::LeftDockWidgetArea );
+  adaptwindow = 0;
+  
+}
 void MainWindow::vmClicked()
 {
   
@@ -1775,3 +1855,4 @@ void MainWindow::vmClicked()
   dock->show();
   dock->setWidget(vmwindow); 
 }
+

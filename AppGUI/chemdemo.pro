@@ -17,7 +17,6 @@ LIBS += /usr/local/hdf5/lib64/libhdf5.a
 # Input
 HEADERS += bdcndwindow.h \
            cutplane.h \
-           defines.h \
            getfile.h \
            glviewer.h \
            mgviewer.h \
@@ -31,7 +30,10 @@ HEADERS += bdcndwindow.h \
            cutdialog.h \
            importwindow.h \
            physicswindow.h \
-           mdlwindow.h 
+           mdlwindow.h \
+           fvmadapt.h \
+           refdialog.h 
+          
 SOURCES += bdcndwindow.cpp \
            cutplane.cpp \
            getfile.cpp \
@@ -49,7 +51,10 @@ SOURCES += bdcndwindow.cpp \
            cutdialog.cpp \
            importwindow.cpp \
            physicswindow.cpp \
-           mdlwindow.cpp
+           mdlwindow.cpp \
+           fvmadapt.cpp \
+           mark_node.cpp \
+           refdialog.cpp
 
 RESOURCES     = chemdemo.qrc
 #install

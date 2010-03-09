@@ -13,6 +13,8 @@
 #include <QString>
 #include "pages.h"
 #include <vector>
+#include <QDomElement>
+#include <QDomDocument>
 using std::vector;
 
 bool conditionIsSatisfied(const QDomElement& theroot, const QString& condition){
@@ -89,20 +91,124 @@ void FloatEdit::setRange(double d1, double d2){
   validator->setRange(dd1, dd2);
 }
 
+DoubleSpinBox::DoubleSpinBox(QWidget* parent):QDoubleSpinBox(parent){};
+void DoubleSpinBox::keyPressEvent(QKeyEvent *event){
+  QString key = event->text();
+  
+  if(key=="S"){
+       double step = singleStep()*10;
+       setSingleStep(step);
+       emit paraChanged();
+  }else if(key== "s"){
+       double step = singleStep()*0.1;
+       setSingleStep(step);
+       emit paraChanged();
+      
+  }else if(key =="D"){
+    int decimal = decimals()+1;
+    setDecimals(decimal);
+    emit paraChanged();
+           
+  }else if(key=="d"){
+     
+    int decimal = decimals()-1;
+    if(decimal>=0){
+      setDecimals(decimal);
+      emit paraChanged();
+    }
+    
+  }else{
+    QAbstractSpinBox::keyPressEvent(event);
+  }
+}
 
 
+FloatSlider::FloatSlider(const QString& title,  QWidget *parent):QWidget(parent)
+{
+ 
+  edit = new DoubleSpinBox;
+  edit->setSingleStep(0.01);
+  edit->setRange(-1e5, 1e5);
+  edit->setDecimals(8);
+  connect(edit, SIGNAL(valueChanged(double)), this, SIGNAL(valueChanged(double)));
+  connect(edit, SIGNAL(paraChanged()), this, SLOT(display()));
+  connect(edit,  SIGNAL(valueChanged(double)), this, SLOT(undisplay()));
+  
+  QLabel* label = new QLabel(title);
+   valueLabel = new QLabel;
+  QHBoxLayout* mainLayout = new QHBoxLayout;
+  mainLayout->addWidget(label);
+  mainLayout->addWidget(edit);
+  mainLayout->addWidget(valueLabel);
+  valueLabel->hide();
+  setLayout(mainLayout);
+}
+
+void FloatSlider::display(){
+  valueLabel->setText(QString("Decimals: %1   Single Step: %2")
+                      .arg(edit->decimals())
+                      .arg(edit->singleStep()));
+  valueLabel->show();
+}
+void FloatSlider::undisplay(){
+  valueLabel->show();
+}
+
+void FloatSlider::setValue(double d){
+  edit->setValue(d);
+}
+double FloatSlider::value(){
+  return edit->value();
+}
+void FloatSlider::setRange(double d1, double d2){
+  edit->setRange(d1, d2);
+}
 
 
+VectSlider::VectSlider( const QString& title, QWidget *parent):QGroupBox(title, parent){
+  
+  xedit = new FloatSlider("x");
+  yedit = new FloatSlider("y");
+  zedit = new FloatSlider("z");
+  connect(xedit, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
+  connect(yedit, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
+  connect(zedit, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
+  
+  QHBoxLayout* mainLayout = new QHBoxLayout;
+  mainLayout->addWidget(xedit);
+  mainLayout->addSpacing(10);
+  mainLayout->addWidget(yedit);
+  mainLayout->addSpacing(10);
+  mainLayout->addWidget(zedit);
+  setLayout(mainLayout);
+}
+void VectSlider::setValue(const positions3d& p){
+  xedit->setValue(p.x);
+  yedit->setValue(p.y);
+  zedit->setValue(p.z);
+}
+void VectSlider::setInfo(){
+  emit valueChanged(value());
+}
+positions3d VectSlider::value(){
+  return positions3d(xedit->value(), yedit->value(), zedit->value());
+}
 
+void VectSlider::setRange(double d1, double d2){
+  xedit->setRange(d1, d2);
+  yedit->setRange(d1, d2);
+  zedit->setRange(d1, d2);
+}
+void VectSlider::setXRange(double d1, double d2){
+  xedit->setRange(d1, d2);
+}
 
-
-
-
-
-
-
-
-
+void VectSlider::setYRange(double d1, double d2){
+  yedit->setRange(d1, d2);
+}
+void VectSlider::setZRange(double d1, double d2){
+  zedit->setRange(d1, d2);
+}
 
 
 IntEdit::IntEdit(QWidget *parent) : QLineEdit(parent){

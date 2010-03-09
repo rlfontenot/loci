@@ -16,6 +16,8 @@
 #include <iostream>
 #include <QString>
 #include <QItemDelegate>
+#include <QDoubleSpinBox>
+#include "grid.h"
 class QPushButton;
 class QButtonGroup;
 class QLabel;
@@ -76,6 +78,78 @@ void setValue(int);
   void valueChanged(double);
 private:
   QDoubleValidator* validator;
+};
+
+class DoubleSpinBox:public QDoubleSpinBox{
+  Q_OBJECT
+public:
+  DoubleSpinBox(QWidget* parent = 0);
+  signals:
+  void paraChanged();
+   
+protected:
+  
+  void keyPressEvent(QKeyEvent *event);
+};
+  
+class FloatSlider : public QWidget{
+  
+  Q_OBJECT
+  
+public:
+    
+  FloatSlider(const QString& title,  QWidget *parent = 0);
+  void setRange(double minn, double maxx);
+  double value();
+public slots:
+  void setValue(double);
+  void display();
+  void undisplay();
+private slots:
+
+  signals:
+  void valueChanged(double);
+protected:
+  DoubleSpinBox* edit;
+  QLabel* valueLabel;
+};
+
+// class FloatSpinBox: public FloatSlider{
+  
+//   Q_OBJECT
+  
+// public:
+  
+//   FloatSpinBox(QDomElement& elem,  QWidget *parent = 0);
+//  public slots:
+//  void updateCurrent();
+// private:
+//   QDomElement myelem;
+// };
+
+  
+class VectSlider:public QGroupBox{
+   Q_OBJECT
+  
+public:
+    
+   VectSlider( const QString& title, QWidget *parent = 0);
+  void setRange(double d1, double d1);
+  void setXRange(double minn, double maxx);
+  void setYRange(double minn, double maxx);
+  void setZRange(double minn, double maxx);
+  positions3d value();
+ public slots:
+ void setValue(const positions3d& p);
+private slots:
+ void setInfo();
+  signals:
+void valueChanged(const positions3d&);
+private:
+  FloatSlider* xedit;
+  FloatSlider* yedit;
+  FloatSlider* zedit;
+ 
 };
 
 

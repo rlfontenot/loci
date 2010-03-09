@@ -3,12 +3,14 @@
 
 #include <QGLWidget>
 #include <vector>
-
+#include <QDomElement>
+#include <QPointer>
 #include "grid.h"
 
 class grid;
 class cutplane_info;
 class QStringList;
+class FVMAdapt;
 //class QStandardItemModel;
 
 //BOUND_SELECT_MODE: before the cut plane is generated
@@ -16,7 +18,7 @@ class QStringList;
 //PLANE_ONLY_MODE:when only cut plane is read from a file
 enum opMode {BOUND_SELECT_MODE,  PLANE_AND_BOUND_MODE, PLANE_ONLY_MODE};
 
-
+std::vector<bool> process_region(QDomElement& anode, std::vector<positions3d> p);
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -57,6 +59,8 @@ public:
   void toggleGrid();
   void toggleShading();
   void toggleBorder();
+  void toggleShowShapes();
+  void toggleShowNodes();
   void setShadeType1();
   void setShadeType2();
   void setShadeType3();
@@ -72,6 +76,14 @@ public:
   void reset();
   void fit();
   void setLoadInfo(const LoadInfo&);
+
+  //for FVMadapt
+  void drawShapes();
+  void setAdaptWindow(QPointer<FVMAdapt>);
+  void adaptwindowClosed();
+  void markNodes();
+  void markVolumeNodes(QString fileName);
+  //  void refineGrids(QString );
 signals:
   void pickCurrent(int);
 protected:
@@ -84,6 +96,8 @@ protected:
   void wheelEvent(QWheelEvent *event);
 
 private:
+
+  
   void updateView();
   void setShadeType(int type);
   void makeObjects();
@@ -96,7 +110,26 @@ private:
   void drawBoundObject(int bid, QColor c);
   void makeBoundWireframeObject(int bid, QColor c);
   void makeBoundFillObject(int bid, QColor c);
+
+  //  void draw();
+  void drawSphere(const vector<double>& p);
+  void drawCylinder(const vector<double>& p);
+  void drawCone(const vector<double>& p);
+  void drawCube(const vector<double>& p);
+  void drawPxPlane(const vector<double>& p, double size);
+  void drawNxPlane(const vector<double>& p, double size);
+  void drawPyPlane(const vector<double>& p, double size);
+  void drawNyPlane(const vector<double>& p, double size);
+  void drawPzPlane(const vector<double>& p, double size);
+  void drawNzPlane(const vector<double>& p, double size);
+  void drawNodes();
+ 
+  QPointer<FVMAdapt> adaptwindow ;
+  vector<bool> tags;
+
+
   
+  GLUquadricObj* qobj;//for FVMAdapt
   GLuint makeGridObject();
   GLuint gridObject;  // Holds grid display list
 
@@ -150,7 +183,7 @@ private:
   
   int currentWidth, currentHeight;//viewport
   
-  bool show_preview, show_contours, show_grid, show_shading, show_border;  // Visibility flags
+  bool show_preview, show_contours, show_grid, show_shading, show_border, show_nodes, show_shapes;  // Visibility flags
   float min_val, max_val;  // Scalar value extrema over the whole grid
   
   cutplane_info info;  // The information for the current cutting plane

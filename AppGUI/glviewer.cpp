@@ -26,8 +26,30 @@ using std::cerr ;
 #include "glviewer.h"
 #include "grid.h"
 #include "hdf5.h"
-
+#include "fvmadapt.h"
 #define PI 3.14159265358979323846264338327950
+
+
+
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#ifndef CALLBACK
+#define CALLBACK
+#endif
+
+GLuint startList;
+
+void CALLBACK errorCallback(GLenum errorCode)
+{
+   const GLubyte *estring;
+
+   estring = gluErrorString(errorCode);
+   fprintf(stderr, "Quadric Error: %s\n", estring);
+   exit(0);
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 //  Global Function
@@ -60,6 +82,7 @@ GLViewer::GLViewer(QWidget *parent)
   borderObject = 0;
   shadingObject = 0;
   cpContourObject = 0;
+  qobj = 0;
   //rgb = 0;
   centerx = centery = centerz=0;
   size = 0.1;
@@ -74,6 +97,9 @@ GLViewer::GLViewer(QWidget *parent)
   isFit = false;
   mode=BOUND_SELECT_MODE;
   rgb =0;
+  adaptwindow = 0;
+ show_shapes = true;
+  show_nodes = false;
 }
 
 //////////////////////////////////////////////////////
@@ -105,6 +131,8 @@ GLViewer::~GLViewer()
     delete fig;
     fig =0;
   }
+
+  gluDeleteQuadric(qobj);
 }
 
 
@@ -132,10 +160,25 @@ void GLViewer::clearCurrent(){
 
 void GLViewer::initializeGL()
 {
+ //  glClearColor(1.0, 1.0, 1.0, 1.0);
+//   glShadeModel(GL_SMOOTH);
+//   glEnable(GL_DEPTH_TEST);
+//   qobj = gluNewQuadric();
+//   gluQuadricDrawStyle(qobj, GLU_FILL);
+//   gluQuadricCallback(qobj, GLU_ERROR, 0);
+
+ 
+
   glClearColor(1.0, 1.0, 1.0, 1.0);
-  glShadeModel(GL_SMOOTH);
-  glEnable(GL_DEPTH_TEST);
+  qobj = gluNewQuadric();
+  gluQuadricCallback(qobj, GLU_ERROR, 
+                    0);
+  gluQuadricDrawStyle(qobj, GLU_LINE); /* smooth shaded */
+  
 }
+
+  
+
 /////////////////////////////////////////////////////////////
 //  protected:
 //    void resizeGL(int height, int width);
@@ -156,7 +199,7 @@ void GLViewer::resizeGL(int width, int height)
   GLdouble far = size*30.0;
   gluPerspective(30, (GLdouble)width/height, near, far);
   glMatrixMode(GL_MODELVIEW);
- 
+
  
 }
 ////////////////////////////////////////////////////////////////////////////
@@ -167,11 +210,563 @@ void GLViewer::resizeGL(int width, int height)
 //  whatever needs to be in the central widget.
 ////////////////////////////////////////////////////////////////////////////
 
+
+void GLViewer::drawSphere(const vector<double>& p){
+ 
+  if(p.size() < 4)return;
+  glPushMatrix(); 
+  glTranslatef(p[0], p[1], p[2]);
+  gluSphere(qobj, p[3], 20, 20);
+  glPopMatrix();
+  
+}
+
+void GLViewer::drawCylinder(const vector<double>& p){
+ 
+  if(p.size()<5)return;
+   
+  glPushMatrix(); 
+  glTranslatef(p[0], p[1], p[3]);
+  gluCylinder(qobj, p[2], p[2], p[4]-p[3], 20, 20);
+  glPopMatrix(); 
+}
+
+void GLViewer::drawCone(const vector<double>& p){
+  if(p.size()<6)return;
+  glPushMatrix();
+
+  double x0 = p[0];
+  double y0 = p[1];
+  double z0 = p[2];
+  double z1 = p[4];
+  double ratio = p[3];
+  double z2 = p[5];
+  
+  glTranslatef(x0, y0, z1);
+  gluCylinder(qobj, ratio*(z1-z0), ratio*(z2-z0), z2-z1, 20, 20);
+  glPopMatrix(); 
+}
+
+
+void GLViewer::drawCube(const vector<double>& p){
+   if(p.size()<6)return;
+  glPushMatrix(); 
+  double x1 = p[0];
+  double y1 = p[1];
+  double z1 = p[2];
+  double x2 = p[3];
+  double y2 = p[4];
+  double z2 = p[5];
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glBegin(GL_QUADS);
+  
+
+  glVertex3d(x1, y1, z1);
+  glVertex3d(x2, y1, z1);
+  glVertex3d(x2, y1, z2);
+  glVertex3d(x1, y1, z2);
+
+
+  glVertex3d(x1, y2, z1);
+  glVertex3d(x1, y2, z2);
+  glVertex3d(x2, y2, z2);
+  glVertex3d(x2, y2, z1);
+    
+
+  glVertex3d(x2, y1, z1);
+  glVertex3d(x2, y2, z1);
+  glVertex3d(x2, y2, z2);
+  glVertex3d(x2, y1, z2);
+
+
+  glVertex3d(x1, y1, z1);
+  glVertex3d(x1, y1, z2);
+  glVertex3d(x1, y2, z2);
+  glVertex3d(x1, y2, z1);
+
+
+  glVertex3d(x1, y1, z2);
+  glVertex3d(x2, y1, z2);
+  glVertex3d(x2, y2, z2);
+  glVertex3d(x1, y2, z2);
+      
+
+  glVertex3d(x1, y1, z1);
+  glVertex3d(x1, y2, z1);
+  glVertex3d(x2, y2, z1);
+  glVertex3d(x2, y1, z1);
+  glEnd();
+  glPopMatrix();   
+}
+
+void GLViewer::drawPxPlane(const vector<double>& p, double size){
+  if(p.size()==0)return;
+  double x = p[0];
+  glPushMatrix(); 
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glBegin(GL_QUADS);
+  glVertex3d(x, -1*size, -1*size);
+  glVertex3d(x, -1*size, size);
+  glVertex3d(x, size, size);
+  glVertex3d(x, size, -1*size);
+  glEnd();
+  glBegin(GL_LINES);
+  glVertex3d(x, 0, 0);
+  glVertex3d(x+0.5*size, 0, 0);
+  glVertex3d(x, -1*size, 0);
+  glVertex3d(x, size, 0);
+  glVertex3d(x, 0, -1*size);
+  glVertex3d(x, 0, size);
+  
+  glEnd();
+  glPopMatrix(); 
+}
+void GLViewer::drawNxPlane(const vector<double>& p, double size){
+  if(p.size()==0)return;
+  double x = p[0];
+  glPushMatrix(); 
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glBegin(GL_QUADS);
+  glVertex3d(x, -1*size, -1*size);
+  glVertex3d(x, -1*size, size);
+  glVertex3d(x, size, size);
+  glVertex3d(x, size, -1*size);
+  glEnd();
+  glBegin(GL_LINES);
+  glVertex3d(x, 0, 0);
+  glVertex3d(x-0.5*size, 0, 0);
+  glVertex3d(x, -1*size, 0);
+  glVertex3d(x, size, 0);
+  glVertex3d(x, 0, -1*size);
+  glVertex3d(x, 0, size);
+  
+  
+  glEnd();
+
+  glPopMatrix();
+  
+}
+
+void GLViewer::drawPyPlane(const vector<double>& p, double size){
+  if(p.size()==0)return;
+  double y = p[0];
+  glPushMatrix(); 
+
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glBegin(GL_QUADS);
+  glVertex3d( -1*size,y,  -1*size);
+  glVertex3d( -1*size, y,size);
+  glVertex3d( size, y,size);
+  glVertex3d( size, y,-1*size);
+  glEnd();
+  glBegin(GL_LINES);
+  glVertex3d(0, y, 0);
+  glVertex3d(0, y+0.5*size,0);
+  glVertex3d( -1*size, y, 0);
+  glVertex3d( size,y, 0);
+  glVertex3d( 0, y,-1*size);
+  glVertex3d( 0,y, size);
+  
+  glEnd();
+
+  glPopMatrix();
+  
+}
+
+void GLViewer::drawNyPlane(const vector<double>& p, double size){
+  if(p.size()==0)return;
+  double y = p[0];
+  glPushMatrix();
+  //  glLineStipple(1, 0xAAAA);
+  //glEnable(GL_LINE_STIPPLE);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glBegin(GL_QUADS);
+  glVertex3d( -1*size,y,  -1*size);
+  glVertex3d( -1*size, y,size);
+  glVertex3d( size, y,size);
+  glVertex3d( size, y,-1*size);
+  glEnd();
+  glBegin(GL_LINES);
+  glVertex3d(0, y, 0);
+  glVertex3d(0, y-0.5*size,0);
+  glVertex3d( -1*size, y, 0);
+  glVertex3d( size,y, 0);
+  glVertex3d( 0, y,-1*size);
+  glVertex3d( 0,y, size);
+  
+  glEnd();
+   glPopMatrix();
+  
+}
+
+void GLViewer::drawPzPlane(const vector<double>& p, double size){
+if(p.size()==0)return;
+  double z = p[0];
+  glPushMatrix();
+  
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glBegin(GL_QUADS);
+  glVertex3d( -1*size, -1*size,z);
+  glVertex3d( -1*size, size,z);
+  glVertex3d( size, size,z);
+  glVertex3d( size, -1*size,z);
+  glEnd();
+  glBegin(GL_LINES);
+  glVertex3d(0,  0, 0);
+  glVertex3d(0, 0, z + 0.5*size);
+  glVertex3d( -1*size, 0, z);
+  glVertex3d( size,0, z);
+  glVertex3d( 0, -1*size, z);
+  glVertex3d( 0,size, z);
+  
+  glEnd();
+   glPopMatrix();
+  
+}
+
+void GLViewer::drawNzPlane(const vector<double>& p, double size){
+  if(p.size()==0)return;
+  double z = p[0];
+  glPushMatrix();
+  //glLineStipple(1, 0xAAAA);
+  //  glEnable(GL_LINE_STIPPLE);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glBegin(GL_QUADS);
+  glVertex3d( -1*size, -1*size,z);
+  glVertex3d( -1*size, size,z);
+  glVertex3d( size, size,z);
+  glVertex3d( size, -1*size,z);
+  glEnd();
+  glBegin(GL_LINES);
+  glVertex3d(0,  0, 0);
+  glVertex3d(0, 0, z - 0.5*size);
+   glVertex3d( -1*size, 0, z);
+  glVertex3d( size,0, z);
+  glVertex3d( 0, -1*size, z);
+  glVertex3d( 0,size, z);
+  
+  glEnd();
+  //  glDisable(GL_LINE_STIPPLE);
+  glPopMatrix();
+  
+}
+void GLViewer::setAdaptWindow( QPointer<FVMAdapt> window){
+  adaptwindow = window;
+  // updateGL();
+}
+void GLViewer::adaptwindowClosed(){//signal not working
+  adaptwindow = 0;
+  updateGL();
+}
+
+
+void GLViewer::drawShapes(){
+  show_shapes =  true;
+  show_nodes = false;
+  if(adaptwindow == 0)return;
+  if(adaptwindow->tree == 0)return;
+  QList<QTreeWidgetItem*> shapes = adaptwindow->tree->findItems(tr("object"), Qt::MatchRecursive);
+  
+  if(shapes.size() ==0)return;
+
+
+  glLineWidth(5);
+  for( int i = 0; i <shapes.size(); i++){
+
+    if(shapes[i]->childCount() == 0)continue; //no child, do nothing
+    glPushMatrix();
+    double planesize = 1;
+    QTreeWidgetItem* objItem = 0;
+    for(int childId = 0; childId <shapes[i]->childCount(); childId++){
+   
+    QTreeWidgetItem* transItem = 0;
+   
+    if(shapes[i]->child(childId)->text(0)=="transform"){
+      transItem =shapes[i]->child(childId);
+    }else if(shapes[i]->child(childId)->text(0)=="shape")  objItem = shapes[i]->child(childId);
+    
+    if(transItem != 0){
+      
+      for( int j= 0; j < transItem->childCount(); j++){
+        if(transItem->child(j)->text(0) =="translate"){
+          double x0 =0 , y0 = 0, z0 = 0;
+          for(int k = 0; k < transItem->child(j)->childCount(); k++){
+            if(transItem->child(j)->child(k)->text(0)=="x0")x0 = transItem->child(j)->child(k)->text(1).toDouble();
+            else  if(transItem->child(j)->child(k)->text(0)=="y0")y0 = transItem->child(j)->child(k)->text(1).toDouble();
+            else  if(transItem->child(j)->child(k)->text(0)=="z0")z0 = transItem->child(j)->child(k)->text(1).toDouble();
+            else{
+              
+              qDebug()<<tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'translate'");
+                                   
+              return;
+            }
+            
+          } 
+             
+        if(x0!=0 || y0 !=0 || z0 !=0)
+          glTranslated(x0,
+                       y0,
+                       z0) ;
+        }else if(transItem->child(j)->text(0) =="scale"){
+          double x0 =1 , y0 = 1, z0 = 1;
+          for(int k = 0; k < transItem->child(j)->childCount(); k++){
+            if(transItem->child(j)->child(k)->text(0)=="x0")x0 = transItem->child(j)->child(k)->text(1).toDouble();
+            else  if(transItem->child(j)->child(k)->text(0)=="y0")y0 = transItem->child(j)->child(k)->text(1).toDouble();
+            else  if(transItem->child(j)->child(k)->text(0)=="z0")z0 = transItem->child(j)->child(k)->text(1).toDouble();
+            else{
+             
+              qDebug() << tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'scale'");
+             
+              return;
+            }
+            
+          } 
+          
+        if(x0!=1 || y0 !=1 || z0 !=1)
+          glScaled(x0,
+                   y0,
+                   z0) ;
+         planesize = planesize*x0;
+        }else if(transItem->child(j)->text(0) =="rotateX"){
+
+          double theta = 0;
+          for(int k = 0; k < transItem->child(j)->childCount(); k++){
+            if(transItem->child(j)->child(k)->text(0)=="theta")theta = transItem->child(j)->child(k)->text(1).toDouble();
+            else{
+             
+              qDebug()<< tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'rotateX'");
+             
+              return;
+            }
+          }
+             
+          if(theta != 0)glRotatef(theta, 1, 0, 0);
+        }else if(transItem->child(j)->text(0) =="rotateY"){
+
+          double theta = 0;
+          for(int k = 0; k < transItem->child(j)->childCount(); k++){
+            if(transItem->child(j)->child(k)->text(0)=="theta")theta = transItem->child(j)->child(k)->text(1).toDouble();
+            else{
+           
+              qDebug()<<tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'rotateY'");
+           
+              return;
+            }
+          }
+             
+          if(theta != 0)glRotatef(theta, 0, 1, 0);
+          }else if(transItem->child(j)->text(0) =="rotateZ"){
+
+            double theta = 0;
+            for(int k = 0; k < transItem->child(j)->childCount(); k++){
+              if(transItem->child(j)->child(k)->text(0)=="theta")theta = transItem->child(j)->child(k)->text(1).toDouble();
+              else{
+               
+                qDebug() << tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'rotateZ'");
+                return;
+              }
+            }
+            
+            if(theta != 0)glRotatef(theta, 0, 0, 1);
+          }else{
+             
+            qDebug()<< tr("illegal child ") + transItem->child(j)->text(0) + tr(" in 'transform'");
+            return;
+                 
+          }
+      }
+    }
+    }
+    if(objItem == 0 || objItem->childCount() == 0) {
+
+     if(objItem) qDebug()<< objItem->text(0);
+    
+     qDebug()<<tr("no child 'shape' in 'object'");
+     return;
+    }
+    
+    
+
+    objItem = objItem->child(0);
+    vector<double> para;
+    for(int j =0; j < objItem->childCount(); j++){
+      para.push_back(objItem->child(j)->text(1).toDouble());
+    }
+    
+    
+    if(objItem->text(0) =="sphere") 
+      drawSphere(para);
+    else if(objItem->text(0) =="cone") 
+      drawCone(para);
+    else if(objItem->text(0) =="cylinder") 
+      drawCylinder(para); 
+    else if(objItem->text(0) =="box") 
+      drawCube(para);
+    else if(objItem->text(0) =="x+plane")
+        drawPxPlane(para, planesize);
+    else if(objItem->text(0) =="x-plane")
+      drawNxPlane(para, planesize);
+    else if(objItem->text(0) =="y+plane")
+       drawPyPlane(para, planesize);
+    else if(objItem->text(0) =="y-plane")
+      drawNyPlane(para, planesize);
+    else if(objItem->text(0) =="z+plane")
+      drawPzPlane(para, planesize);
+    else if(objItem->text(0) =="z-plane")
+      drawNzPlane(para, planesize);
+    
+  
+
+    glPopMatrix(); 
+    
+  }
+   glLineWidth(1);
+}
+void GLViewer::markNodes(){
+   show_shapes = false;
+  show_nodes = true;
+  if(adaptwindow==0) return;
+  QDomDocument doc = adaptwindow->toDom();
+  if(doc.firstChildElement().isNull())return;
+  tags.clear();
+  QDomElement rootElement = doc.firstChildElement("region");
+  tags = process_region(rootElement, meshNodes);
+  updateGL();
+}
+unsigned long readAttributeLong(hid_t group, const char *name) {
+  hid_t id_a = H5Aopen_name(group,name) ;
+  unsigned long val = 0;
+  H5Aread(id_a,H5T_NATIVE_ULONG,&val) ;
+  H5Aclose(id_a) ;
+  return val ;
+}
+
+void GLViewer::markVolumeNodes(QString filename){
+  //read in nodes
+  hid_t input_fid ; 
+  input_fid = H5Fopen(filename.toLocal8Bit(),H5F_ACC_RDONLY,H5P_DEFAULT);
+  if(input_fid <= 0) {
+    qDebug() << "unable to open file '" << filename << "'"<< endl ;
+    return;
+  }
+  // read in positions
+  hid_t fi = H5Gopen(input_fid,"file_info") ;
+   unsigned long numNodes = readAttributeLong(fi,"numNodes") ;
+  
+  H5Gclose(fi) ;
+  
+  hsize_t count = numNodes ;
+  
+#ifdef H5_INTERFACE_1_6_4
+  hsize_t lstart = 0 ;
+#else
+  hssize_t lstart = 0 ;
+#endif
+  
+    // Read in pos data from file i
+  vector<positions3d> pos_dat(numNodes) ;
+  hid_t node_g = H5Gopen(input_fid,"node_info") ;
+  hid_t dataset = H5Dopen(node_g,"positions") ;
+  hid_t dspace = H5Dget_space(dataset) ;
+
+  
+
+  hid_t pos_tid = H5Tcreate(H5T_COMPOUND, sizeof(positions3d));
+    
+  H5Tinsert(pos_tid, "x", 0, H5T_IEEE_F64LE);
+  H5Tinsert(pos_tid, "y", sizeof(double), H5T_IEEE_F64LE);
+  H5Tinsert(pos_tid, "z", 2*sizeof(double), H5T_IEEE_F64LE);
+
+  hsize_t stride = 1 ;
+  H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count,NULL) ;
+  int rank = 1 ;
+  hsize_t dimension = count ;
+  hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
+ 
+  hid_t err = H5Dread(dataset,pos_tid, memspace,dspace,H5P_DEFAULT,
+		      &pos_dat[0]) ;
+  if(err < 0) {
+    qDebug() << "unable to read positions from '" << filename << "'" << endl ;
+    return ;
+  }
+  H5Sclose(dspace) ;
+  H5Dclose(dataset) ;
+  H5Gclose(node_g) ;
+
+  //mark the nodes
+  vector<bool> volumeTags(numNodes);
+
+  QDomDocument doc = adaptwindow->toDom();
+  if(doc.firstChildElement().isNull())return;
+  
+  QDomElement rootElement = doc.firstChildElement("region");
+  vector<bool> vtags = process_region(rootElement, pos_dat);
+  QString tagFileName =filename.section('.', 0, 0)+".tag";
+  
+  tagFileName = QFileDialog::getSaveFileName(this, tr("Save .tag File"),
+                                             tagFileName,
+                                             tr("tag Files (*.tag)"));
+  
+  
+
+
+
+  QFileInfo tagInfo(tagFileName);
+  if(tagInfo.exists()){
+    QString command = "mv " + tagFileName+ " " + tagFileName+".bak";
+    int ret =  system(command.toStdString().c_str());
+    if(!WIFEXITED(ret))
+      {
+        if(WIFSIGNALED(ret))
+          {
+            QMessageBox::information(window(), "save tag file",
+                                     command + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
+            return;
+          }
+      }
+  }
+  if(tagFileName.isNull()){
+    
+     return ;
+  }
+  
+  QFile file(tagFileName);
+  if (!file.open(QFile::WriteOnly | QFile::Text)) {
+    QMessageBox::warning(this, tr("save .vars file "),
+                         tr("Cannot write file %1:\n%2.")
+                         .arg(tagFileName)
+                         .arg(file.errorString()));
+    return;
+  }
+
+  
+  QTextStream out(&file);
+  for(unsigned int i = 0; i < vtags.size(); i++)
+    out<< vtags[i]<<endl;
+  file.close();
+  
+  
+}
+
+void GLViewer::drawNodes(){
+    if(tags.size() != meshNodes.size()) return;
+    if(tags.size()==0) return;
+    glPointSize(5);
+    glBegin(GL_POINTS);
+    for(unsigned int i = 0; i < tags.size(); i++){
+      if(tags[i]){
+        glVertex3f(meshNodes[i].x, meshNodes[i].y, meshNodes[i].z);
+      }
+  }
+     glEnd();
+  glPointSize(1);
+}
+  
 void GLViewer::paintGL()
 {
   glLoadIdentity();
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  // glShadeModel(GL_FLAT);
+  // qDebug() << "size in painGL: " << size << " centerx: "<<centerx << "  centery: " << centery << " centerz: " << centerz ;;
   gluLookAt(centerx, centery, 2.0*size+centerz, centerx, centery, centerz, 0.0, 1.0, 0.0); 
   glPushMatrix(); //without this, the rotation won't work well
   glScaled(scale,scale,scale);
@@ -182,8 +777,9 @@ void GLViewer::paintGL()
   glRotated(roz, 0, 0, 1);
   glTranslated(-centerx, -centery, -centerz);
   glGetDoublev(GL_MODELVIEW_MATRIX, modelviewMatr);
- 
- 
+
+
+  glLineWidth(1);
   switch (mode) {
     
   case BOUND_SELECT_MODE: //after the grid is load, only draw boundaries
@@ -226,10 +822,16 @@ void GLViewer::paintGL()
   default:
     break;
   }
-   glPopMatrix();
+ 
+  glColor3f(0.0, 0.0, 0.0);  
+  if(show_nodes) drawNodes();
+ 
+  if(show_shapes)drawShapes();
+  glPopMatrix();
   glFlush();
+  
+  
 }
-
 void GLViewer::setCurrentObj(int i, QColor c){
   if( i>=0 && i<=(int)boundObjects.size()){
     if(currentObj != -1) makeBoundWireframeObject(currentObj, currentColor);
@@ -714,7 +1316,8 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   
   makeObjects();
   //  updateGL();
- 
+  tags.clear();
+  if(adaptwindow)show_shapes = true;
   resizeGL(currentWidth, currentHeight);
   return true;
 }
@@ -755,6 +1358,8 @@ void GLViewer::setVisibility(int i, bool show)
     updateGL();
   }
 }
+
+
 
 ///////////////////////////////////////////////////////////////////////////
 // 
@@ -1055,7 +1660,7 @@ void GLViewer::updateView()
   centery = (maxpos.y + minpos.y) / 2.0;
   centerz = (maxpos.z + minpos.z) / 2.0;
   tox = toy = toz = rox = roy = roz = 0.0;
-  
+  qDebug() << "size: " << size << " centerx: "<<centerx << "  centery: " << centery << " centerz: " << centerz ;
 }
 
 
@@ -1156,7 +1761,17 @@ void GLViewer::toggleBorder()
   updateGL();
 }
 
+void GLViewer::toggleShowShapes()
+{
+  show_shapes = (show_shapes)?false:true;
+  updateGL();
+}
 
+void GLViewer::toggleShowNodes()
+{
+  show_nodes = (show_nodes)?false:true;
+  updateGL();
+}
 
 
 //////////////////////////////////////////////////////////////////////////////

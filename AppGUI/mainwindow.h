@@ -7,6 +7,7 @@
 #include <QItemSelection>
 #include <QTextEdit>
 #include <QDomElement>
+#include <QPointer>
 using std::vector;
 class GLViewer;
 class QDockWidget;
@@ -17,11 +18,11 @@ class QStandardItemModel;
 class QPushButton;
 class MGViewer;
 class VMergeWindow;
-
+class RefDialog;
 #include "grid.h"
 #include "cutdialog.h"
 #include "vmergewindow.h"
-
+#include "fvmadapt.h"
 class MainWindow : public QMainWindow
 {
   Q_OBJECT
@@ -72,7 +73,10 @@ public:
   void changePage(int);
   void toggleShowStatus();
    void vmClicked(); //vogmerge button clicked
- 
+  void adaptClicked(); //FVMAdapt
+  void adaptwindowClosed();//FVMAdapt
+  void markVolumeNodes();
+  void refineGrids();
   signals:
   void setCurrent(QModelIndex);
   void stateChanged();
@@ -111,6 +115,8 @@ private:
   GLViewer *viewer;  // Handle for central OpenGL widget
   MGViewer* mgviewer;
   VMergeWindow* vmwindow;
+
+  QPointer<FVMAdapt> adaptwindow;
   
   CutDialog* cutdialog;
  
@@ -129,7 +135,7 @@ private:
   
   
   BdCndWindow* bdWindow;
-  
+  RefDialog* refdialog;
 
   
   QAction *cutAct;
