@@ -423,7 +423,7 @@ void CutPlane::close() {
       }
       gluTessEndContour(myTess);
       gluTessEndPolygon(myTess);
-     
+      gluDeleteTess(myTess);
     }
 
     
@@ -441,6 +441,8 @@ void CutPlane::close() {
     start = end;
     
   } // End triangulation
+  
+  delete [] pntIndex;
 
   sort(intersects.begin(), intersects.end());
 

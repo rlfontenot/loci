@@ -163,8 +163,8 @@ private:
   int currentObj;//current object
   QColor currentColor;// the color of current object
 
-   double* rgb;  // Temporary used for display list creation
-  double* shade(double value, double weight = 1.0);
+
+  positions3d shade(double value, double weight = 1.0);
   int shadeType;  // Stores which type of shading to use
 
   opMode mode;  // Which state the program is in

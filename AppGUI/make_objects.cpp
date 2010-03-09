@@ -217,12 +217,15 @@ GLuint GLViewer::makeShadingObject()
   glBegin(GL_TRIANGLES);
   for (int t = 0; t < ntris; ++t) {
     const triangles &tri = fig->triangle_list[t];
-
-    glColor3dv(shade(fig->val[tri.t1]));
+    
+    positions3d p1 = shade(fig->val[tri.t1]);
+    glColor3d(p1.x, p1.y, p1.z);
     glVertex3d(tmpPos[tri.t1].x, tmpPos[tri.t1].y, tmpPos[tri.t1].z);
-    glColor3dv(shade(fig->val[tri.t2]));
+    positions3d p2 = shade(fig->val[tri.t2]);
+    glColor3d(p2.x, p2.y, p2.z);
     glVertex3d(tmpPos[tri.t2].x, tmpPos[tri.t2].y, tmpPos[tri.t2].z);
-    glColor3dv(shade(fig->val[tri.t3]));
+    positions3d p3 = shade(fig->val[tri.t3]);
+    glColor3d(p3.x, p3.y, p3.z);
     glVertex3d(tmpPos[tri.t3].x, tmpPos[tri.t3].y, tmpPos[tri.t3].z);
   }
   glEnd();
@@ -657,11 +660,9 @@ void GLViewer::drawCoordGrid()
 //  due to the angle of the light source.
 //////////////////////////////////////////////////////////////////////////////
 
-double* GLViewer::shade(double value, double weight)
+positions3d GLViewer::shade(double value, double weight)
 {
-  if (rgb)
-    delete [] rgb;
-  rgb = new double[3];
+  double rgb[3];
   
   value = (value - min_val)/(max_val - min_val);
   // 0.0 <= value <= 1.0
@@ -721,5 +722,5 @@ double* GLViewer::shade(double value, double weight)
   rgb[1] *= weight;
   rgb[2] *= weight;
 
-  return rgb;
+  return positions3d(rgb[0], rgb[1], rgb[2]);
 }

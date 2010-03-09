@@ -1848,11 +1848,13 @@ void MainWindow::vmClicked()
  connect(mgviewer, SIGNAL(gridLoaded(const QStringList&)), vmwindow, SLOT(gridLoaded(const QStringList&)));
  connect(vmwindow, SIGNAL(tcChanged(const IDMatrix&)), mgviewer, SLOT(transGrid(const IDMatrix&)));
 
-  connect(vmwindow, SIGNAL(setCurrentColor(const IDColor&)), mgviewer, SLOT(setCurrentColor(const IDColor&)));
-  connect(vmwindow, SIGNAL(setCurrentVisibility(const IDVisibility&)),
-          mgviewer, SLOT(setCurrentVisibility(const IDVisibility&)));
+ connect(vmwindow, SIGNAL(setCurrentColor(const IDColor&)), mgviewer, SLOT(setCurrentColor(const IDColor&)));
+ connect(vmwindow, SIGNAL(setCurrentVisibility(const IDVisibility&)),
+         mgviewer, SLOT(setCurrentVisibility(const IDVisibility&)));
 
-  dock->show();
-  dock->setWidget(vmwindow); 
+ dock->show();
+ dock->setWidget(vmwindow); 
 }
+
+
 

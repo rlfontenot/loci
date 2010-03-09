@@ -96,7 +96,7 @@ GLViewer::GLViewer(QWidget *parent)
   min_val = max_val = 0.0;
   isFit = false;
   mode=BOUND_SELECT_MODE;
-  rgb =0;
+  // rgb =0;
   adaptwindow = 0;
  show_shapes = true;
   show_nodes = false;
@@ -1059,7 +1059,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   meshNodes.clear();
   meshNodes=vector<positions3d>(pos);
   file.close();
-  
+  gluDeleteTess(myTess);
   delete  pntIndex;
   }else if(format[1] == "surf"){
     //first read in meshNodes
