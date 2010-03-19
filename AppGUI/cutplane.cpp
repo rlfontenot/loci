@@ -156,6 +156,9 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
   dataset_id = H5Dopen(scalar_id, datasetName.toLocal8Bit());
   H5Dread(dataset_id, H5T_IEEE_F32LE, 
 	  H5S_ALL, H5S_ALL, H5P_DEFAULT, &nodeVal[0]);
+
+
+  H5Dclose(dataset_id);
   H5Fclose(scalar_id);
 
   // Perform the cutting operations for ...
@@ -577,7 +580,7 @@ void CutPlane::insertEdges(edges &ed)
   // If this edge has been recorded already, ignore it
   if (nodeMap.find(ed) != nodeMap.end()) return;
 
-  float t, x;
+  double t, x;
   size_t a, b;
   positions newPos;
   
@@ -646,7 +649,7 @@ void CutPlane::disambiguateFace(size_t faceNode[], int nNodes, int cellNum) {
   if (needNewNode) {  // If the face has not been disambiguated
     positions3d newNode;
     newNode.x = newNode.y = newNode.z = 0;
-    float tmp;
+    double tmp;
 
     // Use the average of the face's points to use as a new center point
     for (int i = 0; i < nNodes; ++i) {

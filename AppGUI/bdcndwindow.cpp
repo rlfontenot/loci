@@ -150,13 +150,15 @@ void BdCndWindow::changePage(int index)
    }
     
     //copy the current type Node to the child of current boundary node
-   QDomNode newNode = pageNode.cloneNode(true);
-   if(newNode.isNull()){
-     QMessageBox::warning(window(), "bounary condition",
-                          tr("cloneNode failed")
-                          );
-     return;
-   }
+    QDomNode newNode = pageNode.cloneNode(true);
+  
+    //nonset node can not be deep cloned
+     if(newNode.isNull()){
+         QMessageBox::warning(window(), "bounary condition",
+                              tr("cloneNode failed ")+pageNode.tagName()
+                              );
+         return;
+       }
    
    QDomNode tmpNode;
    if(elt.firstChildElement().isNull()){
@@ -292,25 +294,28 @@ void BdCndWindow::copyBdCnd(int previous, int current){
     } 
 
   //copy the current type Node to the child of current boundary node
-   QDomNode newNode = pn.firstChildElement().cloneNode(true);
-   if(newNode.isNull()){
-     QMessageBox::warning(window(), "bounary condition",
-                          tr("cloneNode failed")
-                          );
-     return;
-   }
+
+  if(pn.firstChildElement().isNull())return;
+  QDomNode newNode = pn.firstChildElement().cloneNode(true);
+  
+  if(newNode.isNull()){
+    QMessageBox::warning(window(), "bounary condition, copyNdCnd",
+                         tr("cloneNode failed") + pn.firstChildElement().tagName()
+                         );
+    return;
+  }
    
-   QDomNode tmpNode;
-   if(cn.firstChildElement().isNull()){
-     tmpNode = cn.appendChild(newNode);
-     if(tmpNode.isNull()){
-       QMessageBox::warning(window(), "main xml file",
-                          tr("replace ")+cn.tagName()+tr(" node failed")
-                            );
-       return ;
-     }  
-   }else{
-     QDomElement aNode = cn.firstChildElement();
+  QDomNode tmpNode;
+  if(cn.firstChildElement().isNull()){
+    tmpNode = cn.appendChild(newNode);
+    if(tmpNode.isNull()){
+      QMessageBox::warning(window(), "main xml file",
+                           tr("replace ")+cn.tagName()+tr(" node failed")
+                           );
+      return ;
+    }  
+  }else{
+    QDomElement aNode = cn.firstChildElement();
      if(aNode.tagName() =="notset"){
        tmpNode = cn.replaceChild( newNode, aNode);
        if(tmpNode.isNull()){
@@ -320,7 +325,7 @@ void BdCndWindow::copyBdCnd(int previous, int current){
          return ;
        } 
      }
-   }
+  }
    
    while(pagesWidget->count() != 0){
      QWidget* oldPage = pagesWidget->currentWidget();

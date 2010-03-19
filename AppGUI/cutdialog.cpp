@@ -202,37 +202,76 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, QWidget *parent)
 
 
   // 'Cancel' & 'Okay' buttons
-  QHBoxLayout *buttons = new QHBoxLayout;
+  QHBoxLayout *cutButtons = new QHBoxLayout;
   QPushButton *cancel = new QPushButton(tr("Cancel"));
   QPushButton *cut = new QPushButton(tr("Cut"));
   QPushButton *close = new QPushButton(tr("Close"));
+  QPushButton *load = new QPushButton(tr("Load Scalar file"));
+  
+  extrSpinBox = new QSpinBox;
+  extrSpinBox->setRange(0, 50);
+  extrSpinBox->setValue(0);
+  
+  
   cancel->setDefault(false);
   close->setDefault(false);
   cut->setDefault(false);
-  buttons->addWidget(cut);
-  buttons->addWidget(cancel);
+  
+  
+  QHBoxLayout *buttons = new QHBoxLayout;
+  
+  QGroupBox* buttonsGroup = new QGroupBox;
+  
+  buttons->addWidget(load);
+  
+  buttons->addWidget(new QLabel(tr("Show Extreme Nodes:  percentage")));
+  buttons->addWidget(extrSpinBox);
+  
+  buttonsGroup->setLayout(buttons);
+  
+  cutButtons->addWidget(cut);
+  cutButtons->addWidget(cancel);
   buttons->addWidget(close);
+ 
+  
+  
 
   connect(cancel, SIGNAL(clicked()),
 	  this, SLOT(reset()));
   connect(cut, SIGNAL(clicked()), this, SLOT(cut()));
   connect(close, SIGNAL(clicked()),
 	  this, SLOT(close()));
+  connect(load, SIGNAL(clicked()), this, SLOT(load()));
+  connect(extrSpinBox, SIGNAL(valueChanged(int)), this, SIGNAL(percentageChanged(int)));
+  connect(extrSpinBox, SIGNAL(valueChanged(int)), this, SLOT(showExtremeNodes(int)));
 
-  setInfo();
+  QGroupBox* cutGroup = new QGroupBox(tr("define cut plane:"));
+  QVBoxLayout* cutLayout = new QVBoxLayout;
+  cutLayout->addLayout(hlayout);
+  cutLayout->addWidget(translateBox);
+  cutLayout->addWidget(rotateBox);
+  cutLayout->addLayout(cutButtons);
+  cutGroup->setLayout(cutLayout);
+ 
+  
   QVBoxLayout *mainLayout =  new QVBoxLayout;
-  mainLayout->addLayout(hlayout);
-  mainLayout->addWidget(translateBox);
-  mainLayout->addWidget(rotateBox);
+  mainLayout->addWidget(buttonsGroup);
+  
   mainLayout->addWidget(caseGroup);
   mainLayout->addWidget(iterVarGroup);
-  mainLayout->addLayout(buttons);
+ 
+  mainLayout->addWidget(cutGroup);
+ 
 
   setLayout(mainLayout);
- 
+  setInfo();
 
 }
 
+void CutDialog::showExtremeNodes(int i){
+
+  emit setShading(i==0);
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //  private slots:
@@ -250,9 +289,14 @@ void CutDialog::setInfo()
   positions3d rotate = positions3d(-xEditor2->value(), -yEditor2->value(), -zEditor2->value());
   info.rotate = rotate;
   info.translate = translate;
-
-
+  
+  
   ld_info.variable = comboVar->currentText();
+  ld_info.iteration = comboIter->currentText();
+  
+  if(ld_info.variable=="cellVol")extrSpinBox->setRange(-50, 0);
+  else extrSpinBox->setRange(0, 50);
+  
   emit cutInfoChanged(info);
   emit loadInfoChanged(ld_info);
 }
@@ -262,7 +306,11 @@ void CutDialog::cut(){
   emit cutPressed();
 }
 
-
+void CutDialog::load(){
+  setInfo();
+  extrSpinBox->setValue(0);
+  emit loadPressed();
+}
 
 void CutDialog::reset(){
   xslider1->setValue(0);
@@ -339,4 +387,5 @@ void CutDialog::updateVars(QString iter)
     var.remove(var.size() - end, end);
     comboVar->addItem(var);
   }
+
 }

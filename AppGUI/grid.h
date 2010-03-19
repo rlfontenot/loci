@@ -22,6 +22,8 @@ static const QColor default_color[] = {Qt::red, Qt::green, Qt::blue, Qt::cyan, Q
                                          Qt::darkRed, Qt::darkGreen, Qt::darkBlue,
                                          Qt::darkCyan, Qt::darkMagenta, Qt::darkYellow};
 
+
+
 // Data structure passed to load dialog
 struct LoadInfo
 {
@@ -264,17 +266,7 @@ struct rule {
   }
 } ;
 
-// struct affineMapping {
-//   float M[4][4] ;
-//   affineMapping() ;
-//   void setIdentity() ;
-//   void Combine(affineMapping a) ;
-//   void translate(positions3d tv) ;
-//   void rotateX(float theta) ;
-//   void rotateY(float theta) ;
-//   void rotateZ(float theta) ;
-//   positions3d MapNode(positions3d v) ;
-// };
+
 struct affineMapping {
   double M[4][4] ;
   //unit matrix

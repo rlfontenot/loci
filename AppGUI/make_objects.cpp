@@ -40,12 +40,14 @@ void GLViewer::makeObjects()
   }
 
   else if (mode == BOUND_SELECT_MODE){
+  
     if (!boundObjects.empty()) {
       for (size_t i = 0; i < boundObjects.size(); ++i)
         glDeleteLists(boundObjects[i], 1);
       boundObjects.clear();
     }
-    makeBoundObjects();
+    if(show_shading)makeBoundShadingObjects();
+    else makeBoundObjects();
   }
  
 }
@@ -213,7 +215,7 @@ GLuint GLViewer::makeShadingObject()
   }
     
   glNewList(newList, GL_COMPILE);
-   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   glBegin(GL_TRIANGLES);
   for (int t = 0; t < ntris; ++t) {
     const triangles &tri = fig->triangle_list[t];
@@ -268,9 +270,9 @@ void GLViewer::drawBoundObject(int bid, QColor c){
 //  in boundObjects.
 //////////////////////////////////////////////////////////////////////////////
 
-void GLViewer::makeBoundShadingObject( int bid)
+void GLViewer::makeBoundShadingObjects()
 {
-  if(meshNodes.empty() ||mesh.empty()||meshValues.empty()){
+  if(meshNodes.empty() ||mesh.empty()){
     qDebug("please use file menu load in boundary first");
     return;
   }
@@ -278,50 +280,68 @@ void GLViewer::makeBoundShadingObject( int bid)
  
   // make display lists
   
-  // qglColor(default_color[bid%12]);
+  bool canShade = false;
+  if(meshValues.size() == meshNodes.size())canShade = true;
+ 
+  
+  if(!boundObjects.empty()){
+    for(size_t bid = 0; bid < boundObjects.size(); bid++)glDeleteLists(boundObjects[bid],1);
+    boundObjects.clear();
+  }
+  
+  
+  for (size_t bid = 0; bid < mesh.size(); ++bid) { 
+   
 
-  float r, g, b;
-  r = default_color[bid%12].red();
-  g = default_color[bid%12].green();
-  b = default_color[bid%12].blue();
+ 
+    
   // compile list
     GLuint newList = glGenLists(1);
     glNewList(newList, GL_COMPILE);
-    glBegin(GL_LINE_LOOP);
-    
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);    
+    glBegin(GL_TRIANGLES);
+     if(!canShade){
+      float r, g, b;
+      r = default_color[bid%12].red();
+      g = default_color[bid%12].green();
+      b = default_color[bid%12].blue();
+      glColor3f(r, g, b);
+    }
     
     for (size_t i = 0; i < mesh[bid].size() / 3; ++i) {
-      positions3d t0, t1, t2, u, v, norm;
+      positions3d t0, t1, t2;
       t0 = meshNodes[mesh[bid][i*3 + 0]]; 
       t1 = meshNodes[mesh[bid][i*3 + 1]]; 
       t2 = meshNodes[mesh[bid][i*3 + 2]];
+
       
-      // Calculate the normals for lighting effects
-      u.x = t2.x - t0.x; u.y = t2.y - t0.y; u.z = t2.z - t0.z;
-      v.x = t1.x - t0.x; v.y = t1.y - t0.y; v.z = t1.z - t0.z;
-      
-      norm.x = u.y * v.z - u.z * v.y;
-      norm.y = u.z * v.x - u.x * v.z;
-      norm.z = u.x * v.y - u.y * v.x;
-      double len = sqrt(norm.x*norm.x + norm.y*norm.y + norm.z*norm.z);
-      norm.x /= len; norm.y /= len; norm.z /= len;
-      len = norm.x + norm.y + norm.z;
-      len *= 0.24;
-      len += 0.55;
-      
-      glColor3f(r*len, g*len, b*len);
-      glVertex3d(t0.x, t0.y, t0.z);
-      glColor3f(r*len, g*len, b*len);
-      glVertex3d(t1.x, t1.y, t1.z);
-      glColor3f(r*len, g*len, b*len);
-      glVertex3d(t2.x, t2.y, t2.z);
+     
+      if(canShade){
+        positions3d c0, c1, c2; 
+        c0 = shade(meshValues[mesh[bid][i*3 + 0]]);
+        c1= shade(meshValues[mesh[bid][i*3 + 1]]);
+        c2 = shade(meshValues[mesh[bid][i*3 + 2]]);
+
+        glColor3d(c0.x, c0.y, c0.z);
+        
+        glVertex3d(t0.x, t0.y, t0.z);
+        glColor3d(c1.x, c1.y, c1.z);
+        glVertex3d(t1.x, t1.y, t1.z);
+        glColor3d(c2.x, c2.y, c2.z);
+        glVertex3d(t2.x, t2.y, t2.z);
+        
+      }else{
+        glVertex3d(t0.x, t0.y, t0.z);
+        glVertex3d(t1.x, t1.y, t1.z);
+        glVertex3d(t2.x, t2.y, t2.z);
+      }
     }
-    
     glEnd();    
     glEndList();
-    GLuint oldList = boundObjects[bid];
-    boundObjects[bid] = newList;
-    glDeleteLists(oldList, 1);
+    
+    boundObjects.push_back(newList);
+  }
+  
     
       
 }

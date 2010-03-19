@@ -50,14 +50,15 @@ class GLViewer : public QGLWidget
 public:
   GLViewer(QWidget *parent = 0);
   ~GLViewer();
-  void loadGrid(const char *fileName); //read in 2dgv file and view it
-  float boundaryBoxSize(); // return the size of boudnary box, used in cutdialog
+  // void loadGrid(const char *fileName); //read in 2dgv file and view it
+  double boundaryBoxSize(); // return the size of boudnary box, used in cutdialog
   bool load_boundary(QString filename,  QStringList& boundary_names); //read in .surf and .names file, or .surface file 
  public slots:
  //slots for cutplane display menu
   void toggleContours();
   void toggleGrid();
   void toggleShading();
+  void setShading(bool); //show_exreme_nodes decide shading
   void toggleBorder();
   void toggleShowShapes();
   void toggleShowNodes();
@@ -67,6 +68,8 @@ public:
   void changeContours(int number);
  
   void cut(); //read in volume grid and sca value, generate a cutplane
+  void loadSca(); //read in sca value, shading the boundaries
+  // void showExtreme();
   // void uncut();
   void setCurrentObj(int i, QColor c); 
   void setVisibility(int , bool );
@@ -83,6 +86,8 @@ public:
   void adaptwindowClosed();
   void markNodes();
   void markVolumeNodes(QString fileName);
+
+  void setPercentage(int);
   //  void refineGrids(QString );
 signals:
   void pickCurrent(int);
@@ -106,7 +111,7 @@ private:
   void triangulate(QString part, vector<int>* vTri);
   void makeBoundMesh();
   void makeBoundObjects();
-  void makeBoundShadingObject(int bid);
+  void makeBoundShadingObjects();
   void drawBoundObject(int bid, QColor c);
   void makeBoundWireframeObject(int bid, QColor c);
   void makeBoundFillObject(int bid, QColor c);
@@ -122,7 +127,8 @@ private:
   void drawNyPlane(const vector<double>& p, double size);
   void drawPzPlane(const vector<double>& p, double size);
   void drawNzPlane(const vector<double>& p, double size);
-  void drawNodes();
+  void drawMarkedNodes();
+  void drawExtremeNodes(int);
  
   QPointer<FVMAdapt> adaptwindow ;
   vector<bool> tags;
@@ -149,11 +155,12 @@ private:
   
   // Boundary mesh info
   vector<positions3d> meshNodes; 
-  vector<float> meshValues;
-  // map<int, int> meshMap;//from local index in meshNodes to global index
+  vector<double> meshValues;
+  vector<int>  meshMap;//from local index in meshNodes to global index
   vector<vector<int> > mesh;  // boundaries
- 
- 
+  vector<double> extremeValues;
+  vector<positions3d> extremeNodes;//for scalar values display
+  int extreme_percentage;
  
  
   vector<bool> objVisible;  // Visibility of all boundaries
@@ -170,6 +177,9 @@ private:
   opMode mode;  // Which state the program is in
  
   grid *fig;  // Data structure that holds the cutting plane's topology
+ 
+
+  
 
   positions lastPos;  // Last position visited by the mouse
   
@@ -184,7 +194,7 @@ private:
   int currentWidth, currentHeight;//viewport
   
   bool show_preview, show_contours, show_grid, show_shading, show_border, show_nodes, show_shapes;  // Visibility flags
-  float min_val, max_val;  // Scalar value extrema over the whole grid
+  double min_val, max_val;  // Scalar value extrema over the whole grid
   
   cutplane_info info;  // The information for the current cutting plane
   cutplane_info previewInfo;  // Information for the cut being previewed

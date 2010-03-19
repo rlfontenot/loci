@@ -246,11 +246,11 @@ void MainWindow::createVisBar(){
   connect(fitAct, SIGNAL(triggered()),
           viewer, SLOT(fit()));
 
-  cutAct = new QAction(tr("Cut"), this);  
-  visbar->addSeparator();
-  visbar->addAction(cutAct);
-  connect(cutAct, SIGNAL(triggered()),
-          this, SLOT(cut()));
+  // cutAct = new QAction(tr("Cut"), this);  
+//   visbar->addSeparator();
+//   visbar->addAction(cutAct);
+//   connect(cutAct, SIGNAL(triggered()),
+//           this, SLOT(cut()));
   //  connect(cutAct, SIGNAL(clicked()),
   //      this, SLOT(resetSlider())); 
   visbar->addSeparator();
@@ -430,8 +430,19 @@ void MainWindow::createFlowBar(){
     }
   }
   connect(flowbarButtons, SIGNAL(buttonClicked(int)), this, SLOT(changePage(int)));
+
+  flowbar->addSeparator();
+  QPushButton* ppsButton = new QPushButton(tr("Post\nProcessing"), this);
+  flowbar->addWidget(ppsButton);
+  connect(ppsButton, SIGNAL(clicked()), this, SLOT(cut()));
+  
+
+  
   flowbar->setStyleSheet("QPushButton { color: darkGreen }");
 
+
+
+  
 }
 void MainWindow::changePage(int index){
 
@@ -719,7 +730,10 @@ void MainWindow::snapshot(){
   
 void MainWindow::setGrid(QDomElement& theelem)
 {
-
+  if(cutdialog){
+    delete cutdialog;
+    cutdialog = 0;
+  }
   
   //set up the default filename
   QStringList boundary_names;
@@ -1210,6 +1224,9 @@ void MainWindow::cut(){
   connect(cutdialog, SIGNAL(cutInfoChanged(cutplane_info&)), viewer, SLOT(previewCut(cutplane_info&)));
   connect(cutdialog, SIGNAL(loadInfoChanged(const LoadInfo&)), viewer, SLOT(setLoadInfo(const LoadInfo&)));
   connect(cutdialog, SIGNAL(cutPressed()), viewer, SLOT(cut()));
+  connect(cutdialog, SIGNAL(loadPressed()), viewer, SLOT(loadSca()));
+  connect(cutdialog, SIGNAL(setShading(bool)), viewer, SLOT(setShading(bool)));
+  connect(cutdialog, SIGNAL(percentageChanged(int)), viewer, SLOT(setPercentage(int)));
 }
 void MainWindow::markVolumeNodes(){
 

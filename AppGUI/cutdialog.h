@@ -23,13 +23,18 @@ public:
   void cutInfoChanged(cutplane_info&);
    void loadInfoChanged(const LoadInfo&);
   void cutPressed();
-  
+  void loadPressed();
+  // void extremePressed();
+  void percentageChanged(int);
+  void setShading(bool);
 private slots:
 void setInfo();
   void planeSelected(int);
   void reset();
   void cut();
-  void updateVars(QString iter);
+  void load();
+  void showExtremeNodes(int);
+   void updateVars(QString iter);
   
   
 private:
@@ -50,7 +55,7 @@ private:
   QLabel *caseLabel;
   QComboBox *comboIter;
   QComboBox *comboVar;
-
+  QSpinBox* extrSpinBox;
 
 
 

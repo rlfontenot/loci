@@ -83,7 +83,7 @@ GLViewer::GLViewer(QWidget *parent)
   shadingObject = 0;
   cpContourObject = 0;
   qobj = 0;
-  //rgb = 0;
+  extreme_percentage = 0;
   centerx = centery = centerz=0;
   size = 0.1;
   currentObj = -1; //no select obj
@@ -96,7 +96,7 @@ GLViewer::GLViewer(QWidget *parent)
   min_val = max_val = 0.0;
   isFit = false;
   mode=BOUND_SELECT_MODE;
-  // rgb =0;
+ 
   adaptwindow = 0;
  show_shapes = true;
   show_nodes = false;
@@ -161,8 +161,8 @@ void GLViewer::clearCurrent(){
 void GLViewer::initializeGL()
 {
  //  glClearColor(1.0, 1.0, 1.0, 1.0);
-//   glShadeModel(GL_SMOOTH);
-//   glEnable(GL_DEPTH_TEST);
+  glShadeModel(GL_SMOOTH);
+  glEnable(GL_DEPTH_TEST);
 //   qobj = gluNewQuadric();
 //   gluQuadricDrawStyle(qobj, GLU_FILL);
 //   gluQuadricCallback(qobj, GLU_ERROR, 0);
@@ -748,7 +748,7 @@ void GLViewer::markVolumeNodes(QString filename){
   
 }
 
-void GLViewer::drawNodes(){
+void GLViewer::drawMarkedNodes(){
     if(tags.size() != meshNodes.size()) return;
     if(tags.size()==0) return;
     glPointSize(5);
@@ -761,12 +761,46 @@ void GLViewer::drawNodes(){
      glEnd();
   glPointSize(1);
 }
+
+void GLViewer::drawExtremeNodes(int percentage){
+ 
+  float length = (max_val-min_val)/100.0 *percentage;
+  
+  if(length == 0) return;
+  if(length < 0) length = -length;
+  float start=0, end = 0;
+  if(percentage >0 ){
+    start = max_val - length;
+    end  = max_val;
+  }else{
+    start = min_val;
+    end = min_val + length;
+  }
+  if(extremeNodes.size() != extremeValues.size()) return;
+  if(extremeNodes.size() == 0) return;
+ 
+  glPointSize(5);
+  glBegin(GL_POINTS);
+     
+  for(unsigned int i = 0; i < extremeNodes.size(); i++){
+    if(extremeValues[i] >= start && extremeValues[i]<=end){
+      positions3d c = shade(extremeValues[i]);
+      glColor3d(c.x, c.y, c.z);
+      glVertex3f(extremeNodes[i].x, extremeNodes[i].y, extremeNodes[i].z);
+    }
+  }
+  
+  glEnd();
+  glPointSize(1);
+}
+
+
   
 void GLViewer::paintGL()
 {
   glLoadIdentity();
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  // qDebug() << "size in painGL: " << size << " centerx: "<<centerx << "  centery: " << centery << " centerz: " << centerz ;;
+ 
   gluLookAt(centerx, centery, 2.0*size+centerz, centerx, centery, centerz, 0.0, 1.0, 0.0); 
   glPushMatrix(); //without this, the rotation won't work well
   glScaled(scale,scale,scale);
@@ -824,8 +858,8 @@ void GLViewer::paintGL()
   }
  
   glColor3f(0.0, 0.0, 0.0);  
-  if(show_nodes) drawNodes();
- 
+  if(show_nodes) drawMarkedNodes();
+  if(extreme_percentage) drawExtremeNodes(extreme_percentage);
   if(show_shapes)drawShapes();
   glPopMatrix();
   glFlush();
@@ -886,7 +920,7 @@ struct surface_info {
 
 
 void GLViewer::setLoadInfo(const LoadInfo& ld_info){
-  
+ 
    loadInfo.casename = ld_info.casename;
    loadInfo.directory = ld_info.directory;
    loadInfo.iteration = ld_info.iteration;
@@ -933,12 +967,12 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   
     in >> npos ;
     pos.resize(npos);
-  //input pos
-  for(size_t i=0;i<npos;++i) {
-    vector3d<double> p;
-    in >> p.x >> p.y >> p.z ;
-    pos[i] = p;
-  }
+    //input pos
+    for(size_t i=0;i<npos;++i) {
+      vector3d<double> p;
+      in >> p.x >> p.y >> p.z ;
+      pos[i] = p;
+    }
   
   //input surf_list
   size_t nsurf = 0;
@@ -1058,9 +1092,16 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   }//for(bid..)
   meshNodes.clear();
   meshNodes=vector<positions3d>(pos);
-  file.close();
+ 
   gluDeleteTess(myTess);
   delete  pntIndex;
+  meshMap.clear();
+  meshMap.resize(npos);
+  for (size_t  i = 0; i < npos; i++){
+    in >>meshMap[i];
+     }
+  file.close();
+  
   }else if(format[1] == "surf"){
     //first read in meshNodes
     meshNodes.clear();
@@ -1317,6 +1358,8 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   makeObjects();
   //  updateGL();
   tags.clear();
+  extremeValues.clear();
+  extremeNodes.clear();
   if(adaptwindow)show_shapes = true;
   resizeGL(currentWidth, currentHeight);
   return true;
@@ -1724,20 +1767,138 @@ void GLViewer::cut()
     min_val = fig->min_val;
     max_val = fig->max_val;
   } else {
-    min_val = qMin(min_val, static_cast<float>(fig->min_val));
-    max_val = qMax(max_val, static_cast<float>(fig->max_val));
+    min_val = qMin(min_val, fig->min_val);
+    max_val = qMax(max_val, fig->max_val);
   }
 
   makeObjects();
-
   glViewport(0, 0, width(), height());
-  
   updateGL();
-
- 
+  
 }
 
-float GLViewer::boundaryBoxSize(){
+
+
+
+void GLViewer::loadSca(){
+  extremeValues.clear();
+  extremeNodes.clear();
+ 
+  // Get variable information
+ hsize_t npnts;
+
+ 
+ QString posname = loadInfo.directory + "/output/grid_pos." + loadInfo.iteration + 
+   '_' + loadInfo.casename ;
+ 
+ hid_t file_id = H5Fopen(posname.toLocal8Bit(),
+                         H5F_ACC_RDONLY, H5P_DEFAULT) ;
+ 
+ hid_t dataset_id = H5Dopen(file_id, "/pos/data");
+ hid_t dataspace_id = H5Dget_space(dataset_id);
+ H5Sget_simple_extent_dims(dataspace_id, &npnts, NULL);
+ hid_t pos_tid = H5Tcreate(H5T_COMPOUND, sizeof(positions3d));
+ 
+ H5Tinsert(pos_tid, "x", 0, H5T_IEEE_F64LE);
+ H5Tinsert(pos_tid, "y", sizeof(double), H5T_IEEE_F64LE);
+ H5Tinsert(pos_tid, "z", 2*sizeof(double), H5T_IEEE_F64LE);
+
+ vector<positions3d> nodePos;
+ positions3d null3d;
+ null3d.x = null3d.y = null3d.z = 0.0;
+ nodePos.assign(npnts, null3d);
+ H5Dread(dataset_id, pos_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, &nodePos[0]);
+ 
+ H5Tclose(pos_tid);
+ H5Dclose(dataset_id);
+ H5Fclose(file_id);
+
+
+
+  
+ QString filename = loadInfo.directory + "/output/" + loadInfo.variable + "_sca." + 
+   loadInfo.iteration + "_" + loadInfo.casename;
+
+
+ hid_t scalar_id = H5Fopen(filename.toLocal8Bit(), 
+                           H5F_ACC_RDONLY, H5P_DEFAULT);
+ vector<float> nodeVal;
+ nodeVal.assign(npnts, 0.0);
+ QString datasetName = "/" + loadInfo.variable + "/data";
+ dataset_id = H5Dopen(scalar_id, datasetName.toLocal8Bit());
+ H5Dread(dataset_id, H5T_IEEE_F32LE, 
+         H5S_ALL, H5S_ALL, H5P_DEFAULT, &nodeVal[0]);
+ H5Dclose(dataset_id);
+ H5Fclose(scalar_id);
+
+
+ {
+
+   float minv = nodeVal[0];
+   float maxv = nodeVal[0];
+   
+   for(size_t i = 0; i < npnts; i++){
+     minv = min(minv, nodeVal[i]);
+     maxv = max(maxv, nodeVal[i]);
+   }
+   min_val = minv;
+   max_val = maxv;
+ }
+  
+  if(max_val-min_val<1e-16) max_val = min_val = 0;
+ 
+  
+  if(meshMap.size()!= meshNodes.size()){
+    QMessageBox::warning(this, tr("load scalar value"),
+                         tr("mesh map doesn't exist"));
+    return;
+    
+  }
+  meshValues.resize(meshMap.size());
+  for(unsigned int i = 0; i < meshValues.size(); i++){
+    meshValues[i] = nodeVal[meshMap[i]];
+  }
+
+
+  double length = 0.5*(max_val - min_val);
+  if(length > 1e-16){
+    if(loadInfo.variable=="cellVol"){
+      double e_low = min_val + length;
+      for(size_t i = 0; i< nodeVal.size(); i++){
+        if(nodeVal[i] <= e_low ){
+          extremeValues.push_back(nodeVal[i]);
+          extremeNodes.push_back(nodePos[i]);
+        }
+      }
+    }else{
+      double e_high = max_val -length;
+      for(size_t i = 0; i< nodeVal.size(); i++){
+        if(nodeVal[i] >= e_high){
+         extremeValues.push_back(nodeVal[i]);
+         extremeNodes.push_back(nodePos[i]);   
+        }
+      }
+    }
+  }
+  qDebug() << "min, max: " <<min_val << "  " << max_val << extremeValues.size(); 
+  show_shading = true;
+  
+  mode = BOUND_SELECT_MODE;
+  makeObjects();
+  glViewport(0, 0, width(), height());
+  updateGL();
+}
+
+void GLViewer::setPercentage(int i){
+  extreme_percentage = i;
+  updateGL();
+}
+
+void GLViewer::setShading(bool b){
+  if(show_shading !=b) toggleShading();
+}
+
+double GLViewer::boundaryBoxSize(){
                                     
   return size;
 }
@@ -1754,7 +1915,6 @@ void GLViewer::toggleContours()
   show_contours = (show_contours)?false:true;
   updateGL();
 }
-
 void GLViewer::toggleBorder()
 {
   show_border = (show_border)?false:true;
@@ -1797,6 +1957,8 @@ void GLViewer::toggleGrid()
 void GLViewer::toggleShading()
 {
   show_shading = (show_shading)?false:true;
+ 
+  makeObjects();
   updateGL();
 }
 
@@ -1843,35 +2005,35 @@ void GLViewer::setShadeType(int type)
 //  This function opens a 2dgv grid from a file and views it.
 //////////////////////////////////////////////////////////////////////////////
 
-void GLViewer::loadGrid(const char* /*fileName*/)
-{
-  // View with plane only
-  mode = PLANE_ONLY_MODE;
+// void GLViewer::loadGrid(const char* /*fileName*/)
+// {
+//   // View with plane only
+//   mode = PLANE_ONLY_MODE;
 
-  // Reset grid object
-  if (fig)
-    delete fig;
+//   // Reset grid object
+//   if (fig)
+//     delete fig;
   
-  // Make new grid from file
-  fig = new grid();
-  //  fig->input(fileName);
+//   // Make new grid from file
+//   fig = new grid();
+//   //  fig->input(fileName);
     
-  // Reset viewing parameters
-  show_contours = true;
-  show_grid = false;
-  show_shading = false;
+//   // Reset viewing parameters
+//   show_contours = true;
+//   show_grid = false;
+//   show_shading = false;
 
-  min_val = fig->min_val;
-  max_val = fig->max_val;
+//   min_val = fig->min_val;
+//   max_val = fig->max_val;
   
-  // Make all display lists
-  makeObjects();
+//   // Make all display lists
+//   makeObjects();
   
-  // Set up for viewing
-  // glViewport(0, 0, width(), height());
+//   // Set up for viewing
+//   // glViewport(0, 0, width(), height());
 
-  updateGL();
-}
+//   updateGL();
+// }
 
 void GLViewer::showBoundaries(){
   bool checked = true;
