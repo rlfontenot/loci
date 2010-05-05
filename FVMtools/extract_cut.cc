@@ -60,7 +60,8 @@ void cuttingplane_topo_handler::open(string casename, string iteration ,int npnt
 				     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
 				     const vector<string> &bc_names,
 				     const vector<string> &variables,
-				     const vector<int> &variable_types) {
+				     const vector<int> &variable_types,
+                                     double time) {
   strIter = iteration;
   numDisFaces = 0;
 }

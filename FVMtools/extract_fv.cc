@@ -164,7 +164,8 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
                            int inhexs, int ingen,
                            const vector<string> &bc_names,
                            const vector<string> &variables,
-                           const vector<int> &variable_types) {
+                           const vector<int> &variable_types,
+                           double time) {
   npnts = inpnts ;
   ntets = intets ;
   nprsm = inprsm ;
@@ -212,10 +213,11 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
   fwrite(ibuf,sizeof(int),1,OFP) ;
 
   float TIME, FSMACH, ALPHA, RE ;
-  TIME = 0.0 ;
+  TIME = time ;
   FSMACH = 0.0 ;
   ALPHA = 0.0 ;
   RE = 0.0 ;
+
   fwrite(&TIME, sizeof(float), 1, OFP) ;
   fwrite(&FSMACH, sizeof(float), 1, OFP) ;
   fwrite(&ALPHA, sizeof(float), 1, OFP) ;
