@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QDomDocument>
+#include <QHideEvent>
 #include "pages.h"
 #include "vmergewindow.h"
 
@@ -92,16 +93,20 @@ class FVMAdapt: public QWidget
   Q_OBJECT
 
 public:
-  FVMAdapt( QWidget *parent = 0);
+  FVMAdapt(QString fileName, QWidget *parent = 0);
   ~FVMAdapt();
+
+ 
   signals:
   void valueChanged();
   void markNodes();
   void markVolumeNodes();
   void refineGrids();
-  
+  void showNodesClicked();
+  void showShapesClicked();
 private slots:
-//void setInfo();
+  
+  void helpClicked();
 void changePage(int);
   void addShape();
   void addTransform();
@@ -113,15 +118,17 @@ void changePage(int);
   void updateTransform();
   void showData(QTreeWidgetItem* item);  
  void done();
- 
+
   
   
-  //void addOp(QListWidgetItem* item); 
+  
   QDomDocument toDom();
   
 private:
- void createFlowBar();
-
+  void createFlowBar();
+  void createToolBar();
+  void createTreeBar();
+  QString filename;
   
   Transform* trans;
   QTreeWidget* tree;
@@ -130,8 +137,8 @@ private:
   QStackedWidget* paraPages;
   
   QGroupBox* flowbar;
-
-  
+  QGroupBox* toolbar;
+  QGroupBox* treebar;
   vector<Shape*> defaultShapes;
   
 

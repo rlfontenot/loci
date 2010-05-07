@@ -37,7 +37,7 @@ using std::cout;
 
 
 
- std::vector<bool> process_sphere(QDomElement& anode,  const std::vector<positions3d>& pointSet){
+ std::vector<bool> process_sphere(const QDomElement& anode,  const std::vector<positions3d>& pointSet){
 
    std::vector<bool> result(pointSet.size());
    if(anode.isNull())return result;
@@ -72,7 +72,7 @@ using std::cout;
  }
 
 
-std::vector<bool> process_cone(QDomElement& anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_cone(const QDomElement& anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   if(anode.isNull())return result;
 
@@ -109,7 +109,7 @@ std::vector<bool> process_cone(QDomElement& anode,  const std::vector<positions3
    return result;
 }
 
-std::vector<bool> process_cylinder(QDomElement& anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_cylinder(const QDomElement& anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   if(anode.isNull())return result;
   
@@ -146,7 +146,7 @@ std::vector<bool> process_cylinder(QDomElement& anode,  const std::vector<positi
    return result;
 }
 
-std::vector<bool> process_box(QDomElement& anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_box(const QDomElement& anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   if(anode.isNull())return result;
   
@@ -191,7 +191,7 @@ std::vector<bool> process_box(QDomElement& anode,  const std::vector<positions3d
    return result;
 }
 
-std::vector<bool> process_x_plus_plane(QDomElement& anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_x_plus_plane(const QDomElement& anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   if(anode.isNull())return result;
   
@@ -215,7 +215,7 @@ std::vector<bool> process_x_plus_plane(QDomElement& anode,  const std::vector<po
   return result;
 }
 
-std::vector<bool> process_x_minus_plane(QDomElement& anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_x_minus_plane(const QDomElement& anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
 
  if(anode.isNull())return result;
@@ -241,7 +241,7 @@ std::vector<bool> process_x_minus_plane(QDomElement& anode,  const std::vector<p
   return result;
 }
 
-std::vector<bool> process_y_plus_plane(QDomElement& anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_y_plus_plane(const QDomElement& anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   if(anode.isNull())return result;
   double y1=0.0;
@@ -265,7 +265,7 @@ std::vector<bool> process_y_plus_plane(QDomElement& anode,  const std::vector<po
   return result;
 }
 
-std::vector<bool> process_y_minus_plane(QDomElement anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_y_minus_plane(const QDomElement anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   
   if(anode.isNull())return result;
@@ -288,7 +288,7 @@ std::vector<bool> process_y_minus_plane(QDomElement anode,  const std::vector<po
 }
 
 
-std::vector<bool> process_z_plus_plane(QDomElement anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_z_plus_plane(const QDomElement anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   if(anode.isNull())return result;
   double z1=0.0;
@@ -309,7 +309,7 @@ std::vector<bool> process_z_plus_plane(QDomElement anode,  const std::vector<pos
   return result;
 }
 
-std::vector<bool> process_z_minus_plane(QDomElement anode,  const std::vector<positions3d>& pointSet){
+std::vector<bool> process_z_minus_plane(const QDomElement anode,  const std::vector<positions3d>& pointSet){
   std::vector<bool> result(pointSet.size());
   if(anode.isNull())return result;
   double z1=0.0;
@@ -332,7 +332,7 @@ std::vector<bool> process_z_minus_plane(QDomElement anode,  const std::vector<po
 }
 
 
-positions3d  process_translate(QDomElement& anode){
+positions3d  process_translate(const QDomElement& anode){
    
   double x0=0, y0=0, z0=0;
   for(QDomElement cur_node = anode.firstChildElement(); !cur_node.isNull(); cur_node = cur_node.nextSiblingElement()){
@@ -356,9 +356,9 @@ positions3d  process_translate(QDomElement& anode){
   
 }
 
-positions3d  process_scale(QDomElement& anode){
+positions3d  process_scale(const QDomElement& anode){
    
-  double x0=0, y0=0, z0=0;
+  double x0=1, y0=1, z0=1;
   for(QDomElement cur_node = anode.firstChildElement(); !cur_node.isNull(); cur_node = cur_node.nextSiblingElement()){
     if(cur_node.tagName() == "x0"){
       if(cur_node.text()!="") x0 = cur_node.text().toDouble();
@@ -375,14 +375,14 @@ positions3d  process_scale(QDomElement& anode){
   } 
        
  
-  
+  cerr << "scale: " << x0 << " " << y0 << " " << z0<< endl;  
   return positions3d(x0, y0, z0);
   
 }
  
 
 
- double  process_rotate(QDomElement& anode){
+ double  process_rotate(const QDomElement& anode){
   
   
   double theta = 0.0;
@@ -403,7 +403,7 @@ positions3d  process_scale(QDomElement& anode){
 
 
 
- void  process_transform(QDomElement& anode,  std::vector<positions3d>& p){
+ void  process_transform(const QDomElement& anode,  std::vector<positions3d>& p){
    
    affineMapping aMatrix = affineMapping();
    for(QDomElement cur_node = anode.firstChildElement(); !cur_node.isNull(); cur_node = cur_node.nextSiblingElement()){ 
@@ -427,12 +427,14 @@ positions3d  process_scale(QDomElement& anode){
  
 
    for(unsigned int i = 0; i< p.size(); i++){
+     if(i == 1) cerr << "before: " << p[i].x << "  " << p[i].y << " " << p[i].z << endl;    
      p[i] =   aMatrix.MapNode(p[i]);
+       if(i == 1) cerr << "after: " << p[i].x << "  " << p[i].y << " " << p[i].z << endl;    
    }
-   
+  
  }
 
-std::vector<bool> process_shape(QDomElement& anode, const std::vector<positions3d>& p){
+std::vector<bool> process_shape(const QDomElement& anode, const std::vector<positions3d>& p){
   
   
   for(QDomElement cur_node = anode.firstChildElement(); !cur_node.isNull(); cur_node = cur_node.nextSiblingElement()){
@@ -472,7 +474,7 @@ std::vector<bool> process_shape(QDomElement& anode, const std::vector<positions3
 
 
 
-std::vector<bool>  process_object(QDomElement& anode,  std::vector<positions3d>& p){
+std::vector<bool>  process_object(const QDomElement& anode,  std::vector<positions3d> p){
   for(QDomElement cur_node = anode.firstChildElement(); !cur_node.isNull(); cur_node = cur_node.nextSiblingElement()){     
     if(cur_node.tagName() =="transform"){
       process_transform(cur_node, p);
@@ -530,7 +532,7 @@ std::vector<bool>  process_object(QDomElement& anode,  std::vector<positions3d>&
       object_value.pop();
       value2 = object_value.top();
       object_value.pop();
-       for(unsigned int i = 0; i<value1.size(); i++)value1[i] = value1[i] || value2[i]; 
+      for(unsigned int i = 0; i<value1.size(); i++)value1[i] = value1[i] || value2[i]; 
       object_value.push(value1);
     }
 
@@ -560,17 +562,20 @@ std::vector<bool>  process_object(QDomElement& anode,  std::vector<positions3d>&
 
 
 
- std::vector<bool> process_region(QDomElement& anode, std::vector<positions3d> p)
-{
+ std::vector<bool> process_region(const QDomElement& anode, std::vector<positions3d> p)
+ {
+   
   
   stack<vector<bool> > object_value;
   stack<char> op_value;
     
   for(QDomElement cur_node = anode.firstChildElement(); !cur_node.isNull(); cur_node = cur_node.nextSiblingElement()){
+  
     if(cur_node.tagName()== "object"){
       //make a copy of p, then process it
       object_value.push(process_object(cur_node, p));
     }else if(cur_node.tagName()== "op"){
+  
       if(cur_node.text()== "intersection")op_value.push('&');
       else if(cur_node.text()== "union")op_value.push('|');
       else if(cur_node.text()== "difference")op_value.push('-');
@@ -589,9 +594,8 @@ std::vector<bool>  process_object(QDomElement& anode,  std::vector<positions3d>&
       cerr <<"         the children elements can be: 'object', 'op' or  'region'"<<endl;
       return vector<bool>();
     }
-    return process_stack(object_value, op_value);
   }
-  return vector<bool>(); 
+  return process_stack(object_value, op_value);
 }
 
     
@@ -599,55 +603,3 @@ std::vector<bool>  process_object(QDomElement& anode,  std::vector<positions3d>&
 
 
 
-// bool mark_node( QDomElement& root_element, std::list<Node*>::iterator begin_pnt, std::list<Node*>::iterator end_pnt){
-//   std::list<Node*>::iterator current_pnt = begin_pnt;
-//   std::vector<positions3d> pointSet;
-//   const  xmlChar* content = root_element->name;
-//   if(root_element.tagName()!= "region")){
-//     cerr <<"WARNING: unknown root element: "<<root_element->tagName().toStdString()<<endl;
-//     cerr <<"         the root element should be 'region'" << endl;
-//     return false;
-// }
-  
-//   for(current_pnt = begin_pnt; current_pnt != end_pnt; current_pnt++){
-//     pointSet.push_back((*current_pnt)->p);
-//   }
-  
-//   std::vector<bool> result = process_region(root_element, pointSet);
-//   if(result.size() != pointSet.size()){
-//     cerr << "ERROR: fail to  process region " << endl;
-//     Loci::Abort();
-//   }
-  
-//   int index = 0;
-//   for(current_pnt = begin_pnt; current_pnt != end_pnt; current_pnt++, index++){
-//     if(result[index])(*current_pnt)->tag = 1;
-//     else (*current_pnt)->tag = 0;
-//   }
-//   return true;
-// }
-
-// int main(int argc, char** argv){
-//   xmlDoc*doc = NULL;
-//   QDomElement& root_element = NULL;
-//   if(argc != 2) return 1;
-  
-//   LIBXML_TEST_VERSION;
-//   doc = xmlReadFile(argv[1], NULL, 0);
-//   if(doc == NULL){
-//     cerr << " error: could not parse file " << argv[1] << endl;
-//   }
-  
-//   root_element = xmlDocGetRootElement(doc);
-//   cerr << root_element->name << endl;
-//   std::vector<positions3d> pointSet;
-//   pointSet.push_back(positions3d(1.0, 0.1, 0.2));
-//   pointSet.push_back(positions3d(2.0, 0.1, 0.2));
-//   vector<bool> result = process_region(root_element, pointSet);
-//   cerr << "result: "<<result[0] << result[2] << endl;   
-//   xmlFreeDoc(doc);
-//   xmlCleanupParser();
-//   xmlMemoryDump();
-//   return 0;
-// }
-  

@@ -21,11 +21,12 @@ class QualityDialog: public QDialog
 
 public:
   QualityDialog(QString filename, QWidget *parent = 0);
-  void processQualityReport(QString filename);
-  
+ 
 private slots:
 void buttonToggled(int);
 private:
+  bool processQualityReport(QString filename);
+   
   QDomDocument doc;
   QSignalMapper* signalMapper;
   QList<QPushButton*> buttonList;

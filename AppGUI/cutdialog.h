@@ -4,7 +4,7 @@
 #include <QDialog>
 #include "grid.h"
 #include "pages.h"
-
+#include "glviewer.h"
 
 class QLabel;
 class QComboBox;
@@ -18,15 +18,15 @@ class CutDialog: public QWidget
   Q_OBJECT
 
 public:
-  CutDialog(LoadInfo ldInfo, float size, QWidget *parent = 0);
+  CutDialog(LoadInfo ldInfo, float size, GLViewer* theviewer, QWidget *parent = 0);
+  
   signals:
-  void cutInfoChanged(cutplane_info&);
-   void loadInfoChanged(const LoadInfo&);
-  void cutPressed();
-  void loadPressed();
+
+  
+ 
   // void extremePressed();
-  void percentageChanged(int);
-  void setShading(bool);
+ 
+
 private slots:
 void setInfo();
   void planeSelected(int);
@@ -34,7 +34,7 @@ void setInfo();
   void cut();
   void load();
   void showExtremeNodes(int);
-   void updateVars(QString iter);
+  void updateVars(QString iter);
   
   
 private:
@@ -56,13 +56,15 @@ private:
   QComboBox *comboIter;
   QComboBox *comboVar;
   QSpinBox* extrSpinBox;
-
-
-
+  
+  QGroupBox* toolbox;
 
   
+  GLViewer *viewer; 
   cutplane_info info;  // Data structure passed from main window
   LoadInfo ld_info;
+
+  void createToolBox();
  
 };
 

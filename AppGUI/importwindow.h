@@ -61,11 +61,8 @@ public slots:
 void changePage(QListWidgetItem *current, QListWidgetItem *previous);
   
   void convert();
-  void check();
- 
-  // void vog2surface();
-  //  void merge();
-  void usuageButtonClicked();
+  //  void check();
+  void usageButtonClicked();
   void updateFileName(QString);
   signals:
 

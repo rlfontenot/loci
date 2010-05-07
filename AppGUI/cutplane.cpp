@@ -76,7 +76,7 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
 {
  
   // Turn off hdf5 error reports
-  H5Eset_auto(NULL, NULL);
+  //  H5Eset_auto(NULL, NULL);
 
   fig = figure;
   cellCount = 0;
@@ -90,8 +90,13 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
  
   hid_t file_id = H5Fopen(posname.toLocal8Bit(),
 			  H5F_ACC_RDONLY, H5P_DEFAULT) ;
-
-  hid_t dataset_id = H5Dopen(file_id, "/pos/data");
+  if(file_id<0){
+    qDebug()<<"cannot open "<< posname;
+                         
+    return;
+  }
+  
+  hid_t dataset_id = H5Dopen(file_id, "/pos/data", H5P_DEFAULT);
   hid_t dataspace_id = H5Dget_space(dataset_id);
   H5Sget_simple_extent_dims(dataspace_id, &npnts, NULL);
 
@@ -134,8 +139,12 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
   QString gridtopo = load_info.directory + "/output/" + load_info.casename +".topo" ;
   hid_t topo_id = H5Fopen(gridtopo.toLocal8Bit(),
 			  H5F_ACC_RDONLY, H5P_DEFAULT) ;
-
-  hid_t elg = H5Gopen(topo_id,"elements") ;
+  if(topo_id<0){
+    qDebug() <<"cannot open "<< gridtopo;
+                         
+    return;
+  }
+  hid_t elg = H5Gopen(topo_id,"elements",  H5P_DEFAULT) ;
 
   int ntets = sizeElementType(elg,"tetrahedra") ;
   int nhexs = sizeElementType(elg,"hexahedra") ;
@@ -150,10 +159,14 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
                      load_info.iteration + "_" + load_info.casename;
   hid_t scalar_id = H5Fopen(filename.toLocal8Bit(), 
 			    H5F_ACC_RDONLY, H5P_DEFAULT);
-
+  if(scalar_id<0){
+    qDebug()<<"cannot open "<< filename;
+                         
+    return;
+  }
   nodeVal.assign(npnts, 0.0);
   QString datasetName = "/" + load_info.variable + "/data";
-  dataset_id = H5Dopen(scalar_id, datasetName.toLocal8Bit());
+  dataset_id = H5Dopen(scalar_id, datasetName.toLocal8Bit(),  H5P_DEFAULT);
   H5Dread(dataset_id, H5T_IEEE_F32LE, 
 	  H5S_ALL, H5S_ALL, H5P_DEFAULT, &nodeVal[0]);
 
@@ -166,9 +179,9 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
     int *tets = new int[ntets * 4];
 
     hsize_t four[1] = {4};
-    hid_t tets_tid = H5Tarray_create(H5T_NATIVE_INT, 1, four, NULL);
+    hid_t tets_tid = H5Tarray_create(H5T_NATIVE_INT, 1, four);
 
-    dataset_id = H5Dopen(elg, "tetrahedra");
+    dataset_id = H5Dopen(elg, "tetrahedra", H5P_DEFAULT);
     H5Dread(dataset_id, tets_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, tets);
 
     H5Dclose(dataset_id);
@@ -180,9 +193,9 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
     int *pyrm = new int[npyrm * 5];
 
     hsize_t five[1] = {5};
-    hid_t pyrm_tid = H5Tarray_create(H5T_NATIVE_INT, 1, five, NULL);
+    hid_t pyrm_tid = H5Tarray_create(H5T_NATIVE_INT, 1, five);
 
-    dataset_id = H5Dopen(elg, "pyramid");
+    dataset_id = H5Dopen(elg, "pyramid", H5P_DEFAULT);
     H5Dread(dataset_id, pyrm_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, pyrm);
 
     H5Dclose(dataset_id);
@@ -194,9 +207,9 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
     int *prsm = new int[nprsm * 6];
 
     hsize_t six[1] = {6};
-    hid_t prsm_tid = H5Tarray_create(H5T_NATIVE_INT, 1, six, NULL);
+    hid_t prsm_tid = H5Tarray_create(H5T_NATIVE_INT, 1, six);
 
-    dataset_id = H5Dopen(elg, "prism");
+    dataset_id = H5Dopen(elg, "prism", H5P_DEFAULT);
     H5Dread(dataset_id, prsm_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, prsm);
 
     H5Dclose(dataset_id);
@@ -208,9 +221,9 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
     int *hexs = new int[nhexs * 8];
 
     hsize_t eight[1] = {8};
-    hid_t hexs_tid = H5Tarray_create(H5T_NATIVE_INT, 1, eight, NULL);
+    hid_t hexs_tid = H5Tarray_create(H5T_NATIVE_INT, 1, eight);
 
-    dataset_id = H5Dopen(elg, "hexahedra");
+    dataset_id = H5Dopen(elg, "hexahedra", H5P_DEFAULT);
     H5Dread(dataset_id, hexs_tid, H5S_ALL, H5S_ALL, H5P_DEFAULT, hexs);
 
     H5Dclose(dataset_id);
@@ -220,21 +233,21 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
   }
   if(ngenc > 0) {  // General cells
     int *GeneralCellNfaces = new int[ngenc];
-    dataset_id = H5Dopen(elg, "GeneralCellNfaces");
+    dataset_id = H5Dopen(elg, "GeneralCellNfaces", H5P_DEFAULT);
     H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, 
 	    GeneralCellNfaces);
     H5Dclose(dataset_id);
 
     int nside = sizeElementType(elg, "GeneralCellNsides");
     int *GeneralCellNsides = new int[nside];
-    dataset_id = H5Dopen(elg, "GeneralCellNsides");
+    dataset_id = H5Dopen(elg, "GeneralCellNsides", H5P_DEFAULT);
     H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, 
 	    GeneralCellNsides);
     H5Dclose(dataset_id);
 
     int nnodes = sizeElementType(elg, "GeneralCellNodes");
     int *GeneralCellNodes = new int[nnodes];
-    dataset_id = H5Dopen(elg, "GeneralCellNodes");
+    dataset_id = H5Dopen(elg, "GeneralCellNodes", H5P_DEFAULT);
     H5Dread(dataset_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, 
 	    GeneralCellNodes);
     H5Dclose(dataset_id);
@@ -264,9 +277,9 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
 
 int CutPlane::sizeElementType(hid_t group_id, const char *element_name) {
   // Open dataset
-  hid_t dataset = H5Dopen(group_id,element_name) ;
+  hid_t dataset = H5Dopen(group_id,element_name, H5P_DEFAULT) ;
   if(dataset < 0) {
-    H5Eclear() ;
+    H5Eclear(dataset) ;
     return 0 ;
   }
 
@@ -361,7 +374,7 @@ void CutPlane::close() {
     edges firstNode(intersects[start][0], intersects[start][1]);
     edges scanNode(intersects[start][2], intersects[start][3]);
 
-    vector<int> cellNodes;  // Keeps record of the cell's border traversal
+    vector<size_t> cellNodes;  // Keeps record of the cell's border traversal
     cellNodes.reserve((edgeList.size()+1) * 2);
     cellNodes.push_back(nodeMap[firstNode]);
     cellNodes.push_back(nodeMap[scanNode]);

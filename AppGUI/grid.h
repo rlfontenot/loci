@@ -19,8 +19,8 @@ using std::string;
 
 
 static const QColor default_color[] = {Qt::red, Qt::green, Qt::blue, Qt::cyan, Qt::magenta, Qt::yellow,
-                                         Qt::darkRed, Qt::darkGreen, Qt::darkBlue,
-                                         Qt::darkCyan, Qt::darkMagenta, Qt::darkYellow};
+                                     Qt::darkRed, Qt::darkGreen, Qt::darkBlue,
+                                     Qt::darkCyan, Qt::darkMagenta, Qt::darkYellow};
 
 
 
@@ -42,11 +42,15 @@ struct edges {
   size_t l,r ;
   edges(size_t li,size_t ri) : l(li),r(ri) {}
   edges() {}
-  bool operator==(const edges &e)
-    { return (l == e.l && r == e.r) || (l == e.r && r == e.l) ;}
+ 
 };
 
-inline bool operator<(const edges &e1, const edges &e2)
+inline bool operator==(const edges &e1, const edges &e2)
+{
+ return (e1.l == e2.l && e1.r == e2.r) || (e1.l == e2.r && e1.r == e2.l) ;
+}
+
+inline bool operator<( const edges &e1,  const edges &e2)
 {
   if (e1.l != e2.l)
     return e1.l < e2.l;
@@ -113,12 +117,12 @@ struct positions {
                        ra1[0]*v2.y-ra1[1]*v2.x) ;
   }
 
-  template<class T> inline vector3d<T> &operator*=(vector3d<T> &target, float val) {
-    target.x *= val ;
-    target.y *= val ;
-    target.z *= val ;
-    return target ;
-  }
+template<class T> inline vector3d<T> &operator*=(vector3d<T> &target, float val) {
+  target.x *= val ;
+  target.y *= val ;
+  target.z *= val ;
+  return target ;
+}
 
   template<class T> inline vector3d<T> &operator/=(vector3d<T> &target, float val) {
     target.x /= val ;
@@ -368,16 +372,25 @@ class Array
 public:
   Array() {}
 
-    T &operator[](size_t indx) { return array[indx]; }
-    const T &operator[](size_t indx) const { return array[indx] ; }
-
-  friend bool operator< <T,S>(const Array<T,S> &arr1, const Array<T,S> &arr2);
-private:
+  T &operator[](size_t indx) { return array[indx]; }
+  const T &operator[](size_t indx) const { return array[indx] ; }
+  //private:
   T array[S];
 };
 
 template <class T, int S>
-bool operator<(const Array<T,S> &arr1, const Array<T,S> &arr2) {
+bool operator>( const Array<T,S> &arr1,  const Array<T,S> &arr2) {
+  for (int i = 0; i < S; ++i) {
+    if (arr1[i] == arr2[i]) continue;
+    if (arr1[i] > arr2[i]) return true;
+    break;
+  }
+  return false;
+}
+
+
+template <class T, int S>
+bool operator<( const Array<T,S> &arr1, const Array<T,S> &arr2) {
   for (int i = 0; i < S; ++i) {
     if (arr1[i] == arr2[i]) continue;
     if (arr1[i] < arr2[i]) return true;
@@ -385,6 +398,19 @@ bool operator<(const Array<T,S> &arr1, const Array<T,S> &arr2) {
   }
   return false;
 }
+
+template <class T, int S>
+bool operator==(const Array<T,S> &arr1, const Array<T,S> &arr2) {
+  for (int i = 0; i < S; ++i) {
+    if (arr1[i] == arr2[i]) continue;
+    if (arr1[i] != arr2[i]) return false;
+    break;
+  }
+  return true;
+}
+
+
+
 
 struct cutplane_info
 {

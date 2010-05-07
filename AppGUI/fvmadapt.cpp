@@ -386,7 +386,7 @@ case PYPLANE:
             
       mainLayout = new QVBoxLayout;
       mainLayout->addWidget(minGroup);
-        mainLayout->addStretch(2);
+      mainLayout->addStretch(2);
       setLayout(mainLayout);
  }
     
@@ -548,12 +548,37 @@ void Transform::setInfo(){
   emit tcChanged();
   
 }
-void FVMAdapt::createFlowBar(){
+
+
+
+void FVMAdapt::createToolBar(){
   int spacing =2;  
  
-  flowbar = new QGroupBox("");
-  flowbar->setFlat(true);
-  QVBoxLayout* barLayout = new QVBoxLayout;
+  toolbar = new QGroupBox("");
+  toolbar->setFlat(true);
+  QHBoxLayout* barLayout = new QHBoxLayout;
+   barLayout->addStretch(10);
+  QPushButton* shapeButton = new QPushButton(tr("Show Shapes"), this);
+  barLayout->addWidget(shapeButton);
+  connect(shapeButton, SIGNAL(clicked()), this, SIGNAL(showShapesClicked()));
+  
+  barLayout->addSpacing(spacing);
+  QPushButton* nodesButton = new QPushButton(tr("Show Marked Nodes"), this);
+  barLayout->addWidget(nodesButton);
+  connect(nodesButton, SIGNAL(clicked()), this, SIGNAL(showNodesClicked()));
+  
+  //barLayout->addSpacing(spacing);
+ 
+  
+  toolbar->setLayout(barLayout);
+}
+
+void FVMAdapt::createTreeBar(){
+  int spacing =2;  
+ 
+  treebar = new QGroupBox("build a  tree");
+  // flowbar->setFlat(true);
+  QHBoxLayout* barLayout = new QHBoxLayout;
 
   QPushButton* addShapeButton = new QPushButton(tr("Add Shape"), this);
   barLayout->addWidget(addShapeButton);
@@ -577,47 +602,51 @@ void FVMAdapt::createFlowBar(){
   connect(removeNodeButton, SIGNAL(clicked()), this, SLOT(removeNode()));
   
  
-//   barLayout->addSpacing(spacing);
-//   QPushButton* addCompButton = new QPushButton(tr("Add Operator\n 'complement'"), this);
-//   barLayout->addWidget(addCompButton);
-//   connect(addCompButton, SIGNAL(clicked()), this, SLOT(addComplement()));
+
 
   barLayout->addSpacing(spacing);
   QPushButton* addRegionButton = new QPushButton(tr("Add Region "), this);
   barLayout->addWidget(addRegionButton);
   connect(addRegionButton, SIGNAL(clicked()), this, SLOT(addRegion()));
-
- 
   
- 
   barLayout->addSpacing(spacing);
-  QPushButton* markButton = new QPushButton(tr("Mark Surface Nodes"), this);
-  barLayout->addWidget(markButton);
-  connect(markButton, SIGNAL(clicked()), this, SIGNAL(markNodes()));
-
-  barLayout->addSpacing(spacing);
-  QPushButton* refineButton = new QPushButton(tr("Refine Grid"), this);
-  barLayout->addWidget(refineButton);
-  connect(refineButton, SIGNAL(clicked()), this, SIGNAL(refineGrids()));
-
-  barLayout->addSpacing(spacing);
-  QPushButton* markVolumeButton = new QPushButton(tr("Save Volume Tags"), this);
-  barLayout->addWidget(markVolumeButton);
-  connect(markVolumeButton, SIGNAL(clicked()), this, SIGNAL(markVolumeNodes()));
+  QPushButton* helpButton = new QPushButton(tr("Help"), this);
+  barLayout->addWidget(helpButton);
+  connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
+  barLayout->addStretch(10);
+  treebar->setLayout(barLayout);
+   
+}
   
+
+
+  
+void FVMAdapt::createFlowBar(){
+  int spacing =2;  
+ 
+  flowbar = new QGroupBox("save xml file and refine grids");
+   QHBoxLayout* barLayout = new QHBoxLayout;
 
   barLayout->addSpacing(spacing);
   QPushButton* saveButton = new QPushButton(tr("Save Xml File"), this);
   barLayout->addWidget(saveButton);
   connect(saveButton, SIGNAL(clicked()), this, SLOT(saveXml()));
+  
+  barLayout->addSpacing(spacing);
+  QPushButton* refineButton = new QPushButton(tr("Refine Grid"), this);
+  barLayout->addWidget(refineButton);
+  connect(refineButton, SIGNAL(clicked()), this, SIGNAL(refineGrids()));
 
+
+  
   barLayout->addSpacing(spacing);
   QPushButton* doneButton = new QPushButton(tr("Done"), this);
   barLayout->addWidget(doneButton);
   connect(doneButton, SIGNAL(clicked()), this, SLOT(done()));
 
-  
+  barLayout->addStretch(10);
   flowbar->setLayout(barLayout);
+   
 }
   
 void FVMAdapt::done(){
@@ -626,10 +655,8 @@ void FVMAdapt::done(){
 }
 
 
-FVMAdapt::FVMAdapt(QWidget *parent):QWidget(parent){
-   setAttribute(Qt::WA_DeleteOnClose, true);
-  
-
+FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QWidget(parent),filename(fileName){
+  QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
 
   tree = new QTreeWidget;
   tree->setColumnCount(2);
@@ -748,13 +775,6 @@ FVMAdapt::FVMAdapt(QWidget *parent):QWidget(parent){
 
   
 
-   
-
-
-  
- 
-
-
    trans = new Transform( this);
    connect(trans, SIGNAL(tcChanged()), this, SIGNAL(valueChanged()));
    connect(trans, SIGNAL(tcChanged()), this, SLOT(updateTransform()));
@@ -766,10 +786,22 @@ FVMAdapt::FVMAdapt(QWidget *parent):QWidget(parent){
    objLayout->addWidget(paraPages);
    objLayout->addWidget(trans);
    objLayout->addWidget(tree,2);
-   createFlowBar();
-   objLayout->addWidget(flowbar);
 
-   setLayout(objLayout);
+
+   QHBoxLayout* barLayout = new QHBoxLayout;
+   //createToolBar();
+   createFlowBar();
+   createTreeBar();
+   
+   barLayout->addWidget(treebar);
+   barLayout->addWidget(flowbar);
+   
+     QVBoxLayout* mainLayout = new QVBoxLayout;
+     
+   mainLayout->addLayout(barLayout);
+   mainLayout->addLayout(objLayout);
+   setLayout(mainLayout);
+  
 }
 
 void FVMAdapt::showData(QTreeWidgetItem* item ){
@@ -777,7 +809,7 @@ void FVMAdapt::showData(QTreeWidgetItem* item ){
   if(item->text(0)=="shape"){
     QStringList items;
     items << tr("sphere") << tr("cone") << tr("cylinder") << tr("box")<<
-      tr("x+plane") << tr("x-plane")<<tr("y+plane")<<tr("y-plane")<<tr("z+plane")<<tr("z-plane");
+      tr("x_plus_plane") << tr("x_minus_plane")<<tr("y_plus_plane")<<tr("y_minus_plane")<<tr("z_plus_plane")<<tr("z_minus_plane");
   
     QString tp = item->child(0)->text(0);
 
@@ -812,6 +844,7 @@ void FVMAdapt::showData(QTreeWidgetItem* item ){
     
     trans->setValue(p);
   }
+
 }
 
   
@@ -1104,7 +1137,9 @@ void FVMAdapt::addOp(){
   QString item = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
                                        tr("perators:"), items, 0, false, &ok);
   if (ok && !item.isEmpty()){
-    if(tree->currentItem()!=0 && tree->currentItem()->text(0) =="object"){
+    if(tree->currentItem()!=0 &&
+       (tree->currentItem()->text(0) =="object"||
+        tree->currentItem()->text(0) == "region")){
       
       
       QTreeWidgetItem*  p=tree->currentItem()->parent();
@@ -1128,7 +1163,7 @@ void FVMAdapt::addOp(){
 void FVMAdapt::addShape(){
   QStringList items;
   items << tr("sphere") << tr("cone") << tr("cylinder") << tr("box")<<
-    tr("x+plane") << tr("x-plane")<<tr("y+plane")<<tr("y-plane")<<tr("z+plane")<<tr("z-plane");
+    tr("x_plus_plane") << tr("x_minus_plane")<<tr("y_plus_plane")<<tr("y_minus_plane")<<tr("z_plus_plane")<<tr("z_minus_plane");
 
      bool ok;
      QString item = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
@@ -1411,9 +1446,14 @@ void FVMAdapt::removeNode(){
 bool FVMAdapt::saveXml(){
   QDomDocument doc = toDom();
   if(doc.isNull())return false;
-  QString fileName = QFileDialog::getSaveFileName(this, tr("Save .xml File"),
-                                                 "",
+  QString fileName = filename.left(filename.lastIndexOf('.'))+".xml";
+
+    fileName = QFileDialog::getSaveFileName(this, tr("Save .xml File"),
+                                                 fileName,
                                                   tr("xml Files (*.xml)"));
+ 
+  if(fileName.section('.', -1, -1) != "xml") fileName = fileName + ".xml";
+ 
  
   QFile file(fileName);
   if (!file.open(QFile::WriteOnly | QFile::Text)) {
@@ -1442,6 +1482,7 @@ FVMAdapt::~FVMAdapt(){
   defaultShapes.clear();
  
 }
+
 
 QDomNode makeElement(QDomDocument& doc, QTreeWidgetItem* item){
 
@@ -1562,4 +1603,7 @@ QDomDocument FVMAdapt::toDom(){
   return doc;
   //QString xml = doc.toString();
   //qDebug() << xml;
+}
+
+void FVMAdapt::helpClicked(){
 }

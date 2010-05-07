@@ -20,8 +20,17 @@
 #include <QButtonGroup>
 #include <QRadioButton>
 #include <QTextEdit>
+
 #include "refdialog.h"
+#include "progressdialog.h"
 #include "pages.h"
+
+
+
+
+
+
+
 //////////////////////////////////////////////////////////
 //  public:
 //    RefDialog(dialog_info *info, QWidget *parent = 0);
@@ -32,7 +41,12 @@
 RefDialog::RefDialog(QString bfile,  QWidget *parent)
   :  QWidget(parent),basefile(bfile)
 {
-  //  setAttribute(Qt::WA_DeleteOnClose, true);
+  setAttribute(Qt::WA_DeleteOnClose, true);
+  QString tmpname = basefile.left(basefile.lastIndexOf('.'));
+  cycle = tmpname.section('_', -1, -1).toInt();
+  cycle++;
+  if(cycle > 1) basefile = tmpname.section('_', 0, -2)+".vog";
+  
   if(bfile=="")return;
   fileButtonGroup = new QButtonGroup(this);
   fileButtonGroup->setExclusive(false);
@@ -49,17 +63,44 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
 
   
   QLabel* baseLabel = new QLabel(tr("baseline grid File:"));
-  QPushButton* baseButton = new QPushButton(basefile);
+   baseButton = new QPushButton(basefile);
+  if(xmlOpt && cycle >1)baseButton->setText( basefile.left(basefile.lastIndexOf('.'))+QString("_%1.vog").arg(cycle-1));
   
   QLabel* xmlLabel = new QLabel(tr("xml file:"));
   QPushButton* xmlButton = new QPushButton(tr("please specify filename"));
+  {
+    if(cycle > 1) xmlfile = basefile.left(basefile.lastIndexOf('.'))+QString("_%1.xml").arg(cycle-1);
+    else xmlfile = basefile.left(basefile.lastIndexOf('.'))+".xml";
+    
+    QFile file(xmlfile);
+    if(file.exists())xmlButton->setText(xmlfile);
+    else xmlfile="";
+  }
   
   QLabel* tagLabel = new QLabel(tr("tag file:"));
   QPushButton* tagButton = new QPushButton(tr("please specify filename"));
+  {
+    if(cycle > 1) tagfile = basefile.left(basefile.lastIndexOf('.'))+QString("_%1.tag").arg(cycle-1);
+    else tagfile = basefile.left(basefile.lastIndexOf('.'))+QString(".tag");
+    QFile file(tagfile);
+    if(file.exists())tagButton->setText(tagfile);
+    else tagfile="";
+  }
   
   QLabel* rPlanLabel = new QLabel(tr("plan file from last cycle:"));
   QPushButton* rPlanButton = new QPushButton(tr("please specify filename"));
-
+  {
+    if(cycle >1){
+      rplanfile = basefile.left(basefile.lastIndexOf('.'))+QString("_%1.plan").arg(cycle-1);
+    QFile file(rplanfile);
+    if(file.exists())rPlanButton->setText(rplanfile);
+    else rplanfile="";
+    }else{
+      rplanfile="";
+      rPlanButton->setText(rplanfile);
+      rPlanButton->setEnabled(false);
+    }
+  }
 
   QLabel* tolLabel = new QLabel(tr("tolerance:"));
   FloatEdit* tolEdit = new FloatEdit;
@@ -70,7 +111,7 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
   
   
   QLabel* levelLabel = new QLabel(tr("levels:"));
-  IntEdit* levelEdit = new IntEdit;
+   levelEdit = new IntEdit;
   levels = 1;
   levelEdit->setValue(levels);
   levelEdit->setBottom(1);
@@ -124,16 +165,21 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
   balanceOpt = 0;
   
   QLabel* outLabel = new QLabel(tr("output File:"));
-  QPushButton* outButton = new QPushButton(tr("please specify filename"));
- 
+  outfile = basefile.left(basefile.lastIndexOf('.'))+QString("_%1.vog").arg(cycle);
+  QPushButton* outButton = new QPushButton(outfile); 
+  
   QLabel* planLabel = new QLabel(tr("plan File:"));
-  QPushButton* planButton = new QPushButton(tr("please specify filename"));
+  planfile = basefile.left(basefile.lastIndexOf('.'))+QString("_%1.plan").arg(cycle);
+  QPushButton* planButton = new QPushButton(planfile);
+  
+  tagButton->setEnabled(false);
+  rPlanButton->setEnabled(false);
+  levelEdit->setEnabled(false);   
   
   fileButtonGroup->addButton(xmlButton, 0);
   fileButtonGroup->addButton(tagButton, 1);
   fileButtonGroup->addButton(rPlanButton, 2);
   fileButtonGroup->addButton(planButton, 3);
-  
   fileButtonGroup->addButton(outButton, 4);
   connect(fileButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(getfile(int)));
 
@@ -156,7 +202,7 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
   mainLayout->addWidget(tagLabel, 3, 0, 1, 1);
   mainLayout->addWidget(tagButton, 3, 1, 1, 2);
 
- mainLayout->addWidget(rPlanLabel, 4, 0, 1, 1);
+  mainLayout->addWidget(rPlanLabel, 4, 0, 1, 1);
   mainLayout->addWidget(rPlanButton, 4, 1, 1, 2);
 
   
@@ -177,7 +223,7 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
   mainLayout->addWidget(display, 16, 0, 4, 3);
   mainLayout->addWidget(saveButton, 20, 0, 1, 1);
   mainLayout->addWidget(runButton, 20, 1, 1, 1);
-  
+ 
   setLayout(mainLayout);
  
   setText();
@@ -186,46 +232,60 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
 void RefDialog::runScript(){
 
   if(planfile ==""){
-     QMessageBox::warning(this, tr("Save Script"),
+     QMessageBox::warning(this, tr("Run Script"),
                           tr("please specify plan file  first"));
      return;
   }
   
  if(outfile ==""){
-     QMessageBox::warning(this, tr("Save Script"),
+     QMessageBox::warning(this, tr("Run Script"),
                           tr("please specify output grid file first"));
      return;
   }
   
  if(xmlOpt && xmlfile ==""){
-    QMessageBox::warning(this, tr("Save Script"),
+    QMessageBox::warning(this, tr("Run Script"),
                           tr("xml option: please specify xml file first"));
     return;
  }
 
  if(!xmlOpt && tagfile ==""){
-   QMessageBox::warning(this, tr("Save Script"),
+   QMessageBox::warning(this, tr("Run Script"),
                           tr("tag option: please specify tag file first"));
    return;
  }
 
  
-  QString command3 = display->toPlainText();
+ QString command3 = display->toPlainText();
+ 
+ 
+
+
+
+ 
+ ProgressDialog* dialog = new ProgressDialog(command3,false);
+ dialog->show();
+
+ 
   
-  int ret =  system(command3.toStdString().c_str());
+  
+  
+//   int ret =  system(command3.toStdString().c_str());
   
 
   
-  if(!WIFEXITED(ret))
-    {
-      if(WIFSIGNALED(ret))
-        {
-          QMessageBox::information(window(), "mainwindow",
-                                   command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
-          return;
-        }
-    }
-        
+//   if(!WIFEXITED(ret))
+//     {
+//       if(WIFSIGNALED(ret))
+//         {
+//           QMessageBox::information(window(), "mainwindow",
+//                                    command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
+//           return;
+//         }
+//     }
+  
+  
+  
 
 }
 void RefDialog::getfile(int i){
@@ -233,7 +293,7 @@ void RefDialog::getfile(int i){
   switch(i){
   case 0:
     {
-      QString filename =basefile.section('.', 0, 0)+".xml";
+      QString filename =basefile.section('.', 0, -2)+".xml";
       QString format = "xml file(*.xml)";
       xmlfile = QFileDialog::getOpenFileName(this, tr("Open File"),
                                               filename,
@@ -250,7 +310,7 @@ void RefDialog::getfile(int i){
     }
  case 1:
     {
-      QString filename =basefile.section('.', 0, 0)+".tag";
+      QString filename =basefile.section('.', 0, -2)+".tag";
       QString format = "tag file(*.tag)";
       tagfile = QFileDialog::getOpenFileName(this, tr("Open File"),
                                              filename,
@@ -267,12 +327,14 @@ void RefDialog::getfile(int i){
     }
   case 3:
     {
-      QString filename =basefile.section('.', 0, 0)+".plan";
+      QString filename =basefile.section('.', 0, -2)+".plan";
       QString format = "plan file(*.plan)";
       planfile = QFileDialog::getSaveFileName(this, tr("Save File"),
-                                             filename,
+                                              filename,
                                               format);
-     
+
+      if(planfile.section('.', -1, -1)!="plan")planfile+=".plan";
+      
       QPushButton* button = qobject_cast<QPushButton*>(fileButtonGroup->button(i));
       
       if(planfile==""){
@@ -286,7 +348,7 @@ void RefDialog::getfile(int i){
 
  case 2:
     {
-      QString filename =basefile.section('.', 0, 0)+".plan";
+      QString filename =basefile.section('.', 0, -2)+".plan";
       QString format = "plan file(*.plan)";
       rplanfile = QFileDialog::getOpenFileName(this, tr("Open File"),
                                                filename,
@@ -314,6 +376,8 @@ void RefDialog::getfile(int i){
       outfile = QFileDialog::getSaveFileName(this, tr("Save File"),
                                              directory,
                                              format);
+      if(outfile.section('.', -1, -1)!="vog")outfile+=".vog";
+      
       QPushButton* button = qobject_cast<QPushButton*>(fileButtonGroup->button(i));
       
       if(outfile==""){
@@ -339,6 +403,26 @@ void RefDialog::balanceChanged(int i){
 }
 void RefDialog::optChanged(int i){
   xmlOpt=(i==0);
+
+  QPushButton* tagButton = qobject_cast<QPushButton*>(fileButtonGroup->button(1));
+  QPushButton* xmlButton = qobject_cast<QPushButton*>(fileButtonGroup->button(0));
+  QPushButton* rplanButton = qobject_cast<QPushButton*>(fileButtonGroup->button(2));
+
+  if(xmlOpt){
+
+    if(cycle > 1)baseButton->setText(basefile.left(basefile.lastIndexOf('.'))+QString("_%1.vog").arg(cycle-1));
+    tagButton->setEnabled(false);
+    rplanButton->setEnabled(false);
+    xmlButton->setEnabled(true);
+    levelEdit->setEnabled(false);
+  }else{
+    baseButton->setText(basefile);
+    tagButton->setEnabled(true);
+    if(cycle>1)rplanButton->setEnabled(true);
+    xmlButton->setEnabled(false);
+    levelEdit->setEnabled(true);
+  }
+    
   setText();
   
 }
@@ -362,7 +446,7 @@ void RefDialog::setLevels(int d){
 }
 
 void RefDialog::setText(){
-  QString marker ="marker -g "+basefile; 
+  QString marker ="marker -g "+baseButton->text(); 
   if(xmlOpt)marker += " -xml " + xmlfile;
   else marker += " -tag " + tagfile;
   if(!xmlOpt && rplanfile !="")marker += " -r " + rplanfile;
@@ -378,7 +462,7 @@ void RefDialog::setText(){
 
 
   
-  QString refmesh = "refmesh -g " + basefile + " -r " + planfile + " -o " + outfile;
+  QString refmesh = "refmesh -g " + baseButton->text() + " -r " + planfile + " -o " + outfile;
   
   display->setPlainText(marker + refmesh);
   
@@ -409,18 +493,24 @@ void RefDialog::save(){
    return;
  }
  
-  
-  QString fileName = QFileDialog::getSaveFileName(this, tr("Save script File"),
-                                                  "",
-                                                  tr("all Files (*)"));
  
-  QFile file(fileName);
-  if (!file.open(QFile::WriteOnly | QFile::Text)) {
-     QMessageBox::warning(this, tr("Application"),
-                          tr("Cannot write file %1:\n%2.")
-                          .arg(fileName)
-                          .arg(file.errorString()));
-     return ;
+ QString casename = basefile.left(basefile.lastIndexOf('.')).section('/', -1, -1);
+ QString fileName = basefile.left(basefile.lastIndexOf('/')+1)+"ref_"+casename+QString("_%1").arg(cycle);
+
+ 
+ 
+ fileName= QFileDialog::getSaveFileName(this, tr("Save script File"),
+                                        fileName,
+                                        tr("all Files (*)"));
+   
+  
+ QFile file(fileName);
+ if (!file.open(QFile::WriteOnly | QFile::Text)) {
+   QMessageBox::warning(this, tr("Application"),
+                        tr("Cannot write file %1:\n%2.")
+                        .arg(fileName)
+                        .arg(file.errorString()));
+   return ;
   }
  
   QTextStream out(&file);

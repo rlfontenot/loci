@@ -37,7 +37,7 @@ FloatEdit::FloatEdit(QWidget *parent) : QLineEdit(parent){
    validator = new QDoubleValidator(this);
    setValidator(validator);
    connect(this, SIGNAL(textChanged(const QString&)), this, SLOT(changeValue(const QString&)));
-   
+   setMinimumWidth(100);
  }
 
 FloatEdit::FloatEdit(double d, QWidget*parent):QLineEdit(parent){
@@ -1286,7 +1286,7 @@ StackGroup::StackGroup( QDomElement& elem, QDomElement& root, QWidget *parent )
      }//finish copy group
      
      if(elem_opt.attribute("element")=="all"||elem_opt.attribute("element")=="selection"||elem_opt.attribute("element")=="2of3"){
-       myGroup = new AllVBGroup(elem_opt, myroot, false,this);
+        myGroup = new AllVBGroup(elem_opt, myroot, false,this);
        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
          connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
      }else{
@@ -1422,8 +1422,10 @@ OptionPage::OptionPage(   QDomElement& my_elem, QDomElement &my_root, QWidget *p
     QLabel* aLabel = new QLabel("No Options");
     aLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(aLabel);
+    mainLayout->addStretch(10);
     setLayout(mainLayout);
     updateCurrentText();
+    
     return;
   }
 
@@ -1606,7 +1608,11 @@ OptionPage::OptionPage(   QDomElement& my_elem, QDomElement &my_root, QWidget *p
     if(myelem.hasAttribute("currentText"))currentLabel->setText(myelem.attribute("currentText"));
     connect(this, SIGNAL(textChanged(const QString&)), currentLabel, SLOT(setText(const QString&)));
     mainLayout->addWidget(currentLabel, (elt_count/numColumn +2), 0, 1, numColumn);
+  }else{
+    mainLayout->addWidget(new QLabel, (elt_count/numColumn +2), 0, 1,  numColumn);
   }
+  mainLayout->setRowStretch( elt_count/numColumn +2, 10);
+
   setLayout(mainLayout);
   
  
@@ -2033,6 +2039,8 @@ bool AllVBWindow::save(){
     {
       return false;
     }
+  if(fileName.section('.', -1, -1)!="mdl")fileName+=".mdl";
+  
   QFile file(fileName);
   if (!file.open(QFile::WriteOnly | QFile::Text)) {
     QMessageBox::warning(this, tr("Application"),

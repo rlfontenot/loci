@@ -13,6 +13,7 @@
 #include <QMenuBar>
 #include <QStackedWidget>
 #include <QDomElement>
+#include <QApplication>
 #include "mainwindow.h"
 #include "glviewer.h"
 #include "cutdialog.h"
@@ -23,7 +24,8 @@
 #include "physicswindow.h"
 #include "mgviewer.h"
 #include "refdialog.h"
-
+#include "qualitydialog.h"
+#include "progressdialog.h"
 #include <cstdlib>
 #include <QString>
 #include <string>
@@ -126,89 +128,7 @@ void MainWindow::createMenu(){
  viewMenu->addAction(tb->toggleViewAction()); 
 }
 
-void MainWindow::createDisplayBar(){
 
- 
-  QAction *showContoursAct = new QAction(tr("Show Contours"), this);
-  QAction *showGridAct = new QAction(tr("Show Grid"), this);
-  QAction *showShadingAct = new QAction(tr("Show Shading"), this);
-  
-  QAction *shadeType1 = new QAction(tr("Blue to Red"), this);
-  QAction *shadeType2 = new QAction(tr("Blackbody"), this);
-  QAction *shadeType3 = new QAction(tr("Pressure"), this);
-
-  QAction *showBorderAct = new QAction(tr("Show Outline"), this);
-  //QAction *deletePlaneAct = new Action(tr("Delete Cutplane"));
-  
-  QAction *showShapesAct = new QAction(tr("Show Geometry Shapes"), this);
-QAction *showNodesAct = new QAction(tr("Show Marked Nodes"), this);
-  
-  
-  toolbar = addToolBar(tr("Display"));
-  insertToolBarBreak(toolbar);
- 
- 
-  toolbar->addSeparator();
-  toolbar->addAction(showContoursAct);
-  toolbar->addSeparator();
-  toolbar->addAction(showGridAct);
-  toolbar->addSeparator();
-  toolbar->addAction(showShadingAct);
-    
-  toolbar->addSeparator();
-  toolbar->addAction(shadeType1);
-  toolbar->addAction(shadeType2);
-  toolbar->addAction(shadeType3);
-  
-
-  toolbar->addSeparator();
-  toolbar->addAction(showBorderAct);
-  //toolbar->addAction(deletePlaneAct);
-  toolbar->addSeparator();
-  
-  
-  toolbar->addSeparator();
-  toolbar->addAction(showShapesAct);
-  toolbar->addSeparator();
-  toolbar->addAction(showNodesAct);
-
-  connect(showShapesAct, SIGNAL(triggered()),
-          viewer, SLOT(toggleShowShapes()));
-  connect(showNodesAct, SIGNAL(triggered()),
-          viewer, SLOT(toggleShowNodes()));
-  
-  
-  //  slider = new QSlider(Qt::Horizontal, toolbar);
-  //slider->setRange(5, 50);
-  //slider->setValue(10);
-  // toolbar->addWidget(slider);
-  
- 
- 
-  connect(showGridAct, SIGNAL(triggered()),
-          viewer, SLOT(toggleGrid()));
-  connect(showContoursAct, SIGNAL(triggered()),
-          viewer, SLOT(toggleContours()));
-  connect(showShadingAct, SIGNAL(triggered()),
-          viewer, SLOT(toggleShading()));
-  connect(shadeType1, SIGNAL(triggered()),
-          viewer, SLOT(setShadeType1()));
-  connect(shadeType2, SIGNAL(triggered()),
-          viewer, SLOT(setShadeType2()));
-  connect(shadeType3, SIGNAL(triggered()),
-          viewer, SLOT(setShadeType3()));
- 
-  connect(showBorderAct, SIGNAL(triggered()),
-          viewer, SLOT(toggleBorder()));
-  // connect(slider, SIGNAL(valueChanged(int)),
-  //      viewer, SLOT(changeContours(int)));
- 
-  viewMenu->addAction(toolbar->toggleViewAction());
-  tb->addSeparator();
-  tb->addAction(toolbar->toggleViewAction());
-  tb->setStyleSheet("* { color: rgb(120,60, 0) }");
-  toolbar->setStyleSheet("* { color: rgb(120,60, 0) }");
-}
 
 
 void MainWindow::createVisBar(){
@@ -227,7 +147,7 @@ void MainWindow::createVisBar(){
   QAction *clearBoundaryAct = new QAction(tr("Clear"), this);
   visbar->addAction(clearBoundaryAct);
   connect(clearBoundaryAct, SIGNAL(triggered()),
-          viewer, SLOT(clearCurrent())); 
+          this, SLOT(clearCurrent())); 
   visbar->addSeparator();
   
   QAction *showBoundariesAct = new QAction(tr("show Boundaries"), this);
@@ -239,20 +159,14 @@ void MainWindow::createVisBar(){
   QAction* resetAct = new QAction(tr("Reset"), this);
   visbar->addAction(resetAct);
   connect(resetAct, SIGNAL(triggered()),
-          viewer, SLOT(reset()));
+          this, SLOT(reset()));
   visbar->addSeparator();
   QAction* fitAct = new QAction(tr("Fit"), this);
   visbar->addAction(fitAct);
   connect(fitAct, SIGNAL(triggered()),
-          viewer, SLOT(fit()));
+          this, SLOT(fit()));
 
-  // cutAct = new QAction(tr("Cut"), this);  
-//   visbar->addSeparator();
-//   visbar->addAction(cutAct);
-//   connect(cutAct, SIGNAL(triggered()),
-//           this, SLOT(cut()));
-  //  connect(cutAct, SIGNAL(clicked()),
-  //      this, SLOT(resetSlider())); 
+
   visbar->addSeparator();
   QAction* snapshotAct = new QAction(tr("Snapshot"), this);
   visbar->addAction(snapshotAct);
@@ -268,8 +182,22 @@ void MainWindow::createVisBar(){
           this, SLOT(toggleViewer()));
   tb->addSeparator();
    tb->addAction(viewerAct);
-  visbar->setStyleSheet("* { color: rgb(120, 60, 0) }");  
- }
+ 
+}
+void MainWindow::reset(){
+  if(central->currentWidget()==viewer)viewer->reset();
+  else  if(central->currentWidget()==mgviewer) mgviewer->reset();
+}
+void MainWindow::clearCurrent(){
+  if(central->currentWidget()==viewer)viewer->clearCurrent();
+  else  if(central->currentWidget()==mgviewer) mgviewer->clearCurrent();
+}
+
+void MainWindow::fit(){
+  if(central->currentWidget()==viewer)viewer->fit();
+  else  if(central->currentWidget()==mgviewer) mgviewer->fit();
+}
+
   
 void MainWindow::toggleViewer(){
   if(central->currentWidget()==viewer && previousWidget!=0){
@@ -358,15 +286,24 @@ void MainWindow::createFlowBar(){
   }
 
   //add hard-coded buttons
-  flowbar->addSeparator();
-  QPushButton* vmButton = new QPushButton(tr("Vogmerge"), this);
-  flowbar->addWidget(vmButton);
-  connect(vmButton, SIGNAL(clicked()), this, SLOT(vmClicked()));
+ 
 
   flowbar->addSeparator();
   QPushButton* adaptButton = new QPushButton(tr("FVMAdapt"), this);
   flowbar->addWidget(adaptButton);
   connect(adaptButton, SIGNAL(clicked()), this, SLOT(adaptClicked()));
+
+
+ flowbar->addSeparator();
+  QPushButton* vmButton = new QPushButton(tr("Vogmerge"), this);
+  flowbar->addWidget(vmButton);
+  connect(vmButton, SIGNAL(clicked()), this, SLOT(vmClicked()));
+
+  flowbar->addSeparator();
+  QPushButton* vcheckButton = new QPushButton(tr("Vogcheck"), this);
+  flowbar->addWidget(vcheckButton);
+  connect(vcheckButton, SIGNAL(clicked()), this, SLOT(vcheck()));
+  
   
   int count=0;
   for (; !elem.isNull(); elem = elem.nextSiblingElement(), count++) { 
@@ -438,7 +375,7 @@ void MainWindow::createFlowBar(){
   
 
   
-  flowbar->setStyleSheet("QPushButton { color: darkGreen }");
+  
 
 
 
@@ -651,8 +588,8 @@ MainWindow::MainWindow()
   dock = 0;
   adaptwindow = 0;
   refdialog = 0;
-  cutAct = 0;
-  toolbar=0;
+  
+
   flowbar =0;
   flowbarButtons = 0;
   bdWindow = 0;
@@ -664,15 +601,16 @@ MainWindow::MainWindow()
   displayStatus = false;
   mgviewer = 0;
   vmwindow = 0;
+  waitForQualityFile = false;
   createMenu();
   createVisBar();
-  createDisplayBar();
+  //createDisplayBar();
   
  
   createDockWindow();
   createFlowBar();
   hideVisBar();
-  hideDisplayBar();
+ 
     
   setWindowTitle(tr("chem demo"));
   updateStatus(tr("Please use 'Grid Setup' to load  grid information, then start a new case or use file menu to open a case"));
@@ -694,12 +632,12 @@ QSize MainWindow::sizeHint() const
 
 
 void MainWindow::snapshot(){
+  
+  QImage pic ;
+  if(central->currentWidget()==viewer)pic = viewer->grabFrameBuffer(true);
+  else  if(central->currentWidget()==mgviewer) pic = mgviewer->grabFrameBuffer(true);
 
-  // QPixmap originalPixmap = QPixmap(); // clear image for low memory situations
-  // on embedded devices.
-  //originalPixmap = QPixmap::grabWidget(viewer);
-
-  QImage pic = viewer->grabFrameBuffer(true);
+ 
 
   QString format = "png";
   QString initialPath = QDir::currentPath() + tr("/untitled.") + format;
@@ -730,13 +668,15 @@ void MainWindow::snapshot(){
   
 void MainWindow::setGrid(QDomElement& theelem)
 {
+  
   if(cutdialog){
     delete cutdialog;
     cutdialog = 0;
   }
-  
+
+    
   //set up the default filename
-  QStringList boundary_names;
+
   QString format = "volume grid file(*.vog)";
   if(theelem.hasAttribute("format")) format = theelem.attribute("format");
   QString initialPath =QDir::currentPath();
@@ -749,124 +689,147 @@ void MainWindow::setGrid(QDomElement& theelem)
                                           fileName,
                                           format);
   
-  QString caseName;
+ 
   if(fileName==""){
     //no error message in  case of 'cancel' is pressed 
     
     return;
   }
   
-  QStringList formatList = fileName.split('.');
-  if(formatList.size()!=2){
-    QMessageBox::warning(this, tr("Application"),
-                         fileName + tr(" has no postfix"));
-    return;
-  }
-  //load in grid
-  bool loaded = false;
-  if(formatList[1]=="vog"){
-    
-    QString surfFileName = fileName.section('.', 0, 0)+".surface";
-     caseName =  (fileName.section('.', 0, 0)).section('/', -1);
   
-     QFileInfo surfInfo(surfFileName);
-     QFileInfo vogInfo(fileName);
-     if(!(surfInfo.exists()) || surfInfo.created() < vogInfo.created()){
-       int first= fileName.lastIndexOf('/');
-       int last = fileName.lastIndexOf('.');
-       QString casename = fileName.mid(first+1, last-first-1);
-       QString directory = fileName.left(first);
-       
-       QString script_filename = directory + "/output/vog2surface_"+caseName;
-       QString out_filename= directory + "/output/vog2surface_"+caseName+".out";
+  //load in grid
+ 
+     
+    QString surfFileName = fileName.section('.', 0, -2)+".surface";
+  
+ 
+
+   
+   
+     QString caseName =  (fileName.section('.', 0, -2)).section('/', -1);
+    
+    QFileInfo surfInfo(surfFileName);
+    QFileInfo vogInfo(fileName);
+
+     QString command2 = "vog2surf -surface " + surfFileName+" " + fileName.section('.', 0, -2);
+    if(!(surfInfo.exists()) || surfInfo.created() < vogInfo.created()){
+      //int first= fileName.lastIndexOf('/');
+      //int last = fileName.lastIndexOf('.');
+      //QString casename = fileName.mid(first+1, last-first-1);
+      //QString directory = fileName.left(first);
       
-       QFile outfile(script_filename);
-       if (!outfile.open(QFile::WriteOnly | QFile::Text)) {
-         QMessageBox::information(window(), "mainwindow",
-                                  tr("Cannot open ") + script_filename + tr(" for writing!"));
-         return;
-       }
-       
-       QTextStream out(&outfile);
+     //  QString script_filename = directory + "/output/vog2surf_"+caseName;
+//       QString out_filename= directory + "/output/vog2surf_"+caseName+".out";
+      
+//       QFile outfile(script_filename);
+//       if (!outfile.open(QFile::WriteOnly | QFile::Text)) {
+//         QMessageBox::information(window(), "mainwindow",
+//                                  tr("Cannot open ") + script_filename + tr(" for writing!"));
+//         return;
+//       }
+      
+//        QTextStream out(&outfile);
     
        //replace this command later, no directory, and vog2surf -surface will be used 
-       QString command2 = directory+"/vog2surface " + fileName.section('.', 0, 0);
-       emit updateStatus(command2);
-       out <<"#!/bin/bash"<<endl;
-       out <<"exec 6>&1"<<endl;
-       out <<"exec 7>&2"<<endl;
-       out<< "exec &> "<< out_filename <<endl;
-       out << command2 << endl;
-       out<<"exec 1>&6 6>&- " << endl;
-       out<<"exec 2>&7 7>&- " << endl;
-
-      outfile.close();
-      QString command3 = "chmod 777 " + script_filename;
+      // QString command2 = "./vog2surf -surface " + surfFileName+" " + fileName.section('.', 0, -2);
       
-      int ret =  system(command3.toStdString().c_str());
+     //   out <<"#!/bin/bash"<<endl;
+//        out <<"exec 6>&1"<<endl;
+//        out <<"exec 7>&2"<<endl;
+//        out<< "exec &> "<< out_filename <<endl;
+//        out << command2 << endl;
+//        out<<"exec 1>&6 6>&- " << endl;
+//        out<<"exec 2>&7 7>&- " << endl;
+
+//       outfile.close();
+//       QString command3 = "chmod 777 " + script_filename;
+      
+//       int ret =  system(command3.toStdString().c_str());
 
 
 
-      if(!WIFEXITED(ret))
-        {
-          if(WIFSIGNALED(ret))
-            {
-              QMessageBox::information(window(), "mainwindow",
-                                       command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
-               theelem.removeAttribute("casename");
-              return;
-            }
-        }
-        
-      ret = system(script_filename.toStdString().c_str());
-      if(!WIFEXITED(ret)){
-        if(WIFSIGNALED(ret)){
-          QMessageBox::information(window(), "mainwindow",
-                                   script_filename + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
-           theelem.removeAttribute("casename");
-          return;
-        }
-      }
+//       if(!WIFEXITED(ret))
+//         {
+//           if(WIFSIGNALED(ret))
+//             {
+//               QMessageBox::information(window(), "mainwindow",
+//                                        command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
+//                theelem.removeAttribute("casename");
+//               return;
+//             }
+//         }
 
+//        emit updateStatus("COMMAND:    " + command2+ "     STARTED");
+//        ret = system(script_filename.toStdString().c_str());
+//        if(!WIFEXITED(ret)){
+//          if(WIFSIGNALED(ret)){
+//            QMessageBox::information(window(), "mainwindow",
+//                                     script_filename + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
+//            theelem.removeAttribute("casename");
+//            return;
+//          }
+//        }
+//        emit updateStatus("COMMAND:    " + command2+ "     FINISHED");
 
 
       
-      QFile file(out_filename);
-      if (!file.open(QFile::ReadOnly | QFile::Text)) {
+   //    QFile file(out_filename);
+//       if (!file.open(QFile::ReadOnly | QFile::Text)) {
 
-        QMessageBox::information(window(), "mainwindow",
-                                 tr("Cannot open ") + out_filename + tr(" for reading!"));
+//         QMessageBox::information(window(), "mainwindow",
+//                                  tr("Cannot open ") + out_filename + tr(" for reading!"));
 
-        theelem.removeAttribute("casename");
+//         theelem.removeAttribute("casename");
         
-        return;
-      }
+//         return;
+//       }
     
-      QTextStream in(&file);
-      QApplication::setOverrideCursor(Qt::WaitCursor);
-      //      msgBox.setDetailedText(in.readAll());
-      emit updateStatus(in.readAll());
-      QApplication::restoreOverrideCursor();
-      file.close();
+//       QTextStream in(&file);
+//       QApplication::setOverrideCursor(Qt::WaitCursor);
+     
+     //  emit updateStatus(in.readAll());
+//       QApplication::restoreOverrideCursor();
+//       file.close();
+       
+      ProgressDialog* progress = new ProgressDialog(command2, true);
+       progress->show();
+       connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus)), this, SLOT(loadGrid(QString, QProcess::ExitStatus)));
+       
+    }else{
+      loadGrid(command2, QProcess::NormalExit);
     }
-    
+  
+}
+void MainWindow::loadGrid(QString command, QProcess::ExitStatus ){
+  QDomElement theroot = doc.documentElement();
+  QDomElement theelem = theroot.firstChildElement("mainWindow");
+  theelem=theelem.firstChildElement("gridSetup");
+  if(theelem.isNull()){
+    QMessageBox::warning(window(), "main xml file",
+                         tr(" mainWindow has no child gridSetup" ));
+    return;
+  }
+  
 
 
   
+  QString surfFileName = command.section(' ', 2, 2);
+  QString fileName =   command.section(' ', -1, -1)+".vog";
+  
+   QString caseName =  (fileName.section('.', 0, -2)).section('/', -1);
+  // must setCurrentWidget(viewer)first, then load_boundary
+  // must leave these two lines at the end of function
+  
    
-    // must setCurrentWidget(viewer)first, then load_boundary
-    // must leave these two lines at the end of function
-      central->setCurrentWidget(viewer);   
-    loaded =   viewer->load_boundary(surfFileName, boundary_names); // and setup the GLWidget.
-    viewer->show();
-  }else{
-    
-     central->setCurrentWidget(viewer);   
-    loaded =  viewer->load_boundary(fileName, boundary_names); // and setup the GLWidget.
-    viewer->show(); 
-  }
+  QStringList boundary_names;   
+  central->setCurrentWidget(viewer);   
+  bool loaded =   viewer->load_boundary(surfFileName, boundary_names); // and setup the GLWidget.
+  viewer->show();
   viewer->reset();
+  
 
+  
+  
   if(loaded){
     //if different case, remind the user to save the case
     if(theelem.hasAttribute("casename") && theelem.attribute("casename")!=caseName) {
@@ -957,7 +920,9 @@ void MainWindow::setGrid(QDomElement& theelem)
     updateStatus(fileName + tr(" not loaded"));
   }
   
-  viewer->clearCurrent();  
+  viewer->clearCurrent();
+  
+  
 }
 
 void MainWindow::openVog(){
@@ -1168,14 +1133,6 @@ void MainWindow::showBoundary(QModelIndex top, QModelIndex ){
 
 }
 
-void MainWindow::showDisplayBar(){
- if(toolbar) toolbar->show();
-}
-
-
-void MainWindow::hideDisplayBar(){
- if(toolbar) toolbar->hide();
-}
 
 void MainWindow::showVisBar(){
  if(visbar) visbar->show();
@@ -1207,27 +1164,192 @@ void MainWindow::cut(){
   
 
    
-  showDisplayBar();
+ 
   if(cutdialog) {
     delete cutdialog;
     cutdialog = 0;
   }
   
   if(viewer ==0) return;
-   QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
+  QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
   elem = elem.firstChildElement("gridSetup");
   LoadInfo ldinfo;
   ldinfo.casename = elem.attribute("casename");
   ldinfo.directory = elem.attribute("directory");
-  cutdialog = new CutDialog(ldinfo, viewer->boundaryBoxSize());
-  cutdialog->show();
-  connect(cutdialog, SIGNAL(cutInfoChanged(cutplane_info&)), viewer, SLOT(previewCut(cutplane_info&)));
-  connect(cutdialog, SIGNAL(loadInfoChanged(const LoadInfo&)), viewer, SLOT(setLoadInfo(const LoadInfo&)));
-  connect(cutdialog, SIGNAL(cutPressed()), viewer, SLOT(cut()));
-  connect(cutdialog, SIGNAL(loadPressed()), viewer, SLOT(loadSca()));
-  connect(cutdialog, SIGNAL(setShading(bool)), viewer, SLOT(setShading(bool)));
-  connect(cutdialog, SIGNAL(percentageChanged(int)), viewer, SLOT(setPercentage(int)));
+  if(ldinfo.casename.isEmpty()){
+    QMessageBox::warning(window(), "post-processing",
+                         tr("No casename, please load in grid with 'Grid Setup'")
+                         );
+    return;
+  }
+
+  QDir dir(ldinfo.directory+"/output/");
+  QStringList filters;
+  filters << "grid_pos.*_" + ldinfo.casename;
+  QStringList gridposFiles = dir.entryList(filters);
+  if(gridposFiles.size()==0){
+   
+    int ret = QMessageBox::question(this, "post-processing",
+                                    tr("No scalar value, do you want to run vogcheck? "),
+                                    QMessageBox::Ok | QMessageBox::Cancel);
+    switch(ret){
+    case QMessageBox::Ok:
+      waitForQualityFile=true;
+      check(ldinfo.directory+'/'+ldinfo.casename);
+      break;
+    default:
+      return;
+    }
+  }else{
+    cutdialog = new CutDialog(ldinfo, viewer->boundaryBoxSize(), viewer);
+    cutdialog->show();
+  }
 }
+
+void MainWindow::vcheck(){
+  QString fileName =
+    QFileDialog::getOpenFileName(this, tr("Get File"),
+                                  QDir::currentPath(),
+                                 tr("vog Files (*.vog)"));
+  
+  fileName = fileName.section('.', 0, -2);
+  check(fileName);
+}
+
+
+
+
+
+
+  
+void MainWindow::check(const QString& fn){
+
+  QString importFileName = fn;
+  QString casename = importFileName.section('/', -1, -1);
+  
+  QFile exist_test(importFileName+tr(".vog"));
+  if(!(exist_test.exists())){
+    QMessageBox::warning(window(), tr("vogcheck"),
+                         tr("Please convert the file to volume grid format first")
+                         );
+    return;
+  }
+  
+  //  QString script_filename = "./output/check_"+casename;
+  QString out_filename="./output/check_"+casename+".out";
+  
+
+
+
+//   QFile outfile(script_filename);
+//   if (!outfile.open(QFile::WriteOnly | QFile::Text)) {
+//      QMessageBox::warning(this, tr("file io "),
+//                             tr("Cannot write file %1:\n%2.")
+//                             .arg(script_filename)
+//                           .arg(outfile.errorString()));
+//     return;
+//   }
+  
+//   QTextStream out(&outfile);
+  
+  
+   QString command2 = "vogcheck " +casename;
+ 
+ 
+  
+//   out <<"#!/bin/bash"<<endl;
+//   out <<"exec 6>&1"<<endl;
+//   out <<"exec 7>&2"<<endl;
+//   out<< "exec &> "<< out_filename <<endl;
+//   out<<"cd " << importFileName.section('/',0,  -2)<<endl;
+//   out << command2 << endl;
+//   out<<"exec 1>&6 6>&- " << endl;
+//   out<<"exec 2>&7 7>&- " << endl;
+
+//   outfile.close();
+//   QString command3 = "chmod 777 " + script_filename;
+
+ 
+ 
+//   int ret = system(command3.toStdString().c_str());
+
+//   if(!WIFEXITED(ret))
+//     {
+//       if(WIFSIGNALED(ret))
+//         {
+//           QMessageBox::information(window(), "mainwindow",
+//                                    command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
+//           return;
+//         }
+//       exit(0);
+//     }
+
+//    emit updateStatus("COMMAND:    " + command2 + "    STARTED");
+//   ret = system(script_filename.toStdString().c_str());
+
+//   if(!WIFEXITED(ret))
+//     {
+//       if(WIFSIGNALED(ret))
+//         {
+//           QMessageBox::information(window(), "mainwindow",
+//                                    command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
+//           return;
+//         }
+//       exit(0);
+//     }
+//   emit updateStatus("COMMAND:    " + command2 + "    FINISHED");
+
+   ProgressDialog* progress = new ProgressDialog(command2);
+   connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus)), this, SLOT(showQuality(QString, QProcess::ExitStatus)));
+   progress->show();
+  
+   
+   
+ //   QFile file(out_filename);
+//    if (!file.open(QFile::ReadOnly | QFile::Text)) {
+//      QMessageBox::warning(this, tr(" file io "),
+//                           tr("Cannot read file %1:\n%2.")
+//                           .arg(out_filename)
+//                           .arg(file.errorString()));
+//     return;
+//   }
+  
+//   QTextStream in(&file);
+//   QApplication::setOverrideCursor(Qt::WaitCursor);
+//   updateStatus(in.readAll());
+//   QApplication::restoreOverrideCursor();
+//   file.close();
+
+
+  
+ //  QString qualityFileName = importFileName+tr(".quality");
+//   QualityDialog qualityDialog(qualityFileName, this);
+//   qualityDialog.exec();
+  
+    
+
+}
+void MainWindow::showQuality(QString command, QProcess::ExitStatus status){
+  if(status==QProcess::CrashExit)return;
+  
+  QString filename = command.section(' ',-1, -1)+".quality";
+  QualityDialog qualityDialog(filename, this);
+  qualityDialog.exec();
+
+  if(waitForQualityFile){
+    waitForQualityFile = false;
+    QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
+    elem = elem.firstChildElement("gridSetup");
+    LoadInfo ldinfo;
+    ldinfo.casename = elem.attribute("casename");
+    ldinfo.directory = elem.attribute("directory");
+    cutdialog = new CutDialog(ldinfo, viewer->boundaryBoxSize(), viewer);
+    cutdialog->show();
+    
+  }
+}
+  
+  
 void MainWindow::markVolumeNodes(){
 
   QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
@@ -1565,7 +1687,7 @@ bool MainWindow::saveVar()
          fileName = QFileDialog::getSaveFileName(this, tr("Save .vars File"),
                                                  fileName,
                                                  tr("variable Files (*.vars)"));
-         
+         if(fileName.section('.', -1, -1)!="vars")fileName+=".vars";
 
          QFileInfo vogInfo(fileName);
          if(vogInfo.exists()){
@@ -1657,7 +1779,7 @@ bool MainWindow::saveVar()
   fileName = QFileDialog::getSaveFileName(this, tr("Save .vars File"),
                                           fileName,
                                           tr("variable Files (*.vars)"));
-
+  if(fileName.section('.', -1, -1)!="vars")fileName+=".vars";
 
   QFileInfo vogInfo(fileName);
   if(vogInfo.exists()){
@@ -1740,7 +1862,7 @@ bool MainWindow::saveVar()
    fileName = QFileDialog::getSaveFileName(this, tr("Save .xml File"),
                                            fileName,
                                            tr("xml Files (*.xml)"));
-
+   if(fileName.section('.', -1, -1)!="xml")fileName+=".xml";
 
    
    QFileInfo vogInfo(fileName);
@@ -1812,33 +1934,37 @@ void MainWindow::aboutPostprocess()
 
 void MainWindow::adaptClicked()
 {
+
+  QDomElement root = doc.documentElement();
+  root = root.firstChildElement("mainWindow");
+  QDomElement elem = root.firstChildElement("gridSetup");
+  if(elem.isNull()||!elem.hasAttribute("casename")){
+    QMessageBox::warning(this, tr("FVMadapt"),
+                          tr("Please first load in a grid from 'Grid Setup'")
+                          );
+     return;
+   }
+
   if(adaptwindow){
     delete adaptwindow;
     adaptwindow = 0;
   }
-  adaptwindow = new FVMAdapt(this);
+
+
+    QString fileName = elem.attribute("directory")+"/"+elem.attribute("casename")+".vog";
+ 
+    adaptwindow = new FVMAdapt(fileName);
+    adaptwindow->show();
   
   viewer->setAdaptWindow(adaptwindow);
-  dock->show();
-  dock->setFloating(true);
-  dock->setWidget(adaptwindow); 
-  connect(adaptwindow, SIGNAL(destroyed(QObject*)), viewer, SLOT(adaptwindowClosed()));
-  connect(adaptwindow, SIGNAL(refineGrids()), this, SLOT(refineGrids()));
-  connect(adaptwindow, SIGNAL(markVolumeNodes()), this, SLOT(markVolumeNodes()));
-   
-  connect(adaptwindow, SIGNAL(valueChanged()), viewer, SLOT(updateGL()));
+  central->setCurrentWidget(viewer);
  
-  connect(adaptwindow, SIGNAL(markNodes()), viewer, SLOT(markNodes()));
-  
-}
+  connect(adaptwindow, SIGNAL(destroyed()), viewer, SLOT(adaptwindowClosed()));
+  connect(adaptwindow, SIGNAL(refineGrids()), this, SLOT(refineGrids()));
+  connect(adaptwindow, SIGNAL(valueChanged()), viewer, SLOT(updateGL()));
+ }
 
-void MainWindow::adaptwindowClosed(){
-  dock->setWidget(statusWindow);
-  dock->setFloating(false);
-  dock->setAllowedAreas(Qt::LeftDockWidgetArea );
-  adaptwindow = 0;
-  
-}
+
 void MainWindow::vmClicked()
 {
   
@@ -1856,22 +1982,29 @@ void MainWindow::vmClicked()
   mgviewer = new MGViewer(this);
   central->addWidget(mgviewer);
   central->setCurrentWidget(mgviewer);
-  vmwindow = new VMergeWindow(this);
- 
+  vmwindow = new VMergeWindow();
+  vmwindow->show();
   
  connect(vmwindow, SIGNAL(loadGrid(QString)), mgviewer, SLOT(load_boundary(QString)));
  connect(vmwindow, SIGNAL(getGrid(QString)), mgviewer, SLOT(get_boundary(QString)));
  
  connect(mgviewer, SIGNAL(gridLoaded(const QStringList&)), vmwindow, SLOT(gridLoaded(const QStringList&)));
+ connect(mgviewer, SIGNAL(pickCurrent(const IDOnly&)), vmwindow, SLOT(selectCurrent(const IDOnly&)));
  connect(vmwindow, SIGNAL(tcChanged(const IDMatrix&)), mgviewer, SLOT(transGrid(const IDMatrix&)));
-
+ 
  connect(vmwindow, SIGNAL(setCurrentColor(const IDColor&)), mgviewer, SLOT(setCurrentColor(const IDColor&)));
  connect(vmwindow, SIGNAL(setCurrentVisibility(const IDVisibility&)),
          mgviewer, SLOT(setCurrentVisibility(const IDVisibility&)));
 
- dock->show();
- dock->setWidget(vmwindow); 
+ connect(vmwindow, SIGNAL(destroyed()), this, SLOT(vmClosed()));
+ 
 }
-
-
+void MainWindow::vmClosed(){
+   if(mgviewer){
+    central->removeWidget(mgviewer);
+    delete mgviewer;
+    mgviewer = 0;
+   }
+   central->setCurrentWidget(viewer); 
+}
 

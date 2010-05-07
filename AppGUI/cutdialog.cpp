@@ -28,10 +28,11 @@
 //  Assembles the dialog shown by the "load grid " in 'file' menu.
 //////////////////////////////////////////////////////////
 
-CutDialog::CutDialog( LoadInfo ldInfo, float size, QWidget *parent)
-  :  QWidget(parent),ld_info(ldInfo)
+CutDialog::CutDialog( LoadInfo ldInfo, float size, GLViewer* theviewer, QWidget *parent)
+  :  QWidget(parent),viewer(theviewer),ld_info(ldInfo)
 {
- 
+  setAttribute(Qt::WA_DeleteOnClose, true);
+  
   QButtonGroup* buttonGroup = new QButtonGroup(this);
   buttonGroup->setExclusive(true);
   QPushButton* xy_button = new QPushButton(tr("xy_plane"));
@@ -175,7 +176,8 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, QWidget *parent)
     QStringList filters;
     filters << "grid_pos.*_" + ld_info.casename;
     QStringList gridposFiles = dir.entryList(filters);
-
+   
+    
     // Load in valid iteration numbers (variables loaded automatically)
     for (int i = 0; i < gridposFiles.size(); ++i) {
       QString gridpos = gridposFiles.at(i);
@@ -242,9 +244,9 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, QWidget *parent)
   connect(close, SIGNAL(clicked()),
 	  this, SLOT(close()));
   connect(load, SIGNAL(clicked()), this, SLOT(load()));
-  connect(extrSpinBox, SIGNAL(valueChanged(int)), this, SIGNAL(percentageChanged(int)));
+  connect(extrSpinBox, SIGNAL(valueChanged(int)), viewer, SLOT(setPercentage(int)));
   connect(extrSpinBox, SIGNAL(valueChanged(int)), this, SLOT(showExtremeNodes(int)));
-
+  
   QGroupBox* cutGroup = new QGroupBox(tr("define cut plane:"));
   QVBoxLayout* cutLayout = new QVBoxLayout;
   cutLayout->addLayout(hlayout);
@@ -253,8 +255,9 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, QWidget *parent)
   cutLayout->addLayout(cutButtons);
   cutGroup->setLayout(cutLayout);
  
-  
+  createToolBox();  
   QVBoxLayout *mainLayout =  new QVBoxLayout;
+  mainLayout->addWidget(toolbox);
   mainLayout->addWidget(buttonsGroup);
   
   mainLayout->addWidget(caseGroup);
@@ -265,13 +268,94 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, QWidget *parent)
 
   setLayout(mainLayout);
   setInfo();
-
+  
+  
 }
+void CutDialog::createToolBox(){
+  QPushButton *showBoundaryAct = new QPushButton(tr("Show Boundaries"), this);
+  QPushButton *showBShadingAct = new QPushButton(tr("Boundary Shading"), this);
+  QPushButton *showContoursAct = new QPushButton(tr("Show Contours"), this);
+  QPushButton *showGridAct = new QPushButton(tr("Show Grid"), this);
+  QPushButton *showShadingAct = new QPushButton(tr("Cutplane Shading"), this);
+  
+  QPushButton *shadeType1 = new QPushButton(tr("Blue to Red"), this);
+  QPushButton *shadeType2 = new QPushButton(tr("Blackbody"), this);
+  QPushButton *shadeType3 = new QPushButton(tr("Pressure"), this);
 
+  // QPushButton *showBorderAct = new QPushButton(tr("Show Outline"), this);
+ 
+  
+  
+  
+  
+  toolbox = new QGroupBox(tr("Display Menu"));
+  QHBoxLayout* toolbar = new QHBoxLayout;
+  toolbar->addWidget(showBoundaryAct);
+  toolbar->addSpacing(5);;
+  toolbar->addWidget(showBShadingAct);
+ 
+ 
+  toolbar->addSpacing(5);;
+  toolbar->addWidget(showGridAct);
+  toolbar->addSpacing(5);;
+  toolbar->addWidget(showShadingAct);
+    
+  toolbar->addSpacing(5);;
+  toolbar->addWidget(shadeType1);
+  toolbar->addWidget(shadeType2);
+  toolbar->addWidget(shadeType3);
+  
+
+  //toolbar->addSpacing(5);;
+  //toolbar->addWidget(showBorderAct);
+  
+  toolbar->addSpacing(5);;
+ 
+  
+  
+
+    
+  toolbar->addSpacing(5);;
+  toolbar->addWidget(showContoursAct);
+  QSlider* slider = new QSlider(Qt::Horizontal);
+  slider->setRange(5, 50);
+  slider->setValue(10);
+  toolbar->addWidget(slider);
+
+
+  toolbox->setLayout(toolbar);
+
+  
+  connect(showBoundaryAct,SIGNAL(clicked()),
+          viewer, SLOT(showBoundaries())); 
+  connect(showBShadingAct, SIGNAL(clicked()),
+          viewer, SLOT(toggleBoundaryShading()));
+  connect(showGridAct, SIGNAL(clicked()),
+          viewer, SLOT(toggleGrid()));
+  connect(showContoursAct, SIGNAL(clicked()),
+          viewer, SLOT(toggleContours()));
+  connect(showShadingAct, SIGNAL(clicked()),
+          viewer, SLOT(toggleShading()));
+  connect(shadeType1, SIGNAL(clicked()),
+          viewer, SLOT(setShadeType1()));
+  connect(shadeType2, SIGNAL(clicked()),
+          viewer, SLOT(setShadeType2()));
+  connect(shadeType3, SIGNAL(clicked()),
+          viewer, SLOT(setShadeType3()));
+  
+  //connect(showBorderAct, SIGNAL(clicked()),
+  //      viewer, SLOT(toggleBorder()));
+  
+  connect(slider, SIGNAL(valueChanged(int)),
+       viewer, SLOT(changeContours(int)));
+ 
+  connect(this, SIGNAL(destroyed()), viewer, SLOT(uncut()));
+ 
+ 
+}
 void CutDialog::showExtremeNodes(int i){
-
-  emit setShading(i==0);
-}
+  viewer->setShading(i==0);
+  }
 
 //////////////////////////////////////////////////////////////////////////////
 //  private slots:
@@ -296,20 +380,21 @@ void CutDialog::setInfo()
   
   if(ld_info.variable=="cellVol")extrSpinBox->setRange(-50, 0);
   else extrSpinBox->setRange(0, 50);
-  
-  emit cutInfoChanged(info);
-  emit loadInfoChanged(ld_info);
+
+  viewer->previewCut(info);  
+  viewer->setLoadInfo(ld_info);  
+ 
 }
 
 void CutDialog::cut(){
   setInfo();
-  emit cutPressed();
+  viewer->cut();
 }
 
 void CutDialog::load(){
   setInfo();
   extrSpinBox->setValue(0);
-  emit loadPressed();
+  viewer->loadSca();
 }
 
 void CutDialog::reset(){

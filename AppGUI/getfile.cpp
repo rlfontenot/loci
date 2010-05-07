@@ -5,14 +5,12 @@
 GetFileWindow::GetFileWindow(QString exp, QString& fileSelected, QWidget *parent) : QDialog(parent)
  {
      browseButton = createButton(tr("&Browse..."), SLOT(browse()));
-     findButton = createButton(tr("&Find"), SLOT(find()));
+    
 
      fileComboBox = createComboBox(exp);
-     //     textComboBox = createComboBox();
      directoryComboBox = createComboBox(QDir::currentPath()+"/");
 
      fileLabel = new QLabel(tr("Named:"));
-     // textLabel = new QLabel(tr("Containing text:"));
      directoryLabel = new QLabel(tr("In directory:"));
      filesFoundLabel = new QLabel;
 
@@ -20,44 +18,38 @@ GetFileWindow::GetFileWindow(QString exp, QString& fileSelected, QWidget *parent
      fileNameLabel = new QLabel;
     
 
-       QHBoxLayout *buttonsLayout = new QHBoxLayout;
-      buttonsLayout->addStretch();
-      buttonsLayout->addWidget(findButton);
-      //  buttonsLayout->setSpacing(40);
-      buttonsLayout->addWidget(fileNameLabel);
-      buttonsLayout->setAlignment(findButton, Qt::AlignLeft);
-       buttonsLayout->setAlignment(fileNameLabel, Qt::AlignRight);
+     QHBoxLayout *buttonsLayout = new QHBoxLayout;
+     buttonsLayout->addStretch();
+     buttonsLayout->addWidget(fileNameLabel);
+     buttonsLayout->setAlignment(fileNameLabel, Qt::AlignRight);
      QGridLayout *mainLayout = new QGridLayout;
      
    
      mainLayout->addWidget(fileLabel, 0, 0);
      
      mainLayout->addWidget(fileComboBox, 0, 1, 1, 2);
-     // mainLayout->addWidget(textLabel, 1, 0);
-     // mainLayout->addWidget(textComboBox, 1, 1, 1, 2);
      mainLayout->addWidget(directoryLabel, 1, 0);
      mainLayout->addWidget(directoryComboBox, 1, 1);
      mainLayout->addWidget(browseButton, 1, 2);
      mainLayout->addWidget(filesTable, 2, 0, 1, 3);
      mainLayout->addWidget(filesFoundLabel, 3, 0);
      mainLayout->addLayout(buttonsLayout, 4, 0);
-     //mainLayout->addWidget(fileNameLabel, 4, 1, 1, 20);
      setLayout(mainLayout);
      fileNameLabel->hide();
      selectedFileName = fileSelected ;
      setWindowTitle(tr("Find Files"));
-     findButton->setMaximumWidth(40);
+     find();
      resize(700, 300);
  }
 void GetFileWindow::addDirectory(QString dir){
   QStringList dir_list = dir.split(",", QString::SkipEmptyParts);
   directoryComboBox->addItems(dir_list);
-  
+  find();
 }
  void GetFileWindow::browse()
  {
      QString directory = QFileDialog::getExistingDirectory(this,
-                                tr("Find Files"), QDir::currentPath());
+                                                           tr("Find Files"), QDir::currentPath());
      if (!directory.isEmpty()) {
        int index = directoryComboBox->findText(directory);
        if(index != -1)directoryComboBox->setCurrentIndex(index);
@@ -66,6 +58,7 @@ void GetFileWindow::addDirectory(QString dir){
          directoryComboBox->setCurrentIndex(directoryComboBox->count()-1);
        }
      }
+     find();
  }
 
  void GetFileWindow::find()
@@ -73,7 +66,6 @@ void GetFileWindow::addDirectory(QString dir){
      filesTable->setRowCount(0);
 
      QString fileName = fileComboBox->currentText();
-     // QString text = textComboBox->currentText();
      QString path = directoryComboBox->currentText();
 
      QDir directory = QDir(path);
@@ -82,9 +74,6 @@ void GetFileWindow::addDirectory(QString dir){
          fileName = "*";
      files = directory.entryList(QStringList(fileName),
                                  QDir::Files | QDir::NoSymLinks);
-
-     // if (!text.isEmpty())
-     //  files = findFiles(directory, files, text);
      showFiles(directory, files);
  }
 

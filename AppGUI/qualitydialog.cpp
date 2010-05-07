@@ -16,7 +16,7 @@
 #include <QDialog>
 #include <QErrorMessage>
 
-void QualityDialog::processQualityReport(QString filename){
+bool QualityDialog::processQualityReport(QString filename){
 
   
   QFile file(filename);
@@ -24,7 +24,7 @@ void QualityDialog::processQualityReport(QString filename){
       QMessageBox::information(window(), "quality dialog",
                                  tr("Cannot open ") + filename + tr(" for reading!"));
     
-    return;
+    return false;
   }
   
   QTextStream in(&file);
@@ -45,7 +45,7 @@ void QualityDialog::processQualityReport(QString filename){
                              .arg(errorLine)
                              .arg(errorColumn)
                              .arg(errorStr));
-    return;
+    return false;
   }
   
   QDomElement root = doc.documentElement();
@@ -53,7 +53,7 @@ void QualityDialog::processQualityReport(QString filename){
     QMessageBox::warning(window(), tr("quality report"),
                          tr("root is NUll")
                          );
-    return;
+    return false;
     
   }
   QDomElement minVol_elem = root.firstChildElement("minVol");
@@ -61,7 +61,7 @@ void QualityDialog::processQualityReport(QString filename){
     QMessageBox::warning(window(), tr("quality report"),
                          tr("minVol is NUll")
                          );
-    return;
+    return false;
     
   }
   
@@ -76,7 +76,7 @@ void QualityDialog::processQualityReport(QString filename){
     QMessageBox::warning(window(), tr("Quality report"),
                          tr("volRatio is NUll")
                          );
-    return;
+    return false;
     
   }
   
@@ -91,7 +91,7 @@ void QualityDialog::processQualityReport(QString filename){
     QMessageBox::warning(window(), tr("quality report"),
                          tr("angle is NUll")
                          );
-    return;
+    return false;
     
   }
   
@@ -112,7 +112,7 @@ void QualityDialog::processQualityReport(QString filename){
     QMessageBox::warning(window(), tr("Quality report"),
                          tr("twist is NUll")
                          );
-    return;
+    return false;
     
   }
   
@@ -131,7 +131,7 @@ void QualityDialog::processQualityReport(QString filename){
     QMessageBox::warning(window(), tr("quality report"),
                          tr("sheartwist is NUll")
                          );
-    return;
+    return false;
     
   }
   
@@ -150,7 +150,7 @@ void QualityDialog::processQualityReport(QString filename){
    QMessageBox::warning(window(), tr("Quality report"),
                         tr("quality is NUll")
                         );
-   return;
+   return false;
    
  }
   
@@ -162,7 +162,7 @@ void QualityDialog::processQualityReport(QString filename){
     QMessageBox::warning(window(), tr("Quality report"),
                          tr("report is NUll")
                          );
-    return;
+    return false;
     
   }
   
@@ -176,6 +176,8 @@ void QualityDialog::processQualityReport(QString filename){
                           QString("poor: volRatio > 50 || maxCellAngle > 150 || maxTwist > 0.2 || maxShearTwist <= 0.2 \n")+
                           QString("marginal: volRatio > 100 || maxCellAngle > 170 || maxTwist > 0.45 || maxShearTwist <= 0.45 \n")+
                           QString("UNUSABLE: volRatio > 1000 || maxCellAngle > 179 || maxTwist > 0.8 || maxShearTwist <= 0.8 || minVol <0 || convexCell >0 "));
+
+ return true;
 }
 
 
@@ -198,7 +200,7 @@ QualityDialog::QualityDialog(QString filename, QWidget *parent)
   : QDialog(parent)
 {
  
-  processQualityReport(filename);  
+  if(! processQualityReport(filename)) return;  
   signalMapper = new QSignalMapper(this);
 
 

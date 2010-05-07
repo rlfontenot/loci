@@ -24,26 +24,25 @@ class GetFileWindow  : public QDialog
  
  private slots:
      void browse();
-     void find();
+  void find();
      void openFileOfItem(int row, int column);
 
  private:
-     QStringList findFiles(const QDir &directory, const QStringList &files,
-                           const QString &text);
-     void showFiles(const QDir &directory, const QStringList &files);
-     QPushButton *createButton(const QString &text, const char *member);
-     QComboBox *createComboBox(const QString &text = QString());
-     void createFilesTable();
-
-     QComboBox *fileComboBox;
-     QComboBox *textComboBox;
-     QComboBox *directoryComboBox;
-     QLabel *fileLabel;
-     QLabel *textLabel;
-     QLabel *directoryLabel;
-     QLabel *filesFoundLabel;
-     QPushButton *browseButton;
-     QPushButton *findButton;
+  QStringList findFiles(const QDir &directory, const QStringList &files,
+                        const QString &text);
+  void showFiles(const QDir &directory, const QStringList &files);
+  QPushButton *createButton(const QString &text, const char *member);
+  QComboBox *createComboBox(const QString &text = QString());
+  void createFilesTable();
+  
+  QComboBox *fileComboBox;
+  QComboBox *textComboBox;
+  QComboBox *directoryComboBox;
+  QLabel *fileLabel;
+  QLabel *textLabel;
+  QLabel *directoryLabel;
+  QLabel *filesFoundLabel;
+  QPushButton *browseButton;
   QTableWidget *filesTable;
   QString selectedFileName;
   QLabel* fileNameLabel;

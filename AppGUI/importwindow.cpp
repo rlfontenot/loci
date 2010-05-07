@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include "importwindow.h"
 #include "qualitydialog.h"
-
+#include "progressdialog.h"
 XdrOption::XdrOption() : QGroupBox(tr("other options")){}
 
 XdrOption::XdrOption( QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("convert to xdr options") , parent){
@@ -52,9 +52,6 @@ QString XdrOption::currentText(){
   for(int i =0; i < objs.size(); i++){
     if(objs[i]->isChecked()){
       text += " " +tag[i] + " " +optionList[i] ;
-      //  QStringList tmpList = optionList[i].split("=", QString::SkipEmptyParts);
-      // if(tmpList.size()>1) text += " " +tmpList[1];
-     
     }
   }
   return text;
@@ -67,7 +64,7 @@ VogOption::VogOption(  QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("co
   radioGroup = 0;
   
   if(elem.isNull()){
-    QMessageBox::warning(window(), tr("import.xml"),
+    QMessageBox::warning(window(), tr("main.xml"),
                          tr("can not find any element in the children of vogOptions")
                          );
     return;
@@ -154,11 +151,11 @@ ImportWindow::ImportWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
   pagesWidget = new QStackedWidget;
   QGroupBox* typeGroup = new QGroupBox(myelem.attribute("label"));
 
-  QPushButton* usuageButton = new QPushButton(tr("Usuage"));
+  QPushButton* usageButton = new QPushButton(tr("Usage"));
   QHBoxLayout* aLayout = new QHBoxLayout;
   aLayout->addWidget(typesWidget);
-  aLayout->addWidget(usuageButton);
-  connect(usuageButton, SIGNAL(clicked()), this, SLOT(usuageButtonClicked()));
+  aLayout->addWidget(usageButton);
+  connect(usageButton, SIGNAL(clicked()), this, SLOT(usageButtonClicked()));
   typeGroup->setLayout(aLayout);
   
  
@@ -242,7 +239,7 @@ ImportWindow::ImportWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
      
 
   convertButton = new QPushButton(tr("&Convert to Vog"));
-  QPushButton *checkButton = new QPushButton(tr("&Check grid quality"));
+  //  QPushButton *checkButton = new QPushButton(tr("&Check grid quality"));
  
 
   //  QPushButton *mergeButton = new QPushButton(tr("Merge")); 
@@ -256,7 +253,7 @@ ImportWindow::ImportWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
  
  
   connect(convertButton, SIGNAL(clicked()), this, SLOT(convert()));
-  connect(checkButton, SIGNAL(clicked()), this, SLOT(check()));
+  //connect(checkButton, SIGNAL(clicked()), this, SLOT(check()));
 
   
   QVBoxLayout *horizontalLayout = new QVBoxLayout;
@@ -267,11 +264,7 @@ ImportWindow::ImportWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
   buttonsLayout->addStretch(1);
  
   buttonsLayout->addWidget(convertButton);
-  buttonsLayout->addWidget(checkButton);
-  // buttonsLayout->addWidget(mergeButton);
-  //  buttonsLayout->addWidget(extractButton);
- 
-  
+  //  buttonsLayout->addWidget(checkButton);
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addLayout(horizontalLayout);
   mainLayout->addWidget(option);
@@ -282,113 +275,142 @@ ImportWindow::ImportWindow(QDomElement& theelem, QDomElement& theroot, QWidget* 
   
 }
 void ImportWindow::updateFileName(QString s){
- 
-  importFileName = s.section('.', 0, 0);
-      
+   importFileName = s.section('.', 0, -2);
 }
 void ImportWindow::changePage(QListWidgetItem *current, QListWidgetItem *previous)
 {
   if (!current)
     current = previous;
   currentRow = typesWidget->row(current);
-  if(currentRow == 0){
-    convertButton->hide();
-    option->hide();
-  }else{
-    convertButton->show();
-    option->show();
-  }
+  // if(currentRow == 0){
+//     convertButton->hide();
+//     option->hide();
+//   }else{
+//     convertButton->show();
+//     option->show();
+//   }
   pagesWidget->setCurrentIndex(currentRow);
 }
 
 void ImportWindow::convert(){
   
-  if(currentRow==0)return;
-  QString script_filename = "./output/convert_"+importFileName.section('/', -1);
-  QString out_filename="./output/convert_"+importFileName.section('/', -1)+".out";
-
-
-
-
-  QFile outfile(script_filename);
-  if (!outfile.open(QFile::WriteOnly | QFile::Text)) {
-    QMessageBox::warning(this, tr("savee var file "),
-                         tr("Cannot write file %1:\n%2.")
-                         .arg(script_filename)
-                         .arg(outfile.errorString()));
-     return;
-  }
+ 
+ //  QString script_filename = "./output/convert_"+importFileName.section('/', -1);
+//   QString out_filename="./output/convert_"+importFileName.section('/', -1)+".out";
   
-  QTextStream out(&outfile);
+
+
+
+//   QFile outfile(script_filename);
+//   if (!outfile.open(QFile::WriteOnly | QFile::Text)) {
+//     QMessageBox::warning(this, tr("savee var file "),
+//                          tr("Cannot write file %1:\n%2.")
+//                          .arg(script_filename)
+//                          .arg(outfile.errorString()));
+//      return;
+//   }
+  
+//   QTextStream out(&outfile);
   
   
   QString command2 = toVog[currentRow] +option->currentText() + " " +importFileName ;;
  
-  // QMessageBox msgBox;
-  //msgBox.setSizeGripEnabled(true);
-  //msgBox.setText(tr("converting ")+ importFileName+"                                                       ");
-
-  out <<"#!/bin/bash"<<endl;
-  out <<"exec 6>&1"<<endl;
-  out <<"exec 7>&2"<<endl;
-  out<< "exec &> "<< out_filename <<endl;
-
-  if(toXdr[currentRow]!=""){
-    QString command1 = toXdr[currentRow]+otherOptions[currentRow]->currentText()+" " + importFileName;
-    
-
-    out << command1 << endl;
-    out << command2 << endl;
-    // msgBox.setInformativeText(command1 + "\n" + command2);
-     emit updateStatus(command1);
-     emit updateStatus(command2);
-    
-  }else{
-    out << command2 << endl;
-    // msgBox.setInformativeText(command2);
-    emit updateStatus(command2);
-  }
-  out<<"exec 1>&6 6>&- " << endl;
-  out<<"exec 2>&7 7>&- " << endl;
-
-  outfile.close();
-  QString command3 = "chmod 777 " + script_filename;
-
-  int ret = system(command3.toStdString().c_str());
-
-  if(!WIFEXITED(ret))
-        {
-          if(WIFSIGNALED(ret))
-            {
-              QMessageBox::information(window(), "system",
-                                       command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
-              return;
-            }
-        }
-  
-  ret = system(script_filename.toStdString().c_str());
-  if(!WIFEXITED(ret)){
-    if(WIFSIGNALED(ret)){
-      QMessageBox::information(window(), "system",
-                               script_filename + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
-      return;
-    }
- }
  
-  QFile file(out_filename);
-  if (!file.open(QFile::ReadOnly | QFile::Text)) {
-     QMessageBox::information(window(), "file io",
-                                 tr("Cannot open ") + out_filename + tr(" for reading!"));
-     return;
-  }
-  
-  QTextStream in(&file);
-  QApplication::setOverrideCursor(Qt::WaitCursor);
-  // msgBox.setDetailedText(in.readAll());
-  emit updateStatus(in.readAll());
-  QApplication::restoreOverrideCursor();
-  file.close();
 
+ //  out <<"#!/bin/bash"<<endl;
+//   out <<"exec 6>&1"<<endl;
+//   out <<"exec 7>&2"<<endl;
+//   out<< "exec &> "<< out_filename <<endl;
+
+  QString command1;
+  if(toXdr[currentRow]!=""){
+    command1 = toXdr[currentRow]+otherOptions[currentRow]->currentText()+" " + importFileName;
+    
+
+  //   out << command1 << endl;
+//     out << command2 << endl;
+    
+      
+  }else{
+
+    //    out << command2 << endl;
+    
+   
+  }
+  // out<<"exec 1>&6 6>&- " << endl;
+//   out<<"exec 2>&7 7>&- " << endl;
+
+  // outfile.close();
+  
+
+//   QString command3 = "chmod 777 " + script_filename;
+
+//   int ret = system(command3.toStdString().c_str());
+
+//   if(!WIFEXITED(ret))
+//         {
+//           if(WIFSIGNALED(ret))
+//             {
+//               QMessageBox::information(window(), "system",
+//                                        command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
+//               return;
+//             }
+//         }
+
+//   if(toXdr[currentRow]!=""){
+//     emit updateStatus("COMMAND:   " + command1 + "   STARTED");
+//     emit updateStatus("COMMAND:   " + command2 + "   STARTED");
+//   }else{
+//     emit updateStatus("COMMAND:   " + command2 + "    STARTED");
+//   }
+  
+    
+//   ret = system(script_filename.toStdString().c_str());
+//   if(!WIFEXITED(ret)){
+//     if(WIFSIGNALED(ret)){
+//       QMessageBox::information(window(), "system",
+//                                script_filename + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
+//       return;
+//     }
+//  }
+
+//  if(toXdr[currentRow]!=""){
+//     emit updateStatus("COMMAND:    " + command1 + "    FINISHED");
+//     emit updateStatus("COMMAND:    " + command2 + "    FINISHED");
+//   }else{
+//     emit updateStatus("COMMAND:    " + command2 + "    FINISHED");
+//   }
+  
+//   QFile file(out_filename);
+//   if (!file.open(QFile::ReadOnly | QFile::Text)) {
+//      QMessageBox::information(window(), "file io",
+//                                  tr("Cannot open ") + out_filename + tr(" for reading!"));
+//      return;
+//   }
+  
+//   QTextStream in(&file);
+//   QApplication::setOverrideCursor(Qt::WaitCursor);
+
+//   emit updateStatus(in.readAll());
+//   QApplication::restoreOverrideCursor();
+//   file.close();
+  QString command;
+  if(toXdr[currentRow]!=""){
+    command = command1+'\n'+command2;
+  }else{
+    command = command2;
+  }
+  ProgressDialog* dialog = new ProgressDialog(command);
+  dialog->show();
+ 
+
+
+
+
+
+
+
+  
    //update DOM tree
   QDomElement buttons_elem = myroot.firstChildElement(tr("buttons"));
   QDomElement convert_elem = buttons_elem.firstChildElement(tr("convert"));
@@ -396,9 +418,12 @@ void ImportWindow::convert(){
   convert_elem.setAttribute(tr("dir"),  importFileName.section('/', 0, -2));
   convert_elem.setAttribute(tr("filename"), importFileName.section('/', -1));
   convert_elem.setAttribute(tr("cmd"), command2);
-  //  msgBox.exec();
+
   
 }
+
+
+
 // void ImportWindow::vog2surface(){
 //   if(importFileName==""){
 //     QMessageBox::warning(window(), tr(".xml"),
@@ -475,112 +500,115 @@ void ImportWindow::convert(){
 
 
   
-void ImportWindow::check(){
-  if(importFileName==""){
-      QMessageBox::warning(window(), tr("import"),
-                           tr("Please specify a filename first")
-                           );
-      return;
-  }
-  QFile exist_test(importFileName+tr(".vog"));
-  if(!(exist_test.exists())){
-    QMessageBox::warning(window(), tr("import"),
-                         tr("Please convert the file to volume grid format first")
-                         );
-    return;
-  }
+// void ImportWindow::check(){
+//   if(importFileName==""){
+//       QMessageBox::warning(window(), tr("import"),
+//                            tr("Please specify a filename first")
+//                            );
+//       return;
+//   }
+//   QFile exist_test(importFileName+tr(".vog"));
+//   if(!(exist_test.exists())){
+//     QMessageBox::warning(window(), tr("import"),
+//                          tr("Please convert the file to volume grid format first")
+//                          );
+//     return;
+//   }
   
-  QString script_filename = "./output/check_"+importFileName.section('/', -1);
-  QString out_filename="./output/check_"+importFileName.section('/', -1)+".out";
+//   QString script_filename = "./output/check_"+importFileName.section('/', -1);
+//   QString out_filename="./output/check_"+importFileName.section('/', -1)+".out";
 
 
 
 
-  QFile outfile(script_filename);
-  if (!outfile.open(QFile::WriteOnly | QFile::Text)) {
-     QMessageBox::warning(this, tr("file io "),
-                            tr("Cannot write file %1:\n%2.")
-                            .arg(script_filename)
-                          .arg(outfile.errorString()));
-    return;
-  }
+//   QFile outfile(script_filename);
+//   if (!outfile.open(QFile::WriteOnly | QFile::Text)) {
+//      QMessageBox::warning(this, tr("file io "),
+//                             tr("Cannot write file %1:\n%2.")
+//                             .arg(script_filename)
+//                           .arg(outfile.errorString()));
+//     return;
+//   }
   
-  QTextStream out(&outfile);
+//   QTextStream out(&outfile);
   
   
-  QString command2 = "vogcheck " +importFileName.section('/', -1);
-  emit updateStatus(command2);
+//   QString command2 = "vogcheck " +importFileName.section('/', -1);
+ 
  
   
-  out <<"#!/bin/bash"<<endl;
-  out <<"exec 6>&1"<<endl;
-  out <<"exec 7>&2"<<endl;
-  out<< "exec &> "<< out_filename <<endl;
-  out<<"cd " << importFileName.section('/',0,  -2)<<endl;
-  out << command2 << endl;
-  out<<"exec 1>&6 6>&- " << endl;
-  out<<"exec 2>&7 7>&- " << endl;
+//   out <<"#!/bin/bash"<<endl;
+//   out <<"exec 6>&1"<<endl;
+//   out <<"exec 7>&2"<<endl;
+//   out<< "exec &> "<< out_filename <<endl;
+//   out<<"cd " << importFileName.section('/',0,  -2)<<endl;
+//   out << command2 << endl;
+//   out<<"exec 1>&6 6>&- " << endl;
+//   out<<"exec 2>&7 7>&- " << endl;
 
-  outfile.close();
-  QString command3 = "chmod 777 " + script_filename;
+//   outfile.close();
+//   QString command3 = "chmod 777 " + script_filename;
 
-  int ret = system(command3.toStdString().c_str());
+ 
+ 
+//   int ret = system(command3.toStdString().c_str());
 
-  if(!WIFEXITED(ret))
-    {
-      if(WIFSIGNALED(ret))
-        {
-          QMessageBox::information(window(), "mainwindow",
-                                   command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
-          return;
-        }
-      exit(0);
-    }
-  ret = system(script_filename.toStdString().c_str());
+//   if(!WIFEXITED(ret))
+//     {
+//       if(WIFSIGNALED(ret))
+//         {
+//           QMessageBox::information(window(), "mainwindow",
+//                                    command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
+//           return;
+//         }
+//       exit(0);
+//     }
 
-  if(!WIFEXITED(ret))
-    {
-      if(WIFSIGNALED(ret))
-        {
-          QMessageBox::information(window(), "mainwindow",
-                                   command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
-          return;
-        }
-      exit(0);
-    }
+//    emit updateStatus("COMMAND:    " + command2 + "    STARTED");
+//   ret = system(script_filename.toStdString().c_str());
+
+//   if(!WIFEXITED(ret))
+//     {
+//       if(WIFSIGNALED(ret))
+//         {
+//           QMessageBox::information(window(), "mainwindow",
+//                                    command3 + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
+//           return;
+//         }
+//       exit(0);
+//     }
+//   emit updateStatus("COMMAND:    " + command2 + "    FINISHED");
+
+//    QFile file(out_filename);
+//   if (!file.open(QFile::ReadOnly | QFile::Text)) {
+//     QMessageBox::warning(this, tr(" file io "),
+//                          tr("Cannot read file %1:\n%2.")
+//                          .arg(out_filename)
+//                          .arg(file.errorString()));
+//     return;
+//   }
   
-  QFile file(out_filename);
-  if (!file.open(QFile::ReadOnly | QFile::Text)) {
-    QMessageBox::warning(this, tr(" file io "),
-                         tr("Cannot read file %1:\n%2.")
-                         .arg(out_filename)
-                         .arg(file.errorString()));
-    return;
-  }
-  
-  QTextStream in(&file);
-  QApplication::setOverrideCursor(Qt::WaitCursor);
-  // msgBox.setDetailedText(in.readAll());
-  updateStatus(in.readAll());
-  QApplication::restoreOverrideCursor();
-  file.close();
+//   QTextStream in(&file);
+//   QApplication::setOverrideCursor(Qt::WaitCursor);
+//   updateStatus(in.readAll());
+//   QApplication::restoreOverrideCursor();
+//   file.close();
 
-  //update DOM tree
-  QDomElement buttons_elem = myroot.firstChildElement(tr("buttons"));
-  QDomElement check_elem = buttons_elem.firstChildElement(tr("check"));
-  check_elem.setAttribute(tr("status"), tr("completed"));
-  check_elem.setAttribute(tr("dir"),  importFileName.section('/', 0, -2));
-  check_elem.setAttribute(tr("filename"), importFileName.section('/', -1));
+//   //update DOM tree
+//   QDomElement buttons_elem = myroot.firstChildElement(tr("buttons"));
+//   QDomElement check_elem = buttons_elem.firstChildElement(tr("check"));
+//   check_elem.setAttribute(tr("status"), tr("completed"));
+//   check_elem.setAttribute(tr("dir"),  importFileName.section('/', 0, -2));
+//   check_elem.setAttribute(tr("filename"), importFileName.section('/', -1));
 
   
-  QString qualityFileName = importFileName+tr(".quality");
-  //QString  qualityFileName="bad.quality";
-  QualityDialog qualityDialog(qualityFileName, this);
-  qualityDialog.exec();
+//   QString qualityFileName = importFileName+tr(".quality");
+//   QualityDialog qualityDialog(qualityFileName, this);
+//   qualityDialog.exec();
   
     
 
-}
+// }
 
 // void ImportWindow::merge(bool checked){
 //   if(!checked) return;
@@ -649,13 +677,13 @@ void ImportWindow::check(){
 
 
 
-void ImportWindow::usuageButtonClicked(){
+void ImportWindow::usageButtonClicked(){
   
-  QDomElement elt = myroot.firstChildElement("usuage");
+  QDomElement elt = myroot.firstChildElement("usage");
   
   if(elt.isNull()){
      QMessageBox::warning(window(), tr(".xml"),
-                         tr("can not find element 'usuage' in the children of 'import'")
+                         tr("can not find element 'usage' in the children of 'import'")
                           );
     return;
   }
@@ -664,7 +692,7 @@ void ImportWindow::usuageButtonClicked(){
   
   if(elem.isNull()){
     QMessageBox::warning(window(), tr(".xml"),
-                         tr("'usuage' has no child")
+                         tr("'usage' has no child")
                          );
     return;
   }

@@ -370,7 +370,7 @@ CpGroup ::CpGroup(QWidget* parent):QGroupBox(tr("curve fit for Cp"),parent){
   numberOfIntervals =3;
   model->setRowCount(4);
 
-  // QPushButton* saveButton = new QPushButton(tr("          save the module        "));
+  // QPushButton* saveButton = new QPushButton(tr("          save the model        "));
   //connect(saveButton, SIGNAL(clicked()), this, SLOT(save()));
   
   connect(model, SIGNAL(itemChanged(QStandardItem*)), this, SIGNAL(textChanged()));
@@ -784,7 +784,7 @@ ChemistryMdl::ChemistryMdl(bool noReaction, QWidget* parent):QWidget(parent){
   
   QRadioButton* speciesButton = new QRadioButton(tr("Add Species"));
   QRadioButton* reactionButton = new QRadioButton(tr("Add Reaction"));
-  QRadioButton* saveButton = new QRadioButton(tr("save the module"));
+  QRadioButton* saveButton = new QRadioButton(tr("save the model"));
  
   QHBoxLayout* buttonLayout = new QHBoxLayout;
   buttonLayout->addWidget(speciesButton);
@@ -839,13 +839,16 @@ bool ChemistryMdl::save(){
     QString initialPath = QDir::currentPath()+"/untitled.mdl";
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"),
                                                   initialPath,
-                                                    tr("module file (*.mdl)"));
+                                                    tr("model file (*.mdl)"));
     
     if (fileName.isEmpty())
       {
         QMessageBox::warning(this, tr("Window"), tr("Please specify filename")); 
         return false;
       }
+
+    if(fileName.section('.', -1, -1)!="mdl")fileName += ".mdl";
+    
     QFile file(fileName);
     if (!file.open(QFile::WriteOnly | QFile::Text)) {
       QMessageBox::warning(this, tr("Application"),
@@ -947,7 +950,7 @@ CpWindow::CpWindow(const QString& title, QWidget* parent):QGroupBox(title, paren
   mainLayout->addLayout(vBoxLayout);
   mainLayout->addWidget(cpGroup);
  
-  QPushButton* acceptButton = new QPushButton(tr("&Save the module"));
+  QPushButton* acceptButton = new QPushButton(tr("&Save the model"));
   // connect(acceptButton, SIGNAL(clicked()), this, SIGNAL(accept()));
   connect(acceptButton, SIGNAL(clicked()), this, SLOT(save()));
   mainLayout->addWidget(acceptButton);
@@ -957,13 +960,14 @@ bool CpWindow::save(){
   QString initialPath = QDir::currentPath()+"/untitled.mdl";
   QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"),
                                                   initialPath,
-                                                  tr("module file (*.mdl)"));
+                                                  tr("model file (*.mdl)"));
 
   if (fileName.isEmpty())
     {
       QMessageBox::warning(this, tr("CPWindow"), tr("Please specify filename")); 
       return false;
     }
+  if(fileName.section('.', -1, -1)!="mdl")fileName+=".mdl";
   QFile file(fileName);
   if (!file.open(QFile::WriteOnly | QFile::Text)) {
     QMessageBox::warning(this, tr("Application"),

@@ -90,7 +90,7 @@ GLViewer::GLViewer(QWidget *parent)
   currentColor = default_color[0];
   tox= toy=toz = rox = roy = 0;
   show_contours = true;
-  show_preview =  show_shading = show_grid = show_border = false;
+  show_preview =  show_shading = show_boundary_shading = show_grid = show_border = false;
   scale = 1.0;
   shadeType = 1;
   min_val = max_val = 0.0;
@@ -98,7 +98,7 @@ GLViewer::GLViewer(QWidget *parent)
   mode=BOUND_SELECT_MODE;
  
   adaptwindow = 0;
- show_shapes = true;
+  show_shapes = true;
   show_nodes = false;
 }
 
@@ -145,6 +145,12 @@ void GLViewer::clearCurrent(){
   
     updateGL();
   }
+  // show_nodes = false;
+  //show_shapes = false;
+  // tags.clear();
+  //clear shapes
+
+  
 }
 
 
@@ -199,7 +205,7 @@ void GLViewer::resizeGL(int width, int height)
   GLdouble far = size*30.0;
   gluPerspective(30, (GLdouble)width/height, near, far);
   glMatrixMode(GL_MODELVIEW);
-
+  
  
 }
 ////////////////////////////////////////////////////////////////////////////
@@ -322,6 +328,7 @@ void GLViewer::drawPxPlane(const vector<double>& p, double size){
   glPopMatrix(); 
 }
 void GLViewer::drawNxPlane(const vector<double>& p, double size){
+ 
   if(p.size()==0)return;
   double x = p[0];
   glPushMatrix(); 
@@ -457,6 +464,7 @@ void GLViewer::setAdaptWindow( QPointer<FVMAdapt> window){
 void GLViewer::adaptwindowClosed(){//signal not working
   adaptwindow = 0;
   updateGL();
+ 
 }
 
 
@@ -602,17 +610,17 @@ void GLViewer::drawShapes(){
       drawCylinder(para); 
     else if(objItem->text(0) =="box") 
       drawCube(para);
-    else if(objItem->text(0) =="x+plane")
+    else if(objItem->text(0) =="x_plus_plane")
         drawPxPlane(para, planesize);
-    else if(objItem->text(0) =="x-plane")
+    else if(objItem->text(0) =="x_minus_plane")
       drawNxPlane(para, planesize);
-    else if(objItem->text(0) =="y+plane")
+    else if(objItem->text(0) =="y_plus_plane")
        drawPyPlane(para, planesize);
-    else if(objItem->text(0) =="y-plane")
+    else if(objItem->text(0) =="y_minus_plane")
       drawNyPlane(para, planesize);
-    else if(objItem->text(0) =="z+plane")
+    else if(objItem->text(0) =="z_plus_plane")
       drawPzPlane(para, planesize);
-    else if(objItem->text(0) =="z-plane")
+    else if(objItem->text(0) =="z_minus_plane")
       drawNzPlane(para, planesize);
     
   
@@ -623,7 +631,7 @@ void GLViewer::drawShapes(){
    glLineWidth(1);
 }
 void GLViewer::markNodes(){
-   show_shapes = false;
+  show_shapes = false;
   show_nodes = true;
   if(adaptwindow==0) return;
   QDomDocument doc = adaptwindow->toDom();
@@ -650,23 +658,23 @@ void GLViewer::markVolumeNodes(QString filename){
     return;
   }
   // read in positions
-  hid_t fi = H5Gopen(input_fid,"file_info") ;
+  hid_t fi = H5Gopen(input_fid,"file_info", H5P_DEFAULT) ;
    unsigned long numNodes = readAttributeLong(fi,"numNodes") ;
   
   H5Gclose(fi) ;
   
   hsize_t count = numNodes ;
   
-#ifdef H5_INTERFACE_1_6_4
+  //#ifdef H5_INTERFACE_1_6_4
   hsize_t lstart = 0 ;
-#else
-  hssize_t lstart = 0 ;
-#endif
+  //#else
+    // hssize_t lstart = 0 ;
+  //#endif
   
     // Read in pos data from file i
   vector<positions3d> pos_dat(numNodes) ;
-  hid_t node_g = H5Gopen(input_fid,"node_info") ;
-  hid_t dataset = H5Dopen(node_g,"positions") ;
+  hid_t node_g = H5Gopen(input_fid,"node_info", H5P_DEFAULT) ;
+  hid_t dataset = H5Dopen(node_g,"positions", H5P_DEFAULT) ;
   hid_t dspace = H5Dget_space(dataset) ;
 
   
@@ -678,7 +686,8 @@ void GLViewer::markVolumeNodes(QString filename){
   H5Tinsert(pos_tid, "z", 2*sizeof(double), H5T_IEEE_F64LE);
 
   hsize_t stride = 1 ;
-  H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count,NULL) ;
+  H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count, NULL
+) ;
   int rank = 1 ;
   hsize_t dimension = count ;
   hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
@@ -701,12 +710,12 @@ void GLViewer::markVolumeNodes(QString filename){
   
   QDomElement rootElement = doc.firstChildElement("region");
   vector<bool> vtags = process_region(rootElement, pos_dat);
-  QString tagFileName =filename.section('.', 0, 0)+".tag";
+  QString tagFileName =filename.section('.', 0, -2)+".tag";
   
   tagFileName = QFileDialog::getSaveFileName(this, tr("Save .tag File"),
                                              tagFileName,
                                              tr("tag Files (*.tag)"));
-  
+  if(tagFileName.section('.', -1, -1)!="tag") tagFileName +=".tag";
   
 
 
@@ -867,13 +876,13 @@ void GLViewer::paintGL()
   
 }
 void GLViewer::setCurrentObj(int i, QColor c){
-  if( i>=0 && i<=(int)boundObjects.size()){
+  if( i>=0 && i<(int)boundObjects.size()){
     if(currentObj != -1) makeBoundWireframeObject(currentObj, currentColor);
       makeBoundFillObject(i, c);
       currentObj =i;
       currentColor = c;
       updateGL();
-    
+      
   }
 }
 
@@ -937,14 +946,9 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
  
   
 
-  QStringList format = fileName.split('.');
-  if(format.size()!=2){
-     QMessageBox::warning(this, tr("Application"),
-                          fileName + tr(" has no postfix"));
-     return false;
-  }
+  
 
-  if(format[1] =="surface"){
+  if(fileName.right(8) ==".surface"){
 
     QFile file(fileName);
     if (!file.open(QFile::ReadOnly | QFile::Text)) {
@@ -1102,7 +1106,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
      }
   file.close();
   
-  }else if(format[1] == "surf"){
+  }else if(fileName.right(5)==".surf"){
     //first read in meshNodes
     meshNodes.clear();
     QFile file(fileName);  
@@ -1158,7 +1162,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
 
 
     //if .name file exists, read in and read mesh   
-    QString name_file = format[0]+".names";
+    QString name_file = fileName.left(last)+".names";
     QFile infile(name_file);
     if(infile.exists()){
       if (!infile.open(QFile::ReadOnly | QFile::Text)) {
@@ -1360,7 +1364,8 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   tags.clear();
   extremeValues.clear();
   extremeNodes.clear();
-  if(adaptwindow)show_shapes = true;
+  adaptwindow = 0;
+  show_shapes = true;
   resizeGL(currentWidth, currentHeight);
   return true;
 }
@@ -1408,13 +1413,48 @@ void GLViewer::setVisibility(int i, bool show)
 // 
 //
 //////////////////////////////////////////////////////////////////////////
-// void GLViewer::uncut(){
-//   showBoundaries(true);
-//   mode = BOUND_SELECT_MODE;
-//   show_preview = false;
+void GLViewer::uncut(){
  
-//   updateGL();
-// }
+  for(unsigned int i=0; i < objVisible.size(); i++){
+    objVisible[i] = true;
+  }
+  mode = BOUND_SELECT_MODE;
+  show_preview = false;
+  extremeValues.clear();
+  extremeNodes.clear();
+  extreme_percentage = 0;
+  if(fig){
+    delete fig;
+    fig = 0;
+  }
+
+  if (cpContourObject){
+    glDeleteLists(cpContourObject, 1);
+    cpContourObject = 0;
+  }
+  
+  if (mode == PLANE_AND_BOUND_MODE || mode == PLANE_ONLY_MODE) {
+    if (gridObject){
+      glDeleteLists(gridObject, 1);
+      gridObject = 0;
+    }
+    if (contourObject){
+      glDeleteLists(contourObject, 1);
+      contourObject = 0;
+    }
+    if (borderObject){
+      glDeleteLists(borderObject, 1);
+      borderObject = 0;
+    }
+    if (shadingObject){
+      glDeleteLists(shadingObject, 1);
+      shadingObject = 0;
+    }
+  }
+  show_preview = show_contours = show_grid = show_shading = show_boundary_shading = show_border = false;
+  makeObjects(); 
+  updateGL();
+}
 //////////////////////////////////////////////////////////////////////////////
 //  protected:
 //    void mousePressEvent(QMouseEvent *event);
@@ -1496,12 +1536,14 @@ void GLViewer::mouseMoveEvent(QMouseEvent *event)
      toy += dy/scale;
    }
    else if (event->buttons() & Qt::MidButton) {//zoom
+     double delta =(fabs(dx) > fabs(dy))?(-1*dx):(-1*dy);
+     
      if (zbar > 0.05*size) {
-       toz += dx*zbar/size;
+       toz += delta*zbar/size;
        scale = 1.0;
      }
      else if (scale >= 1.0) {
-       scale += 0.1*dx/(scale*size);
+       scale += 0.1*delta/(scale*size);
      }
      else {
        toz = 2*size - zbar - 0.01*size;
@@ -1577,7 +1619,6 @@ void GLViewer::mouseDoubleClickEvent(QMouseEvent *event)
     GLdouble  projectionMatrix[16];
     
     glGetIntegerv(GL_VIEWPORT, viewport);
-    //  glGetDoublev(GL_MODELVIEW_MATRIX, modelviewMatr);//get the matrix in painGL so tranformation will take effect
     glGetDoublev(GL_PROJECTION_MATRIX, projectionMatrix);
 
     gluUnProject(x, viewport[3]-y-1, 0.0, modelviewMatr,
@@ -1652,10 +1693,10 @@ void GLViewer::wheelEvent(QWheelEvent *event)
 //  object to change contour spacing and redraw the contours.
 //////////////////////////////////////////////////////////////////////////////
 
-void GLViewer::changeContours(int)
+void GLViewer::changeContours(int number)
 {
   if (fig) {
-    //    fig->generate_contour_curves(number);
+    fig->generate_contour_curves(number);
     glDeleteLists(contourObject, 1);
     contourObject = makeContourObject();
     updateGL();
@@ -1741,9 +1782,12 @@ void GLViewer::previewCut(cutplane_info& Nfo)
 
 void GLViewer::cut()
 {
-
+  if(loadInfo.variable.isEmpty()||loadInfo.iteration.isEmpty()){
+    QMessageBox::warning(this, tr("post_processing"),
+                         tr("No scalar value, please run vogcheck first"));
+   return;
+  }
   if(cpContourObject==0)return;  
-  
   mode = PLANE_AND_BOUND_MODE;
   info = previewInfo;
   if (fig){
@@ -1751,17 +1795,13 @@ void GLViewer::cut()
     fig = 0;
   }
   fig = new grid;
- 
   positions3d center = positions3d(centerx, centery, centerz);
- 
-  fig->cut(info, loadInfo, center);
+   fig->cut(info, loadInfo, center);
   if(fig->triangle_list.size()==0) return;
-
- 
   this->show_contours = true;
   this->show_grid = false;
-  this->show_shading = false;
-
+  this->show_shading = true;
+  show_boundary_shading = false;
 
   if (min_val == 0.0 && max_val == 0.0) {
     min_val = fig->min_val;
@@ -1786,15 +1826,29 @@ void GLViewer::loadSca(){
  
   // Get variable information
  hsize_t npnts;
-
  
+ /* Turn off error handling */
+ H5Eset_auto2(H5E_DEFAULT, NULL,NULL);
+ 
+ if(loadInfo.variable.isEmpty() || loadInfo.iteration.isEmpty()){
+   QMessageBox::warning(this, tr("load scalar value"),
+                        tr("no scalar value file exists, please run vogcheck first"));
+   return;
+ }
+  
  QString posname = loadInfo.directory + "/output/grid_pos." + loadInfo.iteration + 
    '_' + loadInfo.casename ;
  
  hid_t file_id = H5Fopen(posname.toLocal8Bit(),
                          H5F_ACC_RDONLY, H5P_DEFAULT) ;
+
+ if(file_id<0){
+   QMessageBox::warning(this, tr("load scalar value"),
+                        tr("unable to open ") + posname);
+   return;
+ }
  
- hid_t dataset_id = H5Dopen(file_id, "/pos/data");
+ hid_t dataset_id = H5Dopen(file_id, "/pos/data", H5P_DEFAULT);
  hid_t dataspace_id = H5Dget_space(dataset_id);
  H5Sget_simple_extent_dims(dataspace_id, &npnts, NULL);
  hid_t pos_tid = H5Tcreate(H5T_COMPOUND, sizeof(positions3d));
@@ -1822,10 +1876,18 @@ void GLViewer::loadSca(){
 
  hid_t scalar_id = H5Fopen(filename.toLocal8Bit(), 
                            H5F_ACC_RDONLY, H5P_DEFAULT);
+ 
+ if(scalar_id<0){
+   QMessageBox::warning(this, tr("load scalar value"),
+                        tr("unable to open ") + filename);
+   return;
+ }
+ 
+ 
  vector<float> nodeVal;
  nodeVal.assign(npnts, 0.0);
  QString datasetName = "/" + loadInfo.variable + "/data";
- dataset_id = H5Dopen(scalar_id, datasetName.toLocal8Bit());
+ dataset_id = H5Dopen(scalar_id, datasetName.toLocal8Bit(), H5P_DEFAULT);
  H5Dread(dataset_id, H5T_IEEE_F32LE, 
          H5S_ALL, H5S_ALL, H5P_DEFAULT, &nodeVal[0]);
  H5Dclose(dataset_id);
@@ -1881,7 +1943,7 @@ void GLViewer::loadSca(){
     }
   }
   qDebug() << "min, max: " <<min_val << "  " << max_val << extremeValues.size(); 
-  show_shading = true;
+  show_boundary_shading = true;
   
   mode = BOUND_SELECT_MODE;
   makeObjects();
@@ -1895,8 +1957,9 @@ void GLViewer::setPercentage(int i){
 }
 
 void GLViewer::setShading(bool b){
-  if(show_shading !=b) toggleShading();
+  if(show_boundary_shading !=b) toggleBoundaryShading();
 }
+
 
 double GLViewer::boundaryBoxSize(){
                                     
@@ -1926,6 +1989,14 @@ void GLViewer::toggleShowShapes()
   show_shapes = (show_shapes)?false:true;
   updateGL();
 }
+
+void GLViewer::toggleBoundaryShading()
+{
+  show_boundary_shading = (show_boundary_shading)?false:true;
+  makeObjects();
+  updateGL();
+}
+
 
 void GLViewer::toggleShowNodes()
 {

@@ -11,10 +11,11 @@
 #include <QTableView>
 #include <QList>
 #include <QHBoxLayout>
+
 #include <utility>
 #include "pages.h"
 #include "grid.h"
-
+#include "progressdialog.h"
 class QListWidget;
 class QListWidgetItem;
 class QStackedWidget;
@@ -163,6 +164,13 @@ struct IDColor{
   
 };
 
+struct IDOnly{
+  int gridId;
+  int boundId;
+  IDOnly(const pair<int, int>& id):gridId(id.first), boundId(id.second){}
+};
+
+
 struct IDVisibility{
   int gridId;
   int boundId;
@@ -176,7 +184,8 @@ class VMOption: public QGroupBox{
   Q_OBJECT
 public:
   VMOption(int gridId, const QString &gridname, const QStringList &bcnames, QWidget *parent=0 );
-
+ 
+  void setCurrentBid(int);
   signals:
   void tcChanged(const IDMatrix&);
   void  setCurrentColor(const IDColor&);
@@ -228,7 +237,7 @@ private:
   int currentCoef;
   QString tag;
   QList<pair<QString, QString> > bdnames;
-  // int currentBd;
+ 
 };
 
 
@@ -244,9 +253,9 @@ public:
   void loadGridClicked();
   void gridLoaded(const QStringList &);
   void changePage(QListWidgetItem *, QListWidgetItem *);
- 
   void clearAll();
-  
+  void afterMerge(QString, QProcess::ExitStatus);
+  void selectCurrent(const IDOnly&);
   signals:
   void currentGridChanged(int);
   void loadGrid(QString);//add a grid
@@ -258,8 +267,8 @@ public:
 private:
   void clear();
 private:
-  int currentRow;
-   vector<vector<TranCoef> > transcoef;
+  
+  vector<vector<TranCoef> > transcoef;
 
   
   QListWidget *typesWidget;

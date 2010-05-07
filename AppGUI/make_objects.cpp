@@ -39,17 +39,17 @@ void GLViewer::makeObjects()
     borderObject = makeBorderObject();
   }
 
-  else if (mode == BOUND_SELECT_MODE){
   
-    if (!boundObjects.empty()) {
-      for (size_t i = 0; i < boundObjects.size(); ++i)
-        glDeleteLists(boundObjects[i], 1);
-      boundObjects.clear();
-    }
-    if(show_shading)makeBoundShadingObjects();
-    else makeBoundObjects();
+  
+  if (!boundObjects.empty()) {
+    for (size_t i = 0; i < boundObjects.size(); ++i)
+      glDeleteLists(boundObjects[i], 1);
+    boundObjects.clear();
   }
- 
+  if(show_boundary_shading)makeBoundShadingObjects();
+  else makeBoundObjects();
+  
+  
 }
 
 //////////////////////////////////////////////////////////////////////////////

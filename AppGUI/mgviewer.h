@@ -61,7 +61,7 @@ public:
  void setCurrentColor(const IDColor&); 
   void setCurrentVisibility(const IDVisibility&);
   void showBoundaries(); // slot for vis menu
-  //  void clearCurrent();
+   void clearCurrent();
   void reset();
   void fit();
   bool load_boundary(QString filename); //read in .surf and .names file, or .surface file
@@ -69,7 +69,7 @@ public:
   void transGrid(const IDMatrix&);
   // void setLoadInfo(const LoadInfo&);
 signals:
-  void pickCurrent(int);
+  void pickCurrent(const IDOnly&);
   void gridLoaded(const QStringList&);
 protected:
   void initializeGL();
@@ -91,7 +91,7 @@ private:
   
   void drawBoundObject(int gid, int bid, QColor c);
   void makeBoundWireframeObject(int gid, int bid, QColor c);
-  // void makeBoundFillObject(int bid, QColor c);
+  void makeBoundFillObject(int gid, int bid, QColor c);
   
   
 
@@ -124,6 +124,9 @@ private:
   float min_val, max_val;  // Scalar value extrema over the whole grid
 
   GLdouble modelviewMatr[16];
+
+  int currentGrid, currentObj;
+  QColor currentColor;
   
 };
 

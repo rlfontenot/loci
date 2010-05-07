@@ -18,7 +18,7 @@ class FVMAdapt;
 //PLANE_ONLY_MODE:when only cut plane is read from a file
 enum opMode {BOUND_SELECT_MODE,  PLANE_AND_BOUND_MODE, PLANE_ONLY_MODE};
 
-std::vector<bool> process_region(QDomElement& anode, std::vector<positions3d> p);
+std::vector<bool> process_region(const QDomElement& anode, std::vector<positions3d> p);
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -58,6 +58,7 @@ public:
   void toggleContours();
   void toggleGrid();
   void toggleShading();
+  void toggleBoundaryShading();
   void setShading(bool); //show_exreme_nodes decide shading
   void toggleBorder();
   void toggleShowShapes();
@@ -66,16 +67,17 @@ public:
   void setShadeType2();
   void setShadeType3();
   void changeContours(int number);
- 
   void cut(); //read in volume grid and sca value, generate a cutplane
   void loadSca(); //read in sca value, shading the boundaries
-  // void showExtreme();
-  // void uncut();
+  void setPercentage(int);
+  void previewCut(cutplane_info& Nfo);
+  void uncut();
+  
+  //for general display
   void setCurrentObj(int i, QColor c); 
   void setVisibility(int , bool );
   void showBoundaries(); // slot for vis menu
   void clearCurrent();
-  void previewCut(cutplane_info& Nfo);
   void reset();
   void fit();
   void setLoadInfo(const LoadInfo&);
@@ -87,8 +89,8 @@ public:
   void markNodes();
   void markVolumeNodes(QString fileName);
 
-  void setPercentage(int);
-  //  void refineGrids(QString );
+ 
+ 
 signals:
   void pickCurrent(int);
 protected:
@@ -193,7 +195,7 @@ private:
   
   int currentWidth, currentHeight;//viewport
   
-  bool show_preview, show_contours, show_grid, show_shading, show_border, show_nodes, show_shapes;  // Visibility flags
+  bool show_preview, show_contours, show_grid, show_shading,show_boundary_shading, show_border, show_nodes, show_shapes;  // Visibility flags
   double min_val, max_val;  // Scalar value extrema over the whole grid
   
   cutplane_info info;  // The information for the current cutting plane

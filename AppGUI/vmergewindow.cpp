@@ -370,6 +370,16 @@ void VMOption::setCurrentObj(QModelIndex top){
      emit setCurrentColor(ic);
 }
 
+void VMOption::setCurrentBid(int bid){
+    QColor value= modBoundaries->item(bid, 0)->background().color();
+    QModelIndex index =qobject_cast<const QAbstractItemModel*>(modBoundaries)->index(bid, 1);
+    qobject_cast<QAbstractItemView*>( boundaryView)->setCurrentIndex(index);
+
+    IDColor ic = IDColor(gridId, bid, value);
+    emit setCurrentColor(ic);
+   
+}
+
 void VMOption::setInfo(){
  
   vector3d<double> translate =  vector3d<double>(xEditor1->value(),
@@ -424,7 +434,7 @@ affineMapping2 VMOption::currentM(){
 }
 
 QString VMOption::currentText(){
-  if(bdnames.size() == 0)return "";
+  if(bdnames.size() == 0)return QString();
   QString text;
   text += " -g " + gridName;
   for(unsigned int i = 0; i < tc.size(); i++){
@@ -452,7 +462,7 @@ QString VMOption::currentText(){
   if(!tagEditor->text().isEmpty()) text += " -tag " + tagEditor->text();
   for(int i =0; i < bdnames.size(); i++){
     if(!bdnames[i].second.isEmpty()){
-      text += " -bc " +bdnames[i].first + "," + bdnames[i].second+" ";
+      text += " -bc " +bdnames[i].first + "," + bdnames[i].second;
     }
   }     
   return text;
@@ -466,7 +476,7 @@ QString VMOption::currentText(){
 VMergeWindow::VMergeWindow( QWidget* parent)
   :QWidget(parent)
 {
- 
+  setAttribute(Qt::WA_DeleteOnClose, true);
   typesWidget = new QListWidget;
   pagesWidget = new QStackedWidget;
   
@@ -498,14 +508,14 @@ VMergeWindow::VMergeWindow( QWidget* parent)
   mainLayout->addLayout(buttonsLayout);
   setLayout(mainLayout);
   setWindowTitle(tr("vogmerge window"));
-   setAttribute(Qt::WA_DeleteOnClose, true);
+ 
 }
 
 void VMergeWindow::changePage(QListWidgetItem *current, QListWidgetItem *previous)
 {
   if (!current)
     current = previous;
-  currentRow = typesWidget->row(current);
+  int currentRow = typesWidget->row(current);
   pagesWidget->setCurrentIndex(currentRow);
 }
 
@@ -524,7 +534,7 @@ void VMergeWindow::loadGridClicked(){
   QString initialPath =QDir::currentPath();
   
   QString fileName  = initialPath;
-  fileName = "/simcenter/data1/qxue/grids/";
+ 
   
   fileName = QFileDialog::getOpenFileName(this, tr("Load Grid"),
                                           fileName,
@@ -555,42 +565,40 @@ void VMergeWindow::gridLoaded(const QStringList & names){
   pagesWidget->addWidget(agrid);
 }
   
-   
-void VMergeWindow::vmClicked(){
+void VMergeWindow::selectCurrent(const IDOnly& id){
   
-  QString fileName = QFileDialog::getSaveFileName(this, tr("Merged Vog File"),
-                                                  tr(""),
+  typesWidget->setCurrentRow(id.gridId);
+  qobject_cast<VMOption*>(pagesWidget->widget(id.gridId))->setCurrentBid(id.boundId); 
+ 
+}
+
+
+void VMergeWindow::vmClicked(){
+  QString initialPath =QDir::currentPath();
+  
+  QString fileName  = initialPath;
+ 
+  
+   fileName = QFileDialog::getSaveFileName(this, tr("Merged Vog File"),
+                                                  fileName,
                                                   tr("Volume Grid files (*.vog)"));
   
-
-  if(!fileName.isEmpty()){
-    QString command = "vogmerge ";
+  if(fileName.section('.', -1, -1)!="vog")fileName+=".vog";
+  
+  if(!(fileName.section('/', -1, -1).section('.',0,0).isEmpty())){
+    QString command = QString("vogmerge");
     for(int i = 0; i < typesWidget->count(); i++){
-      command +=qobject_cast<VMOption*>( pagesWidget->widget(i))->currentText()+" ";
+      command +=qobject_cast<VMOption*>( pagesWidget->widget(i))->currentText();
     }
     command += " -o " + fileName;
 
-    qDebug() << command ;
-    int ret = system(command.toStdString().c_str());
-
-    
-    if(!WIFEXITED(ret))
-    {
-      if(WIFSIGNALED(ret))
-        {
-          QMessageBox::information(window(), "mainwindow",
-                                   command + tr(" was terminated with the signal %d") + WTERMSIG(ret) ); 
-          return;
-        }
-      exit(0);
-    }
  
+    ProgressDialog* progress = new ProgressDialog(command,false);
+    progress->show();
+    connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus)), this, SLOT(afterMerge(QString, QProcess::ExitStatus)));
   }
-
-  clear();
-  emit getGrid(fileName);
-  
-}
+    
+ }
 
 void VMergeWindow::clearAll(){
   clear();
@@ -608,7 +616,13 @@ void VMergeWindow::clear(){
     tmpWidget = pagesWidget->widget(0);
   }
 
-  currentRow = 0;
+ 
 }
 
-
+void VMergeWindow::afterMerge(QString command, QProcess::ExitStatus status){
+  if(status==QProcess::NormalExit){
+    clear();
+    QString filename = command.section(' ', -1, -1);
+    emit getGrid(filename);
+  }
+}

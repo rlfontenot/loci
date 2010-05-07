@@ -73,10 +73,10 @@ MGViewer::MGViewer(QWidget *parent)
   makeCurrent();
   centerx = centery = centerz=0;
   size = 0.1;
-  //  currentObj = -1; //no select obj
-  //currentGrid = -1; //no grid loaded
+  currentObj = -1; //no select obj
+  currentGrid = -1; //no grid loaded
   
-  //currentColor = default_color[0];
+  currentColor = default_color[0];
   tox= toy=toz = rox = roy = 0;
   
   scale = 1.0;
@@ -186,16 +186,30 @@ void MGViewer::paintGL()
 }
 //select one boundary from current grid
 void MGViewer::setCurrentColor(const IDColor& idColor){
+
+  
   int gid = idColor.gridId;
   int bid = idColor.boundId;
-  if(gid >= (int)boundObjects.size() || bid >= (int)boundObjects[gid].size())return;
+  if(gid < 0 || bid < 0 ||gid >= (int)boundObjects.size() || bid >= (int)boundObjects[gid].size())return;
+  if(currentGrid >= 0 && currentObj >=0){
+    makeBoundWireframeObject(currentGrid, currentObj, currentColor);
+  }
+  currentGrid = gid;
+  currentObj = bid;
+  currentColor = idColor.color;
+  makeBoundFillObject(gid, bid, idColor.color);
+  updateGL();
   
-  
-    makeBoundWireframeObject(gid, bid, idColor.color);
-    updateGL();
-    
 }
 
+void MGViewer::clearCurrent(){
+  if(currentObj!=-1 && currentGrid!= -1){
+    makeBoundWireframeObject(currentGrid, currentObj, currentColor);
+    currentObj=-1;
+    currentGrid = -1;
+    updateGL();
+  }
+}
 
 void MGViewer::reset(){
   
@@ -213,20 +227,21 @@ void MGViewer::reset(){
 }
 
 void MGViewer::fit(){
- //  if(currentObj<0){
-//     QMessageBox::warning(window(), tr("fit"),
-//                          tr("please select a boundary first")
-//                          );
-//     return;
-//   }
-//   isFit = true;
-  
-//   for( int i =0; i < (int)objVisible[currentGrid].size(); i++){
-//     if(i == currentObj) objVisible[currentGrid][i] = true;
-//     else objVisible[currentGrid][i] = false;
-//   }
-//   updateView();
-//   updateGL();
+  if(currentObj<0){
+    QMessageBox::warning(window(), tr("fit"),
+                         tr("please select a boundary first")
+                         );
+    return;
+  }
+  isFit = true;
+  for( int i  = 0; i < (int)objVisible.size(); i++){
+    for( int j =0; j < (int)objVisible[i].size(); j++){
+      if(i==currentGrid && j == currentObj) objVisible[i][j] = true;
+      else objVisible[i][j] = false;
+    }
+  }
+  updateView();
+  updateGL();
 }
 
 
@@ -266,14 +281,14 @@ bool MGViewer::load_boundary(QString fileName) {
 
   //if .surf file doesn't exist or it's created before .vog file
   //run vog2surf
-  QString surfFileName = fileName.section('.', 0, 0)+".surf";
-  QString nameFileName =  fileName.section('.', 0, 0)+".names";
+  QString surfFileName = fileName.section('.', 0, -2)+".surf";
+  QString nameFileName =  fileName.section('.', 0, -2)+".names";
   QFileInfo surfInfo(surfFileName);
   QFileInfo vogInfo(fileName);
   QFileInfo nameInfo(nameFileName);
   
   if(!(surfInfo.exists()) || !(nameInfo.exists())|| surfInfo.created() < vogInfo.created()){
-    QString command2 = "vog2surf " + fileName.section('.', 0, 0);
+    QString command2 = "vog2surf " + fileName.section('.', 0, -2);
     int ret =  system(command2.toStdString().c_str());
     if(!WIFEXITED(ret))
       {
@@ -299,15 +314,8 @@ bool MGViewer::load_boundary(QString fileName) {
     
     if(!(surfInfo2.exists())) return false;
     //read in .surf file
-    QStringList format = surfFileName.split('.');
-    if(format.size()!=2){
-      QMessageBox::warning(this, tr("Application"),
-                           fileName + tr(" has no postfix"));
-      return false;
-    }
-  
-    
-    if(format[1] == "surf"){
+        
+    if(surfFileName.right(5) == ".surf"){
    
     //first read in meshNodes
     vector<vector<int> > tmpmesh;
@@ -361,7 +369,7 @@ bool MGViewer::load_boundary(QString fileName) {
 
 
     //if .name file exists, read in and read mesh   
-    QString name_file = format[0]+".names";
+    QString name_file = surfFileName.left(surfFileName.lastIndexOf('.'))+".names";
     QFile infile(name_file);
     if(infile.exists()){
       if (!infile.open(QFile::ReadOnly | QFile::Text)) {
@@ -473,11 +481,11 @@ bool MGViewer::load_boundary(QString fileName) {
   }
   objMinMax.push_back(tmpMinMax);
   objVisible.push_back(tmpVisible);
-  
-  //finish reading in all information
-    updateView(); 
-  emit gridLoaded(boundary_names);
   gridXform.push_back(affineMapping2());
+  
+  updateView(); 
+  emit gridLoaded(boundary_names);
+  
   
   addBoundObjects();
 
@@ -644,69 +652,74 @@ void MGViewer::mouseMoveEvent(QMouseEvent *event)
 //  clicked.
 //////////////////////////////////////////////////////////////////////////////
 
-void MGViewer::mouseDoubleClickEvent(QMouseEvent *)
+void MGViewer::mouseDoubleClickEvent(QMouseEvent *event)
 {
 
- //  if (event->buttons() & Qt::LeftButton) {
-//     int x = event->x();
-//     int y = event->y();
-//     double xmove, ymove, zmove;
-//     GLint viewport[4];
-//     GLdouble  projectionMatrix[16];
+  if (event->buttons() & Qt::LeftButton) {
+    int x = event->x();
+    int y = event->y();
+    double xmove, ymove, zmove;
+    GLint viewport[4];
+    GLdouble  projectionMatrix[16];
     
-//     glGetIntegerv(GL_VIEWPORT, viewport);
-//     //  glGetDoublev(GL_MODELVIEW_MATRIX, modelviewMatr);//get the matrix in painGL so tranformation will take effect
-//     glGetDoublev(GL_PROJECTION_MATRIX, projectionMatrix);
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    glGetDoublev(GL_PROJECTION_MATRIX, projectionMatrix);
 
-//     gluUnProject(x, viewport[3]-y-1, 0.0, modelviewMatr,
-//                  projectionMatrix, viewport, &xmove, &ymove, &zmove);
-//     positions3d P1 = positions3d(xmove, ymove, zmove);
+    gluUnProject(x, viewport[3]-y-1, 0.0, modelviewMatr,
+                 projectionMatrix, viewport, &xmove, &ymove, &zmove);
+    positions3d P1 = positions3d(xmove, ymove, zmove);
 
-//     gluUnProject(x, viewport[3]-y-1, 1.0, modelviewMatr,
-//                  projectionMatrix, viewport, &xmove, &ymove, &zmove);
-//     positions3d P2 = positions3d(xmove, ymove, zmove);
+    gluUnProject(x, viewport[3]-y-1, 1.0, modelviewMatr,
+                 projectionMatrix, viewport, &xmove, &ymove, &zmove);
+    positions3d P2 = positions3d(xmove, ymove, zmove);
     
 
     
-//     vector<std::pair<double, unsigned int> > picked;
-//     for (unsigned int bid = 0; bid < mesh[currentGrid].size(); ++bid) {
-//       if (objVisible[currentGrid][bid]) {
-//         for(size_t i = 0; i <mesh[currentGrid][bid].size()/3; i++){ 
+    vector<std::pair<double, pair<int, int> > > picked;
+    for(unsigned int gid = 0; gid<mesh.size(); gid++){
+      for (unsigned int bid = 0; bid < mesh[gid].size(); ++bid) {
+        if (objVisible[gid][bid]) {
+          for(size_t i = 0; i <mesh[gid][bid].size()/3; i++){ 
               
         
-//           positions3d t1 = meshNodes[currentGrid][mesh[currentGrid][bid][i*3 + 0]]; 
-//           positions3d t2 = meshNodes[currentGrid][mesh[currentGrid][bid][i*3 + 1]]; 
-//           positions3d  t3 = meshNodes[currentGrid][mesh[currentGrid][bid][i*3 + 2]];
-//           positions3d hitP;
-//           if(CheckLineTri(t1, t2, t3, P1, P2, hitP)){
-//             double winx, winy, winz;
-//              gluProject(hitP.x, hitP.y, hitP.z, modelviewMatr,
-//                  projectionMatrix, viewport, &winx, &winy, &winz);
-//             picked.push_back(std::make_pair(winz, bid));
-//             break;
+            positions3d t1 =  gridXform[gid].Map( meshNodes[gid][mesh[gid][bid][i*3 + 0]]); 
+            positions3d t2 = gridXform[gid].Map(meshNodes[gid][mesh[gid][bid][i*3 + 1]]); 
+            positions3d  t3 = gridXform[gid].Map(meshNodes[gid][mesh[gid][bid][i*3 + 2]]);
+           
+            positions3d hitP;
+            if(CheckLineTri(t1, t2, t3, P1, P2, hitP)){
+              double winx, winy, winz;
+              gluProject(hitP.x, hitP.y, hitP.z, modelviewMatr,
+                         projectionMatrix, viewport, &winx, &winy, &winz);
+              picked.push_back(std::make_pair(winz, make_pair(gid, bid)));
+              break;
                              
        
-//           }}}
-//     }
-//     if(picked.size() > 1) std::sort(picked.begin(), picked.end());
-//     if(picked.size() >0) {
-     
-//       emit pickCurrent(int(picked[0].second)); 
-//     }
+            }
+          }
+        }
+      }
+    }
+    
+    if(picked.size() > 1) std::sort(picked.begin(), picked.end());
+    if(picked.size() >0) {
+    
+      emit pickCurrent(IDOnly(picked[0].second)); 
+    }
           
         
           
     
-//   } else if (event->buttons() & Qt::MidButton) {
+  } else if (event->buttons() & Qt::MidButton) {
     
     
-//   } else if (event->buttons() & Qt::RightButton) {
-//     //    tox = toy = toz =rox = roy = roz = 0;  
+  } else if (event->buttons() & Qt::RightButton) {
+    //    tox = toy = toz =rox = roy = roz = 0;  
     
-//   }
+  }
   
-//   updateGL();
-
+  updateGL();
+  
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -741,17 +754,20 @@ void MGViewer::updateView()
     for (size_t i = 0; i < objMinMax[k].size()/2; ++i) {
       if (objVisible[k][i]) {
         if (first) {
-          minpos =  objMinMax[k][2*i];
-          maxpos = objMinMax[k][2*i+1];
+          minpos =  gridXform[k].Map(objMinMax[k][2*i]);
+          maxpos = gridXform[k].Map(objMinMax[k][2*i+1]);
           first = false;
         } else {
-          minpos.x = qMin(minpos.x, objMinMax[k][2*i + 0].x);
-          minpos.y = qMin(minpos.y, objMinMax[k][2*i + 0].y);
-          minpos.z = qMin(minpos.z, objMinMax[k][2*i + 0].z);
+          positions3d tmpMin =  gridXform[k].Map(objMinMax[k][2*i + 0]);
+          positions3d tmpMax =  gridXform[k].Map(objMinMax[k][2*i + 1]);
           
-          maxpos.x = qMax(maxpos.x, objMinMax[k][2*i + 1].x);
-          maxpos.y = qMax(maxpos.y, objMinMax[k][2*i + 1].y);
-          maxpos.z = qMax(maxpos.z, objMinMax[k][2*i + 1].z);
+          minpos.x = qMin(minpos.x, tmpMin.x);
+          minpos.y = qMin(minpos.y, tmpMin.y);
+          minpos.z = qMin(minpos.z, tmpMin.z);
+          
+          maxpos.x = qMax(maxpos.x, tmpMax.x);
+          maxpos.y = qMax(maxpos.y, tmpMax.y);
+          maxpos.z = qMax(maxpos.z, tmpMax.z);
         }
       }
     }
@@ -825,18 +841,18 @@ void MGViewer::makeBoundWireframeObject(int gid, int bid, QColor c)
   glDeleteLists(oldList, 1);
 }
 
-// void MGViewer::makeBoundFillObject(int bid, QColor c)
-// {
-//   // compile list
-//   GLuint newList = glGenLists(1);
-//   glNewList(newList, GL_COMPILE);
-//   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);    
-//   drawBoundObject(currentGrid,bid, c); 
-//   glEndList();
-//   GLuint oldList = boundObjects[currentGrid][bid];
-//   boundObjects[currentGrid][bid] = newList;
-//   glDeleteLists(oldList, 1);
-// }
+void MGViewer::makeBoundFillObject(int gid, int bid, QColor c)
+{
+  // compile list
+  GLuint newList = glGenLists(1);
+  glNewList(newList, GL_COMPILE);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);    
+  drawBoundObject(gid, bid, c); 
+  glEndList();
+  GLuint oldList = boundObjects[gid][bid];
+  boundObjects[gid][bid] = newList;
+  glDeleteLists(oldList, 1);
+}
 
 
 
@@ -884,6 +900,8 @@ void MGViewer::transGrid(const IDMatrix& tc){
     GLuint oldList = boundObjects[gid][bid];
     boundObjects[gid][bid] = newList;
     glDeleteLists(oldList, 1);
+   
+    
   }
    updateView();
    updateGL();

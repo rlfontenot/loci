@@ -4,7 +4,6 @@
 #include <QDialog>
 
 
-
 class QLabel;
 class QComboBox;
 class QDoubleSpinBox;
@@ -13,12 +12,20 @@ class QCheckBox;
 class QSlider;
 class QTextEdit;
 class QButtonGroup;
+class QPushButton;
+class IntEdit;
+
+
+
+
+  
+
 class RefDialog: public QWidget
 {
   Q_OBJECT
 
 public:
-  RefDialog(QString basefile,  QWidget *parent = 0);
+  RefDialog(QString baseFile,  QWidget *parent = 0);
   signals:
   void textChanged();
   
@@ -45,18 +52,23 @@ private:
   double tol;
   double fold;
   int levels;
-  
+  int cycle;
   int mode;
   int balanceOpt;
   bool xmlOpt;
   
   QButtonGroup* fileButtonGroup;
-  
+  QPushButton* baseButton;
+  IntEdit* levelEdit ;
   QTextEdit* display;
   
  
   
  
 };
+
+
+
+
 
 #endif

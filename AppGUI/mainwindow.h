@@ -8,6 +8,7 @@
 #include <QTextEdit>
 #include <QDomElement>
 #include <QPointer>
+#include <QProcess>
 using std::vector;
 class GLViewer;
 class QDockWidget;
@@ -23,6 +24,7 @@ class RefDialog;
 #include "cutdialog.h"
 #include "vmergewindow.h"
 #include "fvmadapt.h"
+
 class MainWindow : public QMainWindow
 {
   Q_OBJECT
@@ -33,16 +35,21 @@ public:
   QSize sizeHint() const;
 
   
- public slots:
- void newCase();
-  void openCase();
-   void setGrid(QDomElement& theelem);
+public slots:
+
  
+  
+  void newCase();
+  void openCase();
+  void setGrid(QDomElement& theelem);
+  void loadGrid(QString , QProcess::ExitStatus);
   void setBoundary(QDomElement& elem);
   bool selectBoundary();
   
-
+  
   void cut();
+  void check(const QString&);
+  void vcheck();
   void resetSlider();
   void openSca();
   
@@ -52,8 +59,7 @@ public:
   bool saveImage();
   void aboutPreprocess();
   void aboutPostprocess();
-  void showDisplayBar();
-  void hideDisplayBar();
+ 
   void showVisBar();
   void hideVisBar();
   void showBoundary(QModelIndex, QModelIndex);
@@ -64,19 +70,27 @@ public:
   void setCurrentObj(QModelIndex);
   void selectCurrent(int);
   void bdWindowClosed();
+  //visualization bar actions
   void snapshot();
+  void reset();
+  void fit();
+  void clearCurrent();
 
+  
   void updateStatus(const QString&);
   void updateStatusTip(int);
   void clearAllStatus();
   void clearLastStatus();
   void changePage(int);
   void toggleShowStatus();
-   void vmClicked(); //vogmerge button clicked
+  void vmClicked(); //vogmerge button clicked
+  void vmClosed();
   void adaptClicked(); //FVMAdapt
-  void adaptwindowClosed();//FVMAdapt
+ 
   void markVolumeNodes();
   void refineGrids();
+  void showQuality(QString, QProcess::ExitStatus);
+  
   signals:
   void setCurrent(QModelIndex);
   void stateChanged();
@@ -92,53 +106,53 @@ private:
 
   void createActions();
   void createMenu();
-  void createDisplayBar();
+  
   void createVisBar();
   void createFlowBar();
   void createDockWindow();
 
 
 
-  QToolBar* toolbar;//cutplane display
-  QToolBar* visbar; //visualization
-  QToolBar* tb; // file action
-  QToolBar* flowbar;
-  QMenu* viewMenu;
-  QTextEdit* statusEdit;
-  QGroupBox* statusWindow;
+ 
+  QPointer<QToolBar> visbar; //visualization
+  QPointer<QToolBar> tb; // file action
+  QPointer<QToolBar> flowbar;
+  QPointer<QMenu> viewMenu;
+  QPointer<QTextEdit> statusEdit;
+  QPointer<QGroupBox> statusWindow;
 
  
   
-  QStandardItemModel* modBoundaries;  // Boundary condition model
-  QTableView* boundaryView;  // Use for boundary Select
+  QPointer<QStandardItemModel> modBoundaries;  // Boundary condition model
+  QPointer<QTableView> boundaryView;  // Use for boundary Select
   
-  GLViewer *viewer;  // Handle for central OpenGL widget
-  MGViewer* mgviewer;
-  VMergeWindow* vmwindow;
+  QPointer<GLViewer> viewer;  // Handle for central OpenGL widget
+  QPointer<MGViewer> mgviewer;
+  QPointer<VMergeWindow> vmwindow;
 
   QPointer<FVMAdapt> adaptwindow;
   
-  CutDialog* cutdialog;
+  QPointer<CutDialog> cutdialog;
  
  
  
  
-  QDockWidget *dock;
-  QDockWidget *bdock;
-  QSlider* slider; // change number of contour
+  QPointer<QDockWidget> dock;
+  QPointer<QDockWidget> bdock;
+  QPointer<QSlider> slider; // change number of contour
   
 
   
-  QButtonGroup* flowbarButtons;
-  QStackedWidget* central;
+  QPointer<QButtonGroup> flowbarButtons;
+  QPointer<QStackedWidget> central;
   
   
   
-  BdCndWindow* bdWindow;
-  RefDialog* refdialog;
+  QPointer<BdCndWindow> bdWindow;
+  QPointer<RefDialog> refdialog;
 
   
-  QAction *cutAct;
+ 
   
   QAction *viewerAct; // toggle view of viewer
   QWidget* previousWidget;
@@ -151,6 +165,8 @@ private:
   QDomDocument doc;
   bool isNewCase;
   bool displayStatus;
+
+  bool waitForQualityFile;
   
  };
 
