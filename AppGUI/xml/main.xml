@@ -245,18 +245,18 @@
   title="import grid" whatsThis="whatsthis" status="done">
   <!-- attribute "dir" gives a list of directory to search for files, separated by -->
     <!-- ','.  The default value is the first.-->
-    <directory dir="/simcenter/data1/qxue/grids/" />
+    <directory dir="" />
     <!-- element "gridtypes" describle different kinds of file format,-->
     <!-- which is listed in its children elements. The attribute "element -->
     <!-- = stack" means when the user clicks on a file format, the -->
     <!-- corresponding page will be displayed-->
     <gridtypes element="stack" current="">
-      <!-- for each file format, such as vog, xdr, cobalt, cfd, plot3d and-->
+      <!-- for each file format, such as  xdr, cobalt, cfd, plot3d and-->
       <!--solidmesh, the attribute "nameFilter" is the name filter of the-->
       <!--files. And the attribute "label" is the description of the file that-->
       <!--will be displayed on the interface. The attribute "toXdr" and-->
       <!--"toVog" is the commands to be used for converting this type of grid.-->
-      <vog nameFilter="*.vog" label="volume grid format" />
+     <!-- <vog nameFilter="*.vog" label="volume grid format" />-->
       <xdr toXdr="" nameFilter="*.xdr" label="xdr file" toVog="xdr2vog" />
       <cobalt toXdr="cobalt2xdr" nameFilter="*.cog" label="cobalt format" toVog="xdr2vog" />
       <cfd toXdr="cfd++2xdr" nameFilter="nodesin.bin, cellsin.bin, exbcsin.bin" label="cfd++&#xa;  format" toVog="xdr2vog" />
@@ -293,9 +293,9 @@
       <!-- text node if "unit" describes all possible units, separate by -->
       <!-- ',' . The unit the user selected will appear in the command -->
       <!-- line such as "-in".  -->
-      <unit element="choice" >in,ft,cm,m,Lref</unit>
+      <unit element="choice" >m,cm,in,ft,Lref</unit>
       <options>
-        <Lref unit="in,ft,cm,m" prefix="" bottom="0.0" postfix="" element="float" />
+        <Lref unit="m,cm,in,ft" prefix="" bottom="0.0" postfix="" element="float" />
       </options>
     </vogOptions>
     <usage>
@@ -331,13 +331,13 @@
     </usage>
     <buttons>
       <convert status="new" cmd="" dir="" filename=""/>
-      <check  status="new"  dir="" filename=""/>
+      <!--<check  status="new"  dir="" filename=""/>-->
       <extract  status="new"  dir="" filename=""/>
     </buttons>
  </importPage>
   <gridSetup buttonTitle="Grid 
 Setup" format="volume grid file(*.vog)"
-	     initialPath="/simcenter/data1/qxue/grids/untitled"
+	     initialPath=""
 	          status="not set"
 		  whatsThis="read in grid file and set up the case"
 	     toolTip="read in grid" />
@@ -570,8 +570,7 @@ Setup" element="solverWindow" title="set up solver parameters"
   </initialPage>
    <saveVar buttonTitle="Save 
 .vars" status="done"/>
-  <postProcessing buttonTitle="Post- 
-Processing" status="done"/>
+
 </mainWindow>
   <boundary_conditions />
   <components/>   
