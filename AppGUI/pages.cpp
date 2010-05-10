@@ -2018,7 +2018,7 @@ AllVBWindow::AllVBWindow(  QDomElement& elem,  QDomElement& root,  QWidget *pare
    connect(this, SIGNAL(showStatus(const bool &)), thegroup, SLOT(updateShowStatus(const bool &))); 
   connect(this, SIGNAL(stateChanged()), thegroup, SLOT(changeState()));
   
-  QPushButton* saveButton = new QPushButton(tr("          save the module        "));
+  QPushButton* saveButton = new QPushButton(tr("          save the model        "));
   connect(saveButton, SIGNAL(clicked()), this, SLOT(save()));
   
   
@@ -2034,7 +2034,7 @@ bool AllVBWindow::save(){
    QString initialPath = QDir::currentPath()+"/untitled.mdl";
   QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"),
                             initialPath,
-                            tr("module file (*.mdl)"));
+                            tr("model file (*.mdl)"));
   if (fileName.isEmpty())
     {
       return false;
@@ -2181,7 +2181,7 @@ StackGroup2::StackGroup2(  QDomElement& elem, QDomElement& theroot, const QStrin
    
    if(elem_opt.hasAttribute("define")){
      
-     QPushButton* addButton=new QPushButton("add a module");
+     QPushButton* addButton=new QPushButton("add a model");
      pageLayout->addWidget(addButton);
      connect(addButton, SIGNAL(clicked()), this, SLOT(add()));
    }
