@@ -182,7 +182,7 @@
     <ideal_gas_model name="chemistry_model" prefix=": ">
       <air_1s0r/>
     </ideal_gas_model>
-    <gamma_model title="please specify a parameters for gamma model" 
+    <gamma_model title="please specify parameters for gamma model" 
     element="all"  state="Material=single,gamma" >
       <m title="molecular mass" current="0" element="float" />
       <gamma title="gamma" current="0" element="float" />
