@@ -141,6 +141,7 @@ namespace Loci {
     int np ;
     MPI_Comm_size(comm, &np) ;
     
+    
     vector<bool> pack_interval(np,false) ;
     // first compute the send count and displacement
     vector<int> send_counts(np,0) ;
@@ -264,7 +265,7 @@ namespace Loci {
     vector<int> send_counts(np,0) ;
     for(int i=0;i<np;++i) {
       if(in[i] == EMPTY) {
-        send_counts[i] == 0 ;
+        send_counts[i] = 0 ;
         continue ;
       }
       // since if sending intervals, the send size will
@@ -921,16 +922,72 @@ namespace Loci {
   // processors according to the partition ptn.
   entitySet dist_collect_entitySet(entitySet inSet, const vector<entitySet> &ptn) {
     const int p = MPI_processes ;
+    const int r = MPI_rank ;
+    entitySet retval = inSet & ptn[r] ;
+    // Check for empty and universal set
+    int sbits = ((inSet != EMPTY)?1:0)| ((retval != ptn[r])?2:0) ;
+    int rbits = sbits ;
+    MPI_Allreduce(&sbits, &rbits, 1, MPI_INT, MPI_BOR, MPI_COMM_WORLD) ;
+    if((rbits & 1) == 0) // EMPTY set
+      return EMPTY ;
+    if((rbits & 2) == 0) // UNIVERSE set
+      return ptn[r] ;
+    inSet -= ptn[r] ;
+
+    stopWatch s ;
+    s.start() ;
+    
+    // Communicate the largest interval to eliminate redundant communication
+    interval iset(1,-1) ;
+    for(int i=0;i<retval.num_intervals();++i)
+      if((iset.second-iset.first) < (retval[i].second-retval[i].first))
+        iset = retval[i] ;
+    vector<interval> rset(p) ;
+    MPI_Allgather(&iset.first,1,MPI_2INT,&rset[0].first,1,MPI_2INT,MPI_COMM_WORLD) ;
+    
+    
+    // Remove redundant info
+    for(int i=0;i<p;++i)
+      if(rset[i].second >= rset[i].first)
+        inSet -= rset[i] ;
+
+    
+    s.start() ;
+    // If the remainder is empty, then we are finished
+    if(GLOBAL_AND((inSet==EMPTY),MPI_COMM_WORLD)) {
+      return retval ;
+    }
+
+    // Remove second largest interval
+    interval iset2(1,-1) ;
+    for(int i=0;i<retval.num_intervals();++i)
+      if(iset != retval[i] &&
+         (iset2.second-iset2.first) < (retval[i].second-retval[i].first))
+        iset2 = retval[i] ;
+    
+    MPI_Allgather(&iset2.first,1,MPI_2INT,&rset[0].first,1,MPI_2INT,MPI_COMM_WORLD) ;
+    
+    
+    // Remove redundant info
+    for(int i=0;i<p;++i)
+      if(rset[i].second >= rset[i].first)
+        inSet -= rset[i] ;
+
+    
+    // If the remainder is empty, then we are finished
+    if(GLOBAL_AND((inSet==EMPTY),MPI_COMM_WORLD)) {
+      return retval ;
+    }
+    
+
+    // Otherwise, we need to communicate residual entities to owning processor
     vector<entitySet> distSet(p) ;
     for(int i=0;i<p;++i) 
       distSet[i] = inSet & ptn[i] ;
 
     vector<int> send_sz(p) ;
     for(int i=0;i<p;++i)
-      if(i!=MPI_rank)
-        send_sz[i] = distSet[i].num_intervals()*2 ;
-      else
-        send_sz[i] = 0 ;
+      send_sz[i] = distSet[i].num_intervals() ;
     
     vector<int> recv_sz(p) ;
     MPI_Alltoall(&send_sz[0],1,MPI_INT,
@@ -944,11 +1001,11 @@ namespace Loci {
       size_recv += recv_sz[i] ;
     }
 
-    int *send_store = new int[size_send] ;
-    int *recv_store = new int[size_recv] ;
-    int *send_displacement = new int[p] ;
-    int *recv_displacement = new int[p] ;
-
+    vector<interval> send_store(size_send) ;
+    vector<interval> recv_store(size_recv) ;
+    vector<int> send_displacement(p) ;
+    vector<int> recv_displacement(p) ;
+    
     send_displacement[0] = 0 ;
     recv_displacement[0] = 0 ;
     for(int i = 1; i <  p; ++i) {
@@ -956,29 +1013,20 @@ namespace Loci {
       recv_displacement[i] = recv_displacement[i-1] + recv_sz[i-1] ;
     }
     for(int i = 0; i <  p; ++i)
-      if(i != MPI_rank)
-        for(int j=0;j<distSet[i].num_intervals();++j) {
-          send_store[send_displacement[i]+j*2] = distSet[i][j].first ;
-          send_store[send_displacement[i]+j*2+1] = distSet[i][j].second ;
-        }
-    
-    
-    MPI_Alltoallv(send_store,&send_sz[0], send_displacement , MPI_INT,
-		  recv_store, &recv_sz[0], recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
-
-    entitySet retval = distSet[MPI_rank] ;
-    for(int i = 0; i <  p; ++i) 
-      for(int j=0;j<recv_sz[i]/2;++j) {
-        int i1 = recv_store[recv_displacement[i]+j*2]  ;
-        int i2 = recv_store[recv_displacement[i]+j*2+1] ;
-        retval += interval(i1,i2) ;
+      for(int j=0;j<distSet[i].num_intervals();++j) {
+        send_store[send_displacement[i]+j] = distSet[i][j] ;
       }
-    delete[] recv_displacement ;
-    delete[] send_displacement ;
-    delete[] recv_store ;
-    delete[] send_store ;
+    
+    MPI_Alltoallv(&send_store[0],&send_sz[0], &send_displacement[0], MPI_2INT,
+    		  &recv_store[0],&recv_sz[0], &recv_displacement[0], MPI_2INT,
+    		  MPI_COMM_WORLD) ;
 
+    // Sort received intervals to increase performance of union code
+    sort(recv_store.begin(),recv_store.end()) ;
+
+    for(size_t i=0;i<recv_store.size();++i)
+      retval += recv_store[i] ;
+    
     return retval ;
   }
   
@@ -1235,58 +1283,45 @@ namespace Loci {
     return lset + remtot ;
   }
   
-
+  
   std::vector<entitySet> all_collect_vectors(entitySet &e,MPI_Comm comm) {
-    int np = 1 ;
-    MPI_Comm_size(comm,&np) ;
-    int rnk = 0 ;
-    MPI_Comm_rank(comm,&rnk) ;
-    int *recv_count = new int[ np ] ;
-    int *send_count = new int[ np ] ;
-    int *send_displacement = new int[ np ];
-    int *recv_displacement = new int[ np ];
-    int size_send = 0 ;
+    int p = 1 ;
+    MPI_Comm_size(comm,&p) ;
+    vector<entitySet> vset(p) ;
+    if(p == 1) {
+      vset[0] = e ;
+      return vset ;
+    }
+    
+    int send_count = 2*e.num_intervals() ;
+    vector<int> recv_count(p) ;
+    MPI_Allgather(&send_count,1,MPI_INT,&recv_count[0],1,MPI_INT,
+                  comm) ;
+    
+    vector<int> recv_disp(p) ;
+    recv_disp[0] = 0 ;
+    for(int i=1;i<p;++i)
+      recv_disp[i] = recv_disp[i-1]+recv_count[i-1] ;
 
-    for(int i = 0; i <  np; ++i) {
-      send_count[i] = e.num_intervals()*2 ;
-      size_send += send_count[i] ; 
-    }  
-    int *send_buf = new int[size_send] ;
-    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT, comm) ; 
-    size_send = 0 ;
-    for(int i = 0; i <  np ; ++i)
-      size_send += recv_count[i] ;
-    int *recv_buf = new int[size_send] ;
-    size_send = 0 ;
-    for(int i = 0; i <  np ; ++i) {
-      for(int j=0;j<e.num_intervals();++j) {
-        send_buf[size_send++] = e[j].first ;
-        send_buf[size_send++] = e[j].second ;
+    int tot = recv_disp[p-1]+recv_count[p-1] ;
+    if(tot == 0)
+      return vset ;
+    vector<int> ivl_list(tot) ;
+    vector<int> snd_list(send_count) ;
+    for(int i=0;i<send_count/2;++i) {
+      snd_list[i*2] = e[i].first ;
+      snd_list[i*2+1] = e[i].second ;
+    }
+    MPI_Allgatherv(&(snd_list[0]),send_count,MPI_INT,
+                   &(ivl_list[0]),&(recv_count[0]), &(recv_disp[0]), MPI_INT,
+                   comm) ;
+
+    for(int i = 0; i < p ; ++i) {
+      int ind = recv_disp[i] ;
+      for(int j=0;j<recv_count[i]/2;++j) {
+        vset[i] += interval(ivl_list[ind+j*2],ivl_list[ind+j*2+1]) ;
       }
     }
-    send_displacement[0] = 0 ;
-    recv_displacement[0] = 0 ;
-    for(int i = 1; i <  np ; ++i) {
-      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
-      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
-    } 
-    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
-		  recv_buf, recv_count, recv_displacement, MPI_INT,
-		  comm) ;  
-    std::vector<entitySet> vset( np ) ;
-    
-    for(int i = 0; i < np ; ++i) {
-      int *buf = recv_buf+recv_displacement[i] ;
-      for(int j=0;j<recv_count[i];j+=2) {
-        vset[i] += interval(buf[j],buf[j+1]) ;
-      }
-    } 
-    delete [] send_count ;
-    delete [] recv_count ;
-    delete [] recv_displacement ;
-    delete [] send_displacement ;
-    delete [] send_buf ;
-    delete [] recv_buf ;
     return vset ;
   }
   std::vector<entitySet> all_collect_vectors(entitySet &e) {

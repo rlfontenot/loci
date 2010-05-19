@@ -45,8 +45,10 @@ using std::sort;
 #include <constraint.h>
 #include <multiMap.h>
 #include "loci_globs.h"
+#include <execute.h>
 
 namespace Loci {
+
   void get_clone(fact_db &facts, const rule_db &rdb) {
     fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     std::vector<entitySet> &ptn = facts.get_init_ptn() ;
@@ -120,12 +122,15 @@ namespace Loci {
 	  }
 	}while(continue_adding);
 	facts.global_comp_entities += mySet;
-	debugout << "Number of Duplication Levels: " << num_levels << endl; 
+#ifdef VERBOSE
+	debugout << "Number of Duplication Levels: " << num_levels << endl;
+#endif
       }
       tmp_set = facts.global_comp_entities;
     }
     else
       tmp_set = ptn[MPI_rank] ;
+
     std::set<std::vector<variableSet> > dist_maps ;
     get_mappings(rdb,facts,dist_maps) ;
 
@@ -146,6 +151,7 @@ namespace Loci {
       send_count[i] = copy[i].size() ;
       size_send += send_count[i] ; 
     }
+
     int *send_buf = new int[size_send] ;
     MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
                  MPI_COMM_WORLD) ; 
@@ -169,7 +175,7 @@ namespace Loci {
     }
     MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
                   recv_buf, recv_count, recv_displacement, MPI_INT,
-                  MPI_COMM_WORLD) ;  
+                  MPI_COMM_WORLD) ;
     std::vector<entitySet> add(MPI_processes) ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
@@ -182,7 +188,7 @@ namespace Loci {
     delete [] recv_displacement ;
     delete [] send_buf ;
     delete [] recv_buf ;
-
+    
     double clone_time_end = MPI_Wtime() ;
     debugout << "  Time taken for creating clone info =  "
              << clone_time_end - clone_time_start << endl ;
@@ -197,12 +203,21 @@ namespace Loci {
     Map l2g ;
     constraint my_entities ;
     int isDistributed ;
-    std::vector<entitySet> iv ; 
-    categories(facts,iv) ;
-    for(size_t i=0;i < iv.size(); ++i)
-      //      iv[i] = all_collect_entitySet(iv[i]) ;
-      iv[i] = dist_expand_entitySet(iv[i],tmp_copy,ptn) ;
+    std::vector<entitySet> iv ;
+    stopWatch s ;
+    s.start() ;
 
+    categories(facts,iv) ;
+    debugout << "finding categories time = " << s.stop() << endl ;
+    s.start() ;
+    for(size_t i=0;i < iv.size(); ++i) {
+      //      iv[i] = all_collect_entitySet(iv[i]) ;
+      debugout << "iv["<< i << "] size before expand = " << iv[i].num_intervals()<< endl ;
+      iv[i] = dist_expand_entitySet(iv[i],tmp_copy,ptn) ;
+      debugout << "iv["<< i << "] size after expand = " << iv[i].num_intervals() <<endl;
+    }
+    debugout << "time expanding categories = " << s.stop() << endl ;
+    s.start() ;
     entitySet::const_iterator ti ;
     vector<entitySet> proc_entities ;
     entitySet e ;
@@ -243,6 +258,8 @@ namespace Loci {
     }
     proc_entities.clear() ;
 
+    debugout << "time setting up l2g = " << s.stop() ;
+    s.start() ;
     df->l2g = l2g.Rep() ;
     df->g2l.allocate(g) ;
     entitySet ldom = l2g.domain() ;
@@ -276,6 +293,7 @@ namespace Loci {
         send_entities[*ei] +=  df->g2l[*ti] ;
     }
 
+    debugout << "time setting up send and recieve info = " << s.stop() << endl ;
     //	if(collect_perf_data)
     //		perfAnalysis->stop_timer(creating_initial_info_timer);
     double end_time =  MPI_Wtime() ;
@@ -494,7 +512,7 @@ namespace Loci {
   //which are distributed across processors. 
   entitySet dist_expand_map(entitySet domain, fact_db &facts,
 			    const std::set<std::vector<variableSet> > &maps) {
-
+    
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
     for(int i = 0; i < MPI_processes; ++i) {
       entitySet tmp = ptn[i] ;
@@ -516,7 +534,7 @@ namespace Loci {
 	    entitySet tmp_dom = p->domain() ;
 	    MapRepP mp =  MapRepP(p->getRep()) ;
 	    entitySet glob_dom = all_collect_entitySet(tmp_dom) ;
-	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ; 
+	    entitySet tmp_out = (glob_dom & locdom) - tmp_dom ;
 	    storeRepP sp = mp->expand(tmp_out, ptn) ;
 	    if(sp->domain() != tmp_dom) {
 	      //facts.update_fact(variable(*vi), sp) ;
