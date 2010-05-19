@@ -10,9 +10,9 @@ TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
 INCLUDEPATH += .
-INCLUDEPATH += /usr/local/hdf5/include
+INCLUDEPATH += /usr/local/hdf5/x86_64/include
 LIBPATH += /usr/local/hdf5/lib64
-LIBS += /usr/local/hdf5/lib64/libhdf5.a
+LIBS += /usr/local/hdf5/x86_64/lib/libhdf5.a
 
 # Input
 HEADERS += bdcndwindow.h \
@@ -32,7 +32,9 @@ HEADERS += bdcndwindow.h \
            physicswindow.h \
            mdlwindow.h \
            fvmadapt.h \
-           refdialog.h 
+           refdialog.h \
+           progressdialog.h \
+           stateregion.h
           
 SOURCES += bdcndwindow.cpp \
            cutplane.cpp \
@@ -54,7 +56,9 @@ SOURCES += bdcndwindow.cpp \
            mdlwindow.cpp \
            fvmadapt.cpp \
            mark_node.cpp \
-           refdialog.cpp
+           refdialog.cpp \
+           progressdialog.cpp \
+           stateregion.cpp
 
 RESOURCES     = chemdemo.qrc
 #install

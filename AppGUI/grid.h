@@ -14,8 +14,8 @@ using std::map;
 using std::list;
 using std::vector;
 using std::string;
-
-
+using std::cerr;
+using std::endl;
 
 
 static const QColor default_color[] = {Qt::red, Qt::green, Qt::blue, Qt::cyan, Qt::magenta, Qt::yellow,
@@ -217,7 +217,9 @@ template<class T> inline vector3d<T> &operator*=(vector3d<T> &target, float val)
     return vector3d<T>(v1.x/r2,v1.y/r2,v1.z/r2) ;
   }
 
- typedef  vector3d<double> positions3d;
+typedef  vector3d<double> positions3d;
+
+
 
 inline positions operator+(const positions &p1, const positions &p2)
 { return positions(p1.x+p2.x,p1.y+p2.y) ; }

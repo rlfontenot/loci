@@ -339,12 +339,15 @@ void MainWindow::createFlowBar(){
       connect(newWindow, SIGNAL(componentsChanged()), this, SIGNAL(componentsChanged()));
        connect(this, SIGNAL(showStatus(const bool&)), newWindow, SLOT(updateShowStatus(const bool&)));
     }else  if(elem.attribute("element")=="initialWindow"){
-      newWindow=new InitCndWindow(elem, theroot);
-      connect(newWindow, SIGNAL(updateStatus(const QString&)), this, SLOT(updateStatus(const QString&)));
-      connect(newWindow, SIGNAL(updateStatusTip(int)), this, SLOT(updateStatusTip(int)));
-      connect(this, SIGNAL(stateChanged()), newWindow, SLOT(changeState()));
-      connect(this, SIGNAL(componentsChanged()), newWindow, SIGNAL(componentsChanged()));
-       connect(this, SIGNAL(showStatus(const bool&)), newWindow, SLOT(updateShowStatus(const bool&)));
+      
+      initWindow=new InitCndWindow(elem, theroot);
+      connect(initWindow, SIGNAL(updateStatus(const QString&)), this, SLOT(updateStatus(const QString&)));
+      connect(initWindow, SIGNAL(updateStatusTip(int)), this, SLOT(updateStatusTip(int)));
+      connect(this, SIGNAL(stateChanged()), initWindow, SLOT(changeState()));
+      connect(this, SIGNAL(componentsChanged()), initWindow, SIGNAL(componentsChanged()));
+      connect(this, SIGNAL(showStatus(const bool&)), initWindow, SLOT(updateShowStatus(const bool&)));
+      connect(initWindow, SIGNAL( valueChanged(const QTreeWidgetItem*)),
+              viewer, SLOT(updateDoc(const QTreeWidgetItem*)));
     }else  if(elem.attribute("element")=="panel"){
       newWindow=new OptionPage(elem, theroot);
       connect(newWindow, SIGNAL(updateStatus(const QString&)), this, SLOT(updateStatus(const QString&)));
@@ -372,14 +375,6 @@ void MainWindow::createFlowBar(){
   QPushButton* ppsButton = new QPushButton(tr("Post\nProcessing"), this);
   flowbar->addWidget(ppsButton);
   connect(ppsButton, SIGNAL(clicked()), this, SLOT(cut()));
-  
-
-  
-  
-
-
-
-  
 }
 void MainWindow::changePage(int index){
 
@@ -425,13 +420,17 @@ void MainWindow::changePage(int index){
   if(elem.hasAttribute("widgetIndex")) 
     central->setCurrentIndex(elem.attribute("widgetIndex").toInt());
   else  central->setCurrentIndex(0);
-  if(elem.attribute("inDock")=="true"){
+  if(elem.attribute("inDock")=="true"&&elem.attribute("element")=="boundaryWindow"){
     dock->setWidget(bdWindow);
     dock->show();
-    // bdock->show();
-  } else {
+    dock->setFloating(true);
+  }else if(elem.attribute("inDock")=="true"&&elem.attribute("element")=="initialWindow"){
+    dock->setWidget(initWindow);
+    dock->show();
+    dock->setFloating(true);
+  } else{
     dock->setWidget(statusWindow);
-    // bdock->hide();
+    dock->setFloating(false);
   }
   if(central->currentWidget() == viewer){
     bdock->show();
@@ -583,8 +582,9 @@ MainWindow::MainWindow()
   boundaryView = 0;
   bdock = 0;
   bdWindow = 0;
+  initWindow = 0;
   cutdialog = 0;
-  slider = 0;
+
   dock = 0;
   adaptwindow = 0;
   refdialog = 0;
@@ -592,7 +592,7 @@ MainWindow::MainWindow()
 
   flowbar =0;
   flowbarButtons = 0;
-  bdWindow = 0;
+ 
   visbar =0;
   bdButtonDown = false;
   setCentralWidget(central);
@@ -978,9 +978,7 @@ void MainWindow::setBoundary(QDomElement& elem){
   viewer->clearCurrent();
   dock->setWidget(statusWindow);
   bdock->hide();
-  // hideVisBar();
-  //  hideDisplayBar();
- }
+  }
 
 
 
@@ -1350,18 +1348,18 @@ void MainWindow::showQuality(QString command, QProcess::ExitStatus status){
 }
   
   
-void MainWindow::markVolumeNodes(){
+// void MainWindow::markVolumeNodes(){
 
-  QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
-  elem = elem.firstChildElement("gridSetup");
-  if(elem.attribute("directory")=="" || elem.attribute("casename")==""){
-    QMessageBox::information(window(), "mainwindow",
-                                tr("Please use 'GridSetup' reading in grid first"));
-    return;
-  }
-  QString fileName = elem.attribute("directory")+"/"+elem.attribute("casename")+".vog";
-  viewer->markVolumeNodes(fileName);
-}
+//   QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
+//   elem = elem.firstChildElement("gridSetup");
+//   if(elem.attribute("directory")=="" || elem.attribute("casename")==""){
+//     QMessageBox::information(window(), "mainwindow",
+//                                 tr("Please use 'GridSetup' reading in grid first"));
+//     return;
+//   }
+//   QString fileName = elem.attribute("directory")+"/"+elem.attribute("casename")+".vog";
+//   viewer->markVolumeNodes(fileName);
+// }
 
 void MainWindow::refineGrids(){
   if(refdialog){
@@ -1956,13 +1954,13 @@ void MainWindow::adaptClicked()
     adaptwindow = new FVMAdapt(fileName);
     adaptwindow->show();
   
-  viewer->setAdaptWindow(adaptwindow);
+    // viewer->setAdaptWindow(adaptwindow);
   central->setCurrentWidget(viewer);
  
-  connect(adaptwindow, SIGNAL(destroyed()), viewer, SLOT(adaptwindowClosed()));
+  connect(adaptwindow, SIGNAL(destroyed()), viewer, SLOT(cleanDoc()));
   connect(adaptwindow, SIGNAL(refineGrids()), this, SLOT(refineGrids()));
-  connect(adaptwindow, SIGNAL(valueChanged()), viewer, SLOT(updateGL()));
- }
+  connect(adaptwindow, SIGNAL(valueChanged(const QTreeWidgetItem*)), viewer, SLOT(updateDoc(const QTreeWidgetItem*)));
+}
 
 
 void MainWindow::vmClicked()

@@ -130,7 +130,6 @@ struct affineMapping2 {
 } ;
 
 struct TranCoef{
-  // int gridId;
   vector3d<double> translate;
   vector3d<double> rotateAngle;
   vector3d<double> rotateCenter;
@@ -193,9 +192,7 @@ public:
   void setCurrent(QModelIndex);
   
 public slots:
-//void addGrid();
   void setCurrentObj(QModelIndex);
- 
   void setInfo();
   void showBoundary(QModelIndex, QModelIndex);
   void accept();
@@ -273,6 +270,7 @@ private:
   
   QListWidget *typesWidget;
   QStackedWidget *pagesWidget;
+  
  
 };
 

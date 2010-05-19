@@ -29,6 +29,10 @@
 #include "pages.h"
 
 
+
+#define PI 3.14159265358979323846264338327950
+
+
 void Shape::reset(){
   switch(tp){
   case  SPHERE:
@@ -46,17 +50,22 @@ void Shape::reset(){
     para[0] = 0;
     para[1] = 0;
     para[2] = 0;
-    para[3] = 1;
+    para[3] = 0;
     para[4] = 0;
     para[5] = 1;
+    para[6] = 1;
+    para[7] = 0;
+    
     break;
    
   case CYLINDER:
     para[0] = 0;
     para[1] = 0;
-    para[2] = 1;
+    para[2] = 0;
     para[3] = 0;
-    para[4] = 1;
+    para[4] = 0;
+    para[5] = 1;
+    para[6] = 1;
     break;
     
   case BOX:
@@ -70,6 +79,11 @@ void Shape::reset(){
      break;
   default:
     para[0] = 0;
+    para[1] = 0;
+    para[2] = 0;
+    para[3] = 0;
+    para[4] = 0;
+    para[5] = 1;
   }
 }
  
@@ -90,7 +104,7 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       objs[0] = new FloatSlider(tr("x0"));
       objs[1] = new FloatSlider(tr("y0"));
       objs[2] = new FloatSlider(tr("z0"));
-      objs[3] = new FloatSlider(tr("r"));
+      objs[3] = new FloatSlider(tr("radius"));
       for(int i = 0; i < 4; i++){
         objs[i]->setValue(shape->para[i]);
         signalMapper->setMapping(objs[i], i);
@@ -124,52 +138,48 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
      {
 
       setTitle("parameters of cone:");
-      objs.resize(6);
+      objs.resize(8);
 
+      QGroupBox *p1Group = new QGroupBox("p1", this);
+      QVBoxLayout *p1BoxLayout = new QVBoxLayout;
       
-      objs[0] = new FloatSlider(tr("x0"));
-      objs[1] = new FloatSlider(tr("y0"));
-      objs[2] = new FloatSlider(tr("z0"));
-      objs[3] = new FloatSlider(tr("r"));
-      objs[4] = new FloatSlider(tr("z1: (z1>z0)"));
-      objs[5] = new FloatSlider(tr("z2: (z2>z1)"));
+      objs[0] = new FloatSlider(tr("x1"));
+      objs[1] = new FloatSlider(tr("y1"));
+      objs[2] = new FloatSlider(tr("z1"));
+      p1BoxLayout->addWidget(objs[0]);
+      p1BoxLayout->addWidget(objs[1]);
+      p1BoxLayout->addWidget(objs[2]);
+      p1Group->setLayout(p1BoxLayout);
+
+       QGroupBox *p2Group = new QGroupBox("p2", this);
+      QVBoxLayout *p2BoxLayout = new QVBoxLayout;
+      objs[3] = new FloatSlider(tr("x2"));
+      objs[4] = new FloatSlider(tr("y2"));
+      objs[5] = new FloatSlider(tr("z2"));
+      p2BoxLayout->addWidget(objs[3]);
+      p2BoxLayout->addWidget(objs[4]);
+      p2BoxLayout->addWidget(objs[5]);
+      p2Group->setLayout(p2BoxLayout);
+      
+      objs[6] = new FloatSlider(tr("r1"));
+      objs[7] = new FloatSlider(tr("r2"));
       
       
-      for(int i = 0; i < 6; i++){
+      
+      for(int i = 0; i < 8; i++){
         objs[i]->setValue(shape->para[i]);
         signalMapper->setMapping(objs[i], i);
         connect(objs[i], SIGNAL(valueChanged(double)),signalMapper, SLOT(map()));
       }
       connect(signalMapper, SIGNAL(mapped(int)),
               this, SLOT(setValue(int)));
-
-      QGroupBox *centerGroup = new QGroupBox("position of vertex:");
-      QVBoxLayout *hBoxLayout = new QVBoxLayout;
-      hBoxLayout->addWidget(objs[0]);
-      hBoxLayout->addWidget(objs[1]);
-      hBoxLayout->addWidget(objs[2]);
-      centerGroup->setLayout(hBoxLayout);
-
-      QGroupBox *radiusGroup = new QGroupBox("radius of base/ distance from center of base to vertex)");
-      QVBoxLayout *hBoxLayout2 = new QVBoxLayout;
-      hBoxLayout2->addWidget(objs[3]);
-      radiusGroup->setLayout(hBoxLayout2);
       
-      QGroupBox *z1Group = new QGroupBox("z value of base");
-      QVBoxLayout *hBoxLayout3 = new QVBoxLayout;
-      hBoxLayout3->addWidget(objs[4]);
-      z1Group->setLayout(hBoxLayout3);
-      
-      QGroupBox *z2Group = new QGroupBox("z value of top");
-      QVBoxLayout *hBoxLayout4 = new QVBoxLayout;
-      hBoxLayout4->addWidget(objs[5]);
-      z2Group->setLayout(hBoxLayout4);
-      
+           
       mainLayout = new QVBoxLayout;
-      mainLayout->addWidget(centerGroup);
-      mainLayout->addWidget(radiusGroup);
-      mainLayout->addWidget(z1Group);
-      mainLayout->addWidget(z2Group);
+      mainLayout->addWidget(p1Group);
+      mainLayout->addWidget(p2Group);
+      mainLayout->addWidget(objs[6]);
+      mainLayout->addWidget(objs[7]);
       mainLayout->addStretch(2);
       setLayout(mainLayout);
      }
@@ -177,51 +187,50 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
   case CYLINDER:
     {
       setTitle("parameters of cylinder:");
-      objs.resize(5);
+      objs.resize(7);
+      QGroupBox *p1Group = new QGroupBox("p1", this);
+      QVBoxLayout *p1BoxLayout = new QVBoxLayout;
+      
+      objs[0] = new FloatSlider(tr("x1"));
+      objs[1] = new FloatSlider(tr("y1"));
+      objs[2] = new FloatSlider(tr("z1"));
+      p1BoxLayout->addWidget(objs[0]);
+      p1BoxLayout->addWidget(objs[1]);
+      p1BoxLayout->addWidget(objs[2]);
+      p1Group->setLayout(p1BoxLayout);
+      
+       QGroupBox *p2Group = new QGroupBox("p2", this);
+       QVBoxLayout *p2BoxLayout = new QVBoxLayout;
+       objs[3] = new FloatSlider(tr("x2"));
+       objs[4] = new FloatSlider(tr("y2"));
+       objs[5] = new FloatSlider(tr("z2"));
+       p2BoxLayout->addWidget(objs[3]);
+       p2BoxLayout->addWidget(objs[4]);
+       p2BoxLayout->addWidget(objs[5]);
+       p2Group->setLayout(p2BoxLayout);
+       
+       objs[6] = new FloatSlider(tr("r1"));
       
       
-      objs[0] = new FloatSlider(tr("x0"));
-      objs[1] = new FloatSlider(tr("y0"));
-      objs[2] = new FloatSlider(tr("r"));
-      objs[3] = new FloatSlider(tr("z1"));
-      objs[4] = new FloatSlider(tr("z2"));
-    
       
-      for(int i = 0; i < 5; i++){
+      
+      for(int i = 0; i < 7; i++){
         objs[i]->setValue(shape->para[i]);
         signalMapper->setMapping(objs[i], i);
         connect(objs[i], SIGNAL(valueChanged(double)),signalMapper, SLOT(map()));
       }
       connect(signalMapper, SIGNAL(mapped(int)),
               this, SLOT(setValue(int)));
-
-      QGroupBox *centerGroup = new QGroupBox("center of top");
-      QVBoxLayout *hBoxLayout = new QVBoxLayout;
-      hBoxLayout->addWidget(objs[0]);
-      hBoxLayout->addWidget(objs[1]);
-      centerGroup->setLayout(hBoxLayout);
-
-      QGroupBox *radiusGroup = new QGroupBox("radius");
-      QVBoxLayout *hBoxLayout2 = new QVBoxLayout;
-      hBoxLayout2->addWidget(objs[2]);
-      radiusGroup->setLayout(hBoxLayout2);
-
-      QGroupBox *z1Group = new QGroupBox("z value of the base");
-      QVBoxLayout *hBoxLayout3 = new QVBoxLayout;
-      hBoxLayout3->addWidget(objs[3]);
-      z1Group->setLayout(hBoxLayout3);
       
-       QGroupBox *z2Group = new QGroupBox("z value of the top");
-       QVBoxLayout *hBoxLayout4 = new QVBoxLayout;
-       hBoxLayout4->addWidget(objs[4]);
-       z2Group->setLayout(hBoxLayout4);
+           
+      
+
       
        mainLayout = new QVBoxLayout;
-       mainLayout->addWidget(centerGroup);
-       mainLayout->addWidget(radiusGroup);
-       mainLayout->addWidget(z1Group);
-       mainLayout->addWidget(z2Group);
-         mainLayout->addStretch(2);
+       mainLayout->addWidget(p1Group);
+       mainLayout->addWidget(p2Group);
+       mainLayout->addWidget(objs[6]);
+       mainLayout->addStretch(2);
        setLayout(mainLayout);
     }
     break;
@@ -230,15 +239,29 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
     {
       setTitle("parameters of box:");
       objs.resize(6);
-      
+      QGroupBox *p1Group = new QGroupBox("p1", this);
+      QVBoxLayout *p1BoxLayout = new QVBoxLayout;
       
       objs[0] = new FloatSlider(tr("x1"));
       objs[1] = new FloatSlider(tr("y1"));
       objs[2] = new FloatSlider(tr("z1"));
+      p1BoxLayout->addWidget(objs[0]);
+      p1BoxLayout->addWidget(objs[1]);
+      p1BoxLayout->addWidget(objs[2]);
+      p1Group->setLayout(p1BoxLayout);
+      
+      QGroupBox *p2Group = new QGroupBox("p2", this);
+      QVBoxLayout *p2BoxLayout = new QVBoxLayout;
       objs[3] = new FloatSlider(tr("x2"));
       objs[4] = new FloatSlider(tr("y2"));
       objs[5] = new FloatSlider(tr("z2"));
+      p2BoxLayout->addWidget(objs[3]);
+       p2BoxLayout->addWidget(objs[4]);
+       p2BoxLayout->addWidget(objs[5]);
+       p2Group->setLayout(p2BoxLayout);
+       
       
+       
       for(int i = 0; i < 6; i++){
         objs[i]->setValue(shape->para[i]);
         signalMapper->setMapping(objs[i], i);
@@ -246,211 +269,63 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       }
       connect(signalMapper, SIGNAL(mapped(int)),
               this, SLOT(setValue(int)));
-
-      QGroupBox *minGroup = new QGroupBox("vertex with minimum x,y, z values");
-      QVBoxLayout *hBoxLayout = new QVBoxLayout;
-      hBoxLayout->addWidget(objs[0]);
-      hBoxLayout->addWidget(objs[1]);
-      hBoxLayout->addWidget(objs[2]);
-      minGroup->setLayout(hBoxLayout);
-
-       QGroupBox *maxGroup = new QGroupBox("vertex with maximum x,y, z values");
-       QVBoxLayout *hBoxLayout2 = new QVBoxLayout;
-      hBoxLayout2->addWidget(objs[3]);
-      hBoxLayout2->addWidget(objs[4]);
-      hBoxLayout2->addWidget(objs[5]);
-      maxGroup->setLayout(hBoxLayout2);
       
+            
       mainLayout = new QVBoxLayout;
-      mainLayout->addWidget(minGroup);
-      mainLayout->addWidget(maxGroup);
-        mainLayout->addStretch(2);
+      mainLayout->addWidget(p1Group);
+      mainLayout->addWidget(p2Group);
+      mainLayout->addStretch(2);
       setLayout(mainLayout);
     }
     
     break;
-  case PXPLANE:
- {
-   setTitle("parameters of x+plane:");
-   objs.resize(1);
-      
-      
-      objs[0] = new FloatSlider(tr("x1"));
-     
-      
-      for(int i = 0; i < 1; i++){
-        objs[i]->setValue(shape->para[i]);
-        signalMapper->setMapping(objs[i], i);
-        connect(objs[i], SIGNAL(valueChanged(double)),signalMapper, SLOT(map()));
-      }
-      connect(signalMapper, SIGNAL(mapped(int)),
-              this, SLOT(setValue(int)));
-
-      QGroupBox *minGroup = new QGroupBox("position of the plane");
-      QVBoxLayout *hBoxLayout = new QVBoxLayout;
-      hBoxLayout->addWidget(objs[0]);
-      minGroup->setLayout(hBoxLayout);
-
-            
-      mainLayout = new QVBoxLayout;
-      mainLayout->addWidget(minGroup);
-        mainLayout->addStretch(2);
-      setLayout(mainLayout);
- }
-    
- break;
  
 
- case NXPLANE:
+ case LEFTPLANE:
  {
-   setTitle("parameters of x-plane:");
-   objs.resize(1);
+   setTitle("parameters of leftPlane:");
+   objs.resize(6);
+   QGroupBox *p1Group = new QGroupBox("point", this);
+   QVBoxLayout *p1BoxLayout = new QVBoxLayout;
+   
+   objs[0] = new FloatSlider(tr("x1"));
+   objs[1] = new FloatSlider(tr("y1"));
+   objs[2] = new FloatSlider(tr("z1"));
+   p1BoxLayout->addWidget(objs[0]);
+   p1BoxLayout->addWidget(objs[1]);
+   p1BoxLayout->addWidget(objs[2]);
+   p1Group->setLayout(p1BoxLayout);
       
-      
-      objs[0] = new FloatSlider(tr("x1"));
-     
-      
-      for(int i = 0; i < 1; i++){
-        objs[i]->setValue(shape->para[i]);
-        signalMapper->setMapping(objs[i], i);
-        connect(objs[i], SIGNAL(valueChanged(double)),signalMapper, SLOT(map()));
-      }
-      connect(signalMapper, SIGNAL(mapped(int)),
-              this, SLOT(setValue(int)));
-
-      QGroupBox *minGroup = new QGroupBox("position of the plane");
-      QVBoxLayout *hBoxLayout = new QVBoxLayout;
-      hBoxLayout->addWidget(objs[0]);
-      minGroup->setLayout(hBoxLayout);
-
-            
-      mainLayout = new QVBoxLayout;
-      mainLayout->addWidget(minGroup);
-        mainLayout->addStretch(2);
-      setLayout(mainLayout);
- }
-    
- break;
-case PYPLANE:
- {
-   setTitle("parameters of y+plane:");
-   objs.resize(1);
-      
-      
-      objs[0] = new FloatSlider(tr("y1"));
-     
-      
-      for(int i = 0; i < 1; i++){
-        objs[i]->setValue(shape->para[i]);
-        signalMapper->setMapping(objs[i], i);
-        connect(objs[i], SIGNAL(valueChanged(double)),signalMapper, SLOT(map()));
-      }
-      connect(signalMapper, SIGNAL(mapped(int)),
-              this, SLOT(setValue(int)));
-
-      QGroupBox *minGroup = new QGroupBox("position of the plane");
-      QVBoxLayout *hBoxLayout = new QVBoxLayout;
-      hBoxLayout->addWidget(objs[0]);
-      minGroup->setLayout(hBoxLayout);
-
-            
-      mainLayout = new QVBoxLayout;
-      mainLayout->addWidget(minGroup);
-        mainLayout->addStretch(2);
-      setLayout(mainLayout);
- }
-    
- break;
-    case NYPLANE:
- {
-   setTitle("parameters of y-plane:");
-   objs.resize(1);
-      
-      
-      objs[0] = new FloatSlider(tr("y1"));
-     
-      
-      for(int i = 0; i < 1; i++){
-        objs[i]->setValue(shape->para[i]);
-        signalMapper->setMapping(objs[i], i);
-        connect(objs[i], SIGNAL(valueChanged(double)),signalMapper, SLOT(map()));
-      }
-      connect(signalMapper, SIGNAL(mapped(int)),
-              this, SLOT(setValue(int)));
-
-      QGroupBox *minGroup = new QGroupBox("position of the plane");
-      QVBoxLayout *hBoxLayout = new QVBoxLayout;
-      hBoxLayout->addWidget(objs[0]);
-      minGroup->setLayout(hBoxLayout);
-
-            
-      mainLayout = new QVBoxLayout;
-      mainLayout->addWidget(minGroup);
-      mainLayout->addStretch(2);
-      setLayout(mainLayout);
- }
-    
- break;
- case PZPLANE:
- {
-   setTitle("parameters of z+plane:");
-   objs.resize(1);
-      
-      
-      objs[0] = new FloatSlider(tr("z1"));
-     
-      
-      for(int i = 0; i < 1; i++){
-        objs[i]->setValue(shape->para[i]);
-        signalMapper->setMapping(objs[i], i);
-        connect(objs[i], SIGNAL(valueChanged(double)),signalMapper, SLOT(map()));
-      }
-      connect(signalMapper, SIGNAL(mapped(int)),
-              this, SLOT(setValue(int)));
-
-      QGroupBox *minGroup = new QGroupBox("position of the plane");
-      QVBoxLayout *hBoxLayout = new QVBoxLayout;
-      hBoxLayout->addWidget(objs[0]);
-      minGroup->setLayout(hBoxLayout);
-
-            
-      mainLayout = new QVBoxLayout;
-      mainLayout->addWidget(minGroup);
-      mainLayout->addStretch(2);
-      setLayout(mainLayout);
- }
-    
- break;
- case NZPLANE:
- {
-   setTitle("parameters of z-plane:");
-   objs.resize(1);
+   QGroupBox *p2Group = new QGroupBox("normal", this);
+   QVBoxLayout *p2BoxLayout = new QVBoxLayout;
+   objs[3] = new FloatSlider(tr("x2"));
+   objs[4] = new FloatSlider(tr("y2"));
+   objs[5] = new FloatSlider(tr("z2"));
+   p2BoxLayout->addWidget(objs[3]);
+   p2BoxLayout->addWidget(objs[4]);
+   p2BoxLayout->addWidget(objs[5]);
+   p2Group->setLayout(p2BoxLayout);
    
    
-   objs[0] = new FloatSlider(tr("z1"));
    
-   
-   for(int i = 0; i < 1; i++){
+   for(int i = 0; i < 6; i++){
      objs[i]->setValue(shape->para[i]);
      signalMapper->setMapping(objs[i], i);
      connect(objs[i], SIGNAL(valueChanged(double)),signalMapper, SLOT(map()));
    }
    connect(signalMapper, SIGNAL(mapped(int)),
            this, SLOT(setValue(int)));
-
-   QGroupBox *minGroup = new QGroupBox("position of the plane");
-   QVBoxLayout *hBoxLayout = new QVBoxLayout;
-   hBoxLayout->addWidget(objs[0]);
-   minGroup->setLayout(hBoxLayout);
-
+   
    
    mainLayout = new QVBoxLayout;
-   mainLayout->addWidget(minGroup);
+   mainLayout->addWidget(p1Group);
+   mainLayout->addWidget(p2Group);
    mainLayout->addStretch(2);
    setLayout(mainLayout);
  }
- 
+    
  break;
+
   default:
     break;
   }
@@ -459,7 +334,7 @@ case PYPLANE:
 void ParaPage::setValue(int i){
   if(i < 0 || i >= (int)objs.size() || i >= (int)(shape->para.size()))return;
   shape->para[i] = objs[i]->value();
-  emit valueChanged();
+   emit valueChanged();
 }
 void ParaPage::showValue(){
   for(unsigned int i = 0; i < objs.size(); i++){
@@ -539,13 +414,8 @@ void Transform::setValue(positions3d* p){
 
 void Transform::setInfo(){
  
- //  tc.rotateAngle = rotateAngle->value();
-//   tc.rotateCenter = rotateCenter->value();
-//   tc.translate = translate->value();
-//   tc.scale = scale->value();
-
-  //  IDMatrix2 idM = IDMatrix2(gridId, currentM()); 
-  emit tcChanged();
+ 
+   emit tcChanged();
   
 }
 
@@ -691,24 +561,28 @@ FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QWidget(parent),filename(f
   //CONE
 
    {
-    vector<double> vdefault(6);
+    vector<double> vdefault(8);
     vdefault[0] = 0;
     vdefault[1] = 0;
     vdefault[2] = 0;
-    vdefault[3] = 1;
+    vdefault[3] = 0;
     vdefault[4] = 0;
     vdefault[5] = 1;
+    vdefault[6] = 0;
+    vdefault[7] = 1;
     Shape* shape = new Shape(CONE, vdefault);
     defaultShapes.push_back(shape);
    }
   //CYLINDER
  {
-    vector<double> vdefault(5);
+    vector<double> vdefault(7);
     vdefault[0] = 0;
     vdefault[1] = 0;
-    vdefault[2] = 1;
+    vdefault[2] = 0;
     vdefault[3] = 0;
-    vdefault[4] = 1;
+    vdefault[4] = 0;
+    vdefault[5] = 1;
+    vdefault[6] = 1;
    
     Shape* shape = new Shape(CYLINDER, vdefault);
     defaultShapes.push_back(shape);
@@ -728,55 +602,31 @@ FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QWidget(parent),filename(f
    }
  //PLANES
    {
-     vector<double> vdefault(1);
+     vector<double> vdefault(6);
      vdefault[0] = 0;
-     Shape* shape = new Shape(PXPLANE, vdefault);
+     vdefault[1] = 0;
+     vdefault[2] = 0;
+     vdefault[3] = 0;
+     vdefault[4] = 0;
+     vdefault[5] = 1;
+     Shape* shape = new Shape(LEFTPLANE, vdefault);
      defaultShapes.push_back(shape);
    }
-   {
-     vector<double> vdefault(1);
-     vdefault[0] = 0;
-     Shape* shape = new Shape(NXPLANE, vdefault);
-     defaultShapes.push_back(shape);
-   }
-   {
-     vector<double> vdefault(1);
-     vdefault[0] = 0;
-     Shape* shape = new Shape(PYPLANE, vdefault);
-     defaultShapes.push_back(shape);
-   }
-   {
-     vector<double> vdefault(1);
-     vdefault[0] = 0;
-     Shape* shape = new Shape(NYPLANE, vdefault);
-     defaultShapes.push_back(shape);
-   }
-   {
-     vector<double> vdefault(1);
-     vdefault[0] = 0;
-     Shape* shape = new Shape(PZPLANE, vdefault);
-     defaultShapes.push_back(shape);
-   }
-   {
-     vector<double> vdefault(1);
-     vdefault[0] = 0;
-     Shape* shape = new Shape(NZPLANE, vdefault);
-     defaultShapes.push_back(shape);
-   }
+
 
    paraPages = new QStackedWidget;
 
    for(unsigned int i =0; i< defaultShapes.size(); i++){
      ParaPage *paraPage = new ParaPage(defaultShapes[i]);
      paraPages->addWidget(paraPage);
-     connect(paraPage, SIGNAL(valueChanged()), this, SIGNAL(valueChanged()));
+     //connect(paraPage, SIGNAL(valueChanged()), this, SIGNAL(valueChanged()));
      connect(paraPage, SIGNAL(valueChanged()), this, SLOT(updateShape()));     
    }
 
   
 
    trans = new Transform( this);
-   connect(trans, SIGNAL(tcChanged()), this, SIGNAL(valueChanged()));
+   //connect(trans, SIGNAL(tcChanged()), this, SIGNAL(valueChanged()));
    connect(trans, SIGNAL(tcChanged()), this, SLOT(updateTransform()));
 
    connect(tree, SIGNAL(itemClicked(QTreeWidgetItem*, int)),
@@ -809,7 +659,7 @@ void FVMAdapt::showData(QTreeWidgetItem* item ){
   if(item->text(0)=="shape"){
     QStringList items;
     items << tr("sphere") << tr("cone") << tr("cylinder") << tr("box")<<
-      tr("x_plus_plane") << tr("x_minus_plane")<<tr("y_plus_plane")<<tr("y_minus_plane")<<tr("z_plus_plane")<<tr("z_minus_plane");
+      tr("leftplane") ;
   
     QString tp = item->child(0)->text(0);
 
@@ -867,7 +717,7 @@ void FVMAdapt::updateShape(){
   if(valueNode->childCount() !=(int) ashape->para.size())return;
   for(int i = 0; i < valueNode->childCount(); i++)valueNode->child(i)->setText(1,QString("%1").arg(ashape->para[i]));
   
-
+  emit valueChanged(root);
 
 }
 
@@ -877,7 +727,7 @@ void FVMAdapt::updateShape(){
 void FVMAdapt::changePage(int i){
   
   paraPages->setCurrentIndex(i);
-  emit valueChanged();
+  // emit valueChanged(root); ?
 }
 
 
@@ -1044,9 +894,10 @@ void FVMAdapt::addTransform(){
     
 
   trans->clear();
-   
-    tree->expandItem(transformNode);
-    tree->resizeColumnToContents(0);
+  
+  tree->expandItem(transformNode);
+  tree->resizeColumnToContents(0);
+  emit valueChanged(root);
 }
 void FVMAdapt::updateTransform(){
 
@@ -1110,6 +961,7 @@ void FVMAdapt::updateTransform(){
    
    tree->expandItem(transformNode);
    tree->resizeColumnToContents(0);
+   emit valueChanged(root);
 }
 
 
@@ -1163,7 +1015,7 @@ void FVMAdapt::addOp(){
 void FVMAdapt::addShape(){
   QStringList items;
   items << tr("sphere") << tr("cone") << tr("cylinder") << tr("box")<<
-    tr("x_plus_plane") << tr("x_minus_plane")<<tr("y_plus_plane")<<tr("y_minus_plane")<<tr("z_plus_plane")<<tr("z_minus_plane");
+    tr("leftplane");
 
      bool ok;
      QString item = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
@@ -1218,37 +1070,52 @@ void FVMAdapt::addShape(){
        case CONE:
          {
            valueNode->setText(0, "cone");
-           
+           {
            QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
            x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           x0Node->setText(0, "x0");
+           x0Node->setText(0, "x1");
            x0Node->setText(1, QString("%1").arg(ashape->para[0]));
            
            QTreeWidgetItem* y0Node = new QTreeWidgetItem(valueNode);
            y0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           y0Node->setText(0, "y0");
+           y0Node->setText(0, "y1");
            y0Node->setText(1, QString("%1").arg(ashape->para[1]));
            QTreeWidgetItem* z0Node = new QTreeWidgetItem(valueNode);
            z0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           z0Node->setText(0, "z0");
+           z0Node->setText(0, "z1");
            z0Node->setText(1, QString("%1").arg(ashape->para[2]));
+           }
+           {
+           QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
+           x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+           x0Node->setText(0, "x2");
+           x0Node->setText(1, QString("%1").arg(ashape->para[3]));
+           
+           QTreeWidgetItem* y0Node = new QTreeWidgetItem(valueNode);
+           y0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+           y0Node->setText(0, "y2");
+           y0Node->setText(1, QString("%1").arg(ashape->para[4]));
+           QTreeWidgetItem* z0Node = new QTreeWidgetItem(valueNode);
+           z0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+           z0Node->setText(0, "z2");
+           z0Node->setText(1, QString("%1").arg(ashape->para[5]));
+           }
 
+
+
+
+
+
+           
            QTreeWidgetItem* rNode = new QTreeWidgetItem(valueNode);
            rNode->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           rNode->setText(0, "r");
-           rNode->setText(1, QString("%1").arg(ashape->para[3]));
+           rNode->setText(0, "r1");
+           rNode->setText(1, QString("%1").arg(ashape->para[6]));
            
            QTreeWidgetItem* z1Node = new QTreeWidgetItem(valueNode);
            z1Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           z1Node->setText(0, "z1");
-           z1Node->setText(1, QString("%1").arg(ashape->para[4]));
-      
-           QTreeWidgetItem* z2Node = new QTreeWidgetItem(valueNode);
-           z2Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           z2Node->setText(0, "z2");
-           z2Node->setText(1, QString("%1").arg(ashape->para[5]));
-           
-
+           z1Node->setText(0, "r2");
+           z1Node->setText(1, QString("%1").arg(ashape->para[7]));
       
          }
 
@@ -1262,31 +1129,43 @@ void FVMAdapt::addShape(){
        case CYLINDER:
          {
            valueNode->setText(0, "cylinder");
+           {
            QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
            x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           x0Node->setText(0, "x0");
+           x0Node->setText(0, "x1");
            x0Node->setText(1, QString("%1").arg(ashape->para[0]));
            
            QTreeWidgetItem* y0Node = new QTreeWidgetItem(valueNode);
            y0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           y0Node->setText(0, "y0");
+           y0Node->setText(0, "y1");
            y0Node->setText(1, QString("%1").arg(ashape->para[1]));
+           QTreeWidgetItem* z0Node = new QTreeWidgetItem(valueNode);
+           z0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+           z0Node->setText(0, "z1");
+           z0Node->setText(1, QString("%1").arg(ashape->para[2]));
+           }
+           {
+             QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
+             x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+             x0Node->setText(0, "x2");
+             x0Node->setText(1, QString("%1").arg(ashape->para[3]));
+             
+             QTreeWidgetItem* y0Node = new QTreeWidgetItem(valueNode);
+             y0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+             y0Node->setText(0, "y2");
+             y0Node->setText(1, QString("%1").arg(ashape->para[4]));
+             QTreeWidgetItem* z0Node = new QTreeWidgetItem(valueNode);
+             z0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+             z0Node->setText(0, "z2");
+             z0Node->setText(1, QString("%1").arg(ashape->para[5]));
+           }
            
-           
-           QTreeWidgetItem* rNode = new QTreeWidgetItem(valueNode);
-           rNode->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           rNode->setText(0, "r");
-           rNode->setText(1, QString("%1").arg(ashape->para[2]));
            
            QTreeWidgetItem* z1Node = new QTreeWidgetItem(valueNode);
            z1Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           z1Node->setText(0, "z1");
-           z1Node->setText(1, QString("%1").arg(ashape->para[3]));
-           
-           QTreeWidgetItem* z2Node = new QTreeWidgetItem(valueNode);
-           z2Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-           z2Node->setText(0, "z2");
-           z2Node->setText(1, QString("%1").arg(ashape->para[4]));
+           z1Node->setText(0, "r");
+           z1Node->setText(1, QString("%1").arg(ashape->para[6]));
+      
          }
          
          break;
@@ -1328,64 +1207,47 @@ void FVMAdapt::addShape(){
 
     
     break;
-  case PXPLANE:
+  case LEFTPLANE:
     {
-      valueNode->setText(0, "x_plus_plane");
-      QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
-      x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-      x0Node->setText(0, "x1");
-      x0Node->setText(1, QString("%1").arg(ashape->para[0]));
+      valueNode->setText(0, "leftplane");
+      {
+        QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
+        x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+        x0Node->setText(0, "pointx");
+        x0Node->setText(1, QString("%1").arg(ashape->para[0]));
+        
+        QTreeWidgetItem* y0Node = new QTreeWidgetItem(valueNode);
+        y0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+        y0Node->setText(0, "pointy");
+        y0Node->setText(1, QString("%1").arg(ashape->para[1]));
+        QTreeWidgetItem* z0Node = new QTreeWidgetItem(valueNode);
+        z0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+        z0Node->setText(0, "pointz");
+        z0Node->setText(1, QString("%1").arg(ashape->para[2]));
+      }
+      {
+        QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
+        x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+        x0Node->setText(0, "normalx");
+        x0Node->setText(1, QString("%1").arg(ashape->para[3]));
+        
+        QTreeWidgetItem* y0Node = new QTreeWidgetItem(valueNode);
+        y0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+        y0Node->setText(0, "normaly");
+        y0Node->setText(1, QString("%1").arg(ashape->para[4]));
+        QTreeWidgetItem* z0Node = new QTreeWidgetItem(valueNode);
+        z0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+        z0Node->setText(0, "normalz");
+        z0Node->setText(1, QString("%1").arg(ashape->para[5]));
+      }
+      
+      
     }
     break;
-
- case NXPLANE:
-    {
-      valueNode->setText(0, "x_minus_plane");
-      QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
-      x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-      x0Node->setText(0, "x1");
-      x0Node->setText(1, QString("%1").arg(ashape->para[0]));
-    }
-    break;
-  case PYPLANE:
-    {
-      valueNode->setText(0, "y_plus_plane");
-      QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
-      x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-      x0Node->setText(0, "y1");
-      x0Node->setText(1, QString("%1").arg(ashape->para[0]));
-    }
-    break;
-  case NYPLANE:
-    {
-      valueNode->setText(0, "y_minus_plane");
-      QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
-      x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-      x0Node->setText(0, "y1");
-      x0Node->setText(1, QString("%1").arg(ashape->para[0]));
-    }
-    break;
-  case PZPLANE:
-    {
-      valueNode->setText(0, "z_plus_plane");
-      QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
-      x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-      x0Node->setText(0, "z1");
-      x0Node->setText(1, QString("%1").arg(ashape->para[0]));
-    }
-    break;
-  case NZPLANE:
-    {
-      valueNode->setText(0, "z_minus_plane");
-      QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
-      x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
-      x0Node->setText(0, "z1");
-      x0Node->setText(1, QString("%1").arg(ashape->para[0]));
-    }
-    break;
-  default:
-    break;
-  }
+    
+       default:
+         break;
+       }
 
 
 
@@ -1401,6 +1263,7 @@ void FVMAdapt::addShape(){
      }
      tree->expandAll();
      tree->resizeColumnToContents(0);
+     emit valueChanged(root);
 }
 
 
@@ -1439,12 +1302,13 @@ void FVMAdapt::removeNode(){
     }   
     
   }
+  emit valueChanged(root);
 }
    
 
   
 bool FVMAdapt::saveXml(){
-  QDomDocument doc = toDom();
+  QDomDocument doc = tree2dom(getRoot());
   if(doc.isNull())return false;
   QString fileName = filename.left(filename.lastIndexOf('.'))+".xml";
 
@@ -1484,7 +1348,7 @@ FVMAdapt::~FVMAdapt(){
 }
 
 
-QDomNode makeElement(QDomDocument& doc, QTreeWidgetItem* item){
+QDomNode makeElement(QDomDocument& doc, const QTreeWidgetItem* item){
 
   if(item->text(0)=="translate"){
     double x0 = item->child(0)->text(1).toDouble();
@@ -1495,8 +1359,8 @@ QDomNode makeElement(QDomDocument& doc, QTreeWidgetItem* item){
       QDomElement elem = doc.createElement(item->text(0));
       if(x0 != 0){
         QDomElement childelem = doc.createElement("x0");
-         QDomNode txtNode = doc.createTextNode(item->child(0)->text(1));
-         childelem.appendChild(txtNode);
+        QDomNode txtNode = doc.createTextNode(item->child(0)->text(1));
+        childelem.appendChild(txtNode);
         if(!childelem.isNull()) elem.appendChild(childelem);
       }
       if(y0 != 0){
@@ -1576,9 +1440,543 @@ QDomNode makeElement(QDomDocument& doc, QTreeWidgetItem* item){
       if(!childelem.isNull()) elem.appendChild(childelem);
       return elem;
     }
-  }
+  }else if(item->text(0)=="cone"){
+   
+    double x0, y0, z0, r,z1, z2;
+    //get values
+    vector<double> para(8);
+    for(int i = 0; i < 8; i++){
+      para[i] = item->child(i)->text(1).toDouble();
+    }
+    double xx1= para[0];
+    double yy1= para[1];
+    double zz1= para[2];
+    double xx2= para[3];
+    double yy2= para[4];
+    double zz2= para[5];
+    double rr1= para[6];
+    double rr2= para[7];
+
+    if(zz2< zz1){
+       xx2= para[0];
+       yy2= para[1];
+       zz2= para[2];
+       xx1= para[3];
+       yy1= para[4];
+       zz1= para[5];
+       rr2= para[6];
+       rr1= para[7]; 
+    }
+
+    
+    if(rr1==rr2) return QDomNode();
+    if(xx1==xx2 &&yy1==yy2){
+      if(zz1==zz2) return QDomNode();
+      x0 = xx1;
+      y0 = yy1;
+      z0 = (rr1*zz2-rr2*zz1)/(rr1-rr2);
+      r = (rr1-rr2)/(zz1-zz2);
+      z1=zz1;
+      z2=zz2;
+      QDomElement elem = doc.createElement(item->text(0));
+      QDomElement childelem = doc.createElement("x0");
+      QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+      childelem.appendChild(txtNode);
+      if(!childelem.isNull()) elem.appendChild(childelem);
       
+      childelem = doc.createElement("y0");
+      txtNode = doc.createTextNode(QString("%1").arg(y0));
+      childelem.appendChild(txtNode);
+      if(!childelem.isNull()) elem.appendChild(childelem);
+
+      childelem = doc.createElement("z0");
+       txtNode = doc.createTextNode(QString("%1").arg(z0));
+       childelem.appendChild(txtNode);
+       if(!childelem.isNull()) elem.appendChild(childelem);
+
+       childelem = doc.createElement("r");
+       txtNode = doc.createTextNode(QString("%1").arg(r));
+       childelem.appendChild(txtNode);
+       if(!childelem.isNull()) elem.appendChild(childelem);
+
+       childelem = doc.createElement("z1");
+       txtNode = doc.createTextNode(QString("%1").arg(z1));
+       childelem.appendChild(txtNode);
+       if(!childelem.isNull()) elem.appendChild(childelem);
+
+       childelem = doc.createElement("z2");
+       txtNode = doc.createTextNode(QString("%1").arg(z2));
+       childelem.appendChild(txtNode);
+       if(!childelem.isNull()) elem.appendChild(childelem);
+       return elem;
+    }else{
+      // z2>z1
+      x0 = xx1;
+      y0 = yy1;
+      z1 = zz1;
+      z2 = z1+sqrt((xx1-xx2)*(xx1-xx2)+(yy1-yy2)*(yy1-yy2)+(zz1-zz2)*(zz1-zz2));
+      if(z1==z2) return QDomNode();
+      z0 = (rr1*z2-rr2*z1)/(rr1-rr2);
+      r = (rr1-rr2)/(z1-z2);
+
+      positions3d p1 = positions3d(xx1, yy1, zz1);
+      positions3d p2 = positions3d(xx2, yy2, zz2);
+      positions3d pp2 = positions3d(xx1, yy1, z2);
+      positions3d vfrom = pp2-p1;
+      positions3d vto = p2-p1;
+      double thetay=0, thetax=0, thetaz=0;
+      if(angleBetween(vfrom, vto, thetay, thetaz, thetax)){
+        thetay = thetay*180/PI;
+        thetaz = thetaz*180/PI;
+        thetax = thetax*180/PI;
+        QDomElement elem = doc.createElement(item->text(0));
+        
+        if(thetay !=0 || thetaz!=0 || thetax!=0){
+          QDomElement tran_elem =  doc.createElement("transform");
+            {
+            QDomElement elem = doc.createElement("translate");
+            QDomElement childelem = doc.createElement("x0");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(p1.x));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("y0");
+            txtNode = doc.createTextNode(QString("%1").arg(p1.y));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("z0");
+            txtNode = doc.createTextNode(QString("%1").arg(p1.z));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          if(fabs(thetay) >1e-3){
+            QDomElement elem = doc.createElement("rotateY");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetay));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          if(fabs(thetaz) >1e-3){
+            QDomElement elem = doc.createElement("rotateZ");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetaz));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          if(fabs(thetax) >1e-3){
+            QDomElement elem = doc.createElement("rotateX");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetax));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+           {
+            QDomElement elem = doc.createElement("translate");
+            QDomElement childelem = doc.createElement("x0");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(-1*p1.x));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("y0");
+            txtNode = doc.createTextNode(QString("%1").arg(-1*p1.y));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("z0");
+            txtNode = doc.createTextNode(QString("%1").arg(-1*p1.z));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          elem.appendChild(tran_elem);
+        } 
+         
+        QDomElement childelem = doc.createElement("x0");
+        QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+      
+        childelem = doc.createElement("y0");
+        txtNode = doc.createTextNode(QString("%1").arg(y0));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+        childelem = doc.createElement("z0");
+        txtNode = doc.createTextNode(QString("%1").arg(z0));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+        childelem = doc.createElement("r");
+        txtNode = doc.createTextNode(QString("%1").arg(r));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+        childelem = doc.createElement("z1");
+        txtNode = doc.createTextNode(QString("%1").arg(z1));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+        childelem = doc.createElement("z2");
+        txtNode = doc.createTextNode(QString("%1").arg(z2));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        return elem;
+      
+      }else{
+        return QDomNode();
+      }
+      
+
+
+
+    }
+    return QDomNode();
+  }else if(item->text(0)=="cylinder"){
+    
+    double x0, y0, r,z1, z2;
+      //get values
+      vector<double> para(7);
+      for(int i = 0; i < 7; i++){
+        para[i] = item->child(i)->text(1).toDouble();
+      }
+      double xx1= para[0];
+      double yy1= para[1];
+      double zz1= para[2];
+      double xx2= para[3];
+      double yy2= para[4];
+      double zz2= para[5];
+      double rr1= para[6];
+   
+
+
+
+
+    
+     
+      if(xx1==xx2 &&yy1==yy2){
+       if(zz1 == zz2 ) return QDomNode();
+        x0 = xx1;
+        y0 = yy1;
+        z1 = zz1;
+        z2 = zz2;
+        r = rr1;
+        QDomElement elem = doc.createElement(item->text(0));
+        QDomElement childelem = doc.createElement("x0");
+        QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+        childelem = doc.createElement("y0");
+        txtNode = doc.createTextNode(QString("%1").arg(y0));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+            
+        childelem = doc.createElement("r");
+        txtNode = doc.createTextNode(QString("%1").arg(r));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+        childelem = doc.createElement("z1");
+        txtNode = doc.createTextNode(QString("%1").arg(z1));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+       childelem = doc.createElement("z2");
+       txtNode = doc.createTextNode(QString("%1").arg(z2));
+       childelem.appendChild(txtNode);
+       if(!childelem.isNull()) elem.appendChild(childelem);
+       return elem;
+      }else{
+         // z2>z1
+      x0 = xx1;
+      y0 = yy1;
+      z1 = zz1;
+      z2 = z1+sqrt((xx1-xx2)*(xx1-xx2)+(yy1-yy2)*(yy1-yy2)+(zz1-zz2)*(zz1-zz2));
+      if(z1==z2) return QDomNode();
+      r = rr1;
+
+      positions3d p1 = positions3d(xx1, yy1, zz1);
+      positions3d p2 = positions3d(xx2, yy2, zz2);
+      positions3d pp2 = positions3d(xx1, yy1, z2);
+      positions3d vfrom = pp2-p1;
+      positions3d vto = p2-p1;
+      double thetay=0, thetax=0, thetaz=0;
+      if(angleBetween(vfrom, vto, thetay, thetaz, thetax)){
+        thetay = thetay*180/PI;
+        thetaz = thetaz*180/PI;
+        thetax = thetax*180/PI;
+        QDomElement elem = doc.createElement(item->text(0));
+        
+        if(thetay !=0 || thetaz!=0 || thetax!=0){
+          QDomElement tran_elem =  doc.createElement("transform");
+
+          {
+            QDomElement elem = doc.createElement("translate");
+            QDomElement childelem = doc.createElement("x0");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(p1.x));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("y0");
+            txtNode = doc.createTextNode(QString("%1").arg(p1.y));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("z0");
+            txtNode = doc.createTextNode(QString("%1").arg(p1.z));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          
+          if(fabs(thetay) >1e-3){
+            QDomElement elem = doc.createElement("rotateY");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetay));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          if(fabs(thetaz) >1e-3){
+            QDomElement elem = doc.createElement("rotateZ");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetaz));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          if(fabs(thetax) >1e-3){
+            QDomElement elem = doc.createElement("rotateX");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetax));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+           {
+            QDomElement elem = doc.createElement("translate");
+            QDomElement childelem = doc.createElement("x0");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(-1*p1.x));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("y0");
+            txtNode = doc.createTextNode(QString("%1").arg(-1*p1.y));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("z0");
+            txtNode = doc.createTextNode(QString("%1").arg(-1*p1.z));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          elem.appendChild(tran_elem);
+        } 
+        QDomElement childelem = doc.createElement("x0");
+        QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+        childelem = doc.createElement("y0");
+        txtNode = doc.createTextNode(QString("%1").arg(y0));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+            
+        childelem = doc.createElement("r");
+        txtNode = doc.createTextNode(QString("%1").arg(r));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+        childelem = doc.createElement("z1");
+        txtNode = doc.createTextNode(QString("%1").arg(z1));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        
+       childelem = doc.createElement("z2");
+       txtNode = doc.createTextNode(QString("%1").arg(z2));
+       childelem.appendChild(txtNode);
+       if(!childelem.isNull()) elem.appendChild(childelem);
+       return elem; 
+
+      }
+      }
+      return QDomNode();
+  }else if(item->text(0)=="leftplane"){
+   
+    double x0;
+    //get values
+    vector<double> para(6);
+    for(int i = 0; i < 6; i++){
+      para[i] = item->child(i)->text(1).toDouble();
+    }
+    //point
+    double xx1= para[0];
+    double yy1= para[1];
+    double zz1= para[2];
+    //normal
+    double xx2= para[3];
+    double yy2= para[4];
+    double zz2= para[5];
+    
+    if(xx2==0 &&yy2==0 &&zz2==1){
+      
+      x0 = zz1;
+      QDomElement elem = doc.createElement("z_minus_plane");
+      QDomElement childelem = doc.createElement("z1");
+      QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+      childelem.appendChild(txtNode);
+      if(!childelem.isNull()) elem.appendChild(childelem);
+      return elem;
+    }else if(xx2==0 &&yy2==0 &&zz2==-1){
+      
+      x0 = zz1;
+      QDomElement elem = doc.createElement("z_plus_plane");
+      QDomElement childelem = doc.createElement("z1");
+      QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+      childelem.appendChild(txtNode);
+      if(!childelem.isNull()) elem.appendChild(childelem);
+      return elem;
+    }else if(xx2==1 &&yy2==0 &&zz2==0){
+      
+      x0 = xx1;
+      QDomElement elem = doc.createElement("x_minus_plane");
+      QDomElement childelem = doc.createElement("x1");
+      QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+      childelem.appendChild(txtNode);
+      if(!childelem.isNull()) elem.appendChild(childelem);
+      return elem;
+    }else if(xx2==-1 &&yy2==0 &&zz2==0){
+      
+      x0 = xx1;
+      QDomElement elem = doc.createElement("x_plus_plane");
+      QDomElement childelem = doc.createElement("x1");
+      QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+      childelem.appendChild(txtNode);
+      if(!childelem.isNull()) elem.appendChild(childelem);
+      return elem;
+    }else if(xx2==0 &&yy2==1 &&zz2==0){
+      
+      x0 = yy1;
+      QDomElement elem = doc.createElement("y_minus_plane");
+      QDomElement childelem = doc.createElement("y1");
+      QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+      childelem.appendChild(txtNode);
+      if(!childelem.isNull()) elem.appendChild(childelem);
+      return elem;
+    }else if(xx2==0 &&yy2==-1 &&zz2==0){
+      
+      x0 = yy1;
+      QDomElement elem = doc.createElement("y_plus_plane");
+      QDomElement childelem = doc.createElement("y1");
+      QDomNode txtNode = doc.createTextNode(QString("%1").arg(x0));
+      childelem.appendChild(txtNode);
+      if(!childelem.isNull()) elem.appendChild(childelem);
+      return elem;
+    }else{
+      positions3d p1 = positions3d(xx1, yy1, zz1);
+      positions3d vfrom = positions3d(0, 0, 1);
+      positions3d vto = positions3d(xx2, yy2, zz2);
+      double thetay=0, thetax=0, thetaz=0;
+      if(angleBetween(vfrom, vto, thetay, thetaz, thetax)){
+        thetay = thetay*180/PI;
+        thetaz = thetaz*180/PI;
+        thetax = thetax*180/PI;
+        QDomElement elem = doc.createElement("z_minus_plane");
+        
+        if(thetay !=0 || thetaz!=0 || thetax!=0){
+          QDomElement tran_elem =  doc.createElement("transform");
+          {
+            QDomElement elem = doc.createElement("translate");
+            QDomElement childelem = doc.createElement("x0");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(p1.x));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("y0");
+            txtNode = doc.createTextNode(QString("%1").arg(p1.y));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("z0");
+            txtNode = doc.createTextNode(QString("%1").arg(p1.z));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          
+          if(fabs(thetay) >1e-3){
+            QDomElement elem = doc.createElement("rotateY");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetay));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          if(fabs(thetaz) >1e-3){
+            QDomElement elem = doc.createElement("rotateZ");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetaz));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          if(fabs(thetax) >1e-3){
+            QDomElement elem = doc.createElement("rotateX");
+            QDomElement childelem = doc.createElement("theta");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(thetax));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+
+          {
+            QDomElement elem = doc.createElement("translate");
+            QDomElement childelem = doc.createElement("x0");
+            QDomNode txtNode = doc.createTextNode(QString("%1").arg(-1*p1.x));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("y0");
+            txtNode = doc.createTextNode(QString("%1").arg(-1*p1.y));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            childelem = doc.createElement("z0");
+            txtNode = doc.createTextNode(QString("%1").arg(-1*p1.z));
+            childelem.appendChild(txtNode);
+            if(!childelem.isNull()) elem.appendChild(childelem);
+
+            if(!elem.isNull()) tran_elem.appendChild(elem);
+          }
+          elem.appendChild(tran_elem);
+        }
+        
+        QDomElement childelem = doc.createElement("z1");
+        QDomNode txtNode = doc.createTextNode(QString("%1").arg(zz1));
+        childelem.appendChild(txtNode);
+        if(!childelem.isNull()) elem.appendChild(childelem);
+        return elem;
+      }
+    }
+      
+    return QDomNode();
+  }
   
+
+    
   QDomElement elem = doc.createElement(item->text(0));
   if(item->text(1)!=""){
     QDomNode elt = doc.createTextNode(item->text(1));
@@ -1596,14 +1994,42 @@ QDomNode makeElement(QDomDocument& doc, QTreeWidgetItem* item){
 }
 
 
-QDomDocument FVMAdapt::toDom(){
+void graft_tree(QDomDocument& doc){
+  QDomNodeList shapeList = doc.elementsByTagName("shape");
+  for(int i = 0; i < shapeList.size(); i++){
+    QDomElement  trans_elem = shapeList.at(i).firstChildElement().firstChildElement("transform");
+    if(!trans_elem.isNull()){
+      QDomNode tmpNode =shapeList.at(i).firstChildElement().removeChild(trans_elem);
+      QDomNode parent = shapeList.at(i).parentNode();
+      parent.insertBefore(tmpNode, parent.firstChildElement());
+    }
+  }
+
+}
+
+QDomDocument tree2dom(const QTreeWidgetItem* root){
   QDomDocument doc;
   QDomNode rootElem = makeElement(doc, root);
   doc.appendChild(rootElem);
+  graft_tree(doc);
   return doc;
-  //QString xml = doc.toString();
-  //qDebug() << xml;
 }
 
+  
+// QDomDocument FVMAdapt::toDom(){
+//   QDomDocument doc;
+//   QDomNode rootElem = makeElement(doc, root);
+//   doc.appendChild(rootElem);
+//   graft_tree(doc);
+//   return doc;
+  
+// }
+
+
+
+
 void FVMAdapt::helpClicked(){
+}
+QTreeWidgetItem* FVMAdapt::getRoot(){
+  return root;
 }

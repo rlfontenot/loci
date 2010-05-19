@@ -6,6 +6,7 @@
 #include <QDomElement>
 #include <QPointer>
 #include "grid.h"
+#include "fvmadapt.h"
 
 class grid;
 class cutplane_info;
@@ -62,7 +63,7 @@ public:
   void setShading(bool); //show_exreme_nodes decide shading
   void toggleBorder();
   void toggleShowShapes();
-  void toggleShowNodes();
+  //  void toggleShowNodes();
   void setShadeType1();
   void setShadeType2();
   void setShadeType3();
@@ -84,10 +85,11 @@ public:
 
   //for FVMadapt
   void drawShapes();
-  void setAdaptWindow(QPointer<FVMAdapt>);
-  void adaptwindowClosed();
-  void markNodes();
-  void markVolumeNodes(QString fileName);
+  //void setAdaptWindow(QPointer<FVMAdapt>);
+  void cleanDoc();
+  void updateDoc(const QTreeWidgetItem*);
+  //void markNodes();
+  //void markVolumeNodes(QString fileName);
 
  
  
@@ -129,12 +131,12 @@ private:
   void drawNyPlane(const vector<double>& p, double size);
   void drawPzPlane(const vector<double>& p, double size);
   void drawNzPlane(const vector<double>& p, double size);
-  void drawMarkedNodes();
+  // void drawMarkedNodes();
   void drawExtremeNodes(int);
  
-  QPointer<FVMAdapt> adaptwindow ;
-  vector<bool> tags;
-
+  // QPointer<FVMAdapt> adaptwindow ;
+  //vector<bool> tags;
+  QDomDocument doc;
 
   
   GLUquadricObj* qobj;//for FVMAdapt
@@ -195,7 +197,7 @@ private:
   
   int currentWidth, currentHeight;//viewport
   
-  bool show_preview, show_contours, show_grid, show_shading,show_boundary_shading, show_border, show_nodes, show_shapes;  // Visibility flags
+  bool show_preview, show_contours, show_grid, show_shading,show_boundary_shading, show_border,  show_shapes;  // Visibility flags
   double min_val, max_val;  // Scalar value extrema over the whole grid
   
   cutplane_info info;  // The information for the current cutting plane

@@ -27,10 +27,32 @@ class QListWidgetItem;
 class QCheckBox;
 
 
+bool angleBetween(positions3d v1,positions3d v2, double& heading, double& attitude, double& bank);
 
 
 bool conditionIsSatisfied(const QDomElement& theroot, const QString& condition);
+class GeneralGroup : public QGroupBox
+{
+  Q_OBJECT
+  
+public:
+  GeneralGroup(QDomElement& elem, QDomElement& root,  QWidget* parent = 0);
+    QString currentText();
+public slots:
+void changeState();
+  void updateChecked();
+  void updateShowStatus(const bool&);
+  signals:
+ void stateChanged();
+  void componentsChanged();
+  void textChanged(const QString &);
+  void showStatus(const bool &);
+protected:
+  QDomElement myelem;
+  QDomElement myroot;
 
+  
+};
 
 class GeneralWindow : public QWidget
 {
@@ -43,11 +65,11 @@ public:
  void changeState();
   void updateShowStatus(const bool &);
   signals:
- void updateStatus(const QString&);
+  void updateStatus(const QString&);
   void updateStatusTip(int);
   void stateChanged();
   void componentsChanged();
-   void showStatus(const bool &);
+  void showStatus(const bool &);
   
 protected:
   QDomElement myelem;
@@ -176,28 +198,7 @@ private:
 
 
 
-class GeneralGroup : public QGroupBox
-{
-  Q_OBJECT
-  
-public:
-  GeneralGroup(QDomElement& elem, QDomElement& root,  QWidget* parent = 0);
-    QString currentText();
-public slots:
-void changeState();
-  void updateChecked();
-  void updateShowStatus(const bool&);
-  signals:
- void stateChanged();
-  void componentsChanged();
-  void textChanged(const QString &);
-  void showStatus(const bool &);
-protected:
-  QDomElement myelem;
-  QDomElement myroot;
 
-  
-};
 
 
 class OpGroup : public GeneralGroup{

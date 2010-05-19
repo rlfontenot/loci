@@ -20,6 +20,7 @@ class QPushButton;
 class MGViewer;
 class VMergeWindow;
 class RefDialog;
+class InitCndWindow;
 #include "grid.h"
 #include "cutdialog.h"
 #include "vmergewindow.h"
@@ -87,7 +88,7 @@ public slots:
   void vmClosed();
   void adaptClicked(); //FVMAdapt
  
-  void markVolumeNodes();
+  //void markVolumeNodes();
   void refineGrids();
   void showQuality(QString, QProcess::ExitStatus);
   
@@ -139,7 +140,7 @@ private:
  
   QPointer<QDockWidget> dock;
   QPointer<QDockWidget> bdock;
-  QPointer<QSlider> slider; // change number of contour
+
   
 
   
@@ -149,6 +150,7 @@ private:
   
   
   QPointer<BdCndWindow> bdWindow;
+  QPointer<InitCndWindow> initWindow;
   QPointer<RefDialog> refdialog;
 
   

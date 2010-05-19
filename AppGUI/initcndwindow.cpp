@@ -2,10 +2,12 @@
 #include <QFile>
 #include <QString>
 #include <QMessageBox>
+#include <QTreeWidgetItem>
 
 #include "initcndwindow.h"
 #include "pages.h"
 #include "getfile.h"
+#include "stateregion.h"
 
 InitCndWindow::InitCndWindow(QDomElement& theelem, QDomElement& theroot, QWidget* parent): GeneralWindow(theelem, theroot, parent)
 {
@@ -51,7 +53,19 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QDomElement& theroot, QWidget
       connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
       connect(this, SIGNAL(showStatus(const bool&)), bdCndPage, SLOT(updateShowStatus(const bool&)));
       pagesWidget->addWidget(bdCndPage);
-    }else{
+    }else if(elem.hasAttribute("element")&&elem.attribute("element")=="regionWindow"){
+      RegionWindow* bdCndPage = new RegionWindow(elem, myroot);
+      //      connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
+      connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
+      connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
+      connect(this, SIGNAL(showStatus(const bool&)), bdCndPage, SLOT(updateShowStatus(const bool&)));
+      connect(bdCndPage, SIGNAL( valueChanged(const QTreeWidgetItem*)),
+              this, SIGNAL( valueChanged(const QTreeWidgetItem*)));
+      pagesWidget->addWidget(bdCndPage);
+    }
+
+
+    else{
       QMessageBox::warning(window(), elem.tagName(),
                            tr(" don't know how to handle it yet: ")
                            +elem.attribute("element")
@@ -98,7 +112,7 @@ void InitCndWindow::changePage(QListWidgetItem *current, QListWidgetItem* previo
    int current= myelem.attribute("current").toInt();
    QDomElement elt = myelem.firstChildElement();
    for(int i=0; i < current; i++) elt = elt.nextSiblingElement();
-   if(elt.attribute("element")=="panel"||elt.attribute("element")=="page"){
+   if(!elt.hasAttribute("action")){
      myelem.setAttribute("status", elt.attribute("status"));
      myelem.setAttribute("currentText", elt.attribute("currentText"));
      

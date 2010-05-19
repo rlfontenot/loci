@@ -10,7 +10,7 @@
 class QListWidget;
 class QListWidgetItem;
 class QStackedWidget;
-
+class QTreeWidgetItem;
 
 
 class InitCndWindow : public GeneralWindow
@@ -24,7 +24,7 @@ private slots:
 void changePage(QListWidgetItem *current, QListWidgetItem *previous);
   void checkStatus();
   signals:
-
+ void valueChanged(const QTreeWidgetItem*);
 private:
 
   QListWidget *typesWidget;

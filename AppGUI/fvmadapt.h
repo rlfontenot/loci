@@ -22,8 +22,9 @@ class QTreeWidget;
 class QSignalMapper;
 
   
-enum BASIC_SHAPES{SPHERE, CONE, CYLINDER, BOX, PXPLANE, NXPLANE, PYPLANE, NYPLANE, PZPLANE, NZPLANE};
+enum BASIC_SHAPES{SPHERE, CONE, CYLINDER, BOX, LEFTPLANE};
 
+QDomDocument tree2dom(const QTreeWidgetItem* root);
 
 class Shape{
 public:
@@ -33,20 +34,18 @@ public:
 public:
   BASIC_SHAPES tp;
   vector<double> para;
-  // vector<TranCoef> tc;
-   
 };
 
 class ParaPage:public QGroupBox{
   Q_OBJECT
-public:
+  public:
   ParaPage(Shape* s, QWidget* parent = 0);
-
- public slots:
- void setValue(int);
+                                         
+public slots:
+  void setValue(int);
   void showValue();
   void reset();
-  signals:
+signals:
   void valueChanged();
 public:
   
@@ -64,27 +63,22 @@ struct IDMatrix2{
 class Transform: public QGroupBox
 {
   Q_OBJECT
-
-public:
+  public:
   Transform(QWidget *parent = 0);
   TranCoef value();
-  // TranCoef tc;
+ 
 public slots:
-void setInfo();
+  void setInfo();
   void clear();
-  // void setTc(TranCoef>* v);
   void setValue(positions3d* p);
-  signals:
+signals:
   void tcChanged();
-private:
-  // affineMapping currentM(); 
-private:
   
+private:
   VectSlider* translate;
   VectSlider* rotateCenter;
   VectSlider* rotateAngle;
   VectSlider* scale;
- 
 };
 
 
@@ -92,22 +86,19 @@ class FVMAdapt: public QWidget
 {
   Q_OBJECT
 
-public:
+  public:
   FVMAdapt(QString fileName, QWidget *parent = 0);
   ~FVMAdapt();
-
+  QTreeWidgetItem* getRoot();
  
   signals:
-  void valueChanged();
-  void markNodes();
-  void markVolumeNodes();
+  void valueChanged(const QTreeWidgetItem*);
   void refineGrids();
-  void showNodesClicked();
-  void showShapesClicked();
+                    
 private slots:
   
   void helpClicked();
-void changePage(int);
+  void changePage(int);
   void addShape();
   void addTransform();
   void addRegion();
@@ -117,13 +108,7 @@ void changePage(int);
   void updateShape();
   void updateTransform();
   void showData(QTreeWidgetItem* item);  
- void done();
-
-  
-  
-  
-  QDomDocument toDom();
-  
+  void done();
 private:
   void createFlowBar();
   void createToolBar();
@@ -140,10 +125,6 @@ private:
   QGroupBox* toolbar;
   QGroupBox* treebar;
   vector<Shape*> defaultShapes;
-  
-
- 
-  friend class GLViewer;
 };
 
 
