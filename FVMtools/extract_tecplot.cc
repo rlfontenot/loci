@@ -121,7 +121,8 @@ void tecplot_topo_handler::open(string casename, string iteration ,int inpnts,
                                 int inhexs, int ingen,
                                 const vector<string> &bc_names,
                                 const vector<string> &variables,
-                                const vector<int> &variable_types) {
+                                const vector<int> &variable_types,
+                                double time) {
   npnts = inpnts ;
   ntets = intets ;
   nprsm = inprsm ;

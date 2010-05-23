@@ -81,7 +81,8 @@ public:
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
-                    const vector<int> &variable_types) = 0 ;
+                    const vector<int> &variable_types,
+                    double time) = 0 ;
   virtual void close() = 0 ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) = 0 ;
   virtual void create_mesh_elements() = 0 ;
@@ -143,7 +144,8 @@ public:
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
-                    const vector<int> &variable_types) ;
+                    const vector<int> &variable_types,
+                    double time) ;
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() {}
@@ -207,7 +209,8 @@ public:
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
-                    const vector<int> &variable_types) ;
+                    const vector<int> &variable_types,
+                    double time) ;
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() {}
@@ -289,7 +292,8 @@ public:
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
-                    const vector<int> &variable_types) ;
+                    const vector<int> &variable_types,
+                    double time) ;
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() ;
@@ -374,7 +378,8 @@ public:
                     int ntets, int nprsm, int npyrm, int nhexs, int ngen,
                     const vector<string> &bc_names,
                     const vector<string> &variables,
-                    const vector<int> &variable_types) ;
+                    const vector<int> &variable_types,
+                    double time) ;
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() ;

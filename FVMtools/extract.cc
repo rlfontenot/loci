@@ -658,9 +658,16 @@ void extract_grid(string casename, string iteration,
   for(size_t i=0;i<bc_names.size();++i)
     cout << bc_names[i] << ' ' ;
   cout << endl ;
+
+  double time = 0 ;
+  int ncycle = 0 ;
+  string timefile = output_dir+"/timestep_txt." + iteration + "_" + casename ;
+  std::ifstream timein(timefile.c_str(),ios::in) ;
+  if(!timein.fail())
+    timein >> ncycle >> time ;
   
   topo->open(casename,iteration,npnts,ntets_b,nprsm_b,npyrm_b,nhexs_b,ngenc_b,
-             bc_names, variables,variable_types) ;
+             bc_names, variables,variable_types,time) ;
 
 
   for(int i=0;i<7;++i) {

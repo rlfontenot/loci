@@ -1022,6 +1022,10 @@ int main(int ac, char* av[]) {
       Lref = "1 meter" ;
       ac-- ;
       av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-mm")) {
+      Lref = "1 millimeter" ;
+      ac-- ;
+      av++ ;
     } else {
       cerr << "argument " << av[1] << " is not understood." << endl ;
       ac-- ;
