@@ -167,7 +167,7 @@ if [ "$ARCH" == "IRIX64" ]; then
    echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
    echo MPI_RUN = mpirun >> sys.conf
 else
-   echo MPI_BASE =  >> sys.conf
+   echo MPI_BASE =  $MPI_PATH >> sys.conf
    echo MPI_LIBS =  >> sys.conf
    echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
    echo MPI_RUN = mpirun >> sys.conf
