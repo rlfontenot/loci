@@ -78,6 +78,10 @@ public:
   inline Node* centroid(){
     return new Node(0.5*(head->p + tail->p));
   }
+
+  inline double length(){
+    return norm(head->p - tail->p);
+  }
   
   //check if the edge contain the node,
   //if return 0, the node is the head

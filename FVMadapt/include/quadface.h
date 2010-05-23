@@ -150,10 +150,61 @@ public:
   }
 
  
+  inline double area(){
+    vect3d tmp_center = simple_center()->p;
+    vect3d sum = vect3d(0.0, 0.0, 0.0);
+    for(int i = 0; i < 2; i++){
+      sum += cross((edge[i]->tail->p - tmp_center), (edge[i]->head->p - tmp_center));
+    }
+    for(int i = 2; i < 4; i++){
+      sum += cross((edge[i]->head->p - tmp_center), (edge[i]->tail->p - tmp_center));
+    }
+    
+    return 0.5*norm(sum);
+  }
+
+  inline Node* wireframe(){
+    
+     //allocate edgecenter
+    vect3d* edgecenter = new vect3d[4];
+    double* len = new double[4];
+    
+    //get edge centers
+    for(int i = 0; i < 4; i++){
+      edgecenter[i] = edge[i]->child[0]->tail->p;
+      len[i] = edge[i]->length();
+    }
+   
+    //calculate the mass center of the edge centers
+    vect3d p = weighted_center(edgecenter, len, 4);
+
+    //deallocate edgecenter
+    delete [] edgecenter;
+    delete [] len;
+    
+    return new Node(p);
+  }
+
   
-  
-  //the center of the face, defined as the mass center of 4 nodes
+
+  //the center of the face, defined as the mass center of edge centers
+  //precondition:: all its edges have been split
   inline Node* centroid(){
+    switch(CENTROID){
+      case 0:
+        return simple_center();
+    case 1:
+      return wireframe();
+    default:
+      return wireframe();
+    }
+    
+  }
+  
+  
+    
+  //the center of the face, defined as the mass center of 4 nodes
+  inline Node* simple_center(){
     vect3d nodes[4];
     //get nodes
     for(int i = 0; i <2; i++){

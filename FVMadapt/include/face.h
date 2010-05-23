@@ -74,26 +74,65 @@ public:
       needReverse = 0;
     }
   }
+
+  inline Node* simple_center(){
+    vect3d* nodes = new vect3d[numEdge];
+    for(int i = 0; i < numEdge; i++){
+      nodes[i] =  edge[i]->head->p;
+    }
+    //calculate the mass center of the edge centers
+    vect3d p = point_center(nodes, numEdge);
+    delete [] nodes;
+    return new Node(p);
+  }
+    
+  inline double area(){
+    vect3d tmp_center = simple_center()->p;
+    vect3d sum = vect3d(0.0, 0.0, 0.0);
+    for(int i = 0; i < numEdge; i++){
+      sum += cross((edge[i]->tail->p - tmp_center), (edge[i]->head->p - tmp_center));
+    }
+    return 0.5*norm(sum);
+  }
   
   //the center of the face, defined as the mass center of edge centers
   //precondition:: all its edges have been split
   inline Node* centroid(){
-    //allocate edgecenter
-    vect3d* edgecenter = new vect3d[numEdge];
+    switch(CENTROID){
+    case 0:
+      return simple_center();
+    case 1:
+      return wireframe();
+    default:
+      return wireframe();
+    }
+   
+  }
 
+  inline Node* wireframe(){
+    
+     //allocate edgecenter
+    vect3d* edgecenter = new vect3d[numEdge];
+    double* len = new double[numEdge];
+    
     //get edge centers
     for(int i = 0; i < numEdge; i++){
       edgecenter[i] = edge[i]->child[0]->tail->p;
+      len[i] = edge[i]->length();
     }
    
     //calculate the mass center of the edge centers
-    vect3d p = point_center(edgecenter, numEdge);
+    vect3d p = weighted_center(edgecenter, len, numEdge);
 
     //deallocate edgecenter
     delete [] edgecenter;
+    delete [] len;
     
     return new Node(p);
   }
+
+
+
   
   inline int  getLevel(){return edge[0]->level;};
 

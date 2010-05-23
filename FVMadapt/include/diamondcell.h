@@ -238,7 +238,7 @@ private:
   //calculate the centroid of the diamondcell, it's defined as
   //the mean value of facecenters
   //precondition: all the faces have been splitted
-  inline Node* centroid(){
+  inline Node* simple_center(){
     Node* cellcenter = new Node();
     vect3d* facecenter = new vect3d[2*nfold];
     for(int i = 0; i < 2*nfold ; i++){
@@ -248,7 +248,42 @@ private:
     delete [] facecenter;
     return cellcenter;
   }
+  inline Node* wireframe(){
+    
+     //allocate edgecenter
+    vect3d* facecenter = new vect3d[2*nfold];
+    double* areas = new double[2*nfold];
+    
+    //get edge centers
+   for(int i = 0; i < 2*nfold; i++){
+     facecenter[i]= face[i]->child[0]->edge[2]->head->p;
+     areas[i] = face[i]->area();
+   }
+   
+   //calculate the mass center of the edge centers
+   vect3d p = weighted_center(facecenter, areas, 2*nfold);
 
+    //deallocate edgecenter
+    delete [] facecenter;
+    delete [] areas;
+    
+    return new Node(p);
+  }
+  
+  
+  inline Node* centroid(){
+    switch(CENTROID){
+    case 0:
+      return simple_center();
+    case 1:
+      return wireframe();
+    default:
+      return wireframe();
+    }
+   
+  }
+
+  
   //get the facecenter
   //condition: facecenter will be allocated and deallocated by the caller
   //precondition: the faces have been splitted
@@ -335,7 +370,7 @@ public:
 
   //center of the cell, defined as the mean value of the facecenter
   //precondition: all the face and edge have been splitted
-  inline Node* centroid(){
+  inline Node* simple_center(){
     Node* center = new Node();
     vect3d* facecenter = new vect3d[numFace];
     for(int i = 0; i < numFace; i++){
@@ -346,6 +381,41 @@ public:
     return center;
   }
 
+ inline Node* wireframe(){
+    
+     //allocate edgecenter
+    vect3d* facecenter = new vect3d[numFace];
+    double* areas = new double[numFace];
+    
+    //get edge centers
+    for(int i = 0; i < numFace; i++){
+      facecenter[i]=face[i]->child[0]->edge[2]->head->p;
+      areas[i] = face[i]->area();
+    }
+   
+    //calculate the mass center of the edge centers
+    vect3d p = weighted_center(facecenter, areas, numFace);
+
+    //deallocate edgecenter
+    delete [] facecenter;
+    delete [] areas;
+    
+    return new Node(p);
+ }
+
+  inline Node* centroid(){
+    switch(CENTROID){
+    case 0:
+      return simple_center();
+    case 1:
+      return wireframe();
+    default:
+      return wireframe();
+    }
+   
+  }
+
+  
   //precondition: all the faces have been splitted
   //condition: facecenter is allocated and deallocated by the caller
   inline void getFaceCenter(Node** facecenter){
