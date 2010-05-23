@@ -79,7 +79,7 @@ namespace Loci {
     {"angstrom","meter",1e-10},
     {"kilometer","meter",1000},
     {"km","meter",1000},
-    {"milimeter","meter",0.001},
+    {"millimeter","meter",0.001},
     {"mm","meter",0.001},
 
     {"minute","second",60},//time
@@ -272,7 +272,7 @@ namespace Loci {
     {"kilometer","centimeter",100000},
     {"km","centimeter",100000},
     {"meter","centimeter",100},
-    {"milimeter","centimeter",0.1},
+    {"millimeter","centimeter",0.1},
     {"mm","centimeter",0.1},
     {"cm","centimeter",1},
 
