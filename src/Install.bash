@@ -49,9 +49,12 @@ cp FVMtools/xdr2vog $INSTALL_PATH/bin
 cp FVMtools/vog2xdr $INSTALL_PATH/bin
 cp FVMtools/vog2surf $INSTALL_PATH/bin
 cp FVMtools/ugrid2vog $INSTALL_PATH/bin
+cp FVMtools/fluent2vog $INSTALL_PATH/bin
+cp FVMtools/cobalt2vog $INSTALL_PATH/bin
 cp FVMtools/cfd++2xdr $INSTALL_PATH/bin
 cp FVMtools/vogmerge $INSTALL_PATH/bin
 cp FVMtools/vogcheck $INSTALL_PATH/bin
+cp FVMtools/extract_movie $INSTALL_PATH/bin
 cp FVMadapt/refmesh $INSTALL_PATH/bin
 cp FVMadapt/marker $INSTALL_PATH/bin
 
