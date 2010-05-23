@@ -109,6 +109,11 @@ for i in $TOOLS_DIRS ; do
 done
 echo
 
+if [ ! -h $fulltarget/FVMtools/extract_movie ]; then
+    cp FVMtools/extract_movie $fulltarget/FVMtools/extract_movie
+    chmod a+rx $fulltarget/FVMtools/extract_movie
+fi
+
 cd $fulltarget
 if [ ! -h Makefile ]; then
   echo ln -s $source/src/Makefile Makefile
