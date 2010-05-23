@@ -33,7 +33,6 @@ using std::istream ;
 
 namespace Loci 
 {
-
   using std::pair ;
   using std::make_pair ;
   using std::vector ;
@@ -60,6 +59,7 @@ namespace Loci
   }
   
   storeRepP dmultiMapRepI::expand(entitySet &out_of_dom, std::vector<entitySet> &ptn) {
+
     int *recv_count = new int[MPI_processes] ;
     int *send_count = new int[MPI_processes] ;
     int *send_displacement = new int[MPI_processes] ;
@@ -98,24 +98,27 @@ namespace Loci
     }
     MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
 		  recv_buf, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
+		  MPI_COMM_WORLD) ;
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
 	    recv_displacement[i]+recv_count[i]; ++j) 
 	send_clone[i].push_back(recv_buf[j]) ;
       sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
-    dmultiMap *map_entities = new dmultiMap[MPI_processes] ;
+    
+    std::vector<std::vector<int,malloc_alloc<int> > > comm_list(MPI_processes) ;
 
     for(int i = 0; i < MPI_processes; ++i) 
-      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi)
-        (map_entities[i])[*vi] = attrib_data[*vi] ;
+      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) {
+        comm_list[i].push_back(*vi) ;
+        int lsz = attrib_data[*vi].size() ;
+        comm_list[i].push_back(lsz) ;
+        for(int l=0;l<lsz;++l)
+          comm_list[i].push_back(attrib_data[*vi][l]) ;
+      }
     
     for(int i = 0; i < MPI_processes; ++i) {
-      entitySet dom =map_entities[i].domain() ;
-      send_count[i] = 2 * dom.size() ;
-      for(entitySet::const_iterator hi = dom.begin(); hi != dom.end(); ++hi)
-	send_count[i] += map_entities[i][*hi].size() ; 
+      send_count[i] = comm_list[i].size() ;
     }
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
@@ -129,30 +132,24 @@ namespace Loci
     int *recv_map = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i) {
-      entitySet dom = map_entities[i].domain() ;
-      for(entitySet::const_iterator miv = dom.begin(); miv != dom.end(); ++miv) {
-	send_map[size_send] = *miv ;
-	++size_send ;
-        int sz = map_entities[i][*miv].size() ;
-	send_map[size_send] = sz ;
-	++size_send ;
-        for(int k=0;k<sz;++k) {
-	  send_map[size_send] = map_entities[i][*miv][k] ;
-	  ++size_send ;
-	}
+      int lsz = comm_list[i].size() ;
+      for(int l=0;l<lsz;++l) {
+        send_map[size_send] = comm_list[i][l] ;
+        size_send++ ;
       }
     }
-    delete[] map_entities ;
-    
+
     send_displacement[0] = 0 ;
     recv_displacement[0] = 0 ;
     for(int i = 1; i < MPI_processes; ++i) {
       send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
       recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
     }
+             
     MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
 		  recv_map, recv_count, recv_displacement, MPI_INT,
-		  MPI_COMM_WORLD) ;  
+		  MPI_COMM_WORLD) ;
+    
     dmultiMap hm ;
     std::vector<int,malloc_alloc<int> > ss ;
     for(int i = 0; i < MPI_processes; ++i) {
@@ -167,6 +164,7 @@ namespace Loci
 	j += count + 1 ;
       }
     }
+
     std::vector<int,malloc_alloc<int> > tmp_vec ;
     entitySet dom = hm.domain() ;
     for(entitySet::const_iterator hmi = dom.begin(); hmi != dom.end(); ++hmi)
@@ -178,6 +176,7 @@ namespace Loci
       vector<int,malloc_alloc<int> >(sz).swap(dmul[*hi]) ;
       dmul[*hi] = attrib_data.elem(*hi) ;
     }
+
     storeRepP sp = dmul.Rep() ;
     delete [] send_buf ;
     delete [] recv_buf ;

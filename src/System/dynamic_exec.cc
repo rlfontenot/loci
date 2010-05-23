@@ -527,8 +527,7 @@ namespace Loci
   }
 
   void dynamic_schedule_rule::iterative_weighted_static () {
-
-    int sortIdx[MAXCHUNKS];	// sort index
+    vector<int> sortIdx(nProcs) ;  // sort index
     vector<Array<int,3> > info(nProcs) ;// information about items received from other procs
 
     double optTime = 0.0;	// "ideal" work time (perfect load balance)
@@ -626,8 +625,18 @@ namespace Loci
                       << ", ideal=" << optTime << ", diff=" << toGive[myRank]
                       << endl;
 #endif
-
+      
       // sort work to give away (increasing)
+      vector<pair<double,int> > sortOrder(nProcs) ;
+      for (i = 0; i < nProcs; i++) {
+        sortOrder[i].first = toGive[i] ;
+        sortOrder[i].second = i ;
+        
+      }
+      std::sort(sortOrder.begin(),sortOrder.end()) ;
+      for (i = 0; i < nProcs; i++)
+        sortIdx[i] = sortOrder[i].second ;
+#ifdef OLD_BUBBLE_SORT      
       for (i = 0; i < nProcs; i++)
         sortIdx[i] = i;
       for (i = 0; i < (nProcs - 1); i++)
@@ -637,6 +646,7 @@ namespace Loci
             sortIdx[i] = sortIdx[j];
             sortIdx[j] = k;
           }
+#endif
       // determine communications pattern
       // x[src][dest] is the amount of work from src to dest
       for (i = 0; i < nProcs; i++)
