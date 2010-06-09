@@ -536,6 +536,14 @@ namespace Loci {
             retval = false ;
             }
           }
+          if(si->get_info().priority.size() != 0) {
+            cerr << "-------------------------------------------------"<<endl;
+            cerr << "Singleton rule cannot use priority override" << endl;
+            cerr << "Error occured for rule " << get_name() 
+                 << " and variable " << *si << endl ;
+            cerr << "-------------------------------------------------"<<endl;
+
+          }
           break;
         default:
           break ;
