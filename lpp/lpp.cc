@@ -923,7 +923,8 @@ string parseFile::process_String(string in,
 }
                                  
 void parseFile::process_Calculate(std::ostream &outputFile,
-                                  const map<variable,string> &vnames) {
+                                  const map<variable,string> &vnames,
+                                  const set<list<variable> > &validate_set) {
   if(prettyOutput)
     outputFile << "    void calculate(Entity e) { " << endl ;
   else
@@ -1097,10 +1098,39 @@ void parseFile::process_Calculate(std::ostream &outputFile,
       if(dangling_arrow)
         throw parseError("syntax error, near '->' operator") ;
 
-      if(first_name && (vlist.size() == 0)) {
+      if(first_name && (vlist.empty())) {
         outputFile << name << ' ' ;
         continue ;
       }
+
+      list<variable> vlistall ;
+      list<variable>::const_iterator vitmp ;
+      for(vitmp=vlist.begin();vitmp!=vlist.end();++vitmp) {
+        variable vt = *vitmp ;
+        while(vt.get_info().priority.size() != 0)
+          vt = vt.drop_priority() ;
+        vlistall.push_back(vt) ;
+      }
+      variable vt = v ;
+      while(vt.get_info().priority.size() != 0)
+        vt = vt.drop_priority() ;
+      vlistall.push_front(vt) ;
+      
+      if(!first_name && !vlistall.empty()
+         && validate_set.find(vlistall) == validate_set.end()) {
+        ostringstream msg ;
+        msg << "variable access " ;
+        list<variable>::const_iterator lvi ;
+        for(lvi=vlistall.begin();lvi!=vlistall.end();) {
+          msg << *lvi ;
+          ++lvi ;
+          if(lvi!=vlistall.end())
+            msg << "->" ;
+        }
+        msg << " not consistent with rule signature!" ;
+        throw parseError(msg.str()) ;
+      }
+
       list<variable>::reverse_iterator ri ;
       for(ri=vlist.rbegin();ri!=vlist.rend();++ri) {
         map<variable,string>::const_iterator vmi = vnames.find(*ri) ;
@@ -1164,6 +1194,40 @@ string var2name(variable v) {
   if(!prettyOutput)
     name += "_" ;
   return name ;
+}
+
+// expand mapping list into all possible map strings
+std::vector<list<variable> > expand_mapping(std::vector<variableSet> vset) {
+  // if we have sliced off all of the variable sets, then the list is empty
+  if(vset.size() == 0) {
+    return std::vector<list<variable> >() ;
+  }
+  // get map set for the last item in the list
+  variableSet mlast = vset.back() ;
+  vset.pop_back() ;
+
+  // expand remainder of list
+  std::vector<list<variable> > tmp  = expand_mapping(vset) ;
+
+  // Now build list by enumerating all maps from this level
+  std::vector<list<variable> > tmp2 ;
+  int tsz = tmp.size() ;
+  if(tmp.size() == 0) {
+    for(variableSet::const_iterator vi=mlast.begin();vi!=mlast.end();++vi) {
+      list<variable> l1 ;
+      l1.push_back(*vi) ;
+      tmp2.push_back(l1) ;
+    }
+  } else {
+    for(int i=0;i<tsz;++i) {
+      for(variableSet::const_iterator vi=mlast.begin();vi!=mlast.end();++vi) {
+        list<variable> l1= tmp[i] ;
+        l1.push_back(*vi) ;
+        tmp2.push_back(l1) ;
+      }
+    }
+  }
+  return tmp2 ;
 }
 
 void parseFile::setup_Rule(std::ostream &outputFile) {
@@ -1330,11 +1394,96 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     output += i->var ;
   }
 
+  set<std::list<variable> > validate_set ;
+  for(i=sources.begin();i!=sources.end();++i) {
+    if(i->mapping.size() == 0) {
+      variableSet::const_iterator vi ;
+      for(vi=i->var.begin();vi!=i->var.end();++vi) {
+        std::list<variable> vbasic ;
+      
+        vbasic.push_back(*vi) ;
+        validate_set.insert(vbasic) ;
+      }
+    } else {
+      std::vector<std::list<variable> > maplist = expand_mapping(i->mapping) ;
+      int msz = maplist.size() ;
+      for(int j=0;j<msz;++j) {
+        variableSet::const_iterator vi ;
+        std::list<variable> mapping_list = maplist[j] ;
+        validate_set.insert(mapping_list) ;
+        for(vi=i->var.begin();vi!=i->var.end();++vi) {
+          std::list<variable> mapping_list2 = maplist[j] ;
+          mapping_list2.push_back(*vi) ;
+          validate_set.insert(mapping_list2) ;
+        }
+        mapping_list.pop_back() ;
+        while(!mapping_list.empty()) {
+          validate_set.insert(mapping_list) ;
+          mapping_list.pop_back() ;
+        }
+      }
+    }
+  }
+
+  for(i=targets.begin();i!=targets.end();++i) {
+    if(i->mapping.size() == 0) {
+      variableSet::const_iterator vi ;
+      for(vi=i->var.begin();vi!=i->var.end();++vi) {
+        std::list<variable> vbasic ;
+        variable vt = *vi ;
+        while(vt.get_info().priority.size() != 0)
+          vt = vt.drop_priority() ;
+        vbasic.push_back(vt) ;
+        validate_set.insert(vbasic) ;
+      }
+    } else {
+      std::vector<std::list<variable> > maplist = expand_mapping(i->mapping) ;
+      int msz = maplist.size() ;
+      for(int j=0;j<msz;++j) {
+        variableSet::const_iterator vi ;
+        std::list<variable> mapping_list = maplist[j] ;
+        validate_set.insert(mapping_list) ;
+        for(vi=i->var.begin();vi!=i->var.end();++vi) {
+          std::list<variable> mapping_list2 = maplist[j] ;
+          variable vt = *vi ;
+          while(vt.get_info().priority.size() != 0)
+            vt = vt.drop_priority() ;
+          mapping_list2.push_back(vt) ;
+          validate_set.insert(mapping_list2) ;
+        }
+        mapping_list.pop_back() ;
+        while(!mapping_list.empty()) {
+          validate_set.insert(mapping_list) ;
+          mapping_list.pop_back() ;
+        }
+      }
+    }
+  }
+
+  
+
   map<variable,string> vnames ;
   variableSet::const_iterator vi ;
   variableSet all_vars = input;
   all_vars += output ;
-  
+
+  for(vi=input.begin();vi!=input.end();++vi) {
+    if(vi->get_info().priority.size() != 0) {
+      ostringstream oss ;
+      oss<< "improper use of priority annotation on rule input, var=" << *vi << endl ;
+      throw parseError(oss.str()) ;
+    }
+  }
+
+  if(rule_type != "pointwise") {
+    for(vi=output.begin();vi!=output.end();++vi) {
+      if(vi->get_info().priority.size() != 0) {
+        ostringstream oss ;
+        oss << "only pointwise rules can use priority annotation, var="<< *vi << endl ;
+        throw parseError(oss.str()) ;
+      }
+    }
+  }    
   for(vi=all_vars.begin();vi!=all_vars.end();++vi) {
     vnames[*vi] = var2name(*vi) ;
     if(vi->get_info().priority.size() != 0) {
@@ -1591,7 +1740,7 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
     process_Compute(outputFile,vnames) ;
   } else {
     if(use_compute)
-      process_Calculate(outputFile,vnames) ;
+      process_Calculate(outputFile,vnames,validate_set) ;
 
     outputFile <<   "    void compute(const Loci::sequence &seq) { " << endl ;
     syncFile(outputFile) ;
