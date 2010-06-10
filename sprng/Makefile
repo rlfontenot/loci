@@ -1,7 +1,7 @@
 
 include $(LOCI_BASE)/Loci.conf
 
-TARGET = libsprng.a libsprng.so
+TARGET = libsprng.so
 
 INCLUDES=-I./include -DSPRNG_MPI -DAdd_
 
