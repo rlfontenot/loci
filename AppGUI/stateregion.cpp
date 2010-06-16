@@ -8,15 +8,6 @@
 #include "pages.h"
 using namespace std;
 
-
-
-
-
-
-
-
-
-
 void text2tree(QStringList &regions, QTreeWidget* tree){
   
   if(regions.size()==0) return;
@@ -278,7 +269,7 @@ void text2tree(QStringList &regions, QTreeWidget* tree){
 
 void RegionWindow::addStateClicked(){
   bool ok;
-  int count = typesWidget->count();
+  int count = stateList->count();
   QString text = QInputDialog::getText(this, tr("Please specify the name of state function"),
                                        tr("State name:"), QLineEdit::Normal,
                                        tr("state%1").arg(count), &ok);
@@ -306,25 +297,25 @@ void RegionWindow::addStateClicked(){
     }  
     //add a page
     QDomElement eltelem = elt.toElement();
-    OptionPage* thegroup = new OptionPage(eltelem, myroot, this);
+    VarPanel* thegroup = new VarPanel(eltelem, this);
     connect(this, SIGNAL(componentsChanged()), thegroup, SIGNAL(componentsChanged()));
     connect(this, SIGNAL(showStatus(const bool &)), thegroup, SLOT(updateShowStatus(const bool &))); 
     connect(this, SIGNAL(stateChanged()), thegroup, SLOT(changeState()));
-    pagesWidget->addWidget(thegroup);
-    QListWidgetItem *bdCndiButton = new QListWidgetItem(typesWidget);
+    statePages->addWidget(thegroup);
+    QListWidgetItem *bdCndiButton = new QListWidgetItem(stateList);
     bdCndiButton->setText(thegroup->currentText());
     bdCndiButton->setTextAlignment(Qt::AlignHCenter);
     bdCndiButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
     connect(thegroup, SIGNAL(textChanged(const QString&)), this, SLOT(setItemText(const QString&)));
     connect(thegroup, SIGNAL(textChanged(const QString&)), this, SLOT(updateText()));
-    typesWidget->setCurrentItem(bdCndiButton);
+    stateList->setCurrentItem(bdCndiButton);
   }
   stateFunctions << text; 
 }
 
 
 void RegionWindow::setItemText(const QString& text){
-  QListWidgetItem* item = typesWidget->currentItem();
+  QListWidgetItem* item = stateList->currentItem();
   if(item)item->setText(text);
 }
 
@@ -332,7 +323,7 @@ void RegionWindow::setItemText(const QString& text){
 
 
 
-RegionWindow::RegionWindow(  QDomElement& elem,  QDomElement& theroot,  QWidget *parent):GeneralWindow(elem, theroot, parent){
+RegionWindow::RegionWindow(  QDomElement& elem, QWidget *parent):GeneralGroup(elem, parent){
   if(myelem.hasAttribute("whatsThis"))setWhatsThis(myelem.attribute("whatsThis"));
   if(myelem.hasAttribute("toolTip"))setToolTip(myelem.attribute("toolTip"));
   if(myelem.hasAttribute("statusTip"))setStatusTip(myelem.attribute("statusTip"));
@@ -341,24 +332,24 @@ RegionWindow::RegionWindow(  QDomElement& elem,  QDomElement& theroot,  QWidget 
   stateGroup = new QGroupBox("define all state functions", this);
   {
      
-    typesWidget = new QListWidget;
-    pagesWidget = new QStackedWidget;
+    stateList = new QListWidget;
+    statePages = new QStackedWidget;
      
     QDomElement elt= myelem.firstChildElement("state").firstChildElement();
     for(; !elt.isNull(); elt=elt.nextSiblingElement()){
        
-      OptionPage* thegroup = new OptionPage(elt, theroot, this);
+      VarPanel* thegroup = new VarPanel(elt, this);
       connect(this, SIGNAL(componentsChanged()), thegroup, SIGNAL(componentsChanged()));
       connect(this, SIGNAL(showStatus(const bool &)), thegroup, SLOT(updateShowStatus(const bool &))); 
       connect(this, SIGNAL(stateChanged()), thegroup, SLOT(changeState()));
       connect(thegroup, SIGNAL(textChanged(const QString&)), this, SLOT(updateText()));
-      pagesWidget->addWidget(thegroup);
-      QListWidgetItem *bdCndiButton = new QListWidgetItem(typesWidget);
+      statePages->addWidget(thegroup);
+      QListWidgetItem *bdCndiButton = new QListWidgetItem(stateList);
       bdCndiButton->setText(thegroup->currentText());
       bdCndiButton->setTextAlignment(Qt::AlignHCenter);
       bdCndiButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
       connect(thegroup, SIGNAL(textChanged(const QString&)), this, SLOT(setItemText(const QString&)));
-      typesWidget->setCurrentItem(bdCndiButton);
+      stateList->setCurrentItem(bdCndiButton);
       stateFunctions<<elt.tagName();
     } 
 
@@ -377,14 +368,14 @@ RegionWindow::RegionWindow(  QDomElement& elem,  QDomElement& theroot,  QWidget 
     buttonsLayout->addWidget(addStateButton);
     buttonsLayout->addWidget(nextButton);
    
-    connect(typesWidget,
+    connect(stateList,
             SIGNAL(currentRowChanged(int)),
-            pagesWidget, SLOT(setCurrentIndex(int)));
+            statePages, SLOT(setCurrentIndex(int)));
    
 
     QVBoxLayout* stateLayout = new QVBoxLayout;
-    stateLayout->addWidget(typesWidget);
-    stateLayout->addWidget(pagesWidget);
+    stateLayout->addWidget(stateList);
+    stateLayout->addWidget(statePages);
     stateLayout->addLayout(buttonsLayout);
     stateGroup->setLayout(stateLayout);
   }
@@ -510,11 +501,11 @@ RegionWindow::RegionWindow(  QDomElement& elem,  QDomElement& theroot,  QWidget 
     }
 
 
-    paraPages = new QStackedWidget;
+    regionPages = new QStackedWidget;
 
     for(unsigned int i =0; i< defaultShapes.size(); i++){
       ParaPage *paraPage = new ParaPage(defaultShapes[i]);
-      paraPages->addWidget(paraPage);
+      regionPages->addWidget(paraPage);
       //connect(paraPage, SIGNAL(valueChanged()), this, SIGNAL(valueChanged()));
       connect(paraPage, SIGNAL(valueChanged()), this, SLOT(updateShape()));     
     }
@@ -523,7 +514,7 @@ RegionWindow::RegionWindow(  QDomElement& elem,  QDomElement& theroot,  QWidget 
             this, SLOT(showData(QTreeWidgetItem*)));
    
     QHBoxLayout* objLayout = new QHBoxLayout; 
-    objLayout->addWidget(paraPages);
+    objLayout->addWidget(regionPages);
     objLayout->addWidget(tree,2);
     
     QVBoxLayout *regionLayout = new QVBoxLayout;
@@ -644,17 +635,33 @@ QString RegionWindow::currentText(){
   
   text = myelem.tagName()+prefix;
   
- 
+  bool done = true;
   for( QDomElement elt = myelem.firstChildElement("state").firstChildElement();
        !elt.isNull(); elt=elt.nextSiblingElement()){
     text += elt.attribute("currentText")+infix;
+    if(elt.attribute("status")!="done") done=false;
+  }
+  if(done){
+    QList<QTreeWidgetItem*> nodelist= tree->findItems("object", Qt::MatchRecursive);
+    for(int i = 0; i < nodelist.size(); i++){
+      QTreeWidgetItem* item = nodelist[i];
+      if(item->text(1).isEmpty()){
+        done = false;
+        break;
+      }
+    }
   }
   
   text += tree2str(tree, regionPrefix, regionPostfix, infix);
   
-  // text.remove(text.size()-infix.size(), infix.size());
+  
   text += postfix;
   myelem.setAttribute("currentText", text);
+
+  //check status
+  if(done) myelem.setAttribute("status", "done");
+  else myelem.removeAttribute("status");
+  
   return text;
 }
   
@@ -702,17 +709,17 @@ void RegionWindow::showData(QTreeWidgetItem* item ){
     int index = items.indexOf(tp);
     index += 1;
    
-    paraPages->setCurrentIndex(index);
+    regionPages->setCurrentIndex(index);
     vector<double> para(item->child(0)->childCount());
     for(int i = 0; i< item->child(0)->childCount(); i++){
       para[i] = item->child(0)->child(i)->text(1).toDouble();
     }
-    Shape* ashape = qobject_cast<ParaPage*>(paraPages->currentWidget())->shape;
+    Shape* ashape = qobject_cast<ParaPage*>(regionPages->currentWidget())->shape;
     if(para.size() != ashape->para.size()) return;
     for(int i = 0; i< item->child(0)->childCount(); i++){
       ashape->para[i] = para[i];
     }
-    qobject_cast<ParaPage*>(paraPages->currentWidget())->showValue();
+    qobject_cast<ParaPage*>(regionPages->currentWidget())->showValue();
   }
 
 }
@@ -733,7 +740,7 @@ void RegionWindow::updateShape(){
   QTreeWidgetItem* valueNode = tree->currentItem()->child(0);
   
   
-  Shape* ashape = qobject_cast<ParaPage*>(paraPages->currentWidget())->shape;
+  Shape* ashape = qobject_cast<ParaPage*>(regionPages->currentWidget())->shape;
   if(valueNode->childCount() !=(int) ashape->para.size())return;
   for(int i = 0; i < valueNode->childCount(); i++)valueNode->child(i)->setText(1,QString("%1").arg(ashape->para[i]));
   
@@ -772,8 +779,8 @@ void RegionWindow::addShape(){
     tree->setCurrentItem(newItem);
     int index = items.indexOf(item);
     index += 1;
-    paraPages->setCurrentIndex(index);
-    Shape* ashape = qobject_cast<ParaPage*>(paraPages->currentWidget())->shape;
+    regionPages->setCurrentIndex(index);
+    Shape* ashape = qobject_cast<ParaPage*>(regionPages->currentWidget())->shape;
     switch(ashape->tp){
     case  SPHERE:
       {
@@ -997,4 +1004,26 @@ void RegionWindow::updateText(){
   textEdit->setText(currentText());
 }
 
+void RegionWindow::updateShowStatus(const bool& show){
+  QList<QTreeWidgetItem*> nodelist= tree->findItems("object", Qt::MatchRecursive);
+  for(int i = 0; i < nodelist.size(); i++){
+    QTreeWidgetItem* item = nodelist[i];
+    item->setBackground(1,item->background(0));
+  }
+ 
+  
+  if(show){//parent says show
+   
+    for(int i = 0; i < nodelist.size(); i++){
+      QTreeWidgetItem* item = nodelist[i];
+      if(item->text(1).isEmpty()){
+        QBrush brush(QColor(255, 0, 0));
+        item->setBackground(1,brush);
+      }
+    }
+  }
 
+  
+  GeneralGroup::updateShowStatus(show);  
+  
+}

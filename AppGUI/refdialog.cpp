@@ -103,7 +103,7 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
   }
 
   QLabel* tolLabel = new QLabel(tr("tolerance:"));
-  FloatEdit* tolEdit = new FloatEdit;
+  DoubleEdit* tolEdit = new DoubleEdit;
   tol = 1e-5;
   tolEdit->setValue(tol);
   tolEdit->setBottom(0);
@@ -119,7 +119,7 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
   
   QLabel* foldLabel = new QLabel(tr("maximum face folding allowed:"));
   fold = 1.5708;
-  FloatEdit* foldEdit = new FloatEdit(fold);
+  DoubleEdit* foldEdit = new DoubleEdit(fold);
   connect(foldEdit, SIGNAL(valueChanged(double)), this, SLOT(setFold(double)));
   
   QGroupBox* modeGroup = new QGroupBox(tr("split mode:"));

@@ -13,21 +13,21 @@ class QStackedWidget;
 class QTreeWidgetItem;
 
 
-class InitCndWindow : public GeneralWindow
+class InitCndWindow : public GeneralGroup
 {
   Q_OBJECT
   
 public:
-  InitCndWindow(QDomElement& elem, QDomElement& root, QWidget* parent = 0);
+  InitCndWindow(QDomElement& elem,  QWidget* parent = 0);
   
 private slots:
-void changePage(QListWidgetItem *current, QListWidgetItem *previous);
+void changePage(int);
   void checkStatus();
   signals:
  void valueChanged(const QTreeWidgetItem*);
 private:
 
-  QListWidget *typesWidget;
+  QButtonGroup *typesWidget;
   QString fileSelected;
   QStackedWidget *pagesWidget;
  

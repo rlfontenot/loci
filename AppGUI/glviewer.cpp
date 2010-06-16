@@ -5,7 +5,7 @@
 #include <set>
 #include <utility>
 #include <GL/glut.h>
-
+#include <QTreeWidgetItem>
 #include <map>
 #include <vector>
 #include <fstream>
@@ -26,12 +26,8 @@ using std::cerr ;
 #include "glviewer.h"
 #include "grid.h"
 #include "hdf5.h"
-#include "fvmadapt.h"
+
 #define PI 3.14159265358979323846264338327950
-
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -39,12 +35,11 @@ using std::cerr ;
 #define CALLBACK
 #endif
 
-GLuint startList;
+
 
 void CALLBACK errorCallback(GLenum errorCode)
 {
    const GLubyte *estring;
-
    estring = gluErrorString(errorCode);
    fprintf(stderr, "Quadric Error: %s\n", estring);
    exit(0);
@@ -80,7 +75,7 @@ GLViewer::GLViewer(QWidget *parent)
   gridObject = 0;
   contourObject = 0;
   borderObject = 0;
-  shadingObject = 0;
+   shadingObject = 0;
   cpContourObject = 0;
   qobj = 0;
   extreme_percentage = 0;
@@ -96,10 +91,8 @@ GLViewer::GLViewer(QWidget *parent)
   min_val = max_val = 0.0;
   isFit = false;
   mode=BOUND_SELECT_MODE;
- 
-  //adaptwindow = 0;
-  show_shapes = true;
-  //show_nodes = false;
+   show_shapes = true;
+  
 }
 
 //////////////////////////////////////////////////////
@@ -166,15 +159,8 @@ void GLViewer::clearCurrent(){
 
 void GLViewer::initializeGL()
 {
- //  glClearColor(1.0, 1.0, 1.0, 1.0);
   glShadeModel(GL_SMOOTH);
   glEnable(GL_DEPTH_TEST);
-//   qobj = gluNewQuadric();
-//   gluQuadricDrawStyle(qobj, GLU_FILL);
-//   gluQuadricCallback(qobj, GLU_ERROR, 0);
-
- 
-
   glClearColor(1.0, 1.0, 1.0, 1.0);
   qobj = gluNewQuadric();
   gluQuadricCallback(qobj, GLU_ERROR, 
@@ -203,7 +189,7 @@ void GLViewer::resizeGL(int width, int height)
   //change the parameters here also need change unproject parameters
   GLdouble near = 0.001*size;
   GLdouble far = size*30.0;
-  gluPerspective(30, (GLdouble)width/height, near, far);
+  gluPerspective(30.0, (GLdouble)width/height, near, far);
   glMatrixMode(GL_MODELVIEW);
   
  
@@ -221,10 +207,9 @@ void GLViewer::drawSphere(const vector<double>& p){
  
   if(p.size() < 4)return;
   glPushMatrix(); 
-  glTranslatef(p[0], p[1], p[2]);
+  glTranslated(p[0], p[1], p[2]);
   gluSphere(qobj, p[3], 20, 20);
   glPopMatrix();
-  
 }
 
 void GLViewer::drawCylinder(const vector<double>& p){
@@ -232,7 +217,7 @@ void GLViewer::drawCylinder(const vector<double>& p){
   if(p.size()<5)return;
    
   glPushMatrix(); 
-  glTranslatef(p[0], p[1], p[3]);
+  glTranslated(p[0], p[1], p[3]);
   gluCylinder(qobj, p[2], p[2], p[4]-p[3], 20, 20);
   glPopMatrix(); 
 }
@@ -248,7 +233,7 @@ void GLViewer::drawCone(const vector<double>& p){
   double ratio = p[3];
   double z2 = p[5];
   
-  glTranslatef(x0, y0, z1);
+  glTranslated(x0, y0, z1);
   gluCylinder(qobj, ratio*(z1-z0), ratio*(z2-z0), z2-z1, 20, 20);
   glPopMatrix(); 
 }
@@ -435,8 +420,6 @@ void GLViewer::drawNzPlane(const vector<double>& p, double size){
   if(p.size()==0)return;
   double z = p[0];
   glPushMatrix();
-  //glLineStipple(1, 0xAAAA);
-  //  glEnable(GL_LINE_STIPPLE);
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
   glBegin(GL_QUADS);
   glVertex3d( -1*size, -1*size,z);
@@ -451,18 +434,12 @@ void GLViewer::drawNzPlane(const vector<double>& p, double size){
   glVertex3d( size,0, z);
   glVertex3d( 0, -1*size, z);
   glVertex3d( 0,size, z);
-  
   glEnd();
-  //  glDisable(GL_LINE_STIPPLE);
   glPopMatrix();
   
 }
-// void GLViewer::setAdaptWindow( QPointer<FVMAdapt> window){
-//   adaptwindow = window;
-  
-// }
+
 void GLViewer::cleanDoc(){//signal not working
-  //adaptwindow = 0;
   doc = QDomDocument();
   updateGL();
  
@@ -722,7 +699,7 @@ void GLViewer::drawShapes(){
           
             }
              
-            if(theta != 0)glRotatef(theta, 1, 0, 0);
+            if(theta != 0)glRotated(theta, 1.0, 0.0, 0.0);
           }else if(elm.tagName() =="rotateY"){
 
             double theta = 0;
@@ -738,7 +715,7 @@ void GLViewer::drawShapes(){
           
             }
             
-            if(theta != 0)glRotatef(theta, 0, 1, 0);
+            if(theta != 0)glRotated(theta, 0.0, 1.0, 0.0);
             
 
           }else if(elm.tagName() =="rotateZ"){
@@ -756,7 +733,7 @@ void GLViewer::drawShapes(){
           
             }
             
-            if(theta != 0)glRotatef(theta, 0, 0, 1);
+            if(theta != 0)glRotated(theta, 0.0, 0.0, 1.0);
             
             
           }else{
@@ -940,7 +917,7 @@ unsigned long readAttributeLong(hid_t group, const char *name) {
 //     glBegin(GL_POINTS);
 //     for(unsigned int i = 0; i < tags.size(); i++){
 //       if(tags[i]){
-//         glVertex3f(meshNodes[i].x, meshNodes[i].y, meshNodes[i].z);
+//         glVertex3d(meshNodes[i].x, meshNodes[i].y, meshNodes[i].z);
 //       }
 //   }
 //      glEnd();
@@ -971,7 +948,7 @@ void GLViewer::drawExtremeNodes(int percentage){
     if(extremeValues[i] >= start && extremeValues[i]<=end){
       positions3d c = shade(extremeValues[i]);
       glColor3d(c.x, c.y, c.z);
-      glVertex3f(extremeNodes[i].x, extremeNodes[i].y, extremeNodes[i].z);
+      glVertex3d(extremeNodes[i].x, extremeNodes[i].y, extremeNodes[i].z);
     }
   }
   
@@ -1042,7 +1019,7 @@ void GLViewer::paintGL()
     break;
   }
  
-  glColor3f(0.0, 0.0, 0.0);  
+  glColor3f(0.0f, 0.0f, 0.0f);  
   //  if(show_nodes) drawMarkedNodes();
   if(extreme_percentage) drawExtremeNodes(extreme_percentage);
   if(show_shapes)drawShapes();
@@ -1067,7 +1044,7 @@ void GLViewer::reset(){
   tox= toy=toz=rox=roy =roz= 0;
   if(isFit){
     for(unsigned int i =0; i < objVisible.size(); i++){
-     objVisible[i] = true;
+      objVisible[i] = true;
     }
     isFit = false;
     updateView();
@@ -1102,6 +1079,17 @@ struct surface_info {
 } ;
 
 
+////////////////////////////////////////
+//  public:
+//    QSize sizeHint() const;
+//
+//  Requests a default size of 800x600.
+////////////////////////////////////////
+
+QSize GLViewer::sizeHint() const
+{
+  return QSize(600, 600);
+}
 
 
 void GLViewer::setLoadInfo(const LoadInfo& ld_info){
@@ -1113,6 +1101,36 @@ void GLViewer::setLoadInfo(const LoadInfo& ld_info){
 }
 
 bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
+  reset();
+  
+  
+  //assume this is vog file
+  if(fileName.right(4)!=".vog"){
+     QMessageBox::warning(window(), "load grid",
+                         tr("the format of grid is not .vog" ));
+     return false;
+  }
+
+  QString surfFileName = fileName.section('.', 0, -2)+".surface";
+  QFileInfo surfInfo(surfFileName);
+  QFileInfo vogInfo(fileName);
+  
+  
+  if(!(surfInfo.exists())|| surfInfo.created() < vogInfo.created()){
+    QString command2 = "vog2surf -surface " + surfFileName + " " + fileName.section('.', 0, -2);
+    int ret =  system(command2.toStdString().c_str());
+    if(!WIFEXITED(ret))
+      {
+        if(WIFSIGNALED(ret))
+          {
+            QMessageBox::information(window(), "load grid",
+                                     command2 + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
+
+              return false;
+            }
+      }
+  }
+
   int first= fileName.lastIndexOf('/');
   int last = fileName.lastIndexOf('.');
   QString casename = fileName.mid(first+1, last-first-1);
@@ -1124,14 +1142,14 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
 
   
 
-  if(fileName.right(8) ==".surface"){
+  if(surfFileName.right(8) ==".surface"){
 
-    QFile file(fileName);
+    QFile file(surfFileName);
     if (!file.open(QFile::ReadOnly | QFile::Text)) {
       QMessageBox::warning(this, tr("Application"),
                            tr("Cannot read file %1:\n%2.")
                            .arg(fileName)
-                         .arg(file.errorString()));
+                           .arg(file.errorString()));
       return false;
     }
     
@@ -1163,6 +1181,8 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
     QString name=in.readLine();
     boundary_names << name;
   }
+ 
+  
   if(nsurf<=0) return false;
   vector<surface_info> surf_list(nsurf);
   
@@ -1282,222 +1302,8 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
      }
   file.close();
   
-  }else if(fileName.right(5)==".surf"){
-    //first read in meshNodes
-    meshNodes.clear();
-    QFile file(fileName);  
-    if (!file.open(QFile::ReadOnly | QFile::Text)) {
-      QMessageBox::warning(this, tr("Application"),
-                           tr("Cannot read file %1:\n%2.")
-                           .arg(fileName)
-                           .arg(file.errorString()));
-      return false;
-    }
+  }else{}
     
-    QTextStream in(&file); 
-    int Read_Flag = 0; 
-  
-    
-    int total_num_tris = 0, total_num_quads = 0, num_nodes = 0; 
-    in >> total_num_tris >> total_num_quads >> num_nodes;
-       int total_num_face = total_num_tris + total_num_quads;
-    if(!total_num_face || !num_nodes){
-      QMessageBox::warning(this, tr("Application"),
-                           tr("Error in reading file %1\n")
-                           .arg(fileName));
-      return false;
-    }
-     
-
-    meshNodes.resize(num_nodes);
-    
-    QString text_line;
-    const char* Text_Line;
-    double dc0 = 0.0;
-
-    text_line=in.readLine();
-    for(int i = 0; i < num_nodes; i++){
-      text_line= in.readLine();
-      Text_Line = text_line.toStdString().c_str();
-      vector3d<double> p;
-      Read_Flag = sscanf (Text_Line, "%lf %lf %lf %lf %lf",
-                          &p.x,
-                          &p.y,
-                          &p.z,
-                          &dc0,
-                          &dc0);
-      //  if(Read_Flag <3){
-      //         QMessageBox::warning(this, tr("Application"),
-      //                              tr("Error in reading file %1 nodes\n")
-      //                              .arg(fileName));
-      //         return;
-      //       }
-      meshNodes[i] = p;
-    }
-
-
-
-    //if .name file exists, read in and read mesh   
-    QString name_file = fileName.left(last)+".names";
-    QFile infile(name_file);
-    if(infile.exists()){
-      if (!infile.open(QFile::ReadOnly | QFile::Text)) {
-        QMessageBox::warning(this, tr("Application"),
-                             tr("Cannot read file %1:\n%2.")
-                             .arg(name_file)
-                           .arg(infile.errorString()));
-        return false;
-      }
-      
-      QTextStream intext(&infile);
-      vector<int> ids;
-      boundary_names.clear();
-      while(!intext.atEnd()){
-        QStringList id_name=intext.readLine().split(' ', QString::SkipEmptyParts);
-        if(id_name.size() < 2){
-          break;
-        }
-        ids.push_back(id_name[0].toInt());
-        boundary_names << id_name[1];
-        
-      }
-      std::map<int, int> id_map;
-      for(size_t i = 0; i < ids.size(); i++){
-        id_map[ids[i]] = i;
-      }
-      infile.close();
-    
-      mesh.clear();
-      mesh.resize(ids.size());
-        
-    //input surf_list
-      for(int i = 0; i < total_num_tris; i++){
-        int p1=0, p2=0, p3=0, id=0, flag1 = 0, flag2=0;
-        text_line= in.readLine();
-        Text_Line = text_line.toStdString().c_str();
-      
-        Read_Flag = sscanf (Text_Line, "%i  %i  %i  %i  %i %i",
-                            &p1 ,
-                            &p2 ,
-                            &p3 ,
-                            &id ,
-                            &flag1,
-                          &flag2);
-        //  if(Read_Flag <4){
-        //         QMessageBox::warning(this, tr("Application"),
-        //                              tr("Error in reading file %1 triangles\n")
-        //                              .arg(fileName));
-        //         return;
-        //       } 
-        mesh[id_map[id]].push_back(p1-1);
-        mesh[id_map[id]].push_back(p2-1);
-        mesh[id_map[id]].push_back(p3-1);
-      }
-      //input surf_list
-      for(int i = 0; i < total_num_quads; i++){
-        int p1=0, p2=0, p3=0, p4 =0, id=0, flag1 = 0, flag2=0;
-        text_line= in.readLine();
-        Text_Line = text_line.toStdString().c_str();
-        
-      Read_Flag = sscanf (Text_Line, "%i  %i  %i  %i  %i %i %i",
-                          &p1 ,
-                          &p2 ,
-                          &p3 ,
-                          &p4 ,
-                          &id ,
-                          &flag1,
-                          &flag2);
-     //  if(Read_Flag <5){
-//         QMessageBox::warning(this, tr("Application"),
-//                              tr("Error in reading file %1 quads\n")
-//                              .arg(fileName));
-//         return;
-//       } 
-      mesh[id_map[id]].push_back(p1-1);
-      mesh[id_map[id]].push_back(p2-1);
-      mesh[id_map[id]].push_back(p3-1);
-
-      mesh[id_map[id]].push_back(p1-1);
-      mesh[id_map[id]].push_back(p3-1);
-      mesh[id_map[id]].push_back(p4-1);
-      
-      }
-    }else{
-
-      mesh.clear();
-      map<int, int> id_index_map;
-        
-    //input surf_list
-      for(int i = 0; i < total_num_tris; i++){
-        int p1=0, p2=0, p3=0, id=0, flag1 = 0, flag2=0;
-        text_line= in.readLine();
-        Text_Line = text_line.toStdString().c_str();
-      
-        Read_Flag = sscanf (Text_Line, "%i  %i  %i  %i  %i %i",
-                            &p1 ,
-                            &p2 ,
-                            &p3 ,
-                            &id ,
-                            &flag1,
-                          &flag2);
-        //  if(Read_Flag <4){
-        //         QMessageBox::warning(this, tr("Application"),
-        //                              tr("Error in reading file %1 triangles\n")
-        //                              .arg(fileName));
-        //         return;
-        //       }
-        if(id_index_map.find(id) == id_index_map.end()){
-          mesh.push_back(vector<int>());
-          id_index_map[id] = mesh.size() -1;
-        }
-        mesh[id_index_map[id]].push_back(p1-1);
-        mesh[id_index_map[id]].push_back(p2-1);
-        mesh[id_index_map[id]].push_back(p3-1);
-        
-      }
-      //input surf_list
-      for(int i = 0; i < total_num_quads; i++){
-        int p1=0, p2=0, p3=0, p4 =0, id=0, flag1 = 0, flag2=0;
-        text_line= in.readLine();
-        Text_Line = text_line.toStdString().c_str();
-        
-        Read_Flag = sscanf (Text_Line, "%i  %i  %i  %i  %i %i %i",
-                            &p1 ,
-                            &p2 ,
-                            &p3 ,
-                            &p4 ,
-                            &id ,
-                            &flag1,
-                            &flag2);
-        //  if(Read_Flag <5){
-        //         QMessageBox::warning(this, tr("Application"),
-        //                              tr("Error in reading file %1 quads\n")
-        //                              .arg(fileName));
-        //         return;
-        //       }
-
-        if(id_index_map.find(id) == id_index_map.end()){
-          mesh.push_back(vector<int>());
-          id_index_map[id] = mesh.size() -1;
-        }
-        mesh[id_index_map[id]].push_back(p1-1);
-        mesh[id_index_map[id]].push_back(p2-1);
-        mesh[id_index_map[id]].push_back(p3-1);
-        
-        mesh[id_index_map[id]].push_back(p1-1);
-        mesh[id_index_map[id]].push_back(p3-1);
-        mesh[id_index_map[id]].push_back(p4-1);
-      
-      }
-      boundary_names.clear();
-      for(map<int, int>::const_iterator p= id_index_map.begin(); p != id_index_map.end(); p++){
-        boundary_names << QString("BC_%1").arg((*p).first);
-       
-      }
-    }
-    
-    file.close();
-  }
   
   // Remap mesh to match nodes
   objMinMax.clear();
@@ -1535,14 +1341,17 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   updateView(); 
   mode = BOUND_SELECT_MODE;
   
-  makeObjects();
+ 
   
-  // tags.clear();
+  
   extremeValues.clear();
   extremeNodes.clear();
-  // adaptwindow = 0;
+  
   show_shapes = true;
   resizeGL(currentWidth, currentHeight);
+  makeObjects();
+  clearCurrent();
+  cleanDoc();
   return true;
 }
 
@@ -1970,7 +1779,7 @@ void GLViewer::cut()
     delete fig;
     fig = 0;
   }
-  fig = new grid;
+  fig = new VolGrid;
   positions3d center = positions3d(centerx, centery, centerz);
    fig->cut(info, loadInfo, center);
   if(fig->triangle_list.size()==0) return;
@@ -2004,7 +1813,7 @@ void GLViewer::loadSca(){
  hsize_t npnts;
  
  /* Turn off error handling */
- H5Eset_auto2(H5E_DEFAULT, NULL,NULL);
+ H5Eset_auto(H5E_DEFAULT,NULL,NULL);
  
  if(loadInfo.variable.isEmpty() || loadInfo.iteration.isEmpty()){
    QMessageBox::warning(this, tr("load scalar value"),
@@ -2245,48 +2054,13 @@ void GLViewer::setShadeType(int type)
   updateGL();
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//  public:
-//    void loadGrid();
-//
-//  This function opens a 2dgv grid from a file and views it.
-//////////////////////////////////////////////////////////////////////////////
-
-// void GLViewer::loadGrid(const char* /*fileName*/)
-// {
-//   // View with plane only
-//   mode = PLANE_ONLY_MODE;
-
-//   // Reset grid object
-//   if (fig)
-//     delete fig;
-  
-//   // Make new grid from file
-//   fig = new grid();
-//   //  fig->input(fileName);
-    
-//   // Reset viewing parameters
-//   show_contours = true;
-//   show_grid = false;
-//   show_shading = false;
-
-//   min_val = fig->min_val;
-//   max_val = fig->max_val;
-  
-//   // Make all display lists
-//   makeObjects();
-  
-//   // Set up for viewing
-//   // glViewport(0, 0, width(), height());
-
-//   updateGL();
-// }
 
 void GLViewer::showBoundaries(){
   bool checked = true;
   for(unsigned int i=0; i < objVisible.size(); i++){
     checked = objVisible[i] && checked;
   }
+ 
 
   for(unsigned int i=0; i < objVisible.size(); i++){
     objVisible[i] = !checked;

@@ -17,7 +17,7 @@
 
 
 
-ProgressDialog::ProgressDialog(QString command, bool autoclose, QWidget* parent):QWidget(parent), autoClose(autoclose){
+ProgressDialog::ProgressDialog(QString command, QString directory, bool autoclose, QWidget* parent):QWidget(parent),workingDirectory(directory), autoClose(autoclose){
 
   
   QWidget::setAttribute(Qt::WA_DeleteOnClose);
@@ -30,9 +30,7 @@ ProgressDialog::ProgressDialog(QString command, bool autoclose, QWidget* parent)
     proc << 0;
 
   }
-  // qDebug() << programs;
-  //qDebug() <<args;
-  
+   
   nameLabel = new QLabel("      ");
   timeLabel = new QLabel("0s");
   text = new QTextEdit;
@@ -71,7 +69,7 @@ bool ProgressDialog::startProgress()
   connect(t, SIGNAL(timeout()), this, SLOT(update()));
   connect(abortButton, SIGNAL(clicked()), proc[0], SLOT(kill())); 
   
-  proc[0]->setWorkingDirectory(QDir::currentPath());
+  proc[0]->setWorkingDirectory(workingDirectory.isEmpty()?QDir::currentPath():workingDirectory);
   proc[0]->setProcessChannelMode(QProcess::MergedChannels);  
   if (proc[0]->state() != QProcess::Running) {
     proc[0]->start(programs[0], args[0]);
@@ -123,13 +121,14 @@ void ProgressDialog::next(int exitCode, QProcess::ExitStatus exitStatus){
   if(exitStatus==QProcess::CrashExit || exitCode != 0){
    
     nameLabel->setText(commands[currentP]+ " crashed") ;
-    emit progressFinished(commands[currentP], QProcess::CrashExit);
+    emit progressFinished(commands[currentP], QProcess::CrashExit, workingDirectory);
     //  if(autoClose)close(); 
     return; 
   }else if(currentP == (programs.size()-1)){
    
     nameLabel->setText(commands[currentP]+ " exit normally");
-    emit progressFinished(commands[currentP], QProcess::NormalExit);
+    emit progressFinished(commands[currentP],
+                          QProcess::NormalExit, workingDirectory);
     if(autoClose)close();
     return;
   }
@@ -150,7 +149,7 @@ void ProgressDialog::next(int exitCode, QProcess::ExitStatus exitStatus){
   connect(t, SIGNAL(timeout()), this, SLOT(update()));
   connect(abortButton, SIGNAL(clicked()), proc[currentP], SLOT(kill()));
   
-  proc[currentP]->setWorkingDirectory("/simcenter/data1/qxue/grids/");
+  proc[currentP]->setWorkingDirectory(workingDirectory.isEmpty()?QDir::currentPath():workingDirectory);
   proc[currentP]->setProcessChannelMode(QProcess::MergedChannels);
    
   if (proc[currentP]->state() != QProcess::Running) {

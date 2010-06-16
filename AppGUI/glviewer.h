@@ -6,12 +6,12 @@
 #include <QDomElement>
 #include <QPointer>
 #include "grid.h"
-#include "fvmadapt.h"
 
-class grid;
+
+class VolGrid;
 class cutplane_info;
 class QStringList;
-class FVMAdapt;
+class QTreeWidgetItem;
 //class QStandardItemModel;
 
 //BOUND_SELECT_MODE: before the cut plane is generated
@@ -85,13 +85,12 @@ public:
 
   //for FVMadapt
   void drawShapes();
-  //void setAdaptWindow(QPointer<FVMAdapt>);
   void cleanDoc();
   void updateDoc(const QTreeWidgetItem*);
   //void markNodes();
   //void markVolumeNodes(QString fileName);
 
- 
+  QSize sizeHint() const;
  
 signals:
   void pickCurrent(int);
@@ -134,9 +133,8 @@ private:
   // void drawMarkedNodes();
   void drawExtremeNodes(int);
  
-  // QPointer<FVMAdapt> adaptwindow ;
-  //vector<bool> tags;
-  QDomDocument doc;
+  
+  QDomDocument doc;//for FVMAdapt
 
   
   GLUquadricObj* qobj;//for FVMAdapt
@@ -150,7 +148,7 @@ private:
   GLuint borderObject;  // Holds border display list
 
   GLuint makeShadingObject();
-  GLuint shadingObject;  // Holds shading display list
+    GLuint shadingObject;  // Holds shading display list
 
   GLuint makeCPContour();
   GLuint cpContourObject;  // Holds cut preview display list
@@ -180,7 +178,7 @@ private:
 
   opMode mode;  // Which state the program is in
  
-  grid *fig;  // Data structure that holds the cutting plane's topology
+  VolGrid *fig;  // Data structure that holds the cutting plane's topology
  
 
   

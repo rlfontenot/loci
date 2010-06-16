@@ -27,7 +27,7 @@
 #include "fvmadapt.h"
 #include "grid.h"
 #include "pages.h"
-
+#include "refdialog.h"
 
 
 #define PI 3.14159265358979323846264338327950
@@ -101,10 +101,10 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       objs.resize(4);
 
       
-      objs[0] = new FloatSlider(tr("x0"));
-      objs[1] = new FloatSlider(tr("y0"));
-      objs[2] = new FloatSlider(tr("z0"));
-      objs[3] = new FloatSlider(tr("radius"));
+      objs[0] = new LabeledDoubleSpBox(tr("x0"));
+      objs[1] = new LabeledDoubleSpBox(tr("y0"));
+      objs[2] = new LabeledDoubleSpBox(tr("z0"));
+      objs[3] = new LabeledDoubleSpBox(tr("radius"));
       for(int i = 0; i < 4; i++){
         objs[i]->setValue(shape->para[i]);
         signalMapper->setMapping(objs[i], i);
@@ -143,9 +143,9 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       QGroupBox *p1Group = new QGroupBox("p1", this);
       QVBoxLayout *p1BoxLayout = new QVBoxLayout;
       
-      objs[0] = new FloatSlider(tr("x1"));
-      objs[1] = new FloatSlider(tr("y1"));
-      objs[2] = new FloatSlider(tr("z1"));
+      objs[0] = new LabeledDoubleSpBox(tr("x1"));
+      objs[1] = new LabeledDoubleSpBox(tr("y1"));
+      objs[2] = new LabeledDoubleSpBox(tr("z1"));
       p1BoxLayout->addWidget(objs[0]);
       p1BoxLayout->addWidget(objs[1]);
       p1BoxLayout->addWidget(objs[2]);
@@ -153,16 +153,16 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
 
        QGroupBox *p2Group = new QGroupBox("p2", this);
       QVBoxLayout *p2BoxLayout = new QVBoxLayout;
-      objs[3] = new FloatSlider(tr("x2"));
-      objs[4] = new FloatSlider(tr("y2"));
-      objs[5] = new FloatSlider(tr("z2"));
+      objs[3] = new LabeledDoubleSpBox(tr("x2"));
+      objs[4] = new LabeledDoubleSpBox(tr("y2"));
+      objs[5] = new LabeledDoubleSpBox(tr("z2"));
       p2BoxLayout->addWidget(objs[3]);
       p2BoxLayout->addWidget(objs[4]);
       p2BoxLayout->addWidget(objs[5]);
       p2Group->setLayout(p2BoxLayout);
       
-      objs[6] = new FloatSlider(tr("r1"));
-      objs[7] = new FloatSlider(tr("r2"));
+      objs[6] = new LabeledDoubleSpBox(tr("r1"));
+      objs[7] = new LabeledDoubleSpBox(tr("r2"));
       
       
       
@@ -191,9 +191,9 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       QGroupBox *p1Group = new QGroupBox("p1", this);
       QVBoxLayout *p1BoxLayout = new QVBoxLayout;
       
-      objs[0] = new FloatSlider(tr("x1"));
-      objs[1] = new FloatSlider(tr("y1"));
-      objs[2] = new FloatSlider(tr("z1"));
+      objs[0] = new LabeledDoubleSpBox(tr("x1"));
+      objs[1] = new LabeledDoubleSpBox(tr("y1"));
+      objs[2] = new LabeledDoubleSpBox(tr("z1"));
       p1BoxLayout->addWidget(objs[0]);
       p1BoxLayout->addWidget(objs[1]);
       p1BoxLayout->addWidget(objs[2]);
@@ -201,15 +201,15 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       
        QGroupBox *p2Group = new QGroupBox("p2", this);
        QVBoxLayout *p2BoxLayout = new QVBoxLayout;
-       objs[3] = new FloatSlider(tr("x2"));
-       objs[4] = new FloatSlider(tr("y2"));
-       objs[5] = new FloatSlider(tr("z2"));
+       objs[3] = new LabeledDoubleSpBox(tr("x2"));
+       objs[4] = new LabeledDoubleSpBox(tr("y2"));
+       objs[5] = new LabeledDoubleSpBox(tr("z2"));
        p2BoxLayout->addWidget(objs[3]);
        p2BoxLayout->addWidget(objs[4]);
        p2BoxLayout->addWidget(objs[5]);
        p2Group->setLayout(p2BoxLayout);
        
-       objs[6] = new FloatSlider(tr("r1"));
+       objs[6] = new LabeledDoubleSpBox(tr("r1"));
       
       
       
@@ -242,9 +242,9 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       QGroupBox *p1Group = new QGroupBox("p1", this);
       QVBoxLayout *p1BoxLayout = new QVBoxLayout;
       
-      objs[0] = new FloatSlider(tr("x1"));
-      objs[1] = new FloatSlider(tr("y1"));
-      objs[2] = new FloatSlider(tr("z1"));
+      objs[0] = new LabeledDoubleSpBox(tr("x1"));
+      objs[1] = new LabeledDoubleSpBox(tr("y1"));
+      objs[2] = new LabeledDoubleSpBox(tr("z1"));
       p1BoxLayout->addWidget(objs[0]);
       p1BoxLayout->addWidget(objs[1]);
       p1BoxLayout->addWidget(objs[2]);
@@ -252,9 +252,9 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       
       QGroupBox *p2Group = new QGroupBox("p2", this);
       QVBoxLayout *p2BoxLayout = new QVBoxLayout;
-      objs[3] = new FloatSlider(tr("x2"));
-      objs[4] = new FloatSlider(tr("y2"));
-      objs[5] = new FloatSlider(tr("z2"));
+      objs[3] = new LabeledDoubleSpBox(tr("x2"));
+      objs[4] = new LabeledDoubleSpBox(tr("y2"));
+      objs[5] = new LabeledDoubleSpBox(tr("z2"));
       p2BoxLayout->addWidget(objs[3]);
        p2BoxLayout->addWidget(objs[4]);
        p2BoxLayout->addWidget(objs[5]);
@@ -288,9 +288,9 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
    QGroupBox *p1Group = new QGroupBox("point", this);
    QVBoxLayout *p1BoxLayout = new QVBoxLayout;
    
-   objs[0] = new FloatSlider(tr("x1"));
-   objs[1] = new FloatSlider(tr("y1"));
-   objs[2] = new FloatSlider(tr("z1"));
+   objs[0] = new LabeledDoubleSpBox(tr("x1"));
+   objs[1] = new LabeledDoubleSpBox(tr("y1"));
+   objs[2] = new LabeledDoubleSpBox(tr("z1"));
    p1BoxLayout->addWidget(objs[0]);
    p1BoxLayout->addWidget(objs[1]);
    p1BoxLayout->addWidget(objs[2]);
@@ -298,9 +298,9 @@ ParaPage::ParaPage(Shape* s, QWidget* parent):QGroupBox(tr(""),parent),shape(s){
       
    QGroupBox *p2Group = new QGroupBox("normal", this);
    QVBoxLayout *p2BoxLayout = new QVBoxLayout;
-   objs[3] = new FloatSlider(tr("x2"));
-   objs[4] = new FloatSlider(tr("y2"));
-   objs[5] = new FloatSlider(tr("z2"));
+   objs[3] = new LabeledDoubleSpBox(tr("x2"));
+   objs[4] = new LabeledDoubleSpBox(tr("y2"));
+   objs[5] = new LabeledDoubleSpBox(tr("z2"));
    p2BoxLayout->addWidget(objs[3]);
    p2BoxLayout->addWidget(objs[4]);
    p2BoxLayout->addWidget(objs[5]);
@@ -355,10 +355,10 @@ Transform::Transform( QWidget *parent)
 {
   
  
-  translate = new VectSlider(tr("translate"));
-  rotateCenter  = new VectSlider(tr("rotateCenter"));
-  rotateAngle = new VectSlider(tr("rotateAngle"));
-  scale = new  VectSlider(tr("scale"));
+  translate = new VectSpBox(tr("translate"));
+  rotateCenter  = new VectSpBox(tr("rotateCenter"));
+  rotateAngle = new VectSpBox(tr("rotateAngle"));
+  scale = new  VectSpBox(tr("scale"));
   scale->setValue(positions3d(1.0, 1.0, 1.0));
   translate->setRange(-1e5, 1e5);
   rotateCenter->setRange(-1e5, 1e5);
@@ -505,7 +505,7 @@ void FVMAdapt::createFlowBar(){
   barLayout->addSpacing(spacing);
   QPushButton* refineButton = new QPushButton(tr("Refine Grid"), this);
   barLayout->addWidget(refineButton);
-  connect(refineButton, SIGNAL(clicked()), this, SIGNAL(refineGrids()));
+  connect(refineButton, SIGNAL(clicked()), this, SLOT(refineGrids()));
 
 
   
@@ -518,7 +518,12 @@ void FVMAdapt::createFlowBar(){
   flowbar->setLayout(barLayout);
    
 }
-  
+
+void FVMAdapt::refineGrids(){
+  RefDialog* refdialog = new RefDialog(filename);
+  refdialog->show();
+}
+
 void FVMAdapt::done(){
 
   close();
@@ -631,11 +636,22 @@ FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QWidget(parent),filename(f
 
    connect(tree, SIGNAL(itemClicked(QTreeWidgetItem*, int)),
            this, SLOT(showData(QTreeWidgetItem*)));
-   
-   QHBoxLayout* objLayout = new QHBoxLayout; 
-   objLayout->addWidget(paraPages);
-   objLayout->addWidget(trans);
-   objLayout->addWidget(tree,2);
+
+
+   viewer = new GLViewer();
+  
+   createVisBar();
+   connect(this, SIGNAL(valueChanged(const QTreeWidgetItem*)), viewer, SLOT(updateDoc(const QTreeWidgetItem*))); 
+   QVBoxLayout* viewLayout = new QVBoxLayout;
+   viewLayout->addWidget(visbar, 1);
+   viewLayout->addWidget(viewer, 10);
+  
+
+   QGridLayout* objLayout = new QGridLayout; 
+   objLayout->addWidget(paraPages, 0, 0, 1, 1);
+   objLayout->addWidget(trans, 0, 1, 1, 1);
+   objLayout->addWidget(tree,1, 0, 1, 1);
+   objLayout->addLayout(viewLayout, 1, 1, 1, 1);
 
 
    QHBoxLayout* barLayout = new QHBoxLayout;
@@ -646,13 +662,39 @@ FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QWidget(parent),filename(f
    barLayout->addWidget(treebar);
    barLayout->addWidget(flowbar);
    
-     QVBoxLayout* mainLayout = new QVBoxLayout;
-     
+   QVBoxLayout* mainLayout = new QVBoxLayout;
    mainLayout->addLayout(barLayout);
    mainLayout->addLayout(objLayout);
    setLayout(mainLayout);
-  
+   QStringList bnames;
+   qDebug() << filename;
+   viewer->load_boundary(filename, bnames);
 }
+
+void FVMAdapt::createVisBar()
+{
+  visbar = new QGroupBox;
+  visbar->setFlat(true);
+  QHBoxLayout* visLayout = new QHBoxLayout;
+ 
+  QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
+  visLayout->addWidget(clearBoundaryAct);
+  connect(clearBoundaryAct, SIGNAL(clicked()),
+          viewer, SLOT(clearCurrent())); 
+   
+  QPushButton* resetAct = new QPushButton(tr("Reset"), this);
+  visLayout->addWidget(resetAct);
+  connect(resetAct, SIGNAL(clicked()),
+          viewer, SLOT(reset()));
+ 
+  QPushButton* fitAct = new QPushButton(tr("Fit"), this);
+  visLayout->addWidget(fitAct);
+  connect(fitAct, SIGNAL(clicked()),
+          viewer, SLOT(fit()));
+  visbar->setLayout(visLayout);
+} 
+
+      
 
 void FVMAdapt::showData(QTreeWidgetItem* item ){
 

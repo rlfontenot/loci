@@ -7,7 +7,7 @@
 class CutPlane
 {
 public:
-   void cut(cutplane_info &info, const LoadInfo& load_info,const positions3d& center, grid *figure);
+   void cut(cutplane_info &info, const LoadInfo& load_info,const positions3d& center, VolGrid *figure);
 
 private:
   bool registerFace(size_t faceNode[], int nNodes, int cellNum);
@@ -24,7 +24,7 @@ private:
 			  int nsides[], 
 			  int nodes[]);
 
-  grid* fig;  // Points to the grid object to load with cutting plane
+  VolGrid* fig;  // Points to the grid object to load with cutting plane
   vector<positions3d> nodes;  // Stores all 3d points in the grid
   vector<float> nodeVal;   // Stores scalar property values for each node
   vector<Array<size_t,5> > intersects ;  // List of all edges formed from 

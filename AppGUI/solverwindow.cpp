@@ -2,101 +2,68 @@
 #include <QFile>
 #include <QString>
 #include <QMessageBox>
-
+#include <QTabWidget>
 #include "solverwindow.h"
 #include "pages.h"
 #include "getfile.h"
 
-SolverWindow::SolverWindow(QDomElement& theelem, QDomElement& theroot, QWidget* parent):
-  GeneralWindow(theelem, theroot, parent)
+SolverWindow::SolverWindow(QDomElement& theelem, QWidget* parent):
+  GeneralGroup(theelem, parent)
 {
- 
-  typesWidget = new QButtonGroup(this);
-  pagesWidget = new QStackedWidget;
-
-  QVBoxLayout *mainLayout = new QVBoxLayout;
-
-  
-  QGroupBox* buttonGroupBox=new QGroupBox(myelem.attribute("label"));
-  QVBoxLayout* buttonGroupLayout = new QVBoxLayout;
-  buttonGroupBox->setLayout(buttonGroupLayout);
-  
-  
+  pagesWidget = new QTabWidget;
+  pagesWidget->setTabPosition(QTabWidget::West);
   int current=0;
   if(myelem.hasAttribute("current"))current=myelem.attribute("current").toInt();
   QDomElement elem = myelem.firstChildElement();
-
   if(elem.isNull()){
     QMessageBox::warning(window(), ".xml",
                         myelem.tagName()+ tr(" has no child")
                          );
     return;
   }
- 
   int count=0;   
   for (; !elem.isNull(); elem = elem.nextSiblingElement(), count++) {   
-    
-    QPushButton *bdCndiButton = new QPushButton(elem.tagName());
-    typesWidget->addButton( bdCndiButton, count);
-    buttonGroupLayout->addWidget(bdCndiButton);
-    // bdCndiButton->setTextAlignment(Qt::AlignHCenter);
-    bdCndiButton->setCheckable(true);
-    
+                
     //this attribute is used for changeState of panel/page
     //with "index", the panel/page does hide/show
     elem.setAttribute("index", count);
-    
-    if(count==current){
-      bdCndiButton->click();
-      //bdCndiButton->setChecked(true);
-      // bdCndiButton->setDown(true);
-    }
-    
-    bdCndiButton->setToolTip(elem.attribute("toolTip"));
-    bdCndiButton->setWhatsThis(elem.attribute("whatsThis"));
     QWidget* newPage = 0;
     if(elem.attribute("element")=="panel"){
-      newPage = new OptionPage(elem, myroot);
+      newPage = new VarPanel(elem);
+      qobject_cast<VarPanel*>(newPage)->setTitle("");
+      qobject_cast<VarPanel*>(newPage)->setFlat(true);
+      
       connect(newPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
-       connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
-      connect(newPage, SIGNAL(stateChanged()), this, SLOT(updateState()));
+      connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
+      //      connect(newPage, SIGNAL(stateChanged()), this, SLOT(updateState()));
     }else if (elem.attribute("element")=="page"){
-      newPage = new Page(elem, myroot);
+      newPage = new VarPage(elem);
       connect(newPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
-      connect(newPage, SIGNAL(stateChanged()), this, SLOT(updateState()));
-       connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
+      //connect(newPage, SIGNAL(stateChanged()), this, SLOT(updateState()));
+      connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
     }else{
       QMessageBox::warning(window(), ".xml",
                            elem.tagName()+ tr(": don't know how to handle it: ")
                            +elem.attribute("element")
                            );
     }
-    pagesWidget->addWidget(newPage);
-   
-    
+    pagesWidget->addTab(newPage, elem.tagName());
+    pagesWidget->setToolTip(elem.attribute("toolTip"));
+    pagesWidget->setWhatsThis(elem.attribute("whatsThis"));
   }//for elem
   
   pagesWidget->setCurrentIndex(current);
-  
-  connect(typesWidget,
-          SIGNAL(buttonClicked(int)),
-          this, SLOT(changePage(int)));
-
-  QHBoxLayout *horizontalLayout = new QHBoxLayout;
-  horizontalLayout->addWidget(buttonGroupBox);
-  horizontalLayout->addWidget(pagesWidget);
-  
-
-  mainLayout->addLayout(horizontalLayout);
+   QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addWidget(pagesWidget);
   mainLayout->addStretch(1);
   mainLayout->addSpacing(12);
   setLayout(mainLayout);
   setWindowTitle(myelem.attribute("title"));
-  updateState();
+  changeState();//make sure the state is checked
   checkStatus();
 }
 
@@ -117,28 +84,19 @@ void SolverWindow::updateShowStatus(const bool& show){
       if(elem.attribute("status")!="done")break;
       count++;
     }
-    if(count<(typesWidget->buttons()).size())typesWidget->button(count)->click();
-    //  typesWidget->button(count)->setDown(true);
+    if(count<pagesWidget->count())pagesWidget->setCurrentIndex(count);
   }
-  GeneralWindow::updateShowStatus(show);
-}
-  
-     
-
-void SolverWindow::changePage(int id)
-{
-  pagesWidget->setCurrentIndex(id);
-  checkStatus();
+  GeneralGroup::updateShowStatus(show);
 }
 
-void SolverWindow::updateState(){
-  
-  
+void SolverWindow::changeState(){
+  //first use this function to update the attribute "conditionSatisfied"
+  GeneralGroup::changeState();
+  //disable/able the tabs
   QDomElement elem = myelem.firstChildElement();
-  
   if(elem.isNull()){
     QMessageBox::warning(window(), ".xml",
-                        myelem.tagName()+ tr(" has no child")
+                         myelem.tagName()+ tr(" has no child")
                          );
     return;
   }
@@ -146,15 +104,18 @@ void SolverWindow::updateState(){
   for (; !elem.isNull(); elem = elem.nextSiblingElement(), count++){
     if(elem.hasAttribute("condition")){
       if(elem.attribute("conditionSatisfied")=="true"){
-        typesWidget->button(count)->show();
+        pagesWidget->setTabEnabled(count, true);
       }else{
-        typesWidget->button(count)->hide();
+        pagesWidget->setTabEnabled(count, false);
       }
     }
   }
+ 
 }
     
- void SolverWindow::checkStatus(){
+void SolverWindow::checkStatus(){
+  
+  QDomElement myroot = myelem.ownerDocument().documentElement();
    int count = 0;
    int count_done = 0;
    QString text;

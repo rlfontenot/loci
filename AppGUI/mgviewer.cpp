@@ -12,24 +12,15 @@
 #include <strings.h>
 #include <stdio.h>
 #include <iostream>
-
-using std::vector;
-using std::cout;
-using std::endl;
-using std::set;
-using std::map ;
-using std::vector ;
-using std::string ;
-using std::cerr ;
-
+#include <utility>
 
 #include "mgviewer.h"
 #include "grid.h"
 #include "hdf5.h"
+using namespace std;
 
 #define PI 3.14159265358979323846264338327950
-//the definition of affineMapping2 is copied from vogmerge.cc, should always
-//be consistent with vogmerge.cc
+
 
 
 
@@ -278,7 +269,8 @@ bool MGViewer::get_boundary(QString fileName) {
 
 
 bool MGViewer::load_boundary(QString fileName) {
-
+  
+  
   //if .surf file doesn't exist or it's created before .vog file
   //run vog2surf
   QString surfFileName = fileName.section('.', 0, -2)+".surf";
@@ -292,30 +284,30 @@ bool MGViewer::load_boundary(QString fileName) {
     int ret =  system(command2.toStdString().c_str());
     if(!WIFEXITED(ret))
       {
-          if(WIFSIGNALED(ret))
+        if(WIFSIGNALED(ret))
             {
-              QMessageBox::information(window(), "mainwindow",
+              QMessageBox::information(window(), "load grid",
                                        command2 + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
 
               return false;
             }
       }
-    }
+  }
   //setup load info
   QStringList boundary_names;
   boundary_names << fileName;
   int first= fileName.lastIndexOf('/');
   int last = fileName.lastIndexOf('.');
-    QString casename = fileName.mid(first+1, last-first-1);
-    QString directory = fileName.left(first);
+  QString casename = fileName.mid(first+1, last-first-1);
+  QString directory = fileName.left(first);
     
     
-    QFileInfo surfInfo2(surfFileName);
+  QFileInfo surfInfo2(surfFileName);
     
-    if(!(surfInfo2.exists())) return false;
+  if(!(surfInfo2.exists())) return false;
     //read in .surf file
         
-    if(surfFileName.right(5) == ".surf"){
+  if(surfFileName.right(5) == ".surf"){
    
     //first read in meshNodes
     vector<vector<int> > tmpmesh;

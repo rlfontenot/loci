@@ -6,24 +6,22 @@
 #include "physicswindow.h"
 #include "pages.h"
 #include "getfile.h"
-#include "mdlwindow.h"
 
+/*!
+  \class PhysicsWindow
+  
+  \brief PhysicsWindow  allows the user to define the  physics state of the system and related variables. The user is be able to select a state, select a module or add a new model. When a model is selected, the components of the system is also changed.
+  
+  \mainclass
+ 
+ 
+*/          
+   
 
-
-
-
-
-
-
-
-
-
-
-
-PhysicsWindow::PhysicsWindow(QDomElement& theelem, QDomElement& theroot, QWidget* parent)
-  :GeneralWindow(theelem, theroot, parent)
+PhysicsWindow::PhysicsWindow(QDomElement& theelem, QWidget* parent)
+  :GeneralGroup(theelem, parent)
 {
-
+  QStringList state;
   
   QVBoxLayout *mainLayout = new QVBoxLayout;
   QDomElement elem = myelem.firstChildElement();
@@ -36,14 +34,11 @@ PhysicsWindow::PhysicsWindow(QDomElement& theelem, QDomElement& theroot, QWidget
   int count=0;   
   for (; !elem.isNull(); elem = elem.nextSiblingElement(), count++) {   
     if(elem.attribute("element")=="stateStack"){
-      StackGroup2* stackGroup = new StackGroup2(elem, myroot, state, this);
-      stacks << stackGroup;
+      StateStackGroup* stackGroup = new StateStackGroup(elem, this);
       state << stackGroup->myState();
       connect(stackGroup, SIGNAL(stateChanged(QString)), this, SLOT(updateState(QString)));
-      connect(this, SIGNAL(parentStateChanged(QString)), stackGroup, SLOT(parentStateChanged(QString)));
-      connect(this, SIGNAL(stateUpdated(const QStringList&)), stackGroup, SLOT(setParentState(const QStringList&)));
-       connect(this, SIGNAL(showStatus(const bool &)), stackGroup, SLOT(updateShowStatus(const bool &)));
-      connect(stackGroup, SIGNAL(stateChanged(QString)), this, SLOT(checkStatus()));
+      connect(this, SIGNAL(stateChanged()), stackGroup, SLOT(changeState()));
+      connect(this, SIGNAL(showStatus(const bool &)), stackGroup, SLOT(updateShowStatus(const bool &)));
       connect(stackGroup, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(stackGroup, SIGNAL(componentsChanged()), this, SIGNAL(componentsChanged()));
       mainLayout->addWidget(stackGroup);
@@ -53,45 +48,57 @@ PhysicsWindow::PhysicsWindow(QDomElement& theelem, QDomElement& theroot, QWidget
                            );
     }
   }
-    emit stateUpdated(state);
-    setLayout(mainLayout);
-    setWindowTitle(myelem.attribute("title"));
-    checkStatus();
+  
+  setLayout(mainLayout);
+  setWindowTitle(myelem.attribute("title"));
+  checkStatus();
+  
+  QString tmp = state.join(";");
+  myelem.setAttribute("state", tmp);
+  emit stateChanged();
 }
 
+
+/*!
+  When child's state changed, update my state,
+  and emit stateChanged()
+ */ 
 void PhysicsWindow::updateState(QString stat){
+  //get original state
+  QStringList state = myelem.attribute("state").split(';');
+  //child state split into variableName and value
   QStringList list1=stat.split("=");
   bool Found = false;
+  //find the variableName in the original state, update the new value
+  //and emit stateChanged()
   for(int i = 0; i < state.size(); i++){
     if(state[i].contains(list1[0])){
-      if(state[i]!=stat)emit parentStateChanged(stat);
       state[i] = stat;
-      
-      Found = true;
-    }
-  }
-  if(Found){
-    QString tmp = state.join(";");
-    if(tmp != myelem.attribute("state")){
+      QString tmp = state.join(";");
       myelem.setAttribute("state", tmp);
-      if(!tmp.isEmpty())emit stateChanged();
+      emit stateChanged();
+      Found=true;
+      break;
     }
-  }
-  if(!Found){
-    QMessageBox::warning(window(), myelem.tagName(),
+   }
+ 
+   if(!Found){
+     QMessageBox::warning(window(), myelem.tagName(),
                           tr("illegal state ")+ stat 
-                         );
-    return;
-  }
-  
-  
+                          );
+     return;
+   }
 }
 
 
 
 
 
-
+/*!
+  Use child element's \a currentText and \a status update my \a currentText and \a status,
+  emit updateStatusTip()
+  
+ */ 
 
  void PhysicsWindow::checkStatus(){
   int count = 0;
@@ -103,142 +110,12 @@ void PhysicsWindow::updateState(QString stat){
     count++;
     text += elt.attribute("currentText");
   }
-  
-
-
-  
-  
+   
   myelem.setAttribute("currentText", text);
   if(count==count_done) myelem.setAttribute("status", "done");
   else myelem.setAttribute("status", QString("%1  out of ").arg(count_done)+QString(" %1 finished").arg(count));
-
-
-//   QString tmp = state.join(";");
-//   myelem.setAttribute("state", tmp);
-//    if(!tmp.isEmpty())emit stateChanged();
   emit updateStatusTip(myelem.attribute("buttonIndex").toInt());
  }
-
-
-
-void StackGroup2::add(){
-  
-   QDomElement elm = myelem.firstChildElement();
-   if(elm.isNull()){
-     QMessageBox::warning(window(), tr(".xml"),
-                              tr("stack elememt has no child")
-                          );
-     return;
-   }
-   for(int i = 0; i < current; i++)elm = elm.nextSiblingElement();
-    if(elm.isNull()){
-     QMessageBox::warning(window(), tr(".xml"),
-                              tr("stack elememt has not enough children")
-                          );
-     return;
-    }
-  
-    //   QDomElement elt_page = myroot.firstChildElement("models");
-  
-    // if(elt_page.isNull()){
-//       QMessageBox::warning(window(), tr(".xml"),
-//                            tr("can not find element 'models' ")
-//                            );
-//       return;
-//     }
-   
-//   QDomElement elem= elt_page.firstChildElement(elm.attribute("define"));
-  
-//   if(elem.isNull()){
-//     QMessageBox::warning(window(), tr(".xml"),
-//                          tr("can not find the model ")+elm.attribute("define")
-//                          );
-//     return;
-//   }
-
-     
- //  if(elem.attribute("element")=="all"){
-    
-//     //   AllVBWindow* window= new AllVBWindow(elem, myroot);
-    
-//     ChemistryMdl* window = new ChemistryMdl;
-//     window->show();
-         
-//   }else if(elem.attribute("element")=="CpWindow"){
-//     SpeciesGroup* window=new SpeciesGroup();
-//     window->show();
-    
-//   }
-
-    if(elm.attribute("define")=="specified_ideal_gas_model"){
-
-      QDomElement elt_page = myroot.firstChildElement("models");
-      
-      if(elt_page.isNull()){
-        QMessageBox::warning(window(), tr(".xml"),
-                             tr("can not find element 'models' ")
-                             );
-        return;
-      }
-      
-      QDomElement elem= elt_page.firstChildElement(elm.attribute("define"));
-  
-      if(elem.isNull()){
-        QMessageBox::warning(window(), tr(".xml"),
-                             tr("can not find the model ")+elm.attribute("define")
-                         );
-        return;
-      }
-      
-      
-      if(elem.attribute("element")=="all"){
-        
-        AllVBWindow* window= new AllVBWindow(elem, myroot);
-        window->show();
-      }
-      
-    }else if(elm.attribute("define")=="gamma_model"){
-
-      QDomElement elt_page = myroot.firstChildElement("models");
-      
-      if(elt_page.isNull()){
-        QMessageBox::warning(window(), tr(".xml"),
-                             tr("can not find element 'models' ")
-                             );
-        return;
-      }
-      
-      QDomElement elem= elt_page.firstChildElement(elm.attribute("define"));
-  
-      if(elem.isNull()){
-        QMessageBox::warning(window(), tr(".xml"),
-                             tr("can not find the model ")+elm.attribute("define")
-                             );
-        return;
-      }
-      
-      
-      if(elem.attribute("element")=="all"){
-        
-        AllVBWindow* window= new AllVBWindow(elem, myroot);
-        window->show();
-      }
-      
-
-      
-    }else if(elm.attribute("define")=="cp_model"){
-      CpWindow* window = new CpWindow;
-      window->show();
-    }else if(elm.attribute("define")=="specified_mixture_model"){
-       ChemistryMdl* window = new ChemistryMdl(true);
-       window->show();
-    }else if(elm.attribute("define")=="specified_chemistry_model"){
-      ChemistryMdl* window = new ChemistryMdl;
-      window->show();
-    }
-    
-}
-        
 
 
 

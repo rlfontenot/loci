@@ -3,24 +3,12 @@
 
 #include <QGLWidget>
 #include <vector>
-
+#include "defines.h"
 #include "grid.h"
-#include "vmergewindow.h"
+
 class grid;
 class cutplane_info;
 class QStringList;
-
-
-
-
-
-
-
-
-
-
-
-
 
 bool CheckLineTri( positions3d TP1, positions3d TP2, positions3d TP3, positions3d LP1, positions3d LP2, positions3d &HitPos);
 

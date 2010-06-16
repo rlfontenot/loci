@@ -6,37 +6,17 @@
 #include "bdcndwindow.h"
 #include "pages.h"
 
-BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
-                         QStringList names, 
-                         QWidget* parent):GeneralWindow(theelem, newroot, parent){
- 
+BdCndWindow::BdCndWindow(QDomElement& theelem,
+                         QPointer<GLViewer> theviewer,
+                         QWidget* parent):GeneralGroup(theelem, parent),viewer(theviewer){
   
-  bdNames = names;
+  
+
+  QDomElement myroot = myelem.ownerDocument().documentElement();
   typesWidget = new QComboBox;
   pagesWidget = new QStackedWidget;
   bdTypes.clear();
-  cndNode = myroot.firstChildElement("boundary_conditions");
-  if(cndNode.isNull()){
-    QMessageBox::warning(window(), ".xml",
-                         tr("can not find element 'boundary_conditions'")
-                         );
-    return;
-  }
-
-  
-  
-  QDomElement elt_name = cndNode.firstChildElement();
-  //if the node boundary_conditions has no child, create the children
-  if(elt_name.isNull()){
-    for(int i =0; i < bdNames.size(); i++){
-      QDomElement  aNode = cndNode.ownerDocument().createElement(bdNames[i]);
-      cndNode.appendChild(aNode);
-    }
-    cndNode.setAttribute("currentIndex", "0");
-  }
-
-       
-      
+ 
   //now all boundary nodes are ready in cndNode   
 
   
@@ -49,7 +29,7 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
                          );
     return;
   }
- 
+  
   
   for (; !elt.isNull(); elt = elt.nextSiblingElement()) {
     bdTypes << elt.tagName();
@@ -82,15 +62,16 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
   label->setFont(font);
   typesLayout->addWidget(label);
   typesLayout->addWidget(typesWidget);
-
+  
+  QDomElement cndNode = myelem.ownerDocument().documentElement().firstChildElement("boundary_conditions");
   int current = cndNode.attribute("currentIndex").toInt();
   setCurrent(current);
   
   
-  emit updateConditionView();  
+  updateConditionView();  
     
   QVBoxLayout *mainLayout = new QVBoxLayout;
-
+  if(selectBoundary()) mainLayout->addWidget(boundaryView);
   mainLayout->addWidget(tableBox);
   mainLayout->addLayout(typesLayout);
   mainLayout->addWidget(pagesWidget);
@@ -106,6 +87,7 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
   QString infix = ", \n";
   QString prefix = ": < \n " ;
   QString postfix = " > \n";
+  QDomElement cndNode = myelem.ownerDocument().documentElement().firstChildElement("boundary_conditions");
   QString text = cndNode.tagName() + prefix;
   
   for( QDomElement elt = cndNode.firstChildElement(); !elt.isNull();
@@ -127,8 +109,9 @@ BdCndWindow::BdCndWindow(QDomElement& theelem, QDomElement& newroot,
 void BdCndWindow::changePage(int index)
 {
      //get current boundary node
-    int bdCurrent = cndNode.attribute("currentIndex").toInt();
-    QDomElement elt = cndNode.firstChildElement();
+  QDomElement cndNode = myelem.ownerDocument().documentElement().firstChildElement("boundary_conditions");
+  int bdCurrent = cndNode.attribute("currentIndex").toInt();
+  QDomElement elt = cndNode.firstChildElement();
     for(int i = 0; i< bdCurrent; i++){
       elt = elt.nextSiblingElement();
     }
@@ -196,11 +179,10 @@ void BdCndWindow::changePage(int index)
    }
    
    if(typeNode.attribute("element")=="panel"){
-     OptionPage* newPage = new OptionPage( typeNode, myroot);
+     VarPanel* newPage = new VarPanel( typeNode);
      pagesWidget->insertWidget(0, newPage);
      pagesWidget->setCurrentWidget(newPage);
-     connect(newPage, SIGNAL(textChanged(const QString&)), this, SIGNAL(updateConditionView()));
-     connect(this, SIGNAL(updateConditionView()), this, SLOT(checkStatus())); 
+     connect(newPage, SIGNAL(textChanged(const QString&)), this, SLOT(updateConditionView()));
      connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
      connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
      connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));
@@ -217,7 +199,7 @@ void BdCndWindow::changePage(int index)
      
    //QString tmp =  bdCndPage->currentText();
    //updateConditionView(tmp);
-   emit updateConditionView();
+   updateConditionView();
   
     if(!(whatsThisList[index].isNull()))typesWidget->setWhatsThis(whatsThisList[index]);
     else typesWidget->setWhatsThis("");
@@ -228,15 +210,219 @@ void BdCndWindow::changePage(int index)
 //change boundary 
 
 
-void  BdCndWindow::setCurrent(int bdCurrent){
+void BdCndWindow::selectCurrent(int row){
+  
+  QColor value= modBoundaries->item(row, 0)->background().color();
+  QModelIndex index =qobject_cast<const QAbstractItemModel*>(modBoundaries)->index(row, 1);
+  qobject_cast<QAbstractItemView*>( boundaryView)->setCurrentIndex(index);
+  emit setCurrent(index);
+    
+  viewer->setCurrentObj(row, value);
+  
+}
+
+
+void BdCndWindow::showBoundary(QModelIndex top, QModelIndex ){
  
+  if(top.column() ==2){//visibility item
+    QString value = top.data(Qt::EditRole).toString();
+    if(value == "show"){
+      viewer->setVisibility(top.row(),true);
+    }else{
+      viewer->setVisibility(top.row(),false);
+    }
+  }
+  else if(top.column() ==0) {//color item
+   
+    QColor value= qobject_cast<const QStandardItemModel*>(top.model())->item(top.row(), top.column())->background().color();
+    
+    viewer->setCurrentObj(top.row(), value);  
+  }
+  
+
+}
+
+void BdCndWindow::setCurrentObj(QModelIndex top){
+  QColor value= qobject_cast<const QStandardItemModel*>(top.model())->item(top.row(), 0)->background().color();
+  viewer->setCurrentObj(top.row(), value);
+}
+
+void BdCndWindow::updateBoundaryView(){
+  //clean up the data
+  if(modBoundaries){
+    delete modBoundaries;
+    modBoundaries = 0;
+  }
+    
+  if(boundaryView){
+    delete boundaryView;
+    boundaryView = 0;
+  }
+      // update status
+  updateStatusTip(myelem.attribute("buttonIndex").toInt());
+  
+
+  if(boundaryView == 0){
+    selectBoundary();
+    updateConditionView();
+  }
+}
+void BdCndWindow::selectBoundaryPressed(){
+
+  if(boundaryView == 0){
+    selectBoundary();
+  }
+}
+      
+void BdCndWindow::updateConditionView(){
+  if(boundaryView==0)return;
+  QModelIndex index = boundaryView->currentIndex();
+  QAbstractItemModel* model = const_cast<QAbstractItemModel*>(index.model());
+  QDomElement myroot = myelem.ownerDocument().documentElement();
+  QDomElement cndNode = myroot.firstChildElement("boundary_conditions");
+  if(cndNode.isNull()){
+    QMessageBox::warning(window(), ".xml",
+                         tr("can not find element 'boundary_conditions'")
+                         );
+    return;
+  }
+  QDomElement  elem = cndNode.firstChildElement();
+  int i =0;
+  for(; !elem.isNull(); elem = elem.nextSiblingElement(), i++){
+    
+    if(!elem.firstChildElement().isNull()){ 
+      
+      QModelIndex index2 = model->index(i, 4);
+      model->setData(index2, elem.firstChildElement().attribute("currentText"));
+      QModelIndex index3 = model->index(i, 3);
+      model->setData(index3, elem.firstChildElement().attribute("status"));
+      boundaryView->resizeRowsToContents();
+      boundaryView->resizeColumnsToContents();
+    }
+  }
+  checkStatus();
+}  
+
+bool BdCndWindow::selectBoundary(){
+  
+  QDomElement theroot = myelem.ownerDocument().documentElement();
+  theroot = theroot.firstChildElement("mainWindow");
+  QDomElement elem_bdname = theroot.firstChildElement("gridSetup");
+  if(!elem_bdname.hasAttribute("boundary_names")){
+    
+    QMessageBox::warning(window(), tr("main, boundary.xml"),
+                         tr("no boundary names, please use Grid Setup to load grid first")
+                         );
+    return false;
+  }
+  QStringList bdnames = elem_bdname.attribute("boundary_names").split(",");
+  
+    
+  // Get boundary names from topo file
+  if(bdnames.empty()){
+    QMessageBox::warning(this, tr("select Boundary"),
+                         tr("please  load boundaries first"));
+    return false;
+  }
+  
+  if(modBoundaries){
+    delete modBoundaries;
+    modBoundaries = 0;
+  }
+  if(boundaryView) {
+    delete boundaryView;
+    boundaryView = 0;
+  }
+  // Load information into data model
+  modBoundaries = new QStandardItemModel(bdnames.size(), 5, this);
+    
+  modBoundaries->setHeaderData(0, Qt::Horizontal, QObject::tr("color"));
+  modBoundaries->setHeaderData(1, Qt::Horizontal, QObject::tr("boundary name"));
+  modBoundaries->setHeaderData(2, Qt::Horizontal, QObject::tr("show/hide"));
+  modBoundaries->setHeaderData(3, Qt::Horizontal, QObject::tr("setup status"));
+  modBoundaries->setHeaderData(4, Qt::Horizontal, QObject::tr("boundary conditions"));
+
+    
+    
+  theroot = myelem.ownerDocument().documentElement();
+  theroot = theroot.firstChildElement("boundary_conditions");
+  for (int i = 0; i < bdnames.size(); ++i) {
+    QColor newColor = default_color[i%12];
+    QStandardItem* colorItem = new QStandardItem("");
+    QStandardItem* nameItem = new QStandardItem(bdnames[i]);
+    QStandardItem* showItem = new QStandardItem("show");
+    QStandardItem* statusItem = new QStandardItem("not setup");
+    QStandardItem* conditionItem = new QStandardItem("");
+    colorItem->setBackground(QBrush(newColor));
+      
+    nameItem->setFlags(Qt::ItemIsSelectable | 
+                       Qt::ItemIsUserCheckable | 
+                       Qt::ItemIsEnabled);
+      
+    modBoundaries->setItem(i, 0, colorItem);
+    modBoundaries->setItem(i, 1, nameItem);
+    modBoundaries->setItem(i, 2, showItem);
+    modBoundaries->setItem(i, 3, statusItem);
+    modBoundaries->setItem(i, 4, conditionItem); 
+  }
+    
+    
+
+  QItemSelectionModel *selections = new QItemSelectionModel(modBoundaries, this);
+
+ 
+
+  // Construct and show dock widget
+  showDelegate* delBoundaries = new showDelegate(this);
+  colorDelegate* delColor = new colorDelegate(this);
+ 
+
+  boundaryView = new QTableView(this);
+
+  boundaryView->setModel(modBoundaries);
+  boundaryView->setSelectionModel(selections);
+  boundaryView->setSelectionMode(QAbstractItemView::SingleSelection);
+  boundaryView->setItemDelegateForColumn(2,delBoundaries);
+  boundaryView->setItemDelegateForColumn(0,delColor);
+ 
+  
+  boundaryView->setColumnWidth(0, 20);
+  boundaryView->setWordWrap(false);
+  boundaryView->resizeRowsToContents();
+  boundaryView->resizeColumnsToContents();
+ 
+  
+  connect(modBoundaries, SIGNAL(dataChanged( const QModelIndex&, const QModelIndex&)),
+          this, SLOT(showBoundary(QModelIndex, QModelIndex)));
+  connect(boundaryView, SIGNAL(clicked( const QModelIndex&)),
+          this, SLOT(setCurrent(QModelIndex)));
+  connect(boundaryView, SIGNAL(clicked( const QModelIndex&)),
+          this, SLOT(setCurrentObj(QModelIndex)));
+
+  connect(viewer, SIGNAL(pickCurrent(int)), this, SLOT(selectCurrent(int)));
+ 
+
+  theroot = myelem.ownerDocument().documentElement();
+  theroot = theroot.firstChildElement("boundary_conditions");
+  int currentIndex = theroot.attribute("currentIndex").toInt();
+  selectCurrent(currentIndex);
+
+
+  return true;
+}
+
+
+
+
+
+
+
+
+void  BdCndWindow::setCurrent(int bdCurrent){
+  QDomElement cndNode = myelem.ownerDocument().documentElement().firstChildElement("boundary_conditions"); 
   int previous  =  cndNode.attribute("currentIndex").toInt();
   cndNode.setAttribute("currentIndex", bdCurrent);
-  if(bdCurrent >=0 )currentBdry->setText(bdNames[bdCurrent]);
-  if(previous != bdCurrent){
-  
-   
-  
+ 
   //go to current boundary
     QDomElement elt = cndNode.firstChildElement();
     for(int i = 0; i< bdCurrent; i++){
@@ -248,7 +434,8 @@ void  BdCndWindow::setCurrent(int bdCurrent){
                            );
       return;
     }
- 
+    
+    currentBdry->setText(elt.tagName());
     //if currrent boudnary condition is not set, assign value 'notset'
     if(elt.firstChildElement().isNull() || elt.firstChildElement().tagName()=="notset"){
       copyBdCnd(previous, bdCurrent);
@@ -265,12 +452,13 @@ void  BdCndWindow::setCurrent(int bdCurrent){
       }
       typesWidget->setCurrentIndex(ind);
     }
-  }
-  emit updateConditionView();
+
+    updateConditionView();
 }
 
 
 void BdCndWindow::copyBdCnd(int previous, int current){
+  QDomElement cndNode = myelem.ownerDocument().documentElement().firstChildElement("boundary_conditions");
   QDomElement pn = cndNode.firstChildElement();
   for(int i = 0; i< previous; i++){
       pn = pn.nextSiblingElement();
@@ -338,11 +526,11 @@ void BdCndWindow::copyBdCnd(int previous, int current){
    
    if(cn.firstChildElement().attribute("element")=="panel"){
      QDomElement elm = cn.firstChildElement();
-     OptionPage* newPage = new OptionPage(elm, myroot);
+     VarPanel* newPage = new VarPanel(elm);
      pagesWidget->insertWidget(0, newPage);
      pagesWidget->setCurrentWidget(newPage);
-     connect(newPage, SIGNAL(textChanged(const QString&)), this, SIGNAL(updateConditionView()));
-     connect(this, SIGNAL(updateConditionView()), this, SLOT(checkStatus())); 
+     connect(newPage, SIGNAL(textChanged(const QString&)), this, SLOT(updateConditionView()));
+    
      connect(this, SIGNAL(stateChanged()), newPage, SLOT(changeState()));
      connect(this, SIGNAL(componentsChanged()), newPage, SIGNAL(componentsChanged()));
      connect(this, SIGNAL(showStatus(const bool&)), newPage, SLOT(updateShowStatus(const bool&)));

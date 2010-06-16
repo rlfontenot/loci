@@ -172,9 +172,10 @@ void GetFileWindow::addDirectory(QString dir){
 
  void GetFileWindow::openFileOfItem(int row, int /* column */)
  {
-     QTableWidgetItem *item = filesTable->item(row, 0);
-     selectedFileName =  directoryComboBox->currentText() + item->text();
-    
+   QTableWidgetItem *item = filesTable->item(row, 0);
+   
+   if(directoryComboBox->currentText().endsWith('/'))  selectedFileName =  directoryComboBox->currentText() + item->text();
+   else  selectedFileName =  directoryComboBox->currentText()+'/' + item->text();
      fileNameLabel->setText("selected file: " + selectedFileName);
      fileNameLabel->show();
      emit fileNameSelected(selectedFileName);

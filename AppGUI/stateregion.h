@@ -30,12 +30,12 @@ using namespace std;
 
 
 
-class RegionWindow : public GeneralWindow
+class RegionWindow : public GeneralGroup
 {
   Q_OBJECT
   
 public:
-  RegionWindow( QDomElement& elem,  QDomElement& theroot,  QWidget *parent=0);
+  RegionWindow( QDomElement& elem, QWidget *parent=0);
   QTreeWidgetItem* getRoot();
   QString currentText();
 public slots:
@@ -50,23 +50,23 @@ public slots:
   void next();
   void previous();
   void updateText();
+  void updateShowStatus(const bool& show);
 signals:
   void valueChanged(const QTreeWidgetItem*);
 private:
   
 private:
   QGroupBox *stateGroup;
-   
-  QListWidget *typesWidget;
-  QStackedWidget *pagesWidget;
+  QListWidget *stateList;
+  QStackedWidget *statePages;
 
   QGroupBox *regionGroup;
-  QStackedWidget *paraPages;
+  QStackedWidget *regionPages;
   QTreeWidget* tree;
   QTreeWidgetItem* root;
   vector<Shape*> defaultShapes;
   
-   QStackedWidget *myPages;
+  QStackedWidget *myPages;
   QStringList stateFunctions;
   QTextEdit* textEdit;
 };

@@ -34,7 +34,9 @@ HEADERS += bdcndwindow.h \
            fvmadapt.h \
            refdialog.h \
            progressdialog.h \
-           stateregion.h
+           stateregion.h \
+           varwindow.h \
+           defines.h
           
 SOURCES += bdcndwindow.cpp \
            cutplane.cpp \
@@ -58,7 +60,8 @@ SOURCES += bdcndwindow.cpp \
            mark_node.cpp \
            refdialog.cpp \
            progressdialog.cpp \
-           stateregion.cpp
+           stateregion.cpp \
+           varwindow.cpp
 
 RESOURCES     = chemdemo.qrc
 #install

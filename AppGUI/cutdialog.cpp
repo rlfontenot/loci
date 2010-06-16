@@ -28,10 +28,22 @@
 //  Assembles the dialog shown by the "load grid " in 'file' menu.
 //////////////////////////////////////////////////////////
 
-CutDialog::CutDialog( LoadInfo ldInfo, float size, GLViewer* theviewer, QWidget *parent)
-  :  QWidget(parent),viewer(theviewer),ld_info(ldInfo)
+CutDialog::CutDialog(LoadInfo ldinfo,  QWidget *parent):QWidget(parent),ld_info(ldinfo)
 {
+
+
   setAttribute(Qt::WA_DeleteOnClose, true);
+
+
+  viewer = new GLViewer;
+  QString fileName = ld_info.directory+"/"+ld_info.casename+".vog";
+  QStringList bnames;
+  if(!(viewer->load_boundary(fileName, bnames))){
+      QMessageBox::information(window(), tr("post-processing"),
+                               tr("can not load grid ")+fileName);
+      return;
+    }
+  size = viewer->boundaryBoxSize();
   
   QButtonGroup* buttonGroup = new QButtonGroup(this);
   buttonGroup->setExclusive(true);
@@ -80,9 +92,9 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, GLViewer* theviewer, QWidget 
   yslider1->setOrientation(Qt::Horizontal);
   zslider1->setOrientation(Qt::Horizontal);
   
-  xEditor1 = new FloatEdit(0.0); 
-  yEditor1 = new FloatEdit(0.0);
-  zEditor1 = new FloatEdit(0.0); 
+  xEditor1 = new DoubleEdit(0.0); 
+  yEditor1 = new DoubleEdit(0.0);
+  zEditor1 = new DoubleEdit(0.0); 
   xEditor1->setRange(-size/2.0, size/2.0);
   yEditor1->setRange(-size/2.0, size/2.0);
   zEditor1->setRange(-size/2.0, size/2.0);
@@ -92,9 +104,9 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, GLViewer* theviewer, QWidget 
   translate->addWidget(yEditor1, 1, 2);
   translate->addWidget(zslider1, 2, 1);
   translate->addWidget(zEditor1, 2, 2);
-  connect(xslider1, SIGNAL(valueChanged(int)), xEditor1, SLOT(setValue(int)));
-  connect(yslider1, SIGNAL(valueChanged(int)), yEditor1, SLOT(setValue(int)));
-  connect(zslider1, SIGNAL(valueChanged(int)), zEditor1, SLOT(setValue(int))); 
+  connect(xslider1, SIGNAL(valueChanged(int)), xEditor1, SLOT(mapValue(int)));
+  connect(yslider1, SIGNAL(valueChanged(int)), yEditor1, SLOT(mapValue(int)));
+  connect(zslider1, SIGNAL(valueChanged(int)), zEditor1, SLOT(mapValue(int))); 
  
   translateBox->setLayout(translate);
   
@@ -122,9 +134,9 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, GLViewer* theviewer, QWidget 
   xslider2->setOrientation(Qt::Horizontal);
   yslider2->setOrientation(Qt::Horizontal);
   zslider2->setOrientation(Qt::Horizontal);
-  xEditor2 = new FloatEdit(0.0); 
-  yEditor2 = new FloatEdit(0.0);
-  zEditor2 = new FloatEdit(0.0); 
+  xEditor2 = new DoubleEdit(0.0); 
+  yEditor2 = new DoubleEdit(0.0);
+  zEditor2 = new DoubleEdit(0.0); 
   xEditor2->setRange(-90, 90);
   yEditor2->setRange(-90, 90);
   zEditor2->setRange(-90, 90);
@@ -134,9 +146,9 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, GLViewer* theviewer, QWidget 
   rotate->addWidget(yEditor2, 1, 2);
   rotate->addWidget(zslider2, 2, 1);
   rotate->addWidget(zEditor2, 2, 2);
-  connect(xslider2, SIGNAL(valueChanged(int)), xEditor2, SLOT(setValue(int)));
-  connect(yslider2, SIGNAL(valueChanged(int)), yEditor2, SLOT(setValue(int)));
-  connect(zslider2, SIGNAL(valueChanged(int)), zEditor2, SLOT(setValue(int))); 
+  connect(xslider2, SIGNAL(valueChanged(int)), xEditor2, SLOT(mapValue(int)));
+  connect(yslider2, SIGNAL(valueChanged(int)), yEditor2, SLOT(mapValue(int)));
+  connect(zslider2, SIGNAL(valueChanged(int)), zEditor2, SLOT(mapValue(int))); 
   rotateBox->setLayout(rotate);
   
   connect(xEditor1, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
@@ -264,6 +276,7 @@ CutDialog::CutDialog( LoadInfo ldInfo, float size, GLViewer* theviewer, QWidget 
   mainLayout->addWidget(iterVarGroup);
  
   mainLayout->addWidget(cutGroup);
+  mainLayout->addWidget(viewer);
  
 
   setLayout(mainLayout);
@@ -353,6 +366,11 @@ void CutDialog::createToolBox(){
  
  
 }
+
+
+
+ 
+
 void CutDialog::showExtremeNodes(int i){
   viewer->setShading(i==0);
   }

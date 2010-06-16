@@ -7,6 +7,7 @@
      QApplication app(argc, argv);
      MainWindow mainWin;
      mainWin.show();
-     qApp->setStyleSheet("QPushButton,QAction,QToolBar,QToolButton{color:green}");
+     qApp->setStyleSheet("QPushButton,QAction,QToolBar,QMenuBar,QToolButton{color:darkgreen; font:bold,large}");
+     
      return app.exec();
  }

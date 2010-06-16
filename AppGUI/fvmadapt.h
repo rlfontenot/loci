@@ -6,7 +6,7 @@
 #include <QHideEvent>
 #include "pages.h"
 #include "vmergewindow.h"
-
+#include "glviewer.h"
 
 class QLabel;
 class QComboBox;
@@ -24,7 +24,6 @@ class QSignalMapper;
   
 enum BASIC_SHAPES{SPHERE, CONE, CYLINDER, BOX, LEFTPLANE};
 
-QDomDocument tree2dom(const QTreeWidgetItem* root);
 
 class Shape{
 public:
@@ -49,7 +48,7 @@ signals:
   void valueChanged();
 public:
   
-  vector<FloatSlider*> objs;
+  vector<LabeledDoubleSpBox*> objs;
   Shape* shape;
   QSignalMapper* signalMapper;
 };
@@ -75,10 +74,10 @@ signals:
   void tcChanged();
   
 private:
-  VectSlider* translate;
-  VectSlider* rotateCenter;
-  VectSlider* rotateAngle;
-  VectSlider* scale;
+  VectSpBox* translate;
+  VectSpBox* rotateCenter;
+  VectSpBox* rotateAngle;
+  VectSpBox* scale;
 };
 
 
@@ -91,10 +90,8 @@ class FVMAdapt: public QWidget
   ~FVMAdapt();
   QTreeWidgetItem* getRoot();
  
-  signals:
+signals:
   void valueChanged(const QTreeWidgetItem*);
-  void refineGrids();
-                    
 private slots:
   
   void helpClicked();
@@ -109,10 +106,12 @@ private slots:
   void updateTransform();
   void showData(QTreeWidgetItem* item);  
   void done();
+  void refineGrids();
 private:
   void createFlowBar();
   void createToolBar();
   void createTreeBar();
+  void createVisBar();
   QString filename;
   
   Transform* trans;
@@ -125,6 +124,9 @@ private:
   QGroupBox* toolbar;
   QGroupBox* treebar;
   vector<Shape*> defaultShapes;
+
+  GLViewer* viewer;
+  QGroupBox* visbar;
 };
 
 

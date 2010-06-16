@@ -32,9 +32,9 @@ VMOption::VMOption(int id, const QString &gridname, const QStringList & bcnames,
   
  
   
-  xEditor1 = new FloatEdit(0.0); 
-  yEditor1 = new FloatEdit(0.0);
-  zEditor1 = new FloatEdit(0.0); 
+  xEditor1 = new DoubleEdit(0.0); 
+  yEditor1 = new DoubleEdit(0.0);
+  zEditor1 = new DoubleEdit(0.0); 
 
  
   translate->addWidget(xEditor1, 1, 1);
@@ -55,15 +55,15 @@ VMOption::VMOption(int id, const QString &gridname, const QStringList & bcnames,
   rotate->addWidget(new QLabel(tr("z:")), 0, 3);
   
   //angles
-  xEditor2 = new FloatEdit(0.0); 
-  yEditor2 = new FloatEdit(0.0);
-  zEditor2 = new FloatEdit(0.0);
+  xEditor2 = new DoubleEdit(0.0); 
+  yEditor2 = new DoubleEdit(0.0);
+  zEditor2 = new DoubleEdit(0.0);
   xEditor2->setRange(-360.0, 360.0);
   yEditor2->setRange(-360.0, 360.0);
   zEditor2->setRange(-360.0, 360.0);
-  xEditor4 = new FloatEdit(0.0); 
-  yEditor4 = new FloatEdit(0.0);
-  zEditor4 = new FloatEdit(0.0);
+  xEditor4 = new DoubleEdit(0.0); 
+  yEditor4 = new DoubleEdit(0.0);
+  zEditor4 = new DoubleEdit(0.0);
   
   rotate->addWidget(xEditor2, 1, 1);
   rotate->addWidget(yEditor2, 1, 2);
@@ -85,9 +85,9 @@ VMOption::VMOption(int id, const QString &gridname, const QStringList & bcnames,
   scale->addWidget(new QLabel(tr("z:")), 0, 3);
   
  
-  xEditor3 = new FloatEdit(1.0); 
-  yEditor3 = new FloatEdit(1.0);
-  zEditor3 = new FloatEdit(1.0); 
+  xEditor3 = new DoubleEdit(1.0); 
+  yEditor3 = new DoubleEdit(1.0);
+  zEditor3 = new DoubleEdit(1.0); 
   
  
   scale->addWidget(xEditor3, 1, 1);
@@ -506,10 +506,62 @@ VMergeWindow::VMergeWindow( QWidget* parent)
   mainLayout->addWidget(pagesWidget);
   mainLayout->addStretch(1);
   mainLayout->addLayout(buttonsLayout);
-  setLayout(mainLayout);
+  mgviewer = new MGViewer();
+
+
+  
+  //  connect(this, SIGNAL(getGrid(QString)), mgviewer, SLOT(get_boundary(QString)));
+ 
+  connect(mgviewer, SIGNAL(gridLoaded(const QStringList&)), this, SLOT(gridLoaded(const QStringList&)));
+  connect(mgviewer, SIGNAL(pickCurrent(const IDOnly&)), this, SLOT(selectCurrent(const IDOnly&)));
+  connect(this, SIGNAL(tcChanged(const IDMatrix&)), mgviewer, SLOT(transGrid(const IDMatrix&)));
+ 
+  connect(this, SIGNAL(setCurrentColor(const IDColor&)), mgviewer, SLOT(setCurrentColor(const IDColor&)));
+  connect(this, SIGNAL(setCurrentVisibility(const IDVisibility&)),
+          mgviewer, SLOT(setCurrentVisibility(const IDVisibility&)));
+  createVisBar();
+  QVBoxLayout* viewLayout = new QVBoxLayout;
+  viewLayout->addWidget(visbar, 1);
+  viewLayout->addWidget(mgviewer, 10);
+  
+  
+  
+  QHBoxLayout* totalLayout = new QHBoxLayout;
+  totalLayout->addLayout(mainLayout);
+  
+  totalLayout->addLayout(viewLayout);
+  
+
+  setLayout(totalLayout);
+  
   setWindowTitle(tr("vogmerge window"));
  
 }
+
+void VMergeWindow::createVisBar()
+{
+  visbar = new QGroupBox;
+  visbar->setFlat(true);
+  QHBoxLayout* visLayout = new QHBoxLayout;
+ 
+  QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
+  visLayout->addWidget(clearBoundaryAct);
+  connect(clearBoundaryAct, SIGNAL(clicked()),
+          mgviewer, SLOT(clearCurrent())); 
+   
+  QPushButton* resetAct = new QPushButton(tr("Reset"), this);
+  visLayout->addWidget(resetAct);
+  connect(resetAct, SIGNAL(clicked()),
+          mgviewer, SLOT(reset()));
+ 
+  QPushButton* fitAct = new QPushButton(tr("Fit"), this);
+  visLayout->addWidget(fitAct);
+  connect(fitAct, SIGNAL(clicked()),
+          mgviewer, SLOT(fit()));
+  visbar->setLayout(visLayout);
+} 
+
+      
 
 void VMergeWindow::changePage(QListWidgetItem *current, QListWidgetItem *previous)
 {
@@ -544,7 +596,8 @@ void VMergeWindow::loadGridClicked(){
       return;
    }
 
-   emit loadGrid(fileName);
+   //   emit loadGrid(fileName);
+    mgviewer->load_boundary(fileName);
 }
 
 void VMergeWindow::gridLoaded(const QStringList & names){
@@ -602,7 +655,8 @@ void VMergeWindow::vmClicked(){
 
 void VMergeWindow::clearAll(){
   clear();
-  emit getGrid(QString());
+  //emit getGrid(QString());
+  mgviewer->get_boundary(QString());
 }
 
 void VMergeWindow::clear(){
@@ -623,6 +677,7 @@ void VMergeWindow::afterMerge(QString command, QProcess::ExitStatus status){
   if(status==QProcess::NormalExit){
     clear();
     QString filename = command.section(' ', -1, -1);
-    emit getGrid(filename);
+    // emit getGrid(filename);
+     mgviewer->get_boundary(filename);
   }
 }

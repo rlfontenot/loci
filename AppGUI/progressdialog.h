@@ -20,11 +20,11 @@ class ProgressDialog: public QWidget
   Q_OBJECT
   
   public:
-  ProgressDialog(QString command, bool autoclose = true, QWidget *parent = 0);
+  ProgressDialog(QString command,QString directory, bool autoclose = true, QWidget *parent = 0);
   //  ~ProgressDialog();
  
 signals:
-  void progressFinished(QString, QProcess::ExitStatus);
+  void progressFinished(QString, QProcess::ExitStatus, QString);
 public slots:
   void updateState(QProcess::ProcessState);
   void next(int, QProcess::ExitStatus);
@@ -33,7 +33,7 @@ public slots:
 private:
    bool startProgress();
 
-
+  QString workingDirectory;
   QStringList commands;
   QLabel* nameLabel;
   QLabel* timeLabel;

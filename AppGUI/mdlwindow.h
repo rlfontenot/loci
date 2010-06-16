@@ -23,12 +23,12 @@ class QSpinBox;
 class QStandardItemModel;
 class QHBoxLayout;
 
-class FloatEditDelegate : public QItemDelegate
+class DoubleEditDelegate : public QItemDelegate
  {
      Q_OBJECT
 
  public:
-     FloatEditDelegate(QObject *parent = 0);
+     DoubleEditDelegate(QObject *parent = 0);
 
      QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
                            const QModelIndex &index) const;
@@ -84,7 +84,7 @@ void remove();
   void textChanged();
 private:
   QLabel *display;
-  FloatEdit* fEdit;
+  DoubleEdit* fEdit;
   QPushButton *removeButton;
 };
 
@@ -118,12 +118,12 @@ private:
   QGroupBox* pGroup;
   QGroupBox*  hGroup ;
   QGroupBox  *thetaCpGroup;
-  FloatEdit* mEdit;
-  FloatEdit* hrefEdit;
-  FloatEdit* srefEdit;
-  FloatEdit* trefEdit;
-  FloatEdit* prefEdit;
-  FloatEdit* mfEdit;
+  DoubleEdit* mEdit;
+  DoubleEdit* hrefEdit;
+  DoubleEdit* srefEdit;
+  DoubleEdit* trefEdit;
+  DoubleEdit* prefEdit;
+  DoubleEdit* mfEdit;
   
   ListGroup* thetavGroup;
   CpGroup* cpGroup;
@@ -149,7 +149,7 @@ private:
   QButtonGroup* replaceBGroup;
   
   QGroupBox *mGroup;
-  FloatEdit* mEdit;
+  DoubleEdit* mEdit;
   CpGroup* cpGroup;
   QLineEdit* nameEdit;
 };
@@ -174,9 +174,9 @@ void arrToggled(bool);
 private:
   QRadioButton* ther;
   QRadioButton* arr;
-  FloatEdit* f1;
-  FloatEdit* f2;
-  FloatEdit* f3;
+  DoubleEdit* f1;
+  DoubleEdit* f2;
+  DoubleEdit* f3;
 };
   
 

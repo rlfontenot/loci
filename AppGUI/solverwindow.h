@@ -7,31 +7,27 @@
 #include <QDomElement>
 #include <QModelIndex>
 #include "pages.h"
+
 class QButtonGroup;
 class QStackedWidget;
+class QTabWidget;
 
 
-
-class SolverWindow : public GeneralWindow
+class SolverWindow : public GeneralGroup
 {
   Q_OBJECT
   
 public:
-  SolverWindow(QDomElement& theelem, QDomElement& myroot, QWidget* parent = 0);
+  SolverWindow(QDomElement& theelem,QWidget* parent = 0);
   
 private slots:
-void changePage(int id);
   void checkStatus();
-  void updateState();// update buttons using pages's signal
+  void changeState();// update buttons using pages's signal
   void updateShowStatus(const bool&);
   signals:
   
 private:
-  
-  QButtonGroup *typesWidget;
-   QStackedWidget *pagesWidget;
- 
-  
-};
+  QTabWidget *pagesWidget;
+ };
 
 #endif

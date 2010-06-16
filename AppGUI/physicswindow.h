@@ -2,7 +2,6 @@
 #define PHYSICSWINDOW_H
 
 #include <QWidget>
-#include <QStringList>
 #include <QDomDocument>
 #include <QDomElement>
 #include <QObject>
@@ -14,35 +13,19 @@ class QStackedWidget;
 class QRadioButton;
 class QSpinBox;
 
-
-
-
-
-
-
-
-
-
-
-
-
-class PhysicsWindow : public GeneralWindow
+class PhysicsWindow : public GeneralGroup
 {
   Q_OBJECT
   
-public:
-  PhysicsWindow(QDomElement& theelem, QDomElement& myroot, QWidget* parent = 0);
-  // QStringList currentState();
-  signals:
-  //  void componentsChanged();
-  void parentStateChanged(QString);
-  void stateUpdated(const QStringList&);
+  public:
+  PhysicsWindow(QDomElement& theelem, QWidget* parent = 0);
+signals:
+    
 private slots:
-void updateState(QString);
+  void updateState(QString);
   void checkStatus();
 private:
-  QStringList state; 
-  QList<StackGroup2*> stacks;
- };
+
+};
 
 #endif

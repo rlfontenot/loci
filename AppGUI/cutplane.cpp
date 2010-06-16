@@ -41,7 +41,7 @@ void cbVertex(void *vertex_data, void *user_data) {
   count = ++count % 3;
 
   if (count == 0) {
-    grid* fig = (grid*) user_data;
+    VolGrid* fig = (VolGrid*) user_data;
     fig->triangle_list.push_back(triangles( *(int*)data[0], 
                                             *(int*)data[1], 
                                             *(int*)data[2] ));
@@ -72,7 +72,7 @@ void cbEdgeFlag(GLboolean) {}
 //  plane.
 //////////////////////////////////////////////////////////////////////////////
 
-void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const positions3d& center, grid *figure)
+void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const positions3d& center, VolGrid *figure)
 {
  
   // Turn off hdf5 error reports

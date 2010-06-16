@@ -25,7 +25,7 @@ private:
   QStringList alist;
   QStringList tag;
   QList<QCheckBox*> objs;
-  OpGroup* LrefBox;
+  VarGBox* LrefBox;
   QButtonGroup* radioGroup;
 };
 
@@ -42,7 +42,7 @@ private:
   QStringList optionList;
   QStringList tag;
   QList<QCheckBox*> objs;
-  QList<OpGroup*> options;
+  QList<VarGBox*> options;
   QSignalMapper *signalMapper;
  };
 
@@ -50,12 +50,12 @@ private:
 
 
 
-class ImportWindow : public GeneralWindow
+class ImportWindow : public GeneralGroup
 {
   Q_OBJECT
   
 public:
-  ImportWindow(QDomElement& theelem, QDomElement& theroot, QWidget* parent = 0);
+  ImportWindow(QDomElement& theelem,  QWidget* parent = 0);
   
 public slots:
 void changePage(QListWidgetItem *current, QListWidgetItem *previous);

@@ -15,39 +15,39 @@
 
 
 
-FloatEditDelegate::FloatEditDelegate(QObject *parent)
+DoubleEditDelegate::DoubleEditDelegate(QObject *parent)
   : QItemDelegate(parent)
 {
 }
 
-QWidget *FloatEditDelegate::createEditor(QWidget *parent,
+QWidget *DoubleEditDelegate::createEditor(QWidget *parent,
                                          const QStyleOptionViewItem &/* option */,
                                          const QModelIndex &/* index */) const
 {
-  FloatEdit *editor = new FloatEdit(parent);
+  DoubleEdit *editor = new DoubleEdit(parent);
   return editor;
 }
 
-void FloatEditDelegate::setEditorData(QWidget *editor,
+void DoubleEditDelegate::setEditorData(QWidget *editor,
                                       const QModelIndex &index) const
 {
   double value = index.model()->data(index, Qt::EditRole).toDouble();
   
-     FloatEdit *floatEdit = static_cast<FloatEdit*>(editor);
+     DoubleEdit *floatEdit = static_cast<DoubleEdit*>(editor);
      floatEdit->setValue(value);
 }
 
-void FloatEditDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
+void DoubleEditDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
                                     const QModelIndex &index) const
 {
-  FloatEdit *floatEdit = static_cast<FloatEdit*>(editor);
+  DoubleEdit *floatEdit = static_cast<DoubleEdit*>(editor);
     
   double value = floatEdit->value();
   
   model->setData(index, value, Qt::EditRole);
 }
 
-void FloatEditDelegate::updateEditorGeometry(QWidget *editor,
+void DoubleEditDelegate::updateEditorGeometry(QWidget *editor,
                                              const QStyleOptionViewItem &option, const QModelIndex &/* index */) const
 {
   editor->setGeometry(option.rect);
@@ -56,7 +56,7 @@ void FloatEditDelegate::updateEditorGeometry(QWidget *editor,
 ListGroup::ListGroup(const QString& title, QWidget* parent):QGroupBox(title, parent){
 
   QLabel *aLabel = new QLabel(tr("add an item"));
-  fEdit = new FloatEdit;
+  fEdit = new DoubleEdit;
   
   QHBoxLayout* buttonLayout = new QHBoxLayout;
   buttonLayout->addWidget(aLabel);
@@ -146,7 +146,7 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   
   mGroup = new QGroupBox(tr("molecular mass"));
   QHBoxLayout *mLayout = new QHBoxLayout;
-  mEdit = new FloatEdit;
+  mEdit = new DoubleEdit;
   mEdit->setBottom(0.0);
   mLayout->addWidget(mEdit);
   mGroup->setLayout(mLayout);
@@ -157,7 +157,7 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   
   sGroup = new QGroupBox(tr("reference entropy"));
   QHBoxLayout *sLayout = new QHBoxLayout;
-  srefEdit = new FloatEdit;
+  srefEdit = new DoubleEdit;
   sLayout->addWidget(srefEdit);
   sGroup->setLayout(sLayout);
   sGroup->setCheckable(true);
@@ -169,7 +169,7 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   tGroup = new QGroupBox(tr("reference temperature"));
   tGroup->setWhatsThis("reference temperature used for Kc");
   QHBoxLayout *tLayout = new QHBoxLayout;
-  trefEdit = new FloatEdit;
+  trefEdit = new DoubleEdit;
   tLayout->addWidget(trefEdit);
   tGroup->setLayout(tLayout);
   tGroup->setCheckable(true);
@@ -180,7 +180,7 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   pGroup = new QGroupBox(tr("reference pressure"));
   pGroup->setWhatsThis("reference pressure used for Kc");
   QHBoxLayout *pLayout = new QHBoxLayout;
-  prefEdit = new FloatEdit;
+  prefEdit = new DoubleEdit;
   pLayout->addWidget(prefEdit);
   pGroup->setLayout(pLayout);
   pGroup->setCheckable(true);
@@ -191,7 +191,7 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   hGroup = new QGroupBox(tr("reference enthalpy"));
   hGroup->setWhatsThis("reference enthalpy used for Kc");  
   QHBoxLayout *hLayout = new QHBoxLayout;
-  hrefEdit = new FloatEdit;
+  hrefEdit = new DoubleEdit;
   hLayout->addWidget(hrefEdit);
   hGroup->setLayout(hLayout);
   hGroup->setCheckable(true);
@@ -202,7 +202,7 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   mfGroup = new QGroupBox(tr("mass fraction"));
   mfGroup->setWhatsThis("mass fraction used to specify default mixture");
   QHBoxLayout *mfLayout = new QHBoxLayout;
-  mfEdit = new FloatEdit;
+  mfEdit = new DoubleEdit;
   mfLayout->addWidget(mfEdit);
   mfGroup->setLayout(mfLayout);
   mfGroup->setCheckable(true);
@@ -357,7 +357,7 @@ CpGroup ::CpGroup(QWidget* parent):QGroupBox(tr("curve fit for Cp"),parent){
   model->setHeaderData(5, Qt::Horizontal, QObject::tr("      E      "));
   
   QItemSelectionModel *selections = new QItemSelectionModel(model);
-  FloatEditDelegate* delegate = new FloatEditDelegate(this);
+  DoubleEditDelegate* delegate = new DoubleEditDelegate(this);
   
   tableView = new QTableView(this);
   tableView->setModel(model);
@@ -440,9 +440,9 @@ KFKC::KFKC(const QString& title, QWidget* parent):
   arr = new QRadioButton(tr("Arrhennius"));
   arr->setChecked(true);
   ther = new QRadioButton(tr("Thermodynamic"));
-  f1 = new FloatEdit;
-  f2 = new FloatEdit;
-  f3 = new FloatEdit;
+  f1 = new DoubleEdit;
+  f2 = new DoubleEdit;
+  f3 = new DoubleEdit;
 
   connect(arr, SIGNAL(toggled(bool)), this, SIGNAL(textChanged()));
   connect(arr, SIGNAL(toggled(bool)), this, SLOT(arrToggled(bool)));
@@ -487,8 +487,8 @@ NumberString::NumberString(const QString& title, QWidget* parent , bool fa):
   setCheckable(true);
   setChecked(false);
   if(floatAllowed){
-    edit=new FloatEdit;
-    qobject_cast<FloatEdit*>(edit)->setBottom(0.0);
+    edit=new DoubleEdit;
+    qobject_cast<DoubleEdit*>(edit)->setBottom(0.0);
     connect(edit, SIGNAL(textChanged(const QString&)), this, SIGNAL(textChanged()));
   }else{
     edit = new QSpinBox;
@@ -503,7 +503,7 @@ NumberString::NumberString(const QString& title, QWidget* parent , bool fa):
 }
 void NumberString::clear(){
  if(isCheckable()) setChecked(false);
- if(floatAllowed) qobject_cast<FloatEdit*>(edit)->clear();
+ if(floatAllowed) qobject_cast<DoubleEdit*>(edit)->clear();
  else qobject_cast<QSpinBox*>(edit)->setValue(1);
 }
 
@@ -511,8 +511,8 @@ QString NumberString::text(){
   QString text;
   if(floatAllowed){
     
-    if(qobject_cast<FloatEdit*>(edit)->value() != 1)  text += qobject_cast<FloatEdit*>(edit)->text()+" "+title();
-    else if(qobject_cast<FloatEdit*>(edit)->value() != 0) text +=title();
+    if(qobject_cast<DoubleEdit*>(edit)->value() != 1)  text += qobject_cast<DoubleEdit*>(edit)->text()+" "+title();
+    else if(qobject_cast<DoubleEdit*>(edit)->value() != 0) text +=title();
                 
     
   }else{
@@ -916,7 +916,7 @@ CpWindow::CpWindow(const QString& title, QWidget* parent):QGroupBox(title, paren
   
   mGroup = new QGroupBox(tr("molecular mass"));
   QHBoxLayout *mLayout = new QHBoxLayout;
-  mEdit = new FloatEdit;
+  mEdit = new DoubleEdit;
   mEdit->setBottom(0.0);
   mLayout->addWidget(mEdit);
   mGroup->setLayout(mLayout);

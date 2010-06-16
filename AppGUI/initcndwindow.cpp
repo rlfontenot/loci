@@ -9,16 +9,14 @@
 #include "getfile.h"
 #include "stateregion.h"
 
-InitCndWindow::InitCndWindow(QDomElement& theelem, QDomElement& theroot, QWidget* parent): GeneralWindow(theelem, theroot, parent)
+InitCndWindow::InitCndWindow(QDomElement& theelem, QWidget* parent): GeneralGroup(theelem, parent)
 {
-  typesWidget = new QListWidget;
+  typesWidget = new QButtonGroup(this);
+  typesWidget->setExclusive(true);
   pagesWidget = new QStackedWidget;
-  
-  QHBoxLayout* aLayout = new QHBoxLayout;
-  QLabel* aLabel = new QLabel(myelem.attribute("label"));
-  aLayout->addWidget(aLabel);
-  aLayout->addWidget(typesWidget);
-    
+
+  QGroupBox* buttonGroup = new QGroupBox(myelem.attribute("label"));
+  QHBoxLayout* buttonLayout = new QHBoxLayout;
   QDomElement elem = myelem.firstChildElement();
   if(elem.isNull()){
     QMessageBox::warning(window(), ".xml",
@@ -26,35 +24,38 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QDomElement& theroot, QWidget
                          );
     return;
   }
+  int count = 0;
+  int current = 0;
+  if(myelem.hasAttribute("current"))current = myelem.attribute("current").toInt();
   
-  for (; !elem.isNull(); elem = elem.nextSiblingElement()) {   
+  for (; !elem.isNull(); elem = elem.nextSiblingElement(), count++) {   
       
-    QListWidgetItem *bdCndiButton = new QListWidgetItem(typesWidget);
-    bdCndiButton->setText(elem.tagName());
-    bdCndiButton->setTextAlignment(Qt::AlignHCenter);
-    bdCndiButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-    bdCndiButton->setToolTip(elem.attribute("whatsThis"));
-    bdCndiButton->setStatusTip(elem.attribute("whatsThis"));
-    bdCndiButton->setWhatsThis(elem.attribute("whatsThis"));
+    QRadioButton *button = new QRadioButton(elem.tagName());
+    button->setToolTip(elem.attribute("whatsThis"));
+    button->setStatusTip(elem.attribute("whatsThis"));
+    button->setWhatsThis(elem.attribute("whatsThis"));
+    buttonLayout->addWidget(button);
+    typesWidget->addButton(button, count);
+    if(count==current)button->setChecked(true);
     if(elem.hasAttribute("action") && elem.attribute("action")=="find file"){
       FindFileWindow* getFileWindow = new FindFileWindow(elem, fileSelected);
       pagesWidget->addWidget(getFileWindow);
     }else if(elem.hasAttribute("element")&&elem.attribute("element")=="panel"){
-      OptionPage* bdCndPage = new OptionPage(elem,myroot);
+      VarPanel* bdCndPage = new VarPanel(elem);
       connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
-       connect(this, SIGNAL(showStatus(const bool&)), bdCndPage, SLOT(updateShowStatus(const bool&)));
+      connect(this, SIGNAL(showStatus(const bool&)), bdCndPage, SLOT(updateShowStatus(const bool&)));
       pagesWidget->addWidget(bdCndPage);
     }else if(elem.hasAttribute("element")&&elem.attribute("element")=="page"){
-      Page* bdCndPage = new Page(elem, myroot);
+      VarPage* bdCndPage = new VarPage(elem);
       connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
       connect(this, SIGNAL(showStatus(const bool&)), bdCndPage, SLOT(updateShowStatus(const bool&)));
       pagesWidget->addWidget(bdCndPage);
     }else if(elem.hasAttribute("element")&&elem.attribute("element")=="regionWindow"){
-      RegionWindow* bdCndPage = new RegionWindow(elem, myroot);
+      RegionWindow* bdCndPage = new RegionWindow(elem);
       //      connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
@@ -62,66 +63,54 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QDomElement& theroot, QWidget
       connect(bdCndPage, SIGNAL( valueChanged(const QTreeWidgetItem*)),
               this, SIGNAL( valueChanged(const QTreeWidgetItem*)));
       pagesWidget->addWidget(bdCndPage);
-    }
-
-
-    else{
+    }else{
       QMessageBox::warning(window(), elem.tagName(),
                            tr(" don't know how to handle it yet: ")
                            +elem.attribute("element")
                            );
       
     }
-                    
+    
   }
-  if(myelem.hasAttribute("current")){
-    typesWidget->setCurrentRow(myelem.attribute("current").toInt());
-    pagesWidget->setCurrentIndex(myelem.attribute("current").toInt());
-  }else{
-    typesWidget->setCurrentRow(0);
-    pagesWidget->setCurrentIndex(0);
-    myelem.setAttribute("current", 0);
-  }
+
   connect(typesWidget,
-          SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
-          this, SLOT(changePage(QListWidgetItem *, QListWidgetItem*)));
+          SIGNAL(buttonClicked(int)),
+          this, SLOT(changePage(int)));
   
-  
-  
-  QVBoxLayout *horizontalLayout = new QVBoxLayout;
-  
-  horizontalLayout->addLayout(aLayout);
-  horizontalLayout->addWidget(pagesWidget);
+  myelem.setAttribute("current", current);
+    
+  buttonGroup->setLayout(buttonLayout);    
   QVBoxLayout *mainLayout = new QVBoxLayout;
-  mainLayout->addLayout(horizontalLayout);
+  mainLayout->addWidget(buttonGroup);
+  mainLayout->addWidget(pagesWidget);
   mainLayout->addStretch(1);
   setLayout(mainLayout);
   setWindowTitle(myelem.attribute("title"));
   checkStatus();
 }
 
-void InitCndWindow::changePage(QListWidgetItem *current, QListWidgetItem* previous)
+void InitCndWindow::changePage(int id)
 {
-  if (!current) current = previous;
-  myelem.setAttribute("current",typesWidget->row(current));
-  pagesWidget->setCurrentIndex(typesWidget->row(current));
+  
+  myelem.setAttribute("current",id);
+  pagesWidget->setCurrentIndex(id);
   checkStatus();
- }
+}
 
- void InitCndWindow::checkStatus(){
-   int current= myelem.attribute("current").toInt();
-   QDomElement elt = myelem.firstChildElement();
-   for(int i=0; i < current; i++) elt = elt.nextSiblingElement();
-   if(!elt.hasAttribute("action")){
-     myelem.setAttribute("status", elt.attribute("status"));
-     myelem.setAttribute("currentText", elt.attribute("currentText"));
+void InitCndWindow::checkStatus(){
+  int current= myelem.attribute("current").toInt();
+  QDomElement elt = myelem.firstChildElement();
+  for(int i=0; i < current; i++) elt = elt.nextSiblingElement();
+  if(!elt.hasAttribute("action")){
+    myelem.setAttribute("status", elt.attribute("status"));
+    myelem.setAttribute("currentText", elt.attribute("currentText"));
      
-     }else{
-       myelem.setAttribute("status", "done");
-     }
-   emit updateStatusTip(myelem.attribute("buttonIndex").toInt());
+  }else{
+    myelem.setAttribute("status", "done");
+  }
+  emit updateStatusTip(myelem.attribute("buttonIndex").toInt());
     
- }
+}
 
 
 

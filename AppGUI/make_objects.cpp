@@ -26,12 +26,13 @@ void GLViewer::makeObjects()
   
  
   if (cpContourObject) glDeleteLists(cpContourObject, 1);
-
+ 
   if (mode == PLANE_AND_BOUND_MODE || mode == PLANE_ONLY_MODE) {
     if (gridObject) glDeleteLists(gridObject, 1);
     if (contourObject) glDeleteLists(contourObject, 1);
     if (borderObject) glDeleteLists(borderObject, 1);
     if (shadingObject) glDeleteLists(shadingObject, 1);
+    
     // Make all cutting plane display lists
     shadingObject = makeShadingObject();
     gridObject = makeGridObject();
@@ -39,8 +40,7 @@ void GLViewer::makeObjects()
     borderObject = makeBorderObject();
   }
 
-  
-  
+     
   if (!boundObjects.empty()) {
     for (size_t i = 0; i < boundObjects.size(); ++i)
       glDeleteLists(boundObjects[i], 1);
@@ -48,8 +48,6 @@ void GLViewer::makeObjects()
   }
   if(show_boundary_shading)makeBoundShadingObjects();
   else makeBoundObjects();
-  
-  
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -61,7 +59,6 @@ void GLViewer::makeObjects()
 
 GLuint GLViewer::makeGridObject()
 {
-  GLuint newList = glGenLists(1);
   int nedges = fig->interior;
   affineMapping transMatrix2;
   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
@@ -76,18 +73,20 @@ GLuint GLViewer::makeGridObject()
     positions3d aNode = positions3d(fig->pos[i].x, fig->pos[i].y, 0);
     tmpPos.push_back(transMatrix2.MapNode(aNode));
   }
-  glNewList(newList, GL_COMPILE);
-  glBegin(GL_LINES);
-  glColor3f(0.75, 0.75, 0.75);
-  for (int e = 0; e < nedges; ++e) {
-    const edges &ed = fig->edge_list[e];
-    glVertex3d(tmpPos[ed.l].x, tmpPos[ed.l].y, tmpPos[ed.l].z);
-    glVertex3d(tmpPos[ed.r].x, tmpPos[ed.r].y, tmpPos[ed.r].z);
-        
+  GLuint newList = glGenLists(1);
+  if(newList){
+    glNewList(newList, GL_COMPILE);
+    glBegin(GL_LINES);
+    glColor3f(0.75f, 0.75f, 0.75f);
+    for (int e = 0; e < nedges; ++e) {
+      const edges &ed = fig->edge_list[e];
+      glVertex3d(tmpPos[ed.l].x, tmpPos[ed.l].y, tmpPos[ed.l].z);
+      glVertex3d(tmpPos[ed.r].x, tmpPos[ed.r].y, tmpPos[ed.r].z);
+      
+    }
+    glEnd();
+    glEndList();
   }
-  glEnd();
-  glEndList();
-
   return newList;
 }
 
@@ -101,7 +100,7 @@ GLuint GLViewer::makeGridObject()
 
 GLuint GLViewer::makeContourObject()
 {
-  GLuint newList = glGenLists(1);
+ 
   int nsegs = fig->contour_curves.size();
   affineMapping transMatrix2;
   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
@@ -123,20 +122,21 @@ GLuint GLViewer::makeContourObject()
    tmpP1.push_back(p1);
    tmpP2.push_back(p2);
  }
-    
-  glNewList(newList, GL_COMPILE);
-  glBegin(GL_LINES);
-  glColor3f(1.0, 0.0, 0.0);
-  for (int s = 0; s < nsegs; ++s) {
-    //  const segments &seg = fig->contour_curves[s];
-    glVertex3d(tmpP1[s].x, tmpP1[s].y, tmpP1[s].z);
+ GLuint newList = glGenLists(1);
+ if(newList){
+   glNewList(newList, GL_COMPILE);
+   glBegin(GL_LINES);
+   glColor3f(1.0f, 0.0f, 0.0f);
+   for (int s = 0; s < nsegs; ++s) {
+     //  const segments &seg = fig->contour_curves[s];
+     glVertex3d(tmpP1[s].x, tmpP1[s].y, tmpP1[s].z);
     glVertex3d(tmpP2[s].x, tmpP2[s].y, tmpP2[s].z);
-
-  }
-  glEnd();
-  glEndList();
-
-  return newList;
+    
+   }
+   glEnd();
+   glEndList();
+ }
+ return newList;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -148,7 +148,7 @@ GLuint GLViewer::makeContourObject()
 
 GLuint GLViewer::makeBorderObject()
 {
-  GLuint newList = glGenLists(1);
+ 
   int nedges = fig->edge_list.size();
 
   affineMapping transMatrix2;
@@ -171,19 +171,20 @@ GLuint GLViewer::makeBorderObject()
    tmpP1.push_back(p1);
    tmpP2.push_back(p2);
  }
-  
-  glNewList(newList, GL_COMPILE);
-  glBegin(GL_LINES);
-  glColor3f(0.0, 1.0, 0.0);
-  for (int e = 0; e <(int)(nedges-fig->interior); ++e) {
-    glVertex3d(tmpP1[e].x, tmpP1[e].y, tmpP1[e].z);
-    glVertex3d(tmpP2[e].x, tmpP2[e].y, tmpP2[e].z);
+  GLuint newList = glGenLists(1);
+  if(newList){
+    glNewList(newList, GL_COMPILE);
+    glBegin(GL_LINES);
+    glColor3f(0.0f, 1.0f, 0.0f);
+    for (int e = 0; e <(int)(nedges-fig->interior); ++e) {
+      glVertex3d(tmpP1[e].x, tmpP1[e].y, tmpP1[e].z);
+      glVertex3d(tmpP2[e].x, tmpP2[e].y, tmpP2[e].z);
     //glVertex3d(fig->pos[ed.l].x, fig->pos[ed.l].y, 0.0);
     //glVertex3d(fig->pos[ed.r].x, fig->pos[ed.r].y, 0.0);
+    }
+    glEnd();
+    glEndList();
   }
-  glEnd();
-  glEndList();
-
   return newList;
 }
 
@@ -197,7 +198,7 @@ GLuint GLViewer::makeBorderObject()
 
 GLuint GLViewer::makeShadingObject()
 {
-  GLuint newList = glGenLists(1);
+ 
   int ntris = fig->triangle_list.size();
 
   affineMapping transMatrix2;
@@ -213,27 +214,28 @@ GLuint GLViewer::makeShadingObject()
     positions3d aNode = positions3d(fig->pos[i].x, fig->pos[i].y, 0);
     tmpPos.push_back(transMatrix2.MapNode(aNode));
   }
-    
-  glNewList(newList, GL_COMPILE);
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-  glBegin(GL_TRIANGLES);
-  for (int t = 0; t < ntris; ++t) {
-    const triangles &tri = fig->triangle_list[t];
-    
-    positions3d p1 = shade(fig->val[tri.t1]);
-    glColor3d(p1.x, p1.y, p1.z);
-    glVertex3d(tmpPos[tri.t1].x, tmpPos[tri.t1].y, tmpPos[tri.t1].z);
-    positions3d p2 = shade(fig->val[tri.t2]);
-    glColor3d(p2.x, p2.y, p2.z);
-    glVertex3d(tmpPos[tri.t2].x, tmpPos[tri.t2].y, tmpPos[tri.t2].z);
-    positions3d p3 = shade(fig->val[tri.t3]);
-    glColor3d(p3.x, p3.y, p3.z);
-    glVertex3d(tmpPos[tri.t3].x, tmpPos[tri.t3].y, tmpPos[tri.t3].z);
-  }
-  glEnd();
-  glEndList();
- 
-  return newList;
+  
+   GLuint newList = glGenLists(1); 
+   if(newList){
+     glNewList(newList, GL_COMPILE);
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+     glBegin(GL_TRIANGLES);
+     for (int t = 0; t < ntris; ++t) {
+       const triangles &tri = fig->triangle_list[t];
+       positions3d p1 = shade(fig->val[tri.t1]);
+       glColor3d(p1.x, p1.y, p1.z);
+       glVertex3d(tmpPos[tri.t1].x, tmpPos[tri.t1].y, tmpPos[tri.t1].z);
+       positions3d p2 = shade(fig->val[tri.t2]);
+       glColor3d(p2.x, p2.y, p2.z);
+       glVertex3d(tmpPos[tri.t2].x, tmpPos[tri.t2].y, tmpPos[tri.t2].z);
+       positions3d p3 = shade(fig->val[tri.t3]);
+       glColor3d(p3.x, p3.y, p3.z);
+       glVertex3d(tmpPos[tri.t3].x, tmpPos[tri.t3].y, tmpPos[tri.t3].z);
+     }
+     glEnd();
+     glEndList();
+   }
+   return newList;
 }
 
 
@@ -288,27 +290,23 @@ void GLViewer::makeBoundShadingObjects()
     for(size_t bid = 0; bid < boundObjects.size(); bid++)glDeleteLists(boundObjects[bid],1);
     boundObjects.clear();
   }
-  
-  
-  for (size_t bid = 0; bid < mesh.size(); ++bid) { 
-   
-
  
-    
-  // compile list
+  for (size_t bid = 0; bid < mesh.size(); ++bid) { 
+    // compile list
     GLuint newList = glGenLists(1);
-    glNewList(newList, GL_COMPILE);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);    
-    glBegin(GL_TRIANGLES);
-     if(!canShade){
-      float r, g, b;
-      r = default_color[bid%12].red();
-      g = default_color[bid%12].green();
-      b = default_color[bid%12].blue();
-      glColor3f(r, g, b);
-    }
-    
-    for (size_t i = 0; i < mesh[bid].size() / 3; ++i) {
+    if(newList){
+      glNewList(newList, GL_COMPILE);
+       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      glBegin(GL_TRIANGLES);
+      if(!canShade){
+        float r, g, b;
+        r = default_color[bid%12].red();
+        g = default_color[bid%12].green();
+        b = default_color[bid%12].blue();
+        glColor3f(r, g, b);
+      }
+      
+      for (size_t i = 0; i < mesh[bid].size() / 3; ++i) {
       positions3d t0, t1, t2;
       t0 = meshNodes[mesh[bid][i*3 + 0]]; 
       t1 = meshNodes[mesh[bid][i*3 + 1]]; 
@@ -335,62 +333,71 @@ void GLViewer::makeBoundShadingObjects()
         glVertex3d(t1.x, t1.y, t1.z);
         glVertex3d(t2.x, t2.y, t2.z);
       }
-    }
-    glEnd();    
-    glEndList();
+      }
+      glEnd();    
+      glEndList();
     
     boundObjects.push_back(newList);
+    }
   }
-  
     
       
 }
 
 void GLViewer::makeBoundWireframeObject(int bid, QColor c)
 {
-    // compile list
+ 
+  // compile list
   GLuint newList = glGenLists(1);
-  glNewList(newList, GL_COMPILE);
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
-  drawBoundObject(bid, c);   
-  glEndList();
-  
-  GLuint oldList = boundObjects[bid];
-  boundObjects[bid] = newList;
-  glDeleteLists(oldList, 1);
+  if(newList){
+    glNewList(newList, GL_COMPILE);
+     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    drawBoundObject(bid, c);   
+    glEndList();
+    
+    GLuint oldList = boundObjects[bid];
+    boundObjects[bid] = newList;
+    glDeleteLists(oldList, 1);
+  }
 }
 
 void GLViewer::makeBoundFillObject(int bid, QColor c)
 {
+ 
   // compile list
   GLuint newList = glGenLists(1);
-  glNewList(newList, GL_COMPILE);
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);    
-  drawBoundObject(bid, c); 
-  glEndList();
-  GLuint oldList = boundObjects[bid];
-  boundObjects[bid] = newList;
-  glDeleteLists(oldList, 1);
+  if(newList){
+    glNewList(newList, GL_COMPILE);
+     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    drawBoundObject(bid, c); 
+    glEndList();
+    GLuint oldList = boundObjects[bid];
+    boundObjects[bid] = newList;
+    glDeleteLists(oldList, 1);
+  }
 }
 
 
 
 void GLViewer::makeBoundObjects()
 {
+ 
+
   
   if(boundObjects.empty()){
-      for (size_t bid = 0; bid < mesh.size(); ++bid) {
     
+    for (size_t bid = 0; bid < mesh.size(); ++bid) {
       
-      // compile list
+        // compile list
       GLuint newList = glGenLists(1);
-      glNewList(newList, GL_COMPILE);
-      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
-      drawBoundObject(bid, default_color[bid%12]);   
-      glEndList();
-      boundObjects.push_back(newList);
-  
-      }//for(bid...)
+      if(newList){
+        glNewList(newList, GL_COMPILE);
+         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
+        drawBoundObject(bid, default_color[bid%12]);   
+        glEndList();
+        boundObjects.push_back(newList);
+      }
+    }//for(bid...)
   }
 
 }
@@ -537,12 +544,13 @@ GLuint GLViewer::makeCPContour()
   
   // Compile display list
   GLuint newList = glGenLists(1);
-  glNewList(newList, GL_COMPILE);
-  glColor3f(0.0, 0.0, 0.0);
-  glBegin(GL_LINES);
-  for(size_t i = 0; i < contourLoop.size(); i++) 
-    glVertex3d(contourLoop[i].x, contourLoop[i].y, contourLoop[i].z);
-  glEnd();
+  if(newList){
+    glNewList(newList, GL_COMPILE);
+    glColor3f(0.0f, 0.0f, 0.0f);
+    glBegin(GL_LINES);
+    for(size_t i = 0; i < contourLoop.size(); i++) 
+      glVertex3d(contourLoop[i].x, contourLoop[i].y, contourLoop[i].z);
+    glEnd();
 
   
   // glBegin(GL_LINE_LOOP);
@@ -560,8 +568,8 @@ GLuint GLViewer::makeCPContour()
   // glVertex3d(-len, len, 0.0);
 
   //glEnd();
-  glEndList();
-
+    glEndList();
+  }
   return newList;
 }
 
