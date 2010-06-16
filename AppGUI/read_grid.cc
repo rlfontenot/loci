@@ -1,14 +1,12 @@
 #include "cutplane.h"
 #include "grid.h"
-//#include "parse.h"
-//#include "debug.h"
-//#include "tools.h"
+
 #include <iostream>
 #include <fstream>
 #include <math.h>
 #include <strings.h>
 #include <algorithm>
-//using std::nth_element ;
+
 
 using std::ifstream ;
 using std::ios ;
@@ -26,20 +24,19 @@ using std::list ;
 using std::max ;
 using std::min ;
 using std::string ;
-//using std::pow ;
-//using std::log10 ;
 
-list<grid> grids ;
+
+
 
 const double epsilon = 1e-30 ;
 
-void grid::cut(cutplane_info &info, const LoadInfo &load_info, const positions3d& center)
+void VolGrid::cut(cutplane_info &info, const LoadInfo &load_info, const positions3d& center)
 {
   CutPlane cutter;
   cutter.cut(info, load_info, center, this);
 }
 
-void grid::optimize_edge_list() {
+void VolGrid::optimize_edge_list() {
   const size_t num_nodes = pos.size() ;
   const size_t num_edges = edge_list.size() ;
 
@@ -121,7 +118,7 @@ void grid::optimize_edge_list() {
   edge_list = interior_edges ;
 }
 
-// void grid::input_2dgv(istream &in,bool read_values) {
+// void VolGrid::input_2dgv(istream &in,bool read_values) {
 //   bool multi = false ;
 //   valid = true ;
 //   has_values = read_values ;
@@ -196,7 +193,7 @@ void grid::optimize_edge_list() {
 //   } while(multi) ;
 // }
 
-// void grid::input_generalized(std::istream &in,bool read_values) {
+// void VolGrid::input_generalized(std::istream &in,bool read_values) {
 //   valid = true ;
 //   has_values = read_values ;
 //   if(parse::is_name(in)) {
@@ -361,7 +358,7 @@ void grid::optimize_edge_list() {
 //   }
 // }
 
-// void grid::input_cobalt(std::string filename,bool read_values) {
+// void VolGrid::input_cobalt(std::string filename,bool read_values) {
 //   valid = true ;
 //   has_values = read_values ;
 
@@ -539,7 +536,7 @@ void grid::optimize_edge_list() {
 //   }
 // }
 
-void grid::set_value_range()
+void VolGrid::set_value_range()
 {
   vector<float> tmpVal;
 
@@ -556,7 +553,7 @@ void grid::set_value_range()
   med_val = tmpVal[tmpVal.size()/2];
 }
 
-// void grid::input(std::istream &in, bool read_values ) {
+// void VolGrid::input(std::istream &in, bool read_values ) {
 //   valid = true ;
 //   int ichar = in.get() ;
 //   if(in.eof()) {
@@ -577,7 +574,7 @@ void grid::set_value_range()
 //   }
 // }
 
-// void grid::input(const char *file,bool read_values) {
+// void VolGrid::input(const char *file,bool read_values) {
 //   filename = file ;
 //   char *newfilename = tilde(file) ;
 //   filename = newfilename ;
@@ -607,7 +604,7 @@ struct vertigo {
 
 double sqr(double v) { return v*v ; }
 
-void grid::generate_contour_curves(int num_contours) {
+void VolGrid::generate_contour_curves(int num_contours) {
   if (num_contours == 0)
     num_contours = 10 ;
 
