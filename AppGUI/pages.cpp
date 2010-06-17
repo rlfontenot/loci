@@ -603,7 +603,7 @@ void GeneralGroup::updateShowStatus(const bool& show){
   \brief The VarGBox is a basic unit of chemdemo GUI. It allows the user to input a variable.
  
   
-   The element of variable can be: vector, int, float, dvector, selection, string.
+   The element of variable can be: vector, int, float, dvector, selection, string and novalue.
 
   The variable has a value, and optionally has a unit.
 
@@ -2311,8 +2311,24 @@ void ChoiceGroup::editButtonPressed(){
     delete editGroup;
     editGroup =0;
   }
-  if(elt.attribute("element")=="panel"){
-    editGroup = new  VarPanel(elt);
+  if(elt.attribute("element")=="choice"){
+    editGroup = new ChoiceGroup(elt);
+    connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
+    connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
+    connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
+  }else if(elt.attribute("element")=="all"){
+    editGroup = new AllGroup(elt);
+    connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
+    connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
+    connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
+  }else if(elt.attribute("element")=="stack"){
+    editGroup = new StackGroup(elt);
+    connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
+    connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
+    connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
+  }else if(elt.attribute("element")=="panel"){
+       
+    editGroup = new VarPanel(elt);
     connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
     connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
     connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
@@ -2322,6 +2338,7 @@ void ChoiceGroup::editButtonPressed(){
     connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
     connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
   }
+  
   connect(editGroup, SIGNAL(textChanged(QString)), this, SLOT(updateCurrentText()));
   editGroup->show();
   updateCurrentText();
@@ -2402,7 +2419,7 @@ bool AllVBWindow::save(){
   of them, the interface of the selected state will be brought up.
   The state variable will not be written into .var file, it's used to control the conditional variables. 
 
-  The user is also able to add a new module.
+  The user is also able to add a new model.
 
   All models are defined under Dom elements "models"
 

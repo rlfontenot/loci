@@ -1,14 +1,40 @@
 <?xml version='1.0' encoding='ISO-8859-1'?>
 <main updated="false">
   
-  <!--for each variable, specify its element, it can be 'float', -->
-  <!--'int', 'string','vector, 'dvector' or 'selection', if an option has -->
-  <!--unit, specify it  a string list separated by ','-->
+  <!--define variables here.
+        Attribute 'element' specify data type, its values can be 'float', 
+       'int', 'string','vector, 'dvector' 'novalue' or 'selection'.
+       
+       float is actually represented by double .
+  
+       vector is for a 3d vector such as velocity. consists of 3
+       double values.
+ 
+       dvector is dynamic vector, used for variables such as
+       mixture. It consists of more than one doubles. 
+       
+       selection is for flags, it's a group of checkable widgets, 
+       the item checked will appear in the output.
+       
+       novalue is for variables without a value, such as adiabatic
+       
+       if the variable has unit, specify it  as a string list separated by
+       ','.
+       
+       Attribute 'title' is the label displayed on the interface.
+
+       Attribute 'name' is the variable name appears in .var file.
+
+       Other attributes such as "toolTip", "whatsThis" and "statusTip"
+       can be specified to present information to users.
+       -->
+
+
   <variables>
     <angle unit="deg,rad" element="float" />
     <density unit="kg/m/m/m,g/cm/cm/cm,lbm/in/in/in,lbm/ft/ft/ft,slugs/ft/ft/ft" element="float"/>
-    <dissipation_rate checked="0" element="float" />
-    <kinetic_energy unit="m/s/s" checked="0" element="float" />
+    <dissipation_rate  element="float" />
+    <kinetic_energy unit="m/s/s"  element="float" />
    
     <pressure unit="atm,Pa,psi,lbf/in/in,lbf/ft/ft,slug/ft/ft" element="float" />
     <Mach_number element="float" />
@@ -25,8 +51,10 @@
     <velocity unit="m/s,km/h,miles/hour,ft/s" element="vector" />
   </variables>
 
-  <!-- specify the groups of variables, for each group, the element can-->
-  <!-- be 'all', '2of3', 'stack' or 'choice' -->
+  <!-- specify the groups of variables, each variable will be output
+  independently, but they will show in one group box on the interface.-->
+ 
+  <!-- for each group, the element can be 'all', '2of3', 'stack' or 'choice' -->
   
   <!-- all: all the children need to be specified, so children are not-->
   <!-- checkable -->
@@ -43,6 +71,17 @@
 
   <!-- the attribute 'title' specifys what's displayed as the title of the -->
   <!--group box on the interface -->
+
+
+  <!-- the children of a group specify what's in the group, it can be another group, or a
+  variable. Groups always follow name convention *Group. 
+
+  if a variable appears here without its attribute 'element' specified, the
+  program will go to variables, find the variable, and merge its
+  attributes here.-->
+
+  <!-- same as variables,  attributes such as "toolTip", "whatsThis" and "statusTip"
+       can be specified to present information of the group to users. -->
   
   <groups>
     <prhotGroup title="please check 2 out of 3" element="2of3">
@@ -95,7 +134,36 @@
   </groups>
 
 
-   <!-- The compound variables are defined here-->
+  <!-- Define the editables here. editable are something that need to
+       be defined when a choice is made in choice group. It can be one
+       single variable,  a compound variable or a set of variables.
+       
+       For compound variables the
+       element should be "panel", and the attributes 'prefix' should
+       be specified. prefix is the symbold between variable name and variable name.
+       
+       the following attributes might be specified if the element is 'panel':
+       
+      
+       postfix: the symbols that are appended after the text of last
+       child. Default value: empty string. 
+
+       infix:  the symbols that are inserted between the text of child
+       elements. The default value is newline character.
+       
+       numColumn: the panels use  QGridLayout. By default, numColumn=1,
+       i.e., all the children are aligned vertically. If numColumn >=
+       number-of-children, the panel is aligned horizontally. otherwise,  1<
+       numColumn< number-of-children, the panel has a grid layout. 
+       
+       feedback:  By default, the instant feedback feature is on. If
+       feedback=`off', the feedback feature will be turned off. 
+       
+       if the variables or groups here have no attributes 'element'
+       specified, the program will go to variables or
+       groups, copy the chidlren and
+       merge the attributes.  
+    -->
   <editable>
     <Sland element="panel" prefix=": &lt;" postfix=">" >
       <a1 current="0" element="float" name="a1" />
@@ -190,7 +258,7 @@
   
   <models>
     <!-- User defined models: the user can define the model by definig
-	 the attributes and children, the element should be "all"  -->
+	 the attributes and children, the element should be "all" for now  -->
     
     <ideal_gas title="please specify an ideal gas model"
 	       element="all" >
@@ -351,8 +419,21 @@
     </buttons>
   </importPage>
   
-   <!-- The main window is defined here. For each child element of
-   mainWindow,   -->
+   <!-- The main window is defined here. For each child of
+   mainWindow, the attribute 'element' should be specialized windows,
+   panel or page, if not element specified, it will be hard coded
+   actions. The following attribtes might be specified for chidren of mainWindow.
+
+   buttonTitle: the text displayed in the flow bar. 
+
+   title: the title of the user input panel
+
+   inDock: if specified, when graphics viewer will show.
+
+   status: current status of this step
+
+   toolTip, whatsThis, statusTip: info displayed on the flow bar buttons -->
+
   <mainWindow>
 
     <gridSetup buttonTitle="Grid&#xa;Setup"
@@ -360,6 +441,19 @@
 	       inDock="true"
 	       whatsThis="read in grid file and set up the case"
 	       toolTip="read in grid" />
+    <!--physicsWindow define the physics state of the system.
+
+	For all children of physicsWindow, the element should be
+	"stateStack".
+	
+	For the children of stateStack, either no element, in which
+	case it will only appear as a radio button on the
+	interface. Or the element is 'models', then on
+	interface, it's a radio button with a page in which the
+	user can select a model or add new models, define
+	editable, etc.
+	
+      -->
     <physicsPage buttonTitle="Physics&#xa;Setup" element="physicsWindow" 
 		 title="set up physics conditions" whatsThis=" " status="new">
       <Temporal title="temporal" current="0" element="stateStack" >
@@ -367,9 +461,15 @@
 	<unsteady title="unsteady" />
       </Temporal>
       <!-- The attribute 'components' indicates Material element will
-      affact element components -->
+	   affact element components -->
       <Material title="fluid material properties" current="0"
 		components="" element="stateStack" >
+	<!--if element is 'models', the programs will go to models to
+	    find all the children, and all the
+	    attributes for the children should be defined in models.
+
+	    The attribute 'define' indicates  a list of models the
+	    user is allowed to add, the user can select one from them. -->
 	<single title="single component model" current="0"
 		element="models"
 		define="ideal_gas,specified_gamma,fit_CP_polynomial">
@@ -393,6 +493,8 @@
 	</turbulent>
       </Regime>
     </physicsPage>
+
+
     <solverPage buttonTitle="Solver&#xa;Setup" element="solverWindow"
 		title="set up solver parameters"
 		label="press one" whatsThis=" " status="new" >
