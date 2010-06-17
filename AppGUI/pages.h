@@ -313,6 +313,7 @@ class ChoiceGroup : public GeneralGroup{
   QString currentText();
 public slots:
   void editButtonPressed();
+  void changeState();
   void update(int);
   void updateCurrentText();
   void updateShowStatus(const bool&);

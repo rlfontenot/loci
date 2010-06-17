@@ -73,9 +73,8 @@
     <swirlflowGroup title="swirlflow" element="stack" checked="0" >
       <swirlGroup title="fixed swirling flow angle" />
       <rotGroup  title="rigid body rotation"  />
-      <flags element="selection">
-	<normal/>
-      </flags>
+      <normal element="novalue"/>
+     
     </swirlflowGroup>
     <turbulenceGroup title="turbulence" element="stack" checked="0" >
       <swirlGroup title="fixed swirling flow angle"  />
@@ -91,9 +90,7 @@
     </massGroup>
     <twallGroup title="select one" element="stack" >
       <temperature title="temperature" name="Twall"></temperature>
-      <flags element="selection">
-	<adiabatic title="adiabatic"/>
-      </flags>
+      	<adiabatic title="adiabatic" element="novalue"/>
     </twallGroup>
   </groups>
 
@@ -208,7 +205,8 @@
     </specified_gamma>
     
     <!-- harded coded user defined models: the attribute "element" describes what
-	 need to be specified  -->
+	 need to be specified, possible values for 'element' are:
+	 CPWindow, ChemistryMdl.  -->
     <fit_CP_polynomial title="please specify the parameters" 
 		       element="CpWindow" />
     <mixture_of_ideal_gases element="ChemistryMdl"/>
@@ -353,7 +351,8 @@
     </buttons>
   </importPage>
   
-  
+   <!-- The main window is defined here. For each child element of
+   mainWindow,   -->
   <mainWindow>
 
     <gridSetup buttonTitle="Grid&#xa;Setup"
@@ -398,7 +397,8 @@
 		title="set up solver parameters"
 		label="press one" whatsThis=" " status="new" >
       <timeStepControl element="panel" feedback="off" numColumn="2">
-	<time_integration element="choice" prefix=": " checked="0" >
+	<time_integration element="choice"
+		defaultCondition="Temporal==steady" default="time_accurate" prefix=": " >
           <euler/>
           <time_accurate/>
 	</time_integration>
@@ -406,7 +406,8 @@
 	<cflmax element="float"  prefix=": " current="1e6" />
 	<urelax element="float"  prefix=": " current=".2" />
 	<gauss_seidel_iter element="int" prefix=": "  bottom="1" current="5" />
-	<newton_iter element="int" min="1" prefix=": " current="1" />
+	<newton_iter element="int" min="1" prefix=": "
+		     defaultCondition="Temporal==steady" disable="true" default="1" current="4" />
 	<restart_freq element="int" bottom="1" prefix=": " top="10000000" current="500"  />
 	<restart_modulo element="int" bottom="0" prefix=": " top="10000000" current="0" />
 	<stop_iter element="int" bottom="1" prefix=": " top="1000000" current="1000"/>

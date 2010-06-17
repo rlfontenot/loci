@@ -16,7 +16,7 @@ using std::vector;
 bool copy_element(const QDomElement& fromElement, QDomElement& toElement){
   if(fromElement.isNull() || toElement.isNull()) return false;
   QDomNamedNodeMap fromatt = fromElement.attributes();
-  for(int i = 0; i < fromatt.length(); i++){
+  for(unsigned int i = 0; i < fromatt.length(); i++){
     if(!toElement.hasAttribute(fromatt.item(i).nodeName())){
       toElement.setAttribute(fromatt.item(i).nodeName(), fromatt.item(i).nodeValue());
     }
@@ -124,7 +124,8 @@ bool conditionIsSatisfied(const QDomElement& theroot, const QString& condition){
   
  
   for(int i = 0; i < state.size(); i++){
-    if(state[i].contains(list1[0]) && state[i].contains(list1[1])){
+    QStringList list2=state[i].split("=");
+    if(list2[0]==list1[0] && list2[1]==list1[1]){
       return true;
     }
   }
@@ -528,11 +529,33 @@ void GeneralGroup::changeState(){
     bool isSatisfied = conditionIsSatisfied(myroot, myelem.attribute("condition"));
     if(isSatisfied){
       myelem.setAttribute("conditionSatisfied", "true");
-      
       if(!myelem.hasAttribute("index")) this->show();
+      else this->setDisabled(false);
     }else{
       myelem.setAttribute("conditionSatisfied", "false");
       if(!myelem.hasAttribute("index"))  this->hide();
+      else this->setDisabled(true);
+    }
+  }else if(myelem.hasAttribute("defaultCondition")){
+    QDomElement myroot = myelem.ownerDocument().documentElement();
+    bool isSatisfied = conditionIsSatisfied(myroot, myelem.attribute("defaultCondition"));
+    if(isSatisfied){
+      myelem.setAttribute("conditionSatisfied", "true");
+      
+      if(!myelem.hasAttribute("disable") && (!myelem.hasAttribute("index"))){
+        this->hide();
+      }
+      else{
+        this->setDisabled(true);
+      }
+    }else{
+      myelem.setAttribute("conditionSatisfied", "false");
+      if(!myelem.hasAttribute("disable")&&(!myelem.hasAttribute("index"))){
+        this->show();
+      }
+      else {
+        this->setDisabled(false);
+      }
     }
   }
   emit stateChanged();
@@ -845,9 +868,7 @@ VarGBox::VarGBox(  QDomElement& my_elem, QWidget *parent ) : GeneralGroup(my_ele
       connect(valueEdit, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrent(const QString&)));
       mfs<<valueEdit;
     }else if(myelem.attribute("element")=="novalue"){
-
-
-      //setTitle("");
+      setTitle("");
       setFlat(true);
       
     }else{
@@ -1127,32 +1148,11 @@ QString  VarGBox::currentText(){
   if it's defaultCondition, call setDefault(). 
 */ 
 void VarGBox::changeState(){
-  QDomElement myroot = myelem.ownerDocument().documentElement();
-  if(myelem.hasAttribute("condition")){
-    
-    QString condition = myelem.attribute("condition");
-    bool isSatisfied = conditionIsSatisfied(myroot, condition);
-    
-    if(isSatisfied){
-      myelem.setAttribute("conditionSatisfied", "true");
-      if(!myelem.hasAttribute("index")) this->show();
-    }else{
-      myelem.setAttribute("conditionSatisfied", "false");
-      if(!myelem.hasAttribute("index")) this->hide();
+  GeneralGroup::changeState();
+  if(myelem.hasAttribute("default")){
+    if(myelem.attribute("conditionSatisfied")=="true")this->setDefault(true);
+    else  this->setDefault(false);
     }
-  }else if(myelem.hasAttribute("defaultCondition")){
-    QString condition = myelem.attribute("defaultCondition");
-    bool isSatisfied = conditionIsSatisfied(myroot, condition);
-    if(isSatisfied){
-      myelem.setAttribute("conditionSatisfied", "true");
-     
-      this->setDefault(true);
-      myelem.setAttribute("current", myelem.attribute("default"));
-    }else{
-      myelem.setAttribute("conditionSatisfied", "false");
-      this->setDefault(false);
-    }
-  }
 }
 
 
@@ -1167,19 +1167,20 @@ void VarGBox::changeState(){
 void VarGBox::setDefault(bool satisfied){
   if(myelem.attribute("element")=="float"){
     if(mfs.size() >= 1){
-      if(satisfied)qobject_cast<DoubleEdit*>(mfs[0])->setValue(myelem.attribute("default").toDouble());
-     
-      qobject_cast<DoubleEdit*>(mfs[0])->setEnabled(!satisfied);
+      
+      if(satisfied) qobject_cast<DoubleEdit*>(mfs[0])->setValue(myelem.attribute("default").toDouble());
+    
+      qobject_cast<DoubleEdit*>(mfs[0])->setDisabled(satisfied);
     }
   }else if(myelem.attribute("element")=="int"){
     if(mfs.size() >= 1){
       if(satisfied) qobject_cast<QSpinBox*>(mfs[0])->setValue(myelem.attribute("default").toInt());
-      qobject_cast<QSpinBox*>(mfs[0])->setEnabled(!satisfied);
+      qobject_cast<QSpinBox*>(mfs[0])->setDisabled(satisfied);
     }
   }else if(myelem.attribute("element")=="string"){
     if(mfs.size() >= 1){
       if(satisfied)qobject_cast<QLineEdit*>(mfs[0])->setText(myelem.attribute("default"));
-      qobject_cast<QLineEdit*>(mfs[0])->setEnabled(!satisfied);
+      qobject_cast<QLineEdit*>(mfs[0])->setDisabled(!satisfied);
     }
   }else if(myelem.attribute("element")=="selection"){
     QStringList defaultList =myelem.attribute("default").split(",");
@@ -1202,7 +1203,7 @@ void VarGBox::setDefault(bool satisfied){
       }
     }
     for(int j = 0; j < mfs.size(); j++){
-      qobject_cast<QCheckBox*>(mfs[j])->setEnabled(!satisfied);
+      qobject_cast<QCheckBox*>(mfs[j])->setDisabled(satisfied);
     }
     
   }else if(myelem.attribute("element")=="vector"){
@@ -1210,10 +1211,11 @@ void VarGBox::setDefault(bool satisfied){
     if(defaultList.size()<=3 && mfs.size()==3){
       for(int i =0; i < defaultList.size(); i++){
         if(satisfied) qobject_cast<DoubleEdit*>(mfs[i])->setText(defaultList[i]);
-        qobject_cast<DoubleEdit*>(mfs[i])->setEnabled(!satisfied); 
+        qobject_cast<DoubleEdit*>(mfs[i])->setDisabled(satisfied); 
       }
     }
   }
+    
   emit textChanged(currentText());
 }
 
@@ -1643,7 +1645,7 @@ StackGroup::StackGroup( QDomElement& elem, QWidget *parent )
       connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
     }
    
-    typesWidget->addItem(elem_opt.attribute("title"));
+    typesWidget->addItem(elem_opt.hasAttribute("title")?elem_opt.attribute("title"):elem_opt.tagName());
     whatsThisList << elem_opt.attribute("whatsThis");
     toolTipList << elem_opt.attribute("toolTip");
     connect(myGroup, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrentText()));
@@ -2249,8 +2251,19 @@ void ChoiceGroup::updateCurrentText(){
   if(showStatus)updateShowStatus(showStatus);
 }
 
-
-
+void ChoiceGroup::changeState(){
+  GeneralGroup::changeState();
+  if(myelem.hasAttribute("default")){
+   
+    if(myelem.attribute("conditionSatisfied")=="true"){
+     
+      int index = comboBox->findText(myelem.attribute("default"));
+      if(index < 0) qDebug() << "can not find default value";
+      if(index >=0)comboBox->setCurrentIndex(index);
+    }
+  }
+}
+    
 
 
 
