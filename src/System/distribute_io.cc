@@ -319,9 +319,9 @@ namespace Loci {
 	for(std::vector<int>::const_iterator fvi = fi.first_level.begin(); fvi != fi.first_level.end(); ++fvi)
 	  array_size += *fvi ;
     std::vector<int> arr_sizes = all_collect_sizes(array_size,comm) ;
-    int tot_arr_size = 0 ;
+    size_t tot_arr_size = 0 ;
     for(int i = 0; i < np; ++i)
-      tot_arr_size += arr_sizes[i] ;
+      tot_arr_size += size_t(max(0,arr_sizes[i])) ;
 
 
     if(prank != 0) {
@@ -546,9 +546,9 @@ namespace Loci {
     int* tmp_int  ;
     tmp_int = new int[max_tmp_size] ;
     std::vector<int> arr_sizes = all_collect_sizes(array_size,comm) ;
-    int tot_arr_size = 0 ;
+    size_t tot_arr_size = 0 ;
     for(int i = 0; i < np; ++i)
-      tot_arr_size += arr_sizes[i] ;
+      tot_arr_size += size_t(max(0,arr_sizes[i])) ;
     MPI_Status status ;
     if(prank != 0) {
       int t = 0 ;
