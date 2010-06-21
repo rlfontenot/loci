@@ -26,7 +26,7 @@
        Attribute 'name' is the variable name appears in .var file.
 
        Other attributes such as "toolTip", "whatsThis" and "statusTip"
-       can be specified to present information to users.
+       can be specified to present information on the interface.
        -->
 
 
@@ -51,7 +51,7 @@
     <velocity unit="m/s,km/h,miles/hour,ft/s" element="vector" />
   </variables>
 
-  <!-- specify the groups of variables, each variable will be output
+  <!-- specify groups of variables, each variable will be output
   independently, but they will show in one group box on the interface.-->
  
   <!-- for each group, the element can be 'all', '2of3', 'stack' or 'choice' -->
@@ -65,23 +65,23 @@
   <!--  the input interface for the checked child will be displayed. --> 
 
   <!-- 'choice': the user click on one of the radio button to select one value for a variable,-->
-  <!--  the values are specified as the child elements, if a child
-  element has attribute 'editable', then one or more compound
-  variables will be defined. --> 
+  <!-- each value is represented as a child element, if a child
+  element has attribute 'editable', then one or more
+  variables can be defined. --> 
 
   <!-- the attribute 'title' specifys what's displayed as the title of the -->
   <!--group box on the interface -->
 
 
   <!-- the children of a group specify what's in the group, it can be another group, or a
-  variable. Groups always follow name convention *Group. 
+  variable.
 
   if a variable appears here without its attribute 'element' specified, the
   program will go to variables, find the variable, and merge its
   attributes here.-->
 
   <!-- same as variables,  attributes such as "toolTip", "whatsThis" and "statusTip"
-       can be specified to present information of the group to users. -->
+       can be specified to present information of the group. -->
   
   <groups>
     <prhotGroup title="please check 2 out of 3" element="2of3">
@@ -140,9 +140,9 @@
        
        For compound variables the
        element should be "panel", and the attributes 'prefix' should
-       be specified. prefix is the symbold between variable name and variable name.
+       be specified. prefix is the symbold between variable name and variable value.
        
-       the following attributes might be specified if the element is 'panel':
+       The following attributes might be specified if the element is 'panel':
        
       
        postfix: the symbols that are appended after the text of last
@@ -516,9 +516,9 @@
 	<maximumRunTime unit="h,s,m" prefix=": " element="float"  checked="0" />
       </timeStepControl>
       <outputControl element="panel" feedback="off" numColumn="2">
-      <print_freq element="int" bottom="1" prefix=": " top="10000000" current="10" />
-      <plot_freq element="int" bottom="1" prefix=": " top="10000000"  current="100" />
-      <plot_modulo element="int" bottom="0" prefix=": " top="10000000"  current="0" />
+	<print_freq element="int" bottom="1" prefix=": " top="10000000" current="10" />
+	<plot_freq element="int" bottom="1" prefix=": " top="10000000"  current="100" />
+	<plot_modulo element="int" bottom="0" prefix=": " top="10000000"  current="0" />
       </outputControl>
       <numerical element="panel" feedback="off" numColumn="2">
 	<inviscidFlux element="choice" prefix=": " checked="0">
@@ -529,9 +529,9 @@
           <llfBTW/>
 	</inviscidFlux>
 	<hlle_alpha  element="float"  checked="0" current="1.0" 
-		     tooltip="Set this for high speed flow robustness" />
+		     toolTip="Set this for high speed flow robustness" />
 	<Minf element="float"  checked="0" current = "1.0"
-              tooltip="Set this to mean Mach number for low speed flows"/>
+              toolTip="Set this to mean Mach number for low speed flows"/>
 	
 	<limiter element="choice"  checked="1" prefix=": "
 		 toolTip="Inviscid Flux Limiter: Venkatakrishnan is the default, none uses no limiting, zero uses first order inviscid fluxes." >
@@ -551,7 +551,7 @@
           <g unit="m/s/s,ft/s/s,in/s/s" element="vector" currentX="-9.8" currentY="0" currentZ="0" />
           <rhoref unit="kg/m/m/m,slug/ft/ft/ft" element="float"
 		  current="0"
-		  tooltip="fluid bulk density for computing boyancy forces" />
+		  toolTip="fluid bulk density for computing boyancy forces" />
 	</gravity>
 	<coriolis element="panel" prefix=": &lt;" 
 		  postfix=">" feedback="off"  checked="0" toolTip="Rotating reference frame (Coriolis Forces)" >
@@ -587,7 +587,8 @@
 	<prhotGroup/>
 	<velocityGroup/>
 	<mass_fraction checked="0"  name="mixture"></mass_fraction>
-	<advanced element="panel" buttonTitle="advanced" feedback="off" >
+	<advanced element="panel" buttonTitle="advanced"
+		  feedback="off" infix=", " >
           <swirlflowGroup />
 	  <turbulenceGroup />
        </advanced>  
@@ -602,7 +603,7 @@
 	<prhotGroup  />
 	<velocityGroup  />
 	<mass_fraction checked="0"  name="mixture"></mass_fraction>
-	<advanced element="panel" buttonTitle="advanced" feedback="off">
+	<advanced element="panel" infix=", " buttonTitle="advanced" feedback="off">
           <swirlflowGroup/>
 	  <turbulenceGroup/>
 	</advanced>       
@@ -618,7 +619,7 @@
 	<temperature title="total temperature" name="T0"></temperature>
 	<mass_fraction checked="0"  name="mixture"></mass_fraction>
 	
-	<advanced element="panel" buttonTitle="advanced" feedback="off">
+	<advanced element="panel" buttonTitle="advanced" infix=", " feedback="off">
           <swirlflowGroup/>
 	<turbulenceGroup/>
 	</advanced>  
@@ -631,7 +632,7 @@
 	<massGroup  />
 	<temperature title="total temperature" name="T0"></temperature>
 	
-	<advanced element="panel" buttonTitle="advanced" feedback="off">
+	<advanced element="panel" infix=", " buttonTitle="advanced" feedback="off">
           <swirlflowGroup/>
 	<turbulenceGroup/>
 	</advanced> 
@@ -644,7 +645,7 @@
 	<velocityGroup  />
 	<mass_fraction checked="0" name="mixture"></mass_fraction>
 	
-	<advanced element="panel" buttonTitle="advanced" feedback="off">
+	<advanced element="panel" buttonTitle="advanced" infix=", "  feedback="off">
           <swirlflowGroup/>
 	  <turbulenceGroup/>
 	</advanced>  

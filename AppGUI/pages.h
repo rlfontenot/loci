@@ -159,6 +159,7 @@ class GeneralGroup : public QGroupBox
   GeneralGroup(QDomElement& elem,QWidget* parent = 0);
   QString currentText();
 public slots:
+  void updateComponents(); //for dvector
   void changeState();
   void updateChecked();
   void updateShowStatus(const bool&);
@@ -406,13 +407,15 @@ class colorDelegate: public QItemDelegate
 
 
 #endif
-/*! \mainpage 
+/*! \mainpage  chemdemo documentation
 
-  \tableofcontents
+  \ref page_xml
   
-  \section xmlPage how to use xml file to modify chemdemo GUI
+    
   
-  \subsection whyxml  Why xml file is used
+  \page page_xml how to use xml file to modify chemdemo GUI
+  
+  \section whyxml  Why xml file is used
  
   Chem is a solver for fluid dynamics simulation, and Chemdemo is a GUI
   designed for the beginners to generate Chem input variable file conveniently. Like
@@ -431,7 +434,7 @@ class colorDelegate: public QItemDelegate
   files will be described in a bottom-up way.  
   
 
-  \subsection xml_variable How to define an input variable in xml file
+  \section xml_variable How to define an input variable in xml file
   
   
   Since the input .var file of Chem is the values of a set of variables,
@@ -544,7 +547,7 @@ also applies to other elements that represented by a QWidget.
     when the mouse is in the area of the widget.\n\n 
 
 \sa \ref VarGBox
-\subsection variableGroup Grouping of variables
+\section variableGroup Grouping of variables
 
  The Grouping of variable is putting a set of related variables into one
   group box. The attribute `element' is used to define the relation
@@ -572,7 +575,7 @@ also applies to other elements that represented by a QWidget.
    compound variable Sland and const_viscosity can be found in the
    element \a editable.    
 
-\subsection xml_panel Panel
+\section xml_panel Panel
 
 A panel is used to specify a set of variables or a compound
 variable. The compound variable is a variable that consists of a set
@@ -636,13 +639,13 @@ The other attributes of a panel include:
 
 
 
-\subsection xml_page Page 
+\section xml_page Page 
 
 A page is just more than one panels being put together. So all its child elements
 can only be panels. A page also uses attribute `numColumn'  to specify
 its layout, same as panel. 
 
-\subsection xml_window Specialized windows
+\section xml_window Specialized windows
 
 Several special windows are designed to allow more functionality, or
 to arrange panels more conveniently. These windows can be used as one
@@ -726,7 +729,7 @@ of the stacked widget in main window, or as an indpendent windows.
 
 </ul>
 
-\subsection xml_mainwindow Main Window
+\section xml_mainwindow Main Window
 
  In main window, all functionality that described in xml files are represented in a flow bar,
  which is a group of QPushButtons. Each QPushButton corresponds to a

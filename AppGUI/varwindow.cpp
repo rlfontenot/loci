@@ -14,7 +14,7 @@
   
   \brief VarWindow is the main window for var file generation.
   
-  \mainclass
+  
   
   VarWindow is a main window, it includes a file menu,
   a tool bar and a visualization bar on the top,  a flow bar in  the left,
@@ -865,6 +865,8 @@ void VarWindow::openCase(){
       QMessageBox::information(window(), "Open Case",
                                tr("Can not load in ")+fileName);
     }
+    //create new boundary window
+    setBoundary();
     //go to current page
      elem = doc.documentElement().firstChildElement("mainWindow");
      elem = elem.firstChildElement("gridSetup");

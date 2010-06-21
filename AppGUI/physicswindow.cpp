@@ -12,7 +12,7 @@
   
   \brief PhysicsWindow  allows the user to define the  physics state of the system and related variables. The user is be able to select a state, select a module or add a new model. When a model is selected, the components of the system is also changed.
   
-  \mainclass
+ 
  
  
 */          

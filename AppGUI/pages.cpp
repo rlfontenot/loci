@@ -508,7 +508,8 @@ GeneralGroup::GeneralGroup( QDomElement& my_elem, QWidget *parent ) : QGroupBox(
     setCheckable(true);
     setChecked(isChecked);
   }
-  
+
+  changeState();
 }
 
 /*!
@@ -560,6 +561,15 @@ void GeneralGroup::changeState(){
   }
   emit stateChanged();
 }
+/*!
+  This method notifies  the children that componetsChanged() 
+  This method will be reimplemented by VarGBox if element is dvector.
+*/
+
+void GeneralGroup::updateComponents(){
+  emit componentsChanged();
+}
+
 
 /*!
   This method will be reimplemented by subclasses to return the current text.
@@ -971,8 +981,7 @@ void VarGBox::updateShowStatus(const bool& show){
       }else  if(!myelem.hasAttribute("checked")||myelem.attribute("checked").toInt()== 1){
         if(myelem.attribute("element")=="string"
            ||myelem.attribute("element")=="float"
-           ||myelem.attribute("element")=="vector"
-           ||myelem.attribute("element")=="dvector"){
+           ||myelem.attribute("element")=="vector"){
           
           for(int i = 0; i < mfs.size(); i++){
             if(qobject_cast<QLineEdit*>(mfs[i])->text()==""){
@@ -982,6 +991,16 @@ void VarGBox::updateShowStatus(const bool& show){
              
             }
           }
+        }else if(myelem.attribute("element")=="dvector"){
+          for(int i = 0; i < mfs.size(); i++){
+            QPalette palette;
+            palette.setColor(mfs[i]->backgroundRole(), QColor(255, 0, 0));
+            mfs[i]->setPalette(palette);
+          }
+          
+
+
+
         }else if(myelem.attribute("element")=="int"){
           for(int i = 0; i < mfs.size(); i++){
             if(qobject_cast<QSpinBox*>(mfs[i])->cleanText()==""){
@@ -1080,17 +1099,31 @@ QString  VarGBox::currentText(){
   if(myelem.attribute("element")=="float" ||myelem.attribute("element")=="int"){
     if(!myelem.attribute("current").isEmpty()) myelem.setAttribute("status", "done");
     else myelem.removeAttribute("status"); 
-    text += myelem.attribute("current") + unit;
+    if(myelem.attribute("current").toDouble()==0)text += myelem.attribute("current");
+    else text += myelem.attribute("current") + unit;
   }else if(myelem.attribute("element")=="vector"){
     if(myelem.attribute("format")=="cartesian" ){
-      text +=  tr("[") + myelem.attribute("currentX")+unit+tr(", ") +
-        myelem.attribute("currentY")+unit+tr(", ")+ myelem.attribute("currentZ")+unit+tr("]");    
+      text += "[";
+      if(myelem.attribute("currentX").toDouble()==0)text += myelem.attribute("currentX")+", ";
+      else text += myelem.attribute("currentX") + unit+", ";
+      if(myelem.attribute("currentY").toDouble()==0)text += myelem.attribute("currentY")+", ";
+      else text += myelem.attribute("currentY") + unit+", ";
+      if(myelem.attribute("currentZ").toDouble()==0)text += myelem.attribute("currentZ");
+      else text += myelem.attribute("currentZ") + unit;
+      text += "]";
     }else if(myelem.attribute("format")=="scale" ){
       text +=  tr("[") + myelem.attribute("currentX")+unit+tr(", 0, 0]"); 
     }else{
-      text +=  tr("polar(") + myelem.attribute("currentX")+unit+tr(", ") +
-        myelem.attribute("currentY")+unit+tr(", ")+ myelem.attribute("currentZ")+unit+tr(")"); 
+      text +=  tr("polar(") ;
+      if(myelem.attribute("currentX").toDouble()==0)text += myelem.attribute("currentX")+", ";
+      else text += myelem.attribute("currentX") + unit+", ";
+      if(myelem.attribute("currentY").toDouble()==0)text += myelem.attribute("currentY")+", ";
+      else text += myelem.attribute("currentY") + unit+", ";
+      if(myelem.attribute("currentZ").toDouble()==0)text += myelem.attribute("currentZ");
+      else text += myelem.attribute("currentZ") + unit;
+      text += ")";
     }
+    
     if(myelem.attribute("format")=="scale"){
       if(!myelem.attribute("currentX").isEmpty())myelem.setAttribute("status", "done");
       else myelem.removeAttribute("status");
@@ -1331,16 +1364,18 @@ void VarGBox::updateLabels(int i){
 /*!
   \class AllGroup
   
-  \brief AllGroup  allows the user to input a set of related variables. The set of variables
-  is describles in xml file as one Dom element under parent element "groups", and each varaiable
-  is defined as one child dom element of the group element. 
+  \brief AllGroup  allows the user to input a set of related variables. AllGroup
+  is used for a group whose element is "all" or "2of3".
+
+
+  In AllGroup, Each variable is defined as child element in xml file, and the chilren are output independently. 
   
   
-    AllGroup is used for a group whose element is "all" or "2of3". Its child VarGBoxes are layed out either horizontally or vertically.
+  Children are layed out either horizontally or vertically.
 
-  If the element is "all", each variable in the group need to be specified.
+  If attribute element is "all", the chilren are not checkable, each variable in the group need to be specified.
 
-  For AllGroup whose element is "2of3", two and only two of three variables will be output in .var file.
+  If attribute element is "2of3", two and only two of three variables can be checked on interface and output in .var file.
   The pressure, density and temperature is in such a group. 
   
   
@@ -1352,7 +1387,6 @@ AllGroup::AllGroup(  QDomElement& elem,  bool isVertical, QWidget *parent )
   : GeneralGroup(elem, parent){
   
   QDomElement myroot = myelem.ownerDocument().documentElement();
-
   signalMapper = new QSignalMapper(this);
   QBoxLayout *mainLayout;
   if(isVertical)mainLayout = new QVBoxLayout;
@@ -1369,124 +1403,56 @@ AllGroup::AllGroup(  QDomElement& elem,  bool isVertical, QWidget *parent )
   int count=0;
   for (; !elem_opt.isNull(); elem_opt = elem_opt.nextSiblingElement()) {
     
-    //if element is specified, take it, otherwise go to variables to find and replace it
+    //if element is specified, take it, otherwise copy_elements from variables or groups
     if(!elem_opt.hasAttribute("element")){
-      QString title = elem_opt.attribute("title");
-      QString text = elem_opt.attribute("name");
-      
-      
-      QDomElement option_elem = myroot.firstChildElement("variables");
-      if(option_elem.isNull()){
-        QMessageBox::warning(window(), tr(" .xml"),
-                             tr("can not find element 'variables'")
-                             );
-        return;
-      }
-      QDomElement newChild = option_elem.firstChildElement(elem_opt.tagName()).cloneNode().toElement();
-      if(newChild.isNull()){
-        QMessageBox::warning(window(), tr(" .xml"),
-                             tr("'variables' has no child ")+elem_opt.tagName()
-                             );
-        return;
-      }
-     
-      QDomNode tmp= myelem.replaceChild(newChild,elem_opt);
-      if(tmp.isNull()){
-        QMessageBox::warning(window(), tr(" .xml"),
-                             tr("'replace ")+elem_opt.tagName()+tr("failed")
-                             );
-        return;
-      }
-      elem_opt=newChild;
-      //put the textNode of oldChild into the newChild's attribute
-      
-      if(text!=""){
-        elem_opt.setAttribute("name", text);
-        if(elem_opt.attribute("element")=="vector") elem_opt.setAttribute("title", text);
-      }
-      if(title!="")elem_opt.setAttribute("title", title);
-      
-      
-    }
-    
-    
-    if(elem_opt.hasAttribute("defaultCondition") ){
-      QString tmp =  elem_opt.attribute("defaultCondition");
-      bool  conditionSatisfied = conditionIsSatisfied(myroot, tmp);
-      if(conditionSatisfied){
-        QString tmp = elem_opt.attribute("default");
-        elem_opt.setAttribute("current", tmp);
+      if(!(myroot.firstChildElement("variables").firstChildElement(elem_opt.tagName()).isNull()))
+        copy_element(myroot.firstChildElement("variables").firstChildElement(elem_opt.tagName()), elem_opt);
+      else if( !(myroot.firstChildElement("groups").firstChildElement(elem_opt.tagName()).isNull()))
+        copy_element(myroot.firstChildElement("groups").firstChildElement(elem_opt.tagName()), elem_opt);
+      else{
+         QMessageBox::warning(window(), tr(" .xml"),
+                             elem_opt.tagName()+tr(" element not defined")
+                              );
       }
     }
-    
-    
-    VarGBox *myGroup = new VarGBox(elem_opt,this);
-    myGroup->setFlat(true);
+    //force the children of "all" not checkable, the children of "2of3" checkable 
     if(myelem.attribute("element")=="all"){
-      myGroup->setCheckable(false);
       if(elem_opt.hasAttribute("checked")){
         QMessageBox::warning(window(), tr(" .xml"),
                              elem_opt.tagName()+tr("should not have attribute 'checked'")
                              );
         elem_opt.removeAttribute(tr("checked"));
       }
-    }else if(myelem.attribute("element")=="selection"){
-      bool isChecked = elem_opt.hasAttribute("checked") && elem_opt.attribute("checked").toInt()== 1; 
-      myGroup->setCheckable(true);
-      if(isChecked){
-        myGroup->setChecked(true);
-      }else{
-        myGroup->setChecked(false);
-        
+    }else if(myelem.attribute("element")=="2of3"){
+      if(!elem_opt.hasAttribute("checked")){
+        elem_opt.setAttribute("checked", "0");
       }
-    }else if(myelem.attribute("element")== "2of3"){
-      //tricky here, because for QGroupBox, setCheckable will autoamtically setChecked
-      bool isChecked = elem_opt.hasAttribute("checked") && elem_opt.attribute("checked").toInt()== 1;
-      myGroup->setCheckable(true);
-      if(isChecked ){
-        myGroup->setChecked(true);
-      }else {
-        myGroup->setChecked(false);
-      }
+    }
+
+    GeneralGroup* myGroup = 0;
+    if(elem_opt.attribute("element")=="choice"){
+      myGroup = new ChoiceGroup(elem_opt);
+    }else if(elem_opt.attribute("element")=="all"||elem_opt.attribute("element")=="2of3"){
+      myGroup = new AllGroup(elem_opt);
+    }else if(elem_opt.attribute("element")=="stack"){
+      myGroup = new StackGroup(elem_opt);
+    }else if(elem_opt.attribute("element")=="panel"){
+      myGroup = new VarPanel(elem_opt);
     }else{
-      QMessageBox::warning(window(), tr(" .xml"),
-                           tr("Don't know how to handle ")+elem_opt.tagName() + " " +elem_opt.attribute("element"));
-    }   
-    
-    connect(myGroup, SIGNAL(clicked()),signalMapper, SLOT(map()));
-    
-    objs<<myGroup;  
-    signalMapper->setMapping(myGroup, count);        
+      myGroup = new VarGBox(elem_opt);
+    }
     connect(myGroup, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrentText()));
     connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
     connect(this, SIGNAL(componentsChanged()), myGroup, SLOT(updateComponents()));
     connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
+
     myGroup->setFlat(true);
+    connect(myGroup, SIGNAL(clicked()),signalMapper, SLOT(map()));
+    objs<<myGroup;  
+    signalMapper->setMapping(myGroup, count);        
     mainLayout->addWidget(myGroup);
     count++;
-    
-    if(elem_opt.hasAttribute("condition")){
-      QString tmp = myelem.attribute("condition");
-      bool conditionSatisfied = conditionIsSatisfied(myroot,tmp);
-      if(conditionSatisfied){
-        myGroup->show();
-        elem_opt.setAttribute("checked", 1);
-      }else{
-        myGroup->hide();
-        elem_opt.setAttribute("checked", 0);
-      }
-    }
-    if(elem_opt.hasAttribute("defaultCondition") ){
-      bool conditionSatisfied = conditionIsSatisfied(myroot, elem_opt.attribute("defaultCondition"));
-      if(conditionSatisfied){
-        myGroup->setDisabled(true);
-      }else{
-        myGroup->setDisabled(false);
-      }
-      
-    }
-    
-    
+       
   }//for(; elt..)
   
   connect(signalMapper, SIGNAL(mapped(int)),
@@ -1497,8 +1463,8 @@ AllGroup::AllGroup(  QDomElement& elem,  bool isVertical, QWidget *parent )
 }
 
 /*!
-  For a group whose element is "2of3", if  child widget \a i is clicked,
-  check if the other two child widgets. If both of them are checked, child widget \i
+  For a group whose element is "2of3", if the \a ith child widget is clicked, toggle its state.
+  But if both of other two children are checked, the \a ith child
   will be unchecked.
  
 */ 
@@ -1595,19 +1561,9 @@ StackGroup::StackGroup( QDomElement& elem, QWidget *parent )
   typesWidget = new QComboBox;
   pagesWidget = new QStackedWidget;
  
-  QDomElement elem_grp = myroot.firstChildElement("groups");
   
-  if(elem_grp.isNull()){
-    QMessageBox::warning(window(), tr(".xml"),
-                         tr("can not find element 'groups' in the children of root")
-                         );
-    return;
-  }
- 
- 
- 
-  QRegExp rx("*Group");
-  rx.setPatternSyntax(QRegExp::Wildcard);
+  //  QRegExp rx("*Group");
+  //rx.setPatternSyntax(QRegExp::Wildcard);
 
   QDomElement elem_opt = myelem.firstChildElement();
   if(elem_opt.isNull()){
@@ -1616,44 +1572,44 @@ StackGroup::StackGroup( QDomElement& elem, QWidget *parent )
                          );
     return;
   }
- 
-  for (; !elem_opt.isNull(); elem_opt = elem_opt.nextSiblingElement()) {
   
-    QGroupBox *myGroup;
-    //if elem_opt is a group
-    if(rx.exactMatch(elem_opt.tagName())){
-      //if the elem_opt is  a group and it needs copy
-      if(elem_opt.firstChildElement().isNull()){
-        copy_element(elem_grp.firstChildElement(elem_opt.tagName()), elem_opt);
-      }//finish copy group
-     
-      if(elem_opt.attribute("element")=="all"||elem_opt.attribute("element")=="selection"||elem_opt.attribute("element")=="2of3"){
-        myGroup = new AllGroup(elem_opt, false,this);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-      }else{
-        qDebug()<<"don't know how to handle it yet";
-      }
-    }else{//if it's not a group
-      //if the variables needs copy
-      if(!elem_opt.hasAttribute("element")){
+  for (; !elem_opt.isNull(); elem_opt = elem_opt.nextSiblingElement()) {
+    //if attribute element not specified, copy from variables or groups
+    if(!elem_opt.hasAttribute("element")){
+      if(!(myroot.firstChildElement("variables").firstChildElement(elem_opt.tagName()).isNull()))
         copy_element(myroot.firstChildElement("variables").firstChildElement(elem_opt.tagName()), elem_opt);
-      }//finish copy option
-      myGroup = new VarGBox(elem_opt, this);
-    
-      connect(this, SIGNAL(componentsChanged()), myGroup, SLOT(updateComponents()));
-      connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
+      else if( !(myroot.firstChildElement("groups").firstChildElement(elem_opt.tagName()).isNull()))
+        copy_element(myroot.firstChildElement("groups").firstChildElement(elem_opt.tagName()), elem_opt);
+      else{
+        QMessageBox::warning(window(), tr(" .xml"),
+                             elem_opt.tagName()+tr(" element not defined")
+                             );
+      }
     }
-   
+      
+    QGroupBox *myGroup;
+    if(elem_opt.attribute("element")=="choice"){
+      myGroup = new ChoiceGroup(elem_opt);
+    }else if(elem_opt.attribute("element")=="all"||elem_opt.attribute("element")=="2of3"){
+      myGroup = new AllGroup(elem_opt);
+    }else if(elem_opt.attribute("element")=="stack"){
+      myGroup = new StackGroup(elem_opt);
+    }else if(elem_opt.attribute("element")=="panel"){
+      myGroup = new VarPanel(elem_opt);
+    }else{
+       myGroup = new VarGBox(elem_opt);
+    }
+    connect(myGroup, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrentText()));
+    connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
+    connect(this, SIGNAL(componentsChanged()), myGroup, SLOT(updateComponents()));
+    connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
+     
     typesWidget->addItem(elem_opt.hasAttribute("title")?elem_opt.attribute("title"):elem_opt.tagName());
     whatsThisList << elem_opt.attribute("whatsThis");
     toolTipList << elem_opt.attribute("toolTip");
-    connect(myGroup, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrentText()));
-    connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-   
     myGroup->setCheckable(false);
-    pagesWidget->addWidget(myGroup);
-  
+     pagesWidget->addWidget(myGroup);
+     
   }//for(; elem_opt..)
 
   connect(typesWidget,
@@ -1722,14 +1678,17 @@ VarPanel::VarPanel(   QDomElement& my_elem,  QWidget *parent )
   :GeneralGroup(my_elem, parent)
 {
   QDomElement myroot = myelem.ownerDocument().documentElement();
+  
+  //turn off the help info so that the info of children can show
   if(!toolTip().isEmpty())setToolTip("");
   if(!statusTip().isEmpty())setStatusTip("");
   if(!whatsThis().isEmpty())setWhatsThis("");
   showStatus = false;
 
   buttonGroup = 0;  
-  QDomElement elt = myelem.firstChildElement();
-  if(elt.isNull()){
+  QDomElement elem_opt = myelem.firstChildElement();
+  //if no child, return a panel with a label
+  if(elem_opt.isNull()){
     QVBoxLayout *mainLayout = new QVBoxLayout;
     QLabel* aLabel = new QLabel("No Options");
     aLabel->setAlignment(Qt::AlignCenter);
@@ -1737,7 +1696,6 @@ VarPanel::VarPanel(   QDomElement& my_elem,  QWidget *parent )
     mainLayout->addStretch(10);
     setLayout(mainLayout);
     updateCurrentText();
-    
     return;
   }
 
@@ -1749,10 +1707,6 @@ VarPanel::VarPanel(   QDomElement& my_elem,  QWidget *parent )
     mainLayout->setColumnMinimumWidth(i, 30);
     mainLayout->setColumnStretch(i, 1);
   }
-  QRegExp rx("*Group");
-  rx.setPatternSyntax(QRegExp::Wildcard);
-  
-  QDomElement elem_grp = myroot.firstChildElement("groups");
 
   buttonGroup = new QButtonGroup(this);
   buttonGroup->setExclusive(false);
@@ -1760,101 +1714,54 @@ VarPanel::VarPanel(   QDomElement& my_elem,  QWidget *parent )
   
   int elt_count=0;
   int button_count = 0;
-  for (; !elt.isNull(); elt = elt.nextSiblingElement(), elt_count++) {
-    QPointer<QWidget> myGroup = 0;
-    QPointer<QPushButton> myButton = 0;
-    if(rx.exactMatch(elt.tagName())){//groups
-
-      if(elem_grp.isNull()){
-        QMessageBox::warning(window(), tr(".xml"),
-                             tr("can not find element 'groups' in the children of root")
+  
+  for (; !elem_opt.isNull(); elem_opt = elem_opt.nextSiblingElement(),elt_count++) {
+    //if attribute element not specified, copy from variables or groups
+    if(!elem_opt.hasAttribute("element")){
+      if(!(myroot.firstChildElement("variables").firstChildElement(elem_opt.tagName()).isNull()))
+        copy_element(myroot.firstChildElement("variables").firstChildElement(elem_opt.tagName()), elem_opt);
+      else if( !(myroot.firstChildElement("groups").firstChildElement(elem_opt.tagName()).isNull()))
+        copy_element(myroot.firstChildElement("groups").firstChildElement(elem_opt.tagName()), elem_opt);
+      else{
+        QMessageBox::warning(window(), tr(" .xml"),
+                             elem_opt.tagName()+tr(" element not defined")
                              );
-        return;
       }
-      if(elt.firstChildElement().isNull()){//need copy
-        copy_element(elem_grp.firstChildElement(elt.tagName()),elt);        
-      }
-      if(elt.attribute("element")=="all" ||elt.attribute("element")=="2of3"  ){
-        myGroup = new AllGroup(elt, false, this);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-      }else if(elt.attribute("element")=="stack"){
-        myGroup = new StackGroup(elt, this);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-      }else if(elt.attribute("element")=="choice"){
-        myGroup = new ChoiceGroup(elt, this);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-
-      }else {
-        QMessageBox::warning(window(), tr(".xml"),
-                             tr("don't know how to handle it yet ") +elt.tagName() + " " + elt.attribute("element")) ;
-      }
-      if(elt.hasAttribute("buttonTitle")){
-        myButton = new QPushButton(elt.attribute("buttonTitle"), this);
-        buttonGroup->addButton(myButton);
-        buttonGroup->setId(myButton, button_count);
-        myButton->setMaximumWidth(200);
-        button_count++;
-        elt_count--;
-        advancedLayout->addWidget(myButton);
-        myAdvancedGroup<<myGroup;
-        myGroup->hide();
-      }
-    }else {//variables, panels
-      
-      if(!elt.hasAttribute("element")){//need copy
-        copy_element(myroot.firstChildElement("variables").firstChildElement(elt.tagName()), elt);
-      }
-      if(elt.attribute("element")=="choice"){
-        myGroup = new ChoiceGroup(elt);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-      }else if(elt.attribute("element")=="all"){
-        myGroup = new AllGroup(elt);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-      }else if(elt.attribute("element")=="stack"){
-        myGroup = new StackGroup(elt);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-      }else if(elt.attribute("element")=="panel"){
-       
-        myGroup = new VarPanel(elt);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SIGNAL(componentsChanged()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-      }else{
-        myGroup = new VarGBox(elt);
-        connect(this, SIGNAL(componentsChanged()), myGroup, SLOT(updateComponents()));
-        connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
-        connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
-      }
-     
-      if(elt.hasAttribute("buttonTitle")){
-        myButton = new QPushButton(elt.attribute("buttonTitle"), this);
-        buttonGroup->addButton(myButton);
-        buttonGroup->setId(myButton, button_count);
-        myButton->setMaximumWidth(200);
-        button_count++;
-        elt_count--;
-        advancedLayout->addWidget(myButton);
-        myAdvancedGroup<<myGroup;
-       
-        myGroup->hide();
-      }
-     
     }
-    if(!elt.hasAttribute("buttonTitle")) mainLayout->addWidget(myGroup, elt_count/numColumn, elt_count%numColumn, 1, 1);   
-    connect(myGroup, SIGNAL(textChanged(const QString&)),this, SLOT(updateCurrentText())); 
+      
+    QPointer<GeneralGroup> myGroup = 0;
+    QPointer<QPushButton> myButton = 0;
+    if(elem_opt.attribute("element")=="choice"){
+      myGroup = new ChoiceGroup(elem_opt);
+    }else if(elem_opt.attribute("element")=="all"||elem_opt.attribute("element")=="2of3"){
+      myGroup = new AllGroup(elem_opt, false);
+    }else if(elem_opt.attribute("element")=="stack"){
+      myGroup = new StackGroup(elem_opt);
+    }else if(elem_opt.attribute("element")=="panel"){
+      myGroup = new VarPanel(elem_opt);
+    }else{
+      myGroup = new VarGBox(elem_opt);
+    }
+    connect(myGroup, SIGNAL(textChanged(const QString&)), this, SLOT(updateCurrentText()));
+    connect(this, SIGNAL(stateChanged()), myGroup, SLOT(changeState()));
+    connect(this, SIGNAL(componentsChanged()), myGroup, SLOT(updateComponents()));
+    connect(this, SIGNAL(showStatus(const bool &)), myGroup, SLOT(updateShowStatus(const bool &)));
+  
+    if(elem_opt.hasAttribute("buttonTitle")){
+      myButton = new QPushButton(elem_opt.attribute("buttonTitle"), this);
+      buttonGroup->addButton(myButton);
+      buttonGroup->setId(myButton, button_count);
+      myButton->setMaximumWidth(200);
+      button_count++;
+      elt_count--;
+      advancedLayout->addWidget(myButton);
+      myAdvancedGroup<<myGroup;
+      myGroup->hide();
+    }else{
+      mainLayout->addWidget(myGroup, elt_count/numColumn, elt_count%numColumn, 1, 1);   
+    }
   }
+  
   if(buttonGroup) connect(buttonGroup, SIGNAL(buttonClicked(int)),this, SLOT(advancedButtonClicked(int))); 
   
   mainLayout->addLayout(advancedLayout, (elt_count/numColumn +1), 0, 1, numColumn);
@@ -1954,13 +1861,13 @@ QString VarPanel::currentText(){
   if(myelem.hasAttribute("postfix")) postfix = myelem.attribute("postfix");
   QString infix = ", ";
   if(myelem.hasAttribute("infix")) infix = myelem.attribute("infix");
-  else if(prefix=="" && postfix=="") infix = "\n";
-  
+   else if(prefix=="" && postfix=="") infix = "\n";
+ 
   
  
   for(QDomElement elt = myelem.firstChildElement(); !elt.isNull(); elt=elt.nextSiblingElement()){
-    if(prefix=="" &&postfix =="" && elt.attribute("element")!="panel")elt.setAttribute("prefix", ": ");
-    if(elt.attribute("element")!="advanced"){
+    if(prefix=="" &&postfix =="" && elt.attribute("element")!="panel")elt.setAttribute("prefix", ": ");//?
+   
       if((!elt.hasAttribute("checked"))||elt.attribute("checked")== "1"){
         if(elt.attribute("currentText")!="" ){
           if(elt.hasAttribute("condition")){
@@ -1971,25 +1878,14 @@ QString VarPanel::currentText(){
            
         }      
       }
-    }else{
-      for(QDomElement opt = elt.firstChildElement(); !opt.isNull(); opt=opt.nextSiblingElement()){
-        if(opt.attribute("checked").toInt()==1){
-          if(opt.hasAttribute("condition")){
-            if(opt.attribute("conditionSatisfied")=="false")
-              text += opt.attribute("currentText")+infix;
-          }else{
-            text += opt.attribute("currentText")+infix;
-          }
-        }
-      }
-    }
+   
   }
   text.remove(text.size()-infix.size(), infix.size());
 
   QString name = myelem.tagName();
   if(myelem.hasAttribute("name"))name=myelem.attribute("name");
   if(prefix !="") text = name + prefix + text + postfix;
-
+  
   int count = 0;
   int count_done = 0;
   for(QDomElement elt = myelem.firstChildElement(); !elt.isNull(); elt=elt.nextSiblingElement()){
@@ -2306,51 +2202,50 @@ void ChoiceGroup::editButtonPressed(){
                          );
     return;
   }
+
+
+
   
   if(editGroup){
     delete editGroup;
     editGroup =0;
   }
-  if(elt.attribute("element")=="choice"){
-    editGroup = new ChoiceGroup(elt);
-    connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
-    connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
-    connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
-  }else if(elt.attribute("element")=="all"){
-    editGroup = new AllGroup(elt);
-    connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
-    connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
-    connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
-  }else if(elt.attribute("element")=="stack"){
-    editGroup = new StackGroup(elt);
-    connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
-    connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
-    connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
-  }else if(elt.attribute("element")=="panel"){
-       
-    editGroup = new VarPanel(elt);
-    connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
-    connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
-    connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
-  }else{
-    editGroup = new VarGBox(elt);
-    connect(this, SIGNAL(componentsChanged()), editGroup, SLOT(updateComponents()));
-    connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
-    connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
-  }
+
+   //if attribute element not specified, copy from variables or groups
+    if(!elt.hasAttribute("element")){
+      if(!(myroot.firstChildElement("variables").firstChildElement(elt.tagName()).isNull()))
+        copy_element(myroot.firstChildElement("variables").firstChildElement(elt.tagName()), elt);
+      else if( !(myroot.firstChildElement("groups").firstChildElement(elt.tagName()).isNull()))
+        copy_element(myroot.firstChildElement("groups").firstChildElement(elt.tagName()), elt);
+      else{
+        QMessageBox::warning(window(), tr(" .xml"),
+                             elt.tagName()+tr(" element not defined")
+                             );
+      }
+    }
+    
+    if(elt.attribute("element")=="choice"){
+      editGroup = new ChoiceGroup(elt);
+    }else if(elt.attribute("element")=="all"||elt.attribute("element")=="2of3"){
+      editGroup = new AllGroup(elt);
+    }else if(elt.attribute("element")=="stack"){
+      editGroup = new StackGroup(elt);
+    }else if(elt.attribute("element")=="panel"){
+      editGroup = new VarPanel(elt);
+    }else{
+      editGroup = new VarGBox(elt);
+    }
   
+  connect(this, SIGNAL(componentsChanged()), editGroup, SIGNAL(componentsChanged()));
+  connect(this, SIGNAL(showStatus(const bool &)), editGroup, SLOT(updateShowStatus(const bool &)));
+  connect(this, SIGNAL(stateChanged()), editGroup, SLOT(changeState()));
   connect(editGroup, SIGNAL(textChanged(QString)), this, SLOT(updateCurrentText()));
   editGroup->show();
   updateCurrentText();
  
 }
+
 AllVBWindow::AllVBWindow(  QDomElement& elem, QWidget *parent):GeneralGroup(elem, parent){
-  if(myelem.hasAttribute("whatsThis"))setWhatsThis(myelem.attribute("whatsThis"));
-  if(myelem.hasAttribute("toolTip"))setToolTip(myelem.attribute("toolTip"));
-  if(myelem.hasAttribute("statusTip"))setStatusTip(myelem.attribute("statusTip"));
-  
-
-
   
   AllGroup* thegroup = new AllGroup(elem, this);
   connect(this, SIGNAL(componentsChanged()), thegroup, SIGNAL(componentsChanged()));
