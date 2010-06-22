@@ -60,7 +60,7 @@ SolverWindow::SolverWindow(QDomElement& theelem, QWidget* parent):
    QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(pagesWidget);
   mainLayout->addStretch(1);
-  mainLayout->addSpacing(12);
+  // mainLayout->addSpacing(12);
   setLayout(mainLayout);
   setWindowTitle(myelem.attribute("title"));
   changeState();//make sure the state is checked

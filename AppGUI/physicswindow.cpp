@@ -48,7 +48,8 @@ PhysicsWindow::PhysicsWindow(QDomElement& theelem, QWidget* parent)
                            );
     }
   }
-  
+  mainLayout->addStretch(1);
+  // mainLayout->addSpacing(12);
   setLayout(mainLayout);
   setWindowTitle(myelem.attribute("title"));
   checkStatus();

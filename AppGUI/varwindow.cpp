@@ -296,7 +296,8 @@ void VarWindow::createFlowBar(){
     delete central;
   }
   central = new QStackedWidget;
-  setCentralWidget(central);
+  central->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+ 
     
   //create flowbar
   if(flowbar){
@@ -402,6 +403,8 @@ void VarWindow::createFlowBar(){
   connect(flowbarButtons, SIGNAL(buttonClicked(int)), this, SLOT(changePage(int)));
   flowGroup->setLayout(flowLayout);
   flowbar->addWidget(flowGroup);
+  centralScrollArea->setWidget(central);
+  central->show();
 }
 
 
@@ -476,7 +479,7 @@ void VarWindow::updateStatusTip(int button){
 
 VarWindow::VarWindow()
 {
-  QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
+   QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
   
   //first use main.xml set up doc
   char* resourcepath = getenv("CHEMDEMOPATH");
@@ -510,7 +513,7 @@ VarWindow::VarWindow()
     QMessageBox::information(window(), filename,
                              tr("Parse error at line %1, column %2:\n%3")
                              .arg(errorLine)
-                             .arg(errorColumn)
+                             .arg(errorColumn) 
                              .arg(errorStr));
     file.close();
     return;
@@ -525,7 +528,10 @@ VarWindow::VarWindow()
   displayStatus = false;
   visbar =0;
   central = 0;
-
+ 
+  centralScrollArea = new QScrollArea;
+  centralScrollArea->setBackgroundRole(QPalette::Dark);
+  
   //create viewer and viewerDock
   viewer = new GLViewer(this);
   
@@ -541,6 +547,9 @@ VarWindow::VarWindow()
   createMenu();
   createVisBar();
   createFlowBar();
+ 
+  
+  
   hideVisBar();
   
  
@@ -553,9 +562,9 @@ VarWindow::VarWindow()
   updateStatus(tr("Please use 'Grid Setup' to load  grid information, or use file menu to open a case"));
   
   statusBar()->showMessage(tr("Ready"));
- 
- 
-   setGrid();
+  setGrid();
+
+  setCentralWidget(centralScrollArea);
 }
 
 

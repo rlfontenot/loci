@@ -997,10 +997,6 @@ void VarGBox::updateShowStatus(const bool& show){
             palette.setColor(mfs[i]->backgroundRole(), QColor(255, 0, 0));
             mfs[i]->setPalette(palette);
           }
-          
-
-
-
         }else if(myelem.attribute("element")=="int"){
           for(int i = 0; i < mfs.size(); i++){
             if(qobject_cast<QSpinBox*>(mfs[i])->cleanText()==""){
@@ -1010,7 +1006,8 @@ void VarGBox::updateShowStatus(const bool& show){
             }
           }
         }
-      }else if(myelem.parentNode().toElement().attribute("element")=="2of3" && myelem.parentNode().toElement().attribute("status")!="done"){
+      }else if(myelem.parentNode().toElement().attribute("element")=="2of3"
+               && myelem.parentNode().toElement().attribute("status")!="done"){
         for(int i = 0; i < mfs.size(); i++){
           if(qobject_cast<QLineEdit*>(mfs[i])->text()==""){
             QPalette palette;

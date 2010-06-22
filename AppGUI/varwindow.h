@@ -8,6 +8,7 @@
 #include <QDomElement>
 #include <QPointer>
 #include <QProcess>
+#include <QScrollArea>
 using std::vector;
 class GLViewer;
 class QDockWidget;
@@ -101,6 +102,13 @@ private:
     Located in the central area of the window, contains all the user input interface.  
   */
   QPointer<QStackedWidget> central;
+ /*!
+   Located in the central area of the window, contains central.  
+  */
+  QPointer<QScrollArea> centralScrollArea;
+
+
+  
    /*!
     The docked widget for \a viewer 
   */
@@ -109,9 +117,9 @@ private:
     Boundary condition window. This window might be recreated after a new grid in loaded.
   */ 
   QPointer<QWidget> bdWindow;
-   /*!  
+  /*!  
    the xml tree to store the  case information
-   */  
+  */  
   QDomDocument doc;
   /*!  
    If the status is displayed or not. This data is changed through the "show status" action on the tool bar, and signal showStatus() is emitted when its value changed.

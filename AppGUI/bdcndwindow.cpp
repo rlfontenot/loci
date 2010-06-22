@@ -75,7 +75,8 @@ BdCndWindow::BdCndWindow(QDomElement& theelem,
   mainLayout->addWidget(tableBox);
   mainLayout->addLayout(typesLayout);
   mainLayout->addWidget(pagesWidget);
- 
+  mainLayout->addStretch(1);
+  // mainLayout->addSpacing(12);
   setLayout(mainLayout);
   setWindowTitle(myelem.attribute("title"));
   
