@@ -188,6 +188,7 @@ void fv_topo_handler::open(string casename, string iteration ,int inpnts,
 
   filename = casename + "_fv_"+iteration + ".bin";
   filename = dirname + "/" + filename ;
+  particleFilename = dirname + "/" + casename+"_fv_"+iteration+".fvp" ;
   
   OFP = fopen(filename.c_str(), "wb") ;
   if(OFP == NULL) {
@@ -324,7 +325,7 @@ void fv_topo_handler::create_mesh_elements() {
   ibuf[4] = npyrm ;
   fwrite(ibuf,sizeof(int),5,OFP) ;
 }
-void fv_topo_handler::write_tets(Array<int,4> tets[], int ntets) {
+void fv_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block, int nblocks, int tottets) {
   static int tet_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                               NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
   
@@ -335,7 +336,7 @@ void fv_topo_handler::write_tets(Array<int,4> tets[], int ntets) {
     fwrite(&tets[i][0],sizeof(int),4,OFP) ;
   }
 }
-void fv_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm) {
+void fv_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int block, int nblocks, int tottets) {
   static int pyrm_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                               NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
   
@@ -346,7 +347,7 @@ void fv_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm) {
     fwrite(&pyrm[i][0],sizeof(int),5,OFP) ;
   }
 }
-void fv_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm) {
+void fv_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
   static int prsm_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                               NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
   
@@ -365,7 +366,7 @@ void fv_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm) {
   }
 
 }
-void fv_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs) {
+void fv_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block, int nblocks, int tothexs) {
   static int hex_walls[6] = { NOT_A_WALL, NOT_A_WALL, NOT_A_WALL,
                               NOT_A_WALL, NOT_A_WALL, NOT_A_WALL };
 
@@ -648,7 +649,7 @@ fv_topo_handler::create_particle_positions
   else
     jump = 1 ;
 
-  string particle_filename = dirname + "/" + "particles.fvp" ;
+  string particle_filename = particleFilename ; 
 
   // create an ASCII file handler
   ofstream of(particle_filename.c_str(), std::ios::out) ;

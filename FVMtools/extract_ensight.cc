@@ -185,45 +185,57 @@ void ensight_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts)
   }
 }
 
-void ensight_topo_handler::write_tets(Array<int,4> tets[], int ntets) {
-  if(ntets > 0) {
-    char tmp_buf[80] ;
-    memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "tetra4") ;
-    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-    fwrite(&ntets, sizeof(int), 1, OFP) ;
-
-    fwrite(tets,sizeof(Array<int,4>),ntets,OFP) ;
+void ensight_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block,int nblocks, int tottets) {
+  if(tottets > 0) {
+    if(block == 0) {
+      char tmp_buf[80] ;
+      memset(tmp_buf, '\0', 80) ;
+      sprintf(tmp_buf, "tetra4") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      fwrite(&tottets, sizeof(int), 1, OFP) ;
+    }
+    
+    if(ntets > 0)
+      fwrite(tets,sizeof(Array<int,4>),ntets,OFP) ;
   }
 }
-void ensight_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm) {
-  if(npyrm > 0) {
-    char tmp_buf[80] ;
-    memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "pyramid5") ;
-    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-    fwrite(&npyrm, sizeof(int), 1, OFP) ;
-    fwrite(pyrm, sizeof(Array<int,5>), npyrm, OFP) ;
+void ensight_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm,int block, int nblocks, int totpyrm) {
+  if(totpyrm > 0) {
+    if(block==0) {
+      char tmp_buf[80] ;
+      memset(tmp_buf, '\0', 80) ;
+      sprintf(tmp_buf, "pyramid5") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      fwrite(&totpyrm, sizeof(int), 1, OFP) ;
+    }
+    if(npyrm > 0)
+      fwrite(pyrm, sizeof(Array<int,5>), npyrm, OFP) ;
   }
 }
-void ensight_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm) {
-  if(nprsm > 0) {
-    char tmp_buf[80] ;
-    memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "penta6") ;
-    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-    fwrite(&nprsm, sizeof(int), 1, OFP) ;
-    fwrite(prsm, sizeof(Array<int,6> ), nprsm, OFP) ;
+void ensight_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
+  if(totprsm > 0) {
+    if(block==0) {
+      char tmp_buf[80] ;
+      memset(tmp_buf, '\0', 80) ;
+      sprintf(tmp_buf, "penta6") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      fwrite(&totprsm, sizeof(int), 1, OFP) ;
+    }
+    if(nprsm > 0)
+      fwrite(prsm, sizeof(Array<int,6> ), nprsm, OFP) ;
   }
 }
-void ensight_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs) {
-  if(nhexs > 0) {
-    char tmp_buf[80] ;
-    memset(tmp_buf, '\0', 80) ;
-    sprintf(tmp_buf, "hexa8") ;
-    fwrite(tmp_buf, sizeof(char), 80, OFP) ;
-    fwrite(&nhexs, sizeof(int), 1, OFP) ;
-    fwrite(hexs, sizeof(Array<int,8>), nhexs, OFP) ;
+void ensight_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block, int nblocks, int tothexs) {
+  if(tothexs > 0) {
+    if(block == 0) {
+      char tmp_buf[80] ;
+      memset(tmp_buf, '\0', 80) ;
+      sprintf(tmp_buf, "hexa8") ;
+      fwrite(tmp_buf, sizeof(char), 80, OFP) ;
+      fwrite(&tothexs, sizeof(int), 1, OFP) ;
+    }
+    if(nhexs > 0)
+      fwrite(hexs, sizeof(Array<int,8>), nhexs, OFP) ;
   }
 }
 

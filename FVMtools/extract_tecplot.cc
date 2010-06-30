@@ -176,7 +176,7 @@ void tecplot_topo_handler::create_mesh_positions(vector3d<float> pos[], int pts)
   TECDAT(&npnts,&pos_z[0],filename.c_str()) ;
 }
 
-void tecplot_topo_handler::write_tets(Array<int,4> tets[], int ntets) {
+void tecplot_topo_handler::write_tets(Array<int,4> tets[], int ntets, int block, int nblocks, int tottets) {
   for(int i=0;i<ntets;++i) {
     Array<int,8> brick ;
     brick[0] = tets[i][0] ;
@@ -190,7 +190,7 @@ void tecplot_topo_handler::write_tets(Array<int,4> tets[], int ntets) {
     bricks.push_back(brick) ;
   }    
 }
-void tecplot_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm) {
+void tecplot_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int block, int nblocks, int totpyrm) {
   for(int i=0;i<npyrm;++i) {
     Array<int,8> brick ;
     brick[0] = pyrm[i][0] ;
@@ -205,7 +205,7 @@ void tecplot_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm) {
   }
   
 }
-void tecplot_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm) {
+void tecplot_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
   for(int i=0;i<nprsm;++i) {
     Array<int,8> brick ;
     brick[0] = prsm[i][0] ;
@@ -219,7 +219,7 @@ void tecplot_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm) {
     bricks.push_back(brick) ;
   }
 }
-void tecplot_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs) {
+void tecplot_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs, int block, int nblocks, int tothexs) {
   for(int i=0;i<nhexs;++i) {
     Array<int,8> brick ;
     for(int j=0;j<8;++j)

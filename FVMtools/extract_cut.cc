@@ -379,9 +379,12 @@ void cuttingplane_topo_handler::create_mesh_positions(vector3d<float> pos[], int
 void cuttingplane_topo_handler::create_mesh_elements() {
 }
 
-void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], int ntets) {
+void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], int ntets,int block, int nblocks, int tottets) {
   bool isCut;
-  int tetsCut = 0, intersectStart = intersects.size();
+  if(block == 0) {
+    tetsCut = 0 ;
+  }
+  int  intersectStart = intersects.size();
   int faceNodeIndex[3];
   int faceNode[3];
 
@@ -401,7 +404,7 @@ void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], int ntets) {
 
 	    for (int j = 0; j < 3; j++)
 	      faceNode[j] = tets[i][faceNodeIndex[j]];
-	    registerFace(faceNode, 3, i);
+	    registerFace(faceNode, 3, i+cellCount);
 
 	  }
 	}
@@ -412,12 +415,17 @@ void cuttingplane_topo_handler::write_tets(Array<int,4> tets[], int ntets) {
   }
 
   cellCount += ntets;
-  cout << "Number of tets cut: " << tetsCut << endl ;
+
+  if(block+1==nblocks)
+    cout << "Number of tets cut: " << tetsCut << endl ;
 }
 
-void cuttingplane_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm) {  
+void cuttingplane_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm, int block, int nblocks, int totpyrm) {  
   bool isCut;
-  int pyrmCut = 0, prevNode, intersectStart = intersects.size();
+  if(block == 0) {
+    pyrmCut = 0 ;
+  }
+  int prevNode, intersectStart = intersects.size();
   int faceNode[4];
 
   for (int i = 0 ; i < npyrm ; ++i) {
@@ -447,12 +455,16 @@ void cuttingplane_topo_handler::write_pyrm(Array<int,5> pyrm[], int npyrm) {
   }
   
   cellCount += npyrm;
-  cout << "Number of pyrm cut: " << pyrmCut << endl ;
+  if(block+1 == nblocks)
+    cout << "Number of pyrm cut: " << pyrmCut << endl ;
 }
 
-void cuttingplane_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm) {
+void cuttingplane_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm,int block, int nblocks, int totprsm) {
   bool isCut;
-  int prsmCut = 0, prevNode, intersectStart = intersects.size();
+  if(block == 0) {
+    prsmCut = 0 ;
+  }
+  int prevNode, intersectStart = intersects.size();
   int faceNode[4];
 
   for (int i = 0 ; i < nprsm ; ++i) {
@@ -483,16 +495,19 @@ void cuttingplane_topo_handler::write_prsm(Array<int,6> prsm[], int nprsm) {
       checkLoop(intersectStart, intersects.size());
       intersectStart = intersects.size();
     }
-
   }
 
   cellCount += nprsm;
-  cout << "Number of prsm cut: " << prsmCut << endl ;
+  if(block+1 == nblocks)
+    cout << "Number of prsm cut: " << prsmCut << endl ;
 }
 
-void cuttingplane_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs) {
+void cuttingplane_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs,int block, int nblocks, int tothexs) {
   bool isCut;
-  int hexsCut = 0, prevNode, intersectStart = intersects.size();
+  if(block == 0) {
+    hexsCut = 0 ;
+  }
+  int prevNode, intersectStart = intersects.size();
   int faceNode[4];
 
   for (int i = 0 ; i < nhexs ; ++i) {
@@ -526,7 +541,8 @@ void cuttingplane_topo_handler::write_hexs(Array<int,8> hexs[], int nhexs) {
   }
 
   cellCount += nhexs;
-  cout << "Number of hexs cut: " << hexsCut << endl ;
+  if(block+1 == nblocks)
+    cout << "Number of hexs cut: " << hexsCut << endl ;
 }
 
 void cuttingplane_topo_handler::write_general_cell(int nfaces[], int nnfaces,

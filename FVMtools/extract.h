@@ -86,10 +86,10 @@ public:
   virtual void close() = 0 ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) = 0 ;
   virtual void create_mesh_elements() = 0 ;
-  virtual void write_tets(Array<int,4> tets[], int ntets) = 0 ;
-  virtual void write_pyrm(Array<int,5> pyrm[], int npyrm) = 0 ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm) = 0 ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs) = 0 ;
+  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) = 0 ;
+  virtual void write_pyrm(Array<int,5> pyrm[], int npyrm,int block, int numblocks,int totpyrm) = 0 ;
+  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm) = 0 ;
+  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) = 0 ;
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) = 0 ;
@@ -149,10 +149,10 @@ public:
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() {}
-  virtual void write_tets(Array<int,4> tets[], int ntets) ;
-  virtual void write_pyrm(Array<int,5> prsm[], int npyrm) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm)  ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs) ;
+  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
+  virtual void write_pyrm(Array<int,5> prsm[], int npyrm,int block, int numblocks,int totprym) ;
+  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm)  ;
+  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) ;
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
@@ -214,10 +214,10 @@ public:
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() {}
-  virtual void write_tets(Array<int,4> tets[], int ntets) ;
-  virtual void write_pyrm(Array<int,5> prsm[], int npyrm) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm)  ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs) ;
+  virtual void write_tets(Array<int,4> tets[], int ntets, int block, int numblocks,int tottets) ;
+  virtual void write_pyrm(Array<int,5> prsm[], int npyrm, int block, int numblocks,int totpyrm) ;
+  virtual void write_prsm(Array<int,6> prsm[], int nprsm, int block, int numblocks,int totprsm)  ;
+  virtual void write_hexs(Array<int,8> hexs[], int nhexs, int block, int numblocks,int tothexs) ;
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
@@ -251,6 +251,7 @@ public:
 class fv_topo_handler : public grid_topo_handler {
   string dirname ;
   string filename ;
+  string particleFilename ;
   int npnts ;
   int ntets, nprsm, npyrm, nhexs, ngen ;
   int part_id ;
@@ -297,10 +298,10 @@ public:
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() ;
-  virtual void write_tets(Array<int,4> tets[], int ntets) ;
-  virtual void write_pyrm(Array<int,5> prsm[], int npyrm) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm)  ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs) ;
+  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
+  virtual void write_pyrm(Array<int,5> prsm[], int npyrm,int block, int numblocks,int totprym) ;
+  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm)  ;
+  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) ;
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
@@ -361,6 +362,7 @@ class cuttingplane_topo_handler : public grid_topo_handler {
   list<vector<int> > disambiguatedFaces ;  // Stores all unmatched previously disambiguated faces and corresponding fabricated nodes
   list<vector<int> > resolvedFace;         // Stores all matched disambiguated faces
   affineMapping transMatrix ;              // Transformation matrix that transforms the grid topology to the desired position
+  int tetsCut, prsmCut, pyrmCut, hexsCut ;
 public:
   cuttingplane_topo_handler(affineMapping &transformMatrix,
 			    float xShift, float yShift, float zShift);
@@ -383,10 +385,10 @@ public:
   virtual void close() ;
   virtual void create_mesh_positions(vector3d<float> pos[], int npnts) ;
   virtual void create_mesh_elements() ;
-  virtual void write_tets(Array<int,4> tets[], int ntets) ;
-  virtual void write_pyrm(Array<int,5> pyrm[], int npyrm) ;
-  virtual void write_prsm(Array<int,6> prsm[], int nprsm) ;
-  virtual void write_hexs(Array<int,8> hexs[], int nhexs) ;
+  virtual void write_tets(Array<int,4> tets[], int ntets,int block, int numblocks,int tottets) ;
+  virtual void write_pyrm(Array<int,5> pyrm[], int npyrm,int block, int numblocks,int totpyrm) ;
+  virtual void write_prsm(Array<int,6> prsm[], int nprsm,int block, int numblocks,int totprsm) ;
+  virtual void write_hexs(Array<int,8> hexs[], int nhexs,int block, int numblocks,int tothexs) ;
   virtual void write_general_cell(int nfaces[], int nnfaces,
                                   int nsides[], int nnsides,
                                   int nodes[], int nnodes) ;
@@ -462,6 +464,36 @@ template<class T> void readElementType(hid_t group_id, const char *element_name,
     H5Dclose(dataset) ;
   }
 }
+
+template<class T>
+void readElementTypeBlock(hid_t group_id,
+                          const char *element_name,
+                          vector<T> &v,
+                          size_t start_elem,
+                          int block_size) {
+  if(block_size > 0) {
+    hid_t dataset = H5Dopen(group_id,element_name) ;
+
+    typedef data_schema_traits<T> traits_type ;
+    Loci::DatatypeP dp = traits_type::get_type() ;
+
+    hsize_t count = block_size ;
+    hsize_t start = start_elem ;
+    hid_t dataspace = H5Dget_space(dataset) ;
+    hsize_t stride = 1 ;
+    H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, &start, &stride, &count, NULL) ;
+    int rank = 1 ;
+    hsize_t dimension = count ;
+    hid_t memspace = H5Screate_simple(rank, &dimension, NULL) ;
+    hid_t datatype = dp->get_hdf5_type() ;
+    H5Dread(dataset,datatype,memspace,dataspace,H5P_DEFAULT,&v[0]) ;
+    H5Sclose(memspace) ;
+    H5Tclose(datatype) ;
+    H5Sclose(dataspace) ;
+    H5Dclose(dataset) ;
+  }
+}
+
 
 template<class T> void writeElementType(hid_t group_id,
                                         const char *element_name,
