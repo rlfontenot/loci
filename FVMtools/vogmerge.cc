@@ -101,7 +101,7 @@ struct affineMapping {
     Combine(tmp) ;
   }
   void rotateX(double theta) {
-    double th = theta*2.*M_PI/360. ;
+    double th = -theta*2.*M_PI/360. ;
     double sth = sin(th) ;
     double cth = cos(th) ;
     affineMapping tmp ;
@@ -113,7 +113,7 @@ struct affineMapping {
     Combine(tmp) ;
   }
   void rotateY(double theta) {
-    double th = theta*2.*M_PI/360. ;
+    double th = -theta*2.*M_PI/360. ;
     double sth = sin(th) ;
     double cth = cos(th) ;
     affineMapping tmp ;
@@ -125,7 +125,7 @@ struct affineMapping {
     Combine(tmp) ;
   }
   void rotateZ(double theta) {
-    double th = theta*2.*M_PI/360. ;
+    double th = -theta*2.*M_PI/360. ;
     double sth = sin(th) ;
     double cth = cos(th) ;
     affineMapping tmp ;
@@ -231,7 +231,9 @@ bool readVolTags(hid_t input_fid,
 }
 
 void Usage() {
-  cout << "Utility for merging vog grids into a single vog file." << endl
+  cout << "******************************************************************************" << endl ;
+
+  cout << "vogmerge is a utility for merging vog grids into a single vog file." << endl
        << endl ;
   cout << "Usage: " << endl
        << "  vogmerge <options>" << endl
@@ -252,6 +254,7 @@ void Usage() {
        << "  -bc <oldname>,<newname> | rename boundary surface" << endl
        << "  -tag <name>             | specify volume tag for input grid" << endl
        << endl ;
+  cout << "******************************************************************************" << endl ;
 }
   
 int main(int ac, char *av[]) {
@@ -392,9 +395,26 @@ int main(int ac, char *av[]) {
         i++ ;
         if(i<ac) {
           vector<pair<string,entitySet> > vp ;
-          vp.push_back(pair<string,entitySet>(string(av[i]),Loci::EMPTY)) ;
-          volTag.back() = vp ;
-          parsed = true ;
+          string tagname = av[i] ;
+          bool validtag = true ;
+          if(tagname.size() == 0)
+            validtag = false ;
+          if(validtag & !isalpha(tagname[0]))
+            validtag = false ;
+          if(validtag) {
+            for(size_t i=1;i<tagname.size();++i)
+              if(!isalnum(tagname[i]) && tagname[i] != '_')
+                validtag = false ;
+          }
+          if(validtag) {
+            vp.push_back(pair<string,entitySet>(tagname,Loci::EMPTY)) ;
+            volTag.back() = vp ;
+            parsed = true ;
+          } else {
+            cerr << "ERROR: -tag '" << tagname <<"' is invalid!" << endl 
+                 << "****** Volume tag names must start with a letter and must only contain " << endl 
+                 << "****** characters that are letters, numbers, or underscore." << endl;
+          }
         }
       }
     }
@@ -614,7 +634,13 @@ int main(int ac, char *av[]) {
     // First read in clusters from each file and write modified
     // clusters to a scratch file
     FILE *scratch = tmpfile() ;
-
+    
+    if(scratch == 0) {
+      perror("tmpfile") ;
+      cerr << "failed to open tmpfile, check setting of TMPDIR environment variable" << endl ;
+      Loci::Abort() ;
+    }
+    
     // Total output file cluster sizes
     vector<unsigned short> cluster_sizes ;
 
@@ -738,7 +764,14 @@ int main(int ac, char *av[]) {
         vector<unsigned char> clusterout =
           Loci::encode_face_cluster(face2node,cl,cr,fclust,nodeSet,cellSet) ;
         // Write cluster to tmp file
-        fwrite(&clusterout[0],clusterout.size(),1,scratch) ;
+        size_t swrite = fwrite(&clusterout[0],clusterout.size(),1,scratch) ;
+        if(swrite != 1) {
+          perror("fwrite") ;
+          cerr << "write to temporary file failed"<< endl ;
+          fclose(scratch) ;
+
+          Loci::Abort() ;
+        }
         unsigned short clsz = clusterout.size() ;
         cluster_sizes.push_back(clsz) ;
       }
@@ -796,8 +829,14 @@ int main(int ac, char *av[]) {
       int sz = 8096 ;
       if(cluster_info_size < 8096)
         sz = cluster_info_size ;
-      
-      fread(&data[0],sz,1,scratch) ;
+
+      size_t rsz = fread(&data[0],sz,1,scratch) ;
+      if(rsz != 1) {
+        perror("fread") ;
+        cerr << "read failed when reading temporary scratch file" << endl ;
+        fclose(scratch) ;
+        Loci::Abort() ;
+      }
 
       hsize_t dim = sz ;
       hsize_t count = sz ;
