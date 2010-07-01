@@ -113,7 +113,10 @@ namespace Loci {
             debug_hostname,debug_program,pid,debug_execname) ;
 #endif
     cerr << buf << endl ;
-    system(buf) ;
+    int err = system(buf) ;
+    if(err != 0)
+      cerr << "system call failed with on '"<< buf << "'" << endl ;
+
 
     sleep(100) ; /* Wait for debugger to attach */
 #endif
