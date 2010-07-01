@@ -625,11 +625,18 @@ namespace Loci {
       cmd += sname ;
       //cmd += "&" ;
       cout << "This is super node: " << "SN" << levelcounter-2 << '\n' ;
-      system(cmd.c_str()) ;
+      int err = system(cmd.c_str()) ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << cmd << "'" 
+	     << endl ;
+
       // rm the generated "dot" file
       cmd = "rm -fr " ;
       cmd += sname ;
-      system(cmd.c_str()) ;
+      err = system(cmd.c_str()) ;
+      if(err != 0)
+	cerr << "system call returned " << err << " on system('"
+	     << cmd << "')" << endl ;
     }
   }
   /////////////////////////////////////////////////////////////////////
@@ -795,7 +802,11 @@ namespace Loci {
         cout << "creating visualization file for dependency graph..." << endl ;
         create_digraph_dot_file(gr,"dependgr.dot") ;
         std::string cmd = dottycmd + "dependgr.dot" ;
-        system(cmd.c_str()) ;
+        int err = system(cmd.c_str()) ;
+	if(err != 0)
+	  cerr << "system call returned " << err << " on system('"
+	       << cmd << "')" << endl ;
+	
       }
     }
     ////////////////////////////////////////////////////////////////////////
@@ -829,7 +840,10 @@ namespace Loci {
         cout << "visualizing decomposed graph..." << '\n' ;
         create_mlg_dot_file(decomp,"decogr.dot") ;
         std::string cmd = dottycmd + "decogr.dot&" ;
-        system(cmd.c_str()) ;
+        int err = system(cmd.c_str()) ;
+	if(err != 0)
+	  cerr << "system call returned " << err << " on system('"
+	       << cmd << "')" << endl ;
         visualize_mlg(decomp) ;
       }
     }
