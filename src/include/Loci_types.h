@@ -443,11 +443,11 @@ namespace Loci {
     typedef T * iterator ;
     typedef const T * const_iterator ;
     
-    Array() {} ;
-    Array(const Array<T,n> &v)
-    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; } 
-    Array<T,n> &operator=(const Array<T,n> &v)
-    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
+    //    Array() {} ;
+    //    Array(const Array<T,n> &v)
+    //    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; } 
+    //    Array<T,n> &operator=(const Array<T,n> &v)
+    //    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
 
     Array<T,n> &operator +=(const Array<T,n> &v)
     { for(size_t i=0;i<n;++i) x[i] += v.x[i] ; return *this ; }
