@@ -508,7 +508,7 @@ namespace VOG {
       int color_r = color[cr[fc]] ;
       if(color_l == color_r) 
         cerr << "color equal == " << color_l << endl ;
-      if(color_l == -1 |+ color_r == -1)
+      if(color_l == -1 || color_r == -1)
         cerr << "matrix coloring internal error" << endl ;
                                                               
       if(color_l > color_r) {
@@ -677,7 +677,7 @@ namespace VOG {
     const int DIM = 3 ;
     const int WORDBITS = 32 ;
     const int NUMBITS = 32 ;
-    unsigned int mask = (unsigned long)1 << WORDBITS - 1 ;
+    unsigned int mask = (unsigned long)1 << (WORDBITS - 1) ;
     unsigned int element, temp1, temp2, A, W = 0, S, tS, T, tT, J, P = 0, xJ;
     
     Hcode	h;
@@ -695,16 +695,16 @@ namespace VOG {
     
     P |= S & g_mask[0];
     for (j = 1; j < DIM; j++)
-      if( S & g_mask[j] ^ (P >> 1) & g_mask[j])
+      if( (S & g_mask[j]) ^ ((P >> 1) & g_mask[j]))
         P |= g_mask[j];
     
     /* add in DIM bits to hcode */
     element = i / WORDBITS;
     if (i % WORDBITS > WORDBITS - DIM) {
         h[element] |= P << i % WORDBITS;
-      h[element + 1] |= P >> WORDBITS - i % WORDBITS;
+	h[element + 1] |= P >> (WORDBITS - i % WORDBITS) ;
     } else
-      h[element] |= P << i - element * WORDBITS;
+      h[element] |= P << (i - element * WORDBITS) ;
 
     J = DIM;
     for (j = 1; j < DIM; j++)
@@ -734,7 +734,7 @@ namespace VOG {
       tS = A ^ W;
       if (xJ % DIM != 0) {
         temp1 = tS << xJ % DIM;
-        temp2 = tS >> DIM - xJ % DIM;
+        temp2 = tS >> (DIM - xJ % DIM) ;
         S = temp1 | temp2;
         S &= ((unsigned int)1 << DIM) - 1;
       } else
@@ -742,16 +742,16 @@ namespace VOG {
 
       P = S & g_mask[0];
       for (j = 1; j < DIM; j++)
-        if( S & g_mask[j] ^ (P >> 1) & g_mask[j])
+        if( (S & g_mask[j]) ^ ((P >> 1) & g_mask[j]))
           P |= g_mask[j];
       
       /* add in DIM bits to hcode */
       element = i / WORDBITS;
       if (i % WORDBITS > WORDBITS - DIM) {
         h[element] |= P << i % WORDBITS;
-        h[element + 1] |= P >> WORDBITS - i % WORDBITS;
+        h[element + 1] |= P >> (WORDBITS - i % WORDBITS) ;
       } else
-        h[element] |= P << i - element * WORDBITS;
+        h[element] |= P << (i - element * WORDBITS) ;
 
       if (i > 0) {
         if (P < 3)
@@ -764,7 +764,7 @@ namespace VOG {
         
         if (xJ % DIM != 0) {
           temp1 = T >> xJ % DIM;
-          temp2 = T << DIM - xJ % DIM;
+          temp2 = T << (DIM - xJ % DIM) ;
           tT = temp1 | temp2;
           tT &= ((unsigned int)1 << DIM) - 1;
         } else
