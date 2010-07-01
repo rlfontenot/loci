@@ -414,10 +414,10 @@ namespace Loci {
           }
         }
         
-        WARN((reduction && pointwise || pointwise && singleton ||
-              reduction && singleton) && vi->get_info().name != "OUTPUT") ;
-        if((reduction && pointwise || pointwise && singleton ||
-            reduction && singleton) && vi->get_info().name != "OUTPUT") {
+        WARN(((reduction && pointwise) || (pointwise && singleton) ||
+              (reduction && singleton)) && vi->get_info().name != "OUTPUT") ;
+        if(((reduction && pointwise) || (pointwise && singleton) ||
+            (reduction && singleton)) && vi->get_info().name != "OUTPUT") {
           cerr << "Warning: invalid mix of rule types for variable " << *vi << endl ;
         }
 
