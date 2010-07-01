@@ -175,7 +175,7 @@ bool readXDR(fact_db &facts,string filename) {
       if(!xdr_int(&xdr_handle, &cr[*ei]))
         return false ;
 
-      if(cl[*ei] < 0) 
+      if(cl[*ei] < 0) {
         if(cr[*ei] < 0) {
           cerr << " boundary condition on both sides of a face?" << endl ;
           exit(1) ;
@@ -184,6 +184,7 @@ bool readXDR(fact_db &facts,string filename) {
           cr[*ei] = cl[*ei] ;
           cl[*ei] = tmp_swap ;
         }
+      }
     }
     if(!xdr_int(&xdr_handle, &offset[fp1]))
       return false ;

@@ -42,7 +42,10 @@ int main(int ac, char* av[]) {
   int npatch, maxppf, maxfpc ;
   int ndim, nzones ;
   int npnts, nfaces, ncells ;
-  fscanf(IFP, "%d%d%d", &ndim, &nzones, &npatch) ;
+  if(fscanf(IFP, "%d%d%d", &ndim, &nzones, &npatch)!=3) {
+    cerr << "fscanf failed" << endl ;
+    exit(-1) ;
+  }
   if(ndim != 3) {
     cerr << "currently only supports 3-D grid files" << endl ;
     exit(-1) ;
@@ -51,7 +54,10 @@ int main(int ac, char* av[]) {
     cerr << "currently only supports single zone files" << endl ;
     exit(-1) ;
   }
-  fscanf(IFP, "%d%d%d%d%d", &npnts, &nfaces, &ncells, &maxppf, &maxfpc) ;
+  if(fscanf(IFP, "%d%d%d%d%d", &npnts, &nfaces, &ncells, &maxppf, &maxfpc)!=5){
+    cerr << "scanf failed" << endl ;
+    exit(-1) ;
+  }
   cout << " ndim = " << ndim << endl ;
   cout << " npnts = " << npnts << endl ;
   cout << " nfaces = " << nfaces << endl ;
@@ -88,14 +94,20 @@ int main(int ac, char* av[]) {
   for(int i = 0; i < node_reads; ++i) {
     int tmp = 0 ;
     for(int j = 0; j < 3*MAX; ++j) {
-      fscanf(IFP, "%lf", &tmp_pos[tmp]) ;
+      if(fscanf(IFP, "%lf", &tmp_pos[tmp])!=1) {
+	cerr << "scanf failed" << endl ;
+	exit(-1) ;
+      }
       xdr_double(&xdr_handle, &tmp_pos[tmp++]) ;
     }
   }
   int tmp = 0 ;
   for(int j = 0; j < 3*rem_nodes; ++j) {
-    fscanf(IFP, "%lf", &tmp_pos[tmp]) ;
-      xdr_double(&xdr_handle, &tmp_pos[tmp++]) ;
+    if(fscanf(IFP, "%lf", &tmp_pos[tmp]) != 1) {
+      cerr << "scanf failed" ;
+      exit(-1) ;
+    }
+    xdr_double(&xdr_handle, &tmp_pos[tmp++]) ;
   }
   
   fpos_t after_pos ;
@@ -108,10 +120,19 @@ int main(int ac, char* av[]) {
   
   for(int i = 0; i < face_reads; ++i) {
     for(int j = 0; j < MAX; ++j) {
-      fscanf(IFP, "%d", &local_size) ;
+      if(fscanf(IFP, "%d", &local_size)!= 1) {
+	cerr << "scanf failed" << endl ;
+	exit(-1) ;
+      }
       for(int k = 0; k < local_size; ++k)
-	fscanf(IFP, "%d", &dummy_node) ; 
-      fscanf(IFP, "%d%d", &offset[1], &offset[2]) ; 
+	if(fscanf(IFP, "%d", &dummy_node) !=1) {
+	  cerr << "scanf failed" << endl ; 
+	  exit(-1) ;
+	}
+      if(fscanf(IFP, "%d%d", &offset[1], &offset[2]) !=2 ) {
+	cerr << "scanf failed" << endl ;
+	exit(-1) ;
+      }
       if((offset[1] > 0) && (offset[2] > 0)) {
 	offset[0] = off ;
 	xdr_int(&xdr_handle, &offset[0]) ;
@@ -127,10 +148,19 @@ int main(int ac, char* av[]) {
     }
   }
   for(int j = 0; j < rem_faces; ++j) {
-    fscanf(IFP, "%d", &local_size) ;
+    if(fscanf(IFP, "%d", &local_size)!= 1) {
+      cerr << "scanf failed" << endl ;
+      exit(-1);
+    }
     for(int k = 0; k < local_size; ++k)
-      fscanf(IFP, "%d", &dummy_node) ; 
-    fscanf(IFP, "%d%d", &offset[1], &offset[2]) ; 
+      if(fscanf(IFP, "%d", &dummy_node)!=1) {
+	cerr << "scanf failed" << endl ; 
+	exit(-1) ;
+      }
+    if(fscanf(IFP, "%d%d", &offset[1], &offset[2]) != 2) {
+      cerr << "scanf failed" << endl ;
+      exit(-1); 
+    }
     if((offset[1] > 0) && (offset[2] > 0)) {
       offset[0] = off ;
       xdr_int(&xdr_handle, &offset[0]) ;
@@ -162,16 +192,28 @@ int main(int ac, char* av[]) {
   fsetpos(IFP, &tmp_position) ;
   for(int i = 0; i < face_reads; ++i) {
     for(int j = 0; j < MAX; ++j) {
-      fscanf(IFP, "%d", &local_size) ;
+      if(fscanf(IFP, "%d", &local_size)!=1) {
+	cerr << "scanf failed" << endl ;
+	exit(-1) ;
+      }
       int tmp = 0 ;
       for(int k = 0; k < local_size; ++k) {
-	fscanf(IFP, "%d", &node_vec[tmp]) ;
+	if(fscanf(IFP, "%d", &node_vec[tmp])!=1) {
+	  cerr << "scanf failed" << endl ;
+	  exit(-1) ;
+	}
 	node_vec[tmp] -= 1 ;
 	tmp++ ;
 	//xdr_int(&xdr_handle, &node_vec[tmp++]) ;
       }
-      fscanf(IFP, "%d", &dnode[0]) ;
-      fscanf(IFP, "%d", &dnode[1]) ;
+      if(fscanf(IFP, "%d", &dnode[0])!=1) {
+	cerr << "scanf failed" << endl ;
+	exit(-1) ;
+      }
+      if(fscanf(IFP, "%d", &dnode[1])!=1) {
+	cerr << "scanf failed" << endl ;
+	exit(-1) ;
+      }
       if((dnode[0] > 0) && (dnode[1] > 0)) {
 	for(int k = 0; k < local_size; ++k)
 	  xdr_int(&xdr_handle, &node_vec[k]) ;
@@ -186,16 +228,29 @@ int main(int ac, char* av[]) {
     }
   }
   for(int j = 0; j < rem_faces; ++j) {
-    fscanf(IFP, "%d", &local_size) ;
+    if(fscanf(IFP, "%d", &local_size)!=1) {
+      cerr << "scanf failed" << endl ;
+      exit(-1) ;
+    }
     int tmp = 0 ;
     for(int k = 0; k < local_size; ++k) {
-      fscanf(IFP, "%d", &node_vec[tmp]) ;
+      if(fscanf(IFP, "%d", &node_vec[tmp])!=1) {
+	cerr << "scanf failed" << endl ;
+	exit(-1) ;
+      }
       node_vec[tmp] -= 1 ;
       tmp++ ;
       //xdr_int(&xdr_handle, &node_vec[tmp++]) ;
     } 
-    fscanf(IFP, "%d", &dnode[0]) ;
-    fscanf(IFP, "%d", &dnode[1]) ;
+    if(fscanf(IFP, "%d", &dnode[0]) !=1) {
+      cerr << "scanf failed" << endl ;
+      exit(-1) ;
+    }
+    if(fscanf(IFP, "%d", &dnode[1]) != 1) {
+      cerr << "scanf failed" << endl ;
+      exit(-1) ;
+    }
+
     if((dnode[0] > 0) && (dnode[1] > 0)) {
       for(int k = 0; k < local_size; ++k)
 	xdr_int(&xdr_handle, &node_vec[k]) ;
