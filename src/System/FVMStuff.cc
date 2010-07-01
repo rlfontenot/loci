@@ -1249,7 +1249,7 @@ namespace Loci {
             }
             Abort() ;
           }
-          if(p1.master & p2.master | (!p1.master & !p2.master)) {
+          if((p1.master & p2.master) | (!p1.master & !p2.master)) {
             cerr << "only one master in periodic boundary conditons named "
                  << p1.name << endl ;
             Abort() ;
