@@ -49,10 +49,15 @@
 #define NO_OFFSETOF
 #endif
 
-#if (__GNUC__>=4)
+#if (__GNUC__==4)
+#if (__GNUC_MINOR__ < 3)
 #define EXT_HASH_MAP
 #define EXT_NAMESPACE __gnu_cxx
 #define NO_OFFSETOF
+#else
+#define USE_MAP_FOR_HASH_MAP
+#define NO_OFFSETOF
+#endif
 #endif
 
 #endif
