@@ -1297,41 +1297,47 @@ inline bool rectangle::is_circle_int(const vec2d& center,
     return true ;
   // the rest cases, NOTE: the inequality relation signs are important!!!
   // case one
-  if( (center.x >= l.x) && (center.x < r.x))
+  if( (center.x >= l.x) && (center.x < r.x)) {
     if( (center.y <= (l.y+radius)) && (center.y > (r.y-radius)))
       return true ;
     else
       return false ;
+  }
   // case two
-  if( (center.y <= l.y) && (center.y > r.y))
+  if( (center.y <= l.y) && (center.y > r.y)) {
     if( (center.x >= (l.x-radius)) && (center.x < (r.x+radius)))
       return true ;
     else
       return false ;
+  }
   // case three // top left corner
-  if( (center.x < l.x) && (center.y > l.y))
+  if( (center.x < l.x) && (center.y > l.y)) {
     if(dist(center,l) <= radius)
       return true ;
     else
       return false ;
+  }
   // case four // bottom left corner
-  if( (center.x < l.x) && (center.y <= r.y))
+  if( (center.x < l.x) && (center.y <= r.y)) {
     if(dist(center,vec2d(l.x,r.y)) <= radius)
       return true ;
     else
       return false ;
+  }
   // case five // top right corner
-  if( (center.x >= r.x) && (center.y > l.y))
+  if( (center.x >= r.x) && (center.y > l.y)) {
     if(dist(center,vec2d(r.x,l.y)) < radius)
       return true ;
     else
       return false ;
+  }
   // case six // bottom right corner
-  if( (center.x >= r.x) && (center.y <= r.y))
+  if( (center.x >= r.x) && (center.y <= r.y)) {
     if(dist(center,r) < radius)
       return true ;
     else
       return false ;
+  }
 
   return false ;
 }
@@ -3596,37 +3602,41 @@ QuadTree::qtnode::qtnode(int md, int fs, const rectangle& b) {
   set_children_bbox() ;
 }
 void QuadTree::qtnode::erase_node() {
-  if(top_left != 0)
+  if(top_left != 0) {
     if(top_left->data_node) {
       delete top_left ;
       top_left = 0 ;
     }
     else
       top_left->erase_node() ;
+  }
   
-  if(top_right != 0)
+  if(top_right != 0) {
     if(top_right->data_node) {
       delete top_right ;
       top_right = 0 ;
     }
     else
       top_right->erase_node() ;
+  }
 
-  if(bot_left != 0)
+  if(bot_left != 0) {
     if(bot_left->data_node) {
       delete bot_left ;
       bot_left = 0 ;
     }
     else
       bot_left->erase_node() ;
+  }
 
-  if(bot_right != 0)
+  if(bot_right != 0) {
     if(bot_right->data_node) {
       delete bot_right ;
       bot_right = 0 ;
     }
     else
       bot_right->erase_node() ;
+  }
 }
 void QuadTree::qtnode::copy_node(const qtnode& n) {
   erase_node() ;
@@ -4010,37 +4020,41 @@ PointSet_QuadTree::qtnode::qtnode(const rectangle& b) {
   set_children_bbox() ;
 }
 void PointSet_QuadTree::qtnode::erase_node() {
-  if(top_left != 0)
+  if(top_left != 0) {
     if(top_left->data_node) {
       delete top_left ;
       top_left = 0 ;
     }
     else
       top_left->erase_node() ;
+  }
   
-  if(top_right != 0)
+  if(top_right != 0) {
     if(top_right->data_node) {
       delete top_right ;
       top_right = 0 ;
     }
     else
       top_right->erase_node() ;
+  }
 
-  if(bot_left != 0)
+  if(bot_left != 0) {
     if(bot_left->data_node) {
       delete bot_left ;
       bot_left = 0 ;
     }
     else
       bot_left->erase_node() ;
+  }
 
-  if(bot_right != 0)
+  if(bot_right != 0) {
     if(bot_right->data_node) {
       delete bot_right ;
       bot_right = 0 ;
     }
     else
       bot_right->erase_node() ;
+  }
 }
 void PointSet_QuadTree::qtnode::copy_node(const qtnode& n) {
   erase_node() ;
