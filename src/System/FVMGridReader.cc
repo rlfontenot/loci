@@ -302,7 +302,7 @@ namespace Loci {
 	offset.push_back(off_cl_cr[tmp++]) ;
 	cl[*ei] = off_cl_cr[tmp++] ;
 	cr[*ei] = off_cl_cr[tmp++] ;
-	if(cl[*ei] < 0)
+	if(cl[*ei] < 0) {
 	  if(cr[*ei] < 0) {
 	    cerr << " boundary condition on both sides of a face?" << endl ;
 	    exit(1) ;
@@ -311,6 +311,7 @@ namespace Loci {
 	    cr[*ei] = cl[*ei] ;
 	    cl[*ei] = tmp_swap ;
 	  }
+	}
 	cl[*ei] += max_alloc + npnts + nfaces - 1 ;
 	if(cr[*ei] > 0)
 	  cr[*ei] += max_alloc + npnts + nfaces - 1 ;
@@ -346,7 +347,7 @@ namespace Loci {
 	offset.push_back(off_cl_cr[tmp++]) ;
 	cl[*ei] = off_cl_cr[tmp++] ;
 	cr[*ei] = off_cl_cr[tmp++] ;
-	if(cl[*ei] < 0)
+	if(cl[*ei] < 0) {
 	  if(cr[*ei] < 0) {
 	    cerr << "2 boundary condition on both sides of a face?" << endl ;
 	    exit(1) ;
@@ -355,6 +356,7 @@ namespace Loci {
 	    cr[*ei] = cl[*ei] ;
 	    cl[*ei] = tmp ;
 	  }
+	}
 	cl[*ei] += max_alloc + npnts + nfaces - 1 ;
 	if(cr[*ei] > 0)
 	  cr[*ei] += max_alloc + npnts + nfaces - 1 ;
