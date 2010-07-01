@@ -741,7 +741,7 @@ int main(int ac, char* av[]) {
 	}
 	face_ident f1(qnds[*fi][0],qnds[*fi][1],qnds[*fi][2],qnds[*fi][3]) ;
 	for(const int *fc = fi+1;fc!=nd2face.end(*ni);++fc) {
-	  if(cl[*fc] == -1 && cr[*fc] == -1 || *fc == *fi)
+	  if((cl[*fc] == -1 && cr[*fc] == -1) || *fc == *fi)
 	    continue ;
 	  if(f1 == face_ident(qnds[*fc][0],qnds[*fc][1],
 			      qnds[*fc][2],qnds[*fc][3])) {
