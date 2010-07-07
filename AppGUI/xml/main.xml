@@ -343,7 +343,7 @@
       <!--"toVog" is the commands to be used for converting this type of grid.-->
      <!-- <vog nameFilter="*.vog" label="volume grid format" />-->
       <xdr toXdr="" nameFilter="*.xdr" label="xdr file" toVog="xdr2vog" />
-      <cobalt toXdr="cobalt2xdr" nameFilter="*.cog" label="cobalt format" toVog="xdr2vog" />
+      <cobalt toXdr="" nameFilter="*.cog" label="cobalt format" toVog="cobalt2vog" />
       <cfd toXdr="cfd++2xdr" nameFilter="nodesin.bin, cellsin.bin, exbcsin.bin" label="cfd++ format" toVog="xdr2vog" />
       <plot3d toXdr="plot3d2xdr" nameFilter="*.grd" label="plot3d format" toVog="xdr2vog" >
         <!-- the children elements of a grid type describe the "toXdr"-->
