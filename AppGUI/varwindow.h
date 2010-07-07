@@ -39,7 +39,8 @@ public slots:
   void showVisBar();
   void hideVisBar();
  
-
+ void check(const QString& fn);
+  void showQuality(QString command, QProcess::ExitStatus status, QString directory);
   //visualization bar actions
   void snapshot();
   void updateStatus(const QString&);

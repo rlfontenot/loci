@@ -7,7 +7,8 @@
 #include "solverwindow.h"
 #include "initcndwindow.h"
 #include "physicswindow.h"
-
+#include "qualitydialog.h"
+#include "progressdialog.h"
 
 /*!
   \class VarWindow
@@ -429,11 +430,10 @@ void VarWindow::changePage(int index){
   }
  
   if(elem.attribute("inDock")=="true"){
-    viewerDock->setFloating(true);
+   
     viewerDock->show();
     viewerDock->raise();
   }else{
-    viewerDock->setFloating(false);
     viewerDock->hide();
   }
   
@@ -616,11 +616,52 @@ void VarWindow::snapshot(){
 }
 
 
+ void VarWindow::check(const QString& fn){
+
+   QString importFileName = fn.section('.', 0, -2);
+   QString casename = importFileName.section('/', -1, -1);
+   QString directory = importFileName.section('/', 0, -2)+"/";
   
+   QFile exist_test(importFileName+tr(".vog"));
+   if(!(exist_test.exists())){
+    QMessageBox::warning(window(), tr("vogcheck"),
+                         tr("Please convert the file to volume grid format first")
+                         );
+    return;
+  }
+  QString out_filename="./output/check_"+casename+".out";
+  QString command2 = "vogcheck " +casename;
+  ProgressDialog* progress = new ProgressDialog(command2, directory);
+  connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus, QString)), this, SLOT(showQuality(QString, QProcess::ExitStatus, QString)));
+  progress->show();
+ }
+
+void VarWindow::showQuality(QString command, QProcess::ExitStatus status, QString directory){
+  if(status==QProcess::CrashExit)return;
+  
+  QString filename = directory+command.section(' ',-1, -1)+".quality";
+  QualityDialog qualityDialog(filename, this);
+  qualityDialog.exec();
+
+  //the following block is for post-processing
+ //  if(waitForQualityFile){
+//     waitForQualityFile = false;
+//     QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
+//     elem = elem.firstChildElement("gridSetup");
+//     LoadInfo ldinfo;
+//     ldinfo.casename = elem.attribute("casename");
+//     ldinfo.directory = elem.attribute("directory");
+//     CutDialog* cutdialog = new CutDialog(ldinfo, viewer->boundaryBoxSize(), viewer);
+//     cutdialog->show();
+    
+//   }
+}
+   
   
 void VarWindow::setGrid()
 {
-
+  
+  
   QDomElement theelem = doc.documentElement().firstChildElement("mainWindow").firstChildElement("gridSetup");
   if(theelem.isNull()){
     QMessageBox::information(window(), tr("main.xml"),
@@ -646,6 +687,21 @@ void VarWindow::setGrid()
     
     return;
   }
+  
+  {
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, tr("QMessageBox::question()"),
+                                  "Do you want to check the grid quality first?",
+                                  QMessageBox::Yes | QMessageBox::No );
+    if (reply == QMessageBox::Yes){
+      check(fileName);
+    }
+  }
+
+
+
+
+
 
   int first= fileName.lastIndexOf('/');
   int last = fileName.lastIndexOf('.');
@@ -655,7 +711,7 @@ void VarWindow::setGrid()
   //viewer load in grid 
   viewerDock->show();
   viewerDock->raise();
-  viewerDock->setFloating(true);
+ 
  
   QStringList boundary_names;
   bool loaded =   viewer->load_boundary(fileName, boundary_names); // and setup the GLWidget.
@@ -866,7 +922,7 @@ void VarWindow::openCase(){
     //viewer load in grid 
     viewerDock->show();
     viewerDock->raise();
-    viewerDock->setFloating(true);
+   
     QString fileName =  elem.attribute("directory")+"/"+elem.attribute("casename")+".vog";
     QStringList boundary_names;
     bool loaded = viewer->load_boundary(fileName, boundary_names); // and setup the GLWidget. 

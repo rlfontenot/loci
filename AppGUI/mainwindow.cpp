@@ -18,7 +18,7 @@ void MyPushButton::mouseMoveEvent(QMouseEvent */*event*/)
 }
 MainWindow::MainWindow(QWidget* parent):QWidget(parent)
 {
-  QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
+  // QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
   QWidget::setMouseTracking(true);
   //first use main.xml set up doc
   char* resourcepath = getenv("CHEMDEMOPATH");
@@ -71,7 +71,7 @@ MainWindow::MainWindow(QWidget* parent):QWidget(parent)
       !elt.isNull(); elt = elt.nextSiblingElement(), count++){
     
     MyPushButton* button = new MyPushButton(elt.hasAttribute("title")?elt.attribute("title"):elt.tagName());
-    //helpInfo << elt.text();
+   
     button->setCheckable(true);
     button->setWhatsThis(elt.text());
     buttonGroup->addButton(button, count);
