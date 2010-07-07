@@ -1,11 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QTextEdit>
+#include <QButtonGroup>
 #include <QProcess>
-#include <QInputDialog>
-
-
-class MainWindow : public QInputDialog
+#include <QPushButton>
+class MainWindow : public QWidget
 {
   Q_OBJECT
   public:
@@ -20,13 +20,27 @@ public slots:
   void fvmAdapt(); //FVMAdapt
   void import();
   void showQuality(QString, QProcess::ExitStatus, QString);
-  void processItem(const QString&);
+  void processItem(int);
   void generateVar();
+  void showText(const QString&);
 signals:
  
 private:
   bool waitForQualityFile;
+  // QStringList helpInfo;
+   QTextEdit* display;
+  QButtonGroup* buttonGroup;
+  
 };
 
+class MyPushButton: public QPushButton{
+  Q_OBJECT
+  public:
+  MyPushButton(const QString& title, QWidget* parent=0);
+signals:
+  void showText(const QString&);
+protected:
+  void mouseMoveEvent(QMouseEvent* event);
+};
 #endif
 

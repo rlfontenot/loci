@@ -737,29 +737,36 @@
   
   
   <help>
-    <OverView>
-      chemdemo provides a user-friendly interface for the user to
-      generate chem input variable files, it also contains other preprocessing features such as
-      fvmadapt, vogmerge, vogcheck and  import. chemdemo supplies many
-      postprocessing operations and visualization of grid file.
-      
-     
-    </OverView> 
-    <FVMAdapt>
-      FVMAdapt is a grid refinement package. The interface provide the
+    <Import>
+      Import: convert other kinds of grid format such as xdr, plot3d, ccm,
+      cobalt, cfd++ and solid mesh into volume grid format(.vog file).
+    </Import>
+    <FVMadapt>
+      FVMAdapt:  a grid refinement package. The interface provide the
       following features:
       1. Define a region with basic geometric shapes and set
       operations.
       2. save the region as xml file.
       3. refine the grid.
       
-    </FVMAdapt>
+    </FVMadapt>
     <VogMerge>
+      VogMerge: merge more than one volume grids into one grid.
     </VogMerge>
+   
     <VogCheck>
+      VogCheck: check grid quality of vog file.
     </VogCheck>
-   <Import>
-   </Import>
+    <Var_File_Generation title = "Var File Generation">
+      Var File Generation: generate a .var file as the variable input
+      fiel of chem.
+    </Var_File_Generation>
+    
+    <Post-Processing>
+     Post-Processing: cutplane, colormapping using scalar value,
+     display nodes with extreme scalar values, etc. 
+    </Post-Processing>
+  
   </help>
   
 </main>

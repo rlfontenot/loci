@@ -1,4 +1,4 @@
-
+#include <QDomDocument>
 #include "mainwindow.h"
 #include "grid.h"
 #include "cutdialog.h"
@@ -9,29 +9,98 @@
 #include "qualitydialog.h"
 #include "progressdialog.h"
 
-
-MainWindow::MainWindow(QWidget* parent):QInputDialog(parent)
+MyPushButton::MyPushButton(const QString& title, QWidget* parent):QPushButton(title, parent){
+  QWidget::setMouseTracking(true);
+}
+void MyPushButton::mouseMoveEvent(QMouseEvent */*event*/)
 {
- 
-
-  setInputMode(QInputDialog::TextInput);
-  QStringList modules;
-  modules<<"Var File Generation"<<"Import"<<"VogCheck"<<"VogMerge"<<"FVMadapt"<<"Post-Processing";
-  setComboBoxItems(modules);
-  setLabelText("modules:");
-
-  connect(this, SIGNAL(textValueSelected(const QString&)),
-          this, SLOT(processItem(const QString&)));
- 
+  emit showText(whatsThis());
+}
+MainWindow::MainWindow(QWidget* parent):QWidget(parent)
+{
+  QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
+  QWidget::setMouseTracking(true);
+  //first use main.xml set up doc
+  char* resourcepath = getenv("CHEMDEMOPATH");
+  QString xmlpath = "./xml/";
+  QString pngpath = "./png/";
   
+  if(resourcepath){
+    xmlpath = QString(resourcepath).append("xml/");
+    pngpath = QString(resourcepath).append( "png/");
+  }
+  QString filename= xmlpath+"main.xml";
+  QFile file(filename);
+  if(!file.exists()){
+    QMessageBox::information(window(), filename,
+                             filename+ tr(" doesn't exist"));
+    return;
+  }
+  if (!file.open(QIODevice::ReadOnly)){
 
-
+    QMessageBox::information(window(), "main.xml",
+                             tr("cannot open ")+ filename + tr("for reading"));
+    
+    return;
+  }
   
- 
+  QString errorStr;
+  int errorLine;
+  int errorColumn;
+  QDomDocument doc;
+  if (!doc.setContent(&file, true, &errorStr, &errorLine,
+                      &errorColumn)) {
+    QMessageBox::information(window(), filename,
+                             tr("Parse error at line %1, column %2:\n%3")
+                             .arg(errorLine)
+                             .arg(errorColumn) 
+                             .arg(errorStr));
+    file.close();
+    return;
+  }
+  file.close();
+
+  QDomElement helpNode = doc.documentElement().firstChildElement("help");
+  
+   buttonGroup = new QButtonGroup(this);
+  
+  QHBoxLayout* buttonLayout = new QHBoxLayout;
+
+  int count = 0; 
+  for(QDomElement elt = helpNode.firstChildElement();
+      !elt.isNull(); elt = elt.nextSiblingElement(), count++){
+    
+    MyPushButton* button = new MyPushButton(elt.hasAttribute("title")?elt.attribute("title"):elt.tagName());
+    //helpInfo << elt.text();
+    button->setCheckable(true);
+    button->setWhatsThis(elt.text());
+    buttonGroup->addButton(button, count);
+    buttonLayout->addWidget(button);
+    connect(button, SIGNAL(showText(const QString&)), this, SLOT(showText(const QString&)));
+    
+  }
+  connect(buttonGroup, SIGNAL(buttonClicked(int)), this, SLOT(processItem(int)));
+  display = new QTextEdit;
+  display->setText("Please select a module"); 
+  QVBoxLayout* mainLayout = new QVBoxLayout;
+  mainLayout->addLayout(buttonLayout);
+  mainLayout->addWidget(display);
+  
+  setLayout(mainLayout);
   
 }
 
-void MainWindow::processItem(const QString& item){
+void MainWindow::showText(const QString& text){
+  if(text.isEmpty()) display->setText("Please select a module");
+  else display->setText(text);
+}
+
+void MainWindow::processItem(int index){
+  QPushButton* button = qobject_cast<QPushButton*>(buttonGroup->button(index));
+  if(!button->isChecked()) return;
+  // display->setText(helpInfo[index]);
+  
+  QString item = button->text();
   if ( !item.isEmpty()){
     if(item=="Import"){
       import();
