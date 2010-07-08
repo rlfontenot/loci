@@ -2,6 +2,9 @@
 #include <QFile>
 #include <QString>
 #include <QMessageBox>
+#include <QToolBar>
+#include <QDockWidget>
+#include <QScrollArea>
 #include <stdlib.h>
 #include <unistd.h>
 #include "vmergewindow.h"
@@ -470,15 +473,13 @@ QString VMOption::currentText(){
       
 
 
-
-
-
-VMergeWindow::VMergeWindow( QWidget* parent)
-  :QWidget(parent)
-{
-  setAttribute(Qt::WA_DeleteOnClose, true);
-  typesWidget = new QListWidget;
-  pagesWidget = new QStackedWidget;
+void VMergeWindow::createFlowBar(){
+  int spacing =2;  
+  //create flowbar
+ 
+  
+  QGroupBox* flowbar = new QGroupBox("flow bar");
+  QVBoxLayout* barLayout = new QVBoxLayout;
   
   QPushButton *loadButton = new QPushButton(tr("&load grid"));
   QPushButton *mergeButton = new QPushButton(tr("&vogmerge"));
@@ -489,28 +490,73 @@ VMergeWindow::VMergeWindow( QWidget* parent)
   connect(mergeButton, SIGNAL(clicked()), this, SLOT(vmClicked()));
   connect(clearButton, SIGNAL(clicked()), this, SLOT(clearAll()));
   
+  barLayout->addSpacing(spacing);
+  barLayout->addWidget(loadButton);
   
-  QHBoxLayout *buttonsLayout = new QHBoxLayout;
-  buttonsLayout->addStretch(1);
-  buttonsLayout->addWidget(loadButton);
-  buttonsLayout->addWidget(mergeButton);
-  buttonsLayout->addWidget(clearButton);
+  
+  barLayout->addSpacing(spacing);
+  barLayout->addWidget(mergeButton);
+  
+  barLayout->addSpacing(spacing);
+  barLayout->addWidget(clearButton);
+  
+  barLayout->addStretch(10);
+  flowbar->setLayout(barLayout);
+  
+  
+  QToolBar* flowToolBar = new QToolBar;
+  addToolBar(Qt::LeftToolBarArea,flowToolBar );
+  flowToolBar->addWidget(flowbar);
+}
+
+
+
+VMergeWindow::VMergeWindow( QWidget* parent)
+  :QMainWindow(parent)
+{
+  setAttribute(Qt::WA_DeleteOnClose, true);
+  
+  //  QScrollArea* centralScrollArea = new QScrollArea;
+//    centralScrollArea->setBackgroundRole(QPalette::Dark); 
+   
+   QGroupBox* central = new QGroupBox;
+  central->setFlat(true);
+  //QHBoxLayout *mainLayout = new QHBoxLayout;
+ 
+  typesWidget = new QComboBox;
+  pagesWidget = new QStackedWidget;
+  QVBoxLayout* objLayout = new QVBoxLayout;
+  objLayout->addWidget(typesWidget);
+  objLayout->addWidget(pagesWidget);
+  
+  mgviewer = new MGViewer();
+  mgviewer->setMinimumSize(700, 700);
   
   
   connect(typesWidget,
-          SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
-          this, SLOT(changePage(QListWidgetItem *, QListWidgetItem*)));
+          SIGNAL(currentIndexChanged(int)),
+          this, SLOT(changePage(int)));
+ 
+  //mainLayout->addLayout(objLayout);
+  // mainLayout->addWidget(mgviewer);
+   
   
-  QVBoxLayout *mainLayout = new QVBoxLayout;
-  mainLayout->addWidget(typesWidget);
-  mainLayout->addWidget(pagesWidget);
-  mainLayout->addStretch(1);
-  mainLayout->addLayout(buttonsLayout);
-  mgviewer = new MGViewer();
-
+  // mainLayout->addStretch(1);
+  central->setLayout(objLayout);
 
   
-  //  connect(this, SIGNAL(getGrid(QString)), mgviewer, SLOT(get_boundary(QString)));
+  // centralScrollArea->setWidget(central);
+  
+
+ 
+  QDockWidget*  viewerDock  = new QDockWidget("Graphics Viewer", this); 
+  viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
+  viewerDock->setWidget(mgviewer);
+  viewerDock->setFloating(true);
+  addDockWidget(Qt::RightDockWidgetArea, viewerDock);
+
+  
+  
  
   connect(mgviewer, SIGNAL(gridLoaded(const QStringList&)), this, SLOT(gridLoaded(const QStringList&)));
   connect(mgviewer, SIGNAL(pickCurrent(const IDOnly&)), this, SLOT(selectCurrent(const IDOnly&)));
@@ -519,31 +565,29 @@ VMergeWindow::VMergeWindow( QWidget* parent)
   connect(this, SIGNAL(setCurrentColor(const IDColor&)), mgviewer, SLOT(setCurrentColor(const IDColor&)));
   connect(this, SIGNAL(setCurrentVisibility(const IDVisibility&)),
           mgviewer, SLOT(setCurrentVisibility(const IDVisibility&)));
-  createVisBar();
-  QVBoxLayout* viewLayout = new QVBoxLayout;
-  viewLayout->addWidget(visbar, 1);
-  viewLayout->addWidget(mgviewer, 10);
+ 
   
   
-  
-  QHBoxLayout* totalLayout = new QHBoxLayout;
-  totalLayout->addLayout(mainLayout);
-  
-  totalLayout->addLayout(viewLayout);
-  
-
-  setLayout(totalLayout);
-  
+  createFlowBar();
+  createToolBar();
+  // setCentralWidget(centralScrollArea);
+    setCentralWidget(central);
   setWindowTitle(tr("vogmerge window"));
+  setMinimumSize(1000, 700);
  
 }
 
-void VMergeWindow::createVisBar()
+void VMergeWindow::createToolBar()
 {
-  visbar = new QGroupBox;
+
+  // int spacing =2;  
+  QToolBar* toolbar = addToolBar(tr("tree&vis"));
+  
+   addToolBarBreak();
+  QGroupBox* visbar = new QGroupBox;
   visbar->setFlat(true);
   QHBoxLayout* visLayout = new QHBoxLayout;
- 
+  visLayout->addSpacing(800);
   QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
   visLayout->addWidget(clearBoundaryAct);
   connect(clearBoundaryAct, SIGNAL(clicked()),
@@ -559,16 +603,17 @@ void VMergeWindow::createVisBar()
   connect(fitAct, SIGNAL(clicked()),
           mgviewer, SLOT(fit()));
   visbar->setLayout(visLayout);
+
+   toolbar->addWidget(visbar);
+
 } 
 
       
 
-void VMergeWindow::changePage(QListWidgetItem *current, QListWidgetItem *previous)
+void VMergeWindow::changePage(int current)
 {
-  if (!current)
-    current = previous;
-  int currentRow = typesWidget->row(current);
-  pagesWidget->setCurrentIndex(currentRow);
+  
+  pagesWidget->setCurrentIndex(current);
 }
 
 
@@ -603,13 +648,14 @@ void VMergeWindow::loadGridClicked(){
 void VMergeWindow::gridLoaded(const QStringList & names){
   if(names.isEmpty()) return;
   QString filename = names[0];
-  QListWidgetItem *bdCndiButton = new QListWidgetItem(typesWidget);
-  bdCndiButton->setText(filename);
-  bdCndiButton->setTextAlignment(Qt::AlignHCenter);
-  bdCndiButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+  //QListWidgetItem *bdCndiButton = new QListWidgetItem(typesWidget);
+  //bdCndiButton->setText(filename);
+  //bdCndiButton->setTextAlignment(Qt::AlignHCenter);
+  //bdCndiButton->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
   
   QStringList bdnames;
   for(int i = 1; i < names.size(); i++)bdnames<<names.at(i);
+  typesWidget->addItem(filename);
   int id = typesWidget->count()-1;
   VMOption* agrid = new VMOption(id, filename, bdnames);
   connect(agrid, SIGNAL(setCurrentColor(const IDColor&)), this, SIGNAL(setCurrentColor(const IDColor&)));
@@ -620,7 +666,7 @@ void VMergeWindow::gridLoaded(const QStringList & names){
   
 void VMergeWindow::selectCurrent(const IDOnly& id){
   
-  typesWidget->setCurrentRow(id.gridId);
+  typesWidget->setCurrentIndex(id.gridId);
   qobject_cast<VMOption*>(pagesWidget->widget(id.gridId))->setCurrentBid(id.boundId); 
  
 }

@@ -62,6 +62,7 @@ BdCndWindow::BdCndWindow(QDomElement& theelem,
   label->setFont(font);
   typesLayout->addWidget(label);
   typesLayout->addWidget(typesWidget);
+  typesLayout->addStretch(10);
   
   QDomElement cndNode = myelem.ownerDocument().documentElement().firstChildElement("boundary_conditions");
   int current = cndNode.attribute("currentIndex").toInt();

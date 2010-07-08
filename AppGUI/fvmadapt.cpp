@@ -28,8 +28,10 @@
 #include "grid.h"
 #include "pages.h"
 #include "refdialog.h"
-
-
+#include <QScrollArea>
+#include <QMainWindow>
+#include <QToolBar>
+#include <QDockWidget>
 #define PI 3.14159265358979323846264338327950
 
 
@@ -421,33 +423,33 @@ void Transform::setInfo(){
 
 
 
+// void FVMAdapt::createToolBar(){
+//   int spacing =2;  
+ 
+//   toolbar = new QGroupBox("");
+//   toolbar->setFlat(true);
+//   QHBoxLayout* barLayout = new QHBoxLayout;
+//    barLayout->addStretch(10);
+//   QPushButton* shapeButton = new QPushButton(tr("Show Shapes"), this);
+//   barLayout->addWidget(shapeButton);
+//   connect(shapeButton, SIGNAL(clicked()), this, SIGNAL(showShapesClicked()));
+  
+//   barLayout->addSpacing(spacing);
+//   QPushButton* nodesButton = new QPushButton(tr("Show Marked Nodes"), this);
+//   barLayout->addWidget(nodesButton);
+//   connect(nodesButton, SIGNAL(clicked()), this, SIGNAL(showNodesClicked()));
+  
+//   //barLayout->addSpacing(spacing);
+ 
+  
+//   toolbar->setLayout(barLayout);
+//   toolbar()->addwidget(toolbar);
+// }
+
 void FVMAdapt::createToolBar(){
   int spacing =2;  
- 
-  toolbar = new QGroupBox("");
-  toolbar->setFlat(true);
-  QHBoxLayout* barLayout = new QHBoxLayout;
-   barLayout->addStretch(10);
-  QPushButton* shapeButton = new QPushButton(tr("Show Shapes"), this);
-  barLayout->addWidget(shapeButton);
-  connect(shapeButton, SIGNAL(clicked()), this, SIGNAL(showShapesClicked()));
-  
-  barLayout->addSpacing(spacing);
-  QPushButton* nodesButton = new QPushButton(tr("Show Marked Nodes"), this);
-  barLayout->addWidget(nodesButton);
-  connect(nodesButton, SIGNAL(clicked()), this, SIGNAL(showNodesClicked()));
-  
-  //barLayout->addSpacing(spacing);
- 
-  
-  toolbar->setLayout(barLayout);
-}
-
-void FVMAdapt::createTreeBar(){
-  int spacing =2;  
- 
-  treebar = new QGroupBox("build a  tree");
-  // flowbar->setFlat(true);
+  toolbar = addToolBar(tr("tree&vis"));
+  QGroupBox* treebar = new QGroupBox("build a  tree");
   QHBoxLayout* barLayout = new QHBoxLayout;
 
   QPushButton* addShapeButton = new QPushButton(tr("Add Shape"), this);
@@ -485,7 +487,35 @@ void FVMAdapt::createTreeBar(){
   connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
   barLayout->addStretch(10);
   treebar->setLayout(barLayout);
+  toolbar->addWidget(treebar);
+  addToolBarBreak();
+
+
+
+
+  QGroupBox* visbar = new QGroupBox(tr("Visualization"));
+  visbar->setFlat(true);
+  QHBoxLayout* visLayout = new QHBoxLayout;
+ 
+  QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
+  visLayout->addWidget(clearBoundaryAct);
+  connect(clearBoundaryAct, SIGNAL(clicked()),
+          viewer, SLOT(clearCurrent())); 
    
+  QPushButton* resetAct = new QPushButton(tr("Reset"), this);
+  visLayout->addWidget(resetAct);
+  connect(resetAct, SIGNAL(clicked()),
+          viewer, SLOT(reset()));
+ 
+  QPushButton* fitAct = new QPushButton(tr("Fit"), this);
+  visLayout->addWidget(fitAct);
+  connect(fitAct, SIGNAL(clicked()),
+          viewer, SLOT(fit()));
+  visbar->setLayout(visLayout);
+
+
+  toolbar->addWidget(visbar);
+
 }
   
 
@@ -493,9 +523,11 @@ void FVMAdapt::createTreeBar(){
   
 void FVMAdapt::createFlowBar(){
   int spacing =2;  
+  //create flowbar
  
-  flowbar = new QGroupBox("save xml file and refine grids");
-   QHBoxLayout* barLayout = new QHBoxLayout;
+  
+  QGroupBox* flowbar = new QGroupBox("flow bar");
+  QVBoxLayout* barLayout = new QVBoxLayout;
 
   barLayout->addSpacing(spacing);
   QPushButton* saveButton = new QPushButton(tr("Save Xml File"), this);
@@ -516,7 +548,11 @@ void FVMAdapt::createFlowBar(){
 
   barLayout->addStretch(10);
   flowbar->setLayout(barLayout);
-   
+  
+  
+  QToolBar* flowToolBar = new QToolBar;
+  addToolBar(Qt::LeftToolBarArea,flowToolBar );
+  flowToolBar->addWidget(flowbar);
 }
 
 void FVMAdapt::refineGrids(){
@@ -528,11 +564,8 @@ void FVMAdapt::done(){
 
   close();
 }
-
-
-FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QWidget(parent),filename(fileName){
-  QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
-
+void FVMAdapt::buildTree(){
+ //build tree
   tree = new QTreeWidget;
   tree->setColumnCount(2);
   QStringList header;
@@ -628,71 +661,55 @@ FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QWidget(parent),filename(f
      connect(paraPage, SIGNAL(valueChanged()), this, SLOT(updateShape()));     
    }
 
+}
+
+
   
 
-   trans = new Transform( this);
-   //connect(trans, SIGNAL(tcChanged()), this, SIGNAL(valueChanged()));
-   connect(trans, SIGNAL(tcChanged()), this, SLOT(updateTransform()));
+FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QMainWindow(parent),filename(fileName){
+  QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
 
-   connect(tree, SIGNAL(itemClicked(QTreeWidgetItem*, int)),
-           this, SLOT(showData(QTreeWidgetItem*)));
+  QScrollArea* centralScrollArea = new QScrollArea;
+ 
+  QGroupBox* central = new QGroupBox;
+  central->setFlat(true);
+  QGridLayout* objLayout = new QGridLayout;
 
-
-   viewer = new GLViewer();
   
-   createVisBar();
-   connect(this, SIGNAL(valueChanged(const QTreeWidgetItem*)), viewer, SLOT(updateDoc(const QTreeWidgetItem*))); 
-   QVBoxLayout* viewLayout = new QVBoxLayout;
-   viewLayout->addWidget(visbar, 1);
-   viewLayout->addWidget(viewer, 10);
-  
+  buildTree();
+ 
+  trans = new Transform( this);
+  connect(trans, SIGNAL(tcChanged()), this, SLOT(updateTransform()));
+  connect(tree, SIGNAL(itemClicked(QTreeWidgetItem*, int)),
+          this, SLOT(showData(QTreeWidgetItem*)));
 
-   QGridLayout* objLayout = new QGridLayout; 
+
+  viewer = new GLViewer();
+  QDockWidget*  viewerDock  = new QDockWidget("Graphics Viewer", this); 
+  viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
+  viewerDock->setWidget(viewer);
+  addDockWidget(Qt::RightDockWidgetArea, viewerDock);
+  connect(this, SIGNAL(valueChanged(const QTreeWidgetItem*)), viewer, SLOT(updateDoc(const QTreeWidgetItem*))); 
+ 
    objLayout->addWidget(paraPages, 0, 0, 1, 1);
-   objLayout->addWidget(trans, 0, 1, 1, 1);
-   objLayout->addWidget(tree,1, 0, 1, 1);
-   objLayout->addLayout(viewLayout, 1, 1, 1, 1);
-
-
-   QHBoxLayout* barLayout = new QHBoxLayout;
-   //createToolBar();
+   objLayout->addWidget(trans, 1, 0, 1, 1);
+   objLayout->addWidget(tree, 0, 1, 2, 1);
+  
+   central->setLayout(objLayout);
+  
+   centralScrollArea->setWidget(central);
+   
    createFlowBar();
-   createTreeBar();
-   
-   barLayout->addWidget(treebar);
-   barLayout->addWidget(flowbar);
-   
-   QVBoxLayout* mainLayout = new QVBoxLayout;
-   mainLayout->addLayout(barLayout);
-   mainLayout->addLayout(objLayout);
-   setLayout(mainLayout);
+   createToolBar();
+  setCentralWidget(centralScrollArea);
+    
    QStringList bnames;
    qDebug() << filename;
    viewer->load_boundary(filename, bnames);
+   setWindowTitle(tr("FVMAdapt"));
+    setMinimumSize(1000, 700);
 }
 
-void FVMAdapt::createVisBar()
-{
-  visbar = new QGroupBox;
-  visbar->setFlat(true);
-  QHBoxLayout* visLayout = new QHBoxLayout;
- 
-  QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
-  visLayout->addWidget(clearBoundaryAct);
-  connect(clearBoundaryAct, SIGNAL(clicked()),
-          viewer, SLOT(clearCurrent())); 
-   
-  QPushButton* resetAct = new QPushButton(tr("Reset"), this);
-  visLayout->addWidget(resetAct);
-  connect(resetAct, SIGNAL(clicked()),
-          viewer, SLOT(reset()));
- 
-  QPushButton* fitAct = new QPushButton(tr("Fit"), this);
-  visLayout->addWidget(fitAct);
-  connect(fitAct, SIGNAL(clicked()),
-          viewer, SLOT(fit()));
-  visbar->setLayout(visLayout);
-} 
 
       
 

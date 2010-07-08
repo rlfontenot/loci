@@ -580,7 +580,7 @@
 		  status="new" element="boundaryWindow"
 		  title="set up boundary
 			 conditions" 
-		  label="please specify boundary type:" >
+		  label="Boundary type:" >
       <notset  element="panel" status="new"/>
       <inflow element="panel" feedback="off" prefix="(" postfix=")" 
 	      toolTip="A non-reflecting inflow boundary, can be&#xa;   supersonic or subsonic inflow." >

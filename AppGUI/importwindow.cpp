@@ -275,13 +275,13 @@ void ImportWindow::convert(){
   
    QString command2 = toVog[currentRow] +option->currentText() + " " +importFileName ;;
  
-  QString command1;
-  if(toXdr[currentRow]!=""){
-    command1 = toXdr[currentRow]+otherOptions[currentRow]->currentText()+" " + importFileName;
+   QString command1;
+   if(toXdr[currentRow]!=""){
+     command1 = toXdr[currentRow]+otherOptions[currentRow]->currentText()+" " + importFileName;
      
       
-  }else{
-  }
+   }else{
+   }
   
   QString command;
   if(toXdr[currentRow]!=""){

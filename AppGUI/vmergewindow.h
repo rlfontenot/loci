@@ -11,7 +11,7 @@
 #include <QTableView>
 #include <QList>
 #include <QHBoxLayout>
-
+#include <QMainWindow>
 #include <utility>
 #include "pages.h"
 #include "defines.h"
@@ -86,7 +86,7 @@ private:
 };
 
 
-class VMergeWindow : public QWidget
+class VMergeWindow : public QMainWindow
 {
   Q_OBJECT
   
@@ -97,28 +97,28 @@ public:
  void vmClicked();
   void loadGridClicked();
   void gridLoaded(const QStringList &);
-  void changePage(QListWidgetItem *, QListWidgetItem *);
+  void changePage(int);
   void clearAll();
   void afterMerge(QString, QProcess::ExitStatus);
   void selectCurrent(const IDOnly&);
   signals:
   void currentGridChanged(int);
-  //  void loadGrid(QString);//add a grid
-  // void getGrid(QString);//load in merged grid
   void tcChanged(const IDMatrix&);
   void  setCurrentColor(const IDColor&);
   void setCurrentVisibility(const IDVisibility&);
  
 private:
   void clear();
-  void createVisBar();
+  void createToolBar();
+  void createFlowBar();
 private:
   
   vector<vector<TranCoef> > transcoef;
-  QListWidget *typesWidget;
+  //  QListWidget *typesWidget;
+  QComboBox* typesWidget;
   QStackedWidget *pagesWidget;
   MGViewer* mgviewer;
-  QGroupBox* visbar;
+  
  
 };
 

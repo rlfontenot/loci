@@ -1,7 +1,7 @@
 #ifndef CUTDIALOG_H
 #define CUTDIALOG_H
 
-#include <QDialog>
+#include <QMainWindow>
 #include "grid.h"
 #include "pages.h"
 #include "glviewer.h"
@@ -13,7 +13,7 @@ class QGroupBox;
 class QCheckBox;
 class QSlider;
 
-class CutDialog: public QWidget
+class CutDialog: public QMainWindow
 {
   Q_OBJECT
 
@@ -64,7 +64,7 @@ private:
   cutplane_info info;  // Data structure passed from main window
   LoadInfo ld_info;
   double size;
-  void createToolBox();
+  void createToolBar();
  
 };
 

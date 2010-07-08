@@ -530,7 +530,7 @@ VarWindow::VarWindow()
   central = 0;
  
   centralScrollArea = new QScrollArea;
-  centralScrollArea->setBackgroundRole(QPalette::Dark);
+  //  centralScrollArea->setBackgroundRole(QPalette::Dark);
   
   //create viewer and viewerDock
   viewer = new GLViewer(this);

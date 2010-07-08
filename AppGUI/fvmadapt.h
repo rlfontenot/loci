@@ -7,7 +7,7 @@
 #include "pages.h"
 #include "vmergewindow.h"
 #include "glviewer.h"
-
+#include <QMainWindow>
 class QLabel;
 class QComboBox;
 class QDoubleSpinBox;
@@ -81,7 +81,7 @@ private:
 };
 
 
-class FVMAdapt: public QWidget
+class FVMAdapt : public QMainWindow
 {
   Q_OBJECT
 
@@ -110,8 +110,7 @@ private slots:
 private:
   void createFlowBar();
   void createToolBar();
-  void createTreeBar();
-  void createVisBar();
+  void buildTree();
   QString filename;
   
   Transform* trans;
@@ -119,14 +118,13 @@ private:
   QTreeWidgetItem* root;
  
   QStackedWidget* paraPages;
-  
-  QGroupBox* flowbar;
-  QGroupBox* toolbar;
-  QGroupBox* treebar;
+
+  QToolBar* toolbar;
   vector<Shape*> defaultShapes;
 
   GLViewer* viewer;
-  QGroupBox* visbar;
+ 
+ 
 };
 
 

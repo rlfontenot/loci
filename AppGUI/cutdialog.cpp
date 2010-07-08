@@ -18,6 +18,8 @@
 #include <QCheckBox>
 #include <QMessageBox>
 #include <QButtonGroup>
+#include <QToolBar>
+#include <QDockWidget>
 #include "cutdialog.h"
 #include "grid.h"
 #include "pages.h"
@@ -28,12 +30,16 @@
 //  Assembles the dialog shown by the "load grid " in 'file' menu.
 //////////////////////////////////////////////////////////
 
-CutDialog::CutDialog(LoadInfo ldinfo,  QWidget *parent):QWidget(parent),ld_info(ldinfo)
+CutDialog::CutDialog(LoadInfo ldinfo,  QWidget *parent):QMainWindow(parent),ld_info(ldinfo)
 {
 
 
   setAttribute(Qt::WA_DeleteOnClose, true);
+  
 
+  QGroupBox* central= new QGroupBox;
+  central->setFlat(true);
+  
 
   viewer = new GLViewer;
   QString fileName = ld_info.directory+"/"+ld_info.casename+".vog";
@@ -267,24 +273,28 @@ CutDialog::CutDialog(LoadInfo ldinfo,  QWidget *parent):QWidget(parent),ld_info(
   cutLayout->addLayout(cutButtons);
   cutGroup->setLayout(cutLayout);
  
-  createToolBox();  
+  createToolBar();  
   QVBoxLayout *mainLayout =  new QVBoxLayout;
-  mainLayout->addWidget(toolbox);
+ 
   mainLayout->addWidget(buttonsGroup);
   
   mainLayout->addWidget(caseGroup);
   mainLayout->addWidget(iterVarGroup);
  
   mainLayout->addWidget(cutGroup);
-  mainLayout->addWidget(viewer);
- 
+  //mainLayout->addWidget(viewer);
+  QDockWidget*  viewerDock  = new QDockWidget("Graphics Viewer", this); 
+  viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
+  viewerDock->setWidget(viewer);
+  addDockWidget(Qt::RightDockWidgetArea, viewerDock);
 
-  setLayout(mainLayout);
+  central->setLayout(mainLayout);
+  setCentralWidget(central);
   setInfo();
   
   
 }
-void CutDialog::createToolBox(){
+void CutDialog::createToolBar(){
   QPushButton *showBoundaryAct = new QPushButton(tr("Show Boundaries"), this);
   QPushButton *showBShadingAct = new QPushButton(tr("Boundary Shading"), this);
   QPushButton *showContoursAct = new QPushButton(tr("Show Contours"), this);
@@ -302,41 +312,39 @@ void CutDialog::createToolBox(){
   
   
   toolbox = new QGroupBox(tr("Display Menu"));
-  QHBoxLayout* toolbar = new QHBoxLayout;
-  toolbar->addWidget(showBoundaryAct);
-  toolbar->addSpacing(5);;
-  toolbar->addWidget(showBShadingAct);
+  QHBoxLayout* barlayout = new QHBoxLayout;
+  barlayout->addWidget(showBoundaryAct);
+  barlayout->addSpacing(5);;
+  barlayout->addWidget(showBShadingAct);
  
  
-  toolbar->addSpacing(5);;
-  toolbar->addWidget(showGridAct);
-  toolbar->addSpacing(5);;
-  toolbar->addWidget(showShadingAct);
+  barlayout->addSpacing(5);;
+  barlayout->addWidget(showGridAct);
+  barlayout->addSpacing(5);;
+  barlayout->addWidget(showShadingAct);
     
-  toolbar->addSpacing(5);;
-  toolbar->addWidget(shadeType1);
-  toolbar->addWidget(shadeType2);
-  toolbar->addWidget(shadeType3);
+  barlayout->addSpacing(5);;
+  barlayout->addWidget(shadeType1);
+  barlayout->addWidget(shadeType2);
+  barlayout->addWidget(shadeType3);
   
 
-  //toolbar->addSpacing(5);;
-  //toolbar->addWidget(showBorderAct);
-  
-  toolbar->addSpacing(5);;
+    
+  barlayout->addSpacing(5);;
  
   
   
 
     
-  toolbar->addSpacing(5);;
-  toolbar->addWidget(showContoursAct);
+  barlayout->addSpacing(5);;
+  barlayout->addWidget(showContoursAct);
   QSlider* slider = new QSlider(Qt::Horizontal);
   slider->setRange(5, 50);
   slider->setValue(10);
-  toolbar->addWidget(slider);
+  barlayout->addWidget(slider);
 
 
-  toolbox->setLayout(toolbar);
+  toolbox->setLayout(barlayout);
 
   
   connect(showBoundaryAct,SIGNAL(clicked()),
@@ -363,7 +371,9 @@ void CutDialog::createToolBox(){
        viewer, SLOT(changeContours(int)));
  
   connect(this, SIGNAL(destroyed()), viewer, SLOT(uncut()));
- 
+  
+  QToolBar* toolbar = addToolBar(tr("display"));
+  toolbar->addWidget(toolbox);
  
 }
 
