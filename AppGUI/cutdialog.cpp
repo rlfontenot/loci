@@ -20,6 +20,8 @@
 #include <QButtonGroup>
 #include <QToolBar>
 #include <QDockWidget>
+#include "qualitydialog.h"
+#include "progressdialog.h"
 #include "cutdialog.h"
 #include "grid.h"
 #include "pages.h"
@@ -30,26 +32,18 @@
 //  Assembles the dialog shown by the "load grid " in 'file' menu.
 //////////////////////////////////////////////////////////
 
-CutDialog::CutDialog(LoadInfo ldinfo,  QWidget *parent):QMainWindow(parent),ld_info(ldinfo)
+CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
 {
 
 
-  setAttribute(Qt::WA_DeleteOnClose, true);
   
-
+  setAttribute(Qt::WA_DeleteOnClose, true);
   QGroupBox* central= new QGroupBox;
   central->setFlat(true);
-  
-
   viewer = new GLViewer;
-  QString fileName = ld_info.directory+"/"+ld_info.casename+".vog";
-  QStringList bnames;
-  if(!(viewer->load_boundary(fileName, bnames))){
-      QMessageBox::information(window(), tr("post-processing"),
-                               tr("can not load grid ")+fileName);
-      return;
-    }
-  size = viewer->boundaryBoxSize();
+  
+  
+  size = 1.0; 
   
   QButtonGroup* buttonGroup = new QButtonGroup(this);
   buttonGroup->setExclusive(true);
@@ -170,7 +164,7 @@ CutDialog::CutDialog(LoadInfo ldinfo,  QWidget *parent):QMainWindow(parent),ld_i
   caseLabel = new QLabel(ld_info.casename);
   caseLayout->addWidget(caseLabel);
   caseGroup->setLayout(caseLayout);
-
+  
   
   // Iteration and variable group
   QGroupBox *iterVarGroup = new QGroupBox(tr("Iteration and variables"));
@@ -186,7 +180,91 @@ CutDialog::CutDialog(LoadInfo ldinfo,  QWidget *parent):QMainWindow(parent),ld_i
 	  this, SLOT(updateVars(QString)));
 
 
-  // If a case name has previously been selected, make default
+  
+  
+  //updateCase();
+ 
+
+
+
+
+
+  // 'Cancel' & 'Okay' buttons
+  QHBoxLayout *cutButtons = new QHBoxLayout;
+  QPushButton *cancel = new QPushButton(tr("Cancel"));
+  QPushButton *cut = new QPushButton(tr("Cut"));
+ 
+ 
+  
+  extrSpinBox = new QSpinBox;
+  extrSpinBox->setRange(0, 50);
+  extrSpinBox->setValue(0);
+  
+  
+  cancel->setDefault(false);
+
+  cut->setDefault(false);
+  
+  
+  QHBoxLayout *buttons = new QHBoxLayout;
+  
+  QGroupBox* buttonsGroup = new QGroupBox;
+  
+ 
+  
+  buttons->addWidget(new QLabel(tr("Show Extreme Nodes:  percentage")));
+  buttons->addWidget(extrSpinBox);
+  
+  buttonsGroup->setLayout(buttons);
+  
+  cutButtons->addWidget(cut);
+  cutButtons->addWidget(cancel);
+ 
+ 
+  
+  
+
+  connect(cancel, SIGNAL(clicked()),
+	  this, SLOT(reset()));
+  connect(cut, SIGNAL(clicked()), this, SLOT(cut()));
+ 
+  
+  connect(extrSpinBox, SIGNAL(valueChanged(int)), viewer, SLOT(setPercentage(int)));
+  connect(extrSpinBox, SIGNAL(valueChanged(int)), this, SLOT(showExtremeNodes(int)));
+  
+  QGroupBox* cutGroup = new QGroupBox(tr("define cut plane:"));
+  QVBoxLayout* cutLayout = new QVBoxLayout;
+  cutLayout->addLayout(hlayout);
+  cutLayout->addWidget(translateBox);
+  cutLayout->addWidget(rotateBox);
+  cutLayout->addLayout(cutButtons);
+  cutGroup->setLayout(cutLayout);
+ 
+  createToolBar();
+  createFlowBar();
+  QVBoxLayout *mainLayout =  new QVBoxLayout;
+ 
+  mainLayout->addWidget(buttonsGroup);
+  
+  mainLayout->addWidget(caseGroup);
+  mainLayout->addWidget(iterVarGroup);
+ 
+  mainLayout->addWidget(cutGroup);
+  //mainLayout->addWidget(viewer);
+  QDockWidget*  viewerDock  = new QDockWidget("Graphics Viewer", this); 
+  viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
+  viewerDock->setWidget(viewer);
+  addDockWidget(Qt::RightDockWidgetArea, viewerDock);
+
+  central->setLayout(mainLayout);
+  setCentralWidget(central);
+  loadGrid(); 
+  setInfo();
+}
+
+void CutDialog::updateCase(){
+
+ // If a case name has previously been selected, make default
   if (!ld_info.casename.isEmpty() && !ld_info.directory.isEmpty()) {
     caseLabel->setText("    " + ld_info.casename);
 
@@ -215,85 +293,162 @@ CutDialog::CutDialog(LoadInfo ldinfo,  QWidget *parent):QMainWindow(parent),ld_i
     }
   }
 
-
-
-
-
-
-
-  // 'Cancel' & 'Okay' buttons
-  QHBoxLayout *cutButtons = new QHBoxLayout;
-  QPushButton *cancel = new QPushButton(tr("Cancel"));
-  QPushButton *cut = new QPushButton(tr("Cut"));
-  QPushButton *close = new QPushButton(tr("Close"));
-  QPushButton *load = new QPushButton(tr("Load Scalar file"));
-  
-  extrSpinBox = new QSpinBox;
-  extrSpinBox->setRange(0, 50);
-  extrSpinBox->setValue(0);
-  
-  
-  cancel->setDefault(false);
-  close->setDefault(false);
-  cut->setDefault(false);
-  
-  
-  QHBoxLayout *buttons = new QHBoxLayout;
-  
-  QGroupBox* buttonsGroup = new QGroupBox;
-  
-  buttons->addWidget(load);
-  
-  buttons->addWidget(new QLabel(tr("Show Extreme Nodes:  percentage")));
-  buttons->addWidget(extrSpinBox);
-  
-  buttonsGroup->setLayout(buttons);
-  
-  cutButtons->addWidget(cut);
-  cutButtons->addWidget(cancel);
-  buttons->addWidget(close);
- 
-  
-  
-
-  connect(cancel, SIGNAL(clicked()),
-	  this, SLOT(reset()));
-  connect(cut, SIGNAL(clicked()), this, SLOT(cut()));
-  connect(close, SIGNAL(clicked()),
-	  this, SLOT(close()));
-  connect(load, SIGNAL(clicked()), this, SLOT(load()));
-  connect(extrSpinBox, SIGNAL(valueChanged(int)), viewer, SLOT(setPercentage(int)));
-  connect(extrSpinBox, SIGNAL(valueChanged(int)), this, SLOT(showExtremeNodes(int)));
-  
-  QGroupBox* cutGroup = new QGroupBox(tr("define cut plane:"));
-  QVBoxLayout* cutLayout = new QVBoxLayout;
-  cutLayout->addLayout(hlayout);
-  cutLayout->addWidget(translateBox);
-  cutLayout->addWidget(rotateBox);
-  cutLayout->addLayout(cutButtons);
-  cutGroup->setLayout(cutLayout);
- 
-  createToolBar();  
-  QVBoxLayout *mainLayout =  new QVBoxLayout;
- 
-  mainLayout->addWidget(buttonsGroup);
-  
-  mainLayout->addWidget(caseGroup);
-  mainLayout->addWidget(iterVarGroup);
- 
-  mainLayout->addWidget(cutGroup);
-  //mainLayout->addWidget(viewer);
-  QDockWidget*  viewerDock  = new QDockWidget("Graphics Viewer", this); 
-  viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
-  viewerDock->setWidget(viewer);
-  addDockWidget(Qt::RightDockWidgetArea, viewerDock);
-
-  central->setLayout(mainLayout);
-  setCentralWidget(central);
-  setInfo();
-  
-  
 }
+void CutDialog::updateSize(){
+   xEditor1->setRange(-size/2.0, size/2.0);
+   yEditor1->setRange(-size/2.0, size/2.0);
+   zEditor1->setRange(-size/2.0, size/2.0);
+}
+
+void CutDialog::createFlowBar(){
+  int spacing =2;  
+  //create flowbar
+ 
+  
+  QGroupBox* flowbar = new QGroupBox("flow bar");
+  
+  QVBoxLayout* barLayout = new QVBoxLayout;
+
+  barLayout->addSpacing(spacing);
+  QPushButton* loadButton = new QPushButton(tr("Load Grid"), this);
+  barLayout->addWidget(loadButton);
+  connect(loadButton, SIGNAL(clicked()), this, SLOT(loadGrid()));
+  
+  barLayout->addSpacing(spacing);
+  QPushButton* loadScaButton = new QPushButton(tr("Load Scalar Value"), this);
+  barLayout->addWidget(loadScaButton);
+  connect(loadScaButton, SIGNAL(clicked()), this, SLOT(loadSca()));
+
+
+  
+  barLayout->addSpacing(spacing);
+  QPushButton* doneButton = new QPushButton(tr("Done"), this);
+  barLayout->addWidget(doneButton);
+  connect(doneButton, SIGNAL(clicked()), this, SLOT(close()));
+
+  barLayout->addStretch(10);
+  flowbar->setLayout(barLayout);
+  
+  
+  QToolBar* flowToolBar = new QToolBar;
+  addToolBar(Qt::LeftToolBarArea,flowToolBar );
+  flowToolBar->addWidget(flowbar);
+}
+
+
+void CutDialog::loadGrid(){
+  //get file name
+  QString fileName =
+    QFileDialog::getOpenFileName(this, tr("Get File"),
+                                 QDir::currentPath(),
+                                 tr("vog Files (*.vog)"));
+
+  if(fileName=="")return;
+  //LoadInfo ldinfo;
+  int first= fileName.lastIndexOf('/');
+  int last = fileName.lastIndexOf('.');
+  QString casename = fileName.mid(first+1, last-first-1);
+  QString directory = fileName.left(first);
+  
+  QDir dir(directory+"/output/");
+  QStringList filters;
+  filters << "grid_pos.*_" + casename;
+  QStringList gridposFiles = dir.entryList(filters);
+  if(gridposFiles.size()==0){
+   
+    int ret = QMessageBox::question(this, "post-processing",
+                                    tr("No scalar value, do you want to run vogcheck? "),
+                                    QMessageBox::Ok | QMessageBox::Cancel);
+    switch(ret){
+    case QMessageBox::Ok:
+
+      check(directory+'/'+casename);
+      break;
+    default:
+      ld_info.casename = casename;
+      ld_info.directory = directory;
+      //QString fileName = ld_info.directory+"/"+ld_info.casename+".vog";
+      QStringList bnames;
+      if(!(viewer->load_boundary(fileName, bnames))){
+        QMessageBox::information(window(), tr("post-processing"),
+                                 tr("can not load grid ")+fileName);
+        return;
+      }
+      size = viewer->boundaryBoxSize();
+      updateSize();
+      updateCase();
+      
+      return;
+    }
+  }else{
+    ld_info.casename = casename;
+    ld_info.directory = directory;
+    //QString fileName = ld_info.directory+"/"+ld_info.casename+".vog";
+    QStringList bnames;
+    if(!(viewer->load_boundary(fileName, bnames))){
+      QMessageBox::information(window(), tr("post-processing"),
+                               tr("can not load grid ")+fileName);
+      return;
+    }
+    size = viewer->boundaryBoxSize();
+    updateSize();
+    updateCase();
+
+  }
+}
+
+
+
+  void CutDialog::check(const QString& fn){
+    
+    QString importFileName = fn;
+    QString casename = importFileName.section('/', -1, -1);
+    QString directory = importFileName.section('/', 0, -2)+"/";
+    
+    QFile exist_test(importFileName+tr(".vog"));
+    if(!(exist_test.exists())){
+      QMessageBox::warning(window(), tr("vogcheck"),
+                           tr("Please convert the file to volume grid format first")
+                           );
+    return;
+    }
+    QString out_filename="./output/check_"+casename+".out";
+    QString command2 = "vogcheck " +casename;
+    ProgressDialog* progress = new ProgressDialog(command2, directory);
+    connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus, QString)), this, SLOT(showQuality(QString, QProcess::ExitStatus, QString)));
+    progress->show();
+  }
+  void CutDialog::showQuality(QString command, QProcess::ExitStatus status, QString directory){
+    if(status==QProcess::CrashExit)return;
+    
+    QString filename = directory+command.section(' ',-1, -1)+".quality";
+    QualityDialog qualityDialog(filename, this);
+    qualityDialog.exec();
+
+    //the following block is for post-processing
+
+      //LoadInfo ldinfo;
+    ld_info.casename =command.section(' ',-1, -1);
+    ld_info.directory = directory;
+
+    QString fileName = ld_info.directory+"/"+ld_info.casename+".vog";
+    QStringList bnames;
+    if(!(viewer->load_boundary(fileName, bnames))){
+      QMessageBox::information(window(), tr("post-processing"),
+                                 tr("can not load grid ")+fileName);
+        return;
+    }
+    size = viewer->boundaryBoxSize();
+    updateSize();
+      
+      //CutDialog* cutdialog = new CutDialog(ldinfo, viewer->boundaryBoxSize(), viewer);
+      //cutdialog->show();
+    updateCase();
+
+  }
+  
+
+  
 void CutDialog::createToolBar(){
   QPushButton *showBoundaryAct = new QPushButton(tr("Show Boundaries"), this);
   QPushButton *showBShadingAct = new QPushButton(tr("Boundary Shading"), this);
@@ -419,7 +574,7 @@ void CutDialog::cut(){
   viewer->cut();
 }
 
-void CutDialog::load(){
+void CutDialog::loadSca(){
   setInfo();
   extrSpinBox->setValue(0);
   viewer->loadSca();

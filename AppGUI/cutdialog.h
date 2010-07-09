@@ -5,7 +5,7 @@
 #include "grid.h"
 #include "pages.h"
 #include "glviewer.h"
-
+#include <QProcess>
 class QLabel;
 class QComboBox;
 class QDoubleSpinBox;
@@ -18,7 +18,7 @@ class CutDialog: public QMainWindow
   Q_OBJECT
 
 public:
-  CutDialog(LoadInfo, QWidget *parent = 0);
+  CutDialog(QWidget *parent = 0);
   
   signals:
 
@@ -32,11 +32,14 @@ void setInfo();
   void planeSelected(int);
   void reset();
   void cut();
-  void load();
+  void loadSca();
+  void loadGrid();
   void showExtremeNodes(int);
   void updateVars(QString iter);
-  
-  
+  void updateCase();
+  void updateSize();
+  void check(const QString& fn);
+  void showQuality(QString command, QProcess::ExitStatus status, QString directory);
 private:
   QSlider* xslider1;
   QSlider* yslider1;
@@ -65,6 +68,7 @@ private:
   LoadInfo ld_info;
   double size;
   void createToolBar();
+  void createFlowBar();
  
 };
 

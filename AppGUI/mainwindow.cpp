@@ -127,45 +127,10 @@ void MainWindow::generateVar(){
 
 
 void MainWindow::postProcess(){
-  
 
-   
- 
-  QString fileName =
-    QFileDialog::getOpenFileName(this, tr("Get File"),
-                                 QDir::currentPath(),
-                                 tr("vog Files (*.vog)"));
-
-  if(fileName=="")return;
-  LoadInfo ldinfo;
-  int first= fileName.lastIndexOf('/');
-  int last = fileName.lastIndexOf('.');
-  QString casename = fileName.mid(first+1, last-first-1);
-  QString directory = fileName.left(first);
-  ldinfo.casename = casename;
-  ldinfo.directory = directory;
+   CutDialog* cutdialog = new CutDialog;
+   cutdialog->show();
   
-  QDir dir(ldinfo.directory+"/output/");
-  QStringList filters;
-  filters << "grid_pos.*_" + ldinfo.casename;
-  QStringList gridposFiles = dir.entryList(filters);
-  if(gridposFiles.size()==0){
-   
-    int ret = QMessageBox::question(this, "post-processing",
-                                    tr("No scalar value, do you want to run vogcheck? "),
-                                    QMessageBox::Ok | QMessageBox::Cancel);
-    switch(ret){
-    case QMessageBox::Ok:
-      waitForQualityFile=true;
-      check(ldinfo.directory+'/'+ldinfo.casename);
-      break;
-    default:
-      return;
-    }
-  }else{
-   CutDialog* cutdialog = new CutDialog(ldinfo);
-    cutdialog->show();
-  }
  
 }
 

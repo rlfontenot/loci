@@ -84,7 +84,8 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
   // Get list of nodes
   hsize_t npnts;
 
- 
+ H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
+
   QString posname = load_info.directory + "/output/grid_pos." + load_info.iteration + 
     '_' + load_info.casename ;
  
