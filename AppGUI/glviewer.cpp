@@ -78,14 +78,14 @@ GLViewer::GLViewer(QWidget *parent)
    shadingObject = 0;
   cpContourObject = 0;
   qobj = 0;
-  extreme_percentage = 0;
+  extreme_value = 0;
   centerx = centery = centerz=0;
   size = 0.1;
   currentObj = -1; //no select obj
   currentColor = default_color[0];
   tox= toy=toz = rox = roy = 0;
   show_contours = true;
-  show_preview =  show_shading = show_boundary_shading = show_grid = show_border = false;
+  show_preview =  show_shading = show_boundary_shading = show_grid = show_border = show_extrema = false;
   scale = 1.0;
   shadeType = 1;
   min_val = max_val = 0.0;
@@ -721,7 +721,9 @@ void GLViewer::drawShapes(){
           }else if(elm.tagName() =="rotateZ"){
 
             double theta = 0;
-            for(QDomElement trans_elem = elm.firstChildElement();!trans_elem.isNull(); trans_elem = trans_elem.nextSiblingElement()){
+            for(QDomElement trans_elem = elm.firstChildElement();
+                !trans_elem.isNull();
+                trans_elem = trans_elem.nextSiblingElement()){
               if(trans_elem.tagName()=="theta")theta = trans_elem.text().toDouble();
               else{
                 
@@ -924,20 +926,27 @@ unsigned long readAttributeLong(hid_t group, const char *name) {
 //   glPointSize(1);
 // }
 
-void GLViewer::drawExtremeNodes(int percentage){
- 
-  float length = (max_val-min_val)/100.0 *percentage;
+void GLViewer::drawExtremeNodes(double value){
   
-  if(length == 0) return;
-  if(length < 0) length = -length;
-  float start=0, end = 0;
-  if(percentage >0 ){
-    start = max_val - length;
+  
+  double length = max_val-min_val;
+  
+  if(length < 1e-17) return;
+  
+  if(length < 1e-17) length = -length;
+
+
+  double start=min_val, end = max_val;
+
+
+  if(value > 0.5*(min_val+max_val)){
+    start = value;
     end  = max_val;
   }else{
     start = min_val;
-    end = min_val + length;
+    end = value;
   }
+  
   if(extremeNodes.size() != extremeValues.size()) return;
   if(extremeNodes.size() == 0) return;
  
@@ -1021,7 +1030,7 @@ void GLViewer::paintGL()
  
   glColor3f(0.0f, 0.0f, 0.0f);  
   //  if(show_nodes) drawMarkedNodes();
-  if(extreme_percentage) drawExtremeNodes(extreme_percentage);
+  if(show_extrema) drawExtremeNodes(extreme_value);
   if(show_shapes)drawShapes();
   glPopMatrix();
   glFlush();
@@ -1102,7 +1111,7 @@ void GLViewer::setLoadInfo(const LoadInfo& ld_info){
 
 bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   reset();
-  
+  boundary_names.clear();  
   
   //assume this is vog file
   if(fileName.right(4)!=".vog"){
@@ -1185,13 +1194,14 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   
   if(nsurf<=0) return false;
   vector<surface_info> surf_list(nsurf);
-  
+  QList<int> bids;
   for(size_t i = 0; i < nsurf; i++){
     size_t ntris=0;
     size_t nquads = 0;
     size_t ngens = 0;
-    int id;
-    in >>id>>ntris >> nquads>>ngens ;
+    int bid;
+    in >>bid>>ntris >> nquads>>ngens ;
+    bids<<bid;
     ntris *=3;
     nquads *=4;
     if(ntris>0) surf_list[i].trias.resize(ntris);
@@ -1357,6 +1367,262 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
 
 
  
+bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names, QList<int>& bids) {
+  reset();
+  
+  boundary_names.clear();
+  bids.clear();
+  //assume this is vog file
+  if(fileName.right(4)!=".vog"){
+     QMessageBox::warning(window(), "load grid",
+                         tr("the format of grid is not .vog" ));
+     return false;
+  }
+
+  QString surfFileName = fileName.section('.', 0, -2)+".surface";
+  QFileInfo surfInfo(surfFileName);
+  QFileInfo vogInfo(fileName);
+  
+  
+  if(!(surfInfo.exists())|| surfInfo.created() < vogInfo.created()){
+    QString command2 = "vog2surf -surface " + surfFileName + " " + fileName.section('.', 0, -2);
+    int ret =  system(command2.toStdString().c_str());
+    if(!WIFEXITED(ret))
+      {
+        if(WIFSIGNALED(ret))
+          {
+            QMessageBox::information(window(), "load grid",
+                                     command2 + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
+
+              return false;
+            }
+      }
+  }
+
+  int first= fileName.lastIndexOf('/');
+  int last = fileName.lastIndexOf('.');
+  QString casename = fileName.mid(first+1, last-first-1);
+  QString directory = fileName.left(first);
+  loadInfo.casename = casename;
+  loadInfo.directory = directory;
+ 
+  
+
+  
+
+  if(surfFileName.right(8) ==".surface"){
+
+    QFile file(surfFileName);
+    if (!file.open(QFile::ReadOnly | QFile::Text)) {
+      QMessageBox::warning(this, tr("Application"),
+                           tr("Cannot read file %1:\n%2.")
+                           .arg(fileName)
+                           .arg(file.errorString()));
+      return false;
+    }
+    
+    QTextStream in(&file); 
+  
+    
+    mesh.clear();
+    vector<vector3d<double> > pos;
+    
+    
+    size_t  npos = 0;
+    
+  
+    in >> npos ;
+    pos.resize(npos);
+    //input pos
+    for(size_t i=0;i<npos;++i) {
+      vector3d<double> p;
+      in >> p.x >> p.y >> p.z ;
+      pos[i] = p;
+    }
+  
+  //input surf_list
+  size_t nsurf = 0;
+  in >> nsurf;
+  in.readLine();
+  boundary_names.clear();
+  for(size_t i = 0; i < nsurf; i++){
+    QString name=in.readLine();
+    boundary_names << name;
+  }
+ 
+  
+  if(nsurf<=0) return false;
+  vector<surface_info> surf_list(nsurf);
+ 
+  for(size_t i = 0; i < nsurf; i++){
+    size_t ntris=0;
+    size_t nquads = 0;
+    size_t ngens = 0;
+    int bid;
+    in >>bid>>ntris >> nquads>>ngens ;
+    bids<<bid;
+    ntris *=3;
+    nquads *=4;
+    if(ntris>0) surf_list[i].trias.resize(ntris);
+    if(nquads>0) surf_list[i].quads.resize(nquads);
+    if(ngens>0)surf_list[i].gen_faces.resize(ngens);
+    if(ntris>0){
+      for(size_t j =0; j < ntris; j++){
+        in>> surf_list[i].trias[j];
+       
+      }
+    }
+    
+
+    if(nquads>0){
+      for(size_t j=0;j<nquads;++j){
+        in>>surf_list[i].quads[j];
+      }
+    }
+    
+    if(ngens >0){
+      for(size_t j=0;j<ngens;++j){
+        size_t nf;
+        in >> nf ;
+        vector<int> gen;
+        if(nf >0){
+          gen.resize(nf);
+          for(size_t k=0;k<nf;++k)
+            in>> gen[k] ;
+          
+        }
+        surf_list[i].gen_faces[j] = gen;
+      }
+    }
+  }
+ 
+
+  // set up GLUtesselator
+  GLUtesselator* myTess = gluNewTess();
+  gluTessCallback(myTess, GLU_TESS_VERTEX_DATA,
+                  (GLvoid (*) ()) &cbVertex2);
+  gluTessCallback(myTess, GLU_TESS_EDGE_FLAG,
+                  (GLvoid (*) ()) &cbEdgeFlag);
+  
+ // load node index vector
+  vector<int>* pntIndex = new vector<int>;
+  pntIndex->resize(pos.size()+1);
+  for (unsigned int i = 0; i <= pos.size(); ++i)
+    (*pntIndex)[i] = i;
+  
+  for(unsigned int id = 0; id <nsurf ; id++){
+    size_t ntris=surf_list[id].trias.size()/3;
+    size_t nquads = surf_list[id].quads.size()/4;
+    //size_t ngens = surf_list[id].gen_faces.size();
+    
+    vector<int> vTri;
+    for(size_t i = 0; i < ntris*3; i++)
+      vTri.push_back(surf_list[id].trias[i]);
+   // quads
+    
+    for (size_t j = 0; j < nquads; ++j) {
+      gluTessBeginPolygon(myTess, &vTri);
+      gluTessBeginContour(myTess);
+      for (int k = 0; k < 4; ++k) {
+        GLdouble point[3];
+        point[0] = pos[surf_list[id].quads[j*4+k]-1].x;
+        point[1] = pos[surf_list[id].quads[j*4+k]-1].y;
+        point[2] = pos[surf_list[id].quads[j*4+k]-1].z;
+        gluTessVertex(myTess, point, &(*pntIndex)[(surf_list[id].quads)[j*4+k]] );
+      }
+      gluTessEndContour(myTess);
+      gluTessEndPolygon(myTess);
+    }
+       
+    
+    // gen cells
+
+     
+    for (size_t j = 0; j < surf_list[id].gen_faces.size(); ++j) {
+      gluTessBeginPolygon(myTess, &vTri);
+      gluTessBeginContour(myTess);
+      for (size_t k = 0; k < surf_list[id].gen_faces[j].size(); ++k) {
+        GLdouble point[3];
+        point[0] = pos[surf_list[id].gen_faces[j][k]-1].x;
+          point[1] = pos[surf_list[id].gen_faces[j][k]-1].y;
+          point[2] = pos[surf_list[id].gen_faces[j][k]-1].z;
+          gluTessVertex(myTess, point, &(*pntIndex)[(surf_list[id].gen_faces)[j][k]]);
+      }
+      gluTessEndContour(myTess);
+      gluTessEndPolygon(myTess);
+      
+    }
+    for(size_t ii = 0; ii < vTri.size(); ii++){
+      vTri[ii] = vTri[ii]-1;
+    }
+    
+      mesh.push_back(vTri);
+      
+  }//for(bid..)
+  meshNodes.clear();
+  meshNodes=vector<positions3d>(pos);
+ 
+  gluDeleteTess(myTess);
+  delete  pntIndex;
+  meshMap.clear();
+  meshMap.resize(npos);
+  for (size_t  i = 0; i < npos; i++){
+    in >>meshMap[i];
+     }
+  file.close();
+  
+  }else{}
+    
+  
+  // Remap mesh to match nodes
+  objMinMax.clear();
+  objVisible.clear();
+  
+  for (size_t i = 0; i < mesh.size(); ++i) {
+    
+    positions3d minpos = meshNodes[mesh[i][0]];
+    positions3d maxpos = minpos;
+    for(size_t j = 0 ; j < mesh[i].size(); ++j){ 
+      positions3d t0 = meshNodes[mesh[i][j]];
+      // Find extrema
+      minpos.x = qMin(minpos.x, t0.x);
+      
+      minpos.y = qMin(minpos.y, t0.y);
+      
+      minpos.z = qMin(minpos.z, t0.z);
+      
+      maxpos.x = qMax(maxpos.x, t0.x);
+      
+      maxpos.y = qMax(maxpos.y, t0.y);
+     
+      maxpos.z = qMax(maxpos.z, t0.z);
+      
+    }
+    
+    objMinMax.push_back(minpos);
+    objMinMax.push_back(maxpos);
+    objVisible.push_back(true);
+  }
+ 
+  
+  //finish reading in all information
+  
+  updateView(); 
+  mode = BOUND_SELECT_MODE;
+  
+ 
+  
+  
+  extremeValues.clear();
+  extremeNodes.clear();
+  
+  show_shapes = true;
+  resizeGL(currentWidth, currentHeight);
+  makeObjects();
+  clearCurrent();
+  cleanDoc();
+  return true;
+}
     
 
 
@@ -1407,7 +1673,7 @@ void GLViewer::uncut(){
   show_preview = false;
   extremeValues.clear();
   extremeNodes.clear();
-  extreme_percentage = 0;
+  extreme_value = 0;
   if(fig){
     delete fig;
     fig = 0;
@@ -1436,7 +1702,7 @@ void GLViewer::uncut(){
       shadingObject = 0;
     }
   }
-  show_preview = show_contours = show_grid = show_shading = show_boundary_shading = show_border = false;
+  show_preview = show_contours = show_grid = show_shading = show_boundary_shading = show_border=show_extrema = false;
   makeObjects(); 
   updateGL();
 }
@@ -1907,7 +2173,7 @@ void GLViewer::loadSca(){
   }
 
 
-  double length = 0.5*(max_val - min_val);
+  double length = 0.2*(max_val - min_val);
   if(length > 1e-16){
     if(loadInfo.variable=="cellVol"){
       double e_low = min_val + length;
@@ -1917,16 +2183,31 @@ void GLViewer::loadSca(){
           extremeNodes.push_back(nodePos[i]);
         }
       }
-    }else{
+    }else if(loadInfo.variable=="cellFaceAngle"||
+             loadInfo.variable=="cellShearTwist"||
+             loadInfo.variable=="cellTwist"||
+             loadInfo.variable=="nonconvex"||
+             loadInfo.variable=="volumeRatio"){
       double e_high = max_val -length;
       for(size_t i = 0; i< nodeVal.size(); i++){
         if(nodeVal[i] >= e_high){
-         extremeValues.push_back(nodeVal[i]);
-         extremeNodes.push_back(nodePos[i]);   
+          extremeValues.push_back(nodeVal[i]);
+          extremeNodes.push_back(nodePos[i]);   
         }
       }
+    }else{
+      double e_low = min_val + length;
+      double e_high = max_val - length;
+      for(size_t i = 0; i< nodeVal.size(); i++){
+        if(nodeVal[i] >= e_high || nodeVal[i]<= e_low){
+          extremeValues.push_back(nodeVal[i]);
+          extremeNodes.push_back(nodePos[i]);   
+        }
+      } 
+      
     }
   }
+  
   qDebug() << "min, max: " <<min_val << "  " << max_val << extremeValues.size(); 
   show_boundary_shading = true;
   
@@ -1936,8 +2217,10 @@ void GLViewer::loadSca(){
   updateGL();
 }
 
-void GLViewer::setPercentage(int i){
-  extreme_percentage = i;
+void GLViewer::setExtrema(double value){
+  extreme_value = value;
+  show_extrema=true;
+  setShading(false);
   updateGL();
 }
 
@@ -1963,6 +2246,12 @@ void GLViewer::toggleContours()
   show_contours = (show_contours)?false:true;
   updateGL();
 }
+void GLViewer::clearExtrema()
+{
+  show_extrema = false;
+  updateGL();
+}
+
 void GLViewer::toggleBorder()
 {
   show_border = (show_border)?false:true;
@@ -2069,3 +2358,44 @@ void GLViewer::showBoundaries(){
   updateGL();
 }
     
+
+positions3d GLViewer::getTranslate(int b1, int b2){
+  positions3d p1 = get_wireframe_center(meshNodes, mesh[b1]);
+  positions3d p2 = get_wireframe_center(meshNodes, mesh[b2]);
+  //std::cout << "center of b1 : " << p1 << " center of b2: " << p2 << " translate " << p2-p1 << std::endl;
+  return p2-p1;
+}
+
+bool GLViewer::getRotate(int b1, int b2, double& angle, positions3d& axis, positions3d& center){
+  positions3d p1 = get_average_normal(meshNodes, mesh[b1]);
+  positions3d p2 = get_average_normal(meshNodes, mesh[b2]);
+  
+  positions3d p3 = get_wireframe_center(meshNodes, mesh[b1]);
+  positions3d p4 = get_wireframe_center(meshNodes, mesh[b2]);
+
+  p2  = -1.0*p2;
+  bool result =  angleBetween(p1, p2, angle, axis);
+  
+  if(fabs(angle)> 1e-5){
+    //round angle to 360/m, m is an integer
+    double real_angle = angle*180/PI;
+    int m= int(360.0/real_angle);
+    real_angle = 360.0/m;
+    angle=real_angle;
+  }
+
+  
+  positions3d n= cross(p1, axis);
+  
+  
+  double r = 0.5*norm(p4-p3);
+  if(fabs(angle)> 1e-5) r= 0.5*norm(p4-p3)/sin(0.5*angle*PI/180);
+  
+  
+  center = p3 + r*n; 
+  
+  
+ return result;
+  
+  
+}

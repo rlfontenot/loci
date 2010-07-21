@@ -57,6 +57,7 @@ struct rule {
 
 struct cutplane_info
 {
+
   positions3d rotate;
   positions3d translate;
 };

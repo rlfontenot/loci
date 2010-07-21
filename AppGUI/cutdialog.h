@@ -34,21 +34,19 @@ void setInfo();
   void cut();
   void loadSca();
   void loadGrid();
-  void showExtremeNodes(int);
+  //  void showExtremeNodes(double);
   void updateVars(QString iter);
   void updateCase();
   void updateSize();
   void check(const QString& fn);
   void showQuality(QString command, QProcess::ExitStatus status, QString directory);
 private:
-  QSlider* xslider1;
-  QSlider* yslider1;
+  
   QSlider* zslider1;
   QSlider* xslider2;
   QSlider* yslider2;
   QSlider* zslider2;
-  DoubleEdit* xEditor1;
-  DoubleEdit* yEditor1;
+  
   DoubleEdit* zEditor1;
   DoubleEdit* xEditor2;
   DoubleEdit* yEditor2;
@@ -58,9 +56,9 @@ private:
   QLabel *caseLabel;
   QComboBox *comboIter;
   QComboBox *comboVar;
-  QSpinBox* extrSpinBox;
+  DoubleEdit* extrEdit;
   
-  QGroupBox* toolbox;
+  QToolBar* toolbar;
 
   
   GLViewer *viewer; 
@@ -68,6 +66,7 @@ private:
   LoadInfo ld_info;
   double size;
   void createToolBar();
+  void createVisBar();
   void createFlowBar();
  
 };

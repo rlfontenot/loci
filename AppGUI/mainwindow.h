@@ -22,6 +22,7 @@ public slots:
   void showQuality(QString, QProcess::ExitStatus, QString);
   void processItem(int);
   void generateVar();
+  void pb();
   void showText(const QString&);
 signals:
  

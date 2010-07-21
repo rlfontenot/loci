@@ -32,6 +32,7 @@
 #include <QMainWindow>
 #include <QToolBar>
 #include <QDockWidget>
+#include <QTabWidget>
 #define PI 3.14159265358979323846264338327950
 
 
@@ -379,7 +380,7 @@ Transform::Transform( QWidget *parent)
   mainLayout->addWidget(rotateCenter);
   mainLayout->addWidget(rotateAngle);
   mainLayout->addWidget(scale);
-
+  mainLayout->addStretch(1);
   setLayout(mainLayout);
 }
 
@@ -485,16 +486,35 @@ void FVMAdapt::createToolBar(){
   QPushButton* helpButton = new QPushButton(tr("Help"), this);
   barLayout->addWidget(helpButton);
   connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
-  barLayout->addStretch(10);
+ 
   treebar->setLayout(barLayout);
   toolbar->addWidget(treebar);
   addToolBarBreak();
 
+  QGroupBox* viewbar = new QGroupBox("tree view");
+  QHBoxLayout* viewLayout = new QHBoxLayout;
 
+  QPushButton* expandButton = new QPushButton(tr("Expand"), this);
+  viewLayout->addWidget(expandButton);
+  connect(expandButton, SIGNAL(clicked()), tree, SLOT(expandAll()));
+  
+  QPushButton* collapseButton = new QPushButton(tr("Collapse"), this);
+  viewLayout->addWidget(collapseButton);
+  connect(collapseButton, SIGNAL(clicked()), tree, SLOT(collapseAll()));
+  
+  QPushButton* resizeButton = new QPushButton(tr("Resize"), this);
+  viewLayout->addWidget(resizeButton);
+  connect(resizeButton, SIGNAL(clicked()), this, SLOT(resizeTree()));
+  
+  
+  
+  viewbar->setLayout(viewLayout);
+  toolbar->addWidget(viewbar);
 
+  
 
   QGroupBox* visbar = new QGroupBox(tr("Visualization"));
-  visbar->setFlat(true);
+
   QHBoxLayout* visLayout = new QHBoxLayout;
  
   QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
@@ -518,31 +538,51 @@ void FVMAdapt::createToolBar(){
 
 }
   
-
+void FVMAdapt::resizeTree(){
+  tree->resizeColumnToContents(0);
+  tree->resizeColumnToContents(1);
+}
 
   
 void FVMAdapt::createFlowBar(){
-  int spacing =2;  
+  int spacing =20;  
   //create flowbar
  
   
   QGroupBox* flowbar = new QGroupBox("flow bar");
   QVBoxLayout* barLayout = new QVBoxLayout;
+  
 
   barLayout->addSpacing(spacing);
-  QPushButton* saveButton = new QPushButton(tr("Save Xml File"), this);
+  
+  QPushButton* loadButton = new QPushButton(tr("Load\nGrid"), this);
+  barLayout->addWidget(loadButton);
+  connect(loadButton, SIGNAL(clicked()), this, SLOT(loadGrid()));
+
+  barLayout->addSpacing(spacing);
+  QPushButton* buildButton = new QPushButton(tr("Use Toolbar\nDefine a region"), this);
+  barLayout->addWidget(buildButton);
+  //connect(loadButton, SIGNAL(clicked()), this, SLOT(loadGrid()));
+
+  barLayout->addSpacing(spacing);
+  QPushButton* modifyButton = new QPushButton(tr("Use Drag and Drop\nModify the region\n(Optional)"), this);
+  barLayout->addWidget(modifyButton);
+
+  
+  barLayout->addSpacing(spacing);
+  QPushButton* saveButton = new QPushButton(tr("Save\nXml File"), this);
   barLayout->addWidget(saveButton);
   connect(saveButton, SIGNAL(clicked()), this, SLOT(saveXml()));
   
   barLayout->addSpacing(spacing);
-  QPushButton* refineButton = new QPushButton(tr("Refine Grid"), this);
+  QPushButton* refineButton = new QPushButton(tr("Refine\nGrid"), this);
   barLayout->addWidget(refineButton);
   connect(refineButton, SIGNAL(clicked()), this, SLOT(refineGrids()));
 
 
   
   barLayout->addSpacing(spacing);
-  QPushButton* doneButton = new QPushButton(tr("Done"), this);
+  QPushButton* doneButton = new QPushButton(tr("Done\n"), this);
   barLayout->addWidget(doneButton);
   connect(doneButton, SIGNAL(clicked()), this, SLOT(done()));
 
@@ -560,6 +600,20 @@ void FVMAdapt::refineGrids(){
   refdialog->show();
 }
 
+void FVMAdapt::loadGrid(){
+  
+    // int button = QMessageBox::question(this, tr("if a new grid is about to be loaded"),
+//                                        tr("Do you want to continue?"),
+//                                        QMessageBox::Ok|QMessageBox::No, QMessageBox::Ok); 
+//     if(button == QMessageBox::Ok){
+      filename =
+        QFileDialog::getOpenFileName(this, tr("Get File"),
+                                     QDir::currentPath(),
+                                     tr("vog Files (*.vog)"));
+      QStringList bnames;
+      if(!filename.isEmpty()) viewer->load_boundary(filename, bnames);
+      // }
+  }
 void FVMAdapt::done(){
 
   close();
@@ -666,24 +720,30 @@ void FVMAdapt::buildTree(){
 
   
 
-FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QMainWindow(parent),filename(fileName){
+FVMAdapt::FVMAdapt( QWidget *parent):QMainWindow(parent){
   QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
 
-  QScrollArea* centralScrollArea = new QScrollArea;
+  //QScrollArea* centralScrollArea = new QScrollArea;
+  tabWidget = new QTabWidget;
  
   QGroupBox* central = new QGroupBox;
   central->setFlat(true);
-  QGridLayout* objLayout = new QGridLayout;
+  QHBoxLayout* objLayout = new QHBoxLayout;
 
   
   buildTree();
+
+ 
+  
  
   trans = new Transform( this);
   connect(trans, SIGNAL(tcChanged()), this, SLOT(updateTransform()));
   connect(tree, SIGNAL(itemClicked(QTreeWidgetItem*, int)),
           this, SLOT(showData(QTreeWidgetItem*)));
 
-
+  tabWidget->addTab(paraPages, tr("Geometry"));
+  tabWidget->addTab(trans, tr("Transform"));
+  
   viewer = new GLViewer();
   QDockWidget*  viewerDock  = new QDockWidget("Graphics Viewer", this); 
   viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
@@ -691,23 +751,26 @@ FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QMainWindow(parent),filena
   addDockWidget(Qt::RightDockWidgetArea, viewerDock);
   connect(this, SIGNAL(valueChanged(const QTreeWidgetItem*)), viewer, SLOT(updateDoc(const QTreeWidgetItem*))); 
  
-   objLayout->addWidget(paraPages, 0, 0, 1, 1);
-   objLayout->addWidget(trans, 1, 0, 1, 1);
-   objLayout->addWidget(tree, 0, 1, 2, 1);
+   objLayout->addWidget(tabWidget);
+   objLayout->addWidget(tree);
   
    central->setLayout(objLayout);
   
-   centralScrollArea->setWidget(central);
+   //centralScrollArea->setWidget(central);
    
    createFlowBar();
    createToolBar();
-  setCentralWidget(centralScrollArea);
+   setCentralWidget(central);
     
-   QStringList bnames;
-   qDebug() << filename;
-   viewer->load_boundary(filename, bnames);
+  //  QStringList bnames;
+//    filename =
+//      QFileDialog::getOpenFileName(this, tr("Get File"),
+//                                   QDir::currentPath(),
+//                                   tr("vog Files (*.vog)"));
+   
+//    if(!filename.isEmpty()) viewer->load_boundary(filename, bnames);
    setWindowTitle(tr("FVMAdapt"));
-    setMinimumSize(1000, 700);
+   setMinimumSize(1000, 700);
 }
 
 
@@ -716,6 +779,7 @@ FVMAdapt::FVMAdapt(QString fileName, QWidget *parent):QMainWindow(parent),filena
 void FVMAdapt::showData(QTreeWidgetItem* item ){
 
   if(item->text(0)=="shape"){
+    tabWidget->setCurrentWidget(paraPages);
     QStringList items;
     items << tr("sphere") << tr("cone") << tr("cylinder") << tr("box")<<
       tr("leftplane") ;
@@ -737,6 +801,7 @@ void FVMAdapt::showData(QTreeWidgetItem* item ){
      }
      qobject_cast<ParaPage*>(paraPages->currentWidget())->showValue();
   }else if(item->text(0)=="transform"){
+    tabWidget->setCurrentWidget(trans);
     positions3d p[4];
     for(int i =0; i < 2; i++){
       p[i].x = item->child(i)->child(0)->text(1).toDouble();
@@ -791,7 +856,7 @@ void FVMAdapt::changePage(int i){
 
 
 void FVMAdapt::addTransform(){
-
+  tabWidget->setCurrentWidget(trans);
   if(tree->currentItem() == 0 ||
      ( tree->currentItem()->text(0) != "object"
        && tree->currentItem()->text(0) != "transform"
@@ -1072,6 +1137,7 @@ void FVMAdapt::addOp(){
  }
 
 void FVMAdapt::addShape(){
+  tabWidget->setCurrentWidget(paraPages);
   QStringList items;
   items << tr("sphere") << tr("cone") << tr("cylinder") << tr("box")<<
     tr("leftplane");

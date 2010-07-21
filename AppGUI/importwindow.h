@@ -73,7 +73,7 @@ private:
  
   QString importFileName;
   QStringList gridTypes;
-  QList<bool> needConvert2Xdr;
+  //  QList<bool> needConvert2Xdr;
   QStringList toXdr;
   QStringList toVog;
   

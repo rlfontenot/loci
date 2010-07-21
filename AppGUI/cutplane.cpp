@@ -102,11 +102,7 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
   H5Sget_simple_extent_dims(dataspace_id, &npnts, NULL);
 
   hid_t pos_tid = H5Tcreate(H5T_COMPOUND, sizeof(positions3d));
-  
-  // H5Tinsert(pos_tid, "x", HOFFSET(positions3d, x), H5T_IEEE_F64LE);
-//   H5Tinsert(pos_tid, "y", HOFFSET(positions3d, y), H5T_IEEE_F64LE);
-//   H5Tinsert(pos_tid, "z", HOFFSET(positions3d, z), H5T_IEEE_F64LE);
-
+ 
   H5Tinsert(pos_tid, "x", 0, H5T_IEEE_F64LE);
   H5Tinsert(pos_tid, "y", sizeof(double), H5T_IEEE_F64LE);
   H5Tinsert(pos_tid, "z", 2*sizeof(double), H5T_IEEE_F64LE);
@@ -127,11 +123,11 @@ void CutPlane::cut(cutplane_info &info, const LoadInfo &load_info,const position
                                          -info.translate.z); 
   
   transMatrix.translate(center);
-  transMatrix.rotateX(-info.rotate.x);
-  transMatrix.rotateY(-info.rotate.y);
   transMatrix.rotateZ(-info.rotate.z);
+  transMatrix.rotateY(-info.rotate.y);
+  transMatrix.rotateX(-info.rotate.x);
   transMatrix.translate(negTranslate);  
-
+  
   
   for(size_t i = 0; i < npnts; i++)
     nodes[i] = transMatrix.MapNode(nodes[i]);

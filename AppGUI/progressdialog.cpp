@@ -23,10 +23,11 @@ ProgressDialog::ProgressDialog(QString command, QString directory, bool autoclos
   QWidget::setAttribute(Qt::WA_DeleteOnClose);
 
 
-  commands = command.split('\n');
+  commands = command.split('\n', QString::SkipEmptyParts);
   for(int i = 0; i < commands.size(); i++){
-    args<< commands[i].section(' ', 1, -1).split(' ');
-    programs << commands[i].section(' ', 0, 0);
+    QString thecommand = commands[i].simplified();
+    args<< thecommand.section(' ', 1, -1, QString::SectionSkipEmpty).split(' ', QString::SkipEmptyParts);
+    programs << thecommand.section(' ', 0, 0, QString::SectionSkipEmpty);
     proc << 0;
 
   }

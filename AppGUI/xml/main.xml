@@ -345,7 +345,7 @@
       <xdr toXdr="" nameFilter="*.xdr" label="xdr file" toVog="xdr2vog" />
       <cobalt toXdr="" nameFilter="*.cog" label="cobalt format" toVog="cobalt2vog" />
       <cfd toXdr="cfd++2xdr" nameFilter="nodesin.bin, cellsin.bin, exbcsin.bin" label="cfd++ format" toVog="xdr2vog" />
-      <plot3d toXdr="plot3d2xdr" nameFilter="*.grd" label="plot3d format" toVog="xdr2vog" >
+      <plot3d toXdr="" nameFilter="*.grd" label="plot3d format" toVog="plot3d2vog" >
         <!-- the children elements of a grid type describe the "toXdr"-->
         <!-- command options. The tagName will appear in the command -->
         <!-- such as "plot3d2xdr -c str1 -bc str2 filename", -->
@@ -357,7 +357,10 @@
         <bc element="string" >Do you want to provide a supplemental boundary
     specification file?</bc>
       </plot3d>
-      <solidmesh toXdr="" nameFilter="*.ugrid" label="solid mesh" toVog="ugrid2vog" />
+      <solidmesh toXdr="" nameFilter="*.ugrid" label="solid mesh"
+      toVog="ugrid2vog" />
+      <fluent toXdr="" nameFilter="*.msh" label="fluent mesh"
+      toVog="fluent2vog" />
     </gridtypes>
     <!-- the element vogOptions specify the xdr2vog command options. It -->
     <!-- can specify a series of options such as "-o", "-v" and an unit(which -->
@@ -384,23 +387,115 @@
       </options>
     </vogOptions>
     <usage>
-      <ugrid/>
-      <xdr/>
-      <cobalt/>
+      <solidmesh>
+	ugrid2vog converter program:
+	
+	This program converts unstructured mesh files (with a
+	'.ugrid') extension into a VOG format file that is suitable
+	for use with Loci programs.  To use this program enter:
+	
+	ugrid2vog &lt; units option &gt; &lt; -o &gt; &lt; casename &gt;
+	
+	where units option can be:
+	
+	-m : meters
+	-cm : centemeters
+	-mm : millimeters
+	-in : inches
+	-ft : feet
+	-Lref "reference length" : user specified scaling factor
+	
+	The "-o" option, if provided, will disable node
+	reordering optimizations.
+	
+	The &lt;casename&gt; is the base name without
+	extension of the  solidmesh file.
+      </solidmesh>
+      
+
+      <xdr>
+	xdr2vog converter program:
+	
+	This program converts xdr mesh files (with a '.xdr')
+	extension into a VOG format file that is suitable for
+	use with Loci programs.
+       
+	To use this program enter:
+	
+	xdr2vog &lt;units option&gt; &lt;-o&gt; &lt;casename&gt;
+	
+	where units option can be:
+	
+	-m : meters
+	-cm : centemeters
+	-mm : millimeters
+	-in : inches
+	-ft : feet
+	-Lref "reference length" : user specified scaling factor
+	
+	The "-o" option, if provided, will disable node
+	reordering optimizations.
+	
+	The &lt;casename&gt; is the base name without extension of
+	the xdr mesh file.
+      </xdr>
+      <cobalt>
+	cobalt2vog converter program:
+	
+	This program converts cobalt mesh files (with a '.grd')
+	extension into a VOG format file that is suitable for
+	use with Loci programs.
+	
+	To use this program enter:
+	
+	cobalt2vog &lt;units option&gt; &lt;-o&gt; &lt;casename&gt;
+	
+	where units option can be:
+	
+	-m : meters
+	-cm : centemeters
+	-mm : millimeters
+	-in : inches
+	-ft : feet
+	-Lref "reference length" : user specified scaling factor
+	
+	The "-o" option, if provided, will disable node
+	reordering optimizations.
+	
+	The &lt;casename&gt; is the base name without extension of
+	the  cobalt file.
+      </cobalt>
       <cfd/>
-      <plot3d> Plot3d to XDR file converter usage
-            This converter assumes that the grid file has a .grd postfix
+      <plot3d>
+	Plot3d to VOG file converter usage:
+        
+	This converter assumes that the grid file has a .grd postfix
         If only a single argument is given, then this will be 
-            grid file sans the .grd postfix, this will convert the
+        grid file sans the .grd postfix, this will convert the
         grid to an unstructured XDR format grid file.  If the
         input file has more than one block, then the point matching
-            faces will be glued, and the remaining faces will be tagged
+        faces will be glued, and the remaining faces will be tagged
         with a unique tag for each block and face. 
 	
-            If you want to control how tags are assigned to boundary
+        If you want to control how tags are assigned to boundary
         faces, then you can do so by providing a supplemental
         boundary specification file with the flag -bc
-        Example:  plot3d2xdr -bc grid.bc grid
+        Example:  plot3d2vog -bc grid.bc &lt;units option&gt; &lt;-o&gt; grid
+	
+	where units option can be:
+	
+	-m : meters
+	-cm : centemeters
+	-mm : millimeters
+	-in : inches
+	-ft : feet
+	-Lref "reference length" : user specified scaling factor
+	
+	The "-o" option, if provided, will disable node
+	reordering optimizations.
+	
+	The &lt;casename&gt; is the base name without extension of
+	the plot3d mesh file.
 	
         The boundary condition specification file is contains the
         following information: 
@@ -408,11 +503,50 @@
         For each group: 
         [boundary tag] [number of segments] [boundary name]
         For each segment:
-        [block number] [faceid] [index1 start] [index1 end] [index2 start] [index2 end]
+        [block number] [faceid] [index1 start] [index1 end]
+	[index2 start] [index2 end]
         Where:
         [faceid] is one of six strings: [IJ1,IJN,JK1,JKN,IK1,IKN]
-        indices are given in the order indicated by the faceid string</plot3d>
-      <solidmesh/>
+        indices are given in the order indicated by the faceid string
+      </plot3d>
+      
+      <fluent>
+	fluent2vog converter program:
+	
+	This program converts fluent mesh files (with a '.msh')
+	extension into a VOG format file that is suitable for
+	use with Loci programs.
+	
+	To use this program enter:
+	
+	fluent2vog &lt;units option&gt; &lt;-o&gt; &lt;casename&gt;
+	      
+	where units option can be:
+	
+	-m : meters
+	-cm : centemeters
+	-mm : millimeters
+	-in : inches
+	-ft : feet
+	-Lref "reference length" : user specified scaling factor
+	
+	The "-o" option, if provided, will disable node
+	reordering optimizations.
+	
+	The &lt;casename&gt; is the base name without
+	extension of the fluent mesh file.
+	
+	This converter is able to convert both 2-D and
+	3-D meshes.  For 2-D meshes, the converter
+	automatically extrudes the mesh once cell in
+	the Z coordinate direction. Symbolic boundary
+	names are extracted from the Fluent mesh file
+	and used as symbolic boundary face names in the
+	VOG file. Volume tagged cells are ignored.
+	Periodic boundary maps, hanging nodes, and
+	other features are ignored by the converter.
+      </fluent>
+
     </usage>
     <buttons>
       <convert status="new" cmd="" dir="" filename=""/>
@@ -753,7 +887,24 @@
     <VogMerge>
       VogMerge: merge more than one volume grids into one grid.
     </VogMerge>
+    
+    <PB>
+      pb is a periodic boundary tool. It is mainly designed
+      to be used with the CHEM program (the XDR grid format).
+      It makes exactly same boundaries for the given grid.
+      This version uses the robust geometric predicates from
+      Jonathan Richard Shewchuk.
+      
+      This is version 0.12
+      
+      Some preconditions must be met before using pb
+      1) The two specified boundaries must have same contours
+      2) The boundary cannot have arbitrary complex topology,
+      planes or simple curves are the best inputs
+      3) Boundary faces must be convex
+    </PB>
    
+
     <VogCheck>
       VogCheck: check grid quality of vog file.
     </VogCheck>

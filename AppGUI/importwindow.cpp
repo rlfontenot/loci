@@ -9,7 +9,7 @@
 #include "progressdialog.h"
 XdrOption::XdrOption() : QGroupBox(tr("other options")){}
 
-XdrOption::XdrOption( QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("convert to xdr options") , parent){
+XdrOption::XdrOption( QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("other options") , parent){
   QDomElement elem = myelem;
   signalMapper = new QSignalMapper(this);
   QGridLayout* mylayout = new QGridLayout;    
@@ -39,7 +39,6 @@ XdrOption::XdrOption( QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("con
           this, SLOT(update(int)));  
   
   setLayout(mylayout);      
-
 }
 
 void XdrOption::update(int i){
@@ -60,6 +59,7 @@ QString XdrOption::currentText(){
 
 VogOption::VogOption(  QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("convert to vog options") , parent){
   QDomElement elem = myelem.firstChildElement();
+  
   QVBoxLayout* mylayout = new QVBoxLayout;    
   radioGroup = 0;
   
@@ -71,7 +71,8 @@ VogOption::VogOption(  QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("co
   }
 
   for (; !elem.isNull(); elem = elem.nextSiblingElement()) {
-    if(elem.attribute("value")=="bool"){
+   
+    if(elem.attribute("element")=="bool"){
       QCheckBox* checkBox = new QCheckBox(elem.text());
       tag<<elem.tagName();
       objs<<checkBox;
@@ -135,11 +136,11 @@ QString VogOption::currentText(){
 ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
   :GeneralGroup(theelem, parent)
 {
- setAttribute(Qt::WA_DeleteOnClose, true);
+  setAttribute(Qt::WA_DeleteOnClose, true);
   
   currentRow = 0;
   importFileName="";
-
+  
   typesWidget = new QListWidget;
   pagesWidget = new QStackedWidget;
   QGroupBox* typeGroup = new QGroupBox(myelem.attribute("label"));
@@ -206,10 +207,10 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
       if(!elem.firstChildElement().isNull())
         {
           QDomElement tmpNode = elem.firstChildElement();
-        XdrOption*  otherOption = new XdrOption(tmpNode);
-        otherOptions << otherOption;
-        otherOption->show();
-         aLayout->addWidget(otherOption);
+          XdrOption*  otherOption = new XdrOption(tmpNode);
+          otherOptions << otherOption;
+          otherOption->show();
+          aLayout->addWidget(otherOption);
         }
       else{
         XdrOption* otherOption  = new XdrOption();
@@ -273,15 +274,20 @@ void ImportWindow::changePage(QListWidgetItem *current, QListWidgetItem *previou
 
 void ImportWindow::convert(){
   
-   QString command2 = toVog[currentRow] +option->currentText() + " " +importFileName ;;
- 
-   QString command1;
-   if(toXdr[currentRow]!=""){
-     command1 = toXdr[currentRow]+otherOptions[currentRow]->currentText()+" " + importFileName;
-     
-      
-   }else{
-   }
+  QString command2;
+
+  if(toXdr[currentRow]!=""){
+   command2 = toVog[currentRow]+ " "+option->currentText() + " " +importFileName ;
+  }else{
+    command2 = toVog[currentRow] +otherOptions[currentRow]->currentText()+" "+option->currentText() + " " +importFileName ;
+  }
+
+  
+  QString command1;
+  if(toXdr[currentRow]!=""){
+    command1 = toXdr[currentRow]+otherOptions[currentRow]->currentText()+" " + importFileName;
+  }else{
+  }
   
   QString command;
   if(toXdr[currentRow]!=""){
@@ -289,6 +295,7 @@ void ImportWindow::convert(){
   }else{
     command = command2;
   }
+  qDebug() << command;
   ProgressDialog* dialog = new ProgressDialog(command, QString());
   dialog->show();
  
@@ -320,16 +327,9 @@ void ImportWindow::convert(){
 
 void ImportWindow::usageButtonClicked(){
   
-  QDomElement elt = myelem.firstChildElement("usage");
+ 
   
-  if(elt.isNull()){
-     QMessageBox::warning(window(), tr(".xml"),
-                         tr("can not find element 'usage' in the children of 'import'")
-                          );
-    return;
-  }
-  
-  QDomElement elem = elt.firstChildElement();
+  QDomElement elem = myelem.firstChildElement("gridtypes").firstChildElement();
   
   if(elem.isNull()){
     QMessageBox::warning(window(), tr(".xml"),
@@ -337,10 +337,22 @@ void ImportWindow::usageButtonClicked(){
                          );
     return;
   }
-   
+  
   for (int i = 0;  i<currentRow; i++) elem = elem.nextSiblingElement();
+
+  QDomElement elt = myelem.firstChildElement("usage").firstChildElement(elem.tagName());
+  
+  if(elt.isNull()){
+    QMessageBox::warning(window(), tr(".xml"),
+                         tr("can not find element 'usage' in the children of 'import'")
+                         );
+    return;
+  }
+  
   QMessageBox msgBox;
-  msgBox.setText(elem.text());
+  msgBox.setMinimumSize(1000, 700);
+  msgBox.setText(elt.text());
+  
 
   msgBox.exec();
      

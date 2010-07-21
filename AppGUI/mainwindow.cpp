@@ -8,14 +8,20 @@
 #include "importwindow.h"
 #include "qualitydialog.h"
 #include "progressdialog.h"
+#include "pbwindow.h"
 
 MyPushButton::MyPushButton(const QString& title, QWidget* parent):QPushButton(title, parent){
   QWidget::setMouseTracking(true);
 }
+
+
 void MyPushButton::mouseMoveEvent(QMouseEvent */*event*/)
 {
   emit showText(whatsThis());
 }
+
+
+
 MainWindow::MainWindow(QWidget* parent):QWidget(parent)
 {
   // QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
@@ -112,6 +118,8 @@ void MainWindow::processItem(int index){
       fvmAdapt();
     }else if(item=="Post-Processing"){
       postProcess();
+    }else if(item=="PB"){
+      pb();
     }else{
       generateVar();
     }
@@ -125,6 +133,10 @@ void MainWindow::generateVar(){
   varWindow->show();
 }
 
+void MainWindow::pb(){
+  PbWindow* pbWindow = new PbWindow();
+  pbWindow->show();
+}
 
 void MainWindow::postProcess(){
 
@@ -140,6 +152,7 @@ void MainWindow::vcheck(){
                                  QDir::currentPath(),
                                  tr("vog Files (*.vog)"));
   
+  if(fileName.isEmpty())return;
   fileName = fileName.section('.', 0, -2);
   check(fileName);
 }
@@ -176,18 +189,7 @@ void MainWindow::showQuality(QString command, QProcess::ExitStatus status, QStri
   QualityDialog qualityDialog(filename, this);
   qualityDialog.exec();
 
-  //the following block is for post-processing
- //  if(waitForQualityFile){
-//     waitForQualityFile = false;
-//     QDomElement elem = doc.documentElement().firstChildElement("mainWindow");
-//     elem = elem.firstChildElement("gridSetup");
-//     LoadInfo ldinfo;
-//     ldinfo.casename = elem.attribute("casename");
-//     ldinfo.directory = elem.attribute("directory");
-//     CutDialog* cutdialog = new CutDialog(ldinfo, viewer->boundaryBoxSize(), viewer);
-//     cutdialog->show();
-    
-//   }
+ 
 }
   
 
@@ -196,11 +198,8 @@ void MainWindow::showQuality(QString command, QProcess::ExitStatus status, QStri
 
 void MainWindow::fvmAdapt()
 {
-  QString fileName =
-    QFileDialog::getOpenFileName(this, tr("Get File"),
-                                 QDir::currentPath(),
-                                 tr("vog Files (*.vog)"));
-  FVMAdapt* adaptwindow = new FVMAdapt(fileName);
+  
+  FVMAdapt* adaptwindow = new FVMAdapt;
   adaptwindow->show();
 
 }

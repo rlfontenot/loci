@@ -20,7 +20,7 @@ class QTreeWidgetItem;
 class QStackedWidget;
 class QTreeWidget;
 class QSignalMapper;
-
+class QTabWidget;
   
 enum BASIC_SHAPES{SPHERE, CONE, CYLINDER, BOX, LEFTPLANE};
 
@@ -86,7 +86,7 @@ class FVMAdapt : public QMainWindow
   Q_OBJECT
 
   public:
-  FVMAdapt(QString fileName, QWidget *parent = 0);
+  FVMAdapt(QWidget *parent = 0);
   ~FVMAdapt();
   QTreeWidgetItem* getRoot();
  
@@ -107,6 +107,8 @@ private slots:
   void showData(QTreeWidgetItem* item);  
   void done();
   void refineGrids();
+  void loadGrid();
+  void resizeTree();
 private:
   void createFlowBar();
   void createToolBar();
@@ -118,6 +120,7 @@ private:
   QTreeWidgetItem* root;
  
   QStackedWidget* paraPages;
+  QTabWidget* tabWidget;
 
   QToolBar* toolbar;
   vector<Shape*> defaultShapes;

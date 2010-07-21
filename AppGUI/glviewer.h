@@ -6,7 +6,7 @@
 #include <QDomElement>
 #include <QPointer>
 #include "grid.h"
-
+#include "pboperation.h"
 
 class VolGrid;
 class cutplane_info;
@@ -53,7 +53,13 @@ public:
   ~GLViewer();
   // void loadGrid(const char *fileName); //read in 2dgv file and view it
   double boundaryBoxSize(); // return the size of boudnary box, used in cutdialog
-  bool load_boundary(QString filename,  QStringList& boundary_names); //read in .surf and .names file, or .surface file 
+  bool load_boundary(QString filename,  QStringList& boundary_names); //read in .surface file
+  bool load_boundary(QString filename,
+                     QStringList& boundary_names,
+                     QList<int>& bids); //for pb, boundary ids need to be read in
+  double inline  get_min_val(){return min_val;};
+  double inline  get_max_val(){return max_val;}; // Scalar value extrema over the whole grid                                  
+                                                                                      
  public slots:
  //slots for cutplane display menu
   void toggleContours();
@@ -63,6 +69,7 @@ public:
   void setShading(bool); //show_exreme_nodes decide shading
   void toggleBorder();
   void toggleShowShapes();
+  void clearExtrema();
   //  void toggleShowNodes();
   void setShadeType1();
   void setShadeType2();
@@ -70,7 +77,7 @@ public:
   void changeContours(int number);
   void cut(); //read in volume grid and sca value, generate a cutplane
   void loadSca(); //read in sca value, shading the boundaries
-  void setPercentage(int);
+  void setExtrema(double);
   void previewCut(cutplane_info& Nfo);
   void uncut();
   
@@ -89,7 +96,12 @@ public:
   void updateDoc(const QTreeWidgetItem*);
   //void markNodes();
   //void markVolumeNodes(QString fileName);
+  
+  //fot pb
 
+  positions3d getTranslate(int b1, int b2);
+  bool getRotate(int b1, int b2, double& angle, positions3d& axis, positions3d& center);
+  
   QSize sizeHint() const;
  
 signals:
@@ -131,7 +143,7 @@ private:
   void drawPzPlane(const vector<double>& p, double size);
   void drawNzPlane(const vector<double>& p, double size);
   // void drawMarkedNodes();
-  void drawExtremeNodes(int);
+  void drawExtremeNodes(double value);
  
   
   QDomDocument doc;//for FVMAdapt
@@ -162,7 +174,7 @@ private:
   vector<vector<int> > mesh;  // boundaries
   vector<double> extremeValues;
   vector<positions3d> extremeNodes;//for scalar values display
-  int extreme_percentage;
+   double extreme_value;
  
  
   vector<bool> objVisible;  // Visibility of all boundaries
@@ -195,7 +207,7 @@ private:
   
   int currentWidth, currentHeight;//viewport
   
-  bool show_preview, show_contours, show_grid, show_shading,show_boundary_shading, show_border,  show_shapes;  // Visibility flags
+  bool show_preview, show_contours, show_grid, show_shading,show_boundary_shading, show_border, show_extrema, show_shapes;  // Visibility flags
   double min_val, max_val;  // Scalar value extrema over the whole grid
   
   cutplane_info info;  // The information for the current cutting plane

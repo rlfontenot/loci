@@ -60,14 +60,15 @@ void GLViewer::makeObjects()
 GLuint GLViewer::makeGridObject()
 {
   int nedges = fig->interior;
+ positions3d negCenter = positions3d(-centerx, -centery, -centerz);
   affineMapping transMatrix2;
-  positions3d negCenter = positions3d(-centerx, -centery, -centerz);
   transMatrix2.translate(info.translate);
-  transMatrix2.rotateZ(info.rotate.z);
-  transMatrix2.rotateY(info.rotate.y);
   transMatrix2.rotateX(info.rotate.x);
+  transMatrix2.rotateY(info.rotate.y);
+  transMatrix2.rotateZ(info.rotate.z);
   transMatrix2.translate(negCenter);
   
+ 
   vector<positions3d> tmpPos;
   for(size_t i =0; i <fig->pos.size();i++){
     positions3d aNode = positions3d(fig->pos[i].x, fig->pos[i].y, 0);
@@ -102,14 +103,15 @@ GLuint GLViewer::makeContourObject()
 {
  
   int nsegs = fig->contour_curves.size();
-  affineMapping transMatrix2;
-  positions3d negCenter = positions3d(-centerx, -centery, -centerz);
-  transMatrix2.translate(info.translate);
-  transMatrix2.rotateZ(info.rotate.z);
-  transMatrix2.rotateY(info.rotate.y);
-  transMatrix2.rotateX(info.rotate.x);
-  transMatrix2.translate(negCenter);
 
+   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
+  affineMapping transMatrix2;
+  transMatrix2.translate(info.translate);
+  transMatrix2.rotateX(info.rotate.x);
+  transMatrix2.rotateY(info.rotate.y);
+  transMatrix2.rotateZ(info.rotate.z);
+  transMatrix2.translate(negCenter);
+  
   vector<positions3d> tmpP1;
   vector<positions3d> tmpP2;
   
@@ -150,14 +152,14 @@ GLuint GLViewer::makeBorderObject()
 {
  
   int nedges = fig->edge_list.size();
-
-  affineMapping transMatrix2;
   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
- transMatrix2.translate(info.translate);
-  transMatrix2.rotateZ(info.rotate.z);
-  transMatrix2.rotateY(info.rotate.y);
+  affineMapping transMatrix2;
+  transMatrix2.translate(info.translate);
   transMatrix2.rotateX(info.rotate.x);
+  transMatrix2.rotateY(info.rotate.y);
+  transMatrix2.rotateZ(info.rotate.z);
   transMatrix2.translate(negCenter);
+ 
  
   vector<positions3d> tmpP1;
   vector<positions3d> tmpP2;
@@ -200,13 +202,17 @@ GLuint GLViewer::makeShadingObject()
 {
  
   int ntris = fig->triangle_list.size();
-
-  affineMapping transMatrix2;
+  
+ 
+  
+ //move the cut plane back
+  
   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
+  affineMapping transMatrix2;
   transMatrix2.translate(info.translate);
-  transMatrix2.rotateZ(info.rotate.z);
-  transMatrix2.rotateY(info.rotate.y);
   transMatrix2.rotateX(info.rotate.x);
+  transMatrix2.rotateY(info.rotate.y);
+  transMatrix2.rotateZ(info.rotate.z);
   transMatrix2.translate(negCenter);
  
   vector<positions3d> tmpPos;
@@ -428,16 +434,19 @@ GLuint GLViewer::makeCPContour()
   
   
   affineMapping transMatrix;
+  
   transMatrix.translate(center);
-  transMatrix.rotateX(-previewInfo.rotate.x);
-  transMatrix.rotateY(-previewInfo.rotate.y);
   transMatrix.rotateZ(-previewInfo.rotate.z);
+  transMatrix.rotateY(-previewInfo.rotate.y);
+  transMatrix.rotateX(-previewInfo.rotate.x);
   transMatrix.translate(negTranslate);  
+  
 
   // Transform tempNodes
  
   for (int i = 0; i < (int)meshNodes.size(); ++i){
     tempNodes[i]= transMatrix.MapNode(meshNodes[i]);
+   
   }
    
   double tol = 1e-34;
@@ -522,7 +531,7 @@ GLuint GLViewer::makeCPContour()
         qDebug() << "Major malfunction at tri #" << i;
         qDebug() << "Cuts: " << cutsFound;
         qDebug() << tri[0].z<< " "<< tri[1].z<<" " << tri[2].z;
-        exit(0);
+        
       }
     }
   }
@@ -532,11 +541,14 @@ GLuint GLViewer::makeCPContour()
   //move the cut plane back
   affineMapping transMatrix2;
   transMatrix2.translate(previewInfo.translate);
-  transMatrix2.rotateZ(previewInfo.rotate.z);
-  transMatrix2.rotateY(previewInfo.rotate.y);
   transMatrix2.rotateX(previewInfo.rotate.x);
+  transMatrix2.rotateY(previewInfo.rotate.y);
+  transMatrix2.rotateZ(previewInfo.rotate.z);
   transMatrix2.translate(negCenter);
- 
+
+
+
+
   
   for (size_t i = 0; i < contourLoop.size(); ++i)
     contourLoop[i] = transMatrix2.MapNode(contourLoop[i]);
