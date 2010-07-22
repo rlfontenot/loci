@@ -109,10 +109,18 @@ private slots:
   void refineGrids();
   void loadGrid();
   void resizeTree();
+  void validateTree();
 private:
   void createFlowBar();
   void createToolBar();
   void buildTree();
+  void validateRegion(QTreeWidgetItem* item);
+  void validateObject(QTreeWidgetItem* item);
+  //void validateOp(QTreeWidgetItem* item);
+  // void validateTransform(QTreeWidgetItem* item);
+  //void validateTranslate(QTreeWidgetItem* item);
+  
+  
   QString filename;
   
   Transform* trans;
