@@ -36,6 +36,8 @@ HEADERS += bdcndwindow.h \
            progressdialog.h \
            stateregion.h \
            varwindow.h \
+           pbwindow.h \
+           pboperation.h \
            defines.h
           
 SOURCES += bdcndwindow.cpp \
@@ -61,7 +63,9 @@ SOURCES += bdcndwindow.cpp \
            refdialog.cpp \
            progressdialog.cpp \
            stateregion.cpp \
-           varwindow.cpp
+           varwindow.cpp \
+           pbwindow.cpp \
+           pboperation.cpp
 
 RESOURCES     = chemdemo.qrc
 #install
