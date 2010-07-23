@@ -774,7 +774,7 @@ std::vector<bool> process_shape(xmlNode* anode, const std::vector<vect3d>& p){
 
 
 
-std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d> p){
+std::vector<bool>  process_object(xmlNode* anode,  std::vector<vect3d>& p){
   
   xmlNode* children = anode->children;
   xmlNode* cur_node =NULL;
