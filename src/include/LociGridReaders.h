@@ -60,7 +60,14 @@ namespace Loci {
   struct rigid_transform {
     vector3d<real_t> t1,t2 ;
     tensor3d<real_t> R,Rinv ;
-    rigid_transform() {}
+    rigid_transform() {
+      t1 = vector3d<real_t>(0,0,0) ;
+      t2 = t1 ;
+      R.x = vector3d<real_t>(1,0,0) ;
+      R.y = vector3d<real_t>(0,1,0) ;
+      R.z = vector3d<real_t>(0,0,1) ;
+      Rinv = R ;
+    }
     rigid_transform(vector3d<real_t> center, vector3d<real_t> v, real_t angle, vector3d<real_t> translate) {
       t1 = -1.*center ;
       t2 = center + translate ;
