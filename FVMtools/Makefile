@@ -26,7 +26,7 @@ COPT = $(COPTLESS)
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog fluent2vog cobalt2vog vogmerge vogcheck extruder vog2surf
+OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr pb xdr2cobalt xdr2vog vog2xdr ugrid2vog fluent2vog cobalt2vog vogmerge vogcheck extruder vog2surf ccm2vog
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o
@@ -47,6 +47,12 @@ all: $(TARGET) $(OTHER_APPS)
 $(TARGET): $(OBJS) 
 	$(LD) -o $(TARGET) $(OBJS) $(TEC_LIBS) $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 FRC : 
+
+libadf/libadf.a:
+	(cd libadf; $(MAKE) libadf.a)
+
+ccm2vog.o: ccm2vog.cc
+	   $(CP) $(COPT) $(EXCEPTIONS) $(DEFINES) $(LOCI_INCLUDES) $(INCLUDES) -Ilibadf -c ccm2vog.cc
 
 extruder: extruder.o
 	$(LD) -o extruder extruder.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
@@ -72,6 +78,8 @@ cobalt2vog: cobalt2vog.o vogtools.o
 fluent2vog: fluent2vog.o vogtools.o
 	$(LD) -o fluent2vog fluent2vog.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
+ccm2vog: ccm2vog.o vogtools.o libadf/libadf.a
+	 $(LD) -o ccm2vog ccm2vog.o vogtools.o libadf/libadf.a $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 vog2xdr: vog2xdr.o
 	$(LD) -o vog2xdr vog2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
