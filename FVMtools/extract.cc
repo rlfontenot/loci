@@ -827,7 +827,7 @@ void extract_grid(string casename, string iteration,
                   hexs[i-cnt]=hexs[i] ;
             }
           }
-          topo->write_hexs(&hexs[0],size-cnt,0,1,nhexs_b) ;
+          topo->write_hexs(&hexs[0],size-cnt,b,nblocks,nhexs_b) ;
         }
       }
 
