@@ -857,7 +857,7 @@ namespace Loci {
       dataset = H5Dopen(node_g,"positions") ;
       dspace = H5Dget_space(dataset) ;
       if(dataset <=0 || dspace <=0)
-        failure = true ;
+        failure = 1 ;
         
       hsize_t size = 0 ;
       H5Sget_simple_extent_dims(dspace,&size,NULL) ;
@@ -1010,7 +1010,7 @@ namespace Loci {
       dataset = H5Dopen(face_g,"cluster_sizes") ;
       dspace = H5Dget_space(dataset) ;
       if(dataset <=0 || dspace <=0)
-        failure = true ;
+        failure = 1 ;
       
       hsize_t size = 0 ;
       H5Sget_simple_extent_dims(dspace,&size,NULL) ;
