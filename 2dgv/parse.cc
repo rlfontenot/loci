@@ -1,9 +1,9 @@
 #include "parse.h"
-
+#include <cstdio>
 #include "debug.h"
 
 namespace parse {
-
+  
     using namespace std ;
     void kill_white_space(istream &s) {
 

@@ -1,5 +1,5 @@
 #include "Xdev.h"
-
+#include <stdlib.h>
 using std::cout ;
 using std::cerr ;
 using std::endl ;
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
         device = PSPRINTER ;
       else
         showhelp() ;
-    } else if ((!strcmp("-h",argv[i])) || (!strcmp("-help",argv[i]))
+    } else if (((!strcmp("-h",argv[i])) || (!strcmp("-help",argv[i])))
                && (i+1 <= argc)) showhelp();
   }
   if(j > argc-2 ) {

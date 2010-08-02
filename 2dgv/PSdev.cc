@@ -1,6 +1,6 @@
 #include "PSdev.h"
 #include "Xdev.h"
-
+#include <stdlib.h>
 using std::max ;
 using std::min ;
 using std::endl ;

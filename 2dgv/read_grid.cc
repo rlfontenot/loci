@@ -6,6 +6,7 @@
 #include <fstream>
 #include <math.h>
 #include <strings.h>
+#include <string.h>
 #include "pens.h"
 
 using std::ifstream ;
