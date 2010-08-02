@@ -1592,7 +1592,9 @@ namespace Loci
 
     // allocate space for LB
     tSize = (allItems + 4 * nProcs - 1) / (4 * nProcs);
-    AllocateLBspace (tSize);
+    // add 25% saftey margin for allocation  (some problems found
+    // with under-allocation)
+    AllocateLBspace (tSize+tSize/4+1);
 
     returns = 0;
     incoming = 0;
