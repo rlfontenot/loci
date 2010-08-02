@@ -81,3 +81,5 @@ $type petscBlockedSSolve(X) storeVec<Loci::real_t> ;
 $type L2Norm(X) param<Loci::real_t> ;
 $type L1Norm(X) param<Loci::real_t> ;
 $type LinfNorm(X) param<Loci::real_t> ;
+
+$type fileNumber(X) store<int> ;
