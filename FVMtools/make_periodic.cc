@@ -6394,7 +6394,7 @@ std::ostream& show_usage(const string& pb, std::ostream& s) {
   s << "Usage: " << pb << " [options] input_case" << endl ;
   s << "    These options are available:" << endl ;
   s << "    -h  Help: show this help message you are reading" << endl ;
-  s << "    -o  Specify the output grid file name (default is a.vog)"
+  s << "    -o  Specify the output grid file name (default is pb_casename.vog)"
     << endl ;
   s << "    -Q  Quiet: No terminal output except errors" << endl ;
   s << "    -2  Output intermediate results for 2D visualization" << endl ;
