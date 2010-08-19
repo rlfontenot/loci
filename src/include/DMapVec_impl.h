@@ -194,6 +194,8 @@ namespace Loci {
       attrib_data.erase(*ci);
 
     VEC   newvalue;
+    for(size_t i=0;i<M;++i)
+      newvalue[i] = 0 ;
     for( ci = newSet.begin(); ci != newSet.end(); ++ci)
       attrib_data[*ci] = newvalue;
 

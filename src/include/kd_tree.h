@@ -23,6 +23,7 @@
 #include <vector>
 #include <algorithm>
 #include <Config/conf.h>
+#include <Loci_types.h>
 #ifdef NO_CMATH
 #include <math.h>
 #else
@@ -40,6 +41,11 @@ namespace Loci {
       T operator[](size_t i) const { return coords[i] ; }
       coordinate3d() {} ;
       coordinate3d(T x, T y, T z) { coords[0]=x;coords[1]=y;coords[2]=z; }
+      template<class S> coordinate3d(const vector3d<S> &v) 
+      {coords[0] = v.x; coords[1] = v.y ; coords[2] = v.z; }
+      template<class S> operator vector3d<S>() {
+	return vector3d<S>(coords[0],coords[1],coords[2]) ;
+      }
     } ;
     
     // Euclidean Distance Function

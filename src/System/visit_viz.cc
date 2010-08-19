@@ -136,18 +136,37 @@ namespace Loci {
       cerr << "the looping part graph (collapse and advance), id: "
            << lc.cid << endl ;
       create_digraph_dot_file(lc.loop_gr,"visual_graph.dot") ;
-      system("dotty visual_graph.dot") ;
-      system("rm -fr visual_graph.dot") ;
+      int err = system("dotty visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "dotty ..." << "'" 
+	     << endl ;
+
+      err = system("rm -fr visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "rm -fr ..." << "'" 
+	     << endl ;
 
       cerr << "\tthe collapse part graph" << endl ;
       create_digraph_dot_file(lc.collapse_gr,"visual_graph.dot") ;
-      system("dotty visual_graph.dot") ;
-      system("rm -fr visual_graph.dot") ;
+      err = system("dotty visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "dotty ..." << "'" 
+	     << endl ;
+      err = system("rm -fr visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "rm ..." << "'" 
+	     << endl ;
       
       cerr << "\tthe advance part graph" << endl ;
       create_digraph_dot_file(lc.advance_gr,"visual_graph.dot") ;
-      system("dotty visual_graph.dot") ;
-      system("rm -fr visual_graph.dot") ;
+      err = system("dotty visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "dotty ..." << "'" 
+	     << endl ;
+      err = system("rm -fr visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "rm ..." << "'" 
+	     << endl ;
     }
   }
 
@@ -155,8 +174,15 @@ namespace Loci {
     if(Loci::MPI_rank==0) {
       cerr << "the dag graph, id: " << dc.cid << endl ;
       create_digraph_dot_file(dc.dag_gr,"visual_graph.dot") ;
-      system("dotty visual_graph.dot") ;
-      system("rm -fr visual_graph.dot") ;
+      int err = system("dotty visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "dotty ..." << "'" 
+	     << endl ;
+      err = system("rm -fr visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "rm ..." << "'" 
+	     << endl ;
+      
     }
   }
 
@@ -164,8 +190,15 @@ namespace Loci {
     if(Loci::MPI_rank==0) {
       cerr << "the conditional graph, id: " << cc.cid << endl ;
       create_digraph_dot_file(cc.cond_gr,"visual_graph.dot") ;
-      system("dotty visual_graph.dot") ;
-      system("rm -fr visual_graph.dot") ;
+      int err = system("dotty visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "dotty ..." << "'" 
+	     << endl ;
+      err = system("rm -fr visual_graph.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" << "rm ..." << "'" 
+	     << endl ;
+
     }
   }
 
@@ -176,8 +209,16 @@ namespace Loci {
     if(Loci::MPI_rank == 0) {
       s << "visualizing detected cycle..." << endl ;
       create_digraph_dot_file(cycle,"cycle_in_dag.dot") ;
-      system("dotty cycle_in_dag.dot") ;
-      system("rm -fr cycle_in_dag.dot") ;
+      int err = system("dotty cycle_in_dag.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" 
+	     << "dotty cycle_in_dag.dot"
+	     << "'" << endl ;
+      err = system("rm -fr cycle_in_dag.dot") ;
+      if(err != 0)
+	cerr << "system call returned " << err << " in call '" 
+	     << "rm -fr cycle_in_dag.dot"
+	     << "'" << endl ;
     }
     return s ;
   }
@@ -211,8 +252,16 @@ namespace Loci {
           s << "target variables of the chomp node: " << extract_vars(li->first.get_target_vertices() - li->first.get_source_vertices()) << endl ;
           
           create_digraph_dot_file(li->first,"chomping_rules.dot") ;
-          system("dotty chomping_rules.dot") ;
-          system("rm -fr chomping_rules.dot") ;
+          int err = system("dotty chomping_rules.dot") ;
+	  if(err != 0)
+	    cerr << "system call returned " << err << " in call '" 
+		 << "dotty chomping_rules.dot"
+		 << "'" << endl ;
+          err = system("rm -fr chomping_rules.dot") ;
+	  if(err != 0)
+	    cerr << "system call returned " << err << " in call '" 
+		 << "rm -fr chomping_rules.dot"
+		 << "'" << endl ;
         }
       }
       s << "total variables can be chomped in the program: "

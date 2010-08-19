@@ -75,6 +75,38 @@ namespace Loci {
     }
     return s;
   }
+  //---------------------Array----------------------//
+  template <class T,size_t n> class Array {
+    T x[n] ;
+  public:
+    typedef T * iterator ;
+    typedef const T * const_iterator ;
+    
+    //    Array() {} ;
+    //    Array(const Array<T,n> &v)
+    //    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; } 
+    //    Array<T,n> &operator=(const Array<T,n> &v)
+    //    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
+
+    Array<T,n> &operator +=(const Array<T,n> &v)
+    { for(size_t i=0;i<n;++i) x[i] += v.x[i] ; return *this ; }
+    Array<T,n> &operator -=(const Array<T,n> &v)
+    { for(size_t i=0;i<n;++i) x[i] -= v.x[i] ; return *this ; }
+    Array<T,n> &operator *=(const Array<T,n> &v)
+    { for(size_t i=0;i<n;++i) x[i] *= v.x[i] ; return *this ; }
+    Array<T,n> &operator /=(const Array<T,n> &v)
+    { for(size_t i=0;i<n;++i) x[i] /= v.x[i] ; return *this ; }
+
+    T &operator[](size_t indx) { return x[indx]; }
+    const T &operator[](size_t indx) const { return x[indx] ; }
+
+    iterator begin() { return &x[0] ; }
+    iterator end() { return begin()+n ; }
+    const_iterator begin() const { return &x[0] ; }
+    const_iterator end() const { return begin()+n ; }
+
+    size_t size() const  { return n ; }
+  } ;
 
   //---------------------vector3d------------------//
   template <class T> 
@@ -83,6 +115,15 @@ namespace Loci {
       vector3d() {} 
       vector3d(T xx,T yy, T zz) : x(xx),y(yy),z(zz) {}
       vector3d(const vector3d &v) {x=v.x;y=v.y;z=v.z;}
+      template <class S> vector3d(const vector3d<S> &v) {x=v.x;y=v.y;z=v.z;}
+      template <class S> vector3d(const Array<S,3> &a) {x=a[0];y=a[1];z=a[2];}
+      template <class S> operator Array<S,3>() {
+	Array<S,3> a ;
+	a[0] = x ;
+	a[1] = y ;
+	a[2] = z ;
+	return a;
+      }
     } ;
   
   template <class T> inline std::ostream & operator<<(std::ostream &s, const vector3d<T> &v)
@@ -436,38 +477,6 @@ namespace Loci {
   
   
   
-  //---------------------Array----------------------//
-  template <class T,size_t n> class Array {
-    T x[n] ;
-  public:
-    typedef T * iterator ;
-    typedef const T * const_iterator ;
-    
-    Array() {} ;
-    Array(const Array<T,n> &v)
-    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; } 
-    Array<T,n> &operator=(const Array<T,n> &v)
-    { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
-
-    Array<T,n> &operator +=(const Array<T,n> &v)
-    { for(size_t i=0;i<n;++i) x[i] += v.x[i] ; return *this ; }
-    Array<T,n> &operator -=(const Array<T,n> &v)
-    { for(size_t i=0;i<n;++i) x[i] -= v.x[i] ; return *this ; }
-    Array<T,n> &operator *=(const Array<T,n> &v)
-    { for(size_t i=0;i<n;++i) x[i] *= v.x[i] ; return *this ; }
-    Array<T,n> &operator /=(const Array<T,n> &v)
-    { for(size_t i=0;i<n;++i) x[i] /= v.x[i] ; return *this ; }
-
-    T &operator[](size_t indx) { return x[indx]; }
-    const T &operator[](size_t indx) const { return x[indx] ; }
-
-    iterator begin() { return &x[0] ; }
-    iterator end() { return begin()+n ; }
-    const_iterator begin() const { return &x[0] ; }
-    const_iterator end() const { return begin()+n ; }
-
-    size_t size() const  { return n ; }
-  } ;
 
   template <class T,size_t n> inline std::ostream &
     operator<<(std::ostream &s, const Array<T,n> &v) {

@@ -177,10 +177,10 @@ namespace Loci {
     hex[1] = quad_faces[quad_id[0]][2] ;
     hex[2] = quad_faces[quad_id[0]][1] ;
     hex[3] = quad_faces[quad_id[0]][0] ;
-    hex[0] = hex[0] ;
-    hex[1] = hex[1] ;
-    hex[2] = hex[2] ;
-    hex[3] = hex[3] ;
+    hex[4] = hex[0] ;
+    hex[5] = hex[1] ;
+    hex[6] = hex[2] ;
+    hex[7] = hex[3] ;
     for(int i = 0; i < 4; i+=2) {
       int n1 = hex[i] ;
       int n2 = hex[i+1] ;
@@ -1249,7 +1249,7 @@ namespace Loci {
             }
             Abort() ;
           }
-          if(p1.master & p2.master | (!p1.master & !p2.master)) {
+          if((p1.master & p2.master) | (!p1.master & !p2.master)) {
             cerr << "only one master in periodic boundary conditons named "
                  << p1.name << endl ;
             Abort() ;

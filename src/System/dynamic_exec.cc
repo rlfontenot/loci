@@ -721,7 +721,9 @@ namespace Loci
       for (i = 0; i < nProcs; i++)
         ewt[i] = 0.0;
       local0 = aveWorkTime[myRank];
-
+      
+      vector<int> sortChunkIdx(myChunks) ;
+      
       for (dest = 0; dest < nProcs; dest++)
         // send something to dest?
         if (x[myRank][dest] > 0.0) {
@@ -730,21 +732,21 @@ namespace Loci
           for (i = 0; i < (myChunks - 1); i++)
             if (doneBy[i] == myRank) {
               jmax++;
-              sortIdx[jmax] = i;
+              sortChunkIdx[jmax] = i;
             }
           // exclude last chunk (might be smaller than iwsSize)
           for (i = 0; i < (jmax - 1); i++)
             for (j = i + 1; j < jmax; j++)
-              if (aveChunkTime[sortIdx[i]] < aveChunkTime[sortIdx[j]]) {
-                k = sortIdx[i];
-                sortIdx[i] = sortIdx[j];
-                sortIdx[j] = k;
+              if (aveChunkTime[sortChunkIdx[i]] < aveChunkTime[sortChunkIdx[j]]) {
+                k = sortChunkIdx[i];
+                sortChunkIdx[i] = sortChunkIdx[j];
+                sortChunkIdx[j] = k;
               }
 
           // collect chunks for dest
           toFill = x[myRank][dest];
           jmin = JSTART;
-          tTime = aveChunkTime[sortIdx[jmin]];
+          tTime = aveChunkTime[sortChunkIdx[jmin]];
 
           while ((jmin < (jmax - 1)) && (toFill / optTime > tolLB)) {
             // toFill needs more than 1 chunk?
@@ -753,22 +755,22 @@ namespace Loci
               Loci::debugout << "ST6: " << myRank << " -> " << dest
                              << " : " << toFill << " - " << tTime
                              << " from chunk " << jmin << " (="
-                             << sortIdx[jmin]
+                             << sortChunkIdx[jmin]
                              << "), rem is " << toFill - tTime << endl;
 #endif
               toFill -= tTime;
               local0 -= tTime;
               ewt[dest] += tTime;
-              doneBy[sortIdx[jmin]] = dest;	// mark this chunk as for dest
+              doneBy[sortChunkIdx[jmin]] = dest;	// mark this chunk as for dest
               jmin++;
-              tTime = aveChunkTime[sortIdx[jmin]];
+              tTime = aveChunkTime[sortChunkIdx[jmin]];
             }
             if (toFill / optTime <= tolLB)
               break;
             // tTime greater than toFill
             while ((jmin < (jmax - 1)) && (tTime > toFill)) {
               jmin++;
-              tTime = aveChunkTime[sortIdx[jmin]];
+              tTime = aveChunkTime[sortChunkIdx[jmin]];
             }
           }
 #if SHOWLB2
@@ -1590,7 +1592,9 @@ namespace Loci
 
     // allocate space for LB
     tSize = (allItems + 4 * nProcs - 1) / (4 * nProcs);
-    AllocateLBspace (tSize);
+    // add 25% saftey margin for allocation  (some problems found
+    // with under-allocation)
+    AllocateLBspace (tSize+tSize/4+1);
 
     returns = 0;
     incoming = 0;
