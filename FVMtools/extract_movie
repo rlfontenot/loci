@@ -17,6 +17,7 @@ DIROUT=movie
 CASENAME=case
 VARNAMES="m"
 
+MPIRUN_LOCAL="mpirun -np 1 -mca btl self"
 ############################################################################
 # Parse Command Line Arguments
 ############################################################################
@@ -114,11 +115,16 @@ fi
 
 PROC_COUNTER=1
 echo extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
-(extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
+($MPIRUN_LOCAL extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
 echo cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.case ${DIROUT}/${CASENAME}.case.bak
-cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.case ${DIROUT}
+cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.case ${DIROUT}/${CASENAME}.case.bak
 echo cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.geo ${DIROUT}/${CASENAME}_${CASENUM}.geo
 cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.geo ${DIROUT}/${CASENAME}_${CASENUM}.geo
+if [ -e ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}_particles.geo ] ; then
+   cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}_particles.geo ${DIROUT}/${CASENAME}_particles_${CASENUM}.geo
+   echo     cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}_particles.geo ${DIROUT}/${CASENAME}_particles_${CASENUM}.geo
+   touch ${DIROUT}/particles
+fi
 for i in $VARNAMES ; do
   cp ${CASENAME}_ensight.${COUNTER}${POSTFIX}/$i ${DIROUT}/$i${CASENUM}
 done) &
@@ -126,15 +132,17 @@ if [ $PROC_COUNTER -ge $NUM_PAR_TASKS ]; then
     wait
     PROC_COUNTER=0
 fi
-
 let COUNTER=COUNTER+INC_TIME
 let CASENUM=CASENUM+1
 NUMBER_STEPS=1
 while [ $COUNTER -le $END_TIME ]; do
     if [ -e output/timestep_txt.${COUNTER}${POSTFIX}_${CASENAME} ] ; then
 	echo extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
-	(extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
+	($MPIRUN_LOCAL extract -en $CASENAME ${COUNTER}${POSTFIX} $VARNAMES
 	mv ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}.geo ${DIROUT}/${CASENAME}_${CASENUM}.geo
+	if [ -e ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}_particles.geo ]; then
+	    mv ${CASENAME}_ensight.${COUNTER}${POSTFIX}/${CASENAME}_particles.geo ${DIROUT}/${CASENAME}_particles_${CASENUM}.geo
+	fi
 	for i in $VARNAMES ; do
 	    mv ${CASENAME}_ensight.${COUNTER}${POSTFIX}/$i ${DIROUT}/$i${CASENUM};
 	done 
@@ -157,13 +165,17 @@ echo FORMAT > ${DIROUT}/${CASENAME}.case
 echo type: ensight gold >> ${DIROUT}/${CASENAME}.case
 echo GEOMETRY >> ${DIROUT}/${CASENAME}.case
 echo model: ${CASENAME}_\*\*\*\*.geo >> ${DIROUT}/${CASENAME}.case
+
+# if particle case, add particle geometry to case file
+if [ -e ${DIROUT}/particles ] ; then
+    rm ${DIROUT}/particles
+    echo measured: ${CASENAME}_particles_\*\*\*\*.geo >> ${DIROUT}/${CASENAME}.case
+fi
 echo VARIABLE >> ${DIROUT}/${CASENAME}.case
 for i in $VARNAMES ; do
-    if [ $i == "v" ]; then
-       echo vector per node:        1 $i    $i\*\*\*\* >> ${DIROUT}/${CASENAME}.case
-    else
-	echo scalar per node:        1 $i    $i\*\*\*\* >> ${DIROUT}/${CASENAME}.case
-    fi
+# get prefix for variable specification from backup case file
+    VARPREFIX=`grep " node:" ${DIROUT}/${CASENAME}.case.bak | grep " ${i}	" | sed s/:.\*\$/:/`
+    echo ${VARPREFIX}        1 $i    $i\*\*\*\* >> ${DIROUT}/${CASENAME}.case
 done
 echo TIME >> ${DIROUT}/${CASENAME}.case
 echo time set: 1 >> ${DIROUT}/${CASENAME}.case
@@ -177,7 +189,6 @@ while [ $COUNTER -le $END_TIME ]; do
 	cat output/timestep_txt.${COUNTER}${POSTFIX}_${CASENAME} | sed "s/^[0-9]* //" >> ${DIROUT}/${CASENAME}.case
     fi
     let COUNTER=COUNTER+INC_TIME
-
 done
 
 

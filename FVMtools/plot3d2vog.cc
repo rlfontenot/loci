@@ -19,10 +19,11 @@
 //#
 //#############################################################################
 #include <Loci.h>
-#include "Tools/xdr.h"
+#include "vogtools.h"
+//#include "Tools/xdr.h"
 #include <Tools/stream.h>
-#include <Tools/ftrn_reader.h>
-#include <Tools/tools.h>
+//#include <Tools/ftrn_reader.h>
+//#include <Tools/tools.h>
 #include <algorithm>
 using std::sort ;
 #include <map>
@@ -116,11 +117,11 @@ struct boundary_face_info {
 } ;
 
 void usage() {
-  cout << "Plot3d to XDR file converter usage" << endl
+  cout << "Plot3d to VOG file converter usage" << endl
        << "This converter assumes that the grid file has a .grd postfix" << endl
        << " If only a single argument is given, then this will be " << endl
        << " grid file sans the .grd postfix, this will convert the" << endl
-       << " grid to an unstructured XDR format grid file.  If the" << endl
+       << " grid to an unstructured VOG format grid file.  If the" << endl
        << " input file has more than one block, then the point matching" <<endl
        << " faces will be glued, and the remaining faces will be tagged" <<endl
        << " with a unique tag for each block and face. " << endl << endl ;
@@ -129,7 +130,7 @@ void usage() {
        << " faces, then you can do so by providing a supplemental" << endl
        << " boundary specification file with the flag -bc" << endl << endl
        << "Example:" << endl
-       << " plot3d2xdr -bc grid.bc grid" << endl << endl ;
+       << " plot3d2vog -bc grid.bc grid" << endl << endl ;
 
   cout << "The boundary condition specification file is contains the" <<endl
        << " following information:" << endl << endl
@@ -140,12 +141,21 @@ void usage() {
        << " <block number> <faceid> <index1 start> <index1 end> <index2 start> <index2 end>" << endl
        << "  Where:" << endl
        << " <faceid> is one of six strings: [IJ1,IJN,JK1,JKN,IK1,IKN]" << endl
-       << " indices are given in the order indicated by the faceid string."
+       << " indices are given in the order indicated by the faceid string." 
        << endl <<endl;
+  
+  cout << "Use options -in, -ft, -cm, -m, or -Lref to set grid units."<<endl<<endl<<endl;
     
 }
 
 int main(int ac, char* av[]) {
+  using namespace Loci ;
+  using namespace VOG ;
+
+  bool optimize = true ;
+  
+  Loci::Init(&ac,&av) ;
+
   if(ac == 1) {
     usage() ;
     exit(1) ;
@@ -175,8 +185,48 @@ int main(int ac, char* av[]) {
   vector<boundary_face_info> boundaries_desc ;
   
   vector<string> combine_bc ;
-  while(ac > 2) {
-    if(ac >= 2 && !strcmp(av[1],"-c")) {
+
+  string Lref = "NOSCALE" ;
+  while(ac>=2 && av[1][0] == '-') {
+    // If user specifies an alternate query, extract it from the
+    // command line.
+    if(ac >= 3 && !strcmp(av[1],"-Lref")) {
+      Lref = av[2] ;
+      ac -= 2 ;
+      av += 2 ;
+    } else if(ac >= 2 && !strcmp(av[1],"-v")) {
+      cout << "Loci version: " << Loci::version() << endl ;
+      if(ac == 2) {
+        Loci::Finalize() ;
+        exit(0) ;
+      }
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-o")) {
+      optimize = false ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-in")) {
+      Lref = "1 inch" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-ft")) {
+      Lref = "1 foot" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-cm")) {
+      Lref = "1 centimeter" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-m")) {
+      Lref = "1 meter" ;
+      ac-- ;
+      av++ ;
+    } else if(ac >= 2 && !strcmp(av[1],"-mm")) {
+      Lref = "1 millimeter" ;
+      ac-- ;
+      av++ ;
+    }else if(ac >= 2 && !strcmp(av[1],"-c")) {
       combine_bc.push_back(string(av[2])) ;
       ac -= 2 ;
       av += 2 ;
@@ -185,10 +235,32 @@ int main(int ac, char* av[]) {
       boundary_filename = string(av[2]) ;
       ac -= 2 ;
       av += 2 ;
-    } else {
-      break ;
+    }else {
+      cerr << "argument " << av[1] << " is not understood." << endl ;
+      ac-- ;
+      av++ ;
     }
   }
+
+  if(Lref == "NOSCALE") {
+    cerr << "Must set grid units!" << endl
+         << "Use options -in, -ft, -cm, -m, or -Lref to set grid units." << endl ;
+    exit(-1) ;
+  }
+
+if(Lref == "")
+    Lref = "1 meter" ;
+  
+  if(!isdigit(Lref[0])) {
+    Lref = string("1") + Lref ;
+  }
+
+   Loci::UNIT_type tp ;
+  istringstream iss(Lref) ;
+  iss >> tp ;
+  double posScale = tp.get_value_in("meter") ;
+  
+  
 
   map<int, string> bcnamelist ;
   if(boundary_file) {
@@ -210,6 +282,7 @@ int main(int ac, char* av[]) {
       bfile >> boundary_flag ;
       int boundary_segments = 0 ;
       bfile >> boundary_segments ;
+      
       string boundary_name = Loci::parse::get_name(bfile) ;
       bcnamelist[boundary_flag] = boundary_name ;
       
@@ -923,46 +996,33 @@ int main(int ac, char* av[]) {
     rfc++ ;
   } ENDFORALL ;
   
-  store<int> c2f ;
-  int maxppf = 0;
-  int maxfpc = 0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   int npatch = 0 ;
   entitySet::const_iterator i ;
   for(i=new_faces.begin();i!=new_faces.end();++i) {
     npatch = min(min(npatch,ncl[*i]),ncr[*i]) ;
-    maxppf = max(maxppf,int(face2node.end(*i)-face2node.begin(*i))) ;
   }
-  c2f.allocate(*geom_cells) ;
-  for(i=(*geom_cells).begin();i!=(*geom_cells).end();++i)
-    c2f[*i] = 0 ;
-  for(i=new_faces.begin();i!=new_faces.end();++i) {
-    c2f[ncl[*i]]+=1 ;
-    if(ncr[*i] > 0)
-      c2f[ncr[*i]]+=1 ;
-  }
-  for(i=(*geom_cells).begin();i!=(*geom_cells).end();++i)
-    maxfpc = max(maxfpc,c2f[*i]) ;
-  
   npatch = -npatch ;
-  char tmp_buf[512] ;
-  sprintf(tmp_buf, "%s.xdr", filename) ;
-  FILE *FP = fopen(tmp_buf, "w") ;
-  if(FP == NULL) {
-    cerr << "can't open " << tmp_buf <<  endl ;
-    return(-1);
-  }
-  XDR xdr_handle ;
-  xdrstdio_create(&xdr_handle, FP, XDR_ENCODE) ;
   
-
-#ifdef COBALT_FILE_OUT
-  ofstream ofile("grid.cog",ios::out) ;
-  if(ofile.fail()) {
-    cerr << "can't open grid.cog" << endl ;
-    exit(-1) ;
-  }
-#endif
-
+  
+  
+  
+  
   entitySet real_nodes ;
   for(i=new_faces.begin();i!=new_faces.end();++i) 
     for(const int* fp = face2node.begin(*i); fp != face2node.end(*i); ++fp)
@@ -973,116 +1033,73 @@ int main(int ac, char* av[]) {
   int npnts = 0 ;
   for(ei=real_nodes.begin();ei!=real_nodes.end();++ei) {
     npnts++ ;
-    nmap[*ei] = npnts ;	
+    nmap[*ei] = npnts ;
   }
 
-#ifdef COBALT_FILE_OUT  
-  ofile.precision(16) ;
-  ofile << "3 1 " << npatch << endl ;
-#endif
-
-  int ndim = 3 ;
-  int nzones = 1 ;
-  int nfaces = new_faces.size() ;
-  int ncells = (*geom_cells).size() ;
-
-#ifdef COBALT_FILE_OUT
-  ofile << npnts << " " << nfaces << " " << ncells << " " << maxppf << " " << maxfpc << endl ;
-#endif
   
-  xdr_int(&xdr_handle, &ndim) ;
-  xdr_int(&xdr_handle, &nzones) ;
-  xdr_int(&xdr_handle, &npatch) ;
-  xdr_int(&xdr_handle, &npnts) ;
-  xdr_int(&xdr_handle, &nfaces) ;
-  xdr_int(&xdr_handle, &ncells) ;
-  xdr_int(&xdr_handle, &maxppf) ;
-  xdr_int(&xdr_handle, &maxfpc) ;
-  for(ei=real_nodes.begin();ei!=real_nodes.end();++ei) {
-    vect3d v = pos[*ei] ;
-    xdr_double(&xdr_handle, &v.x) ;
-    xdr_double(&xdr_handle, &v.y) ;
-    xdr_double(&xdr_handle, &v.z) ;
+ 
+  //move the domain of data structures
+  store<vector3d<double> > tpos;
+  entitySet ndom = interval(0, npnts-1);
+  tpos.allocate(ndom);
+  entitySet::const_iterator ti = ndom.begin();
+
+  
+  for(ei=real_nodes.begin();ei!=real_nodes.end();++ei, ++ti) {
+    tpos[*ti] = pos[*ei]*posScale;
+   
   }
-  int local_size = 0 ;
-  int off = 0 ;
-  int coffset = 1-(*geom_cells).Min() ;
-  std::map<int, std::vector<std::vector<int> > > hm_int ;
-  std::vector<int> offset(3) ;
-  for(i=new_faces.begin();i!=new_faces.end();++i) {
-    local_size = face2node.end(*i) - face2node.begin(*i) ; 
-    ncl[*i] += coffset ;
-    if(ncr[*i] > 0)
-      ncr[*i] += coffset ;
-    if((ncl[*i] > 0) && (ncr[*i] > 0)) {
-      xdr_int(&xdr_handle, &off) ;
-      xdr_int(&xdr_handle, &ncl[*i]) ;
-      xdr_int(&xdr_handle, &ncr[*i]) ;
-      off += local_size ;
-    }
-    else { 
-      int loc_min = std::min(ncl[*i], ncr[*i]) ;
-      offset[0] = local_size ;
-      offset[1] = ncl[*i] ;
-      offset[2] = ncr[*i] ;
-      hm_int[loc_min].push_back(offset) ; 
+
+  //change the value of face2node
+  entitySet::const_iterator fi ;
+  for(fi=new_faces.begin();fi!=new_faces.end();++fi) {
+    for(int k = 0; k < face2node[*fi].size(); k++){
+      face2node[*fi][k] =  nmap[face2node[*fi][k]]-1 ;
     }
   }
   
-  std::map<int, std::vector<std::vector<int> > >::const_iterator hmi ;
-  for(hmi = hm_int.begin(); hmi != hm_int.end(); ++hmi) {
-    for(std::vector<std::vector<int> >::const_iterator vvi = hmi->second.begin(); vvi != hmi->second.end(); ++vvi) {
-      std::vector<int> tmp_vec = *vvi ; 
-      xdr_int(&xdr_handle, &off) ;
-      xdr_int(&xdr_handle, &tmp_vec[1]) ;
-      xdr_int(&xdr_handle, &tmp_vec[2]) ;
-      off += tmp_vec[0] ;
-    }
+
+  
+ 
+  // establish face left-right orientation
+  if(Loci::MPI_rank == 0) 
+    cerr << "orienting faces" << endl ;
+  VOG::orientFaces(tpos,ncl,ncr,face2node) ;
+    
+  if(Loci::MPI_rank == 0)
+    cerr << "coloring matrix" << endl ;
+  VOG::colorMatrix(tpos,ncl,ncr,face2node) ;
+
+  if(optimize) {
+    if(MPI_rank == 0) 
+      cerr << "optimizing mesh layout" << endl ;
+    VOG::optimizeMesh(tpos,ncl,ncr,face2node) ;
   }
-  xdr_int(&xdr_handle, &off) ;
-  std::map<int, std::vector<std::vector<int> > >mv_int ;
-  int tmp_int = 0 ;
-  for(i=new_faces.begin();i!=new_faces.end();++i) {
-    std::vector<int> tmp_vec ;
-    if((ncl[*i] > 0) && (ncr[*i] > 0)) {
-      for(const int* fp = face2node.begin(*i); fp != face2node.end(*i); ++fp) {
-	tmp_int = nmap[*fp] - 1 ;
-	xdr_int(&xdr_handle, &tmp_int) ;
-      }
-    }
-    else {
-      int loc_min = std::min(ncl[*i], ncr[*i]) ;
-      for(const int* fp = face2node.begin(*i); fp != face2node.end(*i); ++fp) 
-	tmp_vec.push_back(nmap[*fp]) ;
-      mv_int[loc_min].push_back(tmp_vec) ;
-    }
-  }
-  std::map<int, std::vector<std::vector<int> > >::const_iterator mvi ;
-  for(mvi = mv_int.begin(); mvi != mv_int.end(); ++mvi) {
-    for(std::vector<std::vector<int> >::const_iterator vvi = mvi->second.begin(); vvi != mvi->second.end(); ++vvi) {
-      std::vector<int> tmp_vec = *vvi ; 
-      for(size_t k = 0; k < tmp_vec.size(); ++k) {
-	tmp_vec[k] -= 1 ;
-	xdr_int(&xdr_handle, &tmp_vec[k]) ;
-      }
+  
+  if(MPI_rank == 0)
+    cerr << "writing VOG file" << endl ;
+
+  
+  //get boundary names
+  vector<pair<int,string> > surf_ids ;
+  for(int i=1;i<=npatch;++i){
+    if(boundary_file) surf_ids.push_back(pair<int,string>(i, bcnamelist[i]));
+    else{
+      char buf[512] ;
+      sprintf(buf,"BC_%d",i) ; 
+      surf_ids.push_back(pair<int,string>(i, string(buf))) ;
     }
   }
   
-  xdr_destroy(&xdr_handle) ;
-  fclose(FP) ;
-  infile.close() ;
 
-#ifdef COBALT_FILE_OUT
-  for(ei=real_nodes.begin();ei!=real_nodes.end();++ei) 
-    ofile << pos[*ei] << endl ;
-  for(i=new_faces.begin();i!=new_faces.end();++i) {
-    ofile <<face2node.end(*i)-face2node.begin(*i) << " " ;
-    for(const int* fp = face2node.begin(*i); fp != face2node.end(*i); ++fp)
-      ofile << nmap[*fp] << " " ;
-    ofile << ncl[*i] << " " << ncr[*i] << endl ;
-  }
-  ofile.close();
-#endif
+
+ 
+  sprintf(buf,"%s.vog",filename) ;
+  string outfile = string(buf);
+  Loci::writeVOG(outfile, tpos, ncl, ncr, face2node,surf_ids) ;
+ 
+  
+  
   
   return 0 ;
 }

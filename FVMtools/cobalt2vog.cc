@@ -36,6 +36,10 @@ using std::cout ;
 using std::endl ;
 using std::cerr ;
 
+void input_error() {
+  cerr << "error reading file" << endl ;
+  exit(-1) ;
+}
 
 int readCobaltMesh(string filename,
                    store<vector3d<double> > &pos,
@@ -47,7 +51,8 @@ int readCobaltMesh(string filename,
   int npatch, maxppf, maxfpc ;
   int ndim, nzones ;
   int npnts, nfaces, ncells ;
-  fscanf(IFP, "%d%d%d", &ndim, &nzones, &npatch) ;
+  if(fscanf(IFP, "%d%d%d", &ndim, &nzones, &npatch)!=3)
+    input_error() ;
   if(ndim != 3) {
     cerr << "currently only supports 3-D grid files" << endl ;
     return -1 ;
@@ -56,7 +61,8 @@ int readCobaltMesh(string filename,
     cerr << "currently only supports single zone files" << endl ;
     return -1 ;
   }
-  fscanf(IFP, "%d%d%d%d%d", &npnts, &nfaces, &ncells, &maxppf, &maxfpc) ;
+  if(fscanf(IFP, "%d%d%d%d%d", &npnts, &nfaces, &ncells, &maxppf, &maxfpc)!=5)
+    input_error() ;
   cout << " ndim = " << ndim << endl ;
   cout << " npnts = " << npnts << endl ;
   cout << " nfaces = " << nfaces << endl ;
@@ -66,9 +72,12 @@ int readCobaltMesh(string filename,
   entitySet pdom = interval(0,npnts-1) ;
   pos.allocate(pdom) ;
   for(int i = 0; i < npnts; ++i) {
-    fscanf(IFP, "%lf", &pos[i].x) ;
-    fscanf(IFP, "%lf", &pos[i].y) ;
-    fscanf(IFP, "%lf", &pos[i].z) ;
+    if(fscanf(IFP, "%lf", &pos[i].x)!=1)
+      input_error() ;
+    if(fscanf(IFP, "%lf", &pos[i].y)!=1)
+      input_error() ;
+    if(fscanf(IFP, "%lf", &pos[i].z)!=1)
+      input_error() ;
   }
   
   fpos_t after_pos ;
@@ -82,22 +91,28 @@ int readCobaltMesh(string filename,
   cr.allocate(fdom) ;
   
   for(int i = 0; i < nfaces; ++i) {
-    fscanf(IFP, "%d", &count[i]) ;
+    if(fscanf(IFP, "%d", &count[i])!=1)
+      input_error() ;
     for(int k = 0; k < count[i]; ++k)
-      fscanf(IFP, "%d", &dummy_node) ; 
-    fscanf(IFP, "%d%d", &cl[i], &cr[i]) ; 
+      if(fscanf(IFP, "%d", &dummy_node)!=1)
+	input_error() ; 
+    if(fscanf(IFP, "%d%d", &cl[i], &cr[i])!=2)
+      input_error() ; 
   }
   face2node.allocate(count) ;
   const fpos_t tmp_position = after_pos ;
   fsetpos(IFP, &tmp_position) ;
   for(int i = 0; i < nfaces; ++i) {
     int fsz = 0 ;
-    fscanf(IFP, "%d", &fsz) ;
+    if(fscanf(IFP, "%d", &fsz)!=1)
+      input_error() ;
     for(int k = 0; k < fsz; ++k) 
-      fscanf(IFP, "%d", &face2node[i][k]) ;
+      if(fscanf(IFP, "%d", &face2node[i][k])!=1)
+	input_error() ;
     for(int k = 0; k < fsz; ++k)
       face2node[i][k] -= 1 ;
-    fscanf(IFP, "%d%d", &cl[i], &cr[i]) ; 
+    if(fscanf(IFP, "%d%d", &cl[i], &cr[i])!=2)
+      input_error() ; 
   }
   fclose(IFP) ;
   return(0) ;

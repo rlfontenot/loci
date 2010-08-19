@@ -18,6 +18,7 @@
 //# along with the Loci Framework.  If not, see <http://www.gnu.org/licenses>
 //#
 //#############################################################################
+
 #include <Loci.h> 
 #include <stdio.h>
 #include <stdlib.h>
@@ -538,13 +539,21 @@ void extract_grid(string casename, string iteration,
   int nprsm_b = nprsm ;
   int npyrm_b = npyrm ;
   int ngenc_b = ngenc ;
+  const int block_size=65536 ; // Size of blocking factor
   if(has_iblank) {
     // need to adjust the number of elements based on iblanking.
     if(ntets > 0) {
-        vector<Array<int,4> > tets(ntets) ;
-        readElementType(elg,"tetrahedra",tets) ;
-        int cnt = 0 ;
-        for(int i=0;i<ntets;++i) {
+      int nblocks = (ntets-1)/block_size+1 ;
+      int remain = ntets ;
+      int start = 0 ;
+      int cnt = 0 ;
+      for(int b=0;b<nblocks;++b) {
+        int size = min(block_size,remain) ;
+        vector<Array<int,4> > tets(size) ;
+        readElementTypeBlock(elg,"tetrahedra",tets,start,size) ;
+        remain -= size ;
+        start += size ;
+        for(int i=0;i<size;++i) {
           bool blank = true ;
           for(int j=0;j<4;++j)
             if(iblank[tets[i][j]] < 2)
@@ -552,15 +561,25 @@ void extract_grid(string casename, string iteration,
           if(!blank)
             cnt++ ;
         }
-        ntets_b = cnt ;
-        if(ntets-ntets_b > 0)
-          cout << ntets-ntets_b << " tetrahedra iblanked" << endl ;
+      }
+      WARN(remain != 0) ;
+      ntets_b = cnt ;
+      if(ntets-ntets_b > 0)
+        cout << ntets-ntets_b << " tetrahedra iblanked" << endl ;
     }
     if(nhexs > 0) {
-        vector<Array<int,8> > hexs(nhexs) ;
-        readElementType(elg,"hexahedra",hexs) ;
-        int cnt = 0 ;
-        for(int i=0;i<nhexs;++i) {
+      int nblocks = (nhexs-1)/block_size+1 ;
+      int remain = nhexs ;
+      int start = 0 ;
+      int cnt = 0 ;
+      for(int b=0;b<nblocks;++b) {
+        int size = min(block_size,remain) ;
+        
+        vector<Array<int,8> > hexs(size) ;
+        readElementTypeBlock(elg,"hexahedra",hexs,start,size) ;
+        remain -= size ;
+        start += size ;
+        for(int i=0;i<size;++i) {
           bool blank = true ;
           for(int j=0;j<8;++j)
             if(iblank[hexs[i][j]] < 2)
@@ -568,15 +587,24 @@ void extract_grid(string casename, string iteration,
           if(!blank)
             cnt++ ;
         }
-        nhexs_b = cnt ;
-        if(nhexs-nhexs_b > 0)
-          cout << nhexs-nhexs_b << " hexahedra iblanked" << endl ;
+      }
+      WARN(remain != 0) ;
+      nhexs_b = cnt ;
+      if(nhexs-nhexs_b > 0)
+        cout << nhexs-nhexs_b << " hexahedra iblanked" << endl ;
     }
     if(nprsm > 0) {
-        vector<Array<int,6> > prsm(nprsm) ;
-        readElementType(elg,"prism",prsm) ;
-        int cnt = 0 ;
-        for(int i=0;i<nprsm;++i) {
+      int nblocks = (nprsm-1)/block_size+1 ;
+      int remain = nprsm ;
+      int start = 0 ;
+      int cnt = 0 ;
+      for(int b=0;b<nblocks;++b) {
+        int size = min(block_size,remain) ;
+        vector<Array<int,6> > prsm(size) ;
+        readElementTypeBlock(elg,"prism",prsm,start,size) ;
+        remain -= size ;
+        start += size ;
+        for(int i=0;i<size;++i) {
           bool blank = true ;
           for(int j=0;j<6;++j)
             if(iblank[prsm[i][j]] < 2)
@@ -584,15 +612,25 @@ void extract_grid(string casename, string iteration,
           if(!blank)
             cnt++ ;
         }
-        nprsm_b = cnt ;
-        if(nprsm-nprsm_b > 0)
-          cout << nprsm-nprsm_b << " prisms iblanked" << endl ;
+      }
+      WARN(remain != 0) ;
+      nprsm_b = cnt ;
+      if(nprsm-nprsm_b > 0)
+        cout << nprsm-nprsm_b << " prisms iblanked" << endl ;
+        
     }
     if(npyrm > 0) {
-        vector<Array<int,5> > pyrm(npyrm) ;
-        readElementType(elg,"pyramid",pyrm) ;
-        int cnt = 0 ;
-        for(int i=0;i<npyrm;++i) {
+      int nblocks = (npyrm-1)/block_size+1 ;
+      int remain = npyrm ;
+      int start = 0 ;
+      int cnt = 0 ;
+      for(int b=0;b<nblocks;++b) {
+        int size = min(block_size,remain) ;
+        vector<Array<int,5> > pyrm(size) ;
+        readElementTypeBlock(elg,"pyramid",pyrm,start,size) ;
+        remain -= size ;
+        start += size ;
+        for(int i=0;i<size;++i) {
           bool blank = true ;
           for(int j=0;j<5;++j)
             if(iblank[pyrm[i][j]] < 2)
@@ -600,9 +638,11 @@ void extract_grid(string casename, string iteration,
           if(!blank)
             cnt++ ;
         }
-        npyrm_b = cnt ;
-        if(npyrm-npyrm_b > 0)
-          cout << npyrm-npyrm_b << " pyramids iblanked" << endl ;
+      }
+      WARN(remain != 0) ;
+      npyrm_b = cnt ;
+      if(npyrm-npyrm_b > 0)
+        cout << npyrm-npyrm_b << " pyramids iblanked" << endl ;
     }
     if(ngenc > 0) {
         vector<int> GeneralCellNfaces(ngenc) ;
@@ -682,81 +722,115 @@ void extract_grid(string casename, string iteration,
     case GRID_VOLUME_ELEMENTS:
       topo->create_mesh_elements() ;
       if(ntets > 0) {
-        vector<Array<int,4> > tets(ntets) ;
-        readElementType(elg,"tetrahedra",tets) ;
-        int cnt = 0 ;
-        if(has_iblank) {
-          for(int i=0;i<ntets;++i) {
-            bool blank = true ;
-            for(int j=0;j<4;++j)
-              if(iblank[tets[i][j]] < 2)
-                blank = false ;
-            if(blank)
-              cnt++ ;
-            else 
-              if(cnt != 0) // If there are some blanked copy into place
-                tets[i-cnt]=tets[i] ;
+        int nblocks = (ntets-1)/block_size+1 ;
+        int remain = ntets ;
+        int start = 0 ;
+        for(int b=0;b<nblocks;++b) {
+          int size = min(block_size,remain) ;
+          vector<Array<int,4> > tets(size) ;
+          readElementTypeBlock(elg,"tetrahedra",tets,start,size) ;
+          remain -= size ;
+          start += size ;
+          int cnt = 0 ;
+          if(has_iblank) {
+            for(int i=0;i<size;++i) {
+              bool blank = true ;
+              for(int j=0;j<4;++j)
+                if(iblank[tets[i][j]] < 2)
+                  blank = false ;
+              if(blank)
+                cnt++ ;
+              else 
+                if(cnt != 0) // If there are some blanked copy into place
+                  tets[i-cnt]=tets[i] ;
+            }
           }
+          topo->write_tets(&tets[0],size-cnt,b,nblocks,ntets_b) ;
         }
-        topo->write_tets(&tets[0],ntets-cnt) ;
       }
       if(npyrm > 0) {
-        vector<Array<int,5> > pyrm(npyrm) ;
-        readElementType(elg,"pyramid",pyrm) ;
-        int cnt = 0 ;
-        if(has_iblank) {
-          for(int i=0;i<npyrm;++i) {
-            bool blank = true ;
-            for(int j=0;j<5;++j)
-              if(iblank[pyrm[i][j]] < 2)
-                blank = false ;
-            if(blank)
-              cnt++ ;
-            else 
-              if(cnt != 0) // If there are some blanked copy into place
-                pyrm[i-cnt]=pyrm[i] ;
+        int nblocks = (npyrm-1)/block_size+1 ;
+        int remain = npyrm ;
+        int start = 0 ;
+        for(int b=0;b<nblocks;++b) {
+          int size = min(block_size,remain) ;
+          vector<Array<int,5> > pyrm(size) ;
+          readElementTypeBlock(elg,"pyramid",pyrm,start,size) ;
+          remain -= size ;
+          start += size ;
+          int cnt = 0 ;
+          if(has_iblank) {
+            for(int i=0;i<size;++i) {
+              bool blank = true ;
+              for(int j=0;j<5;++j)
+                if(iblank[pyrm[i][j]] < 2)
+                  blank = false ;
+              if(blank)
+                cnt++ ;
+              else 
+                if(cnt != 0) // If there are some blanked copy into place
+                  pyrm[i-cnt]=pyrm[i] ;
+            }
           }
+          topo->write_pyrm(&pyrm[0],size-cnt,b,nblocks,npyrm_b) ;
         }
-        topo->write_pyrm(&pyrm[0],npyrm-cnt) ;
       }
       if(nprsm > 0) {
-        vector<Array<int,6> > prsm(nprsm) ;
-        readElementType(elg,"prism",prsm) ;
-        int cnt = 0 ;
-        if(has_iblank) {
-          for(int i=0;i<nprsm;++i) {
-            bool blank = true ;
-            for(int j=0;j<6;++j)
-              if(iblank[prsm[i][j]] < 2)
-                blank = false ;
-            if(blank)
-              cnt++ ;
-            else 
-              if(cnt != 0) // If there are some blanked copy into place
-                prsm[i-cnt]=prsm[i] ;
+        int nblocks = (nprsm-1)/block_size+1 ;
+        int remain = nprsm ;
+        int start = 0 ;
+        for(int b=0;b<nblocks;++b) {
+          int size = min(block_size,remain) ;
+          vector<Array<int,6> > prsm(size) ;
+          readElementTypeBlock(elg,"prism",prsm,start,size) ;
+          remain -= size ;
+          start += size ;
+          int cnt = 0 ;
+          if(has_iblank) {
+            for(int i=0;i<size;++i) {
+              bool blank = true ;
+              for(int j=0;j<6;++j)
+                if(iblank[prsm[i][j]] < 2)
+                  blank = false ;
+              if(blank)
+                cnt++ ;
+              else 
+                if(cnt != 0) // If there are some blanked copy into place
+                  prsm[i-cnt]=prsm[i] ;
+            }
           }
+          topo->write_prsm(&prsm[0],size-cnt,b,nblocks,nprsm_b) ;
         }
-        topo->write_prsm(&prsm[0],nprsm-cnt) ;
       }
       if(nhexs > 0) {
-        vector<Array<int,8> > hexs(nhexs) ;
-        readElementType(elg,"hexahedra",hexs) ;
-        int cnt = 0 ;
-        if(has_iblank) {
-          for(int i=0;i<nhexs;++i) {
-            bool blank = true ;
-            for(int j=0;j<8;++j)
-              if(iblank[hexs[i][j]] < 2)
-                blank = false ;
-            if(blank)
-              cnt++ ;
-            else 
-              if(cnt != 0) // If there are some blanked copy into place
-                hexs[i-cnt]=hexs[i] ;
+        int nblocks = (nhexs-1)/block_size+1 ;
+        int remain = nhexs ;
+        int start = 0 ;
+        for(int b=0;b<nblocks;++b) {
+          int size = min(block_size,remain) ;
+          
+          vector<Array<int,8> > hexs(size) ;
+          readElementTypeBlock(elg,"hexahedra",hexs,start,size) ;
+          remain -= size ;
+          start += size ;
+          int cnt = 0 ;
+          if(has_iblank) {
+            for(int i=0;i<size;++i) {
+              bool blank = true ;
+              for(int j=0;j<8;++j)
+                if(iblank[hexs[i][j]] < 2)
+                  blank = false ;
+              if(blank)
+                cnt++ ;
+              else 
+                if(cnt != 0) // If there are some blanked copy into place
+                  hexs[i-cnt]=hexs[i] ;
+            }
           }
+          topo->write_hexs(&hexs[0],size-cnt,b,nblocks,nhexs_b) ;
         }
-        topo->write_hexs(&hexs[0],nhexs-cnt) ;
       }
+
       if(ngenc > 0) {
 
         // still need to do general cell iblanking

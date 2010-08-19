@@ -93,6 +93,17 @@ void ug_io_reverse_byte_order
   return;
 }
 
+void input_error() {
+  cerr << "error reading file" << endl ;
+  exit(-1) ;
+}
+
+void cfread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+  size_t nread = fread(ptr,size,nmemb,stream) ;
+  if(nread != nmemb)
+    input_error() ;
+}
+
 void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
                vector<Array<int,5> > &qfaces, vector<Array<int,4> > &tfaces,
                vector<Array<int,4> > &tets, vector<Array<int,5> > &pyramids,
@@ -125,28 +136,30 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
 
 
     if(!binary) {
-      fscanf(IFP, "%d%d%d", &num_nodes, & num_sf_trias, & num_sf_quads) ;
-      fscanf(IFP, "%d%d%d%d", &num_vol_tets, &num_vol_pents5, &num_vol_pents6, &num_vol_hexs) ;
+      if(fscanf(IFP, "%d%d%d", &num_nodes, & num_sf_trias, & num_sf_quads)!=3)
+	input_error() ;
+      if(fscanf(IFP, "%d%d%d%d", &num_vol_tets, &num_vol_pents5, &num_vol_pents6, &num_vol_hexs)!=4)
+	input_error() ;
     } else {
-      fread(&num_nodes, sizeof(int), 1, IFP) ;
+      cfread(&num_nodes, sizeof(int), 1, IFP) ;
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&num_nodes,sizeof(int),1) ;
-      fread(&num_sf_trias, sizeof(int), 1, IFP) ;
+      cfread(&num_sf_trias, sizeof(int), 1, IFP) ;
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&num_sf_trias,sizeof(int),1) ;
-      fread(&num_sf_quads, sizeof(int), 1, IFP) ;
+      cfread(&num_sf_quads, sizeof(int), 1, IFP) ;
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&num_sf_quads,sizeof(int),1) ;
-      fread(&num_vol_tets, sizeof(int), 1, IFP) ;
+      cfread(&num_vol_tets, sizeof(int), 1, IFP) ;
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&num_vol_tets,sizeof(int),1) ;
-      fread(&num_vol_pents5, sizeof(int), 1, IFP) ;
+      cfread(&num_vol_pents5, sizeof(int), 1, IFP) ;
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&num_vol_pents5,sizeof(int),1) ;
-      fread(&num_vol_pents6, sizeof(int), 1, IFP) ;
+      cfread(&num_vol_pents6, sizeof(int), 1, IFP) ;
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&num_vol_pents6,sizeof(int),1) ;
-      fread(&num_vol_hexs, sizeof(int), 1, IFP) ;
+      cfread(&num_vol_hexs, sizeof(int), 1, IFP) ;
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&num_vol_hexs,sizeof(int),1) ;
     }
@@ -187,10 +200,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       double ptmp[3] ;
       if(!binary) {
         for(int i = 0; i < 3; ++i) {
-          fscanf(IFP, "%lf", &ptmp[i]) ;
+          if(fscanf(IFP, "%lf", &ptmp[i])!=1)
+	    input_error() ;
         }
       } else {
-        fread(ptmp,sizeof(double),3,IFP) ;
+        cfread(ptmp,sizeof(double),3,IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(ptmp,sizeof(double),3) ;
       }
@@ -207,10 +221,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         double ptmp[3] ;
         if(!binary) {
           for(int i = 0; i < 3; ++i) {
-            fscanf(IFP, "%lf", &ptmp[i]) ;
+            if(fscanf(IFP, "%lf", &ptmp[i])!=1)
+	      input_error() ;
           }
         } else {
-          fread(ptmp,sizeof(double),3,IFP) ;
+          cfread(ptmp,sizeof(double),3,IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(ptmp,sizeof(double),3) ;
         }
@@ -248,11 +263,12 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     { // triangles
       for(int i=triadist[R];i<triadist[R+1];++i) {
         tfaces[i][3] = 0 ;
-        if(!binary)
-          fscanf(IFP, "%d%d%d", &tfaces[i][0], &tfaces[i][1],
-                 &tfaces[i][2]) ;
-        else {
-          fread(&tfaces[i][0], sizeof(int), 3, IFP) ;
+        if(!binary) {
+          if(fscanf(IFP, "%d%d%d", 
+		    &tfaces[i][0], &tfaces[i][1], &tfaces[i][2])!=3)
+	    input_error() ;
+        } else {
+          cfread(&tfaces[i][0], sizeof(int), 3, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&tfaces[i][0],sizeof(int),3) ;
         }
@@ -264,10 +280,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         int ltsz = triadist[p+1]-triadist[p] ;
         for(int i=0;i<ltsz;++i) {
           ttmp[i][3] = 0 ;
-          if(!binary)
-            fscanf(IFP, "%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2]) ;
-          else {
-            fread(&ttmp[i][0], sizeof(int), 3, IFP) ;
+          if(!binary) {
+            if(fscanf(IFP, "%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2])!= 3)
+	      input_error() ;
+	  } else {
+            cfread(&ttmp[i][0], sizeof(int), 3, IFP) ;
             if(reverse_byteorder)
               ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),3) ;
           }
@@ -280,11 +297,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     { // Quads
       for(int i=quaddist[R];i<quaddist[R+1];++i) {
         qfaces[i][4] = 0 ;
-        if(!binary)
-          fscanf(IFP, "%d%d%d%d", &qfaces[i][0], &qfaces[i][1], &qfaces[i][2],
-                 &qfaces[i][3]) ;
-        else {
-          fread(&qfaces[i][0], sizeof(int), 4, IFP) ;
+        if(!binary) {
+          if(fscanf(IFP, "%d%d%d%d", 
+		    &qfaces[i][0], &qfaces[i][1], &qfaces[i][2],
+		    &qfaces[i][3])!= 4)
+	    input_error() ;
+        } else {
+          cfread(&qfaces[i][0], sizeof(int), 4, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&qfaces[i][0],sizeof(int),4) ;
         }
@@ -296,11 +315,12 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
         int lqsz = quaddist[p+1]-quaddist[p] ;
         for(int i=0;i<lqsz;++i) {
           qtmp[i][4] = 0 ;
-          if(!binary)
-            fscanf(IFP, "%d%d%d%d", &qtmp[i][0], &qtmp[i][1], &qtmp[i][2],
-                   &qtmp[i][3]) ;
-          else {
-            fread(&qtmp[i][0], sizeof(int), 4, IFP) ;
+          if(!binary) {
+            if(fscanf(IFP, "%d%d%d%d",
+		      &qtmp[i][0], &qtmp[i][1], &qtmp[i][2], &qtmp[i][3])!=4)
+	      input_error() ;
+          } else {
+            cfread(&qtmp[i][0], sizeof(int), 4, IFP) ;
             if(reverse_byteorder)
               ug_io_reverse_byte_order(&qtmp[i][0],sizeof(int),4) ;
           }
@@ -314,10 +334,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
 
     { // triangles
       for(int i=triadist[R];i<triadist[R+1];++i) {
-        if(!binary)
-          fscanf(IFP, "%d", &tfaces[i][3]) ;
-        else {
-          fread(&tfaces[i][3], sizeof(int), 1, IFP) ;
+        if(!binary) {
+          if(fscanf(IFP, "%d", &tfaces[i][3])!=1)
+	    input_error() ;
+        } else {
+          cfread(&tfaces[i][3], sizeof(int), 1, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&tfaces[i][3],sizeof(int),1) ;
         }
@@ -329,10 +350,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       for(int p=1;p<P;++p) {
         int ltsz = triadist[p+1]-triadist[p] ;
         for(int i=0;i<ltsz;++i) {
-          if(!binary)
-            fscanf(IFP, "%d", &ttmp[i]) ;
-          else {
-            fread(&ttmp[i], sizeof(int), 1, IFP) ;
+          if(!binary) {
+            if(fscanf(IFP, "%d", &ttmp[i])!=1)
+	      input_error() ;
+          } else {
+            cfread(&ttmp[i], sizeof(int), 1, IFP) ;
             if(reverse_byteorder)
               ug_io_reverse_byte_order(&ttmp[i],sizeof(int),1) ;
           }
@@ -344,10 +366,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
 
     { // Quads
       for(int i=quaddist[R];i<quaddist[R+1];++i) {
-        if(!binary)
-          fscanf(IFP, "%d", &qfaces[i][4]) ;
-        else {
-          fread(&qfaces[i][4], sizeof(int), 1, IFP) ;
+        if(!binary) {
+          if(fscanf(IFP, "%d", &qfaces[i][4])!= 1)
+	    input_error() ;
+        } else {
+          cfread(&qfaces[i][4], sizeof(int), 1, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&qfaces[i][4],sizeof(int),1) ;
         }
@@ -359,10 +382,11 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
       for(int p=1;p<P;++p) {
         int lqsz = quaddist[p+1]-quaddist[p] ;
         for(int i=0;i<lqsz;++i) {
-          if(!binary)
-            fscanf(IFP, "%d", &qtmp[i]) ;
-          else {
-            fread(&qtmp[i], sizeof(int), 1, IFP) ;
+          if(!binary) {
+            if(fscanf(IFP, "%d", &qtmp[i])!=1)
+	      input_error() ;
+          } else {
+            cfread(&qtmp[i], sizeof(int), 1, IFP) ;
             if(reverse_byteorder)
               ug_io_reverse_byte_order(&qtmp[i],sizeof(int),1) ;
           }
@@ -403,11 +427,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
 
   if(R == 0) {
     for(int i=tetsdist[R];i<tetsdist[R+1];++i) {
-      if(!binary)
-        fscanf(IFP, "%d%d%d%d", &tets[i][0], &tets[i][1],
-               &tets[i][2], &tets[i][3]) ;
-      else {
-        fread(&tets[i][0], sizeof(int), 4, IFP) ;
+      if(!binary) {
+        if(fscanf(IFP, "%d%d%d%d", 
+		  &tets[i][0], &tets[i][1],
+		  &tets[i][2], &tets[i][3])!=4)
+	  input_error() ;
+      } else {
+        cfread(&tets[i][0], sizeof(int), 4, IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&tets[i][0],sizeof(int),4) ;
       }
@@ -418,11 +444,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     for(int p=1;p<P;++p) {
       int ltsz = tetsdist[p+1]-tetsdist[p] ;
       for(int i=0;i<ltsz;++i) {
-        if(!binary)
-          fscanf(IFP, "%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
-                 &ttmp[i][3]) ;
-        else {
-          fread(&ttmp[i][0], sizeof(int), 4, IFP) ;
+        if(!binary) {
+          if(fscanf(IFP, "%d%d%d%d", 
+		    &ttmp[i][0], &ttmp[i][1], 
+		    &ttmp[i][2], &ttmp[i][3])!=4)
+	    input_error() ;
+        } else {
+          cfread(&ttmp[i][0], sizeof(int), 4, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),4) ;
         }
@@ -443,11 +471,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
 
   if(R == 0) {
     for(int i=pyrmdist[R];i<pyrmdist[R+1];++i) {
-      if(!binary)
-        fscanf(IFP, "%d%d%d%d%d", &pyramids[i][0], &pyramids[i][1],
-               &pyramids[i][2], &pyramids[i][3], &pyramids[i][4]) ;
-      else {
-        fread(&pyramids[i][0], sizeof(int), 5, IFP) ;
+      if(!binary) {
+        if(fscanf(IFP, "%d%d%d%d%d", 
+		  &pyramids[i][0], &pyramids[i][1],
+		  &pyramids[i][2], &pyramids[i][3], &pyramids[i][4])!=5)
+	  input_error() ;
+      } else {
+        cfread(&pyramids[i][0], sizeof(int), 5, IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&pyramids[i][0],sizeof(int),5) ;
       }
@@ -458,11 +488,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     for(int p=1;p<P;++p) {
       int ltsz = pyrmdist[p+1]-pyrmdist[p] ;
       for(int i=0;i<ltsz;++i) {
-        if(!binary)
-          fscanf(IFP, "%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
-                 &ttmp[i][3], &ttmp[i][4]) ;
-        else {
-          fread(&ttmp[i][0], sizeof(int), 5, IFP) ;
+        if(!binary) {
+          if(fscanf(IFP, "%d%d%d%d%d", 
+		    &ttmp[i][0], &ttmp[i][1], 
+		    &ttmp[i][2], &ttmp[i][3], &ttmp[i][4])!=5)
+	    input_error() ;
+        } else {
+          cfread(&ttmp[i][0], sizeof(int), 5, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),5) ;
         }
@@ -483,12 +515,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
 
   if(R == 0) {
     for(int i=prsmdist[R];i<prsmdist[R+1];++i) {
-      if(!binary)
-        fscanf(IFP, "%d%d%d%d%d%d", &prisms[i][0], &prisms[i][1],
-               &prisms[i][2], &prisms[i][3], &prisms[i][4],
-               &prisms[i][5]) ;
-      else {
-        fread(&prisms[i][0], sizeof(int), 6, IFP) ;
+      if(!binary) {
+        if(fscanf(IFP, "%d%d%d%d%d%d", 
+		  &prisms[i][0], &prisms[i][1], &prisms[i][2], 
+		  &prisms[i][3], &prisms[i][4], &prisms[i][5]) != 6)
+	  input_error() ;
+      } else {
+        cfread(&prisms[i][0], sizeof(int), 6, IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&prisms[i][0],sizeof(int),6) ;
       }
@@ -499,11 +532,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     for(int p=1;p<P;++p) {
       int ltsz = prsmdist[p+1]-prsmdist[p] ;
       for(int i=0;i<ltsz;++i) {
-        if(!binary)
-          fscanf(IFP, "%d%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
-                 &ttmp[i][3], &ttmp[i][4], &ttmp[i][5]) ;
-        else {
-          fread(&ttmp[i][0], sizeof(int), 6, IFP) ;
+        if(!binary) {
+          if(fscanf(IFP, "%d%d%d%d%d%d", 
+		    &ttmp[i][0], &ttmp[i][1], &ttmp[i][2],
+		    &ttmp[i][3], &ttmp[i][4], &ttmp[i][5])!=6)
+	    input_error() ;
+	} else {
+          cfread(&ttmp[i][0], sizeof(int), 6, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),6) ;
         }
@@ -524,12 +559,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
 
   if(R == 0) {
     for(int i=hexsdist[R];i<hexsdist[R+1];++i) {
-      if(!binary)
-        fscanf(IFP, "%d%d%d%d%d%d%d%d", &hexs[i][0], &hexs[i][1],
-               &hexs[i][2], &hexs[i][3], &hexs[i][4],
-               &hexs[i][5], &hexs[i][6], &hexs[i][7]) ;
-      else {
-        fread(&hexs[i][0], sizeof(int), 8, IFP) ;
+      if(!binary) {
+        if(fscanf(IFP, "%d%d%d%d%d%d%d%d", 
+		  &hexs[i][0], &hexs[i][1], &hexs[i][2], &hexs[i][3],
+		  &hexs[i][4], &hexs[i][5], &hexs[i][6], &hexs[i][7])!=8)
+	  input_error() ;
+      } else {
+        cfread(&hexs[i][0], sizeof(int), 8, IFP) ;
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&hexs[i][0],sizeof(int),8) ;
       }
@@ -540,12 +576,13 @@ void readUGRID(string filename,bool binary, store<vector3d<double> > &pos,
     for(int p=1;p<P;++p) {
       int ltsz = hexsdist[p+1]-hexsdist[p] ;
       for(int i=0;i<ltsz;++i) {
-        if(!binary)
-          fscanf(IFP, "%d%d%d%d%d%d%d%d", &ttmp[i][0], &ttmp[i][1],
-                 &ttmp[i][2], &ttmp[i][3], &ttmp[i][4], &ttmp[i][5],
-                 &ttmp[i][6], &ttmp[i][7]) ;
-        else {
-          fread(&ttmp[i][0], sizeof(int), 8, IFP) ;
+        if(!binary) {
+          if(fscanf(IFP, "%d%d%d%d%d%d%d%d", 
+		    &ttmp[i][0], &ttmp[i][1], &ttmp[i][2], &ttmp[i][3], 
+		    &ttmp[i][4], &ttmp[i][5], &ttmp[i][6], &ttmp[i][7])!=8)
+	    input_error() ;
+        } else {
+          cfread(&ttmp[i][0], sizeof(int), 8, IFP) ;
           if(reverse_byteorder)
             ug_io_reverse_byte_order(&ttmp[i][0],sizeof(int),8) ;
         }

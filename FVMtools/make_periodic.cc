@@ -19,7 +19,7 @@
 //#
 //#############################################################################
 #include <Loci.h>
-
+#include "vogtools.h"
 #include <iostream>
 using std::cout ;
 using std::cerr ;
@@ -71,10 +71,9 @@ using std::bind2nd ;
 
 #include <sys/time.h>
 
-#include "Tools/xdr.h"
-
 #include <sstream>
 using std::stringstream ;
+
 
 /*************************************************************
  * include for use of J. R. Shewchuk's robust geometric      *
@@ -6380,7 +6379,7 @@ std::ostream& show_brief_msg(const string& pb, std::ostream& s) {
 // show the help message
 std::ostream& show_usage(const string& pb, std::ostream& s) {
   s << pb << " is a periodic boundary tool. It is mainly designed " << endl ;
-  s << "to be used with the CHEM program (the XDR grid format). " << endl ;
+  s << "to be used with the CHEM program (the vog grid format). " << endl ;
   s << "It makes exactly same boundaries for the given grid. " << endl ;
   s << "This version uses the robust geometric predicates from" << endl ;
   s << "Jonathan Richard Shewchuk." << endl ;
@@ -6395,13 +6394,13 @@ std::ostream& show_usage(const string& pb, std::ostream& s) {
   s << "Usage: " << pb << " [options] input_case" << endl ;
   s << "    These options are available:" << endl ;
   s << "    -h  Help: show this help message you are reading" << endl ;
-  s << "    -o  Specify the output grid file name (default is a.xdr)"
+  s << "    -o  Specify the output grid file name (default is pb_casename.vog)"
     << endl ;
   s << "    -Q  Quiet: No terminal output except errors" << endl ;
   s << "    -2  Output intermediate results for 2D visualization" << endl ;
   s << "        program \"2dgv\" and \"showme\"" << endl ;
-  s << "    -b  Specify two boundaries. Followed by two integers" << endl ;
-  s << "        separated by blank. E.g., -b 1 2" << endl ;
+  s << "    -b  Specify two boundaries. Followed by two boundary names" << endl ;
+  s << "        separated by a space. E.g., -b periodic1 periodic2" << endl ;
   s << "    -r  Specify rotation vectors. \"center\" \"axis\" and \"angle\""
     << endl ;
   s << "        respectively. The rotation is specified from the first"
@@ -6465,9 +6464,9 @@ std::ostream& show_usage(const string& pb, std::ostream& s) {
   s << endl ;
   s << "Final note: the order of options and input_case does not matter"
     << endl ;
-  s << "      input_case is the grid file name without \".xdr\" suffix"
+  s << "      input_case is the grid file name without \".vog\" suffix"
     << endl ;
-  s << "      (e.g., if you have \"abc.xdr\", then input_case is \"abc\")"
+  s << "      (e.g., if you have \"abc.vog\", then input_case is \"abc\")"
     << endl ;
   s << "      the options \"-b\" and either \"-r\" or \"-t\" must be"
     << endl ;
@@ -6476,13 +6475,22 @@ std::ostream& show_usage(const string& pb, std::ostream& s) {
   s << "      this function is not currently supported." << endl ;
   s << endl ;
   s << "Examples: " << endl ;
-  s << "     " << pb << " -o abc-pb.xdr -r 0,0,0 1,0,0 30 "
-    << " -b 1 2 abc" << endl ;
-  s << "     " << pb << " abc -o abc-pb.xdr -b 1 2 -t 1,0,0" << endl ;
+  s << "     " << pb << " -o abc-pb -r 0,0,0 1,0,0 30 "
+    << " -b periodic1 periodic2 abc" << endl ;
+  s << "     " << pb << " abc -o abc-pb -b periodic1 periodic2 -t 1,0,0" << endl ;
   
   return s ;
 }
 
+namespace Loci {
+   bool readGridVOG(vector<entitySet> &local_nodes,
+                    vector<entitySet> &local_faces,
+                    vector<entitySet> &local_cells,
+                    store<vector3d<real_t> > &pos, Map &cl, Map &cr,
+                    multiMap &face2node, int max_alloc, string filename,
+                    vector<pair<int,string> > &boundary_ids,
+                    vector<pair<string,entitySet> > &volTags) ;
+}
 ///////////////////////////////////////////////////////////
 //                      The Main                         //
 ///////////////////////////////////////////////////////////
@@ -6492,16 +6500,16 @@ int main(int ac, char* av[]) {
   Loci::Init(&ac, &av) ;
   // init for exact arithmetic
   exactinit() ;
-
+  bool optimize = true;
   /**********
    * The command line parser
    **/
-  // the input problem name (e.g., "a" for a.xdr)
+  // the input problem name (e.g., "a" for a.vog)
   string problem_name ;
   // flag to indicate whether problem name has been specified or not
   bool problem_name_seen = false ;
   // the output grid file name
-  string output_name = "a.xdr" ;
+  string output_name = "" ;
   // flag to indicate whether output name has been specified or not
   bool output_name_seen = false ;
   // flag to indicate is the boundaries rotates?
@@ -6519,8 +6527,9 @@ int main(int ac, char* av[]) {
   // indicate the boundary id, they actually should be
   // "Entity" rather than "entitySet". Here we just set
   // it for later convenience
-  entitySet BC_1, BC_2 ;
+
   int BC1_id=0, BC2_id=0 ;
+  string BC1name, BC2name ;
   // flag to indicate whether boundaries are set or not
   bool boundary_set = false ;
   // whether to suppress output or not
@@ -6580,21 +6589,8 @@ int main(int ac, char* av[]) {
           avi+=3 ;
           continue ;
         }
-        if(!valid_int(string(av[avi+1])) ||
-           !valid_int(string(av[avi+2]))) {
-          cout << pb_name << ": error: boundary ids are expected to be "
-               << "integers" << endl ;
-          return -1 ;
-        }
-        int bc1 = chars2int(av[avi+1]) ;
-        int bc2 = chars2int(av[avi+2]) ;
-        // negate it if user specified the id in positive integers
-        if(bc1>=0) bc1 = -bc1 ;
-        if(bc2>=0) bc2 = -bc2 ;
-        BC_1 = interval(bc1,bc1) ;
-        BC_2 = interval(bc2,bc2) ;
-        BC1_id = abs(bc1) ;
-        BC2_id = abs(bc2) ;
+        BC1name = string(av[avi+1]) ;
+        BC2name = string(av[avi+2]) ;
         
         boundary_set = true ;
         avi+=3 ;
@@ -6772,37 +6768,79 @@ int main(int ac, char* av[]) {
    *            Actual operations begin here             *
    *******************************************************/
 
-  // set the name for two boundaries for output
-  string BC1name = "BC" + num2str(BC1_id) ;
-  string BC2name = "BC" + num2str(BC2_id) ;
-  
+  //read in grid
   fact_db facts ;
-  string gridfile = problem_name + string(".xdr") ;
-
+  string gridfile = problem_name + string(".vog") ;
+  vector<pair<int,string> > boundary_ids ;
+  if(!Loci::readBCfromVOG(gridfile,boundary_ids)) {
+    cerr << "unable to open grid file '" << gridfile << "'" << endl ;
+    exit(-1) ;
+  }
+  BC1_id = -1 ;
+  BC2_id = -1 ;
+  for(size_t i = 0;i<boundary_ids.size();++i) {
+    if(BC1name == boundary_ids[i].second)
+      BC1_id = boundary_ids[i].first ;
+    if(BC2name == boundary_ids[i].second)
+      BC2_id = boundary_ids[i].first ;
+  }
+  if(BC1_id == -1) 
+    cerr << "unable to find boundary name '" << BC1name << "' in grid." ;
+  if(BC2_id == -1) 
+    cerr << "unable to find boundary name '" << BC2name << "' in grid." ;
+  if(BC1_id == -1 || BC2_id == -1)
+    exit(-1) ;
+  
   if(verbose)
     cout << "Reading grid file: " << gridfile << "..." << endl ;
 
   gettimeofday(&time_grid_read_start,NULL) ;
-  if(!Loci::readFVMGrid(facts,gridfile)) {
-    cout << pb_name << ": error: unable to read file '"
-         << gridfile << "'" << endl
-         << pb_name << ": error: unable to continue." << endl ;
-    Loci::Abort() ;
-  }
-  gettimeofday(&time_grid_read_end,NULL) ;
+ 
+ 
+  
+  
+  if(Loci::MPI_rank == 0)
+    cout << "Reading: '" << gridfile <<"' ..." <<  endl  ;
 
-  // get necessary relations and data
-  Map cr(facts.get_fact("cr")) ;
-  Map cl(facts.get_fact("cl")) ;
-  multiMap face2node(facts.get_fact("face2node")) ;
-  store<vec3d> pos(facts.get_fact("pos")) ;
+  vector<entitySet> local_nodes,local_faces,local_cells ;
+  store<vector3d<Loci::real_t> > pos ;
+  Map cl,cr ;
+  multiMap face2node ;
+  int max_alloc=0 ;
+  vector<pair<string,entitySet> > volTags ;
+
+  if(!Loci::readGridVOG(local_nodes,local_faces,local_cells,
+                        pos,cl,cr,face2node,max_alloc,gridfile,
+                        boundary_ids,volTags)) {
+    if(Loci::MPI_rank == 0) {
+      cerr << "Reading grid file '" << gridfile <<"' failed in grid reader!"
+           << endl ;
+      Loci::Abort() ;
+    }
+  }
+  if(Loci::MPI_rank == 0) {
+    cout << "finished reading grid." << endl ;
+  }
+
+  
+  gettimeofday(&time_grid_read_end,NULL) ;
+  
+     
+  
+  entitySet BC1_faces, BC2_faces;
+  entitySet dom = cr.domain() ;
+  FORALL(dom,fc) {
+    if(cr[fc] == -BC1_id)
+      BC1_faces += fc ;
+    if(cr[fc] == -BC2_id)
+      BC2_faces += fc ;
+  } ENDFORALL ;
+   
   
   multiMap node2face ;
   Loci::inverseMap(node2face,face2node,pos.domain(),face2node.domain()) ;
-
-  entitySet BC1_faces = cr.preimage(BC_1).first ;
-  entitySet BC2_faces = cr.preimage(BC_2).first ;
-
+  
+  
   entitySet BC1_nodes = get_boundary_nodes(face2node,BC1_faces) ;
   entitySet BC2_nodes = get_boundary_nodes(face2node,BC2_faces) ;
 
@@ -6865,9 +6903,9 @@ int main(int ac, char* av[]) {
 
   if(twoD_aux_viz) {
     string BC1_out_name = problem_name + "BC" +
-      num2str(BC1_id) + ".2dgv" ;
+      BC1name + ".2dgv" ;
     string BC2_out_name = problem_name + "BC" +
-      num2str(BC2_id) + ".2dgv" ;
+      BC2name + ".2dgv" ;
     if(verbose) {
       cout << "--------" << endl ;  
       cout << "Writing out "<<BC1name<<" projection into: "
@@ -6889,7 +6927,7 @@ int main(int ac, char* av[]) {
       cout << "Done" << endl ;
     
     string two_out = problem_name + "BC" +
-      num2str(BC1_id) + num2str(BC2_id) + ".2dgv" ;
+      BC1name + BC2name + ".2dgv" ;
 
     if(verbose) {
       cout << "--------" << endl ;  
@@ -6945,7 +6983,7 @@ int main(int ac, char* av[]) {
 
   if(twoD_aux_viz) {
     string shift_bc2_out = problem_name + "BC" +
-      num2str(BC2_id) + "-shift.2dgv" ;
+      BC2name + "-shift.2dgv" ;
     if(verbose) {
       cout << "--------" << endl ;  
       cout << "Writing out shifted "<<BC2name<<" projection into: "
@@ -6957,7 +6995,7 @@ int main(int ac, char* av[]) {
       cout << "Done" << endl ;
     
     string shift_two_out = problem_name + "BC"+
-      num2str(BC1_id) + num2str(BC2_id) + "-shift.2dgv" ;
+      BC1name+ BC2name + "-shift.2dgv" ;
     if(verbose) {
       cout << "--------" << endl ;  
       cout << "Writing out shifted projection (overlapped) into: "
@@ -7038,9 +7076,9 @@ int main(int ac, char* av[]) {
 #endif
   }
   if(twoD_aux_viz) {
-    string split_bc1_poly = problem_name + "BC" + num2str(BC1_id) +
+    string split_bc1_poly = problem_name + "BC" + BC1name +
       "-new.poly" ;
-    string split_bc1_2dgv = problem_name + "BC" + num2str(BC1_id) +
+    string split_bc1_2dgv = problem_name + "BC" + BC1name +
       "-new.2dgv" ;
     if(verbose) {
       cout << "  Writing out face split results into: " << endl
@@ -7177,9 +7215,9 @@ int main(int ac, char* av[]) {
 #endif
   }
   if(twoD_aux_viz) {
-    string split_bc2_poly = problem_name + "BC" + num2str(BC2_id) +
+    string split_bc2_poly = problem_name + "BC" + BC2name +
       "-new.poly" ;
-    string split_bc2_2dgv = problem_name + "BC" + num2str(BC2_id) +
+    string split_bc2_2dgv = problem_name + "BC" + BC2name +
       "-new.2dgv" ;
     if(verbose) {
       cout << "  Writing out face split results into: " << endl
@@ -7301,23 +7339,26 @@ int main(int ac, char* av[]) {
     cout << "  Done" << endl ;
   }
   
-  // we are now ready to write out the new XDR grid
+  if(output_name == "") {
+    output_name = "pb_"+gridfile ;
+  }
+  if(output_name.size() < 5 ||
+     output_name.substr(output_name.size()-4,4) != ".vog") {
+    output_name+= ".vog" ;
+  }
+  if(output_name == gridfile)
+    output_name = "pb_"+gridfile ;
+    
+  // we are now ready to write out the new  grid
   if(verbose) {
     cout << "--------" << endl ;
-    cout << "Generating new XDR grid: " << output_name << endl ;
+    cout << "Generating new  grid: " << output_name << endl ;
   }
 
   gettimeofday(&time_new_grid_write_start,NULL) ;
-  FILE *grid = fopen(output_name.c_str(), "w") ;
-  if(grid == NULL) {
-    cout << pb_name << ": error: cannot create " << output_name <<  endl ;
-    Loci::Abort() ;
-  }
-  XDR xdr_handle ;
-  xdrstdio_create(&xdr_handle, grid, XDR_ENCODE) ;
-
-  int ndim = 3 ;
-  int unused = 1 ;
+  
+  //outfile : output_name
+  
   int npoints, nfaces, ncells ;
   
   npoints = pos.domain().size() + BC1_new_nodes.domain().size()
@@ -7333,15 +7374,16 @@ int main(int ac, char* av[]) {
     BC2_face_split.size() +
     BC2_new_face2node.domain().size() ;
 
-  entitySet domain,range ;
-  domain = cl.domain() ;
+  entitySet range ;
+  entitySet domain = cl.domain() ;
   range += cl.image(domain) ;
   domain = cr.domain() ;
   range += cr.image(domain) ;
   
   range &= interval(0,Loci::UNIVERSE_MAX) ;
   ncells = range.size() ;
-
+  
+  
   if(verbose) {
     cout << "\ttotal number of points: " << npoints << endl ;
     cout << "\ttotal number of faces: " << nfaces << endl ;
@@ -7359,14 +7401,12 @@ int main(int ac, char* av[]) {
     ++count ;
   }
   
-  xdr_int(&xdr_handle, &ndim) ;
-  xdr_int(&xdr_handle, &unused) ;
-  xdr_int(&xdr_handle, &unused) ;
-  xdr_int(&xdr_handle, &npoints) ;
-  xdr_int(&xdr_handle, &nfaces) ;
-  xdr_int(&xdr_handle, &ncells) ;
-  xdr_int(&xdr_handle, &unused) ;
-  xdr_int(&xdr_handle, &unused) ;
+  
+  //define the new pos
+
+  store<vector3d<double> > newPos;
+  entitySet newPosDom = interval(0, npoints-1);
+  newPos.allocate(newPosDom);
 
   // we will need to re-number the nodes
   // nodes are numbered from 0
@@ -7377,121 +7417,153 @@ int main(int ac, char* av[]) {
   count = 0 ;
   // we write out the nodes
   domain = pos.domain() ;
+  entitySet::const_iterator ni = newPosDom.begin();
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei,++count) {
+      ei!=domain.end();++ei,++count, ni++) {
     // set index first
     node_index[*ei] = count ;
+    newPos[*ni] = pos[*ei];
     // then write out
-    vec3d v=pos[*ei] ;
-    xdr_double(&xdr_handle,&v.x) ;
-    xdr_double(&xdr_handle,&v.y) ;
-    xdr_double(&xdr_handle,&v.z) ;
   }
   domain = BC1_new_nodes_3D.domain() ;
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei,++count) {
+      ei!=domain.end();++ei,++count, ni++) {
     // set index first
     node_index[*ei] = count ;
+    newPos[*ni] =BC1_new_nodes_3D[*ei];
     // then write out
-    vec3d v=BC1_new_nodes_3D[*ei] ;
-    xdr_double(&xdr_handle,&v.x) ;
-    xdr_double(&xdr_handle,&v.y) ;
-    xdr_double(&xdr_handle,&v.z) ;
   }
   domain = BC2_new_nodes_3D.domain() ;
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei,++count) {
+      ei!=domain.end();++ei,++count, ni++) {
     // set index first
     node_index[*ei] = count ;
-    // then write out
-    vec3d v=BC2_new_nodes_3D[*ei] ;
-    xdr_double(&xdr_handle,&v.x) ;
-    xdr_double(&xdr_handle,&v.y) ;
-    xdr_double(&xdr_handle,&v.z) ;
+    newPos[*ni] =BC2_new_nodes_3D[*ei];
   }
+
+  
+  
 
   // we then write out face offset and cl, cr
   // first write out faces other than BC1 and BC2 new faces
   // and some of the potential changed boundary faces
+  entitySet newFaceDom = interval(0, nfaces-1);
+  Map newCl;
+  Map newCr;
+  store<int> faceCount;
+  multiMap newFace2node;
+  
+  newCl.allocate(newFaceDom);
+  newCr.allocate(newFaceDom);
+  faceCount.allocate(newFaceDom);
+  
+  entitySet::const_iterator fi = newFaceDom.begin();
+  
   domain = face2node.domain() - BC1_face_split -
     BC2_face_split ;
-  count = 0 ;
+  
+   count = 0 ;
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei) {
+      ei!=domain.end();++ei, fi++) {
     int offset = face2node.num_elems(*ei) ;
+    faceCount[*fi] = offset;
     Entity c1 = cl[*ei] ; if(c1>=0) c1=cell_index[c1] ;
     Entity c2 = cr[*ei] ; if(c2>=0) c2=cell_index[c2] ;
-    xdr_int(&xdr_handle,&count) ;
-    xdr_int(&xdr_handle,&c1) ;
-    xdr_int(&xdr_handle,&c2) ;
-    count += offset ;
+    newCl[*fi] = c1;
+    newCr[*fi] = c2;
+    count += offset ; 
   }
   // then BC1 new faces
   domain = BC1_new_face2node.domain() ;
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei) {
+      ei!=domain.end();++ei, fi++) {
     int offset = BC1_new_face2node.num_elems(*ei) ;
+    faceCount[*fi] = offset;
     Entity c1 = BC1_new_cl[*ei] ; if(c1>=0) c1=cell_index[c1] ;
     Entity c2 = BC1_new_cr[*ei] ; if(c2>=0) c2=cell_index[c2] ;
-    xdr_int(&xdr_handle,&count) ;
-    xdr_int(&xdr_handle,&c1) ;
-    xdr_int(&xdr_handle,&c2) ;
-    count += offset ;
+    newCl[*fi] = c1;
+    newCr[*fi] = c2;
+    count += offset ; 
   }
   // then BC2 new faces
   domain = BC2_new_face2node.domain() ;
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei) {
+      ei!=domain.end();++ei, fi++) {
     int offset = BC2_new_face2node.num_elems(*ei) ;
+     faceCount[*fi] = offset;
     Entity c1 = BC2_new_cl[*ei] ; if(c1>=0) c1=cell_index[c1] ;
     Entity c2 = BC2_new_cr[*ei] ; if(c2>=0) c2=cell_index[c2] ;
-    xdr_int(&xdr_handle,&count) ;
-    xdr_int(&xdr_handle,&c1) ;
-    xdr_int(&xdr_handle,&c2) ;
+    newCl[*fi] = c1;
+    newCr[*fi] = c2;
     count += offset ;
   }
-  // total nodes used to define faces
-  xdr_int(&xdr_handle,&count) ;
-
+  
+  
   if(verbose) {
     cout << "\ttotal number of points used to define faces: "
          << count << endl ;
   }
+  newFace2node.allocate(faceCount);
+  
 
+  fi = newFaceDom.begin();
   // then we write out face2node array
   // first write out faces other than BC1 and BC2 new faces
   // and some of the potential changed boundary faces
   domain = face2node.domain() - BC1_face_split -
     BC2_face_split ;
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei) {
+      ei!=domain.end();++ei, fi++) {
     vector<Entity> nodes = get_face_nodes(face2node,*ei) ;
-    for(vector<Entity>::const_iterator vi=nodes.begin();
-        vi!=nodes.end();++vi)
-      xdr_int(&xdr_handle,&(node_index[*vi])) ;
+    for(unsigned int i = 0; i < nodes.size(); i++)
+      newFace2node[*fi][i] = node_index[nodes[i]] ;
   }
   // then BC1 new faces
   domain = BC1_new_face2node.domain() ;
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei) {
+      ei!=domain.end();++ei, fi++) {
     vector<Entity> nodes = get_face_nodes(BC1_new_face2node,*ei) ;
-    for(vector<Entity>::const_iterator vi=nodes.begin();
-        vi!=nodes.end();++vi)
-      xdr_int(&xdr_handle,&(node_index[*vi])) ;
+    for(unsigned int i = 0; i < nodes.size(); i++)
+      newFace2node[*fi][i] = node_index[nodes[i]] ;
   }
   // then BC2 new faces
   domain = BC2_new_face2node.domain() ;
   for(entitySet::const_iterator ei=domain.begin();
-      ei!=domain.end();++ei) {
+      ei!=domain.end();++ei, fi++) {
     vector<Entity> nodes = get_face_nodes(BC2_new_face2node,*ei) ;
-    for(vector<Entity>::const_iterator vi=nodes.begin();
-        vi!=nodes.end();++vi)
-      xdr_int(&xdr_handle,&(node_index[*vi])) ;
+    for(unsigned int i = 0; i < nodes.size(); i++)
+      newFace2node[*fi][i] = node_index[nodes[i]] ;
   }
   
   // AND WE ARE FINALLY DONE
-  xdr_destroy(&xdr_handle) ;
-  fclose(grid) ;
+  // establish face left-right orientation
+  if(Loci::MPI_rank == 0) 
+    cerr << "orienting faces" << endl ;
+  VOG::orientFaces(newPos,newCl,newCr,newFace2node) ;
+    
+ 
+  
+  if(Loci::MPI_rank == 0)
+    cerr << "coloring matrix" << endl ;
+  VOG::colorMatrix(newPos,newCl,newCr,newFace2node) ;
+ 
+  
+  if(optimize) {
+    if(Loci::MPI_rank == 0) 
+      cerr << "optimizing mesh layout" << endl ;
+    VOG::optimizeMesh(newPos,newCl,newCr,newFace2node) ;
+  }
+
+  
+  if(Loci::MPI_rank == 0)
+    cerr << "writing VOG file" << endl ;
+
+  
+  //get boundary names
+  vector<pair<int,string> > surf_ids = boundary_ids ;
+ 
+
+  Loci::writeVOG(output_name, newPos, newCl, newCr, newFace2node,surf_ids) ;
 
   if(verbose)
     cout << "DONE" << endl ;

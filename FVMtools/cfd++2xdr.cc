@@ -36,74 +36,74 @@ using std::ios ;
 
 //---------------------Array----------------------//
 template <class T,size_t n> class Array {
-    T x[n] ;
-  public:
-    typedef T * iterator ;
-    typedef const T * const_iterator ;
+  T x[n] ;
+public:
+  typedef T * iterator ;
+  typedef const T * const_iterator ;
     
-    Array() {} ;
-    Array(const Array<T,n> &v)
-        { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; } 
-    Array<T,n> &operator=(const Array<T,n> &v)
-        { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
+  //  Array() {} ;
+  //  Array(const Array<T,n> &v)
+  //  { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; } 
+  //  Array<T,n> &operator=(const Array<T,n> &v)
+  //  { for(size_t i=0;i<n;++i) x[i] = v.x[i] ; return *this ; } 
     
-    Array<T,n> &operator +=(const Array<T,n> &v)
-        { for(size_t i=0;i<n;++i) x[i] += v.x[i] ; return *this ; }
-    Array<T,n> &operator -=(const Array<T,n> &v)
-        { for(size_t i=0;i<n;++i) x[i] -= v.x[i] ; return *this ; }
-    Array<T,n> &operator *=(const Array<T,n> &v)
-        { for(size_t i=0;i<n;++i) x[i] *= v.x[i] ; return *this ; }
-    Array<T,n> &operator /=(const Array<T,n> &v)
-        { for(size_t i=0;i<n;++i) x[i] /= v.x[i] ; return *this ; }
+  Array<T,n> &operator +=(const Array<T,n> &v)
+  { for(size_t i=0;i<n;++i) x[i] += v.x[i] ; return *this ; }
+  Array<T,n> &operator -=(const Array<T,n> &v)
+  { for(size_t i=0;i<n;++i) x[i] -= v.x[i] ; return *this ; }
+  Array<T,n> &operator *=(const Array<T,n> &v)
+  { for(size_t i=0;i<n;++i) x[i] *= v.x[i] ; return *this ; }
+  Array<T,n> &operator /=(const Array<T,n> &v)
+  { for(size_t i=0;i<n;++i) x[i] /= v.x[i] ; return *this ; }
     
-    T &operator[](size_t indx) { return x[indx]; }
-    const T &operator[](size_t indx) const { return x[indx] ; }
+  T &operator[](size_t indx) { return x[indx]; }
+  const T &operator[](size_t indx) const { return x[indx] ; }
     
-    iterator begin() { return &x[0] ; }
-    iterator end() { return begin()+n ; }
-    const_iterator begin() const { return &x[0] ; }
-    const_iterator end() const { return begin()+n ; }
+  iterator begin() { return &x[0] ; }
+  iterator end() { return begin()+n ; }
+  const_iterator begin() const { return &x[0] ; }
+  const_iterator end() const { return begin()+n ; }
     
-    size_t size() const  { return n ; }
+  size_t size() const  { return n ; }
 } ;
 
 template <class T,size_t n> inline std::ostream &
 operator<<(std::ostream &s, const Array<T,n> &v) {
-    for(int i=0;i<n;++i)
-      s << v[i] << ' ' ;
-    return s ;
+  for(int i=0;i<n;++i)
+    s << v[i] << ' ' ;
+  return s ;
 }
 
 template <class T,size_t n> inline std::istream &
 operator>>(std::istream &s, Array<T,n> &v) {
-    for(int i=0;i<n;++i)
-      s >> v[i] ;
-    return s ;
+  for(int i=0;i<n;++i)
+    s >> v[i] ;
+  return s ;
 }
 
 
 bool reverse_byteorder = false ;
 
 void check_order() {
-    static int test = 15 ;
-    char *p = (char *)&test ;
-    if(int(*p) == test) {
-        reverse_byteorder = true ;
-    }
+  static int test = 15 ;
+  char *p = (char *)&test ;
+  if(int(*p) == test) {
+    reverse_byteorder = true ;
+  }
 }
 
 
 void ug_io_reverse_byte_order
- (void * Data,
-  size_t Size,
-  int Number)
+(void * Data,
+ size_t Size,
+ int Number)
 
 {
  
-/*
- * Set file format and host to big or little endian byte ordering.
- * 
- */
+  /*
+   * Set file format and host to big or little endian byte ordering.
+   * 
+   */
 
   char *Data_Byte_Ptr;
   char Temp_Data_Byte;
@@ -115,22 +115,22 @@ void ug_io_reverse_byte_order
   Data_Byte_Ptr = (char *) Data;
 
   for (Index = 0; Index < Number; ++Index)
-  {
-    Reverse_Byte_Index = Number_of_Bytes;
-
-    for (Byte_Index = 0; Byte_Index < Number_of_Bytes/2; ++Byte_Index)
     {
-      --Reverse_Byte_Index;
+      Reverse_Byte_Index = Number_of_Bytes;
 
-      Temp_Data_Byte = Data_Byte_Ptr[Byte_Index];
+      for (Byte_Index = 0; Byte_Index < Number_of_Bytes/2; ++Byte_Index)
+	{
+	  --Reverse_Byte_Index;
 
-      Data_Byte_Ptr[Byte_Index] = Data_Byte_Ptr[Reverse_Byte_Index];
+	  Temp_Data_Byte = Data_Byte_Ptr[Byte_Index];
 
-      Data_Byte_Ptr[Reverse_Byte_Index] = Temp_Data_Byte;
+	  Data_Byte_Ptr[Byte_Index] = Data_Byte_Ptr[Reverse_Byte_Index];
+
+	  Data_Byte_Ptr[Reverse_Byte_Index] = Temp_Data_Byte;
+	}
+
+      Data_Byte_Ptr += Number_of_Bytes;
     }
-
-    Data_Byte_Ptr += Number_of_Bytes;
-  }
 
   return;
 }
@@ -174,24 +174,44 @@ int main(int ac, char* av[]) {
 
   // Read in nodes file
   int version = 0 ;
-  fread(&version, sizeof(int), 1, NFP) ;
+  int rsz = fread(&version, sizeof(int), 1, NFP) ;
+  if(rsz != 1) {
+    cerr << "fread failed" << endl ;
+    exit(-1) ;
+  }
   int mnodes = 0 ;
-  fread(&mnodes, sizeof(int), 1, NFP) ;
+  rsz = fread(&mnodes, sizeof(int), 1, NFP) ;
+  if(rsz != 1) {
+    cerr << "fread failed" << endl ;
+    exit(-1) ;
+  }
   if(reverse_byteorder)
     ug_io_reverse_byte_order(&mnodes,sizeof(int),1) ;
   cout << "# nodes = " << mnodes << endl ;
   int nodvar_l = 0 ;
-  fread(&nodvar_l, sizeof(int), 1, NFP) ;
+  rsz = fread(&nodvar_l, sizeof(int), 1, NFP) ;
+  if(rsz != 1) {
+    cerr << "fread failed" << endl ;
+    exit(-1) ;
+  }
   if(reverse_byteorder)
     ug_io_reverse_byte_order(&nodvar_l,sizeof(int),1) ;
   cout << "nodvar_l="<<nodvar_l << endl ;
   vector<Array<double,3> > pos(mnodes) ;
   for(int i=0;i<mnodes;++i) {
     int nodtype = 0 ;
-    fread(&nodtype, sizeof(int), 1, NFP) ;
+    rsz = fread(&nodtype, sizeof(int), 1, NFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }    
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&nodtype,sizeof(int),1) ;
-    fread(&(pos[i][0]),sizeof(double),3,NFP) ;
+    rsz = fread(&(pos[i][0]),sizeof(double),3,NFP) ;
+    if(rsz != 3) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
     if(nodtype != 0) {
       cerr << "converter only supports type 0 nodes" << endl ;
       exit(-1) ;
@@ -215,14 +235,26 @@ int main(int ac, char* av[]) {
 
   
   // Read in cells file
-  fread(&version, sizeof(int), 1, CFP) ;
+  rsz = fread(&version, sizeof(int), 1, CFP) ;
+  if(rsz != 1) {
+    cerr << "fread failed" << endl ;
+    exit(-1) ;
+  }
   int mcells = 0 ;
-  fread(&mcells, sizeof(int), 1, CFP) ;
+  rsz = fread(&mcells, sizeof(int), 1, CFP) ;
+  if(rsz != 1) {
+    cerr << "fread failed" << endl ;
+    exit(-1) ;
+  }
   if(reverse_byteorder)
     ug_io_reverse_byte_order(&mcells,sizeof(int),1) ;
   cout << "# cells = " << mcells << endl ;
   int info_length = 0 ;
-  fread(&info_length, sizeof(int), 1, CFP) ;
+  rsz = fread(&info_length, sizeof(int), 1, CFP) ;
+  if(rsz != 1) {
+    cerr << "fread failed" << endl ;
+    exit(-1) ;
+  }
   if(reverse_byteorder)
     ug_io_reverse_byte_order(&info_length,sizeof(int),1) ;
   cout << "info_length = " << info_length << endl ;
@@ -236,15 +268,23 @@ int main(int ac, char* av[]) {
   
   for(int i=0;i<mcells;++i) {
     int celtype = 0 ;
-    fread(&celtype, sizeof(int), 1, CFP) ;
+    rsz = fread(&celtype, sizeof(int), 1, CFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }    
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&celtype,sizeof(int),1) ;
     switch(celtype) {
     case 0: // Hexahedron
       {
         Array<int,8> hex ;
-        fread(&hex[0], sizeof(int), 8, CFP) ;
-        if(reverse_byteorder)
+        rsz = fread(&hex[0], sizeof(int), 8, CFP) ;
+	if(rsz != 8) {
+	  cerr << "fread failed" << endl ;
+	  exit(-1) ;
+	}        
+	if(reverse_byteorder)
           ug_io_reverse_byte_order(&hex[0],sizeof(int),8) ;
         quad_info qface ;
         qface[4] = i+1 ;
@@ -260,7 +300,11 @@ int main(int ac, char* av[]) {
     case 1: // Prism
       {
         Array<int,6> prsm ;
-        fread(&prsm[0], sizeof(int), 6, CFP) ;
+        rsz = fread(&prsm[0], sizeof(int), 6, CFP) ;
+	if(rsz != 6) {
+	  cerr << "fread failed" << endl ;
+	  exit(-1) ;
+	}
         if(reverse_byteorder)
           ug_io_reverse_byte_order(&prsm[0],sizeof(int),6) ;
         quad_info qface ;
@@ -285,8 +329,12 @@ int main(int ac, char* av[]) {
     case 2: // Tetrahedron
       {
         Array<int,4> tet ;
-        fread(&tet[0], sizeof(int), 4, CFP) ;
-        if(reverse_byteorder)
+        rsz = fread(&tet[0], sizeof(int), 4, CFP) ;
+	if(rsz != 4) {
+	  cerr << "fread failed" << endl ;
+	  exit(-1) ;
+	}        
+	if(reverse_byteorder)
           ug_io_reverse_byte_order(&tet[0],sizeof(int),4) ;
         tri_info tface ;
         tface[3] = i+1 ;
@@ -301,8 +349,12 @@ int main(int ac, char* av[]) {
     case 6: // Pyramid
       {
         Array<int,5> pyrm ;
-        fread(&pyrm[0], sizeof(int), 5, CFP) ;
-        if(reverse_byteorder)
+        rsz = fread(&pyrm[0], sizeof(int), 5, CFP) ;
+	if(rsz != 5) {
+	  cerr << "fread failed" << endl ;
+	  exit(-1) ;
+	}        
+	if(reverse_byteorder)
           ug_io_reverse_byte_order(&pyrm[0],sizeof(int),5) ;
         tri_info tface ;
         tface[3] = i+1 ;
@@ -334,34 +386,62 @@ int main(int ac, char* av[]) {
     exit(-1) ;
   }  
 
-  fread(&version, sizeof(int), 1, BFP) ;
+  rsz = fread(&version, sizeof(int), 1, BFP) ;
+  if(rsz != 1) {
+    cerr << "fread failed" << endl ;
+    exit(-1) ;
+  }
   int mbcs = 0 ;
-  fread(&mbcs, sizeof(int), 1, BFP) ;
+  rsz = fread(&mbcs, sizeof(int), 1, BFP) ;
+  if(rsz != 1) {
+    cerr << "fread failed" << endl ;
+    exit(-1) ;
+  }
   if(reverse_byteorder)
     ug_io_reverse_byte_order(&mbcs,sizeof(int),1) ;
   cout << "# bcs = " << mbcs << endl ;
 
   for(int i=0;i<mbcs;++i) {
     int bc = 0 ;
-    fread(&bc, sizeof(int), 1, BFP) ;
-    fread(&bc, sizeof(int), 1, BFP) ;
+    rsz = fread(&bc, sizeof(int), 1, BFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }    
+    rsz = fread(&bc, sizeof(int), 1, BFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&bc,sizeof(int),1) ;
     int sz = 0 ;
-    fread(&sz, sizeof(int), 1, BFP) ;
+    rsz = fread(&sz, sizeof(int), 1, BFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&sz,sizeof(int),1) ;
     if(sz == 3) {
       tri_info tface ;
       tface[3] = -bc ;
-      fread(&tface[0], sizeof(int), 3, BFP) ;
+      rsz = fread(&tface[0], sizeof(int), 3, BFP) ;
+      if(rsz != 3) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&tface[0],sizeof(int),3) ;
       tflist.push_back(tface) ;
     } else if(sz == 4) {
       quad_info qface ;
       qface[4] = -bc ;
-      fread(&qface[0], sizeof(int), 4, BFP) ;
+      rsz = fread(&qface[0], sizeof(int), 4, BFP) ;
+      if(rsz != 4) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }      
       if(reverse_byteorder)
         ug_io_reverse_byte_order(&qface[0],sizeof(int),4) ;
       qflist.push_back(qface) ;
@@ -424,7 +504,7 @@ int main(int ac, char* av[]) {
       std::swap(tflist[i][0],tflist[i][2]) ;
     if(tflist[i][1] > tflist[i][2])
       std::swap(tflist[i][1],tflist[i][2]
-) ;
+		) ;
   }
 
   // prepare quad faces (sort them, but be careful)
@@ -520,25 +600,54 @@ int main(int ac, char* av[]) {
     fscanf(IFP, "%d%d%d%d", &num_vol_tets, &num_vol_pents5, &num_vol_pents6, &num_vol_hexs) ;
   }
   else {
-    fread(&num_nodes, sizeof(int), 1, IFP) ;
+    rsz = fread(&num_nodes, sizeof(int), 1, IFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&num_nodes,sizeof(int),1) ;
-    fread(&num_sf_trias, sizeof(int), 1, IFP) ;
+    rsz = fread(&num_sf_trias, sizeof(int), 1, IFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&num_sf_trias,sizeof(int),1) ;
-    fread(&num_sf_quads, sizeof(int), 1, IFP) ;
+    rsz = fread(&num_sf_quads, sizeof(int), 1, IFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&num_sf_quads,sizeof(int),1) ;
-    fread(&num_vol_tets, sizeof(int), 1, IFP) ;
+    rsz = fread(&num_vol_tets, sizeof(int), 1, IFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
+
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&num_vol_tets,sizeof(int),1) ;
-    fread(&num_vol_pents5, sizeof(int), 1, IFP) ;
+    rsz = fread(&num_vol_pents5, sizeof(int), 1, IFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&num_vol_pents5,sizeof(int),1) ;
-    fread(&num_vol_pents6, sizeof(int), 1, IFP) ;
+    rsz = fread(&num_vol_pents6, sizeof(int), 1, IFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }    
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&num_vol_pents6,sizeof(int),1) ;
-    fread(&num_vol_hexs, sizeof(int), 1, IFP) ;
+    rsz = fread(&num_vol_hexs, sizeof(int), 1, IFP) ;
+    if(rsz != 1) {
+      cerr << "fread failed" << endl ;
+      exit(-1) ;
+    }
     if(reverse_byteorder)
       ug_io_reverse_byte_order(&num_vol_hexs,sizeof(int),1) ;
   }
@@ -614,7 +723,11 @@ int main(int ac, char* av[]) {
     double ptmp[3] ;
     if(reverse_byteorder)
       for(int i = 0; i < num_nodes; ++i) {
-        fread(ptmp,sizeof(double),3,IFP) ;
+        rsz = fread(ptmp,sizeof(double),3,IFP) ;
+	if(rsz != 3) {
+	  cerr << "fread failed" << endl ;
+	  exit(-1) ;
+	}	
         ug_io_reverse_byte_order(ptmp,sizeof(double),3) ;
         xdr_double(&xdr_handle,&ptmp[0]) ;
         xdr_double(&xdr_handle,&ptmp[1]) ;
@@ -622,8 +735,12 @@ int main(int ac, char* av[]) {
       }
     else
       for(int i = 0; i < num_nodes; ++i) {
-        fread(ptmp,sizeof(double),3,IFP) ;
-        xdr_double(&xdr_handle,&ptmp[0]) ;
+        rsz = fread(ptmp,sizeof(double),3,IFP) ;
+	if(rsz != 3) {
+	  cerr << "fread failed" << endl ;
+	  exit(-1) ;
+	}        
+	xdr_double(&xdr_handle,&ptmp[0]) ;
         xdr_double(&xdr_handle,&ptmp[1]) ;
         xdr_double(&xdr_handle,&ptmp[2]) ;
       }
@@ -640,8 +757,8 @@ int main(int ac, char* av[]) {
   Array<int,6> *bnd_quad = new Array<int,6>[num_sf_quads] ;
 
   if(quad_faces == 0 || tri_faces == 0 || bnd_tri == 0 || bnd_quad == 0) {
-      cerr << "unable to allocate space for faces" << endl ;
-      exit(-1) ;
+    cerr << "unable to allocate space for faces" << endl ;
+    exit(-1) ;
   }
 
   cout << "reading in boundary information..." << endl ;
@@ -656,9 +773,13 @@ int main(int ac, char* av[]) {
     if(!binary)
       fscanf(IFP, "%d%d%d", &tmp_tria[0], &tmp_tria[1], &tmp_tria[2]) ;  
     else { 
-        fread(&tmp_tria[0], sizeof(int), 3, IFP) ;
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&tmp_tria[0],sizeof(int),3) ;
+      rsz = fread(&tmp_tria[0], sizeof(int), 3, IFP) ;
+      if(rsz != 3) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }        
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&tmp_tria[0],sizeof(int),3) ;
 
     }
     tri_faces[tf++] = tmp_tria  ;
@@ -670,9 +791,13 @@ int main(int ac, char* av[]) {
     if(!binary)
       fscanf(IFP, "%d%d%d%d", &tmp_quad[0], &tmp_quad[1], &tmp_quad[2], &tmp_quad[3]) ;  
     else {
-        fread(&tmp_quad[0], sizeof(int), 4, IFP) ;
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&tmp_quad[0],sizeof(int),4) ;
+      rsz = fread(&tmp_quad[0], sizeof(int), 4, IFP) ;
+      if(rsz != 4) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&tmp_quad[0],sizeof(int),4) ;
     }
     quad_faces[qf++] = tmp_quad ;
   }
@@ -682,9 +807,13 @@ int main(int ac, char* av[]) {
     if(!binary)
       fscanf(IFP, "%d", &tri_faces[i][3]) ;
     else {
-        fread(&tri_faces[i][3], sizeof(int), 1, IFP) ;
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&tri_faces[i][3],sizeof(int),1) ;
+      rsz = fread(&tri_faces[i][3], sizeof(int), 1, IFP) ;
+      if(rsz != 1) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }        
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&tri_faces[i][3],sizeof(int),1) ;
     }
     tri_faces[i][3] = -tri_faces[i][3] ;
   }
@@ -694,9 +823,13 @@ int main(int ac, char* av[]) {
     if(!binary)
       fscanf(IFP, "%d", &quad_faces[i][4]) ;
     else {
-        fread(&quad_faces[i][4], sizeof(int), 1, IFP) ;
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&quad_faces[i][4],sizeof(int),1) ;
+      rsz = fread(&quad_faces[i][4], sizeof(int), 1, IFP) ;
+      if(rsz != 1) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&quad_faces[i][4],sizeof(int),1) ;
 
     }
     quad_faces[i][4] = -quad_faces[i][4] ;
@@ -712,9 +845,13 @@ int main(int ac, char* av[]) {
     if(!binary)
       fscanf(IFP, "%d%d%d%d", &tmp_quad[0], &tmp_quad[1], &tmp_quad[2], &tmp_quad[3]) ;
     else {
-        fread(&tmp_quad[0], sizeof(int), 4, IFP) ;
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&tmp_quad[0],sizeof(int),4) ;
+      rsz = fread(&tmp_quad[0], sizeof(int), 4, IFP) ;
+      if(rsz != 4) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }        
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&tmp_quad[0],sizeof(int),4) ;
     }
 
     tri_faces[tf][0] = tmp_quad[0] ;
@@ -747,9 +884,13 @@ int main(int ac, char* av[]) {
     if(!binary)
       fscanf(IFP, "%d%d%d%d%d", &tmp_pents5[0], &tmp_pents5[1], &tmp_pents5[2], &tmp_pents5[3], &tmp_pents5[4]) ;
     else {
-        fread(&tmp_pents5[0], sizeof(int), 5, IFP) ;
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&tmp_pents5[0],sizeof(int),5) ;
+      rsz = fread(&tmp_pents5[0], sizeof(int), 5, IFP) ;
+      if(rsz != 5) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }        
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&tmp_pents5[0],sizeof(int),5) ;
     }
     tri_faces[tf][0] = tmp_pents5[4] ;
     tri_faces[tf][1] = tmp_pents5[1] ;
@@ -783,9 +924,13 @@ int main(int ac, char* av[]) {
     if(!binary)
       fscanf(IFP, "%d%d%d%d%d%d", &tmp_pents6[0], &tmp_pents6[1], &tmp_pents6[2], &tmp_pents6[3], &tmp_pents6[4], &tmp_pents6[5]) ;
     else {
-        fread(&tmp_pents6[0], sizeof(int), 6, IFP) ;
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&tmp_pents6[0],sizeof(int),6) ;
+      rsz = fread(&tmp_pents6[0], sizeof(int), 6, IFP) ;
+      if(rsz != 6) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }        
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&tmp_pents6[0],sizeof(int),6) ;
     }
     
     tri_faces[tf][0] = tmp_pents6[3] ;
@@ -824,9 +969,13 @@ int main(int ac, char* av[]) {
     if(!binary)
       fscanf(IFP, "%d%d%d%d%d%d%d%d", &tmp_hexs[0], &tmp_hexs[1], &tmp_hexs[2], &tmp_hexs[3], &tmp_hexs[4], &tmp_hexs[5], &tmp_hexs[6], &tmp_hexs[7] ) ;
     else {
-        fread(&tmp_hexs[0], sizeof(int), 8, IFP) ;
-        if(reverse_byteorder)
-          ug_io_reverse_byte_order(&tmp_hexs[0],sizeof(int),8) ;
+      rsz = fread(&tmp_hexs[0], sizeof(int), 8, IFP) ;
+      if(rsz != 8) {
+	cerr << "fread failed" << endl ;
+	exit(-1) ;
+      }        
+      if(reverse_byteorder)
+	ug_io_reverse_byte_order(&tmp_hexs[0],sizeof(int),8) ;
     }
     
     quad_faces[qf][0] = tmp_hexs[0] ;
@@ -889,7 +1038,7 @@ int main(int ac, char* av[]) {
       std::swap(tri_faces[i][0],tri_faces[i][2]) ;
     if(tri_faces[i][1] > tri_faces[i][2])
       std::swap(tri_faces[i][1],tri_faces[i][2]
-) ;
+		) ;
   }
 
   // prepare quad faces (sort them, but be careful)
