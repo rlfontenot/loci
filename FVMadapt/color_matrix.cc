@@ -634,7 +634,7 @@ void colorMatrix(Map &cl, Map &cr, multiMap &face2node) {
       int color_r = color[cr[fc]] ;
       if(color_l == color_r) 
         cerr << "color equal == " << color_l << endl ;
-      if(color_l == -1 |+ color_r == -1)
+      if((color_l == -1) || (color_r == -1))
         cerr << "matrix coloring internal error" << endl ;
                                                               
       if(color_l > color_r) {

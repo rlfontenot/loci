@@ -312,7 +312,6 @@ private:
     //deallocate edgecenter
     delete [] facecenter;
     delete [] areas;
-    
     return new Node(p);
  }
   //the center of the face, defined as the mass center of edge centers
@@ -335,12 +334,12 @@ private:
   //precondition: the faces have been splitted
   inline void getFaceCenter(Node** facecenter){
     for(int i = 0; i <6; i++){
-      facecenter[i] = face[i]->child[0]->edge[2]->head;
+      facecenter[i] = face[i]->getCenter();
     }
   }
 
   inline Node* getFaceCenter(int faceID){
-    return face[faceID]->child[0]->edge[2]->head;
+    return face[faceID]->getCenter();
   }
 };
 

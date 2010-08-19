@@ -1735,8 +1735,10 @@ void parseFile::setup_Rule(std::ostream &outputFile) {
      rule_type == "default" ||
      rule_type == "constraint" ||
      (output_param && rule_type != "apply" ) ) {
-    if(use_prelude) 
-      throw parseError("inappropriate prelude") ;
+    if(use_prelude) {
+      string error = "inappropriate prelude on " + rule_type + " rule." ;
+      throw parseError(error) ;
+    }
     process_Compute(outputFile,vnames) ;
   } else {
     if(use_compute)

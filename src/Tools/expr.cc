@@ -980,11 +980,12 @@ namespace Loci {
 	} else
 	  num.push_back(e) ;
       }
-      if(denom.empty())  
+      if(denom.empty()) {
 	if(num.empty()) 
 	  return e_int(1) ;
 	else
 	  return exprP(new expression(OP_TIMES,"",num,1)) ;
+      }
 	
       exprList divList ;
       if(num.empty())
