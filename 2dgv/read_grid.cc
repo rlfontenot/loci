@@ -605,6 +605,7 @@ void grid::generate_contour_curves(double cs) {
     return ;
   int num_contours = int(ceil((max_val-min_val)/contour_spacing)) ;
   int contour_base = int(ceil(min_val/contour_spacing)) ;
+
   if(num_contours <=0)
     num_contours = 1 ;
   num_contours++ ;
@@ -637,34 +638,34 @@ void grid::generate_contour_curves(double cs) {
       std::swap(v2,v1) ;
     if(v1.v == v3.v)
       continue ; // Skip degenerate case of constant value function
-    int contour_index = int(ceil(v1.v/contour_spacing)) - contour_base ;
+    int contour_index = int(ceil(max(v1.v,min_val)/contour_spacing)) - contour_base ;
     double currval = double(contour_index+contour_base)*contour_spacing ;
     const double rdv31 = 1./(v3.v-v1.v+epsilon) ;
     const double rdv32 = 1./(v3.v-v2.v+epsilon) ;
     const double rdv12 = 1./(v1.v-v2.v+epsilon) ;
     
     while(currval <= v3.v) {
+      if(currval > max_val)
+	break ;
       positions p1 = v1.p + (v3.p-v1.p)*(currval-v1.v)*rdv31 ;
-
+      
       positions p2 ;
       if(currval > v2.v) 
-        p2 = v2.p + (v3.p-v2.p)*(currval-v2.v)*rdv32 ;
+	p2 = v2.p + (v3.p-v2.p)*(currval-v2.v)*rdv32 ;
       else 
-        p2 = v2.p + (v1.p-v2.p)*(currval-v2.v)*rdv12 ;
-
-      contour_curves.push_back(segments(p1,p2)) ;
-
-      double gradient = (v3.v-v1.v)*bignormal/
-        (contour_spacing*sqrt(sqr(v1.p.x-v3.p.x)+sqr(v1.p.y-v3.p.y))) ;
-      if(contour_index < int(contour_values.size())) 
-        if(gradient < contour_values[contour_index].mingrad) {
-          contour_values[contour_index].mingrad = gradient ;
-          contour_values[contour_index].mingradpos = 0.5*(p1+p2) ;
-        }
+	p2 = v2.p + (v1.p-v2.p)*(currval-v2.v)*rdv12 ;
         
+      contour_curves.push_back(segments(p1,p2)) ;
+      double gradient = (v3.v-v1.v)*bignormal/
+	(contour_spacing*sqrt(sqr(v1.p.x-v3.p.x)+sqr(v1.p.y-v3.p.y))) ;
+      if(contour_index < int(contour_values.size())) 
+	if(gradient < contour_values[contour_index].mingrad) {
+	  contour_values[contour_index].mingrad = gradient ;
+	  contour_values[contour_index].mingradpos = 0.5*(p1+p2) ;
+	}
       contour_index++ ;
       currval += contour_spacing ;
-    }
+    }      
   }
 }
 
@@ -722,6 +723,9 @@ void grid::generate_shading() {
     const triangles &tp = triangle_list[i] ;
     vertigo v1(pos[tp.t1],val[tp.t1]),v2(pos[tp.t2],val[tp.t2]),
       v3(pos[tp.t3],val[tp.t3]) ;
+    v1.v = max(min(v1.v,max_val),min_val) ;
+    v2.v = max(min(v2.v,max_val),min_val) ;
+    v3.v = max(min(v3.v,max_val),min_val) ;
     if(v1.v > v2.v)
       std::swap(v1,v2) ;
     if(v2.v > v3.v)
@@ -729,6 +733,7 @@ void grid::generate_shading() {
     if(v1.v > v2.v)
       std::swap(v2,v1) ;
     int curr_contour = int(ceil((v1.v-contour_base+epsilon)/cspace)) ;
+    curr_contour = max(min(curr_contour,MAXPENS),0) ;
     FATAL(curr_contour > MAXPENS) ;
     FATAL(curr_contour < 0) ;
     double currval = contour_base + cspace *double(curr_contour) ;

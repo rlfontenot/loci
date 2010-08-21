@@ -120,6 +120,10 @@ struct grid {
   void generate_shading() ;
 
   void set_value_range() ;
+  void reset_value_range(double v1,double v2) {
+    min_val = std::min(v1,v2) ;
+    max_val = std::max(v1,v2) ;
+  }
 
   void zoom(const grid &gin, const positions &pmn, const positions &pmx) ;
 

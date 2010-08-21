@@ -824,6 +824,78 @@ void dosetcontourspacing(Widget w, XtPointer p1, XtPointer p2)
   dosetcontourspacing() ;
 }
 
+void dosetmaxcontour()
+{
+  char *s = XawDialogGetValueString(linput) ;
+
+  while(*s == '\n')
+    s++ ;
+  double cs = atof(s) ;
+  lpopquit() ;
+  if(grids.size() == 0)
+    return ;
+  if(cs < grids.front().min_val) {
+    grids.front().max_val = grids.front().min_val ;
+    grids.front().min_val = cs ;
+  } else
+    grids.front().max_val = cs ;
+  const double numcontours = 10.0 ;
+  double range = (grids.front().max_val-grids.front().min_val)/numcontours ;
+  double base = pow(10.0,double(floor(log10(range)))) ;
+  grids.front().generate_contour_curves(floor(range/base)*base) ;
+  grids.front().generate_shading() ;
+  Xdev->clear() ;
+  draw(grids.front(),*Xdev) ;
+  Xdev->refresh() ;
+}
+
+void
+dosetmaxcontour(Widget w, XEvent *e, String *ss, Cardinal *c)
+{
+  dosetmaxcontour() ;
+}
+
+void dosetmaxcontour(Widget w, XtPointer p1, XtPointer p2)
+{
+  dosetmaxcontour() ;
+}
+
+void dosetmincontour()
+{
+  char *s = XawDialogGetValueString(linput) ;
+
+  while(*s == '\n')
+    s++ ;
+  double cs = atof(s) ;
+  lpopquit() ;
+  if(grids.size() == 0)
+    return ;
+  if(cs > grids.front().max_val) {
+    grids.front().min_val = grids.front().max_val ;
+    grids.front().max_val = cs ;
+  } else 
+    grids.front().min_val = cs ;
+  const double numcontours = 10.0 ;
+  double range = (grids.front().max_val-grids.front().min_val)/numcontours ;
+  double base = pow(10.0,double(floor(log10(range)))) ;
+  grids.front().generate_contour_curves(floor(range/base)*base) ;
+  grids.front().generate_shading() ;
+  Xdev->clear() ;
+  draw(grids.front(),*Xdev) ;
+  Xdev->refresh() ;
+}
+
+void
+dosetmincontour(Widget w, XEvent *e, String *ss, Cardinal *c)
+{
+  dosetmincontour() ;
+}
+
+void dosetmincontour(Widget w, XtPointer p1, XtPointer p2)
+{
+  dosetmincontour() ;
+}
+
 void ContourSpacing(Widget w, XtPointer p1, XtPointer p2)
 {
   static Arg pargs[] = {
@@ -860,6 +932,95 @@ Ctrl<Key>J:         ContourEnter() \n\
   linput = XtCreateManagedWidget("file", dialogWidgetClass, lpop,
                                  dargs, XtNumber(dargs)) ;
   Button("  OK  ", linput, dosetcontourspacing) ;
+  Button("CANCEL", linput, lpopquit) ;
+  XtAppAddActions(XtWidgetToApplicationContext(linput),
+                  actionTable, XtNumber(actionTable)) ;
+  XtAddGrab(lpop, True, True) ;
+  XtManageChild(lpop) ;
+  XtRealizeWidget(lpop) ;
+}
+
+
+void setMaxContour(Widget w, XtPointer p1, XtPointer p2)
+{
+  static Arg pargs[] = {
+    {XtNx,     (XtArgVal) 400},
+    {XtNy,     (XtArgVal) 400},
+    {0,0}
+  } ;
+
+  static char MaxContourEnter[] = "MaxContourEnter" ;
+  static XtActionsRec actionTable[] = {
+    {MaxContourEnter,   dosetmaxcontour },
+  } ;
+  static char texttrans[] = "\
+<Key>Return:        MaxContourEnter() \n\
+Ctrl<Key>M:         MaxContourEnter() \n\
+Ctrl<Key>J:         MaxContourEnter() \n\
+<Key>Linefeed:      MaxContourEnter() \n\
+" ;
+
+
+  static Arg dargs[] = {
+    {XtNlabel, (XtArgVal) "Enter Max Contour"},
+    {XtNvalue, (XtArgVal) "1.0"}
+  } ;
+
+  if(grids.size() == 0)
+    return ;
+  XtSetArg(pargs[2],XtNtranslations,XtParseTranslationTable(texttrans)) ;
+  static char defbuf[512] ;
+  sprintf(defbuf,"%s",fourSigDigs(grids.front().max_val)) ;
+  XtSetArg(dargs[1],XtNvalue,defbuf) ;
+  lpop = XtCreatePopupShell("Popup",transientShellWidgetClass, toplevel,
+                            pargs, XtNumber(pargs)) ;
+  linput = XtCreateManagedWidget("file", dialogWidgetClass, lpop,
+                                 dargs, XtNumber(dargs)) ;
+  Button("  OK  ", linput, dosetmaxcontour) ;
+  Button("CANCEL", linput, lpopquit) ;
+  XtAppAddActions(XtWidgetToApplicationContext(linput),
+                  actionTable, XtNumber(actionTable)) ;
+  XtAddGrab(lpop, True, True) ;
+  XtManageChild(lpop) ;
+  XtRealizeWidget(lpop) ;
+}
+
+void setMinContour(Widget w, XtPointer p1, XtPointer p2)
+{
+  static Arg pargs[] = {
+    {XtNx,     (XtArgVal) 400},
+    {XtNy,     (XtArgVal) 400},
+    {0,0}
+  } ;
+
+  static char MinContourEnter[] = "MinContourEnter" ;
+  static XtActionsRec actionTable[] = {
+    {MinContourEnter,   dosetmincontour },
+  } ;
+  static char texttrans[] = "\
+<Key>Return:        MinContourEnter() \n\
+Ctrl<Key>M:         MinContourEnter() \n\
+Ctrl<Key>J:         MinContourEnter() \n\
+<Key>Linefeed:      MinContourEnter() \n\
+" ;
+
+
+  static Arg dargs[] = {
+    {XtNlabel, (XtArgVal) "Enter Min Contour"},
+    {XtNvalue, (XtArgVal) "1.0"}
+  } ;
+
+  if(grids.size() == 0)
+    return ;
+  XtSetArg(pargs[2],XtNtranslations,XtParseTranslationTable(texttrans)) ;
+  static char defbuf[512] ;
+  sprintf(defbuf,"%s",fourSigDigs(grids.front().min_val)) ;
+  XtSetArg(dargs[1],XtNvalue,defbuf) ;
+  lpop = XtCreatePopupShell("Popup",transientShellWidgetClass, toplevel,
+                            pargs, XtNumber(pargs)) ;
+  linput = XtCreateManagedWidget("file", dialogWidgetClass, lpop,
+                                 dargs, XtNumber(dargs)) ;
+  Button("  OK  ", linput, dosetmincontour) ;
   Button("CANCEL", linput, lpopquit) ;
   XtAppAddActions(XtWidgetToApplicationContext(linput),
                   actionTable, XtNumber(actionTable)) ;
@@ -1217,8 +1378,10 @@ void xinteract(int argc, char *argv[])
                                       NULL,0) ;
   Button("Load", box, Load) ;
   Button("Output",box, filestuff) ;
-  Button("Contour Spacing",box,ContourSpacing) ;
   Button("Contour",box,ToggleContour) ;
+  Button("C Spacing",box,ContourSpacing) ;
+  Button("C Max",box,setMaxContour) ;
+  Button("C Min",box,setMinContour) ;
   Button("Grid",box,ToggleGrid) ;
   Button("Ruler",box,ToggleRuler) ;
   Button("Shading",box,ToggleShading) ;
