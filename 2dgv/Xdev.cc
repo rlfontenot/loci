@@ -485,6 +485,17 @@ static XtResource appResourceSpec[] = {
 */
 const int  NUMBUTTONARGS = 1 ;
 
+void SetWMGetInput(Widget w) {
+  XWMHints wmhints;
+  wmhints.flags = InputHint;
+  wmhints.input = True;
+  wmhints.icon_pixmap = None;
+  wmhints.initial_state = NormalState;
+  Window win = XtWindowOfObject(w) ;
+  Display *dpy = XtDisplay(w) ;
+  XSetWMHints(dpy, win, &wmhints);
+}
+
 Widget
 Button(const char *name,Widget parent,XtCallbackProc action)
 {
@@ -765,6 +776,7 @@ Warn(char *warnstring)
   XtAddGrab(pop, True, True) ;
   XtManageChild(pop) ;
   XtRealizeWidget(pop) ;
+  SetWMGetInput(pop) ;
 }
 
 void doload()
@@ -938,6 +950,7 @@ Ctrl<Key>J:         ContourEnter() \n\
   XtAddGrab(lpop, True, True) ;
   XtManageChild(lpop) ;
   XtRealizeWidget(lpop) ;
+  SetWMGetInput(lpop) ;
 }
 
 
@@ -983,6 +996,7 @@ Ctrl<Key>J:         MaxContourEnter() \n\
   XtAddGrab(lpop, True, True) ;
   XtManageChild(lpop) ;
   XtRealizeWidget(lpop) ;
+  SetWMGetInput(lpop) ;
 }
 
 void setMinContour(Widget w, XtPointer p1, XtPointer p2)
@@ -1027,6 +1041,7 @@ Ctrl<Key>J:         MinContourEnter() \n\
   XtAddGrab(lpop, True, True) ;
   XtManageChild(lpop) ;
   XtRealizeWidget(lpop) ;
+  SetWMGetInput(lpop) ;
 }
 
 
@@ -1116,6 +1131,7 @@ Ctrl<Key>J:         PrintEnter() \n\
   XtAddGrab(lpop, True, True) ;
   XtManageChild(lpop) ;
   XtRealizeWidget(lpop) ;
+  SetWMGetInput(lpop) ;
 }
 
 void filestuff(Widget w, XtPointer p1, XtPointer p2)
@@ -1141,6 +1157,7 @@ void filestuff(Widget w, XtPointer p1, XtPointer p2)
   XtAddGrab(pop, True, True) ;
   XtManageChild(pop) ;
   XtRealizeWidget(pop) ;
+  SetWMGetInput(pop) ;
 }
 
 
@@ -1180,9 +1197,10 @@ Ctrl<Key>J:         LoadEnter() \n\
                   actionTable, XtNumber(actionTable)) ;
   Button("  OK  ", linput, doload) ;
   Button("CANCEL", linput, lpopquit) ;
-  XtAddGrab(lpop, True, True) ;
+  XtAddGrab(linput, True, True) ;
   XtManageChild(lpop) ;
   XtRealizeWidget(lpop) ;
+  SetWMGetInput(lpop) ;
 }
 
 
@@ -1335,12 +1353,6 @@ void xinteract(int argc, char *argv[])
 
   toplevel = XtInitialize("2dgv", "2dgv", opt_table, XtNumber(opt_table),
 			  &argc, argv);
-  /*
-     XtAppContext app_context ;
-     toplevel = XtAppInitialize(&app_context,"2dgv",
-     opt_table, XtNumber(opt_table),
-     &argc, argv, NULL,NULL,0);*/
-
 
   for(int i=0;i<MAXPENS-1;++i) {
     char c1 = '0' + i/10 ;
@@ -1394,6 +1406,25 @@ void xinteract(int argc, char *argv[])
   Button("Quit", box, Quit) ;
 
   XtRealizeWidget(toplevel);
+
+  Display *mainDisplay=XtDisplay(toplevel) ;
+  int mainScreen = DefaultScreen(mainDisplay) ;
+  Window rootWindow = RootWindow(mainDisplay,mainScreen) ;
+  XSelectInput(mainDisplay, rootWindow, KeyPressMask | StructureNotifyMask
+	       | VisibilityChangeMask | FocusChangeMask);
+  XMapWindow(mainDisplay, rootWindow);
+  XWMHints wmhints;
+  //  wmhints = *XGetWMHints(mainDisplay,XtWindow(toplevel)) ;
+  wmhints.flags = InputHint;
+  wmhints.input = True;
+  wmhints.icon_pixmap = None;
+  wmhints.initial_state = NormalState;
+  Window topwin = XtWindowOfObject(toplevel) ;
+  cerr << "topwin= " << topwin<< endl ;
+  XSetWMHints(mainDisplay, topwin, &wmhints);
+  
+
+
   XtMainLoop();
 }
 

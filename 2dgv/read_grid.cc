@@ -674,6 +674,7 @@ inline void filltriangle(vector<positions> pnts[], vector<int> pntindex[],
                     const positions &p1, const positions &p2,
                     const positions &p3)
 {
+  cc = max(min(cc,MAXPENS-1),0) ;
   int indx = pntindex[cc].back() + 3 ;
   pntindex[cc].push_back(indx) ;
   pnts[cc].push_back(p1) ;
@@ -685,6 +686,7 @@ inline void fillquad(vector<positions> pnts[], vector<int> pntindex[],int cc,
                      const positions &p1, const positions &p2,
                      const positions &p3, const positions &p4)
 {
+  cc = max(min(cc,MAXPENS-1),0) ;
   int indx = pntindex[cc].back() + 4 ;
   pntindex[cc].push_back(indx) ;
   pnts[cc].push_back(p1) ;
@@ -698,6 +700,7 @@ inline void fillpent(vector<positions> pnts[], vector<int> pntindex[],int cc,
                      const positions &p3, const positions &p4,
                      const positions &p5)
 {
+  cc = max(min(cc,MAXPENS-1),0) ;
   int indx = pntindex[cc].back() + 5 ;
   pntindex[cc].push_back(indx) ;
   pnts[cc].push_back(p1) ;
@@ -733,9 +736,9 @@ void grid::generate_shading() {
     if(v1.v > v2.v)
       std::swap(v2,v1) ;
     int curr_contour = int(ceil((v1.v-contour_base+epsilon)/cspace)) ;
-    curr_contour = max(min(curr_contour,MAXPENS),0) ;
-    FATAL(curr_contour > MAXPENS) ;
-    FATAL(curr_contour < 0) ;
+    curr_contour = max(min(curr_contour,MAXPENS-1),0) ;
+    //    FATAL(curr_contour > MAXPENS) ;
+    //    FATAL(curr_contour < 0) ;
     double currval = contour_base + cspace *double(curr_contour) ;
     if(currval >= v3.v) {
       filltriangle(pnts,pntindex,curr_contour,v1.p,v2.p,v3.p) ;
@@ -790,8 +793,7 @@ void grid::generate_shading() {
       currval += cspace ;
       curr_contour++ ;
     }
-    if(curr_contour <= MAXPENS)
-      filltriangle(pnts,pntindex,curr_contour,p1,p2,v3.p) ;
+    filltriangle(pnts,pntindex,curr_contour,p1,p2,v3.p) ;
   }  
 }
 
