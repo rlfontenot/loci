@@ -487,9 +487,8 @@ const int  NUMBUTTONARGS = 1 ;
 
 void SetWMGetInput(Widget w) {
   XWMHints wmhints;
-  wmhints.flags = InputHint;
+  wmhints.flags = InputHint | StateHint ;
   wmhints.input = True;
-  wmhints.icon_pixmap = None;
   wmhints.initial_state = NormalState;
   Window win = XtWindowOfObject(w) ;
   Display *dpy = XtDisplay(w) ;
@@ -1414,16 +1413,13 @@ void xinteract(int argc, char *argv[])
 	       | VisibilityChangeMask | FocusChangeMask);
   XMapWindow(mainDisplay, rootWindow);
   XWMHints wmhints;
-  //  wmhints = *XGetWMHints(mainDisplay,XtWindow(toplevel)) ;
-  wmhints.flags = InputHint;
+
+  wmhints.flags = InputHint | StateHint ;
   wmhints.input = True;
   wmhints.icon_pixmap = None;
   wmhints.initial_state = NormalState;
   Window topwin = XtWindowOfObject(toplevel) ;
-  cerr << "topwin= " << topwin<< endl ;
   XSetWMHints(mainDisplay, topwin, &wmhints);
-  
-
 
   XtMainLoop();
 }
