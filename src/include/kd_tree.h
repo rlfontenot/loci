@@ -31,6 +31,8 @@
 #endif
 #include <limits>
 
+#include <mpi.h>
+
 #define HAS_KD_TREE_BOX_SEARCH
 namespace Loci {
   namespace kdTree {
@@ -739,7 +741,9 @@ namespace Loci {
 
     
   }
-
+  
+  typedef std::pair<vector3d<float>, int> vpair ;
+  void ORBSort(std::vector<vpair> &pnts,MPI_Comm comm) ;
 }
 
 #endif
