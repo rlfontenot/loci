@@ -12,7 +12,8 @@ mpi:  Message passing interface.  This will usually be installed on most
 
 hdf5: Library that supports a portable file format for scientific data.  Loci 
       uses this library to read and write data files.  This can be obtained
-      from http://hdf.ncsa.uiuc.edu/HDF5/
+      from http://hdf.ncsa.uiuc.edu/HDF5/.  We currently support either 1.6 or
+      1.8 versions.
 
 Optional packages:
 
@@ -126,30 +127,29 @@ debugging options.  A typical install for Loci might use the following
 configuration lines
 
 PETSC_DIR=`pwd`
-./config/configure.py --prefix=/opt/petsc-2.3.3-p13 --with-clanguage=C --with-precision=double --with-scalar-type=real --with-dynamic --with-debugging=no --with-x=no --with-x11=no --download-f-blas-lapack=ifneeded --with-log=no --COPTFLAGS="-O3"
-
-With PETSc, the usual approach to installation is to untar the
-source code directly where you intend to install PETSc and compile
-it there.  Then the prefix option to configure is not necessary and
-you only need to 'make' the software, you do not need to 'make
-install'.  However, to save memory space you may prefer to make the
-software in a temporary directory and use 'make install' to install
-the main parts of the software that you will use.  If you do this, you
-will need to remember to copy the externalpackages directory from
-where petsc was compiled to its installation directory.  The PETSc
-'make install' command does not do this step.
+./configure --prefix=/opt/petsc-3.1-p4 --with-clanguage=C --with-precision=double --with-scalar-type=real --with-shared --with-debugging=no --with-x=no --with-x11=no --download-f-blas-lapack=ifneeded --with-log=no --COPTFLAGS="-O3" 
 
 
-Thus for the above command, to compile and make, one might issue the commands
+This will configure PETSc to install into the directory
+'/opt/petsc-3.1-p4'.  You can change this target directory to a place
+that makes sense for your system setup by chainging the --prefix line
+appropriately.  The configure script will then inform you of the
+command needed to compile PETSc.  It is usually something such as:
 
-make
-make install
-cp -r externalpackages /opt/petsc-2.3.3-p11
-chmod -R a+rX /opt/petsc-2.3.3-p11
+xxx=========================================================================xxx
+   Configure stage complete. Now build PETSc libraries with:
+   make PETSC_DIR=/home/luke/Software/petsc-3.1-p4 PETSC_ARCH=linux-gnu-c-opt all
+xxx=========================================================================xxx
 
-(Note, the last command simply adjusts the permissions of the installed 
- software to allow other users to also be able to link to and use the 
- libraries.)
+Once compiling PETSc you can then install the software in the
+specified directory by entering the command that the makefile
+specifies.  Usually this command is something similar to:
+Completed building libraries
+=========================================
+Now to install the libraries do:
+make PETSC_DIR=/home/luke/Software/petsc-3.1-p4 PETSC_ARCH=linux-gnu-c-opt install
+=========================================
+
 
 Before configuring Loci, set the PETSC_DIR environment variable to
 point to the installed PETSc library, then the configure script will

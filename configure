@@ -144,9 +144,13 @@ if [ $MPI_PATH == 0 ]; then
 fi
 MPI_C_COMPILER=none
 MPI_CPP_COMPILER=none
+MPI_F90_COMPILER=none
 
 if [ -e $MPI_PATH/mpicc ]; then
     MPI_C_COMPILER=mpicc
+fi
+if [ -e $MPI_PATH/mpif90 ]; then
+    MPI_F90_COMPILER=mpif90
 fi
 if [ -e $MPI_PATH/mpic++ ]; then
     MPI_CPP_COMPILER=mpic++
@@ -160,20 +164,32 @@ else
     fi
 fi
 
+MPI_BASE=`echo $MPI_PATH | sed "s/\/.[a-zA-Z0-9]*$//"`
+
 echo \# MPI Libraries Setup >> sys.conf
-if [ "$ARCH" == "IRIX64" ]; then
-   echo MPI_BASE = /usr/ >> sys.conf
-   echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 -lmpi >> sys.conf
-   echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
-   echo MPI_RUN = mpirun >> sys.conf
+if [ "$MPI_C_COMPILER" == "none" ]; then
+    if [ "$ARCH" == "IRIX64" ]; then
+	echo MPI_BASE = /usr/ >> sys.conf
+	echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 -lmpi >> sys.conf
+	echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
+	echo MPI_RUN = mpirun >> sys.conf
+    else
+	echo MPI_BASE =  $MPI_BASE >> sys.conf
+	echo MPI_LIBS =  -L$MPI_BASE/lib -lmpi >> sys.conf
+	echo MPI_INCLUDE = -I$MPI_BASE/include  >> sys.conf
+	echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
+    fi
 else
-   echo MPI_BASE =  $MPI_PATH >> sys.conf
-   echo MPI_LIBS =  >> sys.conf
-   echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
-   echo MPI_RUN = mpirun >> sys.conf
+    echo MPI_BASE =  $MPI_BASE >> sys.conf
+    echo MPI_LIBS =   >> sys.conf
+    echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
+    echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
 fi
-   echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
-   echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
+
+
+echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
+echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
+echo MPI_F90_COMPILER = $MPI_F90_COMPILER >> sys.conf
 echo >> sys.conf
 
 #setup hdf5
@@ -251,24 +267,30 @@ fi
 if [ -d $PETSC_BASE ]; then
     if [ -e $PETSC_BASE/bmake/petscconf ]; then
 	PETSC_ARCH=`grep PETSC_ARCH $PETSC_BASE/bmake/petscconf | sed s/PETSC_ARCH=//`
+	if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then 
+	    echo Problem with PETSc library setup, check PETSC_DIR
+	    echo PETSC_BASE = $PETSC_BASE
+	    echo PETSC_ARCH = $PETSC_ARCH
+	    rm sys.conf
+	    exit -1
+	fi
+	BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
+	echo Using PETSc libraries found in \"$PETSC_BASE\".
+	echo PETSC_BASE = $PETSC_BASE >> sys.conf
+	echo $BLASLAPACK_LIB >> sys.conf
+	echo PETSC_ARCH = $PETSC_ARCH >> sys.conf
+	echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetsc -L\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(BLASLAPACK_LIB\) >> sys.conf
+	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
+	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
     else
-	PETSC_ARCH=no-petscconf-found
+	BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables`
+	echo Using PETSc libraries found in \"$PETSC_BASE\".
+	echo PETSC_BASE = $PETSC_BASE >> sys.conf
+	echo $BLASLAPACK_LIB >> sys.conf
+	echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/ \$\(RPATH\)\$\(PETSC_BASE\)/lib/ -lpetsc \$\(BLASLAPACK_LIB\) >> sys.conf
+	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include  >> sys.conf
+	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
     fi
-    if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then 
-	echo Problem with PETSc library setup, check PETSC_DIR
-	echo PETSC_BASE = $PETSC_BASE
-	echo PETSC_ARCH = $PETSC_ARCH
-	rm sys.conf
-	exit -1
-    fi
-    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
-    echo Using PETSc libraries found in \"$PETSC_BASE\".
-    echo PETSC_BASE = $PETSC_BASE >> sys.conf
-    echo $BLASLAPACK_LIB >> sys.conf
-    echo PETSC_ARCH = $PETSC_ARCH >> sys.conf
-    echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetsc -L\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(BLASLAPACK_LIB\) >> sys.conf
-    echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
-    echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
 else
     echo "# PETSc not found, Loci compiled without PETSc enabled" >> sys.conf
     echo "Warning: PETSc not installed... "
@@ -282,6 +304,15 @@ echo >> sys.conf
 # check for fortran includes
 FORTRAN_LIBS=
 
+if [ "$MPI_C_COMPILER" == "none" ]; then
+    echo Selecting compiler = $COMPILER
+else
+    COMP_TEST=`$MPI_PATH/$MPI_C_COMPILER -show | sed "s/ .*//"`
+    if [ -e src/conf/$COMP_TEST.conf ]; then
+	COMPILER=$COMP_TEST
+	echo Selecting compiler = $COMPILER
+    fi
+fi
 case "$COMPILER" in
     gcc)
     find_exec gfortran
