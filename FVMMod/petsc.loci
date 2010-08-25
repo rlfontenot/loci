@@ -25,7 +25,7 @@
 #include<vector>
 using std::vector ;
 
-
+#include <petsc.h>
 #include <petscerror.h>
 #include <petscksp.h>
 
