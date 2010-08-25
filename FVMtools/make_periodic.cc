@@ -6778,11 +6778,18 @@ int main(int ac, char* av[]) {
   }
   BC1_id = -1 ;
   BC2_id = -1 ;
+  if(boundary_ids.size()==0){
+    BC1_id=atoi(BC1name.substr(3).c_str());
+    BC2_id=atoi(BC2name.substr(3).c_str()); 
+  }else{
+ 
   for(size_t i = 0;i<boundary_ids.size();++i) {
     if(BC1name == boundary_ids[i].second)
       BC1_id = boundary_ids[i].first ;
     if(BC2name == boundary_ids[i].second)
       BC2_id = boundary_ids[i].first ;
+  }
+
   }
   if(BC1_id == -1) 
     cerr << "unable to find boundary name '" << BC1name << "' in grid." ;
