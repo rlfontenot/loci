@@ -35,9 +35,14 @@
 #include <Tools/except.h>
 
 #include <list>
+#include <vector>
 #include <string>
 #include <map>
 #include <set>
+
+#ifndef M_PI
+#define M_PI	3.14159265358979323846
+#endif
 
 namespace Loci {
 
@@ -85,18 +90,109 @@ namespace Loci {
     OP_AMPERSAND, OP_DOLLAR, OP_STAR
   } ;
 
+
+  /* 
+  Added by Kenny Moser (krm104)
+  The compiled_expr class stores a Reverse Polich Notation form of an expression. Its
+  primary purpose is for faster evaluations, using its own evaluation method. In order
+  to use a compiled_expr, an expression must be compiled into a compiled_expr object.
+  This class contains a vector of the main RPN expression, as well as a vector of
+  common sub expressions. Sub expressions are linked to the parent expression, so 
+  that they share a common variable map (var_map), and value vector (var_vect).
+  */
+  class compiled_expr {
+	private:
+		//a map of variable locations. The double value of the map
+		//is the index in the var_vect vector of the actual value
+		//of the variable named by the map's string component
+		std::map<std::string, double> var_map;
+
+		//this is the main RPN vector. It stores the OpType of each
+		//element in the expression list as well as the value, if
+		//the element is an int or double
+		std::vector<std::pair<OpType, double> > op_vect;
+
+		//this vector stores the actual values of the variables/sub expressions
+		std::vector<double> var_vect;
+
+		//this is a list of common sub expressions, stored in compiled_expr
+		//form. The int portion of the pair refers to the index in the
+		//var_vect vector that contains the numerical value of the sub expression
+		std::vector<std::pair<int, Loci::compiled_expr> > sub_exprs;
+
+		//a flag to determine if this particular compiled_expr object is
+		//linked to a parent compiled_expr.
+		bool linked;
+
+		//pointer to parent compiled_expr, if this compiled_expr object
+		//is linked to a parent
+		compiled_expr *parent_expr;
+
+		//a pointer to a shared var_map, if this compiled_expr object
+		//is linked to a parent
+		std::map<std::string, double> *linked_var_map;
+
+		//a pointer to a shared variable value vector, if this comppiled_expr
+		//is linked to a parent
+		std::vector<double> *linked_var_vect;
+
+	public:
+
+		//constructor
+		compiled_expr();
+		//destructor
+		~compiled_expr();
+
+		//method used to add the passed compiled_expr as a sub expression
+		void addSub(std::pair<int, compiled_expr> &subpair);
+
+		//evaluation method, returns the result of the RPN evaluation
+		double evaluate();
+
+		//change the values of the standard variables in the expression (x, y, z, etc)
+		void UpdateVariables(std::map<std::string, double> &varmap);
+
+		//push an operator/operand onto the RPN expression stack
+		void push_back(std::pair<OpType, double> newPair);
+
+		//remove the last operator.operand from the end of the RPN expresison stack
+		void pop_back();
+
+		//returns the internal map of variable to value for the compiled_expr;
+		std::map<std::string, double> get_map();
+
+		//returns an iterator to the internal variable map location of the
+		//passed varuable name
+		std::map<std::string, double>::const_iterator find(const std::string varName);
+
+		//return an iterator to the end of the internal variable map
+		std::map<std::string, double>::const_iterator end();
+
+		//return the number of sub expressions
+		int sub_num();
+
+		//link the calling compiled_expr to the passed in parent
+		void link(compiled_expr &parent);
+
+		//update the links to the parent compiled_expr
+		void update_link();
+  };
+
   class expression : public CPTR_type {
   public:
     typedef CPTR<expression> exprP ;
     typedef std::list<exprP> exprList ;
+
   private:
     OpType              op_priv ;
     exprList            expr_list_priv ;
     std::string         name_priv ;
     int                 int_val_priv ;
     double              real_val_priv ;
-      
-  expression() : op(op_priv), expr_list(expr_list_priv), name(name_priv),int_val(int_val_priv),real_val(real_val_priv) { op_priv = OP_ERROR ; }
+	//added
+	int					expr_count;
+   
+	expression(): op(op_priv), expr_list(expr_list_priv), name(name_priv),int_val(int_val_priv),real_val(real_val_priv){ op_priv = OP_ERROR ; expr_count = 0;}
 
     static exprP  create( std::istream &s, char closing ) ;
     static exprP  get_term( std::istream &s ) ;
@@ -107,6 +203,10 @@ namespace Loci {
 
     void PrintOperation(std::ostream &s, std::string oper,
                         char poChar = '(', char pcChar = ')' ) const ;
+	void TexPrintOperation(std::string::iterator &it, std::string &s, int &len,
+		std::string oper, char poChar = '(', char pcChar = ')' ) const ;
+	void TexPrintOperation(std::ostream &s, std::string oper,
+                        char poChar = '(', char pcChar = ')' ) const ;
     exprP constant_grouping() const ;
   public:
     const OpType              &op ;
@@ -114,21 +214,36 @@ namespace Loci {
     const std::string         &name ;
     const int                 &int_val ;
     const double              &real_val ;
-  expression(OpType opin, const std::string nm, 
-	     const exprList &elist, int ival = 0, double fval = 0) :
-    op(op_priv), expr_list(expr_list_priv), name(name_priv),
-      int_val(int_val_priv), real_val(real_val_priv)
+
+  expression(OpType opin, const std::string nm, const exprList &elist, int ival = 0, double fval = 0) :
+    op(op_priv), expr_list(expr_list_priv), name(name_priv), int_val(int_val_priv), real_val(real_val_priv)
     { op_priv = opin; expr_list_priv = elist ; name_priv = nm; 
-      int_val_priv = ival ; real_val_priv = fval ;}
+      int_val_priv = ival ; real_val_priv = fval ;	expr_count = 0;}
+
     void Print(std::ostream &s) const ;
-    double evaluate(const std::map<std::string,double> &varmap) const ;
+    double evaluate(const std::map<std::string,double> &varmap) const;
     exprP simplify() const ; // Simplify the expression
     exprP substitute(exprP s, exprP r) const ; // Substitute all s for r
     exprP derivative(std::string var) const ; // symbolic differentation
     exprP symbolic_eval() const ; // Return evaluation of symbolic opers
+
     static exprP create(std::istream &s) ;
     static exprP create(const std::string &s) ;
 
+	//I added this one to Print to TEX (Work In Progress)
+	void TexPrint(std::string::iterator &it, std::string &s, int &len)const;
+	void TexPrint(std::ostream &s) const;
+	void PrintTex(std::ostream &s) const;
+
+	int depth(std::vector<exprP> &exprV) const;
+	
+	//added to keep track of how often an expression occurs
+	void inc_count();
+	void dec_count();
+	int get_count();
+	//used to create a RPN form of the expression stored in
+	//a compiled_expr object
+	void compile_expr(compiled_expr &c_expr, int dnum);
   } ;
 
   typedef expression::exprP     exprP ;

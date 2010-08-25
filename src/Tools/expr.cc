@@ -32,6 +32,9 @@ using std::set ;
 #include <string>
 using std::string ;
 
+#ifndef M_PI
+#define M_PI	3.14159265358979323846
+#endif
 // Todo list:
 
 // 0) add double constants (done (except number starting with a '.')
@@ -43,6 +46,406 @@ using std::string ;
 
 
 namespace Loci {
+
+
+	/* 
+	The following compiled_expr methods were added by Kenny Moser(krm104)
+	They are used by the new class compiled_expr (see expr.h).
+	*/
+
+	/*
+	compiled_expr Constructor. Sets all pointers to Null, and flags to false
+	*/
+	compiled_expr::compiled_expr()
+	{
+		//pointers used for linking
+		linked_var_map = NULL;
+		linked_var_vect = NULL;
+		parent_expr = NULL;
+		
+		//flags used for linking
+		linked = false;
+	}
+
+	/*
+	compiled_expr Destructor. Resets all linked pointers to NULL
+	and sets pointer to linked children to NULL
+	*/
+	compiled_expr::~compiled_expr()
+	{
+		//set linked pointers to NULL
+		linked_var_map = NULL;
+		linked_var_vect = NULL;
+		parent_expr = NULL;
+	}
+
+	/*
+	Evaluation of the RPN vector stack. Pops operators/operands from the end of the
+	RPN stack and uses the OpType of the element to determine the evaluation 
+	method (subtraction, addition, etx) to use.
+	*/
+	double compiled_expr::evaluate() {
+
+		//reEvaluate the sub expressions based on the current variable map
+		//values to ensure the result will be up to date.
+		for (int x = 0; x < sub_exprs.size(); x++)
+		{
+			//if the calling compiled_expr is linked, use the linked variable
+			//vector to evaluate sub expressions
+			if (linked)
+				(*linked_var_vect)[sub_exprs[x].first] = sub_exprs[x].second.evaluate();
+			else
+				var_vect[sub_exprs[x].first] = sub_exprs[x].second.evaluate();
+		}
+
+		//temporary vector to store intermediate results of the RPN evaluation
+		std::vector<double> results;
+
+		//temporary members to store values from the results vector for evaluation
+		double op1 = 0.0;
+		double op2 = 0.0;
+
+		//loop over the RPN stack performing evaluations as they are encountered
+		//and storing intermediate results onto the results vector
+		for (int x = 0; x < op_vect.size(); x++)
+		{
+			//check the OpType of the current RPN operator/operand
+			switch (op_vect[x].first)
+			{
+				//store numerical values on the intermediate reslts stack
+				case OP_INT:
+				case OP_DOUBLE:
+					results.push_back(op_vect[x].second);
+					break;
+
+				//for operators, retreive the necessary number of operands
+				//from the intermediate results stack and perform the operation
+
+				//addition operation, retreive 2 operands from results stack
+				//perform addition
+				//push resultant back onto results stack
+				case OP_PLUS:
+					op2 = results.back();
+					results.pop_back();
+					op1 = results.back();
+					results.pop_back();
+					results.push_back(op1+op2);
+					break;
+
+				//subtraction operation, retreive 2 operands from results stack
+				//perform subtraction
+				//push resultant back onto results stack
+				case OP_MINUS:
+					op2 = results.back();
+					results.pop_back();
+					op1 = results.back();	
+					results.pop_back();
+					results.push_back(op1-op2);
+					break;
+
+				//multiplication operation, retreive 2 operands from results stack
+				//perform multiplication
+				//push resultant back onto results stack
+				case OP_TIMES:
+					op2 = results.back();
+					results.pop_back();
+					op1 = results.back();
+					results.pop_back();
+					results.push_back(op1*op2);
+					break;
+
+				//division operation, retreive 2 operands from results stack
+				//perform addition
+				//push resultant back onto results stack
+				case OP_DIVIDE:
+					op2 = results.back();
+					results.pop_back();
+					op1 = results.back();
+					results.pop_back();
+					results.push_back(op1/op2);
+					break;
+
+				//function operation, check function type
+				//retreive 1 or more operands from results stack
+				//perform function operation
+				//push resultant back onto results stack
+				case OP_FUNC:
+					//pow function, requires 2 operands
+					if(op_vect[x].second == 0) {
+						op2 = results.back();
+						results.pop_back();
+						op1 = results.back();
+						results.pop_back();
+						#ifdef NO_CMATH
+							results.push_back(::pow(op1,op2)) ;
+						#else
+							results.push_back(std::pow(op1,op2)) ;
+						#endif
+						break;
+					}
+					//remaining functions require only 1 operand
+					op1 = results.back();
+					results.pop_back();
+
+					//depending on the math library included
+					//different evaluation methods will be used for
+					//the same operation
+					#ifdef NO_CMATH
+						//determine operation type
+						switch (int (op_vect[x].second))
+						{
+							case 1:
+								results.push_back(::sin(op1)) ;
+								break;
+							case 2:
+								results.push_back(::cos(op1)) ;
+								break;
+							case 3:
+								results.push_back(::tan(op1)) ;
+								break;
+							case 4: 
+								results.push_back(::asin(op1)) ;
+								break;
+							case 5:
+								results.push_back(::acos(op1)) ;
+								break;
+							case 6: 
+								results.push_back(::atan(op1)) ;
+								break;
+							case 7: 
+								results.push_back(::sinh(op1)) ;
+								break;
+							case 8:
+								results.push_back(::cosh(op1)) ;
+								break;
+							case 9:
+								results.push_back(::tanh(op1)) ;
+								break;
+							case 10:
+								results.push_back(::exp(op1)) ;
+								break;
+							case 11:
+								results.push_back(::sqrt(op1)) ;
+								break;
+							case 12:
+								results.push_back(::log(op1)) ;
+								break;
+							case 13:
+								results.push_back(::log(op1)) ;
+								break;
+							case 14:
+								results.push_back(::log10(op1)) ;
+								break;
+						}
+					#else
+						switch (int (op_vect[x].second))
+						{
+							case 1:
+								results.push_back(std::sin(op1)) ;
+								break;
+							case 2:
+								results.push_back(std::cos(op1)) ;
+								break;
+							case 3:
+								results.push_back(std::tan(op1)) ;
+								break;
+							case 4:
+								results.push_back(std::asin(op1)) ;
+								break;
+							case 5:
+								results.push_back(std::acos(op1)) ;
+								break;
+							case 6:
+								results.push_back(std::atan(op1)) ;
+								break;
+							case 7:
+								results.push_back(std::sinh(op1)) ;
+								break;
+							case 8:
+								results.push_back(std::cosh(op1)) ;
+								break;
+							case 9:
+								results.push_back(std::tanh(op1)) ;
+								break;
+							case 10:
+								results.push_back(std::exp(op1)) ;
+								break;
+							case 11:
+								results.push_back(std::sqrt(op1)) ;
+								break;
+							case 12:
+								results.push_back(std::log(op1)) ;
+								break;
+							case 13:
+								results.push_back(std::log(op1)) ;
+								break;
+							case 14:
+								results.push_back(std::log10(op1)) ;
+								break;
+						}
+					#endif
+					break;
+				//variable operation,
+				//use numeric value as index to actual value in variable vector
+				//push resultant back onto results stack
+				case OP_NAME:
+					if (linked)
+						results.push_back((*linked_var_vect)[op_vect[x].second]);
+					else
+						results.push_back(var_vect[op_vect[x].second]);
+					break;
+			}
+		}
+
+		//return the final result of the RPN stack evaluation
+		return results.back();
+	}
+
+	//Update the common variables (x, y, z, etc) in the expression and sub expresison
+	void compiled_expr::UpdateVariables(std::map<std::string, double> &varmap) {
+		
+		if (!linked)
+		{
+			//two temporary iterators, to traverse the passed in map
+			std::map<std::string, double>::iterator tempIt;
+
+			//and the internal variable map
+			std::map<std::string, double>::iterator mi;
+
+			//iterate over the passed in map
+			for (tempIt = varmap.begin(); tempIt != varmap.end(); tempIt++)
+			{
+				//see if the variable already exists in the internal map
+				mi = var_map.find(tempIt->first);
+			
+				//if the variable does exist, update the variable vector with the new value
+				if(mi != var_map.end()) 
+				{
+					var_vect[mi->second] = tempIt->second;
+				}
+				//if it does not exist, add it to the internal map and variable vector
+				else
+				{
+					var_vect.push_back(tempIt->second);
+					var_map[tempIt->first] = (var_vect.size()-1);
+				}
+			}
+
+			//update the pointer of any linked children to point to the correct variable vector
+			//since the variable vector is a vector is may have resized, so the memory address
+			//may have changed
+			//for (int x = 0; x < sub_exprs.size(); x++)
+			//{
+			//	sub_exprs[x].second.update_link();
+			//}
+		}
+	}
+	
+	//Push a new operator/operand onto the RPN evaluation stack
+	void compiled_expr::push_back(std::pair<OpType, double> newPair)
+	{
+		op_vect.push_back(newPair);
+	}
+
+	//Remove the most recently added operator/operand from the RPN stack
+	void compiled_expr::pop_back()
+	{
+		op_vect.pop_back();
+	}
+
+	//return a map of the common variables and their values for the internal expression
+	std::map<std::string, double> compiled_expr::get_map()
+	{
+		//temporary map used to compile variable names with values
+		std::map<std::string, double> newmap;
+
+		//iterator to traverse the internal map
+		std::map<std::string, double>::const_iterator mi;
+
+		//if the caller is a child of a parent expression, the map is linked
+		if (linked)
+		{
+			update_link();
+			//iterate over the variable map and compile the variable names with values
+			for (mi = linked_var_map->begin(); mi != linked_var_map->end(); mi++)
+			{
+				newmap[mi->first] = (*linked_var_vect)[mi->second];
+			}
+		}
+		//caller is a parent, the variable map is internal
+		else {
+			//iterate over the variable map and compile the variable names with values
+			for (mi = var_map.begin(); mi != var_map.end(); mi++)
+			{
+				newmap[mi->first] = var_vect[mi->second];
+			}
+		}
+
+		//return the newly compiled variable map
+		return newmap;
+	}
+
+	//Returns an iterator to the variable of the passed in name from the internal map
+	std::map<std::string, double>::const_iterator compiled_expr::find(const std::string varName)
+	{
+		//if caller is a child, use linked variable map
+		if (linked)
+		{
+			update_link();
+			return linked_var_map->find(varName);
+		}
+		else
+			return var_map.find(varName);
+	}
+
+	//return iterator to the end of the internal variable map
+	std::map<std::string, double>::const_iterator compiled_expr::end()
+	{
+		//if caller is a child, use linked map
+		if (linked)
+		{
+			update_link();
+			return linked_var_map->end();
+		}
+		else
+			return var_map.end();
+	}
+
+	//Adds the passed sub expression to the list of sub expressions, whos
+	//numerical evaluation value is stored in var_vect at the passed in int location
+	void compiled_expr::addSub(std::pair<int, compiled_expr> &subpair)
+	{
+		sub_exprs.push_back(subpair);
+	}
+
+	//return the number of sub expression
+	int compiled_expr::sub_num()
+	{
+		return sub_exprs.size();
+	}
+
+	//link the calling compiled_expr to the passed in parent compiled_expr
+	void compiled_expr::link(compiled_expr &parent)
+	{
+		this->linked = true;
+		this->parent_expr = &parent;
+		this->linked_var_vect = &(parent.var_vect);
+		this->linked_var_map = &(parent.var_map);
+	}
+
+	//updates the links (linked_var_map, linked_var_vect) to the parent compiled_expr
+	void compiled_expr::update_link()
+	{
+		if (linked)
+		{
+			linked_var_vect = &(parent_expr->var_vect);
+			linked_var_map = &(parent_expr->var_map);
+		}
+	}
+
+
+
+
   using namespace expr ;
 
   // Compare two exprsesions.  Return 0 if equal, return -1 if e1 is cannonically before e2 and 1 if otherwise.
@@ -120,6 +523,7 @@ namespace Loci {
     case OP_NAME:
       s << name ;
       break ;
+
     case OP_FUNC:
       s << name ;
       PrintOperation(s,",",'(',')') ;
@@ -316,14 +720,12 @@ namespace Loci {
     if(parse::get_token(s,">")) {
       return OP_GT ;
     }
-    
     if(parse::get_token(s,"%")) {
       return OP_MODULUS ;
     }
     if(parse::get_token(s,"+")) {
       return OP_PLUS ;
     } 
-    
     if(parse::get_token(s,"-")) {
       return OP_MINUS ;
     }
@@ -342,7 +744,6 @@ namespace Loci {
     if(parse::get_token(s,"^")) {
       return OP_EXOR ;
     }
-      
     if(parse::get_token(s,",")) {
       return OP_COMMA ;
     }
@@ -470,38 +871,40 @@ namespace Loci {
     if(parse::get_token(s,"(")) {
       return expression::create(s,')') ;
     }
-    if(parse::is_name(s)) {
+	if(parse::is_name(s)) {
       exprP name = new expression ;
       name->op_priv = OP_NAME ;
       name->name_priv = parse::get_name(s) ;
       char closing = 0 ;
       if(parse::get_token(s,"(")) {
-	name->op_priv = OP_FUNC ;
-	closing = ')' ;
+		name->op_priv = OP_FUNC ;
+		closing = ')' ;
       } else if(parse::get_token(s,"[")) {
-	name->op_priv = OP_ARRAY ;
-	closing = ']' ;
+			name->op_priv = OP_ARRAY ;
+			closing = ']' ;
       } else if(parse::get_token(s,"{")) {
-	name->op_priv = OP_NAME_BRACE ;
-	closing = '}' ;
-      }
+			name->op_priv = OP_NAME_BRACE ;
+			closing = '}' ;
+	  }
       else
-	return name ;
+	  {
+			return name ;
+	  }
       exprP args = expression::create(s,closing) ;
     
       if((closing == ')' )&&(parse::get_token(s,"{"))) {
-	name->op_priv = OP_FUNC_BRACE;
+		name->op_priv = OP_FUNC_BRACE;
 
-	name->expr_list_priv.push_back(args) ;
-	closing = '}' ;
-	exprP brace_args = expression::create(s, closing) ;
-	name->expr_list_priv.push_back(brace_args) ;
+		name->expr_list_priv.push_back(args) ;
+		closing = '}' ;
+		exprP brace_args = expression::create(s, closing) ;
+		name->expr_list_priv.push_back(brace_args) ;
       }
       else {
-	if(args->op == OP_COMMA)
-	  name->expr_list_priv = args->expr_list ;
-	else
-	  name->expr_list_priv.push_back(args) ;
+		if(args->op == OP_COMMA)
+			name->expr_list_priv = args->expr_list ;
+		else
+			name->expr_list_priv.push_back(args) ;
       }
       return name ;
     }
@@ -641,145 +1044,520 @@ namespace Loci {
     }
   }
 
-
-  double expression::evaluate(const std::map<std::string, double> &varmap) const {
-    double tmp ;
-    exprList::const_iterator li ;
-    std::map<std::string,double>::const_iterator mi ;
-    switch(op) {
-    case OP_INT:
-      return double(int_val) ;
-    case OP_DOUBLE:
-      return (real_val) ;
-    case OP_PLUS: 
-      tmp = 0 ;
-      for(li=expr_list.begin();li!=expr_list.end();++li) {
-	tmp += (*li)->evaluate(varmap) ;
-      }
-      return tmp ;
-    case OP_MINUS:
-      tmp = 0 ;
-      li = expr_list.begin() ;
-      if(li!=expr_list.end())
-	tmp = (*li)->evaluate(varmap) ;
-      for(++li;li!=expr_list.end();++li) {
-	tmp -= (*li)->evaluate(varmap) ;
-      }
-      return tmp ;
-    case OP_TIMES:
-      tmp = 1 ;
-      for(li=expr_list.begin();li!=expr_list.end();++li) {
-	tmp *= (*li)->evaluate(varmap) ;
-      }
-      return tmp ;
-    case OP_DIVIDE:
-      li = expr_list.begin() ;
-      tmp = 1 ;
-      if(li!=expr_list.end()) 
-	tmp =  (*li)->evaluate(varmap) ;
-      for(++li;li!=expr_list.end();++li) {
-	tmp /= (*li)->evaluate(varmap) ;
-      }
-      return tmp ;
-    case OP_FUNC:
-      li = expr_list.begin() ;
-      tmp = 0 ;
-      if(li!=expr_list.end()) 
-	tmp = (*li)->evaluate(varmap) ;
-      ++li ;
-      if(name == "pow") {
-	double tmp2 = 1 ;
-	if(li!=expr_list.end()) 
-	  tmp2 = (*li)->evaluate(varmap) ;
-#ifdef NO_CMATH
-        return ::pow(tmp,tmp2) ;
-#else
-	return std::pow(tmp,tmp2) ;
-#endif
-      }
-#ifdef NO_CMATH
-      if(name == "sin")
-        return ::sin(tmp) ;
-      if(name == "cos")
-        return ::cos(tmp) ;
-      if(name == "tan")
-	return ::tan(tmp) ;
-      if(name == "asin") 
-	return ::asin(tmp) ;
-      if(name == "acos")
-	return ::acos(tmp) ;
-      if(name == "atan") 
-	return ::atan(tmp) ;
-      if(name == "sinh") 
-	return ::sinh(tmp) ;
-      if(name == "cosh")
-	return ::cosh(tmp) ;
-      if(name == "tanh")
-	return ::tanh(tmp) ;
-      if(name == "exp")
-	return ::exp(tmp) ;
-      if(name == "sqrt")
-	return ::sqrt(tmp) ;
-      if(name == "ln") 
-	return ::log(tmp) ;
-      if(name == "log") 
-	return ::log(tmp) ;
-      if(name == "log10")
-	return ::log10(tmp) ;
-#else
-      if(name == "sin")
-        return std::sin(tmp) ;
-      if(name == "cos")
-        return std::cos(tmp) ;
-      if(name == "tan")
-	return std::tan(tmp) ;
-      if(name == "asin") 
-	return std::asin(tmp) ;
-      if(name == "acos")
-	return std::acos(tmp) ;
-      if(name == "atan") 
-	return std::atan(tmp) ;
-      if(name == "sinh") 
-	return std::sinh(tmp) ;
-      if(name == "cosh")
-	return std::cosh(tmp) ;
-      if(name == "tanh")
-	return std::tanh(tmp) ;
-      if(name == "exp")
-	return std::exp(tmp) ;
-      if(name == "sqrt")
-	return std::sqrt(tmp) ;
-      if(name == "ln") 
-	return std::log(tmp) ;
-      if(name == "log") 
-	return std::log(tmp) ;
-      if(name == "log10")
-	return std::log10(tmp) ;
-#endif
-      {
-        string msg = "in expression evaluation, function " + name
-          + " has no definition";
-        throw exprError("Undefined",msg,ERR_UNDEF) ;
-      }
-    case OP_NAME:
-      mi = varmap.find(name) ;
-      if(mi != varmap.end()) 
-	return mi->second ;
-      if(name == "pi")
-	return M_PI ;
-
-      {
-        string msg = "in expression evaluation, variable " + name
-          + " has no definition";
-        throw exprError("Undefined",msg,ERR_UNDEF) ;
-      }
-	
-    default:
-      throw exprError("Undefined","operation not defined in evaluate()",ERR_UNDEF) ;
-      return 0 ;
-    }
-    return 0 ;
+  int expression::depth(std::vector<exprP> &exprV) const
+  {
+	  int myDepth = 0;
+		int tempDepth = 0;
+	  exprList::const_iterator ti;
+	  if (this->expr_list.empty())
+		  return myDepth;
+	  myDepth = 1;
+	  for (ti = this->expr_list.begin(); ti != this->expr_list.end(); ti++)
+	  {
+		  tempDepth = (*ti)->depth(exprV);
+		  if (tempDepth >= myDepth)
+			  myDepth = tempDepth + 1;
+		  if (tempDepth == 1)
+		  {
+			  int flag = 0;
+			  for (int x = 0; x < exprV.size(); x++)
+			  {
+				if (Loci::operator ==((*ti),exprV[x]))
+				{
+					exprV[x]->inc_count();
+					flag = 1;
+					break;
+				}
+			  }
+			  if (!flag)
+			  {
+				  exprV.push_back(*ti);
+				  exprV.back()->inc_count();
+			  }
+		  }
+	  }
+	  return myDepth;
   }
+
+  void expression::inc_count()
+  {
+	  expr_count++;
+  }
+
+  void expression::dec_count()
+  {
+	  expr_count--;
+  }
+
+  int expression::get_count()
+  {
+	  return expr_count;
+  }
+
+
+/*
+Added by Kenny Moser(krm104), iterates through the expression, and creates a
+Reverse Polish Notation form which is stored in the passed in compiled_expr
+parameter. The dnum parameter determines how deep into the expression tree
+to search for common sub expressions.
+This method is not recursive. While loops are used to reduce the amount of
+function calling overhead.
+*/
+void expression::compile_expr(compiled_expr &c_expr, int dnum)
+{
+	//a pointer to the expression being compiled
+	//it is initialized to the calling expression
+	//the counting pointer is then incremented to account for the initialization
+	exprP tempexpr = (this);
+	tempexpr->link();
+
+	//temporary map used to compiled a list of common variables (x, y, z, etc)
+	//and their initial values
+	std::map<std::string, double> tempmap;
+	tempmap = c_expr.get_map();
+
+	//a temporary vector used to store pointers to common sub expressions at the
+	//passed in depth, or lower
+	std::vector<exprP> testV;
+
+	//initialize the callers depth to 1
+	int mydepth = 1;
+
+	//temporary variable used to provide an internal count of the 
+	//created sub expressions. Used to create a variable name
+	//for sub expressions
+	int tcounter = 1;
+
+	//iterate over the exrpession to acquire a list of sub expressions at each depth
+	//up to dnum
+	for (int x = 0; x < dnum; x++)
+	{
+		//as the depth is traversed, tempexpr becomes a modified
+		//form of this, with common sub expressions at each level
+		//replaced by variable names
+		//acquire the depth of the calling expression
+		mydepth = tempexpr->depth(testV);
+
+		//temporary vector to store newly found sub expressions
+		std::vector<std::pair<std::string, compiled_expr> > temp_subs;
+
+		//temp variable to store the number of sub expressions
+		int tsize = testV.size();
+		//iterate over sub expressions, and create new variables
+		for (int x = 0; x < tsize; x++)
+		{
+			//see if the subexpression was used more then once
+			if (testV.back()->get_count() > 1)
+			{
+				//create a variable name for the sub expression
+				double subexpr_value = testV.back()->evaluate(tempmap);
+				std::stringstream subexprname;
+				subexprname << "locisubexpr";
+				subexprname << tcounter;
+				tcounter++;
+				tempmap[subexprname.str()] = subexpr_value;
+
+				//create a new expression object for the subexpression
+				std::string reexpr = subexprname.str();
+				reexpr += ";";
+				expression::exprList explvar;
+				expression test(OP_MINUS,"equ1", explvar);
+				explvar.push_front(test.create(reexpr));
+				expression newtest(OP_PLUS, "equ2", explvar);
+
+				std::stringstream equ;
+				testV.back()->Print(equ);
+				equ << ";";
+				expression::exprList explvar2;
+				expression test2(OP_MINUS,"equ1", explvar2);
+				explvar2.push_front(test2.create(equ.str()));
+				expression newtest2(OP_PLUS, "equ2", explvar2);
+
+				//update the variable map to include the variable for the new subexpression
+				c_expr.UpdateVariables(tempmap);
+
+				//new compiled_expr to store RPN of sub expression
+				compiled_expr new_expr;
+				//link to parent compiled_expr to share variable mapping
+				new_expr.link(c_expr);
+				//compile sub expression into RPN form
+				newtest2.compile_expr(new_expr, 1);
+
+				//create and store new sub expression
+				std::pair<std::string, compiled_expr> temp_pair(subexprname.str(), new_expr);
+				temp_subs.push_back(temp_pair);
+
+				//modify current expression to replace sub expression with variable name
+				tempexpr = tempexpr->substitute(testV.back(), test.create(reexpr));
+			}
+			//reset expression counts back to 0
+			for (int x = 0; x < testV.back()->get_count(); x++)
+			{
+				testV.back()->dec_count();
+			}
+			//remove sub expression from temporary stack
+			testV.pop_back();
+		}
+
+		//iterator for internal map of parent compiled_expr
+		std::map<std::string, double>::const_iterator sub_it;
+
+		//iterate over found sub expressions and add them to parent compiled_expr
+		for (int x = 0; x < temp_subs.size(); x++)
+		{
+			sub_it = c_expr.find(temp_subs[x].first);
+			if (sub_it != c_expr.end())
+			{
+				std::pair<int, compiled_expr> subpair(sub_it->second, temp_subs[x].second);
+				c_expr.addSub(subpair);
+			}
+		}
+		temp_subs.clear();
+	}
+
+	//temporary iterators for traversing the calling expression
+	std::map<std::string, double>::const_iterator mi;
+	exprList::const_iterator li ;
+
+	//counter used to ensure that the resulting RPN expression contains the proper
+	//number of terms
+	int counter = 0;
+
+	//temporary stacks used to iterate through the expression being compiled
+	//these vectors work like recursive function calling stacks
+	//instead of recursively calling this function, these stacks store
+	//the order of the expression being traversed
+	std::vector<exprP> cur_expr_stack;
+	std::vector<exprList::const_iterator> li_stack;
+	std::vector<int> counter_stack;
+	
+	//iterator used to traverse the calling expressions expression list
+	exprList::const_iterator mli;
+
+	//pointer to the expression being compiled
+	exprP cur_expr;
+	//initialized to tempexpr (which is the expression with 
+	cur_expr = tempexpr;
+	li = tempexpr->expr_list.begin();
+	mli = li;
+
+	//push this expression onto the recursive stack
+	cur_expr_stack.push_back(cur_expr);
+	li_stack.push_back(li);
+	counter_stack.push_back(0);
+
+	//traverse through until the end of the expression
+	while (mli != tempexpr->expr_list.end())
+	{
+		//traverse through until the end of the current "sub expression"
+		while (li != cur_expr->expr_list.end())
+		{
+			//check the opType of the current expression
+			//push the operator/operand onto the compiled_expr RPN stack
+			switch((*li)->op)
+			{
+				//for numerical values, stay inside current expression tree
+				//increment expression list iterator
+				//increment counter_stack element to indicate number of operators needed
+				case OP_INT:
+					c_expr.push_back(std::make_pair<OpType,double>(OP_INT, (*li)->int_val)) ;
+					counter_stack[counter_stack.size()-1]++;
+					++li;
+					break;
+				case OP_DOUBLE:
+					c_expr.push_back(std::make_pair<OpType,double>(OP_DOUBLE, (*li)->real_val)) ;
+					counter_stack[counter_stack.size()-1]++;
+					++li;
+					break;
+				//for mathematical operators, push 0 onto counter_stack
+				//to increase the number of occurences
+				//push on the expression pointer onto the cur_expr_stack
+				//iterate down into the expresison list of the operator
+				case OP_PLUS: 
+					counter = 0;
+					counter_stack[counter_stack.size()-1]++;
+					counter_stack.push_back(counter);
+					cur_expr_stack.push_back(cur_expr);
+					li_stack.push_back(li);
+					cur_expr = (*li);
+					li = cur_expr->expr_list.begin();
+					break;
+				case OP_MINUS:
+					counter = 0;
+					counter_stack[counter_stack.size()-1]++;
+					counter_stack.push_back(counter);
+					cur_expr_stack.push_back(cur_expr);
+					li_stack.push_back(li);
+					cur_expr = (*li);
+					li = cur_expr->expr_list.begin();
+					break;
+				case OP_TIMES:
+					counter = 0;
+					counter_stack[counter_stack.size()-1]++;
+					counter_stack.push_back(counter);
+					cur_expr_stack.push_back(cur_expr);
+					li_stack.push_back(li);
+					cur_expr = (*li);
+					li = cur_expr->expr_list.begin();
+					break;
+				case OP_DIVIDE:
+					counter = 0;
+					counter_stack[counter_stack.size()-1]++;
+					counter_stack.push_back(counter);
+					cur_expr_stack.push_back(cur_expr);
+					li_stack.push_back(li);
+					cur_expr = (*li);
+					li = cur_expr->expr_list.begin();
+					break;
+				case OP_FUNC:
+					counter = 0;
+					counter_stack[counter_stack.size()-1]++;
+					counter_stack.push_back(counter);
+					cur_expr_stack.push_back(cur_expr);
+					li_stack.push_back(li);
+					cur_expr = (*li);
+					li = cur_expr->expr_list.begin();
+					break;
+				case OP_NAME:
+					mi = c_expr.find((*li)->name) ;
+					if(mi != c_expr.end()) 
+						c_expr.push_back(std::make_pair<OpType,double>(OP_NAME, mi->second)) ;
+					if(name == "pi")
+						c_expr.push_back(std::make_pair<OpType,double>(OP_DOUBLE, M_PI)) ;
+					counter_stack[counter_stack.size()-1]++;
+					++li;
+					break;
+				default:
+					throw exprError("Undefined","operation not defined in evaluate()",ERR_UNDEF) ;
+			}
+		}
+		if (cur_expr_stack.empty())
+			break;
+		//move back up the expression stack
+		//get the lowest expression
+		cur_expr = cur_expr_stack.back();
+		cur_expr_stack[cur_expr_stack.size()-1] = NULL;
+		cur_expr_stack.pop_back();
+
+		//get the lowest expression list iterator
+		li = li_stack.back();
+		li_stack.pop_back();
+
+		//use the counter_stack to push on the appropriate number of oprators
+		if ((*li)->op == OP_PLUS)
+		{
+			for (int x = 0; x < counter_stack.back() - 1; x++)
+					c_expr.push_back(std::make_pair<OpType,double>(OP_PLUS, (*li)->int_val));
+			counter_stack.pop_back();
+		} else
+		if ((*li)->op == OP_MINUS)
+		{
+			for (int x = 0; x < counter_stack.back() - 1; x++)
+					c_expr.push_back(std::make_pair<OpType,double>(OP_MINUS, (*li)->int_val));
+			counter_stack.pop_back();
+		} else
+		if ((*li)->op == OP_TIMES)
+		{
+			for (int x = 0; x < counter_stack.back() - 1; x++)
+					c_expr.push_back(std::make_pair<OpType,double>(OP_TIMES, (*li)->int_val));
+			counter_stack.pop_back();
+		} else
+		if ((*li)->op == OP_DIVIDE)
+		{
+			for (int x = 0; x < counter_stack.back() - 1; x++)
+					c_expr.push_back(std::make_pair<OpType,double>(OP_DIVIDE, (*li)->int_val));
+			counter_stack.pop_back();
+		} else
+		if ((*li)->op == OP_FUNC)
+		{
+			for (int x = 0; x < counter_stack.back(); x++)
+			{
+				if((*li)->name == "pow") {
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 0));
+					x++;
+				} 
+				else if((*li)->name == "sin")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 1));
+				else if((*li)->name == "cos")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 2));
+				else if((*li)->name == "tan")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 3));
+				else if((*li)->name == "asin") 
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 4));
+				else if((*li)->name == "acos")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 5));
+				else if((*li)->name == "atan") 
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 6));
+				else if((*li)->name == "sinh") 
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 7));
+				else if((*li)->name == "cosh")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 8));
+				else if((*li)->name == "tanh")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 9));
+				else if((*li)->name == "exp")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 10));
+				else if((*li)->name == "sqrt")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 11));
+				else if((*li)->name == "ln") 
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 12));
+				else if((*li)->name == "log") 
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 13));
+				else if((*li)->name == "log10")
+					c_expr.push_back(std::make_pair<OpType,double>(OP_FUNC, 14));
+			}
+			counter_stack.pop_back();
+		}
+		//increment expression list iterator
+		++li;
+		//if current expression is parent expression
+		//increment parent expression list iterator
+		if (Loci::operator ==(cur_expr, tempexpr))
+			mli++;
+	}
+}
+
+
+
+double expression::evaluate(const std::map<std::string, double> &varmap) const
+{
+	std::map<std::string, double>::const_iterator mi;
+	double tmp ;
+	exprList::const_iterator li ;
+	
+    switch(op)
+	{
+	    case OP_INT:
+			return double(int_val) ;
+		case OP_DOUBLE:
+			return (real_val) ;
+		case OP_PLUS: 
+			tmp = 0 ;
+			for(li=expr_list.begin();li!=expr_list.end();++li) {
+				tmp += (*li)->evaluate(varmap) ;
+			}
+			return tmp ;
+		case OP_MINUS:
+			tmp = 0 ;
+			li = expr_list.begin() ;
+			if(li!=expr_list.end())
+				tmp = (*li)->evaluate(varmap) ;
+			for(++li;li!=expr_list.end();++li) {
+				tmp -= (*li)->evaluate(varmap) ;
+			}
+			return tmp ;
+		case OP_TIMES:
+			tmp = 1 ;
+			for(li=expr_list.begin();li!=expr_list.end();++li) {
+				tmp *= (*li)->evaluate(varmap) ;
+			}
+			return tmp ;
+		case OP_DIVIDE:
+			li = expr_list.begin() ;
+			tmp = 1 ;
+			if(li!=expr_list.end()) 
+				tmp =  (*li)->evaluate(varmap) ;
+			for(++li;li!=expr_list.end();++li) {
+				tmp /= (*li)->evaluate(varmap) ;
+			}
+			return tmp ;
+	    case OP_FUNC:
+			li = expr_list.begin() ;
+			tmp = 0 ;
+			if(li!=expr_list.end()) 
+				tmp = (*li)->evaluate(varmap) ;
+			++li ;
+			if(name == "pow") {
+				double tmp2 = 1 ;
+				if(li!=expr_list.end()) 
+					tmp2 = (*li)->evaluate(varmap) ;
+				#ifdef NO_CMATH
+					return ::pow(tmp,tmp2) ;
+				#else
+					return std::pow(tmp,tmp2) ;
+				#endif
+			}
+		#ifdef NO_CMATH
+			if(name == "sin")
+				return ::sin(tmp) ;
+			if(name == "cos")
+		        return ::cos(tmp) ;
+			if(name == "tan")
+				return ::tan(tmp) ;
+			if(name == "asin") 
+				return ::asin(tmp) ;
+			if(name == "acos")
+				return ::acos(tmp) ;
+			if(name == "atan") 
+				return ::atan(tmp) ;
+			if(name == "sinh") 
+				return ::sinh(tmp) ;
+			if(name == "cosh")
+				return ::cosh(tmp) ;
+			if(name == "tanh")
+				return ::tanh(tmp) ;
+			if(name == "exp")
+				return ::exp(tmp) ;
+			if(name == "sqrt")
+				return ::sqrt(tmp) ;
+			if(name == "ln") 
+				return ::log(tmp) ;
+			if(name == "log") 
+				return ::log(tmp) ;
+			if(name == "log10")
+				return ::log10(tmp) ;
+		#else
+			if(name == "sin")
+				return std::sin(tmp) ;
+			if(name == "cos")
+				return std::cos(tmp) ;
+			if(name == "tan")
+				return std::tan(tmp) ;
+			if(name == "asin") 
+				return std::asin(tmp) ;
+			if(name == "acos")
+				return std::acos(tmp) ;
+			if(name == "atan") 
+				return std::atan(tmp) ;
+			if(name == "sinh") 
+				return std::sinh(tmp) ;
+			if(name == "cosh")
+				return std::cosh(tmp) ;
+			if(name == "tanh")
+				return std::tanh(tmp) ;
+			if(name == "exp")
+				return std::exp(tmp) ;
+			if(name == "sqrt")
+				return std::sqrt(tmp) ;
+		      if(name == "ln") 
+				return std::log(tmp) ;
+			if(name == "log") 
+				return std::log(tmp) ;
+			if(name == "log10")
+				return std::log10(tmp) ;
+		#endif
+		{
+			string msg = "in expression evaluation, function " + name
+			+ " has no definition";
+			throw exprError("Undefined",msg,ERR_UNDEF) ;
+		}
+		case OP_NAME:
+			mi = varmap.find(name) ;
+			if(mi != varmap.end()) 
+				return mi->second ;
+			if(name == "pi")
+				return M_PI ;
+			{
+				string msg = "in expression evaluation, variable " + name
+				+ " has no definition";
+				throw exprError("Undefined",msg,ERR_UNDEF) ;
+			}
+		default:
+			throw exprError("Undefined","operation not defined in evaluate()",ERR_UNDEF) ;
+			return 0 ;
+	}
+	
+    return 0 ;
+}
 
   
   exprP const_group(exprP p) {
@@ -980,12 +1758,11 @@ namespace Loci {
 	} else
 	  num.push_back(e) ;
       }
-      if(denom.empty()) {
+      if(denom.empty())  
 	if(num.empty()) 
 	  return e_int(1) ;
 	else
 	  return exprP(new expression(OP_TIMES,"",num,1)) ;
-      }
 	
       exprList divList ;
       if(num.empty())
@@ -1768,4 +2545,380 @@ namespace Loci {
     p = add_divide(p) ;
     return p ;
   }
+
+//I added this to print to TEX (Work In Progress)
+	void expression::PrintTex(std::ostream &s) const{
+
+		s << "\\begin{equation*}\\begin{aligned}" << endl;
+		string texString;
+		string::iterator texIt = texString.end();
+		int len = 0;
+		TexPrint(texIt, texString, len);
+		s << texString;
+		//TexPrint(s);
+		s << endl << "\\end{aligned}\\end{equation*}";
+	}
+
+
+	void expression::TexPrintOperation(string::iterator &it, string &s, int &len, std::string oper,
+				  char poChar, char pcChar) const
+  {
+	int par = 0;
+
+    if(!expr_list.empty()) {
+      exprList::const_iterator i = expr_list.begin() ;
+
+	  if (poChar != '\0' && (*i)->expr_list.size() > 1)
+	  {
+		  s += "(";
+		  par++;
+	  }
+	  
+	  if (poChar == '{' && pcChar == '}')
+	  {
+	 	s += "{";
+	  }
+
+	  (*i)->TexPrint(it, s, len) ;
+
+	  if (par)
+	  {
+		  s += ")";
+		  par--;
+	  }
+
+	  if (poChar == '{' && pcChar == '}')
+	  {
+	 	s += "}";
+	  }
+
+      	  ++i ;
+
+          for(;i!=expr_list.end();++i) {
+		s += oper ;
+		if (poChar != '\0' && (*i)->expr_list.size() > 1 || poChar == '{')
+		{
+			s += poChar;
+			par++;
+		}
+		it = s.end();
+		(*i)->TexPrint(it, s, len) ;
+	  }
+	  for (int x = 0; x < par; x++)
+			s += pcChar ;
+    }
+  }
+
+	void expression::TexPrint(string::iterator &it, string &s, int &len) const
+  {
+	ostringstream ss;
+    switch(op) {
+    case OP_AT:
+      TexPrintOperation(it, s, len, "@") ;
+      break;
+		
+    case OP_NAME:
+      s += name ;
+      break ;
+
+    case OP_FUNC:
+	{
+	  int func = 0;
+	  for (int x = 0; x < name.length(); x++)
+	  {
+		  func += name.c_str()[x];
+	  }
+
+	  switch (func)
+	  {
+		case 458: //sqrt
+		{
+			s += "\\sqrt[]{";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += "}";
+		}
+		break;
+
+		case 342: //pow
+		{
+			TexPrintOperation(it, s, len,"^",'{','}') ;
+		}
+		break;
+
+		case 330: //sin
+		{
+			s += "\\sin (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		case 325: //cos
+		{
+			s += "\\cos (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		case 323: //tan
+		{
+			s += "\\tan (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		case 322: //log
+		{
+			s += "\\log (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		case 419: //log10
+		{
+			s += "\\log_{10} (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		case 218: //ln
+		{
+			s += "\\ln (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		case 434: //sinh
+		{
+			s += "\\sinh (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		case 429: //cosh
+		{
+			s += "\\cosh (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		case 427: //tanh
+		{
+			s += "\\tanh (";
+			TexPrintOperation(it, s, len,"",'\0','\0') ;
+			s += ")";
+		}
+		break;
+
+		default:
+		{
+			s += name ;
+			TexPrintOperation(it, s, len,",",'(',')') ;
+		}
+		break;
+	  }
+	}
+      break ;
+
+    case OP_ARRAY:
+      s += name ;
+      TexPrintOperation(it, s, len,",",'[',']') ;
+      break ;
+      
+    case OP_NAME_BRACE:
+      s += name ;
+      TexPrintOperation(it, s, len,",",'{','}') ;
+      break ;
+      
+    case OP_FUNC_BRACE:
+	{
+		s += name ;
+		warn(expr_list.size() != 2) ;
+		s += '(';
+
+		exprList::const_iterator func = expr_list.begin() ;
+		//(*func)->Print(s) ;
+		s += ')' ;
+	
+		exprList::const_iterator brace = ++func ;
+		s += "{" ;
+		//(*brace)->Print(s) ;
+		s += "}" ;
+	}
+		
+		break ;
+      
+    case OP_STRING:
+      s += '"';
+	  s += name;
+	  s += '"' ;
+      break ;
+      
+    case OP_INT:
+		int len1;
+		len1 = s.length();
+		ss.str("");
+		ss << int_val;
+		s += ss.str();
+		len += (s.length() - len1);
+		/*
+		if (len > 10)
+		{
+			string sep ="\\ldots\\\\\n";
+			s.insert(it, sep.begin(), sep.end());
+			len = s.length() - len1 - 10;
+		}
+		*/
+      break ;
+
+    case OP_DOUBLE:
+		int len2;
+		len2 = s.length();
+		ss.clear();
+		ss << real_val;
+		s += ss.str();
+	    len += (s.length() - len2);
+		/*
+		if (len > 10)
+		{
+			string sepr ="\\ldots\\\\\n";
+			s.insert(it, sepr.begin(), sepr.end());
+			len = s.length() - len2 - 10;
+		}
+		*/
+		ss.clear();
+      break ;
+      
+    case OP_PLUS:
+      TexPrintOperation(it, s, len,"+",'\0','\0') ;
+      break ;
+    case OP_MINUS:
+      TexPrintOperation(it, s, len,"-",'\0','\0') ;
+      break ;
+    case OP_TIMES:
+      TexPrintOperation(it, s,len,"*") ;
+      break ;
+    case OP_DIVIDE:
+		if(!expr_list.empty())
+		{
+			exprList::const_iterator i = expr_list.begin() ;
+			s += "\\cfrac{";
+			(*i)->TexPrint(it, s,len);
+			++i ;
+			s += "}{";
+			for(;i!=expr_list.end();++i)
+			{
+				(*i)->TexPrint(it, s,len) ;
+			}
+			s += "}";
+		}
+      break ;
+    case OP_AND:
+      TexPrintOperation(it, s,len,"&") ;
+      break ;
+    case OP_OR:
+      TexPrintOperation(it, s,len,"|") ;
+      break ;
+    case OP_MODULUS:
+      TexPrintOperation(it, s,len,"\\%") ;
+      break ;
+    case OP_ASSIGN:
+      TexPrintOperation(it, s,len,"=") ;
+      break ;
+    case OP_EXOR:
+      TexPrintOperation(it, s,len,"\\oplus") ;
+      break ;
+    case OP_LOGICAL_AND:
+      TexPrintOperation(it, s,len,"\\wedge") ;
+      break ;
+    case OP_LOGICAL_OR:
+      TexPrintOperation(it, s,len,"\\vee") ;
+      break ;
+    case OP_COMMA:
+      TexPrintOperation(it, s,len,",") ;
+      break ;
+    case OP_COLON:
+      TexPrintOperation(it, s,len,":") ;
+      break ;
+    case OP_ARROW:
+      TexPrintOperation(it, s,len,"\\to") ;
+      break ;
+    case OP_SHIFT_RIGHT:
+      TexPrintOperation(it, s,len,">>") ;
+      break ;
+    case OP_SHIFT_LEFT:
+      TexPrintOperation(it, s,len,"<<") ;
+      break ;
+    case OP_LE:
+      TexPrintOperation(it, s,len,"\\le") ;
+      break ;
+    case OP_LT:
+      TexPrintOperation(it, s,len,"<") ;
+      break ;
+    case OP_GE:
+      TexPrintOperation(it, s,len,"\\ge") ;
+      break ;
+    case OP_GT:
+      TexPrintOperation(it, s,len,">") ;
+      break ;
+    case OP_EQUAL:
+      TexPrintOperation(it, s,len,"==") ;
+      break ;
+    case OP_NOT_EQUAL:
+      TexPrintOperation(it, s,len,"\\neq") ;
+      break ;
+
+    case OP_SCOPE:
+      TexPrintOperation(it, s,len,"::") ;
+      break ;
+        
+    case OP_UNARY_PLUS:
+      s += "+" ;
+      //expr_list.front()->Print(s) ;
+      break ;
+    case OP_UNARY_MINUS:
+      s += "-" ;
+      //expr_list.front()->Print(s) ;
+      break ;
+    case OP_NOT:
+      s += "\\neg" ;
+      //expr_list.front()->Print(s) ;
+      break ;
+    case OP_TILDE:
+      s += "~" ;
+     // expr_list.front()->Print(s) ;
+      break ;
+    case OP_AMPERSAND:
+      s += "&" ;
+     // expr_list.front()->Print(s) ;
+      break ;
+    case OP_DOLLAR:
+      s += "$" ;
+     // expr_list.front()->Print(s) ;
+      break ;
+    case OP_STAR:
+      s += "\\star" ;
+     // expr_list.front()->Print(s) ;
+      break ;
+
+    case OP_ERROR:
+      s += "*ERR*" ;
+      break ;
+        
+    case OP_NIL:
+      s +="" ;
+      break ;
+    default:
+      throw exprError("Undefined","unexpected operation in Print()",ERR_UNDEF) ;
+      break ;
+    }
+  }
 }
+ 
