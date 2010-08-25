@@ -83,6 +83,8 @@
 #define restrict __restrict
 #define HAVE_IVDEP
 #define NO_FENV
+#define NO_SIGNBIT
+#define USE_MAP_FOR_HASH_MAP
 #else
 #if defined(__SUNPRO_CC)
 /* Sun CC compiler */
