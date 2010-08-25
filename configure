@@ -144,9 +144,13 @@ if [ $MPI_PATH == 0 ]; then
 fi
 MPI_C_COMPILER=none
 MPI_CPP_COMPILER=none
+MPI_F90_COMPILER=none
 
 if [ -e $MPI_PATH/mpicc ]; then
     MPI_C_COMPILER=mpicc
+fi
+if [ -e $MPI_PATH/mpif90 ]; then
+    MPI_F90_COMPILER=mpif90
 fi
 if [ -e $MPI_PATH/mpic++ ]; then
     MPI_CPP_COMPILER=mpic++
@@ -160,20 +164,32 @@ else
     fi
 fi
 
+MPI_BASE=`echo $MPI_PATH | sed "s/\/.[a-zA-Z0-9]*$//"`
+
 echo \# MPI Libraries Setup >> sys.conf
-if [ "$ARCH" == "IRIX64" ]; then
-   echo MPI_BASE = /usr/ >> sys.conf
-   echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 -lmpi >> sys.conf
-   echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
-   echo MPI_RUN = mpirun >> sys.conf
+if [ "$MPI_C_COMPILER" == "none" ]; then
+    if [ "$ARCH" == "IRIX64" ]; then
+	echo MPI_BASE = /usr/ >> sys.conf
+	echo MPI_LIBS = -L/usr/lib64 \$\(RPATH\)/usr/lib64 -lmpi >> sys.conf
+	echo MPI_INCLUDE = -DMPI_NO_CPPBIND >> sys.conf
+	echo MPI_RUN = mpirun >> sys.conf
+    else
+	echo MPI_BASE =  $MPI_BASE >> sys.conf
+	echo MPI_LIBS =  -L$MPI_BASE/lib -lmpi >> sys.conf
+	echo MPI_INCLUDE = -I$MPI_BASE/include  >> sys.conf
+	echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
+    fi
 else
-   echo MPI_BASE =  $MPI_PATH >> sys.conf
-   echo MPI_LIBS =  >> sys.conf
-   echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
-   echo MPI_RUN = mpirun >> sys.conf
+    echo MPI_BASE =  $MPI_BASE >> sys.conf
+    echo MPI_LIBS =   >> sys.conf
+    echo MPI_INCLUDE = -DMPICH_IGNORE_CXX_SEEK >> sys.conf
+    echo MPI_RUN=$MPI_PATH/mpirun >> sys.conf
 fi
-   echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
-   echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
+
+
+echo MPI_C_COMPILER = $MPI_C_COMPILER >> sys.conf
+echo MPI_CPP_COMPILER = $MPI_CPP_COMPILER >> sys.conf
+echo MPI_F90_COMPILER = $MPI_F90_COMPILER >> sys.conf
 echo >> sys.conf
 
 #setup hdf5
@@ -288,6 +304,15 @@ echo >> sys.conf
 # check for fortran includes
 FORTRAN_LIBS=
 
+if [ "$MPI_C_COMPILER" == "none" ]; then
+    echo Selecting compiler = $COMPILER
+else
+    COMP_TEST=`$MPI_PATH/$MPI_C_COMPILER -show | sed "s/ .*//"`
+    if [ -e src/conf/$COMP_TEST.conf ]; then
+	COMPILER=$COMP_TEST
+	echo Selecting compiler = $COMPILER
+    fi
+fi
 case "$COMPILER" in
     gcc)
     find_exec gfortran
