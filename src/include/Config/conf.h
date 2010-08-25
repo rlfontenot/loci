@@ -30,6 +30,8 @@
 #if defined(__INTEL_COMPILER)
 // Intel Compiler
 
+#define NO_FENV
+
 #define USE_MAP_FOR_HASH_MAP
 //#define EXT_HASH_MAP
 //#define EXT_NAMESPACE std
@@ -81,6 +83,8 @@
 #define restrict __restrict
 #define HAVE_IVDEP
 #define NO_FENV
+#define NO_SIGNBIT
+#define USE_MAP_FOR_HASH_MAP
 #else
 #if defined(__SUNPRO_CC)
 /* Sun CC compiler */
