@@ -159,6 +159,16 @@ int  sizeElementType(hid_t group_id, const char *element_name) {
   
 }
 
+string getPosFile(string output_dir,string iteration, string casename) {
+  string posname = output_dir+"/grid_pos." + iteration + "_" + casename ;
+  struct stat tmpstat ;
+  if(stat(posname.c_str(),&tmpstat) != 0) {
+    posname = output_dir+"/grid_pos." + casename ;
+  } else if(tmpstat.st_size == 0) {
+    posname = output_dir+"/grid_pos." + casename ;
+  }
+  return posname ;
+}
 
 void getDerivedVar(vector<float> &dval, string var_name,
                    string casename, string iteration) {
@@ -259,7 +269,7 @@ void getDerivedVar(vector<float> &dval, string var_name,
     } ENDFORALL ;
   } else if(var_name == "x" || var_name =="y" || var_name == "z") {
     store<vector3d<float> > pos ;
-    string posname = output_dir+"/grid_pos." + iteration + "_" + casename ;
+    string posname = getPosFile(output_dir,iteration,casename) ;
     hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                        H5F_ACC_RDONLY,
                                        H5P_DEFAULT) ;
@@ -369,7 +379,7 @@ void setup_grid_topology(string casename, string iteration) {
 
   store<vector3d<double> > pos ;
   pos = facts.get_variable("pos") ;
-  filename = output_dir+"/grid_pos." + iteration + "_" + casename ;
+  filename = getPosFile(output_dir,iteration,casename) ;
   hid_t file_id = Loci::hdf5CreateFile(filename.c_str(),H5F_ACC_TRUNC,
                                        H5P_DEFAULT, H5P_DEFAULT) ;
   
@@ -472,7 +482,7 @@ void extract_grid(string casename, string iteration,
   topo->fileWritingSequence(events) ;
   FATAL(Loci::MPI_processes != 1) ;
   store<vector3d<float> > pos ;
-  string posname = output_dir+"/grid_pos." + iteration + "_" + casename ;
+  string posname = getPosFile(output_dir,iteration,casename) ;
   hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                      H5F_ACC_RDONLY,
                                      H5P_DEFAULT) ;
@@ -1615,7 +1625,8 @@ int main(int ac, char *av[]) {
 
   string filename = output_dir+'/' +  casename + ".topo" ;
   struct stat tmpstat ;
-  string posfile = output_dir+"/grid_pos." + iteration + "_" + casename ;
+  string posfile = getPosFile(output_dir,iteration,casename) ;
+  //  cout << "posfile = " << posfile << endl ;
   if(stat(filename.c_str(),&tmpstat)!= 0 ||
      stat(posfile.c_str(),&tmpstat) != 0) {
     cerr << "Warning, no grid topology information.  Will attempt to generate!"

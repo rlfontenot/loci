@@ -52,7 +52,7 @@ void get_2dgv(string casename, string iteration,
               int view) {
   FATAL(Loci::MPI_processes != 1) ;
   store<vector3d<double> > pos ;
-  string posname = "output/grid_pos." + iteration + "_" + casename ;
+  string posname = getPosFile(output_dir,iteration,casename) ;
   hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                      H5F_ACC_RDONLY,
                                      H5P_DEFAULT) ;

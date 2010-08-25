@@ -546,4 +546,6 @@ namespace Loci {
 
 extern string output_dir ;
 
+string getPosFile(string output_dir,string iteration, string casename) ;
+
 #endif

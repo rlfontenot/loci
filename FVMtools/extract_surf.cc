@@ -58,7 +58,7 @@ void get_surf(string casename, string iteration,
               vector<string> boundaries) {
   FATAL(Loci::MPI_processes != 1) ;
   store<vector3d<double> > pos ;
-  string posname = "output/grid_pos." + iteration + "_" + casename ;
+  string posname = getPosFile(output_dir,iteration,casename) ;
   hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                      H5F_ACC_RDONLY,
                                      H5P_DEFAULT) ;
