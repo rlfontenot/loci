@@ -142,7 +142,7 @@ void process_mean(string casename, string iteration,
     case NODAL_DERIVED:
       {
         store<vector3d<double> > pos ;
-        string posname = "output/grid_pos." + iteration + "_" + casename ;
+        string posname = getPosFile(output_dir,iteration,casename) ;
         hid_t file_id = Loci::hdf5OpenFile(posname.c_str(),
                                            H5F_ACC_RDONLY,
                                            H5P_DEFAULT) ;
