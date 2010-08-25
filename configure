@@ -251,24 +251,30 @@ fi
 if [ -d $PETSC_BASE ]; then
     if [ -e $PETSC_BASE/bmake/petscconf ]; then
 	PETSC_ARCH=`grep PETSC_ARCH $PETSC_BASE/bmake/petscconf | sed s/PETSC_ARCH=//`
+	if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then 
+	    echo Problem with PETSc library setup, check PETSC_DIR
+	    echo PETSC_BASE = $PETSC_BASE
+	    echo PETSC_ARCH = $PETSC_ARCH
+	    rm sys.conf
+	    exit -1
+	fi
+	BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
+	echo Using PETSc libraries found in \"$PETSC_BASE\".
+	echo PETSC_BASE = $PETSC_BASE >> sys.conf
+	echo $BLASLAPACK_LIB >> sys.conf
+	echo PETSC_ARCH = $PETSC_ARCH >> sys.conf
+	echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetsc -L\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(BLASLAPACK_LIB\) >> sys.conf
+	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
+	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
     else
-	PETSC_ARCH=no-petscconf-found
+	BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/conf/petscvariables`
+	echo Using PETSc libraries found in \"$PETSC_BASE\".
+	echo PETSC_BASE = $PETSC_BASE >> sys.conf
+	echo $BLASLAPACK_LIB >> sys.conf
+	echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/ \$\(RPATH\)\$\(PETSC_BASE\)/lib/ -lpetsc \$\(BLASLAPACK_LIB\) >> sys.conf
+	echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include  >> sys.conf
+	echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
     fi
-    if [ ! -d $PETSC_BASE/bmake/$PETSC_ARCH ]; then 
-	echo Problem with PETSc library setup, check PETSC_DIR
-	echo PETSC_BASE = $PETSC_BASE
-	echo PETSC_ARCH = $PETSC_ARCH
-	rm sys.conf
-	exit -1
-    fi
-    BLASLAPACK_LIB=`egrep ^BLASLAPACK_LIB $PETSC_BASE/bmake/$PETSC_ARCH/petscconf`
-    echo Using PETSc libraries found in \"$PETSC_BASE\".
-    echo PETSC_BASE = $PETSC_BASE >> sys.conf
-    echo $BLASLAPACK_LIB >> sys.conf
-    echo PETSC_ARCH = $PETSC_ARCH >> sys.conf
-    echo PETSC_LIBS = -L\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/lib/\$\(PETSC_ARCH\) -lpetscsnes -lpetscksp -lpetscdm -lpetscmat -lpetscvec -lpetsc -L\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(RPATH\)\$\(PETSC_BASE\)/externalpackages/fblaslapack/\$\(PETSC_ARCH\) \$\(BLASLAPACK_LIB\) >> sys.conf
-    echo PETSC_INCLUDE = -I\$\(PETSC_BASE\)/include -I\$\(PETSC_BASE\)/bmake/\$\(PETSC_ARCH\) >> sys.conf
-    echo PETSC_DEFINE = -DUSE_PETSC -DPETSC_USE_EXTERN_CXX >> sys.conf
 else
     echo "# PETSc not found, Loci compiled without PETSc enabled" >> sys.conf
     echo "Warning: PETSc not installed... "
