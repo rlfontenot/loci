@@ -176,7 +176,7 @@
      <usepr current="0" element="float" name="usepr"/>
     </Sland>
     
-    <powerLawParam element="panel"  prefix=": &lt;" postfix=">" >
+    <powerLawParam element="panel" prefix=": &lt;" postfix=">" >
       <mu_ref current="0" element="float" name="mu_ref"/>
       <T_ref current="0" element="float" name="T_ref"/>
       <power current="0" element="float" name="power"/>
@@ -260,14 +260,26 @@
     <!-- User defined models: the user can define the model by definig
 	 the attributes and children, the element should be "all" for now  -->
     
-    <ideal_gas title="please specify an ideal gas model"
-	       element="all" >
+    <ideal_gas title="ideal gas model"
+	       element="all"
+	       prefix=" //Model for Air as an ideal gas
+species = {
+_Air    = &lt;"
+	       postfix = "href=0, sref=0, Tref=298.0, Pref=10000.0, mf=1.0 &gt;;
+reactions = {
+};">
       <m title="molecular mass" current="0" element="float" />
       <n title="linear component of e(T)" current="0" element="float" />
     </ideal_gas>
         
-    <specified_gamma title="please specify parameters for gamma model" 
-		     element="all">
+    <specified_gamma title="gamma model" 
+		     element="all"
+		     prefix=" //Fluid with Gamma specified
+species = {
+_Gamma"
+	       postfix = "href=0, sref=0, Tref=298.0, Pref=1e5, mf=1.0 &gt;;
+reactions = {
+};" >
       <m title="molecular mass" current="0" element="float" />
       <gamma title="gamma" current="0" element="float" />
     </specified_gamma>
@@ -275,9 +287,9 @@
     <!-- harded coded user defined models: the attribute "element" describes what
 	 need to be specified, possible values for 'element' are:
 	 CPWindow, ChemistryMdl.  -->
-    <fit_CP_polynomial title="please specify the parameters" 
-		       element="CpWindow" />
-    <mixture_of_ideal_gases element="ChemistryMdl"/>
+    <fit_CP_polynomial title="fit_CP_polynomial model" 
+		       element="CpWindow" prefix="href=55749, sref=130751, Tref=300, Pref=101325.0, mf=1, "  />
+    <mixture_of_ideal_gases element="MixtureMdl"/>
     <chemically_reacting_model element="ChemistryMdl"/>
     
     <!-- User modified models: the user can modify the children and
@@ -341,11 +353,11 @@
       <!--files. And the attribute "label" is the description of the file that-->
       <!--will be displayed on the interface. The attribute "toXdr" and-->
       <!--"toVog" is the commands to be used for converting this type of grid.-->
-     <!-- <vog nameFilter="*.vog" label="volume grid format" />-->
-      <xdr toXdr="" nameFilter="*.xdr" label="xdr file" toVog="xdr2vog" />
-      <cobalt toXdr="" nameFilter="*.cog" label="cobalt format" toVog="cobalt2vog" />
+      <!--"vogOption", if false, do not need the unit options -->
+      <xdr  nameFilter="*.xdr" label="xdr file" toVog="xdr2vog" />
+      <cobalt  nameFilter="*.cog" label="cobalt format" toVog="cobalt2vog" />
       <cfd toXdr="cfd++2xdr" nameFilter="nodesin.bin, cellsin.bin, exbcsin.bin" label="cfd++ format" toVog="xdr2vog" />
-      <plot3d toXdr="" nameFilter="*.grd" label="plot3d format" toVog="plot3d2vog" >
+      <plot3d  nameFilter="*.grd" label="plot3d format" toVog="plot3d2vog" >
         <!-- the children elements of a grid type describe the "toXdr"-->
         <!-- command options. The tagName will appear in the command -->
         <!-- such as "plot3d2xdr -c str1 -bc str2 filename", -->
@@ -357,10 +369,12 @@
         <bc element="string" >Do you want to provide a supplemental boundary
     specification file?</bc>
       </plot3d>
-      <solidmesh toXdr="" nameFilter="*.ugrid" label="solid mesh"
+      <solidmesh nameFilter="*.ugrid" label="solid mesh"
       toVog="ugrid2vog" />
-      <fluent toXdr="" nameFilter="*.msh" label="fluent mesh"
+      <fluent  nameFilter="*.msh" label="fluent mesh"
       toVog="fluent2vog" />
+      <ccm   nameFilter="*.ccm,*.ccmg" label="ccm mesh"
+	  toVog="ccm2vog" vogOptions="false" />   
     </gridtypes>
     <!-- the element vogOptions specify the xdr2vog command options. It -->
     <!-- can specify a series of options such as "-o", "-v" and an unit(which -->
@@ -391,7 +405,7 @@
 	ugrid2vog converter program:
 	
 	This program converts unstructured mesh files (with a
-	'.ugrid') extension into a VOG format file that is suitable
+	'.ugrid' extension) into a VOG format file that is suitable
 	for use with Loci programs.  To use this program enter:
 	
 	ugrid2vog &lt; units option &gt; &lt; -o &gt; &lt; casename &gt;
@@ -416,8 +430,8 @@
       <xdr>
 	xdr2vog converter program:
 	
-	This program converts xdr mesh files (with a '.xdr')
-	extension into a VOG format file that is suitable for
+	This program converts xdr mesh files (with a '.xdr'
+	extension) into a VOG format file that is suitable for
 	use with Loci programs.
        
 	To use this program enter:
@@ -442,8 +456,8 @@
       <cobalt>
 	cobalt2vog converter program:
 	
-	This program converts cobalt mesh files (with a '.grd')
-	extension into a VOG format file that is suitable for
+	This program converts cobalt mesh files (with a '.grd'
+	extension) into a VOG format file that is suitable for
 	use with Loci programs.
 	
 	To use this program enter:
@@ -465,22 +479,45 @@
 	The &lt;casename&gt; is the base name without extension of
 	the  cobalt file.
       </cobalt>
-      <cfd/>
+      <cfd>
+	cfd++ to VOG file converter usage:
+
+	cfd++2vog &lt;units option&gt; &lt;-o&gt; 
+
+	This converter reads in three files:'nodesin.bin',
+	'cellsin.bin' and 'exbcsin.bin', and writes out file 'grid.vog'
+
+	where units option can be:
+	
+	-m : meters
+	-cm : centemeters
+	-mm : millimeters
+	-in : inches
+	-ft : feet
+	-Lref "reference length" : user specified scaling factor
+	
+	The "-o" option, if provided, will disable node
+	reordering optimizations.
+      </cfd>
+ 
       <plot3d>
 	Plot3d to VOG file converter usage:
         
-	This converter assumes that the grid file has a .grd postfix
-        If only a single argument is given, then this will be 
-        grid file sans the .grd postfix, this will convert the
-        grid to an unstructured XDR format grid file.  If the
-        input file has more than one block, then the point matching
-        faces will be glued, and the remaining faces will be tagged
-        with a unique tag for each block and face. 
+	This converter assumes that the grid file has a .grd
+	postfix. If only a single argument is given, then this
+	will be grid file sans the .grd postfix, this will convert
+	the grid to VOG format grid file.  If the 
+	input file has more than one block, then the point
+	matching faces will be glued, and the remaining 
+	faces will be tagged with a unique tag for each
+	block and face. 
 	
-        If you want to control how tags are assigned to boundary
-        faces, then you can do so by providing a supplemental
-        boundary specification file with the flag -bc
-        Example:  plot3d2vog -bc grid.bc &lt;units option&gt; &lt;-o&gt; grid
+	If you want to control how tags are assigned to boundary
+	faces, then you can do so by providing a supplemental
+	boundary specification file with the flag -bc
+	
+	Example:  plot3d2vog -bc &lt;casename&gt;.bc 
+	&lt;units option&gt; &lt;-o&gt; &lt;casename&gt;
 	
 	where units option can be:
 	
@@ -496,25 +533,26 @@
 	
 	The &lt;casename&gt; is the base name without extension of
 	the plot3d mesh file.
-	
-        The boundary condition specification file is contains the
-        following information: 
-        [Number of boundary groups] 
-        For each group: 
-        [boundary tag] [number of segments] [boundary name]
-        For each segment:
-        [block number] [faceid] [index1 start] [index1 end]
+
+	The boundary condition specification file is contains the
+	following information: 
+
+	[Number of boundary groups] 
+	For each group: 
+	[boundary tag] [number of segments] [boundary name]
+	For each segment:
+	[block number] [faceid] [index1 start] [index1 end]
 	[index2 start] [index2 end]
-        Where:
-        [faceid] is one of six strings: [IJ1,IJN,JK1,JKN,IK1,IKN]
-        indices are given in the order indicated by the faceid string
+	Where:
+	[faceid] is one of six strings: [IJ1,IJN,JK1,JKN,IK1,IKN]
+	indices are given in the order indicated by the faceid string
       </plot3d>
       
       <fluent>
 	fluent2vog converter program:
 	
-	This program converts fluent mesh files (with a '.msh')
-	extension into a VOG format file that is suitable for
+	This program converts fluent mesh files (with a '.msh'
+	extension) into a VOG format file that is suitable for
 	use with Loci programs.
 	
 	To use this program enter:
@@ -546,7 +584,25 @@
 	Periodic boundary maps, hanging nodes, and
 	other features are ignored by the converter.
       </fluent>
+      <ccm>
+	ccm2vog converter program:
 
+	This program converts ccm mesh files (with a '.ccm'
+	or '.ccmg' extension) into a VOG format file that
+	is suitable for use with Loci programs.
+	
+	To use this program enter:
+	
+	ccm2vog &lt;casename&gt;.ccm[g] [&lt;-o&gt; &lt;output&gt;.vog]
+	
+	To run this program, adf library need to be set up
+	first. Advanced  Data Format (ADF) is
+	a library of basic database management and I/O
+	subroutines that implements a relatively simple
+	hierarchical database. ccm is a loose specification 
+	where data is stored in pieces, rather than in a 
+	strict domain-subdomain hierarchy.
+	</ccm>
     </usage>
     <buttons>
       <convert status="new" cmd="" dir="" filename=""/>
@@ -800,6 +856,7 @@
       <impermeable  element="panel" prefix="" postfix="" 
 		    toolTip="A slip wall boundary condition.  This&#xa;   should only be used for structured grid." />
       <reflecting  element="panel" prefix="" postfix="" toolTip="A general purpose sliding wall boundary" />
+     <!--suggest: seems viscousWall not complete-->
       <viscousWall  element="panel" prefix="(" postfix=")" toolTip="A non-slip viscous wall." >
 	<twallGroup  />
 	<vector checked="0" name="uwall"></vector>
@@ -809,12 +866,13 @@
 	<twallGroup  />
 	<vector checked="0" name="uwall"></vector>
     </wallLaw>
-      <periodic  element="panel" prefix="(" postfix=")" toolTip=" " >
-      <name name="name"></name>
-      <vector name="translate"></vector>
-      <vector name="center"></vector>
-      <vector name="vector"></vector>
-      <angle name="rotate"></angle>
+       <!-- suggest: use group for center, vector and angle-->
+      <periodic  element="panel" prefix="(" postfix=")" toolTip=" ">
+      <name name="name" prefix="=&quot;" postfix="&quot;"/>
+      <translate name="translate" element="vector" checked="0"/>
+      <center name="center" element="vector" checked="0"/>
+      <vector name="vector" element="vector" checked="0"/>
+      <angle name="rotate" checked="0"/>
       </periodic>
       <interface  element="panel" prefix="(" postfix=")" toolTip=" " />
     </boundaryPage>
@@ -830,15 +888,15 @@
 	<prhotGroup  />
 	<velocityGroup  />
 	
-	<kinetic_energy title="turbulence kinetic energy" checked="0" >k</kinetic_energy>
-	<dissipation_rate title="specific dissipation rate" checked="0" >w</dissipation_rate>
+	<kinetic_energy name="k" title="turbulence kinetic energy" checked="0" />
+	<dissipation_rate name="w" title="specific dissipation rate" checked="0" />
 	<flags element="selection">      
           <equilibrium />
 	</flags> 
       </initialConditions>
-      <interpolateInitialConditions current="" action="find file"
-				    exp="put*" element="string" whatsThis="specify a binary
-									   initial&#xa; condition file." checked="0" />
+      <interpolateInitialConditions current="" action="find file" 
+				    nameFilter="put*"  whatsThis="specify a binary
+								  initial&#xa; condition file." checked="0" />
       <initialConditionRegions current="" element="regionWindow"  prefix=": &lt;"
 			       postfix=">" infix=",&#xa;" regionPrefix="regions = ["
 			       regionPostfix="]" whatsThis="specify initial conditions with regions of
@@ -853,8 +911,8 @@
 	    <prhotGroup  />
 	    <velocityGroup  />
 	    
-	    <kinetic_energy title="turbulence kinetic energy" checked="0" >k</kinetic_energy>
-	    <dissipation_rate title="specific dissipation rate" checked="0" >w</dissipation_rate>
+	    <kinetic_energy title="turbulence kinetic energy" name="k" checked="0" />
+	    <dissipation_rate title="specific dissipation rate" name="w" checked="0" />
 	    <flags element="selection">      
               <equilibrium />
 	    </flags> 
@@ -872,32 +930,29 @@
   
   <help>
     <Import>
-      Import: convert other kinds of grid format such as xdr, plot3d, ccm,
-      cobalt, cfd++ and solid mesh into volume grid format(.vog file).
+      Import: convert other grid formats such as xdr, plot3d, ccm,
+      cobalt, fluent, cfd++ and solid mesh into volume grid format(VOG files).
     </Import>
     <FVMadapt>
-      FVMAdapt:  a grid refinement package. The interface provide the
-      following features:
-      1. Define a region with basic geometric shapes and set
-      operations.
-      2. save the region as xml file.
-      3. refine the grid.
-      
+      FVMadapt:  a solution adaptive mesh refinement package. The user
+      is allowed to use a tag file to mark the nodes that need to
+      refine; or to use an XML file to define a region inside which all cells
+      will be refined.  
+
+      The interface provides facilities to define a region in an
+      intuitive way. It also allows the user to use both options to
+      refine grids. 
+           
     </FVMadapt>
     <VogMerge>
       VogMerge: merge more than one volume grids into one grid.
     </VogMerge>
     
     <PB>
-      pb is a periodic boundary tool. It is mainly designed
-      to be used with the CHEM program (the XDR grid format).
-      It makes exactly same boundaries for the given grid.
-      This version uses the robust geometric predicates from
-      Jonathan Richard Shewchuk.
+      pb is a periodic boundary tool. It makes exactly the same 
+      boundaries for the given grid. 
       
-      This is version 0.12
-      
-      Some preconditions must be met before using pb
+      Some preconditions must be met before using pb:
       1) The two specified boundaries must have same contours
       2) The boundary cannot have arbitrary complex topology,
       planes or simple curves are the best inputs
@@ -906,16 +961,17 @@
    
 
     <VogCheck>
-      VogCheck: check grid quality of vog file.
+      VogCheck: check the grid quality of VOG file.
     </VogCheck>
     <Var_File_Generation title = "Var File Generation">
-      Var File Generation: generate a .var file as the variable input
-      fiel of chem.
+      Var File Generation: generate a VAR file as the variable input
+      file for fluid dynamics simulation.
     </Var_File_Generation>
     
     <Post-Processing>
-     Post-Processing: cutplane, colormapping using scalar value,
-     display nodes with extreme scalar values, etc. 
+     Post-Processing: visualize the grid and the simulation results
+     using cutplanes, contours, colormapping,
+     nodes with extreme scalar values, etc. 
     </Post-Processing>
   
   </help>

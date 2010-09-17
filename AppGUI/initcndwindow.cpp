@@ -14,7 +14,7 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QWidget* parent): GeneralGrou
   typesWidget = new QButtonGroup(this);
   typesWidget->setExclusive(true);
   pagesWidget = new QStackedWidget;
-
+  
   QGroupBox* buttonGroup = new QGroupBox(myelem.attribute("label"));
   QHBoxLayout* buttonLayout = new QHBoxLayout;
   QDomElement elem = myelem.firstChildElement();
@@ -38,7 +38,10 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QWidget* parent): GeneralGrou
     typesWidget->addButton(button, count);
     if(count==current)button->setChecked(true);
     if(elem.hasAttribute("action") && elem.attribute("action")=="find file"){
+      fileSelected="./output/";
       FindFileWindow* getFileWindow = new FindFileWindow(elem, fileSelected);
+      connect(this, SIGNAL(directoryChanged(QString)), getFileWindow, SLOT(addDirectory(QString)));
+      connect(getFileWindow, SIGNAL(fileNameSelected(QString)), this, SLOT(checkStatus()));
       pagesWidget->addWidget(getFileWindow);
     }else if(elem.hasAttribute("element")&&elem.attribute("element")=="panel"){
       VarPanel* bdCndPage = new VarPanel(elem);
@@ -56,7 +59,7 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QWidget* parent): GeneralGrou
       pagesWidget->addWidget(bdCndPage);
     }else if(elem.hasAttribute("element")&&elem.attribute("element")=="regionWindow"){
       RegionWindow* bdCndPage = new RegionWindow(elem);
-      //      connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
+      connect(bdCndPage, SIGNAL(textChanged()), this, SLOT(checkStatus()));
       connect(this, SIGNAL(stateChanged()), bdCndPage, SLOT(changeState()));
       connect(this, SIGNAL(componentsChanged()), bdCndPage, SIGNAL(componentsChanged()));
       connect(this, SIGNAL(showStatus(const bool&)), bdCndPage, SLOT(updateShowStatus(const bool&)));
@@ -89,11 +92,19 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QWidget* parent): GeneralGrou
   checkStatus();
 }
 
+void  InitCndWindow::setDirectory(QString s){
+  QString dir= s+"/output/";
+  emit directoryChanged(dir);
+}
 void InitCndWindow::changePage(int id)
 {
   
   myelem.setAttribute("current",id);
+  QDomElement elt = myelem.firstChildElement();
+  for(int i = 0; i < id; i++)elt = elt.nextSiblingElement();
+  
   pagesWidget->setCurrentIndex(id);
+  emit showShapes(elt.attribute("element")=="regionWindow");
   checkStatus();
 }
 
@@ -101,15 +112,11 @@ void InitCndWindow::checkStatus(){
   int current= myelem.attribute("current").toInt();
   QDomElement elt = myelem.firstChildElement();
   for(int i=0; i < current; i++) elt = elt.nextSiblingElement();
-  if(!elt.hasAttribute("action")){
-    myelem.setAttribute("status", elt.attribute("status"));
-    myelem.setAttribute("currentText", elt.attribute("currentText"));
-     
-  }else{
-    myelem.setAttribute("status", "done");
-  }
+  myelem.setAttribute("status", elt.attribute("status"));
+  myelem.setAttribute("currentText", elt.attribute("currentText"));
+  
   emit updateStatusTip(myelem.attribute("buttonIndex").toInt());
-    
+  
 }
 
 

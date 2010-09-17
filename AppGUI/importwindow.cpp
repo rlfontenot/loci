@@ -7,6 +7,7 @@
 #include "importwindow.h"
 #include "qualitydialog.h"
 #include "progressdialog.h"
+#include "helpwindow.h"
 XdrOption::XdrOption() : QGroupBox(tr("other options")){}
 
 XdrOption::XdrOption( QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("other options") , parent){
@@ -42,7 +43,9 @@ XdrOption::XdrOption( QDomElement& myelem, QWidget *parent ) : QGroupBox(tr("oth
 }
 
 void XdrOption::update(int i){
-  optionList[i] = options[i]->currentText();
+  QString text = QString(" -") + options[i]->currentText();
+  text.replace(QString("="), QString(" "));
+  optionList[i] = text;
 }
 QString XdrOption::currentText(){
   if(objs.size()==0) return "";
@@ -50,7 +53,7 @@ QString XdrOption::currentText(){
   
   for(int i =0; i < objs.size(); i++){
     if(objs[i]->isChecked()){
-      text += " " +tag[i] + " " +optionList[i] ;
+      text += optionList[i] ;
     }
   }
   return text;
@@ -136,14 +139,23 @@ QString VogOption::currentText(){
 ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
   :GeneralGroup(theelem, parent)
 {
+
   setAttribute(Qt::WA_DeleteOnClose, true);
+
+
+  QHBoxLayout* helpLayout = new QHBoxLayout;
+  QPushButton* helpButton = new QPushButton(tr("help"));
+  connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
+  helpLayout->addWidget(helpButton);
+  helpLayout->setAlignment(helpButton, Qt::AlignRight);
+  
   
   currentRow = 0;
   importFileName="";
   
   typesWidget = new QListWidget;
   pagesWidget = new QStackedWidget;
-  QGroupBox* typeGroup = new QGroupBox(myelem.attribute("label"));
+  QGroupBox* typeGroup = new QGroupBox(myelem.attribute(tr("label")));
 
   QPushButton* usageButton = new QPushButton(tr("Usage"));
   QHBoxLayout* aLayout = new QHBoxLayout;
@@ -172,18 +184,20 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
   }
 
   QDomElement opt_elem = myelem.firstChildElement("vogOptions");
-   if(opt_elem.isNull()){
+  if(opt_elem.isNull()){
     QMessageBox::warning(window(), tr(".xml"),
                          tr(" no child vogOptions")
                          );
     return;
-   }
+  }
    
   option = new VogOption(opt_elem);
  
   for (; !elem.isNull(); elem = elem.nextSiblingElement()) {   
     gridTypes << elem.tagName();
-    toXdr << elem.attribute("toXdr");
+    if(elem.hasAttribute("toXdr")) toXdr << elem.attribute("toXdr");
+    else   toXdr <<QString();
+    
     toVog << elem.attribute("toVog");
     QListWidgetItem *bdCndiButton = new QListWidgetItem(typesWidget);
     bdCndiButton->setText(elem.attribute("label"));
@@ -195,7 +209,7 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
     if(elem.hasAttribute("nameFilter")){
       QGroupBox *aBox = new QGroupBox(tr("Please specify the file name"));
       QVBoxLayout* aLayout = new QVBoxLayout;
-      getFileWindow = new GetFileWindow(elem.attribute("nameFilter"), importFileName);
+      getFileWindow = new FindFileWindow(elem, importFileName);
       QDomElement dir_elt = myelem.firstChildElement("directory");
       if(!dir_elt.isNull() && dir_elt.hasAttribute("dir")){
         QString dir = dir_elt.attribute("dir");
@@ -228,12 +242,12 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
   }
 
   connect(typesWidget,
-          SIGNAL(currentItemChanged(QListWidgetItem *, QListWidgetItem *)),
-          this, SLOT(changePage(QListWidgetItem *, QListWidgetItem*)));
+          SIGNAL(currentRowChanged(int)),
+          this, SLOT(changePage(int)));
      
 
   convertButton = new QPushButton(tr("&Convert to Vog"));
-    typesWidget->setCurrentRow(0);
+  typesWidget->setCurrentRow(0);
   
 
   
@@ -244,7 +258,7 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
   
   
   QVBoxLayout *horizontalLayout = new QVBoxLayout;
-   horizontalLayout->addWidget(typeGroup);
+  horizontalLayout->addWidget(typeGroup);
   horizontalLayout->addWidget(pagesWidget);
      
   QHBoxLayout *buttonsLayout = new QHBoxLayout;
@@ -253,40 +267,82 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
   buttonsLayout->addWidget(convertButton);
   
   QVBoxLayout *mainLayout = new QVBoxLayout;
+  mainLayout->addLayout(helpLayout);
   mainLayout->addLayout(horizontalLayout);
   mainLayout->addWidget(option);
   mainLayout->addStretch(1);
   mainLayout->addLayout(buttonsLayout);
   setLayout(mainLayout);
   setWindowTitle(myelem.attribute("title"));
-  
+  if(elt.firstChildElement().attribute("vogOptions")=="false")option->hide();
 }
 void ImportWindow::updateFileName(QString s){
-   importFileName = s.section('.', 0, -2);
+  importFileName = s.section('.', 0, -2);
 }
-void ImportWindow::changePage(QListWidgetItem *current, QListWidgetItem *previous)
+void ImportWindow::changePage(int currentR)
 {
-  if (!current)
-    current = previous;
-  currentRow = typesWidget->row(current);
-  pagesWidget->setCurrentIndex(currentRow);
+  currentRow = currentR;
+  pagesWidget->setCurrentIndex(currentR);
+  QDomElement elt = myelem.firstChildElement("gridtypes");
+  
+  if(elt.isNull()){
+    QMessageBox::warning(window(), tr(".xml"),
+                         tr("can not find element 'gridtypes' in the children of 'import'")
+                         );
+    return;
+  }
+  
+  QDomElement elem = elt.firstChildElement();
+  for (int i = 0; i < currentR; i++) elem = elem.nextSiblingElement();
+  if(elem.isNull()){
+    QMessageBox::warning(window(), tr(".xml"),
+                         myelem.tagName()+ tr(" has no child")
+                         );
+    return;
+  }
+  QString s = elem.attribute("current");
+  
+    
+  importFileName = s.section('.', 0, -2);
+ 
+  if(elem.attribute("vogOptions")=="false")option->hide();
+  else option->show();
+   
 }
-
+void ImportWindow::helpClicked(){
+  HelpWindow* helpwindow = new HelpWindow("page_import.html");
+  helpwindow->show();
+}
 void ImportWindow::convert(){
+  if(importFileName.isEmpty()&&gridTypes[currentRow]!="cfd"){
+    QMessageBox::warning(window(), tr("convert to vog"),
+                         tr("Please specify filename first")
+                         );
+    return;
+  } 
+
+
+  bool vop = true;
+
+  QDomElement elem = myelem.firstChildElement("gridtypes");
+  elem = elem.firstChildElement();
+  for(int i = 0; i < currentRow; i++)elem = elem.nextSiblingElement();
+  if(elem.attribute("vogOptions")=="false") vop = false;
+  
+
   
   QString command2;
-
-  if(toXdr[currentRow]!=""){
-   command2 = toVog[currentRow]+ " "+option->currentText() + " " +importFileName ;
-  }else{
-    command2 = toVog[currentRow] +otherOptions[currentRow]->currentText()+" "+option->currentText() + " " +importFileName ;
-  }
-
+  if(toXdr[currentRow]=="")command2= toVog[currentRow]+" "+ otherOptions[currentRow]->currentText();
+  else command2= toVog[currentRow];
   
+
+  if(vop) command2 += " "+option->currentText()+ " " +importFileName ;
+  else command2 += " " +importFileName ;
+
+
   QString command1;
   if(toXdr[currentRow]!=""){
     command1 = toXdr[currentRow]+otherOptions[currentRow]->currentText()+" " + importFileName;
-  }else{
   }
   
   QString command;
@@ -295,10 +351,19 @@ void ImportWindow::convert(){
   }else{
     command = command2;
   }
-  qDebug() << command;
-  ProgressDialog* dialog = new ProgressDialog(command, QString());
-  dialog->show();
- 
+
+  if(gridTypes[currentRow]=="cfd"){
+    command1 = toXdr[currentRow]+otherOptions[currentRow]->currentText();
+    command2 = toVog[currentRow]+ " "+option->currentText() + " grid.xdr";
+    command = command1+'\n'+command2;
+    qDebug() << command;
+    ProgressDialog* dialog = new ProgressDialog(command, importFileName.section('/', 0, -2));
+    dialog->show(); 
+  }else{
+    qDebug() << command;
+    ProgressDialog* dialog = new ProgressDialog(command, QString());
+    dialog->show();
+  } 
 
 
 

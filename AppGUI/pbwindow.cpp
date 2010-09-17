@@ -23,12 +23,12 @@
 #include "grid.h"
 #include "pages.h"
 #include "progressdialog.h"
-
+#include "helpwindow.h"
 #include <QMainWindow>
 #include <QToolBar>
 #include <QRadioButton>
 #include <QButtonGroup>
-
+#include <QStackedWidget>
 #define PI 3.14159265358979323846264338327950
 
 
@@ -40,14 +40,18 @@
 
 
 void PbWindow::createToolBar(){
-  int spacing =2;  
+  // int spacing =2;  
   toolbar = addToolBar(tr("tree&vis"));
  
   QGroupBox* visbar = new QGroupBox();
   visbar->setFlat(true);
 
   QHBoxLayout* visLayout = new QHBoxLayout;
- 
+  
+  QPushButton* helpButton = new QPushButton(tr("help"));
+  connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
+  visLayout->addWidget(helpButton); 
+  
   QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
   visLayout->addWidget(clearBoundaryAct);
   connect(clearBoundaryAct, SIGNAL(clicked()),
@@ -71,7 +75,10 @@ void PbWindow::createToolBar(){
 }
   
 
-
+ void PbWindow::helpClicked(){
+   HelpWindow* helpwindow = new HelpWindow("page_pb.html");
+   helpwindow->show();
+ }     
   
 void PbWindow::createFlowBar(){
   int spacing =20;  
@@ -120,7 +127,7 @@ void PbWindow::loadGrid(){
                                  tr("vog Files (*.vog)"));
  
   if(!filename.isEmpty()){
-    if(viewer->load_boundary(filename, bnames, bids)) updateBoundaryView(bnames, bids);
+    if(viewer->load_boundary(filename, bnames, bids)) updateBoundaryView(bnames);
   }
 }
 void PbWindow::done(){
@@ -135,7 +142,14 @@ void PbWindow::split(){
                                                  );
   if(outFile.isEmpty())return;
   QString inFile =  filename.section('.', 0, -2);
-  QString command = "pbv2v -o " + outFile + QString(" -b %1 %2").arg(bids[b1]).arg(bids[b2]);
+
+  if(outFile==filename){
+     QMessageBox::warning(this, tr("split face"),
+                          tr("outfile is the same as infile, please select a different filename"));
+     return;
+  }
+  
+  QString command = "./make_periodic -o " + outFile + QString(" -b ") + bnames[b1] + " " + bnames[b2];
   
   
   int optionIndex = buttonGroup->checkedId();
@@ -176,7 +190,7 @@ void PbWindow::selectCurrent(int row){
 }
 void PbWindow::showBoundary(QModelIndex top, QModelIndex ){
  
-  if(top.column() ==3){//visibility item
+  if(top.column() ==2){//visibility item
     QString value = top.data(Qt::EditRole).toString();
     if(value == "show"){
       viewer->setVisibility(top.row(),true);
@@ -218,7 +232,7 @@ void PbWindow::setCurrent(QModelIndex top){
 
 
 
-void PbWindow::updateBoundaryView(const QStringList& bdnames, const QList<int>& bdids){
+void PbWindow::updateBoundaryView(const QStringList& bdnames){
   //clean up the data
   if(modBoundaries){
     delete modBoundaries;
@@ -232,11 +246,11 @@ void PbWindow::updateBoundaryView(const QStringList& bdnames, const QList<int>& 
       
    
   
-  selectBoundary(bdnames, bdids);
+  selectBoundary(bdnames);
   
 }
 
-bool PbWindow::selectBoundary(const QStringList& bdnames, const QList<int> &bdids){
+bool PbWindow::selectBoundary(const QStringList& bdnames){
       
   // Get boundary names from topo file
   if(bdnames.empty()){
@@ -246,11 +260,10 @@ bool PbWindow::selectBoundary(const QStringList& bdnames, const QList<int> &bdid
   }
   
  
-  modBoundaries = new QStandardItemModel(bdnames.size(), 4, this);
+  modBoundaries = new QStandardItemModel(bdnames.size(), 3, this);
   
   modBoundaries->setHeaderData(0, Qt::Horizontal, QObject::tr("color"));
   modBoundaries->setHeaderData(1, Qt::Horizontal, QObject::tr("boundary name"));
-  modBoundaries->setHeaderData(2, Qt::Horizontal, QObject::tr("boundary id"));
   modBoundaries->setHeaderData(3, Qt::Horizontal, QObject::tr("show/hide"));
   
 
@@ -261,7 +274,6 @@ bool PbWindow::selectBoundary(const QStringList& bdnames, const QList<int> &bdid
     QColor newColor = default_color[i%12];
     QStandardItem* colorItem = new QStandardItem("");
     QStandardItem* nameItem = new QStandardItem(bdnames[i]);
-    QStandardItem* idItem = new QStandardItem(QString("%1").arg(bdids[i]));
     QStandardItem* showItem = new QStandardItem("show");
     colorItem->setBackground(QBrush(newColor));
       
@@ -271,8 +283,7 @@ bool PbWindow::selectBoundary(const QStringList& bdnames, const QList<int> &bdid
       
     modBoundaries->setItem(i, 0, colorItem);
     modBoundaries->setItem(i, 1, nameItem);
-    modBoundaries->setItem(i, 2, idItem);
-    modBoundaries->setItem(i, 3, showItem);
+    modBoundaries->setItem(i, 2, showItem);
   }
     
     
@@ -326,8 +337,8 @@ PbWindow::PbWindow( QWidget *parent):QMainWindow(parent){
  
   QGroupBox* boundaries = new QGroupBox;
   QHBoxLayout* hLayout = new QHBoxLayout;
-  QPushButton* boundary1 = new QPushButton(tr("Boundary 1: " ));
-  QPushButton* boundary2 = new QPushButton(tr("Boundary 2: "));
+  QPushButton* boundary1 = new QPushButton(tr("First Boundary: " ));
+  QPushButton* boundary2 = new QPushButton(tr("Second Boundary: "));
   boundary1->setCheckable(true);
   boundary2->setCheckable(true);
   boundary1->setChecked(true);
@@ -361,22 +372,22 @@ PbWindow::PbWindow( QWidget *parent):QMainWindow(parent){
   tButton->setChecked(true);
   
   
-
-  QGroupBox* translateGroup = new QGroupBox("Extrusion");
-  {
-    QHBoxLayout* translateLayout = new QHBoxLayout;
-    translate = new VectSpBox("Translate");
-    translateLayout->addWidget(translate);
-    translateGroup->setLayout(translateLayout);
-  }
+  pagesWidget = new QStackedWidget();
+    
+  translate = new VectSpBox("Extrusion");
+  QGroupBox* translateGroup = new QGroupBox;
+  QVBoxLayout* translateLayout = new QVBoxLayout;
+  translateLayout->addWidget(translate);
+  translateLayout->addStretch(10);
+  translateGroup->setLayout(translateLayout);
     
 
 
   QGroupBox* rotationGroup = new QGroupBox("Rotation");
   {
-    rotateCenter = new VectSpBox("Rotate Center");
-    rotateAxis= new VectSpBox("Rotate Axis");
-    rotateGroup = new QGroupBox("Rotate Angle");
+    rotateCenter = new VectSpBox("Rotation Center");
+    rotateAxis= new VectSpBox("Rotation Axis");
+    rotateGroup = new QGroupBox("Rotation Angle");
     QHBoxLayout* rLayout = new QHBoxLayout;
     rotateAngle = new DoubleEdit;
     rLayout->addWidget(rotateAngle);
@@ -388,13 +399,19 @@ PbWindow::PbWindow( QWidget *parent):QMainWindow(parent){
     rotationLayout->addWidget(rotateGroup);
     rotationGroup->setLayout(rotationLayout);
   }
-    
-  QGroupBox* transform = new QGroupBox(tr("Transform"));
+  
+  pagesWidget->addWidget(translateGroup);
+  pagesWidget->addWidget(rotationGroup);
+                         
+  QGroupBox* transform = new QGroupBox(tr("Transformation"));
   QVBoxLayout* transLayout = new QVBoxLayout;
   transLayout->addLayout(buttonLayout);
-  transLayout->addWidget(translateGroup);
-  transLayout->addWidget(rotationGroup);
+  
+  transLayout->addWidget(pagesWidget);
+ 
   transform->setLayout(transLayout);
+
+  connect(buttonGroup, SIGNAL(buttonClicked(int)), pagesWidget, SLOT(setCurrentIndex(int)));
   
   viewer = new GLViewer();
   boundaryView = new QTableView(this);
@@ -419,23 +436,7 @@ PbWindow::PbWindow( QWidget *parent):QMainWindow(parent){
 }
 
 
-      
 
-void PbWindow::changePage(int index){
-  if(index == 0){
-    translate->setDisabled(true);
-    rotateAxis->setDisabled(true);
-    rotateGroup->setDisabled(true);
-  }else if(index==1){
-    translate->setDisabled(true);
-    rotateAxis->setDisabled(false);
-    rotateGroup->setDisabled(true);
-  }else{
-    translate->setDisabled(false);
-    rotateAxis->setDisabled(false);
-    rotateGroup->setDisabled(false); 
-  }
-}
 
 void PbWindow::setParameter(){
   int optionIndex = buttonGroup->checkedId();

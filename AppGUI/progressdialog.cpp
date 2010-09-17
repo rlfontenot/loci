@@ -21,7 +21,7 @@ ProgressDialog::ProgressDialog(QString command, QString directory, bool autoclos
 
   
   QWidget::setAttribute(Qt::WA_DeleteOnClose);
-
+  setWindowTitle(command.simplified().section(' ', 0, 0));
 
   commands = command.split('\n', QString::SkipEmptyParts);
   for(int i = 0; i < commands.size(); i++){

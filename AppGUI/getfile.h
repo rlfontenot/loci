@@ -18,14 +18,16 @@ class GetFileWindow  : public QDialog
 
  public:
   GetFileWindow(QString exp, QString& fileSelected, QWidget *parent = 0  );
-  void addDirectory(QString);
+ 
   signals:
   void fileNameSelected(QString);
- 
+                                
  private slots:
-     void browse();
+  void browse();
   void find();
-     void openFileOfItem(int row, int column);
+  void openFileOfItem(int row, int column);
+public slots:
+   void addDirectory(QString);
 
  private:
   QStringList findFiles(const QDir &directory, const QStringList &files,
@@ -46,6 +48,7 @@ class GetFileWindow  : public QDialog
   QTableWidget *filesTable;
   QString selectedFileName;
   QLabel* fileNameLabel;
+  QStringList nameFilter;
 };
 
 class FindFileWindow  : public GetFileWindow

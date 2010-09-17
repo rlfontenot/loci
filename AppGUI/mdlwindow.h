@@ -99,7 +99,7 @@ public:
   QString getSpecies();
 public slots:
 //  bool save();
-  void replaceButtonToggled(bool);
+  void replaceBGroupClicked(int);
   void changePage(int);
   void nameBGroupClicked(int);
   void setText();
@@ -139,11 +139,13 @@ class CpWindow:public QGroupBox
 {
   Q_OBJECT
   public:
-  CpWindow(const QString& title=tr("please specify species:"), QWidget* parent = 0);
+  CpWindow(const QString& title, const QString&, QWidget* parent = 0);
+  QString text();
 public slots:
   bool save();
-  void replaceButtonToggled(bool);
+  void replaceBGroupClicked(int);
   void nameBGroupClicked(int);
+  void setText();
 private:
   QButtonGroup* nameBGroup;
   QButtonGroup* replaceBGroup;
@@ -152,6 +154,13 @@ private:
   DoubleEdit* mEdit;
   CpGroup* cpGroup;
   QLineEdit* nameEdit;
+  QString prefix;
+  QLabel* display;
+
+
+
+
+  
 };
 
 
@@ -178,24 +187,62 @@ private:
   DoubleEdit* f2;
   DoubleEdit* f3;
 };
-  
 
 class NumberString: public QGroupBox
 {
   Q_OBJECT
   
 public:
-  NumberString(const QString& title, QWidget* parent = 0, bool floatAllowed=false);
+  NumberString(const QString& title, bool floatAllowed = false, QWidget* parent = 0);
   QString text();
+  QString cleanText();
   signals:
   void textChanged();
- public slots:
- void clear();
+public slots:
+  void clear();
 private:
- QWidget* edit;
+  QWidget* edit;
   bool floatAllowed;
   
 };
+class ExpNu:public QGroupBox
+{
+  Q_OBJECT
+  
+  public:
+  ExpNu(const QStringList& sp, QWidget* parent = 0);
+  
+  QString text();
+  void clear();
+signals:
+  void textChanged();
+private slots:
+private:
+  QStringList species;
+  QList<NumberString*> exp_nu;
+ 
+};
+
+class RateModifier:public QGroupBox
+{
+  Q_OBJECT
+  
+  public:
+  RateModifier(const QString& vname, int n, QWidget* parent = 0);
+  
+  QString text();
+  void clear();
+signals:
+  void textChanged();
+private slots:
+private:
+  QString name;
+  int numValues;
+  QList<DoubleEdit*> edits;
+ 
+};  
+
+
   
 class Reactants: public QGroupBox
 {
@@ -238,7 +285,9 @@ private:
   QLabel* display;
   KFKC* kf;
   KFKC* kc;
- 
+  ExpNu* expnu;
+  NumberString* minMf;
+  RateModifier* mdf;
     
 };
 
@@ -279,7 +328,7 @@ void add();
 private:
   QListWidget *speciesList;
   SpeciesGroup* speciesPage; 
-   QStringList species;
+  QStringList species;
 };
 
 
@@ -288,17 +337,20 @@ private:
   
 class ChemistryMdl: public QWidget
 {
- Q_OBJECT
-public:
- ChemistryMdl(bool noReaction = false, QWidget* parent = 0);
+  Q_OBJECT
+  public:
+  ChemistryMdl(bool noReaction = false, QWidget* parent = 0);
   bool save();
- public slots:
- void changePage(int);
+  void hideReaction();
+public slots:
+  void changePage(int);
+  
 private:
- QStackedWidget* center;
+  QStackedWidget* center;
+  QRadioButton* reactionButton;
   SpeciesWindow* speciesWindow;
   ReactionWindow* reactionWindow;
   
 };
-  
+
 #endif

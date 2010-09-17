@@ -68,7 +68,7 @@ void VarWindow::createMenu(){
   
   QAction *exitAct = new QAction(tr("E&xit"), this);
   exitAct->setShortcut(tr("Ctrl+Q"));
-  connect(exitAct, SIGNAL(triggered()), qApp, SLOT(quit()));
+  connect(exitAct, SIGNAL(triggered()), this, SLOT(close()));
   
    
   QMenu* fileMenu = menuBar()->addMenu(tr("&File"));
@@ -101,32 +101,26 @@ void VarWindow::createMenu(){
   
   
  
-  menuBar()->addSeparator();
-  QAction *quitAct = new QAction(tr("&Quit"), this);
-  menuBar()->addAction(quitAct);
-
-  connect(quitAct, SIGNAL(triggered()),
-          qApp, SLOT(quit()));  
-  
+ 
 
   viewMenu->addAction(tb->toggleViewAction());
     
     
-  menuBar()->addSeparator();
-  QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
-  {
-    QSignalMapper *helpMapper = new QSignalMapper(this); 
-    QDomElement theroot = doc.documentElement();
-    QDomElement elem = theroot.firstChildElement("help");
-    for(QDomElement elt = elem.firstChildElement();
-        !elt.isNull(); elt= elt.nextSiblingElement()){
-      QAction* action= new QAction(elt.tagName(), this);
-      connect(action, SIGNAL(triggered()), helpMapper, SLOT(map()));
-      helpMapper->setMapping(action, elt.tagName());
-      helpMenu->addAction(action);
-    }
-    connect(helpMapper, SIGNAL(mapped(const QString&)), this, SLOT(help(const QString&)));
-  }
+  // menuBar()->addSeparator();
+//   QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
+//   {
+//     QSignalMapper *helpMapper = new QSignalMapper(this); 
+//     QDomElement theroot = doc.documentElement();
+//     QDomElement elem = theroot.firstChildElement("help");
+//     for(QDomElement elt = elem.firstChildElement();
+//         !elt.isNull(); elt= elt.nextSiblingElement()){
+//       QAction* action= new QAction(elt.tagName(), this);
+//       connect(action, SIGNAL(triggered()), helpMapper, SLOT(map()));
+//       helpMapper->setMapping(action, elt.tagName());
+//       helpMenu->addAction(action);
+//     }
+//     connect(helpMapper, SIGNAL(mapped(const QString&)), this, SLOT(help(const QString&)));
+//   }
    
 
 }
@@ -374,6 +368,8 @@ void VarWindow::createFlowBar(){
       connect(this, SIGNAL(showStatus(const bool&)), newWindow, SLOT(updateShowStatus(const bool&)));
       connect(newWindow, SIGNAL( valueChanged(const QTreeWidgetItem*)),
               viewer, SLOT(updateDoc(const QTreeWidgetItem*)));
+      connect(this, SIGNAL(directoryChanged(QString)), newWindow, SLOT(setDirectory(QString)));
+      connect(newWindow, SIGNAL(showShapes(bool)), viewer, SLOT(setShowShapes(bool)));
     }else  if(elem.attribute("element")=="boundaryWindow"){
       newWindow = new QWidget();//set it up later
       bdWindow = newWindow;
@@ -428,7 +424,16 @@ void VarWindow::changePage(int index){
   if(elem.tagName()=="gridSetup"){
     setGrid();
   }
- 
+  if(elem.attribute("element")=="boundaryWindow")emit(showShapes(false));
+  if(elem.attribute("element")=="initialWindow"){
+    int c = 0;
+    c = elem.attribute("current").toInt();
+    QDomElement elt=elem.firstChildElement();
+    for(int i = 0; i < c; i++)elt =elt.nextSiblingElement();
+    
+    emit showShapes(elt.attribute("element")=="regionWindow");
+  }
+  
   if(elem.attribute("inDock")=="true"){
    
     viewerDock->show();
@@ -547,7 +552,7 @@ VarWindow::VarWindow()
   createMenu();
   createVisBar();
   createFlowBar();
- 
+  connect(this, SIGNAL(showShapes(bool)), viewer, SLOT(setShowShapes(bool)));
   
   
   hideVisBar();
@@ -764,7 +769,7 @@ void VarWindow::setGrid()
     
     //create new boundary window
     setBoundary();
-    
+    emit(directoryChanged(directory)); 
   }else{
     // theelem.removeAttribute("casename");
     updateStatus(fileName + tr(" not loaded"));
@@ -1337,13 +1342,13 @@ bool VarWindow::saveImage()
 
 
 
-void VarWindow::help(const QString& name){
-  QDomElement root = doc.documentElement();
-  root = root.firstChildElement("help").firstChildElement(name);
-  if(root.isNull())return;
-  QMessageBox::about(this, name,
-                     root.text());
-}
+ void VarWindow::help(const QString& name){
+//   QDomElement root = doc.documentElement();
+//   root = root.firstChildElement("help").firstChildElement(name);
+//   if(root.isNull())return;
+//   QMessageBox::about(this, name,
+//                      root.text());
+ }
 
 
 

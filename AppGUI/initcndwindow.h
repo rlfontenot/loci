@@ -19,12 +19,15 @@ class InitCndWindow : public GeneralGroup
   
 public:
   InitCndWindow(QDomElement& elem,  QWidget* parent = 0);
-  
+public slots:
+  void setDirectory(QString s);
 private slots:
-void changePage(int);
+  void changePage(int);
   void checkStatus();
-  signals:
- void valueChanged(const QTreeWidgetItem*);
+signals:
+  void valueChanged(const QTreeWidgetItem*);
+  void directoryChanged(QString);
+  void showShapes(bool);
 private:
 
   QButtonGroup *typesWidget;

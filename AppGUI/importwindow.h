@@ -16,11 +16,11 @@ class QButtonGroup;
 
 class VogOption: public QGroupBox{
   Q_OBJECT
-public:
+  public:
   VogOption( QDomElement& myelem, QWidget *parent=0 );
   QString currentText();
- public slots:
- void unitButtonClicked(int);
+public slots:
+  void unitButtonClicked(int);
 private:
   QStringList alist;
   QStringList tag;
@@ -32,19 +32,19 @@ private:
 
 class XdrOption: public QGroupBox{
   Q_OBJECT
-public:
+  public:
   XdrOption(QDomElement& myelem, QWidget *parent=0 );
   XdrOption();
   QString currentText();
- public slots:
- void update(int);
+public slots:
+  void update(int);
 private:
   QStringList optionList;
   QStringList tag;
   QList<QCheckBox*> objs;
   QList<VarGBox*> options;
   QSignalMapper *signalMapper;
- };
+};
 
 
 
@@ -54,17 +54,17 @@ class ImportWindow : public GeneralGroup
 {
   Q_OBJECT
   
-public:
+  public:
   ImportWindow(QDomElement& theelem,  QWidget* parent = 0);
   
 public slots:
-void changePage(QListWidgetItem *current, QListWidgetItem *previous);
-  
+  void changePage(int);
+  void helpClicked();
   void convert();
   //  void check();
   void usageButtonClicked();
   void updateFileName(QString);
-  signals:
+signals:
 
 private:
 
@@ -73,12 +73,11 @@ private:
  
   QString importFileName;
   QStringList gridTypes;
-  //  QList<bool> needConvert2Xdr;
   QStringList toXdr;
   QStringList toVog;
   
   int currentRow; //current grid type
-  GetFileWindow* getFileWindow;
+  FindFileWindow* getFileWindow;
 
   QStackedWidget *pagesWidget;
   VogOption* option;
@@ -88,3 +87,7 @@ private:
 };
 
 #endif
+
+
+
+

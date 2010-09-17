@@ -8,8 +8,12 @@ GetFileWindow::GetFileWindow(QString exp, QString& fileSelected, QWidget *parent
     
 
      fileComboBox = createComboBox(exp);
+     nameFilter = exp.split(',', QString::SkipEmptyParts);
+     for(int i = 0; i < nameFilter.size(); i++){
+       nameFilter[i] = nameFilter[i].trimmed();
+     }
      directoryComboBox = createComboBox(QDir::currentPath()+"/");
-
+     connect(directoryComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(find()));
      fileLabel = new QLabel(tr("Named:"));
      directoryLabel = new QLabel(tr("In directory:"));
      filesFoundLabel = new QLabel;
@@ -42,8 +46,9 @@ GetFileWindow::GetFileWindow(QString exp, QString& fileSelected, QWidget *parent
      resize(700, 300);
  }
 void GetFileWindow::addDirectory(QString dir){
-  QStringList dir_list = dir.split(",", QString::SkipEmptyParts);
-  directoryComboBox->addItems(dir_list);
+  // QStringList dir_list = dir.split(",", QString::SkipEmptyParts);
+  directoryComboBox->addItem(dir);
+  directoryComboBox->setCurrentIndex(directoryComboBox->findText(dir));
   find();
 }
  void GetFileWindow::browse()
@@ -64,16 +69,14 @@ void GetFileWindow::addDirectory(QString dir){
  void GetFileWindow::find()
  {
      filesTable->setRowCount(0);
-
-     QString fileName = fileComboBox->currentText();
      QString path = directoryComboBox->currentText();
-
      QDir directory = QDir(path);
      QStringList files;
-     if (fileName.isEmpty())
-         fileName = "*";
-     files = directory.entryList(QStringList(fileName),
-                                 QDir::Files | QDir::NoSymLinks);
+     if (nameFilter.empty())
+       nameFilter<< QString("*");
+    
+     files = directory.entryList(nameFilter,
+                                 QDir::Files);
      showFiles(directory, files);
  }
 
@@ -135,6 +138,7 @@ void GetFileWindow::addDirectory(QString dir){
      }
      filesFoundLabel->setText(tr("%1 file(s) found").arg(files.size()) +
                               (" ( Click on a file to select it)"));
+     openFileOfItem(-1, 0);  
  }
 
  QPushButton *GetFileWindow::createButton(const QString &text, const char *member)
@@ -146,11 +150,12 @@ void GetFileWindow::addDirectory(QString dir){
 
  QComboBox *GetFileWindow::createComboBox(const QString &text)
  {
-     QComboBox *comboBox = new QComboBox;
-     comboBox->setEditable(true);
-     comboBox->addItem(text);
-     comboBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-     return comboBox;
+   QStringList entry_list = text.split(",", QString::SkipEmptyParts);
+   QComboBox *comboBox = new QComboBox;
+   comboBox->setEditable(true);
+   comboBox->addItems(entry_list);
+   comboBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+   return comboBox;
  }
 
  void GetFileWindow::createFilesTable()
@@ -172,6 +177,13 @@ void GetFileWindow::addDirectory(QString dir){
 
  void GetFileWindow::openFileOfItem(int row, int /* column */)
  {
+   if(row <0){
+     selectedFileName="";
+     fileNameLabel->setText("selected file: " + selectedFileName);
+     fileNameLabel->hide();
+     emit fileNameSelected(selectedFileName);
+   }else{
+     
    QTableWidgetItem *item = filesTable->item(row, 0);
    
    if(directoryComboBox->currentText().endsWith('/'))  selectedFileName =  directoryComboBox->currentText() + item->text();
@@ -179,15 +191,28 @@ void GetFileWindow::addDirectory(QString dir){
      fileNameLabel->setText("selected file: " + selectedFileName);
      fileNameLabel->show();
      emit fileNameSelected(selectedFileName);
-     //  QDesktopServices::openUrl(item->text());
+   }
  }
 
 FindFileWindow::FindFileWindow(const QDomElement& my_elem, QString& fileSelected, QWidget *parent)
-  : GetFileWindow(my_elem.attribute("exp"), fileSelected, parent){
+  : GetFileWindow(my_elem.attribute("nameFilter"), fileSelected, parent){
   myelem=my_elem;
   if(myelem.hasAttribute("current"))emit fileNameSelected(myelem.attribute("current"));
   connect(this, SIGNAL(fileNameSelected(QString)), this, SLOT(updateElem(QString)));
 }
 void FindFileWindow::updateElem(QString s){
   myelem.setAttribute("current",s);
+  QString prefix =": ";
+  if(myelem.hasAttribute("prefix"))prefix=myelem.attribute("prefix");
+  QString postfix ="";
+  if(myelem.hasAttribute("postfix"))postfix=myelem.attribute("postfix");
+  QString text= myelem.tagName()+prefix+s+postfix;
+  myelem.setAttribute("currentText", text);
+  if(!s.isEmpty()){
+    myelem.setAttribute("status", "done");
+    
+  }else{
+    myelem.setAttribute("status", "new");
+  }
+ 
 }

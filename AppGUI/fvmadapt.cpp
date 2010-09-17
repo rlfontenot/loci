@@ -24,15 +24,21 @@
 #include <QTreeWidget>
 #include <QSignalMapper>
 #include <QInputDialog>
-#include "fvmadapt.h"
-#include "grid.h"
-#include "pages.h"
-#include "refdialog.h"
 #include <QScrollArea>
 #include <QMainWindow>
 #include <QToolBar>
 #include <QDockWidget>
 #include <QTabWidget>
+
+#include "fvmadapt.h"
+#include "grid.h"
+#include "pages.h"
+#include "refdialog.h"
+#include "helpwindow.h"
+
+
+
+
 #define PI 3.14159265358979323846264338327950
 
 
@@ -424,53 +430,32 @@ void Transform::setInfo(){
 
 
 
-// void FVMAdapt::createToolBar(){
-//   int spacing =2;  
- 
-//   toolbar = new QGroupBox("");
-//   toolbar->setFlat(true);
-//   QHBoxLayout* barLayout = new QHBoxLayout;
-//    barLayout->addStretch(10);
-//   QPushButton* shapeButton = new QPushButton(tr("Show Shapes"), this);
-//   barLayout->addWidget(shapeButton);
-//   connect(shapeButton, SIGNAL(clicked()), this, SIGNAL(showShapesClicked()));
-  
-//   barLayout->addSpacing(spacing);
-//   QPushButton* nodesButton = new QPushButton(tr("Show Marked Nodes"), this);
-//   barLayout->addWidget(nodesButton);
-//   connect(nodesButton, SIGNAL(clicked()), this, SIGNAL(showNodesClicked()));
-  
-//   //barLayout->addSpacing(spacing);
- 
-  
-//   toolbar->setLayout(barLayout);
-//   toolbar()->addwidget(toolbar);
-// }
+
 
 void FVMAdapt::createToolBar(){
-  int spacing =2;  
+  int spacing =0;  
   toolbar = addToolBar(tr("tree&vis"));
   QGroupBox* treebar = new QGroupBox("build a  tree");
   QHBoxLayout* barLayout = new QHBoxLayout;
 
-  QPushButton* addShapeButton = new QPushButton(tr("Add Shape"), this);
+  QPushButton* addShapeButton = new QPushButton(tr("Add\nShape"), this);
   barLayout->addWidget(addShapeButton);
   connect(addShapeButton, SIGNAL(clicked()), this, SLOT(addShape()));
 
   barLayout->addSpacing(spacing);
-  QPushButton* addTransButton = new QPushButton(tr("Add Transform"), this);
+  QPushButton* addTransButton = new QPushButton(tr("Add\nTransform"), this);
   barLayout->addWidget(addTransButton);
   connect(addTransButton, SIGNAL(clicked()), this, SLOT(addTransform()));
   
   barLayout->addSpacing(spacing);
-  QPushButton* addOpButton = new QPushButton(tr("Add Operator"), this);
+  QPushButton* addOpButton = new QPushButton(tr("Add\nOperator"), this);
   barLayout->addWidget(addOpButton);
   connect(addOpButton, SIGNAL(clicked()), this, SLOT(addOp()));
   
   
 
   barLayout->addSpacing(spacing);
-  QPushButton* removeNodeButton = new QPushButton(tr("Remove Node"), this);
+  QPushButton* removeNodeButton = new QPushButton(tr("Remove\nNode"), this);
   barLayout->addWidget(removeNodeButton);
   connect(removeNodeButton, SIGNAL(clicked()), this, SLOT(removeNode()));
   
@@ -478,13 +463,13 @@ void FVMAdapt::createToolBar(){
 
 
   barLayout->addSpacing(spacing);
-  QPushButton* addRegionButton = new QPushButton(tr("Add Region "), this);
+  QPushButton* addRegionButton = new QPushButton(tr("Add\nRegion "), this);
   barLayout->addWidget(addRegionButton);
   connect(addRegionButton, SIGNAL(clicked()), this, SLOT(addRegion()));
   
   barLayout->addSpacing(spacing);
   QPushButton* helpButton = new QPushButton(tr("Help"), this);
-  barLayout->addWidget(helpButton);
+  // barLayout->addWidget(helpButton);
   connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
  
   treebar->setLayout(barLayout);
@@ -509,13 +494,13 @@ void FVMAdapt::createToolBar(){
   
   
   viewbar->setLayout(viewLayout);
-  toolbar->addWidget(viewbar);
-
-  
 
   QGroupBox* visbar = new QGroupBox(tr("Visualization"));
 
   QHBoxLayout* visLayout = new QHBoxLayout;
+
+
+   
  
   QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
   visLayout->addWidget(clearBoundaryAct);
@@ -533,9 +518,11 @@ void FVMAdapt::createToolBar(){
           viewer, SLOT(fit()));
   visbar->setLayout(visLayout);
 
-
+ 
   toolbar->addWidget(visbar);
-
+  toolbar->addWidget(viewbar);
+  toolbar->addAction(viewerDock->toggleViewAction());
+   toolbar->addWidget(helpButton);
 }
   
 void FVMAdapt::resizeTree(){
@@ -560,14 +547,14 @@ void FVMAdapt::createFlowBar(){
   connect(loadButton, SIGNAL(clicked()), this, SLOT(loadGrid()));
 
   barLayout->addSpacing(spacing);
-  QPushButton* buildButton = new QPushButton(tr("Use Toolbar\nDefine a region"), this);
+  QPushButton* buildButton = new QPushButton(tr("Use Toolbar\nDefine a Region"), this);
   barLayout->addWidget(buildButton);
-  //connect(loadButton, SIGNAL(clicked()), this, SLOT(loadGrid()));
+  buildButton->setDisabled(true);
 
   barLayout->addSpacing(spacing);
-  QPushButton* modifyButton = new QPushButton(tr("Use Drag and Drop\nModify the region\n(Optional)"), this);
+  QPushButton* modifyButton = new QPushButton(tr("Use Drag&Drop\nModify the Region\n(Optional)"), this);
   barLayout->addWidget(modifyButton);
-  
+  modifyButton->setDisabled(true);
 
   barLayout->addSpacing(spacing);
   QPushButton* validateButton = new QPushButton(tr("Validate\nTree"), this);
@@ -608,17 +595,14 @@ void FVMAdapt::refineGrids(){
 
 void FVMAdapt::loadGrid(){
   
-    // int button = QMessageBox::question(this, tr("if a new grid is about to be loaded"),
-//                                        tr("Do you want to continue?"),
-//                                        QMessageBox::Ok|QMessageBox::No, QMessageBox::Ok); 
-//     if(button == QMessageBox::Ok){
-      filename =
-        QFileDialog::getOpenFileName(this, tr("Get File"),
-                                     QDir::currentPath(),
-                                     tr("vog Files (*.vog)"));
-      QStringList bnames;
-      if(!filename.isEmpty()) viewer->load_boundary(filename, bnames);
-      // }
+  
+  filename =
+    QFileDialog::getOpenFileName(this, tr("Get File"),
+                                 QDir::currentPath(),
+                                 tr("vog Files (*.vog)"));
+  QStringList bnames;
+  if(!filename.isEmpty()) viewer->load_boundary(filename, bnames);
+    
   }
 void FVMAdapt::done(){
 
@@ -751,7 +735,7 @@ FVMAdapt::FVMAdapt( QWidget *parent):QMainWindow(parent){
   tabWidget->addTab(trans, tr("Transform"));
   
   viewer = new GLViewer();
-  QDockWidget*  viewerDock  = new QDockWidget("Graphics Viewer", this); 
+   viewerDock  = new QDockWidget("Graphics Viewer", this); 
   viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
   viewerDock->setWidget(viewer);
   addDockWidget(Qt::RightDockWidgetArea, viewerDock);
@@ -1381,17 +1365,6 @@ void FVMAdapt::addShape(){
          break;
        }
 
-
-
-
-
-
-
-
-
-
-
-       
      }
      tree->expandAll();
      tree->resizeColumnToContents(0);
@@ -1463,7 +1436,9 @@ bool FVMAdapt::saveXml(){
   QTextStream out(&file);
 
   doc.save(out, 2, QDomNode::EncodingFromDocument);
-
+  
+  //viewer->markVolumeNodes(filename);
+  //viewer->markNodes();
   return true;
 }
 
@@ -1481,15 +1456,17 @@ FVMAdapt::~FVMAdapt(){
 
 
 
-void FVMAdapt::validateRegion( QTreeWidgetItem* item){
+bool FVMAdapt::validateRegion( QTreeWidgetItem* item){
+  bool result = true;
   //root of the tree is 'region'
   if(item->text(0)!="region"){
     tree->setCurrentItem(item);
     int button = QMessageBox::question(this, tr("Error in region:"),
                                        tr("should be 'region'\n")+
                                        tr("Do you want to continue?"),
-                                       QMessageBox::Ok|QMessageBox::No, QMessageBox::Ok); 
-    if(button == QMessageBox::No)return;
+                                       QMessageBox::Ok|QMessageBox::No, QMessageBox::Ok);
+    result = false;
+    if(button == QMessageBox::No)return false;
   }
   int numChild = item->childCount();
 
@@ -1504,8 +1481,9 @@ void FVMAdapt::validateRegion( QTreeWidgetItem* item){
                                          tr("children of region can only be op, object or region.\n")+
                                          tr("Illegal child of region: ")+ theChild->text(0)+
                                          tr("\nDo you want to continue?"),
-                                         QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-      if(button == QMessageBox::No)return;
+                                         QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+      result = false;
+      if(button == QMessageBox::No)return false;
     }
   }
     
@@ -1524,8 +1502,9 @@ void FVMAdapt::validateRegion( QTreeWidgetItem* item){
             int button = QMessageBox::question(this, tr("Error in region:"),
                                                theChild->text(0)+tr(" should be followed by op\n")+
                                                tr("Do you want to continue?"),
-                                               QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-            if(button == QMessageBox::No)return;
+                                               QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+            result = false;
+            if(button == QMessageBox::No)return false;
           }
           if(nextChild->text(0) == "op" && nextChild->text(1) =="complement"){
        
@@ -1534,7 +1513,8 @@ void FVMAdapt::validateRegion( QTreeWidgetItem* item){
                                                theChild->text(0)+tr(" should be followed by binary operator\n")+
                                                tr("Do you want to continue?"),
                                                QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-            if(button == QMessageBox::No)return;
+            result = false;
+            if(button == QMessageBox::No)return false;
           }
         }
       }else if(theChild->text(0)=="op" && theChild->text(1)=="complement"){// unary operator must be followed by region or object
@@ -1546,15 +1526,17 @@ void FVMAdapt::validateRegion( QTreeWidgetItem* item){
                                                theChild->text(0)+tr(" should be followed by object or region\n")+
                                                tr("Do you want to continue?"),
                                                QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-            if(button == QMessageBox::No)return;
+            result = false;
+            if(button == QMessageBox::No)return false;
           }
         }else{
           tree->setCurrentItem(theChild);
           int button = QMessageBox::question(this, tr("Error in region:"),
                                              theChild->text(0)+tr(" should not be the last child\n")+
                                              tr("Do you want to continue?"),
-                                             QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-          if(button == QMessageBox::No)return;
+                                             QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+          result = false;
+          if(button == QMessageBox::No)return false;
         }
       }else{ //binary operator
         if(i==0){//binary operator can not be the first child
@@ -1562,15 +1544,17 @@ void FVMAdapt::validateRegion( QTreeWidgetItem* item){
            int button = QMessageBox::question(this, tr("Error in region:"),
                                               theChild->text(0)+tr(" should not be the first child\n")+
                                              tr("Do you want to continue?"),
-                                             QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-          if(button == QMessageBox::No)return;
+                                              QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+           result = false;
+          if(button == QMessageBox::No)return false;
         }else if(i == (numChild -1)){//binary operator can not be the last child
           tree->setCurrentItem(theChild);
           int button = QMessageBox::question(this, tr("Error in region:"),
                                              theChild->text(0)+tr(" should not be the last child\n")+
                                              tr("Do you want to continue?"),
-                                             QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-          if(button == QMessageBox::No)return;
+                                             QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+          result = false;
+          if(button == QMessageBox::No)return false;
           
         }else{//binary should between two children
           QTreeWidgetItem* previousChild = item->child(i-1); //previoud should be region or object
@@ -1579,8 +1563,9 @@ void FVMAdapt::validateRegion( QTreeWidgetItem* item){
             int button = QMessageBox::question(this, tr("Error in region:"),
                                                theChild->text(0)+tr(" should follow child object or region\n")+
                                                tr("Do you want to continue?"),
-                                               QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-            if(button == QMessageBox::No)return; 
+                                               QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+            result = false;
+            if(button == QMessageBox::No)return false; 
           }
           
           QTreeWidgetItem* nextChild = item->child(i+1); //next should be region, object or unary operator
@@ -1591,8 +1576,9 @@ void FVMAdapt::validateRegion( QTreeWidgetItem* item){
             int button = QMessageBox::question(this, tr("Error in region:"),
                                                theChild->text(0)+tr(" should be followed by object or region or op complement\n")+
                                                tr("Do you want to continue?"),
-                                               QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-            if(button == QMessageBox::No)return;
+                                               QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+            result = false;
+            if(button == QMessageBox::No)return false;
           }
         }
       }
@@ -1602,19 +1588,21 @@ void FVMAdapt::validateRegion( QTreeWidgetItem* item){
     //validate each child
   for(int i = 0;i < numChild; i++){
     QTreeWidgetItem* theChild = item->child(i); 
-    if(theChild->text(0)=="region")validateRegion(theChild);
-    else if(theChild->text(0)=="object")validateObject(theChild);
+    if(theChild->text(0)=="region")result = (validateRegion(theChild)) && result;
+    else if(theChild->text(0)=="object")result = (validateObject(theChild)) && result;
     //else if(theChild->text(0)=="op")validateOp(theChild);
   }
-    
- QMessageBox::information(this, "validation", tr("This region passed the validation"));
+  
+  return result;
+  //QMessageBox::information(this, "validation", tr("This region passed the validation"));
   
 }
 
-void FVMAdapt::validateObject(QTreeWidgetItem* item){
+bool FVMAdapt::validateObject(QTreeWidgetItem* item){
+  bool result = true;
   tree->setCurrentItem(item);
   int numChild = item->childCount();
-  //the children of region can only be 'op', 'object' or 'region'
+  //the children of object can only be 'transform' or 'shape'
   for(int i = 0;i < numChild; i++){
     QTreeWidgetItem* theChild = item->child(i); 
     if(theChild->text(0)!="transform" &&
@@ -1624,8 +1612,9 @@ void FVMAdapt::validateObject(QTreeWidgetItem* item){
                                          tr("children of object can only be transform or shape.\n")+
                                          tr("Illegal child of object: ")+ theChild->text(0)+
                                          tr("\nDo you want to continue?"),
-                                         QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-      if(button == QMessageBox::No)return;
+                                         QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+      result = false;
+      if(button == QMessageBox::No)return false;
     }
   }
   //between children
@@ -1638,33 +1627,42 @@ void FVMAdapt::validateObject(QTreeWidgetItem* item){
       int button = QMessageBox::question(this, tr("Error:"),
                                          tr("transform should not be the last child\n")+
                                          tr("\nDo you want to continue?"),
-                                         QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-      if(button == QMessageBox::No)return;
+                                         QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+      result = false;
+      if(button == QMessageBox::No)return false;
     }
-    if(theChild->text(0)=="shape")numShape++;
+    if(theChild->text(0)=="shape"){
+      numShape++;
+    }
   }
   if(numShape !=1){
     tree->setCurrentItem(item);
     int button = QMessageBox::question(this, tr("Error:"),
                                        tr("each object should have one and only one shape\n")+
                                        tr("\nDo you want to continue?"),
-                                       QMessageBox::Ok|QMessageBox::No, QMessageBox::No); 
-    if(button == QMessageBox::No)return;
+                                       QMessageBox::Ok|QMessageBox::No, QMessageBox::No);
+    result = false;
+    if(button == QMessageBox::No)return false;
   }
-  //validate each child
+  // validate each child
   // for(int i = 0;i < numChild; i++){
-//     QTreeWidgetItem* theChild = item->child(i); 
-//     if(theChild->text(0)=="transform")validateTransform(theChild);
-//     else if(theChild->text(0)=="shape")validateShape(theChild);
-//   }
+  //     QTreeWidgetItem* theChild = item->child(i); 
+  //     if(theChild->text(0)=="transform"){
+  //validateTransform(theChild);
+  //     }else if(theChild->text(0)=="shape")validateShape(theChild);
+  //   }
+  
+  return result;
 }
 
     
         
- void  FVMAdapt::validateTree(){
-   validateRegion(tree->topLevelItem(0));
+void  FVMAdapt::validateTree(){
+  if( validateRegion(tree->topLevelItem(0))){
+    QMessageBox::information(this, "validation", tr("This tree passed the validation"));
+  }
   
- }
+}
   
 
 
@@ -2303,16 +2301,18 @@ QDomNode makeElement(QDomDocument& doc, const QTreeWidgetItem* item){
   if(item->text(1)!=""){
     QDomNode elt = doc.createTextNode(item->text(1));
     elem.appendChild(elt);
-    return elem;
-  }else if(item->childCount()!=0){
+    // return elem;
+  }
+  if(item->childCount()!=0){
     for(int i = 0; i < item->childCount(); i++){
       QDomNode childElem = makeElement(doc, item->child(i));
       if(!childElem.isNull())elem.appendChild(childElem);
     }
     if(item->text(0)=="transform" && elem.firstChildElement().isNull()) return QDomNode();
-    return elem;
+   
   }
-  return QDomNode();
+  return elem;
+ 
 }
 
 
@@ -2354,6 +2354,8 @@ QDomDocument tree2dom(const QTreeWidgetItem* root){
 
 
 void FVMAdapt::helpClicked(){
+  HelpWindow* helpwindow = new HelpWindow("page_fvmadapt.html");
+  helpwindow->show();
 }
 QTreeWidgetItem* FVMAdapt::getRoot(){
   return root;

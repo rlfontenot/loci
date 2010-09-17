@@ -1085,6 +1085,8 @@ QString  VarGBox::currentText(){
   
   QString prefix = "=";
   if(myelem.hasAttribute("prefix")) prefix = myelem.attribute("prefix");
+  QString postfix="";
+   if(myelem.hasAttribute("postfix")) postfix = myelem.attribute("postfix");
   QString name = myelem.tagName();
   if(myelem.hasAttribute("name")) name = myelem.attribute("name");
 
@@ -1115,9 +1117,9 @@ QString  VarGBox::currentText(){
       if(myelem.attribute("currentX").toDouble()==0)text += myelem.attribute("currentX")+", ";
       else text += myelem.attribute("currentX") + unit+", ";
       if(myelem.attribute("currentY").toDouble()==0)text += myelem.attribute("currentY")+", ";
-      else text += myelem.attribute("currentY") + unit+", ";
+      else text += myelem.attribute("currentY") + "deg, ";
       if(myelem.attribute("currentZ").toDouble()==0)text += myelem.attribute("currentZ");
-      else text += myelem.attribute("currentZ") + unit;
+      else text += myelem.attribute("currentZ") + "deg";
       text += ")";
     }
     
@@ -1164,7 +1166,8 @@ QString  VarGBox::currentText(){
   
  
   if(myelem.attribute("showStatus").toInt()==1)updateShowStatus(true);
-    
+  
+  text+=postfix;
   myelem.setAttribute("currentText", text);
   return text;
 }
@@ -1777,12 +1780,7 @@ VarPanel::VarPanel(   QDomElement& my_elem,  QWidget *parent )
   mainLayout->setRowStretch( elt_count/numColumn +2, 10);
 
   setLayout(mainLayout);
-  
- 
- 
   updateCurrentText();
-
-   
 }
   
 void VarPanel::updateShowStatus(const bool& show){
@@ -2283,19 +2281,20 @@ bool AllVBWindow::save(){
   
   QTextStream out(&file);
   QApplication::setOverrideCursor(Qt::WaitCursor);
-  out<<"species={" << endl;
-  if(myelem.tagName()=="specified_ideal_gas_model")out<<"_gas=<";
-  else if(myelem.tagName()=="gamma_model")out<<"_Gamma"<<(int)(myelem.firstChildElement("gamma").attribute("current").toDouble()*10)<<"=< ";
+  out << myelem.attribute("prefix");
+  if(myelem.tagName().contains("_gamma"))out<<(int)(myelem.firstChildElement("gamma").attribute("current").toDouble()*10)<<" = <";
   QDomElement elt = myelem.firstChildElement();
   for(; !elt.isNull(); elt=elt.nextSiblingElement()){
-    out<<elt.tagName()<<"="<<elt.attribute("current")<<",";
+    if(elt.tagName().contains("gamma")){
+      double n = 1.0/(elt.attribute("current").toDouble()-1.0);
+      QString nstr = QString("%1").arg(n);
+      out<<"n="<< nstr<<", ";
+    }else out<<elt.tagName()<<"="<<elt.attribute("current")<<", ";
   }
-  if(myelem.tagName()=="specified_ideal_gas_model"||myelem.tagName()=="gamma_model"){
-    out<<"mf=1," << endl;
-    out<<"href=0, sref=0, Tref=298, Pref=1e5>;"<<endl;
-    out<<"};"<<endl;
-    out<<"reactions={"<<endl<<"};"<<endl;
-  }
+  
+  out << myelem.attribute("postfix");
+  
+
   
   QApplication::restoreOverrideCursor();
   file.close();
@@ -2467,13 +2466,16 @@ void StateStackGroup::add(){
         AllVBWindow* window= new AllVBWindow(mdl_elem);
         window->show();
       }else if(mdl_elem.attribute("element")=="CpWindow"){
-        CpWindow* window = new CpWindow;
+        CpWindow* window = new CpWindow(mdl_elem.attribute("title"), mdl_elem.attribute("prefix"));
+        window->show();
+      }else if(mdl_elem.attribute("element")=="MixtureMdl"){
+        ChemistryMdl* window = new ChemistryMdl;
+        window->hideReaction();
         window->show();
       }else if(mdl_elem.attribute("element")=="ChemistryMdl"){
         ChemistryMdl* window = new ChemistryMdl;
         window->show();
       }
-    
     }
   }
 }
@@ -2650,10 +2652,13 @@ QWidget* showDelegate::createEditor(QWidget*, const QStyleOptionViewItem&,
   if (value == "hide") {
     model->setData(index, "show");
     
-  } else {
+  } else if(value=="show"){
     model->setData(index, "hide");
+  }else if(value =="glue"){
+    model->setData(index, "no glue");
+  }else if(value=="no glue"){
+    model->setData(index, "glue"); 
   }
-
   return NULL;
 }
 

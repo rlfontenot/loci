@@ -58,8 +58,8 @@ signals:
   void componentsChanged();
   void showStatus(const bool&);
   void caseChanged();
-
- 
+  void directoryChanged(QString);
+  void showShapes(bool);
 private:
   
  

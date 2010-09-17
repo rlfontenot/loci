@@ -1,3 +1,4 @@
+
 #ifndef FVMADAPT_H
 #define FVMADAPT_H
 
@@ -21,7 +22,7 @@ class QStackedWidget;
 class QTreeWidget;
 class QSignalMapper;
 class QTabWidget;
-  
+class QDockWidget; 
 enum BASIC_SHAPES{SPHERE, CONE, CYLINDER, BOX, LEFTPLANE};
 
 
@@ -95,6 +96,7 @@ signals:
 private slots:
   
   void helpClicked();
+  //void Viewer();
   void changePage(int);
   void addShape();
   void addTransform();
@@ -114,8 +116,9 @@ private:
   void createFlowBar();
   void createToolBar();
   void buildTree();
-  void validateRegion(QTreeWidgetItem* item);
-  void validateObject(QTreeWidgetItem* item);
+  bool validateRegion(QTreeWidgetItem* item);
+  bool validateObject(QTreeWidgetItem* item);
+  // bool validateShape(QTreeWidgetItem* item);
   //void validateOp(QTreeWidgetItem* item);
   // void validateTransform(QTreeWidgetItem* item);
   //void validateTranslate(QTreeWidgetItem* item);
@@ -134,6 +137,7 @@ private:
   vector<Shape*> defaultShapes;
 
   GLViewer* viewer;
+  QDockWidget* viewerDock;
  
  
 };

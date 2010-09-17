@@ -401,7 +401,7 @@ struct affineMapping2 {
       M[i][i] = 1 ;
     }
   }
-  void Combine(affineMapping2 a) {
+  void Combine(affineMapping a) {
     double Mtmp[4][4] ;
     for(int i=0;i<4;++i)
       for(int j=0;j<4;++j)
@@ -417,25 +417,25 @@ struct affineMapping2 {
       for(int j=0;j<4;++j)
         M[i][j] = Mtmp[i][j] ;
   }
-  void translate(vector3d<double> tv) {
-    affineMapping2 tmp ;
+  void translate(positions3d tv) {
+    affineMapping tmp ;
     tmp.M[0][3] = tv.x ;
     tmp.M[1][3] = tv.y ;
     tmp.M[2][3] = tv.z ;
     Combine(tmp) ;
   }
-  void scale(vector3d<double> tv) {
-    affineMapping2 tmp ;
+  void scale(positions3d tv) {
+    affineMapping tmp ;
     tmp.M[0][0] = tv.x ;
     tmp.M[1][1] = tv.y ;
     tmp.M[2][2] = tv.z ;
     Combine(tmp) ;
   }
   void rotateX(double theta) {
-    double th = theta*2.*M_PI/360. ;
+    double th = -theta*2.*M_PI/360. ;
     double sth = sin(th) ;
     double cth = cos(th) ;
-    affineMapping2 tmp ;
+    affineMapping tmp ;
 
     tmp.M[1][1] =  cth ;
     tmp.M[1][2] =  sth ;
@@ -444,10 +444,10 @@ struct affineMapping2 {
     Combine(tmp) ;
   }
   void rotateY(double theta) {
-    double th = theta*2.*M_PI/360. ;
+    double th = -theta*2.*M_PI/360. ;
     double sth = sin(th) ;
     double cth = cos(th) ;
-    affineMapping2 tmp ;
+    affineMapping tmp ;
 
     tmp.M[0][0] =  cth ;
     tmp.M[0][2] = -sth ;
@@ -456,10 +456,10 @@ struct affineMapping2 {
     Combine(tmp) ;
   }
   void rotateZ(double theta) {
-    double th = theta*2.*M_PI/360. ;
+    double th = -theta*2.*M_PI/360. ;
     double sth = sin(th) ;
     double cth = cos(th) ;
-    affineMapping2 tmp ;
+    affineMapping tmp ;
 
     tmp.M[0][0] =  cth ;
     tmp.M[0][1] =  sth ;
@@ -467,7 +467,28 @@ struct affineMapping2 {
     tmp.M[1][1] =  cth ;
     Combine(tmp) ;
   }
-  vector3d<double> Map(vector3d<double> v) {
+  //mirror with a 3d plane with origin p and  normal n  
+  void mirror(positions3d p, positions3d n){
+    if(norm(n) > 1e-37) n = n/norm(n);   
+    double k = dot(p, n);
+    affineMapping tmp ;
+    tmp.M[0][0] = 1-2.*n.x*n.x;
+    tmp.M[1][1] = 1-2.*n.y*n.y;
+    tmp.M[2][2] = 1-2.*n.z*n.z;
+    
+    tmp.M[0][1]  = tmp.M[1][0] = -2.*n.x*n.y;
+    tmp.M[0][2] = tmp.M[2][0] = -2.*n.x*n.z;
+    tmp.M[0][3] = 2.*n.x*k;
+    tmp.M[3][0] = 0;
+
+    tmp.M[1][2] = tmp.M[2][1] = -2.*n.y*n.z;
+    tmp.M[1][3] = 2.*n.y*k;
+    tmp.M[2][3] = 2.*n.z*k;
+    Combine(tmp) ;
+  }
+    
+    
+  positions3d Map(positions3d v) {
     double tmp[4] ;
     tmp[0] = v.x ;
     tmp[1] = v.y ;
@@ -479,13 +500,14 @@ struct affineMapping2 {
     for(int i=0;i<4;++i)
       for(int j=0;j<4;++j)
         res[i] += M[i][j]*tmp[j] ;
-    vector3d<double> r(res[0],res[1],res[2]) ;
+    positions3d r(res[0],res[1],res[2]) ;
     return r ;
   }
    
 } ;
 
-struct TranCoef{
+
+struct TranCoef{  //in fvmadapt and other places
   vector3d<double> translate;
   vector3d<double> rotateAngle;
   vector3d<double> rotateCenter;
@@ -504,6 +526,35 @@ struct TranCoef{
   
   
 };
+
+struct TranCoef2{  //used in vogmerge
+  vector3d<double> translate;
+  vector3d<double> rotateAngle;
+  vector3d<double> rotateCenter;
+  vector3d<double> scale;
+  int checkedId;
+  vector3d<double> mirrorOrigin;
+  vector3d<double> mirrorNormal;
+  
+  TranCoef2(const vector3d<double> &v1, const vector3d<double> &v2,
+            const vector3d<double> &v4, const vector3d<double> &v3,
+            int id, const vector3d<double> &v5, const vector3d<double> &v6):
+    translate(v1), rotateAngle(v2), rotateCenter(v4), scale(v3),
+    checkedId(id), mirrorOrigin(v5), mirrorNormal(v6){}
+  
+  TranCoef2(){
+    
+    translate = vector3d<double>(0.0, 0.0, 0.0);
+    rotateAngle = vector3d<double>(0.0, 0.0, 0.0);
+    rotateCenter = vector3d<double>(0.0, 0.0, 0.0);
+    scale = vector3d<double>(1.0, 1.0, 1.0);
+    checkedId = 0;
+    mirrorOrigin = vector3d<double>(0.0, 0.0, 0.0);
+    mirrorNormal = vector3d<double>(1.0, 0.0, 0.0);
+  }
+};
+
+
 
 struct IDMatrix{
   int gridId;

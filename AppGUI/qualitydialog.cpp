@@ -18,6 +18,8 @@
 
 bool QualityDialog::processQualityReport(QString filename){
 
+  QString casename =filename.section('/',-1, -1); 
+  setWindowTitle(casename);
   
   QFile file(filename);
   if (!file.open(QFile::ReadOnly | QFile::Text)) {

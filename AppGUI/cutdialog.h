@@ -12,6 +12,7 @@ class QDoubleSpinBox;
 class QGroupBox;
 class QCheckBox;
 class QSlider;
+class QButtonGroup;
 
 class CutDialog: public QMainWindow
 {
@@ -34,6 +35,7 @@ void setInfo();
   void cut();
   void loadSca();
   void loadGrid();
+  void helpClicked();
   //  void showExtremeNodes(double);
   void updateVars(QString iter);
   void updateCase();
@@ -57,7 +59,7 @@ private:
   QComboBox *comboIter;
   QComboBox *comboVar;
   DoubleEdit* extrEdit;
-  
+  QButtonGroup* buttonGroup;
   QToolBar* toolbar;
 
   

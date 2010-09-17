@@ -23,20 +23,6 @@ using namespace std;
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //  Global Function
 //
@@ -114,7 +100,7 @@ MGViewer::~MGViewer()
 
 void MGViewer::initializeGL()
 {
-  glClearColor(1.0, 1.0, 1.0, 1.0);
+  glClearColor(0.5, 0.5, 0.5, 0.5);
   glShadeModel(GL_SMOOTH);
   glEnable(GL_DEPTH_TEST);
 }
@@ -169,7 +155,9 @@ void MGViewer::paintGL()
   
   for (size_t i = 0; i < boundObjects.size(); ++i)
     for(size_t j = 0; j <boundObjects[i].size(); ++j)
-      if (objVisible[i][j])glCallList(boundObjects[i][j]);
+      if (objVisible[i][j])
+        glCallList(boundObjects[i][j]);
+       
       
   
   glPopMatrix();
@@ -224,8 +212,10 @@ void MGViewer::fit(){
                          );
     return;
   }
+  
   isFit = true;
   for( int i  = 0; i < (int)objVisible.size(); i++){
+  
     for( int j =0; j < (int)objVisible[i].size(); j++){
       if(i==currentGrid && j == currentObj) objVisible[i][j] = true;
       else objVisible[i][j] = false;
@@ -769,7 +759,7 @@ void MGViewer::updateView()
   size = sqrt((maxpos.x - minpos.x)*(maxpos.x - minpos.x) + 
               (maxpos.y - minpos.y)*(maxpos.y - minpos.y) + 
               (maxpos.z - minpos.z)*(maxpos.z - minpos.z));
-  
+ 
   // Calculate center of boundary region
   centerx = (maxpos.x + minpos.x) / 2.0;
   centery = (maxpos.y + minpos.y) / 2.0;

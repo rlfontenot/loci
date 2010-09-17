@@ -53,6 +53,7 @@ public slots:
   void updateShowStatus(const bool& show);
 signals:
   void valueChanged(const QTreeWidgetItem*);
+  void textChanged();
 private:
   
 private:
@@ -63,7 +64,7 @@ private:
   QGroupBox *regionGroup;
   QStackedWidget *regionPages;
   QTreeWidget* tree;
-  QTreeWidgetItem* root;
+  // QTreeWidgetItem* root;
   vector<Shape*> defaultShapes;
   
   QStackedWidget *myPages;

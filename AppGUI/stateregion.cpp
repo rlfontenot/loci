@@ -403,7 +403,7 @@ RegionWindow::RegionWindow(  QDomElement& elem, QWidget *parent):GeneralGroup(el
     QStringList header;
     header << "name" << "value";
     tree->setHeaderLabels(header);
-    root =  new QTreeWidgetItem(tree);
+    QTreeWidgetItem*  root =  new QTreeWidgetItem(tree);
     root->setText(0, "region");
     tree->addTopLevelItem(root);
     tree->expandAll();
@@ -506,7 +506,6 @@ RegionWindow::RegionWindow(  QDomElement& elem, QWidget *parent):GeneralGroup(el
     for(unsigned int i =0; i< defaultShapes.size(); i++){
       ParaPage *paraPage = new ParaPage(defaultShapes[i]);
       regionPages->addWidget(paraPage);
-      //connect(paraPage, SIGNAL(valueChanged()), this, SIGNAL(valueChanged()));
       connect(paraPage, SIGNAL(valueChanged()), this, SLOT(updateShape()));     
     }
 
@@ -541,7 +540,7 @@ RegionWindow::RegionWindow(  QDomElement& elem, QWidget *parent):GeneralGroup(el
   mainLayout->addWidget(textEdit);
   
   setLayout(mainLayout);
-  emit valueChanged(root);
+  emit valueChanged(getRoot());
   updateText();
 }
 
@@ -744,7 +743,7 @@ void RegionWindow::updateShape(){
   if(valueNode->childCount() !=(int) ashape->para.size())return;
   for(int i = 0; i < valueNode->childCount(); i++)valueNode->child(i)->setText(1,QString("%1").arg(ashape->para[i]));
   
-  emit valueChanged(root);
+  emit valueChanged(getRoot());
   updateText();
 
 }
@@ -774,7 +773,7 @@ void RegionWindow::addShape(){
       tree->currentItem()->addChild(objItem);
          
     }else{
-      root->addChild(objItem);
+      getRoot()->addChild(objItem);
     }
     tree->setCurrentItem(newItem);
     int index = items.indexOf(item);
@@ -991,17 +990,18 @@ void RegionWindow::addShape(){
   }
   tree->expandAll();
   tree->resizeColumnToContents(0);
-  emit valueChanged(root);
+  emit valueChanged(getRoot());
   updateText();    
 }
 
 
 QTreeWidgetItem* RegionWindow::getRoot(){
-  return root;
+  return tree->topLevelItem(0);
 }
 
 void RegionWindow::updateText(){
   textEdit->setText(currentText());
+  emit textChanged();
 }
 
 void RegionWindow::updateShowStatus(const bool& show){

@@ -23,7 +23,7 @@ class QListWidgetItem;
 class QStackedWidget;
 class QCheckBox;
 class QButtonGroup;
-
+class QRadioButton;
 
 
 
@@ -48,27 +48,34 @@ public slots:
   void previous();
   void next();
   void clear();
+  void gRadioClicked();
 public:
    QString currentText();
 private:
   affineMapping2 currentM();
+  void setValue(const TranCoef2&);
 private:
   //translate
-  DoubleEdit* xEditor1;
-  DoubleEdit* yEditor1;
-  DoubleEdit* zEditor1;
+  VectSpBox* translateVec;
   //rotate angle
-  DoubleEdit* xEditor2;
-  DoubleEdit* yEditor2;
-  DoubleEdit* zEditor2;
-  //scale
-  DoubleEdit* xEditor3;
-  DoubleEdit* yEditor3;
-  DoubleEdit* zEditor3;
+  VectSpBox* angleVec;
   //roate center
-  DoubleEdit* xEditor4;
-  DoubleEdit* yEditor4;
-  DoubleEdit* zEditor4;
+  VectSpBox* centerVec;
+   //scale
+  VectSpBox* scaleVec;
+  //mirror option
+  QButtonGroup* mButtonGroup;
+  QRadioButton* radiog;
+  
+  QGroupBox* planeBox;
+  //mirror plane origin
+  VectSpBox* planeOriginVec;
+  //mirror plane normal
+  VectSpBox* planeNormalVec;
+
+  DoubleEdit* tolEdit;
+  QGroupBox* tolBox;
+  
   //tag
   QLineEdit* tagEditor;
 
@@ -78,10 +85,11 @@ private:
 
   QString gridName;
   int gridId;
-  vector<TranCoef> tc;
+  vector<TranCoef2> tc;
   int currentCoef;
   QString tag;
   QList<pair<QString, QString> > bdnames;
+  QList<bool> needGlue;
  
 };
 
@@ -94,12 +102,13 @@ public:
   VMergeWindow(QWidget* parent = 0);
  
  public slots:
- void vmClicked();
+  void vmClicked();
+  void helpClicked();
   void loadGridClicked();
   void gridLoaded(const QStringList &);
   void changePage(int);
   void clearAll();
-  void afterMerge(QString, QProcess::ExitStatus);
+  void afterMerge(QString, QProcess::ExitStatus, QString);
   void selectCurrent(const IDOnly&);
   signals:
   void currentGridChanged(int);
@@ -113,12 +122,12 @@ private:
   void createFlowBar();
 private:
   
-  vector<vector<TranCoef> > transcoef;
+  vector<vector<TranCoef2> > transcoef;
   //  QListWidget *typesWidget;
   QComboBox* typesWidget;
   QStackedWidget *pagesWidget;
   MGViewer* mgviewer;
-  
+  //  QHBoxLayout* visLayout;
  
 };
 

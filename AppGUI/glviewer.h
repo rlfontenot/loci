@@ -58,7 +58,9 @@ public:
                      QStringList& boundary_names,
                      QList<int>& bids); //for pb, boundary ids need to be read in
   double inline  get_min_val(){return min_val;};
-  double inline  get_max_val(){return max_val;}; // Scalar value extrema over the whole grid                                  
+  double inline  get_max_val(){return max_val;}; // Scalar value extrema over the whole grid
+  double inline  get_mid_val(){return mid_val;}; // Scalar value extrema over the whole grid
+                                               
                                                                                       
  public slots:
  //slots for cutplane display menu
@@ -68,7 +70,7 @@ public:
   void toggleBoundaryShading();
   void setShading(bool); //show_exreme_nodes decide shading
   void toggleBorder();
-  void toggleShowShapes();
+  void setShowShapes(bool);
   void clearExtrema();
   //  void toggleShowNodes();
   void setShadeType1();
@@ -94,8 +96,8 @@ public:
   void drawShapes();
   void cleanDoc();
   void updateDoc(const QTreeWidgetItem*);
-  //void markNodes();
-  //void markVolumeNodes(QString fileName);
+  void markNodes();
+  void markVolumeNodes(QString fileName);
   
   //fot pb
 
@@ -142,12 +144,12 @@ private:
   void drawNyPlane(const vector<double>& p, double size);
   void drawPzPlane(const vector<double>& p, double size);
   void drawNzPlane(const vector<double>& p, double size);
-  // void drawMarkedNodes();
+  void drawMarkedNodes();//for fvmadapt
   void drawExtremeNodes(double value);
  
   
   QDomDocument doc;//for FVMAdapt
-
+  vector<bool> tags; //for FVMAdapt
   
   GLUquadricObj* qobj;//for FVMAdapt
   GLuint makeGridObject();
@@ -208,7 +210,7 @@ private:
   int currentWidth, currentHeight;//viewport
   
   bool show_preview, show_contours, show_grid, show_shading,show_boundary_shading, show_border, show_extrema, show_shapes;  // Visibility flags
-  double min_val, max_val;  // Scalar value extrema over the whole grid
+  double min_val, max_val, mid_val;  // Scalar value extrema over the whole grid
   
   cutplane_info info;  // The information for the current cutting plane
   cutplane_info previewInfo;  // Information for the cut being previewed

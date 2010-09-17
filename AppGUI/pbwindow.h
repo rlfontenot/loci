@@ -36,13 +36,13 @@ private slots:
   void done();
   void loadGrid();
   void split();
-  bool selectBoundary(const QStringList&, const QList<int>&);
-  // void setCurrent(int);
+  bool selectBoundary(const QStringList&);
+ 
   void showBoundary(QModelIndex, QModelIndex);
   void setCurrent(QModelIndex);
   void selectCurrent(int row);
-  void updateBoundaryView(const QStringList&, const QList<int>&);
-  void changePage(int);
+  void updateBoundaryView(const QStringList&);
+  void helpClicked();
   void setParameter();
 private:
   void createFlowBar();
@@ -62,8 +62,8 @@ private:
   DoubleEdit* rotateAngle;
   QGroupBox* rotateGroup;
   QButtonGroup* buttonGroup;
-  // QLabel* boundary1;
-  //QLabel* boundary2;
+  QStackedWidget* pagesWidget;
+  
   int b1;
   int b2;
  

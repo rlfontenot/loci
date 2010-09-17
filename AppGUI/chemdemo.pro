@@ -38,7 +38,8 @@ HEADERS += bdcndwindow.h \
            varwindow.h \
            pbwindow.h \
            pboperation.h \
-           defines.h
+           defines.h \
+           helpwindow.h
           
 SOURCES += bdcndwindow.cpp \
            cutplane.cpp \
@@ -65,7 +66,8 @@ SOURCES += bdcndwindow.cpp \
            stateregion.cpp \
            varwindow.cpp \
            pbwindow.cpp \
-           pboperation.cpp
+           pboperation.cpp \
+           helpwindow.cpp
 
 RESOURCES     = chemdemo.qrc
 #install

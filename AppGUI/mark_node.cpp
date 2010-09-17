@@ -427,9 +427,7 @@ positions3d  process_scale(const QDomElement& anode){
  
 
    for(unsigned int i = 0; i< p.size(); i++){
-     if(i == 1) cerr << "before: " << p[i].x << "  " << p[i].y << " " << p[i].z << endl;    
      p[i] =   aMatrix.MapNode(p[i]);
-       if(i == 1) cerr << "after: " << p[i].x << "  " << p[i].y << " " << p[i].z << endl;    
    }
   
  }

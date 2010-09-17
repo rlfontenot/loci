@@ -25,6 +25,7 @@
 #include "cutdialog.h"
 #include "grid.h"
 #include "pages.h"
+#include "helpwindow.h"
 //////////////////////////////////////////////////////////
 //  public:
 //    CutDialog(dialog_info *info, QWidget *parent = 0);
@@ -35,7 +36,7 @@
 CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
 {
 
-
+  setWindowTitle("postprocessing");
   
   setAttribute(Qt::WA_DeleteOnClose, true);
   QGroupBox* central= new QGroupBox;
@@ -45,7 +46,7 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   
   size = 1.0; 
   
-  QButtonGroup* buttonGroup = new QButtonGroup(this);
+   buttonGroup = new QButtonGroup(this);
   buttonGroup->setExclusive(true);
   QPushButton* xy_button = new QPushButton(tr("xy_plane"));
   QPushButton* yz_button = new QPushButton(tr("yz_plane"));
@@ -69,10 +70,10 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   
 
   
-  QGroupBox* translateBox = new QGroupBox(tr("translation")); 
+  QGroupBox* translateBox = new QGroupBox(tr("translation along normal")); 
   QGridLayout* translate = new QGridLayout;
   
-  translate->addWidget(new QLabel(tr("z:")), 0, 0);
+  translate->addWidget(new QLabel(tr("  ")), 0, 0);
   
   
   
@@ -134,7 +135,8 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   connect(zEditor1, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
   connect(xEditor2, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
   connect(yEditor2, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
-  connect(zEditor2, SIGNAL(valueChanged(double)), this, SLOT(setInfo())); 
+  connect(zEditor2, SIGNAL(valueChanged(double)), this, SLOT(setInfo()));
+  
 
    // Casename group
   QGroupBox *caseGroup = new QGroupBox(tr("Casename"));
@@ -189,7 +191,7 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   
  
   
-  QGroupBox* cutGroup = new QGroupBox(tr("define cut plane:"));
+  QGroupBox* cutGroup = new QGroupBox(tr("Define cut plane:"));
   QVBoxLayout* cutLayout = new QVBoxLayout;
   cutLayout->addLayout(hlayout);
   cutLayout->addWidget(rotateBox);
@@ -199,7 +201,7 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   cutGroup->setLayout(cutLayout);
 
 
- QSlider* extrSlider = new QSlider;
+  QSlider* extrSlider = new QSlider;
   extrSlider->setMinimum(-1000);
   extrSlider->setMaximum(1000);
   extrSlider->setOrientation(Qt::Horizontal);
@@ -211,7 +213,7 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   connect(clearExtrButton, SIGNAL(clicked()), viewer, SLOT(clearExtrema()));
 
   QHBoxLayout *buttons = new QHBoxLayout;
-  QGroupBox* buttonsGroup = new QGroupBox(tr("Extremum nodes"));
+  QGroupBox* buttonsGroup = new QGroupBox(tr("Extreme nodes"));
   
   
   buttons->addWidget(extrSlider);
@@ -220,32 +222,19 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   buttonsGroup->setLayout(buttons);
  
   connect(extrEdit, SIGNAL(valueChanged(double)), viewer, SLOT(setExtrema(double)));
-  //  connect(extrEdit, SIGNAL(valueChanged(double)), this, SLOT(showExtremeNodes(double)));
-  
-
- 
-
-
   
   toolbar = new QToolBar(tr("display"), this);
-   addToolBar(toolbar);
+  addToolBar(toolbar);
   createToolBar();
   createFlowBar();
   createVisBar();
-  
-
-
-
 
   QVBoxLayout *mainLayout =  new QVBoxLayout;
- 
- 
-  
   mainLayout->addWidget(caseGroup);
   mainLayout->addWidget(iterVarGroup);
   mainLayout->addWidget(buttonsGroup);
   mainLayout->addWidget(cutGroup);
-  // mainLayout->addWidget(buttonsGroup);
+
   QDockWidget*  viewerDock  = new QDockWidget("Graphics Viewer", this); 
   viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
   viewerDock->setWidget(viewer);
@@ -253,14 +242,12 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
 
   central->setLayout(mainLayout);
   setCentralWidget(central);
-  //  loadGrid(); 
-  //setInfo();
+
 }
 void CutDialog::createVisBar()
 {
 
-  // int spacing =2;  
-  // QToolBar* toolbar = new QToolBar(tr("tree&vis"), this);
+  
     
   addToolBarBreak();
   QGroupBox* visbar = new QGroupBox(tr("visualization"));
@@ -279,10 +266,17 @@ void CutDialog::createVisBar()
   visLayout->addWidget(fitAct);
   connect(fitAct, SIGNAL(clicked()),
           viewer, SLOT(fit()));
+
+   QPushButton* helpButton = new QPushButton(tr("help"));
+  connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
+  visLayout->addWidget(helpButton);
+  
   visbar->setLayout(visLayout);
+  
+  //  toolbar->addStretch(20);
 
   toolbar->addWidget(visbar);
-  //addToolBar(toolbar);
+  
 } 
 
 void CutDialog::updateCase(){
@@ -484,36 +478,51 @@ void CutDialog::createToolBar(){
   QPushButton *shadeType2 = new QPushButton(tr("Black\nBody"), this);
   QPushButton *shadeType3 = new QPushButton(tr("Pressure\n"), this);
   
-  QGroupBox* toolbox = new QGroupBox(tr("Display Menu"));
-  QHBoxLayout* barlayout = new QHBoxLayout;
-  barlayout->addWidget(showBoundaryAct);
-  barlayout->addSpacing(2);;
-  barlayout->addWidget(showBShadingAct);
- 
- 
-  barlayout->addSpacing(2);;
-  barlayout->addWidget(showGridAct);
-  barlayout->addSpacing(2);;
-  barlayout->addWidget(showShadingAct);
-    
-  barlayout->addSpacing(2);;
-  barlayout->addWidget(shadeType1);
-  barlayout->addWidget(shadeType2);
-  barlayout->addWidget(shadeType3);
-    barlayout->addSpacing(2);;
-   
-  QVBoxLayout* vlayout = new QVBoxLayout;
+  QGroupBox* bdryBox = new QGroupBox(tr("boundary display"));
+  QHBoxLayout* bdryLayout = new QHBoxLayout;
+  bdryLayout->addWidget(showBoundaryAct);
+  bdryLayout->addWidget(showBShadingAct);
+  bdryBox->setLayout(bdryLayout);
   
+  QGroupBox* ctplBox = new QGroupBox(tr("cutplane display"));
+  QHBoxLayout* ctplLayout = new QHBoxLayout;
+ 
+  ctplLayout->addWidget(showShadingAct);
+  ctplLayout->addWidget(showGridAct);
+   QVBoxLayout* vlayout = new QVBoxLayout;
   vlayout->addWidget(showContoursAct);
   QSlider* slider = new QSlider(Qt::Horizontal);
   slider->setRange(5, 50);
   slider->setValue(10);
   vlayout->addWidget(slider);
 
-  barlayout->addLayout(vlayout);
+  ctplLayout->addLayout(vlayout);
+  ctplBox->setLayout(ctplLayout);
   
-  barlayout->addStretch(2);
-  toolbox->setLayout(barlayout);
+  QGroupBox* typeBox = new QGroupBox("color mapping");
+  QHBoxLayout* typeLayout = new QHBoxLayout;
+  typeLayout->addWidget(shadeType1);
+  typeLayout->addWidget(shadeType2);
+  typeLayout->addWidget(shadeType3);
+  typeBox->setLayout(typeLayout);
+    
+ 
+  toolbar->addWidget(bdryBox);
+  toolbar->addSeparator();
+  toolbar->addWidget(ctplBox);
+  toolbar->addSeparator();
+  toolbar->addWidget(typeBox);
+
+ //  QGroupBox* emptyBox = new QGroupBox();
+//   emptyBox->setFlat(true);
+//   QHBoxLayout* emptyLayout = new QHBoxLayout;
+//   emptyLayout->addStretch(2);
+//   emptyBox->setLayout(emptyLayout);
+//   toolbar->addWidget(emptyBox);
+ 
+  
+ 
+ 
 
   
   connect(showBoundaryAct,SIGNAL(clicked()),
@@ -536,14 +545,13 @@ void CutDialog::createToolBar(){
        viewer, SLOT(changeContours(int)));
  
   connect(this, SIGNAL(destroyed()), viewer, SLOT(uncut()));
-  
- 
-  toolbar->addWidget(toolbox);
- 
 }
 
 
-
+ void CutDialog::helpClicked(){
+   HelpWindow* helpwindow = new HelpWindow("page_postprocess.html");
+   helpwindow->show();
+ }     
  
 
 // void CutDialog::showExtremeNodes(double value){
@@ -573,9 +581,7 @@ void CutDialog::setInfo()
   ld_info.variable = comboVar->currentText();
   ld_info.iteration = comboIter->currentText();
   
-  //if(ld_info.variable=="cellVol")extrEdit->setRange(-50, 0);
-  //else extrSpinBox->setRange(0, 50);
-
+  
   viewer->previewCut(info);  
   viewer->setLoadInfo(ld_info);  
  
@@ -588,15 +594,16 @@ void CutDialog::cut(){
 
 void CutDialog::loadSca(){
   setInfo();
-  extrEdit->setValue(0);
+ 
   viewer->loadSca();
   extrEdit->setBottom(viewer->get_min_val());
   extrEdit->setTop(viewer->get_max_val());
-  
+  // extraSlider->setValue();
+  extrEdit->setValue(viewer->get_mid_val());
 }
 
 void CutDialog::reset(){
-
+  buttonGroup->button(1)->setChecked(true);
   zslider1->setValue(0);
   
   xslider2->setValue(0);

@@ -116,7 +116,6 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   nameEdit = new QLineEdit;
 
   connect(nameBGroup, SIGNAL(buttonClicked(int)), this, SLOT(nameBGroupClicked(int)));
-  connect(nameBGroup, SIGNAL(buttonClicked(int)), this, SLOT(setText()));
   connect(nameEdit, SIGNAL(textChanged(const QString&)), this, SLOT(setText()));
   
   QGridLayout *nameLayout = new QGridLayout;
@@ -142,8 +141,8 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   replaceLayout->addWidget(rradio1);
   replaceGroup->setLayout(replaceLayout);
 
-  connect(replaceBGroup, SIGNAL(buttonClicked(int)), this, SLOT(setText()));
-  
+
+  connect(replaceBGroup, SIGNAL(buttonClicked(int)), this, SLOT(replaceBGroupClicked(int)));
   mGroup = new QGroupBox(tr("molecular mass"));
   QHBoxLayout *mLayout = new QHBoxLayout;
   mEdit = new DoubleEdit;
@@ -241,7 +240,6 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   tcLayout->addWidget(pagesWidget);
   thetaCpGroup->setLayout(tcLayout);
   connect(thetaCpBGroup, SIGNAL(buttonClicked(int)), this, SLOT(changePage(int)));
-  //connect(thetaCpGroup, SIGNAL(clicked(bool)), this, SLOT(setText()));
   connect(thetavGroup, SIGNAL(textChanged()), this, SLOT(setText()));
   connect(cpGroup, SIGNAL(textChanged()), this, SLOT(setText()));
   
@@ -261,7 +259,6 @@ SpeciesGroup::SpeciesGroup(const QString& title, QWidget* parent):QGroupBox(titl
   display = new QLabel;
   mainLayout->addWidget(display);
   QPushButton* acceptButton = new QPushButton(tr("&Accept"));
-  // connect(acceptButton, SIGNAL(clicked()), this, SIGNAL(accept()));
   connect(acceptButton, SIGNAL(clicked()), this, SLOT(clear()));
   mainLayout->addWidget(acceptButton);
   setLayout(mainLayout);
@@ -311,12 +308,18 @@ QString SpeciesGroup::text(){
   if(pGroup->isChecked()) clean_text += "Pref=" + prefEdit->text() + ", ";
   if(mfGroup->isChecked()) clean_text += "mf=" +mfEdit->text() + ", ";
   if(thetaCpGroup->isChecked()){
-    if(thetaCpBGroup->checkedId() == 0)clean_text += "\n theta_v=" + thetavGroup->text();
-    else clean_text += "\n       " + cpGroup->text();
+    if(thetaCpBGroup->checkedId() == 0)clean_text += "\n     theta_v=" + thetavGroup->text();
+    else clean_text += "\n" + cpGroup->text();
   }
+  if(clean_text.right(2)==QString(", "))clean_text = clean_text.section(',', 0, -2);
   if(clean_text != "") return text_name + text_infix + "<"+clean_text+">"+";\n";
   else return text_name + ";\n";
 }
+
+void CpWindow::setText(){
+  display->setText(text());
+}
+
 
 CpGroup ::CpGroup(QWidget* parent):QGroupBox(tr("curve fit for Cp"),parent){
  
@@ -364,14 +367,11 @@ CpGroup ::CpGroup(QWidget* parent):QGroupBox(tr("curve fit for Cp"),parent){
   tableView->setSelectionModel(selections);
   tableView->setSelectionMode(QAbstractItemView::SingleSelection);
   tableView->setItemDelegate(delegate);
-  // tableView->resizeRowsToContents();
   tableView->resizeColumnsToContents();
   
   numberOfIntervals =3;
   model->setRowCount(4);
 
-  // QPushButton* saveButton = new QPushButton(tr("          save the model        "));
-  //connect(saveButton, SIGNAL(clicked()), this, SLOT(save()));
   
   connect(model, SIGNAL(itemChanged(QStandardItem*)), this, SIGNAL(textChanged()));
   QVBoxLayout* mainLayout = new QVBoxLayout;
@@ -380,7 +380,6 @@ CpGroup ::CpGroup(QWidget* parent):QGroupBox(tr("curve fit for Cp"),parent){
   mainLayout->addWidget(equationGroup);
   mainLayout->addWidget(nGroup);
   mainLayout->addWidget(tableView);
-  //  mainLayout->addWidget(saveButton);
   setLayout(mainLayout);
 
 }
@@ -400,7 +399,7 @@ QString CpGroup::text(){
   QString tab = "     ";
   QString text = tab + "cp=[";
   QString prefix;
-  tab += "            "; 
+  tab += "    "; 
      if(shomateButton->isChecked())prefix =tab+"shomate";
      else prefix=tab+"poly";
      
@@ -416,22 +415,105 @@ QString CpGroup::text(){
      text += tab+(model->index(nEdit->value(), 0)).data(Qt::EditRole).toString()+"]";
      return text;
 }
-void SpeciesGroup::replaceButtonToggled(bool checked){
-  if(checked)mGroup->show();
-  else mGroup->hide();
+
+
+void SpeciesGroup::replaceBGroupClicked(int bid){
+  if(bid==0)mGroup->show();
+  else{
+    mGroup->setChecked(false);
+    mGroup->hide();
+  }
+  setText();
 }
 
 void SpeciesGroup::nameBGroupClicked(int bId){
-  if(bId==0)mGroup->show();
-  else mGroup->hide();
+  if(bId==0){
+    mGroup->show();
+    mGroup->setChecked(true);
+    nameEdit->setInputMask("_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  }else{
+    mGroup->show();
+    mGroup->setChecked(false);
+    nameEdit->setInputMask(QString());
+  }
+  setText();
 }
+
+
 
 QString SpeciesGroup::getSpecies(){
   return nameEdit->text();
 }
 
+ExpNu::ExpNu(const QStringList& sp, QWidget* parent):
+  QGroupBox(tr("Exp_nu"), parent),species(sp){
+  setCheckable(true);
+  setChecked(false);   
+  bool floatAllowed = true;
+  QGridLayout* mainLayout = new QGridLayout;
+  
+  for(int i = 0; i < sp.count(); i++){
+    NumberString *aSp = new NumberString(sp.at(i),floatAllowed);
+    mainLayout->addWidget(aSp, i/5, i%5, 1, 1);
+    exp_nu<<aSp;
+    connect(aSp, SIGNAL(textChanged()), this, SIGNAL(textChanged()));
+    connect(aSp, SIGNAL(toggled(bool)), this, SIGNAL(textChanged()));
+  }
+  setLayout(mainLayout);
+}
+QString ExpNu::text(){
+   QString text="[";
+   for(int i = 0; i < species.count(); i++){
+     if(exp_nu.at(i)->isChecked()){
+       text += exp_nu.at(i)->cleanText()+", ";
+     }
+   }
+   if(text.right(2)==QString(", "))text = text.section(',', 0, -2); 
+   text += "]";
+   return text;
+}
+     
+void ExpNu::clear(){
+  for(int i = 0; i < species.count(); i++){
+    exp_nu.at(i)->clear();
+  }
+  setChecked(false);
+}
 
+RateModifier::RateModifier(const QString& vname, int n, QWidget* parent):
+  QGroupBox(tr("Rate Modifier:")+vname, parent), name(vname), numValues(n){
+  setCheckable(true);
+  setChecked(false);   
+ 
+  QGridLayout* mainLayout = new QGridLayout;
+  
+  for(int i = 0; i < n; i++){
+    DoubleEdit *editor = new DoubleEdit;
+    mainLayout->addWidget(editor, i/2, i%2, 1, 1);
+    edits<<editor;
+    connect(editor, SIGNAL(valueChanged(double)), this, SIGNAL(textChanged()));
+   
+  }
+  setLayout(mainLayout);
+}
 
+QString RateModifier::text(){
+   QString text=name+"(";
+   for(int i = 0; i < numValues; i++){
+     text += edits[i]->text()+", ";
+     if((i+1)%2==0) text+="\n";
+   }
+   text = text.section(',', 0, -2); 
+   text += ")";
+   return text;
+}
+     
+void RateModifier::clear(){
+  for(int i = 0; i < numValues; i++){
+    edits[i]->clear();
+  }
+  setChecked(false);
+}
 
 KFKC::KFKC(const QString& title, QWidget* parent):
   QGroupBox(title, parent){
@@ -461,6 +543,11 @@ KFKC::KFKC(const QString& title, QWidget* parent):
   mainLayout->addWidget(ther);
   setLayout(mainLayout);
 }
+
+
+
+    
+  
 void KFKC::arrToggled(bool checked){
   if(checked){
     f1->setDisabled(false);
@@ -482,7 +569,7 @@ void KFKC::checkTher(){
   ther->setChecked(true);
 }
 
-NumberString::NumberString(const QString& title, QWidget* parent , bool fa):
+NumberString::NumberString(const QString& title, bool fa, QWidget* parent):
   QGroupBox(title, parent),floatAllowed(fa){
   setCheckable(true);
   setChecked(false);
@@ -495,11 +582,11 @@ NumberString::NumberString(const QString& title, QWidget* parent , bool fa):
     qobject_cast<QSpinBox*>(edit)->setMinimum(1);
     connect(edit, SIGNAL(valueChanged(const QString&)), this, SIGNAL(textChanged()));
   }
-  // connect(this, SIGNAL(toggled()), this, SIGNAL(textChanged()));
+
   QHBoxLayout* mainLayout = new QHBoxLayout;
   mainLayout->addWidget(edit);
   setLayout(mainLayout);
-  // setFlat(true);
+
 }
 void NumberString::clear(){
  if(isCheckable()) setChecked(false);
@@ -522,8 +609,16 @@ QString NumberString::text(){
   }
   return text;
 }
+ 
+ QString NumberString::cleanText(){
+   QString text;
+   if(floatAllowed)
+     text += title() + "=" +qobject_cast<DoubleEdit*>(edit)->text();
+   else text += title() + "="+ qobject_cast<QSpinBox*>(edit)->cleanText();
+   return text;
+ }
 
-
+      
 Reactants::Reactants(const QStringList& sp, const QString& title, QWidget* parent):
   QGroupBox(title, parent){
   bool floatAllowed = false;
@@ -537,7 +632,7 @@ Reactants::Reactants(const QStringList& sp, const QString& title, QWidget* paren
   }
 
   for(int i = 0; i < sp.count(); i++){
-    NumberString *aSp = new NumberString(sp.at(i), this, floatAllowed);
+    NumberString *aSp = new NumberString(sp.at(i), floatAllowed);
     mainLayout->addWidget(aSp, i/5, i%5, 1, 1);
     species<<aSp;
     connect(aSp, SIGNAL(textChanged()), this, SIGNAL(textChanged()));
@@ -564,6 +659,8 @@ QString Reactants::text(){
   }
   return text;
 }
+
+
 
 ReactionGroup::ReactionGroup(const QStringList& species, const QString& title, QWidget* parent):QGroupBox(title, parent){
   
@@ -592,7 +689,7 @@ ReactionGroup::ReactionGroup(const QStringList& species, const QString& title, Q
   
   QHBoxLayout* vBoxLayout = new QHBoxLayout;
   vBoxLayout->addWidget(mbody);
-    vBoxLayout->addStretch(10);
+  vBoxLayout->addStretch(10);
   vBoxLayout->addWidget(new QLabel(tr("direction:")));
   vBoxLayout->addWidget(direction);
   vBoxLayout->addStretch(20);
@@ -600,27 +697,41 @@ ReactionGroup::ReactionGroup(const QStringList& species, const QString& title, Q
 
   connect(mbody, SIGNAL(stateChanged(int)), this, SLOT(setText()));
   connect(direction, SIGNAL(currentIndexChanged(int)), this, SLOT(setText()));
- connect(direction, SIGNAL(currentIndexChanged(int)), this, SLOT(directionChanged()));
+  connect(direction, SIGNAL(currentIndexChanged(int)), this, SLOT(directionChanged()));
+
   kf = new KFKC(tr("please specify Kf:"));
   kc = new KFKC(tr("please specify Kc:"));
   kc->checkTher();
   kc->hide();
+
+  expnu= new ExpNu(species);
+  minMf = new NumberString(tr("MinMF"), true);
+  mdf = new RateModifier(tr("pressure"),2);
   
   connect(kf, SIGNAL(textChanged()), this, SLOT(setText()));
   connect(kc, SIGNAL(textChanged()), this, SLOT(setText()));
   connect(kf, SIGNAL(clicked(bool)), this, SLOT(setText()));
   connect(kc, SIGNAL(clicked(bool)), this, SLOT(setText()));
-  //hBoxLayout->addLayout(vBoxLayout);
+  connect(expnu, SIGNAL(textChanged()), this, SLOT(setText()));
+  connect(expnu, SIGNAL(clicked(bool)), this, SLOT(setText()));
+  connect(minMf, SIGNAL(textChanged()), this, SLOT(setText()));
+  connect(minMf, SIGNAL(clicked(bool)), this, SLOT(setText()));
+  connect(mdf, SIGNAL(textChanged()), this, SLOT(setText()));
+  connect(mdf, SIGNAL(clicked(bool)), this, SLOT(setText()));
+
   QVBoxLayout* mainLayout = new QVBoxLayout;
   display = new QLabel;
   QPushButton* acceptButton = new QPushButton(tr("accept"));
-  //  connect(acceptButton, SIGNAL(clicked()), this, SIGNAL(accept()));
+
   connect(acceptButton, SIGNAL(clicked()), this, SLOT(clear()));
-  //mainLayout->addWidget(mbody);
+
   mainLayout->addLayout(vBoxLayout);
   mainLayout->addLayout(hBoxLayout);
   mainLayout->addWidget(kf);
   mainLayout->addWidget(kc);
+  mainLayout->addWidget(expnu);
+  mainLayout->addWidget(minMf);
+  mainLayout->addWidget(mdf); 
   mainLayout->addWidget(display);
   mainLayout->addWidget(acceptButton);
   setLayout(mainLayout);
@@ -631,6 +742,9 @@ void ReactionGroup::clear(){
   products->clear();
   kf->clear();
   kc->clear();
+  expnu->clear();
+  minMf->clear();
+  mdf->clear();
   display->setText("");
 }
 void KFKC::clear(){
@@ -644,11 +758,32 @@ QString ReactionGroup::text(){
   text += direction->currentText();
   text += products->text();
   if(mbody->isChecked()) text += " +M";
-  if(kf->isChecked()) text += " = <Kf = " + kf->text();
-  if(kc->isChecked()) text += ",\n                      Kc = " +  kc->text();
-  if(kf->isChecked() || kc->isChecked()) text += ">";
+  if(kf->isChecked() || kc->isChecked()
+     ||expnu->isChecked()||minMf->isChecked()
+     ||mdf->isChecked()) text += " = <";
+  if(kf->isChecked()) text += "Kf = " + kf->text();
+  
+  if(kc->isChecked()){
+    if(kf->isChecked()) text += ",\n                     ";
+    text += "Kc = " +  kc->text();
+  }
+  if(expnu->isChecked()){
+    if(kf->isChecked()||kc->isChecked())text += ",\n                     ";
+    text += "exp_nu = " +  expnu->text();
+  }
+  if(minMf->isChecked()){
+    if(kf->isChecked()||kc->isChecked()||expnu->isChecked())text += ",\n                     ";
+    text +=   minMf->cleanText();
+  }
+  if(mdf->isChecked()){
+    if(kf->isChecked()||kc->isChecked()||expnu->isChecked()||minMf->isChecked())text += ",\n                     ";
+    text += "rate_modifier = " +  mdf->text();
+  }
+  
+  if(kf->isChecked() || kc->isChecked()||expnu->isChecked()
+     ||minMf->isChecked()||mdf->isChecked()) text += ">";
   text += ";\n";
-
+  
   return text;
 }
 void ReactionGroup::setText(){
@@ -700,21 +835,6 @@ QStringList SpeciesWindow:: getSpecies(){
   return species;
 }
 
-// void SpeciesWindow::addReactionClicked(){
-//   if(reactionWindow){
-//     delete reactionWindow;
-//     reactionWindow = 0;
-//   }
-  
-//   reactionList = new QListWidget;
-//   reactionPage = new ReactionGroup(species);
-//   QHBoxLayout* reactionLayout = new QHBoxLayout;
-//   reactionLayout->addWidget(reactionPage);
-//   reactionLayout->addWidget(reactionList);
-//   mainLayout->addLayout(reactionLayout);
-// }
-  
-
 
 
 
@@ -737,8 +857,8 @@ ReactionWindow::ReactionWindow( const QStringList& sps, const QString& title,QWi
   listLayout->addWidget(reactionList);
   listLayout->addLayout(buttonLayout);
   mainLayout = new QHBoxLayout;
-  mainLayout->addWidget(reactionPage);
-  mainLayout->addLayout(listLayout);
+  mainLayout->addWidget(reactionPage, 1);
+  mainLayout->addLayout(listLayout, 2);
   setLayout(mainLayout);
 }
 
@@ -783,7 +903,7 @@ ChemistryMdl::ChemistryMdl(bool noReaction, QWidget* parent):QWidget(parent){
   buttonGroup->setExclusive(true);
   
   QRadioButton* speciesButton = new QRadioButton(tr("Add Species"));
-  QRadioButton* reactionButton = new QRadioButton(tr("Add Reaction"));
+   reactionButton = new QRadioButton(tr("Add Reaction"));
   QRadioButton* saveButton = new QRadioButton(tr("save the model"));
  
   QHBoxLayout* buttonLayout = new QHBoxLayout;
@@ -834,7 +954,11 @@ void  ChemistryMdl::changePage(int id){
     break;
   }
 }
-    
+
+void ChemistryMdl::hideReaction(){
+  reactionButton->hide();
+}
+  
 bool ChemistryMdl::save(){
     QString initialPath = QDir::currentPath()+"/untitled.mdl";
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"),
@@ -843,7 +967,8 @@ bool ChemistryMdl::save(){
     
     if (fileName.isEmpty())
       {
-        QMessageBox::warning(this, tr("Window"), tr("Please specify filename")); 
+        //no messagebox in case of cancel
+        // QMessageBox::warning(this, tr("Window"), tr("Please specify filename")); 
         return false;
       }
 
@@ -871,7 +996,7 @@ bool ChemistryMdl::save(){
     file.close();
     return true;
   }
-CpWindow::CpWindow(const QString& title, QWidget* parent):QGroupBox(title, parent){
+CpWindow::CpWindow(const QString& title, const QString& pf, QWidget* parent):QGroupBox(title, parent),prefix(pf){
   
   QGroupBox* nameGroup= new QGroupBox(tr("name of the gas"));
   nameBGroup = new QButtonGroup(this);
@@ -886,8 +1011,7 @@ CpWindow::CpWindow(const QString& title, QWidget* parent):QGroupBox(title, paren
   nameEdit = new QLineEdit;
 
   connect(nameBGroup, SIGNAL(buttonClicked(int)), this, SLOT(nameBGroupClicked(int)));
-  //connect(nameBGroup, SIGNAL(buttonClicked(int)), this, SLOT(setText()));
-  //connect(nameEdit, SIGNAL(textChanged(const QString&)), this, SLOT(setText()));
+  connect(nameEdit, SIGNAL(textChanged(const QString&)), this, SLOT(setText()));
   
   QGridLayout *nameLayout = new QGridLayout;
   
@@ -912,7 +1036,7 @@ CpWindow::CpWindow(const QString& title, QWidget* parent):QGroupBox(title, paren
   replaceLayout->addWidget(rradio1);
   replaceGroup->setLayout(replaceLayout);
 
-  //  connect(replaceBGroup, SIGNAL(buttonClicked(int)), this, SLOT(setText()));
+  connect(replaceBGroup, SIGNAL(buttonClicked(int)), this, SLOT(replaceBGroupClicked(int)));
   
   mGroup = new QGroupBox(tr("molecular mass"));
   QHBoxLayout *mLayout = new QHBoxLayout;
@@ -922,24 +1046,11 @@ CpWindow::CpWindow(const QString& title, QWidget* parent):QGroupBox(title, paren
   mGroup->setLayout(mLayout);
   mGroup->setCheckable(true);
   mGroup->setChecked(false);
-  // connect(mGroup, SIGNAL(clicked(bool)), this, SLOT(setText()));
-  //  connect(mEdit, SIGNAL(textChanged(const QString&)), this, SLOT(setText()));
-  
- 
-  
- 
-  
-  
- 
-  
-  cpGroup = new CpGroup;
-  
-  
- 
-  
- 
+  connect(mGroup, SIGNAL(clicked(bool)), this, SLOT(setText()));
+  connect(mEdit, SIGNAL(textChanged(const QString&)), this, SLOT(setText()));     
 
-  
+  cpGroup = new CpGroup;
+   connect(cpGroup, SIGNAL(textChanged()), this, SLOT(setText()));  
   QVBoxLayout* mainLayout = new QVBoxLayout;
   QGridLayout* vBoxLayout = new QGridLayout;
   
@@ -949,12 +1060,28 @@ CpWindow::CpWindow(const QString& title, QWidget* parent):QGroupBox(title, paren
   
   mainLayout->addLayout(vBoxLayout);
   mainLayout->addWidget(cpGroup);
- 
+  
+  display = new QLabel;
+  mainLayout->addWidget(display);
+   
   QPushButton* acceptButton = new QPushButton(tr("&Save the model"));
-  // connect(acceptButton, SIGNAL(clicked()), this, SIGNAL(accept()));
+
   connect(acceptButton, SIGNAL(clicked()), this, SLOT(save()));
   mainLayout->addWidget(acceptButton);
   setLayout(mainLayout);
+}
+
+QString CpWindow::text(){
+  QString text ="species = {\n";
+  QString text_name = nameEdit->text();
+  QString text_infix;
+  if(replaceBGroup->checkedId() == 0) text_infix  = " = ";
+  else text_infix = " : ";
+  QString clean_text ;
+  if(mGroup->isChecked()) clean_text  += "m=" + mEdit->text() +", ";
+  clean_text += prefix+"\n"  + cpGroup->text();
+  text += text_name + text_infix + "<"+clean_text+">"+" ;\n} ;\n\nreactions = {\n} ;";
+  return text;
 }
 bool CpWindow::save(){
   QString initialPath = QDir::currentPath()+"/untitled.mdl";
@@ -981,33 +1108,32 @@ bool CpWindow::save(){
   
   QTextStream out(&file);
   QApplication::setOverrideCursor(Qt::WaitCursor);
-  out << nameEdit->text();
-  QString tab=QString(nameEdit->text().size()+8, ' ');
-  QString firstTab=QString(nameEdit->text().size()+3, ' ');
-  if(replaceBGroup->checkedId() == 0)out<<" = <";
-  else out <<" : <";
-  if(replaceBGroup->checkedId()==0){
-    out<<"m=";
-    out<<mEdit->value();
-    out<<", href=55749, sref=130751, Tref=300, Pref=101325.0, mf=1,"<<endl;
-    // out<<firstTab+ "cp=[ ";
-     }else{
-       // out<< "cp=[ ";
-     }
-  out << cpGroup->text();
-  out << ">;\n";
-    
-    QApplication::restoreOverrideCursor(); 
+
+  out<<text()<<endl;
+  QApplication::restoreOverrideCursor(); 
   file.close();
-  //   myelem.setAttribute("current", fileName);
   return true;
   
 }
-void CpWindow::replaceButtonToggled(bool checked){
-  if(checked)mGroup->show();
-  else mGroup->hide();
+
+void CpWindow::replaceBGroupClicked(int bid){
+  if(bid==0)mGroup->show();
+  else{
+    mGroup->setChecked(false);
+    mGroup->hide();
+  }
+  setText();
 }
+
 void CpWindow::nameBGroupClicked(int bId){
-  if(bId==0)mGroup->show();
-  else mGroup->hide();
+  if(bId==0){
+    mGroup->show();
+    mGroup->setChecked(true);
+    nameEdit->setInputMask("_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  }else{
+    mGroup->show();
+    mGroup->setChecked(false);
+    nameEdit->setInputMask(QString());
+  }
+  setText();
 }

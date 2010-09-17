@@ -161,7 +161,7 @@ void GLViewer::initializeGL()
 {
   glShadeModel(GL_SMOOTH);
   glEnable(GL_DEPTH_TEST);
-  glClearColor(1.0, 1.0, 1.0, 1.0);
+  glClearColor(0.5, 0.5, 0.5, 0.5);
   qobj = gluNewQuadric();
   gluQuadricCallback(qobj, GLU_ERROR, 
                     0);
@@ -404,7 +404,7 @@ if(p.size()==0)return;
   glVertex3d( size, -1*size,z);
   glEnd();
   glBegin(GL_LINES);
-  glVertex3d(0,  0, 0);
+  glVertex3d(0,  0, z);
   glVertex3d(0, 0, z + 0.5*size);
   glVertex3d( -1*size, 0, z);
   glVertex3d( size,0, z);
@@ -428,7 +428,7 @@ void GLViewer::drawNzPlane(const vector<double>& p, double size){
   glVertex3d( size, -1*size,z);
   glEnd();
   glBegin(GL_LINES);
-  glVertex3d(0,  0, 0);
+  glVertex3d(0,  0, z);
   glVertex3d(0, 0, z - 0.5*size);
    glVertex3d( -1*size, 0, z);
   glVertex3d( size,0, z);
@@ -449,178 +449,13 @@ void GLViewer::updateDoc(const QTreeWidgetItem* root){
   updateGL();
 }
 
-// void GLViewer::drawShapes(){
-//   show_shapes =  true;
-//   show_nodes = false;
-//   if(adaptwindow == 0)return;
-//   if(adaptwindow->tree == 0)return;
-//   QList<QTreeWidgetItem*> shapes = adaptwindow->tree->findItems(tr("object"), Qt::MatchRecursive);
-  
-//   if(shapes.size() ==0)return;
-
-
-//   glLineWidth(5);
-//   for( int i = 0; i <shapes.size(); i++){
-
-//     if(shapes[i]->childCount() == 0)continue; //no child, do nothing
-//     glPushMatrix();
-//     double planesize = 1;
-//     QTreeWidgetItem* objItem = 0;
-//     for(int childId = 0; childId <shapes[i]->childCount(); childId++){
-   
-//     QTreeWidgetItem* transItem = 0;
-   
-//     if(shapes[i]->child(childId)->text(0)=="transform"){
-//       transItem =shapes[i]->child(childId);
-//     }else if(shapes[i]->child(childId)->text(0)=="shape")  objItem = shapes[i]->child(childId);
-    
-//     if(transItem != 0){
-      
-//       for( int j= 0; j < transItem->childCount(); j++){
-//         if(transItem->child(j)->text(0) =="translate"){
-//           double x0 =0 , y0 = 0, z0 = 0;
-//           for(int k = 0; k < transItem->child(j)->childCount(); k++){
-//             if(transItem->child(j)->child(k)->text(0)=="x0")x0 = transItem->child(j)->child(k)->text(1).toDouble();
-//             else  if(transItem->child(j)->child(k)->text(0)=="y0")y0 = transItem->child(j)->child(k)->text(1).toDouble();
-//             else  if(transItem->child(j)->child(k)->text(0)=="z0")z0 = transItem->child(j)->child(k)->text(1).toDouble();
-//             else{
-              
-//               qDebug()<<tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'translate'");
-                                   
-//               return;
-//             }
-            
-//           } 
-             
-//         if(x0!=0 || y0 !=0 || z0 !=0)
-//           glTranslated(x0,
-//                        y0,
-//                        z0) ;
-//         }else if(transItem->child(j)->text(0) =="scale"){
-//           double x0 =1 , y0 = 1, z0 = 1;
-//           for(int k = 0; k < transItem->child(j)->childCount(); k++){
-//             if(transItem->child(j)->child(k)->text(0)=="x0")x0 = transItem->child(j)->child(k)->text(1).toDouble();
-//             else  if(transItem->child(j)->child(k)->text(0)=="y0")y0 = transItem->child(j)->child(k)->text(1).toDouble();
-//             else  if(transItem->child(j)->child(k)->text(0)=="z0")z0 = transItem->child(j)->child(k)->text(1).toDouble();
-//             else{
-             
-//               qDebug() << tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'scale'");
-             
-//               return;
-//             }
-            
-//           } 
-          
-//         if(x0!=1 || y0 !=1 || z0 !=1)
-//           glScaled(x0,
-//                    y0,
-//                    z0) ;
-//          planesize = planesize*x0;
-//         }else if(transItem->child(j)->text(0) =="rotateX"){
-
-//           double theta = 0;
-//           for(int k = 0; k < transItem->child(j)->childCount(); k++){
-//             if(transItem->child(j)->child(k)->text(0)=="theta")theta = transItem->child(j)->child(k)->text(1).toDouble();
-//             else{
-             
-//               qDebug()<< tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'rotateX'");
-             
-//               return;
-//             }
-//           }
-             
-//           if(theta != 0)glRotatef(theta, 1, 0, 0);
-//         }else if(transItem->child(j)->text(0) =="rotateY"){
-
-//           double theta = 0;
-//           for(int k = 0; k < transItem->child(j)->childCount(); k++){
-//             if(transItem->child(j)->child(k)->text(0)=="theta")theta = transItem->child(j)->child(k)->text(1).toDouble();
-//             else{
-           
-//               qDebug()<<tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'rotateY'");
-           
-//               return;
-//             }
-//           }
-             
-//           if(theta != 0)glRotatef(theta, 0, 1, 0);
-//           }else if(transItem->child(j)->text(0) =="rotateZ"){
-
-//             double theta = 0;
-//             for(int k = 0; k < transItem->child(j)->childCount(); k++){
-//               if(transItem->child(j)->child(k)->text(0)=="theta")theta = transItem->child(j)->child(k)->text(1).toDouble();
-//               else{
-               
-//                 qDebug() << tr("illegal child ") + transItem->child(j)->child(k)->text(0) + tr(" in 'rotateZ'");
-//                 return;
-//               }
-//             }
-            
-//             if(theta != 0)glRotatef(theta, 0, 0, 1);
-//           }else{
-             
-//             qDebug()<< tr("illegal child ") + transItem->child(j)->text(0) + tr(" in 'transform'");
-//             return;
-                 
-//           }
-//       }
-//     }
-//     }
-//     if(objItem == 0 || objItem->childCount() == 0) {
-
-//      if(objItem) qDebug()<< objItem->text(0);
-    
-//      qDebug()<<tr("no child 'shape' in 'object'");
-//      return;
-//     }
-    
-    
-
-//     objItem = objItem->child(0);
-//     vector<double> para;
-//     for(int j =0; j < objItem->childCount(); j++){
-//       para.push_back(objItem->child(j)->text(1).toDouble());
-//     }
-    
-    
-//     if(objItem->text(0) =="sphere") 
-//       drawSphere(para);
-//     else if(objItem->text(0) =="cone") 
-//       drawCone(para);
-//     else if(objItem->text(0) =="cylinder") 
-//       drawCylinder(para); 
-//     else if(objItem->text(0) =="box") 
-//       drawCube(para);
-//     else if(objItem->text(0) =="x_plus_plane")
-//         drawPxPlane(para, planesize);
-//     else if(objItem->text(0) =="x_minus_plane")
-//       drawNxPlane(para, planesize);
-//     else if(objItem->text(0) =="y_plus_plane")
-//        drawPyPlane(para, planesize);
-//     else if(objItem->text(0) =="y_minus_plane")
-//       drawNyPlane(para, planesize);
-//     else if(objItem->text(0) =="z_plus_plane")
-//       drawPzPlane(para, planesize);
-//     else if(objItem->text(0) =="z_minus_plane")
-//       drawNzPlane(para, planesize);
-    
-  
-
-//     glPopMatrix(); 
-    
-//   }
-//    glLineWidth(1);
-// }
-
 
 
 
 
 void GLViewer::drawShapes(){
   show_shapes =  true;
-  //show_nodes = false;
-  // if(adaptwindow == 0)return;
-  //QDomDocument doc = adaptwindow->toDom();
+ 
   if(doc.isNull())return;
   
  
@@ -753,7 +588,7 @@ void GLViewer::drawShapes(){
             para.push_back(obj_elem.text().toDouble());
         }
     
-        
+       
         if(elm.tagName() =="sphere") 
           drawSphere(para);
         else if(elm.tagName() =="cone") 
@@ -783,19 +618,18 @@ void GLViewer::drawShapes(){
     }
   }
   glLineWidth(1);
+  drawMarkedNodes();
     
 }
-// void GLViewer::markNodes(){
-//   show_shapes = false;
-//   show_nodes = true;
-//   if(adaptwindow==0) return;
-//   QDomDocument doc = adaptwindow->toDom();
-//   if(doc.firstChildElement().isNull())return;
-//   tags.clear();
-//   QDomElement rootElement = doc.firstChildElement("region");
-//   tags = process_region(rootElement, meshNodes);
-//   updateGL();
-// }
+void GLViewer::markNodes(){
+  if(doc.firstChildElement().isNull())return;
+  tags.clear();
+  QDomElement rootElement = doc.firstChildElement("region");
+  tags = process_region(rootElement, meshNodes);
+  updateGL();
+}
+
+
 unsigned long readAttributeLong(hid_t group, const char *name) {
   hid_t id_a = H5Aopen_name(group,name) ;
   unsigned long val = 0;
@@ -804,142 +638,135 @@ unsigned long readAttributeLong(hid_t group, const char *name) {
   return val ;
 }
 
-// void GLViewer::markVolumeNodes(QString filename){
-//   //read in nodes
-//   hid_t input_fid ; 
-//   input_fid = H5Fopen(filename.toLocal8Bit(),H5F_ACC_RDONLY,H5P_DEFAULT);
-//   if(input_fid <= 0) {
-//     qDebug() << "unable to open file '" << filename << "'"<< endl ;
-//     return;
-//   }
-//   // read in positions
-//   hid_t fi = H5Gopen(input_fid,"file_info", H5P_DEFAULT) ;
-//    unsigned long numNodes = readAttributeLong(fi,"numNodes") ;
+void GLViewer::markVolumeNodes(QString filename){
+  //read in nodes
+  hid_t input_fid ; 
+  input_fid = H5Fopen(filename.toLocal8Bit(),H5F_ACC_RDONLY,H5P_DEFAULT);
+  if(input_fid <= 0) {
+    qDebug() << "unable to open file '" << filename << "'"<< endl ;
+    return;
+  }
+  // read in positions
+  hid_t fi = H5Gopen(input_fid,"file_info", H5P_DEFAULT) ;
+  unsigned long numNodes = readAttributeLong(fi,"numNodes") ;
+
   
-//   H5Gclose(fi) ;
+  H5Gclose(fi) ;
   
-//   hsize_t count = numNodes ;
+  hsize_t count = numNodes ;
   
-//   //#ifdef H5_INTERFACE_1_6_4
-//   hsize_t lstart = 0 ;
-//   //#else
-//     // hssize_t lstart = 0 ;
-//   //#endif
+  //#ifdef H5_INTERFACE_1_6_4
+  hsize_t lstart = 0 ;
+  //#else
+    // hssize_t lstart = 0 ;
+  //#endif
   
-//     // Read in pos data from file i
-//   vector<positions3d> pos_dat(numNodes) ;
-//   hid_t node_g = H5Gopen(input_fid,"node_info", H5P_DEFAULT) ;
-//   hid_t dataset = H5Dopen(node_g,"positions", H5P_DEFAULT) ;
-//   hid_t dspace = H5Dget_space(dataset) ;
+    // Read in pos data from file i
+  vector<positions3d> pos_dat(numNodes) ;
+  hid_t node_g = H5Gopen(input_fid,"node_info", H5P_DEFAULT) ;
+  hid_t dataset = H5Dopen(node_g,"positions", H5P_DEFAULT) ;
+  hid_t dspace = H5Dget_space(dataset) ;
 
   
 
-//   hid_t pos_tid = H5Tcreate(H5T_COMPOUND, sizeof(positions3d));
+  hid_t pos_tid = H5Tcreate(H5T_COMPOUND, sizeof(positions3d));
     
-//   H5Tinsert(pos_tid, "x", 0, H5T_IEEE_F64LE);
-//   H5Tinsert(pos_tid, "y", sizeof(double), H5T_IEEE_F64LE);
-//   H5Tinsert(pos_tid, "z", 2*sizeof(double), H5T_IEEE_F64LE);
+  H5Tinsert(pos_tid, "x", 0, H5T_IEEE_F64LE);
+  H5Tinsert(pos_tid, "y", sizeof(double), H5T_IEEE_F64LE);
+  H5Tinsert(pos_tid, "z", 2*sizeof(double), H5T_IEEE_F64LE);
 
-//   hsize_t stride = 1 ;
-//   H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count, NULL
-// ) ;
-//   int rank = 1 ;
-//   hsize_t dimension = count ;
-//   hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
+  hsize_t stride = 1 ;
+  H5Sselect_hyperslab(dspace,H5S_SELECT_SET,&lstart,&stride,&count, NULL
+) ;
+  int rank = 1 ;
+  hsize_t dimension = count ;
+  hid_t memspace = H5Screate_simple(rank,&dimension,NULL) ;
  
-//   hid_t err = H5Dread(dataset,pos_tid, memspace,dspace,H5P_DEFAULT,
-// 		      &pos_dat[0]) ;
-//   if(err < 0) {
-//     qDebug() << "unable to read positions from '" << filename << "'" << endl ;
-//     return ;
-//   }
-//   H5Sclose(dspace) ;
-//   H5Dclose(dataset) ;
-//   H5Gclose(node_g) ;
+  hid_t err = H5Dread(dataset,pos_tid, memspace,dspace,H5P_DEFAULT,
+		      &pos_dat[0]) ;
+  if(err < 0) {
+    qDebug() << "unable to read positions from '" << filename << "'" << endl ;
+    return ;
+  }
+  H5Sclose(dspace) ;
+  H5Dclose(dataset) ;
+  H5Gclose(node_g) ;
 
-//   //mark the nodes
-//   vector<bool> volumeTags(numNodes);
+  //mark the nodes
+ 
+  if(doc.firstChildElement().isNull())return;
 
-//   QDomDocument doc = adaptwindow->toDom();
-//   if(doc.firstChildElement().isNull())return;
   
-//   QDomElement rootElement = doc.firstChildElement("region");
-//   vector<bool> vtags = process_region(rootElement, pos_dat);
-//   QString tagFileName =filename.section('.', 0, -2)+".tag";
   
-//   tagFileName = QFileDialog::getSaveFileName(this, tr("Save .tag File"),
-//                                              tagFileName,
-//                                              tr("tag Files (*.tag)"));
-//   if(tagFileName.section('.', -1, -1)!="tag") tagFileName +=".tag";
+  QDomElement rootElement = doc.firstChildElement("region");
+  vector<bool> vtags = process_region(rootElement, pos_dat);
+  QString tagFileName =filename.section('.', 0, -2)+".tag";
+  
+  tagFileName = QFileDialog::getSaveFileName(this, tr("Save .tag File"),
+                                             tagFileName,
+                                             tr("tag Files (*.tag)"));
+  if(tagFileName.section('.', -1, -1)!="tag") tagFileName +=".tag";
   
 
 
 
-//   QFileInfo tagInfo(tagFileName);
-//   if(tagInfo.exists()){
-//     QString command = "mv " + tagFileName+ " " + tagFileName+".bak";
-//     int ret =  system(command.toStdString().c_str());
-//     if(!WIFEXITED(ret))
-//       {
-//         if(WIFSIGNALED(ret))
-//           {
-//             QMessageBox::information(window(), "save tag file",
-//                                      command + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
-//             return;
-//           }
-//       }
-//   }
-//   if(tagFileName.isNull()){
+  QFileInfo tagInfo(tagFileName);
+  if(tagInfo.exists()){
+    QString command = "mv " + tagFileName+ " " + tagFileName+".bak";
+    int ret =  system(command.toStdString().c_str());
+    if(!WIFEXITED(ret))
+      {
+        if(WIFSIGNALED(ret))
+          {
+            QMessageBox::information(window(), "save tag file",
+                                     command + tr(" was terminated with the signal %d") + WTERMSIG(ret) );
+            return;
+          }
+      }
+  }
+  if(tagFileName.isNull()){
     
-//      return ;
-//   }
+     return ;
+  }
   
-//   QFile file(tagFileName);
-//   if (!file.open(QFile::WriteOnly | QFile::Text)) {
-//     QMessageBox::warning(this, tr("save .vars file "),
-//                          tr("Cannot write file %1:\n%2.")
-//                          .arg(tagFileName)
-//                          .arg(file.errorString()));
-//     return;
-//   }
+  QFile file(tagFileName);
+  if (!file.open(QFile::WriteOnly | QFile::Text)) {
+    QMessageBox::warning(this, tr("save .vars file "),
+                         tr("Cannot write file %1:\n%2.")
+                         .arg(tagFileName)
+                         .arg(file.errorString()));
+    return;
+  }
 
   
-//   QTextStream out(&file);
-//   for(unsigned int i = 0; i < vtags.size(); i++)
-//     out<< vtags[i]<<endl;
-//   file.close();
-  
-  
-// }
+  QTextStream out(&file);
+  for(unsigned int i = 0; i < vtags.size(); i++)
+    out<< vtags[i]<<endl;
+  file.close();
+}
 
-// void GLViewer::drawMarkedNodes(){
-//     if(tags.size() != meshNodes.size()) return;
-//     if(tags.size()==0) return;
-//     glPointSize(5);
-//     glBegin(GL_POINTS);
-//     for(unsigned int i = 0; i < tags.size(); i++){
-//       if(tags[i]){
-//         glVertex3d(meshNodes[i].x, meshNodes[i].y, meshNodes[i].z);
-//       }
-//   }
-//      glEnd();
-//   glPointSize(1);
-// }
+void GLViewer::drawMarkedNodes(){
+    if(tags.size() != meshNodes.size()) return;
+    if(tags.size()==0) return;
+    glPointSize(5);
+    glBegin(GL_POINTS);
+    for(unsigned int i = 0; i < tags.size(); i++){
+      if(tags[i]){
+        glVertex3d(meshNodes[i].x, meshNodes[i].y, meshNodes[i].z);
+      }
+  }
+     glEnd();
+  glPointSize(1);
+}
 
 void GLViewer::drawExtremeNodes(double value){
   
   
-  double length = max_val-min_val;
   
-  if(length < 1e-17) return;
-  
-  if(length < 1e-17) length = -length;
-
-
   double start=min_val, end = max_val;
+  
 
-
-  if(value > 0.5*(min_val+max_val)){
+  if(value > mid_val){
     start = value;
     end  = max_val;
   }else{
@@ -1361,7 +1188,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   resizeGL(currentWidth, currentHeight);
   makeObjects();
   clearCurrent();
-  cleanDoc();
+  //  cleanDoc();
   return true;
 }
 
@@ -2172,43 +1999,54 @@ void GLViewer::loadSca(){
     meshValues[i] = nodeVal[meshMap[i]];
   }
 
+  //store 20% of nodes, grid_quality variable, top or bottom 20% nodes
+  //other variables, top 10% and bottom 10% 
+  {
+    vector<pair<float, int> > sorted_nodeVal(npnts);
+    for(unsigned int i = 0; i < npnts; i++){
+      sorted_nodeVal[i] = pair<float, int>(nodeVal[i], i);
+    }
+    sort(sorted_nodeVal.begin(), sorted_nodeVal.end());
 
-  double length = 0.2*(max_val - min_val);
-  if(length > 1e-16){
+    mid_val = sorted_nodeVal[(int)(npnts/2)].first;
+    
+    int num_extreme_nodes = npnts /5;
+    extremeNodes.resize(num_extreme_nodes);
+    extremeValues.resize(num_extreme_nodes);
+    
     if(loadInfo.variable=="cellVol"){
-      double e_low = min_val + length;
-      for(size_t i = 0; i< nodeVal.size(); i++){
-        if(nodeVal[i] <= e_low ){
-          extremeValues.push_back(nodeVal[i]);
-          extremeNodes.push_back(nodePos[i]);
-        }
+      for(int i = 0; i < num_extreme_nodes; i++){
+        extremeValues[i] = nodeVal[sorted_nodeVal[i].second];
+        extremeNodes[i] = nodePos[sorted_nodeVal[i].second];
       }
+     
+      
     }else if(loadInfo.variable=="cellFaceAngle"||
              loadInfo.variable=="cellShearTwist"||
              loadInfo.variable=="cellTwist"||
              loadInfo.variable=="nonconvex"||
              loadInfo.variable=="volumeRatio"){
-      double e_high = max_val -length;
-      for(size_t i = 0; i< nodeVal.size(); i++){
-        if(nodeVal[i] >= e_high){
-          extremeValues.push_back(nodeVal[i]);
-          extremeNodes.push_back(nodePos[i]);   
-        }
+      for(int i = 0; i < num_extreme_nodes; i++){
+        extremeValues[i] = nodeVal[sorted_nodeVal[npnts-i-1].second];
+        extremeNodes[i] = nodePos[sorted_nodeVal[npnts-i-1].second];
       }
+     
     }else{
-      double e_low = min_val + length;
-      double e_high = max_val - length;
-      for(size_t i = 0; i< nodeVal.size(); i++){
-        if(nodeVal[i] >= e_high || nodeVal[i]<= e_low){
-          extremeValues.push_back(nodeVal[i]);
-          extremeNodes.push_back(nodePos[i]);   
-        }
-      } 
-      
+      int num_min_nodes = num_extreme_nodes/2;
+      int num_max_nodes = num_extreme_nodes - num_min_nodes;
+       for(int i = 0; i < num_min_nodes; i++){
+         extremeValues[i] = nodeVal[sorted_nodeVal[i].second];
+         extremeNodes[i] = nodePos[sorted_nodeVal[i].second];
+       }
+       for(int i = 1; i <= num_max_nodes; i++){
+         extremeValues[num_extreme_nodes-i] = nodeVal[sorted_nodeVal[npnts-i].second];
+         extremeNodes[num_extreme_nodes-i] = nodePos[sorted_nodeVal[npnts-i].second]; 
+       } 
+     
     }
+    qDebug() << "min, max, medium of : "<<loadInfo.variable<<": "  <<min_val << "  " << max_val << "  " << mid_val;  
   }
-  
-  qDebug() << "min, max: " <<min_val << "  " << max_val << extremeValues.size(); 
+ 
   show_boundary_shading = true;
   
   mode = BOUND_SELECT_MODE;
@@ -2258,9 +2096,9 @@ void GLViewer::toggleBorder()
   updateGL();
 }
 
-void GLViewer::toggleShowShapes()
+void GLViewer::setShowShapes(bool b)
 {
-  show_shapes = (show_shapes)?false:true;
+  show_shapes=b;
   updateGL();
 }
 

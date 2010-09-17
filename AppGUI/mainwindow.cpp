@@ -24,6 +24,7 @@ void MyPushButton::mouseMoveEvent(QMouseEvent */*event*/)
 
 MainWindow::MainWindow(QWidget* parent):QWidget(parent)
 {
+  setWindowTitle(tr("AppGui main window"));
   // QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
   QWidget::setMouseTracking(true);
   //first use main.xml set up doc

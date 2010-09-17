@@ -41,6 +41,7 @@
 RefDialog::RefDialog(QString bfile,  QWidget *parent)
   :  QWidget(parent),basefile(bfile)
 {
+  setWindowTitle("Refine Grid");
   setAttribute(Qt::WA_DeleteOnClose, true);
   QString tmpname = basefile.left(basefile.lastIndexOf('.'));
   cycle = tmpname.section('_', -1, -1).toInt();
@@ -183,7 +184,7 @@ RefDialog::RefDialog(QString bfile,  QWidget *parent)
   fileButtonGroup->addButton(outButton, 4);
   connect(fileButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(getfile(int)));
 
-  display = new QTextEdit("marker             \nrefmesh             ");
+  display = new QTextEdit("./marker             \n./refmesh             ");
  
   QPushButton* saveButton = new QPushButton(tr("save script"));
   QPushButton* runButton = new QPushButton(tr("run script"));
@@ -446,7 +447,7 @@ void RefDialog::setLevels(int d){
 }
 
 void RefDialog::setText(){
-  QString marker ="marker -g "+baseButton->text(); 
+  QString marker ="./marker -g "+baseButton->text(); 
   if(xmlOpt)marker += " -xml " + xmlfile;
   else marker += " -tag " + tagfile;
   if(!xmlOpt && rplanfile !="")marker += " -r " + rplanfile;
@@ -462,7 +463,7 @@ void RefDialog::setText(){
 
 
   
-  QString refmesh = "refmesh -g " + baseButton->text() + " -r " + planfile + " -o " + outfile;
+  QString refmesh = "./refmesh -g " + baseButton->text() + " -r " + planfile + " -o " + outfile;
   
   display->setPlainText(marker + refmesh);
   
