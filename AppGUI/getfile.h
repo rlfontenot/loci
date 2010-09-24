@@ -27,9 +27,9 @@ class GetFileWindow  : public QDialog
   void find();
   void openFileOfItem(int row, int column);
 public slots:
-   void addDirectory(QString);
-
- private:
+  void addDirectory(QString);
+  void setFileName(QString);
+private:
   QStringList findFiles(const QDir &directory, const QStringList &files,
                         const QString &text);
   void showFiles(const QDir &directory, const QStringList &files);

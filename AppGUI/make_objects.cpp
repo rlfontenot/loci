@@ -26,12 +26,13 @@ void GLViewer::makeObjects()
   
  
   if (cpContourObject) glDeleteLists(cpContourObject, 1);
- 
-  if (mode == PLANE_AND_BOUND_MODE || mode == PLANE_ONLY_MODE) {
-    if (gridObject) glDeleteLists(gridObject, 1);
-    if (contourObject) glDeleteLists(contourObject, 1);
-    if (borderObject) glDeleteLists(borderObject, 1);
-    if (shadingObject) glDeleteLists(shadingObject, 1);
+  if (gridObject) glDeleteLists(gridObject, 1);
+  if (contourObject) glDeleteLists(contourObject, 1);
+  if (borderObject) glDeleteLists(borderObject, 1);
+  if (shadingObject) glDeleteLists(shadingObject, 1);
+    
+  
+  if (mode == PLANE_AND_BOUND_MODE) {
     
     // Make all cutting plane display lists
     shadingObject = makeShadingObject();
@@ -39,7 +40,7 @@ void GLViewer::makeObjects()
     contourObject = makeContourObject();
     borderObject = makeBorderObject();
   }
-
+  
      
   if (!boundObjects.empty()) {
     for (size_t i = 0; i < boundObjects.size(); ++i)
@@ -220,7 +221,11 @@ GLuint GLViewer::makeShadingObject()
     positions3d aNode = positions3d(fig->pos[i].x, fig->pos[i].y, 0);
     tmpPos.push_back(transMatrix2.MapNode(aNode));
   }
-  
+  int error = glGetError();
+  if (error != GL_NO_ERROR) {
+    std::cout << "An OpenGL error has occured: " << gluErrorString(error) << std::endl;
+  }
+
    GLuint newList = glGenLists(1); 
    if(newList){
      glNewList(newList, GL_COMPILE);
@@ -240,6 +245,7 @@ GLuint GLViewer::makeShadingObject()
      }
      glEnd();
      glEndList();
+    
    }
    return newList;
 }

@@ -174,6 +174,12 @@ void GetFileWindow::addDirectory(QString dir){
              this, SLOT(openFileOfItem(int, int)));
  }
 
+void GetFileWindow::setFileName(QString fn){
+  addDirectory(fn.section('/', 0, -2));
+  fileNameLabel->setText("selected file: " +fn);
+  fileNameLabel->show();
+  emit fileNameSelected(fn);
+}
 
  void GetFileWindow::openFileOfItem(int row, int /* column */)
  {
@@ -197,9 +203,14 @@ void GetFileWindow::addDirectory(QString dir){
 FindFileWindow::FindFileWindow(const QDomElement& my_elem, QString& fileSelected, QWidget *parent)
   : GetFileWindow(my_elem.attribute("nameFilter"), fileSelected, parent){
   myelem=my_elem;
-  if(myelem.hasAttribute("current"))emit fileNameSelected(myelem.attribute("current"));
+  
+  if(myelem.attribute("status")=="done"){
+    QString fn = myelem.attribute("current");
+    setFileName(fn);
+  }
   connect(this, SIGNAL(fileNameSelected(QString)), this, SLOT(updateElem(QString)));
 }
+
 void FindFileWindow::updateElem(QString s){
   myelem.setAttribute("current",s);
   QString prefix =": ";

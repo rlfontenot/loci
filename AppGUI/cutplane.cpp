@@ -38,7 +38,8 @@ void cbVertex(void *vertex_data, void *user_data) {
   static  int count = 0;
 
   data[count] = vertex_data;
-  count = ++count % 3;
+  count++;
+  count = count%3;
 
   if (count == 0) {
     VolGrid* fig = (VolGrid*) user_data;
@@ -48,10 +49,6 @@ void cbVertex(void *vertex_data, void *user_data) {
   }
 }
 
-// void cbVertex(void *vertex_data, void *user_data) {
-//   vector<int>* tri = (vector<int>*) user_data;
-//   tri->push_back(*(int*)vertex_data);
-// }
 
 
 ///////////////////////////////////////////////////////////////////

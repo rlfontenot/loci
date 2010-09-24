@@ -34,15 +34,17 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QWidget* parent): GeneralGrou
     button->setToolTip(elem.attribute("whatsThis"));
     button->setStatusTip(elem.attribute("whatsThis"));
     button->setWhatsThis(elem.attribute("whatsThis"));
+    if(count==current)button->setChecked(true);
     buttonLayout->addWidget(button);
     typesWidget->addButton(button, count);
-    if(count==current)button->setChecked(true);
+   
     if(elem.hasAttribute("action") && elem.attribute("action")=="find file"){
       fileSelected="./output/";
       FindFileWindow* getFileWindow = new FindFileWindow(elem, fileSelected);
       connect(this, SIGNAL(directoryChanged(QString)), getFileWindow, SLOT(addDirectory(QString)));
       connect(getFileWindow, SIGNAL(fileNameSelected(QString)), this, SLOT(checkStatus()));
       pagesWidget->addWidget(getFileWindow);
+     
     }else if(elem.hasAttribute("element")&&elem.attribute("element")=="panel"){
       VarPanel* bdCndPage = new VarPanel(elem);
       connect(bdCndPage, SIGNAL(textChanged(const QString&)), this, SLOT(checkStatus()));
@@ -79,7 +81,7 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QWidget* parent): GeneralGrou
   connect(typesWidget,
           SIGNAL(buttonClicked(int)),
           this, SLOT(changePage(int)));
-  
+  changePage(current);
   myelem.setAttribute("current", current);
     
   buttonGroup->setLayout(buttonLayout);    
@@ -90,6 +92,7 @@ InitCndWindow::InitCndWindow(QDomElement& theelem, QWidget* parent): GeneralGrou
   setLayout(mainLayout);
   setWindowTitle(myelem.attribute("title"));
   checkStatus();
+  
 }
 
 void  InitCndWindow::setDirectory(QString s){

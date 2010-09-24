@@ -828,7 +828,7 @@ void GLViewer::paintGL()
     break;
 
   case PLANE_AND_BOUND_MODE:
-    
+  
     for (size_t i = 0; i < boundObjects.size(); ++i)
       if (objVisible[i])glCallList(boundObjects[i]);
     if (show_shading)glCallList(shadingObject);
@@ -839,18 +839,7 @@ void GLViewer::paintGL()
     if (show_contours)glCallList(contourObject);
     break;
      
-  case PLANE_ONLY_MODE:
-    if (show_shading)
-      glCallList(shadingObject);
-    //    if (show_grid)
-    // glCallList(gridObject);
-    //glEnable(GL_LINE_SMOOTH);
-    // glCallList(borderObject);
-    //glDisable(GL_LINE_SMOOTH);
-    //  if (show_contours)
-    // glCallList(contourObject);
-    
-    break;
+ 
   default:
     break;
   }
@@ -951,7 +940,6 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   QFileInfo surfInfo(surfFileName);
   QFileInfo vogInfo(fileName);
   
-  
   if(!(surfInfo.exists())|| surfInfo.created() < vogInfo.created()){
     QString command2 = "vog2surf -surface " + surfFileName + " " + fileName.section('.', 0, -2);
     int ret =  system(command2.toStdString().c_str());
@@ -973,10 +961,6 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
   QString directory = fileName.left(first);
   loadInfo.casename = casename;
   loadInfo.directory = directory;
- 
-  
-
-  
 
   if(surfFileName.right(8) ==".surface"){
 
@@ -990,8 +974,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
     }
     
     QTextStream in(&file); 
-  
-    
+
     mesh.clear();
     vector<vector3d<double> > pos;
     
@@ -1007,7 +990,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
       in >> p.x >> p.y >> p.z ;
       pos[i] = p;
     }
-  
+
   //input surf_list
   size_t nsurf = 0;
   in >> nsurf;
@@ -1063,7 +1046,6 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
       }
     }
   }
- 
 
   // set up GLUtesselator
   GLUtesselator* myTess = gluNewTess();
@@ -1125,7 +1107,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
     }
     
       mesh.push_back(vTri);
-      
+ 
   }//for(bid..)
   meshNodes.clear();
   meshNodes=vector<positions3d>(pos);
@@ -1138,9 +1120,9 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
     in >>meshMap[i];
      }
   file.close();
-  
+ 
   }else{}
-    
+ 
   
   // Remap mesh to match nodes
   objMinMax.clear();
@@ -1174,20 +1156,16 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names) {
  
   
   //finish reading in all information
-  
-  updateView(); 
-  mode = BOUND_SELECT_MODE;
-  
  
-  
-  
+  updateView(); 
   extremeValues.clear();
   extremeNodes.clear();
-  
   show_shapes = true;
   resizeGL(currentWidth, currentHeight);
+  mode = BOUND_SELECT_MODE;
+  currentObj=-1;
   makeObjects();
-  clearCurrent();
+  updateGL();
   //  cleanDoc();
   return true;
 }
@@ -1435,7 +1413,7 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names, QLi
   //finish reading in all information
   
   updateView(); 
-  mode = BOUND_SELECT_MODE;
+ 
   
  
   
@@ -1445,9 +1423,12 @@ bool GLViewer::load_boundary(QString fileName,  QStringList& boundary_names, QLi
   
   show_shapes = true;
   resizeGL(currentWidth, currentHeight);
-  makeObjects();
-  clearCurrent();
+   mode = BOUND_SELECT_MODE;
+   currentObj=-1;
+   makeObjects();
+  //  clearCurrent();
   cleanDoc();
+  updateGL();
   return true;
 }
     
@@ -1511,7 +1492,7 @@ void GLViewer::uncut(){
     cpContourObject = 0;
   }
   
-  if (mode == PLANE_AND_BOUND_MODE || mode == PLANE_ONLY_MODE) {
+  if (mode == PLANE_AND_BOUND_MODE) {
     if (gridObject){
       glDeleteLists(gridObject, 1);
       gridObject = 0;
@@ -1866,7 +1847,7 @@ void GLViewer::cut()
    return;
   }
   if(cpContourObject==0)return;  
-  mode = PLANE_AND_BOUND_MODE;
+  
   info = previewInfo;
   if (fig){
     delete fig;
@@ -1876,9 +1857,10 @@ void GLViewer::cut()
   positions3d center = positions3d(centerx, centery, centerz);
    fig->cut(info, loadInfo, center);
   if(fig->triangle_list.size()==0) return;
-  this->show_contours = true;
-  this->show_grid = false;
-  this->show_shading = true;
+  show_contours = true;
+  show_grid = true;
+  show_shading = true;
+  show_border=true;
   show_boundary_shading = false;
 
   if (min_val == 0.0 && max_val == 0.0) {
@@ -1888,7 +1870,7 @@ void GLViewer::cut()
     min_val = qMin(min_val, fig->min_val);
     max_val = qMax(max_val, fig->max_val);
   }
-
+  mode = PLANE_AND_BOUND_MODE;
   makeObjects();
   glViewport(0, 0, width(), height());
   updateGL();
@@ -2141,7 +2123,7 @@ void GLViewer::toggleShading()
 {
   show_shading = (show_shading)?false:true;
  
-  makeObjects();
+  // makeObjects();
   updateGL();
 }
 

@@ -710,6 +710,7 @@ void VarWindow::setGrid()
 
   int first= fileName.lastIndexOf('/');
   int last = fileName.lastIndexOf('.');
+  qDebug() << first << " " << last;
   QString casename = fileName.mid(first+1, last-first-1);
   QString directory = fileName.left(first);
  
@@ -717,14 +718,12 @@ void VarWindow::setGrid()
   viewerDock->show();
   viewerDock->raise();
  
- 
   QStringList boundary_names;
   bool loaded =   viewer->load_boundary(fileName, boundary_names); // and setup the GLWidget.
-  
+
   
   if(loaded){
-    
-  
+
     
     //if different case, remind the user to save the case
     if(theelem.hasAttribute("casename") ) {
@@ -746,7 +745,7 @@ void VarWindow::setGrid()
     
     updateStatus(fileName + tr(" loaded"));
     theelem.setAttribute("status", "done");
-
+    
     //set up the cndNode
     QDomElement oldCndNode = doc.documentElement().firstChildElement("boundary_conditions");
     if(oldCndNode.isNull()){

@@ -415,6 +415,7 @@ void CutDialog::loadGrid(){
     updateCase();
 
   }
+  reset();
 }
 
 
