@@ -23,15 +23,18 @@ using std::signbit;
 
 void GLViewer::makeObjects()
 {
-  
- 
-  if (cpContourObject) glDeleteLists(cpContourObject, 1);
+    
+  if (cpContourObject)glDeleteLists(cpContourObject, 1);
   if (gridObject) glDeleteLists(gridObject, 1);
   if (contourObject) glDeleteLists(contourObject, 1);
   if (borderObject) glDeleteLists(borderObject, 1);
   if (shadingObject) glDeleteLists(shadingObject, 1);
-    
-  
+  cpContourObject = 0;
+  gridObject = 0;
+  contourObject = 0;
+  borderObject = 0;
+  shadingObject = 0;
+      
   if (mode == PLANE_AND_BOUND_MODE) {
     
     // Make all cutting plane display lists
@@ -61,7 +64,7 @@ void GLViewer::makeObjects()
 GLuint GLViewer::makeGridObject()
 {
   int nedges = fig->interior;
- positions3d negCenter = positions3d(-centerx, -centery, -centerz);
+  positions3d negCenter = positions3d(-centerx, -centery, -centerz);
   affineMapping transMatrix2;
   transMatrix2.translate(info.translate);
   transMatrix2.rotateX(info.rotate.x);
@@ -102,10 +105,9 @@ GLuint GLViewer::makeGridObject()
 
 GLuint GLViewer::makeContourObject()
 {
- 
+  
   int nsegs = fig->contour_curves.size();
-
-   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
+  positions3d negCenter = positions3d(-centerx, -centery, -centerz);
   affineMapping transMatrix2;
   transMatrix2.translate(info.translate);
   transMatrix2.rotateX(info.rotate.x);
@@ -182,8 +184,7 @@ GLuint GLViewer::makeBorderObject()
     for (int e = 0; e <(int)(nedges-fig->interior); ++e) {
       glVertex3d(tmpP1[e].x, tmpP1[e].y, tmpP1[e].z);
       glVertex3d(tmpP2[e].x, tmpP2[e].y, tmpP2[e].z);
-    //glVertex3d(fig->pos[ed.l].x, fig->pos[ed.l].y, 0.0);
-    //glVertex3d(fig->pos[ed.r].x, fig->pos[ed.r].y, 0.0);
+   
     }
     glEnd();
     glEndList();
@@ -200,12 +201,9 @@ GLuint GLViewer::makeBorderObject()
 //////////////////////////////////////////////////////////////////////////////
 
 GLuint GLViewer::makeShadingObject()
-{
- 
+{  
   int ntris = fig->triangle_list.size();
-  
- 
-  
+   
  //move the cut plane back
   
   positions3d negCenter = positions3d(-centerx, -centery, -centerz);
@@ -221,10 +219,7 @@ GLuint GLViewer::makeShadingObject()
     positions3d aNode = positions3d(fig->pos[i].x, fig->pos[i].y, 0);
     tmpPos.push_back(transMatrix2.MapNode(aNode));
   }
-  int error = glGetError();
-  if (error != GL_NO_ERROR) {
-    std::cout << "An OpenGL error has occured: " << gluErrorString(error) << std::endl;
-  }
+  
 
    GLuint newList = glGenLists(1); 
    if(newList){
@@ -308,7 +303,7 @@ void GLViewer::makeBoundShadingObjects()
     GLuint newList = glGenLists(1);
     if(newList){
       glNewList(newList, GL_COMPILE);
-       glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
       glBegin(GL_TRIANGLES);
       if(!canShade){
         float r, g, b;
@@ -349,7 +344,7 @@ void GLViewer::makeBoundShadingObjects()
       glEnd();    
       glEndList();
     
-    boundObjects.push_back(newList);
+      boundObjects.push_back(newList);
     }
   }
     
@@ -363,13 +358,13 @@ void GLViewer::makeBoundWireframeObject(int bid, QColor c)
   GLuint newList = glGenLists(1);
   if(newList){
     glNewList(newList, GL_COMPILE);
-     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     drawBoundObject(bid, c);   
     glEndList();
     
     GLuint oldList = boundObjects[bid];
     boundObjects[bid] = newList;
-    glDeleteLists(oldList, 1);
+    if(oldList)glDeleteLists(oldList, 1);
   }
 }
 
@@ -385,7 +380,7 @@ void GLViewer::makeBoundFillObject(int bid, QColor c)
     glEndList();
     GLuint oldList = boundObjects[bid];
     boundObjects[bid] = newList;
-    glDeleteLists(oldList, 1);
+    if(oldList)glDeleteLists(oldList, 1);
   }
 }
 
@@ -404,7 +399,7 @@ void GLViewer::makeBoundObjects()
       GLuint newList = glGenLists(1);
       if(newList){
         glNewList(newList, GL_COMPILE);
-         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
         drawBoundObject(bid, default_color[bid%12]);   
         glEndList();
         boundObjects.push_back(newList);
@@ -569,23 +564,6 @@ GLuint GLViewer::makeCPContour()
     for(size_t i = 0; i < contourLoop.size(); i++) 
       glVertex3d(contourLoop[i].x, contourLoop[i].y, contourLoop[i].z);
     glEnd();
-
-  
-  // glBegin(GL_LINE_LOOP);
-  /*
-  double len = size / 1.5;
-  glVertex3d(len + center.x, len + center.y, 0.0);
-  glVertex3d(len + center.x, -len + center.y, 0.0);
-  glVertex3d(-len + center.x, -len + center.y, 0.0);
-  glVertex3d(-len + center.x, len + center.y, 0.0);
-  */
-   //double len = size / 1.5;
-    // glVertex3d(len, len, 0.0);
-  // glVertex3d(len, -len, 0.0);
-  // glVertex3d(-len, -len, 0.0);
-  // glVertex3d(-len, len, 0.0);
-
-  //glEnd();
     glEndList();
   }
   return newList;

@@ -75,8 +75,9 @@ GLViewer::GLViewer(QWidget *parent)
   gridObject = 0;
   contourObject = 0;
   borderObject = 0;
-   shadingObject = 0;
+  shadingObject = 0;
   cpContourObject = 0;
+  shadingObject = 0;
   qobj = 0;
   extreme_value = 0;
   centerx = centery = centerz=0;
@@ -105,19 +106,29 @@ GLViewer::GLViewer(QWidget *parent)
 GLViewer::~GLViewer()
 {
   makeCurrent();
-  if (gridObject)
+  if (gridObject){
     glDeleteLists(gridObject, 1);
-  if (contourObject)
+    gridObject = 0;
+  }
+  if (contourObject){
     glDeleteLists(contourObject, 1);
-  if (borderObject)
+    contourObject = 0;
+  }
+  if (borderObject){
     glDeleteLists(borderObject, 1);
-  if (shadingObject)
+    borderObject = 0;
+  }
+  if (shadingObject){
     glDeleteLists(shadingObject, 1);
-
-  if( cpContourObject) glDeleteLists(cpContourObject, 1);
+    shadingObject = 0;
+  }
+  if( cpContourObject){
+    glDeleteLists(cpContourObject, 1);
+    cpContourObject = 0;
+  }
   if (boundObjects.size() > 0) {
     for (size_t i = 0; i < boundObjects.size(); ++i)
-      glDeleteLists(boundObjects[i], 1);
+      if(boundObjects[i])glDeleteLists(boundObjects[i], 1);
     boundObjects.clear();
   }
   if(fig){
@@ -125,7 +136,10 @@ GLViewer::~GLViewer()
     fig =0;
   }
 
-  gluDeleteQuadric(qobj);
+  if(qobj){
+    gluDeleteQuadric(qobj);
+    qobj=0;
+  }
 }
 
 
@@ -166,7 +180,6 @@ void GLViewer::initializeGL()
   gluQuadricCallback(qobj, GLU_ERROR, 
                     0);
   gluQuadricDrawStyle(qobj, GLU_LINE); /* smooth shaded */
-  
 }
 
   
@@ -180,7 +193,6 @@ void GLViewer::initializeGL()
 
 void GLViewer::resizeGL(int width, int height)
 {
-
   currentWidth = width;
   currentHeight = height;
   glViewport(0, 0, (GLint)width,(GLint)height);
@@ -191,8 +203,6 @@ void GLViewer::resizeGL(int width, int height)
   GLdouble far = size*30.0;
   gluPerspective(30.0, (GLdouble)width/height, near, far);
   glMatrixMode(GL_MODELVIEW);
-  
- 
 }
 ////////////////////////////////////////////////////////////////////////////
 //  protected:
@@ -308,7 +318,6 @@ void GLViewer::drawPxPlane(const vector<double>& p, double size){
   glVertex3d(x, size, 0);
   glVertex3d(x, 0, -1*size);
   glVertex3d(x, 0, size);
-  
   glEnd();
   glPopMatrix(); 
 }
@@ -331,8 +340,6 @@ void GLViewer::drawNxPlane(const vector<double>& p, double size){
   glVertex3d(x, size, 0);
   glVertex3d(x, 0, -1*size);
   glVertex3d(x, 0, size);
-  
-  
   glEnd();
 
   glPopMatrix();
@@ -358,7 +365,6 @@ void GLViewer::drawPyPlane(const vector<double>& p, double size){
   glVertex3d( size,y, 0);
   glVertex3d( 0, y,-1*size);
   glVertex3d( 0,y, size);
-  
   glEnd();
 
   glPopMatrix();
@@ -385,7 +391,6 @@ void GLViewer::drawNyPlane(const vector<double>& p, double size){
   glVertex3d( size,y, 0);
   glVertex3d( 0, y,-1*size);
   glVertex3d( 0,y, size);
-  
   glEnd();
    glPopMatrix();
   
@@ -410,7 +415,6 @@ if(p.size()==0)return;
   glVertex3d( size,0, z);
   glVertex3d( 0, -1*size, z);
   glVertex3d( 0,size, z);
-  
   glEnd();
    glPopMatrix();
   
@@ -796,6 +800,7 @@ void GLViewer::drawExtremeNodes(double value){
   
 void GLViewer::paintGL()
 {
+ 
   glLoadIdentity();
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
  
@@ -819,7 +824,7 @@ void GLViewer::paintGL()
       if (objVisible[i])glCallList(boundObjects[i]);
     if(show_preview){
       glEnable(GL_LINE_SMOOTH);
-      glCallList(cpContourObject);
+      if(cpContourObject)glCallList(cpContourObject);
       glDisable(GL_LINE_SMOOTH);
     }
     //drawBoxes();
@@ -831,12 +836,12 @@ void GLViewer::paintGL()
   
     for (size_t i = 0; i < boundObjects.size(); ++i)
       if (objVisible[i])glCallList(boundObjects[i]);
-    if (show_shading)glCallList(shadingObject);
-    if (show_grid)glCallList(gridObject);
+    if (show_shading && shadingObject>0)glCallList(shadingObject);
+    if (show_grid && gridObject > 0)glCallList(gridObject);
     glEnable(GL_LINE_SMOOTH);
-    if(show_border)glCallList(borderObject);
+    if(show_border && borderObject > 0)glCallList(borderObject);
     glDisable(GL_LINE_SMOOTH);
-    if (show_contours)glCallList(contourObject);
+    if (show_contours && contourObject > 0)glCallList(contourObject);
     break;
      
  
@@ -849,8 +854,8 @@ void GLViewer::paintGL()
   if(show_extrema) drawExtremeNodes(extreme_value);
   if(show_shapes)drawShapes();
   glPopMatrix();
+
   glFlush();
-  
   
 }
 void GLViewer::setCurrentObj(int i, QColor c){
@@ -1756,7 +1761,7 @@ void GLViewer::changeContours(int number)
 {
   if (fig) {
     fig->generate_contour_curves(number);
-    glDeleteLists(contourObject, 1);
+    if(contourObject)glDeleteLists(contourObject, 1);
     contourObject = makeContourObject();
     updateGL();
   }
@@ -1821,7 +1826,10 @@ void GLViewer::previewCut(cutplane_info& Nfo)
 
   previewInfo = Nfo;
   mode = BOUND_SELECT_MODE;
-  if (cpContourObject) glDeleteLists(cpContourObject, 1);
+  if (cpContourObject) {
+    glDeleteLists(cpContourObject, 1);
+    cpContourObject = 0;
+  }
   cpContourObject = makeCPContour();
   show_preview = true;
   updateGL();
@@ -1883,7 +1891,7 @@ void GLViewer::cut()
 void GLViewer::loadSca(){
   extremeValues.clear();
   extremeNodes.clear();
- 
+  
   // Get variable information
  hsize_t npnts;
  
@@ -1895,7 +1903,7 @@ void GLViewer::loadSca(){
                         tr("no scalar value file exists, please run vogcheck first"));
    return;
  }
-  
+ 
  QString posname = loadInfo.directory + "/output/grid_pos." + loadInfo.iteration + 
    '_' + loadInfo.casename ;
  
@@ -1952,7 +1960,7 @@ void GLViewer::loadSca(){
          H5S_ALL, H5S_ALL, H5P_DEFAULT, &nodeVal[0]);
  H5Dclose(dataset_id);
  H5Fclose(scalar_id);
-
+ 
 
  {
 
@@ -1995,7 +2003,7 @@ void GLViewer::loadSca(){
     int num_extreme_nodes = npnts /5;
     extremeNodes.resize(num_extreme_nodes);
     extremeValues.resize(num_extreme_nodes);
-    
+   
     if(loadInfo.variable=="cellVol"){
       for(int i = 0; i < num_extreme_nodes; i++){
         extremeValues[i] = nodeVal[sorted_nodeVal[i].second];
@@ -2030,8 +2038,8 @@ void GLViewer::loadSca(){
   }
  
   show_boundary_shading = true;
-  
   mode = BOUND_SELECT_MODE;
+  // extreme_value = mid_val;
   makeObjects();
   glViewport(0, 0, width(), height());
   updateGL();
@@ -2040,7 +2048,7 @@ void GLViewer::loadSca(){
 void GLViewer::setExtrema(double value){
   extreme_value = value;
   show_extrema=true;
-  setShading(false);
+  // setShading(false);
   updateGL();
 }
 
@@ -2182,7 +2190,7 @@ void GLViewer::showBoundaries(){
 positions3d GLViewer::getTranslate(int b1, int b2){
   positions3d p1 = get_wireframe_center(meshNodes, mesh[b1]);
   positions3d p2 = get_wireframe_center(meshNodes, mesh[b2]);
-  //std::cout << "center of b1 : " << p1 << " center of b2: " << p2 << " translate " << p2-p1 << std::endl;
+ 
   return p2-p1;
 }
 

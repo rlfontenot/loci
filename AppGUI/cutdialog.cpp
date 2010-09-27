@@ -35,18 +35,13 @@
 
 CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
 {
-
   setWindowTitle("postprocessing");
-  
   setAttribute(Qt::WA_DeleteOnClose, true);
   QGroupBox* central= new QGroupBox;
   central->setFlat(true);
   viewer = new GLViewer;
-  
-  
   size = 1.0; 
-  
-   buttonGroup = new QButtonGroup(this);
+  buttonGroup = new QButtonGroup(this);
   buttonGroup->setExclusive(true);
   QPushButton* xy_button = new QPushButton(tr("xy_plane"));
   QPushButton* yz_button = new QPushButton(tr("yz_plane"));
@@ -159,38 +154,18 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   connect(comboIter, SIGNAL(currentIndexChanged(QString)),
 	  this, SLOT(updateVars(QString)));
 
-
-  
-  
   //updateCase();
- 
-
-
-
 
 
   // 'Cancel' & 'Okay' buttons
   QHBoxLayout *cutButtons = new QHBoxLayout;
   QPushButton *cancel = new QPushButton(tr("reset cutplane"));
  
- 
-  
- 
   cancel->setDefault(false);
-
-
-  
-  
-
-
   cutButtons->addWidget(cancel);
   connect(cancel, SIGNAL(clicked()),
 	  this, SLOT(reset()));
 
- 
-  
- 
-  
   QGroupBox* cutGroup = new QGroupBox(tr("Define cut plane:"));
   QVBoxLayout* cutLayout = new QVBoxLayout;
   cutLayout->addLayout(hlayout);
@@ -239,11 +214,16 @@ CutDialog::CutDialog(QWidget *parent):QMainWindow(parent)
   viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
   viewerDock->setWidget(viewer);
   addDockWidget(Qt::RightDockWidgetArea, viewerDock);
-
+  viewerDock->setFloating(true);
   central->setLayout(mainLayout);
   setCentralWidget(central);
 
 }
+
+QSize CutDialog::sizeHint() const{
+  return QSize(700, 700);
+}
+
 void CutDialog::createVisBar()
 {
 
@@ -595,12 +575,10 @@ void CutDialog::cut(){
 
 void CutDialog::loadSca(){
   setInfo();
- 
   viewer->loadSca();
   extrEdit->setBottom(viewer->get_min_val());
   extrEdit->setTop(viewer->get_max_val());
-  // extraSlider->setValue();
-  extrEdit->setValue(viewer->get_mid_val());
+   extrEdit->setValue(viewer->get_mid_val());
 }
 
 void CutDialog::reset(){

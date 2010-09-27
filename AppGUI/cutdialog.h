@@ -20,7 +20,8 @@ class CutDialog: public QMainWindow
 
 public:
   CutDialog(QWidget *parent = 0);
-  
+   QSize sizeHint() const;
+
   signals:
 
   
