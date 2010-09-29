@@ -1084,7 +1084,8 @@ void FVMAdapt::updateTransform(){
 void FVMAdapt::addOp(){
   if(tree->currentItem()==0
      ||(tree->currentItem()->text(0) !="object"
-        && tree->currentItem()->text(0) !="region")){
+        && tree->currentItem()->text(0) !="region"
+        && tree->currentItem()->text(1) !="complement")){
     QMessageBox::warning(window(),
                          tr("add operator"),
                          tr("Please select an 'object' node or a 'region' node first"));
@@ -1106,7 +1107,8 @@ void FVMAdapt::addOp(){
   if (ok && !item.isEmpty()){
     if(tree->currentItem()!=0 &&
        (tree->currentItem()->text(0) =="object"||
-        tree->currentItem()->text(0) == "region")){
+        tree->currentItem()->text(0) == "region" ||
+        tree->currentItem()->text(1) == "complement")){
       
       
       QTreeWidgetItem*  p=tree->currentItem()->parent();

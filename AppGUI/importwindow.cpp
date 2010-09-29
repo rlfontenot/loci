@@ -213,7 +213,7 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
       QDomElement dir_elt = myelem.firstChildElement("directory");
       if(!dir_elt.isNull() && dir_elt.hasAttribute("dir")){
         QString dir = dir_elt.attribute("dir");
-        getFileWindow->addDirectory(dir);
+        if(dir!="")getFileWindow->addDirectory(dir);
       }
       connect(getFileWindow, SIGNAL(fileNameSelected(QString)), this, SLOT(updateFileName(QString)));
       aLayout->addWidget(getFileWindow);
@@ -244,19 +244,12 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
   connect(typesWidget,
           SIGNAL(currentRowChanged(int)),
           this, SLOT(changePage(int)));
-     
-
+  
   convertButton = new QPushButton(tr("&Convert to Vog"));
   typesWidget->setCurrentRow(0);
-  
-
-  
-  
- 
- 
+   
   connect(convertButton, SIGNAL(clicked()), this, SLOT(convert()));
-  
-  
+    
   QVBoxLayout *horizontalLayout = new QVBoxLayout;
   horizontalLayout->addWidget(typeGroup);
   horizontalLayout->addWidget(pagesWidget);
@@ -277,7 +270,27 @@ ImportWindow::ImportWindow(QDomElement& theelem,  QWidget* parent)
   if(elt.firstChildElement().attribute("vogOptions")=="false")option->hide();
 }
 void ImportWindow::updateFileName(QString s){
-  importFileName = s.section('.', 0, -2);
+  QDomElement elt = myelem.firstChildElement("gridtypes");
+  
+  if(elt.isNull()){
+    QMessageBox::warning(window(), tr(".xml"),
+                         tr("can not find element 'gridtypes' in the children of 'import'")
+                         );
+    return;
+  }
+  
+  QDomElement elem = elt.firstChildElement();
+  for (int i = 0; i < currentRow; i++) elem = elem.nextSiblingElement();
+  if(elem.isNull()){
+    QMessageBox::warning(window(), tr(".xml"),
+                         myelem.tagName()+ tr(" has no child")
+                         );
+    return;
+  }
+  QString nf = elem.attribute("nameFilter");
+  if(nf.contains(','))importFileName = s;
+  else importFileName = s.section('.', 0, -2);
+  
 }
 void ImportWindow::changePage(int currentR)
 {

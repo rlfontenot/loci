@@ -656,7 +656,7 @@ void VMergeWindow::vmClicked(){
   if(fileName.section('.', -1, -1)!="vog")fileName+=".vog";
   
   if(!(fileName.section('/', -1, -1).section('.',0,0).isEmpty())){
-    QString command = QString("./vogmerge");
+    QString command = QString("vogmerge");
     for(int i = 0; i < typesWidget->count(); i++){
       command +=qobject_cast<VMOption*>( pagesWidget->widget(i))->currentText();
     }

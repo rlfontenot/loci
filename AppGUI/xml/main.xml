@@ -356,7 +356,7 @@ reactions = {
       <!--"vogOption", if false, do not need the unit options -->
       <xdr  nameFilter="*.xdr" label="xdr file" toVog="xdr2vog" />
       <cobalt  nameFilter="*.cog" label="cobalt format" toVog="cobalt2vog" />
-      <cfd toXdr="cfd++2xdr" nameFilter="nodesin.bin, cellsin.bin, exbcsin.bin" label="cfd++ format" toVog="xdr2vog" />
+      <cfd toXdr="cfd++2xdr" nameFilter="nodesin.bin,cellsin.bin,exbcsin.bin" label="cfd++ format" toVog="xdr2vog" />
       <plot3d  nameFilter="*.grd" label="plot3d format" toVog="plot3d2vog" >
         <!-- the children elements of a grid type describe the "toXdr"-->
         <!-- command options. The tagName will appear in the command -->

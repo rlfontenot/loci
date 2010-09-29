@@ -473,7 +473,7 @@ void GLViewer::drawShapes(){
     QDomElement elt = shapes.at(i).firstChildElement();
     if(elt.isNull())continue; //no child, do nothing
     glPushMatrix();
-    double planesize = 1;
+    double planesize = 0.2*size;
    
     for(; !elt.isNull(); elt = elt.nextSiblingElement()){
    

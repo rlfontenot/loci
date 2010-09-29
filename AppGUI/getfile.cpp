@@ -12,7 +12,7 @@ GetFileWindow::GetFileWindow(QString exp, QString& fileSelected, QWidget *parent
      for(int i = 0; i < nameFilter.size(); i++){
        nameFilter[i] = nameFilter[i].trimmed();
      }
-     directoryComboBox = createComboBox(QDir::currentPath()+"/");
+     directoryComboBox = createComboBox(QString(QDir::currentPath()+"/"));
      connect(directoryComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(find()));
      fileLabel = new QLabel(tr("Named:"));
      directoryLabel = new QLabel(tr("In directory:"));
@@ -47,8 +47,11 @@ GetFileWindow::GetFileWindow(QString exp, QString& fileSelected, QWidget *parent
  }
 void GetFileWindow::addDirectory(QString dir){
   // QStringList dir_list = dir.split(",", QString::SkipEmptyParts);
-  directoryComboBox->addItem(dir);
-  directoryComboBox->setCurrentIndex(directoryComboBox->findText(dir));
+  int index = directoryComboBox->findText(dir);
+  if(index == -1){
+    directoryComboBox->addItem(dir);
+    directoryComboBox->setCurrentIndex(directoryComboBox->count()-1);
+  }
   find();
 }
  void GetFileWindow::browse()
@@ -150,6 +153,7 @@ void GetFileWindow::addDirectory(QString dir){
 
  QComboBox *GetFileWindow::createComboBox(const QString &text)
  {
+  
    QStringList entry_list = text.split(",", QString::SkipEmptyParts);
    QComboBox *comboBox = new QComboBox;
    comboBox->setEditable(true);

@@ -913,6 +913,8 @@ void VarWindow::openCase(){
     return;
   }
   file.close();
+  updateModels();
+  
   updateStatus(filename+tr(" loaded"));
  
   //recreate flow bar 
@@ -1018,7 +1020,8 @@ void VarWindow::newCase(){
     return;
   }
   file.close();
-
+ 
+  updateModels();
   //recreate flow bar
   createFlowBar();
    

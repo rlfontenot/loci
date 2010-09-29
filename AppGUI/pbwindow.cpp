@@ -59,7 +59,7 @@ void PbWindow::createToolBar(){
    
   QPushButton* resetAct = new QPushButton(tr("Reset"), this);
   visLayout->addWidget(resetAct);
-  connect(resetAct, SIGNAL(clicked()),
+ connect(resetAct, SIGNAL(clicked()),
           viewer, SLOT(reset()));
  
   QPushButton* fitAct = new QPushButton(tr("Fit"), this);
@@ -149,7 +149,7 @@ void PbWindow::split(){
      return;
   }
   
-  QString command = "./make_periodic -o " + outFile + QString(" -b ") + bnames[b1] + " " + bnames[b2];
+  QString command = "make_periodic -o " + outFile + QString(" -b ") + bnames[b1] + " " + bnames[b2];
   
   
   int optionIndex = buttonGroup->checkedId();
