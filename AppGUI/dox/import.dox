@@ -18,12 +18,11 @@
 
   Since all file converters are treated as external programs, new file converter can be added to import window by modifying main.xml.
   Here is how to add a new file converter:
- -#  under 'importPage/gridtypes', add a new element for the new file converter. The following  attributes need to be specified:
+ -#  Under 'importPage/gridtypes', add a new element for the new file converter. The following  attributes need to be specified:
   - toXdr:  If the grid type can be converted to VOG file directly, the attribute \a toXdr should be an empty string, otherwise, it specifies the command that converts the grid type to an XDR  file.
   - nameFilter: the extension of the grid type. Multiple extensions are separated by ','. For example: nameFilter="*.ccm,*.ccmg"
   - toVog: specify the command converting the grid type(or converting the XDR  file in case the grid type need to be converted to an XDR  file first) to a VOG file.
   - label: the text appears in grid type list in the import window.
-
-  The options are specified as the child elements of the grid type element. For each option, the text node is the message displayed in GUI as the label. The text that appears in command is: -&lt;tagName&gt;  &lt;value of the variable&gt;. \sa \ref VarGBox  \sa \ref xml_variable.
- -# under \a importPage/usage, add a new element with the same tagName as the one added under \a importPage/gridtypes. Insert the usage message as text node of the new element.
+ -# The options are specified as the child elements of the grid type element. For each option, the text node is the message displayed in GUI as the label. The text that appears in command is: -&lt;tagName&gt;  &lt;value of the variable&gt;. \sa \ref VarGBox  \sa \ref xml_variable.
+ -# Under \a importPage/usage, add a new element with the same tagName as the one added under \a importPage/gridtypes. Insert the usage message as text node of the new element.
 */
