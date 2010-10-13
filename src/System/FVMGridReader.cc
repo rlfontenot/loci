@@ -1255,7 +1255,6 @@ namespace Loci {
     for(int i = 1; i <= Loci::MPI_processes; ++i)
       vdist[i] = vdist[i-1] + local_cells[i-1].size() ;
 
-#ifndef MPI_STUBB
     MPI_Comm mc = MPI_COMM_WORLD ;
     int num_partitions = Loci::MPI_processes ;
     int wgtflag = 0 ;
@@ -1353,7 +1352,7 @@ namespace Loci {
                         &wgtflag,&numflag,&num_partitions,
                         &options,&edgecut,part, &mc) ;
     }
-#endif
+
     if(Loci::MPI_rank == 0)
       Loci::debugout << " Parmetis Edge cut   " <<  edgecut << endl ;
     delete [] xadj ;
