@@ -790,6 +790,10 @@ namespace Loci {
     chomp_sig_replace2(char c) {
       return (c==')' || c=='}') ;
     }
+    inline bool
+    chomp_sig_replace(char c) {
+      return !(isalnum(c) || c=='_') ;
+    }
   }
   
   // edit the graph to have the chomp node,
@@ -797,7 +801,7 @@ namespace Loci {
                                  rulecomp_map& rcm) {
     if(cc.empty())
       return ;
-
+    
     for(list<chomp_chain>::const_iterator li=cc.begin();li!=cc.end();++li) {
       digraph chomp_graph = li->first ;
       variableSet chomp_vars = li->second ;
@@ -859,15 +863,17 @@ namespace Loci {
           vi!=chomp_vars.end();++vi)
         chomp_qualifier_ss << *vi << "_" ;
       chomp_qualifier_ss << "CHOMP" ;
-      // replace the characters "({," inside with "_"
       std::string chomp_qualifier = chomp_qualifier_ss.str() ;
+      // NOTE: we need to remove all characters inside the
+      // chomp_qualifier that are not alpha-numeric and '_'
+      // characters. We do so by replacing them with '_'.
+      // The reason for doing so is that the Loci expression
+      // parser cannot properly extract a type qualifier string
+      // with non alpha-numeric characters.
       std::replace_if(chomp_qualifier.begin(),
-                      chomp_qualifier.end(), chomp_sig_replace1, '_') ;
-      // remove characters ")}"
-      chomp_qualifier.erase(std::remove_if(chomp_qualifier.begin(),
-                                           chomp_qualifier.end(),
-                                           chomp_sig_replace2),
-                            chomp_qualifier.end()) ;
+                      chomp_qualifier.end(),
+                      chomp_sig_replace, '_') ;
+
       rule chomp_rule = create_rule(extract_vars(source_vars_vertices),
                                     extract_vars(target_vars_vertices),
                                     chomp_qualifier) ;
