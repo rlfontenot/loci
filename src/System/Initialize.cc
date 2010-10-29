@@ -117,6 +117,11 @@ namespace Loci {
   int chomping_size = 128 ;
   // flag to enable memory profiling
   bool profile_memory_usage = false ;
+  // flag to enable memory information gathering.
+  // this is different than the "profile_memory_usage" flag.
+  // this flag reports the memory information using the
+  // "data collector" framework.
+  bool collect_memory_info = false ;
   // flag to use a different scheduler
   // (more memory conservative and more synchronization
   //  points will be generated)
@@ -418,6 +423,9 @@ namespace Loci {
         } else if(!strcmp((*argv)[i],"--memprofile")) {
           // profiling memory usage at run time
           profile_memory_usage = true ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--meminfo")) {
+          collect_memory_info = true ;
           i++ ;
         } else if(!strcmp((*argv)[i],"--memgreedy")) {
           memory_greedy_schedule = true ;

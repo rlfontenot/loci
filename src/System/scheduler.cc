@@ -132,6 +132,7 @@ namespace Loci {
   ////////////////////////////
   // global flags
   extern bool profile_memory_usage ;
+  extern bool collect_memory_info ;
   extern bool show_graphs ;
   extern void deco_depend_gr(digraph& gr,const variableSet& given) ;
   // 
@@ -1241,6 +1242,7 @@ namespace Loci {
         ae.alloc_var = v ;
         l2.push_back(ae) ;
         tot_memory -= variable_size[v].mem_size ;
+        active_vars -= v ;
       }
     }
     l2.sort();
@@ -1249,12 +1251,12 @@ namespace Loci {
     int lcnt = 10 ;
     if(verbose)
       lcnt = l2.size() ;
-    s << "Top " << lcnt << " Most Memory Memory Expensive Steps:" << endl ;
+    s << "Top " << lcnt << " Most Memory Expensive Steps:" << endl ;
     lcnt = min(int(l2.size()),lcnt) ;
     for(int i =0;i<lcnt;++i,++rti) {
       // Output variable that was allocated during max allocation
       s << i << "- allocate var " << rti->alloc_var << " tot mem = " 
-        << rti->live_mem/(1024.0*1024.0) << "Mb" << endl ;
+        << rti->live_mem/(1024.0*1024.0) << "MB" << endl ;
       // Now sort liveset according to procesor-time product
       vector<pair<double,variable> > live_list ;
       variableSet live_set = rti->live_set ;
@@ -1618,7 +1620,7 @@ namespace Loci {
 #endif
       double exec_time = sw.stop() ;
 
-      if(profile_memory_usage) {
+      if(collect_memory_info) {
         debugout << "collect memory info:" << endl ;
         collectMemory memProf ;
         schedule->dataCollate(memProf) ;
