@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////
-//  Filename: fvmadapt.cpp
+//  Filename: vcutwindow.cpp
 //
-//  Contains: Implementation of Fvmadapt class
+//  Contains: Implementation of VCutWindow class
 /////////////////////////////////////////////////
 
 #include <QFileDialog>
@@ -29,16 +29,15 @@
 #include <QToolBar>
 #include <QDockWidget>
 #include <QTabWidget>
-
-#include "fvmadapt.h"
-//#include "grid.h"
-//#include "pages.h"
-#include "refdialog.h"
+#include <QProcess>
+#include "vcutwindow.h"
+#include "grid.h"
+#include "pages.h"
 #include "helpwindow.h"
 #include "parapage.h"
 #include "transform.h"
-
-
+#include "tree2doc.h"
+#include "progressdialog.h"
 
 
 #define PI 3.14159265358979323846264338327950
@@ -46,74 +45,73 @@
 
 
 
-void FVMAdapt::createToolBar(){
-  int spacing =0;  
+
+void VCutWindow::createToolBar(){
+  //  int spacing =0;  
   toolbar = addToolBar(tr("tree&vis"));
-  QGroupBox* treebar = new QGroupBox("build a  tree");
-  QHBoxLayout* barLayout = new QHBoxLayout;
+ //  QGroupBox* treebar = new QGroupBox("build a  tree");
+//   QHBoxLayout* barLayout = new QHBoxLayout;
 
-  QPushButton* addShapeButton = new QPushButton(tr("Add\nShape"), this);
-  barLayout->addWidget(addShapeButton);
-  connect(addShapeButton, SIGNAL(clicked()), this, SLOT(addShape()));
+//   QPushButton* addShapeButton = new QPushButton(tr("Add\nShape"), this);
+//   barLayout->addWidget(addShapeButton);
+//   connect(addShapeButton, SIGNAL(clicked()), this, SLOT(addShape()));
 
-  barLayout->addSpacing(spacing);
-  QPushButton* addTransButton = new QPushButton(tr("Add\nTransform"), this);
-  barLayout->addWidget(addTransButton);
-  connect(addTransButton, SIGNAL(clicked()), this, SLOT(addTransform()));
+//   barLayout->addSpacing(spacing);
+//   QPushButton* addTransButton = new QPushButton(tr("Add\nTransform"), this);
+//   barLayout->addWidget(addTransButton);
+//   connect(addTransButton, SIGNAL(clicked()), this, SLOT(addTransform()));
   
-  barLayout->addSpacing(spacing);
-  QPushButton* addOpButton = new QPushButton(tr("Add\nOperator"), this);
-  barLayout->addWidget(addOpButton);
-  connect(addOpButton, SIGNAL(clicked()), this, SLOT(addOp()));
+//   barLayout->addSpacing(spacing);
+//   QPushButton* addOpButton = new QPushButton(tr("Add\nOperator"), this);
+//   barLayout->addWidget(addOpButton);
+//   connect(addOpButton, SIGNAL(clicked()), this, SLOT(addOp()));
   
   
 
-  barLayout->addSpacing(spacing);
-  QPushButton* removeNodeButton = new QPushButton(tr("Remove\nNode"), this);
-  barLayout->addWidget(removeNodeButton);
-  connect(removeNodeButton, SIGNAL(clicked()), this, SLOT(removeNode()));
+//   barLayout->addSpacing(spacing);
+//   QPushButton* removeNodeButton = new QPushButton(tr("Remove\nNode"), this);
+//   barLayout->addWidget(removeNodeButton);
+//   connect(removeNodeButton, SIGNAL(clicked()), this, SLOT(removeNode()));
   
  
 
 
-  barLayout->addSpacing(spacing);
-  QPushButton* addRegionButton = new QPushButton(tr("Add\nRegion "), this);
-  barLayout->addWidget(addRegionButton);
-  connect(addRegionButton, SIGNAL(clicked()), this, SLOT(addRegion()));
+//   barLayout->addSpacing(spacing);
+//   QPushButton* addRegionButton = new QPushButton(tr("Add\nRegion "), this);
+//   barLayout->addWidget(addRegionButton);
+//   connect(addRegionButton, SIGNAL(clicked()), this, SLOT(addRegion()));
   
-  barLayout->addSpacing(spacing);
-  QPushButton* helpButton = new QPushButton(tr("Help"), this);
-  // barLayout->addWidget(helpButton);
-  connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
+//   barLayout->addSpacing(spacing);
+//   QPushButton* helpButton = new QPushButton(tr("Help"), this);
+//   // barLayout->addWidget(helpButton);
+//   connect(helpButton, SIGNAL(clicked()), this, SLOT(helpClicked()));
  
-  treebar->setLayout(barLayout);
-  toolbar->addWidget(treebar);
-  addToolBarBreak();
+//   treebar->setLayout(barLayout);
+//   toolbar->addWidget(treebar);
+//   treebar->hide();
+//   addToolBarBreak();
 
-  QGroupBox* viewbar = new QGroupBox("tree view");
-  QHBoxLayout* viewLayout = new QHBoxLayout;
+ //  QGroupBox* viewbar = new QGroupBox("tree view");
+//   QHBoxLayout* viewLayout = new QHBoxLayout;
 
-  QPushButton* expandButton = new QPushButton(tr("Expand"), this);
-  viewLayout->addWidget(expandButton);
-  connect(expandButton, SIGNAL(clicked()), tree, SLOT(expandAll()));
+//   QPushButton* expandButton = new QPushButton(tr("Expand"), this);
+//   viewLayout->addWidget(expandButton);
+//   connect(expandButton, SIGNAL(clicked()), tree, SLOT(expandAll()));
   
-  QPushButton* collapseButton = new QPushButton(tr("Collapse"), this);
-  viewLayout->addWidget(collapseButton);
-  connect(collapseButton, SIGNAL(clicked()), tree, SLOT(collapseAll()));
+//   QPushButton* collapseButton = new QPushButton(tr("Collapse"), this);
+//   viewLayout->addWidget(collapseButton);
+//   connect(collapseButton, SIGNAL(clicked()), tree, SLOT(collapseAll()));
   
-  QPushButton* resizeButton = new QPushButton(tr("Resize"), this);
-  viewLayout->addWidget(resizeButton);
-  connect(resizeButton, SIGNAL(clicked()), this, SLOT(resizeTree()));
+//   QPushButton* resizeButton = new QPushButton(tr("Resize"), this);
+//   viewLayout->addWidget(resizeButton);
+//   connect(resizeButton, SIGNAL(clicked()), this, SLOT(resizeTree()));
   
-  
-  
-  viewbar->setLayout(viewLayout);
+//   viewbar->setLayout(viewLayout);
+  //  toolbar->addWidget(viewbar);
+  //viewbar->hide(); 
 
   QGroupBox* visbar = new QGroupBox(tr("Visualization"));
-
   QHBoxLayout* visLayout = new QHBoxLayout;
-
-
    
  
   QPushButton *clearBoundaryAct = new QPushButton(tr("Clear"), this);
@@ -134,18 +132,18 @@ void FVMAdapt::createToolBar(){
 
  
   toolbar->addWidget(visbar);
-  toolbar->addWidget(viewbar);
-  toolbar->addAction(viewerDock->toggleViewAction());
-   toolbar->addWidget(helpButton);
+
+  // toolbar->addAction(viewerDock->toggleViewAction());
+  //  toolbar->addWidget(helpButton);
 }
   
-void FVMAdapt::resizeTree(){
+void VCutWindow::resizeTree(){
   tree->resizeColumnToContents(0);
   tree->resizeColumnToContents(1);
 }
 
   
-void FVMAdapt::createFlowBar(){
+void VCutWindow::createFlowBar(){
   int spacing =20;  
   //create flowbar
  
@@ -164,31 +162,34 @@ void FVMAdapt::createFlowBar(){
   QPushButton* buildButton = new QPushButton(tr("Use Toolbar\nDefine a Region"), this);
   barLayout->addWidget(buildButton);
   buildButton->setDisabled(true);
+  buildButton->hide();
 
   barLayout->addSpacing(spacing);
   QPushButton* modifyButton = new QPushButton(tr("Use Drag&Drop\nModify the Region\n(Optional)"), this);
   barLayout->addWidget(modifyButton);
   modifyButton->setDisabled(true);
-
+  modifyButton->hide();
+    
   barLayout->addSpacing(spacing);
   QPushButton* validateButton = new QPushButton(tr("Validate\nTree"), this);
   barLayout->addWidget(validateButton);
   connect(validateButton, SIGNAL(clicked()), this, SLOT(validateTree()));
-
+  validateButton->hide();
   
   barLayout->addSpacing(spacing);
   QPushButton* saveButton = new QPushButton(tr("Save\nXml File"), this);
   barLayout->addWidget(saveButton);
   connect(saveButton, SIGNAL(clicked()), this, SLOT(saveXml()));
+  saveButton->hide();
   
   barLayout->addSpacing(spacing);
-  QPushButton* refineButton = new QPushButton(tr("Refine\nGrid"), this);
+  QPushButton* refineButton = new QPushButton(tr("Cut\n"), this);
   barLayout->addWidget(refineButton);
-  connect(refineButton, SIGNAL(clicked()), this, SLOT(refineGrids()));
-
+  connect(refineButton, SIGNAL(clicked()), this, SLOT(cutGrid()));
+  
 
   
-  barLayout->addSpacing(spacing);
+  barLayout->addSpacing(5*spacing);
   QPushButton* doneButton = new QPushButton(tr("Done\n"), this);
   barLayout->addWidget(doneButton);
   connect(doneButton, SIGNAL(clicked()), this, SLOT(done()));
@@ -202,27 +203,70 @@ void FVMAdapt::createFlowBar(){
   flowToolBar->addWidget(flowbar);
 }
 
-void FVMAdapt::refineGrids(){
-  RefDialog* refdialog = new RefDialog(filename);
-  refdialog->show();
-}
+void VCutWindow::cutGrid(){
+  
+  QTreeWidgetItem* root = tree->topLevelItem(0);
+  QTreeWidgetItem* sphereItem = root->child(0)->child(0)->child(0);
+  qDebug()<<sphereItem->text(0);
+  if(sphereItem->text(0)=="sphere"){
+    qDebug()<<sphereItem->childCount();
+    x0 = sphereItem->child(0)->text(1).toDouble();
+    y0 =  sphereItem->child(1)->text(1).toDouble();
+    z0 =  sphereItem->child(2)->text(1).toDouble();
+    r =  sphereItem->child(3)->text(1).toDouble();
+  }
+  
+  
+  outFilename  = inFilename.section('.', 0, -2)+"_cut.vog";
+  
+  
+  outFilename = QFileDialog::getSaveFileName(this, tr("Merged Vog File"),
+                                             outFilename,
+                                             tr("Volume Grid files (*.vog)"));
+  
+  if(outFilename.section('.', -1, -1)!="vog")outFilename+=".vog";
+  
+ 
+  if(!(outFilename.section('/', -1, -1).section('.',0,0).isEmpty())){
+    QString command = QString("./vogcut");
+    command += " -g " + inFilename + " -center " +  QString("%1 ").arg(x0)+
+      QString(" %1 ").arg(y0) + QString(" %1 ").arg(z0)
+      + " -r " + QString(" %1 ").arg(r);
+      
+      command += " -o " + outFilename;
+      
+ 
+      ProgressDialog* progress = new ProgressDialog(command, QString(),false);
+      progress->show();
+      connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus, QString)), this, SLOT(afterCut(QString, QProcess::ExitStatus, QString)));
+    }
+  }
+void VCutWindow::afterCut(QString command, QProcess::ExitStatus status, QString directory){
+  if(status==QProcess::NormalExit){
+    
+    QStringList bnames;  
+    viewer->load_boundary(outFilename, bnames);
+  }else{
+    qDebug()<<"vogcut failed";
+  }
+  }
 
-void FVMAdapt::loadGrid(){
+  void VCutWindow::loadGrid(){
   
   
-  filename =
+  inFilename =
     QFileDialog::getOpenFileName(this, tr("Get File"),
                                  QDir::currentPath(),
                                  tr("vog Files (*.vog)"));
   QStringList bnames;
-  if(!filename.isEmpty()) viewer->load_boundary(filename, bnames);
+  if(!inFilename.isEmpty()) viewer->load_boundary(inFilename, bnames);
     
   }
-void FVMAdapt::done(){
+void VCutWindow::done(){
 
   close();
 }
-void FVMAdapt::buildTree(){
+void VCutWindow::buildTree(){
  //build tree
   tree = new QTreeWidget;
   tree->setColumnCount(2);
@@ -324,7 +368,7 @@ void FVMAdapt::buildTree(){
 
   
 
-FVMAdapt::FVMAdapt( QWidget *parent):QMainWindow(parent){
+VCutWindow::VCutWindow( QWidget *parent):QMainWindow(parent){
   QWidget::setAttribute(Qt::WA_DeleteOnClose, true);
 
   //QScrollArea* centralScrollArea = new QScrollArea;
@@ -349,39 +393,37 @@ FVMAdapt::FVMAdapt( QWidget *parent):QMainWindow(parent){
   tabWidget->addTab(trans, tr("Transform"));
   
   viewer = new GLViewer();
-   viewerDock  = new QDockWidget("Graphics Viewer", this); 
-  viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
-  viewerDock->setWidget(viewer);
-  addDockWidget(Qt::RightDockWidgetArea, viewerDock);
-  viewerDock->setFloating(true);
+ //  viewerDock  = new QDockWidget("Graphics Viewer", this); 
+//   viewerDock->setAllowedAreas(Qt::RightDockWidgetArea );
+//   viewerDock->setWidget(viewer);
+//   addDockWidget(Qt::RightDockWidgetArea, viewerDock);
+  // viewerDock->setFloating(true);
   connect(this, SIGNAL(valueChanged(const QTreeWidgetItem*)), viewer, SLOT(updateDoc(const QTreeWidgetItem*))); 
- 
+  
    objLayout->addWidget(tabWidget);
    objLayout->addWidget(tree);
-  
+   tree->hide();
+   objLayout->addWidget(viewer,2);
+   
    central->setLayout(objLayout);
   
-   //centralScrollArea->setWidget(central);
+   
    
    createFlowBar();
    createToolBar();
    setCentralWidget(central);
     
-  //  QStringList bnames;
-//    filename =
-//      QFileDialog::getOpenFileName(this, tr("Get File"),
-//                                   QDir::currentPath(),
-//                                   tr("vog Files (*.vog)"));
-   
-//    if(!filename.isEmpty()) viewer->load_boundary(filename, bnames);
-   setWindowTitle(tr("FVMAdapt"));
+   setWindowTitle(tr("VCutWindow"));
    setMinimumSize(1000, 700);
+   addSphere();
+   x0 = y0 = z0 = 0.0;
+   r = 1;
 }
 
 
       
 
-void FVMAdapt::showData(QTreeWidgetItem* item ){
+void VCutWindow::showData(QTreeWidgetItem* item ){
 
   if(item->text(0)=="shape"){
     tabWidget->setCurrentWidget(paraPages);
@@ -429,7 +471,7 @@ void FVMAdapt::showData(QTreeWidgetItem* item ){
   
       
 
-void FVMAdapt::updateShape(){
+void VCutWindow::updateShape(){
   if(tree->currentItem() == 0 ||
      tree->currentItem()->text(0) != "shape")
     {     
@@ -453,14 +495,14 @@ void FVMAdapt::updateShape(){
 
 
   
-void FVMAdapt::changePage(int i){
+void VCutWindow::changePage(int i){
   
   paraPages->setCurrentIndex(i);
   // emit valueChanged(root); ?
 }
 
 
-void FVMAdapt::addTransform(){
+void VCutWindow::addTransform(){
   tabWidget->setCurrentWidget(trans);
   if(tree->currentItem() == 0 ||
      ( tree->currentItem()->text(0) != "object"
@@ -628,7 +670,7 @@ void FVMAdapt::addTransform(){
   tree->resizeColumnToContents(0);
   emit valueChanged(root);
 }
-void FVMAdapt::updateTransform(){
+void VCutWindow::updateTransform(){
 
   if(tree->currentItem() == 0 ||
      tree->currentItem()->text(0) != "transform")
@@ -695,7 +737,7 @@ void FVMAdapt::updateTransform(){
 
 
 
-void FVMAdapt::addOp(){
+void VCutWindow::addOp(){
   if(tree->currentItem()==0
      ||(tree->currentItem()->text(0) !="object"
         && tree->currentItem()->text(0) !="region"
@@ -741,9 +783,63 @@ void FVMAdapt::addOp(){
   }
   
 
- }
+}
 
-void FVMAdapt::addShape(){
+void VCutWindow::addSphere(){
+  tabWidget->setCurrentWidget(paraPages);
+  QString item = "sphere";
+  
+  QTreeWidgetItem* objItem = new QTreeWidgetItem();
+  objItem->setText(0, "object");
+  objItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled|Qt::ItemIsDragEnabled);
+  QTreeWidgetItem* newItem = new QTreeWidgetItem(objItem);
+  newItem->setText(0, "shape");
+  newItem->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+  QTreeWidgetItem* valueNode = new QTreeWidgetItem(newItem);
+  valueNode->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+  if(tree->currentItem()!=0 && tree->currentItem()->text(0) =="region"){
+    tree->currentItem()->addChild(objItem);
+    
+  }else{
+    root->addChild(objItem);
+  }
+  tree->setCurrentItem(newItem);
+  int index = 0;
+  index += 1;
+  changePage(index);
+  Shape* ashape = qobject_cast<ParaPage*>(paraPages->currentWidget())->shape;
+  switch(ashape->tp){
+  case  SPHERE:
+         {
+           valueNode->setText(0, "sphere");
+           QTreeWidgetItem* x0Node = new QTreeWidgetItem(valueNode);
+           x0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+           x0Node->setText(0, "x0");
+           x0Node->setText(1, QString("%1").arg(ashape->para[0]));
+           
+           QTreeWidgetItem* y0Node = new QTreeWidgetItem(valueNode);
+           y0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+           y0Node->setText(0, "y0");
+           y0Node->setText(1, QString("%1").arg(ashape->para[1]));
+           QTreeWidgetItem* z0Node = new QTreeWidgetItem(valueNode);
+           z0Node->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+           z0Node->setText(0, "z0");
+           z0Node->setText(1, QString("%1").arg(ashape->para[2]));
+           QTreeWidgetItem* rNode = new QTreeWidgetItem(valueNode);
+           rNode->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled );
+           rNode->setText(0, "r");
+           rNode->setText(1, QString("%1").arg(ashape->para[3]));
+         }
+         
+         break;
+  default:
+    break;
+  }
+ emit valueChanged(root);
+}
+  
+
+void VCutWindow::addShape(){
   tabWidget->setCurrentWidget(paraPages);
   QStringList items;
   items << tr("sphere") << tr("cone") << tr("cylinder") << tr("box")<<
@@ -989,7 +1085,7 @@ void FVMAdapt::addShape(){
 
 
 
-void FVMAdapt::addRegion(){
+void VCutWindow::addRegion(){
 
   if(tree->currentItem()!=0 &&
      tree->currentItem()->text(0) =="region"){
@@ -1005,7 +1101,7 @@ void FVMAdapt::addRegion(){
 }
 
 
-void FVMAdapt::removeNode(){
+void VCutWindow::removeNode(){
   if(tree->currentItem()!=0 &&
      tree->currentItem()!= root){
     QTreeWidgetItem* selectedItem =  tree->currentItem();
@@ -1028,10 +1124,10 @@ void FVMAdapt::removeNode(){
    
 
   
-bool FVMAdapt::saveXml(){
+bool VCutWindow::saveXml(){
   QDomDocument doc = tree2dom(getRoot());
   if(doc.isNull())return false;
-  QString fileName = filename.left(filename.lastIndexOf('.'))+".xml";
+  QString fileName = inFilename.left(inFilename.lastIndexOf('.'))+".xml";
 
     fileName = QFileDialog::getSaveFileName(this, tr("Save .xml File"),
                                                  fileName,
@@ -1059,7 +1155,7 @@ bool FVMAdapt::saveXml(){
 }
 
 
-FVMAdapt::~FVMAdapt(){
+VCutWindow::~VCutWindow(){
    for(unsigned int i = 0 ; i< defaultShapes.size(); i++){
     if(defaultShapes[i]){
       delete defaultShapes[i];
@@ -1072,7 +1168,7 @@ FVMAdapt::~FVMAdapt(){
 
 
 
-bool FVMAdapt::validateRegion( QTreeWidgetItem* item){
+bool VCutWindow::validateRegion( QTreeWidgetItem* item){
   bool result = true;
   //root of the tree is 'region'
   if(item->text(0)!="region"){
@@ -1214,7 +1310,7 @@ bool FVMAdapt::validateRegion( QTreeWidgetItem* item){
   
 }
 
-bool FVMAdapt::validateObject(QTreeWidgetItem* item){
+bool VCutWindow::validateObject(QTreeWidgetItem* item){
   bool result = true;
   tree->setCurrentItem(item);
   int numChild = item->childCount();
@@ -1273,34 +1369,17 @@ bool FVMAdapt::validateObject(QTreeWidgetItem* item){
 
     
         
-void  FVMAdapt::validateTree(){
+void  VCutWindow::validateTree(){
   if( validateRegion(tree->topLevelItem(0))){
     QMessageBox::information(this, "validation", tr("This tree passed the validation"));
   }
   
 }
-  
-
-
-  
-
-
-// QDomDocument FVMAdapt::toDom(){
-//   QDomDocument doc;
-//   QDomNode rootElem = makeElement(doc, root);
-//   doc.appendChild(rootElem);
-//   graft_tree(doc);
-//   return doc;
-  
-// }
-
-
-
-
-void FVMAdapt::helpClicked(){
+ 
+void VCutWindow::helpClicked(){
   HelpWindow* helpwindow = new HelpWindow("page_fvmadapt.html");
   helpwindow->show();
 }
-QTreeWidgetItem* FVMAdapt::getRoot(){
+QTreeWidgetItem* VCutWindow::getRoot(){
   return root;
 }

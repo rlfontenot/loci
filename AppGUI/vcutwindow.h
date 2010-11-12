@@ -1,15 +1,14 @@
 
-#ifndef FVMADAPT_H
-#define FVMADAPT_H
+#ifndef VCUTWINDOW_H
+#define VCUTWINDOW_H
 
 #include <QDialog>
 #include <QDomDocument>
 #include <QHideEvent>
-//#include "pages.h"
-//#include "vmergewindow.h"
+#include <QProcess>
+#include "pages.h"
 #include "glviewer.h"
-#include "parapage.h"
-#include "transform.h"
+
 #include <QMainWindow>
 class QLabel;
 class QComboBox;
@@ -25,19 +24,18 @@ class QTreeWidget;
 class QSignalMapper;
 class QTabWidget;
 class QDockWidget; 
-//enum BASIC_SHAPES{SPHERE, CONE, CYLINDER, BOX, LEFTPLANE};
+
+class Transform;
+class Shape;
 
 
-
-
-
-class FVMAdapt : public QMainWindow
+class VCutWindow : public QMainWindow
 {
   Q_OBJECT
 
   public:
-  FVMAdapt(QWidget *parent = 0);
-  ~FVMAdapt();
+  VCutWindow(QWidget *parent = 0);
+  ~VCutWindow();
   QTreeWidgetItem* getRoot();
  
 signals:
@@ -57,24 +55,21 @@ private slots:
   void updateTransform();
   void showData(QTreeWidgetItem* item);  
   void done();
-  void refineGrids();
+  void cutGrid();
+  void afterCut(QString command, QProcess::ExitStatus status, QString directory);
   void loadGrid();
   void resizeTree();
   void validateTree();
+  void addSphere();
 private:
   void createFlowBar();
   void createToolBar();
   void buildTree();
   bool validateRegion(QTreeWidgetItem* item);
   bool validateObject(QTreeWidgetItem* item);
-  // bool validateShape(QTreeWidgetItem* item);
-  //void validateOp(QTreeWidgetItem* item);
-  // void validateTransform(QTreeWidgetItem* item);
-  //void validateTranslate(QTreeWidgetItem* item);
   
-  
-  QString filename;
-  
+  QString inFilename;
+  QString outFilename;
   Transform* trans;
   QTreeWidget* tree;
   QTreeWidgetItem* root;
@@ -86,8 +81,9 @@ private:
   vector<Shape*> defaultShapes;
 
   GLViewer* viewer;
-  QDockWidget* viewerDock;
- 
+  // QDockWidget* viewerDock;
+  
+  double x0, y0, z0, r;
  
 };
 
