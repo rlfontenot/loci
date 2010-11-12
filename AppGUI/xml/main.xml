@@ -947,7 +947,9 @@ reactions = {
     <VogMerge>
       VogMerge: merge more than one volume grids into one grid.
     </VogMerge>
-    
+     <VogCut>
+      VogCut: extract a sphere region from  a grid.
+    </VogCut>
     <PB>
       pb is a periodic boundary tool. It makes exactly the same 
       boundaries for the given grid. 

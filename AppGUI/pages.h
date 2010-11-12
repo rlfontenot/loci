@@ -27,7 +27,7 @@ class QListWidgetItem;
 class QCheckBox;
 
 
-bool angleBetween(positions3d v1,positions3d v2, double& heading, double& attitude, double& bank);
+
 
 
 bool conditionIsSatisfied(const QDomElement& theroot, const QString& condition);

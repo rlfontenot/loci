@@ -17,6 +17,7 @@ public slots:
   void vcheck();
   // void help(const QString&);
   void vmerge(); //vogmerge button clicked
+  void vcut(); //vogcut button clicked
   void fvmAdapt(); //FVMAdapt
   void import();
   void showQuality(QString, QProcess::ExitStatus, QString);

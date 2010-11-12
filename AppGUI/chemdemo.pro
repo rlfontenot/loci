@@ -39,7 +39,11 @@ HEADERS += bdcndwindow.h \
            pbwindow.h \
            pboperation.h \
            defines.h \
-           helpwindow.h
+           helpwindow.h \
+           vcutwindow.h \
+           parapage.h \
+           transform.h \
+           tree2doc.h
           
 SOURCES += bdcndwindow.cpp \
            cutplane.cpp \
@@ -67,7 +71,11 @@ SOURCES += bdcndwindow.cpp \
            varwindow.cpp \
            pbwindow.cpp \
            pboperation.cpp \
-           helpwindow.cpp
+           helpwindow.cpp \
+           vcutwindow.cpp \
+           parapage.cpp \
+           transform.cpp \
+           tree2doc.cpp
 
 RESOURCES     = chemdemo.qrc
 #install

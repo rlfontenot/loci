@@ -9,7 +9,7 @@
 #include "qualitydialog.h"
 #include "progressdialog.h"
 #include "pbwindow.h"
-
+#include "vcutwindow.h"
 MyPushButton::MyPushButton(const QString& title, QWidget* parent):QPushButton(title, parent){
   QWidget::setMouseTracking(true);
 }
@@ -115,7 +115,10 @@ void MainWindow::processItem(int index){
       vcheck();
    }else if(item=="VogMerge"){
       vmerge();
-    }else if(item=="FVMadapt"){
+    }else if(item=="VogCut"){
+      vcut();
+    }
+    else if(item=="FVMadapt"){
       fvmAdapt();
     }else if(item=="Post-Processing"){
       postProcess();
@@ -269,3 +272,10 @@ void MainWindow::vmerge()
  
 }
 
+void MainWindow::vcut()
+{
+
+  VCutWindow*  vcwindow = new VCutWindow();
+  vcwindow->show();
+ 
+}

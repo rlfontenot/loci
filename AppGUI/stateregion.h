@@ -15,7 +15,9 @@
 #include <utility>
 #include "pages.h"
 #include "grid.h"
-#include "fvmadapt.h"
+#include "parapage.h"
+#include "transform.h"
+
 
 class QListWidget;
 class QListWidgetItem;
@@ -23,6 +25,8 @@ class QStackedWidget;
 class QCheckBox;
 class QButtonGroup;
 class QStackedLayout;
+class QTextEdit;
+class QTreeWidget;
 using namespace std;
 
 //typedef affineMapping affineMapping2;
