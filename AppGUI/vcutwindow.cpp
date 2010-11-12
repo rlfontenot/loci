@@ -228,7 +228,7 @@ void VCutWindow::cutGrid(){
   
  
   if(!(outFilename.section('/', -1, -1).section('.',0,0).isEmpty())){
-    QString command = QString("./vogcut");
+    QString command = QString("vogcut");
     command += " -g " + inFilename + " -center " +  QString("%1 ").arg(x0)+
       QString(" %1 ").arg(y0) + QString(" %1 ").arg(z0)
       + " -r " + QString(" %1 ").arg(r);
