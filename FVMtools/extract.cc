@@ -349,6 +349,19 @@ void setup_grid_topology(string casename, string iteration) {
   if(!Loci::setupFVMGrid(facts,file)) {
     cerr << "unable to read grid " << file << endl ;
   }
+  // if output directory doesn't exist, create one
+  struct stat statbuf ;
+
+  if(stat(output_dir.c_str(),&statbuf))
+    mkdir(output_dir.c_str(),0755) ;
+  else
+    if(!S_ISDIR(statbuf.st_mode)) {
+      cerr << "file '"
+           << output_dir << "' should be a directory!, rename and start again."
+           << endl ;
+      Loci::Abort() ;
+    }
+  
   string filename = output_dir+"/"+casename+".topo" ;
   if(stat(filename.c_str(),&tmpstat)!= 0) {
     Loci::createLowerUpper(facts) ;
@@ -1395,16 +1408,18 @@ int main(int ac, char *av[]) {
     Usage(ac,av) ;
   }
 
-  struct stat dirstat ;
-  if(stat(output_dir.c_str(),&dirstat)) {
-    cerr << "unable to open directory '" << output_dir << "'" << endl ;
-    exit(-1) ;
-  } else {
-    if(!S_ISDIR(dirstat.st_mode)) {
-      cerr << "unable to open directory '" << output_dir << "'" << endl ;
-      exit(-1) ;
+  // if output directory doesn't exist, create one
+  struct stat statbuf ;
+  if(stat(output_dir.c_str(),&statbuf))
+    mkdir(output_dir.c_str(),0755) ;
+  else
+    if(!S_ISDIR(statbuf.st_mode)) {
+      cerr << "file '" << output_dir
+           <<"' should be a directory!, rename 'output' and start again."
+           << endl ;
+      Loci::Abort() ;
     }
-  }
+  
       
 
   if(variables.size() == 0) {

@@ -740,11 +740,6 @@ void createFaceMap(const vector<vector<int> >& face2node,
       if(faceMap[f].mapped==0){//the face has no equivalence
         faceMap[f].mapped = 1;
         faceMap[f].cl =  faceMap[f].cl + fileData[faceMap[f].block_id].cellOffset;
-      
-#ifdef DEBUG
-        cerr <<"Unmatched face: block_id: " <<
-          faceMap[i].block_id << " face_id: " << faceMap[i].local_index<<endl;
-#endif
         
       }
     }
@@ -1238,8 +1233,8 @@ int main(int ac, char *av[]) {
     cerr << "unable to open output file '" << output_file << "'" << endl ;
     fail = true ;
   }
-#define DEBUG
-#ifndef DEBUG
+#define DEBUG_TEST
+#ifndef DEBUG_TEST
   /* Save old error handler */
   herr_t (*old_func)(void*) = 0;
   void *old_client_data = 0 ;

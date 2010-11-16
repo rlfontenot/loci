@@ -26,7 +26,7 @@ COPT = $(COPTLESS)
 # List the name of your compiled program here
 TARGET = extract
 
-OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr plot3d2vog pb make_periodic xdr2cobalt xdr2vog vog2xdr ugrid2vog fluent2vog cobalt2vog vogmerge vogcheck extruder vog2surf ccm2vog
+OTHER_APPS = cfd++2xdr cobalt2xdr solidMesh2xdr plot3d2xdr plot3d2vog pb make_periodic xdr2cobalt xdr2vog vog2xdr ugrid2vog fluent2vog cobalt2vog vogmerge vogcut vogcheck extruder vog2surf ccm2vog
 
 # List your object files here
 OBJS =  extract.o extract_ensight.o extract_2dgv.o extract_ascii.o extract_tecplot.o extract_fv.o extract_cut.o extract_surf.o extract_mean.o
@@ -85,6 +85,9 @@ vog2xdr: vog2xdr.o
 
 vogmerge: vogmerge.o
 	$(LD) -o vogmerge vogmerge.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
+
+vogcut: vogcut.o vogtools.o
+	$(LD) -o vogcut vogcut.o vogtools.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
 
 cobalt2xdr: cobalt2xdr.o
 	$(LD) -o cobalt2xdr cobalt2xdr.o $(LOCAL_LIBS) $(LIBS) $(LDFLAGS)
