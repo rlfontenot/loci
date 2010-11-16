@@ -1529,7 +1529,6 @@ namespace Loci {
     rule_impl = new NULL_RULE_IMPL ;
       
     rule_ident = internal_qualifier + ":" + desc.rule_identifier() ;
-
     
     set<vmap_info>::const_iterator i ;
     variableSet svars,tvars ;

@@ -8,7 +8,7 @@ namespace Loci {
   // Compute stencil using nearest point in 8 octants
   vector<int> get_stencil(const kdTree::KDTree<float> &kd,vect3d pnt,
                           real_t delta) {
-    vector<int> neighbors ;
+    vector<int> neighbors(8) ;
     kdTree::coordinate3d<float> ccenter ;
     ccenter[0] = pnt.x ;
     ccenter[1] = pnt.y ;
@@ -21,14 +21,16 @@ namespace Loci {
 
     if(id < 0) {
       // If no points in stencil radius, return closest point
+      vector<int> n ;
       id = kd.find_closest(ccenter) ;
       if(id >=0)
-        neighbors.push_back(id) ;
-      return neighbors ;
+        n.push_back(id) ;
+      return n ;
     }
     if(rmin <= 1e-30) {
-      neighbors.push_back(id) ;
-      return neighbors ;
+      vector<int> n ;
+      n.push_back(id) ;
+      return n ;
     }
 
     
@@ -42,29 +44,25 @@ namespace Loci {
 
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[0] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[1] = id;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[2] = id;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[3] = id;
 
     // Now gather negative z quadrants
     for(int i=0;i<3;++i) {
@@ -75,42 +73,33 @@ namespace Loci {
     box.minc[2] = ccenter[2]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[4] = id;
+
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[5] = id ;
+
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[6] = id ;
+
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[7] = id ;
 
-    if(neighbors.size() == 0) { // If not found in rmin, then
-      // just find closest point.
-      id = kd.find_closest(ccenter) ;
-      if(id >= 0)
-        neighbors.push_back(id) ;
-    }
-      
     return neighbors ;
-
   }
 
   // Compute stencil using nearest point in 8 octants (real_t precision)
   vector<int> get_stencil(const kdTree::KDTree<real_t> &kd,vect3d pnt,
                           real_t delta) {
-    vector<int> neighbors ;
+    vector<int> neighbors(8) ;
     kdTree::coordinate3d<real_t> ccenter ;
     ccenter[0] = pnt.x ;
     ccenter[1] = pnt.y ;
@@ -123,14 +112,16 @@ namespace Loci {
 
     if(id < 0) {
       // If no points in stencil radius, return closest point
+      vector<int> n ;
       id = kd.find_closest(ccenter) ;
       if(id >=0)
-        neighbors.push_back(id) ;
-      return neighbors ;
+        n.push_back(id) ;
+      return n ;
     }
     if(rmin <= 1e-30) {
-      neighbors.push_back(id) ;
-      return neighbors ;
+      vector<int> n ;
+      n.push_back(id) ;
+      return n ;
     }
 
     
@@ -144,29 +135,25 @@ namespace Loci {
 
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[0] = id;
 
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[1] = id;
 
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[2] = id;
 
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[3] = id;
 
     // Now gather negative z quadrants
     for(int i=0;i<3;++i) {
@@ -177,275 +164,292 @@ namespace Loci {
     box.minc[2] = ccenter[2]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[4] = id;
+
     box.maxc[0] = ccenter[0] ;
     box.minc[0] = ccenter[0]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[5] = id ;
+
     box.maxc[1] = ccenter[1] ;
     box.minc[1] = ccenter[1]-delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[6] = id ;
+
     box.minc[0] = ccenter[0] ;
     box.maxc[0] = ccenter[0]+delta ;
     rmin = rmin_ref ;
     id = kd.find_closest_box(ccenter,box,rmin) ;
-    if(id >=0)
-      neighbors.push_back(id) ;
+    neighbors[7] = id ;
 
-    if(neighbors.size() == 0) { // If not found in rmin, then
-      // just find closest point.
-      id = kd.find_closest(ccenter) ;
-      if(id>=0)
-        neighbors.push_back(id) ;
-    }
-    
     return neighbors ;
   }
 
   // Compute stencil weights from a set of candidate neighbors
   // The code outputs an updated neighbors list and stencil weights
   // This routine uses the following algorithm to determine the stencil:
-  //  1) find the closest point, it is in the stencil.
-  //  2) find the closest edge (closest orthogonal projection to the
-  //     edge formed by connecting the closest point and some other point
-  //     in the stencil.  If no edge contains the point projection, then
-  //     the interpolation stencil contains only the closest point
-  //  3) Find the closest point that projects onto the face formed from
-  //     the closest edge and all remaining points.  If no face contains
-  //     the projected point, then the stencil only contains the points of
-  //     the closest edge.
-  //  4) Find the smallest volume tetrahedra that contains the interpolant
-  //     and is formed from the closest face and remaining points in the
-  //     stencil.  If no tetrahedra satisfy this condition, then interpolate
-  //     using projection on closest face.  Otherwise compute weights based
-  //     on barycentric coordinates of the smallest tetrahedra.
+  //  1) Since 8 points come from 8 ocatants, they form a hexahedron.  From
+  //     this hexahedron form the two 5 tetrahedra decompositions and find out
+  //     which tetrahedra which has the closest four points and contains the
+  //     interpolating point.  If a tetrahedra is found, use compute
+  //     barycentric coordinates to obtain weights.
+  //  2) If no tetrahedra is formed, then some octants must not have contained
+  //     points and the case should degenerate to a 2-D case.  For this we
+  //     check all possible triangles  that include closest point and select
+  //     the triangle with the smallest perimiter that we can project our
+  //     interpolant onto.  Use the barycentric corrdinates for this triangle
+  //     to compute weights.
+  //  3) If no triangle is found from step 2 select edge formed from two
+  //     closest points.  Use projected point distances to compute weights.
   void stencil_weights(std::vector<real_t> &w,
                        std::vector<int> &neighbors,
                        const store<vect3d> &loc,
                        vect3d ipnt) {
     using std::swap ;
     // Find closest point, set it to n0
-    int n0 = 0 ;
     int sz = neighbors.size() ;
-    if(sz == 0 || neighbors[0] < 0)
+    if(sz == 0 ) 
       return ;
-    real_t dist = 1e33 ;
-    for(int i=0;i<sz;++i) {
-      const vect3d dv = loc[neighbors[i]]-ipnt;
-
-      const real_t d2 = dot(dv,dv) ;
-      const bool choice = (d2 < dist) ;
-      n0 = choice?i:n0 ;
-      dist = choice?d2:dist ;
-    }
-
-    swap(neighbors[n0],neighbors[0]) ;
-    n0 = 0 ;
-      
-    // Vertex 0
-    vect3d v0 = loc[neighbors[n0]] ;
-
-    // Vertex of interpolatant point relative to v0
-    vect3d vc = ipnt-v0 ;
-
-    // Find closest edge
-    int n1 = -1 ;
-    dist = 1e33 ;
-    for(int i=1;i<sz;++i) {
-      // Compute normalized edge vector
-      const vect3d ev = loc[neighbors[i]] - v0 ;
-      const real_t ev2 = dot(ev,ev) ;
-      // project vc onto ev making sure it stays between endpoints
-      const real_t pnte = dot(vc,ev)/ev2 ;
-      // Compute distance to edge
-      const vect3d v2e = vc- pnte*ev ;
-      const real_t d = dot(v2e,v2e) ;
-      const bool choice = (dist > d && pnte >= 0. && pnte <= 1.) ;
-      n1 = choice?i:n1 ;
-      dist = choice?d:dist ;
-    }
-
-    if(n1 == -1) {
-      // No close edge, so the only choice
-      //is to use closest point as stencil
-      vector<int> N(1) ;
+    if(sz == 1) {
       vector<real_t> W(1) ;
-      N[0] = neighbors[n0] ;
       W[0] = 1.0 ;
       w.swap(W) ;
-      neighbors.swap(N) ;
       return ;
     }
+    FATAL(sz != 8) ;
+    // Now search for corner tetrahedra
+    const int corner_tets[8][3]
+      = { {1, 3, 4}, {0, 5, 2}, {1, 6, 3}, {0, 2, 7},
+          {0, 7, 5}, {1, 4, 6}, {2, 5, 7}, {3, 6, 4} } ;
 
-    swap(neighbors[1],neighbors[n1]) ;
-    n1 = 1 ;
-    
-    // Now find closest triangle
-    dist = 1e33 ;
-    int n2 = -1 ;
-    vect3d v1 = loc[neighbors[n1]]-v0 ;
-    real_t scale = 1e-20*dot(v1,v1) ;
-    for(int j=2;j<sz;++j)  { // Loop over stencil points
-      // Form triangle (candidate triangle formed from v2)
-      const vect3d v2 = loc[neighbors[j]]-v0 ;
-      const vect3d n = cross(v1,v2) ; // Compute face normal
-      const real_t a2 = dot(n,n) ;
-      const real_t d = dot(vc,n) ; // projected distance to triangle
-      const real_t ra2 = 1./(a2+1e-60) ;
-      const real_t ad = d*d*ra2 ;   // magnitude of distance squared
-      // Compute projected point on triangle plane
-      vect3d pnt = (vc-d*ra2*n) ;
-      // Now check to see if pnt is in triangle
-      // Compute barycentric coordinates and make sure all are positive
-      real_t c1 = dot(n,cross(v1,pnt)) ;
-      real_t c2 = dot(n,cross(pnt,v2)) ;
-      real_t c3 = dot(n,cross(v1-pnt,v2-pnt)) ;
-      const bool choice = (a2 > scale && ad < dist &&
-                           c1 >= 0. && c2 >= 0. && c3 >= 0.) ;
-      dist = choice?ad:dist ;
-      n2 = choice?j:n2 ;
-    }
-    
-    if(n2 == -1) {
-      // No closest triangle, so we must project onto a line segment
-      vector<int> N(2) ;
-      vector<real_t> W(2) ;
-      N[0] = neighbors[n0] ;
-      N[1] = neighbors[n1] ;
-      W[1] = min(1.0,dot(vc,v1)/dot(v1,v1)) ;
-      W[0] = 1.-W[1] ;
-      w.swap(W) ;
-      neighbors.swap(N) ;
-      return ;
+    int corner = -1 ;
+    real_t dist = 1e33 ;
+    for(int i=0;i<8;++i) {
+      const int p0 = neighbors[i] ;
+      const int p1 = neighbors[corner_tets[i][0]] ;
+      const int p2 = neighbors[corner_tets[i][1]] ;
+      const int p3 = neighbors[corner_tets[i][2]] ;
+      // Check if tet is valid
+      if(p0 >=0 && p1 >= 0 && p2 >= 0 && p3 >= 0) {
+        // Now test to see if point is in this corner tet.
+        vect3d v1 = loc[p1]-loc[p2] ;
+        vect3d v2 = loc[p3]-loc[p2] ;
+        vect3d vp = ipnt-loc[p2] ;
+        if(dot(vp,cross(v1,v2)) < 0.0) {
+            real_t sum = dot(vp,vp) ;
+            vp = ipnt - loc[i] ;
+            sum += dot(vp,vp) ;
+            vp = ipnt - loc[p1] ;
+            sum += dot(vp,vp) ;
+            vp = ipnt - loc[p3] ;
+            sum += dot(vp,vp) ;
+            if(sum < dist) {
+              dist = sum ;
+              corner = i ;
+            }
+        }
+      } 
     }
 
+    int t0=-1,t1=-1,t2=-1,t3=-1 ;
+    if(corner >= 0) {
+      const int i = corner ;
+      t0 = neighbors[i] ;
+      t1 = neighbors[corner_tets[i][0]] ;
+      t2 = neighbors[corner_tets[i][1]] ;
+      t3 = neighbors[corner_tets[i][2]] ;
+    } else {
+      // not a corner, must be in center.  Select best of two center ones.
+      int p0 = neighbors[1] ;
+      int p1 = neighbors[3] ;
+      int p2 = neighbors[4] ;
+      int p3 = neighbors[6] ;
 
-    swap(neighbors[2],neighbors[n2]) ;
-    n2 = 2  ;
-    
-    // Search for smallest tetrahedra that is formed from the closest face
-    // and contains the interpolant point
-    int n3 = -1 ;
-    vect3d v2 = loc[neighbors[n2]]-v0 ;
-
-    // If projected very close to face, then default to face interpolation
-    // otherwise search for smallest tetrahedra that also contains the
-    // interpolation point
-    if(dist > scale) {
-      real_t minvol = 1e33 ;
-      // Now find smallest volume tetrahedra that contains interpolant point
-      real_t vol3 = dot(cross(v1,v2),vc) ;
-      // Make sure volumes we compare are positive
-      if(vol3 < 0) {
-        std::swap(v1,v2) ;
-        std::swap(n1,n2) ;
-        vol3 = -vol3 ;
+      if(p0 >=0 && p1 >= 0 && p2 >= 0 && p3 >= 0) {
+        t0 = p0 ;
+        t1 = p1 ;
+        t2 = p2 ;
+        t3 = p3 ;
+        dist = dot(ipnt-loc[t0],ipnt-loc[p0])+
+          dot(ipnt-loc[t0],ipnt-loc[p1])+
+          dot(ipnt-loc[t0],ipnt-loc[p2])+
+          dot(ipnt-loc[t0],ipnt-loc[p3]) ;
       }
-      for(int i=3;i<sz;++i) {
-	vect3d v3 = loc[neighbors[i]]-v0 ;
-	real_t vol = dot(cross(v1,v2),v3) ;
-	real_t vol1 = dot(cross(vc,v2),v3) ;
-	real_t vol2 = dot(cross(v1,vc),v3) ;
-	real_t vol0 = vol-vol1-vol2-vol3 ;
-	
-	bool choice = (vol > 0 && vol < minvol && 
-		       vol0 > 0. && vol1 > 0. && vol2 > 0) ;
-	// Check to see if point is inside tetrahedra
-	// It is inside if the all of the sub-volumes are postive
-	minvol =choice?vol:minvol ;
-	n3 = choice?i:n3 ;
+      p0 = neighbors[1] ;
+      p1 = neighbors[3] ;
+      p2 = neighbors[4] ;
+      p3 = neighbors[6] ;
+      if(p0 >=0 && p1 >= 0 && p2 >= 0 && p3 >= 0) {
+        real_t dist2 = dot(ipnt-loc[t0],ipnt-loc[p0])+
+          dot(ipnt-loc[t0],ipnt-loc[p1])+
+          dot(ipnt-loc[t0],ipnt-loc[p2])+
+          dot(ipnt-loc[t0],ipnt-loc[p3]) ;
+        if(dist2 < dist) {
+          dist = dist2 ;
+          t0 = p0 ;
+          t1 = p1 ;
+          t2 = p2 ;
+          t3 = p3 ;
+        }
       }
     }
-
-    if(n3 == -1 && sz == 8) {
-      // if we started with  8 points we should have found a tetrahedra
-      // if not, then we need to do an exhaustive search to find the
-      // smallest volume tetrahedra that contains the interpolation point.
-      real_t minvol = 1e33 ;
-      const vect3d v0c = v0 ;
-      const vect3d vcc = vc ;
-      for(int j=1;j<8;++j) {
-	const vect3d v1c = loc[neighbors[j]] - v0c ;
-	const vect3d cv1vc = cross(v1c,vcc)  ;
-	for(int k=j+1;k<8;++k) {
-	  const vect3d v2c = loc[neighbors[k]] - v0c ;
-	  const vect3d cvcv2 = cross(vcc,v2c) ;
-	  const vect3d cv1v2 = cross(v1c,v2c) ;
-	  const real_t w3 = dot(cv1v2,vcc) ;
-	  for(int l=k+1;l<8;++l) {
-	    const vect3d v3c = loc[neighbors[l]] - v0c ;
-	    const real_t w2 = dot(cv1vc,v3c) ;
-	    const real_t w1 = dot(cvcv2,v3c) ;
-	    const real_t vol =dot(cv1v2,v3c) ;
-	    const real_t w0 = vol-w1-w2-w3 ;
-	    const bool choice = 
-	      ((fabs(vol) < minvol) &&
-	       ((vol > 0 && w3 > 0 && w2 > 0 && w1 > 0 && w0 > 0) ||
-		(vol < 0 && w3 < 0 && w2 < 0 && w1 < 0 && w0 < 0)) ) ;
-	    minvol = choice?fabs(vol):minvol ;
-	    n1 = choice?j:n1 ;
-	    n2 = choice?k:n2 ;
-	    n3 = choice?l:n3 ;
-	  }
+    if(t0 >=0) { // found tetrahedra
+      // Compute tetrahedra barycentric coordinates for weights
+      // and modify stencil to only include the four points that define
+      // the bounding tetrahedra.
+      vector<int> N(4) ;
+      vector<real_t> W(4) ;
+      N[0] = t0 ;
+      N[1] = t1 ;
+      N[2] = t2 ;
+      N[3] = t3 ;
+      vect3d v0 = loc[N[0]] ;
+      vect3d v1 = loc[N[1]]-v0 ;
+      vect3d v2 = loc[N[2]]-v0 ;
+      vect3d v3 = loc[N[3]]-v0 ;
+      vect3d vc = ipnt-v0 ;
+      
+      real_t w3 = dot(cross(v2,v1),vc) ;
+      real_t w2 = dot(cross(vc,v1),v3) ;
+      real_t w1 = dot(cross(v2,vc),v3) ;
+      real_t vol = dot(cross(v2,v1),v3) ;
+      real_t w0 = vol-w1-w2-w3 ;
+      if(vol >= 1e-30 && w0>=0.0 && w1>= 0.0 && w2 >= 0.0 && w3 >= 0.0 ) {
+        real_t rvol = 1./(vol) ;
+        real_t aspect6 = dist*dist*dist*rvol*rvol ;
+        if(aspect6 < 1.6e10) { // aspect ratio less than 50
+          W[0] = w0*rvol ;
+          W[1] = w1*rvol ;
+          W[2] = w2*rvol ;
+          W[3] = w3*rvol ;
+          w.swap(W) ;
+          neighbors.swap(N) ;
+          return ;
+        } 
+      }
+      //      cerr << "degenerate tet, corner = "<< corner << ",w0="
+      //	   << w0 << ",w1="<<w1 << ",w2=" <<w2 << ",w3=" 
+      //	   << ",vol=" << vol << endl ;
+    }
+    // Got here, so it means we are degenerate.
+    int nt[8] ;
+    sz = 0 ;
+    real_t mind = 1e30 ;
+    for(int i=0;i<8;++i)
+      if(neighbors[i] >= 0) {
+	nt[sz] = neighbors[i] ;
+	sz++ ;
+	vect3d dv = ipnt-loc[neighbors[i]] ;
+	const real_t d = dot(dv,dv) ;
+	if(d<mind) {
+	  mind = d ;
+	  swap(nt[sz-1],nt[0]) ;
 	}
       }
+    if(sz == 0) {
+      vector<int> N ;
+      vector<real_t> W ;
+      neighbors.swap(N) ;
+      w.swap(W) ;
+      return ;
+    }
+    if(sz == 1) {
+      vector<int> N(1) ;
+      vector<real_t> W(1) ;
+      N[0] = nt[0] ;
+      W[0] = 1.0 ;
+      neighbors.swap(N) ;
+      w.swap(W) ;
+      return ;
+    }      
+    vect3d v0 = loc[nt[0]] ;
+    vect3d vc = ipnt-v0 ;
+    // Now find best triangle fit
+    mind = 1e33 ;
+    int n1=-1, n2 = -1 ;
+    for(int i=1;i<sz;++i) {
+      const vect3d v1 = loc[nt[i]]-v0 ;
+      const real_t d1 = dot(loc[nt[i]]-ipnt,loc[nt[i]]-ipnt) ;
+      for(int j=i+1;j<sz;++j) {
+        const vect3d dv = loc[nt[j]]-ipnt;
+        const vect3d v2 = loc[nt[j]]-v0 ;
+        const real_t d2 = dot(dv,dv) ;
+        // find smallest perimiter
+        if(mind > d1+d2) {
+          const vect3d n = cross(v1,v2) ; // Compute face normal
+          const real_t a2 = dot(n,n) ;
+          const real_t d = dot(vc,n) ; // projected distance to triangle
+          const real_t ra2 = 1./(a2+1e-60) ;
+          // Compute projected point on triangle plane
+          vect3d pnt = (vc-d*ra2*n) ;
+          // Now check to see if pnt is in triangle
+          // Compute barycentric coordinates and make sure all are positive
+          real_t c1 = dot(n,cross(v1,pnt)) ;
+          real_t c2 = dot(n,cross(pnt,v2)) ;
+          real_t c3 = dot(n,cross(v1-pnt,v2-pnt)) ;
+      
+          if(c1 >= 0. && c2 >= 0. && c3 >= 0.) {
+            mind = d1+d2 ;
+            n2 = j ;
+            n1 = i ;
+          }
+        }
+      }
     }
 
-    // If we didn't find a tetrahedra then interpolate to the closest face
-    if(n3 == -1) { // Project onto triangle
-      vector<int> N(3) ;
-      vector<real_t> W(3) ;
-      N[0] = neighbors[n0] ;
-      N[1] = neighbors[n1] ;
-      N[2] = neighbors[n2] ;
+    // found triangle, setup weights    
+    if(n2 != -1) {
+      swap(nt[1],nt[n1]) ;
+      swap(nt[2],nt[n2]) ;
+      n1 = 1 ;
+      n2 = 2 ;
+      vect3d v1 = loc[nt[1]]-v0 ;
+      vect3d v2 = loc[nt[2]]-v0 ;
       vect3d n = cross(v1,v2) ;
-      real_t ra2 = 1./dot(n,n) ;
+      real_t ra2 = 1./(dot(n,n)+1e-30) ;
       real_t d = dot(vc,n) ; // projected distance to triangle
       vect3d pnt = (vc-d*ra2*n) ;
       real_t w2 = dot(n,cross(v1,pnt)) ;
       real_t w1 = dot(n,cross(pnt,v2)) ;
       real_t w0 = dot(n,cross(v1-pnt,v2-pnt)) ;
-      real_t wsr = 1./(w0+w1+w2) ;
-      W[0] = w0*wsr ;
-      W[1] = w1*wsr ;
-      W[2] = w2*wsr ;
-      w.swap(W) ;
-      neighbors.swap(N) ;
-      return ;
+      if(w1>=0 && w2>=0 && w0 >=0 && w0+w1+w2 > 1e-30) {
+	vector<int> N(3) ;
+	vector<real_t> W(3) ;
+	N[0] = nt[0] ;
+	N[1] = nt[1] ;
+	N[2] = nt[2] ;
+        real_t wsr = 1./(w0+w1+w2) ;
+	W[0] = w0*wsr ;
+	W[1] = w1*wsr ;
+	W[2] = w2*wsr ;
+	w.swap(W) ;
+	neighbors.swap(N) ;
+	return ;
+      }
+      //      cerr << "degenerate triangle, w0="<<w0 << "w1="<<w1<< "w2="<<w2 << endl ;
     }
-
-
-    // Compute tetrahedra barycentric coordinates for weights
-    // and modify stencil to only include the four points that define
-    // the bounding tetrahedra.
-    vector<int> N(4) ;
-    vector<real_t> W(4) ;
-    N[0] = neighbors[n0] ;
-    N[1] = neighbors[n1] ;
-    N[2] = neighbors[n2] ;
-    N[3] = neighbors[n3] ;
-    v1 = loc[N[1]]-v0 ;
-    v2 = loc[N[2]]-v0 ;
-    vect3d v3 = loc[N[3]]-v0 ;
-
-    real_t w3 = dot(cross(v1,v2),vc) ;
-    real_t w2 = dot(cross(v1,vc),v3) ;
-    real_t w1 = dot(cross(vc,v2),v3) ;
-    real_t vol = dot(cross(v1,v2),v3) ;
-    real_t w0 = vol-w1-w2-w3 ;
-    real_t rvol = 1./(w0+w1+w2+w3) ;
-    W[0] = w0*rvol ;
-    W[1] = w1*rvol ;
-    W[2] = w2*rvol ;
-    W[3] = w3*rvol ;
-
-
+    
+    // Now we are reduced to a line segment, project onto it to get weights
+    // Find second closest point
+    mind = dot(ipnt-loc[nt[1]],ipnt-loc[nt[1]]) ;
+    for(int i=2;i<sz;++i) {
+      vect3d dv = ipnt-loc[nt[i]] ;
+      const real_t d = dot(dv,dv) ;
+      if(d<mind) {
+        mind = d ;
+        swap(nt[i],nt[1]) ;
+      }
+    }
+    // compute weights
+    vector<int> N(2) ;
+    vector<real_t> W(2) ;
+    N[0] = nt[0] ;
+    N[1] = nt[1] ;
+    vect3d v1 = loc[nt[1]]-v0 ;
+    W[1] = min(1.0,dot(vc,v1)/(dot(v1,v1)+1e-30)) ;
+    W[0] = 1.-W[1] ;
     w.swap(W) ;
     neighbors.swap(N) ;
     return ;
@@ -455,7 +459,7 @@ namespace Loci {
 			 kdTree::KDTree<float>::bounds bnd) {
     MEMORY_PROFILE(collectPointsBegin) ;
     // Communicate bounds request to other processors
-    using namespace kdTree ;
+    using namespace kdTree ;    
     int p = MPI_processes ;
     vector<KDTree<float>::bounds> bnd_req(p) ;
     MPI_Allgather(&bnd,6,MPI_FLOAT,&bnd_req[0],6,MPI_FLOAT,MPI_COMM_WORLD) ;
@@ -481,6 +485,7 @@ namespace Loci {
 			      real_t &delta,
 			      const kdTree::KDTree<float> &kd,
 			      const vect3d pnts[],int start, int end) {
+    real_t deltain = delta ;
     for(int d=0;d<3;++d) {
       bnd.minc[d] = .25*std::numeric_limits<float>::max() ;
       bnd.maxc[d] = -.25*std::numeric_limits<float>::max() ;
@@ -545,15 +550,27 @@ namespace Loci {
     
     if(npnts2 > 1000000) {
       real_t f = pow(real_t(npnts)/real_t(npnts2+1),0.33333) ;
+      
 #ifdef VERBOSE
       debugout << "npnts2="<<npnts2 <<",f=" << f << endl ;
 #endif
       for(int d=0;d<3;++d) {
-        bnd.maxc[d] -= (1.-f)*delta ;
-        bnd.minc[d] += (1.-f)*delta ;
+        bnd.maxc[d] -= (1.-f)*(delta-deltain) ;
+        bnd.minc[d] += (1.-f)*(delta-deltain) ;
       }
     }
-      
+    real_t max_delta = 0 ;
+    for(int d=0;d<3;++d) {
+      max_delta = max(max_delta,real_t(bnd.maxc[d]-bnd.minc[d])) ;
+    }
+    max_delta *= 1e-3 ;
+    for(int d=0;d<3;++d) {
+      if(bnd.maxc[d]-bnd.minc[d] < max_delta) {
+        bnd.maxc[d] += max_delta ;
+        bnd.minc[d] -= max_delta ;
+      }
+    }
+    
   }
 
   void getStencilBoundingBox(kdTree::KDTree<float>::bounds &bnd,

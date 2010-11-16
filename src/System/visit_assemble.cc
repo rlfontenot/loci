@@ -349,7 +349,7 @@ namespace Loci {
                ri->get_info().qualifier() == "priority")
               priority_rule = true ;
 
-            if(ri->get_info().rule_class == rule::INTERNAL)
+            if(ri->get_info().rule_class == rule::INTERNAL) {
               if(is_chomp_node(ri)) {
                 // we need to actually look into the chomping
                 // graph to find out the rules that generate
@@ -386,8 +386,9 @@ namespace Loci {
                      crimp->get_rule_class() == rule_impl::ERASE)
                     dynamic_ide = true ;
                 }
-                continue ;
+                //continue ;
               }
+            }
           
             rule_implP rimp = ri->get_rule_implP() ;
             if(rimp->get_rule_class() == rule_impl::POINTWISE)
@@ -413,7 +414,7 @@ namespace Loci {
               recursive = true ;
           }
         }
-        
+
         WARN(((reduction && pointwise) || (pointwise && singleton) ||
               (reduction && singleton)) && vi->get_info().name != "OUTPUT") ;
         if(((reduction && pointwise) || (pointwise && singleton) ||

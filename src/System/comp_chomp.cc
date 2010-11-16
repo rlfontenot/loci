@@ -96,13 +96,13 @@ namespace Loci {
       for(vector<pair<int,rule_implP> >::iterator vi=chomp_compP.begin();
           vi!=chomp_compP.end();++vi)
         vi->second->initialize(facts) ;
-
+      
       for(variableSet::const_iterator vi=chomp_vars.begin();
           vi!=chomp_vars.end();++vi) {
         storeRepP srp = facts.get_variable(*vi) ;
         chomp_vars_rep.push_back(srp) ;
       }
-
+      
       // we'll need to set up the chomp_size
       // and the chomping sequence table
       entitySet test_alloc = interval(1,1) ;
@@ -122,6 +122,22 @@ namespace Loci {
         chomp_size = 1 ;
       else
         chomp_size = (int)scale ;
+
+      // this is to check that the allocated chomping domain
+      // cannot exceed the original total domain of these rules
+      // this is to prevent bugs in the extreme cases where
+      // the container sizes are only accurately known at the
+      // runtime, thus causing the analysis here to predict
+      // a very large chomping allocation domain and leads to
+      // extremely large allocations at the runtime.
+      // for example, a storeMat<double> may have a large matrix
+      // associated with each index (say 100KB), but here at
+      // compile time, it only says that each index has an
+      // allocation size of 4 bytes. Then if we don't check
+      // the original total_domain size, we may end up computing
+      // a very large chomping domain and fail the program
+      if(total_domain.size() < chomp_size)
+        chomp_size = total_domain.size() ;
 
       entitySet copy_total_domain = total_domain ;
       chomp_offset.clear() ;

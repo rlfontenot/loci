@@ -33,7 +33,7 @@ INCLUDES =
 
 OBJS = fpe.o ftrn_reader.o identity.o eventNotify.o debugger.o \
        parse.o options_list.o expr.o intervalSet.o digraph.o unit_type.o \
-	fpe_sun.o
+	fpe_sun.o mpi_stubb.o
 
 default:
 	cd .. ; make -f Makefile Tools
