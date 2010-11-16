@@ -26,6 +26,7 @@
 #include <Config/conf.h>
 
 #include <Tools/debug.h>
+#include <distribute.h>
 #include <mpi.h>
 
 #include <vector>
@@ -47,12 +48,22 @@ namespace Loci {
     std::vector<T> allsplits(p*(p-1)) ;
 
     int nlocal = input.size() ;
-    if(nlocal < p) {
-      std::cerr << "sample sort needs at least p elements per processor"
+    if(nlocal == 0) {
+      std::cerr << "unable to sort with 0 elements on a processor"
                 << std::endl ;
+      Loci::Abort() ;
     }
-    for(int i=1;i<p;++i) 
-      splitters[i-1] = input[(i*nlocal)/p] ;
+    if(nlocal < p) {
+      // If there aren't enough splitters, replicate the first entry
+      // to fill in the rest.  May not be efficient, but the sort
+      // should still work.
+      for(int i=0;i<nlocal;++i)
+        splitters[i] = input[i] ;
+      for(int i=nlocal;i<p;++i)
+        splitters[i] = input[0] ;
+    } else 
+      for(int i=1;i<p;++i) 
+        splitters[i-1] = input[(i*nlocal)/p] ;
 
     int tsz = sizeof(T) ;
     MPI_Allgather(&splitters[0],(p-1)*tsz,MPI_BYTE,
@@ -146,10 +157,21 @@ namespace Loci {
     std::vector<T> allsplits(p*(p-1)) ;
 
     int nlocal = input.size() ;
-    if(nlocal < p) {
-      std::cerr << "sample sort needs at least p elements per processor"
-                << std::endl ;
+    if(nlocal == 0) {
+      cerr << "unable to sort with 0 elements on a processor" << endl ;
+      Loci::Abort() ;
     }
+    if(nlocal < p) {
+      // If there aren't enough splitters, replicate the first entry
+      // to fill in the rest.  May not be efficient, but the sort
+      // should still work.
+      for(int i=0;i<nlocal;++i)
+        splitters[i] = input[i] ;
+      for(int i=nlocal;i<p;++i)
+        splitters[i] = input[0] ;
+    } else 
+      for(int i=1;i<p;++i) 
+        splitters[i-1] = input[(i*nlocal)/p] ;
     for(int i=1;i<p;++i) 
       splitters[i-1] = input[(i*nlocal)/p] ;
 
