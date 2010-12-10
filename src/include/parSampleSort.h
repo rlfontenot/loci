@@ -59,7 +59,7 @@ namespace Loci {
       // should still work.
       for(int i=0;i<nlocal;++i)
         splitters[i] = input[i] ;
-      for(int i=nlocal;i<p;++i)
+      for(int i=nlocal;i<p-1;++i)
         splitters[i] = input[0] ;
     } else 
       for(int i=1;i<p;++i) 
@@ -84,7 +84,10 @@ namespace Loci {
     MPI_Comm_size(comm,&p) ;
     if(p == 1) // if serial run, we are finished
       return ;
-
+    if(int(splitters.size()) != p-1) {
+      cerr << "parSplitSort passed invalid splitter" << endl ;
+      Loci::Abort() ;
+    }
     int s=0 ;
     std::vector<int> scounts(p,0) ;
     for(size_t i=0;i<list.size();++i)
@@ -114,7 +117,7 @@ namespace Loci {
     }
   
     int result_size = (rdispls[p-1]+rcounts[p-1])/sizeof(T) ;
-
+    
     std::vector<T> sorted_pnts(result_size) ;
 
     MPI_Alltoallv(&list[0],&scounts[0],&sdispls[0],MPI_BYTE,
