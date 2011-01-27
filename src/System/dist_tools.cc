@@ -550,9 +550,14 @@ namespace Loci {
     return dom ;
   }
   
-  /*The fill_entitySet routine fills in the clone region entities
+  /*! The fill_entitySet routine fills in the clone region entities
     . The send_buffer and the recv_buffer are allocated only once to
-    contain the maximum clone region */ 
+    contain the maximum clone region
+    
+    arguments: e: entitySet that if it's in my xmit region, I need send it to others
+    returned: entitySet I received
+  */
+  
   entitySet fill_entitySet(const entitySet& e, fact_db &facts) {
     
     entitySet re ;
@@ -571,7 +576,7 @@ namespace Loci {
         recv_size[0] = d->copy[0].size ;
         for(size_t i=1;i<d->copy.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+d->copy[i-1].size ;
-          recv_size[i] = d->copy[i].size ;
+           recv_size[i] = d->copy[i].size ;
         }
       }
 
@@ -647,6 +652,8 @@ namespace Loci {
     entities corresponding to an entitySet
     each time . ie with one startup cost ts we can send all the
     entities required to a particular processor. */
+  /*! ev: the entitySets I send if they are in my xmit region
+    return: the entitySets I recieve*/
   vector<entitySet> fill_entitySet(const vector<entitySet>& ev,
                                    fact_db &facts) {
 
@@ -752,6 +759,9 @@ namespace Loci {
     mapping in the output. Sometimes we might compute entities in the
     clone region. Since these entities are not owned by the processor
     it needs to be send to the processor that actually owns them. */
+  /*! e: the entitySet I send if it's in my clone region
+    return: the entitySet I  receive
+  */
   entitySet send_entitySet(const entitySet& e, fact_db &facts) {
     entitySet re ;
     if(facts.isDistributed()) {  
@@ -921,7 +931,8 @@ namespace Loci {
     }
     return re ;
   }
-  
+  /*! ev: the entittySets that I send if they are in my clone region
+    return: the entitySets I receive; its index is the same as that of ev*/
   vector<entitySet> send_entitySet(const vector<entitySet>& ev,
                                    fact_db &facts) {
     vector<entitySet> re(ev.size()) ;

@@ -40,7 +40,7 @@ namespace Loci {
   }
 
   void impl_recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
-
+    
 #ifdef VERBOSE
     debugout << "set var existence for recursive impl rule " << impl << endl ;
 #endif
@@ -49,6 +49,8 @@ namespace Loci {
     variableSet tvars ;
     tvars = impl.targets() ;
     fcontrol &fctrl = control_set ;
+    fctrl.recursion_maps.clear();
+    fastseq = EMPTY;
     const rule_impl::info &finfo = impl.get_info().desc ;
     warn(impl.type() == rule::INTERNAL) ;
 
@@ -56,7 +58,9 @@ namespace Loci {
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
-      pre_send_entities = barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
+      //std::vector<std::pair<variable,entitySet> > pre_send_entities =
+      barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
+      //scheds.update_barrier_send_entities(pre_send_entities);
       my_entities = d->my_entities ;
     }
     entitySet sources = ~EMPTY ;
@@ -394,7 +398,7 @@ namespace Loci {
     create += send_entitySet(create,facts) ;
     create += fill_entitySet(create,facts) ;
     scheds.set_existential_info(rvar,impl,create) ;
-
+   
   }
 
   void impl_recurse_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
@@ -426,8 +430,10 @@ namespace Loci {
       list<comm_info> request_comm ;
       variableSet recurse_vars = variableSet(impl.sources() & impl.targets()) ;
       request_comm = barrier_process_rule_requests(recurse_vars, facts, scheds) ;
-      clist = sort_comm(request_comm,facts) ;
+      // list<comm_info> clist = sort_comm(request_comm,facts) ;
+      // scheds.update_comm_info_list(clist, sched_db::RECURSE_CLIST);
     }
+     
   }
 
   executeP impl_recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
@@ -441,16 +447,20 @@ namespace Loci {
   }
 
   void recurse_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
-
     entitySet my_entities = ~EMPTY ;
     if(facts.isDistributed()) {
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
-      pre_send_entities = barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
+      
+      std::vector<std::pair<variable,entitySet> > pre_send_entities
+        = barrier_existential_rule_analysis(recurse_vars,facts, scheds) ;
+      scheds.update_send_entities(pre_send_entities, sched_db::RECURSE_PRE);
       my_entities = d->my_entities ;
+      
     }
 
     control_set.clear() ;
-
+    recurse_send_entities.clear();
+    send_req_var.clear();
     ruleSet::const_iterator fi ;
     variableSet::const_iterator vi ;
     variableSet tvars ;
@@ -720,15 +730,17 @@ namespace Loci {
           recurse_entities[*vi] += scheds.get_existential_info(*vi,*ri) ;
         }
       }
-
+      
+      std::vector<std::pair<variable,entitySet> > pre_send_entities =
+        scheds.get_send_entities(recurse_vars, sched_db::RECURSE_PRE);
       for(vi=pre_send_entities.begin();vi!=pre_send_entities.end();++vi) {
         variable v = vi->first ;
         entitySet send_set = vi->second - recurse_entities[v] ;
         send_requested.push_back(make_pair(v,send_set &
                                            scheds.get_variable_requests(v))) ;
       }
-      pre_plist = put_precomm_info(send_requested, facts) ;
-
+      list<comm_info> pre_plist = put_precomm_info(send_requested, facts) ;
+      scheds.update_comm_info_list(pre_plist, sched_db::RECURSE_PRE_PLIST);
       for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
         fcontrol &fctrl = control_set[*fi] ;
         entitySet control = process_rule_requests(*fi,facts, scheds) ;
@@ -836,9 +848,10 @@ namespace Loci {
 
         send_requests(requests,v,facts,post_req_comm) ;
       }
-      pre_clist = sort_comm(pre_req_comm,facts) ;
-      post_clist = sort_comm(post_req_comm,facts) ;
-
+      list<comm_info> pre_clist = sort_comm(pre_req_comm,facts) ;
+      list<comm_info> post_clist = sort_comm(post_req_comm,facts) ;
+      scheds.update_comm_info_list(pre_clist, sched_db::RECURSE_PRE_CLIST);
+      scheds.update_comm_info_list(post_clist, sched_db::RECURSE_POST_CLIST);
     } else {
       for(fi=recurse_rules.begin();fi!=recurse_rules.end();++fi) {
         fcontrol &fctrl = control_set[*fi] ;
@@ -863,7 +876,9 @@ namespace Loci {
   executeP recurse_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds ) {
     CPTR<execute_sequence> el = new execute_sequence ;
     if(facts.isDistributed()) {
-
+      list<comm_info> pre_clist =  scheds.get_comm_info_list(recurse_vars, facts, sched_db::RECURSE_PRE_CLIST);
+      list<comm_info> pre_plist =  scheds.get_comm_info_list(recurse_vars, facts, sched_db::RECURSE_PRE_PLIST);
+     
       execute_comm2::inc_comm_step() ;
       if(!pre_plist.empty()) {
         //executeP exec_commp = new execute_comm(pre_plist, facts);
@@ -948,6 +963,8 @@ namespace Loci {
     } while(!finished) ;
 
     if(facts.isDistributed()) {
+       list<comm_info> post_clist =  scheds.get_comm_info_list(recurse_vars, facts, sched_db::RECURSE_POST_CLIST);
+      
       execute_comm2::inc_comm_step() ;
       if(!post_clist.empty()) {
         //executeP exec_comm = new execute_comm(post_clist, facts);

@@ -62,6 +62,8 @@ namespace Loci {
                          const entitySet &context);
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e);
+    virtual int estimated_pack_size(const entitySet &e);
+    
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e);
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
     
@@ -388,7 +390,14 @@ namespace Loci {
     cerr << "BLACKBOX " << __FILE__ << "(" << __LINE__ << ")" << endl;
     return 0;
   }
-
+  
+  template <class T> 
+  int blackboxRepI<T>::estimated_pack_size(const entitySet &eset) 
+  {
+    
+    return (sizeof(T) * eset.size() * 25);
+  }
+  
   template <class T> 
   int blackboxRepI<T>::pack_size(const entitySet &e, entitySet& packed) 
   {

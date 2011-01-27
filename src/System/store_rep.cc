@@ -83,6 +83,9 @@ namespace Loci {
   int store_ref::pack_size(const entitySet &e )  {
     return(Rep()->pack_size(e)) ;
   }
+  int store_ref::estimated_pack_size(const entitySet &e )  {
+    return(Rep()->estimated_pack_size(e)) ;
+  }
   int store_ref::pack_size(const entitySet& e, entitySet& packed) {
     return Rep()->pack_size(e,packed) ;
   }

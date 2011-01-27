@@ -87,11 +87,13 @@ namespace Loci {
       scheds.variable_request(*vi,~EMPTY) ;//scheds.variable_existence(*vi)) ;
     }
     
-    exec_seq = process_rule_requests(constraint_rule,facts, scheds) ;
+    entitySet exec_seq = process_rule_requests(constraint_rule,facts, scheds) ;
+    scheds.update_exec_seq(constraint_rule, exec_seq);
   }
   
   executeP constraint_compiler::create_execution_schedule(fact_db& facts,
                                                           sched_db& scheds) {
+    entitySet exec_seq = scheds.get_exec_seq(constraint_rule);
     executeP execute = new execute_constraint_rule(constraint_rule,
                                                    exec_seq, facts,scheds) ;
     return execute;

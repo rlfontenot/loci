@@ -97,6 +97,7 @@ namespace Loci {
     
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
+     virtual int estimated_pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size,  const sequence &seq ) ;
     		      

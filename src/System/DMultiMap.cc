@@ -386,7 +386,13 @@ namespace Loci
     
     return( size*sizeof(int) + e.size()*sizeof(int) ) ;
   }
-
+  
+ 
+  int dmultiMapRepI::estimated_pack_size(const  entitySet &e ) 
+  {
+    return pack_size(e);
+  }
+  
   int dmultiMapRepI::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;

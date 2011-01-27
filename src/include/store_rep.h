@@ -118,6 +118,7 @@ namespace Loci {
     }
     virtual void shift(int_type offset) = 0 ;
     virtual void set_elem_size(int sz) ;
+    virtual void setIsMat(bool im){};//for storeVecRep 
     virtual storeRep *new_store(const entitySet &p) const = 0 ;
     virtual storeRep *new_store(const entitySet &p, const int* cnt) const = 0 ;
     // the remap method merely renumbers the container
@@ -192,6 +193,7 @@ namespace Loci {
     virtual void scatter(const dMap &m, storeRepP &st,
                          const entitySet &context) = 0 ;
     virtual int pack_size(const entitySet &e) = 0;
+     virtual int estimated_pack_size(const entitySet &e) = 0;
     // this function also sets a domain that can actually be packed
     // in other words, the passed in domain "e" can contain
     // entities outside the store domain, the "packed" sets
@@ -267,6 +269,7 @@ namespace Loci {
                          const entitySet &context) ;
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
+    virtual int estimated_pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
     

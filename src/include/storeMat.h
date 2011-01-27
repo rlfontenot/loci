@@ -50,8 +50,8 @@ namespace Loci {
 
   public:
     typedef Mat<T> containerType ;
-    storeMat() {setRep(new storeType) ;}
-    storeMat(storeRepP rp) {setRep(rp) ; }
+    storeMat() {setRep(new storeType) ; Rep()->setIsMat(true);}
+    storeMat(storeRepP rp) {setRep(rp); Rep()->setIsMat(true);}
 
     virtual ~storeMat() ;
     virtual void notification() ;

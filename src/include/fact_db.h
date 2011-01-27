@@ -76,7 +76,7 @@ namespace Loci {
       //      dMap remap ;
       dMap g2f ; // Global to file numbering
       distribute_info() {} ;
-    } ;
+    }  ;
     std::vector<entitySet> init_ptn ;
 
     //Related to Duplication: global_comp_entities set defines
@@ -104,7 +104,10 @@ namespace Loci {
       store_refP data_rep ;
     } ;
     
+    /*! all variables that point to the same storeRepP, the second of the pair at the end of chain
+     is the variable suppose to appear in fmap*/
     std::map<variable,variable> synonyms ;
+    
     // a copy function
     void copy_all_from(const fact_db& f) ;
 

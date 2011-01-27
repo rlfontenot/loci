@@ -600,7 +600,17 @@ namespace Loci {
     warn(eset-domain() != EMPTY) ;
     return get_mpi_size( traits_type, eset );
   }
+  
+ //**************************************************************************/
+  template <class T> 
+  int multiStoreRepI<T>::estimated_pack_size(const entitySet &eset ) 
+  {
+    return pack_size(eset );
+  }
+  
 
+
+  
   template<class T> int multiStoreRepI<T>::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;

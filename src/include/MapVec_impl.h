@@ -280,7 +280,14 @@ namespace Loci {
     size = sizeof(int)*eset.size()*M  + sizeof(int);
     return size ;
   }
+  //*************************************************************************/
+  template <int M> int MapVecRepI<M>::estimated_pack_size( const entitySet &eset) {
+    return pack_size(eset);
+  }
+   
 
+
+  
   template<int M> int MapVecRepI<M>::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;

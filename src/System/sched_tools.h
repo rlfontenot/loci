@@ -63,7 +63,6 @@ namespace Loci {
     virtual string getName() {return "execute_rule";};
     virtual void dataCollate(collectData &data_collector) const ;
   } ;
-
   struct ExpandStartUnit {
     variable var ;              // name of the starting var
     storeRepP rep ;             // NOTE we cannot use MapRepP here
@@ -636,13 +635,7 @@ namespace Loci {
                                 const variableSet& alloc) ;
   } ;
   
-  struct comm_info {
-    variable v ;
-    int processor ;
-    entitySet send_set ;
-    sequence recv_set ;
-  } ;
-
+ 
    class execute_param_red : public execute_modules {
      vector<variable> reduce_vars ;
      vector<rule> unit_rules ;

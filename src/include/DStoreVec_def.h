@@ -55,7 +55,8 @@ namespace Loci {
 
     int get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     int get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
-
+    int estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
+    int estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
     void packdata(IDENTITY_CONVERTER c,     void *ptr, int &loc, int size, const entitySet &e ) ;
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size, const entitySet &e ) ;
 
@@ -85,6 +86,8 @@ namespace Loci {
                          const entitySet &context) ;
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e ) ;
+    virtual int estimated_pack_size(const entitySet &e ) ;
+    
     virtual void pack(void * ptr, int &loc, int &size, const entitySet &e ) ;
     virtual void unpack(void * ptr, int &loc, int &size, const sequence &seq) ;
     virtual store_type RepType() const ;

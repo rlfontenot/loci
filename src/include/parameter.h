@@ -91,6 +91,7 @@ namespace Loci {
                          const entitySet &context) ;
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
+    virtual int estimated_pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq)  ;
 
@@ -482,6 +483,13 @@ namespace Loci {
       data_schema_traits<T>::Schema_Converter schema_converter;
 
     return get_mpi_size( schema_converter(), eset );
+  }
+
+   template <class T>
+  int paramRepI<T>::estimated_pack_size( const entitySet &eset)
+  {
+    // return pack_size(eset);
+    return 0;
   }
 
   template<class T> int paramRepI<T>::

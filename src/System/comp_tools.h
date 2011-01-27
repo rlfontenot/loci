@@ -101,7 +101,7 @@ namespace Loci {
   std::vector<digraph::vertexSet> schedule_dag(const digraph &g,
                            digraph::vertexSet start_vertices = EMPTY,
                            digraph::vertexSet only_vertices =
-                           interval(UNIVERSE_MIN,UNIVERSE_MAX)) ;
+                                               interval(UNIVERSE_MIN,UNIVERSE_MAX)) ;
 
   class visitor ;
   
@@ -129,7 +129,7 @@ namespace Loci {
     ////////////////
 
     //To add communication manually for advance variable at the end of advance_comp
-    std::list<comm_info> advance_variables_barrier; 
+    // std::list<comm_info> advance_variables_barrier; 
 	
   public:
     loop_compiler(rulecomp_map &rp, digraph gin, int id) ;
@@ -143,7 +143,7 @@ namespace Loci {
   class impl_compiler : public rule_compiler {
     rule impl ;  // rule to implement
     // existential analysis info
-    entitySet exec_seq ;
+    //entitySet exec_seq ;
   public:
     impl_compiler(rule r)  { impl=r;}
     virtual void accept(visitor& v) {}
@@ -196,10 +196,10 @@ namespace Loci {
     } ;
     fcontrol  control_set ;
     sequence fastseq ;
-    std::vector<entitySet > par_schedule ;
+    // std::vector<entitySet > par_schedule ;//never used
 
-    std::vector<std::pair<variable,entitySet> > pre_send_entities ;
-    std::list<comm_info> clist ;
+    // std::vector<std::pair<variable,entitySet> > pre_send_entities ;//assigned, never used
+    //std::list<comm_info> clist ;// assigned, but never used
   public:
     int cid ; // id number of this compiler
     impl_recurse_compiler(rule r, int id):cid(id)
@@ -236,13 +236,13 @@ namespace Loci {
     std::map<rule,fcontrol > control_set ;
     std::list<std::vector<std::pair<variable,entitySet> > > recurse_send_entities ;
     std::map<variable,std::vector<std::list<comm_info> > > send_req_var ;
-    std::list<std::list<comm_info> > recurse_clist ;
-    std::list<std::list<comm_info> > recurse_plist ;
+    // std::list<std::list<comm_info> > recurse_clist ;//never used 
+    // std::list<std::list<comm_info> > recurse_plist ;//never used
 	
-    std::vector<std::pair<variable,entitySet> > pre_send_entities ;
-    std::list<comm_info> pre_clist ;
-    std::list<comm_info> post_clist ;
-    std::list<comm_info> pre_plist ;
+    // std::vector<std::pair<variable,entitySet> > pre_send_entities ;
+    //std::list<comm_info> pre_clist ;
+    //std::list<comm_info> post_clist ;
+    //std::list<comm_info> pre_plist ;
   public:
     int cid ; //id number of this compiler
     recurse_compiler(rulecomp_map &rp, ruleSet rs, int id) : rule_process(rp),cid(id)
@@ -280,9 +280,11 @@ namespace Loci {
 
   class barrier_compiler : public rule_compiler {
     variableSet barrier_vars ;
-    std::vector<std::pair<variable,entitySet> > send_entities ;
-    std::list<comm_info> clist ;
-    std::list<comm_info> plist ;
+   
+
+   //  std::vector<std::pair<variable,entitySet> > send_entities ;
+//     std::list<comm_info> clist ;
+//     std::list<comm_info> plist ;
   public:
     barrier_compiler(variableSet &vars)
       : barrier_vars(vars) {}
@@ -324,8 +326,8 @@ namespace Loci {
     rule unit_rule ;
     CPTR<joiner> join_op ;
 
-    std::list<comm_info> rlist ;  // reduction communication
-    std::list<comm_info> clist ;  // comm from owner to requester
+    // std::list<comm_info> rlist ;  // reduction communication
+    //std::list<comm_info> clist ;  // comm from owner to requester
   public:
     reduce_store_compiler(const variable &v, const rule &ur,
                           CPTR<joiner> &jop) :
@@ -360,7 +362,7 @@ namespace Loci {
     rule apply,unit_tag ;  // rule to applyement
     
     // existential analysis info
-    entitySet exec_seq ;
+    //entitySet exec_seq ;
     bool output_mapping ;
   public:
     apply_compiler(rule r, rule ut)
@@ -514,17 +516,7 @@ namespace Loci {
     virtual void dataCollate(collectData &data_collector) const {}
   } ;
 
-  struct send_var_info {
-    variable v ;
-    entitySet set ;
-    send_var_info(variable iv, const entitySet &iset) : v(iv),set(iset) {}
-  } ;
-  
-  struct recv_var_info {
-    variable v ;
-    sequence seq ;
-    recv_var_info(variable iv, const sequence &iseq) : v(iv),seq(iseq) {}
-  } ;
+ 
 
   class execute_comm : public execute_modules {
     std::vector<std::pair<int,std::vector<send_var_info> > > send_info ;
@@ -734,7 +726,7 @@ namespace Loci {
   // rule compiler for constraint rules
   class constraint_compiler : public rule_compiler {
     rule constraint_rule ;  // the constraint rule
-    entitySet exec_seq ;
+    // entitySet exec_seq ;
  public:
     constraint_compiler(rule r)  { constraint_rule=r;}
     virtual void accept(visitor& v) {}
@@ -748,7 +740,7 @@ namespace Loci {
   class map_compiler : public rule_compiler {
     rule map_impl ;  // rule that computes a map
     // existential analysis info
-    entitySet exec_seq ;
+    // entitySet exec_seq ;
   public:
     map_compiler(rule r)  { map_impl=r;}
     virtual void accept(visitor& v) {}
@@ -761,7 +753,7 @@ namespace Loci {
   // rule compiler for blackbox rule
   class blackbox_compiler : public rule_compiler {
     rule impl ;  // rule to implement
-    entitySet exec_seq ;
+    //entitySet exec_seq ;
   public:
     blackbox_compiler(rule r)  { impl=r;}
     virtual void accept(visitor& v) {}

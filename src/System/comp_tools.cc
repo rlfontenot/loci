@@ -78,6 +78,8 @@ namespace Loci {
   extern variable LociAppLargestFreeVar ;
   extern double LociAppPMTemp ;
 
+  
+   
   // Create a schedule for traversing a directed acyclic graph.  This schedule
   // may be concurrent, or many vertices of the graph may be visited at each
   // step of the schedule  If the graph contains cycles, the schedule may
@@ -1132,9 +1134,12 @@ namespace Loci {
   /* In the case with mapping in the output we might end up computing
      values for some of the entities in the clone region. In that case
      we need to send these values to the processor that actually owns
-     them. The information as to what entities are to be send for a
+     them. The information as to what entities are to be sent for a
      particular variable is returned by the barrier_existential_rule_analysis routine. */
-
+  /*! vlst: input, variables that need synchronization
+    scheds: input and output, first existential_info of vlst is obtained from scheds.
+    after send_entitySet and fill_entitySet, the existential_info of scheds is updated.
+  */
   vector<pair<variable,entitySet> >
   barrier_existential_rule_analysis(variableSet vlst,
                                     fact_db &facts, sched_db &scheds) {
@@ -1147,7 +1152,7 @@ namespace Loci {
     vector<int> exent ;
     vector<variable> send_vars ;
     vector<rule> send_rule ;
-
+    //exinfo is originally  obtained from scheds.
     int ent = 0 ;
     for(variableSet::const_iterator vi=vlst.begin();vi!=vlst.end();++vi) {
       variable v = *vi ;
@@ -1171,9 +1176,9 @@ namespace Loci {
       }
     }
 
-
+    //seinfo  is the exinfo that located in my clone region
     vector<entitySet> seinfo ;
-
+    
     map<variable,entitySet> vmap ;
     for(size_t i=0;i<send_vars.size();++i) {
       variable v = send_vars[i] ;
@@ -1184,7 +1189,8 @@ namespace Loci {
 
     for(map<variable,entitySet>::const_iterator mi = vmap.begin(); mi != vmap.end(); mi++)
       send_entities.push_back(make_pair(mi->first,mi->second));
-
+    //after I send seinfo in my clone region, I will receive more entities
+    //add these entities to my exinfo
     if(seinfo.size() != 0) {
       vector<entitySet> send_sets = send_entitySet(seinfo,facts) ;
       for(size_t i=0;i<seinfo.size();++i) {
@@ -1203,6 +1209,10 @@ namespace Loci {
       }
     }
 #endif
+    /*!send the exinfo in my xmit region,
+      I receive more entities that fill in my clone region
+      add these entities to exinfo
+      finally set_existential_info of scheds with exinfo*/ 
     vector<entitySet> fill_sets = fill_entitySet(exinfo,facts) ;
     j=0;
     for(size_t i=0;i<vars.size();++i) {
@@ -2196,19 +2206,28 @@ namespace Loci {
     return clist ;
   }
 
-
+   
   void barrier_compiler::set_var_existence(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()){
-      send_entities = barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
+      std::vector<std::pair<variable,entitySet> > send_entities = barrier_existential_rule_analysis(barrier_vars, facts, scheds) ;
+      scheds.update_send_entities(send_entities, sched_db::BARRIER);
     }
   }
 
   void barrier_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
+   
+    
 #ifdef VERBOSE
     Loci::debugout << "entering barrier process requests, " << barrier_vars
                    << endl ;
 #endif
     if(facts.isDistributed()) {
+      std::list<comm_info> clist;
+      std::list<comm_info> plist;
+      std::vector<std::pair<variable,entitySet> > send_entities =
+        scheds.get_send_entities(barrier_vars, sched_db::BARRIER);
+    
+      
       vector<pair<variable,entitySet> >::const_iterator vi ;
       vector<pair<variable,entitySet> > send_requested ;
       if(duplicate_work) {
@@ -2221,9 +2240,12 @@ namespace Loci {
 	 barrier_process_rule_requests contains the communication
 	 information to send and receive the entities in the clone region*/
       request_comm = barrier_process_rule_requests(barrier_vars, facts, scheds) ;
+
       clist = request_comm ;
       clist = sort_comm(request_comm,facts) ;
-
+      
+     
+      
       //Find out which entities are to be sent on owner processor
       //based on duplication policies
       if(!duplicate_work) {
@@ -2241,6 +2263,9 @@ namespace Loci {
       /*The put_precomm_info is used in case there is a mapping in the
 	output for any of the rules. */
       plist = put_precomm_info(send_requested, facts) ;
+      
+      scheds.update_comm_info_list(clist, sched_db::BARRIER_CLIST);
+      scheds.update_comm_info_list(plist, sched_db::BARRIER_PLIST);
     }
 #ifdef VERBOSE
     Loci::debugout << "exiting barrier process requests, " << barrier_vars
@@ -2249,10 +2274,14 @@ namespace Loci {
   }
 
   executeP barrier_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+    
     if(facts.isDistributed()) {
+      std::list<comm_info> clist = scheds.get_comm_info_list(barrier_vars, facts, sched_db::BARRIER_CLIST);
+      std::list<comm_info> plist = scheds.get_comm_info_list(barrier_vars, facts, sched_db::BARRIER_PLIST);
+      
       CPTR<execute_list> el = new execute_list ;
-//       executeP tmp ;
-//       int cnt = 0 ;
+      //       executeP tmp ;
+      //       int cnt = 0 ;
       execute_comm2::inc_comm_step() ;
       if(!plist.empty()) {
         //tmp = new execute_comm(plist, facts);

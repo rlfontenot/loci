@@ -340,7 +340,14 @@ namespace Loci {
 
     return get_mpi_size( traits_type, e );
   }
+   template <class T> 
+  int dmultiStoreRepI<T>::estimated_pack_size(const entitySet &e ) 
+  {
+    return pack_size(e);
+  }
 
+
+  
   template<class T> int dmultiStoreRepI<T>::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;

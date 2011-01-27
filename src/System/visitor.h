@@ -758,13 +758,30 @@ namespace Loci {
       get_firstSched(const digraph& gr) ;
     fact_db& facts ;
   } ;
+  
+  //clear the schedules and compilers that already exist 
+  class SchedClearVisitor: public visitor {
+  public:
+    SchedClearVisitor(){}
+   
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+   virtual void visit(conditional_compiler& cc) ;
+  private:
+    
+  } ;
 
+  
   // abstract interface of the prioritize function
     struct PrioGraph {
     virtual ~PrioGraph() {}
     virtual void operator()(const digraph&,
                             std::map<int_type,int_type>&) const = 0 ;
-  } ;
+    } ;
+
+
+
+  
 
   // generic scheduling visitor that schedules
   // a graph according to the weight of each vertex
@@ -959,7 +976,288 @@ namespace Loci {
     private:
     fact_db& facts ;
   } ;
+  // this is a random greedy prioritize functor
+  struct RandomPrio: public PrioGraph {
+    void operator() (const digraph& gr,
+                     std::map<int_type,int_type>& pmap) const ;
+  } ;
+  
+  // here we define and implement a disjoint-set data structure
+  // for computing incremental connected components in a graph.
+  // the basic organization and algorithm of this implementation
+  // is taken from the CLRS book section 21.3, i.e., a disjoint-set
+  // forests with "union by rank" and "path compression" optimizations.
+  // 
+  // this disjoint-set data structure assumes that there are "n"
+  // input objects represented by integers from 0, ..., n-1. 
+  // the main data are organized in two arrays with size "n"
+  // these two arrays are used for recording the disjoint-set
+  // structure during the union operations and are also used to
+  // extract the individual sets. the two arrays are "parent" and
+  // "rank" arrays, for recording the parent and rank of each object.
+  //
+  // this implementation also supports "scattered" objects as long as
+  // the objects are identified by positive numbers. for example,
+  // objects 0, 1, 4, 5, 6, 15 can be all the objects participating
+  // the disjoint sets operations. there is no need to remapped them
+  // to contiguous ids (i.e., [0,1,2,3,4,5]). However the initialization
+  // method must specify the disjoint set size to be "16", i.e., the
+  // largest id+1. The findSet may return "-1" to indicate that the
+  // object is not yet in the disjoint sets. for example, using the
+  // previous example, if we make a call "findSet(10)", then it will
+  // return "-1" indicating that object "10" hasn't been constructed
+  // by "makeSet(10)" yet, and are therefore not in the sets.
+  class DisjointSets {
+    typedef DisjointSets self ;
+  public:
+    // initialize with "n" objects
+    DisjointSets(int n)
+      :parent(std::vector<int>(n,-1)),
+       rank(std::vector<int>(n,0)),numObj(n) {}
+    DisjointSets(const self& d)
+      :parent(d.parent),rank(d.rank),numObj(d.numObj) {}
+    // returns the size of the disjoint sets
+    int size() const {
+      return numObj ;
+    }
+    // this method will resize the disjoint sets
+    // passing in a larger size will cause the object number
+    // to increase. passing in a smaller size will cause
+    // the last (newSize-size()) objects to be erased
+    void resize(int s) {
+      if(s < 0) {
+        std::ostringstream oss ;
+        oss << "DisjointSets::resize(" << s
+            << ") has a negative object id!" ;
+        throw Loci::StringError(oss.str()) ;
+      }
+      parent.resize(s,-1) ;
+      rank.resize(s,0) ;
+      numObj = s ;
+    }
+    // creats a single set containing object x
+    void makeSet(int x) {
+      checkRange(x) ;
+      parent[x] = x ;
+      rank[x] = 0 ;
+    }
+    // creates a single set containing object x,
+    // IF x is NOT already in the sets
+    void tryMakeSet(int x) {
+      if(findSet(x)==-1)
+        makeSet(x) ;
+    }
+    // creats a single set containing object x.
+    // resize the set if the id of x is larger than the current size().
+    void makeSetWithResize(int x) {
+      if(x >= size()) {
+        resize(x+1) ;
+        makeSet(x) ;
+      } else
+        makeSet(x) ;
+    }
+    // the try version of the "makeSetWithResize"
+    void tryMakeSetWithResize(int x) {
+      if(x < 0) {
+        std::ostringstream oss ;
+        oss << "DisjointSets::tryMakeSetWithResize(" << x
+            << ") has a negative object id!" ;
+        throw Loci::StringError(oss.str()) ;
+      }
+      if(x >= size())
+        makeSetWithResize(x) ;
+      else if(parent[x]==-1)
+        makeSet(x) ;
+    }
+    // union the two sets represented by object x and y
+    void link(int x, int y) {
+      checkRange(x) ; checkInit(x) ;
+      checkRange(y) ; checkInit(y) ;
+      if(x==y) return ;
+      if(rank[x]>rank[y])
+        parent[y] = x ;
+      else {
+        parent[x] = y ;
+        if(rank[x]==rank[y])
+          rank[y]=rank[y]+1 ;
+      }
+    }
+    // union the two sets containing x and y
+    void unionSets(int x, int y) {
+      link(findSet(x), findSet(y)) ;
+    }
+    // return the representative object of the set containing
+    // the object x while also performs path compression
+    int findSet(int x) {
+      checkRange(x) ;
+      return pathCompressWithRep(x,parent) ;
+    }
+    // return if two objects belong to the same set
+    bool sameSet(int x, int y) {
+      int xs = findSet(x) ;
+      int ys = findSet(y) ;
+      if(xs==-1 || ys==-1)
+        return false ;
+      return xs==ys ;
+    }
+    // return how many sets are in this data structure.
+    std::size_t countSets() const {
+      std::size_t c = 0 ;
+      for(int v=0;v!=numObj;++v)
+        if(parent[v]==v) // count distinct representative objects
+          ++c ;
+      return c ;
+    }
+    // this method produces the corresponding set index
+    // that each object belongs to, i.e., in the array,
+    // this method returns an index for each entry that
+    // is the set that object is in. returns the total
+    // number of sets available
+    int setIndex(std::vector<int>& index) const {
+      index = parent ;
+      // first we need to compress the entire sets and
+      // make every object point directly to their representative obj
+      for(size_t v=0;v!=index.size();++v)
+        pathCompressWithRep(v,index) ;
+      std::vector<int> header ;
+      // first we'll record the representative object in the header
+      // array. and also make representative object in the index
+      // array point to the individual set index.
+      int setNum = 0 ;
+      for(int v=0;v!=numObj;++v)
+        if(index[v]==v) { // a representative object
+          header.push_back(v) ;
+          index[v] = setNum++ ;
+        }
+      // now make the non-representative objects point to their set
+      for(int v=0;v!=numObj;++v) {
+        // skip uninitialized object
+        if(index[v] == -1) continue ;
+        if(index[v]>=setNum || header[index[v]]!=v) // non-represenative
+          index[v] = index[index[v]] ;              // objs
+      }
 
+      return setNum ;
+    }
+    // this method extracts individual sets.
+    // sets are put in the provided vector<entitySet>,
+    // each entry in the vector contains one set,
+    // the total size of the vector is also the number of
+    // individual sets.
+    void extractSets(std::vector<entitySet>& allSets) const {
+      std::vector<int> index ;
+      int s = setIndex(index) ;
+      // we are ready to extract the sets since at this time,
+      // all the object's parent are pointed to their
+      // respective set index in the index array
+      allSets.resize(s) ;
+      for(int v=0;v!=numObj;++v) {
+        // skip uninitialized objects
+        if(index[v] == -1) continue ;
+        allSets[index[v]] += v ;
+      }
+    }
+  private:
+    void checkRange(int x) {
+      if(x<0 || x>(numObj-1)) {
+        std::ostringstream oss ;
+        oss << "DisjointSets obj(" << x << ") out of bound!" ;
+        throw Loci::StringError(oss.str()) ;
+      }
+    }
+    void checkInit(int x) {
+      if(parent[x] == -1) {
+        std::ostringstream oss ;
+        oss << "DisjointSets obj(" << x
+            << ") hasn't been constructed yet, call makeSet("
+            << x << ") first!" ;
+        throw Loci::StringError(oss.str()) ;
+      }
+    }
+    // this method compress the path of the passed in object in
+    // the disjoint forests represented in the passed array,
+    // this method also returns the representative object of the
+    // set that contains the object x.
+    int pathCompressWithRep(int x, std::vector<int>& forests) const {
+      int old = x ;
+      // first find the representative object of the set
+      int rep = forests[x] ;
+
+      if(rep==-1)
+        return rep ;          // obj not initialized yet
+
+      while(rep != x) {
+        x = rep ;
+        rep = forests[x] ;
+      }
+      // path compression, make every object on the path
+      // points to the representative object
+      x = forests[old] ;
+      while(rep != x) {
+        forests[old] = rep ;
+        old = x ;
+        x = forests[old] ;
+      }
+      return rep ;
+    }
+    // data fields
+    std::vector<int> parent, rank ;
+    int numObj ;
+  } ;
+
+  // new memory greedy scheduler
+  class MemGreedyScheduler: public visitor {
+  public:
+    MemGreedyScheduler(fact_db& fd,
+                       sched_db& sd,
+                       const std::map<variable,variableSet>& s,
+                       const std::map<variable,variableSet>& t,
+                       const std::map<variable, double>& var_info) ;
+    virtual ~MemGreedyScheduler() {}
+    virtual void visit(loop_compiler& lc) ;
+    virtual void visit(dag_compiler& dc) ;
+    virtual void visit(conditional_compiler& cc) ;
+    // void
+    //print_info(std::ostream& s) {
+     //  s << "Total topological orders: " << std::endl ;
+//       for(std::map<int,int>::const_iterator
+//             mi=num_orders.begin();mi!=num_orders.end();++mi)
+//         s << "Graph[" << mi->first << "] = " << mi->second << std::endl ;
+    // }
+  private:
+    // this method generates a topological sort of the passed in graph
+    std::vector<digraph::vertexSet>
+    schedule(const digraph& dag) ;
+    // given a variable, return its cluster representative variable
+    variable get_rep(const variable& v) ;
+    variableSet get_rep(const variableSet& vs) ;
+    // given a representative variable in the cluster,
+    // get its alloc info
+    double get_alloc_size(const variable& v) ;
+    // given a rule, returns the effects the rule creates,
+    // in the format of allocation each rule's target variable
+    // will cause. a negative number means deallocation.
+    // "c" is the set of variables that have been created so far
+    // by rules in the dag.
+    // "e" is the results, NOTE: e records the representative
+    // variable for each variable cluster
+    void rule_effects(const rule& r,const variableSet& c,
+                      std::vector<std::pair<variable,double> >& e) ;
+    // this method simplifies the passed digraph.
+    digraph simplify_graph(const digraph& g) ;
+   
+    // records the total topological orders for each graph
+    // std::map<int,int> num_orders ;
+    fact_db& facts ;
+    // recurrence variable information
+    std::map<variable,variableSet> s2t ;
+    std::map<variable,variableSet> t2s ;
+    // this one records the recurrent variable information
+    DisjointSets var_cluster ;
+    // records the read-in variable alloc info
+    std::map<variable,double> alloc_info ;
+  } ;
+  
   // graph prioritize function that tries
   // to maximize the cache benefit of chomping
   struct chompingPrio: public PrioGraph {

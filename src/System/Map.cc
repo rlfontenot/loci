@@ -118,7 +118,10 @@ namespace Loci {
     size = sizeof(int) * e.size() ;
     return(size) ;
   }
-  
+  int MapRepI::estimated_pack_size(const entitySet &e) {
+   
+    return pack_size(e) ;
+  }
   int MapRepI::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;
@@ -973,6 +976,10 @@ namespace Loci {
     } ENDFORALL ;
     
     return( (size+eset.size())*sizeof(int) ) ;
+  }
+  
+  int multiMapRepI::estimated_pack_size(const  entitySet &eset ) {
+    return pack_size(eset);
   }
 
   int multiMapRepI::
