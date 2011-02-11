@@ -2058,4 +2058,5 @@ int main(int ac, char *av[]) {
   for(int i=0;i<num_inputs;++i) 
     H5Fclose(input_fid[i]) ;
   H5Fclose(output_fid) ;
-  }
+  Loci::Finalize() ;
+}
