@@ -109,12 +109,11 @@ namespace VOG {
         bcs.push_back(BC) ;
         while(file.peek() != EOF && (isspace(file.peek())))
           file.get() ;
-        if(file.peek() == '#') { // eat comments
+        while(file.peek() == '#') { // eat comments
           file.getline(buf,1023) ;
           while(file.peek() != EOF && (isspace(file.peek())))
             file.get() ;
         }
-          
       }
     } else {
       if(strncmp(buf,"#ID:",4) != 0) {
