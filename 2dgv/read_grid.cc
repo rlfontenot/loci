@@ -557,7 +557,7 @@ void grid::input(std::istream &in,bool read_values ) {
     const double numcontours = 10.0 ;
     double range = (max_val-min_val)/numcontours ;
     double base = range==0?1:pow(10.0,double(floor(log10(range)))) ;
-    double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+    double contour_lim =  max((fabs(max_val)+fabs(min_val))*1e-8,1e-10) ;
     generate_contour_curves(max(floor(range/base)*base,contour_lim)) ;
     //    generate_shading() ;
   }
@@ -578,7 +578,7 @@ void grid::input(const char *file,bool read_values) {
       const double numcontours = 10.0 ;
       double range = (max_val-min_val)/numcontours ;
       double base = pow(10.0,double(floor(log10(range)))) ;
-      double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+      double contour_lim =  max((fabs(max_val)+fabs(min_val))*1e-8,1e-10) ;
       generate_contour_curves(max(floor(range/base)*base,contour_lim)) ;
     }      
     show_contours = true ;
@@ -615,7 +615,7 @@ void grid::generate_contour_curves(double cs) {
   num_contours++ ;
 
   if(num_contours > 500) {
-    double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+    double contour_lim =  max((fabs(max_val)+fabs(min_val))*1e-8,1e-10) ;
     contour_spacing =max((max_val-min_val)/500.0,contour_lim) ;
     num_contours = int(ceil((max_val-min_val)/contour_spacing)) ;
     contour_base = int(ceil(min_val/contour_spacing)) ;
@@ -725,7 +725,7 @@ inline void fillpent(vector<positions> pnts[], vector<int> pntindex[],int cc,
   
                      
 void grid::generate_shading() {
-  double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+  double contour_lim =  max((fabs(max_val)+fabs(min_val))*1e-8,1e-10) ;
   double cspace = max((max_val-min_val)/double(MAXPENS-1),contour_lim) ;
   double contour_base = min_val ;
 
@@ -902,7 +902,7 @@ void grid::zoom(const grid &gin, const positions &pmn, const positions &pmx) {
     const double numcontours = 10.0 ;
     double range = (max_val-min_val)/numcontours ;
     double base = range==0?1:pow(10.0,double(floor(log10(range)))) ;
-    double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+    double contour_lim =  max((fabs(max_val)+fabs(min_val))*1e-8,1e-10) ;
     generate_contour_curves(max(floor(range/base)*base,contour_lim)) ;
     min_val = gin.min_val ;
     max_val = gin.max_val ;
