@@ -28,6 +28,8 @@ using std::string ;
 //using std::pow ;
 //using std::log10 ;
 
+#define OFFSET_FACTOR 1e-5
+
 list<grid> grids ;
 
 const double epsilon = 1e-30 ;
@@ -555,7 +557,8 @@ void grid::input(std::istream &in,bool read_values ) {
     const double numcontours = 10.0 ;
     double range = (max_val-min_val)/numcontours ;
     double base = range==0?1:pow(10.0,double(floor(log10(range)))) ;
-    generate_contour_curves(floor(range/base)*base) ;
+    double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+    generate_contour_curves(max(floor(range/base)*base,contour_lim)) ;
     //    generate_shading() ;
   }
   show_contours = true ;
@@ -575,7 +578,8 @@ void grid::input(const char *file,bool read_values) {
       const double numcontours = 10.0 ;
       double range = (max_val-min_val)/numcontours ;
       double base = pow(10.0,double(floor(log10(range)))) ;
-      generate_contour_curves(floor(range/base)*base) ;
+      double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+      generate_contour_curves(max(floor(range/base)*base,contour_lim)) ;
     }      
     show_contours = true ;
     show_grid = false ;
@@ -611,16 +615,23 @@ void grid::generate_contour_curves(double cs) {
   num_contours++ ;
 
   if(num_contours > 500) {
-    contour_spacing =(max_val-min_val)/500.0 ;
+    double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+    contour_spacing =max((max_val-min_val)/500.0,contour_lim) ;
     num_contours = int(ceil((max_val-min_val)/contour_spacing)) ;
     contour_base = int(ceil(min_val/contour_spacing)) ;
     num_contours++ ;
   }
+
+
+
+
+
     
   contour_curves.clear() ;
   contour_values.clear() ;
   for(int i=0;i<num_contours;++i) {
-    double currval = double(i+contour_base)*contour_spacing ;
+    double currval = double(i+contour_base)*contour_spacing
+      +contour_spacing*OFFSET_FACTOR ;
     contour_values.push_back(contour_info(currval)) ;
   }
     
@@ -639,7 +650,8 @@ void grid::generate_contour_curves(double cs) {
     if(v1.v == v3.v)
       continue ; // Skip degenerate case of constant value function
     int contour_index = int(ceil(max(v1.v,min_val)/contour_spacing)) - contour_base ;
-    double currval = double(contour_index+contour_base)*contour_spacing ;
+    double currval = double(contour_index+contour_base)*contour_spacing
+      +contour_spacing*OFFSET_FACTOR ;
     const double rdv31 = 1./(v3.v-v1.v+epsilon) ;
     const double rdv32 = 1./(v3.v-v2.v+epsilon) ;
     const double rdv12 = 1./(v1.v-v2.v+epsilon) ;
@@ -713,7 +725,8 @@ inline void fillpent(vector<positions> pnts[], vector<int> pntindex[],int cc,
   
                      
 void grid::generate_shading() {
-  double cspace = (max_val-min_val)/double(MAXPENS-1) ;
+  double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+  double cspace = max((max_val-min_val)/double(MAXPENS-1),contour_lim) ;
   double contour_base = min_val ;
 
   for(int i=0;i<MAXPENS+1;++i) {
@@ -739,7 +752,8 @@ void grid::generate_shading() {
     curr_contour = max(min(curr_contour,MAXPENS-1),0) ;
     //    FATAL(curr_contour > MAXPENS) ;
     //    FATAL(curr_contour < 0) ;
-    double currval = contour_base + cspace *double(curr_contour) ;
+    double currval = contour_base + cspace *double(curr_contour)
+      +cspace*OFFSET_FACTOR ;
     if(currval >= v3.v) {
       filltriangle(pnts,pntindex,curr_contour,v1.p,v2.p,v3.p) ;
       continue ;
@@ -888,7 +902,8 @@ void grid::zoom(const grid &gin, const positions &pmn, const positions &pmx) {
     const double numcontours = 10.0 ;
     double range = (max_val-min_val)/numcontours ;
     double base = range==0?1:pow(10.0,double(floor(log10(range)))) ;
-    generate_contour_curves(floor(range/base)*base) ;
+    double contour_lim =  max(fabs(max_val)+fabs(min_val)*1e-8,1e-10) ;
+    generate_contour_curves(max(floor(range/base)*base,contour_lim)) ;
     min_val = gin.min_val ;
     max_val = gin.max_val ;
     if(show_shading)

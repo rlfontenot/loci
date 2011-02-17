@@ -818,7 +818,8 @@ void dosetcontourspacing()
   lpopquit() ;
   if(grids.size() == 0)
     return ;
-  grids.front().generate_contour_curves(cs) ;
+  double contour_lim =  max((fabs(grids.front().max_val)+fabs(grids.front().min_val))*1e-8,1e-10) ;
+  grids.front().generate_contour_curves(max(cs,contour_lim)) ;
   Xdev->clear() ;
   draw(grids.front(),*Xdev) ;
   Xdev->refresh() ;
@@ -853,7 +854,8 @@ void dosetmaxcontour()
   const double numcontours = 10.0 ;
   double range = (grids.front().max_val-grids.front().min_val)/numcontours ;
   double base = pow(10.0,double(floor(log10(range)))) ;
-  grids.front().generate_contour_curves(floor(range/base)*base) ;
+  double contour_lim =  max((fabs(grids.front().max_val)+fabs(grids.front().min_val))*1e-8,1e-10) ;
+  grids.front().generate_contour_curves(max(floor(range/base)*base,contour_lim)) ;
   grids.front().generate_shading() ;
   Xdev->clear() ;
   draw(grids.front(),*Xdev) ;
@@ -889,7 +891,8 @@ void dosetmincontour()
   const double numcontours = 10.0 ;
   double range = (grids.front().max_val-grids.front().min_val)/numcontours ;
   double base = pow(10.0,double(floor(log10(range)))) ;
-  grids.front().generate_contour_curves(floor(range/base)*base) ;
+  double contour_lim =  max((fabs(grids.front().max_val)+fabs(grids.front().min_val))*1e-8,1e-10) ;
+  grids.front().generate_contour_curves(max(floor(range/base)*base,contour_lim)) ;
   grids.front().generate_shading() ;
   Xdev->clear() ;
   draw(grids.front(),*Xdev) ;
