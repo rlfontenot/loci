@@ -105,6 +105,8 @@ void exactinit() ;
 //#define NEW_NODE_RECORD_CHECK
 //#define CORNER_NODE_CHECK
 //#define ZERO_AREA_FACE_CHECK
+//#define SEGMENT_NORMALINT_CHECK
+//#define FACE_SPLIT_CONSISTENCY_CHECK
 
 typedef vector3d<double> vec3d ;
 typedef vector2d<double> vec2d ;
@@ -1853,6 +1855,27 @@ class seg_int_lookup_table {
 
   // the table data
   first table ;
+  // the table stores segment segment intersection information
+  // in a particular order so that later testing can reuse the information.
+  // basically, the two segments (four node ids) are sorted so that
+  // each segment's head node is the node with smaller id number,
+  // and also the segment with a smaller head node comes first.
+
+  // this function takes two segments definition and produces the
+  // reordered segments used for accessing the table
+  void sort_segs(Entity l1s, Entity l1e, Entity l2s, Entity l2e,
+                 Entity& new_l1s, Entity& new_l1e,
+                 Entity& new_l2s, Entity& new_l2e) const {
+    new_l1s = min(l1s,l1e) ; new_l1e = max(l1s,l1e) ;
+    new_l2s = min(l2s,l2e) ; new_l2e = max(l2s,l2e) ;
+    // NOTE: we cannot do this step if two boundaries are
+    // split independently.
+//     if(new_l1s > new_l2s) {
+//       std::swap(new_l1s, new_l2s) ;
+//       std::swap(new_l1e, new_l2e) ;
+//     }
+  }
+
   // The following are public interfaces
 public:
   void clear() {
@@ -1862,8 +1885,7 @@ public:
                   const ssi_result& record) {
     // first sort each segment's id
     Entity new_l1s,new_l1e,new_l2s,new_l2e ;
-    new_l1s = min(l1s,l1e) ; new_l1e = max(l1s,l1e) ;
-    new_l2s = min(l2s,l2e) ; new_l2e = max(l2s,l2e) ;
+    sort_segs(l1s,l1e,l2s,l2e,new_l1s,new_l1e,new_l2s,new_l2e) ;
     
     table.add_record(new_l1s,new_l1e,new_l2s,new_l2e,record) ;
   }
@@ -1871,8 +1893,7 @@ public:
                    ssi_result& record) const {
     // first sort each segment's id
     Entity new_l1s,new_l1e,new_l2s,new_l2e ;
-    new_l1s = min(l1s,l1e) ; new_l1e = max(l1s,l1e) ;
-    new_l2s = min(l2s,l2e) ; new_l2e = max(l2s,l2e) ;
+    sort_segs(l1s,l1e,l2s,l2e,new_l1s,new_l1e,new_l2s,new_l2e) ;
     
     return table.get_record(new_l1s,new_l1e,new_l2s,new_l2e,record) ;
   }
@@ -1888,8 +1909,8 @@ public:
   ssi_result& operator()(Entity l1s, Entity l1e, Entity l2s, Entity l2e) {
     // first sort each segment's id
     Entity new_l1s,new_l1e,new_l2s,new_l2e ;
-    new_l1s = min(l1s,l1e) ; new_l1e = max(l1s,l1e) ;
-    new_l2s = min(l2s,l2e) ; new_l2e = max(l2s,l2e) ;
+    sort_segs(l1s,l1e,l2s,l2e,new_l1s,new_l1e,new_l2s,new_l2e) ;
+
     return table(new_l1s,new_l1e,new_l2s,new_l2e) ;
   }
 } ;
@@ -1986,6 +2007,7 @@ seg_seg_int(const vec2d& l1_start, const vec2d& l1_end,
     int_id = si.intersect_id ;
     return si.intersect_type ;
   }
+  
   // we first use seg_seg_pos to determine the position
   // of the line segments. NOTE: here we are using
   // the table lookup version of seg_seg_pos predicate
@@ -2235,6 +2257,17 @@ seg_seg_int(const vec2d& l1_start, const vec2d& l1_end,
   // the mesh_new_node_index too.
   intersection = l1_start + u1 * (l1_end - l1_start) ;
   int_id = mesh_new_node_index++ ;
+  
+#ifdef SEGMENT_NORMALINT_CHECK
+  if(intersection==l1_start ||
+     intersection==l1_end ||
+     intersection==l2_start ||
+     intersection==l2_end) {
+    cerr << "WARNING: Segment proper intersection maybe in problem"
+         << endl ;
+  }
+#endif
+  
   // add record
   si.intersect_type = NORMALINT ;
   si.intersect_pos = intersection ;
@@ -2245,7 +2278,7 @@ seg_seg_int(const vec2d& l1_start, const vec2d& l1_end,
   // point p lies on both segments. Therefore, we also
   // need to put the record into the global_pbetween_ltable
   global_pbetween_ltable.add_record(int_id,l1s,l1e) ;
-  //global_pbetween_ltable.add_record(int_id,l2s,l2e) ;
+  //  global_pbetween_ltable.add_record(int_id,l2s,l2e) ;
 
   return NORMALINT ;
 }
@@ -2376,6 +2409,170 @@ inline void advance_Q(inside_type inflag,
 #endif
 }
 
+// this function is used to handle the two segments collinear
+// (but pointing to the same direction) situation. because an
+// edge may be defined by several collinear segments, and we
+// want to output all those intermediate points, we will need
+// to specially handle this case
+void
+advance_collinear_adv(vector<vec2d>::size_type poly_size,
+                      bool& continue_collinear,
+                      Entity first_int_id,
+                      Entity& last_output_id,
+                      Entity& last_p_id,
+                      vec2d& last_p_pos,
+                      vector<vec2d>::size_type& bug,
+                      vector<vec2d>::size_type& adv,
+                      Entity bug_id,
+                      const vec2d& bug_pos,
+                      vector<vec2d>& Ins,
+                      vector<Entity>& Ins_index) {
+  // first decide whether to ouput last recorded point
+  if(continue_collinear
+     && (last_p_id != last_output_id)
+     && (last_p_id != first_int_id)) {
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Outputing collinear point: " << last_p_id << endl ;
+    ///////////////////
+#endif
+    // then output
+    Ins.push_back(last_p_pos) ;
+    Ins_index.push_back(last_p_id) ;
+    last_output_id = last_p_id ;
+  }
+  // record node for next round
+  
+  // NOTE: this is to prevent the collapse of the
+  // two segments at the same node and therefore would
+  // output the node twice.
+  // Thus in case that the advanced node is already
+  // a recorded node, then we reset the collinear continue flag
+  // to let it start over again and therefore it would not
+  // produce the node in the next round.
+  if(continue_collinear) {
+    if(last_p_pos == bug_pos) {
+      continue_collinear = false ;
+#ifdef DEBUG_POLY_AND_POLY
+      ///////////////////
+      cerr << "Resetting collinear flag" << endl ;
+      ///////////////////
+#endif
+      bug = (bug+1) % poly_size ;
+      ++adv ;
+      return ;
+    }
+  }
+  
+  continue_collinear = true ;
+  last_p_id = bug_id ;
+  last_p_pos = bug_pos ;
+#ifdef DEBUG_POLY_AND_POLY
+  ///////////////////
+  cerr << "Caching collinear point: " << last_p_id << endl ;
+  ///////////////////
+#endif
+  // modify other pointers accordingly
+  bug = (bug+1) % poly_size ;
+  ++adv ;
+}
+//
+// "edge" is one of the segment vector
+// with the x axis;
+// "continue_collinear" indicates whether it is collinear
+// last time (to determine whether to output points)
+// "collinear_point_pos" indicates the last recorded point
+// to be output in this round, it is also set during
+// this time of evaluation
+// "collinear_point_id" is the id of the last recorded
+// collinear point
+// "first_int_id" is the id of the first intersection point.
+// "last_output_id" is the id of the last output point
+// "bug_P" and "bug_Q" are the advancing pointer of polygon P and Q.
+// "P_adv" and "Q_adv" are the advancing counters of polygon P and Q.
+// "P_size" and "Q_size" are the total number of points defining
+// the polygons P and Q
+// "Ins" and "Ins_index" are the intersection points and their ids.
+void
+advance_collinear(const vec2d& P_cur, const vec2d& Q_cur,
+                  Entity P_cur_id, Entity Q_cur_id,
+                  const vec2d& edge, bool& continue_collinear,
+                  vec2d& collinear_point_pos,
+                  Entity& collinear_point_id,
+                  Entity first_int_id,
+                  Entity& last_output_id,
+                  vector<vec2d>::size_type& bug_P,
+                  vector<vec2d>::size_type& bug_Q,
+                  vector<vec2d>::size_type& P_adv,
+                  vector<vec2d>::size_type& Q_adv,
+                  vector<vec2d>::size_type P_size,
+                  vector<vec2d>::size_type Q_size,
+                  vector<vec2d>& Ins,
+                  vector<Entity>& Ins_index) {
+  // first determine who to advance, we will want to advance
+  // the segment who is falling behind the other one. "falling
+  // behind" here is defined as if the two segments have a
+  // less than PI angle with the x axis, then the one with
+  // a smaller x projection is the one that is falling behind.
+  // Otherwise, if they have a larger than PI degree angle with
+  // the x axis, then the one with a larger x component is the
+  // one to advance.
+  double direction = dot(edge, vec2d(1,0)) ;
+  bool advance_p = false ;
+  if(direction>0) {
+    // NOTE: the equality in these conditions are set deliberately.
+    // the intention here is to ensure in case of tie, we will
+    // always advance a segment on polygon P, this is to ensure that
+    // in case of overlapped points on collinear segments, it is
+    // always the one on P that gets output (this is critical to
+    // maintain the correctness of the algorithm).
+    if(P_cur.x <= Q_cur.x)
+      advance_p = true ; // advance P
+    else
+      advance_p = false ; // advance Q
+  } else if(direction<0) {
+    if(P_cur.x >= Q_cur.x)
+      advance_p = true ;
+    else
+      advance_p = false ;
+  } else { // direction == 0
+    // if direction == 0, then we want to
+    // compare the y components of the two points.
+    if(edge.y > 0) {// pointing upward, pick a smaller y component
+      if(P_cur.y <= Q_cur.y)
+        advance_p = true ;
+      else
+        advance_p = false ;
+    } else {// pointing downward, pick a larger y component
+      if(P_cur.y >= Q_cur.y)
+        advance_p = true ;
+      else
+        advance_p = false ;
+    }
+  }
+  if(advance_p) {
+    advance_collinear_adv(P_size, continue_collinear, first_int_id,
+                          last_output_id, collinear_point_id,
+                          collinear_point_pos, bug_P, P_adv,
+                          P_cur_id, P_cur, Ins, Ins_index) ;
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Collinear advancing P" << endl << endl ;
+    ///////////////////
+#endif
+  } else {
+    advance_collinear_adv(Q_size, continue_collinear, first_int_id,
+                          last_output_id, collinear_point_id,
+                          collinear_point_pos, bug_Q, Q_adv,
+                          Q_cur_id, Q_cur, Ins, Ins_index) ;
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Collinear advancing Q" << endl << endl ;
+    ///////////////////
+#endif
+  }
+}
+
 // this function computes the intersection of two convex
 // polygons. it returns false if they do not intersect,
 // true if they intersect and set the intersected polygon
@@ -2404,6 +2601,10 @@ bool poly_and_poly(const vector<vec2d>& P,
   // flag indicates whether the intersection in previous iteration
   // is equal to the first intersection
   bool is_ins_last_e_first = false ;
+  // data used to control output of collinear points
+  bool continue_collinear = false ;
+  Entity collinear_point_id = -1 ;
+  vec2d collinear_point_pos(0.0, 0.0) ;
 
   do {
     const vec2d& P_cur = P[bug_P] ;
@@ -2527,15 +2728,21 @@ bool poly_and_poly(const vector<vec2d>& P,
         (P_in_Q_plane==0) && (Q_in_P_plane==0)) {*/
     else if( (seg_int_result==COLLINEAR) &&
              (P_in_Q_plane==0) && (Q_in_P_plane==0)) {
-      // special case A&B collinear, we advance but
-      // do not output point
-      if(inflag == PIN)
-        advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
-                  last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
-      else
-        advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
-                  last_output_id,bug_P,P_adv,Ins,Ins_index) ;
+      // special case A&B collinear and are the same direction,
+      // we call the special handling routine
+      advance_collinear(P_cur, Q_cur, P_cur_id, Q_cur_id, P_edge,
+                        continue_collinear, collinear_point_pos,
+                        collinear_point_id, first_int_id,
+                        last_output_id, bug_P, bug_Q,
+                        P_adv, Q_adv, P_size, Q_size, Ins, Ins_index) ;
+//       if(inflag == PIN)
+//         advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
+//                   last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
+//       else
+//         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
+//                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
     } else if(cross_sign >= 0) {
+      continue_collinear = false ;
       if(P_in_Q_plane > 0)
         advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
                   last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
@@ -2543,6 +2750,7 @@ bool poly_and_poly(const vector<vec2d>& P,
         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
     } else {
+      continue_collinear = false ;
       if(Q_in_P_plane > 0)
         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
@@ -2965,6 +3173,17 @@ seg_seg_int_bf(const vec2d& l1_start, const vec2d& l1_end,
   // the mesh_new_node_index too.
   intersection = l1_start + u1 * (l1_end - l1_start) ;
   int_id = mesh_new_node_index++ ;
+  
+#ifdef SEGMENT_NORMALINT_CHECK
+  if(intersection==l1_start ||
+     intersection==l1_end ||
+     intersection==l2_start ||
+     intersection==l2_end) {
+    cerr << "WARNING: Segment proper intersection maybe in problem"
+         << endl ;
+  }
+#endif
+  
   // add record
   si.intersect_type = NORMALINT ;
   si.intersect_pos = intersection ;
@@ -3008,6 +3227,10 @@ bool poly_and_poly_bf(const vector<vec2d>& P,
   // flag indicates whether the intersection in previous iteration
   // is equal to the first intersection
   bool is_ins_last_e_first = false ;
+  // data used to control output of collinear points
+  bool continue_collinear = false ;
+  Entity collinear_point_id = -1 ;
+  vec2d collinear_point_pos(0.0, 0.0) ;
 
   do {
     const vec2d& P_cur = P[bug_P] ;
@@ -3150,15 +3373,14 @@ bool poly_and_poly_bf(const vector<vec2d>& P,
       Ins_index.clear() ;
       return false ;
     } else if(seg_int_result==COLLINEAR) {
-      // special case A&B collinear, we advance but
-      // do not output point
-      if(inflag == PIN)
-        advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
-                  last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
-      else
-        advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
-                  last_output_id,bug_P,P_adv,Ins,Ins_index) ;
+      // special case A&B collinear and have the same direction
+      advance_collinear(P_cur, Q_cur, P_cur_id, Q_cur_id, P_edge,
+                        continue_collinear, collinear_point_pos,
+                        collinear_point_id, first_int_id,
+                        last_output_id, bug_P, bug_Q,
+                        P_adv, Q_adv, P_size, Q_size, Ins, Ins_index) ;
     } else if(cross_sign >= 0) {
+      continue_collinear = false ;
       if(P_in_Q_plane > 0)
         advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
                   last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
@@ -3166,6 +3388,7 @@ bool poly_and_poly_bf(const vector<vec2d>& P,
         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
     } else {
+      continue_collinear = false ;
       if(Q_in_P_plane > 0)
         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
@@ -5286,6 +5509,7 @@ struct vec2dLess {
 // to the global new node numbering
 vector<Entity> remap_intersection_index
 (const vector<Entity>& index,
+ const entitySet& master_nodes,
  const entitySet& slave_nodes,
  const vector<Entity>& master_poly,
  const store<vec2d>& master_pos,
@@ -5312,7 +5536,8 @@ vector<Entity> remap_intersection_index
     }
     // and we see if this node is collapsed with one
     // of the node in polygon on the master boundary
-    map<vec2d,Entity,vec2dLess>::const_iterator mi = pmap.find(slave_pos[*vi]) ;
+    map<vec2d,Entity,vec2dLess>::const_iterator
+      mi = pmap.find(slave_pos[*vi]) ;
     if(mi != pmap.end()) {
       real_index.push_back(mi->second) ;
       global_Q_id_remap[*vi] = mi->second ;
@@ -5326,6 +5551,68 @@ vector<Entity> remap_intersection_index
 
   return real_index ;
 }
+
+#ifdef FACE_SPLIT_CONSISTENCY_CHECK
+// here are code to check if the face split is consistent
+struct split_result {
+  bool split ;
+  int size ;
+  split_result():split(false),size(0) {}
+  split_result(bool p, int s):split(p),size(s) {}
+} ;
+inline bool operator==(const split_result& s1, const split_result& s2) {
+  return ( (s1.split == s2.split) &&
+           (s1.size == s2.size)) ;
+}
+inline bool operator!=(const split_result& s1, const split_result& s2) {
+  return !(s1==s2) ;
+}
+
+map<int,map<int,split_result> > face_split_check_record ;
+// this function takes two face ids and their intersection result,
+// and queries the face split record, if there is no records inside,
+// then it creates one inside, if there is already a record inside,
+// then it compares the two and issue a warning if they are not the same
+void
+face_split_consistent_check(int face1, int face2, split_result sr) {
+  int query1 = std::min(face1,face2) ;
+  int query2 = std::max(face1,face2) ;
+  map<int,map<int,split_result> >::const_iterator mi ;
+  map<int,split_result>::const_iterator mii ;
+  mi = face_split_check_record.find(query1) ;
+  if(mi == face_split_check_record.end()) {
+    face_split_check_record[query1] = map<int,split_result>() ;
+    face_split_check_record[query1][query2] = sr ;
+    return ;
+  } else {
+    mii = (mi->second).find(query2) ;
+    if(mii == (mi->second).end()) {
+      face_split_check_record[query1][query2] = sr ;
+      return ;
+    } else {
+      // compare result
+      cout << "checking split consistency ("
+           << face1 << "," << face2 << ") ... " ;
+      cout.flush() ;
+      split_result prev_sr = mii->second ;
+      if(prev_sr != sr) {
+        cout << endl
+             << "WARNING: face split consistency failed: "
+             << "face " << face1 << " and face " << face2
+             << " have different split results on two boundaries!"
+             << "(split:" << prev_sr.split << "," << sr.split
+             << ")|(size:" << prev_sr.size << "," << sr.size << ")"
+             << endl ;
+        return ;
+      }
+      cout << "       PASSED" << '\r' ;
+      cout.flush() ;
+      return ;
+    }
+  }
+  return ;
+}
+#endif
  
 // the main face splitting function
 void face_split(const entitySet& bc1_faces,
@@ -5467,6 +5754,13 @@ void face_split(const entitySet& bc1_faces,
     vector<double> bc2_a ;
     //////////////////////
 #endif
+    
+#ifdef FACE_SPLIT_CONSISTENCY_CHECK
+    entitySet nodesSet ;
+    for(size_t i=0;i!=nodes.size();++i)
+      nodesSet += nodes[i] ;
+#endif
+    
     // test intersection for each bc2 faces found in the quad tree
     for(entitySet::const_iterator fi=intersect_face_cand.begin();
         fi!=intersect_face_cand.end();++fi) {
@@ -5479,11 +5773,25 @@ void face_split(const entitySet& bc1_faces,
 
       if(poly_and_poly(nodes,bc1_npos,bc2_fnodes,bc2_npos,
                        intersect,intersect_index)) {
+        
+#ifdef FACE_SPLIT_CONSISTENCY_CHECK
+        face_split_consistent_check(*ei, *fi,
+                                    split_result(true,
+                                                 intersect.size())) ;
+#endif
         intersected_bc2_faces += *fi ;
         // first remap the intersection index
         real_intersect_index =
-          remap_intersection_index(intersect_index,bc2_nodes,nodes,
+          remap_intersection_index(intersect_index,bc1_nodes,
+                                   bc2_nodes,nodes,
                                    bc1_npos,bc2_npos) ;
+
+#ifdef FACE_SPLIT_CONSISTENCY_CHECK
+        entitySet realNodes ;
+        for(size_t i=0;i!=real_intersect_index.size();++i)
+          realNodes += real_intersect_index[i] ;
+        nodesSet -= realNodes ;
+#endif  
         // intersected, we check new nodes and fill out the record
         for(vector<Entity>::size_type ii=0;
             ii<real_intersect_index.size();++ii) {
@@ -5592,10 +5900,26 @@ void face_split(const entitySet& bc1_faces,
         ////////////////////
 #endif
       } // end of if(poly_and_poly)
+#ifdef FACE_SPLIT_CONSISTENCY_CHECK
+      else
+        face_split_consistent_check(*ei, *fi,
+                                    split_result(false,0)) ;
+#endif
     } // end of for(intersect_face_cand)
     // edit interior_face2node map
     add_new_interior_face2node(nifi,face2node,
                                new_interior_face2node_STL) ;
+
+#ifdef FACE_SPLIT_CONSISTENCY_CHECK
+    if(nodesSet != EMPTY) {
+      cerr << "ERROR: face: " << *ei
+           << " has nodes not included in split polygon: "
+           << nodesSet << endl ;
+      cerr << "    node pos: " << endl ;
+      for(size_t i=0;i!=nodes.size();++i)
+        cerr << nodes[i] << ": " << bc1_npos[nodes[i]] << endl ;
+    }
+#endif
 
 #ifdef FACE_SPLIT_SELF_CHECK
     ////////////////////////
@@ -6782,14 +7106,12 @@ int main(int ac, char* av[]) {
     BC1_id=atoi(BC1name.substr(3).c_str());
     BC2_id=atoi(BC2name.substr(3).c_str()); 
   }else{
- 
-  for(size_t i = 0;i<boundary_ids.size();++i) {
-    if(BC1name == boundary_ids[i].second)
-      BC1_id = boundary_ids[i].first ;
-    if(BC2name == boundary_ids[i].second)
-      BC2_id = boundary_ids[i].first ;
-  }
-
+    for(size_t i = 0;i<boundary_ids.size();++i) {
+      if(BC1name == boundary_ids[i].second)
+        BC1_id = boundary_ids[i].first ;
+      if(BC2name == boundary_ids[i].second)
+        BC2_id = boundary_ids[i].first ;
+    }
   }
   if(BC1_id == -1) 
     cerr << "unable to find boundary name '" << BC1name << "' in grid." ;
@@ -6803,12 +7125,6 @@ int main(int ac, char* av[]) {
 
   gettimeofday(&time_grid_read_start,NULL) ;
  
- 
-  
-  
-  if(Loci::MPI_rank == 0)
-    cout << "Reading: '" << gridfile <<"' ..." <<  endl  ;
-
   vector<entitySet> local_nodes,local_faces,local_cells ;
   store<vector3d<Loci::real_t> > pos ;
   Map cl,cr ;
@@ -7359,7 +7675,7 @@ int main(int ac, char* av[]) {
   // we are now ready to write out the new  grid
   if(verbose) {
     cout << "--------" << endl ;
-    cout << "Generating new  grid: " << output_name << endl ;
+    cout << "Generating new grid: " << output_name << endl ;
   }
 
   gettimeofday(&time_new_grid_write_start,NULL) ;
@@ -7447,9 +7763,6 @@ int main(int ac, char* av[]) {
     node_index[*ei] = count ;
     newPos[*ni] =BC2_new_nodes_3D[*ei];
   }
-
-  
-  
 
   // we then write out face offset and cl, cr
   // first write out faces other than BC1 and BC2 new faces
@@ -7544,32 +7857,25 @@ int main(int ac, char* av[]) {
   
   // AND WE ARE FINALLY DONE
   // establish face left-right orientation
-  if(Loci::MPI_rank == 0) 
+  if(verbose)
     cerr << "orienting faces" << endl ;
   VOG::orientFaces(newPos,newCl,newCr,newFace2node) ;
-    
- 
   
-  if(Loci::MPI_rank == 0)
+  if(verbose)
     cerr << "coloring matrix" << endl ;
   VOG::colorMatrix(newPos,newCl,newCr,newFace2node) ;
  
-  
   if(optimize) {
-    if(Loci::MPI_rank == 0) 
+    if(verbose)
       cerr << "optimizing mesh layout" << endl ;
     VOG::optimizeMesh(newPos,newCl,newCr,newFace2node) ;
   }
-
   
-  if(Loci::MPI_rank == 0)
+  if(verbose)
     cerr << "writing VOG file" << endl ;
-
   
   //get boundary names
   vector<pair<int,string> > surf_ids = boundary_ids ;
- 
-
   Loci::writeVOG(output_name, newPos, newCl, newCr, newFace2node,surf_ids) ;
 
   if(verbose)
