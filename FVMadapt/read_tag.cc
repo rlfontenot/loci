@@ -332,7 +332,7 @@ public:
         
         if(Loci::MPI_rank == 0){
           char tag;
-          
+          for(int i = 0; i < *num_original_nodes; i++) inFile>>tag;
           //process 0 read in its local nodeTag
           FORALL(edge_num_inner_nodes.domain(), cc){
             if(edge_num_inner_nodes[cc] != 0){
