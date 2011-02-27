@@ -503,11 +503,6 @@ namespace Loci {
     virtual void dataCollate(collectData &data_collector) const {}
   } ;
 
-  // average no. of chunks per proc
-  // Used by IWS load balancing method
-#define AVECHUNKS 50
-#define MAXCHUNKS 2*AVECHUNKS
-  
   class dynamic_schedule_rule: public execute_modules {
     int LBMethod ;
     
@@ -526,9 +521,6 @@ namespace Loci {
     fact_db *facts1;
     fact_db *local_facts1;
     
-    variableSet inputs1;
-    variableSet outputs1;
-
     std::vector<double> workTime ;	// execution time of items belonging
                                   	// to proc i
     std::vector<double> aveWorkTime;	// average work time in proc i

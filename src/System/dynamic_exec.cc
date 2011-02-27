@@ -348,26 +348,26 @@ namespace Loci
   }
 
   void dynamic_schedule_rule::AllocateLBspace (int nItems) {
-    for (variableSet::const_iterator vi = inputs1.begin ();
-	 vi != inputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = inputs.begin ();
+	 vi != inputs.end (); ++vi) {
       storeRepP sp = local_facts1->get_variable (*vi);
       sp->allocate (interval (0, nItems - 1));
     }
-    for (variableSet::const_iterator vi = outputs1.begin ();
-	 vi != outputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = outputs.begin ();
+	 vi != outputs.end (); ++vi) {
       storeRepP sp = local_facts1->get_variable (*vi);
       sp->allocate (interval (0, nItems - 1));
     }
   }
 
   void dynamic_schedule_rule::FreeLBspace () {
-    for (variableSet::const_iterator vi = inputs1.begin ();
-	 vi != inputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = inputs.begin ();
+	 vi != inputs.end (); ++vi) {
       storeRepP sp = local_facts1->get_variable (*vi);
       sp->allocate (EMPTY);
     }
-    for (variableSet::const_iterator vi = outputs1.begin ();
-	 vi != outputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = outputs.begin ();
+	 vi != outputs.end (); ++vi) {
       storeRepP sp = local_facts1->get_variable (*vi);
       sp->allocate (EMPTY);
     }
@@ -378,8 +378,8 @@ namespace Loci
   int dynamic_schedule_rule::inputPackSize (int tStart, int tSize) {
     int size;
     size = 0;
-    for (variableSet::const_iterator vi = inputs1.begin ();
-	 vi != inputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = inputs.begin ();
+	 vi != inputs.end (); ++vi) {
       storeRepP s_ptr = facts1->get_variable (*vi);
       size += s_ptr->pack_size (interval (tStart, tStart + tSize - 1));
     }
@@ -391,8 +391,8 @@ namespace Loci
   int dynamic_schedule_rule::outputPackSize (int tStart, int tSize) {
     int size;
     size = 0;
-    for (variableSet::const_iterator vi = outputs1.begin ();
-	 vi != outputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = outputs.begin ();
+	 vi != outputs.end (); ++vi) {
       storeRepP s_ptr = local_facts1->get_variable (*vi);
       size += s_ptr->pack_size (interval (tStart, tStart+tSize - 1));
     }
@@ -584,8 +584,8 @@ namespace Loci
         for(size_t j=0;j<sendChunks[i].chunkList.size();++j) {
           int ch = sendChunks[i].chunkList[j] ;
           entitySet sendSet = chunkData[ch].chunkDef ;
-          for (variableSet::const_iterator vi = inputs1.begin ();
-               vi != inputs1.end (); ++vi) {
+          for (variableSet::const_iterator vi = inputs.begin ();
+               vi != inputs.end (); ++vi) {
               storeRepP s_ptr = facts1->get_variable (*vi);
               s_ptr->pack (&buf[0], position, buf_size,
                            sendSet);
@@ -602,13 +602,13 @@ namespace Loci
         nchunks += recvChunks[i].chunkList.size() ;
       }
       entitySet loc_set = interval(0,nchunks*iwsSize-1) ;
-      for (variableSet::const_iterator vi = inputs1.begin ();
-           vi != inputs1.end (); ++vi) {
+      for (variableSet::const_iterator vi = inputs.begin ();
+           vi != inputs.end (); ++vi) {
         storeRepP sp = local_facts1->get_variable (*vi);
         sp->allocate (loc_set);
       }
-      for (variableSet::const_iterator vi = outputs1.begin ();
-           vi != outputs1.end (); ++vi) {
+      for (variableSet::const_iterator vi = outputs.begin ();
+           vi != outputs.end (); ++vi) {
         storeRepP sp = local_facts1->get_variable (*vi);
         sp->allocate (loc_set);
       }
@@ -624,8 +624,8 @@ namespace Loci
         int position = 0 ;
         for(size_t j=0;j<recvChunks[i].chunkList.size();++j) {
           entitySet recvSet = interval(cnt,cnt+iwsSize-1) ;
-          for (variableSet::const_iterator vi = inputs1.begin ();
-               vi != inputs1.end (); ++vi) {
+          for (variableSet::const_iterator vi = inputs.begin ();
+               vi != inputs.end (); ++vi) {
             storeRepP s_ptr = local_facts1->get_variable (*vi);
             s_ptr->unpack (&buf[0], position, buf_size,sequence(recvSet)) ;
           }
@@ -681,8 +681,8 @@ namespace Loci
         for(size_t j=0;j<sendChunks[i].chunkList.size();++j) {
           int ch = sendChunks[i].chunkList[j] ;
           entitySet sendSet = chunkData[ch].chunkDef ;
-          for (variableSet::const_iterator vi = outputs1.begin ();
-               vi != outputs1.end (); ++vi) {
+          for (variableSet::const_iterator vi = outputs.begin ();
+               vi != outputs.end (); ++vi) {
               storeRepP s_ptr = facts1->get_variable (*vi);
               s_ptr->unpack (&buf[0], position, buf_size,
                              sendSet);
@@ -710,8 +710,8 @@ namespace Loci
         int position = 0 ;
         for(size_t j=0;j<recvChunks[i].chunkList.size();++j) {
           entitySet sendSet = interval(cnt,cnt+iwsSize-1) ;
-          for (variableSet::const_iterator vi = outputs1.begin ();
-               vi != outputs1.end (); ++vi) {
+          for (variableSet::const_iterator vi = outputs.begin ();
+               vi != outputs.end (); ++vi) {
             storeRepP s_ptr = local_facts1->get_variable (*vi);
             s_ptr->pack (&buf[0], position, buf_size,sendSet) ;
           }
@@ -726,13 +726,13 @@ namespace Loci
         cnt2 += nchunks ;
       }
       // Release space for the remote computation
-      for (variableSet::const_iterator vi = inputs1.begin ();
-           vi != inputs1.end (); ++vi) {
+      for (variableSet::const_iterator vi = inputs.begin ();
+           vi != inputs.end (); ++vi) {
         storeRepP sp = local_facts1->get_variable (*vi);
         sp->allocate (EMPTY);
       }
-      for (variableSet::const_iterator vi = outputs1.begin ();
-           vi != outputs1.end (); ++vi) {
+      for (variableSet::const_iterator vi = outputs.begin ();
+           vi != outputs.end (); ++vi) {
         storeRepP sp = local_facts1->get_variable (*vi);
         sp->allocate (EMPTY);
       }
@@ -964,15 +964,15 @@ namespace Loci
 	tmp.chunkList = sendto[i].second ;
 	entitySet chunk = interval(0,iwsSize-1) ;
 	int szs = 0 ;
-	for (variableSet::const_iterator vi = inputs1.begin ();
-	     vi != inputs1.end (); ++vi) {
+	for (variableSet::const_iterator vi = inputs.begin ();
+	     vi != inputs.end (); ++vi) {
 	  storeRepP s_ptr = facts1->get_variable (*vi);
 	  szs += s_ptr->pack_size(chunk);
 	}
 	tmp.send_size = szs*tmp.chunkList.size() ;
 	int szr = 0 ;
-	for (variableSet::const_iterator vi = outputs1.begin ();
-	     vi != outputs1.end (); ++vi) {
+	for (variableSet::const_iterator vi = outputs.begin ();
+	     vi != outputs.end (); ++vi) {
 	  storeRepP s_ptr = facts1->get_variable (*vi);
 	  szr += s_ptr->pack_size(chunk);
 	}
@@ -1127,8 +1127,8 @@ namespace Loci
     position = 0;
     MPI_Pack (bufInfo, 3, MPI_INT, buf, pSize, &position, MPI_COMM_WORLD);
     entitySet myent = interval (tStart, tStart + tSize - 1);
-    for (variableSet::const_iterator vi = inputs1.begin ();
-	 vi != inputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = inputs.begin ();
+	 vi != inputs.end (); ++vi) {
       storeRepP s_ptr = facts1->get_variable (*vi);
       s_ptr->pack (&buf[0], position, pSize, myent);
     }
@@ -1156,8 +1156,8 @@ namespace Loci
     *tSize = bufInfo[1];
     size = bufInfo[2];
     //unpack inputs into local facts
-    for (variableSet::const_iterator vi = inputs1.begin ();
-	 vi != inputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = inputs.begin ();
+	 vi != inputs.end (); ++vi) {
       storeRepP s_ptr = local_facts1->get_variable (*vi);
       s_ptr->unpack (&buf[0], position, size,
                      sequence (interval (0, *tSize - 1)));
@@ -1177,8 +1177,8 @@ namespace Loci
 
     //compute buffer size
     //    size = 0;
-    //    for (variableSet::const_iterator vi = outputs1.begin ();
-    //	 vi != outputs1.end (); ++vi)
+    //    for (variableSet::const_iterator vi = outputs.begin ();
+    //	 vi != outputs.end (); ++vi)
     //      {
     //	storeRepP s_ptr = local_facts1->get_variable (*vi);
     //	size += s_ptr->pack_size (interval (0, tSize - 1));
@@ -1201,8 +1201,8 @@ namespace Loci
     MPI_Pack (tTime, 1, MPI_DOUBLE, buf, pSize, &position, MPI_COMM_WORLD);
     //Pack outputs
     entitySet myent2 = interval (0, tSize - 1);
-    for (variableSet::const_iterator vi = outputs1.begin ();
-	 vi != outputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = outputs.begin ();
+	 vi != outputs.end (); ++vi) {
       storeRepP s_ptr = local_facts1->get_variable (*vi);
       s_ptr->pack (&buf[0], position, pSize, myent2);
     }
@@ -1234,8 +1234,8 @@ namespace Loci
     *iters = tSize;
     //unpack outputs into facts
 
-    for (variableSet::const_iterator vi = outputs1.begin ();
-	 vi != outputs1.end (); ++vi) {
+    for (variableSet::const_iterator vi = outputs.begin ();
+	 vi != outputs.end (); ++vi) {
       storeRepP s_ptr = facts1->get_variable (*vi);
       s_ptr->unpack (&buf[0], position, size,
                      sequence (interval (tStart, tStart + tSize - 1)));
@@ -1900,8 +1900,6 @@ namespace Loci
       if(compress_set)
 	facts1 = &backup_facts ;
       local_facts1 = &local_facts ;
-      inputs1 = inputs;
-      outputs1 = outputs;
 
       if (LBMethod == IWS)
         iterative_weighted_static ();
