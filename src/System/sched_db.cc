@@ -476,7 +476,7 @@ namespace Loci {
       list<comm_info> slist;
       std::map<variable, std::list<comm_info> >::const_iterator mi = clist_m.find(va);
       if(mi != clist_m.end()){
-        debugout <<"get variable " << va <<" from list " << e << endl;
+        //        debugout <<"get variable " << va <<" from list " << e << endl;
         slist = mi->second;
         list<comm_info>::const_iterator cli ;
         for(cli=slist.begin();cli!=slist.end();++cli) {
