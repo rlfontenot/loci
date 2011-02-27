@@ -39,8 +39,9 @@
 // strategy.  Descriptions of these are given in the "NOTES"
 // below.
 //
-// This version assumes that exec_set.num_intervals()==1
 //
+
+//#define VERBOSE
 
 #include "sched_tools.h"
 #include "distribute.h"
@@ -134,9 +135,6 @@ namespace Loci
 
   //  skip the JSTART most expensive chunks when deciding transfers
 #define JSTART 1
-
-  // "negligible" time relative to optimal time
-#define tolLB  0.075
 
   // message tags
 #define TAG_ACK      1		// handshake acknowledgement
@@ -418,8 +416,7 @@ namespace Loci
     local_compute1 = rp->new_rule_impl ();
     entitySet in = rule_tag.sources ();
     outputs = rule_tag.targets ();
-    // temporarily make it always copy
-    if(exec_set.num_intervals() > 1 || true) {
+    if(exec_set.num_intervals() > 1) { // If non-contiguous, make contiguous
       // Copy to a compressed set if exec set not already compressed
       int sz = eset.size() ;
       exec_set = interval(0,sz-1) ;
@@ -464,6 +461,9 @@ namespace Loci
       int csz = max(gsz/(p*100),10) ;
       int nc = max(lsz/csz-1,0) ;
       int first_chunk = lsz - csz*nc ;
+#ifdef VERBOSE
+      debugout << "chunk_size = " << csz << ", num chunks = " << nc << endl ;
+#endif
       int start = exec_set.Min() ;
       int end = start+first_chunk -1 ;
       iwsSize = csz ;
@@ -693,9 +693,9 @@ namespace Loci
         vector<float> times(nchunks) ;
         MPI_Recv(&times[0],nchunks,MPI_FLOAT,dest,TAG_OUTPUT,
                     MPI_COMM_WORLD, &tStatus);
-        for(size_t j=0;j<sendChunks[i].chunkList.size();++j) {
+        for(int j=0;j<nchunks;++j) {
           int ch = sendChunks[i].chunkList[j] ;
-          chunkData[ch].chunkTime[0] += times[i] ;
+          chunkData[ch].chunkTime[0] += times[j] ;
         }
       }
     } else if(recvChunks.size() != 0) {
@@ -749,12 +749,12 @@ namespace Loci
     double ef = total_time/(max_time*float(MPI_processes)) ;
 
     if(MPI_rank == 0) 
-      Loci::debugout << "parallel efficiency of IWS schduled computation is "
-                     << ef*100.0 << "%"<< endl ;
+      Loci::debugout << "parallel efficiency of IWS scheduled computation is "
+                     << ef*100.0 << "%, time =" << max_time << endl ;
     //=======================================================
     // If efficiency too low, regenerate load balance schedule
     //=======================================================
-    if(numBalances == 0 || ef < 0.85 ) { 
+    if(numBalances == 0 || (ef < 0.89 && (numBalances&0x7) ==0) ) { 
       // Compute balanced schedule, first compute total time
       float time = 0 ;
       for(size_t i=0;i<chunkData.size();++i)
@@ -778,11 +778,10 @@ namespace Loci
 	}
 	std::sort(chunk_times.begin(),chunk_times.end()) ;
 	float time_keep = chunkData[0].chunkTime[0]+chunkData[0].chunkTime[1] ;
-	float time_threshold = mean_time ; 
 	int kk ;
 	for(kk = chunk_times.size()-1;kk>=0;--kk) {
-	  if(time_keep > time_threshold)
-	    break ;
+          if(time_keep > mean_time)
+            break ;
 	  if(time_keep+chunk_times[kk].first < mean_time*1.02) {
 	    time_keep += chunk_times[kk].first ;
 	  } else
@@ -835,10 +834,12 @@ namespace Loci
 	      }
 	      time_xfers[send_chunks[j].second] = 0 ;
 	      send_chunks[j].second = -1 ;
+              if(ptime < 0)
+                break ;
 	    }
 	  }
 	}
-	ptime = -ptime ;
+	ptime = -max(ptime,0.0) ;
 	if(fabs(ptime) < mean_time*0.02)
 	  ptime = 0 ;
 	time_xfers[recv_chunks[i].second] = ptime ;
@@ -901,8 +902,8 @@ namespace Loci
 	  if(time_xfers[i] < 0) {
 	    vector<int> sendto_p ;
 	    float time_x = -time_xfers[i] ;
-	    for(int j=chunkQueueStart;j >=0;--j) 
-	      if((chunkQueue[j].first > 0) &&
+	    for(int j=chunkQueueStart;j >=0;--j)
+	      if(time_x > 0 && (chunkQueue[j].first > 0) &&
 		 (time_x - chunkQueue[j].first > -mean_time*0.02)) {
 		// assign chunk 
 		time_x -= chunkQueue[j].first ;
@@ -910,6 +911,8 @@ namespace Loci
 		if(cp == MPI_rank)
 		  sendto_p.push_back(send_list[chunkQueue[j].second.second]) ;
 		time_xfers[cp] -= chunkQueue[j].first ;
+                if(time_xfers[cp] < mean_time*0.02)
+                  time_xfers[cp] = 0 ;
 		chunkQueue[j].first = -1.0 ; // remove from consideration
 		if(fabs(time_x) < mean_time*0.02)
 		  break ;
@@ -926,7 +929,24 @@ namespace Loci
 	      time_x = 0 ;
 	    time_xfers[i] = time_x ;
 	  }
-	
+
+        
+#ifdef VERBOSE
+        if(MPI_rank == 0) {
+          debugout << "remaining in queue:" << endl ;
+          bool found = false ;
+          for(int j=chunkQueueStart;j >=0;--j) 
+            if((chunkQueue[j].first > 0)) {
+              debugout << "chunk from p=" << chunkQueue[j].second.first
+                       << ", time = " << chunkQueue[j].first << endl ;
+              found = true ;
+            }
+          if(!found)
+            debugout << "none" << endl ;
+        }
+#endif
+
+               
       }
       if(MPI_rank == 0) {
 	debugout << "time xfers3 =";
