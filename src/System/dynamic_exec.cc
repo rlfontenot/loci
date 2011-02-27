@@ -66,70 +66,6 @@ namespace Loci
 #define FAC		3	// factoring
 #define GSS		4	// guided self scheduling
 
-  //=======================================================
-  // NOTES for iterative weighted static load balancing (IWS)
-  //=======================================================
-  //
-  //  static load balancing - proc loads are assigned BEFORE any load is executed
-  //  weighted - proc work times are used as WEIGHTs to predetermine loads
-  //  iterative - work times are GEOMETRIC-AVERAGED over calls to the module
-  //
-  //  items = elements of exec_set
-  //  chunk = a group of contiguous items
-  //  chunk time = execution time of chunk (from MPI_Wtime())
-  //  work time = total execution time of items owned by a proc,
-  //      some of which may have been executed by other procs
-  //
-  // ------------------------------------------
-  // IWS algorithm overview
-  // ------------------------------------------
-  // Step 0. Initializations
-  //      Set nCalls = 0
-  //      Compute a common size for chunking items (chunkSize)
-  // Step 1. Load balance
-  //      If (nCalls <= SKIPSTEPS) then
-  // Step 2. Set this proc to neither send nor receive work
-  //      Else
-  // Step 3. Based on work times, compute an ideal time (optTime)
-  // Step 4. Determine amounts of work transfers from work times & optTime
-  // Step 5. If this proc is a source of work, identify chunks to send
-  //      End if
-  //
-  //      If this proc is a receiver of work,
-  // Step 6. Receive chunks of items from others into local_facts
-  // Step 7. Execute chunks of items in local_facts; collect chunk times
-  // Step 8. Execute items in facts; collect chunk times & proc work time
-  // Step 9. Return outputs of items in local_facts, chunk times
-  //
-  //      Else if this proc is a sender of work
-  // Step 9. Send chunks
-  // Step 10. Execute remaining items; collect chunk times & proc work time
-  // Step 11. Receive outputs for items sent, chunk times
-  //
-  //      Else // this proc is neither sender nor receiver of work
-  // Step 12. Execute items in facts; collect chunk times & proc work time
-  //      End if
-  //
-  // Step 13. Exchange proc work times; increment nCalls
-  // Step 14. Compute averages of chunk times and work times
-  //
-  // On the next call, start at Step 1.
-  //
-  // ------------------------------------------
-
-  //=======================================================
-  // #define's for IWS
-  //=======================================================
-
-  // set to 1 to activate debugging statements for:
-#define SHOWLB1 1		// calculations for ideal loads
-#define SHOWLB2 1		// estimated loads
-#define SHOWCHUNKS 1		// timings for transferred chunks
-
-  // skip load balancing for the first few time steps
-  // use timings collected here to initialize average time
-#define SKIPSTEPS 5
-
   // weight/contribution of latest time to average time
 #define CONTRIB 0.5
 
@@ -141,6 +77,7 @@ namespace Loci
 #define TAG_INFO     2		// size of succeeding message
 #define TAG_INPUT    3		// input data
 #define TAG_OUTPUT   4		// output data
+#define TAG_TIMES    5          // timing data
 
   // info[i][] index; info regarding chunk of items to be migrated
 #define MSG_LEN      0		// packing size
@@ -570,12 +507,15 @@ namespace Loci
   
   
   
-  // New code
+  //---------------------------------------------------------
+  // Reworked iterative weighted static code.
+  //
+  // 
   void dynamic_schedule_rule::iterative_weighted_static () {
     //=======================================================
     // First perform communication schedule
     //=======================================================
-    // Note, we will either be sending or receiving.
+    // Note, we will either be sending or receiving, but not both.
     if(sendChunks.size() != 0) {
       for(size_t i=0;i<sendChunks.size();++i) {
         int buf_size = sendChunks[i].send_size ;
@@ -596,6 +536,23 @@ namespace Loci
                   MPI_COMM_WORLD);
       }
     } else if(recvChunks.size() != 0) {
+      // First post Irecvs
+      int tot_buf_size = 0 ;
+      for(size_t i=0;i<recvChunks.size();++i) {
+	tot_buf_size += recvChunks[i].recv_size ;
+      }
+      vector<MPI_Request> req_list(recvChunks.size()) ;
+
+      vector<unsigned char> buf(tot_buf_size) ;
+      int offset = 0 ;
+      for(size_t i=0;i<recvChunks.size();++i) {
+        int buf_size = recvChunks[i].recv_size ;
+        int src = recvChunks[i].proc ;
+        MPI_Irecv (&buf[offset], buf_size, MPI_PACKED, src, TAG_INPUT,
+                    MPI_COMM_WORLD, &req_list[i]);
+	offset += buf_size ;
+      }
+
       // Allocate space for the data we will receive
       int nchunks = 0 ;
       for(size_t i=0;i<recvChunks.size();++i) {
@@ -612,25 +569,27 @@ namespace Loci
         storeRepP sp = local_facts1->get_variable (*vi);
         sp->allocate (loc_set);
       }
-      // Now receive the data
+
+      // now wait for receives to complete
+      int nreqs = req_list.size() ;
+      vector<MPI_Status> status_list(nreqs) ;
+      MPI_Waitall(nreqs,&req_list[0],&status_list[0]) ;
+      // Now unpack the data
       int cnt = 0 ;
+      offset = 0 ;
       for(size_t i=0;i<recvChunks.size();++i) {
         int buf_size = recvChunks[i].recv_size ;
-        vector<unsigned char> buf(buf_size) ;
-        int src = recvChunks[i].proc ;
-        MPI_Status tStatus;
-        MPI_Recv (&buf[0], buf_size, MPI_PACKED, src, TAG_INPUT,
-                    MPI_COMM_WORLD, &tStatus);
         int position = 0 ;
         for(size_t j=0;j<recvChunks[i].chunkList.size();++j) {
           entitySet recvSet = interval(cnt,cnt+iwsSize-1) ;
           for (variableSet::const_iterator vi = inputs.begin ();
                vi != inputs.end (); ++vi) {
             storeRepP s_ptr = local_facts1->get_variable (*vi);
-            s_ptr->unpack (&buf[0], position, buf_size,sequence(recvSet)) ;
+            s_ptr->unpack (&buf[offset], position, buf_size,sequence(recvSet)) ;
           }
           cnt+= iwsSize ;
         }
+	offset += buf_size ;
       }
     }
     
@@ -669,14 +628,44 @@ namespace Loci
     // Return chunks to owning processor
     //=======================================================
     if(sendChunks.size() != 0) {
+      // First post Irecvs
+      int tot_buf_size = 0 ;
+      for(size_t i=0;i<sendChunks.size();++i) {
+	tot_buf_size += sendChunks[i].recv_size ;
+      }
+      vector<unsigned char> buf(tot_buf_size) ;
+      int tot_chunks = 0 ;
+      for(size_t i=0;i<sendChunks.size();++i) {
+        tot_chunks += sendChunks[i].chunkList.size() ;
+      }
+      vector<float> times(tot_chunks) ;
+
+      vector<MPI_Request> req_list(sendChunks.size()*2) ;
+
+      int offset1 = 0 ;
+      int offset2 = 0 ;
+
       for(size_t i=0;i<sendChunks.size();++i) {
         int buf_size = sendChunks[i].recv_size ;
-        vector<unsigned char> buf(buf_size) ;
         int dest = sendChunks[i].proc ;
-        MPI_Status tStatus;
-        MPI_Recv (&buf[0], buf_size, MPI_PACKED, dest, TAG_OUTPUT,
-                    MPI_COMM_WORLD, &tStatus);
-        
+        MPI_Irecv (&buf[offset1], buf_size, MPI_PACKED, dest, TAG_OUTPUT,
+                    MPI_COMM_WORLD, &req_list[i*2]);
+	offset1 += buf_size ;
+        int nchunks = sendChunks[i].chunkList.size() ;
+        MPI_Irecv(&times[offset2],nchunks,MPI_FLOAT,dest,TAG_TIMES,
+		  MPI_COMM_WORLD, &req_list[i*2+1]);
+	offset2 += nchunks ;
+      }
+
+      // wait on recvs to complete
+      int nreqs = req_list.size() ;
+      vector<MPI_Status> status_list(nreqs) ;
+      MPI_Waitall(nreqs,&req_list[0],&status_list[0]) ;
+      
+      offset1 = 0 ;
+      offset2 = 0 ;
+      for(size_t i=0;i<sendChunks.size();++i) {
+        int buf_size = sendChunks[i].recv_size ;
         int position = 0 ;
         for(size_t j=0;j<sendChunks[i].chunkList.size();++j) {
           int ch = sendChunks[i].chunkList[j] ;
@@ -684,19 +673,18 @@ namespace Loci
           for (variableSet::const_iterator vi = outputs.begin ();
                vi != outputs.end (); ++vi) {
               storeRepP s_ptr = facts1->get_variable (*vi);
-              s_ptr->unpack (&buf[0], position, buf_size,
+              s_ptr->unpack (&buf[offset1], position, buf_size,
                              sendSet);
           }
         }
+	offset1 += buf_size ;
         // Receive times
         int nchunks = sendChunks[i].chunkList.size() ;
-        vector<float> times(nchunks) ;
-        MPI_Recv(&times[0],nchunks,MPI_FLOAT,dest,TAG_OUTPUT,
-                    MPI_COMM_WORLD, &tStatus);
         for(int j=0;j<nchunks;++j) {
           int ch = sendChunks[i].chunkList[j] ;
-          chunkData[ch].chunkTime[0] += times[j] ;
+          chunkData[ch].chunkTime[0] += times[offset2+j] ;
         }
+	offset2 += nchunks ;
       }
     } else if(recvChunks.size() != 0) {
       // Now send output data back
@@ -721,7 +709,7 @@ namespace Loci
                   MPI_COMM_WORLD);
         
         int nchunks = recvChunks[i].chunkList.size() ;
-        MPI_Send(&remote_times[cnt2],nchunks,MPI_FLOAT,dest,TAG_OUTPUT,
+        MPI_Send(&remote_times[cnt2],nchunks,MPI_FLOAT,dest,TAG_TIMES,
                  MPI_COMM_WORLD) ;
         cnt2 += nchunks ;
       }
