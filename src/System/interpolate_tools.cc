@@ -4,7 +4,7 @@ namespace Loci {
   using std::vector ;
   using std::pair ;
   typedef vector3d<real_t> vect3d ;
-  
+ 
   // Compute stencil using nearest point in 8 octants
   vector<int> get_stencil(const kdTree::KDTree<float> &kd,vect3d pnt,
                           real_t delta) {
@@ -203,6 +203,22 @@ namespace Loci {
   //     to compute weights.
   //  3) If no triangle is found from step 2 select edge formed from two
   //     closest points.  Use projected point distances to compute weights.
+
+  // Hexahedron from out of get_stencil will be organized as so:
+  //
+  //                       2----------3
+  //                      /|         /|
+  //                     / |        / |
+  //                    /  |       /  |
+  //                   6---+------7   |
+  //                   |   |      |   |
+  //                   |   1------+---0
+  //                   |  /       |  /
+  //                   | /        | /
+  //                   |/         |/
+  //                   5----------4
+  //
+  
   void stencil_weights(std::vector<real_t> &w,
                        std::vector<int> &neighbors,
                        const store<vect3d> &loc,
@@ -272,20 +288,22 @@ namespace Loci {
         t1 = p1 ;
         t2 = p2 ;
         t3 = p3 ;
-        dist = dot(ipnt-loc[t0],ipnt-loc[p0])+
-          dot(ipnt-loc[t0],ipnt-loc[p1])+
-          dot(ipnt-loc[t0],ipnt-loc[p2])+
-          dot(ipnt-loc[t0],ipnt-loc[p3]) ;
+        dist =
+          dot(ipnt-loc[t0],ipnt-loc[t0])+
+          dot(ipnt-loc[t1],ipnt-loc[t1])+
+          dot(ipnt-loc[t2],ipnt-loc[t2])+
+          dot(ipnt-loc[t3],ipnt-loc[t3]) ;
       }
-      p0 = neighbors[1] ;
-      p1 = neighbors[3] ;
-      p2 = neighbors[4] ;
-      p3 = neighbors[6] ;
+      p0 = neighbors[0] ;
+      p1 = neighbors[2] ;
+      p2 = neighbors[5] ;
+      p3 = neighbors[7] ;
       if(p0 >=0 && p1 >= 0 && p2 >= 0 && p3 >= 0) {
-        real_t dist2 = dot(ipnt-loc[t0],ipnt-loc[p0])+
-          dot(ipnt-loc[t0],ipnt-loc[p1])+
-          dot(ipnt-loc[t0],ipnt-loc[p2])+
-          dot(ipnt-loc[t0],ipnt-loc[p3]) ;
+        real_t dist2 =
+          dot(ipnt-loc[p0],ipnt-loc[p0])+
+          dot(ipnt-loc[p1],ipnt-loc[p1])+
+          dot(ipnt-loc[p2],ipnt-loc[p2])+
+          dot(ipnt-loc[p3],ipnt-loc[p3]) ;
         if(dist2 < dist) {
           dist = dist2 ;
           t0 = p0 ;
@@ -448,7 +466,7 @@ namespace Loci {
     N[0] = nt[0] ;
     N[1] = nt[1] ;
     vect3d v1 = loc[nt[1]]-v0 ;
-    W[1] = min(1.0,dot(vc,v1)/(dot(v1,v1)+1e-30)) ;
+    W[1] = max(0.0,min(1.0,dot(vc,v1)/(dot(v1,v1)+1e-30))) ;
     W[0] = 1.-W[1] ;
     w.swap(W) ;
     neighbors.swap(N) ;
