@@ -59,14 +59,14 @@ namespace Loci {
       size = sz ;
 #endif
     }
-    const T &restrict operator[](int idx) const {
+    const T &restrict operator[](int idx) const restrict {
 #ifdef BOUNDS_CHECK
       fatal(idx >= size || idx < 0) ;
 #endif
       return ptr[idx] ;
     }
 
-    operator const T *restrict () const {
+    operator const T *restrict () const restrict {
       return ptr ;
     }
   } ;
@@ -342,13 +342,13 @@ namespace Loci {
     }
     int vecSize() const { return size ; }
     const entitySet domain() const { return Rep()->domain() ; }
-    const_Vect<T> elem(int indx) const {
+    const_Vect<T> elem(int indx) const restrict {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return const_Vect<T>(base_ptr+(indx*size),size) ; }
-    const_Vect<T> operator[](int indx) const {
+    const_Vect<T> operator[](int indx) const restrict {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
