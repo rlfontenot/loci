@@ -507,14 +507,18 @@ namespace Loci {
   // Used by IWS load balancing method
 #define AVECHUNKS 50
 #define MAXCHUNKS 2*AVECHUNKS
-
+  
   class dynamic_schedule_rule: public execute_modules {
-    rule_implP rp,local_comp1 ;
+    int LBMethod ;
+    
+    rule_implP rp,main_comp,local_comp1 ;
+    bool compress_set ;
     variableSet inputs, outputs ;
+    fact_db backup_facts ;
     fact_db local_facts;
     rule_implP local_compute1;
     rule rule_tag ;
-    entitySet pre_exec_set ;
+    entitySet given_exec_set ;
     entitySet exec_set ;
     timeAccumulator timer ;
     timeAccumulator comp_timer ;
@@ -532,16 +536,42 @@ namespace Loci {
 
     int foreMan;			// rank of loop scheduler
     std::vector<int> yMapSave;	// copy of item count, first item
+    
 
     //=======================================================
     // used by IWS
     //=======================================================
-    int iwsSize;			// IWS chunk size
-    int myChunks;			// local chunk count
-    int doneBy[MAXCHUNKS];	// proc which will execute chunk
-    double aveChunkTime[MAXCHUNKS];	// average chunk execution time
+    // Chunk information
+    struct chunkInfo {
+      entitySet chunkDef ;
+      float chunkTime[2] ;
+    } ;
+    // Chunk Commuication data
+    struct chunkCommInfo {
+      int proc ;
+      std::vector<int> chunkList ;
+      int send_size,recv_size ;
+    } ;
 
-    std::vector<Array<double,MAXCHUNKS> > chunkTime ;
+    // This tells us about the chunks formed by this processor
+    std::vector<chunkInfo> chunkData ;
+    // computation/communication schedule
+    // chunks that stay on this processor
+    std::vector<int> selfChunks ;
+    // note: each processor will either be a sending or recving chunks,
+    // not both
+    // chunks to send
+    std::vector<chunkCommInfo> sendChunks ;
+    // chunks to recv 
+    std::vector<chunkCommInfo> recvChunks ;
+    // number of remote chunks this processor will process
+    int numRemoteChunks ;
+    // number of balancing steps
+    int numBalances ;
+    // chunk size
+    int iwsSize;			// IWS chunk size
+    
+      
     int nCalls;			// no. of calls to execute()
     int allItems;			// total  no. of items
     int nProcs;			// no. of procs
@@ -581,10 +611,10 @@ namespace Loci {
 
     
     void iterative_weighted_static () ;
-    void loop_scheduling (int method) ;
+    void loop_scheduling () ;
     
   public:
-    dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds) ;
+    dynamic_schedule_rule(rule fi, entitySet eset, fact_db &facts, sched_db &scheds,int method) ;
     virtual ~dynamic_schedule_rule() ;
   
     virtual void execute(fact_db &facts, sched_db &scheds) ;

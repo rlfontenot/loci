@@ -1138,12 +1138,13 @@ namespace Loci {
     //    }
     variableSet targets = impl.targets() ;
     WARN(targets.size() == 0) ;
-    
+
+    extern int method ;
     entitySet exec_seq = scheds.get_exec_seq(impl);
     if (impl.get_info().rule_impl->dynamic_schedule_rule() &&
         use_dynamic_scheduling) {
       executeP execute_dynamic =
-        new dynamic_schedule_rule(impl,exec_seq,facts, scheds) ;
+        new dynamic_schedule_rule(impl,exec_seq,facts, scheds,method) ;
 
       return execute_dynamic;
     }

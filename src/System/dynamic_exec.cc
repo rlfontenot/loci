@@ -22,6 +22,7 @@
 // Iterative weighted static load balancing and dynamic loop
 //   scheduling rule for Loci
 // by RL Carino (RLC@HPC.MsState.Edu)
+// Iterative weighted static redone by Ed Luke
 //
 // Ordinarily, Loci executes
 //      rp->compute (sequence (exec_set));
@@ -53,7 +54,7 @@ namespace Loci
 
   // set to 1 to activate debugging statements for:
 #define DEBUGOUT 0		// load balancing messages
-#define SHOWTIMES 1		// summary timings
+#define SHOWTIMES 0		// summary timings
 
   // static methods
 #define NLB		0	// no load balancing
@@ -120,9 +121,9 @@ namespace Loci
   //=======================================================
 
   // set to 1 to activate debugging statements for:
-#define SHOWLB1 0		// calculations for ideal loads
-#define SHOWLB2 0		// estimated loads
-#define SHOWCHUNKS 0		// timings for transferred chunks
+#define SHOWLB1 1		// calculations for ideal loads
+#define SHOWLB2 1		// estimated loads
+#define SHOWCHUNKS 1		// timings for transferred chunks
 
   // skip load balancing for the first few time steps
   // use timings collected here to initialize average time
@@ -403,33 +404,86 @@ namespace Loci
   //
   dynamic_schedule_rule::dynamic_schedule_rule (rule fi, entitySet eset,
 						fact_db & facts,
-						sched_db & scheds) {
+						sched_db & scheds,
+                                                int method) {
+    LBMethod = method ;
     int i2[2];
 
     // Loci initializations
     rp = fi.get_rule_implP ();
     rule_tag = fi;
-    pre_exec_set = EMPTY ;
-    exec_set = eset;
-    if(exec_set.num_intervals() > 1) {
-      int mxival = 0 ;
-      int mxival_size = exec_set[0].second-exec_set[0].first ;
-      for(int i=1;i<exec_set.num_intervals();++i) {
-        int ival_size = exec_set[i].second-exec_set[i].first ;
-        if(ival_size > mxival_size) {
-          mxival = i ;
-          mxival_size = ival_size ;
-        }
-      }
-      entitySet maxSet = entitySet(exec_set[mxival]) ;
-      exec_set = maxSet ;
-      pre_exec_set = eset-maxSet ;
-      debugout << "dynamic scheduling code non-optimal due to multiple intervals in exec set" << endl ;
-    }
+    given_exec_set = eset;
+    exec_set = given_exec_set ;
+    compress_set = false ;
     local_compute1 = rp->new_rule_impl ();
     entitySet in = rule_tag.sources ();
     outputs = rule_tag.targets ();
+    // temporarily make it always copy
+    if(exec_set.num_intervals() > 1 || true) {
+      // Copy to a compressed set if exec set not already compressed
+      int sz = eset.size() ;
+      exec_set = interval(0,sz-1) ;
+      compress_set = true ;
+      main_comp = rp->new_rule_impl() ;
+#ifdef VERBOSE
+      Loci::debugout << "using compressed set formulation" << endl
+                     << "given_set = " << given_exec_set << endl 
+                     << "exec_set = " << exec_set << endl ;
+#endif
+      
+      //Setup local facts input variables(types only no allocation)
+      for (variableSet::const_iterator vi = in.begin (); vi != in.end (); ++vi) {
+        storeRepP store_ptr = rp->get_store (*vi);
+        if ((store_ptr != 0) && store_ptr->RepType () == Loci::STORE) {
+          backup_facts.create_fact (*vi, store_ptr->new_store (EMPTY));
+        } else {
+          backup_facts.create_fact (*vi, facts.get_variable (*vi));
+        }
+      }
 
+      //Setup local facts output variables
+      for (variableSet::const_iterator vi = outputs.begin ();
+           vi != outputs.end (); ++vi) {
+        storeRepP store_ptr = rp->get_store (*vi);
+        backup_facts.create_fact (*vi, store_ptr->new_store (EMPTY));
+      }
+    } else {
+      main_comp = rp ;
+    }
+
+    
+    if(LBMethod == IWS) {
+      // Setup for iterative weighted static
+      // first we need to get the size of the iterate space
+      int lsz = exec_set.size() ;
+      int gsz = 0 ;
+      MPI_Allreduce(&lsz,&gsz,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+      // Now compute chomp size
+      int p = MPI_processes ;
+      // Chunk size
+      int csz = max(gsz/(p*100),10) ;
+      int nc = max(lsz/csz-1,0) ;
+      int first_chunk = lsz - csz*nc ;
+      int start = exec_set.Min() ;
+      int end = start+first_chunk -1 ;
+      iwsSize = csz ;
+      chunkInfo tmp ;
+      tmp.chunkDef = entitySet(interval(start,end))&exec_set ;
+      tmp.chunkTime[0] = 0 ;
+      tmp.chunkTime[1] = 0 ;
+      chunkData.push_back(tmp) ;
+      int last = exec_set.Max()+1 ;
+      for(start = start+first_chunk;start < last;start+= csz ) {
+        tmp.chunkDef = entitySet(interval(start,start+csz-1)) ;
+        chunkData.push_back(tmp) ;
+      }
+      int nchunks = chunkData.size() ;
+      for(int i=0;i<nchunks;++i)
+        selfChunks.push_back(i) ;
+      numBalances = 0 ;
+      numRemoteChunks = 0 ;
+    }
+    
     //Setup local facts input variables(types only no allocation)
     for (variableSet::const_iterator vi = in.begin (); vi != in.end (); ++vi) {
       storeRepP store_ptr = rp->get_store (*vi);
@@ -451,6 +505,12 @@ namespace Loci
     //Initialize both functions for remote and local execution.
     local_compute1->initialize (local_facts);
     rp->initialize (facts);
+    if(compress_set) {
+      main_comp->initialize(backup_facts) ;
+    } else {
+      main_comp->initialize(facts) ;
+    }
+      
 
     // ========================================================================
     // Step 0. Initializations
@@ -480,20 +540,6 @@ namespace Loci
     for (int proc = 0; proc < nProcs; proc++)
       allItems = allItems + yMapSave[2 * proc + 1];
 
-    // IWS chunk size, local chunk count
-    iwsSize = (allItems + nProcs * AVECHUNKS - 1) / (nProcs * AVECHUNKS);
-    myChunks = (myItemCount + iwsSize - 1) / iwsSize;
-
-    if(chunkTime.size() == 0) {
-      vector<Array<double,MAXCHUNKS> > tmp(nProcs) ;
-      chunkTime.swap(tmp) ;
-    }
-    for (int chunkIdx = 0; chunkIdx < MAXCHUNKS; chunkIdx++) {
-      aveChunkTime[chunkIdx] = 0.0;
-      doneBy[chunkIdx] = myRank;
-      for (int proc = 0; proc < nProcs; proc++)
-        chunkTime[proc][chunkIdx] = 0.0;
-    }
     // initialize work times
     if(workTime.size() == 0) {
       vector<double> tmp(nProcs) ;
@@ -511,10 +557,6 @@ namespace Loci
     // number of calls to execute()
     nCalls = 0;
 
-#if DEBUGOUT
-    Loci::debugout << myRank << " has " << myFirstItem << "," << myItemCount
-                   << "," << myChunks << "," << iwsSize << endl;
-#endif
 
   }
 
@@ -525,771 +567,494 @@ namespace Loci
       buf_size = 0;
     }
   }
-
+  
+  
+  
+  // New code
   void dynamic_schedule_rule::iterative_weighted_static () {
-    vector<int> sortIdx(nProcs) ;  // sort index
-    vector<Array<int,3> > info(nProcs) ;// information about items received from other procs
-
-    double optTime = 0.0;	// "ideal" work time (perfect load balance)
-    double local0 = 0.0;	// predicted work time for (remaining) local items
-
-    vector<double> toGive(nProcs);	// work to transfer to proc i
-    vector<vector<double> > x(nProcs) ;// total chunk time to move from proc i to proc j
-    for(int i=0;i<nProcs;++i) {
-      vector<double> tmp(nProcs) ;
-      x[i].swap(tmp) ;
-    }
-
-    int recvFrom, sendTo;
-    int nChunks, nItems, msgLen, maxLen;
-    int tSize, tStart, position, tIdx;
-    int tBuf[2];		// message buffer for 2 ints
-    MPI_Status tStatus;
-
-    int i, j, k, dest, src, proc;
-    int chunkIdx, jmax, jmin;
-    double toFill, tTime;
-    double timerStart, timerEnd = 0.0;
-
-    // BARRIER
-    // MPI_Barrier (MPI_COMM_WORLD);
-
-    // ========================================================================
-    // Step 1. Load balance
-    // ========================================================================
-
-    // ========================================================================
-    // Step 2. Set this proc to neither send nor receive work
-    // ========================================================================
-
-    sendTo = 0;			// how many procs to send work to
-    recvFrom = 0;		// how many procs to recv work from
-    local1 = 0.0;
-    remote1 = 0.0;
-    for (proc = 0; proc < nProcs; proc++) {
-      workTime[proc] = 0.0;	// work times
-      info[proc][MSG_LEN] = 0;	// buffer size
-      info[proc][ITEM_COUNT] = 0;	// no. of items
-      info[proc][LOCAL_START] = 0;	// position of items in local_facts
-    }
-
-    // do load balancing only after a few steps
-    if (nCalls > SKIPSTEPS) {
-
-      // ======================================================================
-      // Step 3. Based on work times, compute an ideal time (optTime)
-      // ======================================================================
-
-      // set chunk ownership
-      for (k = 0; k < myChunks; k++) {
-#if SHOWCHUNKS
-        if (doneBy[k] != myRank) {
-          i = myFirstItem + k * iwsSize;
-          j = min (iwsSize, myFirstItem + myItemCount - i);
-          Loci::debugout << nCalls << "," << myRank << "," << k << "," << i
-                         << "," << j << "," << chunkTime[myRank][k]
-                         << ", done by " << doneBy[k] << endl;
+    //=======================================================
+    // First perform communication schedule
+    //=======================================================
+    // Note, we will either be sending or receiving.
+    if(sendChunks.size() != 0) {
+      for(size_t i=0;i<sendChunks.size();++i) {
+        int buf_size = sendChunks[i].send_size ;
+        vector<unsigned char> buf(buf_size) ;
+        int position = 0 ;
+        for(size_t j=0;j<sendChunks[i].chunkList.size();++j) {
+          int ch = sendChunks[i].chunkList[j] ;
+          entitySet sendSet = chunkData[ch].chunkDef ;
+          for (variableSet::const_iterator vi = inputs1.begin ();
+               vi != inputs1.end (); ++vi) {
+              storeRepP s_ptr = facts1->get_variable (*vi);
+              s_ptr->pack (&buf[0], position, buf_size,
+                           sendSet);
+          }
         }
-#endif
-        doneBy[k] = myRank;
+        int dest = sendChunks[i].proc ;
+        MPI_Send (&buf[0], buf_size, MPI_PACKED, dest, TAG_INPUT,
+                  MPI_COMM_WORLD);
       }
-
-      // ideal time, copy of work times (ewt[])
-      if(ewt.size() == 0) {
-        vector<double> tmp(nProcs) ;
-        ewt.swap(tmp) ;
+    } else if(recvChunks.size() != 0) {
+      // Allocate space for the data we will receive
+      int nchunks = 0 ;
+      for(size_t i=0;i<recvChunks.size();++i) {
+        nchunks += recvChunks[i].chunkList.size() ;
       }
-      optTime = 0.0;
-      for (i = 0; i < nProcs; i++) {
-        ewt[i] = aveWorkTime[i];
-        optTime += aveWorkTime[i];
+      entitySet loc_set = interval(0,nchunks*iwsSize-1) ;
+      for (variableSet::const_iterator vi = inputs1.begin ();
+           vi != inputs1.end (); ++vi) {
+        storeRepP sp = local_facts1->get_variable (*vi);
+        sp->allocate (loc_set);
       }
-      optTime /= nProcs;
-      local0 = aveWorkTime[myRank];	// predicted work time from local items
-#if SHOWLB2
-      double remote0 = 0.0;		// predicted work time for/from remote items
-#endif
+      for (variableSet::const_iterator vi = outputs1.begin ();
+           vi != outputs1.end (); ++vi) {
+        storeRepP sp = local_facts1->get_variable (*vi);
+        sp->allocate (loc_set);
+      }
+      // Now receive the data
+      int cnt = 0 ;
+      for(size_t i=0;i<recvChunks.size();++i) {
+        int buf_size = recvChunks[i].recv_size ;
+        vector<unsigned char> buf(buf_size) ;
+        int src = recvChunks[i].proc ;
+        MPI_Status tStatus;
+        MPI_Recv (&buf[0], buf_size, MPI_PACKED, src, TAG_INPUT,
+                    MPI_COMM_WORLD, &tStatus);
+        int position = 0 ;
+        for(size_t j=0;j<recvChunks[i].chunkList.size();++j) {
+          entitySet recvSet = interval(cnt,cnt+iwsSize-1) ;
+          for (variableSet::const_iterator vi = inputs1.begin ();
+               vi != inputs1.end (); ++vi) {
+            storeRepP s_ptr = local_facts1->get_variable (*vi);
+            s_ptr->unpack (&buf[0], position, buf_size,sequence(recvSet)) ;
+          }
+          cnt+= iwsSize ;
+        }
+      }
+    }
+    
+    //=======================================================
+    // Execute Chunks recording time
+    //=======================================================
 
-      // =====================================================================
-      // Step 4. Determine amounts of work transfers from work times & optTime
-      // =====================================================================
+    vector<float> remote_times(numRemoteChunks,0) ;
 
-      // work time to give away
-      for (i = 0; i < nProcs; i++)
-        if (abs (ewt[i] - optTime) / optTime >= tolLB)
-          toGive[i] = ewt[i] - optTime;
-        else
-          toGive[i] = 0.0;
-#if SHOWLB1
-      Loci:: debugout << "ST5: rank=" << i << ", expected=" << ewt[myRank]
-                      << ", ideal=" << optTime << ", diff=" << toGive[myRank]
-                      << endl;
-#endif
-      
-      // sort work to give away (increasing)
-      vector<pair<double,int> > sortOrder(nProcs) ;
-      for (i = 0; i < nProcs; i++) {
-        sortOrder[i].first = toGive[i] ;
-        sortOrder[i].second = i ;
+    stopWatch exec_clock ;
+    exec_clock.start() ;
+    // Compute local work
+    for(size_t i = 0;i<selfChunks.size();++i) {
+      int ch = selfChunks[i] ;
+      stopWatch s ;
+      s.start() ;
+      main_comp->compute(sequence(chunkData[ch].chunkDef));
+      double elapsed_time = s.stop() ;
+      chunkData[ch].chunkTime[0] += elapsed_time ;
+      comp_timer.addTime(elapsed_time,1) ;
+    }
+    // Now compute remote work
+    int cnt = 0 ;
+    int skip = iwsSize ;
+    for(int i=0;i<numRemoteChunks;++i) {
+      stopWatch s ;
+      s.start() ;
+      local_comp1->compute(sequence(interval(cnt,cnt+skip-1))) ;
+      double elapsed_time = s.stop() ;
+      remote_times[i] = elapsed_time;
+      comp_timer.addTime(elapsed_time,1) ;
+      cnt += skip ;
+    }
+    float exec_time = exec_clock.stop() ;
+    //=======================================================
+    // Return chunks to owning processor
+    //=======================================================
+    if(sendChunks.size() != 0) {
+      for(size_t i=0;i<sendChunks.size();++i) {
+        int buf_size = sendChunks[i].recv_size ;
+        vector<unsigned char> buf(buf_size) ;
+        int dest = sendChunks[i].proc ;
+        MPI_Status tStatus;
+        MPI_Recv (&buf[0], buf_size, MPI_PACKED, dest, TAG_OUTPUT,
+                    MPI_COMM_WORLD, &tStatus);
         
-      }
-      std::sort(sortOrder.begin(),sortOrder.end()) ;
-      for (i = 0; i < nProcs; i++)
-        sortIdx[i] = sortOrder[i].second ;
-#ifdef OLD_BUBBLE_SORT      
-      for (i = 0; i < nProcs; i++)
-        sortIdx[i] = i;
-      for (i = 0; i < (nProcs - 1); i++)
-        for (j = i + 1; j < nProcs; j++)
-          if (toGive[sortIdx[i]] > toGive[sortIdx[j]]) {
-            k = sortIdx[i];
-            sortIdx[i] = sortIdx[j];
-            sortIdx[j] = k;
-          }
-#endif
-      // determine communications pattern
-      // x[src][dest] is the amount of work from src to dest
-      for (i = 0; i < nProcs; i++)
-        for (j = 0; j < nProcs; j++)
-          x[i][j] = 0.0;
-      for (k = 0; k < nProcs; k++) {
-        src = sortIdx[k];
-        if (toGive[src] > 0.0) {
-          // reduction in src is significant?
-          while (toGive[src] / optTime > tolLB) {
-            // find destination
-            dest = k;
-            for (j = 0; j < k; j++)
-              if (toGive[sortIdx[dest]] > toGive[sortIdx[j]])
-                dest = j;
-            dest = sortIdx[dest];
-            // destination is already full ?
-            if (abs (toGive[dest]) / optTime <= tolLB)
-              break;
-            toFill = -toGive[dest];
-            // not enough from src ?
-            if (toGive[src] < toFill)
-              toFill = toGive[src];
-            // update accumulators
-            x[src][dest] = toFill;
-            ewt[dest] += toFill;
-            toGive[dest] += toFill;
-            ewt[src] -= toFill;
-            toGive[src] -= toFill;
-#if SHOWLB1
-            Loci::debugout << "ST5 xfer : " << src << " -> " << dest
-                           << " : " << toFill << endl;
-#endif
-          }
-        }
-      }
-
-      // how many procs to receive from?
-      recvFrom = 0;
-      for (src = 0; src < nProcs; src++)
-        if (x[src][myRank] > 0.0) {
-#if SHOWLB2
-          // receive estimated work from src
-          MPI_Recv (&tTime, 1, MPI_DOUBLE, src, TAG_INPUT,
-                    MPI_COMM_WORLD, &tStatus);
-          Loci::debugout << "ST5: work by " << myRank << " from " << src
-                         << " : est. by self=" << x[src][myRank]
-                         << ", est. from src=" << tTime
-                         << ", %diff="
-                         << 100.0 * (x[src][myRank] - tTime) / x[src][myRank]
-                         << endl;
-          remote0 += tTime;
-#endif
-          recvFrom++;
-        }
-
-      // how many procs to send to?
-      sendTo = 0;
-      for (dest = 0; dest < nProcs; dest++)
-        if (x[myRank][dest] > 0.0)
-          sendTo++;
-
-    }				// end if (nCalls > SKIPSTEPS)
-
-    // ========================================================================
-    // Step 5. If this proc is a source of work, identify chunks to send
-    // ========================================================================
-
-    if (sendTo) {
-
-      // reuse EWT for computed amount to transfer to others
-      for (i = 0; i < nProcs; i++)
-        ewt[i] = 0.0;
-      local0 = aveWorkTime[myRank];
-      
-      vector<int> sortChunkIdx(myChunks) ;
-      
-      for (dest = 0; dest < nProcs; dest++)
-        // send something to dest?
-        if (x[myRank][dest] > 0.0) {
-          // sort chunks accd to chunk time
-          jmax = -1;
-          for (i = 0; i < (myChunks - 1); i++)
-            if (doneBy[i] == myRank) {
-              jmax++;
-              sortChunkIdx[jmax] = i;
-            }
-          // exclude last chunk (might be smaller than iwsSize)
-          for (i = 0; i < (jmax - 1); i++)
-            for (j = i + 1; j < jmax; j++)
-              if (aveChunkTime[sortChunkIdx[i]] < aveChunkTime[sortChunkIdx[j]]) {
-                k = sortChunkIdx[i];
-                sortChunkIdx[i] = sortChunkIdx[j];
-                sortChunkIdx[j] = k;
-              }
-
-          // collect chunks for dest
-          toFill = x[myRank][dest];
-          jmin = JSTART;
-          tTime = aveChunkTime[sortChunkIdx[jmin]];
-
-          while ((jmin < (jmax - 1)) && (toFill / optTime > tolLB)) {
-            // toFill needs more than 1 chunk?
-            while ((jmin < (jmax - 1)) && (toFill >= tTime)) {
-#if SHOWLB2
-              Loci::debugout << "ST6: " << myRank << " -> " << dest
-                             << " : " << toFill << " - " << tTime
-                             << " from chunk " << jmin << " (="
-                             << sortChunkIdx[jmin]
-                             << "), rem is " << toFill - tTime << endl;
-#endif
-              toFill -= tTime;
-              local0 -= tTime;
-              ewt[dest] += tTime;
-              doneBy[sortChunkIdx[jmin]] = dest;	// mark this chunk as for dest
-              jmin++;
-              tTime = aveChunkTime[sortChunkIdx[jmin]];
-            }
-            if (toFill / optTime <= tolLB)
-              break;
-            // tTime greater than toFill
-            while ((jmin < (jmax - 1)) && (tTime > toFill)) {
-              jmin++;
-              tTime = aveChunkTime[sortChunkIdx[jmin]];
-            }
-          }
-#if SHOWLB2
-          // send estimate of work to dest
-          MPI_Send (&ewt[dest], 1, MPI_DOUBLE, dest, TAG_INPUT,
-                    MPI_COMM_WORLD);
-          remote0 += ewt[dest];
-#endif
-        }
-    }
-
-#if SHOWLB2
-    Loci::debugout << "step=" << nCalls << ",rank=" << myRank
-                   << "  Predictions: ideal=" << optTime
-                   << ", local=" << local0
-                   << ", remote=" << remote0 << ", total="
-                   << local0 + remote0 << endl;
-#endif
-
-    // Any proc to receive from ? (Is this rank lightly loaded?)
-    if (recvFrom) {
-
-      // =====================================================================
-      // Step 6. Receive chunks of items from others into local_facts
-      // =====================================================================
-
-      // receive info on incoming items
-      maxLen = 0;
-      nItems = 0;		// total items to receive
-      for (proc = 0; proc < recvFrom; proc++) {
-        MPI_Recv (tBuf, 2, MPI_INT, MPI_ANY_SOURCE, TAG_INFO,
-                  MPI_COMM_WORLD, &tStatus);
-        src = tStatus.MPI_SOURCE;
-        tSize = tBuf[0];	// number of items
-        msgLen = tBuf[1];	// packed size
-#if DEBUGOUT
-        Loci::debugout << "DEST1: input info from " << src << " : "
-                       << tSize << "," << msgLen << endl;
-#endif
-        // store into info[][]
-        info[src][MSG_LEN] = msgLen;
-        info[src][ITEM_COUNT] = tSize;
-        if (maxLen < msgLen)
-          maxLen = msgLen;
-        nItems += tSize;
-      }
-      // reset recvFrom in case tSize=0 was specified
-      recvFrom = 0;
-      for (src = 0; src < nProcs; src++)
-        if (info[src][ITEM_COUNT])
-          recvFrom++;
-
-      // receiving from any other proc still?
-      if (recvFrom) {
-#if DEBUGOUT
-        Loci::debugout << "DEST1: local_facts to accommodate " << nItems
-                       << endl;
-#endif
-        // allocate space for items to receive
-        AllocateLBspace (nItems);
-
-        // prepare buffer, ACKnowledge handshake, receive & unpack inputs
-        GetBuffer (maxLen);
-        tStart = 0;		// item numbers in local_facts start with 0
-        for (src = 0; src < nProcs; src++) {
-          tSize = info[src][ITEM_COUNT];
-          if (tSize == 0)
-            continue;
-
-          // send acknowledgement
-          MPI_Send (NULL, 0, MPI_INT, src, TAG_ACK, MPI_COMM_WORLD);
-          msgLen = info[src][MSG_LEN];
-          info[src][LOCAL_START] = tStart;
-          // receive items
-          MPI_Recv (buf, msgLen, MPI_PACKED, src, TAG_INPUT,
-                    MPI_COMM_WORLD, &tStatus);
-          nChunks = tSize / iwsSize;
-          // unpack items into local_facts
-          position = 0;
-          for (chunkIdx = 0; chunkIdx < nChunks; chunkIdx++) {
-            for (variableSet::const_iterator vi = inputs1.begin ();
-                 vi != inputs1.end (); ++vi) {
-              storeRepP s_ptr = local_facts1->get_variable (*vi);
-              s_ptr->unpack (buf, position, msgLen,
-                             sequence (interval (tStart, tStart + iwsSize - 1)));
-            }
-#if SHOWCHUNK
-
-            Loci::debugout << "DEST2: unpacked input chunk " << chunkIdx
-                           << " from " << src << ", start at " << tStart
-                           << endl;
-#endif
-            tStart += iwsSize;
-          }
-        }
-
-        // ====================================================================
-        // Step 7. Execute chunks of items in local_facts; collect chunk times
-        // ====================================================================
-
-        // execute items in local_facts
-        for (src = 0; src < nProcs; src++) {
-          tSize = info[src][ITEM_COUNT];
-          if (tSize == 0)
-            continue;
-
-          // number of chunks from proc src in local_facts
-          nChunks = tSize / iwsSize;
-          timerStart = MPI_Wtime ();
-          workTime[src] = timerStart;
-          timerEnd = timerStart;
-          // execute chunks
-          for (chunkIdx = 0; chunkIdx < nChunks; chunkIdx++) {
-            tStart = info[src][LOCAL_START] + chunkIdx * iwsSize;
-            stopWatch sc ;
-            sc.start() ;
-            local_comp1->compute (sequence
-                                  (interval (tStart, tStart + iwsSize - 1)));
-
-            timerEnd = MPI_Wtime ();
-            chunkTime[src][chunkIdx] = (timerEnd - timerStart);
-#if DEBUGOUT+SHOWCHUNKS
-            Loci::debugout << "DEST3: executed chunk " << chunkIdx
-                           << " from " << src << ", start at "
-                           << tStart << " in "
-                           << chunkTime[src][chunkIdx] << endl;
-#endif
-            timerStart = timerEnd;
-          }
-          workTime[src] = timerEnd - workTime[src];
-          remote1 += workTime[src];
-#if DEBUGOUT
-          Loci::debugout << "DEST3: local_compute->compute() time for "
-                         << src << " is " << workTime[src] << endl;
-#endif
-        }
-
-      }			// end if (recvFrom)
-
-      // ======================================================================
-      // Step 8. Execute items in facts; collect chunk times & proc work time
-      // ======================================================================
-
-      // execute items in facts, by chunks
-      timerStart = MPI_Wtime ();
-      local1 = timerStart;
-      timerEnd = timerStart;
-      for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++) {
-        tStart = myFirstItem + chunkIdx * iwsSize;
-        tSize = min (iwsSize, myFirstItem + myItemCount - tStart);
-        stopWatch sc ;
-        sc.start() ;
-        rp->compute (sequence (interval (tStart, tStart + tSize - 1)));
-        comp_timer.addTime(sc.stop(),1) ;
-        timerEnd = MPI_Wtime ();
-        chunkTime[myRank][chunkIdx] = (timerEnd - timerStart);
-        timerStart = timerEnd;
-      }
-      local1 = timerEnd - local1;
-      workTime[myRank] = local1;
-#if DEBUGOUT
-      Loci::debugout << "DEST4: rp->compute() time=" << local1 << endl;
-#endif
-
-      if (recvFrom) {
-
-        // ====================================================================
-        // Step 9. Return outputs of items in local_facts, chunk times
-        // ====================================================================
-
-        // calculate message sizes, maximum size, initiate handshake
-        // by sending chunk times
-        maxLen = 0;
-        for (dest = 0; dest < nProcs; dest++) {
-          tSize = info[dest][ITEM_COUNT];
-          if (tSize == 0)
-            continue;
-
-          // calculate pack size
-          nChunks = tSize / iwsSize;
-          msgLen = 0;
-          for (chunkIdx = 0; chunkIdx < nChunks; chunkIdx++) {
-            tStart = info[dest][LOCAL_START] + chunkIdx * iwsSize;
-            msgLen += outputPackSize (tStart, iwsSize);
-            //    for (variableSet::const_iterator vi = outputs1.begin ();
-            //	 vi != outputs1.end (); ++vi)
-            //      {
-            //	storeRepP s_ptr = local_facts1->get_variable (*vi);
-            //	msgLen +=
-            //	  s_ptr->
-            //	  pack_size (interval (tStart, tStart + iwsSize - 1));
-            //      }
-          }
-          if (maxLen < msgLen)
-            maxLen = msgLen;
-          info[dest][MSG_LEN] = msgLen;
-          // place pack size at end of message
-          chunkTime[dest][nChunks] = double (msgLen);
-          MPI_Send (&chunkTime[dest][0], nChunks + 1, MPI_DOUBLE,
-                    dest, TAG_INFO, MPI_COMM_WORLD);
-#if DEBUGOUT
-          Loci::debugout << "DEST5: output info to " << dest << " : "
-                         << tSize << "," << msgLen << ", first at "
-                         << info[dest][LOCAL_START] << endl;
-#endif
-        }
-        // prepare sufficient buffer
-        GetBuffer (maxLen);
-        // receive ACK, pack and send output
-        for (proc = 0; proc < recvFrom; proc++) {
-          MPI_Recv (NULL, 0, MPI_INT, MPI_ANY_SOURCE, TAG_ACK,
-                    MPI_COMM_WORLD, &tStatus);
-          dest = tStatus.MPI_SOURCE;
-          msgLen = info[dest][MSG_LEN];
-          nChunks = info[dest][ITEM_COUNT] / iwsSize;
-          position = 0;
-          for (chunkIdx = 0; chunkIdx < nChunks; chunkIdx++) {
-            tStart = info[dest][LOCAL_START] + chunkIdx * iwsSize;
-            for (variableSet::const_iterator vi = outputs1.begin ();
-                 vi != outputs1.end (); ++vi) {
-              storeRepP s_ptr = local_facts1->get_variable (*vi);
-              s_ptr->pack (buf, position, msgLen,
-                           interval (tStart, tStart + iwsSize - 1));
-            }
-          }
-          MPI_Send (buf, msgLen, MPI_PACKED, dest, TAG_OUTPUT,
-                    MPI_COMM_WORLD);
-#if DEBUGOUT
-          Loci::debugout << "DEST6: sent outputs to " << dest << " : "
-                         << msgLen << "," << info[dest][ITEM_COUNT]
-                         << ", start=" <<
-            info[dest][LOCAL_START] << endl;
-#endif
-        }
-
-        //Free space after LB
-        FreeLBspace ();
-
-      }			// end if (recvFrom)
-
-    }
-
-    // Send to other procs ? (Is this proc heavily loaded?)
-    else if (sendTo) {
-      // ======================================================================
-      // Step 9. Send chunks
-      // ======================================================================
-
-      // calculate maximum message size and initiate handshake
-      maxLen = 0;
-      for (dest = 0; dest < nProcs; dest++) {
-        if (x[myRank][dest] == 0.0)
-          continue;		// nothing for dest
-        msgLen = 0;
-        nItems = 0;
-        for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++) {
-          if (doneBy[chunkIdx] != dest)
-            continue;	// not for dest
-          tStart = myFirstItem + chunkIdx * iwsSize;
-          nItems += iwsSize;
-          msgLen += inputPackSize (tStart, iwsSize);
-
-          //for (variableSet::const_iterator vi = inputs1.begin ();
-          //     vi != inputs1.end (); ++vi)
-          //  {
-          //    storeRepP s_ptr = facts1->get_variable (*vi);
-          //    msgLen +=
-          //      s_ptr->
-          //      pack_size (interval (tStart, tStart + iwsSize - 1));
-          //  }
-        }
-        tBuf[0] = nItems;
-        tBuf[1] = msgLen;
-        MPI_Send (tBuf, 2, MPI_INT, dest, TAG_INFO, MPI_COMM_WORLD);
-#if DEBUGOUT
-        Loci::debugout << "SRC1: sent input info to " << dest << " : "
-                       << nItems << "," << msgLen << endl;
-#endif
-        if (maxLen < msgLen)
-          maxLen = msgLen;
-        info[dest][MSG_LEN] = msgLen;
-        info[dest][ITEM_COUNT] = nItems;
-
-        // exclude dest in case a chunk was not specified for it
-        if (nItems == 0)
-          sendTo--;
-      }
-
-      // Send to other procs still?
-      if (sendTo) {
-
-        // prepare sufficient buffer
-        GetBuffer (maxLen);
-        // receive ACK, pack and send input
-        for (proc = 0; proc < sendTo; proc++) {
-          MPI_Recv (NULL, 0, MPI_INT, MPI_ANY_SOURCE, TAG_ACK,
-                    MPI_COMM_WORLD, &tStatus);
-          dest = tStatus.MPI_SOURCE;
-          tSize = info[dest][ITEM_COUNT];
-          msgLen = info[dest][MSG_LEN];
-          //Pack inputs from facts
-          position = 0;
-          for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++) {
-            if (doneBy[chunkIdx] != dest)
-              continue;	// not for dest
-            tStart = myFirstItem + chunkIdx * iwsSize;
-            for (variableSet::const_iterator vi = inputs1.begin ();
-                 vi != inputs1.end (); ++vi) {
+        int position = 0 ;
+        for(size_t j=0;j<sendChunks[i].chunkList.size();++j) {
+          int ch = sendChunks[i].chunkList[j] ;
+          entitySet sendSet = chunkData[ch].chunkDef ;
+          for (variableSet::const_iterator vi = outputs1.begin ();
+               vi != outputs1.end (); ++vi) {
               storeRepP s_ptr = facts1->get_variable (*vi);
-              s_ptr->pack (buf, position, msgLen,
-                           interval (tStart, tStart + iwsSize - 1));
-            }
+              s_ptr->unpack (&buf[0], position, buf_size,
+                             sendSet);
           }
-          MPI_Rsend (buf, msgLen, MPI_PACKED, dest, TAG_INPUT,
-                     MPI_COMM_WORLD);
-#if DEBUGOUT
-          Loci::debugout << "SRC2: sent inputs to " << dest << " : "
-                         << info[dest][ITEM_COUNT] << "," << msgLen << endl;
-#endif
         }
-
-      }			//end if (sendTo)
-
-      // ======================================================================
-      // Step 10. Execute remaining items; collect chunk times & proc work time
-      // ======================================================================
-
-      // execute remaining inputs
-      timerStart = MPI_Wtime ();
-      local1 = timerStart;
-      timerEnd = timerStart;
-      for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++) {
-        if (doneBy[chunkIdx] != myRank)
-          continue;		// sent to another proc
-        tStart = myFirstItem + chunkIdx * iwsSize;
-        tSize = min (iwsSize, myFirstItem + myItemCount - tStart);
-
-        stopWatch sc ;
-        sc.start() ;
-        rp->compute (sequence (interval (tStart, tStart + tSize - 1)));
-        comp_timer.addTime(sc.stop(),1) ;
-
-        timerEnd = MPI_Wtime ();
-        chunkTime[myRank][chunkIdx] = (timerEnd - timerStart);
-        timerStart = timerEnd;
-      }
-      local1 = timerEnd - local1;
-      workTime[myRank] = local1;
-#if DEBUGOUT
-      Loci::debugout << "SRC4: rp->compute() time=" << local1 << endl;
-#endif
-
-      if (sendTo) {
-
-        // ====================================================================
-        // Step 11. Receive outputs for items sent, chunk times
-        // ====================================================================
-
-        // receive info on returning outputs
-        maxLen = 0;
-        for (proc = 0; proc < sendTo; proc++) {
-          MPI_Probe (MPI_ANY_SOURCE, TAG_INFO, MPI_COMM_WORLD,
-                     &tStatus);
-          src = tStatus.MPI_SOURCE;
-          MPI_Get_count (&tStatus, MPI_DOUBLE, &tSize);
-          MPI_Recv (&chunkTime[src][0], tSize, MPI_DOUBLE, src,
-                    TAG_INFO, MPI_COMM_WORLD, &tStatus);
-          // unpack msgLen from last position
-          msgLen = int (chunkTime[src][tSize - 1]);
-          info[src][MSG_LEN] = msgLen;
-          if (maxLen < msgLen)
-            maxLen = msgLen;
-#if DEBUGOUT
-          Loci::debugout << "SRC5: recv output info from " << src
-                         << " : " << iwsSize * (tSize - 1) << ","
-                         << msgLen << " (expecting " << info[src][ITEM_COUNT]
-                         << " items)" << endl;
-#endif
-        }
-        // prepare buffer, ACKnowledge handshake, receive & unpack inputs
-        GetBuffer (maxLen);
-        for (src = 0; src < nProcs; src++) {
-          tSize = info[src][ITEM_COUNT];
-          if (tSize == 0)
-            continue;
-
-          MPI_Send (NULL, 0, MPI_INT, src, TAG_ACK, MPI_COMM_WORLD);
-          msgLen = info[src][MSG_LEN];
-          MPI_Recv (buf, msgLen, MPI_PACKED, src, TAG_OUTPUT,
+        // Receive times
+        int nchunks = sendChunks[i].chunkList.size() ;
+        vector<float> times(nchunks) ;
+        MPI_Recv(&times[0],nchunks,MPI_FLOAT,dest,TAG_OUTPUT,
                     MPI_COMM_WORLD, &tStatus);
-          //unpack outputs into facts
-          tIdx = 0;	// index to chunk times
-          position = 0;
-          for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++) {
-            if (doneBy[chunkIdx] != src)
-              continue;	// not for src
-            tStart = myFirstItem + chunkIdx * iwsSize;
-            for (variableSet::const_iterator vi = outputs1.begin ();
-                 vi != outputs1.end (); ++vi) {
-              storeRepP s_ptr = facts1->get_variable (*vi);
-              s_ptr->unpack (buf, position, msgLen,
-                             interval (tStart, tStart + iwsSize - 1));
-            }
-            chunkTime[myRank][chunkIdx] = chunkTime[src][tIdx];
-            remote1 += chunkTime[src][tIdx];
-#if DEBUGOUT+SHOWCHUNKS
-            Loci::debugout << "SRC6: unpacked output for chunk "
-                           << chunkIdx << ", first at " << tStart
-                           << ", completed in " << chunkTime[src][tIdx]
-                           << endl;
-#endif
-            tIdx++;
-          }
-#if DEBUGOUT
-          Loci::debugout << "SRC6: unpacked output from " << src << " : "
-                         << tSize << "," << msgLen << endl;
-#endif
+        for(size_t j=0;j<sendChunks[i].chunkList.size();++j) {
+          int ch = sendChunks[i].chunkList[j] ;
+          chunkData[ch].chunkTime[0] += times[i] ;
         }
-
-      }			//end if (sendTo)
-    }
-
-
-    // ========================================================================
-    // Step 12. Execute items in facts; collect chunk times & proc work time
-    // ========================================================================
-
-    // no items to send or receive; simply execute items in facts
-    else {
-      timerStart = MPI_Wtime ();
-      local1 = timerStart;
-      timerEnd = timerStart;
-      for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++) {
-        tStart = myFirstItem + chunkIdx * iwsSize;
-        tSize = min (iwsSize, myFirstItem + myItemCount - tStart);
-
-        stopWatch sc ;
-        sc.start() ;
-        rp->compute (sequence (interval (tStart, tStart + tSize - 1)));
-        comp_timer.addTime(sc.stop(),1) ;
-
-        timerEnd = MPI_Wtime ();
-        chunkTime[myRank][chunkIdx] = (timerEnd - timerStart);
-        timerStart = timerEnd;
       }
-      local1 = timerEnd - local1;
-      workTime[myRank] = local1;
-#if DEBUGOUT
-      Loci::debugout << "NLB4: rp->compute() time=" << local1 << endl;
-#endif
-    }
-
-#if SHOWTIMES
-    wall1 = MPI_Wtime () - wall1;
-#endif
-
-    // ========================================================================
-    // Step 13. Exchange proc work times
-    // ========================================================================
-
-    if(ewt.size() == 0) {
-      vector<double> tmp(nProcs) ;
-      ewt.swap(tmp) ;
-    }
-    // BARRIER: gather work times on all procs
-    MPI_Allreduce (&workTime[0], &ewt[0], nProcs, MPI_DOUBLE, MPI_SUM,
-		   MPI_COMM_WORLD);
-    for (proc = 0; proc < nProcs; proc++)
-      workTime[proc] = ewt[proc];
-
-    // ========================================================================
-    // Step 14. Compute averages of chunk times and work times
-    // ========================================================================
-
-    // compute geometric average work time for each proc
-    if (nCalls <= SKIPSTEPS) {
-      optTime = workTime[myRank];	// give optTime a value
-      for (proc = 0; proc < nProcs; proc++)
-        aveWorkTime[proc] += workTime[proc];
-      for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++)
-        aveChunkTime[chunkIdx] += chunkTime[myRank][chunkIdx];
-      if (nCalls == SKIPSTEPS) {
-        for (proc = 0; proc < nProcs; proc++)
-          aveWorkTime[proc] /= (nCalls + 1);
-        for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++)
-          aveChunkTime[chunkIdx] /= (nCalls + 1);
+    } else if(recvChunks.size() != 0) {
+      // Now send output data back
+      int cnt = 0 ;
+      int cnt2 = 0 ;
+      for(size_t i=0;i<recvChunks.size();++i) {
+        int buf_size = recvChunks[i].send_size ;
+        vector<unsigned char> buf(buf_size) ;
+        int dest = recvChunks[i].proc ;
+        
+        int position = 0 ;
+        for(size_t j=0;j<recvChunks[i].chunkList.size();++j) {
+          entitySet sendSet = interval(cnt,cnt+iwsSize-1) ;
+          for (variableSet::const_iterator vi = outputs1.begin ();
+               vi != outputs1.end (); ++vi) {
+            storeRepP s_ptr = local_facts1->get_variable (*vi);
+            s_ptr->pack (&buf[0], position, buf_size,sendSet) ;
+          }
+          cnt += iwsSize ;
+        }
+        MPI_Send (&buf[0], buf_size, MPI_PACKED, dest, TAG_OUTPUT,
+                  MPI_COMM_WORLD);
+        
+        int nchunks = recvChunks[i].chunkList.size() ;
+        MPI_Send(&remote_times[cnt2],nchunks,MPI_FLOAT,dest,TAG_OUTPUT,
+                 MPI_COMM_WORLD) ;
+        cnt2 += nchunks ;
       }
-#if DEBUGOUT
-      Loci::debugout << "SKIP: average worktime=" << aveWorkTime[myRank]
-                     << endl;
-#endif
-    } else {
-      for (proc = 0; proc < nProcs; proc++)
-        aveWorkTime[proc] =
-          (1.0 - CONTRIB) * aveWorkTime[proc] + CONTRIB * workTime[proc];
-      for (chunkIdx = 0; chunkIdx < myChunks; chunkIdx++)
-        aveChunkTime[chunkIdx] = (1.0 - CONTRIB) * aveChunkTime[chunkIdx] +
-          CONTRIB * chunkTime[myRank][chunkIdx];
-#if DEBUGOUT
-      Loci::debugout << "CONT: average worktime=" << aveWorkTime[myRank]
-                     << endl;
+      // Release space for the remote computation
+      for (variableSet::const_iterator vi = inputs1.begin ();
+           vi != inputs1.end (); ++vi) {
+        storeRepP sp = local_facts1->get_variable (*vi);
+        sp->allocate (EMPTY);
+      }
+      for (variableSet::const_iterator vi = outputs1.begin ();
+           vi != outputs1.end (); ++vi) {
+        storeRepP sp = local_facts1->get_variable (*vi);
+        sp->allocate (EMPTY);
+      }
+    }
+    
+    
+    //=======================================================
+    // Estimate parallel efficiency
+    //=======================================================
+    float total_time = 0 ;
+    MPI_Allreduce(&exec_time,&total_time,1,MPI_FLOAT,MPI_SUM,MPI_COMM_WORLD) ;
+    float max_time = 0 ;
+    MPI_Allreduce(&exec_time,&max_time,1,MPI_FLOAT,MPI_MAX,MPI_COMM_WORLD) ;
+    double ef = total_time/(max_time*float(MPI_processes)) ;
+
+    if(MPI_rank == 0) 
+      Loci::debugout << "parallel efficiency of IWS schduled computation is "
+                     << ef*100.0 << "%"<< endl ;
+    //=======================================================
+    // If efficiency too low, regenerate load balance schedule
+    //=======================================================
+    if(numBalances == 0 || ef < 0.85 ) { 
+      // Compute balanced schedule, first compute total time
+      float time = 0 ;
+      for(size_t i=0;i<chunkData.size();++i)
+	time += chunkData[i].chunkTime[0]+chunkData[i].chunkTime[1] ;
+      float total_time = 0 ;
+      MPI_Allreduce(&time,&total_time,1,MPI_FLOAT,MPI_SUM,MPI_COMM_WORLD) ;
+      float mean_time = total_time/float(MPI_processes) ;
+      float diff_time = time-mean_time ;
+      if(fabs(diff_time) < mean_time*0.02) // If close to average time, zero
+	diff_time = 0 ;
+      
+      // Compute chunks that will be sent to other processors
+      vector<int> send_list ;
+      if(diff_time > 0) { // If this processor is taking too much time, 
+	// allocate chunks that get it to the mean_time ;
+	vector<pair<float,int> > chunk_times(chunkData.size()-1) ;
+	for(size_t i=1;i<chunkData.size();++i) {
+	  chunk_times[i-1].first = 
+	    chunkData[i].chunkTime[0]+chunkData[i].chunkTime[1] ;
+	  chunk_times[i-1].second = i ;
+	}
+	std::sort(chunk_times.begin(),chunk_times.end()) ;
+	float time_keep = chunkData[0].chunkTime[0]+chunkData[0].chunkTime[1] ;
+	float time_threshold = mean_time ; 
+	int kk ;
+	for(kk = chunk_times.size()-1;kk>=0;--kk) {
+	  if(time_keep > time_threshold)
+	    break ;
+	  if(time_keep+chunk_times[kk].first < mean_time*1.02) {
+	    time_keep += chunk_times[kk].first ;
+	  } else
+	    send_list.push_back(chunk_times[kk].second) ;
+	}
+	for(;kk>=0;--kk)
+	  send_list.push_back(chunk_times[kk].second) ;
+      }	
+      if(send_list.size() != 0) {
+	diff_time = 0 ;
+	for(size_t i=0;i<send_list.size();++i)
+	  diff_time += (chunkData[send_list[i]].chunkTime[0]+
+			chunkData[send_list[i]].chunkTime[1]) ;
+      }
+      vector<float> time_xfers(MPI_processes) ;
+      MPI_Allgather(&diff_time, 1, MPI_FLOAT, &time_xfers[0],1,MPI_FLOAT,
+		    MPI_COMM_WORLD) ;
+      if(MPI_rank == 0) {
+	debugout << "mean_time = " << mean_time << endl ;
+	debugout << "time xfers =";
+	for(int i=0;i<MPI_processes;++i)
+	  debugout << " " << time_xfers[i] ;
+	debugout << endl ;
+      }
+      vector<pair<float,int> > send_chunks ;
+      vector<pair<float,int> > recv_chunks ;
+      for(int i=0;i<MPI_processes;++i) {
+	if(time_xfers[i] > 0.0) 
+	  send_chunks.push_back(pair<float,int>(time_xfers[i],i)) ;
+	if(time_xfers[i] < 0.0) 
+	  recv_chunks.push_back(pair<float,int>(-time_xfers[i],i)) ;
+      }
+      sort(send_chunks.begin(),send_chunks.end()) ;
+      sort(recv_chunks.begin(),recv_chunks.end()) ;
+
+      // Compute chunk sendto schedule
+      vector<pair<int,vector<int> > > sendto ;
+      
+      for(int i=recv_chunks.size()-1;i>=0;--i) {
+	double ptime = recv_chunks[i].first ;
+	for(int j=send_chunks.size()-1;j>=0;--j) {
+	  if(send_chunks[j].second >=0) {
+	    if(ptime - send_chunks[j].first > -mean_time*0.02) {
+	      ptime -= send_chunks[j].first ;
+	      //assign all chunks from this processor
+	      if(send_chunks[j].second == MPI_rank) {
+		sendto.push_back(pair<int,vector<int> >(recv_chunks[i].second,
+							send_list)) ;
+		send_list.clear() ;
+	      }
+	      time_xfers[send_chunks[j].second] = 0 ;
+	      send_chunks[j].second = -1 ;
+	    }
+	  }
+	}
+	ptime = -ptime ;
+	if(fabs(ptime) < mean_time*0.02)
+	  ptime = 0 ;
+	time_xfers[recv_chunks[i].second] = ptime ;
+      }
+	
+      if(MPI_rank == 0) {
+	debugout << "time xfers2 =";
+	for(int i=0;i<MPI_processes;++i)
+	  debugout << " " << time_xfers[i] ;
+	debugout << endl ;
+      }
+      bool rebalance = false ;
+      for(int i=0;i<MPI_processes;++i)
+	if(time_xfers[i] > 0)
+	  rebalance = true ;
+      bool sources = false ;
+      for(int i=0;i<MPI_processes;++i)
+	if(time_xfers[i] < 0)
+	  sources = true ;
+      if(rebalance && sources) { // we have residual work to distribute
+	int nchunks = send_list.size() ;
+	vector<int> chunk_groups(MPI_processes) ;
+	MPI_Allgather(&nchunks, 1, MPI_INT, &chunk_groups[0],1,MPI_INT,
+		      MPI_COMM_WORLD) ;
+	vector<float> chunk_times(nchunks) ;
+	for(int i=0;i<nchunks;++i) {
+	  int ch = send_list[i] ;
+	  chunk_times[i] = (chunkData[ch].chunkTime[0]+
+			    chunkData[ch].chunkTime[1]) ;
+	}
+	vector<int> chunk_displ(MPI_processes) ;
+	chunk_displ[0] = 0 ;
+	for(int i=1;i<MPI_processes;++i) 
+	  chunk_displ[i] = chunk_displ[i-1]+chunk_groups[i-1] ;
+
+	int ntchunks = (chunk_displ[MPI_processes-1]+
+			chunk_groups[MPI_processes-1]) ;
+
+	vector<float> chunk_time_gather(ntchunks) ;
+	
+	MPI_Allgatherv(&chunk_times[0],nchunks,MPI_FLOAT,
+		       &chunk_time_gather[0],
+		       &chunk_groups[0],
+		       &chunk_displ[0],
+		       MPI_FLOAT,
+		       MPI_COMM_WORLD) ;
+	vector<pair<float,pair<int,int> > > chunkQueue ;
+	for(int i=0;i<MPI_processes;++i) {
+	  for(int j=0;j<chunk_groups[i];++j) {
+	    pair<int,int> chunk_info(i,j) ;
+	    float chunk_time = chunk_time_gather[chunk_displ[i]+j] ;
+	    chunkQueue.push_back(pair<float,pair<int,int> >(chunk_time,
+							    chunk_info)) ;
+	  }
+	}
+
+	sort(chunkQueue.begin(),chunkQueue.end()) ;
+	int chunkQueueStart = chunkQueue.size()-1 ;
+	for(int i=0;i<MPI_processes;++i) 
+	  if(time_xfers[i] < 0) {
+	    vector<int> sendto_p ;
+	    float time_x = -time_xfers[i] ;
+	    for(int j=chunkQueueStart;j >=0;--j) 
+	      if((chunkQueue[j].first > 0) &&
+		 (time_x - chunkQueue[j].first > -mean_time*0.02)) {
+		// assign chunk 
+		time_x -= chunkQueue[j].first ;
+		const int cp = chunkQueue[j].second.first ;
+		if(cp == MPI_rank)
+		  sendto_p.push_back(send_list[chunkQueue[j].second.second]) ;
+		time_xfers[cp] -= chunkQueue[j].first ;
+		chunkQueue[j].first = -1.0 ; // remove from consideration
+		if(fabs(time_x) < mean_time*0.02)
+		  break ;
+	      }
+	    //skip deleted entries
+	    for(;chunkQueueStart>0;--chunkQueueStart)
+	      if(chunkQueue[chunkQueueStart].first > 0)
+		break ;
+	    if(sendto_p.size() > 0) {
+	      sendto.push_back(pair<int,vector<int> >(i,sendto_p)) ;
+	    }
+	    time_x = -time_x ;
+	    if(fabs(time_x) < mean_time*0.02)
+	      time_x = 0 ;
+	    time_xfers[i] = time_x ;
+	  }
+	
+      }
+      if(MPI_rank == 0) {
+	debugout << "time xfers3 =";
+	for(int i=0;i<MPI_processes;++i)
+	  debugout << " " << time_xfers[i] ;
+	debugout << endl ;
+      }
+
+
+
+	
+      //------------------------------------------------------------------
+      // convert sendto to execution and communication schedules
+      //------------------------------------------------------------------
+
+      int numChunks = chunkData.size() ;
+      // Convert sendto to schedule
+      vector<int> chunk_list(numChunks,-1) ;
+      for(size_t i=0;i<sendto.size();++i)
+	for(size_t j=0;j<sendto[i].second.size();++j)
+	  chunk_list[sendto[i].second[j]] = sendto[i].first ;
+      // Setup local execution list
+
+      vector<int> local_list ;
+      for(int i=0;i<numChunks;++i)
+	if(chunk_list[i] == -1)
+	  local_list.push_back(i) ;
+      selfChunks.swap(local_list) ;
+
+
+      vector<chunkCommInfo> local_send_list ;
+      for(size_t i=0;i<sendto.size();++i) {
+	chunkCommInfo tmp ;
+	tmp.proc = sendto[i].first ;
+	tmp.chunkList = sendto[i].second ;
+	entitySet chunk = interval(0,iwsSize-1) ;
+	int szs = 0 ;
+	for (variableSet::const_iterator vi = inputs1.begin ();
+	     vi != inputs1.end (); ++vi) {
+	  storeRepP s_ptr = facts1->get_variable (*vi);
+	  szs += s_ptr->pack_size(chunk);
+	}
+	tmp.send_size = szs*tmp.chunkList.size() ;
+	int szr = 0 ;
+	for (variableSet::const_iterator vi = outputs1.begin ();
+	     vi != outputs1.end (); ++vi) {
+	  storeRepP s_ptr = facts1->get_variable (*vi);
+	  szr += s_ptr->pack_size(chunk);
+	}
+	tmp.recv_size = szr*tmp.chunkList.size() ;
+	local_send_list.push_back(tmp) ;
+      }
+      sendChunks.swap(local_send_list) ;
+
+      // now invert sendChunks
+      vector<int> sendSizes(MPI_processes,0) ;
+      for(size_t i=0;i<sendChunks.size();++i)
+	sendSizes[sendChunks[i].proc] = sendChunks[i].chunkList.size() ;
+      
+      vector<int> recvSizes(MPI_processes,0) ;
+      MPI_Alltoall(&sendSizes[0],1,MPI_INT,
+		   &recvSizes[0],1,MPI_INT,
+		   MPI_COMM_WORLD) ;
+      numRemoteChunks = 0 ;
+
+      vector<chunkCommInfo> local_recv_list ;
+      for(int i=0;i<MPI_processes;++i) {
+	numRemoteChunks += recvSizes[i] ;
+	if(recvSizes[i]!=0) {
+	  chunkCommInfo tmp ;
+	  tmp.proc = i ;
+	  for(int k=0;k<recvSizes[i];++k)
+	    tmp.chunkList.push_back(k) ;
+	  local_recv_list.push_back(tmp) ;
+	}
+      }
+      if(numRemoteChunks != 0 && sendChunks.size() !=0) {
+	cerr << "logic error in iterative weighted static LB method" << endl ;
+	Loci::Abort() ;
+      }
+      for(size_t i=0;i<local_recv_list.size();++i) {
+        MPI_Status tStatus;
+	MPI_Recv(&local_recv_list[i].recv_size,1,MPI_INT,
+		 local_recv_list[i].proc,TAG_INFO,
+		 MPI_COMM_WORLD,&tStatus) ;
+      }
+      for(size_t i=0;i<sendChunks.size();++i) {
+	MPI_Send(&sendChunks[i].send_size,1,MPI_INT,
+		 sendChunks[i].proc,TAG_INFO,MPI_COMM_WORLD) ;
+      }
+      for(size_t i=0;i<local_recv_list.size();++i) {
+        MPI_Status tStatus;
+	MPI_Recv(&local_recv_list[i].send_size,1,MPI_INT,
+		 local_recv_list[i].proc,TAG_INFO,
+		 MPI_COMM_WORLD,&tStatus) ;
+      }
+      for(size_t i=0;i<sendChunks.size();++i) {
+	MPI_Send(&sendChunks[i].recv_size,1,MPI_INT,
+		 sendChunks[i].proc,TAG_INFO,MPI_COMM_WORLD) ;
+      }
+      recvChunks.swap(local_recv_list) ;
+#ifdef VERBOSE
+      if(sendChunks.size() != 0) {
+      	debugout << "sendChunks: " << endl ;
+	for(size_t i=0;i<sendChunks.size();++i)
+	  debugout << sendChunks[i].proc << ' ' << sendChunks[i].chunkList.size() << ' ' << sendChunks[i].send_size << ' ' << sendChunks[i].recv_size << endl ;
+      }
+      if(recvChunks.size() != 0) {
+	debugout << "recvChunks: " << endl ;
+	for(size_t i=0;i<recvChunks.size();++i)
+	  debugout << recvChunks[i].proc << ' ' << recvChunks[i].chunkList.size() << ' ' << recvChunks[i].send_size << ' ' << recvChunks[i].recv_size << endl ;
+      }
 #endif
     }
-#if SHOWLB2
-    if (nCalls > SKIPSTEPS)
-      Loci::debugout << "step=" << nCalls << ",rank=" << myRank
-                     << "  Errors (%) : ideal="
-                     << 100.0 * (optTime - wall1) / optTime
-                     << ", local=" <<
-        100.0 * (local0 - local1) / ((local0 > 0.0) ? local0 : 1.0)
-                     << ", remote=" <<
-        100.0 * (remote0 - remote1) / ((remote0 > 0.0) ? remote0 : 1.0)
-                     << endl;
-#endif
 
-    ideal1 = optTime;
+    //=======================================================
+    // If past trigger point, reset timing data
+    //=======================================================
+    if((numBalances&0x7) == 0) {
+      for(size_t i=0;i<chunkData.size();++i) {
+        chunkData[i].chunkTime[1] = chunkData[i].chunkTime[0] ;
+        chunkData[i].chunkTime[0] = 0 ;
+      }
+    }
+
+    numBalances++ ;
+
   }
-
-
 
   //=======================================================
   // routines called by DLS
@@ -1321,7 +1086,7 @@ namespace Loci
                    << "," << chunkSize << endl;
 #endif
   }
-
+  
   void dynamic_schedule_rule:: RecvInfo (int src, int action, int *chunkStart,
                                          int *chunkSize, int *chunkDest,
                                          double *mu) {
@@ -1547,7 +1312,7 @@ namespace Loci
   }
 
 
-  void dynamic_schedule_rule::loop_scheduling (int method)
+  void dynamic_schedule_rule::loop_scheduling ()
   {
     vector<int> yMap(2*nProcs) ;
     
@@ -1633,7 +1398,7 @@ namespace Loci
       // use static scheduling during first call to execute()
       //   to initialize average work time
       if (nCalls)
-        i = method;
+        i = LBMethod;
       else
         i = -1;
       //send local work info to others
@@ -1832,7 +1597,7 @@ namespace Loci
         }
 
         sc.start() ;
-        rp->compute(sequence(interval (localStart, localStart + tSize - 1)));
+        main_comp->compute(sequence(interval (localStart, localStart + tSize - 1)));
         timerDiff = sc.stop() ;
         comp_timer.addTime(timerDiff,1) ;
         workTime[myRank] += timerDiff;
@@ -1958,7 +1723,7 @@ namespace Loci
           }		// end if (tSource == -1)
           else if (tSource == msgSrc) {		// msgSrc has some
             chunkStart = yMap[2 * msgSrc];
-            GetChunkSize (method, minChunkSize, msgSrc,
+            GetChunkSize (LBMethod, minChunkSize, msgSrc,
                           &yMap[0], &chunkSize, &batchSize, &batchRem);
             action = WORK_LOCAL;	// update local work info
 #if DEBUGOUT
@@ -1969,7 +1734,7 @@ namespace Loci
           }		//end if (tSource == msgSrc)
           else {		// tSource sends input data to msgSrc
             tStart = yMap[2 * tSource];
-            GetChunkSize (method, minChunkSize, tSource,
+            GetChunkSize (LBMethod, minChunkSize, tSource,
                           &yMap[0], &tSize, &batchSize, &batchRem);
             SendInfo (tSource, SEND_INPUT, tStart, tSize, msgSrc,
                       0.0);
@@ -1987,14 +1752,14 @@ namespace Loci
           }		// end if (tSource == -1)
           else if (tSource == msgSrc) {		// msgSrc has some
             tStart = yMap[2 * msgSrc];
-            GetChunkSize (method, minChunkSize, msgSrc,
+            GetChunkSize (LBMethod, minChunkSize, msgSrc,
                           &yMap[0], &tSize, &batchSize, &batchRem);
             SendInfo (msgSrc, WORK_LOCAL, tStart, tSize, -1, 0.0);
             action = TEST4_MSG;	// test for a message
           }		//end if (tSource == msgSrc)
           else {		// tSource sends input data to msgSrc
             tStart = yMap[2 * tSource];
-            GetChunkSize (method, minChunkSize, tSource,
+            GetChunkSize (LBMethod, minChunkSize, tSource,
                           &yMap[0], &tSize, &batchSize, &batchRem);
             inputSent[tSource]++;	// mark tSource as data giver
             if (tSource != foreMan) {
@@ -2042,7 +1807,7 @@ namespace Loci
       ewt[i] = 0.0;
 
   
-   MPI_Allreduce (&workTime[0], &ewt[0], nProcs, MPI_DOUBLE, MPI_SUM,
+    MPI_Allreduce (&workTime[0], &ewt[0], nProcs, MPI_DOUBLE, MPI_SUM,
 		   MPI_COMM_WORLD);
   
 
@@ -2076,22 +1841,52 @@ namespace Loci
     stopWatch s ;
     s.start() ;
 
-    extern int method;
-
     // Hack to handle non-contiguos sets.
-    if(pre_exec_set != EMPTY) {
-      stopWatch sc ;
-      sc.start() ;
-      rp->compute(sequence(pre_exec_set)) ;
-      comp_timer.addTime(sc.stop(),1) ;
+    if(compress_set) { 
+#ifdef VERBOSE
+      debugout << "allocating over set" << exec_set << endl ;
+#endif
+      // need to allocate sets and copy from main fact_db
+      for (variableSet::const_iterator vi = inputs.begin ();
+           vi != inputs.end (); ++vi) {
+        storeRepP sp = backup_facts.get_variable (*vi);
+        sp->allocate (exec_set);
+      }
+      for (variableSet::const_iterator vi = outputs.begin ();
+           vi != outputs.end (); ++vi) {
+        storeRepP sp = backup_facts.get_variable (*vi);
+        sp->allocate (exec_set);
+      }
+      // now copy input data
+      int bufsize = 0 ;
+      for (variableSet::const_iterator vi = inputs.begin ();
+           vi != inputs.end (); ++vi) {
+        storeRepP s_ptr = facts.get_variable (*vi);
+        bufsize += s_ptr->pack_size (given_exec_set);
+      }
+#ifdef VERBOSE
+      debugout << "copying data " << bufsize << " bytes" << endl ;
+#endif
+      vector<unsigned char> data(bufsize) ;
+      int position = 0 ;
+      for (variableSet::const_iterator vi = inputs.begin ();
+           vi != inputs.end (); ++vi) {
+        storeRepP s_ptr = facts.get_variable(*vi) ;
+        s_ptr->pack(&data[0],position,bufsize,given_exec_set) ;
+      }
+      position = 0 ;
+      for (variableSet::const_iterator vi = inputs.begin ();
+           vi != inputs.end (); ++vi) {
+        storeRepP s_ptr = backup_facts.get_variable(*vi) ;
+        s_ptr->unpack(&data[0],position,bufsize,exec_set) ;
+      }
     }
-#if SHOWTIMES
     wall1 = MPI_Wtime ();
     wall2 = wall1;
-    if (method == NLB) {
+    if (LBMethod == NLB) {
       stopWatch sc ;
       sc.start() ;
-      rp->compute (sequence (exec_set));
+      main_comp->compute (sequence (exec_set));
       comp_timer.addTime(sc.stop(),1) ;
       wall1 = MPI_Wtime () - wall1;
       local1 = wall1;
@@ -2100,15 +1895,18 @@ namespace Loci
     } else {
       // globals
       local_comp1 = local_compute1;
+      
       facts1 = &facts;
-      local_facts1 = &local_facts;
+      if(compress_set)
+	facts1 = &backup_facts ;
+      local_facts1 = &local_facts ;
       inputs1 = inputs;
       outputs1 = outputs;
 
-      if (method == IWS)
+      if (LBMethod == IWS)
         iterative_weighted_static ();
       else
-        loop_scheduling (method);
+        loop_scheduling ();
 
       // ideal1, local1, remote1 & wall1 are computed
       //   by the routines
@@ -2117,7 +1915,8 @@ namespace Loci
       facts1 = 0;
       local_facts1 = 0;
     }
-    Loci::debugout << method << "," << nProcs << "," << myRank << ","
+#if SHOWTIMES
+    Loci::debugout << LBMethod << "," << nProcs << "," << myRank << ","
                    << nCalls << ", ideal=" << ideal1 << ", wall1=" << wall1
                    << " (" << int (1000.0 * (ideal1 - wall1) / ideal1) / 10.0
                    << "%)" << ", wall2=" << wall2
@@ -2127,27 +1926,44 @@ namespace Loci
                    << int (1000.0 * (wall1 - local1 - remote1) / wall1) / 10.0
                    << "%" << endl;
 
-#else
-
-    if (method == NLB) {
-      stopWatch sc ;
-      sc.start() ;
-      rp->compute (sequence (exec_set));
-      comp_timer.addTime(sc.stop(),1) ;
-    } else {
-      local_comp1 = local_compute1;
-      facts1 = &facts;
-      local_facts1 = &local_facts;
-      inputs1 = inputs;
-      outputs1 = outputs;
-      if (method == IWS)
-        iterative_weighted_static ();
-      else
-        loop_scheduling (method);
-      facts1 = 0;
-      local_facts1 = 0;
-    }
 #endif
+
+    if(compress_set) { // copy output back to main fact database, deallocate
+      // memory
+
+      // now copy input data
+      int bufsize = 0 ;
+      for (variableSet::const_iterator vi = outputs.begin ();
+           vi != outputs.end (); ++vi) {
+        storeRepP s_ptr = backup_facts.get_variable (*vi);
+        bufsize += s_ptr->pack_size (exec_set);
+      }
+      vector<unsigned char> data(bufsize) ;
+      int position = 0 ;
+      for (variableSet::const_iterator vi = outputs.begin ();
+           vi != outputs.end (); ++vi) {
+        storeRepP s_ptr = backup_facts.get_variable(*vi) ;
+        s_ptr->pack(&data[0],position,bufsize,exec_set) ;
+      }
+      position = 0 ;
+      for (variableSet::const_iterator vi = outputs.begin ();
+           vi != outputs.end (); ++vi) {
+        storeRepP s_ptr = facts.get_variable(*vi) ;
+        s_ptr->unpack(&data[0],position,bufsize,given_exec_set) ;
+      }
+      
+      // release memory
+      for (variableSet::const_iterator vi = inputs.begin ();
+           vi != inputs.end (); ++vi) {
+        storeRepP sp = backup_facts.get_variable (*vi);
+        sp->allocate (EMPTY);
+      }
+      for (variableSet::const_iterator vi = outputs.begin ();
+           vi != outputs.end (); ++vi) {
+        storeRepP sp = backup_facts.get_variable (*vi);
+        sp->allocate (EMPTY);
+      }
+    }      
     nCalls++;
     timer.addTime(s.stop(),1) ;
   }
