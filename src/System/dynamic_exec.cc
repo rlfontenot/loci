@@ -395,7 +395,8 @@ namespace Loci
       // Now compute chomp size
       int p = MPI_processes ;
       // Chunk size
-      int csz = max(gsz/(p*100),10) ;
+      int CHUNKING_FACTOR=256 ;
+      int csz = max(gsz/(p*CHUNKING_FACTOR),10) ;
       int nc = max(lsz/csz-1,0) ;
       int first_chunk = lsz - csz*nc ;
 #ifdef VERBOSE
@@ -516,6 +517,9 @@ namespace Loci
     // First perform communication schedule
     //=======================================================
     // Note, we will either be sending or receiving, but not both.
+    //    MPI_Barrier(MPI_COMM_WORLD) ;
+    stopWatch timer ;
+    timer.start() ;
     if(sendChunks.size() != 0) {
       for(size_t i=0;i<sendChunks.size();++i) {
         int buf_size = sendChunks[i].send_size ;
@@ -592,7 +596,8 @@ namespace Loci
 	offset += buf_size ;
       }
     }
-    
+
+    double comm_time = timer.stop() ;
     //=======================================================
     // Execute Chunks recording time
     //=======================================================
@@ -627,6 +632,7 @@ namespace Loci
     //=======================================================
     // Return chunks to owning processor
     //=======================================================
+    timer.start() ;
     if(sendChunks.size() != 0) {
       // First post Irecvs
       int tot_buf_size = 0 ;
@@ -725,7 +731,7 @@ namespace Loci
         sp->allocate (EMPTY);
       }
     }
-    
+    comm_time += timer.stop() ;
     
     //=======================================================
     // Estimate parallel efficiency
@@ -742,7 +748,9 @@ namespace Loci
     //=======================================================
     // If efficiency too low, regenerate load balance schedule
     //=======================================================
-    if(numBalances == 0 || (ef < 0.89 && (numBalances&0x7) ==0) ) { 
+    timer.start() ;
+    if(numBalances == 0 || (ef < 0.89 && (numBalances&0x3) ==0) ) {
+      const float eff_tol = 0.01 ;
       // Compute balanced schedule, first compute total time
       float time = 0 ;
       for(size_t i=0;i<chunkData.size();++i)
@@ -751,7 +759,7 @@ namespace Loci
       MPI_Allreduce(&time,&total_time,1,MPI_FLOAT,MPI_SUM,MPI_COMM_WORLD) ;
       float mean_time = total_time/float(MPI_processes) ;
       float diff_time = time-mean_time ;
-      if(fabs(diff_time) < mean_time*0.02) // If close to average time, zero
+      if(fabs(diff_time) < mean_time*eff_tol) // If close to average time, zero
 	diff_time = 0 ;
       
       // Compute chunks that will be sent to other processors
@@ -765,18 +773,46 @@ namespace Loci
 	  chunk_times[i-1].second = i ;
 	}
 	std::sort(chunk_times.begin(),chunk_times.end()) ;
+
+        
+#define SELECT_GIVE
+#ifdef SELECT_GIVE
+        // select chunks to give away
+        float time_give = 0 ;
+	for(int kk = chunk_times.size()-1;kk>=0;--kk) {
+          if(time_give > diff_time)
+            break ;
+	  if(time_give+chunk_times[kk].first < diff_time+mean_time*eff_tol) {
+	    send_list.push_back(chunk_times[kk].second) ;
+            time_give += chunk_times[kk].first ;
+          }
+	}
+#endif
+#ifdef SELECT_KEEP
+        // This code for this processor to keep what it can to meet mean time
 	float time_keep = chunkData[0].chunkTime[0]+chunkData[0].chunkTime[1] ;
+        // keep the smallest timed chunks up to keep_percent of mean to reduce
+        // number of chunks communicated
+        float keep_percent = 0.01 ;
+        int stop = 0 ;
+        while(time_keep+chunk_times[stop].first < keep_percent*mean_time &&
+              stop < int(chunk_times.size())) {
+          time_keep += chunk_times[stop].first ;
+          stop++ ;
+        }
+          
 	int kk ;
-	for(kk = chunk_times.size()-1;kk>=0;--kk) {
+	for(kk = chunk_times.size()-1;kk>=stop;--kk) {
           if(time_keep > mean_time)
             break ;
-	  if(time_keep+chunk_times[kk].first < mean_time*1.02) {
+	  if(time_keep+chunk_times[kk].first < mean_time*(1.+eff_tol)) {
 	    time_keep += chunk_times[kk].first ;
 	  } else
 	    send_list.push_back(chunk_times[kk].second) ;
 	}
 	for(;kk>=0;--kk)
 	  send_list.push_back(chunk_times[kk].second) ;
+#endif
       }	
       if(send_list.size() != 0) {
 	diff_time = 0 ;
@@ -787,6 +823,7 @@ namespace Loci
       vector<float> time_xfers(MPI_processes) ;
       MPI_Allgather(&diff_time, 1, MPI_FLOAT, &time_xfers[0],1,MPI_FLOAT,
 		    MPI_COMM_WORLD) ;
+#ifdef VERBOSE
       if(MPI_rank == 0) {
 	debugout << "mean_time = " << mean_time << endl ;
 	debugout << "time xfers =";
@@ -794,6 +831,7 @@ namespace Loci
 	  debugout << " " << time_xfers[i] ;
 	debugout << endl ;
       }
+#endif
       vector<pair<float,int> > send_chunks ;
       vector<pair<float,int> > recv_chunks ;
       for(int i=0;i<MPI_processes;++i) {
@@ -812,7 +850,7 @@ namespace Loci
 	double ptime = recv_chunks[i].first ;
 	for(int j=send_chunks.size()-1;j>=0;--j) {
 	  if(send_chunks[j].second >=0) {
-	    if(ptime - send_chunks[j].first > -mean_time*0.02) {
+	    if(ptime - send_chunks[j].first > -mean_time*eff_tol) {
 	      ptime -= send_chunks[j].first ;
 	      //assign all chunks from this processor
 	      if(send_chunks[j].second == MPI_rank) {
@@ -828,17 +866,20 @@ namespace Loci
 	  }
 	}
 	ptime = -max(ptime,0.0) ;
-	if(fabs(ptime) < mean_time*0.02)
+	if(fabs(ptime) < mean_time*eff_tol)
 	  ptime = 0 ;
 	time_xfers[recv_chunks[i].second] = ptime ;
       }
-	
+      
+#ifdef VERBOSE
       if(MPI_rank == 0) {
 	debugout << "time xfers2 =";
 	for(int i=0;i<MPI_processes;++i)
 	  debugout << " " << time_xfers[i] ;
 	debugout << endl ;
       }
+#endif
+      
       bool rebalance = false ;
       for(int i=0;i<MPI_processes;++i)
 	if(time_xfers[i] > 0)
@@ -874,35 +915,45 @@ namespace Loci
 		       &chunk_displ[0],
 		       MPI_FLOAT,
 		       MPI_COMM_WORLD) ;
-	vector<pair<float,pair<int,int> > > chunkQueue ;
+	vector<pair<float,pair<int,int> > > chunkQueue(ntchunks) ;
+        int cnk = 0 ;
 	for(int i=0;i<MPI_processes;++i) {
 	  for(int j=0;j<chunk_groups[i];++j) {
 	    pair<int,int> chunk_info(i,j) ;
 	    float chunk_time = chunk_time_gather[chunk_displ[i]+j] ;
-	    chunkQueue.push_back(pair<float,pair<int,int> >(chunk_time,
-							    chunk_info)) ;
+	    chunkQueue[cnk] = pair<float,pair<int,int> >(chunk_time,
+                                                         chunk_info) ;
+            cnk++ ;
 	  }
 	}
-
-	sort(chunkQueue.begin(),chunkQueue.end()) ;
+        cnk = 0 ;
+	for(int i=0;i<MPI_processes;++i) {
+          if(chunk_groups[i] > 1) {
+            std::sort(&chunkQueue[cnk],&chunkQueue[cnk+chunk_groups[i]]) ;
+          }
+          cnk += chunk_groups[i] ;
+        }
+            
+            //	sort(chunkQueue.begin(),chunkQueue.end()) ;
+        
 	int chunkQueueStart = chunkQueue.size()-1 ;
-	for(int i=0;i<MPI_processes;++i) 
+	for(int i=MPI_processes-1;i>=0;--i) 
 	  if(time_xfers[i] < 0) {
 	    vector<int> sendto_p ;
 	    float time_x = -time_xfers[i] ;
 	    for(int j=chunkQueueStart;j >=0;--j)
 	      if(time_x > 0 && (chunkQueue[j].first > 0) &&
-		 (time_x - chunkQueue[j].first > -mean_time*0.02)) {
+		 (time_x - chunkQueue[j].first > -mean_time*eff_tol)) {
 		// assign chunk 
 		time_x -= chunkQueue[j].first ;
 		const int cp = chunkQueue[j].second.first ;
 		if(cp == MPI_rank)
 		  sendto_p.push_back(send_list[chunkQueue[j].second.second]) ;
 		time_xfers[cp] -= chunkQueue[j].first ;
-                if(time_xfers[cp] < mean_time*0.02)
+                if(time_xfers[cp] < mean_time*eff_tol)
                   time_xfers[cp] = 0 ;
 		chunkQueue[j].first = -1.0 ; // remove from consideration
-		if(fabs(time_x) < mean_time*0.02)
+		if(time_x < 0)
 		  break ;
 	      }
 	    //skip deleted entries
@@ -913,36 +964,38 @@ namespace Loci
 	      sendto.push_back(pair<int,vector<int> >(i,sendto_p)) ;
 	    }
 	    time_x = -time_x ;
-	    if(fabs(time_x) < mean_time*0.02)
+	    if(fabs(time_x) < mean_time*eff_tol)
 	      time_x = 0 ;
 	    time_xfers[i] = time_x ;
 	  }
 
         
-#ifdef VERBOSE
         if(MPI_rank == 0) {
-          debugout << "remaining in queue:" << endl ;
           bool found = false ;
           for(int j=chunkQueueStart;j >=0;--j) 
             if((chunkQueue[j].first > 0)) {
-              debugout << "chunk from p=" << chunkQueue[j].second.first
-                       << ", time = " << chunkQueue[j].first << endl ;
               found = true ;
             }
-          if(!found)
-            debugout << "none" << endl ;
+          if(found)  {
+            debugout << "chunks remaining in queue:" << endl ;
+            for(int j=chunkQueueStart;j >=0;--j) 
+              if((chunkQueue[j].first > 0)) {
+                debugout << "chunk from p=" << chunkQueue[j].second.first
+                         << ", time = " << chunkQueue[j].first << endl ;
+              }
+          }
         }
-#endif
 
                
       }
+#ifdef VERBOSE
       if(MPI_rank == 0) {
 	debugout << "time xfers3 =";
 	for(int i=0;i<MPI_processes;++i)
 	  debugout << " " << time_xfers[i] ;
 	debugout << endl ;
       }
-
+#endif
 
 
 	
@@ -964,6 +1017,19 @@ namespace Loci
 	  local_list.push_back(i) ;
       selfChunks.swap(local_list) ;
 
+      int local_chk_info[2],global_chk_info[2] ;
+      local_chk_info[0] = selfChunks.size() ;
+      local_chk_info[1] = numChunks ;
+      MPI_Allreduce(&local_chk_info[0],&global_chk_info[0],2,MPI_INT,
+                    MPI_SUM, MPI_COMM_WORLD) ;
+      if(MPI_rank == 0) {
+        debugout << "IWS Schedule: Communicating "
+                 << global_chk_info[1]-global_chk_info[0]
+                 << " chunks, "
+                 << 100.0*(1.-double(global_chk_info[0])/double(global_chk_info[1])) << "% of all chunks." << endl ;
+      }
+         
+                           
 
       vector<chunkCommInfo> local_send_list ;
       for(size_t i=0;i<sendto.size();++i) {
@@ -1048,8 +1114,30 @@ namespace Loci
 	  debugout << recvChunks[i].proc << ' ' << recvChunks[i].chunkList.size() << ' ' << recvChunks[i].send_size << ' ' << recvChunks[i].recv_size << endl ;
       }
 #endif
+      int nsendrecvl = recvChunks.size()+sendChunks.size() ;
+      int nsendrecvg = 0 ;
+      int nsendrecvs = 0 ;
+      MPI_Allreduce(&nsendrecvl,&nsendrecvg,1,MPI_INT,MPI_MAX, MPI_COMM_WORLD) ;
+      MPI_Allreduce(&nsendrecvl,&nsendrecvs,1,MPI_INT,MPI_SUM, MPI_COMM_WORLD) ;
+      if(MPI_rank == 0) {
+        debugout << "IWS Schedule: Each processor communicating with an average of "
+                 << double(nsendrecvs)/double(MPI_processes)
+                 << " processors." << endl
+                 << "IWS Schedule: Maximum number of communicating partners: "
+                 << nsendrecvg << " processors." << endl ;
+      }
+         
     }
+    
+#ifdef VERBOSE
+    double sched_time = timer.stop() ;
+    double timesin[2] = {comm_time,sched_time} ;
+    double timesmx[2] = {0,0} ;
 
+    MPI_Allreduce(&timesin[0],&timesmx[0],2,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD) ;
+    if(MPI_rank == 0)
+      Loci::debugout << "comm_time = " << timesmx[0] << ",sched_time=" << timesmx[1] << endl ;
+#endif
     //=======================================================
     // If past trigger point, reset timing data
     //=======================================================
