@@ -2573,6 +2573,77 @@ advance_collinear(const vec2d& P_cur, const vec2d& Q_cur,
   }
 }
 
+// this is the boundary version (uses approximate predicate)
+void
+advance_collinear_bf(const vec2d& P_cur, const vec2d& Q_cur,
+                     Entity P_cur_id, Entity Q_cur_id,
+                     const vec2d& edge, bool& continue_collinear,
+                     vec2d& collinear_point_pos,
+                     Entity& collinear_point_id,
+                     Entity first_int_id,
+                     Entity& last_output_id,
+                     vector<vec2d>::size_type& bug_P,
+                     vector<vec2d>::size_type& bug_Q,
+                     vector<vec2d>::size_type& P_adv,
+                     vector<vec2d>::size_type& Q_adv,
+                     vector<vec2d>::size_type P_size,
+                     vector<vec2d>::size_type Q_size,
+                     vector<vec2d>& Ins,
+                     vector<Entity>& Ins_index) {
+  double direction = dot(edge, vec2d(1,0)) ;
+  bool advance_p = false ;
+  if(doubleNumEqual(direction, 0.0, ON_LINE_SEG_DOT_THRESHOLD)) {
+    if(edge.y > 0) {// pointing upward, pick a smaller y component
+      if(P_cur.y <= Q_cur.y)
+        advance_p = true ;
+      else
+        advance_p = false ;
+    } else {// pointing downward, pick a larger y component
+      if(P_cur.y >= Q_cur.y)
+        advance_p = true ;
+      else
+        advance_p = false ;
+    }
+  } else if(direction>0) {
+    // NOTE: the equality in these conditions are set deliberately.
+    // the intention here is to ensure in case of tie, we will
+    // always advance a segment on polygon P, this is to ensure that
+    // in case of overlapped points on collinear segments, it is
+    // always the one on P that gets output (this is critical to
+    // maintain the correctness of the algorithm).
+    if(P_cur.x <= Q_cur.x)
+      advance_p = true ; // advance P
+    else
+      advance_p = false ; // advance Q
+  } else { // direction<0
+    if(P_cur.x >= Q_cur.x)
+      advance_p = true ;
+    else
+      advance_p = false ;
+  }
+  if(advance_p) {
+    advance_collinear_adv(P_size, continue_collinear, first_int_id,
+                          last_output_id, collinear_point_id,
+                          collinear_point_pos, bug_P, P_adv,
+                          P_cur_id, P_cur, Ins, Ins_index) ;
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Collinear advancing P" << endl << endl ;
+    ///////////////////
+#endif
+  } else {
+    advance_collinear_adv(Q_size, continue_collinear, first_int_id,
+                          last_output_id, collinear_point_id,
+                          collinear_point_pos, bug_Q, Q_adv,
+                          Q_cur_id, Q_cur, Ins, Ins_index) ;
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Collinear advancing Q" << endl << endl ;
+    ///////////////////
+#endif
+  }
+}
+
 // this function computes the intersection of two convex
 // polygons. it returns false if they do not intersect,
 // true if they intersect and set the intersected polygon
@@ -3374,11 +3445,11 @@ bool poly_and_poly_bf(const vector<vec2d>& P,
       return false ;
     } else if(seg_int_result==COLLINEAR) {
       // special case A&B collinear and have the same direction
-      advance_collinear(P_cur, Q_cur, P_cur_id, Q_cur_id, P_edge,
-                        continue_collinear, collinear_point_pos,
-                        collinear_point_id, first_int_id,
-                        last_output_id, bug_P, bug_Q,
-                        P_adv, Q_adv, P_size, Q_size, Ins, Ins_index) ;
+      advance_collinear_bf(P_cur, Q_cur, P_cur_id, Q_cur_id, P_edge,
+                           continue_collinear, collinear_point_pos,
+                           collinear_point_id, first_int_id,
+                           last_output_id, bug_P, bug_Q,
+                           P_adv, Q_adv, P_size, Q_size, Ins, Ins_index) ;
     } else if(cross_sign >= 0) {
       continue_collinear = false ;
       if(P_in_Q_plane > 0)
@@ -5613,7 +5684,7 @@ face_split_consistent_check(int face1, int face2, split_result sr) {
   return ;
 }
 #endif
- 
+
 // the main face splitting function
 void face_split(const entitySet& bc1_faces,
                 const entitySet& bc2_faces,
@@ -5760,7 +5831,7 @@ void face_split(const entitySet& bc1_faces,
     for(size_t i=0;i!=nodes.size();++i)
       nodesSet += nodes[i] ;
 #endif
-    
+
     // test intersection for each bc2 faces found in the quad tree
     for(entitySet::const_iterator fi=intersect_face_cand.begin();
         fi!=intersect_face_cand.end();++fi) {
@@ -5773,7 +5844,6 @@ void face_split(const entitySet& bc1_faces,
 
       if(poly_and_poly(nodes,bc1_npos,bc2_fnodes,bc2_npos,
                        intersect,intersect_index)) {
-        
 #ifdef FACE_SPLIT_CONSISTENCY_CHECK
         face_split_consistent_check(*ei, *fi,
                                     split_result(true,
@@ -7141,14 +7211,11 @@ int main(int ac, char* av[]) {
       Loci::Abort() ;
     }
   }
-  if(Loci::MPI_rank == 0) {
+  if(verbose) {
     cout << "finished reading grid." << endl ;
   }
 
-  
   gettimeofday(&time_grid_read_end,NULL) ;
-  
-     
   
   entitySet BC1_faces, BC2_faces;
   entitySet dom = cr.domain() ;
