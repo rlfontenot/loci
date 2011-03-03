@@ -52,24 +52,27 @@ namespace Loci {
   void get_clone(fact_db &facts, const rule_db &rdb) {
     fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     std::vector<entitySet> &ptn = facts.get_init_ptn() ;
-    entitySet bdom = ptn[MPI_rank] & interval(UNIVERSE_MIN, -1) ;
-    entitySet global_bdom = all_collect_entitySet(bdom) ;
-    int p = 0; 
-    for(int i = 0; i < MPI_processes; ++i) {
-      entitySet tmp = ptn[i] ; 
-      ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
-    }
+   //  entitySet bdom = ptn[MPI_rank] & interval(UNIVERSE_MIN, -1) ;
+//     entitySet global_bdom = all_collect_entitySet(bdom) ;
 
-    FORALL(global_bdom, i) {
-      int tmp = p % MPI_processes ;
-      ptn[tmp] += i ;
-      if(duplicate_work)
-	if(tmp == MPI_rank)
-	  //Since we are manually adding entities to init_ptn, we also need to 
-	  //add those entities in global_comp_entities
-	  facts.global_comp_entities += i;
-      p++ ;
-    } ENDFORALL ;
+//     if(global_bdom.size()!=0) cerr << "GLOBAL NEGATIVE ENTITIES: " << global_bdom<< endl<<endl<<endl;
+    
+//     int p = 0; 
+//     for(int i = 0; i < MPI_processes; ++i) {
+//       entitySet tmp = ptn[i] ; 
+//       ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
+//     }
+
+//     FORALL(global_bdom, i) {
+//       int tmp = p % MPI_processes ;
+//       ptn[tmp] += i ;
+//       if(duplicate_work)
+// 	if(tmp == MPI_rank)
+// 	  //Since we are manually adding entities to init_ptn, we also need to 
+// 	  //add those entities in global_comp_entities
+// 	  facts.global_comp_entities += i;
+//       p++ ;
+//     } ENDFORALL ;
     
     variableSet tmp_vars = facts.get_typed_variables();
     for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
