@@ -536,6 +536,9 @@ namespace Loci
           }
         }
         int dest = sendChunks[i].proc ;
+#ifdef VERBOSE
+        debugout << "Sending data to " << dest << endl ;
+#endif
         MPI_Send (&buf[0], buf_size, MPI_PACKED, dest, TAG_INPUT,
                   MPI_COMM_WORLD);
       }
@@ -552,6 +555,9 @@ namespace Loci
       for(size_t i=0;i<recvChunks.size();++i) {
         int buf_size = recvChunks[i].recv_size ;
         int src = recvChunks[i].proc ;
+#ifdef VERBOSE
+        debugout << "recieving data from " << src << endl ;
+#endif
         MPI_Irecv (&buf[offset], buf_size, MPI_PACKED, src, TAG_INPUT,
                     MPI_COMM_WORLD, &req_list[i]);
 	offset += buf_size ;
@@ -654,6 +660,9 @@ namespace Loci
       for(size_t i=0;i<sendChunks.size();++i) {
         int buf_size = sendChunks[i].recv_size ;
         int dest = sendChunks[i].proc ;
+#ifdef VERBOSE
+        debugout << "recieving computed data from " << dest << endl ;
+#endif
         MPI_Irecv (&buf[offset1], buf_size, MPI_PACKED, dest, TAG_OUTPUT,
                     MPI_COMM_WORLD, &req_list[i*2]);
 	offset1 += buf_size ;
@@ -711,6 +720,9 @@ namespace Loci
           }
           cnt += iwsSize ;
         }
+#ifdef VERBOSE
+        debugout << "sending computed data to " << dest << endl ;
+#endif
         MPI_Send (&buf[0], buf_size, MPI_PACKED, dest, TAG_OUTPUT,
                   MPI_COMM_WORLD);
         
@@ -732,7 +744,9 @@ namespace Loci
       }
     }
     comm_time += timer.stop() ;
-    
+#ifdef VERBOSE
+    debugout << "done communication, collect times" << endl ;
+#endif
     //=======================================================
     // Estimate parallel efficiency
     //=======================================================
@@ -749,13 +763,17 @@ namespace Loci
     // If efficiency too low, regenerate load balance schedule
     //=======================================================
     timer.start() ;
-    if(numBalances == 0 || (ef < 0.89 && (numBalances&0x3) ==0) ) {
+    if((numBalances == 0 && ef < .5) ||
+       (numBalances != 0 && ef < 0.89 && (numBalances&0x3) == 0) ) {
       const float eff_tol = 0.01 ;
       // Compute balanced schedule, first compute total time
       float time = 0 ;
       for(size_t i=0;i<chunkData.size();++i)
 	time += chunkData[i].chunkTime[0]+chunkData[i].chunkTime[1] ;
       float total_time = 0 ;
+#ifdef VERBOSE
+      debugout << "reducing " << time << endl ;
+#endif
       MPI_Allreduce(&time,&total_time,1,MPI_FLOAT,MPI_SUM,MPI_COMM_WORLD) ;
       float mean_time = total_time/float(MPI_processes) ;
       float diff_time = time-mean_time ;
@@ -773,7 +791,7 @@ namespace Loci
 	  chunk_times[i-1].second = i ;
 	}
 	std::sort(chunk_times.begin(),chunk_times.end()) ;
-
+        
         
 #define SELECT_GIVE
 #ifdef SELECT_GIVE
@@ -854,8 +872,13 @@ namespace Loci
 	      ptime -= send_chunks[j].first ;
 	      //assign all chunks from this processor
 	      if(send_chunks[j].second == MPI_rank) {
-		sendto.push_back(pair<int,vector<int> >(recv_chunks[i].second,
-							send_list)) ;
+#ifdef VERBOSE
+                debugout << "adding " << send_list.size() << "chunks to sendto"
+                         << endl ;
+#endif
+                if(send_list.size() > 0) 
+                  sendto.push_back(pair<int,vector<int> >(recv_chunks[i].second,
+                                                          send_list)) ;
 		send_list.clear() ;
 	      }
 	      time_xfers[send_chunks[j].second] = 0 ;
@@ -1002,7 +1025,13 @@ namespace Loci
       //------------------------------------------------------------------
       // convert sendto to execution and communication schedules
       //------------------------------------------------------------------
-
+      
+#ifdef VERBOSE
+      Loci::debugout << "sendto:" << endl ;
+      for(size_t i=0;i<sendto.size();++i)
+        debugout << sendto[i].second.size() << "chunks to " <<
+          sendto[i].first << endl ;
+#endif
       int numChunks = chunkData.size() ;
       // Convert sendto to schedule
       vector<int> chunk_list(numChunks,-1) ;
