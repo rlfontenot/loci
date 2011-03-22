@@ -33,6 +33,84 @@
 #include <algorithm>
 
 namespace Loci {
+   template <class T> void balanceDistribution(std::vector<T> &list,
+                                              MPI_Comm comm) {
+    
+    int p = 0 ;
+    MPI_Comm_size(comm,&p) ;
+
+    if(p == 1) // if serial run, we are finished
+      return ;
+
+    int sz = list.size() ;
+    std::vector<int> sizes(p) ;
+    MPI_Allgather(&sz,1,MPI_INT,&sizes[0],1,MPI_INT,comm) ;
+    int tot_size = 0  ;
+    for(int i=0;i<p;++i) {
+      tot_size += sizes[i] ;
+    }
+    std::vector<int> bsizes(p) ;
+    int psz = tot_size/p ;
+    int rem = tot_size%p ;
+    for(int i=0;i<p;++i)
+      bsizes[i] = psz + (i<rem?1:0) ;
+    int r=0 ;
+    MPI_Comm_rank(comm,&r) ;
+    std::vector<T> recv(bsizes[r]) ;
+    std::vector<int> sdist(p+1),rdist(p+1) ;
+    sdist[0] = 0 ;
+    rdist[0] = 0 ;
+    for(int i=0;i<p;++i) {
+      sdist[i+1] = sizes[i]+sdist[i] ;
+      rdist[i+1] = bsizes[i]+rdist[i] ;
+    }
+    FATAL(sdist[p] != rdist[p]) ;
+    // Perform Irecvs
+    std::vector<MPI_Request> requests(p) ;
+    int req = 0 ;
+    int i1 = rdist[r] ;
+    int i2 = rdist[r+1]-1 ;
+    for(int i=0;i<p;++i) {
+      if(sdist[i]<=i2 && sdist[i+1]-1>=i1) { // intersection
+        int li = std::max(i1,sdist[i]) ;
+        int ri = std::min(i2,sdist[i+1]-1) ;
+        int len = ri-li+1 ;
+        FATAL(len <= 0) ;
+        int s2 = li-rdist[r] ;
+        if(i == r) { // local copy
+          int s1 = li-sdist[r] ;
+          FATAL(s1 < 0 || s2 < 0) ;
+          for(int j=0;j<len;++j)
+            recv[s2+j] = list[s1+j] ;
+        } else {
+          MPI_Irecv(&recv[s2],len*sizeof(T),MPI_BYTE,i,55,comm,
+                    &requests[req++]) ;
+        }
+      }
+    }
+
+    // Perform sends
+    i1 = sdist[r] ;
+    i2 = sdist[r+1]-1 ;
+    for(int i=0;i<p;++i) {
+      if(i != r && rdist[i]<=i2 && rdist[i+1]-1>=i1) { // intersection
+        int li = std::max(i1,rdist[i]) ;
+        int ri = std::min(i2,rdist[i+1]-1) ;
+        int len = ri-li+1 ;
+        int s1 = li-sdist[r] ;
+        FATAL(s1 < 0) ;
+        FATAL(len <= 0) ;
+        MPI_Send(&list[s1],len*sizeof(T),MPI_BYTE,i,55,comm) ;
+      }
+    }
+
+    if(req > 0) {
+      std::vector<MPI_Status> status(p) ;
+      MPI_Waitall(req,&requests[0],&status[0]) ;
+    }
+    list.swap(recv) ;
+  }
+  
   // With user supplied comparison operator
 
   // Utility routine for sample sort
@@ -131,22 +209,85 @@ namespace Loci {
 
   template <class T, class Cmp>
   void parSampleSort(std::vector<T> &list, Cmp cmp, MPI_Comm comm) {
-    // First sort list locally
-    std::sort(list.begin(),list.end(),cmp) ;
-
     int p = 0 ;
     MPI_Comm_size(comm,&p) ;
-
-    if(p == 1) // if serial run, we are finished
+    if(p == 1) {
+      std::sort(list.begin(),list.end(),cmp) ;
       return ;
+    }
+      
+    unsigned long long lsz = list.size() ;
+    unsigned long long tsz = 0 ;
+    MPI_Allreduce(&lsz,&tsz,1,MPI_UNSIGNED_LONG_LONG,MPI_SUM,comm) ;
+    // Compute target number of processors needed to sort this set of numbers
+    // ideally this will have p^2 numbers per processor
+    int target_p = int(floor(pow(double(tsz),1./3.))) ;
+    if(target_p < p) { // reduce to subset of processors
+      int r = 0 ;
+      MPI_Comm_rank(comm,&r) ;
+      int color = 1 ;
+      if(r < target_p) {
+        color = 0 ;
+        int loc_size = int(lsz) ;
+        std::vector<int> recv_sizes ;
+        for(int i=r+target_p;r<p;i+=target_p) {
+          int tmp = 0 ;
+          MPI_Status stat ;
+          MPI_Recv(&tmp,1,MPI_INT,i,1,comm,&stat) ;
+          recv_sizes.push_back(tmp) ;
+          loc_size += tmp ;
+        }
 
-    std::vector<T> splitters ;
-    parGetSplitters(splitters,list,cmp,comm) ;
+        std::vector<T> nlist(loc_size) ;
+        for(size_t i=0;i<lsz;++i)
+          nlist[i] = list[i] ;
 
-    parSplitSort(list,splitters,cmp,comm) ;
+        int loc = lsz ;
+        int cnt = 0 ;
+        for(int i=r+target_p;r<p;i+=target_p) {
+
+          MPI_Status stat ;
+          MPI_Recv(&nlist[loc],sizeof(T)*recv_sizes[cnt],MPI_BYTE,i,2,comm,&stat) ;
+          loc += recv_sizes[cnt] ;
+          cnt++ ;
+        }
+        list.swap(nlist) ;
+      } else {
+        int dest = r % target_p ;
+        int sz = list.size() ;
+        MPI_Send(&sz,1,MPI_INT,dest,1,comm) ;
+        MPI_Send(&list[0],sz*sizeof(T),MPI_BYTE,dest,2,comm) ;
+        std::vector<T> nlist ;
+        list.swap(nlist) ;
+      }
+      // Split off smaller group of processors
+      MPI_Comm subset ;
+      MPI_Comm_split(comm,color,r,&subset) ;
+      if(color == 0) {
+        // sort over subset of processors
+        parSampleSort(list, cmp, subset) ;
+      }
+      // Free communicatiors
+      MPI_Comm_free(&subset) ;
+    } else {
+      int sz = list.size() ;
+      int msz = 0 ;
+      MPI_Allreduce(&sz,&msz,1,MPI_INT,MPI_MIN,comm) ;
+      if(msz < p)
+        balanceDistribution(list,comm) ;
+      // First sort list locally
+      std::sort(list.begin(),list.end(),cmp) ;
+      
+      if(p == 1) // if serial run, we are finished
+        return ;
+      
+      std::vector<T> splitters ;
+      parGetSplitters(splitters,list,cmp,comm) ;
+      
+      parSplitSort(list,splitters,cmp,comm) ;
+    }
+
   }
-
-
   // Now same code with default operator
 
   // Utility routine for sample sort
@@ -255,83 +396,6 @@ namespace Loci {
     parSplitSort(list,splitters,comm) ;
   }
 
-  template <class T> void balanceDistribution(std::vector<T> &list,
-                                              MPI_Comm comm) {
-    
-    int p = 0 ;
-    MPI_Comm_size(comm,&p) ;
-
-    if(p == 1) // if serial run, we are finished
-      return ;
-
-    int sz = list.size() ;
-    std::vector<int> sizes(p) ;
-    MPI_Allgather(&sz,1,MPI_INT,&sizes[0],1,MPI_INT,comm) ;
-    int tot_size = 0  ;
-    for(int i=0;i<p;++i) {
-      tot_size += sizes[i] ;
-    }
-    std::vector<int> bsizes(p) ;
-    int psz = tot_size/p ;
-    int rem = tot_size%p ;
-    for(int i=0;i<p;++i)
-      bsizes[i] = psz + (i<rem?1:0) ;
-    int r=0 ;
-    MPI_Comm_rank(comm,&r) ;
-    std::vector<T> recv(bsizes[r]) ;
-    std::vector<int> sdist(p+1),rdist(p+1) ;
-    sdist[0] = 0 ;
-    rdist[0] = 0 ;
-    for(int i=0;i<p;++i) {
-      sdist[i+1] = sizes[i]+sdist[i] ;
-      rdist[i+1] = bsizes[i]+rdist[i] ;
-    }
-    FATAL(sdist[p] != rdist[p]) ;
-    // Perform Irecvs
-    std::vector<MPI_Request> requests(p) ;
-    int req = 0 ;
-    int i1 = rdist[r] ;
-    int i2 = rdist[r+1]-1 ;
-    for(int i=0;i<p;++i) {
-      if(sdist[i]<=i2 && sdist[i+1]-1>=i1) { // intersection
-        int li = std::max(i1,sdist[i]) ;
-        int ri = std::min(i2,sdist[i+1]-1) ;
-        int len = ri-li+1 ;
-        FATAL(len <= 0) ;
-        int s2 = li-rdist[r] ;
-        if(i == r) { // local copy
-          int s1 = li-sdist[r] ;
-          FATAL(s1 < 0 || s2 < 0) ;
-          for(int j=0;j<len;++j)
-            recv[s2+j] = list[s1+j] ;
-        } else {
-          MPI_Irecv(&recv[s2],len*sizeof(T),MPI_BYTE,i,55,comm,
-                    &requests[req++]) ;
-        }
-      }
-    }
-
-    // Perform sends
-    i1 = sdist[r] ;
-    i2 = sdist[r+1]-1 ;
-    for(int i=0;i<p;++i) {
-      if(i != r && rdist[i]<=i2 && rdist[i+1]-1>=i1) { // intersection
-        int li = std::max(i1,rdist[i]) ;
-        int ri = std::min(i2,rdist[i+1]-1) ;
-        int len = ri-li+1 ;
-        int s1 = li-sdist[r] ;
-        FATAL(s1 < 0) ;
-        FATAL(len <= 0) ;
-        MPI_Send(&list[s1],len*sizeof(T),MPI_BYTE,i,55,comm) ;
-      }
-    }
-
-    if(req > 0) {
-      std::vector<MPI_Status> status(p) ;
-      MPI_Waitall(req,&requests[0],&status[0]) ;
-    }
-    list.swap(recv) ;
-  }
 }
 
 #endif
