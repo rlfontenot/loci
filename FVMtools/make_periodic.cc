@@ -121,8 +121,16 @@ inline double operator-(const timeval& t1, const timeval& t2) {
 timeval time_prog_start ;
 timeval time_prog_end ;
 
+timeval time_essential_start ;
+timeval time_essential_end ;
+double prog_essential_time = 0 ;
+
 timeval time_grid_read_start ;
 timeval time_grid_read_end ;
+
+timeval time_data_structure_start ;
+timeval time_data_structure_end ;
+double data_structure_time = 0 ;
 
 timeval time_shift_point_total_start ;
 timeval time_shift_point_total_end ;
@@ -149,8 +157,11 @@ timeval time_BC2_reconstruct_end ;
 timeval time_boundary_nodes_matching_start ;
 timeval time_boundary_nodes_matching_end ;
 
-timeval time_3D_projection_start ;
-timeval time_3D_projection_end ;
+timeval time_3D_to_2D_projection_start ;
+timeval time_3D_to_2D_projection_end ;
+
+timeval time_2D_to_3D_projection_start ;
+timeval time_2D_to_3D_projection_end ;
 
 timeval time_new_grid_write_start ;
 timeval time_new_grid_write_end ;
@@ -5940,7 +5951,8 @@ int face_split(const entitySet& bc1_faces,
   } // end of for(remaining_bc1_faces)
   gettimeofday(&time_face_split_end,NULL) ;
   if(global_verbose) {
-    cout << endl ;
+    cout << '\r' << "  splitting... Done"
+         << string(total_work_points-5,' ') << endl ;
   }
   return total_split_pairs ;
 } // end of function (face_split)
@@ -6798,7 +6810,7 @@ inline bool extract_vec3d(const string& s,
 }
 std::ostream& show_brief_msg(const string& pb, std::ostream& s) {
   s << pb << " is a periodic boundary tool for the CHEM program." << endl ;
-  s << "Version 0.12 (Try -h option for detailed help)" << endl ;
+  s << "Version 0.123 (Try -h option for detailed help)" << endl ;
 
   return s ;
 }
@@ -6809,9 +6821,9 @@ std::ostream& show_usage(const string& pb, std::ostream& s) {
   s << "It makes exactly same boundaries for the given grid. " << endl ;
   s << "This version uses the robust geometric predicates from" << endl ;
   s << "Jonathan Richard Shewchuk." << endl ;
-  s << endl << "This is version 0.12" << endl ;
+  s << endl << "This is version 0.123" << endl ;
   s << endl ;
-  s << "Some preconditions must be met before using " << pb << endl ;
+  s << "Some preconditions must be met before using this tool" << endl ;
   s << "  1) The two specified boundaries must have same contours" << endl ;
   s << "  2) The boundary cannot have arbitrary complex topology," << endl ;
   s << "         planes or simple curves are the best inputs" << endl ;
@@ -7251,6 +7263,8 @@ int main(int ac, char* av[]) {
   }
 
   gettimeofday(&time_grid_read_end,NULL) ;
+
+  gettimeofday(&time_essential_start,NULL) ;
   
   entitySet BC1_faces, BC2_faces;
   entitySet dom = cr.domain() ;
@@ -7261,6 +7275,8 @@ int main(int ac, char* av[]) {
       BC2_faces += fc ;
   } ENDFORALL ;
    
+  
+  gettimeofday(&time_data_structure_start,NULL) ;
   
   multiMap node2face ;
   Loci::inverseMap(node2face,face2node,pos.domain(),face2node.domain()) ;
@@ -7284,6 +7300,14 @@ int main(int ac, char* av[]) {
   get_edges_info(face2node,node2face,BC2_faces,cr,
                  BC2_N1,BC2_N2,BC2_El,BC2_Er,BC2_edge_num) ;
 
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+
   if(verbose) {
     cout << "--------" << endl ;  
     cout << BC1name <<" faces number: " << BC1_faces.size() << endl ;
@@ -7299,7 +7323,9 @@ int main(int ac, char* av[]) {
     cout << "--------" << endl ;  
     cout << "Projecting boundaries... " ;
   }
-
+  
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_3D_to_2D_projection_start,NULL) ;
   // then we do the projection for the two boundary meshes
   store<vec2d> BC1_proj_pos, BC2_proj_pos ;
   // first we compute the projection vectors
@@ -7322,6 +7348,10 @@ int main(int ac, char* av[]) {
     orthogonal_projection(u,v,BC1_nodes_pos,BC1_proj_pos) ;
     orthogonal_projection(u,v,BC2_nodes_pos,BC2_proj_pos) ;    
   }
+  gettimeofday(&time_3D_to_2D_projection_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if(verbose)
     cout << "Done" << endl ;
@@ -7369,24 +7399,38 @@ int main(int ac, char* av[]) {
       cout << "Done" << endl ;
   } // end of if(twoD_aux_viz)
   
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_data_structure_start,NULL) ;
   // we get the node2edge relations
   multiMap BC1_node2edge ;
   get_node2edge(BC1_N1,BC1_N2,BC1_node2edge) ;
   multiMap BC2_node2edge ;
   get_node2edge(BC2_N1,BC2_N2,BC2_node2edge) ;
-  // we also need the node2node relations
-  multiMap BC1_node2node ;
-  get_node2node(BC1_nodes,BC1_N1,BC1_N2,BC1_node2edge,BC1_node2node) ;
-  multiMap BC2_node2node ;
-  get_node2node(BC2_nodes,BC2_N1,BC2_N2,BC2_node2edge,BC2_node2node) ;
+//   // we also need the node2node relations
+//   multiMap BC1_node2node ;
+//   get_node2node(BC1_nodes,BC1_N1,BC1_N2,BC1_node2edge,BC1_node2node) ;
+//   multiMap BC2_node2node ;
+//   get_node2node(BC2_nodes,BC2_N1,BC2_N2,BC2_node2edge,BC2_node2node) ;
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
 
   // shifting points first
   if(verbose) {
     cout << "--------" << endl ;
     cout << "Shifting points... " ;
   }
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_data_structure_start,NULL) ;
   entitySet BC1_edge_nodes = get_edge_nodes(BC1_N1,BC1_N2,BC1_Er) ;
   entitySet BC2_edge_nodes = get_edge_nodes(BC2_N1,BC2_N2,BC2_Er) ;
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  
   dMap BC1p_2_BC2p, BC2p_2_BC1p ;
   
   gettimeofday(&time_shift_point_total_start,NULL) ;
@@ -7397,6 +7441,10 @@ int main(int ac, char* av[]) {
                   face2node,node2face,
                   BC1p_2_BC2p,BC2p_2_BC1p) ;
   gettimeofday(&time_shift_point_total_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
   if(verbose) {
     cout << "[" << shifted.size() << " points shifted on "
          << BC2name << "]" << endl ;
@@ -7436,6 +7484,8 @@ int main(int ac, char* av[]) {
     cout << "-------" << endl ;
     cout << "Computing face splits..." << endl ;
   }
+
+  gettimeofday(&time_essential_start,NULL) ;
   store<vec2d> BC1_new_nodes ;
   multiMap BC1_new_face2node ;
   multiMap BC1_new_interior_face2node ;
@@ -7443,8 +7493,15 @@ int main(int ac, char* av[]) {
   dMap BC1_new_cl, BC1_new_cr ;
   // we will need to first get the edge->interior faces map
   multiMap BC1_edge2iface ;
+
+  gettimeofday(&time_data_structure_start,NULL) ;
+  
   get_edge2interiorFace(BC1_N1,BC1_N2,BC1_El,BC1_Er,
                         node2face,BC1_edge2iface) ;
+
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
   
   // we also need to compute the maximum node index number
   Entity new_node_index = node2face.domain().Max() + 1 ;
@@ -7459,6 +7516,9 @@ int main(int ac, char* av[]) {
                BC2_nodes, BC2_proj_pos, face2node, node2face,
                BC1_edge_nodes, BC2_edge_nodes, BC1p_2_BC2p) ;
   gettimeofday(&time_face_split_total_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if(verbose) {
     cout << "  total pairs of face split: "
@@ -7471,6 +7531,7 @@ int main(int ac, char* av[]) {
     cout.flush() ;
   }
 
+  gettimeofday(&time_essential_start,NULL) ;
   gettimeofday(&time_BC1_reconstruct_start,NULL) ;
   entitySet BC1_faces_split =
     gen_boundary_topo(global_bc1_split_records,
@@ -7485,15 +7546,29 @@ int main(int ac, char* av[]) {
                       BC1_new_cl, BC1_new_cr,
                       BC1_inverse_proj_info) ;
   gettimeofday(&time_BC1_reconstruct_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if(verbose) {
     cout << " Done" << endl ;
   }
+
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_data_structure_start,NULL) ;
   // update face2node to include the change of interior faces
   face2node = merge_multiMap(face2node,BC1_new_interior_face2node) ;
+  
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
   // compute new BC1 faces set
   entitySet BC1_new_faces =
     (BC1_faces - BC1_faces_split) + BC1_new_face2node.domain() ;
+  
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
     
   if(verbose) {
     cout << "  new added nodes number: "
@@ -7542,9 +7617,21 @@ int main(int ac, char* av[]) {
 
   if(verbose)
     cout << "  --Checking edge map..." ;
+
+  gettimeofday(&time_essential_start,NULL) ;
   // get inverse map new_node2face
   multiMap BC1_new_node2face ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+
   get_node2face(BC1_new_face2node,BC1_new_node2face) ;
+  
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
   if(!face_split_edgeMap_check(BC1_new_face2node,BC1_new_node2face)) {
     cout << endl ;
     cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -7592,6 +7679,7 @@ int main(int ac, char* av[]) {
   }
 #endif
   
+  gettimeofday(&time_essential_start,NULL) ;
   store<vec2d> BC2_new_nodes ;
   multiMap BC2_new_face2node ;
   multiMap BC2_new_interior_face2node ;
@@ -7599,15 +7687,25 @@ int main(int ac, char* av[]) {
   dMap BC2_new_cl, BC2_new_cr ;
   // we will need to first get the edge -> interior face map
   multiMap BC2_edge2iface ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+
   get_edge2interiorFace(BC2_N1,BC2_N2,BC2_El,BC2_Er,
                         node2face,BC2_edge2iface) ;
 
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
   if(verbose) {
     cout << "--------" << endl ;
     cout << "Reconstructing " << BC2name << " topology..." ;
     cout.flush() ;
   }
 
+  gettimeofday(&time_essential_start,NULL) ;
   gettimeofday(&time_BC2_reconstruct_start,NULL) ;
   entitySet BC2_faces_split =
     gen_boundary_topo(global_bc2_split_records,
@@ -7622,15 +7720,28 @@ int main(int ac, char* av[]) {
                       BC2_new_cl, BC2_new_cr,
                       BC2_inverse_proj_info) ;
   gettimeofday(&time_BC2_reconstruct_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if(verbose) {
     cout << " Done" << endl ;
   }
   // update face2node to include the change of interior faces
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+  
   face2node = merge_multiMap(face2node,BC2_new_interior_face2node) ;
+  
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
   // compute new BC2 faces set
   entitySet BC2_new_faces =
     (BC2_faces - BC2_faces_split) + BC2_new_face2node.domain() ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
 
   if(verbose) {
     cout << "  new added nodes number: "
@@ -7680,8 +7791,19 @@ int main(int ac, char* av[]) {
   if(verbose)
     cout << "  --Checking edge map..." ;
   // get inverse map new_node2face
+  gettimeofday(&time_essential_start,NULL) ;
   multiMap BC2_new_node2face ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+  
   get_node2face(BC2_new_face2node,BC2_new_node2face) ;
+  
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
   if(!face_split_edgeMap_check(BC2_new_face2node,BC2_new_node2face)) {
     cout << endl ;
     cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -7734,6 +7856,8 @@ int main(int ac, char* av[]) {
     cout << "Matching points on boundaries... " ;
     cout.flush() ;
   }
+
+  gettimeofday(&time_essential_start,NULL) ;
   entitySet bc1_not_matched, bc2_not_matched ;
   dMap BC2_2_BC1_node_map ;
 
@@ -7744,6 +7868,9 @@ int main(int ac, char* av[]) {
                    BC1_new_face2node, BC2_2_BC1_node_map,
                    bc1_not_matched, bc2_not_matched) ;
   gettimeofday(&time_boundary_nodes_matching_end, NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if( (bc1_not_matched.size() != 0) ||
       (bc2_not_matched.size() != 0)) {
@@ -7755,27 +7882,33 @@ int main(int ac, char* av[]) {
     cout << "Done (PASSED!)" << endl ;
   }
   
-  store<vec3d> BC1_new_nodes_3D, BC2_new_nodes_3D ;
   if(verbose) {
     cout << "--------" << endl ;
     cout << "Projecting boundaries to 3D space... " ;
     cout.flush() ;
   }
+
+  gettimeofday(&time_essential_start,NULL) ;
+  store<vec3d> BC1_new_nodes_3D, BC2_new_nodes_3D ;
   rigid_transform rt(rotation_center,rotation_axis,
                      deg2rad(rotation_angle_in_degree),
                      translation_vector) ;
 
-  gettimeofday(&time_3D_projection_start,NULL) ;
+  gettimeofday(&time_2D_to_3D_projection_start,NULL) ;
   get_3D_nodes_pos(BC1_inverse_proj_info,BC2_2_BC1_node_map,rt,
                    BC1_nodes,BC1_inverse_proj_info.domain(),
                    BC2_nodes,BC2_inverse_proj_info.domain(),
                    pos,BC1_new_nodes_3D,BC2_new_nodes_3D) ;
-  gettimeofday(&time_3D_projection_end, NULL) ;
+  gettimeofday(&time_2D_to_3D_projection_end, NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if(verbose) {
     cout << "Done" << endl ;
   }
-  
+
   if(output_name == "") {
     output_name = "pb_"+gridfile ;
   }
@@ -7995,26 +8128,31 @@ int main(int ac, char* av[]) {
     cout << "timing report (all in seconds): " << endl ;
     cout << "total time used:                "
          << time_prog_end - time_prog_start << endl ;
+    cout << "pure time (no IO and check):    "
+         << prog_essential_time << endl ;
 
     cout << "  grid reading:                 "
          << time_grid_read_end - time_grid_read_start << endl ;
 
+    cout << "  topology data building:       "
+         << data_structure_time << endl ;
+
     cout << "  point shifting (total):       "
          << time_shift_point_total_end - time_shift_point_total_start
          << endl ;
-    cout << "    quad tree building:         "
+    cout << "    quad tree building:         " << "  "
          << time_shift_point_qt_end - time_shift_point_qt_start << endl ;
-    cout << "    point matching:             "
+    cout << "    point matching:             " << "  "
          << time_shift_point_end - time_shift_point_start << endl ;
     
     cout << "  face splitting (total):       "
          << time_face_split_total_end - time_face_split_total_start
          << endl ;
-    cout << "    face removal computing:     "
+    cout << "    overlap face computing:     " << "  "
          << time_face_split_frm_end - time_face_split_frm_start << endl ;
-    cout << "    quad tree building:         "
+    cout << "    quad tree building:         " << "  "
          << time_face_split_qt_end - time_face_split_qt_start << endl ;
-    cout << "    face splitting:             "
+    cout << "    face splitting:             " << "  "
          << time_face_split_end - time_face_split_start << endl ;
 
     cout << "  boundary 1 reconstruction:    "
@@ -8026,14 +8164,16 @@ int main(int ac, char* av[]) {
     cout << "  boundary nodes matching:      "
          << time_boundary_nodes_matching_end -
       time_boundary_nodes_matching_start << endl ;
+    
+    cout << "  3D -> 2D projection:          "
+         << time_3D_to_2D_projection_end - time_3D_to_2D_projection_start
+         << endl ;
+    cout << "  2D -> 3D projection:          "
+         << time_2D_to_3D_projection_end - time_2D_to_3D_projection_start
+         << endl ;
 
-    cout << "  3D position projection:       "
-         << time_3D_projection_end - time_3D_projection_start << endl ;
-
-    cout << "  generate new grid:            "
+    cout << "  new grid generation:          "
          << time_new_grid_write_end - time_new_grid_write_start << endl ;
-
-    cout << "--------" << endl ;
   }
   
   if(verbose)
