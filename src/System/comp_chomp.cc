@@ -305,9 +305,13 @@ namespace Loci {
   }
 
   void chomp_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
+    
+    barrier_sets.clear();
+    for(unsigned int i = 0; i < old_barrier_sets.size(); i++)barrier_sets.push_back(old_barrier_sets[i]); 
+    
     vector<pair<rule,rule_compilerP> >::iterator i ;
     variableSet tvars;
-    for(i=chomp_comp.begin();i!=chomp_comp.end();++i) {
+    for(i=old_chomp_comp.begin();i!=old_chomp_comp.end();++i) {
       rule r = i->first ;
       rule_compilerP bc = i->second ;
       // first we check if r is a fake rule
@@ -412,10 +416,10 @@ namespace Loci {
   }
   
   void chomp_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
-
+    rule_seq.clear();
     deque<pair<rule,rule_compilerP> > new_chomp_comp ;
     vector<pair<rule,rule_compilerP> >::reverse_iterator ri ;
-    for(ri=chomp_comp.rbegin();ri!=chomp_comp.rend();++ri) {
+    for(ri=old_chomp_comp.rbegin();ri!=old_chomp_comp.rend();++ri) {
       rule r = ri->first ;
       rule_compilerP bc = ri->second ;
 
