@@ -250,6 +250,7 @@ bool readVolBC(int fi,//file id, i.e., block_id
                bool applyMap,
                vector<node_info>& node_map, //info of all nodes on the boundaries that need gluing
                vector<coord3d>& pos, //pos of all nodes on the boundaries that need gluing
+	       vector<double> &pos_len, // edge length per point
                double& min_len, //minimum edge length
                vector<vector<int> >& f2n, //f2n of all faces on the boundaries that need gluing
                vector<face_info>& face_map, // info of all faces on the boundaries that need gluing
@@ -274,6 +275,7 @@ bool readVolBC(int fi,//file id, i.e., block_id
 
   // Read in pos data from file i
   vector<vect3d> pos_dat(numNodes) ;
+  vector<double> node_len(numNodes,1e30) ;
   hid_t node_g = H5Gopen(input_fid,"node_info") ;
   hid_t dataset = H5Dopen(node_g,"positions") ;
   hid_t dspace = H5Dget_space(dataset) ;
@@ -385,7 +387,11 @@ bool readVolBC(int fi,//file id, i.e., block_id
         for(int i =0; i < fsz; i++){
           nodeSet += face2node[f][i];
           tmpVec[i] = face2node[f][i];
-          double edgelen = norm(pos_dat[face2node[f][i]]- pos_dat[face2node[f][(i+1)%fsz]]);
+	  int n1 = face2node[f][i] ;
+	  int n2 = face2node[f][(i+1)%fsz] ;
+          double edgelen = norm(pos_dat[n1]- pos_dat[n2]);
+	  node_len[n1] = min(node_len[n1],edgelen) ;
+	  node_len[n2] = min(node_len[n2],edgelen) ;
           min_len = min(min_len,
                         edgelen);
           
@@ -419,6 +425,7 @@ bool readVolBC(int fi,//file id, i.e., block_id
       if(applyMap) p = gridXform.Map(p);
       node_map.push_back(node_info(fi, i));
       pos.push_back(coord3d(p.x, p.y, p.z));
+      pos_len.push_back(node_len[i]) ;
       used[i] = pos.size();
     }
   }
@@ -443,7 +450,7 @@ bool readVolBC(int fi,//file id, i.e., block_id
     
 
 void createNodeMap(const vector<coord3d>& pos,
-                   double min_len,
+                   const vector<double> &min_len,
                    std::map<int, vector<int> >& nodeID)
 {
   int sz =pos.size();
@@ -471,13 +478,13 @@ void createNodeMap(const vector<coord3d>& pos,
     
     vect3d center = vect3d(pos[i][0],pos[i][1], pos[i][2]);
     kd_tree::bounds box;
-    box.maxc[0] = center.x + min_len;
-    box.maxc[1] = center.y+ min_len;
-    box.maxc[2] = center.z + min_len;
+    box.maxc[0] = center.x + min_len[i];
+    box.maxc[1] = center.y+ min_len[i];
+    box.maxc[2] = center.z + min_len[i];
     
-    box.minc[0] = center.x - min_len;
-    box.minc[1] = center.y - min_len;
-    box.minc[2] = center.z - min_len;
+    box.minc[0] = center.x - min_len[i];
+    box.minc[1] = center.y - min_len[i];
+    box.minc[2] = center.z - min_len[i];
     
     
     // Find all of the points within a given bounding box
@@ -486,7 +493,7 @@ void createNodeMap(const vector<coord3d>& pos,
       
     for(unsigned int pi = 0; pi < found_pts.size(); pi++){
       vect3d p = vect3d(found_pts[pi].coords[0], found_pts[pi].coords[1], found_pts[pi].coords[2]);
-      if(norm(p - center) <= min_len && i != found_pts[pi].id){
+      if(norm(p - center) <= min_len[i] && i != found_pts[pi].id){
         matrix[i][found_pts[pi].id] = matrix[found_pts[pi].id][i] = 1;
       }   
     }
@@ -795,6 +802,7 @@ void create_equivalence(const vector<hid_t>& input_fids,
   double   rmin =  std::numeric_limits<float>::max() ;
  
   vector<coord3d> pos; //coord of all nodes on the boundaries that need to be glued
+  vector<double> pos_len ; // edge length associated with each pos
  
   //f2n of all faces on the boundaries that need to be glued, indexes of nodes are temperary global, i.e.,
   //the indexes in pos
@@ -807,6 +815,7 @@ void create_equivalence(const vector<hid_t>& input_fids,
               applyMap[fi],
               nodeMap, 
               pos,
+	      pos_len,
               rmin,
               f2n,
               faceMap,
@@ -814,19 +823,15 @@ void create_equivalence(const vector<hid_t>& input_fids,
               ) ;                   
   }
   
- 
-  if(tol>rmin){
-    cerr <<" Warning: tolerance is large than minimum edge length on glued boundary"<< endl
-         <<" ******** minimum edge length on glued boundary: " << rmin<< " tolerance: " << tol << endl;
-  }
-  double min_len = 0.1*rmin;
-  if(tol>0.0) min_len = tol;
-
-
+  double factor = 0.1 ;
+  if(tol > 0 && tol < 1.0)
+    factor = tol ;
+  for(size_t i=0;i<pos_len.size();++i)
+    pos_len[i] *= factor ;
 
   map<int, vector<int> > nodeID;
   createNodeMap(pos,
-                min_len,
+                pos_len,
                 nodeID);
   setNodeIndex(nodeID, nodeMap, fileData);
  
@@ -2058,4 +2063,5 @@ int main(int ac, char *av[]) {
   for(int i=0;i<num_inputs;++i) 
     H5Fclose(input_fid[i]) ;
   H5Fclose(output_fid) ;
-  }
+  Loci::Finalize() ;
+}

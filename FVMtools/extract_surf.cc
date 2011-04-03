@@ -253,10 +253,9 @@ void get_surf(string casename, string iteration,
   for(size_t i=0;i<f2node.size();++i)
     f2node[i] = nmap[f2node[i]] ;
 
-  string filename = processed_bcs[0] + ".surf" ;
+  string filename = processed_bcs[0] + ".gsurf" ;
   ofstream sfile(filename.c_str(),ios::out) ;
   sfile.precision(15) ;
-  
   sfile << "# number of nodes" << endl ;
   sfile << node_set.size() << endl ;
   sfile << "# Node positions" << endl ;
@@ -292,4 +291,70 @@ void get_surf(string casename, string iteration,
   }
   
   sfile.close() ;
+
+  // write out proper solid mesh file
+  string solid_filename = processed_bcs[0] + ".surf" ;
+  ofstream ssfile(solid_filename.c_str(),ios::out) ;
+  ssfile.precision(15) ;
+
+  int ntri = 0 ;
+  int nqua = 0 ;
+  int ngen = 0 ;
+  for(size_t i=0;i<f2size.size();++i) {
+    int sz = f2size[i] ;
+    if(sz == 3)
+      ntri++ ;
+    else if(sz == 4)
+      nqua++ ;
+    else
+      ngen++ ;
+  }
+  ssfile << ntri << ' ' << nqua << ' ' 
+         << node_set.size() << endl ;
+  
+  minpos = pos.domain().Min() ;
+  double normal_spacing = 0 ;
+  for(size_t i=0;i<node_set.size();++i) {
+    int nd = node_set[i]-1+minpos ;
+    ssfile << pos[nd].x << ' ' << pos[nd].y << ' ' << pos[nd].z
+           << ' '<< normal_spacing << endl ;
+  }
+  // output triangles
+  off = 0 ;
+  for(size_t i=0;i<f2size.size();++i) {
+    int sz = f2size[i] ;
+    if(sz == 3) {
+      for(int j=0;j<sz;++j)
+        ssfile << ' ' << f2node[off+j] ;
+      ssfile << " 1 0 0" << endl ;
+    }
+    off += sz ;
+  }
+  // output quads
+  off = 0 ;
+  for(size_t i=0;i<f2size.size();++i) {
+    int sz = f2size[i] ;
+    if(sz == 4) {
+      for(int j=0;j<sz;++j)
+        ssfile << ' ' << f2node[off+j] ;
+      ssfile << "1 0 0" << endl ;
+    }
+    off += sz ;
+  }
+  
+  // Now write out general faces
+  if(ngen > 0) {
+    ssfile << ngen << endl ;
+    off = 0 ;
+    for(size_t i=0;i<f2size.size();++i) {
+      int sz = f2size[i] ;
+      if(sz > 4) {
+        ssfile << sz << endl ;
+        for(int j=0;j<sz;++j)
+          ssfile << ' ' << f2node[off+j] ;
+        ssfile << endl ;
+      }
+      off += sz ;
+    }
+  }
 }

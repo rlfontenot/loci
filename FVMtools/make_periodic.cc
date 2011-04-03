@@ -100,11 +100,9 @@ void exactinit() ;
 //#define DEBUG
 #define NORMAL
 //#define DEBUG_POLY_AND_POLY
-//#define FACE_SPLIT_SELF_CHECK
-//#define TINY_EDGE_DETECTION
-//#define NEW_NODE_RECORD_CHECK
-//#define CORNER_NODE_CHECK
-//#define ZERO_AREA_FACE_CHECK
+//#define SHOW_QT_PROPERTY
+//#define FACE_SPLIT_PROPERTY_CHECK
+//#define UNSTABLE_SEG_SEG_INT_CODE
 
 typedef vector3d<double> vec3d ;
 typedef vector2d<double> vec2d ;
@@ -123,8 +121,16 @@ inline double operator-(const timeval& t1, const timeval& t2) {
 timeval time_prog_start ;
 timeval time_prog_end ;
 
+timeval time_essential_start ;
+timeval time_essential_end ;
+double prog_essential_time = 0 ;
+
 timeval time_grid_read_start ;
 timeval time_grid_read_end ;
+
+timeval time_data_structure_start ;
+timeval time_data_structure_end ;
+double data_structure_time = 0 ;
 
 timeval time_shift_point_total_start ;
 timeval time_shift_point_total_end ;
@@ -133,31 +139,29 @@ timeval time_shift_point_end ;
 timeval time_shift_point_qt_start ;
 timeval time_shift_point_qt_end ;
 
-bool time_set_BC1 = false ;
-timeval time_BC1_split_total_start ;
-timeval time_BC1_split_total_end ;
-timeval time_BC1_split_start ;
-timeval time_BC1_split_end ;
-timeval time_BC1_split_qt_start ;
-timeval time_BC1_split_qt_end ;
-timeval time_BC1_split_frm_start ;
-timeval time_BC1_split_frm_end ;
+timeval time_face_split_total_start ;
+timeval time_face_split_total_end ;
+timeval time_face_split_start ;
+timeval time_face_split_end ;
+timeval time_face_split_qt_start ;
+timeval time_face_split_qt_end ;
+timeval time_face_split_frm_start ;
+timeval time_face_split_frm_end ;
 
-bool time_set_BC2 = false ;
-timeval time_BC2_split_total_start ;
-timeval time_BC2_split_total_end ;
-timeval time_BC2_split_start ;
-timeval time_BC2_split_end ;
-timeval time_BC2_split_qt_start ;
-timeval time_BC2_split_qt_end ;
-timeval time_BC2_split_frm_start ;
-timeval time_BC2_split_frm_end ;
+timeval time_BC1_reconstruct_start ;
+timeval time_BC1_reconstruct_end ;
+
+timeval time_BC2_reconstruct_start ;
+timeval time_BC2_reconstruct_end ;
 
 timeval time_boundary_nodes_matching_start ;
 timeval time_boundary_nodes_matching_end ;
 
-timeval time_3D_projection_start ;
-timeval time_3D_projection_end ;
+timeval time_3D_to_2D_projection_start ;
+timeval time_3D_to_2D_projection_end ;
+
+timeval time_2D_to_3D_projection_start ;
+timeval time_2D_to_3D_projection_end ;
 
 timeval time_new_grid_write_start ;
 timeval time_new_grid_write_end ;
@@ -623,6 +627,13 @@ inline bool collinear3_tl(const vec2d& a, const vec2d& b, const vec2d& c,
   // otherwise call collinear3_exact
   return collinear3_exact(a,b,c) ;
 }
+inline bool collinear3_approx_tl
+(const vec2d& a, const vec2d& b, const vec2d&c,
+ Entity aid, Entity bid, Entity cid) {
+  if(global_pbetween_ltable.has_record(cid,aid,bid))
+    return true ;
+  return collinear3_approx(a,b,c) ;
+}
 // then the table lookup version of between
 inline bool between_tl(const vec2d& a, const vec2d& b, const vec2d& c,
                        Entity aid, Entity bid, Entity cid) {
@@ -938,7 +949,7 @@ entitySet get_multiMap_elems(const multiMap& m, int index) {
 }
 // get all teh elements in order from the passed in index in a multiMap
 vector<int> get_multiMap_elems_inorder(const multiMap& m,
-                                              int index) {
+                                       int index) {
   vector<int> elems ;
   int num_elems = m.num_elems(index) ;
   for(int i=0;i<num_elems;++i)
@@ -947,7 +958,7 @@ vector<int> get_multiMap_elems_inorder(const multiMap& m,
 }
 // given a face and face2nodes map, get all the nodes in order
 vector<int> get_face_nodes(const multiMap& face2node,
-                                  int face_id) {
+                           int face_id) {
   return get_multiMap_elems_inorder(face2node,face_id) ;
 }
 
@@ -1184,6 +1195,8 @@ bool point_in_poly(const vec2d&,const vector<int>&,
                    const store<vec2d>&) ;
 class rectangle {
 public:
+  // l is the upper left corner,
+  // r is the lower right corner.
   vec2d l, r ; // it is defined by its left & right corner
   rectangle(const vec2d& lc=vec2d(0.0,0.0),
             const vec2d& rc=vec2d(0.0,0.0)):l(lc),r(rc) {}
@@ -1224,11 +1237,11 @@ public:
   // the same as the above one, except this one
   // does not compute the intersection rectangle
   bool rectangle_int(const rectangle& rc) const ;
-  // determin if a circle intersects with the rectangle.
+  // determin if a circle intersects the rectangle.
   // if the circle barely touches the bottom and the right
   // edges of the rectangle, it is considered NOT intersected!
   bool is_circle_int(const vec2d& center, double radius) const ;
-  // determin if a convex polygon intersects with the rectangle
+  // determin if a convex polygon intersects the rectangle
   // the polygon is defined by a vector of its nodes x and y value
   bool is_convex_polygon_int(const vector<int>& poly_nodes,
                              const store<vec2d>& node_pos) const ;
@@ -1294,50 +1307,15 @@ inline bool rectangle::is_circle_int(const vec2d& center,
   // then the circle of course intersects with the rectangle
   if(is_point_in(center))
     return true ;
-  // the rest cases, NOTE: the inequality relation signs are important!!!
-  // case one
-  if( (center.x >= l.x) && (center.x < r.x)) {
-    if( (center.y <= (l.y+radius)) && (center.y > (r.y-radius)))
-      return true ;
-    else
-      return false ;
-  }
-  // case two
-  if( (center.y <= l.y) && (center.y > r.y)) {
-    if( (center.x >= (l.x-radius)) && (center.x < (r.x+radius)))
-      return true ;
-    else
-      return false ;
-  }
-  // case three // top left corner
-  if( (center.x < l.x) && (center.y > l.y)) {
-    if(dist(center,l) <= radius)
-      return true ;
-    else
-      return false ;
-  }
-  // case four // bottom left corner
-  if( (center.x < l.x) && (center.y <= r.y)) {
-    if(dist(center,vec2d(l.x,r.y)) <= radius)
-      return true ;
-    else
-      return false ;
-  }
-  // case five // top right corner
-  if( (center.x >= r.x) && (center.y > l.y)) {
-    if(dist(center,vec2d(r.x,l.y)) < radius)
-      return true ;
-    else
-      return false ;
-  }
-  // case six // bottom right corner
-  if( (center.x >= r.x) && (center.y <= r.y)) {
-    if(dist(center,r) < radius)
-      return true ;
-    else
-      return false ;
-  }
-
+  // test if any of the four rectangle edges intersects the circle
+  if(fabs(center.x - l.x) <= radius)
+    return true ;
+  if(fabs(center.x - r.x) <= radius)
+    return true ;
+  if(fabs(center.y - l.y) <= radius)
+    return true ;
+  if(fabs(center.y - r.y) <= radius)
+    return true ;
   return false ;
 }
 // this utility function returns the location of a point in
@@ -1633,15 +1611,21 @@ void nodes_bbox(const store<vec2d>& pos,
     b.r = vec2d(0.0,0.0) ;
     return ;
   }
-  for(entitySet::const_iterator ei=dom.begin();
-      ei!=dom.end();++ei) {
-    xcoord.push_back(pos[*ei].x) ;
-    ycoord.push_back(pos[*ei].y) ;
+  entitySet::const_iterator ei = dom.begin() ;
+  
+  double min_x = pos[*ei].x ;
+  double max_x = min_x ;
+  double min_y = pos[*ei].y ;
+  double max_y = min_y ;
+
+  for(++ei;ei!=dom.end();++ei) {
+    double x = pos[*ei].x ;
+    double y = pos[*ei].y ;
+    if(x<min_x) min_x = x ;
+    if(x>max_x) max_x = x ;
+    if(y<min_y) min_y = y ;
+    if(y>max_y) max_y = y ;
   }
-  double min_x = *(min_element(xcoord.begin(),xcoord.end())) ;
-  double max_x = *(max_element(xcoord.begin(),xcoord.end())) ;
-  double min_y = *(min_element(ycoord.begin(),ycoord.end())) ;
-  double max_y = *(max_element(ycoord.begin(),ycoord.end())) ;
   b.l = vec2d(min_x,max_y) ;
   b.r = vec2d(max_x,min_y) ;
 }
@@ -1654,15 +1638,46 @@ void nodes_bbox(const vector<vec2d>& pos,
     b.r = vec2d(0.0,0.0) ;
     return ;
   }
-  for(vector<vec2d>::const_iterator ei=pos.begin();
-      ei!=pos.end();++ei) {
-    xcoord.push_back(ei->x) ;
-    ycoord.push_back(ei->y) ;
+  vector<vec2d>::const_iterator ei=pos.begin() ;
+  
+  double min_x = ei->x ;
+  double max_x = min_x ;
+  double min_y = ei->y ;
+  double max_y = min_y ;
+  
+  for(++ei;ei!=pos.end();++ei) {
+    double x = ei->x ;
+    double y = ei->y ;
+    if(x<min_x) min_x = x ;
+    if(x>max_x) max_x = x ;
+    if(y<min_y) min_y = y ;
+    if(y>max_y) max_y = y ;
   }
-  double min_x = *(min_element(xcoord.begin(),xcoord.end())) ;
-  double max_x = *(max_element(xcoord.begin(),xcoord.end())) ;
-  double min_y = *(min_element(ycoord.begin(),ycoord.end())) ;
-  double max_y = *(max_element(ycoord.begin(),ycoord.end())) ;
+
+  b.l = vec2d(min_x,max_y) ;
+  b.r = vec2d(max_x,min_y) ;
+}
+// another overloaded form
+void nodes_bbox(const vector<int>& nodes,
+                const store<vec2d>& pos,
+                rectangle& b) {
+  if(nodes.empty())
+    return ;
+
+  double min_x = pos[nodes[0]].x ;
+  double max_x = min_x ;
+  double min_y = pos[nodes[0]].y ;
+  double max_y = min_y ;
+
+  for(size_t i=1;i!=nodes.size();++i) {
+    double x = pos[nodes[i]].x ;
+    double y = pos[nodes[i]].y ;
+    if(x<min_x) min_x = x ;
+    if(x>max_x) max_x = x ;
+    if(y<min_y) min_y = y ;
+    if(y>max_y) max_y = y ;
+  }
+
   b.l = vec2d(min_x,max_y) ;
   b.r = vec2d(max_x,min_y) ;
 }
@@ -1853,6 +1868,27 @@ class seg_int_lookup_table {
 
   // the table data
   first table ;
+  // the table stores segment segment intersection information
+  // in a particular order so that later testing can reuse the information.
+  // basically, the two segments (four node ids) are sorted so that
+  // each segment's head node is the node with smaller id number,
+  // and also the segment with a smaller head node comes first.
+
+  // this function takes two segments definition and produces the
+  // reordered segments used for accessing the table
+  void sort_segs(Entity l1s, Entity l1e, Entity l2s, Entity l2e,
+                 Entity& new_l1s, Entity& new_l1e,
+                 Entity& new_l2s, Entity& new_l2e) const {
+    new_l1s = min(l1s,l1e) ; new_l1e = max(l1s,l1e) ;
+    new_l2s = min(l2s,l2e) ; new_l2e = max(l2s,l2e) ;
+    // NOTE: we cannot do this step if two boundaries are
+    // split independently.
+//     if(new_l1s > new_l2s) {
+//       std::swap(new_l1s, new_l2s) ;
+//       std::swap(new_l1e, new_l2e) ;
+//     }
+  }
+
   // The following are public interfaces
 public:
   void clear() {
@@ -1862,8 +1898,7 @@ public:
                   const ssi_result& record) {
     // first sort each segment's id
     Entity new_l1s,new_l1e,new_l2s,new_l2e ;
-    new_l1s = min(l1s,l1e) ; new_l1e = max(l1s,l1e) ;
-    new_l2s = min(l2s,l2e) ; new_l2e = max(l2s,l2e) ;
+    sort_segs(l1s,l1e,l2s,l2e,new_l1s,new_l1e,new_l2s,new_l2e) ;
     
     table.add_record(new_l1s,new_l1e,new_l2s,new_l2e,record) ;
   }
@@ -1871,8 +1906,7 @@ public:
                    ssi_result& record) const {
     // first sort each segment's id
     Entity new_l1s,new_l1e,new_l2s,new_l2e ;
-    new_l1s = min(l1s,l1e) ; new_l1e = max(l1s,l1e) ;
-    new_l2s = min(l2s,l2e) ; new_l2e = max(l2s,l2e) ;
+    sort_segs(l1s,l1e,l2s,l2e,new_l1s,new_l1e,new_l2s,new_l2e) ;
     
     return table.get_record(new_l1s,new_l1e,new_l2s,new_l2e,record) ;
   }
@@ -1888,8 +1922,8 @@ public:
   ssi_result& operator()(Entity l1s, Entity l1e, Entity l2s, Entity l2e) {
     // first sort each segment's id
     Entity new_l1s,new_l1e,new_l2s,new_l2e ;
-    new_l1s = min(l1s,l1e) ; new_l1e = max(l1s,l1e) ;
-    new_l2s = min(l2s,l2e) ; new_l2e = max(l2s,l2e) ;
+    sort_segs(l1s,l1e,l2s,l2e,new_l1s,new_l1e,new_l2s,new_l2e) ;
+
     return table(new_l1s,new_l1e,new_l2s,new_l2e) ;
   }
 } ;
@@ -1953,8 +1987,7 @@ static Entity mesh_new_node_index ;
 static Entity mesh_new_face_index ;
 
 // The following map records the new index for
-// every node that is originally in the slave boundary
-// i.e., the current BC2 boundary.
+// every node that is NOT originally on the master boundary
 static dMap global_Q_id_remap ;
 // These two global variables are used to indicate
 // the current nodes in the master and slave boundaries
@@ -1986,6 +2019,7 @@ seg_seg_int(const vec2d& l1_start, const vec2d& l1_end,
     int_id = si.intersect_id ;
     return si.intersect_type ;
   }
+  
   // we first use seg_seg_pos to determine the position
   // of the line segments. NOTE: here we are using
   // the table lookup version of seg_seg_pos predicate
@@ -2007,6 +2041,83 @@ seg_seg_int(const vec2d& l1_start, const vec2d& l1_end,
   // NOTE: we are using the table lookup version
   // of the between predicate
   if(pos_type == POS_COLLINEAR) {
+#ifdef UNSTABLE_SEG_SEG_INT_CODE
+    // NOTE: the code in this ifdef is not stable
+    // and is only experimental, and probably will be
+    // removed in the future.
+    
+    // first we want to eliminate some special cases,
+    // if two end points on two segments are the same,
+    // and the other two end points are at the opposite
+    // site, then we regard such a case normal intersection.
+    // e.g., l1s<--------(l1e,l2s)<----------l2e
+    // then we say the intersection point is l1e.
+
+    // first case: l1e---------->(l1s,l2s)<----------l2e
+    if(l1_start == l2_start) {
+      if(between(l1_end, l2_end, l1_start)) {
+        intersection = l1_start ;
+        int_id = l1s ;
+        // add record
+        si.intersect_type = NORMALINT ;
+        si.intersect_pos = intersection ;
+        si.intersect_id = int_id ;
+        
+        global_ssint_ltable(l1s,l1e,l2s,l2e) = si ;
+        
+        return NORMALINT ;
+      }
+    }
+
+    // second case: l1e--------->(l1s,l2e)---------->l2s
+    if(l1_start == l2_end) {
+      if(between(l1_end, l2_start, l1_start)) {
+        intersection = l1_start ;
+        int_id = l1s ;
+        // add record
+        si.intersect_type = NORMALINT ;
+        si.intersect_pos = intersection ;
+        si.intersect_id = int_id ;
+        
+        global_ssint_ltable(l1s,l1e,l2s,l2e) = si ;
+        
+        return NORMALINT ;
+      }
+    }
+
+    // third case: l1s<----------(l1e,l2s)<----------l2e
+    if(l1_end == l2_start) {
+      if(between(l1_start, l2_end, l1_end)) {
+        intersection = l1_end ;
+        int_id = l1e ;
+        // add record
+        si.intersect_type = NORMALINT ;
+        si.intersect_pos = intersection ;
+        si.intersect_id = int_id ;
+        
+        global_ssint_ltable(l1s,l1e,l2s,l2e) = si ;
+        
+        return NORMALINT ;
+      }
+    }
+
+    // last case: l1s<-----------(l1e,l2e)---------->l2s
+    if(l1_end == l2_start) {
+      if(between(l1_start, l2_start, l1_end)) {
+        intersection = l1_end ;
+        int_id = l1e ;
+        // add record
+        si.intersect_type = NORMALINT ;
+        si.intersect_pos = intersection ;
+        si.intersect_id = int_id ;
+        
+        global_ssint_ltable(l1s,l1e,l2s,l2e) = si ;
+        
+        return NORMALINT ;
+      }
+    }
+#endif
+    
     // intersections are l2_start & l2_end
     if(between_tl(l1_start,l1_end,l2_start,l1s,l1e,l2s) &&
        between_tl(l1_start,l1_end,l2_end,l1s,l1e,l2e)) {
@@ -2230,11 +2341,14 @@ seg_seg_int(const vec2d& l1_start, const vec2d& l1_end,
   double u1 = numerator1 / denominator ;
   //double u2 = numerator2 / denominator ;
 
+  intersection = l1_start + u1 * (l1_end - l1_start) ;
+  // Now, we have a true valid NEW intersection point
+  
   // Since this is a new node, we need to create a
   // new index for this node. And we need to increment
   // the mesh_new_node_index too.
-  intersection = l1_start + u1 * (l1_end - l1_start) ;
   int_id = mesh_new_node_index++ ;
+  
   // add record
   si.intersect_type = NORMALINT ;
   si.intersect_pos = intersection ;
@@ -2245,7 +2359,7 @@ seg_seg_int(const vec2d& l1_start, const vec2d& l1_end,
   // point p lies on both segments. Therefore, we also
   // need to put the record into the global_pbetween_ltable
   global_pbetween_ltable.add_record(int_id,l1s,l1e) ;
-  //global_pbetween_ltable.add_record(int_id,l2s,l2e) ;
+  global_pbetween_ltable.add_record(int_id,l2s,l2e) ;
 
   return NORMALINT ;
 }
@@ -2376,6 +2490,254 @@ inline void advance_Q(inside_type inflag,
 #endif
 }
 
+// this function is used to handle the two segments collinear
+// (but pointing to the same direction) situation. because an
+// edge may be defined by several collinear segments, and we
+// want to output all those intermediate points, we will need
+// to specially handle this case
+void
+advance_collinear_adv(vector<vec2d>::size_type poly_size,
+                      bool& continue_collinear,
+                      bool firstIntersect,
+                      Entity first_int_id,
+                      Entity& last_output_id,
+                      Entity& last_p_id,
+                      vec2d& last_p_pos,
+                      vector<vec2d>::size_type& bug,
+                      vector<vec2d>::size_type& adv,
+                      Entity bug_id,
+                      const vec2d& bug_pos,
+                      vector<vec2d>& Ins,
+                      vector<Entity>& Ins_index) {
+  // first decide whether to ouput last recorded point
+  if(continue_collinear
+     // note, this conditition is used to ensure
+     // that a point is not output until a normal
+     // segment intersection occurs
+     && !firstIntersect
+     && (last_p_id != last_output_id)
+     && (last_p_id != first_int_id)) {
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Outputing collinear point: " << last_p_id << endl ;
+    ///////////////////
+#endif
+    // then output
+    Ins.push_back(last_p_pos) ;
+    Ins_index.push_back(last_p_id) ;
+    last_output_id = last_p_id ;
+  }
+  // record node for next round
+  
+  // NOTE: this is to prevent the collapse of the
+  // two segments at the same node and therefore would
+  // output the node twice.
+  // Thus in case that the advanced node is already
+  // a recorded node, then we reset the collinear continue flag
+  // to let it start over again and therefore it would not
+  // produce the node in the next round.
+  if(continue_collinear) {
+    if(last_p_pos == bug_pos) {
+      continue_collinear = false ;
+#ifdef DEBUG_POLY_AND_POLY
+      ///////////////////
+      cerr << "Resetting collinear flag" << endl ;
+      ///////////////////
+#endif
+      bug = (bug+1) % poly_size ;
+      ++adv ;
+      return ;
+    }
+  }
+  
+  continue_collinear = true ;
+  last_p_id = bug_id ;
+  last_p_pos = bug_pos ;
+#ifdef DEBUG_POLY_AND_POLY
+  ///////////////////
+  cerr << "Caching collinear point: " << last_p_id << endl ;
+  ///////////////////
+#endif
+  // modify other pointers accordingly
+  bug = (bug+1) % poly_size ;
+  ++adv ;
+}
+//
+// "edge" is one of the segment vector
+// with the x axis;
+// "continue_collinear" indicates whether it is collinear
+// last time (to determine whether to output points)
+// "collinear_point_pos" indicates the last recorded point
+// to be output in this round, it is also set during
+// this time of evaluation
+// "collinear_point_id" is the id of the last recorded
+// collinear point
+// "firstIntersect" is a flag indicating whether a normal
+// segment intersection has occurred before
+// "first_int_id" is the id of the first intersection point.
+// "last_output_id" is the id of the last output point
+// "bug_P" and "bug_Q" are the advancing pointer of polygon P and Q.
+// "P_adv" and "Q_adv" are the advancing counters of polygon P and Q.
+// "P_size" and "Q_size" are the total number of points defining
+// the polygons P and Q
+// "Ins" and "Ins_index" are the intersection points and their ids.
+void
+advance_collinear(const vec2d& P_cur, const vec2d& Q_cur,
+                  Entity P_cur_id, Entity Q_cur_id,
+                  const vec2d& edge, bool& continue_collinear,
+                  vec2d& collinear_point_pos,
+                  Entity& collinear_point_id,
+                  bool firstIntersect,
+                  Entity first_int_id,
+                  Entity& last_output_id,
+                  vector<vec2d>::size_type& bug_P,
+                  vector<vec2d>::size_type& bug_Q,
+                  vector<vec2d>::size_type& P_adv,
+                  vector<vec2d>::size_type& Q_adv,
+                  vector<vec2d>::size_type P_size,
+                  vector<vec2d>::size_type Q_size,
+                  vector<vec2d>& Ins,
+                  vector<Entity>& Ins_index) {
+  // first determine who to advance, we will want to advance
+  // the segment who is falling behind the other one. "falling
+  // behind" here is defined as if the two segments have a
+  // less than PI angle with the x axis, then the one with
+  // a smaller x projection is the one that is falling behind.
+  // Otherwise, if they have a larger than PI degree angle with
+  // the x axis, then the one with a larger x component is the
+  // one to advance.
+  double direction = dot(edge, vec2d(1,0)) ;
+  bool advance_p = false ;
+  if(direction>0) {
+    // NOTE: the equality in these conditions are set deliberately.
+    // the intention here is to ensure in case of tie, we will
+    // always advance a segment on polygon P, this is to ensure that
+    // in case of overlapped points on collinear segments, it is
+    // always the one on P that gets output (this is critical to
+    // maintain the correctness of the algorithm).
+    if(P_cur.x <= Q_cur.x)
+      advance_p = true ; // advance P
+    else
+      advance_p = false ; // advance Q
+  } else if(direction<0) {
+    if(P_cur.x >= Q_cur.x)
+      advance_p = true ;
+    else
+      advance_p = false ;
+  } else { // direction == 0
+    // if direction == 0, then we want to
+    // compare the y components of the two points.
+    if(edge.y > 0) {// pointing upward, pick a smaller y component
+      if(P_cur.y <= Q_cur.y)
+        advance_p = true ;
+      else
+        advance_p = false ;
+    } else {// pointing downward, pick a larger y component
+      if(P_cur.y >= Q_cur.y)
+        advance_p = true ;
+      else
+        advance_p = false ;
+    }
+  }
+  if(advance_p) {
+    advance_collinear_adv(P_size, continue_collinear,
+                          firstIntersect, first_int_id,
+                          last_output_id, collinear_point_id,
+                          collinear_point_pos, bug_P, P_adv,
+                          P_cur_id, P_cur, Ins, Ins_index) ;
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Collinear advancing P" << endl << endl ;
+    ///////////////////
+#endif
+  } else {
+    advance_collinear_adv(Q_size, continue_collinear,
+                          firstIntersect, first_int_id,
+                          last_output_id, collinear_point_id,
+                          collinear_point_pos, bug_Q, Q_adv,
+                          Q_cur_id, Q_cur, Ins, Ins_index) ;
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Collinear advancing Q" << endl << endl ;
+    ///////////////////
+#endif
+  }
+}
+
+// this is the boundary version (uses approximate predicate)
+void
+advance_collinear_bf(const vec2d& P_cur, const vec2d& Q_cur,
+                     Entity P_cur_id, Entity Q_cur_id,
+                     const vec2d& edge, bool& continue_collinear,
+                     vec2d& collinear_point_pos,
+                     Entity& collinear_point_id,
+                     bool firstIntersect,
+                     Entity first_int_id,
+                     Entity& last_output_id,
+                     vector<vec2d>::size_type& bug_P,
+                     vector<vec2d>::size_type& bug_Q,
+                     vector<vec2d>::size_type& P_adv,
+                     vector<vec2d>::size_type& Q_adv,
+                     vector<vec2d>::size_type P_size,
+                     vector<vec2d>::size_type Q_size,
+                     vector<vec2d>& Ins,
+                     vector<Entity>& Ins_index) {
+  double direction = dot(edge, vec2d(1,0)) ;
+  bool advance_p = false ;
+  if(doubleNumEqual(direction, 0.0, ON_LINE_SEG_DOT_THRESHOLD)) {
+    if(edge.y > 0) {// pointing upward, pick a smaller y component
+      if(P_cur.y <= Q_cur.y)
+        advance_p = true ;
+      else
+        advance_p = false ;
+    } else {// pointing downward, pick a larger y component
+      if(P_cur.y >= Q_cur.y)
+        advance_p = true ;
+      else
+        advance_p = false ;
+    }
+  } else if(direction>0) {
+    // NOTE: the equality in these conditions are set deliberately.
+    // the intention here is to ensure in case of tie, we will
+    // always advance a segment on polygon P, this is to ensure that
+    // in case of overlapped points on collinear segments, it is
+    // always the one on P that gets output (this is critical to
+    // maintain the correctness of the algorithm).
+    if(P_cur.x <= Q_cur.x)
+      advance_p = true ; // advance P
+    else
+      advance_p = false ; // advance Q
+  } else { // direction<0
+    if(P_cur.x >= Q_cur.x)
+      advance_p = true ;
+    else
+      advance_p = false ;
+  }
+  if(advance_p) {
+    advance_collinear_adv(P_size, continue_collinear,
+                          firstIntersect, first_int_id,
+                          last_output_id, collinear_point_id,
+                          collinear_point_pos, bug_P, P_adv,
+                          P_cur_id, P_cur, Ins, Ins_index) ;
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Collinear advancing P" << endl << endl ;
+    ///////////////////
+#endif
+  } else {
+    advance_collinear_adv(Q_size, continue_collinear,
+                          firstIntersect, first_int_id,
+                          last_output_id, collinear_point_id,
+                          collinear_point_pos, bug_Q, Q_adv,
+                          Q_cur_id, Q_cur, Ins, Ins_index) ;
+#ifdef DEBUG_POLY_AND_POLY
+    ///////////////////
+    cerr << "Collinear advancing Q" << endl << endl ;
+    ///////////////////
+#endif
+  }
+}
+
 // this function computes the intersection of two convex
 // polygons. it returns false if they do not intersect,
 // true if they intersect and set the intersected polygon
@@ -2404,6 +2766,10 @@ bool poly_and_poly(const vector<vec2d>& P,
   // flag indicates whether the intersection in previous iteration
   // is equal to the first intersection
   bool is_ins_last_e_first = false ;
+  // data used to control output of collinear points
+  bool continue_collinear = false ;
+  Entity collinear_point_id = -1 ;
+  vec2d collinear_point_pos(0.0, 0.0) ;
 
   do {
     const vec2d& P_cur = P[bug_P] ;
@@ -2527,15 +2893,22 @@ bool poly_and_poly(const vector<vec2d>& P,
         (P_in_Q_plane==0) && (Q_in_P_plane==0)) {*/
     else if( (seg_int_result==COLLINEAR) &&
              (P_in_Q_plane==0) && (Q_in_P_plane==0)) {
-      // special case A&B collinear, we advance but
-      // do not output point
-      if(inflag == PIN)
-        advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
-                  last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
-      else
-        advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
-                  last_output_id,bug_P,P_adv,Ins,Ins_index) ;
+      // special case A&B collinear and are the same direction,
+      // we call the special handling routine
+      advance_collinear(P_cur, Q_cur, P_cur_id, Q_cur_id, P_edge,
+                        continue_collinear, collinear_point_pos,
+                        collinear_point_id,
+                        firstIntersect, first_int_id,
+                        last_output_id, bug_P, bug_Q,
+                        P_adv, Q_adv, P_size, Q_size, Ins, Ins_index) ;
+//       if(inflag == PIN)
+//         advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
+//                   last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
+//       else
+//         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
+//                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
     } else if(cross_sign >= 0) {
+      continue_collinear = false ;
       if(P_in_Q_plane > 0)
         advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
                   last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
@@ -2543,6 +2916,7 @@ bool poly_and_poly(const vector<vec2d>& P,
         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
     } else {
+      continue_collinear = false ;
       if(Q_in_P_plane > 0)
         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
@@ -2731,6 +3105,83 @@ seg_seg_int_bf(const vec2d& l1_start, const vec2d& l1_end,
   // if they are collinear, then they may have valid
   // intersection point
   if(pos_type == POS_COLLINEAR) {
+#ifdef UNSTABLE_SEG_SEG_INT_CODE
+    // NOTE: the code in this ifdef is not stable
+    // and is only experimental, and probably will be
+    // removed in the future.
+    
+    // first we want to eliminate some special cases,
+    // if two end points on two segments are the same,
+    // and the other two end points are at the opposite
+    // site, then we regard such a case normal intersection.
+    // e.g., l1s<--------(l1e,l2s)<----------l2e
+    // then we say the intersection point is l1e.
+
+    // first case: l1e---------->(l1s,l2s)<----------l2e
+    if(l1_start == l2_start) {
+      if(pointOnEdge_approx(l1_start, l1_end, l2_end)) {
+        intersection = l1_start ;
+        int_id = l1s ;
+        // add record
+        si.intersect_type = NORMALINT ;
+        si.intersect_pos = intersection ;
+        si.intersect_id = int_id ;
+        
+        global_ssint_ltable(l1s,l1e,l2s,l2e) = si ;
+        
+        return NORMALINT ;
+      }
+    }
+
+    // second case: l1e--------->(l1s,l2e)---------->l2s
+    if(l1_start == l2_end) {
+      if(pointOnEdge_approx(l1_start, l1_end, l2_start)) {
+        intersection = l1_start ;
+        int_id = l1s ;
+        // add record
+        si.intersect_type = NORMALINT ;
+        si.intersect_pos = intersection ;
+        si.intersect_id = int_id ;
+        
+        global_ssint_ltable(l1s,l1e,l2s,l2e) = si ;
+        
+        return NORMALINT ;
+      }
+    }
+
+    // third case: l1s<----------(l1e,l2s)<----------l2e
+    if(l1_end == l2_start) {
+      if(pointOnEdge_approx(l1_end, l1_start, l2_end)) {
+        intersection = l1_end ;
+        int_id = l1e ;
+        // add record
+        si.intersect_type = NORMALINT ;
+        si.intersect_pos = intersection ;
+        si.intersect_id = int_id ;
+        
+        global_ssint_ltable(l1s,l1e,l2s,l2e) = si ;
+        
+        return NORMALINT ;
+      }
+    }
+
+    // last case: l1s<-----------(l1e,l2e)---------->l2s
+    if(l1_end == l2_start) {
+      if(pointOnEdge_approx(l1_end, l1_start, l2_start)) {
+        intersection = l1_end ;
+        int_id = l1e ;
+        // add record
+        si.intersect_type = NORMALINT ;
+        si.intersect_pos = intersection ;
+        si.intersect_id = int_id ;
+        
+        global_ssint_ltable(l1s,l1e,l2s,l2e) = si ;
+        
+        return NORMALINT ;
+      }
+    }
+#endif
+    
     // intersections are l2_start & l2_end
     if(between_bf(l1_start,l1_end,l2_start,l1s,l1e,l2s) &&
        between_bf(l1_start,l1_end,l2_end,l1s,l1e,l2e)) {
@@ -2960,11 +3411,14 @@ seg_seg_int_bf(const vec2d& l1_start, const vec2d& l1_end,
   double u1 = numerator1 / denominator ;
   //double u2 = numerator2 / denominator ;
 
+  intersection = l1_start + u1 * (l1_end - l1_start) ;
+  // Now, we have a true valid NEW intersection point
+  
   // Since this is a new node, we need to create a
   // new index for this node. And we need to increment
   // the mesh_new_node_index too.
-  intersection = l1_start + u1 * (l1_end - l1_start) ;
   int_id = mesh_new_node_index++ ;
+  
   // add record
   si.intersect_type = NORMALINT ;
   si.intersect_pos = intersection ;
@@ -2976,6 +3430,7 @@ seg_seg_int_bf(const vec2d& l1_start, const vec2d& l1_end,
   // point p lies on both segments. Therefore, we also
   // need to put the record into the global_pbetween_ltable
   global_pbetween_ltable.add_record(int_id,l1s,l1e) ;
+  global_pbetween_ltable.add_record(int_id,l2s,l2e) ;
   
   return NORMALINT ;
 }
@@ -3008,6 +3463,10 @@ bool poly_and_poly_bf(const vector<vec2d>& P,
   // flag indicates whether the intersection in previous iteration
   // is equal to the first intersection
   bool is_ins_last_e_first = false ;
+  // data used to control output of collinear points
+  bool continue_collinear = false ;
+  Entity collinear_point_id = -1 ;
+  vec2d collinear_point_pos(0.0, 0.0) ;
 
   do {
     const vec2d& P_cur = P[bug_P] ;
@@ -3150,15 +3609,15 @@ bool poly_and_poly_bf(const vector<vec2d>& P,
       Ins_index.clear() ;
       return false ;
     } else if(seg_int_result==COLLINEAR) {
-      // special case A&B collinear, we advance but
-      // do not output point
-      if(inflag == PIN)
-        advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
-                  last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
-      else
-        advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
-                  last_output_id,bug_P,P_adv,Ins,Ins_index) ;
+      // special case A&B collinear and have the same direction
+      advance_collinear_bf(P_cur, Q_cur, P_cur_id, Q_cur_id, P_edge,
+                           continue_collinear, collinear_point_pos,
+                           collinear_point_id,
+                           firstIntersect, first_int_id,
+                           last_output_id, bug_P, bug_Q,
+                           P_adv, Q_adv, P_size, Q_size, Ins, Ins_index) ;
     } else if(cross_sign >= 0) {
+      continue_collinear = false ;
       if(P_in_Q_plane > 0)
         advance_Q(inflag,Q_size,Q_cur,Q_cur_id,first_int_id,
                   last_output_id,bug_Q,Q_adv,Ins,Ins_index) ;
@@ -3166,6 +3625,7 @@ bool poly_and_poly_bf(const vector<vec2d>& P,
         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
     } else {
+      continue_collinear = false ;
       if(Q_in_P_plane > 0)
         advance_P(inflag,P_size,P_cur,P_cur_id,first_int_id,
                   last_output_id,bug_P,P_adv,Ins,Ins_index) ;
@@ -3254,9 +3714,13 @@ bool check_ccw(const vector<vec2d>& P) {
   size p_size = P.size() ;
   size i ;
   for(i=0;i<p_size;++i) {
-    const vec2d& p_pre = P[(i-1+p_size)%p_size] ;
-    const vec2d& p_cur = P[i] ;
-    const vec2d& p_nxt = P[(i+1)%p_size] ;
+    int x = (i-1+p_size)%p_size ;
+    int y = i ;
+    int z = (i+1)%p_size ;
+    const vec2d& p_pre = P[x] ;
+    const vec2d& p_cur = P[y] ;
+    const vec2d& p_nxt = P[z] ;
+
     double a[2] = {p_pre.x, p_pre.y} ;
     double b[2] = {p_cur.x, p_cur.y} ;
     double c[2] = {p_nxt.x, p_nxt.y} ;
@@ -3275,9 +3739,12 @@ bool check_ccw_approx(const vector<vec2d>& P) {
   size p_size = P.size() ;
   size i ;
   for(i=0;i<p_size;++i) {
-    const vec2d& p_pre = P[(i-1+p_size)%p_size] ;
-    const vec2d& p_cur = P[i] ;
-    const vec2d& p_nxt = P[(i+1)%p_size] ;
+    int x = (i-1+p_size)%p_size ;
+    int y = i ;
+    int z = (i+1)%p_size ;
+    const vec2d& p_pre = P[x] ;
+    const vec2d& p_cur = P[y] ;
+    const vec2d& p_nxt = P[z] ;
     // first we perform approximate collinear testing
     if(collinear3_approx(p_pre,p_cur,p_nxt))
       continue ;
@@ -3298,9 +3765,12 @@ bool check_convex(const vector<vec2d>& P) {
   size i ;
   int flag = 0 ;
   for(i=0;i<p_size;++i) {
-    const vec2d& p_pre = P[(i-1+p_size)%p_size] ;
-    const vec2d& p_cur = P[i] ;
-    const vec2d& p_nxt = P[(i+1)%p_size] ;
+    int x = (i-1+p_size)%p_size ;
+    int y = i ;
+    int z = (i+1)%p_size ;
+    const vec2d& p_pre = P[x] ;
+    const vec2d& p_cur = P[y] ;
+    const vec2d& p_nxt = P[z] ;
     
     double a[2] = {p_pre.x, p_pre.y} ;
     double b[2] = {p_cur.x, p_cur.y} ;
@@ -3329,10 +3799,12 @@ bool check_convex_approx(const vector<vec2d>& P) {
   size i ;
   int flag = 0 ;
   for(i=0;i<p_size;++i) {
-    const vec2d& p_pre = P[(i-1+p_size)%p_size] ;
-    const vec2d& p_cur = P[i] ;
-    const vec2d& p_nxt = P[(i+1)%p_size] ;
-
+    int x = (i-1+p_size)%p_size ;
+    int y = i ;
+    int z = (i+1)%p_size ;
+    const vec2d& p_pre = P[x] ;
+    const vec2d& p_cur = P[y] ;
+    const vec2d& p_nxt = P[z] ;
     // first we perform approximate collinear testing
     if(collinear3_approx(p_pre,p_cur,p_nxt))
       continue ;
@@ -3521,6 +3993,8 @@ class QuadTree {
     int leafs_num() const ;
     // return all the data contained in this node
     entitySet leafs() const ;
+    // return the sum of size in all leaves
+    int all_leafs_size() const ;
     // locate the given rectangle in the tree. return
     // all the faces that contained in the subspaces that
     // touched by the rectangle
@@ -3576,6 +4050,9 @@ public:
   // return all the data in the tree
   entitySet all_leafs() const
   {return root->leafs() ;}
+  // return the sum of all leaf size
+  int all_leafs_size() const
+  {return root->all_leafs_size() ;}
 } ;
 
 /////////////////// QuadTree class implementation ////////////////////
@@ -3667,22 +4144,27 @@ void QuadTree::qtnode::copy_node(const qtnode& n) {
     bot_right = 0 ;
   }
 }
+
 void QuadTree::qtnode::build_node(const entitySet& allfaces,
                                   const multiMap& face2node,
                                   const store<vec2d>& pos,
                                   int current_depth) {
-  if(allfaces.size() == 0) {
+  int allfaces_size = allfaces.size() ;
+  if(allfaces_size == 0) {
     cerr << "ERROR: empty faces in build_node! This should not occur!"
          << endl ;
     Loci::Abort() ;
   }
   depth = current_depth ;
   data_node = true ;
-  faces = allfaces ;
-  if(depth >= max_depth)
+  if(depth >= max_depth) {
+    faces = allfaces ;
     return ;
-  if(faces.size() <= face_set_size)
+  }
+  if(allfaces_size <= face_set_size) {
+    faces = allfaces ;    
     return ;
+  }
 
   faces = EMPTY ;
   data_node = false ;
@@ -3700,26 +4182,30 @@ void QuadTree::qtnode::build_node(const entitySet& allfaces,
     if(brb.is_convex_polygon_int(nodes,pos))
       br+=*ei ;
   }
+  int tl_size = tl.size() ;
+  int tr_size = tr.size() ;
+  int bl_size = bl.size() ;
+  int br_size = br.size() ;
   // build subnodes
-  if(tl.size() > 0) {
+  if(tl_size > 0) {
     top_left = new qtnode(max_depth,face_set_size,tlb) ;
     top_left->build_node(tl,face2node,pos,depth+1) ;
   } else
     top_left = 0 ;
   
-  if(tr.size() > 0) {
+  if(tr_size > 0) {
     top_right = new qtnode(max_depth,face_set_size,trb) ;
     top_right->build_node(tr,face2node,pos,depth+1) ;
   } else
     top_right = 0 ;
   
-  if(bl.size() > 0) {
+  if(bl_size > 0) {
     bot_left = new qtnode(max_depth,face_set_size,blb) ;
     bot_left->build_node(bl,face2node,pos,depth+1) ;
   } else
     bot_left = 0 ;
   
-  if(br.size() > 0) {
+  if(br_size > 0) {
     bot_right = new qtnode(max_depth,face_set_size,brb) ;
     bot_right->build_node(br,face2node,pos,depth+1) ;
   } else
@@ -3824,6 +4310,22 @@ entitySet QuadTree::qtnode::leafs() const {
   }
   return data ;
 }
+int QuadTree::qtnode::all_leafs_size() const {
+  int s = 0 ;
+  if(data_node)
+    return faces.size() ;
+  else {
+    if(top_left != 0)
+      s += top_left->all_leafs_size() ;
+    if(top_right != 0)
+      s += top_right->all_leafs_size() ;
+    if(bot_left != 0)
+      s += bot_left->all_leafs_size() ;
+    if(bot_right != 0)
+      s += bot_right->all_leafs_size() ;
+  }
+  return s ;
+}
 entitySet QuadTree::qtnode::
 locate_rectangle(const rectangle& r) const {
   entitySet data ;
@@ -3858,13 +4360,15 @@ entitySet QuadTree::locate_polygon(const vector<int>& nodes,
     cerr << "Error: empty polygon in locate_polygon!" << endl ;
     Loci::Abort() ;
   }
-  // first we construct a store of position
-  vector<vec2d> nodes_pos ;
-  for(vector<int>::const_iterator ni=nodes.begin();
-      ni!=nodes.end();++ni)
-    nodes_pos.push_back(pos[*ni]) ;
+//   // first we construct a store of position
+//   vector<vec2d> nodes_pos ;
+//   for(vector<int>::const_iterator ni=nodes.begin();
+//       ni!=nodes.end();++ni)
+//     nodes_pos.push_back(pos[*ni]) ;
+//   rectangle b ;
+//   nodes_bbox(nodes_pos,b) ;
   rectangle b ;
-  nodes_bbox(nodes_pos,b) ;
+  nodes_bbox(nodes,pos,b) ;
   return locate_rectangle(b) ;
 }
 ///////////end of FaceSet QuadTree implementation////////////
@@ -3938,13 +4442,13 @@ class PointSet_QuadTree {
     // locate the given rectangle in the tree. return
     // all the points that contained in the subspaces that
     // touched by the rectangle
-    Loci::storeRepP locate_rectangle(const rectangle& r) const ;
+    entitySet locate_rectangle(const rectangle& r) const ;
     // locate the given circle (disk) in the tree. return
     // all the points taht contained in the subspaces that
     // touched by the disk. This effectively returns all
     // candidate points that are within the range "radius"
     // of the circle's "center"
-    Loci::storeRepP locate_circle(const vec2d& center, double radius) const ;
+    entitySet locate_circle(const vec2d& center, double radius) const ;
     // insert a point into the tree
     void insert_point(const vec2d& p, Entity identity) ;
   } ;
@@ -3981,16 +4485,16 @@ public:
   {return root->tree_depth() ;}
   int leafs_num() const
   {return root->leafs_num() ;}
-  Loci::storeRepP locate_rectangle(const rectangle& r) const {
+  entitySet locate_rectangle(const rectangle& r) const {
     // check validity of the rectangle
     r.check_valid() ;
     return root->locate_rectangle(r) ;
   }
-  Loci::storeRepP locate_circle(const vec2d& center, double radius) const
+  entitySet locate_circle(const vec2d& center, double radius) const
   {return root->locate_circle(center,radius) ;}
   // locating a given polygon
-  Loci::storeRepP locate_polygon(const vector<int>& nodes,
-                               const store<vec2d>& pos) const ;
+  entitySet locate_polygon(const vector<int>& nodes,
+                           const store<vec2d>& pos) const ;
   // return all the data in the tree
   entitySet all_leafs() const
   {return root->leafs() ;}
@@ -4111,6 +4615,7 @@ void PointSet_QuadTree::qtnode::build_node(const entitySet& allpoints,
     point = pos[i] ;
     return ;
   }
+
   if(is_allpoints_equal(allpoints,pos)) {
     id += allpoints ;
     point = pos[*(allpoints.begin())] ;
@@ -4215,75 +4720,56 @@ entitySet PointSet_QuadTree::qtnode::leafs() const {
   return data ;
 }
 
-// function that merges two dstores, it is assumed
-// the domains of the two dstores do not overlap
-// the second dstore is appended to the first dstore
-template<typename T>
-void merge_dstore(dstore<T> &ds1, Loci::storeRepP ds2p) {
-  dstore<T>  ds2 ;
-  ds2 = ds2p ;
-  entitySet dom = ds2.domain() ;
-  for(entitySet::const_iterator ei=dom.begin();
-      ei!=dom.end();++ei)
-    ds1[*ei] = ds2[*ei] ;
-}
-
-Loci::storeRepP PointSet_QuadTree::qtnode::
+entitySet PointSet_QuadTree::qtnode::
 locate_rectangle(const rectangle& r) const {
-  dstore<vec2d> data ;
+  entitySet data ;
   if(data_node) {
-    for(entitySet::const_iterator ei=id.begin();
-        ei!=id.end();++ei)
-      data[*ei] = point ;
-  }
-  else {
+    data += id ;
+  } else {
     // splitting the passed in rectangle
     rectangle rsub ;
     if(tlb.rectangle_int(r,rsub))
       if(top_left != 0)
-        merge_dstore(data,top_left->locate_rectangle(rsub)) ;
+        data += top_left->locate_rectangle(rsub) ;
 
     if(trb.rectangle_int(r,rsub))
       if(top_right != 0)
-        merge_dstore(data,top_right->locate_rectangle(rsub)) ;
+        data += top_right->locate_rectangle(rsub) ;
 
     if(blb.rectangle_int(r,rsub))
       if(bot_left != 0)
-        merge_dstore(data,bot_left->locate_rectangle(rsub)) ;
+        data += bot_left->locate_rectangle(rsub) ;
 
     if(brb.rectangle_int(r,rsub))
       if(bot_right != 0)
-        merge_dstore(data,bot_right->locate_rectangle(rsub)) ;
+        data += bot_right->locate_rectangle(rsub) ;
   }
-  return data.Rep() ;
+  return data ;
 }
 
-Loci::storeRepP PointSet_QuadTree::qtnode::
+entitySet PointSet_QuadTree::qtnode::
 locate_circle(const vec2d& center, double radius) const {
-  dstore<vec2d> data ;
+  entitySet data ;
   if(data_node) {
-    for(entitySet::const_iterator ei=id.begin();
-        ei!=id.end();++ei)
-      data[*ei] = point ;
-  }
-  else {
+    data += id ;
+  } else {
     if(tlb.is_circle_int(center,radius))
       if(top_left != 0)
-        merge_dstore(data,top_left->locate_circle(center,radius)) ;
+        data += top_left->locate_circle(center,radius) ;
 
     if(trb.is_circle_int(center,radius))
       if(top_right != 0)
-        merge_dstore(data,top_right->locate_circle(center,radius)) ;
+        data += top_right->locate_circle(center,radius) ;
 
     if(blb.is_circle_int(center,radius))
       if(bot_left != 0)
-        merge_dstore(data,bot_left->locate_circle(center,radius)) ;
+        data += bot_left->locate_circle(center,radius) ;
 
     if(brb.is_circle_int(center,radius))
       if(bot_right != 0)
-        merge_dstore(data,bot_right->locate_circle(center,radius)) ;
+        data += bot_right->locate_circle(center,radius) ;
   }
-  return data.Rep() ;
+  return data ;
 }
 
 void PointSet_QuadTree::qtnode::
@@ -4337,7 +4823,7 @@ insert_point(const vec2d& p, Entity identity) {
 
 // we first compute a bounding box for the given polygon
 // then call locate_rectangle to locate the bounding box
-Loci::storeRepP
+entitySet
 PointSet_QuadTree::locate_polygon(const vector<int>& nodes,
                                   const store<vec2d>& pos) const {
   if(nodes.empty()) {
@@ -4345,12 +4831,14 @@ PointSet_QuadTree::locate_polygon(const vector<int>& nodes,
     Loci::Abort() ;
   }
   // first we construct a store of position
-  vector<vec2d> nodes_pos ;
-  for(vector<int>::const_iterator ni=nodes.begin();
-      ni!=nodes.end();++ni)
-    nodes_pos.push_back(pos[*ni]) ;
+//   vector<vec2d> nodes_pos ;
+//   for(vector<int>::const_iterator ni=nodes.begin();
+//       ni!=nodes.end();++ni)
+//     nodes_pos.push_back(pos[*ni]) ;
+//   rectangle b ;
+//   nodes_bbox(nodes_pos,b) ;
   rectangle b ;
-  nodes_bbox(nodes_pos,b) ;
+  nodes_bbox(nodes,pos,b) ;
   return locate_rectangle(b) ;
 }
 /////////////end of PointSet QuadTree implementation///////////////////
@@ -4382,12 +4870,9 @@ void closest_point(const vec2d& p,
                    const entitySet& pset,
                    const STOREOFVEC2D& pset_pos,
                    int& id, double& d) {
-  id = -1 ;
-  if(pset == EMPTY) {
-    d = std::numeric_limits<double>::max() ;
-    return ;
-  }
   double min_d = std::numeric_limits<double>::max() ;
+  id = -1 ;
+  d = min_d ;
   for(entitySet::const_iterator ei=pset.begin();
       ei!=pset.end();++ei) {
     const vec2d& ppos = pset_pos[*ei] ;
@@ -4527,15 +5012,14 @@ entitySet shift_points2(const entitySet& bc1_faces,
 
     // then we search in the bc1 pointset quadtree and see
     // if there are any bc1 points lie in the range
-    dstore<vec2d> neighbor ;
-    neighbor = qtree.locate_circle(bc2_npos[*ei],threshold) ;
-    entitySet neighbor_dom = neighbor.domain() ;
-    
-    if(neighbor_dom == EMPTY) // we don't have points in range
-      continue ;
+    entitySet neighbor
+      = qtree.locate_circle(bc2_npos[*ei],threshold) ;
 
+    if(neighbor == EMPTY) // we don't have points in range
+      continue ;
+    
     int p_id ; double min_d ;
-    closest_point(bc2_npos[*ei],neighbor_dom,neighbor,p_id,min_d) ;
+    closest_point(bc2_npos[*ei],neighbor,bc1_npos,p_id,min_d) ;
     
     if(min_d <= threshold) {
       // then this point can be shifted
@@ -4565,28 +5049,6 @@ std::ostream& print_map(const map<T1,T2>& m, std::ostream& s) {
   return s ;
 }
 
-bool find_point(const vec2d& p,
-                const PointSet_QuadTree& qtree,
-                Entity& e) {
-  dstore<vec2d> cand ;
-  cand = qtree.locate_circle(p,GRID_POINT_COMPARE_THRESHOLD) ;
-  entitySet cand_dom = cand.domain() ;
-  entitySet found ;
-  for(entitySet::const_iterator ei=cand_dom.begin();
-      ei!=cand_dom.end();++ei)
-    if(pointsEqual(p,cand[*ei]))
-      found += *ei ;
-  if(found == EMPTY)
-    return false ;
-  if(found.size() > 1) {
-    cerr << "WARNING: found multiple equivalent points in QuadTree!!"
-         << endl
-         << "         picked an arbitrary one!"
-         << endl ;
-  }
-  e = *(found.begin()) ;
-  return true ;
-}
 // return removable faces for bc1 (face that do not
 // need to be splitted
 entitySet
@@ -5286,11 +5748,13 @@ struct vec2dLess {
 // to the global new node numbering
 vector<Entity> remap_intersection_index
 (const vector<Entity>& index,
+ const entitySet& master_nodes,
  const entitySet& slave_nodes,
  const vector<Entity>& master_poly,
  const store<vec2d>& master_pos,
  const store<vec2d>& slave_pos) {
 
+  entitySet Q_remap_dom = global_Q_id_remap.domain() ;
   // first we construct a map for the original
   // polygon on the master boundary for later lookup
   map<vec2d,Entity,vec2dLess> pmap ;
@@ -5298,56 +5762,80 @@ vector<Entity> remap_intersection_index
       vi!=master_poly.end();++vi)
     pmap[master_pos[*vi]] = *vi ;
   // then we generate new index
+  // we will generate a new index for any node that
+  // is NOT already on the master boundary
   vector<Entity> real_index ;
+  map<vec2d,Entity,vec2dLess>::const_iterator mi ;
   for(vector<Entity>::const_iterator vi=index.begin();
       vi!=index.end();++vi) {
-    if(!slave_nodes.inSet(*vi)) {
+    if(master_nodes.inSet(*vi)) {
       real_index.push_back(*vi) ;
-      continue ;
-    }
-    // first we query the Q remap
-    if(global_Q_id_remap.domain().inSet(*vi)) {
+    } else if(Q_remap_dom.inSet(*vi)) {
+      // first we query the Q remap,
+      // the Q remap is a map used to record
+      // node id maps for nodes in the intersection polygon
+      // that are NOT on the master boundary.
       real_index.push_back(global_Q_id_remap[*vi]) ;
-      continue ;
-    }
-    // and we see if this node is collapsed with one
-    // of the node in polygon on the master boundary
-    map<vec2d,Entity,vec2dLess>::const_iterator mi = pmap.find(slave_pos[*vi]) ;
-    if(mi != pmap.end()) {
+    } else if(slave_nodes.inSet(*vi) &&
+              (mi=pmap.find(slave_pos[*vi])) != pmap.end()) {
+      // if not in and originally a node on the slave boundary,
+      // and the node overlaps with one of the master boundary
+      // node, then we'd like to use the master node id
       real_index.push_back(mi->second) ;
       global_Q_id_remap[*vi] = mi->second ;
-      continue ;
+    } else {
+      // otherwise, generate a new index
+      real_index.push_back(mesh_new_node_index) ;
+      global_Q_id_remap[*vi] = mesh_new_node_index ;
+      ++mesh_new_node_index ;
     }
-    // last one, we will need to generate one index
-    real_index.push_back(mesh_new_node_index) ;
-    global_Q_id_remap[*vi] = mesh_new_node_index ;
-    ++mesh_new_node_index ;
   }
 
   return real_index ;
 }
+
+// this is a small struct for recording face splitting results
+struct split_unit {
+  // each split consists of the nodes and their ids
+  vector<vec2d> nodes ;
+  vector<Entity> ids ;
+  split_unit():nodes(vector<vec2d>()),ids(vector<Entity>()) {}
+  split_unit(const vector<vec2d>& n, const vector<Entity>& i)
+    :nodes(n),ids(i) {}
+} ;
+// a face split consists of a vector of such units
+map<Entity, vector<split_unit> > global_bc1_split_records ;
+map<Entity, vector<split_unit> > global_bc2_split_records ;
+
+// a small function that creates a string represents a status bar
+// i.e., [.....             ],
+// passed in s is the total points, n is the displayed points
+string
+get_status_bar(size_t s, size_t n) {
+  string bar = "[" ;
+  bar.append(string(n,'>')) ;
+  bar.append(string(s-n,'_')) ;
+  bar.append("]") ;
+  return bar ;
+}
  
-// the main face splitting function
-void face_split(const entitySet& bc1_faces,
-                const entitySet& bc2_faces,
-                const entitySet& bc1_nodes,
-                const store<vec2d>& bc1_npos,
-                const entitySet& bc2_nodes,
-                const store<vec2d>& bc2_npos,
-                const multiMap& face2node,
-                const multiMap& node2face,
-                const entitySet& bc1_edge_nodes,
-                const entitySet& bc2_edge_nodes,
-                const multiMap& node2edge,// must contain bc1_node2edge
-                const multiMap& edge2iface,//must contain bc1_edge2iface
-                const Map& cl, const Map& cr,
-                const dMap& bc1p_2_bc2p,
-                entitySet& bc1_face_remove,
-                store<vec2d>& new_nodes,
-                multiMap& new_face2node,
-                multiMap& new_interior_face2node,
-                dMap& new_cl, dMap& new_cr,
-                dstore<alphaBeta>& inverse_info) {
+// the main face splitting function,
+// this function only creates the global_face_split_records,
+// later functions will build up new mesh topology from that
+// record
+// returns the total number of pairs of faces that are split
+int face_split(const entitySet& bc1_faces,
+               const entitySet& bc2_faces,
+               const entitySet& bc1_nodes,
+               const store<vec2d>& bc1_npos,
+               const entitySet& bc2_nodes,
+               const store<vec2d>& bc2_npos,
+               const multiMap& face2node,
+               const multiMap& node2face,
+               const entitySet& bc1_edge_nodes,
+               const entitySet& bc2_edge_nodes,
+               const dMap& bc1p_2_bc2p) {
+  int total_split_pairs = 0 ;
   // init the other global variables in special
   // routines for boundary faces
   masterbc_edge_nodes = bc1_edge_nodes ;
@@ -5355,37 +5843,29 @@ void face_split(const entitySet& bc1_faces,
   // first we need to remove any bc1 faces that coincide
   // with one bc2 face, because we do not need to split
   // those bc1 faces
-  if(global_verbose)
-    cout << "\tComputing removable faces..." << endl ;
+  if(global_verbose) {
+    cout << "  Computing overlapped faces... " ;
+    cout.flush() ;
+  }
 
-  if(time_set_BC1)
-    gettimeofday(&time_BC1_split_frm_start,NULL) ;
-  else
-    gettimeofday(&time_BC2_split_frm_start,NULL) ;
+  gettimeofday(&time_face_split_frm_start,NULL) ;
 
-  bc1_face_remove =
+  entitySet bc1_face_remove =
     bc1_removable_faces(bc1_faces,bc2_faces,face2node,
                         node2face,bc1p_2_bc2p) ;
 
-  if(time_set_BC1)
-    gettimeofday(&time_BC1_split_frm_end,NULL) ;
-  else
-    gettimeofday(&time_BC2_split_frm_end,NULL) ;
+  gettimeofday(&time_face_split_frm_end,NULL) ;
   
   if(global_verbose) {
-    cout << "\t\tremovable faces size: "
-         << bc1_face_remove.size() << endl ;
-    cout << "\tDone" << endl ;
-    cout << "\tinitializing..." ;
+    cout << "[" << bc1_face_remove.size()
+         << " faces overlapped]" << endl ;
+    cout << "  constructing quad tree... " ;
     cout.flush() ;
   }
   /******
    *  now we start to split the faces
    **/
-  if(time_set_BC1)
-    gettimeofday(&time_BC1_split_qt_start,NULL) ;
-  else
-    gettimeofday(&time_BC2_split_qt_start,NULL) ;
+  gettimeofday(&time_face_split_qt_start,NULL) ;
   
   rectangle bounding_box_bc2 ;
   nodes_bbox(bc2_npos,bounding_box_bc2) ;
@@ -5395,78 +5875,48 @@ void face_split(const entitySet& bc1_faces,
 
   entitySet remaining_bc1_faces = bc1_faces - bc1_face_remove ;
   // we first build a quadtree for all bc2 faces
-  QuadTree bc2_qtree(20/*max_depth*/,8/*max_face_set size*/,
-                     bounding_box_bc2) ;
+  QuadTree bc2_qtree(15/*max_depth*/,45/*max_face_set size*/,
+                    bounding_box_bc2) ;
   bc2_qtree.build_tree(bc2_faces,face2node,bc2_npos) ;
+  
+  gettimeofday(&time_face_split_qt_end,NULL) ;
 
-  if(time_set_BC1) {
-    gettimeofday(&time_BC1_split_qt_end,NULL) ;
-  }
-  else {
-    gettimeofday(&time_BC2_split_qt_end,NULL) ;
-  }
-
-  dstore<vec2d> new_nodes_dstore ;
-  map<Entity,vector<Entity> > new_faces ;
-  map<Entity,vector<Entity> > new_interior_face2node_STL ;
-  vector<vec2d>::size_type max_face_nodes = 0 ;
-  // record the smallest face of splitting
-#ifdef FACE_SPLIT_SELF_CHECK
-#ifdef ZERO_AREA_FACE_CHECK
-  double smallest_face_area = std::numeric_limits<double>::max() ;
-  vector<Entity> smallest_face_nodes_idx ;
+#ifdef SHOW_QT_PROPERTY
+  cout << endl << "QuadTree build time: "
+       << time_face_split_qt_end - time_face_split_qt_start << endl ;
+  cout << "QuadTree depth: " << bc2_qtree.depth() << endl ;
+  cout << "QuadTree max face size: " << bc2_qtree.max_face_size() << endl ;
+  cout << "QuadTree leaf number: " << bc2_qtree.leafs_num() << endl ;
+  cout << "QuadTree total leaf size: " << bc2_qtree.all_leafs_size() << endl ;
+  cout << "BC2 faces size: " << bc2_faces.size() << endl ;
 #endif
-#endif
-  // record the split set of faces for each bc1 face
-  map<Entity,entitySet> bc1_split_record ;
-  // record how each bc2 face is split
-  map<Entity,entitySet> bc2_split_record ;
-  // record all the nodes that's been generated
-  // so far. The initial base is set to be bc1_nodes
-  // because all bc1_nodes will all be in the final
-  // grid. When we generate new intersection nodes,
-  // we add them into this set. Every time after we
-  // have a new polygon intersection generated, we
-  // look for its nodes in this set. Any node not
-  // inside is a new node and we then record it.
-  entitySet all_known_nodes = bc1_nodes ;
   
   int finished_bc1_face = 1 ;
-  if(global_verbose)
-    cout << "\r\tSplitting start..." << endl ;
 
-  if(time_set_BC1)
-    gettimeofday(&time_BC1_split_start,NULL) ;
-  else
-    gettimeofday(&time_BC2_split_start,NULL) ;
+  float total_work_load = (float)remaining_bc1_faces.size() ;
+  int total_work_points = 40 ;
+  int previous_work_progress = 0 ;
+  
+  if(global_verbose) {
+    cout << "Done" << endl ;
+    cout << "  splitting "
+         << get_status_bar(total_work_points,0) ;
+    cout.flush() ;
+  }
 
+  gettimeofday(&time_face_split_start,NULL) ;
   for(entitySet::const_iterator ei=remaining_bc1_faces.begin();
       ei!=remaining_bc1_faces.end();++ei,++finished_bc1_face) {
+    // reference to the records of bc1 face *ei
+    vector<split_unit>& ei_record = global_bc1_split_records[*ei] ;
     // get all the nodes for this bc1 face
-    vector<Entity> nodes = get_face_nodes(face2node,*ei) ;
-    // next, we triangulate this bc1 face
-    vector<vector<Entity> > triangulated_nodes =
-      triangulate_convex_polygon(nodes,bc1_npos) ;
+    vector<Entity> bc1_fnodes = get_face_nodes(face2node,*ei) ;
     // query the quad tree that contains bc2 faces to find
     // out the possible bc2 faces for intersection test with
     // this bc1 face
     entitySet intersect_face_cand =
-      bc2_qtree.locate_polygon(nodes,bc1_npos) ;
-    // variable to record which bc2 faces are intersected
-    entitySet intersected_bc2_faces ;
+      bc2_qtree.locate_polygon(bc1_fnodes,bc1_npos) ;
 
-#ifdef FACE_SPLIT_SELF_CHECK
-    int split_number = 0 ;
-#endif
-    // variable to store new interior face info.
-    dstore<new_interior_face_info> nifi ;
-#ifdef FACE_SPLIT_SELF_CHECK
-    //////////////////////
-    double bc1_a = 0.0 ;
-    bc1_a = polygon_area(nodes,bc1_npos) ;
-    vector<double> bc2_a ;
-    //////////////////////
-#endif
     // test intersection for each bc2 faces found in the quad tree
     for(entitySet::const_iterator fi=intersect_face_cand.begin();
         fi!=intersect_face_cand.end();++fi) {
@@ -5475,178 +5925,139 @@ void face_split(const entitySet& bc1_faces,
       // compute intersection
       vector<vec2d> intersect ;
       vector<Entity> intersect_index ;
-      vector<Entity> real_intersect_index ;
 
-      if(poly_and_poly(nodes,bc1_npos,bc2_fnodes,bc2_npos,
+      if(poly_and_poly(bc1_fnodes,bc1_npos,
+                       bc2_fnodes,bc2_npos,
                        intersect,intersect_index)) {
-        intersected_bc2_faces += *fi ;
-        // first remap the intersection index
-        real_intersect_index =
-          remap_intersection_index(intersect_index,bc2_nodes,nodes,
-                                   bc1_npos,bc2_npos) ;
-        // intersected, we check new nodes and fill out the record
-        for(vector<Entity>::size_type ii=0;
-            ii<real_intersect_index.size();++ii) {
-          // an index(mapped) not in the current known nodes set
-          // is a new node produced in the face splitting
-
-          // ii is the index to real_intersect_index vector
-          // jj is the value of the ii th elements in intersect_index (Entity)
-          // rr is the value of the ii th elements
-          //                           in real_intersect_index (Entity)
-          // kk is the value of the ii th elements in intersect (vec2d)
-          Entity jj = intersect_index[ii] ;
-          Entity rr = real_intersect_index[ii] ;
-          if(!all_known_nodes.inSet(rr)) {
-            const vec2d& kk = intersect[ii] ;
-            new_nodes_dstore[rr] = kk ;
-            // compute inverse projection information
-            // NOTE in computing the inverse projection info
-            // we use elements in intersect index NOT from the
-            // real intersect index because all our previous
-            // stored intersection info is in the original
-            // nodes index as in the intersected index
-            alphaBeta abinfo =
-              get_inverse_proj_info(triangulated_nodes,bc1_npos,kk,jj) ;
-            inverse_info[rr] = abinfo ;
-            // edit the data structure for new nodes on interior face
-            check_interior_node_insertion(abinfo,node2edge,edge2iface,
-                                          jj,rr,nifi) ;
-            all_known_nodes += rr ;
-          }
-        } // end of for(real intersect_index)
-        // set up new face information
-        new_faces[mesh_new_face_index] = real_intersect_index ;
-        new_cl[mesh_new_face_index] = cl[*ei] ;
-        new_cr[mesh_new_face_index] = cr[*ei] ;
-        bc1_split_record[*ei] += mesh_new_face_index ;
-        bc2_split_record[*fi] += mesh_new_face_index ;
-        ++mesh_new_face_index ;
-#ifdef FACE_SPLIT_SELF_CHECK
-        ++split_number ;
-#endif
-        if(intersect.size() > max_face_nodes) {
-          max_face_nodes = intersect.size() ;
-        }
-#ifdef FACE_SPLIT_SELF_CHECK
-        ////////////////////
-        /* checking for intersected polygon definition */
-        if(detect_dup(real_intersect_index)) {
-          cerr << "ERROR: splitting failed, polygon ill defined!" << endl ;
-          cerr << "       bc1 face id: " << *ei << ", bc2 face id: "
-               << *fi << endl ;
-          cerr << "polygon definition: " ;
-          for(vector<Entity>::const_iterator
-                fssci=real_intersect_index.begin();
-              fssci!=real_intersect_index.end();++fssci)
-            cerr << *fssci << " " ;
-          cerr << endl ;
-          cerr << endl ;
-        }
-        bc2_a.push_back(polygon_area(intersect)) ;
-#ifdef TINY_EDGE_DETECTION
-        // check for tiny edges
-        bool tiny_edge = false ;
-        double tiny_edge_threshold = 0.0 ;
-        for(vector<vec2d>::size_type iii=0;iii<intersect.size();++iii) {
-          const vec2d& p1 = intersect[iii] ;
-          const vec2d& p2 = intersect[(iii+1 == intersect.size())?0:iii+1] ;
-          double len = dist(p1,p2) ;
-          if(len <= tiny_edge_threshold)
-            tiny_edge = true ;
-        }
-        if(tiny_edge) {
-          cerr << "WARNING: tiny edge (length <= "
-               << tiny_edge_threshold << ") detected!" << endl ;
-          cerr << "split face id: " << *ei << endl ;
-          cerr << "intersect face id: " << *fi << endl ;
-          cerr << "resulting intersection has: "
-               << intersect.size() << " nodes" << endl ;
-          cerr << endl ;
-        }
-#endif
-#ifdef NEW_NODE_RECORD_CHECK
-        // this piece of code check for the integrity
-        // of all the new nodes record
-        entitySet current_new_nodes = new_nodes_dstore.domain() ;
-        for(vector<Entity>::const_iterator nnrci=real_intersect_index.begin();
-            nnrci!=real_intersect_index.end();++nnrci) {
-          if(!bc1_nodes.inSet(*nnrci) && !current_new_nodes.inSet(*nnrci)) {
-            cerr << "WARNING: new node was not recorded!!" << endl ;
-            cerr << "         node id: " << *nnrci << endl ;
-            cerr << "         generated by face: " << *ei
-                 << " intersects face: " << *fi << endl ;
-            cerr << endl ;
-          }
-        }
-#endif
-#ifdef ZERO_AREA_FACE_CHECK
-        // here we check if the new split face's area
-        // is zero, if is, we give a warning.
-        double split_area = polygon_area(intersect) ;
-        if(split_area < smallest_face_area) {
-          smallest_face_area = split_area ;
-          smallest_face_nodes_idx = real_intersect_index ;
-        }
-#endif
-        ////////////////////
-#endif
+        ++total_split_pairs ;
+        // add split record
+        // reference to the records of bc2 face *fi
+        vector<split_unit>& fi_record = global_bc2_split_records[*fi] ;
+        split_unit spu(intersect, intersect_index) ;
+        ei_record.push_back(spu) ;
+        fi_record.push_back(spu) ;
       } // end of if(poly_and_poly)
     } // end of for(intersect_face_cand)
+    if(global_verbose) {
+      int work_progress =
+        (int)(40 * finished_bc1_face / total_work_load) ;
+      if(work_progress > previous_work_progress) {
+        previous_work_progress = work_progress ;
+        cout << '\r' << "  splitting "
+             << get_status_bar(total_work_points,work_progress) ;
+        cout.flush() ;
+      }
+    }
+  } // end of for(remaining_bc1_faces)
+  gettimeofday(&time_face_split_end,NULL) ;
+  if(global_verbose) {
+    cout << '\r' << "  splitting... Done"
+         << string(total_work_points-5,' ') << endl ;
+  }
+  return total_split_pairs ;
+} // end of function (face_split)
+
+// this function takes the split result and generates a new
+// topology for the specified boundary mesh
+// returns the set of faces processed
+entitySet gen_boundary_topo
+(const map<Entity, vector<split_unit> >& split_result,
+ const entitySet& master_nodes,
+ const store<vec2d>& master_npos,
+ const entitySet& slave_nodes,
+ const store<vec2d>& slave_npos,
+ const multiMap& face2node,
+ const multiMap& node2edge,// must contain master_node2edge
+ const multiMap& edge2iface,//must contain master_edge2iface
+ const Map& cl, const Map& cr,
+ store<vec2d>& new_nodes,
+ multiMap& new_face2node,
+ multiMap& new_interior_face2node,
+ dMap& new_cl, dMap& new_cr,
+ dstore<alphaBeta>& inverse_info) {
+  
+  entitySet processed_faces = EMPTY ;
+  
+  dstore<vec2d> new_nodes_dstore ;
+  map<Entity,vector<Entity> > new_faces ;
+  map<Entity,vector<Entity> > new_interior_face2node_STL ;
+  entitySet processed_nodes = master_nodes ;
+  
+  for(map<Entity,vector<split_unit> >::const_iterator
+        mi=split_result.begin();mi!=split_result.end();++mi) {
+    Entity master_face = mi->first ;
+    processed_faces += master_face ;
+    // get all the nodes for this master face
+    vector<Entity> mf_nodes = get_face_nodes(face2node,master_face) ;
+    // next, we triangulate this bc1 face
+    vector<vector<Entity> > triangulated_mf_nodes =
+      triangulate_convex_polygon(mf_nodes,master_npos) ;
+    // variable to store new interior face info.
+    dstore<new_interior_face_info> nifi ;
+    
+    const vector<split_unit>& vsu = mi->second ;
+    for(vector<split_unit>::const_iterator
+          vi=vsu.begin();vi!=vsu.end();++vi) {
+      // first we need to remap the split polygon
+      vector<Entity> remapped_index =
+        remap_intersection_index(vi->ids,
+                                 master_nodes,
+                                 slave_nodes,
+                                 mf_nodes,
+                                 master_npos,
+                                 slave_npos) ;
+      // then we get the reverse projection info.
+      for(vector<Entity>::size_type ii=0;
+          ii<remapped_index.size();++ii) {
+        // an index(remapped) not in the current known nodes set
+        // is a new node produced in the face splitting
+
+        // ii is the index to remapped_index vector
+        // jj is the value of the ii th elements in vi->ids (Entity)
+        // rr is the value of the ii th elements
+        //                           in remapped_index (Entity)
+        // kk is the value of the ii th elements in vi->nodes (vec2d)
+        Entity jj = (vi->ids)[ii] ;
+        Entity rr = remapped_index[ii] ;
+        if(!processed_nodes.inSet(rr)) {
+          const vec2d& kk = (vi->nodes)[ii] ;
+          new_nodes_dstore[rr] = kk ;
+          // compute inverse projection information
+          // NOTE in computing the inverse projection info
+          // we use elements in vi->ids index, NOT from the
+          // remapped intersect index because all our previous
+          // stored intersection info is in the original
+          // nodes index as in the intersected index
+          alphaBeta abinfo =
+            get_inverse_proj_info(triangulated_mf_nodes,
+                                  master_npos,kk,jj) ;
+          inverse_info[rr] = abinfo ;
+          // edit the data structure for new nodes on interior face
+          check_interior_node_insertion(abinfo,node2edge,edge2iface,
+                                        jj,rr,nifi) ;
+          processed_nodes += rr ;
+        }
+      } // end of for(remapped_index)
+      // set up new face information
+      new_faces[mesh_new_face_index] = remapped_index ;
+      new_cl[mesh_new_face_index] = cl[master_face] ;
+      new_cr[mesh_new_face_index] = cr[master_face] ;
+      ++mesh_new_face_index ;
+    } // end of for(split_unit)
     // edit interior_face2node map
     add_new_interior_face2node(nifi,face2node,
                                new_interior_face2node_STL) ;
-
-#ifdef FACE_SPLIT_SELF_CHECK
-    ////////////////////////
-    /* checking for area sum */
-    double bc2_sum = double_summation(bc2_a) ;
-    if(abs(bc1_a - bc2_sum) > 1e-15) {
-      cerr << "WARNING: split area does not equal to the original!" << endl ;
-      cerr.precision(32) ;
-      cerr << "original:   " << bc1_a << endl ;
-      cerr << "split area: " << bc2_sum << endl ;
-      cerr << "diff:       " << bc1_a - bc2_sum << endl ;
-      cerr << "split face id: " << *ei ;
-      cerr << ", splits to: " << split_number << " faces." << endl ;
-      cerr << endl ;
-    }
-    ////////////////////////
-#endif
-    if(global_verbose) {
-      cout << "Finished faces number: " << finished_bc1_face << '\r' ;
-      cout.flush() ;
-    }
-  } // end of for(remaining_bc1_faces)
-
-  if(time_set_BC1)
-    gettimeofday(&time_BC1_split_end,NULL) ;
-  else
-    gettimeofday(&time_BC2_split_end,NULL) ;
-
-#ifdef FACE_SPLIT_SELF_CHECK
-#ifdef ZERO_AREA_FACE_CHECK
-  if(global_verbose) {
-    cout << "          Smallest split face area: "
-         << smallest_face_area << endl ;
-    cout << "          nodes index:" << endl ;
-    for(vector<Entity>::const_iterator vi=smallest_face_nodes_idx.begin();
-        vi!=smallest_face_nodes_idx.end();++vi)
-      cout << "          " << *vi << endl ;
-  }
-#endif
-#endif  
+  } // end of for(split_result)
   // finally converts the dstore and map into store and multiMap
   dstore2store(new_nodes_dstore,new_nodes) ;
   map2multiMap(new_faces,new_face2node) ;
   map2multiMap(new_interior_face2node_STL,new_interior_face2node) ;
-  //global_ssint_ltable.clear() ;
-  
-  //cout << "maximum node number in new faces: " << max_face_nodes << endl ;
-  //  cout << "Printing splitting record. " << endl ;
-  //cout << "BC1 face  -->  Intersected BC2 faces: " << endl ;
-  //print_map(split_record,cout) ;
-} // end of function (face_split)
+
+  // it is important to clear the global_Q_id_remap
+  global_Q_id_remap.allocate(EMPTY) ;
+
+  return processed_faces ;
+}
 
 // output the splitting to 2dgv and showme for visualization
 void viz_split_showme_2dgv(const entitySet& bc1_nodes,
@@ -5875,6 +6286,35 @@ bool face_split_edgeMap_check(const multiMap& new_face2node,
 
   return true ;
 }
+// this function checks the convexity of faces and determines
+// the smallest face area in the mesh
+// returns true if all faces are convex, false otherwise,
+// also sets the smallest face area and the number of faces
+// whose area is less than 1e-12.
+bool
+face_split_convexity_area_scan
+(const map<Entity,vector<split_unit> >& split_record,
+ double& smallest_area, int& small_faces) {
+  smallest_area = std::numeric_limits<double>::max() ;
+  small_faces = 0 ;
+  bool all_convex = true ;
+  for(map<Entity,vector<split_unit> >::const_iterator
+        mi=split_record.begin();mi!=split_record.end();++mi) {
+    const vector<split_unit>& faces = mi->second ;
+    for(size_t i=0;i!=faces.size();++i) {
+      double a = polygon_area(faces[i].nodes) ;
+      if(a < smallest_area)
+        smallest_area = a ;
+      if(a < 1e-12)
+        ++small_faces ;
+      if(all_convex)
+        if(!check_convex_approx(faces[i].nodes))
+          all_convex = false ;
+    }
+  }
+  return all_convex ;
+}
+                               
 
 /************************************************************
  * Several Map and Store operations for obtaining necessary *
@@ -6198,19 +6638,17 @@ void twoD_point_match(const store<vec2d>& bc1_nodes,
       ei!=bc2ndom.end();++ei) {
     const vec2d& node = bc2n[*ei] ;
     // we search through the quadtree to match this node
-    dstore<vec2d> cand ;
-    cand = bc1_qtree.locate_circle(node,min_len) ;
-    entitySet cand_dom = cand.domain() ;
-    if(cand_dom == EMPTY) {
+    entitySet cand = bc1_qtree.locate_circle(node,min_len) ;
+    if(cand == EMPTY) {
       // then this node does not match
       continue ;
     }
     // then we compute if this center matches
     int partner = -1 ;
     double min_dist = std::numeric_limits<double>::max() ;
-    for(entitySet::const_iterator ei2=cand_dom.begin();
-        ei2!=cand_dom.end();++ei2) {
-      double d = dist(node,cand[*ei2]) ;
+    for(entitySet::const_iterator ei2=cand.begin();
+        ei2!=cand.end();++ei2) {
+      double d = dist(node,bc1n[*ei2]) ;
       if(d < min_dist) {
         partner = *ei2 ;
         min_dist = d ;
@@ -6372,7 +6810,7 @@ inline bool extract_vec3d(const string& s,
 }
 std::ostream& show_brief_msg(const string& pb, std::ostream& s) {
   s << pb << " is a periodic boundary tool for the CHEM program." << endl ;
-  s << "Version 0.12 (Try -h option for detailed help)" << endl ;
+  s << "Version 0.123 (Try -h option for detailed help)" << endl ;
 
   return s ;
 }
@@ -6383,9 +6821,9 @@ std::ostream& show_usage(const string& pb, std::ostream& s) {
   s << "It makes exactly same boundaries for the given grid. " << endl ;
   s << "This version uses the robust geometric predicates from" << endl ;
   s << "Jonathan Richard Shewchuk." << endl ;
-  s << endl << "This is version 0.12" << endl ;
+  s << endl << "This is version 0.123" << endl ;
   s << endl ;
-  s << "Some preconditions must be met before using " << pb << endl ;
+  s << "Some preconditions must be met before using this tool" << endl ;
   s << "  1) The two specified boundaries must have same contours" << endl ;
   s << "  2) The boundary cannot have arbitrary complex topology," << endl ;
   s << "         planes or simple curves are the best inputs" << endl ;
@@ -6782,14 +7220,12 @@ int main(int ac, char* av[]) {
     BC1_id=atoi(BC1name.substr(3).c_str());
     BC2_id=atoi(BC2name.substr(3).c_str()); 
   }else{
- 
-  for(size_t i = 0;i<boundary_ids.size();++i) {
-    if(BC1name == boundary_ids[i].second)
-      BC1_id = boundary_ids[i].first ;
-    if(BC2name == boundary_ids[i].second)
-      BC2_id = boundary_ids[i].first ;
-  }
-
+    for(size_t i = 0;i<boundary_ids.size();++i) {
+      if(BC1name == boundary_ids[i].second)
+        BC1_id = boundary_ids[i].first ;
+      if(BC2name == boundary_ids[i].second)
+        BC2_id = boundary_ids[i].first ;
+    }
   }
   if(BC1_id == -1) 
     cerr << "unable to find boundary name '" << BC1name << "' in grid." ;
@@ -6798,17 +7234,13 @@ int main(int ac, char* av[]) {
   if(BC1_id == -1 || BC2_id == -1)
     exit(-1) ;
   
-  if(verbose)
-    cout << "Reading grid file: " << gridfile << "..." << endl ;
+  if(verbose) {
+    cout << "Reading grid file: " << gridfile << "... " ;
+    cout.flush() ;
+  }
 
   gettimeofday(&time_grid_read_start,NULL) ;
  
- 
-  
-  
-  if(Loci::MPI_rank == 0)
-    cout << "Reading: '" << gridfile <<"' ..." <<  endl  ;
-
   vector<entitySet> local_nodes,local_faces,local_cells ;
   store<vector3d<Loci::real_t> > pos ;
   Map cl,cr ;
@@ -6820,19 +7252,19 @@ int main(int ac, char* av[]) {
                         pos,cl,cr,face2node,max_alloc,gridfile,
                         boundary_ids,volTags)) {
     if(Loci::MPI_rank == 0) {
-      cerr << "Reading grid file '" << gridfile <<"' failed in grid reader!"
+      cerr << endl
+           << "Reading grid file '" << gridfile <<"' failed in grid reader!"
            << endl ;
       Loci::Abort() ;
     }
   }
-  if(Loci::MPI_rank == 0) {
-    cout << "finished reading grid." << endl ;
+  if(verbose) {
+    cout << "Done" << endl ;
   }
 
-  
   gettimeofday(&time_grid_read_end,NULL) ;
-  
-     
+
+  gettimeofday(&time_essential_start,NULL) ;
   
   entitySet BC1_faces, BC2_faces;
   entitySet dom = cr.domain() ;
@@ -6843,6 +7275,8 @@ int main(int ac, char* av[]) {
       BC2_faces += fc ;
   } ENDFORALL ;
    
+  
+  gettimeofday(&time_data_structure_start,NULL) ;
   
   multiMap node2face ;
   Loci::inverseMap(node2face,face2node,pos.domain(),face2node.domain()) ;
@@ -6866,6 +7300,14 @@ int main(int ac, char* av[]) {
   get_edges_info(face2node,node2face,BC2_faces,cr,
                  BC2_N1,BC2_N2,BC2_El,BC2_Er,BC2_edge_num) ;
 
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+
   if(verbose) {
     cout << "--------" << endl ;  
     cout << BC1name <<" faces number: " << BC1_faces.size() << endl ;
@@ -6879,9 +7321,11 @@ int main(int ac, char* av[]) {
 
   if(verbose) {
     cout << "--------" << endl ;  
-    cout << "Projecting boundaries..." << endl ;
+    cout << "Projecting boundaries... " ;
   }
-
+  
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_3D_to_2D_projection_start,NULL) ;
   // then we do the projection for the two boundary meshes
   store<vec2d> BC1_proj_pos, BC2_proj_pos ;
   // first we compute the projection vectors
@@ -6904,6 +7348,10 @@ int main(int ac, char* av[]) {
     orthogonal_projection(u,v,BC1_nodes_pos,BC1_proj_pos) ;
     orthogonal_projection(u,v,BC2_nodes_pos,BC2_proj_pos) ;    
   }
+  gettimeofday(&time_3D_to_2D_projection_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if(verbose)
     cout << "Done" << endl ;
@@ -6916,7 +7364,7 @@ int main(int ac, char* av[]) {
     if(verbose) {
       cout << "--------" << endl ;  
       cout << "Writing out "<<BC1name<<" projection into: "
-           << BC1_out_name << "..." << endl ;
+           << BC1_out_name << "... " ;
     }
     TwodgvOutput(BC1_out_name.c_str(),BC1_proj_pos,BC1_N1,BC1_N2,
                  BC1_El,BC1_Er,BC1_edge_num, BC1_faces) ;
@@ -6926,7 +7374,7 @@ int main(int ac, char* av[]) {
     if(verbose) {
       cout << "--------" << endl ;  
       cout << "Writing out "<<BC2name<<" projection into: "
-           << BC2_out_name << "..." << endl ;
+           << BC2_out_name << "... " ;
     }
     TwodgvOutput(BC2_out_name.c_str(),BC2_proj_pos,BC2_N1,BC2_N2,
                  BC2_El,BC2_Er,BC2_edge_num, BC2_faces) ;
@@ -6939,7 +7387,7 @@ int main(int ac, char* av[]) {
     if(verbose) {
       cout << "--------" << endl ;  
       cout << "Writing out both projections into: "
-           << two_out << "..." << endl ;
+           << two_out << "... " ;
     }
     TwodgvOutputBOTH(two_out.c_str(),
                      BC1_proj_pos,BC2_proj_pos,
@@ -6951,28 +7399,39 @@ int main(int ac, char* av[]) {
       cout << "Done" << endl ;
   } // end of if(twoD_aux_viz)
   
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_data_structure_start,NULL) ;
   // we get the node2edge relations
   multiMap BC1_node2edge ;
   get_node2edge(BC1_N1,BC1_N2,BC1_node2edge) ;
   multiMap BC2_node2edge ;
   get_node2edge(BC2_N1,BC2_N2,BC2_node2edge) ;
-  // we also need the node2node relations
-  multiMap BC1_node2node ;
-  get_node2node(BC1_nodes,BC1_N1,BC1_N2,BC1_node2edge,BC1_node2node) ;
-  multiMap BC2_node2node ;
-  get_node2node(BC2_nodes,BC2_N1,BC2_N2,BC2_node2edge,BC2_node2node) ;
+//   // we also need the node2node relations
+//   multiMap BC1_node2node ;
+//   get_node2node(BC1_nodes,BC1_N1,BC1_N2,BC1_node2edge,BC1_node2node) ;
+//   multiMap BC2_node2node ;
+//   get_node2node(BC2_nodes,BC2_N1,BC2_N2,BC2_node2edge,BC2_node2node) ;
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
 
   // shifting points first
   if(verbose) {
     cout << "--------" << endl ;
-    cout << "Shifting points..." << endl ;
+    cout << "Shifting points... " ;
   }
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_data_structure_start,NULL) ;
   entitySet BC1_edge_nodes = get_edge_nodes(BC1_N1,BC1_N2,BC1_Er) ;
   entitySet BC2_edge_nodes = get_edge_nodes(BC2_N1,BC2_N2,BC2_Er) ;
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  
   dMap BC1p_2_BC2p, BC2p_2_BC1p ;
-  if(verbose) {
-    cout << "  Shifting towards points..." << endl ;
-  }
   
   gettimeofday(&time_shift_point_total_start,NULL) ;
   entitySet shifted = 
@@ -6982,10 +7441,13 @@ int main(int ac, char* av[]) {
                   face2node,node2face,
                   BC1p_2_BC2p,BC2p_2_BC1p) ;
   gettimeofday(&time_shift_point_total_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
   if(verbose) {
-    cout << "      Shifted points number: " << shifted.size()
-         << endl ;
-    cout << "Done" << endl ;
+    cout << "[" << shifted.size() << " points shifted on "
+         << BC2name << "]" << endl ;
   }
 
   if(twoD_aux_viz) {
@@ -6994,7 +7456,7 @@ int main(int ac, char* av[]) {
     if(verbose) {
       cout << "--------" << endl ;  
       cout << "Writing out shifted "<<BC2name<<" projection into: "
-           << shift_bc2_out << "..." << endl ;
+           << shift_bc2_out << "... " ;
     }
     TwodgvOutput(shift_bc2_out.c_str(),BC2_proj_pos,BC2_N1,BC2_N2,
                  BC2_El,BC2_Er,BC2_edge_num, BC2_faces) ;
@@ -7006,7 +7468,7 @@ int main(int ac, char* av[]) {
     if(verbose) {
       cout << "--------" << endl ;  
       cout << "Writing out shifted projection (overlapped) into: "
-           << shift_two_out << "..." << endl ;
+           << shift_two_out << "... " ;
     }
     TwodgvOutputBOTH(shift_two_out.c_str(),
                      BC1_proj_pos,BC2_proj_pos,
@@ -7020,18 +7482,26 @@ int main(int ac, char* av[]) {
   
   if(verbose) {
     cout << "-------" << endl ;
-    cout << "Splitting "<<BC1name<<" faces..." << endl ;
+    cout << "Computing face splits..." << endl ;
   }
+
+  gettimeofday(&time_essential_start,NULL) ;
   store<vec2d> BC1_new_nodes ;
   multiMap BC1_new_face2node ;
   multiMap BC1_new_interior_face2node ;
   dstore<alphaBeta> BC1_inverse_proj_info ;
-  entitySet BC1_face_remove ;
   dMap BC1_new_cl, BC1_new_cr ;
   // we will need to first get the edge->interior faces map
   multiMap BC1_edge2iface ;
+
+  gettimeofday(&time_data_structure_start,NULL) ;
+  
   get_edge2interiorFace(BC1_N1,BC1_N2,BC1_El,BC1_Er,
                         node2face,BC1_edge2iface) ;
+
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
   
   // we also need to compute the maximum node index number
   Entity new_node_index = node2face.domain().Max() + 1 ;
@@ -7040,48 +7510,74 @@ int main(int ac, char* av[]) {
   mesh_new_node_index = new_node_index ;
   mesh_new_face_index = new_face_index ;
 
-  gettimeofday(&time_BC1_split_total_start,NULL) ;
-  time_set_BC1 = true ; time_set_BC2 = false ;
-  face_split(BC1_faces,BC2_faces,BC1_nodes,BC1_proj_pos,
-             BC2_nodes,BC2_proj_pos,face2node,node2face,
-             BC1_edge_nodes,BC2_edge_nodes,
-             BC1_node2edge,BC1_edge2iface,cl,cr,BC1p_2_BC2p,
-             BC1_face_remove,BC1_new_nodes,BC1_new_face2node,
-             BC1_new_interior_face2node,BC1_new_cl,BC1_new_cr,
-             BC1_inverse_proj_info) ;
-  gettimeofday(&time_BC1_split_total_end,NULL) ;
-  // update face2node to include the change of interior faces
-  face2node = merge_multiMap(face2node,BC1_new_interior_face2node) ;
+  gettimeofday(&time_face_split_total_start,NULL) ;
+  int total_split_pairs =
+    face_split(BC1_faces, BC2_faces, BC1_nodes, BC1_proj_pos,
+               BC2_nodes, BC2_proj_pos, face2node, node2face,
+               BC1_edge_nodes, BC2_edge_nodes, BC1p_2_BC2p) ;
+  gettimeofday(&time_face_split_total_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
+  if(verbose) {
+    cout << "  total pairs of face split: "
+         << total_split_pairs << endl ;
+  }
 
   if(verbose) {
-    cout << "          Total "<<BC1name<<" faces split: "
-         << BC1_faces.size() - BC1_face_remove.size() << endl ;
-    cout << "          Removed "<<BC1name<<" faces number: "
-         << BC1_face_remove.size() << endl ;
+    cout << "--------" << endl ;
+    cout << "Reconstructing " << BC1name << " topology..." ;
+    cout.flush() ;
+  }
+
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_BC1_reconstruct_start,NULL) ;
+  entitySet BC1_faces_split =
+    gen_boundary_topo(global_bc1_split_records,
+                      BC1_nodes, BC1_proj_pos,
+                      BC2_nodes, BC2_proj_pos,
+                      face2node,
+                      BC1_node2edge, BC1_edge2iface,
+                      cl, cr,
+                      // these are the outputs stores
+                      BC1_new_nodes, BC1_new_face2node,
+                      BC1_new_interior_face2node,
+                      BC1_new_cl, BC1_new_cr,
+                      BC1_inverse_proj_info) ;
+  gettimeofday(&time_BC1_reconstruct_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
+  if(verbose) {
+    cout << " Done" << endl ;
+  }
+
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+  // update face2node to include the change of interior faces
+  face2node = merge_multiMap(face2node,BC1_new_interior_face2node) ;
+  
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  // compute new BC1 faces set
+  entitySet BC1_new_faces =
+    (BC1_faces - BC1_faces_split) + BC1_new_face2node.domain() ;
+  
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
     
+  if(verbose) {
     cout << "  new added nodes number: "
          << BC1_new_nodes.domain().size() << endl ;
-    cout << "  new faces number: " << BC1_new_face2node.domain().size()
+    cout << "  new total faces number: " << BC1_new_faces.size()
          << endl ;
     cout << endl ;
-
-#ifdef CORNER_NODE_CHECK
-    ///////////////////
-    entitySet BC1_lonely_nodes ;
-    multiMap BC1_dummy ;
-    cout << "  original corner node number: "
-         << face_split_polygon_node_check
-      (face2node,BC1_dummy,BC1_faces,BC1_lonely_nodes) << endl ;
-    cout << "  they are: " << BC1_lonely_nodes << endl ;
-    cout << "  corner node number after split: "
-         << face_split_polygon_node_check
-      (face2node,BC1_new_face2node,
-       BC1_face_remove+BC1_new_face2node.domain(),BC1_lonely_nodes) << endl ;
-    cout << "  they are: " << BC1_lonely_nodes << endl ;
-    cout << endl ;
-    ///////////////////
-#endif
   }
+  
   if(twoD_aux_viz) {
     string split_bc1_poly = problem_name + "BC" + BC1name +
       "-new.poly" ;
@@ -7100,19 +7596,11 @@ int main(int ac, char* av[]) {
                           split_bc1_poly.c_str(),
                           split_bc1_2dgv.c_str()) ;
   }
-  // get inverse map new_node2face
-  multiMap BC1_new_node2face ;
-  get_node2face(BC1_new_face2node,BC1_new_node2face) ;
-  /*
-  Loci::inverseMap(BC1_new_node2face,BC1_new_face2node,
-                   BC1_nodes + BC1_new_nodes.domain(),
-                   BC1_new_face2node.domain()) ;
-  */
   if(verbose)
-    cout << "  Checking face splitting validity..." << endl ;
+    cout << "  Checking new topology validity..." << endl ;
 
   if(verbose)
-    cout << "\tChecking split face definition..." ;
+    cout << "  --Checking split face definition..." ;
   if(!face_split_polygon_check(BC1_new_face2node)) {
     cout << endl ;
     cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -7128,7 +7616,22 @@ int main(int ac, char* av[]) {
   }
 
   if(verbose)
-    cout << "\tChecking edge map..." ;
+    cout << "  --Checking edge map..." ;
+
+  gettimeofday(&time_essential_start,NULL) ;
+  // get inverse map new_node2face
+  multiMap BC1_new_node2face ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+
+  get_node2face(BC1_new_face2node,BC1_new_node2face) ;
+  
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
   if(!face_split_edgeMap_check(BC1_new_face2node,BC1_new_node2face)) {
     cout << endl ;
     cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -7140,13 +7643,12 @@ int main(int ac, char* av[]) {
     Loci::Abort() ;
   }else {
     if(verbose)
-      cout << "\t\t\tPASSED!" << endl ;
+      cout << "\t\tPASSED!" << endl ;
   }
 
   if(verbose)
-    cout << "\tChecking area sum..." ;
-  if(!face_split_areaSum_check(BC1_faces-BC1_face_remove,
-                               BC1_proj_pos,face2node,
+    cout << "  --Checking area sum..." ;
+  if(!face_split_areaSum_check(BC1_faces_split,BC1_proj_pos,face2node,
                                BC1_new_nodes,BC1_new_face2node)) {
     cout << endl ;
     cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -7158,69 +7660,97 @@ int main(int ac, char* av[]) {
     Loci::Abort() ;
   }else {
     if(verbose)
-      cout << "\t\t\tPASSED!" << endl ;
+      cout << "\t\tPASSED!" << endl ;
   }
 
-  if(verbose)
-    cout << "Done (" <<BC1name<<" face splitting)" << endl ;
-
-  if(verbose) {
-    cout << "-------" << endl ;
-    cout << "Splitting "<<BC2name<<" faces..." << endl ;
+#ifdef FACE_SPLIT_PROPERTY_CHECK
+  cout << "  --Checking face convexity..." ;
+  {
+    double smallest_area ;
+    int small_faces ;
+    bool all_convex =
+      face_split_convexity_area_scan(global_bc1_split_records,
+                                     smallest_area,small_faces) ;
+    cout << "\t\tDone" << endl ;
+    cout << "    --smallest face area:         " << smallest_area << endl ;
+    cout << "    --small faces (area < 1e-12): " << small_faces << endl ;
+    cout << "    --all faces convex?:          "
+         << (all_convex?"true":"false") << endl ;
   }
+#endif
+  
+  gettimeofday(&time_essential_start,NULL) ;
   store<vec2d> BC2_new_nodes ;
   multiMap BC2_new_face2node ;
   multiMap BC2_new_interior_face2node ;
   dstore<alphaBeta> BC2_inverse_proj_info ;
-  entitySet BC2_face_remove ;
   dMap BC2_new_cl, BC2_new_cr ;
   // we will need to first get the edge -> interior face map
   multiMap BC2_edge2iface ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+
   get_edge2interiorFace(BC2_N1,BC2_N2,BC2_El,BC2_Er,
                         node2face,BC2_edge2iface) ;
 
-  gettimeofday(&time_BC2_split_total_start,NULL) ;
-  time_set_BC1 = false ; time_set_BC2 = true ;
-  face_split(BC2_faces,BC1_faces,BC2_nodes,BC2_proj_pos,
-             BC1_nodes,BC1_proj_pos,face2node,node2face,
-             BC2_edge_nodes,BC1_edge_nodes,
-             BC2_node2edge,BC2_edge2iface,cl,cr,BC2p_2_BC1p,
-             BC2_face_remove,BC2_new_nodes,BC2_new_face2node,
-             BC2_new_interior_face2node,BC2_new_cl,BC2_new_cr,
-             BC2_inverse_proj_info) ;
-  gettimeofday(&time_BC2_split_total_end,NULL) ;
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
+  if(verbose) {
+    cout << "--------" << endl ;
+    cout << "Reconstructing " << BC2name << " topology..." ;
+    cout.flush() ;
+  }
+
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_BC2_reconstruct_start,NULL) ;
+  entitySet BC2_faces_split =
+    gen_boundary_topo(global_bc2_split_records,
+                      BC2_nodes, BC2_proj_pos,
+                      BC1_nodes, BC1_proj_pos,
+                      face2node,
+                      BC2_node2edge, BC2_edge2iface,
+                      cl, cr,
+                      // these are the outputs stores
+                      BC2_new_nodes, BC2_new_face2node,
+                      BC2_new_interior_face2node,
+                      BC2_new_cl, BC2_new_cr,
+                      BC2_inverse_proj_info) ;
+  gettimeofday(&time_BC2_reconstruct_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
+  if(verbose) {
+    cout << " Done" << endl ;
+  }
   // update face2node to include the change of interior faces
+  gettimeofday(&time_essential_start,NULL) ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+  
   face2node = merge_multiMap(face2node,BC2_new_interior_face2node) ;
+  
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  // compute new BC2 faces set
+  entitySet BC2_new_faces =
+    (BC2_faces - BC2_faces_split) + BC2_new_face2node.domain() ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
 
   if(verbose) {
-    cout << "          Total "<<BC2name<<" faces split: "
-         << BC2_faces.size() - BC2_face_remove.size() << endl ;
-    cout << "          Removed "<<BC2name<<" faces number: "
-         << BC2_face_remove.size() << endl ;
-    
     cout << "  new added nodes number: "
          << BC2_new_nodes.domain().size() << endl ;
-    cout << "  new faces number: " << BC2_new_face2node.domain().size()
+    cout << "  new total faces number: " << BC2_new_faces.size()
          << endl ;
     cout << endl ;
-    
-#ifdef CORNER_NODE_CHECK
-    ///////////////////
-    entitySet BC2_lonely_nodes ;
-    multiMap BC2_dummy ;
-    cout << "  original corner node number: "
-         << face_split_polygon_node_check
-      (face2node,BC2_dummy,BC2_faces,BC2_lonely_nodes) << endl ;
-    cout << "  they are: " << BC2_lonely_nodes << endl ;
-    cout << "  corner node number after split: "
-         << face_split_polygon_node_check
-      (face2node,BC2_new_face2node,
-       BC2_face_remove+BC2_new_face2node.domain(),BC2_lonely_nodes) << endl ;
-    cout << "  they are: " << BC2_lonely_nodes << endl ;
-    cout << endl ;
-    ///////////////////
-#endif
   }
+  
   if(twoD_aux_viz) {
     string split_bc2_poly = problem_name + "BC" + BC2name +
       "-new.poly" ;
@@ -7239,19 +7769,11 @@ int main(int ac, char* av[]) {
                           split_bc2_poly.c_str(),
                           split_bc2_2dgv.c_str()) ;
   }
-  // get inverse map new_node2face
-  multiMap BC2_new_node2face ;
-  get_node2face(BC2_new_face2node,BC2_new_node2face) ;
-  /*
-  Loci::inverseMap(BC2_new_node2face,BC2_new_face2node,
-                   BC2_nodes + BC2_new_nodes.domain(),
-                   BC2_new_face2node.domain()) ;
-  */
   if(verbose)
-    cout << "  Checking face splitting validity..." << endl ;
+    cout << "  Checking new topology validity..." << endl ;
 
   if(verbose)
-    cout << "\tChecking split face definition..." ;
+    cout << "  --Checking split face definition..." ;
   if(!face_split_polygon_check(BC2_new_face2node)) {
     cout << endl ;
     cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -7267,7 +7789,21 @@ int main(int ac, char* av[]) {
   }
 
   if(verbose)
-    cout << "\tChecking edge map..." ;
+    cout << "  --Checking edge map..." ;
+  // get inverse map new_node2face
+  gettimeofday(&time_essential_start,NULL) ;
+  multiMap BC2_new_node2face ;
+  gettimeofday(&time_data_structure_start,NULL) ;
+  
+  get_node2face(BC2_new_face2node,BC2_new_node2face) ;
+  
+  gettimeofday(&time_data_structure_end,NULL) ;
+  data_structure_time +=
+    time_data_structure_end - time_data_structure_start ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
+  
   if(!face_split_edgeMap_check(BC2_new_face2node,BC2_new_node2face)) {
     cout << endl ;
     cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -7279,13 +7815,12 @@ int main(int ac, char* av[]) {
     Loci::Abort() ;
   }else {
     if(verbose)
-      cout << "\t\t\tPASSED!" << endl ;
+      cout << "\t\tPASSED!" << endl ;
   }
 
   if(verbose)
-    cout << "\tChecking area sum..." ;
-  if(!face_split_areaSum_check(BC2_faces-BC2_face_remove,
-                               BC2_proj_pos,face2node,
+    cout << "  --Checking area sum..." ;
+  if(!face_split_areaSum_check(BC2_faces_split,BC2_proj_pos,face2node,
                                BC2_new_nodes,BC2_new_face2node)) {
     cout << endl ;
     cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -7297,25 +7832,45 @@ int main(int ac, char* av[]) {
     Loci::Abort() ;
   }else {
     if(verbose)
-      cout << "\t\t\tPASSED!" << endl ;
+      cout << "\t\tPASSED!" << endl ;
   }
-
-  if(verbose)
-    cout << "Done ("<<BC2name<<" face splitting)" << endl ;
+  
+#ifdef FACE_SPLIT_PROPERTY_CHECK
+  cout << "  --Checking face convexity..." ;
+  {
+    double smallest_area ;
+    int small_faces ;
+    bool all_convex =
+      face_split_convexity_area_scan(global_bc2_split_records,
+                                     smallest_area,small_faces) ;
+    cout << "\t\tDone" << endl ;
+    cout << "    --smallest face area:         " << smallest_area << endl ;
+    cout << "    --small faces (area < 1e-12): " << small_faces << endl ;
+    cout << "    --all faces convex?:          "
+         << (all_convex?"true":"false") << endl ;
+  }
+#endif
 
   if(verbose) {
     cout << "--------" << endl ;
-    cout << "Matching points on boundaries..." << endl ;
+    cout << "Matching points on boundaries... " ;
+    cout.flush() ;
   }
+
+  gettimeofday(&time_essential_start,NULL) ;
   entitySet bc1_not_matched, bc2_not_matched ;
   dMap BC2_2_BC1_node_map ;
 
   gettimeofday(&time_boundary_nodes_matching_start,NULL) ;
-  twoD_point_match(BC1_proj_pos, BC2_proj_pos, BC1_new_nodes, BC2_new_nodes,
-                   BC1_face_remove+BC1_new_face2node.domain(),face2node,
+  twoD_point_match(BC1_proj_pos, BC2_proj_pos,
+                   BC1_new_nodes, BC2_new_nodes,
+                   BC1_new_faces,face2node,
                    BC1_new_face2node, BC2_2_BC1_node_map,
                    bc1_not_matched, bc2_not_matched) ;
   gettimeofday(&time_boundary_nodes_matching_end, NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if( (bc1_not_matched.size() != 0) ||
       (bc2_not_matched.size() != 0)) {
@@ -7324,28 +7879,36 @@ int main(int ac, char* av[]) {
     Loci::Abort() ;
   }
   if(verbose) {
-    cout << "  Done (PASSED!)" << endl ;
+    cout << "Done (PASSED!)" << endl ;
   }
-  store<vec3d> BC1_new_nodes_3D, BC2_new_nodes_3D ;
+  
   if(verbose) {
     cout << "--------" << endl ;
-    cout << "Projecting boundaries to 3D space..." << endl ;
+    cout << "Projecting boundaries to 3D space... " ;
+    cout.flush() ;
   }
+
+  gettimeofday(&time_essential_start,NULL) ;
+  store<vec3d> BC1_new_nodes_3D, BC2_new_nodes_3D ;
   rigid_transform rt(rotation_center,rotation_axis,
                      deg2rad(rotation_angle_in_degree),
                      translation_vector) ;
 
-  gettimeofday(&time_3D_projection_start,NULL) ;
+  gettimeofday(&time_2D_to_3D_projection_start,NULL) ;
   get_3D_nodes_pos(BC1_inverse_proj_info,BC2_2_BC1_node_map,rt,
                    BC1_nodes,BC1_inverse_proj_info.domain(),
                    BC2_nodes,BC2_inverse_proj_info.domain(),
                    pos,BC1_new_nodes_3D,BC2_new_nodes_3D) ;
-  gettimeofday(&time_3D_projection_end, NULL) ;
+  gettimeofday(&time_2D_to_3D_projection_end, NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  gettimeofday(&time_essential_end,NULL) ;
+  prog_essential_time +=
+    time_essential_end - time_essential_start ;
   
   if(verbose) {
-    cout << "  Done" << endl ;
+    cout << "Done" << endl ;
   }
-  
+
   if(output_name == "") {
     output_name = "pb_"+gridfile ;
   }
@@ -7359,7 +7922,7 @@ int main(int ac, char* av[]) {
   // we are now ready to write out the new  grid
   if(verbose) {
     cout << "--------" << endl ;
-    cout << "Generating new  grid: " << output_name << endl ;
+    cout << "Generating new grid: " << output_name << endl ;
   }
 
   gettimeofday(&time_new_grid_write_start,NULL) ;
@@ -7371,14 +7934,10 @@ int main(int ac, char* av[]) {
   npoints = pos.domain().size() + BC1_new_nodes.domain().size()
     + BC2_new_nodes.domain().size() ;
 
-  // compute split face domain
-  entitySet BC1_face_split = BC1_faces - BC1_face_remove ;
-  entitySet BC2_face_split = BC2_faces - BC2_face_remove ;
-  
   nfaces = face2node.domain().size() -
-    BC1_face_split.size() +
+    BC1_faces_split.size() +
     BC1_new_face2node.domain().size() -
-    BC2_face_split.size() +
+    BC2_faces_split.size() +
     BC2_new_face2node.domain().size() ;
 
   entitySet range ;
@@ -7392,9 +7951,9 @@ int main(int ac, char* av[]) {
   
   
   if(verbose) {
-    cout << "\ttotal number of points: " << npoints << endl ;
-    cout << "\ttotal number of faces: " << nfaces << endl ;
-    cout << "\ttotal number of cells: " << ncells << endl ;
+    cout << "  total number of points:               " << npoints << endl ;
+    cout << "  total number of faces:                " << nfaces << endl ;
+    cout << "  total number of cells:                " << ncells << endl ;
   }
 
   // we will need to re-number the cells
@@ -7408,9 +7967,7 @@ int main(int ac, char* av[]) {
     ++count ;
   }
   
-  
   //define the new pos
-
   store<vector3d<double> > newPos;
   entitySet newPosDom = interval(0, npoints-1);
   newPos.allocate(newPosDom);
@@ -7448,9 +8005,6 @@ int main(int ac, char* av[]) {
     newPos[*ni] =BC2_new_nodes_3D[*ei];
   }
 
-  
-  
-
   // we then write out face offset and cl, cr
   // first write out faces other than BC1 and BC2 new faces
   // and some of the potential changed boundary faces
@@ -7466,8 +8020,8 @@ int main(int ac, char* av[]) {
   
   entitySet::const_iterator fi = newFaceDom.begin();
   
-  domain = face2node.domain() - BC1_face_split -
-    BC2_face_split ;
+  domain = face2node.domain() - BC1_faces_split -
+    BC2_faces_split ;
   
    count = 0 ;
   for(entitySet::const_iterator ei=domain.begin();
@@ -7507,7 +8061,7 @@ int main(int ac, char* av[]) {
   
   
   if(verbose) {
-    cout << "\ttotal number of points used to define faces: "
+    cout << "  total number of face defining points: "
          << count << endl ;
   }
   newFace2node.allocate(faceCount);
@@ -7517,8 +8071,8 @@ int main(int ac, char* av[]) {
   // then we write out face2node array
   // first write out faces other than BC1 and BC2 new faces
   // and some of the potential changed boundary faces
-  domain = face2node.domain() - BC1_face_split -
-    BC2_face_split ;
+  domain = face2node.domain() - BC1_faces_split -
+    BC2_faces_split ;
   for(entitySet::const_iterator ei=domain.begin();
       ei!=domain.end();++ei, fi++) {
     vector<Entity> nodes = get_face_nodes(face2node,*ei) ;
@@ -7544,36 +8098,26 @@ int main(int ac, char* av[]) {
   
   // AND WE ARE FINALLY DONE
   // establish face left-right orientation
-  if(Loci::MPI_rank == 0) 
-    cerr << "orienting faces" << endl ;
+  if(verbose)
+    cerr << "  --orienting faces" << endl ;
   VOG::orientFaces(newPos,newCl,newCr,newFace2node) ;
-    
- 
   
-  if(Loci::MPI_rank == 0)
-    cerr << "coloring matrix" << endl ;
+  if(verbose)
+    cerr << "  --coloring matrix" << endl ;
   VOG::colorMatrix(newPos,newCl,newCr,newFace2node) ;
  
-  
   if(optimize) {
-    if(Loci::MPI_rank == 0) 
-      cerr << "optimizing mesh layout" << endl ;
+    if(verbose)
+      cerr << "  --optimizing mesh layout" << endl ;
     VOG::optimizeMesh(newPos,newCl,newCr,newFace2node) ;
   }
-
   
-  if(Loci::MPI_rank == 0)
-    cerr << "writing VOG file" << endl ;
-
+  if(verbose)
+    cerr << "  --writing VOG file: " << output_name << endl ;
   
   //get boundary names
   vector<pair<int,string> > surf_ids = boundary_ids ;
- 
-
   Loci::writeVOG(output_name, newPos, newCl, newCr, newFace2node,surf_ids) ;
-
-  if(verbose)
-    cout << "DONE" << endl ;
 
   gettimeofday(&time_new_grid_write_end,NULL) ;
   gettimeofday(&time_prog_end,NULL) ;
@@ -7584,49 +8128,58 @@ int main(int ac, char* av[]) {
     cout << "timing report (all in seconds): " << endl ;
     cout << "total time used:                "
          << time_prog_end - time_prog_start << endl ;
+    cout << "pure time (no IO and check):    "
+         << prog_essential_time << endl ;
 
     cout << "  grid reading:                 "
          << time_grid_read_end - time_grid_read_start << endl ;
 
+    cout << "  topology data building:       "
+         << data_structure_time << endl ;
+
     cout << "  point shifting (total):       "
          << time_shift_point_total_end - time_shift_point_total_start
          << endl ;
-    cout << "    quad tree building:         "
+    cout << "    quad tree building:         " << "  "
          << time_shift_point_qt_end - time_shift_point_qt_start << endl ;
-    cout << "    point matching:             "
+    cout << "    point matching:             " << "  "
          << time_shift_point_end - time_shift_point_start << endl ;
     
-    cout << "  BC1 face splitting (total):   "
-         << time_BC1_split_total_end - time_BC1_split_total_start << endl ;
-    cout << "    face removal computing:     "
-         << time_BC1_split_frm_end - time_BC1_split_frm_start << endl ;
-    cout << "    quad tree building:         "
-         << time_BC1_split_qt_end - time_BC1_split_qt_start << endl ;
-    cout << "    face splitting:             "
-         << time_BC1_split_end - time_BC1_split_start << endl ;
+    cout << "  face splitting (total):       "
+         << time_face_split_total_end - time_face_split_total_start
+         << endl ;
+    cout << "    overlap face computing:     " << "  "
+         << time_face_split_frm_end - time_face_split_frm_start << endl ;
+    cout << "    quad tree building:         " << "  "
+         << time_face_split_qt_end - time_face_split_qt_start << endl ;
+    cout << "    face splitting:             " << "  "
+         << time_face_split_end - time_face_split_start << endl ;
 
-    cout << "  BC2 face splitting (total):   "
-         << time_BC2_split_total_end - time_BC2_split_total_start << endl ;
-    cout << "    face removal computing:     "
-         << time_BC2_split_frm_end - time_BC2_split_frm_start << endl ;
-    cout << "    quad tree building:         "
-         << time_BC2_split_qt_end - time_BC2_split_qt_start << endl ;
-    cout << "    face splitting:             "
-         << time_BC2_split_end - time_BC2_split_start << endl ;
+    cout << "  boundary 1 reconstruction:    "
+         << time_BC1_reconstruct_end - time_BC1_reconstruct_start << endl ;
+
+    cout << "  boundary 2 reconstruction:    "
+         << time_BC2_reconstruct_end - time_BC2_reconstruct_start << endl ;
 
     cout << "  boundary nodes matching:      "
          << time_boundary_nodes_matching_end -
       time_boundary_nodes_matching_start << endl ;
+    
+    cout << "  3D -> 2D projection:          "
+         << time_3D_to_2D_projection_end - time_3D_to_2D_projection_start
+         << endl ;
+    cout << "  2D -> 3D projection:          "
+         << time_2D_to_3D_projection_end - time_2D_to_3D_projection_start
+         << endl ;
 
-    cout << "  3D position projection:       "
-         << time_3D_projection_end - time_3D_projection_start << endl ;
-
-    cout << "  generate new grid:            "
+    cout << "  new grid generation:          "
          << time_new_grid_write_end - time_new_grid_write_start << endl ;
-    cout << "--------" << endl ;
   }
+  
+  if(verbose)
+    cout << "..ALL DONE.." << endl ;
 
-#endif
+#endif // matching #ifdef NORMAL
 
   Loci::Finalize() ;
 }

@@ -626,6 +626,110 @@ inline bool triaCompare(const triaFace &f1, const triaFace &f2) {
            f1.nodes[2] < f2.nodes[2])) ;
 }
 
+
+inline bool quadEqual(const quadFace &f1, const quadFace &f2) {
+  return ((f1.nodes[0] == f2.nodes[0]) &&
+          (f1.nodes[1] == f2.nodes[1]) &&
+          (f1.nodes[2] == f2.nodes[2]) &&
+          (f1.nodes[3] == f2.nodes[3]));
+}
+
+inline bool triaEqual(const triaFace &f1, const triaFace &f2) {
+  return ((f1.nodes[0] == f2.nodes[0]) &&
+          (f1.nodes[1] == f2.nodes[1]) &&
+          (f1.nodes[2] == f2.nodes[2]));
+  
+}
+
+/*
+  Find single faces in  alist that do not have the same nodes as its previous neighbor or next neighbor,
+  remove them from alist, and place them in the returned vector.
+  returned: the single faces in alist
+  input: before: alist contains both paired faces and single faces
+         after:  alist contains only paired faces
+ */
+template <class T, class Cmp>
+std::vector<T> get_single_face(std::vector<T> &alist, Cmp cmp) {
+ vector<T> singles;
+ int num_face = alist.size();
+ if(num_face == 0) return singles;
+ vector<T> pairs;
+ int  current = 0 ;
+ while(current < num_face){
+    int next = current;
+    next++;
+    if(next == num_face){
+      singles.push_back(alist[current]);
+      break;
+    }else if(cmp(alist[current], alist[next])){
+      pairs.push_back(alist[current]);
+      pairs.push_back(alist[next]);
+      next++;
+    }else{
+      singles.push_back(alist[current]);
+    }
+    current = next;    
+  }
+ alist.swap(pairs);
+ return singles;  
+}
+
+/*
+  Split each quadFace in quad into 2 pairs of triaFace, push them to the end of tria.
+  sort the nodes of each newly generated triaFaces in tria so that nodes[0]< nodes[1]< nodes[2]
+*/
+void split_quad(const vector<quadFace>& quad, vector<triaFace>& tria){
+  if(quad.size()==0)return;
+  int begin = tria.size();
+  for(unsigned int i = 0; i < quad.size(); i++){
+    triaFace face1, face2, face3, face4;
+    face1.nodes[0] = quad[i].nodes[0];
+    face1.nodes[1] = quad[i].nodes[1];
+    face1.nodes[2] = quad[i].nodes[2];
+    face1.cell = quad[i].cell;
+    face1.left = quad[i].left;
+    tria.push_back(face1);
+    
+    face2.nodes[0] = quad[i].nodes[0];
+    face2.nodes[1] = quad[i].nodes[2];
+    face2.nodes[2] = quad[i].nodes[3];
+    face2.cell = quad[i].cell;
+    face2.left = quad[i].left;
+    tria.push_back(face2);
+
+    face3.nodes[0] = quad[i].nodes[0];
+    face3.nodes[1] = quad[i].nodes[1];
+    face3.nodes[2] = quad[i].nodes[3];
+    face3.cell = quad[i].cell;
+    face3.left = quad[i].left;
+    tria.push_back(face3);
+    
+    face4.nodes[0] = quad[i].nodes[1];
+    face4.nodes[1] = quad[i].nodes[2];
+    face4.nodes[2] = quad[i].nodes[3];
+    face4.cell = quad[i].cell;
+    face4.left = quad[i].left;
+    tria.push_back(face4);
+  }
+  int end = tria.size();
+  for(int i = begin; i < end; i++){
+    if(tria[i].nodes[0] > tria[i].nodes[1]) {
+      std::swap(tria[i].nodes[0],tria[i].nodes[1]) ;
+      tria[i].left = !tria[i].left ;
+    }
+    if(tria[i].nodes[0] > tria[i].nodes[2]) {
+      std::swap(tria[i].nodes[0],tria[i].nodes[2]) ;
+      tria[i].left = !tria[i].left ;
+    }
+    if(tria[i].nodes[1] > tria[i].nodes[2]) {
+      std::swap(tria[i].nodes[1],tria[i].nodes[2]) ;
+      tria[i].left = !tria[i].left ;
+    }
+  }
+}
+  
+  
+
 void convert2face(store<vector3d<double> > &pos,
                   vector<Array<int,5> > &qfaces, vector<Array<int,4> > &tfaces,
                   vector<Array<int,4> > &tets, vector<Array<int,5> > &pyramids,
@@ -877,19 +981,45 @@ void convert2face(store<vector3d<double> > &pos,
     }
   }
 
-  int tsz = tria.size() ;
-  int mtsz ;
-  MPI_Allreduce(&tsz,&mtsz,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
-  if(mtsz != 0) {
-    Loci::parSampleSort(tria,triaCompare,MPI_COMM_WORLD) ;
-  }
-
+  
+  //sort quad
   int qsz = quad.size() ;
   int mqsz ;
   MPI_Allreduce(&qsz,&mqsz,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
   if(mqsz != 0) {
     Loci::parSampleSort(quad,quadCompare,MPI_COMM_WORLD) ;
   }
+  //check if there is single faces in quad, if yes, remove them from quad, and split the single face into tria
+  vector<quadFace> single_quad = get_single_face(quad, quadEqual);
+  int num_single_quad = single_quad.size();
+  int total_num_single_quad = 0;
+  MPI_Allreduce(&num_single_quad,&total_num_single_quad,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+ 
+  if(num_single_quad != 0){
+    split_quad(single_quad, tria);
+  }
+
+  //sort tria
+  int tsz = tria.size() ;
+  int mtsz ;
+  MPI_Allreduce(&tsz,&mtsz,1,MPI_INT,MPI_MAX,MPI_COMM_WORLD) ;
+  if(mtsz != 0) {
+    Loci::parSampleSort(tria,triaCompare,MPI_COMM_WORLD) ;
+  }
+  
+  //if there is single quad, the split process will generate extra single faces in tria
+  // get_single_face will remove them
+  if(total_num_single_quad != 0){
+    vector<triaFace> single_tria = get_single_face(tria, triaEqual);
+    int num_single_tria = single_tria.size();
+    int total_num_single_tria = 0;
+    MPI_Allreduce(&num_single_tria,&total_num_single_tria,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+    if(total_num_single_tria != (2*total_num_single_quad)){
+      cerr << "single triangle faces remain! inconsistent! "<< endl ;  
+      Loci::Abort() ;
+    }
+  }
+  
   if((tria.size() & 1) == 1) {
     cerr << "non-even number of triangle faces! inconsistent!" << endl ;
     Loci::Abort() ;
@@ -898,10 +1028,10 @@ void convert2face(store<vector3d<double> > &pos,
     cerr << "non-even number of quad faces! inconcistent!" << endl ;
     Loci::Abort() ;
   }
-
+  
   int ntria = tria.size()/2 ;
   int nquad = quad.size()/2 ;
-
+  
   int nfaces = ntria+nquad ;
 
   ncells = 0 ;
