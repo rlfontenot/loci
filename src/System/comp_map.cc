@@ -130,11 +130,13 @@ namespace Loci {
     //for(vi=sources.begin();vi!=sources.end();++vi) {
     //  scheds.variable_request(*vi,scheds.variable_existence(*vi)) ;
     //}
-    exec_seq = process_rule_requests(map_impl, facts, scheds) ;
+    entitySet exec_seq = process_rule_requests(map_impl, facts, scheds) ;
+    scheds.update_exec_seq(map_impl, exec_seq);
   }
   
   executeP map_compiler::create_execution_schedule(fact_db& facts, sched_db& scheds) {
     //return new execute_map_rule(map_impl, ~EMPTY, facts,scheds) ;
+    entitySet exec_seq = scheds.get_exec_seq(map_impl);
     executeP execute = new execute_map_rule(map_impl, exec_seq, map_impl.sources(),
                                             map_impl.targets(), facts,scheds);
     return execute;

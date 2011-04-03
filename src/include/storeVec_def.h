@@ -59,14 +59,14 @@ namespace Loci {
       size = sz ;
 #endif
     }
-    const T &restrict operator[](int idx) const {
+    const T &restrict operator[](int idx) const restrict {
 #ifdef BOUNDS_CHECK
       fatal(idx >= size || idx < 0) ;
 #endif
       return ptr[idx] ;
     }
 
-    operator const T *restrict () const {
+    operator const T *restrict () const restrict {
       return ptr ;
     }
   } ;
@@ -214,8 +214,10 @@ namespace Loci {
     T           *alloc_pointer, *base_ptr ;
     int          size ;
     lmutex       mutex ;
+    bool         isMat; //if this is a storeMat
     
     int  get_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
+    int  estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset);
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER c, frame_info &fi, entitySet &en) ;
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, IDENTITY_CONVERTER g, const entitySet &en) const;
     void packdata(IDENTITY_CONVERTER c, void *ptr, int &loc, int size,
@@ -224,6 +226,7 @@ namespace Loci {
                     const sequence &seq) ;
 
     int  get_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
+     int  estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset);
     void hdf5read(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER c, frame_info &fi, entitySet &en) ;
     void hdf5write(hid_t group_id, hid_t dataspace, hid_t dataset, hsize_t dimension, const char* name, USER_DEFINED_CONVERTER g, const entitySet &en) const;
     void packdata(USER_DEFINED_CONVERTER c, void *ptr, int &loc, int size,
@@ -236,10 +239,10 @@ namespace Loci {
     frame_info get_frame_info(USER_DEFINED_CONVERTER g) ;
   public:
     storeVecRepI() 
-      { alloc_pointer= 0 ; base_ptr = 0 ; size=0 ; }
+    { alloc_pointer= 0 ; base_ptr = 0 ; size=0 ; isMat=false; }
     
     storeVecRepI(const entitySet &p) 
-      { size = 0; alloc_pointer=0 ; allocate(p) ;}
+    { size = 0; alloc_pointer=0 ; allocate(p) ; isMat = false; }
     
     virtual ~storeVecRepI() ;
     virtual void allocate(const entitySet &ptn) ;
@@ -257,6 +260,7 @@ namespace Loci {
                          const entitySet &context) ;
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e ) ;
+    virtual int estimated_pack_size(const entitySet &e ) ; 
     virtual void pack(void * ptr, int &loc, int &size, const entitySet &e ) ;
     virtual void unpack(void * ptr, int &loc, int &size, const sequence &seq) ;
     virtual store_type RepType() const ;
@@ -270,6 +274,7 @@ namespace Loci {
     int get_size() const { return size ; }
     virtual DatatypeP getType() ;
     virtual frame_info get_frame_info() ;
+    void setIsMat(bool im){isMat=im;}
   } ;
 
   template<class T> class storeVec : public store_instance {
@@ -337,13 +342,13 @@ namespace Loci {
     }
     int vecSize() const { return size ; }
     const entitySet domain() const { return Rep()->domain() ; }
-    const_Vect<T> elem(int indx) const {
+    const_Vect<T> elem(int indx) const restrict {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;
 #endif 
       return const_Vect<T>(base_ptr+(indx*size),size) ; }
-    const_Vect<T> operator[](int indx) const {
+    const_Vect<T> operator[](int indx) const restrict {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL); 
       fatal(!((Rep()->domain()).inSet(indx))) ;

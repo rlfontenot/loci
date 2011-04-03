@@ -62,10 +62,12 @@ namespace Loci {
   }
 
   void apply_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
-    exec_seq = process_applyrule_requests(apply, unit_tag, output_mapping, facts, scheds);
+    entitySet exec_seq = process_applyrule_requests(apply, unit_tag, output_mapping, facts, scheds);
+    scheds.update_exec_seq(apply, exec_seq);
   }
 
   executeP apply_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
+    entitySet exec_seq = scheds.get_exec_seq(apply);
     executeP exec_rule = new execute_rule(apply, sequence(exec_seq), facts, scheds);
     return exec_rule ;
   }
@@ -421,11 +423,12 @@ namespace Loci {
 
   void reduce_param_compiler::set_var_existence(fact_db &facts, sched_db &scheds)  {
     if(facts.isDistributed()) {
+      
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       for(size_t i = 0; i < unit_rules.size(); i++) {
-	entitySet targets ;
+    	entitySet targets ;
 	targets = scheds.get_existential_info(reduce_vars[i], unit_rules[i]) ;
-	targets += send_entitySet(targets, facts) ;
+    	targets += send_entitySet(targets, facts) ;
 	targets &= d->my_entities ;
 	targets += fill_entitySet(targets, facts) ;
 	scheds.set_existential_info(reduce_vars[i],unit_rules[i],targets) ;
@@ -552,6 +555,9 @@ namespace Loci {
 
   void reduce_store_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
+      std::list<comm_info> rlist;
+      std::list<comm_info> clist;
+      
       fact_db::distribute_infoP d = facts.get_distribute_info() ;
       variableSet vars ;
       vars += reduce_var ;
@@ -582,7 +588,10 @@ namespace Loci {
       }
 
       clist = sort_comm(request_comm,facts) ;
-
+      
+      scheds.update_comm_info_list(rlist, sched_db::REDUCE_RLIST);
+      scheds.update_comm_info_list(clist, sched_db::REDUCE_CLIST);
+      
 #ifdef VERBOSE
       if(shadow != EMPTY) {
 	debugout << "shadow = " << shadow << endl ;
@@ -925,6 +934,11 @@ namespace Loci {
   
   executeP reduce_store_compiler::create_execution_schedule(fact_db &facts, sched_db &scheds) {
     if(facts.isDistributed()) {
+      variableSet vars;
+      vars += reduce_var;
+      std::list<comm_info> clist = scheds.get_comm_info_list(vars, facts, sched_db::REDUCE_CLIST);
+      std::list<comm_info> rlist = scheds.get_comm_info_list(vars, facts, sched_db::REDUCE_RLIST);
+
       CPTR<execute_sequence> el = new execute_sequence ;
       if(!rlist.empty()) {
         executeP exec_comm_reduce = new execute_comm_reduce(rlist, facts, join_op);

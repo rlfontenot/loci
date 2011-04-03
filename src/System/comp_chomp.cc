@@ -73,9 +73,9 @@ namespace Loci {
     vector<int_type> chomp_offset ;
     vector<storeRepP> chomp_vars_rep ;
     int_type D_cache_size ;
-    double total_chomp_vars_size ;
     timeAccumulator timer ;
     vector<timeAccumulator> comp_timers ;
+    int execute_times;
   public:
     execute_chomp(const entitySet& td,
                   const vector<pair<rule,rule_compilerP> >& comp,
@@ -84,7 +84,7 @@ namespace Loci {
                   fact_db& facts):
       total_domain(td),chomp_comp(comp),rule_seq(seq),
       chomp_vars(cv),chomp_size(0),chomp_iter(0),
-      D_cache_size(0),total_chomp_vars_size(0) {
+      D_cache_size(0), execute_times(0){
 
       comp_timers = vector<timeAccumulator>(comp.size()) ;
       for(vector<pair<rule,rule_compilerP> >::const_iterator vi=comp.begin();
@@ -102,27 +102,34 @@ namespace Loci {
         storeRepP srp = facts.get_variable(*vi) ;
         chomp_vars_rep.push_back(srp) ;
       }
-      
-      // we'll need to set up the chomp_size
-      // and the chomping sequence table
-      entitySet test_alloc = interval(1,1) ;
-      int_type total_obj_size = 0 ;
-      int_type min_store_size = UNIVERSE_MAX ;
-      D_cache_size = chomping_size * 1024 ; // assume 128KB now
-      for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
-          vi!=chomp_vars_rep.end();++vi) {
-        int_type my_size = (*vi)->pack_size(test_alloc) ;
-        total_obj_size += my_size ;
-        min_store_size = min(min_store_size,my_size) ;
-      }
+       D_cache_size = chomping_size * 1024 ; // assume 128KB now
+       set_seq_table();
+    }
+    virtual void set_seq_table();
+    virtual void execute(fact_db& facts, sched_db &scheds) ;
+    virtual void Print(std::ostream& s) const ;
+    virtual string getName() {return "execute_chomp";};
+    virtual void dataCollate(collectData &data_collector) const ;
+  } ;
+  
+  void execute_chomp::set_seq_table(){
+    // we'll need to set up the chomp_size
+    // and the chomping sequence table
+    entitySet test_alloc = interval(1,1) ;
+    int_type total_obj_size = 0 ;
+    for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
+        vi!=chomp_vars_rep.end();++vi) {
+      int_type my_size = (*vi)->pack_size(test_alloc) ;
+      total_obj_size += my_size ;
+    }
 
-      double scale = (double)D_cache_size / (double)total_obj_size ;
-
-      if(scale <= 1.0)
-        chomp_size = 1 ;
+    double scale = (double)D_cache_size / (double)total_obj_size ;
+    
+    if(scale <= 1.0)
+      chomp_size = 1 ;
       else
         chomp_size = (int)scale ;
-
+    
       // this is to check that the allocated chomping domain
       // cannot exceed the original total domain of these rules
       // this is to prevent bugs in the extreme cases where
@@ -136,41 +143,37 @@ namespace Loci {
       // allocation size of 4 bytes. Then if we don't check
       // the original total_domain size, we may end up computing
       // a very large chomping domain and fail the program
-      if(total_domain.size() < chomp_size)
-        chomp_size = total_domain.size() ;
-
-      entitySet copy_total_domain = total_domain ;
-      chomp_offset.clear() ;
-      int_type low_pos ;
-      int_type high_pos ;
-      while(copy_total_domain != EMPTY) {
-        low_pos = copy_total_domain.Min() ;
-        high_pos = low_pos + chomp_size - 1 ;
-        entitySet seg = interval(low_pos, high_pos) ;
-        vector<entitySet> seq_vec ;
-        for(deque<entitySet>::const_iterator vi=rule_seq.begin();
-            vi!=rule_seq.end();++vi)
-          seq_vec.push_back(*vi & seg) ;
-        
+    if(total_domain.size() < chomp_size)
+      chomp_size = total_domain.size() ;
+    
+    entitySet copy_total_domain = total_domain ;
+    chomp_offset.clear() ;
+    seq_table.clear();
+    int_type low_pos ;
+    int_type high_pos ;
+    while(copy_total_domain != EMPTY) {
+      low_pos = copy_total_domain.Min() ;
+      high_pos = low_pos + chomp_size - 1 ;
+      entitySet seg = interval(low_pos, high_pos) ;
+      vector<entitySet> seq_vec ;
+      for(deque<entitySet>::const_iterator vi=rule_seq.begin();
+          vi!=rule_seq.end();++vi)
+        seq_vec.push_back(*vi & seg) ;
+      
         seq_table.push_back(seq_vec) ;
-
+        
         copy_total_domain &= interval(high_pos+1,Loci::UNIVERSE_MAX) ;
 
         if(copy_total_domain != EMPTY)
           chomp_offset.push_back(copy_total_domain.Min() - low_pos) ;
         else
           chomp_offset.push_back(0) ;
-      }
-
-      chomp_iter = seq_table.size() ;
     }
-    
-    virtual void execute(fact_db& facts, sched_db &scheds) ;
-    virtual void Print(std::ostream& s) const ;
-    virtual string getName() {return "execute_chomp";};
-    virtual void dataCollate(collectData &data_collector) const ;
-  } ;
 
+    chomp_iter = seq_table.size() ;
+  }
+  
+    
   void execute_chomp::execute(fact_db& facts, sched_db &scheds) {
     stopWatch stot ;
     stot.start() ;
@@ -205,7 +208,8 @@ namespace Loci {
       if(LociAppPMTemp > LociAppPeakMemoryBeanCounting)
         LociAppPeakMemoryBeanCounting = LociAppPMTemp ;
     }
-
+   
+    
     // begin execution, the loop number would be seq_table.size()
     vector<vector<entitySet> >::const_iterator vvi ;
     int count = 0 ;
@@ -227,6 +231,13 @@ namespace Loci {
           (*vsi)->shift(offset) ;
       }
     }
+
+    //first time execute, reset_seq_table
+    if(execute_times==0){
+      set_seq_table();
+     
+    }
+      
     // at last, we deallocate all the chomp_vars
     for(vector<storeRepP>::iterator vi=chomp_vars_rep.begin();
         vi!=chomp_vars_rep.end();++vi) {
@@ -242,6 +253,8 @@ namespace Loci {
                   << endl ;
     }
     timer.addTime(stot.stop(),1) ;
+    execute_times++;
+    
   }
 
   void execute_chomp::Print(std::ostream& s) const {
@@ -292,9 +305,13 @@ namespace Loci {
   }
 
   void chomp_compiler::set_var_existence(fact_db& facts, sched_db& scheds) {
+    
+    barrier_sets.clear();
+    for(unsigned int i = 0; i < old_barrier_sets.size(); i++)barrier_sets.push_back(old_barrier_sets[i]); 
+    
     vector<pair<rule,rule_compilerP> >::iterator i ;
     variableSet tvars;
-    for(i=chomp_comp.begin();i!=chomp_comp.end();++i) {
+    for(i=old_chomp_comp.begin();i!=old_chomp_comp.end();++i) {
       rule r = i->first ;
       rule_compilerP bc = i->second ;
       // first we check if r is a fake rule
@@ -399,10 +416,10 @@ namespace Loci {
   }
   
   void chomp_compiler::process_var_requests(fact_db& facts, sched_db& scheds) {
-
+    rule_seq.clear();
     deque<pair<rule,rule_compilerP> > new_chomp_comp ;
     vector<pair<rule,rule_compilerP> >::reverse_iterator ri ;
-    for(ri=chomp_comp.rbegin();ri!=chomp_comp.rend();++ri) {
+    for(ri=old_chomp_comp.rbegin();ri!=old_chomp_comp.rend();++ri) {
       rule r = ri->first ;
       rule_compilerP bc = ri->second ;
 

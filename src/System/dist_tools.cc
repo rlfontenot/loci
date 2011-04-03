@@ -52,25 +52,7 @@ namespace Loci {
   void get_clone(fact_db &facts, const rule_db &rdb) {
     fact_db::distribute_infoP df = facts.get_distribute_info()  ;
     std::vector<entitySet> &ptn = facts.get_init_ptn() ;
-    entitySet bdom = ptn[MPI_rank] & interval(UNIVERSE_MIN, -1) ;
-    entitySet global_bdom = all_collect_entitySet(bdom) ;
-    int p = 0; 
-    for(int i = 0; i < MPI_processes; ++i) {
-      entitySet tmp = ptn[i] ; 
-      ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
-    }
-
-    FORALL(global_bdom, i) {
-      int tmp = p % MPI_processes ;
-      ptn[tmp] += i ;
-      if(duplicate_work)
-	if(tmp == MPI_rank)
-	  //Since we are manually adding entities to init_ptn, we also need to 
-	  //add those entities in global_comp_entities
-	  facts.global_comp_entities += i;
-      p++ ;
-    } ENDFORALL ;
-    
+    // reallocate constraints on whole domain(instead of local domain) on each process
     variableSet tmp_vars = facts.get_typed_variables();
     for(variableSet::const_iterator vi = tmp_vars.begin(); vi != tmp_vars.end(); ++vi) {
       storeRepP tmp_sp = facts.get_variable(*vi) ;
@@ -80,7 +62,6 @@ namespace Loci {
           entitySet global_tmp_dom = all_collect_entitySet(tmp_dom) ;
           constraint tmp ;
           *tmp = global_tmp_dom ;
-          //facts.update_fact(variable(*vi), tmp) ;
           facts.replace_fact(*vi,tmp) ;
         }
       }
@@ -89,7 +70,11 @@ namespace Loci {
         facts.replace_fact(*vi, map_sp) ;
       }
     }
-
+    
+    //find context. with duplication, it's the preimage of my_entites of output mapping .
+    //(if extended_duplication, the mapping includes both input and output)
+    //(if multilevel_duplication, the context includes mapping back and forth n times)
+    //without duplication, the context is my_entities
     entitySet tmp_set;
     if(duplicate_work) {
       std::set<std::vector<variableSet> > context_maps ;
@@ -126,18 +111,21 @@ namespace Loci {
 	debugout << "Number of Duplication Levels: " << num_levels << endl;
 #endif
       }
+      //the union of context and my entities is comp_entities
       tmp_set = facts.global_comp_entities;
     }
     else
       tmp_set = ptn[MPI_rank] ;
-
+    
+    //The clone region is the image and domain of each map in both input and output on comp_entities
+    //minus my_entities
     std::set<std::vector<variableSet> > dist_maps ;
     get_mappings(rdb,facts,dist_maps) ;
 
     entitySet tmp_copy, image ;
 
     double clone_time_start = MPI_Wtime() ;
-
+    //changed here
     image = dist_expand_map(tmp_set, facts, dist_maps) ;
     tmp_copy =  image - ptn[MPI_rank] ; 
     std::vector<entitySet> copy(MPI_processes), send_clone(MPI_processes) ;
@@ -514,10 +502,7 @@ namespace Loci {
 			    const std::set<std::vector<variableSet> > &maps) {
     
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
-    for(int i = 0; i < MPI_processes; ++i) {
-      entitySet tmp = ptn[i] ;
-      ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
-    }
+ 
     entitySet dom = domain ;
     variableSet vars = facts.get_typed_variables() ;
     std::set<std::vector<variableSet> >::const_iterator smi ;
@@ -550,9 +535,14 @@ namespace Loci {
     return dom ;
   }
   
-  /*The fill_entitySet routine fills in the clone region entities
+  /*! The fill_entitySet routine fills in the clone region entities
     . The send_buffer and the recv_buffer are allocated only once to
-    contain the maximum clone region */ 
+    contain the maximum clone region
+    
+    arguments: e: entitySet that if it's in my xmit region, I need send it to others
+    returned: entitySet I received
+  */
+  
   entitySet fill_entitySet(const entitySet& e, fact_db &facts) {
     
     entitySet re ;
@@ -571,7 +561,7 @@ namespace Loci {
         recv_size[0] = d->copy[0].size ;
         for(size_t i=1;i<d->copy.size();++i) {
           recv_buffer[i] = recv_buffer[i-1]+d->copy[i-1].size ;
-          recv_size[i] = d->copy[i].size ;
+           recv_size[i] = d->copy[i].size ;
         }
       }
 
@@ -647,6 +637,8 @@ namespace Loci {
     entities corresponding to an entitySet
     each time . ie with one startup cost ts we can send all the
     entities required to a particular processor. */
+  /*! ev: the entitySets I send if they are in my xmit region
+    return: the entitySets I recieve*/
   vector<entitySet> fill_entitySet(const vector<entitySet>& ev,
                                    fact_db &facts) {
 
@@ -752,6 +744,9 @@ namespace Loci {
     mapping in the output. Sometimes we might compute entities in the
     clone region. Since these entities are not owned by the processor
     it needs to be send to the processor that actually owns them. */
+  /*! e: the entitySet I send if it's in my clone region
+    return: the entitySet I  receive
+  */
   entitySet send_entitySet(const entitySet& e, fact_db &facts) {
     entitySet re ;
     if(facts.isDistributed()) {  
@@ -921,7 +916,8 @@ namespace Loci {
     }
     return re ;
   }
-  
+  /*! ev: the entittySets that I send if they are in my clone region
+    return: the entitySets I receive; its index is the same as that of ev*/
   vector<entitySet> send_entitySet(const vector<entitySet>& ev,
                                    fact_db &facts) {
     vector<entitySet> re(ev.size()) ;
@@ -1100,17 +1096,13 @@ namespace Loci {
   }
 
   //It works just like dist_expand_map except the return entities only contain the image
-  //of the last map in the chain.  
+  //of the last map in the chain.
+  //the difference of the returned value is only 1 or 2 entities
   entitySet dist_special_expand_map(entitySet domain, fact_db &facts,
 				    const std::set<std::vector<variableSet> > &maps) {
     entitySet special_return;
     std::vector<entitySet> ptn = facts.get_init_ptn() ;
-    
-    for(int i = 0; i < MPI_processes; ++i) {
-      entitySet tmp = ptn[i] ;
-      ptn[i] = tmp & interval(0, UNIVERSE_MAX) ;
-    }
-    entitySet dom = domain ;
+ 
     variableSet vars = facts.get_typed_variables() ;
     std::set<std::vector<variableSet> >::const_iterator smi ;
     for(smi = maps.begin(); smi != maps.end(); ++smi) {
@@ -1136,7 +1128,7 @@ namespace Loci {
 
 	  }
 	}
-	dom += image ;
+       
 	locdom = image ;
 	if(i == mv.size() -1)
 	  special_return += image;

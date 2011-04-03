@@ -43,7 +43,7 @@ namespace Loci {
   extern int MPI_rank ;
 
   extern ofstream debugout ;
-  
+  extern bool rule_has_mapping_in_output(rule r);
   sched_db::sched_db(fact_db &facts) {
     detected_errors = false ;
     init(facts) ;
@@ -63,7 +63,7 @@ namespace Loci {
       si.sched_info_ref = sched_alloc++ ;
       storeRepP rp = facts.get_variable(*vi) ;
       si.existence = rp->domain() ;
-      si.fact_installed = si.existence ;
+      // si.fact_installed = si.existence ;/*!fact_installed assigned, never used*/
       si.synonyms  += *vi ;
       vmap[*vi] = si ;
       variable v = variable(*vi) ;
@@ -91,34 +91,34 @@ namespace Loci {
     sched_infov[info.sched_info_ref].aliases += v ;
     all_vars += v ;
   }
-  
+  /*! since free_set is never assigned, else block will never be executed, commented out here */
   void sched_db::install_sched_data(variable v, sched_data data) {
-    if(free_set == EMPTY) {
-      sched_infov.push_back(data) ;
-      install_sched_info(v,sched_info(sched_infov.size()-1)) ;
-    } else {
-      int val = *(free_set.begin()) ;
-      free_set -= val ;
-      sched_infov[val] = data ;
-      install_sched_info(v,sched_info(val)) ;
-    }
+    // if(free_set == EMPTY) {
+    sched_infov.push_back(data) ;
+    install_sched_info(v,sched_info(sched_infov.size()-1)) ;
+    //} else {
+    //int val = *(free_set.begin()) ;
+    // free_set -= val ;
+    //sched_infov[val] = data ;
+    //install_sched_info(v,sched_info(val)) ;
+    // }
   }
   sched_db::sched_info &sched_db::get_sched_info(variable v) {
     vmap_type::iterator mi = vmap.find(remove_synonym(v)) ;
     if(mi == vmap.end()) 
-      return get_sched_info(variable("EMPTY")) ;
+      return get_sched_info(variable("EMPTY")) ; /*! assume variable("EMPTY") will be definitely in vmap, other infinite loop*/  
     return mi->second ;
   }
-  
-  void sched_db::variable_is_fact_at(variable v,entitySet s, fact_db &facts) {
-    sched_info &fi = get_sched_info(v) ;
-    fi.fact_installed += s ;
-    fi.existence += s ;
-    variableSet aliases = sched_infov[fi.sched_info_ref].aliases ;
-    aliases -= v ;
-    for(variableSet::const_iterator vi=aliases.begin();vi!=aliases.end();++vi) 
-      get_sched_info(v).fact_installed -= s ;
-  }
+  /* variable_is_fact_at() is commented out because it's never used*/
+  //  void sched_db::variable_is_fact_at(variable v,entitySet s, fact_db &facts) {/*! ??? and it's never used*/
+  //     sched_info &fi = get_sched_info(v) ;
+  //     fi.fact_installed += s ;
+  //     fi.existence += s ;
+  //     variableSet aliases = sched_infov[fi.sched_info_ref].aliases ;
+  //     aliases -= v ;
+  //     for(variableSet::const_iterator vi=aliases.begin();vi!=aliases.end();++vi) 
+  //       get_sched_info(v).fact_installed -= s ;/*! should v be vi? */
+  //   }
 
   void sched_db::set_variable_rotations(variableSet vars) {
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
@@ -161,7 +161,8 @@ namespace Loci {
     }
     
   }
-
+  
+  
   void sched_db::synonym_variable(variable v, variable synonym, fact_db &facts) {
     facts.synonym_variable(v, synonym) ;
     v = remove_synonym(v) ;
@@ -187,6 +188,8 @@ namespace Loci {
     sfinfo.synonyms += v ;
   }
   
+ 
+  
   void sched_db::set_existential_info(variable v, rule f, entitySet x) {
     sched_info &finfo = get_sched_info(v) ;
     if((finfo.existence & x) != EMPTY) {
@@ -202,6 +205,7 @@ namespace Loci {
           for(int i=0,j=p1.size()-1,k=p2.size()-1;
               i<min(int(p1.size()),int(p2.size()));
               ++i,--j,--k)
+            
             if(p1[j] != p2[k]) {
               conflicts += mi->first ;
               if(MPI_processes == 1)
@@ -209,7 +213,7 @@ namespace Loci {
                      << "!=" << p2[i]<<endl ;
               else
                 debugout << "adding to conflicts because " << p1[i]
-                     << "!=" << p2[i]<<endl ;
+                         << "!=" << p2[i]<<endl ;
                 
               detected_errors = true ;
             }
@@ -251,7 +255,7 @@ namespace Loci {
   
   ruleSet sched_db::get_existential_rules(variable v) {
     std::map<rule,existential_info>::const_iterator mi ;
-    sched_info &finfo = get_sched_info(v) ;
+     sched_info &finfo = get_sched_info(v) ;
     ruleSet rules ;
     for(mi=finfo.exist_map.begin();mi!=finfo.exist_map.end();++mi)
       rules += mi->first ;
@@ -374,4 +378,218 @@ namespace Loci {
     return s ;
   }
 
+  std::vector<std::pair<variable,entitySet> > sched_db::get_send_entities(variableSet eset, send_entities_type e) {
+
+    std::vector<std::pair<variable,entitySet> > re;
+    variableSet::const_iterator vi;
+    std::map<variable, entitySet>::const_iterator mi;
+    
+    variableSet send_vars;
+    for(vi = eset.begin(); vi !=eset.end(); vi++){
+      variable v = variable(*vi);
+      ruleSet rs = get_existential_rules(v) ;
+      for(ruleSet::const_iterator rsi = rs.begin(); rsi != rs.end(); ++rsi) {
+        if(rule_has_mapping_in_output(*rsi)) {
+          send_vars += v;
+          break;
+        }
+      }
+    }
+
+    if(e == BARRIER){
+      for(vi = send_vars.begin(); vi != send_vars.end(); vi++){
+        variable v = variable(*vi);
+        mi = barrier_send_entities_map.find(v);
+        if(mi != barrier_send_entities_map.end()){
+          re.push_back(make_pair(v, mi->second));
+        }else{
+          debugout << "WARNING: for variable " << v << " barrier_send_entities_map is read before it's written" << endl;
+        }
+      }
+    }else if( e == RECURSE_PRE){
+      for(vi = send_vars.begin(); vi !=send_vars.end(); vi++){
+        variable v = variable(*vi);
+        mi = recurse_pre_send_entities_map.find(v);
+        if(mi != recurse_pre_send_entities_map.end()){
+          re.push_back(make_pair(v, mi->second));
+        }else{
+          debugout << "WARNING: for variable " << v << " recurse_pre_send_entities_map is read before it's written" << endl;
+        }
+      }
+    }else{
+      debugout<<"ERROR: unrecognized send_entities_type in get_send_entities() " << endl;
+    }
+    return re;
+  }
+  
+
+    
+  void sched_db::update_send_entities( const std::vector<std::pair<variable,entitySet> >& evec, send_entities_type e){
+    
+    if(e == BARRIER){
+      for(unsigned int vi = 0; vi < evec.size(); vi++){
+        variable v = evec[vi].first;
+        map<variable, entitySet>::const_iterator mi = barrier_send_entities_map.find(v);
+        if(mi != barrier_send_entities_map.end()){
+          debugout << "WARNING: for variable " << v << " barrier_send_entities_map is written more then once" << endl;
+        }
+        barrier_send_entities_map[v] = (evec[vi]).second;
+      }
+    }else if(e == RECURSE_PRE){
+      for(unsigned int vi = 0; vi < evec.size(); vi++){
+        variable v = evec[vi].first;
+        map<variable, entitySet>::const_iterator mi = recurse_pre_send_entities_map.find(v);
+        if(mi != recurse_pre_send_entities_map.end()){
+          debugout << "WARNING: for variable " << v << " barrier_send_entities_map is written more then once" << endl;
+        }
+        recurse_pre_send_entities_map[v] = (evec[vi]).second;
+      }
+    }else{
+      debugout<<"ERROR: unrecognized send_entities_type in update_send_entities" << endl;
+    }
+  }
+  
+  /*!sort_comm_map() composes a list from the map so that in the list all send info is in front of  recv info
+    and the order of comm info is
+    for(pi = procs.begin(); pi != procs.end(); pi++){
+    for(vi = vset.begin(); vi!= vset.end(); vi++){
+    comm_info(*pi, *vi);
+    }}
+  */
+  std::list<comm_info> sort_comm_map(variableSet vset,
+                                     const  std::map<variable, std::list<comm_info> >& clist_m,
+                                     fact_db& facts,
+                                     sched_db::list_type e){
+    
+    
+    vector<std::pair<int,std::vector<send_var_info> > > send_info ;
+    vector<std::pair<int,std::vector<recv_var_info> > > recv_info ;
+
+
+    // First collect information from slist
+
+    HASH_MAP(int,vector<send_var_info>) send_data ;
+    HASH_MAP(int,vector<recv_var_info>) recv_data ;
+    intervalSet send_procs, recv_procs ;
+    for(variableSet::const_iterator vi = vset.begin(); vi != vset.end(); vi++){
+      variable va = variable(*vi);
+      list<comm_info> slist;
+      std::map<variable, std::list<comm_info> >::const_iterator mi = clist_m.find(va);
+      if(mi != clist_m.end()){
+        //        debugout <<"get variable " << va <<" from list " << e << endl;
+        slist = mi->second;
+        list<comm_info>::const_iterator cli ;
+        for(cli=slist.begin();cli!=slist.end();++cli) {
+          variable v = cli->v ;
+          if(cli->send_set.size() > 0) {
+            int send_proc = cli->processor ;
+            send_procs += send_proc ;
+            entitySet send_set = cli->send_set ;
+            send_data[send_proc].push_back(send_var_info(v,send_set)) ;
+          }
+          if(cli->recv_set.size() > 0) {
+            int recv_proc = cli->processor ;
+            sequence recv_seq = cli->recv_set ;
+            recv_procs += recv_proc ;
+            recv_data[recv_proc].push_back(recv_var_info(v,recv_seq)) ;
+          }
+        }
+      }
+    }
+
+    for(intervalSet::const_iterator ii=send_procs.begin();
+        ii!=send_procs.end();
+        ++ii) {
+      send_info.push_back(make_pair(*ii,send_data[*ii])) ;
+    }
+    for(intervalSet::const_iterator ii=recv_procs.begin();
+        ii!=recv_procs.end();
+        ++ii) {
+      recv_info.push_back(make_pair(*ii,recv_data[*ii])) ;
+    }
+
+
+    // Now build sorted comm list
+
+    list<comm_info> clist ;
+    const int nrecv = recv_info.size() ;
+    const int nsend = send_info.size() ;
+   
+    // Pack the buffer for sending
+    for(int i=0;i<nsend;++i) {
+      for(size_t j=0;j<send_info[i].second.size();++j) {
+        comm_info ci ;
+        ci.v = send_info[i].second[j].v ;
+        ci.processor = send_info[i].first ;
+        ci.send_set = send_info[i].second[j].set ;
+        clist.push_back(ci) ;
+      }
+    }
+    for(int i=0;i<nrecv;++i) {
+      for(size_t j=0;j<recv_info[i].second.size();++j) {
+       	comm_info ci ;
+        ci.v = recv_info[i].second[j].v ;
+        ci.processor = recv_info[i].first ;
+        ci.recv_set = recv_info[i].second[j].seq ;
+	clist.push_back(ci) ;
+      }
+    }
+    return clist ;
+  }
+
+  std::list<comm_info> sched_db::get_comm_info_list(variableSet eset, fact_db& facts, list_type e) const{
+    list<comm_info> re;
+    if(e==BARRIER_CLIST){
+      re =  sort_comm_map(eset, barrier_clist_map, facts, e);
+    }else if(e==BARRIER_PLIST){
+      re = sort_comm_map(eset, barrier_plist_map, facts, e);
+    }else if(e==REDUCE_RLIST){
+      re = sort_comm_map(eset, reduce_rlist_map, facts, e);
+    }else if(e==REDUCE_CLIST){
+      re = sort_comm_map(eset, reduce_clist_map, facts, e);
+    }else if(e==LOOP_ADVANCE_LIST){
+      re = sort_comm_map(eset, loop_advance_list_map, facts, e);
+    }else if(e==RECURSE_CLIST){
+      re = sort_comm_map(eset, recurse_clist_map, facts, e);
+    }else if(e==RECURSE_PRE_CLIST){
+      re = sort_comm_map(eset, recurse_pre_clist_map, facts, e);
+    }else if(e==RECURSE_POST_CLIST){
+      re = sort_comm_map(eset, recurse_post_clist_map, facts, e);
+    }else if(e==RECURSE_PRE_PLIST){
+      re = sort_comm_map(eset, recurse_pre_plist_map, facts, e);
+    }else{
+      debugout << "ERROR: unrecognized list_type " << e << " in get_comm_info_list" << endl;
+    }
+    return re;
+  }
+  void sched_db::update_comm_info_list(const std::list<comm_info>& elist, list_type e){
+    list<comm_info>::const_iterator cli ;
+    // map<variable, list<comm_info> >::iterator mi; 
+    for(cli=elist.begin();cli!=elist.end();++cli) {
+      variable v = cli->v ;
+      if(e==BARRIER_CLIST){
+        barrier_clist_map[v].push_back( *cli); 
+      }else if(e==BARRIER_PLIST){
+        barrier_plist_map[v].push_back( *cli);
+      }else if(e==REDUCE_RLIST){
+        reduce_rlist_map[v].push_back( *cli); 
+      }else if(e==REDUCE_CLIST){
+        reduce_clist_map[v].push_back( *cli); 
+      }else if(e==LOOP_ADVANCE_LIST){
+        loop_advance_list_map[v].push_back( *cli); 
+      }else if(e==RECURSE_CLIST){
+        recurse_clist_map[v].push_back( *cli); 
+      }else if(e==RECURSE_PRE_CLIST){
+        recurse_pre_clist_map[v].push_back( *cli); 
+      }else if(e==RECURSE_POST_CLIST){
+        recurse_post_clist_map[v].push_back( *cli); 
+      }else if(e==RECURSE_PRE_PLIST){
+        recurse_pre_plist_map[v].push_back( *cli);  
+      } else{
+        debugout << "ERROR: unrecognized list_type " << e << " in update_comm_info_list" << endl;
+      }
+        
+    }     
+  }
 }
+  

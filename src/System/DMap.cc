@@ -426,6 +426,11 @@ namespace Loci {
     return(size) ;
   }
 
+  int dMapRepI::estimated_pack_size(const entitySet &e) {
+    
+    return pack_size(e) ;
+  }
+
   int dMapRepI::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;

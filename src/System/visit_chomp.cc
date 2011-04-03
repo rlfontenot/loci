@@ -1105,18 +1105,18 @@ namespace Loci {
       all_vars += barrier_vars ;
       if(barrier_vars != EMPTY) {
         chc.
-          chomp_comp.
+          old_chomp_comp.
           push_back(make_pair(fake,
                               CPTR<Loci::rule_compiler>(new barrier_compiler(barrier_vars)))) ;
 	if(duplicate_work)
-	  chc.barrier_sets.push_back(barrier_vars);
+	  chc.old_barrier_sets.push_back(barrier_vars);
       }
       
       all_vars += singleton_vars ;
 
       if(singleton_vars != EMPTY)
         chc.
-          chomp_comp.
+          old_chomp_comp.
           push_back(make_pair(fake,
                               CPTR<Loci::rule_compiler>(new singleton_var_compiler(singleton_vars)))) ;
 
@@ -1144,7 +1144,7 @@ namespace Loci {
             } else {
               WARN(sp->RepType()!=STORE) ;
               chc.
-                chomp_comp.
+                old_chomp_comp.
                 push_back(make_pair(fake,
                                     CPTR<rule_compiler>(
                        new reduce_store_compiler(xi->first,
@@ -1153,7 +1153,7 @@ namespace Loci {
 	      if(duplicate_work) {
 		variableSet temp;
 		temp += xi->first;
-		chc.barrier_sets.push_back(temp);
+		chc.old_barrier_sets.push_back(temp);
 	      }
             }
           }
@@ -1161,7 +1161,7 @@ namespace Loci {
       }
       if(reduce_var_vector.size() != 0) {
         chc.
-          chomp_comp.
+          old_chomp_comp.
           push_back(make_pair(fake,
                               CPTR<rule_compiler>(new reduce_param_compiler(reduce_var_vector,
                                                         unit_rule_vector,
@@ -1171,7 +1171,7 @@ namespace Loci {
 	  for(unsigned int i = 0; i < reduce_var_vector.size(); i++)
 	    myVars += reduce_var_vector[i];
 	  
-	  chc.barrier_sets.push_back(myVars);
+	  chc.old_barrier_sets.push_back(myVars);
 	}
       }
       
@@ -1182,7 +1182,7 @@ namespace Loci {
         //rule_compilerP bc = new barrier_compiler(vars) ;
         // the rule compiler rmi->second is only included
         // as a place holder but servers no purpose in this case
-        chc.chomp_comp.push_back(make_pair(*ri,rmi->second)) ;
+        chc.old_chomp_comp.push_back(make_pair(*ri,rmi->second)) ;
       }
     }
   }

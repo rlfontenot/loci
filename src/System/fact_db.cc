@@ -208,15 +208,18 @@ namespace Loci {
   
   
   void fact_db::update_fact(variable v, storeRepP st) {
+    //if st is STORE or MAP, update maximum_allocated
     if(st->RepType() == Loci::MAP || st->RepType() == Loci::STORE) {
       int max_val = st->domain().Max() ;
       maximum_allocated = max(maximum_allocated,max_val+1) ;
     }
+    //add namespace
     variable tmp_v = add_namespace(v) ;
-    
+
+    //tmp_v should not have synonyms
     warn(synonyms.find(tmp_v) != synonyms.end()) ;
     std::map<variable, fact_info>::iterator mi = fmap.find(tmp_v) ;
-    
+    //tmp_v should be in fmap
     if(mi != fmap.end()) {
       mi->second.data_rep->setRep(st->getRep()) ;
     } else
@@ -271,6 +274,7 @@ namespace Loci {
     // cout << " tmp_v = " << tmp_v << endl ;
   } 
 
+  /*! remove from synonym and fmap */
   void fact_db::remove_variable(variable v) {
     std::map<variable, variable>::iterator si ;
     std::map<variable, fact_info>::iterator mi ;
@@ -292,7 +296,7 @@ namespace Loci {
         }
       }
 
-      // Now erse the variable
+      // Now erase the variable
       fmap.erase(mi) ;
     }
   }

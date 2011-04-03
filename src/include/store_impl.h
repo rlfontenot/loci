@@ -274,6 +274,13 @@ namespace Loci {
     return get_mpi_size( schema_converter(), eset );
   }
 
+ //*******************************************************************/
+  template <class T> int storeRepI<T>::estimated_pack_size( const entitySet &eset) {
+
+    return pack_size(eset);
+  }
+  
+
   template<class T> int storeRepI<T>::
   pack_size(const entitySet& e, entitySet& packed) {
     packed = domain() & e ;

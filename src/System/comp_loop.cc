@@ -351,7 +351,6 @@ namespace Loci {
       (*i)->set_var_existence(facts, scheds) ;
     for(i=advance_comp.begin();i!=advance_comp.end();++i)
       (*i)->set_var_existence(facts, scheds) ;
-    
   }
   
   void loop_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
@@ -408,8 +407,10 @@ namespace Loci {
     var_requests -= non_stores ;
     
     if(facts.isDistributed()) {
-      advance_variables_barrier = barrier_process_rule_requests(var_requests, facts, scheds);
+      list<comm_info> advance_variables_barrier = barrier_process_rule_requests(var_requests, facts, scheds);
       advance_variables_barrier = sort_comm(advance_variables_barrier, facts);
+      scheds.update_comm_info_list(advance_variables_barrier, sched_db::LOOP_ADVANCE_LIST);
+      
     }
   }
   
@@ -429,6 +430,7 @@ namespace Loci {
     }
 
     if(facts.isDistributed()) {
+      std::list<comm_info> advance_variables_barrier = scheds.get_comm_info_list(advance_vars, facts, sched_db::LOOP_ADVANCE_LIST);
       execute_comm2::inc_comm_step() ;
       //executeP exec_comm =
       //new execute_comm(advance_variables_barrier, facts);

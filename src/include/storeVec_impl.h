@@ -419,7 +419,21 @@ namespace Loci {
     return(size) ;
 
   }
+   //**************************************************************************/
 
+  template <class T>
+  inline int storeVecRepI<T>::estimated_mpi_size( IDENTITY_CONVERTER c, const entitySet &eset)
+  {
+    int mysize;
+  
+    if( isMat) mysize = (sizeof(T) * eset.size() * 25) + sizeof(int) ;
+    else  mysize = (sizeof(T) * eset.size() * 5) + sizeof(int) ;
+    return (mysize) ;
+
+  }
+
+
+  
   //**************************************************************************/
 
   template <class T>
@@ -445,7 +459,40 @@ namespace Loci {
     return(arraySize*sizeof(typename converter_traits::Converter_Base_Type) +
            (numContainers+1)*sizeof(int));
   }
+  
 
+ //**************************************************************************/
+
+  template <class T>
+  int storeVecRepI<T>::estimated_mpi_size( USER_DEFINED_CONVERTER c, const entitySet &eset)
+  {
+    
+
+    int     arraySize =0, numContainers = 0;
+    int estimated_converter_size = 50*sizeof(double);
+    
+    entitySet::const_iterator ci;
+
+    fatal((eset - domain()) != EMPTY);
+
+    entitySet sdom = eset & domain() ;
+    if(isMat) arraySize = 25*sdom.size()*estimated_converter_size;
+    else arraySize = 5*sdom.size()*estimated_converter_size;
+    
+    
+    
+    if(isMat) numContainers =  25*eset.size();
+    else  numContainers =  5*eset.size();
+    
+    
+    return(arraySize +
+           (numContainers+1)*sizeof(int));
+  }
+
+
+
+
+  
   //**************************************************************************/
 
   template <class T>
@@ -456,6 +503,16 @@ namespace Loci {
     schema_converter traits_type;
 
     return get_mpi_size( traits_type, eset );
+  }
+
+   template <class T>
+  int storeVecRepI<T>::estimated_pack_size( const entitySet &eset)
+  {
+    typedef typename
+      data_schema_traits<T>::Schema_Converter schema_converter;
+    schema_converter traits_type;
+
+    return estimated_mpi_size( traits_type, eset );
   }
 
   template<class T> int storeVecRepI<T>::

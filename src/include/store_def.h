@@ -90,6 +90,7 @@ namespace Loci {
 
     virtual int pack_size(const entitySet& e, entitySet& packed) ;
     virtual int pack_size(const entitySet &e) ;
+     virtual int estimated_pack_size(const entitySet &e) ;
     virtual void pack(void *ptr, int &loc, int &size, const entitySet &e) ;
     virtual void unpack(void *ptr, int &loc, int &size, const sequence &seq) ;
 
@@ -162,13 +163,13 @@ namespace Loci {
     const_store<T> & operator=(storeRepP p) { setRep(p) ; return *this ; }
     entitySet domain() const { return Rep()->domain(); }
     std::ostream &Print(std::ostream &s) const { return Rep()->Print(s); }
-    const T &restrict elem(int indx) const {
+    const T &restrict elem(int indx) const restrict {
 #ifdef BOUNDS_CHECK
       fatal(base_ptr==NULL);
       fatal(!Rep()->domain().inSet(indx)) ;
 #endif
       return base_ptr[indx]; }
-    const T& restrict operator[](int indx) const { return elem(indx); }
+    const T& restrict operator[](int indx) const restrict { return elem(indx); }
   } ;
 
   

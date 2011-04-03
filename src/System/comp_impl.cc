@@ -1127,7 +1127,8 @@ namespace Loci {
   }
 
   void impl_compiler::process_var_requests(fact_db &facts, sched_db &scheds) {
-    exec_seq = process_rule_requests(impl,facts, scheds) ;
+    entitySet exec_seq = process_rule_requests(impl,facts, scheds) ;
+    scheds.update_exec_seq(impl, exec_seq);
   }
 
   executeP impl_compiler::
@@ -1138,10 +1139,12 @@ namespace Loci {
     variableSet targets = impl.targets() ;
     WARN(targets.size() == 0) ;
 
+    extern int method ;
+    entitySet exec_seq = scheds.get_exec_seq(impl);
     if (impl.get_info().rule_impl->dynamic_schedule_rule() &&
         use_dynamic_scheduling) {
       executeP execute_dynamic =
-        new dynamic_schedule_rule(impl,exec_seq,facts, scheds) ;
+        new dynamic_schedule_rule(impl,exec_seq,facts, scheds,method) ;
 
       return execute_dynamic;
     }
@@ -2006,11 +2009,13 @@ namespace Loci {
     variableSet sources = impl.sources() ;
     for(variableSet::const_iterator vi=sources.begin(); vi != sources.end(); ++vi)
       scheds.variable_request(*vi, scheds.variable_existence(*vi)) ;
-    exec_seq = ~EMPTY ;
+    entitySet exec_seq = ~EMPTY ;
+    scheds.update_exec_seq(impl, exec_seq);
   }
 
   executeP blackbox_compiler::
   create_execution_schedule(fact_db& facts, sched_db& scheds) {
+    entitySet exec_seq = scheds.get_exec_seq(impl);
     executeP execute = new execute_rule(impl,
                                         sequence(exec_seq), facts, scheds);
     return execute ;

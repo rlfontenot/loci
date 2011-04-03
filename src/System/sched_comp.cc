@@ -63,7 +63,7 @@ namespace Loci {
   extern int chomping_size ;
   extern bool profile_memory_usage ;
   extern bool memory_greedy_schedule ;
-
+  extern bool randomized_memory_greedy_schedule;
   // memory profiling counters
   extern double LociAppPeakMemory ;
   extern double LociAppAllocRequestBeanCounting ;
@@ -324,7 +324,7 @@ namespace Loci {
     getAllVarVisitor allvarV ;
     top_down_visit(allvarV) ;
     variableSet input = variableSet(given & allvarV.get_all_vars_ingraph()) ;
-
+    variableSet all_vars = allvarV.get_all_vars_ingraph();
     // check preconditions of recurrence
     check_recur_precondition(recv,input) ;
 
@@ -650,23 +650,81 @@ namespace Loci {
     //    timer_token graph_scheduling_timer = new timer_token;
     //    if(collect_perf_data)
     //      graph_scheduling_timer = perfAnalysis->start_timer("Graph Scheduling");
-	if(!memory_greedy_schedule) {
+    
+   
+    if(randomized_memory_greedy_schedule && (!in_internal_query)){ 
+      if(Loci::MPI_rank == 0)
+        if(!in_internal_query)
+          cout << "graph scheduling... (randomized memory greedy)" << endl ;
+      
+      sched_db local_scheds =  scheds;
+      fact_db local_facts = facts ;
+      
+      compGreedyPrio cgp2 ;
+      graphSchedulerVisitor gsv2(cgp2) ;
+      top_down_visit(gsv2) ;
+      assembleVisitor av2(local_facts, local_scheds,
+                          reduceV.get_all_reduce_vars(),
+                          reduceV.get_reduceInfo(),
+                          dkv.get_dynamic_targets(),
+                          dkv.get_self_clone(),
+                          dkv.get_shadow_clone(),
+                          dkv.get_drule_ctrl()) ;
+      bottom_up_visit(av2) ;
+      existential_analysis(local_facts, local_scheds);
+    
+      map<variable, double> var_info;
+      int num_vars = all_vars.size();
+      double* local_sizes = new double[num_vars];
+      double* global_sizes = new double[num_vars];
+      
+      //collect the info
+      int id = 0;
+      for(variableSet::const_iterator
+            mi=all_vars.begin();mi!=all_vars.end();++mi) {
+        entitySet eset = local_scheds.get_variable_requests(*mi);
+        storeRepP st = facts.get_variable(*mi);
+        local_sizes[id++] = st->estimated_pack_size(eset);
+      }
+      
+      for(id = 0; id < num_vars; id++)global_sizes[id] = 0;
+       MPI_Allreduce(local_sizes,
+                     global_sizes,
+                     num_vars, MPI_DOUBLE,
+                     MPI_MAX,MPI_COMM_WORLD) ;
+       id = 0;
+       for(variableSet::const_iterator
+             mi=all_vars.begin();mi!=all_vars.end();++mi) {
+         var_info[*mi]= global_sizes[id++];
+       }
+       delete [] local_sizes;
+       delete [] global_sizes;
+       
+       SchedClearVisitor scv;
+       top_down_visit(scv) ;
+       MemGreedyScheduler mgs(facts,
+                              scheds,
+                              recv.get_recur_vars_s2t(),
+                              recv.get_recur_vars_t2s(),
+                              var_info);
+      
+       top_down_visit(mgs) ;
+      
+    }else if(!memory_greedy_schedule) {
       if(Loci::MPI_rank == 0)
         if(!in_internal_query)
           cout << "graph scheduling... (computation greedy)" << endl ;
-      // the old scheduling comp greedy function
-      //simLazyAllocSchedVisitor lazyschedv ;
-      //top_down_visit(lazyschedv) ;
+      
       compGreedyPrio cgp ;
       graphSchedulerVisitor gsv(cgp) ;
       top_down_visit(gsv) ;
+      
+      
     } else {
       if(Loci::MPI_rank == 0)
         if(!in_internal_query)
           cout << "graph scheduling... (memory greedy)" << endl ;
-      // the old mem greedy scheduling function
-      //memGreedySchedVisitor mgsv(facts) ;
-      //top_down_visit(mgsv) ;
+      
       memGreedyPrio mgp(facts) ;
       graphSchedulerVisitor gsv(mgp) ;
       top_down_visit(gsv) ;
@@ -679,7 +737,7 @@ namespace Loci {
     //    if(collect_perf_data)
     //      perfAnalysis->stop_timer(graph_scheduling_timer);
     schedet = MPI_Wtime() ;
-
+    
     assembleVisitor av(facts, scheds,
                        reduceV.get_all_reduce_vars(),
                        reduceV.get_reduceInfo(),
@@ -689,6 +747,8 @@ namespace Loci {
                        dkv.get_drule_ctrl()) ;
 
     bottom_up_visit(av) ;
+    
+
 
 #ifdef COMPILE_PROGRESS
     if(Loci::MPI_rank==0)
@@ -857,10 +917,11 @@ namespace Loci {
         }
 	if(srp->RepType() == Loci::STORE) {
 	  entitySet tmp = interval(alloc_dom.Min(), alloc_dom.Max()) ;
-	  if(tmp.size() >= 2*srp->domain().size())
+	  if(verbose && tmp.size() >= 2*srp->domain().size())
 	    Loci::debugout << "Variable = " << *vi << "  more than twice the space allocated :  allocated over " << alloc_dom << " size = " << tmp.size()  << "  while domain is only  " << srp->domain() << " size = " << srp->domain().size() << endl ;
 	  if(alloc_dom != srp->domain()) {
-	    Loci::debugout << "reallocating " << *vi << "  over  " << alloc_dom << " initially it was over  " << srp->domain() << endl ;
+	    if(verbose)
+	      Loci::debugout << "reallocating " << *vi << "  over  " << alloc_dom << " initially it was over  " << srp->domain() << endl ;
 	    srp->allocate(alloc_dom) ;
 	  }
 	} 

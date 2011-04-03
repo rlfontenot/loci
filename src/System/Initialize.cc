@@ -126,6 +126,11 @@ namespace Loci {
   // (more memory conservative and more synchronization
   //  points will be generated)
   bool memory_greedy_schedule = true ;
+  
+  //use randomized greedy DAG scheduler. Firs the sizes of variables are queried.
+  //Then the scheduler is rerun using the sizes as weight.
+  bool randomized_memory_greedy_schedule = false;
+  
   // flag to disable memory deallocation decoration
   // if use_dynamic_memory==true. this is more of a
   // debugging tool. in this mode, we only have
@@ -432,6 +437,12 @@ namespace Loci {
           i++ ;
         } else if(!strcmp((*argv)[i],"--nomemgreedy")) {
           memory_greedy_schedule = false ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--memrandomized")) {
+          randomized_memory_greedy_schedule = true ;
+          i++ ;
+        } else if(!strcmp((*argv)[i],"--nomemrandomized")) {
+          randomized_memory_greedy_schedule = false ;
           i++ ;
         } else if(!strcmp((*argv)[i],"--method")) {
           if(!strcmp((*argv)[i+1],"none")) {

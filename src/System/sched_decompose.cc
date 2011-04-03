@@ -69,7 +69,10 @@ namespace Loci {
     return multiLevelGraph(dg,grvtx) ;
   }
 
-  
+  /*! prepare_diagraph() adds edges for reduction:
+    unit_var->unit_rule, and unit_var->apply_rules
+    so that unit rules will stay in components and will be connected to apply rules
+  */
   void prepare_digraph(digraph &dg) {
     digraph::vertexSet grvtx = dg.get_all_vertices() ;
     ruleSet all_rules = extract_rules(grvtx) ;
@@ -126,6 +129,12 @@ namespace Loci {
     
   }
 
+  
+  /*!post_process_mlg() removes edges for reduction:
+  unit_var->unit_rule, and unit_var->apply_rules
+  adds edges: unit_rule->apply_rules
+  and removes dangling vertices
+  */
   void post_process_mlg(multiLevelGraph::subGraph &sg) {
     digraph &gr = sg.gr ;
     ruleSet gr_rules = extract_rules(sg.graph_v) ;

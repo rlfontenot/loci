@@ -32,6 +32,23 @@
 #include <execute.h>
 
 namespace Loci {
+  struct comm_info {
+    variable v ;
+    int processor ;
+    entitySet send_set ;
+    sequence recv_set ;
+  } ;
+  struct send_var_info {
+    variable v ;
+    entitySet set ;
+    send_var_info(variable iv, const entitySet &iset) : v(iv),set(iset) {}
+  } ;
+  
+  struct recv_var_info {
+    variable v ;
+    sequence seq ;
+    recv_var_info(variable iv, const sequence &iseq) : v(iv),seq(iseq) {}
+  } ;
   class sched_db {
     
     struct sched_data {
@@ -43,7 +60,7 @@ namespace Loci {
       ;
       sched_data() {} 
       sched_data(variable v, storeRepP &st)
-	{ aliases += v ; 
+      { aliases += v ; 
 	ismap = (st->RepType() == Loci::MAP);
 	if(ismap) minfo = MapRepP(st->getRep()) ; }
     } ;
@@ -55,12 +72,16 @@ namespace Loci {
       existential_info(const variable &vin,const entitySet &e) :
         v(vin), exists(e) {}
     } ;
+
+    
     struct sched_info ;
     friend struct sched_info ;
     struct sched_info {
       int sched_info_ref ;
-      entitySet fact_installed ;
+      /*! fact_installed is initialized in init(), and never used except for variable_is_fact_at(), comment out*/
+      // entitySet fact_installed ;
       variableSet synonyms ;
+      
       std::map<rule,existential_info> exist_map ;
       entitySet existence ;
       entitySet requested ;
@@ -107,6 +128,11 @@ namespace Loci {
       }
     } ;
 
+    
+
+    /*!
+      data structure used for  duplication 
+    */ 
     struct model {
       double ts, tw;
       static bool is_valid_val(double val) { return (val > -99999); }
@@ -118,21 +144,42 @@ namespace Loci {
       void get_parameters(double &t0, double &tc) { t0 = ts; tc = tw; }
       void set_parameters(double t0, double tc) { ts = t0; tw = tc; }
     };
-
     variableSet possible_duplicate_vars;
     std::map<rule, model> comp_model;
     model comm_model;
+    
+
     void register_variable(variable v) ;
   
     variableSet all_vars ;
     std::map<variable,variable> synonyms ;
     typedef std::map<variable, sched_info> vmap_type ;
+
+    /*!
+      vmap: the sched_info for each variable.
+    */ 
     vmap_type vmap ;
     std::vector<sched_data> sched_infov ;
-    intervalSet free_set ;
+    /*! free_set is never initialized or modified, seems no purpose to exists. comment out */
+    //  intervalSet free_set ; 
 
     bool detected_errors ;
-
+    /*! the follow maps store variable-based comm_info and rule-based sequences for compilers
+      these data structures are modified and used by existential_analysis 
+    */
+    std::map<variable,entitySet> barrier_send_entities_map ;
+    std::map<variable,entitySet> recurse_pre_send_entities_map ;
+    std::map<variable, std::list<comm_info> > barrier_clist_map;
+    std::map<variable, std::list<comm_info> > barrier_plist_map;
+    std::map<variable, std::list<comm_info> > reduce_rlist_map;
+    std::map<variable, std::list<comm_info> > reduce_clist_map;
+    std::map<variable, std::list<comm_info> > loop_advance_list_map;
+    std::map<variable, std::list<comm_info> > recurse_clist_map;
+    std::map<variable, std::list<comm_info> > recurse_pre_clist_map;
+    std::map<variable, std::list<comm_info> > recurse_post_clist_map;
+    std::map<variable, std::list<comm_info> > recurse_pre_plist_map;
+    std::map<rule, entitySet> exec_seq_map;
+    
   public:
     variable remove_synonym(variable v) const {
       std::map<variable,variable>::const_iterator mi ;
@@ -143,6 +190,12 @@ namespace Loci {
 
   public:
     enum  duplicate_policy{NEVER, ALWAYS, MODEL_BASED};
+    enum list_type{BARRIER_CLIST, BARRIER_PLIST,
+                   REDUCE_RLIST, REDUCE_CLIST,
+                   LOOP_ADVANCE_LIST,RECURSE_CLIST,
+                   RECURSE_PRE_CLIST, RECURSE_POST_CLIST, RECURSE_PRE_PLIST};
+    enum send_entities_type{BARRIER, RECURSE_PRE};
+                   
     sched_db() ;
     ~sched_db() ;
     sched_db(fact_db &facts) ;
@@ -206,47 +259,48 @@ namespace Loci {
     
     void set_variable_type(variable v, storeRepP st, fact_db &facts) ;
     void set_variable_type(std::string vname,const storeRepP st, fact_db &facts)
-      { set_variable_type(variable(vname),st, facts) ; }
+    { set_variable_type(variable(vname),st, facts) ; }
     
     void set_variable_type(variable v, store_instance &si, fact_db &facts)
-      { set_variable_type(v,si.Rep(), facts) ; }
+    { set_variable_type(v,si.Rep(), facts) ; }
     void set_variable_type(std::string vname, store_instance &si, fact_db &facts)
-      { set_variable_type(variable(vname),si, facts) ; }
+    { set_variable_type(variable(vname),si, facts) ; }
     
     void set_variable_type(variable v, storeRepP st) ;
     void set_variable_type(std::string vname,const storeRepP st)
-      { set_variable_type(variable(vname),st) ; }
+    { set_variable_type(variable(vname),st) ; }
     
     void set_variable_type(variable v, store_instance &si)
-      { set_variable_type(v,si.Rep()) ; }
+    { set_variable_type(v,si.Rep()) ; }
     void set_variable_type(std::string vname, store_instance &si)
-      { set_variable_type(variable(vname),si) ; } 
-    
-    void variable_is_fact_at(variable v,entitySet s, fact_db &facts) ;
-    void variable_is_fact_at(std::string vname, const entitySet s, fact_db &facts)
-      { variable_is_fact_at(variable(vname),s, facts) ; }
-    
-    void variable_is_fact_at(variable v,entitySet s) ;
-    void variable_is_fact_at(std::string vname, const entitySet s)
-      { variable_is_fact_at(variable(vname),s) ; }
+    { set_variable_type(variable(vname),si) ; } 
 
+    /*! variable_is_fact_at() functions are never used, comment out*/
+    //  void variable_is_fact_at(variable v,entitySet s, fact_db &facts) ;
+    //     void variable_is_fact_at(std::string vname, const entitySet s, fact_db &facts)
+    //       { variable_is_fact_at(variable(vname),s, facts) ; }
+    
+    //     void variable_is_fact_at(variable v,entitySet s) ;
+    //     void variable_is_fact_at(std::string vname, const entitySet s)
+    //       { variable_is_fact_at(variable(vname),s) ; }
+    
     void set_variable_rotations(variableSet rot) ;
      
     void alias_variable(variable v, variable alias, fact_db &facts) ;
     void alias_variable(std::string vname, std::string alias, fact_db &facts)
-      { alias_variable(variable(vname),variable(alias), facts) ; }
+    { alias_variable(variable(vname),variable(alias), facts) ; }
    
     void alias_variable(variable v, variable alias) ;
     void alias_variable(std::string vname, std::string alias)
-      { alias_variable(variable(vname),variable(alias)) ; }
+    { alias_variable(variable(vname),variable(alias)) ; }
     
     void synonym_variable(variable v, variable synonym, fact_db &facts) ;
     void synonym_variable(std::string vname, std::string synonym, fact_db &facts)
-      { synonym_variable(variable(vname),variable(synonym), facts) ; }
+    { synonym_variable(variable(vname),variable(synonym), facts) ; }
     
     void synonym_variable(variable v, variable synonym) ;
     void synonym_variable(std::string vname, std::string synonym)
-      { synonym_variable(variable(vname),variable(synonym)) ; }
+    { synonym_variable(variable(vname),variable(synonym)) ; }
     
     void set_existential_info(variable v,rule f,entitySet x) ;
     ruleSet get_existential_rules(variable v) ;
@@ -261,9 +315,9 @@ namespace Loci {
     const sched_data & get_sched_data(variable v) const 
     { return sched_infov[get_sched_info(v).sched_info_ref] ; }
     
-    sched_info & get_sched_info(variable v) ;
+    sched_info & get_sched_info(variable v);
     sched_data & get_sched_data(variable v) 
-      { return sched_infov[get_sched_info(v).sched_info_ref] ; }
+    { return sched_infov[get_sched_info(v).sched_info_ref] ; }
 
     bool is_a_Map(variable v) {
       return get_sched_data(v).ismap ;
@@ -435,9 +489,33 @@ namespace Loci {
 	possible_duplicate_vars += syns;
       }
     }
-    
+   
     std::ostream &print_summary(fact_db &facts, std::ostream &s) ;
 
+    std::vector<std::pair<variable,entitySet> > get_send_entities(variableSet eset, send_entities_type e);
+    void  update_send_entities( const std::vector<std::pair<variable,entitySet> >& evec, send_entities_type e);
+    std::list<comm_info> get_comm_info_list(variableSet eset, fact_db& facts, list_type e) const;
+    void update_comm_info_list(const std::list<comm_info>& elist, list_type e);
+
+    entitySet get_exec_seq(rule r){
+      entitySet re = EMPTY;
+      std::map<rule,entitySet>::const_iterator mi = exec_seq_map.find(r);
+      if(mi != exec_seq_map.end()){
+        re += mi->second;
+      }else{
+        debugout<<"WARNING: exec_seq_map is read before write at rule " << r << endl;
+      }
+      return re;
+    }
+    
+    void update_exec_seq(rule r, entitySet eset){
+      std::map<rule,entitySet>::const_iterator mi = exec_seq_map.find(r);
+      if(mi == exec_seq_map.end()){
+        exec_seq_map[r] = eset;
+      }else{
+        debugout<<"WARNING: exec_seq_map is written more than once at rule " << r << endl;
+      }
+    }
   } ;
 }
 

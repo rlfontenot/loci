@@ -940,9 +940,9 @@ namespace Loci {
     if(Loci::MPI_rank==0)
       cout << "existential analysis..." << endl ;
     sw.start() ;
-    
+      
     compile_graph.existential_analysis(facts, scheds) ;
-    
+      
     Loci::debugout << "Time taken for existential_analysis  = "
                    << sw.stop() << "  seconds " << endl ;
     ///////////////////////////////////
@@ -957,6 +957,7 @@ namespace Loci {
     if(Loci::MPI_rank==0)
       cout << "creating execution schedule..." << endl;
     sw.start() ;
+    
     executeP sched =  compile_graph.execution_schedule
       (facts,scheds,initial_vars) ;
     Loci::debugout << "Time taken for create execution schedule = "

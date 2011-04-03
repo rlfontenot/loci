@@ -44,15 +44,23 @@ using std::ios ;
 using std::ostringstream ;
 using std::ofstream ;
 
+#include <list>
+using std::list ;
+#include <stack>
+using std::stack ;
 #include <deque>
 using std::deque ;
 #include <queue>
+using std::queue ;
 using std::priority_queue ;
 
 #include <algorithm>
 using std::remove_if ;
 using std::sort ;
 using std::stable_sort ;
+using std::random_shuffle ;
+
+#include <sys/time.h>
 
 //#define VERBOSE
 
@@ -231,7 +239,7 @@ namespace Loci {
       dump_vars_compiler(variableSet &vars) : dump_vars(vars) {}
       virtual void compile() {}
       virtual void accept(visitor& v) {}
-      virtual void set_var_existence(fact_db &facts, sched_db &scheds) {}
+      virtual void set_var_existence(fact_db &facts, sched_db &scheds)  {}
       virtual void process_var_requests(fact_db &facts, sched_db &scheds) {}
       virtual executeP create_execution_schedule(fact_db &facts, sched_db &scheds) {
         return executeP(new execute_dump_var(dump_vars)) ;
@@ -313,6 +321,7 @@ namespace Loci {
       debugout << " in comp_dag.cc vars = " << vars  << endl ;
 #endif
       ruleSet rules = extract_rules(dag_sched[i]) ;
+
       if(rules == EMPTY && i+1<dag_sched.size()) {
         ++i ;
         vars += extract_vars(dag_sched[i]) ;
@@ -455,6 +464,7 @@ namespace Loci {
 
       // remove dynamic targets
       barrier_vars -= dynamic_targets ;
+
       if(barrier_vars != EMPTY) {
         dag_comp.push_back(new barrier_compiler(barrier_vars)) ;
       }
@@ -1040,7 +1050,30 @@ namespace Loci {
     vector<digraph::vertexSet> first_sched = get_firstSched(cc.cond_gr) ;
     cc.dag_sched = insertAlloc2Sched(cc.cond_gr,first_sched) ;
   }
+  
 
+
+  void SchedClearVisitor::visit(loop_compiler& lc) {
+   
+    (lc.collapse_sched).clear();
+    (lc.advance_sched).clear();
+    (lc.collapse_comp).clear();
+    (lc.advance_comp).clear();
+    
+  }
+
+  void SchedClearVisitor::visit(dag_compiler& dc) {
+  
+    (dc.dag_sched).clear();
+    (dc.dag_comp).clear();
+  }
+
+  void SchedClearVisitor::visit(conditional_compiler& cc) {
+    (cc.dag_sched).clear();
+    (cc.dag_comp).clear();
+  }
+  
+  
   /////////////////////////////////////////////////////////////////
   // graphSchedulerVisitor
   /////////////////////////////////////////////////////////////////
@@ -1135,6 +1168,21 @@ namespace Loci {
       return new_gr ;
     }
 
+    digraph::vertexSet get_reachable(const digraph& g, int v) {
+      digraph::vertexSet all ;
+      digraph::vertexSet nxt ; nxt += v ;
+      while(nxt != EMPTY) {
+        digraph::vertexSet tmp ;
+        for(digraph::vertexSet::const_iterator vi=nxt.begin();
+            vi!=nxt.end();++vi)
+          tmp += g[*vi] ;
+        tmp -= all ;
+        all += tmp ;
+        nxt = tmp ;
+      }
+      return all ;
+    }
+    
   } // end of namespace (unnamed)
   
   std::vector<digraph::vertexSet>
@@ -1374,6 +1422,462 @@ namespace Loci {
       pmap[*(vi->begin())] = weight++ ;
     }
   }
+
+
+  namespace {
+    // a small function to generate random integers from
+    // a specified range [b,e]
+    size_t gen_rand(size_t b, size_t e) {
+      double o = drand48() ;
+      size_t scale = e - b + 1 ;
+      return b + static_cast<size_t>(o*scale) ;
+    }
+  }
   
+  MemGreedyScheduler::
+  MemGreedyScheduler(fact_db& fd,
+                     sched_db& sd,
+                     const std::map<variable,variableSet>& s,
+                     const std::map<variable,variableSet>& t,
+                     const map<variable, double>& info)
+    :facts(fd),s2t(s),t2s(t),var_cluster(5) {
+    // initialize random seed
+    srand48(s.size()*t.size()) ;
+    // check to see if the allocinfo file is present
+    // if so, read in information
+   //  string filename ;
+//     ostringstream oss ;
+//     oss << "alloc-info" ;
+//     if(Loci::MPI_processes > 1)
+//       oss << "-" << Loci::MPI_rank ;
+//     filename = oss.str() ;
+//     int file_exists = 1 ;
+//     if(Loci::MPI_rank == 0) {
+//       struct stat buf ;
+//       if(stat(filename.c_str(),&buf) == -1
+//          || !S_ISREG(buf.st_mode)) file_exists = 0 ;
+//     }
+//     MPI_Bcast(&file_exists, 1, MPI_INT, 0, MPI_COMM_WORLD) ;
+
+    int max_id = 0 ;
+    // map<variable,double> info ;
+    //  if(file_exists == 1) {
+//       // read in previously recorded allocation information
+//       std::ifstream file(filename.c_str(), ios::in) ;
+//       string v ;
+//       double s ;
+//       while(file>>v) {
+//         file >> s ;
+//         variable var(v) ;
+//         info[var] = s ;
+//         if(var.ident() > max_id)
+//           max_id = var.ident() ;
+//       }
+//       file.close() ;
+//     }else{//query the size of all variables in s2t and t2s, fill in map info
+      
+
+      for(map<variable, double>::const_iterator mi = info.begin(); mi != info.end(); mi++){
+        if((mi->first).ident() > max_id)max_id = (mi->first).ident();
+      }
+      
+      
+      // }
+      // }
+
+     
+      // construct the var_cluster info
+      var_cluster.resize(max_id+1) ;
+      for(map<variable,double>::const_iterator
+          mi=info.begin();mi!=info.end();++mi) {
+      var_cluster.makeSet( (mi->first).ident()) ;
+    }
+    for(map<variable,variableSet>::const_iterator
+          mi=s2t.begin();mi!=s2t.end();++mi) {
+      var_cluster.tryMakeSetWithResize( (mi->first).ident()) ;
+      for(variableSet::const_iterator vi=(mi->second).begin();
+          vi!=(mi->second).end();++vi)
+        var_cluster.tryMakeSetWithResize(vi->ident()) ;
+    }
+    for(map<variable,variableSet>::const_iterator
+          mi=t2s.begin();mi!=t2s.end();++mi) {
+      var_cluster.tryMakeSetWithResize( (mi->first).ident()) ;
+      for(variableSet::const_iterator vi=(mi->second).begin();
+          vi!=(mi->second).end();++vi)
+        var_cluster.tryMakeSetWithResize(vi->ident()) ;
+    }
+    for(map<variable,double>::const_iterator
+          mi=info.begin();mi!=info.end();++mi) {
+      int vid = (mi->first).ident() ;
+      variableSet rv = get_all_recur_vars(s2t,mi->first) ;
+      rv += get_all_recur_vars(t2s,mi->first) ;
+      for(variableSet::const_iterator vi=rv.begin();
+          vi!=rv.end();++vi)
+        var_cluster.unionSets(vid,vi->ident()) ;
+    }
+    // fill in the alloc_info map
+    for(map<variable,double>::const_iterator
+          mi=info.begin();mi!=info.end();++mi) {
+      int vid = (mi->first).ident() ;
+      int rep = var_cluster.findSet(vid) ;
+      alloc_info[variable(rep)] = mi->second ;
+    }
+  }
+
+  variable MemGreedyScheduler::
+  get_rep(const variable& v) {
+    int rep = var_cluster.findSet(v.ident()) ;
+    if(rep == -1) {
+      ostringstream oss ;
+      oss << "MemGreedyScheduler::get_rep(" << v << ") failed!" ;
+      throw Loci::StringError(oss.str()) ;
+    }
+    return variable(rep) ;
+  }
+
+  variableSet MemGreedyScheduler::
+  get_rep(const variableSet& vs) {
+    variableSet ret ;
+    for(variableSet::const_iterator vi=vs.begin();vi!=vs.end();++vi) {
+      ret += get_rep(*vi) ;
+    }
+    return ret ;
+  }
+
+  double MemGreedyScheduler::
+  get_alloc_size(const variable& v) {
+    map<variable,double>::const_iterator mi = alloc_info.find(v) ;
+    if(mi == alloc_info.end()) {
+      ostringstream oss ;
+      oss << "MemGreedyScheduler::get_alloc_size(" << v << ") failed!" ;
+      throw Loci::StringError(oss.str()) ;
+    }
+    return mi->second ;
+  }
+  
+  void MemGreedyScheduler::
+  rule_effects(const rule& r, const variableSet& c,
+               vector<pair<variable,double> >& e) {
+    variableSet ts = get_rep(r.targets()) ;
+    if(r.get_info().qualifier() == "DELETE") {
+      for(variableSet::const_iterator vi=ts.begin();vi!=ts.end();++vi) {
+        e.push_back(make_pair(*vi,-(get_alloc_size(*vi)))) ;
+      }
+    } else if(is_internal_rule(r)) {
+      for(variableSet::const_iterator vi=ts.begin();vi!=ts.end();++vi) {
+        e.push_back(make_pair(*vi,0)) ;
+      }
+    } else {
+      for(variableSet::const_iterator vi=ts.begin();vi!=ts.end();++vi) {
+        if(c.inSet(*vi)) {
+          // already allocated, set size zero
+          e.push_back(make_pair(*vi,0)) ;
+        } else {
+          e.push_back(make_pair(*vi,get_alloc_size(*vi))) ;
+        }
+      }
+    }
+  }
+
+  std::vector<digraph::vertexSet>
+  MemGreedyScheduler::schedule(const digraph& dag) {
+    digraph::vertexSet dagv = dag.get_all_vertices() ;
+    // schedule the graph without allocate rules first
+    digraph dag_noalloc = allocFreeGr(dag) ;
+    digraph dagt_noalloc = dag_noalloc.transpose() ;
+    // and also simplify it to remove all the variables
+    digraph g = simplify_graph(dag_noalloc) ;
+    digraph::vertexSet gv = g.get_all_vertices() ;
+    digraph gt = g.transpose() ;
+    // vertices that have been scheduled
+    digraph::vertexSet visited ;
+    // variables in the graph that has been created by rules
+    variableSet created_vars ;
+    // candidate list to be scheduled next
+    digraph::vertexSet candidates ;
+
+    for(digraph::vertexSet::const_iterator
+          vi=gv.begin();vi!=gv.end();++vi) {
+      if(gt[*vi]==EMPTY)
+        candidates += *vi ;
+    }
+
+    const double alpha = 0.1 ;
+    vector<digraph::vertexSet> sched ;
+    while(candidates != EMPTY) {
+      // choose a candidate
+      map<int,vector<pair<variable,double> > > effects ;
+      map<int,double> score ;
+      for(digraph::vertexSet::const_iterator
+            vi=candidates.begin();vi!=candidates.end();++vi) {
+        rule_effects(rule(*vi), created_vars, effects[*vi]) ;
+        const vector<pair<variable,double> >& ve = effects[*vi] ;
+        double s = 0 ;
+        for(size_t i=0;i!=ve.size();++i)
+          s += ve[i].second ;
+        score[*vi] = s ;
+      }
+      double smax = std::numeric_limits<double>::min() ;
+      double smin = std::numeric_limits<double>::max() ;
+      for(map<int,double>::const_iterator
+            mi=score.begin();mi!=score.end();++mi) {
+        if(mi->second > smax)
+          smax = mi->second ;
+        if(mi->second < smin)
+          smin = mi->second ;
+      }
+      // creates RCL
+      vector<int> rcl ;
+      for(map<int,double>::const_iterator
+            mi=score.begin();mi!=score.end();++mi) {
+        double s = mi->second ;
+        if(s <= smin+alpha*(smax-smin))
+          rcl.push_back(mi->first) ;
+      }
+
+      // randomly pick one candidate from "rcl"
+      // random_shuffle doesn't seem to generate
+      // a unique random sequence in parallel ...
+      // thus we are in trouble using it since that
+      // creates different schedule on each process ...
+      //random_shuffle(rcl.begin(), rcl.end()) ;
+      //int c = rcl[0] ;
+      // we'll just use drand48 with the same seed on each process
+      int c = rcl[gen_rand(0,rcl.size()-1)] ;
+      rule r(c) ;
+      visited += c ;
+      // see if rule "c"'s sources and targets are scheduled
+      digraph::vertexSet sources = dagt_noalloc[c] ;
+      digraph::vertexSet targets = dag_noalloc[c] ;
+      // limit the sources and targets to be variables
+      sources = get_vertexSet(extract_vars(sources)) ;
+      targets = get_vertexSet(extract_vars(targets)) ;
+      // remove scheduled ones
+      sources -= visited ;
+      targets -= visited ;
+      // remove targets whose rules are not all scheduled
+      digraph::vertexSet targets_not_ready ;
+      for(digraph::vertexSet::const_iterator vi=targets.begin();
+          vi!=targets.end();++vi)
+        if(dagt_noalloc[*vi]-visited != EMPTY)
+          targets_not_ready += *vi ;
+      targets -= targets_not_ready ;
+
+      visited += sources ;
+      visited += targets ;
+      // add to schedule
+      if(sources != EMPTY)
+        sched.push_back(sources) ;
+      digraph::vertexSet main ;
+      main += c ;
+      sched.push_back(main) ;
+      if(targets != EMPTY)
+        sched.push_back(targets) ;
+      // now add more candidates
+      digraph::vertexSet nxt = g[c] ;
+      candidates += get_valid_sched(nxt,gt,visited) ;
+      candidates -= c ;
+      // modify created_vars
+      const vector<pair<variable,double> >& e = effects[c] ;
+      for(size_t i=0;i!=e.size();++i) {
+        if(e[i].second > 0)
+          created_vars += e[i].first ;
+        else if(e[i].second < 0)
+          created_vars -= e[i].first ;
+      }
+    } // end while(candidates)
+    
+    // check for topology consistency
+    vector<digraph::vertexSet> final = insertAlloc2Sched(dag,sched) ;
+    //#define CHECK_TOPO
+#ifdef CHECK_TOPO
+    if(!final.empty()) {
+      if(Loci::MPI_rank == 0)
+        cout << "Checking graph schedule consistency..." ;
+      // first check if all vertices are scheduled and
+      // if we included any vertices that are not in the graph
+      digraph::vertexSet allv ;
+      for(size_t i=0;i!=final.size();++i)
+        allv += final[i] ;
+      if(dagv - allv != EMPTY) {
+        cerr << endl
+             << (dagv-allv).size() << " vertices not scheduled" << endl ;
+        Loci::Abort() ;
+      }
+      if(allv-dagv != EMPTY) {
+        cerr << endl
+             << (allv-dagv).size() << " extra vertices included" << endl ;
+        Loci::Abort() ;
+      }
+      // then check partial order
+      digraph dagt = dag.transpose() ;
+      digraph::vertexSet initial = final[0] ;
+      for(digraph::vertexSet::const_iterator vi=initial.begin();
+          vi!=initial.end();++vi)
+        if(dagt[*vi] != EMPTY) {
+          cerr << endl
+               << "initial vertex error: " << *vi << endl ;
+          if(*vi<0)
+            cerr << "*vi = " << rule(*vi) << endl ;
+          else
+            cerr << "*vi = " << variable(*vi) << endl ;
+          cerr << "depends on: " << extract_vars(dagt[*vi])
+               << " and " << endl
+               << extract_rules(dagt[*vi]) << endl ;
+          Loci::Abort() ;
+        }
+      for(size_t i=1;i!=final.size();++i) {
+        digraph::vertexSet cur = final[i] ;
+        digraph::vertexSet pre ;
+        for(size_t j=0;j!=i;++j)
+          pre += final[j] ; 
+        for(digraph::vertexSet::const_iterator ci=cur.begin();
+            ci!=cur.end();++ci) {
+          digraph::vertexSet depend = get_reachable(dagt,*ci) ;
+          if(depend-pre != EMPTY) {
+            cerr << endl << "scheduling error: " << *ci
+                 << " violates its dependency, "
+                 << (depend-pre) << " not yet scheduled!" << endl ;
+            cerr << "vertex " << *ci << " = " ;
+            if(*ci<0)
+              cerr << rule(*ci) << endl ;
+            else
+              cerr << variable(*ci) << endl ;
+            cerr << "depends on: " << extract_vars(depend-pre)
+                 << " and " << endl
+                 << extract_rules(depend-pre) << endl ;
+            Loci::Abort() ;
+          }
+        }
+      }
+      if(Loci::MPI_rank == 0)
+        cout << " passed!" << endl ;
+    }
+#endif
+    return final ;
+  }
+
+  digraph MemGreedyScheduler::
+  simplify_graph(const digraph& g) {
+    // build a transposed g
+    digraph gtr = g.transpose() ;
+    // first copy the input graph
+    digraph tmp_g = g ;
+    // then strip all of the variables inside while keeping the dependency
+    digraph::vertexSet vs = tmp_g.get_all_vertices() ;
+    variableSet vars = extract_vars(vs) ;
+    digraph::vertexSet varsvs ;
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      varsvs += vi->ident() ;
+      // get the rules connected
+      digraph::vertexSet pre = gtr[vi->ident()] ;
+      digraph::vertexSet nxt = g[vi->ident()] ;
+      for(digraph::vertexSet::const_iterator dvi=pre.begin();
+          dvi!=pre.end();++dvi)
+        tmp_g.add_edges(*dvi, nxt) ;
+    }
+    // remove all variables from the graph
+    tmp_g = tmp_g.subgraph(vs-varsvs) ;
+
+    // then strip all the rules inside while keeping the dependency
+    // digraph::vertexSet vs = tmp_g.get_all_vertices() ;
+    // ruleSet rules = extract_rules(vs) ;
+    // digraph::vertexSet rs ;
+    // for(ruleSet::const_iterator ri=rules.begin();ri!=rules.end();++ri) {
+    //   rs += ri->ident() ;
+    //   // get the vertices connected
+    //   digraph::vertexSet pre = gtr[ri->ident()] ;
+    //   digraph::vertexSet nxt = g[ri->ident()] ;
+    //   for(digraph::vertexSet::const_iterator dvi=pre.begin();
+    //       dvi!=pre.end();++dvi)
+    //     tmp_g.add_edges(*dvi, nxt) ;
+    // }
+    // // remove all variables from the graph
+    // tmp_g = tmp_g.subgraph(vs-rs) ;
+
+#ifdef COLLAPSE_LEAF
+    // now we will collapse all the leaf nodes (inputs and outputs)
+    gtr = tmp_g.transpose() ;
+    int start = tmp_g.max_vertex() ; ++start ;
+    vs = tmp_g.get_all_vertices() ;
+    digraph::vertexSet visited ;
+    digraph::vertexSet rm ;
+    for(digraph::vertexSet::const_iterator
+          dvi=vs.begin();dvi!=vs.end();++dvi) {
+      digraph::vertexSet collapse ;
+      // first check to collapse the targets of each vertex
+      digraph::vertexSet nxt = tmp_g[*dvi] ;
+      for(digraph::vertexSet::const_iterator
+            dvi2=nxt.begin();dvi2!=nxt.end();++dvi2)
+        if(tmp_g[*dvi2]==EMPTY) // leaf vertex
+          collapse += *dvi2 ;
+
+      collapse -= visited ;
+      if(collapse != EMPTY) {
+        int v = start++ ;
+        digraph::vertexSet reachable ;
+        for(digraph::vertexSet::const_iterator
+              dvi2=collapse.begin();dvi2!=collapse.end();++dvi2)
+          reachable += gtr[*dvi2] ;
+        for(digraph::vertexSet::const_iterator
+              dvi2=reachable.begin();dvi2!=reachable.end();++dvi2)
+          tmp_g.add_edge(*dvi2, v) ;
+        
+        rm += collapse ;
+        visited += collapse ;
+      }
+
+      // then check to collapse the sources
+      collapse = EMPTY ;
+      nxt = gtr[*dvi] ;
+      for(digraph::vertexSet::const_iterator
+            dvi2=nxt.begin();dvi2!=nxt.end();++dvi2)
+        if(gtr[*dvi2]==EMPTY)
+          collapse += *dvi2 ;
+
+      collapse -= visited ;
+      if(collapse != EMPTY) {
+        int v = start++ ;
+        digraph::vertexSet reachable ;
+        for(digraph::vertexSet::const_iterator
+              dvi2=collapse.begin();dvi2!=collapse.end();++dvi2)
+          reachable += tmp_g[*dvi2] ;
+        tmp_g.add_edges(v, reachable) ;
+        rm += collapse ;
+        visited += collapse ;
+      }
+    }
+    // remove all the collapsed leaves
+    tmp_g = tmp_g.subgraph(vs-rm) ;
+#endif
+
+    return tmp_g ;
+  }
+
+ 
+  
+
+
+ //#define CLUSTER_TEST
+  void MemGreedyScheduler::visit(loop_compiler& lc) {
+    lc.collapse_sched = schedule(lc.collapse_gr) ;
+    lc.advance_sched = schedule(lc.advance_gr) ;
+  }
+  
+  void MemGreedyScheduler::visit(dag_compiler& dc) {
+    dc.dag_sched = schedule(dc.dag_gr) ;
+  }
+
+ void MemGreedyScheduler::visit(conditional_compiler& cc) {
+    cc.dag_sched = schedule(cc.cond_gr) ;
+  }
+  
+
+
+
+
+
+
+ 
 
 } // end of namespace Loci
