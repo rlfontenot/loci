@@ -230,7 +230,7 @@ namespace Loci {
         color = 0 ;
         int loc_size = int(lsz) ;
         std::vector<int> recv_sizes ;
-        for(int i=r+target_p;r<p;i+=target_p) {
+        for(int i=r+target_p;i<p;i+=target_p) {
           int tmp = 0 ;
           MPI_Status stat ;
           MPI_Recv(&tmp,1,MPI_INT,i,1,comm,&stat) ;
@@ -244,7 +244,7 @@ namespace Loci {
 
         int loc = lsz ;
         int cnt = 0 ;
-        for(int i=r+target_p;r<p;i+=target_p) {
+        for(int i=r+target_p;i<p;i+=target_p) {
 
           MPI_Status stat ;
           MPI_Recv(&nlist[loc],sizeof(T)*recv_sizes[cnt],MPI_BYTE,i,2,comm,&stat) ;
