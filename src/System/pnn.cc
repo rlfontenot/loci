@@ -565,9 +565,9 @@ namespace Loci {
       return ;
     }
 
-    // Sample 100000 points total max, but at least 50 per processor.
+    // Sample 100000 points total max, but at least 5 per processor.
     // If target_pnts is smaller than this sample all the points
-    const int sample_size = max(min(max(5000/p,50),(int)target_pnts.size()),1);
+    const int sample_size = max(min(max(100000/p,5),(int)target_pnts.size()),1);
     int samp_freq = max(int(target_pnts.size()/sample_size),1) ;
     int nsamples = target_pnts.size()/samp_freq ;
 
