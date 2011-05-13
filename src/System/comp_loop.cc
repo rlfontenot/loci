@@ -406,8 +406,22 @@ namespace Loci {
     }
     var_requests -= non_stores ;
     
+
     if(facts.isDistributed()) {
-      list<comm_info> advance_variables_barrier = barrier_process_rule_requests(var_requests, facts, scheds);
+      // Communication of n+1 variables should match n=0 variables,
+      // so change variable set accordingly
+      variableSet adjust_var_requests ;
+      for(variableSet::const_iterator vi=var_requests.begin();
+          vi!= var_requests.end();++vi) {
+        if(vi->time() == tlevel) {
+          variable::info vinfo = vi->get_info() ;
+          vinfo.assign=true ;
+          vinfo.offset=0 ;
+          adjust_var_requests += variable(vinfo) ;
+        }
+      }
+
+      list<comm_info> advance_variables_barrier = barrier_process_rule_requests(adjust_var_requests, facts, scheds);
       advance_variables_barrier = sort_comm(advance_variables_barrier, facts);
       scheds.update_comm_info_list(advance_variables_barrier, sched_db::LOOP_ADVANCE_LIST);
       
@@ -430,7 +444,30 @@ namespace Loci {
     }
 
     if(facts.isDistributed()) {
-      std::list<comm_info> advance_variables_barrier = scheds.get_comm_info_list(advance_vars, facts, sched_db::LOOP_ADVANCE_LIST);
+      // Communication of n+1 variables should match n=0 variables,
+      // so change variable set accordingly
+      variableSet adjust_advance_vars ;
+      for(variableSet::const_iterator vi=advance_vars.begin();
+          vi!= advance_vars.end();++vi) {
+        if(vi->time() == tlevel) {
+          variable::info vinfo = vi->get_info() ;
+          vinfo.assign=true ;
+          vinfo.offset=0 ;
+          adjust_advance_vars += variable(vinfo) ;
+        }
+      }
+      std::list<comm_info> advance_variables_barrier = scheds.get_comm_info_list(adjust_advance_vars, facts, sched_db::LOOP_ADVANCE_LIST);
+      
+      // Now change variable names back before creating communication routine
+      // in schedule
+      std::list<comm_info>::iterator li ;
+      for(li=advance_variables_barrier.begin();li!=advance_variables_barrier.end();++li) {
+        
+        variable::info vinfo = li->v.get_info() ;
+        vinfo.assign=false ;
+        vinfo.offset=1 ;
+        li->v = variable(vinfo) ;
+      }
       execute_comm2::inc_comm_step() ;
       //executeP exec_comm =
       //new execute_comm(advance_variables_barrier, facts);
