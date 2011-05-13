@@ -71,20 +71,11 @@ namespace Loci {
     vm.clear() ;
     variableSet vars = facts.get_typed_variables() ;
     for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
-      entitySet active_set ;
       storeRepP p = facts.get_variable(*vi) ;
       if((p->RepType() == MAP)) {
         entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
         vm[*vi] = tmp ;
         total_entities += tmp ;
-        MapRepP mp = MapRepP(p->getRep()) ;
-        entitySet image_dom = mp->image(p->domain()) ;
-        std::string name = "image_" ;
-        name.append(vi->get_info().name) ;
-        variable v = variable(name) ;
-        image_dom = dist_collect_entitySet(image_dom, ptn) ;
-        vm[v] = image_dom ;
-        total_entities += image_dom ;
       } else if((p->RepType() == STORE)) {
         entitySet tmp = dist_collect_entitySet(p->domain(), ptn) ;
         vm[*vi] = tmp ;
@@ -94,6 +85,26 @@ namespace Loci {
           entitySet all_collect = dist_collect_entitySet(p->domain(),ptn) ;
           vm[*vi] = all_collect ; 
           total_entities += all_collect ;
+        }
+      }
+    }
+    for(variableSet::const_iterator vi=vars.begin();vi!=vars.end();++vi) {
+      storeRepP p = facts.get_variable(*vi) ;
+      if((p->RepType() == MAP)) {
+        // Add any map image that refers to entities not already identified.
+        MapRepP mp = MapRepP(p->getRep()) ;
+        entitySet image_dom = mp->image(p->domain()) ;
+        image_dom = dist_collect_entitySet(image_dom, ptn) ;
+        entitySet testSet = image_dom - total_entities ;
+        int size = testSet.size() ;
+        int tsize = 0 ;
+        MPI_Allreduce(&size,&tsize,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD) ;
+        if(tsize != 0) {
+          std::string name = "image_" ;
+          name.append(vi->get_info().name) ;
+          variable v = variable(name) ;
+          vm[v] = image_dom ;
+          total_entities += image_dom ;
         }
       }
     }
