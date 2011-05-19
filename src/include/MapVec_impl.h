@@ -330,183 +330,138 @@ namespace Loci {
   //*************************************************************************/
   
   template<int M> storeRepP
-    MapVecRepI<M>::expand(entitySet &out_of_dom,
-                          std::vector<entitySet> &init_ptn) {
-    // first do a check to make sure that out_of_dom is
-    // entirely within the init_ptn partitions
-    entitySet total ;
-    for(std::vector<entitySet>::const_iterator vi=init_ptn.begin();
-        vi!=init_ptn.end();++vi)
-      total += *vi ;
-    if(total - out_of_dom != EMPTY) {
-      cerr << "Error: MapVecRepI::expand failed! "
-           << "out_of_dom passed in is not containted "
-           << "entirely within init_ptn." << endl ;
-      Abort() ;
+  MapVecRepI<M>::expand(entitySet &out_of_dom,
+                        std::vector<entitySet> &ptn) {
+    cerr<<"start mapVec expand" << endl;
+    int *recv_count = new int[MPI_processes] ;
+    int *send_count = new int[MPI_processes] ;
+    int *send_displacement = new int[MPI_processes] ;
+    int *recv_displacement = new int[MPI_processes] ;
+    entitySet::const_iterator ei ;
+    std::vector<int>::const_iterator vi ;
+    int size_send = 0 ;
+    std::vector<std::vector<int> > copy(MPI_processes), send_clone(MPI_processes) ;
+    for(int i = 0; i < MPI_processes; ++i) {
+      entitySet tmp = out_of_dom & ptn[i] ;
+      for(ei = tmp.begin(); ei != tmp.end(); ++ei)
+	copy[i].push_back(*ei) ;
+      std::sort(copy[i].begin(), copy[i].end()) ;
+      send_count[i] = copy[i].size() ;
+      size_send += send_count[i] ; 
     }
-    // then divide "out_of_dom" to every other process
-    std::vector<std::vector<int> > copy_from(MPI_processes) ;
-    int* send_count = new int[MPI_processes] ;
-    int* recv_count = new int[MPI_processes] ;
-    int total_send_size = 0 ;
+    int *send_buf = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += recv_count[i] ;
     
-    for(int i=0;i<MPI_processes;++i) {
-      entitySet dom = out_of_dom & init_ptn[i] ;
-      for(entitySet::const_iterator ei=dom.begin();
-          ei!=dom.end();++ei)
-        copy_from[i].push_back(*ei) ;
-
-      send_count[i] = copy_from[i].size() ;
-      total_send_size += send_count[i] ;
-    }
-    // notify everyone else of this information so that
-    // every one knows what to send to others
-    MPI_Alltoall(send_count, 1, MPI_INT,
-                 recv_count, 1, MPI_INT, MPI_COMM_WORLD) ;
-
-    // preparing buffer to send the domains to everyone else
-    int total_recv_size = 0 ;
-    for(int i=0;i<MPI_processes;++i)
-      total_recv_size += recv_count[i] ;
-
-    int* send_buf = new int[total_send_size] ;
-    int* recv_buf = new int[total_recv_size] ;
-
-    // fill in the send buffer
-    int idx_count = 0 ;
-    for(int i=0;i<MPI_processes;++i) {
-      for(std::vector<int>::const_iterator vi=copy_from[i].begin();
-          vi!=copy_from[i].end();++vi) {
-        send_buf[idx_count++] = *vi ;
+    int *recv_buf = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      for(vi = copy[i].begin(); vi != copy[i].end(); ++vi) {
+	send_buf[size_send] = *vi ;
+	++size_send ;
       }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
     }
-
-    // prepare the send/recv displacement buffer
-    int* send_displs = new int[MPI_processes] ;
-    int* recv_displs = new int[MPI_processes] ;
-
-    send_displs[0] = 0 ;
-    recv_displs[0] = 0 ;
-    for(int i=1;i<MPI_processes;++i) {
-      send_displs[i] = send_displs[i-1] + send_count[i-1] ;
-      recv_displs[i] = recv_displs[i-1] + recv_count[i-1] ;
+    MPI_Alltoallv(send_buf,send_count, send_displacement , MPI_INT,
+		  recv_buf, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i]; ++j) 
+	send_clone[i].push_back(recv_buf[j]) ;
+      std::sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
-
-    // ready to communicate the entity domains buffer
-    MPI_Alltoallv(send_buf, send_count, send_displs, MPI_INT,
-                  recv_buf, recv_count, recv_displs, MPI_INT, MPI_COMM_WORLD) ;
-
-    // extract the entities from the raw buffer
-    std::vector<std::vector<int> > send_to_dom(MPI_processes) ;
-
-    for(int i=0;i<MPI_processes;++i) {
-      for(int j=recv_displs[i];j<recv_displs[i]+recv_count[i];++j) {
-        send_to_dom[i].push_back(recv_buf[j]) ;
+    std::vector<entitySet> map_entities(MPI_processes) ;
+    for(int i = 0; i < MPI_processes; ++i){
+      entitySet dom;
+      for(unsigned int j = 0; j <send_clone[i].size(); j++){
+        if(store_domain.inSet(send_clone[i][j]))dom += send_clone[i][j];
       }
-    }
-
-    delete[] send_buf ;
-    delete[] recv_buf ;
-    
-    // then pack in the contents in the map for the domains received
-    std::vector<std::map<int,std::vector<int> > > send_to(MPI_processes) ;
-
-    for(int i=0;i<MPI_processes;++i) {
-      for(std::vector<int>::const_iterator vi=send_to_dom[i].begin();
-          vi!=send_to_dom[i].end();++vi) {
-        for(unsigned int k=0;k<M;++k) {
-          send_to[i][*vi].push_back(base_ptr[*vi][k]) ;
-        }
-      }
-    }
-
-    // recompute send_count/recv_count for sending the actual contents
-    total_send_size = 0 ;
-    for(int i=0;i<MPI_processes;++i) {
-      // the format for the actual send buffer is as:
-      // domain entity id: actual contents
-      // NOTE: we don't need to send the size of the map contents
-      // for an entity because this is a MapVec<M> and we know
-      // that the size is M
-      for(std::map<int,std::vector<int> >::const_iterator
-            mi=send_to[i].begin();mi!=send_to[i].end();++mi) {
-        send_count[i] = 1 + mi->second.size() ;
-      }
-      total_send_size += send_count[i] ;
+      map_entities[i] = dom;
     }
     
-    // communicate the size first
-    MPI_Alltoall(send_count, 1, MPI_INT,
-                 recv_count, 1, MPI_INT, MPI_COMM_WORLD) ;
-
-    // calculate the recv size
-    total_recv_size = 0 ;
-    for(int i=0;i<MPI_processes;++i)
-      total_recv_size += recv_count[i] ;
-
-    // preparing the buffers to send/recv the actual contents
-    send_buf = new int[total_send_size] ;
-    recv_buf = new int[total_recv_size] ;
-
-    // fill the send buffer
-    idx_count = 0 ;
-    for(int i=0;i<MPI_processes;++i) {
-      for(std::map<int,std::vector<int> >::const_iterator
-            mi=send_to[i].begin();mi!=send_to[i].end();++mi) {
-        send_buf[idx_count++] = mi->first ;
-        for(unsigned int k=0;k<M;++k) {
-          send_buf[idx_count++] = (mi->second)[k] ;
-        }
+    
+    for(int i = 0; i < MPI_processes; ++i) {
+      send_count[i] =  map_entities[i].size()*(1+M) ;
+    }
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += send_count[i] ;
+    int *send_map = new int[size_send] ;
+    MPI_Alltoall(send_count, 1, MPI_INT, recv_count, 1, MPI_INT,
+		 MPI_COMM_WORLD) ; 
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i)
+      size_send += recv_count[i] ;
+    int *recv_map = new int[size_send] ;
+    size_send = 0 ;
+    for(int i = 0; i < MPI_processes; ++i) 
+      for(entitySet::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+	send_map[size_send] = *miv ;
+	++size_send ;
+        for(unsigned int k = 0; k < M; k++) { 
+	  send_map[size_send] =base_ptr[*miv][k] ;
+	  ++size_send ;
+	}
+      }
+    send_displacement[0] = 0 ;
+    recv_displacement[0] = 0 ;
+    for(int i = 1; i < MPI_processes; ++i) {
+      send_displacement[i] = send_displacement[i-1] + send_count[i-1] ;
+      recv_displacement[i] = recv_displacement[i-1] + recv_count[i-1] ;
+    }
+    MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
+		  recv_map, recv_count, recv_displacement, MPI_INT,
+		  MPI_COMM_WORLD) ;  
+    HASH_MAP(int, std::vector<int> ) hm ;
+   
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i];) {
+        for(int k = 0; k < M; ++k)
+          hm[recv_map[j]].push_back(recv_map[j+k+1]);
+        j += M + 1 ;
       }
     }
+    
 
-    // calculate the send/recv displacement buffer
-    send_displs[0] = 0 ;
-    recv_displs[0] = 0 ;
-    for(int i=1;i<MPI_processes;++i) {
-      send_displs[i] = send_displs[i-1] + send_count[i-1] ;
-      recv_displs[i] = recv_displs[i-1] + recv_count[i-1] ;
-    }
-
-    // Okay, we are finally ready to communicate the actual map contents
-    MPI_Alltoallv(send_buf, send_count, send_displs, MPI_INT,
-                  recv_buf, recv_count, recv_displs, MPI_INT, MPI_COMM_WORLD) ;
-
-    // now we need to extract the contents from the raw buffer
     entitySet new_domain = store_domain + out_of_dom ;
     MapVec<M> new_map ;
     new_map.allocate(new_domain) ;
-    // fill in the original contents first
-    for(entitySet::const_iterator ei=store_domain.begin();
-        ei!=store_domain.end();++ei) {
-      for(unsigned int i=0;i<M;++i)
-        new_map[*ei][i] = base_ptr[*ei][i] ;
-    }
-    // fill the expanded domain
-    for(int i=0;i<MPI_processes;++i) {
-      int begin = recv_displs[i] ;
-      int end = begin + recv_count[i] ;
-      int current = begin ;
-      while(current != end) {
-        int e = recv_buf[current++] ;
-        for(unsigned int k=0;k<M;++k)
-          new_map[e][k] = recv_buf[current++] ;
+    
+    for(ei = store_domain.begin(); ei != store_domain.end(); ++ei)
+      for(int p = 0; p < M ; ++p)
+	new_map[*ei][p] = base_ptr[*ei][p] ;
+
+    for(int i = 0; i < MPI_processes; ++i) {
+      for(int j = recv_displacement[i]; j <
+	    recv_displacement[i]+recv_count[i];) {
+        for(unsigned int k = 0; k < M; ++k)
+          new_map[recv_map[j]][k] =recv_map[j+k+1];  
+        j += M + 1 ;
       }
     }
 
-    // release all the allocated buffer
-    delete[] send_count ;
-    delete[] recv_count ;
-    delete[] send_displs ;
-    delete[] recv_displs ;
-    delete[] send_buf ;
-    delete[] recv_buf ;
-
-    cerr << "MapVecRepI::expand called!" << endl ;
-    return new_map.Rep() ;
-    
-  } // end of expand
-
+    storeRepP sp = new_map.Rep() ;
+    delete [] send_buf ;
+    delete [] recv_buf ;
+    delete [] send_map ;
+    delete [] recv_map ;
+    delete [] recv_count ;
+    delete [] send_count ;
+    delete [] send_displacement ;
+    delete [] recv_displacement ;
+     cerr<<"end mapVec expand" << endl;
+    return sp ;
+  }//end of expand
+  //*************************************************************************/
   template<int M> storeRepP MapVecRepI<M>::freeze() {
     return getRep() ;
   }
