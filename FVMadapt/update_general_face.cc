@@ -41,7 +41,7 @@ class merge_general_interior_tmpface:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;
@@ -120,7 +120,7 @@ class merge_general_boundary_tmpface:public pointwise_rule{
   const_multiMap upper;
   const_multiMap boundary_map;
   const_multiMap face2node;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_store<std::vector<char> > cellPlan;
   store<std::vector<char> > facePlan;

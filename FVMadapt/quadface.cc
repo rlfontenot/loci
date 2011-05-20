@@ -1069,7 +1069,7 @@ void QuadFace::set_f2n(std::list<int32>& f2n){
 }
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_multiMap& edge2node,
+                           const const_MapVec<2>& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            std::list<Node*>& bnode_list,
@@ -1129,86 +1129,11 @@ QuadFace* build_quad_face( const Entity* face2node,
   return aFace;
 }
 
-//serial version
-// QuadFace* build_quad_face( const Entity* face2node, 
-//                            const Entity* face2edge,
-//                            const const_multiMap& edge2node,
-//                            const const_store<vect3d>& pos,
-//                            const const_store<std::vector<char> >& edgePlan,
-//                            const store<int>& node_offset,
-//                            int offset_min,
-//                            std::list<Node*>& bnode_list,
-//                            std::list<Edge*>& edge_list){
-  
-  
-//   Node** node = new Node*[4];
-  
-//   for(int nindex = 0; nindex < 4; nindex++){
-//     node[nindex] = new Node(pos[face2node[nindex]], face2node[nindex]-offset_min+1);
-//     bnode_list.push_back(node[nindex]);
-//   }
-  
-//   //define each edge and put it into edge_list
-//   Edge** edge = new Edge*[4];
-//   bool* needReverse = new bool[4];
-
-//   //define edges and index its inner nodes
-//   std::list<Node*>::const_iterator bnode_begin = --(bnode_list.end());        
-
-//   for(int eindex = 0; eindex < 4; eindex++){
-//     //define the edge
-//     edge[eindex] = new Edge();
-//     edge_list.push_back(edge[eindex]);
-//   }
-   
-//   edge[0]->head = node[0];
-//   edge[0]->tail = node[1];
-//   needReverse[0] = (edge2node[face2edge[0]][0] == face2node[1]);  
-   
-
-//   edge[1]->head = node[1];
-//   edge[1]->tail = node[2];
-//   needReverse[1] = (edge2node[face2edge[1]][0] == face2node[2]);
-
-//   edge[2]->head = node[3];
-//   edge[2]->tail = node[2];
-//   needReverse[2] = (edge2node[face2edge[2]][0] == face2node[2]);
-
-//   edge[3]->head = node[0];
-//   edge[3]->tail = node[3];
-//   needReverse[3] = (edge2node[face2edge[3]][0] == face2node[3]);
-    
-//   for(int eindex = 0; eindex < 4; eindex++){
-   
-//     edge[eindex]->resplit(edgePlan[face2edge[eindex]],needReverse[eindex],bnode_list);
-    
-    
-//     int nindex = node_offset[face2edge[eindex]];
-//     for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
-//       (*np)->index =  nindex++;
-//     }
-        
-//     bnode_begin = --(bnode_list.end());
-//   }
-  
-//   //define the face
-//   QuadFace* aFace = new QuadFace(edge);
-//   if(node != 0){
-//     delete [] node;
-//     node = 0;
-//   }
-//   delete[] needReverse;
-//   return aFace;
-// }
-
-
-
-
 
 //parallel version
 QuadFace* build_quad_face( const Entity* face2node, 
                            const Entity* face2edge,
-                           const const_multiMap& edge2node,
+                           const const_MapVec<2>& edge2node,
                            const const_store<vect3d>& pos,
                            const const_store<std::vector<char> >& edgePlan,
                            const const_store<int>& node_offset,
@@ -1279,7 +1204,7 @@ QuadFace* build_quad_face( const Entity* face2node,
 //parallel version, this function is used in build_general_cell with quadface
 QuadFace* build_tmp_quad_face( const Entity* face2node, 
                                const Entity* face2edge,
-                               const const_multiMap& edge2node,
+                               const const_MapVec<2>& edge2node,
                                const const_store<std::vector<char> >& edgePlan,
                                std::list<Node*>& bnode_list,
                                std::list<Edge*>& edge_list){
@@ -1339,70 +1264,3 @@ QuadFace* build_tmp_quad_face( const Entity* face2node,
   delete[] needReverse;
   return aFace;
 }
-// //parallel version, this function is used in build_general_cell with quadface
-// QuadFace* build_tmp_quad_face( const Entity* face2node, 
-//                                const Entity* face2edge,
-//                                const const_multiMap& edge2node,
-//                                const const_store<std::vector<char> >& edgePlan,
-//                                std::list<Node*>& bnode_list,
-//                                std::list<Edge*>& edge_list){
-  
-  
-//   Node** node = new Node*[4];
-//   vect3d p[4];
-//   int64 maxX = int64(1) << MAXLEVEL;
-//   int64 maxY = int64(1) << MAXLEVEL;
-//   p[0] = vect3d(0.0, 0.0, 0.0);
-//   p[1] = vect3d(maxX, 0.0, 0.0);
-//   p[2] = vect3d(maxX, maxY, 0.0);
-//   p[3] = vect3d(0.0, maxY, 0.0);
-  
-//   for(int nindex = 0; nindex < 4; nindex++){
-    
-//     node[nindex] = new Node(p[nindex]);
-//     bnode_list.push_back(node[nindex]);
-//   }
-  
-//   //define each edge and put it into edge_list
-//   Edge** edge = new Edge*[4];
-//   bool* needReverse = new bool[4];
-  
-//   //define edges and index its inner nodes
-//   std::list<Node*>::const_iterator bnode_begin = --(bnode_list.end());        
-  
-//   for(int eindex = 0; eindex < 4; eindex++){
-//     //define the edge
-//     edge[eindex] = new Edge();
-//     edge_list.push_back(edge[eindex]);
-//   }
-   
-//   edge[0]->head = node[0];
-//   edge[0]->tail = node[1];
-//   needReverse[0] = (edge2node[face2edge[0]][0] == face2node[1]);  
-   
-
-//   edge[1]->head = node[1];
-//   edge[1]->tail = node[2];
-//   needReverse[1] = (edge2node[face2edge[1]][0] == face2node[2]);
-
-//   edge[2]->head = node[3];
-//   edge[2]->tail = node[2];
-//   needReverse[2] = (edge2node[face2edge[2]][0] == face2node[2]);
-
-//   edge[3]->head = node[0];
-//   edge[3]->tail = node[3];
-//   needReverse[3] = (edge2node[face2edge[3]][0] == face2node[3]);
-    
-//   for(int eindex = 0; eindex < 4; eindex++){
-//     edge[eindex]->resplit(edgePlan[face2edge[eindex]],needReverse[eindex],bnode_list);
-//   }
-  
-//   //define the face
-//   QuadFace* aFace = new QuadFace(edge);
-//   if(node != 0){
-//     delete [] node;
-//     node = 0;
-//   }
-//   delete[] needReverse;
-//   return aFace;
-// }

@@ -53,7 +53,7 @@ public:
   //constructor
   Edge(Node* p0, Node* p1):head(p0), tail(p1), child(0), parent(0),level(0) {}
   Edge(Node* p0, Node* p1, int lev):head(p0), tail(p1),child(0),parent(0), level(lev){}
-   Edge(Node* p0, Node* p1, int lev, Edge* p):head(p0), tail(p1),child(0),parent(p), level(lev){}
+  Edge(Node* p0, Node* p1, int lev, Edge* p):head(p0), tail(p1),child(0),parent(p), level(lev){}
   //constructor
   Edge():child(0), parent(0),level(0){}
   //destructor
@@ -164,8 +164,8 @@ inline void cleanup_list(std::list<Node*>& node_list){
                        
   for(std::list<Node*>::iterator p = node_list.begin(); p != node_list.end(); p++){
     if((*p) != 0){
-    delete (*p);
-    (*p) = 0;
+      delete (*p);
+      (*p) = 0;
     }
   }
   node_list.clear();

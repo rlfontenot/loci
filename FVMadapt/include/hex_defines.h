@@ -48,7 +48,7 @@ enum NORMAL_DIRECTION{XX, YY, ZZ};
 
 namespace Loci {
 
- template<class T> inline bool operator < (const vector3d<T> &p1,const vector3d<T> &p2){
+  template<class T> inline bool operator < (const vector3d<T> &p1,const vector3d<T> &p2){
     if(p1.x < p2.x) return true;
     
     else if(p1.x == p2.x){
@@ -60,7 +60,7 @@ namespace Loci {
     return false;
   }
   
- template<class T> inline bool operator == (const  vector3d<T>& p1,const vector3d<T>& p2){
+  template<class T> inline bool operator == (const  vector3d<T>& p1,const vector3d<T>& p2){
     return (p1.x == p2.x) && (p1.y == p2.y) && (p1.z == p2.z);
   }
   
@@ -68,7 +68,7 @@ namespace Loci {
   //function object for build a map such as  yNodes
   class yless{
   public:
-   template<class T> inline  bool operator()(const vector3d<T>& p1, const vector3d<T>& p2)const{
+    template<class T> inline  bool operator()(const vector3d<T>& p1, const vector3d<T>& p2)const{
       if(p1.x < p2.x) return true;
       else if(p1.x == p2.x){
         if(p1.z < p2.z) return true;
@@ -83,7 +83,7 @@ namespace Loci {
   //function object for build a map such as xNodes
   class xless{
   public:
-   template<class T>  inline  bool operator()(const vector3d<T>& p1, const vector3d<T>& p2)const{
+    template<class T>  inline  bool operator()(const vector3d<T>& p1, const vector3d<T>& p2)const{
       if(p1.y < p2.y) return true;
       else if(p1.y == p2.y){
         if(p1.z < p2.z) return true;
@@ -116,43 +116,15 @@ struct Range2d{
   Range2d(Point2d p0, Point2d p1):minP(p0), maxP(p1){}
 };
 
-/*
-namespace Loci{
-template<class T>  inline bool operator < (const vector2d<T>& p1,const vector2d<T>& p2){
-    if(p1.x < p2.x) return true;
-    
-    else if(p1.x == p2.x){
-      if(p1.y < p2.y) return true;
-      
-    }
-    return false;
-  }
-  
- class xless2d{
-  public:
-   template<class T>  inline  bool operator()(const vector2d<T>& p1, const vector2d<T>& p2)const{
-     if(p1.y < p2.y) return true;
-     else if(p1.y == p2.y){
-       if(p1.x < p2.x) return true;
-     }
-     return false;
-   }
- };
-  
-  template<class T>  inline bool operator == (const  vector2d<T>& p1,const vector2d<T>& p2){
-    return ((p1.x == p2.x) && (p1.y == p2.y));
-  }
-}
 
-*/
 inline bool operator < (const Edge2d& e1,const Edge2d& e2){
   if(e1.pos < e2.pos) return true;
   
   else if(e1.pos == e2.pos){
     if(e1.head < e2.head) return true;
-      else if (e1.head == e2.head){
-        if(e1.tail < e2.tail)return true;
-      }
+    else if (e1.head == e2.head){
+      if(e1.tail < e2.tail)return true;
+    }
     
   }
   return false;
@@ -165,20 +137,9 @@ inline bool operator == (const  Edge2d& e1,const Edge2d& e2){
 } 
 
 
-
-
-
 //transfer from face's local coordinates to cell's local coordinates 
 Point2d transfer_f2c(Point2d p,Point2d maxPc, char orientCode);
 Point2d transfer_c2f(Point2d p, Point2d maxPf, char orientCode);
 Range2d transfer_f2c(Range2d c, Point2d maxPc, char orientCode);  
-
-
-
-
-
-
-
-
 
 #endif

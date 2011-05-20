@@ -324,7 +324,7 @@ std::vector<char> Face::make_faceplan(){
 //and edges are split according to edgePlan
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
-                          const const_multiMap& edge2node,
+                          const const_MapVec<2>& edge2node,
                           const const_store<vect3d>& pos,
                           const const_store<std::vector<char> >& edgePlan,
                           std::list<Node*>& bnode_list,
@@ -376,7 +376,7 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 //parallel version, build a face and index all the boundary nodes
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
-                          const const_multiMap& edge2node,
+                          const const_MapVec<2>& edge2node,
                           const const_store<vect3d>& pos,
                           const const_store<int>& node_offset,
                           const const_store<std::vector<char> >& edgePlan,
@@ -440,7 +440,7 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 //this function is used in build_general_cell with quadface
 Face* build_tmp_general_face( const Entity* face2node, int num_edge,
                               const Entity* face2edge,
-                              const const_multiMap& edge2node,
+                              const const_MapVec<2>& edge2node,
                               const const_store<std::vector<char> >& edgePlan,
                               std::list<Node*>& bnode_list,
                               std::list<Edge*>& edge_list){
@@ -512,74 +512,7 @@ Face* build_tmp_general_face( const Entity* face2node, int num_edge,
 
 
 
-// //temperary version, build a face and index all the boundary nodes
-// Face* build_general_face( const Entity* face2node, int num_edge,
-//                           const Entity* face2edge,
-//                           const const_multiMap& edge2node,
-//                           const const_store<vect3d>& pos,
-//                           const store<int>& node_offset,
-//                           const const_store<std::vector<char> >& edgePlan,
-//                           std::list<Node*>& bnode_list,
-//                           std::list<Edge*>& edge_list,
-//                           int pos_min){
-//   entitySet nodes;
-//   for(int i = 0; i < num_edge; i++){
-//     nodes += face2node[i];
-//   }
-    
-//   Node** node = new Node*[num_edge];
-//   for(int nindex = 0; nindex < num_edge; nindex++){
-   
-//     node[nindex] = new Node(pos[face2node[nindex]], face2node[nindex]-pos_min+1);
-//     bnode_list.push_back(node[nindex]);
-//   }
-  
-//   //define each edge and put it into edge_list
-  
-//   Edge** edge = new Edge*[num_edge];
-//   bool* needReverse = new bool[num_edge];
-  
-//   //define edges and index its inner nodes
-//   std::list<Node*>::const_iterator bnode_begin = --(bnode_list.end());
-  
-//   for(int eindex = 0; eindex < num_edge; eindex++){
-//     //define the edge
-//     edge[eindex] = new Edge();
-//     edge_list.push_back(edge[eindex]);
-    
-//     if(edge2node[face2edge[eindex]][0] == face2node[eindex] && edge2node[face2edge[eindex]][1] == face2node[eindex==(num_edge-1)?0:eindex+1])
-//       {
-//         edge[eindex]->head = node[eindex];
-//         edge[eindex]->tail = node[eindex==(num_edge-1)?0:(eindex+1)];
-//         needReverse[eindex] = false;
-//       }
-//     else{
-//       edge[eindex]->tail = node[eindex];
-//       edge[eindex]->head = node[eindex==(num_edge-1)?0:(eindex+1)];
-//       needReverse[eindex] = true;
-//     }
-    
-//     //replit the edge
-//     edge[eindex]->resplit(edgePlan[face2edge[eindex]], bnode_list);
-//     int nindex = node_offset[face2edge[eindex]];
-    
-//     for(std::list<Node*>::const_iterator np = ++bnode_begin; np!= bnode_list.end(); np++){
-//       (*np)->index =  nindex++;
-     
-//     }
-    
-//     bnode_begin = --(bnode_list.end());
-    
-//   }
-  
-//   //define the face
-//   Face* aFace = new Face(num_edge, edge, needReverse);
-//   if(node != 0){
-//     delete [] node;
-//     node = 0;
-//   }
-//   return aFace;
-// }
+
 
 //this function split  a general face according to facePlan,
 //all fine quadface in faces

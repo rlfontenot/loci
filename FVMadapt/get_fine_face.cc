@@ -49,7 +49,7 @@ class get_general_cell_faces : public pointwise_rule{
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos;
   const_store<int> node_offset;
   const_store<int> cell_offset;
@@ -197,7 +197,7 @@ class get_interior_general_face_faces : public pointwise_rule{
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_Map cr;
@@ -396,7 +396,7 @@ class get_boundary_general_face_faces : public pointwise_rule{
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
   const_Map cl;
   const_store<int> node_offset;

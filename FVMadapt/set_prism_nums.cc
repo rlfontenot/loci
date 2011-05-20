@@ -46,7 +46,7 @@ class set_prism_num_nodes : public pointwise_rule{
   const_store<Array<char,6> > prism2node;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos;
   store<int> num_inner_nodes;
 
@@ -160,7 +160,7 @@ class set_prism_num_cells : public pointwise_rule{
   const_store<Array<char,6> > prism2node;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos;
 
   store<int> num_fine_cells;

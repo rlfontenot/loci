@@ -52,7 +52,7 @@ class get_prism_cell_nodes : public pointwise_rule{
   const_store<Array<char,6> > prism2node;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos;
 
   const_store<int> node_l2f;
@@ -177,7 +177,7 @@ class get_face_nodes : public pointwise_rule{
   const_store<std::vector<char> > edgePlan;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos; 
  
   const_store<bool> is_quadface;

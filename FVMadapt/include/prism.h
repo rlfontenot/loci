@@ -58,14 +58,14 @@ public:
   //this construct is used when gnrlface and quadface don't need to be defined.
   //it doesn't set nfold, usually after this constructor, setNfold() will be called
   Prism():nfold(0),mySplitCode(0),gnrlface(0),quadface(0), parentCell(0),
-           childCell(0){faceOrient.reset();}
+          childCell(0){faceOrient.reset();}
   
   Prism(int n):nfold(n),mySplitCode(0),gnrlface(new Face*[2]), quadface(new QuadFace*[n]), parentCell(0), childCell(0){
     faceOrient.reset();
   }
   
   //destructor
- ~Prism(){
+  ~Prism(){
     if(this != 0 ){
       if(childCell != 0){
         for(int i = 0; i < numChildren(); i++){
@@ -88,7 +88,7 @@ public:
       delete[] quadface;
       quadface = 0;
     }
- }
+  }
   
   
   int32 getCellIndex() const {return cellIndex;}
@@ -171,10 +171,7 @@ public:
              std::list<QuadFace*>& quadface_list,
              std::list<Face*>& face_list);
   
-  //this function splits diamondcell isotropically once
-  //only define childCell
-  //  void empty_split();
-  // void empty_resplit(const std::vector<char>& cellPlan);
+  
 
   void resplit(const std::vector<char>& cellPlan,
                std::list<Node*>& node_list,
@@ -185,24 +182,16 @@ public:
 
   //used in make_prism_cellplan.cc
   void resplit( int level,
-                       std::list<Node*>& node_list,
-                       std::list<Edge*>& edge_list,
-                       std::list<QuadFace*>& quadface_list,
-                       std::list<Face*>& face_list);
+                std::list<Node*>& node_list,
+                std::list<Edge*>& edge_list,
+                std::list<QuadFace*>& quadface_list,
+                std::list<Face*>& face_list);
  
   void empty_split();
   void empty_resplit(const std::vector<char>& cellPlan);
   
   
-  //this function check if aFace is one of the face
-  //return -1: No
-  //return i in [0, 6), Yes, face[i] == aFace
-  //  inline int containFace(QuadFace* aFace){
-  //  for(int i = 0; i <6; i++){
-  //    if(face[i] == aFace) return i;
-  //  }
-  // return -1;
-  // };
+ 
   
   //this function check if aCell is my sibling neighbor.
   //sibling means same size face, not necessarily has same parent
@@ -213,18 +202,18 @@ public:
 
   //only use it when dd >=2
   inline int parentFace(int dd){
-   if(parentCell->mySplitCode == 1) return dd;
+    if(parentCell->mySplitCode == 1) return dd;
     
     else if(dd == 2){
       return (whichChild()%(parentCell->nfold))+2;
     }
-   else if(dd == 5){
-     int childID = (whichChild()%parentCell->nfold);
+    else if(dd == 5){
+      int childID = (whichChild()%parentCell->nfold);
      
-     return (childID== 0)?
-       (parentCell->nfold +1):(childID+1);
-   }
-   return -1;
+      return (childID== 0)?
+        (parentCell->nfold +1):(childID+1);
+    }
+    return -1;
   }
   
   //This function check if aCell is my neighbor is direction dd
@@ -239,7 +228,7 @@ public:
 
   bool getTagged();
   void setSplitCode(int split_mode);
- //after a cell is split, compose the cell plan according to the tree structure 
+  //after a cell is split, compose the cell plan according to the tree structure 
   std::vector<char> make_cellplan();
   
   //make a plan for isotropical split an original prism cell level levels 
@@ -280,7 +269,7 @@ public:
                                          int faceID);
   friend std::vector<char>  extract_prism_face(const  std::vector<char>& cellPlan, int dd);
   
- void print();
+  void print();
 private:
  
   int32 cellIndex; //the index of the cell, start with 1
@@ -346,7 +335,7 @@ private:
     return cellcenter;
   }
 
-   //the center of the face, defined as the mass center of edge centers
+  //the center of the face, defined as the mass center of edge centers
   //precondition:: all its edges have been split
   inline Node* centroid(){
     switch(CENTROID){
@@ -360,19 +349,19 @@ private:
    
   }
 
- inline Node* wireframe(){
+  inline Node* wireframe(){
     
-     //allocate edgecenter
-   vect3d* facecenter = new vect3d[nfold+2];
-   double* areas = new double[nfold+2];
+    //allocate edgecenter
+    vect3d* facecenter = new vect3d[nfold+2];
+    double* areas = new double[nfold+2];
     
     //get edge centers
-   for(int i = 0; i < nfold+2; i++){
-     facecenter[i]= getFaceCenter(i)->p;
-     if(i<2)areas[i] = gnrlface[i]->area();
-     else areas[i] = quadface[i-2]->area();
+    for(int i = 0; i < nfold+2; i++){
+      facecenter[i]= getFaceCenter(i)->p;
+      if(i<2)areas[i] = gnrlface[i]->area();
+      else areas[i] = quadface[i-2]->area();
      
-   }
+    }
    
     //calculate the mass center of the edge centers
     vect3d p = weighted_center(facecenter, areas, nfold+2);
@@ -382,21 +371,11 @@ private:
     delete [] areas;
     
     return new Node(p);
- }
+  }
 
   
   
-  //get the facecenter
-  //condition: facecenter will be allocated and deallocated by the caller
-  //precondition: the faces have been splitted
-  // inline void getFaceCenter(Node** facecenter){
- 
-  //  facecenter[0] = gnrlface[0]->child[0]->edge[2]->head;
-  //  facecenter[1] = gnrlface[1]->child[0]->edge[2]->head;
-  //  for(int i = 0; i <; i++){
-  //   facecenter[i+2] = quadface[i]->child[0]->edge[2]->head;
-  // }
-  // }
+  
 
   inline Node* getFaceCenter(int faceID){
     if(faceID < 2) return  gnrlface[faceID]->child[0]->edge[2]->head;
@@ -414,7 +393,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_multiMap& edge2node,
+                        const const_MapVec<2>& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
@@ -431,7 +410,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_multiMap& edge2node,
+                        const const_MapVec<2>& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,
@@ -451,9 +430,9 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_multiMap& edge2node,
+                        const const_MapVec<2>& edge2node,
                         const const_store<vect3d>& pos,
-                         const const_store<char>& posTag,
+                        const const_store<char>& posTag,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& qface_list,
@@ -468,7 +447,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_multiMap& edge2node,
+                        const const_MapVec<2>& edge2node,
                         const const_store<vect3d>& pos,
                         std::list<Node*>& bnode_list,
                         std::list<Edge*>& edge_list,
@@ -485,7 +464,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Array<char,5>& orientCode,
                         const const_multiMap& face2node,
                         const const_multiMap& face2edge,
-                        const const_multiMap& edge2node,
+                        const const_MapVec<2>& edge2node,
                         const const_store<vect3d>& pos,
                         const const_store<std::vector<char> >& edgePlan,
                         const const_store<std::vector<char> >& facePlan,

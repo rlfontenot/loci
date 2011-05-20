@@ -111,7 +111,7 @@ public:
 
   inline Node* wireframe(){
     
-     //allocate edgecenter
+    //allocate edgecenter
     vect3d* edgecenter = new vect3d[numEdge];
     double* len = new double[numEdge];
     
@@ -218,7 +218,7 @@ public:
                std::list<Edge*>& edge_list,
                std::vector<Face*>& fine_face);
 
-   void resplit(const std::vector<char>& facePlan,
+  void resplit(const std::vector<char>& facePlan,
                std::list<Node*>& node_list,
                std::list<Edge*>& edge_list);
 
@@ -264,7 +264,7 @@ public:
 //and edges are split according to edgePlan
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
-                          const const_multiMap& edge2node,
+                          const const_MapVec<2>& edge2node,
                           const const_store<vect3d>& pos,
                           const const_store<std::vector<char> >& edgePlan,
                           std::list<Node*>& bnode_list,
@@ -272,7 +272,7 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 
 Face* build_general_face( const Entity* face2node, int num_edge,
                           const Entity* face2edge,
-                          const const_multiMap& edge2node,
+                          const const_MapVec<2>& edge2node,
                           const const_store<vect3d>& pos,
                           const const_store<int>& node_offset,
                           const const_store<std::vector<char> >& edgePlan,
@@ -285,31 +285,14 @@ Face* build_general_face( const Entity* face2node, int num_edge,
 //this function is used in build_general_cell with quadface
 Face* build_tmp_general_face( const Entity* face2node, int num_edge,
                               const Entity* face2edge,
-                              const const_multiMap& edge2node,
+                              const const_MapVec<2>& edge2node,
                               const const_store<std::vector<char> >& edgePlan,
                               std::list<Node*>& bnode_list,
                               std::list<Edge*>& edge_list);
 
 
-
-//temperary serial version
-// Face* build_general_face( const Entity* face2node, int num_edge,
-//                           const Entity* face2edge,
-//                           const const_multiMap& edge2node,
-//                           const const_store<vect3d>& pos,
-//                           const store<int>& node_offset,
-//                           const const_store<std::vector<char> >& edgePlan,
-//                           std::list<Node*>& bnode_list,
-//                           std::list<Edge*>& edge_list,
-//                           int pos_min);
-
-
-
-
-
-
 //if the intersection if leaves of f1 and the leaves of f2 is empty
- bool is_overlapped( Face* f1,  Face* f2);
+bool is_overlapped( Face* f1,  Face* f2);
 
 //for prism, used in merge_prism_face, the face is built as face2node
 // and the plan is extracted from the cell.
@@ -329,24 +312,24 @@ inline void cleanup_list(std::list<Node*>& node_list,
                          std::list<Face*>& face_list){
   for(std::list<Node*>::iterator p = node_list.begin(); p != node_list.end(); p++){
     if((*p) != 0){
-    delete (*p);
-    (*p) = 0;
+      delete (*p);
+      (*p) = 0;
     }
   }
   node_list.clear();
   
   for(std::list<Edge*>::iterator p = edge_list.begin(); p != edge_list.end(); p++){
     if((*p) != 0){
-    delete (*p);
-    (*p) = 0;
+      delete (*p);
+      (*p) = 0;
     }
   }
   edge_list.clear();
 
   for(std::list<Face*>::iterator p = face_list.begin();  p != face_list.end(); p++){
     if((*p) != 0){
-    delete (*p);
-    (*p) = 0;
+      delete (*p);
+      (*p) = 0;
     }
   }
   face_list.clear();

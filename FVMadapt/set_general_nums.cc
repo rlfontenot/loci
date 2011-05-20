@@ -53,7 +53,7 @@ class set_general_cell_num_nodes : public pointwise_rule{
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos;
   
 
@@ -162,7 +162,7 @@ class set_general_cell_num_cells : public pointwise_rule{
   const_multiMap boundary_map;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos;
 
 
@@ -267,7 +267,7 @@ class set_general_face_num_nodes : public pointwise_rule{
   const_store<std::vector<char> > edgePlan;
   const_multiMap face2node;
   const_multiMap face2edge;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_store<vect3d> pos;
  
   store<int> num_inner_nodes;

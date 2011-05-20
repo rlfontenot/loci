@@ -55,7 +55,7 @@ class make_general_cellplan:public pointwise_rule{
   const_multiMap lower;
   const_multiMap boundary_map;
   const_store<bool> is_quadface;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
@@ -218,7 +218,7 @@ class make_general_cellplan_norestart:public pointwise_rule{
   const_multiMap upper;
   const_multiMap lower;
   const_multiMap boundary_map;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<char>  posTag;
@@ -326,7 +326,7 @@ class make_general_cellplan_xml:public pointwise_rule{
   const_multiMap lower;
   const_multiMap boundary_map;
   const_store<bool> is_quadface;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
@@ -530,7 +530,7 @@ class make_general_cellplan_xml_norestart:public pointwise_rule{
   const_multiMap upper;
   const_multiMap lower;
   const_multiMap boundary_map;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
    const_store<bool> isIndivisible;

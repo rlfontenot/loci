@@ -50,7 +50,7 @@ using std::ofstream;
 using Loci::MPI_processes;
 namespace Loci{
   void parallelClassifyCell(fact_db &facts) ;
-   void createEdgesParallel(fact_db &facts) ;
+   void createEdgesPar(fact_db &facts) ;
 }
 
   
@@ -266,7 +266,7 @@ int main(int argc, char ** argv) {
   
   //Setup Loci datastructures
   Loci::createLowerUpper(facts) ;
-  Loci::createEdgesParallel(facts) ;
+  Loci::createEdgesPar(facts) ;
   Loci:: parallelClassifyCell(facts);
  
   

@@ -57,7 +57,7 @@ class make_hex_cellplan:public pointwise_rule{
   const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
@@ -225,7 +225,7 @@ class make_hex_cellplan_norestart:public pointwise_rule{
   const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
    const_store<char>  posTag;
@@ -333,7 +333,7 @@ class make_hex_cellplan_xml:public pointwise_rule{
   const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
   const_store<std::vector<char> > cellPlan;
@@ -511,7 +511,7 @@ class make_hex_cellplan_xml_norestart:public pointwise_rule{
   const_store<Array<char, 6> > hex2face;
   const_store<Array<char, 8> > hex2node;
   const_store<Array<char, 6> > orientCode;
-  const_multiMap edge2node;
+  const_MapVec<2> edge2node;
   const_multiMap face2edge;
   const_multiMap face2node;
  
