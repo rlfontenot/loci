@@ -1860,15 +1860,13 @@ namespace Loci{
     // end of unnamed namespace
   }
   
-  // This one will work in parallel :)
-
-  //#define BOUNDARY_DUPLICATE_DETECT
+ 
   void
   createEdgesPar(fact_db &facts) {
     multiMap face2node ;
     face2node = facts.get_variable("face2node") ;
     entitySet faces = face2node.domain() ;
-
+    
     // Loop over faces and create list of edges (with duplicates)
     vector<pair<Entity,Entity> > emap ;
     for(entitySet::const_iterator ei=faces.begin();
@@ -1923,7 +1921,7 @@ namespace Loci{
       // processor (my_id - 1) and each processor compares its last
       // element with the received element. if they are the same,
       // then the processor will remove its last element
-
+      
       // HOWEVER if the parallel sort was done using the sample sort
       // algorithm, then this step is not necessary. Because in the
       // sample sort, elements are partitioned to processors according
@@ -1972,7 +1970,14 @@ namespace Loci{
     // Allocate entities for new edges
     int num_edges = emap.size() ;
     entitySet edges = facts.get_distributed_alloc(num_edges).first ;
+ 
 
+
+    //create constraint edges
+    constraint edges_tag;
+    *edges_tag = edges;
+    facts.create_fact("edges", edges_tag);
+    
     // Copy edge nodes into a MapVec
     MapVec<2> edge ;
     edge.allocate(edges) ;
@@ -1984,7 +1989,7 @@ namespace Loci{
     }
 
     // Add edge2node data structure to fact databse
-    //facts.create_fact("edge2node",edge) ;
+    // facts.create_fact("edge2node",edge) ;
 
     // Now create face2edge data-structure
     // We need to create a lower node to edge mapping to facilitate the
@@ -1995,7 +2000,7 @@ namespace Loci{
         ei!=edges.end();++ei,++pi) {
       el[*ei] = edge[*ei][0] ;
     }
-
+    
     // Now invert this map to get nodes-> edges that have this as a first entry
     multiMap n2e ;
     // Get nodes
@@ -2139,6 +2144,8 @@ namespace Loci{
     }
     // Add face2edge to the fact database
     facts.create_fact("face2edge",face2edge) ;
+
+
     //sort edge2node according to fileNumbering
     if(MPI_processes > 1){    
       //create Map node_l2f
@@ -2165,16 +2172,25 @@ namespace Loci{
       }ENDFORALL;
        
       entitySet out_of_dom = nodes - localNodes;
+      // vector<entitySet> tmp_ptn = gather_all_entitySet(localNodes);
       node_l2f.setRep(MapRepP(node_l2f.Rep())->expand(out_of_dom, init_ptn)) ;
-           
+     
+      
+      //end of create Map
+       
       FORALL(edge.domain(), e){
         if(node_l2f[edge[e][0] ]> node_l2f[edge[e][1]]){
           std:: swap(edge[e][0], edge[e][1]);
         }
                
       }ENDFORALL;
-
-
+    
+      
+  
+  
+    
+           
+  
 
       //then update fact_db so that the file number of edges is consistent with the file number of nodes
 
@@ -2189,12 +2205,12 @@ namespace Loci{
       if(GLOBAL_OR(edge2global.empty())) {
         parallel_balance_pair2_vector(edge2global, MPI_COMM_WORLD) ;
       }
-      // Sort  remove duplicates
+      // Sort edges and remove duplicates
       sort(edge2global.begin(),edge2global.end()) ;
       vector<pair<pair<Entity,Entity>, Entity> >::iterator uend2 ;
       uend2 = unique(edge2global.begin(), edge2global.end()) ;
       edge2global.erase(uend2, edge2global.end()) ;
-      // then sort edge2global in parallel
+      // then sort emap in parallel
       // but we check again to see if every process has at least one
       // element, if not, that means that the total element number is
       // less than the total number of processes, we split the communicator
@@ -2289,7 +2305,7 @@ namespace Loci{
         file2global[i] = pair<Entity, Entity>(index, edge2global[i].second);
         index++;
       }
-     
+      
       multiMap global2file;
     
       //the input_image is not really the image, it should be the global2file's domain
@@ -2313,8 +2329,21 @@ namespace Loci{
       FORALL(global2file.domain(), ei){
         dist->g2f[ei] = global2file[ei][0] ;
       }ENDFORALL;
-      facts.create_fact("edge2node",edge) ; 
+    
     }
+    //before put edge2node to fact_db, make sure each edge point from lower
+    //file number node to higher file number node
+    MapVec<2> edge3 ;
+    edge3.allocate(edges) ;
+    FORALL(edges, ei) {
+      edge3[ei][0] = edge[ei][0];
+      edge3[ei][1] = edge[ei][1];
+    }ENDFORALL;
+    
+    // Add edge3node data structure to fact databse
+    facts.create_fact("edge2node",edge3) ;  
+    
   } // end of createEdgesPar
+  
 }
 
