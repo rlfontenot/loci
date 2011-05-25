@@ -1097,9 +1097,8 @@ if(Lref == "")
   sprintf(buf,"%s.vog",filename) ;
   string outfile = string(buf);
   Loci::writeVOG(outfile, tpos, ncl, ncr, face2node,surf_ids) ;
- 
   
   
-  
+  Loci::Finalize() ;
   return 0 ;
 }
