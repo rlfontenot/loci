@@ -38,7 +38,7 @@
 #include <utility> 
 #include "hex_defines.h"
 #include "quadface.h"
-
+#include "read_par.h"
 using std::cerr;
 using std::endl;
 
@@ -84,7 +84,7 @@ public:
   inline HexCell* getChildCell(int i)const{return childCell[i];}
 
   bool getTagged();
-
+  bool get_tagged(const vector<source_par>& s);
   //return a splitCode
   //find   average_edge_length in XX , YY and ZZ directions
   //find min_edge_length in all directions
@@ -92,7 +92,7 @@ public:
   //if max_edge_length/min_edge_length > Globals::factor1 and there are in 
   //if max_edge_length/min_edge_length > Globals::factor1 and they are in different direction
   //split the max_length edge
-  void setSplitCode(int split_mode);
+  void setSplitCode(int split_mode, double tol);
 
   
   inline int getLevel(NORMAL_DIRECTION d)const{
@@ -359,6 +359,9 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& face_list,
                         const const_store<int>& node_remap);
+
+
+
 HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
                         const Entity* boundary_map, int boundary_map_size,
@@ -415,6 +418,8 @@ HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         std::list<Edge*>& edge_list,
                         std::list<QuadFace*>& face_list,
                         const const_store<int>& node_remap);
+
+
 
 HexCell* build_hex_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,

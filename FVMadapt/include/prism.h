@@ -34,7 +34,8 @@
 #include <set>
 #include <list>
 #include <iostream>
-#include <utility> 
+#include <utility>
+#include "read_par.h"
 #include "hex_defines.h"
 #include "quadface.h"
 #include "face.h"
@@ -42,6 +43,7 @@
 
 using std::cerr;
 using std::endl;
+using std::vector;
 
 std::vector<int32> get_c1_prism(const std::vector<char>& cellPlan,
                                 const std::vector<char>& facePlan,
@@ -227,7 +229,8 @@ public:
   Prism*  findNeighbor(int d, int& nf);
 
   bool getTagged();
-  void setSplitCode(int split_mode);
+  bool get_tagged(const vector<source_par>& s);
+  void setSplitCode(int split_mode, double tol);
   //after a cell is split, compose the cell plan according to the tree structure 
   std::vector<char> make_cellplan();
   
@@ -421,6 +424,7 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         std::list<QuadFace*>& qface_list,
                         std::list<Face*>& gface_list,
                         const const_store<int>& node_remap);
+
 // for no restart
 Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,
@@ -438,6 +442,8 @@ Prism* build_prism_cell(const Entity* lower, int lower_size,
                         std::list<QuadFace*>& qface_list,
                         std::list<Face*>& gface_list,
                         const const_store<int>& node_remap);
+
+
 
 Prism* build_prism_cell(const Entity* lower, int lower_size,
                         const Entity* upper, int upper_size,

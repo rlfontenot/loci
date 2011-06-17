@@ -583,6 +583,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
         
         
 }
+
 //parallel version in make_general_cellplan.cc
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,
@@ -694,7 +695,6 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
     
     
 }
-
 //parallel version in make_general_cellplan.cc
 Cell* build_general_cell(const Entity* lower, int lower_size,
                          const Entity* upper, int upper_size,

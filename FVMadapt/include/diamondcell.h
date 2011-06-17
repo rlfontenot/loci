@@ -40,7 +40,7 @@
 //#include <cassert>
 #include "defines.h"
 #include "face.h"
-
+#include "read_par.h"
 
 using std::cerr;
 using std::endl;
@@ -103,6 +103,7 @@ public:
  
   //define if this is tagged for refinement
   bool get_tagged();
+  bool get_tagged(const vector<source_par>& s);
   int get_num_fine_faces();//for mxfpc
   void setParentCell( DiamondCell* parent){parentCell = parent;}
   
@@ -442,7 +443,8 @@ public:
   
   //check if the cell is tagged for refinement
   bool get_tagged();
-
+  //check if the cell is tagged for refinement
+  bool get_tagged(const vector<source_par>& s);
   //if any edge is more than 1 levels down than my level, split myself, then balance each child 
   bool balance_cell(std::list<Node*>& node_list,
                     std::list<Edge*>& edge_list,
@@ -512,6 +514,9 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
                          const const_store<int>& node_remap);
+
+
+
 //build a Cell from Loci data structures, the locations of nodes are defined
 //and all boundary nodes are tagged
 Cell* build_general_cell(const Entity* lower, int lower_size,
@@ -526,6 +531,10 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
                          const const_store<int>& node_remap);
+
+
+
+
 //build a Cell from Loci data structures, the locations of nodes are defined
 
 Cell* build_general_cell(const Entity* lower, int lower_size,
@@ -539,18 +548,7 @@ Cell* build_general_cell(const Entity* lower, int lower_size,
                          std::list<Edge*>& edge_list,
                          std::list<Face*>& face_list,
                          const const_store<int>& node_remap);
-//build a Cell from Loci data structures, the locations of nodes are defined
-Cell* build_general_cell(const Entity* lower, int lower_size,
-                         const Entity* upper, int upper_size,
-                         const Entity* boundary_map, int boundary_map_size,
-                         const const_multiMap& face2node,
-                         const const_multiMap& face2edge,
-                         const const_MapVec<2>& edge2node,
-                         const const_store<vect3d>& pos,
-                         std::list<Node*>& bnode_list,
-                         std::list<Edge*>& edge_list,
-                         std::list<Face*>& face_list,
-                         const const_store<int>& node_remap);
+
 
 //build a Cell from Loci data structures, the locations of nodes are not defined
 Cell* build_general_cell(const Entity* lower, int lower_size,
