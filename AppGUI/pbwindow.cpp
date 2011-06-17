@@ -121,14 +121,14 @@ void PbWindow::createFlowBar(){
 
 
 void PbWindow::loadGrid(){
-  filename =
+  QString tmpFilename =
     QFileDialog::getOpenFileName(this, tr("Get File"),
                                  QDir::currentPath(),
                                  tr("vog Files (*.vog)"));
- 
-  if(!filename.isEmpty()){
-    if(viewer->load_boundary(filename, bnames, bids)) updateBoundaryView(bnames);
-  }
+  if(tmpFilename.isEmpty()) return;
+  filename = tmpFilename;
+  if(viewer->load_boundary(filename, bnames, bids)) updateBoundaryView(bnames);
+  
 }
 void PbWindow::done(){
 

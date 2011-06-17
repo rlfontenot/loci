@@ -614,8 +614,6 @@ void VarWindow::snapshot(){
       return;
     }
   }else{
-    QMessageBox::information(window(), "mainwindow",
-                             tr("Please specify filename for saving" ));
     return;
   }
 }
@@ -682,17 +680,17 @@ void VarWindow::setGrid()
   if(theelem.hasAttribute("casename")) fileName =  theelem.attribute("directory")+"/"+theelem.attribute("casename")+".vog";
 
   //select a file
-  fileName = QFileDialog::getOpenFileName(this, tr("Load Grid"),
+ QString tmpFileName = QFileDialog::getOpenFileName(this, tr("Load Grid"),
                                           fileName,
                                           format);
   
  
-  if(fileName==""){
+  if(tmpFileName==""){
     //no error message in  case of 'cancel' is pressed 
-    
     return;
   }
   
+  fileName = tmpFileName;
   {
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, tr("QMessageBox::question()"),
@@ -1119,6 +1117,12 @@ bool VarWindow::saveVar()
           fileName = QFileDialog::getSaveFileName(this, tr("Save .vars File"),
                                                   fileName,
                                                   tr("variable Files (*.vars)"));
+          if(fileName.isEmpty()){
+            emit updateStatus(" no file name specified for saving .vars"); 
+            return false;
+          }
+         
+          
           if(fileName.section('.', -1, -1)!="vars")fileName+=".vars";
 
           QFileInfo vogInfo(fileName);
@@ -1135,10 +1139,6 @@ bool VarWindow::saveVar()
                   }
               }
          
-          }
-          if(fileName.isNull()){
-            emit updateStatus(" no file name specified for saving .vars"); 
-            return false;
           }
          
          
@@ -1211,6 +1211,12 @@ bool VarWindow::saveVar()
     fileName = QFileDialog::getSaveFileName(this, tr("Save .vars File"),
                                             fileName,
                                             tr("variable Files (*.vars)"));
+    if(fileName.isEmpty()){
+      emit updateStatus(" no file name specified for saving .vars"); 
+      return false;
+    }
+
+
     if(fileName.section('.', -1, -1)!="vars")fileName+=".vars";
 
     QFileInfo vogInfo(fileName);
@@ -1228,11 +1234,7 @@ bool VarWindow::saveVar()
         }
 
     }
-    if(fileName.isNull()){
-      emit updateStatus(" no file name specified for saving .vars"); 
-      return false;
-    }
-
+    
 
   
  
@@ -1294,6 +1296,11 @@ bool VarWindow::saveXml()
   fileName = QFileDialog::getSaveFileName(this, tr("Save .xml File"),
                                           fileName,
                                           tr("xml Files (*.xml)"));
+  if(fileName.isEmpty()){
+    emit updateStatus(" no file name specified for saving .xml"); 
+    return false;
+  }
+
   if(fileName.section('.', -1, -1)!="xml")fileName+=".xml";
 
    
@@ -1312,10 +1319,7 @@ bool VarWindow::saveXml()
       }
   }
 
-  if(fileName.isNull()){
-    emit updateStatus(" no file name specified for saving .xml"); 
-    return false;
-  }
+ 
   QFile file(fileName);
   if (!file.open(QFile::WriteOnly | QFile::Text)) {
     QMessageBox::warning(this, tr("Application"),

@@ -375,7 +375,7 @@ positions3d  process_scale(const QDomElement& anode){
   } 
        
  
-  cerr << "scale: " << x0 << " " << y0 << " " << z0<< endl;  
+ 
   return positions3d(x0, y0, z0);
   
 }

@@ -609,10 +609,10 @@ void VMergeWindow::loadGridClicked(){
   fileName = QFileDialog::getOpenFileName(this, tr("Load Grid"),
                                           fileName,
                                           format);
-   if(fileName==""){
+  if(fileName.isEmpty()){
     //no error message in  case of 'cancel' is pressed 
-      return;
-   }
+    return;
+  }
 
    //   emit loadGrid(fileName);
     mgviewer->load_boundary(fileName);
@@ -652,23 +652,23 @@ void VMergeWindow::vmClicked(){
    fileName = QFileDialog::getSaveFileName(this, tr("Merged Vog File"),
                                                   fileName,
                                                   tr("Volume Grid files (*.vog)"));
-  
-  if(fileName.section('.', -1, -1)!="vog")fileName+=".vog";
-  
-  if(!(fileName.section('/', -1, -1).section('.',0,0).isEmpty())){
-    QString command = QString("vogmerge");
-    for(int i = 0; i < typesWidget->count(); i++){
-      command +=qobject_cast<VMOption*>( pagesWidget->widget(i))->currentText();
-    }
-    command += " -o " + fileName;
+   if(fileName.isEmpty())return;
+   if(fileName.section('.', -1, -1)!="vog")fileName+=".vog";
    
- 
-    ProgressDialog* progress = new ProgressDialog(command,false);
-    progress->show();
-    connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus, QString)), this, SLOT(afterMerge(QString, QProcess::ExitStatus, QString)));
-  }
-    
- }
+   if(!(fileName.section('/', -1, -1).section('.',0,0).isEmpty())){
+     QString command = QString("vogmerge");
+     for(int i = 0; i < typesWidget->count(); i++){
+      command +=qobject_cast<VMOption*>( pagesWidget->widget(i))->currentText();
+     }
+     command += " -o " + fileName;
+   
+     
+     ProgressDialog* progress = new ProgressDialog(command,false);
+     progress->show();
+     connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus, QString)), this, SLOT(afterMerge(QString, QProcess::ExitStatus, QString)));
+   }
+   
+}
 
 void VMergeWindow::clearAll(){
   clear();

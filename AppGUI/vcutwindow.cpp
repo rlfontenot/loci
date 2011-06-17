@@ -207,9 +207,9 @@ void VCutWindow::cutGrid(){
   
   QTreeWidgetItem* root = tree->topLevelItem(0);
   QTreeWidgetItem* sphereItem = root->child(0)->child(0)->child(0);
-  qDebug()<<sphereItem->text(0);
+  
   if(sphereItem->text(0)=="sphere"){
-    qDebug()<<sphereItem->childCount();
+  
     x0 = sphereItem->child(0)->text(1).toDouble();
     y0 =  sphereItem->child(1)->text(1).toDouble();
     z0 =  sphereItem->child(2)->text(1).toDouble();
@@ -220,10 +220,12 @@ void VCutWindow::cutGrid(){
   outFilename  = inFilename.section('.', 0, -2)+"_cut.vog";
   
   
-  outFilename = QFileDialog::getSaveFileName(this, tr("Merged Vog File"),
+  QString tmpOutFilename = QFileDialog::getSaveFileName(this, tr("Result Vog File"),
                                              outFilename,
                                              tr("Volume Grid files (*.vog)"));
-  
+  if(tmpOutFilename.isEmpty())return;
+
+  outFilename = tmpOutFilename;
   if(outFilename.section('.', -1, -1)!="vog")outFilename+=".vog";
   
  
@@ -240,7 +242,7 @@ void VCutWindow::cutGrid(){
       progress->show();
       connect(progress, SIGNAL(progressFinished(QString, QProcess::ExitStatus, QString)), this, SLOT(afterCut(QString, QProcess::ExitStatus, QString)));
     }
-  }
+}
 void VCutWindow::afterCut(QString command, QProcess::ExitStatus status, QString directory){
   if(status==QProcess::NormalExit){
     
@@ -249,18 +251,19 @@ void VCutWindow::afterCut(QString command, QProcess::ExitStatus status, QString 
   }else{
     qDebug()<<"vogcut failed";
   }
-  }
+}
 
   void VCutWindow::loadGrid(){
   
   
-  inFilename =
+  QString tmpInFilename =
     QFileDialog::getOpenFileName(this, tr("Get File"),
                                  QDir::currentPath(),
                                  tr("vog Files (*.vog)"));
+  if(tmpInFilename.isEmpty())return;
+  inFilename = tmpInFilename;
   QStringList bnames;
-  if(!inFilename.isEmpty()) viewer->load_boundary(inFilename, bnames);
-    
+  viewer->load_boundary(inFilename, bnames);
   }
 void VCutWindow::done(){
 
@@ -1132,19 +1135,20 @@ bool VCutWindow::saveXml(){
     fileName = QFileDialog::getSaveFileName(this, tr("Save .xml File"),
                                                  fileName,
                                                   tr("xml Files (*.xml)"));
+    if(fileName.isEmpty())return false;
+    
+    if(fileName.section('.', -1, -1) != "xml") fileName = fileName + ".xml";
  
-  if(fileName.section('.', -1, -1) != "xml") fileName = fileName + ".xml";
  
- 
-  QFile file(fileName);
-  if (!file.open(QFile::WriteOnly | QFile::Text)) {
-     QMessageBox::warning(this, tr("Application"),
-                          tr("Cannot write file %1:\n%2.")
-                          .arg(fileName)
-                          .arg(file.errorString()));
-     return false;
+    QFile file(fileName);
+    if (!file.open(QFile::WriteOnly | QFile::Text)) {
+      QMessageBox::warning(this, tr("Application"),
+                           tr("Cannot write file %1:\n%2.")
+                           .arg(fileName)
+                           .arg(file.errorString()));
+      return false;
   }
- 
+    
   QTextStream out(&file);
 
   doc.save(out, 2, QDomNode::EncodingFromDocument);

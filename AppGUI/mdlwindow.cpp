@@ -965,12 +965,8 @@ bool ChemistryMdl::save(){
                                                   initialPath,
                                                     tr("model file (*.mdl)"));
     
-    if (fileName.isEmpty())
-      {
-        //no messagebox in case of cancel
-        // QMessageBox::warning(this, tr("Window"), tr("Please specify filename")); 
-        return false;
-      }
+    if (fileName.isEmpty()) return false;
+      
 
     if(fileName.section('.', -1, -1)!="mdl")fileName += ".mdl";
     
@@ -1089,11 +1085,8 @@ bool CpWindow::save(){
                                                   initialPath,
                                                   tr("model file (*.mdl)"));
 
-  if (fileName.isEmpty())
-    {
-      QMessageBox::warning(this, tr("CPWindow"), tr("Please specify filename")); 
-      return false;
-    }
+  if (fileName.isEmpty()) return false;
+    
   if(fileName.section('.', -1, -1)!="mdl")fileName+=".mdl";
   QFile file(fileName);
   if (!file.open(QFile::WriteOnly | QFile::Text)) {

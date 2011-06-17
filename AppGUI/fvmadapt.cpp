@@ -210,14 +210,17 @@ void FVMAdapt::refineGrids(){
 void FVMAdapt::loadGrid(){
   
   
-  filename =
+  QString tmpFilename =
     QFileDialog::getOpenFileName(this, tr("Get File"),
                                  QDir::currentPath(),
                                  tr("vog Files (*.vog)"));
+  if(tmpFilename.isEmpty()) return;
+  
   QStringList bnames;
-  if(!filename.isEmpty()) viewer->load_boundary(filename, bnames);
-    
-  }
+  filename = tmpFilename;
+  viewer->load_boundary(filename, bnames);
+ 
+}
 void FVMAdapt::done(){
 
   close();
@@ -367,13 +370,7 @@ FVMAdapt::FVMAdapt( QWidget *parent):QMainWindow(parent){
    createToolBar();
    setCentralWidget(central);
     
-  //  QStringList bnames;
-//    filename =
-//      QFileDialog::getOpenFileName(this, tr("Get File"),
-//                                   QDir::currentPath(),
-//                                   tr("vog Files (*.vog)"));
-   
-//    if(!filename.isEmpty()) viewer->load_boundary(filename, bnames);
+  
    setWindowTitle(tr("FVMAdapt"));
    setMinimumSize(1000, 700);
 }
@@ -1029,14 +1026,18 @@ void FVMAdapt::removeNode(){
 
   
 bool FVMAdapt::saveXml(){
+  
   QDomDocument doc = tree2dom(getRoot());
   if(doc.isNull())return false;
+  
   QString fileName = filename.left(filename.lastIndexOf('.'))+".xml";
-
-    fileName = QFileDialog::getSaveFileName(this, tr("Save .xml File"),
-                                                 fileName,
-                                                  tr("xml Files (*.xml)"));
- 
+  
+  QString tmpFileName = QFileDialog::getSaveFileName(this, tr("Save .xml File"),
+                                                     fileName,
+                                                     tr("xml Files (*.xml)"));
+  if(tmpFileName.isEmpty())return false;
+  
+  fileName = tmpFileName;
   if(fileName.section('.', -1, -1) != "xml") fileName = fileName + ".xml";
  
  
@@ -1053,8 +1054,8 @@ bool FVMAdapt::saveXml(){
 
   doc.save(out, 2, QDomNode::EncodingFromDocument);
   
-  //viewer->markVolumeNodes(filename);
-  //viewer->markNodes();
+  viewer->markVolumeNodes(filename);
+  viewer->markNodes();
   return true;
 }
 

@@ -14,7 +14,7 @@ class QTextEdit;
 class QButtonGroup;
 class QPushButton;
 class IntEdit;
-
+class QStackedWidget; 
 
 
 
@@ -44,6 +44,7 @@ private:
   QString basefile;
   QString tagfile;
   QString xmlfile;
+  QString parfile;
   QString planfile;
   QString rplanfile;
   QString outfile;
@@ -55,10 +56,17 @@ private:
   int cycle;
   int mode;
   int balanceOpt;
-  bool xmlOpt;
+  int inputOpt;
   
   QButtonGroup* fileButtonGroup;
+  QStackedWidget* pagesWidget; 
   QPushButton* baseButton;
+    QPushButton* xmlButton;
+    QPushButton* parButton;
+    QPushButton* rPlanButton;
+    QPushButton* planButton;
+    QPushButton* outButton;
+    QPushButton* tagButton; 
   IntEdit* levelEdit ;
   QTextEdit* display;
   

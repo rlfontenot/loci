@@ -706,9 +706,11 @@ void GLViewer::markVolumeNodes(QString filename){
   vector<bool> vtags = process_region(rootElement, pos_dat);
   QString tagFileName =filename.section('.', 0, -2)+".tag";
   
-  tagFileName = QFileDialog::getSaveFileName(this, tr("Save .tag File"),
-                                             tagFileName,
-                                             tr("tag Files (*.tag)"));
+  QString tmpTagFileName = QFileDialog::getSaveFileName(this, tr("Save .tag File"),
+                                                        tagFileName,
+                                                        tr("tag Files (*.tag)"));
+  if(tmpTagFileName.isEmpty())return;
+  tagFileName = tmpTagFileName;
   if(tagFileName.section('.', -1, -1)!="tag") tagFileName +=".tag";
   
 
@@ -744,8 +746,11 @@ void GLViewer::markVolumeNodes(QString filename){
 
   
   QTextStream out(&file);
-  for(unsigned int i = 0; i < vtags.size(); i++)
-    out<< vtags[i]<<endl;
+  for(unsigned int i = 0; i < vtags.size(); i++){
+    // out<< vtags[i]<<endl;
+    if(vtags[i])out<< "1e-1"<<endl;
+    else  out<< vtags[i]<<endl; 
+  }
   file.close();
 }
 
