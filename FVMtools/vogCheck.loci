@@ -234,6 +234,43 @@ public:
 } ;
 register_rule<output_grid_positions> register_output_grid_positions ;
 
+
+$type accessedNodes store<bool> ;
+$rule pointwise(face2node->accessedNodes<-area) {
+  int fsz = $face2node.size() ;
+  for(int i=0;i<fsz;++i)
+    $face2node[i]->$accessedNodes = true ;
+}
+
+$type numAccessedNodes param<int> ;
+$type numNodes param<int> ;
+
+$rule unit(numAccessedNodes),constraint(UNIVERSE) {
+  $numAccessedNodes = 0 ;
+}
+$rule apply(numAccessedNodes)[Loci::Summation],constraint(accessedNodes) {
+  int cnt = 1 ;
+  join($numAccessedNodes,cnt) ;
+}
+
+$rule unit(numNodes),constraint(UNIVERSE) {
+  $numNodes = 0 ;
+}
+
+$rule apply(numNodes<-pos)[Loci::Summation] {
+  int cnt = 1 ;
+  join($numNodes,cnt) ;
+}
+
+$rule apply(topo<-numNodes,numAccessedNodes)[Loci::Maximum], prelude {
+  if(*$numNodes != *$numAccessedNodes) {
+    if(Loci::MPI_rank == 0) {
+      cerr << "Warning: "
+           << *$numNodes-*$numAccessedNodes
+           << " unreferenced nodes in grid." << endl ;
+    }
+  }
+} ;
 $type volume store<double> ;
 
 $rule pointwise(volume<-cellcenter,(upper,lower,boundary_map)->(area,facecenter)) {
