@@ -105,6 +105,8 @@ void exactinit() ;
 //#define SHOW_QT_PROPERTY
 //#define FACE_SPLIT_PROPERTY_CHECK
 //#define UNSTABLE_SEG_SEG_INT_CODE
+//#define POINT_SHIFT_CONVEXITY_CHECK
+//#define POLY_AND_POLY_CONVEXITY_CHECK
 
 typedef vector3d<double> vec3d ;
 typedef vector2d<double> vec2d ;
@@ -3891,6 +3893,31 @@ bool poly_and_poly(const vector<Entity>& P_nodes,
   else
     q_convex = check_convex(q_poly) ;
   
+#ifdef POLY_AND_POLY_CONVEXITY_CHECK
+  if(!p_convex) {
+    cerr << endl ;
+    cerr.precision(16) ;
+    cerr << "non-convex polygon : " << endl ;
+    for(size_t i=0;i!=P_nodes.size();++i) {
+      Entity n = P_nodes[i] ;
+      cerr << n <<  ": ("
+           << masterbc_edge_nodes.inSet(n)
+           << ") = " << p_poly[i] << endl ;
+    }
+  }
+  if(!q_convex) {
+    cerr << endl ;
+    cerr.precision(16) ;
+    cerr << "non-convex polygon : " << endl ;
+    for(size_t i=0;i!=Q_nodes.size();++i) {
+      Entity n = Q_nodes[i] ;
+      cerr << n <<  ": ("
+           << masterbc_edge_nodes.inSet(n)
+           << ") = " << q_poly[i] << endl ;
+    }
+  }
+#endif
+  
   // check if convex
   if(!p_convex || !q_convex) {
     cerr << "ERROR: polygon(s) are not convex in poly_and_poly!" << endl ;
@@ -4991,6 +5018,37 @@ entitySet shift_points2(const entitySet& bc1_faces,
                         const multiMap& node2face,
                         dMap& bc1p_2_bc2p,
                         dMap& bc2p_2_bc1p) {
+#ifdef POINT_SHIFT_CONVEXITY_CHECK
+  {
+    // check for bc2 face convexity
+    int non_convex = 0 ;
+    for(entitySet::const_iterator
+          fi=bc2_faces.begin();fi!=bc2_faces.end();++fi) {
+      // first get face nodes
+      vector<int> nodes ;
+      vector<vec2d> nodes_pos ;
+      int bc_nodes = 0 ;
+      int num_elems = face2node.num_elems(*fi) ;
+      for(int i=0;i<num_elems;++i) {
+        int n = face2node[*fi][i] ;
+        if(slavebc_edge_nodes.inSet(n))
+          ++bc_nodes ;
+        nodes.push_back(n) ;
+        nodes_pos.push_back(bc2_npos[n]) ;
+      }
+      if(bc_nodes >= 3) {
+        if(!check_convex_approx(nodes_pos))
+          ++non_convex ;
+      } else {
+        if(!check_convex(nodes_pos))
+          ++non_convex ;
+      }
+    }
+    cerr << "Before SHIFT, total NON convex polygon: "
+         << non_convex << endl ;
+  }
+#endif
+  
   entitySet shifted ;
   // Here we do point shifting, that is we choose BC1 as
   // the master boundary, and we shift BC2 points to match
@@ -5040,6 +5098,38 @@ entitySet shift_points2(const entitySet& bc1_faces,
     }
   }
   gettimeofday(&time_shift_point_end,NULL) ;
+
+#ifdef POINT_SHIFT_CONVEXITY_CHECK
+  {
+    // check for bc2 face convexity
+    int non_convex = 0 ;
+    for(entitySet::const_iterator
+          fi=bc2_faces.begin();fi!=bc2_faces.end();++fi) {
+      // first get face nodes
+      vector<int> nodes ;
+      vector<vec2d> nodes_pos ;
+      int bc_nodes = 0 ;
+      int num_elems = face2node.num_elems(*fi) ;
+      for(int i=0;i<num_elems;++i) {
+        int n = face2node[*fi][i] ;
+        if(slavebc_edge_nodes.inSet(n))
+          ++bc_nodes ;
+        nodes.push_back(n) ;
+        nodes_pos.push_back(bc2_npos[n]) ;
+      }
+      if(bc_nodes >= 3) {
+        if(!check_convex_approx(nodes_pos))
+          ++non_convex ;
+      } else {
+        if(!check_convex(nodes_pos))
+          ++non_convex ;
+      }
+    }
+    cerr << "SHIFT done, total Non convex polygon: "
+         << non_convex << endl ;
+  }
+#endif
+
   return shifted ;
 }
 
@@ -6388,7 +6478,7 @@ bool face_split_areaSum_check(const entitySet& pre_faces,
   pre_area = double_summation(pre_area_vector) ;
   new_area = double_summation(new_area_vector) ;
 
-  if(abs(pre_area - new_area) <
+  if(abs(pre_area - new_area) <=
      pre_area / std::max(static_cast<double>(pre_faces.size()),
                          AREA_SUM_CHECK_THRESHOLD))
     return true ;
@@ -7610,6 +7700,12 @@ int main(int ac, char* av[]) {
   gettimeofday(&time_data_structure_start,NULL) ;
   entitySet BC1_edge_nodes = get_edge_nodes(BC1_N1,BC1_N2,BC1_Er) ;
   entitySet BC2_edge_nodes = get_edge_nodes(BC2_N1,BC2_N2,BC2_Er) ;
+
+#ifdef POINT_SHIFT_CONVEXITY_CHECK
+  masterbc_edge_nodes = BC1_edge_nodes ;
+  slavebc_edge_nodes = BC2_edge_nodes ;
+#endif
+
   gettimeofday(&time_data_structure_end,NULL) ;
   data_structure_time +=
     time_data_structure_end - time_data_structure_start ;
