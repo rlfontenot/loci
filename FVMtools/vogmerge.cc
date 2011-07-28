@@ -39,6 +39,22 @@ using Loci::vector3d ;
 using Loci::entitySet;
 typedef vector3d<double> vect3d;
 
+FILE *mytmpfile() {
+  FILE *file = 0 ;
+  char filename[128] ;
+  pid_t pid = getpid() ;
+  
+  sprintf(filename,"vogmerge.tmp.%d",pid) ;
+  file = fopen(filename,"w+") ;
+  if(!file) {
+    return file ;
+  }
+  remove(filename) ;
+  return file ;
+}
+    
+  
+  
 const double NORMALIZE_ZERO_THRESHOLD = 0.0 ;
 inline  void normalize(vect3d& v) {
   if( (fabs(v.x) <= NORMALIZE_ZERO_THRESHOLD) &&
@@ -1537,7 +1553,7 @@ int main(int ac, char *av[]) {
     
     // First read in clusters from each file and write modified
     // clusters to a scratch file
-    FILE *scratch = tmpfile() ;
+    FILE *scratch = mytmpfile() ;
     
     if(scratch == 0) {
       perror("tmpfile") ;
