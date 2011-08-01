@@ -67,6 +67,7 @@ namespace {
 
 namespace Loci {
   extern bool profile_memory_usage ;
+  extern bool collect_memory_info ;
 
   extern double LociAppPeakMemory ;
   extern double LociAppAllocRequestBeanCounting ;
@@ -2383,7 +2384,7 @@ namespace Loci {
       if(srp->domain() == EMPTY) {
 	srp->allocate(alloc_dom) ;
       }else {
-        if(profile_memory_usage) {
+        if(profile_memory_usage || collect_memory_info) {
           // this variable is reallocated, we take
           // the space off from the counter, since
           // it will be recounted in profiling
@@ -2464,7 +2465,7 @@ namespace Loci {
     stopWatch s ;
     s.start() ;
 
-    if(profile_memory_usage) {
+    if(profile_memory_usage || collect_memory_info) {
       for(variableSet::const_iterator vi=free_vars.begin();
           vi!=free_vars.end();++vi) {
         storeRepP srp = facts.get_variable(*vi) ;
