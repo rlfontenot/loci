@@ -351,20 +351,7 @@ void readVertices( double vertices,  store<vector3d<double> >& pos)
  
   float scale = readNodef(vertices, "ScaleFactor");
    
-  int err;
-  int32 mapIndex = readNodei32(vertices,"MapId"); 
-  char nodeName[ADF_NAME_LENGTH]={'\0'};
-  sprintf(nodeName, "/Maps/Map-%d/IdMap", mapIndex);
-  double root;
-  ADF_Get_Root_ID(vertices, &root, &err);
-  checkError(err, vertices, "Error getting root ID");
   
-  int32* mapData =0;
-  readNodeis(root, nodeName, &mapData);
-  if(mapData==0){
-    cerr<< " Error reading vertex map " << endl;
-    exit(1);
-  }
   
   
   if(type=="R4"){
@@ -381,7 +368,7 @@ void readVertices( double vertices,  store<vector3d<double> >& pos)
         p.x = verts[3 * i    ] * scale;
         p.y = verts[3 * i + 1  ] * scale;
         p.z = verts[3 * i  + 2  ] * scale;
-        pos[mapData[i]-1]  = p;
+        pos[i]  = p;
         
       }
     if(verts)delete [] verts;
@@ -394,14 +381,11 @@ void readVertices( double vertices,  store<vector3d<double> >& pos)
         p.x = verts[3 * i ] * (double)scale;
         p.y = verts[3 * i + 1 ] *(double) scale;
         p.z = verts[3 * i  + 2 ] * (double)scale;
-        pos[mapData[i]-1]  = p;
+        pos[i]  = p;
 
       }
     if(verts)  delete [] verts;
   }
-
-  if(mapData) delete [] mapData;
-     
 }
   
 
@@ -415,18 +399,16 @@ void readMesh(  double topoID,
 {
   int err; 
   double root;
+  //first check if the node indexes and cell indexes are local or not
   bool isLocal = false;
   ADF_Get_Root_ID(topoID, &root, &err);
   checkError(err, topoID, "Error getting root ID");
   if(readNodestr(root, "/Meshes/Space")=="Local") isLocal = true;
-  int32* vertexMapData = 0;
-  int32* mapData = 0;
 
-  int32* faceData = 0;
-  int localFaceSize = readNodeis(topoID, "InternalFaces/Vertices", &faceData);
-  faceSizes.push_back(localFaceSize);
- 
-  if(isLocal){
+  //if the node indexes are not local, read in the vertices map data
+  std::map<int, int> node_g2l_map;
+  if(!isLocal){
+    int32* vertexMapData = 0;
     char nodeName[ADF_NAME_LENGTH]={'\0'};
     ADF_Get_Name(topoID, nodeName, &err);
     checkError(err, topoID, "Error getting node name");
@@ -437,60 +419,78 @@ void readMesh(  double topoID,
     //read vertices map data, assume FaceBasedTopology-i and  Vertices-i share the same vertex map
     sprintf(nodeName, "/Maps/Map-%d/IdMap", mapIndex);
    
-    readNodeis(root, nodeName, &vertexMapData);
+    int localNumNode = readNodeis(root, nodeName, &vertexMapData);
     if(vertexMapData==0){
       cerr<< " Error reading vertex map " << endl;
       exit(1);
     }
-   
-    //map face data
-    int pointer = 0;
-    while(pointer < localFaceSize){
-      for(int  i = 1; i <= faceData[pointer]; i++){
-        faceData[pointer+i]=vertexMapData[faceData[pointer+i]-1];
-      
-      } 
-      
-      pointer += faceData[pointer]+1;
+        
+    //build global2local map
+    
+    for(int i = 0; i < localNumNode; i++){
+      node_g2l_map[vertexMapData[i]] = i+1;
     }
-    
+    if(vertexMapData) delete [] vertexMapData;
   }
-  allFaces.push_back(faceData);
-
   
-  int32* faceCellData = 0;
-  faceCellSizes.push_back(readNodeis(topoID, "InternalFaces/Cells", &faceCellData));
-  if(isLocal){
-    
+  //if the cell indexes are not localm read in the cell map data 
+  std::map<int, int> cell_g2l_map;
+  if(!isLocal){
+    int32* cellMapData = 0;
     char nodeName[ADF_NAME_LENGTH]={'\0'};  
     sprintf(nodeName, "Cells/MapId");
     int mapIndex = readNodei32(topoID, nodeName);
     
     sprintf(nodeName, "/Maps/Map-%d/IdMap", mapIndex);
-    readNodeis(root, nodeName, &mapData);
-    if(mapData==0){
+    int localNumCells = readNodeis(root, nodeName, &cellMapData);
+    
+    if(cellMapData==0){
       cerr<< " Error reading vertex map " << endl;
       exit(1);
     }
-   
-    //map the data
+    
+    //build global2local map
+    for(int i = 0; i < localNumCells; i++){
+      cell_g2l_map[cellMapData[i]] = i+1;
+    }
+    if(cellMapData) delete [] cellMapData;
+  }
+  //read in internal faces
+  int32* faceData = 0;
+  int localFaceSize = readNodeis(topoID, "InternalFaces/Vertices", &faceData);
+  faceSizes.push_back(localFaceSize);
+  if(!isLocal){
+    //map vertices data
+    int pointer = 0;
+    while(pointer < localFaceSize){
+      for(int  i = 1; i <= faceData[pointer]; i++){
+        faceData[pointer+i]=node_g2l_map[faceData[pointer+i]];
+      } 
+      pointer += faceData[pointer]+1;
+    }
+  }
+  allFaces.push_back(faceData);
+  
+  
+  int32* faceCellData = 0;
+  faceCellSizes.push_back(readNodeis(topoID, "InternalFaces/Cells", &faceCellData));
+  if(!isLocal){
+    //map cell data
     for(int  i = 0; i < faceCellSizes.back(); i++){
-      faceCellData[i]=mapData[faceCellData[i]-1];
+      faceCellData[i]=cell_g2l_map[faceCellData[i]];
     } 
     
   }
-
   allFaceCells.push_back(faceCellData);
 
   
-
+  //read in boundary faces
   int numChildren;
   ADF_Number_of_Children(topoID, &numChildren, &err);
   checkError(err, topoID, "Can not get number of children of the first child of States");
  
   char name[ADF_NAME_LENGTH]={'\0'};
   int num_ret = 0;
-
   int numBoundaries = readNodei32(topoID, "NumBoundaryTypes");
   
   for(int start = 1; start<=numChildren; start++){
@@ -507,12 +507,13 @@ void readMesh(  double topoID,
       if(btype==0)btype = numBoundaries;//some index start with 0;
       int32* bfaceData = 0;
       faceSizes.push_back(readNodeis(bfaceID, "Vertices", &bfaceData));
-      if(isLocal && vertexMapData !=0){
+      //map vertices data
+      if(!isLocal){
         int pointer = 0;
         int localFaceSize = faceSizes.back();
         while(pointer < localFaceSize){
           for(int  i = 1; i <= bfaceData[pointer]; i++){
-            bfaceData[pointer+i]=vertexMapData[bfaceData[pointer+i]-1];
+            bfaceData[pointer+i]=node_g2l_map[bfaceData[pointer+i]];
           } 
           
           pointer += bfaceData[pointer]+1;
@@ -523,16 +524,14 @@ void readMesh(  double topoID,
       int32* bfaceCellData = 0;
       int numFaces = readNodeis(bfaceID, "Cells", &bfaceCellData);
       faceCellSizes.push_back(2*numFaces);
-      if(isLocal && mapData != 0){
-        //map the data
+      if(!isLocal){
+        //map cell data
         for(int  i = 0; i < numFaces; i++){
-          bfaceCellData[i]=mapData[bfaceCellData[i]-1];
+          bfaceCellData[i]=cell_g2l_map[bfaceCellData[i]];
         } 
       }
-
-
-
       
+      //rearrange cell data to include cr
       int32* tmpfacecells = new int32[2*numFaces];
       for( int i =0; i <numFaces; i++){
         tmpfacecells[2*i] = bfaceCellData[i];
@@ -540,7 +539,7 @@ void readMesh(  double topoID,
       }
 
       allFaceCells.push_back(tmpfacecells);
-      delete [] bfaceCellData;
+      if(bfaceCellData) delete [] bfaceCellData;
       
       //      string bcstr = readNodestr(bfaceID, "Label");
       //if(bcstr.size()==0){
@@ -558,8 +557,7 @@ void readMesh(  double topoID,
     }
   
   }
-  if(vertexMapData) delete [] vertexMapData;
-  if(mapData) delete [] mapData;
+  
 }
   
  
@@ -627,8 +625,11 @@ void getMeshID(double processorID, double* verticesID, double* topoID){
 //facemap is not read, assume no duplicate faces between processors
 int main( int argc, char *argv[])
 {
-  
-  
+  if(Loci::MPI_processes > 1){
+    cerr<<"ccm2vog can not run in parallel at present" << endl;
+    exit(1);
+  }
+    
   if (argc < 2 || argc > 3){
     cerr << "Usage: ccm2vog input.ccm[g] [output.vog]"<<endl;
     exit(1);
@@ -649,7 +650,6 @@ int main( int argc, char *argv[])
     case_name = infile.substr(0, p);
   }else{
     cerr << "Usage: ccm2vog input.ccm[g] [output.vog]"<<endl;
-    
     exit(1); 
   }
   
@@ -658,8 +658,7 @@ int main( int argc, char *argv[])
   else outfile=argv[2];
   
 
-  using namespace Loci ;
-  using namespace VOG ;
+ 
   bool optimize = true ;
   Loci::Init(&argc,&argv) ;//Loci initialize
   
@@ -688,7 +687,7 @@ int main( int argc, char *argv[])
   char name[ADF_NAME_LENGTH]={'\0'};
   double stateID;
   ADF_Children_Names (statesID,1,1,ADF_NAME_LENGTH,&num_ret, name, &err);
-  checkError(err, statesID, "Can not children names of States");
+  checkError(err, statesID, "Can not get children names of States");
   
   ADF_Get_Node_ID(statesID, name, &stateID, &err);
   checkError(err, stateID, "Can not get the node ID of the first child of States");
@@ -722,7 +721,7 @@ int main( int argc, char *argv[])
   }
   
  
-  //allocate pos read pos, pos always use global number
+  //allocate pos read pos, pos always use local number
   entitySet nodes = interval(0, totalNumNode-1);
   pos.allocate(nodes);
   for(unsigned int i = 0; i < processorIDs.size(); i++){
@@ -746,8 +745,11 @@ int main( int argc, char *argv[])
   cl.allocate(facesSet);
   cr.allocate(facesSet);
   facecount.allocate(facesSet);
+ 
   
-  //read in all face info
+  
+  //read in all face info, the vertices and cell indexes will be
+  //mapped to local numbering is they are not local
   vector<int32*> allFaces;
   vector<int> faceSizes;
   vector<int32*> allFaceCells;
@@ -766,12 +768,10 @@ int main( int argc, char *argv[])
   
   //close data base
   ADF_Database_Close(root, &err); 
-
- 
-  
- 
+   
   //put face info into maps
   entitySet::const_iterator ei = facesSet.begin();
+  
   for(unsigned int fid = 0; fid < allFaces.size(); fid++){
     int pointer = 0;
    
@@ -785,7 +785,8 @@ int main( int argc, char *argv[])
       }
   }
   face2node.allocate(facecount);
- 
+  
+  
   ei = facesSet.begin();
   for(unsigned int fid = 0; fid < allFaces.size(); fid++){
     int pointer = 0;
@@ -805,35 +806,38 @@ int main( int argc, char *argv[])
     while(pointer < faceCellSizes[fid]){
       cl[*ei] = allFaceCells[fid][pointer];
       cr[*ei] = allFaceCells[fid][pointer+1];
-
       pointer += 2;
       ei++;
+      
     }
+    
   }
-
+  
   //release memory
   for(unsigned int fid = 0; fid < allFaces.size(); fid++)delete [] allFaces[fid];
   for(unsigned int fid = 0; fid < allFaceCells.size(); fid++)delete [] allFaceCells[fid];
-   
- 
+  
+  entitySet cellSet = cl.image(facesSet)+cr.image(facesSet);
+    
   //Loci takes over
-  if(MPI_rank == 0)
+  if(Loci::MPI_rank == 0)
     cerr << "coloring matrix" << endl ;
   VOG::colorMatrix(pos,cl,cr,face2node) ;
   
   if(optimize) {
-    if(MPI_rank == 0) 
+    if(Loci::MPI_rank == 0) 
       cerr << "optimizing mesh layout" << endl ;
     VOG::optimizeMesh(pos,cl,cr,face2node) ;
   }
- 
-  if(MPI_rank == 0)
+  
+   
+  if(Loci::MPI_rank == 0)
     cerr << "writing VOG file" << endl ;
   Loci::writeVOG(outfile, pos, cl, cr, face2node ,surf_ids) ;
- 
+  
   Loci::Finalize() ;
   return 0 ;
-    
+  
 }
 
 

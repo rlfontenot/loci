@@ -583,7 +583,8 @@ void fv_topo_handler::output_boundary_scalar(float val[], int node_set[],
     first_boundary=false ;
   }
   vector<float> valout(elem_ids.size()) ;
-  dMap einv ;
+  //  dMap einv ;
+  map<int,int> einv ;
   for(size_t i=0;i<elem_ids.size();++i) {
     einv[elem_ids[i]] = i ;
     valout[i] = 0.0 ;
@@ -613,7 +614,8 @@ void fv_topo_handler::output_boundary_vector(vector3d<float> val[],
     first_boundary=false ;
   }
   vector<float> valout(elem_ids.size()) ;
-  dMap einv ;
+  //  dMap einv ;
+  map<int,int> einv ;
   for(size_t i=0;i<elem_ids.size();++i) {
     einv[elem_ids[i]] = i ;
     valout[i] = 0.0 ;

@@ -85,6 +85,7 @@ void get_surf(string casename, string iteration,
   vector<string> processed_bcs ;
 
   vector<int> f2size ;
+  vector<int> fsurfid ;
   vector<int> f2node ;
 
   vector<surf_info> bc_data ;
@@ -176,12 +177,14 @@ void get_surf(string casename, string iteration,
 
       for(int i=0;i<ntrias;++i) {
         f2size.push_back(3) ;
+        fsurfid.push_back(bc) ;
         f2node.push_back(trias[i][0]) ;
         f2node.push_back(trias[i][1]) ;
         f2node.push_back(trias[i][2]) ;
       }
       for(int i=0;i<nquads;++i) {
         f2size.push_back(4) ;
+        fsurfid.push_back(bc) ;
         f2node.push_back(quads[i][0]) ;
         f2node.push_back(quads[i][1]) ;
         f2node.push_back(quads[i][2]) ;
@@ -191,6 +194,7 @@ void get_surf(string casename, string iteration,
       for(int i=0;i<ngeneral;++i) {
         int sz = nside_sizes[i] ;
         f2size.push_back(sz) ;
+        fsurfid.push_back(bc) ;
         for(int j=0;j<sz;++j)
           f2node.push_back(nside_nodes[off+j]) ;
         off += sz ;
@@ -250,8 +254,12 @@ void get_surf(string casename, string iteration,
       nbc++ ;
   }
     
-  for(size_t i=0;i<f2node.size();++i)
+  for(size_t i=0;i<f2node.size();++i) {
+    if(nmap[f2node[i]] < 0)
+      cerr << "nmap invalid for f2node, i = " << i << endl ;
     f2node[i] = nmap[f2node[i]] ;
+  }
+
 
   string filename = processed_bcs[0] + ".gsurf" ;
   ofstream sfile(filename.c_str(),ios::out) ;
@@ -293,13 +301,16 @@ void get_surf(string casename, string iteration,
   sfile.close() ;
 
   // write out proper solid mesh file
-  string solid_filename = processed_bcs[0] + ".surf" ;
+  string solid_filename = casename + ".surf" ;
+  if(processed_bcs.size() == 1)
+    solid_filename = processed_bcs[0] + ".surf" ;
+
   ofstream ssfile(solid_filename.c_str(),ios::out) ;
   ssfile.precision(15) ;
 
   int ntri = 0 ;
   int nqua = 0 ;
-  int ngen = 0 ;
+  
   for(size_t i=0;i<f2size.size();++i) {
     int sz = f2size[i] ;
     if(sz == 3)
@@ -307,7 +318,7 @@ void get_surf(string casename, string iteration,
     else if(sz == 4)
       nqua++ ;
     else
-      ngen++ ;
+      ntri += sz-2 ; // Convert general faces to triangles
   }
   ssfile << ntri << ' ' << nqua << ' ' 
          << node_set.size() << endl ;
@@ -323,10 +334,19 @@ void get_surf(string casename, string iteration,
   off = 0 ;
   for(size_t i=0;i<f2size.size();++i) {
     int sz = f2size[i] ;
+    int sid = fsurfid[i]+1 ;
     if(sz == 3) {
-      for(int j=0;j<sz;++j)
-        ssfile << ' ' << f2node[off+j] ;
-      ssfile << " 1 0 0" << endl ;
+      ssfile << f2node[off+0] << ' '
+             << f2node[off+1] << ' '
+             << f2node[off+2] << ' ' 
+             << sid << " 0 1" << endl ;
+    } else if(sz > 4) { // convert general face to triangles
+      for(int i=1;i<sz-1;++i) {
+        ssfile << f2node[off+0] << ' '
+               << f2node[off+i] << ' '
+               << f2node[off+i+1] << ' ' 
+               << sid << " 0 1" << endl ;
+      }
     }
     off += sz ;
   }
@@ -334,27 +354,14 @@ void get_surf(string casename, string iteration,
   off = 0 ;
   for(size_t i=0;i<f2size.size();++i) {
     int sz = f2size[i] ;
+    int sid = fsurfid[i]+1 ;
     if(sz == 4) {
-      for(int j=0;j<sz;++j)
-        ssfile << ' ' << f2node[off+j] ;
-      ssfile << "1 0 0" << endl ;
+      ssfile << f2node[off+0] << ' '
+             << f2node[off+1] << ' '
+             << f2node[off+2] << ' '
+             << f2node[off+3] << ' '
+             << sid << " 0 1" << endl ;
     }
     off += sz ;
-  }
-  
-  // Now write out general faces
-  if(ngen > 0) {
-    ssfile << ngen << endl ;
-    off = 0 ;
-    for(size_t i=0;i<f2size.size();++i) {
-      int sz = f2size[i] ;
-      if(sz > 4) {
-        ssfile << sz << endl ;
-        for(int j=0;j<sz;++j)
-          ssfile << ' ' << f2node[off+j] ;
-        ssfile << endl ;
-      }
-      off += sz ;
-    }
   }
 }

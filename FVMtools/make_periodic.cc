@@ -99,10 +99,14 @@ void exactinit() ;
  **************************************************************/
 //#define DEBUG
 #define NORMAL
+//#define FACE_SPLIT_SELF_CHECK
+//#define DEBUG_SPLIT_SHOWME
 //#define DEBUG_POLY_AND_POLY
 //#define SHOW_QT_PROPERTY
 //#define FACE_SPLIT_PROPERTY_CHECK
 //#define UNSTABLE_SEG_SEG_INT_CODE
+//#define POINT_SHIFT_CONVEXITY_CHECK
+//#define POLY_AND_POLY_CONVEXITY_CHECK
 
 typedef vector3d<double> vec3d ;
 typedef vector2d<double> vec2d ;
@@ -242,12 +246,18 @@ inline bool operator!=(const vec2d& v1, const vec2d& v2) {
 // 1e-12 * the minimum edge lentgh
 // NOTE: this threshold is NOT in active use
 double GRID_POINT_COMPARE_THRESHOLD = 1e-12 ;
+// this threshold controls the amount of tolerance in checking
+// the area sum after split. Basically it means that the
+// tolerated area difference is to be within
+// boundary area / AREA_SUM_CHECK_THRESHOLD
+double AREA_SUM_CHECK_THRESHOLD = 1e8 ;
 // this is the threshold for on line segment test in
 // function point_on_edge (the dot product)
 // 1e-12 is about +/-(1e-4) degree difference
 //const double ON_LINE_SEG_DOT_THRESHOLD = 1e-12 ;
 // this value is approximately +/- 1e-3 degree
-static double ON_LINE_SEG_DOT_THRESHOLD = 2e-10 ;
+//static double ON_LINE_SEG_DOT_THRESHOLD = 2e-10 ;
+static double ON_LINE_SEG_DOT_THRESHOLD = 2e-5 ;
 
 /************************************************
  * Some floating point functions based on       *
@@ -3883,6 +3893,31 @@ bool poly_and_poly(const vector<Entity>& P_nodes,
   else
     q_convex = check_convex(q_poly) ;
   
+#ifdef POLY_AND_POLY_CONVEXITY_CHECK
+  if(!p_convex) {
+    cerr << endl ;
+    cerr.precision(16) ;
+    cerr << "non-convex polygon : " << endl ;
+    for(size_t i=0;i!=P_nodes.size();++i) {
+      Entity n = P_nodes[i] ;
+      cerr << n <<  ": ("
+           << masterbc_edge_nodes.inSet(n)
+           << ") = " << p_poly[i] << endl ;
+    }
+  }
+  if(!q_convex) {
+    cerr << endl ;
+    cerr.precision(16) ;
+    cerr << "non-convex polygon : " << endl ;
+    for(size_t i=0;i!=Q_nodes.size();++i) {
+      Entity n = Q_nodes[i] ;
+      cerr << n <<  ": ("
+           << masterbc_edge_nodes.inSet(n)
+           << ") = " << q_poly[i] << endl ;
+    }
+  }
+#endif
+  
   // check if convex
   if(!p_convex || !q_convex) {
     cerr << "ERROR: polygon(s) are not convex in poly_and_poly!" << endl ;
@@ -4983,6 +5018,37 @@ entitySet shift_points2(const entitySet& bc1_faces,
                         const multiMap& node2face,
                         dMap& bc1p_2_bc2p,
                         dMap& bc2p_2_bc1p) {
+#ifdef POINT_SHIFT_CONVEXITY_CHECK
+  {
+    // check for bc2 face convexity
+    int non_convex = 0 ;
+    for(entitySet::const_iterator
+          fi=bc2_faces.begin();fi!=bc2_faces.end();++fi) {
+      // first get face nodes
+      vector<int> nodes ;
+      vector<vec2d> nodes_pos ;
+      int bc_nodes = 0 ;
+      int num_elems = face2node.num_elems(*fi) ;
+      for(int i=0;i<num_elems;++i) {
+        int n = face2node[*fi][i] ;
+        if(slavebc_edge_nodes.inSet(n))
+          ++bc_nodes ;
+        nodes.push_back(n) ;
+        nodes_pos.push_back(bc2_npos[n]) ;
+      }
+      if(bc_nodes >= 3) {
+        if(!check_convex_approx(nodes_pos))
+          ++non_convex ;
+      } else {
+        if(!check_convex(nodes_pos))
+          ++non_convex ;
+      }
+    }
+    cerr << "Before SHIFT, total NON convex polygon: "
+         << non_convex << endl ;
+  }
+#endif
+  
   entitySet shifted ;
   // Here we do point shifting, that is we choose BC1 as
   // the master boundary, and we shift BC2 points to match
@@ -5032,6 +5098,38 @@ entitySet shift_points2(const entitySet& bc1_faces,
     }
   }
   gettimeofday(&time_shift_point_end,NULL) ;
+
+#ifdef POINT_SHIFT_CONVEXITY_CHECK
+  {
+    // check for bc2 face convexity
+    int non_convex = 0 ;
+    for(entitySet::const_iterator
+          fi=bc2_faces.begin();fi!=bc2_faces.end();++fi) {
+      // first get face nodes
+      vector<int> nodes ;
+      vector<vec2d> nodes_pos ;
+      int bc_nodes = 0 ;
+      int num_elems = face2node.num_elems(*fi) ;
+      for(int i=0;i<num_elems;++i) {
+        int n = face2node[*fi][i] ;
+        if(slavebc_edge_nodes.inSet(n))
+          ++bc_nodes ;
+        nodes.push_back(n) ;
+        nodes_pos.push_back(bc2_npos[n]) ;
+      }
+      if(bc_nodes >= 3) {
+        if(!check_convex_approx(nodes_pos))
+          ++non_convex ;
+      } else {
+        if(!check_convex(nodes_pos))
+          ++non_convex ;
+      }
+    }
+    cerr << "SHIFT done, total Non convex polygon: "
+         << non_convex << endl ;
+  }
+#endif
+
   return shifted ;
 }
 
@@ -5807,6 +5905,45 @@ struct split_unit {
 map<Entity, vector<split_unit> > global_bc1_split_records ;
 map<Entity, vector<split_unit> > global_bc2_split_records ;
 
+// a utility function to write out a collection of polygons
+// in the format of the 2d viz program "showme"
+void polygons2showme(const string& fname,
+                     const vector<vector<vec2d> >& polys) {
+  ofstream output(fname.c_str(), std::ios::out) ;
+  output.precision(16) ;
+    
+  int total_nodes = 0 ;
+  for(size_t i=0;i!=polys.size();++i)
+    total_nodes += polys[i].size() ;
+
+  // header
+  output << total_nodes << " 2 0 0" << endl << endl ;
+  // polygon node position
+  int index = 0 ;
+  for(size_t i=0;i!=polys.size();++i) {
+    for(size_t j=0;j!=polys[i].size();++j,++index) {
+      output << index << " " << polys[i][j] << endl ;
+    }
+    output << endl ;
+  }
+  output << total_nodes << " 0" << endl << endl ;
+  // polygon segment definition
+  index = 0 ;
+  for(size_t i=0;i!=polys.size();++i) {
+    int start = index ;
+    for(size_t j=0;j!=polys[i].size();++j,++index) {
+      if(j == polys[i].size() - 1)
+        output << index << " " << index << " " << start << endl ;
+      else
+        output << index << " " << index  << " " << index+1 << endl ;
+    }
+    output << endl ;
+  }
+  // no holes
+  output << "0" << endl ;
+  output.close() ;
+}
+
 // a small function that creates a string represents a status bar
 // i.e., [.....             ],
 // passed in s is the total points, n is the displayed points
@@ -5818,6 +5955,12 @@ get_status_bar(size_t s, size_t n) {
   bar.append("]") ;
   return bar ;
 }
+
+#ifdef FACE_SPLIT_SELF_CHECK
+inline bool eq_vec2d(const vec2d& v1, const vec2d& v2) {
+  return v1==v2 ;
+}
+#endif
  
 // the main face splitting function,
 // this function only creates the global_face_split_records,
@@ -5917,6 +6060,34 @@ int face_split(const entitySet& bc1_faces,
     entitySet intersect_face_cand =
       bc2_qtree.locate_polygon(bc1_fnodes,bc1_npos) ;
 
+#ifdef FACE_SPLIT_SELF_CHECK
+    vector<double> split_area_sum ;
+    vector<vec2d> bc1_fpos ;
+    std::set<vec2d,vec2dLess> origin_nodes ;
+    std::set<vec2d,vec2dLess> split_nodes ;
+    for(size_t i=0;i!=bc1_fnodes.size();++i) {
+      vec2d p = bc1_npos[bc1_fnodes[i]] ;
+      bc1_fpos.push_back(p) ;
+      origin_nodes.insert(p) ;
+    }
+    double bc1_farea = polygon_area(bc1_fpos) ;
+#endif
+
+#ifdef DEBUG_SPLIT_SHOWME
+    vector<vector<vec2d> > faces ;
+    vector<vector<vec2d> > splits ;
+    cerr << "face " << *ei << ": " << endl ;
+    cerr.precision(16) ;
+    
+    vector<vec2d> bc1_fpos2 ;
+    for(size_t i=0;i!=bc1_fnodes.size();++i) {
+      vec2d p = bc1_npos[bc1_fnodes[i]] ;
+      bc1_fpos2.push_back(p) ;
+      cerr << bc1_fnodes[i] << ": " << p << endl ;
+    }
+    faces.push_back(bc1_fpos2) ;
+#endif
+
     // test intersection for each bc2 faces found in the quad tree
     for(entitySet::const_iterator fi=intersect_face_cand.begin();
         fi!=intersect_face_cand.end();++fi) {
@@ -5926,6 +6097,17 @@ int face_split(const entitySet& bc1_faces,
       vector<vec2d> intersect ;
       vector<Entity> intersect_index ;
 
+#ifdef DEBUG_SPLIT_SHOWME
+      cerr << "intersecting with face " << *fi << ":" << endl ;
+      vector<vec2d> bc2_fpos ;
+      for(size_t i=0;i!=bc2_fnodes.size();++i) {
+        vec2d p = bc2_npos[bc2_fnodes[i]] ;
+        bc2_fpos.push_back(p) ;
+        cerr << p << endl ;
+      }
+      faces.push_back(bc2_fpos) ;
+#endif
+      
       if(poly_and_poly(bc1_fnodes,bc1_npos,
                        bc2_fnodes,bc2_npos,
                        intersect,intersect_index)) {
@@ -5936,8 +6118,60 @@ int face_split(const entitySet& bc1_faces,
         split_unit spu(intersect, intersect_index) ;
         ei_record.push_back(spu) ;
         fi_record.push_back(spu) ;
+
+#ifdef FACE_SPLIT_SELF_CHECK
+        cerr << "***Intersect***" << endl ;
+        split_area_sum.push_back(polygon_area(intersect)) ;
+        // check for collapsed nodes
+        vector<vec2d> intersect2 = intersect ;
+        std::sort(intersect2.begin(), intersect2.end(), vec2dLess()) ;
+        vector<vec2d>::iterator new_end =
+          std::unique(intersect2.begin(), intersect2.end(), eq_vec2d) ;
+        size_t unique_nodes = new_end - intersect2.begin() ;
+        if(unique_nodes != intersect.size()) {
+          cerr << "Warning: face split (" << *ei << ", " << *fi
+               << ") has nodes problem: " << endl ;
+          cerr << "   there are " << unique_nodes
+               << " unique nodes" << endl ;
+          cerr << "         and " << intersect.size()
+               << " total nodes" << endl ;
+
+        }
+        split_nodes.insert(intersect.begin(), intersect.end()) ;
+#endif
+#ifdef DEBUG_SPLIT_SHOWME
+        splits.push_back(intersect) ;
+#endif
       } // end of if(poly_and_poly)
     } // end of for(intersect_face_cand)
+
+#ifdef DEBUG_SPLIT_SHOWME
+    polygons2showme("split-overview.poly", faces) ;
+    polygons2showme("split.poly", splits) ;
+#endif
+
+#ifdef FACE_SPLIT_SELF_CHECK
+    double split_total = double_summation(split_area_sum) ;
+    double area_diff = abs(bc1_farea - split_total) ;
+    if(area_diff > bc1_farea/100000) {
+      cerr << "Warning: split for face (" << *ei
+           << ") might be problematic:" << endl ;
+      cerr << "    original area:    " << bc1_farea << endl ;
+      cerr << "    split total area: " << split_total << endl ;
+      cerr << "    area sum diff:    " << area_diff << endl ;
+    }
+    vector<vec2d> set_diff ;
+    std::back_insert_iterator<vector<vec2d> > diff_ii(set_diff) ;
+    std::set_difference(origin_nodes.begin(), origin_nodes.end(),
+                        split_nodes.begin(), split_nodes.end(),
+                        diff_ii, vec2dLess()) ;
+    if(!set_diff.empty()) {
+      cerr << "Warning: split for face " << *ei
+           << " has lost " << set_diff.size()
+           << " original nodes" << endl ;
+    }
+#endif
+    
     if(global_verbose) {
       int work_progress =
         (int)(40 * finished_bc1_face / total_work_load) ;
@@ -5982,7 +6216,7 @@ entitySet gen_boundary_topo
   map<Entity,vector<Entity> > new_faces ;
   map<Entity,vector<Entity> > new_interior_face2node_STL ;
   entitySet processed_nodes = master_nodes ;
-  
+
   for(map<Entity,vector<split_unit> >::const_iterator
         mi=split_result.begin();mi!=split_result.end();++mi) {
     Entity master_face = mi->first ;
@@ -6244,7 +6478,9 @@ bool face_split_areaSum_check(const entitySet& pre_faces,
   pre_area = double_summation(pre_area_vector) ;
   new_area = double_summation(new_area_vector) ;
 
-  if(abs(pre_area - new_area) < 1e-12)
+  if(abs(pre_area - new_area) <=
+     pre_area / std::max(static_cast<double>(pre_faces.size()),
+                         AREA_SUM_CHECK_THRESHOLD))
     return true ;
   else
     return false ;
@@ -6607,6 +6843,7 @@ void twoD_point_match(const store<vec2d>& bc1_nodes,
   entitySet bc2ndom = bc2_orig_nodes_dom | bc2_new_nodes_dom ;
   // checking...
   if(bc1ndom.size() != bc2ndom.size()) {
+    cout << endl ;
     cout << "Error: nodes number not equal on two boundaries" << endl ;
     cout << "       please report this problem!" << endl ;
     Loci::Abort() ;
@@ -6836,69 +7073,83 @@ std::ostream& show_usage(const string& pb, std::ostream& s) {
     << endl ;
   s << "    -Q  Quiet: No terminal output except errors" << endl ;
   s << "    -2  Output intermediate results for 2D visualization" << endl ;
-  s << "        program \"2dgv\" and \"showme\"" << endl ;
+  s << "          program \"2dgv\" and \"showme\"" << endl ;
   s << "    -b  Specify two boundaries. Followed by two boundary names" << endl ;
-  s << "        separated by a space. E.g., -b periodic1 periodic2" << endl ;
+  s << "          separated by a space. E.g., -b periodic1 periodic2" << endl ;
   s << "    -r  Specify rotation vectors. \"center\" \"axis\" and \"angle\""
     << endl ;
-  s << "        respectively. The rotation is specified from the first"
+  s << "          respectively. The rotation is specified from the first"
     << endl ;
-  s << "        boundary to the second boundary. Vectors are in 3D space,"
+  s << "          boundary to the second boundary. Vectors are in 3D space,"
     << endl ;
-  s << "        and in the format of 0,0,0 angle is in degree" << endl ;
+  s << "          and in the format of 0,0,0 angle is in degree" << endl ;
   s << "    -t  Specify the translation vector. The translation is " << endl ;
-  s << "        specified from the first boundary to the second boundary."
+  s << "          specified from the first boundary to the second boundary."
     << endl ;
-  s << "        The vector is in the format of 0,0,0" << endl ;
+  s << "          The vector is in the format of 0,0,0" << endl ;
   s << endl ;
   s << "    Followings are some advanced options:" << endl ;
   s << "    --shiftrange  The threshold in the point shifting phase."
     << endl ;
-  s << "                  During the point shifting phase, one boundary's"
+  s << "                    During the point shifting phase, one boundary's"
     << endl ;
-  s << "                  nodes are shifted to match the corresponding nodes"
+  s << "                    nodes are shifted to match the corresponding nodes"
     << endl ;
-  s << "                  on the other boundary. The threshold for such"
+  s << "                    on the other boundary. The threshold for such"
     << endl ;
-  s << "                  shifting is the minimal distance of the point"
+  s << "                    shifting is the minimal distance of the point"
     << endl ;
-  s << "                  to its bounding polygon times \"shiftrange.\""
+  s << "                    to its bounding polygon times \"shiftrange.\""
     << endl ;
-  s << "                  This value is valid in range [0,1] only." << endl ;
-  s << "                  To reset it, supply a valid number, e.g., "
+  s << "                    This value is valid in range [0,1] only." << endl ;
+  s << "                    To reset it, supply a valid number, e.g., "
     << endl ;
-  s << "                  --shiftrange 0.05. The default is 0.05" << endl ;
+  s << "                    --shiftrange 0.05. The default is 0.05" << endl ;
   s << "    --cta         The collinear threshold angle. This value is"
     << endl ;
-  s << "                  the tolerance for the inexactness occurred at"
+  s << "                    the tolerance for the inexactness occurred at"
     << endl ;
-  s << "                  the mesh boundary edges. Specifically this value"
+  s << "                    the mesh boundary edges. Specifically this value"
     << endl ;
-  s << "                  is used to control the collinearity predicate for"
+  s << "                    is used to control the collinearity predicate for"
     << endl ;
-  s << "                  boundary edges and nodes. If the largest internal"
+  s << "                    boundary edges and nodes. If the largest internal"
     << endl ;
-  s << "                  angle in the triangle formed by three nodes is"
+  s << "                    angle in the triangle formed by three nodes is"
     << endl ;
-  s << "                  within this threshold to 180 degrees, they are"
+  s << "                    within this threshold to 180 degrees, they are"
     << endl ;
-  s << "                  still considered collinear. To reset this value,"
+  s << "                    still considered collinear. To reset this value,"
     << endl ;
-  s << "                  supply a valid number in degree, e.g., --cta 1e-3."
+  s << "                    supply a valid number in degree, e.g., --cta 1e-3."
     << endl ;
-  s << "                  The default is approximately 1e-3 degree, which"
+  s << "                    The default is approximately 1e-3 degree, which"
     << endl ;
-  s << "                  means the largest internal angle in the triangle"
+  s << "                    means the largest internal angle in the triangle"
     << endl ;
-  s << "                  by three points is allowed to be within" << endl ;
-  s << "                  [180-1e-3,180+1e-3] for the three points to be"
+  s << "                    by three points is allowed to be within" << endl ;
+  s << "                    [180-1e-3,180+1e-3] for the three points to be"
     << endl ;
-  s << "                  considered collinear" << endl ;
+  s << "                    considered collinear" << endl ;
+  s << "    --ast         The tolerance used in performing area sum check."
+    << endl ;
+  s << "                    The default value is set to be 1e8. Specifically,"
+    << endl ;
+  s << "                    if the sum of split areas are off by " << endl ;
+  s << "                    bounary area / threshold, then it is considered"
+    << endl ;
+  s << "                    a failure. Setting a smaller value will decrease"
+    << endl ;
+  s << "                    the sensitivity. To reset this value, supply"
+    << endl ;
+  s << "                    a valid double number, e.g., --cta 1e7" << endl ;
+  s << "    --nocheck     Do not perform any of the after split checks"
+    << endl ;
   s << "    NOTE: These options change the program's internal behavior and"
     << endl ;
-  s << "          are NOT recommended to use unless you fully understand the"
+  s << "            are NOT recommended to use unless you fully understand the"
     << endl ;
-  s << "          consequence of changing the default value." << endl ;
+  s << "            consequence of changing the default value." << endl ;
   s << endl ;
   s << "Final note: the order of options and input_case does not matter"
     << endl ;
@@ -6982,11 +7233,14 @@ int main(int ac, char* av[]) {
   // defaults to 1e-8
   double collinear_threshold_angle ;
   bool collinear_threshold_angle_set = false ;
+  bool area_sum_check_threshold_set = false ;
   bool report_timing = false ;
   // whether to print help message or not
   bool print_help = false ;
   // brief description message
   bool brief_help = false ;
+  // whether to perform after split check
+  bool after_split_check = true ;
 
   string pb_name = av[0] ;
   int avi = 1 ;
@@ -7153,13 +7407,32 @@ int main(int ac, char* av[]) {
           1.0 - cos(deg2rad(collinear_threshold_angle)) ;
         collinear_threshold_angle_set = true ;
         avi+=2 ;
+      } else if(opt == "--ast") {
+        if(area_sum_check_threshold_set) {
+          cout << pb_name << ": warning: option --ast appears "
+               << "more than once, first setting taken" << endl ;
+          avi+=2 ;
+          continue ;
+        }
+        string ast_str = av[avi+1] ;
+        if(!valid_double(ast_str)) {
+          cout << pb_name << ": error: area sum check threshold is "
+               << "not a valid double number" << endl ;
+          return -1 ;
+        }
+        AREA_SUM_CHECK_THRESHOLD = str2double(ast_str) ;
+        area_sum_check_threshold_set = true ;
+        avi+=2 ;
+      } else if (opt == "--nocheck") {
+        after_split_check = false ;
+        avi+=1 ;
       } else {
         cout << pb_name << ": warning: option " << opt
              << " not understood! ignored"
              << endl ;
         avi+=1 ;
       }
-    }else {
+    } else {
       if(problem_name_seen) {
         cout << pb_name << ": error: multiple problem name specified! "
              << "Confused!" << endl ;
@@ -7287,7 +7560,7 @@ int main(int ac, char* av[]) {
 
   store<vec3d> BC1_nodes_pos(get_nodes_pos(pos,BC1_nodes)) ;
   store<vec3d> BC2_nodes_pos(get_nodes_pos(pos,BC2_nodes)) ;
-  
+
   // then we get the edges in two boundary meshes
   // BC*_N1 and BC*_N2 defines the end nodes of each edge
   // on boundary BC*. BC*_El and BC*_Er defines the left and
@@ -7427,6 +7700,12 @@ int main(int ac, char* av[]) {
   gettimeofday(&time_data_structure_start,NULL) ;
   entitySet BC1_edge_nodes = get_edge_nodes(BC1_N1,BC1_N2,BC1_Er) ;
   entitySet BC2_edge_nodes = get_edge_nodes(BC2_N1,BC2_N2,BC2_Er) ;
+
+#ifdef POINT_SHIFT_CONVEXITY_CHECK
+  masterbc_edge_nodes = BC1_edge_nodes ;
+  slavebc_edge_nodes = BC2_edge_nodes ;
+#endif
+
   gettimeofday(&time_data_structure_end,NULL) ;
   data_structure_time +=
     time_data_structure_end - time_data_structure_start ;
@@ -7596,88 +7875,91 @@ int main(int ac, char* av[]) {
                           split_bc1_poly.c_str(),
                           split_bc1_2dgv.c_str()) ;
   }
-  if(verbose)
-    cout << "  Checking new topology validity..." << endl ;
 
-  if(verbose)
-    cout << "  --Checking split face definition..." ;
-  if(!face_split_polygon_check(BC1_new_face2node)) {
-    cout << endl ;
-    cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    cout << "polygon check FAILED!! Please report when this happens"
-         << endl ;
-    cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    Loci::Abort() ;
-  }else {
+  if(after_split_check) {
     if(verbose)
-      cout << "\tPASSED!" << endl ;
-  }
+      cout << "  Checking new topology validity..." << endl ;
 
-  if(verbose)
-    cout << "  --Checking edge map..." ;
+    if(verbose)
+      cout << "  --Checking split face definition..." ;
+    if(!face_split_polygon_check(BC1_new_face2node)) {
+      cout << endl ;
+      cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      cout << "polygon check FAILED!! Please report when this happens"
+           << endl ;
+      cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      Loci::Abort() ;
+    }else {
+      if(verbose)
+        cout << "\tPASSED!" << endl ;
+    }
 
-  gettimeofday(&time_essential_start,NULL) ;
-  // get inverse map new_node2face
-  multiMap BC1_new_node2face ;
-  gettimeofday(&time_data_structure_start,NULL) ;
+    if(verbose)
+      cout << "  --Checking edge map..." ;
 
-  get_node2face(BC1_new_face2node,BC1_new_node2face) ;
+    gettimeofday(&time_essential_start,NULL) ;
+    // get inverse map new_node2face
+    multiMap BC1_new_node2face ;
+    gettimeofday(&time_data_structure_start,NULL) ;
+
+    get_node2face(BC1_new_face2node,BC1_new_node2face) ;
   
-  gettimeofday(&time_data_structure_end,NULL) ;
-  data_structure_time +=
-    time_data_structure_end - time_data_structure_start ;
-  gettimeofday(&time_essential_end,NULL) ;
-  prog_essential_time +=
-    time_essential_end - time_essential_start ;
+    gettimeofday(&time_data_structure_end,NULL) ;
+    data_structure_time +=
+      time_data_structure_end - time_data_structure_start ;
+    gettimeofday(&time_essential_end,NULL) ;
+    prog_essential_time +=
+      time_essential_end - time_essential_start ;
   
-  if(!face_split_edgeMap_check(BC1_new_face2node,BC1_new_node2face)) {
-    cout << endl ;
-    cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    cout << "edge map check FAILED!! Please report when this happens"
-         << endl ;
-    cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    Loci::Abort() ;
-  }else {
-    if(verbose)
-      cout << "\t\tPASSED!" << endl ;
-  }
+    if(!face_split_edgeMap_check(BC1_new_face2node,BC1_new_node2face)) {
+      cout << endl ;
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      cout << "edge map check FAILED!! Please report when this happens"
+           << endl ;
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      Loci::Abort() ;
+    }else {
+      if(verbose)
+        cout << "\t\tPASSED!" << endl ;
+    }
 
-  if(verbose)
-    cout << "  --Checking area sum..." ;
-  if(!face_split_areaSum_check(BC1_faces_split,BC1_proj_pos,face2node,
-                               BC1_new_nodes,BC1_new_face2node)) {
-    cout << endl ;
-    cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    cout << "area sum check FAILED!! Please report when this happens"
-         << endl ;
-    cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    Loci::Abort() ;
-  }else {
     if(verbose)
-      cout << "\t\tPASSED!" << endl ;
-  }
+      cout << "  --Checking area sum..." ;
+    if(!face_split_areaSum_check(BC1_faces_split,BC1_proj_pos,face2node,
+                                 BC1_new_nodes,BC1_new_face2node)) {
+      cout << endl ;
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      cout << "area sum check FAILED!! Please report when this happens"
+           << endl ;
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      Loci::Abort() ;
+    }else {
+      if(verbose)
+        cout << "\t\tPASSED!" << endl ;
+    }
 
 #ifdef FACE_SPLIT_PROPERTY_CHECK
-  cout << "  --Checking face convexity..." ;
-  {
-    double smallest_area ;
-    int small_faces ;
-    bool all_convex =
-      face_split_convexity_area_scan(global_bc1_split_records,
-                                     smallest_area,small_faces) ;
-    cout << "\t\tDone" << endl ;
-    cout << "    --smallest face area:         " << smallest_area << endl ;
-    cout << "    --small faces (area < 1e-12): " << small_faces << endl ;
-    cout << "    --all faces convex?:          "
-         << (all_convex?"true":"false") << endl ;
-  }
+    cout << "  --Checking face convexity..." ;
+    {
+      double smallest_area ;
+      int small_faces ;
+      bool all_convex =
+        face_split_convexity_area_scan(global_bc1_split_records,
+                                       smallest_area,small_faces) ;
+      cout << "\t\tDone" << endl ;
+      cout << "    --smallest face area:         " << smallest_area << endl ;
+      cout << "    --small faces (area < 1e-12): " << small_faces << endl ;
+      cout << "    --all faces convex?:          "
+           << (all_convex?"true":"false") << endl ;
+    }
 #endif
+  } // end of if(after_split_check)
   
   gettimeofday(&time_essential_start,NULL) ;
   store<vec2d> BC2_new_nodes ;
@@ -7769,94 +8051,97 @@ int main(int ac, char* av[]) {
                           split_bc2_poly.c_str(),
                           split_bc2_2dgv.c_str()) ;
   }
-  if(verbose)
-    cout << "  Checking new topology validity..." << endl ;
 
-  if(verbose)
-    cout << "  --Checking split face definition..." ;
-  if(!face_split_polygon_check(BC2_new_face2node)) {
-    cout << endl ;
-    cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    cout << "polygon check FAILED!! Please report when this happens"
-         << endl ;
-    cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    Loci::Abort() ;
-  }else {
+  if(after_split_check) {
     if(verbose)
-      cout << "\tPASSED!" << endl ;
-  }
-
-  if(verbose)
-    cout << "  --Checking edge map..." ;
-  // get inverse map new_node2face
-  gettimeofday(&time_essential_start,NULL) ;
-  multiMap BC2_new_node2face ;
-  gettimeofday(&time_data_structure_start,NULL) ;
-  
-  get_node2face(BC2_new_face2node,BC2_new_node2face) ;
-  
-  gettimeofday(&time_data_structure_end,NULL) ;
-  data_structure_time +=
-    time_data_structure_end - time_data_structure_start ;
-  gettimeofday(&time_essential_end,NULL) ;
-  prog_essential_time +=
-    time_essential_end - time_essential_start ;
-  
-  if(!face_split_edgeMap_check(BC2_new_face2node,BC2_new_node2face)) {
-    cout << endl ;
-    cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    cout << "edge map check FAILED!! Please report when this happens"
-         << endl ;
-    cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    Loci::Abort() ;
-  }else {
+      cout << "  Checking new topology validity..." << endl ;
+    
     if(verbose)
-      cout << "\t\tPASSED!" << endl ;
-  }
-
-  if(verbose)
-    cout << "  --Checking area sum..." ;
-  if(!face_split_areaSum_check(BC2_faces_split,BC2_proj_pos,face2node,
-                               BC2_new_nodes,BC2_new_face2node)) {
-    cout << endl ;
-    cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    cout << "area sum check FAILED!! Please report when this happens"
-         << endl ;
-    cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-         << endl ;
-    Loci::Abort() ;
-  }else {
+      cout << "  --Checking split face definition..." ;
+    if(!face_split_polygon_check(BC2_new_face2node)) {
+      cout << endl ;
+      cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      cout << "polygon check FAILED!! Please report when this happens"
+           << endl ;
+      cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      Loci::Abort() ;
+    }else {
+      if(verbose)
+        cout << "\tPASSED!" << endl ;
+    }
+    
     if(verbose)
-      cout << "\t\tPASSED!" << endl ;
-  }
-  
+      cout << "  --Checking edge map..." ;
+    // get inverse map new_node2face
+    gettimeofday(&time_essential_start,NULL) ;
+    multiMap BC2_new_node2face ;
+    gettimeofday(&time_data_structure_start,NULL) ;
+    
+    get_node2face(BC2_new_face2node,BC2_new_node2face) ;
+    
+    gettimeofday(&time_data_structure_end,NULL) ;
+    data_structure_time +=
+      time_data_structure_end - time_data_structure_start ;
+    gettimeofday(&time_essential_end,NULL) ;
+    prog_essential_time +=
+      time_essential_end - time_essential_start ;
+    
+    if(!face_split_edgeMap_check(BC2_new_face2node,BC2_new_node2face)) {
+      cout << endl ;
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      cout << "edge map check FAILED!! Please report when this happens"
+           << endl ;
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      Loci::Abort() ;
+    }else {
+      if(verbose)
+        cout << "\t\tPASSED!" << endl ;
+    }
+    
+    if(verbose)
+      cout << "  --Checking area sum..." ;
+    if(!face_split_areaSum_check(BC2_faces_split,BC2_proj_pos,face2node,
+                                 BC2_new_nodes,BC2_new_face2node)) {
+      cout << endl ;
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      cout << "area sum check FAILED!! Please report when this happens"
+           << endl ;
+      cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+           << endl ;
+      Loci::Abort() ;
+    }else {
+      if(verbose)
+        cout << "\t\tPASSED!" << endl ;
+    }
+    
 #ifdef FACE_SPLIT_PROPERTY_CHECK
-  cout << "  --Checking face convexity..." ;
-  {
-    double smallest_area ;
-    int small_faces ;
-    bool all_convex =
-      face_split_convexity_area_scan(global_bc2_split_records,
-                                     smallest_area,small_faces) ;
-    cout << "\t\tDone" << endl ;
-    cout << "    --smallest face area:         " << smallest_area << endl ;
-    cout << "    --small faces (area < 1e-12): " << small_faces << endl ;
-    cout << "    --all faces convex?:          "
-         << (all_convex?"true":"false") << endl ;
-  }
+    cout << "  --Checking face convexity..." ;
+    {
+      double smallest_area ;
+      int small_faces ;
+      bool all_convex =
+        face_split_convexity_area_scan(global_bc2_split_records,
+                                       smallest_area,small_faces) ;
+      cout << "\t\tDone" << endl ;
+      cout << "    --smallest face area:         " << smallest_area << endl ;
+      cout << "    --small faces (area < 1e-12): " << small_faces << endl ;
+      cout << "    --all faces convex?:          "
+           << (all_convex?"true":"false") << endl ;
+    }
 #endif
-
+  } // end of if(after_split_check)
+  
   if(verbose) {
     cout << "--------" << endl ;
     cout << "Matching points on boundaries... " ;
     cout.flush() ;
   }
-
+  
   gettimeofday(&time_essential_start,NULL) ;
   entitySet bc1_not_matched, bc2_not_matched ;
   dMap BC2_2_BC1_node_map ;
