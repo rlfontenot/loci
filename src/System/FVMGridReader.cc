@@ -2004,6 +2004,14 @@ namespace Loci {
       out_ptn[pmax] += nd ;
       x = y ;
     }
+    // Check to see if any sets are left out.
+    entitySet assigned ;
+    for(int i=0;i<MPI_processes;++i)
+      assigned += out_ptn[i] ;
+    entitySet unassigned = ptn[MPI_rank] - assigned ;
+    out_ptn[MPI_rank] += unassigned ; // allocate unassigned entities to
+    // original processor
+
   }
 
     

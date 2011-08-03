@@ -841,7 +841,7 @@ namespace Loci {
         target_vars_vertices -= get_vertexSet(ruleintarget) ;
         target_vars_vertices += add ;
       }
-      
+
       // make a rule for the chomp_graph
 
       // NOTE: it is possible to create identical rule signatures
@@ -931,6 +931,13 @@ namespace Loci {
       for(digraph::vertexSet::const_iterator vi=takeout_vertices.begin();
           vi!=takeout_vertices.end();++vi) {
         source_vars_vertices += grt[*vi] - all_vertices ;
+      }
+
+      // get other possible nodes that any internal vertices of
+      // the chomp graph also reach
+      for(digraph::vertexSet::const_iterator
+            vi=takeout_vertices.begin();vi!=takeout_vertices.end();++vi) {
+        target_vars_vertices += gr[*vi] - all_vertices ;
       }
 
       // graph editing

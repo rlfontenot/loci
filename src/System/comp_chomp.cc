@@ -127,22 +127,22 @@ namespace Loci {
     
     if(scale <= 1.0)
       chomp_size = 1 ;
-      else
-        chomp_size = (int)scale ;
+    else
+      chomp_size = (int)scale ;
     
-      // this is to check that the allocated chomping domain
-      // cannot exceed the original total domain of these rules
-      // this is to prevent bugs in the extreme cases where
-      // the container sizes are only accurately known at the
-      // runtime, thus causing the analysis here to predict
-      // a very large chomping allocation domain and leads to
-      // extremely large allocations at the runtime.
-      // for example, a storeMat<double> may have a large matrix
-      // associated with each index (say 100KB), but here at
-      // compile time, it only says that each index has an
-      // allocation size of 4 bytes. Then if we don't check
-      // the original total_domain size, we may end up computing
-      // a very large chomping domain and fail the program
+    // this is to check that the allocated chomping domain
+    // cannot exceed the original total domain of these rules
+    // this is to prevent bugs in the extreme cases where
+    // the container sizes are only accurately known at the
+    // runtime, thus causing the analysis here to predict
+    // a very large chomping allocation domain and leads to
+    // extremely large allocations at the runtime.
+    // for example, a storeMat<double> may have a large matrix
+    // associated with each index (say 100KB), but here at
+    // compile time, it only says that each index has an
+    // allocation size of 4 bytes. Then if we don't check
+    // the original total_domain size, we may end up computing
+    // a very large chomping domain and fail the program
     if(total_domain.size() < chomp_size)
       chomp_size = total_domain.size() ;
     
@@ -160,14 +160,14 @@ namespace Loci {
           vi!=rule_seq.end();++vi)
         seq_vec.push_back(*vi & seg) ;
       
-        seq_table.push_back(seq_vec) ;
+      seq_table.push_back(seq_vec) ;
         
-        copy_total_domain &= interval(high_pos+1,Loci::UNIVERSE_MAX) ;
+      copy_total_domain &= interval(high_pos+1,Loci::UNIVERSE_MAX) ;
 
-        if(copy_total_domain != EMPTY)
-          chomp_offset.push_back(copy_total_domain.Min() - low_pos) ;
-        else
-          chomp_offset.push_back(0) ;
+      if(copy_total_domain != EMPTY)
+        chomp_offset.push_back(copy_total_domain.Min() - low_pos) ;
+      else
+        chomp_offset.push_back(0) ;
     }
 
     chomp_iter = seq_table.size() ;

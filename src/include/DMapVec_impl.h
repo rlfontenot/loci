@@ -212,7 +212,7 @@ namespace Loci {
 
   //------------------------------------------------------------------------
 
-  template<unsigned int M> 
+   template<unsigned int M> 
   storeRepP dMapVecRepI<M>::expand(entitySet &out_of_dom, std::vector<entitySet> &init_ptn) {
     int *recv_count = new int[MPI_processes] ;
     int *send_count = new int[MPI_processes] ;
@@ -259,19 +259,23 @@ namespace Loci {
         send_clone[i].push_back(recv_buf[j]) ;
       std::sort(send_clone[i].begin(), send_clone[i].end()) ;
     }
-    std::vector<HASH_MAP(int, VEC ) > map_entities(MPI_processes) ;
-    for(int i = 0; i < MPI_processes; ++i) 
-      for(vi = send_clone[i].begin(); vi != send_clone[i].end(); ++vi) 
-        if(attrib_data.find(*vi) != attrib_data.end())
-          (map_entities[i])[*vi] = attrib_data[*vi] ;
-  
-    for(int i = 0; i < MPI_processes; ++i) {
-      send_count[i] = 2 * map_entities[i].size() ;
-      for(typename HASH_MAP(int, VEC )::iterator hi = map_entities[i].begin();
-          hi != map_entities[i].end();
-          ++hi)
-        send_count[i] += hi->second.size() ; 
+
+    
+    std::vector<entitySet> map_entities(MPI_processes) ;
+    for(int i = 0; i < MPI_processes; ++i){
+      entitySet dom;
+      for(unsigned int j = 0; j <send_clone[i].size(); j++){
+        if(attrib_data.find(send_clone[i][j]) != attrib_data.end())dom += send_clone[i][j];
+      } 
+      map_entities[i] = dom;
     }
+
+    for(int i = 0; i < MPI_processes; ++i) {
+      send_count[i] =  map_entities[i].size()*(1+M) ;
+    }
+    
+    
+ 
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i)
       size_send += send_count[i] ;
@@ -284,20 +288,14 @@ namespace Loci {
     int *recv_map = new int[size_send] ;
     size_send = 0 ;
     for(int i = 0; i < MPI_processes; ++i) 
-      for(typename HASH_MAP(int, VEC )::const_iterator
-              miv = map_entities[i].begin();
-          miv != map_entities[i].end();
-          ++miv) {
-        send_map[size_send] = miv->first ;
-        ++size_send ;
-        send_map[size_send] = miv->second.size() ;
-        ++size_send ;
-        for(unsigned int j = 0; j < M; ++j) { 
-          send_map[size_send] = (miv->second)[j] ;
-          ++size_send ;
-        }
+      for(entitySet::const_iterator miv = map_entities[i].begin(); miv != map_entities[i].end(); ++miv) {
+	send_map[size_send] = *miv ;
+	++size_send ;
+        for(unsigned int k = 0; k < M; k++) { 
+	  send_map[size_send] =attrib_data[*miv][k] ;
+	  ++size_send ;
+	}
       }
-  
     send_displacement[0] = 0 ;
     recv_displacement[0] = 0 ;
     for(int i = 1; i < MPI_processes; ++i) {
@@ -307,32 +305,31 @@ namespace Loci {
     MPI_Alltoallv(send_map,send_count, send_displacement , MPI_INT,
                   recv_map, recv_count, recv_displacement, MPI_INT,
                   MPI_COMM_WORLD) ;  
-    HASH_MAP(int, std::set<int> ) hm ;
-    std::set<int> ss ;
+
+    HASH_MAP(int, std::vector<int> ) hm ;
+    
     for(int i = 0; i < MPI_processes; ++i) {
       for(int j = recv_displacement[i]; j <
-            recv_displacement[i]+recv_count[i]-1; ++j) {
-        int count = recv_map[j+1] ;
-        if(count)
-          for(int k = 0; k < count; ++k)
-            hm[recv_map[j]].insert(recv_map[j+k+2]);
-        else
-          hm[recv_map[j]] = ss ;
-        j += count + 1 ;
+	    recv_displacement[i]+recv_count[i];) {
+        for(unsigned int k = 0; k < M; ++k)
+          hm[recv_map[j]].push_back(recv_map[j+k+1]);
+        j += M + 1 ;
       }
     }
+    
+
+    
     dMapVec<M> dmul ;
-    for(HASH_MAP(int, std::set<int>)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
+    for(HASH_MAP(int, std::vector<int>)::const_iterator hmi = hm.begin(); hmi != hm.end(); ++hmi)
       if(hmi->second.size()) {
         int c = 0;
-        for(std::set<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
+        for(std::vector<int>::const_iterator si = hmi->second.begin(); si != hmi->second.end(); ++si)
           attrib_data[hmi->first][c++] = *si ;
-      } else
-        attrib_data[hmi->first] = VEC() ;
+      } else attrib_data[hmi->first] = VEC() ;
+    
     for(typename HASH_MAP(int, VEC )::const_iterator hi = attrib_data.begin();
-        hi != attrib_data.end();
-        ++hi)
-      dmul[hi->first] = hi->second ;
+        hi != attrib_data.end(); ++hi) dmul[hi->first] = hi->second ;
+    
     delete [] send_buf ;
     delete [] recv_buf ;
     delete [] send_map ; 
@@ -343,7 +340,6 @@ namespace Loci {
     delete [] recv_displacement ; 
     return dmul.Rep() ;
   }
-
   //------------------------------------------------------------------------
   template<unsigned int M>
   DatatypeP dMapVecRepI<M>::getType() {
