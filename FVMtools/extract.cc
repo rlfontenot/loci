@@ -1458,7 +1458,11 @@ int main(int ac, char *av[]) {
             vtype += filename[i] ;
           for(int i=0;i<und;++i)
             vname += filename[i] ;
-        }
+        } else
+          for(int i=0;i<dot;++i)
+            vname += filename[i] ;
+        
+        
       }
         
       if(dot>0 && und>0 && postfix == tail) {
@@ -1472,6 +1476,8 @@ int main(int ac, char *av[]) {
         if(vtype == "sca" && vname == "a") {
           variables.push_back("m") ;
         }
+      }
+      if(dot > 0 && postfix == tail) {
         if(vname == "mix" && vtype == "") {
           string mfile = output_dir+"/mix." + iteration + "_" + casename ;
           
@@ -1481,6 +1487,7 @@ int main(int ac, char *av[]) {
           if(file_id < 0) {
             cerr << "unable to open file '" << mfile << "'!" << endl ;
             Loci::Abort() ;
+
             exit(-1) ;
           }
           fact_db facts ;
@@ -1695,8 +1702,13 @@ int main(int ac, char *av[]) {
     exit(0) ;
   }
   if(plot_type == SURFACE) {
-    if(boundaries.size() != 1) {
+    if(boundaries.size() ==0) {
       cerr << "'extract -surf' must have one boundary surface identified using the '-bc' flag" << endl ;
+      Usage(ac,av) ;
+    }
+    if(iteration == "") {
+      cerr << "'extract -surf' must specify iteration to extract from"
+           << endl ;
       Usage(ac,av) ;
     }
     get_surf(casename,iteration,variables,variable_type,variable_file,
