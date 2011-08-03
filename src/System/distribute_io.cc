@@ -658,7 +658,7 @@ namespace Loci {
           if(fi.size)
             if(fi.size > 1)
               qrep->set_elem_size(fi.size) ;
-          
+
           sequence tmp_seq = sequence(dom) ;
           qrep->allocate(dom) ;
           qrep->unpack(tmp_buf, loc_unpack, total_size, tmp_seq) ;
@@ -1119,17 +1119,27 @@ namespace Loci {
     int offset = 0 ;
     storeRepP new_store = var->new_store(EMPTY) ;
     read_store( group_id, new_store,offset,MPI_COMM_WORLD) ;
-
-
-    // Allocate space for reordered container
-    storeRepP result = var->new_store(read_set) ;
     
     // map from file number to local numbering
     fact_db::distribute_infoP dist = facts.get_distribute_info() ;
-    File2LocalOrder(result,read_set,new_store,offset,dist,MPI_COMM_WORLD) ;
-    
-    // Copy results into container
-    var->copy(result,read_set) ;
+    if(dist != 0) {
+      // Allocate space for reordered container
+      storeRepP result = var->new_store(read_set) ;
+      File2LocalOrder(result,read_set,new_store,offset,dist,MPI_COMM_WORLD) ;
+      // Copy results into container
+      if(read_set == EMPTY) {
+        read_set = result->domain() ;
+        var->allocate(read_set) ;
+      }
+      var->copy(result,read_set) ;
+    } else {
+
+      if(read_set == EMPTY) {
+        read_set = new_store->domain() ;
+        var->allocate(read_set) ;
+      }
+      var->copy(new_store,read_set) ;
+    }
 
     if(MPI_rank == 0)
       H5Gclose(group_id) ;
